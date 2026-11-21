@@ -13,11 +13,16 @@
  * - a GM's browser reads the store;
  * - a player's browser reads its copy (`hiddenStashCopy`, the client setting `mineHiddenStashes`): the hidden stashes of
  *   the characters this player owns, and every hidden stash for the Mastermind's player, to whom a hiding place is
- *   furniture they watched being built (Dawid, 26.08; stash-reach.mjs `openStashesHere` keeps that exception). A finder
- *   reaches a stash they found through their `found` list and the GMs' judgement, as before (stash-reach.mjs
- *   `stealFromVault` asks the GMs' copy of the list).
+ *   furniture they watched being built (Dawid, 26.08; stash-reach.mjs `openStashesHere` keeps that exception); and,
+ *   since 1.2.123, the hidden stashes this player's characters FOUND - each row whose `foundKey` stands on a found list
+ *   of theirs as the GMs hold it (`foundRowsFor`). Without them a finder's browser held no row of the stash they had
+ *   found, so `openStashesHere` had nothing to keep and the sheet and Rifle showed nothing (the auditor's
+ *   r122-ITEMS-R-3, a regression of 1.2.122's CORE-25: until then the region carried every hidden entry to every
+ *   browser). A player who found nothing is sent no row of anyone else's: the secrecy CORE-25 bought stands. Rifle is
+ *   still judged by the GMs (stash-reach.mjs `stealFromVault` asks the GMs' copy of the list).
  *
- * The copy is sent by a GM's browser to each owner when a row of theirs changes (`tellHiddenStashes`), to every
+ * The copy is sent by a GM's browser to each owner, and each finder, when a row of theirs changes (`tellHiddenStashes`),
+ * to a character's players when its found list changes (a find, a reset's cut: the `updateActor` watch below), to every
  * connected player after a restore (`retellHiddenStashes`) and to a player who asks at their load or at a primary's
  * (`askForHiddenStashes`). A world from before 1.2.122 is lifted once by migrate.mjs `liftHiddenStashes` (this file's
  * `liftHiddenStashes`): each region entry with `concealed` true, and each legacy `drpgVaultConcealed`, into the store,
@@ -30,6 +35,8 @@ import { isPrimaryGm, primaryGmId, log, error } from "./utils.mjs";
 import { gmStoreByName, readMine, gmStoresQuiet, whenGmStoresAudible, gmStoreStamp } from "./gm-store.mjs";
 
 const SOCKET_EVENT = `module.${MODULE_ID}`;
+/* vault-store.mjs `VAULT_FLAGS.found`, spelt here: vault-store.mjs imports this file (R161). */
+const FOUND_FLAG = "drpgStashesFound";
 const ACTION_ROWS = "stash.hidden";
 const ACTION_ASK = "stash.hiddenAsk";
 
@@ -112,11 +119,37 @@ export async function renameHiddenStashes(sceneId, from, to) {
 
 /* ------------------------------ the owners' copy ------------------------------ */
 
-/** The players who own `actorId`, and the Mastermind's player, who sees every hidden stash. */
+/** The players who own `actorId`, the players of a character who found one of its stashes, and the Mastermind's player. */
 async function readersOf(actorId) {
-    const actor = game.actors.get(actorId);
-    const owners = (game.users ?? []).filter(u => !u.isGM && actor?.testUserPermission?.(u, "OWNER")).map(u => u.id);
-    return [...new Set([...owners, ...(await mastermindPlayers())])];
+    const ownersOf = actor => (game.users ?? []).filter(u => !u.isGM && actor?.testUserPermission?.(u, "OWNER")).map(u => u.id);
+    const owners = ownersOf(game.actors.get(actorId));
+    const finders = [];
+    const found = await foundListsNow();
+    for (const actor of game.actors ?? []) {
+        if (actor.id !== actorId && found(actor).some(key => String(key).endsWith(`::${actorId}`))) finders.push(...ownersOf(actor));
+    }
+    return [...new Set([...owners, ...finders, ...(await mastermindPlayers())])];
+}
+
+/* Each character's found list as the GMs hold it (sheet-audit.mjs `flagsHeldNow`: a player's own write is put back), read
+   by vault-store.mjs `stashesFoundBy` - both by `import()`: vault-store.mjs imports this file (R161). */
+async function foundListsNow() {
+    const [{ stashesFoundBy }, { flagsHeldNow }] = await Promise.all([import("./vault-store.mjs"), import("./sheet-audit.mjs")]);
+    return actor => stashesFoundBy(flagsHeldNow(actor) ?? actor);
+}
+
+/* The hidden rows the characters in `actors` found (r122-ITEMS-R-3): `{ actorId: [{ sceneId, room }] }`, only of a row
+   whose found key - vault-store.mjs `foundKey`, `<sceneId>::<room>::<ownerId>` - stands on one of their lists. */
+async function foundRowsFor(actors) {
+    const found = await foundListsNow();
+    const keys = new Set(actors.flatMap(actor => found(actor)));
+    const out = {};
+    if (!keys.size) return out;
+    for (const row of hiddenStashRows()) {
+        if (!keys.has(`${row.sceneId}::${row.room}::${row.actorId}`)) continue;
+        (out[row.actorId] ??= []).push({ sceneId: row.sceneId, room: row.room });
+    }
+    return out;
 }
 
 /** The players of the Mastermind (mastermind.mjs reads the GMs' record). */
@@ -147,6 +180,15 @@ async function rowsFor(userId) {
     }
     for (const row of hiddenStashRows()) {
         if (rows[row.actorId]) rows[row.actorId].push({ sceneId: row.sceneId, room: row.room });
+    }
+    // The rows this player's characters found, of characters they do not own (r122-ITEMS-R-3). A character no longer
+    // named is dropped from the copy whole (gm-stores.mjs `offersCombine`: a held stamp the answer leaves out).
+    if (!all) {
+        for (const [actorId, list] of Object.entries(await foundRowsFor(actors))) {
+            if (rows[actorId]) continue;
+            rows[actorId] = list;
+            stamps[actorId] = now;
+        }
     }
     return { rows, stamps };
 }
@@ -222,6 +264,17 @@ export function registerHiddenStashes() {
         if (!game.user?.isGM) askForHiddenStashes();
     });
     Hooks.on("drpgPrimaryReady", primary => askForHiddenStashes(primary));
+    /* A FOUND LIST CHANGED (r122-ITEMS-R-3): a find written by `resolveStashSearch`, a reset's cut, a GM's correction. The
+       finder's players are sent their copy again, so the stash they found is a row on their browser at once. Asked on
+       the primary alone, the one browser that sends. */
+    Hooks.on("updateActor", (actor, changes) => {
+        if (!isPrimaryGm()) return;
+        const flags = changes?.flags?.[MODULE_ID];
+        // The key itself, or a deletion's spelling of it (a prefix before the name: read, never written here, R152).
+        if (!flags || !Object.keys(flags).some(key => key.endsWith(FOUND_FLAG) && key.length <= FOUND_FLAG.length + 2)) return;
+        const owners = (game.users ?? []).filter(u => !u.isGM && actor?.testUserPermission?.(u, "OWNER")).map(u => u.id);
+        Promise.all(owners.map(sendTo)).catch(err => error("Could not tell a finder the stash they found", err));
+    });
     // Who the Mastermind is decides who reads every row: a change of the pick sends every player their copy again.
     Hooks.on("clientSettingChanged", key => {
         if (key === `${MODULE_ID}.mastermind` && isPrimaryGm()) {

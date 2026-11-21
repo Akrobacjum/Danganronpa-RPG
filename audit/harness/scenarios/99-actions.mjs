@@ -241,6 +241,43 @@ export async function run({ gm, p1, p2, check, phase, settle, repoUrl, IDS, relo
             flatSet?.pieces > 0 && Boolean(flatSet.passage) && FLAT.stash > 3 && FLAT.passage > 3 && flat.stash?.length === 3 && flat.passage?.length === 3 && flatOff.length === 0,
             J({ flatSet, FLAT, flat }));
 
+        /* A FOUND STASH ON THE FINDER'S OWN PAGE (1.2.123; the auditor's r122-ITEMS-R-3, a regression of 1.2.122's CORE-25).
+           Since CORE-25 a hidden stash is a row of the GMs' store, and a player's copy held only their own characters' rows,
+           so a finder's browser had no row of the stash its character found: `openStashesHere` kept nothing and the sheet
+           and Rifle showed nothing. Daichi's stash (nobody's player) hidden in Dorm A through `setStash`, and Aiko's found
+           list written as `resolveStashSearch` writes it. Read on p1's page: `openStashesHere(Aiko)` names Daichi (Rifle's
+           list is that list, stash-reach.mjs `rifleStashDialog`). Read on p2's page (Botan's, who found nothing): no row of
+           Daichi's in its copy and none at Dorm A, after every player was sent a fresh copy (`retellHiddenStashes`, as a
+           reload's ask: without it p2 is told nothing of Daichi's row and a leak would not reach it - mutant m3 of
+           21.11.2026 survived so). Both put back after. Red at 14bb0d92: p1's list empty. */
+        phase("a found stash on the finder's own page", { flow: "action-roll" });
+        const foundSet = await gm.eval(`const V = ${imp("vault-store.mjs")}, a = game.actors.get("${IDS.aiko}");
+            globalThis.__s99found = { was: stableOf(V.stashesIn("Dorm A", canvas.scene).find(e => e.actorId === "${IDS.daichi}") ?? null),
+                found: foundry.utils.deepClone(a.getFlag("danganronpa-rpg", V.VAULT_FLAGS.found) ?? null) };
+            function stableOf(e) { return e ? { concealed: Boolean(e.concealed) } : null; }
+            await V.setStash("Dorm A", "${IDS.daichi}", { present: true, concealed: true, scene: canvas.scene });
+            await a.setFlag("danganronpa-rpg", V.VAULT_FLAGS.found, [V.foundKey("Dorm A", "${IDS.daichi}", canvas.scene)]);
+            await new Promise(r => setTimeout(r, 800));
+            // Every connected player sent a fresh copy, as a reload's ask or a restore sends it, so p2's is read after it.
+            const retold = await (${imp("hidden-stashes.mjs")}).retellHiddenStashes();
+            await new Promise(r => setTimeout(r, 1200));
+            return { hidden: Boolean(V.stashesIn("Dorm A", canvas.scene).find(e => e.actorId === "${IDS.daichi}")?.concealed), retold };`, { timeout: 60000 });
+        await settle(800);
+        const finderSees = await p1.eval(`const R = ${imp("stash-reach.mjs")};
+            return R.openStashesHere(game.actors.get("${IDS.aiko}")).map(e => e.owner.id);`, { timeout: 30000 });
+        const otherSees = await p2.eval(`const H = ${imp("hidden-stashes.mjs")}, { readMine } = ${imp("gm-store.mjs")};
+            return { copy: Object.hasOwn(readMine(H.HIDDEN_STASHES) ?? {}, "${IDS.daichi}"), at: H.hiddenStashesAt(canvas.scene.id, "Dorm A") };`, { timeout: 30000 });
+        await gm.eval(`const V = ${imp("vault-store.mjs")}, a = game.actors.get("${IDS.aiko}"), f = globalThis.__s99found ?? {};
+            if (f.found === null) await a.unsetFlag("danganronpa-rpg", V.VAULT_FLAGS.found);
+            else await a.setFlag("danganronpa-rpg", V.VAULT_FLAGS.found, f.found);
+            if (f.was === null) await V.setStash("Dorm A", "${IDS.daichi}", { present: false, scene: canvas.scene });
+            else await V.setStash("Dorm A", "${IDS.daichi}", { concealed: f.was.concealed, scene: canvas.scene });
+            return true;`, { timeout: 60000 });
+        check("a stash Aiko found, hidden in the GMs' store, is on p1's own page (openStashesHere, Rifle's list), and p2, who found nothing, holds no row of it",
+            foundSet?.hidden === true && foundSet.retold >= 2 && Array.isArray(finderSees) && finderSees.includes(IDS.daichi)
+                && otherSees?.copy === false && Array.isArray(otherSees?.at) && !otherSees.at.includes(IDS.daichi),
+            J({ foundSet, finderSees, otherSees }));
+
         /* PALM'S FRISK IN BOTH MODES (E39, 14.11.2026; the A11 amendment: "driveAction covers Frisk in both modes"; the gap
            STATUS named: 99 drove Palm only to its refusal). Botan (p2's) stands beside Aiko in Dorm A with a marked comb, and
            p1 frisks him from its own page, the Palm window answered as 40-flow's open Frisk answers it (the Frisk, Botan, the
@@ -370,6 +407,27 @@ export async function run({ gm, p1, p2, check, phase, settle, repoUrl, IDS, relo
                listed it - the class E101 R2 closed for the sight. Read on p1 after every message is deleted, and after a reload
                of p1's page, which asks the GMs for its sight again. */
             if (secret) {
+                /* WHEN IT WAS COMPLETED, ON BOTH BROWSERS (1.2.123; the auditor's r122-ITEMS-R-1 and R-2, regressions of
+                   ITEM-38). R-1: the insider's page reads the completion the GMs hold (facilities.mjs `completedAtOf`, from
+                   the sight copy), where `receiveSight` dropped it and the timed action stood for good. R-2: a Save of the
+                   action in the editor (`setProjectFacility`, facility-editor.mjs's road) keeps the GMs' completedAt, where
+                   it read projectMeta alone and stamped now; read against a time written first that no Save could stamp
+                   (seven times of day ahead). Red at 14bb0d92: p1 null, and the Save's stamp now. */
+                const doneAt = await gm.eval(`return (${imp("facilities.mjs")}).completedAtOf(${J(made.id)});`);
+                await settle(800);
+                const doneOnP1 = await p1.eval(`return (${imp("facilities.mjs")}).completedAtOf(${J(made.id)});`);
+                check("facilities: a completed secret project's completion time is on its insider's page as the GMs hold it (r122-ITEMS-R-1)",
+                    Boolean(doneAt) && J(doneOnP1) === J(doneAt), J({ doneAt, doneOnP1 }));
+                const kept = await gm.eval(`const P = ${imp("projects.mjs")}, F = ${imp("facilities.mjs")}, copy = v => JSON.parse(JSON.stringify(v ?? null));
+                    const was = copy(F.completedAtOf(${J(made.id)})), mark = was ? { ...was, at: Number(was.at) + 7 } : null;
+                    if (mark) await P.applyProjectChange(${J(made.id)}, { meta: { completedAt: mark } }, { by: { kind: "gm" } });
+                    const before = copy(F.completedAtOf(${J(made.id)}));
+                    await F.setProjectFacility(${J(made.id)}, F.projectFacilityOf(${J(made.id)}).facility);
+                    const after = copy(F.completedAtOf(${J(made.id)}));
+                    if (was) await P.applyProjectChange(${J(made.id)}, { meta: { completedAt: was } }, { by: { kind: "gm" } });
+                    return { mark, before, after };`, { timeout: 30000 });
+                check("facilities: a Save of a completed secret project's action in the editor keeps its completion time (r122-ITEMS-R-2)",
+                    Boolean(kept?.mark) && J(kept.before) === J(kept.mark) && J(kept.after) === J(kept.mark), J(kept));
                 await gm.eval(`await ChatMessage.deleteDocuments(game.messages.map(m => m.id)); return true;`, { timeout: 30000 });
                 await settle(1500);
                 const read = () => p1.eval(`return (${imp("action-facilities.mjs")}).facilitiesRows(game.actors.get("${IDS.aiko}")).some(r => r.label === ${J(label)});`);
