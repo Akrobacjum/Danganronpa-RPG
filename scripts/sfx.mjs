@@ -72,7 +72,7 @@
  *    rather than hanging, and refuses before it asks.
  */
 
-import { MODULE_ID, FLAGS, SFX_EVENTS, SFX_CATEGORIES, SFX_SLIDERS, SFX_VARIATION, GAME_WINDOWS } from "./config.mjs";
+import { MODULE_ID, FLAGS, SFX_EVENTS, SFX_CATEGORIES, SFX_SLIDERS, SFX_VARIATION, GAME_WINDOWS, MONOCUB_QUIET_OPTION } from "./config.mjs";
 import { SETTINGS, getSetting, setSetting } from "./settings.mjs";
 import { log, error, playerOwns, esc, plural, markLanguage } from "./utils.mjs";
 import { wordsOf, secretHtml, isVeiled, SECRET_FLAG } from "./secret.mjs";
@@ -335,9 +335,11 @@ async function onIncidentChanged() {
  * Heard by their player and by the GMs - this one IS the GM's business, since
  * a Monocub is a GM-side promotion and the panel that made it is theirs.
  */
-function onActorFlagged(actor, changes) {
+function onActorFlagged(actor, changes, options) {
     const changed = foundry.utils.getProperty(changes, `flags.${MODULE_ID}.${FLAGS.monocub}`);
     if (changed === undefined) return;
+    // A quiet change of the mark - the season reset, a revive's quiet road - sounds nothing (1.2.122, COMM-48).
+    if (options?.[MONOCUB_QUIET_OPTION]) return;
     if (game.user.isGM || playerOwns(actor)) playSfx("monocub");
 }
 

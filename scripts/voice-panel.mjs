@@ -125,6 +125,41 @@ function followTheKey() {
 }
 
 /**
+ * THE MICROPHONE NOTE FOLLOWS THE BROWSER (1.2.122, the rest of the audit's REFR-55). The note that asks for the
+ * microphone was drawn once, when the fieldset was built, and stayed after the browser allowed it. While it stands, the
+ * devices are read again on the browser's `devicechange`, on the microphone permission's `change` (where the browser
+ * answers `navigator.permissions.query`) and on Foundry's `rtcSettingsChanged`; once the microphones are named the note
+ * gives way to their list, which the fieldset's one `change` listener writes like the others. Which of the three a real
+ * browser raises when the microphone is allowed is not read at a table (R8284 raises `devicechange` on a stand-in).
+ */
+function followTheMic(fieldset, client, settings, label) {
+    const note = fieldset.querySelector(".drpg-voice-panel-mic-note");
+    if (!note) return;
+    const media = globalThis.navigator?.mediaDevices;
+    let permission = null, hook = null, done = false;
+    const stop = () => {
+        done = true;
+        media?.removeEventListener?.("devicechange", recheck);
+        permission?.removeEventListener?.("change", recheck);
+        if (hook !== null) Hooks.off("rtcSettingsChanged", hook);
+    };
+    async function recheck() {
+        if (done) return;
+        const sources = await devices(client, "getAudioSources");
+        if (done || unnamed(sources)) return;
+        if (note.isConnected) note.replaceWith(deviceRow(label, "voice:audioSrc", sources, settings?.client?.audioSrc));
+        stop();
+    }
+    media?.addEventListener?.("devicechange", recheck);
+    hook = Hooks.on("rtcSettingsChanged", () => { recheck(); });
+    globalThis.navigator?.permissions?.query?.({ name: "microphone" }).then(status => {
+        if (done) return;
+        permission = status;
+        status?.addEventListener?.("change", recheck);
+    }).catch(() => { /* a browser that does not answer for the microphone has the other two */ });
+}
+
+/**
  * The Voice fieldset, wired: every change writes at once through `writeVoiceSetting`.
  *
  * @param {object} [facts]  handed in by R542
@@ -142,6 +177,7 @@ export async function voiceFieldset({ client = game.webrtc?.client, settings = g
 
     if (unnamed(sources)) fieldset.append(node("p", "notes drpg-voice-panel-mic-note", t("micNote")));
     else fieldset.append(deviceRow(t("mic"), "voice:audioSrc", sources, stored.audioSrc));
+    followTheMic(fieldset, client, settings, t("mic"));
     if (Object.keys(sinks).length) fieldset.append(deviceRow(t("output"), "voice:audioSink", sinks, stored.audioSink));
 
     const mode = node("div", "drpg-voice-panel-mode");

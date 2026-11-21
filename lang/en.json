@@ -1118,7 +1118,7 @@
       "autoReadied": "“{item}” is now in your hand: you can keep only one piece of {group} stowed.",
       "useGone": "“{item}” is no longer in your hands, so nothing happens.",
       "rulingOpen": "A ruling on “{item}” is already being made. Answer this card once it is done.",
-      "tablesOpenNoPreset": "The item tables were already open, so the card's category, tier, room, and name are not filled in. Close them and press Create an item again.",
+      "tablesOpenNoPreset": "The open item tables hold a new item being typed, so the card's details were not filled in. Finish or clear it, then press Create an item again.",
       "rulingGone": "Closed by {name}: the item is used up or no longer at hand, so there is nothing to rule on.",
       "kindFromTables": "By the item tables, “{item}” is {kind}: that decides what it will restore.",
       "itemWorks": "Works: apply an effect",

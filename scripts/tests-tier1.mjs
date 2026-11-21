@@ -17631,6 +17631,44 @@ const INVARIANTS = [
         equal(stableJson(read), stableJson([true, true]), "the push-to-talk line did not follow the binding ([the old key at the build, the new one after the bindings' write])");
     }],
 
+    ["R8284 - the Voice section's microphone note follows the browser: drawn while the browser has not named its microphones, it gives way to the microphone list once a device change finds them named, without the settings window opened again (voice-panel.mjs `voiceFieldset`, `followTheMic`; 1.2.122, the rest of the audit's REFR-55)", async () => {
+        /*
+         * The audit of 1.2.118 (REFR-55), the device half: the note "allow the microphone" was drawn once, when the fieldset
+         * was built, and stayed after the browser allowed it. A fieldset built with a stand-in client whose microphones
+         * are unnamed, then named; the browser's device list stood in (an own `mediaDevices` on `navigator`, an
+         * element standing in for the EventTarget, taken off after) and its `devicechange` raised, once still unnamed. Nothing is written. Whether a real browser raises
+         * `devicechange` or the permission's `change` when the microphone is allowed is not read here: LIVE. Red at
+         * d4d1ddec: the note still drawn.
+         */
+        const P = await import("./voice-panel.mjs");
+        let named = false;
+        const client = { getAudioSources: async () => (named ? { R8284Mic: "R8284 microphone" } : { "": "" }), getAudioSinks: async () => ({}) };
+        const own = Object.getOwnPropertyDescriptor(globalThis.navigator, "mediaDevices");
+        const media = document.createElement("div");
+        Object.defineProperty(globalThis.navigator, "mediaDevices", { value: media, configurable: true });
+        let fieldset = null, read = null;
+        try {
+            fieldset = await P.voiceFieldset({ client, settings: { client: {} }, key: null });
+            document.body.append(fieldset);
+            const state = () => [Boolean(fieldset.querySelector(".drpg-voice-panel-mic-note")),
+                [...fieldset.querySelectorAll('select[name="voice:audioSrc"] option')].map(o => o.value)];
+            const before = state();
+            media.dispatchEvent(new Event("devicechange"));
+            await settle();
+            const stillUnnamed = state();
+            named = true;
+            media.dispatchEvent(new Event("devicechange"));
+            await until(() => !fieldset.querySelector(".drpg-voice-panel-mic-note"), 2000);
+            read = [before, stillUnnamed, state()];
+        } finally {
+            if (own) Object.defineProperty(globalThis.navigator, "mediaDevices", own);
+            else delete globalThis.navigator.mediaDevices;
+            fieldset?.remove();
+        }
+        equal(stableJson(read), stableJson([[true, []], [true, []], [false, ["R8284Mic"]]]),
+            "the microphone note did not give way to the microphones once they were named, or gave way before ([[the note drawn, the microphones listed] at the build, after a device change still unnamed, after one named])");
+    }],
+
     ["R8274 - after the vote has opened, a floor opened again before the verdict plays its own music, an Objection's and a debate's too, and the vote's comes back when it ends (music-states.mjs `voteMusicPlays`; 1.2.122, the audit's STG-95)", async () => {
         /*
          * The audit of 1.2.118 (STG-95): voteMusicPlays held from the vote's first opening to the verdict, and its row
@@ -17760,31 +17798,38 @@ const INVARIANTS = [
         equal(stableJson(read), stableJson([false, true]), "a player's gmPopup raised a GM's notice, or a GM's did not ([the player's card drawn, the GM's drawn])");
     }],
 
-    ["R8279 - one speaker event of the Room the tile follows reads the tile's hold once: the speaker's word and the controls' word share it (voice-tile.mjs `voiceStep`; 1.2.122, the audit's COMM-47)", async () => {
+    ["R8279 - one speaker event of the Room the tile follows reads the tile's hold once: the speaker's word, the controls' word and, with the Room connected, the microphone's state share it (voice-tile.mjs `voiceStep`, `paintControls`; 1.2.122, the audit's COMM-47)", async () => {
         /*
          * The audit of 1.2.118 (COMM-47): each step painted the speaker (paintWord asks watch.hold, micHold) and then the
          * controls (paintWord again), each micHold scanning every token of every scene twice. The tile's rig (R538's,
-         * `voiceTileRig`) with its hold counted and the controls painted on each step; one account speaks. Red at
-         * 21bf5d18: two reads for the step.
+         * `voiceTileRig`) with its hold counted, its microphone's own reading counted, and the controls painted on each step;
+         * one account speaks in the rig's Room, which reads connected. Red at 21bf5d18: two reads of the hold for the step;
+         * and at d4d1ddec the microphone's own reading asked besides.
          */
         needs(world.atLeast("playerAccounts", 1), "a speaker in the stand-in Room");
         const V = await import("./voice-tile.mjs");
         const [b] = game.users.filter(u => u.id !== game.user.id);
-        let asked = 0;
-        const rig = voiceTileRig(V, [b], { hold: () => { asked++; return null; }, controls: (w, g) => V.paintControls(w, g), gm: () => false });
+        let asked = 0, micAsked = 0;
+        const rig = voiceTileRig(V, [b], { hold: () => { asked++; return null; }, mic: () => { micAsked++; return V.micState({ hold: null }); },
+            controls: (w, g) => V.paintControls(w, g), gm: () => false });
         const room = rig.makeRoom([b.id]);
         V.attachRoom(rig.clientOf(room), rig.watch);
         document.body.append(rig.tile);
         let read = null;
         try {
             asked = 0;
+            micAsked = 0;
             rig.speak(room, [b.id]);
-            read = asked;
+            read = [asked, micAsked];
+            // Outside a step (a hook's repaint) the microphone asks its own reading again: a different question.
+            micAsked = 0;
+            V.paintControls(rig.watch);
+            read.push(micAsked);
         } finally {
             V.detachRoom(rig.watch);
             rig.tile.remove();
         }
-        equal(read, 1, "one speaker event read the tile's hold more than once (the reads counted)");
+        equal(stableJson(read), stableJson([1, 0, 1]), "one speaker event read the tile's hold more than once, or a repaint outside a step did not ask the microphone's own ([the hold's reads, the microphone's own readings in the step, and in a repaint after])");
     }],
 
     ["R8280 - a Spectator's camera dock names a masked killer as the Spectator's map does; another player's reads \"?\" (camera-view.mjs `maskRuleOf`; 1.2.122, the audit's r121-M-6)", async () => {

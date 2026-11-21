@@ -1424,11 +1424,8 @@ async function ruleCreateItem(action, data) {
     // and the room, so the form opens with all three answered and the GM
     // writes the one thing only they know: what was actually there.
     const { openItemTables } = await import("./tables.mjs");
-    /* The item tables already open are raised as they stand (tables-editor.mjs `openItemTables`), the card's category,
-       tier, room and name not carried into them: said so (1.2.122, the audit's CTRL-25), where nothing did and the GM
-       retyped them. */
-    const { alreadyOpen } = await import("./live.mjs");
-    if (alreadyOpen("drpg-window-tables")) ui.notifications.warn(game.i18n.localize("DRPG.Items.tablesOpenNoPreset"));
+    /* The item tables already open take the card's preset, opened again on it, unless something is typed in their Add
+       an item; then they stay as they are and the GM is told (tables-editor.mjs `openItemTables`; 1.2.122, CTRL-25). */
     return openItemTables({
         preset: {
             category: data.category || null,

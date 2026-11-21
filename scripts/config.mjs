@@ -3467,6 +3467,12 @@ export const LEVEL_UP_TRAIT_RESOURCES = Object.freeze({
  * in the whole system with no trait behind it, so it is built as a flat 2d12
  * in monocub.mjs rather than forced through a trait it does not have.
  */
+/**
+ * The update option a quiet change of the Monocub mark carries (1.2.122, the audit's COMM-48): monocub.mjs `setMonocub`
+ * writes the flag with it when `quiet`, and sfx.mjs's `updateActor` listener plays nothing for an update holding it.
+ */
+export const MONOCUB_QUIET_OPTION = "drpgMonocubQuiet";
+
 export const MONOCUB = {
     /** Same as a living student's. Refilled by the same reset pass. */
     actions: STARTING.actions,

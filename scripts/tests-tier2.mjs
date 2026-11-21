@@ -88859,6 +88859,100 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             + "the same window]; [the key written meanwhile kept by the next change, that row's marker]; [two changes in one tick both stored and saved]; "
             + "[the window not rebuilt]; [Close closes]; [the toasts while it was open]; [the map after]; [the map after the test's own restore]");
     }],
+    ["1.2.122 COMM-21 - a GM's Give on a Monocub's Ask for Hope gives at most what the card offers, 2, whatever number the card's data names: the card is written on the Monocub's player's browser, so its `n` is a claim (monocub.mjs `answerHopeAsk`, `ASK_GIVE_MAX`; the rest of the audit's COMM-21)", async () => {
+        /*
+         * The audit of 1.2.118, COMM-21's rest: a ruling card's data is its writer's, and since 1.2.122 a ruling that acts
+         * on a character holds it to one the card's writer owns (messenger-app.mjs `writerOwns`). The Monocub's own Ask
+         * names its own Monocub, so that check passes it, and `cubGiveHope` handed `data.n` to `answerHopeAsk` unbounded:
+         * a console's copy of the card with Give 50 turned a GM's press into all of that GM's Despair. On this GM, five
+         * Despair in its pool, none owed, a Monocub with no Hope: `answerHopeAsk(cub, 50)`. Read: the Monocub's Hope after.
+         * Everything put back as the Ask for Hope test (E72 C5) puts it. Red at 21bf5d18: Hope 5.
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 1), "a Monocub with a player");
+        const M = await import("./monocub.mjs");
+        const D = await import("./despair.mjs");
+        const { cubStore, despairOwedStore } = await import("./gm-stores.mjs");
+        const { livingStudents } = await import("./chapter.mjs");
+        const { trustedWrite } = await import("./resource-guard.mjs");
+        const { resourceMax } = await import("./character.mjs");
+        const player = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const [cub] = livingStudents().filter(player);
+        ok(D.monokumas().some(u => u.id === game.user.id), "this GM holds no Despair pool to give from - this would measure nothing");
+        must(resourceMax(cub, "hope") >= 5, "the Monocub's Hope maximum is under 5 - the bound would not be read");
+        const was = [cub.system.resources.hope.value];
+        const despairWas = D.getDespair(game.user.id) ?? null;
+        const rowWas = foundry.utils.deepClone(cubStore?.get(cub.id) ?? null);
+        const had = new Set(game.messages.contents.map(m => m.id));
+        const read = {};
+        try {
+            await cub.setFlag(MODULE_ID, FLAGS.monocub, true);
+            await trustedWrite(cub, { "system.resources.hope.value": 0 }, { reason: "gmRuling" });
+            await despairOwedStore.drop(game.user.id);
+            await D.setDespair(game.user.id, 5);
+            await settle();
+            await M.answerHopeAsk(cub, 50);
+            await settle();
+            read.given = [cub.system.resources.hope.value, M.ASK_GIVE_MAX];
+        } finally {
+            await cub.unsetFlag(MODULE_ID, FLAGS.monocub);
+            await cub.update({ "system.resources.hope.value": was[0] });
+            await despairOwedStore.drop(game.user.id);
+            if (despairWas !== null) await D.setDespair(game.user.id, despairWas);
+            if (cubStore) {
+                if (rowWas) await cubStore.patch(cub.id, rowWas);
+                else if (cubStore.has(cub.id)) await cubStore.drop(cub.id);
+            }
+            for (const m of game.messages.contents.filter(m => !had.has(m.id))) await m.delete();
+        }
+        equal(stableJson(read), stableJson({ given: [2, 2] }),
+            "a Give naming 50 gave more than the card offers ({given: [the Monocub's Hope, ASK_GIVE_MAX]})");
+    }],
+    ["1.2.122 COMM-48 - a quiet change of the Monocub mark sounds nothing, as it toasts nothing: setMonocub's `quiet` rides on the flag's update as its option, and the Monocub sound's listener plays only for an update without it (monocub.mjs `setMonocub`, sfx.mjs `onActorFlagged`; the audit's COMM-48)", async () => {
+        /*
+         * The audit of 1.2.118, COMM-48: the season reset clears each cub with `setMonocub(actor, false, { quiet: true })`,
+         * and `quiet` held back only the toast - the flag's write reached sfx.mjs's `updateActor` listener like any other,
+         * so a reset of a season with three Monocubs rang the chime up to three times on each GM. Read here: the listener
+         * the module registered, handed a student's own mark change with and without the option (nothing written to the
+         * actor), the Monocub row mapped to a file and this browser's Sound slider above 0 for the run and put back; and
+         * setMonocub's source for the option on its write. Whether Foundry 14 hands an update's own option to the other
+         * browsers' `updateActor` is not read at a table (the harness does): a live check this line proposes. Red at 21bf5d18: the quiet
+         * change played, and setMonocub's write carried no option.
+         */
+        needs(world.atLeast("livingStudents"), "a student's mark change is handed to the listener");
+        const PC = await import("./perf-counters.mjs");
+        const SFX = await import("./sfx.mjs");
+        const listener = (Hooks.events?.updateActor ?? []).find(entry => entry.fn?.name === "onActorFlagged")?.fn;
+        must(typeof listener === "function", "sfx.mjs registered no updateActor listener named onActorFlagged - this would measure nothing");
+        const { MONOCUB_QUIET_OPTION } = await import("./config.mjs");
+        must(typeof MONOCUB_QUIET_OPTION === "string", "config.mjs exports no MONOCUB_QUIET_OPTION");
+        const [actor] = cast(1);
+        const map = foundry.utils.deepClone(getSetting(SETTINGS.sfxMap) ?? {});
+        const volumes = foundry.utils.deepClone(getSetting(SETTINGS.sfxVolumes) ?? {});
+        const asked = () => (PC.snapshot()["sfx.played"] ?? 0) + (SFX.diagnoseSfx().droppedBeforeFirstClick ?? 0);
+        const change = { _id: actor.id, flags: { [MODULE_ID]: { monocub: false } } };
+        const read = {};
+        try {
+            await game.settings.set(MODULE_ID, SETTINGS.sfxMap, { ...map, monocub: "sounds/notify.wav" });
+            await SFX.setSfxVolume("sound", 0.8);
+            await settle();
+            await until(() => false, 200);
+            let before = asked();
+            listener(actor, change, { [MONOCUB_QUIET_OPTION]: true }, game.user.id);
+            read.quiet = asked() - before;
+            await until(() => false, 200);
+            before = asked();
+            listener(actor, change, {}, game.user.id);
+            read.loud = asked() - before;
+        } finally {
+            await game.settings.set(MODULE_ID, SETTINGS.sfxMap, map);
+            await game.settings.set(MODULE_ID, SETTINGS.sfxVolumes, volumes);
+            await settle();
+        }
+        const src = stripComments((await moduleSources()).get("monocub.mjs") ?? "");
+        read.carried = /MONOCUB_QUIET_OPTION\]: true/.test(fnSource(src, "setMonocub"));
+        equal(stableJson(read), stableJson({ quiet: 0, loud: 1, carried: true }),
+            "a quiet mark change still rang, or a plain one did not ({quiet, loud: sounds asked of the audio layer; carried: setMonocub's write carries the option})");
+    }],
     ["1.2.122 REFR-25 - the Sound window's Music rows follow the world's playlists, and its two switches follow another GM's write (sound-panel.mjs `openSoundDialog`'s regions, `wireSoundSwitches`; the audit's REFR-25)", async () => {
         /*
          * The audit of 1.2.118 (REFR-25, the residue its 1.2.119 check left): the Music rows' region was woken by the map
@@ -102614,13 +102708,13 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             + "nothing: Stop the track's answer with nothing playing; assistant: [primary, Play's answer, Stop's answer, the cue playing, notices naming the primary]; "
             + "takeover: [the held ambient playing, still flagged] after this browser became the primary})");
     }],
-    ["1.2.122 CTRL-25 - Create an item on a Search card, with the item tables already open, says the card's details were not carried (messenger-app.mjs `ruleCreateItem`; tables-editor.mjs `openItemTables`; the audit's CTRL-25)", async () => {
+    ["1.2.122 CTRL-25 - Create an item on a Search card, with the item tables already open, opens them again on the card's category, tier, room and name when nothing is typed in their New item tab, and with something typed there leaves them as they are and says the card's details were not carried (messenger-app.mjs `ruleCreateItem`; tables-editor.mjs `openItemTables`; the audit's CTRL-25)", async () => {
         /*
-         * The audit of 1.2.118 (CTRL-25): openItemTables answers RAISED for a window already open, before the preset is
-         * read, so the GM got the tables as they were and nothing said the card's category, tier, room and name were not
-         * filled in. The item tables opened, then the ruling pressed through `runCallAction` with a Search card's data; the
-         * warnings caught; the windows closed. The window taking the preset itself is tables-editor.mjs's (not this line's
-         * file), so the GM is told instead. Red at 21bf5d18: no warning.
+         * The audit of 1.2.118 (CTRL-25): openItemTables answered RAISED for a window already open, before the preset was
+         * read, so the GM got the tables as they were and retyped the card's category, tier, room and name. The item tables
+         * opened; the ruling pressed through `runCallAction` with a Search card's data (a), then, with the name cleared and
+         * text typed into the New item tab's description, pressed again naming another item (b). Read each time: the windows open, the New item
+         * tab's name, the warnings. The windows closed after. Red at 21bf5d18: (a) the name empty, one warning.
          */
         needs(env.dialogs(), "the item tables are drawn");
         must(game.user.isGM, "the item tables are a GM's");
@@ -102628,21 +102722,37 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         const T = await import("./tables.mjs");
         const warns = [], realWarn = ui.notifications.warn;
         const isTables = app => app.element?.classList?.contains("drpg-window-tables");
-        let first = null;
+        const open = () => [...foundry.applications.instances.values()].filter(app => isTables(app) && app.rendered && app.element?.isConnected);
+        const nameNow = () => open()[0]?.element?.querySelector('[name="newName"]')?.value ?? null;
+        const warned = () => warns.filter(w => w === game.i18n.localize("DRPG.Items.tablesOpenNoPreset")).length;
+        const waits = [];
+        const read = {};
         try {
-            first = Promise.resolve().then(() => T.openItemTables()).catch(() => null);
-            must(await until(() => [...foundry.applications.instances.values()].some(app => isTables(app) && app.rendered), 6000), "the item tables did not open");
+            waits.push(Promise.resolve().then(() => T.openItemTables()).catch(() => null));
+            must(await until(() => open().length === 1, 6000), "the item tables did not open");
+            const drawn = open()[0];
             ui.notifications.warn = text => { warns.push(String(text)); };
-            await M.runCallAction("createItem", { category: "tool", tier: "1", room: "", want: "SUITE CTRL-25 crowbar" });
+            waits.push(Promise.resolve().then(() => M.runCallAction("createItem", { category: "tool", tier: "1", room: "", want: "SUITE CTRL-25 crowbar" })).catch(() => null));
+            await until(() => open().length === 1 && open()[0] !== drawn && nameNow() === "SUITE CTRL-25 crowbar", 6000);
             await settle();
+            read.a = [open().length, nameNow(), warned()];
+            const text = open()[0]?.element?.querySelector('[name="newText"]');
+            must(text, "the New item tab has no description box - (b) would measure nothing");
+            text.value = "SUITE CTRL-25 half typed";
+            open()[0].element.querySelector('[name="newName"]').value = "";
+            const kept = open()[0];
+            waits.push(Promise.resolve().then(() => M.runCallAction("createItem", { category: "tool", tier: "1", room: "", want: "SUITE CTRL-25 rope" })).catch(() => null));
+            await until(() => warned() > 0, 3000);
+            await settle();
+            read.b = [open().length, open()[0] === kept, nameNow(), warned()];
         } finally {
             ui.notifications.warn = realWarn;
             for (const app of [...foundry.applications.instances.values()].filter(isTables)) await app.close();
-            if (first) await Promise.race([first, wait(3000)]);
+            await Promise.race([Promise.all(waits), wait(3000)]);
             await settle();
         }
-        equal(warns.filter(w => w === game.i18n.localize("DRPG.Items.tablesOpenNoPreset")).length, 1,
-            "Create an item with the item tables open did not say the card's details were not carried");
+        equal(stableJson(read), stableJson({ a: [1, "SUITE CTRL-25 crowbar", 0], b: [1, true, "", 1] }),
+            "the open item tables did not take the card's preset, or took it over typed text ({a, b: [windows open, the same window (b), the New item name, warnings]})");
     }],
     ["1.2.122 REFR-17 - a Despair Call's confirmation follows the Despair its pool owes: a conversion's debt written while the window stands open changes the header's spendable sum (calls.mjs `confirmCall`'s live header; despair.mjs `spendableDespair`; the audit's REFR-17, the header's half)", async () => {
         /*
@@ -102684,6 +102794,54 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             await settle();
         }
         ok(sums.length === 2 && sums[1] !== sums[0], `the confirmation's header did not follow the pool's debt (read "${sums[0]}" then "${sums[1] ?? "-"}")`);
+    }],
+    ["1.2.122 REFR-17 - a Call's picker follows the world while it stands open: Contraband's item rows take an item made meanwhile and drop one deleted, and the row ticked stays ticked while it is still offered (call-pickers.mjs `choose`'s `follow`, `pickItem`; live.mjs `keepLive`'s carry; the rest of the audit's REFR-17)", async () => {
+        /*
+         * The audit of 1.2.118 (REFR-17), the pickers' half: every picker built its rows when it opened and handed
+         * `callWindow` no `live`, so a student who walked out, a project made meanwhile or an item handed over stayed as
+         * drawn until the window was opened again. As the GM, Contraband's picker opened (`pickTarget`, not awaited) with
+         * a student's item made for the run; a second item made on the same student, then the first deleted, with the
+         * second row ticked between. Read: the rows' values after each, and the ticked one. The items and the window
+         * gone after. Red at 21bf5d18: the rows as first drawn.
+         */
+        needs(env.dialogs(), "the picker is drawn");
+        needs(world.atLeast("livingStudents"), "a student whose item Contraband is offered");
+        must(game.user.isGM, "Contraband is a GM's Call");
+        const P = await import("./call-pickers.mjs");
+        const { DESPAIR_CALLS } = await import("./config.mjs");
+        const call = DESPAIR_CALLS.contraband;
+        must(call?.target === "item", "no Contraband Call aimed at an item - this would measure nothing");
+        const [actor] = cast(1);
+        const made = [];
+        const make = async name => {
+            const [item] = await actor.createEmbeddedDocuments("Item", [{ name, type: "loot", flags: { [MODULE_ID]: { category: "tool" } } }]);
+            made.push(item);
+            return item;
+        };
+        const rows = () => [...document.querySelectorAll(".drpg-choice-list input[name='choice']")];
+        const values = () => rows().map(r => r.value);
+        let open = null;
+        const read = {};
+        try {
+            const first = await make("SUITE REFR-17 first");
+            await settle();
+            open = P.pickTarget(actor, call, "despair").catch(() => null);
+            must(await until(() => values().includes(first.uuid), 6000), "the picker did not open with the student's item");
+            const second = await make("SUITE REFR-17 second");
+            read.made = Boolean(await until(() => values().includes(second.uuid), 3000));
+            rows().find(r => r.value === second.uuid).checked = true;
+            await first.delete();
+            made.splice(made.indexOf(first), 1);
+            read.deleted = Boolean(await until(() => !values().includes(first.uuid), 3000));
+            read.ticked = rows().find(r => r.checked)?.value === second.uuid;
+        } finally {
+            for (const app of [...foundry.applications.instances.values()].filter(a => a.element?.querySelector?.(".drpg-choice-list"))) await app.close();
+            if (open) await Promise.race([open, wait(3000)]);
+            for (const item of made) if (actor.items.get(item.id)) await item.delete();
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ made: true, deleted: true, ticked: true }),
+            "Contraband's picker did not follow the student's items, or lost the row ticked ({made, deleted: the rows followed; ticked: the second still ticked})");
     }],
     ["1.2.122 COMM-26 - two restrictions written at the same moment both stand, and a seal or a restriction is a GM's alone on the primary: a player's `call.world` is refused (call-world.mjs `restrict`, `writeCallWorld`; bridge-table.mjs `call.world`; the audit's COMM-26)", async () => {
         /*

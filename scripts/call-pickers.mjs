@@ -289,14 +289,14 @@ async function pickMonocub(ask) {
 
     /* A GM's Despair Call (Fuel a Monocub) names each Monocub's Hope, its sheet's and its purse's (E72 C14); a player's
        Hope Call (a Bribe, E72 C15) names the Monocub alone - the purse is the GMs' and the Monocub's. */
-    const id = await choose(ask, "DRPG.Monocub.who",
-        cubs.map(a => ({
-            value: a.id,
-            label: a.name,
-            hint: ask.kind === "hope" ? "" : game.i18n.format("DRPG.Monocub.hopeShort", { held: cubHopeTotal(a) })
-        })));
+    const rows = () => monocubActors().map(a => ({
+        value: a.id,
+        label: a.name,
+        hint: ask.kind === "hope" ? "" : game.i18n.format("DRPG.Monocub.hopeShort", { held: cubHopeTotal(a) })
+    }));
+    const id = await choose(ask, "DRPG.Monocub.who", rows(), "fa-user", { rows, watch: { actors: true } });
     if (!id) return null;
-    return { target: cubs.find(a => a.id === id) };
+    return { target: game.actors.get(id) ?? cubs.find(a => a.id === id) };
 }
 
 /** The wording of a new killing game rule, which everyone will be shown. */
@@ -403,26 +403,29 @@ async function pickPlayer(actor, ask) {
     // is never offered, as no Monokuma is. The GM judges a player's Call by the same roster as the GMs hold it
     // (bridge-guards.mjs `guardArmOtherCharacter`).
     const sameRoomOnly = kind === "hope";
-    const students = new Set(studentActors().map(a => a.id));
-    // the room as this browser sees it: a veiled killer it does not draw is not offered (mask-gm.mjs `seenHere`, 1.2.119)
-    const reachable = (sameRoomOnly ? seenHere(othersInRoom(actor)) : studentActors())
-        .filter(a => students.has(a.id) && a.id !== actor.id);
+    const poolNow = () => {
+        const students = new Set(studentActors().map(a => a.id));
+        // the room as this browser sees it: a veiled killer it does not draw is not offered (mask-gm.mjs `seenHere`, 1.2.119)
+        const reachable = (sameRoomOnly ? seenHere(othersInRoom(actor)) : studentActors())
+            .filter(a => students.has(a.id) && a.id !== actor.id);
 
-    /*
-     * THE DEAD ARE NOT A TARGET (D-F4).
-     *
-     * The wide pool filtered on type, on Monokuma and on "not me", and never
-     * asked whether the person was still alive - so every Obstacle offered the
-     * cast plus everybody the cast had already buried. Neither Call means
-     * anything on a corpse: there is no roll of theirs to help and none to
-     * hinder.
-     *
-     * Filtered here rather than at each Call, because it is a fact about who
-     * can be targeted at all, not about what a particular Call does. A dead
-     * student who opted in as a Monocub is still reachable - through
-     * `pickMonocub`, which is the Call written for them.
-     */
-    const pool = reachable.filter(a => !isDeadForGm(a));
+        /*
+         * THE DEAD ARE NOT A TARGET (D-F4).
+         *
+         * The wide pool filtered on type, on Monokuma and on "not me", and never
+         * asked whether the person was still alive - so every Obstacle offered the
+         * cast plus everybody the cast had already buried. Neither Call means
+         * anything on a corpse: there is no roll of theirs to help and none to
+         * hinder.
+         *
+         * Filtered here rather than at each Call, because it is a fact about who
+         * can be targeted at all, not about what a particular Call does. A dead
+         * student who opted in as a Monocub is still reachable - through
+         * `pickMonocub`, which is the Call written for them.
+         */
+        return reachable.filter(a => !isDeadForGm(a));
+    };
+    const pool = poolNow();
 
     if (!pool.length) {
         ui.notifications.warn(game.i18n.localize(
@@ -430,10 +433,12 @@ async function pickPlayer(actor, ask) {
         return null;
     }
 
-    const id = await choose(ask, "DRPG.Calls.whichPlayer",
-        pool.map(a => ({ value: a.id, label: nameAsSeen(a) })));
+    // The rows follow the room while the window stands (1.2.122, the rest of the audit's REFR-17): a student who walks
+    // out is taken off, one who walks in is offered, one who dies goes. The GM still judges the pick at the arm.
+    const rows = () => poolNow().map(a => ({ value: a.id, label: nameAsSeen(a) }));
+    const id = await choose(ask, "DRPG.Calls.whichPlayer", rows(), "fa-user", { rows, watch: { actors: true, tokens: true } });
     if (!id) return null;
-    return { target: pool.find(a => a.id === id) };
+    return { target: game.actors.get(id) ?? pool.find(a => a.id === id) };
 }
 
 /**
@@ -464,20 +469,23 @@ async function pickProject(actor, ask) {
     // And the fallback is Monokuma's alone (DESP-14): `kind` used to go unread,
     // so a student in an empty room could Contribute across the map.
     // The room on its scene: a project is listed on its own scene only (E12 fix r1-G3).
-    const here = projectsAvailableIn(locateActor(actor));
-    // `knownProjects` rather than `visibleProjects` for the same reason the tray
-    // uses it: the fallback is a list of NAMES, and a public project nobody has
-    // walked into yet is not something this account should be able to read off a
-    // dropdown. It changes nothing for a GM - `knowsProject` answers true for
-    // them - and narrows a player-held Monokuma to the rooms they have found.
-    /* AS THIS PLAYER LAST SAW THEM (PV, 13.11.2026; the coordinator's follow-up to the owner's rule #2). The fallback lists
-       projects away from the reader's room: a player's (a player-held Monokuma's) as projects-seen.mjs `projectsAsSeen`
-       shows them - known by the last visit, frozen and finished as last seen - and a GM's live. What the list SHOWS
-       follows the snapshot; whether the Call may move a project is still judged live (call-effects.mjs `projectRefusal`:
-       a finished or frozen project is refused, live, after the pick). */
-    const away = kind !== "despair" ? [] : game.user?.isGM ? knownProjects()
-        : (await import("./projects-seen.mjs")).projectsAsSeen(game.user);
-    const listed = here.length ? here : away;
+    const seen = kind === "despair" && !game.user?.isGM ? await import("./projects-seen.mjs") : null;
+    const listedNow = () => {
+        const here = projectsAvailableIn(locateActor(actor));
+        // `knownProjects` rather than `visibleProjects` for the same reason the tray
+        // uses it: the fallback is a list of NAMES, and a public project nobody has
+        // walked into yet is not something this account should be able to read off a
+        // dropdown. It changes nothing for a GM - `knowsProject` answers true for
+        // them - and narrows a player-held Monokuma to the rooms they have found.
+        /* AS THIS PLAYER LAST SAW THEM (PV, 13.11.2026; the coordinator's follow-up to the owner's rule #2). The fallback lists
+           projects away from the reader's room: a player's (a player-held Monokuma's) as projects-seen.mjs `projectsAsSeen`
+           shows them - known by the last visit, frozen and finished as last seen - and a GM's live. What the list SHOWS
+           follows the snapshot; whether the Call may move a project is still judged live (call-effects.mjs `projectRefusal`:
+           a finished or frozen project is refused, live, after the pick). */
+        const away = kind !== "despair" ? [] : game.user?.isGM ? knownProjects() : seen.projectsAsSeen(game.user);
+        return here.length ? here : away;
+    };
+    const listed = listedNow();
 
     /*
      * A CALL THAT MOVES PROGRESS NEEDS PROGRESS TO MOVE (CALL-10, Dawid 17.09).
@@ -502,9 +510,13 @@ async function pickProject(actor, ask) {
         return null;
     }
 
-    const id = await choose(ask, "DRPG.Calls.whichProject",
-        // The one formatter of a project's name in a list (projects.mjs `projectLabel`, E51 C1).
-        pool.map(p => ({ value: p.id, label: projectLabel(p) })), "fa-list-check");
+    // The one formatter of a project's name in a list (projects.mjs `projectLabel`, E51 C1). The rows follow the projects
+    // while the window stands (1.2.122, REFR-17's rest), read as they were drawn: the room's, or the list away from it.
+    const toRows = list => callProjectPool(list, Boolean(call?.progress), { isComplete, isFrozen })
+        .map(p => ({ value: p.id, label: projectLabel(p) }));
+    const id = await choose(ask, "DRPG.Calls.whichProject", toRows(listed), "fa-list-check", {
+        rows: () => toRows(listedNow()), watch: { tokens: true, hooks: ["drpgProjectSightChanged"] }
+    });
     if (!id) return null;
     return { project: id };
 }
@@ -541,37 +553,52 @@ async function pickItem(ask) {
     const { isMonocub } = await import("./monocub.mjs");
     const { isDeadForGm } = await import("./chapter.mjs");
 
-    const entries = [];
-    for (const actor of game.actors) {
-        if (actor.type !== "character") continue;
-        if (isMonokuma(actor) || isMonocub(actor)) continue;
-        for (const item of actor.items) {
-            const category = item.getFlag(MODULE_ID, "category");
-            if (!category || category === "truthBullet") continue;
-            entries.push({
-                value: item.uuid,
-                label: isDeadForGm(actor)
-                    ? game.i18n.format("DRPG.Calls.onTheBody", { name: actor.name, item: item.name })
-                    : game.i18n.format("DRPG.Calls.carriedBy", { name: actor.name, item: item.name })
-            });
+    const entriesNow = () => {
+        const entries = [];
+        for (const actor of game.actors) {
+            if (actor.type !== "character") continue;
+            if (isMonokuma(actor) || isMonocub(actor)) continue;
+            for (const item of actor.items) {
+                const category = item.getFlag(MODULE_ID, "category");
+                if (!category || category === "truthBullet") continue;
+                entries.push({
+                    value: item.uuid,
+                    label: isDeadForGm(actor)
+                        ? game.i18n.format("DRPG.Calls.onTheBody", { name: actor.name, item: item.name })
+                        : game.i18n.format("DRPG.Calls.carriedBy", { name: actor.name, item: item.name })
+                });
+            }
         }
-    }
+        return entries;
+    };
+    const entries = entriesNow();
     if (!entries.length) {
         ui.notifications.warn(game.i18n.localize("DRPG.Calls.noItems"));
         return null;
     }
-    const uuid = await choose(ask, "DRPG.Calls.whichItem", entries, "fa-box");
+    // The rows follow the items while the window stands (1.2.122, REFR-17's rest): one handed over, used up or found.
+    const uuid = await choose(ask, "DRPG.Calls.whichItem", entries, "fa-box", { rows: entriesNow, watch: { items: true, actors: true } });
     if (!uuid) return null;
     return { item: await fromUuid(uuid) };
 }
 
 /** One-dropdown picker, under the Call's header and in its side's class (`ask`). */
-async function choose(ask, promptKey, options, icon = "fa-user") {
+async function choose(ask, promptKey, options, icon = "fa-user", follow = null) {
     // The action's rows since E72 (R3818), not a dropdown: every name in sight, one press to pick.
+    /* AND THEY FOLLOW THE WORLD (1.2.122, the rest of the audit's REFR-17): `follow` names the rows as they stand now
+       (`rows`) and what wakes them (`watch`, live.mjs
+       `keepLive`); the list is drawn again in place, and keepLive's own carry keeps the row ticked while it is still
+       offered (read by the tier-2 test "1.2.122 REFR-17 - a Call's picker"). */
+    const live = follow ? {
+        region: ".drpg-choice-list",
+        build: () => callRowsHtml(follow.rows().map(o => ({ icon, ...o }))),
+        watch: follow.watch
+    } : null;
     const picked = await callWindow({
         ...ask, layout: "action",
         title: game.i18n.localize(promptKey),
         body: `<form>${callRowsHtml(options.map(o => ({ icon, ...o })), { prompt: game.i18n.localize(promptKey) })}</form>`,
+        ...(live ? { live } : {}),
         footer: { primary: {
             action: "ok", label: game.i18n.localize("DRPG.Calls.next"), tooltip: tipText("DRPG.Tips.Actions.nextTooltip"),
             callback: (e, b, d) => pickedRow(d.element)

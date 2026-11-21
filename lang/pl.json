@@ -1151,7 +1151,7 @@
       "autoReadied": "„{item}” trafia od razu do twojej ręki, bo z grupy {group} możesz mieć schowaną tylko jedną rzecz.",
       "useGone": "Przedmiotu „{item}” nie masz już pod ręką, więc nie możesz go użyć.",
       "rulingOpen": "Już orzekasz w sprawie przedmiotu „{item}”. Odpowiedz na tę kartę, gdy skończysz.",
-      "tablesOpenNoPreset": "Tabele przedmiotów były już otwarte, więc kategoria, poziom, pokój i nazwa z karty nie są wpisane. Zamknij je i naciśnij jeszcze raz Utwórz przedmiot.",
+      "tablesOpenNoPreset": "W otwartych tabelach przedmiotów wpisywany jest nowy przedmiot, więc dane z karty nie zostały wpisane. Dokończ albo wyczyść zakładkę Nowy przedmiot i naciśnij jeszcze raz Utwórz przedmiot.",
       "rulingGone": "{name} zamyka kartę bez efektu: przedmiot zniknął, zepsuł się, trafił do skrytki, nie da się go już użyć albo jego właściciel nie żyje. Przedmiot się nie zużywa.",
       "kindFromTables": "Według tabel przedmiotów „{item}” ma rodzaj {kind}. Przedmiot dostanie ten rodzaj bez względu na twój wybór i to on zdecyduje, co przywraca.",
       "itemWorks": "Działa i daje efekt",

@@ -468,9 +468,10 @@ export function voiceWatch(tile, { clock = realClock, dock = foundryDock,
     muteAll = () => game.webrtc?.settings?.client?.muteAll === true, fade = () => (reducedMotion() ? 0 : TURN()),
     userOf = id => game.users.get(id), controls = null, settings = () => game.webrtc?.settings, mutes = PEER_MUTES,
     proximity = () => game.modules?.get?.("proximity-voice-chat")?.active === true, gm = () => game.user?.isGM === true,
-    hold = () => micHold({ connected: true }), applying = () => voiceApplying(), veiled = user => voiceVeiledHere(user) } = {}) {
+    hold = () => micHold({ connected: true }), applying = () => voiceApplying(), veiled = user => voiceVeiledHere(user),
+    mic = () => micState() } = {}) {
     const watch = {
-        tile, clock, dock, muteAll, fade, userOf, controls, settings, mutes, proximity, gm, hold, applying, veiled,
+        tile, clock, dock, muteAll, fade, userOf, controls, settings, mutes, proximity, gm, hold, applying, veiled, mic,
         client: null, room: null, detach: null,
         /** The Room's speakers this browser can map, loudest first, as user ids; and when each began. */
         speakers: [], since: new Map(),
@@ -693,8 +694,10 @@ function voiceStep(watch = live, gone = null) {
     }
     /* ONE HOLD A STEP (1.2.122, the audit's COMM-47): the speaker's word and the controls' word each asked `watch.hold`,
        micHold with its scans of every token of every scene, on every speaker event. Read once here and handed to both;
-       `micState`'s own reading for the microphone (connected from the Room) is a different question and stays. */
-    const ask = watch.hold;
+       And the microphone's state (`micState`, its hold read with the connection as Foundry's Room has it) asks the same
+       question whenever the Room this tile follows - the one avclient-livekit holds (`attachRoom`) - is connected: then it
+       reads the step's hold too, and a step reads one hold, not two. With the Room not connected, it asks its own. */
+    const ask = watch.hold, askMic = watch.mic;
     let held, read = false;
     watch.hold = () => {
         if (!read) {
@@ -703,11 +706,13 @@ function voiceStep(watch = live, gone = null) {
         }
         return held;
     };
+    if (watch.room?.state === "connected") watch.mic = () => micState({ hold: watch.hold() });
     try {
         paintSpeaker(watch, ready.filter(id => id !== watch.shown).length, gone);
         watch.controls?.(watch, gone);
     } finally {
         watch.hold = ask;
+        watch.mic = askMic;
     }
 }
 
@@ -1096,7 +1101,7 @@ export function paintSpeakerButton(tile, { count, muteAll }) {
 export function paintControls(watch = live, gone = null) {
     if (!watch?.tile) return;
     try {
-        paintMic(watch.tile, micState());
+        paintMic(watch.tile, typeof watch.mic === "function" ? watch.mic() : micState());
         paintWord(watch, painted.get(watch.tile)?.face === true);
         paintSpeakerButton(watch.tile, { count: channelCount(watch, gone), muteAll: watch.muteAll() });
         paintObjection(watch.tile);
