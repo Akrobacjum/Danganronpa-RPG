@@ -4021,7 +4021,8 @@ const REGRESSIONS = [
             "buildDonors exists but the rows do not call it, so nothing changed");
         /* E05 C10 adds the deaths store's hook: a death nobody has found writes no actor, and a
            hook more widens the net - a `settings` filter is what would narrow it. */
-        ok(/watch: \{ actors: true(?:, hooks: \[[^\]]*\])? \}/.test(window),
+        // A store too (1.2.122, REFR-48: the standing offers' `offerStore`): a store is heard by its own key, no wider net.
+        ok(/watch: \{ actors: true(?:, hooks: \[[^\]]*\])?(?:, stores: \[[^\]]*\])? \}/.test(window),
             "this window's live watch was narrowed - an omitted settings filter is the wide "
             + "net, and the table is built out of several settings");
     }],
@@ -8523,6 +8524,9 @@ const REGRESSIONS = [
          * times.
          */
         const CENSUS = {
+            // A GM acting for a student reads the projects with one player's sight (1.2.122, ITEM-22: `sightOf`): the
+            // connected owner first, as the bridge reads its sender; a co-owner sees what that player sees of the room.
+            "action-project.mjs": 1,
             // threadOf's fallback: a card no asker owns goes to one thread, the first owner's.
             "call-gm.mjs": 1,
             // The Mastermind's player: one on purpose (the door flag twice, the door's packet once; R560).
@@ -22109,7 +22113,8 @@ const REGRESSIONS = [
                 field: /descriptionField\(start\?\.description \?\? ""\)/.test(dialog),
                 guard: /guardDescription\(dialog\.element, "save"\)/.test(dialog),
                 refusedFirst: order(dialog, /projectDescriptionProblem\(result\.description\)/, /projectEditChange\(/) && order(dialog, /projectDescriptionProblem\(result\.description\)/, /createProject\(/),
-                written: (dialog.match(/description: result\.description,/g) ?? []).length
+                // The edit's write is spread since 1.2.122 (REFR-35: written where the GM changed it), so the end may be a brace.
+                written: (dialog.match(/description: result\.description\s*[,}]/g) ?? []).length
             },
             create: { long: order(create, /projectDescriptionProblem\(description\) === "long"/, /applyProjectChange\(/), meta: /meta: \{[\s\S]*\.\.\.\(words \? \{ description: words \} : \{\}\)/.test(create) },
             edit: /meta\.description = String\(patch\.description \?\? ""\)\.trim\(\)/.test(edit),
@@ -23347,7 +23352,7 @@ const REGRESSIONS = [
             ["body.mjs", "runDiscovery", "E49", 1, 0, 0], ["chapter.mjs", "endChapterNow", "E49", 1, 0, 0], ["chapter.mjs", "runChapterEnd", "E49", 1, 0, 0],
             ["chapter.mjs", "finishEndNow", "E49", 1, 0, 0], ["cleanup-reshape.mjs", "reshapeCardParts", "E49", 1, 0, 0], ["cleanup-reshape.mjs", "proposeReshape", "E49", 1, 0, 0],
             ["cleanup.mjs", "undoLastCleanup", "E49", 2, 0, 0], ["cleanup.mjs", "paidBack", "E49", 1, 0, 0], ["eclipse.mjs", "ruleOnParkedMurder", "E49", 1, 0, 0],
-            ["eclipse.mjs", "judgePendingMurders", "E49", 1, 0, 0], ["inventory.mjs", "transferItem", "E49", 2, 0, 0], ["key-remnants.mjs", "chargeForUnfoundKeys", "E49", 1, 0, 0],
+            ["eclipse.mjs", "judgePendingMurders", "E49", 1, 0, 0], ["inventory.mjs", "transferItem", "E49", 3, 0, 0], ["key-remnants.mjs", "chargeForUnfoundKeys", "E49", 1, 0, 0],
             ["migrate.mjs", "*", "E49", 1, 0, 0], ["movement-audit.mjs", "auditMove", "E49", 2, 0, 0], ["movement.mjs", "keepRoomFlag", "E49", 1, 0, 0],
             ["movement.mjs", "removeDrop", "E49", 1, 0, 0], ["movement.mjs", "tellUnlawful", "E49", 1, 0, 0], ["movement.mjs", "tellDropped", "E49", 1, 0, 0],
             ["murder-rules.mjs", "resolveVictimOpening", "E49", 1, 0, 0], ["murder-rules.mjs", "applyCrisisAction", "E49", 1, 0, 0], ["murder-rules.mjs", "swapRoles", "E49", 1, 0, 0],
@@ -23430,7 +23435,7 @@ const REGRESSIONS = [
             "enforced.mjs": {"line": 2}, "facilities-gm.mjs": {"card": 2}, "fog.mjs": {"line": 1}, "frisk.mjs": {"built": 7, "message": 2},
             "gm-items.mjs": {"action": 1, "heading": 2},
             "handover.mjs": {"built": 1, "heading": 2, "line": 13, "message": 1},
-            "inventory.mjs": {"card": 2, "line": 3}, 
+            "inventory.mjs": {"card": 3, "line": 3}, 
             "key-remnants.mjs": {"card": 1, "line": 2}, "level-up.mjs": {"heading": 1, "line": 4},
             // E69 C8 (13.11.2026): the killer's own cards behind the "?" (mask-gm.mjs), its start and its end at the time of day.
             // E112 (15.11.2026): the opening's veil adds the killer's one line before the roll (mask-gm.mjs `veilActor`).

@@ -891,8 +891,8 @@ function showProjectCard(app, element) {
         // ... and, on a GM, the GMs' store of the secret projects (1.2.122 line ITEMS; the audit's REFR-33): a share or a
         // revoke changes only its `viewers`, and a secret project's name, room and condition live there - none writes
         // projectMeta or the Countdowns, so "Knows it is there" stood as drawn. The sight's hook as well.
-        watch: { settings: ["projectMeta"], settingKeys: [COUNTDOWNS_KEY], hooks: ["drpgSecretStored", "drpgRouteSettled", "drpgSeenChanged", "drpgProjectSightChanged"],
-            stores: [discoveryStore, fogCopy, projectSightCopy, projectSecretStore] },
+        // One line: R5204 reads the watch to its end of line.
+        watch: { settings: ["projectMeta"], settingKeys: [COUNTDOWNS_KEY], hooks: ["drpgSecretStored", "drpgRouteSettled", "drpgSeenChanged", "drpgProjectSightChanged"], stores: [discoveryStore, fogCopy, projectSightCopy, projectSecretStore] },
         after: wireProjectCard
     }));
     // Sized for a stat block; this is a card, exactly as the trace's is - and a frame

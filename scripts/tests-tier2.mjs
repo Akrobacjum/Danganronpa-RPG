@@ -106869,6 +106869,110 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         equal(stableJson(read), stableJson({ goneSaid: true, lockedPublic: true, newRow: true, roomFollows: true, roomKept: true, tickCarried: true, unlocked: true }),
             "[the window says a project deleted meanwhile is gone] [a public row's ticks drawn locked] [a project made elsewhere has its row] [a room moved elsewhere moves its select] [the window's Save keeps the room another GM set] [the Secret tick carried over the redraw] [Secret ticked unlocks the row's ticks]");
     }],
+    ["1.2.122 ITEM-23 - a countdown that counts down keeps the progress done when its target changes, up or down, and the tray's row menu Delete asks first and Cancel keeps the project (CTRL-29)", async () => {
+        /*
+         * 21.11.2026, 1.2.122 line ITEMS; the audit's ITEM-23 (projects.mjs `changeStep`'s clamp) and CTRL-29 (projects-ui.mjs
+         * `projectRowMenu`). A countdown made in Daggerheart's own window stores what is LEFT (`countsUp` false), and a new
+         * target kept what was left: 6 done of 8 raised to 10 read 8 done, lowered to 4 read 2 done. A project of the suite's
+         * own, made to count down (`meta.countsUp`), 2 taken off its bar (6 done), its target set to 10 and then 4 by the
+         * entry's one change; the progress done read each time (`allProjects`). Then the tray's Delete entry, wrapped as the
+         * tray wraps it, pressed on the project's row: a question must stand, Cancel answered, the project still there.
+         * Deleted at the end.
+         */
+        needs(env.dialogs(), "the tray's Delete question is drawn and answered");
+        const P = await import("./projects.mjs");
+        const UI = await import("./projects-ui.mjs");
+        const read = {};
+        let id = null, pressing = null;
+        const done = () => P.allProjects().find(p => p.id === id)?.current ?? null;
+        const question = () => [...foundry.applications.instances.values()].find(a => a?.rendered && a.element?.isConnected
+            && (a.title ?? a.options?.window?.title) === game.i18n.localize("DRPG.Project.delete"));
+        try {
+            id = (await P.createProject({ name: "SUITE 122 countdown", target: 8, trait: "head", description: "Suite 122." }))?.id ?? null;
+            must(id, "could not create a project - this would measure nothing");
+            await P.applyProjectChange(id, { meta: { countsUp: false } }, { by: { kind: "gm" } });
+            await P.applyProjectChange(id, { delta: -2 }, { by: { kind: "gm" } });
+            must(done() === 6, `the countdown reads ${done()} done, not 6 - this would measure nothing`);
+            await P.applyProjectChange(id, { target: 10 }, { by: { kind: "gm" } });
+            read.raised = done();
+            await P.applyProjectChange(id, { target: 4 }, { by: { kind: "gm" } });
+            read.lowered = done();
+
+            const [entry] = UI.projectRowMenu([{ label: "CONTROLS.CommonDelete", onClick: () => null }]);
+            const row = document.createElement("div");
+            row.dataset.countdown = id;
+            pressing = Promise.resolve().then(() => entry.onClick(new Event("click"), row)).catch(() => null);
+            read.asked = Boolean(await until(() => question(), 3000));
+            question()?.element?.querySelector('footer button[data-action="cancel"]')?.click();
+            await Promise.race([pressing, wait(3000)]); pressing = null;
+            await settle();
+            read.kept = P.allProjects().some(p => p.id === id);
+        } finally {
+            question()?.close();
+            if (pressing) await Promise.race([pressing, wait(3000)]);
+            if (id && P.allProjects().some(p => p.id === id)) await P.deleteProject(id);
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ asked: true, kept: true, lowered: 4, raised: 6 }),
+            "[the tray's Delete asks] [Cancel keeps the project] [done after the target lowered to 4] [done after the target raised to 10]");
+    }],
+    ["1.2.122 REFR-09 - Give a room key follows the world while it stands: a key handed to the student elsewhere leaves the list, the pick made of another room is kept", async () => {
+        /*
+         * 21.11.2026, 1.2.122 line ITEMS; the audit's REFR-09 (gm-items.mjs: only the hub's holdings were live; the give and
+         * take windows' lists stayed as opened). The key window for a student, with two rooms of other owners offered; the
+         * second picked; the first room's key granted to the student by `grantBedroomKey` as another GM's give (the item
+         * deleted at the end): the first room must leave the list and the pick stay on the second.
+         */
+        needs(env.dialogs(), "the key window is drawn and its list read");
+        const GI = await import("./gm-items.mjs");
+        const V = await import("./vault.mjs");
+        const [who, b, c] = cast(3);
+        /* Two rooms of the scene on screen given owners for the test (the room's owner flag, put back), where the world
+           has fewer than two bedrooms of other owners whose key the student lacks: the harness world has none. */
+        const owned = [];
+        const lacking = () => V.allBedroomsAnywhere().filter(v => v.owner && v.owner.id !== who.id && !V.keysHeldBy(who, { stashed: true }).has(v.room));
+        const itemsWere = new Map(game.actors.map(a => [a.id, new Set(a.items.map(i => i.id))]));
+        if (lacking().length < 2) {
+            const free = [...(canvas?.scene?.regions ?? [])].filter(r => r.name && !r.getFlag(MODULE_ID, V.VAULT_FLAGS.owner));
+            const names = [...new Set(free.map(r => r.name))].slice(0, 2);
+            for (const [i, name] of names.entries()) {
+                for (const region of free.filter(r => r.name === name)) {
+                    await region.setFlag(MODULE_ID, V.VAULT_FLAGS.owner, [b, c][i].id);
+                    owned.push(region);
+                }
+            }
+            await settle();
+        }
+        const rooms = lacking();
+        const [first, second] = rooms;
+        const app = () => [...foundry.applications.instances.values()].find(a => a?.rendered && a.element?.isConnected && a.element.querySelector('form [name="room"]')
+            && a.element.querySelector('form [name="recipient"]'));
+        const offered = room => [...(app()?.element?.querySelector('form [name="room"]')?.options ?? [])].some(o => o.value === room);
+        const read = {};
+        let opening = null;
+        try {
+            must(rooms.length >= 2, `only ${rooms.length} bedrooms of other owners whose key ${who.name} lacks - this would measure nothing`);
+            opening = Promise.resolve().then(() => GI.giveKeyDialog(who)).catch(() => null);
+            must(await until(() => offered(first.room) && offered(second.room), 6000), "the key window did not open with both rooms");
+            const select = app().element.querySelector('form [name="room"]');
+            select.value = second.room;
+            select.dispatchEvent(new Event("change", { bubbles: true }));
+            await V.grantBedroomKey(who, first.room);
+            read.gone = Boolean(await until(() => !offered(first.room), 3000));
+            read.pickKept = app()?.element?.querySelector('form [name="room"]')?.value === second.room;
+        } finally {
+            app()?.close();
+            if (opening) await Promise.race([opening, wait(3000)]);
+            for (const region of owned) await region.unsetFlag(MODULE_ID, V.VAULT_FLAGS.owner);
+            await settle();
+            for (const actor of game.actors) {
+                const was = itemsWere.get(actor.id) ?? new Set();
+                for (const item of actor.items.filter(i => !was.has(i.id))) await item.delete();
+            }
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ gone: true, pickKept: true }), "[the key handed elsewhere left the list] [the pick of another room kept]");
+    }],
     ["the Sound window's Music row picked with the pointer writes its key at once, and another GM's mapping shows on the open window while the row's select keeps the focus", async () => {
         /*
          * Line P (claude/move-120, 21.11.2026), measured against the owner's rule "Zawsze odswiezamy okna od razu przy
