@@ -20352,6 +20352,43 @@ const SCENARIOS = [
         }
         equal(stableJson(read), stableJson(["invited", "noPlayer"]), "[the notice of an invitation for a played student; for one no player owns]");
     }],
+    ["1.2.122 r121-M-5 - a GM's view of a Monocub's panel names a masked student's Bounty and Ghost Bet as they are, while the copy its player is sent says \"?\" (scripts/monocub.mjs `cubPanelLines`, `cubsFor`, `maskedNameFor`; the audit's r121-M-5, 1.2.122 line DESP)", async () => {
+        /*
+         * 21.11.2026, 1.2.122 line DESP; the auditor's lane M, a nit. `cubPanelLines` on a GM drew the row the owner would
+         * be sent (`cubsFor`), in which a Bounty or bet made on a masked student reads "?", though `maskedNameFor`'s note
+         * says the GMs read it as it is. A student of the cast made a Monocub with its player, a second student its bet's and
+         * a Bounty's target, both marked `masked` in the GMs' stores. Read: the names in the GM's panel lines, and in the copy
+         * its player is sent. Put back: the flag, the rows, the Bounty. Red at f652fafc: the GM's lines said "?".
+         */
+        const { livingStudents } = await import("./chapter.mjs");
+        const owner = a => game.users.find(u => !u.isGM && a.testUserPermission(u, "OWNER"));
+        const [cub, target] = livingStudents().filter(owner);
+        must(cub && target && owner(cub).id !== owner(target).id, "two students of two players - this would measure nothing");
+        const M = await import("./monocub.mjs");
+        const S = await import("./gm-stores.mjs");
+        const rowWas = foundry.utils.deepClone(S.cubStore.get(cub.id) ?? null);
+        const bountyWas = foundry.utils.deepClone(S.bountyStore.get(target.id) ?? null);
+        const read = {};
+        try {
+            await cub.setFlag(MODULE_ID, FLAGS.monocub, true);
+            await S.cubStore.patch(cub.id, { bet: { targetId: target.id, targetName: target.name, value: 2, masked: true } });
+            await S.bountyStore.patch(target.id, { by: game.user.id, reward: 1, cost: 1, owedKey: null, at: Date.now(), targetName: target.name, masked: true });
+            await settle();
+            const names = lines => lines.filter(l => l.kind === "bounty" || l.kind === "bet").map(l => [l.kind, l.name]).sort();
+            read.gm = names(M.cubPanelLines(cub));
+            const copy = M.copyRowOf(M.cubsFor(owner(cub).id).cubs[cub.id]);
+            read.player = [...(copy?.bounties ?? []).map(b => ["bounty", b.targetName]), ...(copy?.bet ? [["bet", copy.bet.targetName]] : [])].sort();
+        } finally {
+            if (S.cubStore.has(cub.id)) await S.cubStore.drop(cub.id);
+            if (rowWas) await S.cubStore.patch(cub.id, rowWas);
+            if (S.bountyStore.has(target.id)) await S.bountyStore.drop(target.id);
+            if (bountyWas) await S.bountyStore.patch(target.id, bountyWas);
+            await cub.unsetFlag(MODULE_ID, FLAGS.monocub);
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ gm: [["bet", target.name], ["bounty", target.name]], player: [["bet", "?"], ["bounty", "?"]] }),
+            "{the masked student's name in the GM's panel lines [bet, Bounty]; in the copy its player is sent}");
+    }],
     ["1.2.122 DESP-23 - a Bounty claim that would pay no Hope leaves the Bounty standing and its Despair owed for the lapse to give back: a Monocub at its Hope limit lands on a Bounty, which stays open, the pool's debt stays, and its player is told why; with room in the purse the same claim pays and takes the Bounty (scripts/monocub.mjs `claimBounty`; the audit's DESP-23 and DESP-29, 1.2.122 line DESP)", async () => {
         /*
          * 21.11.2026, 1.2.122 line DESP; the line's default sent to the coordinator. The audit's DESP-23 (and DESP-29):

@@ -352,7 +352,7 @@ export async function closeGoneCubWindows(rows) {
 /**
  * WHAT THE PANEL SAYS OF PART B (E72 C19, 12.11.2026; the plan's C19): the lines under the Monocub's tiles, from the row as
  * this browser holds it - the owner's copy, or on a GM the row its owner would be sent (`cubsFor`'s, through
- * `copyRowOf`). Each Bribe waiting (`{ kind: "offer", id, name, cost }`, which the panel draws with Accept and Refuse),
+ * `copyRowOf`), its Bounties and bet named as the GMs hold them (1.2.122, r121-M-5). Each Bribe waiting (`{ kind: "offer", id, name, cost }`, which the panel draws with Accept and Refuse),
  * each open Bounty (`{ kind: "bounty", name, reward }`) and the Monocub's own Ghost Bet (`{ kind: "bet", name, value }`).
  */
 export function cubPanelLines(actor) {
@@ -361,6 +361,14 @@ export function cubPanelLines(actor) {
     if (game.user?.isGM) {
         const owner = ownerOf(actor);
         row = owner ? copyRowOf(cubsFor(owner.id).cubs[actor.id]) : null;
+        /* The GMs read a masked student's Bounty and bet as they are (`maskedNameFor`'s note): the row the owner is sent
+           says "?" for them, and the GM's panel drew that (the audit's r121-M-5, 1.2.122). Read off the GMs' own stores. */
+        if (row) {
+            const bet = cubStore.get(actor.id)?.bet ?? null;
+            row = { ...row,
+                bounties: isMonocub(actor) ? openBounties(null) : row.bounties,
+                bet: bet ? { targetName: game.actors.get(bet.targetId)?.name ?? String(bet.targetName ?? ""), value: Math.max(0, Math.trunc(Number(bet.value) || 0)) } : row.bet };
+        }
     } else {
         row = cubRowOf(actor);
     }
