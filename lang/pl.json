@@ -293,7 +293,7 @@
       },
       "lockRollDialog": {
         "name": "Zablokuj graczom okno rzutu",
-        "hint": "W oknie rzutu gracze nie mogą zmienić kości, statystyki, przewagi, doświadczeń ani premii; ustala je akcja, Hope Call albo GM. GM-ów to nie dotyczy."
+        "hint": "W oknie rzutu gracze nie mogą zmienić kości, statystyki, przewagi, doświadczeń ani premii. Wyłączone: mogą, ale rzut GM-a liczy tylko to, co dają akcja i Calle. GM-ów to nie dotyczy."
       },
       "roomVisibility": {
         "name": "Gracze widzą tylko osoby w swoim pokoju",

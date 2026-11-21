@@ -32613,6 +32613,18 @@ const INVARIANTS = [
         equal(stableJson([order.again > order.ruled, order.again > 0 && order.again < order.paid]), stableJson([true, true]),
             "[the target held to the room again after the GM's card; before the action is paid]");
     }],
+    ["R8383 - on the primary, an actor's flag write below full Gamemaster that touches no Dice So Nice flag schedules no dice-look put-back (1.2.122 line DESP; the audit's ROLL-30): dice-sync.mjs `onActorWritten` returns before `afterSwitchesHeld` for a write neither touching the look nor a creation", async () => {
+        /*
+         * 21.11.2026, 1.2.122 line DESP. A nit of cost: every player's or Assistant's flag write of any actor reached
+         * `onActorWritten` with `touched` false and still ran the switches' comparison, the world copy's stringify and a
+         * put-back timer. Read off the source, the order of the guard and the schedule below full Gamemaster. Not
+         * measured: the work it saves (scenario 86's counters do not name this path). Red at 21bf5d18: no guard.
+         */
+        const src = fnSource(stripComments((await moduleSources()).get("dice-sync.mjs") ?? ""), "onActorWritten");
+        const guard = src.search(/if \(!touched && !created\) return;/), held = src.search(/afterSwitchesHeld\(\(\) => schedule\(ACTOR \+ actor\.id\)\)/);
+        must(held > 0, "onActorWritten schedules no put-back of an actor - this would measure nothing");
+        equal(stableJson([guard > 0, guard < held]), stableJson([true, true]), "[a write touching no look stopped; before the put-back is scheduled]");
+    }],
     ["R8380 - the Despair panel's overflow caption takes the pointer as the panel's controls do (1.2.122 line DESP; the audit's CTRL-28): under `#drpg-despair`'s `pointer-events: none` the caption computes `auto`, as the pool's count does, so its tooltip - the GM's real count past the threshold and why a full counter has not fired - can show on a desk layout; in Chromium audit/caption-hit.mjs measures the hit itself", async () => {
         /*
          * 21.11.2026, 1.2.122 line DESP. The panel is `pointer-events: none` so the canvas takes clicks through it, and its
@@ -41545,7 +41557,8 @@ const INVARIANTS = [
         const blank = M.projectCard({ id: "R5645q", name: "R5645q", room: "Lab", current: null, start: 6, seen: "unknown" });
         const textOf = h => { const box = document.createElement("div"); box.innerHTML = h; return box.textContent; };
         const src = await fetch(`/modules/${MODULE_ID}/scripts/explain.mjs`).then(lfText);
-        const body = fnSource(src, "openProjectsExplainer");
+        // The body the window draws, and draws again, since 1.2.122 (CORE-30): `projectsBody`.
+        const body = fnSource(src, "projectsBody");
         equal(stableJson({
             last: [html.includes("2 / 6"), textOf(html).includes(game.i18n.localize("DRPG.Project.seenAsLast"))],
             unknown: [blank.includes("? / 6"), blank.includes("width: 0%"), textOf(blank).includes(game.i18n.localize("DRPG.Project.seenUnknown"))],

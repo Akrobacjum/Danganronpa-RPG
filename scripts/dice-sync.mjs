@@ -973,6 +973,11 @@ function onActorWritten(actor, userId, touched, { created = false } = {}) {
         return;
     }
     if (created) void diceLookStore.patch(actor.id, { look: null, roles: null });
+    /* A write that touches no Dice So Nice flag has moved no look (the audit's ROLL-30, 1.2.122): every player's or
+       Assistant's flag write of the module's - Calls, notes, marks - scheduled the switches' comparison, the world copy
+       stringified and a put-back 400 ms on. A write of the overlay carries the `dice-so-nice` key in the hook's diff
+       (`touchesLook`), and one sent with no hook is caught at the next message (`checkMessage`). */
+    if (!touched && !created) return;
     afterSwitchesHeld(() => schedule(ACTOR + actor.id));
 }
 

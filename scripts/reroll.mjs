@@ -1245,8 +1245,14 @@ export async function settleSearch(actor, bookmark, after, done) {
     if (!game.user.isGM) return {};
 
     // A Search whose token was refused never searched the room: it is no draw from
-    // the room's table, so it is not drawn again on new dice (ROLL-02).
-    if (bookmark.claimed === false) {
+    // the room's table, so it is not drawn again on new dice (ROLL-02). Held to the GMs' own mark since 1.2.122 (the
+    // audit's ROLL-27): `claimed` is the roller's claim, which a second roll.bookmark inside the minute may rewrite, so
+    // a refused Search could be drawn on the room's table for a Reroll's Hope. A Search the GMs drew and whose token the
+    // primary never spent (`tokenSpentAt`, search-tokens.mjs `SearchTokens.markSpent`) never ran, whatever it claims; one
+    // with no record of the GMs (swept, or older) is read by its claim, as before.
+    const { drawnRecordOf } = await import("./roll-draw.mjs");
+    const record = drawnRecordOf(game.messages.get(bookmark.messageId ?? ""));
+    if (bookmark.claimed === false || (record?.actionKey === "search" && !record.tokenSpentAt)) {
         done.push(game.i18n.localize("DRPG.Reroll.searchNeverRan"));
         return {};
     }
@@ -2083,10 +2089,19 @@ async function traceKept(actor, bookmark, { removal, total }) {
  * A critical on Work on Project returns the action it cost. Gaining or losing
  * that critical on a reroll has to move the action with it.
  *
+ * Exported for the suite (1.2.122, ROLL-25).
+ *
  * @returns {Promise<boolean>} whether the action is refunded after this.
  */
-async function settleActionRefund(actor, bookmark, shouldRefund, done) {
-    const wasRefunded = Boolean(bookmark.refunded);
+export async function settleActionRefund(actor, bookmark, shouldRefund, done) {
+    /* Not on the roller's claim alone (the audit's ROLL-25, 1.2.122): `refunded` is a claim a second roll.bookmark inside
+       the minute may rewrite, and a console that resent it false after a critical's refund got a second action from a
+       Reroll that landed another. A first throw the GMs hold as a critical (`claimedOn`: the draw's own record) counts as
+       refunded whatever the claim says. Not held: a free Work's critical, which gives nothing back, is then counted as
+       refunded too - a Reroll that loses it takes back an action (or says it is owed) - and `burst`, what paid, is still
+       the claim (not measured: no GM fact of the payment's form is read here). */
+    const first = await claimedOn(actor, bookmark);
+    const wasRefunded = Boolean(bookmark.refunded) || first.isCritical === true;
     if (wasRefunded === shouldRefund) return wasRefunded;
 
     const { refundAction, takeBackRefund } = await import("./actions.mjs");

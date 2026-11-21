@@ -22226,6 +22226,99 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         equal(stableJson(read), stableJson({ state: true, despair: true, status: true, projects: true }),
             "{whether each open explainer's body took the change: the clock's window the new time of day, the Despair window the pool's count, the strip's window the actions; the Projects window drawn}");
     }],
+    ["1.2.122 REFR-18 - an open roll window draws again when its roller's resources change: the last Sanity marked while it stands open draws it with Breakdown's disadvantage, as the GM's draw will throw it (scripts/roll-dialog.mjs `redrawRollWindows`, `stateGrant`; the audit's REFR-18, 1.2.122 line DESP)", async () => {
+        /*
+         * 21.11.2026, 1.2.122 line DESP. The audit's REFR-18: the window redrew only on a write of the module's flags; a
+         * Sanity mark is `system.resources`, so a window open at 1 Sanity left kept no disadvantage after the GM marked the
+         * last one, and the GM's draw threw it and flagged the roll. Daggerheart's window as tier 2 opens it (`rollWindow`)
+         * for a student at one Sanity left; then the last marked. Read: the renders the window got from the write, and
+         * Breakdown's source in the window's count after (`advantageSources`). Put back: the Sanity, the window. Red at
+         * 21bf5d18: no render.
+         */
+        needs(world.atLeast("livingStudents"), "a living student to roll");
+        const RD = await import("./roll-dialog.mjs");
+        const { trustedWrite } = await import("./resource-guard.mjs");
+        const { livingStudents } = await import("./chapter.mjs");
+        const [actor] = livingStudents();
+        const max = Number(actor.system?.resources?.stress?.max) || 0;
+        must(max >= 2, `${actor.name}'s Sanity holds fewer than two marks - this would measure nothing`);
+        const was = Number(actor.system.resources.stress.value) || 0;
+        let win = null;
+        const read = {};
+        try {
+            await trustedWrite(actor, { "system.resources.stress.value": max - 1 }, { reason: "gmRuling" });
+            await settle();
+            win = await (await rollWindow(actor, { roll: { trait: "eye", type: "trait", advantage: 0 } })).open();
+            const before = win.renders;
+            await trustedWrite(actor, { "system.resources.stress.value": max }, { reason: "gmRuling" });
+            await settle();
+            if (typeof win.app.settled === "function") await win.app.settled();
+            read.redrawn = win.renders > before;
+            read.breakdown = RD.advantageSources({}, actor).sources.some(x => x.key === "state" && x.value < 0);
+        } finally {
+            await win?.cancel();
+            await trustedWrite(actor, { "system.resources.stress.value": was }, { reason: "gmRuling" });
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ redrawn: true, breakdown: true }), "{the window drawn again by the last Sanity marked; Breakdown among its sources after}");
+    }],
+    ["1.2.122 ROLL-27 - a Reroll is held to the GMs' own record of the first throw, not the roller's claims: a Search whose token the primary never spent draws nothing on new dice though its bookmark claims it searched, and a Work's critical counts as refunded though its bookmark claims it was not (scripts/reroll.mjs `settleSearch`, `settleActionRefund`; the audit's ROLL-27 and ROLL-25, 1.2.122 line DESP)", async () => {
+        /*
+         * 21.11.2026, 1.2.122 line DESP. ROLL-27: the replay read `bookmark.claimed === false` alone, a claim a second
+         * roll.bookmark may rewrite inside the minute, so a refused Search was drawn on the room's table for 3 Hope.
+         * ROLL-25: `settleActionRefund` read the claimed `refunded`, so a console that resent it false after a critical's
+         * refund got a second action from a Reroll into another critical. A GM's drawn message (its `drawn` and `rollId`
+         * flags, this GM its author) and the GMs' record of it (`recordFor`), for a student of the cast. Read: (1) the
+         * Search's replay on a bookmark claiming it searched, its record holding no `tokenSpentAt` - the line said, and the
+         * replay's facts; (2) the same with the record marked - the line not said (a miss: nothing drawn); (3) a Work's
+         * refund settled for a new critical on a bookmark claiming `refunded: false`, the record a critical - the
+         * student's actions before and after. Put back: the record, the message, the actions. Red at 21bf5d18: (1) the
+         * line not said; (3) one action given.
+         */
+        const [actor] = cast(1);
+        const R = await import("./reroll.mjs");
+        const { rollStore } = await import("./gm-stores.mjs");
+        const player = game.users.find(u => !u.isGM) ?? game.user;
+        const message = await ChatMessage.create({ content: "<p>SUITE ROLL-27</p>", author: game.user.id, whisper: [game.user.id] });
+        must(message, "no message to draw on - this would measure nothing");
+        const never = game.i18n.localize("DRPG.Reroll.searchNeverRan");
+        const actionsWas = foundry.utils.getProperty(actor, "system.resources.actions.value");
+        const backs = [];
+        const read = {};
+        try {
+            const rec = await recordFor(message, player, actor, "search", { total: 3 });
+            backs.push(rec.putBack);
+            await message.update({ [`flags.${MODULE_ID}.drawn`]: true, [`flags.${MODULE_ID}.rollId`]: rec.rollId });
+            await settle();
+            const bookmark = { actionKey: "search", messageId: message.id, claimed: true, total: 3 };
+            const done1 = [];
+            const facts1 = await R.settleSearch(actor, bookmark, { total: 4, isCritical: false, withHope: true }, done1);
+            read.unspent = { said: done1.includes(never), facts: facts1 };
+            await rollStore.patch(rec.rollId, { tokenSpentAt: Date.now() });
+            await settle();
+            const done2 = [];
+            await R.settleSearch(actor, bookmark, { total: 2, isCritical: false, withHope: true }, done2);
+            read.spent = { said: done2.includes(never) };
+            // ROLL-25: the record a critical, the bookmark claiming no refund; the Reroll lands another critical.
+            await rollStore.patch(rec.rollId, { actionKey: "project", isCritical: true });
+            await settle();
+            const { trustedWrite } = await import("./resource-guard.mjs");
+            await trustedWrite(actor, { "system.resources.actions.value": 0 }, { reason: "gmRuling" });
+            await settle();
+            must(typeof R.settleActionRefund === "function", "reroll.mjs exports no settleActionRefund - this would measure nothing");
+            await R.settleActionRefund(actor, { actionKey: "project", messageId: message.id, refunded: false, burst: false }, true, []);
+            await settle();
+            read.refund = foundry.utils.getProperty(actor, "system.resources.actions.value");
+        } finally {
+            for (const put of backs) await put();
+            await game.messages.get(message.id)?.delete();
+            const { trustedWrite } = await import("./resource-guard.mjs");
+            await trustedWrite(actor, { "system.resources.actions.value": actionsWas }, { reason: "gmRuling" });
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ unspent: { said: true, facts: {} }, spent: { said: false }, refund: 0 }),
+            "{a Search whose token the GMs never spent: the never-ran line said, the replay's facts; one whose token was spent: the line; a Work's critical claimed unrefunded, rerolled into a critical: the actions after}");
+    }],
     ["Grant all grants each stamped roll once", async () => {
         /*
          * E08+E28 C18, 04.10.2026; the plan's 3.7. A roll thrown while no GM was connected is

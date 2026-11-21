@@ -293,7 +293,7 @@
       },
       "lockRollDialog": {
         "name": "Lock the roll window for players",
-        "hint": "Players cannot change the dice, statistic, advantage, Experiences, or bonus in the roll window; those come from the action, a Hope Call, or the GM. GMs are unaffected."
+        "hint": "Players cannot change the dice, statistic, advantage, Experiences, or bonus in the roll window. Off: they can, but the GM's throw counts only what the action and Calls give. GMs are unaffected."
       },
       "roomVisibility": {
         "name": "Players only see who is in their room",
