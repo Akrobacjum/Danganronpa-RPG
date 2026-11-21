@@ -3179,6 +3179,7 @@
       "tileCrisis": "Akcje kryzysowe",
       "tileFightBack": "Broń się",
       "offTurn": "Teraz ich tura. Twoje akcje kryzysowe otworzą się, gdy tura wróci do ciebie.",
+      "fightOver": "Walka się skończyła, więc nie ma już akcji kryzysowych do wykonania.",
       "briefCostStress": "Kosztuje {n} Sanity.",
       "briefRoll": "Rzuć",
       "briefTake": "Zrób to",

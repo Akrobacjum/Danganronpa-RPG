@@ -46213,7 +46213,8 @@ const INVARIANTS = [
             // Since E72 by calls.mjs `callAsksGm` (a row a GM rules, or Talent's tile of two such rows; read in `tiles` below).
             ["calls.mjs#confirmCall", /gmRoute: asksGm,/, "DRPG.Calls.waitsForGm"],
             // E68 C4: a crisis row whose statistic a GM approves, and a project's statistic proposal; each sentence says the GM approves.
-            ["action-murder.mjs#openCrisisMenu", /gmRoute: asks\(\{ key, def, free \}\),/, "DRPG.Murder.gmPicksTrait"],
+            // 1.2.123: `asks` takes the Resolve read at each rebuild (`youPick`), REFR-21's rows that follow it.
+            ["action-murder.mjs#openCrisisMenu", /gmRoute: asks\(\{ key, def, free \}, youPick\),/, "DRPG.Murder.gmPicksTrait"],
             ["action-project.mjs#proposeProjectTrait", /gmRoute: \[\{\s*action: "propose",\s*label: game\.i18n\.localize\("DRPG\.TraitRuling\.propose"\)/, "DRPG.TraitRuling.projectBody"],
             // E22 C5d: the safeword's Stop it (R1369); its note says every GM is told.
             ["safeword.mjs#safewordDialog", /gmRoute: \[\{\s*action: "yes",\s*label: game\.i18n\.localize\("DRPG\.Safeword\.stopIt"\)/, "DRPG.Safeword.confirmNote"]

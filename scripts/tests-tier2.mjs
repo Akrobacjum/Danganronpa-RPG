@@ -8803,6 +8803,65 @@ const SCENARIOS = [
         equal(stableJson(read), stableJson({ drawn: true, after: false, answer: null, told: true }),
             "{the menu drawn, still drawn after the turn passed, what the menu answered, the off-turn sentence said}");
     }],
+    ["1.2.123 REFR-21 r122-C-2 - the crisis menu's rows follow what their details say, and the fight's end closes it with its own sentence (scripts/action-murder.mjs `openCrisisMenu`; action-menus.mjs `keepRowsLive`; the audit's REFR-21, partly at 1.2.122, and r122-C-2, 1.2.123 line MURDER): the victim's menu drawn at their turn, their Sanity runs out under it and the picked row's details say Breakdown's disadvantage; the GM ends the murder and the menu closes saying the fight is over, not that the turn will come back", async () => {
+        /*
+         * 1.2.123, the auditor's recheck of 1.2.122 (recheck-122.json lane C). REFR-21 was partly done: the rows' lines
+         * were read again, but a row's details and facts stayed as drawn, read once at the open (Breakdown, a Resolve
+         * armed), so a victim whose Sanity ran out under the menu chose a roll without the disadvantage it would be
+         * thrown at. r122-C-2: the incident's end closed the menu with the off-turn sentence, "Your crisis actions open
+         * when it comes back to you" - there is no turn any more. A direct murder is opened and its opening made, so the
+         * victim acts; their menu is drawn here (`__dialogWindows`); the victim's Sanity is filled to its maximum
+         * (Breakdown, character.mjs `isBrokenDown`); then the GM ends the murder. Read: the breakdown line in the left
+         * column's details before and after, whether the menu still stands after the end, the sentence said. Put back:
+         * the window, the notifications, the Sanity, the incident, the clock. Red at e3d8180d: no breakdown line after,
+         * and the off-turn sentence at the end.
+         */
+        needs(env.dialogs(), "the menu is drawn here");
+        needs(world.atLeast("studentsWithConnectedPlayer", 2), "a killer and a victim with players");
+        const M = await import("./murder.mjs");
+        const AM = await import("./action-murder.mjs");
+        const { livingStudents } = await import("./chapter.mjs");
+        const { resourceMax } = await import("./character.mjs");
+        const player = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const [killer, victim] = livingStudents().filter(player);
+        const STRESS = "system.resources.stress.value";
+        const had = foundry.utils.getProperty(victim._source, STRESS);
+        const title = game.i18n.localize("DRPG.Murder.yourTurn");
+        const drawn = () => [...foundry.applications.instances.values()].find(a => a?.rendered && a.element?.isConnected && a.options?.window?.title === title) ?? null;
+        const breakdown = game.i18n.localize("DRPG.Murder.breakdownDisadvantage");
+        const shown = () => (drawn()?.element?.querySelector(".drpg-variant-details")?.textContent ?? "").includes(breakdown);
+        const clock = getClock();
+        const said = [];
+        const info = ui.notifications.info;
+        const read = {};
+        try {
+            await victim.update({ [STRESS]: 0 });
+            await M.openMurder({ killerId: killer.id, victimId: victim.id, openingTrait: "body" });
+            if (M.murderState()?.stage === "openingRoll") await M.resolveKillerOpening({ total: 24, isCritical: false, withHope: true });
+            await settle();
+            must(M.murderState()?.stage === "incident" && M.isTheirTurn(victim), `the victim does not act: ${stableJson(M.murderState())}`);
+            const run = Promise.resolve().then(() => AM.openCrisisMenu(victim)).catch(err => `threw ${err?.message ?? err}`);
+            must(await until(() => Boolean(drawn()), 6000), "the menu was not drawn - this would measure nothing");
+            read.before = shown();
+            await victim.update({ [STRESS]: resourceMax(victim, "stress") });
+            read.after = await until(() => shown(), 3000);
+            ui.notifications.info = (message, ...rest) => { said.push(String(message)); return info.call(ui.notifications, message, ...rest); };
+            await M.endMurder({ reason: "test", followUp: false });
+            await settle();
+            await Promise.race([run, wait(3000)]);
+            read.standing = Boolean(drawn());
+            read.told = said.includes(game.i18n.localize("DRPG.Murder.fightOver")) ? "fightOver"
+                : said.includes(game.i18n.localize("DRPG.Murder.offTurn")) ? "offTurn" : said.join(" | ") || "nothing";
+        } finally {
+            ui.notifications.info = info;
+            if (drawn()) await drawn().close();
+            await c3Incident(clock);
+            await victim.update({ [STRESS]: had });
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ before: false, after: true, standing: false, told: "fightOver" }),
+            "{the breakdown line before, after the Sanity ran out, the menu still drawn after the end, the sentence said}");
+    }],
     ["1.2.122 REFR-67 STG-30 - a held Key fee's card offers its charge only while it has its own chapter's fee to charge (scripts/key-remnants.mjs `wireChargeHeld`, `heldChargeStale`; the audit's REFR-67 and STG-30, 1.2.122 line MURDER): three held cards drawn - of the clock's chapter, of another chapter, and of none (a card from before) - keep the button on the first alone", async () => {
         /*
          * 21.11.2026, 1.2.122 line MURDER. REFR-67: the button stayed on every other GM after the fee was charged, and a

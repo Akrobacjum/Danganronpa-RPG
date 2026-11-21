@@ -184,7 +184,9 @@ const SINCE_CORRECTED = Object.freeze([
 ]);
 /* A removed test's row names what removed it where the working stage at --write did not: R214 went in feba55c3 (13.11.2026,
    the 1.2.112 stash change), and the row read "(removed in E54)" (STG-47). */
-const REMOVED_IN = Object.freeze({ R214: "1.2.112, feba55c3" });
+/* R8220: taken out in 1.2.122 (f50efb89, the owner's answer on CASE-45), where --write stamped the first unshipped stage,
+   E39 (the auditor's r122-C-4, 1.2.123). */
+const REMOVED_IN = Object.freeze({ R214: "1.2.112, feba55c3", R8220: "1.2.122, f50efb89" });
 /* The rows E54's stamp took from other lines (STG-85, 1.2.122): tools/registry-since.json, its own `about` saying how each
    was read. Missing or unreadable, nothing is corrected from it and --write keeps the kept stamps. */
 let titleStamps = null;
