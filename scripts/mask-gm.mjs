@@ -302,7 +302,7 @@ export async function endMask(killerId, why = "end") {
        by the killer and addressed to the killer's player, and every browser holds every chat document - 72's "chapter
        end" read Chie's actor id, name and p3's user id on p1 and p2, the Blackened of a verdict that missed her. */
     // A reveal: the name is no longer kept cut on the cards this GM holds (secret.mjs `forgetHeldMask`); any other end keeps it.
-    if (why === "reveal") await import("./secret.mjs").then(m => m.forgetHeldMask(killerId)).catch(err => error("Could not let the cards name a revealed killer", err));
+    if (why === "reveal") await import("./secret.mjs").then(m => m.forgetHeldMask(killerId, { tell: true })).catch(err => error("Could not let the cards name a revealed killer", err));
     // And the Monocubs' bets and the Bounty on them name them again (monocub.mjs `forgetMaskedTarget`, 1.2.121).
     if (why === "reveal") await import("./monocub.mjs").then(m => m.forgetMaskedTarget(killerId)).catch(err => error("Could not let the Monocubs' rows name a revealed killer", err));
     if (why === "timeOfDay" && killer) await whisperToOwnerOnly(killer, { glyph: "ACTIONS.listen", body: `<p>${esc(game.i18n.localize("DRPG.Mask.ended"))}</p>` }, { veiled: true });

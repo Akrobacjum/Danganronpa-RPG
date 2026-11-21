@@ -494,8 +494,8 @@ export function setNameMask(fn, { stands, masked } = {}) {
  * while a mask stood ...", red at 937a98b0: the answer after the mask's end and the rewrite held it). So the characters
  * behind a mask when the words were remembered are kept with them (`hid`, `{ id, name }`), and their names stay "?" for
  * every reader who does not play them, as they were while it stood - until the killer reveals themselves, which takes
- * them off every card this GM holds (`forgetHeldMask`, from mask-gm.mjs `endMask`). Another GM's store does not hear the
- * reveal and keeps the words cut: the side that hides. Pure but for the actors read; none for a GM.
+ * them off every card this GM holds (`forgetHeldMask`, from mask-gm.mjs `endMask`), and since 1.2.122 off every other
+ * connected GM's (`ACTION_UNMASK`); a GM not connected at the reveal keeps the words cut: the side that hides. Pure but for the actors read; none for a GM.
  */
 function heldMaskNames(userId, hid) {
     if (!Array.isArray(hid) || !hid.length) return [];
@@ -517,8 +517,8 @@ function heldMaskNames(userId, hid) {
  * first had left (scenario 97 K1, red at e515907d: p2 was served "E120K again Chie Mori was seen" by gm2; gm2's own
  * rewrite named her as well, K2). So a GM's words to another GM carry its `hid` - `answerWordsRequest`, `sendWords` for
  * a post and a rewrite - and the GM given them keeps those rows with its own (`remember`'s `hidGiven`, `keepHeldMask`
- * when the words were here already). Only from a GM (`onSecretPacket`'s GM branch), never to a player. A reveal is
- * still heard by the GM that ran it alone (`forgetHeldMask`): a second GM keeps the name cut, the side that hides.
+ * when the words were here already). Only from a GM (`onSecretPacket`'s GM branch), never to a player. A reveal is heard
+ * by every GM connected since 1.2.122 (`forgetHeldMask`'s `tell`, r121-M-3); one away at it keeps the name cut.
  */
 async function keepHeldMask(id, rows) {
     const entry = read()[id];
@@ -529,9 +529,22 @@ async function keepHeldMask(id, rows) {
     return true;
 }
 
-/** The killer revealed themselves: their name is no longer kept cut on any card this browser holds (`heldMaskNames`). */
-export async function forgetHeldMask(actorId) {
+/*
+ * A REVEAL IS HEARD BY EVERY GM CONNECTED (1.2.122 line CORE; the audit of 1.2.121, r121-M-3). Only the GM that ran the
+ * reveal (mask-gm.mjs `endMask`) forgot the rows, and a second GM kept the revealed killer's name "?" on every card it
+ * served and rewrote. With `tell`, the GMs connected are sent the actor's id (`ACTION_UNMASK`), and each forgets the same
+ * rows (`onSecretPacket`, from a GM only, on a GM only). A GM not connected at the reveal hears nothing and keeps the
+ * name cut, the side that hides: the mask's row is dropped at its end and no record of the reveal is kept to read later.
+ */
+const ACTION_UNMASK = "secret.unmask";
+
+/** The killer revealed themselves: their name is no longer kept cut on any card this browser holds (`heldMaskNames`); with `tell`, on the other GMs' either. */
+export async function forgetHeldMask(actorId, { tell = false } = {}) {
     if (!actorId) return 0;
+    if (tell && game.user?.isGM) {
+        const others = activeGmIds().filter(id => id && id !== game.user.id);
+        if (others.length) game.socket.emit(SOCKET_EVENT, { action: ACTION_UNMASK, actorId }, { recipients: others });
+    }
     const store = read();
     let n = 0;
     const next = Object.fromEntries(Object.entries(store).map(([id, entry]) => {
@@ -1556,6 +1569,11 @@ export async function onSecretPacket(payload, senderId) {
     // A returning reader's ask, judged on each GM against its own store (E18 C4).
     if (payload?.action === ACTION_REQUEST) {
         if (game.user.isGM) answerWordsRequest(payload, senderId);
+        return;
+    }
+    // Another GM's reveal (r121-M-3): the same rows forgotten here, told by a GM to a GM alone.
+    if (payload?.action === ACTION_UNMASK) {
+        if (game.user.isGM && game.users.get(senderId ?? "")?.isGM && typeof payload.actorId === "string") await forgetHeldMask(payload.actorId);
         return;
     }
     // A GM whose world has loaded can answer: ask it for what this browser holds no words of.
