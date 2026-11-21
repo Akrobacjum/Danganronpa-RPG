@@ -57768,6 +57768,22 @@ const INVARIANTS = [
                 dealt: 5, per: { gmA: 3, gmB: 2 }, through: true }),
             "{map: each student's pool; dealt: the living dealt; per: the living in each pool; through: autoAssign deals by dealPools} - the split weighs the living, as the checklist does");
     }],
+    ["R8502 - a character marked Not in the class is no student to the curtain's bare rest nor to Echoes (scripts/death-fade.mjs `restsBare`, echoes-gm.mjs `echoCounts`; the audit's CASE-69 and ITEM-34, 1.2.122 line WORLD): a player whose one student is dead and who also owns an NPC Not in the class rests bare; an NPC Not in the class another player owns counts for no one's Echoes, while that player's student does", async () => {
+        /* 21.11.2026, 1.2.122 line WORLD. Stand-ins as R4558's. Red at 21bf5d18: the NPC kept the curtain lit and counted for Echoes. */
+        const D = await import("./death-fade.mjs"), E = await import("./echoes-gm.mjs");
+        const user = (id, isGM = false) => ({ id, isGM });
+        const actor = (owner, flags = {}) => ({ id: `R8502${Math.random()}`, type: "character",
+            getFlag: (scope, key) => (scope === MODULE_ID ? flags[key] : undefined), testUserPermission: (u, level) => level === "OWNER" && u?.id === owner });
+        const dead = { [FLAGS.deceased]: { chapter: 1 } }, npc = { [FLAGS.notInClass]: true };
+        const read = {
+            bare: D.restsBare(user("a"), [actor("a", dead), actor("a", npc)]),
+            npcOnly: D.restsBare(user("a"), [actor("a", npc)]),
+            echoNpc: E.echoCounts(actor("b", npc), ["a"], { owners: ["b"] }),
+            echoStudent: E.echoCounts(actor("b"), ["a"], { owners: ["b"] })
+        };
+        equal(stableJson(read), stableJson({ bare: true, npcOnly: false, echoNpc: false, echoStudent: true }),
+            "{bare: a dead student and an NPC Not in the class; npcOnly: the NPC alone (no student); echoNpc, echoStudent: whether another player's NPC and student count for Echoes} - Not in the class is no student");
+    }],
     ["R5380 - the closing curtain stands under the open windows, the title and its band over them (styles/danganronpa.css THE SEQUENCES; the owner's ask of 13.11.2026: \"zamkniecie kurtyny niech bedzie pod otwartymi oknami, napis i jego tlo na otwartych oknach\"): read through the module's cascade in both themes, on a desk and a stacked screen, for the trial's entry and its exit with the glass and with the lids, the host is no box of its own (`display: contents`), its curtain layer is fixed under Foundry's window layer (`--z-index-window` less 2) and over every other z-index the module's sheets state under that layer, and takes the clicks it covers; its title layer is fixed at 99980, over every window, and lets the clicks through; the notice stack stands over the curtain - under the windows under Stained Glass, over them under Monokuma Legacy; the verdict's cut-in and the day's boards keep the one host at 99980; every window open on this page stands between the two layers", async () => {
         /*
          * E105, 13.11.2026. Red at 58e0fd06: the whole sequence was one fixed host at 99980, over every window - the

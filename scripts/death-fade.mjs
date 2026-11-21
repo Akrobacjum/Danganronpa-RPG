@@ -110,14 +110,17 @@ export function flickerOnsets(steps) {
 /**
  * Whether this browser's curtain rests bare: a player (no GM) who owns at least one student, every one of them dead as
  * this browser may know it (`isDeadForGm`: the flag, or the player's own copy of a kept death) and no Monocub. A
- * Spectator's own character (E92's flag) and a Monokuma are no student here.
+ * Spectator's own character (E92's flag), a Monokuma and a character Not in the class are no student here.
  */
 export function restsBare(user = game.user, actors = game.actors) {
     if (!user || user.isGM) return false;
     let students = 0;
     for (const actor of actors ?? []) {
         if (actor?.type !== "character" || !actor.testUserPermission?.(user, "OWNER")) continue;
-        if (actor.getFlag?.(MODULE_ID, FLAGS.monokuma) || actor.getFlag?.(MODULE_ID, FLAGS.spectator)) continue;
+        // And a character marked Not in the class, as every roster of students leaves it out (monokuma.mjs `studentActors`;
+        // the audit's CASE-69, 1.2.122): an NPC a player was given kept a dead student's player's curtain lit.
+        if (actor.getFlag?.(MODULE_ID, FLAGS.monokuma) || actor.getFlag?.(MODULE_ID, FLAGS.spectator)
+            || actor.getFlag?.(MODULE_ID, FLAGS.notInClass)) continue;
         students += 1;
         if (!isDeadForGm(actor) || actor.getFlag?.(MODULE_ID, FLAGS.monocub)) return false;
     }
