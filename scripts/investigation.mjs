@@ -2444,8 +2444,9 @@ export async function openInvestigationDashboard({ said = null, node = null, vie
     // twice usually means the window is behind something.
     /* A NODE ASKED OF THE WINDOW THAT STANDS (1.2.123; the audit's r122-C-3): the trial console's schema asks for its
        pressed node here, and the early answer left the window on the node it stood on - raised, with `node` never read.
-       The standing window takes the node now (`caseHandOff`). Tier 2 "1.2.123 r122-C-3". */
-    if (alreadyOpen("drpg-window-case")) { if (node) caseHandOff?.(node); return RAISED; }
+       The standing window takes the node now (`caseHandOff`, set only while one stands). Tier 2 "1.2.123 r122-C-3". */
+    if (node) caseHandOff?.(node);
+    if (alreadyOpen("drpg-window-case")) return RAISED;
 
     if (!game.user.isGM) {
         ui.notifications.warn(game.i18n.localize("DRPG.Panel.gmOnly"));
