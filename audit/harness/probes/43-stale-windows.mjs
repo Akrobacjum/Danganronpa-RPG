@@ -294,9 +294,14 @@ export async function run({ gm, p1, note, settle, repoUrl }) {
         }
         await closeOnce();
         try { await putBack(); } catch (err) { row.putBack = `threw: ${String(err?.message ?? err).slice(0, 200)}`; }
+        /* The GM's heap once the window is closed and the world put back, in MB, after a forced gc where the client
+           was started with --expose-gc (NODE_OPTIONS), else as it stands (`gc: false`). Added 21.11.2026: the full run
+           on 1eee4d62 ran the GM out of an 8 GB heap at the Map windows, 8 GB still held after a Mark-Compact, with
+           probe 42's click list already a WeakSet; this says which window leaves what behind. */
+        try { row.heap = await gm.eval("const gc = typeof globalThis.gc === 'function'; if (gc) { globalThis.gc(); globalThis.gc(); } const m = process.memoryUsage(); return { gc, usedMb: Math.round(m.heapUsed / 1048576), rssMb: Math.round(m.rss / 1048576) };", { timeout: 60000 }); } catch (err) { row.heap = { threw: String(err?.message ?? err).slice(0, 120) }; }
         rows.push(row);
         const count = v => row.readings.filter(r => r.verdict === v).length;
-        note(w.id, `"${row.title}": ${row.readings.length} reading(s) - ${count("live")} live, ${count("stale") + count("partly")} stale, ${count("stale-until-blur")} stale until the focus left, ${count("held-by-focus")} held by the focus in a field, ${count("live-under-focus")} live under it, ${count("not-shown")} not shown, ${count("confounded")} confounded, ${count("failed")} failed${row.restless ? "; restless" : ""}`);
+        note(w.id, `"${row.title}": ${row.readings.length} reading(s) - ${count("live")} live, ${count("stale") + count("partly")} stale, ${count("stale-until-blur")} stale until the focus left, ${count("held-by-focus")} held by the focus in a field, ${count("live-under-focus")} live under it, ${count("not-shown")} not shown, ${count("confounded")} confounded, ${count("failed")} failed${row.restless ? "; restless" : ""}; GM heap ${row.heap?.usedMb ?? "?"} MB${row.heap?.gc ? " after gc" : ""}`);
       } catch (err) {
         rows.push({ id: w.id, notWalked: String(err?.message ?? err).slice(0, 300) });
         note(w.id, `not walked (${String(err?.message ?? err).slice(0, 160)})`);
