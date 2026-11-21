@@ -4942,6 +4942,7 @@
         "searchTokens.takePlant": "Look for a planted item",
         "searchTokens.returnPlant": "Put a planted item back",
         "searchTokens.returnToken": "Give back a Search Token after a late answer",
+        "searchTokens.gmWrite": "Set the Search Tokens",
         "floor.now": "The Class Trial's next step",
         "vote.run": "A step of the vote",
         "vote.cast": "Cast your vote",

@@ -1598,6 +1598,32 @@ export async function run({ gm, ag, p1, p2, p3, check, phase, settle, opLog, set
     for (const c of players) await c.eval(`const was = ${JSON.stringify(a18Auto[c.who])}; if (was === null) delete globalThis.__dialogAuto; else globalThis.__dialogAuto = was; return true;`);
     await settle(500);
 
+    /* ------------------------------------------------- A24: an Assistant GM's write of the Search Tokens (MAP-40) */
+
+    /* 1.2.122 line WORLD (21.11.2026; the audit's MAP-40): Room Setup's step (`setFor`) and a refill (`reset`) ran on the GM
+       who pressed, from that browser's copy of the counters and outside the primary's queue, where a player's spend runs.
+       The Assistant GM, no primary, sets the Gym's counter and then refills: each is asked of the primary
+       (`searchTokens.gmWrite`), answered, and the setting written by the GM alone. Put back: the counters as found.
+       Red at 21bf5d18: the Assistant wrote the setting itself. */
+    phase("A24: an Assistant GM's write of the Search Tokens", { flow: "search-observe" });
+    const a23Tokens = `(await import("${repoUrl}/scripts/search-tokens.mjs")).SearchTokens`;
+    const a23Before = await gm.eval(`return foundry.utils.deepClone(game.settings.get("${MOD}", "searchTokens") ?? {});`);
+    const a23Written = settingLog.length;
+    const a23Set = await ag.eval(`return { primary: ${utils}.isPrimaryGm(), n: await ${a23Tokens}.setFor("Gym", 1, canvas.scene.id) };`, { timeout: 30000 });
+    await settle(800);
+    const a23AfterSet = await gm.eval(`return foundry.utils.deepClone(game.settings.get("${MOD}", "searchTokens") ?? {});`);
+    const a23Reset = await ag.eval(`return await ${a23Tokens}.reset({ notify: false });`, { timeout: 30000 });
+    await settle(800);
+    const a23 = { set: a23Set, afterSet: a23AfterSet, reset: a23Reset, afterReset: await gm.eval(`return foundry.utils.deepClone(game.settings.get("${MOD}", "searchTokens") ?? {});`),
+        writers: [...new Set(settingLog.slice(a23Written).filter(w => /searchTokens$/.test(w.key)).map(w => w.who))],
+        logged: await refusalsLogged(gm, "searchTokens.gmWrite") };
+    check("A24: the Assistant GM's step of a room's Search Tokens and its refill are carried out on the primary - each answered, the counters written by the GM alone, nothing refused (MAP-40)",
+        a23.set.primary === false && a23.set.n === 1 && Object.entries(a23.afterSet).some(([k, v]) => /Gym$/.test(k) && v === 1)
+            && a23.reset === true && Object.keys(a23.afterReset).length === 0 && JSON.stringify(a23.writers) === JSON.stringify(["gm"]) && a23.logged.length === 0,
+        JSON.stringify(a23), { flow: "search-observe" });
+    await gm.eval(`await game.settings.set("${MOD}", "searchTokens", ${JSON.stringify(a23Before)}); return true;`);
+    await settle(300);
+
     /* A20. A DEAD STUDENT'S YES TO THE INVITATION (E72 C6, 12.11.2026; DC17, DC18). The GMs invite Botan (p2's), dead, to
        become a Monocub (monocub.mjs `offerMonocub`): the invitation is the GMs' row (`cubStore`), its copy reaches p2's
        browser, which opens the window with the Monocub Rule (`openInvitation`), and p2 - a client that presses a window's

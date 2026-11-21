@@ -5298,6 +5298,7 @@
         "searchTokens.takePlant": "Szukanie podłożonego przedmiotu",
         "searchTokens.returnPlant": "Zwrot podłożonego przedmiotu",
         "searchTokens.returnToken": "Zwrot Search Tokenu po spóźnionej odpowiedzi",
+        "searchTokens.gmWrite": "Ustawienie Search Tokenów",
         "floor.now": "Następny krok Class Trial",
         "vote.run": "Krok głosowania",
         "vote.cast": "Oddanie głosu",

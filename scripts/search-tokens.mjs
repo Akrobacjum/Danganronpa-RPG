@@ -12,8 +12,8 @@
 
 import { MODULE_ID, TIMING } from "./config.mjs";
 import { SETTINGS } from "./settings.mjs";
-import { isPrimaryGm, whisperToGms, debug, error, serialWrite, plural } from "./utils.mjs";
-import { ownsActor, judge, table, pick, as, knownSender, notSpectator, bridgeRequest } from "./bridge-guards.mjs";
+import { isPrimaryGm, primaryGmId, whisperToGms, debug, error, serialWrite, plural } from "./utils.mjs";
+import { ownsActor, judge, table, pick, as, knownSender, notSpectator, bridgeRequest, gmOnly } from "./bridge-guards.mjs";
 import { overflowTokenPenalty, overflowFloor } from "./overflow.mjs";
 import { roomFlag, roomNames, viewedScene } from "./rooms.mjs";
 // A leaf (season-exceptions.mjs alone): the registry of season state the reset walks (E42 C3).
@@ -365,6 +365,15 @@ export class SearchTokens {
      */
     static async setFor(roomName, value, scene) {
         if (!game.user.isGM || !roomName) return null;
+        // Through the primary's queue (`gmWriteOnPrimary`; the audit's MAP-40, 1.2.122).
+        const asked = await gmWriteOnPrimary({ op: "set", roomName, sceneId: typeof scene === "string" ? scene : scene?.id ?? null, value });
+        if (asked !== HERE) return asked;
+        return this.setForHere(roomName, value, scene);
+    }
+
+    /** `setFor`'s write, on the browser that holds the counters' queue (the primary's, since 1.2.122). */
+    static async setForHere(roomName, value, scene) {
+        if (!game.user.isGM || !roomName) return null;
         const max = this.max;
         const n = Math.max(0, Math.min(max, Math.round(Number(value) || 0)));
 
@@ -388,13 +397,20 @@ export class SearchTokens {
      */
     static async putBack(store = {}) {
         if (!game.user.isGM) return false;
-        await serialWrite(SEARCH_KEY, () => game.settings.set(MODULE_ID, SETTINGS.searchTokens, foundry.utils.deepClone(store ?? {})));
+        const asked = await gmWriteOnPrimary({ op: "putBack", store: countersOf(store) });
+        if (asked !== HERE) return Boolean(asked);
+        await serialWrite(SEARCH_KEY, () => game.settings.set(MODULE_ID, SETTINGS.searchTokens, countersOf(store)));
         return true;
     }
 
     /** Refill everything. Called whenever the clock advances a time of day. */
     static async reset({ notify = true } = {}) {
         if (!game.user.isGM) return false;
+        const asked = await gmWriteOnPrimary({ op: "reset" });
+        if (asked !== HERE) {
+            if (asked && notify) ui.notifications.info(game.i18n.localize("DRPG.SearchTokens.reset"));
+            return Boolean(asked);
+        }
         await serialWrite(SEARCH_KEY, () => game.settings.set(MODULE_ID, SETTINGS.searchTokens, {}));
         if (notify) ui.notifications.info(game.i18n.localize("DRPG.SearchTokens.reset"));
         return true;
@@ -469,6 +485,57 @@ const ACTION_TAKE_PLANT = "searchTokens.takePlant";
 const ACTION_RETURN_PLANT = "searchTokens.returnPlant";
 /** player -> primary GM: the token of a spend whose answer came after this browser stopped waiting, back (E17 C4). */
 const ACTION_RETURN_TOKEN = "searchTokens.returnToken";
+/** a GM who is not the primary -> primary GM: Room Setup's step, a refill or a boundary's put-back of the counters (MAP-40). */
+const ACTION_GM_WRITE = "searchTokens.gmWrite";
+
+/*
+ * EVERY WRITE OF THE COUNTERS IN THE PRIMARY'S QUEUE (the audit's MAP-40, 1.2.122, 21.11.2026). Each write reads and
+ * writes the whole store in a step of SEARCH_KEY, and that queue (utils.mjs `serialWrite`) holds on one browser. A
+ * player's spend runs on the primary; Room Setup's step (`setFor`), a time of day's refill (`reset`, from whichever GM
+ * moves the clock) and a boundary's take-back (`putBack`) ran on the GM who pressed - so two writes from two browsers
+ * inside one round trip each started from their own copy, and a refill could be written over by the primary's spend a
+ * moment later (the new afternoon opening with yesterday's searched-out rooms at 0), or a step over a spend in another
+ * room. A GM who is not the primary now asks the primary (`searchTokens.gmWrite`), which writes in its own queue; the
+ * primary writes here. `HERE` answers "write it on this browser": this one is the primary, or no primary is connected
+ * to ask (the console, a world with one GM away), as before.
+ */
+const HERE = Symbol("search tokens written here");
+
+/** The counters a put-back may write: room keys to whole numbers 0 or more. Pure. */
+function countersOf(store) {
+    const out = {};
+    for (const [key, value] of Object.entries(store && typeof store === "object" ? store : {})) {
+        const n = Math.trunc(Number(value));
+        if (typeof key === "string" && key && Number.isFinite(n) && n >= 0) out[key] = n;
+    }
+    return out;
+}
+
+/** A GM's write of the counters: `HERE` on the primary (or with none to ask), else the primary's answer, or null. */
+async function gmWriteOnPrimary(payload) {
+    const primary = primaryGmId();
+    if (isPrimaryGm() || !primary || primary === game.user?.id) return HERE;
+    const res = await askSearch(ACTION_GM_WRITE, payload);
+    return res.ok ? (res.value ?? null) : null;
+}
+
+/** The primary's run of `searchTokens.gmWrite`: the write in this browser's queue, its answer what the local write answers. */
+async function runGmWrite(payload) {
+    if (payload.op === "set") {
+        if (!payload.roomName) return { refused: "nothing was carried out: no room was named" };
+        return { reply: await SearchTokens.setForHere(payload.roomName, payload.value, payload.sceneId ?? null) };
+    }
+    if (payload.op === "reset") {
+        await serialWrite(SEARCH_KEY, () => game.settings.set(MODULE_ID, SETTINGS.searchTokens, {}));
+        return { reply: true };
+    }
+    if (payload.op === "putBack") {
+        const store = countersOf(payload.store);
+        await serialWrite(SEARCH_KEY, () => game.settings.set(MODULE_ID, SETTINGS.searchTokens, store));
+        return { reply: true };
+    }
+    return { refused: "nothing was carried out: no such write of the counters" };
+}
 
 /**
  * Who spent a token where, on the primary GM's client: `user::scene::room` ->
@@ -853,8 +920,8 @@ async function plantHeld(identity) {
 }
 
 /**
- * The three requests a player's client sends here, as the bridge's runner
- * judges them (E31, 25.09.2026). A spend and a plant check wait five seconds
+ * The requests a player's client sends here, as the bridge's runner judges them
+ * (E31, 25.09.2026), and since 1.2.122 a GM's own write of the counters (MAP-40). A spend and a plant check wait five seconds
  * for their answer (`TIMING.searchTokenAckMs`, `TIMING.plantRequestMs`), for
  * the "got it" as well - a Search is not a ruling somebody takes time over. A
  * plant given back is a report nobody waits on.
@@ -886,6 +953,16 @@ export const SEARCH_ACTIONS = table({
         run: returnPlant,
         answer: "none", quiet: true,
         claims: { plantRequestId: guardPlantReturn }
+    },
+    // A GM's own write of the counters, carried out in the primary's queue (MAP-40, 1.2.122; `gmWriteOnPrimary`).
+    [ACTION_GM_WRITE]: {
+        label: "DRPG.Bridge.what.searchTokens.gmWrite",
+        guards: [gmOnly("only a GM sets the Search Tokens")],
+        sanitize: pick({ op: as.oneOf("set", "reset", "putBack"), roomName: as.text, sceneId: as.id, value: as.num, store: as.raw }),
+        run: runGmWrite,
+        answer: "reply",
+        claims: { sceneId: "a GM's own pick of a room's scene, which keys that room's counter alone (`SearchTokens.key`); the asker is a GM (`gmOnly`), and the run writes it in the primary's step of SEARCH_KEY",
+            store: "a GM's take-back of a boundary's counters (clock.mjs `takeBackBoundary`), the asker a GM (`gmOnly`); the run keeps only room keys with whole numbers of 0 or more (`countersOf`)" }
     },
     [ACTION_RETURN_TOKEN]: {
         label: "DRPG.Bridge.what.searchTokens.returnToken",
