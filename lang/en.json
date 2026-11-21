@@ -7230,6 +7230,7 @@
         "watches": "Who keeps watch through the Eclipse, from which room, and what they saw",
         "pendingBodies": "The found bodies waiting for a GM to announce them",
         "bodiesHeard": "Which bodies each character has heard the discovery sound for",
+        "hiddenStashes": "Which stashes are hidden, and whose",
         "lockpicks": "Who may walk through a lock they picked, into which room",
         "eavesdrops": "Who listens at which door, from which room, and which room they may listen at again for free",
         "masks": "Which killer hides behind a \"?\" after a murder's opening, and what their token looked like",

@@ -9056,6 +9056,7 @@
         "watches": "Kto czuwa przez Eclipse, w którym pokoju i co widział",
         "pendingBodies": "Znalezione ciała, których ogłoszenie czeka na decyzję GM-a",
         "bodiesHeard": "Przy których ciałach każda postać usłyszała dźwięk znalezienia",
+        "hiddenStashes": "Które skrytki są ukryte i czyje",
         "lockpicks": "Kto może wejść do którego pokoju przez zamek otwarty wytrychem",
         "eavesdrops": "Kto podsłuchuje pod którymi drzwiami, z którego pokoju i którego pokoju może znów posłuchać za darmo",
         "masks": "Który zabójca ukrywa się za „?” po otwarciu morderstwa i jak wyglądał jego token",
