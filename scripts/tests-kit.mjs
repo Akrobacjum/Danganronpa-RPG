@@ -762,9 +762,24 @@ const env = Object.freeze({
         && typeof globalThis.CSSTransition === "function", "no Web Animations API here"),
     /* The headless harness's stand-in for avclient-livekit (audit/harness/lib/livekit.mjs, E19 C0), there and not
        installed: client-entry.mjs's stub. A real Foundry has none, and its A/V client is not a test's to break. */
+    /* What a DOM keeps behind its wrappers, read where it can be (the line INVEST of 1.2.122, 21.11.2026): jsdom's
+       element carries its implementation under the symbol "impl", and that implementation the MutationObservers registered
+       on it (`_registeredObserverList`, each observer's `_nodeList`). A browser hides both, so a test of what an observer
+       keeps alive skips there and is a LIVE item instead. */
+    domInternals: () => probe("env.domInternals", domInternalsReadable(), "this DOM keeps its observers' registrations out of reach (a browser)"),
     liveKitShim: () => probe("env.liveKitShim", globalThis.__liveKit?.installed === false
         && typeof globalThis.__liveKit?.install === "function", "no LiveKit stand-in here, only the browser's own A/V client")
 });
+
+/** The implementation behind a jsdom node (its symbol "impl"), or null where the DOM is a browser's. */
+export function domImplOf(node) {
+    const key = node ? Object.getOwnPropertySymbols(node).find(sym => sym.description === "impl") : null;
+    return key ? node[key] ?? null : null;
+}
+function domInternalsReadable() {
+    const impl = domImplOf(document.body);
+    return Array.isArray(impl?._registeredObserverList);
+}
 
 const viewed = () => canvas?.scene ?? null;
 const living = () => studentActors().filter(a => !a.getFlag(MODULE_ID, FLAGS.deceased));
