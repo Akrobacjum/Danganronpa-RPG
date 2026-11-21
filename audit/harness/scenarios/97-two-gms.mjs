@@ -463,6 +463,17 @@ export async function run(api) {
         rewrittenK.length > 0 && rewrittenK.every(h => !h.includes(chieName)), J(rewrittenK));
     await connect("gm");
     await until(primaryOn, on => allRead(on, IDS.gm));
+    // A GM's own rewrite to the other GM carries what it kept masked (secret.mjs `sendWords`), as its answer does (K1).
+    const toGm2K = await gm.eval(`${CARD_K} const socket = game.socket, send = socket.emit, got = [];
+        socket.emit = function (event, packet, options, ...rest) {
+            if (packet?.action === "secret.card" && (options?.recipients ?? []).includes("${GM2}")) got.push((packet.hid ?? []).map(r => r.id));
+            return send.call(this, event, packet, options, ...rest);
+        };
+        try { await S.updateSecret(card(), "<p>E120K fourth " + foundry.utils.escapeHTML(game.actors.get("${IDS.chie}").name) + "</p>"); }
+        finally { socket.emit = send; }
+        return got;`);
+    check("K3: gm's rewrite of the card after the mask ended sends gm2 the masked rows it kept (Chie's)",
+        toGm2K.length > 0 && toGm2K.every(ids => J(ids) === J([IDS.chie])), J(toGm2K));
     await gm.eval(`${CARD_K} await card()?.delete(); return true;`);
     await settle(800);
 
