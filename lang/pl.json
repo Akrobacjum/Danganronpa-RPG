@@ -7650,7 +7650,7 @@
         "search": {
           "label": "Search",
           "hint": "Przeszukaj pokój pod kątem czegoś, co nazwiesz. Wydaje jeden z jego Search Tokenów.",
-          "description": "Rzucasz Eye: im wyższy wynik, tym lepsze znalezisko, a przy zbyt niskim nie znajdujesz nic. Remnant zostaje tylko wtedy, gdy znajdziesz coś, co liczy się jako Narzędzie zbrodni albo narzędzie do sprzątania.",
+          "description": "Rzucasz Eye albo inną statystykę, na którą zgodzi się GM: im wyższy wynik, tym lepsze znalezisko, a przy zbyt niskim nie znajdujesz nic. Remnant zostaje tylko wtedy, gdy znajdziesz coś, co liczy się jako Narzędzie zbrodni albo Narzędzie do sprzątania.",
           "failure": "Nic nie znaleziono."
         },
         "observe": {

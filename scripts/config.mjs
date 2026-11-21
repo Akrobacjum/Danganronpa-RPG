@@ -1530,8 +1530,8 @@ export const ACTIONS = {
         // states it in prose is a second copy, and the first GM to change the
         // setting turns it into a lie.
         hint: "Loot the room for something you name. Spends one of its Search Tokens.",
-        description: "Roll Eye: the higher the total, the better the find, and a low total finds nothing. If what you "
-            + "find counts as a Murder Weapon or a cleaning tool, your search leaves a Remnant.",
+        description: "Roll Eye, or another statistic the GM approves: the higher the total, the better the find, and a low "
+            + "total finds nothing. If what you find counts as a Murder Weapon or a Cleaning Tool, your search leaves a Remnant.",
         thresholds: [
             { min: 8, tier: 0, remnant: "hidden" },
             { min: 12, tier: 1, remnant: "subtle" },

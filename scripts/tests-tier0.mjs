@@ -27062,7 +27062,7 @@ const REGRESSIONS = [
         equal(JSON.stringify(wrong), "[]", "[the findings whose text still says what the code does not]");
     }],
 
-    ["R8061 - config.mjs's prose says what its tables do (1.2.122 line TEXT; the audit of 1.2.118: TEXT-20, TEXT-22, TEXT-23, TEXT-25, TEXT-27, STG-64): the Cleaning Tool's hint splits its help as cleanup.mjs does, Palm's briefing names the room, Behind Closed Doors names the ways through, Search's hint speaks of Search Tokens, the usables name their kinds as USABLE_KINDS does, prose nothing reads is gone from config.mjs and lang/pl.json, and no crisis action's failure table carries a critical key", async () => {
+    ["R8061 - config.mjs's prose says what its tables do (1.2.122 line TEXT; the audit of 1.2.118: TEXT-20, TEXT-22, TEXT-23, TEXT-25, TEXT-27, STG-64): the Cleaning Tool's hint splits its help as cleanup.mjs does, Palm's briefing names the room, Behind Closed Doors names the ways through, Search speaks of Search Tokens, of Eye unless the GM approves another statistic and of a Cleaning Tool, the usables name their kinds as USABLE_KINDS does, prose nothing reads is gone from config.mjs and lang/pl.json, and no crisis action's failure table carries a critical key", async () => {
         /*
          * 1.2.122 line TEXT, 21.11.2026. The English is config.mjs's own (i18n-config.mjs `configEnglish`, the value before a
          * Polish page swaps it), the Polish lang/pl.json's DRPG.Config twin. TEXT-20: cleanup.mjs arms the tool's advantage on
@@ -27099,8 +27099,10 @@ const REGRESSIONS = [
                 && C.ACTIONS.listen.thresholds.every(t => t.result === undefined)
                 && ["analyze.hintFailure", "palm.failure", "palm.unseen.label", "listen.critical.result", "listen.thresholds.0.result", "listen.thresholds.1.result"]
                     .every(k => plOf(`DRPG.Config.ACTIONS.${k}`) === undefined)],
-            // the search's description is the owner's approved text (B01a): its "Roll Eye" and "cleaning tool" are the owner's to change
+            // the search's description: the owner's yes of 21.11.2026 (tools/text-render.mjs BATCH_LATER over B01a's after)
             ["TEXT-27", () => en("DRPG.Config.ACTIONS.search.hint").includes("Search Tokens")
+                && !/^Roll Eye:/.test(en("DRPG.Config.ACTIONS.search.description")) && en("DRPG.Config.ACTIONS.search.description").includes("Cleaning Tool")
+                && plOf("DRPG.Config.ACTIONS.search.description").includes("Narzędzie do sprzątania")
                 && [1, 2, 3].every(n => en(`DRPG.Config.TIER_EFFECTS.usable.${n}`).includes(`(${C.USABLE_KINDS.stress.label})`)
                     && en(`DRPG.Config.TIER_EFFECTS.usable.${n}`).includes(`(${C.USABLE_KINDS.healing.label})`))],
             ["STG-64", () => Object.values(C.CRISIS_ACTIONS).every(def => !Object.hasOwn(def.failureRemnant ?? {}, "critical")
