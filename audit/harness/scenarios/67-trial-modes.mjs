@@ -41,6 +41,10 @@
  *     4c58d5a7+edits: hud 1 on each of the four, sheets 0, the console's region 2 in 1.5 s, the sheet's renders 0. The
  *     two counts - the HUD drawn once on each browser, no sheet rendered through the clock's pass - are 81-render-budget
  *     part F's since E37 C5 (E37-23), on sheets that register where the pass looks; M still records them in its log.
+ *   K (1.2.122, Keep speaking): p1 draws its windows; in a Testimony Your turn shows the seconds left, Keep speaking
+ *     closes it, and 20 s later it stands again in the same turn with Done, which ends the turn.
+ *   B (1.2.122, a ballot): p1 draws its windows; the GM sends the ballots and closes the vote with p1's unanswered: p1's
+ *     ballot closes itself and p1 is told the vote has moved on.
  *   V (E110 C1, C2, the owner's 14.11.2026): Aiko objects at Chie; on the primary Botan's and Chie's players' BROADCAST_AUDIO
  *     is off, Aiko's on, and p2 and p3 read "The floor is Aiko's" (voice.mjs `trialVoiceLine`). The GM redirects the
  *     Objection at Botan: every player reads the floor aimed at Botan and the public card. The Rebuttal gives Botan's
@@ -93,8 +97,11 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, canary, repoUr
     for (const c of [p1, p2, p3]) seen.push(await floorOn(c));
     const windows = [];
     for (const c of [p1, p2, p3]) {
-        windows.push(await c.eval(`const title = game.i18n.format("DRPG.Trial.turn.title", { seconds: 60 });
-            return globalThis.__dialogLog.slice(globalThis.__s67d ?? 0).filter(d => d.title === title).length;`));
+        // The seconds on the title are those left since 1.2.122 (CASE-64): 60, or a second under it when the window opens
+        // a moment after the start.
+        windows.push(await c.eval(`const head = game.i18n.format("DRPG.Trial.turn.title", { seconds: "#" }).split("#")[0];
+            const secondsOf = t => Number(String(t ?? "").slice(head.length).match(/\\d+/)?.[0] ?? NaN);
+            return globalThis.__dialogLog.slice(globalThis.__s67d ?? 0).filter(d => String(d.title ?? "").startsWith(head) && secondsOf(d.title) >= 57 && secondsOf(d.title) <= 60).length;`));
     }
     const panel = await p2.eval(`const E = await import("${repoUrl}/scripts/events.mjs"); const { getClock } = await import("${repoUrl}/scripts/clock.mjs");
         const card = E.trialCard(getClock()); return { title: card?.title ?? null, sub: card?.sub ?? null, meta: card?.meta ?? null,
@@ -295,11 +302,11 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, canary, repoUr
        browser by E70's design, as the HUD's row is (T3 reads p3's), so a bystander here is told no turn of their own,
        not kept from the card. A guard: green at C4's parent; shown able to fail by a planted mutant (the round's card
        marked as every reader's own). */
-    const turnTitle = onGm => `const want = game.i18n.localize("DRPG.Hud.trial.testimony"); const turn = game.i18n.format("DRPG.Trial.turn.title", { seconds: 60 });
+    const turnTitle = onGm => `const want = game.i18n.localize("DRPG.Hud.trial.testimony"); const turn = game.i18n.format("DRPG.Trial.turn.title", { seconds: "#" }).split("#")[0];
         const E = await import("${repoUrl}/scripts/events.mjs"); E.renderEvents();
         const sig = JSON.parse(document.getElementById("drpg-events")?.dataset.signature ?? "[]");
         return { cards: sig.filter(c => c[0] === "trial" && c[1] === want).map(c => ({ sub: c[2], meta: c[3], mine: c[6] ?? null })),
-            mine: sig.filter(c => c[6]).map(c => c[0]), windows: ${onGm ? "0" : "globalThis.__dialogLog.slice(globalThis.__s67d ?? 0).filter(d => d.title === turn).length"},
+            mine: sig.filter(c => c[6]).map(c => c[0]), windows: ${onGm ? "0" : "globalThis.__dialogLog.slice(globalThis.__s67d ?? 0).filter(d => String(d.title ?? '').startsWith(turn)).length"},
             next: game.i18n.format("DRPG.Events.trialNext", { name: game.actors.get("${IDS.chie}")?.name ?? "" }), aiko: game.actors.get("${IDS.aiko}")?.name ?? null };`;
     const panels = {};
     for (const [who, c] of [["gm", gm], ["p1", p1], ["p2", p2], ["p3", p3]]) panels[who] = await c.eval(turnTitle(who === "gm"));
@@ -512,6 +519,63 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, canary, repoUr
     verdict("the floor's end gives every microphone back and leaves no row in the GMs' store",
         J(vEnd.perms) === J(["on", "on", "on"]) && vEnd.rows === 0, J(vEnd));
     await canary.scan({ phase: "V" });
+
+    /* ------------------------------ K. Keep speaking (1.2.122) ------------------------------ */
+    /* CTRL-03, CASE-38, CASE-64, REFR-66: p1 draws its windows as a person's browser does (`__dialogWindows`); a Testimony
+       of 60 s a turn, Aiko first. Read on p1: Your turn drawn with its seconds; Keep speaking closes it; 20 s later
+       (`KEEP_SPEAKING_MS`) it stands again in the same turn, its title and its line the seconds left, under 45; its Done
+       ends Aiko's turn. Red at 21bf5d18: the window came once a turn, so Keep speaking left the speaker no Done. */
+    begin("K", "Keep speaking hides Your turn for a while; it comes back with the seconds left and Done");
+    await p1.eval(`globalThis.__s67kWas = globalThis.__dialogWindows; globalThis.__dialogWindows = true; return true;`);
+    await gm.eval(`${F} if (F.trialFloor()) await game.drpg.endMode(); await game.drpg.startTestimony({ seconds: 60, order: ${J(order)} }); return true;`, { timeout: 60000 });
+    const turnWindow = ms => p1.eval(`${until} const find = () => [...foundry.applications.instances.values()].find(a => a.rendered && a.element?.isConnected && a.options?.classes?.includes("drpg-your-turn"));
+        const app = await until(() => find(), ${ms});
+        if (!app) return null;
+        const left = app.element.querySelector("[data-drpg-left]")?.textContent ?? null;
+        return { title: app.options?.window?.title ?? null, left: Number(left), buttons: [...app.element.querySelectorAll("footer button[data-action]")].map(b => b.dataset.action) };`, { timeout: 30000 });
+    const pressTurn = action => p1.eval(`const app = [...foundry.applications.instances.values()].find(a => a.rendered && a.element?.isConnected && a.options?.classes?.includes("drpg-your-turn"));
+        const b = app?.element?.querySelector('footer button[data-action="${action}"]'); if (!b) return false; b.click(); return true;`);
+    const k1 = await turnWindow(6000);
+    verdict("p1 is shown Your turn with Keep speaking, Done and Pass, its line the seconds left",
+        Boolean(k1) && ["keep", "done", "pass"].every(a => k1.buttons.includes(a)) && k1.left >= 50 && k1.left <= 60, J(k1));
+    await pressTurn("keep");
+    await settle(1500);
+    const hidden = await turnWindow(200);
+    await settle(20000);
+    const k2 = await turnWindow(4000);
+    const k2Floor = await floorOn(gm);
+    const k2Title = Number(String(k2?.title ?? "").match(/\d+/)?.[0] ?? NaN);
+    verdict("Keep speaking closes it, and 20 s later it stands again in the same turn with Done, its seconds those left",
+        hidden === null && Boolean(k2) && k2.buttons.includes("done") && k2.left > 0 && k2.left <= 45 && k2Floor?.holder === IDS.aiko && k2Title <= 45,
+        J({ hidden, k2, k2Floor }));
+    await pressTurn("done");
+    await settle(1500);
+    const kAfter = await floorOn(gm);
+    verdict("its Done ends Aiko's turn: Botan's on the floor", kAfter?.holder === IDS.botan, J(kAfter));
+    await gm.eval(`${F} if (F.trialFloor()) await game.drpg.endMode(); return true;`, { timeout: 30000 });
+    await p1.eval(`globalThis.__dialogWindows = globalThis.__s67kWas; for (const a of [...foundry.applications.instances.values()]) if (a.options?.classes?.includes("drpg-your-turn")) await a.close(); return true;`);
+    await settle(800);
+    await canary.scan({ phase: "K" });
+
+    /* ------------------------------ B. a ballot closes with its round (1.2.122) ------------------------------ */
+    /* REFR-72: p1 draws its windows; the GM sends the ballots and p1's ballot stands; the GM closes and counts the vote
+       with p1's ballot unanswered: p1's window closes itself within 2 s, and p1 is told the vote has moved on, not that
+       the ballot was dismissed. Red at 21bf5d18: the ballot stood after the count, its Cast answered "The vote has moved on". */
+    begin("B", "a ballot left open closes when its vote is counted");
+    await p1.eval(`globalThis.__s67bWas = globalThis.__dialogWindows; globalThis.__dialogWindows = true; globalThis.__s67info = [];
+        const own = ui.notifications.info; globalThis.__s67ownInfo = own;
+        ui.notifications.info = (text, ...rest) => { globalThis.__s67info.push(String(text)); return own.call(ui.notifications, text, ...rest); }; return true;`);
+    await gm.eval(`${F} if (F.trialFloor()) await game.drpg.endMode(); await game.drpg.openVote(); return true;`, { timeout: 60000 });
+    const ballotOpen = ms => p1.eval(`${until} return Boolean(await until(() => [...foundry.applications.instances.values()].some(a => a.rendered && a.element?.isConnected && a.options?.classes?.includes("drpg-ballot")), ${ms}));`, { timeout: 30000 });
+    const bDrawn = await ballotOpen(8000);
+    await gm.eval(`const V = await import("${repoUrl}/scripts/vote.mjs"); await V.closeVote(); return true;`, { timeout: 60000 });
+    await settle(2500);
+    const bAfter = await p1.eval(`return { open: [...foundry.applications.instances.values()].some(a => a.rendered && a.element?.isConnected && a.options?.classes?.includes("drpg-ballot")),
+        told: globalThis.__s67info.includes(game.i18n.localize("DRPG.Vote.movedOn")) };`);
+    verdict("p1's ballot stood while the vote was open, and closed itself once it was counted, p1 told the vote has moved on",
+        bDrawn === true && bAfter.open === false && bAfter.told === true, J({ bDrawn, bAfter }));
+    await p1.eval(`globalThis.__dialogWindows = globalThis.__s67bWas; ui.notifications.info = globalThis.__s67ownInfo; return true;`);
+    await canary.scan({ phase: "B" });
 
     await gm.eval(`const C = await import("${repoUrl}/scripts/chapter.mjs"); const botan = game.actors.get("${IDS.botan}");
         if (C.isDeadForGm(botan)) await C.reviveCharacter(botan, { quiet: true });

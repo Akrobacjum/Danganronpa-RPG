@@ -44,6 +44,7 @@ import { tokenShownAsSeen, forgetSeenPass, tintAsSeen } from "./projects-seen.mj
 import { debug } from "./utils.mjs";
 // E88 C0: the counters `fps()` and scenario 86 read (perf-counters.mjs); an increment each, nothing timed.
 import { count } from "./perf-counters.mjs";
+import { userVeiledFromHere } from "./mask-gm.mjs";
 
 export function registerVisibility() {
     // A token this browser hides gives it no sight (E112v): the token class's vision-source test asks `tokenShownTo` too.
@@ -496,20 +497,32 @@ function applyToToken(token) {
              * lands, while the mesh is still sliding there from wherever it
              * came - so it flipped visible at its old position and crossed the
              * border on screen, which is the direction of the crime scene.
-             * While the sprite is not yet in a room of mine it stays hidden;
+             * While the sprite stands in another room it stays hidden;
              * `refreshToken` fires every frame of the slide and shows it the
-             * moment it crosses. One region test per animating token per frame.
+             * moment it crosses. A sprite between rooms (in none) is left to
+             * Foundry here, the guard `at &&` since 8d24e215 (1.2.122, the
+             * audit's MAP-45: this said "not yet in a room of mine").
+             * One region test per animating token per frame.
              */
             const sliding = token.x !== token.document.x || token.y !== token.document.y;
             if (sliding) {
                 count("visibility.sliding");
-                const at = roomAt(token.x, token.y, token.document);
-                if (at && !myRooms().has(at)) hide(token);
+                if (slideHeld(roomAt(token.x, token.y, token.document), myRooms())) hide(token);
             }
         }
     } catch {
         // Never break the canvas over this.
     }
+}
+
+/**
+ * Whether a token sliding towards a room of this viewer's is held hidden on this frame, its sprite's centre `at` (a room's
+ * name, or null between rooms): until the sprite is in one of `mine`. AND BETWEEN ROOMS TOO (1.2.122 line MAP; the audit's
+ * MAP-02): a sprite whose centre is in no room - the stretch between two rooms that do not touch - was shown, so a player
+ * in the Cafeteria saw a student come out of Dorm A's side and cross the gap. Pure; for the suite (R8350).
+ */
+export function slideHeld(at, mine) {
+    return !at || !mine?.has?.(at);
 }
 
 /**
@@ -609,8 +622,11 @@ export function tokenShownTo(tokenDoc, viewer) {
     if (viewer.lair && viewer.rooms.has(viewer.lair)) return null;
 
     const room = roomOfToken(tokenDoc);
-    // A scene with no regions at all: leave Foundry's own logic alone
-    // rather than hiding the entire cast.
+    // Neither the viewer's characters nor this token stand in a room: leave
+    // Foundry's own logic alone. That covers a scene with no regions at all,
+    // which would otherwise hide the entire cast, and also two students both
+    // outside every room on a scene that has them (a corridor), who see each
+    // other by Foundry's sight. `roomChangeTokens` relies on that wider reading.
     if (!viewer.rooms.size && !room) return null;
     return room && viewer.rooms.has(room) ? "room" : "hide";
 }
@@ -1011,14 +1027,8 @@ export function installSightRule(TokenClass = globalThis.CONFIG?.Token?.objectCl
  * veil hides them from. `viewer` and `scenes` are the suite's (R7864).
  */
 export function voiceVeiledHere(user, { viewer = viewerHere(), scenes = game.scenes ?? [] } = {}) {
-    if (!user || user.isGM || viewer?.gm || user.id === game.user?.id) return false;
-    for (const scene of scenes) {
-        for (const tokenDoc of scene?.tokens ?? []) {
-            if (!veiledToken(tokenDoc) || !tokenDoc.actor?.testUserPermission?.(user, "OWNER")) continue;
-            if (tokenShownTo(tokenDoc, viewer) === "hide") return true;
-        }
-    }
-    return false;
+    // The pickers' rule (mask-gm.mjs `veilHidesHere`, 1.2.122 line MURDER): one predicate, this browser's verdict handed in.
+    return userVeiledFromHere(user, { scenes, shown: tokenDoc => tokenShownTo(tokenDoc, viewer), user: game.user, gm: Boolean(viewer?.gm) });
 }
 
 /** This browser's answer for a token's ruler (the ruler class's predicate). */
@@ -1127,10 +1137,14 @@ export function applyAll() {
          * What the flag actually does is give Foundry back the tokens this
          * module has hidden. `hide()` writes `visible = false` onto seven
          * display objects by hand, and the only thing in here that reverses it
-         * is `show()` - which returns early for a token the viewer does not own
-         * (see its own note). So nothing in this module ever restores somebody
-         * else's token; Foundry's own visibility pass is what does, and this is
-         * how it is asked to run. Take the line out and an Eclipse ending, the
+         * is `show()`, which returns early only for a token with `hidden` set
+         * (see its own note). It is called for the tokens whose verdict is
+         * "show": the viewer's own, and since E112v a veiled token of the
+         * killers' side for a viewer on that side (`tokenShownTo`'s veil branch),
+         * which need not be the viewer's (read 21.11.2026). Every other token
+         * this module hid - one whose verdict is not "show" any more - is given
+         * back by Foundry's own visibility pass, and this is how it is asked to
+         * run. Take the line out and an Eclipse ending, the
          * clock moving, a Truth Bullet arriving and the lair opening all leave
          * other people's tokens stranded invisible - and no test anywhere would
          * catch it, because the harness has no canvas.

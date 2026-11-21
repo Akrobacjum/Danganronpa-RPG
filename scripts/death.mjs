@@ -49,7 +49,7 @@ function verdictBefore(chapter) {
 /**
  * Mark somebody dead and say nothing (F16, 20.09).
  *
- * The counterpart to `reviveCharacter`, and the reason it exists: the Players
+ * The counterpart to `reviveCharacter`, and the reason it exists: the Students
  * window's dropdown is a REPAIR tool - its own header says it "moves the two
  * flags and nothing else" - and it was calling `killCharacter`, which is the
  * whole death procedure. A GM straightening out a row that had got out of step
@@ -101,7 +101,7 @@ export async function markDeceased(actor, { record: when = null, phase = null, c
 
     /* THE BODY, WHERE THE TOKEN LIES (E63 C0, 11.11.2026; the owner on E95 Q3: "gdy postac umiera ... Nie gdy zostaje
        Monocubem"). Here, the one function every public death passes - a death public at once, a kept death made the
-       table's (`publishDeath`), the Players window's "dead" - so no road lays a second. Handed the record just written,
+       table's (`publishDeath`), the Students window's "dead" - so no road lays a second. Handed the record just written,
        not the GMs' mark, which may not hold it yet (body-tile.mjs `leaveBody`). Tried on its own: a tile that cannot be
        laid does not undo the death. */
     try {
@@ -111,7 +111,7 @@ export async function markDeceased(actor, { record: when = null, phase = null, c
     }
 
     /* THE DEAD WATCH (E62 C3b, 13.11.2026; spectator-dead.mjs): the student's Spectator where the body lies, made here
-       for a death public at once and the Players window's "dead", and found here for a kept death made the table's
+       for a death public at once and the Students window's "dead", and found here for a kept death made the table's
        (`publishDeath`), whose link then leaves the GMs' row for the watcher's flag. `silent` by default: every caller
        but `killCharacter` is a GM's correction or a publication, and only a death in play fades (SB-C3 #17). None for an
        NPC, a student no player owns at the death (1.2.113, the owner's decision of 13.11.2026; `isNpcAtDeath`). */
@@ -208,7 +208,7 @@ export async function killCharacter(actor, { keepBullets = false, secret = null,
     }
     if (!secretly) {
         if (!keepBullets) removed = await destroyBullets(actor);
-        // The record and the token marker, which the Players window's repair
+        // The record and the token marker, which the Students window's repair
         // dropdown writes on its own (F16) - one place decides what deceased means.
         record = await markDeceased(actor, { phase, cause, chapter, silent });
     }
@@ -287,9 +287,14 @@ export async function killCharacter(actor, { keepBullets = false, secret = null,
             chapter: record.chapter
         })}</p>
         ${secretly
-            ? `<p>${game.i18n.localize("DRPG.Chapter.keptUntilFound")}</p>`
+            ? `<p class="drpg-gm-only">${game.i18n.localize("DRPG.Chapter.keptUntilFound")}</p>`
             : keepBullets ? "" : `<p>${plural("DRPG.Chapter.bulletsGone", { n: removed })}</p>`}
-        <p><small>${game.i18n.localize("DRPG.Chapter.vaultPending")}</small></p>`, {
+        <p class="drpg-gm-only"><small>${game.i18n.localize("DRPG.Chapter.vaultPending")}</small></p>`, {
+        /* THE GMS' NOTES STAY THEIRS (the audit's TEXT-29, 1.2.122): mid-incident this card is whispered to the incident's
+           players too (`deathAudience`), and "Only the GMs know of this death ... in the Students window" and the stash's
+           fate are the GMs' procedure, not a line to a player (docs/text-style.md section 3). Both are `.drpg-gm-only`,
+           which a player's copy of a veiled card's words never holds (secret.mjs `playerWords`): the players read the
+           title and who died. */
         whisper: deathAudience ?? gmIds(),
         // The audience of a death card mid-incident is the incident's cast.
         veiled: true,
@@ -459,6 +464,17 @@ async function recordSecretDeath(actor, { keepBullets = false, phase = null } = 
     const clock = getClock();
     const record = { chapter: clock.chapter, day: clock.day, timeOfDay: clock.timeOfDay, phase: phase ?? clock.phase, epoch: seasonEpoch(),
         deathId: foundry.utils.randomID(), sinceVerdict: verdictBefore(clock.chapter) };
+    /* WHERE IT HAPPENED (the audit's CASE-74, 1.2.122 line MURDER): the room the body lies in at the kill, read off its
+       token before anything moves it, for the incident's automatic tie (remnants.mjs `placeRemnant`), which followed the
+       token to wherever Move the body carried it. The GMs' alone: a player's copy takes the chapter, day and time of the
+       row (incident-store.mjs `deathsFor`). */
+    try {
+        const { locateActor } = await import("./movement.mjs");
+        const at = locateActor(actor, { body: true });
+        if (at?.room) Object.assign(record, { room: at.room, sceneId: at.scene?.id ?? null });
+    } catch (err) {
+        error(`Could not read where ${actor.name} died`, err);
+    }
     let known = [];
     try {
         const { incidentKnowers } = await import("./murder.mjs");
@@ -506,7 +522,7 @@ async function tellDeathKnowers(actor, known = [], { dropped = false } = {}) {
  * tombstone is what a copy weighs its loss against - and whoever held a copy is told.
  * Idempotent: its head reads the GMs' row (`deathStore`), so a death already public answers
  * its record and a body nobody killed null. Run by the body's discovery (`runDiscovery`, through
- * `publishFoundBodies`), by a GM's hand - the Players window's "dead" (gm-students.mjs
+ * `publishFoundBodies`), by a GM's hand - the Students window's "dead" (gm-students.mjs
  * `applyAliveStates`) and the console's `game.drpg.publishDeath` (api.mjs) - and by a verdict
  * that executes a student whose death the GMs hold (trial-progress.mjs `executeAtExit`, E10 fix r1-G4:
  * the GM named them in the verdict's window, which told that GM whose death it is). Nothing
@@ -553,7 +569,7 @@ export async function publishDeath(actor, { phase = null, cause = null } = {}) {
  * THE DEATHS NOBODY HAS FOUND, AT THE TRIAL'S START (E05 C10; the owner's Q3, 26.09.2026).
  * The design published them here; the owner's answer is that only the discovery and a GM's
  * hand do, and that until then such a death is counted nowhere - so the GM who opened the
- * trial is told how many there are, on their screen and in no document, and the Players
+ * trial is told how many there are, on their screen and in no document, and the Students
  * window is where one is made known. Answers how many.
  * What "nowhere" means at the trial (E05 fix r2-G1, 27.09.2026; review F1, S2-m6): the
  * student is living to the table (rule A) - a ballot, a Level Up with the class - and the
@@ -591,7 +607,14 @@ async function offerStageSix(victim) {
 
     const killer = game.actors.get(state.killerId);
 
+    /* Closed unanswered once the incident is not this one in its fight (the audit's REFR-39, 1.2.122): its yes ran
+       `beginResolution`, which did nothing and said nothing for an incident that had moved on. */
+    let question = null;
+    const stands = () => { const now = murderState(); return now?.active && now.stage === "incident" && now.openedAt === state.openedAt; };
+    const shut = dialog => { if (dialog && !stands()) dialog.close()?.catch?.(() => {}); };
+    const watch = Hooks.on("updateSetting", setting => { if (setting?.key === `${MODULE_ID}.${SETTINGS.murderState}`) shut(question); });
     const sure = await drpgConfirm({
+        render: (event, dialog) => { question = dialog; shut(dialog); },
         classes: ["drpg-panel"],
         title: game.i18n.localize("DRPG.Chapter.stageSixTitle"),
         body: `<div>
@@ -607,14 +630,15 @@ async function offerStageSix(victim) {
         // The role's word (E21 rule 3): the question is withdrawn, so Cancel - not the caller's "Not now".
         no: "cancel",
         rejectClose: false
-    });
+    }).finally(() => Hooks.off("updateSetting", watch));
 
-    if (sure) await beginResolution("victimKilled");
+    if (sure && stands()) await beginResolution("victimKilled");
 }
 
 /**
- * Undo the marking. The inventory does NOT come back - those documents are
- * gone - so this is for a mis-click, not for a resurrection.
+ * Undo the marking. The Truth Bullets a death destroyed do NOT come back - those documents are gone; the rest of the
+ * sheet never went (`killCharacter`, decision D1 as it stands) - so this is for a mis-click, not for a resurrection.
+ * (Until 21.11.2026 this said "the inventory": the audit's Q3.)
  */
 export async function reviveCharacter(actor, { quiet = false, silent = false } = {}) {
     if (!game.user.isGM || !actor) return false;
@@ -776,7 +800,7 @@ export async function openDeathDialog({ actor = null } = {}) {
             close: "cancel",
             default: "cancel"
         },
-        render: (event, dialog) => chooseFirst(dialog, "actor"),
+        render: (event, dialog) => { chooseFirst(dialog, "actor"); keptFollowsChoice(dialog, victimId); },
         rejectClose: false
     });
 
@@ -785,6 +809,23 @@ export async function openDeathDialog({ actor = null } = {}) {
     const dying = game.actors.get(result.id);
     if (!dying) return false;
     return Boolean(await killCharacter(dying, { keepBullets: result.keepBullets, secret: Boolean(result.secret) }));
+}
+
+/**
+ * THE KEPT BOX FOLLOWS THE STUDENT CHOSEN (the audit's CASE-43, 1.2.122, 21.11.2026). The box "Keep it for the GMs until
+ * the body is found" opens ticked for the running incident's victim (the kill's own default) and stayed ticked when the GM
+ * chose somebody else, so a bystander's death - Monokuma's punishment mid-incident - was kept hidden from the table, which
+ * the GM did not mean. A choice of the select now ticks the box for the victim and unticks it for anyone else, until the
+ * GM touches the box: from then on it is theirs. A window with no select (the Students list's Kill) is left as drawn.
+ */
+export function keptFollowsChoice(dialog, victimId) {
+    const root = dialog?.element;
+    const select = root?.querySelector('select[name="actor"]');
+    const box = root?.querySelector('input[name="secret"]');
+    if (!select || !box) return;
+    let touched = false;
+    box.addEventListener("change", () => { touched = true; });
+    select.addEventListener("change", () => { if (!touched) box.checked = Boolean(victimId) && select.value === victimId; });
 }
 
 /**

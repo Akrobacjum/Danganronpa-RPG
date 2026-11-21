@@ -228,7 +228,8 @@ export function scanDump(dump, markers) {
  * Chat messages and token deltas are read since E05's fix round (S1-m3, S1-m4): the
  * rule's ChatMessage and delta halves had no scan on a player's browser until then.
  * Items since E05 C13, with the rule's Item half: the sidebar's at "<id>.flags..."
- * under Item, one on a sheet at "<actorId>.items.<id>.flags..." under Actor.
+ * under Item, one on a sheet at "<actorId>.items.<id>.flags..." under Actor. A scene's regions since 1.2.122
+ * (CORE-25), with the rule's `flagValues`: at "<sceneId>.regions.<id>.flags..." under Scene.
  */
 export function worldScan(dump, { ids = [] } = {}) {
     const prefix = `${WORLD_SECRET_MODULE}.`;
@@ -246,13 +247,15 @@ export function worldScan(dump, { ids = [] } = {}) {
             whisper: d?.whisper, author: d?.author })),
         // E05 C13: the items, in the sidebar and on every sheet - one on a sheet at its place in the actor.
         items: [...docs("Item").map(d => ({ id: d?._id, flags: d?.flags })),
-            ...docs("Actor").flatMap(actor => (actor?.items ?? []).map(i => ({ id: `${actor?._id}.items.${i?._id}`, flags: i?.flags })))]
+            ...docs("Actor").flatMap(actor => (actor?.items ?? []).map(i => ({ id: `${actor?._id}.items.${i?._id}`, flags: i?.flags })))],
+        // 1.2.122 (CORE-25): every scene's regions, read against the rule's `flagValues` - a hidden stash is no room's flag.
+        regions: docs("Scene").flatMap(scene => (scene?.regions ?? []).map(r => ({ id: `${scene?._id}.regions.${r?._id}`, flags: r?.flags })))
     };
     return findWorldSecrets(snapshot, { ids }).map(h => {
         const setting = h.doc === "setting";
         const full = setting ? h.path : `${h.id}${h.path ? `.${h.path}` : ""}`;
         return { seed: h.kind === "id" ? "world.id" : "world.field", surface: setting ? "setting" : "document",
-            where: setting ? `${prefix}${h.id}` : (h.doc === "Token" || /^delta\./.test(h.path) ? "Scene"
+            where: setting ? `${prefix}${h.id}` : (h.doc === "Token" || h.doc === "Region" || /^delta\./.test(h.path) ? "Scene"
                 : (h.doc === "Item" && h.id.includes(".items.") ? "Actor" : h.doc)),
             path: `${norm(full)}${h.key ? "#key" : ""}`, phase: dump?.phase ?? null, via: ["rest"], n: null, sample: h.rule };
     });
@@ -362,6 +365,12 @@ export function validateKnownLeaks(doc, { stageStatus, readme = "", scenarioText
         if (!LEAK_CLASSES.includes(e.class)) errs.push(`${at}: class "${e.class}" is not one of ${LEAK_CLASSES.join(", ")}`);
         if (!SEVERITIES.includes(e.severity)) errs.push(`${at}: severity "${e.severity}" is not one of ${SEVERITIES.join(", ")}`);
         if (!String(e.what ?? "").trim()) errs.push(`${at}: says nothing of what reaches whom`);
+        /* THE KILLER IS NOT METADATA (DOC-02, 21.11.2026). The two rows that resolve a token to the killer's actor were
+           filed metadata / info, the class D27 lets wait and the one a reader after 1.3.0 counts as harmless. A row whose
+           `what` names the killer is held to the class killer-identity; a severity under high would read the same way. */
+        if (/\bkillers?'?s?\b/i.test(String(e.what ?? "")) && (e.class !== "killer-identity" || !["critical", "high"].includes(e.severity))) {
+            errs.push(`${at}: its what names the killer, so it is class killer-identity at high or critical, not ${e.class} / ${e.severity} (D27)`);
+        }
         if (!String(e.measuredAt ?? "").trim()) errs.push(`${at}: no measuredAt - an entry is written from a run that reproduced it`);
         const kinds = ["closes", "foundryLimit", "deferred"].filter(k => e[k] !== undefined && e[k] !== null);
         if (kinds.length !== 1) errs.push(`${at}: needs exactly one of closes, foundryLimit and deferred, and has ${kinds.join(", ") || "none"}`);

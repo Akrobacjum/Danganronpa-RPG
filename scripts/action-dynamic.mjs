@@ -310,11 +310,14 @@ export function dynamicBar(band) {
  * The GM's side of a Dynamic action: read what the player described, then set
  * the band and the trait it is rolled against.
  *
- * Exported because gm-bridge calls it when the request arrives over the socket.
- * Returning null is a real answer - it means "no, you cannot do that" - and the
- * player's action is refused without costing them anything.
+ * Exported because the GMs' card calls it (messenger-app.mjs `ruleSetDifficulty`).
+ * `false` is the window's Refuse - "no, you cannot do that" - and the player's
+ * action is refused without costing them anything, as the card's own Refuse
+ * refuses it; `null` is the window closed with no answer, and the card stays
+ * open. Until 1.2.122 both answered null, so the window's Refuse refused nothing
+ * from the card and ended a GM's own action unsaid (the audit's CTRL-27).
  *
- * @returns {Promise<{tier: number, trait: string}|null>}
+ * @returns {Promise<{tier: number, trait: string}|false|null>}
  */
 export async function askDynamicDifficulty({ description, actorName, actorId = null, room, proposed = null } = {}) {
     // The character as its sheet names it (E91 C7; the owner's deferred item D076): the GMs' actor by id, the name the
@@ -353,6 +356,7 @@ export async function askDynamicDifficulty({ description, actorName, actorId = n
         rejectClose: false
     });
 
-    if (!picked || picked === "refuse") return null;
+    if (picked === "refuse") return false;
+    if (!picked) return null;
     return picked;
 }

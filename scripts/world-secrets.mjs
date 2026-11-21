@@ -72,8 +72,8 @@ export const WORLD_SECRET_RULES = Object.freeze({
             since: "E05 C1", why: "an indirect murder's killer, builder, condition and trigger (S09-05, D3); who sabotaged a project, a user id (S1-m1, E05's fix round), and the request it came under (E18 C7); where a Secret Passage will open and who found its project by Observe (E15 part 2 C2); whether a public project's proposer was told, a fact about who proposed it (H84 fix G3); a secret project's name and the players in on it, out of Daggerheart's Countdowns as well (S17-31)",
             /* E44 fix FG6 (05.11.2026): what a row may not hold while the project is secret - its `secret` true -, the GMs'
                then (projects-secrecy.mjs PROJECT_SECRET_WHILE_SECRET); a public project's description stands in its row. */
-            whileSecret: Object.freeze({ fields: Object.freeze(["description", "facility", "indirectMurder", "room", "roomScene", "roomSceneByGm"]), since: "E44 fix FG6; E93 C1; leak-pm (1.2.113); roomScene and roomSceneByGm since options (c) and B (16.11.2026)",
-                why: "a secret project's description, in its builder's or a GM's words - an indirect murder's plan among them (the end review's S-M1); the room action its completion gives, a GM's words of what it makes (E93 C1); and whether it is an indirect murder, and its room, which no token tells where the project has none (the leak-pm line, 14.11.2026), and the scene picked for that room and whether a GM picked it by hand (options (c) and B, 16.11.2026)" })
+            whileSecret: Object.freeze({ fields: Object.freeze(["completedAt", "description", "facility", "indirectMurder", "room", "roomScene", "roomSceneByGm"]), since: "E44 fix FG6; E93 C1; leak-pm (1.2.113); roomScene and roomSceneByGm since options (c) and B (16.11.2026); completedAt since 1.2.122 (ITEM-38)",
+                why: "a secret project's description, in its builder's or a GM's words - an indirect murder's plan among them (the end review's S-M1); the room action its completion gives, a GM's words of what it makes (E93 C1); and whether it is an indirect murder, and its room, which no token tells where the project has none (the leak-pm line, 14.11.2026), and the scene picked for that room and whether a GM picked it by hand (options (c) and B, 16.11.2026); and when it was completed, which told that a secret project gives a room action (the audit's ITEM-38, 1.2.122)" })
         }),
         // The key before 1.2.64 (settings.mjs `legacyPendingMurders`); the declarations are a GM store.
         pendingMurders: Object.freeze({
@@ -90,6 +90,12 @@ export const WORLD_SECRET_RULES = Object.freeze({
             empty: true,
             since: "E05 C5", why: "the Key Remnant plan: each clue's name, what it says, its analysis, the GM's note and its token (S01-01, S05-02)"
         }),
+        /* NO RULE FOR THE SEARCH TOKENS, BY THE OWNER'S DECISION OF 21.11.2026 (the audit of 1.2.118, MAP-26; relayed by the
+           1.2.122 coordinator: "Ui to pokazuje. Zostawiamy jak jest"). `searchTokens` (settings.mjs, a world setting) holds
+           each room's count left this time of day; the room tile shows a player the count of the room they stand in
+           (room-tile.mjs), so the counts are public by design. A console also reads the other rooms' counts - which rooms
+           were searched, and how often - and that is accepted with them. Named here so that nobody adds a rule for it, or
+           lifts it into a store, believing it an oversight. */
         // The darkening's stamp is public (its card is); the count behind it is the GMs' record (overflow.mjs).
         overflow: Object.freeze({
             fields: Object.freeze(["count"]),
@@ -213,6 +219,21 @@ export const WORLD_SECRET_RULES = Object.freeze({
         // (truth-bullets.mjs `liftBulletRefs`; S05-39 (2)). An item on a sheet or in the sidebar.
         // E97 C1: who left the trace a bullet came from is its answer key's (truth-bullets.mjs `leftByOf`; Q1), never the item's.
         Item: Object.freeze(["remnantRef", "leftBy", "leftByName"])
+    }),
+    /* A FLAG THAT MAY STAND, BUT NOT WITH ONE VALUE (1.2.122, line CORE; the audit of 1.2.118, CORE-25, which ITEMS'
+       line built): keyed by document type like `flags`, each row a path under the module's flag scope (a `*` any index of
+       an array) and the `value` it may never hold. A room's region keeps its open stashes for every browser - a stash
+       is public, a hiding place is not - so its list may stand and its legacy flag may stand `false`, as
+       CORE-25's migration clause leaves it (ITEMS' line, claude/items-122); an entry `concealed` true, or the legacy flag true, is a hidden
+       stash written where every console reads it (the GMs' store `hiddenStashes` holds those). A region's flags are
+       read for these rows alone: the actor ids an open stash names are its owners' by design, so `ids` is not read there. */
+    flagValues: Object.freeze({
+        Region: Object.freeze([
+            Object.freeze({ path: "drpgStashes.*.concealed", value: true, since: "1.2.122 (CORE-25)",
+                why: "a hidden stash in a room's list, which every browser is sent; the GMs' store hiddenStashes holds it" }),
+            Object.freeze({ path: "drpgVaultConcealed", value: true, since: "1.2.122 (CORE-25)",
+                why: "a room's hiding place under the flag before the list (E11), which every browser is sent; the GMs' store hiddenStashes holds it" })
+        ])
     }),
     messages: Object.freeze([
         /* E06 C5b: a roll the module threw (`supersedingRoll` stamps the flag) is emptied as it
@@ -341,7 +362,8 @@ function parsedRoll(roll) {
  * rules (E06 C1). A token may carry `delta` too - its own
  * actor data, `{ flags }` - which is read against the `Actor` rule and for `ids`,
  * with the hit's `doc` "Actor" and its `path` under `delta.` (E05's fix round,
- * S1-m4: a bookmark 1.2.63 wrote from an unlinked token's sheet is there).
+ * S1-m4: a bookmark 1.2.63 wrote from an unlinked token's sheet is there). `regions`, `{ id, flags }`
+ * (a region's id may be written "sceneId.regionId"), is read against `flagValues` alone (1.2.122).
  *
  * `ids`: actor ids no world data may name - a string that contains one, value or
  * key, anywhere under a module world setting or under an actor's, user's,
@@ -349,7 +371,7 @@ function parsedRoll(roll) {
  * speaker, `system` and rolls where a `messages` rule with `fields` holds. A document's own id, and the flags outside the module's
  * scope, are not read.
  *
- * Answers `[{ kind: "field" | "empty" | "only" | "flag" | "messageField" | "messageFlag" | "id", doc, id, path, key?, rule }]`
+ * Answers `[{ kind: "field" | "empty" | "only" | "flag" | "flagValue" | "messageField" | "messageFlag" | "id", doc, id, path, key?, rule }]`
  * (`messageField`: a path a `messages` rule wants empty, holding something; `messageFlag`: a
  * module flag outside the rule's `flagsOnly`):
  * `doc` is "setting" or the document type, `id` the setting's key or the
@@ -414,6 +436,18 @@ export function findWorldSecrets(snapshot, { ids = [], rules = WORLD_SECRET_RULE
         for (const entry of Array.isArray(list) ? list : []) {
             flagsIn(doc, String(entry?.id ?? ""), entry?.flags, "flags.");
             if (doc === "Token" && isObject(entry?.delta)) flagsIn("Actor", String(entry.id ?? ""), entry.delta.flags, "delta.flags.");
+        }
+    }
+    // A flag at a value it may never hold (`flagValues`, 1.2.122): the regions alone today, and no id read in them.
+    for (const [doc, list] of [["Region", snapshot?.regions]]) {
+        for (const entry of Array.isArray(list) ? list : []) {
+            const scope = entry?.flags?.[WORLD_SECRET_MODULE];
+            if (!isObject(scope)) continue;
+            for (const rule of rules.flagValues?.[doc] ?? []) {
+                for (const [p, v] of valuesAt(scope, rule.path)) {
+                    if (v === rule.value) out.push({ kind: "flagValue", doc, id: String(entry?.id ?? ""), path: `flags.${WORLD_SECRET_MODULE}.${p}`, rule: `${rule.why} (${rule.since})` });
+                }
+            }
         }
     }
     for (const message of Array.isArray(snapshot?.messages) ? snapshot.messages : []) {

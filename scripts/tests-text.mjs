@@ -945,13 +945,17 @@ export function glossaryHits(bag = {}) {
             const bad = forms.length ? wordRe(forms, rule.case === "any") : null;
             const shieldList = [...(term ? [term] : []), ...(rule.except ?? [])];
             const shield = shieldList.length ? wordRe(shieldList, true) : null;
-            const named = otherCase ? wordRe([term], true) : null;
+            /* A countable term's plural and its Polish endings too (1.2.122 line TEXT; the audit of 1.2.118, TEXT-33): as a
+               whole word alone, "search tokens" was never read, and two English texts kept the lower case. The term in its
+               own case, with whatever ending, is no finding: what is held is the case of the term's own letters. */
+            const ending = entry.declension?.countable === true ? (side === "en" ? "(?:s|es)?" : "\\p{L}{0,3}") : "";
+            const named = otherCase ? new RegExp(`(?<![\\p{L}\\p{N}_])${escapeRe(term)}${ending}(?![\\p{L}\\p{N}_])`, "giu") : null;
             for (const u of pool) {
                 const inside = (re, a, b) => re !== null && spansOf(u.text, re).some(([s, e]) => a >= s && b <= e);
                 const hit = (m, kind, said) => hits.push({ key: `${entry.id}@${u.at}`, kind, entry: entry.id, stage: entry.stage,
                     what: `${u.where}: "${quoted(u.text, m.index, m[0].length)}" - ${said} (glossary ${entry.id}, ${sourcesOf(entry)}; holds from ${entry.stage})` });
                 if (bad) for (const m of u.text.matchAll(bad)) if (!inside(shield, m.index, m.index + m[0].length)) hit(m, side, `"${m[0]}" is forbidden${term ? `, the glossary says "${term}"` : ""}`);
-                if (named) for (const m of u.text.matchAll(named)) if (m[0] !== term) hit(m, `${side}-case`, `"${m[0]}" is written "${term}"`);
+                if (named) for (const m of u.text.matchAll(named)) if (m[0].slice(0, term.length) !== term) hit(m, `${side}-case`, `"${m[0]}" is written "${term}"`);
             }
         }
         rows.push({ row: entry, hits, checked: read > before });
@@ -2350,6 +2354,7 @@ export const UI_LITERAL_ALLOW = Object.freeze({
     "scripts/gm-panel.mjs openFailureLog": { n: 1, why: "the header line of the error log a GM copies to paste to whoever debugs it, English as the console it copies" },
     "scripts/enforced.mjs FOUNDRY_WRITES": { n: 2, why: "a reach's fallback, English for the console and the author's report (patches.mjs header); the table reads DRPG.Contract.instead.<id>" },
     "scripts/season-wipe.mjs wipeSeason": { n: 1, why: "runSteps' label, written only into steps.mjs's error() lines" },
+    "scripts/traps.mjs diagnoseTraps": { n: 3, why: "console only: game.drpg.diagnoseTraps()'s answer to a player's console, where the plants, the ledger and the armed items are the GMs' (1.2.122: the file draws a toast since CTRL-62, so T13 reads it)" },
     "scripts/projects-map.mjs PROJECT_ACTOR": { n: 1, why: "the name the module gives its own actor and finds it again by (line 128 compares it); a translated name would not be found in a world opened in another language" },
     /* E57 T13 group 3 (14.11.2026), its slice's rows; the reconcile of the three T13 lines took out gmsRefusal, sentBackRefusal,
        passageRowsRefusal, ballotRefusal and drawCorpseCaption and three of auditMove's, which the reason and font-list rules now read. */
@@ -2359,7 +2364,7 @@ export const UI_LITERAL_ALLOW = Object.freeze({
     "scripts/verdict.mjs runVerdict": { n: 1, why: "console only: steps.mjs runSteps names its procedure by `label` in its error() lines alone" },
     "scripts/incident-store.mjs PUBLIC_INCIDENT": { n: 2, why: "each world-half field's reason, data the suite and world-secrets.mjs read; no screen draws it" },
     "scripts/inventory.mjs OLD_TIER_THREE": { n: 2, why: "an old item's description in each language, compared to find items to migrate; never shown" },
-    "scripts/monocub.mjs answerBribeOnGm": { n: 4, why: "console only: why a Bribe is closed unpaid, written by warn() (\"was closed unpaid: ...\"); the players are told by key (bribeUnpaid)" },
+    "scripts/monocub.mjs answerBribeOnGm": { n: 3, why: "console only: why a Bribe is closed unpaid, written by warn() (\"was closed unpaid: ...\"); the players are told by key (bribeUnpaid). 3 since 1.2.122 DESP-26, which moved the Hope checks into hopeHeld's callback" },
     "scripts/passages-gm.mjs MAP_REFUSALS": { n: 1, why: "MAP_REFUSALS.short, a template the closed list whyTable names (code short, DRPG.Passage.why.short); a template is not matched whole" },
     "scripts/passages-gm.mjs TUNNEL_REFUSALS": { n: 5, why: "console only: the console's words for a tunnel's codes (createPassage, a GM's game.drpg call); the pick says the code" },
     "scripts/projects-ui.mjs openProjectDialog": { n: 1, why: "a data-drpg-when-trigger value, compared with the select's option value; an id, not words" },
@@ -2370,6 +2375,7 @@ export const UI_LITERAL_ALLOW = Object.freeze({
     "scripts/remnants.mjs migrateRemnantToken": { n: 1, why: "console only: a field name in a token's `unwritten` list, which migrateRemnants joins into its warn() lines" },
     "scripts/remnants.mjs leftOnToken": { n: 1, why: "console only: a field name in a token's `left` list, which the migrations join into their warn() lines" },
     "scripts/settings.mjs DEFAULT_SAFEWORD": { n: 1, why: "a world setting's stored default: the one word the whole table says, which a per-browser translation would split at a table of two languages; migrate.mjs compares it" },
+    "scripts/dice-look.mjs viewLines": { n: 2, why: "the report's first line names the module and Dice So Nice, proper nouns the same in every language; read since 1.2.122, when the file's Copy report began to notify (CTRL-68)" },
     "scripts/tables-editor.mjs installTables": { n: 1, why: "the module's own name (module.json title) on the RollTable folder it creates, a proper noun the Polish keeps" },
 });
 
@@ -2872,8 +2878,9 @@ export const BASELINES = Object.freeze({
     dashesIn: Object.freeze([
         /* The two Meddle threshold lines' minus signs, in config.mjs's prose and their Polish twins (S02-66): gone with E71
            B10b (14.11.2026), which wrote them "-" in both languages. */
-        Object.freeze({ in: "script", file: "scripts/action-report.mjs", quote: "\u2212", issue: "S02-66", empties: "E25", why: "`signed`, a roll's bonus (action-rolls.mjs until E41 C3)" }),
-        Object.freeze({ in: "script", file: "scripts/action-report.mjs", quote: "\u2212", issue: "S02-66", empties: "E25", why: "the duality formula's operator (action-rolls.mjs until E41 C3)" })
+        // action-report.mjs's two, `signed` (a roll's bonus) and the duality formula's operator: gone with 1.2.122 line TEXT
+        // (21.11.2026; the audit of 1.2.118, STG-60 and STG-87), "-" - E25, which the rows said would empty them, shipped
+        // in 1.2.113 and left them; `shippedBaselineRows` now names a row past its stage.
         // roll-dialog.mjs's situational source's sign, the escape of U+2212: gone with the needsCode line (14.11.2026, R6902), "-".
         // season-setup.mjs's optional row's mark, the escape of U+2013 (S06-52): gone with E46-C5b (the kit's "-"; R2034).
     ])
@@ -2902,6 +2909,17 @@ export function againstBaseline(result, rows = []) {
         else { left.splice(at, 1); matched++; }
     }
     return { left, stale, matched, rows: sites.length };
+}
+
+/**
+ * The baseline rows whose emptying stage has shipped (1.2.122 line TEXT; the audit of 1.2.118, STG-60): T6 kept two rows
+ * marked `empties: "E25"` after E25 shipped in 1.2.113, green, because a row's stage was only checked for its shape.
+ * `baselines` is BASELINES' shape, `shipped` the ids that have shipped; each row returned with its detector's `name`.
+ * tools/check.mjs's text part turns each one red.
+ */
+export function shippedBaselineRows(baselines = {}, shipped = []) {
+    const done = new Set(shipped);
+    return Object.entries(baselines ?? {}).flatMap(([name, rows]) => (rows ?? []).filter(row => done.has(row.empties)).map(row => ({ name, ...row })));
 }
 
 /** A stale baseline row as a sentence. */

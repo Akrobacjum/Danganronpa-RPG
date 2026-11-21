@@ -8,7 +8,11 @@
  *
  * That placement window is the Eclipse. During it:
  *   · nobody sees anybody else's token, in any room
- *   · each player gets exactly 2 room crossings, free of the action economy
+ *   · each player gets the Eclipse's crossings, free of the action economy:
+ *     2 (ECLIPSE_MOVES), 1 under a darkening (`overflowCrossings`), none to
+ *     count in the free placement of ECLIPSE_FREE_PLACEMENT, and a room
+ *     action's extra crossings on top for that character (`eclipseAllowanceFor`)
+ *     - the audit of 1.2.118, D-249: this said "exactly 2"
  *   · crossings still respect doors and gaps - you move through connected
  *     rooms, not across the map
  *
@@ -51,7 +55,8 @@ export { ECLIPSE_MOVES };
  * That naming is not cosmetic - it is what decides the allowance. The ones in
  * ECLIPSE_FREE_PLACEMENT (Night, today) let you start anywhere on the map - unless
  * the darkening has pulled that back to two crossings (`freeBecomes` in the
- * overflow table); the other three are the handbook's two connected rooms.
+ * overflow table); the other four (one Eclipse leads into each of the five times
+ * of day, config.mjs TIMES_OF_DAY) are the handbook's two connected rooms.
  * ========================================================================== */
 
 /** "Morning Eclipse", "Night Eclipse" - what this placement window is called. */
@@ -379,7 +384,9 @@ export async function startEclipse() {
         // round the moment the overflow first fired.
         await whisperToOwner(actor, `<p>${free
             ? game.i18n.format("DRPG.Eclipse.yourMovesFree", { room })
-            : plural("DRPG.Eclipse.yourMoves", { n: allowance, room }, "n")
+            // The character's own allowance (`eclipseAllowanceFor`: a room action's extra crossings on top), as the
+            // sheet's budget line, `movesLeft` and the crossing's own card read it (the audit of 1.2.118, UI-18).
+            : plural("DRPG.Eclipse.yourMoves", { n: eclipseAllowanceFor(actor) ?? allowance, room }, "n")
         }</p>`);
     }
 
@@ -395,7 +402,23 @@ export async function startEclipse() {
  * @param {boolean} [options.advance]  Also advance the clock. Default true -
  *   the Eclipse sits *between* times of day, so ending one begins the next.
  */
-export async function endEclipse({ advance = true } = {}) {
+export async function endEclipse(options = {}) {
+    /* THE LIGHTS' DICE GO WHATEVER HAPPENS (the auditor's r121-K-3, 1.2.122): they are held as the Eclipse ends and let go
+       in the judgement's `finally`, and a throw between the two - the clock's write, the take-back - left them held, so a
+       murder opened afterwards at no lights read this Eclipse's watches (watch-gm.mjs `heldAtTheLights`). Let go here as
+       well, whichever way the end comes out; a second release is nothing. Red at 749b35b5 (tier 2 "1.2.122 r121-K-3"). */
+    try {
+        return await endEclipseNow(options);
+    } finally {
+        try {
+            (await import("./watch-gm.mjs")).releaseTheLights();
+        } catch (err) {
+            error("Could not let go of the watches' dice after the Eclipse's end", err);
+        }
+    }
+}
+
+async function endEclipseNow({ advance = true } = {}) {
     if (!game.user.isGM) return null;
     if (!isEclipse()) return null;
     // Its name, read while it still has one: the lights below judge what was declared in it.
@@ -437,7 +460,7 @@ export async function endEclipse({ advance = true } = {}) {
        player's map and flagged `veiled` in every browser's world data, a mark of a declaration that came to nothing.
        Now the room is read here by the judgement's own reading (`standingAtTheLights`), so a killer it cancels is never
        veiled, and one cancelled at the lights for any other reason - a second declaration, the GM's refusal, a refused
-       betrayal - is lifted as it is cancelled (`judgePendingMurders`, mask-gm.mjs `liftAtTheLights`). Tier 2 "E120 - the
+       betrayal - is lifted as it is cancelled (`judgePendingMurders`, mask-gm.mjs `liftAtTheLights`). Tier 2 "1.2.121 the
        lights veil only a killer they can still open". */
     try {
         await pendingMurderStore.whenHydrated();
@@ -895,6 +918,40 @@ async function killersTheLightsCanOpen(id) {
 }
 
 /**
+ * THE LIGHTS CLOSE THE DECLARATIONS' CARDS (the audit of 1.2.118, REFR-64; 1.2.122 line UI). `askGmToAllow`'s card kept
+ * its Allow, Change to and Refuse after the lights had dropped every row: a press found no row, warned
+ * `murderNotParked`, and the card stood open for the rest of the session. Each card still open for a killer whose row
+ * the lights took is settled as a ruled card is (call-gm.mjs `settleCall`), its line saying the Eclipse is over. A
+ * card is found by its buttons, as `askGmToAllow` wrote them (`data-drpg-call="approveMurder"`, `data-killer`); one
+ * that cannot be settled is logged and stays as it was.
+ */
+export async function settleDeclarationCards(killerIds) {
+    if (!killerIds?.length) return 0;
+    let settled = 0;
+    try {
+        const [{ contentOf }, { settleCall }, { MESSENGER_FLAGS }] = await Promise.all([
+            import("./secret.mjs"), import("./gm-bridge.mjs"), import("./messenger.mjs")]);
+        const ids = new Set(killerIds);
+        for (const message of [...(game.messages ?? [])]) {
+            if (message.getFlag?.(MODULE_ID, MESSENGER_FLAGS.settled)) continue;
+            const html = String(contentOf(message) ?? "");
+            if (!html.includes('data-drpg-call="approveMurder"')) continue;
+            const killer = html.match(/data-killer="([^"]+)"/)?.[1] ?? null;
+            if (!killer || !ids.has(killer)) continue;
+            try {
+                await settleCall(message, { key: "DRPG.Eclipse.declarationClosed" });
+                settled++;
+            } catch (err) {
+                error("Could not close a direct murder's card at the lights", err);
+            }
+        }
+    } catch (err) {
+        error("Could not close the direct murders' cards at the lights", err);
+    }
+    return settled;
+}
+
+/**
  * The lights come up: judge every declaration made in the Eclipse `id` - the one
  * `endEclipse` is ending, named before the clock moved.
  *
@@ -937,6 +994,7 @@ async function judgePendingMurders(id, taken = new Map()) {
     const ids = Object.keys(all);
     if (!held.length) return;
     await pendingMurderStore.dropMany(held);
+    await settleDeclarationCards(held);
     if (held.length > ids.length) log(`Dropped ${held.length - ids.length} declaration(s) made in another Eclipse, unjudged.`);
     if (!ids.length) return;
 
@@ -1121,9 +1179,11 @@ export function placementStatus() {
 /**
  * Judge a crossing made while the Eclipse is running.
  *
- * Returns true when the move is allowed. Crossings are limited to two, and to
- * rooms actually connected to the one you are leaving - the guide's "2
- * connected rooms", not two arbitrary hops.
+ * Returns true when the move is allowed. Crossings are limited to the
+ * character's allowance (`eclipseAllowanceFor`: the guide's 2, 1 under a
+ * darkening, a room action's extra on top; none counted in a free placement),
+ * and to rooms actually connected to the one you are leaving - the guide's
+ * "connected rooms", not arbitrary hops (D-249).
  *
  * The last argument is the suite's (R558, E79 fix r1-G4): tier 1 writes nothing, so it hands in a
  * running Eclipse's clock, its own passage rows in the copy's shape (`known`), and a recorder for the

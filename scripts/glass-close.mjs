@@ -27,7 +27,10 @@ const REFERENCE_SCREEN = [1366, 768];
    that keeps the new panes' median share of the screen within a tenth of 1366x768's (R3719) */
 const GRID_CELL = 1.2, LIFT = 1.6;
 const area = poly => Math.abs(poly.reduce((s, q, i) => { const r = poly[(i + 1) % poly.length]; return s + q[0] * r[1] - r[0] * q[1]; }, 0)) / 2;
-const centroid = poly => { const n = poly.length; return [poly.reduce((s, q) => s + q[0], 0) / n, poly.reduce((s, q) => s + q[1], 0) / n]; };
+/* The mean of the corners (glass-geometry.mjs's `meanOf`; its `centroid` is the bounding box's middle, a different
+   point): named apart since the audit of 1.2.118, UI-29, as `overlapsConvex` (a test) is from glass.mjs's
+   `overlapPolygon` (the overlap itself). This file imports nothing, so the one line is restated. */
+const cornerMean = poly => { const n = poly.length; return [poly.reduce((s, q) => s + q[0], 0) / n, poly.reduce((s, q) => s + q[1], 0) / n]; };
 /* two corners closer than a hundredth of a pixel are one (at half a pixel, a join dropped a real corner and opened a sliver, round 5) */
 const dedupe = poly => poly.filter((q, i) => { const p = poly[(i + poly.length - 1) % poly.length]; return Math.hypot(q[0] - p[0], q[1] - p[1]) > 0.01; });
 
@@ -51,7 +54,7 @@ function splitPoly(poly, px, py, nx, ny) {
 
 
 /** Separating axes on convex polygons; a shared edge is not an overlap (glass-geometry.mjs `overlaps`). */
-export function convexOverlap(A, B) {
+export function overlapsConvex(A, B) {
   const axes = P => P.map((p, i) => { const q = P[(i + 1) % P.length]; const l = Math.hypot(q[0] - p[0], q[1] - p[1]) || 1; return [-(q[1] - p[1]) / l, (q[0] - p[0]) / l]; });
   const ext = (P, ax) => { let a0 = 1e9, a1 = -1e9; for (const p of P) { const d = p[0] * ax[0] + p[1] * ax[1]; a0 = Math.min(a0, d); a1 = Math.max(a1, d); } return [a0, a1]; };
   for (const ax of [...axes(A), ...axes(B)]) { const [a0, a1] = ext(A, ax), [b0, b1] = ext(B, ax); if (a1 <= b0 + 0.5 || b1 <= a0 + 0.5) return false; }
@@ -114,7 +117,7 @@ export function slender(P) {
 
 /* the outward normal of each edge of a convex polygon, with a point on it */
 function edgesOut(P) {
-  const [cx, cy] = centroid(P);
+  const [cx, cy] = cornerMean(P);
   return P.map((a, i) => {
     const b = P[(i + 1) % P.length];
     let nx = -(b[1] - a[1]), ny = b[0] - a[0];
@@ -130,7 +133,7 @@ function holePieces(panes, W, H) {
   for (const s of panes) {
     const S = s.poly, out = [];
     for (const C of pieces) {
-      if (!convexOverlap(C, S)) { out.push(C); continue; }
+      if (!overlapsConvex(C, S)) { out.push(C); continue; }
       let rest = C;
       for (const { a, nx, ny } of edgesOut(S)) {
         const [outside, inner] = splitPoly(rest, a[0], a[1], nx, ny);
@@ -197,7 +200,7 @@ export function fillHole(panes, W, H, rnd = Math.random) {
     for (const f of fams) for (const d of f.at) {
       pieces = pieces.flatMap(P => { if (crack(P)) return [P]; const [A, B] = splitPoly(P, f.nx * d, f.ny * d, f.nx, f.ny); return A && B ? [A, B] : [P]; });
     }
-    const cellOf = P => { const [x, y] = centroid(P); return fams.map(f => f.at.filter(d => x * f.nx + y * f.ny > d).length).join(","); };
+    const cellOf = P => { const [x, y] = cornerMean(P); return fams.map(f => f.at.filter(d => x * f.nx + y * f.ny > d).length).join(","); };
     const cells = new Map();
     for (const P of pieces) { const k = cellOf(P); if (!cells.has(k)) cells.set(k, []); cells.get(k).push(P); }
     pieces = [];
@@ -237,7 +240,7 @@ export function fillHole(panes, W, H, rnd = Math.random) {
   const bestCut = P => {
     let far = [P[0], P[1]], fl = -1;
     for (const a of P) for (const b of P) { const l = Math.hypot(b[0] - a[0], b[1] - a[1]); if (l > fl) { fl = l; far = [a, b]; } }
-    const [cx, cy] = centroid(P), len = Math.atan2(far[1][1] - far[0][1], far[1][0] - far[0][0]);
+    const [cx, cy] = cornerMean(P), len = Math.atan2(far[1][1] - far[0][1], far[1][0] - far[0][0]);
     let best = null, bq = -1;
     for (let tries = 0; tries < 16; tries++) {
       const ang = len + (rnd() - 0.5) * 0.56, off = (rnd() - 0.5) * 0.24 * fl;
@@ -385,7 +388,7 @@ export function visibleAt(poly, o) {
 /** Pairs of panes that overlap among `polys` (convex), for a frame's check. */
 export function overlapsIn(polys) {
   let n = 0;
-  for (let i = 0; i < polys.length; i++) for (let j = i + 1; j < polys.length; j++) if (polys[i] && polys[j] && convexOverlap(polys[i], polys[j])) n++;
+  for (let i = 0; i < polys.length; i++) for (let j = i + 1; j < polys.length; j++) if (polys[i] && polys[j] && overlapsConvex(polys[i], polys[j])) n++;
   return n;
 }
 
@@ -452,11 +455,11 @@ export function slidePlan(standing, fresh, W, H, { total = 860, lead = 0.7 } = {
   const within = F.map(() => 0);
   for (let r = 0; r < gens; r++) {
     const ids = F.map((P, i) => i).filter(i => rank[i] === r);
-    const far = i => { const [x, y] = centroid(F[i]); return Math.hypot((x - W / 2) / (W / 2), (y - H / 2) / (H / 2)); };
+    const far = i => { const [x, y] = cornerMean(F[i]); return Math.hypot((x - W / 2) / (W / 2), (y - H / 2) / (H / 2)); };
     ids.sort((x, y) => far(y) - far(x)).forEach((i, k) => { within[i] = ids.length > 1 ? k / (ids.length - 1) : 0; });
   }
   return F.map((P, i) => {
-    const a = P[src[i]], b = P[(src[i] + 1) % P.length], [cx, cy] = centroid(P);
+    const a = P[src[i]], b = P[(src[i] + 1) % P.length], [cx, cy] = cornerMean(P);
     let nx = -(b[1] - a[1]), ny = b[0] - a[0];
     const l = Math.hypot(nx, ny) || 1; nx /= l; ny /= l;
     if ((cx - a[0]) * nx + (cy - a[1]) * ny < 0) { nx = -nx; ny = -ny; }

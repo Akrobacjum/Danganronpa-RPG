@@ -160,6 +160,18 @@ export async function run({ gm, p1, p2, p3, check, note, phase, settle, permissi
     check("control: the same handover.item from Botan's own player does move the item",
         handOk.botanHas === false && handOk.aikoWrenches === 1, JSON.stringify(handOk));
 
+    // 4a'. searchTokens.gmWrite (1.2.122 line WORLD, the audit's MAP-40): a GM's own write of the counters, asked of the
+    //      primary by a GM who is not it. From p1's console it is refused as a GM's alone, told, and writes nothing.
+    //      Its legal control, an Assistant GM's step and refill, is 33-bridge-paths A23.
+    const readCounters = `return foundry.utils.deepClone(game.settings.get("${MOD}", "searchTokens") ?? {});`;
+    const gmWrite = await forge("searchTokens.gmWrite", { op: "set", roomName: "Gym", sceneId: null, value: 0 }, readCounters);
+    const gmReset = await forge("searchTokens.gmWrite", { op: "reset" }, readCounters);
+    check("SECURITY: a forged searchTokens.gmWrite from a player - a room's step and a refill - changed nothing on the GM",
+        gmWrite.unchanged && gmReset.unchanged, JSON.stringify({ gmWrite, gmReset }));
+    check("SECURITY: the GM refused the forged searchTokens.gmWrite as a GM's alone, and told p1",
+        [gmWrite, gmReset].every(f => f.reasons.some(r => /only a GM sets the Search Tokens/.test(r)) && f.told.some(t => t.what === "searchTokens.gmWrite")),
+        JSON.stringify({ reasons: [gmWrite.reasons, gmReset.reasons], told: [gmWrite.told, gmReset.told] }));
+
     // 4b. call.arm: p1 arms a Support on Aiko, paid for by Botan.
     //     E03 (audit S10-09): the honest shape is a Support bought by one student for
     //     ANOTHER student's character, and the GM takes the Hope for it. So the
@@ -1525,9 +1537,12 @@ export async function run({ gm, p1, p2, p3, check, note, phase, settle, permissi
        GM's store of pending Observes must not grow, and the same request from Botan's
        own player must. Measured with the check taken out of handleObserveTarget on a
        scratch copy: this check failed, the control passed. */
-    // Through the store (E04, 1.2.63): the declarations are the local GM store `observeStore`.
+    // Through the store (E04, 1.2.63): the declarations are the GM store `observeStore` - and, since line INVEST of
+    // 1.2.122, the asks held unpaid in the primary's memory, which write no row until their roll is paid (observe.mjs
+    // `heldAskCount`): both counted, so a minted key is read wherever it is held.
     const readKeys = `const { observeStore } = await import("${repoUrl}/scripts/gm-stores.mjs");
-        return { pending: Object.keys(observeStore.entries()).length };`;
+        const O = await import("${repoUrl}/scripts/observe.mjs");
+        return { pending: Object.keys(observeStore.entries()).length + O.heldAskCount() };`;
     const targeted = await forge("observe.target", { actorId: ids.botan, declaration: "general", request: "" }, readKeys);
     check("SECURITY: a forged observe.target for Botan mints no Observe key, and the GM refuses it for ownership and tells p1",
         targeted.unchanged && targeted.forOwnership && targeted.told.some(t => t.what === "observe.target"), JSON.stringify(targeted));
@@ -2412,7 +2427,9 @@ export async function run({ gm, p1, p2, p3, check, note, phase, settle, permissi
     const parkClock = await gm.eval(`const c = game.drpg.getClock(); await game.drpg.setClock({ timeOfDay: "morning", eclipse: true, eclipseStartedAt: Date.now() });
         return { timeOfDay: c.timeOfDay, timeOfDayStartedAt: c.timeOfDayStartedAt };`);
     await settle(300);
+    // Paid first, as the Eclipse tile pays: the primary claims the payment's ticket before it parks (1.2.122, CORE-21).
     await p3.eval(`const { parkDirectMurder } = await import("${repoUrl}/scripts/eclipse.mjs");
+        await (await import("${repoUrl}/scripts/actions.mjs")).spendAction(game.actors.get("${ids.chie}"), 1);
         await parkDirectMurder({ killerId: "${ids.chie}", room: "Gym", note: "SEC Chie's own declaration" }); return true;`, { timeout: 30000 });
     await settle(900);
     const parkOk = await gm.eval(readPark);
@@ -4153,6 +4170,18 @@ export async function run({ gm, p1, p2, p3, check, note, phase, settle, permissi
         Boolean(bullet) && JSON.stringify(bulletAfter) === JSON.stringify(bulletBefore) && toldRewrite.reverted && !toldRewrite.unrestored,
         JSON.stringify({ bulletBefore, bulletAfter, toldRewrite }));
 
+    /* A GUARDED FLAG THE BULLET NEVER HAD (1.2.122, STG-103): p2 writes `remnantRef` - written by nothing since E05 C13, a
+       key world-secrets.mjs says no Item may carry, a null one as well - onto Botan's bullet from its console. The primary
+       puts it back as no key: until 1.2.122 as `remnantRef: null` (the copy records an absent flag as null). Red at
+       21bf5d18. */
+    await p2.eval(`const b = game.actors.get("${ids.botan}").items.get("${bullet}");
+        await b.update({ "flags.${MOD}.remnantRef": "SEC.forged" }, { drpgAutomated: true }); return true;`);
+    await settle(1500);
+    const refLeft = await gm.eval(`const b = game.actors.get("${ids.botan}").items.get("${bullet}");
+        return b ? (Object.hasOwn(b.flags?.["${MOD}"] ?? {}, "remnantRef") ? b.flags["${MOD}"].remnantRef : "absent") : "no bullet";`);
+    check("SECURITY: a player's write of a guarded flag the bullet never had is put back as no key, not as null (1.2.122, STG-103)",
+        refLeft === "absent", JSON.stringify({ refLeft }));
+
     /*
      * A bullet with no record is not called "put back". The GM's copy is dropped
      * by hand here - the state a bullet is in on a browser that never saw a GM
@@ -5674,7 +5703,11 @@ export async function run({ gm, p1, p2, p3, check, note, phase, settle, permissi
         const had = b ? Object.hasOwn(b.flags?.["${MOD}"] ?? {}, "remnantRef") ? b.flags["${MOD}"].remnantRef : "absent" : "no bullet";
         if (had === null) await b.unsetFlag("${MOD}", "remnantRef");
         return { had, now: b ? (Object.hasOwn(b.flags?.["${MOD}"] ?? {}, "remnantRef") ? b.flags["${MOD}"].remnantRef : "absent") : "no bullet" };`);
-    note("the bullet's remnantRef left by the put-right, taken off (E40 C3)", JSON.stringify(leftover));
+    /* Since 1.2.122 (STG-103) the put-back deletes a guarded flag the copy holds as null (truth-bullets.mjs
+       `revertPlayerBulletEdit`), and the bullet ends the phase with no `remnantRef`; the unset above stays as the cleanup
+       it was. Read on 21bf5d18 as well: green there, so the measure of STG-103 is the check of p2's own write above. */
+    check("SECURITY: the phase ends with no remnantRef on Botan's bullet (1.2.122, STG-103)",
+        leftover.had === "absent" && leftover.now === "absent", JSON.stringify(leftover));
 
     /*
      * 8. DAGGERHEART'S GM RELAY (E03, 24.09.2026; audit S16-01).
@@ -6896,6 +6929,17 @@ export async function run({ gm, p1, p2, p3, check, note, phase, settle, permissi
         if (actionsLeft(who) < 2) await trustedWrite(who, { "system.resources.actions.value": 3 }, { reason: "gmRuling" });
         await new Promise(r => setTimeout(r, 400));
         await spendAction(who, 2, { quiet: true }); }`;
+    /* The action opened again first (1.2.122, the assembly): since STG-39 (roll-draw.mjs `closeFacilityAtDraw`, line DESP)
+       the draw of a GM's room action closes it for the table, and the Hand draw above drew SECfac, so a second draw read
+       it closed and refused both payments - the check then measured the closing, not the Toll. Its use rows and the
+       public closing are taken off here and put back after the check. */
+    const facOpenWas = await gm.eval(`const S = await import("${repoUrl}/scripts/gm-stores.mjs"); await S.facilityUseStore.whenHydrated();
+        const rows = foundry.utils.deepClone(S.facilityUseStore.entries() ?? {});
+        for (const k of Object.keys(rows)) if (k.endsWith(":SECfac")) await S.facilityUseStore.drop(k);
+        const closed = foundry.utils.deepClone(game.settings.get("${MOD}", "facilityClosed") ?? {});
+        await game.settings.set("${MOD}", "facilityClosed", {});
+        return { rows: Object.fromEntries(Object.entries(rows).filter(([k]) => k.endsWith(":SECfac"))), closed };`, { timeout: 60000 });
+    await settle(500);
     const tollDraw = {
         toll: tollWas?.toll ?? null,
         one: await drawnRoll(p1, ids.aiko, "facility", "eye", { hope: 9, fear: 3 }, { context: { facilityId: "SECfac" } }),
@@ -6913,6 +6957,11 @@ export async function run({ gm, p1, p2, p3, check, note, phase, settle, permissi
     check("SECURITY: under Toll the GM draws no roll of a GM's room action on a console's payment of one action, and draws it on a payment of two",
         tollDraw.toll === 1 && tollDraw.one?.messageId === null && Boolean(tollDraw.two?.messageId),
         JSON.stringify(tollDraw), { flow: "facility" });
+    await gm.eval(`const S = await import("${repoUrl}/scripts/gm-stores.mjs");
+        for (const k of Object.keys(S.facilityUseStore.entries() ?? {})) if (k.endsWith(":SECfac")) await S.facilityUseStore.drop(k);
+        for (const [k, row] of Object.entries(${JSON.stringify(facOpenWas?.rows ?? {})})) await S.facilityUseStore.patch(k, row);
+        await game.settings.set("${MOD}", "facilityClosed", ${JSON.stringify(facOpenWas?.closed ?? {})}); return true;`, { timeout: 60000 });
+    await settle(500);
     /* A ROOM ACTION SHUT BY LOCKDOWN IS NOT DRAWN (the coordinator's check of 12.11.2026: each new state read where a roll
        is drawn). Its use was refused after the roll (facilities.mjs `facilityShut` in `handleFacilityUse`), but the GM drew
        the roll a console paid for. Now refused at the draw (roll-draw.mjs `facilityOfDraw`). Red at ca2a649: drawn. */
@@ -7024,6 +7073,22 @@ export async function run({ gm, p1, p2, p3, check, note, phase, settle, permissi
         !["p2", "p3"].some(k => (maskView[k]?.viaActor ?? []).includes(killerName)),
         JSON.stringify({ p2: maskView.p2?.viaActor, p3: maskView.p3?.viaActor }),
         { knownLeak: "foundry-masked-token-actor", measured: maskWas?.done === true });
+
+    /* 1.2.122 line MURDER (the audit's STG-31): the opening's veil asked of the primary (`mask.veil`, a GM's road: 97-two-gms
+       V is its legal use), forged from p2's console for Aiko at the lights - refused gmOnly, logged on the GM, and the GMs'
+       veils as they were. */
+    const readVeils = `const S = await import("${repoUrl}/scripts/gm-stores.mjs"); return Object.keys(S.veilStore.entries() ?? {}).sort();`;
+    const veilsBefore = await gm.eval(readVeils);
+    await gm.eval(`(await import("${repoUrl}/scripts/utils.mjs")).clearSessionFailures(); return true;`);
+    await p2.eval(`game.socket.emit("${SOCKET}", { action: "mask.veil", userId: "${p2.userId}", requestId: "forge-mask-veil", what: "lights", killerIds: ["${ids.aiko}"] },
+        { recipients: game.users.filter(u => u.isGM && u.active).map(u => u.id) }); return true;`);
+    await settle(900);
+    const veilsAfter = await gm.eval(readVeils);
+    const veilRefusals = await gm.eval(`return (await import("${repoUrl}/scripts/utils.mjs")).sessionFailures()
+        .filter(e => e.message.includes('Refused a "mask.veil"')).map(e => e.message);`);
+    check("SECURITY: p2's console asking the primary for the opening's veil (mask.veil) is refused (gmOnly) and logged - the GMs' veils as they were",
+        JSON.stringify(veilsBefore) === JSON.stringify(veilsAfter) && veilRefusals.some(r => /only a GM asks for the opening's veil/.test(r)),
+        JSON.stringify({ veilsBefore, veilsAfter, veilRefusals }), { flow: "mask" });
 
     /* FORGERIES OF A TAIL (E69 C3, 12.11.2026). `tail.start` from p1's console: Botan's character tailing Aiko, and Aiko
        tailing Botan with no roll named - each refused, no tail kept on the GM. The legal road is 33's E69-B. */

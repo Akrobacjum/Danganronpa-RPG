@@ -383,8 +383,19 @@ export async function callerStudent() {
     }
 }
 
-/** The confirmation. One question, no reason asked. */
+/* Whether this browser's confirmation stands open (1.2.122; the audit of 1.2.118, COMM-55): a fast double press of the
+   key opened two windows (read on 14.370, docs/dev/e58/LOCAL-REPORT.md: "a fast double press opens two"). A press while
+   one stands raises it and sends nothing of its own; the standing one's answer is the one that counts. */
+let safewordAsking = false;
+
+/** The confirmation. One question, no reason asked. A press while it stands open raises it and answers false. */
 export async function safewordDialog(actor = null) {
+    if (safewordAsking) {
+        const open = [...(foundry.applications?.instances?.values?.() ?? [])].find(app => app.options?.classes?.includes?.("drpg-safeword-dialog"));
+        open?.bringToFront?.();
+        return false;
+    }
+    safewordAsking = true;
     /* On the kit's frame (E21 C5a), answering as the DialogV2.confirm it was: true for Stop it, false for Cancel, null
        for a closed window.
        STOP IT IS THE DEFAULT (E22 C5d, 07.11.2026; E22-06, audit S03-16). It kept confirm's default, Cancel, so Enter
@@ -402,7 +413,7 @@ export async function safewordDialog(actor = null) {
         },
         rejectClose: false,
         modal: true
-    });
+    }).finally(() => { safewordAsking = false; });
     if (!confirmed) return false;
 
     let room = null;

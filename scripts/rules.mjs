@@ -22,7 +22,7 @@ import { SETTINGS, seasonEpoch, sameSeason } from "./settings.mjs";
 import { getClock } from "./clock.mjs";
 import { announce, log, error, plural, esc} from "./utils.mjs";
 import { drpgWindow, tipAttr } from "./ui-kit.mjs";
-import { alreadyOpen, RAISED } from "./live.mjs";
+import { alreadyOpen, RAISED, keepLive } from "./live.mjs";
 // A leaf (season-exceptions.mjs alone): the registry of season state the reset walks (E42 C3).
 import { registerSeasonState } from "./season-reset.mjs";
 
@@ -422,19 +422,37 @@ export function motiveSection(record = motive()) {
         <p class="notes">${t("DRPG.Motive.withdrawNote")}</p></section>`;
 }
 
+/** Which motive is in force, as one string: its text, chapter and stamp (`motive()`'s record), or "" for none. */
+export function motiveMark(record = motive()) {
+    return record?.text ? JSON.stringify([record.text, record.chapter ?? null, record.at ?? null]) : "";
+}
+
 /**
  * Wire the section's Withdraw: pressed once (the button goes off at once, so a second press withdraws nothing more),
  * then the section says there is no motive. `withdraw` is `setMotive(null)` unless the suite hands a stand-in (R1520).
  *
  * @returns {{ done: () => Promise<unknown> }} what the last press is still doing
  */
-export function wireMotiveWithdraw(root, { withdraw = () => setMotive(null) } = {}) {
+export function wireMotiveWithdraw(root, { withdraw = () => setMotive(null), shown = motiveMark(), now = () => motiveMark() } = {}) {
     let pending = Promise.resolve();
     const button = root?.querySelector?.("[data-drpg-motive-withdraw]");
     if (!button) return { done: () => pending };
     button.addEventListener("click", () => {
         if (button.disabled) return;
         button.disabled = true;
+        /* THE MOTIVE IT SHOWS, OR NONE (the audit's REFR-22, 1.2.122): Withdraw withdrew whatever was in force, a motive
+           another GM or a Despair Call set while the window stood included. A motive that is no longer the one drawn is
+           drawn instead, and the GM told; a second press withdraws it. */
+        if (now() !== shown) {
+            const section = button.closest(".drpg-rules-motive");
+            const host = section?.parentNode ?? null;
+            if (host) {
+                section.outerHTML = motiveSection();
+                wireMotiveWithdraw(host, { withdraw, now });
+            }
+            ui.notifications.info(game.i18n.localize("DRPG.Motive.changedMeanwhile"));
+            return;
+        }
         pending = Promise.resolve()
             .then(() => withdraw())
             .then(() => {
@@ -518,6 +536,8 @@ export async function openRulesManager() {
                     return {
                         edited: current.map(rule => ({
                             id: rule.id,
+                            // The words drawn, so the save can tell a row the GM reworded from one left as drawn.
+                            was: rule.text,
                             text: f.querySelector(`[name="text:${CSS.escape(rule.id)}"]`)?.value ?? rule.text,
                             remove: Boolean(
                                 f.querySelector(`[name="delete:${CSS.escape(rule.id)}"]`)?.checked)
@@ -530,7 +550,13 @@ export async function openRulesManager() {
             // Save still to answer: Cancel (E21 rule 3), the answer "cancel" as before.
             close: { role: "cancel", action: "cancel" }
         },
-        render: (_event, dialog) => { wireMotiveWithdraw(dialog?.element); },
+        render: (_event, dialog) => {
+            wireMotiveWithdraw(dialog?.element);
+            // The motive is a read-out: drawn again when it changes, wherever (REFR-22, 1.2.122). The rules' rows are the
+            // GM's form and are not redrawn under their hands; the save reads them against today's list (`saveRulesEdit`).
+            keepLive(dialog, { region: ".drpg-rules-motive", build: () => motiveSection(),
+                watch: { settings: [SETTINGS.motive, SETTINGS.clock] }, after: el => wireMotiveWithdraw(el) });
+        },
         rejectClose: false
     });
 
@@ -554,7 +580,7 @@ export async function openRulesManager() {
  *   that only rewords posts nothing (D44d names the introduced and the revoked). Unticked for a GM fixing a typo.
  * - THE NEW RULE IS `makeRule`'S, the builder `addRule` uses.
  *
- * @param {{ edited: Array<{id: string, text: string, remove: boolean}>, added: string, announce?: boolean }} result
+ * @param {{ edited: Array<{id: string, text: string, was?: string, remove: boolean}>, added: string, announce?: boolean }} result
  * @returns {Promise<object[]|null>} the rules written, or null when the write was refused
  */
 async function saveRulesEdit(result) {
@@ -564,7 +590,11 @@ async function saveRulesEdit(result) {
         .filter(r => !result.edited.find(e => e.id === r.id)?.remove)
         .map(r => {
             const edit = result.edited.find(e => e.id === r.id);
-            const text = String(edit?.text ?? r.text).trim();
+            /* A ROW LEFT AS DRAWN KEEPS TODAY'S WORDS (the audit's REFR-22, 1.2.122, 21.11.2026). Save sent every drawn
+               row's text, changed or not, so a rule another GM reworded while this window stood got the words drawn at
+               the open back. Only a row whose text differs from the one drawn (`was`) is this GM's rewording. */
+            const reworded = edit && (edit.was === undefined || String(edit.text) !== String(edit.was));
+            const text = String(reworded ? edit.text : r.text).trim();
             if (!text) emptied.push(before.indexOf(r) + 1);
             return text ? { ...r, text } : r;
         });

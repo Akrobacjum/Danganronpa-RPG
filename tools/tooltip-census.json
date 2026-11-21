@@ -558,7 +558,7 @@
    }
   },
   {
-   "file": "scripts/tables-editor.mjs",
+   "file": "scripts/tables-entries.mjs",
    "unit": "placeResultDialog",
    "kind": "checkbox",
    "key": null,

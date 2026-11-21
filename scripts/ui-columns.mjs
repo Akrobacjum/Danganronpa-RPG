@@ -20,7 +20,8 @@
  * holds a stated width under the screen less 16 px (ui-kit.mjs `kitWidth`), and the stylesheet stacks the columns when
  * the window is narrower than both (a phone: not supported, the owner's 10.11.2026, and not measured).
  *
- * No game logic here and no localised text: a caller hands in markup it has escaped. A row's `label`, `hint` and `why`
+ * No game logic here, and one localised text: a row's "waits for a GM" (DRPG.Action.waitsForGm); the rest a caller
+ * hands in as markup it has escaped. A row's `label`, `hint` and `why`
  * are literal text and escaped here, as `chooseVariant` escaped them before the row moved out of it.
  */
 

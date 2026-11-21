@@ -10,35 +10,27 @@
 import { settleVoice, blockTurns } from "./glass-blocks.mjs";
 
 export const bboxOf = poly => ({ x0: Math.min(...poly.map(q => q[0])), y0: Math.min(...poly.map(q => q[1])), x1: Math.max(...poly.map(q => q[0])), y1: Math.max(...poly.map(q => q[1])) });
-/* KEEP THE SEAM'S ANGLE, MOVE THE RAIL INSTEAD - AND MEASURE, DO NOT PREDICT.
-   Three goes at this. Clamping the angle left a rail standing straight beside tilted glass,
-   which is half the complaint. Computing the inset from the rotated bounding box was still
-   wrong, because these rails turn about A POINT THE GLASS CHOOSES (`origin` below), not about
-   their own centre, so no centre-based formula says where they land - the left rail sat six
-   pixels off the screen while the arithmetic said it was fine. So: apply the glass's angle,
-   read the box the browser actually produced, and slide the rail in by whatever it is over
-   the edge. One extra reflow per rebuild, on two elements. */
-/* The most the partition ever leans a column, and the angle the rails reserve room for.
-   Kept here because two passes have to agree on it: the measuring pass inflates a rail's
-   box by the swing this angle costs, and `railRule` writes the rotation that spends it. */
+/* How a rail is kept on the screen under its lean is glass.mjs `railRule`'s: the rotated hull worked out from layout
+   values, never read back from the browser (its own note says why reading back did not work). The note that stood here,
+   "read the box the browser actually produced", described a pass that is gone (the audit of 1.2.118, D-244). */
+/* The partition's steepest lean of a column, 9 degrees. Of the rails' code only glass.mjs `railBox` reads it, for the
+   band's lift above and below a rail (`lift`); the rails' own swing is reserved at RAIL_LEAN (`railSwing`, below), not
+   at this (the audit of 1.2.118, D-245: this note said the shard reserves the swing at MAX_TILT). */
 export const MAX_TILT = 9 * Math.PI / 180;
-/* WHAT A LEAN COSTS IN WIDTH. A rail is the tallest thing on the screen and rotation is paid
-   for in width: a 468 px rail leaning 9 deg needs 73 px more glass than it occupies. The shard
-   reserves that up front, at MAX_TILT, so whatever lean the strip's edge turns out to want is
-   always one the tiles have room for, and they never cross their own glass. */
 /* The swing a rail's lean costs it, at the lean it is actually given (RAIL_LEAN below), not
    at the partition's maximum: reserving for 9 degrees when the rail leans 5 made the band
    half again as wide as it needed to be, which is the "witraz na lewe kafelki jest za duzy"
    of 07.09. The lean is clamped to the same number, so the reservation is exact. */
 export const railSwing = h => Math.round(Math.max(0, h) * Math.sin(RAIL_LEAN) / 2);
-/* how much wider than the tiles' box the strip carrying them runs: the lean of its outer
-   edge (STRIP_LEAN, 26) plus the clearance that edge keeps off the tiles (14) */
 /* THE ANGLE THE AUDIT PAGE GIVES THE EDGE UNDER THE TILES: "szkło jest ścięte do jednej
    prostej (22 px pochylenia na ~370 px)", which is 3.4 degrees, "a same kafelki są obrócone o
    kąt tej krawędzi ... więc stoją do niej równolegle". So the edge is cut to that angle over
    whatever run it has, and the tiles take the angle the edge came out with - parallel by
    construction rather than by two constants that happen to agree. */
 export const STRIP_ANGLE = Math.atan(22 / 370);
+/* The lean of the strip's outer edge where no band width is handed (`deskShapes`: a strip runs this, 26 px, plus the
+   clearance its edge keeps off the tiles, 14 px, wider than the tiles' box). It stood without its note, which sat over
+   the STRIP_ANGLE note above as a remnant of the STRIP_SLACK it once described (the audit of 1.2.118, D-246). */
 const STRIP_LEAN = 26;
 /* How far a rail leans - exactly, not at least. It used to be a floor with MAX_TILT as the
    ceiling, and the band then had to reserve the swing of the ceiling. One number for both. */

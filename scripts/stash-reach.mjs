@@ -32,7 +32,7 @@ import { locateActor, sceneOfActor } from "./movement.mjs";
 import { iAmTheMastermind, isDeadForGm, getClock } from "./settings.mjs";
 import { whisperToOwner, whisperToGms, log, error, esc, listOf } from "./utils.mjs";
 import { drpgWindow } from "./ui-kit.mjs";
-import { alreadyOpen, RAISED } from "./live.mjs";
+import { alreadyOpen, RAISED, keepLive } from "./live.mjs";
 import { placeScenes } from "./rooms.mjs";
 import {
     VAULT_FLAGS, stashesIn, stashIn, stashRoomsFor, stashRoomOfItem, stashItemsIn, allVaults, foundKey, hasFoundStash,
@@ -213,8 +213,9 @@ export async function retrieve(actor, item) {
  * Whose stash is in the room this character is standing in, if it is open.
  *
  * "Open" means not concealed. A concealed stash is one its owner has built a
- * hiding place for - a project - and finding that is what the Search action's
- * own stash branch is for, at a penalty, with a roll. An unconcealed stash is
+ * hiding place for - a project - and finding that is Analyze's Find Stash
+ * (`resolveStashSearch`): since 1.2.112 a Search reaches into no stash (the
+ * audit's D147; action-search.mjs). An unconcealed stash is
  * just a drawer in a bedroom: anyone who walks in can go through it, which is
  * exactly the pressure a killing game wants on leaving your things lying about.
  *
@@ -311,10 +312,21 @@ export async function rifleStashDialog(actor) {
      * A single stash keeps its old shape exactly: one group, and a heading the
      * player can ignore.
      */
-    const options = stocked.map(entry =>
+    const options = list => list.map(entry =>
         `<optgroup label="${esc(entry.owner.name)}">${entry.items.map(i =>
             `<option value="${entry.owner.id}:${i.id}">${describe(i)}</option>`
         ).join("")}</optgroup>`).join("");
+    /* THE LIST FOLLOWS THE STASHES (1.2.122 line MAP; the audit's REFR-52, the owner's rule "Zawsze odswiezamy okna od razu
+       przy zmianie"). It was drawn once: a thing another student took a moment before stayed offered, and its press was
+       refused. Redrawn on every item, character and room change from the stashes open here now; the pick is carried by
+       `keepLive` itself, as a changed field's value is (live.mjs); a stash emptied meanwhile leaves the words that it is
+       empty. The press is judged on the primary as before (`stealFromVault`). */
+    const pickHtml = () => {
+        const now = openStashesHere(actor).filter(entry => entry.items.length);
+        if (!now.length) return `<div class="drpg-rifle-pick"><p class="notes">${esc(game.i18n.format("DRPG.Vault.stashEmpty", { who: listOf(stashes.map(entry => entry.owner.name)) }))}</p></div>`;
+        return `<div class="drpg-rifle-pick"><label>${game.i18n.localize("DRPG.Items.whichItem")}
+                <select name="item">${options(now)}</select></label></div>`;
+    };
 
     // On the kit's frame (E21 C5a).
     const picked = await drpgWindow({
@@ -325,17 +337,21 @@ export async function rifleStashDialog(actor) {
                 who: esc(listOf(stocked.map(entry => entry.owner.name))),
                 room: esc(room)
             })}</p>
-            <label>${game.i18n.localize("DRPG.Items.whichItem")}
-                <select name="item">${options}</select></label>
+            ${pickHtml()}
             <p class="notes">${game.i18n.localize("DRPG.Vault.rifleNote")}</p>
         </form>`,
         footer: {
             primary: {
                 action: "take", label: game.i18n.localize("DRPG.Vault.take"),
-                callback: (e, b, d) => d.element.querySelector("[name=item]").value
+                callback: (e, b, d) => d.element.querySelector("[name=item]")?.value ?? null
             },
             close: "cancel"
         },
+        render: (event, dialog) => keepLive(dialog, {
+            region: ".drpg-rifle-pick",
+            build: pickHtml,
+            watch: { actors: true, items: true, hooks: ["createRegion", "updateRegion", "deleteRegion"] }
+        }),
         rejectClose: false
     });
 
@@ -554,8 +570,9 @@ export async function stealFromVault({ thiefId, ownerId, itemId } = {}) {
     // Gone by its turn - another reach for the same piece took it first: told as a thing no longer there (E14 fix e1-G1).
     if (moved?.missing) return { refused: "no such thing in that stash" };
     if (!moved?.ok) {
-        // Full hands and no stash of their own, or not written: the thief is told, or the Search card that follows
-        // says "what comes out settles in a moment" and nothing ever does (ROLL-10).
+        // Full hands and no stash of their own, or not written: the thief is told why here (ROLL-10's whisper). Its first
+        // reason - a Search card that followed and said "what comes out settles in a moment" - left with 1.2.112, when a
+        // Search stopped reaching into a stash (action-search.mjs; the audit's ROLL-34): the rifle's own answer is all.
         await whisperToOwner(thief, `<p>${game.i18n.localize("DRPG.Vault.handsFull")}</p>`).catch(() => {});
         return null;
     }
@@ -638,8 +655,10 @@ async function tellStashDisturbedNow(owner, room, scene) {
     // Whose reaches the notice settles, for the GMs alone (A113-C6-4): the thief's id is a row's key up to its first colon.
     const thieves = [...new Set(pending.map(key => game.actors.get(key.slice(0, key.indexOf(":")))?.name).filter(Boolean))];
     try {
+        // Veiled (1.2.122, the audit's COMM-22): told the moment the owner stands in the room, an Eclipse's crossing
+        // included, so a plain document spoken as the owner told every console where they had just walked.
         await whisperToOwner(owner, `<p>${game.i18n.localize("DRPG.Vault.noticed")}</p>`, {
-            flags: { [MODULE_ID]: { sfx: "stolen" } }
+            flags: { [MODULE_ID]: { sfx: "stolen" } }, veiled: true
         });
     } catch (err) {
         error("Could not tell the owner their stash had been gone through", err);
@@ -766,8 +785,9 @@ export async function resolveStashSearch({ actorId, total = 0, isCritical = fals
     /*
      * THE OWNER IS NOT TOLD, and that is the rule this action was written with
      * - "bez powiadamiania właściciela". Being found out is something they
-     * discover when something goes missing, which is `stealFromVault`'s job and
-     * has its own Despair test.
+     * discover when something goes missing: `stealFromVault` rolls nothing since
+     * 1.2.112 (a reach is free), and the owner is told of a reach on next walking
+     * into the room (its "THE OWNER HEARS OF IT ON WALKING IN"; the audit's D148).
      *
      * The GMs are told, because a hiding place opening is a fact about the
      * chapter and the one person who has to be able to narrate it is not on
@@ -781,7 +801,7 @@ export async function resolveStashSearch({ actorId, total = 0, isCritical = fals
     return { found: true, owner: target.owner.name, room: where.room, place };
 }
 
-/** GM: look inside anybody's stash, and pull things out of it. */
+/** GM: look inside anybody's stash - read only; its note sends the GM to Give / take items to take a thing out (D149). */
 export async function openVaultInspector() {
     // ONE OF THESE, NOT FOUR - see `alreadyOpen` in live.mjs. Two copies of a
     // window each read the world when they opened and neither knows about the
@@ -807,11 +827,36 @@ export async function openVaultInspector() {
        unstamped one under each scene's primary stash. Which of the two holds it is not written
        anywhere this window could read, so each thing is listed once: under the first scene in
        `placeScenes`' order whose stash of its owner and room takes it, and not again below. */
+    if (!placeScenes().some(scene => allVaults(scene).some(v => v.owner))) {
+        ui.notifications.warn(game.i18n.localize("DRPG.Vault.noneSet"));
+        return null;
+    }
+
+    /* KEPT LIVE (1.2.122 line MAP; the audit's REFR-13; the owner's rule "Zawsze odswiezamy okna od razu przy zmianie"). It
+       listed what stood at the open and never redrew, and a second call raised that copy: a thing stowed, taken out,
+       rifled or stolen while it stood open stayed where it was. The list is read again on every item, character and room
+       change; a stash gone since the open leaves the window's note that none is set. */
+    // On the kit's frame (E21 C5a): a read-only window, its one word Close (foldable, as every kit window).
+    return drpgWindow({
+        title: game.i18n.localize("DRPG.Vault.inspectTitle"),
+        classes: ["drpg-panel", "drpg-window-stashes"],
+        body: inspectorBody(),
+        footer: { close: "close" },
+        render: (event, dialog) => keepLive(dialog, {
+            region: ".drpg-vault-inspector",
+            build: inspectorBody,
+            watch: { actors: true, items: true, hooks: ["createRegion", "updateRegion", "deleteRegion", "updateScene"] }
+        }),
+        rejectClose: false
+    });
+}
+
+/** The inspector's list (`openVaultInspector`), every place scene's stashes and what lies in each, as it stands now. */
+function inspectorBody() {
     const scenes = placeScenes().map(scene => ({ scene, vaults: allVaults(scene).filter(v => v.owner) }));
     const listed = new Set();
     if (!scenes.some(entry => entry.vaults.length)) {
-        ui.notifications.warn(game.i18n.localize("DRPG.Vault.noneSet"));
-        return null;
+        return `<div class="drpg-vault-inspector"><p class="notes">${game.i18n.localize("DRPG.Vault.noneSet")}</p></div>`;
     }
 
     const section = scene => v => {
@@ -836,13 +881,6 @@ export async function openVaultInspector() {
             ? vaults.map(section(scene)).join("")
             : `<p class="notes">${game.i18n.localize("DRPG.Vault.noStashesOnScene")}</p>`}`).join("");
 
-    // On the kit's frame (E21 C5a): a read-only window, its one word Close (foldable, as every kit window).
-    return drpgWindow({
-        title: game.i18n.localize("DRPG.Vault.inspectTitle"),
-        classes: ["drpg-panel", "drpg-window-stashes"],
-        body: `<div>${sections}
-            <p class="notes">${game.i18n.localize("DRPG.Vault.inspectNote")}</p></div>`,
-        footer: { close: "close" },
-        rejectClose: false
-    });
+    return `<div class="drpg-vault-inspector">${sections}
+            <p class="notes">${game.i18n.localize("DRPG.Vault.inspectNote")}</p></div>`;
 }

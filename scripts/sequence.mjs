@@ -706,7 +706,7 @@ export function playTrialExit(clock = getClock(), { pieces = undefined, on = seq
  * What the cut-in shows, read from the GM's card and the public record alone: the card's `verdictCut` flag (the
  * sentenced's ids and whether the class got it right, both said in the card's own words) and the vote's count
  * (`trialProgress.accused`, `total`, `majority`: public since the count's card). Nothing of the Blackened, of Findings,
- * of Zones or of any GM store (05.10; R3708 plants a Blackened to show it). Pure but for the actors' names and pictures.
+ * of Zones or of any GM store (05.10; R3706 plants a Blackened to show it). Pure but for the actors' names and pictures.
  */
 export function verdictBoard(message, progress = null) {
     const flag = message?.getFlag?.(MODULE_ID, "verdictCut") ?? null;
@@ -726,7 +726,7 @@ function safeProgress() {
     try { return getSetting(SETTINGS.trialProgress) ?? null; } catch { return null; }
 }
 
-/* The sentenced's picture through the module's one filter of image paths (vault-store.mjs `safeRoomImage`, as the voice
+/* The sentenced's picture through the module's one filter of image paths (vault-store.mjs `safeRoomImage`, and the mask's "?" since 1.2.122: `safePortrait`, as the voice
    tile reads a portrait), read at ready by `import()` so this file stays a leaf: vault-store.mjs reaches most of the
    module. Before it is read, and for Foundry's stand-in silhouette, the initial stands instead of a portrait. */
 let safeImage = () => null;
@@ -1238,7 +1238,7 @@ export function onPhaseChanged(phase, clock = getClock()) {
  * theirs, as it never reached them live), a GM's case summary card (its board, `caseBoard`, at the message's time) and the start-of-day board (a day the real roll-over stamped, `dayBoard`, at
  * `dayStartedAt`; a correction writes no stamp and plays nothing, as live). An event counts while `now` is under
  * `LATE_PLAY_MS` after it - one stamped a little ahead of this browser's server time is the writer's skew, and new - and
- * when `played` (this browser's record) does not hold it. Every connected browser plays these three live, the GMs, the
+ * when `played` (this browser's record) does not hold it. Every connected browser plays these four live, the GMs, the
  * dead and a Spectator included (Q-E61-9; a Spectator's start-of-day board is everybody's), so the gate is the one the
  * live hooks have: what reached this browser. Pure. Answers `{ kind, key, at, message? }` or null. R4934.
  */
@@ -1295,7 +1295,7 @@ export function registerSequences() {
     if (ready) return;
     ready = true;
     setTimeout(() => { catchUpSequences().catch(err => console.error(`${MODULE_ID} | a late sequence failed`, err)); }, 0);
-    import("./vault-store.mjs").then(m => { safeImage = m.safeRoomImage; }).catch(() => null);
+    import("./vault-store.mjs").then(m => { safeImage = m.safePortrait; }).catch(() => null);
     window.addEventListener("keydown", onEscape, { capture: true });
     Hooks.on("drpgPhaseChanged", onPhaseChanged);
     Hooks.on("createChatMessage", message => {

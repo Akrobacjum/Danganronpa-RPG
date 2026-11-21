@@ -25,7 +25,7 @@
  * vault-store.mjs that made the store a file of its own.
  */
 
-import { MODULE_ID, ITEM_CATEGORIES } from "./config.mjs";
+import { MODULE_ID, ITEM_CATEGORIES, ACTIONS, ROOM_IMAGE_LIMITS } from "./config.mjs";
 import { pickableCategories } from "./inventory.mjs";
 import { neighbouringRooms, ROOM_FLAGS, roomBroken, setRoomBroken } from "./movement.mjs";
 import { SETTINGS } from "./settings.mjs";
@@ -38,7 +38,6 @@ import {
     forcedDeletion, wirePortraitPickers, listOf
 } from "./utils.mjs";
 import { kitTabs, wireKitTabs, emptyOption, drpgWindow, box, dataTable, stepper, toggle, iconButton, tipAttr, tipText, WINDOW_HELP } from "./ui-kit.mjs";
-// E57 C4 (D35): the header's "?" - its own line, so a line that edits the imports above does not meet it.
 import { alreadyOpen, keepFresh, keepLive, isDirty, RAISED } from "./live.mjs";
 import { roomActions } from "./facilities.mjs";
 import {
@@ -310,7 +309,7 @@ function roomCells(rooms, { students, tables, categories, regions, scene, maxTok
         const isRoomNow = decided ? pieces.some(piece => piece.getFlag(MODULE_ID, ROOM_FLAG) === true) : possible;
         // Undecided, the box is a suggestion until Apply (E20 fix round, C-10): the ratio line counts it apart (`data-drpg-undecided`).
 
-        return {
+        const cells = {
             name: `<strong>${escRoom}</strong>`,
             owner: `<select name="owner:${escRoom}"${named("owner")}${tipAttr("DRPG.Tips.Sweep.Setup.bedroomOwnerTooltip")}>${emptyOption("DRPG.Vault.noOwner")}${people}</select>`,
             /* The kit's switch (E46-C2a; E46's goal, "the 'This is a room' switch"): `toggle` draws the input and its
@@ -383,11 +382,28 @@ function roomCells(rooms, { students, tables, categories, regions, scene, maxTok
                     title="${clearLabel}" aria-label="${clearLabel}: ${escRoom}">✕</button>
                 <div class="drpg-room-picture-say" data-drpg-picture-say aria-live="polite"></div>`
         };
+        return possible ? cells : cellsOff(cells);
     });
 }
 
-/* The Scenes tab last (E13 C5; the owner's answer Q-E13-1 e, 09.10.2026): it is set once a season,
-   the others every session. Its panel is trial-scene.mjs's (`scenesTabHtml`). The Passages tab
+/**
+ * A row no piece of whose name can be a room, drawn off (1.2.122 line MAP; the audit's MAP-39): its owner, locks, table,
+ * description, picture, search tokens and the rest were live controls while Apply skips the row and writes none of them,
+ * so a GM who typed a description into a Stairwell's row (a level change's region) was told rooms were applied and found
+ * it blank on reopen. Every control but the name and "This is a room" (already off, with its hint) is disabled, and the
+ * picture is no picker and is not probed (`wirePortraitPickers`, `wirePictureWarnings` read `data-drpg-portrait`).
+ * Exported for the suite (R8344).
+ */
+export function cellsOff(cells) {
+    const off = html => String(html).replace(/<(input|select|textarea|button)\b/g, "<$1 disabled").replace(/\bdata-drpg-portrait=/g, "data-drpg-portrait-off=");
+    return Object.fromEntries(Object.entries(cells).map(([key, cell]) => {
+        if (key === "name" || key === "isroom") return [key, cell];
+        return [key, typeof cell === "object" && cell !== null ? { ...cell, html: off(cell.html) } : off(cell)];
+    }));
+}
+
+/* The Scenes tab stood last from E13 C5 (the owner's answer Q-E13-1 e, 09.10.2026) until E101 item 5 moved the school,
+   the hall and the cast to Season setup's Scenes part (trial-scene.mjs `scenesTabHtml`, drawn there). The Passages tab
    after Doors (E79 C5; the plan's D31 mockup): a secret passage is a way between two rooms, as a
    door is. Its panel is passages-tab.mjs's (`passagesTabHtml`), and its buttons write at once. */
 export const ROOM_SETUP_TABS = Object.freeze([
@@ -506,7 +522,7 @@ function roomSetupContent({ initial, cells, students, stashRows, fogRows, uncove
             <p>${game.i18n.localize("DRPG.Vault.stashesIntro")}</p>
             ${stashLegend()}
             ${matrix(stashRows)}
-            <p class="notes">${game.i18n.localize("DRPG.Vault.stashesNote")}</p>
+            <p class="notes">${game.i18n.format("DRPG.Vault.stashesNote", { n: ACTIONS.analyze.stashThreshold })}</p>
         `,
 
         description: `
@@ -804,6 +820,11 @@ export function wireTokenButtons(root, scene, recount, { tokens = SearchTokens }
  * the picture set - `wirePortraitPickers` sends no event), through room-tile.mjs `imageFacts`: the HEAD and the decode
  * Pre-season checks make. The line is a warning box in the cell, in Pre-season checks' words for a size; it never holds
  * Apply - the picture is the GM's choice, and a slow one still shows. `facts` is handed in for R2015.
+ *
+ * EACH PATH ONCE, A FEW AT A TIME (1.2.122 line MAP; the audit's MAP-41), as Pre-season checks probe them (room-tile.mjs
+ * `checkRoomImages`, `ROOM_IMAGE_LIMITS.atOnce`): every cell asked its own decode and HEAD at the open, all together and
+ * once per room where rooms share a path - the probing a school's eighteen pictures together that Pre-season checks was
+ * changed not to do. A path's answer is kept for the window's open, and asked again for a path picked since.
  */
 export function pictureWarning(facts) {
     if (!facts) return "";
@@ -814,8 +835,33 @@ export function pictureWarning(facts) {
     return sizes.length ? game.i18n.format("DRPG.Vault.imageLarge", { size: sizes.join(", ") }) : "";
 }
 
-export function wirePictureWarnings(root, { facts = null } = {}) {
-    const read = facts ?? (async src => (await import("./room-tile.mjs")).imageFacts(src));
+export function wirePictureWarnings(root, { facts = null, atOnce = ROOM_IMAGE_LIMITS.atOnce } = {}) {
+    const ask = facts ?? (async src => (await import("./room-tile.mjs")).imageFacts(src));
+    const known = new Map(), waiting = [];
+    const limit = Math.max(1, Number(atOnce) || 1);
+    let running = 0;
+    const slot = () => {
+        if (running < limit) {
+            running++;
+            return Promise.resolve();
+        }
+        return new Promise(resolve => waiting.push(resolve));
+    };
+    // A finished probe hands its slot to the next one waiting, or gives it back.
+    const release = () => {
+        const next = waiting.shift();
+        if (next) next();
+        else running--;
+    };
+    const read = src => {
+        if (!known.has(src)) {
+            known.set(src, (async () => {
+                await slot();
+                try { return await ask(src); } finally { release(); }
+            })());
+        }
+        return known.get(src);
+    };
     for (const img of root.querySelectorAll("img[data-drpg-portrait]")) {
         const say = img.closest("td")?.querySelector("[data-drpg-picture-say]");
         if (!say) continue;
@@ -907,10 +953,11 @@ function wireTwoRoomsCheck(root, rooms) {
 
 /*
  * TWO REASONS TO HOLD APPLY, ONE BUTTON (E13 C5; the A5 design's step 16). One student in two
- * bedrooms held Apply by writing `disabled` itself, and the Scenes tab holds it while both its
- * selects name one scene: two checks writing the same field would each free the button the other
+ * bedrooms held Apply by writing `disabled` itself, and the Scenes tab held it while both its
+ * selects named one scene: two checks writing the same field would each free the button the other
  * held. So each sets or clears its own reason here, and Apply is free only when none is left; its
- * label is the first reason still standing.
+ * label is the first reason still standing. The Scenes tab went to Season setup (E101 item 5),
+ * which keeps its own: in this file only the bedrooms check calls this now (the audit's D206).
  */
 const applyBlocks = new WeakMap();
 
@@ -923,11 +970,15 @@ export function setApplyBlock(root, key, reason) {
     else reasons.delete(key);
     const text = reasons.values().next().value ?? null;
     apply.disabled = Boolean(text);
+    /* As text, never through an empty data-tooltip (1.2.122 line MAP; the audit's MAP-42; R4764): Foundry reads an empty
+       one's `aria-label` through the client's `cleanHTML` (the E02-D01 hole, R509), and the reason holds a student's name,
+       which the owning player may set, and two region names. `data-tooltip-text` is shown as text. */
+    apply.removeAttribute("data-tooltip");
     if (text) {
-        apply.setAttribute("data-tooltip", "");
+        apply.dataset.tooltipText = text;
         apply.setAttribute("aria-label", text);
     } else {
-        apply.removeAttribute("data-tooltip");
+        delete apply.dataset.tooltipText;
         apply.removeAttribute("aria-label");
     }
 }
@@ -1003,6 +1054,15 @@ export function untouchedRoomRow(row, now) {
     return out;
 }
 
+/** Each room of `scene` with no start lock stored, and the start lock it reads now (the lock itself): Room setup's open. */
+function startLocksAtOpen(scene) {
+    const out = new Map();
+    for (const [room, pieces] of namedByName(scene)) {
+        if (pieces.length && pieces.every(piece => piece.getFlag(MODULE_ID, ROOM_FLAGS.lockedAtStart) == null)) out.set(room, pieces.some(startLocked));
+    }
+    return out;
+}
+
 /**
  * The named regions of a scene by name - Room Setup's own map (E12 C2a): every name, with the
  * pieces of it that can be rooms, marked or not (none for a name only a Teleport or a player's
@@ -1026,7 +1086,7 @@ function namedByName(scene) {
  * Every write lands on every region of the row's name (E12 C2a, `updateRoom`): one write to the
  * piece `regionsByName` held left a Kitchen of two pieces locked on one of them (66 D1).
  */
-async function applyRoomRows(rowResults, { REST_FLAGS, setRestRoom, scene }) {
+async function applyRoomRows(rowResults, { REST_FLAGS, setRestRoom, scene, openedStartLocks = null }) {
     const changed = new Set();
     // Rooms whose BEDROOM OWNER moved in this Apply. Collected rather than acted
     // on inline because the seeding below has to run after the stash matrix has
@@ -1072,10 +1132,17 @@ async function applyRoomRows(rowResults, { REST_FLAGS, setRestRoom, scene }) {
         /* THE ROOM AS IT STANDS FOR EVERY COLUMN THE GM LEFT AS DRAWN (REFR-03, `untouchedRoomRow`), read here at the press,
            so `same` below compares only what the GM changed. A stored picture `safeRoomImage` refuses stands as the cell
            drew it, no picture, so the row's Apply still writes null over it (E77 C1). */
+        /* AN UNSET START LOCK IS PINNED TO WHAT THE WINDOW SHOWED AT ITS OPEN (the audit's check of 1.2.121, r121-R-5; the line
+           claude/refresh-120 for 1.2.122). With no start lock stored, `startLocked` reads the lock itself, so a lock forced
+           while the window stood open read as the start lock, the untouched column took it (REFR-03), and Apply - which pins
+           the start lock on every row (below) - pinned it to the forced lock. Untouched and unset, the column keeps the
+           start lock the window drew at its open (`startLocksAtOpen`), as it did before the column followed the world. */
+        const unsetStart = pieces.every(piece => piece.getFlag(MODULE_ID, ROOM_FLAGS.lockedAtStart) == null);
+        const startAtOpen = unsetStart && openedStartLocks?.has(drawnRow.room) ? openedStartLocks.get(drawnRow.room) : wasLockedAtStart;
         const row = untouchedRoomRow(drawnRow, {
             owner: before.owner ?? "", table: before.table ?? "", favours: before.favours, hinders: before.hinders,
             description: before.description, image: before.image && safeRoomImage(before.image) === null ? "" : before.image,
-            shortRest: beforeRest.short, longRest: beforeRest.long, locked: wasLocked, lockedAtStart: wasLockedAtStart,
+            shortRest: beforeRest.short, longRest: beforeRest.long, locked: wasLocked, lockedAtStart: startAtOpen,
             broken: wasBroken, noSearch: wasSealed, notShared: wasNotShared
         });
         /* THE PICTURE IS JUDGED BEFORE THE ROW IS COMPARED (E77 C1). A path `safeRoomImage` refuses is not
@@ -1305,14 +1372,17 @@ export async function openRoomSetupDialog({ tab = null } = {}) {
     /* NO ROOM IS NO REFUSAL (E13 C5; the owner's answer Q-E13-1 e, 09.10.2026). This refused a
        scene with no named region, so the GM of a world with no rooms yet could not reach the
        Scenes tab, and over a scene whose only named region was a Teleport (no room) it opened on
-       Bedrooms (read in the code, 12.10). It opens on the Scenes tab whenever its scene holds no room
-       (`roomSetupTab`), the room tabs empty or listing the regions still to be marked; only
-       with no scene at all is there nothing to open. */
+       Bedrooms (read in the code, 12.10). It opens with its scene holding no room as well, the room tabs
+       empty or listing the regions still to be marked (`roomSetupTab` answers Bedrooms for anything not a
+       tab: the Scenes tab is Season setup's since E101 item 5; the audit's D205); only with no scene at
+       all is there nothing to open. */
     if (!scene) {
         ui.notifications.warn(game.i18n.localize("DRPG.Vault.noRooms"));
         return null;
     }
     const rooms = Array.from(namedByName(scene).keys()).sort((a, b) => a.localeCompare(b));
+    // The start lock each room with none stored shows at the open, which an untouched column keeps (`applyRoomRows`, r121-R-5).
+    const openedStartLocks = startLocksAtOpen(scene);
     const passagesTab = await import("./passages-tab.mjs");
 
     const { studentActors, studentCensus } = await import("./monokuma.mjs");
@@ -1377,7 +1447,7 @@ export async function openRoomSetupDialog({ tab = null } = {}) {
         // for 860px, lost to the 26rem `.drpg-panel` cap, and clipped its own
         // right-hand columns with no way to scroll to them.
         classes: ["drpg-panel", "drpg-projects", "drpg-room-setup", "drpg-window-rooms"],
-        // One width for all nine tabs, taken from the biggest of them - see the
+        // One width for all eight tabs (`ROOM_SETUP_TABS`; nine until E101, the audit's D204), taken from the biggest of them - see the
         // kit's `fitKitWidth`. Without it the window is fitted to whichever tab
         // is showing and jumps between 708px and 1504px as the GM switches.
         fit: true,
@@ -1403,7 +1473,8 @@ export async function openRoomSetupDialog({ tab = null } = {}) {
             // E21 C2a). The footer's buttons are Apply and Cancel on every tab (E12 C15).
             wireKitTabs(root, { win: root, app: dialog });
             const checkBedrooms = wireTwoRoomsCheck(root, rooms);
-            passagesTab.wirePassagesTab(root, scene, { dialog, students });
+            // The students read at every draw of the tab (passages-tab.mjs `wirePassagesTab`; REFR-59, 1.2.122).
+            passagesTab.wirePassagesTab(root, scene, { dialog, students: () => studentActors() });
 
             const recount = where => recountTokenCells(where, scene);
             // What each redraw wires again: every listener below sits on a node of the form, which the redraw replaces.
@@ -1536,7 +1607,7 @@ export async function openRoomSetupDialog({ tab = null } = {}) {
        given to an owner in one Apply counted 3 (the tier-2 "Room Setup writes to the scene it was
        opened on ...", before this commit, 11.10.2026). It is now the rooms any of the three touched. */
     const { changed: rowsChanged, ownerMoved } = await applyRoomRows(rowResults,
-        { REST_FLAGS, setRestRoom, scene });
+        { REST_FLAGS, setRestRoom, scene, openedStartLocks });
     const changed = new Set(rowsChanged);
 
     if (result.stashes && typeof result.stashes === "object") {

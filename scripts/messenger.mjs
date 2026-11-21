@@ -132,6 +132,40 @@ export function threadMessages(playerUserId) {
  * that has to answer such a card had it read the moment it was posted (S11-45). Settled, it asks nobody, and a
  * receipt (`gmAsk` false) never did. A player's own ask is the player's and does not count for them.
  */
+/*
+ * TWO CLOCKS IN ONE THREAD (1.2.122, the rest of the audit's COMM-15). A message's `timestamp` is its writer's, as far
+ * as the module has read (whether v14 stamps it on the server is COMM-LC7, not read), and the read stamp is the newest
+ * message's own. So a message from a sender whose clock runs behind that newest one's writer was stamped under the read
+ * stamp and arrived read. The stamp now also keeps the ids it read within `READ_SKEW_MS` under itself (`readEntryOf`):
+ * a message under the stamp but inside that window that it did not read counts as unread. A skew wider than the window
+ * still arrives read; ten minutes is a bound chosen, not a skew measured at a table. A stamp written before 1.2.122 is a
+ * number and reads as it did.
+ */
+export const READ_SKEW_MS = 10 * 60 * 1000;
+
+const stampAt = entry => (typeof entry === "number" ? entry : Number(entry?.at) || 0);
+
+function unreadUnder(message, at, entry) {
+    const stamp = stampAt(entry);
+    if (at > stamp) return true;
+    const ids = Array.isArray(entry?.ids) ? entry.ids : null;
+    return Boolean(ids) && at > stamp - READ_SKEW_MS && !ids.includes(message.id);
+}
+
+/**
+ * The read stamp for one thread over `messages`: `{ at, ids }`, `at` the newest message's own stamp and `ids` the
+ * messages within `READ_SKEW_MS` under it; null when `previous` already holds all of that (nothing to mark).
+ */
+export function readEntryOf(messages, thread, previous = null) {
+    const mine = [...(messages ?? [])].filter(m => cardFlag(m, MESSENGER_FLAGS.thread) === thread);
+    const at = mine.reduce((max, m) => Math.max(max, m.timestamp ?? 0), 0);
+    const ids = mine.filter(m => (m.timestamp ?? 0) > at - READ_SKEW_MS).map(m => m.id);
+    const was = stampAt(previous);
+    const known = Array.isArray(previous?.ids) ? previous.ids : [];
+    if (was >= at && (was > at || ids.every(id => known.includes(id)))) return null;
+    return { at, ids };
+}
+
 export function threadStatsOf(messages, { me = null, readMap = {}, isGM = false } = {}) {
     const stats = new Map();
     for (const message of messages ?? []) {
@@ -144,7 +178,7 @@ export function threadStatsOf(messages, { me = null, readMap = {}, isGM = false 
         const at = message.timestamp ?? 0;
         // The newest; of two at one stamp the later in the collection, as the stable sort `threadMessages` makes has it.
         if (!row.last || at >= (row.last.timestamp ?? 0)) row.last = message;
-        if (!(at > (readMap?.[thread] ?? 0))) continue;
+        if (!unreadUnder(message, at, readMap?.[thread])) continue;
         const own = cardWriter(message)?.id === me;
         if (!own || (isGM && cardFlag(message, MESSENGER_FLAGS.gmAsk) && !cardFlag(message, MESSENGER_FLAGS.settled))) row.unread++;
     }
@@ -178,10 +212,21 @@ export function threadStats() {
  * everyone else's badge, so this is deliberately client-scoped.
  * -------------------------------------------------------------------------- */
 
-function readMap() {
-    count("messenger.readMap");
+/*
+ * ONE SECTION PER WORLD AND LOGIN (1.2.122; the audit of 1.2.118, COMM-23). A client setting is one item for the whole
+ * browser, every world and every login on it (notice-history.mjs keys its own value by world and user for that reason),
+ * and the read map was `{ <thread's player id>: stamp }` with no reader in it: a GM who read Aiko's thread on a browser
+ * marked it read for Aiko's own login there, and back. It is `{ "<world>.<user>": { <thread>: stamp } }` now
+ * (`readSection`); a map from before 1.2.122 - its values plain numbers - is read as this login's until it writes its
+ * own section, so nothing read turns unread at the update. That a client setting is one item per browser on v14 is the
+ * notice history's reading too, not read at a table here.
+ */
+const readSection = () => `${game.world?.id ?? "world"}.${game.user?.id ?? "user"}`;
+
+function allReadMaps() {
     try {
-        return game.settings.get(MODULE_ID, SETTINGS.messengerLastRead) ?? {};
+        const all = game.settings.get(MODULE_ID, SETTINGS.messengerLastRead);
+        return all && typeof all === "object" && !Array.isArray(all) ? all : {};
     } catch {
         // Not registered yet (settings run before this does, but stay quiet
         // rather than throwing if module load order ever changes).
@@ -189,8 +234,15 @@ function readMap() {
     }
 }
 
-function lastReadAt(playerUserId) {
-    return readMap()[playerUserId] ?? 0;
+/**
+ * This world's and this login's read map, `{ <thread's player id>: entry }`, an entry `{ at, ids }` (`readEntryOf`) or,
+ * written before 1.2.122, a stamp. Exported for R8112.
+ */
+export function readMap(all = allReadMaps(), section = readSection()) {
+    count("messenger.readMap");
+    const mine = all[section];
+    if (mine && typeof mine === "object" && !Array.isArray(mine)) return mine;
+    return Object.fromEntries(Object.entries(all).filter(([, at]) => typeof at === "number"));
 }
 
 export async function markThreadRead(playerUserId) {
@@ -198,12 +250,16 @@ export async function markThreadRead(playerUserId) {
     // on every render and every new bubble; a thread already read up to its
     // newest message has nothing to record, and the write plus the hook it
     // fires repainted the launcher for nothing each time.
-    const newest = threadStats().get(playerUserId)?.last?.timestamp ?? 0;
-    if (lastReadAt(playerUserId) >= newest) return;
     // The newest message's own stamp, not this browser's clock (COMM-15): a
     // sender whose clock runs ahead would otherwise leave a bubble unread
-    // while it is on screen, and one running behind would arrive read.
-    const map = { ...readMap(), [playerUserId]: newest };
+    // while it is on screen; and the ids read under it, for one running
+    // behind (`readEntryOf`, 1.2.122). Written in this world's and this
+    // login's section (`readSection`, COMM-23).
+    const all = allReadMaps(), section = readSection();
+    const mine = readMap(all, section);
+    const entry = readEntryOf(game.messages ?? [], playerUserId, mine[playerUserId]);
+    if (!entry) return;
+    const map = { ...all, [section]: { ...mine, [playerUserId]: entry } };
     await game.settings.set(MODULE_ID, SETTINGS.messengerLastRead, map);
     Hooks.callAll("drpgMessengerRead", playerUserId);
 }
@@ -320,8 +376,10 @@ async function createThreadMessage(playerUserId, content, kind, gmAsk = false, v
  * --------------------------------------------------------------------------
  * `drpgMessengerMessage` lets an open window append the new message without a
  * full re-render (and without losing whatever the player was mid-typing).
- * `drpgMessengerRead` lets the launcher badge and the roster popover refresh
- * the moment a window is opened, on whichever client that happened.
+ * `drpgMessengerRead` lets this browser's launcher badge and an open roster
+ * refresh the moment a window here reads its thread (`Hooks.callAll` is this
+ * browser's alone, and the read map a client setting, so no other client hears
+ * it; the roster follows it since 1.2.122, messenger-app.mjs `refreshRoster`).
  * `drpgMessengerEdited` carries a message that CHANGED - a ruling card being
  * closed out, today - so an open window can redraw that one bubble instead of
  * re-rendering itself and throwing away whatever is half-typed in the box.

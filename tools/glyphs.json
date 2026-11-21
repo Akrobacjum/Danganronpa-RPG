@@ -6912,7 +6912,7 @@
     "........................",
     "........................"
   ] },
-{ "family": "legacy", "name": "lock-open", "grid": 24, "from": "drawn for the token HUD's lock (1.2.120 line H, 21.11.2026) from legacy:lock, its shackle lifted off the body's left side; not yet seen by the owner", "note": "otwarta kłódka - token odblokowany (HUD tokenu)",
+{ "family": "legacy", "name": "lock-open", "grid": 24, "from": "drawn for the token HUD's lock (1.2.120 line H, 21.11.2026) from legacy:lock, its shackle lifted off the body's left side; approved by the owner on its own shots with 1.2.120 (docs/dev/h120/shots, glyphs-legacy.png and glyphs-glass.png; the owner's word through the coordinator, 21.11.2026; the audit of 1.2.120, H-6)", "note": "otwarta kłódka - token odblokowany (HUD tokenu)",
   "rows": [
     "........................",
     ".........######.........",
@@ -6939,7 +6939,7 @@
     "........................",
     "........................"
   ] },
-{ "family": "legacy", "name": "stairs", "grid": 24, "from": "drawn for the token HUD's floor palette (1.2.120 line H, 21.11.2026), four steps rising right; worn by both themes; not yet seen by the owner", "note": "schody - zmiana piętra (HUD tokenu)",
+{ "family": "legacy", "name": "stairs", "grid": 24, "from": "drawn for the token HUD's floor palette (1.2.120 line H, 21.11.2026), four steps rising right; worn by both themes; approved by the owner on its own shots with 1.2.120 (docs/dev/h120/shots, glyphs-legacy.png and glyphs-glass.png; the owner's word through the coordinator, 21.11.2026; the audit of 1.2.120, H-6)", "note": "schody - zmiana piętra (HUD tokenu)",
   "rows": [
     "........................",
     "........................",
@@ -14311,7 +14311,7 @@
     "........................",
     "........................"
   ] },
-{ "family": "glass", "name": "lock-open", "grid": 24, "from": "drawn for the token HUD's lock (1.2.120 line H, 21.11.2026) from glass:lock, its shackle lifted off the body's left side; not approved by the owner in a drawing round; in Stained Glass it takes the place of lock-open", "note": "otwarta kłódka - token odblokowany (HUD tokenu)",
+{ "family": "glass", "name": "lock-open", "grid": 24, "from": "drawn for the token HUD's lock (1.2.120 line H, 21.11.2026) from glass:lock, its shackle lifted off the body's left side; approved by the owner on its own shots with 1.2.120 (docs/dev/h120/shots, glyphs-legacy.png and glyphs-glass.png; the owner's word through the coordinator, 21.11.2026; the audit of 1.2.120, H-6); in Stained Glass it takes the place of lock-open", "note": "otwarta kłódka - token odblokowany (HUD tokenu)",
   "rows": [
     "........########........",
     ".......##########.......",

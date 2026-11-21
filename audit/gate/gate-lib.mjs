@@ -35,7 +35,11 @@ export const REASONS = Object.freeze({
     "stale-module": { waivable: false, means: "the files the sandbox serves differ from this commit" },
     "no-playwright": { waivable: false, means: "Playwright is not installed (npm ci in audit/harness)" },
     "no-browser": { waivable: false, means: "Playwright has no browser to launch" },
-    "adapter-missing": { waivable: false, means: "the scenario needs a hook the sandbox adapter lacks" }
+    "adapter-missing": { waivable: false, means: "the scenario needs a hook the sandbox adapter lacks" },
+    "no-script": { waivable: false, means: "a script the part runs is not in this checkout" },
+    /* The press part's machine had no Chromium (21.11.2026): let through in record mode with the notes line, as a Foundry
+       part with no sandbox is, and refused in enforce, waiver or none - the live parts' no-browser stays the gate's fault. */
+    "no-chromium": { waivable: false, recordable: true, means: "the press part found no Chromium: DRPG_CHROMIUM is unset and Playwright has none of its own" }
 });
 export const STATUSES = Object.freeze(["passed", "failed", "error", "not-run"]);
 export const LIVE_PARTS = Object.freeze([
@@ -43,6 +47,15 @@ export const LIVE_PARTS = Object.freeze([
     { id: "live-monokuma-legacy", layer: "live", theme: "monokumaLegacy" },
     { id: "live-world-diff", layer: "live" }
 ]);
+/**
+ * THE PRESS PART (the audit's check of 1.2.121, r121-R-6; the owner's answer (b), 21.11.2026; the line claude/refresh-120 for
+ * 1.2.122): audit/live-press.mjs and audit/live-redraw.mjs, scripts/live.mjs in Chromium on a page of their own - a press,
+ * a pick, a redraw under typing and an open list, which jsdom cannot show. They need no Foundry, so the part runs on any
+ * machine with the harness's Playwright and a Chromium, sandbox or none. Not in CI: no job installs a browser (the owner's
+ * answer). `npm run press` in audit/harness runs the same two.
+ */
+export const PRESS_SCRIPTS = Object.freeze(["audit/live-press.mjs", "audit/live-redraw.mjs"]);
+export const PRESS_PARTS = Object.freeze([{ id: "press-live-region", layer: "press" }]);
 /** runTests()'s summary line (scripts/tests.mjs), which evidence is re-counted from. */
 export const SUMMARY_RE = /^(\d+) passed, (\d+) failed, (\d+) skipped(?:, (\d+) red until a later stage)?$/m;
 /** What makes a runtime script "touch" a layer the gate exists for (the E30 gate design, 9.11). */
@@ -141,21 +154,22 @@ export function stageFor(repo, version) {
     return stagesFor(repo, version)[0] ?? null;
 }
 
-/** Every part the gate has for this tree and version: the live parts, one per local-gate scenario, the drills. */
+/** Every part the gate has for this tree and version: the live parts, one per local-gate scenario, the drills, the press part. */
 export function partsFor(repo, version) {
     const decls = scenarioDecls(repo);
     const drills = new Set([...stagesFor(repo, version).flatMap(s => s.drills ?? []), ...decls.filter(d => d.fixture && d.layers.includes("local-gate")).map(d => d.fixture)]);
     return [
         ...LIVE_PARTS.map(p => ({ ...p })),
         ...decls.filter(d => d.layers.includes("local-gate") && !d.fixture).map(d => ({ id: `sandbox-${d.name}`, layer: "sandbox", scenario: d.file })),
-        ...[...drills].sort().map(name => ({ id: `drill-${name}`, layer: "drill", fixture: name }))
+        ...[...drills].sort().map(name => ({ id: `drill-${name}`, layer: "drill", fixture: name })),
+        ...PRESS_PARTS.map(p => ({ ...p }))
     ];
 }
 
 /** The paths a gate run is bound to: what the module is, and what ran it. Release notes and docs are not bound. */
 export function boundPaths(repo) {
     return ["scripts", "styles", "lang", "fonts", "icons", "module.json",
-        "audit/gate/local-gate.mjs", "audit/gate/gate-lib.mjs", "audit/live", "audit/harness/lib/seed.mjs",
+        "audit/gate/local-gate.mjs", "audit/gate/gate-lib.mjs", "audit/live", "audit/harness/lib/seed.mjs", ...PRESS_SCRIPTS,
         ...scenarioDecls(repo).filter(d => d.layers.includes("local-gate")).map(d => d.file)];
 }
 

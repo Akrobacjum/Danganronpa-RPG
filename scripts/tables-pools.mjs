@@ -32,7 +32,7 @@
  * (`LEGACY_PLURALS`, `LEGACY_GOAL_LABELS`) out of this file's text.
  */
 
-import { MODULE_ID, ITEM_CATEGORIES, ITEM_TIERS, USABLE_KINDS, TABLE_NAME_WORDS, TABLE_COPY_WORDS } from "./config.mjs";
+import { MODULE_ID, ITEM_CATEGORIES, ITEM_TIERS, USABLE_KINDS, TABLE_NAME_WORDS, TABLE_COPY_WORDS, fillProse } from "./config.mjs";
 import { log, error, shuffle } from "./utils.mjs";
 
 /**
@@ -224,7 +224,8 @@ export function tableDescription(category, tier, goal = null) {
     return `${W.label[category] ?? category}${
         W.kind[goal] ? ` (${W.kind[goal]})` : ""
     }, Tier ${tier}. ${
-        W.kindEffect[goal]?.[tier] ?? W.tierEffect[category]?.[tier] ?? ""}`;
+        // filled with the tier's restore (`restores`; 1.2.122 line TEXT, the audit of 1.2.118 TEXT-26)
+        fillProse(W.kindEffect[goal], tier) || fillProse(W.tierEffect[category], tier)}`;
 }
 
 /**
@@ -667,9 +668,10 @@ export function rolesForPoolItem(name) {
  * Sleeping draught, Lethal poison, Gift. Nothing ever read them: no screen
  * offered them, and the note that used to sit here argued they were guide
  * content rather than dead code and should stay. Asked directly, Dawid's answer
- * was that they do not need wiring up, so the rule lives where the rest of the
- * guide's unimplemented content lives - the handbook, and the audit that
- * records the decision - rather than as an export nothing imports.
+ * was that they do not need wiring up, and that they stay a rule of the
+ * handbook. No handbook names them (grep of docs/handbooks for the three, 21.11.2026;
+ * the audit's Q12): the decision is recorded in audit/AUDIT-1.2.13.md alone
+ * (Q12, answered "nie trzeba podpinać"), not as an export nothing imports.
  */
 
 /**
@@ -751,6 +753,13 @@ function roomPluralsOf(category) {
 /** The names a room's table answers a draw under, in the order asked: the tier, the category, then the flat table. */
 export function roomTableNames(base, category, tier) {
     return [`${base} - Tier ${tier}`, ...roomPluralsOf(category).map(plural => `${base} - ${plural}`), base];
+}
+
+/** The suffix after "<base> - " that makes `name` one of the room `base`'s tables at any tier (`isRoomTableOf`), or null
+    for the flat table itself and any other name. Item tables' Rename carries a room's split tables by it (1.2.122, CORE-33). */
+export function roomTableSuffix(base, name) {
+    if (!base || name === base || !isRoomTableOf(base, name, Math.max(...ITEM_TIERS))) return null;
+    return String(name).slice(base.length + 3);
 }
 
 /**
@@ -885,8 +894,9 @@ export function entryAs(table, entry) {
  * The room's tables by name: the tier, the category (an older or a Polish plural too, `roomPluralsOf`), then the flat
  * table - "Kitchen - Tier 2" answers a Tier 2 roll before "Kitchen - Murder Weapons", and that before plain "Kitchen".
  * The guide says outright that what turns up can depend on where you are, so a kitchen and a boiler room do not draw
- * from the same bag; a single "Kitchen" table asked for a crime tool would hand back an apple and then label it a
- * weapon, so the split by category and by tier (F5.5, Dawid 25.08) is asked first. A GM who does not want that
+ * from the same bag; a single "Kitchen" table asked for a crime tool would hand back an apple (since E14 part 2 C3 as
+ * an apple, and said as a substitute since 1.2.122: `markedSubstitute`), so the split by category and by tier (F5.5,
+ * Dawid 25.08) is asked first. A GM who does not want that
  * precision keeps one flat table and it answers everything. A room with nothing to give - never set up, or its tables
  * empty - falls through to the world's pools as it did before (D15).
  */
@@ -897,9 +907,23 @@ async function drawRoomNamed(ctx) {
         // A tier pool is never a room's stock, whatever its name (E14 fix e1-G2): a room pointed at one before
         // Room Setup read the flags answered every Search there from that pool, at any roll.
         const found = table && !tierPoolOf(table) ? await drawFrom(table) : null;
-        if (found) return resultFrom(found, ctx, { from: "room", table });
+        if (found) return markedSubstitute(resultFrom(found, ctx, { from: "room", table }), ctx.asked);
     }
     return null;
+}
+
+/*
+ * ANOTHER CATEGORY IS A SUBSTITUTE, WHICHEVER TABLE GAVE IT (the audit's CORE-47, 1.2.122, 21.11.2026). Since E14 part 2
+ * C3 a find is what it is (`roomEntryAs`), so a room's tier table or flat table asked for Healing can hand over a knife,
+ * filed and granted as a weapon - and only the room's other tables and the spare marked `substitute`, so the card did not
+ * say the room had nothing of what was asked (action-search.mjs's outcome). Marked here when the find's category is not
+ * the one asked, or its usable goal is another (a usable of no one goal, "both", serves either). Pure but for the mark.
+ */
+function markedSubstitute(answer, asked) {
+    if (!answer || !asked?.category || answer.substitute) return answer;
+    const goal = answer.goal ?? null;
+    if (answer.category !== asked.category || (asked.goal && goal && goal !== "both" && goal !== asked.goal)) answer.substitute = true;
+    return answer;
 }
 
 /**

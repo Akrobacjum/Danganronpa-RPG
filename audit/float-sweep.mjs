@@ -363,7 +363,8 @@ async function caseMap(browser, theme) {
    in the scaled canvas it was scaled once more - at zoom 0.5 the floating field 55 px wide over a field of 110 on the
    screen, at zoom 2 880 px over 440 - and the follow placed the field on that placeholder. At zooms 0.5 and 2, on the
    capture of I4: the floating field's screen width the field's own before the focus (within 1 px), the placeholder's
-   screen box the field's (within 1 px), and nothing else of the open node moved. */
+   screen box the field's (within 1 px), nothing else of the open node moved, and (COMM-32, 1.2.122) the floating
+   field's font size its own at rest times the zoom (within 0.5 px). */
 async function zoomed(browser, theme) {
     const row = manifest.find(r => r.id === "investigation--map-node" && r.captured);
     if (!row) return [];
@@ -383,6 +384,9 @@ async function zoomed(browser, theme) {
             await new Promise(res => requestAnimationFrame(() => requestAnimationFrame(res)));
             const box = e => { const b = e.getBoundingClientRect(); return { l: b.left, t: b.top, w: b.width, h: b.height }; };
             const own = box(el);
+            // The face's size at rest (the layout's, unzoomed) and floating (COMM-32, 1.2.122): it must read the rest's times the zoom.
+            const fontAt = () => parseFloat(getComputedStyle(el).fontSize) || 0;
+            const fontRest = fontAt();
             const others = [...edit.querySelectorAll("*")].filter(e => e !== el && !el.contains(e));
             const before = others.map(box);
             el.focus({ preventScroll: true });
@@ -391,13 +395,14 @@ async function zoomed(browser, theme) {
             const hold = document.querySelector(".drpg-float-text-hold");
             const now = box(el), held = hold ? box(hold) : null;
             const moved = others.filter((e, i) => { const a = before[i], b = box(e); return Math.abs(a.l - b.l) >= 0.5 || Math.abs(a.t - b.t) >= 0.5 || Math.abs(a.w - b.w) >= 0.5 || Math.abs(a.h - b.h) >= 0.5; }).length;
-            return { floating: el.matches(":popover-open"), own: Math.round(own.w), shown: Math.round(now.w),
+            return { floating: el.matches(":popover-open"), own: Math.round(own.w), shown: Math.round(now.w), font: [fontRest, fontAt()],
                 hold: held ? { w: Math.round(held.w), h: Math.round(held.h), dw: Math.abs(held.w - own.w), dh: Math.abs(held.h - own.h), dl: Math.abs(held.l - own.l), dt: Math.abs(held.t - own.t) } : null, moved };
         }, { z, without: WITHOUT });
         await page.close();
         if (!r) { out.push([`I7 zoom ${z} ${theme}`, false, "no open node with a field in the capture"]); continue; }
-        const pass = r.floating && Math.abs(r.shown - r.own) <= 1 && r.hold && r.hold.dw <= 1 && r.hold.dh <= 1 && r.hold.dl <= 1 && r.hold.dt <= 1 && r.moved === 0;
-        out.push([`I7 zoom ${z} ${theme}`, Boolean(pass), `floating ${r.floating}; the field ${r.own} px on the screen, floating ${r.shown}; placeholder ${r.hold ? `${r.hold.w}x${r.hold.h}, off the field's box by ${Math.max(r.hold.dw, r.hold.dh, r.hold.dl, r.hold.dt).toFixed(1)} px` : "none"}; ${r.moved} other element(s) of the node moved`]);
+        const fontOk = Math.abs(r.font[1] - r.font[0] * z) <= 0.5;
+        const pass = r.floating && Math.abs(r.shown - r.own) <= 1 && r.hold && r.hold.dw <= 1 && r.hold.dh <= 1 && r.hold.dl <= 1 && r.hold.dt <= 1 && r.moved === 0 && fontOk;
+        out.push([`I7 zoom ${z} ${theme}`, Boolean(pass), `floating ${r.floating}; the field ${r.own} px on the screen, floating ${r.shown}; font ${r.font[0]} px at rest, ${r.font[1]} floating (${(r.font[0] * z).toFixed(2)} wanted); placeholder ${r.hold ? `${r.hold.w}x${r.hold.h}, off the field's box by ${Math.max(r.hold.dw, r.hold.dh, r.hold.dl, r.hold.dt).toFixed(1)} px` : "none"}; ${r.moved} other element(s) of the node moved`]);
     }
     return out;
 }

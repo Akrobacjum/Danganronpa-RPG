@@ -19,8 +19,9 @@
  * Since E52 C2 the primary GM runs it at every load (`announceContract`, from
  * module.mjs's ready, after the requirements): each row is ok, failed or
  * unknown, a failed row is one permanent notice to that GM naming its target,
- * its file and function and what the table gets instead, and Pre-season's
- * checks list the same (season-setup.mjs `preSessionReport`). It only reads:
+ * its file and function and what the table gets instead, and Diagnostics'
+ * "Foundry and modules" window lists the same (season-setup.mjs `foundryReport`,
+ * Pre-season's checks until E101 item 2). It only reads:
  * a failed row's fallback is the one its own file has always had (D24 as the
  * spec reads it, Q-6), and the trust rows - the relay guard, the roll draw -
  * read their own files' states and never turn a failed one into a looser one.
@@ -1381,7 +1382,7 @@ export function rollOutcomeRow(cls = game.system?.api?.dice?.DualityRoll) {
     return { present: true, ours: null, state: "failed", note: "buildEvaluate writes the outcome on neither config.evaluated nor config.roll, where the module reads it" };
 }
 
-/* "file:symbol" for each file of a row, as the notice and Pre-season name it. */
+/* "file:symbol" for each file of a row, as the notice and Diagnostics' "Foundry and modules" name it. */
 function whereOf(entry) {
     const list = value => String(value ?? "").split(/\s*,\s*/).filter(Boolean);
     const symbols = list(entry.symbol);
@@ -1412,7 +1413,7 @@ export function targetOf(entry) {
 }
 
 /**
- * Why a row could not be read, in the table's language, for Pre-season's fold of the unread rows (E57 rest): a hook
+ * Why a row could not be read, in the table's language, for the fold of the unread rows in Diagnostics' "Foundry and modules" (Pre-season's until E101 item 2) (E57 rest): a hook
  * not seen firing, with what fires it (DRPG.Contract.road.<id>); a behaviour only a table check reads; the row's own
  * reason (DRPG.Contract.unread.<key>, the probe's `unreadKey`, else the row's `insteadKey` or id); else the contract's
  * two general ones. The probe's English `note` stays the console's and the report's, and stands in only where lang has

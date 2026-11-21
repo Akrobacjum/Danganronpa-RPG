@@ -316,8 +316,10 @@ class NoticeHistoryApp extends DrpgApp() {
         this.live = null;
         this.unlisten?.();
         this.unlisten = null;
-        // Closing the window reads what it listed (P10-3): the badge (E81 C8) counts what nobody has looked at yet.
-        markNoticesRead();
+        // Closing the window reads what it listed (P10-3): the badge (E81 C8) counts what nobody has looked at yet. What it
+        // listed and nothing more (1.2.122, the audit's COMM-33): every unread entry was marked read, those the filter or
+        // the search hid and those waiting behind "Show new notices" too.
+        markNoticesRead(this.listed ?? new Set());
         return super._onClose?.(options);
     }
 
@@ -421,6 +423,7 @@ class NoticeHistoryApp extends DrpgApp() {
         const all = noticeEntries();
         this.byId = new Map(all.map(entry => [entry.id, entry]));
         this.drawn = new Set(this.byId.keys());
+        this.listed = new Set();
         // The region the kit scrolls, with its scroll signal's line for a screen reader (ui-kit.mjs `watchScroll`).
         const list = element("div", "drpg-notices-list drpg-kit-body");
         list.append(kitNode(scrollNote()));
@@ -436,6 +439,8 @@ class NoticeHistoryApp extends DrpgApp() {
             const row = this.rowWords(entry);
             return fold(`${row.title}\n${row.text}`).includes(this.query);
         }).reverse();
+        // What the close reads (`_onClose`): the rows drawn under the filter and search in force.
+        this.listed = new Set(shown.map(entry => entry.id));
         if (!shown.length) {
             list.append(kitNode(emptyState("DRPG.Notices.noMatch")));
             return list;

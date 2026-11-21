@@ -35,8 +35,9 @@
  * module's when DSN was there first) one sweep of every such User, offline ones too; at a user's connect; and
  * after any update of such a User, read on the state the update left - never on who wrote it or on anything a
  * player's packet says, so a player's console, DSN's own six-write save, its GM push or another GM's edit are
- * the same case. A change of the source's own look reaches everyone. Each write replaces both flags whole
- * (v14's ForcedReplacement), so a scope a player added goes too.
+ * the same case. A change of the source's own look reaches everyone. Each write replaces its flags whole
+ * (v14's ForcedReplacement): `appearance`, `sfxList`, `roleAppearance` (since E108) and the `saved` marker
+ * (`writeLooks`), so a scope a player added goes too.
  *
  * THE SOURCE'S OWN LOOK (E16 fix r1-G1, 19.10.2026; findings C3-S1 and C3-C3). An Assistant GM may write any
  * User (LIVE-E30-04), the source's too, and until this fix the primary spread whatever the source's flags then
@@ -866,7 +867,8 @@ export function fuseStoppedFor(key) {
  * below full Gamemaster is put back; a write by any full Gamemaster is held as the copy, as every switch's is - E16's
  * rule, full Gamemasters are trusted - not only the source's own browser's: the end review's S-n3). Every browser lays it on each throw it draws (dice-look.mjs `layDualityLook`, on
  * `diceSoNiceRollStart`), whatever the thrower's own setting. Daggerheart 2.10 and later colour those dice by Dice So Nice
- * roles and keep no preset: nothing is written, and the diagnostic says `rolesUnforced`. What a table draws is LIVE-E60-06.
+ * roles and keep no preset: nothing is written, and the diagnostic says `rolesUnforced` where the table's look is not forced
+ * on this user (a forced look carries the source's role looks since E108). What a table draws is LIVE-E60-06.
  */
 const DH_APPEARANCE = "daggerheart.Appearance";
 const DUALITY_KINDS = Object.freeze(["hope", "fear", "advantage", "disadvantage"]);
@@ -972,6 +974,11 @@ function onActorWritten(actor, userId, touched, { created = false } = {}) {
         return;
     }
     if (created) void diceLookStore.patch(actor.id, { look: null, roles: null });
+    /* A write that touches no Dice So Nice flag has moved no look (the audit's ROLL-30, 1.2.122): every player's or
+       Assistant's flag write of the module's - Calls, notes, marks - scheduled the switches' comparison, the world copy
+       stringified and a put-back 400 ms on. A write of the overlay carries the `dice-so-nice` key in the hook's diff
+       (`touchesLook`), and one sent with no hook is caught at the next message (`checkMessage`). */
+    if (!touched && !created) return;
     afterSwitchesHeld(() => schedule(ACTOR + actor.id));
 }
 

@@ -4,7 +4,7 @@
  * THE LEAF THE BRIDGE STANDS ON (E31, 25.09.2026; audit S17-08, S01-64).
  *
  * Every road from a player's client to the primary GM - the bridge in
- * gm-bridge.mjs, the trap relay in traps.mjs, the search tokens in
+ * bridge-table.mjs (gm-bridge.mjs's until E41 C5b), the trap relay in traps.mjs, the search tokens in
  * search-tokens.mjs, Daggerheart's relay in relay-guard.mjs - asks the same two
  * questions first: who sent this, according to Foundry, and does that user own
  * the character the packet names. The two answers lived in gm-bridge.mjs, so a
@@ -106,10 +106,12 @@ export function gmOnline() {
  * ownership, sight of the project) made by the factories further down and put
  * first, where the handler had them. The order is part of the rule, not a
  * layout: some guards rely on the checks before them having passed (a token
- * that exists, a Call that is a Hope Call). Guards change nothing. Until E08+E28
- * C8 one kind did - a guard named `...Receipt` spent a Reroll receipt, and it was
- * the last in its list - and C8 retired them with the receipts: no player's
- * packet carries an undo now (`guardUndoIsTheGms`). The wording of every reason is held to the closed list of
+ * that exists, a Call that is a Hope Call). Most guards change nothing; two do,
+ * and each is asked last in its list for that reason (read 21.11.2026): `guardCallProgress`
+ * takes the Call's payment ticket (roll-draw.mjs `takeCallPayment` marks it "call"), and
+ * `guardArmGmYes` takes the GM's yes it allows and records it taken. Until E08+E28 C8 a
+ * third kind did - a guard named `...Receipt` spent a Reroll receipt - and C8 retired
+ * them with the receipts: no player's packet carries an undo now (`guardUndoIsTheGms`). The wording of every reason is held to the closed list of
  * reasons below by R164; the suite had checked only that the helpers behind the
  * guards refuse or pass.
  */
@@ -149,7 +151,11 @@ export async function firstRefusal(sender, payload, ctx, ...guards) {
  * and `noAnswer`, which only the asking player's client can know. `refused`, the
  * fallback, is also the code of a run that carried out nothing ("nothing was
  * carried out: ..."): a run answers a done only for work done, and which of its
- * resolver's silent reasons applied is not told (E31 review).
+ * resolver's silent reasons applied is not told (E31 review). One run is the
+ * exception, read 21.11.2026: `handleCubAbility` answers `{ reply: null }` for a
+ * Monocub move the GM refused or could not pay, because the GM's whisper
+ * (`DRPG.Monocub.moveRefused`) is that refusal's one message and the caller reads
+ * the null as "nothing to show" (monocub.mjs).
  */
 export const REASONS = Object.freeze([
     "unknownSender", "notYours", "gmOnly", "cannotSee", "missing", "badRequest", "outOfRange", "busy",
@@ -201,6 +207,8 @@ export const REASON_PATTERNS = Object.freeze([
     ["missing", /^no token was spent under that request$/],
     ["badRequest", /^that offer buys .+ pick\(s\), the packet carried .+$/],
     ["badRequest", /^a pick names something that is not an option$/],
+    // 1.2.122 (CASE-61): observe.target's declaration not one of observe.mjs DECLARATIONS (`handleObserveTarget`).
+    ["badRequest", /^that is not a way of looking an Observe knows$/],
     // E64: an offer of statistic points alone (the DA39 migration; bridge-runs-acts.mjs `handleAdvancement`).
     ["badRequest", /^that offer is for statistics only$/],
     ["badRequest", /^a new experience has no name$/],
@@ -257,7 +265,7 @@ export const REASON_PATTERNS = Object.freeze([
     ["notASupport", /^".*" is aimed at somebody else$/],
     ["hopeBarred", /^the buyer may not spend a Hope Call now \(.*\)$/],
     ["notEnoughHope", /^the buyer holds .+ Hope, the Call costs .+$/],
-    // E08+E28 C8: what only the GM's own Reroll takes back, asked by a player (guardUndoIsTheGms, gmOnly in gm-bridge.mjs).
+    // E08+E28 C8: what only the GM's own Reroll takes back, asked by a player (guardUndoIsTheGms, gmOnly, both here).
     ["undoIsTheGms", /^an undo is the GM's own Reroll's$/],
     ["traceOutOfReach", /^a GM has written on that trace$/],
     ["traceOutOfReach", /^a GM set that trace's band$/],
@@ -564,7 +572,7 @@ export function requestLabel(action) {
  * The one message a player is shown when a request of theirs was not carried
  * out (E31): what, and why, composed on the player's own client in the
  * player's language - `DRPG.Bridge.notDone` with the request's label and the
- * sentence of its reason, and "Nothing was spent." where the asker says so. A
+ * sentence of its reason, and `DRPG.Bridge.nothingSpent` ("You keep your action and your Hope.") where the asker says so. A
  * code not on the closed list is shown as `refused`, so a packet cannot pick
  * the sentence. Returns the text it showed.
  *
@@ -1380,8 +1388,8 @@ export function guardRelayTeller(sender, payload, ctx) {
 /* ==========================================================================
  * THE BUILDING BLOCKS OF A DECLARATION (E31)
  * --------------------------------------------------------------------------
- * A declaration in one of the three tables (gm-bridge.mjs, traps.mjs,
- * search-tokens.mjs) names its guards in the order they are asked. The
+ * A declaration in one of the four tables (bridge-table.mjs since E41 C5b, traps.mjs,
+ * search-tokens.mjs, private-rolls.mjs) names its guards in the order they are asked. The
  * questions most of them ask are made here, by a factory, rather than written
  * out in each handler as they were: who asked (`knownSender`), whether they own
  * the character a field names (`owns`, `ownsActorAt`), whether they are a GM
@@ -1705,10 +1713,10 @@ function onRecord(clean, rolls, action, sender) {
 /* ==========================================================================
  * THE RUNNER (E31)
  * --------------------------------------------------------------------------
- * One function carries out every declaration of the three tables, so the order
+ * One function carries out every declaration of the four tables, so the order
  * a request is judged in is written once: what the declaration prepares (an
  * import, a one-time read that must come before the guards, as it did in the
- * handlers - see `prepare` in gm-bridge.mjs), then who sent it, then its guards
+ * handlers - see `prepare` in bridge-table.mjs), then who sent it, then its guards
  * in the order listed, then the whitelisted copy of the packet and the roll a
  * result is read from, named in that copy (`rolled`, since E08+E28 C14), and
  * only when every one has passed, the acknowledgement and the run.
@@ -1854,7 +1862,7 @@ function answer(decl, ctx, value, send) {
  * `answer` (none, ack, reply), `patient` (a person is deciding, so no clock for
  * the "got it", and the question is asked again when a GM's world has loaded),
  * `resend`, `timeoutMs` - read off the table by the file that owns it (`ask` in
- * gm-bridge.mjs), so the policy is written once.
+ * bridge-table.mjs since E41 C5b), so the policy is written once.
  *
  * Built by `createWaiter` from what it needs - an emit, the GMs connected, who
  * this client is, the message, a clock - so R165 drives it with fakes and a
@@ -1934,8 +1942,8 @@ export function createWaiter({ emit, gmIds, me, notify, fromGm, clock = WINDOW_C
     };
 
     function request(action, payload = {}, { settle: kind = "ack", patient = false, resend = false, ackMs = TIMING.ackMs,
-        timeoutMs = TIMING.rulingMs, local = null, onPrimary = false, quiet = false, nothingSpent = false, late = null, lateRefused = null,
-        lateMs = 0, expired = null, received = null, untilPrimaryLeaves = false } = {}) {
+        timeoutMs = TIMING.rulingMs, local = null, onPrimary = false, localRun = false, quiet = false, nothingSpent = false, late = null,
+        lateRefused = null, lateMs = 0, expired = null, received = null, untilPrimaryLeaves = false } = {}) {
         return new Promise(resolve => {
             const entry = { id: null, action, kind, patient, resend, resent: 0, quiet, nothingSpent, late, lateRefused, lateMs, timeoutMs,
                 expired, received, untilPrimaryLeaves, resolve, settled: false, ackTimer: null, answerTimer: null, packet: null };
@@ -1944,8 +1952,24 @@ export function createWaiter({ emit, gmIds, me, notify, fromGm, clock = WINDOW_C
                 // 1. The GM's own client does it here; a GM does not talk to itself down a socket. What
                 //    only one client may decide (`onPrimary`) is done here on the primary alone, and any
                 //    other GM asks it as a player does (E08+E28 fix r2-H7; the round-2 review's S2-7, m5).
+                /* A `local` that is the row's own run (`localRun`; 1.2.122, the audit of 1.2.118, ROLL-22) answers as the
+                   run answers the runner - `{ reply }`, `{ refused }` or `{ later }` - and is read as a player's answer is
+                   read: the reply its value, a refusal said in this user's language and settled refused (its code read
+                   off the English reason, `reasonOf`), a later one pending. Until 1.2.122 the GM's own client settled
+                   with the run's whole answer, so a GM playing a student read `{ reply: { moves } }.moves` - undefined -
+                   and was told a Dash of 0 crossings, a forced door that held, a watch not kept; and a refusal read as a
+                   done. */
                 if (self.isGM && typeof local === "function" && (!onPrimary || self.isPrimary)) {
-                    Promise.resolve().then(local).then(value => settle(entry, { ok: true, value }), err => {
+                    Promise.resolve().then(local).then(value => {
+                        if (!localRun) return settle(entry, { ok: true, value });
+                        if (value?.refused) {
+                            const reason = reasonOf(value.refused);
+                            tell(entry, reason);
+                            return settle(entry, { ok: false, refused: true, reason });
+                        }
+                        if (value?.later) return settle(entry, { ok: true, pending: true });
+                        return settle(entry, { ok: true, value: value?.reply ?? null });
+                    }, err => {
                         report(`The GM's own client failed while carrying out "${action}"`, err);
                         fail(entry, "failed");
                     });

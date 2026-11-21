@@ -25,7 +25,7 @@
 
 import { MODULE_ID, FLAGS, TIMES_OF_DAY, ECLIPSE_FREE_PLACEMENT, ECLIPSE_MOVES } from "./config.mjs";
 // A leaf (config, settings, utils): the Eclipse allowance under a darkening, for the tooltip.
-import { overflowCrossings } from "./overflow.mjs";
+import { overflowCrossingsAhead } from "./overflow.mjs";
 import { getClock, campaignName, phaseLabel, timeOfDayLabel, rewindTimeOfDay } from "./clock.mjs";
 import { play, TURN, ARRIVE, LEAVE } from "./motion.mjs";
 import { error, debug, tickerRuns, markLanguage, plural, trialModeLabel } from "./utils.mjs";
@@ -66,7 +66,7 @@ import {
 } from "./hud-elapsed.mjs";
 import { markLoneInitials } from "./chrome.mjs";
 import { holdAppRenders } from "./dice-hold.mjs";
-import { trimTokenHud } from "./token-hud.mjs";
+import { trimTokenHud, refuseTokenConfig } from "./token-hud.mjs";
 export {
     unpausePatch, CLOCK_BEAT_MS, readyPatch, settleClockAtReady, beatClock, shownClock, clockForDisplay, elapsedOf,
     showsStopwatch
@@ -260,6 +260,10 @@ export function registerHud() {
        1.2.120 line H). Its two bar inputs are among what goes, for everybody, which ends what `stillTokenBars` did here
        from E29 C7 (a student's bars display-only for a player). */
     Hooks.on("renderTokenHUD", trimTokenHud);
+    // Nor a token's settings for a player, by a double right-click or a sheet's control (token-hud.mjs `refuseTokenConfig`).
+    for (const hook of ["renderTokenApplication", "renderTokenConfig", "renderPrototypeTokenConfig"]) {
+        Hooks.on(hook, (app, element) => refuseTokenConfig(app, element));
+    }
     /* And the HUD's own render waits for a roll's dice as the sheet's Hope does (dice-hold.mjs `holdAppRenders`,
        1.2.119), held only for its token's actor's write. It held a bar pointed at Hope until 1.2.120; the HUD draws no
        number since, so the hold now changes only when the HUD is drawn again, not what it shows. */
@@ -1289,15 +1293,19 @@ function buildTimeRow(clock, isGM) {
         // checks until then): what dims the chevron is what refuses the press, in the same order and words.
         const refusal = eclipseRunning ? null : startRefusalOf(clock, { body: bodyDiscovery(), incident: murderState() });
         const held = Boolean(refusal);
+        // The crossings the Eclipse about to open will give, by the stamp it will read (overflow.mjs
+        // `overflowCrossingsAhead`; the audit of 1.2.118, UI-22): a free placement darkened is a count too.
+        const freeLine = free && index !== TIMES_OF_DAY.length - 1;
+        const ahead = overflowCrossingsAhead(freeLine ? null : ECLIPSE_MOVES, clock);
         const tooltip = eclipseRunning
             ? game.i18n.localize("DRPG.Hud.endEclipse")
             : refusal ? game.i18n.localize(refusal)
             // The two that count the crossings are plural families on {n} (E66 C3; S10-69, E66-14): the last time of
             // day's said "(2 crossings)" whatever the count was. The free Eclipse names no count.
-            : free && index !== TIMES_OF_DAY.length - 1
+            : freeLine && ahead === null
                 ? game.i18n.format("DRPG.Hud.startEclipseFree", { time: timeOfDayLabel(incoming) })
                 : plural(index === TIMES_OF_DAY.length - 1 ? "DRPG.Hud.startEclipseNewSession" : "DRPG.Hud.startEclipseNamed",
-                    { time: timeOfDayLabel(incoming), n: overflowCrossings(ECLIPSE_MOVES) ?? ECLIPSE_MOVES });
+                    { time: timeOfDayLabel(incoming), n: ahead ?? ECLIPSE_MOVES });
 
         row.append(control(
             eclipseRunning ? "fa-play" : "fa-chevron-right",
@@ -1315,42 +1323,10 @@ function buildTimeRow(clock, isGM) {
     return row;
 }
 
-/* ==========================================================================
- * HOW LONG THIS TIME OF DAY HAS RUN
- * --------------------------------------------------------------------------
- * The handbook asks players to spend their first action inside fifteen minutes
- * and their second by thirty, and then tells them "you never know the exact
- * moment of the next Eclipse". Both are true and together they are unplayable
- * without a clock somebody can see.
- *
- * Counts UP rather than down, because a time of day has no fixed length - the
- * handbook gives 30 to 60 minutes and the GM decides. A countdown would have to
- * invent a deadline. What it does instead is change colour at the two marks the
- * handbook actually names, so the advice is legible at a glance without any
- * number being promised.
- *
- * Runs off one shared interval for the whole HUD rather than a timer per
- * render: `renderHud` is called on every canvas change and every clock write,
- * and a stacked interval per call is how a HUD ends up ticking six times a
- * second by the third session.
- * ========================================================================== */
-
-/* ==========================================================================
- * WHOSE TURN IT IS
- * --------------------------------------------------------------------------
- * An incident is turn-based, and every turn costs the victim Sanity and then
- * Health. All of that state lived in one place: the Incident tracker window. Close
- * it - or never open it, which is every player's situation, since it is a GM
- * window - and you are playing the tensest scene in the game blind.
- *
- * So the two facts that decide what you do next go on the HUD: whose turn it
- * is, and what the victim has left.
- *
- * Read straight from the setting rather than through murder.mjs. The HUD is
- * imported by sync.mjs, which murder.mjs also reaches, and importing the murder
- * engine here would close that loop. The shape read is two ids and two
- * numbers - not worth a cycle.
- * ========================================================================== */
+/* The stopwatch ("how long this time of day has run") is hud-elapsed.mjs's since E41 C7b, its note there; whose turn it
+   is in an incident is the Event panel's since 1.2.47 (`renderEvents`). Two headings that stood here over no code, one of
+   them saying the HUD read the incident's setting to keep out of murder.mjs, which it imports statically, went (the audit
+   of 1.2.118, D-252, D-253). */
 
 /**
  * THE PAUSE RASTER IS CENTRED ON THE WORD, MEASURED RATHER THAN ASSUMED.
@@ -1574,13 +1550,14 @@ export function objectionControl(actor = viewerActor(), given = {}) {
  * closed it again. The handler below already disabled its own button first, and
  * that guard cannot work HERE: the first thing `startEclipse` does is write the
  * clock, the setting's `onChange` reaches `renderHud` through sync.mjs, and
- * `renderHud` calls `hud.replaceChildren()`. A few milliseconds into a press
+ * `renderHud` takes out every child but the track band (E23 C2a). A few milliseconds into a press
  * that is still awaiting its chat cards, the button it disabled has been thrown
  * away and a fresh, enabled one stands in exactly the same pixels - `fitTimeSlot`
  * sizes the slot to the widest label the clock can ever hold, so the row
  * deliberately does not move when "Evening" becomes "Night Eclipse". The second
  * click lands on the replacement, whose handler reads `isEclipse()` as true and
- * ends the Eclipse that is still opening.
+ * ends the Eclipse that is still opening. (This said `hud.replaceChildren()` until the audit of 1.2.118, D-254; the
+ * chevron's row is thrown away either way.)
  *
  * What that leaves behind is world damage rather than pixels: the placement
  * window's crossings are cleared, search tokens restock, seals clear, the motive

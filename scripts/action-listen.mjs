@@ -26,7 +26,7 @@ import { actionWindow, chooseVariant } from "./action-menus.mjs";
 import { watchShutWhy } from "./action-watch.mjs";
 import { isEclipse } from "./settings.mjs";
 import { tipAttr, tipText } from "./ui-kit.mjs";
-import { isMaskedActor, MASK_NAME } from "./mask-gm.mjs";
+import { isMaskedActor, MASK_NAME, seenHere } from "./mask-gm.mjs";
 
 /**
  * THE DOORS, NOT THE ROOMS BEHIND THEM (22.09). The picker named every neighbouring room,
@@ -48,13 +48,17 @@ export function listenLabels(neighbours, known) {
 
 /** Each row's icon in the Infiltrate window. */
 const ROW_ICONS = Object.freeze({ listen: "fa-ear-listen", echoes: "fa-tower-broadcast", tail: "fa-shoe-prints", dash: "fa-person-running", shut: "fa-road-barrier", force: "fa-hand-fist", pick: "fa-key", keepWatch: "fa-eye" });
-/** The rows whose action is built on this branch; the rest stand greyed with "Not built yet" (docs/dev/e69/SPEC.md). */
+/**
+ * The rows whose action is built. Every key of `ACTIONS.listen.variants` is here since E74 (eight of eight, config.mjs), so
+ * no row is greyed "Not built yet" today; the branch stays for a row a later stage adds before its action (docs/dev/e69/SPEC.md).
+ */
 const BUILT = new Set(["listen", "echoes", "tail", "dash", "shut", "force", "pick", "keepWatch"]);
 
 /**
  * THE INFILTRATE WINDOW'S ROWS (E69 C1, 12.11.2026; DA28: one list, no groups). One row a key of `ACTIONS.listen.variants`
  * (config.mjs `INFILTRATE`'s order), each with its price and why it is shut: Listen in a room with no neighbour (until
- * C1 that was a warning after the tile was pressed), a row not built yet. Read by `performListen` and by tier 1's R3756.
+ * C1 that was a warning after the tile was pressed), Keep Watch, Echoes and Shut the Door by their own rules, a row not
+ * built yet (none today: `BUILT`). Read by `performListen` and by tier 1's R3756.
  */
 export function infiltrateRows(actor) {
     const scene = locateActor(actor)?.scene ?? null;
@@ -75,14 +79,16 @@ export function infiltrateRows(actor) {
             /* One word per kind of button (E100 item 6; the r112 review's G1, the coordinator's default of 13.11.2026): a
                row that rolls from this press says Roll, one that opens a window of its own (which says Roll) says Next.
                With no `confirm` the window said `chooseVariant`'s fallback, Do it (R4105). */
-            confirm: game.i18n.localize(ROLLS_FROM_THE_ROW.has(key) ? "DRPG.Action.roll" : "DRPG.Action.next")
+            // Echoes throws nothing (the audit's CTRL-67, 1.2.122): the kit's word for a row that acts without a roll, as
+            // the crisis menu's (action-murder.mjs, DRPG.Murder.briefTake), not Roll on a row whose hint says "without a roll".
+            confirm: game.i18n.localize(key === "echoes" ? "DRPG.Murder.briefTake" : ROLLS_FROM_THE_ROW.has(key) ? "DRPG.Action.roll" : "DRPG.Action.next")
         };
     });
 }
 
-/** Infiltrate's rows that roll from the window's own press: no window of their own follows (R4105). Echoes rolls
- *  nothing, but its press is the action and no window of its own follows, so it says Roll with them (E69 C7). */
-const ROLLS_FROM_THE_ROW = new Set(["dash", "shut", "keepWatch", "echoes"]);
+/** Infiltrate's rows that roll from the window's own press: no window of their own follows (R4105). Echoes is no longer
+ *  one (it said Roll with them since E69 C7): it rolls nothing, and says the word for that (1.2.122, CTRL-67). */
+const ROLLS_FROM_THE_ROW = new Set(["dash", "shut", "keepWatch"]);
 
 /**
  * Why Echoes' row is shut now, or null (E69 C7; Q-E69-3's default): struck through with its reason in an Eclipse, as the
@@ -119,6 +125,19 @@ export function shutShutWhy(actor, { eclipse = isEclipse() } = {}) {
  */
 export function listenName(other) {
     return isMaskedActor(other) ? MASK_NAME : other?.name ?? "";
+}
+
+/**
+ * WHO IS HEARD IN A ROOM, AS THIS BROWSER MAY HEAR THEM (the audit's r121-M-1, 1.2.122; proposed a blocker). The named tier,
+ * the critical's sweep and the anonymous count read `occupantsOf` raw, and `listenName` hides a masked character, not one
+ * veiled for the opening: Listen is open while a direct murder waits on its opening, and its card - whispered to the
+ * listener, built on the listener's browser - named the veiled killer, and counted them. The room's people pass through
+ * `seenHere` (mask-gm.mjs, as the room pickers do since MAP-16): a veiled occupant this browser does not draw is left out of
+ * the names and of the count. The Reroll's lines are heard through the same reader (reroll.mjs `listenLines`). A GM, the
+ * killer's own player and the killers' side hear them as before (`veiledFromHere` answers false for them).
+ */
+export function heardIn(room, actor, scene, occupantsOf) {
+    return seenHere(occupantsOf(room, actor, scene));
 }
 
 /**
@@ -225,7 +244,7 @@ export async function performListen(actor, def, options) {
     if (roll.isCritical) {
         // Everything, everywhere.
         const sweep = neighbours.map(room => {
-            const who = occupantsOf(room, actor, scene).map(listenName);
+            const who = heardIn(room, actor, scene, occupantsOf).map(listenName);
             return `<li><strong>${foundry.utils.escapeHTML(labelOf.get(room) ?? room)}</strong> - ${
                 who.length ? who.map(n => foundry.utils.escapeHTML(n)).join(", ") : game.i18n.localize("DRPG.Listen.empty")
             }</li>`;
@@ -234,7 +253,7 @@ export async function performListen(actor, def, options) {
         outcome = { success: true, isCritical: true, rooms: neighbours };
     } else if (hit && hit.min >= namedFrom) {
         // Named.
-        const who = occupantsOf(target, actor, scene).map(listenName);
+        const who = heardIn(target, actor, scene, occupantsOf).map(listenName);
         lines.push(`<p>${game.i18n.format("DRPG.Listen.named", {
             room: foundry.utils.escapeHTML(shownAs),
             who: who.length ? who.map(n => foundry.utils.escapeHTML(n)).join(", ") : game.i18n.localize("DRPG.Listen.empty")
@@ -242,7 +261,7 @@ export async function performListen(actor, def, options) {
         outcome = { success: true, room: target, named: who };
     } else if (hit) {
         // Anonymous: a count, no identities.
-        const count = occupantsOf(target, actor, scene).length;
+        const count = heardIn(target, actor, scene, occupantsOf).length;
         lines.push(`<p>${count
             ? plural("DRPG.Listen.anonymous", { room: foundry.utils.escapeHTML(shownAs), n: count })
             : game.i18n.format("DRPG.Listen.emptyRoom", { room: foundry.utils.escapeHTML(shownAs) })

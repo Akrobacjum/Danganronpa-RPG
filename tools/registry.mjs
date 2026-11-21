@@ -164,6 +164,38 @@ export function workingStage(repo, asked = null) {
     return { id: first, partners: open.filter(s => s.with === first).map(s => s.id) };
 }
 
+/*
+ * STAMPS CORRECTED BY HAND (1.2.122, line STG; the audit's STG-47, STG-56, STG-58, STG-71, STG-85, STG-99). A new
+ * number's Since is the first unshipped stage when --write runs, and a kept row keeps it, so a number written while
+ * another stage stood first in tools/stages.json carries that stage for good: E20's and E89's tests read E67, a stage
+ * replaced by E72 and gone from the ledger; E68's R3200 read E95 after the merge 7b5b4da9 regenerated it; E54's six
+ * read E93, E38's two and E108's eight E54, E59's thirty E54 or E56. Each range below names the stage its tests' own
+ * titles name (read 21.11.2026 on 21bf5d18: "(E20 C2 ...", "(E89 C1)", "(E68 C12 ...", "(E54 W2 ...", "(E38 ...",
+ * "(E108 ...", "(E59 C2 ...", "(E59 C-115 ..."), and wins over the kept stamp. E108 has no row of tools/stages.json
+ * (its STATUS: `--stage E108` refuses); the stamp is a label and nothing reads it against the ledger. The rest of the
+ * 257 rows stamped E54 were not read one by one and keep their stamps (STG-85, partly).
+ */
+const SINCE_CORRECTED = Object.freeze([
+    { from: 1049, to: 1052, since: "E89" }, { from: 1506, to: 1529, since: "E20" }, { from: 3200, to: 3200, since: "E68" },
+    { from: 4800, to: 4805, since: "E54" }, { from: 5000, to: 5001, since: "E38" }, { from: 5460, to: 5467, since: "E108" },
+    { from: 6750, to: 6756, since: "E59" }, { from: 7160, to: 7182, since: "E59" },
+    /* 1.2.122's block of line STG, which --write stamped E39 while 1.2.122 had no stage row; E122 since the release. */
+    { from: 8460, to: 8499, since: "E122" }
+]);
+/* A removed test's row names what removed it where the working stage at --write did not: R214 went in feba55c3 (13.11.2026,
+   the 1.2.112 stash change), and the row read "(removed in E54)" (STG-47). */
+const REMOVED_IN = Object.freeze({ R214: "1.2.112, feba55c3" });
+/* The rows E54's stamp took from other lines (STG-85, 1.2.122): tools/registry-since.json, its own `about` saying how each
+   was read. Missing or unreadable, nothing is corrected from it and --write keeps the kept stamps. */
+let titleStamps = null;
+const stampsFromFile = () => {
+    if (titleStamps) return titleStamps;
+    try { titleStamps = JSON.parse(fs.readFileSync(path.join(path.dirname(url.fileURLToPath(import.meta.url)), "registry-since.json"), "utf8")).rows ?? {}; }
+    catch { titleStamps = {}; }
+    return titleStamps;
+};
+const correctedSince = r => { const n = rKey(r) / 100; return SINCE_CORRECTED.find(c => n >= c.from && n <= c.to)?.since ?? stampsFromFile()[r] ?? null; };
+
 /** The block's text, generated from the tier files, keeping what is not generated; `stage` stamps what is new. */
 export function renderRBlock(repo, existing, stage = workingStage(repo).id) {
     const tests = tierTests(repo).filter(t => t.r && t.tier < 2);
@@ -174,13 +206,15 @@ export function renderRBlock(repo, existing, stage = workingStage(repo).id) {
     const since = fresh.size ? sinceOf(repo, fresh, stage) : new Map();
     for (const t of tests) {
         const kept = keptRow(t.r);
-        rows.set(t.r, { r: t.r, tier: String(t.tier), since: kept?.since ?? since.get(t.r),
+        rows.set(t.r, { r: t.r, tier: String(t.tier), since: correctedSince(t.r) ?? kept?.since ?? since.get(t.r),
             title: t.r === "R151" ? `${t.title} (R21 until 1.2.61)` : t.title });
     }
     /* A test that went keeps its row, marked with the stage that removed it. */
     for (const [r, row] of existing?.rows ?? []) {
         if (rows.has(r) || /^reserved: /.test(row.title)) continue;
-        rows.set(r, { ...row, title: /\(removed in [^)]+\)$/.test(row.title) ? row.title : `${row.title} (removed in ${stage})` });
+        const title = REMOVED_IN[r] ? `${row.title.replace(/ \(removed in [^)]+\)$/, "")} (removed in ${REMOVED_IN[r]})`
+            : /\(removed in [^)]+\)$/.test(row.title) ? row.title : `${row.title} (removed in ${stage})`;
+        rows.set(r, { ...row, title });
     }
     for (const [n, owner] of Object.entries(RESERVED)) {
         if (![...rows.keys()].some(r => rKey(r) === Number(n) * 100)) rows.set(`R${n}`, { r: `R${n}`, tier: "-", since: "-", title: `reserved: ${owner}` });

@@ -105,8 +105,11 @@ export function trialMusicState(floor, phase, { mapped = key => Boolean(playlist
  * Whether the vote's own music plays (E110 part 3): a Class Trial, this chapter's record with its vote opened and no
  * verdict yet, and a playlist mapped to `trial.vote` (`mapped`, the world's map by default). Pure over what is handed in.
  */
-export function voteMusicPlays(record, clock, { mapped = key => Boolean(playlistFor(key)) } = {}) {
+export function voteMusicPlays(record, clock, { mapped = key => Boolean(playlistFor(key)), floor = null } = {}) {
     if (clock?.phase !== "classTrial" || !record || record.chapter !== clock.chapter || record.verdictApplied) return false;
+    // A floor opened after the vote's first opening plays its own music (1.2.122, the audit's STG-95; the owner's choice of
+    // 21.11.2026): the modes' own rows already won over the vote's, and an Objection or a debate lost to it.
+    if (floor?.mode) return false;
     const opened = Boolean(record.vote?.open || record.voteClosed || record.voteOpenedAt != null);
     return opened && mapped("trial.vote");
 }
@@ -129,11 +132,20 @@ const ownStateRows = () => Object.entries(OWN_LABELS).map(([key, label]) => ({
  * deliberately a plain list rather than a set of nested conditions: the first
  * one that applies wins, and reading the list is reading the rule.
  *
- *   paused    the game is stopped. Nothing is happening in the fiction at all.
- *   eclipse   the placement window - mechanical, everybody is moving tokens.
- *   trial     the Class Trial.
- *   search    the Investigation phase.
- *   <time>    the fallback: whichever of the five times of day it is.
+ *   murder     first in the list and never the world's answer (`test` is
+ *              false): it is here for the Sound panel and `playlistFor`.
+ *   paused     the game is stopped. Nothing is happening in the fiction at all.
+ *   eclipse    the placement window - mechanical, everybody is moving tokens.
+ *   trial.*    the Class Trial: the nine rows of the modes' own states (E110,
+ *              each only while its playlist is mapped), then the vote, the
+ *              Objection, the Nonstop Debate and the discussion.
+ *   bodyFound  a body announced, silence unless mapped.
+ *   search     the Investigation phase.
+ *   time.*     the fallback: whichever of the five times of day it is.
+ *
+ * 1 + 2 + 9 + 4 + 1 + 1 + 5 = 23 rows, counted off the list below on
+ * 21.11.2026; the GM handbook's section 17 lists the same order, with the
+ * murder row beside the table rather than in it.
  */
 export const MUSIC_STATES = [
     /*
@@ -186,8 +198,10 @@ export const MUSIC_STATES = [
      * which is what it is - and it means the trial's loudest cue plays for its
      * whole length instead of a third of it.
      *
-     * Still no fourth playlist. A mode does not need music of its own to be
-     * handled; it needs to be in the right entry.
+     * Since E110 the rebuttal does have a state of its own, `trial.rebuttal`,
+     * one of the nine own-mode rows (`OWN_LABELS`), which applies only while
+     * a playlist is mapped to it; unmapped, the rebuttal falls to the
+     * Objection's row, as this note describes.
      *
      * `trial.discussion` is the trial WITHOUT an open floor - the phase set,
      * everybody in the room, nobody holding anything. It is last of the three
@@ -200,11 +214,14 @@ export const MUSIC_STATES = [
     /*
      * THE VOTE (E110 part 3, 14.11.2026; the coordinator's survey): from the vote's opening to the verdict, a playlist of
      * its own - only once one is mapped; unmapped, the trial's music plays on as before. The vote ends every floor
-     * (trial-floor.mjs `endFloorForVoteInStep`), so no mode's row competes with it. R7107.
+     * (trial-floor.mjs `endFloorForVoteInStep`), but a floor can open again before the verdict (a tie argued on), so a
+     * mode does compete with it: while a floor is open its music plays, Objection and Nonstop Debate included, and the
+     * vote's comes back when it ends, until the verdict (1.2.122, the audit's STG-95; the owner's choice of 21.11.2026).
+     * R7107, R8274.
      */
     {
         key: "trial.vote", labelKey: "DRPG.Music.state.trialVote", randomTrack: true,
-        test: () => voteMusicPlays(getSetting(SETTINGS.trialProgress), getClock())
+        test: () => voteMusicPlays(getSetting(SETTINGS.trialProgress), getClock(), { floor: trialFloor() })
     },
     {
         key: "trial.objection", labelKey: "DRPG.Music.state.trialObjection",

@@ -92,8 +92,14 @@
  * Escape, heard on the list in the capture phase and stopped there so Foundry's menu does not open, and a pointer
  * outside it close the list and give the focus back to the speaker button; Tab stays inside it.
  *
- * The tile and the list send no socket and no packet, write no world setting and no document but the GM's block,
- * and set an element's volume only in `setPeerVolume`.
+ * The list sends no socket and no packet and writes no world setting and no document but the GM's block
+ * (`toggleBlock`), and sets an element's volume only in `setPeerVolume`. Three buttons later stages put on the tile
+ * do send or write, each through another file's function (1.2.122, the audit's STG-52): Reveal yourself
+ * (`paintReveal`, owner-115/E112) asks the primary GM through mask-gm.mjs `requestReveal`, a bridge request; the
+ * Spectators' switch (`paintSpectatorTalk`, E92 round 3) writes a flag on the player's own User document through
+ * spectator-ui.mjs `toggleSpectatorTalk`; OBJECTION! (`paintObjection`, E70 C11) is hud.mjs `objectionControl`'s
+ * button, whose press is trial.mjs `raiseObjection`, which asks the primary GM (`trial.object`). The viewer's own microphone writes this browser's
+ * client setting alone (`toggleOwnMic`).
  *
  * THE STATE WORD (E79 C15, 1.2.79; the owner's N10 of 14.10.2026, N12 and N15 of 15.10.2026). The tile says in one
  * word how this browser's voice stands, running as the clock's ticker does (utils.mjs
@@ -127,10 +133,10 @@ import { micHold, moduleHoldsMic, broadcastAudioKnown } from "./voice.mjs";
 import { SETTINGS, getSetting, setSetting, getClock } from "./settings.mjs";
 import { avclientActive, voiceApplying } from "./voice-client.mjs";
 import { voiceIdentity, voiceActorFor, measureCameraDock } from "./camera-view.mjs";
-import { safeRoomImage } from "./vault.mjs";
+import { safePortrait } from "./vault.mjs";
 import { cssString } from "./room-tile.mjs";
 import { reducedMotion, TURN } from "./motion.mjs";
-import { error, plural, tickerRuns } from "./utils.mjs";
+import { error, plural, tickerRuns, forcedDeletion } from "./utils.mjs";
 import { tile as kitTile, launcher, launcherState, pixelGlyph, sliderList, slider as kitSlider, setTip } from "./ui-kit.mjs";
 import { refreshGlass, seatVoiceArt } from "./glass.mjs";
 import { spectatorViewer, talksWithSpectators } from "./spectator.mjs";
@@ -169,6 +175,9 @@ const WORDS = {
     external: { word: "DRPG.Voice.tile.state.external", line: "DRPG.Voice.held.external" },
     eclipse: { word: "DRPG.Voice.tile.state.eclipsed", line: "DRPG.Voice.held.eclipse" },
     eclipseHeard: { word: "DRPG.Voice.tile.state.eclipsed", line: "DRPG.Voice.held.eclipseHeard" },
+    // The mask's own (1.2.122, the audit's COMM-42): the module took the killer out of voice on purpose (voice.mjs
+    // `maskedRow`, a silent room this browser applies by leaving), which "Disconnected" read as a fault.
+    masked: { word: "DRPG.Voice.tile.state.hidden", line: "DRPG.Voice.held.masked" },
     connecting: { word: "DRPG.Voice.tile.state.connecting", line: "DRPG.Voice.held.connecting" },
     disconnected: { word: "DRPG.Voice.tile.state.disconnected", line: "DRPG.Voice.held.offline" },
     blocked: { word: "DRPG.Voice.tile.state.blocked", line: "DRPG.Voice.held.gmBlock" },
@@ -459,9 +468,10 @@ export function voiceWatch(tile, { clock = realClock, dock = foundryDock,
     muteAll = () => game.webrtc?.settings?.client?.muteAll === true, fade = () => (reducedMotion() ? 0 : TURN()),
     userOf = id => game.users.get(id), controls = null, settings = () => game.webrtc?.settings, mutes = PEER_MUTES,
     proximity = () => game.modules?.get?.("proximity-voice-chat")?.active === true, gm = () => game.user?.isGM === true,
-    hold = () => micHold({ connected: true }), applying = () => voiceApplying(), veiled = user => voiceVeiledHere(user) } = {}) {
+    hold = () => micHold({ connected: true }), applying = () => voiceApplying(), veiled = user => voiceVeiledHere(user),
+    mic = () => micState() } = {}) {
     const watch = {
-        tile, clock, dock, muteAll, fade, userOf, controls, settings, mutes, proximity, gm, hold, applying, veiled,
+        tile, clock, dock, muteAll, fade, userOf, controls, settings, mutes, proximity, gm, hold, applying, veiled, mic,
         client: null, room: null, detach: null,
         /** The Room's speakers this browser can map, loudest first, as user ids; and when each began. */
         speakers: [], since: new Map(),
@@ -682,8 +692,28 @@ function voiceStep(watch = live, gone = null) {
         watch.phase = "holding";
         schedule(watch, "hold", HOLD_MS, () => startFade(watch));
     }
-    paintSpeaker(watch, ready.filter(id => id !== watch.shown).length, gone);
-    watch.controls?.(watch, gone);
+    /* ONE HOLD A STEP (1.2.122, the audit's COMM-47): the speaker's word and the controls' word each asked `watch.hold`,
+       micHold with its scans of every token of every scene, on every speaker event. Read once here and handed to both;
+       And the microphone's state (`micState`, its hold read with the connection as Foundry's Room has it) asks the same
+       question whenever the Room this tile follows - the one avclient-livekit holds (`attachRoom`) - is connected: then it
+       reads the step's hold too, and a step reads one hold, not two. With the Room not connected, it asks its own. */
+    const ask = watch.hold, askMic = watch.mic;
+    let held, read = false;
+    watch.hold = () => {
+        if (!read) {
+            read = true;
+            held = ask?.();
+        }
+        return held;
+    };
+    if (watch.room?.state === "connected") watch.mic = () => micState({ hold: watch.hold() });
+    try {
+        paintSpeaker(watch, ready.filter(id => id !== watch.shown).length, gone);
+        watch.controls?.(watch, gone);
+    } finally {
+        watch.hold = ask;
+        watch.mic = askMic;
+    }
 }
 
 /** The hold is over: fade the portrait, then clear it - at once when the fade is 0 ms (reduced motion). */
@@ -734,7 +764,7 @@ function cancel(watch, slot) {
 const painted = new WeakMap();
 
 /**
- * A voice's portrait: the first of `voiceIdentity`'s `faces` that `safeRoomImage` accepts, else `null` (E78 fix
+ * A voice's portrait: the first of `voiceIdentity`'s `faces` that `safeRoomImage` accepts (or the mask, `safePortrait`, since 1.2.122), else `null` (E78 fix
  * h76-HF1, 14.10.2026). Until then the tile judged `img` alone, the character's picture before the avatar, so a
  * character on Foundry's default `.svg` (refused) drew no face though the avatar would pass (round 1's sec
  * SEC-R1-4, measured there). On The Forge `safeRoomImage` also takes the Assets Library, so a face kept there is
@@ -742,7 +772,8 @@ const painted = new WeakMap();
  */
 function voicePortrait(who) {
     for (const path of who?.faces ?? []) {
-        const image = safeRoomImage(path);
+        // The room pictures' filter and the module's mask, the "?" (vault-store.mjs `safePortrait`, STG-100).
+        const image = safePortrait(path);
         if (image) return image;
     }
     return null;
@@ -859,7 +890,7 @@ function veiledParticipant(watch, p, room) {
  */
 export function voiceWord({ face = false, hold = null, state = null, applying = false } = {}) {
     const reason = hold?.reason;
-    if (reason === "external" || reason === "eclipse" || reason === "eclipseHeard") return WORDS[reason];
+    if (reason === "external" || reason === "eclipse" || reason === "eclipseHeard" || reason === "masked") return WORDS[reason];
     if (applying === true || CONNECTING.includes(state)) return WORDS.connecting;
     if (state !== "connected") return WORDS.disconnected;
     if (reason === "gmBlock") return WORDS.blocked;
@@ -940,7 +971,8 @@ function onVoiceApplying() {
  */
 export function micState({ hold, settings = game.webrtc?.settings } = {}) {
     const answer = hold === undefined ? micHold() : hold;
-    if (answer?.held) return { state: "held", reason: answer.reason, info: null };
+    // The hold's words go with it (1.2.122, the audit's COMM-27): the floor's {name} and {target}, as the HUD reads them.
+    if (answer?.held) return { state: "held", reason: answer.reason, info: null, ...(answer.data ? { data: answer.data } : {}) };
     if (answer?.reason === "external" || answer?.reason === "offline") return { state: "offline", reason: answer.reason, info: null };
     if (answer?.reason === "gmBlock") return { state: "gmBlock", reason: answer.reason, info: null };
     const info = answer?.reason ?? null;
@@ -965,7 +997,7 @@ export function micState({ hold, settings = game.webrtc?.settings } = {}) {
 export async function toggleOwnMic({ mic = micState(), settings = game.webrtc?.settings,
     notify = text => ui.notifications?.info(text) } = {}) {
     if (!MIC_FREE.includes(mic?.state)) {
-        notify(game.i18n.localize(`DRPG.Voice.held.${mic?.reason ?? "offline"}`));
+        notify(game.i18n.format(`DRPG.Voice.held.${mic?.reason ?? "offline"}`, mic?.data ?? {}));
         return false;
     }
     if (typeof settings?.set !== "function") return false;
@@ -1070,7 +1102,7 @@ export function paintSpeakerButton(tile, { count, muteAll }) {
 export function paintControls(watch = live, gone = null) {
     if (!watch?.tile) return;
     try {
-        paintMic(watch.tile, micState());
+        paintMic(watch.tile, typeof watch.mic === "function" ? watch.mic() : micState());
         paintWord(watch, painted.get(watch.tile)?.face === true);
         paintSpeakerButton(watch.tile, { count: channelCount(watch, gone), muteAll: watch.muteAll() });
         paintObjection(watch.tile);
@@ -1484,7 +1516,11 @@ export async function toggleBlock(user, { holds = target => moduleHoldsMic(targe
         return false;
     }
     const allowed = settings?.getUser?.(user.id)?.canBroadcastAudio ?? true;
-    await user.update({ "permissions.BROADCAST_AUDIO": !allowed });
+    /* An unblock takes the user's own key off (1.2.122, the audit's COMM-46), as the trial's restore does (voice.mjs
+       `restoreTrialBlock`): an explicit true left a world whose roles withhold the microphone with one player granted
+       it. The GM's block is recorded nowhere (voice.mjs), so a grant the user held of their own before it is not put
+       back either: the role's rule stands. In a Foundry with neither deletion marker the write is true, as before. */
+    await user.update({ "permissions.BROADCAST_AUDIO": allowed ? false : (forcedDeletion() ?? true) });
     return true;
 }
 

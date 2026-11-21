@@ -193,7 +193,7 @@ export async function awardRollDespair(actor, delta, { message = null, dice = nu
  *
  * Exported so Reroll can use the same logic: rerolling rewrites the existing
  * chat message with `message.update()` rather than creating a new one, so it
- * never runs through `onChatMessage` below and the top-up would otherwise never
+ * never runs through `onChatMessage` above and the top-up would otherwise never
  * apply to a roll that becomes a crit on its second try - nor get reversed when
  * a crit stops being one.
  *

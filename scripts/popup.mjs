@@ -3,9 +3,10 @@
  * ---------------------------------------------------------------------------
  * Search, Work on Project, Sabotage, a refused room crossing, a DM's reply, a
  * Despair Call, the time of day - all of it used to be a line in the sidebar
- * somebody had to notice. This is where all of it surfaces instead: a floating
- * card in the middle of the screen, purple for an ordinary update, red for
- * something that was refused, gold for evidence.
+ * somebody had to notice. This is where all of it surfaces instead: a card in
+ * the notice tile's corner (`hostFor`; only sticky evidence and an Objection,
+ * and a card that asks `popupCentre`, take the middle of the screen), purple for
+ * an ordinary update, red for something that was refused, gold for evidence.
  *
  * Every player gets them. A GM gets the ones addressed to the table or to them
  * - see the whisper rule in `onCreateChatMessage` below; the records of what
@@ -22,8 +23,10 @@
  *
  * Two ways something ends up here:
  *   showPopup()              called directly, when the caller wants a title or
- *                            a sticky card - `report()` in action-rolls.mjs,
- *                            the messenger, the Class Trial's evidence card.
+ *                            a sticky card - the messenger, the Class Trial's
+ *                            evidence card. (An action's `report`, in
+ *                            action-report.mjs since E41 C3, whispers its card
+ *                            and leaves it to the catch-all below.)
  *   the createChatMessage    anything posted through `announce`,
  *   catch-all hook           `whisperToGms` or `whisperToOwner` in utils.mjs,
  *                            all of which stamp `MESSAGE_FLAG`. The accent
@@ -1138,6 +1141,23 @@ export function registerPopups() {
        after a second murder there were two. */
     Hooks.on("deleteChatMessage", onDeleteChatMessage);
     Hooks.on("updateChatMessage", onUpdateChatMessage);
+    // A private card's `settled` comes with its words, not on the document (secret.mjs `remember`): REFR-16, below.
+    Hooks.on("drpgSecretStored", followSettled);
+}
+
+/**
+ * A NOTICE OF AN ASK GOES WHEN ITS CARD IS RULED (1.2.122, the audit's REFR-16). A notice is a copy of the card, drawn
+ * once: when another GM ruled the ask, or its time ran out, settleCall wrote the card again and the bubbles and the log
+ * redrew, while the notice on this screen still read "Awaiting a ruling". It closes now as a withdrawn card's does
+ * (`onDeleteChatMessage`), the card itself saying the ruling where it stands; a ruling's mark reaches this browser on the
+ * document's update (a card that is not private) or with a private card's words (`drpgSecretStored`).
+ */
+export function followSettled(message) {
+    if (!message?.id || !cardFlag(message, MESSENGER_FLAGS.settled)) return;
+    for (const card of document.querySelectorAll(".drpg-popup[data-drpg-message]")) {
+        if (card.dataset.drpgMessage !== message.id || card.classList.contains("leaving")) continue;
+        card.dispatchEvent(new CustomEvent("drpg-dismiss", { detail: { reason: "code" } }));
+    }
 }
 
 /**
@@ -1164,6 +1184,7 @@ export function overruledStamp() {
  */
 export function onUpdateChatMessage(message, change) {
     const flags = change?.flags?.[MODULE_ID];
+    if (flags && MESSENGER_FLAGS.settled in flags) followSettled(message);
     if (!flags || !(OVERRULED_FLAG in flags) || !message?.getFlag?.(MODULE_ID, OVERRULED_FLAG)) return;
     if (!message.author?.isGM) return;
     queueMicrotask(() => {
@@ -1189,8 +1210,25 @@ export function onDeleteChatMessage(message) {
 }
 
 /**
- * Every module message surfaces in the middle of the screen, for everybody it
- * was addressed to - GMs included.
+ * A card's words without its ruling's buttons (1.2.122, the audit's CTRL-22): a GM's copy keeps `.drpg-call-actions`
+ * (secret.mjs takes them off for a player only), and nothing wires a button inside a notice - only a bubble and the
+ * chat log do (messenger-app.mjs `wireCallActions`) - so Allow or Spring the trap pressed there only closed it. The
+ * messenger's notices take them off the same way (`cardPreview`); the card is ruled where it stands.
+ */
+function withoutRulingButtons(html) {
+    if (!/drpg-call-actions/.test(html ?? "")) return html;
+    const wrap = document.createElement("div");
+    wrap.innerHTML = html;
+    wrap.querySelectorAll(".drpg-call-actions").forEach(el => el.remove());
+    return wrap.innerHTML;
+}
+
+/**
+ * Every module message surfaces as a notice, for everybody it was addressed to -
+ * GMs included, for the cards the rule below keeps for a GM (an announcement, a
+ * card for the GM to answer, a GM's insisted card). The corner tile holds it
+ * (`hostFor`), not the middle of the screen, unless it is sticky evidence, an
+ * Objection or a centre card.
  *
  * The old rule was "players only, whispers only". That left the GM reading a
  * sidebar for the half of this module that talks to them exclusively - every
@@ -1264,7 +1302,12 @@ export async function onCreateChatMessage(message) {
     // `popupForce` only from a GM (E02, audit S11-27): from a player's console it
     // put a card that looks like the module's own in the middle of every screen. A GM posting a
     // player's card for them does not make it a GM's (secret.mjs `cardWriter`, E08+E28 fix r2-H5).
-    const forGm = cardFlag(message, "gmPopup")
+    // `gmPopup` only on a card a GM's browser wrote (1.2.122, the audit's COMM-35), as its two siblings are held: the
+    // module posts it through a GM (a player's meta loses it, secret.mjs GM_META), so on a document a player wrote it is
+    // a console's, and it put a card of the player's choosing in every GM's corner. A GM posting at a player's asking is
+    // still a GM's browser (its `author`); the card's writer for everything else stays `cardWriter`. A player's public
+    // card reaches every screen, GMs' included, by design: that is an announcement.
+    const forGm = (message.author?.isGM && cardFlag(message, "gmPopup"))
         || (cardWriter(message)?.isGM && cardFlag(message, "popupForce"));
     if (game.user.isGM && whisper.length && !forGm) return;
 
@@ -1284,7 +1327,7 @@ export async function onCreateChatMessage(message) {
      * which is nearly everything, so the ordinary notice is not delayed by a
      * tick it does not need.
      */
-    showPopup(await wordsOf(message), {
+    showPopup(withoutRulingButtons(await wordsOf(message)), {
         kind,
         title: cardFlag(message, "popupTitle") ?? null,
         // Carried on the message rather than worked out here, for the same

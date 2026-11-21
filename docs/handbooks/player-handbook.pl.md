@@ -1,6 +1,6 @@
 # Danganronpa RPG - Podręcznik gracza
 
-*Dla uczniów killing game. Moduł w wersji 1.2.121, zbudowany na Daggerheart dla Foundry VTT v14.*
+*Dla uczniów killing game. Moduł w wersji 1.2.122, zbudowany na Daggerheart dla Foundry VTT v14.*
 
 To cała gra widziana z miejsca gracza: co znaczą liczby na arkuszu, ile kosztuje akcja, co kupuje Hope, co się dzieje, gdy ktoś ginie, i co nacisnąć. Każda liczba tutaj jest liczbą modułu; tam, gdzie decyzja należy do człowieka, napisano "GM decyduje". Jak moduł działa od środka, opisuje rozdział 17.
 
@@ -73,7 +73,7 @@ Jeśli mimo to zmienisz liczbę na arkuszu ręcznie, zmiana zostaje sprawdzona. 
 - **Sanity jest tylko twoje.** Inny gracz, który otworzy twój arkusz albo przeczyta twój wiersz na arkuszu drużyny, widzi twoje Health i **?** w miejscu Sanity, a twój token nie pokazuje innym graczom paska Sanity. Ty i GM-owie widzicie i Health, i Sanity. Sanity jest ukryte tylko na ekranie (rozdział 17).
 - **Rzut w Breakdown.** Dodatkowa kość na karcie rzutu nazywa się **Disadvantage**, a karta nikomu nie mówi nic więcej o przyczynie. Przyczynę podają ci twoje własne okno rzutu i odprawa akcji kryzysowej; inny gracz nie przeczyta jej na karcie.
 - **Breakdown i Wounded są na twoim arkuszu, dla wszystkich.** Kto otworzy twój arkusz, widzi pod twoim Health i Sanity plakietkę, gdy jesteś w Breakdown albo Wounded. Inny gracz, który zobaczy plakietkę Breakdown, wie więc, że twoje Sanity się skończyło, choć nie zna jego liczby. Żaden token nie pokazuje żadnej z tych ikon, także twój; nakładka śmierci nadal jest rysowana na tokenie.
-- **Twoja przeszłość.** Część biograficzna twojego arkusza ma pole z podpisem **Przeszłość**, na to, kim twoja postać była przed killing game. Zapisuje się samo, gdy z niego wyjdziesz, przełączysz się na inną zakładkę albo zamkniesz arkusz; arkusz, którego nie możesz edytować, pokazuje je tylko do odczytu, a arkusz innego gracza w ogóle nie ma Przeszłości (rozdział 3, Co widzisz). Jeśli ktoś inny zmienił twoją Przeszłość, gdy pisałeś, dowiadujesz się o tym raz, a twój tekst zostaje w polu; kolejne kliknięcie poza polem zapisuje twój tekst w miejsce tamtego.
+- **Twoja przeszłość.** Część biograficzna twojego arkusza ma pole z podpisem **Przeszłość**, na to, kim twoja postać była przed killing game. Zapisuje się samo, gdy z niego wyjdziesz, przełączysz się na inną zakładkę albo zamkniesz arkusz; arkusz, którego nie możesz edytować, pokazuje je tylko do odczytu, a arkusz innego gracza w ogóle nie ma Przeszłości (rozdział 3, Co widzisz). Jeśli ktoś inny zmienił twoją Przeszłość, gdy pisałeś, dowiadujesz się o tym raz, a twój tekst zostaje w polu; kolejne kliknięcie poza polem zapisuje twój tekst w miejsce tamtego, a zamknięcie arkusza zapisuje go w miejsce tamtego od razu i mówi ci o tym.
 - **Twój arkusz nadąża za grą.** Gdy zmieniają się twoje liczby albo twoje rzeczy, twój otwarty arkusz to pokazuje, a to, co właśnie piszesz, zostaje po odświeżeniu arkusza.
 - **Arkusz zmarłego ucznia** zostaje jako zapis, z pieczęcią **Nie żyje**, a nagłówek nadal pokazuje Hope, akcje i Move. Przy przedmiotach nie ma przycisków do użycia, wyrzucenia, przekazania, udostępnienia ani schowania, nie ma też Przedstaw ani Analyze. Arkusz mówi, co czeka zmarłych w Class Trial: twój mikrofon jest wyłączony i nie dostajesz karty do głosowania. Gdzie trafia twój głos poza rozprawą, mówi rozdział 13.
 
@@ -345,7 +345,7 @@ Projekty to powolna gra: wiele akcji przez wiele pór dnia. To też jedyna rzecz
   - **Breach the Wall** (Body, Złożony 6): wyłom w tej ścianie, który wszyscy widzą i przez który każdy przejdzie. Dopóki ściana nie zostanie naprawiona, zamek pokoju za nią i drzwi jego sypialni nikogo nie zatrzymują, a pieczęć na nim jest zdjęta do końca pory dnia; Chained wciąż cię trzyma, a sala rozpraw zostaje zamknięta. Osoby w obu pokojach dostają o tym wiadomość, a twoje imię poznają tylko wtedy, gdy stoisz przy wyłomie; pokoje obok słyszą łomot.
   - **Seal the Passage** (Hand, Złożony 6): zamyka przejście, które znasz i które ma jedną stronę w twoim pokoju, dla wszystkich, którzy je znają. GM może je znów otworzyć.
   - **Close the Breach** (Body, Złożony 6): ściana znów jest cała.
-  - **Repair an item** (Hand; Trywialny 3 dla Tier 0 albo 1, Złożony 6 dla Tier 2 albo 3): jeden twój zepsuty albo zużyty przedmiot użytkowy albo narzędzie, noszone albo w skrytce, znów jest cały. Jeśli Tier przedmiotu wzrośnie przed końcem naprawy, naprawa może wymagać większej skali, a GM dostaje o tym wiadomość.
+  - **Repair an Item** (Hand; Trywialny 3 dla Tier 0 albo 1, Złożony 6 dla Tier 2 albo 3): jeden twój zepsuty albo zużyty przedmiot użytkowy albo narzędzie, noszone albo w skrytce, znów jest cały. Jeśli Tier przedmiotu wzrośnie przed końcem naprawy, naprawa może wymagać większej skali, a GM dostaje o tym wiadomość.
   - **Repair the Lock** (Hand, Trywialny 3): zamek wyłamany przez Force the Door albo przez wyłom, w drzwiach pokoju, w którym stoisz. Gdy projekt zostanie ukończony, zamek znów trzyma, dla wszystkich.
 
   GM zatwierdza projekt ściany, przejścia, zamka albo przedmiotu jak każdą propozycję i sprawdza go jeszcze raz, gdy jest ukończony: jeśli ściana, przejście, zamek albo przedmiot nie są już tym, czym były, nic się nie dzieje, a GM dowiaduje się dlaczego. Reroll rzutu, który ukończył Secret Passage, wyłom, zamknięcie przejścia albo naprawę zamka, cofa je.
@@ -418,7 +418,7 @@ Echoes znajduje najbliższy pokój, w którym stoi żywy uczeń innego gracza, l
 
 Idziesz za uczniem, który stoi w twoim pokoju. Proponujesz statystykę drugiego rzutu, Leg albo Shadow, a GM wybiera ją na karcie; nic nie płacisz, dopóki GM nie odpowie. Potem są dwa rzuty. Przy Shadow 15 lub więcej cel cię nie zauważa; poniżej od razu dostaje twoje imię, a śledzenie i tak trwa. Drugi rzut nie ma liczby do przebicia: jego wynik to to, co Dash celu musi przebić, żeby cię zgubić (niżej).
 
-Dopóki śledzenie trwa, za każdym razem, gdy cel przejdzie do innego pokoju i postoi tam około dwóch sekund, dostajesz kartę: *{name} przechodzi do: {room}.* Przy krytyku w drugim rzucie karta mówi też, kto tam jest, poza Eclipse. Podczas Eclipse karty wciąż przychodzą, ale podają tylko pokoje.
+Dopóki śledzenie trwa, za każdym razem, gdy cel przejdzie do innego pokoju i postoi tam około dwóch sekund, dostajesz kartę: *{name} przechodzi do pokoju {room}.* Przy krytyku w drugim rzucie karta mówi też, kto tam jest, poza Eclipse. Podczas Eclipse karty wciąż przychodzą, ale podają tylko pokoje.
 
 Śledzenie kończy się kartą, gdy nie jesteś ani w pokoju, który cel opuścił, ani w tym, do którego doszedł (gubisz trop), gdy kończy się dzień, gdy zostanie ogłoszone znalezienie ciała albo gdy cel użyje Dash z wynikiem wyższym niż twój drugi rzut; krytyczne śledzenie przerywa tylko krytyczny Dash. Kończy się bez karty, gdy któreś z was zginie albo zacznie się incydent. Prowadzisz jedno śledzenie naraz, a nowe zastępuje stare. Śledzenia nie da się zacząć w Eclipse, w Investigation ani w Class Trial.
 
@@ -562,7 +562,7 @@ Każdy twój rzut zakończony Despair zasila pulę Monokumy, który cię pilnuje
 | Patronage | 3 | Dodaje projektowi 2 postępu. Przy tajnym projekcie tylko ci, którzy o nim wiedzą, dowiadują się, któremu, i ile ma postępu. |
 | Pain | 4 | Tracisz 2 Health. |
 | Silence | 4 | Nie możesz wydawać Hope Calli do końca pory dnia. |
-| Contraband | 4 | Niszczy dowolny jeden przedmiot. |
+| Contraband | 4 | Niszczy dowolny jeden przedmiot oprócz Truth Bulletu. |
 | Public Announcement | 6 | Wszyscy zostają wezwani do jednego pokoju na początek następnej pory dnia. Macie czas do tej pory, a to, gdzie będziesz, gdy się zacznie, zależy od ciebie. |
 | Motive | 6 | Żądanie, termin w porach dnia i cena zignorowania go, ogłoszone wszystkim słowo w słowo. Odliczanie wisi na panelu zdarzeń. |
 | New Rule | 9 | Jedna nowa zasada killing game, wybrana przez Monokumę. Zasady lądują na zakładce **Zasady** każdego arkusza. |
@@ -620,7 +620,7 @@ Despair zdobyty ponad pełną pulę nie przepada: zbiera się w jednym wspólnym
 Przedmiot może służyć też jako inna kategoria (śrubokręt w narzędziach, który jest też narzędziem zbrodni) i wciąż zajmuje jedno miejsce.
 
 > [!IMPORTANT]
-> **W ręku.** Sprzęt liczy się tylko wzięty do ręki: w incydencie, przy sprzątaniu i przy pracy nad projektem liczy się tylko to, co trzymasz. W ręku jest zawsze najwyżej jedna rzecz, a gdy bierzesz jedną, pozostałe odkładasz; wzięcie do ręki nie kosztuje akcji. Narzędzie w ręku daje przewagę przy pracy nad projektem i sabotażu i obniża próg o swój Tier. Narzędzie do sprzątania w ręku robi to samo przy sprzątaniu, poza Move the Body, gdzie obniża próg o swój Tier, ale nie daje przewagi. Tier narzędzia zbrodni wyznacza jego obrażenia (rozdział 10, Jeśli jesteś zabójcą).
+> **W ręku.** Sprzęt liczy się tylko wzięty do ręki: w incydencie, przy sprzątaniu i przy pracy nad projektem liczy się tylko to, co trzymasz. W ręku jest zawsze najwyżej jedna rzecz, a gdy bierzesz jedną, pozostałe odkładasz; wzięcie do ręki nie kosztuje akcji. Narzędzie w ręku daje przewagę przy pracy nad projektem i sabotażu i obniża próg o swój Tier. Narzędzie do sprzątania w ręku robi to samo przy zacieraniu i przeróbce Remnantu; przy Misleading Trail daje przewagę, ale nie obniża progu, a przy Move the Body obniża próg o swój Tier, ale nie daje przewagi. Tier narzędzia zbrodni wyznacza jego obrażenia (rozdział 10, Jeśli jesteś zabójcą).
 
 **Przekazywanie.** Możesz dać coś każdemu w swoim pokoju. Przy **Przekaż** oddajesz rzecz na dobre i obowiązuje limit odbiorcy. Przy Truth Bullecie albo kluczu możesz zamiast tego wybrać **Podziel się kopią**: macie go wtedy oboje, a kopii Truth Bulletu nie wiąże żadna twoja nieudana analiza. Ani przekazanie, ani dzielenie się kopią nie kosztuje akcji i żadne z nich nie działa podczas Eclipse.
 
@@ -721,7 +721,7 @@ Ta część mówi, co graczowi wolno wiedzieć o morderstwie. Dopóki nikt nie z
 
 Gdy rzut wymienia więcej niż jedną statystykę, proponujesz jedną: wybierasz ją w oknie pod wyborami i, jeśli chcesz, dopisujesz linijkę o tym, jak twoja postać to robi. GM zatwierdza twoją propozycję, zmienia ją na inną statystykę z listy albo odmawia, na karcie w twoim wątku. Dopóki GM nie odpowie, nic nie płacisz, a odmowa nic nie kosztuje.
 
-Po zmianie twoje okno mówi, na co ją zmieniono, i daje do wyboru rzut albo *Rezygnuję (nic nie schodzi)*; w walce rezygnacja znowu otwiera menu kryzysowe. Okno rzutu otwiera się wtedy z tym, co ustalił GM, i nie możesz tego zmienić. Z uzbrojonym Hope Callem Resolve wybierasz statystykę w oknie rzutu i nikogo nie pytasz. W Daily Life GM może przepuszczać propozycje do Search i do projektu bez kliknięcia; karta mówi wtedy *Zatwierdzone automatycznie.*
+Po zmianie twoje okno mówi, na co ją zmieniono, i daje do wyboru rzut albo *Zrezygnuj*; w walce rezygnacja znowu otwiera menu kryzysowe. Okno rzutu otwiera się wtedy z tym, co ustalił GM, i nie możesz tego zmienić. Z uzbrojonym Hope Callem Resolve wybierasz statystykę w oknie rzutu i nikogo nie pytasz. W Daily Life GM może przepuszczać propozycje do Search i do projektu bez kliknięcia; karta mówi wtedy *Zatwierdzone automatycznie.*
 
 ### Rzut otwarcia
 
@@ -757,7 +757,7 @@ Ofiara nie widzi niczego, gdy zabójca rzuca: żadnej karty, muzyki ani niczego 
 
 Przy każdym sukcesie pułapka się nie zamyka, czy miałeś jeszcze Free Move, czy nie. Twoja próba dostrzeżenia pułapki zostawia Evident Remnant, a GM decyduje, co dzieje się dalej.
 
-Przy śmierci z własnej ręki rzuca się jak zabójca, a potem od razu przechodzi do sprzątania.
+Przy śmierci z własnej ręki rzuca się jak zabójca, a potem incydent od razu przechodzi do Tamper.
 
 ### Jeśli jesteś ofiarą
 
@@ -815,7 +815,7 @@ Udany Misleading Trail albo udane przeniesienie ciała od razu kładzie na twój
 Narzędzie do sprzątania w ręku pomaga (rozdział 7, W ręku). Gdy w pokoju są świadkowie, najpierw wykonujesz ten sam rzut maskowania Shadow-16 co przy każdym Tamper, z tym samym kosztem Sanity za przyłapanie (rozdział 4); Move the Body nie rzuca na maskowanie.
 
 > [!WARNING]
-> Każde narzędzie zbrodni, którym zamachnąłeś się w walce, zostaje zniszczone, gdy zamyka się incydent, który doszedł do sprzątania; Finishing Blow nie jest zamachem. Każde narzędzie do sprzątania, którego użyłeś przy próbie sprzątania, zostaje zniszczone, gdy znajdzie się ciało twojej ofiary, nawet jeśli od tamtej pory je odłożyłeś; to, które schowałeś do skrytki, ocaleje. Jeśli nie sprzątałeś, zniszczone zostaje narzędzie do sprzątania, które masz wtedy w ręku. Oba zostają w ekwipunku jako zepsute dowody.
+> Każde narzędzie zbrodni, którym zamachnąłeś się w walce, zostaje zniszczone, gdy zamyka się incydent, który doszedł do Tamper; Finishing Blow nie jest zamachem. Każde narzędzie do sprzątania, którego użyłeś przy próbie sprzątania, zostaje zniszczone, gdy znajdzie się ciało twojej ofiary, nawet jeśli od tamtej pory je odłożyłeś; to, które schowałeś do skrytki, ocaleje. Jeśli nie sprzątałeś, zniszczone zostaje narzędzie do sprzątania, które masz wtedy w ręku. Oba zostają w ekwipunku jako zepsute dowody.
 
 ### Jeśli wejdziesz w trakcie
 
@@ -891,7 +891,7 @@ Nie wybierasz, komu zaprzeczasz: Objection trafia w tego, kto mówi teraz (liczy
 
 GM może przekierować trwające Objection na kogoś innego. GM może też użyć przycisku **Oddalenie** wobec najnowszego Objection, na przykład naciśniętego przez pomyłkę albo niezwiązanego z tym, co mówi mówca: jego karta dostaje pieczątkę **Objection oddalone przez GM-a**, to, co zapłaciłeś, zostaje zapłacone, a rozprawa wraca tam, gdzie była, z czasem, jaki wtedy miała. Pasek GM-a może też pominąć turę, odjąć albo dodać pół minuty (w Panic Round 5 sekund), zakończyć tryb albo wrócić do debaty, a każdą z tych rzeczy widać na ekranie (karta albo *GM: +30 s* na karcie Class Trial). Na każdym ekranie zegar podaje tryb, a karta Class Trial na panelu zdarzeń pokazuje tryb, kto ma głos (w rebuttalu także, komu odpowiada) i ile zostało czasu.
 
-GM może też otworzyć trzy tryby, w których mówi jedna osoba naraz. W **Testimony** i **Panic Round** każdy uczestnik mówi po kolei: w twojej turze okno mówi *Twoja tura (n s)*; **Gotowe** kończy twoją turę, a **Pasuję** oddaje ją następnemu mówcy. Ekrany podają, kto mówi i kto następny; jeśli w swojej turze nie jesteś połączony, tura przechodzi dalej. Gdy mówi ktoś inny, słuchasz. Po Objection w Testimony runda idzie dalej od następnego mówcy. Dowody przedstawia tylko mówca (*Teraz dowody może przedstawiać tylko name.*).
+GM może też otworzyć trzy tryby, w których mówi jedna osoba naraz. W **Testimony** i **Panic Round** każdy uczestnik mówi po kolei: w twojej turze okno mówi *Twoja tura (n s)* z sekundami, które ci zostały; **Gotowe** kończy twoją turę, a **Pasuję** oddaje ją następnemu mówcy (**Mówię dalej** chowa okno na 20 s, a ono wraca, póki trwa twoja tura). Ekrany podają, kto mówi i kto następny; jeśli w swojej turze nie jesteś połączony, tura przechodzi dalej. Gdy mówi ktoś inny, słuchasz. Po Objection w Testimony runda idzie dalej od następnego mówcy. Dowody przedstawia tylko mówca (*Teraz dowody może przedstawiać tylko name.*).
 
 W **Closing Argument** najpierw gra pyta cię, czy podsumujesz sprawę: odpowiadasz **Podsumuję** albo **Ktoś inny** i masz na to 30 sekund. Spośród zgłoszonych losowany jest jeden, a GM go zatwierdza albo wybiera kogoś innego. Mówca ma 300 sekund. Jeśli to ty jesteś mówcą, **Pasuję** w pierwszych 30 sekundach oddaje wybór GM-owi, a później kończy Closing Argument; **Gotowe** też go kończy. Gdy ktoś wniesie Objection wobec mówcy, do końca tej wymiany dowody przedstawiają tylko jej dwie osoby, a ekran mówi *Teraz dowody mogą przedstawiać tylko name i name.* Po wymianie GM decyduje, kto mówi dalej: mówca, z czasem, który mu został, albo ktoś, kto wniósł Objection, z nowymi 300 sekundami. Closing Argument odbywa się raz na rozprawę i kończy się przed głosowaniem, a ostatnie słowo w nim nie daje Hope.
 
@@ -929,12 +929,12 @@ Jeśli kiedyś wziąłeś jako Level Up +1 Health albo +1 Sanity, GM może wyró
 
 ### Strefy sali
 
-W **Straw Poll**, **Logic Dive** albo **Scrum Debate** odpowiadasz tym, gdzie stoi twój token w sali rozpraw. Strefy to **Strefa A** i **Strefa B**, każda nazwana swoją odpowiedzią: przesuń token do wybranej. Jeśli się nie ruszysz, odpowiadasz strefą, w której leży twoje stanowisko. Token na linii między strefami albo poza obiema nie liczy się po żadnej stronie. Bez tokenu w sali dostajesz okno wyboru strony. W żadnym z tych trzech trybów nikt nie wnosi objection. Gdy tryb się kończy, twój token wraca na stanowisko.
+W **Straw Poll**, **Logic Dive** albo **Scrum Debate** odpowiadasz tym, gdzie stoi twój token w sali rozpraw. Strefy to **Strefa A** i **Strefa B**, każda nazwana swoją odpowiedzią: przesuń token do wybranej. Jeśli się nie ruszysz, odpowiadasz strefą, w której leży twoje stanowisko. Token na linii między strefami albo poza obiema nie liczy się po żadnej stronie. Bez tokenu w sali dostajesz okno wyboru strony, w Logic Dive przy każdym pytaniu; zamknięte bez odpowiedzi wraca po 15 s. W żadnym z tych trzech trybów nikt nie wnosi objection. Gdy tryb się kończy, twój token wraca na stanowisko.
 
 | Tryb | Jak zapada rozstrzygnięcie | Kto przedstawia dowody |
 |---|---|---|
 | Straw Poll | dwie trzecie klasy po jednej stronie to **Finding**: *Klasa uważa: ...* | wszyscy |
-| Logic Dive | na każde pytanie odpowiada większość; zła odpowiedź albo remis kończą zestaw, a dobrej odpowiedzi nie widać; zestaw z dobrymi odpowiedziami do końca jest rozwiązany i może dać Finding | wszyscy |
+| Logic Dive | na każde pytanie odpowiada większość; zła odpowiedź albo remis kończą zestaw (po złej odpowiedzi dobra była ta druga z dwóch); zestaw z dobrymi odpowiedziami do końca jest rozwiązany i może dać Finding | wszyscy |
 | Scrum Debate | trzy fazy: w fazie **Strony** wybierasz strefę; w fazie **Narada obozów** twój obóz rozmawia we własnym pokoju głosowym, a ty nie słyszysz nikogo innego (HUD mówi, z którym obozem się naradzasz); potem debata, z powrotem w pokoju rozprawy, gdzie obozy mówią na zmianę. Każdy może w każdej chwili przejść na drugą stronę. W twojej turze **Gotowe** i **Pasuję** kończą ją albo oddają, a **Wystaw tezę** kładzie na stół jedno krótkie zdanie za twoją strefą. Nic nie kończy debaty wcześniej: każda tura trwa do końca swojego zegara, a tura, która przypada pustemu obozowi, mija bez mówcy. Jeśli po ostatniej turze jeden obóz jest pusty, odpowiedź drugiego staje się Finding; w przeciwnym razie obozy dostają wiadomość, ale żaden Finding nie powstaje | tylko mówca |
 
 Finding to coś, co klasa ustaliła. Rozprawa prowadzi listę Findings: GM może dodać, zmienić albo usunąć Finding na karcie, którą widzą wszyscy, a karta otwierająca głosowanie wymienia Findings.
@@ -1038,7 +1038,7 @@ Są dwa motywy: **Stained Glass** i **Monokuma Legacy**. Zaczynasz ze Stained Gl
 
 Podczas Eclipse linia fazy podaje jego nazwę, na przykład *Eclipse (Noc)*. Podczas Class Trial w miejscu pory dnia stoi tryb rozprawy: Dyskusja, Debata, Objection, Rebuttal, Testimony, Panic Round, Closing Argument, Straw Poll, Logic Dive albo Scrum Debate, a to, kto ma głos, widać na panelu zdarzeń (rozdział 12). Gdy gra stoi na pauzie, na każdym ekranie w miejscu nazwy kampanii stoi **Wstrzymano**, dopóki gra nie ruszy; własny napis Foundry na środku ekranu i przygaszenie zostają. Kliknij linię fazy, by dostać wyjaśnienie, gdzie jesteśmy, i opis twojego pokoju.
 
-**Przyciski Foundry** nie stoją na ekranie gracza: nie ma paska bocznego, więc nie ma też paska sterowania sceną po lewej, a razem z nim odchodzą rysowanie, notatki na mapie i przycisk celowania. Swój token zaznaczasz i przeciągasz jak dotąd, a moduł nie zmienia żadnego skrótu klawiszowego Foundry. Kliknięcie tokenu prawym przyciskiem nie otwiera żadnego menu (od 1.2.120): to, co w nim było, należy do GM-a. Twoje zasoby i stany postaci są na arkuszu (zakładka Effects), wysokość tokenu ustawia GM w ustawieniach tokenu, a token nadal namierzasz klawiszem T albo podwójnym kliknięciem prawym przyciskiem.
+**Przyciski Foundry** nie stoją na ekranie gracza: nie ma paska bocznego, więc nie ma też paska sterowania sceną po lewej, a razem z nim odchodzą rysowanie, notatki na mapie i przycisk celowania. Swój token zaznaczasz i przeciągasz jak dotąd, a moduł nie zmienia żadnego skrótu klawiszowego Foundry. Kliknięcie tokenu prawym przyciskiem nie otwiera żadnego menu (od 1.2.120): to, co w nim było, należy do GM-a. Twoje zasoby są na arkuszu, a stany, które moduł nakłada na twoją postać (Breakdown, Wounded), widać pod nimi; wysokość tokenu i jego ustawienia należą do GM-a, a token nadal namierzasz klawiszem T nad nim.
 
 **Pasek tytułu okna**: dwukrotne kliknięcie zwija okno do paska tytułu, a kolejne rozwija je z powrotem, jak wszędzie w Foundry. Zwinięte okno zachowuje to, co w nim było, a przycisk, który je otworzył, otwiera je ponownie. Krótkie okno z jednym pytaniem, na przykład potwierdzenie, nie zwija się. Okno, które czeka na twoją odpowiedź (rzut, Observe, deklaracja akcji, głosowanie, Level Up albo pytania Class Trial), zostaje nad arkuszem postaci, także gdy klikniesz arkusz albo gdy on się przerysuje; pozostałe okna wychodzą na wierzch tak, jak wyciąga je Foundry. Pole tekstowe, w którym piszesz, rośnie nad swoim oknem, by zmieścić tekst, najwyżej do 60% wysokości ekranu, i wraca na miejsce, gdy z niego wyjdziesz albo naciśniesz Escape.
 
@@ -1094,7 +1094,7 @@ Ten dodatek zbiera to, czego rozdziały powyżej nie mówią graczowi przy stole
 
 **Twój arkusz.** To kropki samego modułu i wyglądają tak samo, czy kropki Daggerheart są włączone, czy wyłączone. Jeszcze nie sprawdzono przy stole, że kropki na twoim arkuszu, na arkuszu drużyny i na twoim tokenie są tylko do czytania, ani że wyglądają tak samo na ekranie z włączonymi kropkami Daggerheart i na ekranie bez nich (LIVE-E24-02). Zmianę zrobioną na twoim arkuszu, gdy nie jest połączony żaden GM, sprawdza się, gdy któryś wróci. Trafienie, leczenie, wydany albo dany Hope zmieniają liczby na twoim otwartym arkuszu tam, gdzie stoją, na twoim ekranie i u każdego, kto ma go otwartego; wszystko inne, na przykład przedmiot, który dostajesz, rysuje arkusz od nowa. Jeszcze nie sprawdzono przy stole, czy twój arkusz nie przerysowuje się przy trafieniu, leczeniu, wydanym albo danym Hope (LIVE-E45-01).
 
-**Twoja Przeszłość.** Samo otwarcie pola niczego nie zapisuje. Jeśli ktoś inny zapisze twoją Przeszłość w trakcie twojego pisania, twoja następna próba zapisu niczego nie zapisze, tylko powie ci o tym; dopiero kolejna zapisze twój tekst w miejsce tamtego.
+**Twoja Przeszłość.** Samo otwarcie pola niczego nie zapisuje. Jeśli ktoś inny zapisze twoją Przeszłość w trakcie twojego pisania, twoja następna próba zapisu niczego nie zapisze, tylko powie ci o tym; dopiero kolejna zapisze twój tekst w miejsce tamtego. Zamknięcie arkusza to ostatni zapis, więc od razu zapisuje twój tekst w miejsce tamtego i mówi ci o tym. Pole **Ultimate** zachowuje to, co wpisujesz, gdy arkusz się odświeża, a zamknięcie arkusza je zapisuje.
 
 **Co może przeczytać inny gracz.** Jeszcze nie sprawdzono przy stole, że inny gracz widzi **?** w miejscu twojego Sanity (LIVE-E24-01), że nie widzi paska Sanity na twoim tokenie (LIVE-E24-03), że karta rzutu w Breakdown ukrywa przed nim przyczynę (LIVE-E24-10) ani że żaden token nie pokazuje ikony Breakdown ani Wounded (LIVE-E95-05). Twoje Sanity jest ukryte tylko na ekranach: Foundry wysyła dane twojej postaci do każdej przeglądarki, a gracz, który otworzy konsolę przeglądarki, może je przeczytać. Pisze o tym podręcznik GM-a, sekcja 1.
 

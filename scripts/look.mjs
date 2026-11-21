@@ -16,9 +16,19 @@
 
 import { SETTINGS, getSetting } from "./settings.mjs";
 
-/** True when this browser wears the Stained Glass theme. */
+/**
+ * True when this browser wears the Stained Glass theme: THE ONE READING (the audit's DOC-16, 1.2.122, 21.11.2026). It was
+ * read in five places with two fallbacks - the setting or else false (here, glass.mjs `themeOn`, death-fade.mjs), the
+ * setting or the body class (motion.mjs `glassOn`), the setting or, where it throws, the body class (private-rolls.mjs).
+ * The setting, readable the moment settings are registered; the body class only where the setting cannot be read (a
+ * page before `init`, a test's stand-in). The four others ask this.
+ */
 export function isStainedGlass() {
-    try { return getSetting(SETTINGS.theme) === "stainedGlass"; } catch { return false; }
+    try {
+        return getSetting(SETTINGS.theme) === "stainedGlass";
+    } catch {
+        return Boolean(globalThis.document?.body?.classList?.contains("drpg-theme-stained-glass"));
+    }
 }
 
 /* The note under the slider, a sentence per theme (W-2: `scaleNote`, `DRPG.Look.uiScaleAuto` and `uiScaleSlider`), went

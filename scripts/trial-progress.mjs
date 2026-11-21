@@ -17,9 +17,14 @@
  * are one file because the primary's run of another GM's write
  * (`recordOnPrimary`) carries the sentence out and takes it back
  * (`startExecution`, `clearSentenceHere`). vote.mjs re-exports the fourteen
- * names here it exported before, so every importer still imports vote.mjs, and
- * nothing here imports it (the facade rule, .claude/rules/code.md); the vote
- * (vote.mjs) and the verdict (verdict.mjs) read and write the record here.
+ * names here it exported before, and nothing here imports it (the facade rule,
+ * .claude/rules/code.md); the vote (vote.mjs) and the verdict (verdict.mjs)
+ * read and write the record here. Not every importer goes through vote.mjs:
+ * clock.mjs (`shutVoteAtExit`) and sequence.mjs (`trialProgressChapter`)
+ * import this file past the facade. This file exports 24 names (counted on
+ * 21.11.2026; 21 before 1.2.122's `applyFindingOp`, `findingsStep` and
+ * `summaryClaimStep`), 14 of them re-exported; the row in code.md that says
+ * "15 names exported" is older than that.
  *
  * THE ORDER. The sentence stands above the record and `trialSizeNow` at the
  * end. In vote.mjs `let executing` stood inside the cut of `readSentence`
@@ -113,8 +118,11 @@ function startExecution(chapter) {
  * A SENTENCE THAT COULD NOT BE CARRIED OUT IS TRIED AGAIN (E70 fix p1-G2; the review's BEH-2). A kill that threw left
  * `execution.failed` and no `executedAt`, and nothing asked again once the phase had moved: the convict walked into
  * Daily Life alive unless the GM remembered, and a death marked by hand carried neither the cause nor the trial's
- * phase. The primary asks again when it is ready and at every later change of phase, while the record's sentence
- * waits outside a trial (`pendingSentence`'s reading).
+ * phase. The primary asks again when it is ready and at every later change of phase outside a trial - and only for a
+ * sentence that was tried and failed (`execution.failed` holds an id, as the guard below reads). A sentence never
+ * attempted - the phase written and the page reloaded before the first kill on the Edit campaign road, or a primary
+ * that did not answer `execute` - has no `execution` row and is not asked again here (`pendingSentence` still names it
+ * on End the trial's question).
  */
 export async function retrySentence() {
     if (!game.user?.isGM || !isPrimaryGm() || getClock().phase === "classTrial") return null;
@@ -227,7 +235,7 @@ export async function executionLines() {
  * card without the name is asked in STATUS (default: the name, as an ordinary trial's card).
  */
 async function postExecutionCard(executed) {
-    const esc = foundry.utils.escapeHTML;
+
     try {
         await announce({
             flags: { [MODULE_ID]: { executionCard: true, sfx: { key: "execution", gm: true } } },
@@ -493,6 +501,12 @@ export const TRIAL_PROGRESS_KEY = "trial.progress";
  */
 export function setTrialProgress(patch = {}) {
     if (!game.user.isGM) return Promise.resolve(null);
+    // A Finding's press and the summary's claim, each the primary's step over the record as it finds it (`stepOfPatch`).
+    const step = typeof patch === "function" ? null : stepOfPatch(patch);
+    if (step) {
+        if (isPrimaryGm()) return serialWrite(TRIAL_PROGRESS_KEY, () => writeTrialProgressInStep(step));
+        return askRecord("patch", { patch }, () => recordOnPrimary("patch", { patch }));
+    }
     if (typeof patch !== "function" && !isPrimaryGm()) return askRecord("patch", { patch }, () => recordOnPrimary("patch", { patch }));
     return serialWrite(TRIAL_PROGRESS_KEY, () => writeTrialProgressInStep(patch));
 }
@@ -514,6 +528,55 @@ export function setTrialProgress(patch = {}) {
 const RECORD_KEPT = new Set(["chapter", "mutedDead", "objections", "closing"]);
 export const RECORD_FIELDS = Object.freeze(Object.keys(trialProgress(0)).filter(key => !RECORD_KEPT.has(key)));
 
+/**
+ * A FINDING'S PRESS IS AN OPERATION, NOT A LIST (1.2.122, CASE-48). The Findings window's Add, Edit, Delete and
+ * "Monokuma confirms" wrote the whole list it had read, as an object patch, so a Finding a zone mode's end added in
+ * between (trial-zones.mjs `afterZoneStep`, a function patch of the primary's) was written over, its card already posted.
+ * `op` is `{ act: "add", row }`, `{ act: "edit", id, text }`, `{ act: "delete", id }` or `{ act: "confirm", id }`; this is
+ * the list `op` makes of `list`, which the primary's step reads as it finds it. Another GM's press travels as
+ * `{ findingsOp }` in the record's patch ("trial.record", held below by `recordOnPrimary`).
+ */
+export function applyFindingOp(list, op) {
+    const rows = Array.isArray(list) ? list : [];
+    const id = String(op?.id ?? "");
+    const words = String(op?.text ?? "").trim().slice(0, (Number(TRIAL.modes?.zones?.answerLength) || 80) * 3);
+    switch (op?.act) {
+        case "add": {
+            const row = op.row && typeof op.row === "object" ? op.row : null;
+            const text = String(row?.text ?? "").trim().slice(0, (Number(TRIAL.modes?.zones?.answerLength) || 80) * 3);
+            if (!row || !text || !String(row.id ?? "") || rows.some(f => f.id === row.id)) return rows;
+            return [...rows, { id: String(row.id), text, question: null, mode: null, at: Number(row.at) || Date.now(), confirmed: false, edited: true }];
+        }
+        case "edit": return words ? rows.map(f => (f.id === id ? { ...f, text: words, edited: true } : f)) : rows;
+        case "delete": return rows.filter(f => f.id !== id);
+        case "confirm": return rows.map(f => (f.id === id ? { ...f, confirmed: true } : f));
+        default: return rows;
+    }
+}
+
+/** The record's step of a Finding's press: the list as the step finds it, with `op` applied. */
+export function findingsStep(op) {
+    return record => ({ findings: applyFindingOp(record?.findings, op) });
+}
+
+/**
+ * THE CASE SUMMARY IS SENT ONCE A TRIAL, ON THE PRIMARY (1.2.122, STG-76). Each GM's browser read `summaryShown`, waited
+ * on the preview, read it again and wrote it as an object patch, and the primary spread a second one over the first: two
+ * GMs pressing Send within the record's round trip both passed their check and both posted the card. The claim is the
+ * primary's step now: it writes `summaryShown` only when the record it finds holds none, and writes nothing otherwise, so
+ * exactly one asker is answered with a record whose `summaryShown` is its own `at` (case-summary.mjs posts only then).
+ */
+export function summaryClaimStep(at) {
+    return record => (record?.summaryShown ? null : { summaryShown: Number(at) || Date.now() });
+}
+
+/** The primary's own step for a patch that names one (`{ findingsOp }`, `{ summaryClaim }`), or null for a plain patch. */
+function stepOfPatch(patch) {
+    if (patch?.findingsOp) return findingsStep(patch.findingsOp);
+    if (patch?.summaryClaim) return summaryClaimStep(patch.summaryClaim);
+    return null;
+}
+
 /** A record patch of another GM, held to the record's own fields; null when it names none. */
 export function recordPatchOf(patch) {
     if (!patch || typeof patch !== "object" || Array.isArray(patch)) return null;
@@ -527,7 +590,7 @@ async function askRecord(op, fields, local) {
     if (res.ok) return res.value ?? null;
     if (op === "patch" && !res.refused) {
         warn(`The primary GM did not answer a write of the trial's record; written here: ${Object.keys(fields.patch ?? {}).join(", ")}`);
-        return serialWrite(TRIAL_PROGRESS_KEY, () => writeTrialProgressInStep(fields.patch));
+        return serialWrite(TRIAL_PROGRESS_KEY, () => writeTrialProgressInStep(stepOfPatch(fields.patch) ?? fields.patch));
     }
     return null;
 }
@@ -540,6 +603,8 @@ async function askRecord(op, fields, local) {
 export async function recordOnPrimary(op, { patch = null, seconds = TRIAL.speakSeconds, chapter = null } = {}) {
     if (!game.user.isGM || !isPrimaryGm()) return null;
     if (op === "patch") {
+        const step = stepOfPatch(patch);
+        if (step) return serialWrite(TRIAL_PROGRESS_KEY, () => writeTrialProgressInStep(step));
         const held = recordPatchOf(patch);
         return held ? serialWrite(TRIAL_PROGRESS_KEY, () => writeTrialProgressInStep(held)) : null;
     }

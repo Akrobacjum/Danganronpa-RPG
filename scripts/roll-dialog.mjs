@@ -127,8 +127,14 @@ function waitingCalls(app, actor) {
     return armedOn(actor).filter(entry => !mine.has(entry.nonce));
 }
 
+/*
+ * A window draws again on a change of what it adds to the roll: the module's flags (the Calls), and since 1.2.122 the
+ * character's resources (the audit's REFR-18) - Breakdown is the last Sanity marked (character.mjs `isBrokenDown`, read
+ * by `stateGrant` at each render), a write of `system.resources`, and a window drawn before it showed no disadvantage
+ * while the GM's draw threw it and flagged the honest roll.
+ */
 function redrawRollWindows(actor, changes) {
-    if (!changes?.flags?.[MODULE_ID]) return;
+    if (!changes?.flags?.[MODULE_ID] && !changes?.system?.resources) return;
     for (const app of openWindows) {
         try {
             if (actorOf(app)?.id === actor?.id) app.render();
@@ -367,7 +373,12 @@ export function onRenderApplication(app, element) {
          * So the terms of the purchase are imposed here too (`forceConfig`, before the
          * window is drawn), and only the things that are the PLAYER's are left alone:
          * which trait, which experience, the roll mode, the free-text bonus. What a Call
-         * bought is not one of those.
+         * bought is not one of those. Left to the window, not to the roll: since E29 C10 the
+         * primary throws its own list (roll-draw.mjs `scoredOf`), which counts an Experience only
+         * as far as a Call bought one, clamps a typed bonus into the effects' range and throws the
+         * action's statistic - so a pick here the list does not give is flagged to the GMs as not
+         * counted. The switch's hint says so (DRPG.Settings.lockRollDialog.hint; the audit's
+         * ROLL-19, 1.2.122).
          *
          * BOTH CHIPS ARE LOCKED WHENEVER THERE IS A NET MODIFIER. Locking only the
          * matching pair leaves the opposite one live, and one click on it makes
@@ -1162,8 +1173,9 @@ export function explainAdvantage(sign, count, capped, sources) {
 /**
  * Put the number on the chip.
  *
- * Trap 55: this window opens for a student ONLY when something is forced, so
- * the chip is the entire report. A chip that looks identical at one die and at
+ * Trap 55, written when this window opened for a student only when something was
+ * forced; it opens on every roll again since 28.08 (`maybeRollItself` removed,
+ * below), and the chip is still the window's one report of the advantage. A chip that looks identical at one die and at
  * three tells a player they have advantage while saying nothing about the
  * advantage they are actually getting - and the tooltip is a hover away on a
  * modal they are about to dismiss with the one live button on it.

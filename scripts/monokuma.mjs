@@ -259,7 +259,8 @@ export async function setSpectator(actor, value = true) {
 }
 
 /**
- * The characters Pre-season's checks name as NPCs to mark (E24 C3a; the owner's Q-E24-5: "the characters no player
+ * The characters the Season checklist's npcs row names as NPCs to mark (season-setup.mjs; Pre-season's until E101
+ * item 2; E24 C3a; the owner's Q-E24-5: "the characters no player
  * owns as candidates"): students - not a Monokuma, not already out of the class - that no user who is no GM owns.
  * Nothing is marked by itself; the GM decides on each sheet. `actors` and `users` are the suite's to hand (R1453).
  */

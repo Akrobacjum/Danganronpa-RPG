@@ -11,7 +11,8 @@
  *     closed for everyone until the next time of day (05.11, "limits").
  *   - A COMPLETED PROJECT'S ACTION, set by a GM on the project (projectMeta `facility`), standing in the project's room
  *     for the project's lifetime after it was completed (`completedAt`, written by projects.mjs's completion row
- *     `facility`). Not rolled. Once per person per time of day, blocking nobody else; it costs an action unless the
+ *     `facility`). Not rolled. As often as its limit says, per character, blocking nobody else - no limit, once a time of
+ *     day or once a day (`FACILITIES.limits`, `defaultLimit` once a time of day; P2; the audit's D154); it costs an action unless the
  *     GM's switch says it costs none (08.11).
  *
  * This file is what every browser reads: the cleaning of what a GM typed (`cleanAction`, `cleanFacility`), the room's
@@ -31,7 +32,7 @@
 import { MODULE_ID, FACILITIES, TRAITS, TIMES_OF_DAY, TIME_OF_DAY_LABELS } from "./config.mjs";
 import { SETTINGS, getClock } from "./settings.mjs";
 import { plural, isPrimaryGm } from "./utils.mjs";
-import { roomFlag, writablePieces } from "./rooms.mjs";
+import { roomFlag, roomRegions, flagOver, writablePieces } from "./rooms.mjs";
 import { metaFor, secretsOf, toldSight } from "./projects-secrecy.mjs";
 import { cardMeta } from "./secret.mjs";
 
@@ -225,7 +226,7 @@ export async function restampSetBack(clock = getClock()) {
     const { allProjects, applyProjectChange } = await import("./projects.mjs");
     let n = 0;
     for (const project of allProjects()) {
-        const stamp = completionAfterClockBack(metaFor(project.id).completedAt ?? null, clock);
+        const stamp = completionAfterClockBack(completedAtOf(project.id), clock);
         if (!stamp) continue;
         await applyProjectChange(project.id, { meta: { completedAt: stamp } }, { by: { kind: "system" } });
         n++;
@@ -271,10 +272,18 @@ export function facilityTimesLeft(facility, completedAt, clock = getClock()) {
  * WHERE
  * ========================================================================== */
 
-/** The GM's actions of a room on a scene, cleaned as they are read (a flag edited by hand is held to the list too). */
+/**
+ * The GM's actions of a room on a scene, cleaned as they are read (a flag edited by hand is held to the list too).
+ *
+ * WHAT ITS SAVE WROTE, BEFORE THE ROOM IS MARKED (1.2.122 line MAP; the audit's REFR-30). `setRoomActions` writes every
+ * piece that can be a room (`writablePieces`, marked or not: Room Setup is where a named region becomes one), and this read
+ * the marked pieces alone (`roomFlag`), so an action saved on a new map before the first Apply read as none: the count
+ * stayed 0, the editor reopened empty and a second Save wrote over the first. A name with no marked piece reads the pieces
+ * the Save wrote; a room reads its own as before, so no player's road - each reads a room a token stands in - changes.
+ */
 export function roomActions(scene, room) {
     if (!scene || !room) return [];
-    const stored = roomFlag(scene, room, FACILITIES.flag);
+    const stored = roomFlag(scene, room, FACILITIES.flag) ?? (roomRegions(scene, room).length ? null : flagOver(writablePieces(scene, room), FACILITIES.flag));
     return Array.isArray(stored) ? cleanActions(stored) : [];
 }
 
@@ -329,7 +338,17 @@ export async function setProjectFacility(projectId, raw) {
 export function projectFacilityOf(projectId) {
     const meta = metaFor(projectId);
     const raw = secretsOf(projectId).facility ?? meta.facility ?? (game.user?.isGM ? null : toldOnPlayer(projectId));
-    return { facility: raw ? cleanFacility(raw) : null, completedAt: meta.completedAt ?? null };
+    return { facility: raw ? cleanFacility(raw) : null, completedAt: completedAtOf(projectId) };
+}
+
+/**
+ * When a project was completed, where this browser holds it (1.2.122; the audit's ITEM-38): the GMs' row of a secret
+ * project on a GM (projects-secrecy.mjs `PROJECT_SECRET_WHILE_SECRET`), projectMeta's of a public one, and an insider's
+ * sight copy on a player's browser (`toldSight`); null where none says.
+ */
+export function completedAtOf(projectId) {
+    return secretsOf(projectId).completedAt ?? metaFor(projectId).completedAt
+        ?? (game.user?.isGM ? null : toldSight(projectId)?.completedAt) ?? null;
 }
 
 /**

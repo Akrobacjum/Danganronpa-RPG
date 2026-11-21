@@ -10,8 +10,8 @@
 import { CLEANUP, REMNANT_VISIBILITY, REMNANT_VISIBILITY_LABELS, REMNANT_TYPES } from "./config.mjs";
 import { cardWarn } from "./chat-card.mjs";
 import { cleanupAttemptStore } from "./gm-stores.mjs";
-import { remnantById, sceneOfRemnant, tieState, remnantData, removeRemnant } from "./remnants.mjs";
-import { heldCopiesOf } from "./truth-bullets.mjs";
+import { remnantById, sceneOfRemnant, tieState, remnantData, removeRemnant, rowMarksOf } from "./remnants.mjs";
+import { heldCopiesOf, bulletsOf, secretOf } from "./truth-bullets.mjs";
 import { whisperToOwner as whisperToOwnerPlain, plural, whisperToGms, log, cardHead, esc } from "./utils.mjs";
 import { drpgWindow, tipAttr, tipText } from "./ui-kit.mjs";
 
@@ -87,8 +87,9 @@ export async function keepAttemptFact(rolls, roll, actorId, receipt) {
 /**
  * Enough to build this Remnant again where it stood, with everything it knew.
  *
- * `placeRemnant` takes exactly this shape, so recreating is handing the flags
- * back rather than reconstructing them from a summary.
+ * `placeRemnant` takes exactly this shape, read off the trace's ledger row
+ * (`remnantData`, CASE-06 below), so recreating is handing that row back rather
+ * than reconstructing it from a summary; the token itself carries only `isRemnant`.
  *
  * THE TOKEN'S ID COMES BACK TOO (E08+E28 C3, 03.10.2026; audit S05-07). It was
  * the one thing that did not: the undo re-placed the trace without it, so
@@ -133,7 +134,13 @@ export function recreationDataFor(token) {
         // How old it is: a trace put back is not a fresh one (E03 third review).
         placedAt: d.placedAt ?? (token.document ?? token)._stats?.createdTime ?? null,
         // What a player was to be shown, re-applied after re-placing.
-        public: d.public ?? null
+        public: d.public ?? null,
+        /* AND AS FOUND AS IT STOOD (the audit's CASE-31, 1.2.122): `placeRemnant` makes a trace hidden with `foundAt`
+           null, so a Reroll put a found trace back hidden and unfound - its finders lost it from their maps (a hidden
+           token is Foundry's, visibility.mjs), and its row lost the find and the GM's words and band marks. Kept here,
+           written back by `undoLastCleanup` once the row is live, and the token shown again where it was. */
+        hidden: Boolean(d.hidden),
+        marks: rowMarksOf(token)
     };
 }
 
@@ -272,9 +279,13 @@ function enterMovesOn(dialog) {
 /**
  * A player's sentence, made safe to store and print.
  *
- * THIS IS THE ONLY FREE TEXT A PLAYER WRITES INTO THE WORLD in this module, so
- * it is the only place that needs this, and it is worth being exact about what
- * each step is for rather than reaching for a general-purpose "sanitise".
+ * A RESHAPE'S WORDS ARE THE PLAYER'S FREE TEXT THAT REACHES A TRACE'S PUBLIC
+ * NAME AND DESCRIPTION, so they are cleaned here, and it is worth being exact
+ * about what each step is for rather than reaching for a general-purpose
+ * "sanitise". Not the only free text a player writes: a player's Remnant
+ * packet's `note` and `subject` are kept in the ledger cut to 400 and 80
+ * characters without this (remnants.mjs `placeRemnant`), and escaped where the
+ * GMs' cards print them (the audit's D20 of 1.2.122; this said "the only").
  *
  *   tags stripped   - the value ends up in a token's `name` and in a chat card.
  *                     Foundry escapes most of those paths and this module escapes
@@ -302,6 +313,25 @@ export function plainText(value, max) {
         .replace(/\s+/g, " ")
         .trim()
         .slice(0, Math.max(0, max));
+}
+
+/**
+ * How a Tamper's result card names the trace to its roller (the audit's CASE-28, 1.2.122). The menu labels a
+ * trace this character holds a copy of by that copy's name and by nothing of the ledger (cleanup.mjs
+ * `cleanableTracesForPlayer`, E05 C14), because the category is what an Analyze is paid for; the cards after the roll
+ * printed the ledger's band and category all the same - "The Subtle Incident Remnant is gone" to a roller holding an
+ * unanalysed copy. The same rule now: Stage 6's cleaner (`cleaner`) is read the whole label, as their guide reads the
+ * whole room; anyone else holding a copy is read the copy's name; one with no copy (a trace they watched being made,
+ * the only other road in) the whole label, as the menu showed it. The GMs' card keeps the whole label. Red at
+ * 21bf5d18: the erase's line named the band and the category.
+ */
+export function traceLabelFor(actor, tokenId, data, { cleaner = false } = {}) {
+    if (!cleaner && actor && tokenId) {
+        for (const item of bulletsOf(actor)) {
+            if (secretOf(item.uuid).remnantId === tokenId) return game.i18n.format("DRPG.Tamper.yourCopy", { name: item.name });
+        }
+    }
+    return `${data.visibilityLabel} ${data.typeLabel}`;
 }
 
 /**
@@ -334,7 +364,7 @@ export function plainText(value, max) {
  * already held".
  */
 async function reshapeTrace(token, data, {
-    name = "", text = "", softer = null, tie = false, receipt = null, done = []
+    name = "", text = "", softer = null, tie = false, receipt = null, done = [], actor = null
 } = {}) {
     const { retuneRemnant, setRemnantPublic, remnantData } = await import("./remnants.mjs");
     const { REMNANT_VISIBILITY_LABELS, REMNANT_TYPES } = await import("./config.mjs");
@@ -390,7 +420,7 @@ async function reshapeTrace(token, data, {
     if (Object.keys(story).length) await setRemnantPublic(token, story, { propagate: false });
 
     done.push(game.i18n.format("DRPG.Cleanup.reshaped", {
-        from: `${data.visibilityLabel} ${data.typeLabel}`,
+        from: foundry.utils.escapeHTML(traceLabelFor(actor, token.id, data, { cleaner: tie })),
         band: REMNANT_VISIBILITY_LABELS[patch.visibility ?? data.visibility]
             ?? data.visibilityLabel,
         kind: REMNANT_TYPES[patch.type]?.label ?? patch.type,
@@ -428,7 +458,6 @@ async function reshapeTrace(token, data, {
  * named ("Band: Hidden").
  */
 export function reshapeCardParts(data, { name = "", text = "", softer = null, tie = false, copies = 0 } = {}) {
-    const esc = foundry.utils.escapeHTML;
     const becomes = CLEANUP.transformAction?.becomes ?? "resolution";
     const was = `${data.visibilityLabel} ${data.typeLabel}`;
     const now = `${REMNANT_VISIBILITY_LABELS[softer ?? data.visibility]
@@ -609,11 +638,14 @@ export async function applyReshapeRuling({ actorId, tokenId, attempt = "" } = {}
      * below leave the proposal to be ruled on again.
      */
     const claim = data && !data.reinforced ? claimRuling(actorId, tokenId, attempt, by, "approve") : null;
+    /* A TRACE GONE SETTLES THE CARD (the audit's CTRL-55, 1.2.122): this answered null, which leaves a card open to be
+       answered, so Approve could never settle it and whispered the roller again at every press. It answers "gone" now,
+       which the card settles on (messenger-app.mjs `ruleApproveReshape`), and the roller is told once. */
     if (!data) {
         tell("warn", "DRPG.Cleanup.reshapeRulingGone");
         if (actor) await whisperToOwner(actor, `<p>${
             game.i18n.localize("DRPG.Cleanup.vanished")}</p>`);
-        return null;
+        return "gone";
     }
 
     /*
@@ -652,7 +684,8 @@ export async function applyReshapeRuling({ actorId, tokenId, attempt = "" } = {}
     await reshapeTrace(token, data, {
         name: safeName, text: safeText, softer: quieter, tie: Boolean(tie),
         receipt,
-        done
+        done,
+        actor
     });
     if (receipt.transformed) {
         await cleanupAttemptStore.patch(actorId, { transformed: receipt.transformed }, { ifLive: true });
@@ -702,7 +735,8 @@ export async function declineReshapeRuling({ actorId, tokenId = null, attempt = 
      * hand-back already ran when the dice landed. Whether it erases is the row's
      * `erases` since E09 C10, not the button's.
      */
-    let said = "DRPG.Cleanup.reshapeDeclined";
+    // A Remnant gone meanwhile is said as gone, not as reading as before (the audit's CTRL-55, 1.2.122).
+    let said = findRemnantToken(tokenId) ? "DRPG.Cleanup.reshapeDeclined" : "DRPG.Cleanup.reshapeDeclinedGone";
     if (claim.proposal.erases) {
         const token = findRemnantToken(tokenId);
         const data = token ? remnantData(token) : null;

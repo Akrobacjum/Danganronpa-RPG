@@ -160,6 +160,10 @@ export function keepLive(app, { region, build, watch = {}, delay = TIMING.coales
        nothing, and no table has typed Polish through an IME into the Map yet. */
     let composing = false;
     let holdTimer = null;
+    /* A rebuild wanted while a select's list was open in the region (`listOpen`), and whether one of them was forced. */
+    let listWanted = false;
+    let listForced = false;
+    let listTimer = null;
 
     const root = () => app.element ?? null;
     const target = () => root()?.querySelector(region) ?? null;
@@ -170,7 +174,7 @@ export function keepLive(app, { region, build, watch = {}, delay = TIMING.coales
      *   and therefore knows better than `document.activeElement` does at that
      *   instant.
      */
-    const rebuild = (force = false) => {
+    const rebuild = (force = false, { picked = false } = {}) => {
         if (stopped) return;
         const element = target();
         // Closed, or replaced by a newer window: stop rather than redraw
@@ -205,6 +209,21 @@ export function keepLive(app, { region, build, watch = {}, delay = TIMING.coales
            a dirty field; and whatever had the focus in the region, a select, a box or a field with no name, gets it back
            after the rebuild, found by its key (`focusKey`). R7970. A list opened from the keyboard (Alt+Down) is not held,
            and whether a browser's own select list sends the page its `pointerup` is not measured headless: a table's. */
+        /* A SELECT'S LIST OPEN IN THE REGION HOLDS IT, FORCED OR NOT (the line claude/refresh-120 for 1.2.122; the audit's
+           check of 1.2.121, r121-R-3, measured in Chromium 153: any redraw shut a list opened by the mouse or by Alt+Down -
+           the select drawn anew is another element, and a browser's list belongs to the one it opened from). Read off the
+           browser (`select:open`, read in Chromium 153 on 21.11.2026; a browser that does not know it answers no list, as
+           jsdom does); the redraw waits and comes the moment the list is shut, picked or not (`waitForList`, a read every
+           200 ms). A select left focused with its list shut still holds nothing (UI-17). audit/live-redraw.mjs. */
+        if (!picked && listOpen(element)) {
+            listWanted = true;
+            if (force) listForced = true;
+            record.deferred++;
+            debug(`live: ${region} deferred - a select's list is open in it`);
+            waitForList();
+            return;
+        }
+
         const typing = isEditing(element);
 
         // RULE 1. The GM is typing in here, and the region did not ask to be redrawn under them; come back when they are not.
@@ -220,12 +239,15 @@ export function keepLive(app, { region, build, watch = {}, delay = TIMING.coales
             /* Read before the old nodes go: what had the focus in the region (none when the focus is outside it, as it is
                on a rebuild answered by `focusout`). */
             const keep = focusOf(element);
+            const owes = owedFrom(element);
             const carried = capture(element);
             const next = toElement(build());
             if (!next) return;
             heldWanted = false;
             heldForced = false;
-            element.replaceWith(next);
+            listWanted = false;
+            listForced = false;
+            replaceQuietly(element, next);
             restore(next, carried);
             record.refreshes++;
             if (after) after(next);
@@ -254,6 +276,7 @@ export function keepLive(app, { region, build, watch = {}, delay = TIMING.coales
                `replaceWith`), and a select given the focus before that lost it again - the Music rows' select, measured on
                the harness (UI-17's tier-2 test, 21.11.2026). Found on the dressed tree, as it was read on the old one. */
             if (keep) giveFocusBack(next, keep);
+            if (owes) oweChange(next, owes);
             // From the capture through the dressing: what one rebuild of the region cost this browser.
             sample(`live.${region}`, now() - startedAt);
         } catch (err) {
@@ -267,6 +290,21 @@ export function keepLive(app, { region, build, watch = {}, delay = TIMING.coales
     const schedule = foundry.utils.debounce(rebuild, delay);
     // A rebuild by the road a watched event takes, the focus rule and all (`liveRegions`, for the suite).
     record.wake = () => schedule();
+    /* The rebuild a select's open list put off, the moment the list is shut (no event says so when Escape shuts it). */
+    function waitForList() {
+        if (listTimer || stopped) return;
+        listTimer = setTimeout(() => {
+            listTimer = null;
+            if (stopped || !listWanted) return;
+            const element = target();
+            if (!element?.isConnected) return stop();
+            if (listOpen(element)) return waitForList();
+            const forced = listForced;
+            listWanted = false;
+            listForced = false;
+            rebuild(forced);
+        }, 200);
+    }
 
     const listeners = listenFor(watch, schedule);
 
@@ -336,6 +374,7 @@ export function keepLive(app, { region, build, watch = {}, delay = TIMING.coales
         for (const name of RELEASES) view().addEventListener(name, release, true);
     };
     root()?.addEventListener("pointerdown", onPointerDown, true);
+    guardWindow(view());
     /* A PICK ENDS THE PRESS (line P of 1.2.120). A select is picked in the browser's own list, whose release the page may
        never be sent (not measured at a table: LIVE-E44-02's kind), so the press held the region until HOLD_MAX_MS. The
        `change` of the control the press began on is a press that is over, and no click follows it to lose its node: it
@@ -351,6 +390,19 @@ export function keepLive(app, { region, build, watch = {}, delay = TIMING.coales
         if (pressed === event.target) release();
     };
     root()?.addEventListener("change", onChange, true);
+    /* A pick is the list's end: a `change` in the region answers a rebuild an open list put off, after the pick's own turn,
+       whatever `:open` still says at that instant (Playwright's pick with the mouse held on the select left it reading
+       open - audit/live-press.mjs's "pick"). */
+    const onListPick = event => {
+        if (!target()?.contains?.(event.target)) return;
+        if (event.target?.tagName === "SELECT") pickedAt.set(event.target, Date.now());
+        if (!listWanted) return;
+        const forced = listForced;
+        listWanted = false;
+        listForced = false;
+        setTimeout(() => rebuild(forced, { picked: true }), 0);
+    };
+    root()?.addEventListener("change", onListPick, true);
 
     const closeId = Hooks.on("closeApplicationV2", closed => {
         if (closed !== app) return;
@@ -367,8 +419,10 @@ export function keepLive(app, { region, build, watch = {}, delay = TIMING.coales
         root()?.removeEventListener("compositionend", onCompositionEnd);
         root()?.removeEventListener("pointerdown", onPointerDown, true);
         root()?.removeEventListener("change", onChange, true);
+        root()?.removeEventListener("change", onListPick, true);
         for (const name of RELEASES) view().removeEventListener(name, release, true);
         clearTimeout(holdTimer);
+        clearTimeout(listTimer);
         held = false;
         heldForced = false;
         pressed = null;
@@ -533,6 +587,104 @@ function isEditing(element) {
     if (tag === "INPUT") return !PRESSED_INPUTS.has(String(active.type ?? "").toLowerCase());
     if (tag === "TEXTAREA") return true;
     return active.isContentEditable === true;
+}
+
+/* ==========================================================================
+ * A FIELD REPLACED UNDER THE GM SAVES NOTHING, AND STILL SAVES AT THE LEAVE
+ * --------------------------------------------------------------------------
+ * The line claude/refresh-120 for 1.2.122; the audit's check of 1.2.121, r121-R-1 (MAJOR, a regression of the default
+ * of `whileEditing`) and r121-R-2. Read in Chromium 153 on 21.11.2026 (audit/live-redraw.mjs): removing a focused text
+ * field whose value changed since its focus fires `change`, `blur` and `focusout` on it synchronously, inside the
+ * removal. A window that saves on `change` - the GM's Remnant card, the Sound window's Effects box, the planner, Room
+ * setup's token count - so saved the half-typed text at every redraw: the Remnant card saved 11 fragments while tokens
+ * moved; a token count typed as "10" over 3 wrote 1 and then 8. Two parts:
+ *   - the replaced subtree's own `change`, `blur` and `focusout` go nowhere (`replaceQuietly`, a guard on the window in
+ *     the capture phase while the replacement runs): it is not the GM leaving, and its value is carried onward;
+ *   - and the field drawn anew owes the `change` the old one would have fired when the GM leaves it (`oweChange`): a
+ *     value written by script after a focus does not make the next blur fire `change` (read in the same Chromium), so a
+ *     word typed, redrawn and left with nothing more typed was never saved at all. At the new field's `blur` a `change`
+ *     is dispatched when its value is not what it held when the GM first focused it; a native `change` before that
+ *     (more typed, or Enter) settles the debt. A chain of redraws keeps the first focus's value.
+ * jsdom fires nothing at a removal, so the suite reads the second part only (R8540); audit/live-redraw.mjs both.
+ * ========================================================================== */
+
+/** The element being replaced now (`replaceQuietly`), whose own events the window's guard swallows. */
+let silencing = null;
+/** What each text field held when the GM focused it (read at `focusin`), and the fields drawn anew that owe a `change`. */
+const focusValue = new WeakMap();
+const owed = new WeakMap();
+const guarded = new WeakSet();
+
+/** Is this a field that takes a caret and commits on `change` - text, a text area? */
+const typedField = node => (node?.tagName === "INPUT" && !PRESSED_INPUTS.has(String(node.type ?? "").toLowerCase()))
+    || node?.tagName === "TEXTAREA";
+
+/** The window-wide guard, once per window: the replaced subtree's events swallowed, a debt paid at the blur. */
+function guardWindow(view) {
+    if (!view || guarded.has(view)) return;
+    guarded.add(view);
+    const quiet = event => {
+        if (!silencing || !event.target?.nodeType || !silencing.contains(event.target)) return false;
+        event.stopImmediatePropagation();
+        return true;
+    };
+    view.addEventListener("focusin", event => {
+        if (typedField(event.target) && !owed.has(event.target)) focusValue.set(event.target, event.target.value);
+    }, true);
+    view.addEventListener("change", event => {
+        if (quiet(event)) return;
+        if (!event.drpgOwed && owed.has(event.target)) owed.delete(event.target);
+    }, true);
+    view.addEventListener("focusout", quiet, true);
+    view.addEventListener("blur", event => {
+        if (quiet(event)) return;
+        const field = event.target;
+        if (!owed.has(field)) return;
+        const from = owed.get(field);
+        owed.delete(field);
+        if (field.value === from) return;
+        const change = new Event("change", { bubbles: true });
+        change.drpgOwed = true;
+        field.dispatchEvent(change);
+    }, true);
+}
+
+/** Replace `element` with `next`, the old subtree's own events swallowed while it goes (above). */
+function replaceQuietly(element, next) {
+    const was = silencing;
+    silencing = element;
+    try { element.replaceWith(next); } finally { silencing = was; }
+}
+
+/** What the focused text field of `element` held when the GM first focused it, when they have changed it since; else null. */
+function owedFrom(element) {
+    const active = document.activeElement;
+    if (!typedField(active) || !element.contains(active)) return null;
+    const from = owed.has(active) ? owed.get(active) : focusValue.has(active) ? focusValue.get(active) : active.defaultValue;
+    return active.value === from ? null : { from };
+}
+
+/** The field that has the focus in `next` now owes the `change` its old self would have fired at the leave. */
+function oweChange(next, { from }) {
+    const active = document.activeElement;
+    if (!typedField(active) || !next.contains(active)) return;
+    owed.set(active, from);
+    focusValue.set(active, from);
+}
+
+/** When each select was last picked (`onListPick`): a list just picked from is shut, whatever `:open` reads that instant. */
+const pickedAt = new WeakMap();
+const PICK_SHUTS_MS = 1000;
+
+/** Is a select's own list open in `element`? (`:open`, Chromium's; a browser that does not know it answers no.) A select
+ * picked in the last second counts as shut: a pick closes its list (with the mouse held on it, Playwright's pick left it
+ * reading open). */
+function listOpen(element) {
+    for (const select of element.querySelectorAll("select")) {
+        if (Date.now() - (pickedAt.get(select) ?? 0) < PICK_SHUTS_MS) continue;
+        try { if (select.matches(":open")) return true; } catch { return false; }
+    }
+    return false;
 }
 
 /** Turn whatever `build` returned into one element. */

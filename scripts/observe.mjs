@@ -30,13 +30,13 @@ import { createTruthBullet, copiedRemnants, dropSecret } from "./truth-bullets.m
 import { trustedWrite } from "./resource-guard.mjs";
 import { resourceValue } from "./character.mjs";
 import {
-    whisperToOwner, whisperToGms, ownerOf, ownerIdsOf, log, warn, error, debug, serialWrite
+    whisperToOwner, whisperToGms, ownerOf, ownerIdsOf, log, warn, error, debug, serialWrite, isPrimaryGm, activeGmIds
 } from "./utils.mjs";
 // The store the declarations are written through (ACT-08). settings.mjs imports
 // config.mjs and nothing else, so this closes no cycle.
 import { SETTINGS } from "./settings.mjs";
 import { observeStore } from "./gm-stores.mjs";
-import { stableJson } from "./gm-store.mjs";
+import { stableJson, onGmStoresHydrated, gmStoresQuiet } from "./gm-store.mjs";
 import { drpgWindow, tipAttr, tipText } from "./ui-kit.mjs";
 
 
@@ -75,15 +75,14 @@ export const DECLARATIONS = {
  * browser - a local GM store since E04 (1.2.63, gm-stores.mjs `observeStore`), a
  * section per world, which this Map is filled from and written through to.
  *
- * WHAT THIS DOES NOT DO, said plainly: it does not reach a SECOND GM. Both halves
- * of the round trip are handled by whoever `primaryGmId()` names at that moment,
- * and that can change - a GM joining with a lower-sorted id, the primary
- * disconnecting, a reload - so a declaration minted on one GM's browser can be
- * asked of another's. The GM store could carry it now - every other GM-only store is
- * exchanged between the GMs since E04 - but this one was kept local (`sync: false`,
- * E04 C7: both halves of the round trip usually go through one GM), and syncing it
- * is a change nobody has made yet. The road that cannot answer says so on both
- * screens, which is the half that matters at the table.
+ * AND IT REACHES THE OTHER GMs (line INVEST of 1.2.122; the audit's CASE-LC3 of
+ * 1.2.42). Both halves of the round trip are handled by whoever `primaryGmId()`
+ * names at that moment, and that can change - a GM joining with a lower-sorted id,
+ * the primary disconnecting, a reload - so a declaration minted on one GM's browser
+ * can be asked of another's. The store was kept local until this line (`sync:
+ * false`, E04 C7), and a new primary then held no row; it is exchanged between the
+ * GMs now, as every other GM-only store (scenario 62 Q). A row still missing - an
+ * hour gone, or a GM who never received it - is said on both screens.
  */
 const pending = new Map();
 const PENDING_TTL_MS = TIMING.pendingObserveTtlMs;
@@ -155,6 +154,7 @@ async function sweepPending() {
             dropped++;
         }
     }
+    for (const [key, { entry }] of unpaid) if (!(entry.at >= cutoff)) unpaid.delete(key);
     if (dropped) await writePending();
 }
 
@@ -178,9 +178,17 @@ async function sweepPending() {
  *
  * @returns {Promise<{ok: boolean, key?: string, reason?: string}>}
  */
-export async function chooseObserveTarget({ actorId, declaration, request = "", userId = null, asked = null } = {}) {
+export async function chooseObserveTarget({ actorId, declaration, request = "", userId = null, asked = null, key: given = null, paid = false } = {}) {
     if (!game.user.isGM) return { ok: false, reason: "notGm" };
     sweepPending();
+    /* AN UNPAID ASK WRITES NOTHING AND LOGS NOTHING (line INVEST of 1.2.122; the coordinator's 21.11, CASE-33's rest). A
+       General, Non-obvious or Follow my traces is asked before the player pays, so its row is held in this browser's
+       memory alone (`unpaid`) - no write to the GMs' store, which every GM now holds, and no log line - and is written
+       through and logged at its paid resolve (`resolveObserve`). Its key names its declaration, so a resolve whose row
+       the memory lost (a reload of this GM between the two) chooses again on the same declaration (`given`, `paid`). */
+    const ranked = [DECLARATIONS.general, DECLARATIONS.nonObvious, DECLARATIONS.followTraces].includes(declaration);
+    const held = ranked && !paid;
+    const newKey = () => given ?? (ranked ? `${declaration}.${foundry.utils.randomID()}` : foundry.utils.randomID());
 
     const actor = game.actors.get(actorId);
     if (!actor) return { ok: false, reason: "noActor" };
@@ -201,7 +209,22 @@ export async function chooseObserveTarget({ actorId, declaration, request = "", 
     if (!candidates.length) {
         // The room is picked clean of traces. If it is also holding nothing this
         // declaration can find, that is the Daily Life fallback as before.
-        if (!secret) return { ok: false, reason: "none" };
+        /* NOTHING HERE IS NOT SAID BEFORE IT IS PAID FOR (line INVEST of 1.2.122; audit 1.2.118
+           domain-case-c-investigation 2). This step runs before the player pays (action-observe.mjs `observeRanked`),
+           and it answered `{ ok: false, reason: "none" }` for a room with nothing to find and a key for a room with a
+           trace - so a General, Non-obvious or Follow my traces asked, read off the wire and the roll window closed told,
+           for nothing, the one thing this file's header says the observer must not know. Now such a room gets a key
+           too, marked `nothingHere`, and the paid roll's resolve rules on it (`scoreObserve`): the GMs' card the
+           player's browser used to post (action-observe.mjs `observeRulingCall`). A Something specific is asked after
+           its roll, so it keeps its answer. Tier 2 "1.2.122 CASE-33". */
+        if (!secret && declaration === DECLARATIONS.specific) return { ok: false, reason: "none" };
+        if (!secret) {
+            const emptyKey = await keepRow(newKey(), {
+                at: Date.now(), actorId, by: userId, room, declaration, request,
+                tokenId: null, sceneId: where.scene?.id ?? null, dc: null, data: null, nothingHere: true
+            }, () => log(`Observe: ${actor.name} is sweeping ${room}, which holds nothing this declaration can find; the GMs rule on the roll.`), held);
+            return { ok: true, key: emptyKey };
+        }
 
         /* Otherwise the project IS the target. Nothing else in this file needs a
            branch for that: it takes the same key, the same pending entry and the
@@ -210,17 +233,13 @@ export async function chooseObserveTarget({ actorId, declaration, request = "", 
            would never reach the GM at all - the observer's client drops to a
            ruling card when the target lookup says "nothing here", so a room
            whose only secret was a project could not be searched. */
-        const onlyKey = foundry.utils.randomID();
-        readPending();
-        pending.set(onlyKey, {
+        const onlyKey = await keepRow(newKey(), {
             at: Date.now(), actorId, by: userId, room, declaration, request,
             tokenId: null, sceneId: where.scene?.id ?? null,
             dc: PROJECT_OBSERVE.dc, data: null,
             projectId: secret.id, projectOnly: true
-        });
-        // Written through like the trace's own declaration below (ACT-08).
-        await writePending();
-        log(`Observe: ${actor.name} is sweeping ${room}, which holds nothing but a secret project (DC ${PROJECT_OBSERVE.dc}).`);
+        // Written through like the trace's own declaration below (ACT-08), once paid.
+        }, () => log(`Observe: ${actor.name} is sweeping ${room}, which holds nothing but a secret project (DC ${PROJECT_OBSERVE.dc}).`), held);
         return { ok: true, key: onlyKey };
     }
 
@@ -282,7 +301,7 @@ export async function chooseObserveTarget({ actorId, declaration, request = "", 
         chosen = declaration === DECLARATIONS.nonObvious ? shelf[shelf.length - 1] : shelf[0];
     }
 
-    return { ok: true, key: await pendObserve({ actor, userId, where, declaration, request, chosen, secret }) };
+    return { ok: true, key: await pendObserve({ actor, userId, where, declaration, request, chosen, secret, key: newKey(), held }) };
 }
 
 /**
@@ -333,10 +352,8 @@ function pendingTracesOf(actorId) {
 }
 
 /** Write one Observe's pending row for the trace `chosen` (and the project `secret`, if any), and answer its key. */
-async function pendObserve({ actor, userId, where, declaration, request, chosen, secret = null }) {
-    const key = foundry.utils.randomID();
-    readPending();
-    pending.set(key, {
+async function pendObserve({ actor, userId, where, declaration, request, chosen, secret = null, key = foundry.utils.randomID(), held = false }) {
+    return keepRow(key, {
         at: Date.now(),
         actorId: actor.id,
         // The account that asked for this key (E03) - see `observeResolveRefusal`.
@@ -351,14 +368,51 @@ async function pendObserve({ actor, userId, where, declaration, request, chosen,
         /* Carried alongside the trace, scored against the same total and at its
            own difficulty. A non-obvious sweep that clears both takes both. */
         projectId: secret?.id ?? null
-    });
+    // Written through at once: the roll that answers this arrives minutes later, and a GM who reloads in between used to
+    // lose the declaration (ACT-08) - at once once paid, since line INVEST of 1.2.122 (`keepRow`).
+    }, () => log(`Observe: ${actor.name} is looking at a ${chosen.data.visibility} ${chosen.data.type} in ${where.room} (DC ${chosen.dc}).`), held);
+}
 
-    // Written through at once: the roll that answers this arrives minutes later,
-    // and a GM who reloads in between used to lose the declaration (ACT-08).
+/**
+ * A declaration's row kept: written through and its log line said (`say`; `pending`, the GMs' store), or, `held`, kept in
+ * this browser's memory alone until it is paid for (`unpaid`; `resolveObserve` writes it through and says it then).
+ * Answers the key.
+ */
+const unpaid = new Map();
+async function keepRow(key, entry, say, held = false) {
+    if (held) {
+        unpaid.set(key, { entry, say });
+        return key;
+    }
+    readPending();
+    pending.set(key, entry);
     await writePending();
-
-    log(`Observe: ${actor.name} is looking at a ${chosen.data.visibility} ${chosen.data.type} in ${where.room} (DC ${chosen.dc}).`);
+    say();
     return key;
+}
+
+/** How many asks this browser holds unpaid (`unpaid`): the suite's, which counts the keys a target step minted. */
+export function heldAskCount() {
+    return unpaid.size;
+}
+
+/** The row of `key` written through now that its roll is paid: held in memory (`unpaid`), or chosen again on the
+ *  declaration its key names when the memory lost it. Answers the row, or null. */
+async function paidRow(key, actorId, senderId) {
+    const held = unpaid.get(key);
+    if (held) {
+        unpaid.delete(key);
+        readPending();
+        pending.set(key, held.entry);
+        await writePending();
+        held.say();
+        return pending.get(key) ?? null;
+    }
+    const declaration = typeof key === "string" ? key.split(".")[0] : null;
+    if (!actorId || ![DECLARATIONS.general, DECLARATIONS.nonObvious, DECLARATIONS.followTraces].includes(declaration)) return null;
+    const again = await chooseObserveTarget({ actorId, declaration, userId: senderId, key, paid: true });
+    readPending();
+    return again?.ok ? pending.get(key) ?? null : null;
 }
 
 /**
@@ -700,7 +754,8 @@ export async function resolveObserve({ key, total, isCritical = false, undo = fa
     readPending();
     await sweepPending();
 
-    const entry = pending.get(key);
+    // an ask held unpaid is written through here, at its paid roll (line INVEST of 1.2.122; `chooseObserveTarget`)
+    const entry = pending.get(key) ?? (undo ? null : await paidRow(key, actorId, senderId));
     if (!entry) {
         /*
          * NO RECORD, AND BOTH SCREENS ARE TOLD (ACT-08, 20.09).
@@ -786,6 +841,8 @@ async function scoreObserve(actor, entry, key, { total, isCritical, undo, rollId
     // produced is recorded here rather than sent to the observer and quoted
     // back: the bullet is part of the answer key's bookkeeping, and the player's
     // client has no business knowing which item id to name.
+    // the empty room's card the earlier throw was ruled on (`nothingHere`, below), read before the undo clears the result
+    const earlierCard = undo && entry.nothingHere ? entry.result?.cardId ?? null : null;
     if (undo) await undoPrevious(actor, entry);
 
     entry.at = Date.now();
@@ -805,6 +862,33 @@ async function scoreObserve(actor, entry, key, { total, isCritical, undo, rollId
        nothing to create and nothing to describe - the whole of the result is
        whether the total cleared the project's own number. A miss still costs
        the Sanity every missed Observe costs: the action was spent looking. */
+    /* A ROOM WITH NOTHING TO FIND (line INVEST of 1.2.122): ruled by the GMs on a card, as the player's browser did
+       when the target step still said so (`chooseObserveTarget`). Nothing is written to the character here: the card's
+       Miss charges the miss, as before. A Reroll asks again, on a card of its own. */
+    if (entry.nothingHere) {
+        const [{ observeRulingCall }, { callGm, callCardHtml }, { ACTIONS }] = await Promise.all([import("./action-observe.mjs"), import("./gm-bridge.mjs"), import("./config.mjs")]);
+        const { locateActor } = await import("./movement.mjs");
+        const scene = entry.sceneId ? game.scenes.get(entry.sceneId) ?? null : null;
+        const here = locateActor(actor);
+        const call = observeRulingCall(actor, { label: ACTIONS.observe?.label ?? "Observe", roll: { trait: "eye", total, isCritical },
+            request: entry.request ?? "", declaration: entry.declaration ?? null, where: here?.room ? here : { room: entry.room, scene } });
+        /* A REROLL RE-SCORES THE SAME ASK ON THE SAME CARD (line INVEST of 1.2.122; the coordinator's 21.11, CASE-33's rest):
+           the earlier throw's card, not yet ruled, is written again with the new number and its buttons, and no second card
+           is posted. A card the GMs already ruled keeps its ruling, and the new number goes on a card of its own. */
+        let cardId = null;
+        const earlier = earlierCard ? game.messages?.get(earlierCard) ?? null : null;
+        const { cardFlag, updateSecret } = await import("./secret.mjs");
+        if (earlier && earlier.getFlag(MODULE_ID, "secret") && !cardFlag(earlier, "settled")) {
+            await updateSecret(earlier, callCardHtml(actor, call));
+            cardId = earlier.id;
+        } else {
+            await callGm(actor, { ...call, onPosted: message => { cardId = message?.id ?? null; } });
+        }
+        entry.result = { success: false, bulletId: null, projectId: null, stress: 0, ruled: true, cardId };
+        await keepResult(rolls, roll, key, entry);
+        return { success: false, key, ruled: true };
+    }
+
     if (entry.projectOnly) {
         const found = await noticeSecretProject(actor, entry, total, isCritical);
         if (!found) {
@@ -820,7 +904,18 @@ async function scoreObserve(actor, entry, key, { total, isCritical, undo, rollId
 
     const success = isCritical || total >= entry.dc;
 
-    const item = success ? await createFind(actor, entry, isCritical) : null;
+    /* A FIND BEING DESCRIBED IS MARKED ON ITS ROW (line INVEST of 1.2.122; audit 1.2.118 domain-case-c-investigation 6,
+       its rest): the GM's describe window can stand for minutes on this browser alone, and a reload then lost the find -
+       nothing resolved the row again. The row (a store this browser keeps over a reload, `observeStore`) says so from
+       here until its result is written, with what the find is scored on; `recoverDescribing` finishes such a row when a
+       primary GM's stores open, as a window closed unanswered. */
+    if (success) {
+        entry.describing = { at: Date.now(), total, isCritical: Boolean(isCritical), rollId, by };
+        await writePending();
+    }
+    const item = success ? await createFind(actor, entry, isCritical, { ask: !recovering.has(key) }) : null;
+    // null, not deleted: the store's patch merges a row, so a field left out stays as it was
+    if (entry.describing) entry.describing = null;
     const marked = success ? 0 : await applyFailure(actor, total, entry);
 
     /* THE TRACE'S CARD FIRST, THEN THIS ONE, and the order is the whole reason
@@ -979,7 +1074,7 @@ async function applyFailure(actor, total, entry) {
  * prefilled text: a result that has already been rolled must never evaporate
  * because a dialog was dismissed.
  */
-async function createFind(actor, entry, isCritical) {
+async function createFind(actor, entry, isCritical, { ask = true } = {}) {
     const data = entry.data;
     const fallbackName = data.subject
         || game.i18n.format("DRPG.Observe.defaultName", { room: entry.room });
@@ -1043,7 +1138,8 @@ async function createFind(actor, entry, isCritical) {
     const described = stored?.name ? stored : null;
 
     let written = described, pub = stored;
-    if (!described || isCritical) {
+    // a find finished after a reload (`recoverDescribing`) asks nobody: the window it waited on is gone
+    if (ask && (!described || isCritical)) {
         const asked = (async () => {
             written = await describeFind(actor, entry, isCritical, described?.name || fallbackName, described);
             // Written back on the GM's client, where the ledger lives. Only when there
@@ -1201,12 +1297,38 @@ async function alreadyHeld(actor, entry) {
     return null;
 }
 
-/** The GM's sentence, prefilled. Never blocks the result - see `createFind`. */
-async function describeFind(actor, entry, isCritical, fallbackName, stored = null) {
+/**
+ * The GM's sentence, prefilled. Never blocks the result - see `createFind`.
+ *
+ * A CLOCK ON THE WINDOW (line INVEST of 1.2.122; audit 1.2.118 domain-case-c-investigation 6): the player's find waits on
+ * this window, on this GM's browser alone, and it had no time: hidden behind the map, or on a GM who had turned away, it
+ * left the player with a spent action and no card for as long as nobody noticed. It now answers as a close does - the
+ * prefilled name and no words, the find landing - once `waitMs` has passed (a GM's ruling's clock, `TIMING.rulingMs`),
+ * and the GM is told the find went out under its prefilled name. Not closed: a reload of this GM while it stands still
+ * loses the find (no other GM is shown the window, and nothing asks again); that half is a table's, proposed as a live
+ * check. Exported for the suite, which hands a short `waitMs` (tier 2 "1.2.122 CASE-37").
+ */
+export async function describeFind(actor, entry, isCritical, fallbackName, stored = null, { waitMs = TIMING.rulingMs } = {}) {
     const data = entry.data;
+    let shown = null, timer = null, timedOut = false;
+    /* THE OTHER GMs ARE TOLD THE FIND WAITS HERE (line INVEST of 1.2.122; audit 1.2.118 domain-case-c-investigation 6): the
+       window opens on this browser alone, and a second GM never learned a player was waiting on it. */
+    if (activeGmIds().some(id => id !== game.user?.id)) {
+        void whisperToGms({ body: `<p>${game.i18n.format("DRPG.Observe.describeWaiting", {
+            actor: foundry.utils.escapeHTML(actor?.name ?? "?"), room: foundry.utils.escapeHTML(entry.room ?? "?"),
+            gm: foundry.utils.escapeHTML(game.user.name ?? "") })}</p>` }).catch(() => {});
+    }
+    const clock = new Promise(resolve => {
+        timer = setTimeout(() => {
+            timedOut = true;
+            resolve(null);
+            Promise.resolve(shown?.close?.()).catch(() => {});
+        }, waitMs);
+    });
 
     // On the kit's frame (E21 C5a): one answer, the primary.
-    return drpgWindow({
+    const asked = drpgWindow({
+        render: (event, dialog) => { shown = dialog; if (timedOut) Promise.resolve(dialog?.close?.()).catch(() => {}); },
         title: game.i18n.localize("DRPG.Observe.describeTitle"),
         classes: ["drpg-panel"],
         prompt: true,
@@ -1304,6 +1426,10 @@ async function describeFind(actor, entry, isCritical, fallbackName, stored = nul
     // Closing the dialog resolves to null, which `createFind` reads as "use the
     // prefilled name and no description" - the find still lands either way.
     }).catch(() => null);
+    const answer = await Promise.race([asked, clock]);
+    clearTimeout(timer);
+    if (timedOut) ui.notifications?.warn?.(game.i18n.format("DRPG.Observe.describeTimedOut", { actor: actor?.name ?? "", name: fallbackName ?? "" }), { permanent: true });
+    return answer;
 }
 
 /**
@@ -1321,13 +1447,49 @@ async function describeFind(actor, entry, isCritical, fallbackName, stored = nul
  */
 export function pendingShape(key) {
     readPending();
-    const entry = pending.get(key);
+    const entry = pending.get(key) ?? unpaid.get(key)?.entry;
     if (!entry) return null;
     return {
         declaration: entry.declaration,
         projectOnly: Boolean(entry.projectOnly),
         hasProject: Boolean(entry.projectId)
     };
+}
+
+/**
+ * THE FINDS A RELOAD LEFT WAITING ON THEIR WORDS (line INVEST of 1.2.122; audit 1.2.118 domain-case-c-investigation 6):
+ * on the primary GM, the rows marked `describing` with no result (`scoreObserve`) are scored again on what they were
+ * scored on, the describe window answered as closed - the trace's prefilled name, no words - so the copy is made, the
+ * row resolved and the player told as a find is; the GMs are told the words are theirs to add. Answers how many.
+ * Registered at the primary's hydration (`registerObserveRecovery`); exported for the suite.
+ */
+const recovering = new Set();
+export async function recoverDescribing() {
+    if (!game.user?.isGM || !isPrimaryGm()) return 0;
+    readPending();
+    let n = 0;
+    for (const [key, entry] of [...pending]) {
+        if (!entry?.describing || entry.result) continue;
+        const { total, isCritical, rollId = null, by = null } = entry.describing;
+        const actor = game.actors.get(entry.actorId);
+        recovering.add(key);
+        try {
+            const done = await resolveObserve({ key, total, isCritical, actorId: entry.actorId, senderId: by, senderIsGm: true, rollId });
+            if (done && !done.refused) n++;
+        } catch (err) {
+            error("A find left waiting on its words could not be finished", err);
+        } finally {
+            recovering.delete(key);
+        }
+        await whisperToGms({ tone: "warning", body: `<p>${game.i18n.format("DRPG.Observe.describeRecovered", {
+            actor: foundry.utils.escapeHTML(actor?.name ?? "?"), room: foundry.utils.escapeHTML(entry.room ?? "?") })}</p>` });
+    }
+    return n;
+}
+
+/** At the primary's hydration, the finds a reload left waiting (`recoverDescribing`); not while the suite holds the stores. */
+export function registerObserveRecovery() {
+    onGmStoresHydrated(() => { if (!gmStoresQuiet()) void recoverDescribing(); });
 }
 
 /** Forget every pending target. A console tool for a stuck declaration. */

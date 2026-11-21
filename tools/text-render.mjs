@@ -82,7 +82,11 @@ export const PLACEHOLDERS = Object.freeze({
         // E66 C4 (01.11.2026): the numbers config.mjs `PROSE_NUMBERS` and the builders put where a digit stood.
         "drain", "mult", "worth", "fewest",
         // E57 C12: "Alive: {alive}/{total}", the fog's diagnosis in pixels, a reserve's maximum, a lock's bands, a Bounty's Hope, a count.
-        "alive", "amplitude", "core", "d", "openings", "span", "y", "hpMax", "sanity", "sanityMax", "clean", "cover", "reward", "entered", "grid", "section"],
+        "alive", "amplitude", "core", "d", "openings", "span", "y", "hpMax", "sanity", "sanityMax", "clean", "cover", "reward", "entered", "grid", "section",
+        // 1.2.122 line MAP: the fog's paint counted (`DRPG.Fog.reason.painted`) and a rename's passage records (`DRPG.Rooms.renamed`).
+        "fogged", "veiled", "clear", "passages",
+        // 1.2.122 line TEXT (TEXT-26): PROSE_NUMBERS' rows for four numbers config prose typed.
+        "despairBonus", "breathHope", "amount", "restores"],
         // The needsCode line (14.11.2026; NEEDSCODE.md #56, #57, S7): the sequences' living count (`Sequence.daySub`), "alive" above.
         values: both(RENDER_NS) },
     action: { names: ["action", "stat"], from: "action" },
@@ -97,6 +101,8 @@ export const PLACEHOLDERS = Object.freeze({
         "keys", "carried", "forms", "step", "store", "system", "counted", "rules",
         // E66 C4: a number with its unit, written by a `DRPG.Unit.*` family or the Eclipse's reach.
         "reach", "short", "long", "wounded",
+        // 1.2.122 (R8462): the darkened night's reach beside the day's, the same family's text (explain.mjs `eclipseExplanation`).
+        "night",
         // E66 fix r1 F7: the vote's noun, `Events.voteMetaGmBallots` counted on the total (events.mjs `voteMetaLine`).
         "ballots",
         // E57 C12: a straw poll's answer and question, a solved dive's finding, a split's counts, a project's life, a badge's end, a
@@ -616,7 +622,13 @@ export const BATCH_LATER = Object.freeze(Object.fromEntries([
     // owner, having checked that a project's action has no roll, kept the texts that say so.
     ...["DRPG.Config.ACTIONS.rest.hint", "DRPG.Config.ACTIONS.rest.description"].map(key => [key, Object.freeze({ by: "F118",
         date: "18.11.2026", page: "F118 Facilities shots", card: "Facilities tile",
-        text: "Zostawmy jak jest w takim razie. I uwzglednijmy to w opisie kafla facilities" })])
+        text: "Zostawmy jak jest w takim razie. I uwzglednijmy to w opisie kafla facilities" })]),
+    // 1.2.122 line TEXT, 21.11.2026: the owner's yes through the coordinator to the audit of 1.2.118, TEXT-27 - Search's
+    // description says Eye unless the GM approves another statistic (the action lists six, Eye the default), and writes
+    // the category's name "Cleaning Tool" (PL „Narzędzie do sprzątania”), where B01a's approved after said "Roll Eye:" and
+    // "a cleaning tool".
+    ["DRPG.Config.ACTIONS.search.description", Object.freeze({ by: "1.2.122 TEXT", date: "21.11.2026", page: "audit-118 TEXT-27",
+        card: "Search description", text: "the owner said yes to TEXT-27's Search description (21.11)" })]
 ]));
 /* The pilot's approved after with the owner's amendments of B01A_AMENDED applied, or null when a row's words are not
    found exactly once in it (the pilot's after moved: the row no longer says what it replaces). */

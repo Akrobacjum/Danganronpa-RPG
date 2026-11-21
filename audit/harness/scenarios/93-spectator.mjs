@@ -80,20 +80,32 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, canary, repoUr
            console can. Nothing may stay for the table: no such message on the GM's, p1's or p3's browser after the GMs
            have had it, and none drawn on p1's. */
         const SAID = "E92 SPECTATOR SAYS";
+        /* WHAT A BYSTANDER HEARS BEFORE THE GMs REMOVE IT (1.2.122, STG-35; E92's STATUS proposed the known-leaks row): p1's
+           browser records every message its createChatMessage hook is handed while p3 posts, as a console listening there
+           would, and the hook is taken off after. */
+        await p1.eval(`globalThis.__drpgE92Heard = []; globalThis.__drpgE92Hook = Hooks.on("createChatMessage", m => globalThis.__drpgE92Heard.push(String(m.content ?? ""))); return true;`);
         const posted = await p3.eval(`const out = {};
             try { out.page = Boolean(await ChatMessage.create({ content: "${SAID} 1" })); } catch (err) { out.page = "threw"; }
-            const kept = Hooks.events.preCreateChatMessage ? [...Hooks.events.preCreateChatMessage] : [];
-            if (Hooks.events.preCreateChatMessage) Hooks.events.preCreateChatMessage.length = 0;
+            /* The hook taken off by Hooks.off and put back by Hooks.on (1.2.122, STG-35): the shim's Hooks.events is a copy, so
+               emptying it took nothing off, and this road posted nothing headless (read 21.11.2026: console false). */
+            const kept = (Hooks.events.preCreateChatMessage ?? []).map(e => e.fn).filter(f => typeof f === "function");
+            for (const fn of kept) Hooks.off("preCreateChatMessage", fn);
+            out.unhooked = (Hooks.events.preCreateChatMessage ?? []).length === 0;
             try { out.console = Boolean(await ChatMessage.create({ content: "${SAID} 2" })); } catch (err) { out.console = "threw"; }
-            if (Hooks.events.preCreateChatMessage) Hooks.events.preCreateChatMessage.push(...kept);
+            for (const fn of kept) Hooks.on("preCreateChatMessage", fn);
             return out;`);
         await settle(2000);
         const heard = c => c.eval(`return { messages: game.messages.contents.filter(m => String(m.content ?? "").includes("${SAID}")).length,
             drawn: document.body.innerHTML.includes("${SAID}") };`);
         const chatSeen = { gm: await heard(gm), p1: await heard(p1), p3: await heard(p3) };
+        const passing = await p1.eval(`Hooks.off("createChatMessage", globalThis.__drpgE92Hook); const h = globalThis.__drpgE92Heard ?? [];
+            delete globalThis.__drpgE92Hook; delete globalThis.__drpgE92Heard; return h.filter(c => c.includes("${SAID}"));`);
         check("chat: a Spectator's message reaches nobody - refused on its own browser, and one its console forces past that is gone from every browser",
-            posted?.page === false && ["gm", "p1", "p3"].every(k => chatSeen[k]?.messages === 0 && chatSeen[k].drawn === false),
+            posted?.page === false && posted?.console === true && ["gm", "p1", "p3"].every(k => chatSeen[k]?.messages === 0 && chatSeen[k].drawn === false),
             JSON.stringify({ posted, chatSeen }));
+        check("chat2: a Spectator's message forced past its own browser is heard on p1's for a moment - p1's createChatMessage hook was handed its words before the GMs removed it",
+            !passing.some(c => c.includes(`${SAID} 2`)), JSON.stringify({ passing }),
+            { knownLeak: "foundry-spectator-chat", measured: posted?.console === true });
 
         phase("voice");
         await settle(1200);

@@ -23,7 +23,7 @@
 import { MODULE_ID, FLAGS, BEDROOM_KEY_FLAG, LOOT, REMNANT_VISIBILITY } from "./config.mjs";
 import { capacityLabel, isStashed, transferItem, transferRefusal } from "./inventory.mjs";
 import { createTruthBullet, truthBulletData, secretOf, isTruthBullet, bulletAsHeld, unanalysedType } from "./truth-bullets.mjs";
-import { whisperToOwner, log, warn, error, isPrimaryGm, forcedDeletion, plural, serialWrite, ownerIdsOf, gmIds, announce, whisperToGms, listOf } from "./utils.mjs";
+import { whisperToOwner, whisperToOwnerOnly, log, warn, error, isPrimaryGm, forcedDeletion, plural, serialWrite, ownerIdsOf, gmIds, announce, whisperToGms, listOf, worldLocalize, esc } from "./utils.mjs";
 import { drpgWindow } from "./ui-kit.mjs";
 import { answerKeysRefusal, lootTraceStore, deathStore, lootRollStore } from "./gm-stores.mjs";
 import { getClock } from "./settings.mjs";
@@ -56,6 +56,7 @@ export async function askWhoIsHere(actor, { title, intro, note, okLabel, listBox
        no scene - could not act on. `locateActor` is the one reading of where the character is (`roomOfActor` is its
        room, and has not asked the camera since E12 C3, the other half of S08-23). */
     const { othersInRoom, locateActor } = await import("./movement.mjs");
+    const liveKit = await import("./live.mjs");
     const room = locateActor(actor)?.room ?? null;
     // as this browser sees the room: a veiled killer it does not draw is not listed (mask-gm.mjs `seenHere`, 1.2.119)
     const here = room ? seenHere(othersInRoom(actor)) : [];
@@ -80,8 +81,28 @@ export async function askWhoIsHere(actor, { title, intro, note, okLabel, listBox
             <p class="notes">${note}</p>
         </form>`,
         footer: {
-            primary: { action: "ok", label: okLabel, callback: (e, b, d) => d.element.querySelector("[name=target]").value },
+            primary: { action: "ok", label: okLabel, callback: (e, b, d) => d.element.querySelector("[name=target]").value || "cancel" },
             close: { role: "cancel", action: "cancel" }
+        },
+        /* WHO IS HERE, AS IT STANDS (the audit's REFR-31, 1.2.122, 21.11.2026). The list was the room at the open: a
+           character who walked in was not offered, and one who had left still was (the GM's check then refused it). It is
+           read again whenever a token or an actor changes, the choice kept while its character is still here; with nobody
+           left, the button is shut. */
+        render: (event, dialog) => {
+            const { keepFresh } = liveKit;
+            keepFresh(dialog, { watch: { tokens: true, actors: true }, run: el => {
+                const select = el?.querySelector?.("[name=target]");
+                if (!select) return;
+                const where = locateActor(actor)?.room ?? null;
+                const now = where === room ? seenHere(othersInRoom(actor)) : [];
+                const ids = now.map(a => a.id);
+                if (ids.join() === [...select.options].map(o => o.value).join()) return;
+                const was = select.value;
+                select.innerHTML = now.map(a => `<option value="${a.id}">${foundry.utils.escapeHTML(nameAsSeen(a))}</option>`).join("");
+                select.value = ids.includes(was) ? was : ids[0] ?? "";
+                const ok = el.querySelector('footer button[data-action="ok"]');
+                if (ok) ok.disabled = !ids.length;
+            } });
         },
         rejectClose: false
     });
@@ -277,9 +298,13 @@ export async function mintCopy(from, to, item, { analysis = true, quiet = false 
     const data = truthBulletData(bulletAsHeld(item));
     const secret = secretOf(item.uuid);
     if (!secret.realType) {
-        if (!quiet) await whisperToOwner(from, `<p>${game.i18n.format("DRPG.Handover.answerKeyMissing", {
-            name: foundry.utils.escapeHTML(data.name)
-        })}</p>`);
+        /* Two sends, two readers (1.2.122 line TEXT; the audit of 1.2.118, TEXT-32): the player is told what happened,
+           the GMs how to restore the record - a GM's menu path is no player's to read (text-style O19, T29). */
+        if (!quiet) {
+            const name = foundry.utils.escapeHTML(data.name);
+            await whisperToOwnerOnly(from, `<p>${game.i18n.format("DRPG.Handover.answerKeyMissing", { name })}</p>`);
+            await whisperToGms(`<p>${game.i18n.format("DRPG.Handover.answerKeyMissingGm", { name })}</p>`);
+        }
         return { skipped: "noKey", data };
     }
 
@@ -323,7 +348,7 @@ export async function mintCopy(from, to, item, { analysis = true, quiet = false 
         // fix names none, and neither does this one.
         foundIn: secret.chapter ?? null,
         // And its season where the answer key names one (E11 fix r2-H2): an autopsy's, which the GM panel
-        // reads as this season's chapter's (gm-panel.mjs `autopsyIssued`) - a copy handed over after a reset
+        // reads as this season's chapter's (investigation.mjs `autopsyIssued`) - a copy handed over after a reset
         // of last season's autopsy is last season's, and a copy of one that names none names none.
         epoch: secret.epoch ?? undefined,
         // From the SECRET, not the item: `createTruthBullet` publishes these
@@ -684,7 +709,6 @@ async function lootCover(taker, body, names, cover) {
     // `coverRequired`), and a GM's own button with its Shadow window closed is the GM's ruling, said to nobody.
     if (!rolled) return [];
     const held = rolled && (Boolean(cover.isCritical) || Number(cover.total) >= LOOT.cover.threshold);
-    const esc = foundry.utils.escapeHTML;
     await whisperToOwner(taker, `<p>${game.i18n.localize(held ? "DRPG.Loot.coverHeld" : "DRPG.Loot.coverMissed")}</p>`);
     if (held) return [];
     const { isDeceased } = await import("./chapter.mjs");
@@ -903,10 +927,11 @@ async function mintLootBullet(taker, body, loot) {
         if (loot.sceneId && loot.tokenId) await revealRemnantToFinderById(loot.sceneId, loot.tokenId, { via: "loot" });
 
         await createTruthBullet(taker, {
-            name: game.i18n.format("DRPG.Loot.bulletName", { item: loot.item }),
+            // In the world's language, not the GM's browser's (STG-28; utils.mjs `worldLocalize`): the taker reads it.
+            name: await worldLocalize("DRPG.Loot.bulletName", { item: loot.item }),
             realType: "neutral",
             visibility: "evident",
-            playerText: game.i18n.format("DRPG.Loot.bulletText", {
+            playerText: await worldLocalize("DRPG.Loot.bulletText", {
                 item: loot.item, who: body.name
             }),
             img: loot.img,

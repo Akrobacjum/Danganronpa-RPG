@@ -131,9 +131,10 @@ async function fetchCopy(path) {
 
 /**
  * List the folder and merge every copy in it into this browser's stores, by `restoreCase`'s merge. Answers
- * `{ read, copies, newest }`: how many merged, what was found by name, and the path of the newest by `exportedAt`;
- * or `{ refused }` ("notGm", "list", "fetch"). A copy that will not parse or is refused by the merge is counted,
- * named nowhere, and left.
+ * `{ read, bad, count, newest, newestFile }`: how many merged, how many would not be read, how many the folder lists,
+ * the path of the newest by `exportedAt` and that file; or `{ refused }` ("notGm", "quiet", "list"). A copy that will
+ * not fetch or parse, or that the merge refuses, is counted in `bad`, named nowhere, and left (corrected by line INVEST of
+ * 1.2.122: this named `copies` and a "fetch" refusal, which it never answered).
  */
 export async function readServerCopies() {
     if (!game.user?.isGM) return { refused: "notGm" };
@@ -261,8 +262,13 @@ export function registerCaseCopy() {
 async function copyAtLoad() {
     try {
         const files = filesPrivate();
+        /* THE FILES OPEN TO PLAYERS: NOTHING READ, AND EVERY GM TOLD (line INVEST of 1.2.122; audit 1.2.118 E111-2 and
+           domain-case-f-planner-stores 5). Not read on purpose: a player who may upload can have written the file, and a
+           restore of it would be a player's write into the GMs' stores. Until this line only the primary was told, and
+           the text said only that no copy is written; it now says that none is read either, and that a copy written
+           before stays in the world's folder, within a player's reach, to be deleted by hand (Q-E111-5's default). */
         if (files) {
-            if (isPrimaryGm()) tellRefused(files);
+            tellRefused(files);
             state.last = files;
             return;
         }

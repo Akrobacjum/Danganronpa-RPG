@@ -27,7 +27,7 @@ ones.
 | File:line (at 59d1935) | What it is | Class |
 | --- | --- | --- |
 | action-tail.mjs `tailTargets` (E69, merged 13.11) | whom a character may tail in its room | leave it out, already: it filters movement.mjs `othersInRoom`, which counts no Spectator present (`countsAsPresent`, C1); the tier-2 test "E92+E93" holds it |
-| anonymity.mjs:468 `myCharacter` | this account's own character | character here |
+| anonymity.mjs:468 `myCharacter` (removed in 1.2.122, CASE-50: it asks monokuma.mjs `chooseOwnStudent` over `ownedStudents`, which leaves the Spectator out) | this account's own character | - (gone) |
 | camera-view.mjs:235, 239 | a GM's Monokuma; a player's own character for the camera | character here |
 | cleanup.mjs:3049 | a refund log line | character here |
 | config.mjs:231 | a comment | - |
@@ -69,9 +69,12 @@ ones.
 | roll-draw.mjs:265 | a sheet roll's actor | character here |
 | settings.mjs:3221, 4249, 4264 | own characters; sheet hooks | character here |
 | sfx.mjs:299 | whether this account is in the incident | character here |
+| window-scale.mjs `isCharacterSheet` (1.2.122 line UI, UI-09: one test where `scaleWindow` had two, the sheet hooks settings.mjs:4249, 4264 named before E54 W3 moved them) | the character's own sheet, sized under the glass | character here: a Spectator's sheet is a character sheet, and sized as one |
 | sheet-audit.mjs:783, 803, 927, 1215, 3226, 3320 | the audit's marks | character here: its flag is held there (C1, `GM_FLAGS`) |
 | sheet-mode.mjs:152 | sheet renders | character here (the mode is `sheetMode`'s, C5) |
 | sheet-repaint.mjs:171 | sheet renders | character here (the mode is `sheetMode`'s, C5) |
+| sheet-inventory.mjs `openCharacterSheets` (1.2.122 line UI) | the open sheets the room watch redraws (`redrawRoomSheets`, REFR-12) | character here: a Spectator's sheet is redrawn like any other, and draws no room parts (`sheetMode`, C5) |
+| sheet.mjs `registerSheetTweaks` (1.2.122 line UI) | an item changed on a character, for the room watch (REFR-12) | character here: it only asks the watch, which redraws by the signature |
 | sheet-sidebar.mjs:751, 892 | sheet renders | character here (the mode is `sheetMode`'s, C5) |
 | spectator-dead.mjs `ownStudentOf` (E62 C3b fix, 13.11.2026) | the player's own student a moment names, on that player's browser | leave it out: a Spectator's flag is read beside it |
 | spectator.mjs `watcherOf` (new in C4) | the account's own Spectator, for its map | character here |

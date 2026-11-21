@@ -121,8 +121,9 @@
  * it shows is not that one. Once, so a GM's later pull of one player to another scene stands;
  * never on a GM's browser. The view decides no rule (rooms.mjs `CAMERA_READERS`).
  *
- * THE GM LINKS THE SCENES AND CHOOSES THE CAST IN A WINDOW (E13 C5): Room Setup's last tab, drawn,
- * read and applied by the functions under "THE SCENES TAB" below.
+ * THE GM LINKS THE SCENES AND CHOOSES THE CAST IN A WINDOW (E13 C5): Room Setup's last tab until E101 item 5, Season
+ * setup's scenes part since (season-setup.mjs, whose button is Save), drawn, read and applied by the functions under
+ * "THE SCENES TAB" below.
  *
  * START SAYS WHERE THE TABLE GOES, AND A TRIAL HAS TWO DOORS THAT KEEP THE PHASE (E13 C6): the Start
  * window's lines and the console's "Show the hall" / "Back to school", under "THE START WINDOW AND
@@ -1202,7 +1203,8 @@ async function watchCastDeleted(tokenDoc, options, userId) {
  * last tab (room-setup.mjs `ROOM_SETUP_TABS`) does it now: a select for the school and one for the
  * hall, the hall's cast with a tick each, what is wrong with the pair (`sceneReport`), and
  * "Prepare the hall". The tokens are the trial's to make (E81 DZ6, `stageHall`); the tab names
- * only Monokuma ticked with no token in the hall, the one the module never makes. Room Setup opens on it when its scene holds no room (Q-E13-1 e).
+ * only Monokuma ticked with no token in the hall, the one the module never makes. Room Setup opened on it when its scene held no room
+ * (Q-E13-1 e) until E101 item 5 moved the part to Season setup (season-setup.mjs, which draws, refuses and applies it).
  *
  * WHAT THE GM CHANGED, NOT WHAT THE FORM SAYS. A select or a tick counts only when it differs from
  * what the window drew (`data-drawn`, `defaultChecked`), as the Fog tab's boxes do (room-setup.mjs
@@ -1551,6 +1553,80 @@ export function wireScenesTab(root, block = () => {}) {
     });
     wirePicture();
     redraw();
+    followRoles(root, { school, trial, zoneSelects, redraw, castBox, hall: () => scene(trial) });
+}
+
+/**
+ * THE SCENES PART FOLLOWS THE WORLD (1.2.122, REFR-73; the owner's rule that an open window shows a change at once). Another
+ * GM's link of the school or the hall, or of the hall's zones, while this Season setup stands: a select this GM has not
+ * changed (its value still the one it was drawn with, `dataset.drawn`) takes the new link and is drawn with it - Apply
+ * then compares against it and writes nothing back - and one this GM changed is kept as typed. A scene or a region made,
+ * changed or deleted redraws the report. The cast's ticks follow another GM's cast (the store `trialCast`): a tick this
+ * GM has not changed (`checked` still its `defaultChecked`) takes the cast's value as its drawn one, so Apply writes
+ * nothing back for it; one this GM changed is kept. A student added to the world meanwhile is not drawn until the window
+ * opens again. The hooks go when the window does.
+ */
+function followRoles(root, { school, trial, zoneSelects, redraw, castBox = null, hall = () => null }) {
+    const hooks = [];
+    const off = () => { for (const [name, id] of hooks.splice(0)) Hooks.off(name, id); };
+    const alive = () => {
+        if (root?.isConnected && school.isConnected) return true;
+        off();
+        return false;
+    };
+    const take = (select, now) => {
+        const was = select.dataset.drawn ?? "";
+        if (select.value !== was || (now ?? "") === was) return false;
+        if (now && ![...select.options].some(o => o.value === now)) {
+            const option = document.createElement("option");
+            option.value = now;
+            option.textContent = game.scenes.get(now)?.name ?? now;
+            select.append(option);
+        }
+        select.value = now ?? "";
+        select.dataset.drawn = now ?? "";
+        return true;
+    };
+    const follow = () => {
+        if (!alive()) return;
+        const roles = game.settings.get(MODULE_ID, SETTINGS.sceneRoles) ?? {};
+        take(school, roles.school ?? "");
+        const hallMoved = take(trial, roles.trial ?? "");
+        if (hallMoved) trial.dispatchEvent(new Event("change"));
+        const [a, b] = zoneSelects();
+        for (const [select, id] of [[a, roles.zones?.a], [b, roles.zones?.b]]) {
+            if (!select) continue;
+            // The hall followed: its zones are drawn afresh (the hall's change above), as the world now names them.
+            if (hallMoved) {
+                select.value = id ?? "";
+                select.dataset.drawn = id ?? "";
+            } else take(select, id ?? "");
+        }
+        redraw();
+    };
+    const report = () => { if (alive()) redraw(); };
+    const cast = () => {
+        if (!alive() || !castBox) return;
+        const scene = hall();
+        if (!scene || castBox.querySelector("[data-drpg-cast]")?.dataset.drpgCast !== scene.id) return;
+        const stored = readTrialCast(scene);
+        const byId = new Map(readCastActors().map(actor => [actor.id, actor]));
+        for (const input of castBox.querySelectorAll('input[type="checkbox"][name^="cast:"]')) {
+            if (input.checked !== input.defaultChecked) continue;
+            const id = input.name.slice("cast:".length);
+            const actor = byId.get(id);
+            if (!actor) continue;
+            const now = id in stored ? stored[id] : defaultReveal(actor);
+            input.defaultChecked = now;
+            input.checked = now;
+        }
+    };
+    const castSetting = `${MODULE_ID}.${trialCastStore.spec.key}`;
+    hooks.push(["clientSettingChanged", Hooks.on("clientSettingChanged", key => { if (key === castSetting) cast(); })]);
+    for (const name of ["updateSetting", "createSetting"]) {
+        hooks.push([name, Hooks.on(name, setting => { if (setting?.key === `${MODULE_ID}.${SETTINGS.sceneRoles}`) follow(); })]);
+    }
+    for (const name of ["createScene", "updateScene", "deleteScene", "createRegion", "updateRegion", "deleteRegion"]) hooks.push([name, Hooks.on(name, report)]);
 }
 
 /**
@@ -1582,8 +1658,8 @@ export function scenesClash(read) {
 
 /**
  * Whether a reading of the tab moves the trial hall - links another or unlinks it - while a Class
- * Trial runs. Refused before anything is written, as a clash is (vault.mjs, after `scenesClash`), and
- * the window holds Apply with the reason (`wireScenesTab`): the GM ends the trial first. Until E13 fix
+ * Trial runs. Refused before anything is written, as a clash is (season-setup.mjs, after `scenesClash`), and
+ * the window holds Season setup's Save with the reason (`wireScenesTab`): the GM ends the trial first. Until E13 fix
  * r1-F2 nothing refused it, and by review r1's reading (cor C) nothing hid the old hall's shown cast,
  * and an unlink left End the trial no hall to leave (`leaveTrialScene` reads the link), so the phase
  * went back while the table stayed in the old hall and nobody was told. Scenario 41 l1 reads the
@@ -1663,14 +1739,14 @@ async function prepareTrialScene(scene, { playlist = false, voice = false } = {}
 }
 
 /**
- * Apply the Scenes tab on a GM, after Room Setup's own checks passed: the roles when they moved,
+ * Apply the scenes part on a GM, after Season setup's own checks passed (season-setup.mjs): the roles when they moved,
  * the cast's changed ticks (`saveTrialCast`), then - when the linked hall or its choice changed -
  * the hall as the phase wants it (`stageHall`): out of the trial cleared - any token of the module's
  * a trial left deleted, the GM's hidden - so the hall rests until a trial opens; in the trial with
  * the hall active staged again for the new choice at once (the newly ticked made, the unticked
  * module's tokens deleted; the orchestrator's Q5 of 12.10.2026); in the trial with another scene
  * active nothing. A change of the hall itself in
- * a running trial never reaches here: Room Setup refuses it first (`hallLocked`).
+ * a running trial never reaches here: Season setup refuses it first (`hallLockReason`).
  * Then "Prepare the hall", then the hall's name, picture and words for the room tile when the GM changed
  * one (`hallRoomWrite`, `setHallRoom`; E79 C11). Answers what it did, or null off a GM.
  */

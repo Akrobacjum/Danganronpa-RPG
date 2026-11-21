@@ -508,7 +508,8 @@ function sightFor(userId, { also = [], held = [] } = {}) {
         /* Its room action, to those in on it (P1, 15.11.2026; the owner's DRPG-D1 "Dostaja"): a GM's private card carried it
            alone until then, and a chat log cleared took the row out of the insider's Facilities (scenario 99). Not to a
            Spectator, whom the card never told either. */
-        const facility = inside ? { facility: secretsOf(project.id).facility ?? null } : {};
+        // And when it was completed, which the action's lifetime is counted from (ITEM-38, 1.2.122: the GMs' row's while secret).
+        const facility = inside ? { facility: secretsOf(project.id).facility ?? null, completedAt: secretsOf(project.id).completedAt ?? null } : {};
         sight[project.id] = { in: inside, name, ...(typeof words === "string" && words ? { description: words } : {}), ...sightExtras(project.id), ...facility };
         stamps[project.id] = now;
     }
@@ -672,17 +673,28 @@ async function tellProposer(countdownId, { by = secretsOf(countdownId).by, name 
  * THE PROPOSERS OF PROJECTS MADE BEFORE 1.2.88 ARE TOLD ONCE (H84 fix G3, 27.10.2026; the end review's H84-SEC-03,
  * H84R-07, H84R-4: the owner's own reported project was made on 1.2.85, and its proposer still did not see it). On the
  * primary GM, at its load: every public project with a room, a proposer (`by`) and no `proposerTold` in the GMs' row,
- * not finished, is told (`tellProposer`) and marked, so the next load posts nothing. Answers how many were told.
+ * not finished, is told (`tellProposer`) and marked, so the next load posts nothing - unless its card has left the chat
+ * since (1.2.122: told again then, at a load and when such a card is deleted). Answers how many were told.
  */
 export async function tellProposers() {
     if (!isPrimaryGm()) return 0;
     if (await projectSecretStore.whenHydrated?.() === "timedOut") return 0;
+    /* AND AGAIN WHERE THE CARD IS GONE (1.2.122 line ITEMS; the audit's ITEM-24 and STG-11). The proposer's browser knows
+       the project from the GMs' private card alone (`projectsToldHere`), and the row's `proposerTold` stopped a second
+       one: a Clear Chat Log, or the card deleted, took the project off the proposer's tray and map for good. A project
+       whose card no message of the chat holds any more is told again; the GM's browser holds every card. */
+    const carded = new Set();
+    for (const message of game.messages ?? []) {
+        const id = message?.author?.isGM ? cardMeta(message, PROJECT_KNOWN) : null;
+        if (typeof id === "string" && id) carded.add(id);
+    }
     let told = 0;
     for (const project of allProjects()) {
         const row = secretsOf(project.id);
-        if (!row?.by || row.proposerTold || isComplete(project) || isSecret(project.id) || !roomOf(project.id)) continue;
+        if (!row?.by || isComplete(project) || isSecret(project.id) || !roomOf(project.id)) continue;
+        if (row.proposerTold && carded.has(project.id)) continue;
         if (await tellProposer(project.id, { by: row.by, name: project.name, room: roomOf(project.id) })) told++;
-        await applyProjectChange(project.id, { meta: { proposerTold: true } }, { by: { kind: "system" } });
+        if (!row.proposerTold) await applyProjectChange(project.id, { meta: { proposerTold: true } }, { by: { kind: "system" } });
     }
     if (told) log(`Told ${told} proposer(s) of a public project made before 1.2.88 that they know it.`);
     return told;
@@ -1770,8 +1782,15 @@ async function changeStep(countdownId, change, by) {
         change = { ...change, meta: { ...change.meta, secretName: null } };
     }
     const shown = realName;
-    // One clamp for both directions (updateProject's A15): `current` is progress earned or what is left, and neither exceeds the start.
-    if (change.target !== undefined) next.progress = { ...next.progress, start: change.target, current: Math.min(raw, change.target) };
+    /* A NEW TARGET KEEPS THE PROGRESS DONE, IN BOTH DIRECTIONS OF STORAGE (1.2.122 line ITEMS; the audit's ITEM-23). For
+       a countdown that counts up `current` is the progress earned, clamped to the new start (updateProject's A15). For one
+       that counts down (made in Daggerheart's own window) `current` is what is LEFT, and the old clamp kept it: 6 done of
+       8 (2 left) raised to 10 read 8 done, lowered to 4 read 2 done. Now what is left is the new start less what was
+       done, inside the bar. */
+    if (change.target !== undefined) {
+        const current = up ? Math.min(raw, change.target) : Math.max(0, Math.min(change.target, change.target - before));
+        next.progress = { ...next.progress, start: change.target, current };
+    }
     const start = next.progress?.start ?? 0;
     const was = next.progress?.current ?? 0;
     if (change.delta) {
@@ -1963,6 +1982,16 @@ export function registerProjectChanges() {
     const forget = () => { toldHere = null; wordsHere = null; };
     Hooks.on("createChatMessage", forget);
     Hooks.on("deleteChatMessage", forget);
+    // A proposer's card deleted - one, or the whole log cleared - is posted again by the primary (ITEM-24, STG-11:
+    // `tellProposers`), the deletions of a second gathered into one pass.
+    let retell = null;
+    Hooks.on("deleteChatMessage", message => {
+        if (!isPrimaryGm() || retell || !cardMeta(message, PROJECT_KNOWN)) return;
+        retell = setTimeout(() => {
+            retell = null;
+            tellProposers().catch(err => error("Could not tell the proposers of their projects again", err));
+        }, 1000);
+    });
     // A player's sight of the secret projects changed (S17-31, E101 R2): a share or a revoke writes no countdown any more,
     // so Daggerheart's setting change no longer runs the tray's and the tokens' pass; the copy's change does. All of what
     // a project's change redraws (E59 on the 1.2.115 line, CHAINS.md B-R1; R7162): the tray and the tokens, and the
@@ -1977,6 +2006,14 @@ export function registerProjectChanges() {
         if (game.user.isGM) return;
         askForSight();
         Hooks.on("drpgPrimaryReady", primary => askForSight(primary));
+    });
+    /* A SECRET PROJECT'S ROW CHANGED IN THE GMS' STORE (1.2.122 line ITEMS; the audit's REFR-61): a rename of a secret
+       project writes only its `secretName` there - the countdown keeps the hidden name - and the store has no onChange.
+       The primary redraws its tray through `tellSight`'s hook; another GM heard only the store's key, so its tray kept
+       the old name until it rendered for another reason. A GM's tray is drawn again on that key. */
+    Hooks.on("clientSettingChanged", key => {
+        if (!game.user?.isGM || key !== `${MODULE_ID}.${projectSecretStore.spec.key}`) return;
+        import("./projects-tray.mjs").then(m => m.refreshProjects?.()).catch(err => error("Could not redraw the Projects tray", err));
     });
     Hooks.on("drpgSecretStored", message => {
         forget();
@@ -2522,8 +2559,12 @@ async function announceTrapReady(countdownId, name, { watched = false, armed = f
                     : ""}`,
                 request: name,
                 /*
-                 * THE ONE TRIGGER THAT NEEDS SOMETHING TO EXIST FIRST. Seven of
-                 * the eight watch a place; this one watches an OBJECT, and
+                 * THE ONE TRIGGER THAT NEEDS SOMETHING TO EXIST FIRST. Nine
+                 * triggers watch (config.mjs TRAP_TRIGGERS, read 21.11.2026);
+                 * four watch a place (alone, enters, search, rest), project,
+                 * sabotage, stash and passage watch a thing that already
+                 * stands, and this one watches an OBJECT the GM has yet to
+                 * name ("seven of the eight" until the audit's D 178, 1.2.122), and
                  * until the GM says what the object is and which room it is
                  * lying in there is nothing to watch. So the receipt carries
                  * the button rather than a sentence asking them to remember.
@@ -2606,9 +2647,10 @@ export async function updateProject(countdownId, patch = {}) {
  * What `updateProject` changes, as a change of the entry, writing nothing (E36 C2): the project window's Save
  * combines it with the secrecy (`combineChanges`), so an edit is one change. Null when the patch names nothing.
  *
- * `target` is the countdown's `progress.start`; the step clamps `current` with it (`changeStep`), for both
+ * `target` is the countdown's `progress.start`; the step keeps the progress done with it (`changeStep`), for both
  * directions: ours count UP, so `current` is progress earned and cannot pass the new ceiling, and Daggerheart's
- * count DOWN, where `current` is what is LEFT, which cannot exceed the start either (A15).
+ * count DOWN, where `current` is what is LEFT - the new start less what was done, inside the bar since 1.2.122
+ * (the audit's ITEM-23; until then what was left was kept, A15).
  */
 export function projectEditChange(patch = {}) {
     const change = {};

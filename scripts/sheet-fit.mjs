@@ -175,7 +175,7 @@ export function softWrap(label) {
         if (part.length < LONG_WORD || /\s/.test(part)) return part;
         // A word that already carries a hyphen has a break point of its own,
         // and it is a better one than counting to six can find: "Self-defence"
-        // was coming out as "Self-d­efence", which reads as a typo rather than
+        // was coming out as "Self-d<U+00AD>efence" (a soft hyphen after the d), which reads as a typo rather than
         // as a hyphenation.
         if (part.includes("-")) return part;
         let out = "";
@@ -377,7 +377,7 @@ export function watchTileFit(app, element) {
  * Give the sheet room for the Hope Calls.
  *
  * Daggerheart opens a character sheet at its own default size (850 wide - see
- * `scaleWindow` in settings.mjs), which fitted when the Calls
+ * `scaleWindow` in window-scale.mjs, which settings.mjs re-exports; D-266), which fitted when the Calls
  * were a closed drawer and does not now: the panel sits under ten action tiles
  * and a clean-up block, and a menu a cornered player has to scroll to find is
  * a menu they do not use.
@@ -387,9 +387,11 @@ export function watchTileFit(app, element) {
  * "Determination". Dawid, 28.08: keep the old size and shrink the type instead.
  * The width is Daggerheart's again and `fitTileText` does the fitting.
  *
- * Grown ONCE per sheet, and only upwards. A GM who drags the window smaller
- * afterwards keeps their size - the alternative, re-asserting on every render,
- * would undo a deliberate resize several times a turn.
+ * Set ONCE per sheet, to `callsHeight` (the Calls' 980 px, or the screen less 40 px where that is less), and only when
+ * the sheet stands under 980 px. So on a short screen a sheet already within 40 px of its bottom is made shorter, to
+ * keep its foot on the screen: "only upwards", as this said until the audit of 1.2.118 (D-265), is not what it does. A GM
+ * who drags the window afterwards keeps their size - the alternative, re-asserting on every render, would undo a
+ * deliberate resize several times a turn.
  */
 const grown = new WeakSet();
 const SHEET_MIN_HEIGHT = SHEET_SIZE.minHeight;

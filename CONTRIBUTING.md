@@ -94,7 +94,8 @@ What every change to `styles/` keeps:
 - **The breakpoints are `scripts/settings.mjs`'s** (`BREAKPOINTS`) and nowhere else; the stylesheet keys off the
   classes it sets. `styles/narrow.css` loads last.
 - **No text under the floor.** Under Stained Glass the floor is 21 px scaled (`--drpg-sg-floor`); under Monokuma
-  Legacy it is 10 px per rung (the `--font-size-*` rungs and `--drpg-text-xs`).
+  Legacy it is 11 px for `--drpg-text-xs` and the `--font-size-*` rungs 11 to 14 (since E48 K6), and a rung under
+  that, 8 to 10, stops at its own size; rungs 15 and up need none.
 - **AA contrast in both themes.** Small text 4.5:1, large text 3:1, for every pair of `tools/contrast-pairs.json`;
   a pair below it is written there with its ratio as `known`, never raised to pass.
 - **A button's colour is its role's** (E22, D11; `scripts/ui-kit.mjs` `BUTTON_ROLES`, components.css's role rules,

@@ -14,6 +14,8 @@
  * Node, so release.yml runs `stamps notes` before installing anything.
  *
  * Parts:
+ *   lengths   (1.2.122, STG-61) the split files of waves 2 and 3 (code.md's table from action-rolls.mjs down) at
+ *             1500 lines or under, or named in LENGTHS_ACCEPTED; none over 1750 - the owner's 21.11.2026.
  *   stamps    module.json's version, the `--drpg-css-version` stamp in
  *             styles/danganronpa.css, the first five lines of each of the six
  *             handbooks and README's "describe version X." agree; with
@@ -1492,6 +1494,10 @@ async function text() {
         const r = T.DETECTORS[name](inputs);
         const rows = T.BASELINES[name];
         const b = rows ? T.againstBaseline(r, rows) : null;
+        /* A row whose emptying stage has shipped is red (1.2.122 line TEXT; the audit of 1.2.118, STG-60). */
+        for (const row of T.shippedBaselineRows({ [name]: rows ?? [] }, shipped)) {
+            problems.push(`${name}'s baseline row ${row.file} ${row.key ?? `"${row.quote}"`} (${row.issue}) says ${row.empties} empties it, and ${row.empties} has shipped: empty it, or name the stage that will`);
+        }
         const counts = Object.entries(r.counts ?? {}).map(([k, n]) => `${k} ${n}`).join(", ");
         console.log(`text: ${m.test} ${m.mode} ${name} read ${r.read} found ${r.found.length}`
             + (b ? `; baseline ${rows.length} row(s), ${b.rows} site(s): ${b.matched} matched, ${b.left.length} new, ${b.stale.length} gone` : "")
@@ -1938,6 +1944,60 @@ if (LANG_DIR === "" || (LANG_DIR !== null && LANG_DIR.startsWith("--"))) {
 PARTS.package = pkg;
 // E56 C1: on its own line, as `package` is, so a line that adds a part to PARTS above does not meet this one.
 PARTS.comments = comments;
+/* --------------------------------- lengths -------------------------------- */
+
+/* THE SPLIT'S SIZE BOUND, HELD (1.2.122, the audit's STG-61; the owner, 21.11.2026: "Akceptujemy wyjatki do 1750").
+   E41 split the second wave's families to files of at most 1500 lines and E54 the third's; nothing read a file's length
+   after, and by 1.2.118 four of them stood over it where the code map named three. Held here: every file of those two
+   waves - the rows of .claude/rules/code.md's "Where the code lives" table from `scripts/action-rolls.mjs` down, read off
+   the table so a new split file is held the day its row is written - stands at 1500 lines or under, or is named in
+   LENGTHS_ACCEPTED with the owner's answer; and none passes 1750, accepted or not. A line is a "\n"; a CRLF checkout
+   counts the same. The first wave (E34: murder, fog, projects, calls) and the files no wave split are not held: they
+   were never bound (config.mjs, fog.mjs and murder-rules.mjs stand over 4500). Its control: the rule shown a planted
+   table of three files - one listed at 1751 lines (the ceiling holds an accepted file too), one unlisted at 1501, one
+   listed at 1600 - must name the first two and not the third. Since its own line, as `package` and `comments` are. */
+const LENGTH_BOUND = 1500, LENGTH_CEILING = 1750;
+const LENGTHS_ACCEPTED = Object.freeze({
+    "scripts/action-project.mjs": "the owner, 21.11.2026: exceptions accepted up to 1750 lines (STG-61); 1502 after the 1.2.122 assembly's merges",
+    "scripts/hud.mjs": "the owner, 21.11.2026: exceptions accepted up to 1750 lines (STG-61)",
+    "scripts/bridge-table.mjs": "the owner, 21.11.2026: exceptions accepted up to 1750 lines (STG-61)",
+    "scripts/vault-store.mjs": "the owner, 21.11.2026: exceptions accepted up to 1750 lines (STG-61)",
+    "scripts/room-setup.mjs": "the owner, 21.11.2026: exceptions accepted up to 1750 lines (STG-61)",
+    "scripts/sheet-actions.mjs": "the owner, 21.11.2026: exceptions accepted up to 1750 lines (STG-61)",
+    "scripts/tables-editor.mjs": "the owner, 21.11.2026: exceptions accepted up to 1750 lines (STG-61); line WORLD splits it below 1750 in 1.2.122"
+});
+function lengthProblems(files, lengthOf, accepted = LENGTHS_ACCEPTED) {
+    const problems = [];
+    for (const f of files) {
+        const n = lengthOf(f);
+        if (n > LENGTH_CEILING) problems.push(`${f} has ${n} lines, over the ceiling of ${LENGTH_CEILING} an accepted file may reach (the owner, 21.11.2026)`);
+        else if (n > LENGTH_BOUND && !Object.hasOwn(accepted, f)) problems.push(`${f} has ${n} lines, over the split's ${LENGTH_BOUND}, and is not in LENGTHS_ACCEPTED`);
+    }
+    for (const f of Object.keys(accepted)) if (!files.includes(f)) problems.push(`LENGTHS_ACCEPTED names ${f}, which is no split file of the table`);
+    return problems;
+}
+function lengths() {
+    const problems = [];
+    {
+        const sizes = { "scripts/a.mjs": 1751, "scripts/b.mjs": 1501, "scripts/c.mjs": 1600 };
+        const planted = lengthProblems(Object.keys(sizes), f => sizes[f], { "scripts/a.mjs": "planted", "scripts/c.mjs": "planted" });
+        const named = f => planted.some(p => p.includes(f));
+        if (!(named("scripts/a.mjs") && named("scripts/b.mjs") && !named("scripts/c.mjs") && planted.length === 2)) {
+            problems.push(`the planted control reads wrong - ${JSON.stringify(planted)}`);
+        }
+    }
+    const map = exists(".claude/rules/code.md") ? read(".claude/rules/code.md") : "";
+    const rows = [...map.matchAll(/^\| `(scripts\/[\w-]+\.mjs)` \|/gm)].map(m => m[1]);
+    const from = rows.indexOf("scripts/action-rolls.mjs");
+    if (from < 0) return [...problems, ".claude/rules/code.md's table has no scripts/action-rolls.mjs row - the split files could not be read"];
+    const files = [...new Set(rows.slice(from))].filter(f => exists(f));
+    const lengthOf = f => read(f).split("\n").length - (read(f).endsWith("\n") ? 1 : 0);
+    problems.push(...lengthProblems(files, lengthOf));
+    const over = files.filter(f => lengthOf(f) > LENGTH_BOUND).map(f => `${path.basename(f)} ${lengthOf(f)}`);
+    console.log(`lengths: ${files.length} split file(s) of waves 2 and 3 read; over ${LENGTH_BOUND}: ${over.join(", ") || "none"}; ${problems.length} problem(s)`);
+    return problems;
+}
+PARTS.lengths = lengths;
 // E26 prep: on its own line, as `package` is.
 PARTS.fonts = fontsPart;
 // E57 C2: the same, its own line.

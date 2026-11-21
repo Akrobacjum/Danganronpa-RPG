@@ -323,7 +323,7 @@ export function caseGraphHtml({ graph, layout, finders = null, authors = null, s
                 + ` title="${esc(c.start.disabled ? c.start.reason || said : said)}"${c.start.disabled ? " disabled" : ""}>&#9656;</button>`);
         }
     }
-    // the fold's tooltip only on the Map: the trial console's graph is always folded, and its press folds nothing there
+    // the fold's tooltip only on the Map (the trial console's press folds and unfolds as well since 1.2.122, untitled there)
     const gap = place.gapY === null ? "" : `<div class="drpg-case-gap" style="top: ${place.gapY}px; width: ${MAP_GEOMETRY.nodeW}px; left: ${MAP_GEOMETRY.pad}px">`
         + `<button type="button" class="drpg-case-fold" data-drpg-case-fold aria-expanded="${fold ? "false" : "true"}"${editors ? tipAttr("DRPG.Tips.Case.notTiedToTheTooltip") : ""}>${esc(F("DRPG.CaseMap.unrelated", { n: unrelated.size }))}</button></div>`;
     // the sort too (line P, 1.2.120): under every sort but "uncrossed" `mapPlace` keeps its order in every column, and the relayout must
@@ -529,7 +529,8 @@ export function cameraHtml(zoom = 1, legend = "") {
         + `<button type="button" class="drpg-case-cam" data-drpg-case-camera="fit"${tipAttr("DRPG.Tips.Sweep.Case.fitViewTooltip")}>${esc(L("DRPG.CaseMap.zoomFit"))}</button></div>`;
 }
 
-const clampZoomOf = z => Math.min(CAMERA_LIMITS.max, Math.max(CAMERA_LIMITS.min, Number(z) || 1));
+// Down to `fitMin`: a view fitted past 25% reads its own percent (R8542).
+const clampZoomOf = z => Math.min(CAMERA_LIMITS.max, Math.max(CAMERA_LIMITS.fitMin, Number(z) || 1));
 
 /** Motion reduced on this browser: the module's class (the client setting or the system's, motion.mjs) or the system's
  *  own query where the class is not stamped yet. */

@@ -10,10 +10,14 @@
  * moved to incident-store.mjs; the rules of the three stages, with the account
  * of them this header held, to murder-rules.mjs; and the murder window and the GM's
  * tracker to murder-ui.mjs, each by a pure move that `node tools/moved-only.mjs`
- * proves. It keeps its name and every name it exported - thirty-three of
- * incident-store.mjs's, thirty-one of murder-rules.mjs's and three of
- * murder-ui.mjs's, re-exported below - so every importer still imports murder.mjs,
- * and none of the three imports it. New code goes into the file of its role, never
+ * proves. It keeps its name and every name it exported, re-exported below - so
+ * every importer still imports murder.mjs, and none of the three imports it.
+ * Counted on 21.11.2026 (1.2.122, the audit's STG-49): sixty-nine names,
+ * thirty-four of incident-store.mjs's, thirty-two of murder-rules.mjs's and three
+ * of murder-ui.mjs's. One of them came after the split, against the facade rule:
+ * `openingProposalFor` (E68 C9, 0f9a9a53), which eclipse.mjs imports through here;
+ * whether 1.2.70 itself exported thirty-three or thirty-four of the store's cannot
+ * be read off the shallow history (its earliest copy, d0c804e6, holds thirty-four). New code goes into the file of its role, never
  * here: what reads or writes the cast, the world half or the queue, or sends or
  * takes the cast or the deaths, into incident-store.mjs; what only the window or
  * the tracker uses, into murder-ui.mjs; any other rule of the incident, into

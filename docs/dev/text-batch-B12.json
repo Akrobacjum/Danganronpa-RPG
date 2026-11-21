@@ -4203,9 +4203,9 @@
      "note": null
     },
     {
-     "fact": "ruleDeclineMurder gives back the Direct Murder's action and posts the same line.",
+     "fact": "Only ruleDecline posts this line since 1.2.122: ruleDeclineMurder, which gave back the Direct Murder's action, left with its road (no card drew its button; the audit's CTRL-76, ROLL-33).",
      "file": "scripts/messenger-app.mjs",
-     "fn": "ruleDeclineMurder",
+     "fn": "ruleDecline",
      "note": null
     }
    ],
@@ -4260,7 +4260,7 @@
    "pilot": null,
    "facts": [
     {
-     "fact": "ruleDecline and ruleDeclineMurder show this toast to the GM who pressed, {name} the asker's character, after the price is given back.",
+     "fact": "ruleDecline shows this toast to the GM who pressed, {name} the asker's character, after the price is given back.",
      "file": "scripts/messenger-app.mjs",
      "fn": "ruleDecline",
      "note": null
@@ -4366,7 +4366,7 @@
      "note": null
     },
     {
-     "fact": "ruleDecline, ruleDeclineMurder and the refusing rulings end the card with this line, {name} the GM.",
+     "fact": "ruleDecline and the refusing rulings end the card with this line, {name} the GM.",
      "file": "scripts/messenger-app.mjs",
      "fn": "ruleDecline",
      "note": null

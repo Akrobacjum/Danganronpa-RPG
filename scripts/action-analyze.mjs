@@ -64,13 +64,15 @@ export function analyzeRowShut(row, { phase = getClock()?.phase, ...context } = 
 const ANALYZE_ROW_REQUEST = Object.freeze({ bullet: "analyze.resolve", hint: "analyze.resolve", stash: "vault.findStash", passage: "passage.find" });
 
 /**
- * Analyze: one action, two uses, and they no longer end the same way.
+ * Analyze: one action, four rows (`askWhatToAnalyze`): a Truth Bullet, a hint, a stash (`locateStash`) and a passage
+ * (`locatePassage`, A10), and they do not end the same way.
  *
  * Analysing evidence is a table lookup - Head against ANALYZE_DC - so it is
  * scored rather than ruled, on the GM's client because half the lookup is the
  * secret the roll is buying. Asking for a hint has no table and never will: it
  * stays a human ruling, and stays marked as one so a Reroll re-asks instead of
- * pretending to recompute it.
+ * pretending to recompute it. The stash and the passage are judged on the primary GM's client with no person
+ * (`vault.findStash`, `passage.find`; see `locateStash`).
  */
 export async function performAnalyze(actor, def, options) {
     /*
@@ -119,9 +121,9 @@ export async function performAnalyze(actor, def, options) {
     if (!ruled && !subject) return null;
 
     /*
-     * ALL THREE ROADS END WITH A HUMAN, so a road with nobody on it is refused
-     * BEFORE the price and before the dice (T-1). Without this the action was
-     * paid for, the dice were thrown, and the packet was dropped on the way out.
+     * EVERY ROAD ENDS ON A GM'S CLIENT - the hint with a person, the bullet, the stash and the passage judged there
+     * with none - so a road with no GM connected is refused BEFORE the price and before the dice (T-1). Without this
+     * the action was paid for, the dice were thrown, and the packet was dropped on the way out.
      */
     const { gmOnline, sayNotDone } = await import("./bridge-guards.mjs");
     // A row the Class Trial filter shuts (`ANALYZE_TRIAL_FILTER`; E80 C3 for the passage, E16 part 2 C3 for the hint and
@@ -442,7 +444,9 @@ async function locatePassage(actor, def, roll, request = "", charge = null) {
  * It is folded into one instead: the select is simply ignored when "Ask for a
  * hint" is the button actually pressed.
  *
- * @returns {Promise<string|null>}  "hint", a bullet id, "cancel", or null.
+ * @returns {Promise<{choice: string|null, request: string}|null>}  `choice` "hint", "stash", "passage" or the bullet
+ *   id the select names (null where it names none), `request` the hint's sentence ("" for every other row); null
+ *   when the window was closed.
  */
 async function askWhatToAnalyze(actor, def, bullets) {
     // Two variants and one select, rather than two buttons and one select: the

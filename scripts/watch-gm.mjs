@@ -29,7 +29,7 @@
  * stands and kept with the incident (`holdForTheLights`, STG-01, 1.2.121).
  */
 
-import { MODULE_ID, FLAGS, INFILTRATE } from "./config.mjs";
+import { INFILTRATE } from "./config.mjs";
 import { getClock, incomingTimeOfDay, isEclipse, isDeadForGm } from "./settings.mjs";
 import { isPrimaryGm, whisperToOwnerOnly, log, error, esc, listOf } from "./utils.mjs";
 import { watchStore } from "./gm-stores.mjs";
@@ -103,9 +103,13 @@ export async function declareWatch({ actor, total = 0, isCritical = false, withH
     // A miss with Despair costs a Sanity mark (the plan's C6): written by this GM, its reason the GM's alone.
     if (!kept && !withHope) {
         const { trustedWrite } = await import("./resource-guard.mjs");
-        const stress = actor.system?.resources?.stress ?? {};
-        const next = Math.min(Number(stress.max) || 0, (Number(stress.value) || 0) + 1);
-        if (next !== Number(stress.value)) await trustedWrite(actor, { "system.resources.stress.value": next }, { reason: "infiltrate" });
+        // The Sanity track as the GMs hold it, mark and maximum (the audit's ROLL-26, 1.2.122; sheet-audit.mjs `meansWrite`).
+        const { meansWrite } = await import("./sheet-audit.mjs");
+        await meansWrite(actor, async ({ stress }, maxOf) => {
+            const max = Number(maxOf("stress")) || 0, now = Number(stress) || 0;
+            const next = Math.min(max, now + 1);
+            if (next !== now) await trustedWrite(actor, { "system.resources.stress.value": next }, { reason: "infiltrate" });
+        });
     }
     log(`${actor.name} ${kept ? "will keep watch" : "keeps no watch"} (${Number(total) || 0}).`);
     return { kept };
@@ -115,13 +119,16 @@ export async function declareWatch({ actor, total = 0, isCritical = false, withH
 const watches = () => Object.entries(watchStore.entries() ?? {}).filter(([, row]) => row?.actorId);
 
 /** The living students standing in `room` of `scene` as the GMs read them, by name, but `skip`'s. */
-async function namesIn(scene, room, skip) {
-    const { roomOfToken } = await import("./movement.mjs");
+export async function namesIn(scene, room, skip = new Set()) {
+    /* THE ROOM'S ONE ANSWER (the audit's ITEM-21, 1.2.122): this list skipped a Monokuma, the dead and a hidden token and
+       nothing else, so it named a Spectator - the watcher every dead student gets since E62 C3b, under the dead student's
+       name, among them. movement.mjs `countsAsPresent` (no Monokuma, no Spectator, no dead, none the GMs hide) now, as the
+       door cards since CHAINS.md B-R7. Red at 21bf5d18 (tier 2 "1.2.122 ITEM-21"): the Spectator was named. */
+    const { roomOfToken, countsAsPresent } = await import("./movement.mjs");
     const names = [];
     for (const token of scene?.tokens ?? []) {
         const student = token.actor;
-        if (!student || student.type !== "character" || token.hidden || skip.has(student.id)) continue;
-        if (student.getFlag(MODULE_ID, FLAGS.monokuma) || isDeadForGm(student) || roomOfToken(token) !== room) continue;
+        if (!countsAsPresent(token) || skip.has(student.id) || roomOfToken(token) !== room) continue;
         if (!names.includes(student.name)) names.push(student.name);
     }
     return names;

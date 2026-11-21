@@ -47,6 +47,7 @@
  */
 
 import { MODULE_ID, FLAGS, TIMING } from "./config.mjs";
+import { isStainedGlass } from "./look.mjs";
 import { SETTINGS, getSetting, isDeadForGm, incidentSeats } from "./settings.mjs";
 import { locateActor, occupantsOf } from "./movement.mjs";
 import { monokumaActors, poolOwnerOf } from "./monokuma.mjs";
@@ -72,6 +73,8 @@ export function registerPrivateRolls() {
     Hooks.on("preCreateChatMessage", onPreCreateChatMessage);
     // Whose roll it is, told to the primary GM as the message exists (E06 fix r1-G2).
     Hooks.on("createChatMessage", reportClaimedRoll);
+    // A drawn roll this browser waited on before a reload, arriving after it (ROLL-21, `keepAwaitedHere`).
+    Hooks.on("createChatMessage", message => { if (!game.user?.isGM) keepAwaitedHere(message); });
     // `renderChatMessageHTML` and nothing else.
     //
     // The deprecated `renderChatMessage` was registered alongside it as a
@@ -399,10 +402,8 @@ function styleNow() {
             const root = getComputedStyle(document.documentElement);
             for (const token of Object.values(OUTCOME_TOKEN)) colours[token] = root.getPropertyValue(token).trim();
         } catch { /* keep an empty map: the card is still a readable card */ }
-        const square = (() => {
-            try { return getSetting(SETTINGS.theme) === "stainedGlass"; }
-            catch { return document.body.classList.contains("drpg-theme-stained-glass"); }
-        })();
+        // The one reading of the theme (look.mjs `isStainedGlass`; DOC-16, 1.2.122).
+        const square = isStainedGlass();
         styleMemo = { at: now, colours, square };
     }
     return styleMemo;
@@ -616,7 +617,8 @@ export function rollNonceOf(message, data = null) {
  * @param {string|null} [opts.actionKey]  the action the roll is for, kept on the claim for the GM's draw (roll-draw.mjs); never on the roll.
  * @param {object|null} [opts.facts]  what the GM's draw is told beside the roll (E08+E28 C12b): `calls`, the nonces of the
  *   Calls the roll applied (the roll window's, `noteWindowCalls`), and `context`, the action's (a Search's category and
- *   its stash). On the claim, in this browser's memory, and never on the roll, whose options its message keeps.
+ *   goal; no stash since 1.2.112, roll-draw.mjs `CONTEXT_SENT`). On the claim, in this browser's memory, and never on
+ *   the roll, whose options its message keeps.
  *
  * The GM's draw of a player's roll (roll-draw.mjs `drawOnGm`, E08+E28 C12a) claims the
  * message it writes with the roller's nonce, which the roll already carries (`nonce`), stamps
@@ -1144,7 +1146,7 @@ export const ROLL_ACTIONS = table({
      * to beyond its dice was observed from C12b on (D2's allowance for 1.2.67), and since
      * E29 C10 the GM throws what it reads for itself, row by row of its own list (config.mjs
      * `LEGAL_ROLL_MODIFIERS`, roll-draw.mjs `expectedFor`, `legalRollOf`): the statistic, the
-     * experiences, the Calls, the stash and the roll's own numbers the packet names are the
+     * experiences, the Calls and the roll's own numbers the packet names are the
      * roller's word, a claim recorded and flagged where it differs, never counted. What it
      * costs is its experiences' Hope (`guardDrawnCosts`), and the action it is for one its
      * character is taking now, drawn once (roll-draw.mjs `drawRefusal`; fix r2-H1).
@@ -1166,8 +1168,8 @@ export const ROLL_ACTIONS = table({
             loaded: "the Loaded Die is loaded on the GM only while that character's armed Calls hold this nonce and the roll applied it (roll-draw.mjs drawOnGm)",
             experiences: "only the sender's own character's experiences count, at the value the GM holds; one beyond what an armed Call allows is not counted, and flagged to the GMs (roll-draw.mjs legalRollOf, checkRoll)",
             calls: "only Calls armed on the sender's own character as the GM holds them count; the GM spends those and reads its expectation from them (roll-draw.mjs appliedCalls)",
-            context: "a Search's category and stash as the roller saw them: the room is the GM's, its favour and its hidden stash read by the GM (roll-draw.mjs expectedFor); a crisis roll's crisis action, judged against the incident at the draw (drawRefusal) and kept on the record its packet must match (bridge-guards.mjs rollRefusal); a clean-up's step and door, which name the statistic it is held to and whether a Cleaning Tool's die counts",
-            situational: "not read: the GM reads each action's situation for itself (roll-draw.mjs LEGAL_READERS)"
+            context: "a Search's category and goal as the roller saw them (no stash since 1.2.112: CONTEXT_SENT has none): the room is the GM's, its favour read by the GM (roll-draw.mjs expectedFor); a crisis roll's crisis action, judged against the incident at the draw (drawRefusal) and kept on the record its packet must match (bridge-guards.mjs rollRefusal); a clean-up's step and door, which name the statistic it is held to and whether a Cleaning Tool's die counts",
+            situational: "not read: the GM reads each action's situation for itself (roll-draw.mjs LEGAL_READERS); still sanitized and forwarded into drawOnGm's packet, where throwDrawn's destructuring drops it"
         }
     },
     /*
@@ -1581,6 +1583,8 @@ async function keepReadable(messageId) {
  */
 export function refillReadable() {
     readableHere.clear();
+    // What a reload leaves (a page's memory empty at `ready` anyway): the waits too, read back below from what was kept.
+    drawsAwaited.clear();
     let ids = [];
     try {
         const kept = getSetting(SETTINGS.readableRolls)?.[readableKey()];
@@ -1589,14 +1593,61 @@ export function refillReadable() {
         debug("Could not read the drawn rolls this browser kept", err);
     }
     for (const id of ids.slice(-READABLE_KEPT)) readableHere.add(id);
+    // The waits kept for a reload (ROLL-21): waited on again, and a drawn message that came for one meanwhile kept.
+    try {
+        const now = Date.now();
+        for (const [nonce, at] of Object.entries(getSetting(SETTINGS.readableRolls)?.[noncesKey()] ?? {})) {
+            if (now - Number(at) < AWAIT_KEPT_MS) drawsAwaited.add(nonce);
+        }
+        for (const message of game.messages?.contents ?? []) keepAwaitedHere(message);
+    } catch (err) {
+        debug("Could not read the drawn rolls' waits this browser kept", err);
+    }
     return readableHere.size;
 }
 
-/** This browser waits on the GM to draw the roll carrying `nonce`; answers the call that stops waiting. */
+/**
+ * This browser waits on the GM to draw the roll carrying `nonce`; answers the call that stops waiting.
+ *
+ * KEPT FOR A RELOAD (the audit's ROLL-21, 1.2.122). A roller who reloaded while the GM drew their statistic from the
+ * sheet lost both roads to its card: the wait (`drawsAwaited`, memory) and the answer that keeps its id (`playBack`'s
+ * `readHere` with `keep`, which runs only on the browser that asked). The GM settled it, and the card stayed hidden on
+ * the roller's own browser for good. So the nonce is kept beside the readable ids (`readableRolls`, under this world and
+ * user's `.nonces`), stamped, until the wait ends; after a reload `refillReadable` waits on those not older than
+ * `AWAIT_KEPT_MS` again, and a drawn message carrying one is this browser's to read and kept (`keepAwaitedHere`).
+ */
 export function awaitDrawn(nonce) {
     if (typeof nonce !== "string" || !nonce) return () => {};
     drawsAwaited.add(nonce);
-    return () => drawsAwaited.delete(nonce);
+    void keepAwaited(nonce, true);
+    return () => {
+        drawsAwaited.delete(nonce);
+        void keepAwaited(nonce, false);
+    };
+}
+
+/** How long a wait kept for a reload is waited on again: a draw's longest wait, the GM's audit's included, and more. */
+const AWAIT_KEPT_MS = 10 * 60 * 1000;
+const noncesKey = () => `${readableKey()}.nonces`;
+
+async function keepAwaited(nonce, on) {
+    try {
+        const all = { ...(getSetting(SETTINGS.readableRolls) ?? {}) };
+        const now = Date.now();
+        const kept = Object.fromEntries(Object.entries(all[noncesKey()] ?? {}).filter(([n, at]) => n !== nonce && now - Number(at) < AWAIT_KEPT_MS));
+        if (on) kept[nonce] = now;
+        all[noncesKey()] = kept;
+        await game.settings.set(MODULE_ID, SETTINGS.readableRolls, all);
+    } catch (err) {
+        debug("Could not keep a drawn roll's wait for a reload", err);
+    }
+}
+
+/** A drawn message carrying a nonce this browser waited on before a reload: read here, and kept. Answers whether it was. */
+export function keepAwaitedHere(message) {
+    if (!message?.id || !isDrawnRoll(message) || !drawsAwaited.has(rollNonceOf(message) ?? "")) return false;
+    readHere(message.id, { keep: true });
+    return true;
 }
 
 /** May this browser read this message by `readableHere`'s rule - beside core's, which the patch asks after it? */

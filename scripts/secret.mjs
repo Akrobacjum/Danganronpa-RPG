@@ -125,9 +125,22 @@ const WORDS_CEILING_MS = 4000;
  * What a card whose words never came here shows instead of the stub: the stub's own mark
  * (so `isStub` still says no words are held) around DRPG.Secret.wordsElsewhere.
  */
-function elsewhereHtml() {
-    const line = foundry.utils.escapeHTML(game.i18n?.localize("DRPG.Secret.wordsElsewhere") ?? "");
+function elsewhereHtml(message = null) {
+    const key = heldForReaders(message) ? "DRPG.Secret.wordsHeldForReaders" : "DRPG.Secret.wordsElsewhere";
+    const line = foundry.utils.escapeHTML(game.i18n?.localize(key) ?? "");
     return `<p class="notes" data-drpg-secret>${line}</p>`;
+}
+
+/**
+ * Whether this browser keeps `message`'s words for its readers and does not read them itself (E38's `authorHold`: a GM's
+ * card to players alone). Such a card was drawn "Its words did not reach this browser" after its wait, which was false on
+ * the one browser that holds them and read like a failed delivery (1.2.122; the audit of 1.2.118, CORE-39); it is drawn
+ * with a line of its own (`DRPG.Secret.wordsHeldForReaders`), at once. Exported for R8109.
+ */
+export function heldForReaders(message) {
+    if (!message?.id || !message.flags?.[MODULE_ID]?.[SECRET_FLAG]) return false;
+    const entry = read()[message.id];
+    return Boolean(entry?.authorHold && (!entry.user || entry.user === game.user?.id));
 }
 
 /**
@@ -481,8 +494,8 @@ export function setNameMask(fn, { stands, masked } = {}) {
  * while a mask stood ...", red at 937a98b0: the answer after the mask's end and the rewrite held it). So the characters
  * behind a mask when the words were remembered are kept with them (`hid`, `{ id, name }`), and their names stay "?" for
  * every reader who does not play them, as they were while it stood - until the killer reveals themselves, which takes
- * them off every card this GM holds (`forgetHeldMask`, from mask-gm.mjs `endMask`). Another GM's store does not hear the
- * reveal and keeps the words cut: the side that hides. Pure but for the actors read; none for a GM.
+ * them off every card this GM holds (`forgetHeldMask`, from mask-gm.mjs `endMask`), and since 1.2.122 off every other
+ * connected GM's (`ACTION_UNMASK`); a GM not connected at the reveal keeps the words cut: the side that hides. Pure but for the actors read; none for a GM.
  */
 function heldMaskNames(userId, hid) {
     if (!Array.isArray(hid) || !hid.length) return [];
@@ -504,8 +517,8 @@ function heldMaskNames(userId, hid) {
  * first had left (scenario 97 K1, red at e515907d: p2 was served "E120K again Chie Mori was seen" by gm2; gm2's own
  * rewrite named her as well, K2). So a GM's words to another GM carry its `hid` - `answerWordsRequest`, `sendWords` for
  * a post and a rewrite - and the GM given them keeps those rows with its own (`remember`'s `hidGiven`, `keepHeldMask`
- * when the words were here already). Only from a GM (`onSecretPacket`'s GM branch), never to a player. A reveal is
- * still heard by the GM that ran it alone (`forgetHeldMask`): a second GM keeps the name cut, the side that hides.
+ * when the words were here already). Only from a GM (`onSecretPacket`'s GM branch), never to a player. A reveal is heard
+ * by every GM connected since 1.2.122 (`forgetHeldMask`'s `tell`, r121-M-3); one away at it keeps the name cut.
  */
 async function keepHeldMask(id, rows) {
     const entry = read()[id];
@@ -516,9 +529,22 @@ async function keepHeldMask(id, rows) {
     return true;
 }
 
-/** The killer revealed themselves: their name is no longer kept cut on any card this browser holds (`heldMaskNames`). */
-export async function forgetHeldMask(actorId) {
+/*
+ * A REVEAL IS HEARD BY EVERY GM CONNECTED (1.2.122 line CORE; the audit of 1.2.121, r121-M-3). Only the GM that ran the
+ * reveal (mask-gm.mjs `endMask`) forgot the rows, and a second GM kept the revealed killer's name "?" on every card it
+ * served and rewrote. With `tell`, the GMs connected are sent the actor's id (`ACTION_UNMASK`), and each forgets the same
+ * rows (`onSecretPacket`, from a GM only, on a GM only). A GM not connected at the reveal hears nothing and keeps the
+ * name cut, the side that hides: the mask's row is dropped at its end and no record of the reveal is kept to read later.
+ */
+const ACTION_UNMASK = "secret.unmask";
+
+/** The killer revealed themselves: their name is no longer kept cut on any card this browser holds (`heldMaskNames`); with `tell`, on the other GMs' either. */
+export async function forgetHeldMask(actorId, { tell = false } = {}) {
     if (!actorId) return 0;
+    if (tell && game.user?.isGM) {
+        const others = activeGmIds().filter(id => id && id !== game.user.id);
+        if (others.length) game.socket.emit(SOCKET_EVENT, { action: ACTION_UNMASK, actorId }, { recipients: others });
+    }
     const store = read();
     let n = 0;
     const next = Object.fromEntries(Object.entries(store).map(([id, entry]) => {
@@ -724,8 +750,8 @@ export function secretHtml(message) {
     const entry = read()[message.id];
     if (!entry || typeof entry.html !== "string") return null;
     if (entry.user && entry.user !== game.user?.id) return null;
-    // Its author keeps it for others, and does not read it here (E38): a GM whispering a card to players alone sees
-    // its stub, as it did before the author-hold catch-up.
+    // Its author keeps it for others, and does not read it here (E38): a GM whispering a card to players alone has no
+    // words of it here, and its card is drawn with `DRPG.Secret.wordsHeldForReaders` at once (1.2.122, `heldForReaders`).
     if (entry.authorHold) return null;
     if (entry.trusted) return entry.html;
     if (!cleaned.has(message.id)) cleaned.set(message.id, cleanCardHtml(entry.html));
@@ -820,7 +846,7 @@ export function wordsOf(message, ms = WORDS_CEILING_MS) {
             else waiting.delete(message.id);
             /* A NOTICE THAT WAITED IN VAIN SAYS SO (E18 C4): it drew the stub's dash. Still the stub's mark, so a
                reader asking `isStub` of the answer (the Chat pip's) reads that no words came. */
-            resolve(html ?? (isStub(message.content) ? elsewhereHtml() : message.content ?? ""));
+            resolve(html ?? (isStub(message.content) ? elsewhereHtml(message) : message.content ?? ""));
         };
         const timer = setTimeout(() => {
             debug(`Secret cards: the words for ${message.id} never arrived; `
@@ -924,14 +950,35 @@ async function remember(id, html, at, pin = false, trusted = false, summary = un
 }
 
 /**
- * The readers an entry keeps after a write: those it held, with the ones this write names added (a GM's
- * `updateSecret` to a reader the card did not have, as a freed victim's line). Never fewer: who was given a
- * card's words may be given them again. Null when neither names anybody. Pure.
+ * The readers an entry keeps after a write: those it held, with the ones this write names added. Never fewer: who
+ * was given a card's words may be given them again. Null when neither names anybody. Pure. (Read 21.11.2026: an
+ * added reader comes from a remember whose readers name more than the entry held, and, on an author's hold, from
+ * `holdWordsFor` - a freed victim's line among them, CORE-23.)
  */
 function heldReadersAfter(before, added) {
     const ids = [...(Array.isArray(before) ? before : []), ...(Array.isArray(added) ? added : [])]
         .filter(id => typeof id === "string" && /^[A-Za-z0-9]+$/.test(id));
     return ids.length ? [...new Set(ids)] : null;
+}
+
+/**
+ * THE AUTHOR'S HOLD FOLLOWS A SECOND AUDIENCE (the audit's CORE-23 and STG-26, 1.2.122; written by line MURDER, told to
+ * CORE). A GM that posts a veiled card to players alone keeps its words as an author's hold (`authorHold`, readers = the
+ * first whisper list), and `updateSecret` remembered new words only on a browser among their readers, which a GM sending
+ * to players alone never is - so the hold kept the first readers and the first words, and a second audience the card was
+ * given afterwards (murder-rules.mjs `tellIncidentClosed`: the freed victim's "You can act again") asked at their return
+ * and was answered nothing. The hold now keeps each later reader's own words (`other`, by user id) and names them among
+ * its readers; `answerWordsRequest` serves a reader their own. Red at 749b35b5 (tier 2 "1.2.122 CORE-23").
+ */
+async function holdWordsFor(id, readers, html) {
+    const entry = read()[id];
+    if (!entry?.authorHold || typeof html !== "string") return false;
+    const ids = (readers ?? []).filter(r => typeof r === "string" && /^[A-Za-z0-9]+$/.test(r));
+    if (!ids.length) return false;
+    const other = { ...(entry.other && typeof entry.other === "object" ? entry.other : {}) };
+    for (const r of ids) other[r] = html;
+    await write({ ...read(), [id]: { ...entry, readers: heldReadersAfter(entry.readers, ids), other } });
+    return true;
 }
 
 /** Written by a GM, as Foundry stamped it: a card whose whisper list no player could have changed. */
@@ -967,6 +1014,12 @@ function writtenByGm(message) {
  * words of none of its cards - up to `secretCardsKept` of them - and each would land in the middle of the
  * screen and in the history at once. Only the newest `RETURN_NOTICES` of an ask raise one; the rest are
  * read where they are, in the chat log and the messenger. A choice of this commit's, not a measurement.
+ *
+ * THE SLOTS GO TO THE CARDS ANSWERED (1.2.122; the audit of 1.2.118, CORE-40). A veiled card is addressed to everyone,
+ * so a returning player asks for every veiled card it has no words for, its own and every other participant's; the GMs
+ * answer only its own. The slots went to the newest of all it asked, so after an incident full of veiled cards to others
+ * the player's own returned cards raised none. Now every card asked may raise one, and the first `RETURN_NOTICES`
+ * answered do (`returnNoticesLeft`, set again at each ask).
  */
 const ACTION_REQUEST = "secret.request";
 /** gm-bridge.mjs's "a GM's world has loaded" (`ACTION_GM_READY`), spelled here: that file imports this one. */
@@ -977,8 +1030,10 @@ const REQUEST_BATCH = 100;
 const RETURN_NOTICES = 8;
 /** Cards this browser asked the GMs for whose words have not come yet. */
 const asked = new Set();
-/** Of those, the ones whose words raise a notice when they come (`RETURN_NOTICES`). */
+/** Of those, the ones whose words may raise a notice when they come; the first `RETURN_NOTICES` answered do. */
 const noticeOnReturn = new Set();
+/** How many of this ask's answers may still raise a notice (`RETURN_NOTICES` at each ask). */
+let returnNoticesLeft = 0;
 /** Cards whose words did not come by the end of their wait: drawn with `elsewhereHtml`. */
 const unfilled = new Set();
 /** Cards a wait is running for, so a card drawn again starts no second one. */
@@ -1028,8 +1083,8 @@ export function askForWords(gmUserIds = null) {
     const mine = stubs.filter(m => (m.whisper ?? []).includes(me)).map(m => m.id);
     if (gms.length && mine.length) {
         for (const id of mine) asked.add(id);
-        const newest = stubs.filter(m => mine.includes(m.id)).sort((a, b) => (b.timestamp ?? 0) - (a.timestamp ?? 0));
-        for (const m of newest.slice(0, RETURN_NOTICES)) noticeOnReturn.add(m.id);
+        for (const id of mine) noticeOnReturn.add(id);
+        returnNoticesLeft = RETURN_NOTICES;
         for (let i = 0; i < mine.length; i += REQUEST_BATCH) {
             game.socket.emit(SOCKET_EVENT, { action: ACTION_REQUEST, ids: mine.slice(i, i + REQUEST_BATCH) }, { recipients: gms });
         }
@@ -1065,7 +1120,9 @@ export function answerWordsRequest(payload, senderId) {
         if (!readers.includes(sender.id)) continue;
         // The asker keeps a GM's answer as a GM's words, as written: words this browser did not write are cleaned first.
         // Cut from the uncut words where this GM keeps them, so the asker reads the line written for them (`lines`, above).
-        const source = typeof entry.lines === "string" ? entry.lines : entry.html;
+        // A reader the author gave words of their own (`holdWordsFor`) is served those.
+        const own = entry.other && typeof entry.other[sender.id] === "string" ? entry.other[sender.id] : null;
+        const source = own ?? (typeof entry.lines === "string" ? entry.lines : entry.html);
         const words = entry.trusted ? source : cleanCardHtml(source);
         game.socket.emit(SOCKET_EVENT, {
             action: ACTION_SECRET, id, html: wordsFor(sender.id, words, entry.hid), at: entry.at ?? message.timestamp ?? Date.now(),
@@ -1089,7 +1146,8 @@ async function cardOnReturn(id) {
     if (!asked.delete(id)) return false;
     if (!noticeOnReturn.delete(id)) return false;
     const message = game.messages?.get(id);
-    if (!message) return false;
+    if (!message || returnNoticesLeft <= 0) return false;
+    returnNoticesLeft -= 1;
     // Imported here: popup.mjs imports this file, and a static import back is the cycle R161 fails.
     const { onCreateChatMessage } = await import("./popup.mjs");
     await onCreateChatMessage(message);
@@ -1120,8 +1178,10 @@ export function drawPrivateCard(message, element) {
         if (isVeiled(message)) {
             element.classList.add("drpg-veiled");
             element.style.display = "none";
+        } else if (heldForReaders(message)) {
+            body.innerHTML = elsewhereHtml(message);
         } else if (wordless(message)) {
-            if (unfilled.has(message.id)) body.innerHTML = elsewhereHtml();
+            if (unfilled.has(message.id)) body.innerHTML = elsewhereHtml(message);
             else giveUpLater([message]);
         }
         trim();
@@ -1139,7 +1199,7 @@ export function drawPrivateCard(message, element) {
  * Not `contentOf` itself, whose callers rewrite a card from what it reads (call-gm.mjs `keepRuling`).
  */
 export function shownWordsOf(message) {
-    return unfilled.has(message?.id) && wordless(message) ? elsewhereHtml() : contentOf(message);
+    return (heldForReaders(message) || unfilled.has(message?.id)) && wordless(message) ? elsewhereHtml(message) : contentOf(message);
 }
 
 /** A card the store must never age out: a messenger thread's. */
@@ -1444,6 +1504,8 @@ export async function updateSecret(message, html, recipients = null, meta = unde
         await remember(message.id, wordsFor(game.user.id, html), at, pin, game.user.isGM, undefined, more, keep,
             game.user.isGM ? html : undefined);
         refresh(message);
+    } else if (game.user.isGM && recipients && read()[message.id]?.authorHold) {
+        await holdWordsFor(message.id, readers, html);
     }
     const others = readers.filter(id => id !== game.user.id);
     if (others.length) {
@@ -1531,7 +1593,12 @@ function redrawIfDrawn(message) {
 export async function onSecretPacket(payload, senderId) {
     // A returning reader's ask, judged on each GM against its own store (E18 C4).
     if (payload?.action === ACTION_REQUEST) {
-        if (game.user.isGM) answerWordsRequest(payload, senderId);
+        if (game.user?.isGM) answerWordsRequest(payload, senderId);
+        return;
+    }
+    // Another GM's reveal (r121-M-3): the same rows forgotten here, told by a GM to a GM alone.
+    if (payload?.action === ACTION_UNMASK) {
+        if (game.user?.isGM && game.users.get(senderId ?? "")?.isGM && typeof payload.actorId === "string") await forgetHeldMask(payload.actorId);
         return;
     }
     // A GM whose world has loaded can answer: ask it for what this browser holds no words of.
@@ -1580,7 +1647,7 @@ export async function onSecretPacket(payload, senderId) {
             const pin = pinned(message.flags) || meta?.thread === senderId;
             /* A GM keeps the readers of a player's card as they stand when its words first come: the author's
                list then, not one widened after (E18 C4). */
-            const first = game.user.isGM && !read()[payload.id]?.readers ? readersOf(message, { quiet: true }) : undefined;
+            const first = game.user?.isGM && !read()[payload.id]?.readers ? readersOf(message, { quiet: true }) : undefined;
             await remember(payload.id, payload.html, payload.at, pin, false, given, meta ?? undefined, first);
             refresh(game.messages.get(payload.id));
             return;
@@ -1588,13 +1655,13 @@ export async function onSecretPacket(payload, senderId) {
         // A GM keeps a GM-written card's readers as its document names them (`readersOf`); another's stay as held.
         const arrived = game.messages.get(payload.id);
         // Who stood behind a mask when the sending GM kept these words: a GM keeps them too ("THE SECOND GM").
-        const hidGiven = game.user.isGM ? heldMaskOf(payload.hid) : [];
+        const hidGiven = game.user?.isGM ? heldMaskOf(payload.hid) : [];
         // A second GM's answer to the same ask: the words are here already (E18 C4); what it kept masked is kept too.
         if (payload.requested === true && secretHtml(arrived) !== null) {
             if (hidGiven.length) await keepHeldMask(payload.id, hidGiven);
             return;
         }
-        const readers = game.user.isGM && writtenByGm(arrived) ? readersOf(arrived, { quiet: true }) : undefined;
+        const readers = game.user?.isGM && writtenByGm(arrived) ? readersOf(arrived, { quiet: true }) : undefined;
         await remember(payload.id, payload.html, payload.at, Boolean(payload.pin), true,
             payload.summary === undefined ? undefined : plainSummary(payload.summary), payload.meta, readers,
             typeof payload.lines === "string" ? payload.lines : undefined, { hidGiven });

@@ -30,8 +30,9 @@
  * `rollOpening`; `guardTraitRuling` refuses one from a player), and a clean-up
  * from whoever throws it - until E68 C5 (DA4) put Stage 6 on Shadow alone, which asks nobody.
  *
- * OUTSIDE THE INCIDENT NOTHING ASKS (C11d; the owner's rules of 28.09.2026). Search
- * rolls Eye alone, and a Project's roll - Work on it, or a Sabotage of it - the one
+ * OUTSIDE THE INCIDENT (C11d; the owner's rules of 28.09.2026). Search lists six
+ * statistics since E68 C6 and asks a GM on a card for any but Eye (`CARD_ACTIONS`),
+ * and a Project's roll - Work on it, or a Sabotage of it - the one
  * statistic the project was given when it was made. The one exception is a project
  * stored without one, which both forms allowed until 1.2.66: no world data says which
  * statistic the GM meant, so the first roll on it asks a GM once (kind `project`, key
@@ -69,8 +70,7 @@
  * THE VALVE (E68 C2, 10.11.2026; DA41 = 2, DA50 = 1). A world setting, off by default
  * (`autoApproveTraits`), approves a proposal with no GM's press in Daily Life - the clock's phase
  * Daily Life, no Night Eclipse and no incident running - for the definitions of its scope: a
- * Search (`{ kind: "action", key: "search" }`, which lists Eye alone until C6 and so asks nobody
- * yet) and a project stored without a statistic (kind `project`). Never a crisis action, a
+ * Search (`{ kind: "action", key: "search" }`: a proposal on any statistic but Eye, since C6) and a project stored without a statistic (kind `project`). Never a crisis action, a
  * clean-up, an opening, a Dynamic action (its own card) or Resolve (which asks nobody):
  * `autoApprovable`. On a player's ask the primary GM posts the card as for any proposal and then
  * presses its "Approve" by the click's road (messenger-app.mjs `pressCard`: claimed, ruled by

@@ -20,14 +20,24 @@ import {
     closingRefusal, confirmClosingSpeaker, pickClosingSpeaker, continueClosing, resumeClosing, startClosing,
     missingKeys, revealLeft, revealMissingKey } from "./trial-modes.mjs";
 import { keyRevealRecord } from "./investigation.mjs";
-import { closingClaimStore } from "./gm-stores.mjs";
+import { closingClaimStore, sheetMarkStore } from "./gm-stores.mjs";
+
+/**
+ * A student's write the vote's lines read (1.2.122, REFR-68): its owner, or a flag of the module's - a Monocub, not in
+ * the class - which vote.mjs `trialParticipants` reads (as the GMs hold them, `flagsHeldNow`, the store `sheetMarks`).
+ * A roll's write of the sheet's resources is not one of them, so the windows that print the voters hear only these (of
+ * any actor: a redraw for one that is no student draws the same lines).
+ */
+export const PARTICIPANT_WRITES = Object.freeze([
+    ["updateActor", (actor, change) => Boolean(change && ("ownership" in change || change.flags?.[MODULE_ID] !== undefined))],
+    ["createActor", () => true],
+    ["deleteActor", () => true]
+]);
 import { RECORD } from "./gm-store.mjs";
 import { placeRoomOptions, plural, error, esc, serverNow, listOf, wholeNumber } from "./utils.mjs";
 import { stepper, stepperId, drpgWindow, drpgConfirm, liveFooter, box, tipAttr, tipText, WINDOW_HELP } from "./ui-kit.mjs";
 import { getClock, setClock } from "./clock.mjs";
 import { alreadyOpen, keepLive, RAISED } from "./live.mjs";
-
-// E57 C4 (D35): the header's "?" - its own line, so a line that edits the imports above does not meet it.
 
 /* ON THE KIT'S FRAME (E21 C4, 06.11.2026). Every window of the trial's console is ui-kit.mjs `drpgWindow` (or its
    `drpgConfirm`): the screen's height, one body that scrolls, the footer by roles - the closing word, the secondary and the
@@ -288,10 +298,10 @@ export async function incidentClosedFirst() {
  * Open the Nonstop Debate, for as long as the GM thinks this one is worth.
  *
  * The moment the Objection rules come into force, which is why it is announced
- * rather than done quietly: until this happens a Truth Bullet goes on the table
- * as a Present and takes nothing from anybody, and from here the same button on
- * the same row is an Objection that takes the floor. The players' one button
- * changes meaning under them, so they are told.
+ * rather than done quietly: from here an Objection - the HUD's or the voice
+ * tile's own OBJECTION! - takes the floor. The sheet's button stays a Present
+ * whatever the floor (always one since 1.2.79, trial.mjs "ONE BUTTON"), so
+ * nothing on the sheet changes meaning; the table is told the debate is open.
  *
  * The length is asked for HERE, every time. A trial holds several debates and
  * they are not the same length - the first one opens wide and the one after a
@@ -429,15 +439,25 @@ export async function openRoundWindow(mode) {
                     { length: T.roundLength(field.value, list.children.length), n: list.children.length });
             };
             field.addEventListener("input", paint);
+            // The first row's Move up greyed, after every move and draw (1.2.122, CTRL-40: it looked pressable and moved nothing).
+            const holdFirst = () => {
+                for (const li of list.children) {
+                    const up = li.querySelector("[data-drpg-round-up]");
+                    if (up) up.disabled = li === list.firstElementChild;
+                }
+            };
             list.addEventListener("click", e => {
                 const item = e.target?.closest?.("[data-drpg-round-up]")?.closest("li");
                 if (item?.previousElementSibling) list.insertBefore(item, item.previousElementSibling);
+                holdFirst();
             });
+            holdFirst();
             root.querySelector("[data-drpg-round-draw]")?.addEventListener("click", () => {
                 for (const id of drawOrder([...list.children].map(li => li.dataset.drpgRoundId))) {
                     const item = [...list.children].find(li => li.dataset.drpgRoundId === id);
                     if (item) list.append(item);
                 }
+                holdFirst();
             });
             paint();
         },
@@ -709,10 +729,12 @@ export async function closeTrial({ sceneId = null, room = null } = {}) {
  *                 objection or a rebuttal already in progress
  *   the vote      who has not voted yet, then the verdict, then the chapter
  *
- * NO SECTION EVER DISAPPEARS. When nothing is running they hold one sentence
- * saying so. A section that vanishes teaches a GM that this window "sometimes
- * does not work", which is the wrong lesson from the right facts and the reason
- * they go looking for a second window to check.
+ * WITH NO TRIAL RUNNING the console draws its lead (what to do next), the
+ * register's line, the Final Trial's note and a stopped verdict's line alone
+ * (`trialConsoleHtml`, since E10 C14): the floor's and the vote's sections are
+ * left out, and the lead says why. Until then every section stood with one
+ * sentence saying it had nothing, so as not to teach a GM that the window
+ * "sometimes does not work"; the lead does that now.
  */
 /*
  * READ FRESH EVERY TIME, because this window is open while the floor moves
@@ -776,7 +798,7 @@ function readTrial({ inFinalTrial, mastermindActor, pendingVoters, voteBar, tria
         // The Closing's choice and decision are the GM's row, not the bar's Skip (E70 C8).
         view.barNext = running && view.restrictive && !(view.floor?.mode === FLOOR_MODES.closing && barRefusal("skip", view.floor)) ? "skip" : null;
         // A zone mode's lead is its own (E73): no Objection or rebuttal holds that floor.
-        view.lead = view.barNext && !["endRound", "endClosing", "endZone"].includes(view.next) ? "now" : view.next;
+        view.lead = view.barNext && !["endRound", "endClosing", "closingChoice", "endZone"].includes(view.next) ? "now" : view.next;
         return view;
 }
 
@@ -828,6 +850,8 @@ const TRIAL_LEADS = {
     closeDebate: "DRPG.Floor.lead.closeDebate",
     endRound: "DRPG.Floor.lead.round",
     endClosing: "DRPG.Floor.lead.closing",
+    // 1.2.122 (CASE-62): the Closing waits on the GM's choice of its speaker, or on the decision after an Objection.
+    closingChoice: "DRPG.Floor.lead.closingChoice",
     // E73: a zone mode running, and Scrum Debate next after a split Straw Poll.
     endZone: "DRPG.Floor.lead.zones",
     scrum: "DRPG.Floor.lead.scrum",
@@ -1131,8 +1155,11 @@ function logButton(view = {}) {
 export function modePickerHtml(view) {
     const { floor = null, progress = {} } = view ?? {};
     const busy = floor && floor.mode !== FLOOR_MODES.debate ? game.i18n.localize("DRPG.Floor.round.busy") : null;
+    // The debate's own start: "already running" in the debate and its exchange, the machine's startBusy over a round, the
+    // Closing or a zone mode (1.2.122; CTRL-37, CASE-65: it said the debate was running in a Testimony).
+    const debateHolds = floor && (floor.mode === FLOOR_MODES.debate || floorFamily(floor) === "debate");
     const why = (mode, action) => {
-        if (action === "openDebate") return floor ? game.i18n.localize("DRPG.Floor.bar.inDebate") : null;
+        if (action === "openDebate") return floor ? game.i18n.localize(debateHolds ? "DRPG.Floor.bar.inDebate" : "DRPG.Floor.startBusy") : null;
         if (busy) return busy;
         if (action === "startClosing") return closingRefusal(progress, floor);
         if (action === "zones") return zoneStartRefusal(floor, { inTrial: true });
@@ -1366,11 +1393,13 @@ export function trialBodyHtml(view) {
  * its buttons are stale is exactly the half-live shape trap 171 is about -
  * the GM panel's murder tile, all over again.
  *
- * So when the SET of available buttons would change, the window opens again
- * instead. That is not a special case bolted on: every action in this
- * console already ends with `return manageClassTrial()`, because the GM
- * should land on the screen they pressed the button from. This makes a
- * change arriving from somebody else behave the same as one they made.
+ * Since E47 C1 the footer is redrawn in place (ui-kit.mjs `liveFooter`), and the
+ * bar's, the mode picker's and the Closing row's presses leave the console
+ * open. The window opens again only when this signature changes - the trial
+ * started or ended, the floor's family changed - and a footer action still
+ * ends with `return manageClassTrial()`, so the GM lands on the screen they
+ * pressed it from; a reopen of the live hook's own is that chain's since
+ * 1.2.122 (CASE-39).
  */
 function trialSignature(view) {
     const { floor, running } = view;
@@ -1386,7 +1415,7 @@ function trialSignature(view) {
 }
 
 /** The footer, by state: the debate toggle, the three closing steps, start or end, the Final Trial switch, close. */
-function trialButtons({ floor, running, finalNow, progress, afterwards, stopped, table, isDefault, mastermind = true }) {
+function trialButtons({ floor, running, finalNow, progress, afterwards, stopped, table, isDefault, mastermind = true, runner = null }) {
     return [
         ...(running
             ? [
@@ -1444,14 +1473,21 @@ function trialButtons({ floor, running, finalNow, progress, afterwards, stopped,
                 // Only while a verdict stands stopped halfway: the lock above
                 // keeps a second verdict out, and this runs the steps the first
                 // one did not finish (E10 C5, S06-39).
+                // On a GM who is not the verdict's runner, greyed with the runner's name (1.2.122, CTRL-44): a press there
+                // was always refused (verdict.mjs `finishVerdict`).
                 ...(stopped
                     ? [{ action: "finishVerdict", label: game.i18n.localize("DRPG.Vote.finishVerdict"),
-                        default: isDefault("finishVerdict") }]
+                        default: isDefault("finishVerdict"),
+                        ...(runner && runner !== game.user.id ? { disabled: true,
+                            tooltip: game.i18n.format("DRPG.Vote.finishOtherGm", { name: game.users.get(runner)?.name ?? "?" }) } : {}) }]
                     : []),
                 // The case's summary for the players (E99 C7): after the verdict, not in a Final Trial (Q-E99-5)
                 // Greyed and named as sent once this trial's summary is out (the record's `summaryShown`), on every GM's console
+                // Its reason on the greyed button (1.2.122, CTRL-38): before the verdict, and in a Final Trial, which has none.
                 { action: "caseSummary", label: game.i18n.localize(progress.summaryShown ? "DRPG.CaseSummary.shown" : "DRPG.CaseSummary.show"),
-                  disabled: !progress.verdictApplied || Boolean(finalNow) || Boolean(progress.summaryShown), default: isDefault("caseSummary") },
+                  disabled: !progress.verdictApplied || Boolean(finalNow) || Boolean(progress.summaryShown), default: isDefault("caseSummary"),
+                  ...(finalNow ? { tooltip: game.i18n.localize("DRPG.CaseSummary.noneInFinal") }
+                      : !progress.verdictApplied ? { tooltip: game.i18n.localize("DRPG.CaseSummary.afterVerdict") } : {}) },
                 // Once it is out, this GM may play the board again on their own browser (E109, DRPG-Q113 #56; Q-E99-9).
                 ...(progress.summaryShown && !finalNow
                     ? [{ action: "caseSummaryReplay", label: game.i18n.localize("DRPG.CaseSummary.replay") }]
@@ -1602,7 +1638,7 @@ export async function manageClassTrial() {
     const { blackenedIds } = await import("./murder.mjs");
     const { studentActors } = await import("./monokuma.mjs");
     const { isDeadForGm, deathRecordFor, sameSeason } = await import("./settings.mjs");
-    const { blackenedStore, deathStore } = await import("./gm-stores.mjs");
+    const { blackenedStore, deathStore, mastermindStore, keyPlanStore, remnantStore } = await import("./gm-stores.mjs");
     const { trialScene, schoolScene } = await import("./rooms.mjs");
     const { trialReturnTo, leaveDestination, tableDoor } = await import("./trial-scene.mjs");
     const deps = { inFinalTrial, mastermindActor, pendingVoters, voteBar, trialProgress, verdictStopped, verdictRunner, blackenedIds,
@@ -1620,6 +1656,7 @@ export async function manageClassTrial() {
 
     const openedWith = signature();
     let reopening = false;
+    let closing = null;
 
     // The frame only (M6; E21 C4): the console's layout is E47's; its footer by roles (`trialFooter`).
     const action = await drpgWindow({
@@ -1671,7 +1708,12 @@ export async function manageClassTrial() {
                  * this window is read in the code, not measured: scenario 41 k2 presses the console's own
                  * door, after which the console reopens anyway.
                  */
-                watch: { hooks: ["drpgBallotsChanged", "userConnected", "updateScene"], stores: [blackenedStore, deathStore] },
+                /* AND WHAT THE FOOTER AND THE REVEAL LIST READ (1.2.122; CTRL-41, CTRL-42, REFR-70): the Mastermind's pick
+                   (Start the Final Trial's greying), the Key plan, the trace ledger and the Truth Bullet items the Missing Key
+                   Remnants and "Left to reveal" are built from. With no floor open no tick redraws the console, so a pick in
+                   Season setup, a Reveal made in discussion or another GM's Key plan write stood unseen until another write. */
+                watch: { hooks: ["drpgBallotsChanged", "userConnected", "updateScene"], items: true, where: PARTICIPANT_WRITES,
+                    stores: [blackenedStore, deathStore, mastermindStore, keyPlanStore, remnantStore, sheetMarkStore] },
                 after: () => {
                     if (reopening) return;
                     /* THE FOOTER IN PLACE (E47 C1, 09.11.2026; the owner's 05.10 D (2), E47-02): a vote opened by
@@ -1692,13 +1734,14 @@ export async function manageClassTrial() {
                      * for a window while the old one was still there, was correctly
                      * refused, and the GM was left looking at the scene.
                      *
-                     * Closing resolves the `DialogV2.wait` above with null, which
-                     * the handler below already returns for - so the reopen belongs
-                     * here rather than smuggled into the action chain.
+                     * Closing resolves the `DialogV2.wait` above with null. THE REOPEN
+                     * IS THE AWAITED CHAIN'S (1.2.122, CASE-39): it ran from a detached
+                     * `.then` here, so the wait answered null to whoever awaited this
+                     * console - the GM panel's tile, which then opened the panel beside
+                     * the reopened console. The chain below waits for this close and
+                     * answers the next console, as a footer action does.
                      */
-                    dialog.close()
-                        .then(() => manageClassTrial())
-                        .catch(err => error("Could not reopen the trial console", err));
+                    closing = dialog.close().catch(err => error("Could not close the trial console to reopen it", err));
                 }
             });
 
@@ -1780,9 +1823,14 @@ export async function manageClassTrial() {
             });
             /* NO ENTER IN AN EXCHANGE (E70 fix p1-G3; BEH-3): a console opened in the debate keeps Close Debate as its
                default when an Objection cuts in (its footer is not drawn again, E70-06), so Enter is held here while an
-               Objection or its rebuttal runs. */
+               Objection or its rebuttal runs. HELD FOR THE DEFAULT ALONE (1.2.122; CTRL-39, CASE-63): it was held on every
+               element, so a GM who reached Skip, Overrule or +30 s by Tab and pressed Enter moved nothing; a focused button
+               other than the footer's default presses on Enter as on Space. Not measured in a browser (jsdom turns no Enter
+               into a click either way). */
             dialog.element?.addEventListener("keydown", event => {
                 if (event.key !== "Enter" || !exchangeRuns()) return;
+                const button = event.target?.closest?.("button");
+                if (button && !button.matches("footer button.default, footer button[autofocus]")) return;
                 event.preventDefault();
                 event.stopPropagation();
             }, true);
@@ -1803,6 +1851,11 @@ export async function manageClassTrial() {
         rejectClose: false
     });
 
+    // Closed by its own live hook to be drawn again for the trial's new state (above): the next console is this one's answer.
+    if (reopening) {
+        await closing;
+        return manageClassTrial();
+    }
     // Everything comes back here, so the GM lands on the screen they pressed
     // the button from rather than on the scene - the same pattern the GM panel
     // uses for its tiles.
@@ -1988,7 +2041,8 @@ export async function openVoteDialog() {
         render: (event, dialog) => keepLive(dialog, {
             // Every setting of ours, the world's trial record among them; the ballots, which no setting
             // reports; and a player connecting, who is a recipient a moment later.
-            region: ".drpg-vote-status", build: statusHtml, watch: { hooks: ["drpgBallotsChanged", "userConnected"] },
+            region: ".drpg-vote-status", build: statusHtml,
+            watch: { hooks: ["drpgBallotsChanged", "userConnected"], where: PARTICIPANT_WRITES, stores: [sheetMarkStore] },
             after: () => {
                 try { liveFooter(dialog, voteFooter({ pending: pendingVoters(), recipients: ballotRecipients().length })); } catch (err) {
                     error("Could not redraw the vote window's footer", err);

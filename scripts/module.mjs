@@ -30,6 +30,7 @@ import { registerTails } from "./tail-gm.mjs";
 import { registerDoors } from "./doors-gm.mjs";
 import { registerWatches } from "./watch-gm.mjs";
 import { registerLockpicks } from "./lockpick-gm.mjs";
+import { registerHiddenStashes } from "./hidden-stashes.mjs";
 import { registerFacilityUses } from "./facility-uses.mjs";
 import { registerFacilityClock } from "./facilities-gm.mjs";
 import { registerEavesdrops } from "./eavesdrop-gm.mjs";
@@ -43,6 +44,7 @@ import { offerStartHere } from "./season-setup.mjs";
 import { registerHud } from "./hud.mjs";
 import { registerPlayerStatus } from "./player-status.mjs";
 import { registerDespair } from "./despair.mjs";
+import { registerLevelUpSheets } from "./level-up.mjs";
 import { registerOverflow } from "./overflow.mjs";
 import { registerDespairAwards } from "./despair-award.mjs";
 import { registerDiceHold } from "./dice-hold.mjs";
@@ -57,6 +59,7 @@ import { registerGmBridge } from "./gm-bridge.mjs";
 import { registerBridgeReplies } from "./bridge-guards.mjs";
 import { registerRollKeeper } from "./reroll-receipts.mjs";
 import { registerRerollRecovery } from "./reroll.mjs";
+import { registerObserveRecovery } from "./observe.mjs";
 import { registerSheetAudit } from "./sheet-audit.mjs";
 import { registerRelayGuard } from "./relay-guard.mjs";
 import { registerInventoryLimits } from "./inventory.mjs";
@@ -224,11 +227,14 @@ Hooks.once("init", () => {
     // above the Projects tray. See player-status.mjs.
     safely("the player status strip", registerPlayerStatus);
     safely("Despair pools", registerDespair);
+    safely("Level Up on every GM's sheet", registerLevelUpSheets);
     safely("Despair awards", registerDespairAwards);
     // A roll's Hope and Despair drawn when this browser's dice of the roll have landed (1.2.119).
     safely("Dice hold", registerDiceHold);
     // Before the GM stores open at ready: the primary reads the Reroll's journal as they do (E08+E28 C4b).
     safely("the Reroll's journal", registerRerollRecovery);
+    // a find whose describe window a reload closed (line INVEST of 1.2.122; observe.mjs `recoverDescribing`)
+    safely("the Observe's finds left waiting", registerObserveRecovery);
     // The same, for the GMs' audit of a sheet (E29 C3): the primary fills the marks a character
     // lacks as its stores hydrate, and judges every write on a student from then on.
     safely("the GMs' audit of a sheet", registerSheetAudit);
@@ -267,6 +273,8 @@ Hooks.once("init", () => {
     // Keep Watch's posts, cards and summary (E74 C6), on the primary GM: an Eclipse's start and end, a settled crossing.
     safely("the watches", registerWatches);
     safely("the pick's passes", registerLockpicks);
+    // Which stashes are hidden, out of the rooms' region data (1.2.122, CORE-25): the owners' copy's wire.
+    safely("the hidden stashes", registerHiddenStashes);
     // A player's own uses of project actions, so the Facilities window greys a used row (P2).
     safely("the room actions' uses", registerFacilityUses);
     // A clock set back before a project's completion completes it now (P1, 16.11.2026), on the primary GM.
@@ -516,9 +524,10 @@ Hooks.once("ready", () => {
     // roll's dice as thrown are kept from the moment the bridge can be asked anything.
     safely("the roll keeper", registerRollKeeper);
     safely("the GM bridge", registerGmBridge);
-    // After the API, because the migration it kicks off reads the clock, and
-    // after the other socket listeners for the same reason they are ordered:
-    // the GM-to-GM ledger sync is a socket conversation like any other.
+    // After the other socket listeners, for the reason they are ordered: the
+    // GM-to-GM ledger sync is a socket conversation like any other. (It kicked
+    // off a migration that read the clock until E04; its two passes are
+    // migrate.mjs clauses since, truth-bullets.mjs's own note says.)
     safely("Truth Bullets", registerTruthBullets);
     // After the other socket listeners and the bridge: a GM hands a player a
     // ballot on the socket, and a player who loads while a vote is open asks the
@@ -560,12 +569,13 @@ Hooks.once("ready", () => {
  * when there is nothing to change.
  */
 function refreshTableCopyOnLoad() {
-    // ONE CLIENT, NOT EVERY GM (audit A12). All four of these load-time passes
-    // WRITE - tables, actors, items, a world setting - and with two Monokumas
+    // ONE CLIENT, NOT EVERY GM (audit A12). All five of these load-time passes
+    // (this one, reconcileRemnantActorOnLoad, tellProposersOnLoad, issueMissingKeys
+    // and sealProjects; counted 21.11.2026) WRITE - tables, actors, items, a world setting - and with two Monokumas
     // at the table they were each running twice on the same documents at the
     // same moment. Same rule and same reason as `runMigrationOnLoad`.
     //
-    // The gate is here rather than inside the functions on purpose: all four are
+    // The gate is here rather than inside the functions on purpose: all five are
     // on `game.drpg` as repair routes, and a GM running one by hand must not be
     // refused because another GM's client happens to sort first.
     if (!isPrimaryGm()) return;
@@ -588,13 +598,22 @@ function refreshTableCopyOnLoad() {
  * `reconcileRemnantActor` in remnants.mjs.
  */
 function reconcileRemnantActorOnLoad() {
-    // One client - see `refreshTableCopyOnLoad`. `adoptQuestionMark` inside it
-    // already asked this for its own sweep; the ownership raise did not.
+    // One client - see `refreshTableCopyOnLoad`. (Its question-mark sweep left it
+    // for the migrate.mjs clause `questionMarkIcon`; the ownership raise stayed.)
     if (!isPrimaryGm()) return;
 
     import("./remnants.mjs")
         .then(m => m.reconcileRemnantActor())
         .catch(err => error("Could not reconcile the Remnant actor", err));
+}
+
+/** The proposers of older projects told, on the primary GM alone (projects.mjs `tellProposers`). */
+function tellProposersOnLoad() {
+    // One client, as the keys below: the primary GM, which holds the GMs' rows and writes the marks.
+    if (!isPrimaryGm()) return;
+    import("./projects.mjs")
+        .then(m => m.tellProposers())
+        .catch(err => error("Could not tell the proposers of the older projects", err));
 }
 
 /**
@@ -608,14 +627,6 @@ function reconcileRemnantActorOnLoad() {
  *
  * Silent, and writes nothing when nothing is missing.
  */
-function tellProposersOnLoad() {
-    // One client, as the keys below: the primary GM, which holds the GMs' rows and writes the marks.
-    if (!isPrimaryGm()) return;
-    import("./projects.mjs")
-        .then(m => m.tellProposers())
-        .catch(err => error("Could not tell the proposers of the older projects", err));
-}
-
 function issueMissingKeys() {
     // One client - see `refreshTableCopyOnLoad`. Two GMs reaching this together
     // is two clients creating the same key on the same actor.
@@ -644,7 +655,7 @@ function sealProjects() {
      * ONE CLIENT DOES THE WRITING (audit A12), and the check is INSIDE the
      * closure rather than in front of the hook.
      *
-     * This was the worst of the four to run twice: `writeCountdown` read the
+     * This was the worst of the five to run twice: `writeCountdown` read the
      * whole Countdowns setting, changed one entry and wrote the whole thing
      * back, so two GMs resealing together was a lost update - one of them
      * overwrote the other's ownership map, on the one record whose whole

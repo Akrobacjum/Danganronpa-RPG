@@ -49,7 +49,7 @@ import { searchTier, findOf, rollTone, listenLabels, projectProgress, sabotageHi
 import { leavesTraceFor, ITEM_FLAGS } from "./inventory.mjs";
 import { isClaimedRoll, neutralRollOf, REROLL_SHOWN, relayRerolledDice } from "./private-rolls.mjs";
 import { rerollBookmarkStore, rerollJournalStore, trapLedgerStore } from "./gm-stores.mjs";
-import { listenName } from "./action-listen.mjs";
+import { listenName, heardIn } from "./action-listen.mjs";
 import { onGmStoresHydrated, gmStoresQuiet } from "./gm-store.mjs";
 import { trustedWrite } from "./resource-guard.mjs";
 
@@ -375,7 +375,11 @@ async function claimedOn(actor, bookmark) {
     const { drawnRecordOf } = await import("./roll-draw.mjs");
     const record = drawnRecordOf(game.messages.get(bookmark.messageId ?? ""));
     const first = record?.versions?.[0] ?? record ?? bookmark;
-    return { actorId: actor.id, withFear: Boolean(first.withFear), isCritical: Boolean(first.isCritical), at: record?.at ?? bookmark.at ?? null };
+    // `paid` and `byGm`: what the primary saw pay for a player's draw (roll-draw.mjs `drawnPayment`), and whether a GM
+    // drew the roll for itself (then the bookmark is that GM's own). Both null where no record is held.
+    const byGm = record ? Boolean(game.users?.get(record.userId ?? "")?.isGM) : null;
+    return { actorId: actor.id, withFear: Boolean(first.withFear), isCritical: Boolean(first.isCritical), at: record?.at ?? bookmark.at ?? null,
+        paid: typeof record?.paid === "string" ? record.paid : null, byGm };
 }
 
 /**
@@ -864,7 +868,9 @@ async function putFirstRollBack(message, firstRolls) {
  * Foundry calls the hook before the leaving user's flag flips, the GM who stays still
  * computed the one leaving as the primary and recovered nothing until its next load. The
  * pass now asks without the GM it was told is gone (`isPrimaryGm({ leaving })`, utils.mjs).
- * Which of the two comes first on v14 is not measured: the harness has one GM.
+ * Which of the two comes first is read on 14.370 for a player leaving - `userConnected(user, false)` came once, with
+ * `user.active` already false (docs/dev/e39/CALIBRATION.md, LIVE-E30-05) - and not yet for a GM (LIVE-E08-03). The
+ * harness's second GM (scenarios 61, 62, 97) keeps the shim's order, so it does not settle v14's (the audit's STG-46).
  * ========================================================================== */
 
 /** Suite only: the phase after which the next Reroll made on this client stops, as a reload there would leave it. */
@@ -1139,7 +1145,7 @@ async function replayAction(actor, bookmark, after, done, before = null) {
             case "frisk": return settleForce(done);
             // The Infiltrate tile's rolls and a Facilities roll (E69, E74 C7, E93): their replays are a file of their own.
             case "dash": case "tail": case "shut": case "force": case "pick": case "keepWatch": case "facility":
-                return await (await import("./infiltrate-reroll.mjs")).settleInfiltrate(actor, bookmark, after, done);
+                return await (await import("./infiltrate-reroll.mjs")).settleInfiltrate(actor, bookmark, after, done, before);
             default:
                 // A trait rolled straight from the sheet, or an action from
                 // before this bookmark existed. The dice are the whole result.
@@ -1243,8 +1249,14 @@ export async function settleSearch(actor, bookmark, after, done) {
     if (!game.user.isGM) return {};
 
     // A Search whose token was refused never searched the room: it is no draw from
-    // the room's table, so it is not drawn again on new dice (ROLL-02).
-    if (bookmark.claimed === false) {
+    // the room's table, so it is not drawn again on new dice (ROLL-02). Held to the GMs' own mark since 1.2.122 (the
+    // audit's ROLL-27): `claimed` is the roller's claim, which a second roll.bookmark inside the minute may rewrite, so
+    // a refused Search could be drawn on the room's table for a Reroll's Hope. A Search the GMs drew and whose token the
+    // primary never spent (`tokenSpentAt`, search-tokens.mjs `SearchTokens.markSpent`) never ran, whatever it claims; one
+    // with no record of the GMs (swept, or older) is read by its claim, as before.
+    const { drawnRecordOf } = await import("./roll-draw.mjs");
+    const record = drawnRecordOf(game.messages.get(bookmark.messageId ?? ""));
+    if (bookmark.claimed === false || (record?.actionKey === "search" && !record.tokenSpentAt)) {
         done.push(game.i18n.localize("DRPG.Reroll.searchNeverRan"));
         return {};
     }
@@ -1913,7 +1925,9 @@ async function listenLines(actor, { room, target, total, isCritical }) {
     const labelOf = listenLabels(neighbours, roomsKnownToMe(scene));
     const shown = r => labelOf.get(r) ?? r;
     const named = r => {
-        const who = occupantsOf(r, actor, scene).map(listenName);
+        // As the first throw heard them (action-listen.mjs `heardIn`): a killer veiled for the opening is neither named nor
+        // counted on the listener's browser (the audit's r121-M-1, 1.2.122).
+        const who = heardIn(r, actor, scene, occupantsOf).map(listenName);
         return who.length ? who.join(", ") : game.i18n.localize("DRPG.Listen.empty");
     };
     const hit = resolveThreshold(Number(total), def.thresholds);
@@ -1922,7 +1936,7 @@ async function listenLines(actor, { room, target, total, isCritical }) {
     if (isCritical) return neighbours.map(r => `${shown(r)} - ${named(r)}`);
     if (hit && hit.min >= namedFrom) return [game.i18n.format("DRPG.Listen.named", { room: shown(target), who: named(target) })];
     if (hit) {
-        const count = occupantsOf(target, actor, scene).length;
+        const count = heardIn(target, actor, scene, occupantsOf).length;
         return [count
             ? plural("DRPG.Listen.anonymous", { room: shown(target), n: count })
             : game.i18n.format("DRPG.Listen.emptyRoom", { room: shown(target) })];
@@ -1931,12 +1945,41 @@ async function listenLines(actor, { room, target, total, isCritical }) {
 }
 
 /**
- * Observe, Analyze, Direct Murder and a described Search all end in a human
- * ruling. A die cannot take that back, so the GM is asked again with the new
- * number and told the previous answer no longer stands.
+ * THE FIRST CARD ENDS WHEN ITS ROLL IS REPLACED (the audit's CTRL-26, 1.2.122). The Reroll re-asks the GM on a card of its
+ * own, and the first card - asked about the roll the Reroll replaced - kept its buttons (Nothing was there, Refuse the
+ * attempt, an Observe's picks, Create an item): a GM who pressed one there answered a roll that no longer stands. The
+ * call cards of this character still open (not `settled`), posted since the replaced roll's message, are settled here
+ * (call-gm.mjs `settleCall`: the buttons go) with the line that a Reroll replaced them. A card already answered stands, as
+ * the comment below says. The card holds no link to its roll (its flags are neutral on purpose), so it is found by its
+ * buttons' character (`data-by`) and its time. Exported for the suite.
+ */
+export async function endReplacedRuling(actor, bookmark) {
+    if (!game.user?.isGM || !actor?.id) return 0;
+    const { cardFlag, contentOf } = await import("./secret.mjs");
+    const { MESSENGER_FLAGS } = await import("./messenger.mjs");
+    const { settleCall } = await import("./call-gm.mjs");
+    const since = Number(game.messages.get(bookmark?.messageId ?? "")?.timestamp ?? bookmark?.at ?? 0) || 0;
+    const by = `data-by="${actor.id}"`;
+    let ended = 0;
+    for (const card of [...(game.messages?.contents ?? [])]) {
+        if (!(cardFlag(card, "callCard") || cardFlag(card, MESSENGER_FLAGS.gmAsk)) || cardFlag(card, MESSENGER_FLAGS.settled)) continue;
+        if ((Number(card.timestamp) || 0) < since) continue;
+        const words = contentOf(card) ?? "";
+        if (!words.includes("drpg-call-actions") || !words.includes(by)) continue;
+        await settleCall(card, game.i18n.localize("DRPG.Reroll.rulingReplaced"));
+        ended++;
+    }
+    return ended;
+}
+
+/**
+ * An Observe with nothing to rank, an Analyze's hint and a described Search end in a human ruling (`ruledByHand`
+ * sends only those here; Direct Murder keeps no row a Reroll replays). A die cannot take that back, so the GM is asked
+ * again with the new number and told the previous answer no longer stands.
  */
 async function settleGmRuling(actor, bookmark, after, done) {
     const { callGm } = await import("./gm-bridge.mjs");
+    await endReplacedRuling(actor, bookmark);
 
     await callGm(actor, {
         title: bookmark.label ?? game.i18n.localize("DRPG.Reroll.title"),
@@ -2003,7 +2046,9 @@ async function settleRemnant(actor, bookmark, visibility, done, drop = null, gat
         if (visibility === null) return {};
 
         if (!drop) {
-            // Placed on a player's behalf, so this client never learned its id.
+            // No caller reaches this today: every settleRemnant call passes a drop (the Search's, the project's and
+            // the Sabotage's), and since E08+E28 C2 the GM's own fact names a player's trace. Kept for a caller
+            // that has no drop to offer: the trace is the GM's to place by hand.
             done.push(game.i18n.localize("DRPG.Reroll.remnantManual"));
             return {};
         }
@@ -2081,14 +2126,31 @@ async function traceKept(actor, bookmark, { removal, total }) {
  * A critical on Work on Project returns the action it cost. Gaining or losing
  * that critical on a reroll has to move the action with it.
  *
+ * Exported for the suite (1.2.122, ROLL-25).
+ *
  * @returns {Promise<boolean>} whether the action is refunded after this.
  */
-async function settleActionRefund(actor, bookmark, shouldRefund, done) {
-    const wasRefunded = Boolean(bookmark.refunded);
+export async function settleActionRefund(actor, bookmark, shouldRefund, done) {
+    /* Not on the roller's claim alone (the audit's ROLL-25, 1.2.122): `refunded` is a claim a second roll.bookmark inside
+       the minute may rewrite, and a console that resent it false after a critical's refund got a second action from a
+       Reroll that landed another. A first throw the GMs hold as a critical (`claimedOn`: the draw's own record) counts as
+       refunded whatever the claim says.
+       WHAT PAID, AS THE PRIMARY SAW IT (ROLL-25's rest, 1.2.122). A player's draw names on its record what paid for it
+       (`first.paid`, roll-draw.mjs `drawnPayment`): the actions or a Burst. Then the critical's action came back exactly
+       when the first throw was a critical, and what comes back or is taken back is what paid - neither read off the
+       claim. A roll a GM drew for itself (`first.byGm`) keeps its bookmark, which is that GM's own: a GM's free Work
+       (`performAction` with `free`) paid nothing, so its critical gave nothing back and a Reroll that loses it takes
+       nothing. A player's record with no `paid` (drawn before 1.2.122) is read as before. */
+    const first = await claimedOn(actor, bookmark);
+    const paidSeen = first.byGm === false && (first.paid === "action" || first.paid === "grant") ? first.paid : null;
+    const wasRefunded = paidSeen ? first.isCritical === true
+        : first.byGm === true ? Boolean(bookmark.refunded)
+            : Boolean(bookmark.refunded) || first.isCritical === true;
     if (wasRefunded === shouldRefund) return wasRefunded;
 
     const { refundAction, takeBackRefund } = await import("./actions.mjs");
-    const receipt = bookmark.burst ? { grant: true, amount: 1 } : { grant: false, amount: 1 };
+    const burst = paidSeen ? paidSeen === "grant" : Boolean(bookmark.burst);
+    const receipt = burst ? { grant: true, amount: 1 } : { grant: false, amount: 1 };
 
     if (shouldRefund) {
         await refundAction(actor, 1, receipt);

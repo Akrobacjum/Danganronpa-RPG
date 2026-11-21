@@ -150,12 +150,17 @@ export function registerGmBridge() {
              * is wired now as the messenger wires its bubble; the claim on the primary (`claimCard`) keeps the two
              * copies to one ruling. Read after the import, a microtask: the secret swap draws the words in this same
              * hook dispatch, and a card with words to come holds no button before it.
+             *
+             * ASKED BEFORE THE IMPORT (1.2.122; the audit of 1.2.118, CORE-38). The import ran first, for every message
+             * drawn on a GM - a whole log's worth at each load - and only then was the card asked whether it rules on
+             * anything. The question waits for the same microtask (`Promise.resolve()`), and messenger-app.mjs is
+             * imported only for a card that answers yes. Counts of work, not frame time (not measured).
              */
-            import("./messenger-app.mjs")
-                .then(m => {
+            Promise.resolve()
+                .then(() => {
                     const body = element?.querySelector?.(".message-content") ?? element;
-                    if (!cardFlag(message, "callCard") && !body?.querySelector?.("[data-drpg-call]")) return;
-                    m.wireCallActions(body, message);
+                    if (!cardFlag(message, "callCard") && !body?.querySelector?.("[data-drpg-call]")) return null;
+                    return import("./messenger-app.mjs").then(m => m.wireCallActions(body, message));
                 })
                 .catch(err => debug("Could not wire a ruling card in the log", err));
         });
@@ -197,7 +202,7 @@ export function registerGmBridge() {
  */
 async function onOpeningAsk(payload, senderId) {
     if (payload?.action !== ACTION_OPENING_ASK) return;
-    if (payload.userId !== game.user.id) return;
+    if (payload.userId !== game.user?.id) return;
     if (!game.users.get(senderId)?.isGM) return;
 
     const { throwOpeningRoll } = await import("./murder.mjs");
@@ -226,7 +231,7 @@ export function askOpeningRoll({ userId, actorId, side, trait, hindrance = 0 }) 
  */
 async function onOpeningCancel(payload, senderId) {
     if (payload?.action !== ACTION_OPENING_CANCEL) return;
-    if (payload.userId !== game.user.id) return;
+    if (payload.userId !== game.user?.id) return;
     if (!game.users.get(senderId)?.isGM) return;
 
     const { closeOpeningRoll } = await import("./murder.mjs");
@@ -258,6 +263,7 @@ function onAdvancementOffers(payload, senderId) {
  * client then.
  */
 function askForOffers() {
-    if (game.user.isGM) return;
+    // guarded (line INVEST of 1.2.122; R8182): a GM's ready packet can arrive while this page closes
+    if (!game.user || game.user?.isGM) return;
     void ask(ACTION_ADVANCEMENT_ASK, {});
 }

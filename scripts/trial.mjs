@@ -50,7 +50,7 @@ import { SETTINGS, isMutedDead } from "./settings.mjs";
 import { truthBulletData, isTruthBullet, bulletDescription, bulletAsHeld, unanalysedType, secretOf } from "./truth-bullets.mjs";
 import { showPopup, OVERRULED_FLAG, overruledStamp } from "./popup.mjs";
 import { announce, isPrimaryGm, log, error,
-    whisperToOwner, serialWrite, serverNow, esc, localeFormat, plural } from "./utils.mjs";
+    whisperToOwner, whisperToOwnerOnly, whisperToGms, serialWrite, serverNow, esc, localeFormat, plural } from "./utils.mjs";
 import { drpgWindow, tipAttr, tipText } from "./ui-kit.mjs";
 // The price of an interruption, quoted where it is about to be shown (T-1).
 import { quotePrice, priceLine, payPrice, refundPrice, paidLine, priceLabel } from "./price.mjs";
@@ -257,8 +257,9 @@ function analysisChosen(element) {
  */
 
 /**
- * Post the card. Built and sent by the presenter's own client - everything on
- * it is already public. An objection card (`objection`) is a GM's alone since
+ * Post the card. A player's call asks the primary GM ("trial.present",
+ * `requestPresent`), which posts it with the copies; only a GM's browser posts
+ * a card from this function - everything on it is already public. An objection card (`objection`) is a GM's alone since
  * 1.2.79 (E79 C16): the API's and the suite's road to `seizeFloor`. A player
  * raises an Objection through the primary GM (`raiseObjection`), and a card of
  * theirs that says it is one is refused there (`registerTrial`).
@@ -401,7 +402,9 @@ export async function presentOnPrimary({ actorId, itemId, comment = "", analysis
         const notOpen = await answerKeysRefusal();
         if (notOpen) return { refused: notOpen };
         if (!secretOf(item.uuid).realType) {
-            await whisperToOwner(actor, `<p>${esc(game.i18n.format("DRPG.Handover.answerKeyMissing", { name: data.name }))}</p>`);
+            // the player what happened, the GMs how to restore it (1.2.122 line TEXT, TEXT-32; handover.mjs's two sends)
+            await whisperToOwnerOnly(actor, `<p>${esc(game.i18n.format("DRPG.Handover.answerKeyMissing", { name: data.name }))}</p>`);
+            await whisperToGms(`<p>${esc(game.i18n.format("DRPG.Handover.answerKeyMissingGm", { name: data.name }))}</p>`);
             return { refused: "the answer key for that bullet is not on this GM's browser" };
         }
 
@@ -442,7 +445,9 @@ export async function presentOnPrimary({ actorId, itemId, comment = "", analysis
             await whisperToOwner(to, `<p>${esc(game.i18n.format("DRPG.Trial.presentCopy", { who: actor.name, name: data.name }))}</p>`);
         }
         if (noKey) {
-            await whisperToOwner(actor, `<p>${esc(game.i18n.format("DRPG.Handover.answerKeyMissing", { name: data.name }))}</p>`);
+            // the player what happened, the GMs how to restore it (1.2.122 line TEXT, TEXT-32; handover.mjs's two sends)
+            await whisperToOwnerOnly(actor, `<p>${esc(game.i18n.format("DRPG.Handover.answerKeyMissing", { name: data.name }))}</p>`);
+            await whisperToGms(`<p>${esc(game.i18n.format("DRPG.Handover.answerKeyMissingGm", { name: data.name }))}</p>`);
         }
         log(`${actor.name} presented "${data.name}"${shown ? "" : " without its analysis"}; ${copies} cop${copies === 1 ? "y" : "ies"} handed out.`);
         return { reply: { item: data.name, copies } };
@@ -1009,7 +1014,7 @@ export async function markOverruled(messageId, { objectorId = null, state = null
         }
     }
     const { trialEventCard } = await import("./trial-floor-ui.mjs");
-    const esc = foundry.utils.escapeHTML;
+
     const lines = state
         ? [game.i18n.format("DRPG.Floor.overrule.card", { name: esc(name), state: esc(state) })]
         : [game.i18n.format("DRPG.Floor.overrule.cardOver", { name: esc(name) }), game.i18n.localize("DRPG.Floor.overrule.over")];
@@ -1521,15 +1526,17 @@ export async function objectionButtonState(actor) {
  */
 export async function repointDialog() {
     if (!game.user.isGM) return null;
-    const { trialFloor, FLOOR_MODES } = await import("./trial-floor.mjs");
+    const { trialFloor, FLOOR_MODES, repointRefusal } = await import("./trial-floor.mjs");
     const floor = trialFloor();
     if (floor?.mode !== FLOOR_MODES.objection && floor?.mode !== FLOOR_MODES.rebuttal) return null;
     const { livingStudentsForGm } = await import("./chapter.mjs");
     // Only the trial's participants (E51 C6; E51-40) whose player is connected (E110 C1).
     const { trialParticipants } = await import("./vote.mjs");
     const taking = new Set(trialParticipants({ connected: true }).map(p => p.actor.id));
+    // Not the present target either (1.2.122; CTRL-43, STG-92): it was listed and chosen, so the window's first answer
+    // asked for the target the Objection already had, and was refused as "You cannot do that right now".
     const choices = livingStudentsForGm()
-        .filter(student => student.id !== floor.holderId && taking.has(student.id))
+        .filter(student => student.id !== floor.holderId && student.id !== floor.targetId && taking.has(student.id))
         .sort((a, b) => a.name.localeCompare(b.name));
     if (!choices.length) {
         ui.notifications.warn(game.i18n.localize("DRPG.Trial.objectionNobody"));
@@ -1540,8 +1547,8 @@ export async function repointDialog() {
         classes: ["drpg-panel"],
         body: `<form>
             <label>${game.i18n.localize("DRPG.Floor.repointTo")}
-                <select name="target"${tipAttr("DRPG.Tips.Sweep.Trial.repointTargetTooltip")}>${choices.map(student => `<option value="${student.id}"${
-                    student.id === floor.targetId ? " selected" : ""}>${foundry.utils.escapeHTML(student.name)}</option>`).join("")}</select></label>
+                <select name="target"${tipAttr("DRPG.Tips.Sweep.Trial.repointTargetTooltip")}>${choices.map(student =>
+                    `<option value="${student.id}">${foundry.utils.escapeHTML(student.name)}</option>`).join("")}</select></label>
         </form>`,
         footer: {
             primary: { action: "repoint", label: game.i18n.localize("DRPG.Floor.repoint"), tooltip: tipText("DRPG.Tips.Trial.rePointTooltip"),
@@ -1551,6 +1558,13 @@ export async function repointDialog() {
         rejectClose: false
     });
     if (!targetId || targetId === "cancel") return null;
+    // The floor's own reason, said before the request (the primary answers only that it was not done): the target taken
+    // already, or its player gone since the window opened (`repointRefusal`'s repointSame, repointAbsent).
+    const why = repointRefusal(trialFloor(), targetId);
+    if (why) {
+        ui.notifications.warn(game.i18n.localize(why));
+        return null;
+    }
     const { requestRepoint } = await import("./gm-bridge.mjs");
     const res = await requestRepoint(targetId);
     return res.ok ? (res.value ?? null) : null;

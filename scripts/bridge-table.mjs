@@ -35,7 +35,7 @@ import {
 import {
     ACTION_PROGRESS, ACTION_SHARE, ACTION_REMNANT, ACTION_TIE_TRACE, ACTION_REMNANT_EDIT, ACTION_SABOTAGE,
     ACTION_UNSABOTAGE, ACTION_PROJECT_CHANGE, ACTION_SENDBACK, ACTION_ECLIPSE_MOVE, ACTION_ARM, ACTION_DESPAIR,
-    ACTION_OVERFLOW_ADD, ACTION_OVERFLOW_CLEAR, ACTION_DESPAIR_SET, ACTION_DESPAIR_ALL, ACTION_DESPAIR_ROSTER,
+    ACTION_OVERFLOW_ADD, ACTION_CALL_WORLD, ACTION_MUSIC_TRACK, ACTION_OVERFLOW_CLEAR, ACTION_DESPAIR_SET, ACTION_DESPAIR_ALL, ACTION_DESPAIR_ROSTER,
     ACTION_OVERFLOW_TAKE, ACTION_OVERFLOW_CHECK, ACTION_DIFFICULTY, ACTION_AUDIT_DECIDE, ACTION_KEYS_CHARGE,
     ACTION_VOTE_RUN, ACTION_VOTE_CAST, ACTION_VOTE_ASK, ACTION_FLOOR_NOW, ACTION_TRIAL_OBJECT, ACTION_TRIAL_EVIDENCE,
     ACTION_TRIAL_WITHDRAW, ACTION_FLOOR_REPOINT, ACTION_TRIAL_GM, ACTION_TRIAL_TURN, ACTION_TRIAL_CLAIM, ACTION_TRIAL_SIDE, ACTION_TRIAL_KEYWORD,
@@ -49,7 +49,7 @@ import {
     ACTION_OPENING_RESULT, ACTION_CLEANUP, ACTION_BETRAYAL, ACTION_PARK_MURDER, ACTION_CUB_ABILITY, ACTION_CUB_ANSWER, ACTION_BRIBE_OFFER, ACTION_BRIBE_ANSWER, ACTION_LOOT,
     ACTION_NOTE_SAVE, ACTION_ROLL_BOOKMARK, ACTION_REROLL, ACTION_CARD, ACTION_CARD_CLAIM, ACTION_BULLET_GIVE, ACTION_FACILITY_USE, ACTION_DASH,
     ACTION_TAIL_START, ACTION_DOOR_SHUT, ACTION_DOOR_FORCE, ACTION_DOOR_PICK, ACTION_WATCH_DECLARE, ACTION_DOOR_KNOCK,
-    ACTION_LISTEN_EAVESDROP, ACTION_LISTEN_STOP, ACTION_LISTEN_ECHOES, ACTION_MASK_REVEAL
+    ACTION_LISTEN_EAVESDROP, ACTION_LISTEN_STOP, ACTION_LISTEN_ECHOES, ACTION_MASK_REVEAL, ACTION_MASK_VEIL
 } from "./bridge-wire.mjs";
 import {
     handleObserveTarget, handleCleanupTraces, handleObserveResolve, handleAnalyzeResolve, handleAdvancement,
@@ -60,12 +60,12 @@ import {
     handleBetrayal, handleCleanup, handleCubAbility, handleCubAnswer, handleBribeOffer, handleBribeAnswer, handleHopeCall, handleCallYes, handleDynamicAnswer,
     handleRulingExpired, handleRulingReceived, handleDifficulty, handleTraitRuling, handleFacilityUse, handleDash,
     handleTailStart, tailRolls, handleDoorShut, handleDoorForce, handleDoorPick, pickRolls, handleWatchDeclare, handleDoorKnock,
-    handleEavesdrop, handleEavesdropStop, handleEchoes, handleMaskReveal
+    handleEavesdrop, handleEavesdropStop, handleEchoes, handleMaskReveal, handleMaskVeil
 } from "./bridge-runs-acts.mjs";
 import {
     handleProgress, handleShare, TRACE_OF_ROLL, handleRemnant, traceBandOf, progressOf, repairOf, handleTieTrace,
     handleRemnantEdit, sabotageAgain, handleSabotage, handleProjectChange, handleUnsabotage, handleSendback, handleLoot,
-    handleArm, handleOverflowAdd, handleOverflowClear, handleDespairSet, handleDespairAll, handleDespairRoster,
+    handleArm, handleOverflowAdd, handleCallWorld, handleMusicTrack, handleOverflowClear, handleDespairSet, handleDespairAll, handleDespairRoster,
     handleOverflowTake, handleOverflowCheck, handleDespair, handleEclipseMove, handleNoteSave, handleRollBookmark,
     handleReroll, handleAuditDecide, handleKeysCharge, handleTrialRecord, handleTrialEnter, handleVoteRun, handleBallot,
     handleBallotAsk, handleFloorNow, handleTrialObject, handleTrialEvidence, handleTrialWithdraw, handleFloorRepoint,
@@ -108,10 +108,14 @@ export const BRIDGE_ACTIONS = table({
     [ACTION_OBSERVE_TARGET]: {
         label: "DRPG.Bridge.what.observe.target",
         guards: [knownSender, notSpectator("actorId"), owns("actorId", "sender does not own that character")],
-        sanitize: pick({ actorId: as.id, declaration: as.raw, request: as.text }),
+        /* The declaration is one of observe.mjs's DECLARATIONS or nothing (1.2.122; the audit of 1.2.118, CASE-61): until
+           1.2.122 it was taken raw, an unknown one went down the General branch and its value - any string, any object -
+           stood on the GM's pending row for an hour. The words are spelt here, not imported: this table imports no rule
+           file but the floor's (observe.mjs reaches the bridge again); R8102 holds them to DECLARATIONS. */
+        sanitize: pick({ actorId: as.id, declaration: as.oneOf("general", "specific", "nonObvious", "followTraces"), request: as.text }),
         run: handleObserveTarget,
         answer: "reply", patient: true, resend: true,
-        claims: { declaration: "compared to DECLARATIONS by chooseObserveTarget (observe.mjs); an unknown one is answered with a reason, never used" }
+        claims: { declaration: "one of observe.mjs DECLARATIONS by the sanitizer (as.oneOf); anything else arrives null and handleObserveTarget refuses it, badRequest, before chooseObserveTarget reads it" }
     },
     [ACTION_CLEANUP_TRACES]: {
         label: "DRPG.Bridge.what.cleanup.traces",
@@ -289,6 +293,23 @@ export const BRIDGE_ACTIONS = table({
         run: handleMaskReveal,
         // The asker's "?" goes when the token's look comes back; nothing is said.
         answer: "ack"
+    },
+    /*
+     * THE OPENING'S VEIL, ASKED OF THE PRIMARY BY ANOTHER GM (1.2.122; the audit's STG-31). The veil is the primary's to
+     * write (mask-gm.mjs `settleVeilsNow`, `veilAtTheLights`), and on another GM's browser both answered nothing, so an
+     * Eclipse ended or a murder opened there put the veil up only once the primary heard the incident's write - the
+     * killer's token drawn for the victim meanwhile. That GM asks here and waits for the answer.
+     */
+    [ACTION_MASK_VEIL]: {
+        label: "DRPG.Bridge.what.mask.veil",
+        guards: [gmOnly("only a GM asks for the opening's veil")],
+        sanitize: pick({ what: as.oneOf("lights", "lift", "judged", "settle"), killerIds: as.raw }),
+        run: handleMaskVeil,
+        answer: "reply",
+        claims: {
+            what: "one of four, each the primary's own road (mask-gm.mjs `veilOnPrimary`); anything else does nothing",
+            killerIds: "read on the primary against its own declarations of this Eclipse (`pendingMurderStore`, eclipse.mjs): an id with none is veiled or lifted by nothing"
+        }
     },
     [ACTION_ADVANCEMENT]: {
         label: "DRPG.Bridge.what.advancement.apply",
@@ -571,7 +592,7 @@ export const BRIDGE_ACTIONS = table({
         prepare: () => import("./cleanup.mjs"),
         sanitize: pick({ actorId: as.id, tokenId: as.id, key: as.text, targetId: as.id, total: as.num, isCritical: as.bool,
             withHope: as.bool, viaAction: as.bool, undo: as.gmFlag, grant: as.bool, price: as.raw, transform: as.raw, change: as.raw,
-            rollId: as.id }),
+            rollId: as.id, cover: as.num, coverRollId: as.id }),
         run: handleCleanup,
         answer: "reply",
         // Each of Stage 6's actions throws a clean-up's roll, read off the GMs' record of it (E08+E28 C17).
@@ -581,6 +602,8 @@ export const BRIDGE_ACTIONS = table({
             targetId: "resolveStageSix (cleanup.mjs) judges who may be framed and where the body lies",
             price: "bounded on arrival against PRICE_CHAINS by the resolvers (T-1), and given back no further than the GMs' credit holds it (cleanup.mjs paidBack)",
             transform: "bounded on arrival against CLEANUP.transform by resolveCleanup (G-20)",
+            cover: "a concealment's critical, read on the roller's browser (the trust model's open item): given back by the GM at most CLEANUP.conceal.refundStress.critical, and only with a witness the GM reads in the room (cleanup.mjs coverGiveBack, CASE-27)",
+            coverRollId: "the cover's roll, judged by coverGiveBack (cleanup.mjs): the GMs' record of it must name this sender and character and a critical, and gives back once",
             change: "bounded on arrival against CLEANUP.transform by resolveCleanup (Z5)",
             rollId: "the roll the result is read from (bridge-guards.mjs rollRefusal), and written on only by noteFactOfRoll (action-pipeline.mjs): the sender's own row of that message, its character and a clean-up"
         }
@@ -628,10 +651,11 @@ export const BRIDGE_ACTIONS = table({
     [ACTION_HOPE_CALL]: {
         label: "DRPG.Bridge.what.call.approve",
         guards: [knownSender, notSpectator("actorId"), owns("actorId", "sender does not own that character")],
-        // `cost` and `actorName` are sent and never read: the price comes from HOPE_CALLS
-        // here, the name from the character (E02; E31). `nonce` names the purchase a GM's
+        // `cost`, `actorName`, `callLabel` and `effect` are sent and never read: the price, the name and the effect
+        // come from HOPE_CALLS here (E02; E31; 1.2.122, CORE-36), the character's name from the character. `key` is
+        // refused unless it names a Call that waits for a GM (`handleHopeCall`). `nonce` names the purchase a GM's
         // yes is kept for (E29 fix r2-H4; `yesOnPrimary`).
-        sanitize: pick({ actorId: as.id, key: as.text, callLabel: as.text, effect: as.text, note: as.text, nonce: as.text }),
+        sanitize: pick({ actorId: as.id, key: as.text, note: as.text, nonce: as.text }),
         run: handleHopeCall,
         // Not patient (E18 C2, S10-51): the primary's "got it" comes as the card goes up, so none within
         // TIMING.ackMs is an ask no GM's listener took, said at once rather than after the ruling's clock (R840).
@@ -974,7 +998,8 @@ export const BRIDGE_ACTIONS = table({
         // Reroll's Despair itself (reroll.mjs), and an Assistant GM's correction comes here (DESP-12).
         guards: [gmOnly("an undo is the GM's own Reroll's"), guardDespairDelta, guardDespairPool],
         // `clamp` (E17 fix e1-G4): a GM's pip, held at the maximum with nothing spilled; a GM's flag, false from a player.
-        sanitize: pick({ targetUserId: as.id, delta: as.num, clamp: as.gmFlag }),
+        // `price` (1.2.122, DESP-21): a Despair Call's, taken whole or refused on the primary; a GM's flag too.
+        sanitize: pick({ targetUserId: as.id, delta: as.num, clamp: as.gmFlag, price: as.gmFlag }),
         run: handleDespair,
         answer: "reply",
         claims: { targetUserId: guardDespairPool }
@@ -985,6 +1010,33 @@ export const BRIDGE_ACTIONS = table({
      * with no primary to ask. A GM's alone: a player's console that could ask would darken the world. Tier 2 E17-T8
      * judges a player's ask (refused) and a second GM's (added on the primary, its count answered).
      */
+    /*
+     * A DESPAIR CALL'S SEAL OR RESTRICTION, ON THE PRIMARY GM (1.2.122, the audit's COMM-26). The sealed rooms and the
+     * restrictions are world settings written whole from one GM's copy: two GMs' Silence or Seal within one round trip
+     * kept only the second. A GM that is not the primary asks here (call-world.mjs), and the primary writes one after
+     * another (`serialWrite`). A GM's alone: a player's console that could ask would seal a room or silence a classmate.
+     */
+    [ACTION_CALL_WORLD]: {
+        label: "DRPG.Bridge.what.call.world",
+        // The kind by the sanitizer's list, not `inRange`, which reads a number (a word is never in its range).
+        guards: [gmOnly("only a GM seals a room or restricts a student")],
+        sanitize: pick({ kind: as.oneOf("seal", "restrict"), room: as.text, actorId: as.id, silenced: as.gmFlag, chained: as.gmFlag }),
+        run: handleCallWorld,
+        answer: "reply",
+        claims: { actorId: "gmOnly: a GM's own Despair Call names its target, as the GM's sheet road does" }
+    },
+    /*
+     * PLAY AND STOP THE TRACK FROM ANY GM (1.2.122, the owner's decision of 21.11.2026: "Odtworz i zatrzymaj muzyke niech
+     * dziala u kazdego gma"). The music's record - the cue, what it holds, the body's silence - lives on the primary, so
+     * another GM's press is carried out there, as the primary's own press would be. A GM's alone: the music is the GMs'.
+     */
+    [ACTION_MUSIC_TRACK]: {
+        label: "DRPG.Bridge.what.music.track",
+        guards: [gmOnly("only a GM plays or stops the music")],
+        sanitize: pick({ kind: as.oneOf("play", "stop"), track: as.text }),
+        run: handleMusicTrack,
+        answer: "reply"
+    },
     [ACTION_OVERFLOW_ADD]: {
         label: "DRPG.Bridge.what.overflow.add",
         guards: [gmOnly("only a GM adds to the overflow"),
@@ -1122,14 +1174,6 @@ export const BRIDGE_ACTIONS = table({
         answer: "reply"
     },
     /*
-     * A PLAYER'S PRIVATE CARD WHILE AN INCIDENT RUNS (E08+E28 fix r2-H5, 05.10.2026; review
-     * S2-3). Posted by this GM, as its author, so that no incident card names the player whose
-     * browser asked for it (secret.mjs `askGm`, `postAsked`). Held to what the player could have
-     * posted themselves: it speaks as no character or as one the sender owns, it is read by users
-     * of this world, and it weighs what a player's words may. Not resent to a GM who reloads: a
-     * card posted before the reload would be posted twice.
-     */
-    /*
      * UNDO OR KEEP, DECIDED ON THE PRIMARY GM (E29 C5, 05.10.2026; the plan's 2.9). A player's
      * write the GMs' audit flagged is decided once: another GM's click on the card asks the
      * primary (sheet-audit.mjs `askToDecideWrite`), whose decisions run one after another and
@@ -1188,7 +1232,7 @@ export const BRIDGE_ACTIONS = table({
         run: handleTrialRecord,
         answer: "reply",
         claims: {
-            patch: "a GM's patch of the trial's record, held on the primary to the record's own fields (trial-progress.mjs recordPatchOf, RECORD_FIELDS): never the chapter, the trial's list of the dead or the Objections' receipts; a GM's request only"
+            patch: "a GM's patch of the trial's record, held on the primary to the record's own fields (trial-progress.mjs recordPatchOf, RECORD_FIELDS): never the chapter, the trial's list of the dead or the Objections' receipts; or a press on the Findings, `findingsOp`, applied there to the list as the primary's step finds it (trial-progress.mjs applyFindingOp); or the case summary's claim, `summaryClaim`, written there only when no summary is out (summaryClaimStep); a GM's request only"
         }
     },
     /*
@@ -1340,7 +1384,7 @@ export const BRIDGE_ACTIONS = table({
         run: handleFloorRepoint,
         answer: "reply",
         claims: {
-            targetId: "held by trial.mjs repointOnPrimary to a living student, one of the trial's participants (vote.mjs trialParticipants, connected or not; E51 C6), the floor lets the objector aim at (trial-floor.mjs mayObjectTo, targetRefusal); a GM's request only"
+            targetId: "held by trial.mjs repointOnPrimary to a living student, one of the trial's participants (vote.mjs trialParticipants; E51 C6) whose player is connected (trial-floor.mjs repointRefusal, absentOf; E110 C1), the floor lets the objector aim at (trial-floor.mjs mayObjectTo, targetRefusal); a GM's request only"
         }
     },
     /*
@@ -1547,6 +1591,15 @@ export const BRIDGE_ACTIONS = table({
             refuse: "the GM's Refuse: the asker is told the Observe was refused, and nothing is written"
         }
     },
+    /*
+     * A PLAYER'S PRIVATE CARD WHILE AN INCIDENT RUNS (E08+E28 fix r2-H5, 05.10.2026; review
+     * S2-3). Posted by this GM, as its author, so that no incident card names the player whose
+     * browser asked for it (secret.mjs `askGm`, `postAsked`). Held to what the player could have
+     * posted themselves: it speaks as no character or as one the sender owns, it is read by users
+     * of this world, and it weighs what a player's words may. Not resent to a GM who reloads: a
+     * card posted before the reload would be posted twice. (Moved over its row on 21.11.2026: it
+     * stood above `audit.decide`'s since a split.)
+     */
     [ACTION_CARD]: {
         label: "DRPG.Bridge.what.card.post",
         guards: [knownSender, senderNotSpectator, guardCardSpeaker, guardCardReaders],

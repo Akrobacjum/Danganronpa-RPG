@@ -62,14 +62,12 @@ import { scenesReportOf } from "./trial-scene.mjs";
 import { log, error, plural, workingScene, esc, localeFormat, listOf } from "./utils.mjs";
 import { stepperId, drpgWindow, checkList, formGrid, box, roleButton, tipAttr, tipText, WINDOW_HELP } from "./ui-kit.mjs";
 // Edit campaign's fields, reader, writes and End the chapter part (E49 A1e): gm-campaign.mjs never reaches back here.
-import { campaignRows, readClockForm, applyCampaignForm, endChapterPart, endTheChapter, morningLineRow, untouchedKept, followCampaignFields } from "./gm-campaign.mjs";
+import { campaignRows, readClockForm, applyCampaignForm, endChapterPart, endTheChapter, morningLineRow, untouchedKept, followCampaignFields, KEPT_FIELDS, mayEndChapterHere } from "./gm-campaign.mjs";
 import { alreadyOpen, handOff, RAISED } from "./live.mjs";
 // Foundry's secret doors and the players' rulers (E80 C5): the doors as the map holds them, their
 // conversion, and the permissions in force where `core.permissions` names none.
 import { secretDoorsOn } from "./passages.mjs";
 import { convertSecretDoors } from "./passages-gm.mjs";
-
-// E57 C4 (D35): the header's "?" - its own line, so a line that edits the imports above does not meet it.
 
 export { resetTallies, resetGoesHtml, resetSeason, RESET_STEPS, RESET_CHOICES, wipeStudent, placeCast, seasonResetRecord, unfinishedGroups } from "./season-wipe.mjs";
 
@@ -214,7 +212,7 @@ async function fixCursorPermission() {
 
 /** The rooms-per-student line under the room count step: Room setup's own sentence, on its Rooms tab since E101 (vault-store.mjs `roomRatioLine`, E20 C1). */
 function roomCountLine(census, living) {
-    return `<div class="notes">${foundry.utils.escapeHTML(roomRatioLine(census, living))}</div>`;
+    return `<div class="notes" data-drpg-live-line>${foundry.utils.escapeHTML(roomRatioLine(census, living))}</div>`;
 }
 
 /*
@@ -251,6 +249,17 @@ function undecidedRegionNames(scenes = Array.from(game.scenes ?? [])) {
 }
 
 /**
+ * The scene the rooms row judges (E13 C5's rule A): the scene on the GM's screen when it is a place, else the school
+ * (`homeScene`). One function since 1.2.122 (the audit of 1.2.118, CASE-70): the row's Check rooms checked
+ * `canvas.scene` and filed the result under its id while the row judged the school - a GM in the trial hall read the
+ * hall's findings under "This row checks School", and the row's mark did not move. Now both read this.
+ */
+export function roomRowScene() {
+    const viewed = workingScene();
+    return isPlaceScene(viewed) ? viewed : homeScene();
+}
+
+/**
  * One row per thing a season needs, each able to say whether it is done.
  *
  * `missing` returns the names it is waiting on, so a row can say "3: Aoi, Leon,
@@ -273,8 +282,7 @@ export function steps({ roster = studentActors(), scenes = Array.from(game.scene
        11.10, rule A). They read the scene on the GM's screen, and a GM viewing the trial hall -
        where every GM is taken for the trial since E13 C3, and which holds no room since C1 - was
        told the season had no rooms. On a scene that is no place they read the school (`homeScene`). */
-    const viewed = judged === undefined ? workingScene() : null;
-    const roomScene = judged !== undefined ? judged : isPlaceScene(viewed) ? viewed : homeScene();
+    const roomScene = judged !== undefined ? judged : roomRowScene();
     /* WAITING FOR THE CAST (E20 C1, S06-28). On an empty world every row over the students ticked:
        `.every` on an empty list is true, so "Starting Health" and "Everybody has an Ultimate" read done
        while only "The cast exists" was red. Those rows wait now - not done, no cross, no button - and
@@ -517,7 +525,7 @@ export function steps({ roster = studentActors(), scenes = Array.from(game.scene
              * errand, and splitting them across two windows is how the second
              * half stops happening.
              */
-            extra: () => `${withRooms.length ? `<div class="notes">${esc(plural("DRPG.Season.roomsJudged",
+            extra: () => `${withRooms.length ? `<div class="notes" data-drpg-live-line>${esc(plural("DRPG.Season.roomsJudged",
                 { n: withRooms.length, scene: roomScene?.name ?? "" }))}</div>` : ""}${roomGuideHtml()}`
         },
         {
@@ -540,7 +548,7 @@ export function steps({ roster = studentActors(), scenes = Array.from(game.scene
              * every road into the Class Trial takes the table to the hall and back (trial-scene.mjs
              * `followPhase`); with neither the trial opens wherever the table is, as before 1.2.74.
              * `optional: true` for that reason - a table that holds its trial on the school's map
-             * has decided something. The button opens Room Setup on the Scenes tab.
+             * has decided something. The button opens Season setup, whose Scenes part links them (E101 item 5).
              */
             /* AND THE HALL'S TOKENS (E51 C8; audit S17-49): nothing the Scenes tab warns of in it - a student with no
                token the module can make, a second token, an unlinked one, a room region, a dark hall (trial-scene.mjs
@@ -1005,11 +1013,39 @@ export function repaintStep(li, step) {
     if (missing && nextMissing) missing.replaceWith(nextMissing);
     else if (missing) missing.remove();
     else if (nextMissing) detail?.querySelector(":scope > .drpg-setup-hint")?.after(nextMissing);
+    /* AND A LINE UNDER IT THE WORLD WRITES (1.2.122; the auditor's probe 43 on 1.2.121): a step's `extra` was kept as drawn,
+       so after a death the rooms-per-student line still counted the dead ("1.5 rooms per student. Living students: 4" with
+       three alive). A line of `extra` that reads the world is marked `data-drpg-live-line` and drawn again here, in order;
+       what else stands under the row - the room guide, Check rooms and its findings - is kept. */
+    const lines = detail ? [...detail.querySelectorAll(":scope > [data-drpg-live-line]")] : [];
+    const nextLines = [...fresh.querySelectorAll(":scope > .drpg-check-text > .drpg-check-detail > [data-drpg-live-line]")];
+    let after = null;
+    lines.forEach((line, i) => {
+        if (nextLines[i]) { line.replaceWith(nextLines[i]); after = nextLines[i]; } else line.remove();
+    });
+    after ??= detail?.querySelector(":scope > .drpg-setup-missing") ?? detail?.querySelector(":scope > .drpg-setup-hint") ?? null;
+    for (const line of nextLines.slice(lines.length)) { after?.after(line); after = line; }
     const button = li.querySelector(":scope > button[data-drpg-action]");
     const nextButton = fresh.querySelector(":scope > button[data-drpg-action]");
-    if (button && nextButton) button.replaceWith(nextButton);
+    if (button && nextButton) sameButton(button, nextButton);
     else if (button) button.remove();
     else if (nextButton) li.append(nextButton);
+}
+
+/**
+ * A ROW'S BUTTON IS WRITTEN OVER, NOT REPLACED (the audit's check of 1.2.121, r121-R-7; the line claude/refresh-120 for
+ * 1.2.122). The checklist follows the world (`followChecklist`, every row through `relistRows` and `repaintStep`), and
+ * the button was swapped for the fresh one on every repaint: a repaint between a press's pointerdown and its click took
+ * the pressed node out of the list, and the click went nowhere the list's listener hears (read in Chromium 153 on
+ * 21.11.2026: a button replaced between pointerdown and click, heard 0 of 1; its attribute written in place, 1 of 1).
+ * The node stays, and its attributes and words become the fresh one's - the listener reads the action off the button at
+ * the click, so a press lands on the action the row shows then. R8541.
+ */
+function sameButton(button, next) {
+    if (button.isEqualNode(next)) return;
+    for (const { name } of [...button.attributes]) if (!next.hasAttribute(name)) button.removeAttribute(name);
+    for (const { name, value } of next.attributes) if (button.getAttribute(name) !== value) button.setAttribute(name, value);
+    if (button.innerHTML !== next.innerHTML) button.innerHTML = next.innerHTML;
 }
 
 /**
@@ -1054,6 +1090,18 @@ function followChecklist(dialog, { rewire = null } = {}) {
         rewire?.();
     }, TIMING.coalesceMs);
     for (const name of names) ids.push([name, Hooks.on(name, () => { if (!root.isConnected) return stop(); repaint(); })]);
+    /* AND THE MASTERMIND'S PICK (1.2.122; the audit of 1.2.118, REFR-27's residue). The Mastermind is a GM store
+       (mastermind.mjs `mastermindStore`), whose write fires `clientSettingChanged` alone - no world setting, no actor - so
+       a Mastermind picked in The Mastermind window beside the checklist left its row, and "Mastermind feeds no pool", as
+       drawn. Heard for that store's key alone, read off the store's own handle (nothing outside the engine names a store's
+       key, R171): the other client keys are written often and the rows read none of them. */
+    let mastermindKey = null;
+    import("./gm-stores.mjs").then(m => { mastermindKey = `${MODULE_ID}.${m.mastermindStore.spec.key}`; })
+        .catch(err => error("The Season checklist could not follow the Mastermind", err));
+    ids.push(["clientSettingChanged", Hooks.on("clientSettingChanged", key => {
+        if (!root.isConnected) return stop();
+        if (mastermindKey && key === mastermindKey) repaint();
+    })]);
 }
 
 /** The checklist's intro: how many required rows are still to do, or that the season is ready. */
@@ -1076,9 +1124,18 @@ export function relistRows(ul, list) {
     const fresh = new Map([...box.content.querySelectorAll("li.drpg-check-row[data-drpg-key]")].map(li => [li.dataset.drpgKey, li]));
     const keys = list.map(step => step.key);
     for (const [key, li] of standing) if (!keys.includes(key)) li.remove();
+    /* A ROW IN ITS PLACE IS NOT MOVED (the audit's check of 1.2.121, r121-R-7). Every standing row was appended again on
+       every repaint, and a move is a removal: read in Chromium 153 on 21.11.2026, a row appended again between a press's
+       pointerdown and its click lost the click (heard 0 of 1), as a replaced button did; attributes written in place kept
+       it (1 of 1). Each row now goes after the one before it only when it does not stand there already. */
+    let prev = null;
     for (const step of list) {
-        const li = standing.get(step.key);
-        if (li) { ul.append(li); repaintStep(li, step); } else if (fresh.get(step.key)) ul.append(fresh.get(step.key));
+        const li = standing.get(step.key) ?? fresh.get(step.key);
+        if (!li) continue;
+        const here = prev ? prev.nextElementSibling : ul.firstElementChild;
+        if (here !== li) { if (prev) prev.after(li); else ul.prepend(li); }
+        if (standing.has(step.key)) repaintStep(li, step);
+        prev = li;
     }
     return [...ul.querySelectorAll(":scope > li.drpg-check-row[data-drpg-key]")].map(li => li.dataset.drpgKey);
 }
@@ -1090,11 +1147,13 @@ function wireRoomCheck(dialog) {
     checkButton?.addEventListener("click", async ev => {
         ev.preventDefault();
         const [{ checkRegions }, { roomCheckHtml }] = await Promise.all([import("./fog.mjs"), import("./fog-diagnostics.mjs")]);
-        const findings = checkRegions();
+        // The scene the row judges, not the one on screen (`roomRowScene`; CASE-70).
+        const scene = roomRowScene() ?? null;
+        const findings = checkRegions(scene);
         /* What the rooms row and Pre-season's scene line read (`lastRoomChecks`, E20 C1): the problems - the errors and the
            warnings that break the fog (`roomCheckProblems`, E20 fix round G-1), where the errors alone were kept; and the
            rooms row drawn again with them, where it kept the mark the window opened with. */
-        if (canvas?.scene?.id) lastRoomChecks.set(canvas.scene.id, roomCheckProblems(findings));
+        if (scene?.id) lastRoomChecks.set(scene.id, roomCheckProblems(findings));
         repaintStep(dialog.element.querySelector('li.drpg-check-row[data-drpg-key="rooms"]'), steps().find(s => s.key === "rooms"));
         if (!findings.length) {
             checkOut.innerHTML = `<p class="notes">${
@@ -1102,7 +1161,7 @@ function wireRoomCheck(dialog) {
             return;
         }
         // Each explanation once, above the list, and a Show on map per row in place of raw coordinates (E20 C2, S07-14).
-        checkOut.innerHTML = roomCheckHtml(findings, canvas?.scene?.id ?? null);
+        checkOut.innerHTML = roomCheckHtml(findings, scene?.id ?? null);
     });
     if (checkOut) import("./fog-diagnostics.mjs").then(({ wireShowOnMap }) => wireShowOnMap(checkOut))
         .catch(err => error("Could not wire Show on map", err));
@@ -1273,6 +1332,8 @@ export async function openSeasonSetup({ draft = null, opened = null } = {}) {
             // End the chapter (Edit campaign's part): the window closes without its Save, then the question.
             dialog.element.querySelector("[data-drpg-end-chapter]")?.addEventListener("click", ev => {
                 ev.preventDefault();
+                // Asked at the press, the window kept on a GM who is not the primary (CTRL-86; gm-campaign.mjs).
+                if (!mayEndChapterHere()) return;
                 endAsked = true;
                 dialog.close();
             });
@@ -1337,7 +1398,8 @@ export async function openSeasonSetup({ draft = null, opened = null } = {}) {
     // Only when it moved. Every write to this setting redraws every open sheet
     // (see its `onChange`), and pressing Save on this window is something a GM
     // does repeatedly.
-    if (result.safeword !== safeword()) {
+    // A safeword left as drawn is the world's at this line, not the press's (1.2.122; gm-campaign.mjs `KEPT_FIELDS`).
+    if (!(result[KEPT_FIELDS] ?? []).includes("safeword") && result.safeword !== safeword()) {
         await setSetting(SETTINGS.safeword, result.safeword);
         log(`Safeword set to "${safeword()}".`);
     }
@@ -1402,9 +1464,9 @@ export function seasonResetPart() {
  * Open buttons, the First session rows - "moves OUT of Season setup into a NEW window opened by its own button in the
  * row", and Pre-season checks with it, as a button there). The window Season setup's rows were until then, as they were:
  * the intro, the rows (`setupRows`), the First session rows (`firstSessionHtml`), the note; a row's Do it or Open a round
- * trip that brings this window back (`wireSetupSteps`), Check rooms in place (`wireRoomCheck`). Pre-season checks its
- * secondary button, as it was Season setup's until E49 A1e: the window closes with where it was, the checks' window
- * answers, and this one comes back there. Close, a read-out's (E21 C2b): nothing here is a form. Opened by Season setup's
+ * trip that brings this window back (`wireSetupSteps`), Check rooms in place (`wireRoomCheck`). Pre-season checks was its
+ * secondary button until E101 item 2 folded its checks into the rows and the further checks under them (`fillMoreChecks`,
+ * `preSessionReport`): the footer is Close alone, a read-out's (E21 C2b): nothing here is a form. Opened by Season setup's
  * tile (gm-panel.mjs `SEASON_TILES`) and the Next line's Go (`EXTRA_ACTIONS.seasonChecklist`).
  */
 export async function openSeasonChecklist({ draft = null, opened = null } = {}) {
@@ -1562,8 +1624,9 @@ export async function foundryReport({ contract = null } = {}) {
 }
 
 /**
- * The Pre-season checks window's body (E20 C3, from `runPreSessionChecks`, so the suite reads it without a window):
- * the cast, the scenes, the voice rows, the room pictures and the anonymity audit. `av` hands the A/V facts in
+ * The Season checklist's further checks (E20 C3 as the Pre-season checks window's body, from `runPreSessionChecks`, so the
+ * suite reads it without a window; under the checklist's rows since E101 item 2): the room pictures, the voice rows, the
+ * dice look and the anonymity audit - the cast and the scenes left it for the rows in E101 item 2 (below). `av` hands the A/V facts in
  * (`{ mode, on, available }`, R1510), `scenes` the scenes whose room pictures are checked and `head` their HEAD
  * request (R1510, R1511, E20-T2), `contract` a run of the contract (patches.mjs `runContract`; R1541), `diceLook` the
  * dice look's findings (dice-look.mjs `lookFindings`; R1300); each is the world's unless handed.

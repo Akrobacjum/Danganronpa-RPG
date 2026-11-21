@@ -1,0 +1,3733 @@
+{
+ "what": "Open items of this audit that no 1.2.122 brief carries by the coordinator's split (the 533 rows of recheck-119.json with status open or open-unchanged, the 1.2.120 and 1.2.121 check rows). Written for the owner's ask of 21.11.2026 ~10:37Z: everything in one update.",
+ "date": "21.11.2026",
+ "base_for_lines": "21bf5d18; file:line in each row is on the tree named in its source (b5a29e73 for sections A-D unless said), so a line re-reads it on its own base first",
+ "A_partly_from_recheck_119": [
+  {
+   "id": "COMM-24",
+   "severity": "minor",
+   "where_1_2_118": "`scripts/calls.mjs:525-534` (publiczna karta); `scripts/call-effects.mjs:1000-1003, 1044-1046, 1099-1102, 1288, 1303`; `scripts/utils.mjs:701-716, 815-831`; `scripts/secret.mjs:496-499`.",
+   "still_wrong": null,
+   "verifier": {
+    "verdict": "weakened",
+    "why": "The public card is fixed. cardName gives '?' for a masked target on every done line, and the card body is built from those lines, the GM's note and the pool label only. The toasts that still use the real name show on the applying browser, which for a Despair Call is a GM. But one Despair Call aimed at a student has no public card and still names a masked target to players: the Bounty. postBountyNow stores targetName: target.name (monocub.mjs:1826). cubsFor sends it to every Monocub's owner (bounties: openBounties(), :268, :1779), and the Monocub sheet panel draws it as text (sheet-actions.mjs:371). The veiled bountyPosted card goes through wordsFor and is cut while the mask stands; the panel line goes over the cub socket and is not.",
+    "residue": "A GM's Bounty on a masked student: every Monocub player's sheet panel names the student in clear while the mask stands. It is the same inference as the finding's: the Monocub's own Confusion picker offers every student by name except one '?'. Also bountyLapsed (monocub.mjs:1878) is posted after the time of day ended the mask, when remember's hid is empty, so the lapse card names the student who was behind the '?'.",
+    "test_pinning": "tier 2 'E119 - a Call's lines for its card name a masked student \"?\" (a Despair Call on the public card)' (tests-tier2.mjs:17969)"
+   }
+  },
+  {
+   "id": "CTRL-10",
+   "severity": "minor",
+   "where_1_2_118": "`scripts/investigation.mjs:1927-1940` (`moveCaseNode`) wobec `:1146` (rysowany graf).",
+   "still_wrong": null,
+   "verifier": {
+    "verdict": "weakened",
+    "why": "The part the finding named is fixed: moveCaseNode and caseMapRegion both read caseMapGraph(reading) and layoutCase with the same sort and manual, so Key slots no GM wrote, planned Autopsies and 'Every chapter' are in the column the move reads, and a move that cannot happen now says so. But the same symptom - Move pressed, nothing moves, nothing said - still has a road past the first column: the Map does not draw columns past the first by layout row. case-view.mjs mapPlace places every node with an input from an earlier column by its aim (the mean of its inputs' middles) and breaks ties by row only, in both the first draw (case-map.mjs:259) and the measured relayout (case-view.mjs:545). Every deduction rests on earlier columns, so Move up/Down on a deduction swaps the kept manual places, sets sort to manual, answers true, and the drawing does not change unless two aims tie; no moveEnd notice is given (investigation.mjs:1981-1994 only notices no column or a column end). The Move buttons are drawn on every open node (case-map.mjs:389). Lesser: a Move under the room, state or uncrossed order switches the chapter to manual with only that column placed, so an unaimed node of another column (a counter with no input) is redrawn in kind order (case-layout.mjs:55, Infinity ties to kindCompare). Both predate b5a29e73 (aimsOf is in b5a29e73) and are not what the fix's tier 2 test covers: it moves the Autopsy in the evidence column only.",
+    "residue": "Past the first column the drawn order follows the inputs' aims, not the kept order: Move on a deduction with inputs writes a new manual order, draws nothing different and says nothing (moveCaseNode returns true). Not covered by any test found.",
+    "test_pinning": "tier 2 \"the planner's Move moves a node the evidence column draws from the Key plan and the chapter's planned Autopsies...\" (scripts/tests-tier2.mjs:105164); \"a node at the top of the planner's column pressed Move up stays...\" (:105213)"
+   }
+  },
+  {
+   "id": "DOC-05",
+   "severity": "nit",
+   "where_1_2_118": "`docs/dev/e39/CALIBRATION.md:213`, `:221-222` (gałąź); `scripts/movement.mjs:3482-3495`",
+   "still_wrong": "The header no longer rests on the D4 shim's 'every coordinate sent'. Still open, as the finding said: the cause at 14.370 is not read, whether the race occurs in play is not read, and the new wait and its origin rule are unmeasured at a table (LIVE-E39-20; the 1.2.119 local gate did not run: audit/gate/local-gate.json sandbox not reachable).",
+   "verifier": {
+    "verdict": "holds",
+    "why": "The header's second paragraph now rests on r5 as read ('On Foundry 14.370 `diff: false` does not send a token's coordinates its copy holds: the third probe's r5'), matching CALIBRATION.md:26's row. The first paragraph still tells the D4 shim's 76 D story as why diff: false is passed, but it no longer claims every coordinate is sent. Open as stated: the header itself says 'Whether 14.370 carries the client's origin as the shim models it is not read: LIVE-E39-20', the wait is 'unmeasured, LIVE-E39-20', and 'a copy wrong with nothing in flight is not read and not covered'; the 1.2.119 local gate record has every part not-run, reason no-server.",
+    "residue": "The cause at 14.370, whether the race occurs in play, and the wait's length are unread at a table (LIVE-E39-20).",
+    "test_pinning": "tier 2 \"a put-back written while the token's newer move is on its way lands after it\" (scripts/tests-tier2.mjs:104950) - on the shim only"
+   }
+  },
+  {
+   "id": "MAP-19",
+   "severity": "minor",
+   "where_1_2_118": "`scripts/fog.mjs:1691-1711`, `:1617-1619`, `:294-316`, `:325-330`, `:1381-1395`.",
+   "still_wrong": "The seed still writes a Spectator's standing room into its ledger row on the primary's canvasReady / createToken; cubFogSection (gm-stores.mjs:1876-1895, unchanged) joins every row but the Mastermind's, so each Monocub's map still shows the room; spectatorFogSection (1907-1933) likewise for other Spectators; forgetSpectatorMap (fog.mjs:1381-1395, unchanged) still keeps the Spectator's own row when the flag comes off, and from then the row is a student's, so the GM's map counts it too.",
+   "verifier": {
+    "verdict": "holds",
+    "why": "Fixed half: ledgerRooms skips any row whose actor is not in studentIds() (studentActors excludes a Spectator, monokuma.mjs:77-83), and its two callers, the GM's map (fog.mjs:1852) and the GM's fog sets and discovery reveal (fog.mjs:2812), both use the default. Residue confirmed by quote: seedCells still skips only `if (isMastermind(actor)) continue; if (isMonokuma(actor)) continue;` (fog.mjs:1718-1719), and is run on canvasReady and on createToken (fog.mjs:315, :329); cubFogSection joins every row but the Mastermind's (`actorId === mastermindId` the only skip, gm-stores.mjs:1881), spectatorFogSection likewise (gm-stores.mjs:1916); forgetSpectatorMap leaves the Spectator's own row (`if (actorId === actor.id ...) continue`, fog.mjs:1389), which then counts on the GM's map once the flag is off. The fix came from another finding (owner item #2, R7862), which covers this finding's GM half by its student filter.",
+    "residue": "seedCells writes a flagged Spectator's standing room into its ledger row; every Monocub's map and other Spectators' maps show it; after the flag comes off the row is a student's and the GM's map counts it.",
+    "test_pinning": "R7862 (scripts/tests-tier1.mjs:19736) for ledgerRooms's student filter; no test of seedCells and a Spectator found"
+   }
+  },
+  {
+   "id": "REFR-06",
+   "severity": "minor",
+   "where_1_2_118": "scripts/gm-campaign.mjs:217, 223 (drawn once), 347-361 (the patch over the clock), 281-283 (the comment); the same rows and Apply run Season setup's Save (season-setup.mjs:827, 1250)",
+   "still_wrong": null,
+   "verifier": {
+    "verdict": "weakened",
+    "why": "The defect as written holds as closed. Apply (gm-campaign.mjs:265) runs untouchedKept, so an untouched field writes the clock as it is at the press and correctsTheHour sees no rewind. The owner's rule is that windows redraw at once on change, and Edit campaign still does not. openClockDialog reads the clock once (:245), and its render (:252-258) wires only End the chapter, with no followWorld. Its own comment still says 'it is not a live window' (:311). Together with untouchedKept this opens a new gap between what the window shows and what it writes. Say the window was drawn at Morning and the HUD then moves to Afternoon. The field still shows Morning but counts as untouched, so a GM who presses Apply to keep Morning gets Afternoon written, with nothing said. Before the fix, Apply wrote what the window showed. The only door to this window is game.drpg.editClock, which keeps the scope narrow.",
+    "residue": "Edit campaign does not redraw while it stands open, against the owner's rule. An untouched field shows the drawn value but writes the current one, so a GM cannot keep the shown value without changing the field and changing it back.",
+    "test_pinning": "R7803 (tests-tier1.mjs:63517): pure untouchedKept over a detached form, plus a regex on Edit campaign's callback text; no tier 2 test moves the clock under an open Edit campaign"
+   }
+  },
+  {
+   "id": "REFR-25",
+   "severity": "minor",
+   "where_1_2_118": "`scripts/sound-panel.mjs:81-84, 195-197, 225-227, 259-261, 446-451`.",
+   "still_wrong": "A playlist created while the window is open is offered by no Music select until reopen; the two switches do not follow another GM.",
+   "verifier": {
+    "verdict": "holds",
+    "why": "Fixed half: a keepLive on `[data-drpg-sfx-region]` watching settings [sfxMap]; soundEffectsRegion rebuilds through soundEffectsTableParts, which returns the wrapper carrying the attribute (sfx.mjs:620-643), so the region survives its own rebuild. Residue stands: the Music rows' region watches settings [musicMap] and no playlist hooks (sound-panel.mjs:447-452); the musicEnabled switch is drawn in soundPlaylistsPane outside that region (sound-panel.mjs:195) and sfxVary as the Effects pane's lead outside the sfx region (sound-panel.mjs:226, sfx.mjs:615); neither setting has an onChange that redraws the window (settings.mjs:2014-2061). One precision: 'until reopen' is slightly too strong - listenFor always adds WORLD_HOOKS (live.mjs:69, :337), so a time-of-day, phase or Eclipse change, or any musicMap write (the GM mapping another row), also redraws the Music rows and brings the new playlist in. Also not followed: the Effects tab's count line (`data-drpg-sfx-count`, sfx.mjs:613), outside the region.",
+    "residue": "A playlist created while the window is open is not offered by the Music selects until a musicMap write, a time, phase or Eclipse change, or a reopen; the two switches do not follow another GM.",
+    "test_pinning": "P119-S1 (scripts/tests-tier2.mjs:97180) - the GM's own add and remove on the Effects tab; no test of another GM's write found"
+   }
+  },
+  {
+   "id": "REFR-27",
+   "severity": "minor",
+   "where_1_2_118": "`scripts/season-setup.mjs:1316-1371` (okno), `1323-1325` (wiersze raz), `1110-1119` (kafle otwierają Despair Flow i The Mastermind, nic nie zamykając).",
+   "still_wrong": "The intro count stays as drawn while the window is open. The Mastermind row (season-setup.mjs:669-681) and the 'Mastermind feeds no pool' row (:403) do not redraw on the pick itself. They redraw only when another write the list hears arrives.",
+   "verifier": {
+    "verdict": "weakened",
+    "why": "The stated residue stands. The intro count is drawn once (season-setup.mjs:1393, :1403) and the repaint touches only li rows (:1033-1039). The Mastermind pick writes a client-scoped store (mastermind.mjs:81, settings.mjs:3015-3017), whose write fires clientSettingChanged (gm-store.mjs:1793), a hook followChecklist does not list (:1028-1030). The fixed part is narrower than claimed, for two reasons. (1) followChecklist lists updateSetting but not createSetting. On a world where the assignments were never written, Despair Flow's first Save creates the gmAssignments document, and poolNames and monokumaPools the same way (gm-team-dialog.mjs:205-224, assignments.mjs:120). Foundry fires createSetting for that (the module's own note, gm-store.mjs:1794-1796). So the finding's exact scenario, a first season's assignment, still leaves 'Every student feeds a pool' red. The harness fires updateSetting for creates, so the tier 2 test cannot see it. (2) Some rows exist only while a condition holds: nobodyPublic (:403), foundryHeld (:628) and liveKitSecret (:661). The repaint looks up each drawn li's step and skips the row when that step is gone (:1038, 'if (step)'), and it never adds a row that appears. Putting the Mastermind into a pool in Despair Flow is a heard gmAssignments update, and it removes the nobodyPublic step. The row still stays drawn as a red cross until the window is reopened. The first reader said this row redraws 'when another write the list hears arrives'. That is wrong: no write repaints it away.",
+    "residue": "The intro count is not redrawn (:1393, :1403). Mastermind store writes are unheard (no clientSettingChanged). The first write of a never-stored setting is unheard (no createSetting), which covers the finding's own first-season scenario. Conditional rows (nobodyPublic, foundryHeld, liveKitSecret) are never removed or added while the window stands (:1038).",
+    "test_pinning": "tier 2 \"the Season checklist's rows follow the world while it stands open: the campaign's name taken off elsewhere turns its row ...\" (tests-tier2.mjs:105674), which drives an already-stored clock through updateSetting only"
+   }
+  },
+  {
+   "id": "STG-21",
+   "severity": "minor",
+   "where_1_2_118": "`scripts/investigation.mjs:1927-1940`.",
+   "still_wrong": null,
+   "verifier": {
+    "verdict": "weakened",
+    "why": "Duplicate of CTRL-10, same reading: the graph mismatch is closed, but Move on a deduction in a column past the first still does nothing visible and says nothing, because mapPlace draws those columns by the inputs' aims and only ties by row.",
+    "residue": "As CTRL-10: a move in an aimed column is kept but not drawn and not told.",
+    "test_pinning": "tier 2 \"the planner's Move moves a node the evidence column draws...\" (scripts/tests-tier2.mjs:105164)"
+   }
+  },
+  {
+   "id": "STG-32",
+   "severity": "minor",
+   "where_1_2_118": "`scripts/movement.mjs:3481-3495`; `scripts/tests-tier2.mjs:27432`.",
+   "still_wrong": "The promise the finding questioned is withdrawn and the code reshaped to r5's measured shape, with callers no longer claiming a lost put-back landed. Not settled: whether 14.370 carries the move's origin as the shim models it, whether the wait works at a table, and the case of a copy wrong with nothing in flight (reported landed, 'not read and not covered' in the header) - LIVE-E39-20, LIVE-E39-12 part 3; the 1.2.119 local gate did not run (sandbox unreachable).",
+   "verifier": {
+    "verdict": "holds",
+    "why": "The promise is withdrawn and the three callers read `landed`: sendBack (movement.mjs:3627), refundLastCrossing (:1436) and handleSendback (bridge-runs-records.mjs:451-453, 'a put-back that did not land is not answered done'). Searched for another put-back write outside putBackWrite: the only other REVERT-marked write is call-world.mjs fallbackGather (:724), a gather, not a put-back. Residue quoted: 'if none comes, the token stands at `to` as far as this browser can know (a copy wrong with nothing in flight is not read and not covered)' and `if (!move) return { sent: false, landed: true };` (movement.mjs:3538); a move that starts at `to` or carries no origin is also answered landed with nothing sent (:3543). The origin's shape on 14.370 is unread (LIVE-E39-20); the local gate did not run.",
+    "residue": "A copy wrong with nothing in flight is reported landed; whether 14.370 carries the move's origin, and whether the 1500 ms wait works at a table, are unread (LIVE-E39-20, LIVE-E39-12 part 3).",
+    "test_pinning": "tier 2 \"a put-back written while the token's newer move is on its way lands after it\" (:104950), \"a move that starts where the put-back aims, made while it waits, is not undone\" (:105054), \"a move whose record carries no origin, heard while a put-back waits, is not undone\" (:105082) - shim only"
+   }
+  },
+  {
+   "id": "STG-100",
+   "severity": "nit",
+   "where_1_2_118": "`scripts/vault-store.mjs:601`, `:648-649`; `scripts/sequence.mjs:733-736`, `:970`; `scripts/voice-tile.mjs:725-727`",
+   "still_wrong": "The boards and the voice tile still cannot draw the \"?\" SVG; the board case is avoided by ending masks first, not by drawing \"?\" (and the chapter-end road in STG-03 can still show a letter). The voice tile under a mask (not the veil, which voice-tile.mjs personOf now handles) still falls to the next face. The 1.2.119 notes (.github/release-notes/v1.2.119.md:68) again say every day's board names a masked killer \"?\".",
+   "verifier": {
+    "verdict": "holds",
+    "why": "Neither surface draws the '?' SVG. ROOM_IMAGE_TYPES still has no svg (vault-store.mjs:601, :649), the boards' portraitOf reads through it (sequence.mjs:733-736), and voicePortrait takes the first face safeRoomImage accepts (voice-tile.mjs:743-749). The boards avoid the case on the advance roads because the masks now end first (clock.mjs:439), not because they draw '?'. The 1.2.119 notes say every day's board names a masked killer '?' (.github/release-notes/v1.2.119.md:66-67), which is true only in that sense. One narrowing of the voice half: under a mask the killer is moved to a silent room of their own (voice.mjs maskedRow :1151-1154), so no other browser's tile draws them at all; the tile's fall to the next face shows only on the killer's own screen.",
+    "residue": "Boards: '?' still not drawable, a letter appears whenever a mask stands at a board (e.g. the chapter-end road of STG-03). Voice tile: cosmetic only, the killer's own view.",
+    "test_pinning": null
+   }
+  }
+ ],
+ "B_old_items_open_or_partly_not_pointing_at_a_new_id": [
+  {
+   "id": "OA-3",
+   "old": "obszar live",
+   "status": "otwarte",
+   "sev_now": "minor",
+   "evidence": "jedyny odczyt LiveKit na Foundry to jego ustawienie przy wyłączonym A/V (LIVE-E05-11, LOCAL-REPORT.md:475); głos za pokojami i muzyka za porą nieodczytane",
+   "routing": "-",
+   "covered_by": []
+  },
+  {
+   "id": "OA-1",
+   "old": "obszar live",
+   "status": "częściowo",
+   "sev_now": "minor",
+   "evidence": "odczyty F: repaint mgły p95 33-51 ms, pierścień ucznia p95 0,1-1,9 ms (LIVE-E53-01, LOCAL-REPORT.md:346); największa mapa izometryczna i sprzątanie po zmianie sceny nieodczytane",
+   "routing": "etap E53 odłożony do 1.2.120 (ROUTING.md)",
+   "covered_by": []
+  },
+  {
+   "id": "OA-2",
+   "old": "obszar live",
+   "status": "częściowo",
+   "sev_now": "nit",
+   "evidence": "CSS urósł do 2 007 312 B w 7 arkuszach (`wc -c styles/*.css`); ucięte teksty w wąskich oknach i jasny motyw v14 nieodczytane",
+   "routing": "-",
+   "covered_by": []
+  },
+  {
+   "id": "WD-CRIME",
+   "old": "mocna strona (harness)",
+   "status": "częściowo",
+   "sev_now": "nie ustalono",
+   "evidence": "jak LF-DEATH, LF-CLEANUP i LF-NOTHROW razem; waga stoi na odczycie innego drzewa (weryfikacja: osłabione)",
+   "routing": "-",
+   "covered_by": []
+  },
+  {
+   "id": "WD-DEGRADE",
+   "old": "mocna strona (harness)",
+   "status": "częściowo · T",
+   "sev_now": "-",
+   "evidence": "twardy stop trzyma i obejmuje trzy moduły (module.mjs:173-191); brak Isometric Perspective zatrzymuje moduł zamiast ostrzec, decyzją z 09.10.2026",
+   "routing": "-",
+   "covered_by": []
+  },
+  {
+   "id": "CL-LIVE",
+   "old": "zadanie",
+   "status": "częściowo · T",
+   "sev_now": "minor",
+   "evidence": "jak OA-1..OA-3; lista mówi \"cztery obszary\", sekcja ma trzy",
+   "routing": "-",
+   "covered_by": []
+  },
+  {
+   "id": "LF-NOTHROW",
+   "old": "mocna strona (harness)",
+   "status": "otwarte",
+   "sev_now": "-",
+   "evidence": "nie ustalone ponownie: rozstrzyga tylko przebieg, a `base-run.json` nie istniał w chwili czytania",
+   "routing": "-",
+   "covered_by": []
+  },
+  {
+   "id": "LF-DEATH",
+   "old": "mocna strona (harness)",
+   "status": "częściowo",
+   "sev_now": "-",
+   "evidence": "Finishing Blow sprawdzony (10-murder.mjs:193); \"śmierć replikowana do gracza przy ciosie\" zastąpiona celowo: śmierć trzymana przez GM-ów jest ogłaszana przy publikacji (10-murder.mjs:197)",
+   "routing": "-",
+   "covered_by": []
+  },
+  {
+   "id": "LF-CLEANUP",
+   "old": "mocna strona (harness)",
+   "status": "częściowo",
+   "sev_now": "minor (tymczasowo)",
+   "evidence": "`endMurder` czyści stan (murder-rules.mjs:3405, 10-murder.mjs:826-829); przywracanie zestawu na 14.370 nie zawsze wraca świat, ale odczyt z drzewa 01b845d7, nie z `b5a29e73` (weryfikacja: osłabione)",
+   "routing": "-",
+   "covered_by": []
+  },
+  {
+   "id": "A4",
+   "old": "P2",
+   "status": "częściowo",
+   "sev_now": "nit",
+   "evidence": "generator podmieniany tylko w jednym `evaluate` (forced-roll.mjs:176-226); drugi `evaluate` w trakcie nieustalony (LIVE-E16-06, 9.2 pozycja 305)",
+   "routing": "-",
+   "covered_by": []
+  },
+  {
+   "id": "A9",
+   "old": "P2",
+   "status": "częściowo",
+   "sev_now": "minor",
+   "evidence": "nazwa ustalona: `token.ruler.visible` (visibility.mjs:1013-1016); czy linijka Foundry 14.370 bierze ten zapis - otwarte (9.2 pozycje 558, 559)",
+   "routing": "-",
+   "covered_by": []
+  },
+  {
+   "id": "Q3",
+   "old": "pytanie: tekst kontra kod",
+   "status": "częściowo",
+   "sev_now": "nit",
+   "evidence": "teksty języka naprawione (jak A14); weryfikacja: obalone - JSDoc `killCharacter`/`reviveCharacter` i nagłówek okna Students nadal mówią o zniszczeniu ekwipunku",
+   "routing": "-",
+   "covered_by": []
+  },
+  {
+   "id": "Q9",
+   "old": "pytanie: komentarz kontra kod",
+   "status": "częściowo",
+   "sev_now": "minor",
+   "evidence": "potwierdzone na 14.365 (visibility.mjs:911-917); ekran innego gracza na 14.370 nieodczytany (jak A9)",
+   "routing": "-",
+   "covered_by": []
+  },
+  {
+   "id": "Q12",
+   "old": "pytanie: martwe dane",
+   "status": "częściowo",
+   "sev_now": "nit",
+   "evidence": "`PROJECT_ITEMS` usunięte (tables-pools.mjs:663-672); reguła zostawiona \"dla podręcznika\" nie stoi w żadnym podręczniku",
+   "routing": "-",
+   "covered_by": []
+  },
+  {
+   "id": "Q16",
+   "old": "pytanie: decyzja",
+   "status": "częściowo",
+   "sev_now": "nie ustalono",
+   "evidence": "`world-secrets.mjs:140-144` pozwala tylko `active`/`stage`; weryfikacja: osłabione - flaga veil to zadeklarowany znany wyciek, więc `major` niepotwierdzony",
+   "routing": "jak LIVE-001",
+   "covered_by": []
+  },
+  {
+   "id": "DEC-1b",
+   "old": "P1 (A5, LIVE-001)",
+   "status": "częściowo",
+   "sev_now": "major",
+   "evidence": "jak LIVE-001: świat zamknięty, droga zawoalowanego tokenu otwarta",
+   "routing": "jak LIVE-001",
+   "covered_by": []
+  },
+  {
+   "id": "REB-hub",
+   "old": "-",
+   "status": "częściowo",
+   "sev_now": "-",
+   "evidence": "jedno okno `openItemManager` (gm-items.mjs:331, 78-100); przycisk Items w każdym wierszu okna Students decyzją z 09.11 (gm-students.mjs:174-175)",
+   "routing": "-",
+   "covered_by": []
+  },
+  {
+   "id": "VER-A18",
+   "old": "P3",
+   "status": "częściowo · T",
+   "sev_now": "-",
+   "evidence": "rejestr i 48 wierszy sond trzymają; weryfikacja: osłabione - od E52 C3 patches.mjs jest importowany na każdym kliencie w `ready`, nie \"na żądanie\"",
+   "routing": "-",
+   "covered_by": []
+  },
+  {
+   "id": "C4",
+   "old": "propozycja",
+   "status": "otwarte",
+   "sev_now": "nit",
+   "evidence": "1 650 `await import(` w 149 plikach bez testów; zamiana na statyczne odrzucona w 1.2.13",
+   "routing": "-",
+   "covered_by": []
+  },
+  {
+   "id": "D7",
+   "old": "wydajność (drobne)",
+   "status": "otwarte",
+   "sev_now": "nit",
+   "evidence": "jak C4",
+   "routing": "-",
+   "covered_by": []
+  },
+  {
+   "id": "E12",
+   "old": "ux",
+   "status": "otwarte",
+   "sev_now": "-",
+   "evidence": "wywołanie gracza ostrzega `DRPG.Panel.gmOnly` (tables-editor.mjs:1625-1628); zostawione decyzją",
+   "routing": "-",
+   "covered_by": []
+  },
+  {
+   "id": "C1",
+   "old": "propozycja",
+   "status": "częściowo",
+   "sev_now": "nit",
+   "evidence": "zdublowany JSDoc trzymany na zero (tools/comment-budget.json, R7150); cel 15-20% porzucony stylem domu",
+   "routing": "-",
+   "covered_by": []
+  },
+  {
+   "id": "C5",
+   "old": "propozycja",
+   "status": "częściowo",
+   "sev_now": "nit",
+   "evidence": "`onSocket` to `judge` nad tabelą (bridge-table.mjs:1632); config.mjs niepodzielony, sześć plików ponad 3 500 linii",
+   "routing": "-",
+   "covered_by": []
+  },
+  {
+   "id": "D1",
+   "old": "wydajność (kwadratowe)",
+   "status": "częściowo",
+   "sev_now": "nit",
+   "evidence": "parsowanie zniknęło (truth-bullets.mjs:182-185); cały region przebudowywany na serię zmian, koszt przy stole niezmierzony",
+   "routing": "-",
+   "covered_by": []
+  },
+  {
+   "id": "E1",
+   "old": "ux",
+   "status": "częściowo",
+   "sev_now": "nit",
+   "evidence": "594 wywołań `ui.notifications` (433 warn, 113 info, 48 error); co najmniej trzy odmowy jako info, reguły nie trzyma żaden lint",
+   "routing": "-",
+   "covered_by": []
+  },
+  {
+   "id": "E2",
+   "old": "ux",
+   "status": "częściowo",
+   "sev_now": "nie podano",
+   "evidence": "od E100 Move nic nie otwiera (action-rolls.mjs:77-82); weryfikacja: osłabione - reszta to wniosek czytającego, nie prześledzona",
+   "routing": "-",
+   "covered_by": []
+  },
+  {
+   "id": "E3",
+   "old": "ux",
+   "status": "częściowo",
+   "sev_now": "nit",
+   "evidence": "tooltip bez kosztu (sheet-actions.mjs:1378-1401); starą miarą 165 tooltipów ponad 80 znaków, dzisiejszą żaden ponad limit",
+   "routing": "-",
+   "covered_by": []
+  },
+  {
+   "id": "E10",
+   "old": "ux",
+   "status": "częściowo",
+   "sev_now": "nit",
+   "evidence": "Install w stopce (tables-editor.mjs:1666-1673); nadal dwa formularze nowego przedmiotu",
+   "routing": "-",
+   "covered_by": []
+  },
+  {
+   "id": "F2",
+   "old": "tekst",
+   "status": "częściowo",
+   "sev_now": "nit",
+   "evidence": "17 z 21 kluczy pod 220 znakami; `Vote.verdictNote` urósł",
+   "routing": "-",
+   "covered_by": []
+  },
+  {
+   "id": "F3",
+   "old": "tekst",
+   "status": "częściowo",
+   "sev_now": "nit",
+   "evidence": "osiem z dziewięciu trzyma; `Panel.whoIsAliveNote` znów akapit",
+   "routing": "-",
+   "covered_by": []
+  },
+  {
+   "id": "F4",
+   "old": "tekst",
+   "status": "częściowo",
+   "sev_now": "nit",
+   "evidence": "553 zdania config (walkConfigProse); 20 ponad 220 znaków, wszystkie w limicie słów",
+   "routing": "-",
+   "covered_by": []
+  },
+  {
+   "id": "H1b",
+   "old": "krok planu",
+   "status": "częściowo",
+   "sev_now": "major",
+   "evidence": "jak DEC-1b",
+   "routing": "jak LIVE-001",
+   "covered_by": []
+  },
+  {
+   "id": "H5",
+   "old": "krok planu",
+   "status": "częściowo",
+   "sev_now": "nit",
+   "evidence": "E1 i E3 częściowo, E7 zamknięte",
+   "routing": "-",
+   "covered_by": []
+  },
+  {
+   "id": "H6",
+   "old": "krok planu",
+   "status": "częściowo",
+   "sev_now": "nit",
+   "evidence": "F2, F3, F4 częściowo",
+   "routing": "-",
+   "covered_by": []
+  },
+  {
+   "id": "H8",
+   "old": "krok planu",
+   "status": "częściowo",
+   "sev_now": "nit",
+   "evidence": "C2, A15, A18 zamknięte, C3 częściowo; cel \"minus 8 tysięcy linii\" niemierzalny przy kodzie trzy razy większym",
+   "routing": "-",
+   "covered_by": []
+  },
+  {
+   "id": "H9",
+   "old": "krok planu",
+   "status": "częściowo",
+   "sev_now": "nit",
+   "evidence": "C1 i C5 częściowo, C4 otwarte decyzją",
+   "routing": "-",
+   "covered_by": []
+  },
+  {
+   "id": "H10",
+   "old": "krok planu",
+   "status": "częściowo",
+   "sev_now": "nit",
+   "evidence": "C6 częściowo",
+   "routing": "-",
+   "covered_by": []
+  },
+  {
+   "id": "H-note",
+   "old": "uwaga planu",
+   "status": "częściowo",
+   "sev_now": "nit",
+   "evidence": "A3 zamknięte, A4 nadal częściowo",
+   "routing": "-",
+   "covered_by": []
+  },
+  {
+   "id": "CASE-08",
+   "old": "minor",
+   "status": "częściowo",
+   "sev_now": "nit",
+   "evidence": "strażniki są (vote.mjs:154, bridge-table.mjs:1632-1634); gołe `game.user` zostało w gm-bridge.mjs:200, 229, a weryfikacja (osłabione) dodaje `askForOffers` z `onGmReady`",
+   "routing": "-",
+   "covered_by": []
+  },
+  {
+   "id": "CASE-14",
+   "old": "minor",
+   "status": "częściowo",
+   "sev_now": "nit",
+   "evidence": "baza licznika z listy wydanych kart (vote.mjs:456-458, 682-685); `pendingVoters` zna tylko połączonych (vote.mjs:637-645): \"Every ballot is in.\" obok \"3 of 4\"",
+   "routing": "-",
+   "covered_by": []
+  },
+  {
+   "id": "CASE-LC2",
+   "old": "-",
+   "status": "otwarte",
+   "sev_now": "minor",
+   "evidence": "zaproszenie kończy się po cichu, gdy przyjdzie przed kopią obsady (murder-rules.mjs:4564-4568, 4667, 4695); nieodczytane",
+   "routing": "-",
+   "covered_by": []
+  },
+  {
+   "id": "CASE-LC4",
+   "old": "-",
+   "status": "otwarte",
+   "sev_now": "minor",
+   "evidence": "`advanceIfDue` tylko na głównym GM-ie (trial-floor.mjs:1721-1724); HUD graczy bez GM-a nieodczytany",
+   "routing": "-",
+   "covered_by": []
+  },
+  {
+   "id": "CASE-LC6",
+   "old": "-",
+   "status": "otwarte",
+   "sev_now": "nit",
+   "evidence": "tracker każdego GM-a decyduje sam (murder-ui.mjs:584-586, 736, 760-772); nieodczytane z dwoma GM-ami",
+   "routing": "-",
+   "covered_by": []
+  },
+  {
+   "id": "CASE-LC3",
+   "old": "-",
+   "status": "częściowo",
+   "sev_now": "minor",
+   "evidence": "odbiór sprzątania zsynchronizowany (gm-stores.mjs:1502-1506); wiersze Observe tylko w przeglądarce jednego GM-a (gm-stores.mjs:696-698, observe.mjs:78-86, 718-722)",
+   "routing": "-",
+   "covered_by": []
+  },
+  {
+   "id": "CASE-LC5",
+   "old": "-",
+   "status": "częściowo",
+   "sev_now": "nit",
+   "evidence": "przeniesienie ciała uruchamia sprawdzenie odkrycia (murder-rules.mjs:3175-3190, cleanup.mjs:1987, body.mjs:781); czy zamierzone - nigdzie nie zapisano",
+   "routing": "-",
+   "covered_by": []
+  },
+  {
+   "id": "COMM-15",
+   "old": "minor",
+   "status": "częściowo",
+   "sev_now": "minor",
+   "evidence": "znacznik odczytu z czasu wiadomości (messenger.mjs:196-208); reguła `timestamp >` nadal zależy od zegara nadawcy (:147), COMM-LC7 nieodczytany",
+   "routing": "-",
+   "covered_by": []
+  },
+  {
+   "id": "COMM-18",
+   "old": "nit",
+   "status": "częściowo",
+   "sev_now": "nit",
+   "evidence": "`contestedWarning` z klucza (voice.mjs:2235-2259); weryfikacja: osłabione - nowe angielskie zdania dla GM-a (music-play.mjs:619, voice.mjs:1686, 1749) trafiają do dziennika awarii; czy dziennik ma zostać angielski - pytanie do właściciela; **odpowiedź 20.11.2026: tak, zamknięte decyzją** (18.2, D-A7)",
+   "routing": "-",
+   "covered_by": []
+  },
+  {
+   "id": "COMM-LC6",
+   "old": "-",
+   "status": "otwarte",
+   "sev_now": "-",
+   "evidence": "plakietka wyrzutni obok docku kamer na prawdziwym ekranie nieodczytana (messenger-app.mjs:538-549)",
+   "routing": "-",
+   "covered_by": []
+  },
+  {
+   "id": "COMM-LC7",
+   "old": "-",
+   "status": "otwarte",
+   "sev_now": "-",
+   "evidence": "czy v14 stempluje `ChatMessage.timestamp` u klienta - brak odczytu (9.2 pozycja 134)",
+   "routing": "-",
+   "covered_by": []
+  },
+  {
+   "id": "COMM-LC3",
+   "old": "-",
+   "status": "częściowo",
+   "sev_now": "-",
+   "evidence": "kod odpowiada (call-gm.mjs:975-986, gm-bridge.mjs:147-162); ekran S7-6 nieodczytany (LOCAL-REPORT.md:432)",
+   "routing": "-",
+   "covered_by": []
+  },
+  {
+   "id": "COMM-LC5",
+   "old": "-",
+   "status": "częściowo",
+   "sev_now": "minor",
+   "evidence": "z pięciu części dwie nieodczytane: Play/Reset drugiego GM-a (COMM-10) i dwa zegary w jednym wątku (COMM-15)",
+   "routing": "-",
+   "covered_by": []
+  },
+  {
+   "id": "CORE-19",
+   "old": "nit",
+   "status": "częściowo",
+   "sev_now": "nit",
+   "evidence": "przypadek \"wszystkie zaplanowane Key Remnants znalezione\" zrobiony (gm-panel.mjs:916-927); sprawa z 3 albo 4 kluczami nadal czyta \"Check what has been found\"",
+   "routing": "-",
+   "covered_by": []
+  },
+  {
+   "id": "CORE-LC1",
+   "old": "-",
+   "status": "otwarte",
+   "sev_now": "-",
+   "evidence": "kod odpowiada (migrate.mjs:1586); odczytu nowego świata brak (weryfikacja: osłabione, U11)",
+   "routing": "-",
+   "covered_by": []
+  },
+  {
+   "id": "CORE-LC5",
+   "old": "-",
+   "status": "otwarte",
+   "sev_now": "nit",
+   "evidence": "nikt nie policzył rysowań jednego End of chapter; liczniki są (hud.mjs:407)",
+   "routing": "-",
+   "covered_by": []
+  },
+  {
+   "id": "CORE-LC6",
+   "old": "-",
+   "status": "otwarte",
+   "sev_now": "-",
+   "evidence": "kod odpowiada (chapter.mjs:391, 864-869); brak odczytu z dwoma GM-ami (LIVE-E11-09)",
+   "routing": "-",
+   "covered_by": []
+  },
+  {
+   "id": "DESP-18",
+   "old": "minor",
+   "status": "częściowo",
+   "sev_now": "nit",
+   "evidence": "tekst naprawiony (en.json:4374); weryfikacja: obalone - nagłówek eclipse.mjs nadal mówi \"the other three\" przy jednym wolnym Zaćmieniu z pięciu",
+   "routing": "-",
+   "covered_by": []
+  },
+  {
+   "id": "DESP-LC2",
+   "old": "-",
+   "status": "otwarte",
+   "sev_now": "-",
+   "evidence": "kod odpowiada (call-effects.mjs:905-906); E37-T6 nie czyta puli; brak odczytu (weryfikacja: osłabione)",
+   "routing": "-",
+   "covered_by": []
+  },
+  {
+   "id": "DESP-LC3",
+   "old": "-",
+   "status": "otwarte · T",
+   "sev_now": "nit",
+   "evidence": "droga szeptu z dźwiękiem nie powstała, każda przeglądarka gra sama (states.mjs:89-91, 381-390); nieodczytane",
+   "routing": "-",
+   "covered_by": []
+  },
+  {
+   "id": "DESP-LC6",
+   "old": "-",
+   "status": "otwarte",
+   "sev_now": "nit",
+   "evidence": "licznik zapełniony w Zaćmieniu uzbraja tę porę (overflow.mjs:420-424, 702-703); nieodczytane",
+   "routing": "-",
+   "covered_by": []
+  },
+  {
+   "id": "DESP-LC4",
+   "old": "-",
+   "status": "częściowo",
+   "sev_now": "minor",
+   "evidence": "odczyt F kolejności `_preUpdate` (CALIBRATION.md:27, LIVE-E30-03); rzut z Hope pod zaciemnieniem nieodczytany",
+   "routing": "-",
+   "covered_by": []
+  },
+  {
+   "id": "ITEM-04",
+   "old": "major",
+   "status": "częściowo",
+   "sev_now": "minor",
+   "evidence": "każda droga modułu kończy się `keepGearShape` (inventory.mjs:918); weryfikacja: osłabione - upuszczenie z kompendium, paska bocznego albo innego arkusza liczy tylko sloty (`preCreateItem`)",
+   "routing": "-",
+   "covered_by": []
+  },
+  {
+   "id": "ITEM-LC2",
+   "old": "-",
+   "status": "otwarte",
+   "sev_now": "-",
+   "evidence": "kod odpowiada (projects.mjs:2098-2100, 2111); brak odczytu (weryfikacja: osłabione, U11)",
+   "routing": "-",
+   "covered_by": []
+  },
+  {
+   "id": "ITEM-LC3",
+   "old": "-",
+   "status": "otwarte",
+   "sev_now": "-",
+   "evidence": "kod odpowiada (inventory.mjs:918, stash-reach.mjs:122); brak odczytu",
+   "routing": "-",
+   "covered_by": []
+  },
+  {
+   "id": "ITEM-LC4",
+   "old": "-",
+   "status": "otwarte",
+   "sev_now": "-",
+   "evidence": "kod odpowiada (projects.mjs:1930, 2669-2673; traps.mjs:597-615); brak testu i odczytu",
+   "routing": "-",
+   "covered_by": []
+  },
+  {
+   "id": "ITEM-LC5",
+   "old": "-",
+   "status": "otwarte",
+   "sev_now": "-",
+   "evidence": "kod odpowiada (tables-pools.mjs:290-291); brak odczytu",
+   "routing": "-",
+   "covered_by": []
+  },
+  {
+   "id": "ITEM-LC6",
+   "old": "-",
+   "status": "otwarte",
+   "sev_now": "-",
+   "evidence": "kod odpowiada (gm-items.mjs:371-379, 454-458); brak odczytu",
+   "routing": "-",
+   "covered_by": []
+  },
+  {
+   "id": "ITEM-LC8",
+   "old": "-",
+   "status": "otwarte",
+   "sev_now": "-",
+   "evidence": "alert `gmOnly` nie trafia do wątku (traps.mjs:323-328, call-gm.mjs:951); brak odczytu",
+   "routing": "-",
+   "covered_by": []
+  },
+  {
+   "id": "MAP-02",
+   "old": "major",
+   "status": "częściowo",
+   "sev_now": "minor",
+   "evidence": "sprite trzymany ukryty, gdy jego miejsce leży w obcym pokoju (visibility.mjs:492-509); przerwa między niestykającymi się pokojami nie jest trzymana (weryfikacja: osłabione, niezmierzone); odczyt F LOCAL-REPORT.md:419",
+   "routing": "-",
+   "covered_by": []
+  },
+  {
+   "id": "MAP-15",
+   "old": "nit",
+   "status": "częściowo",
+   "sev_now": "nit",
+   "evidence": "jedno `glassOn` i `SEAM_GLOW` (motion.mjs:37-48); próg zoomu i 60 ms w trzech plikach; weryfikacja: osłabione - dalsze kopie w fog-diagnostics.mjs",
+   "routing": "-",
+   "covered_by": []
+  },
+  {
+   "id": "MAP-LC4",
+   "old": "-",
+   "status": "otwarte",
+   "sev_now": "minor",
+   "evidence": "fog.mjs:974 przywraca `fog.mode` tylko z liczby; typ na v14 nieodczytany",
+   "routing": "-",
+   "covered_by": []
+  },
+  {
+   "id": "MAP-LC5",
+   "old": "-",
+   "status": "otwarte",
+   "sev_now": "-",
+   "evidence": "kod odpowiada (fog.mjs:2813-2816, 3188); brak odczytu (weryfikacja: osłabione)",
+   "routing": "-",
+   "covered_by": []
+  },
+  {
+   "id": "MAP-LC6",
+   "old": "-",
+   "status": "otwarte",
+   "sev_now": "-",
+   "evidence": "`createToken` seeduje własną scenę tokenu (fog.mjs:329, 1691-1707); brak odczytu (weryfikacja: osłabione)",
+   "routing": "-",
+   "covered_by": []
+  },
+  {
+   "id": "MAP-LC1",
+   "old": "-",
+   "status": "częściowo",
+   "sev_now": "-",
+   "evidence": "odczyt F jednego przejścia ucznia (LOCAL-REPORT.md:419); Monokuma i klatki między pokojami nieodczytane",
+   "routing": "-",
+   "covered_by": []
+  },
+  {
+   "id": "MAP-LC2",
+   "old": "-",
+   "status": "częściowo · T",
+   "sev_now": "-",
+   "evidence": "projekt zmieniony: każdy zapis `visible` pyta jeden predykat (fog-doorways.mjs:1887-1911); kształt `visible` na v14 nieodczytany (9.2 pozycje 558, 559)",
+   "routing": "-",
+   "covered_by": []
+  },
+  {
+   "id": "ROLL-13",
+   "old": "minor",
+   "status": "częściowo",
+   "sev_now": "nie podano",
+   "evidence": "mapa zniknęła, paragon jedzie z akcją (actions.mjs:156-254); weryfikacja: osłabione - `burst` i `refunded` Rerolla to roszczenia gracza czytane wprost w `settleActionRefund`",
+   "routing": "-",
+   "covered_by": []
+  },
+  {
+   "id": "ROLL-16",
+   "old": "nit",
+   "status": "częściowo",
+   "sev_now": "nit",
+   "evidence": "martwy kod usunięty (action-rolls.mjs:306-307); nagłówek action-rolls.mjs i komentarz `requestObserveResolve` nieaktualne",
+   "routing": "-",
+   "covered_by": []
+  },
+  {
+   "id": "ROLL-LC3",
+   "old": "-",
+   "status": "otwarte",
+   "sev_now": "-",
+   "evidence": "kod odpowiada (palm.mjs:341-343); brak odczytu (weryfikacja: osłabione, U11)",
+   "routing": "-",
+   "covered_by": []
+  },
+  {
+   "id": "ROLL-LC5",
+   "old": "-",
+   "status": "otwarte",
+   "sev_now": "-",
+   "evidence": "jedna płatność przed kośćmi (action-observe.mjs:127-129, 141-144); nieodczytane",
+   "routing": "-",
+   "covered_by": []
+  },
+  {
+   "id": "ROLL-LC4",
+   "old": "-",
+   "status": "częściowo",
+   "sev_now": "nie podano",
+   "evidence": "wydatek po nazwie (call-effects.mjs:520-524); weryfikacja: osłabione - hook zamknięcia i `throwDice` mogą oba zapisać flagę dla rzutu nierysowanego przez GM-a",
+   "routing": "-",
+   "covered_by": []
+  },
+  {
+   "id": "ROLL-LC6",
+   "old": "-",
+   "status": "częściowo",
+   "sev_now": "minor",
+   "evidence": "obie prośby to karty (action-dynamic.mjs:58-66); wiersz Observe ginie przy zmianie głównego GM-a",
+   "routing": "-",
+   "covered_by": []
+  },
+  {
+   "id": "TEXT-04",
+   "old": "major",
+   "status": "częściowo",
+   "sev_now": "minor",
+   "evidence": "zasięg z `eclipseReach` (en.json:6497, explain.mjs:125-127); weryfikacja: osłabione - pod zaciemnieniem Darkness zdanie obiecuje \"anywhere at night\", którego ruch nie daje",
+   "routing": "-",
+   "covered_by": []
+  },
+  {
+   "id": "TEXT-09",
+   "old": "minor",
+   "status": "częściowo",
+   "sev_now": "minor",
+   "evidence": "duplikat klucza ma własne zdanie (handover.mjs:151-156); dający Truth Bullet nadal słyszy, że odbiorca ma już kulę tego Remnantu (en.json:3591)",
+   "routing": "-",
+   "covered_by": []
+  },
+  {
+   "id": "TEXT-LC2",
+   "old": "-",
+   "status": "otwarte",
+   "sev_now": "minor",
+   "evidence": "zdanie z en.json:3591 szeptane dającemu (handover.mjs:354-359); jak TEXT-09",
+   "routing": "-",
+   "covered_by": []
+  },
+  {
+   "id": "TEXT-LC3",
+   "old": "-",
+   "status": "otwarte",
+   "sev_now": "nit",
+   "evidence": "`fitTileText` skaluje wszystkie siatki po najdłuższym słowie (sheet-fit.mjs:306-338); nieodczytane",
+   "routing": "-",
+   "covered_by": []
+  },
+  {
+   "id": "UI-07",
+   "old": "minor",
+   "status": "częściowo",
+   "sev_now": "nit",
+   "evidence": "podpowiedź `uiScale` bez progu (en.json:420); docs/design/typography.md podaje 11 px i 21 px",
+   "routing": "-",
+   "covered_by": []
+  },
+  {
+   "id": "UI-09",
+   "old": "minor",
+   "status": "częściowo",
+   "sev_now": "minor",
+   "evidence": "gałąź arkusza tylko dla typu `character` (window-scale.mjs:167-168); okno klucza Daggerheart i Configure Ownership mogą dostać wysokość arkusza (podejrzenie)",
+   "routing": "-",
+   "covered_by": []
+  },
+  {
+   "id": "UI-11",
+   "old": "minor",
+   "status": "częściowo",
+   "sev_now": "minor",
+   "evidence": "0 reguł z czerwienią GM-a w stained-glass.css; weryfikacja: osłabione - components.css:243, 2874 nadal rysuje #e0182f jako tekst przycisków okna Item tables",
+   "routing": "-",
+   "covered_by": []
+  },
+  {
+   "id": "UI-12",
+   "old": "nit",
+   "status": "częściowo",
+   "sev_now": "nit",
+   "evidence": "plakietki z `--drpg-text-xs`, próg 11 px (danganronpa.css:361); pod Legacy pikselowy krój 9 px i 8 px (pytanie Q-E59-12)",
+   "routing": "-",
+   "covered_by": []
+  },
+  {
+   "id": "UI-15",
+   "old": "nit",
+   "status": "częściowo",
+   "sev_now": "nit",
+   "evidence": "`SHY` jako escape, `.drpg-compact` w żadnym selektorze; weryfikacja: osłabione - wyrzutnia nadal stylowana w pięciu miejscach (danganronpa.css:13306-13314)",
+   "routing": "-",
+   "covered_by": []
+  },
+  {
+   "id": "UI-LC4",
+   "old": "-",
+   "status": "otwarte",
+   "sev_now": "nit",
+   "evidence": "kontrast koloru stanu nad jasną sceną nieodczytany (stained-glass.css:778, 4541, 4668)",
+   "routing": "-",
+   "covered_by": []
+  },
+  {
+   "id": "UI-LC1",
+   "old": "-",
+   "status": "częściowo",
+   "sev_now": "-",
+   "evidence": "kod odpowiada (window-scale.mjs:167-168); brak odczytu (S7-12 bez zrzutów)",
+   "routing": "-",
+   "covered_by": []
+  },
+  {
+   "id": "UI-LC2",
+   "old": "-",
+   "status": "częściowo · T",
+   "sev_now": "-",
+   "evidence": "logika parkowania (popup.mjs:234-238, 369-390); 9.2 pozycja 16 opisuje stos sprzed 22.09.2026",
+   "routing": "-",
+   "covered_by": []
+  },
+  {
+   "id": "UI-LC3",
+   "old": "-",
+   "status": "częściowo",
+   "sev_now": "-",
+   "evidence": "kod odpowiada (glass.mjs:2292); brak odczytu; nigdy nie trafiło do sekcji 7 ani 9.2",
+   "routing": "-",
+   "covered_by": []
+  },
+  {
+   "id": "UI-LC5",
+   "old": "-",
+   "status": "częściowo",
+   "sev_now": "-",
+   "evidence": "cmap sześciu plików woff2 odczytany skryptem; pobranie pliku Latin-Ext przez sieć nieodczytane",
+   "routing": "-",
+   "covered_by": []
+  },
+  {
+   "id": "UI-LC6",
+   "old": "-",
+   "status": "częściowo",
+   "sev_now": "-",
+   "evidence": "odczyt F na biurku (LOCAL-REPORT.md:345); tablet nieodczytany",
+   "routing": "-",
+   "covered_by": []
+  },
+  {
+   "id": "3.1-03",
+   "old": "major (TEXT-04)",
+   "status": "częściowo (za weryfikacją TEXT-04)",
+   "sev_now": "-",
+   "evidence": "`DRPG.Explain.phase.eclipse`: zasięg z `eclipseReach` (en.json:6497, explain.mjs:126); czytający tabel dał zamknięte, ale weryfikacja TEXT-04 (ten sam klucz) znalazła zdanie fałszywe pod zaciemnieniem Darkness - liczę częściowo",
+   "routing": "-",
+   "covered_by": []
+  },
+  {
+   "id": "3.2-05",
+   "old": "tekst",
+   "status": "częściowo",
+   "sev_now": "nit",
+   "evidence": "\"killer\" 66, \"Blackened\" 45; `verdictNoteKnown` po proponowanej linii; reguły, które słowo gdzie, nie ma",
+   "routing": "-",
+   "covered_by": []
+  },
+  {
+   "id": "3.2-09",
+   "old": "tekst",
+   "status": "częściowo",
+   "sev_now": "nit",
+   "evidence": "\"OBJECTION\" 13, \"Objection\" 55; proza nazywa przycisk \"OBJECTION!\" za zgodą X15; `Floor.mode.objection` jedyny tryb wielkimi literami",
+   "routing": "-",
+   "covered_by": []
+  },
+  {
+   "id": "3.3-03",
+   "old": "tekst",
+   "status": "otwarte",
+   "sev_now": "nit",
+   "evidence": "`HOPE_CALLS.freeCrit.effect` nadal tooltipem kafelka i dłuższy: 205 znaków, 41 słów (config.mjs:2539-2541); słowa zatwierdzone do przeredagowania przez właściciela (Q-NC-16)",
+   "routing": "-",
+   "covered_by": []
+  },
+  {
+   "id": "3.3-09",
+   "old": "tekst",
+   "status": "otwarte",
+   "sev_now": "nit",
+   "evidence": "obie etykiety bez zmian, 19 znaków (config.mjs:2724, 2884); dopasowanie mierzy najdłuższe słowo (TEXT-LC3, LIVE-E66-01)",
+   "routing": "-",
+   "covered_by": []
+  },
+  {
+   "id": "3.4-04",
+   "old": "minor (TEXT-09)",
+   "status": "częściowo",
+   "sev_now": "minor",
+   "evidence": "dający nadal słyszy, że odbiorca ma kulę tego Remnantu (en.json:3591, handover.mjs:355-359); weryfikacja: utrzymane, `minor`",
+   "routing": "-",
+   "covered_by": []
+  },
+  {
+   "id": "3.4-06",
+   "old": "nit",
+   "status": "częściowo",
+   "sev_now": "nit",
+   "evidence": "`bodyFoundTooltip` usunięty; `Hud.trialTooltip` nadal kieruje gracza do konsoli GM-a (en.json:715, hud.mjs:1194-1197)",
+   "routing": "-",
+   "covered_by": []
+  },
+  {
+   "id": "S0-G1",
+   "old": "\"funkcje od końca do końca\" 7 -> 8.5; brakowało: CASE-03/04, ROLL-02..06, ITEM-02/03/04, DESP-04/05",
+   "status": "częściowo",
+   "sev_now": "minor",
+   "evidence": "zrobione poza ROLL-02 (częściowo) i ITEM-04 (częściowo po weryfikacji)",
+   "routing": "-",
+   "covered_by": []
+  },
+  {
+   "id": "S0-G2",
+   "old": "\"teksty\" 8 -> 9; brakowało: COMM-06, TEXT-14, dryf terminologii z 3.2",
+   "status": "częściowo",
+   "sev_now": "-",
+   "evidence": "COMM-06 i TEXT-14 zrobione; ręczny przegląd terminów czeka na 1.3.0 (S9.1a-2); weryfikacja: obalone - czytający dał zamknięte",
+   "routing": "-",
+   "covered_by": []
+  },
+  {
+   "id": "S0-G4",
+   "old": "\"wygląd, UX, UI\" 8 -> 8.5; brakowało: UI-09/10/11, MAP-02",
+   "status": "częściowo",
+   "sev_now": "minor",
+   "evidence": "UI-10 zrobione; UI-09, UI-11, MAP-02 częściowo",
+   "routing": "-",
+   "covered_by": []
+  },
+  {
+   "id": "S0-G5",
+   "old": "\"łatwość dla GM-a\" 6 -> 8; brakowało: ITEM-07, ROLL-08/11/12, CORE-10/19",
+   "status": "częściowo",
+   "sev_now": "nit",
+   "evidence": "zrobione poza CORE-19 (częściowo)",
+   "routing": "-",
+   "covered_by": []
+  },
+  {
+   "id": "S0-G6",
+   "old": "\"fps\" 8 -> 8.5; brakowało: MAP-07, MAP-13, CORE-12, UI-05/16",
+   "status": "częściowo",
+   "sev_now": "nit",
+   "evidence": "zrobione poza MAP-13 (częściowo); odczyt F klatek na biurku jest (E58), maszyny budżetowej nie (LIVE-E33-05, weryfikacja: osłabione)",
+   "routing": "-",
+   "covered_by": []
+  },
+  {
+   "id": "S0-G7",
+   "old": "\"higiena kodu\" 6.5 -> 7; brakowało: sekcja 6 (funkcje 300-700 linii, pięć kopii \"kto jest uczniem\", 8 martwych kluczy, 40 martwych selektorów)",
+   "status": "częściowo",
+   "sev_now": "nit",
+   "evidence": "jeden `studentActors`, martwe klucze i selektory zniknęły; dwie zwykłe funkcje znów ponad 300 linii (`openProjectDialog` 377, `applyCrisisAction` 306)",
+   "routing": "-",
+   "covered_by": []
+  },
+  {
+   "id": "S2.3-L11",
+   "old": "dwie rzeczy do obejrzenia na żywo: polski 15-25% dłuższy, HUD i pasek statusu",
+   "status": "otwarte",
+   "sev_now": "nit",
+   "evidence": "brak odczytu polskich szerokości przy stole",
+   "routing": "-",
+   "covered_by": []
+  },
+  {
+   "id": "S2.2-CASE-08",
+   "old": "strażniki `game.user` null",
+   "status": "częściowo",
+   "sev_now": "nit",
+   "evidence": "jak CASE-08 (częściowo)",
+   "routing": "-",
+   "covered_by": []
+  },
+  {
+   "id": "S6-H2",
+   "old": "CSS 20 490 linii; `!important` danganronpa 689, stained-glass 260; `:root` 15 razy",
+   "status": "częściowo",
+   "sev_now": "-",
+   "evidence": "7 arkuszy, 31 831 linii; `!important` wszystkie/poza komentarzami: danganronpa 711/612, stained-glass 243/199; `:root` raz na górze i dwa w `@media`; grep i odczyt; weryfikacja: osłabione - po liczbie wszystkich wystąpień danganronpa ma więcej, nie mniej",
+   "routing": "-",
+   "covered_by": []
+  },
+  {
+   "id": "S6-H3",
+   "old": "14 funkcji ponad 300 linii",
+   "status": "częściowo",
+   "sev_now": "nit",
+   "evidence": "6 z 17 089 funkcji (espree po 258 plikach): 2 tabele danych, 2 fabryki silników, `openProjectDialog` 377, `applyCrisisAction` 306; żadna z 14 starych nazw",
+   "routing": "-",
+   "covered_by": []
+  },
+  {
+   "id": "S6-H4",
+   "old": "około 40 funkcji 150-300 linii",
+   "status": "częściowo",
+   "sev_now": "nit",
+   "evidence": "75 (ten sam skrypt espree), w kodzie trzy razy większym",
+   "routing": "-",
+   "covered_by": []
+  },
+  {
+   "id": "S6-H5",
+   "old": "zdublowane helpery (uczeń x5, esc x8, glassOn x4 i inne)",
+   "status": "częściowo",
+   "sev_now": "nit",
+   "evidence": "po jednej definicji (git grep); \"czy Stained Glass\" w pięciu miejscach z dwoma różnymi domyślnymi, 25 lokalnych aliasów esc",
+   "routing": "-",
+   "covered_by": []
+  },
+  {
+   "id": "S6-H9",
+   "old": "około 25 magicznych liczb poza config",
+   "status": "częściowo",
+   "sev_now": "nit",
+   "evidence": "nazwane trafiły do `TIMING` (config.mjs:364-468); nowa stała `KEEP_PINNED = 2000` (secret.mjs:554); sumy dzisiejszych nie policzono",
+   "routing": "-",
+   "covered_by": []
+  },
+  {
+   "id": "S6-H10",
+   "old": "około 30 komentarzy sprzecznych z kodem",
+   "status": "częściowo",
+   "sev_now": "nit",
+   "evidence": "nazwane zgodne poza CORE-15; czytający domen spisali 248 takich wpisów (skrypt po ich JSON, liczby nie weryfikowano)",
+   "routing": "-",
+   "covered_by": []
+  },
+  {
+   "id": "S9-34",
+   "old": "\"34 ID zamknięte pod innymi nazwami\"",
+   "status": "częściowo",
+   "sev_now": "minor",
+   "evidence": "lista liczy 34; CORE-15 i MAP-08 częściowo",
+   "routing": "-",
+   "covered_by": []
+  },
+  {
+   "id": "S9-BAL",
+   "old": "bilans: 152 znaleziska, 49 + 78 + 4, \"wszystkie 152 ID zamknięte\"",
+   "status": "częściowo · T",
+   "sev_now": "minor",
+   "evidence": "plików jest 157, nie 152; po weryfikacjach 128 naprawionych, 19 częściowo, 4 decyzją, 5 nieaktualnych, 1 otwarte (liczenie weryfikacji zadań, przed zmianami w domenach - zob. 13.3)",
+   "routing": "-",
+   "covered_by": []
+  },
+  {
+   "id": "S9.3-M",
+   "old": "pomiary 1.2.45 w Chromium: 0/0/0 od 280x653",
+   "status": "otwarte",
+   "sev_now": "-",
+   "evidence": "nikt w tym audycie nie uruchomił audit/glass-sweep.mjs; telefony poza zakresem decyzją (9.2 pozycja 461), biurko i tablet nieodmierzone (weryfikacja: osłabione - nie nieaktualne)",
+   "routing": "-",
+   "covered_by": []
+  },
+  {
+   "id": "S9.3-LC",
+   "old": "live checki 18-25",
+   "status": "częściowo",
+   "sev_now": "minor",
+   "evidence": "live-items-18.json: 18, 19, 20, 23, 24 otwarte, 21 częściowo, 22 i 25 nieaktualne",
+   "routing": "-",
+   "covered_by": []
+  },
+  {
+   "id": "S9.1-D4",
+   "old": "D4: Gear auto-ready na każdej drodze",
+   "status": "częściowo",
+   "sev_now": "-",
+   "evidence": "ITEM-04 częściowo po weryfikacji: upuszczenie z kompendium omija regułę",
+   "routing": "-",
+   "covered_by": []
+  },
+  {
+   "id": "S9.1a-2",
+   "old": "ręczne przejście tekstu dla 1.3.0",
+   "status": "otwarte",
+   "sev_now": "-",
+   "evidence": "1.3.0 nie wyszło; \"Remnant\" 313 kluczy, \"trace\" 12",
+   "routing": "-",
+   "covered_by": []
+  },
+  {
+   "id": "S9.1a-1",
+   "old": "live checki sekcji 7 i 9.2 na prawdziwym Foundry",
+   "status": "częściowo",
+   "sev_now": "-",
+   "evidence": "część odczytana 16-17.11.2026 (E58); większość nieodczytana, L1 wstrzymana do końca audytu",
+   "routing": "-",
+   "covered_by": []
+  },
+  {
+   "id": "S9.3b-36",
+   "old": "punkty 3 i 6: live checki i tekst 1.3.0 \"nie moje\"",
+   "status": "otwarte",
+   "sev_now": "-",
+   "evidence": "jak S9.1a-1 i S9.1a-2",
+   "routing": "-",
+   "covered_by": []
+  },
+  {
+   "id": "S9.3b-5",
+   "old": "wydajność: liczbę bierze `perf()` przy stole",
+   "status": "częściowo",
+   "sev_now": "minor",
+   "evidence": "perf() i fps() odczytane na 14.370 na RTX 4080 (E58, 16.11.2026); maszyna budżetowa i perf-baseline.json nieodmierzone (LIVE-E33-05); weryfikacja: osłabione - czytający przeoczył odczyt F",
+   "routing": "etapy E53, E58 odłożone do 1.2.120 (ROUTING.md)",
+   "covered_by": []
+  },
+  {
+   "id": "S9.3c-2",
+   "old": "nieruszone wtedy: wyrzutnie na pasku zakładek o 34 px; 280-320 px",
+   "status": "częściowo",
+   "sev_now": "-",
+   "evidence": "pierwsze zrobione w 9.3d (`clearLaunchers`, glass.mjs:1105); drugie to szerokość telefonu, poza zakresem decyzją 11.11.2026, nieodmierzone",
+   "routing": "-",
+   "covered_by": []
+  }
+ ],
+ "B2_old_items_open_or_partly_that_name_a_new_id": [
+  {
+   "id": "LIVE-001",
+   "covered_by": [
+    "DOC-01",
+    "DOC-02"
+   ]
+  },
+  {
+   "id": "WD-WRITE",
+   "covered_by": [
+    "COMM-21",
+    "CORE-21"
+   ]
+  },
+  {
+   "id": "WD-ROLLS",
+   "covered_by": [
+    "ROLL-20"
+   ]
+  },
+  {
+   "id": "D5",
+   "covered_by": [
+    "COMM-49"
+   ]
+  },
+  {
+   "id": "C3",
+   "covered_by": [
+    "DOC-13"
+   ]
+  },
+  {
+   "id": "C6",
+   "covered_by": [
+    "DOC-12"
+   ]
+  },
+  {
+   "id": "E4",
+   "covered_by": [
+    "DOC-12"
+   ]
+  },
+  {
+   "id": "E6",
+   "covered_by": [
+    "REFR-05"
+   ]
+  },
+  {
+   "id": "H7",
+   "covered_by": [
+    "REFR-05"
+   ]
+  },
+  {
+   "id": "COMM-10",
+   "covered_by": [
+    "COMM-29"
+   ]
+  },
+  {
+   "id": "COMM-11",
+   "covered_by": [
+    "UI-25"
+   ]
+  },
+  {
+   "id": "CORE-15",
+   "covered_by": [
+    "CORE-50"
+   ]
+  },
+  {
+   "id": "CORE-LC3",
+   "covered_by": [
+    "CASE-19",
+    "CTRL-01"
+   ]
+  },
+  {
+   "id": "DESP-LC1",
+   "covered_by": [
+    "DESP-21"
+   ]
+  },
+  {
+   "id": "DESP-LC5",
+   "covered_by": [
+    "CASE-19",
+    "CTRL-01"
+   ]
+  },
+  {
+   "id": "ITEM-LC7",
+   "covered_by": [
+    "REFR-05"
+   ]
+  },
+  {
+   "id": "MAP-03",
+   "covered_by": [
+    "MAP-21"
+   ]
+  },
+  {
+   "id": "MAP-08",
+   "covered_by": [
+    "MAP-20"
+   ]
+  },
+  {
+   "id": "MAP-13",
+   "covered_by": [
+    "MAP-35"
+   ]
+  },
+  {
+   "id": "MAP-LC3",
+   "covered_by": [
+    "MAP-38"
+   ]
+  },
+  {
+   "id": "ROLL-02",
+   "covered_by": [
+    "ROLL-27"
+   ]
+  },
+  {
+   "id": "UI-06",
+   "covered_by": [
+    "UI-28"
+   ]
+  },
+  {
+   "id": "S9-T13",
+   "covered_by": [
+    "CASE-75",
+    "COMM-52",
+    "ITEM-42",
+    "MAP-44",
+    "ROLL-36",
+    "TEXT-41"
+   ]
+  }
+ ],
+ "C_probe_42_group_C": [
+  {
+   "window": "class-trial",
+   "title": "Class Trial",
+   "label": "Not tied to the murder: 1",
+   "action": null,
+   "where": "body",
+   "tag": "button",
+   "data": [
+    "drpgCaseFold=",
+    "drpgNamed=own"
+   ],
+   "group": "C",
+   "group_why": "the \"Not tied to the murder: N\" button, CTRL-02",
+   "source": "probe-42-rerun.json"
+  },
+  {
+   "window": "class-trial--case",
+   "title": "Class Trial",
+   "label": "Not tied to the murder: 1",
+   "action": null,
+   "where": "body",
+   "tag": "button",
+   "data": [
+    "drpgCaseFold=",
+    "drpgNamed=own"
+   ],
+   "group": "C",
+   "group_why": "the \"Not tied to the murder: N\" button, CTRL-02",
+   "source": "probe-42-rerun.json"
+  },
+  {
+   "window": "class-trial--case",
+   "title": "Class Trial",
+   "label": "Prep Remnant, (no name), On the map",
+   "action": null,
+   "where": "body",
+   "tag": "button",
+   "data": [
+    "drpgNode=SCENEANNEX000000.TOKTRACE00000000",
+    "drpgNamed=own"
+   ],
+   "group": "C",
+   "group_why": "a case-map node button in a Class Trial tab",
+   "source": "probe-42-rerun.json"
+  },
+  {
+   "window": "class-trial--case",
+   "title": "Class Trial",
+   "label": "Incident Remnant, The broken display case, Planned",
+   "action": null,
+   "where": "body",
+   "tag": "button",
+   "data": [
+    "drpgNode=incident-probe08a",
+    "drpgNamed=own"
+   ],
+   "group": "C",
+   "group_why": "a case-map node button in a Class Trial tab",
+   "source": "probe-42-rerun.json"
+  },
+  {
+   "window": "class-trial--case",
+   "title": "Class Trial",
+   "label": "Deduction, The killing was before 23:40, while the library was still lit and the desk lamp",
+   "action": null,
+   "where": "body",
+   "tag": "button",
+   "data": [
+    "drpgNode=probe08-d1",
+    "drpgNamed=own"
+   ],
+   "group": "C",
+   "group_why": "a case-map node button in a Class Trial tab",
+   "source": "probe-42-rerun.json"
+  },
+  {
+   "window": "class-trial--case",
+   "title": "Class Trial",
+   "label": "Deduction, The culprit came in with a key",
+   "action": null,
+   "where": "body",
+   "tag": "button",
+   "data": [
+    "drpgNode=probe08-d2",
+    "drpgNamed=own"
+   ],
+   "group": "C",
+   "group_why": "a case-map node button in a Class Trial tab",
+   "source": "probe-42-rerun.json"
+  },
+  {
+   "window": "class-trial--case",
+   "title": "Class Trial",
+   "label": "Counter, The clock could have stopped by itself",
+   "action": null,
+   "where": "body",
+   "tag": "button",
+   "data": [
+    "drpgNode=probe08-c1",
+    "drpgNamed=own"
+   ],
+   "group": "C",
+   "group_why": "a case-map node button in a Class Trial tab",
+   "source": "probe-42-rerun.json"
+  },
+  {
+   "window": "class-trial--counted",
+   "title": "Class Trial",
+   "label": "Not tied to the murder: 1",
+   "action": null,
+   "where": "body",
+   "tag": "button",
+   "data": [
+    "drpgCaseFold=",
+    "drpgNamed=own"
+   ],
+   "group": "C",
+   "group_why": "the \"Not tied to the murder: N\" button, CTRL-02",
+   "source": "probe-42-rerun.json"
+  },
+  {
+   "window": "class-trial--counted",
+   "title": "Class Trial",
+   "label": "Prep Remnant, (no name), On the map",
+   "action": null,
+   "where": "body",
+   "tag": "button",
+   "data": [
+    "drpgNode=SCENEANNEX000000.TOKTRACE00000000",
+    "drpgNamed=own"
+   ],
+   "group": "C",
+   "group_why": "a case-map node button in a Class Trial tab",
+   "source": "probe-42-rerun.json"
+  },
+  {
+   "window": "class-trial--counted",
+   "title": "Class Trial",
+   "label": "Incident Remnant, The broken display case, Planned",
+   "action": null,
+   "where": "body",
+   "tag": "button",
+   "data": [
+    "drpgNode=incident-probe08a",
+    "drpgNamed=own"
+   ],
+   "group": "C",
+   "group_why": "a case-map node button in a Class Trial tab",
+   "source": "probe-42-rerun.json"
+  },
+  {
+   "window": "class-trial--counted",
+   "title": "Class Trial",
+   "label": "Deduction, The culprit came in with a key",
+   "action": null,
+   "where": "body",
+   "tag": "button",
+   "data": [
+    "drpgNode=probe08-d2",
+    "drpgNamed=own"
+   ],
+   "group": "C",
+   "group_why": "a case-map node button in a Class Trial tab",
+   "source": "probe-42-rerun.json"
+  },
+  {
+   "window": "class-trial--counted",
+   "title": "Class Trial",
+   "label": "Counter, The clock could have stopped by itself",
+   "action": null,
+   "where": "body",
+   "tag": "button",
+   "data": [
+    "drpgNode=probe08-c1",
+    "drpgNamed=own"
+   ],
+   "group": "C",
+   "group_why": "a case-map node button in a Class Trial tab",
+   "source": "probe-42-rerun.json"
+  },
+  {
+   "window": "class-trial--counted",
+   "title": "Class Trial",
+   "label": "Solution, It was done in the library",
+   "action": null,
+   "where": "body",
+   "tag": "button",
+   "data": [
+    "drpgNode=probe08-s1",
+    "drpgNamed=own"
+   ],
+   "group": "C",
+   "group_why": "a case-map node button in a Class Trial tab",
+   "source": "probe-42-rerun.json"
+  },
+  {
+   "window": "class-trial--verdict-given",
+   "title": "Class Trial",
+   "label": "Not tied to the murder: 1",
+   "action": null,
+   "where": "body",
+   "tag": "button",
+   "data": [
+    "drpgCaseFold=",
+    "drpgNamed=own"
+   ],
+   "group": "C",
+   "group_why": "the \"Not tied to the murder: N\" button, CTRL-02",
+   "source": "probe-42-rerun.json"
+  },
+  {
+   "window": "class-trial--verdict-given",
+   "title": "Class Trial",
+   "label": "Prep Remnant, (no name), On the map",
+   "action": null,
+   "where": "body",
+   "tag": "button",
+   "data": [
+    "drpgNode=SCENEANNEX000000.TOKTRACE00000000",
+    "drpgNamed=own"
+   ],
+   "group": "C",
+   "group_why": "a case-map node button in a Class Trial tab",
+   "source": "probe-42-rerun.json"
+  },
+  {
+   "window": "class-trial--verdict-given",
+   "title": "Class Trial",
+   "label": "Incident Remnant, The broken display case, Planned",
+   "action": null,
+   "where": "body",
+   "tag": "button",
+   "data": [
+    "drpgNode=incident-probe08a",
+    "drpgNamed=own"
+   ],
+   "group": "C",
+   "group_why": "a case-map node button in a Class Trial tab",
+   "source": "probe-42-rerun.json"
+  },
+  {
+   "window": "class-trial--verdict-given",
+   "title": "Class Trial",
+   "label": "Deduction, The killing was before 23:40, while the library was still lit and the desk lamp",
+   "action": null,
+   "where": "body",
+   "tag": "button",
+   "data": [
+    "drpgNode=probe08-d1",
+    "drpgNamed=own"
+   ],
+   "group": "C",
+   "group_why": "a case-map node button in a Class Trial tab",
+   "source": "probe-42-rerun.json"
+  },
+  {
+   "window": "class-trial--verdict-given",
+   "title": "Class Trial",
+   "label": "Deduction, The culprit came in with a key",
+   "action": null,
+   "where": "body",
+   "tag": "button",
+   "data": [
+    "drpgNode=probe08-d2",
+    "drpgNamed=own"
+   ],
+   "group": "C",
+   "group_why": "a case-map node button in a Class Trial tab",
+   "source": "probe-42-rerun.json"
+  },
+  {
+   "window": "class-trial--verdict-given",
+   "title": "Class Trial",
+   "label": "Counter, The clock could have stopped by itself",
+   "action": null,
+   "where": "body",
+   "tag": "button",
+   "data": [
+    "drpgNode=probe08-c1",
+    "drpgNamed=own"
+   ],
+   "group": "C",
+   "group_why": "a case-map node button in a Class Trial tab",
+   "source": "probe-42-rerun.json"
+  },
+  {
+   "window": "class-trial--verdict-given",
+   "title": "Class Trial",
+   "label": "Solution, It was done in the library",
+   "action": null,
+   "where": "body",
+   "tag": "button",
+   "data": [
+    "drpgNode=probe08-s1",
+    "drpgNamed=own"
+   ],
+   "group": "C",
+   "group_why": "a case-map node button in a Class Trial tab",
+   "source": "probe-42-rerun.json"
+  },
+  {
+   "window": "class-trial--summary-sent",
+   "title": "Class Trial",
+   "label": "Not tied to the murder: 1",
+   "action": null,
+   "where": "body",
+   "tag": "button",
+   "data": [
+    "drpgCaseFold=",
+    "drpgNamed=own"
+   ],
+   "group": "C",
+   "group_why": "the \"Not tied to the murder: N\" button, CTRL-02",
+   "source": "probe-42-rerun.json"
+  },
+  {
+   "window": "class-trial--summary-sent",
+   "title": "Class Trial",
+   "label": "Prep Remnant, (no name), On the map",
+   "action": null,
+   "where": "body",
+   "tag": "button",
+   "data": [
+    "drpgNode=SCENEANNEX000000.TOKTRACE00000000",
+    "drpgNamed=own"
+   ],
+   "group": "C",
+   "group_why": "a case-map node button in a Class Trial tab",
+   "source": "probe-42-rerun.json"
+  },
+  {
+   "window": "class-trial--summary-sent",
+   "title": "Class Trial",
+   "label": "Incident Remnant, The broken display case, Planned",
+   "action": null,
+   "where": "body",
+   "tag": "button",
+   "data": [
+    "drpgNode=incident-probe08a",
+    "drpgNamed=own"
+   ],
+   "group": "C",
+   "group_why": "a case-map node button in a Class Trial tab",
+   "source": "probe-42-rerun.json"
+  },
+  {
+   "window": "class-trial--summary-sent",
+   "title": "Class Trial",
+   "label": "Deduction, The killing was before 23:40, while the library was still lit and the desk lamp",
+   "action": null,
+   "where": "body",
+   "tag": "button",
+   "data": [
+    "drpgNode=probe08-d1",
+    "drpgNamed=own"
+   ],
+   "group": "C",
+   "group_why": "a case-map node button in a Class Trial tab",
+   "source": "probe-42-rerun.json"
+  },
+  {
+   "window": "class-trial--summary-sent",
+   "title": "Class Trial",
+   "label": "Deduction, The culprit came in with a key",
+   "action": null,
+   "where": "body",
+   "tag": "button",
+   "data": [
+    "drpgNode=probe08-d2",
+    "drpgNamed=own"
+   ],
+   "group": "C",
+   "group_why": "a case-map node button in a Class Trial tab",
+   "source": "probe-42-rerun.json"
+  },
+  {
+   "window": "class-trial--summary-sent",
+   "title": "Class Trial",
+   "label": "Counter, The clock could have stopped by itself",
+   "action": null,
+   "where": "body",
+   "tag": "button",
+   "data": [
+    "drpgNode=probe08-c1",
+    "drpgNamed=own"
+   ],
+   "group": "C",
+   "group_why": "a case-map node button in a Class Trial tab",
+   "source": "probe-42-rerun.json"
+  },
+  {
+   "window": "class-trial--summary-sent",
+   "title": "Class Trial",
+   "label": "Solution, It was done in the library",
+   "action": null,
+   "where": "body",
+   "tag": "button",
+   "data": [
+    "drpgNode=probe08-s1",
+    "drpgNamed=own"
+   ],
+   "group": "C",
+   "group_why": "a case-map node button in a Class Trial tab",
+   "source": "probe-42-rerun.json"
+  },
+  {
+   "window": "findings",
+   "title": "Findings",
+   "label": "No Findings yet in this trial.",
+   "action": null,
+   "where": "body",
+   "tag": "div",
+   "data": [
+    "drpgFindings="
+   ],
+   "group": "C",
+   "group_why": "a block with a click listener and no visible effect (may be a container, a tooltip or a fold)",
+   "source": "probe-42-rerun.json"
+  },
+  {
+   "window": "item-manager",
+   "title": "Give / take items",
+   "label": "From the tables",
+   "action": null,
+   "where": "body",
+   "tag": "button",
+   "data": [
+    "drpgMode=existing",
+    "drpgNamed=own"
+   ],
+   "group": "C",
+   "group_why": "an item sub-mode in Give / take items (compare CTRL-61)",
+   "source": "probe-42-rerun.json"
+  },
+  {
+   "window": "item-manager--item-new",
+   "title": "Give / take items",
+   "label": "Create new",
+   "action": null,
+   "where": "body",
+   "tag": "button",
+   "data": [
+    "drpgMode=create",
+    "drpgNamed=own"
+   ],
+   "group": "C",
+   "group_why": "an item sub-mode in Give / take items (compare CTRL-61)",
+   "source": "probe-42-rerun.json"
+  },
+  {
+   "window": "item-manager--bullet",
+   "title": "Give / take items",
+   "label": "From a Remnant",
+   "action": null,
+   "where": "body",
+   "tag": "button",
+   "data": [
+    "drpgMode=existing",
+    "drpgNamed=own"
+   ],
+   "group": "C",
+   "group_why": "an item sub-mode in Give / take items (compare CTRL-61)",
+   "source": "probe-42-rerun.json"
+  },
+  {
+   "window": "item-manager--bullet-new",
+   "title": "Give / take items",
+   "label": "Write a new one",
+   "action": null,
+   "where": "body",
+   "tag": "button",
+   "data": [
+    "drpgMode=create",
+    "drpgNamed=own"
+   ],
+   "group": "C",
+   "group_why": "an item sub-mode in Give / take items (compare CTRL-61)",
+   "source": "probe-42-rerun.json"
+  },
+  {
+   "window": "students",
+   "title": "Students",
+   "label": "Open Aiko Hoshino's sheet",
+   "action": null,
+   "where": "body",
+   "tag": "button",
+   "data": [
+    "drpgSheet=ACTORAIKO0000000",
+    "drpgNamed=own"
+   ],
+   "group": "C",
+   "group_why": "to read in source",
+   "source": "probe-42-rerun.json"
+  },
+  {
+   "window": "rooms-passages",
+   "title": "Room setup - Academy - Floor 1",
+   "label": "No secret passages on this map.The Mastermind knows every open passage. Close makes it a w",
+   "action": null,
+   "where": "body",
+   "tag": "div",
+   "data": [
+    "drpgPassages="
+   ],
+   "group": "C",
+   "group_why": "a block with a click listener and no visible effect (may be a container, a tooltip or a fold)",
+   "source": "probe-42-rerun-2.json"
+  },
+  {
+   "window": "rooms-description",
+   "title": "Room setup - Academy - Floor 1",
+   "label": "Remove the picture: Cafeteria",
+   "action": null,
+   "where": "body",
+   "tag": "button",
+   "data": [
+    "drpgPictureClear=",
+    "drpgNamed=own"
+   ],
+   "group": "C",
+   "group_why": "to read in source",
+   "source": "probe-42-rerun-2.json"
+  },
+  {
+   "window": "rooms-passages--rows",
+   "title": "Room setup - Academy - Floor 1",
+   "label": "Show",
+   "action": null,
+   "where": "body",
+   "tag": "button",
+   "data": [
+    "drpgPassageAct=show",
+    "drpgNamed=own"
+   ],
+   "group": "C",
+   "group_why": "to read in source",
+   "source": "probe-42-rerun-2.json"
+  },
+  {
+   "window": "season-checklist",
+   "title": "Season checklist",
+   "label": "",
+   "action": null,
+   "where": "body",
+   "tag": "div",
+   "data": [
+    "drpgCheckOut="
+   ],
+   "group": "C",
+   "group_why": "a block with a click listener and no visible effect (may be a container, a tooltip or a fold)",
+   "source": "probe-42-rerun-2.json"
+  },
+  {
+   "window": "season-checklist",
+   "title": "Season checklist",
+   "label": "Owned by no player. Who has access to each:Daichi Sato - GM: owns the sheet (GM), PlayerOn",
+   "action": null,
+   "where": "body",
+   "tag": "div",
+   "data": [
+    "drpgAnon="
+   ],
+   "group": "C",
+   "group_why": "a block with a click listener and no visible effect (may be a container, a tooltip or a fold)",
+   "source": "probe-42-rerun-2.json"
+  },
+  {
+   "window": "pre-season-checks",
+   "title": "Season checklist",
+   "label": "",
+   "action": null,
+   "where": "body",
+   "tag": "div",
+   "data": [
+    "drpgCheckOut="
+   ],
+   "group": "C",
+   "group_why": "a block with a click listener and no visible effect (may be a container, a tooltip or a fold)",
+   "source": "probe-42-rerun-2.json"
+  },
+  {
+   "window": "pre-season-checks",
+   "title": "Season checklist",
+   "label": "Owned by no player. Who has access to each:Daichi Sato - GM: owns the sheet (GM), PlayerOn",
+   "action": null,
+   "where": "body",
+   "tag": "div",
+   "data": [
+    "drpgAnon="
+   ],
+   "group": "C",
+   "group_why": "a block with a click listener and no visible effect (may be a container, a tooltip or a fold)",
+   "source": "probe-42-rerun-2.json"
+  },
+  {
+   "window": "notices-player",
+   "title": "Notice history",
+   "label": "Close",
+   "action": "close",
+   "where": "footer",
+   "tag": "button",
+   "data": [
+    "action=close",
+    "drpgRole=close",
+    "drpgNamed=own"
+   ],
+   "group": "C",
+   "group_why": "to read in source",
+   "source": "probe-42-rerun-2.json"
+  }
+ ],
+ "D_comments_against_code": [
+  {
+   "where": "scripts/murder.mjs:13-15 (and scripts/incident-store.mjs:33, scripts/murder-rules.mjs:49, and the row for murder.mjs in the path-scoped rules file code.md)",
+   "comment_says": "The facade re-exports thirty-three names of the store, thirty-one of the rules and three of the window (67), and exports nothing new.",
+   "code_does": "It re-exports 34, 32 and 3 (69, counted by script): `clockHiddenHere` (f7ac1e9d) and `openingProposalFor` (0f9a9a53) were added after 1.2.70.",
+   "source": "domain-case-a-incident.json"
+  },
+  {
+   "where": "scripts/murder-rules.mjs:232-237, 248-252",
+   "comment_says": "The menu, the roll window and the GM's judgement all read the threshold through `crisisThreshold`, 'so the three cannot differ'.",
+   "code_does": "They differ whenever the roller's copy of the cast holds `killerId` null (a mask, a trap): the roller's two readings add no defence, the GM's adds it (finding 1).",
+   "source": "domain-case-a-incident.json"
+  },
+  {
+   "where": "scripts/incident-store.mjs:1219-1224 and scripts/death.mjs:451-454",
+   "comment_says": "`known` is the players of the running incident's seats.",
+   "code_does": "`castOwners` also seats the standing betrayal offer's third of an earlier incident (finding 2).",
+   "source": "domain-case-a-incident.json"
+  },
+  {
+   "where": "scripts/incident-store.mjs:1855-1857",
+   "comment_says": "`betrayalCandidate` asks whether the killer is still alive to be turned on.",
+   "code_does": "It checks only that the killer's actor exists (1888); a dead killer passes (finding 7).",
+   "source": "domain-case-a-incident.json"
+  },
+  {
+   "where": "scripts/murder-ui.mjs:341-343",
+   "comment_says": "The tracker stays awaited, so the GM panel does not come back over a live incident.",
+   "code_does": "The tracker's own reopen at a stage change runs outside the awaited call and the panel comes back (finding 3).",
+   "source": "domain-case-a-incident.json"
+  },
+  {
+   "where": "scripts/murder-ui.mjs:589-593",
+   "comment_says": "The footer by role: 'Pass the turn the primary and the default'.",
+   "code_does": "Since E22 C3b Pass is one of the secondary buttons and Close is the default (643-651); the older block was left above the function.",
+   "source": "domain-case-a-incident.json"
+  },
+  {
+   "where": "scripts/murder-rules.mjs:1906-1910 and 2996-2998",
+   "comment_says": "The Sanity check for a resolution action is 'in `takeCrisisAction`'.",
+   "code_does": "It has been in `crisisRefusal` since E03 (990-992); `takeCrisisAction` only calls it.",
+   "source": "domain-case-a-incident.json"
+  },
+  {
+   "where": "scripts/cleanup.mjs:2500-2502 (neighbour)",
+   "comment_says": "The free clean-up grant is 'held null in every player's copy'.",
+   "code_does": "Since fix r2-G3 the killers' copies hold it (scripts/incident-store.mjs:543-551, 582), and cleanup.mjs `tamperQuote` reads it there.",
+   "source": "domain-case-a-incident.json"
+  },
+  {
+   "where": "the path-scoped rules file code.md, 'Where the code lives' and 'Two functions are deliberately long'",
+   "comment_says": "fog.mjs and fog-diagnostics.mjs are 'the one pair of importers outside a family' that import past a facade; everything else measured over 300 lines has been split.",
+   "code_does": "Eight files outside the murder family import incident-store.mjs or murder-ui.mjs directly (events, frisk, gm-students, investigation, key-remnants, mask-gm, monocub, voice), and `applyCrisisAction` is 306 lines (murder-rules.mjs:1658-1963).",
+   "source": "domain-case-a-incident.json"
+  },
+  {
+   "where": "scripts/cleanup.mjs:17-22",
+   "comment_says": "The threshold comes from 'a flag on a hidden token' and 'Their client picks a target and throws the dice; the number travels here'.",
+   "code_does": "The band lives in the GMs' ledger, not on the token (remnants.mjs:551-556), and the result is read off the GMs' record of a roll the GM drew: the bridge row is `rolled: { field: \"rollId\", actor: \"actorId\", kind: \"cleanup\" }` (bridge-table.mjs:577-578).",
+   "source": "domain-case-b-traces.json"
+  },
+  {
+   "where": "scripts/cleanup.mjs:45-47, 548-551, 588-589, 1504-1506",
+   "comment_says": "Tamper's price on both roads is 'an action, or a Sanity mark when there is no action'.",
+   "code_does": "tamperPriceSkip (1316-1323) skips the Sanity step for everybody but Stage 6's cleaner since E64: an ordinary Tamper with no action left is refused, and validPrice (2288) takes no Sanity claim on that door.",
+   "source": "domain-case-b-traces.json"
+  },
+  {
+   "where": "scripts/cleanup.mjs:313-314",
+   "comment_says": "'only the running incident's own traces reach this list that way'",
+   "code_does": "The filter at 301-302 passes every trace of type incident in the room to a participant of the running incident (`t.data.type === \"incident\" && watched`), an earlier incident's tied trace in the same room included; cleanupRefusal (775) reads the same.",
+   "source": "domain-case-b-traces.json"
+  },
+  {
+   "where": "scripts/cleanup.mjs:1195-1197 and 1802-1807",
+   "comment_says": "A packet with no claim 'pays the Sanity here, as every packet used to' / 'then the Sanity is taken here, exactly as it was before'.",
+   "code_does": "chargeUnclaimed (2297-2304) takes an action through Tamper's door and the Sanity only on Stage 6's own road.",
+   "source": "domain-case-b-traces.json"
+  },
+  {
+   "where": "scripts/cleanup.mjs:826-858",
+   "comment_says": "Two indented blocks between cleanupVerdict and resolveTransformRoad; the first (G-20) says the rewrite is 'Checked before the removal' and 'Reinforced traces never get here: they are refused above, before the Sanity is spent'.",
+   "code_does": "The checks it describes are in resolveEraseRoad, 100 lines below (938-945); the price is paid on the roller's browser before the dice and given back by the refusal (783-791).",
+   "source": "domain-case-b-traces.json"
+  },
+  {
+   "where": "scripts/cleanup.mjs:1748-1749",
+   "comment_says": "'the Tamper tile offers the trail alone (action-rolls.mjs, `attemptStageSix` with `viaAction`)'",
+   "code_does": "The call is action-tamper.mjs:162 since E41 C4; action-rolls.mjs holds no call of attemptStageSix.",
+   "source": "domain-case-b-traces.json"
+  },
+  {
+   "where": "scripts/cleanup.mjs:2585-2588",
+   "comment_says": "'a killer pays Sanity from the tile, and an investigator in Stage 6's window pays an action'",
+   "code_does": "Stage 6's window refuses anybody who is not its cleaner (openCleanupDialog, 2633; stageSixDef, 1566-1569).",
+   "source": "domain-case-b-traces.json"
+  },
+  {
+   "where": "scripts/remnant-ring.mjs:302-303",
+   "comment_says": "'The window is 380 wide and has no footer'",
+   "code_does": "showRemnantCard sets the window to 480 (line 264, and the comment at 263 says '480 wide').",
+   "source": "domain-case-b-traces.json"
+  },
+  {
+   "where": "scripts/remnants.mjs:1113",
+   "comment_says": "A doc comment 'Everything recorded on a Remnant, as a plain object.' stands alone above a section header.",
+   "code_does": "The function it describes, remnantData, is at line 1930; nothing follows the comment.",
+   "source": "domain-case-b-traces.json"
+  },
+  {
+   "where": "scripts/remnants.mjs:639-641",
+   "comment_says": "The row's `label` is 'Kept for the GM's own screens'.",
+   "code_does": "remnantData (1949-1997) does not return `label`, and no reader of a row's label was found in scripts/ (the migration's fill test at 2994-2997 apart).",
+   "source": "domain-case-b-traces.json"
+  },
+  {
+   "where": "scripts/remnants.mjs:186-189",
+   "comment_says": "'the same leak `difficultyTag` exists to close on the finder's side'",
+   "code_does": "difficultyTag is gone (the block at 152-174 says so); git grep finds the name in these two comments only.",
+   "source": "domain-case-b-traces.json"
+  },
+  {
+   "where": "scripts/cleanup-reshape.mjs:275-277",
+   "comment_says": "'THIS IS THE ONLY FREE TEXT A PLAYER WRITES INTO THE WORLD in this module, so it is the only place that needs this'",
+   "code_does": "A player's Remnant packet's `note` and `subject` are kept in the ledger cut to 400 and 80 characters, without plainText (remnants.mjs:900-901); they are escaped where the GMs' cards print them.",
+   "source": "domain-case-b-traces.json"
+  },
+  {
+   "where": "scripts/tests-tier2.mjs:103693-103703 (beside finding 1)",
+   "comment_says": "The V3 test reads 'through the scoring's own road, `cleanupDc(visibility, actor)`'.",
+   "code_does": "The scoring hands cleanupDc the held stand-in, not the actor (cleanup.mjs:811, 1172).",
+   "source": "domain-case-b-traces.json"
+  },
+  {
+   "where": "scripts/investigation.mjs:2179-2204",
+   "comment_says": "One window, three tabs (it lists Traces and Key Remnants); 'THE ENDGAME IS NOT HERE ... the Final Truth Remnant ... live on the Mastermind window now'.",
+   "code_does": "Four tabs and a Map view; the Final Truth Remnant's form is the tab 'final' (1072-1080) and rides Save (2439); the comment twenty lines below (2219-2223) says it moved here on 26.08.",
+   "source": "domain-case-c-investigation.json"
+  },
+  {
+   "where": "scripts/investigation.mjs:492 and 800",
+   "comment_says": "'Exported for R2067' (caseStudentColumns) and 'Exported for R2067 and R2068' (caseKeyColumns).",
+   "code_does": "Both are plain `function` declarations, not exported (494, 801); only caseTraceColumns is.",
+   "source": "domain-case-c-investigation.json"
+  },
+  {
+   "where": "scripts/investigation.mjs:2448",
+   "comment_says": "'The six other buttons keep their reopen'.",
+   "code_does": "The footer has five secondary actions (2314-2330) and runDashboardButton handles those five (2018-2041).",
+   "source": "domain-case-c-investigation.json"
+  },
+  {
+   "where": "scripts/action-observe.mjs:288-296",
+   "comment_says": "askDeclaration: 'No text box here any more. Two of the four buttons never used what was typed in it'; @returns one of five strings or null.",
+   "code_does": "Draws a request box for 'specific' and 'anything' (319-323), offers five options, and returns { declaration, request } (344).",
+   "source": "domain-case-c-investigation.json"
+  },
+  {
+   "where": "scripts/action-observe.mjs:99-118",
+   "comment_says": "observeSpecific: 'roll, then say what you were after ... nobody types a sentence for a roll they have not made yet ... A cancelled request drops to the General reading'.",
+   "code_does": "The sentence is typed in the declaration window before the dice and arrives as an argument (120-125); an empty one is scored as General.",
+   "source": "domain-case-c-investigation.json"
+  },
+  {
+   "where": "scripts/action-analyze.mjs:66-74, 121-125 and 445",
+   "comment_says": "'Analyze: one action, two uses'; 'ALL THREE ROADS END WITH A HUMAN'; askWhatToAnalyze @returns a string ('hint', a bullet id, 'cancel') or null.",
+   "code_does": "Four roads (bullet, hint, stash, passage); the stash and the passage are judged on the GM's client with no person (476-479 says so of the stash); the function returns { choice, request } or null (517-519).",
+   "source": "domain-case-c-investigation.json"
+  },
+  {
+   "where": "scripts/truth-bullets.mjs:658-659 (and scripts/handover.mjs:325)",
+   "comment_says": "The autopsy's reader is 'gm-panel.mjs `autopsyIssued`'.",
+   "code_does": "autopsyIssued is investigation.mjs's since 13.11.2026 (investigation.mjs:1164-1180); gm-panel.mjs imports it.",
+   "source": "domain-case-c-investigation.json"
+  },
+  {
+   "where": "scripts/bridge-table.mjs:114 and scripts/bridge-asks.mjs:825-826",
+   "comment_says": "An unknown declaration 'is answered with a reason, never used'; the GM's own ok false covers 'a declaration it does not know'.",
+   "code_does": "chooseObserveTarget sends an unknown declaration down the General branch and stores it on the pending row (observe.mjs:271-283, 345): finding 8.",
+   "source": "domain-case-c-investigation.json"
+  },
+  {
+   "where": "scripts/bridge-asks.mjs:875-876",
+   "comment_says": "The answer to a resolved Observe is 'a Truth Bullet on their sheet or 2 Sanity'.",
+   "code_does": "A miss marks OBSERVE_FAIL_STRESS = 1 (config.mjs:1239; observe.mjs:921, 933).",
+   "source": "domain-case-c-investigation.json"
+  },
+  {
+   "where": "scripts/utils.mjs:1327-1328",
+   "comment_says": "wirePortraitPickers 'runs again after every rebuild (`wireAll` in investigation.mjs)'.",
+   "code_does": "The caller is wireCase (investigation.mjs:1749-1751); no wireAll exists.",
+   "source": "domain-case-c-investigation.json"
+  },
+  {
+   "where": "scripts/analyze.mjs:53",
+   "comment_says": "@returns {success, locked} or null.",
+   "code_does": "Also answers { refused } on four lines (93, 94, 128, 133), which the bridge's run and action-analyze.mjs read.",
+   "source": "domain-case-c-investigation.json"
+  },
+  {
+   "where": "scripts/trial-floor.mjs:2, 18-28, 74",
+   "comment_says": "The file is about 'the trial's three modes'; 'only two are restrictive'; `FLOOR_MODES` is 'the three modes'; and a rebuttal 'returns to open debate by itself'.",
+   "code_does": "floor-machine.mjs:35-36 has nine modes, and a rebuttal's end closes the floor: `stepOn` answers `ended(cards, true)` (floor-machine.mjs:440), as the same file says at 1652-1664.",
+   "source": "domain-case-d-trial-floor.json"
+  },
+  {
+   "where": "scripts/trial-floor.mjs:1021-1026",
+   "comment_says": "`openObjection` is 'REFUSED DURING SOMEBODY ELSE'S OBJECTION OR REBUTTAL'.",
+   "code_does": "A rebuttal allows an Objection from anybody (`MODE_RULES.rebuttal.object: true`, line 101; the comment inside the twin at 1045-1060 says so).",
+   "source": "domain-case-d-trial-floor.json"
+  },
+  {
+   "where": "scripts/trial-floor-ui.mjs:288-294",
+   "comment_says": "Opening the debate is announced because 'from here the same button on the same row is an Objection that takes the floor. The players' one button changes meaning under them'.",
+   "code_does": "The sheet's button is always a Present since 1.2.79 (trial.mjs:139-146); an Objection is the HUD's or the voice tile's own button.",
+   "source": "domain-case-d-trial-floor.json"
+  },
+  {
+   "where": "scripts/trial-floor-ui.mjs:712-716",
+   "comment_says": "'NO SECTION EVER DISAPPEARS. When nothing is running they hold one sentence saying so.'",
+   "code_does": "With no trial running `trialConsoleHtml` draws the lead, the register's line and the Final Trial's note alone (1275-1282, E10 C14).",
+   "source": "domain-case-d-trial-floor.json"
+  },
+  {
+   "where": "scripts/trial-floor-ui.mjs:1362-1374",
+   "comment_says": "When the set of buttons would change 'the window opens again instead', and 'every action in this console already ends with `return manageClassTrial()`'.",
+   "code_does": "The footer is redrawn in place (`liveFooter`, 1683-1685) and the bar's, the picker's and the Closing row's presses leave the console open (1743-1776); the window reopens only on a change of `trialSignature`, as the comment inside the function says.",
+   "source": "domain-case-d-trial-floor.json"
+  },
+  {
+   "where": "scripts/trial.mjs:259-261",
+   "comment_says": "`presentBullet`: 'Built and sent by the presenter's own client'.",
+   "code_does": "A player's call asks the primary (`requestPresent`, 292-296); only a GM's browser posts a card from this function.",
+   "source": "domain-case-d-trial-floor.json"
+  },
+  {
+   "where": "scripts/trial-floor.mjs:626, 803",
+   "comment_says": "`drpgTrialStep` is called after each step and 'E70-19 reads it in C5'; 'drpgTrialStep follows each step'.",
+   "code_does": "git grep finds the hook's name in trial-floor.mjs and .github/release-notes/v1.2.90.md only: nothing listens. voice.mjs settles on the floor's setting instead (voice.mjs:1856).",
+   "source": "domain-case-d-trial-floor.json"
+  },
+  {
+   "where": "scripts/trial-progress.mjs:113-118 (and scripts/clock.mjs:1049-1056)",
+   "comment_says": "A sentence is asked again at the primary's ready and at every later change of phase 'while the record's sentence waits outside a trial (`pendingSentence`'s reading)'.",
+   "code_does": "`retrySentence` (124) and clock.mjs:1056 ask again only when `execution.failed` holds an id. A sentence never attempted - the phase written and the page reloaded before the first kill on the Edit campaign road, or a primary that did not answer `execute` twice - has no `execution` row and is not asked again.",
+   "source": "domain-case-d-trial-floor.json"
+  },
+  {
+   "where": "scripts/trial-progress.mjs:19-21 and the row of trial-progress.mjs in the path-scoped rules file code.md",
+   "comment_says": "'every importer still imports vote.mjs'; '15 names exported, 14 of them re-exported'.",
+   "code_does": "The file exports 21 names (counted by script); vote.mjs re-exports 14 (vote.mjs:55-59). clock.mjs:1015 (`shutVoteAtExit`) and sequence.mjs:694 (`trialProgressChapter`) import it past the facade.",
+   "source": "domain-case-d-trial-floor.json"
+  },
+  {
+   "where": "scripts/trial-floor.mjs:1161-1163",
+   "comment_says": "`fillObjection`, which asked the fill 'through the floor's op `fill`', 'had no caller and went'.",
+   "code_does": "The op itself stayed: `FLOOR_OPS.fill` (390), 'fill' in `FLOOR_OP_NAMES` (374) and in the bridge's list (bridge-table.mjs:1359). Nothing in scripts/ asks it.",
+   "source": "domain-case-d-trial-floor.json"
+  },
+  {
+   "where": "scripts/chapter.mjs:8-13",
+   "comment_says": "'the body is found ... everyone is called to the scene, and the phase turns to Investigation'.",
+   "code_does": "The discovery writes a hold and no phase (body.mjs:347-357, D5: 'THE DISCOVERY IS NOT THE INVESTIGATION'); the GM starts the Investigation.",
+   "source": "domain-case-g-death-chapter.json"
+  },
+  {
+   "where": "scripts/chapter.mjs:22-26 and 206-216",
+   "comment_says": "The sweep 'used to be a tick in the end-of-chapter window' and 'stays available because a GM asks: the button is in the Investigation Dashboard, next to the one that clears Faint Remnants'.",
+   "code_does": "The sweep is a tick of End of chapter again (CHAPTER_END_STEPS 'sweep', chapter.mjs:656-657; option 'sweep' ticked when it has a count, 326, 350), and investigation.mjs:357-360 says neither the sweep nor the Faint clean-up has a button since E64-inv.",
+   "source": "domain-case-g-death-chapter.json"
+  },
+  {
+   "where": "scripts/chapter.mjs:380-383",
+   "comment_says": "'One screen with counts, because two of these three cannot be undone'.",
+   "code_does": "The window carries four steps marked permanent (the reveal, the sweep, the Faint clean-up, the Key Remnants, chapter.mjs:345-352) besides the clock.",
+   "source": "domain-case-g-death-chapter.json"
+  },
+  {
+   "where": "scripts/chapter.mjs:48, 51, 53; scripts/season-setup.mjs:72",
+   "comment_says": "Notes on imports ('A leaf (season-exceptions.mjs alone): the registry...', 'The engine (config.mjs alone): the moment this browser's GM stores open...', 'A leaf (config.mjs alone): the scenes of the discovery window...', 'E57 C4 (D35): the header's \"?\" - its own line').",
+   "code_does": "No import follows any of them: the imports went to death.mjs, body.mjs and season-wipe.mjs in the E54 and E42 C5 moves and the notes stayed.",
+   "source": "domain-case-g-death-chapter.json"
+  },
+  {
+   "where": "scripts/body-tile.mjs:12-13",
+   "comment_says": "'the tile is laid when the death is the table's ... (`leaveBody`, from chapter.mjs `markDeceased`'.",
+   "code_does": "markDeceased is death.mjs's since E54 (death.mjs:67-125); chapter.mjs only re-exports it (57).",
+   "source": "domain-case-g-death-chapter.json"
+  },
+  {
+   "where": "scripts/body-tile.mjs:174",
+   "comment_says": "bodyRoomOf is 'The one reader of \"the body's room\" (E72 amend[16])'.",
+   "code_does": "No module code calls bodyRoomOf (git grep: tests and scenario 78 only); body.mjs, frisk.mjs's road and this file's own followers read bodyPlaceOf.",
+   "source": "domain-case-g-death-chapter.json"
+  },
+  {
+   "where": "scripts/season-setup.mjs:1310-1313",
+   "comment_says": "The Season checklist has 'Pre-season checks its secondary button ... the window closes with where it was, the checks' window answers, and this one comes back there'.",
+   "code_does": "The footer is Close alone (1349), and 1344-1348 says Pre-season checks was folded into the rows in E101 item 2.",
+   "source": "domain-case-g-death-chapter.json"
+  },
+  {
+   "where": "scripts/season-setup.mjs:1470-1475",
+   "comment_says": "preSessionReport is 'The Pre-season checks window's body ...: the cast, the scenes, the voice rows, the room pictures and the anonymity audit'.",
+   "code_does": "It returns the room pictures, the voice rows, the dice look and the anonymity audit (1508-1513); the cast and the scenes left it in E101 item 2 (1497-1500).",
+   "source": "domain-case-g-death-chapter.json"
+  },
+  {
+   "where": "scripts/monokuma.mjs:261-263",
+   "comment_says": "classCandidates are 'The characters Pre-season's checks name as NPCs to mark'.",
+   "code_does": "They are the Season checklist's npcs row (season-setup.mjs:312-320, 'a row of Pre-season's cast part until E101 item 2').",
+   "source": "domain-case-g-death-chapter.json"
+  },
+  {
+   "where": "scripts/death.mjs:53, 104, 114, 211, 509; scripts/body-tile.mjs:197",
+   "comment_says": "'the Players window' and its 'dead'.",
+   "code_does": "The window is the Students window (gm-students.mjs; DRPG.Chapter.keptUntilFound tells the GM 'the Students window').",
+   "source": "domain-case-g-death-chapter.json"
+  },
+  {
+   "where": "scripts/messenger.mjs:323-324",
+   "comment_says": "'`drpgMessengerRead` lets the launcher badge and the roster popover refresh the moment a window is opened, on whichever client that happened.'",
+   "code_does": "Hooks.callAll is this browser's alone and the read map is a client setting, so no other client hears it; and its listener redraws the launcher only - an open roster keeps the rows it was drawn with (messenger-app.mjs:44-50, whose own note says so).",
+   "source": "domain-comm-a-messenger.json"
+  },
+  {
+   "where": "scripts/popup.mjs:23-26",
+   "comment_says": "showPopup() is 'called directly, when the caller wants a title or a sticky card - `report()` in action-rolls.mjs, ...'",
+   "code_does": "report lives in action-report.mjs since E41 C3 (action-report.mjs:225) and calls no showPopup: it whispers and leaves the card to this file's catch-all (action-report.mjs:328-345).",
+   "source": "domain-comm-a-messenger.json"
+  },
+  {
+   "where": "scripts/popup.mjs:4-8 and 1191-1193",
+   "comment_says": "'a floating card in the middle of the screen'; 'Every module message surfaces in the middle of the screen, for everybody it was addressed to - GMs included.'",
+   "code_does": "An ordinary card goes to the corner tile (hostFor, 234-238); only sticky evidence, objections and centre cards take the middle stage. A GM is skipped for every whisper that is not gmPopup or a GM's popupForce (1269), as the same comment's later paragraphs say.",
+   "source": "domain-comm-a-messenger.json"
+  },
+  {
+   "where": "scripts/notice-history-app.mjs:315",
+   "comment_says": "'Closing the window reads what it listed (P10-3)'",
+   "code_does": "markNoticesRead() marks every unread entry of this login read, whatever the filter, the search or the pill left off the list (finding 4).",
+   "source": "domain-comm-a-messenger.json"
+  },
+  {
+   "where": "scripts/messenger-app.mjs:850-858",
+   "comment_says": "'/** What each button on a ruling card does. GM side, by construction. */' over a block of line comments",
+   "code_does": "A JSDoc attached to no declaration (the next statement is ruleApproveCallOrRefuseCall, whose own comment follows it); the same sentence is CARD_ACTIONS's doc at 1391. The four-space-indented line comments before ruleApproveCallOrRefuseCall, ruleSetDifficulty, rulePickTrait, ruleRefuseTrait, ruleItemWorksOrItemNoEffectOrItemRefuse and ruleApproveMurderOrRefuseMurder (851-858, 866-873, 901-909, 928, 935-937, 970-974) are case comments left at a switch's depth after the cut into functions.",
+   "source": "domain-comm-a-messenger.json"
+  },
+  {
+   "where": "scripts/call-gm.mjs:18-24",
+   "comment_says": "gm-bridge.mjs re-exports ten names, 'fifteen more are exported now', and C5a added four senders, three exported (28 names; .claude/rules/code.md's row says '28 names exported, 10 of them re-exported').",
+   "code_does": "22 top-level exports (grep '^export (async )?(function|const)' scripts/call-gm.mjs); gm-bridge.mjs:44-47 re-exports 10.",
+   "source": "domain-comm-b-calls.json"
+  },
+  {
+   "where": "scripts/call-world.mjs:23-25 and 530-531",
+   "comment_says": "Below it are config.mjs, settings.mjs and utils.mjs statically, and rooms.mjs; later 'this file imports only config.mjs, settings.mjs and utils.mjs statically (the header)'.",
+   "code_does": "Static imports also of rooms.mjs (35) and season-reset.mjs (37).",
+   "source": "domain-comm-b-calls.json"
+  },
+  {
+   "where": "scripts/call-pickers.mjs:18-20",
+   "comment_says": "call-effects.mjs re-exports `pickTarget` - 'the one name here another file reads (sheet.mjs, through that facade)'.",
+   "code_does": "calls.mjs, monocub.mjs and sheet-actions.mjs import callWindow, callHeader and the rest directly (grep), as the same header says further down (29-31).",
+   "source": "domain-comm-b-calls.json"
+  },
+  {
+   "where": "scripts/calls.mjs:834-844",
+   "comment_says": "'The GM's ruling on a Call that needs one' ... '@returns {Promise<boolean>} true to allow.'",
+   "code_does": "Since COMM-04 a player's Call is ruled by card (call-gm.mjs askHopeCallByCard); this window serves only a purchase on the GM's own side (calls.mjs:227-228), and it answers null when one is already open (851).",
+   "source": "domain-comm-b-calls.json"
+  },
+  {
+   "where": "scripts/call-effects.mjs:1275-1277 against 1287 and 1300",
+   "comment_says": "'Announced only when written (E03; audit S09-11): writeWorld answers null on a client that cannot write, and the card said \"sealed\" anyway.'",
+   "code_does": "The seal checks its write; Silence and Chain call restrict, which answers true whatever writeWorld answered (call-world.mjs:134-139), and push their receipt line unchecked.",
+   "source": "domain-comm-b-calls.json"
+  },
+  {
+   "where": "scripts/voice-tile.mjs:95-96",
+   "comment_says": "'The tile and the list send no socket and no packet, write no world setting and no document but the GM's block'",
+   "code_does": "Since E69 and E92 the tile's own buttons send bridge requests and write a document: Stop listening asks `listen.stop` (requestEavesdropStop, 1224-1229), Reveal yourself asks `mask.reveal` (requestReveal, 1189-1208), OBJECTION! asks the primary (paintObjection through hud.mjs objectionControl, 1080-1093; its own doc says 'a press that the primary GM judges'), and the Spectator switch writes the player's own User flag (toggleSpectatorTalk, 1112-1139).",
+   "source": "domain-comm-c-voice.json"
+  },
+  {
+   "where": "scripts/voice.mjs:1937-1940 (voiceClaim, the trial branch) and the CLAIM row at 880",
+   "comment_says": "'everybody gets the main room ... The dead keep their seat but not their voice: \"the dead listen but do not speak\" is the table's rule, not this file's'",
+   "code_does": "This file blocks the dead's microphones in the trial since E70 C5 (settleTrialVoices, 1739-1813, deadForTrial 1651-1661), and the trial's 'one room' gives way to a Scrum's camp rooms (1050-1059) and the Spectators' room (1068-1072).",
+   "source": "domain-comm-c-voice.json"
+  },
+  {
+   "where": "scripts/voice.mjs:1885-1887 (voiceClaim's doc)",
+   "comment_says": "`voiceTargets` asks it 'once per character and, during an Eclipse or the Class Trial, once per connected account that has no character'",
+   "code_does": "Since E19 C4 every connected account with no character gets a row in every phase (placeVoices 1029-1039: 'Outside both its room is the main room').",
+   "source": "domain-comm-c-voice.json"
+  },
+  {
+   "where": "scripts/voice.mjs:2471-2473 and 2504-2509 (voicePlan)",
+   "comment_says": "'A row is grouped and named by where it sends its account (`placeName`): the dead channel is its own group, never \"(main room)\"' and 'Each group is a target'",
+   "code_does": "placeName (2271-2274) names a row by `row.room`, so a masked killer (room null, target a silent room: maskedRow 1153) and a Scrum camp (room null, target SCRUM_ROOMS: 1056) are grouped under '(main room)', and a listener (room = the room listened from, target the room listened into: listeningRow 1132) under the room it stands in. The dead share the Spectators' group with talking Spectators since E62 C3b (2511), and DRPG.Voice.plan.deadGroup is reached by no row (see hygiene). Finding 5.",
+   "source": "domain-comm-c-voice.json"
+  },
+  {
+   "where": "scripts/voice.mjs:2463-2466 (voicePlan's header)",
+   "comment_says": "'this runs the same decision the reconcile loop runs, on the same inputs, and prints it'",
+   "code_does": "On a GM that is not the primary the kept rooms are a fresh Map (voiceTargets 903-904), so a student standing in a doorway's gap is printed in the main room while the primary keeps them in their room; on the primary the plan's own call of voiceTargets writes and prunes `roomsKept` (gaps.done, 918) like a pass. The comment at 900-903 says the first half; the plan's header does not, and the plan's 'This client runs the assignment loop: no' line is the only sign.",
+   "source": "domain-comm-c-voice.json"
+  },
+  {
+   "where": "scripts/voice-client.mjs:812-814 (desiredRoom)",
+   "comment_says": "'`desired` is still written only by `onVoiceSocket`, behind its primary-GM check, and by `applyBreakout`'",
+   "code_does": "`forgetDesiredRoom` (820-824) writes it too (undefined), called by voice.mjs resetAllVoice with regional voice off (voice.mjs:2619).",
+   "source": "domain-comm-c-voice.json"
+  },
+  {
+   "where": "scripts/voice-client.mjs:469-473 (isDeadRoom)",
+   "comment_says": "'What stays is the reader below ... as a row written before C3b may still name one'",
+   "code_does": "No row that names a room outlives a page: `desired` and the ledger's `settled` are memory only (voice-client.mjs:63-67; voice.mjs:548-550 'deliberately not persisted'), and nothing has built a `drpg-dead-` name since E62 C3b, so the reader answers false for every row a running world can hold.",
+   "source": "domain-comm-c-voice.json"
+  },
+  {
+   "where": "scripts/sfx-play.mjs:743-746",
+   "comment_says": "testSfx plays 'ignoring the cooldown, the yield and the autoplay lock'.",
+   "code_does": "It refuses on a locked browser before it asks (785-790; the comment at 780-784 says so) - only the cooldown and the yield are ignored.",
+   "source": "domain-comm-d-audio.json"
+  },
+  {
+   "where": "scripts/sfx-play.mjs:612-618",
+   "comment_says": "On a locked browser the varied path is skipped and 'falls through to the ordinary path, which drops the sound and counts it'.",
+   "code_does": "A locked browser already returned at 580-583 unless `force`; with `force` the ordinary path hands the file to AudioHelper.play (632-636), which the header's rule 4 says queues it, and counts nothing.",
+   "source": "domain-comm-d-audio.json"
+  },
+  {
+   "where": "scripts/sfx-play.mjs:245-246 and 288-291",
+   "comment_says": "The varied path is 'a second path for eleven events'; 'the eleven events that carry vary: true'.",
+   "code_does": "13 SFX_EVENTS rows carry vary: true (grep; config.mjs:4971 itself says thirteen since E110).",
+   "source": "domain-comm-d-audio.json"
+  },
+  {
+   "where": "scripts/sfx-play.mjs:64-69",
+   "comment_says": "YIELD_MS 'has to be tuned by ear, and E17 is where that happens'.",
+   "code_does": "E17 shipped long ago and the value is the one written then (120); no record of the tuning was found (finding 6).",
+   "source": "domain-comm-d-audio.json"
+  },
+  {
+   "where": "scripts/config.mjs:5090-5093 (SFX_EVENTS header, vary)",
+   "comment_says": "The safeword is excluded from bending 'in CODE ... - see `fire`'.",
+   "code_does": "The exclusion is in `varies` (sfx-play.mjs:204-205), which rateFor and gainFor call; fire has none of its own.",
+   "source": "domain-comm-d-audio.json"
+  },
+  {
+   "where": "scripts/music-play.mjs:760-766",
+   "comment_says": "Deleting the held flag 'means `-=held`, and in this Foundry that quietly does nothing unless the update is a forced replacement'.",
+   "code_does": "The recorded reading is the opposite: on 14.370 `-=key` does delete, with v14's deprecation warning (CLAUDE.md, LIVE-E30-01, docs/dev/e39/CALIBRATION.md). Writing false is still the right road (R152); the reason given is stale.",
+   "source": "domain-comm-d-audio.json"
+  },
+  {
+   "where": "scripts/music-play.mjs:461-462",
+   "comment_says": "`left` is taken in apply 'so that an apply that returns below does not hand it to a later one'.",
+   "code_does": "The returns above it (398, 446) leave leftForApply for a later apply; only the returns after 463 consume it.",
+   "source": "domain-comm-d-audio.json"
+  },
+  {
+   "where": "scripts/music-states.mjs:166-181",
+   "comment_says": "'REBUTTAL HAS NO STATE OF ITS OWN ... Still no fourth playlist. A mode does not need music of its own'.",
+   "code_does": "Nine states of their own since E110 (TRIAL_MODE_OWN_MUSIC, SCRUM_PHASE_MUSIC, ownStateRows at 104-113); the E110 note at 163-164 corrects the rebuttal only.",
+   "source": "domain-comm-d-audio.json"
+  },
+  {
+   "where": "scripts/music-states.mjs:115-127",
+   "comment_says": "The order is paused, eclipse, trial, search, time of day.",
+   "code_does": "MUSIC_STATES also holds murder (first, never applying), the nine own-mode rows, the vote, and bodyFound between the trial and search (128-246); the handbook's table (gm-handbook.en.md:1701-1711) is the full order.",
+   "source": "domain-comm-d-audio.json"
+  },
+  {
+   "where": "scripts/sfx.mjs:470-479 and 513, 552",
+   "comment_says": "The launcher is 'the player's only door to the two sliders' and opens 'the Sound panel'; soundSlidersHtml is 'the whole of the window for a player - see openSoundDialog'.",
+   "code_does": "The launcher opens the settings window (openLookDialog, 506-511; its own note at 495-498 says so); a player reaches openPlayerSoundDialog by no control, only game.drpg.soundDialog (api.mjs:1543).",
+   "source": "domain-comm-d-audio.json"
+  },
+  {
+   "where": "scripts/sound-panel.mjs:41-53",
+   "comment_says": "'the same window opens for everybody and simply has less in it. Not a second, player-shaped window: two windows about the same two sliders is how the two drift apart.'",
+   "code_does": "openPlayerSoundDialog is a window of its own (54-72), and the sliders are drawn in a second window too, the settings window (settings-window.mjs reads volumeSliders and wireVolumeSliders, sfx.mjs:541-550, 689-708).",
+   "source": "domain-comm-d-audio.json"
+  },
+  {
+   "where": "scripts/sound-panel.mjs:40",
+   "comment_says": "/** Map each state to one of the world's playlists. */",
+   "code_does": "An orphan JSDoc: it stands above the block comment and openPlayerSoundDialog, which maps nothing.",
+   "source": "domain-comm-d-audio.json"
+  },
+  {
+   "where": "scripts/music.mjs:40-45",
+   "comment_says": "The music 'only needs exactly one client to be the one deciding, which is the primary GM'.",
+   "code_does": "Play and Stop the track decide on whichever GM presses them (finding 1).",
+   "source": "domain-comm-d-audio.json"
+  },
+  {
+   "where": "scripts/bridge-guards.mjs:108-112",
+   "comment_says": "'Guards change nothing. Until E08+E28 C8 one kind did - a guard named `...Receipt` spent a Reroll receipt ... C8 retired them.'",
+   "code_does": "Two guards change state today: `guardCallProgress` takes the Call's payment ticket (roll-draw.mjs `takeCallPayment` pushes \"call\" on the ticket, 1265-1271), which is why the progress row asks it last (bridge-table.mjs:746-748); `guardArmGmYes` deletes the GM's yes and records it as taken (1122-1132).",
+   "source": "domain-core-a-bridge.json"
+  },
+  {
+   "where": "scripts/bridge-runs-acts.mjs:45 (and .claude/rules/trust-model.md 'How to add a bridge action', step 3)",
+   "comment_says": "'A run never emits a packet and never calls `refuse`.'",
+   "code_does": "handleFriskAsk emits the request's own `bridge.done` later through its `reply` (bridge-runs-acts.mjs:724-727), and handleAdvancementAsk's `sendOffersTo` emits `advancement.offers` (518-528); both are recorded beside their rows, not in the rule.",
+   "source": "domain-core-a-bridge.json"
+  },
+  {
+   "where": "scripts/bridge-guards.mjs:150-152 (and trust-model.md step 3: 'a run never answers a done for nothing')",
+   "comment_says": "A resolver that answers null for work it did not do is a refusal, `nothing was carried out: ...`.",
+   "code_does": "handleCubAbility answers `{ reply: out }` whatever cubAbilityOnGm returned (bridge-runs-acts.mjs:1010-1017), so a refused or unpaid Monocub move (cubAbilityOnGm returns null, monocub.mjs:1280, 1293, 1313) is answered done with null; the Monocub is whispered `moveRefused` by the GM, and the caller reads the null (monocub.mjs:1164-1173), so nothing goes wrong at the table.",
+   "source": "domain-core-a-bridge.json"
+  },
+  {
+   "where": "scripts/bridge-guards.mjs:1383-1384, 1708, 1711, 1856-1857 (and the header, 6-7)",
+   "comment_says": "'A declaration in one of the three tables (gm-bridge.mjs, traps.mjs, search-tokens.mjs)'; 'see `prepare` in gm-bridge.mjs'; '`ask` in gm-bridge.mjs'.",
+   "code_does": "BRIDGE_ACTIONS, `prepare` and `ask` live in bridge-table.mjs since E41 C5b, and `judge` serves four tables - ROLL_ACTIONS in private-rolls.mjs:106 too, as the same file says at 1446 ('the four tables') and trust-model.md says.",
+   "source": "domain-core-a-bridge.json"
+  },
+  {
+   "where": "scripts/bridge-table.mjs:1124-1131",
+   "comment_says": "'A PLAYER'S PRIVATE CARD WHILE AN INCIDENT RUNS ... Not resent to a GM who reloads.'",
+   "code_does": "The comment stands above the `audit.decide` row, after the Reroll's; the `card.post` row it describes is at 1550-1562 with no comment of its own.",
+   "source": "domain-core-a-bridge.json"
+  },
+  {
+   "where": "scripts/bridge-asks.mjs:561-567 and 660-664",
+   "comment_says": "requestUndoSabotage 'is only ever called by Reroll'; requestRemnantEdit retunes 'a Remnant a player's own action left behind - a reroll has changed how well they hid it'.",
+   "code_does": "Both are called only from a player's browser and always refused (finding 3); the Reroll runs on the GM and calls undoSabotage and retuneRemnant locally.",
+   "source": "domain-core-a-bridge.json"
+  },
+  {
+   "where": "scripts/bridge-runs-records.mjs:46",
+   "comment_says": "debug line 'Applied N progress to X on behalf of a player.'",
+   "code_does": "Printed for a GM sender too (the run takes `kind: sender.isGM ? \"gm\" : \"player\"` one line above).",
+   "source": "domain-core-a-bridge.json"
+  },
+  {
+   "where": "scripts/bridge-runs-acts.mjs:48-50, 65-70, 336-337, 530-533, 642-648, 666-669, 689-691, 769-770, 779-781, 793-797, 858-869, 881-891, 906-910",
+   "comment_says": "Each run's comment, indented four spaces as a statement inside a function would be.",
+   "code_does": "They stand at the top level above exported functions: the indentation of the old `if (action === ...)` branches of onSocket, kept by the pure moves of E31 and E41 C5a. Cosmetic.",
+   "source": "domain-core-a-bridge.json"
+  },
+  {
+   "where": "scripts/secret.mjs:838-841 (heldReadersAfter)",
+   "comment_says": "A GM's updateSecret to a reader the card did not have, as a freed victim's line, adds that reader to the readers kept.",
+   "code_does": "The freed victim's line (murder-rules.mjs:3705) is sent by a GM that is not a reader of the card, and updateSecret calls remember only on a reader's browser (secret.mjs:1350), so no reader is ever added there (finding 2).",
+   "source": "domain-core-b-secret.json"
+  },
+  {
+   "where": "scripts/secret.mjs:658-659",
+   "comment_says": "A GM whispering a card to players alone sees its stub, as it did before the author-hold catch-up.",
+   "code_does": "After the 4-second wait the card is drawn with DRPG.Secret.wordsElsewhere (secret.mjs:1033-1035, 913-925), not the stub's dash (finding 5).",
+   "source": "domain-core-b-secret.json"
+  },
+  {
+   "where": "scripts/vault-store.mjs:168-170 and 1576-1582",
+   "comment_says": "The found notes and a hidden stash are world data readable from any console: 'this module has no secrets from a determined player, and never claims to'.",
+   "code_does": "The module now claims exactly that for what belongs to somebody else (the trust model D2, the GM stores of E04, world-secrets.mjs of E05), and the found list itself has been a GM flag judged by the audit since E16 (sheet-audit.mjs:166-170); the sentence describes the module of 28.08.2026.",
+   "source": "domain-core-b-secret.json"
+  },
+  {
+   "where": "scripts/vault-store.mjs:1584-1587",
+   "comment_says": "The finder owns their own actor and could write the found flag themselves; the GM's write is 'the only thing standing between' a roll and reading other people's hiding places.",
+   "code_does": "Since E16 a player's write of drpgStashesFound is put back by the GMs' audit (sheet-audit.mjs GM_FLAGS, 164-170) and the GM's reads use flagsHeldNow (vault-store.mjs:1021, 1273; stash-reach.mjs:472).",
+   "source": "domain-core-b-secret.json"
+  },
+  {
+   "where": "scripts/vault-store.mjs:123-129",
+   "comment_says": "The legacy drpgVaultConcealed is read only through stashesIn's fallback.",
+   "code_does": "unconcealStashes reads and clears it (1061-1070) and pieceData carries it over a rename (1474). (Also recorded by old-1.2.42-items.json; still standing.)",
+   "source": "domain-core-b-secret.json"
+  },
+  {
+   "where": "scripts/sync.mjs:476-479 (the SYNC.eclipse row)",
+   "comment_says": "'Every other kind re-renders open character sheets, and this one did not.'",
+   "code_does": "Of the other kinds, despair renders only the Monokumas' sheets, and trial, fog, gather and ready render none (sync.mjs:492, 510, 526, 530, 531).",
+   "source": "domain-core-b-secret.json"
+  },
+  {
+   "where": "scripts/relay-guard.mjs:1194-1199 (noSender)",
+   "comment_says": "Whether Foundry v14 names the sender on a system channel is NOT measured; live check AUDIT 9.2 item 18.",
+   "code_does": "The code is unchanged; the evidence moved: LOCAL-REPORT.md item 18 (16.11.2026, 14.370) records the sender's id on a system.daggerheart packet, partly (not a Hope roll's own packet). The comment should say partly read.",
+   "source": "domain-core-b-secret.json"
+  },
+  {
+   "where": "scripts/iso-shield.mjs:21-29",
+   "comment_says": "The shield retires the two handlers and takes the tab out; the `_preparePartContext` wrapper stays.",
+   "code_does": "It also replaces the mixin's `_refreshState` override (113-130, 153), which the header's summary of what is parked leaves out (described further down, 91-112).",
+   "source": "domain-core-b-secret.json"
+  },
+  {
+   "where": "scripts/module.mjs:516-518",
+   "comment_says": "registerTruthBullets comes 'After the API, because the migration it kicks off reads the clock'.",
+   "code_does": "registerTruthBullets kicks off no migration since E04: its own note says the two passes are clauses of migrate.mjs (truth-bullets.mjs:1995-1998).",
+   "source": "domain-core-c-boot-settings.json"
+  },
+  {
+   "where": "scripts/module.mjs:588-589",
+   "comment_says": "'`adoptQuestionMark` inside it already asked this for its own sweep'.",
+   "code_does": "reconcileRemnantActor no longer calls adoptQuestionMark; the sweep is the clause questionMarkIcon (remnants.mjs:1063-1065, migrate.mjs:474-491).",
+   "source": "domain-core-c-boot-settings.json"
+  },
+  {
+   "where": "scripts/module.mjs:560-563 and 597-607",
+   "comment_says": "'All four of these load-time passes WRITE'; and the JSDoc 'Every bedroom's owner holds the key to it' stands over tellProposersOnLoad.",
+   "code_does": "Six load-time passes are gated this way now (refreshTableCopyOnLoad with the tier 3 wording, reconcileRemnantActorOnLoad, tellProposersOnLoad, issueMissingKeys, sealProjects); the bedroom-key note belongs to issueMissingKeys at 616.",
+   "source": "domain-core-c-boot-settings.json"
+  },
+  {
+   "where": "scripts/settings.mjs:2684-2688",
+   "comment_says": "The Key plan has no onChange, so 'another GM's edit reaches an open dashboard at its next one, and not the moment it merges'.",
+   "code_does": "The dashboard's keepLive watches keyPlanStore among its stores (investigation.mjs:2412), and keepLive redraws on that store's clientSettingChanged, another GM's merge included (live.mjs:335-351, measured on the harness 08.10.2026 per its note).",
+   "source": "domain-core-c-boot-settings.json"
+  },
+  {
+   "where": "scripts/settings.mjs:3692-3693",
+   "comment_says": "'`game.user.character` is a field nothing at this table ever sets'.",
+   "code_does": "The primary GM sets a player's user.character by account name since E79 C10 (user-match.mjs:237); the code below already prefers it (3736-3739).",
+   "source": "domain-core-c-boot-settings.json"
+  },
+  {
+   "where": "scripts/settings.mjs:4479-4482",
+   "comment_says": "'crossing 1200 px of width restacks the module'.",
+   "code_does": "BREAKPOINTS.narrow is 1224 (4344), as the note at 4318 says.",
+   "source": "domain-core-c-boot-settings.json"
+  },
+  {
+   "where": "scripts/settings.mjs:1039-1044",
+   "comment_says": "mineDoor is read by 'vault.mjs (a concealed stash is their own furniture)'.",
+   "code_does": "vault.mjs is a facade with no code since E41 C6; the readers of iAmTheMastermind / myMastermindLair are fog.mjs, movement.mjs, projects.mjs, sheet-mode.mjs, sheet-sidebar.mjs, stash-reach.mjs and mastermind.mjs (grep).",
+   "source": "domain-core-c-boot-settings.json"
+  },
+  {
+   "where": "scripts/settings-window.mjs:6-8, 17, 30",
+   "comment_says": "'the 35 settings' stand in the sections; SETTINGS_SECTIONS holds 'every one of the 35 in exactly one'.",
+   "code_does": "The sections hold 37 rows (12 client, 25 world) and the Sound window two more (SOUND_WINDOW_SETTINGS); 35 was A1's count at 20218b05.",
+   "source": "domain-core-c-boot-settings.json"
+  },
+  {
+   "where": "scripts/settings-window.mjs:23-24",
+   "comment_says": "GAME_SECTIONS holds 'every world row of the 35, Vary the sounds ... and Give back'.",
+   "code_does": "Vary the sounds and Music follow the game state are the Sound window's since E101 (settings-window.mjs:106-109); no game section names sfxVary.",
+   "source": "domain-core-c-boot-settings.json"
+  },
+  {
+   "where": "scripts/migrate.mjs:68-70",
+   "comment_says": "'The clauses are independent of each other - none assumes another has run - which is why the list is in the order they were written'.",
+   "code_does": "Four clauses say they rely on the order: faintIntoSecrets runs 'after truthBulletShape (it reads the rows that one fills)' (563-565), liftDiscoveryLedger 'after forgetMonokumaWalks' (624-625), migrateRemnantsOnce 'after neutralTraceNames' (847-848), liftIncidentFight 'after the method's lift' (941-942).",
+   "old_id": "CORE-16 (read as fixed in old-1.2.42-core.json; the order rule was replaced by one the clauses contradict)",
+   "source": "domain-core-c-boot-settings.json"
+  },
+  {
+   "where": "scripts/migrate.mjs:39-42 and 139-142",
+   "comment_says": "'deleting a key with the `-=key` syntax can be accepted and do nothing at all'; '`-=key` cannot be trusted to remove anything in this Foundry'.",
+   "code_does": "On Foundry 14.370 `-=key` deletes and writes v14's deprecation warning (LIVE-E30-01, docs/dev/e39/CALIBRATION.md:20, 16.11.2026; CLAUDE.md); the read-back rule stays sound, the reason given for it does not.",
+   "source": "domain-core-c-boot-settings.json"
+  },
+  {
+   "where": "scripts/migrate.mjs:103-106 and 114-116",
+   "comment_says": "The plan's clauses include 'stash seeding and `stashRoom` (E11)'; 'The clause that changes bedroom keys re-runs the bedroom-key pass itself'.",
+   "code_does": "No clause touches bedroom keys or `stashRoom`; the one stash clause is bedroomStashes (E89 C8, 1019-1039).",
+   "source": "domain-core-c-boot-settings.json"
+  },
+  {
+   "where": "scripts/migrate.mjs:1167-1171",
+   "comment_says": "hideBodyTiles is 'exported for the suite'.",
+   "code_does": "No test or harness file names it (grep of scripts/tests*.mjs and audit/harness); R5873 drives bodyTileAlphaPatches.",
+   "source": "domain-core-c-boot-settings.json"
+  },
+  {
+   "where": "scripts/patches.mjs:21-23 (also 1384 'as the notice and Pre-season name it', 1415 'for Pre-season's fold of the unread rows')",
+   "comment_says": "A failed row is told to the GM 'and Pre-season's checks list the same (season-setup.mjs `preSessionReport`)'.",
+   "code_does": "preSessionReport no longer holds the contract: since E101 item 2 it is Diagnostics' 'Foundry and modules' window (season-setup.mjs:1497-1500, `foundryReport` 1459-1466, opened from gm-panel.mjs:745).",
+   "source": "domain-core-d-api-diag.json"
+  },
+  {
+   "where": "scripts/api.mjs:1049-1052",
+   "comment_says": "The ballots 'are addressed to the GMs over the socket and counted in memory'.",
+   "code_does": "Since 1.2.71 a ballot travels on the bridge and is kept in the GMs' store `ballotStore`; 'Until 1.2.71 the ballots were a Map in the collecting GM's memory' (vote.mjs:23-31).",
+   "source": "domain-core-d-api-diag.json"
+  },
+  {
+   "where": "scripts/api.mjs:1477-1481",
+   "comment_says": "checkRegions is 'Also on a button in Room setup ▸ Fog'.",
+   "code_does": "The Check rooms button is in Season setup's rooms step (season-setup.mjs:232-234, wireRoomCheck 1016-1022); Room setup's Fog tab (room-setup.mjs:394) wires fog switches, not the region check.",
+   "source": "domain-core-d-api-diag.json"
+  },
+  {
+   "where": "scripts/api.mjs:1366",
+   "comment_says": "actionBudget: '2 per time of day, or 1 while all Health is marked'.",
+   "code_does": "A wound takes the action only in Daily Life and the Investigation, a Monocub loses none, and a darkened time of day takes one more, floored (actions.mjs:41-69).",
+   "source": "domain-core-d-api-diag.json"
+  },
+  {
+   "where": "scripts/api.mjs:1631-1635",
+   "comment_says": "The parameter named `actor` is 'used consistently across all 117 of them'.",
+   "code_does": "A static pass of actorPosition's rule over the definitions of today's 418 game.drpg names finds about 107 wrapped (approximate: a script over source text, not the running object), and one with an `actor` parameter left unwrapped (finding 5).",
+   "source": "domain-core-d-api-diag.json"
+  },
+  {
+   "where": "scripts/diagnostics.mjs:1529-1535",
+   "comment_says": "`toChat: false` 'is for callers that put the result on screen themselves - the Pre-session checks tile shows both reports in one window'.",
+   "code_does": "No window calls diagnoseCharacters or diagnoseDespair any more (git grep: only api.mjs and the one report's parts at 2228 and 2234); the Season checklist's rows check the same since E101 (api.mjs:1197-1198).",
+   "source": "domain-core-d-api-diag.json"
+  },
+  {
+   "where": "scripts/style-snapshot.mjs:73-74",
+   "comment_says": "The kit's rows read 'the style harness's kit gallery ... until E21 moves the module's windows onto it'.",
+   "code_does": "E21 has moved them (handbooks.mjs:348-349 'ON THE KIT'S FRAME (E21 C6a, 07.11.2026)'; explain.mjs:50 'On the kit's frame (E21 C5a)'), so the rows read real windows too.",
+   "source": "domain-core-d-api-diag.json"
+  },
+  {
+   "where": "scripts/hud-elapsed.mjs:258-268 (a neighbour, not in this scope)",
+   "comment_says": "`#drpg-hud` 'lives in `#ui-left-column-1`, which a11y.mjs observes with `subtree: true`', and the elapsed line ticks 'a one-second one for the whole length of a Class Trial'.",
+   "code_does": "Since E48 K4 a11y.mjs watches each SURFACES host and the body's additions, not the left column (a11y.mjs:379-411); buildElapsed's period is 10 000 ms always and the debate's per-second clock is the Event panel's (hud-elapsed.mjs:232-235).",
+   "source": "domain-core-d-api-diag.json"
+  },
+  {
+   "where": "scripts/diagnostics.mjs:1418-1419",
+   "comment_says": "'see `injectInitButton` in sheet.mjs'.",
+   "code_does": "It lives in sheet-header.mjs:605 since E54 (sheet.mjs:53 imports it).",
+   "source": "domain-core-d-api-diag.json"
+  },
+  {
+   "where": "scripts/utils.mjs:997-1001 (forcedDeletion)",
+   "comment_says": "'`-=key` removes nothing in this Foundry (the measured notes in actions.mjs, music.mjs, fog.mjs and migrate.mjs)'.",
+   "code_does": "The code is right either way; the reading is not: on Foundry 14.370 a `-=key` deletes on an actor's and a token's flags, with v14's deprecation warning (docs/dev/e39/CALIBRATION.md:20, LIVE-E30-01, 16.11.2026), as CLAUDE.md now says. The same old reading stands at actions.mjs:453-455 (outside this lane).",
+   "source": "domain-core-e-utils-clock.json"
+  },
+  {
+   "where": "scripts/states.mjs:118-121 (touchesTracks)",
+   "comment_says": "Which spelling v14's unsetFlag hands the updateActor hook 'is LIVE-E30-03's, not measured'.",
+   "code_does": "Measured on 16.11.2026: after unsetFlag and a `_del` write both hooks got the ForcedDeletion instance under the flag's own key, never a `-=` key (docs/dev/e39/CALIBRATION.md:27). The code's reading by name covers it.",
+   "source": "domain-core-e-utils-clock.json"
+  },
+  {
+   "where": "scripts/clock.mjs:10-14 and 347-351 (advanceTimeOfDay's resetActions)",
+   "comment_says": "The clock does not refill the action economy; 'nothing in the ordinary flow turns it on any more. The GM panel's \"also refill\" checkbox passes it explicitly when a correction needs it, which is the one remaining caller'.",
+   "code_does": "The panel's Next time of day passes resetActions: true on every press (boundary.mjs:143, E37 C3), once a boundary by refilledFor; Edit campaign's refill box calls resetAllActions itself and never advanceTimeOfDay (gm-campaign.mjs:376-383). The comment at clock.mjs:381-382 says the right thing.",
+   "source": "domain-core-e-utils-clock.json"
+  },
+  {
+   "where": "scripts/clock.mjs:296-298",
+   "comment_says": "'`setPhase` and \"Edit campaign\" both come through here, and they are the only two answers that end the record'.",
+   "code_does": "Every setClock that changes the phase clears the discovery (306-308): Start the Class Trial, End the trial, the season reset, followPhase's callers and a console's setClock as well.",
+   "source": "domain-core-e-utils-clock.json"
+  },
+  {
+   "where": "scripts/events.mjs:2 and 18-19 (header); 89",
+   "comment_says": "'the Event panel (theme \"Stained Glass\")'; 'Under \"Monokuma Legacy\" this panel is not rendered and the clock keeps its rows'; 'the three cards'.",
+   "code_does": "Both themes since 1.2.47 (45-72, eventsWindowActive answers true at 70-72); nine card builders feed renderEvents (1083-1084).",
+   "source": "domain-core-e-utils-clock.json"
+  },
+  {
+   "where": "scripts/timed-effects.mjs:14 and 345-346",
+   "comment_says": "A `day` row ends 'with an Eclipse, as Night's starts'; 'at Night's Eclipse the day's too, since that advance begins a new day'.",
+   "code_does": "An Eclipse is named by the time of day it leads into (eclipse.mjs:58-61, settings.mjs:3974-3977), and the day moves only on the advance into Morning (clock.mjs:482-486); endAtEclipseStart ends day rows at the Morning Eclipse's start (356-360), not at the Night Eclipse's (Evening into Night).",
+   "source": "domain-core-e-utils-clock.json"
+  },
+  {
+   "where": "scripts/timed-effects.mjs:18-19",
+   "comment_says": "'Those two are the only callers of `endTimedEffect` outside the tests'.",
+   "code_does": "Three: endTimedEffects (225), endAtEclipseStart (362) and endEclipseEffects (113).",
+   "source": "domain-core-e-utils-clock.json"
+  },
+  {
+   "where": "scripts/utils.mjs:1298-1299 and 1380-1382 (wirePortraitPickers)",
+   "comment_says": "The markup 'projects-ui.mjs and investigation.mjs both build'; 'Four call sites build this markup (investigation.mjs, projects-ui.mjs twice, tables.mjs) ... (Three since 1.2.86 ...)'.",
+   "code_does": "investigation.mjs is the one caller today (grep: wirePortraitPickers at investigation.mjs:37, 1751 only; projects-ui.mjs and tables-editor.mjs build no data-drpg-portrait).",
+   "source": "domain-core-e-utils-clock.json"
+  },
+  {
+   "where": "scripts/utils.mjs:1221-1226 (registerTextGuard)",
+   "comment_says": "'Put the guard on every window this module opens.'",
+   "code_does": "It hooks renderDialogV2 alone (1228); the kit's DrpgApp windows (messenger-app.mjs, handbooks.mjs, notice-history-app.mjs, room-tile.mjs) are ApplicationV2 and are not guarded. None of them carries data-drpg-field or data-drpg-enter today (grep), so only the pointerdown blur is missing there.",
+   "source": "domain-core-e-utils-clock.json"
+  },
+  {
+   "where": "scripts/tables.mjs:12-13; scripts/tables-editor.mjs:18-20",
+   "comment_says": "'four of tables-editor.mjs's' names re-exported.",
+   "code_does": "Five (tables.mjs:26, wireRoomFilter since 6c7c6bc5): finding 6.",
+   "source": "domain-core-e-utils-clock.json"
+  },
+  {
+   "where": "scripts/tables-editor.mjs:1636-1640 (openItemTables)",
+   "comment_says": "'the tier family is a dropdown with a single choice (\"-\" for an item that only ever appears in rooms)'.",
+   "code_does": "There is no such choice: readNewItemForm derives the tier pool from the category and the tier (1091-1096, tierTableIdFor), and wireNewItemForm says so (1121-1126, 'Derived rather than picked now'); an item added here goes into its tier pool whenever one exists, so a room-only entry cannot be made from this form.",
+   "source": "domain-core-e-utils-clock.json"
+  },
+  {
+   "where": "scripts/tables-pools.mjs:888-890 (drawRoomNamed)",
+   "comment_says": "'a single \"Kitchen\" table asked for a crime tool would hand back an apple and then label it a weapon'.",
+   "code_does": "Since E14 part 2 C3 the find is filed as what it is (roomEntryAs, foundAs: 803-821), so the apple is an apple; what is missing is the substitute line (finding 5).",
+   "source": "domain-core-e-utils-clock.json"
+  },
+  {
+   "where": "scripts/despair.mjs:1094-1103",
+   "comment_says": "The overflow's '?' is 'a courtesy rather than a secret: the counter is a WORLD setting, so a determined player can read it from their own console'.",
+   "code_does": "The count is the GMs' record since E05 C12 and a player's client reads 0 (the earlier reading in old-1.2.42-despair.json cites overflow.mjs:258-259 and world-secrets.mjs:93-96); the player's own hint says 'Only the GMs see the count' (lang/en.json DRPG.Overflow.playerHint). Still standing at 1.2.118 (first noted in old-1.2.42-despair.json's new_observations).",
+   "source": "domain-desp-a.json"
+  },
+  {
+   "where": "scripts/despair.mjs:1021 and 1326",
+   "comment_says": "'see `buildRow`' / 'A shape, not a control. See `buildRow`.'",
+   "code_does": "No function named buildRow exists; the row builder is `despairRowOf` (1186). The name is the 1.2.42 one (findings-1.2.42/despair.md hygiene: 'buildRow 112').",
+   "source": "domain-desp-a.json"
+  },
+  {
+   "where": "scripts/despair.mjs:7-11",
+   "comment_says": "'Assistant GMs are deliberately excluded: they are helpers, not Monokumas'.",
+   "code_does": "An Assistant GM granted a pool is a Monokuma: `monokumas()` takes `u.isGM && extra.has(u.id)` (141-146), `addPool` grants one (169-186).",
+   "source": "domain-desp-a.json"
+  },
+  {
+   "where": "scripts/despair-award.mjs:189-191",
+   "comment_says": "'so it never runs through `onChatMessage` below'.",
+   "code_does": "`onChatMessage` is above it, at 26.",
+   "source": "domain-desp-a.json"
+  },
+  {
+   "where": "scripts/level-up.mjs:10-12",
+   "comment_says": "'Options (repeatable ...): +1 max Health · +1 max Sanity · +1 to a trait · +1 to an experience · a new experience at +2'.",
+   "code_does": "Since E64 C6 (DA39) the options are trait, experienceUp and experienceNew (config.mjs:3418-3420); a point in Head, Body or Leg raises a maximum (LEVEL_UP_TRAIT_RESOURCES, config.mjs:3437-3439; level-up.mjs:850-866).",
+   "source": "domain-desp-a.json"
+  },
+  {
+   "where": "scripts/character.mjs:18-20",
+   "comment_says": "'A Level Up writes +1 Health or +1 Sanity onto the maximum'.",
+   "code_does": "No Level Up option does since DA39; a statistic's point does (level-up.mjs:856-866). The predicate's reasoning still holds; the sentence names options that are gone.",
+   "source": "domain-desp-a.json"
+  },
+  {
+   "where": "scripts/trait-ruling.mjs:33-34 and 69-73",
+   "comment_says": "'OUTSIDE THE INCIDENT NOTHING ASKS (C11d) ... Search rolls Eye alone' and 'a Search ..., which lists Eye alone until C6 and so asks nobody yet'.",
+   "code_does": "ACTIONS.search.traits lists six statistics since E68 C6 (config.mjs:1514-1517), `CARD_ACTIONS` is ['search'] (149) and a Search proposed on anything but Eye asks a GM on a card; the autoApproveTraits setting's hint says so (lang DRPG.Settings.autoApproveTraits.hint). Line 66-67 of the same header has it right.",
+   "source": "domain-desp-a.json"
+  },
+  {
+   "where": "scripts/resource-guard.mjs:4-9",
+   "comment_says": "'Actions, Hope and traits change because something happened ... So those fields become read-only for players'.",
+   "code_does": "`GUARDED` holds no `hope.value` (89-96), and the file's own note at 73-88 says Hope is left out on purpose.",
+   "source": "domain-desp-a.json"
+  },
+  {
+   "where": "scripts/price.mjs:189-194",
+   "comment_says": "'Two windows open at once therefore pay two different steps rather than the same step twice.'",
+   "code_does": "On a player's browser `meansWrite` reads the sheet with no queue (sheet-audit.mjs:1047-1048), and the sheet moves only when the server answers; two payPrice calls begun before the first write lands both read the same Hope and both write held - amount. Not measured; true for presses that are a round trip apart.",
+   "source": "domain-desp-a.json"
+  },
+  {
+   "where": "scripts/monocub.mjs:1525",
+   "comment_says": "'The ask stays open in the Monocub's row (`askOpen`) until a GM answers it.'",
+   "code_does": "Since the 1.2.110 review the mark shuts the next ask only while its time of day lasts (`askStillOpen`, 730-743; the CUB_BLOCKS row 844-847).",
+   "source": "domain-desp-a.json"
+  },
+  {
+   "where": "scripts/monocub.mjs:6-8 and 16-17",
+   "comment_says": "'gets exactly two things to do with it: Move, and Meddle' and 'a Hope total that only a GM can top up, by converting their own Despair'.",
+   "code_does": "CUB_RESOLVERS holds five moves (meddle, redeem, askHope, tinker, bet; 1468); Hope also comes from Redeem (1511-1519), a Bribe (1683-1698), a Bounty (1835-1845) and a Ghost Bet (1917-1941), into the purse (750-822).",
+   "source": "domain-desp-a.json"
+  },
+  {
+   "where": "scripts/use-items.mjs:23-26",
+   "comment_says": "EQUIP: 'One per category - you have two hands'.",
+   "code_does": "toggleEquipped puts down everything readied whatever its category (358-361): one thing in a hand in all (Dawid, 27.08, the function's own note at 301-310).",
+   "source": "domain-item-a.json"
+  },
+  {
+   "where": "scripts/use-items.mjs:773-775",
+   "comment_says": "A used-up usable 'still counts against the two you may carry'.",
+   "code_does": "Usables cap at three (config.mjs ITEM_CATEGORIES.usable.limit 3, Dawid 02.09.2026).",
+   "source": "domain-item-a.json"
+  },
+  {
+   "where": "scripts/inventory.mjs:1365-1369 and 1381-1382",
+   "comment_says": "Four screens 'have to say \"2/3 Gear\"'; the summary reads 'Gear: 2/3'.",
+   "code_does": "The Gear group's limit is 2 since D10c (config.mjs LIMIT_GROUPS.gear.limit), so the screens read 'Gear: 2/2'.",
+   "source": "domain-item-a.json"
+  },
+  {
+   "where": "scripts/stash-reach.mjs:215-217",
+   "comment_says": "Finding a concealed stash 'is what the Search action's own stash branch is for, at a penalty, with a roll'.",
+   "code_does": "Since 1.2.112 a Search reaches into no stash; a hidden stash opens to Analyze's Find Stash alone (resolveStashSearch, 699-782; the note at 452-458).",
+   "source": "domain-item-a.json"
+  },
+  {
+   "where": "scripts/stash-reach.mjs:766-771",
+   "comment_says": "The owner discovers a find 'when something goes missing, which is `stealFromVault`'s job and has its own Despair test'.",
+   "code_does": "stealFromVault rolls nothing since 1.2.112: the rifle is free, and the owner is told on walking in (570-582).",
+   "source": "domain-item-a.json"
+  },
+  {
+   "where": "scripts/stash-reach.mjs:784",
+   "comment_says": "'GM: look inside anybody's stash, and pull things out of it.'",
+   "code_does": "openVaultInspector is read-only, footer Close alone (839-846); its note sends the GM to Give / take items to take things out.",
+   "source": "domain-item-a.json"
+  },
+  {
+   "where": "scripts/palm.mjs:504-506",
+   "comment_says": "'`stealFromVault` above owns the rules about hiding places'.",
+   "code_does": "stealFromVault is in stash-reach.mjs since E41 C6; nothing above it in palm.mjs.",
+   "source": "domain-item-a.json"
+  },
+  {
+   "where": "scripts/palm.mjs:94 and 566-569",
+   "comment_says": "'was 14 beaten, was 15 beaten' ... 'decided on this side against `ACTIONS.steal`'.",
+   "code_does": "The hand's bar is ACTIONS.palm.threshold 12 (config.mjs:1809) and the function reads `ACTIONS.palm` (621); there is no ACTIONS.steal.",
+   "source": "domain-item-a.json"
+  },
+  {
+   "where": "scripts/traps.mjs:20-24, 44-48",
+   "comment_says": "'SIX LISTENERS FOR NINE TRIGGERS ... It was five'; 'Seven triggers are answered from the trap's row ... The eighth - the planted item'.",
+   "code_does": "Nine triggers (config.mjs TRAP_TRIGGERS, passage added by E80 C3): eight are answered from the row and the ninth is the item.",
+   "source": "domain-item-a.json"
+  },
+  {
+   "where": "scripts/traps.mjs:33-39",
+   "comment_says": "Every listener starts with a lookup in armed(), a map rebuilt only when the projects change, before touching a setting.",
+   "code_does": "onCrossed reads the rifle store and the bedroom notes first (946-960), and updateActor drops the map on any actor write (751). Finding 8.",
+   "source": "domain-item-a.json"
+  },
+  {
+   "where": "scripts/facilities.mjs:12-15",
+   "comment_says": "A completed project's action: 'Once per person per time of day'.",
+   "code_does": "Since P2 its limit is none, once a time of day or once a day per character (cleanFacility 117-119, usedUp 144-149; facility-uses.mjs header).",
+   "source": "domain-item-a.json"
+  },
+  {
+   "where": "scripts/facilities-gm.mjs:98-102",
+   "comment_says": "applyEffects 'answers the lines its card says, in the table's language'.",
+   "code_does": "The lines are game.i18n on the primary GM's browser (107-108), the GM's own language, not the world's document language (utils.mjs worldLocalize is not used).",
+   "source": "domain-item-a.json"
+  },
+  {
+   "where": "scripts/gm-panel.mjs:167, 641-642, 660-661, 802",
+   "comment_says": "'The panel is thirty tiles long'; rebuilding the tiles 'would be forty buttons redrawn'; 'which of thirty of them'.",
+   "code_does": "PANEL_SECTIONS holds 13 tiles (3 + 3 + 4 + 3, gm-panel.mjs:177-364).",
+   "source": "domain-item-b-gm-panel.json"
+  },
+  {
+   "where": "scripts/gm-panel.mjs:644-651",
+   "comment_says": "'Every input to both answers is either a flag on an actor ... or one of this module's world settings ..., which is exactly what keepLive listens to' (plus the items, tokens and two stores since E11).",
+   "code_does": "nextStep also reads GM stores the block does not watch: the pending bodies (pendingBodyDiscoveries, 949), the deaths store (isDeadForGm through actingStudents, 816, and bodiesToDiscover, 1069), the sheet marks (flagsHeldNow, 949, 1069) and the last health report (caseWarning, 1090); controls-05-gm-panel-stores-4 found two of them stale.",
+   "source": "domain-item-b-gm-panel.json"
+  },
+  {
+   "where": "scripts/gm-panel.mjs:8-11",
+   "comment_says": "'This file re-exports the four names they export'.",
+   "code_does": "gm-students.mjs exports 3 names and gm-campaign.mjs 8; the facade re-exports 4 (35-36). season-setup.mjs imports six of gm-campaign's directly (season-setup.mjs:65).",
+   "source": "domain-item-b-gm-panel.json"
+  },
+  {
+   "where": ".claude/rules/code.md, the rows of gm-panel.mjs, gm-students.mjs and gm-campaign.mjs",
+   "comment_says": "gm-panel.mjs holds 'the public roll's window (openPublicRollDialog); 8 names of its own'; gm-students.mjs and gm-campaign.mjs: 'every name it exports re-exported'.",
+   "code_does": "The public roll's window is gone (E60 C5a; R1291, tests-tier0.mjs:21652); gm-panel.mjs has 13 exports of its own; changeRole and campaignRows, readClockForm, applyCampaignForm, endChapterPart, endTheChapter, morningLineRow are not re-exported.",
+   "source": "domain-item-b-gm-panel.json"
+  },
+  {
+   "where": "scripts/gm-campaign.mjs:13-17",
+   "comment_says": "'gm-panel.mjs re-exports ... so ... the panel's tile reaches the window through it'.",
+   "code_does": "The panel has no Edit campaign tile since E49 A1e (gm-panel.mjs:274-280); its doors are game.drpg.editClock and Season setup, which draws the rows itself.",
+   "source": "domain-item-b-gm-panel.json"
+  },
+  {
+   "where": "scripts/gm-campaign.mjs:262-264",
+   "comment_says": "'this window has no field to turn it off with - it is ended from the panel'.",
+   "code_does": "The panel has no Eclipse tile (gm-panel.mjs:223-226); it is ended from the HUD's chevron or the Next line, as DRPG.Clock.eclipseStillOn now says. Old CORE-14 (findings-1.2.42/core.md): its comparison and text are fixed (gm-campaign.mjs:363-368), this sentence not.",
+   "source": "domain-item-b-gm-panel.json"
+  },
+  {
+   "where": "scripts/gm-campaign.mjs:336-341",
+   "comment_says": "The Eclipse is 'Read again here, with nothing awaited between it and the write'.",
+   "code_does": "Between the re-check (342) and setClock (361) the write awaits correctsTheHour's import('./call-effects.mjs') and cancelGather() (357-359) whenever the hour is corrected.",
+   "source": "domain-item-b-gm-panel.json"
+  },
+  {
+   "where": "scripts/gm-students.mjs:47-49",
+   "comment_says": "'THE DROPDOWN IS STILL THE REPAIR TOOL, exactly as it was - it moves the two flags and nothing else'.",
+   "code_does": "Apply publishes a kept death (626), sends a Monocub invitation (662), revives through reviveCharacter (651) and ties an incident victim's traces and offers Stage 6 (670).",
+   "source": "domain-item-b-gm-panel.json"
+  },
+  {
+   "where": "scripts/gm-students.mjs:636-639",
+   "comment_says": "'Dying through the DROPDOWN keeps the inventory AND stays quiet (F16)'.",
+   "code_does": "On a 'Dead, not found' row publishDeath destroys the victim's Truth Bullets (death.mjs:525) - finding 2.",
+   "source": "domain-item-b-gm-panel.json"
+  },
+  {
+   "where": "scripts/gm-students.mjs:674-679",
+   "comment_says": "'a student made a Monocub by the dropdown and Apply gets the box the next time the window opens, one made by the row's Invite as the open table redraws ... A caller that hands both at once - the suite, the console - gets both in this pass'.",
+   "code_does": "Since E72 C6 neither the list nor Invite makes a Monocub; both send an invitation (offerMonocub, 662), so isMonocub(actor) is false right after and a silence handed with state 'monocub' is not applied in that pass (680).",
+   "source": "domain-item-b-gm-panel.json"
+  },
+  {
+   "where": "scripts/gm-team-dialog.mjs:4-5",
+   "comment_says": "Despair Flow is 'opened from Between sessions and from the season checklist'.",
+   "code_does": "Its tile is Season setup's row (gm-panel.mjs:377-379, SEASON_TILES) since E49 A1e; Between sessions holds no such tile (gm-panel.mjs:274-280).",
+   "source": "domain-item-b-gm-panel.json"
+  },
+  {
+   "where": "scripts/gm-team-dialog.mjs:267-269, 317-319",
+   "comment_says": "'Flipping a Monokuma flag in the top table does not live-update the roster below it'; 'Everything else here is a setting being edited - pool names, who is a Monokuma, ...'.",
+   "code_does": "The Monokuma box is gone since E101 item 6 (474-475, 210-212): the role is set in the Students window.",
+   "source": "domain-item-b-gm-panel.json"
+  },
+  {
+   "where": "scripts/gm-team-dialog.mjs:727-732",
+   "comment_says": "'a row whose actor is ticked a Monokuma is left out'.",
+   "code_does": "readAssignmentForm (734-743) checks no Monokuma tick; there is none to read. The roster is students() at open (270).",
+   "source": "domain-item-b-gm-panel.json"
+  },
+  {
+   "where": "scripts/eavesdrop-gm.mjs:47",
+   "comment_says": "EAVESDROP_CHANGED is 'The hook fired on every browser where a row of the store changes'.",
+   "code_does": "Hooks.callAll is local and called only by changed() (216-220), which runs where startEavesdrop and endEavesdrop run - the primary. Another GM's merge of the row fires nothing, so voice-tile.mjs:1828's repaint of the GMs' list does not run there.",
+   "source": "domain-item-b-gm-panel.json"
+  },
+  {
+   "where": "scripts/utils.mjs:437-438",
+   "comment_says": "'Every reading of \"a token the GM has hidden is not in the scene\" asks this' (hiddenByGm).",
+   "code_does": "watch-gm.mjs:89 reads token.hidden directly (the same value today, a second spelling).",
+   "source": "domain-item-b-gm-panel.json"
+  },
+  {
+   "where": "docs/dev/e59/CHAINS.md:126 (B-R7)",
+   "comment_says": "'Who is in the room three ways ... fixed 9edb4f66, R7163'.",
+   "code_does": "watch-gm.mjs namesIn and tail-gm.mjs standingIn are two more ways, without the Spectator rule (finding 1).",
+   "source": "domain-item-b-gm-panel.json"
+  },
+  {
+   "where": "scripts/gm-students.mjs:596; scripts/death.mjs:509",
+   "comment_says": "'the Players window'.",
+   "code_does": "The window is titled Students (DRPG.Panel.whoIsAlive, gm-students.mjs:537); gm-panel.mjs:190-191 still argues for the name 'Players'.",
+   "source": "domain-item-b-gm-panel.json"
+  },
+  {
+   "where": "scripts/projects-secrecy.mjs:347-349",
+   "comment_says": "'Secrecy is enforced through the countdown's own `ownership` map - default NONE, with explicit access for the killer and anyone they (or the GM) later choose to let in.'",
+   "code_does": "Since S17-31 ownershipMap gives every player OBSERVER (370-382); who is in on a project is the GMs' `viewers` and the player's sight copy, and the tray takes the row out (projects-tray.mjs:192-216).",
+   "source": "domain-item-c-projects.json"
+  },
+  {
+   "where": "scripts/projects.mjs:254-258",
+   "comment_says": "Daggerheart's Countdowns 'with the name, the progress and the ownership map' is a world setting every browser holds.",
+   "code_does": "A secret countdown carries HIDDEN_NAME and one level for every player (changeStep 1760-1771; createInStep 1890-1896); the name and the list are the GMs'.",
+   "source": "domain-item-c-projects.json"
+  },
+  {
+   "where": "scripts/projects-map.mjs:985-989",
+   "comment_says": "'A share, a revoke, a seal and a reveal change the countdown's ownership, which `knowsProject` reads', so the Countdowns' updateSetting is what re-runs the visibility pass.",
+   "code_does": "A share or a revoke writes no countdown since S17-31 (projects.mjs:1966-1967 says so); the pass for it comes from drpgProjectSightChanged through sync.mjs (projects.mjs:1971-1973).",
+   "source": "domain-item-c-projects.json"
+  },
+  {
+   "where": "scripts/projects-map.mjs:927-930",
+   "comment_says": "Known by uses 'the same predicate that draws the token for each of them - so this list and what each player's map shows cannot disagree'.",
+   "code_does": "The token also asks tokenShownAsSeen (visibility.mjs:675) since PV; see finding 7.",
+   "source": "domain-item-c-projects.json"
+  },
+  {
+   "where": "scripts/projects-ui.mjs:1017-1027",
+   "comment_says": "'THE NINE TRIGGERS' and 'putting it beside the eight the module watches'.",
+   "code_does": "TRAP_TRIGGERS has ten rows, nine with a `watch` (alone, enters, search, rest, item, project, sabotage, stash, passage) and manual.",
+   "source": "domain-item-c-projects.json"
+  },
+  {
+   "where": "scripts/projects.mjs:2525-2530",
+   "comment_says": "'Seven of the eight watch a place; this one watches an OBJECT'.",
+   "code_does": "Nine triggers watch; besides the item, project and sabotage watch another project, stash a stash and passage a passage (config.mjs TRAP_TRIGGERS).",
+   "source": "domain-item-c-projects.json"
+  },
+  {
+   "where": "scripts/projects-ui.mjs:609-611",
+   "comment_says": "applyProjectManager writes every row back: 'image, room, the murder flag and secrecy'.",
+   "code_does": "No picture is read or written by the manager since E49 FT batch 3 (its own note at 525-534); the loop writes room, murder flag and secrecy (618-667).",
+   "source": "domain-item-c-projects.json"
+  },
+  {
+   "where": "scripts/projects-secrecy.mjs:72",
+   "comment_says": "projectMeta rows are '{ room, indirectMurder, scale, glyph }'.",
+   "code_does": "No `scale` is written (a project's size is the countdown's progress.start); a secret project's room and mark are in the GMs' half, as the same line goes on to say.",
+   "source": "domain-item-c-projects.json"
+  },
+  {
+   "where": "scripts/projects-tray.mjs:24-31 (the header)",
+   "comment_says": "Five names exported for the hook, a sixth (showTrayToPlayer), two more (labelTrayControls, markTrayMore) and one more (addTrayTitle), beside refreshProjects and hideUndiscovered.",
+   "code_does": "Fourteen names are exported: keepNarrativeShown, nameSecretRows and paintSeen are not in the account.",
+   "source": "domain-item-c-projects.json"
+  },
+  {
+   "where": "scripts/projects-tray.mjs:343-348",
+   "comment_says": "paintSeen is 'Exported for the suite (R5644)'.",
+   "code_does": "R5644 (tests-tier1.mjs:40835) reaches it through paintProgress; no test or file imports paintSeen by name (git grep).",
+   "source": "domain-item-c-projects.json"
+  },
+  {
+   "where": "scripts/fog.mjs:2780-2789",
+   "comment_says": "'a GM clears every room on the map: they are running the scene and need to see all of it'",
+   "code_does": "fog.mjs:2796 `if (game.user.isGM) current = ledgerRooms(scene);` - only the rooms the class has found are cleared; the rest stay at the GM's veil (3250).",
+   "source": "domain-map-a-fog.json"
+  },
+  {
+   "where": "scripts/fog.mjs:1612-1614",
+   "comment_says": "'`myDiscoveredRooms` already counts every room as known for a GM, so their map is unchanged'",
+   "code_does": "fog.mjs:1836 `if (gm) return ledgerRooms(scene);` - the GM's known set is the class's record, not every room.",
+   "source": "domain-map-a-fog.json"
+  },
+  {
+   "where": "scripts/fog.mjs:1696-1701",
+   "comment_says": "seedCells has the 'Same skips as `recordDiscovery`, for the same reasons'",
+   "code_does": "It skips the Mastermind and a Monokuma (1702-1703); recordDiscovery also skips a Spectator (1619) - finding 2.",
+   "source": "domain-map-a-fog.json"
+  },
+  {
+   "where": "scripts/fog.mjs:4516-4518",
+   "comment_says": "'\"Already know\" is read from the LEDGER first, which is a world setting and therefore survives the session'",
+   "code_does": "discoveredFor reads discoveryLedger(): the GMs' store on a GM, the player's fogCopy on a player (E04, D2); the world setting is lifted out (liftDiscoveryLedger, 1279-1313).",
+   "source": "domain-map-a-fog.json"
+  },
+  {
+   "where": "scripts/fog.mjs:313-314, 496-499, 1643-1645, 1658-1661",
+   "comment_says": "seedDiscovery 'writes a world setting', is 'ONE settings update for the whole scene', and is deferred because 'a world setting may not be written before the game is ready'",
+   "code_does": "seedDiscovery writes the GM store through writeCells (1685, 1208-1213); no world setting is written.",
+   "source": "domain-map-a-fog.json"
+  },
+  {
+   "where": "scripts/fog-reveal.mjs:179-183",
+   "comment_says": "'bands at 45 degrees, on the same axis as the raster, sweeping away from the token so the room reads as opening in front of you'",
+   "code_does": "Bands are upright strips (bandQuad 250-252, 'UPRIGHT RATHER THAN DIAGONAL'), paired about the middle of the room's box (revealBandPlan 403-429); no token position reaches the plan (playDiscoveryAnimation hands revealBandPlan the room and the box only, fog.mjs:4758).",
+   "source": "domain-map-a-fog.json"
+  },
+  {
+   "where": "scripts/fog-reveal.mjs:400-402",
+   "comment_says": "'Every point on a 45-degree line shares `x + y`, so one number places a line.'",
+   "code_does": "The next line says `c` is simply x; a line is placed by its x alone.",
+   "source": "domain-map-a-fog.json"
+  },
+  {
+   "where": "scripts/fog-reveal.mjs:1546",
+   "comment_says": "seamWidth is 'The curtain's seam core, 1.3 px on the display'",
+   "code_does": "fog-reveal.mjs:1551 `return 1.0 / (...zoom...)` - one display pixel (outlineWidths' note at 714 reads the curtain's core as 1.2 px).",
+   "source": "domain-map-a-fog.json"
+  },
+  {
+   "where": "scripts/fog-reveal.mjs:962",
+   "comment_says": "haloBlur is the blur 'as the rings and `seamHalo` make it: six times the seam'",
+   "code_does": "seamHalo has used a fixed 6 px and 14 px padding since E49 B4 (856, 861-862) - finding 11.",
+   "source": "domain-map-a-fog.json"
+  },
+  {
+   "where": "scripts/movement.mjs:3030",
+   "comment_says": "'Nor does a Spectator (E92 C3): no fee, no crossing recorded, no trap told - a ghost.'",
+   "code_does": "True of the owner's browser only: on the primary GM judgeArrival records a Spectator's crossing (noteCrossing, 1117 and 1350-1363) and counts its Eclipse crossings (eclipseSighting 1187-1204), and the settled event follows (finding 1).",
+   "source": "domain-map-b-movement.json"
+  },
+  {
+   "where": "scripts/movement.mjs:2109-2113",
+   "comment_says": "'A walk in through a door is refused for everyone but a GM moving a token and a Monokuma (the verdict's first line); a passage, a breach or a tunnel (via) goes through.'",
+   "code_does": "crossingVerdict hands barricadedFrom via \"passage\" whenever the character knows a passage between the two rooms (1731), so a knower's walk through the door goes through too (finding 3).",
+   "source": "domain-map-b-movement.json"
+  },
+  {
+   "where": "scripts/movement.mjs:714-718",
+   "comment_says": "forgetToken drops 'every record this client keeps under a token's id': 'The seven maps keyed by token id ... lastRoom, lastPosition, gmSeen, gmHistory, standings, standingHistory, pathRooms'.",
+   "code_does": "Nine more maps and sets are keyed by token id and are not cleared: unsettled (189), putBack (190), putBacksSent (195), awaitingQuiet (218, with a timer), moveTurns (267), refusals (282), announced (318), landing (319), placing (2414). Stale entries only, nothing found that reads one for a new id.",
+   "source": "domain-map-b-movement.json"
+  },
+  {
+   "where": "scripts/crossing-settle.mjs:60",
+   "comment_says": "forgetSettling: 'Drop every crossing waiting to settle (the suite's put-back, a world's reset).'",
+   "code_does": "No caller outside tier 2 (tests-tier2.mjs:101316); the season's reset does not call it (git grep -w forgetSettling -- scripts).",
+   "source": "domain-map-b-movement.json"
+  },
+  {
+   "where": "scripts/passages-gm.mjs:9-12 and 41-42",
+   "comment_says": "'Nothing here writes a Wall, a Region, a Scene, a flag or a world setting' and, for E80 C5, 'The one Wall write here, and only of door and ds on a wall that already is (R560 still holds: no wall is made a secret door or created).'",
+   "code_does": "cutBreach creates walls and rewrites a wall's `c` (724-727, 739), restoreBreach rewrites and deletes walls (910-911), forceRoom writes the regions' broken flag through setRoomBroken (773), and the secret doors' state is a flag written on the wall (1619, 1682, 1488). The E15 part 2 note at 608-610 says it; the header and the E80 paragraph were not brought up to date.",
+   "source": "domain-map-b-movement.json"
+  },
+  {
+   "where": "scripts/passages.mjs:14-15",
+   "comment_says": "'A LEAF ...: it imports rooms.mjs, the GM stores, settings.mjs, utils.mjs and config.mjs and nothing else'.",
+   "code_does": "Imports config.mjs, utils.mjs, gm-stores.mjs and rooms.mjs (23-26); no settings.mjs.",
+   "source": "domain-map-b-movement.json"
+  },
+  {
+   "where": "scripts/rooms.mjs:21-24",
+   "comment_says": "'the readers that still take filter(r => r.name) move onto it in C2a and C2b, so in this commit the flag changes what Room Setup and Season setup show and nothing a rule decides'",
+   "code_does": "C2a and C2b shipped: every reader goes through roomPieces / isRoomWith (rooms.mjs:222-226), so the flag decides every rule that asks about a room. The note describes its own commit, not the file.",
+   "source": "domain-map-c-rooms.json"
+  },
+  {
+   "where": "scripts/visibility.mjs:1108-1114 (applyAll's note)",
+   "comment_says": "'the only thing in here that reverses it is show() - which returns early for a token the viewer does not own (see its own note). So nothing in this module ever restores somebody else's token'",
+   "code_does": "show() (895-901) tests only document.hidden. It is called for any token whose verdict is 'show', and the veil branch answers 'show' for another player's token on the killers' side (557-560), so the module does restore a token the viewer does not own.",
+   "source": "domain-map-c-rooms.json"
+  },
+  {
+   "where": "scripts/visibility.mjs:612-614",
+   "comment_says": "'A scene with no regions at all: leave Foundry's own logic alone rather than hiding the entire cast.'",
+   "code_does": "The test is !viewer.rooms.size && !room: it also holds on a scene full of rooms whenever the viewer's characters stand in no room and the other token stands in none either (two students in a corridor see each other anywhere in it). roomChangeTokens (332-333) relies on that wider reading, so the code is consistent; the comment names only one case.",
+   "source": "domain-map-c-rooms.json"
+  },
+  {
+   "where": "scripts/narrow.mjs:19-28 and 36",
+   "comment_says": "'FOUR THINGS MOVE, AND ONE OF THEM IS A CONTAINER' and 'stackShapes in glass.mjs'",
+   "code_does": "STACKED (54) holds five, the tiles' row #drpg-tile-row included (E77 C8), and the row's two members move as well (66, 147); stackShapes has been glass-geometry.mjs's since E54.",
+   "source": "domain-map-c-rooms.json"
+  },
+  {
+   "where": "scripts/search-tokens.mjs:353-362",
+   "comment_says": "'The Room Setup table's -1 / +1 / reset controls' and 'Without the clamp the arrows are held down and the counter goes to -3' (written with U+2212)",
+   "code_does": "Room Setup draws a kit stepper with - and + and a refill button since E46-C2a (room-setup.mjs:339-350; the E101 note at 482 says the arrows are gone). The comment also carries two U+2212 minus signs, which the house rule's '-' excludes and tools/check.mjs part dashes (433-438) does not look for.",
+   "source": "domain-map-c-rooms.json"
+  },
+  {
+   "where": "scripts/search-tokens.mjs:435-439 (clearSeasonSearchTokens) and 503-509",
+   "comment_says": "a refill in a step of SEARCH_KEY means 'a reset landing while the primary's spend step ran could be written over by that step's copy of the old counts' no longer",
+   "code_does": "serialWrite is this browser's own queue (utils.mjs:409-415). It closes the race only where the refill runs on the primary; the time of day's refill runs on whichever GM moved the clock (clock.mjs:377, 815), and Room Setup's setFor on whichever GM pressed (finding 5).",
+   "source": "domain-map-c-rooms.json"
+  },
+  {
+   "where": "scripts/room-setup.mjs:1293-1295",
+   "comment_says": "'One width for all nine tabs'",
+   "code_does": "ROOM_SETUP_TABS (382-397) holds eight since the Scenes tab went to Season setup (E101 item 5).",
+   "source": "domain-map-c-rooms.json"
+  },
+  {
+   "where": "scripts/room-setup.mjs:1230-1235",
+   "comment_says": "'It opens on the Scenes tab whenever its scene holds no room (roomSetupTab)'",
+   "code_does": "roomSetupTab (404-407) answers 'bedrooms' for anything not a tab; there is no Scenes tab (395-396).",
+   "source": "domain-map-c-rooms.json"
+  },
+  {
+   "where": "scripts/room-setup.mjs:862-867",
+   "comment_says": "'the Scenes tab holds it while both its selects name one scene: two checks writing the same field'",
+   "code_does": "Only the bedrooms check calls setApplyBlock in this file (849); the Scenes check went to Season setup (season-setup.mjs:1285 keeps its own).",
+   "source": "domain-map-c-rooms.json"
+  },
+  {
+   "where": "scripts/boundary.mjs:18-20",
+   "comment_says": "'the bridge's rows ready.open, ready.answer, ready.end, gm-bridge.mjs'",
+   "code_does": "The rows are bridge-table.mjs:1469-1508 since E41 C5b; gm-bridge.mjs is the facade.",
+   "source": "domain-map-c-rooms.json"
+  },
+  {
+   "where": "scripts/roll-draw.mjs:1813-1815 and 1853-1856",
+   "comment_says": "A supporting roll (rollTrait's `remember: false`) is given no Call; SPENDS_NO_CALL is the actions whose roll spends no Call per that flag.",
+   "code_does": "SPENDS_NO_CALL is {\"palm\"} alone; pickCover, tailUnseen and lootCover are `remember: false` with their own keys and are given every hindering Call (finding 1).",
+   "source": "domain-roll-a-draw.json"
+  },
+  {
+   "where": "scripts/roll-dialog.mjs:366-370",
+   "comment_says": "With the lock off, which trait, which experience, the roll mode and the free-text bonus are the player's.",
+   "code_does": "The GM's draw counts no Experience without a Call, clamps the bonus into the effects' range and throws the action's statistic (roll-draw.mjs scoredOf 1517-1536); only the mode and a sheet roll's statistic stay the player's (finding 2).",
+   "source": "domain-roll-a-draw.json"
+  },
+  {
+   "where": "scripts/roll-dialog.mjs:1165-1169 (markChipCount)",
+   "comment_says": "Trap 55: this window opens for a student ONLY when something is forced, so the chip is the entire report.",
+   "code_does": "The window opens on every roll again since 28.08 (the same file's 668-670 and 932-953): the chip is not the only report.",
+   "source": "domain-roll-a-draw.json"
+  },
+  {
+   "where": "scripts/dice-look.mjs:325",
+   "comment_says": "else the newest with dice this browser may read",
+   "code_does": "Filters on `m.visible`, which is true for any whispered roll; reading is `isContentVisible` (finding 3).",
+   "source": "domain-roll-a-draw.json"
+  },
+  {
+   "where": "scripts/private-rolls.mjs:1168 (the `context` claim of roll.draw), 1146-1147, 617-618",
+   "comment_says": "The context carries a Search's category and stash; the GM reads the room's hidden stash; 'the stash ... the packet names'.",
+   "code_does": "Since 1.2.112 no stash is sent or read: CONTEXT_SENT (roll-draw.mjs:535-536) has no stash field and the stash row is gone (roll-draw.mjs 1806-1807).",
+   "source": "domain-roll-a-draw.json"
+  },
+  {
+   "where": "scripts/dice-sync.mjs:38-39",
+   "comment_says": "Each write replaces both flags whole.",
+   "code_does": "writeLooks (1140-1166) replaces three flags (appearance, sfxList, roleAppearance since E108) and the `saved` marker.",
+   "source": "domain-roll-a-draw.json"
+  },
+  {
+   "where": "scripts/roll-draw.mjs:531-532 with private-rolls.mjs:1155",
+   "comment_says": "The situation's dice field still travels; nothing on the GM reads it.",
+   "code_does": "Matches, but the whitelist still sanitizes and forwards it (`situational: as.num`, drawRollOnGm 1199-1201) into drawOnGm's packet, where throwDrawn's destructuring drops it: a field carried for nothing.",
+   "source": "domain-roll-a-draw.json"
+  },
+  {
+   "where": "scripts/action-rolls.mjs:7-11",
+   "comment_says": "Listen is among the actions that send a ruling card to the GM.",
+   "code_does": "Listen is 'fully automatic, no GM' (action-listen.mjs:124-135): its card is built on the roller's browser and only the eavesdrop asks the primary. Old ROLL-16, still partly standing (old-1.2.42-rolls.json).",
+   "old_id": "ROLL-16",
+   "source": "domain-roll-b-actions.json"
+  },
+  {
+   "where": "scripts/action-rolls.mjs:29-31",
+   "comment_says": "'the 62 that moved are re-exported under the imports'.",
+   "code_does": "56 names are re-exported with `export { ... } from` (lines 50-69), plus `currentRoom` (72): 57 (counted by script).",
+   "source": "domain-roll-b-actions.json"
+  },
+  {
+   "where": "scripts/action-doors.mjs:11-12",
+   "comment_says": "'Pick the Lock and Keep Watch come in later commits'.",
+   "code_does": "performPick is in this file (100-159) and Keep Watch is action-watch.mjs (E74 C6).",
+   "source": "domain-roll-b-actions.json"
+  },
+  {
+   "where": "scripts/action-dynamic.mjs:313-315",
+   "comment_says": "Exported because gm-bridge calls it when the request arrives over the socket; returning null means the player's action is refused without costing anything.",
+   "code_does": "A player's request is answered by a card (call-gm.mjs:259-288, askDynamicByCard); the window is opened by a GM's own action (action-dynamic.mjs:100) and by the card's Set the difficulty (messenger-app.mjs:875-876), which reads null as an editor closed, not as a refusal (controls-08-rolls-actions-4).",
+   "source": "domain-roll-b-actions.json"
+  },
+  {
+   "where": "scripts/actions.mjs:453-456",
+   "comment_says": "'Zeroed rather than deleted: `-=key` does nothing in this Foundry without a forced replacement'.",
+   "code_does": "The zeroing is right, but the reason is the old note CLAUDE.md retires: on Foundry 14.370 a `-=key` does delete, with v14's deprecation warning (LIVE-E30-01, read 16.11.2026, docs/dev/e39/CALIBRATION.md).",
+   "source": "domain-roll-b-actions.json"
+  },
+  {
+   "where": "scripts/action-listen.mjs:51-52 and 64",
+   "comment_says": "'the rest stand greyed with \"Not built yet\"'.",
+   "code_does": "BUILT holds all eight keys of ACTIONS.listen.variants (config.mjs:1736), so no row is greyed for that and the `notBuilt` branch with DRPG.Infiltrate.notBuilt is never taken.",
+   "source": "domain-roll-b-actions.json"
+  },
+  {
+   "where": "scripts/reroll.mjs:2000-2004",
+   "comment_says": "With no drop: 'Placed on a player's behalf, so this client never learned its id'.",
+   "code_does": "Every caller of settleRemnant passes a drop (1375, 1468, 1507), and since E08+E28 C2 the GM's own fact names a player's trace (action-pipeline.mjs:477-490), so the branch is not reached.",
+   "source": "domain-roll-b-actions.json"
+  },
+  {
+   "where": "scripts/reroll.mjs:1928-1932",
+   "comment_says": "'Observe, Analyze, Direct Murder and a described Search all end in a human ruling' and are re-asked here.",
+   "code_does": "ruledByHand (453-460) sends only an Observe, an Analyze and a Search here; Direct Murder throws no roll that keeps a row.",
+   "source": "domain-roll-b-actions.json"
+  },
+  {
+   "where": "scripts/action-report.mjs:184-186 and 195-198",
+   "comment_says": "'Five cards in this file' / 'Five call sites in this file' use rollHead and rollCardFlags.",
+   "code_does": "No card in this file calls them since E41 C4: the callers are action-analyze.mjs (211, 287, 353, 411), action-listen.mjs:256 and action-observe.mjs:183 (six sites in three files).",
+   "source": "domain-roll-b-actions.json"
+  },
+  {
+   "where": "scripts/action-menus.mjs:278 and 304-305",
+   "comment_says": "Move's briefing is a caller of actionWindow, a window that asks nothing.",
+   "code_does": "Move opens no window since E100 item 1 (action-rolls.mjs:77-83); every actionWindow caller passes `ask` (grep). Already controls-08-rolls-actions-11.",
+   "source": "domain-roll-b-actions.json"
+  },
+  {
+   "where": "scripts/config.mjs:1956-1960",
+   "comment_says": "Both [callsGm predicates] also go through dynamic imports on purpose ... the cached module registry makes the call as cheap as a property read.",
+   "code_does": "Neither imports anything: analysableBulletCount, workableProjectCount and murderParksForGm read `globalThis.game?.drpg` (1965, 1972, 1989).",
+   "source": "domain-text-a-config.json"
+  },
+  {
+   "where": "scripts/config.mjs:2101-2104 (SABOTAGE_CONCEAL)",
+   "comment_says": "Rolled *before* the sabotage itself, so a failure is known while there is still a choice - the player may back out having spent nothing.",
+   "code_does": "A failed concealment goes on to the sabotage with no question (action-project.mjs:1206-1216, 'A FAILURE IS PUBLIC, AND THERE IS NO WALKING AWAY FROM IT (Dawid 18.09)', R40); only a closed concealment window aborts (1193). The table's own `failure` text and the handbook say the sabotage goes on.",
+   "source": "domain-text-a-config.json"
+  },
+  {
+   "where": "scripts/config.mjs:3800-3803 (CRISIS_ACTIONS)",
+   "comment_says": "The prose under each outcome is shown to the GM, because \"the victim takes something of the killer's ...\" is a sentence a human has to finish.",
+   "code_does": "announceCrisis puts the band's sentence on a card to the GMs and the incident's audience, the actor among them (murder-rules.mjs:4311-4340); the sentences are second person to the roller ('You keep your feet'), and no outcome reads as the quoted one.",
+   "source": "domain-text-a-config.json"
+  },
+  {
+   "where": "scripts/config.mjs:4549-4552 (CLEANUP.outcome)",
+   "comment_says": "The trace that replaces it is Faint, so a GM clearing Faint traces can take it - unlike the failure's, which is not faint and is not going anywhere.",
+   "code_does": "Both failures leave a Faint trace: `failureHope: { removes: false, leaves: { visibility: \"subtle\", faint: true } }`, `failureDespair: ... faint: true` (4596-4597), written as `faint: outcome.leaves.faint` (cleanup.mjs:1037); the player handbook says the Tamper Remnant a clean-up leaves is Faint.",
+   "source": "domain-text-a-config.json"
+  },
+  {
+   "where": "scripts/config.mjs:2597-2610 (OVERFLOW.effects)",
+   "comment_says": "THE EIGHT, AND ONLY ONE OF THEM HAPPENS ... Untick all eight and the overflow never fires.",
+   "code_does": "OVERFLOW.effects holds 13 darkenings since E93 C6 added five room-action states, all in the hat by default (2662-2681).",
+   "source": "domain-text-a-config.json"
+  },
+  {
+   "where": "scripts/config.mjs:3213-3216 (TRAP_TRIGGERS)",
+   "comment_says": "choosing it is visible next to the eight that are watched",
+   "code_does": "Nine triggers carry a `watch` (alone, enters, search, rest, item, project, sabotage, stash, passage); Find Passage's was added by E80 C3.",
+   "source": "domain-text-a-config.json"
+  },
+  {
+   "where": "scripts/config.mjs:3452-3456, 3501 and 2767-2769 (MONOCUB, meddle.hopeCost, fuelTheCub)",
+   "comment_says": "that Hope only exists because a GM chose to convert Despair into it. A Monocub who has not been given any cannot Meddle at all ... /** Hope spent on top of the action. Comes only from a GM's conversion. */",
+   "code_does": "A Monocub's Hope is its sheet and its purse together (monocub.mjs:751-756); Redeem gives +1 Hope from nothing once a game day (config.mjs:3553-3571), and a Bribe, a Bounty and a Ghost Bet pay Hope into the purse.",
+   "source": "domain-text-a-config.json"
+  },
+  {
+   "where": "scripts/config.mjs:2337-2339 and 2357-2358 (HOPE_CALLS.experience, .ultimate)",
+   "comment_says": "Experience: 'Waits for the GM - see the note on Ultimate above.' Ultimate: 'IT WAITS FOR THE GM (Dawid, 29.08), like Experience below.'",
+   "code_does": "Experience is the row above Ultimate (2337 before 2347); each note points the wrong way.",
+   "source": "domain-text-a-config.json"
+  },
+  {
+   "where": "scripts/config.mjs:2366-2368",
+   "comment_says": "Every other Call is safe to self-serve because what it does is not arguable: Support grants advantage, Pain takes two Health.",
+   "code_does": "Pain is a Despair Call (2745), not a Hope Call; of the Hope Calls a Bribe also waits for an answer (a Monocub's, 2549-2552).",
+   "source": "domain-text-a-config.json"
+  },
+  {
+   "where": "scripts/config.mjs:4814-4816 (CLEANUP.conceal)",
+   "comment_says": "Called at the top of both Stage 6 entry points - `attemptCleanup` and `attemptStageSix` - so it covers \"akcje rozwiazania\" as a whole.",
+   "code_does": "attemptStageSix skips the concealment for Move the Body (cleanup.mjs:1654: `key === \"moveBody\" ? \"alone\" : await concealFromWitnesses(actor)`), as the player handbook says.",
+   "source": "domain-text-a-config.json"
+  },
+  {
+   "where": "scripts/config.mjs:79-86 (FLAGS.swungWeapon)",
+   "comment_says": "Character: the id of the weapon this character actually swung. Written by the crisis roll, read by Stage 6's confiscation.",
+   "code_does": "Nothing writes the flag; it lives in the GMs' incident cast (the next entry's own LEGACY note, 89-93), and incident-store.mjs:1524 only lifts and scrubs it.",
+   "source": "domain-text-a-config.json"
+  },
+  {
+   "where": "scripts/config.mjs:112-113 (FLAGS.deceased)",
+   "comment_says": "Shape: `{ chapter, day, timeOfDay }`",
+   "code_does": "markDeceased writes `{ chapter, day, timeOfDay, phase, epoch, deathId, sinceVerdict, cause? }` (death.mjs:83-84); config.mjs:128-129 itself names the record's `deathId`.",
+   "source": "domain-text-a-config.json"
+  },
+  {
+   "where": "scripts/config.mjs:1724-1727 (ACTIONS.listen)",
+   "comment_says": "one list of rows without groups, seven once E74 adds its four",
+   "code_does": "`variants` holds eight rows (1736), as INFILTRATE does (2193-2215).",
+   "source": "domain-text-a-config.json"
+  },
+  {
+   "where": "scripts/config.mjs:4930-4931 and 5082-5083 (SFX)",
+   "comment_says": "a GM hunting for the door sound should not have to read forty-odd rows ... the thirty that fire once or twice a session do not [vary]",
+   "code_does": "SFX_EVENTS holds 69 rows, 13 with `vary` and 56 without (script count).",
+   "source": "domain-text-a-config.json"
+  },
+  {
+   "where": "scripts/config.mjs:90, 846, 1577, 1637, 2665, 4149, 4299",
+   "comment_says": "pointers to murder.mjs `CAST_FIELDS`, tables.mjs `tableDescription`, sheet.mjs `callsGmFor` and its cost-stripe note, facilities-gm.mjs `handleFacilityUse`, murder.mjs `finishIncident`, hud.mjs `paintFloorClock`",
+   "code_does": "finding domain-text-a-config-9: incident-store.mjs, tables-pools.mjs, sheet-actions.mjs, bridge-runs-acts.mjs, murder-rules.mjs, and no paintFloorClock anywhere.",
+   "source": "domain-text-a-config.json"
+  },
+  {
+   "where": "scripts/investigation.mjs:941-943",
+   "comment_says": "'Read off OBSERVE_DC so the sentence cannot drift from the rule it describes (S-5)'",
+   "code_does": "Only the list {list} is read off OBSERVE_DC; the sentence's 'three to six points harder' is typed in both language files and is two for Obvious daily life (finding 2).",
+   "source": "domain-text-b-lang.json"
+  },
+  {
+   "where": "scripts/chrome.mjs:190-198",
+   "comment_says": "`drpgWindowUpdated` IS FIRED BY NOBODY ... `grep -rn drpgWindowUpdated` over the whole tree returns this line and nothing else (16.09).",
+   "code_does": "live.mjs:195 fires Hooks.callAll(\"drpgWindowUpdated\", next) on every keepLive redraw, and chrome.mjs:150 itself says so (keepLive, then drpgWindowUpdated).",
+   "source": "domain-ui-a-glass.json"
+  },
+  {
+   "where": "scripts/chrome.mjs:31-32 and 84-90",
+   "comment_says": "Under Monokuma Legacy nothing else in this file runs; the filters are 'Stained Glass only; the sheet gates the url()s on the theme and on the glass-effects switch'.",
+   "code_does": "markLoneInitials runs in both themes before the gate (144, 173-174); injectFilters puts the SVG in every client's body at ready whatever the theme (188); no stylesheet has a glass-effects class any more (grep no-glass-effects: 0), and components.css 2282, 2315 use url(#drpg-brush).",
+   "source": "domain-ui-a-glass.json"
+  },
+  {
+   "where": "scripts/glass.mjs:3438",
+   "comment_says": "A one-line account of the curtain for the Look dialog.",
+   "code_does": "Read only by the watchdog's log() (3845); tests-text.mjs 2348 records the same.",
+   "source": "domain-ui-a-glass.json"
+  },
+  {
+   "where": "scripts/glass-geometry.mjs:13-20",
+   "comment_says": "Apply the glass's angle, read the box the browser actually produced, and slide the rail in by whatever it is over the edge. One extra reflow per rebuild.",
+   "code_does": "railRule (glass.mjs 812-865) computes the rotated hull from layout values and never reads the box back; its own comment (glass.mjs 798-806) says reading back does not work.",
+   "source": "domain-ui-a-glass.json"
+  },
+  {
+   "where": "scripts/glass-geometry.mjs:21-28 against 29-33",
+   "comment_says": "MAX_TILT is the angle the rails reserve room for; the shard reserves the swing at MAX_TILT.",
+   "code_does": "railSwing reserves at RAIL_LEAN (5 deg), as the next comment says; MAX_TILT is read only for the band's lift in railBox (glass.mjs 1577).",
+   "source": "domain-ui-a-glass.json"
+  },
+  {
+   "where": "scripts/glass-geometry.mjs:34-35",
+   "comment_says": "how much wider than the tiles' box the strip runs: STRIP_LEAN, 26, plus the clearance 14",
+   "code_does": "Stands over no code (the STRIP_SLACK it described is gone, UI-06 (b)); the next line is the STRIP_ANGLE comment.",
+   "source": "domain-ui-a-glass.json"
+  },
+  {
+   "where": "scripts/glass.mjs:103-107, 3353-3355, 3365-3368, 3415-3436",
+   "comment_says": "the notice tile grows with its cards; placeTiles pushes the rails down with a capped padding; the rails are blocks",
+   "code_does": "See finding domain-ui-a-glass-4 (UI-06, open).",
+   "source": "domain-ui-a-glass.json"
+  },
+  {
+   "where": "scripts/glass.mjs:968-969",
+   "comment_says": "PAD_SIDE lives inside curtainShapes, so it is stated twice in different scopes.",
+   "code_does": "PAD_SIDE is an export of glass-geometry.mjs since E54 (finding domain-ui-a-glass-6).",
+   "source": "domain-ui-a-glass.json"
+  },
+  {
+   "where": "scripts/eclipse.mjs:9-12 and 1067-1069",
+   "comment_says": "each player gets exactly 2 room crossings; 'Crossings are limited to two'.",
+   "code_does": "The Night Eclipse places freely (ECLIPSE_FREE_PLACEMENT), a darkening gives one (overflowCrossings), and a room action adds crossings per character (eclipseAllowanceFor). DESP-18's other two comments (42-44, 625 at 1.2.42) are fixed (now 51-54).",
+   "source": "domain-ui-a-glass.json"
+  },
+  {
+   "where": "scripts/sequence.mjs:1213-1214",
+   "comment_says": "Every connected browser plays these three live.",
+   "code_does": "lateSequence collects four kinds (trialEntry, dayStart, verdictCut, caseSummary: 1219-1237).",
+   "source": "domain-ui-a-glass.json"
+  },
+  {
+   "where": "scripts/window-scale.mjs:25-43",
+   "comment_says": "'THE OTHER THEME'S SWITCHES ARE NOT SHOWN ... HIDDEN, not greyed ... Off the SELECT, not the stored setting' - the rows of the other theme's switches are hidden in Foundry's settings window as the theme select changes.",
+   "code_does": "Nothing in window-scale.mjs touches a setting row; the hiding went with E49 A1, when every setting became config: false (settings.mjs:1138-1141 says so). The block is a stray from the E54 W3 move.",
+   "source": "domain-ui-b-kit-hud.json"
+  },
+  {
+   "where": "scripts/hud.mjs:1354-1369",
+   "comment_says": "'WHOSE TURN IT IS ... the two facts ... go on the HUD ... Read straight from the setting rather than through murder.mjs ... importing the murder engine here would close that loop.'",
+   "code_does": "No incident row is built in hud.mjs (it is the Event panel's since 1.2.47, hud.mjs:392-404), and hud.mjs imports murderState from murder.mjs statically (48-49: 'Static, and safe').",
+   "source": "domain-ui-b-kit-hud.json"
+  },
+  {
+   "where": "scripts/hud.mjs:1334-1352",
+   "comment_says": "'HOW LONG THIS TIME OF DAY HAS RUN ... Runs off one shared interval for the whole HUD'",
+   "code_does": "No code follows the heading; the stopwatch is hud-elapsed.mjs's since E41 C7b (hud-elapsed.mjs:221-254).",
+   "source": "domain-ui-b-kit-hud.json"
+  },
+  {
+   "where": "scripts/hud.mjs:1592-1593",
+   "comment_says": "'`renderHud` calls `hud.replaceChildren()`'",
+   "code_does": "renderHud removes every child but the track band (hud.mjs:497-499), so the band is not replaced (E23 C2a).",
+   "source": "domain-ui-b-kit-hud.json"
+  },
+  {
+   "where": "scripts/hud-elapsed.mjs:262-265",
+   "comment_says": "The elapsed line is written 'a ten-second interval at rest and a one-second one for the whole length of a Class Trial'.",
+   "code_does": "The interval is 10 s always (236), and a Class Trial has no elapsed line at all (showsStopwatch, 290-293; hud.mjs:602-603).",
+   "source": "domain-ui-b-kit-hud.json"
+  },
+  {
+   "where": "scripts/overflow.mjs:675, 792, 803-805",
+   "comment_says": "'One of eight happens', 'A GM who has unticked all eight', 'eight equal chances'.",
+   "code_does": "OVERFLOW.effects holds 13 (11 darkenings and 2 one-offs, since E93 C6's five room actions); the comments at 127 and 391 already say thirteen.",
+   "source": "domain-ui-b-kit-hud.json"
+  },
+  {
+   "where": "scripts/overflow.mjs:14-19",
+   "comment_says": "'WHAT THIS FILE OWNS is the counter ... It owns no effect of its own'",
+   "code_does": "It carries out Rot and the Earthquake itself (rotEverything 899-934, shakeProjects 947-958) and the Despair darkening's Hope block is its own preUpdateActor hook (1328-1354).",
+   "source": "domain-ui-b-kit-hud.json"
+  },
+  {
+   "where": "scripts/player-status.mjs:586-589",
+   "comment_says": "'the roster panel top left already spells out who is who, one row per student'",
+   "code_does": "No such roster is drawn (hud.mjs:291-299, 'THE ROSTER IS GONE'); see finding 7.",
+   "source": "domain-ui-b-kit-hud.json"
+  },
+  {
+   "where": "scripts/ui-columns.mjs:23",
+   "comment_says": "'No game logic here and no localised text'",
+   "code_does": "choiceRowHtml localises DRPG.Action.waitsForGm itself (60).",
+   "source": "domain-ui-b-kit-hud.json"
+  },
+  {
+   "where": "scripts/window-scale.mjs:1-2",
+   "comment_says": "'The slider scaling of a module window box'",
+   "code_does": "scaleWindow stands on renderApplicationV2 and renderApplication (222-223) and scales every numeric-width window, Foundry's and other modules' too, as the uiScale hint says.",
+   "source": "domain-ui-b-kit-hud.json"
+  },
+  {
+   "where": "scripts/gm-team-dialog.mjs:318-320 (neighbour)",
+   "comment_says": "The rules of the window '- the overflow rules - ... none of it changes underneath the GM'.",
+   "code_does": "Another GM's Save changes them underneath; the window does not follow and its Save writes them back (finding 2).",
+   "source": "domain-ui-b-kit-hud.json"
+  },
+  {
+   "where": "scripts/sheet.mjs:37-38",
+   "comment_says": "'The price a tile is about to charge, quoted from the same table the charge reads (T-1). Synchronous by design - this file calls it from a render path.'",
+   "code_does": "sheet.mjs (the facade since E54) imports nothing from price.mjs and calls no quote; the quote is sheet-actions.mjs's (priceQuoteFor, 1534-1536). The same block of orphaned notes (sheet.mjs:22-44) describes imports the facade no longer has.",
+   "source": "domain-ui-c-sheet.json"
+  },
+  {
+   "where": "scripts/sheet.mjs:99-125 and scripts/sheet-actions.mjs:1068-1072",
+   "comment_says": "A trace erased, one planted or a sweep 'are writes to remnantSecrets', which forgetTamper hangs on.",
+   "code_does": "remnantSecrets is the GMs' store 'gmRemnants' (settings.mjs:375), written on GMs' browsers only and with no player copy (gm-stores.mjs:111-113), so on a player's browser - where the Tamper tile's ledger answer is cached - the listener never fires (finding 3).",
+   "source": "domain-ui-c-sheet.json"
+  },
+  {
+   "where": "scripts/sheet-sidebar.mjs:903-907",
+   "comment_says": "'Present for everyone - a Monokuma's player is at the same table, and a character who died an hour ago does not stop being someone's evening.'",
+   "code_does": "injectSafeword returns before drawing for a Monokuma's and a Spectator's sheet (sheet-sidebar.mjs:914-915, sheet-mode.mjs:81).",
+   "source": "domain-ui-c-sheet.json"
+  },
+  {
+   "where": "scripts/sheet-fit.mjs:390-392",
+   "comment_says": "'Grown ONCE per sheet, and only upwards.'",
+   "code_does": "growForCalls sets the height to callsHeight(window.innerHeight) = min(980, vh - 40) (window-scale.mjs:90-92) whenever the height is under 980, so a sheet already within 40 px of the bottom of a short screen is made shorter.",
+   "source": "domain-ui-c-sheet.json"
+  },
+  {
+   "where": "scripts/sheet-fit.mjs:379-380",
+   "comment_says": "'(850 wide - see `scaleWindow` in settings.mjs)'",
+   "code_does": "scaleWindow lives in window-scale.mjs since E54 W3; settings.mjs only re-exports it (settings.mjs:16-17).",
+   "source": "domain-ui-c-sheet.json"
+  },
+  {
+   "where": "scripts/sheet-actions.mjs:1432-1437",
+   "comment_says": "stillMoveTile is 'The tile a Monocub's panel draws'.",
+   "code_does": "No panel draws a Move tile since E103: ACTION_GRID has no 'move' (config.mjs:1945), injectMonocubPanel draws only monocubTiles (334-406) and refreshPricedTiles only PRICE_CHAINS keys, so actionButton's `key === \"move\"` branch (1429) is reached by the suite alone.",
+   "source": "domain-ui-c-sheet.json"
+  },
+  {
+   "where": "scripts/sheet-actions.mjs:431-436",
+   "comment_says": "moveDragSaid: 'The HUD's Move row and the Monocub's Move tile ask it.'",
+   "code_does": "Only player-status.mjs:527 asks it; the Monocub's Move tile is gone (E103).",
+   "source": "domain-ui-c-sheet.json"
+  },
+  {
+   "where": "scripts/sheet-actions.mjs:424-427",
+   "comment_says": "'A character that is no Monocub, which the panel never holds, still reads the next price.'",
+   "code_does": "The only callers (injectMonocubPanel 403 and refreshMonocubTiles in sheet-repaint.mjs:320) are inside the Monocub panel, so the moveLine branch is unreachable outside the suite; the comment says so in passing but keeps the branch.",
+   "source": "domain-ui-c-sheet.json"
+  },
+  {
+   "where": "scripts/anonymity.mjs:578-581",
+   "comment_says": "myCharacter reads the viewer 'By OWNERSHIP first, then by game.user.character - the order hud.mjs settled on'.",
+   "code_does": "hud.mjs:1450-1459 has been monokuma.mjs chooseOwnStudent since E51 C4 (assigned, else the only student, else the controlled token's, else the first by name; no Spectator); anonymity.mjs:583-589 still answers owned[0] of every owned character.",
+   "source": "first-session/domain-case-e-trial-scene-vote.json"
+  },
+  {
+   "where": "scripts/mask-gm.mjs:9-10 and :76",
+   "comment_says": "The primary GM rewrites the killer's tokens 'on every place scene' with 'the texture Foundry's mystery man'; the ring's subject 'wears the mystery man as well'.",
+   "code_does": "tokensOf (mask-gm.mjs:206-210) walks every scene, the hall included, and the picture is the module's own icons/mask-unknown.svg since 1.2.116 (mask-gm.mjs:47-48); the header does not mention that the Actor's portrait is written too (mask-gm.mjs:252).",
+   "source": "first-session/domain-case-e-trial-scene-vote.json"
+  },
+  {
+   "where": "scripts/vote.mjs:289-290",
+   "comment_says": "'Open the vote. Every player with a living or dead student gets a ballot'.",
+   "code_does": "trialParticipants (vote.mjs:573-583) hands none to the dead while config.mjs:4428 deadCastBallots is false, nor to a Monocub or anybody on the trial's list of the dead.",
+   "source": "first-session/domain-case-e-trial-scene-vote.json"
+  },
+  {
+   "where": "scripts/trial-scene.mjs:124-125, 1199-1213, 1498-1499, 1585-1586, 1666-1673",
+   "comment_says": "The scenes and the cast are 'Room Setup's last tab' (room-setup.mjs ROOM_SETUP_TABS); 'Room Setup opens on it when its scene holds no room'; a change of the hall in a running trial is refused 'as a clash is (vault.mjs, after scenesClash)' and 'Room Setup refuses it first'; applyScenesTab runs 'after Room Setup's own checks passed'.",
+   "code_does": "Room Setup has no Scenes tab since E101 item 5 (room-setup.mjs:395-396); the part is drawn, refused and applied by Season setup (season-setup.mjs:1179, 1192, 1224, 1237, 1274), whose button is Save. Only trial-scene.mjs:1471 says so.",
+   "source": "first-session/domain-case-e-trial-scene-vote.json"
+  },
+  {
+   "where": "docs/handbooks/gm-handbook.en.md:1141",
+   "comment_says": "Unseen until the opening roll: the primary GM 'hides the killer's tokens on every scene with Foundry's hidden'; 'What each token's own hidden was is kept in the GMs' store and written back'; 'Foundry sends hidden to every browser'.",
+   "code_does": "Since E112v (in main at 1.2.118) the veil is one flag and writes no hidden (mask-gm.mjs:423-429); visibility.mjs hides the token by that flag; only a row written by 1.2.116-1.2.117 still holds a hidden to give back (mask-gm.mjs:434-437, 488-498).",
+   "source": "first-session/domain-case-e-trial-scene-vote.json"
+  },
+  {
+   "where": "scripts/gm-stores.mjs:1176-1181",
+   "comment_says": "A veil's row holds 'tokens each token's { sceneId, tokenId, hidden }, its own hidden before the veil, written back at the end'.",
+   "code_does": "veilActor writes rows { sceneId, tokenId } with hides: 'module' and no hidden (mask-gm.mjs:447-448); liftVeil writes a hidden back only for a row from before E112v (mask-gm.mjs:471-476).",
+   "source": "first-session/domain-case-e-trial-scene-vote.json"
+  },
+  {
+   "where": "audit/harness/known-leaks.json:129 and docs/handbooks/gm-handbook.en.md:1139",
+   "comment_says": "Of the masked killer: 'the token's name, picture and flags, the cast copies and the module's packets name nobody, and nothing in the interface does'; 'A player who reads the browser's console, not the interface, can still tell'.",
+   "code_does": "Since 1.2.116 mask-gm.mjs:252 writes the question mark onto the Actor's img while its name stands, and anonymity.mjs:122-126 shuts that one actor's sheet for other players (finding 1).",
+   "source": "first-session/domain-case-e-trial-scene-vote.json"
+  },
+  {
+   "where": "scripts/mastermind.mjs:12-15",
+   "comment_says": "The Mastermind's identity 'lives in a client-scoped setting on GM browsers only, synced GM-to-GM over a socket the server addresses to named recipients'.",
+   "code_does": "It is a GM store since E04 and 'The socket that synced it went with it' (mastermind.mjs:59-64, gm-stores.mjs:151-154); the header's sentence describes the design before 1.2.63.",
+   "source": "first-session/domain-case-e-trial-scene-vote.json"
+  },
+  {
+   "where": "scripts/trial-zones-ui.mjs:5-10",
+   "comment_says": "THE PANEL CONTRACT: 'One row per zone mode: the mode's name key, the console's action that starts it ... and panel'; 'The console reads the row of the mode on the floor'.",
+   "code_does": "The console reads the row's panel only (trial-floor-ui.mjs:1196); the rows' name is read by nothing and start by tier 1 R3905 alone (tests-tier1.mjs:10053).",
+   "source": "first-session/domain-case-e-trial-scene-vote.json"
+  },
+  {
+   "where": "scripts/case-realize.mjs:200-201",
+   "comment_says": "Answering writes `askedAt`, so a second body asks nothing.",
+   "code_does": "askAtBody writes askedAt before the window opens (line 229), so a reload of the primary while the question stands also counts as asked.",
+   "source": "first-session/domain-case-f-planner-stores.json"
+  },
+  {
+   "where": "scripts/case-copy.mjs:133-136",
+   "comment_says": "readServerCopies answers `{ read, copies, newest }`, or `{ refused }` (\"notGm\", \"list\", \"fetch\").",
+   "code_does": "It answers `{ read, bad, count, newest, newestFile }` (line 157), refuses with \"notGm\", \"quiet\" or \"list\" (lines 139-144), and counts a failed fetch in `bad` (line 149): \"fetch\" is never answered, and there is no `copies`.",
+   "source": "first-session/domain-case-f-planner-stores.json"
+  },
+  {
+   "where": "scripts/gm-stores.mjs:1659-1661 and scripts/case-schema.mjs:6-7",
+   "comment_says": "A schema row is `{ kind, label, text, inputs, refutes, mode, order, made }`, the meta row `{ sort, manual, run, askedAt }`, and case-schema.mjs is the store's only reader and writer.",
+   "code_does": "NODE_FIELDS holds 32 names and META_FIELDS 7 (case-schema.mjs:401-404: made, autopsies, autopsySent among them); investigation.mjs:2069 reads caseSchemaStore.entries() itself.",
+   "source": "first-session/domain-case-f-planner-stores.json"
+  },
+  {
+   "where": "the repository's rules file code.md, section 'Things that will bite', last paragraph ('Two functions are deliberately long')",
+   "comment_says": "Two functions are deliberately long (registerSettings and steps()); everything else the audit measured over 300 lines has been split.",
+   "code_does": "createGmStoreEngine (scripts/gm-store.mjs:700-1640) spans 941 lines, with makeHandle (216 lines) inside it; measured with espree.",
+   "source": "first-session/domain-case-f-planner-stores.json"
+  },
+  {
+   "where": "scripts/case-view.mjs:27-32",
+   "comment_says": "MAP_GEOMETRY, `openW` with it, is read by `mapPlace` and by the stylesheet's node rule.",
+   "code_does": "No script reads `openW` (declared at line 52 only); styles/components.css:3491 states 352px on its own.",
+   "source": "first-session/domain-case-f-planner-stores.json"
+  }
+ ],
+ "E_not_code": "The 471 open and 77 partly 9.2 live checks (AUDIT 13.6) and the 523 rows of L1-HANDOFF.md need a real table (Foundry 14.370, players, LiveKit): no code release can close them; they are the L1 line's (1.2.123 by the release map), whatever 1.2.122 does."
+}
