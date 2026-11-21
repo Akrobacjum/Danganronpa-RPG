@@ -592,6 +592,21 @@ export function revealCamera(cam, rect, box, edge = 8, limits = CAMERA_LIMITS) {
     return { x: Math.round(x), y: Math.round(y), z };
 }
 
+/**
+ * THE CAMERA CENTRED ON `rect` (`{ x, y, w, h }`, the graph's unscaled pixels) in the box (the owner, 21.11.2026: "gdy w
+ * wyniku naszej zmiany otwarty node zmienia pozycje/rozmiar, niech kamera wysrodkowuje sie na tym node"; the line INVEST of
+ * 1.2.123). The zoom kept, unless the rect no longer fits the box less `edge` on each side at it: then the zoom that fits
+ * it, held to `limits` (the window passes its floor, `zoomFloor`). Pure. Tier 1 R8571.
+ */
+export function centreCamera(cam, rect, box, edge = 16, limits = CAMERA_LIMITS) {
+    let z = clampZoom(cam?.z, limits);
+    const roomW = box.w - 2 * edge, roomH = box.h - 2 * edge;
+    if (rect.w > 0 && rect.h > 0 && roomW > 0 && roomH > 0 && (rect.w * z > roomW || rect.h * z > roomH)) {
+        z = clampZoom(Math.min(roomW / rect.w, roomH / rect.h), limits);
+    }
+    return { x: Math.round(box.w / 2 - (rect.x + rect.w / 2) * z), y: Math.round(box.h / 2 - (rect.y + rect.h / 2) * z), z };
+}
+
 /** The canvas's transform for a camera. Pure. */
 export const cameraTransform = (cam, limits = CAMERA_LIMITS) => `translate(${Math.round(Number(cam?.x) || 0)}px, ${Math.round(Number(cam?.y) || 0)}px) scale(${clampZoom(cam?.z, limits)})`;
 
@@ -749,7 +764,23 @@ export function wireCaseCamera(graph, { get = () => null, set = () => {}, still 
         const next = revealCamera(cam, rect, boxSize(graph), 8, limits);
         if (next.x !== Math.round(cam.x) || next.y !== Math.round(cam.y)) apply(next);
     };
-    if (!graph || graph.dataset.drpgCamera) return { apply, zoomBy, fit, reveal };
+    /* `els` as `reveal`'s: the camera centred on their union, eased (`centreCamera`). */
+    const centre = els => {
+        const c = canvas();
+        const list = (Array.isArray(els) ? els : [els]).filter(el => el && c?.contains?.(el));
+        if (!c || !list.length) return null;
+        const cam = now();
+        const limits = limitsNow();
+        const z = clampZoom(cam.z, limits);
+        const cr = c.getBoundingClientRect?.();
+        const rs = list.map(el => el.getBoundingClientRect?.()).filter(r => r && (r.width || r.height));
+        if (!cr || !rs.length) return null;
+        const left = Math.min(...rs.map(r => r.left)), top = Math.min(...rs.map(r => r.top));
+        const right = Math.max(...rs.map(r => r.right)), bottom = Math.max(...rs.map(r => r.bottom));
+        const rect = { x: (left - cr.left) / z, y: (top - cr.top) / z, w: (right - left) / z, h: (bottom - top) / z };
+        return apply(centreCamera(cam, rect, boxSize(graph), 16, limits), { ease: true });
+    };
+    if (!graph || graph.dataset.drpgCamera) return { apply, zoomBy, fit, reveal, centre };
     graph.dataset.drpgCamera = "1";
     /* THE MIDDLE BUTTON PANS, ANYWHERE ON THE MAP (the owner, 13.11.2026: "moving the camera should be done with the
        middle mouse button"): over a node too, since a middle press opens nothing there, and at once, since it is never a
@@ -810,7 +841,7 @@ export function wireCaseCamera(graph, { get = () => null, set = () => {}, still 
     });
     /* THE FOCUS IS NEVER OFF SCREEN: a node the arrows reach, or a field Tab reaches in an open node, is brought into view. */
     graph.addEventListener("focusin", event => reveal(event.target));
-    return { apply, zoomBy, fit, reveal };
+    return { apply, zoomBy, fit, reveal, centre };
 }
 
 /** The right-hand gutter a tile keeps for its trial controls (E99 round 4), in px: the controls' width and their margin. */

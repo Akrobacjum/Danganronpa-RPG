@@ -9682,6 +9682,166 @@ const SCENARIOS = [
             "{floated: the box floated; redrawn: the card was drawn again under it; kept: the words in the box after; focused: it kept the focus; saved: what the record holds once it was left}");
     }],
 
+    ["1.2.123 OWNER-123-PLAN-1 - the planner's Move right takes a deduction a column right with what rests on it, Move left brings it back, and the two are shut with their reason for evidence, the solution and a node already as far left as it can stand (investigation.mjs `shiftCaseNode`; case-map.mjs `nodeEditHtml`; the owner, 21.11.2026; the line INVEST of 1.2.123)", async () => {
+        /*
+         * Line INVEST of 1.2.123. Three nodes of the suite's own in the running chapter: d1 resting on a Remnant of the case,
+         * d2 on d1, the solution on d2. The Map drawn with every node open (each node's fields drawn). Read: each one's Move
+         * left and Move right - shut or not, and the reason a shut one gives; then d1's Move right pressed, the faces' left
+         * of d1 and d2 and the chapter's kept shift; then d1's Move left, the same. The nodes and the shift go after.
+         * Red at f129afd0: no Move left or Move right on any node.
+         */
+        const S = await import("./case-schema.mjs");
+        const I = await import("./investigation.mjs");
+        needs(env.dialogs(), "the Map is pressed on its drawn window");
+        const chapter = I.keyPlan().chapter;
+        const ev = S.caseGraph(chapter).nodes.find(n => n.evidence && !n.planned);
+        must(ev, "the case has no Remnant to rest on - this would measure nothing");
+        const ids = ["suite123p1d1", "suite123p1d2", "suite123p1s"];
+        const metaWas = S.caseMetaOf(S.caseRows(chapter).meta);
+        let win = null;
+        const seen = {};
+        const tip = key => game.i18n.localize(key);
+        try {
+            await S.setCaseNode(chapter, ids[0], { kind: "deduction", label: "SUITE p1 d1", inputs: [ev.id] });
+            await S.setCaseNode(chapter, ids[1], { kind: "deduction", label: "SUITE p1 d2", inputs: [ids[0]] });
+            await S.setCaseNode(chapter, ids[2], { kind: "solution", label: "SUITE p1 s", inputs: [ids[1]] });
+            await gmStoresIdle();
+            win = await drawnCaseWindow({ view: "map", allOpen: true });
+            await settle();
+            const root = () => win.app?.element;
+            const btn = (id, step) => root()?.querySelector(`.drpg-case-edit[data-drpg-edit="${CSS.escape(id)}"] [data-drpg-case-shift="${step}"]`);
+            const state = (id, step) => { const b = btn(id, step); return b ? (b.disabled ? `shut: ${b.getAttribute("title") ?? ""}` : "open") : "none"; };
+            seen.buttons = { evidence: [state(ev.id, -1), state(ev.id, 1)], d1: [state(ids[0], -1), state(ids[0], 1)], solution: [state(ids[2], -1), state(ids[2], 1)] };
+            const leftOf = id => parseFloat(root()?.querySelector(`.drpg-case-canvas > [data-drpg-node="${CSS.escape(id)}"]`)?.style.left);
+            const before = [leftOf(ids[0]), leftOf(ids[1])];
+            const press = async (id, step) => {
+                const was = root().querySelector(".drpg-case-live");
+                btn(id, step)?.click();
+                await until(() => root().querySelector(".drpg-case-live") !== was || null, 4000).catch(() => {});
+                await settle();
+            };
+            await press(ids[0], 1);
+            const right = [leftOf(ids[0]), leftOf(ids[1])];
+            seen.afterRight = { d1Moved: right[0] > before[0], d2Moved: right[1] > before[1], shift: S.caseMetaOf(S.caseRows(chapter).meta).shift?.[ids[0]] ?? 0, leftOpen: state(ids[0], -1) };
+            await press(ids[0], -1);
+            const back = [leftOf(ids[0]), leftOf(ids[1])];
+            seen.afterLeft = { d1Back: back[0] === before[0], d2Back: back[1] === before[1], shift: S.caseMetaOf(S.caseRows(chapter).meta).shift?.[ids[0]] ?? 0 };
+        } finally {
+            if (win) await win.close().catch(() => {});
+            for (const id of ids) await S.dropCaseNode(chapter, id).catch(() => {});
+            await S.setCaseMeta(chapter, { shift: metaWas.shift ?? {} }).catch(() => {});
+            await gmStoresIdle();
+        }
+        const shut = key => `shut: ${tip(key)}`;
+        equal(stableJson(seen), stableJson({
+            buttons: { evidence: [shut("DRPG.Tips.Case.moveSideEvidenceTooltip"), shut("DRPG.Tips.Case.moveSideEvidenceTooltip")],
+                d1: [shut("DRPG.Tips.Case.moveSideLeftmostTooltip"), "open"],
+                solution: [shut("DRPG.Tips.Case.moveSideSolutionTooltip"), shut("DRPG.Tips.Case.moveSideSolutionTooltip")] },
+            afterRight: { d1Moved: true, d2Moved: true, shift: 1, leftOpen: "open" },
+            afterLeft: { d1Back: true, d2Back: true, shift: 0 } }),
+            "{buttons: Move left and Move right on evidence, d1 and the solution; afterRight, afterLeft: d1 and d2 drawn a column right and back, d1's kept shift, its Move left opened}");
+    }],
+    ["1.2.123 OWNER-123-PLAN-2 - the planner's camera centres on the open node after this GM's Move moves it, keeping the zoom; a write from elsewhere that moves the node leaves the camera where it was (case-map.mjs `wireCaseMap`, case-view.mjs `centreCamera`; the owner, 21.11.2026; the line INVEST of 1.2.123)", async () => {
+        /*
+         * Line INVEST of 1.2.123. jsdom lays nothing out, so the test stands in for the boxes the camera reads, and for
+         * nothing else: the viewport (`.drpg-case-graph`) is 1000 x 600, the canvas's box is its transform's offset, and a
+         * node's face (200 x 60) and its fields (300 x 200) stand at their drawn left and top under the transform's zoom.
+         * The faces' and fields' measured sizes (`offsetWidth`, `offsetHeight`) are the same stand-ins, so the relayout
+         * sizes the canvas as a browser's would (with jsdom's 0 it measured a canvas 52 px wide, and every camera was
+         * clamped to it). A deduction of the suite's own resting on a Remnant, opened alone on the Map; its Move right pressed. Read: the
+         * canvas's transform after the redraw, against the camera centred on the moved node's face and fields at the zoom
+         * it had. Then, the focus taken out of the node (the GM looking elsewhere), the node's shift written again as another
+         * GM's write would land (no press here) and the transform read again: unchanged. The node, the shift and the stand-ins go after.
+         * Red at f129afd0: no Move right; and the draw after a GM's own change only brought the node into view.
+         */
+        const S = await import("./case-schema.mjs");
+        const I = await import("./investigation.mjs");
+        const V = await import("./case-view.mjs");
+        needs(env.dialogs(), "the Map is pressed on its drawn window");
+        const chapter = I.keyPlan().chapter;
+        const ev = S.caseGraph(chapter).nodes.find(n => n.evidence && !n.planned);
+        must(ev, "the case has no Remnant to rest on - this would measure nothing");
+        const id = "suite123p2d1";
+        const metaWas = S.caseMetaOf(S.caseRows(chapter).meta);
+        const proto = HTMLElement.prototype;
+        const rectWas = Object.getOwnPropertyDescriptor(Element.prototype, "getBoundingClientRect");
+        const cwWas = Object.getOwnPropertyDescriptor(proto, "clientWidth"), chWas = Object.getOwnPropertyDescriptor(proto, "clientHeight");
+        const owWas = Object.getOwnPropertyDescriptor(proto, "offsetWidth"), ohWas = Object.getOwnPropertyDescriptor(proto, "offsetHeight");
+        // a node's measured size, as `relayoutCaseMap` reads it: a face 200 x 60, its fields 300 x 200 (0 in jsdom otherwise)
+        const sizeOf = (el, wh) => (el.closest?.(".drpg-case-canvas") && el.parentElement?.classList?.contains("drpg-case-canvas")
+            ? (el.matches("[data-drpg-node]") ? (wh ? 60 : 200) : el.matches(".drpg-case-edit") ? (wh ? 200 : 300) : null) : null);
+        const camOf = el => {
+            const m = /translate\((-?[\d.]+)px, (-?[\d.]+)px\) scale\(([\d.]+)\)/.exec(el?.style?.transform ?? "");
+            return m ? { x: Number(m[1]), y: Number(m[2]), z: Number(m[3]) } : { x: 0, y: 0, z: 1 };
+        };
+        let win = null;
+        const seen = {};
+        try {
+            Object.defineProperty(proto, "clientWidth", { configurable: true, get() { return this.classList?.contains("drpg-case-graph") ? 1000 : (cwWas?.get?.call(this) ?? 0); } });
+            Object.defineProperty(proto, "clientHeight", { configurable: true, get() { return this.classList?.contains("drpg-case-graph") ? 600 : (chWas?.get?.call(this) ?? 0); } });
+            Object.defineProperty(proto, "offsetWidth", { configurable: true, get() { return sizeOf(this, 0) ?? (owWas?.get?.call(this) ?? 0); } });
+            Object.defineProperty(proto, "offsetHeight", { configurable: true, get() { return sizeOf(this, 1) ?? (ohWas?.get?.call(this) ?? 0); } });
+            Element.prototype.getBoundingClientRect = function () {
+                const canvas = this.closest?.(".drpg-case-canvas");
+                if (!canvas) return rectWas.value.call(this);
+                const cam = camOf(canvas);
+                if (this === canvas) return { left: cam.x, top: cam.y, right: cam.x, bottom: cam.y, width: 1, height: 1, x: cam.x, y: cam.y };
+                // a control inside a node's fields stands in its fields' box (the camera brings a focused one into view)
+                const holder = this.matches?.("[data-drpg-node], .drpg-case-edit") ? this : this.closest?.(".drpg-case-edit");
+                if (!holder) return rectWas.value.call(this);
+                if (holder !== this) return holder.getBoundingClientRect();
+                const face = this.matches?.("[data-drpg-node]");
+                const w = (face ? 200 : 300) * cam.z, h = (face ? 60 : 200) * cam.z;
+                const left = cam.x + (parseFloat(this.style.left) || 0) * cam.z, top = cam.y + (parseFloat(this.style.top) || 0) * cam.z;
+                return { left, top, right: left + w, bottom: top + h, width: w, height: h, x: left, y: top };
+            };
+            await S.setCaseNode(chapter, id, { kind: "deduction", label: "SUITE p2 d1", inputs: [ev.id] });
+            await gmStoresIdle();
+            win = await drawnCaseWindow({ view: "map", allOpen: false });
+            await settle();
+            const root = () => win.app?.element;
+            const canvas = () => root()?.querySelector(".drpg-case-canvas");
+            root()?.querySelector(`.drpg-case-canvas > [data-drpg-node="${CSS.escape(id)}"]`)?.click();
+            await until(() => root()?.querySelector(`.drpg-case-edit[data-drpg-edit="${CSS.escape(id)}"]:not([hidden])`) || null, 4000).catch(() => {});
+            await settle();
+            const was = root().querySelector(".drpg-case-live");
+            const zoomBefore = camOf(canvas()).z;
+            root().querySelector(`.drpg-case-edit[data-drpg-edit="${CSS.escape(id)}"] [data-drpg-case-shift="1"]`)?.click();
+            await until(() => root().querySelector(".drpg-case-live") !== was || null, 4000).catch(() => {});
+            await settle();
+            const cam = camOf(canvas());
+            const face = canvas()?.querySelector(`[data-drpg-node="${CSS.escape(id)}"]`), edit = canvas()?.querySelector(`.drpg-case-edit[data-drpg-edit="${CSS.escape(id)}"]`);
+            const x0 = Math.min(parseFloat(face.style.left), parseFloat(edit.style.left)), y0 = Math.min(parseFloat(face.style.top), parseFloat(edit.style.top));
+            const x1 = Math.max(parseFloat(face.style.left) + 200, parseFloat(edit.style.left) + 300), y1 = Math.max(parseFloat(face.style.top) + 60, parseFloat(edit.style.top) + 200);
+            const want = V.clampCamera(V.centreCamera({ z: zoomBefore }, { x: x0, y: y0, w: x1 - x0, h: y1 - y0 }, { w: 1000, h: 600 }), { w: parseFloat(canvas().style.width), h: parseFloat(canvas().style.height) }, { w: 1000, h: 600 });
+            seen.moved = (S.caseMetaOf(S.caseRows(chapter).meta).shift?.[id] ?? 0) === 1;
+            seen.centred = cam.x === want.x && cam.y === want.y;
+            seen.zoomKept = cam.z === zoomBefore;
+            await wait(1700); // past the 1.5 s after the press in which this GM's own draws centre (investigation.mjs OWN_CHANGE_MS)
+            /* this GM looking elsewhere: the focus out of the node. With the focus in it, a redraw gives the focus back and
+               the camera brings the focused control into view (case-view.mjs `wireCaseCamera`'s focusin, the keyboard's rule) */
+            document.activeElement?.blur?.();
+            const before = camOf(canvas());
+            const was2 = root().querySelector(".drpg-case-live");
+            await S.setCaseMeta(chapter, { shift: { ...(S.caseMetaOf(S.caseRows(chapter).meta).shift ?? {}), [id]: 2 } });
+            await until(() => root().querySelector(".drpg-case-live") !== was2 || null, 4000).catch(() => {});
+            await settle();
+            const after = camOf(canvas());
+            seen.elsewhereKept = after.x === before.x && after.y === before.y && after.z === before.z;
+        } finally {
+            if (win) await win.close().catch(() => {});
+            if (rectWas) Object.defineProperty(Element.prototype, "getBoundingClientRect", rectWas);
+            if (cwWas) Object.defineProperty(proto, "clientWidth", cwWas); else delete proto.clientWidth;
+            if (chWas) Object.defineProperty(proto, "clientHeight", chWas); else delete proto.clientHeight;
+            if (owWas) Object.defineProperty(proto, "offsetWidth", owWas); else delete proto.offsetWidth;
+            if (ohWas) Object.defineProperty(proto, "offsetHeight", ohWas); else delete proto.offsetHeight;
+            await S.dropCaseNode(chapter, id).catch(() => {});
+            await S.setCaseMeta(chapter, { shift: metaWas.shift ?? {} }).catch(() => {});
+            await gmStoresIdle();
+        }
+        equal(stableJson(seen), stableJson({ centred: true, elsewhereKept: true, moved: true, zoomKept: true }),
+            "{moved: the press wrote the shift; centred: the camera on the moved node's face and fields; zoomKept: at the zoom it had; elsewhereKept: a write from elsewhere left the camera}");
+    }],
     ["1.2.123 r122-D-R1 - on the Investigation window's Table a filter change keeps what was typed in the Final Truth form and the Key limit's tick: only the fields the dashboard's write writes are taken as drawn (investigation.mjs `wireCaseFilters`, `saveFieldsIn`; the auditor's recheck of 1.2.122, r122-D-R1)", async () => {
         /*
          * Line INVEST of 1.2.123. The dashboard drawn on its Table; the Final Truth form's name, words and note typed, and

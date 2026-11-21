@@ -2038,7 +2038,14 @@ function wireMap(dialog, reading, refresh) {
             });
         },
         onOverview: open => { reading.overview = open; },
-        camera: { get: () => reading.camera, set: cam => { reading.camera = cam; } },
+        /* `take`: the node this GM's own change moved (a Move, a sort), read by each draw for `OWN_CHANGE_MS` after the
+           press, which centres the camera on it (the owner, 21.11.2026; case-map.mjs `wireCaseMap`): a press is drawn more
+           than once - the store's own echo, then the window's refresh - and each draw places the nodes again, so each
+           centres. A draw no press of this GM asked for leaves the camera where it was, the open node only brought into
+           view as before. */
+        camera: { get: () => reading.camera, set: cam => { reading.camera = cam; },
+            take: () => (reading.centre && Date.now() < reading.centre.until ? reading.centre.id : null),
+            revealed: () => reading.revealed ?? null, reveal: id => { reading.revealed = id ?? null; } },
         /* ADD, SORT, MOVE, REMOVE: AT ONCE (E97 C6; Q-E97-6's default keeps the fields on Save). A node added is the
            schema's arrangement, as New Remnant's trace is the world's: written now, opened, its fields then edited and
            saved with the rest. The column's order is the GMs' shared arrangement of the map, not a field of a node. */
@@ -2047,8 +2054,9 @@ function wireMap(dialog, reading, refresh) {
             setCaseNode(chapterNow(), id, { kind, label: game.i18n.localize(`DRPG.CaseMap.newLabel.${kind}`) })
                 .then(() => { reading.node = id; reading.focus = id; refresh(); }, fail("add"));
         },
-        onSort: sort => { setCaseMeta(chapterNow(), { sort }).then(() => refresh(), fail("sort")); },
-        onMove: (id, step) => { reading.focus = id; moveCaseNode(reading, id, step, drawnTops(root)).then(() => refresh(), fail("move")); },
+        onSort: sort => { reading.centre = reading.node ? ownChange(reading.node) : null; setCaseMeta(chapterNow(), { sort }).then(() => refresh(), fail("sort")); },
+        onMove: (id, step) => { reading.focus = id; reading.centre = ownChange(id); moveCaseNode(reading, id, step, drawnTops(root)).then(() => refresh(), fail("move")); },
+        onShift: (id, step) => { reading.focus = id; reading.centre = ownChange(id); shiftCaseNode(reading, id, step).then(() => refresh(), fail("move")); },
         onDrop: id => dropMapNode(chapterNow(), id).then(gone => { if (gone) { reading.node = null; refresh(); } }, fail("remove")),
         // "Check consistency" (Q-C): the overview's list read again now, the overview left open.
         /* The check and Place read the case as written (line INVEST of 1.2.122; audit 1.2.118 controls-03, findings 2 and
@@ -2150,6 +2158,35 @@ async function moveCaseNode(reading, id, step, drawn = null) {
     const manual = { ...(graph.meta?.manual ?? {}) };
     asDrawn.forEach((col, c) => (c === index ? order : col).forEach((nodeId, i) => { manual[nodeId] = i; }));
     await setCaseMeta(chapter, { sort: "manual", manual });
+    return true;
+}
+
+/** How long after this GM's press the Map's draws centre on the node it moved (`wireMap`'s camera `take`). */
+const OWN_CHANGE_MS = 1500;
+const ownChange = id => ({ id, until: Date.now() + OWN_CHANGE_MS });
+
+/**
+ * A deduction or a counter one column left or right (the owner, 21.11.2026: "Do planera - dodajmy opcje move left/right dla
+ * counters, dedukcji itd."; the line INVEST of 1.2.123). A column is a depth (case-layout.mjs `layoutCase`), so the move
+ * is the node's `shift` in the chapter's meta row: one more column past its own depth, or one fewer, down to none - what
+ * rests on it follows, as a column past its inputs. Its row in the new column is the column's sort's: under By hand its
+ * kept place, so it stands as near its row as that column allows. Evidence keeps the first column and the solution the
+ * last: no move for either, nor a move left past a node's own depth (the buttons are drawn shut for those, case-map.mjs
+ * `nodeEditHtml`; asked here too, and told). Answers whether it moved. Tier 2 "1.2.123 OWNER-123-PLAN-1".
+ */
+async function shiftCaseNode(reading, id, step) {
+    if (!id || !game.user?.isGM || !(step === 1 || step === -1)) return false;
+    const { chapter, graph } = caseMapGraph(reading);
+    const node = graph.nodes.find(n => n.id === id);
+    if (!node || node.evidence || node.kind === "solution") return false;
+    const shift = { ...(graph.meta?.shift ?? {}) };
+    const next = (Number(shift[id]) || 0) + step;
+    if (next < 0) {
+        ui.notifications.info(game.i18n.localize("DRPG.Tips.Case.moveSideLeftmostTooltip"));
+        return false;
+    }
+    if (next) shift[id] = next; else delete shift[id];
+    await setCaseMeta(chapter, { shift });
     return true;
 }
 
