@@ -4,6 +4,7 @@
  *
  *     python3 -m http.server 8765 &   node docs/dev/h120/shots.mjs
  *
+ * Also glyphs-page.html: the HUD's new glyphs on their own (glyphs-legacy.png, glyphs-glass.png).
  * Playwright from audit/harness (`npm ci`); `DRPG_CHROMIUM=<executable>` when its browser is not installed. Writes docs/dev/h120/shots/*.png and prints what each HUD holds.
  */
 import { createRequire } from "node:module";
@@ -36,6 +37,15 @@ for (const [name, query] of shots) {
     })));
     await page.screenshot({ path: new URL(`./shots/${name}.png`, import.meta.url).pathname });
     console.log(name, JSON.stringify(read));
+}
+// The new glyphs on their own, beside the lock they come from, in each theme.
+const glyphBase = base.replace("hud-page.html", "glyphs-page.html");
+await page.setViewportSize({ width: 900, height: 230 });
+for (const [name, theme] of [["glyphs-legacy", "monokuma-legacy"], ["glyphs-glass", "stained-glass"]]) {
+    await page.goto(`${glyphBase}?theme=${theme}`);
+    await page.waitForSelector("body[data-ready]");
+    await page.screenshot({ path: new URL(`./shots/${name}.png`, import.meta.url).pathname });
+    console.log(name);
 }
 await browser.close();
 if (errors.length) { console.error("page errors:", errors); process.exit(1); }
