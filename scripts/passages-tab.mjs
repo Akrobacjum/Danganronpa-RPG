@@ -324,7 +324,17 @@ export function wirePassagesTab(root, scene, { dialog = null, stores = PASSAGE_S
        another player showed on the next store change or a reopen. `students` may be a function, read at every draw, and
        the tab redraws on an actor made or deleted, a name, an ownership or a module flag written, and a user changed. */
     const studentsNow = () => (typeof students === "function" ? students() : students) ?? [];
-    const draw = () => { box.innerHTML = passagesTabBody(scene, { stores, students: studentsNow(), actors, users, told }); };
+    /* DRAWN AGAIN ONLY WHEN IT DRAWS SOMETHING ELSE (the audit's check of 1.2.122, r122-H-2; the line claude/refresh-120 for
+       1.2.123). The watch below hears every module flag written on any actor - an action spent, a step, a Call - so during
+       Daily Life the box was drawn anew at every player's action: an open '+' menu drawn shut, a press in flight lost, an
+       open list closed. What the box would draw is compared with what it drew, and an equal one is not drawn. */
+    let drawn = null;
+    const draw = () => {
+        const html = passagesTabBody(scene, { stores, students: studentsNow(), actors, users, told });
+        if (html === drawn && box.isConnected) return;
+        box.innerHTML = html;
+        drawn = html;
+    };
     let busy = Promise.resolve();
 
     const work = async (act, passageId, actorId) => {

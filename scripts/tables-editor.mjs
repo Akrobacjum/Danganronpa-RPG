@@ -1232,6 +1232,8 @@ function wirePaneRows(pane, root, show) {
     pane.addEventListener("focusout", async ev => {
         const field = ev.target.closest("[data-drpg-field]");
         if (!field) return;
+        // The pane's own redraw taking the field out, not the GM leaving it (`refresh`, r122-H-1).
+        if (pane.drpgQuiet) return;
 
         /*
          * ONLY A FIELD SOMEBODY CHANGED IS WRITTEN (Dawid, 31.08).
@@ -1330,6 +1332,8 @@ function wirePoolPane(pane, root) {
         showPoolName(nameEl, table?.name ?? "");
         bodyEl.innerHTML = table ? tableItemsHtml(table)
             : `<p class="notes">${game.i18n.localize("DRPG.Tables.noneYet")}</p>`;
+        // What `refresh` compares with: the table as drawn here (r122-H-1).
+        bodyEl.dataset.drpgDrawn = table ? tableItemsHtml(table) : "";
         wireRoomFilter(bodyEl);
         // Nothing selected is a real state - an empty world has no
         // tables at all - and a live button over nothing is a trap.
@@ -1356,9 +1360,21 @@ function wirePoolPane(pane, root) {
             ? { key: keyOf(document.activeElement), start: document.activeElement.selectionStart, end: document.activeElement.selectionEnd } : null;
         const filter = bodyEl.querySelector("select[data-drpg-room-filter]")?.value ?? null;
         const html = tableItemsHtml(table);
-        if (!typed.size && !focused && bodyEl.dataset.drpgDrawn === html) return;
+        /*
+         * NOT DRAWN AGAIN FOR NOTHING, AND DRAWN QUIETLY (the audit's check of 1.2.122, r122-H-1 and B-6; the line
+         * claude/refresh-120 for 1.2.123). Every table's hooks run every pane's refresh (`freshTableCounts`), and a pane with
+         * a field focused or typed in was drawn again even when its own table drew the same. Drawing it again takes the
+         * focused field out, and Chromium fires its focusout inside the removal (read for `innerHTML` in Chromium 153 on
+         * 21.11.2026: change, blur and focusout on the typed field, still connected), where the pane's own focusout writes a field whose value differs from what it was drawn with: the half-typed name or
+         * description was written to the table. So a table that draws the same is not drawn again, typed or not; and the
+         * removal this draws makes is not heard by the pane's focusout (`drpgQuiet`, read there): the words are carried to
+         * the new field below, which keeps the focus and still differs from what it was drawn with, so its leave writes them
+         * whole, as at any leave.
+         */
+        if (bodyEl.dataset.drpgDrawn === html) return;
         showPoolName(nameEl, table.name);
-        bodyEl.innerHTML = html;
+        pane.drpgQuiet = true;
+        try { bodyEl.innerHTML = html; } finally { pane.drpgQuiet = false; }
         bodyEl.dataset.drpgDrawn = html;
         wireRoomFilter(bodyEl);
         const picker = bodyEl.querySelector("select[data-drpg-room-filter]");
