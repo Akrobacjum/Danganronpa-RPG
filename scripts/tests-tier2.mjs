@@ -9084,6 +9084,85 @@ const SCENARIOS = [
         }
         equal(stableJson([Boolean(threw), held]), stableJson([true, null]), `[the end threw, the die held for a murder opened after it]: ${threw}`);
     }],
+    ["1.2.122 CORE-23 STG-26 - a freed victim's player who asks for the incident's closing card at their return is given their own line (scripts/secret.mjs `updateSecret`, `holdWordsFor`, `answerWordsRequest`; murder-rules.mjs `tellIncidentClosed`; the audit's CORE-23 and STG-26, 1.2.122 line MURDER): the author GM's hold names the victim's player among its readers and answers them \"You can act again\"; the killer's player is answered the other line", async () => {
+        /*
+         * 21.11.2026, 1.2.122 line MURDER. The audit's CORE-23 / STG-26: the closing card is posted to the other seats and
+         * its victim's words sent after with `updateSecret`, which the author GM - among neither audience - never kept, so
+         * the hold kept the first readers and words and a freed victim asking at their return was answered nothing. A
+         * direct murder reaches its fight and is closed with the victim alive; the card is found on the log; each player's
+         * ask is answered as `answerWordsRequest` answers it, the GM's socket's sends read. Put back: the socket, the
+         * incident, the cards. Red at 749b35b5: nothing sent to the victim's player.
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 2), "a killer and a victim with players");
+        const M = await import("./murder.mjs");
+        const S = await import("./secret.mjs");
+        const { livingStudents } = await import("./chapter.mjs");
+        const player = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const [killer, victim] = livingStudents().filter(player);
+        const clock = getClock();
+        const seen = new Set(game.messages.map(m => m.id));
+        const emit = game.socket.emit;
+        const said = {};
+        try {
+            await M.openMurder({ killerId: killer.id, victimId: victim.id, openingTrait: "body" });
+            if (M.murderState()?.stage === "openingRoll") await M.resolveKillerOpening({ total: 24, isCritical: false, withHope: true });
+            await settle();
+            must(M.murderState()?.stage === "incident", "the fight did not start");
+            const before = new Set(game.messages.map(m => m.id));
+            await M.endMurder({ reason: "closed", followUp: false });
+            await settle();
+            const closing = game.messages.filter(m => !before.has(m.id)).find(m => m.getFlag(MODULE_ID, "veiled")) ?? null;
+            must(closing, "no veiled closing card was posted");
+            for (const [who, actor] of [["victim", victim], ["killer", killer]]) {
+                const sent = [];
+                game.socket.emit = (event, payload, opts) => { sent.push(payload); return true; };
+                S.answerWordsRequest({ ids: [closing.id] }, player(actor).id);
+                game.socket.emit = emit;
+                said[who] = sent.map(p => String(p?.html ?? "").replace(/<[^>]+>/g, " ").trim()).join(" | ");
+            }
+        } finally {
+            game.socket.emit = emit;
+            await c3Incident(clock);
+            for (const m of game.messages.filter(m => !seen.has(m.id))) await m.delete().catch(() => {});
+            await settle();
+        }
+        equal(stableJson([said.victim?.includes(game.i18n.localize("DRPG.Murder.closedVictimYou")), said.killer?.includes(game.i18n.localize("DRPG.Murder.closedYou"))]),
+            stableJson([true, true]), `[the victim's player answered their own line, the killer's player the other]: ${stableJson(said)}`);
+    }],
+    ["1.2.122 STG-31 - the primary runs the opening's veil another GM asks for, held to its own declarations (scripts/bridge-runs-acts.mjs `handleMaskVeil`; mask-gm.mjs `veilOnPrimary`; the audit's STG-31, 1.2.122 line MURDER): the lights' veil for a killer with a declaration of this Eclipse and one with none veils the first alone, the lights' end lifts it, and a request of no road is refused", async () => {
+        /*
+         * 21.11.2026, 1.2.122 line MURDER. The audit's STG-31: on a GM who is not the primary the veil answered nothing.
+         * That GM asks the primary now (`mask.veil`; scenario 97-two-gms V drives it with a second GM); here the primary's
+         * side is read on its own, as the bridge's runner calls it. A declaration is written for one student; the run is
+         * called for it and a second student, then for the lights' end, then with a road it does not have. Put back: the
+         * declaration, the veil. Red at 749b35b5: bridge-runs-acts.mjs had no handleMaskVeil.
+         */
+        needs(env.primaryGm(), "the veil is the primary's");
+        const R = await import("./bridge-runs-acts.mjs");
+        const { pendingMurderStore, veilStore } = await import("./gm-stores.mjs");
+        const K = await import("./mask-gm.mjs");
+        must(typeof R.handleMaskVeil === "function", "bridge-runs-acts.mjs has no handleMaskVeil: another GM's veil is answered by nothing");
+        const [killer, other] = cast(2);
+        must(!pendingMurderStore.has(killer.id) && !veilStore.get(killer.id), "the fixture student holds a declaration or a veil already");
+        const read = {};
+        try {
+            await pendingMurderStore.patch(killer.id, { killerId: killer.id, eclipse: "SUITE122STG31", room: null, note: "" });
+            await settle();
+            read.lights = await R.handleMaskVeil({ what: "lights", killerIds: [killer.id, other.id] });
+            await settle();
+            read.rows = [veilStore.get(killer.id)?.why ?? null, veilStore.has(other.id)];
+            read.judged = await R.handleMaskVeil({ what: "judged", killerIds: [] });
+            await settle();
+            read.after = veilStore.get(killer.id)?.why ?? null;
+            read.none = await R.handleMaskVeil({ what: null, killerIds: [] });
+        } finally {
+            if (pendingMurderStore.has(killer.id)) await pendingMurderStore.drop(killer.id);
+            if (veilStore.get(killer.id)) await K.lightsJudged();
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ lights: { reply: { veiled: 1 } }, rows: ["lights", false], judged: { reply: { settled: true } }, after: null,
+            none: { refused: "nothing was carried out: no veil to settle" } }), "{the lights' answer, [the declared killer's row, the other's], the end's answer, the row after, a request of no road}");
+    }],
     ["the time of day in an incident is veiled and names nobody", async () => {
         /*
          * E06 C4, 27.09.2026; audit S10-04 (L12). While an incident runs the time of day is told

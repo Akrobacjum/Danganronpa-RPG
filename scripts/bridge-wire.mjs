@@ -126,6 +126,8 @@ export const ACTION_LISTEN_STOP = "listen.stop";
 export const ACTION_LISTEN_ECHOES = "listen.echoes";
 /** player -> primary GM: a killer behind a "?" reveals themselves (E69 C8; mask-gm.mjs `revealMask`). */
 export const ACTION_MASK_REVEAL = "mask.reveal";
+/** GM -> primary GM: the opening's veil, asked by a GM who is not the primary - at the lights, after them, at an open (1.2.122, the audit's STG-31; mask-gm.mjs `veilOnPrimary`). */
+export const ACTION_MASK_VEIL = "mask.veil";
 /** player -> primary GM: a barricade put up, its Body roll on the GMs' record (E74 C2; doors-gm.mjs `shutDoor`). */
 export const ACTION_DOOR_SHUT = "door.shut";
 /** player -> primary GM: a door forced, its Body roll on the GMs' record (E74 C3; doors-gm.mjs `forceDoor`). */

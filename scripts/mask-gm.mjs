@@ -541,6 +541,8 @@ let settling = Promise.resolve();
  * its character. One settle at a time, in the order asked. Answers `{ lifted, veiled }` on the primary, else null.
  */
 export function settleVeils() {
+    // Another GM asks the primary and waits for it (STG-31, `veilOnPrimary`): its own settle would write nothing.
+    if (game.user?.isGM && !isPrimaryGm()) return askPrimaryVeil("settle");
     const run = () => settleVeilsNow();
     const next = settling.then(run, run);
     settling = next.catch(() => null);
@@ -586,7 +588,8 @@ async function settleVeilsNow() {
  * one cancelled at the lights is lifted as it is (`liftAtTheLights`).
  */
 export async function veilAtTheLights(killerIds = []) {
-    if (!game.user?.isGM || !isPrimaryGm()) return 0;
+    if (!game.user?.isGM) return 0;
+    if (!isPrimaryGm()) return (await askPrimaryVeil("lights", killerIds))?.veiled ?? 0;
     await veilStore.whenHydrated();
     lightsJudging = true;
     let n = 0;
@@ -600,7 +603,8 @@ export async function veilAtTheLights(killerIds = []) {
  * of it at `lightsJudged`. A row the opening took over, or none, is left. On the primary; answers whether it lifted.
  */
 export function liftAtTheLights(actorId) {
-    if (!game.user?.isGM || !isPrimaryGm()) return Promise.resolve(false);
+    if (!game.user?.isGM) return Promise.resolve(false);
+    if (!isPrimaryGm()) return askPrimaryVeil("lift", [actorId]).then(out => Boolean(out?.lifted));
     const run = () => (veilStore.get(actorId ?? "")?.why === "lights" ? liftVeil(actorId, "the lights cancelled it") : false);
     const next = settling.then(run, run);
     settling = next.catch(() => null);
@@ -609,7 +613,41 @@ export function liftAtTheLights(actorId) {
 
 export async function lightsJudged() {
     lightsJudging = false;
+    if (game.user?.isGM && !isPrimaryGm()) return askPrimaryVeil("judged");
     return settleVeils();
+}
+
+/*
+ * THE VEIL FROM ANOTHER GM'S BROWSER (1.2.122; the audit's STG-31). The veil is the primary's to write, and on another GM
+ * the lights' veil (`veilAtTheLights`), their lift (`liftAtTheLights`), their end (`lightsJudged`) and the open's settle
+ * (`settleVeils`) answered nothing, so an Eclipse ended or a murder opened there put the veil up only once the primary
+ * heard the incident's write: the killer's token drawn for the victim meanwhile. That GM now asks the primary
+ * (`mask.veil`, bridge-asks.mjs `requestMaskVeil`) and waits for its answer; the primary runs its own road
+ * (`veilOnPrimary`). The lights' killers are held to the primary's own declarations of the Eclipse. Measured with a
+ * second GM in scenario 97-two-gms (1.2.122 STG-31); tier 2 reads the primary's side (`veilOnPrimary`) alone.
+ */
+async function askPrimaryVeil(what, killerIds = []) {
+    try {
+        const { requestMaskVeil } = await import("./bridge-asks.mjs");
+        const res = await requestMaskVeil({ what, killerIds });
+        return res.ok ? res.value ?? null : null;
+    } catch (err) {
+        error("Could not ask the primary GM for the opening's veil", err);
+        return null;
+    }
+}
+
+/** The primary's side of `mask.veil` (`askPrimaryVeil`): answers what its road did, or null off the primary. */
+export async function veilOnPrimary({ what, killerIds = [] } = {}) {
+    if (!game.user?.isGM || !isPrimaryGm()) return null;
+    const { pendingMurderStore } = await import("./gm-stores.mjs");
+    const declared = (Array.isArray(killerIds) ? killerIds : [])
+        .filter(id => typeof id === "string" && pendingMurderStore.has(id) && game.actors.get(id));
+    if (what === "lights") return { veiled: await veilAtTheLights(declared) };
+    if (what === "lift") return { lifted: declared.length ? await liftAtTheLights(declared[0]) : false };
+    if (what === "judged") return { settled: Boolean(await lightsJudged()) };
+    if (what === "settle") return { settled: Boolean(await settleVeils()) };
+    return null;
 }
 
 /* ------------------------------ a token made while a mask or a veil stands ------------------------------ */

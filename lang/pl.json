@@ -5234,6 +5234,7 @@
         "listen.stop": "Przestań słuchać",
         "listen.echoes": "Echoes",
         "mask.reveal": "Ujawnij się",
+        "mask.veil": "Zasłona otwarcia, o którą GM prosi głównego GM-a",
         "door.shut": "Shut the Door",
         "door.force": "Force the Door",
         "door.pick": "Pick the Lock",

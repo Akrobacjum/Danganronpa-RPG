@@ -49,7 +49,7 @@ import {
     ACTION_OPENING_RESULT, ACTION_CLEANUP, ACTION_BETRAYAL, ACTION_PARK_MURDER, ACTION_CUB_ABILITY, ACTION_CUB_ANSWER, ACTION_BRIBE_OFFER, ACTION_BRIBE_ANSWER, ACTION_LOOT,
     ACTION_NOTE_SAVE, ACTION_ROLL_BOOKMARK, ACTION_REROLL, ACTION_CARD, ACTION_CARD_CLAIM, ACTION_BULLET_GIVE, ACTION_FACILITY_USE, ACTION_DASH,
     ACTION_TAIL_START, ACTION_DOOR_SHUT, ACTION_DOOR_FORCE, ACTION_DOOR_PICK, ACTION_WATCH_DECLARE, ACTION_DOOR_KNOCK,
-    ACTION_LISTEN_EAVESDROP, ACTION_LISTEN_STOP, ACTION_LISTEN_ECHOES, ACTION_MASK_REVEAL
+    ACTION_LISTEN_EAVESDROP, ACTION_LISTEN_STOP, ACTION_LISTEN_ECHOES, ACTION_MASK_REVEAL, ACTION_MASK_VEIL
 } from "./bridge-wire.mjs";
 import {
     handleObserveTarget, handleCleanupTraces, handleObserveResolve, handleAnalyzeResolve, handleAdvancement,
@@ -60,7 +60,7 @@ import {
     handleBetrayal, handleCleanup, handleCubAbility, handleCubAnswer, handleBribeOffer, handleBribeAnswer, handleHopeCall, handleCallYes, handleDynamicAnswer,
     handleRulingExpired, handleRulingReceived, handleDifficulty, handleTraitRuling, handleFacilityUse, handleDash,
     handleTailStart, tailRolls, handleDoorShut, handleDoorForce, handleDoorPick, pickRolls, handleWatchDeclare, handleDoorKnock,
-    handleEavesdrop, handleEavesdropStop, handleEchoes, handleMaskReveal
+    handleEavesdrop, handleEavesdropStop, handleEchoes, handleMaskReveal, handleMaskVeil
 } from "./bridge-runs-acts.mjs";
 import {
     handleProgress, handleShare, TRACE_OF_ROLL, handleRemnant, traceBandOf, progressOf, repairOf, handleTieTrace,
@@ -289,6 +289,23 @@ export const BRIDGE_ACTIONS = table({
         run: handleMaskReveal,
         // The asker's "?" goes when the token's look comes back; nothing is said.
         answer: "ack"
+    },
+    /*
+     * THE OPENING'S VEIL, ASKED OF THE PRIMARY BY ANOTHER GM (1.2.122; the audit's STG-31). The veil is the primary's to
+     * write (mask-gm.mjs `settleVeilsNow`, `veilAtTheLights`), and on another GM's browser both answered nothing, so an
+     * Eclipse ended or a murder opened there put the veil up only once the primary heard the incident's write - the
+     * killer's token drawn for the victim meanwhile. That GM asks here and waits for the answer.
+     */
+    [ACTION_MASK_VEIL]: {
+        label: "DRPG.Bridge.what.mask.veil",
+        guards: [gmOnly("only a GM asks for the opening's veil")],
+        sanitize: pick({ what: as.oneOf("lights", "lift", "judged", "settle"), killerIds: as.raw }),
+        run: handleMaskVeil,
+        answer: "reply",
+        claims: {
+            what: "one of four, each the primary's own road (mask-gm.mjs `veilOnPrimary`); anything else does nothing",
+            killerIds: "read on the primary against its own declarations of this Eclipse (`pendingMurderStore`, eclipse.mjs): an id with none is veiled or lifted by nothing"
+        }
     },
     [ACTION_ADVANCEMENT]: {
         label: "DRPG.Bridge.what.advancement.apply",

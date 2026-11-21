@@ -934,6 +934,26 @@ function heldReadersAfter(before, added) {
     return ids.length ? [...new Set(ids)] : null;
 }
 
+/**
+ * THE AUTHOR'S HOLD FOLLOWS A SECOND AUDIENCE (the audit's CORE-23 and STG-26, 1.2.122; written by line MURDER, told to
+ * CORE). A GM that posts a veiled card to players alone keeps its words as an author's hold (`authorHold`, readers = the
+ * first whisper list), and `updateSecret` remembered new words only on a browser among their readers, which a GM sending
+ * to players alone never is - so the hold kept the first readers and the first words, and a second audience the card was
+ * given afterwards (murder-rules.mjs `tellIncidentClosed`: the freed victim's "You can act again") asked at their return
+ * and was answered nothing. The hold now keeps each later reader's own words (`other`, by user id) and names them among
+ * its readers; `answerWordsRequest` serves a reader their own. Red at 749b35b5 (tier 2 "1.2.122 CORE-23").
+ */
+async function holdWordsFor(id, readers, html) {
+    const entry = read()[id];
+    if (!entry?.authorHold || typeof html !== "string") return false;
+    const ids = (readers ?? []).filter(r => typeof r === "string" && /^[A-Za-z0-9]+$/.test(r));
+    if (!ids.length) return false;
+    const other = { ...(entry.other && typeof entry.other === "object" ? entry.other : {}) };
+    for (const r of ids) other[r] = html;
+    await write({ ...read(), [id]: { ...entry, readers: heldReadersAfter(entry.readers, ids), other } });
+    return true;
+}
+
 /** Written by a GM, as Foundry stamped it: a card whose whisper list no player could have changed. */
 function writtenByGm(message) {
     return Boolean((message?.author ?? message?.user)?.isGM);
@@ -1065,7 +1085,9 @@ export function answerWordsRequest(payload, senderId) {
         if (!readers.includes(sender.id)) continue;
         // The asker keeps a GM's answer as a GM's words, as written: words this browser did not write are cleaned first.
         // Cut from the uncut words where this GM keeps them, so the asker reads the line written for them (`lines`, above).
-        const source = typeof entry.lines === "string" ? entry.lines : entry.html;
+        // A reader the author gave words of their own (`holdWordsFor`) is served those.
+        const own = entry.other && typeof entry.other[sender.id] === "string" ? entry.other[sender.id] : null;
+        const source = own ?? (typeof entry.lines === "string" ? entry.lines : entry.html);
         const words = entry.trusted ? source : cleanCardHtml(source);
         game.socket.emit(SOCKET_EVENT, {
             action: ACTION_SECRET, id, html: wordsFor(sender.id, words, entry.hid), at: entry.at ?? message.timestamp ?? Date.now(),
@@ -1444,6 +1466,8 @@ export async function updateSecret(message, html, recipients = null, meta = unde
         await remember(message.id, wordsFor(game.user.id, html), at, pin, game.user.isGM, undefined, more, keep,
             game.user.isGM ? html : undefined);
         refresh(message);
+    } else if (game.user.isGM && recipients && read()[message.id]?.authorHold) {
+        await holdWordsFor(message.id, readers, html);
     }
     const others = readers.filter(id => id !== game.user.id);
     if (others.length) {

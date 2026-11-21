@@ -312,6 +312,14 @@ export async function handleEavesdropStop(payload) {
     return {};
 }
 
+/** The opening's veil asked of the primary by another GM (1.2.122, STG-31; mask-gm.mjs `veilOnPrimary`). */
+export async function handleMaskVeil(payload) {
+    const { veilOnPrimary } = await import("./mask-gm.mjs");
+    const out = await veilOnPrimary({ what: payload.what, killerIds: payload.killerIds });
+    if (!out) return { refused: "nothing was carried out: no veil to settle" };
+    return { reply: out };
+}
+
 /** A killer behind a "?" reveals themselves (E69 C8; mask-gm.mjs `revealMask`). */
 export async function handleMaskReveal(payload) {
     const { revealMask } = await import("./mask-gm.mjs");
