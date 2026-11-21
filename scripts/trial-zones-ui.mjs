@@ -6,8 +6,9 @@
  * One row per zone mode: the mode's name key, the console's action that starts it (trial-floor.mjs `MODE_STARTS` names
  * the same) and `panel(view)`, the markup of the console's middle while that mode holds the floor - its question, each
  * zone's answer and who stands there now, the phase and its clock, a Logic Dive's count in its pause, a Scrum's speaker
- * and its theses. The console reads the row of the mode on the floor (trial-floor-ui.mjs `trialConsoleHtml`); a console
- * rebuilt later reads the same rows.
+ * and its theses. The console reads the row's `panel` alone, for the mode on the floor (trial-floor-ui.mjs
+ * `trialConsoleHtml`); a console rebuilt later reads the same rows. The rows' `name` and `start` are read by nothing in
+ * scripts/ (git grep, 21.11.2026): tier 1 R3905 reads `start` ("zones", as `MODE_STARTS` names it), and `name` is the row's label alone.
  *
  * Everything here is drawn from the floor and the sides (trial-zones.mjs `sidesNow`), which every client reads alike;
  * the truth of a Logic Dive question is the GMs' store's and is drawn only in the GM's set editor, never in the console.

@@ -9568,7 +9568,8 @@ const INVARIANTS = [
         equal(stableJson({
             row: row ? [row.lives, row.blank?.(), row.atEntry?.({}, {})] : null,
             blank: Object.hasOwn(T.trialProgress(0), "summaryShown"), whitelisted: T.RECORD_FIELDS.includes("summaryShown"),
-            reads: /trialProgress\(\)\??\.summaryShown/.test(show), writes: /setTrialProgress\(\{\s*summaryShown:/.test(show),
+            reads: /trialProgress\(\)\??\.summaryShown/.test(show), // since 1.2.122 (STG-76) the write is the primary's claim step, `summaryClaim`, which writes `summaryShown` once
+            writes: /setTrialProgress\(\{\s*summaryClaim:/.test(show),
             store: /caseTickStore|:summary`/.test(show), sound: /caseBoard:/.test(show) && !/sfx:\s*"caseSummary"/.test(show),
             event: SFX_EVENTS.caseSummary ? [SFX_EVENTS.caseSummary.category, Boolean(SFX_EVENTS.caseSummary.label), Boolean(SFX_EVENTS.caseSummary.hint)] : null
         }), stableJson({ row: ["trial", null, null], blank: true, whitelisted: true, reads: true, writes: true, store: false, sound: true, event: ["incident", true, true] }),
@@ -65724,6 +65725,23 @@ const INVARIANTS = [
         try { b.anims[0]?.finish(); } finally { throwDrop = null; }
         equal(JSON.stringify([b.state.busy, b.drawn().filter(l => l.startsWith("mix"))]), JSON.stringify([false, []]),
             "[whether a dissolve is busy after an old sprite's drop threw, the mixes the layer still draws]");
+    }],
+    ["R8149 - one esc in the trial's files, null-safe (1.2.122, DOC-13, line TRIAL's part): none of trial-progress.mjs, trial.mjs, truth-bullets.mjs, verdict.mjs and vote.mjs binds `esc` to the bare foundry.utils.escapeHTML, so `esc` there is utils.mjs's `esc` - String(value ?? \"\") escaped; and that `esc` turns null and undefined into nothing", async () => {
+        /* Red at 21bf5d18: 8 such bindings in these five files. The module's other files are the coordinator's sweep at the
+           end of the assembly (DOC-21, the same finding), so this test reads these five alone. Comments stripped. */
+        const { esc } = await import("./utils.mjs");
+        const FILES = ["trial-progress.mjs", "trial.mjs", "truth-bullets.mjs", "verdict.mjs", "vote.mjs"];
+        const bare = [];
+        let read = 0;
+        for (const file of FILES) {
+            const text = await fetch(`/modules/${MODULE_ID}/scripts/${file}`).then(lfText);
+            if (text.length > 1000) read++;
+            const n = (stripComments(text).match(/\bconst esc = foundry\.utils\.escapeHTML\b(?!\s*\()/g) ?? []).length;
+            if (n) bare.push(`${file}:${n}`);
+        }
+        must(read === FILES.length, "a file of the five read as nothing - this would measure nothing");
+        equal(stableJson({ bare, nulls: [esc(null), esc(undefined), esc("<b>")] }), stableJson({ bare: [], nulls: ["", "", "&lt;b&gt;"] }),
+            "{bare: the five files binding esc to the bare escapeHTML (file:count); nulls: utils.mjs esc of null, undefined and markup}");
     }],
 ];
 

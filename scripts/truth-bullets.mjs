@@ -655,8 +655,8 @@ export function leftByOf(row) {
  *   chapter, or the clock's, unless the caller names it: a handover names its giver's
  *   answer key's, never the giver's item.
  * @param {number|null} [data.epoch] The season of the find, kept in the answer key beside `chapter`
- *   (E11 fix r2-H2) for the one kind whose reader asks it of the key itself, the autopsy (gm-panel.mjs
- *   `autopsyIssued`): a copy names its original's (handover.mjs `shareBullet`), and an autopsy that is no
+ *   (E11 fix r2-H2) for the one kind whose reader asks it of the key itself, the autopsy (investigation.mjs
+ *   `autopsyIssued`, since 13.11.2026; gm-panel.mjs imports it): a copy names its original's (handover.mjs `shareBullet`), and an autopsy that is no
  *   copy - issued from the panel (`issueAutopsy`) or written by hand in the Give a Truth Bullet window -
  *   is this season's (settings.mjs `seasonEpoch`). Any other bullet's key names no season.
  * @param {string} [data.sourceAction] Which action left the source trace.

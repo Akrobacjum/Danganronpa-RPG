@@ -92,11 +92,18 @@ export async function showCaseSummary() {
     if (answer !== "send") return null;
     if (trialProgress()?.summaryShown) return null;
     const at = Date.now();
-    /* THE CARD FIRST, THEN THE MARK (line INVEST of 1.2.122; audit 1.2.118 domain-case-f-planner-stores 9): the mark was
-       written before the card and the create's answer was not read, so a card that was not made - a dropped socket,
-       another module's preCreateChatMessage turning it down - still read as sent: a second press said so, Replay found
-       nothing and the GM was told "Summary sent.". Now the mark stands for a card: with none, nothing is marked and the
-       GM is told to press Send again. Tier 2 "1.2.122 CASE-73". */
+    // Claimed on the primary (trial-progress.mjs `summaryClaimStep`, STG-76): only the GM whose claim wrote the record posts.
+    const claimed = await setTrialProgress({ summaryClaim: at });
+    if (Number(claimed?.summaryShown) !== at) {
+        ui.notifications.info(L("DRPG.CaseSummary.already"));
+        return null;
+    }
+    /* THE MARK STANDS FOR A CARD (line INVEST of 1.2.122; audit 1.2.118 domain-case-f-planner-stores 9): the mark was
+       written and the create's answer was not read, so a card that was not made - a dropped socket, another module's
+       preCreateChatMessage turning it down - still read as sent: a second press said so, Replay found nothing and the GM
+       was told "Summary sent.". The claim above writes the mark (so a second GM's press posts nothing); with no card the
+       claim is given back, and the GM is told to press Send again. Tier 2 "1.2.122 CASE-73". The two were one merge of
+       the 1.2.122 assembly: INVEST wrote the card before the mark, TRIAL moved the mark into the primary's claim. */
     const card = await ChatMessage.create({
         // On the chat kit (chat-card.mjs `chatCard`, E49 B5a's one road for a card): the title in the card's head
         content: chatCard({ glyph: "scale-balanced", title: game.i18n.format("DRPG.CaseSummary.title", { chapter }), body: html }),
@@ -110,10 +117,10 @@ export async function showCaseSummary() {
         return null;
     });
     if (!card) {
+        await setTrialProgress({ summaryShown: null });
         ui.notifications.error(L("DRPG.CaseSummary.notSent"));
         return null;
     }
-    await setTrialProgress({ summaryShown: at });
     // Said to the GM who sent it (the needsCode line, R6908): the console awaited this and dropped the line, so no GM read it.
     const sent = L("DRPG.CaseSummary.sent");
     ui.notifications.info(sent);

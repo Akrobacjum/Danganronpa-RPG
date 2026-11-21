@@ -106,7 +106,15 @@ function liveSchema(dialog, chapter) {
         const region = regionOf();
         if (!region) return;
         wireCaseMap(region, { camera: { get: () => camera, set: cam => { camera = cam; } },
-            onFold: () => { folded = !folded; live?.refresh?.(); } });
+            onFold: () => { folded = !folded; live?.refresh?.(); },
+            /* A NODE'S FACE OPENS IT ON THE MAP (1.2.122; probe-42's group C, 22 node buttons of the console's schema): the
+               press ran the wiring's empty default, so a focusable button did nothing. The schema here is read-only, so
+               the press opens the Investigation's Map on that node, where its fields are (raised, not reopened, when the
+               Map already stands). */
+            onPick: id => {
+                import("./investigation.mjs").then(m => m.openInvestigationDashboard({ node: id, view: "map" }))
+                    .catch(err => error("Could not open the node on the Map", err));
+            } });
         const canvas = region.querySelector(".drpg-case-canvas");
         const place = () => { if (canvas?.isConnected) placeTileControls(canvas); };
         place();

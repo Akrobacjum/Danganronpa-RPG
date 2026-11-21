@@ -300,10 +300,10 @@ export async function incidentClosedFirst() {
  * Open the Nonstop Debate, for as long as the GM thinks this one is worth.
  *
  * The moment the Objection rules come into force, which is why it is announced
- * rather than done quietly: until this happens a Truth Bullet goes on the table
- * as a Present and takes nothing from anybody, and from here the same button on
- * the same row is an Objection that takes the floor. The players' one button
- * changes meaning under them, so they are told.
+ * rather than done quietly: from here an Objection - the HUD's or the voice
+ * tile's own OBJECTION! - takes the floor. The sheet's button stays a Present
+ * whatever the floor (always one since 1.2.79, trial.mjs "ONE BUTTON"), so
+ * nothing on the sheet changes meaning; the table is told the debate is open.
  *
  * The length is asked for HERE, every time. A trial holds several debates and
  * they are not the same length - the first one opens wide and the one after a
@@ -731,10 +731,12 @@ export async function closeTrial({ sceneId = null, room = null } = {}) {
  *                 objection or a rebuttal already in progress
  *   the vote      who has not voted yet, then the verdict, then the chapter
  *
- * NO SECTION EVER DISAPPEARS. When nothing is running they hold one sentence
- * saying so. A section that vanishes teaches a GM that this window "sometimes
- * does not work", which is the wrong lesson from the right facts and the reason
- * they go looking for a second window to check.
+ * WITH NO TRIAL RUNNING the console draws its lead (what to do next), the
+ * register's line, the Final Trial's note and a stopped verdict's line alone
+ * (`trialConsoleHtml`, since E10 C14): the floor's and the vote's sections are
+ * left out, and the lead says why. Until then every section stood with one
+ * sentence saying it had nothing, so as not to teach a GM that the window
+ * "sometimes does not work"; the lead does that now.
  */
 /*
  * READ FRESH EVERY TIME, because this window is open while the floor moves
@@ -1393,11 +1395,13 @@ export function trialBodyHtml(view) {
  * its buttons are stale is exactly the half-live shape trap 171 is about -
  * the GM panel's murder tile, all over again.
  *
- * So when the SET of available buttons would change, the window opens again
- * instead. That is not a special case bolted on: every action in this
- * console already ends with `return manageClassTrial()`, because the GM
- * should land on the screen they pressed the button from. This makes a
- * change arriving from somebody else behave the same as one they made.
+ * Since E47 C1 the footer is redrawn in place (ui-kit.mjs `liveFooter`), and the
+ * bar's, the mode picker's and the Closing row's presses leave the console
+ * open. The window opens again only when this signature changes - the trial
+ * started or ended, the floor's family changed - and a footer action still
+ * ends with `return manageClassTrial()`, so the GM lands on the screen they
+ * pressed it from; a reopen of the live hook's own is that chain's since
+ * 1.2.122 (CASE-39).
  */
 function trialSignature(view) {
     const { floor, running } = view;
