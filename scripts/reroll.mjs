@@ -49,7 +49,7 @@ import { searchTier, findOf, rollTone, listenLabels, projectProgress, sabotageHi
 import { leavesTraceFor, ITEM_FLAGS } from "./inventory.mjs";
 import { isClaimedRoll, neutralRollOf, REROLL_SHOWN, relayRerolledDice } from "./private-rolls.mjs";
 import { rerollBookmarkStore, rerollJournalStore, trapLedgerStore } from "./gm-stores.mjs";
-import { listenName } from "./action-listen.mjs";
+import { listenName, heardIn } from "./action-listen.mjs";
 import { onGmStoresHydrated, gmStoresQuiet } from "./gm-store.mjs";
 import { trustedWrite } from "./resource-guard.mjs";
 
@@ -1921,7 +1921,9 @@ async function listenLines(actor, { room, target, total, isCritical }) {
     const labelOf = listenLabels(neighbours, roomsKnownToMe(scene));
     const shown = r => labelOf.get(r) ?? r;
     const named = r => {
-        const who = occupantsOf(r, actor, scene).map(listenName);
+        // As the first throw heard them (action-listen.mjs `heardIn`): a killer veiled for the opening is neither named nor
+        // counted on the listener's browser (the audit's r121-M-1, 1.2.122).
+        const who = heardIn(r, actor, scene, occupantsOf).map(listenName);
         return who.length ? who.join(", ") : game.i18n.localize("DRPG.Listen.empty");
     };
     const hit = resolveThreshold(Number(total), def.thresholds);
@@ -1930,7 +1932,7 @@ async function listenLines(actor, { room, target, total, isCritical }) {
     if (isCritical) return neighbours.map(r => `${shown(r)} - ${named(r)}`);
     if (hit && hit.min >= namedFrom) return [game.i18n.format("DRPG.Listen.named", { room: shown(target), who: named(target) })];
     if (hit) {
-        const count = occupantsOf(target, actor, scene).length;
+        const count = heardIn(target, actor, scene, occupantsOf).length;
         return [count
             ? plural("DRPG.Listen.anonymous", { room: shown(target), n: count })
             : game.i18n.format("DRPG.Listen.emptyRoom", { room: shown(target) })];

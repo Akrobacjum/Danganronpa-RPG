@@ -26,7 +26,7 @@ import { actionWindow, chooseVariant } from "./action-menus.mjs";
 import { watchShutWhy } from "./action-watch.mjs";
 import { isEclipse } from "./settings.mjs";
 import { tipAttr, tipText } from "./ui-kit.mjs";
-import { isMaskedActor, MASK_NAME } from "./mask-gm.mjs";
+import { isMaskedActor, MASK_NAME, seenHere } from "./mask-gm.mjs";
 
 /**
  * THE DOORS, NOT THE ROOMS BEHIND THEM (22.09). The picker named every neighbouring room,
@@ -121,6 +121,19 @@ export function shutShutWhy(actor, { eclipse = isEclipse() } = {}) {
  */
 export function listenName(other) {
     return isMaskedActor(other) ? MASK_NAME : other?.name ?? "";
+}
+
+/**
+ * WHO IS HEARD IN A ROOM, AS THIS BROWSER MAY HEAR THEM (the audit's r121-M-1, 1.2.122; proposed a blocker). The named tier,
+ * the critical's sweep and the anonymous count read `occupantsOf` raw, and `listenName` hides a masked character, not one
+ * veiled for the opening: Listen is open while a direct murder waits on its opening, and its card - whispered to the
+ * listener, built on the listener's browser - named the veiled killer, and counted them. The room's people pass through
+ * `seenHere` (mask-gm.mjs, as the room pickers do since MAP-16): a veiled occupant this browser does not draw is left out of
+ * the names and of the count. The Reroll's lines are heard through the same reader (reroll.mjs `listenLines`). A GM, the
+ * killer's own player and the killers' side hear them as before (`veiledFromHere` answers false for them).
+ */
+export function heardIn(room, actor, scene, occupantsOf) {
+    return seenHere(occupantsOf(room, actor, scene));
 }
 
 /**
@@ -227,7 +240,7 @@ export async function performListen(actor, def, options) {
     if (roll.isCritical) {
         // Everything, everywhere.
         const sweep = neighbours.map(room => {
-            const who = occupantsOf(room, actor, scene).map(listenName);
+            const who = heardIn(room, actor, scene, occupantsOf).map(listenName);
             return `<li><strong>${foundry.utils.escapeHTML(labelOf.get(room) ?? room)}</strong> - ${
                 who.length ? who.map(n => foundry.utils.escapeHTML(n)).join(", ") : game.i18n.localize("DRPG.Listen.empty")
             }</li>`;
@@ -236,7 +249,7 @@ export async function performListen(actor, def, options) {
         outcome = { success: true, isCritical: true, rooms: neighbours };
     } else if (hit && hit.min >= namedFrom) {
         // Named.
-        const who = occupantsOf(target, actor, scene).map(listenName);
+        const who = heardIn(target, actor, scene, occupantsOf).map(listenName);
         lines.push(`<p>${game.i18n.format("DRPG.Listen.named", {
             room: foundry.utils.escapeHTML(shownAs),
             who: who.length ? who.map(n => foundry.utils.escapeHTML(n)).join(", ") : game.i18n.localize("DRPG.Listen.empty")
@@ -244,7 +257,7 @@ export async function performListen(actor, def, options) {
         outcome = { success: true, room: target, named: who };
     } else if (hit) {
         // Anonymous: a count, no identities.
-        const count = occupantsOf(target, actor, scene).length;
+        const count = heardIn(target, actor, scene, occupantsOf).length;
         lines.push(`<p>${count
             ? plural("DRPG.Listen.anonymous", { room: foundry.utils.escapeHTML(shownAs), n: count })
             : game.i18n.format("DRPG.Listen.emptyRoom", { room: foundry.utils.escapeHTML(shownAs) })

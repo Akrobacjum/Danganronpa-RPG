@@ -18347,6 +18347,98 @@ const SCENARIOS = [
             "a room action named a killer veiled for the opening to the victim, or left the killer's side or a lifted veil unnamed ([lines, the other named in them, the other named on the card's words to the victim's player]: the victim's use while the veil stands; the killer's; the victim's after the incident closed)");
     }],
 
+    ["1.2.122 r121-M-1 - Listen and its Reroll neither name nor count a killer veiled for the opening on the listener's browser, at the named tier, the critical and the count, and do once the veil is lifted (scripts/action-listen.mjs `heardIn`, `performListen`; reroll.mjs `listenLines`, `heardLines`; mask-gm.mjs `seenHere`; the audit's r121-M-1, 1.2.122 line DESP)", async () => {
+        /*
+         * 21.11.2026, 1.2.122 line DESP; the auditor proposes a blocker. While a direct murder waits on its opening the
+         * killer is veiled (mask-gm.mjs `veilWanted`) and the victim's browser does not draw them; Listen is open then, and
+         * its card - built on the listener's browser and whispered to them - read the room by `occupantsOf` raw, so the
+         * named tier and the critical named the veiled killer and the count counted them; the Reroll's lines the same.
+         * E120's fixture: the two alone in one room, a direct murder opened with its invitation held, the veil settled.
+         * The victim's browser stood in (`game.user.isGM` reading false, so `veiledFromHere` judges as it does there, and
+         * the GM's own reading, `seenHere`, checked first). Read off the readers as the card and the Reroll hear the room
+         * they stand in: `heardIn` (the card's names and count) and `heardLines` (the Reroll's named tier, the count and
+         * the critical's sweep), while the veil stands and after the incident closed. Put back as E120. Red at ccc9b493: the
+         * killer named and counted while veiled.
+         */
+        needs(env.primaryGm(), "the veil is the primary GM's");
+        needs(world.atLeast("studentsWithConnectedPlayer", 2), "a killer and a victim, each with a player");
+        const M = await import("./murder.mjs"), K = await import("./mask-gm.mjs"), S = await import("./gm-stores.mjs");
+        const L = await import("./action-listen.mjs"), R = await import("./reroll.mjs");
+        const { gmPlaceOf, occupantsOf, neighbouringRooms, allRooms, ROOM_FLAGS } = await import("./movement.mjs");
+        const { roomRegions } = await import("./rooms.mjs");
+        const flagsWere = [];
+        const { livingStudents } = await import("./chapter.mjs");
+        must(!M.murderState(), "an incident is open - this would measure something else");
+        const owner = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const [killer, victim] = livingStudents().filter(owner);
+        must(owner(killer) && owner(victim) && owner(killer).id !== owner(victim).id, "the killer and the victim share a player - this would measure something else");
+        const tokens = () => game.scenes.contents.flatMap(scene => scene.tokens.filter(t => t.actorId === killer.id));
+        const before = tokens().map(t => [t.id, Boolean(t._source.hidden)]);
+        const flagOf = t => t._source.flags?.[MODULE_ID] ?? {};
+        const asVictim = async call => {
+            Object.defineProperty(game.user, "isGM", { value: false, configurable: true });
+            try { return await call(); } finally { delete game.user.isGM; }
+        };
+        // The count's line for an empty room, its room's label whatever it is.
+        const emptyLine = new RegExp(`^${game.i18n.format("DRPG.Listen.emptyRoom", { room: "\u0000" }).replace(/[.*+?^${}()|[\]\\]/g, "\\$&").replace("\u0000", ".+")}$`);
+        const hear = async () => {
+            const place = gmPlaceOf(victim);
+            const room = place.room, scene = place.scene;
+            // The card's reader (`heardIn`, the one every tier of the card asks), or the raw room where it is not yet.
+            const heard = (typeof L.heardIn === "function" ? L.heardIn(room, victim, scene, occupantsOf) : occupantsOf(room, victim, scene)).map(a => a.id);
+            // The critical's sweep reads each room next to the listener's: asked from a room whose door (Room Setup's word,
+            // set below as E74-T9 sets it) leads to the room the two stand in.
+            const next = neighbouringRooms(scene, room)[0] ?? null;
+            const lines = async (total, isCritical, from = room) => (await R.heardLines(victim, [{ listen: { room: from, target: room, total, isCritical } }])).join(" | ");
+            return { heard: heard.includes(killer.id), named: (await lines(20, false)).includes(killer.name),
+                empty: emptyLine.test(await lines(15, false)), critical: next ? (await lines(4, true, next)).includes(killer.name) : null };
+        };
+        let back = null;
+        const read = {};
+        try {
+            ({ back } = await aloneTogether(killer, victim));
+            {
+                const place = gmPlaceOf(victim), other = allRooms(place.scene).find(r => r !== place.room);
+                must(other, "the scene has one room - the critical's sweep would measure nothing");
+                for (const [room, list] of [[place.room, [other]], [other, [place.room]]]) for (const piece of roomRegions(place.scene, room)) {
+                    flagsWere.push([piece, foundry.utils.deepClone(piece.flags?.[MODULE_ID] ?? {})]);
+                    await piece.setFlag(MODULE_ID, ROOM_FLAGS.neighbours, list.join(", "));
+                }
+            }
+            await S.veilStore.whenHydrated();
+            await M.openMurder({ killerId: killer.id, victimId: victim.id, openingTrait: "body" });
+            await K.settleVeils();
+            must(S.veilStore.has(killer.id), "the opening did not veil the killer - this would measure nothing");
+            const drawnHere = await asVictim(async () => K.veiledFromHere(killer));
+            must(drawnHere === true, "the stood-in victim's browser draws the veiled killer - this would measure nothing");
+            read.veiled = await asVictim(hear);
+            await M.endMurder({ reason: "test", followUp: false });
+            await K.settleVeils();
+            read.lifted = await asVictim(hear);
+        } finally {
+            if (M.murderState()) await M.endMurder({ reason: "test", followUp: false });
+            if (K.maskStands(killer.id)) await K.endMask(killer.id, "suite");
+            if (S.veilStore.has(killer.id)) await S.veilStore.drop(killer.id);
+            for (const [id, hidden] of before) {
+                const t = tokens().find(x => x.id === id);
+                if (t && (Boolean(t._source.hidden) !== hidden || flagOf(t).veiled !== undefined)) await t.update({ hidden, ...K.unveilPatch((await import("./utils.mjs")).forcedDeletion()) });
+            }
+            for (const [piece, flags] of flagsWere) {
+                for (const key of Object.keys(piece.flags?.[MODULE_ID] ?? {})) if (!Object.hasOwn(flags, key)) await piece.unsetFlag(MODULE_ID, key);
+                for (const [key, value] of Object.entries(flags)) await piece.setFlag(MODULE_ID, key, value);
+            }
+            if (back) await back();
+            await settle();
+        }
+        // The card's three tiers on the listener's browser ask the same reader (not driven here: `performListen` rolls).
+        const card = fnSource(stripComments((await moduleSources()).get("action-listen.mjs") ?? ""), "performListen");
+        equal(stableJson([(card.match(/heardIn\((?:room|target), actor, scene, occupantsOf\)/g) ?? []).length, /occupantsOf\((?:room|target)\b/.test(card)]), stableJson([3, false]),
+            "[the card's reads of the room through `heardIn`: the critical's sweep, the named tier, the count; a raw `occupantsOf` of a room left]");
+        equal(stableJson(read), stableJson({
+            veiled: { heard: false, named: false, empty: true, critical: false },
+            lifted: { heard: true, named: true, empty: false, critical: true }
+        }), "{while the veil stands, on the victim's browser: the card's reader holds the killer, the Reroll's named tier names them, its count reads the room empty, its critical sweep names them; the same after the incident closed}");
+    }],
     ["E119 - a Call's lines for its card name a masked student \"?\" (a Despair Call on the public card)", async () => {
         /*
          * 1.2.119 (20.11.2026), the audit's item C through the coordinator: "a GM's Despair Call on a masked student names
