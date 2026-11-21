@@ -1066,10 +1066,41 @@ function openCharacterSheets() {
     return [...out];
 }
 
+/*
+ * NOT RENDERED UNDER A PLAYER TYPING IN IT (the audit's check of 1.2.122, r122-H-6; the line claude/refresh-120 for 1.2.123).
+ * The room watch renders a sheet in full (`render(false)`, which sheet-repaint.mjs `renderPlan` does not repaint) on another
+ * student's step into or out of its room, any token made or taken away (a trace laid or erased) and any region written on its
+ * scene. A render redraws Daggerheart's fields from the document, and in Chromium a removed focused field that was typed in
+ * fires its change and blur inside the removal (read on 21.11.2026 for `replaceWith` and for `innerHTML`) - what Foundry 14's
+ * render does with them is not read here (LIVE). So a sheet with a field typed in focused - a text input, a text area, a
+ * contenteditable - is not rendered now, and is rendered once, when the focus leaves it.
+ */
+const TYPED_INPUTS = new Set(["text", "search", "email", "url", "tel", "password", "number", ""]);
+function typingIn(app) {
+    const el = app?.element instanceof HTMLElement ? app.element : app?.element?.[0] ?? null;
+    const active = document.activeElement;
+    if (!el || !active || !el.contains(active)) return false;
+    if (active.isContentEditable || active.tagName === "TEXTAREA") return true;
+    return active.tagName === "INPUT" && TYPED_INPUTS.has(String(active.getAttribute("type") ?? "").toLowerCase());
+}
+const RENDER_OWED = new WeakSet();
+function renderWhenLeft(app) {
+    if (RENDER_OWED.has(app)) return;
+    const el = app.element instanceof HTMLElement ? app.element : app.element?.[0];
+    RENDER_OWED.add(app);
+    const left = () => setTimeout(() => {
+        if (el.contains(document.activeElement)) return;
+        el.removeEventListener("focusout", left);
+        RENDER_OWED.delete(app);
+        try { if (app.rendered) app.render(false); } catch (err) { error("Could not redraw a sheet for a change in its room", err); }
+    }, 0);
+    el.addEventListener("focusout", left);
+}
+
 /**
  * Redraw the open sheets whose room parts moved: `all` for every sheet whose character stands on `scene` (a room's
  * region written), else only those whose `roomSignature` differs from the one they were drawn with. Answers the
- * number of sheets asked to render (the suite reads it).
+ * number of sheets asked to render (the suite reads it); one put off while a player types in it is not counted.
  */
 export function redrawRoomSheets({ scene = null, all = false } = {}) {
     let drawn = 0;
@@ -1078,6 +1109,7 @@ export function redrawRoomSheets({ scene = null, all = false } = {}) {
         if (all) {
             if (scene && sceneOfActor(actor)?.id !== scene.id) continue;
         } else if (ROOM_SIGNATURES.has(app) && ROOM_SIGNATURES.get(app) === roomSignature(actor)) continue;
+        if (typingIn(app)) { renderWhenLeft(app); continue; }
         try {
             app.render(false);
             drawn++;

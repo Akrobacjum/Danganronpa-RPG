@@ -87,7 +87,10 @@ export async function askWhoIsHere(actor, { title, intro, note, okLabel, listBox
         /* WHO IS HERE, AS IT STANDS (the audit's REFR-31, 1.2.122, 21.11.2026). The list was the room at the open: a
            character who walked in was not offered, and one who had left still was (the GM's check then refused it). It is
            read again whenever a token or an actor changes, the choice kept while its character is still here; with nobody
-           left, the button is shut. */
+           left, the button is shut. A PICK THAT LEFT IS NOT MOVED TO SOMEONE ELSE (the audit's check of 1.2.122, r122-H-4;
+           the line claude/refresh-120 for 1.2.123): the choice went silently to the first one still here, and OK gave the
+           item or showed the passage to someone the player did not pick. Now the list says who left, on a row that cannot be
+           picked, and OK stays shut until the player picks again. */
         render: (event, dialog) => {
             const { keepFresh } = liveKit;
             keepFresh(dialog, { watch: { tokens: true, actors: true }, run: el => {
@@ -98,10 +101,17 @@ export async function askWhoIsHere(actor, { title, intro, note, okLabel, listBox
                 const ids = now.map(a => a.id);
                 if (ids.join() === [...select.options].map(o => o.value).join()) return;
                 const was = select.value;
-                select.innerHTML = now.map(a => `<option value="${a.id}">${foundry.utils.escapeHTML(nameAsSeen(a))}</option>`).join("");
-                select.value = ids.includes(was) ? was : ids[0] ?? "";
+                const wasName = select.selectedOptions?.[0]?.textContent ?? "";
+                const left = Boolean(was) && !ids.includes(was) && ids.length > 0;
+                select.innerHTML = (left ? `<option value="" disabled>${foundry.utils.escapeHTML(game.i18n.format("DRPG.Handover.pickedLeft", { name: wasName }))}</option>` : "")
+                    + now.map(a => `<option value="${a.id}">${foundry.utils.escapeHTML(nameAsSeen(a))}</option>`).join("");
+                select.value = ids.includes(was) ? was : left ? "" : ids[0] ?? "";
                 const ok = el.querySelector('footer button[data-action="ok"]');
-                if (ok) ok.disabled = !ids.length;
+                if (ok) ok.disabled = !select.value;
+                if (!select.dataset.drpgPickWired) {
+                    select.dataset.drpgPickWired = "1";
+                    select.addEventListener("change", () => { const button = el.querySelector('footer button[data-action="ok"]'); if (button) button.disabled = !select.value; });
+                }
             } });
         },
         rejectClose: false
