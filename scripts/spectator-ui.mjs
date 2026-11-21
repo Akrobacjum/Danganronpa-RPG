@@ -58,7 +58,8 @@ export function paintSpectatorUi() {
  * plan's Q-E92-4 changed from hidden to blocked). Three parts, each on the browser that can do it:
  *   - its own browser refuses its message before it is sent (`preCreateChatMessage`), and says why - a courtesy, as
  *     every guard on the writer's own browser is (the trust model): a console takes the hook off;
- *   - every browser leaves a Spectator's message undrawn (`renderChatMessageHTML`), on the flags it holds;
+ *   - every browser leaves a Spectator's message undrawn (`renderChatMessageHTML`), on the flags it holds - one it posted as
+ *     a Spectator, not the cards its player posted as a student before (`hiddenSpectatorMessage`, 1.2.122);
  *   - the primary GM removes it (`createChatMessage`), by the bridge's own rule for the account (bridge-guards.mjs
  *     `senderNotSpectator`: the flags as the GMs hold them), so nothing of it stays in the log.
  * What the module does not control: Foundry broadcasts a created message to every browser before the primary removes it,
@@ -92,8 +93,31 @@ function refuseOwnMessage(message, data, options, userId) {
     return false;
 }
 
+/*
+ * ONLY WHAT IT POSTED AS A SPECTATOR (the audit's STG-05, 1.2.122, 21.11.2026). This removed every message whose author's
+ * account is a Spectator's now, so once a student was made a Spectator every card its player had posted as a student - the
+ * action and roll cards of whole sessions - went from the log at the next redraw, on every browser, the GMs' included.
+ * What is left undrawn is a message heard made while its author was a Spectator (`createChatMessage` on this browser:
+ * `postedAsSpectator`), or one younger than `SPECTATOR_FRESH_MS` - the moment before the primary removes it, on a page
+ * that drew it before it heard it made. An older card of an account that is a Spectator now is the student's, and stays.
+ */
+export const SPECTATOR_FRESH_MS = 60_000;
+const postedAsSpectator = new Set();
+
+/** Whether this browser leaves `message` undrawn (pure but for the set and the clock; `now` handed by the suite). */
+export function hiddenSpectatorMessage(message, { now = Date.now() } = {}) {
+    if (!spectatorAuthor(message)) return false;
+    if (postedAsSpectator.has(message.id)) return true;
+    const at = Number(message.timestamp) || 0;
+    return at > 0 && now - at < SPECTATOR_FRESH_MS;
+}
+
 function hideSpectatorMessage(message, element) {
-    if (spectatorAuthor(message) && !isSafewordCard(message)) element?.remove?.();
+    if (hiddenSpectatorMessage(message) && !isSafewordCard(message)) element?.remove?.();
+}
+
+function noteSpectatorMessage(message) {
+    if (message?.id && spectatorAuthor(message)) postedAsSpectator.add(message.id);
 }
 
 async function dropSpectatorMessage(message) {
@@ -113,6 +137,6 @@ export function registerSpectatorUi() {
     Hooks.on("updateActor", (actor, changes) => { if (changes?.flags) paintSpectatorUi(); });
     Hooks.on("preCreateChatMessage", refuseOwnMessage);
     Hooks.on("renderChatMessageHTML", hideSpectatorMessage);
-    Hooks.on("createChatMessage", message => void dropSpectatorMessage(message));
+    Hooks.on("createChatMessage", message => { noteSpectatorMessage(message); void dropSpectatorMessage(message); });
     paintSpectatorUi();
 }

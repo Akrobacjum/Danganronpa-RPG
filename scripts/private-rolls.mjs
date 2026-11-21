@@ -47,6 +47,7 @@
  */
 
 import { MODULE_ID, FLAGS, TIMING } from "./config.mjs";
+import { isStainedGlass } from "./look.mjs";
 import { SETTINGS, getSetting, isDeadForGm, incidentSeats } from "./settings.mjs";
 import { locateActor, occupantsOf } from "./movement.mjs";
 import { monokumaActors, poolOwnerOf } from "./monokuma.mjs";
@@ -399,10 +400,8 @@ function styleNow() {
             const root = getComputedStyle(document.documentElement);
             for (const token of Object.values(OUTCOME_TOKEN)) colours[token] = root.getPropertyValue(token).trim();
         } catch { /* keep an empty map: the card is still a readable card */ }
-        const square = (() => {
-            try { return getSetting(SETTINGS.theme) === "stainedGlass"; }
-            catch { return document.body.classList.contains("drpg-theme-stained-glass"); }
-        })();
+        // The one reading of the theme (look.mjs `isStainedGlass`; DOC-16, 1.2.122).
+        const square = isStainedGlass();
         styleMemo = { at: now, colours, square };
     }
     return styleMemo;

@@ -1454,7 +1454,8 @@ export async function openRoomSetupDialog({ tab = null } = {}) {
             // E21 C2a). The footer's buttons are Apply and Cancel on every tab (E12 C15).
             wireKitTabs(root, { win: root, app: dialog });
             const checkBedrooms = wireTwoRoomsCheck(root, rooms);
-            passagesTab.wirePassagesTab(root, scene, { dialog, students });
+            // The students read at every draw of the tab (passages-tab.mjs `wirePassagesTab`; REFR-59, 1.2.122).
+            passagesTab.wirePassagesTab(root, scene, { dialog, students: () => studentActors() });
 
             const recount = where => recountTokenCells(where, scene);
             // What each redraw wires again: every listener below sits on a node of the form, which the redraw replaces.

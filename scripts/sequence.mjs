@@ -706,7 +706,7 @@ export function playTrialExit(clock = getClock(), { pieces = undefined, on = seq
  * What the cut-in shows, read from the GM's card and the public record alone: the card's `verdictCut` flag (the
  * sentenced's ids and whether the class got it right, both said in the card's own words) and the vote's count
  * (`trialProgress.accused`, `total`, `majority`: public since the count's card). Nothing of the Blackened, of Findings,
- * of Zones or of any GM store (05.10; R3708 plants a Blackened to show it). Pure but for the actors' names and pictures.
+ * of Zones or of any GM store (05.10; R3706 plants a Blackened to show it). Pure but for the actors' names and pictures.
  */
 export function verdictBoard(message, progress = null) {
     const flag = message?.getFlag?.(MODULE_ID, "verdictCut") ?? null;

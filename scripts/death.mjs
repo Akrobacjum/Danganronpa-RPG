@@ -287,9 +287,14 @@ export async function killCharacter(actor, { keepBullets = false, secret = null,
             chapter: record.chapter
         })}</p>
         ${secretly
-            ? `<p>${game.i18n.localize("DRPG.Chapter.keptUntilFound")}</p>`
+            ? `<p class="drpg-gm-only">${game.i18n.localize("DRPG.Chapter.keptUntilFound")}</p>`
             : keepBullets ? "" : `<p>${plural("DRPG.Chapter.bulletsGone", { n: removed })}</p>`}
-        <p><small>${game.i18n.localize("DRPG.Chapter.vaultPending")}</small></p>`, {
+        <p class="drpg-gm-only"><small>${game.i18n.localize("DRPG.Chapter.vaultPending")}</small></p>`, {
+        /* THE GMS' NOTES STAY THEIRS (the audit's TEXT-29, 1.2.122): mid-incident this card is whispered to the incident's
+           players too (`deathAudience`), and "Only the GMs know of this death ... in the Students window" and the stash's
+           fate are the GMs' procedure, not a line to a player (docs/text-style.md section 3). Both are `.drpg-gm-only`,
+           which a player's copy of a veiled card's words never holds (secret.mjs `playerWords`): the players read the
+           title and who died. */
         whisper: deathAudience ?? gmIds(),
         // The audience of a death card mid-incident is the incident's cast.
         veiled: true,
@@ -776,7 +781,7 @@ export async function openDeathDialog({ actor = null } = {}) {
             close: "cancel",
             default: "cancel"
         },
-        render: (event, dialog) => chooseFirst(dialog, "actor"),
+        render: (event, dialog) => { chooseFirst(dialog, "actor"); keptFollowsChoice(dialog, victimId); },
         rejectClose: false
     });
 
@@ -785,6 +790,23 @@ export async function openDeathDialog({ actor = null } = {}) {
     const dying = game.actors.get(result.id);
     if (!dying) return false;
     return Boolean(await killCharacter(dying, { keepBullets: result.keepBullets, secret: Boolean(result.secret) }));
+}
+
+/**
+ * THE KEPT BOX FOLLOWS THE STUDENT CHOSEN (the audit's CASE-43, 1.2.122, 21.11.2026). The box "Keep it for the GMs until
+ * the body is found" opens ticked for the running incident's victim (the kill's own default) and stayed ticked when the GM
+ * chose somebody else, so a bystander's death - Monokuma's punishment mid-incident - was kept hidden from the table, which
+ * the GM did not mean. A choice of the select now ticks the box for the victim and unticks it for anyone else, until the
+ * GM touches the box: from then on it is theirs. A window with no select (the Students list's Kill) is left as drawn.
+ */
+export function keptFollowsChoice(dialog, victimId) {
+    const root = dialog?.element;
+    const select = root?.querySelector('select[name="actor"]');
+    const box = root?.querySelector('input[name="secret"]');
+    if (!select || !box) return;
+    let touched = false;
+    box.addEventListener("change", () => { touched = true; });
+    select.addEventListener("change", () => { if (!touched) box.checked = Boolean(victimId) && select.value === victimId; });
 }
 
 /**

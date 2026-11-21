@@ -528,7 +528,8 @@ async function applyRest(actor, kind, picks, { stamp = null, relief = false } = 
                 const max = maxOf("hope") || STARTING.hopeMax;
                 const next = Math.min(max, held.hope + gain);
                 update["system.resources.hope.value"] = next;
-                applied.push(game.i18n.format("DRPG.Rest.applied.hope", { label: opt.label, n: gain }));
+                // The Hope that landed, not the one asked for (the audit's DESP-33, 1.2.122): at 5 of 6 a full Breath says +1.
+                applied.push(game.i18n.format("DRPG.Rest.applied.hope", { label: opt.label, n: Math.max(0, next - held.hope) }));
             }
         }
 

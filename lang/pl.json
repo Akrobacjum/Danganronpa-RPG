@@ -771,6 +771,9 @@
         "otherRooms": "końce odcinka stoją między różnymi pokojami. Wybierz oba końce między tymi samymi dwoma pokojami.",
         "short": "odcinek jest za krótki. Wybierz dłuższy odcinek.",
         "door": "ta ściana to drzwi. Wybierz odcinek pełnej ściany.",
+        "roomsPicked": "ściana nie stoi już między wybranymi pokojami. Wybierz odcinek ponownie.",
+        "floorNamed": "na tej scenie nie ma już wybranego piętra. Wybierz odcinek ponownie na jednym z jej pięter.",
+        "noFloors": "ta scena nie ma już pięter. Wybierz odcinek ponownie.",
         "noMove": "ta ściana nikogo nie zatrzymuje. Wybierz odcinek pełnej ściany.",
         "sameEnds": "oba końce odcinka są w tym samym miejscu. Wybierz odcinek ponownie.",
         "offWall": "odcinek nie leży już na tej ścianie. Wybierz go ponownie.",
@@ -4242,7 +4245,8 @@
         "experience": "Experience {label} +{n}",
         "despairShield": "Następny rzut z Despair nie daje Monokumie pierwszego punktu Despair",
         "eclipseCrossing": "Przejścia w Eclipse +{n}",
-        "ultimateBoost": "Następne Ultimate: druga kość przewagi"
+        "ultimateBoost": "Następne Ultimate: druga kość przewagi",
+        "takeFailed": "{name}: nie udało się zdjąć efektu „{line}”. Zostaje i zejdzie przy następnej porze dnia."
       },
       "until": {
         "timeOfDay": "do końca pory dnia",
@@ -4321,6 +4325,10 @@
       },
       "editor": {
         "until": "Trwa",
+        "dropped": { "one": "Nie zapisano {n} wiersza: akcja musi mieć nazwę, a efekt tego rodzaju - tekst.", "few": "Nie zapisano {n} wierszy: akcja musi mieć nazwę, a efekt tego rodzaju - tekst.", "many": "Nie zapisano {n} wierszy: akcja musi mieć nazwę, a efekt tego rodzaju - tekst.", "other": "Nie zapisano {n} wiersza: akcja musi mieć nazwę, a efekt tego rodzaju - tekst." },
+        "keptOthers": "Zostały obok twoich, bo inny GM dodał je, gdy okno było otwarte: {items}.",
+        "needsName": "Najpierw nazwij akcję. Nic nie zapisano, a to, co wpisano, wróciło do okna.",
+        "savedOver": "Inny GM zmienił tę akcję, gdy okno było otwarte. Zapisano twoją w jej miejsce.",
         "trait": "Statystyka",
         "roomTitle": "Facilities: {room}",
         "saveProject": "Zapisz akcję",
@@ -5539,6 +5547,7 @@
       "installAction": "Zainstaluj / przeinstaluj",
       "renameNote": "Nazwa tabeli Tier musi zachować jej kategorię i Tier. Tabela pokoju może mieć każdą inną nazwę.",
       "renamed": "Zmieniono nazwę na „{name}”.",
+      "familyRenamed": "Razem z nią zmieniono nazwy tabel: {items}.",
       "deleteConfirm": {
         "one": "Usunąć tabelę „{name}” razem z {n} przedmiotem? Tego nie da się cofnąć.",
         "few": "Usunąć tabelę „{name}” razem z {n} przedmiotami? Tego nie da się cofnąć.",
@@ -6590,6 +6599,7 @@
       "none": "Żaden Motive nie obowiązuje.",
       "withdraw": "Wycofaj Motive",
       "withdrawNote": "Wycofanie ogłasza wszystkim, że Motive już nie obowiązuje.",
+      "changedMeanwhile": "Motive zmienił się, gdy okno było otwarte. Teraz widać ten, który obowiązuje; naciśnij Wycofaj Motive jeszcze raz, żeby go wycofać.",
       "deadline": {
         "one": "Jedna pora dnia, by coś z tym zrobić.",
         "few": "{n} pory dnia, by coś z tym zrobić.",
@@ -7476,6 +7486,8 @@
       "rearm": "Uzbrój pułapkę ponownie",
       "rearmed": "Pułapka znów czuwa.",
       "plantTitle": "Przedmiot pułapki",
+      "plantNeedsName": "Najpierw nazwij przedmiot. Pułapka nadal na niego czeka.",
+      "plantNeedsRoom": "Najpierw wybierz pokój. Pułapka nadal czeka na przedmiot.",
       "plantPrompt": "Wpisz przedmiot, który jest pułapką, i wybierz pokój, w którym czeka. Wyciągnie go pierwszy udany Search w tym pokoju. Kto go użyje, uruchomi pułapkę, a ty zdecydujesz, co dalej.",
       "plantItem": "Co to jest",
       "plantRoom": "Gdzie czeka",

@@ -93,6 +93,23 @@ export function holdSize(box, el, cs) {
     return { width: (parseFloat(cs.width) || el.offsetWidth) + sides("left", "right"), height: (parseFloat(cs.height) || el.offsetHeight) + sides("top", "bottom") };
 }
 
+/*
+ * THE FACE AT THE SIZE IT HAD ON THE SCREEN (the audit's COMM-32, 1.2.122, 21.11.2026). The floating field stands in the top
+ * layer at its box on the screen - under the case map's zoom, the layout size times the zoom - and took its face from the
+ * computed style, whose font size, line height, padding and borders are the layout's, unzoomed: at zoom 0.5 the text was
+ * drawn at twice the size it showed, in a box half as wide, and wrapped twice as often. Each length of the face in px is
+ * multiplied by `scale`, the screen box's width over the layout's (`holdSize`); 1, or near it, leaves the face as read.
+ * Pure.
+ */
+const SCALED = new Set(["font-size", "line-height", "letter-spacing", "word-spacing", "text-indent", "padding-top", "padding-right", "padding-bottom",
+    "padding-left", "border-top-width", "border-right-width", "border-bottom-width", "border-left-width", "border-top-left-radius",
+    "border-top-right-radius", "border-bottom-right-radius", "border-bottom-left-radius", "box-shadow", "outline-width", "outline-offset"]);
+export function scaledFace(face, scale) {
+    if (!Number.isFinite(scale) || scale <= 0 || Math.abs(scale - 1) < 0.01) return face;
+    const round = n => Math.round(n * 1000) / 1000;
+    return face.map(([k, v]) => [k, SCALED.has(k) ? String(v).replace(/(-?\d*\.?\d+)px/g, (m, n) => `${round(Number(n) * scale)}px`) : v]);
+}
+
 /** The height a floating field takes, in px, from its own height, the height its text needs and the screen's. */
 export function floatHeight({ own, needed, screen }) {
     const cap = Math.max(own, Math.floor(screen * CAP_SHARE));
@@ -167,7 +184,7 @@ function lift(el) {
        times the zoom, and a placeholder given it was scaled once more - at zoom 0.5 half the field's width and height on
        the screen, at 2 twice - its node's other fields moved, and the floating field, placed on the placeholder, was 55 px
        wide over a field of 110; audit/float-sweep.mjs I7). The floating field itself stands in the top layer, which no
-       transform reaches, so it keeps the screen box. */
+       transform reaches, so it keeps the screen box, and its face is scaled to it (`scaledFace`, 1.2.122). */
     const hold = document.createElement("div");
     hold.className = HOLD_CLASS;
     hold.setAttribute("aria-hidden", "true");
@@ -177,7 +194,8 @@ function lift(el) {
     /* Each written `important`: the module's sheets state a field's face with `!important` in places (Legacy's textarea
        ground, read 13.11.2026 on Room setup's description: its inline ground lost to it and the rows behind showed
        through), and an inline declaration marked important is the one thing that wins over a sheet's. */
-    for (const [k, v] of face) put(el, k, v);
+    // Scaled by the zoom the screen box carries (`scaledFace`; COMM-32, 1.2.122): the face it showed, not the layout's.
+    for (const [k, v] of scaledFace(face, layout.width > 0 ? box.width / layout.width : 1)) put(el, k, v);
     if (bg && bg.a >= 1) put(el, "background", fieldColor);
     else {
         put(el, "background-color", ground);

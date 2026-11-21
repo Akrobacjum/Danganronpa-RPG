@@ -3256,14 +3256,14 @@ export function registerSettings() {
         config: false,
         type: Object,
         default: {},
-        onChange: () => onStoreChange("visibility")
+        onChange: onEclipseMovesChange
     });
     game.settings.register(MODULE_ID, SETTINGS.mineEclipseMoves, {
         scope: "client",
         config: false,
         type: Object,
         default: {},
-        onChange: () => onStoreChange("visibility")
+        onChange: onEclipseMovesChange
     });
     // A Confusion's armed Calls (E06 fix r2-G4): the GMs' store and each owner's copy. The
     // sheet's badges list what is armed, and a flag write used to redraw them by itself.
@@ -3510,6 +3510,13 @@ function onDespairPoolsChange(options) {
  */
 function onStoreChange(kind) {
     import("./sync.mjs").then(m => m.applyKind(m.SYNC[kind])).catch(() => {});
+}
+
+/* The Eclipse's crossings changed on this browser's store or copy: the sheets, the HUD and the map, and the hook the
+   status strip listens on (player-status.mjs; the audit's REFR-23, 1.2.122) - a client setting fires no updateSetting. */
+function onEclipseMovesChange() {
+    onStoreChange("visibility");
+    Hooks.callAll("drpgEclipseMovesChanged");
 }
 
 /* A Confusion armed or spent on this browser's store or copy: the sheets, whose badges list it. */

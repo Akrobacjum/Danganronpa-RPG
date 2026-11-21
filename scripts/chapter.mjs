@@ -42,6 +42,7 @@ import { remnantsOn, remnantData } from "./remnants.mjs";
 import { whisperToGms, log, error, plural, esc, isPrimaryGm, primaryGmId, serverNow, listOf } from "./utils.mjs";
 // The kit's frame (E21 C3a): every window of the case's chapter is a `drpgWindow` or a `drpgConfirm`, answering as before.
 import { drpgWindow, box, tipAttr, tipText } from "./ui-kit.mjs";
+import { keepFresh } from "./live.mjs";
 import { columnsHtml } from "./ui-columns.mjs";
 // A leaf (utils.mjs alone): the one runner of the procedures that cannot be taken back, and its report (E42 C2).
 import { runSteps, stepsReport } from "./steps.mjs";
@@ -377,6 +378,37 @@ export function chapterEndForm({ chapter, session, day, hidden = 0, typeless = 0
 }
 
 /**
+ * Write a freshly built form (`html`, `chapterEndForm`'s) into the open window `el` in place (the audit's REFR-40,
+ * 1.2.122): each of the five boxes with its words and whether it is shut - a box the GM could tick keeps their tick, one
+ * that opens takes the form's default - and the warnings and the backup line, each replaced where it differs. Nothing
+ * else of the window moves.
+ */
+export function refreshChapterEnd(el, html) {
+    const form = el?.querySelector?.("form");
+    if (!form) return;
+    const fresh = document.createElement("template");
+    fresh.innerHTML = String(html ?? "");
+    const next = fresh.content.querySelector("form");
+    if (!next) return;
+    for (const name of ["reveal", "sweep", "faint", "keys", "endTrial"]) {
+        const was = form.querySelector(`input[name="${name}"]`)?.closest("label");
+        const now = next.querySelector(`input[name="${name}"]`)?.closest("label");
+        if (!was || !now || was.outerHTML === now.outerHTML) continue;
+        const old = was.querySelector("input"), add = now.querySelector("input");
+        if (old && add && !old.disabled && !add.disabled) add.checked = old.checked;
+        was.replaceWith(now);
+    }
+    // A column's piece that holds a marked line: the warning boxes and the backup's paragraph.
+    const piece = node => { let at = node; while (at?.parentElement && !at.parentElement.classList.contains("drpg-wide-col")) at = at.parentElement; return at; };
+    for (const mark of ["[data-drpg-typeless]", "[data-drpg-final-truth]", "[data-drpg-backup]"]) {
+        const was = form.querySelector(mark), now = next.querySelector(mark);
+        if (!was || !now) continue;
+        const a = piece(was), b = piece(now);
+        if (a && b && a.outerHTML !== b.outerHTML) a.replaceWith(b);
+    }
+}
+
+/**
  * The GM's end-of-chapter panel.
  *
  * One screen with counts, because two of these three cannot be undone and a GM
@@ -427,60 +459,73 @@ export async function openChapterEndDialog() {
     // tool had worked. And the difference is worth saying out loud rather than
     // swallowing: a bullet nobody assigned a type to is a loose end, not a
     // rounding error (`typeless`).
-    const { reveal: revealable, typeless, typelessHolders } = revealPlan();
-    const hidden = revealable.length;
+    /* COUNTED AGAIN WHILE THE WINDOW STANDS (the audit's REFR-40, 1.2.122, 21.11.2026): the window was drawn once, so a
+       Key Remnant placed, a Faint trace or a bullet made while it stood left its box shut at 0, and its own Back up the
+       case left "last backup: never" on screen. `countAll` is the window's whole reading of the world; the render's
+       `keepFresh` reads it again on every change and writes the boxes, the warnings and the backup line in place, the
+       GM's ticks kept (`refreshChapterEnd`). */
+    const countAll = async () => {
+        const { reveal: revealable, typeless, typelessHolders } = revealPlan();
+        const hidden = revealable.length;
 
-    const { finalTruthPlacedThisChapter, mastermindActor } = await import("./mastermind.mjs");
-    const finalTruthPlaced = finalTruthPlacedThisChapter();
-    const mastermind = Boolean(mastermindActor());
+        const { finalTruthPlacedThisChapter, mastermindActor } = await import("./mastermind.mjs");
+        const finalTruthPlaced = finalTruthPlacedThisChapter();
+        const mastermind = Boolean(mastermindActor());
 
-    /* WHAT THE THREE CLEAN-UPS WOULD TAKE, COUNTED BEFORE THEY ARE OFFERED.
-       Each count applies the same rule its action does, for the reason the reveal count
-       above already gives: a checkbox that promises work the action will not do is worse
-       than no checkbox. `sweepTruthBullets` keeps Faint and Final; `clearFaintRemnants`
-       keeps anything reinforced or tied to the crime; the Key sweep takes this chapter's
-       own planted clues and nothing older. The sweep's count is the sweep's own answer
-       (`sweepPlan`, E09 C1), not the same rule over the documents: the documents and the
-       bullets the GMs hold part where a player's write waits for its put-back - a category
-       taken off, a Faint flag written - and an item a player's write made that no GM has
-       decided on, which the sweep leaves for a GM (sheet-audit.mjs `ITEM_UNHELD`). */
-    const endingChapter = getClock().chapter;
-    const sweepable = (await sweepPlan()).remove.length;
-    /* AND WHETHER THE TRIAL IS STILL SITTING. The clock is the authority, not the
-       floor: a trial in session with nobody holding the floor has no floor record at
-       all, and it is still a trial - see the note on the HUD's four states. */
-    const trialSitting = getClock().phase === "classTrial";
-    // The season's last chapter (CORE-10): moving on to a seventh is never what
-    // the GM means; the reset lives under Between sessions.
-    const lastChapter = (Number(getClock().chapter) || 1) >= CHAPTERS_PER_SEASON;
+        /* WHAT THE THREE CLEAN-UPS WOULD TAKE, COUNTED BEFORE THEY ARE OFFERED.
+           Each count applies the same rule its action does, for the reason the reveal count
+           above already gives: a checkbox that promises work the action will not do is worse
+           than no checkbox. `sweepTruthBullets` keeps Faint and Final; `clearFaintRemnants`
+           keeps anything reinforced or tied to the crime; the Key sweep takes this chapter's
+           own planted clues and nothing older. The sweep's count is the sweep's own answer
+           (`sweepPlan`, E09 C1), not the same rule over the documents: the documents and the
+           bullets the GMs hold part where a player's write waits for its put-back - a category
+           taken off, a Faint flag written - and an item a player's write made that no GM has
+           decided on, which the sweep leaves for a GM (sheet-audit.mjs `ITEM_UNHELD`). */
+        const endingChapter = getClock().chapter;
+        const sweepable = (await sweepPlan()).remove.length;
+        /* AND WHETHER THE TRIAL IS STILL SITTING. The clock is the authority, not the
+           floor: a trial in session with nobody holding the floor has no floor record at
+           all, and it is still a trial - see the note on the HUD's four states. */
+        const trialSitting = getClock().phase === "classTrial";
+        // The season's last chapter (CORE-10): moving on to a seventh is never what
+        // the GM means; the reset lives under Between sessions.
+        const lastChapter = (Number(getClock().chapter) || 1) >= CHAPTERS_PER_SEASON;
 
-    let faintable = 0, keyable = 0;
-    for (const scene of game.scenes) {
-        for (const token of remnantsOn(scene)) {
-            const info = remnantData(token);
-            if (!info) continue;
-            if (info.faint && !info.reinforced && !info.tiedToCrime) faintable++;
-            if (info.type === "key" && info.chapter === endingChapter && sameSeason(info)) keyable++;
+        let faintable = 0, keyable = 0;
+        for (const scene of game.scenes) {
+            for (const token of remnantsOn(scene)) {
+                const info = remnantData(token);
+                if (!info) continue;
+                if (info.faint && !info.reinforced && !info.tiedToCrime) faintable++;
+                if (info.type === "key" && info.chapter === endingChapter && sameSeason(info)) keyable++;
+            }
         }
-    }
+        return { chapter: getClock().chapter, session: getClock().session, day: getClock().day ?? 1,
+            hidden, typeless, holders: typelessHolders, sweepable, faintable, keyable, trialSitting, lastChapter,
+            finalTruthPlaced, mastermind };
+    };
+    const counted = await countAll();
 
     const result = await drpgWindow({
         title: game.i18n.localize("DRPG.Chapter.endTitle"),
         classes: ["drpg-panel", "drpg-window-chapter-end"],
         // Two columns (`chapterEndForm`, E64-inv): a stated width, held under the screen by the kit (`kitWidth`).
         width: CHAPTER_END_WIDTH,
-        body: chapterEndForm({
-            chapter: getClock().chapter, session: getClock().session, day: getClock().day ?? 1,
-            hidden, typeless, holders: typelessHolders, sweepable, faintable, keyable, trialSitting, lastChapter,
-            finalTruthPlaced, backup: backupReminder(), mastermind
-        }),
+        body: chapterEndForm({ ...counted, backup: backupReminder() }),
         // The case's backup, from the window a chapter closes in (E04): the answer
         // keys it is about to reveal and sweep live in GM browsers, not the world.
+        // Heard on the window, so the button redrawn by `refreshChapterEnd` still answers.
         render: (event, dialog) => {
-            dialog.element?.querySelector("[data-drpg-backup]")?.addEventListener("click", ev => {
+            dialog.element?.addEventListener("click", ev => {
+                if (!ev.target?.closest?.("[data-drpg-backup]")) return;
                 ev.preventDefault();
                 import("./gm-stores.mjs").then(m => m.backupCase({ ask: true }))
                     .catch(err => error("Could not back up the case", err));
+            });
+            keepFresh(dialog, {
+                run: async el => refreshChapterEnd(el, chapterEndForm({ ...(await countAll()), backup: backupReminder() })),
+                watch: { settings: [SETTINGS.caseMark, SETTINGS.clock], tokens: true, items: true, actors: true }
             });
         },
         // The chapter's end is named by its effect (E22-05; S13-04: it said "Do it") and cannot be undone: destructive,

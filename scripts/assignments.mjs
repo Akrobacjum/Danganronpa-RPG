@@ -13,7 +13,7 @@
  */
 
 import { MODULE_ID } from "./config.mjs";
-import { SETTINGS } from "./settings.mjs";
+import { SETTINGS, isDeadForGm } from "./settings.mjs";
 import { monokumas } from "./despair.mjs";
 import { studentActors } from "./monokuma.mjs";
 import { log, warn, plural } from "./utils.mjs";
@@ -122,8 +122,41 @@ export async function setAssignments(map) {
 }
 
 /**
- * Split the students evenly between Monokumas, in name order. With two GMs and
- * eight students that is four each; a remainder goes to the earlier GM.
+ * The deal of Split evenly, pure (`autoAssign`; the audit's CASE-44, 1.2.122, 21.11.2026): `{ map, dealt }`, the pool of
+ * each of `all` - in their order - among `gms`, and how many living students were dealt. A student set to NO_MONOKUMA keeps
+ * that. THE LIVING ARE DEALT, THE DEAD KEEP THEIR POOL: the deal ran over every student, the dead included, while the
+ * season checklist's row weighs the living alone (season-setup.mjs `despairSplitCounts`: the dead do not roll) - so a
+ * split made after deaths could leave one pool two living students heavier and the checklist call it uneven right after
+ * "split evenly". The living are dealt first; a dead student (`dead`, isDeadForGm) keeps a pool of `gms` they had, and
+ * one with none is dealt after the living. R8501.
+ */
+export function dealPools(all, gms, existing = {}, { dead = isDeadForGm } = {}) {
+    const map = {};
+    if (!gms?.length) return { map, dealt: 0 };
+    const living = all.filter(actor => !dead(actor)), gone = all.filter(actor => dead(actor));
+    const pools = new Set(gms.map(user => user.id));
+    let index = 0;
+    for (const actor of living) {
+        if (existing[actor.id] === NO_MONOKUMA) {
+            map[actor.id] = NO_MONOKUMA;
+            continue;
+        }
+        map[actor.id] = gms[index % gms.length].id;
+        index++;
+    }
+    let after = index;
+    for (const actor of gone) {
+        if (existing[actor.id] === NO_MONOKUMA || pools.has(existing[actor.id])) { map[actor.id] = existing[actor.id]; continue; }
+        map[actor.id] = gms[after % gms.length].id;
+        after++;
+    }
+    return { map, dealt: index };
+}
+
+/**
+ * Split the living students evenly between Monokumas, in name order. With two GMs and
+ * eight students that is four each; a remainder goes to the earlier GM. The dead keep
+ * the pool they had (`dealPools`, above).
  *
  * Students explicitly set to NO_MONOKUMA keep that choice - an even split
  * should not quietly drag an NPC-run character or a template into a pool.
@@ -137,18 +170,7 @@ export async function autoAssign() {
         return null;
     }
 
-    const existing = assignments();
-    const map = {};
-    let index = 0;
-
-    for (const actor of students()) {
-        if (existing[actor.id] === NO_MONOKUMA) {
-            map[actor.id] = NO_MONOKUMA;
-            continue;
-        }
-        map[actor.id] = gms[index % gms.length].id;
-        index++;
-    }
+    const { map, dealt: index } = dealPools(students(), gms, assignments());
 
     await setAssignments(map);
     log(`Split ${index} student(s) between ${gms.length} Monokuma(s).`);

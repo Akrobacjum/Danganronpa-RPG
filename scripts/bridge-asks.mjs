@@ -1216,7 +1216,8 @@ export function requestFriskUnseen({
         local: () => import("./frisk.mjs").then(m => m.friskPerson({ searcherId, targetId, total, isCritical, unseenTotal, unseenCritical, rollId },
             { asker: game.user })).then(out => {
             if (out?.refused) sayNotDone(ACTION_FRISK_UNSEEN, reasonOf(out.refused));
-            return out?.refused ? null : out?.outcome ?? null;
+            // The refusal kept in the answer, as a Steal's (above), for the Frisk to give its action back (1.2.122, CASE-34).
+            return out?.refused ? { refused: out.refused } : out?.outcome ?? null;
         })
     });
 }

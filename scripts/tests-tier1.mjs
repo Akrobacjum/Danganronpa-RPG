@@ -19544,7 +19544,8 @@ const INVARIANTS = [
             "that wall is not on that floor.", "the stretch does not stand between two rooms.", "a room beside the stretch is on another floor.",
             `the stretch is shorter than ${P.PICK_SHORTEST} px.`, "the stretch's two ends stand between different rooms.",
             "the stretch overlaps another passage on that wall.", "the stretch overlaps another passage on that wall.",
-            "the stretch stands between R561 Hall and R561 Kitchen, not the rooms named.", ["R561 Hall", "R561 Upstairs"], ["R561 Hall", "R561 Kitchen"]]),
+            // A literal of whyTable's since 1.2.122 (MAP-23): the rooms it named go to the GM's debug log, not the reason.
+            "the stretch stands between other rooms than the ones picked.", ["R561 Hall", "R561 Upstairs"], ["R561 Hall", "R561 Kitchen"]]),
         "[the console's road on a door, on a wall that stops nobody, with no floor, with a floor the scene has not, on another floor's wall, on a wall inside one room, beside another floor's room, 5 px long, from one pair of rooms to another, from inside a taken stretch, over one, with rooms of its own; the rooms it writes on the second floor and for the right rooms named] - it must refuse what the pick refuses");
         const createOn = (wallId, x1, x2, y = 800) => P.createPassage({ sceneId: con.id, wallId, seg: { x1, y1: y, x2, y2: y }, level: "R561L1" }, { stores, scene: con });
         const conFirst = await createOn("W1", 1234.5, 1334.5);
@@ -19573,7 +19574,8 @@ const INVARIANTS = [
         // E41 C6 (1.2.97): Room Setup moved out of vault.mjs into room-setup.mjs.
         const vault = await fetch(`/modules/${MODULE_ID}/scripts/room-setup.mjs`).then(lfText).then(stripComments);
         const opener = fnSource(vault, "openRoomSetupDialog");
-        ok(/passagesTab\.passagesTabHtml\(scene, \{ students \}\)/.test(opener) && /passagesTab\.wirePassagesTab\(root, scene, \{ dialog, students \}\)/.test(opener),
+        // Since 1.2.122 (REFR-59) the tab is wired with the students read at each draw (`studentActors`), drawn first from the list.
+        ok(/passagesTab\.passagesTabHtml\(scene, \{ students \}\)/.test(opener) && /passagesTab\.wirePassagesTab\(root, scene, \{ dialog, students: \(\) => studentActors\(\) \}\)/.test(opener),
             "Room Setup does not draw and wire the Passages tab for the scene it was opened on");
     }],
     ["R562 - showing a secret passage: the 'Known passages' list names each passage the character knows by its rooms as the viewer may name them and says where the way is shut; a show is judged on the primary GM - the phase, the giver alive, in no incident and no Monocub, a secret passage it knows (a closed, unknown or made-up one refused alike), the one shown it a student beside it on its scene and floor, alive (a death nobody has found is not named) - writes 'shown', a log row and the stamp, and tells each owner of the one shown it, on a card of their own, the two rooms as that owner may know them with the sound - every room only to the owner the door names for the Mastermind -, the asker with no room, and the GMs on a card of their own; a show to one who knows it already writes and tells nothing but the asker's same card; only the owner the door names shows as the Mastermind; the packet carries three ids and with no GM nothing is sent", async () => {
@@ -42440,7 +42442,9 @@ const INVARIANTS = [
             // window; tier 1 runs on one). Its own window went with the owner's 13:15 (12.11.2026); the console mounts the
             // schema after its render, so its region is waited for (`settled`)
             "case-trial.mjs": { cls: "drpg-window-trial", open: () => import("./trial-floor-ui.mjs").then(m => m.manageClassTrial()),
-                settled: app => app.element?.querySelector("[data-drpg-trial-schema] > .drpg-case-trial-live") }
+                settled: app => app.element?.querySelector("[data-drpg-trial-schema] > .drpg-case-trial-live") },
+            // 1.2.122 (REFR-22): the rules manager's motive section, a read-out of the motive's setting and the clock.
+            "rules.mjs": { cls: "drpg-window-rules", open: () => import("./rules.mjs").then(m => m.openRulesManager()) }
         };
         /* NOT OPENED HERE, and why: each stands only while the world holds what it is about, which is a world write tier 1
            may not make. The readiness round's GM window (boundary.mjs `roundWindow`) while a round is open; its build reads
@@ -51505,7 +51509,8 @@ const INVARIANTS = [
             const pane = document.createElement("div");
             pane.innerHTML = T.poolPaneHtml("rooms", [room], room);
             const body = pane.querySelector("[data-drpg-table-body]");
-            T.wireRoomFilter?.(body);
+            // From the editor itself since 1.2.122 (CORE-48): the tables.mjs facade re-exports its four names of 1.2.97 alone.
+            (await import("./tables-editor.mjs")).wireRoomFilter(body);
             const picker = body?.querySelectorAll("select[data-drpg-room-filter]") ?? [];
             const box = body?.querySelector("[data-drpg-room-groups]");
             const counted = kind => box?.querySelector(`:scope > .drpg-room-group[data-kind="${kind}"] > h5 .notes`)?.textContent.trim() ?? "0";
@@ -57813,6 +57818,193 @@ const INVARIANTS = [
         }
         equal(stableJson(read), stableJson({ oneFirst: "trialExit", oneStill: "trialExit", oneThen: "dayEnd", twoStill: "trialExit", twoThen: "dayEnd", alone: "dayStart" }),
             "[one run: what plays first, still after 400 ms, then; two runs: what plays 400 ms after the morning was heard, then once the exit was skipped; a new day with no exit]");
+    }],
+    ["R8500 - a page whose clock an incident hides plays no day's board for a move of the clock (scripts/transitions.mjs `onClockHeard`, incident-store.mjs `clockHiddenHere`; the audit's STG-06, 1.2.122 line WORLD): Evening to Night with the end board's stamp starts the end-of-day board on a page that sees the clock, and nothing on one where it is hidden, which `onClockHeard` asks of `clockHiddenHere` when no answer is handed in", async () => {
+        /* 21.11.2026, 1.2.122 line WORLD. The audit's STG-06 (stages-20 E94-1): a bystander's HUD was frozen and their
+           browser still played 'End of day N' with its chime. Heard twice, as R4424 hears its runs: once on a page that
+           sees the clock (`hidden: false`), once on one where it is hidden (`hidden: true`, the answer `clockHiddenHere`
+           gives a bystander's browser while an incident runs; this GM's own answer is false). The default is read in the
+           source. Red at 21bf5d18: the hidden page played "dayEnd". */
+        const S = await import("./sequence.mjs"), T = await import("./transitions.mjs");
+        const body = document.body, hadGlass = body.classList.contains("drpg-theme-stained-glass"), wasReduced = body.classList.contains("drpg-reduced-motion"), phase = body.dataset.drpgPhase;
+        const day = 800 + (Date.now() % 100), tag = `R8500:${Date.now()}`, read = {};
+        const c = (d, timeOfDay, extra = {}) => ({ season: tag, session: d, day: d, timeOfDay, phase: "dailyLife", eclipse: false, chapter: 2, ...extra });
+        const kind = () => S.sequenceNow()?.kind ?? null;
+        try {
+            body.classList.remove("drpg-theme-stained-glass");
+            body.classList.add("drpg-reduced-motion");
+            S.endSequence("cut");
+            // A day each: the end board plays once a key ("one start per key", transitions.mjs `boardsOf`), so a second hearing of one day would read nothing.
+            for (const [label, hidden, d] of [["seen", false, day], ["hidden", true, day + 1]]) {
+                T.onClockHeard(c(d, "evening"), { on: false, still: true, hidden: false });
+                T.onClockHeard(c(d, "night", { nightBoard: d, dayBoard: null }), { on: true, still: true, keep: false, hidden });
+                await until(() => kind() !== null, label === "seen" ? 3000 : 1200);
+                read[label] = kind();
+                S.endSequence("cut");
+            }
+        } finally {
+            S.endSequence("cut");
+            body.classList.toggle("drpg-theme-stained-glass", hadGlass);
+            body.classList.toggle("drpg-reduced-motion", wasReduced);
+            if (phase === undefined) delete body.dataset.drpgPhase; else body.dataset.drpgPhase = phase;
+        }
+        const head = fnSource(stripComments(new Map(await otherSources()).get("transitions.mjs") ?? ""), "onClockHeard").split("{").slice(0, 3).join("{");
+        read.asks = /hidden\s*=\s*clockHiddenHere\(\)/.test(head);
+        equal(stableJson(read), stableJson({ seen: "dayEnd", hidden: null, asks: true }),
+            "{seen, hidden: what plays after Evening to Night on a page that sees the clock and on one where it is hidden; asks: onClockHeard's default reads clockHiddenHere} - a bystander is not shown the move the incident hides");
+    }],
+    ["R8501 - Split evenly deals the living and leaves the dead their pool (scripts/assignments.mjs `dealPools`, `autoAssign`; the audit's CASE-44, 1.2.122 line WORLD): nine students, three dead (two of them in the first pool's seats), one set to no Monokuma, two pools: the five living are dealt three and two, in their order, a dead student keeps the pool they had, a dead one with none is dealt after the living, and one set to no Monokuma keeps that; `autoAssign` deals through it", async () => {
+        /* 21.11.2026, 1.2.122 line WORLD. The audit's CASE-44 (domain-case-g-death-chapter-3): the deal ran over every student,
+           the dead in it, while the checklist weighs the living alone (season-setup.mjs `despairSplitCounts`). Stand-ins: the
+           students are { id } objects, death a set handed in as `dead`. Red at 21bf5d18: there was no deal to read - autoAssign
+           dealt every student in turn, so with the dead in alternate seats one pool held two living students more. */
+        const A = await import("./assignments.mjs");
+        must(typeof A.dealPools === "function", "assignments.mjs has no dealPools: autoAssign deals every student, the dead too");
+        const ids = ["s1", "s2", "s3", "s4", "s5", "s6", "s7", "s8", "s9"];
+        const all = ids.map(id => ({ id }));
+        const gms = [{ id: "gmA" }, { id: "gmB" }];
+        const gone = new Set(["s1", "s3", "s9"]);
+        const { map, dealt } = A.dealPools(all, gms, { s1: "gmA", s3: "gmA", s8: A.NO_MONOKUMA }, { dead: a => gone.has(a.id) });
+        const living = ids.filter(id => !gone.has(id) && map[id] !== A.NO_MONOKUMA);
+        const per = Object.fromEntries(gms.map(g => [g.id, living.filter(id => map[id] === g.id).length]));
+        const src = fnSource(stripComments(new Map(await otherSources()).get("assignments.mjs") ?? ""), "autoAssign");
+        equal(stableJson({ map, dealt, per, through: /dealPools\(/.test(src) }),
+            stableJson({ map: { s2: "gmA", s4: "gmB", s5: "gmA", s6: "gmB", s7: "gmA", s8: A.NO_MONOKUMA, s1: "gmA", s3: "gmA", s9: "gmB" },
+                dealt: 5, per: { gmA: 3, gmB: 2 }, through: true }),
+            "{map: each student's pool; dealt: the living dealt; per: the living in each pool; through: autoAssign deals by dealPools} - the split weighs the living, as the checklist does");
+    }],
+    ["R8502 - a character marked Not in the class is no student to the curtain's bare rest nor to Echoes (scripts/death-fade.mjs `restsBare`, echoes-gm.mjs `echoCounts`; the audit's CASE-69 and ITEM-34, 1.2.122 line WORLD): a player whose one student is dead and who also owns an NPC Not in the class rests bare; an NPC Not in the class another player owns counts for no one's Echoes, while that player's student does", async () => {
+        /* 21.11.2026, 1.2.122 line WORLD. Stand-ins as R4558's. Red at 21bf5d18: the NPC kept the curtain lit and counted for Echoes. */
+        const D = await import("./death-fade.mjs"), E = await import("./echoes-gm.mjs");
+        const user = (id, isGM = false) => ({ id, isGM });
+        const actor = (owner, flags = {}) => ({ id: `R8502${Math.random()}`, type: "character",
+            getFlag: (scope, key) => (scope === MODULE_ID ? flags[key] : undefined), testUserPermission: (u, level) => level === "OWNER" && u?.id === owner });
+        const dead = { [FLAGS.deceased]: { chapter: 1 } }, npc = { [FLAGS.notInClass]: true };
+        const read = {
+            bare: D.restsBare(user("a"), [actor("a", dead), actor("a", npc)]),
+            npcOnly: D.restsBare(user("a"), [actor("a", npc)]),
+            echoNpc: E.echoCounts(actor("b", npc), ["a"], { owners: ["b"] }),
+            echoStudent: E.echoCounts(actor("b"), ["a"], { owners: ["b"] })
+        };
+        equal(stableJson(read), stableJson({ bare: true, npcOnly: false, echoNpc: false, echoStudent: true }),
+            "{bare: a dead student and an NPC Not in the class; npcOnly: the NPC alone (no student); echoNpc, echoStudent: whether another player's NPC and student count for Echoes} - Not in the class is no student");
+    }],
+    ["R8503 - a room's own table that answers a Search with another category marks the find a substitute, and one that answers what was asked does not (scripts/tables-pools.mjs `drawItem`, `markedSubstitute`; the audit's CORE-47, 1.2.122 line WORLD): a flat 'Kitchen' table holding only a screwdriver, asked for Healing, hands over the screwdriver as a tool and a substitute; asked for a tool, as a tool and no substitute", async () => {
+        /* 21.11.2026, 1.2.122 line WORLD. On R1234's shims (a stand-in collection and scene; nothing written): the room's flat
+           table by name is the draw's first step, which never set `substitute`, so the card's "the room had nothing of what
+           you asked for" was missing. "Screwdriver" is filed by the built-in pools as a tool (R1234's spare road). Red at
+           21bf5d18: substitute null on the Healing ask. */
+        const T = await import("./tables.mjs");
+        const result = name => ({ name, img: null, description: null, getFlag: () => undefined });
+        const table = (name, results) => ({ id: `zR8503${name.length}`, name, getFlag: () => undefined, draw: async () => ({ results }) });
+        const kitchen = table("R8503 Kitchen", [result("Screwdriver")]);
+        const shelf = { contents: [kitchen], getName: name => (name === kitchen.name ? kitchen : null), [Symbol.iterator]: () => [kitchen][Symbol.iterator]() };
+        const scene = { id: "zR8503scene", regions: [{ id: "zR8503region", name: "R8503 Kitchen room", behaviors: [],
+            getFlag: (module, key) => module !== MODULE_ID ? undefined : key === "room" ? true : key === "drpgItemTable" ? "R8503 Kitchen" : undefined }] };
+        const pick = a => a && [a.name, a.category, a.substitute ?? null];
+        const ask = (category, goal) => T.drawItem(category, 1, { goal, room: "R8503 Kitchen room", scene, tables: shelf, rng: () => 0.5 });
+        const read = { healing: pick(await ask("usable", "healing")), tool: pick(await ask("tool", null)) };
+        equal(stableJson(read), stableJson({ healing: ["Screwdriver", "tool", true], tool: ["Screwdriver", "tool", null] }),
+            "{healing, tool: [the find, its category, substitute] asked for Healing and for a tool from a flat room table holding a screwdriver} - another category is said as a substitute");
+    }],
+    ["R8504 - the Passages tab reads its students at every draw and redraws when an actor is made, renamed or given away (scripts/passages-tab.mjs `wirePassagesTab`; room-setup.mjs hands it `studentActors`; the audit's REFR-59, 1.2.122 line WORLD): on a window's element, a passage of the suite's own stores, the grant menu offers the two students listed; a third added to the list and a rename heard (`updateActor` with a name) offer the third and show the new name, and the tab hears an actor made or deleted and a user changed", async () => {
+        /* 21.11.2026, 1.2.122 line WORLD. The audit's REFR-59 (controls-11-map-rooms-7): `students` was Room Setup's list of
+           the open and the tab heard only the passages' stores. The stores, scene and rooms are R561's (an engine of the
+           suite's own, nothing of the world written); the students are stand-ins read through a function, as Room Setup
+           hands `studentActors` now. Red at 21bf5d18: the tab took the list as it was handed and drew nothing new. */
+        const { TIMING } = await import("./config.mjs");
+        const G = await import("./gm-store.mjs");
+        const S = await import("./gm-stores.mjs");
+        const T = await import("./passages-tab.mjs");
+        let now = 9_500_000;
+        const eng = G.createGmStoreEngine({
+            selfId: () => "R8504GM", isGM: () => true, isPrimary: () => true, worldId: () => "R8504WORLD",
+            activeGmIds: () => [], primaryGmId: () => "R8504GM", senderIsGM: () => true, userName: u => u, send: () => {},
+            storage: { read: () => null, write: async () => {} }, readLegacy: () => undefined, now: () => now++,
+            timers: { set: fn => { Promise.resolve().then(fn); return 1; }, clear: () => {} },
+            clock: () => ({}), log: { warn: () => {}, error: () => {}, debug: () => {} }, notify: () => {}
+        });
+        const def = (h, name) => eng.define({ ...h.spec, name: `r8504${name}`, key: `r8504${name}`, afterRestore: undefined, exists: undefined });
+        const stores = { map: def(S.passageMapStore, "Map"), access: def(S.passageAccessStore, "Access"), log: def(S.passageLogStore, "Log"),
+            mastermind: eng.define({ name: "r8504mm", key: "r8504mm", kind: "record", fields: ["actorId"], sync: false, backup: false }) };
+        const box = (id, name, x, y, width, height) => ({ id, name, behaviors: [], getFlag: () => true, shapes: [{ x, y, width, height }] });
+        const scene = { id: "R8504SCENE", grid: { size: 100 }, levels: [],
+            regions: [box("R8504RH", "R8504 Hall", 1200, 200, 800, 200), box("R8504RK", "R8504 Kitchen", 1200, 400, 800, 400)] };
+        const P1 = `${scene.id}.r8504p1`;
+        await stores.map.patchMany({ [P1]: { sceneId: scene.id, level: null, shape: "wall", passageWallId: "R8504WALL", passageSeg: { x1: 1234, y1: 400, x2: 1300, y2: 400 },
+            rooms: ["R8504 Kitchen", "R8504 Hall"], state: "secret", startAccess: [] } });
+        const person = (id, name) => ({ id, name, type: "character", getFlag: () => undefined, testUserPermission: () => false });
+        const list = [person("R8504A", "R8504 Aiko"), person("R8504B", "R8504 Botan")];
+        const actors = new Map(list.map(a => [a.id, a]));
+        const app = { element: document.createElement("div") };
+        app.element.innerHTML = T.passagesTabHtml(scene, { stores, students: [...list] });
+        document.body.append(app.element);
+        const offered = () => [...app.element.querySelectorAll('[data-drpg-menu-of="grant"] [data-drpg-actor]')].map(b => b.textContent.trim()).sort();
+        let read = null;
+        try {
+            const tab = T.wirePassagesTab(app.element, scene, { dialog: app, stores, students: () => [...list], actors, users: [] });
+            tab.draw();
+            const before = offered();
+            // A student made, and one renamed, heard through `updateActor` alone: the hooks of a made or deleted actor and of
+            // a user are read in the source below, as calling them here would run every listener of the module on a stand-in.
+            const late = person("R8504C", "R8504 Chie");
+            list.push(late);
+            actors.set(late.id, late);
+            list[0].name = "R8504 Aiko renamed";
+            Hooks.callAll("updateActor", list[0], { name: list[0].name }, {}, "R8504");
+            await wait(TIMING.coalesceMs * 3);
+            const src = fnSource(stripComments(new Map(await otherSources()).get("passages-tab.mjs") ?? ""), "wirePassagesTab");
+            read = { before, made: offered(), hooks: ["createActor", "deleteActor", "updateUser"].every(h => src.includes(`"${h}"`)) };
+        } catch (err) {
+            read = { threw: String(err?.message ?? err).slice(0, 80) };
+        } finally {
+            app.element.remove();
+        }
+        equal(stableJson(read), stableJson({ before: ["R8504 Aiko", "R8504 Botan"], made: ["R8504 Aiko renamed", "R8504 Botan", "R8504 Chie"], hooks: true }),
+            "{before, made: the grant menu's students before and after a student was made and another renamed; hooks: the tab hears an actor made or deleted and a user} - the tab reads its students now");
+    }],
+    ["R8505 - a student made a Spectator keeps the cards its player posted as a student in the log: a message of that account an hour old is drawn, one of the last moment - the one the primary is about to remove - is not (scripts/spectator-ui.mjs `hiddenSpectatorMessage`, `SPECTATOR_FRESH_MS`; the audit's STG-05, 1.2.122 line WORLD)", async () => {
+        /* 21.11.2026, 1.2.122 line WORLD. The audit's STG-05 (stages-20 E92-2): `renderChatMessageHTML` removed every message
+           of an account that is a Spectator's now, its student's whole history too. A player who plays one character, that
+           character flagged a Spectator in memory (`e24HeldFlagged`, as R3861 flags one); stand-in messages of that account,
+           an hour old and a second old. Red at 21bf5d18: there was no reader to ask (`hiddenSpectatorMessage`), and the hook
+           removed both. */
+        const U = await import("./spectator-ui.mjs");
+        const owns = u => game.actors.filter(a => a.type === "character" && a.testUserPermission?.(u, "OWNER"));
+        const player = game.users.find(u => !u.isGM && owns(u).length === 1);
+        must(player, "no player who plays exactly one character - this would measure nothing");
+        const [watcher] = owns(player);
+        must(typeof U.hiddenSpectatorMessage === "function", "spectator-ui.mjs has no hiddenSpectatorMessage: every message of a Spectator's account is removed, old or new");
+        const now = Date.now();
+        const msg = (id, ago) => ({ id, author: player, timestamp: now - ago });
+        const read = await e24HeldFlagged(watcher, { [FLAGS.spectator]: true }, () => ({
+            old: U.hiddenSpectatorMessage(msg("R8505old", 3_600_000), { now }),
+            fresh: U.hiddenSpectatorMessage(msg("R8505new", 1_000), { now })
+        }));
+        const asStudent = U.hiddenSpectatorMessage(msg("R8505student", 1_000), { now });
+        equal(stableJson({ ...read, asStudent }), stableJson({ old: false, fresh: true, asStudent: false }),
+            "{old, fresh: whether a message of the Spectator's account an hour old and a second old is left undrawn; asStudent: a fresh one while the character is a student} - a Spectator's history as a student stays");
+    }],
+    ["R8506 - a floating field's face is scaled by the zoom its screen box carries: under a zoom of 0.5 its font, line height, padding and borders are half the layout's, at 1 they are as read, and a word with no length is left (scripts/float-text.mjs `scaledFace`; the audit's COMM-32, 1.2.122 line WORLD; in Chromium audit/float-zoom.mjs)", async () => {
+        /* 21.11.2026, 1.2.122 line WORLD. Pure: a face as `lift` reads it off the computed style. Red at 21bf5d18: no
+           `scaledFace`, the face copied as read. The browser's own reading is audit/float-zoom.mjs (8, 16, 32 px). */
+        const F = await import("./float-text.mjs");
+        must(typeof F.scaledFace === "function", "float-text.mjs has no scaledFace: the face is copied unzoomed");
+        const face = [["font-size", "16px"], ["line-height", "20px"], ["padding-top", "4px"], ["border-top-width", "1px"], ["font-family", "Signika"], ["box-shadow", "rgba(0, 0, 0, 0.5) 0px 2px 6px 0px"]];
+        equal(stableJson({ half: F.scaledFace(face, 0.5), one: F.scaledFace(face, 1) }), stableJson({
+            half: [["font-size", "8px"], ["line-height", "10px"], ["padding-top", "2px"], ["border-top-width", "0.5px"], ["font-family", "Signika"], ["box-shadow", "rgba(0, 0, 0, 0.5) 0px 1px 3px 0px"]],
+            one: face }), "{half, one: the face at zoom 0.5 and 1} - the floating face is the one the screen showed");
+    }],
+    ["R8507 - whether Stained Glass is on is read in one place: of motion.mjs, glass.mjs, look.mjs, death-fade.mjs and private-rolls.mjs only look.mjs compares the theme's setting, and motion.mjs `glassOn` answers what look.mjs `isStainedGlass` answers (the audit's DOC-16, 1.2.122 line WORLD)", async () => {
+        /* 21.11.2026, 1.2.122 line WORLD. The audit's DOC-16 (old-1.2.42-tasks obs2): five readings with two fallbacks - the
+           setting or false, the setting or the body class. Read in the source, comments stripped; and the two exported
+           readers asked on this page. Red at 21bf5d18: all five compared the setting themselves. */
+        const src = new Map(await otherSources());
+        const files = ["motion.mjs", "glass.mjs", "look.mjs", "death-fade.mjs", "private-rolls.mjs"];
+        const comparing = files.filter(f => /theme\)\s*===\s*"stainedGlass"/.test(stripComments(src.get(f) ?? "")));
+        const M = await import("./motion.mjs"), L = await import("./look.mjs");
+        equal(stableJson({ comparing, agree: M.glassOn() === L.isStainedGlass() }), stableJson({ comparing: ["look.mjs"], agree: true }),
+            "{comparing: the files that compare the theme's setting themselves; agree: glassOn and isStainedGlass answer alike} - one reading of the theme");
     }],
     ["R5380 - the closing curtain stands under the open windows, the title and its band over them (styles/danganronpa.css THE SEQUENCES; the owner's ask of 13.11.2026: \"zamkniecie kurtyny niech bedzie pod otwartymi oknami, napis i jego tlo na otwartych oknach\"): read through the module's cascade in both themes, on a desk and a stacked screen, for the trial's entry and its exit with the glass and with the lids, the host is no box of its own (`display: contents`), its curtain layer is fixed under Foundry's window layer (`--z-index-window` less 2) and over every other z-index the module's sheets state under that layer, and takes the clicks it covers; its title layer is fixed at 99980, over every window, and lets the clicks through; the notice stack stands over the curtain - under the windows under Stained Glass, over them under Monokuma Legacy; the verdict's cut-in and the day's boards keep the one host at 99980; every window open on this page stands between the two layers", async () => {
         /*

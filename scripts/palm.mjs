@@ -210,8 +210,7 @@ async function resolvePlant(actor, def, { victim, planted, hand, shadow, room, s
     // Refused by the one gate before the rolls were read: the action back (`palmBack`; Q3). A Plant into full pockets
     // was tried, and is no refusal (D42): it stays paid; so does one the gate refused on its second asking, after the
     // rolls (told as nothing carried out, palm.mjs `plantOnPerson`; fix e1-G4).
-    if (nobodyTook(res.ok, res.reason) || TRANSFER_REFUSED.includes(res.ok ? (res.value?.refused ? (await import("./bridge-guards.mjs")).reasonOf(res.value.refused) : null)
-        : (res.refused ? res.reason : null))) await palmBack(actor, paid);
+    await handBackIfRefusedBeforeRolls(actor, paid, { ok: res.ok, refused: res.refused, reason: res.reason, value: res.value });
 
     await noteRollContext(actor, {
         actionKey: "palm", planting: true, room, victimId: victim.id,
@@ -238,6 +237,20 @@ async function resolvePlant(actor, def, { victim, planted, hand, shadow, room, s
  */
 function nobodyTook(ok, reason) {
     return !ok && reason === "noGm";
+}
+
+/**
+ * The action a Palm paid handed back when the primary refused it before reading its rolls: by the one gate's codes
+ * (`TRANSFER_REFUSED`) or because no GM was there to take it (`nobodyTook`) - the owner's Q3 of 18.10.2026. Read off
+ * the bridge's answer as the asker holds it, its four fields read where it was asked (`drpg/bridge-result`). Answers whether it handed the action back. A Steal's, a Plant's and,
+ * since 1.2.122, an unseen Frisk's (frisk.mjs `performFrisk`; the audit's CASE-34).
+ */
+export async function handBackIfRefusedBeforeRolls(actor, paid, res) {
+    const code = res?.ok ? (res.value?.refused ? (await import("./bridge-guards.mjs")).reasonOf(res.value.refused) : null)
+        : (res?.refused ? res.reason : null);
+    if (!nobodyTook(res?.ok, res?.reason) && !TRANSFER_REFUSED.includes(code)) return false;
+    await palmBack(actor, paid);
+    return true;
 }
 
 async function palmBack(actor, paid) {
@@ -388,8 +401,7 @@ export async function performPalm(actor, def, options) {
      * One the gate refused on its second asking, inside the move after the rolls were read, comes back as nothing carried
      * out (`refused`, palm.mjs `stealFromPerson`) and stays paid, as Q3 reads (E14 fix e1-G4; the review's E14R-07).
      */
-    if (nobodyTook(res.ok, res.reason) || TRANSFER_REFUSED.includes(res.ok ? (res.value?.refused ? (await import("./bridge-guards.mjs")).reasonOf(res.value.refused) : null)
-        : (res.refused ? res.reason : null))) await palmBack(actor, paid);
+    await handBackIfRefusedBeforeRolls(actor, paid, { ok: res.ok, refused: res.refused, reason: res.reason, value: res.value });
 
     // What Reroll would have to unpick, and the honest answer is that it cannot
     // - see `case "steal"` in reroll.mjs. Recorded anyway so the branch there
@@ -593,7 +605,8 @@ export async function stealFromPerson({
 
     const thief = game.actors.get(thiefId);
     const victim = game.actors.get(victimId);
-    if (!thief || !victim || thief.id === victim.id) return null;
+    // A run that did no work says so (the trust model's step 3; the audit's ITEM-27, 1.2.122): told as refused, not done.
+    if (!thief || !victim || thief.id === victim.id) return { refused: "nothing was carried out: the thief or the target is not there" };
 
     const refuse = why => {
         error(`Refused a theft by ${thief.name}: ${why}.`);
@@ -796,7 +809,10 @@ export async function plantOnPerson({
     const planter = game.actors.get(plannerId);
     const victim = game.actors.get(victimId);
     const item = planter?.items?.get(itemId ?? "");
-    if (!planter || !victim || planter.id === victim.id || !item) return null;
+    /* A RUN THAT DID NO WORK SAYS SO (the trust model's step 3; the audit's ITEM-27, 1.2.122, 21.11.2026). This and the
+       item no longer in the planter's pockets below answered null, which the runner answers as done: the planter read
+       "In a moment you learn whether the item reached their pocket" and nothing followed. Told as refused now. */
+    if (!planter || !victim || planter.id === victim.id || !item) return { refused: "nothing was carried out: the item, the planter or the target is not there" };
 
     const refuse = why => {
         error(`Refused a plant by ${planter.name}: ${why}.`);
@@ -832,7 +848,8 @@ export async function plantOnPerson({
     const pool = await pocketsAsHeld(planter, victim);
     const held = pool.find(i => i.id === item.id);
     if (!held) {
-        return refuse(`"${item.name}" is not something they are carrying`);
+        refuse(`"${item.name}" is not something they are carrying`);
+        return { refused: "nothing was carried out: the item is no longer in the planter's pockets" };
     }
     // An item the planter's player made that no GM has decided on yet goes into nobody's pocket, and the planter told
     // (E29 fix r2-H21, sheet-audit.mjs `creationRefusal`) - before the rolls are read, so nobody is told of a hand seen.

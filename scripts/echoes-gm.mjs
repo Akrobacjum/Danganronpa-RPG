@@ -9,8 +9,9 @@
  *
  * WHO COUNTS (the owner's 10.11 (b)): a living student of another player, read on the GM - a character on a token the GMs
  * have not hidden, owned by a player who is not one of the asker's owners; no body (dead as the GMs hold it, a secret
- * death too), no Monokuma, no Monocub, no Spectator, and no GM's character (one no player owns). Read here, on the GM,
- * because a player's browser does not know a death the GMs keep: a body would have counted as a student there.
+ * death too), no Monokuma, no Monocub, no Spectator, no character Not in the class (1.2.122, ITEM-34), and no GM's
+ * character (one no player owns). Read here, on the GM, because a player's browser does not know a death the GMs keep:
+ * a body would have counted as a student there.
  *
  * NOT IN AN ECLIPSE (Q-E69-3's default, the orchestrator's 10.11 recommendation): the row is struck through with its
  * reason (action-listen.mjs `infiltrateRows`), and the GM refuses it as well. Nor in a Class Trial or an incident.
@@ -56,7 +57,8 @@ export function nearestEchoRoom({ start, edges, occupied, random = Math.random }
 export function echoCounts(actor, askerOwners, { hidden = false, dead = false, owners = [] } = {}) {
     if (!actor || actor.type !== "character" || hidden || dead) return false;
     const flag = name => Boolean(actor.getFlag?.(MODULE_ID, FLAGS[name]) ?? actor.flags?.[MODULE_ID]?.[FLAGS[name]]);
-    if (flag("monokuma") || flag("monocub") || flag("spectator")) return false;
+    // Not in the class is no student either (monokuma.mjs `studentActors`; the audit's ITEM-34, 1.2.122).
+    if (flag("monokuma") || flag("monocub") || flag("spectator") || flag("notInClass")) return false;
     if (!owners.length) return false;
     return owners.some(id => !askerOwners.includes(id));
 }

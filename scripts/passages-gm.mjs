@@ -1231,6 +1231,10 @@ const whyTable = () => new Map([
         [MAP_REFUSALS.otherRooms, "otherRooms"],
         [MAP_REFUSALS.short, "short"],
         ["that wall is a door.", "door"],
+        // passageRowFor's three that read no literal of the table until 1.2.122 (the audit's MAP-23).
+        ["the stretch stands between other rooms than the ones picked.", "roomsPicked"],
+        ["name one of the scene's floors.", "floorNamed"],
+        ["that scene has no floors.", "noFloors"],
         // Repair the Lock (E74 C5; doors-gm.mjs `repairLockRefusal`).
         ["that lock is not broken.", "lockWhole"],
         ["a project repairs that lock already.", "lockTaken"],
@@ -1248,7 +1252,7 @@ const whyTable = () => new Map([
 ]);
 
 /** The closed list of the codes `whyText` can say, each `DRPG.Passage.why.<code>` in both language files (R983). */
-export const WHY_CODES = Object.freeze(["noScene", "twoRooms", "gmOnly", "noStore", "noBuilder", "idTaken", "breached", "wholeWall", "noBreach", "wallGone", "cannotClose", "notKnown", "isBreach", "noSide", "noWall", "taken", "levels", "notBetween", "otherRooms", "short", "door", "noMove", "sameEnds", "offWall", "floor", "notOwn", "notRepairable", "nothingBack", "itemBack", "brokenSince", "repairTooSmall", "unknown"]);
+export const WHY_CODES = Object.freeze(["noScene", "twoRooms", "gmOnly", "noStore", "noBuilder", "idTaken", "breached", "wholeWall", "noBreach", "wallGone", "cannotClose", "notKnown", "isBreach", "noSide", "noWall", "taken", "levels", "notBetween", "otherRooms", "short", "door", "roomsPicked", "floorNamed", "noFloors", "noMove", "sameEnds", "offWall", "floor", "notOwn", "notRepairable", "nothingBack", "itemBack", "brokenSince", "repairTooSmall", "unknown"]);
 
 /** A judge's English reason's code, or null for one the table does not know. */
 export function whyCode(reason) {
@@ -1373,15 +1377,16 @@ export function passageRowFor(scene, wall, { seg = null, rooms = [], level = nul
     if (!onWall(xy[0], xy[1], c) || !onWall(xy[2], xy[3], c)) return { refused: "the stretch is not on that wall." };
     const floors = floorsOf(scene);
     const floor = floorNamed(floors, level);
-    if (floors.length ? !floors.some(f => f.id === floor) : floor !== null) {
-        return { refused: floors.length ? "name one of the scene's floors." : "that scene has no floors." };
-    }
+    // Each reason a literal of its own, which R983 reads against `whyTable` (the audit's MAP-23, 1.2.122).
+    if (floors.length && !floors.some(f => f.id === floor)) return { refused: "name one of the scene's floors." };
+    if (!floors.length && floor !== null) return { refused: "that scene has no floors." };
     if (!onLevel(wall, floor)) return { refused: "that wall is not on that floor." };
     const map = stretchOnMap(scene, wall, xy, { level: floor, taken });
     if (map.refused) return { refused: MAP_REFUSALS[map.refused] ?? `the pick refuses it (${map.refused}).` };
     const named = (rooms ?? []).filter(r => typeof r === "string");
     if (named.length && named.slice().sort((p, q) => p.localeCompare(q)).join("\n") !== map.rooms.join("\n")) {
-        return { refused: `the stretch stands between ${map.rooms.join(" and ")}, not the rooms named.` };
+        debug(`Secret passages: the stretch stands between ${map.rooms.join(" and ")}, not ${named.join(" and ")}.`);
+        return { refused: "the stretch stands between other rooms than the ones picked." };
     }
     const [x1, y1, x2, y2] = xy;
     return { row: { sceneId: scene.id, level: floor, shape: "wall", passageWallId: wall.id,
@@ -1991,7 +1996,35 @@ export async function carryPassageRooms(sceneId, from, to, { stores = PASSAGE_ST
     }
     if (Object.keys(rows).length) await rowsOf(stores).patchMany(rows);
     if (Object.keys(cells).length) await stores.access.patchMany(cells);
-    return Object.keys(rows).length + Object.keys(cells).length;
+    return Object.keys(rows).length + Object.keys(cells).length + await carryProjectPicks(sceneId, from, to, { stores });
+}
+
+/*
+ * AND THE PICKS OF THE PROJECTS THAT WAIT ON THIS SCENE (the audit's MAP-23, 1.2.122, 21.11.2026). A Secret Passage or a
+ * Breach keeps the approval's pick (`passage`: `{ sceneId, level, wallId, seg, rooms }`) and judges it again at the
+ * completion (`builtPassageRow`, `breachStretchRow` -> `passageRowFor`, which compares the pick's room names with the
+ * map's), and a Seal the passage or Close the breach keeps its room (`target.room`, `presetSideRefusal`). A rename carried
+ * the passages' rows and a project's own room (fog.mjs `carryRoomInWorld`), never these, so the completion of a project
+ * whose room was renamed meanwhile was refused - and the GMs read "the module could not say why". Each open project's
+ * pick on this scene, and its target on this scene (a passage's row, a breach's or a lock's scene), is carried, in the
+ * project's own step (`applyProjectChange`, the GMs' half). Answers how many were carried.
+ */
+async function carryProjectPicks(sceneId, from, to, { stores = PASSAGE_STORES } = {}) {
+    const { allProjects, applyProjectChange } = await import("./projects.mjs");
+    const { secretsOf } = await import("./projects-secrecy.mjs");
+    let n = 0;
+    for (const project of allProjects()) {
+        if (!project?.id || project.complete) continue;
+        const held = secretsOf(project.id), meta = {};
+        const pick = held.passage;
+        if (pick?.sceneId === sceneId && Array.isArray(pick.rooms) && pick.rooms.includes(from)) meta.passage = { ...pick, rooms: pick.rooms.map(room => (room === from ? to : room)) };
+        const target = held.target;
+        const onScene = target && (target.sceneId ? target.sceneId === sceneId : target.passageId ? rowsOf(stores).get(target.passageId)?.sceneId === sceneId : false);
+        if (onScene && target.room === from) meta.target = { ...target, room: to };
+        if (!Object.keys(meta).length) continue;
+        if (await applyProjectChange(project.id, { meta }, { by: { kind: "system" } })) n++;
+    }
+    return n;
 }
 
 /**

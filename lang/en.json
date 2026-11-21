@@ -756,6 +756,9 @@
         "otherRooms": "the stretch's two ends stand between different rooms. Pick both ends between the same two rooms.",
         "short": "the stretch is too short. Pick a longer stretch.",
         "door": "that wall is a door. Pick a stretch of a solid wall.",
+        "roomsPicked": "the wall no longer stands between the rooms picked. Pick the stretch again.",
+        "floorNamed": "the floor picked is not one of the scene's. Pick the stretch again on one of its floors.",
+        "noFloors": "that scene has no floors any more. Pick the stretch again.",
         "noMove": "that wall does not stop anyone. Pick a stretch of a solid wall.",
         "sameEnds": "the stretch needs two different ends. Pick it again.",
         "offWall": "the stretch is no longer on that wall. Pick it again.",
@@ -3969,7 +3972,8 @@
         "experience": "Experience {label} +{n}",
         "despairShield": "Next roll with Despair adds no Despair to the Monokuma's pool",
         "eclipseCrossing": "Eclipse crossings +{n}",
-        "ultimateBoost": "Next Ultimate: a second die of advantage"
+        "ultimateBoost": "Next Ultimate: a second die of advantage",
+        "takeFailed": "{name}: {line} could not be taken off. It stays and is tried again at the next time of day."
       },
       "until": {
         "timeOfDay": "until the time of day ends",
@@ -4038,6 +4042,10 @@
       },
       "editor": {
         "until": "Lasts",
+        "dropped": { "one": "{n} line was not saved: an action needs a name, and an effect of this kind its text.", "other": "{n} lines were not saved: an action needs a name, and an effect of this kind its text." },
+        "keptOthers": "Kept beside yours, added by another GM while this window was open: {items}.",
+        "needsName": "Name the action first. Nothing was saved, and what you typed is back in the window.",
+        "savedOver": "Another GM changed this action while the window was open. Yours is saved over it.",
         "trait": "Statistic",
         "roomTitle": "Facilities: {room}",
         "saveProject": "Save the action",
@@ -5176,6 +5184,7 @@
       "installAction": "Install / reinstall",
       "renameNote": "A tier table's name must keep its category and tier. A room table can take any other name.",
       "renamed": "Renamed to “{name}”.",
+      "familyRenamed": "Renamed with it: {items}.",
       "deleteConfirm": { "one": "Delete “{name}” and the {n} item in it? This cannot be undone.", "other": "Delete “{name}” and the {n} items in it? This cannot be undone." },
       "deleted": "Deleted “{name}”."
     },
@@ -6142,6 +6151,7 @@
       "none": "No Motive is in force.",
       "withdraw": "Withdraw Motive",
       "withdrawNote": "Withdrawing it tells the whole table the Motive is off.",
+      "changedMeanwhile": "The Motive changed while this window was open. The one in force is shown now; press Withdraw Motive again to withdraw it.",
       "deadline": {
         "one": "The deadline is one time of day.",
         "other": "The deadline is {n} times of day."
@@ -6912,6 +6922,8 @@
       "rearm": "Rearm the trap",
       "rearmed": "The trap is watching again.",
       "plantTitle": "The trap's item",
+      "plantNeedsName": "Name the item first. The trap is still waiting for it.",
+      "plantNeedsRoom": "Choose the room first. The trap is still waiting for its item.",
       "plantPrompt": "Name the item that is the trap, and pick the room where it waits. The next Search there that finds something turns it up. Whoever uses it sets off the trap, and you decide what follows.",
       "plantItem": "What it is",
       "plantRoom": "Where it waits",
