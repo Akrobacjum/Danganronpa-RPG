@@ -4824,6 +4824,8 @@
       "noBudgetLong": "Nie masz już Free Move ani akcji, więc to przejście nie jest opłacone. Token wraca na miejsce; zapytaj GM-a.",
       "refundedBack": "GM cofa twoje ostatnie przejście: token stoi tam, gdzie stał przed nim.",
       "refundedStays": "GM cofa twoje ostatnie przejście, ale tokenu nie da się postawić tam, gdzie stał. Zapytaj GM-a.",
+      "refundedMoved": "GM cofa twoje ostatnie przejście. Token od tego czasu poszedł dalej, więc zostaje tam, gdzie stoi.",
+      "refundMovedGm": "Ostatnie przejście postaci {name} cofnięte, ale token od tego czasu poszedł dalej, więc zostaje {at}.",
       "refundedPrice": "To, co przejście kosztowało, wraca do ciebie.",
       "refundedNoPrice": "Za to przejście nic do ciebie nie wraca. Jeśli coś cię kosztowało, zapytaj GM-a.",
       "locked": "Drzwi są zamknięte.",
@@ -7319,6 +7321,11 @@
       },
       "stepFailed": "Mgła: krok „{step}” się nie powiódł; pozostałe kroki działają dalej",
       "stepFailedLater": "Mgła: krok „{step}” nie powiódł się już po powrocie",
+      "reason": {
+        "unchanged": "bez zmian - ostatnio: {reason}",
+        "painted": "narysowano: pod mgłą {fogged}, przysłonięte {veiled}, odsłonięte {clear}",
+        "threw": "odświeżenie się nie udało: {error}"
+      },
       "stand": {
         "notRunYet": "jeszcze nie uruchomiona",
         "canvasNotReady": "mapa nie jest jeszcze gotowa",
@@ -7371,7 +7378,7 @@
         "other": "Pominięto {n} regionu bez nazwy: pokój musi mieć nazwę."
       },
       "flagKept": "Konto {user} zmieniło, czy „{region}” na scenie {scene} jest pokojem. Pokój oznacza tylko GM, więc oznaczenie zostaje takie, jakie zostawił GM.",
-      "renamed": "„{from}” na scenie {scene} nazywa się teraz „{to}”. Przeniesiono na nową nazwę: klucze ({keys}), schowane przedmioty ({items}), notatki o znalezionej skrytce ({found}), odkrycia pokoju ({cells}), projekty ({projects}), rzeczy zostawione dla pułapki ({plants}), listy Sąsiadów innych pokoi ({lists}), pokój Masterminda ({lair}), zwołane zebranie ({gather}), pieczęć nałożona przez Despair Call ({sealed}), znalezione tam ciała ({bodies}).",
+      "renamed": "„{from}” na scenie {scene} nazywa się teraz „{to}”. Przeniesiono na nową nazwę: klucze ({keys}), schowane przedmioty ({items}), notatki o znalezionej skrytce ({found}), odkrycia pokoju ({cells}), projekty ({projects}), rzeczy zostawione dla pułapki ({plants}), listy Sąsiadów innych pokoi ({lists}), pokój Masterminda ({lair}), zwołane zebranie ({gather}), pieczęć nałożona przez Despair Call ({sealed}), znalezione tam ciała ({bodies}), zapisy tajnych przejść ({passages}).",
       "flagUnjudged": "Konto {user} zmieniło, czy „{region}” na scenie {scene} jest pokojem. Wcześniejsze oznaczenie nie jest znane, więc niczego nie przywrócono. Sprawdź region w Ustawieniach pokoi, w zakładce Pokoje.",
       "renameJoined": "Region „{room}” na scenie {scene} dostał nazwę „{name}”, a pokój o tej nazwie już tam był, więc region jest teraz kolejnym kawałkiem tego pokoju. Klucze, schowane przedmioty, notatki o znalezionej skrytce i odkrycia nadal wskazują „{room}”. Zdjęte z regionu: {carried}.",
       "carriedNothing": "nic",

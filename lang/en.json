@@ -4489,6 +4489,8 @@
       "noBudgetLong": "You have no Free Move and no actions left, so your token was put back.",
       "refundedBack": "The GM gave back your last crossing, and your token is back where it was.",
       "refundedStays": "The GM gave back your last crossing, but your token could not be moved back. Ask the GM.",
+      "refundedMoved": "The GM gave back your last crossing. Your token has moved on since, so it stays where it is.",
+      "refundMovedGm": "{name}'s last crossing is given back, but the token has moved on since, so it stays {at}.",
       "refundedPrice": "What the crossing cost is yours again.",
       "refundedNoPrice": "No price came back for that crossing. If you paid for it, ask the GM.",
       "locked": "The door is locked.",
@@ -6767,6 +6769,11 @@
       },
       "stepFailed": "Fog: \"{step}\" failed; the remaining steps still run",
       "stepFailedLater": "Fog: \"{step}\" failed after returning",
+      "reason": {
+        "unchanged": "unchanged - last: {reason}",
+        "painted": "painted: {fogged} fogged, {veiled} veiled, {clear} clear",
+        "threw": "the repaint failed: {error}"
+      },
       "stand": {
         "notRunYet": "not run yet",
         "canvasNotReady": "the canvas is not ready yet",
@@ -6813,7 +6820,7 @@
         "other": "{n} regions without a name were left alone: a room needs a name."
       },
       "flagKept": "{user} changed whether “{region}” on {scene} is a room. Only a GM can mark a room, so the mark stays as a GM left it.",
-      "renamed": "“{from}” on {scene} is now “{to}”. Carried over: keys {keys}, stashed items {items}, notes of a found stash {found}, discoveries {cells}, projects {projects}, things left for a trap {plants}, other rooms' Neighbors lists {lists}, the Mastermind's room {lair}, a called assembly {gather}, a Despair Call's seal {sealed}, and bodies found there {bodies}.",
+      "renamed": "“{from}” on {scene} is now “{to}”. Carried over: keys {keys}, stashed items {items}, notes of a found stash {found}, discoveries {cells}, projects {projects}, things left for a trap {plants}, other rooms' Neighbors lists {lists}, the Mastermind's room {lair}, a called assembly {gather}, a Despair Call's seal {sealed}, bodies found there {bodies}, and secret passage records {passages}.",
       "flagUnjudged": "{user} changed whether “{region}” on {scene} is a room. The mark before the change is not known, so nothing was put back. Check the region in Room setup's Rooms tab.",
       "renameJoined": "“{room}” on {scene} was renamed “{name}”, a room already there, and is now one more piece of it. Its keys, stashed items, notes of a found stash, and discovery still name “{room}”. Taken off the region: {carried}.",
       "carriedNothing": "nothing",

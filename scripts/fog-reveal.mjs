@@ -42,7 +42,7 @@
 
 import { boundsOf } from "./movement.mjs";
 import { debug, error } from "./utils.mjs";
-import { BEAT, glassOn, SEAM_GLOW } from "./motion.mjs";
+import { BEAT, glassOn, SEAM_GLOW, reducedMotion } from "./motion.mjs";
 import { traceRegionPathsAt, regionShapes, clamp01, largestPiece } from "./fog-geometry.mjs";
 import {
     colourOf, GLOW_NAME, doorwayEdges, doorwayLight, addDoorwayGlow, traceOutlineGapped, outlineColour, tunnelMarks, addTunnelMarks, recolourTunnelMarks,
@@ -360,12 +360,13 @@ export function buildRevealLayers(fx, { region, bounds, rect, glass, ink, bone, 
             lineHalo = new PIXI.Graphics();
             lineHalo.name = REVEAL_LINE_HALO;
             lineHalo.blendMode = PIXI.BLEND_MODES?.ADD ?? 1;
-            /* The room border's own bloom, to the number: a blur six times the core, in
-               screen pixels, so the light weighs the same at any zoom. */
+            /* The room border's own bloom, in screen pixels, so the light weighs the same at any zoom: the standing
+               outline's 6 px and 14 px (`HALO_BLUR_PX`, S07-34; 1.2.122 line MAP, the audit's MAP-29). It was six seams,
+               and a seam is 1 / zoom in scene units handed to a filter that works in screen pixels: 20 px at zoom 0.3. */
             const Blur = PIXI.BlurFilter ?? PIXI.filters?.BlurFilter;
             if (Blur) {
-                const filter = new Blur(Math.max(6, lineWidth * 6), 3);
-                filter.padding = Math.max(14, lineWidth * 14);
+                const filter = new Blur(HALO_BLUR_PX, 3);
+                filter.padding = HALO_PAD_PX;
                 lineHalo.filters = [filter];
             }
             lineCore = new PIXI.Graphics();
@@ -959,12 +960,17 @@ export function ringHalo(w, h, colour) {
     };
 }
 
-/** The live halo's blur, as the rings and `seamHalo` make it: six times the seam, never under 6, padding 14 seams. */
-function haloBlur(seam) {
+/**
+ * The live halo's blur, as `seamHalo` makes it: 6 px, padding 14 px, whatever the zoom (1.2.122 line MAP; the audit's
+ * MAP-29). It was six seams, never under 6, padding 14 seams - a seam being 1 / zoom in scene units, so a ring baked at
+ * zoom 0.3 carried a light three times as wide as the room border beside it, which S07-34 had held at 6 px. The bake
+ * runs in screen pixels at the zoom struck. How it looks: LIVE-E49-04, a table's.
+ */
+function haloBlur() {
     const Blur = PIXI.BlurFilter ?? PIXI.filters?.BlurFilter;
     if (!Blur) return null;
-    const filter = new Blur(Math.max(6, seam * 6), 3);
-    filter.padding = seam * 14;
+    const filter = new Blur(HALO_BLUR_PX, 3);
+    filter.padding = HALO_PAD_PX;
     return filter;
 }
 
@@ -1102,7 +1108,7 @@ export function wearHalo(sprite, { seen, key, seamFactor = 1, shape, blur = halo
         const g = new PIXI.Graphics();
         g.blendMode = PIXI.BLEND_MODES?.ADD ?? 1;
         shape.draw(g, seam);
-        const filter = blur ? haloBlur(seam) : null;
+        const filter = blur ? haloBlur() : null;
         if (filter) g.filters = [filter];
         const baked = bakeTexture(g, struck, shape.bounds(seam), (filter ? filter.padding : 0) + 2, renderer);
         g.destroy();
@@ -1232,7 +1238,28 @@ export function bakeOutlineHalo(group, halo, seen) {
 // UP AND TO THE RIGHT, on the same reasoning as `bandQuad`: the isometric
 // module on The Forge rotates the canvas, so a hop expressed on the
 // diagonal here arrives as a clean vertical one there.
+/* HELD STILL WHERE THE MOTION IS (1.2.122 line MAP; the audit's MAP-20): under this browser's Reduced motion (the Look
+   window, or the system's) and while `game.drpg.fogAnimations(false)` holds the fog's animation (fog.mjs hands it in,
+   `holdOutlineHops`), as the curtain, the dissolve and the drift already were. The outline lands where it stands. */
+let hopsHeld = false;
+
+/** fog.mjs `fogAnimations`: whether the outline's landing is held still (true while the fog's animation is off). */
+export function holdOutlineHops(held) {
+    hopsHeld = Boolean(held);
+    return hopsHeld;
+}
+
+/** Whether a landing would hop now: neither Reduced motion nor the fog's animation switch holds it. For the suite. */
+export function outlineHops() {
+    return !hopsHeld && !reducedMotion();
+}
+
 function landOutline(group, grid) {
+    if (!outlineHops()) {
+        group.x = 0;
+        group.y = 0;
+        return;
+    }
     const jump = grid * 0.9;
     const bounceState = { t: 0 };
     const bounce = CanvasAnimation.animate([{ parent: bounceState, attribute: "t", to: 1 }], {

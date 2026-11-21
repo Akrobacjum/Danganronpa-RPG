@@ -28570,7 +28570,8 @@ const INVARIANTS = [
         must(src.length > 500, "room-setup.mjs read as nothing - this would measure nothing");
         const cells = fnSource(src, "roomCells"), content = fnSource(src, "roomSetupContent");
         // The row's own object, the last `return {` at the function's first indent; a names map above holds keys at the same depth.
-        const returned = [...cells.matchAll(/^ {8}return \{\n([\s\S]*?)^ {8}\};/gm)].at(-1)?.[1] ?? "";
+        // `const cells = {` since 1.2.122 (line MAP; the audit's MAP-39): the row's object is handed through `cellsOff` for a name no piece can make a room.
+        const returned = [...cells.matchAll(/^ {8}(?:return|const cells =) \{\n([\s\S]*?)^ {8}\};/gm)].at(-1)?.[1] ?? "";
         const built = [...returned.matchAll(/^ {12}([a-z]+):/gm)].map(m => m[1]).filter(k => k !== "name");
         const tabled = new Set([...content.matchAll(/tableFor\(\[([^\]]*)\]\)/g)].flatMap(m => [...m[1].matchAll(/"([a-z]+)"/g)].map(x => x[1])));
         must(built.length >= 10 && tabled.size >= 10, `read ${built.length} built cell(s) and ${tabled.size} tabled column(s) - this would measure nothing`);
@@ -51821,7 +51822,8 @@ const INVARIANTS = [
         equal(stableJson({ first, after, asked, heavy: [facts.heavy, facts.gone], missing: missing.gone, holds: /setApplyBlock|disabled/.test(src) }), stableJson({
             first: [["warning", big], ["warning", game.i18n.localize("DRPG.Vault.imageBroken")], [null, ""]],
             after: [[null, ""], ["warning", game.i18n.localize("DRPG.Vault.imageBroken")], [null, ""]],
-            asked: ["big.webp", "gone.webp", "fine.webp", "fine.webp"],
+            // A path read once a window's open since 1.2.122 (line MAP; the audit's MAP-41): the second "fine.webp" is answered from the first.
+            asked: ["big.webp", "gone.webp", "fine.webp"],
             heavy: [true, false], missing: true, holds: false
         }), "{first: each cell [a warning box, its words] for a picture too large, one that does not load, one that fits; after: the first given the fitting picture; asked: the pictures read; imageFacts over the bytes [heavy, gone]; a 404 gone; whether the warning touches Apply}");
     }],
@@ -64815,6 +64817,231 @@ const INVARIANTS = [
             offRoad: [/if \(!enforcing\(\)\) \{/.test(off), /addLootButton\(root, actor\)/.test(off), /sheetMode\(actor, game\.user, \{ app \}\)\.viewer/.test(off)]
         }), stableJson({ chooser: [true, true, true, false], offRoad: [true, true, true] }),
             "{chooser: [chooseOwnStudent over the account's students, the assigned one, the controlled tokens, the first owned actor]; offRoad: [the switch off has a road, it adds the Take's button, for a viewer who does not own the sheet]}");
+    }],
+    ["R8340 - the primary GM reads no Monocub's route refused for its budget, as every other road of a crossing's price does not: a Monocub pays nothing (1.2.122 line MAP; scripts/movement.mjs `refusedOnPrimary`, `crossesFree`; the audit's MAP-24)", async () => {
+        /*
+         * 1.2.122 line MAP, 21.11.2026; the audit's MAP-24. `refusedOnPrimary` counted a student's budget - the free Move,
+         * the Sprints, the Bursts, the actions - against a route's crossings and asked neither `crossesFree` nor the
+         * Monocub flag, where the veto (`cubStep`), the charge (`chargeRoute`) and the GMs' settle all do. A Monocub keeps
+         * its free Move unspent, so its budget is 1 and its actions: a route of two crossings with none left read refused,
+         * `route.stands` settled false, a passage kept "until it leaves" stayed known and the primary's voice pass waited.
+         * Read by running the function's own source with stand-ins for what it reads (the primary, the standings, the
+         * Eclipse, the movement setting, the budget's four counters and `crossesFree`): tier 1 moves no token.
+         */
+        const src = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/movement.mjs`).then(lfText));
+        const body = fnSource(src, "refusedOnPrimary");
+        must(/^function refusedOnPrimary\(/.test(body), "movement.mjs has no function refusedOnPrimary - this would measure nothing");
+        const standings = new Map([["unlawful", { lawful: false }]]);
+        const stand = {
+            isPrimaryGm: () => true, standings, isEclipse: () => false, MODULE_ID, SETTINGS: { chargeMovement: "chargeMovement" },
+            game: { settings: { get: () => true } }, hasFreeMove: a => a.free, freeMovesLeft: () => 0, freeActionsLeft: () => 0,
+            actionsLeft: a => a.actions, crossesFree: a => a.cub === true
+        };
+        const run = new Function(...Object.keys(stand), `${body}\nreturn refusedOnPrimary;`)(...Object.values(stand));
+        const two = [{}, {}];
+        const read = [run({ id: "a" }, { cub: true, free: true, actions: 0 }, two), run({ id: "a" }, { cub: false, free: true, actions: 0 }, two),
+            run({ id: "a" }, { cub: false, free: true, actions: 1 }, two), run({ id: "unlawful" }, { cub: true, free: true, actions: 0 }, two)];
+        equal(JSON.stringify(read), JSON.stringify([false, true, false, true]),
+            "[a Monocub's two crossings with its free Move and no action, a student's the same, a student's with one action, a Monocub standing unlawfully] - refused on the primary");
+    }],
+    ["R8341 - the room outline's landing holds still under Reduced motion and while the fog's animation is off, and hops otherwise (1.2.122 line MAP; scripts/fog-reveal.mjs `landOutline`, `outlineHops`, `holdOutlineHops`; fog.mjs `fogAnimations`; the audit's MAP-20)", async () => {
+        /*
+         * 1.2.122 line MAP, 21.11.2026; the audit's MAP-20. `landOutline` hopped the outline 0.9 of a square for 520 ms on
+         * every arrival and asked no switch: a player with the Look window's Reduced motion, or a table that called
+         * `game.drpg.fogAnimations(false)`, still saw the room drop in and bounce twice, where the curtain, the dissolve and
+         * the drift held still. The harness draws no canvas, so the switch is read (`outlineHops`) under each of the two and
+         * neither, and `landOutline` is held to ask it before it animates (its source). The body class and the switch put
+         * back as found; `whyBlack` reads the switch.
+         */
+        const FR = await import("./fog-reveal.mjs");
+        const F = await import("./fog.mjs");
+        const src = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/fog-reveal.mjs`).then(lfText));
+        const land = fnSource(src, "landOutline");
+        must(/^function landOutline\(/.test(land), "fog-reveal.mjs has no function landOutline - this would measure nothing");
+        const wasOn = F.whyBlack().animationsOn !== false, body = document.body.classList, hadClass = body.contains("drpg-reduced-motion");
+        const read = [];
+        try {
+            body.remove("drpg-reduced-motion");
+            F.fogAnimations(true);
+            read.push(typeof FR.outlineHops === "function" ? FR.outlineHops() : "none");
+            body.add("drpg-reduced-motion");
+            read.push(typeof FR.outlineHops === "function" ? FR.outlineHops() : "none");
+            body.remove("drpg-reduced-motion");
+            F.fogAnimations(false);
+            read.push(typeof FR.outlineHops === "function" ? FR.outlineHops() : "none");
+        } finally {
+            F.fogAnimations(wasOn);
+            if (hadClass) body.add("drpg-reduced-motion"); else body.remove("drpg-reduced-motion");
+        }
+        read.push(land.indexOf("outlineHops()") >= 0 && land.indexOf("outlineHops()") < land.indexOf("CanvasAnimation.animate"));
+        equal(JSON.stringify(read), JSON.stringify([true, false, false, true]),
+            "[the landing hops with neither switch, under Reduced motion, with the fog's animation off, landOutline asks before it animates]");
+    }],
+
+    ["R8342 - the fog's last reason is in one language, an unchanged repaint names the last paint once, and a room's rename tells the GMs of the secret passage records it carried (1.2.122 line MAP; scripts/fog.mjs `repaintFog`, `carryRename`; lang DRPG.Fog.reason, DRPG.Rooms.renamed; the audit's MAP-28, MAP-37)", async () => {
+        /*
+         * 1.2.122 line MAP, 21.11.2026. MAP-28: diagnoseFog's `lastReason` was "unchanged: " in English prefixed onto the
+         * localized stand-down, once more at every unchanged repaint, and the paint's and the throw's lines were English.
+         * MAP-37: carryRename counted the passages' records it carried in the console's line alone; the GMs' whisper and its
+         * condition (`moved`) left them out. Read off the source (tier 1 paints no canvas and renames no room) and the two
+         * language files: every write of the field through `fogText`, the unchanged one naming `lastFogOwn` and never the
+         * field itself; `moved` holding `passages`; both languages' `renamed` naming {passages} and the three reasons.
+         */
+        const src = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/fog.mjs`).then(lfText));
+        const writes = [...src.matchAll(/lastFogReason = ([^;]+);/g)].map(m => m[1]).filter(w => w !== "null");
+        must(writes.length >= 4, `fog.mjs writes lastFogReason ${writes.length} times - this would measure nothing`);
+        const carry = fnSource(src, "carryRename");
+        const [en, pl] = await Promise.all(["en", "pl"].map(l => fetch(`/modules/${MODULE_ID}/lang/${l}.json`).then(r => r.json())));
+        const reasons = d => ["unchanged", "painted", "threw"].every(k => typeof d?.DRPG?.Fog?.reason?.[k] === "string");
+        equal(JSON.stringify([writes.every(w => /fogText\(/.test(w) && !/`/.test(w.split("fogText(")[0])),
+            writes.filter(w => /reason\.unchanged/.test(w)).length === 1 && writes.every(w => !/\$\{lastFogReason\}/.test(w)),
+            /\bpassages: Number\(passages\)/.test(carry), [en, pl].map(d => /\{passages\}/.test(d?.DRPG?.Rooms?.renamed ?? "")), [en, pl].map(reasons)]),
+            JSON.stringify([true, true, true, [true, true], [true, true]]),
+            "[every write of the fog's reason localized, the unchanged one once and never on itself, the rename's count holding the passages, both languages' rename naming them, both holding the three reasons]");
+    }],
+    ["R8343 - the fog's standing outline and its floor buttons follow what they show and nothing else (1.2.122 line MAP; scripts/fog.mjs `leadRoomsHere`, `renderFloorSwitcher`, `repaintFog`, `regionsReplaced`; the audit's MAP-33, MAP-34, MAP-35, MAP-36)", async () => {
+        /*
+         * 1.2.122 line MAP, 21.11.2026. MAP-33: on a GM the outline was taken down against every Monokuma's rooms, so with two
+         * GMs' Monokumas one GM's outline stood round a room its own had left; it is taken down against the lead's rooms now
+         * (`leadRoomsHere`, read here with stand-in tokens and a stand-in lead). MAP-34: every repaint rebuilt the floor
+         * buttons, dropping a keyboard focus on one; drawn twice with the same offer they are the same nodes, and a floor
+         * changed rebuilds them (driven on a scene of plain objects; the switcher taken off the page after). MAP-35: the door
+         * controls' polygons were walked above the "unchanged" shortcut on every repaint; they are a getter now, walked when
+         * a door first asks. MAP-36: a room changed through its scene's update ran the repaint alone; it runs the outline's
+         * and the standing's steps of a region's own update too. The last two off the source (tier 1 paints no canvas).
+         */
+        const F = await import("./fog.mjs");
+        must(typeof F.leadRoomsHere === "function" && typeof F.renderFloorSwitcher === "function", "fog.mjs has no leadRoomsHere or renderFloorSwitcher - this would measure nothing");
+        const R = await import("./rooms.mjs");
+        const region = (name, x) => ({ id: `R8343${name}`, name, levels: new Set(), behaviors: [], bounds: { x, y: 0, width: 400, height: 400 },
+            testPoint: p => p.x >= x && p.x <= x + 400 && p.y >= 0 && p.y <= 400, getFlag: (scope, key) => (scope === MODULE_ID && key === R.ROOM_FLAG ? true : undefined) });
+        const scene = { id: "R8343S", name: "R8343", grid: { size: 100 }, levels: [{ id: "a", name: "Ground", elevation: { bottom: 0 } }, { id: "b", name: "Attic", elevation: { bottom: 10 } }],
+            regions: new Set([region("R8343 Gym", 0), region("R8343 Hall", 500)]) };
+        const tok = (id, x, lead) => ({ id, lead, document: { id, x, y: 100, width: 1, height: 1, elevation: 0, parent: scene } });
+        const mine = tok("own", 100, true), other = tok("other", 600, false);
+        const lead = [...F.leadRoomsHere([mine, other], t => t.lead)];
+        must(document.getElementById("drpg-floors") === null, "a floor switcher stands on the page already - this would measure the page's");
+        let nodes = null;
+        try {
+            F.renderFloorSwitcher(scene, ["a", "b"], "a");
+            const first = [...(document.getElementById("drpg-floors")?.children ?? [])];
+            F.renderFloorSwitcher(scene, ["a", "b"], "a");
+            const again = [...(document.getElementById("drpg-floors")?.children ?? [])];
+            F.renderFloorSwitcher(scene, ["a", "b"], "b");
+            const moved = [...(document.getElementById("drpg-floors")?.children ?? [])];
+            nodes = [first.length, again.every((b, i) => b === first[i]), moved.some((b, i) => b !== first[i]), moved.map(b => b.getAttribute("aria-pressed"))];
+        } finally {
+            document.getElementById("drpg-floors")?.remove();
+        }
+        const src = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/fog.mjs`).then(lfText));
+        const repaint = fnSource(src, "repaintFog"), replaced = fnSource(src, "regionsReplaced");
+        const fades = [...repaint.matchAll(/if \(roomOutline && !(\w+)\.has\(roomOutline\.room\)\) fadeRoomOutline\(\);/g)].map(m => m[1]);
+        equal(JSON.stringify([lead, nodes, fades, /get rooms\(\)/.test(repaint) && !/rooms: regions\.map/.test(repaint),
+            ["outlineRoomFlag", "outlineReshaped", "whereIStand"].map(id => replaced.includes(`step("${id}"`))]),
+            JSON.stringify([["R8343 Gym"], [2, true, true, ["false", "true"]], ["leadRooms", "leadRooms"], true, [true, true, true]]),
+            "[the lead's rooms, [buttons, the same nodes drawn again, rebuilt for another floor, pressed], the outline's two fades against, the door polygons a getter, the scene update's outline and standing steps]");
+    }],
+    ["R8344 - Room Setup draws a name no piece can make a room with its cells off, probes each picture path once and a few at a time, and gives its held Apply's reason as text (1.2.122 line MAP; scripts/room-setup.mjs `cellsOff`, `wirePictureWarnings`, `setApplyBlock`; the audit's MAP-39, MAP-41, MAP-42)", async () => {
+        /*
+         * 1.2.122 line MAP, 21.11.2026. MAP-39: a row whose name only a Teleport, a level change or a player's region carries
+         * kept every cell live while Apply skips it; `cellsOff` disables every control but the name and This is a room, and
+         * takes the picture off the pickers and the probe. MAP-41: every picture cell probed its own path at the open, all
+         * at once; five cells of two paths are read here through a stand-in `imageFacts` that counts calls and the most at
+         * once. MAP-42: the held Apply's reason went into Foundry's tooltip through an empty data-tooltip and the
+         * aria-label (R4764's road not to take); it is `data-tooltip-text` now. All on detached elements.
+         */
+        const V = await import("./room-setup.mjs");
+        must(typeof V.cellsOff === "function" && typeof V.wirePictureWarnings === "function" && typeof V.setApplyBlock === "function",
+            "room-setup.mjs has no cellsOff, wirePictureWarnings or setApplyBlock - this would measure nothing");
+        const cells = V.cellsOff({ name: "<strong>Stairwell</strong>", isroom: { html: '<input type="checkbox" name="isroom:Stairwell" disabled>', title: "hint" },
+            owner: '<select name="owner:Stairwell"><option value=""></option></select>', locked: { html: '<input type="checkbox" name="locked:Stairwell">', title: "t" },
+            description: '<textarea name="desc:Stairwell"></textarea>', tokens: '<span><button type="button" data-drpg-token="Stairwell">+</button></span>',
+            image: '<img class="drpg-room-picture" data-drpg-portrait="Stairwell" src="a.webp"><input type="hidden" name="img:Stairwell" value="a.webp">' });
+        const host = document.createElement("div");
+        host.innerHTML = Object.values(cells).map(c => (typeof c === "object" ? c.html : c)).join("");
+        const off = [...host.querySelectorAll("input, select, textarea, button")].filter(el => !el.name?.startsWith("isroom")).map(el => el.disabled);
+        const kept = [cells.name, cells.isroom?.title, cells.locked?.title, host.querySelector("[data-drpg-portrait]") === null];
+
+        const root = document.createElement("div");
+        root.innerHTML = ["a.webp", "b.webp", "a.webp", "a.webp", "b.webp"].map(src => `<table><tr><td><img data-drpg-portrait="x" src="${src}"><div data-drpg-picture-say></div></td></tr></table>`).join("");
+        let calls = 0, now = 0, most = 0;
+        V.wirePictureWarnings(root, { atOnce: 1, facts: async () => {
+            calls++; now++; most = Math.max(most, now);
+            await new Promise(r => setTimeout(r, 30));
+            now--;
+            return { gone: false, pixels: false, heavy: false };
+        } });
+        await until(() => calls >= 2 && now === 0, 2000);
+        await new Promise(r => setTimeout(r, 100));
+
+        const form = document.createElement("div");
+        form.innerHTML = '<footer><button type="button" data-action="ok">Apply</button></footer>';
+        const apply = form.querySelector("button");
+        const reason = "<b>Ai</b> holds two rooms";
+        V.setApplyBlock(form, "bedrooms", reason);
+        const held = [apply.disabled, apply.hasAttribute("data-tooltip"), apply.dataset.tooltipText ?? null, apply.getAttribute("aria-label")];
+        V.setApplyBlock(form, "bedrooms", null);
+        const freed = [apply.disabled, apply.hasAttribute("data-tooltip"), apply.dataset.tooltipText ?? null, apply.getAttribute("aria-label")];
+        equal(JSON.stringify([off, kept, [calls, most], held, freed]),
+            JSON.stringify([[true, true, true, true, true], ["<strong>Stairwell</strong>", "hint", "t", true], [2, 1], [true, false, reason, reason], [false, false, null, null]]),
+            "[each control of the row off, [the name, This is a room's hint, a cell's hint kept, the picture no picker], [probes for two paths, the most at once], the held Apply [disabled, an empty data-tooltip, its text tooltip, its label], freed]");
+    }],
+    ["R8345 - a room's picture window is closed when its room's picture changes or goes, and left alone for another room or the same picture (1.2.122 line MAP; scripts/room-tile.mjs `stalePictures`, `refreshRoomTile`, `openRoomImage`; the audit's REFR-60)", async () => {
+        /*
+         * 1.2.122 line MAP, 21.11.2026; the audit's REFR-60. `openRoomImage` opened Foundry's ImagePopout with the path of the
+         * press, and nothing found it again: the GM replaced the Library's picture and the player's window went on showing
+         * the old one. The harness has no ImagePopout, so the rule is read on stand-in popouts (`stalePictures`, pure) and
+         * `refreshRoomTile` held to close what it answers, and `openRoomImage` to keep what it opened (their source).
+         */
+        const T = await import("./room-tile.mjs");
+        const { safeRoomImage } = await import("./vault.mjs");
+        must(typeof T.stalePictures === "function", "room-tile.mjs has no stalePictures - this would measure nothing");
+        const a = safeRoomImage("rooms/library.webp"), b = safeRoomImage("rooms/library-after.webp");
+        must(a && b && a !== b, "the suite's two paths are not pictures safeRoomImage accepts - this would measure nothing");
+        const lib = {}, gym = {}, same = {};
+        const shown = new Map([[lib, { room: "Library", src: a }], [gym, { room: "Gym", src: a }]]);
+        const pick = (view, map = shown) => T.stalePictures(view, map).map(p => (p === lib ? "lib" : p === gym ? "gym" : p === same ? "same" : "?"));
+        const src = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/room-tile.mjs`).then(lfText));
+        equal(JSON.stringify([pick({ room: "Library", image: "rooms/library-after.webp" }), pick({ room: "Library", image: null }),
+            pick({ room: "Library", image: "rooms/library.webp" }), pick({ room: "Hall", image: null }),
+            /stalePictures\(view, shownPictures\)/.test(fnSource(src, "refreshRoomTile")) && /\.close\?\.\(\)/.test(fnSource(src, "refreshRoomTile")),
+            /shownPictures\.set\(popout, \{ room, src \}\)/.test(fnSource(src, "openRoomImage"))]),
+            JSON.stringify([["lib"], ["lib"], [], [], true, true]),
+            "[the Library's picture changed, removed, the same; the viewer in another room; refreshRoomTile closes what it names; openRoomImage keeps what it opened]");
+    }],
+    ["R8346 - a canvas drawn again over the same standing announces the room quietly, and the owner's charges of one character run one after another (1.2.122 line MAP; scripts/fog.mjs `revealStartingRooms`; movement.mjs `settleRoute`; the audit's MAP-31, MAP-38)", async () => {
+        /*
+         * 1.2.122 line MAP, 21.11.2026. MAP-31: every canvasReady announced the room the lead stands in, and a floor switch
+         * is a full canvas draw on v14 as fog.mjs reads the spike (LIVE-E12-02), so each press of a floor button played the
+         * arrival's sound and hop with nobody moving; the same scene and the same leads' rooms as the last call are now
+         * announced `quiet`. MAP-38: the owner's charge was no step of any key, so two quick drags could both read the free
+         * Move; it is a step of `crossingKey` on the owner's browser too. Both off the source: the harness draws no canvas,
+         * and two drags inside one write's round trip are a hand's at a real table (not measured here).
+         */
+        const [fog, move] = await Promise.all(["fog.mjs", "movement.mjs"].map(f => fetch(`/modules/${MODULE_ID}/scripts/${f}`).then(lfText).then(stripComments)));
+        const reveal = fnSource(fog, "revealStartingRooms"), settle = fnSource(move, "settleRoute");
+        must(reveal && settle, "fog.mjs has no revealStartingRooms or movement.mjs no settleRoute - this would measure nothing");
+        equal(JSON.stringify([/const quiet = key === startingShown;/.test(reveal) && /startingShown = key;/.test(reveal),
+            /announceRoom\(entered\.room, token\.document\.actor, token\.document\.elevation, \{ quiet \}\)/.test(reveal),
+            /if \(owner\) return serialWrite\(crossingKey\(actor\.id\), \(\) => chargeRoute\(/.test(settle),
+            (settle.match(/chargeRoute\(/g) ?? []).length === (settle.match(/serialWrite\(crossingKey\(actor\.id\), \(\) => chargeRoute\(/g) ?? []).length]),
+            JSON.stringify([true, true, true, true]),
+            "[the starting announcement keyed on the scene and the leads' rooms, a known room announced quiet on the same key, the owner's charge a step of the key, every charge of the route one]");
+    }],
+    ["R8347 - every seam's light blurs by the same screen pixels whatever the zoom: the standing outline's, a ring's baked light and the reveal's line light (1.2.122 line MAP; scripts/fog-reveal.mjs `haloBlur`, `buildRevealLayers`, `seamHalo`; the audit's MAP-29)", async () => {
+        /*
+         * 1.2.122 line MAP, 21.11.2026; the audit's MAP-29. E49 B4 (S07-34) held the standing outline's blur to 6 px with a
+         * padding of 14 px; a ring's baked light (`haloBlur`, read by `wearHalo`) and the reveal's line light kept six
+         * seams, a seam being 1 / zoom in scene units handed to a filter that works in screen pixels - 20 px at zoom 0.3.
+         * Read off the source: every BlurFilter the file makes takes `HALO_BLUR_PX` and every padding `HALO_PAD_PX`, and no
+         * blur is built from a seam or a line width. How it looks at a table is LIVE-E49-04.
+         */
+        const src = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/fog-reveal.mjs`).then(lfText));
+        const blurs = [...src.matchAll(/new Blur\(([^,]+), 3\)/g)].map(m => m[1].trim());
+        const pads = [...src.matchAll(/\.padding = ([^;]+);/g)].map(m => m[1].trim());
+        must(blurs.length >= 3, `fog-reveal.mjs makes ${blurs.length} blur(s) - this would measure nothing`);
+        equal(JSON.stringify([[...new Set(blurs)], [...new Set(pads)], /Math\.max\(6,/.test(src)]), JSON.stringify([["HALO_BLUR_PX"], ["HALO_PAD_PX"], false]),
+            "[what every blur is made of, every padding, a blur grown from a seam]");
     }],
 ];
 

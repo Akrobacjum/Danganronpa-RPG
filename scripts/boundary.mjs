@@ -119,7 +119,7 @@ export async function toggleEclipse() {
         if (!await ready.close("go")) return null;
         return endEclipse({ advance: true });
     }
-    const choice = await placementTable(rows);
+    const choice = await placementTable();
     if (!await ready.close(choice === "end" || choice === "endOnly" ? "go" : "stop")) return null;
     if (choice === "end") return endEclipse({ advance: true });
     if (choice === "endOnly") return endEclipse({ advance: false });
@@ -204,8 +204,38 @@ export function eclipseQuestion(clock, name) {
  * The placement table, for an end with somebody who has not crossed (moved here from gm-panel.mjs `toggleEclipse` by
  * E37 C2): a row a placing student, the ones at 0 dimmed, under `DRPG.Eclipse.endPrompt`. Answers the button pressed:
  * "end", "endOnly", or "cancel" / null for Close.
+ *
+ * KEPT LIVE (1.2.122 line MAP; the audit's REFR-08; the owner's rule "Zawsze odswiezamy okna od razu przy zmianie"). It
+ * was drawn once from the rows read at the press, so a student who crossed while the GM held it open - the window held
+ * open to see who has placed - stayed dimmed at 0 in the old room. The rows are read again (eclipse.mjs `placementStatus`)
+ * on the Eclipse's crossings, the tokens, the characters and the deaths, as the readiness window before it is. Exported
+ * for the suite.
  */
-function placementTable(rows) {
+export async function placementTable() {
+    const { eclipseMoveStore } = await import("./gm-stores.mjs");
+    return drpgWindow({
+        title: eclipseLabel(),
+        classes: ["drpg-panel", "drpg-window-eclipse-end"],
+        // On the kit's frame, as wide as its widest table (ui-kit.mjs `fitKitWidth`; utils.mjs `tableDialog` until E21 C2a).
+        fit: true,
+        body: `<p>${game.i18n.localize("DRPG.Eclipse.endPrompt")}</p>${placementRows(placementStatus())}`,
+        // A question withdrawn: Cancel (E21 rule 3), the answer it was "cancel" before.
+        footer: {
+            primary: { action: "end", label: game.i18n.localize("DRPG.Eclipse.endAndAdvance"), tooltip: tipText("DRPG.Tips.Sweep.Trial.eclipseEndAdvanceTooltip") },
+            secondary: [{ action: "endOnly", label: game.i18n.localize("DRPG.Eclipse.endOnly"), tooltip: tipText("DRPG.Tips.Sweep.Trial.eclipseEndOnlyTooltip") }],
+            close: { role: "cancel", action: "cancel" }
+        },
+        render: (event, dialog) => keepLive(dialog, {
+            region: ".drpg-placement-body",
+            build: () => placementRows(placementStatus()),
+            watch: { actors: true, tokens: true, settings: [SETTINGS.clock], stores: [eclipseMoveStore], hooks: ["drpgDeathsChanged", "drpgCubsChanged", "drpgCastChanged"] }
+        }),
+        rejectClose: false
+    });
+}
+
+/** The placement table's rows (`placementTable`), drawn again by its live region, which `keepLive` finds by its class. */
+function placementRows(rows) {
     const body = rows.map(s => `
         <tr${s.moved === 0 ? ' style="opacity:.55"' : ""}>
             <td>${foundry.utils.escapeHTML(s.actor.name)}</td>
@@ -217,26 +247,11 @@ function placementTable(rows) {
                 s.allowance === null ? s.moved : `${s.moved} / ${s.allowance}`
             }</td>
         </tr>`).join("");
-
-    return drpgWindow({
-        title: eclipseLabel(),
-        classes: ["drpg-panel", "drpg-window-eclipse-end"],
-        // On the kit's frame, as wide as its widest table (ui-kit.mjs `fitKitWidth`; utils.mjs `tableDialog` until E21 C2a).
-        fit: true,
-        body: `<p>${game.i18n.localize("DRPG.Eclipse.endPrompt")}</p>
-            <table><thead><tr>
+    return `<div class="drpg-placement-body"><table><thead><tr>
                 <th>${game.i18n.localize("DRPG.Panel.character")}</th>
                 <th>${game.i18n.localize("DRPG.Project.room")}</th>
                 <th>${game.i18n.localize("DRPG.Eclipse.movesColumn")}</th>
-            </tr></thead><tbody>${body}</tbody></table>`,
-        // A question withdrawn: Cancel (E21 rule 3), the answer it was "cancel" before.
-        footer: {
-            primary: { action: "end", label: game.i18n.localize("DRPG.Eclipse.endAndAdvance"), tooltip: tipText("DRPG.Tips.Sweep.Trial.eclipseEndAdvanceTooltip") },
-            secondary: [{ action: "endOnly", label: game.i18n.localize("DRPG.Eclipse.endOnly"), tooltip: tipText("DRPG.Tips.Sweep.Trial.eclipseEndOnlyTooltip") }],
-            close: { role: "cancel", action: "cancel" }
-        },
-        rejectClose: false
-    });
+            </tr></thead><tbody>${body}</tbody></table></div>`;
 }
 
 /* ==========================================================================
@@ -354,11 +369,17 @@ export async function openRoundOnPrimary({ kind, by = null } = {}) {
            the new round in the same write, or ended alone when nobody is to be asked - and `cleared` tells that GM. The
            same GM back after a reload is connected again and joins it. */
         const cleared = Boolean(open && open.by !== by && !game.users.get(open.by ?? "")?.active);
-        let write = cleared ? { ...open, ended: "stop" } : null;
+        /* AND WHILE NO ROUND MAY RUN, ENDED "go", NOTHING TOLD (1.2.122 line MAP; the audit's MAP-27). It was written
+           "stop" before `roundAllowed` was asked, so during an incident before Stage 6 the next GM's Next time of day told
+           every player whose window was still up that the GM was waiting a little longer, at the moment the hidden clock
+           moved: the signal FG1b and FG1c took out of the incident's start and of a barred "go". Written as FG1c writes a
+           barred one now; "stop" stays where a round may run, the new round replacing it in the same write. */
+        const allowed = await roundAllowed(clock);
+        let write = cleared ? { ...open, ended: allowed ? "stop" : "go" } : null;
         if (cleared) open = null;
         let reply = { round: null, cleared };
         const users = roundUsers();
-        if (await roundAllowed(clock) && users.some(user => user.active)) {
+        if (allowed && users.some(user => user.active)) {
             if (open && open.kind !== kind) return { refused: "another readiness round is open" };
             if (open) reply = { round: open, cleared };
             else {
@@ -501,9 +522,9 @@ async function askReadiness(kind) {
  * round's setting, the Eclipse's crossings and who is connected (live.mjs `keepLive`). It goes on by itself once the
  * reading is `ready`; a go button with somebody not done asks to confirm first ("Wait" brings the window back); at an
  * end, a student nobody has placed for hands the decision to the placement table ("table"). Answers the action that
- * went on, "table", "stop" (Not now or a closed window), or null when the round went away under it.
+ * went on, "table", "stop" (Not now or a closed window), or null when the round went away under it. Exported for the suite.
  */
-async function roundWindow(round) {
+export async function roundWindow(round) {
     const { eclipseMoveStore } = await import("./gm-stores.mjs");
     const kind = round.kind;
     const placement = () => placementStatus().map(s => ({ actorId: s.actor.id, moved: s.moved }));
@@ -533,7 +554,10 @@ async function roundWindow(round) {
                    boundary (`roundOf`). Until C3a the region declared the round's key alone and its build read `clock`
                    undeclared (E21-T1, measured on b82fc415: undeclared ["clock"]; a day move closed the window there all
                    the same, by a road the test does not name). */
-                watch: { settings: [SETTINGS.readyRound, SETTINGS.clock], stores: [eclipseMoveStore], hooks: ["userConnected"] },
+                /* And the cast (1.2.122 line MAP; the audit's REFR-49): `roundUsers` reads the acting students and their owners,
+                   so a death, a Monocub or an owner changed during the round kept the old row, and the window waited on it. */
+                watch: { actors: true, settings: [SETTINGS.readyRound, SETTINGS.clock], stores: [eclipseMoveStore],
+                    hooks: ["userConnected", "drpgDeathsChanged", "drpgCubsChanged", "drpgCastChanged"] },
                 after: check
             });
             setTimeout(check, 0);

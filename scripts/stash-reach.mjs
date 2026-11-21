@@ -32,7 +32,7 @@ import { locateActor, sceneOfActor } from "./movement.mjs";
 import { iAmTheMastermind, isDeadForGm, getClock } from "./settings.mjs";
 import { whisperToOwner, whisperToGms, log, error, esc, listOf } from "./utils.mjs";
 import { drpgWindow } from "./ui-kit.mjs";
-import { alreadyOpen, RAISED } from "./live.mjs";
+import { alreadyOpen, RAISED, keepLive } from "./live.mjs";
 import { placeScenes } from "./rooms.mjs";
 import {
     VAULT_FLAGS, stashesIn, stashIn, stashRoomsFor, stashRoomOfItem, stashItemsIn, allVaults, foundKey, hasFoundStash,
@@ -554,8 +554,9 @@ export async function stealFromVault({ thiefId, ownerId, itemId } = {}) {
     // Gone by its turn - another reach for the same piece took it first: told as a thing no longer there (E14 fix e1-G1).
     if (moved?.missing) return { refused: "no such thing in that stash" };
     if (!moved?.ok) {
-        // Full hands and no stash of their own, or not written: the thief is told, or the Search card that follows
-        // says "what comes out settles in a moment" and nothing ever does (ROLL-10).
+        // Full hands and no stash of their own, or not written: the thief is told why here (ROLL-10's whisper). Its first
+        // reason - a Search card that followed and said "what comes out settles in a moment" - left with 1.2.112, when a
+        // Search stopped reaching into a stash (action-search.mjs; the audit's ROLL-34): the rifle's own answer is all.
         await whisperToOwner(thief, `<p>${game.i18n.localize("DRPG.Vault.handsFull")}</p>`).catch(() => {});
         return null;
     }
@@ -807,11 +808,36 @@ export async function openVaultInspector() {
        unstamped one under each scene's primary stash. Which of the two holds it is not written
        anywhere this window could read, so each thing is listed once: under the first scene in
        `placeScenes`' order whose stash of its owner and room takes it, and not again below. */
+    if (!placeScenes().some(scene => allVaults(scene).some(v => v.owner))) {
+        ui.notifications.warn(game.i18n.localize("DRPG.Vault.noneSet"));
+        return null;
+    }
+
+    /* KEPT LIVE (1.2.122 line MAP; the audit's REFR-13; the owner's rule "Zawsze odswiezamy okna od razu przy zmianie"). It
+       listed what stood at the open and never redrew, and a second call raised that copy: a thing stowed, taken out,
+       rifled or stolen while it stood open stayed where it was. The list is read again on every item, character and room
+       change; a stash gone since the open leaves the window's note that none is set. */
+    // On the kit's frame (E21 C5a): a read-only window, its one word Close (foldable, as every kit window).
+    return drpgWindow({
+        title: game.i18n.localize("DRPG.Vault.inspectTitle"),
+        classes: ["drpg-panel", "drpg-window-stashes"],
+        body: inspectorBody(),
+        footer: { close: "close" },
+        render: (event, dialog) => keepLive(dialog, {
+            region: ".drpg-vault-inspector",
+            build: inspectorBody,
+            watch: { actors: true, items: true, hooks: ["createRegion", "updateRegion", "deleteRegion", "updateScene"] }
+        }),
+        rejectClose: false
+    });
+}
+
+/** The inspector's list (`openVaultInspector`), every place scene's stashes and what lies in each, as it stands now. */
+function inspectorBody() {
     const scenes = placeScenes().map(scene => ({ scene, vaults: allVaults(scene).filter(v => v.owner) }));
     const listed = new Set();
     if (!scenes.some(entry => entry.vaults.length)) {
-        ui.notifications.warn(game.i18n.localize("DRPG.Vault.noneSet"));
-        return null;
+        return `<div class="drpg-vault-inspector"><p class="notes">${game.i18n.localize("DRPG.Vault.noneSet")}</p></div>`;
     }
 
     const section = scene => v => {
@@ -836,13 +862,6 @@ export async function openVaultInspector() {
             ? vaults.map(section(scene)).join("")
             : `<p class="notes">${game.i18n.localize("DRPG.Vault.noStashesOnScene")}</p>`}`).join("");
 
-    // On the kit's frame (E21 C5a): a read-only window, its one word Close (foldable, as every kit window).
-    return drpgWindow({
-        title: game.i18n.localize("DRPG.Vault.inspectTitle"),
-        classes: ["drpg-panel", "drpg-window-stashes"],
-        body: `<div>${sections}
-            <p class="notes">${game.i18n.localize("DRPG.Vault.inspectNote")}</p></div>`,
-        footer: { close: "close" },
-        rejectClose: false
-    });
+    return `<div class="drpg-vault-inspector">${sections}
+            <p class="notes">${game.i18n.localize("DRPG.Vault.inspectNote")}</p></div>`;
 }

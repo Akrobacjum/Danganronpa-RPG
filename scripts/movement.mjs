@@ -1406,9 +1406,10 @@ function setCrossingKind(actorId, id, kind) {
 }
 
 /**
- * The GM's "Refund last crossing" (the note above), on the primary GM: `{ reply: { kind, given, back, boundary } }` - the
- * price given back (`kind`, null for none seen; `given` whether a write gave it), the token stood where it was (`back`),
- * and whether a time of day began since (`boundary`) - or `{ refused }` in the bridge's words. Once a crossing: the
+ * The GM's "Refund last crossing" (the note above), on the primary GM: `{ reply: { kind, given, back, boundary, movedOn } }` -
+ * the price given back (`kind`, null for none seen; `given` whether a write gave it), the token stood where it was (`back`),
+ * whether a time of day began since (`boundary`) and whether the token had left the crossing's room, so stayed (`movedOn`)
+ * - or `{ refused }` in the bridge's words. Once a crossing: the
  * record is marked given back before anything is written.
  */
 export async function refundLastCrossing(actorId) {
@@ -1429,7 +1430,12 @@ export async function refundLastCrossing(actorId) {
         const given = kind ? await refundCrossingOnGm(actor, kind) !== false : false;
         const token = game.scenes?.get(row.sceneId)?.tokens?.get(row.tokenId) ?? null;
         let back = false;
-        if (token && Number.isFinite(Number(row.back?.x)) && Number.isFinite(Number(row.back?.y))) {
+        /* Stood back only while it still stands where the crossing put it (1.2.122 line MAP; the audit's MAP-25). The record
+           keeps a character's newest crossing with no end, and a GM's drag, gather or placing records none, so the newest
+           crossing could be hours old and the token rooms away: a press for a nudge just made stood it back on the spot it
+           left that morning. Moved on since, it stays, the price alone comes back, and the GMs are told where it stands. */
+        const movedOn = Boolean(token) && roomOfToken(token) !== (row.to ?? null);
+        if (token && !movedOn && Number.isFinite(Number(row.back?.x)) && Number.isFinite(Number(row.back?.y))) {
             const to = { x: Number(row.back.x), y: Number(row.back.y), elevation: Number(row.back.elevation) || 0 };
             if (row.back.level !== null && row.back.level !== undefined) to.level = row.back.level;
             try {
@@ -1442,11 +1448,16 @@ export async function refundLastCrossing(actorId) {
         /* What came back, as it came back (E17 fix e1-G2; the review's E17R-05): the owner was told the token stood back and the
            price was theirs again also when the token could not be moved, or when no price was seen or none was given. */
         const priced = given && kind !== "none";
+        if (movedOn) {
+            await whisperToGms({ tone: "warning", body: `<p data-drpg-refund-moved="${esc(token.id)}">${esc(game.i18n.format("DRPG.Move.refundMovedGm",
+                { name: actor.name ?? "", at: roomPhrase("at", roomOfToken(token) ?? null) }))}</p>` })
+                ?.catch?.(err => error("Could not tell the GMs where a token given back its crossing stands", err));
+        }
         await whisperToOwner(actor, `${cardHead({ action: game.i18n.localize("DRPG.Move.title"), room: row.from })}<p>${
-            game.i18n.localize(back ? "DRPG.Move.refundedBack" : "DRPG.Move.refundedStays")} ${
+            game.i18n.localize(back ? "DRPG.Move.refundedBack" : movedOn ? "DRPG.Move.refundedMoved" : "DRPG.Move.refundedStays")} ${
             game.i18n.localize(priced ? "DRPG.Move.refundedPrice" : "DRPG.Move.refundedNoPrice")}</p>`)
             .catch(err => error("Could not tell the owner of a crossing given back", err));
-        return { reply: { kind, given, back, boundary: row.mark !== timeOfDayMark() } };
+        return { reply: { kind, given, back, boundary: row.mark !== timeOfDayMark(), movedOn } };
     });
 }
 
@@ -1711,7 +1722,7 @@ export function isCorpse(actor) {
  *
  * @returns {true|string|{code: string, text: string}} true, or the reason it is refused.
  */
-export function crossingVerdict(actor, from, to, scene, floors = null, { mover = null, pay = true, via = null, known, joined = false, keyed = false, elevation = null } = {}) {
+export function crossingVerdict(actor, from, to, scene, floors = null, { mover = null, pay = true, via = null, known, joined = false, keyed = false, elevation = null, knownRooms } = {}) {
     // Monokumas are not bound by any of this - nor is a Spectator, a ghost (E92 C3), before the incident's and the trial's
     // locks: it is in no incident and no trial, and it goes everywhere at no price. On the primary's judge the flag is
     // the GMs' (`judgeArrival` hands the actor as they hold it), so a console's forged flag is judged as a student.
@@ -1730,11 +1741,18 @@ export function crossingVerdict(actor, from, to, scene, floors = null, { mover =
     // Despair Calls that physically stop you. Checked before the action economy
     // because they are absolute: no amount of actions buys past a locked door.
     const passage = joined || passesThrough(actor, from, to, scene, floors, { mover, known, elevation });
-    const blocked = restrictedFrom(actor, to, scene, mover, { via: passage && via === "passage" ? "passage" : null, keyed });
+    const through = passage && via === "passage" ? "passage" : null;
+    const blocked = restrictedFrom(actor, to, scene, mover, { via: through, keyed, knownRooms });
     if (blocked) return blocked;
-    // A barricade (E74 C1): read here and by the GMs' audit through this verdict, never by the passages' glow, which asks
-    // `restrictedFrom` alone - so no surface shows a barricade before a pull on its door (the plan's risk 2).
-    const barred = barricadedFrom(actor, to, scene, mover, { via: passage ? "passage" : via, keyed });
+    /* A barricade (E74 C1): read here and by the GMs' audit through this verdict, never by the passages' glow, which asks
+       `restrictedFrom` alone - so no surface shows a barricade before a pull on its door (the plan's risk 2). It gives to
+       a step that goes through what it does not bar - a passage the character knows, as the bedroom's key above asks it, a
+       tunnel (`joined`) or a breach - and never to a walk in through its door (1.2.122 line MAP; the audit's MAP-22): it
+       was handed "passage" whenever the character knew any passage joining the two rooms, so a knower walked in through
+       the barricaded door itself, and its author was never told of the knock. A `via` of "passage" with no passage behind
+       it is the door. */
+    const barVia = joined ? "tunnel" : via === "passage" ? through : via;
+    const barred = barricadedFrom(actor, to, scene, mover, { via: barVia, keyed });
     if (barred) return barred;
 
     const clock = game.settings.get(MODULE_ID, SETTINGS.clock);
@@ -2076,13 +2094,22 @@ function lockedInIncident(actor, keyed = false) {
  *
  * @returns {false|string} false when the move is allowed, otherwise the reason.
  */
-function restrictedFrom(actor, to, scene, mover = null, { via = null, keyed = false } = {}) {
+function restrictedFrom(actor, to, scene, mover = null, { via = null, keyed = false, knownRooms } = {}) {
+    // The room is named only to a viewer who has found it (1.2.122 line MAP; the audit's MAP-21), as `notConnectedText` names
+    // it since E06 C11: these rules are asked before the connected-rooms rule, so a drag onto any black patch of the map
+    // came back with the name of the sealed room or the bedroom under it. An unfound room gets the words of `cannotNow`,
+    // which name nothing. `knownRooms` is the suite's (a Set, or null for a viewer who knows the map); else this browser's.
+    const named = room => {
+        const known = knownRooms === undefined ? roomsKnownToMe(scene) : knownRooms;
+        return !known || known.has(room);
+    };
+    const unnamed = () => game.i18n.localize("DRPG.Bridge.why.cannotNow");
     try {
         if (isChained(actor)) return refusal(keyed, "chained", game.i18n.localize("DRPG.Calls.chainedBlocked"));
         // Pick the Lock's pass (E74, DA9): its holder walks into that one room past a lock, a bedroom and a seal.
         if (to && !(mover ? mover.mastermind : iAmTheMastermind()) && !holdsPass(actor, scene, to)) {
             if (isLocked(scene, to)) return refusal(keyed, "doorLocked", game.i18n.localize("DRPG.Move.locked"));
-            if (isSealed(to)) return refusal(keyed, "roomSealed", game.i18n.format("DRPG.Calls.sealedBlocked", { room: to }));
+            if (isSealed(to)) return refusal(keyed, "roomSealed", named(to) ? game.i18n.format("DRPG.Calls.sealedBlocked", { room: to }) : unnamed());
             /* A MURDER'S ROOM SHUTS TO A MONOCUB, IN THE NEUTRAL WORDS (E72 C10, 12.11.2026; the owner's amendment of 06.11;
                the 1.2.110 review's V1, 13.11.2026). Judged where the incident's room is known - a GM's browser, judging a
                player's step (`mover`) - and never a GM's own move; a Monocub already inside is not crossing into it. It read as
@@ -2102,7 +2129,7 @@ function restrictedFrom(actor, to, scene, mover = null, { via = null, keyed = fa
             // moving a token is not standing in the fiction and is never
             // stopped by a door.
             if (via !== "passage" && !(mover ? mover.gm : game.user.isGM) && bedroomShut(actor, scene, to)) {
-                return refusal(keyed, "cannotNow", game.i18n.format("DRPG.Vault.keyMissing", { room: to }), "bedroomShut");
+                return refusal(keyed, "cannotNow", named(to) ? game.i18n.format("DRPG.Vault.keyMissing", { room: to }) : unnamed(), "bedroomShut");
             }
         }
     } catch {
@@ -2754,8 +2781,14 @@ async function settleRoute(tokenDoc, actor, { before, previous, crossings }) {
        count beside it; both are steps of `crossingKey(actor.id)` now, and the route's Eclipse crossings are counted in
        this step (`countCrossingInStep`), not in a second one of the key it holds. A route the owner's browser pays stays
        the owner's, as at Base: its count is the primary's step through `eclipse.move`, and its spend the owner's
-       stamped write (design note 20). */
-    if (owner) return chargeRoute(tokenDoc, actor, { before, previous, crossings });
+       stamped write (design note 20), in a step of the same key on the owner's browser (below). */
+    /* THE OWNER'S CHARGES OF ONE CHARACTER, ONE AFTER ANOTHER (1.2.122 line MAP; the audit's MAP-38, MAP-LC3's second
+       half). `takeMove` reads the free Move off this browser's copy and then awaits its write, so a second route settled
+       here before the first spend came back read the free Move unused and took it again: two drops in quick succession
+       both said "That was your Free Move". A step of the character's key on this browser too; the primary's steps of the
+       key are the primary's, and nothing the owner's charge calls asks the key on the owner's browser. Whether a hand
+       lands the second drop inside one write's round trip at a table is not read (the audit's own question). */
+    if (owner) return serialWrite(crossingKey(actor.id), () => chargeRoute(tokenDoc, actor, { before, previous, crossings }));
     return serialWrite(crossingKey(actor.id), () => chargeRoute(tokenDoc, actor, { before, previous, crossings }, {
         record: async (who, to) => {
             const { countCrossingInStep } = await import("./eclipse.mjs");
@@ -3116,14 +3149,17 @@ async function judgeMove(tokenDoc, changes, options, userId, route = {}, { atRes
  * with no `pay`): on that route it read the step lawful, since the refusal was the charge's, for want of a Move - so
  * it is one of the two readings here. The other is the charge's own question (`chargeForCrossing`, `takeMove`) asked
  * of the same flags on the GM's copy of the student as the update reaches it, before the charging browser's spend can:
- * a free Move, the Sprints, the Bursts and the actions, one a crossing. True only for a route this browser reads as
- * refused; an Eclipse (`judgeEclipseCrossing` counts what the GMs hold of it) and a route the rules let through
+ * a free Move, the Sprints, the Bursts and the actions, one a crossing - and none for a Monocub, which pays nothing (MAP-24).
+ * True only for a route this browser reads as refused; an Eclipse (`judgeEclipseCrossing` counts what the GMs hold of it) and a route the rules let through
  * and the charge then refuses for a budget that moved meanwhile still wait for quiet.
  */
 function refusedOnPrimary(tokenDoc, actor, crossings) {
     if (!isPrimaryGm()) return false;
     if (standings.get(tokenDoc.id)?.lawful === false) return true;
     if (isEclipse() || !game.settings.get(MODULE_ID, SETTINGS.chargeMovement)) return false;
+    // A Monocub pays nothing (E72 C10; 1.2.122 line MAP, the audit's MAP-24): its route is never refused for a budget, as
+    // the veto (`cubStep`), the charge (`chargeRoute`) and the GMs' settle already read it.
+    if (crossesFree(actor)) return false;
     const budget = (hasFreeMove(actor) ? 1 : 0) + freeMovesLeft(actor) + freeActionsLeft(actor) + actionsLeft(actor);
     return budget < crossings.length;
 }
