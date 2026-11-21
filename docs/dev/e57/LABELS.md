@@ -6,7 +6,7 @@ several keys share lists them all (first five). Brought up to date after the tex
 changed is a handbook line to change. The second table is the bold spans that are no lang value (game names,
 emphasis, labels drawn by Foundry or Daggerheart, or a label that drifted).
 
-Quoted labels: 3053 (EN 1477, PL 1576).
+Quoted labels: 3052 (EN 1477, PL 1575).
 
 | Handbook | Line | Label | Key(s) |
 | --- | --- | --- | --- |
@@ -2093,7 +2093,6 @@ Quoted labels: 3053 (EN 1477, PL 1576).
 | gm-handbook.pl | 1614 | Zakończ rozdział | `DRPG.Chapter.endTitle`, `DRPG.Panel.goChapterEndButton` |
 | gm-handbook.pl | 1614 | Edytuj kampanię | `DRPG.Panel.jump` |
 | gm-handbook.pl | 1617 | Zbierz Truth Bullets | `DRPG.Panel.sweepBullets` |
-| gm-handbook.pl | 1618 | Wyczyść Faint Remnanty | `DRPG.Panel.clearFaint` |
 | gm-handbook.pl | 1618 | Powiązany ze zbrodnią | `DRPG.Remnant.crimeColumn` |
 | gm-handbook.pl | 1618 | Nie | `DRPG.Remnant.tieShortUntied` |
 | gm-handbook.pl | 1620 | Zamknij Class Trial i przywróć wszystkich do Daily Life | `DRPG.Chapter.optEndTrial` |
@@ -3064,7 +3063,7 @@ Quoted labels: 3053 (EN 1477, PL 1576).
 | player-brochure.pl | 104 | Gotowe | `DRPG.Kit.check.done`, `DRPG.Trial.turn.done`, `DRPG.Ready.done`, `DRPG.Ready.status.done` |
 | player-brochure.pl | 104 | Pasuję | `DRPG.Trial.turn.pass` |
 
-## Bold spans with no lang value (1015)
+## Bold spans with no lang value (1016)
 
 | Handbook | Span | Times |
 | --- | --- | --- |
@@ -3714,6 +3713,7 @@ Quoted labels: 3053 (EN 1477, PL 1576).
 | gm-handbook.pl | Wznów Closing Argument | 1 |
 | gm-handbook.pl | Własny reroll Daggerhearta | 1 |
 | gm-handbook.pl | Właściciel dowiaduje się po powrocie. | 1 |
+| gm-handbook.pl | Wyczyść Faint Remnanty | 1 |
 | gm-handbook.pl | Zabójca proponuje. | 1 |
 | gm-handbook.pl | Zabójca za „?”. | 1 |
 | gm-handbook.pl | Zamiana Despair w Hope | 1 |
