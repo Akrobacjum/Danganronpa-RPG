@@ -1951,25 +1951,39 @@ async function listenLines(actor, { room, target, total, isCritical }) {
  * call cards of this character still open (not `settled`), posted since the replaced roll's message, are settled here
  * (call-gm.mjs `settleCall`: the buttons go) with the line that a Reroll replaced them. A card already answered stands, as
  * the comment below says. The card holds no link to its roll (its flags are neutral on purpose), so it is found by its
- * buttons' character (`data-by`) and its time. Exported for the suite.
+ * time and by the button only its own kind of ruling card carries.
+ *
+ * ONE CARD, OF THE REPLACED ACTION (the audit's r122-F-9, 1.2.123). Found by its buttons' character (`data-by`) and its
+ * time alone, every open card of that character since the roll was ended: a project's proposal, a reshape, a Call's
+ * request, a later Observe - each carries `data-by` too, inside the Reroll's 30 minutes - and its asker waited on an
+ * answer nobody could give any more. A card is now ended only where it carries the button of the replaced action's
+ * ruling (`RULING_BUTTON`, the three `ruledByHand` sends here: an Observe's "Nothing was there", `missAction`; an
+ * Analyze hint's "No help" and a described Search's "Nothing was there", `ruledMissAction` with its `words`), and only
+ * the oldest such card since the replaced roll's message - the one posted for it; a later card of the same kind is a
+ * later action's. Exported for the suite.
  */
+const RULING_BUTTON = Object.freeze({
+    observe: id => `data-drpg-call="observeMiss" data-by="${id}"`,
+    analyze: id => `data-drpg-call="searchMiss" data-by="${id}" data-words="help"`,
+    search: id => `data-drpg-call="searchMiss" data-by="${id}" data-words="there"`
+});
+
 export async function endReplacedRuling(actor, bookmark) {
     if (!game.user?.isGM || !actor?.id) return 0;
+    const button = RULING_BUTTON[bookmark?.actionKey]?.(actor.id);
+    if (!button) return 0;
     const { cardFlag, contentOf } = await import("./secret.mjs");
     const { MESSENGER_FLAGS } = await import("./messenger.mjs");
     const { settleCall } = await import("./call-gm.mjs");
     const since = Number(game.messages.get(bookmark?.messageId ?? "")?.timestamp ?? bookmark?.at ?? 0) || 0;
-    const by = `data-by="${actor.id}"`;
-    let ended = 0;
-    for (const card of [...(game.messages?.contents ?? [])]) {
-        if (!(cardFlag(card, "callCard") || cardFlag(card, MESSENGER_FLAGS.gmAsk)) || cardFlag(card, MESSENGER_FLAGS.settled)) continue;
-        if ((Number(card.timestamp) || 0) < since) continue;
-        const words = contentOf(card) ?? "";
-        if (!words.includes("drpg-call-actions") || !words.includes(by)) continue;
-        await settleCall(card, game.i18n.localize("DRPG.Reroll.rulingReplaced"));
-        ended++;
-    }
-    return ended;
+    const card = [...(game.messages?.contents ?? [])]
+        .filter(m => (cardFlag(m, "callCard") || cardFlag(m, MESSENGER_FLAGS.gmAsk)) && !cardFlag(m, MESSENGER_FLAGS.settled)
+            && (Number(m.timestamp) || 0) >= since)
+        .filter(m => { const words = contentOf(m) ?? ""; return words.includes("drpg-call-actions") && words.includes(button); })
+        .sort((a, b) => (Number(a.timestamp) || 0) - (Number(b.timestamp) || 0))[0];
+    if (!card) return 0;
+    await settleCall(card, game.i18n.localize("DRPG.Reroll.rulingReplaced"));
+    return 1;
 }
 
 /**

@@ -15,7 +15,7 @@ import { INFILTRATE, MODULE_ID, FLAGS } from "./config.mjs";
 import { spendAction } from "./actions.mjs";
 import { othersInRoom } from "./movement.mjs";
 import { whisperToOwner, esc } from "./utils.mjs";
-import { rollTrait, rollInHand, abort, spentAfterRoll, canAfford } from "./action-pipeline.mjs";
+import { rollTrait, rollInHand, abort, spentAfterRoll, canAfford, dualityOf } from "./action-pipeline.mjs";
 import { briefingBlock } from "./action-briefing.mjs";
 import { actionWindow, traitFieldHtml, readProposal } from "./action-menus.mjs";
 import { isMonokuma } from "./monokuma.mjs";
@@ -26,6 +26,11 @@ import { nameAsSeen, seenHere } from "./mask-gm.mjs";
 export function tailTargets(actor) {
     // a veiled killer this browser does not draw is not one (mask-gm.mjs `seenHere`, 1.2.119)
     return seenHere(othersInRoom(actor)).filter(a => a?.type === "character" && !isMonokuma(a) && !a.getFlag(MODULE_ID, FLAGS.monocub));
+}
+
+/** Whether any of `rolls` (`rollTrait`'s results) came up with Hope or a critical (`dualityOf`): the rolls that earn the roller Hope (r122-F-2). Pure. */
+export function rollsEarnedHope(rolls) {
+    return (rolls ?? []).some(r => { const d = dualityOf(r); return Boolean(d.withHope || d.isCritical); });
 }
 
 /** Tail Someone: the window, the GM's pick, the action, the two rolls, the ask. Answers `{ seen, target }` or null. */
@@ -50,6 +55,11 @@ export async function performTail(actor, options = {}) {
        `tailTargets` on every token write (live.mjs `keepLive`). */
     const whoSelect = list => `<span class="drpg-tail-who"><select name="who"${tipAttr("DRPG.Tips.Sweep.Actions.tailWhoTooltip")}>${list
         .map(a => `<option value="${a.id}">${esc(nameAsSeen(a))}</option>`).join("")}</select></span>`;
+    /* WHOM THE PLAYER PICKED, KEPT BESIDE THE SELECT (the audit's r122-F-3, 1.2.123). A rebuild carries a changed select's
+       value (live.mjs `restore`, `node.value = was.value`); with that student's option gone the select holds none and Roll
+       sent "", so the window closed with no word, against the note below. The last student picked is kept here as they
+       are picked (the first listed at the opening), and Roll with that student gone - or the list emptied - says so. */
+    let lastPicked = targets[0]?.id ?? null;
     const picked = options.target ? { targetId: options.target, proposed: traits.includes(options.proposed) ? options.proposed : null, note: "" }
         : await actionWindow({
             title: label,
@@ -70,10 +80,13 @@ export async function performTail(actor, options = {}) {
                 close: "cancel"
             },
             rejectClose: false,
+            render: (event, dialog) => dialog.element?.addEventListener("change", e => {
+                if (e.target?.name === "who" && e.target.value) lastPicked = e.target.value;
+            }),
             live: {
                 region: ".drpg-tail-who",
                 // The student picked is carried by the rebuild (live.mjs `capture`, a changed select); one who left is
-                // carried too and so picks nothing, and Roll says they are gone.
+                // carried too and so picks nothing, and Roll says they are gone (`lastPicked`).
                 build: () => whoSelect(tailTargets(actor)),
                 watch: { tokens: true }
             }
@@ -82,8 +95,9 @@ export async function performTail(actor, options = {}) {
     // The list as the room holds it now (the select may name a student who came in after the window opened).
     const target = tailTargets(actor).find(a => a.id === picked.targetId) ?? null;
     if (!target) {
-        const was = targets.find(a => a.id === picked.targetId);
+        const was = game.actors?.get?.(picked.targetId || lastPicked || "") ?? null;
         if (was) ui.notifications.warn(game.i18n.format("DRPG.Infiltrate.tail.gone", { name: nameAsSeen(was) }));
+        else ui.notifications.warn(game.i18n.localize("DRPG.Infiltrate.tail.nobody"));
         return null;
     }
 
@@ -122,10 +136,16 @@ export async function performTail(actor, options = {}) {
        and the action was lost. That refusal alone gives it back, as the look above would have kept it: the receipt
        `spendAction` handed back, judged on the primary against the payment it saw (sheet-audit.mjs, a refund's credit),
        so a free Tail gives nothing back. The rolls stand as thrown. Any other refusal keeps the action spent, as a roll
-       that landed does (`spentAfterRoll`, ROLL-05). */
+       that landed does (`spentAfterRoll`, ROLL-05).
+       NOT WHEN A ROLL BROUGHT HOPE (the audit's r122-F-2, 1.2.123). Both rolls are drawn and an action roll earns its Hope
+       (action-pipeline.mjs `rollTrait`): two players who agreed - one steps out while the other rolls - repeated Tail for
+       its Hope at no action, the free generator ROLL-05 shut. The action comes back only where neither roll came up with
+       Hope or a critical (`dualityOf`), so a repeat earns the roller nothing; else it stays spent and the player is told
+       why. A roll with Despair gives the GM theirs either way, as any thrown roll does. */
     if (!res.ok && res.refused && res.reason === "notThere") {
-        await abort(actor, paid);
-        if (paid) ui.notifications.info(game.i18n.format("DRPG.Infiltrate.tail.actionBack", { name: nameAsSeen(target) }));
+        const earned = rollsEarnedHope([shadow, roll]);
+        if (!earned) await abort(actor, paid);
+        if (paid) ui.notifications.info(game.i18n.format(earned ? "DRPG.Infiltrate.tail.goneKept" : "DRPG.Infiltrate.tail.actionBack", { name: nameAsSeen(target) }));
         return null;
     }
     if (!res.ok || res.value?.refused) return null;

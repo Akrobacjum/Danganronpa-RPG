@@ -30,7 +30,7 @@ import { students, assignments, monokumaFor, setAssignments, autoAssign, NO_MONO
 import { MODULE_ID } from "./config.mjs";
 import { dialogContent, error, listOf } from "./utils.mjs";
 import { kitTabs, wireKitTabs, drpgWindow, drpgConfirm, dataTable, box, tipAttr, tipText } from "./ui-kit.mjs";
-import { setOverflowRules, overflowSection, overflowNowLine, readOverflowForm, overflowStatus, clearOverflowAsGm, overflowSuggestionLine } from "./overflow.mjs";
+import { setOverflowRules, overflowSection, overflowNowLine, readOverflowForm, overflowStatus, clearOverflowAsGm, overflowSuggestionLine, overflowRules } from "./overflow.mjs";
 import { alreadyOpen, keepFresh, reopen, isDirty, RAISED } from "./live.mjs";
 import { SETTINGS } from "./settings.mjs";
 
@@ -66,6 +66,39 @@ function readTeamDraft(root, gms, actors) {
     return { pools, monokumaPools, overflow: readOverflowForm(root) };
 }
 
+/*
+ * WHAT THE WINDOW SHOWS, AS THE WORLD HOLDS IT NOW (the audit's r122-F-4 and r122-H-7, 1.2.123). The pools - who holds one,
+ * granted or revoked by another GM, and their names -, which Monokuma draws on which pool, which pool each student feeds,
+ * and the Overflow rules, in one string (`flowShown`) read at the open and again on every change of any of them. While
+ * they hold, nothing is redrawn; when another GM changes one, the window opens again from the world (`reopen`, as Add,
+ * Revoke and Split evenly do, TEAM-01) and carries what THIS GM changed and has not saved (`changedDraft`): the fields
+ * they edited, never one they left as drawn, so the other GM's change is what the new copy shows where this GM did not
+ * type. Until 1.2.123 only the Overflow count and the suggested threshold followed (`keepFresh` below), the suggestion
+ * not for a pool granted or revoked (it counts `monokumas()`, and neither the setting nor a role was watched), and the
+ * rest stood as opened while Save wrote only this GM's fields (REFR-07). The owner's rule: a window redraws at once on
+ * any change it shows.
+ */
+function flowShown() {
+    const gms = monokumas();
+    const cast = game.actors.filter(a => a.type === "character").sort((a, b) => a.id.localeCompare(b.id));
+    return JSON.stringify([
+        gms.map(u => [u.id, poolLabel(u)]),
+        cast.filter(a => isMonokuma(a)).map(a => [a.id, poolFor(a) ?? null]),
+        Object.entries(assignments() ?? {}).sort(([a], [b]) => a.localeCompare(b)),
+        overflowRules()
+    ]);
+}
+
+/** The draft of the fields this GM changed and has not saved, in `readTeamDraft`'s shape (r122-H-7): a field left as drawn is not carried. */
+function changedDraft(root, gms, actors) {
+    const draft = readTeamDraft(root, gms, actors);
+    if (!draft) return null;
+    const edited = name => { const node = root.querySelector(`[name="${CSS.escape(name)}"]`); return Boolean(node && isDirty(node)); };
+    const pools = Object.fromEntries(Object.entries(draft.pools).filter(([id]) => edited(`poolName.${id}`)));
+    const monokumaPools = Object.fromEntries(Object.entries(draft.monokumaPools).filter(([id]) => edited(`pool.${id}`)));
+    return { pools, monokumaPools, overflow: changedOverflow(root) };
+}
+
 /** Put a carried draft back, once the new copy has rendered. */
 function paintTeamDraft(root, draft) {
     if (!root || !draft) return;
@@ -85,7 +118,8 @@ function paintTeamDraft(root, draft) {
     if (threshold && Number.isFinite(rules.threshold)) threshold.value = rules.threshold;
     for (const [key, effect] of Object.entries(rules.effects ?? {})) {
         const on = root.querySelector(`[name="ovf-${key}-on"]`);
-        if (on) on.checked = Boolean(effect.on);
+        // A draft of the changed fields alone (`changedDraft`) may carry an effect's number without its box.
+        if (on && Object.hasOwn(effect, "on")) on.checked = Boolean(effect.on);
         const by = root.querySelector(`[name="ovf-${key}-by"]`);
         if (by && Number.isFinite(effect.by)) by.value = effect.by;
     }
@@ -355,13 +389,14 @@ export async function openGmTeamDialog({ draft = null } = {}) {
                 void clearOverflowFromTab();
             });
 
-            /* THE ONE NUMBER ON THIS WINDOW THAT MOVES WHILE IT IS OPEN.
+            /* THE NUMBERS ON THIS WINDOW THAT MOVE WHILE IT IS OPEN, AND THE REST.
 
                Everything else here is a setting being edited - pool names, which pool
                feeds whom, the overflow rules. With one GM none of it changes underneath;
-               with two it can, and it is not redrawn here: Save writes only the fields
-               this GM changed (the primary's callback, REFR-07, UI-19), so the other
-               GM's change stands. The spilled-Despair count changes constantly:
+               with two it can, and since 1.2.123 the window opens again from the world
+               when another GM changes it, carrying what this GM typed (`flowShown`,
+               r122-H-7, below); Save writes only the fields this GM changed (the
+               primary's callback, REFR-07, UI-19). The spilled-Despair count changes constantly:
                every Call that overfills a pool, every Key Remnant shortfall, every
                boundary. Measured on 11.09 with this window open: the count went from 84
                to 89 and the line went on reading 84.
@@ -388,6 +423,17 @@ export async function openGmTeamDialog({ draft = null } = {}) {
                     if (line && line.textContent !== text) line.textContent = text;
                 },
                 watch: { actors: true, hooks: ["drpgDeathsChanged", "drpgCubsChanged"] }
+            });
+            // Another GM's change of what this window shows: the window again from the world, this GM's edits carried (r122-F-4, H-7).
+            const drawn = flowShown();
+            keepFresh(dialog, {
+                run: root => {
+                    if (flowShown() === drawn) return;
+                    const carry = changedDraft(root, gms, actors);
+                    void reopen("drpg-window-gmteam", () => openGmTeamDialog({ draft: carry }));
+                },
+                watch: { actors: true, settings: [SETTINGS.poolNames, SETTINGS.extraPoolUsers, SETTINGS.gmAssignments, SETTINGS.monokumaPools, SETTINGS.overflowRules],
+                    hooks: ["updateUser", "createUser", "deleteUser"] }
             });
         },
         rejectClose: false

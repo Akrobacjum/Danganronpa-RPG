@@ -3931,6 +3931,7 @@
         "nobody": "Nobody else stands in this room to tail.",
         "gone": "{name} is not in this room any more.",
         "actionBack": "The tail did not begin: {name} walked out of the room first, so your action is back.",
+        "goneKept": "The tail did not begin: {name} walked out of the room first. Your rolls brought you Hope, so the action stays spent.",
         "prompt": "Pick whom to follow. Shadow {n} or more and they do not notice you; below it they learn your name, but the tail goes on.",
         "who": "Whom",
         "unseenTitle": "Tail Someone: staying unseen",
