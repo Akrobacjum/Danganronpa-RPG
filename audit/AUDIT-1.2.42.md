@@ -4663,6 +4663,8 @@ Surowe wyniki: `audit/findings-1.2.118/recheck-122.json`.
 - odpowiedziane po zakresie linii: CASE-LC4 i CASE-LC6 (LIVE-I122-05, -06) oraz COMM-LC3, LC5, LC6, LC7 (LIVE-CM122-07..10), w commicie składania `b2bcbe36`;
 - zakładka Files okna Sound z sondy 43 to naciśnięcie samej sondy, nie było czego poprawiać.
 
+Przepisane podręczniki EN i PL, których tor A nie przeczytał, czytał osobny czytający z drugim (142 akapity; 48 twierdzeń: 39 utrzymanych, 7 w części, 2 nie; EN i PL zgodne): 6 znalezisk, wszystkie utrzymane - r122-HB-2 `minor` (podręcznik GM-a mówi, że dok kamer pokazuje "?" na kafelku ukrytego zabójcy, a od 1.2.122 znika cały kafelek) i 5 `nit` (r122-HB-1, HB-3..HB-6). Razem z nimi `recheck-122.json` ma 73 pozycje.
+
 Twierdzenie linii R1 o mutancie przytrzymania naciśnięcia (`cb945182`), którego tor H nie uruchomił, uruchomiłem na `14bb0d92` w Chromium: `live-press.mjs` 5 ok i `live-redraw.mjs` 6 ok, 0 niezaliczonych; z przytrzymaniem wyjętym z kopii `live.mjs` (`live.mjs:186`) `live-press.mjs` daje 3 niezaliczone (naciśnięcie usłyszane 0 razy). Twierdzenie się trzyma.
 
 Regresje sprawdzenia 1.2.121: R-2, R-3, R-6, R-7, R-11 zrobione; R-1 i R-5 w części (R-1 niżej, przy H-R1).

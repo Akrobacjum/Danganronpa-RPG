@@ -12,13 +12,13 @@
  },
  "method": "8 lanes (A TEXT+STG+assembly, B CORE+WORLD, C TRIAL+MURDER, D INVEST+heap, E MAP+UI, F DESP+ITEMS, G COMM, H R1+the window rule), each a first reader on the shipped tree and its diff against v1.2.121 (every commit of the line; lane F was sent back once for the 24 commits it had not read), then a second reader who tried to overturn every finding, regression and every claim or ask marked no/partly/not done. Two items measured in Chromium (H-R1, by both readers; the refuter from the real card's code), C-1 and two others in jsdom with verbatim copies; the rest read.",
  "counts": {
-  "rows": 67,
+  "rows": 73,
   "refuted": 1,
   "weakened": 6,
   "standing": {
    "finding major": 1,
-   "finding minor": 22,
-   "finding nit": 34,
+   "finding minor": 23,
+   "finding nit": 39,
    "regression major": 3,
    "regression minor": 5
   },
@@ -26,14 +26,14 @@
   "commits_in_range": "200 non-merge and 31 merges (git rev-list --no-merges / --merges --count v1.2.121..v1.2.122; the notes' 225 and 30 count to b3317e7f, before the release commits). commits_read (185) is the sum of the lanes' own counts: a commit two lanes read counts twice, and which of the 200 no lane read is not listed",
   "code_lines_changed": "13786 (10489 insertions, 3297 deletions; git diff --shortstat v1.2.121 v1.2.122 -- scripts lang styles templates ':(exclude)scripts/tests*')",
   "origin": {
-   "how": "added 21.11.2026 for the owner's trend: a regression is the release's by definition; a finding is the release's when any line it cites (up to 8 places, 40 lines each) was last changed in v1.2.121..v1.2.122 by git blame at v1.2.122, else old. 1.2.122's range was all fixes of audit findings, so 'release' here is 'fix' and 'new-code' together; from 1.2.123 the two are told apart by the readers.",
+   "how": "added 21.11.2026 for the owner's trend: a regression is the release's by definition; a finding is the release's when any line it cites (up to 8 places, 40 lines each) was last changed in v1.2.121..v1.2.122 by git blame at v1.2.122, else old. 1.2.122's range was all fixes of audit findings, so 'release' here is 'fix' and 'new-code' together; from 1.2.123 the two are told apart by the readers. Corrected by hand where a text the release did not change was made false by code it did change (r122-HB-1, HB-4, HB-5, `origin_note`): blame of the cited line cannot see that.",
    "standing": {
     "regression major release": 3,
     "regression minor release": 5,
     "finding major old": 1,
-    "finding minor release": 22,
-    "finding nit release": 28,
-    "finding nit old": 6
+    "finding minor release": 23,
+    "finding nit release": 32,
+    "finding nit old": 7
    }
   }
  },
@@ -1053,6 +1053,99 @@
    "what_happens": "registry-since.json stamps R5100, R5170, R5171 'E40', R5200-R5203 'E43' and R6300, R6301 'E26' by the first stage their titles name. All three stages are unshipped (tools/stages.json:107-113, E26 planned 1.3.0), while the tests stood in v1.2.113's tier files (they were E54 before). The registry now dates shipped tests to stages still to come.",
    "failure_scenario": "A reader listing E40's or E26's tests counts nine as part of work not yet shipped, or a release check that one day holds Since against the ledger turns red on rows nobody changed.",
    "confidence": "read"
+  },
+  {
+   "id": "r122-HB-1",
+   "lane": "HB",
+   "kind": "finding",
+   "severity": "nit",
+   "first_severity": "nit",
+   "where": "docs/handbooks/player-handbook.en.md:214-222 (PL docs/handbooks/player-handbook.pl.md:214-222)",
+   "title": "The voice tile's word table leaves out Hidden, which a masked killer now reads on their own tile",
+   "verdict": "holds",
+   "refuter_why": "voiceWord returns WORDS.masked (DRPG.Voice.tile.state.hidden, Hidden / Ukrycie) before any connection state whenever micHold answers reason masked, which it does for the killer's own user behind a ? outside the trial. The player handbook table (EN and PL 214-222) lists six words and no Hidden; the lead-in 'the tile says in one word where your voice stands' reads as the full list. The Behind a ? paragraph (736) says Reveal yourself stays on the tile but not the word. No other paragraph names the word. Nit: the killer has just been told by the Stay hidden? window why they are out of voice, and the word's tooltip gives the whole sentence.",
+   "what_happens": "Since 1.2.122 a killer behind a \"?\" reads Hidden (PL Ukrycie) on their voice tile instead of Disconnected. The player handbook's table of the tile's one-word states still lists only Connected, Connecting, Disconnected, Eclipsed, Blocked and Own window, so a killer who sees Hidden finds no row for it; the GM handbook's voice tile paragraph (833) names Blocked, Connecting and Disconnected and not Hidden either.",
+   "failure_scenario": null,
+   "confidence": null,
+   "origin": "release",
+   "origin_note": "the handbook line did not change; code changed in 1.2.122 made it false (blame alone reads old)"
+  },
+  {
+   "id": "r122-HB-2",
+   "lane": "HB",
+   "kind": "finding",
+   "severity": "minor",
+   "first_severity": "minor",
+   "where": "docs/handbooks/gm-handbook.en.md:1145 and :1147 (PL docs/handbooks/gm-handbook.pl.md:1145, :1147)",
+   "title": "The GM handbook still says the camera dock shows \"?\" on a hidden killer's tile; since 1.2.122 the tile is taken off",
+   "verdict": "holds",
+   "refuter_why": "relabel calls showBox(box, !hidden(user)) as its first step, before the nameplate-Off return, so for every participant hiddenFromHere answers true for (the veil or a mask this browser does not see through) the whole box is display none in every mode; the ? plate is still written but on a box nobody sees. Both GM handbook paragraphs (1145 behind a ?, 1147 unseen until the opening roll) still say the dock shows ? for every name on the killer's player's tile, and no other paragraph says the box goes (grep of 'dock' in both handbooks: 66, 833, 835, 1145, 1147, 2205, 2478 only). 1145 was edited in this release (the Spectator clause). The Spectator and GM halves match the code (hiddenFromHere fals",
+   "what_happens": "With the voice tile off, both paragraphs tell the GM that other players' camera docks show \"?\" for every name on the killer's player's tile (behind a mask, and during the veil). The 1.2.122 code takes the hidden participant's whole box off the dock in every nameplate mode, so the players see no tile at all. 1145 was edited in this release (the Spectator clause) without that half being changed; the release notes themselves say the box is taken off.",
+   "failure_scenario": null,
+   "confidence": null,
+   "origin": "release"
+  },
+  {
+   "id": "r122-HB-3",
+   "lane": "HB",
+   "kind": "finding",
+   "severity": "nit",
+   "first_severity": "nit",
+   "where": "docs/handbooks/gm-handbook.en.md:269 (PL docs/handbooks/gm-handbook.pl.md:269)",
+   "title": "Debug log: a window opened empty follows new rows but never offers Copy to clipboard or Clear the log",
+   "verdict": "holds",
+   "refuter_why": "openFailureLog builds the footer once from rows read at open: copy only if rows.length, clear only if rows.length. The 500 ms timer redraws .drpg-failure-live alone. So a log opened empty that then records a failure shows the row with no Copy to clipboard and no Clear the log until closed and reopened, while the line says 'While it holds anything it offers Copy to clipboard and Clear the log'. No re-render of the footer in the function; the copy branch's reopen needs a press the empty-opened window cannot offer. The handbook states the intent; the gap is the code's as much as the text's. Nit: a reopen cures it.",
+   "what_happens": "The rewritten line says the list follows while the window stands and, next sentence, that while it holds anything it offers Copy to clipboard and Clear the log. The footer is built once from the rows at open, so a log opened with nothing in it that then records a failure shows the row but has no Copy or Clear button until it is closed and opened again.",
+   "failure_scenario": null,
+   "confidence": null,
+   "origin": "release"
+  },
+  {
+   "id": "r122-HB-4",
+   "lane": "HB",
+   "kind": "finding",
+   "severity": "nit",
+   "first_severity": "nit",
+   "where": "docs/handbooks/player-handbook.en.md:857 (PL docs/handbooks/player-handbook.pl.md:857)",
+   "title": "Player handbook places Take from the Body under the body's list; with anonymous sheets off it is at the top of the inventory",
+   "verdict": "holds",
+   "refuter_why": "With anonymity on the redacted sheet appends the list then the button (under what they carried), matching the player handbook. With Keep character sheets anonymous off, addLootButton prepends the button to the inventory pane, above the items; the GM handbook (941) says so, the player handbook (857, EN and PL) does not, and no other player-handbook paragraph (953, 1187) places the button. Nit: the player handbook assumes the default throughout (205 'Another player's sheet opens redacted'), and the button sits in the same pane, a glance away.",
+   "what_happens": "The player is told to press Take from the Body under what the dead student carried. 1.2.122 added the button to a whole sheet when Keep character sheets anonymous is off, prepended to the inventory pane, above the items. The GM handbook (941) was updated to say so; the player handbook was not.",
+   "failure_scenario": null,
+   "confidence": null,
+   "origin": "release",
+   "origin_note": "the handbook line did not change; code changed in 1.2.122 made it false (blame alone reads old)"
+  },
+  {
+   "id": "r122-HB-5",
+   "lane": "HB",
+   "kind": "finding",
+   "severity": "nit",
+   "first_severity": "nit",
+   "where": "docs/handbooks/gm-handbook.en.md:2295, :2297 (pointed to by :1415)",
+   "title": "Section 22's list of what GM and player browsers hold was not given the new hidden-stash store or the secret project's completion time",
+   "verdict": "holds",
+   "refuter_why": "1.2.122 moved hidden stashes off the room regions into the GM store hiddenStashes (backup, sync) with an owner's copy (mineHiddenStashes), and a secret project's completion time into the GMs' row. Section 22's two by-version lists of what the GMs' and a player's browser hold stop at 1.2.111 and name neither, and 14.8 (1415) sends the reader there for 'the rest'. GM 929 and 2221 describe hidden stashes as rules, not where the record lives. Nothing listed is wrong; the list is incomplete for this release, so nit.",
+   "what_happens": "1.2.122 moved every hidden stash into a GM store (hiddenStashes, backed up, synced) with an owner's copy, and a secret project's completion time into the GMs' row. The GM handbook's section 22 paragraphs that list, by version, what the GMs' browsers and a player's browser hold stop at 1.2.111, and 14.8 sends the reader there for \"the rest\". The list is not wrong about what it names; it is incomplete for this release.",
+   "failure_scenario": null,
+   "confidence": null,
+   "origin": "release",
+   "origin_note": "the handbook line did not change; code changed in 1.2.122 made it false (blame alone reads old)"
+  },
+  {
+   "id": "r122-HB-6",
+   "lane": "HB",
+   "kind": "finding",
+   "severity": "nit",
+   "first_severity": "nit",
+   "where": "docs/handbooks/gm-handbook.en.md:731 (PL docs/handbooks/gm-handbook.pl.md:731)",
+   "title": "GM handbook says Repair the Lock is not yet a project preset; the table below and the code have it (predates 1.2.122)",
+   "verdict": "holds",
+   "refuter_why": "GM 731 (EN and PL) ends 'Repair the Lock is not yet built as a project preset' while the same handbook's project table (1003) describes it and the code offers repairLock beside the other presets in the Kind list. The sentence and the preset were both in v1.2.121 (6 repairLock hits in that action-project.mjs), so it is a stale line outside this release's rewrite, not a 1.2.122 regression.",
+   "what_happens": "The Broken paragraph ends \"Repair the Lock is not yet built as a project preset.\" The same handbook's project table (1003) and Room setup paragraph (713) describe it as a project, the player handbook lists it (349), and the code offers it. The sentence was already there in 1.2.121, so it is outside this release's rewrite, found while reading 733.",
+   "failure_scenario": null,
+   "confidence": null,
+   "origin": "old"
   }
  ],
  "lanes": {
@@ -2058,6 +2151,69 @@
      "what": "Probe 43's run on 14bb0d92 (r122/probe43.json, in progress at reading) reads rooms-bedrooms 28 of 28 stale and restless: its first difference is a stepper's generated field id (drpg-kit-step-13 against -19), a new id per draw, not the world. It says nothing about Room setup's staleness until the probe ignores generated ids.",
      "live_check": "None: a probe reading."
     }
+   ]
+  },
+  "HB": {
+   "lines": "the handbooks EN and PL (added 21.11.2026 at the coordinator's ask: the claim lane A left unread)",
+   "commits_read": null,
+   "paragraphs_read": 142,
+   "claims": {
+    "holds": 41,
+    "partly": 5,
+    "no": 2
+   },
+   "asks": {},
+   "claims_no_or_partly": [
+    {
+     "claim": "Daggerheart's conditions have no button left; the Effects tab is the Rules tab; the console is the one road",
+     "verdict": "partly",
+     "where": "scripts/token-hud.mjs:69-79; scripts/sheet-actions.mjs:2,62-80"
+    },
+    {
+     "claim": "Brochure runs about six printed pages",
+     "verdict": "partly",
+     "where": "docs/handbooks/player-brochure.en.md (2065 words, 107 lines)"
+    },
+    {
+     "claim": "Debug log list follows while it stands; Copy copies the rows at the press; a notice when the clipboard refuses; Copy and Clear offered while it holds anything",
+     "verdict": "partly",
+     "where": "scripts/gm-panel.mjs:739,780-786,789-801,822-827"
+    },
+    {
+     "claim": "With the voice tile off, the camera dock shows ? for every name on the killer's player's tile",
+     "verdict": "no",
+     "where": "scripts/camera-view.mjs:38-50,357-385"
+    },
+    {
+     "claim": "Voice tile words table: Connected, Connecting, Disconnected, Eclipsed, Blocked, Own window",
+     "verdict": "no",
+     "where": "scripts/voice-tile.mjs:174-186,891-893; scripts/voice.mjs:1358; lang/en.json:6004"
+    },
+    {
+     "claim": "Take from the Body is pressed under what the body carried",
+     "verdict": "partly",
+     "where": "scripts/anonymity.mjs:302-304,331-340"
+    },
+    {
+     "claim": "Hidden stashes in the list of what the GMs' and players' browsers hold",
+     "verdict": "partly",
+     "where": "scripts/gm-stores.mjs:1161-1179; scripts/hidden-stashes.mjs:2-7; scripts/projects-secrecy.mjs:692-702"
+    }
+   ],
+   "en_pl_mismatches": [
+    {
+     "what": "No EN/PL mismatch found in the changed paragraphs. PL changed two lines with no EN change, each bringing PL into line with an EN line that was already right: docs/handbooks/player-handbook.pl.md:421 (do pokoju, lang/pl.json:4213), docs/handbooks/gm-handbook.pl.md:893 (Odmów, lang/pl.json:1167). EN changed docs/handbooks/player-handbook.en.md:347 and :789/:1056 where PL already matched its labels (Close the Breach; Akcje kryzysowe, Broń się, lang/pl.json:3179-3180). GM 613/2155 changed in both (Clear the Overflow; Wyzeruj Overflow, lang/pl.json:4669).",
+     "verdict": "same"
+    }
+   ],
+   "not_established": [
+    "That the brochure is about six printed pages: 2065 words EN, 1984 PL, not printed.",
+    "That no Daggerheart surface other than the HUD palette and the Effects tab toggles a condition (GM 440 'the one road is the console').",
+    "That a double right-click opens a token's settings for a GM: Foundry's behaviour, not read in its source.",
+    "The no-GM rolls card's 'no second card after a reload' and 'protection from Despair takes a granted roll's Despair' (GM 535): read in comments at roll-draw.mjs:2986 and :3131 only, not traced.",
+    "coverGiveBack's bounds (a critical of that player and character, once, a witness seen) at GM 2265: the function exists and is called at the score; its body was not read.",
+    "Play and Stop the track carried out by the primary for another GM (GM 1703): read in music-play.mjs comments, not traced through the bridge.",
+    "Nothing was run: no harness, no Foundry; every verdict is a reading of 14bb0d92's text."
    ]
   }
  },
