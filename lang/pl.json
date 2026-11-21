@@ -665,6 +665,15 @@
       "removePoolAsk": "Odebrać pulę „{name}”? Przepada jej nazwa i cały jej Despair ({n}). Konto zachowuje pozostałe uprawnienia, także rolę Asystenta GM-a.",
       "poolGone": "To konto nie ma już dodatkowej puli, więc nie ma czego odebrać."
     },
+    "TokenHud": {
+      "show": "Pokaż token graczom",
+      "hide": "Ukryj token przed graczami",
+      "lock": "Zablokuj token w miejscu",
+      "unlock": "Odblokuj token",
+      "sort": "Na wierzch lub pod spód",
+      "config": "Ustawienia tokenu",
+      "level": "Zmień piętro"
+    },
     "Hud": {
       "chapter": "Rozdział {n}",
       "day": "Dzień {n}",

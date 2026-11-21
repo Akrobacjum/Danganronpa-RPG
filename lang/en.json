@@ -670,6 +670,15 @@
       "unfoldNote": "With one GM there is nothing to choose there.",
       "widgetTitle": "Despair Pools"
     },
+    "TokenHud": {
+      "show": "Show the token to players",
+      "hide": "Hide the token from players",
+      "lock": "Lock the token in place",
+      "unlock": "Unlock the token",
+      "sort": "Bring to front or send to back",
+      "config": "Token settings",
+      "level": "Change floor"
+    },
     "Hud": {
       "chapter": "Chapter {n}",
       "day": "Day {n}",
