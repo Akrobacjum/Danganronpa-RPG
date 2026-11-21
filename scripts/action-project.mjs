@@ -39,7 +39,7 @@ import {
     addProgress, isIndirectMurder, isSecret, projectsListedIn, buildsOwnMurder, projectLabel
 } from "./projects.mjs";
 import { callGm } from "./gm-bridge.mjs";
-import { announce, resolveThreshold, whisperToOwner, plural, cardHead, esc, easedBy, listOf } from "./utils.mjs";
+import { announce, resolveThreshold, whisperToOwner, plural, cardHead, esc, easedBy, listOf, proseOf } from "./utils.mjs";
 import { equippedFor, tierOf } from "./use-items.mjs";
 import { playSfx } from "./sfx.mjs";
 import {
@@ -646,7 +646,9 @@ export function projectProgress(roll, { relief = 0, bonus = 0 } = {}, def = ACTI
 }
 
 /** A concealment of intent made with Despair adds this much (the guide); working alone adds `aloneBonus`. */
-const CONCEALED_WITH_DESPAIR = 1;
+// config.mjs INDIRECT_MURDER.concealIntent.despairBonus since 1.2.122 (line TEXT; the audit of 1.2.118, TEXT-26), where
+// its sentence reads it too
+const CONCEALED_WITH_DESPAIR = INDIRECT_MURDER.concealIntent.despairBonus;
 
 /** The most a concealment adds to a Work's progress: the two never both apply (`projectExtrasHeld`). */
 export const PROJECT_BONUS_MOST = Math.max(INDIRECT_MURDER.concealIntent.aloneBonus ?? 0, CONCEALED_WITH_DESPAIR);
@@ -719,7 +721,7 @@ async function concealProjectIntent(actor, { indirect, witnesses, paid, lines })
             const ok = conceal.isCritical || conceal.total >= INDIRECT_MURDER.concealIntent.threshold;
             lines.push(`<p><strong>${INDIRECT_MURDER.concealIntent.label}</strong> - ${conceal.total}${neededNote(conceal.dc)}: ${
                 ok ? (conceal.withFear
-                        ? INDIRECT_MURDER.concealIntent.successWithDespair
+                        ? proseOf(INDIRECT_MURDER.concealIntent, "successWithDespair")
                         : INDIRECT_MURDER.concealIntent.success)
                    : INDIRECT_MURDER.concealIntent.failure
             }</p>`);

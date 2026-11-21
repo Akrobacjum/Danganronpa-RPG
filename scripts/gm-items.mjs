@@ -38,7 +38,7 @@ function recipientOptions(students, selectedId) {
         .map(a => `<option value="${a.id}"${a.id === selectedId ? " selected" : ""}>${esc(a.name)}</option>`)
         .join("");
 }
-import { whisperToOwner, log, error, debug, plural, cardHead, esc, serialWrite, listOf } from "./utils.mjs";
+import { whisperToOwner, log, error, debug, plural, cardHead, esc, serialWrite, listOf, proseOf } from "./utils.mjs";
 import { kitTabs, wireKitTabs, shownTab, drpgWindow, box, emptyOption, formGrid, modeBar, tipAttr, tipText } from "./ui-kit.mjs";
 import { alreadyOpen, keepLive, RAISED } from "./live.mjs";
 import { homeScene } from "./rooms.mjs";
@@ -1011,8 +1011,8 @@ export function giveFromResult(result, tables = game.tables) {
  */
 async function tellGiven(actor, give, item = null) {
     const kind = item ? item.getFlag(MODULE_ID, ITEM_FLAGS.kind) ?? null : give.kind;
-    const effect = USABLE_KIND_EFFECTS[kind]?.[give.tier]
-        ?? TIER_EFFECTS[give.category]?.[give.tier] ?? "";
+    // Filled with the tier's restore (`restores`; 1.2.122 line TEXT, the audit of 1.2.118 TEXT-26).
+    const effect = proseOf(USABLE_KIND_EFFECTS[kind], give.tier) || proseOf(TIER_EFFECTS[give.category], give.tier);
     const label = USABLE_KINDS[kind]
         ? `${ITEM_CATEGORIES[give.category]?.label} - ${USABLE_KINDS[kind].label}`
         : ITEM_CATEGORIES[give.category]?.label ?? give.category;

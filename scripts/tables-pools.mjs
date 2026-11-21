@@ -32,7 +32,7 @@
  * (`LEGACY_PLURALS`, `LEGACY_GOAL_LABELS`) out of this file's text.
  */
 
-import { MODULE_ID, ITEM_CATEGORIES, ITEM_TIERS, USABLE_KINDS, TABLE_NAME_WORDS, TABLE_COPY_WORDS } from "./config.mjs";
+import { MODULE_ID, ITEM_CATEGORIES, ITEM_TIERS, USABLE_KINDS, TABLE_NAME_WORDS, TABLE_COPY_WORDS, fillProse } from "./config.mjs";
 import { log, error, shuffle } from "./utils.mjs";
 
 /**
@@ -224,7 +224,8 @@ export function tableDescription(category, tier, goal = null) {
     return `${W.label[category] ?? category}${
         W.kind[goal] ? ` (${W.kind[goal]})` : ""
     }, Tier ${tier}. ${
-        W.kindEffect[goal]?.[tier] ?? W.tierEffect[category]?.[tier] ?? ""}`;
+        // filled with the tier's restore (`restores`; 1.2.122 line TEXT, the audit of 1.2.118 TEXT-26)
+        fillProse(W.kindEffect[goal], tier) || fillProse(W.tierEffect[category], tier)}`;
 }
 
 /**

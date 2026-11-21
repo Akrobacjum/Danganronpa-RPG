@@ -18,7 +18,7 @@ import { noteOwnWrite } from "./resource-guard.mjs";
 import { actionsLeft, spendAction, canPayFor } from "./actions.mjs";
 import { locateActor, roomsKnownToMe, sceneOfActor, bedroomShut } from "./movement.mjs";
 import { getClock } from "./clock.mjs";
-import { whisperToOwner, log, error, plural, cardHead, forcedDeletion, isPrimaryGm } from "./utils.mjs";
+import { whisperToOwner, log, error, plural, cardHead, forcedDeletion, isPrimaryGm, proseOf } from "./utils.mjs";
 // One room map for the whole module (audit C3): rooms.mjs, rooms only and on the scene it is
 // handed (E12 C2a). The scene is the caller's, with no default (E12 C6): a rest is judged on
 // the scene the character stands on, Room Setup writes the scene it shows. Until 1.2.74 these
@@ -412,7 +412,7 @@ async function choosePicks(kind, count, cost = 0, { relief = false } = {}) {
                 <input type="${single ? "radio" : "checkbox"}" name="pick" value="${key}"${off ? " disabled data-drpg-blocked" : ""} />
                 <span><strong>${opt.label}</strong> - ${off
                     ? game.i18n.localize(BREATH_REFUSED[off])
-                    : (kind === "long" ? opt.long : opt.short)}</span>
+                    : proseOf(opt, kind)}</span>
             </label>`;
         }).join("");
 
@@ -524,7 +524,8 @@ async function applyRest(actor, kind, picks, { stamp = null, relief = false } = 
                 // Relief's rest (1.2.112); this is the authority for a pick that got past it.
                 applied.push(`${opt.label}: ${game.i18n.localize(relief ? BREATH_REFUSED.relief : BREATH_REFUSED.overflow)}`);
             } else if (pick === "breath") {
-                const gain = full ? 2 : 1;
+                // the row's own numbers (config.mjs REST.options.breath.grants; 1.2.122 line TEXT, TEXT-26)
+                const gain = opt.grants?.[full ? "long" : "short"] ?? 0;
                 const max = maxOf("hope") || STARTING.hopeMax;
                 const next = Math.min(max, held.hope + gain);
                 update["system.resources.hope.value"] = next;

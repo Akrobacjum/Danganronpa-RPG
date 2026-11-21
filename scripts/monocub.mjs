@@ -51,7 +51,7 @@ import { actionsLeft, spendAction, refundAction } from "./actions.mjs";
 import { getClock } from "./clock.mjs";
 import { seasonEpoch, sameSeason, deathRecord, getSetting, SETTINGS, bodyFoundSinceTrial } from "./settings.mjs";
 import { isMonocubCorpse } from "./spectator.mjs";
-import { resolveThreshold, whisperToOwner, log, warn, error, plural, isPrimaryGm, primaryGmId, wholeNumber, serialWrite, ownerOf, serverNow } from "./utils.mjs";
+import { resolveThreshold, whisperToOwner, log, warn, error, plural, isPrimaryGm, primaryGmId, wholeNumber, serialWrite, ownerOf, serverNow, proseOf } from "./utils.mjs";
 import { cubStore, cubCopy, cubTargetStore, bountyStore, projectWorkStore, despairOwedStore } from "./gm-stores.mjs";
 import { gmStoresQuiet, newestIn, whenGmStoresAudible } from "./gm-store.mjs";
 import { senderOf, replyForMe } from "./bridge-guards.mjs";
@@ -1428,9 +1428,10 @@ async function scoreMeddle(actor, target, choice, total, isCritical, row) {
     // A Bounty on the student is claimed by a Hinder that lands (E72 C16).
     if (!help) await claimBounty(actor, target);
 
-    let text = help ? hit.help : hit.hinder;
+    // Filled from the row (`amount`; 1.2.122 line TEXT, the audit of 1.2.118 TEXT-26).
+    let text = proseOf(hit, help ? "help" : "hinder");
     // The target's own sentence (DESP-06), never the Monocub's receipt.
-    let targetText = (help ? hit.helpTarget : hit.hinderTarget) ?? text;
+    let targetText = proseOf(hit, help ? "helpTarget" : "hinderTarget") || text;
 
     /*
      * THE CRITICAL SAYS WHAT IT DID (E15 C4, 25.10.2026; audit S09-30). "You get the action back"
@@ -1452,7 +1453,7 @@ async function scoreMeddle(actor, target, choice, total, isCritical, row) {
         const { armCall } = await import("./call-effects.mjs");
         if (hit.grants === "bonus") {
             await armCall(target, {
-                key: "meddle", grants: "bonus", amount: help ? 1 : -1, from: actor.id, quiet: true
+                key: "meddle", grants: "bonus", amount: help ? hit.amount : -hit.amount, from: actor.id, quiet: true
             });
         } else {
             await armCall(target, {

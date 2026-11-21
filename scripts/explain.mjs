@@ -138,8 +138,12 @@ function actionsOf(actor) {
  * them (`overflowCrossings(ECLIPSE_MOVES)`, fewer under the Overflow's darkness), not "two" written in (E66 C4,
  * 01.11.2026; E66-18). `crossings` is for a reader that has the number already.
  */
-export function eclipseExplanation(crossings = overflowCrossings(ECLIPSE_MOVES) ?? ECLIPSE_MOVES) {
-    return t("DRPG.Explain.phase.eclipse", { reach: plural("DRPG.Explain.phase.eclipseReach", { n: crossings }) });
+export function eclipseExplanation(crossings = overflowCrossings(ECLIPSE_MOVES) ?? ECLIPSE_MOVES, { nightFree = overflowCrossings(null) === null } = {}) {
+    /* A night's free placement only while the Overflow's Darkness does not take it (`overflowCrossings(null)` answers
+       ECLIPSE_MOVES under it, null without): the sentence said "or anywhere at night" under Darkness too (1.2.122 line
+       TEXT; the audit of 1.2.118's unrouted TEXT-04). */
+    return t(nightFree ? "DRPG.Explain.phase.eclipse" : "DRPG.Explain.phase.eclipseDark",
+        { reach: plural("DRPG.Explain.phase.eclipseReach", { n: crossings }) });
 }
 
 /**

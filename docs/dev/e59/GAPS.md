@@ -149,7 +149,7 @@ S17-31 (the killer's identity, high) is closed in this base: no known-leaks entr
 | D33c is not applied: whole-word "GMa" on 56 lines of gm-handbook.pl.md, 18 of player-handbook.pl.md, 1 of the brochure | `grep -cw` | open | fix window |
 | "Stage 4/5/6" jargon on 12 lines of lang/en.json; "analysed" (D33e) in en.json and the handbooks; `stillToAct` "Zostały akcje" (S13-23); `noMovesLeft` "Your token has been put back." (S07-39); "the first four questions are boundaries" (S01-25); the brochure's "The names stay English" | lang/en.json:2321, :4006, :5666; lang/pl.json:681; player-brochure.en.md:3 | open | fix window / release notes |
 | Glossary `db3-english` and `mechanic-capitals` still open, staged E65 while text-style.md says E25 settles them | docs/glossary.json:78, :434; text-style.md:795-796 | open | release notes |
-| C0's census of the 38 issues does not exist; S12-17, S01-37, S01-49 | - | not checked; LIVE-E25-01..03 need a local Foundry, and were never written into AUDIT 9.2 (grep, 21.11.2026; the audit of 1.2.118, STG-87): proposed again in line TEXT's report of 1.2.122, for the coordinator to number | release notes |
+| C0's census of the 38 issues does not exist; S12-17, S01-37, S01-49 | - | not checked; LIVE-E25-01..03 need a local Foundry, and were never written into AUDIT 9.2 (grep, 21.11.2026; the audit of 1.2.118, STG-87). Their wording is in no file of the repository: searched docs/, audit/ and tools/ for "LIVE-E25" (this line alone, beside the audit's findings that quote it) and the whole git history (`git log -S LIVE-E25`: this file's two commits, 14103fac and d0c7c0a2, and the audit's two that quote it), so nothing is proposed in their name (1.2.122 line TEXT) | release notes |
 
 ## E71 - the UI copy-edit, EN and PL
 

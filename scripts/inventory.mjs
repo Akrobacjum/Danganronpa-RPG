@@ -9,7 +9,7 @@
  * loot (they persist until used in a crime and removed).
  */
 
-import { MODULE_ID, ITEM_CATEGORIES, ITEM_DURABILITY, LIMIT_GROUPS, TIER_EFFECTS, USABLE_KINDS, USABLE_KIND_EFFECTS, itemIcon,
+import { MODULE_ID, ITEM_CATEGORIES, ITEM_DURABILITY, LIMIT_GROUPS, TIER_EFFECTS, USABLE_KINDS, USABLE_KIND_EFFECTS, USABLE_EFFECTS, itemIcon,
     BEDROOM_KEY_FLAG, ACTIONS, PROJECT_SCALE }
     from "./config.mjs";
 import { whisperToOwner, whisperToGms, log, warn, error, serialWrite, worldLocalize } from "./utils.mjs";
@@ -737,7 +737,8 @@ export async function tierDescription({ category, kind = null, tier, lang = unde
     const options = lang === undefined ? {} : { lang };
     const key = USABLE_KIND_EFFECTS[kind]?.[tier] !== undefined ? `DRPG.Config.USABLE_KIND_EFFECTS.${kind}.${tier}`
         : TIER_EFFECTS[category]?.[tier] !== undefined ? `DRPG.Config.TIER_EFFECTS.${category}.${tier}` : null;
-    const effect = key ? await worldLocalize(key, {}, options) : "";
+    // the tier's restore fills `{restores}` (1.2.122 line TEXT, the audit of 1.2.118 TEXT-26)
+    const effect = key ? await worldLocalize(key, { restores: USABLE_EFFECTS[tier]?.amount }, options) : "";
     return `<p>${await worldLocalize("DRPG.Items.tierN", { n: tier }, options)}. ${effect}</p>`;
 }
 
