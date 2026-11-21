@@ -1201,12 +1201,31 @@ async function alreadyHeld(actor, entry) {
     return null;
 }
 
-/** The GM's sentence, prefilled. Never blocks the result - see `createFind`. */
-async function describeFind(actor, entry, isCritical, fallbackName, stored = null) {
+/**
+ * The GM's sentence, prefilled. Never blocks the result - see `createFind`.
+ *
+ * A CLOCK ON THE WINDOW (line INVEST of 1.2.122; audit 1.2.118 domain-case-c-investigation 6): the player's find waits on
+ * this window, on this GM's browser alone, and it had no time: hidden behind the map, or on a GM who had turned away, it
+ * left the player with a spent action and no card for as long as nobody noticed. It now answers as a close does - the
+ * prefilled name and no words, the find landing - once `waitMs` has passed (a GM's ruling's clock, `TIMING.rulingMs`),
+ * and the GM is told the find went out under its prefilled name. Not closed: a reload of this GM while it stands still
+ * loses the find (no other GM is shown the window, and nothing asks again); that half is a table's, proposed as a live
+ * check. Exported for the suite, which hands a short `waitMs` (tier 2 "1.2.122 CASE-37").
+ */
+export async function describeFind(actor, entry, isCritical, fallbackName, stored = null, { waitMs = TIMING.rulingMs } = {}) {
     const data = entry.data;
+    let shown = null, timer = null, timedOut = false;
+    const clock = new Promise(resolve => {
+        timer = setTimeout(() => {
+            timedOut = true;
+            resolve(null);
+            Promise.resolve(shown?.close?.()).catch(() => {});
+        }, waitMs);
+    });
 
     // On the kit's frame (E21 C5a): one answer, the primary.
-    return drpgWindow({
+    const asked = drpgWindow({
+        render: (event, dialog) => { shown = dialog; if (timedOut) Promise.resolve(dialog?.close?.()).catch(() => {}); },
         title: game.i18n.localize("DRPG.Observe.describeTitle"),
         classes: ["drpg-panel"],
         prompt: true,
@@ -1304,6 +1323,10 @@ async function describeFind(actor, entry, isCritical, fallbackName, stored = nul
     // Closing the dialog resolves to null, which `createFind` reads as "use the
     // prefilled name and no description" - the find still lands either way.
     }).catch(() => null);
+    const answer = await Promise.race([asked, clock]);
+    clearTimeout(timer);
+    if (timedOut) ui.notifications?.warn?.(game.i18n.format("DRPG.Observe.describeTimedOut", { actor: actor?.name ?? "", name: fallbackName ?? "" }), { permanent: true });
+    return answer;
 }
 
 /**

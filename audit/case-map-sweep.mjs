@@ -33,6 +33,11 @@
  *   through  (line P of 1.2.120) a drawn line's stretch inside a node's box other than its own two ends;
  *   size     while a trial runs, under glass, at 800 px of height or less: the smallest node text after Fit to view
  *            at least 11 px (the owner, 12.11, round 6; MIN_TEXT);
+ *   sizes    (line INVEST of 1.2.122) the Map's small texts - the overview's chapter, the zoom read-out, the legend, a slot's
+ *            heading and difficulty, an open node's text fields - each at least the size of a node's fields' labels
+ *            (`SIZE_PARTS`, `SMALL_TEXTS`); every part's size printed under its page's line;
+ *   word     (line INVEST of 1.2.122) no word of a footer button's words broken across two lines (the owner: "Preview
+ *            realization" broke mid-word at 600 px; read it with `--width 600`);
  *   the numbers: nodes, the tallest node, the graph's viewport, the canvas; the trial console's slot, and after Fit to
  *            view its scale and the smallest node text in px (the computed font size of a node's words times the scale).
  * THE BAR'S CONTROL: on the first page the bar planted over the first node (`position: fixed` at its box) must read.
@@ -117,6 +122,25 @@ function pageHtml(styles, html, title, width, theme, vh = 0) {
   app.style.width = ${JSON.stringify(`${width}px`)};
   document.getElementById("shot").appendChild(app);
 </script></body></html>`;
+}
+
+/* THE MAP'S SMALL TEXTS (line INVEST of 1.2.122; the owner's Map texts left from 1.2.120: the Chapter label, the "100%"
+   zoom read-out, the legend and an open node's Name and Note fields drawn too small): the computed font size, in px, of
+   the first drawn element of each, beside a node's fields' labels and selects to read them against. `null` where the page
+   draws none. Each of the seven the owner named (`SMALL_TEXTS`) smaller than the fields' labels by more than half a pixel
+   is a cut: under Stained Glass the labels stand at the theme's 21 px floor and these did not (13, 13, 11, 13, 13 and
+   13.3 px at 21bf5d18). */
+const SIZE_PARTS = {
+    chapter: ".drpg-case-overview > summary strong", count: ".drpg-case-overview > summary .drpg-case-count", zoom: ".drpg-case-zoom",
+    legend: ".drpg-case-legend-item", nameField: ".drpg-case-edit input[type=\"text\"]", noteField: ".drpg-case-edit textarea",
+    slotHead: ".drpg-case-edit h5", difficulty: ".drpg-case-edit-field > strong", fieldLabel: ".drpg-case-edit-label", select: ".drpg-case-edit select", nodeName: ".drpg-case-node-name"
+};
+const SMALL_TEXTS = ["chapter", "zoom", "legend", "nameField", "noteField", "slotHead", "difficulty"];
+async function readSizes(page) {
+    return page.evaluate(parts => Object.fromEntries(Object.entries(parts).map(([k, sel]) => {
+        const el = [...document.querySelectorAll(sel)].find(e => e.offsetWidth > 0 && e.offsetHeight > 0);
+        return [k, el ? Math.round(parseFloat(getComputedStyle(el).fontSize) * 10) / 10 : null];
+    })), SIZE_PARTS);
 }
 
 /** Read in the page: relayout through the module's code, then every node's cut and every pair's overlap. */
@@ -359,6 +383,19 @@ async function readMap(page, { plantBox = false, staleLayout = false, plantBar =
             const t = g.getBoundingClientRect();
             const L = r.left + b.clientLeft, T = r.top + b.clientTop;
             if (t.width && (t.left < L - 0.5 || t.right > L + b.clientWidth + 0.5 || t.top < T - 0.5 || t.bottom > T + b.clientHeight + 0.5)) cut.push(`footer: "${name}" cut`);
+            /* AND NO WORD BROKEN ACROSS TWO LINES (line INVEST of 1.2.122; the owner: the planner footer's "Preview
+               realization" broke mid-word at 600 px): each word of each text node a range, read on one line - its boxes
+               all at one height. */
+            const walker = document.createTreeWalker(b, 4); // NodeFilter.SHOW_TEXT
+            for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+                for (const m of node.data.matchAll(/\S+/g)) {
+                    const w = document.createRange();
+                    w.setStart(node, m.index);
+                    w.setEnd(node, m.index + m[0].length);
+                    const tops = new Set([...w.getClientRects()].filter(q => q.width > 0.5).map(q => Math.round(q.top)));
+                    if (tops.size > 1) cut.push(`footer: "${name}" breaks inside the word "${m[0]}"`);
+                }
+            }
         }
         const slotEl = document.querySelector("[data-drpg-trial-schema]");
         const slot = slotEl ? [Math.round(slotEl.clientWidth), Math.round(slotEl.clientHeight)] : null;
@@ -533,6 +570,10 @@ try {
                     await load();
                 }
                 const r = await readMap(page);
+                r.sizes = await readSizes(page);
+                for (const k of SMALL_TEXTS) {
+                    if (r.sizes[k] !== null && r.sizes.fieldLabel !== null && r.sizes[k] < r.sizes.fieldLabel - 0.5) (r.cut ??= []).push(`size: ${k} at ${r.sizes[k]} px, under the fields' labels' ${r.sizes.fieldLabel} px`);
+                }
                 const hover = await readHover(page);
                 r.hover = hover;
                 if (hover && hover.ratio < 4.5) (r.cut ??= []).push(`hover: ${hover.id}'s name at ${hover.ratio}:1 under the pointer, under AA 4.5 (the brush at ${hover.brush})`);
@@ -542,6 +583,7 @@ try {
                 if (bad) failed++;
                 const line = `${bad ? "FAIL" : "ok  "} ${lang} ${theme.padEnd(6)} ${vw}x${vh} ${w.id.padEnd(25)} toolbar rows ${r.toolRows ?? "-"} hover ${r.hover ? `${r.hover.ratio}:1` : "-"} nodes ${r.nodes} controls ${r.controls ?? 0} open [${(r.open ?? []).join(",")}] tallest ${r.tallest} px, viewport ${r.viewport?.join("x")}, canvas ${r.canvas?.join("x")}, measured ${r.measured}${r.slot ? `, slot ${r.slot.join("x")}` : ""}${r.fit ? `, fit ${r.fit.z} text ${r.fit.minText} px` : ""}${r.revealed === null ? "" : `, revealed ${r.revealed}`}; cut ${r.cut?.length ?? "-"}, overlaps ${r.overlaps?.length ?? "-"}${r.error ? `; ${r.error}` : ""}`;
                 console.log(line);
+                console.log(`       sizes ${Object.entries(r.sizes ?? {}).map(([k, v]) => `${k} ${v ?? "-"}`).join(", ")}`);
                 for (const c of [...(r.cut ?? []), ...(r.overlaps ?? []).map(o => `overlap ${o}`)]) console.log(`       ${c}`);
                 rows.push({ lang, theme, size: `${vw}x${vh}`, id: w.id, width, ...r });
                 if (SHOTS) {

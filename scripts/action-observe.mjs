@@ -310,8 +310,9 @@ async function askDeclaration(actor, def) {
         prompt: game.i18n.localize("DRPG.Observe.declarePrompt"),
         confirm: game.i18n.localize("DRPG.Action.roll"),
         // No `columns` (E96 C1, 1.2.102): E21 fix G2 stood Observe's briefing beside its list, and Observe alone; the
-        // owner's 09.11.2026: every action shares one layout, as every Call does. Observe is drawn as the other actions
-        // are again (it scrolls at 1366x768, as in 1.2.99); one layout for every action is E68's, after a mockup round.
+        // owner's 09.11.2026: every action shares one layout, as every Call does. Since E68 C12 (1.2.104) that layout is
+        // the briefing beside the list, `chooseVariant`'s default (`columns = true`), so leaving the option out draws
+        // Observe in two columns as every action; `columns: false` is Level Up's alone (action-menus.mjs).
         // The two red rows below are the ones that end with a person reading
         // this; the other three never see it. One box for both, in the window
         // where the choice is made - see "THE SENTENCE COMES FIRST".

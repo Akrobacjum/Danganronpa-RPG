@@ -180,8 +180,9 @@ export function mapPlace(layout, g = MAP_GEOMETRY, sizes = null, { gapH = 0, edg
        of every line that passes it - from a source in an earlier column to a target in a later one - and a node in the way
        moves down below the lane, the rest of the column after it: the column spreads, nodes keep their order and stay a
        row gap apart. The sources stand in earlier columns, already placed, so one pass left to right. A line back to an
-       earlier column is not given a lane (its source is placed after the columns it passes; a counter refutes beside its
-       target, in its own column, and its bracket passes nothing). Tier 0 R8014. */
+       earlier column is not given a lane (its source is placed after the columns it passes): it turns in the gutter after
+       its target's column since line INVEST of 1.2.122 (`routePlan`, R8180), so one back to the column before passes
+       nothing, and one that skips a column still runs at the counter's height across the columns between. Tier 0 R8014. */
     const clearLanes = (c, list) => {
         if (!Array.isArray(edges) || c === 0) return null;
         const lanes = [...new Set(edges.filter(e => at[e.from] && colOf.get(e.from) < c && colOf.get(e.to) > c)
@@ -311,10 +312,18 @@ function routePlan(shown, at, g, choose = new Map()) {
            height across the columns between, through the lane `mapPlace` keeps there, and turns in the gutter before its
            target; until then it turned in the gutter after its source and ran at its target's height through the column
            between (R8014). Between neighbouring columns the two gutters are one. */
-        const hi = T.x;
+        /* A LINE BACK TO AN EARLIER COLUMN TURNS IN THE GUTTER AFTER ITS TARGET'S COLUMN, AND ENDS ON ITS TARGET'S RIGHT
+           SIDE (line INVEST of 1.2.122; the audit's r120-P-4): it turned in the gutter before the target's column, so its
+           first stretch ran left at the counter's height across the target's own column - through whatever deduction stood
+           there, also when it skipped no column (a counter stands in its deepest target's column, case-layout.mjs
+           `depthOf`). Now it crosses only the columns between, which a counter refuting in two neighbouring columns has
+           none of. A bracket beside a target of the same column is as before. Tier 0 R8180. */
+        const across = back && T.x < S.x;
+        const after = across ? Object.values(at).filter(p => p.x > T.x).map(p => p.x) : [];
+        const hi = across ? (after.length ? Math.min(...after) : right(T) + g.colGap) : T.x;
         const before = Object.values(at).filter(p => p.x < hi).map(right);
         const lo = before.length ? Math.max(...before) : hi - g.colGap;
-        info.set(e, { back, hi, lo, owner: `${back ? "back:" : ""}${e.from}`, ex: back ? S.x : right(S), ys: midOf(S, g) });
+        info.set(e, { back, hi, lo, end: across ? right(T) : T.x, owner: `${back ? "back:" : ""}${e.from}`, ex: back ? S.x : right(S), ys: midOf(S, g) });
     }
     // the gutters and their owners
     const gutters = new Map();
@@ -367,8 +376,9 @@ function routePlan(shown, at, g, choose = new Map()) {
                 const owner = info.get(e).owner;
                 const ideal = Math.max(top, Math.min(bottom, start + i * step));
                 // the preferred step where it is free, `ROUTE.port` at the least where a move needs the room
+                const end = info.get(e).end;
                 const free = y => y >= prev + Math.min(step, ROUTE.port) - 0.01 && y >= top && y <= bottom
-                    && (!nudge || !placed.some(q => q.owner !== owner && Math.abs(q.y - y) < ROUTE.track && Math.min(q.b, T.x) - Math.max(q.a, x) > 0.5));
+                    && (!nudge || !placed.some(q => q.owner !== owner && Math.abs(q.y - y) < ROUTE.track && Math.min(q.b, Math.max(x, end)) - Math.max(q.a, Math.min(x, end)) > 0.5));
                 let y = null;
                 for (let d = 0; d <= h && y === null; d++) {
                     if (free(ideal + d)) y = ideal + d;
@@ -384,7 +394,7 @@ function routePlan(shown, at, g, choose = new Map()) {
             ?? list.map((_, i) => (k > 1 ? top + i * (bottom - top) / (k - 1) : my));
         list.forEach(({ e, x }, i) => {
             port.set(e, ys[i]);
-            placed.push({ y: ys[i], a: Math.min(x, T.x), b: Math.max(x, T.x), owner: info.get(e).owner });
+            placed.push({ y: ys[i], a: Math.min(x, info.get(e).end), b: Math.max(x, info.get(e).end), owner: info.get(e).owner });
         });
     }
     return { info, tx, port };
@@ -392,14 +402,15 @@ function routePlan(shown, at, g, choose = new Map()) {
 
 /** One route's path and its three stretches. */
 function routePath(e, at, plan) {
-    const i = plan.info.get(e), x = plan.tx(e), yp = plan.port.get(e), T = at[e.to];
+    const i = plan.info.get(e), x = plan.tx(e), yp = plan.port.get(e), end = i.end;
     const segs = [{ h: true, y: i.ys, a: Math.min(i.ex, x), b: Math.max(i.ex, x) }, { h: false, x, a: Math.min(i.ys, yp), b: Math.max(i.ys, yp) },
-        { h: true, y: yp, a: Math.min(x, T.x), b: Math.max(x, T.x) }];
-    if (Math.abs(yp - i.ys) < 0.5 && !i.back) return { segs, d: `M${r1(i.ex)} ${r1(i.ys)} H${r1(T.x)}` };
-    const dx = Math.sign(x - i.ex) || 1, dy = Math.sign(yp - i.ys) || 1;
-    const r = Math.max(0, Math.min(ROUTE.radius, Math.abs(yp - i.ys) / 2, Math.abs(x - i.ex), Math.abs(T.x - x)));
+        { h: true, y: yp, a: Math.min(x, end), b: Math.max(x, end) }];
+    if (Math.abs(yp - i.ys) < 0.5 && !i.back) return { segs, d: `M${r1(i.ex)} ${r1(i.ys)} H${r1(end)}` };
+    // the last stretch towards its end: right into a target's left side, left into a line back's right side (`routePlan`)
+    const dx = Math.sign(x - i.ex) || 1, dy = Math.sign(yp - i.ys) || 1, dz = Math.sign(end - x) || 1;
+    const r = Math.max(0, Math.min(ROUTE.radius, Math.abs(yp - i.ys) / 2, Math.abs(x - i.ex), Math.abs(end - x)));
     return { segs, d: `M${r1(i.ex)} ${r1(i.ys)} H${r1(x - dx * r)} Q${r1(x)} ${r1(i.ys)} ${r1(x)} ${r1(i.ys + dy * r)} V${r1(yp - dy * r)}`
-        + ` Q${r1(x)} ${r1(yp)} ${r1(x + r)} ${r1(yp)} H${r1(T.x)}` };
+        + ` Q${r1(x)} ${r1(yp)} ${r1(x + dz * r)} ${r1(yp)} H${r1(end)}` };
 }
 
 /** How many times a horizontal stretch of one source crosses a vertical of another, inside both. */

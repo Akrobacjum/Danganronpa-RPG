@@ -106676,6 +106676,605 @@ equal(read.added, 3, "three additions to a purse at once lost one");
 
 
 
+    ["1.2.122 CTRL-16 - Create on \"- pick a room -\" in New Remnant opened from a plan with no room is told, and the window comes back with what was typed; \"Place it\" on the Final Truth's room question with no room is told and asked again (investigation.mjs `openNewTrace`, `placePlannedFinal`; audit 1.2.118 controls-03, finding 4)", async () => {
+        /*
+         * Line INVEST of 1.2.122. A planned Remnant with no room: its Place opens New Remnant on "- pick a room -"; a name
+         * typed, Create pressed. Read: the warnings told, whether a New Remnant window stands again and what it holds, and
+         * whether a Remnant was placed. Then a planned Final Truth with no room: its room question's "Place it" pressed on
+         * "- pick a room -". Read: the warnings and whether the question stands again. Every window closed after.
+         * Red at 21bf5d18: Create closed the window, nothing was said and the typed name was gone; "Place it" the same.
+         */
+        const S = await import("./case-schema.mjs");
+        const I = await import("./investigation.mjs");
+        const { remnantsOn } = await import("./remnants.mjs");
+        needs(env.dialogs(), "the windows are pressed on their drawn windows");
+        const chapter = I.keyPlan().chapter, id = "incident-suite122a", fin = "final-suite122a";
+        const drawn = cls => [...foundry.applications.instances.values()].find(a => a.rendered && a.options?.classes?.includes(cls));
+        const countRemnants = () => [...game.scenes].reduce((n, s) => n + remnantsOn(s).length, 0);
+        const told = [];
+        const warn = ui.notifications.warn;
+        const seen = {};
+        try {
+            ui.notifications.warn = (msg, ...rest) => { told.push(String(msg)); return warn.call(ui.notifications, msg, ...rest); };
+            await S.setCaseNode(chapter, id, { kind: "incident", label: "SUITE 122a plan" });
+            await S.setCaseNode(chapter, fin, { kind: "final", label: "SUITE 122a final" });
+            await gmStoresIdle();
+            const before = countRemnants();
+            const opened = I.placeIncident(chapter, id).catch(() => null);
+            await until(() => drawn("drpg-window-newtrace")?.element, 4000).catch(() => {});
+            const first = drawn("drpg-window-newtrace");
+            const f = first?.element?.querySelector("form");
+            must(f && f.room.value === "", "New Remnant did not open on \"pick a room\" - this would measure nothing");
+            f.tname.value = "SUITE 122a typed";
+            first.element.querySelector('footer button[data-action="ok"]')?.click();
+            await until(() => drawn("drpg-window-newtrace") && drawn("drpg-window-newtrace") !== first, 4000).catch(() => {});
+            const again = drawn("drpg-window-newtrace");
+            const g = again && again !== first ? again.element?.querySelector("form") : null;
+            seen.newTrace = { told: told.includes(game.i18n.localize("DRPG.Investigation.newTraceNoRoom")), again: Boolean(g), name: g?.tname?.value ?? null, room: g?.room?.value ?? null };
+            await again?.close();
+            await Promise.race([opened, wait(3000)]);
+            seen.placed = countRemnants() - before;
+            told.length = 0;
+            const asked = I.placeIncident(chapter, fin).catch(() => null);
+            await until(() => drawn("drpg-window-final-room")?.element, 4000).catch(() => {});
+            const q1 = drawn("drpg-window-final-room");
+            q1?.element?.querySelector('footer button[data-action="place"]')?.click();
+            await until(() => drawn("drpg-window-final-room") && drawn("drpg-window-final-room") !== q1, 4000).catch(() => {});
+            const q2 = drawn("drpg-window-final-room");
+            seen.final = { told: told.includes(game.i18n.localize("DRPG.Investigation.newTraceNoRoom")), again: Boolean(q2 && q2 !== q1) };
+            await q2?.close();
+            await Promise.race([asked, wait(3000)]);
+            seen.placedFinal = countRemnants() - before;
+        } finally {
+            ui.notifications.warn = warn;
+            for (const a of [...foundry.applications.instances.values()]) {
+                if (a.rendered && ["drpg-window-newtrace", "drpg-window-final-room"].some(c => a.options?.classes?.includes(c))) await a.close().catch(() => {});
+            }
+            for (const n of [id, fin]) await S.dropCaseNode(chapter, n).catch(() => {});
+            await gmStoresIdle();
+        }
+        equal(stableJson(seen), stableJson({ newTrace: { told: true, again: true, name: "SUITE 122a typed", room: "" }, placed: 0, final: { told: true, again: true }, placedFinal: 0 }),
+            "{newTrace: Create on no room told, the window back, its name and room; placed: Remnants added; final: \"Place it\" on no room told and asked again; placedFinal: Remnants added}");
+    }],
+    ["1.2.122 CASE-60 - Place on the map of a Remnant planned on another place scene than the one viewed says nothing of a missing room, and New Remnant opens on that scene with the room picked (investigation.mjs `placeIncident`; audit 1.2.118 domain-case-c-investigation 7, controls-03 finding 13)", async () => {
+        /*
+         * Line INVEST of 1.2.122. A scene of the suite's own with one room (a region marked as a room), not the one on
+         * screen; a planned Remnant in that room on that scene. Its Place: the warnings read, New Remnant's room select read,
+         * the window closed with nothing placed. The scene and the row go after.
+         * Red at 21bf5d18: the check read the scene on screen, which has no such room, so "The planned room ... is not on
+         * this scene" was said over a window with the room picked.
+         */
+        const S = await import("./case-schema.mjs");
+        const I = await import("./investigation.mjs");
+        const R = await import("./rooms.mjs");
+        needs(env.dialogs(), "the windows are pressed on their drawn windows");
+        const chapter = I.keyPlan().chapter, id = "incident-suite122b", room = "SUITE 122b the annex lab";
+        const drawn = () => [...foundry.applications.instances.values()].find(a => a.rendered && a.options?.classes?.includes("drpg-window-newtrace"));
+        const told = [];
+        const warn = ui.notifications.warn;
+        let annex = null;
+        const seen = {};
+        try {
+            annex = await Scene.create({ name: "SUITE 122b the annex", width: 800, height: 400, grid: { size: 100 }, active: false, navigation: false });
+            await annex.createEmbeddedDocuments("Region", [{ name: room, shapes: [{ type: "rectangle", x: 0, y: 0, width: 400, height: 400 }], flags: { [MODULE_ID]: { [R.ROOM_FLAG]: true } }, behaviors: [] }]);
+            must(canvas.scene?.id !== annex.id, "the suite's scene is the one on screen - this would measure nothing");
+            await S.setCaseNode(chapter, id, { kind: "incident", label: "SUITE 122b plan", room, scene: annex.id });
+            await gmStoresIdle();
+            ui.notifications.warn = (msg, ...rest) => { told.push(String(msg)); return warn.call(ui.notifications, msg, ...rest); };
+            const opened = I.placeIncident(chapter, id).catch(() => null);
+            await until(() => drawn()?.element, 4000).catch(() => {});
+            seen.room = drawn()?.element?.querySelector("form")?.room?.value ?? null;
+            seen.told = told.includes(game.i18n.format("DRPG.Investigation.plannedRoomGone", { room }));
+            await drawn()?.close();
+            await Promise.race([opened, wait(3000)]);
+        } finally {
+            ui.notifications.warn = warn;
+            await drawn()?.close().catch(() => {});
+            await S.dropCaseNode(chapter, id).catch(() => {});
+            if (annex) await annex.delete().catch(() => {});
+            await gmStoresIdle();
+        }
+        equal(stableJson(seen), stableJson({ room, told: false }), "{room: New Remnant's room select; told: the planned room said to be gone from the scene}");
+    }],
+    ["1.2.122 CTRL-53 - a failed Add deduction on the Map is said on the GM's screen, in the words written for it (investigation.mjs `wireMap`'s `fail`; audit 1.2.118 controls-03, finding 8)", async () => {
+        /*
+         * Line INVEST of 1.2.122. The Map drawn; the case store's next write made to fail; Add deduction pressed. Read: the
+         * error notices shown. The store's write put back.
+         * Red at 21bf5d18: the sentence reached the console alone.
+         */
+        const { caseSchemaStore } = await import("./gm-stores.mjs");
+        needs(env.dialogs(), "the dashboard is pressed on its drawn window");
+        const shown = [];
+        const errorWas = ui.notifications.error;
+        const patchWas = Object.prototype.hasOwnProperty.call(caseSchemaStore, "patch") ? caseSchemaStore.patch : null;
+        let win = null, failed = 0;
+        try {
+            win = await drawnCaseWindow({ view: "map" });
+            const add = win.app?.element?.querySelector('[data-drpg-case-add="deduction"]');
+            must(add, "the Map has no Add deduction - this would measure nothing");
+            ui.notifications.error = (msg, ...rest) => { shown.push(String(msg)); return errorWas.call(ui.notifications, msg, ...rest); };
+            caseSchemaStore.patch = () => { failed++; return Promise.reject(new Error("SUITE 122 the case store's write fails")); };
+            add.click();
+            await until(() => shown.length > 0 || null, 3000).catch(() => {});
+        } finally {
+            if (patchWas) caseSchemaStore.patch = patchWas; else delete caseSchemaStore.patch;
+            ui.notifications.error = errorWas;
+            if (win) await win.close().catch(() => {});
+            await gmStoresIdle();
+        }
+        equal(stableJson({ failed: failed > 0, shown: shown.includes(game.i18n.localize("DRPG.CaseMap.failed.add")) }), stableJson({ failed: true, shown: true }),
+            "{failed: the store's write was asked and failed; shown: the failure's sentence on the screen}");
+    }],
+    ["1.2.122 CTRL-11 - the Table's filter and the Map's fold write a typed, unwritten field before they redraw, and Check consistency and Place on the map read the node as typed (investigation.mjs `wireCaseFilters`, `wireMap`; audit 1.2.118 controls-03, findings 2, 12 and 14)", async () => {
+        /*
+         * Line INVEST of 1.2.122. Each field is typed with no `change` sent (as a field still holding the focus is), then:
+         * on the Table, a Remnant's name and the Room filter set to a room no row is in (the row hidden); on the Map with
+         * every node open, a deduction's name and the fold pressed; another deduction's name and Check consistency pressed;
+         * a planned Remnant's name and its Place on the map pressed (New Remnant read, then closed with nothing placed).
+         * Read: the stored names, and New Remnant's name. Every row put back.
+         * Red at 21bf5d18: none of the four presses wrote first, so each name read as stored and New Remnant opened with it.
+         */
+        const S = await import("./case-schema.mjs");
+        const R = await import("./remnants.mjs");
+        needs(env.dialogs(), "the dashboard is pressed on its drawn window");
+        needs(world.atLeast("remnantTokens", 1), "a Remnant to rename on the Table");
+        needs(world.atLeast("namedRooms", 1), "a room on the scene on screen to plan a Remnant in");
+        const ch = getClock().chapter;
+        const ids = { f: "suite-122c-fold", k: "suite-122c-check", p: "incident-suite122c" };
+        const flagWas = game.user.getFlag(MODULE_ID, "caseMapFaces");
+        const newTrace = () => [...foundry.applications.instances.values()].find(a => a.rendered && a.options?.classes?.includes("drpg-window-newtrace"));
+        const trace = [...game.scenes].flatMap(s => R.remnantsOn(s).map(token => ({ token, scene: s }))).find(t => R.remnantData(t.token)) ?? null;
+        must(trace, "no Remnant on any scene - this would measure nothing");
+        const nameWas = R.remnantPublic(trace.token)?.name ?? "";
+        const seen = {};
+        let win = null;
+        try {
+            if (flagWas !== undefined) await game.user.unsetFlag(MODULE_ID, "caseMapFaces");
+            await S.setCaseNode(ch, ids.f, { kind: "deduction", label: "SUITE 122c fold" });
+            await S.setCaseNode(ch, ids.k, { kind: "deduction", label: "SUITE 122c check" });
+            await gmStoresIdle();
+            // the Table: a name typed, the Room filter to a room no row is in
+            win = await drawnCaseWindow({ view: "table" });
+            let root = win.app?.element;
+            const key = `${trace.scene.id}.${trace.token.id}`.replace(".", "_");
+            const nameField = [...(root?.querySelectorAll('input[name^="name."]') ?? [])].find(el => el.name.endsWith(trace.token.id)) ?? null;
+            must(nameField, `the Table has no name field for the Remnant ${key} - this would measure nothing`);
+            nameField.value = "SUITE 122c typed on the Table";
+            const filter = root.querySelector('select[data-drpg-filter="room"]');
+            must(filter, "the Table has no Room filter - this would measure nothing");
+            filter.add(Object.assign(document.createElement("option"), { value: "SUITE 122c nowhere", textContent: "SUITE 122c nowhere" }));
+            filter.value = "SUITE 122c nowhere";
+            filter.dispatchEvent(new Event("change", { bubbles: true }));
+            await until(() => R.remnantPublic(trace.token)?.name === "SUITE 122c typed on the Table" || null, 4000).catch(() => {});
+            seen.table = R.remnantPublic(trace.token)?.name ?? null;
+            await win.close();
+            // the Map: the fold, the check and Place
+            win = await drawnCaseWindow({ view: "map" });
+            root = win.app?.element;
+            const field = node => root?.querySelector(`[name="case:${ch}:${node}:label"]`);
+            await until(() => field(ids.f) || null, 3000).catch(() => {});
+            must(field(ids.f) && field(ids.k), "the Map drew no fields for the suite's deductions - this would measure nothing");
+            field(ids.f).value = "SUITE 122c typed, then folded";
+            root.querySelector("[data-drpg-case-fold]")?.click();
+            await until(() => S.caseNodeOf(S.caseRows(ch).rows[ids.f])?.label === "SUITE 122c typed, then folded" || null, 4000).catch(() => {});
+            seen.fold = S.caseNodeOf(S.caseRows(ch).rows[ids.f])?.label ?? null;
+            root.querySelector("[data-drpg-case-fold]")?.click();
+            await settle();
+            await until(() => field(ids.k) || null, 3000).catch(() => {});
+            field(ids.k).value = "SUITE 122c typed, then checked";
+            root.querySelector("[data-drpg-case-check]")?.click();
+            await until(() => S.caseNodeOf(S.caseRows(ch).rows[ids.k])?.label === "SUITE 122c typed, then checked" || null, 4000).catch(() => {});
+            seen.check = S.caseNodeOf(S.caseRows(ch).rows[ids.k])?.label ?? null;
+            await win.close();
+            win = null;
+            // Place on the map of a planned Remnant with its room, its name typed
+            const scene = canvas.scene;
+            const rooms = (await import("./movement.mjs")).allRooms(scene);
+            await S.setCaseNode(ch, ids.p, { kind: "incident", label: "SUITE 122c planned", room: rooms[0], scene: scene.id });
+            await gmStoresIdle();
+            win = await drawnCaseWindow({ view: "map" });
+            root = win.app?.element;
+            await until(() => field(ids.p) || null, 3000).catch(() => {});
+            must(field(ids.p), "the Map drew no fields for the planned Remnant - this would measure nothing");
+            field(ids.p).value = "SUITE 122c typed, then placed";
+            root.querySelector(`[data-drpg-case-place="${ch}:${ids.p}"]`)?.click();
+            await until(() => newTrace()?.element, 4000).catch(() => {});
+            seen.place = newTrace()?.element?.querySelector("form")?.tname?.value ?? null;
+            await newTrace()?.close();
+        } finally {
+            await newTrace()?.close().catch(() => {});
+            if (win) await win.close().catch(() => {});
+            await R.setRemnantPublic(trace.token, { name: nameWas }).catch(() => {});
+            for (const n of Object.values(ids)) await S.dropCaseNode(ch, n).catch(() => {});
+            if (flagWas !== undefined) await game.user.setFlag(MODULE_ID, "caseMapFaces", flagWas);
+            await gmStoresIdle();
+        }
+        equal(stableJson(seen), stableJson({ table: "SUITE 122c typed on the Table", fold: "SUITE 122c typed, then folded", check: "SUITE 122c typed, then checked", place: "SUITE 122c typed, then placed" }),
+            "{table: the Remnant's stored name after the filter hid its row; fold: the deduction's stored name after the fold; check: the other's after Check consistency; place: New Remnant's name after Place on the map}");
+    }],
+    ["1.2.122 CTRL-17 - after a redraw a node's trial mode rows and its \"Ticked: n of m\" line follow its fields as they stand, not the store (investigation.mjs `wireMap`; audit 1.2.118 controls-03, finding 5)", async () => {
+        /*
+         * Line INVEST of 1.2.122. Two deductions, x resting on nothing, the Map drawn with every node open. In x's fields
+         * the mode set to Straw Poll and one box of "Rests on" ticked, with no `change` sent (as live.mjs puts a pick
+         * or a tick back after a redraw); then another node written elsewhere, which redraws the Map. Read: x's mode, whether
+         * its Straw Poll rows are shown, and its line. The rows go after.
+         * Red at 21bf5d18: the rows were drawn hidden by the stored mode and the line counted the stored ticks.
+         */
+        const S = await import("./case-schema.mjs");
+        needs(env.dialogs(), "the dashboard is pressed on its drawn window");
+        const ch = getClock().chapter;
+        const id = k => `suite-122d-${k}`;
+        const flagWas = game.user.getFlag(MODULE_ID, "caseMapFaces");
+        let win = null;
+        const seen = {};
+        try {
+            if (flagWas !== undefined) await game.user.unsetFlag(MODULE_ID, "caseMapFaces");
+            await S.setCaseNode(ch, id("a"), { kind: "deduction", label: "SUITE 122d a", inputs: [] });
+            await S.setCaseNode(ch, id("x"), { kind: "deduction", label: "SUITE 122d x", inputs: [] });
+            await gmStoresIdle();
+            win = await drawnCaseWindow({ view: "map" });
+            const root = win.app?.element;
+            const fields = () => root?.querySelector(`.drpg-case-edit[data-drpg-edit="${id("x")}"]`);
+            await until(() => fields() || null, 3000).catch(() => {});
+            const mode = fields()?.querySelector(`select[name="case:${ch}:${id("x")}:mode"]`);
+            const box = [...(fields()?.querySelectorAll('.drpg-case-fold-list input[type="checkbox"]') ?? [])].find(b => b.name.endsWith(`:${id("a")}`));
+            must(mode && box && [...mode.options].some(o => o.value === "straw"), "x's fields have no mode with Straw Poll or no box for a - this would measure nothing");
+            mode.value = "straw";
+            box.checked = true;
+            const was = root.querySelector(".drpg-case-live");
+            await S.setCaseNode(ch, id("y"), { kind: "deduction", label: "SUITE 122d y", inputs: [] });
+            await until(() => (root.querySelector(".drpg-case-live") !== was && fields()) || null, 4000).catch(() => {});
+            seen.redrawn = root.querySelector(".drpg-case-live") !== was;
+            const f = fields();
+            seen.mode = f?.querySelector(`select[name="case:${ch}:${id("x")}:mode"]`)?.value ?? null;
+            const rows = [...(f?.querySelectorAll("[data-drpg-zone-for]") ?? [])];
+            seen.strawShown = rows.filter(r => r.dataset.drpgZoneFor.split(" ").includes("straw")).some(r => !r.hidden);
+            seen.otherShown = rows.filter(r => !r.dataset.drpgZoneFor.split(" ").includes("straw")).some(r => !r.hidden);
+            const list = [...(f?.querySelectorAll(".drpg-case-fold-list") ?? [])].find(l => l.querySelector(`input[name$=":${id("a")}"]`));
+            const boxes = [...(list?.querySelectorAll('input[type="checkbox"]') ?? [])];
+            seen.line = list?.querySelector(":scope > summary[data-drpg-chosen]")?.textContent ?? null;
+            seen.lineWant = game.i18n.format("DRPG.CaseMap.chosenOf", { n: boxes.filter(b => b.checked).length, of: boxes.length });
+            seen.ticked = boxes.filter(b => b.checked).length;
+        } finally {
+            if (win) await win.close().catch(() => {});
+            for (const k of ["a", "x", "y"]) await S.dropCaseNode(ch, id(k)).catch(() => {});
+            if (flagWas !== undefined) await game.user.setFlag(MODULE_ID, "caseMapFaces", flagWas);
+            await gmStoresIdle();
+        }
+        const { lineWant, ...rest } = seen;
+        equal(stableJson({ ...rest, lineRight: seen.line === lineWant }), stableJson({ redrawn: true, mode: "straw", strawShown: true, otherShown: false, line: seen.line, ticked: 1, lineRight: true }),
+            "{redrawn: the Map drawn again; mode: x's select after it; strawShown, otherShown: the rows of Straw Poll and of any other mode shown; ticked: the boxes ticked; lineRight: the line counts them}");
+    }],
+    ["1.2.122 CTRL-15 CTRL-18 - the Map drawn for a chapter not running carries no Key planner fields, and on a chapter with no Remnant of its own one look at the Table leaves the Chapter filter on the running chapter, which it offers (investigation.mjs `mapEditors`, `readTracesAs`, `caseTraceFilters`; audit 1.2.118 controls-03, findings 3 and 7)", async () => {
+        /*
+         * Line INVEST of 1.2.122. Part 1: a Key slot written for a chapter not running (`fresh`); the Table's Chapter filter
+         * set to it and the Map shown. Read: the chapter drawn and whether any Key planner field (`keyname:`) stands on the
+         * Map. Part 2: the clock moved to `fresh`, which has no Remnant; the dashboard opened on the Map, the Table shown and
+         * the Map again. Read: the filter's value and whether it offers `fresh`, and the Map's chapter mode (its nodes
+         * this chapter's alone: no Remnant of another chapter drawn). The slot and the clock put back.
+         * Red at 21bf5d18: the other chapter's slot node carried the running chapter's fields; the filter fell to "Every
+         * chapter" and did not offer the running chapter.
+         */
+        const S = await import("./gm-stores.mjs");
+        const R = await import("./remnants.mjs");
+        needs(env.dialogs(), "the dashboard is pressed on its drawn window");
+        needs(world.atLeast("remnantTokens", 1), "a Remnant of another chapter for the Map to leave out");
+        const clock = getClock();
+        const chapters = Object.keys(S.keyPlanStore.entries()).map(k => Number(k.split(":")[0])).filter(Number.isFinite);
+        const traceChapters = [...game.scenes].flatMap(s => R.remnantsOn(s).map(t => Number(R.remnantData(t)?.chapter))).filter(Number.isFinite);
+        const fresh = Math.max(Number(clock.chapter) || 1, ...chapters, ...traceChapters) + 1;
+        const seen = {};
+        const viewWas = game.user.getFlag(MODULE_ID, "investigationView");
+        let win = null;
+        try {
+            await S.keyPlanStore.patch(`${fresh}:0`, { scale: "standard", name: "SUITE 122e the other chapter's slot" });
+            await gmStoresIdle();
+            win = await drawnCaseWindow({ view: "table" });
+            let root = win.app?.element;
+            const filter = root?.querySelector('select[data-drpg-filter="chapter"]');
+            must(filter, "the Table has no Chapter filter - this would measure nothing");
+            if (![...filter.options].some(o => o.value === String(fresh))) filter.add(Object.assign(document.createElement("option"), { value: String(fresh), textContent: String(fresh) }));
+            filter.value = String(fresh);
+            filter.dispatchEvent(new Event("change", { bubbles: true }));
+            await settle();
+            root.querySelector('[data-drpg-mode="map"]')?.click();
+            await until(() => root.querySelector('.drpg-case-live[data-drpg-view="map"]') || null, 4000).catch(() => {});
+            seen.drawn = root.querySelector('.drpg-case-live[data-drpg-view="map"]')?.dataset?.drpgChapter ?? null;
+            seen.keyFields = root.querySelectorAll('.drpg-case-live [name^="keyname:"]').length;
+            await win.close();
+            win = null;
+            await setClock({ chapter: fresh });
+            win = await drawnCaseWindow({ view: "map" });
+            root = win.app?.element;
+            const nodesOnMap = () => [...root.querySelectorAll(".drpg-case-canvas > [data-drpg-node]")].map(b => b.dataset.drpgNode);
+            const before = nodesOnMap().filter(n => n.includes(".")).length;
+            root.querySelector('[data-drpg-mode="table"]')?.click();
+            await until(() => root.querySelector('.drpg-case-live[data-drpg-view="table"]') || null, 4000).catch(() => {});
+            const tableFilter = root.querySelector('select[data-drpg-filter="chapter"]');
+            seen.filter = tableFilter?.value ?? null;
+            seen.offered = [...(tableFilter?.options ?? [])].some(o => o.value === String(fresh));
+            root.querySelector('[data-drpg-mode="map"]')?.click();
+            await until(() => root.querySelector('.drpg-case-live[data-drpg-view="map"]') || null, 4000).catch(() => {});
+            seen.remnantsBefore = before;
+            seen.remnantsAfter = nodesOnMap().filter(n => n.includes(".")).length;
+        } finally {
+            if (win) await win.close().catch(() => {});
+            await setClock(clock);
+            if (viewWas === undefined) await game.user.unsetFlag(MODULE_ID, "investigationView");
+            else await game.user.setFlag(MODULE_ID, "investigationView", viewWas);
+            const rows = Object.keys(S.keyPlanStore.entries()).filter(k => k.startsWith(`${fresh}:`));
+            if (rows.length) await S.keyPlanStore.dropMany(rows);
+            await gmStoresIdle();
+        }
+        equal(stableJson(seen), stableJson({ drawn: String(fresh), keyFields: 0, filter: String(fresh), offered: true, remnantsBefore: 0, remnantsAfter: 0 }),
+            "{drawn: the Map's chapter; keyFields: Key planner fields on it; filter: the Table's Chapter filter on a chapter with no Remnant; offered: it lists that chapter; remnantsBefore, remnantsAfter: Remnants drawn on the Map before and after the look at the Table}");
+    }],
+    ["1.2.122 CTRL-50 - a Key slot's Place past the opening roll's limit says why on its own tooltip (investigation.mjs `caseKeyCells`; audit 1.2.118 controls-03, finding 11)", async () => {
+        /*
+         * Line INVEST of 1.2.122. Pure over the drawing: the Key panel's cells drawn with a limit of one and five slots, none
+         * placed. Read: each unplaced slot's Place - disabled or not, and its tooltip's key. Red at 21bf5d18: the four past
+         * the limit carried the tooltip of a Place that places.
+         */
+        const I = await import("./investigation.mjs");
+        const plan = { chapter: getClock().chapter, entries: Array.from({ length: 5 }, () => ({ scale: "standard" })) };
+        const html = I.caseKeyTable({ plan, status: { entries: plan.entries.map(() => ({ placed: false })) }, placed: [], limit: 1 });
+        const div = document.createElement("div");
+        div.innerHTML = String(html);
+        const buttons = [...div.querySelectorAll("[data-drpg-key-place]")];
+        must(buttons.length === 5, `the Key table drew ${buttons.length} Place buttons - this would measure nothing`);
+        const over = game.i18n.localize("DRPG.Tips.Case.placeOverLimitTooltip"), placeTip = game.i18n.localize("DRPG.Tips.Case.placeTooltip");
+        const tip = b => [b.getAttribute("title"), b.dataset.tooltip, b.getAttribute("data-tooltip-text")].filter(Boolean).join(" ");
+        equal(stableJson(buttons.map(b => ({ disabled: b.disabled, why: tip(b).includes(over) ? "over" : tip(b).includes(placeTip) ? "place" : "other" }))),
+            stableJson([{ disabled: false, why: "place" }, ...Array.from({ length: 4 }, () => ({ disabled: true, why: "over" }))]),
+            "{each slot's Place: disabled, and whether its tooltip says it is past the limit or that it places}");
+    }],
+    ["1.2.122 REFR-42 - the open dashboard is drawn again when a Truth Bullet's answer key lands, with nothing else written (investigation.mjs `openInvestigationDashboard`'s `watch.stores`; audit 1.2.118 refresh-01-04, finding 2)", async () => {
+        /*
+         * Line INVEST of 1.2.122. The dashboard drawn; an answer key written into the GMs' store of keys (gm-stores.mjs
+         * `bulletStore`, as createTruthBullet writes one after its item, and the GMs' exchange brings one) for an item uuid of
+         * the suite's own. Read: whether the region was drawn again. The key dropped after. What is measured is the window
+         * hearing the store; what a key changes on the screen is the readers' (`secretOf`).
+         * Red at 21bf5d18: the window did not watch the store, so nothing redrew it.
+         */
+        const { bulletStore } = await import("./gm-stores.mjs");
+        needs(env.dialogs(), "the dashboard is pressed on its drawn window");
+        const uuid = `Actor.suite122f.Item.suite122f${foundry.utils.randomID(6)}`;
+        let win = null, redrawn = null;
+        try {
+            win = await drawnCaseWindow({ view: "table" });
+            const root = win.app?.element;
+            await settle();
+            const was = root?.querySelector(".drpg-case-live");
+            must(was, "the dashboard drew no region - this would measure nothing");
+            await bulletStore.patch(uuid, { remnantId: "suite122f", sceneId: "suite122f", realType: "prep" });
+            await until(() => (root.querySelector(".drpg-case-live") && root.querySelector(".drpg-case-live") !== was) || null, 3000).catch(() => {});
+            redrawn = root.querySelector(".drpg-case-live") !== was;
+        } finally {
+            if (win) await win.close().catch(() => {});
+            await bulletStore.drop(uuid).catch(() => {});
+            await gmStoresIdle();
+        }
+        equal(redrawn, true, "the dashboard was not drawn again when an answer key landed");
+    }],
+    ["1.2.122 CTRL-49 - the dashboard's fields stay in the window's own form after a redraw, so Enter keeps one meaning (investigation.mjs `caseHtml`, `caseMapRegion`; audit 1.2.118 controls-03, finding 10)", async () => {
+        /*
+         * Line INVEST of 1.2.122. The dashboard drawn on the Table and redrawn (its Order filter changed), then on the Map
+         * and redrawn (Check consistency). Read each time: how many forms the window holds and whether a field's form is
+         * the one holding the footer's Save. What Enter does in a browser is not read here (jsdom submits no form on Enter).
+         * Red at 21bf5d18: after a redraw the fields stood in a nested form of their own, with no submit button.
+         */
+        needs(env.dialogs(), "the dashboard is pressed on its drawn window");
+        const read = root => {
+            const field = root?.querySelector('.drpg-case-live input[type="text"], .drpg-case-live textarea');
+            return { forms: root?.querySelectorAll("form").length ?? null, sameForm: Boolean(field?.form && field.form.querySelector('button[data-action="save"]')) };
+        };
+        const seen = {};
+        let win = null;
+        try {
+            win = await drawnCaseWindow({ view: "table" });
+            let root = win.app?.element;
+            let was = root?.querySelector(".drpg-case-live");
+            const order = root?.querySelector('select[data-drpg-filter="order"]');
+            must(order, "the Table has no Order filter - this would measure nothing");
+            order.value = order.value === "room" ? "newest" : "room";
+            order.dispatchEvent(new Event("change", { bubbles: true }));
+            await until(() => (root.querySelector(".drpg-case-live") !== was) || null, 3000).catch(() => {});
+            seen.table = { redrawn: root.querySelector(".drpg-case-live") !== was, ...read(root) };
+            await win.close();
+            win = await drawnCaseWindow({ view: "map" });
+            root = win.app?.element;
+            was = root?.querySelector(".drpg-case-live");
+            root?.querySelector("[data-drpg-case-check]")?.click();
+            await until(() => (root.querySelector(".drpg-case-live") !== was) || null, 3000).catch(() => {});
+            seen.map = { redrawn: root.querySelector(".drpg-case-live") !== was, ...read(root) };
+        } finally {
+            if (win) await win.close().catch(() => {});
+        }
+        equal(stableJson(seen), stableJson({ table: { redrawn: true, forms: 1, sameForm: true }, map: { redrawn: true, forms: 1, sameForm: true } }),
+            "{each view after a redraw: redrawn, the forms in the window, and whether a field's form holds Save}");
+    }],
+    ["1.2.122 CASE-36 - the Final Truth form's words, left with \"Not now\", are in the form when the window is opened again, and gone once it is placed (investigation.mjs `finalDraft`; audit 1.2.118 domain-case-c-investigation 5)", async () => {
+        /*
+         * Line INVEST of 1.2.122. The dashboard on the Table: the Final Truth form's room picked and name typed; the window
+         * closed by its X; the close's question answered "Not now". The window opened again: the form's room and name read.
+         * Then the form cleared and closed, so nothing is kept for the next test.
+         * Red at 21bf5d18: the window came back with the form empty.
+         */
+        needs(env.dialogs(), "the dashboard is pressed on its drawn window");
+        const ask = () => [...foundry.applications.instances.values()].find(a => a.rendered && a.options?.classes?.includes("drpg-window-final-ask"));
+        const seen = {};
+        let win = null, room = null;
+        try {
+            win = await drawnCaseWindow({ view: "table" });
+            const roomField = win.field("finalRoom");
+            const option = [...(roomField?.options ?? [])].find(o => o.value);
+            must(option, "the Final Truth form offers no room - this would measure nothing");
+            room = option.value;
+            roomField.value = room;
+            win.field("finalName").value = "SUITE 122g the final words";
+            const closing = win.app.close();
+            await until(() => ask()?.element, 4000).catch(() => {});
+            ask()?.element?.querySelector('footer button[data-action="later"]')?.click();
+            await closing;
+            await Promise.race([win.answer, wait(4000)]);
+            win = await drawnCaseWindow({ view: "table" });
+            seen.again = { room: win.field("finalRoom")?.value ?? null, name: win.field("finalName")?.value ?? null };
+            win.field("finalRoom").value = "";
+            win.field("finalName").value = "";
+            await win.close();
+            win = await drawnCaseWindow({ view: "table" });
+            seen.cleared = { room: win.field("finalRoom")?.value ?? null, name: win.field("finalName")?.value ?? null };
+        } finally {
+            await ask()?.close().catch(() => {});
+            if (win) {
+                if (win.field("finalRoom")) win.field("finalRoom").value = "";
+                for (const n of ["finalName", "finalText", "finalAnalysis", "finalNote"]) if (win.field(n)) win.field(n).value = "";
+                await win.close().catch(() => {});
+            }
+        }
+        equal(stableJson(seen), stableJson({ again: { room, name: "SUITE 122g the final words" }, cleared: { room: "", name: "" } }),
+            "{again: the Final Truth form's room and name in the window opened after \"Not now\"; cleared: after the form was emptied and closed}");
+    }],
+    ["1.2.122 CASE-55 - a planned Autopsy asked for while one is going out is sent when that one ends, not dropped (case-realize.mjs `sendPlannedAutopsy`; audit 1.2.118 domain-case-f-planner-stores 6)", async () => {
+        /*
+         * Line INVEST of 1.2.122. On the primary GM: the sending stood in for (`send`, which holds its first call until let
+         * go and answers 1 each time); a first call started, a second made while it holds, then the first let go. Read: how
+         * often the sending ran, what each call answered. Nothing is written.
+         * Red at 21bf5d18: the function was not exported, and a second call while one ran answered 0 and was not run.
+         */
+        const R = await import("./case-realize.mjs");
+        must(typeof R.sendPlannedAutopsy === "function", "case-realize.mjs exports no sendPlannedAutopsy");
+        needs(env.primaryGm(), "the planned Autopsies go out from the primary GM");
+        const chapter = getClock().chapter;
+        let calls = 0, release = null;
+        const gate = new Promise(resolve => { release = resolve; });
+        const send = async () => { calls++; if (calls === 1) await gate; return 1; };
+        const first = R.sendPlannedAutopsy(chapter, { send });
+        await wait(20);
+        const second = await R.sendPlannedAutopsy(chapter, { send });
+        release();
+        const total = await first;
+        equal(stableJson({ calls, first: total, second }), stableJson({ calls: 2, first: 2, second: 0 }),
+            "{calls: the sending's runs; first: what the running call answered, over both; second: what the call made meanwhile answered}");
+    }],
+    ["1.2.122 CTRL-54 - the realization run from the question at a body says what it did, \"Nothing was placed.\" too (case-realize.mjs `askAtBody`; audit 1.2.118 controls-03, finding 9)", async () => {
+        /*
+         * Line INVEST of 1.2.122. A chapter not running with one schema row (so the question asks); `askAtBody` called, Show
+         * the preview pressed, then Run with nothing picked. Read: the notices shown. The chapter's plan cleared after.
+         * Red at 21bf5d18: the preview's answer was dropped and nothing was said.
+         */
+        const S = await import("./case-schema.mjs");
+        const G = await import("./gm-stores.mjs");
+        const R = await import("./case-realize.mjs");
+        needs(env.dialogs(), "the windows are pressed on their drawn windows");
+        const clock = getClock();
+        const used = [...Object.keys(G.caseSchemaStore.entries()), ...Object.keys(G.keyPlanStore.entries())].map(k => Number(k.split(":")[0])).filter(Number.isFinite);
+        const fresh = Math.max(Number(clock.chapter) || 1, ...used) + 1;
+        const drawn = cls => [...foundry.applications.instances.values()].find(a => a.rendered && a.options?.classes?.includes(cls));
+        const shown = [];
+        const infoWas = ui.notifications.info;
+        let answer = null;
+        try {
+            await S.setCaseNode(fresh, "suite-122h", { kind: "deduction", label: "SUITE 122h" });
+            await gmStoresIdle();
+            ui.notifications.info = (msg, ...rest) => { shown.push(String(msg)); return infoWas.call(ui.notifications, msg, ...rest); };
+            const asked = R.askAtBody(fresh).catch(() => null);
+            await until(() => drawn("drpg-window-case-ask")?.element, 4000).catch(() => {});
+            must(drawn("drpg-window-case-ask"), "the question at a body did not open - this would measure nothing");
+            drawn("drpg-window-case-ask").element.querySelector('footer button[data-action="preview"]')?.click();
+            await until(() => drawn("drpg-window-case-realize")?.element, 4000).catch(() => {});
+            drawn("drpg-window-case-realize")?.element?.querySelector('footer button[data-action="run"]')?.click();
+            answer = await Promise.race([asked, wait(5000).then(() => "timeout")]);
+        } finally {
+            ui.notifications.info = infoWas;
+            for (const cls of ["drpg-window-case-ask", "drpg-window-case-realize"]) await drawn(cls)?.close().catch(() => {});
+            await S.clearChapterPlan(fresh).catch(() => {});
+            await gmStoresIdle();
+        }
+        const said = game.i18n.localize("DRPG.CaseRealize.notRun");
+        equal(stableJson({ answer, shown: shown.includes(said) }), stableJson({ answer: said, shown: true }), "{answer: what the question answered; shown: the sentence on the screen}");
+    }],
+    ["1.2.122 CASE-73 - the case summary whose card was not made is not marked sent, and the GM is told (case-summary.mjs `showCaseSummary`; audit 1.2.118 domain-case-f-planner-stores 9)", async () => {
+        /*
+         * Line INVEST of 1.2.122. The trial's record with a verdict applied and no summary sent; the chat's create made to
+         * fail once; Show summary answered Send. Read: the record's summaryShown, what the call answered and the error shown.
+         * The record and the create put back.
+         * Red at 21bf5d18: the mark was written before the card, and a create that threw left it marked.
+         */
+        const CS = await import("./case-summary.mjs");
+        const { trialProgress } = await import("./vote.mjs");
+        needs(env.dialogs(), "the windows are pressed on their drawn windows");
+        const stored = game.settings.get(MODULE_ID, SETTINGS.trialProgress);
+        const ch = getClock().chapter;
+        const createWas = ChatMessage.create, createOwn = Object.prototype.hasOwnProperty.call(ChatMessage, "create");
+        const errorWas = ui.notifications.error;
+        const drawn = () => [...foundry.applications.instances.values()].find(a => a.rendered && a.options?.classes?.includes("drpg-window-case-summary"));
+        const shown = [];
+        let answered = "unset", mark = "unset", tried = 0;
+        try {
+            await game.settings.set(MODULE_ID, SETTINGS.trialProgress, { ...(stored ?? {}), chapter: ch, verdictApplied: true, summaryShown: null, verdict: { correct: false } });
+            await settle();
+            must(trialProgress()?.verdictApplied && !trialProgress()?.summaryShown, "the record does not read a verdict applied and no summary - this would measure nothing");
+            ChatMessage.create = () => { tried++; return Promise.reject(new Error("SUITE 122i the card is turned down")); };
+            ui.notifications.error = (msg, ...rest) => { shown.push(String(msg)); return errorWas.call(ui.notifications, msg, ...rest); };
+            const sent = CS.showCaseSummary().catch(err => `threw ${err?.message}`);
+            await until(() => drawn()?.element, 4000).catch(() => {});
+            drawn()?.element?.querySelector('footer button[data-action="send"]')?.click();
+            answered = await Promise.race([sent, wait(5000).then(() => "timeout")]);
+            mark = trialProgress()?.summaryShown ?? null;
+        } finally {
+            if (createOwn) ChatMessage.create = createWas; else delete ChatMessage.create;
+            ui.notifications.error = errorWas;
+            await drawn()?.close().catch(() => {});
+            await game.settings.set(MODULE_ID, SETTINGS.trialProgress, stored ?? {});
+            await settle();
+        }
+        equal(stableJson({ tried: tried > 0, answered, mark, told: shown.includes(game.i18n.localize("DRPG.CaseSummary.notSent")) }), stableJson({ tried: true, answered: null, mark: null, told: true }),
+            "{tried: the card's create asked; answered: what Show summary answered; mark: the record's summaryShown; told: the error shown}");
+    }],
+    ["1.2.122 STG-77 - a Present card from before the running trial's entry is not read as presented (case-hints.mjs `casePresentations`; audit 1.2.118 E99-2)", async () => {
+        /*
+         * Line INVEST of 1.2.122. Pure over planted cards: two Present cards of a chapter, one stamped before the trial's
+         * entry and one after, read with the entry's stamp, and with none. Red at 21bf5d18: both cards read in the trial.
+         */
+        const H = await import("./case-hints.mjs");
+        const { TRIAL_FLAGS } = await import("./trial.mjs");
+        const card = (actor, item, timestamp) => ({ timestamp, speaker: { actor }, getFlag: (_m, k) => ({ [TRIAL_FLAGS.present]: true, [TRIAL_FLAGS.chapter]: 3, [TRIAL_FLAGS.item]: item })[k] });
+        const messages = [card("A", "i1", 1000), card("B", "i2", 3000)];
+        const secret = uuid => ({ remnantId: uuid.split(".").pop(), sceneId: "S" });
+        equal(stableJson({ trial: H.casePresentations(3, { messages, secret, since: 2000 }).map(p => p.actorId), none: H.casePresentations(3, { messages, secret, since: null }).map(p => p.actorId) }),
+            stableJson({ trial: ["B"], none: ["A", "B"] }), "{trial: the presenters read with the trial's entry at 2000; none: with no stamp}");
+    }],
+    ["1.2.122 CASE-37 - the window describing a find answers as closed once its time is up, and the GM is told the find went out under its prefilled name (observe.mjs `describeFind`; audit 1.2.118 domain-case-c-investigation 6)", async () => {
+        /*
+         * Line INVEST of 1.2.122. The window opened for a trace of the suite's own words with a time of 300 ms and left
+         * unanswered. Read: what it answered, within how long, whether it still stands, and the warning shown.
+         * Red at 21bf5d18: the function was not exported and its window had no time.
+         */
+        const O = await import("./observe.mjs");
+        needs(env.dialogs(), "the window is drawn");
+        must(typeof O.describeFind === "function", "observe.mjs exports no describeFind");
+        const [student] = cast(1);
+        const drawn = () => [...foundry.applications.instances.values()].find(a => a.rendered && a.options?.window?.title === game.i18n.localize("DRPG.Observe.describeTitle"));
+        const shown = [];
+        const warnWas = ui.notifications.warn;
+        let answer = "unset", took = null, standing = null;
+        try {
+            ui.notifications.warn = (msg, ...rest) => { shown.push(String(msg)); return warnWas.call(ui.notifications, msg, ...rest); };
+            const at = Date.now();
+            answer = await Promise.race([O.describeFind(student, { room: "SUITE 122j room", data: { visibilityLabel: "Evident", typeLabel: "Prep", note: "" } }, false, "SUITE 122j name", null, { waitMs: 300 }),
+                wait(4000).then(() => "timeout")]);
+            took = Date.now() - at;
+            await settle();
+            standing = Boolean(drawn());
+        } finally {
+            ui.notifications.warn = warnWas;
+            await drawn()?.close().catch(() => {});
+        }
+        const told = shown.includes(game.i18n.format("DRPG.Observe.describeTimedOut", { actor: student.name, name: "SUITE 122j name" }));
+        equal(stableJson({ answer, inTime: took !== null && took < 3000, standing, told }), stableJson({ answer: null, inTime: true, standing: false, told: true }),
+            "{answer: what the unanswered window answered; inTime: within 3 s of a 300 ms time; standing: the window still open; told: the warning shown}");
+    }],
     ["a planned Truth Bullet removed from the planner takes its links with it: the deductions that rested on it no longer name it, the counter refuting one of them keeps its target, and the case's check names nothing missing (case-schema.mjs `dropCaseNode`, `refsCut`; the owner, 19.11.2026: \"Przyjmujemy ze usuniecie bulleta usuwa tez jego polaczenia\"; the line claude/plan-119)", async () => {
         /*
          * A planned bullet, two deductions resting on it and a counter refuting the first, written in this chapter; the bullet
