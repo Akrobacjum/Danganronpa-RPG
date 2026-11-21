@@ -41,3 +41,9 @@ the audit's reading: the audit's own reading of the diffs is `lines-119.json`.
 - Pruning deleted actors' ledger rows.
 - D's leftover: the sheet's Palm tile lights when the veiled killer is the only other person in the room (pressing it names no one).
 - Stages E39, E40, E43, E53, E58, E83.
+
+## Released
+- v1.2.119 published 21.11.2026 01:53Z (not a prerelease), tag at main e515907d (PR #69 merged; its tree equals 7a1f8740). The audit's re-check of the merged code: section 18.3 of the report and `recheck-119.json`.
+
+## Not audit findings (recorded so they are not raised twice)
+- Owner decision "A" (21.11 01:30Z): in 1.2.120 an INFRA line makes release.yml reuse a green ci.yml run for the same tree hash instead of rerunning CI.
