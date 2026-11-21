@@ -67034,6 +67034,39 @@ const INVARIANTS = [
         equal(stableJson(read), stableJson({ changed: { action: "undo", button: true, removed: 0, words: true }, heard: 1, order: ["cast", "name"], same: { button: true, removed: 0 } }),
             "{same: a repaint over the same steps - removals that took the pressed button out, the button the same node; changed: the row done - the same removals, the button the same node, its action, its words; heard: a click on the pressed button after; order: a reorder}");
     }],
+    ["R8543 - a closed module window is kept by none of the a11y sweep's observers: three hosts born and removed, then a fourth born, and the observers registered on the fourth hold no node that has left the page (a11y.mjs `registerA11y`'s host watch; the line INVEST of 1.2.122, probe 43's heap)", async () => {
+        /* Red on 6062bbb9 (the 1.2.122 assembly), measured 21.11.2026: the sweep watched every host it adopted through
+           ONE observer, and jsdom 30.0.1 keeps every node an observer was ever told to observe in its `_nodeList`, through
+           `disconnect()` too (MutationObserver-impl.js), so each closed window - its DialogV2 and its whole tree - stayed
+           reachable: 7.3 MB a Map window opened and closed, 2.1 GB over probe 08's twelve case windows opened ten times.
+           Read on jsdom's internals (env.domInternals); in a browser the spec's node list is weak, and whether Chromium keeps
+           a closed window here is a LIVE item. The hosts are `.drpg-panel` sections of the test's own, appended to the body
+           and removed, as the E48-K4 test does; nothing of the world is written. */
+        needs(env.domInternals(), "the observers registered on a node are read on jsdom's internals");
+        const { domImplOf } = await import("./tests-kit.mjs");
+        const A = await import("./a11y.mjs");
+        must(A.a11yWatch().births, "the a11y watch of hosts born after ready is not running - this would measure nothing");
+        const born = () => { const host = document.createElement("section"); host.className = "drpg-panel drpg-r8543"; document.body.append(host); return host; };
+        const gone = [], read = {};
+        let last = null;
+        try {
+            const hostsBefore = A.a11yWatch().hosts;
+            for (let i = 0; i < 3; i++) { const host = born(); await wait(60); host.remove(); gone.push(host); await wait(60); }
+            last = born();
+            await wait(60);
+            read.adopted = A.a11yWatch().hosts - hostsBefore;
+            const observers = (domImplOf(last)?._registeredObserverList ?? []).map(r => r.observer).filter(Boolean);
+            read.observers = observers.length > 0;
+            const goneImpls = new Set(gone.map(domImplOf));
+            read.goneHeld = observers.reduce((n, o) => n + (o._nodeList ?? []).filter(node => goneImpls.has(node)).length, 0);
+            read.leftHeld = observers.reduce((n, o) => n + (o._nodeList ?? []).filter(node => node !== domImplOf(last) && !node.isConnected).length, 0) > 0;
+        } finally {
+            last?.remove();
+            for (const host of gone) host.remove();
+        }
+        equal(stableJson(read), stableJson({ adopted: 4, goneHeld: 0, leftHeld: false, observers: true }),
+            "{adopted: hosts the watch took on; observers: some observer registered on the fourth host; goneHeld: the three removed hosts held by them; leftHeld: any node off the page held by them}");
+    }],
 ];
 
 /**
