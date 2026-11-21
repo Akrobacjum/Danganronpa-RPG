@@ -103,6 +103,48 @@ export function changedField(el) {
 }
 
 /**
+ * THE CAMPAIGN'S FIELDS FOLLOW THE WORLD, IN BOTH WINDOWS THAT DRAW THEM (the line claude/season-119 wrote it for Season
+ * setup, 20.11.2026; moved here and made Edit campaign's too by the line claude/setup-120, 21.11.2026: the audit of 1.2.118,
+ * REFR-02 and N119-7; the owner's rule "Zawsze odswiezamy okna od razu przy zmianie"). While the window stands open, a
+ * write of the clock - or of the safeword, where `safeword` reads it (Season setup) - sets each campaign field the GM has
+ * not changed (`changedField`) to what the world holds now, shown and as drawn, so the window reads true and its Save or
+ * Apply still counts the field untouched (`untouchedKept`). A field the GM changed keeps their text.
+ *
+ * HEARD AS A SETTING IS CREATED, TOO. A world whose clock or safeword was never stored makes the Setting document on its
+ * first write, and Foundry fires `createSetting` for that, not `updateSetting` (gm-store.mjs's clock cuts hear both for the
+ * same reason); a new season - when Season setup is open most - is that world. Until this line only `updateSetting` was
+ * heard, and the first HUD step of such a world left the fields as drawn. The harness fires `updateSetting` for every
+ * write, so the suite stands the first write in by hand (the tier-2 "... the first write of a setting never stored ...").
+ * Let go when the window's element is gone; wired once per element. Answers whether it wired.
+ */
+export function followCampaignFields(dialog, { safeword = null } = {}) {
+    const root = dialog?.element;
+    if (!root || root.dataset.drpgFollowsWorld) return false;
+    root.dataset.drpgFollowsWorld = "1";
+    const keys = [`${MODULE_ID}.${SETTINGS.clock}`, ...(safeword ? [`${MODULE_ID}.${SETTINGS.safeword}`] : [])];
+    const set = (el, value) => {
+        if (!el || value === undefined || value === null || changedField(el)) return;
+        const text = String(value);
+        if (el.tagName === "SELECT") for (const o of el.options) o.defaultSelected = o.value === text;
+        else el.defaultValue = text;
+        el.value = text;
+    };
+    const hooks = ["updateSetting", "createSetting"];
+    const ids = [];
+    const stop = () => { for (const [name, id] of ids) Hooks.off(name, id); ids.length = 0; };
+    const follow = setting => {
+        if (!root.isConnected) return stop();
+        if (!keys.includes(setting?.key)) return;
+        const form = root.querySelector("form");
+        const clock = getClock();
+        for (const name of ["campaignName", "chapter", "day", "phase", "session", "timeOfDay"]) set(form?.querySelector(`[name="${name}"]`), clock?.[name]);
+        if (safeword) set(form?.querySelector('[name="safeword"]'), safeword());
+    };
+    for (const name of hooks) ids.push([name, Hooks.on(name, follow)]);
+    return true;
+}
+
+/**
  * What Edit campaign's Apply hands back (E47-C2; exported for R2058): the name trimmed, the chapter, day and session
  * whole numbers from 1, the chapter no higher than its stepper's `max` (the season's chapters, or the clock's chapter past
  * them) - read as season-setup.mjs `readSeasonForm` reads its own chapter - and the phase, the time of day and the box.
@@ -250,6 +292,8 @@ export async function openClockDialog({ roads = {} } = {}) {
         classes: ["drpg-panel", "drpg-window-clock"],
         body: `<form>${formGrid(campaignRows(clock, { extra: [morningLineRow()] }))}</form>${endChapterPart()}`,
         render: (event, dialog) => {
+            // The fields follow the clock while the window stands open (`followCampaignFields`; N119-7).
+            followCampaignFields(dialog);
             dialog.element.querySelector("[data-drpg-end-chapter]")?.addEventListener("click", ev => {
                 ev.preventDefault();
                 endAsked = true;

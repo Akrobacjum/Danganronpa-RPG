@@ -20895,7 +20895,9 @@ const INVARIANTS = [
         const heads = key => [...(pane(key)?.querySelectorAll("thead th") ?? [])].map(th => th.textContent.trim());
         const text = key => pane(key)?.textContent.replace(/\s+/g, " ") ?? "";
         const form = root.querySelector("form");
-        const over = [...(form?.children ?? [])].filter(el => !el.matches?.("nav, section")).map(el => el.textContent.replace(/\s+/g, " ").trim()).filter(Boolean);
+        // Inside the body block since the line claude/setup-120 (REFR-04: the block the window's redraw replaces), the form's children before it.
+        const top = form?.querySelector(":scope > [data-drpg-room-body]") ?? form;
+        const over = [...(top?.children ?? [])].filter(el => !el.matches?.("nav, section")).map(el => el.textContent.replace(/\s+/g, " ").trim()).filter(Boolean);
         const tabs = [...root.querySelectorAll('nav.drpg-tabs > button[role="tab"]')].map(b => [b.dataset.drpgTabKey, b.textContent.trim()]);
         const read = {
             over: over.includes(L("DRPG.Vault.applyLine")),
@@ -63960,6 +63962,41 @@ const INVARIANTS = [
         ok(hudRules.length > 0, "no rule of the module's sheets names the token HUD");
         equal(stableJson({ outside, glyphed, undeclared, notDrawn }), stableJson({ outside: [], glyphed: ICONS, undeclared: [], notDrawn: true }),
             "{selectors naming the HUD outside #token-hud.drpg-token-hud, the icons with a glyph, glyphs read but not declared on :root, a player's emptied HUD not drawn}");
+    }],
+    ["R7990 - Room setup's Apply writes only the columns the GM changed (the audit of 1.2.118, REFR-03; the line claude/setup-120): room-setup.mjs `untouchedRoomRow` gives every column of a row the GM left as drawn (`touched`) the room's value at the press - a lock forced, its Broken box, a description another GM wrote - keeps every column the GM changed, takes a place switch's category one box at a time, and hands back a row with no `touched` whole", async () => {
+        /* Red at e515907d: no `untouchedRoomRow` - Apply wrote every column of a row as drawn once one differed. Pure. */
+        const R = await import("./room-setup.mjs");
+        must(typeof R.untouchedRoomRow === "function", "room-setup.mjs has no untouchedRoomRow - every column of a row is written as drawn");
+        const now = { owner: "", table: "", favours: ["food"], hinders: ["tool"], description: "written elsewhere", image: "",
+            shortRest: false, longRest: true, locked: false, lockedAtStart: false, broken: true, noSearch: false, notShared: false };
+        const drawn = { room: "Kitchen", owner: "A1", table: "", favours: ["weapon"], hinders: [], description: "drawn", image: "",
+            shortRest: false, longRest: false, locked: true, lockedAtStart: false, broken: false, noSearch: false, notShared: false,
+            isRoom: null, neighbours: null };
+        const out = R.untouchedRoomRow({ ...drawn, touched: ["owner", "fav:weapon"] }, now);
+        const whole = R.untouchedRoomRow(drawn, now);
+        const pick = row => ({ owner: row.owner, description: row.description, longRest: row.longRest, locked: row.locked, broken: row.broken,
+            favours: [...row.favours].sort(), hinders: [...row.hinders].sort() });
+        equal(stableJson({ out: pick(out), whole: whole === drawn }),
+            stableJson({ out: { owner: "A1", description: "written elsewhere", longRest: true, locked: false, broken: true, favours: ["food", "weapon"], hinders: ["tool"] }, whole: true }),
+            "{out: the owner and the weapon switch the GM's, every other column the room's now; whole: a row with no touched handed back as it is}");
+    }],
+    ["R7991 - the Season checklist's lists follow the rows that come and go (N119-7; the line claude/setup-120): season-setup.mjs `relistRows` makes a list hold the steps it is given, in their order - a row of a step gone taken out, a row of a new step drawn, a row standing kept as the same node with what stands under it, its state drawn again - and the list itself stays", async () => {
+        /* Red at e515907d: no `relistRows` - a row `steps` lists only while it holds neither came nor went. Pure over a
+           detached list: `setupRows` draws it. */
+        const S = await import("./season-setup.mjs");
+        must(typeof S.relistRows === "function", "season-setup.mjs has no relistRows - the checklist's rows that come and go stay as drawn");
+        const step = (key, done) => ({ key, done, hintKey: "DRPG.Season.checkClean", missing: () => [] });
+        const box = document.createElement("div");
+        box.innerHTML = S.setupRows([step("name", false), step("cast", true)]);
+        const ul = box.querySelector("ul.drpg-checklist");
+        const kept = ul.querySelector('li[data-drpg-key="name"]');
+        kept.insertAdjacentHTML("beforeend", "<div data-suite-under></div>");
+        const keys = S.relistRows(ul, [step("mastermind", false), step("name", true)]);
+        const name = ul.querySelector('li[data-drpg-key="name"]');
+        equal(stableJson({ keys, same: name === kept, under: Boolean(name?.querySelector("[data-suite-under]")), state: name?.dataset.drpgState,
+            list: box.querySelector("ul.drpg-checklist") === ul }),
+            stableJson({ keys: ["mastermind", "name"], same: true, under: true, state: "done", list: true }),
+            "{keys: the rows after, in the steps' order; same, under: the standing row the same node, with what stood under it; state: drawn again; list: the same list}");
     }],
 ];
 
