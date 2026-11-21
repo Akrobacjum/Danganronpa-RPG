@@ -105381,6 +105381,43 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         equal(stableJson(seen), stableJson({ manual: "cab", picked: true, kind: "abc", kept: "kind", back: "cab" }),
             "the sort picked on the open Map did not redraw its column at once ({manual: the drawn order by hand, picked: the select found, kind: after By kind was picked, kept: the chapter's sort, back: after By hand again})");
     }],
+    ["the Table's filter picked with the pointer redraws the Table at once, with no Save (investigation.mjs `wireCaseFilters`, live.mjs `keepLive`; line P of 1.2.120)", async () => {
+        /*
+         * The dashboard drawn on the Table; its "Order" filter picked as a GM picks it with the pointer (pressed - live.mjs
+         * holds a region from `pointerdown` - focused, changed, with no release the page is sent: a native select's popup,
+         * assumed). Read: whether the region was drawn again within 3 s (the filter's select replaced by a new one, which
+         * shows the pick). Red at e515907d: the filter's refresh was put off by the press and the release's rebuild held
+         * by the focused select, as the planner's sort (tier 2 "the planner's sort picked on the open Map ...").
+         */
+        needs(env.dialogs(), "the dashboard is pressed on its drawn window");
+        let win = null;
+        const seen = {};
+        try {
+            win = await drawnCaseWindow({ view: "table" });
+            const root = win.app?.element;
+            const filter = () => root?.querySelector('[data-drpg-filter="order"]');
+            await until(() => filter(), 3000).catch(() => {});
+            const old = filter();
+            seen.found = Boolean(old);
+            const other = [...(old?.options ?? [])].find(o => o.value !== old.value)?.value ?? null;
+            seen.other = Boolean(other);
+            if (old && other) {
+                old.dispatchEvent(new (globalThis.PointerEvent ?? MouseEvent)("pointerdown", { bubbles: true }));
+                old.focus();
+                old.value = other;
+                old.dispatchEvent(new Event("change", { bubbles: true }));
+                await until(() => filter() && filter() !== old, 3000).catch(() => {});
+                seen.redrawn = Boolean(filter()) && filter() !== old;
+                seen.shows = filter()?.value === other;
+            }
+        } finally {
+            if (win) await win.close().catch(() => {});
+            await settle();
+        }
+        equal(stableJson(seen), stableJson({ found: true, other: true, redrawn: true, shows: true }),
+            "the Table's Order filter picked with the pointer did not redraw the Table at once ({found: the filter drawn, other: a second order offered, redrawn: the region drawn again within 3 s, shows: the new filter shows the pick})");
+    }],
+
     ["the planner's node fields on the Map are written on each change, and the Map draws them at once with no Save and no leaving it: a \"Rests on\" tick draws its line, a trial mode and a name are kept (investigation.mjs `wireMap`; the owner's rule, 20.11.2026: \"Zawsze odswiezamy okna od razu przy zmianie\"; line P of 1.2.120)", async () => {
         /*
          * Two deductions resting on nothing, the dashboard drawn on the Map with every node open (the default). In x's

@@ -66,8 +66,19 @@ column by its inputs, as 1.2.119 does. The hover shots were taken by a small pro
 page as the sweep's, with the node hovered by Playwright's pointer. For 1.2.119 its server served e515907d's
 stylesheets.
 
-What the shots are not: Foundry's frame and stylesheet (the harness's capture). In the Map shots, some nodes of the first
-column are drawn over the toolbar at the top left, where the sweep's camera scrolled to reveal the open node. This shows
-in 1.2.119's shots as well, so it is older than this line, and it was not looked into here. The sweep read 0 cuts,
-0 overlaps and no hover under AA on all eight of this line's pages (both themes, 1366x768 and 1920x1080, before and
-after).
+What the shots are not: Foundry's frame and stylesheet (the harness's capture).
+
+## The toolbar: nodes drawn over it, and "By hand" drawn small
+
+| File | Code | What it shows |
+| --- | --- | --- |
+| `shots/toolbar-1.2.119-glass.png`, `shots/toolbar-1.2.119-legacy.png` | e515907d | the window as the GM sees it (the camera on the open node, the graph clipped): the order's select at 11 px beside "Add a plan" at 21 under Stained Glass |
+| `shots/toolbar-1.2.120-glass.png`, `shots/toolbar-1.2.120-legacy.png` | this line | the order's select at the theme's select size, as "Add a plan" (under Stained Glass "All open" then wraps to a second row at this window's 1100 px) |
+
+THE NODES OVER THE TOOLBAR WERE THE SHOTS', NOT THE WINDOW'S. The Map shots sent before 21.11.2026 04:30 UTC (this
+folder's first versions) were taken by the sweep's whole-canvas shot, which lifts the graph's clip to show every node -
+while the camera stood moved to reveal the open node, so the canvas spilled up over the toolbar. The "-view" shot of the
+same page, the window as the GM sees it, has the graph clipped and nothing over the toolbar (`toolbar-*.png` here are
+those). The sweep now puts the camera back to its origin before the whole-canvas shot, and every Map shot in this folder
+was taken again with it, 1.2.119's included. The sweep read 0 cuts, 0 overlaps, no hover under AA, no line through a node and the toolbar's selects alike on all
+twelve of this line's pages (the lanes and Move captures, both themes, 1366x768 and 1920x1080).
