@@ -481,5 +481,33 @@
     "nothing_read": "Grouped by the auditor from label and data attributes, not each read in source: (A) 16 in the probe's own blind spots named in its header - 6 steppers 'One fewer' at their end (season-setup--zones, edit-campaign), 4 picture pickers ('Picture', 'Choose a picture'), 6 'Fit to view' (a camera fit, layout only); (B) 12 that look like the mode, section or chip already selected ('Map' in three case-map views, 'Item' / 'Truth Bullet' / 'Room key' in Give / take items, settings nav 'Look' twice and 'Voice', notice chip 'All'); (C) 33 to read in source: 5 'Not tied to the murder: 1' in the Class Trial schema (the dead control CTRL-02, now seen by a run), 22 case-map node buttons in four Class Trial tabs (case, counted, verdict-given, summary-sent), 4 item sub-modes ('From the tables', 'From a Remnant', 'Create new', 'Write a new one'; compare CTRL-61), 'Open Aiko Hoshino's sheet' in Students (the harness may not count a sheet as a new window), and the Findings window's empty-state block.",
     "world": "After the last restore the world dump differs in 9 units (three users, the Academy scene, a Remnant token, two items of Aiko, the active and viewed scene): the harness world, not a real one; written, not assumed away.",
     "names_missing": "The first run's 35 'nothing' (its 44 windows) still have no names; a rerun of those 44 windows with this probe would give them."
+  },
+  "probe_42_rerun_2": {
+    "ran": "21.11.2026 00:37-01:15Z (37 min), alone, DRPG_PRESS_ONLY = 39 base ids of probe 08's list: the first run's 44 opened windows (their tab passes regenerated) and the 3 it could not open",
+    "exit": 0,
+    "result_file": "audit/findings-1.2.118/probe-42-rerun-2.json",
+    "peak_rss_mb": {
+      "gm": 7098,
+      "p1": 922,
+      "p2": 233,
+      "p3": 234
+    },
+    "totals": {
+      "windows": 47,
+      "opened": 46,
+      "controls": 2910,
+      "pressed": 418,
+      "acted": 381,
+      "nothing": 36,
+      "threw": 1,
+      "off": 1548,
+      "alike": 334,
+      "capped": 362,
+      "containers": 83
+    },
+    "not_opened": "action-palm (the opener answered, as in the first run)",
+    "threw": "1: action-tamper 'Roll' - 'Could not build the fog texture renderer.render is not a function' (no canvas in the harness)",
+    "world": "After the last restore the dump differs in 2 units (the GM user, one item of Aiko): the harness world.",
+    "merged": "audit/findings-1.2.118/probe-42-nothing.json holds both reruns' 'nothing' presses in one list, each grouped A/B/C by the auditor."
   }
 }
