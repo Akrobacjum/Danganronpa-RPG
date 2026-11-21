@@ -3066,6 +3066,10 @@
       "thresholdShort": "Przebij {n}",
       "thresholdHidden": "Przebij {n} + ukryta obrona",
       "dcHidden": "{n} + ukryta obrona",
+      "scoreHidden": {
+        "hit": "{total} przeciw {n} + ukryta obrona: trafienie",
+        "miss": "{total} przeciw {n} + ukryta obrona: pudło"
+      },
       "thresholdDefended": {
         "victim": "Pobij {n} (+{d} za {trait} ofiary)",
         "killer": "Pobij {n} (+{d} za {trait} zabójcy)"

@@ -8035,6 +8035,53 @@ const SCENARIOS = [
                 stableJson(words.map(w => ({ to: w.to, text: w.html.replace(/<[^>]+>/g, " ").trim().slice(0, 80) })))}`);
     }],
 
+    ["1.2.120 CASE-16 - a crisis card tells no seat the value of a defence its copy could not see: in a trap the victim's Self-Defense card says the total, the number the victim was shown with \"+ a hidden defense\" and the hit, with no threshold, while the GMs' copy keeps the full line (scripts/murder-rules.mjs `announceCrisis`, `crisisDefenseHidden`; incident-store.mjs `castFor`; the audit's CASE-16, the owner's answer of 21.11.2026, option 1, through the coordinator)", async () => {
+        /*
+         * 21.11.2026, 1.2.120 line K. The audit's CASE-16: the card printed "total < threshold" with the GM's full number
+         * to every seat, so a victim whose copy holds no killer read the hidden builder's Body off the difference from the
+         * "18 + a hidden defense" the menu and the roll window showed (R7950). A trap is opened on two students with
+         * players, its opening missed so the trap closes (as "the time of day in an incident is veiled" opens one), and the
+         * victim's Self-Defense resolved on 30 as the bridge resolves it; the packets this GM sends are read (`wordsSent`).
+         * Read: whether the victim's player was sent any "<" or ">=" line with a number, whether they were sent the hidden
+         * line, and whether a card on the log for the GMs holds the full one. Put back: the incident, the clock. Red at e515907d: the victim was
+         * sent "30 >= <the GM's threshold>".
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 2), "a trap's builder and its victim, each with a player to be sent the card");
+        const M = await import("./murder.mjs");
+        const { CRISIS_ACTIONS } = await import("./config.mjs");
+        const { livingStudents } = await import("./chapter.mjs");
+        const player = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const [builder, victim] = livingStudents().filter(player);
+        const clock = getClock();
+        const read = {};
+        try {
+            await M.openMurder({ killerId: builder.id, victimId: victim.id, indirect: true, openingTrait: "eye" });
+            if (M.murderState()?.stage === "openingRoll") await M.resolveVictimOpening({ total: 1, isCritical: false, withHope: false });
+            await settle();
+            const state = M.murderState();
+            must(state?.stage === "incident" && state.indirect && state.turnSide === "victim", `the trap is not at its victim's turn: ${stableJson(state)}`);
+            const threshold = (await import("./murder-rules.mjs")).crisisThreshold("selfDefence", state);
+            const shown = CRISIS_ACTIONS.selfDefence.threshold;
+            const { contentOf } = await import("./secret.mjs");
+            const seenIds = new Set(game.messages.map(m => m.id));
+            const words = await wordsSent(async () => {
+                await game.drpg.resolveCrisisAction({ actorId: victim.id, key: "selfDefence", total: 30, isCritical: false, withHope: true });
+                await settle();
+            });
+            const text = w => w.html.replace(/<[^>]+>/g, " ").replace(/&gt;/g, ">").replace(/&lt;/g, "<");
+            const toVictim = words.filter(w => w.to.includes(player(victim).id)).map(text);
+            // This GM's own card is not a packet it sends: read off the log, as written for the GMs.
+            const toGm = game.messages.filter(m => !seenIds.has(m.id) && m.whisper?.some(id => game.users.get(id)?.isGM))
+                .map(m => text({ html: contentOf(m) ?? "" }));
+            read.victim = [toVictim.some(t => /(≥|<|>=)\s*\d+/.test(t)), toVictim.some(t => t.includes(game.i18n.format("DRPG.Murder.scoreHidden.hit", { total: 30, n: shown })))];
+            read.gm = toGm.some(t => t.includes(`30 ≥ ${threshold}`));
+        } finally {
+            await c3Incident(clock);
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ victim: [false, true], gm: true }),
+            "{victim: [a line with a threshold sent to the victim's player, the hidden line sent]; gm: the full line sent to a GM} - the card keeps the hidden defence's value from the seat that could not see it");
+    }],
     ["the time of day in an incident is veiled and names nobody", async () => {
         /*
          * E06 C4, 27.09.2026; audit S10-04 (L12). While an incident runs the time of day is told
@@ -77882,10 +77929,14 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             await until(() => answer);
             read.describing = [await offered(trace.id), stableJson((await pick())?.held ?? null)];
             const again = await resolve(keys[0]);
-            const rest = await Promise.all(keys.slice(1).map(resolve));
+            /* The other pick's find waits for the first one's describe window since 1.2.120 (observe.mjs `createFind`,
+               `describingTraces`; the audit's CASE-18): awaited before the answer, as it was until then, it never ends. */
+            const later = Promise.all(keys.slice(1).map(resolve));
+            await settle();
             answer(null);
             await first;
             first = null;
+            const rest = await later;
             await settle();
             read.again = again?.refused ?? null;
             read.rest = rest.map(r => Boolean(r?.success));
