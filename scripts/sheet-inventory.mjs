@@ -15,6 +15,7 @@ import { isStashed, categoriesInGroup, isBroken, countInGroup, onlyCopied } from
 import { isEquipped, isUsable, usedCreatively, isEquippable, noDiscardNow } from "./use-items.mjs";
 import { sceneOfActor, roomOfActor, othersInRoom } from "./movement.mjs";
 import { GM_ROUTE_CLASS, error } from "./utils.mjs";
+import { isCharacterSheet } from "./window-scale.mjs";
 import { drpgConfirm, setTip } from "./ui-kit.mjs";
 import { modeOf, rowGate, sheetMode } from "./sheet-mode.mjs";
 import { dropTab, wearMarkup, classSafe, bulletBadges } from "./sheet-item.mjs";
@@ -1050,11 +1051,17 @@ export function noteRoomSignature(app) {
     if (app?.document) ROOM_SIGNATURES.set(app, roomSignature(app.document));
 }
 
-/** The open character sheets, rendered and not folded away. */
+/**
+ * The open character sheets, rendered and not folded away: the windows a character keeps as its sheet, and no other
+ * window of a character (window-scale.mjs `isCharacterSheet`). Read by the document's type alone it took Configure
+ * Ownership and Daggerheart's character settings for sheets too, and as no render of theirs notes a signature, the room
+ * watch redrew them on every token move and item change, under a GM setting them (the auditor's check of 1.2.122,
+ * r122-E-R1).
+ */
 function openCharacterSheets() {
     const out = new Set();
     for (const app of [...Object.values(ui.windows ?? {}), ...(foundry.applications?.instances?.values() ?? [])]) {
-        if (app?.document?.type === "character" && app.rendered) out.add(app);
+        if (app?.rendered && isCharacterSheet(app)) out.add(app);
     }
     return [...out];
 }

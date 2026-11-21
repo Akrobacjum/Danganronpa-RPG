@@ -61154,7 +61154,7 @@ const INVARIANTS = [
             "fog.mjs": 5, "gm-stores.mjs": 3, "gm-students.mjs": 1, "gm-team-dialog.mjs": 2, "hud.mjs": 1, "monocub.mjs": 2, "monokuma.mjs": 8,
             "movement.mjs": 2, "palm.mjs": 1, "passages-gm.mjs": 3, "passages.mjs": 1, "patches.mjs": 1, "player-status.mjs": 1,
             "private-rolls.mjs": 1, "projects-ui.mjs": 1, "projects.mjs": 1, "relay-guard.mjs": 2, "reroll.mjs": 1, "roll-dialog.mjs": 1,
-            "roll-draw.mjs": 1, "settings.mjs": 1, "window-scale.mjs": 1, "sfx.mjs": 1, "sheet-audit.mjs": 6, "sheet-mode.mjs": 1, "sheet-inventory.mjs": 1, "sheet.mjs": 1, "sheet-repaint.mjs": 1, "sheet-sidebar.mjs": 2, "spectator-dead.mjs": 1, "spectator.mjs": 1, "states.mjs": 1, "trial-scene.mjs": 4,
+            "roll-draw.mjs": 1, "settings.mjs": 1, "window-scale.mjs": 1, "sfx.mjs": 1, "sheet-audit.mjs": 6, "sheet-mode.mjs": 1, "sheet.mjs": 1, "sheet-repaint.mjs": 1, "sheet-sidebar.mjs": 2, "spectator-dead.mjs": 1, "spectator.mjs": 1, "states.mjs": 1, "trial-scene.mjs": 4,
             "trial-zones-ui.mjs": 1, "user-match.mjs": 3, "visibility.mjs": 2, "voice.mjs": 4 };
         const counted = {};
         for (const [file, text] of await otherSources()) {
@@ -66546,12 +66546,15 @@ const INVARIANTS = [
         must(student, "no student stands in a room - this would measure nothing");
         let renders = 0;
         const app = { document: { id: "R8425-elsewhere", type: "character" }, rendered: true, render() { renders++; } };
+        // The student as a stand-in whose sheet is this window (window-scale.mjs `isCharacterSheet`, R8438): the room's
+        // reads go to the student through its prototype.
+        const asSheet = Object.create(student, { sheet: { get: () => app } });
         const key = "R8425-stand-in";
         ui.windows[key] = app;
         let counts;
         try {
             I.noteRoomSignature(app);
-            app.document = student;
+            app.document = asSheet;
             const moved = I.redrawRoomSheets();
             I.noteRoomSignature(app);
             const still = I.redrawRoomSheets();
@@ -66565,6 +66568,31 @@ const INVARIANTS = [
         equal(stableJson({ counts, hooked, forgets: /\["createToken", "deleteToken"\]\)\s*Hooks\.on\(hook, doc => \{\s*forgetTamper\(\);\s*roomChanged\(doc\?\.parent/.test(reg) }),
             stableJson({ counts: [1, 0, 1], hooked: ["updateToken", "createToken", "deleteToken", "createItem", "updateItem", "deleteItem", "updateRegion"], forgets: true }),
             "{counts: [renders after the room moved, after it stood, in all]; hooked: the hooks registerSheetTweaks listens on; forgets: a token made or taken away forgets the Tamper cache and redraws its scene's sheets}");
+    }],
+    ["R8438 - the room watch redraws a character's sheets and no other window of a character (the auditor's check of 1.2.122, r122-E-R1; 1.2.123 line UI): sheet-inventory.mjs `redrawRoomSheets` renders the window a character keeps as its sheet when its room moved, and neither Configure Ownership nor Daggerheart's character settings of the same character, which note no signature and were redrawn on every token move and item change", async () => {
+        /* Red at 14bb0d92: `openCharacterSheets` took every rendered window whose document is a character, so the two
+           other windows rendered on each pass. Stand-in windows in `ui.windows`, taken out again; nothing written. */
+        const I = await import("./sheet-inventory.mjs");
+        needs(world.atLeast("studentsInRooms"), "a student standing in a room");
+        const { roomOfActor } = await import("./movement.mjs");
+        const student = studentActors().find(a => roomOfActor(a));
+        must(student, "no student stands in a room - this would measure nothing");
+        const renders = { sheet: 0, ownership: 0, settings: 0 };
+        const win = name => ({ rendered: true, render() { renders[name]++; } });
+        const sheet = win("sheet"), ownership = win("ownership"), settings = win("settings");
+        const actor = Object.create(student, { sheet: { get: () => sheet } });
+        for (const app of [sheet, ownership, settings]) app.document = actor;
+        const keys = ["R8438-sheet", "R8438-ownership", "R8438-settings"];
+        [sheet, ownership, settings].forEach((app, i) => { ui.windows[keys[i]] = app; });
+        let drawn;
+        try {
+            drawn = [I.redrawRoomSheets(), I.redrawRoomSheets({ scene: game.scenes.get(student.getActiveTokens?.()?.[0]?.document?.parent?.id) ?? null, all: true })];
+        } finally {
+            for (const key of keys) delete ui.windows[key];
+        }
+        equal(stableJson({ drawn: drawn.map(n => n >= 1), renders: { ownership: renders.ownership, settings: renders.settings }, sheet: renders.sheet >= 1 }),
+            stableJson({ drawn: [true, true], renders: { ownership: 0, settings: 0 }, sheet: true }),
+            "{drawn: a pass by signature and a pass for the scene drew something; renders: the ownership and settings windows rendered; sheet: the sheet rendered}");
     }],
     ["R8426 - the scroll signal says which way the more lies (the audit of 1.2.118, UI-32; 1.2.122 line UI): ui-kit.mjs `watchScroll` on a box with more below says `DRPG.Kit.scrollMore`, on one with more only to the right `DRPG.Kit.scrollMoreRight`, and hides the line when nothing is past the edge", async () => {
         /* Red at 21bf5d18: the one line, "There is more below", for a box whose more was to the right. jsdom lays nothing
