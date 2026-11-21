@@ -35,6 +35,11 @@ const SURFACES = [
     "#drpg-hud", "#drpg-despair", "#drpg-player-status", "#countdowns",
     "#drpg-events", "#drpg-popups", "#drpg-evidence", "#drpg-gm-launcher", "#drpg-messenger-launcher",
     "#drpg-sound-launcher", "#drpg-book-launcher", "#drpg-foundry-tools", ".drpg-panel", ".drpg-messenger",
+    /* The three tiles that stand beside the HUD, not in it (the audit of 1.2.118, CORE-45; 1.2.122 line UI): the room
+       tile (room-tile.mjs, placed after #drpg-hud), the voice tile (voice-tile.mjs) and the floor switcher (fog.mjs).
+       The report said "every control in the module's own chrome has a name" and listed the disclosures without reading
+       them, the room tile's fold, named in the note on the disclosures below, among them. */
+    "#drpg-room-tile", "#drpg-voice-tile", "#drpg-floors",
     /*
      * `.drpg-advance` IS A MODULE WINDOW AND THIS LIST WAS THE ONLY PLACE THAT
      * DID NOT KNOW IT (audit 15.09). The Level Up window was the one dialog of
@@ -390,14 +395,22 @@ export function registerA11y() {
         };
         const SEL = SURFACES.join(",");
         const adopted = new WeakSet();
-        const hostWatch = new MutationObserver(sweepSoon);
+        /* AN OBSERVER OF ITS OWN FOR EACH HOST (the line INVEST of 1.2.122, 21.11.2026; probe 43's heap). Until this line
+           one observer watched every host adopted, and it is reachable for good (the body's watch below calls `adopt`).
+           jsdom 30.0.1 keeps every node an observer was told to observe in that observer's `_nodeList` - `observe` pushes,
+           nothing removes, not even `disconnect()` (MutationObserver-impl.js) - so every closed window stayed reachable
+           with its DialogV2 and its whole tree: the Map opened and closed ten times on the harness GM kept 7.3 MB each, and
+           probe 08's twelve case windows opened ten times each 108 -> 2135 MB (after a full gc); one observer a host, 107 ->
+           184 MB. The DOM spec makes that list weak references, so a browser should keep nothing here; not read in a
+           browser (a LIVE item). Disconnecting and observing again does not help in jsdom (measured: no change). An
+           observer reachable only through its host goes with it (R8543). */
         const adopt = node => {
             let born = false;
             for (const host of [...(node.matches?.(SEL) ? [node] : []), ...(node.querySelectorAll?.(SEL) ?? [])]) {
                 if (adopted.has(host)) continue;
                 adopted.add(host);
                 watch.hosts++;
-                hostWatch.observe(host, { childList: true, subtree: true });
+                new MutationObserver(sweepSoon).observe(host, { childList: true, subtree: true });
                 born = true;
             }
             return born;

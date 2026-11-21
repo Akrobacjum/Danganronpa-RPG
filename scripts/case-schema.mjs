@@ -3,8 +3,9 @@
  *
  * What a GM builds on top of a chapter's evidence in the Investigation panel's Map view: the deductions the evidence
  * leads to, the counters that refute them and the one solution, each a row of the GMs' store `caseSchemaStore`
- * (gm-stores.mjs) keyed `${chapter}:${nodeId}` - `{ kind, label, text, inputs, refutes, mode, order, made }` - beside one
- * meta row per chapter, `${chapter}:meta` - `{ sort, manual, run, askedAt }`. The evidence is NOT a row: a trace is a
+ * (gm-stores.mjs) keyed `${chapter}:${nodeId}` - NODE_FIELDS, `{ kind, label, text, inputs, refutes, mode, order, made, ... }`,
+ * 32 names - beside one meta row per chapter, `${chapter}:meta` - META_FIELDS, `{ sort, manual, run, askedAt, made,
+ * autopsies, autopsySent }` (counted 21.11.2026; the first eight and four alone until the audit's D 281, 1.2.122). The evidence is NOT a row: a trace is a
  * node under its ledger key (`sceneId.tokenId`, remnants.mjs `keyOf`), a Key Remnant slot under `key:<slot>` while it
  * is planned and as its trace once placed, the Final Truth as the trace it is - joined here by key (`graphOf`), so a
  * trace edited on the Table is the same node on the Map with nothing copied.
@@ -695,7 +696,8 @@ function tickTrialOf(row, trial) {
     if (row?.trial !== undefined && row?.trial !== null) return row.trial;
     return trial !== null && Number(row?.at) >= Number(trial) ? trial : null;
 }
-function trialStamp(chapter) {
+/** The chapter's current trial's stamp (`trialStartedAt`), or null; case-hints.mjs reads it for the Present cards. */
+export function trialStamp(chapter) {
     try {
         const stored = game.settings.get(MODULE_ID, SETTINGS.trialProgress) ?? {};
         return stored.chapter === chapter ? (stored.trialStartedAt ?? null) : null;

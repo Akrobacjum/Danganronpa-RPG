@@ -7,9 +7,11 @@
  *   Reinforced  - a Blackened who survived a wrong vote picks THREE - with the
  *                 class's next Standard, or at the Final Trial (E05 C11).
  *
- * Options (repeatable - picking "+1 max Health" three times means +3):
- *   +1 max Health · +1 max Sanity · +1 to a trait · +1 to an experience ·
- *   a new experience at +2
+ * Options (repeatable - a Reinforced's three picks may be the same one): LEVEL_UP_OPTIONS
+ * in config.mjs since E64 C6 (DA39) - +1 to a statistic (`trait`), +1 to an experience
+ * (`experienceUp`), a new experience at STARTING.experienceValue, +2 (`experienceNew`).
+ * A point in Head raises Sanity's maximum by 1, in Body or Leg Health's
+ * (LEVEL_UP_TRAIT_RESOURCES); no pick raises a maximum by itself.
  */
 
 import { MODULE_ID, FLAGS, LEVEL_UP, LEVEL_UP_OPTIONS, LEVEL_UP_TRAIT_RESOURCES, TRAITS, STARTING, TRIAL } from "./config.mjs";
@@ -18,6 +20,7 @@ import { log, error, isPrimaryGm, ownerIdsOf, plural, proseOf, esc } from "./uti
 import { offerStore, offerCopy, deferredOfferStore } from "./gm-stores.mjs";
 import { gmStoresQuiet } from "./gm-store.mjs";
 import { drpgWindow, tipAttr, tipText } from "./ui-kit.mjs";
+import { keepLive } from "./live.mjs";
 
 
 
@@ -57,10 +60,11 @@ export async function openAdvancementFor(actor) {
     /* WHAT STANDS, AND TAKING IT BACK (E10 C6; audit S03-17). The GM's sheet showed no offer
        and this menu had no way back from one: an offer made by mistake stood until it was
        spent. Each standing offer is a third choice here, oldest first; its button says what it does. */
-    const standing = standingOffers(actor).map(offer => {
+    const standingRows = () => standingOffers(actor).map(offer => {
         const label = game.i18n.format("DRPG.Advance.takeBack", { kind: advanceKindName(offer.kind) });
         return { value: `take:${offer.id}`, icon: "fa-rotate-left", label, confirm: label };
     });
+    const standing = standingRows();
 
     /*
      * WHO PICKS (N-2, Dawid 20.09), IN THE SAME WINDOW (E101; the owner's yes of 12.11.2026 to the GM screens' review).
@@ -77,6 +81,14 @@ export async function openAdvancementFor(actor) {
             { value: "player", icon: "fa-paper-plane", label: game.i18n.localize("DRPG.Advance.who.player"), hint: game.i18n.localize("DRPG.Advance.who.playerHint") }
         ].map((row, i) => choiceRowHtml(row, { checked: i === 0, name: "who" })).join("")}</div>` : "";
 
+    const kindRows = [
+        { value: "standard", icon: "fa-arrow-up",
+          label: advanceKindName("standard"),
+          hint: game.i18n.localize("DRPG.Advance.kind.standardHint") },
+        { value: "reinforced", icon: "fa-shield-halved",
+          label: advanceKindName("reinforced"),
+          hint: game.i18n.localize("DRPG.Advance.kind.reinforcedHint") }
+    ];
     const picked = await chooseVariant({
         actor,
         // Level Up keeps its one column (E68 C12; Q12: a reward, not an action of the table).
@@ -90,15 +102,9 @@ export async function openAdvancementFor(actor) {
            - an offer to the player, or the GM's picks. One menu, so no Next; R4105 reads Grant. */
         confirm: game.i18n.localize("DRPG.Advance.grant"),
         extra: whoRows,
-        options: [
-            { value: "standard", icon: "fa-arrow-up",
-              label: advanceKindName("standard"),
-              hint: game.i18n.localize("DRPG.Advance.kind.standardHint") },
-            { value: "reinforced", icon: "fa-shield-halved",
-              label: advanceKindName("reinforced"),
-              hint: game.i18n.localize("DRPG.Advance.kind.reinforcedHint") },
-            ...standing
-        ]
+        options: [...kindRows, ...standing],
+        // The take-back rows follow the offers while the menu stands (the audit's CTRL-21, 1.2.122; action-menus.mjs `live`).
+        live: { rows: () => [...kindRows, ...standingRows()], watch: { stores: [offerStore] } }
     });
 
     if (!picked) return null;
@@ -272,6 +278,31 @@ export async function dropOffer(actorId, offerId) {
     return true;
 }
 
+/*
+ * EVERY GM'S OPEN SHEET FOLLOWS THE OFFERS (the audit's STG-14, 1.2.122). `dropOffer` draws the primary's own sheet, and
+ * the withdrawal reaches another GM as a merge of the offers store, which drew nothing: a second GM's open sheet kept the
+ * Level Up button lit after a player's take until it rendered for another reason. The store's client setting changes on
+ * every GM when a copy merges in (live.mjs `watch.stores`), so here each GM draws again the open sheets of the characters
+ * whose offers changed - those only, so a sheet a GM is typing in is not drawn for another student's offer.
+ */
+let offersSeen = null;
+
+/** At `ready`, on a GM: the listener above. */
+export function registerLevelUpSheets() {
+    const shape = () => Object.fromEntries(Object.entries(readOffers()).map(([id, row]) => [id, JSON.stringify(offerList(row))]));
+    Hooks.on("clientSettingChanged", key => {
+        if (!game.user?.isGM || key !== `${MODULE_ID}.${offerStore.spec.key}`) return;
+        const now = shape(), before = offersSeen ?? {};
+        offersSeen = now;
+        for (const id of new Set([...Object.keys(before), ...Object.keys(now)])) {
+            if (before[id] === now[id]) continue;
+            const sheet = game.actors.get(id)?.sheet;
+            if (sheet?.rendered) sheet.render(false);
+        }
+    });
+    if (game.user?.isGM) offersSeen = shape();
+}
+
 /**
  * Primary GM: the offers standing on this user's own characters - and only those -
  * with a stamp per character they own: the newest decision about it (`newest`: the
@@ -418,7 +449,11 @@ export const takingBack = new Set();
 export async function takeBackOffer(actor, offerId) {
     if (!game.user.isGM || !actor) return false;
     const offer = standingOffers(actor).find(standing => standing.id === offerId);
-    if (!offer) return false;
+    // Spent or taken back since the menu was drawn (the audit's CTRL-21, 1.2.122): said, not a press that does nothing.
+    if (!offer) {
+        ui.notifications.warn(game.i18n.format("DRPG.Advance.takeBackGone", { name: actor.name }));
+        return false;
+    }
     if (takingBack.has(actor.id)) {
         ui.notifications.warn(game.i18n.format("DRPG.Advance.takeBackTaking", { name: actor.name }));
         return false;
@@ -613,11 +648,17 @@ export async function openAdvancement(actor, kind = "standard", { extraPicks = 0
             },
             close: { role: "cancel", action: "cancel", callback: () => "cancel" }
         },
-        render: (event, dialog) => wireForm(dialog, picks, actor, experiences),
+        render: (event, dialog) => wireForm(dialog, picks, actor, asPlayer ? offer : null),
         rejectClose: false
     });
 
     if (!result || result === "cancel") return null;
+    // A player's offer taken back or spent while the window stood: said here, nothing sent (REFR-52; the primary
+    // refuses such picks too, `requestAdvancement`'s run).
+    if (asPlayer && !standingOffers(actor).some(o => o.id === offer.id)) {
+        ui.notifications.warn(game.i18n.format("DRPG.Advance.takeBackGone", { name: actor.name }));
+        return null;
+    }
 
     /* AN EXPERIENCE TO RAISE THAT IS NOT THERE is refused HERE, on the screen of the person who
        picked it (E10 C8, 1.2.71; audit S03-22), a GM's as well as a player's. The window warned that
@@ -639,16 +680,20 @@ export async function openAdvancement(actor, kind = "standard", { extraPicks = 0
      * twice cannot buy two - and since E10 C6 the packet names WHICH offer it spends,
      * and the GM checks that one.
      */
+    /* A NEW EXPERIENCE WITH NO NAME is caught HERE, on the screen of the person
+       who left it blank. The apply's own warning fires on the GM's client, so a
+       player's blank name used to warn the GM, spend the offer on the picks that
+       did work, and tell the player nothing. The offer is untouched and the
+       button is still lit; they press it again. A GM's own picks the same since
+       1.2.122 (the audit's DESP-24): the apply skipped the pick and wrote the rest,
+       and in a verdict's batch that counted as given and dropped the Blackened's
+       waiting Reinforced. Now nothing is written; the batch offers the player the
+       Level Up instead, where there is one to offer it to. */
+    if (result.some(p => p?.option === "experienceNew" && !String(p.name ?? "").trim())) {
+        ui.notifications.warn(game.i18n.localize(asPlayer ? "DRPG.Advance.experienceNeedsNameKept" : "DRPG.Advance.experienceNeedsNameGm"));
+        return null;
+    }
     if (asPlayer) {
-        /* A NEW EXPERIENCE WITH NO NAME is caught HERE, on the screen of the person
-           who left it blank. The apply's own warning fires on the GM's client, so a
-           player's blank name used to warn the GM, spend the offer on the picks that
-           did work, and tell the player nothing. The offer is untouched and the
-           button is still lit; they press it again. */
-        if (result.some(p => p?.option === "experienceNew" && !String(p.name ?? "").trim())) {
-            ui.notifications.warn(game.i18n.localize("DRPG.Advance.experienceNeedsNameKept"));
-            return null;
-        }
         const { requestAdvancement } = await import("./gm-bridge.mjs");
         const res = await requestAdvancement({ actorId: actor.id, picks: result, kind, offerId: offer.id });
         return res.ok ? { pending: true } : null;
@@ -720,9 +765,19 @@ export function traitRaisesNote(dh) {
         .filter(Boolean).join(", ");
 }
 
-/** Swap the detail control whenever a pick's option changes. */
-function wireForm(dialog, picks, actor, experiences) {
+/*
+ * THE PICKER FOLLOWS THE SHEET AND THE OFFER (1.2.122 line DESP; the audit's REFR-52, the owner's rule "Zawsze odswiezamy
+ * okna od razu przy zmianie"). Each pick's detail - the statistics with their values, the experiences with theirs - was
+ * read once, when the option was drawn: a value another write changed while the window stood showed the old number, and
+ * an experience added or removed meanwhile was not offered or was offered gone. Each detail is redrawn from the sheet on
+ * every write of the character or its items (live.mjs `keepLive`), the pick in it carried as a changed field's value is.
+ * A player's picker also says, above the picks, when the offer it was opened for is taken back or spent meanwhile
+ * (`offer`, the owner's copy of the offers watched), and its Apply sends nothing then (`openAdvancement`).
+ */
+/** Swap the detail control whenever a pick's option changes, and keep it true while the window stands. */
+function wireForm(dialog, picks, actor, offer = null) {
     const root = dialog.element;
+    const detailOf = (option, i) => `<div class="drpg-advance-detail" data-detail="${i}">${buildDetail(option, i, actor, listExperiences(actor))}</div>`;
 
     for (let i = 0; i < picks; i++) {
         const select = root.querySelector(`select[data-pick="${i}"]`);
@@ -730,11 +785,27 @@ function wireForm(dialog, picks, actor, experiences) {
         if (!select || !detail) continue;
 
         const refresh = () => {
-            detail.innerHTML = buildDetail(select.value, i, actor, experiences);
+            root.querySelector(`[data-detail="${i}"]`)?.replaceWith(toNode(detailOf(select.value, i)));
         };
         select.addEventListener("change", refresh);
         refresh();
+        keepLive(dialog, { region: `[data-detail="${i}"]`, build: () => detailOf(select.value, i), watch: { actors: true, items: true } });
     }
+    if (offer) {
+        const form = root.querySelector("form");
+        if (form && !form.querySelector(".drpg-advance-gone")) form.insertAdjacentHTML("afterbegin", '<div class="drpg-advance-gone"></div>');
+        const goneHtml = () => `<div class="drpg-advance-gone">${standingOffers(actor).some(o => o.id === offer.id) ? ""
+            : `<p class="drpg-advance-note">${foundry.utils.escapeHTML(game.i18n.format("DRPG.Advance.takeBackGone", { name: actor.name }))}</p>`}</div>`;
+        root.querySelector(".drpg-advance-gone")?.replaceWith(toNode(goneHtml()));
+        keepLive(dialog, { region: ".drpg-advance-gone", build: goneHtml, watch: { stores: [offerCopy, offerStore] } });
+    }
+}
+
+/** One element from markup. */
+function toNode(html) {
+    const holder = document.createElement("div");
+    holder.innerHTML = html.trim();
+    return holder.firstElementChild;
 }
 
 function buildDetail(option, index, actor, experiences) {
@@ -1244,7 +1315,6 @@ async function rowGrew(actor, snapshot) {
  */
 async function askWhoPicks(rows) {
     const L = key => game.i18n.localize(key);
-    const esc = foundry.utils.escapeHTML;
     const radio = (actor, value, label, checked) =>
         `<label><input type="radio" name="who-${actor.id}" value="${value}"${checked ? " checked" : ""}${tipAttr("DRPG.Tips.Setup.iPickThePlayerTooltip")}> ${L(label)}</label>`;
     const items = rows.map(({ entry, actor, playable, here }) => `<li class="drpg-advance-queue-row" data-actor-id="${actor.id}">

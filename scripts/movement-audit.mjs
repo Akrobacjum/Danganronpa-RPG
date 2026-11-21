@@ -423,7 +423,7 @@ export function auditMove(tokenDoc, changes, options, userId, was, ctx = {}) {
  * The rule's mark a `move.sentBack` carries beside its code (E17 fix e1-G1, 26.10.2026; the review's E17R-06): another's
  * bedroom and a body are both `cannotNow`, whose words - "That cannot be done now." - name neither, though the judge holds the
  * rule's own (movement.mjs `ruleOf`). The bedroom names its room, which the player's own veto names in the same refusal
- * (`DRPG.Vault.keyMissing`); a body names nothing more.
+ * (`DRPG.Vault.keyMissing`) where that player has found it (`sentBackLine` asks; MAP-21); a body names nothing more.
  */
 function markOf(refused) {
     if (refused?.mark === "bedroomShut" && typeof refused.room === "string" && refused.room) return { rule: "bedroomShut", room: refused.room };
@@ -435,8 +435,13 @@ function markOf(refused) {
  * The line a player's browser says for the primary GM's put-back for a rule (`onSentBack`): the bedroom's key with its room,
  * a body's, or the bridge's words for the code (`DRPG.Bridge.why.<code>`, the player's own language). Exported for tier 2.
  */
-export function sentBackLine(payload) {
-    if (payload?.rule === "bedroomShut" && typeof payload.room === "string" && payload.room) return game.i18n.format("DRPG.Vault.keyMissing", { room: payload.room });
+export function sentBackLine(payload, known = null) {
+    // The bedroom named only where this viewer has found it (1.2.122 line MAP; the audit's MAP-21): `known` is the rooms the
+    // caller's player knows on the token's scene (movement.mjs `roomsKnownToMe`), null for a viewer who knows the map.
+    if (payload?.rule === "bedroomShut" && typeof payload.room === "string" && payload.room) {
+        return known && !known.has(payload.room) ? game.i18n.localize(`DRPG.Bridge.why.${payload?.code}`)
+            : game.i18n.format("DRPG.Vault.keyMissing", { room: payload.room });
+    }
     if (payload?.rule === "corpse") return game.i18n.localize("DRPG.Move.dead");
     return game.i18n.localize(`DRPG.Bridge.why.${payload?.code}`);
 }
@@ -470,12 +475,12 @@ export async function onSentBack(payload, senderId) {
         return false;
     }
     playSfx("refused");
+    const { roomOfToken, roomsKnownToMe } = await import("./movement.mjs");
     if (payload.code !== "wall" && payload.code !== "floor") {
-        ui.notifications.warn(sentBackLine(payload));
+        ui.notifications.warn(sentBackLine(payload, roomsKnownToMe(game.scenes?.get(payload.sceneId) ?? null)));
         return true;
     }
     const token = game.scenes?.get(payload.sceneId)?.tokens?.get(payload.tokenId) ?? null;
-    const { roomOfToken } = await import("./movement.mjs");
     const from = (token && roomOfToken(token)) || game.i18n.localize("DRPG.Movement.outsideRooms");
     ui.notifications.warn(game.i18n.format("DRPG.Move.cannotReach", { from }));
     return true;

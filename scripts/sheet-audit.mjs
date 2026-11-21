@@ -582,7 +582,7 @@ export function kindOf(path) {
 /*
  * The write that puts `paths` back to `before`. A path that was not there is deleted at its
  * highest missing part - a new experience goes whole, not as an empty entry - with v14's
- * forced deletion (`-=key` removes nothing in this Foundry: utils.mjs `forcedDeletion`), or
+ * forced deletion (the old `-=key` is deprecated on v14: utils.mjs `forcedDeletion`), or
  * written null where there is none. A path that was an object is written whole over what
  * the player made of it.
  */
@@ -1026,6 +1026,7 @@ export function gmMeansWrite(actor, write) {
  * `hopeFromDespairEffect`, `damageEffect`); a Hope Call bought on a GM's client and its price given back (calls.mjs
  * `spendHopeCall`); a rest (rest.mjs `applyRest`); an advancement (level-up.mjs `applyAdvancement`, with `numberHeld`);
  * a missed Observe's Sanity (observe.mjs `chargeObserveMiss`) and a resolution's (cleanup.mjs `markResolutionStress`);
+ * a room action's Health, Sanity and Hope (facilities-gm.mjs `applyEffects`, since 1.2.122: the audit's ITEM-19);
  * and the incident's marks - a Despair opening's Sanity, a hit, a drain, a resolution's blood (murder-rules.mjs
  * `resolveKillerOpening`, `takeReserves`, `spendStress`). A Hope maximum is Daggerheart's world setting less the scars,
  * whatever the sheet's maximum says: on a GM's client less the scars the GMs hold, since fix r2-H25 (`maxHeld`).
@@ -1817,7 +1818,7 @@ async function restCovers(actor, mark, credit, gains, moves, ref, seen) {
     if (!rules) return null;
     const full = kind === "long";
     const marks = key => moves[key]?.base ?? 0;
-    const allowed = { hope: relief ? 0 : full ? 2 : 1, hitPoints: full ? marks("hitPoints") : Math.ceil(marks("hitPoints") / 2),
+    const allowed = { hope: relief ? 0 : (REST.options.breath.grants?.[full ? "long" : "short"] ?? 0), hitPoints: full ? marks("hitPoints") : Math.ceil(marks("hitPoints") / 2),
         stress: full ? marks("stress") : Math.ceil(marks("stress") / 2) };
     const picked = Object.keys(gains);
     if (picked.length > rules.picks || picked.some(key => !(gains[key] <= (allowed[key] ?? 0)))) return null;

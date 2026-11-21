@@ -76,8 +76,9 @@
 # URL. A different tree, a red, cancelled or running run, a job skipped, missing or unknown, or an API that does not
 # answer means "not reused", and `ci` runs as before. D47 stands: the same tree is the same files, ci.yml
 # included. The release job takes ci's success or the reuse, never neither. The decision is a pure function the
-# gate's self-test drives (verify-gate.mjs, its reuse-ci cases); no release has reused a run yet: 1.2.121's is the
-# first that can, and what the runs list really answers is to be seen there (reuse-ci.mjs's header).
+# gate's self-test drives (verify-gate.mjs, its reuse-ci cases); 1.2.121's release was the first to reuse one: run
+# 44886414447 (tree 09a3a000, 21.11.2026), and ci was skipped. Whether the runs list carried the tree or the git
+# fallback read it was not recorded (reuse-ci.mjs's header).
 name: Release
 
 on:

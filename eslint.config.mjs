@@ -45,9 +45,12 @@ const NODE = names(`process console setTimeout clearTimeout setInterval clearInt
 // name added to a file joins the line that already imports its module. On f63a2485 (the tooltip sweep merged), 405
 // files: 48 statements in 42 files of scripts/ (ui-kit.mjs in 40 of them, utils.mjs in 2, settings.mjs in 1;
 // projects-ui.mjs held two); 0 after. run-all's lint part plants a doubled import in each folder, red without the rule.
+// no-dupe-keys (1.2.122 line TEXT, 21.11.2026; the audit of 1.2.118, DOC-03): a key written twice in one object literal,
+// the first value dead and loaded without a word - the class A1 was. 0 in scripts/ on 21bf5d18 (the audit's espree count
+// over 271 files: 53,556 object literals, 0 repeated static keys; `npm run lint` with the rule on: 0 problems).
 const RULES = { "no-undef": ["error", { typeof: true }], "no-import-assign": "error",
     "no-unused-vars": ["error", { args: "none", varsIgnorePattern: "^_", ignoreRestSiblings: true }],
-    "no-duplicate-imports": "error" };
+    "no-duplicate-imports": "error", "no-dupe-keys": "error" };
 /*
  * drpg/bridge-result (E31, 25.09.2026; audit S17-09). A request to the GM answers
  * the bridge's result, `{ ok, pending?, value?, refused?, reason? }`, and an object

@@ -531,6 +531,14 @@ export const SETTINGS = {
      */
     gmLockpicks: "gmLockpicks",
     mineLockpicks: "mineLockpicks",
+    /**
+     * THE HIDDEN STASHES (1.2.122 line ITEMS; the audit's CORE-25): a GM store (gm-stores.mjs `hiddenStashStore`), a row
+     * per hidden stash `<sceneId>|<actorId>|<room>` `{ sceneId, actorId, room }`, and each player's copy of their own
+     * characters' (every one for the Mastermind's player; `mineHiddenStashes`, `hiddenStashCopy`), which vault-store.mjs
+     * `stashesOn` reads. Out of the rooms' region data, which every browser holds (hidden-stashes.mjs). Synced and backed up.
+     */
+    gmHiddenStashes: "gmHiddenStashes",
+    mineHiddenStashes: "mineHiddenStashes",
     /** A player's own characters' project-action uses (P2; gm-stores.mjs `facilityUseCopy`), which their Facilities rows read. */
     mineFacilityUses: "mineFacilityUses",
     /**
@@ -1037,8 +1045,9 @@ export const SETTINGS = {
      * forever; there is no broadcast, only a recipient-addressed whisper.
      *
      * Read by movement.mjs (locked doors, sealed rooms), fog.mjs (the
-     * Mastermind knows the building, not who is in it), vault.mjs (a
-     * concealed stash is their own furniture) and - since 26.08 -
+     * Mastermind knows the building, not who is in it), stash-reach.mjs (a
+     * concealed stash is their own furniture; vault.mjs, a facade since E41 C6,
+     * holds no code) and - since 26.08 -
      * visibility.mjs, but only through `myLairRoom()`: standing in their own
      * room shows them the cast, anywhere else they are exactly as blind as
      * every other player's client.
@@ -2199,11 +2208,15 @@ export function registerSettings() {
         default: {}
     });
 
+    // The GMs' offers: a GM's open sheets draw the Level Up button's "on offer" from it (sheet-header.mjs
+    // `injectAdvanceButton`), so they redraw on every write of it - another GM's merged in as much as this GM's own
+    // (the audit of 1.2.118, REFR-14; 1.2.122 line UI). A player's browser holds no section of it.
     game.settings.register(MODULE_ID, SETTINGS.advanceOffers, {
         scope: "client",
         config: false,
         type: Object,
-        default: {}
+        default: {},
+        onChange: () => import("./clock.mjs").then(m => m.refreshSheets()).catch(() => {})
     });
     game.settings.register(MODULE_ID, SETTINGS.legacyAdvanceOffers, {
         scope: "client",
@@ -2382,6 +2395,19 @@ export function registerSettings() {
         default: {}
     });
     game.settings.register(MODULE_ID, SETTINGS.mineLockpicks, {
+        scope: "client",
+        config: false,
+        type: Object,
+        default: {}
+    });
+    // The hidden stashes (1.2.122, CORE-25): the GMs' store and each player's copy (hidden-stashes.mjs).
+    game.settings.register(MODULE_ID, SETTINGS.gmHiddenStashes, {
+        scope: "client",
+        config: false,
+        type: Object,
+        default: {}
+    });
+    game.settings.register(MODULE_ID, SETTINGS.mineHiddenStashes, {
         scope: "client",
         config: false,
         type: Object,
@@ -2694,9 +2720,9 @@ export function registerSettings() {
 
     // The Key Remnant plan: a GM store since E05 (`keyPlanStore`), a row per chapter
     // and slot. No `onChange`, as the world key had none: the dashboard that shows the
-    // plan reads it at each redraw, and a redraw comes from the world's own changes
-    // (live.mjs `keepLive`) - so another GM's edit reaches an open dashboard at its next
-    // one, and not the moment it merges (read, not measured at a table).
+    // plan watches this store among its stores (investigation.mjs `keepLive`'s `stores`),
+    // and keepLive redraws on the store's `clientSettingChanged`, another GM's merge
+    // included (live.mjs). Until 21.11.2026 this said the edit waited for the next redraw.
     game.settings.register(MODULE_ID, SETTINGS.gmKeyPlan, {
         scope: "client",
         config: false,
@@ -3166,8 +3192,12 @@ export function registerSettings() {
         config: false,
         type: Boolean,
         default: true,
-        // The stylesheet's half of the lock follows at once (E03; audit S01-40).
-        onChange: value => document.body.classList.toggle("drpg-resources-locked", Boolean(value))
+        // The stylesheet's half of the lock follows at once (E03; audit S01-40), and so do the open sheets: the reserve's
+        // field is the mode's, read at a render (sheet-mode.mjs `reserveField`; the audit of 1.2.118, REFR-11, STG-13).
+        onChange: value => {
+            document.body.classList.toggle("drpg-resources-locked", Boolean(value));
+            import("./clock.mjs").then(m => m.refreshSheets()).catch(() => {});
+        }
     });
 
     /* THE PROPOSAL APPROVES ITSELF IN DAILY LIFE (E68 C2, 10.11.2026; DA41 = 2, DA50 = 1). Off by default: on, a
@@ -3248,14 +3278,14 @@ export function registerSettings() {
         config: false,
         type: Object,
         default: {},
-        onChange: () => onStoreChange("visibility")
+        onChange: onEclipseMovesChange
     });
     game.settings.register(MODULE_ID, SETTINGS.mineEclipseMoves, {
         scope: "client",
         config: false,
         type: Object,
         default: {},
-        onChange: () => onStoreChange("visibility")
+        onChange: onEclipseMovesChange
     });
     // A Confusion's armed Calls (E06 fix r2-G4): the GMs' store and each owner's copy. The
     // sheet's badges list what is armed, and a flag write used to redraw them by itself.
@@ -3504,6 +3534,13 @@ function onStoreChange(kind) {
     import("./sync.mjs").then(m => m.applyKind(m.SYNC[kind])).catch(() => {});
 }
 
+/* The Eclipse's crossings changed on this browser's store or copy: the sheets, the HUD and the map, and the hook the
+   status strip listens on (player-status.mjs; the audit's REFR-23, 1.2.122) - a client setting fires no updateSetting. */
+function onEclipseMovesChange() {
+    onStoreChange("visibility");
+    Hooks.callAll("drpgEclipseMovesChanged");
+}
+
 /* A Confusion armed or spent on this browser's store or copy: the sheets, whose badges list it. */
 function onConfusionsChange() {
     import("./clock.mjs").then(m => m.refreshSheets()).catch(() => {});
@@ -3719,8 +3756,9 @@ export function incidentSeats(cast, state, { stage = state?.stage } = {}) {
  *   · the names come from `incidentCast`, never from the world setting - a
  *     bystander's browser holds none of them and must go on holding none; so
  *     does whether it is a trap (E05 C8), by `incidentIndirect`'s rule
- *   · a seat is decided by OWNERSHIP, because `game.user.character` is a field
- *     nothing at this table ever sets (see hud.mjs's own note on that)
+ *   · a seat is decided by OWNERSHIP, with `game.user.character` preferred where it
+ *     is set - the primary GM sets it by account name since E79 C10 (user-match.mjs),
+ *     and it picks the student played among two owned (below)
  *   · a GM witnesses every incident, but owns no seat in it - owning every
  *     actor in the world would otherwise make every incident read as theirs
  *   · AND THE KILLER OF A TRAP IS NOT A WITNESS. They built it and walked
@@ -4506,7 +4544,7 @@ export function effectiveScale() {
 /* The screen's factor changes when the window does, and so can its shape; the theme
    follows once the resize has settled, and only when one of the two actually differs. */
 let screenWatched = false, screenTimer = 0, screenFactor = 0, screenShape = "";
-/* The scale is not the only thing a resize can change: crossing 1200 px of width
+/* The scale is not the only thing a resize can change: crossing BREAKPOINTS.narrow (1224 px) of width
    restacks the module and crossing 620 px of height puts the glass to sleep, and
    both can happen without the factor moving a hundredth (it is at its floor on every
    screen under 1792 x 1008 anyway). One key covers all three. */

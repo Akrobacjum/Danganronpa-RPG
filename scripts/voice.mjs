@@ -1845,11 +1845,32 @@ function scheduleTrialVoices({ force = false } = {}) {
         settleTrialVoices().catch(err => error("Could not settle the trial's voices", err));
     }, 250);
 }
+/* The actor flags whose write can move a microphone in the settle (1.2.122, the audit's COMM-41): whether a character is
+   dead, a Monocub, a Spectator, a Monokuma or out of the class. Any of the module's flags woke it
+   until then - an action's per-action fields (freeMoveUsed, lastAction, pendingCall) among them - so in a world with a
+   Spectator every Move or Search queued a whole settle on the primary, in every phase. */
+const TRIAL_VOICE_FLAGS = Object.freeze([FLAGS.deceased, FLAGS.monocub, FLAGS.spectator, FLAGS.monokuma, FLAGS.notInClass]);
+
+/**
+ * Whether an actor's update asks the trial's voices to be settled again: one of `TRIAL_VOICE_FLAGS` set or deleted (a
+ * deletion's spelling too, as `reconcileTrigger` reads it), the module's flags taken off whole, or the ownership. Pure.
+ */
+export function trialVoiceTrigger(changes) {
+    if (!changes || typeof changes !== "object") return false;
+    if ("ownership" in changes) return true;
+    const all = changes.flags;
+    if (!all || typeof all !== "object") return false;
+    if (`-=${MODULE_ID}` in all) return true;
+    const flags = all[MODULE_ID];
+    if (!flags || typeof flags !== "object") return false;
+    return TRIAL_VOICE_FLAGS.some(key => key in flags || `-=${key}` in flags);
+}
+
 function registerTrialVoices() {
     Hooks.on("drpgDeathsChanged", scheduleTrialVoices);
     Hooks.on("updateActor", (_actor, changes) => {
-        // Any of the module's flags (a death, a revival, a Monocub's) or the ownership; the settle reads what stands.
-        if (changes?.flags?.[MODULE_ID] || "ownership" in (changes ?? {})) scheduleTrialVoices();
+        // A flag that moves a microphone, or the ownership (`trialVoiceTrigger`); the settle reads what stands.
+        if (trialVoiceTrigger(changes)) scheduleTrialVoices();
     });
     Hooks.on("updateSetting", setting => {
         // And every write of the floor (E110 C2): a mode opened, a turn passed, a redirect, the floor's end.
@@ -1882,8 +1903,8 @@ function broadcastAllowed(user) {
 /**
  * One person's claim on their account's voice: the room, the strength of the
  * claim and why, decided from what the caller hands in (E13 C4, 12.10.2026).
- * `voiceTargets` asks it once per character and, during an Eclipse or the Class
- * Trial, once per connected account that has no character. It reads no document
+ * `voiceTargets` asks it once per character and once per connected account that has no character, in every phase
+ * since E19 C4 (`placeVoices`: outside an Eclipse and the trial such an account's room is the main room). It reads no document
  * itself, so R117 asks it the trial's question for each kind of person a trial
  * holds - the living in two rooms, the dead, a Monocub, Monokuma, an account with
  * no character - without a world to write. `silenced` and `locate` are asked only
@@ -1935,9 +1956,11 @@ export function voiceClaim({ user, monokuma = false, eclipse = false, trial = fa
         // room. The main room is LiveKit's own, so nothing has to be named or
         // made for the trial: a client that connects mid-trial starts there
         // anyway (`userConnected` above). The dead keep their seat but not their
-        // voice: "the dead listen but do not speak" is the table's rule, not
-        // this file's - D8 puts it in the handbooks and beside Start the Class
-        // Trial (E13 C6, C9).
+        // voice, and since E70 C5 that is this file's too: the trial blocks the
+        // dead's microphones (`settleTrialVoices`, `deadForTrial`). The one room
+        // also gives way to a Scrum Debate's camp rooms and to the Spectators'
+        // room (`placeVoices`), which this claim does not decide (1.2.122, the
+        // audit's comment sweep: this said the rule was the table's alone).
         //
         // After the Eclipse, not before it, though neither road meets the other
         // any more: `startEclipse` refuses in a trial (E13 fix r1-F3) and
@@ -2252,7 +2275,9 @@ function reportContested(contested, byUser) {
  * @returns {string}
  */
 export function contestedWarning(userId, list, chosen) {
-    const words = { main: game.i18n.localize("DRPG.Voice.mainRoom"), dead: game.i18n.localize("DRPG.Voice.deadRoom") };
+    const words = { main: game.i18n.localize("DRPG.Voice.mainRoom"), dead: game.i18n.localize("DRPG.Voice.deadRoom"),
+        silent: game.i18n.localize("DRPG.Voice.plan.silentGroup"),
+        camp: side => game.i18n.format("DRPG.Voice.plan.campGroup", { zone: String(side).toUpperCase() }) };
     const name = game.users.get(userId)?.name ?? userId;
     const places = list.map(r => `${r.actor.name} → ${placeName(r, words)}`).join("; ");
     return game.i18n.format("DRPG.Voice.contested", { name, places, room: placeName(chosen, words) });
@@ -2268,8 +2293,14 @@ export function contestedWarning(userId, list, chosen) {
  * @param {{main: string, dead: string}} words
  * @returns {string}
  */
-function placeName(row, { main, dead }) {
+export function placeName(row, { main, dead, silent = main, camp = null }) {
     if (isDeadRoom(row?.target) || row?.claim === CLAIM.dead) return dead;
+    /* By the target, not the token's room (1.2.122, the audit's COMM-43): a masked killer is sent a silent room of its
+       own and a Scrum camp its camp's room, both with the trial's null room, and a listener the room it listens into -
+       so all three were filed under the main room, or the listener's own. */
+    if (row?.masked) return silent;
+    if (row?.camp) return camp ? camp(row.camp) : main;
+    if (row?.listening?.into) return row.listening.into;
     return row?.room ?? main;
 }
 
@@ -2461,7 +2492,12 @@ export function liveKitConnectionSettings() {
  * microphone.
  *
  * So this runs the same decision the reconcile loop runs, on the same inputs,
- * and prints it instead of applying it. It works with A/V switched off, with
+ * and prints it instead of applying it - on the primary. On another GM the rooms
+ * the primary keeps for a doorway's gap are not this browser's (`voiceTargets`
+ * starts that map empty there), so a student in a gap is printed in the main room
+ * the primary keeps them out of; and on the primary the plan's own pass prunes
+ * those kept rooms as a pass does. "This client runs the assignment loop: no" is
+ * the plan's line that says which. It works with A/V switched off, with
  * the regional-voice setting off, and with nobody else connected - which turns
  * most of "test the voice chat" into something one person can do in a minute.
  *
@@ -2469,8 +2505,11 @@ export function liveKitConnectionSettings() {
  * second client, and the answer is in `diagnoseVoice()` on that client.
  *
  * `targets` is `voiceTargets()`'s answer unless handed in (E19 fix r1-G1), so R833 reads the plan of a table of rows
- * without a death written into the world. A row is grouped and named by where it sends its account (`placeName`):
- * the dead channel is its own group, never "(main room)".
+ * without a death written into the world. A row is grouped and named by where it sends its account (`placeName`, by
+ * its target since 1.2.122: a masked killer's silent room, a Scrum camp's room, the room a listener listens into). The
+ * dead are sent the Spectators' room since E62 C3b (`voiceClaim` writes SPECTATOR_ROOM as a dead claim's target), so
+ * they stand in its group beside the talking Spectators; "(Spectators' room)" (`deadGroup`) is placeName's word for a
+ * dead claim whose target is not that room, which no row of `voiceClaim` writes today.
  */
 export async function voicePlan({ toChat = false, targets } = {}) {
     if (!game.user.isGM) {
@@ -2485,7 +2524,9 @@ export async function voicePlan({ toChat = false, targets } = {}) {
     /* In the page's language (E71 C20; DB12, S18-46): the plan is the GM's, posted to their chat with `toChat`. */
     const P = (key, data) => voiceText(`DRPG.Voice.plan.${key}`, data);
     lines.push(P("setting", { state: P(getSetting(SETTINGS.voiceEnabled) ? "on" : "settingOff") }));
-    lines.push(P("avMode", { mode: game.webrtc?.mode === foundry.av.AVSettings.AV_MODES.DISABLED ? P("avDisabled") : game.webrtc?.mode }));
+    // In words (1.2.122, the audit's COMM-44): the mode was printed as Foundry's number, "A/V mode: 2" for video alone.
+    const mode = avModeWord(game.webrtc?.mode);
+    lines.push(P("avMode", { mode: mode ? P(mode) : String(game.webrtc?.mode ?? "?") }));
     lines.push(P("loop", { answer: P(isPrimaryGm() ? "yes" : "no") }));
 
     // The same decision the loop runs, on the same inputs - literally the same
@@ -2509,7 +2550,8 @@ export async function voicePlan({ toChat = false, targets } = {}) {
        character was grouped by its own room and an account with no character was not printed. R5201. */
     const targetName = row => eclipse ? P("eclipseGroup")
         : row?.target === SPECTATOR_ROOM ? P("spectatorGroup")
-            : placeName(row, { main: P("mainGroup"), dead: P("deadGroup") });
+            : placeName(row, { main: P("mainGroup"), dead: P("deadGroup"), silent: P("silentGroup"),
+                camp: side => P("campGroup", { zone: String(side).toUpperCase() }) });
     const rooms = new Map();
     const add = (key, line) => {
         if (!rooms.has(key)) rooms.set(key, []);
@@ -2625,3 +2667,12 @@ export async function resetAllVoice({ ledger = voiceLedger, reconcile = schedule
     return n;
 }
 
+/**
+ * Foundry's A/V mode as the voice plan's word (1.2.122, the audit's COMM-44): the key under `DRPG.Voice.plan` for the
+ * mode, or null for a number Foundry's modes do not name. Video alone is said as the mode voice cannot stand on
+ * (voice-tile.mjs `voiceAvailable`). `modes` is the suite's; Foundry's `AVSettings.AV_MODES` otherwise.
+ */
+export function avModeWord(mode, modes = foundry.av?.AVSettings?.AV_MODES ?? { DISABLED: 0, AUDIO: 1, VIDEO: 2, AUDIO_VIDEO: 3 }) {
+    const keys = { [modes.DISABLED]: "avDisabled", [modes.AUDIO]: "avAudio", [modes.VIDEO]: "avVideo", [modes.AUDIO_VIDEO]: "avAudioVideo" };
+    return Object.hasOwn(keys, mode) ? keys[mode] : null;
+}

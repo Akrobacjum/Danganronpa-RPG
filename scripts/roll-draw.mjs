@@ -237,7 +237,9 @@ export const ROLL_STATES = Object.freeze({
     unwitnessed: Object.freeze({ kind: "warning" }),
     awayNothing: Object.freeze({ kind: "info" }),
     awayHope: Object.freeze({ kind: "info" }),
-    awayDespair: Object.freeze({ kind: "info" })
+    awayDespair: Object.freeze({ kind: "info" }),
+    // A stamped roll a GM has decided, on its card and on the GMs' card (1.2.122, REFR-54 and REFR-19): nothing waits.
+    awayDecided: Object.freeze({ kind: "info" })
 });
 
 /** A roll's state as markup: the kit's box of the state's kind, `text` escaped in it. Throws on a state not in the table. */
@@ -532,7 +534,8 @@ function startOnMessage(message) {
  * for a part of its action's definition that names a statistic, and never over `TOLD_AS`);
  * and the situation's dice as this browser armed them (call-effects.mjs `situationalAdvantage`),
  * which the GM no longer reads: it reads every action's situation for itself (E29 C9,
- * `LEGAL_READERS`). The field still travels; nothing on the GM reads it.
+ * `LEGAL_READERS`). The field still travels - private-rolls.mjs's whitelist sanitizes it (`situational: as.num`) and
+ * forwards it into `drawOnGm`'s packet - and `throwDrawn` drops it unread.
  */
 export const DRAWN_OPTIONS = Object.freeze([ROLL_NONCE, "actionType", "roll", "experiences", "guaranteedCritical", "extraFormula", "data"]);
 const CONTEXT_SENT = Object.freeze({ category: "text", goal: "text", projectId: "id", targetProjectId: "id", side: "text",
@@ -931,8 +934,10 @@ const ROLLED_TOGETHER = Object.freeze([Object.freeze(["palm", "steal"]), Object.
     Object.freeze(["pickCover", "pick"])]);
 /** The parts that only ride a ticket their partner was drawn or claimed on, and are paid by nothing of their own (`paysFor`). */
 const RIDES_ONLY = Object.freeze(["rummage", "frisk", "tail", "pick"]);
-/** The parts only the GM claims (`claimTicket`), never drawn: a draw named so would make a second ask's ticket a force could ride. */
-const CLAIMED_ONLY = Object.freeze(["friskAsk"]);
+/** The parts only the GM claims (`claimTicket`), never drawn: a draw named so would make a second ask's ticket a force could ride.
+    Echoes' ask, a parked murder and a betrayal in an Eclipse since 1.2.122 (bridge-runs-acts.mjs `claimedFor`, CORE-21): acts
+    with no roll, each paid by one action. */
+const CLAIMED_ONLY = Object.freeze(["friskAsk", "echoes", "park", "betrayal"]);
 /** The rolls of an act that costs no action, drawn on no ticket (`drawRefusal`): a Take's Hand and its cover's Shadow (E68 C10). */
 const PAID_BY_NOTHING = Object.freeze(["loot", "lootCover"]);
 /** The price chain an action's roll is paid by, where it has one (PRICE_CHAINS; cleanup.mjs `chargeTamper`). */
@@ -1041,7 +1046,9 @@ function notePayments(actor, changes = null, options = null, userId = null) {
     const writer = game.users?.get(userId ?? "");
     if (!was || !writer || (writer.isGM && options?.[PAID_AS_PLAYER] !== true)) return;
     const tickets = ticketsOf(actor.id);
-    const paid = (pay, size = 1) => tickets.push({ at: Date.now(), pay, kinds: [], size });
+    // `form`: what took the payment, a Burst (`grant`) or the actions, written on the roll's record once a draw takes it
+    // (`drawnPayment`; the audit's ROLL-25, 1.2.122).
+    const paid = (pay, size = 1, form = pay) => tickets.push({ at: Date.now(), pay, kinds: [], size, form });
     const undo = (pay, n) => {
         for (let i = tickets.length - 1; i >= 0 && n > 0; i--) {
             if (tickets[i].pay === pay && !tickets[i].kinds.length) { tickets.splice(i, 1); n--; }
@@ -1050,7 +1057,7 @@ function notePayments(actor, changes = null, options = null, userId = null) {
     const rise = Math.max(0, now.action - was.action) + Math.max(0, now.grant - was.grant);
     if (rise) undo("action", rise);
     // The payment's size, so a draw of a price above one reads it (`ticketCovers`): what this write took down.
-    else if (now.action < was.action || now.grant < was.grant) paid("action", paymentSize(was, now));
+    else if (now.action < was.action || now.grant < was.grant) paid("action", paymentSize(was, now), now.grant < was.grant ? "grant" : "action");
     if (now.hope < was.hope) paid("hope", was.hope - now.hope);
     else if (now.hope > was.hope) undo("hope", now.hope - was.hope);
     if (now.stress > was.stress) paid("stress");
@@ -1186,8 +1193,19 @@ async function drawRefusal(actor, key, context) {
     const handed = !ticket.kinds.length && RIDES_ONLY.includes(key) ? handedOver(actor.id, key) : null;
     if (handed) ticket.kinds.push(handed.cover);
     ticket.kinds.push(key);
+    drawnPayment.set(`${actor.id}:${key}`, ticket.form ?? ticket.pay ?? null);
     return null;
 }
+
+/*
+ * WHAT PAID FOR A DRAWN ROLL, ON ITS RECORD (the audit's ROLL-25, 1.2.122 line DESP). A Reroll of a Work gives back or
+ * takes back the critical's action, and it read what paid (`burst`) and whether the critical's action came back
+ * (`refunded`) off the roller's bookmark, claims a second roll.bookmark inside the minute may rewrite. The ticket a
+ * draw takes says what this GM saw pay - the actions (`action`) or a Burst (`grant`), or a step of a price chain - and
+ * that is written on the record as `paid` (`drawOnGm`, after the throw), for reroll.mjs `settleActionRefund` to read.
+ * A record a GM drew for itself has none: no ticket, and the bookmark is that GM's own.
+ */
+const drawnPayment = new Map();
 
 /*
  * A TAKE'S ROLLS NAME THEIR BODY, AND THE FIRST OF EACH COUNTS (E68 C10 loot bind, 10.11.2026; the owner's Q8 "nie", E68
@@ -1308,6 +1326,7 @@ export async function drawOnGm(packet, sender, { requestId = null } = {}) {
     if (lock) drawing.add(lock);
     try {
         if (!await marksOpen()) return { refused: "the GMs' marks of the characters are not open on this GM's browser" };
+        if (lock) drawnPayment.delete(lock);
         const why = actor && !sender?.isGM ? await drawRefusal(actor, key, contextSent(packet.context)) : null;
         if (why) return { refused: why };
         const { murderState } = await import("./murder.mjs");
@@ -1319,9 +1338,11 @@ export async function drawOnGm(packet, sender, { requestId = null } = {}) {
             await (await import("./handover.mjs")).bindLootRoll(actor.id, contextSent(packet.context).bodyId, key, rollStore.get(out.reply.rollId));
         }
         if (out?.reply) keepTrip("drew", { at: Date.now(), written, answered: performance.now() - arrived });
+        const form = lock ? drawnPayment.get(lock) : null;
+        if (out?.reply?.rollId && typeof form === "string" && rollStore.get(out.reply.rollId)) await rollStore.patch(out.reply.rollId, { paid: form });
         return out;
     } finally {
-        if (lock) drawing.delete(lock);
+        if (lock) { drawing.delete(lock); drawnPayment.delete(lock); }
     }
 }
 
@@ -1770,6 +1791,7 @@ async function throwDrawn({ actorId, actionKey, nonce, claimed, loaded, costs, r
     });
     // The balance log (E53 C3): the roll as the GMs recorded it, kept only while the world's switch is on.
     await noteBalanceRoll(rollStore.get(rollId));
+    if (key === "facility") await closeFacilityAtDraw(actor, told.context, { rollId, messageId: message.id }, sender);
     if (flags.length) await tellUnexpected(actor, flags);
     await tellRoller(sender, legal);
     return { reply: { rollId, messageId: message.id, faces: facesOf(roll), total: roll.total, loaded: dieHeld, roll: legal.json } };
@@ -1861,10 +1883,15 @@ function appliedCalls(actor, nonces, held = null) {
 /** A Call that hinders the roll it is spent on: a disadvantage, or a bonus below nothing (a Meddle's -1). */
 const hinders = call => call?.grants === "disadvantage" || (call?.grants === "bonus" && Number(call.amount) < 0);
 /**
- * The actions whose roll spends no Call (action-pipeline.mjs `rollTrait`'s `remember: false`): a Palm's unseen roll. The
- * murder's opening was one until E112 (call-effects.mjs `TAKES_CALLS`): it takes the killer's Calls as an action roll does.
+ * The actions whose roll spends no Call (action-pipeline.mjs `rollTrait`'s `remember: false`): a Palm's unseen roll, and
+ * the supporting rolls of Pick the Lock (its cover), Tail Someone (whether the target notices) and Take from the Body
+ * (its cover). The three came later (E68 C10, E69 C3, E74 C4) and were not added: the roller's window shielded them and
+ * opened with no Call, while the GM's draw threw every hindering Call armed long enough into them and spent it there -
+ * a flag for an honest roll, and the Call gone before the action's own roll it was bought for (the audit's ROLL-18,
+ * 1.2.122; R8381 holds every keyed `remember: false` roll to this list). The murder's opening was one until E112
+ * (call-effects.mjs `TAKES_CALLS`): it takes the killer's Calls as an action roll does.
  */
-const SPENDS_NO_CALL = new Set(["palm"]);
+const SPENDS_NO_CALL = new Set(["palm", "pickCover", "tailUnseen", "lootCover"]);
 
 /**
  * The hostile Calls held armed on the character that the roll did not name and that were armed more
@@ -2014,6 +2041,33 @@ async function facilityOfDraw(actor, context, { open = false } = {}) {
     if (F.facilityShut("gm", overflowFacilityStates())) return null;
     const { facilityUseStore } = await import("./gm-stores.mjs");
     return facilityUseStore.get(F.gmActionKey(place.scene.id, place.room, id))?.mark === F.facilityMark() ? null : action;
+}
+
+/**
+ * A GM'S ROOM ACTION IS CLOSED BY ITS DRAWN ROLL (the audit's STG-39, 1.2.122). Once anyone uses one, a failed roll too, it
+ * is closed for everyone until the next time of day; the row and the public closing were written only by `facility.use`,
+ * which the roller's browser sends after the roll - so a console that read a failed drawn roll and sent nothing left the
+ * action open, for itself and the table, and tried again for an action each time. Now the draw writes the use row first,
+ * `pending` and naming its roll (`rollId`, `messageId`: the use packet names the message), and closes the action for all (facilities-gm.mjs `closeForAll`): a second draw
+ * finds it closed (`facilityOfDraw`), and the `facility.use` that names this roll carries it out over its own pending row
+ * (bridge-runs-acts.mjs `handleFacilityUse`). One never sent leaves the action closed with no effects given.
+ */
+async function closeFacilityAtDraw(actor, context, { rollId, messageId }, sender) {
+    try {
+        const id = typeof context?.facilityId === "string" ? context.facilityId : null;
+        const { gmPlaceOf } = await import("./movement.mjs");
+        const place = gmPlaceOf(actor);
+        if (!id || !place?.room) return;
+        const F = await import("./facilities.mjs");
+        const { facilityUseStore } = await import("./gm-stores.mjs");
+        const key = F.gmActionKey(place.scene.id, place.room, id), mark = F.facilityMark();
+        await facilityUseStore.whenHydrated();
+        if (facilityUseStore.get(key)?.mark === mark) return;
+        await facilityUseStore.patch(key, { mark, actorId: actor.id, userId: sender?.id ?? null, at: Date.now(), success: false, pending: true, rollId, messageId });
+        await (await import("./facilities-gm.mjs")).closeForAll(key, mark);
+    } catch (err) {
+        error("Could not close a room action at its roll's draw", err);
+    }
 }
 
 /** The clean-up's step a packet's context names (cleanup.mjs `cleanupKey`): one of Stage 6's actions, else the clean-up itself. */
@@ -2929,7 +2983,10 @@ export function awayRollsCard(lines) {
  */
 export async function askAboutUnwitnessed(messages = null) {
     if (!isPrimaryGm()) return null;
-    const rows = (messages ?? game.messages?.contents ?? []).map(awayRowOf).filter(Boolean);
+    // A roll a standing card already lists is not listed again (the audit's ROLL-28, 1.2.122): each ready of the primary
+    // posted one more card for the same undecided rolls.
+    const listed = new Set(awayCards().flatMap(card => cardFlag(card, "awayRolls")));
+    const rows = (messages ?? game.messages?.contents ?? []).map(awayRowOf).filter(row => row && !listed.has(row.message.id));
     if (!rows.length) return null;
     const lines = (await Promise.all(rows.map(async row => {
         const claimed = await awayClaimOf(row).catch(err => {
@@ -2942,6 +2999,29 @@ export async function askAboutUnwitnessed(messages = null) {
     }))).join("");
     return whisperToGms(awayRollsCard(lines),
     { flags: { [MODULE_ID]: { awayCard: true, awayRolls: rows.map(row => row.message.id) } } });
+}
+
+/** The GMs' cards of rolls thrown with no GM in the log: a GM's, flagged `awayCard`, with its list. */
+function awayCards() {
+    return (game.messages?.contents ?? []).filter(m => cardWriter(m)?.isGM && cardFlag(m, "awayCard") && Array.isArray(cardFlag(m, "awayRolls")));
+}
+
+/**
+ * EVERY GM'S CARD FOLLOWS THE DECISION (the audit's REFR-19 and ROLL-28, 1.2.122). A decision updated the rolls' messages
+ * and never the card, so on another GM's browser the card was not drawn again and its Grant all and Grant none stayed; a
+ * press there asked the primary, which found every roll decided and answered nothing, and nothing was said. Once a card's
+ * rolls are all decided its `awayDecided` is written (this decision's way), and that update draws it again on every GM:
+ * no buttons, and the way it went (`onRenderUnwitnessed`).
+ */
+async function settleAwayCards(messageIds, grant) {
+    if (!game.user?.isGM) return;
+    const decided = new Set(messageIds);
+    for (const card of awayCards()) {
+        const ids = cardFlag(card, "awayRolls");
+        if (!ids.some(id => decided.has(id)) || ids.some(id => awayRowOf(game.messages.get(id)))) continue;
+        if (cardFlag(card, "awayDecided") !== undefined && cardFlag(card, "awayDecided") !== null) continue;
+        await card.update({ [`flags.${MODULE_ID}.awayDecided`]: grant === true }).catch(err => error("Could not mark the GMs' card of rolls thrown with no GM as decided", err));
+    }
 }
 
 /**
@@ -2991,6 +3071,7 @@ async function decideNow(messageIds, grant) {
     } catch (err) {
         error("Could not grant the rolls thrown with no GM connected", err);
     }
+    await settleAwayCards((Array.isArray(messageIds) ? messageIds : []).filter(id => typeof id === "string"), grant);
     return granted.map(row => ({ messageId: row.message.id, actorId: row.actor.id }));
 }
 
@@ -3040,8 +3121,11 @@ async function grantRolls(rows) {
             Hooks.off("updateActor", hook);
         }
     }
-    for (const { actor, outcome, reaction } of rows) {
-        if (!reaction && outcome.withFear) await awardRollDespair(actor, 1);
+    // With the roll's message, as a fresh roll's point is given (despair-award.mjs): a room action's protection from
+    // Despair takes the point and marks the roll (the audit's DESP-27, 1.2.122). Without it the Grant gave the point
+    // through the protection, which stood for a later roll.
+    for (const { message, actor, outcome, reaction } of rows) {
+        if (!reaction && outcome.withFear) await awardRollDespair(actor, 1, { message });
     }
 }
 
@@ -3049,20 +3133,40 @@ async function grantRolls(rows) {
 function onRenderUnwitnessed(message, element) {
     try {
         const body = element.querySelector(".message-content") ?? element;
-        if (message.getFlag?.(MODULE_ID, UNWITNESSED_FLAG) && !body.querySelector('[data-drpg-roll-state="unwitnessed"]')) {
-            body.insertAdjacentHTML("beforeend", rollStatus("unwitnessed", game.i18n.localize("DRPG.Rolls.unwitnessed")));
+        const stamp = message.getFlag?.(MODULE_ID, UNWITNESSED_FLAG);
+        if (stamp && !body.querySelector('[data-drpg-roll-state="unwitnessed"], [data-drpg-roll-state="awayDecided"]')) {
+            // The line follows the decision (the audit's REFR-54, 1.2.122): it said "a GM decides later" after one had.
+            const decided = typeof stamp === "object" && Object.hasOwn(stamp, "granted");
+            const key = !decided ? "DRPG.Rolls.unwitnessed" : stamp.granted === true ? "DRPG.Rolls.unwitnessedGranted" : "DRPG.Rolls.unwitnessedNotGranted";
+            body.insertAdjacentHTML("beforeend", decided ? rollStatus("awayDecided", game.i18n.localize(key)) : rollStatus("unwitnessed", game.i18n.localize(key)));
         }
         // A GM's card only: a player's card to the GMs may carry any buttons it likes - one a GM posted
         // for a player in an incident included (secret.mjs `cardWriter`, E08+E28 fix r2-H5).
         if (!game.user?.isGM || !cardWriter(message)?.isGM || !cardFlag(message, "awayCard")) return;
         const ids = cardFlag(message, "awayRolls");
-        const open = Array.isArray(ids) && ids.some(id => awayRowOf(game.messages.get(id)));
-        if (!open) return void element.querySelector(".drpg-away-actions")?.remove();
+        const open = () => Array.isArray(ids) && ids.some(id => awayRowOf(game.messages.get(id)));
+        if (!open()) {
+            /* After the words (the audit's REFR-19, 1.2.122): the card is private, and secret.mjs's listener, registered at
+               ready after this one, puts its words - the buttons with them - into the element after this ran, so the
+               buttons were taken off the stub alone and came back. As private-rolls.mjs's mark does, this waits for the
+               end of the hook's run (a microtask; every listener runs in one synchronous call). */
+            const way = cardFlag(message, "awayDecided");
+            queueMicrotask(() => {
+                element.querySelector(".drpg-away-actions")?.remove();
+                if ((way === true || way === false) && !element.querySelector('[data-drpg-roll-state="awayDecided"]')) {
+                    (element.querySelector(".drpg-away-card") ?? element.querySelector(".message-content") ?? element).insertAdjacentHTML("beforeend",
+                        rollStatus("awayDecided", game.i18n.localize(way ? "DRPG.Rolls.awayDecidedGrant" : "DRPG.Rolls.awayDecidedNone")));
+                }
+            });
+            return;
+        }
         element.addEventListener("click", async event => {
             const button = event.target?.closest?.("[data-drpg-away]");
             if (!button) return;
             event.preventDefault();
             element.querySelector(".drpg-away-actions")?.remove();
+            // A card drawn before another GM decided (REFR-19): said, not asked of the primary for nothing.
+            if (!open()) return void ui.notifications?.info(game.i18n.localize("DRPG.Rolls.awayAlreadyDecided"));
             await askToDecide(ids, button.dataset.drpgAway === "grant");
         });
     } catch (err) {

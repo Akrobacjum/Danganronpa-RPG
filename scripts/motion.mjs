@@ -29,19 +29,16 @@
 import { MODULE_ID, GAME_WINDOWS } from "./config.mjs";
 import { SETTINGS, getSetting } from "./settings.mjs";
 import { log, warn } from "./utils.mjs";
+import { isStainedGlass } from "./look.mjs";
 
 /**
- * Is the Stained Glass theme on? The setting first - readable the moment
- * settings are registered - and the body class as the fallback for a client
- * mid-switch. One reading for fog.mjs, remnant-ring.mjs and the rest (MAP-15).
+ * Is the Stained Glass theme on? look.mjs `isStainedGlass`, the one reading since 1.2.122 (DOC-16): the setting, the body
+ * class where it cannot be read. Kept by this name for fog.mjs, remnant-ring.mjs and the rest (MAP-15). Until 1.2.122 the
+ * body class answered too while the setting said Monokuma Legacy (a client mid-switch); the switch writes the setting
+ * first and the class from it (settings.mjs `applyTheme`), so the setting is the newer of the two.
  */
 export function glassOn() {
-    try {
-        return getSetting(SETTINGS.theme) === "stainedGlass"
-            || document.body.classList.contains("drpg-theme-stained-glass");
-    } catch {
-        return document.body.classList.contains("drpg-theme-stained-glass");
-    }
+    return isStainedGlass();
 }
 
 /** The seam glow's three passes: width as a multiple of the core, and alpha. */

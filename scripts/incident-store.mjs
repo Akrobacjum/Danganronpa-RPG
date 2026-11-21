@@ -30,7 +30,8 @@
  * WHERE IT SITS. Moved out of murder.mjs by E34 (1.2.70) in two commits, C7a and
  * C7b, a pure move that `node tools/moved-only.mjs` proves line by line. Above it
  * are murder-rules.mjs and murder-ui.mjs, which read it, and murder.mjs, which
- * re-exports the thirty-three names of this file it exported before, so importers
+ * re-exports this file's names it exported then (thirty-four, counted on 21.11.2026:
+ * `clockHiddenHere`, f7ac1e9d, came after 1.2.70, against the facade rule), so importers
  * keep importing murder.mjs; nothing here imports any of the three back: R161
  * counts an `export ... from` as an edge, and the import would close a cycle.
  * Below it are config.mjs, monokuma.mjs, settings.mjs, gm-stores.mjs,
@@ -83,9 +84,10 @@ import { SETTINGS, incidentCast, incidentIndirect, incidentSeats, seasonEpoch, i
 import { castStore, blackenedStore, castCopy, deathStore, deathCopy, maskStore, CAST_FIELDS, CAST_SEATS, INCIDENT_METHOD, INCIDENT_FIGHT } from "./gm-stores.mjs";
 import { RECORD, onGmStoresHydrated, gmStoresHydrated, gmStoresQuiet, whenGmStoresAudible, onGmStoresAudible, gmStoreStamp, stableJson } from "./gm-store.mjs";
 import { getClock } from "./clock.mjs";
-import { playerOwns, ownerIdsOf, isPrimaryGm, primaryGmId, log, warn, error, debug } from "./utils.mjs";
+import { playerOwns, ownerIdsOf, isPrimaryGm, primaryGmId, whisperToGms, log, warn, error, debug } from "./utils.mjs";
 // A leaf (season-exceptions.mjs alone): the registry of season state the reset walks (E42 C3).
 import { registerSeasonState, everyPart } from "./season-reset.mjs";
+import { count } from "./perf-counters.mjs";
 
 /* ==========================================================================
  * STATE
@@ -315,8 +317,8 @@ async function ownCastWrite(write) {
  * itself: R205 reads that off the source.
  *
  * PER BROWSER. A second GM's button runs its own queue on its own browser; the stores'
- * stamps settle what the two GMs wrote, and nothing here orders them. Not measured -
- * the harness has one GM (LIVE-E07-10).
+ * stamps settle what the two GMs wrote, and nothing here orders them. Not measured on
+ * v14 (LIVE-E07-10): the harness's second GM (scenarios 61, 62, 97) runs the shim's timing, not a server's.
  *
  * A WRITE THAT THROWS RELEASES THE QUEUE (`run.catch`): the next write runs, and the one
  * that threw tells its caller, which stops as it would have. Read since E32 C4 and measured
@@ -451,9 +453,9 @@ export function incidentAudienceIds(state = murderState(), { stage = state?.stag
  * incident (D18) - the offer alone, once the incident running is not theirs
  * (`castFor`).
  */
-function castOwners(cast, state = null) {
+function castOwners(cast, state = null, { betrayal = true } = {}) {
     const live = state ?? game.settings.get(MODULE_ID, SETTINGS.murderState) ?? {};
-    return new Set(incidentAudienceIds({ ...live, ...cast, indirect: incidentIndirect(cast, live) }, { betrayal: true }));
+    return new Set(incidentAudienceIds({ ...live, ...cast, indirect: incidentIndirect(cast, live) }, { betrayal }));
 }
 
 /**
@@ -882,6 +884,21 @@ async function armBetrayalWindow(state) {
     if (!killer || !third) return null;
 
     const clock = getClock();
+    /* AN OFFER STANDING IS KEPT (the audit's CASE-25, 1.2.122). The cast holds one offer, and a second body the same day
+       with a third of its own wrote its offer over the first: the earlier third lost, with no word, an offer that was
+       theirs until the day's end (the GM handbook's "lasts until the end of that day ... and is single-use"). An offer of
+       another third for this chapter and day stands, and the new one is not armed; the GMs are told whose it is. One a
+       later day left behind is no offer (`sweepBetrayalWindows`), and the same third's is armed again as before. Red at
+       21bf5d18 (tier 2 "1.2.122 CASE-25"): the second offer was written over the first. */
+    const standing = readCast().betrayal;
+    if (standing?.thirdId && standing.thirdId !== third.id
+        && Number(standing.chapter) === Number(clock?.chapter ?? 1) && Number(standing.day) === Number(clock?.day ?? 1)) {
+        const name = id => foundry.utils.escapeHTML(game.actors.get(id ?? "")?.name ?? "?");
+        await whisperToGms(`<p>${game.i18n.format("DRPG.Murder.betrayalOfferKept", {
+            kept: name(standing.thirdId), killer: name(standing.killerId), third: name(third.id) })}</p>`);
+        log(`Betrayal window kept for ${game.actors.get(standing.thirdId)?.name ?? standing.thirdId}; none armed for ${third.name}.`);
+        return null;
+    }
     // In the cast, never on the actor: the offer names the killer and the
     // accomplice, and an actor flag would name them to every client.
     await writeCast({
@@ -1223,12 +1240,16 @@ const DEATHS_FOUND = "deaths.found";
  * running incident's seats when this actor is its victim, as `castOwners` gives them now.
  * Counted as at Stage 6, where a trap's killer is let back in: the engine's kill sites run
  * after the stage has moved, and the GM's death dialog runs just before it is offered.
+ * The seats alone: a standing betrayal offer's third holds a copy of the cast for the offer
+ * (`castFor`), not a seat in this incident, and an offer outlives its own incident until the
+ * day ends - so with `betrayal: false` an earlier incident's third is not told of this death
+ * (the audit's CASE-21, 1.2.122; red at 21bf5d18, the third's player named).
  */
 export function incidentKnowers(actor) {
     if (!game.user?.isGM || !actor) return [];
     const state = murderState();
     if (!state?.active || state.victimId !== actor.id) return [];
-    return [...castOwners(readCast(), { ...state, stage: "resolution" })];
+    return [...castOwners(readCast(), { ...state, stage: "resolution" }, { betrayal: false })];
 }
 
 /** Whether this user may know of this death kept by the GMs: a GM, a user named in its row, or an owner of the body. */
@@ -1349,8 +1370,13 @@ export function tellFinder(userId, token, room, { company = false } = {}) {
  * token's object, never a status or a flag, which every console would read. Not measured: the
  * harness has no canvas (26.09.2026), so this is a check for a real table.
  */
-function markLocalDeath(token) {
+export function markLocalDeath(token) {
+    count("refreshToken.localDeath");
     try {
+        /* NOTHING TO DRAW, NOTHING READ (the audit's CASE-58, 1.2.122): every token refresh on a player's browser ran the
+           death reads below and a walk of the token's children, with no death kept from the table and no mark worn. With
+           this browser's copy empty and no mark on the token it stops here; the count is fps()'s and scenario 86's. */
+        if (!Object.keys(deathCopy.read() ?? {}).length && !token?.children?.some?.(c => c?.name === "drpg-local-dead")) return;
         const actor = token?.actor;
         const show = Boolean(actor) && !game.user.isGM && isDeadForGm(actor) && !isDeceased(actor);
         let icon = token?.children?.find?.(c => c?.name === "drpg-local-dead") ?? null;
@@ -1886,13 +1912,19 @@ export async function clearBlackened() {
  * of an incident running since 1.2.65, which tried Escape together and failed or took
  * Use an item - and an escape tried loses the offer, as it did then.
  */
-export function betrayalCandidate(state, killer) {
+export function betrayalCandidate(state, killer, deadNow = actor => isDeadForGm(actor)) {
     if (!state?.thirdId || !killer) return null;
     if (!leftABody(state)) return null;
     if (state.thirdSide !== "killer" && (incidentIndirect(state) || state.thirdActed)) return null;
     const third = game.actors.get(state.thirdId);
     if (!third || third.id === killer.id) return null;
     if (isMonokuma(third)) return null;
+    /* BOTH ALIVE, ON EVERY ROAD (the audit's CASE-26, 1.2.122). The tile (murder-rules.mjs `betrayalTarget`) and a
+       betrayal opened at the lights asked it; the GM's checklist and the offer's arming read this and asked nothing, so a
+       killer dead by a GM's hand during Stage 6 was offered as the betrayal's victim and the button opened an incident on
+       a dead student. Asked here, of the GMs' knowledge (`isDeadForGm`); `deadNow` is the suite's (R8222). Red at
+       21bf5d18: a dead killer was answered with the third. */
+    if (deadNow(third) || deadNow(killer)) return null;
     return third;
 }
 

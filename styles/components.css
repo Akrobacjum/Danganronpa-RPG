@@ -117,6 +117,9 @@ body {
     --drpg-kit-role-cancel: var(--drpg-bone);
     --drpg-kit-role-secondary: var(--drpg-bone);
     --drpg-kit-role-destructive: var(--drpg-crimson);
+    /* a destructive control's WORDS, where the role's colour is text, not an edge (the audit of 1.2.118, UI-11): the role's
+       own colour under Legacy; under the glass the GM's light red (below) */
+    --drpg-kit-role-destructive-ink: var(--drpg-kit-role-destructive);
     /* the roles' faces (E22 C6b, 07.11.2026; D11 and the owner's P-B of 04.09, audit S12-58): danganronpa.css's dialog
        footer rule reads `--drpg-kit-face-*`, which each role's rule below sets from these - the primary Bone with the
        stronger Bone edge (it was the eye's red, so "Roll" read like "Send it to the GM"), the GM's road the eye's wash
@@ -241,6 +244,9 @@ body.drpg-theme-stained-glass {
     --drpg-kit-role-cancel: var(--drpg-sg-bone);
     --drpg-kit-role-secondary: var(--drpg-sg-bone);
     --drpg-kit-role-destructive: var(--drpg-sg-gm);
+    /* The GM's dark red is an edge, never a letter (the 14.09 review; stained-glass.css's 0 rules): #e0182f as text on Ink
+       is 2.9:1. A destructive control's words take the light red, #ff5566, 6.46:1 on opaque Ink (UI-11). */
+    --drpg-kit-role-destructive-ink: var(--drpg-sg-gm-light);
     --drpg-kit-notice-seam-hope: var(--drpg-sg-hope);
     --drpg-kit-notice-seam-fear: var(--drpg-sg-despair);
     --drpg-kit-notice-seam-evidence: var(--drpg-sg-evidence);
@@ -370,6 +376,22 @@ body .application.dialog.drpg-ui footer.form-footer.drpg-kit-footer.drpg-kit-foo
     width: 100%;
     margin: 0;
     white-space: normal;
+}
+/* A NARROW FOOTER KEEPS EACH WORD WHOLE (line INVEST of 1.2.122; the owner: "Preview realization" broke mid-word with the
+   Investigation window at 600 px). Its buttons stand a quarter of the footer each, two rows at every size (Q-C), so at
+   600 px a cell is 136 px and "REALIZATION" needed 164 under the glass and 159 under Legacy (audit/case-map-sweep.mjs
+   `word`, Chromium). Where the footer itself is narrow (`drpg-kit-footer`, a container on its inline size) the buttons
+   give up their tracking and most of their side padding, Legacy's take its floor size, and a word never breaks: it may
+   only wrap between words. */
+body .application.dialog.drpg-ui footer.form-footer.drpg-kit-footer.drpg-kit-footer-rows { container: drpg-kit-footer / inline-size; }
+@container drpg-kit-footer (max-width: 760px) {
+    body .application.dialog.drpg-ui footer.form-footer.drpg-kit-footer.drpg-kit-footer-rows button[data-drpg-role] {
+        padding-inline: 4px;
+        letter-spacing: 0;
+        font-size: var(--drpg-kit-notice-xs-size);
+        overflow-wrap: normal;
+        word-break: normal;
+    }
 }
 /* Each button as wide as its word (at least today's 8.5rem), never stretched across its side: danganronpa.css's
    dialog rule (0,4,2, `flex: 1 1 auto`) stretched the lone Cancel to 866 px of M1's 1366 px footer under Legacy; this
@@ -2749,6 +2771,10 @@ body .application.drpg-window-rooms .drpg-room-picture {
     cursor: pointer;
 }
 body .application.drpg-window-rooms td.drpg-data-col-picture { white-space: normal; }
+/* the clear button only over a picture (the audit's check of 1.2.121, r121-R-11; the line claude/refresh-120 for 1.2.122):
+   "Remove the picture" stood under a room with none. Keyed on the thumbnail's `src`, which the cell draws from the stored
+   picture, a pick sets and the button takes off (room-setup.mjs `wireForm`), so it follows all three with no listener */
+body .application.drpg-window-rooms img.drpg-room-picture:not([src]) ~ button[data-drpg-picture-clear] { display: none; }
 body .application.drpg-window-rooms .drpg-room-picture-say > .drpg-box { margin: 4px 0 0; }
 /* the Passages tab (E46-C2b, 09.11.2026; the owner's A10 of 11.10): its eight columns one width a kind, as E80 fix r1-G5
    chose them in danganronpa.css (the Rooms column the room tabs' 220 px above), but Kind 80 -> 96 and the state 150 -> 134:
@@ -2871,7 +2897,7 @@ body .application.drpg-ui.drpg-window-tables .drpg-table-heading h4 { margin: 0 
 .drpg-window-tables .drpg-room-filter { display: flex; align-items: center; gap: var(--drpg-kit-gap); margin: 0 0 6px; }
 body .application.drpg-ui.drpg-window-tables .drpg-room-filter > select { flex: 0 1 auto; width: auto; min-width: 0; max-width: 100%; }
 .drpg-window-tables .drpg-room-groups > .drpg-room-group[hidden] { display: none; }
-.drpg-window-tables :is([data-drpg-delete-table], .drpg-table-items [data-drpg-drop]) { color: var(--drpg-kit-role-destructive); }
+.drpg-window-tables :is([data-drpg-delete-table], .drpg-table-items [data-drpg-drop]) { color: var(--drpg-kit-role-destructive-ink); }
 body.drpg-theme-stained-glass .drpg-window-tables :is([data-drpg-delete-table], .drpg-table-items [data-drpg-drop]) {
     --brush: var(--drpg-sg-gm);
     --brush-edge: var(--drpg-sg-gm);
@@ -2991,6 +3017,8 @@ body.drpg-theme-monokuma-legacy .application.drpg-ui:is(.drpg-window-give, .drpg
    select was cut to its column); the select's words do not ("- nie ustawiono -" broke in two, Legacy, Polish) */
 .application.drpg-window-sound [data-drpg-pane="effects"] .drpg-data-table-box > table.drpg-data-table { table-layout: fixed; width: 100%; }
 .application.drpg-window-sound [data-drpg-pane="music"] .drpg-data-table-box > table.drpg-data-table td.drpg-data-col-music-when { white-space: normal; }
+/* the Music tab's "no playlists yet" region stands drawn and empty once there is one (sound-panel.mjs `musicEmptyBox`, 1.2.122) */
+.application.drpg-window-sound .drpg-music-empty:empty { display: none; }
 .application.drpg-window-sound table.drpg-data-table td { vertical-align: top; }
 /* under Legacy the cells keep the room the hand tables gave them (3 px by 6, danganronpa.css `.drpg-vault-table`) */
 body:not(.drpg-theme-stained-glass) .application.drpg-window-sound .drpg-data-table-box > table.drpg-data-table :is(th, td) { padding: 3px 6px; }
@@ -3907,7 +3935,7 @@ body .application.drpg-window-projects .drpg-data-table td.drpg-data-col-viewer 
 body .application.drpg-window-projects .drpg-data-table th.drpg-data-col-viewer { vertical-align: bottom; padding: 4px 3px; letter-spacing: 0; }
 body .application.drpg-window-projects .drpg-data-table th.drpg-data-col-viewer > span.drpg-data-clamp { width: min-content; line-height: 1.15; }
 /* Delete (the owner's M16 note: a button, not a box read at Save) in the destructive role's colour */
-body .application.drpg-window-projects .drpg-kit-icon-button.drpg-role-destructive { color: var(--drpg-kit-role-destructive); }
+body .application.drpg-window-projects .drpg-kit-icon-button.drpg-role-destructive { color: var(--drpg-kit-role-destructive-ink); }
 /* the table, a little room, then the two notes as one block centred in the window, as the intro above (the owner's
    09.11 note on the mockup); the grey of the kit's fine print kept */
 body .application.drpg-window-projects .drpg-data-table-box { margin-block-end: 8px; }
@@ -4201,9 +4229,10 @@ body .application.drpg-ui .drpg-box > :last-child { margin-bottom: 0; }
    "Reinforced" 105 px, "description" 116, "Powiązany" 95, "naprawdę" 84, "Znalazł" 74, a cell's padding 17 px (Chromium,
    09.11.2026). Each column its own share (by its key, `col[data-drpg-col]`, as Visibility's above; the Key planner's
    name and texts keep theirs: its `name`, `text` and `analysis` keys are read by class here). Under Legacy's pixel face
-   the same words are 104-143 px and ten columns do not hold them all in 1204 px: there, and below 1366 px, a head still
-   breaks inside a word (`overflow-wrap: anywhere`, above), within its two lines and its whole name in its tooltip
-   (STATUS "## Open (E47-FB)"). */
+   the same words are wider than their shares; how the Legacy Traces table holds them since E97 C2 (the window 1120 px,
+   the table at 130 % of its box, scrolling sideways in the view, a head breaking between its words only) is the note
+   "LEGACY'S ONE-WORD HEADS" above (the audit of 1.2.118, STG-70: this note said 1204 px and in-word breaks until
+   1.2.122). */
 /* the shares are the columns' (`col`): a head or cell that states its class's share too is read beside its column's by
    Chromium's fixed layout (the wider wins: the name's column stood 141 px, its 12 % and not its 8 %) */
 body .application.drpg-window-case table.drpg-data-table :is(th, td) { width: auto; }
@@ -4695,7 +4724,7 @@ body .application.daggerheart.dh-style.dialog.drpg-window-dh-settings .tab field
     background: none;
     border: 0;
 }
-body.drpg-theme-stained-glass .application.daggerheart.dh-style.dialog.drpg-window-dh-settings .tab fieldset > legend { color: var(--drpg-glass-accent); }
+body.drpg-theme-stained-glass .application.daggerheart.dh-style.dialog.drpg-window-dh-settings .tab fieldset > legend { color: var(--drpg-sg-bone); }
 /* the six statistics: one row of cells, the name over its field, no shield. Each column at least as wide as its name and
    the rest shared equally (E49, the owner's answer of 12.11.2026): with six equal columns (`minmax(0, 1fr)`) Legacy's pixel
    face set "Shadow" 79 px wide in a cell of 74 and cut its last letter (the stand-in in Chromium, 1366x768, at 527cc7c7

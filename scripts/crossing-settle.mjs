@@ -57,10 +57,66 @@ function settle(actorId, entry, roomNow) {
     Hooks.callAll(CROSSING_SETTLED, event);
 }
 
-/** Drop every crossing waiting to settle (the suite's put-back, a world's reset). Answers how many were dropped. */
+/** Drop every crossing waiting to settle - the suite's put-back alone (tier 2; the season's reset does not call it).
+ *  Answers how many were dropped. */
 export function forgetSettling() {
     for (const entry of waiting.values()) clearTimeout(entry.timer);
     const n = waiting.size;
     waiting.clear();
+    // And the tokens waiting to stand (`onTokenStood`, below): not counted, as no crossing waits on them.
+    for (const timer of standing.values()) clearTimeout(timer);
+    standing.clear();
     return n;
+}
+
+/*
+ * A TOKEN THAT STOOD, WHOEVER MOVED IT (1.2.122, the audit's STG-08 and STG-09, 21.11.2026). A barricade comes down when
+ * its author leaves its room, and a pass in use ends when its holder does (doors-gm.mjs, lockpick-gm.mjs) - but the
+ * settled crossing above is a player's lawful crossing alone, so a body's discovery, an assembly, the trial's start
+ * (call-world.mjs `gatherEveryone`) or a GM's drag took the author or the holder out and nothing ended: the barricade
+ * held the empty room shut to everybody, its author too, until the time of day moved, and a pass in use was kept for
+ * good. `onTokenStood` hands a listener every token of a character that moved by any road and then stood `ms` (the
+ * crossing's own `SETTLE_MS`), on the primary GM alone; the listener reads where it stands and decides. No event is
+ * announced to anybody: the listener is the GMs' own bookkeeping.
+ */
+
+/** tokenId -> the timer waiting for that token to stand. One map for every listener. */
+const standing = new Map();
+const stoodListeners = new Set();
+let stoodHooked = false;
+
+function onTokenMoved(tokenDoc, change, ms) {
+    if (!tokenDoc?.id || !tokenDoc.actorId || !change || !("x" in change || "y" in change || "elevation" in change || "level" in change)) return;
+    if (!isPrimaryGm()) return;
+    clearTimeout(standing.get(tokenDoc.id));
+    const sceneId = tokenDoc.parent?.id ?? null, tokenId = tokenDoc.id, actorId = tokenDoc.actorId;
+    standing.set(tokenId, setTimeout(() => {
+        standing.delete(tokenId);
+        if (!isPrimaryGm()) return;
+        // The document in hand, while its scene still holds it (no read of a token by id: R1281's rule).
+        const doc = tokenDoc.parent?.tokens?.has?.(tokenId) && tokenDoc.parent?.id === sceneId ? tokenDoc : null;
+        if (!doc) return;
+        for (const fn of stoodListeners) {
+            try {
+                Promise.resolve(fn({ actorId, sceneId, tokenId, tokenDoc: doc })).catch(err => log(`A token's stand could not be read: ${err?.message ?? err}`));
+            } catch (err) {
+                log(`A token's stand could not be read: ${err?.message ?? err}`);
+            }
+        }
+    }, ms));
+}
+
+/**
+ * Hand `fn({ actorId, sceneId, tokenId, tokenDoc })` every character's token that moved, by any road, and then stood
+ * `SETTLE_MS` on the primary GM. Registers Foundry's `updateToken` once for every listener. Answers a function that
+ * takes `fn` off again.
+ */
+export function onTokenStood(fn, { ms = SETTLE_MS } = {}) {
+    if (typeof fn !== "function") return () => {};
+    stoodListeners.add(fn);
+    if (!stoodHooked && globalThis.Hooks?.on) {
+        stoodHooked = true;
+        Hooks.on("updateToken", (tokenDoc, change) => onTokenMoved(tokenDoc, change, ms));
+    }
+    return () => stoodListeners.delete(fn);
 }

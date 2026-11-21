@@ -10,9 +10,12 @@
  */
 
 import { FACILITIES, TRAITS } from "./config.mjs";
-import { esc, wholeNumber } from "./utils.mjs";
-import { drpgWindow, stepper, toggle, tipAttr, tipText } from "./ui-kit.mjs";
-import { roomActions, setRoomActions, setProjectFacility, projectFacilityOf } from "./facilities.mjs";
+import { esc, wholeNumber, plural, listOf } from "./utils.mjs";
+import { drpgWindow, stepper, toggle, tipAttr, tipText, wireSteppers } from "./ui-kit.mjs";
+import { roomActions, setRoomActions, setProjectFacility, projectFacilityOf, cleanAction, cleanEffect, cleanFacility } from "./facilities.mjs";
+import { stableJson } from "./gm-store.mjs";
+import { projectSecretStore } from "./gm-stores.mjs";
+import { keepFresh } from "./live.mjs";
 
 const t = key => game.i18n.localize(`DRPG.Facility.editor.${key}`);
 
@@ -100,9 +103,109 @@ export function readRoomActions(form) {
     return out;
 }
 
+/*
+ * WHAT SAVE DOES NOT KEEP IS SAID (the audit's CTRL-71, 1.2.122, 21.11.2026). The cleaning drops an action with no name and
+ * an effect of a kind that needs its text with none (facilities.mjs `cleanAction`, `cleanEffect`), and the window closed on
+ * Save with no word of it. `droppedLines` counts what the GM typed and the cleaning refuses - a row left wholly blank, as
+ * the editor draws two, is no line - and Save tells it.
+ */
+export function droppedLines(raw) {
+    let n = 0;
+    for (const action of Array.isArray(raw) ? raw : []) {
+        const effects = Array.isArray(action?.effects) ? action.effects : [];
+        if (!cleanAction(action)) { if (effects.length) n++; continue; }
+        n += effects.filter(e => !cleanEffect(e)).length;
+    }
+    return n;
+}
+
+/*
+ * ANOTHER GM'S SAVE, NOT WRITTEN OVER (the audit's REFR-58, 1.2.122, 21.11.2026). Each editor is drawn once and its Save
+ * wrote the whole list, so the second of two GMs to press Save took out the first one's new action with neither told.
+ * The window is not redrawn under the GM's hands (its form is the whole window); at Save the room's list is read again,
+ * and an action another GM added meanwhile - an id the window did not open with - is kept beside this GM's and named.
+ * Pure: answers `{ list, kept }`.
+ */
+export function mergedRoomActions(saved, openedIds, now) {
+    const list = Array.isArray(saved) ? [...saved] : [];
+    const kept = (Array.isArray(now) ? now : []).filter(a => a?.id && !openedIds.has(a.id) && !list.some(b => b?.id === a.id));
+    return { list: [...list, ...kept].slice(0, FACILITIES.maxActions), kept };
+}
+
+/*
+ * THE EDITOR FOLLOWS ANOTHER GM'S SAVE, WHAT IS TYPED KEPT (the audit's REFR-58, 1.2.122, 21.11.2026; the owner's rule of
+ * every window). Both editors were drawn once: a Save made elsewhere while one stood open was not shown, and the merge at
+ * Save (`mergedRoomActions`, the savedOver toast) was all that kept the other GM's work. `followSaved` draws the editor
+ * again whenever what it edits changes - the room's region flag, the project's meta or its GMs' half - and puts back each
+ * field the GM had changed and not saved (a text or number against the value it was drawn with, a select against its
+ * drawn option, a switch against its drawn tick), with the focus and its caret: a field the GM is writing in wins over the
+ * other GM's value of it, since this GM's Save writes it either way. `keyOf` says which field is which across a redraw:
+ * by its name, and in a room's editor by its action's id, so a row the other GM added or removed above does not move
+ * what was typed onto another action (the blank rows by their order among the blank rows).
+ */
+function changedFields(root, keyOf, all = false) {
+    const out = new Map();
+    for (const f of root.querySelectorAll("[name]")) {
+        if (f.type === "hidden") continue;
+        const changed = all || (f.type === "checkbox" ? f.checked !== f.defaultChecked
+            : f.tagName === "SELECT" ? [...f.options].some(o => o.selected !== o.defaultSelected)
+                : f.value !== f.defaultValue);
+        if (changed) out.set(keyOf(f), f.type === "checkbox" ? f.checked : f.value);
+    }
+    return out;
+}
+
+function followSaved(dialog, { read, body, keyOf = f => f.name, watch, redrawn = () => {}, drewDraft = false }) {
+    let drawn = stableJson(read() ?? null);
+    // A window opened again on what a refused Save had typed (`editProjectFacility`'s draft) drew that as its values: all
+    // of it is the GM's typing, kept whole by the first redraw.
+    let allTyped = drewDraft;
+    keepFresh(dialog, { watch, run: el => {
+        const now = read() ?? null;
+        const key = stableJson(now);
+        if (key === drawn) return;
+        const editor = el?.querySelector?.(".drpg-facility-editor");
+        if (!editor) return;
+        const typed = changedFields(editor, keyOf, allTyped);
+        allTyped = false;
+        const active = editor.contains(document.activeElement) && document.activeElement.name
+            ? { key: keyOf(document.activeElement), start: document.activeElement.selectionStart ?? null, end: document.activeElement.selectionEnd ?? null } : null;
+        const holder = document.createElement("div");
+        holder.innerHTML = body(now);
+        const fresh = holder.firstElementChild;
+        editor.replaceWith(fresh);
+        for (const f of fresh.querySelectorAll("[name]")) {
+            const k = keyOf(f);
+            if (typed.has(k)) {
+                if (f.type === "checkbox") f.checked = typed.get(k);
+                else f.value = typed.get(k);
+            }
+            if (active && k === active.key) {
+                f.focus({ preventScroll: true });
+                try { if (active.start !== null) f.setSelectionRange(active.start, active.end); } catch { /* not a text field */ }
+            }
+        }
+        wireSteppers(fresh);
+        drawn = key;
+        redrawn(now);
+    } });
+}
+
+/** A room editor's field by its action: `<id>.<field>` for a saved action, `new<k>.<field>` for the k-th blank row. */
+function roomFieldKey(f) {
+    const row = f.closest?.("fieldset.drpg-facility-action");
+    const tail = String(f.name ?? "").replace(/^a\d+\./, "");
+    const id = row?.querySelector('input[type="hidden"][name$=".id"]')?.value;
+    if (id) return `${id}.${tail}`;
+    const blanks = [...(row?.parentElement?.querySelectorAll("fieldset.drpg-facility-action") ?? [])]
+        .filter(r => !r.querySelector('input[type="hidden"][name$=".id"]')?.value);
+    return `new${blanks.indexOf(row)}.${tail}`;
+}
+
 /** Open a room's editor on `scene`; Save writes the room's actions at once. Answers the actions written, or null. */
 export async function editRoomActions(scene, room) {
     if (!game.user?.isGM || !scene || !room) return null;
+    let opened = new Set(roomActions(scene, room).map(a => a.id));
     const result = await drpgWindow({
         title: game.i18n.format("DRPG.Facility.editor.roomTitle", { room }),
         classes: ["drpg-panel", "drpg-facility-window"],
@@ -112,10 +215,19 @@ export async function editRoomActions(scene, room) {
             primary: { action: "save", label: t("save"), tooltip: tipText("DRPG.Tips.Sweep.Setup.facilitySaveRoomTooltip"), callback: (e, b, d) => readRoomActions(d.element) },
             close: { role: "cancel", action: "cancel" }
         },
+        // What the window shows is what Save merges against: a redraw moves `opened` to the actions it drew.
+        render: (event, dialog) => followSaved(dialog, { read: () => roomActions(scene, room), keyOf: roomFieldKey,
+            body: now => roomActionsBody(room, now ?? []), watch: { hooks: ["updateRegion", "createRegion", "deleteRegion"] },
+            redrawn: now => { opened = new Set((now ?? []).map(a => a.id)); } }),
         rejectClose: false
     });
     if (!Array.isArray(result)) return null;
-    return setRoomActions(scene, room, result);
+    const dropped = droppedLines(result);
+    const { list, kept } = mergedRoomActions(result, opened, roomActions(scene, room));
+    const written = await setRoomActions(scene, room, list);
+    if (written && dropped) ui.notifications.warn(plural("DRPG.Facility.editor.dropped", { n: dropped }));
+    if (written && kept.length) ui.notifications.info(game.i18n.format("DRPG.Facility.editor.keptOthers", { items: listOf(kept.map(a => a.label)) }));
+    return written;
 }
 
 /** The body of a project's editor: its action's name, effects, whether it costs an action, and its lifetime. */
@@ -154,10 +266,16 @@ export function readProjectFacility(form) {
     };
 }
 
-/** Open a project's editor; Save gives the project its action, Remove takes it off. Answers what was written, or null. */
-export async function editProjectFacility(project) {
+/**
+ * Open a project's editor; Save gives the project its action, Remove takes it off. Answers what was written, or null.
+ * A Save with no name writes nothing, says so and opens the editor again on what was typed (`draft`; CTRL-71, 1.2.122);
+ * one made after another GM changed the action meanwhile says that it was saved over theirs (REFR-58, 1.2.122).
+ */
+export async function editProjectFacility(project, { draft = null } = {}) {
     if (!game.user?.isGM || !project?.id) return null;
-    const { facility } = await projectFacilityOf(project.id);
+    const { facility: stored } = await projectFacilityOf(project.id);
+    const facility = draft ?? stored;
+    let opened = stableJson(stored ?? null);
     const result = await drpgWindow({
         title: game.i18n.format("DRPG.Facility.editor.projectTitle", { project: project.name }),
         classes: ["drpg-panel", "drpg-facility-window"],
@@ -168,9 +286,24 @@ export async function editProjectFacility(project) {
             secondary: [{ action: "remove", label: t("remove"), tooltip: tipText("DRPG.Tips.Setup.facilityRemoveTooltip") }],
             close: { role: "cancel", action: "cancel" }
         },
+        // Redrawn on the meta and on the GMs' half of a secret project (the store `projectSecretStore`, projects-secrecy.mjs
+        // `secretsOf`); a redraw moves `opened`, so a Save after it is
+        // "saved over theirs" only for a change the window did not show.
+        render: (event, dialog) => followSaved(dialog, { read: () => projectFacilityOf(project.id).facility,
+            body: now => projectFacilityBody(project, now), watch: { settings: ["projectMeta"], stores: [projectSecretStore] }, drewDraft: Boolean(draft),
+            redrawn: now => { opened = stableJson(now ?? null); } }),
         rejectClose: false
     });
     if (result === "remove") return setProjectFacility(project.id, null);
     if (!result || typeof result !== "object") return null;
-    return setProjectFacility(project.id, result);
+    if (!cleanFacility(result)) {
+        ui.notifications.warn(t("needsName"));
+        return editProjectFacility(project, { draft: result });
+    }
+    const dropped = droppedLines([{ ...result, id: null }]);
+    const changed = stableJson((await projectFacilityOf(project.id)).facility ?? null) !== opened;
+    const written = await setProjectFacility(project.id, result);
+    if (written && dropped) ui.notifications.warn(plural("DRPG.Facility.editor.dropped", { n: dropped }));
+    if (written && changed) ui.notifications.info(t("savedOver"));
+    return written;
 }

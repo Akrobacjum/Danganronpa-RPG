@@ -114,7 +114,7 @@ export const FLOWS = Object.freeze([
     // E69 C8 (13.11.2026): 30 reads a victim's and a witness's console behind the "?" and refuses another's reveal; tier 2's
     // E69-T7 masks and reveals on the GMs' record. The killer's own reveal from their page is tier 2's alone.
     { id: "mask", what: "The murder's privacy: a killer behind a \"?\" after an opening on Hope or a critical, their microphone blocked, the cast's copies holding no killer, ended by the killer's reveal or the time of day",
-        entry: { bridge: ["mask.reveal"] }, scenarios: ["30-security"], status: "partial", stage: "E39" },
+        entry: { bridge: ["mask.reveal", "mask.veil"] }, scenarios: ["30-security", "97-two-gms"], status: "partial", stage: "E39" },
     // E93 C3 (12.11.2026): 33 uses a GM's room action and a completed project's from p1's page (E93-A); 30 forges the packet.
     // Q-E93-3 (12.11.2026): a timed effect a room action gives is kept by the GMs and copied to its owner (timed-effects.mjs's
     // socket), which the owner's sheet reads. P2 (15.11.2026): a project's action's uses are copied to their owner (facility-uses.mjs's
@@ -185,7 +185,7 @@ export const FLOWS = Object.freeze([
     // `despair.roster`, `overflow.take`, `overflow.check`, each gmOnly); 30-security forges each from a player's console,
     // 33-bridge-paths A19 drives each from the Assistant GM, tier 2 E37-T8 judges a player's and a second GM's.
     { id: "despair", what: "Despair: an Assistant GM's correction written by the primary, a Despair Call from a GM, the pools every screen shows",
-        entry: { bridge: ["despair.adjust", "overflow.add", "overflow.clear", "despair.set", "despair.all", "despair.roster", "overflow.take", "overflow.check"] },
+        entry: { bridge: ["despair.adjust", "overflow.add", "overflow.clear", "despair.set", "despair.all", "despair.roster", "overflow.take", "overflow.check", "call.world"] },
         scenarios: ["40-flow", "30-security", "33-bridge-paths"], status: "covered", stage: "<=1.2.50" },
     { id: "discovery-ledger", what: "Which rooms each character has found: written by the GM, pulled and rebuilt by the clients",
         entry: { sockets: ["fog.mjs"] }, scenarios: ["60-ledger", "30-security", "61-gmstore-case"], status: "covered", stage: "<=1.2.50" },
@@ -195,8 +195,10 @@ export const FLOWS = Object.freeze([
         entry: { bridge: ["eclipse.move"], sockets: ["eclipse.mjs"] }, scenarios: ["33-bridge-paths", "70-movement"], status: "partial", stage: "E39" },
     // E08+E28 C15 (04.10.2026): 40-flow drives a player's Plant end to end, both of its rolls on the GMs' record.
     // E50 fix FG2 (30.10.2026; the end review's G7): 87-messenger-sound's part E presses a body's Take on a player's page.
+    // 1.2.122 (the audit's CORE-25): which of a player's stashes are hidden is the GMs' store's and each owner's copy, asked
+    // and sent on hidden-stashes.mjs's socket (`stash.hiddenAsk`, `stash.hidden`); not driven on a player's page yet.
     { id: "give-take-stash", what: "Things changing hands: a handover, a plant, a steal, a found stash, a body looted",
-        entry: { bridge: ["handover.item", "handover.bullet", "action.plant", "vault.findStash", "action.steal", "action.friskUnseen", "vault.steal", "body.loot"] },
+        entry: { bridge: ["handover.item", "handover.bullet", "action.plant", "vault.findStash", "action.steal", "action.friskUnseen", "vault.steal", "body.loot"], sockets: ["hidden-stashes.mjs"] },
         scenarios: ["30-security", "33-bridge-paths", "40-flow", "83-roll-integrity", "87-messenger-sound"], status: "partial", stage: "E39" },
     // E80 part 2 C3 (19.10.2026): an open Frisk - the ask, the answer from the window the primary opened, the force. The
     // tier-2 tests A11-7 and A11-8 drive it on the primary; 30-security sends a player's frisk.ask and an outsider's answer.
@@ -346,7 +348,7 @@ export const FLOWS = Object.freeze([
     // (`searchTokens.returnToken`, the spender's, once); tier 2 E17-T7 judges it. No scenario sends one yet.
     { id: "search-observe", what: "A Search or an Observe: the GM judges it, spends the room's token, grants the find, and only the searcher reads the card",
         entry: { bridge: ["observe.target", "observe.resolve", "observe.pick", "searchTokens.spend", "searchTokens.takePlant", "searchTokens.returnPlant",
-            "searchTokens.returnToken"],
+            "searchTokens.returnToken", "searchTokens.gmWrite"],
             sockets: ["search-tokens.mjs"] },
         scenarios: ["40-flow", "30-security", "33-bridge-paths", "88-flow-length"], status: "partial", stage: "E39" },
     // E29 C3 (05.10.2026): a player's own write on their student - Daggerheart's sheet, the HUD, a console - judged on
@@ -405,6 +407,10 @@ export const FLOWS = Object.freeze([
     // (`sfx.played`) on every browser: a GM's sound for one player plays there alone, and a player's forged packets nowhere.
     { id: "sound", what: "A sound played for other browsers",
         entry: { sockets: ["sfx.mjs"] }, scenarios: ["87-messenger-sound"], status: "covered", stage: "1.2.94" },
+    // 1.2.122 (the owner's decision of 21.11.2026): covered. 97-two-gms's phase M presses Play and Stop the track on the
+    // second GM and reads the music's record on the primary.
+    { id: "music-track", what: "Play and Stop the track in the Sound window, pressed by a GM who is not the primary",
+        entry: { bridge: ["music.track"] }, scenarios: ["97-two-gms"], status: "covered", stage: "1.2.122" },
     { id: "trace-remnant", what: "Traces: placed, tied to the crime, re-rated by a Reroll, cleaned up",
         entry: { bridge: ["remnant.place", "remnant.tieForItem", "remnant.edit", "cleanup.traces", "cleanup.ruling"] },
         scenarios: ["10-murder", "30-security", "33-bridge-paths", "61-gmstore-case"], status: "partial", stage: "E39" },

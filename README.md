@@ -205,7 +205,7 @@ Player Handbook and a one-page Student Brochure for the table. They ship with
 the module. The small book button in the bottom-right corner opens them in the
 game, in the language you picked for the module, and only GMs see the GM
 Handbook. You can also read them here, in [docs/handbooks](docs/handbooks).
-They describe version 1.2.121. If a later version and a handbook ever disagree,
+They describe version 1.2.122. If a later version and a handbook ever disagree,
 trust the module.
 
 ## Installation
@@ -280,7 +280,8 @@ inventory. Every character's items, with their names, still reach every
 browser; a Frisk lists another student's pockets only to the searcher and the
 GMs. <!-- leak:foundry-actor-items --> Where the Remnants lie, the Key Remnants
 among them, and where every token goes during an Eclipse are world data; the
-Key Remnant plan and a murder declared in the dark stay on the GMs' browsers. <!-- leak:S17-64 --> A
+Key Remnant plan and a murder declared in the dark stay with the GMs (the plan
+also in a file in the world's folder on the server since 1.2.115). <!-- leak:S17-64 --> A
 token the GM hides is hidden from view only: Foundry sends every token, with its
 name and position, to every browser. <!-- leak:foundry-hidden-tokens --> A
 secret passage, and who knows it, stay with the GMs and the students who know
@@ -301,7 +302,11 @@ console can still tell whose token it is; the interface does not.
 <!-- leak:foundry-masked-token-actor --> While that opening waits, the
 killer's tokens carry the veil's mark on every browser (the veil no longer
 sets Foundry's own hidden), so a console can tell which tokens they are and
-whose. <!-- leak:foundry-veiled-token-actor -->
+whose. <!-- leak:foundry-veiled-token-actor --> A room barricaded with Shut
+the Door carries a mark every browser holds, so a console can tell which rooms
+are barricaded, though not by whom or how strongly. <!-- leak:foundry-barricade-flag --> A chat message a
+Spectator's console forces through reaches every browser for a moment before the
+GM's browser removes it. <!-- leak:foundry-spectator-chat -->
 It is a curtain, not a
 wall, and it works at a table that does not go looking behind it.
 

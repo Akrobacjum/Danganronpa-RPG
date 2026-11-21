@@ -6,23 +6,23 @@ window (LIVE-E59-01 is the drawn one).
 
 ## The count
 
-- 162 windows in 165 sites, in 69 files of scripts/ (a site is a `drpgWindow`,
+- 167 windows in 171 sites, in 71 files of scripts/ (a site is a `drpgWindow`,
   `drpgConfirm` or `drpgPrompt` call, a `DrpgApp()` class, or a Foundry window opened outside the kit; a window is its file and
   the top-level function or class it is opened in).
-- By kind: drpgWindow 130, drpgConfirm 29, DrpgApp 4, raw: foundry.applications.apps.ImagePopout 1, drpgPrompt 1.
-- Footers by shape: slots 115, question 27, built 13, no footer 5, kit footer 1, outside the kit 1.
+- By kind: drpgWindow 135, drpgConfirm 30, DrpgApp 4, raw: foundry.applications.apps.ImagePopout 1, drpgPrompt 1.
+- Footers by shape: slots 119, built 14, question 27, no footer 5, kit footer 1, outside the kit 1.
 
 ## What each rule found
 
 | Rule | Test | Read | Found | Kept, with a reason |
 | --- | --- | ---: | ---: | --- |
-| no window without `.drpg-ui` | R6750 | 162 windows | 0 | `room-tile.mjs openRoomImage` |
+| no window without `.drpg-ui` | R6750 | 167 windows | 0 | `room-tile.mjs openRoomImage` |
 | `drpg-destructive` never the default, autofocus or under Enter | R6751 | 45 windows with a destructive button, 27 footer builders, 14 footers with a default | 0 | 1 default read only at run time (the kit throws) |
 | one tab system | R6752 | 9 windows with the kit's tabs (17 places) | 0 | - |
-| the footer contract | R6753 | 162 windows | 0 | - |
-| the 11 px floor | R6754 | 160 sizes (320 not readable in Node) | 0 | 21 outside windows (FLOOR_OUTSIDE) |
-| gold only for Hope | R6755 | 58 reads in 41 rules, 2 in scripts/ | 0 | 1 (GOLD_READERS) |
-| red only on the GM's road | R6756 | 110 button rules in a window's scope | 0 | 10 (RED_KEPT) |
+| the footer contract | R6753 | 167 windows | 0 | - |
+| the 11 px floor | R6754 | 141 sizes (312 not readable in Node) | 0 | 20 outside windows (FLOOR_OUTSIDE) |
+| gold only for Hope | R6755 | 57 reads in 40 rules, 2 in scripts/ | 0 | 1 (GOLD_READERS) |
+| red only on the GM's road | R6756 | 113 button rules in a window's scope | 0 | 10 (RED_KEPT) |
 
 ### Found
 - none
@@ -36,7 +36,6 @@ window (LIVE-E59-01 is the drawn one).
 - styles/danganronpa.css: body.drpg-pixel-font .tab-navigation nav.sheet-tabs a, body.drpg-pixel-font .tab-navigation nav.sheet-tabs a span { font-size: var(--font-size-9, 0.56rem) } comes to 9 px (the character sheet)
 - styles/danganronpa.css: body.drpg-pixel-font .drpg-action-panel h3 { font-size: var(--font-size-10, 0.62rem) } comes to 10 px (the character sheet)
 - styles/danganronpa.css: body.drpg-pixel-font .drpg-action-button .drpg-action-name { font-size: calc(var(--font-size-10, 0.62rem) * var(--drpg-tile-text, 1)) } comes to 10 px (the character sheet)
-- styles/danganronpa.css: body.drpg-pixel-font .drpg-action-button .drpg-action-cost { font-size: calc(var(--font-size-9, 0.56rem) * var(--drpg-tile-text, 1)) } comes to 9 px (the character sheet)
 - styles/danganronpa.css: #drpg-player-status .drpg-status-label { font-size: var(--font-size-10, 0.62rem) } comes to 10 px (the player's status bar)
 - styles/danganronpa.css: body.drpg-pixel-font #drpg-player-status .drpg-status-value { font-size: max(min(10px, 0.75rem), calc(0.75rem * var(--drpg-legacy-scale, 1))) } comes to 10 px (the player's status bar)
 - styles/danganronpa.css: #drpg-player-status .drpg-free-move { font-size: max(min(10px, 0.75rem), calc(0.75rem * var(--drpg-legacy-scale, 1))) } comes to 10 px (the player's status bar)
@@ -66,165 +65,170 @@ window (LIVE-E59-01 is the drawn one).
 
 | Window | Line(s) | Kind | Footer | Tabs | Destructive |
 | --- | --- | --- | --- | --- | --- |
-| `action-dynamic.mjs askDynamicDifficulty` | 328 | drpgWindow | slots |  |  |
-| `action-murder.mjs performDirectMurder` | 321 | drpgConfirm | question |  |  |
-| `action-project.mjs startProject` | 265 | drpgWindow | slots |  |  |
+| `action-dynamic.mjs askDynamicDifficulty` | 327 | drpgWindow | slots |  |  |
+| `action-menus.mjs chooseVariant` | 230 | drpgWindow | built |  |  |
+| `action-menus.mjs promptForNote` | 522 | drpgWindow | slots |  |  |
+| `action-murder.mjs performDirectMurder` | 334 | drpgConfirm | question |  |  |
+| `action-project.mjs startProject` | 264 | drpgWindow | slots |  |  |
 | `action-project.mjs proposeProjectTrait` | 896 | drpgWindow | slots |  |  |
 | `body.mjs promoteFaintPrep` | 85 | drpgWindow | slots |  |  |
-| `body.mjs promptPendingBodies` | 922 | drpgWindow | slots |  | yes |
-| `body.mjs openBodyDiscoveryDialog` | 1173 | drpgWindow | slots |  | yes |
+| `body.mjs promptPendingBodies` | 931 | drpgWindow | slots |  | yes |
+| `body.mjs openBodyDiscoveryDialog` | 1184 | drpgWindow | slots |  | yes |
 | `boundary.mjs noFirst` | 164 | drpgWindow | slots |  |  |
 | `boundary.mjs placementTable` | 206 | drpgWindow | slots |  |  |
 | `boundary.mjs roundWindow` | 499 | drpgWindow | slots |  |  |
 | `boundary.mjs promptPlayer` | 581 | drpgWindow | built |  |  |
+| `call-gm.mjs askForRequest` | 1230 | drpgWindow | slots |  |  |
 | `call-pickers.mjs callWindow` | 128 | drpgWindow | no footer |  |  |
 | `case-realize.mjs openRealization` | 103 | drpgWindow | built |  |  |
 | `case-realize.mjs confirmUndoRealization` | 186 | drpgConfirm | question |  | yes |
 | `case-realize.mjs askAtBody` | 230 | drpgWindow | slots |  |  |
 | `case-summary.mjs showCaseSummary` | 85 | drpgWindow | slots |  |  |
-| `chapter.mjs openChapterEndDialog` | 462 | drpgWindow | slots |  | yes |
-| `chapter.mjs askStoppedEnd` | 1047 | drpgWindow | slots |  | yes |
+| `chapter.mjs openChapterEndDialog` | 467 | drpgWindow | slots |  | yes |
+| `chapter.mjs askStoppedEnd` | 1059 | drpgWindow | slots |  | yes |
 | `cleanup-reshape.mjs askTransform` | 195 | drpgWindow | slots |  |  |
-| `cleanup-reshape.mjs askTransformChange` | 774 | drpgWindow | slots |  |  |
-| `cleanup.mjs openCleanupDialog` | 2652 | drpgWindow | slots |  |  |
-| `cleanup.mjs openMoveBodyDialog` | 2775 | drpgWindow | slots |  |  |
+| `cleanup-reshape.mjs askTransformChange` | 773 | drpgWindow | slots |  |  |
+| `cleanup.mjs openCleanupDialog` | 2665 | drpgWindow | slots |  |  |
+| `cleanup.mjs openMoveBodyDialog` | 2783 | drpgWindow | slots |  |  |
 | `death.mjs offerStageSix` | 594 | drpgConfirm | question |  |  |
 | `death.mjs openDeathDialog` | 753 | drpgWindow | slots |  | yes |
-| `diagnostics.mjs openReport` | 2193 | drpgWindow | built |  |  |
-| `dice-look.mjs diagnoseDiceLook` | 537 | drpgWindow | slots |  |  |
-| `eclipse.mjs askAtTheLights` | 979 | drpgWindow | slots |  |  |
+| `diagnostics.mjs openReport` | 2295 | drpgWindow | built |  |  |
+| `dice-look.mjs diagnoseDiceLook` | 538 | drpgWindow | slots |  |  |
+| `eclipse.mjs askAtTheLights` | 1073 | drpgWindow | slots |  |  |
 | `enforced.mjs openGiveBackFoundry` | 954 | drpgWindow | slots |  |  |
 | `enforced.mjs askHoldAgain` | 998 | drpgWindow | slots |  |  |
 | `explain.mjs explainer` | 51 | drpgWindow | slots |  |  |
 | `facility-editor.mjs editRoomActions` | 106 | drpgWindow | slots |  |  |
-| `facility-editor.mjs editProjectFacility` | 155 | drpgWindow | slots |  |  |
-| `frisk.mjs openAskWindow` | 1122 | drpgWindow | slots |  |  |
-| `frisk.mjs askToForce` | 1159 | drpgWindow | slots |  |  |
-| `gm-campaign.mjs confirmCorrection` | 67 | drpgWindow | slots |  | yes |
-| `gm-campaign.mjs endTheChapter` | 117 | drpgConfirm | question |  | yes |
-| `gm-campaign.mjs openClockDialog` | 217 | drpgWindow | slots |  |  |
-| `gm-items.mjs openItemManager` | 381 | drpgWindow | built | yes |  |
-| `gm-items.mjs giveKeyDialog` | 494 | drpgWindow | slots |  |  |
-| `gm-items.mjs gmGiveItemDialog` | 1051 | drpgWindow | slots | yes |  |
-| `gm-items.mjs giveTruthBulletDialog` | 1481 | drpgWindow | slots | yes |  |
-| `gm-items.mjs issueAutopsyDialog` | 1652 | drpgWindow | slots |  |  |
-| `gm-items.mjs takeItemDialog` | 1782 | drpgWindow | slots |  |  |
-| `gm-panel.mjs openGmPanel` | 572 | drpgWindow | slots |  |  |
-| `gm-panel.mjs openFailureLog` | 720 | drpgWindow | slots |  | yes |
-| `gm-stores.mjs backupCase` | 2240 | drpgConfirm | question |  |  |
-| `gm-stores.mjs runHealthCheck` | 2697 | drpgWindow | slots |  | yes |
-| `gm-stores.mjs openCaseWindow` | 2795 | drpgWindow | slots |  |  |
-| `gm-stores.mjs enterCastByHand` | 2830 | drpgWindow | slots |  |  |
-| `gm-stores.mjs openRestoreDialog` | 2890 | drpgWindow | slots |  |  |
-| `gm-students.mjs openWhoIsAliveDialog` | 535 | drpgWindow | slots |  |  |
-| `gm-team-dialog.mjs confirmRemovePool` | 110 | drpgConfirm | question |  | yes |
-| `gm-team-dialog.mjs clearOverflowFromTab` | 132 | drpgConfirm | question |  | yes |
-| `gm-team-dialog.mjs openGmTeamDialog` | 278 | drpgWindow | built | yes |  |
-| `handbooks.mjs HandbookApp` | 224 | DrpgApp | no footer | yes |  |
-| `handover.mjs askWhoIsHere` | 70 | drpgWindow | slots |  |  |
-| `investigation.mjs openNewTrace` | 142 | drpgWindow | slots |  |  |
-| `investigation.mjs confirmSweepBullets` | 384 | drpgConfirm | question |  | yes |
-| `investigation.mjs dropMapNode` | 1903 | drpgConfirm | question |  | yes |
-| `investigation.mjs deleteTraceRow` | 1932 | drpgConfirm | question |  | yes |
-| `investigation.mjs placePlannedFinal` | 2027 | drpgWindow | slots |  |  |
-| `investigation.mjs offerFinalOnClose` | 2062 | drpgWindow | slots |  |  |
-| `investigation.mjs openInvestigationDashboard` | 2196 | drpgWindow | slots |  |  |
-| `key-remnants.mjs openKeyRemnantHere` | 1115 | drpgWindow | slots |  |  |
-| `key-remnants.mjs placeKeyRow` | 1248 | drpgWindow | slots |  |  |
-| `level-up.mjs openAdvancement` | 590 | drpgWindow | slots |  |  |
-| `level-up.mjs askWhoPicks` | 1261 | drpgWindow | slots |  |  |
-| `level-up.mjs offerDa39Migration` | 1506 | drpgWindow | slots |  |  |
-| `mask-gm.mjs askReveal` | 221 | drpgWindow | slots |  |  |
-| `mastermind.mjs toggleFinalTrialFlag` | 451 | drpgConfirm | question |  |  |
-| `mastermind.mjs openMastermindDialog` | 641 | drpgWindow | slots |  |  |
-| `messenger-app.mjs DrpgMessengerApp` | 152 | DrpgApp | no footer | yes |  |
-| `messenger-app.mjs askItemEffect` | 815 | drpgWindow | slots |  |  |
-| `messenger-app.mjs ruleReply` | 1132 | drpgWindow | slots |  |  |
-| `monocub.mjs openInvitation` | 489 | drpgWindow | slots |  |  |
-| `monocub.mjs openBribeOffer` | 1578 | drpgWindow | slots |  |  |
+| `facility-editor.mjs editProjectFacility` | 161 | drpgWindow | slots |  |  |
+| `frisk.mjs openAskWindow` | 1131 | drpgWindow | slots |  |  |
+| `frisk.mjs askToForce` | 1168 | drpgWindow | slots |  |  |
+| `gm-campaign.mjs confirmCorrection` | 67 | drpgWindow | slots |  |  |
+| `gm-campaign.mjs endTheChapter` | 187 | drpgConfirm | question |  | yes |
+| `gm-campaign.mjs openClockDialog` | 289 | drpgWindow | slots |  |  |
+| `gm-items.mjs openItemManager` | 383 | drpgWindow | built | yes |  |
+| `gm-items.mjs giveKeyDialog` | 496 | drpgWindow | slots |  |  |
+| `gm-items.mjs gmGiveItemDialog` | 1054 | drpgWindow | slots | yes |  |
+| `gm-items.mjs giveTruthBulletDialog` | 1486 | drpgWindow | slots | yes |  |
+| `gm-items.mjs issueAutopsyDialog` | 1657 | drpgWindow | slots |  |  |
+| `gm-items.mjs takeItemDialog` | 1787 | drpgWindow | slots |  |  |
+| `gm-panel.mjs openGmPanel` | 571 | drpgWindow | slots |  |  |
+| `gm-panel.mjs openFailureLog` | 726 | drpgWindow | slots |  | yes |
+| `gm-stores.mjs backupCase` | 2301 | drpgConfirm | question |  |  |
+| `gm-stores.mjs runHealthCheck` | 2772 | drpgWindow | slots |  | yes |
+| `gm-stores.mjs openCaseWindow` | 2874 | drpgWindow | slots |  |  |
+| `gm-stores.mjs enterCastByHand` | 2927 | drpgWindow | slots |  |  |
+| `gm-stores.mjs openRestoreDialog` | 2987 | drpgWindow | slots |  |  |
+| `gm-students.mjs openWhoIsAliveDialog` | 536 | drpgWindow | slots |  |  |
+| `gm-team-dialog.mjs confirmRemovePool` | 109 | drpgConfirm | question |  | yes |
+| `gm-team-dialog.mjs clearOverflowFromTab` | 131 | drpgConfirm | question |  | yes |
+| `gm-team-dialog.mjs openGmTeamDialog` | 277 | drpgWindow | built | yes |  |
+| `handbooks.mjs HandbookApp` | 357 | DrpgApp | no footer | yes |  |
+| `handover.mjs askWhoIsHere` | 73 | drpgWindow | slots |  |  |
+| `investigation.mjs openNewTrace` | 143 | drpgWindow | slots |  |  |
+| `investigation.mjs confirmSweepBullets` | 385 | drpgConfirm | question |  | yes |
+| `investigation.mjs dropMapNode` | 2060 | drpgConfirm | question |  | yes |
+| `investigation.mjs deleteTraceRow` | 2089 | drpgConfirm | question |  | yes |
+| `investigation.mjs openClearPlan` | 2173, 2192 | drpgWindow, drpgConfirm | slots |  | yes |
+| `investigation.mjs placePlannedFinal` | 2236 | drpgWindow | slots |  |  |
+| `investigation.mjs offerFinalOnClose` | 2271 | drpgWindow | slots |  |  |
+| `investigation.mjs openInvestigationDashboard` | 2408 | drpgWindow | slots |  |  |
+| `key-remnants.mjs openKeyRemnantHere` | 1151 | drpgWindow | slots |  |  |
+| `key-remnants.mjs placeKeyRow` | 1284 | drpgWindow | slots |  |  |
+| `level-up.mjs openAdvancement` | 592 | drpgWindow | slots |  |  |
+| `level-up.mjs askWhoPicks` | 1263 | drpgWindow | slots |  |  |
+| `level-up.mjs offerDa39Migration` | 1507 | drpgWindow | slots |  |  |
+| `mask-gm.mjs askReveal` | 682 | drpgWindow | slots |  |  |
+| `mastermind.mjs toggleFinalTrialFlag` | 450 | drpgConfirm | question |  |  |
+| `mastermind.mjs openMastermindDialog` | 649 | drpgWindow | slots |  |  |
+| `messenger-app.mjs DrpgMessengerApp` | 158 | DrpgApp | no footer | yes |  |
+| `messenger-app.mjs askItemEffect` | 890 | drpgWindow | slots |  |  |
+| `messenger-app.mjs ruleReply` | 1204 | drpgWindow | slots |  |  |
+| `monocub.mjs openInvitation` | 492 | drpgWindow | slots |  |  |
+| `monocub.mjs openBribeOffer` | 1587 | drpgWindow | slots |  |  |
 | `monokuma.mjs markFromSheet` | 423 | drpgConfirm | question |  | yes |
-| `murder-rules.mjs askCriticalTarget` | 893 | drpgWindow | slots |  |  |
-| `murder-rules.mjs rateTierZero` | 1470 | drpgWindow | slots |  |  |
-| `murder-rules.mjs checkVictimSpent` | 2396 | drpgConfirm | question |  |  |
-| `murder-rules.mjs killerFell` | 3126 | drpgConfirm | question |  | yes |
-| `murder-rules.mjs afterIncident` | 3720 | drpgWindow | slots |  | yes |
-| `murder-rules.mjs afterEscape` | 4131 | drpgWindow | slots |  |  |
-| `murder-rules.mjs afterNoBody` | 4168 | drpgWindow | slots |  |  |
-| `murder-ui.mjs openMurderDialog` | 210 | drpgWindow | slots |  |  |
-| `murder-ui.mjs openIncidentTracker` | 739, 794 | drpgWindow, drpgConfirm | built |  | yes |
-| `notice-history-app.mjs NoticeHistoryApp` | 161, 589 | DrpgApp, drpgConfirm | kit footer |  | yes |
-| `observe.mjs askWhichRemnant` | 612 | drpgWindow | slots |  |  |
-| `observe.mjs describeFind` | 1184 | drpgWindow | slots |  |  |
-| `palm.mjs chooseStolenItem` | 478 | drpgWindow | slots |  |  |
-| `passages-gm.mjs pickPrompt` | 2765 | drpgWindow | slots |  |  |
-| `passages-tab.mjs askRevoke` | 262 | drpgWindow | slots |  | yes |
-| `passages-tab.mjs confirmDelete` | 278 | drpgConfirm | question |  | yes |
-| `projects-ui.mjs confirmProjectDelete` | 429 | drpgConfirm | question |  | yes |
-| `projects-ui.mjs openProjectManager` | 650 | drpgWindow | slots |  |  |
-| `projects-ui.mjs openProjectDialog` | 1092 | drpgWindow | slots |  | yes |
-| `projects-ui.mjs openTargetRepick` | 1341 | drpgWindow | slots |  |  |
-| `projects-ui.mjs openShareDialog` | 1655 | drpgWindow | slots |  | yes |
-| `remnant-ring.mjs wireCardEditing` | 287 | drpgConfirm | question |  |  |
-| `remnants.mjs confirmClearFaint` | 2476 | drpgConfirm | question |  | yes |
-| `requirements.mjs announceMissingRequirements` | 120 | drpgWindow | slots |  |  |
-| `requirements.mjs announceNewerSystem` | 393 | drpgWindow | slots |  |  |
-| `rest.mjs choosePicks` | 402 | drpgWindow | slots |  |  |
-| `room-setup.mjs openRoomSetupDialog` | 1279 | drpgWindow | slots | yes |  |
-| `room-tile.mjs roomWindowClass` | 390 | DrpgApp | no footer |  |  |
-| `room-tile.mjs openRoomImage` | 551 | raw: foundry.applications.apps.ImagePopout | outside the kit |  |  |
+| `murder-rules.mjs askCriticalTarget` | 954 | drpgWindow | slots |  |  |
+| `murder-rules.mjs rateTierZero` | 1532 | drpgWindow | slots |  |  |
+| `murder-rules.mjs checkVictimSpent` | 2462 | drpgConfirm | question |  |  |
+| `murder-rules.mjs killerFell` | 3193 | drpgConfirm | question |  | yes |
+| `murder-rules.mjs afterIncident` | 3820 | drpgWindow | slots |  | yes |
+| `murder-rules.mjs afterEscape` | 4231 | drpgWindow | slots |  |  |
+| `murder-rules.mjs afterNoBody` | 4268 | drpgWindow | slots |  |  |
+| `murder-ui.mjs openMurderDialog` | 209 | drpgWindow | slots |  |  |
+| `murder-ui.mjs openIncidentTracker` | 738, 793 | drpgWindow, drpgConfirm | built |  | yes |
+| `notice-history-app.mjs NoticeHistoryApp` | 161, 628 | DrpgApp, drpgConfirm | kit footer |  | yes |
+| `observe.mjs askWhichRemnant` | 611 | drpgWindow | slots |  |  |
+| `observe.mjs describeFind` | 1209 | drpgWindow | slots |  |  |
+| `palm.mjs chooseStolenItem` | 480 | drpgWindow | slots |  |  |
+| `passages-gm.mjs pickPrompt` | 2781 | drpgWindow | slots |  |  |
+| `passages-tab.mjs askRevoke` | 269 | drpgWindow | slots |  | yes |
+| `passages-tab.mjs confirmDelete` | 285 | drpgConfirm | question |  | yes |
+| `projects-ui.mjs confirmProjectDelete` | 472 | drpgConfirm | question |  | yes |
+| `projects-ui.mjs openProjectManager` | 700 | drpgWindow | slots |  |  |
+| `projects-ui.mjs openProjectDialog` | 1162 | drpgWindow | slots |  | yes |
+| `projects-ui.mjs openTargetRepick` | 1419 | drpgWindow | slots |  |  |
+| `projects-ui.mjs openShareDialog` | 1731 | drpgWindow | slots |  | yes |
+| `remnant-ring.mjs wireCardEditing` | 341 | drpgConfirm | question |  |  |
+| `remnants.mjs confirmClearFaint` | 2471 | drpgConfirm | question |  | yes |
+| `requirements.mjs announceMissingRequirements` | 119 | drpgWindow | slots |  |  |
+| `requirements.mjs announceNewerSystem` | 392 | drpgWindow | slots |  |  |
+| `rest.mjs choosePicks` | 420 | drpgWindow | slots |  |  |
+| `room-setup.mjs openRoomSetupDialog` | 1371 | drpgWindow | slots | yes |  |
+| `room-tile.mjs roomWindowClass` | 392 | DrpgApp | no footer |  |  |
+| `room-tile.mjs openRoomImage` | 553 | raw: foundry.applications.apps.ImagePopout | outside the kit |  |  |
 | `rules.mjs openRulesManager` | 490 | drpgWindow | slots |  |  |
 | `safeword.mjs safewordDialog` | 393 | drpgWindow | slots |  |  |
-| `season-setup.mjs openSeasonSetup` | 1142 | drpgWindow | slots |  | yes |
-| `season-setup.mjs openSeasonChecklist` | 1326 | drpgWindow | slots |  |  |
-| `season-setup.mjs askStartHere` | 1424 | drpgWindow | slots |  |  |
-| `season-setup.mjs openFoundryReport` | 1443 | drpgWindow | slots |  |  |
-| `season-wipe.mjs resetSeason` | 284 | drpgWindow | slots |  | yes |
-| `sheet-header.mjs injectInitButton` | 525 | drpgConfirm | question |  |  |
+| `season-setup.mjs openSeasonSetup` | 1222 | drpgWindow | slots |  | yes |
+| `season-setup.mjs openSeasonChecklist` | 1423 | drpgWindow | slots |  |  |
+| `season-setup.mjs askStartHere` | 1522 | drpgWindow | slots |  |  |
+| `season-setup.mjs openFoundryReport` | 1541 | drpgWindow | slots |  |  |
+| `season-wipe.mjs resetSeason` | 286 | drpgWindow | slots |  | yes |
+| `sheet-header.mjs injectInitButton` | 674 | drpgConfirm | question |  |  |
 | `sheet-inventory.mjs buildOtherSection` | 296 | drpgConfirm | question |  | yes |
 | `sound-panel.mjs openPlayerSoundDialog` | 56 | drpgWindow | slots |  |  |
-| `sound-panel.mjs openSoundDialog` | 388 | drpgWindow | slots | yes |  |
-| `stash-reach.mjs rifleStashDialog` | 316 | drpgWindow | slots |  |  |
-| `stash-reach.mjs openVaultInspector` | 834 | drpgWindow | slots |  |  |
-| `tables-editor.mjs installTables` | 94 | drpgWindow | slots |  | yes |
-| `tables-editor.mjs placeResultDialog` | 608 | drpgWindow | slots |  |  |
-| `tables-editor.mjs promptForTableName` | 691 | drpgPrompt | question |  |  |
-| `tables-editor.mjs wirePaneHeading` | 1236 | drpgConfirm | question |  | yes |
-| `tables-editor.mjs openItemTables` | 1630 | drpgWindow | slots | yes | yes |
+| `sound-panel.mjs openSoundDialog` | 392 | drpgWindow | slots | yes |  |
+| `stash-reach.mjs rifleStashDialog` | 320 | drpgWindow | slots |  |  |
+| `stash-reach.mjs openVaultInspector` | 842 | drpgWindow | slots |  |  |
+| `tables-editor.mjs installTables` | 93 | drpgWindow | slots |  | yes |
+| `tables-editor.mjs placeResultDialog` | 607 | drpgWindow | slots |  |  |
+| `tables-editor.mjs promptForTableName` | 690 | drpgPrompt | question |  |  |
+| `tables-editor.mjs wirePaneHeading` | 1258 | drpgConfirm | question |  | yes |
+| `tables-editor.mjs openItemTables` | 1652 | drpgWindow | slots | yes | yes |
 | `trait-ruling.mjs rollChanged` | 331 | drpgWindow | slots |  |  |
 | `trait-ruling.mjs pickHere` | 384 | drpgWindow | slots |  |  |
-| `traps.mjs openPlantDialog` | 648 | drpgWindow | slots |  |  |
+| `traps.mjs openPlantDialog` | 647 | drpgWindow | slots |  |  |
 | `trial-floor-ui.mjs startClassTrial` | 153 | drpgWindow | slots |  |  |
-| `trial-floor-ui.mjs confirmNewTrial` | 233 | drpgWindow | slots |  | yes |
-| `trial-floor-ui.mjs incidentClosedFirst` | 268 | drpgWindow | slots |  | yes |
-| `trial-floor-ui.mjs openDebate` | 335 | drpgWindow | slots |  |  |
-| `trial-floor-ui.mjs openRoundWindow` | 408 | drpgWindow | slots |  |  |
-| `trial-floor-ui.mjs askTrialEnd` | 584 | drpgConfirm | question |  | yes |
-| `trial-floor-ui.mjs askTrialExit` | 602 | drpgWindow | slots |  | yes |
-| `trial-floor-ui.mjs pickClosingDialog` | 995 | drpgWindow | slots |  | yes |
-| `trial-floor-ui.mjs confirmReveal` | 1045 | drpgConfirm | question |  | yes |
-| `trial-floor-ui.mjs manageClassTrial` | 1619 | drpgWindow | built |  |  |
-| `trial-floor-ui.mjs openVoteDialog` | 1968, 2020 | drpgWindow, drpgConfirm | built |  | yes |
-| `trial-prompt.mjs promptClaim` | 113 | drpgWindow | built |  |  |
-| `trial-prompt.mjs promptTurn` | 154 | drpgWindow | built |  |  |
-| `trial-zones-ui.mjs editDiveSet` | 190 | drpgWindow | slots |  | yes |
-| `trial-zones-ui.mjs deleteDiveSet` | 227 | drpgConfirm | question |  | yes |
-| `trial-zones-ui.mjs openZonePicker` | 286 | drpgWindow | slots |  |  |
-| `trial-zones-ui.mjs openDiveSets` | 338 | drpgWindow | slots |  |  |
-| `trial-zones-ui.mjs askFindingText` | 381 | drpgWindow | slots |  |  |
-| `trial-zones-ui.mjs openFindings` | 394 | drpgWindow | slots |  |  |
-| `trial-zones-ui.mjs offerSidePick` | 442 | drpgWindow | slots |  |  |
-| `trial.mjs presentDialog` | 193 | drpgWindow | slots |  |  |
-| `trial.mjs nameObjectionTarget` | 1372 | drpgWindow | slots |  |  |
-| `trial.mjs pickObjectionEvidence` | 1422 | drpgWindow | built |  |  |
-| `trial.mjs repointDialog` | 1516 | drpgWindow | slots |  |  |
-| `trial.mjs openObjectionLog` | 1665 | drpgWindow | slots |  |  |
+| `trial-floor-ui.mjs confirmNewTrial` | 234 | drpgWindow | slots |  | yes |
+| `trial-floor-ui.mjs incidentClosedFirst` | 269 | drpgWindow | slots |  | yes |
+| `trial-floor-ui.mjs openDebate` | 336 | drpgWindow | slots |  |  |
+| `trial-floor-ui.mjs openRoundWindow` | 409 | drpgWindow | slots |  |  |
+| `trial-floor-ui.mjs askTrialEnd` | 585 | drpgConfirm | question |  | yes |
+| `trial-floor-ui.mjs askTrialExit` | 603 | drpgWindow | slots |  | yes |
+| `trial-floor-ui.mjs pickClosingDialog` | 996 | drpgWindow | slots |  | yes |
+| `trial-floor-ui.mjs confirmReveal` | 1046 | drpgConfirm | question |  | yes |
+| `trial-floor-ui.mjs manageClassTrial` | 1625 | drpgWindow | built |  |  |
+| `trial-floor-ui.mjs openVoteDialog` | 1979, 2031 | drpgWindow, drpgConfirm | built |  | yes |
+| `trial-prompt.mjs promptThesis` | 108 | drpgWindow | slots |  |  |
+| `trial-prompt.mjs promptClaim` | 147 | drpgWindow | built |  |  |
+| `trial-prompt.mjs promptTurn` | 189 | drpgWindow | built |  |  |
+| `trial-zones-ui.mjs editDiveSet` | 191 | drpgWindow | slots |  | yes |
+| `trial-zones-ui.mjs deleteDiveSet` | 228 | drpgConfirm | question |  | yes |
+| `trial-zones-ui.mjs openZonePicker` | 287 | drpgWindow | slots |  |  |
+| `trial-zones-ui.mjs openDiveSets` | 339 | drpgWindow | slots |  |  |
+| `trial-zones-ui.mjs askFindingText` | 382 | drpgWindow | slots |  |  |
+| `trial-zones-ui.mjs openFindings` | 395 | drpgWindow | slots |  |  |
+| `trial-zones-ui.mjs offerSidePick` | 443 | drpgWindow | slots |  |  |
+| `trial.mjs presentDialog` | 192 | drpgWindow | slots |  |  |
+| `trial.mjs nameObjectionTarget` | 1390 | drpgWindow | slots |  |  |
+| `trial.mjs pickObjectionEvidence` | 1440 | drpgWindow | built |  |  |
+| `trial.mjs repointDialog` | 1538 | drpgWindow | slots |  |  |
+| `trial.mjs openObjectionLog` | 1687 | drpgWindow | slots |  |  |
 | `ui-columns.mjs wideWindow` | 66 | drpgWindow | no footer |  |  |
-| `ui-kit.mjs drpgConfirm` | 1466 | drpgWindow | built |  | yes |
-| `ui-kit.mjs drpgPrompt` | 1480 | drpgWindow | built |  |  |
-| `use-items.mjs askWhichResource` | 634 | drpgWindow | slots |  |  |
-| `use-items.mjs confirmUse` | 694 | drpgConfirm | question |  |  |
-| `use-items.mjs discardBroken` | 907 | drpgConfirm | question |  | yes |
-| `verdict.mjs openVerdictDialog` | 180 | drpgWindow | slots |  | yes |
-| `verdict.mjs askBlackenedRule` | 318 | drpgWindow | slots |  |  |
-| `verdict.mjs openFinalVerdictDialog` | 1121 | drpgWindow | slots |  | yes |
+| `ui-kit.mjs drpgConfirm` | 1542 | drpgWindow | built |  | yes |
+| `ui-kit.mjs drpgPrompt` | 1556 | drpgWindow | built |  |  |
+| `use-items.mjs askWhichResource` | 633 | drpgWindow | slots |  |  |
+| `use-items.mjs confirmUse` | 693 | drpgConfirm | question |  |  |
+| `use-items.mjs discardBroken` | 912 | drpgConfirm | question |  | yes |
+| `verdict.mjs openVerdictDialog` | 190 | drpgWindow | slots |  | yes |
+| `verdict.mjs askBlackenedRule` | 394 | drpgWindow | slots |  |  |
+| `verdict.mjs openFinalVerdictDialog` | 1209 | drpgWindow | slots |  | yes |
 | `vote.mjs castBallot` | 824 | drpgWindow | slots |  |  |

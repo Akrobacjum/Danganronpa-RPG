@@ -28,7 +28,7 @@
 
 import { MODULE_ID, ACTIONS, TRAITS, ITEM_CATEGORIES } from "./config.mjs";
 import { spendAction } from "./actions.mjs";
-import { TRANSFER_REFUSED, ITEM_FLAGS, isStashed } from "./inventory.mjs";
+import { TRANSFER_REFUSED, ITEM_FLAGS, isStashed, carriedInCategory } from "./inventory.mjs";
 import { getSetting, SETTINGS } from "./settings.mjs";
 import { roomOfActor, othersInRoom } from "./movement.mjs";
 import { plural, esc, whisperToOwner, whisperToGms, log, error } from "./utils.mjs";
@@ -38,6 +38,7 @@ import { briefingBlock } from "./action-briefing.mjs";
 import { chooseVariant } from "./action-menus.mjs";
 import { judgedFor } from "./sheet-audit.mjs";
 import { drpgWindow, tipAttr, tipText } from "./ui-kit.mjs";
+import { keepLive } from "./live.mjs";
 import { nameAsSeen, seenHere } from "./mask-gm.mjs";
 
 /**
@@ -91,7 +92,7 @@ export function palmTitle(part, def = ACTIONS.palm) {
  * everything else.
  *
  * WHAT IS DECIDED HERE AND WHAT IS NOT. This client throws dice and names a
- * victim. Every verdict - was 14 beaten, was 15 beaten, is that item really
+ * victim. Every verdict - was the hand's 12 beaten, was the cover's 15 beaten (`ACTIONS.palm`), is that item really
  * stealable, does the victim get told - is made in `stealFromPerson` on a GM's
  * client, against the same table in config.mjs. Same division as Observe.
  */
@@ -107,6 +108,18 @@ export function palmTitle(part, def = ACTIONS.palm) {
  * action is for.
  */
 export async function choosePalm(actor, def, targets, mine) {
+    /* WHO IS HERE, AS IT STANDS (the audit's REFR-52, 1.2.122, 21.11.2026; the owner's rule "Zawsze odswiezamy okna od
+       razu przy zmianie"). The list was the room at the open: a student who walked in was not offered, one who had left
+       still was (the GM's side then refused the attempt). Redrawn on every token and character change from the room as
+       it stands (`palmTargets`, as `performPalm` reads it), the pick carried by `keepLive` itself while its student is
+       still here; with nobody left, the words that nobody is in reach. The region is named by a data attribute, as the
+       steal's pick's below. */
+    const whoHtml = list => `<label class="drpg-specific-note" data-drpg-palm-who>
+                <span>${game.i18n.localize("DRPG.Steal.whoPrompt")}</span>${list.length
+                    ? `<select name="who"${tipAttr("DRPG.Tips.Sweep.Actions.palmWhoTooltip")}>${list.map(a =>
+                        `<option value="${a.id}">${esc(nameAsSeen(a))}</option>`).join("")}</select>`
+                    : `<span class="notes">${esc(game.i18n.localize("DRPG.Steal.nobodyHere"))}</span>`}
+            </label>`;
     return chooseVariant({
         actor,
         title: def.label,
@@ -141,11 +154,8 @@ export async function choosePalm(actor, def, targets, mine) {
                 confirm: root => friskModeOf(root) === "unseen" ? game.i18n.localize("DRPG.Action.roll") : game.i18n.localize("DRPG.Action.askThem")
             }
         ],
-        extra: `<label class="drpg-specific-note">
-                <span>${game.i18n.localize("DRPG.Steal.whoPrompt")}</span>
-                <select name="who"${tipAttr("DRPG.Tips.Sweep.Actions.palmWhoTooltip")}>${targets.map(a =>
-                    `<option value="${a.id}">${esc(nameAsSeen(a))}</option>`).join("")}</select>
-            </label>${mine.length ? `<label class="drpg-specific-note" data-drpg-when="plant">
+        live: dialog => keepLive(dialog, { region: "[data-drpg-palm-who]", build: () => whoHtml(palmTargets(actor)), watch: { tokens: true, actors: true } }),
+        extra: `${whoHtml(targets)}${mine.length ? `<label class="drpg-specific-note" data-drpg-when="plant">
                 <span>${game.i18n.localize("DRPG.Steal.whatToPlant")}</span>
                 <select name="what"${tipAttr("DRPG.Tips.Sweep.Actions.plantWhatTooltip")}>${mine.map(i =>
                     `<option value="${i.id}">${esc(describeItem(i))}</option>`).join("")}</select>
@@ -210,8 +220,7 @@ async function resolvePlant(actor, def, { victim, planted, hand, shadow, room, s
     // Refused by the one gate before the rolls were read: the action back (`palmBack`; Q3). A Plant into full pockets
     // was tried, and is no refusal (D42): it stays paid; so does one the gate refused on its second asking, after the
     // rolls (told as nothing carried out, palm.mjs `plantOnPerson`; fix e1-G4).
-    if (nobodyTook(res.ok, res.reason) || TRANSFER_REFUSED.includes(res.ok ? (res.value?.refused ? (await import("./bridge-guards.mjs")).reasonOf(res.value.refused) : null)
-        : (res.refused ? res.reason : null))) await palmBack(actor, paid);
+    await handBackIfRefusedBeforeRolls(actor, paid, { ok: res.ok, refused: res.refused, reason: res.reason, value: res.value });
 
     await noteRollContext(actor, {
         actionKey: "palm", planting: true, room, victimId: victim.id,
@@ -238,6 +247,20 @@ async function resolvePlant(actor, def, { victim, planted, hand, shadow, room, s
  */
 function nobodyTook(ok, reason) {
     return !ok && reason === "noGm";
+}
+
+/**
+ * The action a Palm paid handed back when the primary refused it before reading its rolls: by the one gate's codes
+ * (`TRANSFER_REFUSED`) or because no GM was there to take it (`nobodyTook`) - the owner's Q3 of 18.10.2026. Read off
+ * the bridge's answer as the asker holds it, its four fields read where it was asked (`drpg/bridge-result`). Answers whether it handed the action back. A Steal's, a Plant's and,
+ * since 1.2.122, an unseen Frisk's (frisk.mjs `performFrisk`; the audit's CASE-34).
+ */
+export async function handBackIfRefusedBeforeRolls(actor, paid, res) {
+    const code = res?.ok ? (res.value?.refused ? (await import("./bridge-guards.mjs")).reasonOf(res.value.refused) : null)
+        : (res?.refused ? res.reason : null);
+    if (!nobodyTook(res?.ok, res?.reason) && !TRANSFER_REFUSED.includes(code)) return false;
+    await palmBack(actor, paid);
+    return true;
 }
 
 async function palmBack(actor, paid) {
@@ -274,6 +297,11 @@ async function chooseStolen(victim, hand, success) {
     return chosenId;
 }
 
+/** Who `actor` could reach: the characters standing here that this browser draws (`othersInRoom`, mask-gm.mjs `seenHere`). */
+function palmTargets(actor) {
+    return seenHere(othersInRoom(actor)).filter(a => a?.type === "character");
+}
+
 export async function performPalm(actor, def, options) {
     const cost = options.free ? 0 : def.cost;
     if (!canAfford(actor, cost)) return null;
@@ -287,7 +315,7 @@ export async function performPalm(actor, def, options) {
     // Anybody standing here who is not you. `othersInRoom` already excludes
     // tokens that do not count as present - see `countsAsPresent`.
     // and none whose veiled token this browser does not draw (mask-gm.mjs `seenHere`, 1.2.119)
-    const targets = seenHere(othersInRoom(actor)).filter(a => a?.type === "character");
+    const targets = palmTargets(actor);
     if (!targets.length) {
         ui.notifications.warn(game.i18n.localize("DRPG.Steal.nobodyHere"));
         return null;
@@ -388,8 +416,7 @@ export async function performPalm(actor, def, options) {
      * One the gate refused on its second asking, inside the move after the rolls were read, comes back as nothing carried
      * out (`refused`, palm.mjs `stealFromPerson`) and stays paid, as Q3 reads (E14 fix e1-G4; the review's E14R-07).
      */
-    if (nobodyTook(res.ok, res.reason) || TRANSFER_REFUSED.includes(res.ok ? (res.value?.refused ? (await import("./bridge-guards.mjs")).reasonOf(res.value.refused) : null)
-        : (res.refused ? res.reason : null))) await palmBack(actor, paid);
+    await handBackIfRefusedBeforeRolls(actor, paid, { ok: res.ok, refused: res.refused, reason: res.reason, value: res.value });
 
     // What Reroll would have to unpick, and the honest answer is that it cannot
     // - see `case "steal"` in reroll.mjs. Recorded anyway so the branch there
@@ -448,7 +475,11 @@ export async function performPalm(actor, def, options) {
  * that imports its answer from the thing it is checking is not one.
  */
 async function stealablePool(victim) {
-    const { carriedInCategory } = await import("./inventory.mjs");
+    return stealableNow(victim);
+}
+
+/** `stealablePool`'s list, read now: the picker's live region redraws from it (REFR-52). */
+function stealableNow(victim) {
     return Object.keys(ITEM_CATEGORIES)
         .filter(c => c !== "truthBullet")
         .flatMap(c => carriedInCategory(victim, c));
@@ -472,9 +503,19 @@ function describeItem(item) {
     return `${item.name}${cat ? ` - ${cat}` : ""}`;
 }
 
-/** Which of them. Only ever opened on a critical - see `performPalm`. */
-async function chooseStolenItem(victim, pool) {
+/** Which of them. Only ever opened on a critical - see `performPalm`; exported for the suite's "1.2.122 REFR-52" alone. */
+export async function chooseStolenItem(victim, pool) {
     const describe = i => esc(describeItem(i));
+    /* THE POCKETS AS THEY STAND (REFR-52, 1.2.122): a region by its data attribute, not a class (a class in palm.mjs's
+       markup is one R294's grep holds to notice-history.mjs's NOTICE_CLASSES), redrawn on every item and character change while the window is open,
+       the pick carried by `keepLive`; a thing the victim no longer carries goes from the list, and an emptied pocket says
+       so (Take then answers nothing, which falls back to what comes out, as backing out does). The GM's side judges the
+       pick against its own pool as before (`stealFromPerson`). */
+    const pickHtml = list => `<div data-drpg-steal-pick>${list.length
+        ? `<label>${game.i18n.localize("DRPG.Items.whichItem")}
+                <select name="item"${tipAttr("DRPG.Tips.Sweep.Actions.stealWhichTooltip")}>${list.map(i =>
+                    `<option value="${i.id}">${describe(i)}</option>`).join("")}</select></label>`
+        : `<p class="notes">${esc(game.i18n.format("DRPG.Steal.emptyPockets", { name: victim.name }))}</p>`}</div>`;
 
     // On the kit's frame (E21 C5a).
     const chosen = await drpgWindow({
@@ -482,17 +523,16 @@ async function chooseStolenItem(victim, pool) {
         classes: ["drpg-panel"],
         body: `<form>
             <p>${game.i18n.format("DRPG.Steal.chooseIntro", { name: esc(victim.name) })}</p>
-            <label>${game.i18n.localize("DRPG.Items.whichItem")}
-                <select name="item"${tipAttr("DRPG.Tips.Sweep.Actions.stealWhichTooltip")}>${pool.map(i =>
-                    `<option value="${i.id}">${describe(i)}</option>`).join("")}</select></label>
+            ${pickHtml(pool)}
         </form>`,
         footer: {
             primary: {
                 action: "take", label: game.i18n.localize("DRPG.Vault.take"), tooltip: tipText("DRPG.Tips.Sweep.Actions.takeChosenTooltip"),
-                callback: (e, b, d) => d.element.querySelector("[name=item]").value
+                callback: (e, b, d) => d.element.querySelector("[name=item]")?.value ?? null
             },
             close: "cancel"
         },
+        render: (event, dialog) => keepLive(dialog, { region: "[data-drpg-steal-pick]", build: () => pickHtml(stealableNow(victim)), watch: { items: true, actors: true } }),
         rejectClose: false
     });
 
@@ -504,7 +544,7 @@ async function chooseStolenItem(victim, pool) {
  * --------------------------------------------------------------------------
  * The stash's sibling, and it lives here for one reason: this file is already
  * the module's authority on taking something that is not yours. `stealFromVault`
- * above owns the rules about hiding places; this owns the rules about pockets.
+ * (stash-reach.mjs, since E41 C6) owns the rules about hiding places; this owns the rules about pockets.
  * Both move an item between two sheets, both preserve what a transfer must not
  * mend, and both are GM-only for the same reason.
  * ========================================================================== */
@@ -565,9 +605,9 @@ async function tellPalmVictim(victim, html, { body = false } = {}) {
  * Take something out of somebody's pockets. GM side.
  *
  * TWO NUMBERS ARRIVE, TWO VERDICTS ARE MADE HERE. The thief's client throws the
- * dice and names a victim; whether 14 was beaten, whether 15 was beaten, what
- * the pool actually contains and whether the victim is told are all decided on
- * this side against `ACTIONS.steal` - the same division of labour as Observe,
+ * dice and names a victim; whether the hand's 12 was beaten, whether the cover's
+ * 15 was beaten, what the pool actually contains and whether the victim is told
+ * are all decided on this side against `ACTIONS.palm` - the same division of labour as Observe,
  * and for the same reason: the rule must live in one place, and it must not be
  * the place that benefits from the answer.
  *
@@ -593,7 +633,8 @@ export async function stealFromPerson({
 
     const thief = game.actors.get(thiefId);
     const victim = game.actors.get(victimId);
-    if (!thief || !victim || thief.id === victim.id) return null;
+    // A run that did no work says so (the trust model's step 3; the audit's ITEM-27, 1.2.122): told as refused, not done.
+    if (!thief || !victim || thief.id === victim.id) return { refused: "nothing was carried out: the thief or the target is not there" };
 
     const refuse = why => {
         error(`Refused a theft by ${thief.name}: ${why}.`);
@@ -796,7 +837,10 @@ export async function plantOnPerson({
     const planter = game.actors.get(plannerId);
     const victim = game.actors.get(victimId);
     const item = planter?.items?.get(itemId ?? "");
-    if (!planter || !victim || planter.id === victim.id || !item) return null;
+    /* A RUN THAT DID NO WORK SAYS SO (the trust model's step 3; the audit's ITEM-27, 1.2.122, 21.11.2026). This and the
+       item no longer in the planter's pockets below answered null, which the runner answers as done: the planter read
+       "In a moment you learn whether the item reached their pocket" and nothing followed. Told as refused now. */
+    if (!planter || !victim || planter.id === victim.id || !item) return { refused: "nothing was carried out: the item, the planter or the target is not there" };
 
     const refuse = why => {
         error(`Refused a plant by ${planter.name}: ${why}.`);
@@ -832,7 +876,8 @@ export async function plantOnPerson({
     const pool = await pocketsAsHeld(planter, victim);
     const held = pool.find(i => i.id === item.id);
     if (!held) {
-        return refuse(`"${item.name}" is not something they are carrying`);
+        refuse(`"${item.name}" is not something they are carrying`);
+        return { refused: "nothing was carried out: the item is no longer in the planter's pockets" };
     }
     // An item the planter's player made that no GM has decided on yet goes into nobody's pocket, and the planter told
     // (E29 fix r2-H21, sheet-audit.mjs `creationRefusal`) - before the rolls are read, so nobody is told of a hand seen.

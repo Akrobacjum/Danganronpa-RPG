@@ -6,9 +6,14 @@
  * and each player's copy of the passages their own characters know (`passageCopyFor`), which
  * the primary GM sends to that player alone (`pushPassageCopies`): on every change it writes,
  * on every change it merges from another GM, when a player's characters change hands, after a
- * restore and when a player asks (`passage.request`). Nothing here writes a Wall, a Region, a
- * Scene, a flag or a world setting: a passage is the GMs' until a character learns it (the E79
- * plan's D2 and D38), and then it is in that character's owners' copies and nowhere else.
+ * restore and when a player asks (`passage.request`). No passage is written into a Wall, a
+ * Region, a Scene, a flag or a world setting: a passage is the GMs' until a character learns it
+ * (the E79 plan's D2 and D38), and then it is in that character's owners' copies and nowhere
+ * else. What the map does write here: a breach's walls (`cutBreach` creates them and rewrites a
+ * wall's `c`, `restoreBreach` rewrites and deletes them), a forced room's broken flag
+ * (`forceRoom`, movement.mjs `setRoomBroken`), and the secret doors - their `door` and `ds`
+ * (`convertSecretDoors`, `putBackSecretDoor`, `settleSecretDoors`) and the GM's state of each
+ * as a flag on its wall (`doorSetData`).
  *
  * Since C5 the GMs' Passages tab (passages-tab.mjs) works through the same functions, and three
  * watches run on the primary GM alone: a wall moved off a passage's stretch or deleted marks the
@@ -37,8 +42,9 @@
  * 'Convert to passages' (`convertSecretDoors`) makes each an ordinary wall, shut, and a passage along
  * it that nobody knows where it stands between two rooms; and while one stands, the primary GM writes
  * back any change of its state a player makes (`putBackSecretDoor`, on `updateWall`), the audit reading
- * it shut until that write lands (`secretDoorHeldShut`). The one Wall write here, and only of `door`
- * and `ds` on a wall that already is (R560 still holds: no wall is made a secret door or created).
+ * it shut until that write lands (`secretDoorHeldShut`). Its Wall writes are of `door`, `ds` and the
+ * state's flag on a wall that already is (R560 still holds: no wall is made a secret door, and none is
+ * created but a breach's hole in `cutBreach`).
  * Since E80 fix r1-G1 the write is back to the state a GM last left the door in, and the doors are gone over
  * when a GM's browser takes the primary's place - at its ready, and when a GM leaves (`settleSecretDoors`) - so
  * a change made with no primary to hear it is put back too. Since E80 fix r2-G9 that state is a flag on the door
@@ -816,7 +822,6 @@ export async function tellBreach(made) {
     const M = await import("./movement.mjs");
     const { ROOM_OWNER_FLAG } = await import("./config.mjs");
     const { room: beyond, from } = made.forced;
-    const esc = foundry.utils.escapeHTML;
     const where = actor => {
         const place = M.locateActor(actor, { sceneId: scene.id });
         return place?.scene?.id === scene.id ? place.room ?? null : null;
@@ -1231,6 +1236,10 @@ const whyTable = () => new Map([
         [MAP_REFUSALS.otherRooms, "otherRooms"],
         [MAP_REFUSALS.short, "short"],
         ["that wall is a door.", "door"],
+        // passageRowFor's three that read no literal of the table until 1.2.122 (the audit's MAP-23).
+        ["the stretch stands between other rooms than the ones picked.", "roomsPicked"],
+        ["name one of the scene's floors.", "floorNamed"],
+        ["that scene has no floors.", "noFloors"],
         // Repair the Lock (E74 C5; doors-gm.mjs `repairLockRefusal`).
         ["that lock is not broken.", "lockWhole"],
         ["a project repairs that lock already.", "lockTaken"],
@@ -1248,7 +1257,7 @@ const whyTable = () => new Map([
 ]);
 
 /** The closed list of the codes `whyText` can say, each `DRPG.Passage.why.<code>` in both language files (R983). */
-export const WHY_CODES = Object.freeze(["noScene", "twoRooms", "gmOnly", "noStore", "noBuilder", "idTaken", "breached", "wholeWall", "noBreach", "wallGone", "cannotClose", "notKnown", "isBreach", "noSide", "noWall", "taken", "levels", "notBetween", "otherRooms", "short", "door", "noMove", "sameEnds", "offWall", "floor", "notOwn", "notRepairable", "nothingBack", "itemBack", "brokenSince", "repairTooSmall", "unknown"]);
+export const WHY_CODES = Object.freeze(["noScene", "twoRooms", "gmOnly", "noStore", "noBuilder", "idTaken", "breached", "wholeWall", "noBreach", "wallGone", "cannotClose", "notKnown", "isBreach", "noSide", "noWall", "taken", "levels", "notBetween", "otherRooms", "short", "door", "roomsPicked", "floorNamed", "noFloors", "noMove", "sameEnds", "offWall", "floor", "notOwn", "notRepairable", "nothingBack", "itemBack", "brokenSince", "repairTooSmall", "unknown"]);
 
 /** A judge's English reason's code, or null for one the table does not know. */
 export function whyCode(reason) {
@@ -1373,15 +1382,16 @@ export function passageRowFor(scene, wall, { seg = null, rooms = [], level = nul
     if (!onWall(xy[0], xy[1], c) || !onWall(xy[2], xy[3], c)) return { refused: "the stretch is not on that wall." };
     const floors = floorsOf(scene);
     const floor = floorNamed(floors, level);
-    if (floors.length ? !floors.some(f => f.id === floor) : floor !== null) {
-        return { refused: floors.length ? "name one of the scene's floors." : "that scene has no floors." };
-    }
+    // Each reason a literal of its own, which R983 reads against `whyTable` (the audit's MAP-23, 1.2.122).
+    if (floors.length && !floors.some(f => f.id === floor)) return { refused: "name one of the scene's floors." };
+    if (!floors.length && floor !== null) return { refused: "that scene has no floors." };
     if (!onLevel(wall, floor)) return { refused: "that wall is not on that floor." };
     const map = stretchOnMap(scene, wall, xy, { level: floor, taken });
     if (map.refused) return { refused: MAP_REFUSALS[map.refused] ?? `the pick refuses it (${map.refused}).` };
     const named = (rooms ?? []).filter(r => typeof r === "string");
     if (named.length && named.slice().sort((p, q) => p.localeCompare(q)).join("\n") !== map.rooms.join("\n")) {
-        return { refused: `the stretch stands between ${map.rooms.join(" and ")}, not the rooms named.` };
+        debug(`Secret passages: the stretch stands between ${map.rooms.join(" and ")}, not ${named.join(" and ")}.`);
+        return { refused: "the stretch stands between other rooms than the ones picked." };
     }
     const [x1, y1, x2, y2] = xy;
     return { row: { sceneId: scene.id, level: floor, shape: "wall", passageWallId: wall.id,
@@ -1991,7 +2001,35 @@ export async function carryPassageRooms(sceneId, from, to, { stores = PASSAGE_ST
     }
     if (Object.keys(rows).length) await rowsOf(stores).patchMany(rows);
     if (Object.keys(cells).length) await stores.access.patchMany(cells);
-    return Object.keys(rows).length + Object.keys(cells).length;
+    return Object.keys(rows).length + Object.keys(cells).length + await carryProjectPicks(sceneId, from, to, { stores });
+}
+
+/*
+ * AND THE PICKS OF THE PROJECTS THAT WAIT ON THIS SCENE (the audit's MAP-23, 1.2.122, 21.11.2026). A Secret Passage or a
+ * Breach keeps the approval's pick (`passage`: `{ sceneId, level, wallId, seg, rooms }`) and judges it again at the
+ * completion (`builtPassageRow`, `breachStretchRow` -> `passageRowFor`, which compares the pick's room names with the
+ * map's), and a Seal the passage or Close the breach keeps its room (`target.room`, `presetSideRefusal`). A rename carried
+ * the passages' rows and a project's own room (fog.mjs `carryRoomInWorld`), never these, so the completion of a project
+ * whose room was renamed meanwhile was refused - and the GMs read "the module could not say why". Each open project's
+ * pick on this scene, and its target on this scene (a passage's row, a breach's or a lock's scene), is carried, in the
+ * project's own step (`applyProjectChange`, the GMs' half). Answers how many were carried.
+ */
+async function carryProjectPicks(sceneId, from, to, { stores = PASSAGE_STORES } = {}) {
+    const { allProjects, applyProjectChange } = await import("./projects.mjs");
+    const { secretsOf } = await import("./projects-secrecy.mjs");
+    let n = 0;
+    for (const project of allProjects()) {
+        if (!project?.id || project.complete) continue;
+        const held = secretsOf(project.id), meta = {};
+        const pick = held.passage;
+        if (pick?.sceneId === sceneId && Array.isArray(pick.rooms) && pick.rooms.includes(from)) meta.passage = { ...pick, rooms: pick.rooms.map(room => (room === from ? to : room)) };
+        const target = held.target;
+        const onScene = target && (target.sceneId ? target.sceneId === sceneId : target.passageId ? rowsOf(stores).get(target.passageId)?.sceneId === sceneId : false);
+        if (onScene && target.room === from) meta.target = { ...target, room: to };
+        if (!Object.keys(meta).length) continue;
+        if (await applyProjectChange(project.id, { meta }, { by: { kind: "system" } })) n++;
+    }
+    return n;
 }
 
 /**

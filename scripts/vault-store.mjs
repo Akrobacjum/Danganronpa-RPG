@@ -66,7 +66,8 @@ import { ROOM_FLAGS, roomBroken } from "./movement.mjs";
 import { isDeceased, getClock } from "./settings.mjs";
 import { SEARCH_FLAGS } from "./search-tokens.mjs";
 import {
-    whisperToOwner, whisperToGms, log, error, plural, serialWrite, esc, isPrimaryGm, forgeAsset, localeFormat, announce, listOf
+    whisperToOwner, whisperToGms, log, error, plural, serialWrite, esc, isPrimaryGm, forgeAsset, localeFormat, announce, listOf,
+    worldLocalize
 } from "./utils.mjs";
 // A leaf (it imports config.mjs alone): what a room is, and the writer of its flag.
 import {
@@ -78,6 +79,9 @@ import {
 import { REST_FLAGS } from "./rest.mjs";
 // A leaf (season-exceptions.mjs alone): the registry of season state the reset walks (E42 C3).
 import { registerSeasonState } from "./season-reset.mjs";
+// The hidden stashes (1.2.122, CORE-25): out of the region, into the GMs' store and each owner's copy. Its static imports
+// are leaves this file reaches already (config, utils, gm-store), so no cycle (R161).
+import { hiddenStashesAt, setHiddenStash, renameHiddenStashes, hiddenStashRows } from "./hidden-stashes.mjs";
 
 /**
  * Region flags. Prefixed like the other room flags a GM might read by hand.
@@ -120,7 +124,10 @@ export const VAULT_FLAGS = {
      */
     stashes: "drpgStashes",
     /**
-     * LEGACY, and read only through `stashesIn`'s fallback.
+     * LEGACY. Read by `stashesIn`'s fallback (the stash list of a region the new tab never wrote), cleared at the
+     * season reset with the stashes it hides (`unconcealStashes`), and carried over a room's rename with the room's
+     * other flags (`pieceData`) - nothing else reads it (the audit's ITEM-43, 1.2.122: this said "read only through
+     * `stashesIn`'s fallback").
      *
      * Whether the bedroom owner's stash was hidden, back when a room had one
      * stash and the room was the stash. `setStash` writes `stashes` instead, so
@@ -165,9 +172,12 @@ export const VAULT_FLAGS = {
      * authority in `stealFromVault`.
      *
      * It lives on the finder because the alternative lives on the room, and the
-     * room is the screen its owner opens to check their own things. Neither is
-     * hidden from a console - this module has no secrets from a determined
-     * player - but only one of them is somewhere the victim looks by accident.
+     * room is the screen its owner opens to check their own things. The list is
+     * still world data on the finder's actor, which any console reads (no
+     * world-secrets rule names it); since E16 it is a GM's flag, a player's own
+     * write of it put back by the GMs' audit (sheet-audit.mjs `GM_FLAGS`), and the
+     * GMs read it as they hold it (`flagsHeldNow`). The hiding places themselves
+     * are the GMs' store's since 1.2.122 (hidden-stashes.mjs; the audit's D 93-94).
      */
     found: "drpgStashesFound",
     /**
@@ -288,6 +298,24 @@ export async function grantBedroomKey(actor, room, { silent = false, scene, tidy
 /** The queue key of a student's key grants (`grantBedroomKey`). */
 export const bedroomKeyKey = actorId => `bedroomKey/${actorId}`;
 
+/*
+ * A KEY'S NAME AND TEXT IN THE WORLD'S LANGUAGE (1.2.122 line ITEMS; the code half of the audit's STG-28). The Document
+ * language setting is "the language of the documents the module writes into this world, one for everyone", and a
+ * bedroom key was named and described in the language of the GM's browser that granted it: an English table's sheets
+ * held keys named in Polish. They are written through `worldLocalize` now, as a granted item's tier line is. A key
+ * written before, in the GM's language, is still the module's own: the readers that tell a grant's name or text from a
+ * GM's own words (`keyNamesOf`, `keyTextsOf`) take either language's.
+ */
+const KEY_NAME = "DRPG.Vault.keyName", KEY_TEXT = "DRPG.Vault.keyDescription";
+export const keyNameFor = room => worldLocalize(KEY_NAME, { room });
+const keyTextFor = async (room, owner) => `<p>${await worldLocalize(KEY_TEXT, { room: esc(room), owner: esc(owner ?? "-") })}</p>`;
+async function keyNamesOf(room) {
+    return new Set([game.i18n.format(KEY_NAME, { room }), await keyNameFor(room)]);
+}
+async function keyTextsOf(room, owner) {
+    return new Set([`<p>${game.i18n.format(KEY_TEXT, { room: esc(room), owner: esc(owner ?? "-") })}</p>`, await keyTextFor(room, owner)]);
+}
+
 /** `grantBedroomKey`'s step, inside its queue. */
 async function grantKeyNow(actor, room, { silent, scene, tidy = false }) {
     /* Every write queued on the student judged first (E11 C10), so a key this GM made a moment ago
@@ -320,13 +348,11 @@ async function grantKeyNow(actor, room, { silent, scene, tidy = false }) {
     if (repointed) return repointed;
     const item = await grantItem(actor, {
         reason: "gmRuling",
-        name: game.i18n.format("DRPG.Vault.keyName", { room }),
+        // In the world's language (STG-28: `keyNameFor`, `keyTextFor`).
+        name: await keyNameFor(room),
         category: "bedroomKey",
         tier: null,
-        description: `<p>${game.i18n.format("DRPG.Vault.keyDescription", {
-            room: foundry.utils.escapeHTML(room),
-            owner: foundry.utils.escapeHTML(owner?.name ?? "-")
-        })}</p>`,
+        description: await keyTextFor(room, owner?.name ?? "-"),
         // NO PICTURE NAMED HERE. `grantItem` falls back to the category's own
         // icon, and the category has had one since v1.1.60 - this line was
         // Foundry's padlock, hard-coded, which is why keys were the one thing
@@ -365,9 +391,14 @@ async function grantKeyNow(actor, room, { silent, scene, tidy = false }) {
  */
 async function repointDeadKey(actor, room) {
     const held = itemsHeldNow(actor);
-    const text = name => `<p>${game.i18n.format("DRPG.Vault.keyDescription", {
-        room: foundry.utils.escapeHTML(name), owner: foundry.utils.escapeHTML(actor.name ?? "-") })}</p>`;
-    const ownGrant = item => (item.system?.description ?? actor.items.get(item.id)?.system?.description) === text(keyRoomOf(item));
+    // The grant's text in either language it was written in (STG-28: `keyTextsOf`), read once per room asked.
+    const texts = new Map();
+    for (const item of held) {
+        const r = keyRoomOf(item);
+        if (r && !texts.has(r)) texts.set(r, await keyTextsOf(r, actor.name ?? "-"));
+    }
+    const text = name => texts.get(name) ?? new Set();
+    const ownGrant = item => text(keyRoomOf(item)).has(item.system?.description ?? actor.items.get(item.id)?.system?.description);
     const dead = held.filter(item => keyRoomOf(item) && !bedroomOwnerAnywhere(keyRoomOf(item)) && ownGrant(item));
     if (dead.length !== 1) return null;
     const keyed = keyRooms(held, { stashed: true });
@@ -382,8 +413,8 @@ async function repointDeadKey(actor, room) {
     if (!key) return null;
     const was = keyRoomOf(dead[0]);
     const changes = { [`flags.${MODULE_ID}.${KEY_FLAG}`]: room };
-    if (key.name === game.i18n.format("DRPG.Vault.keyName", { room: was })) changes.name = game.i18n.format("DRPG.Vault.keyName", { room });
-    if (key.system?.description === text(was)) changes["system.description"] = text(room);
+    if ((await keyNamesOf(was)).has(key.name)) changes.name = await keyNameFor(room);
+    if (text(was).has(key.system?.description)) changes["system.description"] = await keyTextFor(room, actor.name ?? "-");
     try {
         await trustedWrite(key, changes, { reason: "setup" });
     } catch (err) {
@@ -525,12 +556,11 @@ export async function takeOldOwnersKeys(left) {
  * room, carried or stashed, as the GMs hold it (`itemsHeldNow` after `judgedFor`), loses every such key by a GM's ruling
  * (`trustedDelete`, "gmRuling"), whatever its text says; the GM is told who lost one ("keyCopiesTakenGm") and each holder is
  * whispered ("keyCopyTakenBack"). The new owner's own keys stay, and one whose text is the module's own for the old owner
- * (`grantBedroomKey`'s, in this GM's language) is rewritten for them. Answers the holders who lost one.
+ * (`grantBedroomKey`'s, in the language it was written in: the GM's until 1.2.122, the world's since, STG-28) is rewritten for them. Answers the holders who lost one.
  */
 async function keyCopiesAfterOwnerLeft(room, old, owner) {
-    const text = name => `<p>${game.i18n.format("DRPG.Vault.keyDescription", {
-        room: foundry.utils.escapeHTML(room), owner: foundry.utils.escapeHTML(name ?? "-") })}</p>`;
-    const before = text(old.name), after = text(owner?.name);
+    // The old owner's grant text in either language (STG-28), the new owner's in the world's.
+    const before = await keyTextsOf(room, old.name), after = await keyTextFor(room, owner?.name);
     const holders = [];
     for (const actor of game.actors ?? []) {
         if (actor.id === old.id || !actor.items?.some(i => i.getFlag(MODULE_ID, BEDROOM_KEY_FLAG) === room)) continue;
@@ -538,8 +568,8 @@ async function keyCopiesAfterOwnerLeft(room, old, owner) {
         const keys = itemsHeldNow(actor).filter(item => keyRoomOf(item) === room).map(held => actor.items.get(held.id)).filter(Boolean);
         if (!keys.length) continue;
         if (actor.id === owner?.id) {
-            if (before === after) continue;
-            for (const key of keys.filter(key => key.system?.description === before)) {
+            if (before.has(after)) continue;
+            for (const key of keys.filter(key => before.has(key.system?.description))) {
                 try {
                     await trustedWrite(key, { "system.description": after }, { reason: "gmRuling" });
                 } catch (err) {
@@ -628,6 +658,21 @@ const ROOM_IMAGE_TYPES = new Set(["jpg", "jpeg", "png", "webp", "avif"]);
  * owner sets and the account's avatar (voice-tile.mjs `voicePortrait`) - so on The Forge a player's portrait
  * may be any file of that host, which every browser of their voice room then fetches.
  */
+/*
+ * A PORTRAIT'S PATH (1.2.122 line ITEMS; the audit's STG-100): `safeRoomImage`'s, and one SVG besides - the module's own
+ * mask, the "?" a masked student wears (mask-gm.mjs `MASK_IMG`). The sequence boards and the voice tile read a portrait
+ * through the room pictures' filter, which refuses every SVG (E77 fix r1-G1, above), so the "?" the notes say those two
+ * surfaces wear was a letter, or the next face. Only that file of the module's own folder passes, by its exact path; no
+ * other SVG does.
+ */
+const MASK_PORTRAIT = `modules/${MODULE_ID}/icons/mask-unknown.svg`;
+export function safePortrait(path) {
+    const safe = safeRoomImage(path);
+    if (safe) return safe;
+    const text = typeof path === "string" ? path.trim().replace(/^\//, "") : "";
+    return text === MASK_PORTRAIT ? MASK_PORTRAIT : null;
+}
+
 export function safeRoomImage(path) {
     if (typeof path !== "string") return null;
     const text = path.trim();
@@ -828,7 +873,11 @@ function stashesOver(pieces) {
  */
 function stashesOn(region) {
     if (!region) return [];
+    return withHidden(region, openStashesOn(region));
+}
 
+/** The region's own list: its open stashes since 1.2.122, and a hidden one a world not lifted yet still writes there. */
+function openStashesOn(region) {
     const stored = region.getFlag(MODULE_ID, VAULT_FLAGS.stashes);
     if (Array.isArray(stored)) {
         return stored
@@ -842,6 +891,20 @@ function stashesOn(region) {
         actorId: owner,
         concealed: Boolean(region.getFlag(MODULE_ID, VAULT_FLAGS.concealed))
     }];
+}
+
+/*
+ * AND THE HIDDEN ONES, WHERE THIS BROWSER MAY KNOW THEM (1.2.122 line ITEMS; the audit's CORE-25; hidden-stashes.mjs's
+ * header). A hidden stash is no entry of the region since 1.2.122: the GMs' store holds it, and a player's copy the ones
+ * of their own characters (every one for the Mastermind's player). Each is answered `concealed`, over an entry of the
+ * same person the region still lists (a world not lifted yet).
+ */
+function withHidden(region, list) {
+    const hidden = hiddenStashesAt(region.parent?.id ?? null, region.name ?? null);
+    if (!hidden.length) return list;
+    const out = list.map(entry => (hidden.includes(entry.actorId) ? { ...entry, concealed: true } : entry));
+    for (const actorId of hidden) if (!out.some(entry => entry.actorId === actorId)) out.push({ actorId, concealed: true });
+    return out;
 }
 
 /** One person's stash in one room, or `null`. */
@@ -947,7 +1010,13 @@ export async function setStash(room, actorId, { present = undefined, concealed =
         list[at] = { actorId, concealed: Boolean(concealed) };
     }
 
-    await updateRoom(scene, room, { [`flags.${MODULE_ID}.${VAULT_FLAGS.stashes}`]: list });
+    /* THE HIDDEN ONES TO THE GMS' STORE, THE OPEN ONES ON THE REGION (1.2.122, CORE-25). Every hidden entry of the list -
+       the store's, and one a world not lifted yet still writes on the region - is a row of the store first; the region
+       keeps the open stashes alone, as `{ actorId }`, so no browser reads a hiding place off it. The person edited here
+       loses their row when their stash is open now or gone. */
+    for (const entry of list) if (entry.concealed) await setHiddenStash(scene.id, room, entry.actorId, true);
+    if (!list.some(entry => entry.actorId === actorId && entry.concealed)) await setHiddenStash(scene.id, room, actorId, false);
+    await updateRoom(scene, room, { [`flags.${MODULE_ID}.${VAULT_FLAGS.stashes}`]: list.filter(entry => !entry.concealed).map(entry => ({ actorId: entry.actorId })) });
 
     // A hiding place taken away is one nobody has "found" any more (ITEM-09):
     // the finders' notes pointed at it by room and owner, and left standing
@@ -1071,6 +1140,13 @@ export async function unconcealStashes(actorId) {
             await region.update(update);
             rooms++;
         }
+    }
+    /* And the GMs' rows (1.2.122, CORE-25): a hidden stash is the store's since then, made an open one on its room. */
+    for (const row of hiddenStashRows().filter(r => r.actorId === actorId)) {
+        const scene = game.scenes?.get(row.sceneId);
+        if (scene && roomRegions(scene, row.room).length) await setStash(row.room, actorId, { concealed: false, scene });
+        else await setHiddenStash(row.sceneId, row.room, actorId, false);
+        rooms++;
     }
     return rooms;
 }
@@ -1231,6 +1307,8 @@ export function bedroomOwnerAnywhere(room) {
  */
 export async function carryRoomOnSheets(scene, from, to, pieces = roomRegions(scene, to)) {
     if (!isPrimaryGm() || !scene || !from || !to || from === to) return { keys: 0, items: 0, found: 0 };
+    // The hidden stashes first (1.2.122, CORE-25): the GMs' rows name the room, and the stashes below are read by the new name.
+    await renameHiddenStashes(scene.id, from, to);
     const elsewhere = [...(game.scenes ?? [])].filter(s => s.id !== scene.id);
     // The room's pieces as the rename's hook found them (E12 fix r2-H4, EARLY-C8-2): a second rename
     // landing while this one waits must not empty the room it carries to.
@@ -1251,7 +1329,8 @@ export async function carryRoomOnSheets(scene, from, to, pieces = roomRegions(sc
             const changes = {};
             if (key) {
                 changes[`flags.${MODULE_ID}.${KEY_FLAG}`] = to;
-                if (held.name === game.i18n.format("DRPG.Vault.keyName", { room: from })) changes.name = game.i18n.format("DRPG.Vault.keyName", { room: to });
+                // A name the module wrote, in either language (STG-28); the new one in the world's.
+                if ((await keyNamesOf(from)).has(held.name)) changes.name = await keyNameFor(to);
                 keys++;
             }
             if (stash) {
@@ -1573,18 +1652,19 @@ export function vaultContents(actor) {
  * is invisible to everybody but its owner and the Mastermind; beating 16 on a
  * Head roll opens ONE of them to ONE person, permanently.
  *
- * WHERE THE RECORD LIVES, and why on the finder rather than on the room.
- * Either is world data and therefore readable from any console - this module
- * has no secrets from a determined player, and never claims to. What differs is
- * where somebody looks by accident: a flag on the region is on the screen the
- * owner opens to check their own room, while a flag on the finder's sheet is
- * somewhere the owner has no reason to be. Same leak on paper, a different one
- * in practice.
+ * WHERE THE RECORD LIVES, and why on the finder rather than on the room. The
+ * module keeps from a player's console what belongs to somebody else (the trust
+ * model, D2; the GM stores since E04; world-secrets.mjs since E05): since 1.2.122
+ * a hidden stash is a row of the GMs' store, not an entry of its room's region
+ * (hidden-stashes.mjs). The found list is still world data on the finder's
+ * actor - a flag a console reads - chosen over the room, which is the screen the
+ * owner opens to check their own things.
  *
- * WRITTEN BY A GM'S CLIENT, though the finder owns their own actor and could
- * write it themselves. The write is the only thing standing between "rolled a
- * 16" and "reads other people's hiding places", so it goes the same way every
- * other verdict in this module goes - see `resolveStashSearch`.
+ * WRITTEN BY A GM'S CLIENT, though the finder owns their own actor. Since E16 a
+ * player's own write of it is put back by the GMs' audit (sheet-audit.mjs
+ * `GM_FLAGS`), and every GM-side read of it takes the list as the GMs hold it
+ * (`flagsHeldNow`, stash-reach.mjs `flagsAsHeld`): the GM's write in
+ * `resolveStashSearch` is what opens a hiding place to its finder.
  * ========================================================================== */
 
 /** One key per stash, so two stashes in one room stay separate. */

@@ -12,7 +12,7 @@
  * answer counts such cards (`unknown`) so the schema can say so to the GM instead of looking as if nobody presented.
  */
 import { MODULE_ID } from "./config.mjs";
-import { reachability } from "./case-schema.mjs";
+import { reachability, trialStamp } from "./case-schema.mjs";
 import { TRIAL_FLAGS } from "./trial.mjs";
 import { secretOf } from "./truth-bullets.mjs";
 
@@ -47,15 +47,25 @@ export function presentationHints(graph, presentations = [], { culpritId = null,
  * The presenter is the card's speaker; the bullet is that actor's item the card names, and its trace the GMs' key
  * (`sceneId.remnantId`, the id graphOf gives a Remnant). A withdrawn Objection showed no bullet and is skipped; a
  * refused one showed its bullet and counts. `messages` and `secret` are the world's unless a test plants them.
+ *
+ * THE RUNNING TRIAL'S CARDS ALONE (line INVEST of 1.2.122; audit 1.2.118 E99-2): the ticks are one trial's since E99
+ * next, and the presentations were every Present card of the chapter, so a second Class Trial in the chapter opened with
+ * the first trial's Remnants marked Presented and its deductions hinted. A card older than the trial's entry
+ * (`trialStartedAt`, case-schema.mjs `trialStamp`; `since`, a test's to plant) is skipped. The card's time is its
+ * `timestamp`, the stamp the server's: a card in the first moments of a trial can read either way by their difference,
+ * as a tick's can. With no stamp (a record from before it) every card of the chapter counts, as before. Tier 2
+ * "1.2.122 STG-77".
  */
-export function casePresentations(chapter, { messages = null, secret = null } = {}) {
+export function casePresentations(chapter, { messages = null, secret = null, since = undefined } = {}) {
     const flags = TRIAL_FLAGS;
     const list = messages ?? (game.user?.isGM ? game.messages?.contents ?? [] : []);
     const keyOf = secret ?? secretOf;
     const out = [];
+    const from = since === undefined ? trialStamp(chapter) : since;
     for (const m of list) {
         const flag = k => m?.getFlag?.(MODULE_ID, k);
         if (!flag(flags.present) || flag(flags.chapter) !== chapter || flag(flags.withdrawn)) continue;
+        if (from !== null && from !== undefined && Number(m?.timestamp) < Number(from)) continue;
         const actorId = m?.speaker?.actor ?? null;
         const itemId = flag(flags.item);
         if (!actorId || !itemId) continue;

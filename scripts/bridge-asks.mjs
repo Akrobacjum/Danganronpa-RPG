@@ -23,7 +23,7 @@ import { claimOnPrimary, sayRefusedHere, observePickOnPrimary, yesOnPrimary, dyn
 import {
     SOCKET_EVENT, ACTION_PROGRESS, ACTION_SHARE, ACTION_REMNANT, ACTION_TIE_TRACE, ACTION_REMNANT_EDIT, ACTION_SABOTAGE,
     ACTION_UNSABOTAGE, ACTION_PROJECT_CHANGE, ACTION_SENDBACK, ACTION_ECLIPSE_MOVE, ACTION_ARM, ACTION_DESPAIR,
-    ACTION_OVERFLOW_ADD, ACTION_OVERFLOW_CLEAR, ACTION_DESPAIR_SET, ACTION_DESPAIR_ALL, ACTION_DESPAIR_ROSTER,
+    ACTION_OVERFLOW_ADD, ACTION_CALL_WORLD, ACTION_MUSIC_TRACK, ACTION_OVERFLOW_CLEAR, ACTION_DESPAIR_SET, ACTION_DESPAIR_ALL, ACTION_DESPAIR_ROSTER,
     ACTION_OVERFLOW_TAKE, ACTION_OVERFLOW_CHECK, ACTION_DIFFICULTY, ACTION_VOTE_CAST, ACTION_VOTE_ASK,
     ACTION_TRIAL_OBJECT, ACTION_TRIAL_EVIDENCE, ACTION_TRIAL_WITHDRAW, ACTION_FLOOR_REPOINT, ACTION_TRIAL_GM,
     ACTION_TRIAL_TURN, ACTION_TRIAL_CLAIM, ACTION_TRIAL_SIDE, ACTION_TRIAL_KEYWORD, ACTION_TRIAL_PRESENT, ACTION_READY_OPEN, ACTION_READY_ANSWER,
@@ -35,7 +35,7 @@ import {
     ACTION_FRISK_ASK, ACTION_FRISK_ANSWER, ACTION_FRISK_FOLLOW, ACTION_CRISIS, ACTION_OPENING_RESULT, ACTION_CLEANUP,
     ACTION_BETRAYAL, ACTION_PARK_MURDER, ACTION_CUB_ABILITY, ACTION_CUB_ANSWER, ACTION_BRIBE_OFFER, ACTION_BRIBE_ANSWER, ACTION_DONE, ACTION_LOOT, ACTION_NOTE_SAVE,
     ACTION_ROLL_BOOKMARK, ACTION_REROLL, ACTION_CARD, ACTION_CARD_CLAIM, ACTION_BULLET_GIVE, ACTION_FACILITY_USE, ACTION_DASH, ACTION_TAIL_START, ACTION_DOOR_SHUT, ACTION_DOOR_FORCE, ACTION_DOOR_PICK, ACTION_WATCH_DECLARE, ACTION_DOOR_KNOCK,
-    ACTION_LISTEN_EAVESDROP, ACTION_LISTEN_STOP, ACTION_LISTEN_ECHOES, ACTION_MASK_REVEAL
+    ACTION_LISTEN_EAVESDROP, ACTION_LISTEN_STOP, ACTION_LISTEN_ECHOES, ACTION_MASK_REVEAL, ACTION_MASK_VEIL
 } from "./bridge-wire.mjs";
 import { ask } from "./bridge-table.mjs";
 
@@ -49,6 +49,18 @@ export function requestOpeningResult({ actorId, side, total, isCritical, withHop
     });
 }
 
+/*
+ * A GM'S OWN INFILTRATE AND ROOM ACTIONS, ON THE PRIMARY (1.2.122; the audit of 1.2.118, CORE-22 and ROLL-22). Each ask
+ * below hands its row's own run to the GM's client (`local`), read as a player's answer is read (`localRun`,
+ * bridge-guards.mjs `createWaiter`), and only on the primary (`onPrimary`): a second GM asks each one as a player does, so
+ * the GM halves - written "on the primary GM", some gated on it (eavesdrop-gm.mjs `settleBlock` gives the microphone back
+ * on the primary alone; facilities-gm.mjs holds its once-a-time-of-day check in the primary's `serialWrite` queue) - run
+ * there. A roll they settle is a GM's own, which is not drawn (roll-draw.mjs `drawsHere`) and has no record; the judge
+ * takes a GM sender's numbers when no record names the roll (bridge-guards.mjs `rollsFor`: `if (!record && sender?.isGM)
+ * continue`), as the GM's own client took them. Read 21.11.2026; an earlier draft of this note said the primary would
+ * refuse such a roll, which the judge does not.
+ */
+
 /**
  * Use a room action of the Facilities tile (E93 C3): a GM's, named by its id with the roll thrown for it (`rollId`, the
  * message the GM wrote for it, whose record the GM reads the total and the critical off), or a completed project's,
@@ -57,6 +69,8 @@ export function requestOpeningResult({ actorId, side, total, isCritical, withHop
  */
 export function requestFacilityUse({ actorId, actionId, total = 0, isCritical = false, rollId = null }) {
     return ask(ACTION_FACILITY_USE, { actorId, actionId, total, isCritical, rollId }, {
+        localRun: true,
+        onPrimary: true,
         local: () => import("./bridge-runs-acts.mjs").then(m => m.handleFacilityUse({ actorId, actionId, total, isCritical, rollId }, game.user))
     });
 }
@@ -65,6 +79,8 @@ export function requestFacilityUse({ actorId, actionId, total = 0, isCritical = 
 export function requestDoorShut({ actorId, total = 0, rollId = null }) {
     const packet = { actorId, total, rollId };
     return ask(ACTION_DOOR_SHUT, packet, {
+        localRun: true,
+        onPrimary: true,
         local: () => import("./bridge-runs-acts.mjs").then(m => m.handleDoorShut(packet, game.user))
     });
 }
@@ -73,6 +89,8 @@ export function requestDoorShut({ actorId, total = 0, rollId = null }) {
 export function requestDoorForce({ actorId, room, total = 0, isCritical = false, withHope = true, rollId = null }) {
     const packet = { actorId, room, total, isCritical, withHope, rollId };
     return ask(ACTION_DOOR_FORCE, packet, {
+        localRun: true,
+        onPrimary: true,
         local: () => import("./bridge-runs-acts.mjs").then(m => m.handleDoorForce(packet, game.user))
     });
 }
@@ -82,6 +100,8 @@ export function requestDoorPick({ actorId, room, total = 0, isCritical = false, 
     rollId = null, coverRollId = null }) {
     const packet = { actorId, room, total, isCritical, withHope, coverTotal, coverCritical, rollId, coverRollId };
     return ask(ACTION_DOOR_PICK, packet, {
+        localRun: true,
+        onPrimary: true,
         local: () => import("./bridge-runs-acts.mjs").then(m => m.handleDoorPick(packet, game.user))
     });
 }
@@ -89,6 +109,8 @@ export function requestDoorPick({ actorId, room, total = 0, isCritical = false, 
 /** Somebody at a barricaded door (E74): the walker's veto refused the walk in; the GM tells the barricade's author. */
 export function requestDoorKnock({ actorId, room }) {
     return ask(ACTION_DOOR_KNOCK, { actorId, room }, {
+        localRun: true,
+        onPrimary: true,
         local: () => import("./bridge-runs-acts.mjs").then(m => m.handleDoorKnock({ actorId, room }, game.user))
     });
 }
@@ -97,6 +119,8 @@ export function requestDoorKnock({ actorId, room }) {
 export function requestWatchDeclare({ actorId, total = 0, isCritical = false, withHope = true, rollId = null }) {
     const packet = { actorId, total, isCritical, withHope, rollId };
     return ask(ACTION_WATCH_DECLARE, packet, {
+        localRun: true,
+        onPrimary: true,
         local: () => import("./bridge-runs-acts.mjs").then(m => m.handleWatchDeclare(packet, game.user))
     });
 }
@@ -106,6 +130,8 @@ export function requestTailStart({ tailerId, targetId, total = 0, isCritical = f
     rollId = null, unseenRollId = null }) {
     const packet = { tailerId, targetId, total, isCritical, unseenTotal, unseenCritical, rollId, unseenRollId };
     return ask(ACTION_TAIL_START, packet, {
+        localRun: true,
+        onPrimary: true,
         local: () => import("./bridge-runs-acts.mjs").then(m => m.handleTailStart(packet, game.user))
     });
 }
@@ -114,6 +140,8 @@ export function requestTailStart({ tailerId, targetId, total = 0, isCritical = f
 export function requestEavesdrop({ actorId, room, total = 0, isCritical = false, rollId = null }) {
     const packet = { actorId, room, total, isCritical, rollId };
     return ask(ACTION_LISTEN_EAVESDROP, packet, {
+        localRun: true,
+        onPrimary: true,
         local: () => import("./bridge-runs-acts.mjs").then(m => m.handleEavesdrop(packet, game.user))
     });
 }
@@ -121,6 +149,8 @@ export function requestEavesdrop({ actorId, room, total = 0, isCritical = false,
 /** Stop listening (E69 C6). */
 export function requestEavesdropStop({ actorId }) {
     return ask(ACTION_LISTEN_STOP, { actorId }, {
+        localRun: true,
+        onPrimary: true,
         local: () => import("./bridge-runs-acts.mjs").then(m => m.handleEavesdropStop({ actorId }, game.user))
     });
 }
@@ -128,13 +158,25 @@ export function requestEavesdropStop({ actorId }) {
 /** Echoes (E69 C7): answers `{ room, steps }` as `.value`, `room` null when nobody is found. */
 export function requestEchoes({ actorId }) {
     return ask(ACTION_LISTEN_ECHOES, { actorId }, {
+        localRun: true,
+        onPrimary: true,
         local: () => import("./bridge-runs-acts.mjs").then(m => m.handleEchoes({ actorId }, game.user))
+    });
+}
+
+/** A GM who is not the primary asks the primary for the opening's veil and waits (1.2.122, STG-31; mask-gm.mjs `veilOnPrimary`). */
+export function requestMaskVeil({ what, killerIds = [] }) {
+    return ask(ACTION_MASK_VEIL, { what, killerIds }, {
+        onPrimary: true,
+        local: () => import("./bridge-runs-acts.mjs").then(m => m.handleMaskVeil({ what, killerIds }, game.user))
     });
 }
 
 /** A killer behind a "?" reveals themselves (E69 C8). */
 export function requestMaskReveal({ actorId }) {
     return ask(ACTION_MASK_REVEAL, { actorId }, {
+        localRun: true,
+        onPrimary: true,
         local: () => import("./bridge-runs-acts.mjs").then(m => m.handleMaskReveal({ actorId }, game.user))
     });
 }
@@ -144,6 +186,8 @@ export function requestMaskReveal({ actorId }) {
  */
 export function requestDash({ actorId, total = 0, isCritical = false, rollId = null }) {
     return ask(ACTION_DASH, { actorId, total, isCritical, rollId }, {
+        localRun: true,
+        onPrimary: true,
         local: () => import("./bridge-runs-acts.mjs").then(m => m.handleDash({ actorId, total, isCritical, rollId }, game.user))
     });
 }
@@ -464,8 +508,10 @@ export function requestReadyEnd({ roundId, outcome }) {
  * or null for a character that is not there.
  */
 export function requestArmCall(actorId, call, timeoutMs = TIMING.rulingMs) {
+    // Its refusal says nothing was spent (1.2.122, the audit's COMM-37): the one notice of a Call not armed, the Call
+    // adding none of its own (calls.mjs `spendHopeCall`).
     return ask(ACTION_ARM, { actorId, call }, {
-        timeoutMs,
+        timeoutMs, nothingSpent: true,
         local: async () => {
             const actor = game.actors.get(actorId);
             if (!actor) return null;
@@ -491,8 +537,28 @@ export function requestArmCall(actorId, call, timeoutMs = TIMING.rulingMs) {
  * The caller has already checked that the primary is online and is somebody else.
  * The runner judges on the primary GM only, so there is one writer.
  */
-export function sendDespairToPrimary(targetUserId, delta, { clamp = false } = {}) {
-    return ask(ACTION_DESPAIR, { targetUserId, delta, ...(clamp ? { clamp: true } : {}) });
+export function sendDespairToPrimary(targetUserId, delta, { clamp = false, price = false } = {}) {
+    return ask(ACTION_DESPAIR, { targetUserId, delta, ...(clamp ? { clamp: true } : {}), ...(price ? { price: true } : {}) });
+}
+
+/**
+ * A GM that is not the primary asks the primary to write a Despair Call's seal or restriction (1.2.122, the audit's
+ * COMM-26; call-world.mjs `callWorld`, which asks only while the primary is connected and is somebody else). Its value
+ * is `{ done: true }`.
+ */
+export function requestCallWorld(change) {
+    return ask(ACTION_CALL_WORLD, { kind: change.kind, room: change.room ?? null, actorId: change.actorId ?? null,
+        silenced: change.silenced === true, chained: change.chained === true });
+}
+
+/**
+ * A GM that is not the primary asks the primary to play a cue or stop the track (1.2.122, the owner's decision of
+ * 21.11.2026; music-play.mjs `playTrack`, `resetMusic`, which ask only while the primary is connected and is somebody
+ * else). `track` is a sound's id or a track's name, as `playTrack` takes it. Its value is `{ played }` (the sound's id) for
+ * a play, `{ stopped, given }` for a stop.
+ */
+export function requestMusicTrack(kind, track = null) {
+    return ask(ACTION_MUSIC_TRACK, { kind, track: track ?? null });
 }
 
 /**
@@ -559,11 +625,12 @@ export function requestSabotage(targetId, difficulty, { rollId = null, actorId =
 }
 
 /**
- * Taking a sabotage back writes the same two settings. It is only ever called by
- * Reroll, after the Call has already been paid for and the new roll is about to
- * replace the old effect, so the player has nothing to race against; it waits
- * for the thaw all the same, because the Reroll says the sabotage was undone
- * only once it was (E31 review).
+ * Taking a sabotage back, asked of the primary GM: a road that is only ever refused (1.2.122; the audit of 1.2.118,
+ * CORE-35). Its one caller is projects.mjs `undoSabotage`'s player branch (`!game.user.isGM`), and since E08+E28 C8 the
+ * row is a GM's alone (`gmOnly("an undo is the GM's own Reroll's")`): the Reroll is made on the GM (E08) and calls
+ * `undoSabotage` there, which writes locally and never asks this. So a player's call is refused `undoIsTheGms`, and
+ * `handleUnsabotage` runs only for a packet 30-security forges, which is why the row and this ask stay. Until 1.2.122
+ * this said the Reroll called it, from a player's browser, after the Call was paid.
  */
 export function requestUndoSabotage(targetId, repairId, actorId = null) {
     return ask(ACTION_UNSABOTAGE, { targetId, repairId, actorId });
@@ -658,9 +725,12 @@ export function requestRemnant(data, rollId = null) {
 }
 
 /**
- * Retune or remove a Remnant a player's own action left behind - a reroll has
- * changed how well they hid it, or removed the reason for the trace entirely.
- * Editing tokens is GM-only, same as creating them.
+ * Retune or remove a Remnant, asked of the primary GM: a road that is only ever refused (1.2.122; the audit of 1.2.118,
+ * CORE-35). Its one caller is remnants.mjs `retuneRemnant`'s player branch (`!game.user.isGM`), and every caller of
+ * `retuneRemnant` is a GM's (the Reroll, a handover, the clean-up's reshape), which writes locally. Since E08+E28 C8 the
+ * row is a GM's alone (`gmOnly("an undo is the GM's own Reroll's")`), so a player's call is refused `undoIsTheGms`, and
+ * `handleRemnantEdit` runs only for a packet 30-security forges, which is why the row and this ask stay. Until 1.2.122
+ * this said a player's reroll retuned the trace through it.
  */
 export function requestRemnantEdit(sceneId, tokenId, patch) {
     return ask(ACTION_REMNANT_EDIT, { sceneId, tokenId, patch });
@@ -705,11 +775,14 @@ export function answerTraitRuling(requestId, asker, trait) {
  * the card stays open. `messageId` is the card pressed: a yes is kept only for the ask held on it
  * (fix early-C2-G2); a GM's call that names no card is judged by the request alone.
  */
-export async function answerHopeCall(requestId, asker, verdict, messageId = null) {
+export async function answerHopeCall(requestId, asker, verdict, messageId = null, out = null) {
     if (!game.user.isGM || !requestId || !asker) return false;
     if (verdict) {
         const res = await ask(ACTION_CALL_YES, { rid: requestId, asker, messageId }, {
             onPrimary: true, local: () => yesOnPrimary(requestId, asker, game.user.id, messageId) });
+        // `out.told` (1.2.122, the audit's CTRL-23): the bridge said why it was not carried out; a false with none is the
+        // primary holding no such ask, which the card's ruling says (messenger-app.mjs).
+        if (out) out.told = !res.ok;
         return res.ok && res.value === true;
     }
     game.socket.emit(SOCKET_EVENT, {
@@ -744,12 +817,13 @@ export async function askReshapeRuling(verdict, { by, trace, attempt } = {}) {
  * once the player has it (`keepRuling`). True once sent; false when the primary holds no such ask - one its player
  * stopped waiting for - and the card is left as it is. `messageId` is the card pressed, as `answerHopeCall` takes it.
  */
-export async function answerDynamic(requestId, asker, ruling, messageId = null) {
+export async function answerDynamic(requestId, asker, ruling, messageId = null, out = null) {
     if (!game.user.isGM || !requestId || !asker) return false;
     const refuse = !ruling;
     const res = await ask(ACTION_DYNAMIC_ANSWER, {
         rid: requestId, asker, tier: refuse ? 0 : Number(ruling.tier), trait: refuse ? null : ruling.trait ?? null, refuse, messageId
     }, { onPrimary: true, local: () => dynamicOnPrimary(requestId, asker, refuse ? false : ruling, game.user.id, messageId) });
+    if (out) out.told = !res.ok;   // As answerHopeCall's (CTRL-23).
     return res.ok && res.value === true;
 }
 
@@ -821,9 +895,10 @@ export function requestTraitRuling({ actorId, kind, key, variant = null, propose
  * ONE OF THE TWO REQUESTS THAT ANSWER THEIR VALUE, NOT THE BRIDGE'S RESULT
  * (E31), with `requestCleanableTraces`: the GM's `{ ok, key?, reason? }`, or
  * null when the request was not carried out, which has been said once already
- * with "Nothing was spent.". Its callers and 30-security read `.ok` and `.key`
- * off it, and the GM's own `ok: false` (an empty room, a declaration it does not
- * know) is a ruling, told apart from null.
+ * with `DRPG.Bridge.nothingSpent`. Its callers and 30-security read `.ok` and `.key`
+ * off it, and the GM's own `ok: false` (an empty room, no room) is a ruling, told
+ * apart from null; a declaration it does not know is refused by the bridge
+ * (`badRequest`, 1.2.122), so it answers null.
  *
  * @returns {Promise<{ok: boolean, key?: string, reason?: string}|null>}
  */
@@ -873,7 +948,8 @@ export async function requestCleanableTraces(actorId, { mine = false, quiet = fa
  * Hand a thrown Observe to the GM to be scored.
  *
  * The answer is the whisper the player gets when the GM's client has finished -
- * a Truth Bullet on their sheet or 2 Sanity - which can wait on the GM
+ * a Truth Bullet on their sheet, a project found, or the Sanity a miss marks (`OBSERVE_FAIL_STRESS`, 1 at config.mjs; until
+ * this comment was read against it on 21.11.2026 it said 2) - which can wait on the GM
  * describing what was found, so the request waits only for the "got it", and a
  * refusal after it is still told.
  */
@@ -1003,7 +1079,8 @@ export function requestRollBookmark(payload) {
  * primary, so two Rerolls of one character could each read the GMs' journal before the
  * other's row reached it, and both pay, throw and replay. `onPrimary`: another GM asks the
  * primary as a player does, so `making` (reroll.mjs) holds every Reroll of a character on one
- * client. The harness has one GM, so the race itself is not measured; R219 reads the waiter.
+ * client. The race itself is not measured on v14 (LIVE-E08-03): the harness's second GM (scenarios 61, 62, 97) runs
+ * the shim's timing, not a server's; R219 reads the waiter.
  */
 export function requestReroll(actorId, { late = null, lateRefused = null } = {}) {
     return ask(ACTION_REROLL, { actorId }, {
@@ -1032,7 +1109,9 @@ export function requestCleanup({
     // and the resolver charges the Sanity itself.
     price = null, grant = false,
     // The roll it was thrown with (fix r1-G2): the GMs' fact of the attempt goes on that roll's row.
-    rollId = null
+    rollId = null,
+    // A cover's critical, given back on the GM (cleanup.mjs `coverGiveBack`, the audit's CASE-27).
+    cover = 0, coverRollId = null
 }) {
     // The two that aim at a TRACE go to `resolveCleanup`; the two that roll
     // against a flat threshold go to `resolveStageSix`. Naming the first pair
@@ -1042,16 +1121,16 @@ export function requestCleanup({
     const mode = key === "transformTrace" ? "transform" : "erase";
     return ask(ACTION_CLEANUP, {
         actorId, tokenId, total, isCritical, withHope, undo, key, targetId, transform,
-        change, viaAction, price, grant, rollId
+        change, viaAction, price, grant, rollId, cover, coverRollId
     }, {
         local: () => import("./cleanup.mjs").then(m => aimed
             ? m.resolveCleanup({
                 actorId, tokenId, total, isCritical, withHope, undo, transform,
-                mode, change, viaAction, price, grant, rollId
+                mode, change, viaAction, price, grant, rollId, cover, coverRollId
             })
             : m.resolveStageSix({
                 actorId, key, targetId, total, isCritical, withHope, viaAction,
-                price, grant, rollId
+                price, grant, rollId, cover, coverRollId
             }))
     });
 }
@@ -1182,7 +1261,8 @@ export function requestFriskUnseen({
         local: () => import("./frisk.mjs").then(m => m.friskPerson({ searcherId, targetId, total, isCritical, unseenTotal, unseenCritical, rollId },
             { asker: game.user })).then(out => {
             if (out?.refused) sayNotDone(ACTION_FRISK_UNSEEN, reasonOf(out.refused));
-            return out?.refused ? null : out?.outcome ?? null;
+            // The refusal kept in the answer, as a Steal's (above), for the Frisk to give its action back (1.2.122, CASE-34).
+            return out?.refused ? { refused: out.refused } : out?.outcome ?? null;
         })
     });
 }

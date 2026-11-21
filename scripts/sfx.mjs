@@ -9,8 +9,10 @@
  * hooks that play a sound, the unlock and `diagnoseSfx`, and the Sound
  * window's sliders, its Effects tab and the launcher: in sound-panel.mjs they
  * would close a static import cycle (sound-panel.mjs reaches this file through
- * music-states.mjs, clock.mjs and actions.mjs), so they stay here, and E41-16
- * is carried to E73. Every importer still imports this file. New code goes
+ * music-states.mjs, clock.mjs and actions.mjs), so they stay here. E41-16 (the
+ * window in one file) was carried to E73, which shipped in 1.2.108 without it;
+ * no stage owns it now, and the cycle above is what a move would have to close
+ * first (1.2.122, the audit's STG-62). Every importer still imports this file. New code goes
  * into the file of its role, not here.
  *
  * Until this file the module played exactly one sound: a notification chime
@@ -336,6 +338,9 @@ async function onIncidentChanged() {
 function onActorFlagged(actor, changes) {
     const changed = foundry.utils.getProperty(changes, `flags.${MODULE_ID}.${FLAGS.monocub}`);
     if (changed === undefined) return;
+    // A quiet change of the mark - the season reset, a revive's quiet road - sounds nothing (1.2.122, COMM-48): its
+    // marker came in the same changes (monocub.mjs `setMonocub`).
+    if (foundry.utils.getProperty(changes, `flags.${MODULE_ID}.${FLAGS.monocubQuiet}`) !== undefined) return;
     if (game.user.isGM || playerOwns(actor)) playSfx("monocub");
 }
 
@@ -470,10 +475,13 @@ const LAUNCHER_ID = "drpg-sound-launcher";
 /**
  * A second circle above the chat one (Dawid, 28.08).
  *
- * THE PLAYER NEEDS A DOOR, AND THIS IS THE ONLY ONE THEY HAVE. The GM reaches
- * the Sound panel from the tile in their own panel; a player has no panel, and
- * the two volumes are THEIR settings - the one part of that window that is not
- * the GM's business. Left without a way in, the sliders would exist for nobody.
+ * THE PLAYER NEEDS A DOOR, AND THIS IS THE ONE THEY HAVE. It opens this
+ * browser's settings window (look.mjs `openLookDialog`, below; E49 A1d), whose
+ * Sound section holds the two volumes - THEIR settings, the one part of the
+ * sound that is not the GM's business. The GM reaches the Sound window from the
+ * tile in their own panel; a player reaches the Sound window's player form
+ * (sound-panel.mjs `openPlayerSoundDialog`) by no control, only through
+ * `game.drpg.soundDialog` (api.mjs), read 21.11.2026.
  *
  * Deliberately not a menu in Foundry's own settings, which was the cheap
  * option: volume is something you reach for while a sound is playing, and a
@@ -511,7 +519,7 @@ export function renderSoundLauncher() {
                 const { openLookDialog } = await import("./look.mjs");
                 await openLookDialog();
             } catch (err) {
-                error("Could not open the Sound panel", err);
+                error("Could not open the settings window", err);
             }
         });
 
@@ -550,7 +558,7 @@ export function volumeSliders() {
     }));
 }
 
-/** The two sliders. The whole of the window for a player - see `openSoundDialog`. */
+/** The two sliders: the GM's Sound window above its tabs (classic theme), and the whole of the player's form reached by `game.drpg.soundDialog` (`openSoundDialog`). */
 export function soundSlidersHtml() {
     const rows = volumeSliders().map(({ key, label, hint, position }) => `
         <label class="drpg-sound-slider" data-drpg-slider="${key}">
@@ -867,7 +875,9 @@ export function wireSoundRows(root) {
             });
         }
         /* one file's own box: left after an edit, it replaces that file alone, in its place (`withSoundFileAt`; emptied, it
-           removes it). The box being typed in holds the redraw (keepLive). */
+           removes it). The box being typed in does NOT hold the redraw: the Effects region is whileEditing (sound-panel.mjs),
+           so a redraw carries the typed text and the focus to the new box, and in Chromium the replaced box fires its change
+           at the redraw (the audit's r121-R-1, measured by it; live.mjs's, line R1). 1.2.122, r121-R-9. */
         for (const box of row.querySelectorAll("[data-drpg-sfx-file-box]")) {
             box.addEventListener("change", () => write(soundValueOf(withSoundFileAt(ownSoundsFor(key), Number(box.dataset.drpgSfxFileBox), box.value))));
         }

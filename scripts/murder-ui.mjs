@@ -36,9 +36,9 @@ import { SETTINGS } from "./settings.mjs";
 import { resourceValue, resourceMax, reserveNote, reserveView } from "./character.mjs";
 import { keepLive } from "./live.mjs";
 import { error, plural, esc } from "./utils.mjs";
-import { drpgWindow, drpgConfirm, formGrid, dataTable, emptyState, box, tipAttr } from "./ui-kit.mjs";
+import { drpgWindow, formGrid, dataTable, emptyState, box, tipAttr } from "./ui-kit.mjs";
 import { murderState, killerIds, isDeadSilenced, silenceDeadNow } from "./incident-store.mjs";
-import { openMurder, passTurn, endMurder, openingInvited, rollOpening } from "./murder-rules.mjs";
+import { openMurder, passTurn, endMurder, openingInvited, rollOpening, askWhileIncident } from "./murder-rules.mjs";
 
 
 /* ==========================================================================
@@ -464,7 +464,11 @@ export function incidentTrackerHtml(now, cleanup) {
     const invited = opening && openingInvited?.openedAt === (now.openedAt ?? null)
         ? game.users.get(openingInvited.userId) ?? null : null;
 
-    const state = opening
+    // A trap's victim who noticed it has answered the opening (`endedBy: "noticed"`, CASE-57): the bar says so.
+    const state = opening && now.endedBy === "noticed"
+        ? game.i18n.format("DRPG.Murder.trackerNoticed", {
+            stage: game.i18n.localize(`DRPG.Murder.stage.${now.stage}`), name: foundry.utils.escapeHTML(victim?.name ?? "?") })
+        : opening
         ? game.i18n.format("DRPG.Murder.trackerWaiting", {
             stage: game.i18n.localize(`DRPG.Murder.stage.${now.stage}`),
             name: foundry.utils.escapeHTML((now.indirect ? victim : killer)?.name ?? "?")
@@ -585,13 +589,13 @@ function incidentSignature(now) {
     return now ? [now.stage, now.selfInflicted].join("|") : null;
 }
 
-/** The footer, by stage: re-ask the opening roll, pass the turn, end the incident, close. */
-/*
- * THE FOOTER BY ROLE (E21 C2a, E22; the owner's Q-E21-1 b): Pass the turn the primary and the default; the re-ask
- * secondary; End the murder destructive - it asks first, and is never the default; Close, since the tracker answers
- * nothing (E21 rule 3).
+/**
+ * The footer, by stage: Silence now, re-ask the opening roll and Pass the turn as ways on (secondary), End the murder
+ * destructive - it asks first, and is never the default - and Close the default, since the tracker answers nothing (E21
+ * rule 3). Pass was the primary and the default until E22 C3b, which made Close the default (the note at the return
+ * below; the audit's D5 of 1.2.122: this header still named the older footer).
  */
-function incidentButtons(state, { silence = false } = {}) {
+export function incidentButtons(state, { silence = false } = {}) {
     const list = [
         /* SILENCE NOW (E72 C8; the plan's A9 of 11.10): the victim dead and not found, its voice still in the room it died
            in - a GM may send it to its own room now (incident-store.mjs `silenceDeadNow`). A way on, as Pass. */
@@ -624,7 +628,11 @@ function incidentButtons(state, { silence = false } = {}) {
         // once more from here (CASE-10): the alternative was End and open
         // it again, which repeated the whole three-strike loop. Rate-limited
         // on this client so a held Enter cannot stack windows again.
-        ...(state.stage === "openingRoll" && !state.selfInflicted ? [
+        // A death by the student's own hand keeps it (the audit's CTRL-32, 1.2.122): it opens on Stage 4's roll too,
+        // re-offered three times, and the GMs' notice when it is not made (DRPG.Murder.openingDeclined) says to press
+        // this; only Pass has no place in it.
+        // And none once a trap's victim has rolled and noticed it (CASE-57, CTRL-30): there is no roll left to ask.
+        ...(state.stage === "openingRoll" && state.endedBy !== "noticed" ? [
             { action: "reask", label: game.i18n.localize("DRPG.Murder.openingReask") }
         ] : []),
         ...(state.stage === "openingRoll" || state.selfInflicted ? [] : [
@@ -651,6 +659,11 @@ function incidentButtons(state, { silence = false } = {}) {
     };
 }
 
+/** Whether ending this incident now records a death: one by the student's own hand at Stage 6 (`endMurder`). Pure (R8225). */
+export function endRecordsDeath(state) {
+    return Boolean(state?.selfInflicted && state.stage === "resolution");
+}
+
 /** The empty state's footer (E47-C2): Open a murder... the primary and the default, Close beside it. */
 function emptyButtons() {
     return {
@@ -659,20 +672,40 @@ function emptyButtons() {
     };
 }
 
-/** Send the opening roll again, once the cooldown allows. */
-function reaskOpening() {
+/**
+ * Send the opening roll again, once the cooldown allows. Answers the promise of the re-ask (the suite's, R8224); the
+ * tracker does not wait on it.
+ *
+ * SAID WHEN IT IS KNOWN, AND AS IT WENT (the audit's CTRL-77, CTRL-78, 1.2.122). "The opening roll was offered again"
+ * was said in the same step as `rollOpening` began, which sends nothing while this browser's statistic window is open
+ * or when its own window is closed, and throws the roll on this GM's browser when nobody playing the roller is
+ * connected. The words now follow `rollOpening`'s answer: offered to whom (`asked`), thrown here (any other answer), or
+ * nothing sent (null).
+ */
+export function reaskOpening() {
     const now = Date.now();
     if (now - lastReask < REASK_COOLDOWN_MS) {
         ui.notifications.warn(game.i18n.localize("DRPG.Murder.openingReaskWait"));
-    } else {
-        lastReask = now;
-        const current = murderState();
-        if (current?.stage === "openingRoll") {
-            rollOpening(current.indirect ? "victim" : "killer", current)
-                .catch(err => error("Could not re-send the opening roll", err));
-            ui.notifications.info(game.i18n.localize("DRPG.Murder.openingReaskSent"));
-        }
+        return Promise.resolve(null);
     }
+    lastReask = now;
+    const current = murderState();
+    if (current?.stage !== "openingRoll") return Promise.resolve(null);
+    // A trap's victim who noticed it has no roll left to be asked (CASE-57).
+    if (current.endedBy === "noticed") {
+        ui.notifications.warn(game.i18n.localize("DRPG.Murder.openingReaskNoticed"));
+        return Promise.resolve(null);
+    }
+    const side = current.indirect ? "victim" : "killer";
+    const roller = game.actors.get((side === "killer" ? current.killerId : current.victimId) ?? "");
+    return rollOpening(side, current)
+        .then(out => {
+            if (out?.asked) ui.notifications.info(game.i18n.format("DRPG.Murder.openingReaskSent", { name: out.of ?? "" }));
+            else if (out) ui.notifications.info(game.i18n.format("DRPG.Murder.openingReaskHere", { name: roller?.name ?? "" }));
+            else ui.notifications.warn(game.i18n.localize("DRPG.Murder.openingReaskNone"));
+            return out ?? null;
+        })
+        .catch(err => { error("Could not re-send the opening roll", err); return null; });
 }
 
 /** The live tracker: whose turn, what is left, and the controls. */
@@ -700,7 +733,15 @@ export async function openIncidentTracker() {
     // Whether the victim's voice can be moved now (E72 C8): a death the GMs keep, not yet moved.
     const victim = state?.victimId ? game.actors?.get(state.victimId) ?? null : null;
     const { isDeadForGm, isDeceased } = await import("./chapter.mjs");
-    const silence = Boolean(victim) && isDeadForGm(victim) && !isDeceased(victim) && !isDeadSilenced(victim);
+    /* READ AGAIN AT EVERY REBUILD (the audit's CTRL-80 and REFR-63, 1.2.122): it was read once as the window opened, and
+       the footer is drawn only by a reopen, so a victim dead under an unchanged stage got no Silence now, and one drawn
+       before the body was announced or another GM pressed it stayed, its press doing nothing. It is part of the
+       signature below now, so a change of it reopens the tracker with the footer it wants. */
+    const silenceNow = () => {
+        const v = murderState()?.victimId ? game.actors?.get(murderState().victimId) ?? null : null;
+        return Boolean(v) && isDeadForGm(v) && !isDeceased(v) && !isDeadSilenced(v);
+    };
+    const silence = silenceNow();
 
     /* AWAITED ONCE, HERE, so the body below can be rebuilt synchronously.
 
@@ -731,9 +772,16 @@ export async function openIncidentTracker() {
     const read = () => murderState();
 
     const trackerBody = () => (state ? incidentTrackerHtml(read(), cleanup) : emptyTrackerHtml());
-    const signature = () => incidentSignature(read());
+    // And the opening answered (`endedBy`, CASE-57): the footer loses its re-ask.
+    const signature = () => `${incidentSignature(read())}|${silenceNow()}|${read()?.endedBy ?? ""}`;
     const openedWith = signature();
     let settling = false;
+    /* THE REOPEN IS THE AWAITED CALL'S (the audit's CASE-22 and CTRL-81, 1.2.122). A stage change under an open tracker
+       closed it and opened the next copy from a `.then()` nobody awaited, so the first copy's wait settled with null,
+       `openMurderDialog` returned and the GM panel - which waits on its tile's run - opened again beside the new tracker as
+       the fight began. The close now settles this call, which opens the next copy itself and answers it, as Pass does
+       (`return openIncidentTracker()`). Red at 21bf5d18 (tier 2 "1.2.122 CASE-22"): the call settled before the second copy. */
+    let restage = null;
 
     const action = await drpgWindow({
         title: game.i18n.localize("DRPG.Murder.trackerTitle"),
@@ -756,7 +804,9 @@ export async function openIncidentTracker() {
                change mid-incident, and the turn was the world half's. Since E32 C2 a pass
                writes the cast alone, and its setting's change says so (`drpgCastChanged`,
                settings.mjs). */
-            watch: { actors: true, tokens: true, settings: [SETTINGS.murderState], hooks: ["drpgCastChanged"] },
+            /* And items (the audit's REFR-38, 1.2.122): readying or putting away a Cleaning Tool writes the item alone, and
+               Stage 6's tool line and every clean-up DC below read it. */
+            watch: { actors: true, tokens: true, items: true, settings: [SETTINGS.murderState], hooks: ["drpgCastChanged"] },
             after: () => {
                 if (settling) return;
                 const now = signature();
@@ -765,15 +815,15 @@ export async function openIncidentTracker() {
                 /* The fight is over: shut, rather than reopening onto nothing. The
                    `endMurder` route closes this window itself; this is the backstop for
                    every other way an incident can stop existing. */
-                const again = now !== null;
-                dialog.close()
-                    .then(() => (again ? openIncidentTracker() : null))
-                    .catch(err => error("Could not refresh the incident tracker", err));
+                restage = incidentSignature(read()) !== null ? "again" : "gone";
+                dialog.close().catch(err => error("Could not refresh the incident tracker", err));
             }
         }),
         rejectClose: false
     });
 
+    if (restage === "again") return openIncidentTracker();
+    if (restage) return null;
     if (action === "open") return openMurderDialog();
     if (action === "pass") {
         if (passAllowed()) await passTurn();
@@ -790,12 +840,16 @@ export async function openIncidentTracker() {
     }
     if (action === "end") {
         // The yes says what it does and cannot be undone (E22 rule 4): destructive, Cancel the default and first under Enter.
-        const sure = await drpgConfirm({
+        // Closed unanswered when another road closes the incident meanwhile (the audit's REFR-39, `askWhileIncident`).
+        const sure = await askWhileIncident(murderState(), null, {
             yes: { role: "destructive", label: game.i18n.localize("DRPG.Murder.endMurder") },
             no: "cancel",
             classes: ["drpg-panel"],
             title: game.i18n.localize("DRPG.Murder.endMurder"),
-            body: `<p>${game.i18n.localize("DRPG.Murder.endConfirm")}</p>`
+            // A death by the student's own hand at Stage 6 is recorded by this yes (murder-rules.mjs `endMurder`): the
+            // question says so (the audit's CTRL-82, 1.2.122), read off the incident as the press finds it.
+            body: `<p>${game.i18n.localize("DRPG.Murder.endConfirm")}</p>${endRecordsDeath(murderState())
+                ? `<p>${game.i18n.format("DRPG.Murder.endConfirmSelf", { name: esc(game.actors.get(murderState()?.victimId ?? "")?.name ?? "") })}</p>` : ""}`
         });
         if (sure) await endMurder();
     }

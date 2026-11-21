@@ -50,7 +50,9 @@ async function tellGmsKeyMissing(item) {
  * @param {number} options.total
  * @param {boolean} options.isCritical
  * @param {boolean} [options.undo]  A Reroll replacing an earlier attempt.
- * @returns {Promise<{success: boolean, locked: boolean}|null>}
+ * @returns {Promise<{success: boolean, locked: boolean}|{refused: string}|null>}  `{ refused }` (English, a reason of
+ *   the bridge's list) where the bullet cannot be analysed now, there is no Analyze to take back, the answer key is not
+ *   on this GM's browser or the bullet is not open to it; the bridge's run and action-analyze.mjs read it.
  */
 export async function resolveAnalyze({
     actorId, itemId, total, isCritical = false, undo = false,

@@ -11,9 +11,10 @@
  * WHAT IT DRAWS. The graph read-only (case-map.mjs `caseGraphHtml`, the Map's own drawing, its nodes whole, the unrelated
  * evidence folded, the Map's camera), each presented Remnant and each hinted conclusion marked (case-hints.mjs; a hint
  * is never a tick). While a Class Trial runs, each deduction, counter and solution carries on its tile its tick (C3's
- * store, any GM, Q-E99-8) and, where its trial mode has a start in trial-floor.mjs `MODE_STARTS`, that start, greyed with
- * the console's reason while a floor is open (the console offers no start then either). A mode a player raises (an
- * Objection, a Rebuttal) has none. Before a trial, the schema alone (the owner, 12.11 ~12:00).
+ * store, any GM, Q-E99-8) and, where its trial mode has a start in trial-floor.mjs `MODE_STARTS`, that start, greyed by
+ * the console's mode picker's rule (since 1.2.122, CTRL-45): a mode other than the open debate holding the floor greys
+ * every start, and an open debate greys only the debate's own - the picker and the primary's machine start a round, the
+ * Closing or a zone mode over an open debate. A mode a player raises (an Objection, a Rebuttal) has none. Before a trial, the schema alone (the owner, 12.11 ~12:00).
  */
 import { esc, error, plural } from "./utils.mjs";
 import { keepLive } from "./live.mjs";
@@ -23,7 +24,7 @@ import { layoutCase } from "./case-layout.mjs";
 import { caseGraph, caseTicks, setCaseTick } from "./case-schema.mjs";
 import { presentationHints, casePresentations } from "./case-hints.mjs";
 import { MODE_STARTS, trialFloor } from "./trial-floor.mjs";
-import { caseTickStore, caseSchemaStore, keyPlanStore, blackenedStore } from "./gm-stores.mjs";
+import { caseTickStore, caseSchemaStore, keyPlanStore, blackenedStore, remnantStore } from "./gm-stores.mjs";
 import { SETTINGS } from "./settings.mjs";
 import { caseCulprit } from "./investigation.mjs";
 
@@ -37,7 +38,7 @@ const L = key => game.i18n.localize(key);
  * a trial, the schema alone. The unknown cards' line stands over the graph and the camera's bar in a strip under it
  * (round 5: over the graph it lay over a node).
  */
-export function trialSchemaHtml({ graph, layout, ticks = {}, presented = [], hints = [], unknown = 0, floorOpen = false, noTrial = false, camera = null } = {}) {
+export function trialSchemaHtml({ graph, layout, ticks = {}, presented = [], hints = [], unknown = 0, floorOpen = false, floorMode = null, noTrial = false, camera = null, fold = true } = {}) {
     const nodes = graph?.nodes ?? [];
     if (!nodes.length) return `<p class="notes">${esc(L("DRPG.CaseTrial.empty"))}</p>`;
     const marks = {};
@@ -46,14 +47,17 @@ export function trialSchemaHtml({ graph, layout, ticks = {}, presented = [], hin
     for (const [id, on] of Object.entries(ticks ?? {})) if (on === true) marks[id] = [...(marks[id] ?? []), "ticked"];
     const unknownLine = unknown > 0 ? `<p class="notes" data-drpg-case-unknown>${esc(plural("DRPG.CaseTrial.unknown", { n: unknown }))}</p>` : "";
     const controls = noTrial ? null : {};
+    // The picker's rule (trial-floor-ui.mjs `modePickerHtml`): over the open debate only the debate's own start is greyed.
+    const overDebate = floorOpen && floorMode === "debate";
+    const held = action => (action === "openDebate" ? floorOpen : floorOpen && !overDebate);
     for (const n of noTrial ? [] : nodes.filter(n => !n.evidence)) {
         const start = n.mode ? MODE_STARTS[n.mode] : null;
         controls[n.id] = { tick: ticks?.[n.id] === true,
-            start: start?.action ? { action: start.action, mode: n.mode, label: modeLabel(n.mode), disabled: floorOpen,
-                reason: floorOpen ? L("DRPG.CaseTrial.floorOpen") : "" } : null };
+            start: start?.action ? { action: start.action, mode: n.mode, label: modeLabel(n.mode), disabled: held(start.action),
+                reason: !held(start.action) ? "" : overDebate ? L("DRPG.Floor.bar.inDebate") : L("DRPG.CaseTrial.floorOpen") } : null };
     }
     return `<div class="drpg-case-trial is-console">${unknownLine}<div class="drpg-case-graph" tabindex="-1">`
-        + `${caseGraphHtml({ graph, layout, fold: true, marks, controls, label: L("DRPG.CaseTrial.title") })}</div>${cameraHtml(camera?.z ?? 1)}</div>`;
+        + `${caseGraphHtml({ graph, layout, fold, marks, controls, label: L("DRPG.CaseTrial.title") })}</div>${cameraHtml(camera?.z ?? 1)}</div>`;
 }
 
 /** What the console's schema draws now (a GM's read): the chapter's graph, its ticks, the presentations' marks and hints. */
@@ -64,6 +68,7 @@ export function trialSchemaState(chapter = getClock().chapter) {
     const culpritId = caseCulprit(chapter);
     const { presented, hints, unknown } = presentationHints(graph, casePresentations(chapter), { culpritId, ticks });
     return { graph, layout: layoutCase(graph, { sort: graph.meta?.sort, manual: graph.meta?.manual }), ticks, presented, hints, unknown, floorOpen: Boolean(trialFloor()),
+        floorMode: trialFloor()?.mode ?? null,
         // No start outside a running Class Trial, as the console offers none then (trial-floor.mjs `readTrial`'s `running`)
         noTrial: getClock().phase !== "classTrial" };
 }
@@ -92,10 +97,24 @@ const TRIAL_SCHEMA_SLOT = "[data-drpg-trial-schema]";
 function liveSchema(dialog, chapter) {
     const regionOf = () => dialog.element?.querySelector(".drpg-case-trial-live");
     let camera = null;
+    /* FOLDED UNTIL THE GM UNFOLDS IT (1.2.122; CTRL-02, STG-16): the schema opens with the evidence not tied to the murder
+       folded, and "Not tied to the murder: N" unfolds it and folds it again, as on the Investigation's Map - it did
+       nothing here, so a folded Remnant and a "presented" mark on one could not be seen in the console. */
+    let folded = true;
+    let live = null;
     const wire = () => {
         const region = regionOf();
         if (!region) return;
-        wireCaseMap(region, { camera: { get: () => camera, set: cam => { camera = cam; } } });
+        wireCaseMap(region, { camera: { get: () => camera, set: cam => { camera = cam; } },
+            onFold: () => { folded = !folded; live?.refresh?.(); },
+            /* A NODE'S FACE OPENS IT ON THE MAP (1.2.122; probe-42's group C, 22 node buttons of the console's schema): the
+               press ran the wiring's empty default, so a focusable button did nothing. The schema here is read-only, so
+               the press opens the Investigation's Map on that node, where its fields are (raised, not reopened, when the
+               Map already stands). */
+            onPick: id => {
+                import("./investigation.mjs").then(m => m.openInvestigationDashboard({ node: id, view: "map" }))
+                    .catch(err => error("Could not open the node on the Map", err));
+            } });
         const canvas = region.querySelector(".drpg-case-canvas");
         const place = () => { if (canvas?.isConnected) placeTileControls(canvas); };
         place();
@@ -118,14 +137,19 @@ function liveSchema(dialog, chapter) {
         }
     };
     wire();
-    return keepLive(dialog, {
+    live = keepLive(dialog, {
         region: ".drpg-case-trial-live",
         // live.mjs replaces the region with what `build` returns, so it returns the region's own element: without it the
         // first redraw dropped `.drpg-case-trial-live`, and no later redraw found it (found by the round-4 sweep)
-        build: () => `<div class="drpg-case-trial-live">${trialSchemaHtml({ ...trialSchemaState(chapter), camera })}</div>`,
-        watch: { items: true, settings: [SETTINGS.trialQueue, SETTINGS.clock, SETTINGS.murderState, SETTINGS.trialProgress], stores: [caseTickStore, caseSchemaStore, keyPlanStore, blackenedStore], hooks: ["createChatMessage", "updateChatMessage", "deleteChatMessage"] },
+        build: () => `<div class="drpg-case-trial-live">${trialSchemaHtml({ ...trialSchemaState(chapter), camera, fold: folded })}</div>`,
+        watch: { items: true, settings: [SETTINGS.trialQueue, SETTINGS.clock, SETTINGS.murderState, SETTINGS.trialProgress], stores: [caseTickStore, caseSchemaStore, keyPlanStore, blackenedStore, remnantStore],
+            /* The trace ledger and a trace's token (1.2.122, REFR-69): a trace placed during the trial, or an unfound one
+               renamed on its Remnant card, writes the ledger or a token alone, and the schema's node stood as drawn. A
+               token's move is no event of the schema's, so only its making and its deleting are heard. */
+            hooks: ["createChatMessage", "updateChatMessage", "deleteChatMessage", "createToken", "deleteToken"] },
         after: wire
     });
+    return live;
 }
 
 /**

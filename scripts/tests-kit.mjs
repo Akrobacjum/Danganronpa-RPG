@@ -688,12 +688,44 @@ const sourceUnprepared = () => {
 const PROBE = Symbol("drpg.suite.probe");
 const probe = (name, holds, fact) => Object.freeze({ [PROBE]: true, name, holds: Boolean(holds), fact });
 
+/*
+ * A STAND-IN FOR WHAT FOUNDRY HOLDS READ-ONLY (E58 L1, 19.11.2026; read on the sandbox, Foundry 14.370). On v14 some of what a
+ * test stands something in for is read-only: `game.i18n.format` is inherited from `Localization.prototype`, not writable and not
+ * configurable there, so a plain `game.i18n.format = fn` throws "Cannot assign to read only property 'format'" - while
+ * `game.i18n` itself takes an own property that shadows it. `standIn(obj, key, value)` puts `value` on `obj` as its own property
+ * and answers the function that takes it off: the own property `obj` had put back as it was, or the stand-in deleted where it
+ * had none (the inherited one then reads again). A property `obj` holds itself, not configurable (a Module's `active`), or one on
+ * an object nothing can extend (the frozen `foundry.utils`, `foundry.canvas`), cannot be stood in for: that is `env.replaceable`'s
+ * to say, for the test to skip. Headless the shim's objects are writable and nothing changes.
+ */
+function standIn(obj, key, value) {
+    const own = Object.getOwnPropertyDescriptor(obj, key);
+    Object.defineProperty(obj, key, { value, writable: true, configurable: true, enumerable: own?.enumerable ?? false });
+    return () => {
+        if (own) Object.defineProperty(obj, key, own);
+        else delete obj[key];
+    };
+}
+
+/* Whether `standIn` can stand something in for `obj[key]` on this Foundry (its note): a property held as `obj`'s own and neither
+   writable, settable nor configurable cannot, nor any on an object that takes no new property (frozen, sealed, not extensible). */
+function replaceable(obj, key) {
+    if (!obj || (typeof obj !== "object" && typeof obj !== "function")) return false;
+    const own = Object.getOwnPropertyDescriptor(obj, key);
+    if (own) return own.configurable || own.writable === true || typeof own.set === "function";
+    return Object.isExtensible(obj);
+}
+
+
 const env = Object.freeze({
     layout: () => probe("env.layout", layoutAvailable(), "no layout here"),
     cascade: () => probe("env.cascade", cascadeAvailable(), "no CSS cascade here: var() does not resolve"),
     glass: () => probe("env.glass", glassTheme(), "the theme on this client is Monokuma Legacy, not Stained Glass"),
     desk: () => probe("env.desk", !narrowScreen(), "a stacked screen, narrower than BREAKPOINTS.narrow"),
     canvas: () => probe("env.canvas", canvasAvailable(), "no canvas renderer here"),
+    /* Whether a test can stand something in for `obj[key]` here (`standIn`, `replaceable`; E58 L1, 19.11.2026): v14 holds a
+       Module's `active` and the frozen `foundry.utils` and `foundry.canvas` read-only, and nothing can stand in for them there. */
+    replaceable: (obj, key, what) => probe("env.replaceable", replaceable(obj, key), `${what} is read-only on this Foundry: nothing can stand in for it here`),
     systemSheets: () => probe("env.systemSheets", systemSheetsAvailable(), "Daggerheart's sheets are not registered here"),
     /* Daggerheart's MoveContext (E76b, 12.11.2026): the config 2.12's `actor.rollTrait` builds its roll from
        (game.system.api.data.actions.MoveContext, daggerheart.mjs:137-145, 2.12.8). Up to 2.10.x there is none, and a
@@ -728,11 +760,26 @@ const env = Object.freeze({
         && !globalThis.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches, "this client asks for reduced motion"),
     webAnimations: () => probe("env.webAnimations", typeof HTMLElement.prototype.getAnimations === "function"
         && typeof globalThis.CSSTransition === "function", "no Web Animations API here"),
+    /* What a DOM keeps behind its wrappers, read where it can be (the line INVEST of 1.2.122, 21.11.2026): jsdom's
+       element carries its implementation under the symbol "impl", and that implementation the MutationObservers registered
+       on it (`_registeredObserverList`, each observer's `_nodeList`). A browser hides both, so a test of what an observer
+       keeps alive skips there and is a LIVE item instead. */
+    domInternals: () => probe("env.domInternals", domInternalsReadable(), "this DOM keeps its observers' registrations out of reach (a browser)"),
     /* The headless harness's stand-in for avclient-livekit (audit/harness/lib/livekit.mjs, E19 C0), there and not
        installed: client-entry.mjs's stub. A real Foundry has none, and its A/V client is not a test's to break. */
     liveKitShim: () => probe("env.liveKitShim", globalThis.__liveKit?.installed === false
         && typeof globalThis.__liveKit?.install === "function", "no LiveKit stand-in here, only the browser's own A/V client")
 });
+
+/** The implementation behind a jsdom node (its symbol "impl"), or null where the DOM is a browser's. */
+export function domImplOf(node) {
+    const key = node ? Object.getOwnPropertySymbols(node).find(sym => sym.description === "impl") : null;
+    return key ? node[key] ?? null : null;
+}
+function domInternalsReadable() {
+    const impl = domImplOf(document.body);
+    return Array.isArray(impl?._registeredObserverList);
+}
 
 const viewed = () => canvas?.scene ?? null;
 const living = () => studentActors().filter(a => !a.getFlag(MODULE_ID, FLAGS.deceased));
@@ -1669,10 +1716,11 @@ function hudText(sources, family = HUD_FAMILY) {
 /**
  * The item tables' family (E41 C8): tables.mjs - the facade, which holds no code since C8 - and the files its code
  * moved into, in the order it stood there: a table's names, the pools, the roles, the draw and the index
- * (tables-pools.mjs), then Install and the item tables window (tables-editor.mjs). A reader of tables.mjs's text reads
+ * (tables-pools.mjs), then Install and the item tables window (tables-editor.mjs), and since 1.2.122 an entry added,
+ * edited, dropped or placed (tables-entries.mjs, moved out of the window's file). A reader of tables.mjs's text reads
  * the family through `tablesText` and follows each file here without a repoint of its own.
  */
-const TABLES_FAMILY = Object.freeze(["tables.mjs", "tables-pools.mjs", "tables-editor.mjs"]);
+const TABLES_FAMILY = Object.freeze(["tables.mjs", "tables-pools.mjs", "tables-editor.mjs", "tables-entries.mjs"]);
 
 /** The line `tablesText` puts between two files: `topLevelFunction`'s second end, so no cut runs on into the next file. */
 const TABLES_FAMILY_END = "const TABLES_FAMILY_END = {};";
@@ -3092,7 +3140,7 @@ export {
     dhSettingsMarkup, dhSettingsStandIn, dhTraitsStandIn,
     Failure, Precondition, ContractBreach, Skipped, ok, needs, equal, must, describe, expectedRed, compareVersions, stageLedger, markerProblem,
     apiKind, apiSurfaceProblems,
-    runOne, scriptDice, answerDialogs, standInUser, registerSuite, suiteEntries, KIT_SELF_TESTS, SELF_LEDGER, MARKER_FIXTURE, UNTIL_FIXTURE, untilProblem, env, world, worldCensus,
+    runOne, scriptDice, answerDialogs, standInUser, standIn, registerSuite, suiteEntries, KIT_SELF_TESTS, SELF_LEDGER, MARKER_FIXTURE, UNTIL_FIXTURE, untilProblem, env, world, worldCensus,
     wait, settle, until,
     layoutAvailable, cascadeAvailable, LIVE_PROBE, glassTheme, canvasAvailable, systemSheetsAvailable, dialogsDrawn,
     lf, lfText, moduleSources, otherSources, suiteSources, scanSuite, stripComments, moduleStyles, styleCascade, subjectNeeds, bodyOf, topLevelFunction, fnSource, lineAround,

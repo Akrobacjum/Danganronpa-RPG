@@ -48,7 +48,7 @@ import { ballotStore, verdictStore } from "./gm-stores.mjs";
 import { bridgeRequest, sayNotDone } from "./bridge-guards.mjs";
 import { judgedFor, flagsHeldNow } from "./sheet-audit.mjs";
 import {
-    announce, isPrimaryGm, primaryGmId, activeGmIds, log, warn, error, plural, serverNow, listOf
+    announce, isPrimaryGm, primaryGmId, activeGmIds, log, warn, error, plural, serverNow, listOf, esc
 } from "./utils.mjs";
 import { trialProgress, setTrialProgress, retrySentence, findingsHtml } from "./trial-progress.mjs";
 import { drpgWindow, box } from "./ui-kit.mjs";
@@ -286,7 +286,8 @@ export function candidatesFor(voterActorId) {
 }
 
 /**
- * Open the vote. Every player with a living or dead student gets a ballot; the
+ * Open the vote. Every participant's player gets a ballot (`trialParticipants`: a living student, no Monocub, nobody
+ * on the trial's list of the dead, and no dead student while `TRIAL.deadCastBallots` is false, as it ships); the
  * Blackened votes too, and nothing here knows or cares which of them that is.
  *
  * THE ASKER, NOT THE WORK (E10 C1, 1.2.71). The round, the ballots and the card
@@ -639,9 +640,21 @@ export function pendingVoters() {
     const progress = trialProgress();
     if (!progress.vote.open) return null;
     const back = new Set(roundBallots(progress).map(([userId]) => userId));
-    return trialParticipants()
+    const out = trialParticipants()
         .filter(({ user }) => !back.has(user.id))
         .map(({ user, actor }) => ({ user, actor, name: actor.name }));
+    /* AND EVERYBODY HANDED ONE WHO LEFT (line INVEST of 1.2.122; the audit's CASE-14 of 1.2.42, its rest): the count is out
+       of every ballot that went out (`ballotBase`, `vote.issued`), and this list named the connected alone, so a player
+       handed a ballot who then disconnected was in the count and in no list - the console said "Every ballot is in."
+       beside "3 of 4". Named by their character where they have one. Tier 2 "1.2.122 CASE-14". */
+    const listed = new Set(out.map(({ user }) => user.id));
+    for (const id of progress.vote.issued ?? []) {
+        const user = game.users.get(id);
+        if (!user || back.has(id) || listed.has(id)) continue;
+        listed.add(id);
+        out.push({ user, actor: user.character ?? null, name: user.character?.name ?? user.name });
+    }
+    return out;
 }
 
 /**
@@ -819,6 +832,7 @@ async function castBallot({ round = 0, picks = 1, candidates = [] } = {}) {
 
     drawnRound = round;
     let choice = null;
+    let movedOn = false;
     try {
         // On the kit (E21 C4): Cast the one answer, the primary; no closing word, as before - the header's close dismisses.
         choice = await drpgWindow({
@@ -833,7 +847,23 @@ async function castBallot({ round = 0, picks = 1, candidates = [] } = {}) {
                 ${fields}
                 <p class="notes">${game.i18n.localize("DRPG.Vote.ballotNote")}</p>
             </form>`,
-            render: (event, dialog) => wireBallot(dialog?.element, wanted),
+            render: (event, dialog) => {
+                wireBallot(dialog?.element, wanted);
+                /* CLOSED WITH ITS ROUND (1.2.122, REFR-72): a ballot left open stayed after the vote was closed and
+                   counted, and its Cast was answered "The vote has moved on". It closes itself once the trial's record
+                   no longer holds its round open (a newer ballot closes it already, above). */
+                const watch = setInterval(() => {
+                    if (!dialog?.element?.isConnected) return void clearInterval(watch);
+                    // Past its round, or its round closed - never a record that has not reached this browser yet (an older
+                    // round there: the ballot's packet can come before the setting's write).
+                    const vote = trialProgress()?.vote;
+                    const at = Number(vote?.round) || 0;
+                    if (at < Number(round) || (at === Number(round) && vote?.open)) return;
+                    clearInterval(watch);
+                    movedOn = true;
+                    dialog.close();
+                }, 1000);
+            },
             footer: {
                 primary: {
                     action: "ok", label: game.i18n.localize("DRPG.Vote.cast"),
@@ -851,6 +881,11 @@ async function castBallot({ round = 0, picks = 1, candidates = [] } = {}) {
     }
     // Closed by a newer ballot - a remind, a resend, the vote started over - which is the one to answer.
     if (drawn !== ballotWindows) return;
+    // Closed with its round: told so, not as a ballot dismissed.
+    if (movedOn) {
+        ui.notifications.info(game.i18n.localize("DRPG.Vote.movedOn"));
+        return;
+    }
 
     // Dismissed rather than answered. Silence used to be the end of it - the
     // ballot was gone and there was no way to ask for another - so a misclick
@@ -1077,7 +1112,7 @@ async function closeRound(progress) {
        among names that each carried the room (`countBallots`). The bar is drawn, not read: it is
        hidden from a screen reader, which has the count beside it. */
     const share = n => Math.round(100 * n / Math.max(1, issued));
-    const esc = foundry.utils.escapeHTML;
+
     // The two that count ballots are plural families on {total} (E66 C3, the census); the one-name line is a ratio.
     const accusing = { names: listOf(accused.map(r => esc(named(r.id)))), n: Math.min(...accused.map(r => r.n)), total: issued };
     const sentence = noMajority

@@ -10,7 +10,7 @@ a test for the two that can be tested (`scripts/tests-tier1.mjs`).
 | Face | Token | Where | Rules |
 |---|---|---|---|
 | **Special Elite** | `--drpg-font-title` | window title (21px), campaign name on the clock (18px), event name (19px), character name (24px), the messenger's author line | never uppercase, never below 16px, **no letter-spacing**, one line; it is the typewriter of a case file, so it appears once per window: where the name of the thing is |
-| **VT323** | `--drpg-font-chrome` | clock labels, pool names and counts, status strip, Projects tray, buttons, tabs, chips, tables, field labels, notices, launchers, action tiles, the ticker behind the clock | uppercase with 0.04-0.18em tracking on labels (the smaller the size, the wider the tracking); 11-15px at 100% scale; tabular numerals; **no bold, no italic** - the face has neither, so the browser fakes them |
+| **VT323** | `--drpg-font-chrome` | clock labels, pool names and counts, status strip, Projects tray, buttons, tabs, chips, tables, field labels, notices, launchers, action tiles, the ticker behind the clock | uppercase with 0.04-0.18em tracking on labels (the smaller the size, the wider the tracking); never under the floor, 21px at 100% scale (below); tabular numerals; **no bold, no italic** - the face has neither, so the browser fakes them |
 | **VT323** | `--drpg-font-prose` | window body text, item descriptions, messenger messages | no uppercase, no tracking, at most 74 characters a line; emphasis by state colour, not by weight |
 | **VT323** | `--drpg-font-stamp` | Ultimate, GM only, Blackened, the phase on the clock, ballots | uppercase, 14-15px, ink colour on a plate in the meaning's colour |
 
@@ -86,9 +86,15 @@ sidebar, chat and settings windows, exactly as it has always done under the
 glass. Every rung is N/16 rem, which is the value Foundry and Daggerheart already
 state, so at 100 % the block changes nothing.
 
-## Legacy's floor is 10px, and it is per rung
+## Legacy's floor is per rung: 11px from rung 11, a smaller rung at its own size
 
-The 11px above is VT323's floor and the glass's. Press Start 2P is a bitmap face
+Corrected 21.11.2026 (UI-36). This section was written when the floor was 10px; since E48 K6 (S12-41)
+`--drpg-text-xs` and the rungs 11 to 14 floor at 11px (`min(11px, the rung)`, R3500, R6754), and only rungs 8 to 10
+stop at their own size, rung 10 at 10px (styles/danganronpa.css, the Legacy body's `--font-size-*`). The reasoning
+below is kept as it was written; read its "10px" as rung 10's.
+
+The 11px above is where VT323's strokes start dropping out, not a floor anything is set to: the glass's floor is the
+21px above. Press Start 2P is a bitmap face
 drawn on an 8px grid, and the smallest size this module states for it is 10px -
 `--drpg-text-xs`, which is 11px at 100 % - so 10px is where Legacy's shrinking
 stops. Twelve of the 22 literals in the sheet and the rungs from 10 to 14 carry

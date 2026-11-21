@@ -22,6 +22,7 @@ import { isCallSilenced, pendingGather, alreadyArmed } from "./call-effects.mjs"
 import { witnessesTo, isCleaner, freeTonightText, tamperQuote } from "./cleanup.mjs";
 import { stripeKindFor, quotePrice, priceLabel } from "./price.mjs";
 import { neighbouringRooms, othersInRoom, locateActor, roomOfActor } from "./movement.mjs";
+import { seenHere } from "./mask-gm.mjs";
 import { moveLine } from "./action-rolls.mjs";
 import { SearchTokens } from "./search-tokens.mjs";
 import { rules } from "./rules.mjs";
@@ -235,14 +236,15 @@ export function injectActionPanel(app, element, mode = modeOf(app)) {
         note.className = "drpg-action-panel drpg-dead-panel";
         const heading = document.createElement("h3");
         heading.className = "drpg-keep";
-        heading.textContent = game.i18n.localize("DRPG.Chapter.deadPanelTitle");
+        // A GM's view says it of the student, as `deadUnfound` below does (the audit of 1.2.118, UI-33).
+        heading.textContent = game.i18n.localize(mode.gm ? "DRPG.Chapter.deadPanelTitleGm" : "DRPG.Chapter.deadPanelTitle");
         const body = document.createElement("p");
         body.className = "notes";
         body.textContent = game.i18n.localize("DRPG.Chapter.deadPanelNote");
         // What the dead still do (E24 C3a, E24-18): speak outside the trial; in it, no microphone and no ballot.
         const still = document.createElement("p");
         still.className = "notes drpg-dead-still";
-        still.textContent = game.i18n.localize("DRPG.Class.deadStill");
+        still.textContent = game.i18n.localize(mode.gm ? "DRPG.Class.deadStillGm" : "DRPG.Class.deadStill");
         note.append(heading, body, still);
         // Dead, and nobody has found them yet (E05 C10): the victim's own player, and a GM.
         if (mode.unfound) {
@@ -420,8 +422,10 @@ export function monocubMoveNote(actor = null) {
        next price once the Free Move was spent (action-briefing.mjs `moveLine`, actions.mjs `nextCrossingPrice`), on the
        premise that a Monocub pays its crossings as a student does. It does not: movement.mjs `chargeRoute` lets a
        Monocub's drag through with nothing taken - no Free Move, free crossing, Burst or action (E72 C10) - and tier 2
-       "1.2.113 a Monocub's crossing costs nothing ..." measured it with nothing left to pay with. A character that is no
-       Monocub, which the panel never holds, still reads the next price; with no character, the owner's word. Whether it
+       "1.2.113 a Monocub's crossing costs nothing ..." measured it with nothing left to pay with. Its two callers are the
+       Monocub panel's (`injectMonocubPanel`, sheet-repaint.mjs `refreshMonocubTiles`), so the `moveLine` branch below - a
+       character that is no Monocub - is reached by the suite alone; with no character, the owner's word (the audit of
+       1.2.118, D-269). Whether it
        is a Monocub is `sheetMode`'s (R1470: one sheet mode). The panel's repaint draws the line again
        (`refreshMonocubTiles`). */
     note.textContent = !actor || sheetMode(actor).monocub || nextCrossingPrice(actor) === "free" ? game.i18n.localize("DRPG.Move.free") : moveLine(actor);
@@ -431,8 +435,9 @@ export function monocubMoveNote(actor = null) {
 /**
  * Whether Move's "drag your token" is true for this character now (the r112 review's P2, 13.11.2026): not in a Class
  * Trial, where the drag is refused (movement.mjs `trialLocked`), nor in an incident the character is in
- * (`lockedInIncident`); the tile is locked in both (`actionButton`). The HUD's Move row and the Monocub's Move tile ask
- * it. `trial` and `incident` are for the suite (R4472).
+ * (`lockedInIncident`); the tile is locked in both (`actionButton`). The curtain's strip's Move row asks it
+ * (player-status.mjs); the Monocub's Move tile that asked it too is gone since E103 (the audit of 1.2.118, D-268). `trial`
+ * and `incident` are for the suite (R4472).
  */
 export function moveDragSaid(actor, { trial = inClassTrial(), incident = Boolean(murderState()?.stage === "incident" && sideOf(actor)) } = {}) {
     return !trial && !incident;
@@ -1010,8 +1015,11 @@ export function roomBlockFor(actor, key) {
         // Palm needs a pocket, and a pocket needs somebody standing in it -
         // true of both directions. The same question `performPalm` asks, on
         // the scene the character stands on (`othersInRoom`, E12 C3), so the
-        // tile tells the truth about the room rather than guessing.
-        if (key === "palm" && othersInRoom(actor).length === 0)
+        // tile tells the truth about the room rather than guessing - as this
+        // browser sees the room (mask-gm.mjs `seenHere`): a killer under the
+        // opening's veil, whose token it does not draw, is nobody here on the
+        // victim's own sheet (the auditor's check of 1.2.121, r121-M-4).
+        if (key === "palm" && seenHere(othersInRoom(actor)).length === 0)
             return game.i18n.localize("DRPG.Steal.nobodyHere");
 
         // TAMPER IS ANSWERED, AND IT USED TO SAY IT COULD NOT BE.
@@ -1431,7 +1439,9 @@ export function actionButton(actor, key, def) {
 
 /*
  * THE MOVE TILE OPENS NOTHING (E100 item 1, 12.11.2026; the owner on the player-screens review, #2: the Move window had
- * one button, Got it, and only said "drag your token"). The tile a Monocub's panel draws keeps its price and its
+ * one button, Got it, and only said "drag your token"). No panel draws a Move tile since E103 - ACTION_GRID has no
+ * "move", the Monocub's panel draws its own tiles (`monocubTiles`) - so `actionButton`'s "move" branch is reached by the
+ * suite alone (the audit of 1.2.118, D-267: this said the Monocub's panel draws it). The tile keeps its price and its
  * tooltip, and says on its face what to do (`DRPG.Move.dragShort`); it is a `div`, not a button, with no
  * `data-drpg-action`, so the delegate (`attachActionDelegate`) has nothing to press and the stylesheets' hover, which
  * reads `:not(.drpg-action-still)`, does not light it as if it could be pressed. R4100.
@@ -1542,13 +1552,17 @@ function priceQuoteFor(actor, key) {
  * crossings left ("1 / 2 crossings", "any room"); the header's two feet say that
  * now (`freeMovePip`), and no tile draws the Move (the owner, 13.11.2026).
  */
-function costLabelFor(actor, key, def) {
+export function costLabelFor(actor, key, def) {
     // The step that will pay, in words: "1 action", "1 Hope", "1 Sanity" (T-1).
     if (PRICE_CHAINS[key]) {
         const quote = priceQuoteFor(actor, key);
-        return quote.blocked
-            ? game.i18n.localize("DRPG.Action.costFree")
-            : priceLabel(quote);
+        /* A BLOCKED QUOTE IS NOT A FREE ONE (the audit of 1.2.118, UI-24; 1.2.122 line UI). It is the chain with nothing
+           left to pay with, and the face said "free" over a dimmed tile whose tooltip said there was nothing to pay
+           with: Analyze, every time the actions ran out outside a trial. The face says what the chain's first step
+           costs ("1 action"), as the stripe does; the refusal stays the tooltip's. */
+        if (!quote.blocked) return priceLabel(quote);
+        const first = PRICE_CHAINS[key].steps?.[0];
+        return first ? priceLabel({ pay: first.pay, amount: first.amount }) : "";
     }
 
     const cost = costOf(actor, key, def);

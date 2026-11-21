@@ -34,7 +34,7 @@
 import { MODULE_ID, moduleVersion } from "./config.mjs";
 import { SETTINGS, diceLookChoice } from "./settings.mjs";
 import { esc, error, markFired } from "./utils.mjs";
-import { drpgWindow } from "./ui-kit.mjs";
+import { drpgWindow, tipText } from "./ui-kit.mjs";
 import { canonicalLook, holdsTableLook, isForced, fuseStoppedFor, tableLookSource, dualityPresetHere } from "./dice-sync.mjs";
 import { lastRollWindow } from "./roll-dialog.mjs";
 
@@ -322,10 +322,28 @@ function browserLook({ looks = [] } = {}) {
     };
 }
 
-/** The roll message a run reads: the one named, else the newest with dice this browser may read. */
-function rollMessage(messageId, gm) {
-    if (messageId) return game.messages.get(messageId) ?? null;
-    return game.messages.contents.filter(m => (m.rolls?.length ?? 0) > 0 && (gm || m.visible !== false)).at(-1) ?? null;
+/**
+ * May `user` read this message's dice? A GM's run reads every one. A player's reads a message with no whisper, one
+ * whispered to them, or their own unless blind - and on their own browser whatever `isContentVisible` grants, the
+ * module's `isReadableHere` (a roll the GM drew for them) among it. Not `visible`: Foundry answers true for every
+ * whispered roll, as the card shows that somebody rolled, so a player's run read another student's hidden roll
+ * and printed its author and its dice in the window they are asked to send the GM (the audit's ROLL-20, 1.2.122).
+ */
+function readableBy(message, user, gm) {
+    if (gm) return true;
+    const whisper = message?.whisper ?? [];
+    if (!whisper.length) return message?.visible !== false;
+    if (user?.id && user.id === game.user?.id && message.isContentVisible === true) return true;
+    return whisper.includes(user?.id) || (message.author?.id === user?.id && !message.blind);
+}
+
+/** The roll message a run reads: the one named, else the newest with dice `user` may read; null for one they may not. */
+function rollMessage(messageId, gm, user) {
+    if (messageId) {
+        const message = game.messages.get(messageId) ?? null;
+        return message && readableBy(message, user, gm) ? message : null;
+    }
+    return game.messages.contents.filter(m => (m.rolls?.length ?? 0) > 0 && readableBy(m, user, gm)).at(-1) ?? null;
 }
 
 /** An actor's Dice So Nice overlay, or null. */
@@ -362,7 +380,7 @@ export async function lookView({ messageId = null, gm = game.user?.isGM === true
         };
     });
     const looks = users.map(user => user.getFlag?.(DSN, "appearance")).filter(Boolean);
-    const message = rollMessage(messageId, gm);
+    const message = rollMessage(messageId, gm, self);
     let roll = null;
     if (message) {
         let by = message.author?.id ?? null, audience = null;
@@ -419,8 +437,11 @@ export function lookFindings(view) {
     const kinds = { system: "missingSystem", colorset: "missingColorset", texture: "missingTexture", material: "missingMaterial" };
     for (const row of browser.registry?.missing ?? []) if (kinds[row.kind]) say(me, kinds[row.kind], { name: row.name });
     if (browser.dsn?.active && browser.dsn.api?.allCustomization === false) say(me, "dsnApiMoved", { version: browser.dsn.version ?? "?" });
-    // Not where this browser lays Daggerheart's dice on each throw (E108, R5465): the sentence would be false there.
-    if (browser.system?.roles === true && !browser.tableLook) say(me, "rolesUnforced", { version: browser.system.version ?? "?" });
+    /* Not where this browser lays Daggerheart's dice on each throw (E108, R5465), and not where the table's look is forced on
+       this user: since E108 (abe0972f) the forced look is the source Gamemaster's role looks too (dice-sync.mjs `lookFrom`,
+       `writeLooks`), so "the table's look does not set them" was false there (the audit's STG-78, 1.2.122). */
+    const forcedHere = view?.forcing === true && (view?.users ?? []).some(user => user.id === me && user.forced === true);
+    if (browser.system?.roles === true && !browser.tableLook && !forcedHere) say(me, "rolesUnforced", { version: browser.system.version ?? "?" });
     return out;
 }
 
@@ -533,21 +554,33 @@ export async function diagnoseDiceLook({ messageId = null, test = false, show = 
     } catch { /* a console without table() still has the text */ }
     if (show) {
         const { alreadyOpen } = await import("./live.mjs");
-        if (!alreadyOpen("drpg-window-dice-look")) {
-            // A read-out (E21 C2b): Close, the default; Copy report secondary.
-            drpgWindow({
-                classes: ["drpg-panel", "drpg-window-dice-look"],
-                width: "wide",
-                title: word("DRPG.DiceLook.diag.title"),
-                body: windowHtml(view, findings, lines),
-                footer: {
-                    secondary: [{ action: "copy", label: game.i18n.localize("DRPG.Diagnose.copy"),
-                        callback: () => { void game.clipboard?.copyPlainText?.(text); return "copy"; } }],
-                    close: { role: "close", action: "close" }
-                },
-                rejectClose: false
-            }).catch(err => error("Could not show the dice look", err));
-        }
+        /* The read-out (E21 C2b): Close, the default; Copy report secondary. Copy report waits for the copy, says it was
+           copied - or that it was not, and how to copy by hand - and brings the window back, as the Diagnose window's does
+           (diagnostics.mjs `openReport`). Until 1.2.122 it started the copy unawaited and closed the window with no word, a
+           failed copy included (the audit's CTRL-68). Not awaited: the run answers its view while the window stands. */
+        if (!alreadyOpen("drpg-window-dice-look")) void (async () => {
+            for (;;) {
+                const action = await drpgWindow({
+                    classes: ["drpg-panel", "drpg-window-dice-look"],
+                    width: "wide",
+                    title: word("DRPG.DiceLook.diag.title"),
+                    body: windowHtml(view, findings, lines),
+                    footer: {
+                        secondary: [{ action: "copy", label: game.i18n.localize("DRPG.Diagnose.copy"), tooltip: tipText("DRPG.Tips.Sweep.Gm.copyReportTooltip") }],
+                        close: { role: "close", action: "close" }
+                    },
+                    rejectClose: false
+                });
+                if (action !== "copy") return;
+                try {
+                    await game.clipboard.copyPlainText(text);
+                    ui.notifications?.info(game.i18n.localize("DRPG.Diagnose.copied"));
+                } catch (err) {
+                    error("Could not copy the dice look", err);
+                    ui.notifications?.warn(game.i18n.localize("DRPG.DiceLook.diag.copyFailed"));
+                }
+            }
+        })().catch(err => error("Could not show the dice look", err));
     }
     return { view, findings, text };
 }

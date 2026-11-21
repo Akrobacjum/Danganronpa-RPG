@@ -586,7 +586,7 @@ przyciemnić kafelek, dostanie toast przy każdym renderze.
 ### A18 · P3 · Globalne monkey-patche (siedem) - **rejestr dopisany 03.09**
 
 `scripts/patches.mjs`: tabela `PATCHES` i `diagnosePatches()` na `game.drpg`,
-ładowane na żądanie. Bez pola `since` - patrz "Weryfikacja realizacji".
+ładowane na żądanie. Bez pola `since` - patrz "Weryfikacja realizacji". (Dopisek 21.11.2026, VER-A18: od E52 C3 `patches.mjs` nie jest już ładowany na żądanie - module.mjs:411 i :416 importują go w `ready` na każdym kliencie, a na głównym GM-ie także `announceAtReady`.)
 
 | Plik | Co nadpisuje | Ryzyko |
 | --- | --- | --- |

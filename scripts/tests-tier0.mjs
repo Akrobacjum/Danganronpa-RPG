@@ -13,7 +13,7 @@ import { atReadableFloor } from "./tests-css.mjs";
 import {
     ok, needs, env, world, equal, must, wait, lf, lfText, moduleSources, otherSources, stripComments, moduleStyles, bodyOf,
     topLevelFunction, fnSource, lineAround, withGuards, lineAt, stripStrings, stringLiterals, STANDING, cast,
-    markerProblem, runOne, scriptDice, answerDialogs, stageLedger, suiteEntries, KIT_SELF_TESTS, SELF_LEDGER, MARKER_FIXTURE,
+    markerProblem, runOne, scriptDice, answerDialogs, standIn, stageLedger, suiteEntries, KIT_SELF_TESTS, SELF_LEDGER, MARKER_FIXTURE,
     scanSuite, bareCuts, vacuousAsserts, needsArgs, LINT_FIXTURES, UNTIL_FIXTURE, untilProblem, DUMP_RULES,
     DUMP_FOREIGN_SETTINGS, dumpOf, dumpDiff, dumpPathsOf, FLOWS, FLOW_EXEMPT, staticImports, importCycles,
     bridgeTables, bridgeLookup, bridgeCrawl, bridgeCrawlSources, bridgeFamily, bridgeFn, bridgeText, censusFile, ACTION_FAMILY, actionText, VAULT_FAMILY, vaultText, panelText, HUD_FAMILY, hudText, tablesText, MUSIC_FAMILY, musicText, SFX_FAMILY, sfxText, VOTE_FAMILY, voteText, bridgeTableProblems, payloadReads, refusalProblems, storeKeyAccess, GM_STORE_PENDING, blankComments, blankLiterals, callArgs,
@@ -900,7 +900,47 @@ const REGRESSIONS = [
         equal(JSON.stringify(problems.slice(0, 40)), "[]", `the one prefix (${problems.length} problem(s), ${Object.keys(texts).length} file(s), ${names.length} named glyph(s))`);
     }],
 
-    ["R1313 - CONTRIBUTING.md's \"The CSS contract\" names each detector of the CSS lint (importantCount, colourLiterals, strayCommentEnds, duplicateRules, deadClasses), the floor (21 px scaled under Stained Glass, 10 px a rung under Monokuma Legacy), the 390 px rule and the three commands - node tools/check.mjs css, node tools/check.mjs contrast, node audit/style-sweep.mjs (E44 C1c; E44-04)", async () => {
+    ["R8460 - a UI label the handbooks quote is one the module still draws (1.2.122, STG-27; E57's plan T10, never built): every row of docs/dev/e57/LABELS.md - a bold or italic span of a handbook that was a whole lang value - whose span still stands in that handbook, so marked, is a value of that language's lang file today; two spans that are the register's states, not labels, are named and let through", async () => {
+        /*
+         * 1.2.122 line STG, 21.11.2026. The audit's E57-1 read 25 distinct spans (33 rows) the handbooks still quoted under
+         * words no key of their language held any more - **Add pool** for "Grant pool", *I'll pass (nothing spent)* for
+         * "Pass", **Takes part** for "In the hall" - and nothing compared a quoted label with its key: every handbook test
+         * and `check text` were green. LABELS.md is E57's table (3053 rows); a span that some other key still holds is
+         * not drift (the listed key may have gone while the words stayed). Red at 5813f569: the 25.
+         */
+        needs(env.tools(), "docs/dev is read from the repository (an installed module's zip leaves it out, as it leaves tools/)");
+        const get = async path => { try { const r = await fetch(`/modules/${MODULE_ID}/${path}`, { cache: "no-cache" }); return r.ok ? await lfText(r) : ""; } catch { return ""; } };
+        const table = await get("docs/dev/e57/LABELS.md");
+        must(table.includes("| Handbook | Line | Label | Key(s) |"), "docs/dev/e57/LABELS.md did not load - this test would read nothing");
+        const values = {};
+        for (const lang of ["en", "pl"]) {
+            const out = new Set();
+            const walk = o => { if (typeof o === "string") out.add(o); else if (o && typeof o === "object") Object.values(o).forEach(walk); };
+            walk(JSON.parse(await get(`lang/${lang}.json`) || "{}"));
+            values[lang] = out;
+        }
+        /* The register's row states (diagnosePatches: ok, failed, unknown) are written in italics and once equalled
+           DRPG.Cleanup.miss; they are states, not a label of that key. */
+        const NOT_LABELS = new Set(["en failed", "pl nieudane"]);
+        const books = new Map(), stale = new Set();
+        let rows = 0;
+        for (const line of bodyOf(table, "| Handbook | Line | Label | Key(s) |", { until: "\n## " }).split("\n")) {
+            const m = line.match(/^\| ([a-z-]+)\.(en|pl) \| \d+ \| (.*?) \| `/);
+            if (!m) continue;
+            rows++;
+            const [, book, lang, label] = m;
+            if (values[lang].has(label) || NOT_LABELS.has(`${lang} ${label}`)) continue;
+            const name = `${book}.${lang}`;
+            if (!books.has(name)) books.set(name, await get(`docs/handbooks/${name}.md`));
+            const text = books.get(name);
+            const esc = label.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+            if (text.includes(`**${label}**`) || new RegExp(`(?<![*\\w])\\*${esc}\\*(?![*\\w])`).test(text)) stale.add(`${name}: ${label}`);
+        }
+        must(rows > 3000, `LABELS.md gave ${rows} rows - this test would read nothing`);
+        equal(JSON.stringify([...stale].sort()), "[]", "the handbooks quote these labels under words no key of their language holds");
+    }],
+
+    ["R1313 - CONTRIBUTING.md's \"The CSS contract\" names each detector of the CSS lint (importantCount, colourLiterals, strayCommentEnds, duplicateRules, deadClasses), the floor (21 px scaled under Stained Glass; under Monokuma Legacy 11 px for `--drpg-text-xs` and the rungs 11 to 14, a rung under it at its own size - never the old \"10 px per rung\", UI-36), the 390 px rule and the three commands - node tools/check.mjs css, node tools/check.mjs contrast, node audit/style-sweep.mjs (E44 C1c; E44-04)", async () => {
         /*
          * E44 C1c, 04.11.2026 (audit S17-35: no CSS contract). The section is what a contributor reads before
          * touching styles/, so it names what the tools hold them to; a detector added to tests-css.mjs's DETECTORS
@@ -915,9 +955,12 @@ const REGRESSIONS = [
         ok(text.includes("\n## The CSS contract\n"), "CONTRIBUTING.md has no section \"## The CSS contract\"");
         const section = bodyOf(text, "\n## The CSS contract\n", { until: "\n## " });
         must(section.length > 500, `the CSS contract section is ${section.length} characters - this test would read nothing`);
-        const wanted = [...Object.keys(CSS_DETECTORS), "deadClasses", "21 px", "10 px", "390 px",
+        const wanted = [...Object.keys(CSS_DETECTORS), "deadClasses", "21 px", "11 px", "390 px",
             "node tools/check.mjs css", "node tools/check.mjs contrast", "node audit/style-sweep.mjs", "!important", "narrow.css"];
         equal(JSON.stringify(wanted.filter(w => !section.includes(w))), "[]", "the CSS contract does not name these");
+        /* UI-36 (1.2.122): Legacy's floor is 11 px for `--drpg-text-xs` and the rungs 11 to 14 since E48 K6 (R3500, R6754);
+           the section said "10 px per rung" until then, a floor only rung 10 itself still stops at. */
+        ok(!/10 px per rung/.test(section), "the CSS contract still gives Monokuma Legacy a floor of 10 px per rung (11 px since E48 K6: R3500)");
     }],
 
     ["R1322 - styles/components.css holds the kit's contract (E44 C3a; E44-11): no `!important` and no colour literal; Legacy's tokens on `body` and the glass's on `body.drpg-theme-stained-glass`, none the glass declares missing for Legacy and none read undeclared; every colour through a `--drpg-kit-*` token; no rule for the glass alone without one for both themes beside it; every font-size a kit size token floored at 11 px under Legacy and at `--drpg-sg-floor` under the glass; no width above 390 px; an uppercase box at line-height 1.3 and never overflow: hidden - and each of those faults, planted in a copy of the served file, read", async () => {
@@ -1508,7 +1551,9 @@ const REGRESSIONS = [
             }),
             // An item by its uuid, which says whose sheet it is on.
             items: [...(game.items?.contents ?? []), ...game.actors.contents.flatMap(actor => actor.items?.contents ?? [])]
-                .map(item => ({ id: item.uuid, flags: item.flags ?? {} }))
+                .map(item => ({ id: item.uuid, flags: item.flags ?? {} })),
+            // 1.2.122 (CORE-25): every scene's regions, for the rule's `flagValues` - a hidden stash is no room's flag.
+            regions: game.scenes.contents.flatMap(scene => (scene.regions?.contents ?? []).map(r => ({ id: `${scene.id}.${r.id}`, flags: r.flags ?? {} })))
         });
         ok(!found.length, `these are on every player's machine right now: ${found.map(h => `${h.doc} ${h.id} :: ${h.path} - ${h.rule}`).join("; ")}`);
     }],
@@ -3102,8 +3147,10 @@ const REGRESSIONS = [
             "nothing bounds the step a Tamper packet claims to have paid");
         ok(/async function handBack\(/.test(cleanup),
             "the critical is back to healing Sanity the attempt may never have spent");
+        // The concealment's own refund is kept for the attempt's packet and given back on the GM since 1.2.122 (the audit's
+        // CASE-27; cleanup.mjs `takeCoverRefund`, `coverGiveBack`; tier 2 "1.2.122 CASE-27" drives both sides).
         const conceal = bodyOf(cleanup, "async function concealFromWitnesses");
-        ok(/restoreStress\(/.test(conceal.slice(0, 1600)),
+        ok(/coverRefunds\.set\(/.test(conceal.slice(0, 3200)) && /async function coverGiveBack\([\s\S]{0,1600}restoreStress\(/.test(cleanup),
             "the concealment's own refund is gone - that one is not the attempt's price");
 
         // The step travels: the roll context, both sides of the bridge, the replay.
@@ -3605,7 +3652,7 @@ const REGRESSIONS = [
 
         // The order both halves of this depend on, one file up.
         const live = stripComments(sources.get("live.mjs") ?? "");
-        const rebuild = bodyOf(live, "const rebuild = (force = false)", { until: "const schedule =" });
+        const rebuild = bodyOf(live, "const rebuild = (force = false, { picked = false } = {})", { until: "const schedule =" });
         const restored = rebuild.indexOf("restore(next, carried)");
         const after = rebuild.indexOf("after(next)");
         ok(restored > 0 && after > 0,
@@ -4021,7 +4068,8 @@ const REGRESSIONS = [
             "buildDonors exists but the rows do not call it, so nothing changed");
         /* E05 C10 adds the deaths store's hook: a death nobody has found writes no actor, and a
            hook more widens the net - a `settings` filter is what would narrow it. */
-        ok(/watch: \{ actors: true(?:, hooks: \[[^\]]*\])? \}/.test(window),
+        // A store too (1.2.122, REFR-48: the standing offers' `offerStore`): a store is heard by its own key, no wider net.
+        ok(/watch: \{ actors: true(?:, hooks: \[[^\]]*\])?(?:, stores: \[[^\]]*\])? \}/.test(window),
             "this window's live watch was narrowed - an omitted settings filter is the wide "
             + "net, and the table is built out of several settings");
     }],
@@ -4762,7 +4810,8 @@ const REGRESSIONS = [
             "the gate is never wired to the window");
         ok(!/return null;\s*\}\s*return written;/.test(confirm),
             "the callback still tries to cancel by returning null");
-        ok(/if \(call\.needsGm && !String\(result\)\.trim\(\)\) return null;/.test(confirm),
+        // The words read off the answer's object since 1.2.122 (the audit's COMM-39: a note "cancel" was read as Cancel).
+        ok(/const words = String\(result\.note \?\? ""\);\s*if \(call\.needsGm && !words\.trim\(\)\) return null;/.test(confirm),
             "an empty note can still reach the GM as an empty request - the gate lives in "
             + "the interface, and the boundary has to ask again");
     }],
@@ -5928,7 +5977,7 @@ const REGRESSIONS = [
         const sources = new Map(await otherSources());
         ok(/"drpg-resources-locked", Boolean\(getSetting\(SETTINGS\.lockPlayerResources\)\)/.test(stripComments(sources.get("module.mjs") ?? "")),
             "nothing stamps the class when the world loads");
-        ok(/lockPlayerResources, \{[\s\S]{0,500}onChange: value => document\.body\.classList\.toggle\("drpg-resources-locked"/.test(stripComments(settingsText(sources))),
+        ok(/lockPlayerResources, \{[\s\S]{0,500}onChange: value => \{?\s*document\.body\.classList\.toggle\("drpg-resources-locked"/.test(stripComments(settingsText(sources))),
             "switching the setting does not move the class");
     }],
 
@@ -5945,13 +5994,15 @@ const REGRESSIONS = [
         ok(guard > 0 && guard < init.indexOf("requirementsMet()"), "the relay guard is registered after the requirements check");
     }],
 
-    ["R152 - no update deletes or replaces a key with the old '-=' / '==' spelling, which v14 ignores", async () => {
+    ["R152 - no update deletes or replaces a key with the old '-=' / '==' spelling, which v14 deprecates (on 14.370 it still deletes, with a deprecation warning: LIVE-E30-01)", async () => {
         /*
          * E30, 24.09.2026; audit S17-01. `migrateRemnants` took a trace's answer key off
          * its token with `flags.<id>.-=<key>`, the spelling the module's own notes
          * measured removing nothing in this Foundry (actions.mjs, music.mjs, fog.mjs,
          * migrate.mjs): the key stayed on a token every client receives, and the
-         * summary said "stripped". A key is deleted with `forcedDeletion()` or
+         * summary said "stripped". (That reading is refuted for 14.370: LIVE-E30-01,
+         * read 16.11.2026, deleted the key with v14's deprecation warning; the rule
+         * stands for the warning and for a Foundry without the old spelling.) A key is deleted with `forcedDeletion()` or
          * `unsetFlag`, and a value replaced with `replaceFlag` (utils.mjs).
          *
          * Every string and template literal of every file the module loads, this
@@ -5983,7 +6034,7 @@ const REGRESSIONS = [
             const code = stripComments(text);
             for (const lit of writes(code)) found.push(`${file}:${lineAt(code, lit.start)} ${JSON.stringify(lit.text).slice(0, 60)}`);
         }
-        ok(!found.length, `a key spelled the old way, which v14 ignores (delete with forcedDeletion() or unsetFlag, replace with replaceFlag): ${found.join("; ")}`);
+        ok(!found.length, `a key spelled the old way, which v14 deprecates (delete with forcedDeletion() or unsetFlag, replace with replaceFlag): ${found.join("; ")}`);
     }],
 
     ["R154 - the runner keeps the test author contract", async () => {
@@ -6182,6 +6233,32 @@ const REGRESSIONS = [
             && /__dialogAnswers !== realDialogs\.answers/.test(suite);
         equal(JSON.stringify([wrapped, atEnd]), JSON.stringify([true, true]),
             "tier 2 runs a test outside the dialog answers, does not take them off in a finally, or does not read the dialogs real at the end (wrapped, read at the end)");
+    }],
+    ["R7745 - a test's stand-in for what Foundry holds read-only is its own property, put back as found, and one it cannot make is a probe", async () => {
+        /*
+         * E58 L1, 19.11.2026: on the sandbox (Foundry 14.370) `game.i18n.format` is Localization.prototype's, neither writable nor
+         * configurable, so a test's `game.i18n.format = fn` threw (R2077, R3980 and two tier-2 tests); a Module's `active` is its
+         * own, fixed; `foundry.utils` and `foundry.canvas` are frozen. tests-kit.mjs `standIn` shadows an inherited read-only
+         * property with an own one and puts back what stood; `replaceable` (env.replaceable) says where nothing can stand in.
+         * Planted here: each of the four shapes, on objects of the test's own. Red before the kit had either (no export).
+         */
+        const K = await import("./tests-kit.mjs");
+        must(typeof K.standIn === "function" && typeof K.env.replaceable === "function", "the kit has no standIn or env.replaceable");
+        const proto = {}; Object.defineProperty(proto, "say", { value: () => "real", writable: false, configurable: false });
+        const inherited = Object.create(proto);
+        const back = K.standIn(inherited, "say", () => "stand-in");
+        const during = [inherited.say(), Object.hasOwn(inherited, "say")];
+        back();
+        const after = [inherited.say(), Object.hasOwn(inherited, "say")];
+        const owned = { say: () => "own" }, ownBack = K.standIn(owned, "say", () => "stand-in");
+        const ownDuring = owned.say();
+        ownBack();
+        const fixed = {}; Object.defineProperty(fixed, "active", { value: true, writable: false, configurable: false });
+        const holds = (obj, key) => K.env.replaceable(obj, key, "R7745").holds;
+        equal(JSON.stringify([during, after, ownDuring, owned.say(), Object.getOwnPropertyDescriptor(owned, "say").writable,
+            holds(inherited, "say"), holds(owned, "say"), holds(fixed, "active"), holds(Object.freeze({ f: 1 }), "f"), holds(Object.freeze({}), "g")]),
+        JSON.stringify([["stand-in", true], ["real", false], "stand-in", "own", true, true, true, false, false, false]),
+        "a stand-in was not an own property, was not put back as found, or a read-only one was called replaceable");
     }],
 
     ["R155 - every expectedRed names a stage that has not shipped", async () => {
@@ -7264,7 +7341,10 @@ const REGRESSIONS = [
             "the store diceLooks": "a character's dice look is the GMs' choice and no season's; its row goes with its actor",
             "the store clockBeat": "the primary's last beat is no season's; one older than the time of day's start reads as none",
             // E53 C3: the balance log is what sessions 0 compare across a season, so no reset cuts it (gm-stores.mjs).
-            "the store balanceLog": "the balance log's rolls are what sessions 0 compare across seasons; nothing clears it yet (docs/dev/balance.md)"
+            "the store balanceLog": "the balance log's rolls are what sessions 0 compare across seasons; nothing clears it yet (docs/dev/balance.md)",
+            // 1.2.122, CORE-25: the reset writes its cut first, and its "stashesFound" part makes these stashes open by their rows.
+            "the store hiddenStashes": "a hidden stash is the room's furniture; the reset makes it open by reading these rows (vault-store.mjs `unconcealStashes`), after its cut",
+            "the copy hiddenStashes": "a player's copy of the hidden stashes follows the store, which no reset cuts (above)"
         };
         // A group the window offers and an entry of the registry clears (E42 C3: read through `seasonStateFor`).
         const strays = named.filter(([what, group]) => !(groups.has(group) && R.seasonStateFor(group)) && !(group === undefined && Object.hasOwn(UNCUT, what)))
@@ -7531,6 +7611,8 @@ const REGRESSIONS = [
             "death.mjs reviveCharacter status": "the marker, taken off with it",
             // E19 C2: the updateActor hook's test moved into `reconcileTrigger`, which the hook asks.
             "voice.mjs reconcileTrigger flag": "the updateActor hook's trigger reads the change's key, not the actor",
+            // 1.2.122 (the audit's COMM-41): the trial voices' updateActor hook asks `trialVoiceTrigger` of the change's keys.
+            "voice.mjs TRIAL_VOICE_FLAGS flag": "the trial voices' updateActor trigger, the change's keys, not the actor",
             // E15 C4: the conditions' hook syncs again when a death is published; `syncStates` then asks `isDeceased`.
             "states.mjs touchesTracks flag": "the updateActor hook's trigger reads the change's key, not the actor",
             // E29 C3: the GMs' audit holds the GM-only flags in a student's mark and puts a player's write of one back;
@@ -8285,7 +8367,8 @@ const REGRESSIONS = [
             refusalFirst: at("cubAbilityRefusalOnGm(") > -1 && at("cubAbilityRefusalOnGm(") < at("spendAction(") && at("spendAction(") < at("spendCubHope("),
             priceBeforeDice: at("spendCubHope(") > -1 && at("spendCubHope(") < at("CUB_ROLLS["),
             // Since E72 C17 the price is `priceOf`'s (a move to order costs its `executionCost`): changed on purpose.
-            priceAsked: /const price = priceOf\(actor, row\)/.test(onGm) && /actionsLeft\(actor\)\s*<\s*price\.cost/.test(onGm) && /cubHopeTotal\(actor\)\s*<\s*price\.hopeCost/.test(onGm),
+            priceAsked: /const price = priceOf\(actor, row\)/.test(onGm) && /actionsLeft\(actor\)\s*<\s*price\.cost/.test(onGm) && // CHANGED ON PURPOSE BY 1.2.122 (the audit's DESP-26): the price is held to the Hope the GMs hold, not the sheet's.
+            /await cubHopeHeld\(actor\)\s*<\s*price\.hopeCost/.test(onGm),
             serial: /serialWrite\(`drpg-cub-ability:\$\{actorId\}`/.test(run)
         };
         equal(JSON.stringify(read), JSON.stringify({ executorPays: false, refusalFirst: true, priceBeforeDice: true, priceAsked: true, serial: true }),
@@ -8505,7 +8588,9 @@ const REGRESSIONS = [
             // offerBribeOnGm and answerBribeOnGm read the payer's Hope, a living student's (E72 C15), and no Monocub's.
             // CHANGED ON PURPOSE BY THE E72 FIX ROUND (12.11.2026, review #3): the price and the refund read under the
             // purse's lock, in spendCubHopeNow and refundCubHopeNow, which spendCubHope and refundCubHope run.
-            JSON.stringify([["answerBribeOnGm", "cubHopeTotal", "offerBribeOnGm", "redeemHope", "refundCubHopeNow", "setMonocub", "spendCubHopeNow"], false]),
+            // CHANGED ON PURPOSE BY 1.2.122 (the audit's DESP-26): the payer's and the Monocub's Hope are read as the GMs hold
+            // them (`hopeHeld`, sheet-audit.mjs `meansWrite`); offerBribeOnGm reads no sheet now, the others name its path.
+            JSON.stringify([["answerBribeOnGm", "cubHopeTotal", "redeemHope", "refundCubHopeNow", "setMonocub", "spendCubHopeNow"], false]),
             "a Monocub threshold reads the sheet's Hope alone ([the functions of monocub.mjs that read it, CUB_BLOCKS reads it])");
     }],
 
@@ -8523,6 +8608,9 @@ const REGRESSIONS = [
          * times.
          */
         const CENSUS = {
+            // A GM acting for a student reads the projects with one player's sight (1.2.122, ITEM-22: `sightOf`): the
+            // connected owner first, as the bridge reads its sender; a co-owner sees what that player sees of the room.
+            "action-project.mjs": 1,
             // threadOf's fallback: a card no asker owns goes to one thread, the first owner's.
             "call-gm.mjs": 1,
             // The Mastermind's player: one on purpose (the door flag twice, the door's packet once; R560).
@@ -8556,8 +8644,9 @@ const REGRESSIONS = [
         equal(sorted(found), sorted(CENSUS), "an ownerOf call is not in the census (a co-owner left out), or the census names one gone");
         equal(JSON.stringify(compared), "[]", "a check of 'is the owner' asks ownerOf, which names one owner");
         const app = stripComments(sources.get("messenger-app.mjs") ?? "");
-        const rulings = ["ruleItemWorksOrItemNoEffectOrItemRefuse", "ruleDeclineProject", "ruleReply", "ruleSearchMiss", "ruleObserveMiss", "ruleDecline",
-            "ruleDeclineMurder"].map(name => [name, /rulingThread\(actor, message\)/.test(fnSource(app, name) ?? "")]);
+        const rulings = ["ruleItemWorksOrItemNoEffectOrItemRefuse", "ruleDeclineProject", "ruleReply", "ruleSearchMiss", "ruleObserveMiss", "ruleDecline"]
+            // ruleDeclineMurder left with its road (1.2.122, the audit's CTRL-76 and ROLL-33: no card drew the button).
+            .map(name => [name, /rulingThread\(actor, message\)/.test(fnSource(app, name) ?? "")]);
         equal(JSON.stringify(rulings.filter(([, ok]) => !ok).map(([name]) => name)), "[]", "a ruling does not go to the thread its card is in");
         const finder = fnSource(stripComments(chapterText(sources)), "tellLoneFinder") ?? "";
         ok(/ownerIdsOf\(finder\)/.test(finder), "the lone finder's death is told to one owner");
@@ -8892,6 +8981,8 @@ const REGRESSIONS = [
             ["call-world.mjs", "fallbackGather", "scene", "the room's tokens, drawn round the assembly point (Token documents)"],
             // The trace's token through its ref since E60 C1b (remnants.mjs `remnantById`), `scene.tokens.get()` until then.
             ["cleanup.mjs", "undoLastCleanup", "remnantById().document", "the trace token a clean-up left behind"],
+            // 1.2.122 line MURDER (the audit's CASE-31): an erased trace put back shown as it stood.
+            ["cleanup.mjs", "undoLastCleanup", "back", "the trace token an erase's Reroll put back, shown again as it stood"],
             // E92 C6: the player's own User document, its "Spectator talk" switch.
             ["spectator-ui.mjs", "toggleSpectatorTalk", "user", "the player's own Spectator talk switch, a flag on its own User (E92 C6; the voice tile's button since round 3)"],
             ["incident-store.mjs", "retireOpeningNotices", "game.messages.get()", "the GMs' opening notices"],
@@ -8924,9 +9015,9 @@ const REGRESSIONS = [
             // flags are written by their entries' clears (remnants.mjs, vault-store.mjs), each gated on the primary GM.
             ["secret.mjs", "post", "ChatMessage", "a secret's card"],
             ["sound-panel.mjs", "wireSoundPlay", "Playlist", "the situational playlist, made from the sound window"],
-            ["tables-editor.mjs", "addResult", "table", "a pool table's result"],
-            ["tables-editor.mjs", "editResult", "result", "a pool table's result"],
-            ["tables-editor.mjs", "dropResult", "table", "a pool table's result"],
+            ["tables-entries.mjs", "addResult", "table", "a pool table's result"],
+            ["tables-entries.mjs", "editResult", "result", "a pool table's result"],
+            ["tables-entries.mjs", "dropResult", "table", "a pool table's result"],
             ["tables-editor.mjs", "wirePaneHeading", "current()", "a pool table, renamed"],
             ["tables-editor.mjs", "wirePaneHeading", "gone", "a pool table, deleted"],
             ["tables-editor.mjs", "wirePaneRows", "result", "a pool table's result and its flags"],
@@ -9105,6 +9196,8 @@ const REGRESSIONS = [
             ["PACKET gm-bridge.mjs#murder.cleanup#transform", "judged: bounded against CLEANUP.transform; C10 stores the proposal on the attempt row (the card carries only the tag); without both a name and a text it is no rewrite, the critical erases (resolveEraseRoad, C11)"],
             ["PACKET gm-bridge.mjs#murder.cleanup#change", "judged: bounded against CLEANUP.transform (Z5); without both a name and a text no reshape is put to the GMs (resolveTransformRoad, C11)"],
             ["PACKET gm-bridge.mjs#murder.cleanup#rollId", "judged: bridge-guards.mjs rollRefusal reads the result from the GMs' roll row (E28); the packet's number is a claim"],
+            ["PACKET gm-bridge.mjs#murder.cleanup#cover", "judged: cleanup.mjs coverGiveBack bounds it to CLEANUP.conceal.refundStress.critical and gives it back only with a witness the GM reads in the room (the audit's CASE-27, 1.2.122)"],
+            ["PACKET gm-bridge.mjs#murder.cleanup#coverRollId", "judged: cleanup.mjs coverGiveBack reads the GMs' roll row it names - this sender's, this character's, a critical - and marks it resolved \"cover\", once (CASE-27, 1.2.122)"],
             ["PACKET gm-bridge.mjs#remnant.place#data", "judged: narrowPlayerRemnant rebuilds a player's trace from a whitelist; C5 decides a Sabotage trace's tie by worksOwnMurder from the GMs' roll row, never the packet"],
             ["PACKET gm-bridge.mjs#remnant.place#rollId", "judged: the GMs' roll row (noteFactOfRoll) gives the band (traceBandOf) and, from C5, the sabotaged project and its actor"],
             ["PACKET gm-bridge.mjs#remnant.tieForItem#identity", "judged: guardTieTraceHolder - only the holder, in the fight; remnants.mjs tieTraceForItem writes the tie, and C4's prep checks it keeps the three states (read in the code); since fix r1-G1 the copies learn it when the death is the table's, or at the fight's close (tieWaitNow)"],
@@ -10016,10 +10109,12 @@ const REGRESSIONS = [
             ["HOOK movement.mjs#registerMovement#preUpdateToken:onPreUpdateToken", "a claim, judged again: the veto runs on the mover's browser (a GM returns early); since E12 C9 it sees a `level`-only move (`isMoveChange`), reads each end on its own floor (`roomAt` per level) and links floors by the stairs alone where a scene has them (`stairLinks`); since E12 C12 the primary judges every arrival again from the last lawful room (`judgeArrival`), and one it refuses is no witness and no third party until it stands somewhere lawful (Q3 a); scenario 66 I [1b.1 a token's room / floor] MARKED"],
             ["HOOK movement.mjs#registerMovement#updateToken:onUpdateToken", "the charge on one client (`settleRoute`: the owning player's, else the primary's) - a player's own budget; since E12 C9 it gates on `isMoveChange` and prices a step by `crossingCost`: the stairs a door, a stairwell's floors free (Q1 a) [1b.1 a token's floor]"],
             ["HOOK sheet.mjs#registerSheetTweaks#preUpdateToken:noteStepStart", "out of scope as a judge: notes where this browser's own move of a token starts, for the step onto a tunnel's end (H81-13); vetoes nothing and writes nothing"],
+            ["HOOK crossing-settle.mjs#onTokenStood#updateToken:inline", "judged on the primary GM: a character's token that moved by any road and stood `SETTLE_MS` is handed to the barricades and the passes (doors-gm.mjs `barricadesLeftBy`, lockpick-gm.mjs `passLeftBy`), which read where it stands through `locateActor` and end what its author or holder left; writes only those GM rows and the barricade's public flag; no player is told (1.2.122, STG-08 and STG-09)"],
             ["HOOK body-tile.mjs#registerBodyFollow#updateToken:inline", "judged: a GM's own write followed (E63 C1, `followBody`): on the GM browser that wrote the token's move alone, for a corpse, the body's tile on the token's own scene takes the token's corner, height, floor and hidden; a player's move of a corpse is vetoed before it writes (movement.mjs `isCorpse`)"],
             ["HOOK camera-view.mjs#registerCameraView#updateToken:inline", "out of scope as a judge: a display - the camera dock's name plates read again on this browser when a token's veil or mask flag moves (camera-view.mjs `onTokenChange`, 1.2.121 COMM-20); writes nothing, and no move is read"],
             ["HOOK anonymity.mjs#registerAnonymity#updateToken:inline", "out of scope as a judge: a display - an open body's loot window reads the one gate again on this browser when its taker's or its body's token is written (`regreyOpenLoot`, E14 fix e1-G6); writes nothing, and the GMs judge the loot again"],
             ["HOOK sheet.mjs#registerSheetTweaks#updateToken:inline", "a claim, judged again: the mover's browser reads its own move at rest (movement.mjs `tunnelStepTarget`) and asks the primary as 'Go through' does (`passage.cross`, passages-gm.mjs `crossTunnel`, H81-13); writes nothing"],
+            ["HOOK sheet.mjs#registerSheetTweaks#updateRegion:inline", "out of scope as a judge: a room's region written redraws the open character sheets on its scene (the room watch, sheet-inventory.mjs `redrawRoomSheets`; 1.2.122 line UI, the audit of 1.2.118, REFR-12); vetoes nothing and writes nothing"],
             ["HOOK movement.mjs#registerMovement#updateToken:noteGmPosition", "judged: the record of positions `sendBackRefusal` compares against, `level` in it (`positionOf`), kept on every GM and primed by each at ready since E12 fix r2-H3 (before, the primary's alone); since E12 C12 the primary judges the arrival first (`judgeArrival`, the hook's `userId`), the last lawful room kept beside the record (`standings`, 3.4)"],
             ["HOOK movement.mjs#registerMovement#createRegion:inline", "judged on the primary: records a non-GM's region in `playerRegions` (`noteRegionCreated`); every GM remembers a GM's room flag"],
             ["HOOK movement.mjs#registerMovement#updateRegion:inline", "put back on the primary: a non-GM's change to the room flag (`judgeRoomFlagChange`, `keepRoomFlag`), logged and told to the GMs"],
@@ -10282,10 +10377,12 @@ const REGRESSIONS = [
             ["HOOK despair.mjs#canvasReady#arrow1", "out of scope: draws for this client only; the scene a client views decides no rule (E12 C6 `CAMERA_READERS`) [1b.1 which scene a client views]"],
             ["HOOK fog.mjs#canvasReady#arrow1", "out of scope: draws for this client only; the scene a client views decides no rule (E12 C6 `CAMERA_READERS`) [1b.1 which scene a client views]"],
             ["HOOK sheet.mjs#preUpdateToken#noteStepStart", "out of scope: notes where this browser's own move starts (H81-13); the courtroom holds no tunnel, and the crossing is the primary's (`crossTunnel`)"],
+            ["HOOK crossing-settle.mjs#updateToken#arrow1", "judged on the primary GM: a character's token that moved by any road and stood `SETTLE_MS` is handed to the barricades and the passes (doors-gm.mjs `barricadesLeftBy`, lockpick-gm.mjs `passLeftBy`), which read where it stands through `locateActor` and end what its author or holder left; writes only those GM rows and the barricade's public flag; no player is told (1.2.122, STG-08 and STG-09)"],
             ["HOOK body-tile.mjs#updateToken#arrow1", "judged: the body follows its corpse's token (E63 C1, `followBody`) on the GM browser that wrote the move alone; a token on another scene than its tile moves nothing, so a hall token in the trial moves no school body, and the trial's end takes every body tile (E63 C2)"],
             ["HOOK camera-view.mjs#updateToken#arrow1", "out of scope: a display - the camera dock's name plates read again on a token write that moves a veil or a mask flag (`onTokenChange`, 1.2.121 COMM-20); writes nothing; no trial rule reads it"],
             ["HOOK anonymity.mjs#updateToken#arrow1", "out of scope: a display - an open body's loot window reads the one gate again on a token write of its taker or its body (E14 fix e1-G6); writes nothing; in the hall the Class Trial refuses every loot (`cannotNow`)"],
             ["HOOK sheet.mjs#updateToken#arrow1", "out of scope: a move onto a tunnel's end asks the primary as 'Go through' does (H81-13); the courtroom holds no tunnel, and the Class Trial refuses one there (`trialLocked`)"],
+            ["HOOK sheet.mjs#updateToken#arrow2", "out of scope: a token's move redraws the open character sheets whose room parts it moved (the room watch, sheet-inventory.mjs `redrawRoomSheets`; 1.2.122 line UI, the audit of 1.2.118, REFR-12); vetoes nothing and writes nothing"],
             ["HOOK fog.mjs#updateToken#onUpdateToken", "judged on the primary: a move records discovery through rooms; the hall holds none after C1, so a hall move records nothing (41 b: 0 fog writes). E12 C2b/C10 change the readers"],
             ["HOOK fog.mjs#createToken#arrow1", "out of scope: recomputes this client's own draw on a token write; E13's reveal and hide, and since E81 DZ6 the stage's one create, trigger it on every client, as any GM's write does [1b.1 a hall token's hidden]"],
             ["HOOK fog.mjs#deleteToken#arrow1", "out of scope: recomputes this client's own draw on a token write; E13's reveal and hide, and since E81 DZ6 the stage's one delete, trigger it on every client, as any GM's write does [1b.1 a hall token's hidden]"],
@@ -10650,7 +10747,8 @@ const REGRESSIONS = [
             ["DELETE season-wipe.mjs#deleteMessages", "the season reset deletes in batches without the withdraw option (R295): an entry stays, marked deleted, until the epoch clears every section of this world at the next read or write (R297)"],
             ["HOOK popup.mjs#registerPopups#createChatMessage", "the catch-all's registration; the road is the catch-all's SURFACE row (R297)"],
             ["HOOK popup.mjs#registerPopups#deleteChatMessage", "a deleted message closes its card on screen as withdrawn - `onDeleteChatMessage`, a `drpg-dismiss` and no click on its X, so the entry is not read (R295); whether the entry stays is the history's own hook"],
-            ["HOOK popup.mjs#registerPopups#updateChatMessage", "an Objection card a GM marked overruled closes its cards on screen as by code - `onUpdateChatMessage`, a `drpg-dismiss` with reason \"code\", so the entry is kept unread with the stamp its body gained before the close (`watchCard`, R293); a player's card is not one: the mark is read only on a GM's message (E70 C2)"],
+            ["HOOK popup.mjs#registerPopups#updateChatMessage", "an Objection card a GM marked overruled closes its cards on screen as by code - `onUpdateChatMessage`, a `drpg-dismiss` with reason \"code\", so the entry is kept unread with the stamp its body gained before the close (`watchCard`, R293); a player's card is not one: the mark is read only on a GM's message (E70 C2); and since 1.2.122 a card that is not private and carries `settled` closes its notices the same way (`followSettled`, R8265; the audit's REFR-16)"],
+            ["HOOK popup.mjs#registerPopups#drpgSecretStored", "a private card's words stored with `settled` in their meta close its notices on screen as by code - `followSettled`, a `drpg-dismiss` with reason \"code\", the entry kept unread; the history marks it settled by its own hook (1.2.122, R8265; the audit's REFR-16)"],
             ["HOOK notice-history.mjs#registerNoticeHistory#deleteChatMessage", "`noticeCardDeleted`: the module's withdraw option, from a GM's deletion (the user Foundry hands the hook), takes the entry out with a tombstone; any other deletion - a player's with the option, `deleteAll` in the options or not - leaves it marked deleted and an open one unread (R295, 73-notice-history B and G3)"],
             ["HOOK notice-history.mjs#registerNoticeHistory#updateChatMessage", "`noticeCardChanged`: a GM's update (the user Foundry hands the hook) whose own changes set `rerolled` or `settled` marks the entry; a player's update, or a GM's that sets neither, marks nothing; the snapshot and the state do not move (R295, 73-notice-history G3)"],
             ["HOOK notice-history.mjs#registerNoticeHistory#drpgSecretStored", "`noticeSecretStored` once a private card's words and meta are stored (secret.mjs `remember`): its `rerolled` and `settled` travel in the meta, read alone - never the document's flags; only a mark (R295, 73-notice-history G3). New words on an open card are its observer's (R293)"],
@@ -10889,8 +10987,8 @@ const REGRESSIONS = [
             ["READ trial-scene.mjs#applyScenesTab#hallRoom -> setup", "the before-state the Apply compares the fields against (`hallRoomWrite`); not drawn"],
             // ---- whose room
             ["WHO explain.mjs#roomBlock#subjectActor -> which", "a player's `viewerActor()` only; a GM's selected token first, then their Monokuma (E77 C2; R509 reads the shape)"],
-            ["WHO explain.mjs#openStatusExplainer#subjectActor -> which", "the counters of the same actor; no room text"],
-            ["WHO explain.mjs#openStateExplainer#subjectActor -> which", "the same actor's own action count in Daily Life's paragraph (E100 item 7, R4106); no room text - the room is `roomBlock`'s row above"],
+            ["WHO explain.mjs#statusBody#subjectActor -> which", "the counters of the same actor; no room text (the body `openStatusExplainer` draws and keeps live since 1.2.122)"],
+            ["WHO explain.mjs#stateBody#subjectActor -> which", "the same actor's own action count in Daily Life's paragraph (E100 item 7, R4106); no room text - the room is `roomBlock`'s row above"],
             ["WHO explain.mjs#subjectActor#viewerActor -> which", "the one viewer rule (hud.mjs `viewerActor`): the assigned character, else the one owned student, else of several the controlled one, else the first by name (E51 C4, monokuma.mjs `chooseOwnStudent`, R1117), and the GM's Monokuma"],
             ["WHO room-tile.mjs#viewerRoom#viewerActor -> which", "the viewer's own character and no other actor (R509; scenario 66 W1 on the GM and two players)"],
             ["WHO room-tile.mjs#registerRoomTile#viewerActor -> which", "the settle hook repaints for the viewer's own token only (`tokenDoc.actorId !== viewerActor()?.id` returns; R506), and what it paints is `viewerRoom`'s"],
@@ -11454,6 +11552,7 @@ const REGRESSIONS = [
             ["HOOK movement.mjs#nextMoveOf#updateToken/inline -> judge", "this file's own: a put-back's wait for the move in flight (`putBackWrite`, the line claude/shim-118, 19.11.2026), off after one move of its token or `TIMING.putBackWaitMs`; no passage road through it, and the write it releases is the put-back's own road"],
             ["HOOK fog.mjs#registerFog#updateToken/onUpdateToken -> judge", "this file's own: this browser's discovery and outline; E79 adds no road through it (the gap's redraw hangs on its own event, not on this hook)"],
             ["HOOK fog.mjs#registerFog#createToken/inline -> judge", "this file's own: this browser's discovery mirror; E79 adds no road through it; since E51 C3 also the arrival of a token of this viewer's placed in a room (`ownArrival`), on this browser's screen alone"],
+            ["HOOK crossing-settle.mjs#onTokenStood#updateToken/inline -> judge", "this file's own (1.2.122, STG-08 and STG-09): a character's token that moved by any road and stood `SETTLE_MS` is handed to the barricades and the passes (doors-gm.mjs `barricadesLeftBy`, lockpick-gm.mjs `passLeftBy`), which read where it stands through `locateActor` and end what its author or holder left; writes only those GM rows and the barricade's public flag; no player is told (1.2.122, STG-08 and STG-09); no passage road through it"],
             ["HOOK body-tile.mjs#registerBodyFollow#updateToken/inline -> judge", "this file's own (E63 C1: the body follows its corpse on the mover's GM browser); E79 adds no road through it"],
             ["HOOK spectator-dead.mjs#registerDeadSpectator#createToken/inline -> judge", "this file's own (E62 C3b): the curtain's hook and the Death fade on the dead student's browser; E79 adds no road through it"],
             ["HOOK mask-gm.mjs#registerMasks#createToken/inline -> judge", "this file's own (E112): a token made while a mask or the veil stands joins it on the primary; no passage road through it"],
@@ -14608,7 +14707,8 @@ const REGRESSIONS = [
                 && /scene: esc\(scene\?\.name \?\? "\?"\)/.test(fnSource(code("traps.mjs"), "alert")),
             oneScene: /place\.scene\.id === projectScene\(countdownId\)\?\.id/.test(fnSource(code("projects.mjs"), "standsAtProject"))
                 && /standsAtProject\(\{ room, scene \}, trap\.id\)/.test(fnSource(code("traps.mjs"), "armedIn"))
-                && /return sameRoom\(actor, victim\);/.test(fnSource(cleanupBy(code), "bodyIsHere"))
+                // Where the body lies, on the killer's scene, floor and room (1.2.122 line MURDER, the audit's CASE-32).
+                && /return samePlace\(locateActor\(actor\), locateActor\(victim, \{ body: true \}\)\);/.test(fnSource(cleanupBy(code), "bodyIsHere"))
                 && /DRPG\.Panel\.noSceneNamed/.test(fnSource(api, "sceneNamed"))
                 && /if \(room && game\.user\?\.isGM && !sceneOfRoom\(room\)\)/.test(fnSource(api, "createProjectNamed")),
             putBack: /if \(!roomFlagSeen\.has\(region\.id\)\) return keepRoomFlag\(region, undefined, false, author\);/.test(fnSource(movement, "judgeRoomFlagChange"))
@@ -16626,7 +16726,8 @@ const REGRESSIONS = [
             ["gm-bridge.mjs#askHopeCallByCard", "gm", null, "the run of `call.approve`, on the primary GM"],
             ["gm-bridge.mjs#askDynamicByCard", "gm", null, "the run of `dynamic.difficulty`, on the primary GM"],
             ["gm-bridge.mjs#askTraitByCard", "gm", null, "the run of `trait.ruling`, on the primary GM"],
-            ["gm-bridge.mjs#askObserveByCard", "gm", null, "observe.mjs `chooseObserveTarget`, on a GM"]
+            ["gm-bridge.mjs#askObserveByCard", "gm", null, "observe.mjs `chooseObserveTarget`, on a GM"],
+            ["observe.mjs#scoreObserve", "gm", null, "an Observe of a room with nothing to find, ruled at its paid resolve (line INVEST of 1.2.122; audit 1.2.118 domain-case-c-investigation 2): `resolveObserve` runs on a GM, the run of `observe.resolve` or a GM's own"]
         ];
         const TOP = /^(?![\s}\])]|$)(?:export\s+)?(?:async\s+)?(?:function\*?\s*([\w$]+)|class\s+([\w$]+)|(?:const|let|var)\s+([\w$]+))?/gm;
         const readCalls = sources => {
@@ -19328,7 +19429,8 @@ const REGRESSIONS = [
                 ["localeCalls", 8, 8], ["mirror", 3, 3], ["monokumaVoice", 7, 7], ["naturalnessBefore", 2, 2], ["oxfordComma", 3, 3], ["pairParity", 5, 5], ["patterns", 22, 22], ["pluralForms", 4, 4],
                 ["renderChecks", 7, 7], ["retiredHits", 11, 11], ["ruleNumberWords", 10, 10], ["secondPersonToMany", 6, 6], ["staleTranslations", 1, 1], ["tableWordProblems", 4, 4], ["telegraph", 3, 3], ["uiLiterals", 13, 13]],
             // dashesIn: 2 rows since the needsCode line (R6902) wrote roll-dialog.mjs's minus sign "-".
-            baselines: [["dashesIn", 2], ["familyFormats", 0]],
+            // dashesIn emptied by 1.2.122 line TEXT (STG-60: action-report.mjs's two minus signs written "-")
+            baselines: [["dashesIn", 0], ["familyFormats", 0]],
             notDue: [["glossaryHits", 1, 1], ["retiredHits", 1, 1]],
             problems: [], caught: 2, ledgerBlind: 1, unlexed: ["dashesIn", "familyFormats", "itemQuotes", "lengthOver", "localeCalls", "monokumaVoice", "uiLiterals"],
             schemaStubs: [["glossarySchema", 1], ["budgetsSchema", 1]], pairsStub: 1, goneSeen: [1, 8], marksBlind: 3
@@ -19416,7 +19518,7 @@ const REGRESSIONS = [
         log(`R1059: ${runs.map(r => `${r.name} read ${r.read} found ${r.found.length} beyond its baseline, ${r.matched}/${r.sites} baseline site(s) filled`).join("; ")}; `
             + `en ${lang.en.size} keys, pl ${lang.pl.size}; ${scripts.size} scripts; ${docs.size} handbooks`);
         equal(JSON.stringify(runs.map(r => [r.name, r.read > 0, r.sites, r.found, r.gone])), JSON.stringify([
-            ["pluralForms", true, 0, [], []], ["pairParity", true, 0, [], []], ["familyFormats", true, 0, [], []], ["dashesIn", true, 2, [], []], ["ruleNumberWords", true, 0, [], []], ["colonChains", true, 0, [], []], ["bareLeft", true, 0, [], []], ["uiLiterals", true, 0, [], []],
+            ["pluralForms", true, 0, [], []], ["pairParity", true, 0, [], []], ["familyFormats", true, 0, [], []], ["dashesIn", true, 0, [], []], ["ruleNumberWords", true, 0, [], []], ["colonChains", true, 0, [], []], ["bareLeft", true, 0, [], []], ["uiLiterals", true, 0, [], []],
             ["localeCalls", true, 0, [], []]]),
         "[each FAIL detector that reads only what a table serves: its name, whether it read anything, the baseline sites judged here, "
             + "what it found that its baseline does not hold, the baseline rows nothing filled]");
@@ -19902,6 +20004,12 @@ const REGRESSIONS = [
                 "Overflow.explainBody", "Mastermind.hopeReadout",
                 // E71 B10b and B12 (line C, 14.11.2026): Confusion's least to give, a count before Despair; a Reroll's Work, a count before progress.
                 "Monocub.giveAtLeast", "Reroll.progressAdjusted",
+                // 1.2.122 line TEXT (TEXT-26): four numbers config prose typed, a placeholder now, before progress, Hope,
+                // Health or Sanity.
+                "Config.INDIRECT_MURDER.concealIntent.successWithDespair", "Config.REST.options.breath.long", "Config.REST.options.breath.short",
+                "Config.TIER_EFFECTS.usable.1", "Config.TIER_EFFECTS.usable.2", "Config.TIER_EFFECTS.usable.3",
+                "Config.USABLE_KIND_EFFECTS.healing.1", "Config.USABLE_KIND_EFFECTS.healing.2", "Config.USABLE_KIND_EFFECTS.healing.3",
+                "Config.USABLE_KIND_EFFECTS.stress.1", "Config.USABLE_KIND_EFFECTS.stress.2", "Config.USABLE_KIND_EFFECTS.stress.3",
                 // E57 T7 (14.11.2026): a rule's number from a placeholder where a word stood - the Bounty's reward before Hope,
                 // the Despair stepper's step before Despair.
                 "Config.DESPAIR_CALLS.bounty.effect", "Tips.Gm.minusTooltip", "Tips.Gm.plusTooltip"
@@ -19922,7 +20030,9 @@ const REGRESSIONS = [
                 "Zones.scrum.openedBare", "Zones.scrum.begins", "Zones.panel.straw.vote", "Zones.panel.dive.vote", "Zones.panel.dive.pause",
                 "Zones.panel.scrum.setup", "Zones.panel.scrum.speak",
                 // The Scrum's Confer (the owner's 13.11.2026): its card and its panel line, read off `conferSeconds` and the clock.
-                "Zones.scrum.confer", "Zones.panel.scrum.confer"
+                "Zones.scrum.confer", "Zones.panel.scrum.confer",
+                // 1.2.122 (CTRL-03, REFR-66, CTRL-07): Your turn's seconds left and Keep speaking's 20 s, the side pick's 15 s.
+                "Trial.turn.left", "Trial.turn.keepNote", "Zones.pick.dismissed"
             ].map(key => [key, "S"]),
             ...[
                 "Action.searchTokensLeft", "Events.overflowMetaGm", "Explain.room.tokens",
@@ -19965,7 +20075,7 @@ const REGRESSIONS = [
         const reasons = {};
         for (const why of ALLOW.values()) reasons[why] = (reasons[why] ?? 0) + 1;
         equal(JSON.stringify({ read: found.length > 0, flat: found.filter(k => !ALLOW.has(k)), stale: [...ALLOW.keys()].filter(k => !found.includes(k)), fixture, reasons }),
-            JSON.stringify({ read: true, flat: [], stale: [], fixture: ["DRPG.Fx.a", "DRPG.Fx.d", "DRPG.Fx.e"], reasons: { U: 81, S: 39, R: 29, D: 1, P: 1, T: 1, G: 1 } }),
+            JSON.stringify({ read: true, flat: [], stale: [], fixture: ["DRPG.Fx.a", "DRPG.Fx.d", "DRPG.Fx.e"], reasons: { U: 93, S: 42, R: 29, D: 1, P: 1, T: 1, G: 1 } }),
             "[the census read something; the values it finds that are no family and not in the allow table; the allow rows it no longer finds; "
             + "what it finds on its planted case (a flat English counter, a Polish predicate before a unit and before a noun; not a family, not a name); "
             + "the allow rows by reason]");
@@ -20206,7 +20316,8 @@ const REGRESSIONS = [
         }
         // The digit rule, over every config sentence and its Polish.
         const ALLOW = new Map([
-            ["INDIRECT_MURDER.concealIntent.successWithDespair", "the +1 is action-project.mjs CONCEALED_WITH_DESPAIR (action-rolls.mjs until E41 C4), a constant of that file; the entry's 1 is `aloneBonus`, the other bonus"]
+            // INDIRECT_MURDER.concealIntent.successWithDespair left the table in 1.2.122 (line TEXT, TEXT-26): its +1 is the
+            // entry's `despairBonus`, a placeholder now, and action-project.mjs `CONCEALED_WITH_DESPAIR` reads it.
         ]);
         const carried = entry => {
             const out = new Set();
@@ -20354,7 +20465,8 @@ const REGRESSIONS = [
         }
         const sources = await moduleSources();
         const src = file => stripComments(sources.get(file) ?? "");
-        read.roads = [/export function eclipseExplanation\(crossings = overflowCrossings\(ECLIPSE_MOVES\) \?\? ECLIPSE_MOVES\)/.test(src("explain.mjs")),
+        // changed on purpose (1.2.122, R8462): a second parameter, the darkened night's crossings
+        read.roads = [/export function eclipseExplanation\(crossings = overflowCrossings\(ECLIPSE_MOVES\) \?\? ECLIPSE_MOVES, night = overflowCrossings\(null\)\)/.test(src("explain.mjs")),
             /baseActions\(\{ wounded: costsAction \}\) - dark/.test(src("actions.mjs")), // E64 C1c: Wounded's action is Daily Life's alone
             /game\.i18n\.format\(card\.key, \{[^}]*\bseconds\b[^}]*\}\)/.test(fnSource(src("trial-floor.mjs"), "postFloorCard") ?? ""),
             /"DRPG\.Floor\.holdingDebateOver", \{ seconds: Math\.abs\(left\), step: adjustStep\(floor\) \}/.test(src("trial-floor-ui.mjs")),
@@ -21062,7 +21174,7 @@ const REGRESSIONS = [
             + "verdictCandidates and verdictRefusal; applies: an apply without verdictRefusal and verdictRunning; builders: a card or a summary built by hand)");
     }],
 
-    ["R1252 - the verdict, the Final Trial's verdict, the execution and the chapter's end are step tables on the one runner (E42 C1c, E42-04, E42-06, E42-07; E42 C2, E42-08; audit S17-30): `VERDICT_STEPS` and `VERDICT_NEEDS` as E70 left them (no \"executions\"), the Final Trial's execution and Mastermind's step needing its sentence, `FINAL_VERDICT_STEPS` the Final Trial's six keys in order, none of them `card`, `sentence` or an ordinary verdict's key, every key of both tables a step in `VERDICT_STEP` and a label in both languages, `verdictSteps` answering the Final Trial's table for a `final` record, and `runVerdict` and `carryOutSentence` running on steps.mjs `runSteps`; `CHAPTER_END_STEPS` its nine keys in E11's order, the seven the GM's choices ask for, each labelled in both languages, run by `runChapterEnd` on `runSteps` with the phase held before every step (`stop`), its record saved (`save`) and its report through `stepsReport`", async () => {
+    ["R1252 - the verdict, the Final Trial's verdict, the execution and the chapter's end are step tables on the one runner (E42 C1c, E42-04, E42-06, E42-07; E42 C2, E42-08; audit S17-30): `VERDICT_STEPS` and `VERDICT_NEEDS` as E70 left them (no \"executions\"), the Final Trial's execution and Mastermind's step needing its sentence, `FINAL_VERDICT_STEPS` the Final Trial's seven keys in order (the Ghost Bets' `finalBets` since E72), none of them `card`, `sentence` or an ordinary verdict's key, every key of both tables a step in `VERDICT_STEP` and a label in both languages, `verdictSteps` answering the Final Trial's table for a `final` record, and `runVerdict` and `carryOutSentence` running on steps.mjs `runSteps`; `CHAPTER_END_STEPS` its nine keys in E11's order, the seven the GM's choices ask for, each labelled in both languages, run by `runChapterEnd` on `runSteps` with the phase held before every step (`stop`), its record saved (`save`) and its report through `stepsReport`", async () => {
         /*
          * E42 C1c, 02.11.2026; E42-04, E42-06, E42-07, audit S17-30. The ordinary verdict's steps were a table run by a
          * loop of its own (`runVerdict`), the Final Trial's verdict one function whose consequences logged and went on,
@@ -22109,7 +22221,8 @@ const REGRESSIONS = [
                 field: /descriptionField\(start\?\.description \?\? ""\)/.test(dialog),
                 guard: /guardDescription\(dialog\.element, "save"\)/.test(dialog),
                 refusedFirst: order(dialog, /projectDescriptionProblem\(result\.description\)/, /projectEditChange\(/) && order(dialog, /projectDescriptionProblem\(result\.description\)/, /createProject\(/),
-                written: (dialog.match(/description: result\.description,/g) ?? []).length
+                // The edit's write is spread since 1.2.122 (REFR-35: written where the GM changed it), so the end may be a brace.
+                written: (dialog.match(/description: result\.description\s*[,}]/g) ?? []).length
             },
             create: { long: order(create, /projectDescriptionProblem\(description\) === "long"/, /applyProjectChange\(/), meta: /meta: \{[\s\S]*\.\.\.\(words \? \{ description: words \} : \{\}\)/.test(create) },
             edit: /meta\.description = String\(patch\.description \?\? ""\)\.trim\(\)/.test(edit),
@@ -23147,7 +23260,7 @@ const REGRESSIONS = [
         must(typeof UI.projectManagerBody === "function", "projects-ui.mjs has no projectManagerBody - the manager's body cannot be drawn here, so its order would not be read");
         const actor = studentActors()[0] ?? null;
         must(actor, "no student to draw the proposal for - its order would not be read");
-        const I = game.i18n, own = { localize: I.localize, format: I.format };
+        const I = game.i18n, back = [];
         const D = foundry.applications.api.DialogV2, ownWait = Object.getOwnPropertyDescriptor(D, "wait");
         const runs = (list, i) => list.filter((k, n) => k !== list[n - 1]);
         const read = (html, buttons = []) => ({
@@ -23158,8 +23271,8 @@ const REGRESSIONS = [
         const got = {};
         let seen = null;
         try {
-            I.localize = key => `[[k:${key}]]`;
-            I.format = key => `[[k:${key}]]`;
+            // standIn: v14's `format` is Localization.prototype's, read-only there (tests-kit.mjs).
+            back.push(standIn(I, "localize", key => `[[k:${key}]]`), standIn(I, "format", key => `[[k:${key}]]`));
             D.wait = async cfg => { seen = cfg; return null; };
             const drawn = () => read(typeof seen?.content === "string" ? seen.content : seen?.content?.outerHTML ?? "", seen?.buttons ?? []);
             const projects = ["R2077PROJECTA", "R2077PROJECTB"].map((id, n) => ({ id, name: `R2077 project ${n}`, current: n, start: 4, img: "" }));
@@ -23174,7 +23287,7 @@ const REGRESSIONS = [
             await AP.startProject(actor);
             got.propose = drawn();
         } finally {
-            Object.assign(I, own);
+            for (const putBack of back.reverse()) putBack();
             if (ownWait) Object.defineProperty(D, "wait", ownWait); else delete D.wait;
         }
         // A preset's rows (the world's walls and items, not the window's order) out of the proposal before the compare.
@@ -23286,7 +23399,9 @@ const REGRESSIONS = [
         }
         const box = (kind, state, toast = false) => [1, "drpg-box", kind, state, "a <b> & c", toast];
         equal(JSON.stringify(drawn), JSON.stringify({ notDrawn: box("warning", "notDrawn"), waitsForGm: box("warning", "waitsForGm", true), unwitnessed: box("warning", "unwitnessed"),
-            awayNothing: box("info", "awayNothing"), awayHope: box("info", "awayHope"), awayDespair: box("info", "awayDespair") }),
+            awayNothing: box("info", "awayNothing"), awayHope: box("info", "awayHope"), awayDespair: box("info", "awayDespair"),
+            // A stamped roll decided (1.2.122, REFR-54 and REFR-19): information, nothing waits.
+            awayDecided: box("info", "awayDecided") }),
             "{each state: [elements, class, the box's kind, its state, its words, said in a toast]}");
         let refused = null;
         try { D.rollStatus("noSuchState", "x"); } catch (err) { refused = err.message; }
@@ -23340,18 +23455,18 @@ const REGRESSIONS = [
             ["action-project.mjs", "startProject", "open", 1, 0, 1], ["call-pickers.mjs", "callHeader", "open", 0, 0, 1],
             ["mastermind.mjs", "openMastermindDialog", "open", 0, 0, 1], ["reroll.mjs", "settleGmRuling", "open", 0, 0, 1],
             ["roll-dialog.mjs", "announceFreeCritical", "open", 0, 0, 1], ["trial.mjs", "pickObjectionEvidence", "open", 0, 0, 1],
-            ["use-items.mjs", "confirmUse", "open", 0, 0, 1],
+            ["use-items.mjs", "previewLine", "open", 0, 0, 1], // confirmUse's until 1.2.122 (REFR-52 moved its line into `previewLine`)
             ["tables-editor.mjs", "installTables", "E49", 1, 0, 0], ["verdict.mjs", "verdictSummaryContent", "E49", 1, 0, 0],
             ["analyze.mjs", "tellGmsKeyMissing", "E49", 1, 0, 0], ["anonymity.mjs", "lowerOwnership", "E49", 1, 0, 0],
             ["bridge-runs-acts.mjs", "handleAdvancement", "E49", 1, 0, 0], ["call-effects.mjs", "tell", "E49", 1, 0, 0], ["call-gm.mjs", "callCardHtml", "E49", 1, 0, 0],
             ["body.mjs", "runDiscovery", "E49", 1, 0, 0], ["chapter.mjs", "endChapterNow", "E49", 1, 0, 0], ["chapter.mjs", "runChapterEnd", "E49", 1, 0, 0],
             ["chapter.mjs", "finishEndNow", "E49", 1, 0, 0], ["cleanup-reshape.mjs", "reshapeCardParts", "E49", 1, 0, 0], ["cleanup-reshape.mjs", "proposeReshape", "E49", 1, 0, 0],
             ["cleanup.mjs", "undoLastCleanup", "E49", 2, 0, 0], ["cleanup.mjs", "paidBack", "E49", 1, 0, 0], ["eclipse.mjs", "ruleOnParkedMurder", "E49", 1, 0, 0],
-            ["eclipse.mjs", "judgePendingMurders", "E49", 1, 0, 0], ["inventory.mjs", "transferItem", "E49", 2, 0, 0], ["key-remnants.mjs", "chargeForUnfoundKeys", "E49", 1, 0, 0],
+            ["eclipse.mjs", "judgePendingMurders", "E49", 1, 0, 0], ["inventory.mjs", "transferItem", "E49", 3, 0, 0], ["key-remnants.mjs", "chargeForUnfoundKeys", "E49", 1, 0, 0],
             ["migrate.mjs", "*", "E49", 1, 0, 0], ["movement-audit.mjs", "auditMove", "E49", 2, 0, 0], ["movement.mjs", "keepRoomFlag", "E49", 1, 0, 0],
             ["movement.mjs", "removeDrop", "E49", 1, 0, 0], ["movement.mjs", "tellUnlawful", "E49", 1, 0, 0], ["movement.mjs", "tellDropped", "E49", 1, 0, 0],
             ["murder-rules.mjs", "resolveVictimOpening", "E49", 1, 0, 0], ["murder-rules.mjs", "applyCrisisAction", "E49", 1, 0, 0], ["murder-rules.mjs", "swapRoles", "E49", 1, 0, 0],
-            ["murder-rules.mjs", "refuseBetrayal", "E49", 1, 0, 0], ["murder-rules.mjs", "throwOpeningRoll", "E49", 1, 0, 0], ["observe.mjs", "resolveObserve", "E49", 2, 0, 0],
+            ["murder-rules.mjs", "refuseBetrayal", "E49", 1, 0, 0], ["murder-rules.mjs", "throwOpeningRoll", "E49", 2, 0, 0], ["observe.mjs", "resolveObserve", "E49", 2, 0, 0],
             ["relay-guard.mjs", "reportRefusal", "E49", 1, 0, 0], ["relay-guard.mjs", "unknownSender", "E49", 1, 0, 0], ["relay-guard.mjs", "shapeWarning", "E49", 1, 0, 0],
             ["relay-guard.mjs", "announce", "E49", 3, 0, 0], ["remnants.mjs", "dropRemnant", "E49", 1, 0, 0], ["reroll-receipts.mjs", "warnGms", "E49", 1, 0, 0],
             ["roll-draw.mjs", "tellUnexpected", "E49", 1, 0, 0], ["rules.mjs", "setMotive", "E49", 1, 0, 0], ["rules.mjs", "dueCard", "E49", 1, 0, 0],
@@ -23427,10 +23542,13 @@ const REGRESSIONS = [
             // (a `message`, as the end without advancing), and overflow.mjs `announceOverflow`'s card built once and either
             // announced or whispered veiled to the incident's audience (a `built`).
             "eavesdrop-gm.mjs": {"card": 1}, "eclipse.mjs": {"action": 3, "heading": 1, "line": 3, "message": 3},
-            "enforced.mjs": {"line": 2}, "facilities-gm.mjs": {"card": 2}, "fog.mjs": {"line": 1}, "frisk.mjs": {"built": 7, "message": 2},
+            "enforced.mjs": {"line": 3}, "facilities-gm.mjs": {"card": 2}, "fog.mjs": {"line": 1}, "frisk.mjs": {"built": 7, "message": 2},
             "gm-items.mjs": {"action": 1, "heading": 2},
-            "handover.mjs": {"built": 1, "heading": 2, "line": 13, "message": 1},
-            "inventory.mjs": {"card": 2, "line": 3}, 
+            // 1.2.122 line TEXT (TEXT-32): the missing answer key's one send to the owner and the GMs is two, the owner's and the GMs'
+            "handover.mjs": {"built": 1, "heading": 2, "line": 14, "message": 1},
+            // 1.2.122 line MURDER (the audit's CASE-25): the GMs told a standing betrayal offer was kept (`armBetrayalWindow`).
+            "incident-store.mjs": {"line": 1},
+            "inventory.mjs": {"card": 3, "line": 3}, 
             "key-remnants.mjs": {"card": 1, "line": 2}, "level-up.mjs": {"heading": 1, "line": 4},
             // E69 C8 (13.11.2026): the killer's own cards behind the "?" (mask-gm.mjs), its start and its end at the time of day.
             // E112 (15.11.2026): the opening's veil adds the killer's one line before the roll (mask-gm.mjs `veilActor`).
@@ -23439,11 +23557,13 @@ const REGRESSIONS = [
             /* Merged with E72 and E91 (12.11.2026): the Monocubs' veiled lines and its built cards (E72 C2-C17), the Final
                Trial's bets line (verdict.mjs), and the unlock card moved from room-setup.mjs to vault-store.mjs `writeRoomLock`
                (E91 C4, D038), every one in a form this census names. */
-            "monocub.mjs": {"built": 3, "line": 18, "message": 1}, "movement.mjs": {"action": 3, "card": 4},
+            "monocub.mjs": {"built": 3, "line": 19, "message": 1}, "movement.mjs": {"action": 3, "card": 5},
             // murder-rules.mjs message 6 -> 8 (1.2.121 line K, CASE-16): `announceCrisis` posts the GMs' card and, for the seats a
             // defence is hidden from, a second copy, by the same `announce({ content, whisper })` form as before.
-            "murder-rules.mjs": {"action": 1, "card": 5, "heading": 3, "line": 9, "message": 8},
-            "music.mjs": {"card": 1}, "observe.mjs": {"card": 2, "heading": 1, "line": 3},
+            // line INVEST of 1.2.122: murder-rules.mjs +1 card (an opening that found no copy of the incident, R8183), observe.mjs
+            // +2 cards (a find left waiting, told to the GMs at recovery and while its window stands; CASE-37)
+            "murder-rules.mjs": {"action": 1, "card": 6, "heading": 3, "line": 9, "message": 8},
+            "music.mjs": {"card": 1}, "observe.mjs": {"card": 4, "heading": 1, "line": 3},
             "overflow.mjs": {"built": 1, "message": 2}, "palm.mjs": {"built": 2, "line": 2}, "passages-gm.mjs": {"line": 4},
             "price.mjs": {"line": 2}, "private-rolls.mjs": {"message": 1}, "projects-map.mjs": {"card": 1, "line": 1},
             // S17-31's three sight cards (522cd601, 12 lines) are a player's copy of the GMs' sight since E101's review, R2: 9.
@@ -23458,7 +23578,7 @@ const REGRESSIONS = [
             "states.mjs": {"line": 1}, "tables-editor.mjs": {"card": 1}, "tail-gm.mjs": {"line": 3}, "timed-effects.mjs": {"line": 1}, "traps.mjs": {"line": 1},
             "trial-floor-ui.mjs": {"message": 4}, "trial-floor.mjs": {"message": 1},
             "trial-modes.mjs": {"heading": 1, "message": 1}, "trial-progress.mjs": {"line": 2, "message": 1},
-            "trial-scene.mjs": {"built": 1, "line": 10}, "trial-zones.mjs": {"card": 1, "message": 1}, "trial.mjs": {"line": 9, "message": 4},
+            "trial-scene.mjs": {"built": 1, "line": 10}, "trial-zones.mjs": {"card": 1, "message": 1}, "trial.mjs": {"line": 11, "message": 4},
             "truth-bullets.mjs": {"card": 1, "heading": 2}, "use-items.mjs": {"card": 1, "line": 6},
             "user-match.mjs": {"line": 1}, "utils.mjs": {"built": 1}, "vault-store.mjs": {"card": 1, "line": 3, "message": 1},
             "verdict.mjs": {"built": 3, "line": 1, "message": 1}, "voice.mjs": {"card": 1, "line": 1}, "vote.mjs": {"message": 2}, "watch-gm.mjs": {"card": 1, "line": 2}
@@ -24024,7 +24144,8 @@ const REGRESSIONS = [
             first: at(/crossesFree\(actor\)/) >= 0 && at(/crossesFree\(actor\)/) < at(/isEclipse\(\)/) && at(/isEclipse\(\)/) < at(/takeMove\(/),
             flag: callers(code, "isMonocubActor")
         }), JSON.stringify({
-            free: ["chargeRoute", "crossingVerdict", "eclipseSighting", "settleCrossingOnGm"],
+            // `refusedOnPrimary` since 1.2.122 (line MAP; the audit's MAP-24): the primary's reading of a route's budget.
+            free: ["chargeRoute", "crossingVerdict", "eclipseSighting", "refusedOnPrimary", "settleCrossingOnGm"],
             first: true,
             flag: ["crossesFree", "restrictedFrom"]
         }), "{free: the functions that ask crossesFree; first: settleCrossingOnGm asks it before the Eclipse's count and takeMove; flag: the functions that read the Monocub's flag}");
@@ -25641,10 +25762,193 @@ const REGRESSIONS = [
             return { through: through.length, grazing: grazing.length, clear, ...(through.length || grazing.length ? { first: [...through, ...grazing].slice(0, 3) } : {}) };
         };
         const result = {};
-        for (const sort of ["kind", "manual", "uncrossed"]) for (const tall of [false, true]) result[`${sort}${tall ? "+tall" : ""}`] = read(sort, tall);
+        // every sort the Map offers (line INVEST of 1.2.122, the audit's r120-P-5: "under each sort" read three of the five)
+        for (const sort of ["kind", "manual", "uncrossed", "room", "state"]) for (const tall of [false, true]) result[`${sort}${tall ? "+tall" : ""}`] = read(sort, tall);
         const want = Object.fromEntries(Object.keys(result).map(k => [k, { through: 0, grazing: 0, clear: true }]));
         equal(JSON.stringify({ result, edges: graph.edges.length }), JSON.stringify({ result: want, edges: 21 }),
             "{each sort, at the least sizes and with every third node 140 px: through - route stretches through a node not their own end, grazing - along one nearer than 5 px (the first three of either named), clear - every node clear of its column's others; edges: the case's lines}");
+    }],
+    ["R8180 - a counter's line back to an earlier column passes through no node (line INVEST of 1.2.122; the audit's r120-P-4; case-view.mjs `routePlan`): a counter refuting a deduction in its own column and one in the column before it - which skips no column - is routed from the counter to the earlier deduction without a stretch through any node's box but its own two ends, under every sort, at the least sizes and with every third node 140 px tall; and each line ends on its target's near side: the right one for the line back, the left one beside it", async () => {
+        /*
+         * Line INVEST of 1.2.122, 22.11.2026. Pure. The case: six Remnants, four deductions on them in the first deduction
+         * column (d1-d4), e1 on d1 and d2 in the next, and k1 refuting d3 and e1 - so k1 stands in e1's column (its deepest
+         * target, case-layout.mjs `depthOf`) and its line to d3 goes back one column. Red at 21bf5d18: a line back turned in
+         * the gutter before its target's column, so its first stretch ran left at the counter's height across that column,
+         * through the deduction standing there (the audit's count: 49 such stretches in 45 of 600 random layouts).
+         */
+        const V = await import("./case-view.mjs");
+        const S = await import("./case-schema.mjs");
+        const { layoutCase } = await import("./case-layout.mjs");
+        const g = V.MAP_GEOMETRY;
+        const T = i => `S.R8180${i}`;
+        const traces = Array.from({ length: 6 }, (_, i) => ({ key: T(i), type: "prep", name: `t${i}`, tiedToCrime: true }));
+        const rows = {
+            d1: { kind: "deduction", label: "d1", inputs: [T(0)] }, d2: { kind: "deduction", label: "d2", inputs: [T(1)] },
+            d3: { kind: "deduction", label: "d3", inputs: [T(2), T(3)] }, d4: { kind: "deduction", label: "d4", inputs: [T(4), T(5)] },
+            e1: { kind: "deduction", label: "e1", inputs: ["d1", "d2"] },
+            k1: { kind: "counter", label: "k1", refutes: ["d3", "e1"] }
+        };
+        const graph = S.graphOf({ chapter: 6, traces, rows });
+        const segsOf = d => {
+            const out = [];
+            let x = 0, y = 0, end = null;
+            for (const c of String(d).match(/[MHVQ][^MHVQ]*/g) ?? []) {
+                const v = c.slice(1).trim().split(/[\s,]+/).map(Number);
+                if (c[0] === "M") [x, y] = v;
+                else if (c[0] === "H") { out.push({ h: true, y, a: Math.min(x, v[0]), b: Math.max(x, v[0]) }); x = v[0]; }
+                else if (c[0] === "V") { out.push({ h: false, x, a: Math.min(y, v[0]), b: Math.max(y, v[0]) }); y = v[0]; }
+                else if (c[0] === "Q") [x, y] = [v[2], v[3]];
+                end = { x, y };
+            }
+            return { segs: out, end };
+        };
+        const read = (sort, tall) => {
+            const layout = layoutCase(graph, { sort });
+            const ids = Object.keys(layout.positions);
+            const sizes = tall ? new Map(ids.filter((_, i) => i % 3 === 0).map(id => [id, { w: g.nodeW, h: 140 }])) : null;
+            const at = V.mapPlace(layout, g, sizes, { edges: graph.edges }).at;
+            const routes = V.routeEdges(graph.edges, at, g);
+            const through = [];
+            let atSide = true;
+            for (const e of graph.edges.filter(x => x.from === "k1")) {
+                const { segs, end } = segsOf(routes.get(`${e.from}>${e.to}`) ?? "");
+                const t = at[e.to];
+                // a line back to an earlier column ends on its target's right side, one beside it in its own column on its left
+                const side = t && at.k1 && t.x < at.k1.x ? t.x + t.w : t?.x;
+                if (!end || !t || Math.abs(end.x - side) >= 0.6 || end.y < t.y || end.y > t.y + t.h) atSide = false;
+                for (const sg of segs) {
+                    for (const [id, p] of Object.entries(at)) {
+                        if (id === e.from || id === e.to) continue;
+                        const [x0, x1, y0, y1] = [p.x, p.x + p.w, p.y, p.y + p.h];
+                        const hit = sg.h ? sg.y > y0 + 0.5 && sg.y < y1 - 0.5 && Math.min(sg.b, x1) - Math.max(sg.a, x0) > 0.5
+                            : sg.x > x0 + 0.5 && sg.x < x1 - 0.5 && Math.min(sg.b, y1) - Math.max(sg.a, y0) > 0.5;
+                        if (hit) through.push(`${e.from}>${e.to} ${id}`);
+                    }
+                }
+            }
+            const back = graph.edges.some(e => e.from === "k1" && at[e.to] && at.k1 && at[e.to].x < at.k1.x);
+            return { through: through.length, atSide, back, ...(through.length ? { first: through.slice(0, 3) } : {}) };
+        };
+        const result = {};
+        for (const sort of ["kind", "manual", "uncrossed", "room", "state"]) for (const tall of [false, true]) result[`${sort}${tall ? "+tall" : ""}`] = read(sort, tall);
+        const want = Object.fromEntries(Object.keys(result).map(k => [k, { through: 0, atSide: true, back: true }]));
+        equal(JSON.stringify(result), JSON.stringify(want),
+            "{each sort, at the least sizes and with every third node 140 px: through - stretches of the counter's two lines through a node not their own end (the first three named); atSide - each line ends on its target's near side (right for the line back, left beside it), inside its height; back - the counter's line to d3 goes back to an earlier column}");
+    }],
+    ["R8181 - a counter's line back that skips a column passes through no node (line INVEST of 1.2.122; the audit's r120-P-4, its rest; case-view.mjs `routePlan`): a counter refuting a deduction in its own column and one two columns back, with deductions standing in the column between at every height, is routed to the earlier one without a stretch through any node's box but its own two ends, under every sort, at the least sizes and with every third node 140 px tall; and each line ends on its target's near side: the right one for the line back, the left one beside it", async () => {
+        /*
+         * Line INVEST of 1.2.122, 22.11.2026. Pure. The case: six Remnants, four deductions on them (d1-d4), four on those
+         * in the next column (e1-e4), f1 on e1 and e2 in the third, and k1 refuting f1 and d3 - so k1 stands in f1's column
+         * and its line to d3 goes back two columns, across e1-e4. Red at 1.2.122's first commit (b841a765): a line back ran
+         * at the counter's height across the columns between, through whatever stood there.
+         */
+        const V = await import("./case-view.mjs");
+        const S = await import("./case-schema.mjs");
+        const { layoutCase } = await import("./case-layout.mjs");
+        const g = V.MAP_GEOMETRY;
+        const T = i => `S.R8181${i}`;
+        const traces = Array.from({ length: 6 }, (_, i) => ({ key: T(i), type: "prep", name: `t${i}`, tiedToCrime: true }));
+        const rows = {
+            d1: { kind: "deduction", label: "d1", inputs: [T(0)] }, d2: { kind: "deduction", label: "d2", inputs: [T(1)] },
+            d3: { kind: "deduction", label: "d3", inputs: [T(2), T(3)] }, d4: { kind: "deduction", label: "d4", inputs: [T(4), T(5)] },
+            e1: { kind: "deduction", label: "e1", inputs: ["d1"] }, e2: { kind: "deduction", label: "e2", inputs: ["d2"] },
+            e3: { kind: "deduction", label: "e3", inputs: ["d3"] }, e4: { kind: "deduction", label: "e4", inputs: ["d4"] },
+            f1: { kind: "deduction", label: "f1", inputs: ["e1", "e2"] },
+            k1: { kind: "counter", label: "k1", refutes: ["d3", "f1"] }
+        };
+        const graph = S.graphOf({ chapter: 6, traces, rows });
+        const segsOf = d => {
+            const out = [];
+            let x = 0, y = 0, end = null;
+            for (const c of String(d).match(/[MHVQ][^MHVQ]*/g) ?? []) {
+                const v = c.slice(1).trim().split(/[\s,]+/).map(Number);
+                if (c[0] === "M") [x, y] = v;
+                else if (c[0] === "H") { out.push({ h: true, y, a: Math.min(x, v[0]), b: Math.max(x, v[0]) }); x = v[0]; }
+                else if (c[0] === "V") { out.push({ h: false, x, a: Math.min(y, v[0]), b: Math.max(y, v[0]) }); y = v[0]; }
+                else if (c[0] === "Q") [x, y] = [v[2], v[3]];
+                end = { x, y };
+            }
+            return { segs: out, end };
+        };
+        const read = (sort, tall) => {
+            const layout = layoutCase(graph, { sort });
+            const ids = Object.keys(layout.positions);
+            const sizes = tall ? new Map(ids.filter((_, i) => i % 3 === 0).map(id => [id, { w: g.nodeW, h: 140 }])) : null;
+            const at = V.mapPlace(layout, g, sizes, { edges: graph.edges }).at;
+            const routes = V.routeEdges(graph.edges, at, g);
+            const through = [];
+            let atSide = true;
+            for (const e of graph.edges.filter(x => x.from === "k1")) {
+                const { segs, end } = segsOf(routes.get(`${e.from}>${e.to}`) ?? "");
+                const t = at[e.to];
+                // a line back to an earlier column ends on its target's right side, one beside it in its own column on its left
+                const side = t && at.k1 && t.x < at.k1.x ? t.x + t.w : t?.x;
+                if (!end || !t || Math.abs(end.x - side) >= 0.6 || end.y < t.y || end.y > t.y + t.h) atSide = false;
+                for (const sg of segs) {
+                    for (const [id, p] of Object.entries(at)) {
+                        if (id === e.from || id === e.to) continue;
+                        const [x0, x1, y0, y1] = [p.x, p.x + p.w, p.y, p.y + p.h];
+                        const hit = sg.h ? sg.y > y0 + 0.5 && sg.y < y1 - 0.5 && Math.min(sg.b, x1) - Math.max(sg.a, x0) > 0.5
+                            : sg.x > x0 + 0.5 && sg.x < x1 - 0.5 && Math.min(sg.b, y1) - Math.max(sg.a, y0) > 0.5;
+                        if (hit) through.push(`${e.from}>${e.to} ${id}`);
+                    }
+                }
+            }
+            const back = graph.edges.some(e => e.from === "k1" && at[e.to] && at.k1 && at[e.to].x < at.k1.x);
+            return { through: through.length, atSide, back, ...(through.length ? { first: through.slice(0, 3) } : {}) };
+        };
+        const result = {};
+        for (const sort of ["kind", "manual", "uncrossed", "room", "state"]) for (const tall of [false, true]) result[`${sort}${tall ? "+tall" : ""}`] = read(sort, tall);
+        const want = Object.fromEntries(Object.keys(result).map(k => [k, { through: 0, atSide: true, back: true }]));
+        equal(JSON.stringify(result), JSON.stringify(want),
+            "{each sort, at the least sizes and with every third node 140 px: through - stretches of the counter's two lines through a node not their own end (the first three named); atSide - each line ends on its target's near side (right for the line back, left beside it), inside its height; back - the counter's line to d3 goes back to an earlier column}");
+    }],
+    ["R8182 - a packet's listener on a browser reads `game.user` guarded (line INVEST of 1.2.122; the audit's CASE-08 of 1.2.42, its rest): gm-bridge.mjs `onOpeningAsk`, `onOpeningCancel` and `askForOffers`, and secret.mjs `onSecretPacket`, read no `game.user.` bare - a packet that arrives while a page closes and `game.user` is null throws in none of them", async () => {
+        /*
+         * Line INVEST of 1.2.122 (the auditor's unrouted list, B). Source read, comments stripped. Red at 22e053f2: the
+         * opening roll's two listeners compared `payload.userId !== game.user.id`, `askForOffers` and `onSecretPacket`'s
+         * request branch read `game.user.isGM`.
+         */
+        const read = async f => stripComments(await fetch(`/modules/${MODULE_ID}/scripts/${f}`).then(lfText));
+        const bridge = await read("gm-bridge.mjs"), secret = await read("secret.mjs");
+        const bare = text => [...text.matchAll(/\bgame\.user\.(?!\?)\w+/g)].map(m => m[0]);
+        const found = {
+            onOpeningAsk: bare(fnSource(bridge, "onOpeningAsk")), onOpeningCancel: bare(fnSource(bridge, "onOpeningCancel")),
+            askForOffers: bare(fnSource(bridge, "askForOffers")), onSecretPacket: bare(fnSource(secret, "onSecretPacket"))
+        };
+        must(Object.keys(found).every(k => fnSource(k === "onSecretPacket" ? secret : bridge, k).length > 40), "a listener was not found in its file - this would measure nothing");
+        equal(JSON.stringify(found), JSON.stringify({ onOpeningAsk: [], onOpeningCancel: [], askForOffers: [], onSecretPacket: [] }), "{each listener: the bare reads of game.user in it}");
+    }],
+    ["R8183 - an opening-roll invitation that reaches a player before their copy of the incident waits for it, and tells the GMs when none comes (line INVEST of 1.2.122; the audit's CASE-LC2 of 1.2.42): murder-rules.mjs `throwOpeningRoll`, on a browser that is not a GM's and holds no running incident, waits `TIMING.openingCopyWaitMs` for its copy before it reads the seat, and with none whispers the GMs DRPG.Murder.openingNoCopy - before the loop that reads the seat", async () => {
+        /*
+         * Line INVEST of 1.2.122 (the auditor's unrouted list, B). Source read, comments stripped: the wait and the whisper,
+         * and their order against the loop's first `openingStillWanted`. The race itself - the invitation before the copy -
+         * is a table's (a LIVE item proposed with this line). Red at 22e053f2: no wait; the loop's first read ended it.
+         */
+        const src = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/murder-rules.mjs`).then(lfText));
+        const body = fnSource(src, "throwOpeningRoll");
+        must(body.length > 500, "throwOpeningRoll was not found - this would measure nothing");
+        const wait = body.indexOf("TIMING.openingCopyWaitMs"), told = body.indexOf("DRPG.Murder.openingNoCopy"), loop = body.indexOf("for (let attempt");
+        const cfg = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/config.mjs`).then(lfText));
+        equal(JSON.stringify({ waits: wait > 0 && /!game\.user\?\.isGM && !murderState\(\)\?\.active/.test(body), told: told > wait, beforeLoop: loop > told, timing: /openingCopyWaitMs:\s*\d+/.test(cfg) }),
+            JSON.stringify({ waits: true, told: true, beforeLoop: true, timing: true }), "{waits: a player's browser with no incident waits; told: the GMs are told after the wait; beforeLoop: both before the loop; timing: the wait is a TIMING row}");
+    }],
+    ["R8184 - a body carried into a room by Move the body counts as the room walked in on (the owner's decision of 21.11.2026; line INVEST of 1.2.122, the audit's CASE-LC5 of 1.2.42): murder-rules.mjs `registerMurder`'s token-move hook hands every move on the primary to body.mjs `maybeBodyFound`, with no test of whose token moved or why, and body.mjs records the decision beside it", async () => {
+        /*
+         * Line INVEST of 1.2.122. Source read, comments stripped for the hook: its only returns before the discovery's
+         * check are "not a move" and "not the primary". A future exception for a carried body (the victim's token, a
+         * Stage 6 move) turns this red, as the owner's decision would then have changed.
+         */
+        const read = async f => fetch(`/modules/${MODULE_ID}/scripts/${f}`).then(lfText);
+        const rules = stripComments(await read("murder-rules.mjs")), body = await read("body.mjs");
+        const reg = fnSource(rules, "registerMurder");
+        // the hook's text from its registration to the discovery's check (a match: nothing found reads as nothing)
+        const before = reg.match(/Hooks\.on\("updateToken"[\s\S]*?(?=maybeBodyFound)/)?.[0] ?? "";
+        must(before.length > 0, "the token-move hook does not reach maybeBodyFound - this would measure nothing");
+        const returns = [...before.matchAll(/if \(([^)]*(?:\([^)]*\))?[^)]*)\) return/g)].map(m => m[1].trim());
+        equal(JSON.stringify({ returns, noException: !/victim|corpse|moveBody|isBody|bodyOf/i.test(before), recorded: body.includes("THE OWNER'S DECISION OF 21.11.2026") }),
+            JSON.stringify({ returns: ["!isMoveChange(changes)", "!isPrimaryGm()"], noException: true, recorded: true }),
+            "{returns: the hook's early returns before the discovery's check; noException: none names a body, a victim or Move the body; recorded: body.mjs names the owner's decision}");
     }],
     ["R7835 - one file of an event is replaced in its own box (1.2.119, the owner on the shot: \"niech kazdy wiersz wyglada jak ten pierwszy (tzn wklejalny link a nie sama nazwa)\"; sfx-play.mjs `withSoundFileAt`): a file's box edited replaces that file alone, in its place; emptied, it removes it; a path another file already holds drops this one rather than double it; a pasted list of several puts the first in its place and the rest after it, none twice; the same path or an index outside the list changes nothing", async () => {
         /*
@@ -26462,7 +26766,7 @@ const REGRESSIONS = [
          */
         const sources = await otherSources();
         const FAMILY = ["scaledBox", "windowWidthFor", "actionsTabHeight", "callsHeight"];
-        const KIT = { "ui-kit.mjs#settleKitWidth": "the kit's stated width of a window kind (ui-kit.mjs WINDOW_WIDTHS, kitWidth): the owner's question whether it moves to the windows' family (E54 W6)" };
+        const KIT = { "ui-kit.mjs#fitKitTabs": "a tab bar's growth: the width its one-line fit needs, at most a quarter more (GROWTH), through the app since 1.2.122 where it was the element's inline width (the audit of 1.2.118, UI-23)", "ui-kit.mjs#settleKitWidth": "the kit's stated width of a window kind (ui-kit.mjs WINDOW_WIDTHS, kitWidth): the owner's question whether it moves to the windows' family (E54 W6)" };
         const sites = [], decided = {};
         for (const [file, raw] of sources) {
             if (!file.endsWith(".mjs")) continue;
@@ -26575,6 +26879,9 @@ const REGRESSIONS = [
         const names = W.windowNames(sites);
         must(names.length >= 150, `only ${names.length} window(s) read in scripts/ - this would measure too little`);
         ok(names.includes("notice-history-app.mjs NoticeHistoryApp") && names.includes("trial-floor-ui.mjs confirmReveal"), `the census misses the notice history or the Reveal question (R1044): ${names.slice(0, 8).join(", ")} ...`);
+        // A window opened through a conditional callee, `(columns ? actionWindow : drpgWindow)({` (1.2.122, the audit's CTRL-65).
+        const callee = ["call-gm.mjs askForRequest", "action-menus.mjs chooseVariant", "action-menus.mjs promptForNote"].filter(name => !names.includes(name));
+        equal(JSON.stringify(callee), "[]", "the census misses a window opened through a conditional callee");
         const r = W.rootRule(sites);
         equal(r.read.length, names.length, "the rule did not judge every window it read");
         const stale = W.ROOT_OUTSIDE.filter(o => !sites.some(s => s.label === o.label && o.kind.test(s.kind))).map(o => o.label);
@@ -26850,7 +27157,8 @@ const REGRESSIONS = [
         const sources = new Map(await otherSources());
         const over = fnSource(stripComments(sources.get("overflow.mjs") ?? ""), "announceOverflow");
         ok(/murderState\(\)/.test(over) && /incidentAudienceIds\(/.test(over) && /veiled:\s*true/.test(over), "announceOverflow posts a darkening to the whole table while an incident runs");
-        const end = fnSource(stripComments(sources.get("eclipse.mjs") ?? ""), "endEclipse");
+        // The end's body is `endEclipseNow` since 1.2.122 (`endEclipse` lets go of the lights' dice around it, r121-K-3).
+        const end = fnSource(stripComments(sources.get("eclipse.mjs") ?? ""), "endEclipseNow");
         ok(/murderState\(\)/.test(end) && /DRPG\.Eclipse\.ended/.test(bodyOf(end, "if (advance)", { until: "} else {" })), "endEclipse tells the bystanders nothing of the lights coming back while an incident runs");
     }],
     ["R7182 - the third of an incident was there, for the discovery as for its sound (E59 C-115, CHAINS.md B-M4; Q-115-9, the coordinator's word: GM 13.4's rule, \"that body's own killers or the third of its incident (they were there)\"): body.mjs `inThatDeath` read the running incident's third alone, gone at the close, and the discovery's witnesses (`checkBodyFound`'s `involved`) never left the third out; the close (murder-rules.mjs `closeIncident`) keeps the third and whoever walked out of the incident on the victim's death row (its `keepThoseThere`, the row's `there`), `inThatDeath` reads the row and the running incident's `departed` too, and `involved` asks `inThatDeath` of the body lying here", async () => {
@@ -26994,6 +27302,380 @@ const REGRESSIONS = [
             `the census read ${read.names.length} guarded flag(s) and ${read.sites.length} write(s) of one - fewer than 19 and 20 on 17.11.2026, so it would measure nothing`);
         log(`R7744: ${read.names.length} guarded flags; ${read.sites.length} bare write(s) of one, ${read.deletions.length} deletion(s) aside (LIVE-E39-17), ${NOT_NOTED.length} row(s)`);
         equal(JSON.stringify([read.unnoted, read.stale]), "[[],[]]", "a bare write of a student's guarded flag does not tell the GMs' audit first, or a NOT_NOTED row names nothing [unnoted, stale]");
+    }],
+
+    ["R8060 - the language files say what the code does (1.2.122 line TEXT; the audit of 1.2.118: CORE-37, CORE-52, ROLL-29, STG-29, STG-33, STG-51, STG-80, STG-86, STG-87, STG-90, STG-91, TEXT-31, TEXT-33, TEXT-34, TEXT-35, TEXT-37, TEXT-38, UI-31; the check of 1.2.121: r121-R-8): each row reads one key, or every value, of lang/en.json and lang/pl.json and holds it to the fact the finding read off the code", async () => {
+        /*
+         * 1.2.122 line TEXT, 21.11.2026. One row a finding; each is the reading the finding made at its file:line on
+         * 21bf5d18, turned into the words the text must (or must not) hold. They are words, not behaviour: what each
+         * key says was read against its code by hand (the line's report), and a row only keeps the sentence from
+         * drifting back. Red at 21bf5d18: every row.
+         */
+        const lang = {};
+        for (const code of ["en", "pl"]) lang[code] = await fetch(`/modules/${MODULE_ID}/lang/${code}.json`, { cache: "no-cache" }).then(r => (r.ok ? r.json() : null));
+        must(lang.en?.DRPG && lang.pl?.DRPG, "lang/en.json or lang/pl.json was not served - this would read nothing");
+        const at = (code, key) => foundry.utils.getProperty(lang[code], key);
+        const all = code => [...flatLang(lang[code])].filter(([, v]) => typeof v === "string");
+        must(all("en").length > 3000 && all("pl").length > 3000, "the language files flatten to too few values - the scans below would read nothing");
+        const ROWS = [
+            // notPaid is told for any step of a price chain (Hope, Sanity) and for a Frisk ask, which has no roll.
+            ["CORE-37", () => !/\baction\b|\broll\b/i.test(at("en", "DRPG.Bridge.why.notPaid")) && !/akcj|rzut/i.test(at("pl", "DRPG.Bridge.why.notPaid"))],
+            // the Polish named the Eclipse's crossings and the English did not; both now say it.
+            ["CORE-52", () => /crossings/.test(at("en", "DRPG.Clock.eclipseStillOn")) && /przejścia/.test(at("pl", "DRPG.Clock.eclipseStillOn"))],
+            // checkRoll records differences both ways; a part the GM counted is no part that "did not count".
+            ["ROLL-29", () => !/did not count/.test(at("en", "DRPG.Rolls.unexpected"))],
+            // voice.mjs `voiceClaim`: with voice per room, a silenced death talks in the Spectators' room.
+            ["STG-29", () => /Spectators/.test(at("en", "DRPG.Class.deadStill")) && /Widzów/.test(at("pl", "DRPG.Class.deadStill"))],
+            // the switch also governs the trial's exit, the case summary and the death fade (sequence.mjs, death-fade.mjs).
+            ["STG-33", () => ["exit", "case summary", "death"].every(w => at("en", "DRPG.Settings.sequences.hint").includes(w))
+                && ["wyjście", "podsumowanie sprawy", "śmierci"].every(w => at("pl", "DRPG.Settings.sequences.hint").includes(w))],
+            // no Eclipse opens in a trial and no trial in an Eclipse since E13 (clock.mjs, eclipse.mjs).
+            ["STG-51", () => !/Eclipse during a trial/.test(at("en", "DRPG.Music.orderNote")) && !/Eclipse w jego trakcie/.test(at("pl", "DRPG.Music.orderNote"))],
+            // dice-look.mjs lays all four kinds; the English named four, the Polish two.
+            ["STG-80", () => /przewag/.test(at("pl", "DRPG.Settings.forceDiceLook.hint")) && /utrudnie/.test(at("pl", "DRPG.Settings.forceDiceLook.hint"))],
+            // the tooltip names the button by the button's own words.
+            ["STG-86", () => ["en", "pl"].every(c => at(c, "DRPG.Tips.Case.notNowTooltip").includes(at(c, "DRPG.CaseRealize.preview")))],
+            // pre-session-note.mjs: the boundaries are the questions on dying, torture, romance and triggers (q2-q5), not "the first four".
+            ["STG-87", () => !/first four/.test(at("en", "DRPG.Note.intro")) && !/cztery/.test(at("pl", "DRPG.Note.intro"))],
+            // the stage the incident goes to is Tamper (E109), as the tracker and the cards say.
+            ["STG-90", () => !/clean-up/.test(at("en", "DRPG.Murder.openSelfNote")) && /Tamper/.test(at("en", "DRPG.Murder.openSelfNote"))
+                && !/sprzątani/.test(at("pl", "DRPG.Murder.openSelfNote")) && /Tamper/.test(at("pl", "DRPG.Murder.openSelfNote"))],
+            // gm-stores.mjs: the "actions" group also cuts facilityUses, bedroomNotes, cubTargets, veils and sheetWrites.
+            ["STG-91", () => [/facilit/i, /bedroom note/, /Monocub/, /opening/, /sheet/].every(re => re.test(at("en", "DRPG.Season.group.actions")))
+                && [/Facilities/, /sypial/, /Monocub/, /otwarcia/, /arkusz/].every(re => re.test(at("pl", "DRPG.Season.group.actions")))],
+            // overflow.mjs `rotEverything` walks every item of the living, stash included.
+            ["TEXT-31", () => /stash/.test(at("en", "DRPG.Overflow.what.rot")) && /skryt/.test(at("pl", "DRPG.Overflow.what.rot"))],
+            // EN7 (DB17): Search Token in its case, the plural too.
+            ["TEXT-33", () => !all("en").some(([, v]) => /(?<![\p{L}])search tokens?(?![\p{L}])/u.test(v))],
+            // EN6 (DB16): one casing per project name; the Passages tab's button "Close the breach" is a verb phrase and stays.
+            ["TEXT-34", () => ["en", "pl"].every(c => !all(c).some(([k, v]) => /Repair an item/.test(v) || (/Close the breach(?! on the Passages tab)/.test(v) && k !== "DRPG.Passage.tab.closeBreach")))],
+            // the glossary declines Truth Bullet and token with -u (DB4).
+            ["TEXT-35", () => !all("pl").some(([, v]) => /Truth Bulleta(?![\p{L}])|(?<![\p{L}])tokena(?![\p{L}])/u.test(v))],
+            // a no-wrap mini button: the Polish no more than twice the English.
+            ["TEXT-37", () => at("pl", "DRPG.Mastermind.lair.lock").length <= 2 * at("en", "DRPG.Mastermind.lair.lock").length],
+            // explain.mjs shows the paragraph to whoever clicks, GM included: no "you" spoken to the class.
+            ["TEXT-38", () => !/one of you|Get it right/.test(at("en", "DRPG.Explain.phase.classTrial")) && !/z was|Trafcie|pomylcie/.test(at("pl", "DRPG.Explain.phase.classTrial"))],
+            // notice-history-app.mjs `changed` draws new entries at once since 1.2.120; the pill only scrolls up to them
+            // (the auditor's check of 1.2.121, r121-R-8)
+            ["r121-R-8", () => !/adds them/.test(at("en", "DRPG.Tips.Sweep.More.showNewNoticesTooltip")) && !/dodaje je/.test(at("pl", "DRPG.Tips.Sweep.More.showNewNoticesTooltip"))],
+            // hud.mjs: the roster on the left is gone; the Students window lists each student's actions.
+            ["UI-31", () => ["en", "pl"].every(c => at(c, "DRPG.Hud.stillToActTooltip").includes(at(c, "DRPG.Panel.whoIsAlive")))
+                && !/on the left/.test(at("en", "DRPG.Hud.stillToActTooltip")) && !/po lewej/.test(at("pl", "DRPG.Hud.stillToActTooltip"))]
+        ];
+        const wrong = [];
+        for (const [id, holds] of ROWS) {
+            let fine = false;
+            try { fine = holds() === true; } catch (err) { wrong.push(`${id} (threw: ${err?.message ?? err})`); continue; }
+            if (!fine) wrong.push(id);
+        }
+        equal(JSON.stringify(wrong), "[]", "[the findings whose text still says what the code does not]");
+    }],
+
+    ["R8061 - config.mjs's prose says what its tables do (1.2.122 line TEXT; the audit of 1.2.118: TEXT-20, TEXT-22, TEXT-23, TEXT-25, TEXT-27, STG-64): the Cleaning Tool's hint splits its help as cleanup.mjs does, Palm's briefing names the room, Behind Closed Doors names the ways through, Search speaks of Search Tokens, of Eye unless the GM approves another statistic and of a Cleaning Tool, the usables name their kinds as USABLE_KINDS does, prose nothing reads is gone from config.mjs and lang/pl.json, and no crisis action's failure table carries a critical key", async () => {
+        /*
+         * 1.2.122 line TEXT, 21.11.2026. The English is config.mjs's own (i18n-config.mjs `configEnglish`, the value before a
+         * Polish page swaps it), the Polish lang/pl.json's DRPG.Config twin. TEXT-20: cleanup.mjs arms the tool's advantage on
+         * every Stage 6 key but moveBody (`attemptStageSix`) and takes its tier off only where a row has `toolBonusPerTier`
+         * (`resolveStageSix`), so a Misleading Trail gets advantage and no tier; the hint said the reverse of the trail. TEXT-25:
+         * fields nothing outside config.mjs read (git grep, tests aside). STG-64: a critical is always a success, so a
+         * failure table's critical key is never read (murder-rules.mjs, the failure branch). Red at 21bf5d18: every row.
+         */
+        const C = await import("./config.mjs");
+        const { configEnglish, configProseOf } = await import("./i18n-config.mjs");
+        const langs = {};
+        for (const code of ["en", "pl"]) langs[code] = await fetch(`/modules/${MODULE_ID}/lang/${code}.json`, { cache: "no-cache" }).then(r => (r.ok ? r.json() : null));
+        const pl = langs.pl;
+        must(pl?.DRPG?.Config && langs.en?.DRPG, "lang/pl.json's DRPG.Config or lang/en.json was not served - this would read nothing");
+        const en = key => configEnglish(key) ?? configProseOf(C, key);
+        const plOf = key => foundry.utils.getProperty(pl, key);
+        const trail = C.CLEANUP.actions?.misleadingTrail, body = C.CLEANUP.actions?.moveBody;
+        must(trail && body, "CLEANUP.actions has no misleadingTrail or moveBody - this would read nothing");
+        const hint = en("DRPG.Config.ITEM_CATEGORIES.cleaningTool.hint") ?? "";
+        const clause = name => hint.split(/[;.]/).find(s => s.includes(name)) ?? "";
+        const ROWS = [
+            // each Stage 6 action named, with a tier only where its row has toolBonusPerTier
+            ["TEXT-20", () => [["Misleading Trail", trail], ["Move the Body", body]].every(([name, row]) => clause(name) !== ""
+                && /tier/i.test(clause(name)) === Boolean(row.toolBonusPerTier))
+                && /Misleading Trail/.test(plOf("DRPG.Config.ITEM_CATEGORIES.cleaningTool.hint"))],
+            // palm.mjs `tellOnlookers`: a noticed take or plant is told to the room - in the briefing's fact line, since the
+            // description is the owner's approved text (docs/dev/text-batch-B01a.json)
+            ["TEXT-22", () => /room/.test(langs.en.DRPG.Action.dcPalm) && /pokoju/.test(langs.pl.DRPG.Action.dcPalm)],
+            // doors-gm.mjs: Force the Door lifts the seal; a finished breach does too
+            ["TEXT-23", () => ["Force the Door", "Breach the Wall"].every(w => en("DRPG.Config.DESPAIR_CALLS.behindClosedDoors.effect").includes(w)
+                && plOf("DRPG.Config.DESPAIR_CALLS.behindClosedDoors.effect").includes(w))],
+            ["TEXT-25", () => C.ACTIONS.analyze.hintFailure === undefined && C.ACTIONS.palm.failure === undefined
+                && C.ACTIONS.palm.unseen?.label === undefined && C.ACTIONS.listen.critical?.result === undefined
+                && C.ACTIONS.listen.thresholds.every(t => t.result === undefined)
+                && ["analyze.hintFailure", "palm.failure", "palm.unseen.label", "listen.critical.result", "listen.thresholds.0.result", "listen.thresholds.1.result"]
+                    .every(k => plOf(`DRPG.Config.ACTIONS.${k}`) === undefined)],
+            // the search's description: the owner's yes of 21.11.2026 (tools/text-render.mjs BATCH_LATER over B01a's after)
+            ["TEXT-27", () => en("DRPG.Config.ACTIONS.search.hint").includes("Search Tokens")
+                && !/^Roll Eye:/.test(en("DRPG.Config.ACTIONS.search.description")) && en("DRPG.Config.ACTIONS.search.description").includes("Cleaning Tool")
+                && plOf("DRPG.Config.ACTIONS.search.description").includes("Narzędzie do sprzątania")
+                && [1, 2, 3].every(n => en(`DRPG.Config.TIER_EFFECTS.usable.${n}`).includes(`(${C.USABLE_KINDS.stress.label})`)
+                    && en(`DRPG.Config.TIER_EFFECTS.usable.${n}`).includes(`(${C.USABLE_KINDS.healing.label})`))],
+            ["STG-64", () => Object.values(C.CRISIS_ACTIONS).every(def => !Object.hasOwn(def.failureRemnant ?? {}, "critical")
+                && !Object.hasOwn(def.failureRemnantReinforced ?? {}, "critical"))]
+        ];
+        const wrong = [];
+        for (const [id, holds] of ROWS) {
+            let fine = false;
+            try { fine = holds() === true; } catch (err) { wrong.push(`${id} (threw: ${err?.message ?? err})`); continue; }
+            if (!fine) wrong.push(id);
+        }
+        equal(JSON.stringify(wrong), "[]", "[the findings whose config prose still says what its tables do not]");
+    }],
+
+    ["R8062 - two GM notes take their numbers from the rule (1.2.122 line TEXT; the audit of 1.2.118: TEXT-30, TEXT-39; text-style O5): DRPG.Investigation.keyDcNote's gap between ordinary evidence and a Key Remnant is {low} to {high}, filled by investigation.mjs from OBSERVE_DC, and DRPG.Vault.stashesNote's Find Stash threshold is {n}, filled by room-setup.mjs from ACTIONS.analyze.stashThreshold", async () => {
+        /*
+         * 1.2.122 line TEXT, 21.11.2026. keyDcNote typed "three to six", and OBSERVE_DC.obvious gives two (dailyLife 8, key
+         * 6); stashesNote typed "16+", equal to stashThreshold today and free to part from it. Each text holds its
+         * placeholder in both languages and no digit, and the call that draws it hands the placeholder in. Red at
+         * 21bf5d18: both texts typed their numbers.
+         */
+        const lang = {};
+        for (const code of ["en", "pl"]) lang[code] = await fetch(`/modules/${MODULE_ID}/lang/${code}.json`, { cache: "no-cache" }).then(r => (r.ok ? r.json() : null));
+        must(lang.en?.DRPG && lang.pl?.DRPG, "lang/en.json or lang/pl.json was not served - this would read nothing");
+        const at = (code, key) => foundry.utils.getProperty(lang[code], key) ?? "";
+        const src = async file => fetch(`/modules/${MODULE_ID}/scripts/${file}`, { cache: "no-cache" }).then(lfText);
+        const invest = stripComments(await src("investigation.mjs")), rooms = stripComments(await src("room-setup.mjs"));
+        must(invest.length > 1000 && rooms.length > 1000, "investigation.mjs or room-setup.mjs did not load - this reads nothing");
+        const wrong = [];
+        for (const c of ["en", "pl"]) {
+            const dc = at(c, "DRPG.Investigation.keyDcNote"), stash = at(c, "DRPG.Vault.stashesNote");
+            if (!dc.includes("{low}") || !dc.includes("{high}") || /three to six|trzy do sześciu/.test(dc)) wrong.push(`${c} keyDcNote`);
+            if (!stash.includes("{n}+") || /\d/.test(stash)) wrong.push(`${c} stashesNote`);
+        }
+        const dcCall = bodyOf(invest, `"DRPG.Investigation.keyDcNote"`, { length: 700 });
+        if (!/\bordinaryGap\(\)/.test(dcCall)) wrong.push("investigation.mjs hands keyDcNote no ordinaryGap()");
+        const I = await import("./investigation.mjs");
+        if (typeof I.ordinaryGap !== "function" || JSON.stringify(I.ordinaryGap({ a: { key: 5, x: 9, y: 6 }, b: { key: 10, x: 13 } })) !== JSON.stringify({ low: 1, high: 4 })) {
+            wrong.push("investigation.mjs `ordinaryGap` does not read a planted table's gaps (1 to 4)");
+        }
+        const stashCall = bodyOf(rooms, `"DRPG.Vault.stashesNote"`, { back: 40 }) + bodyOf(rooms, `"DRPG.Vault.stashesNote"`, { length: 160 });
+        if (!/game\.i18n\.format\(\s*"DRPG\.Vault\.stashesNote"/.test(stashCall) || !/stashThreshold/.test(stashCall)) wrong.push("room-setup.mjs hands stashesNote no stashThreshold");
+        equal(JSON.stringify(wrong), "[]", "[the notes that type a number the rule holds, or the calls that do not fill it]");
+
+    }],
+
+    ["R8063 - a player is not handed the GM's restore path (1.2.122 line TEXT; the audit of 1.2.118: TEXT-32; text-style O19, T29): DRPG.Handover.answerKeyMissing names no GM window in either language, DRPG.Handover.answerKeyMissingGm carries the path, and handover.mjs and trial.mjs send the first to the owner alone and the second to the GMs", async () => {
+        /*
+         * 1.2.122 line TEXT, 21.11.2026. Both senders used whisperToOwner, which also copies the GMs: one sentence for two
+         * readers, so the player read "GM panel, Diagnostics, The case: Restore from a file". Now two sends: the owner's
+         * (whisperToOwnerOnly) says what happened, the GMs' (whisperToGms) says what happened and how to restore it. Red
+         * at 21bf5d18: one key with the path, and no answerKeyMissingGm.
+         */
+        const lang = {};
+        for (const code of ["en", "pl"]) lang[code] = await fetch(`/modules/${MODULE_ID}/lang/${code}.json`, { cache: "no-cache" }).then(r => (r.ok ? r.json() : null));
+        must(lang.en?.DRPG && lang.pl?.DRPG, "lang/en.json or lang/pl.json was not served - this would read nothing");
+        const wrong = [];
+        for (const [c, path] of [["en", /GM panel|Diagnostics/], ["pl", /panel GM|Diagnostyk/]]) {
+            const player = lang[c].DRPG.Handover?.answerKeyMissing ?? "", gm = lang[c].DRPG.Handover?.answerKeyMissingGm ?? "";
+            if (!player || path.test(player)) wrong.push(`${c}: the player's sentence names the GM's path`);
+            if (!path.test(gm)) wrong.push(`${c}: the GMs' sentence names no path`);
+        }
+        for (const file of ["handover.mjs", "trial.mjs"]) {
+            const code = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/${file}`, { cache: "no-cache" }).then(lfText));
+            must(code.length > 1000, `${file} did not load - this reads nothing`);
+            const sends = [...new Set([...code.matchAll(/(whisperTo\w+)\([^;]*?"DRPG\.Handover\.(answerKeyMissing\w*)"/g)].map(m => `${m[1]} ${m[2]}`))];
+            if (JSON.stringify(sends.sort()) !== JSON.stringify(["whisperToGms answerKeyMissingGm", "whisperToOwnerOnly answerKeyMissing"])) wrong.push(`${file}: ${JSON.stringify(sends)}`);
+        }
+        equal(JSON.stringify(wrong), "[]", "[what still hands a player the GM's procedure]");
+    }],
+
+    ["R8064 - three tooltips are back under the tooltip limit (1.2.122 line TEXT; the audit of 1.2.118: TEXT-36; docs/text-budgets.json, tooltip limit 23 words): DRPG.Project.everyone, DRPG.Monocub.silencedNote and DRPG.Vault.neighboursHint, in English and in Polish, as tests-text.mjs `wordCount` counts", async () => {
+        /* 1.2.122 line TEXT, 21.11.2026. Read 43/41, 34/26 and 19/25 words on 21bf5d18 (the finding's count, this test's red). */
+        const T = await import("./tests-text.mjs");
+        const budgets = await fetch(`/modules/${MODULE_ID}/docs/text-budgets.json`, { cache: "no-cache" }).then(r => (r.ok ? r.json() : null)).catch(() => null);
+        needs(env.tools(), "docs/text-budgets.json is read from the repository (an installed module's zip leaves docs/ out)");
+        const limit = budgets?.surfaces?.tooltip?.limit;
+        must(Number.isFinite(limit), "docs/text-budgets.json names no tooltip limit - this reads nothing");
+        const over = [];
+        for (const code of ["en", "pl"]) {
+            const json = await fetch(`/modules/${MODULE_ID}/lang/${code}.json`, { cache: "no-cache" }).then(r => r.json());
+            for (const key of ["DRPG.Project.everyone", "DRPG.Monocub.silencedNote", "DRPG.Vault.neighboursHint"]) {
+                const text = foundry.utils.getProperty(json, key);
+                must(typeof text === "string", `${code} ${key} is missing`);
+                const n = T.wordCount(text);
+                if (n > limit) over.push(`${code} ${key} ${n}`);
+            }
+        }
+        equal(JSON.stringify(over), "[]", `[the tooltips over ${limit} words]`);
+    }],
+
+    ["R8065 - the text lint reads two things it missed (1.2.122 line TEXT; the audit of 1.2.118: TEXT-33, STG-60, STG-87): T8's otherCase finds a countable term's plural and inflected forms in another case (\"search tokens\", \"search tokenów\") and not the term's own, and a baseline row whose emptying stage has shipped is named by tests-text.mjs `shippedBaselineRows`, which tools/check.mjs reads; T6's baseline holds no row today", async () => {
+        /*
+         * 1.2.122 line TEXT, 21.11.2026. TEXT-33: `glossaryHits` matched the term as a whole word, so the plural ("search
+         * tokens") was never read, and two English texts kept the lower case. STG-60 and STG-87: T6's two U+2212 rows said
+         * E25 would empty them after E25 shipped (1.2.113), and nothing read a row's stage. Planted here, on a bag of one
+         * entry and one row, and on the real baseline. Red at 21bf5d18: the plural not found, and no shippedBaselineRows.
+         */
+        const T = await import("./tests-text.mjs");
+        const entry = { id: "fx-token", en: "Search Token", pl: "Search Token", stage: "E00", source: ["FX"],
+            declension: { countable: true, gen: "Search Tokenu" },
+            forbidden: { en: { variants: [], scope: ["ui"], otherCase: true }, pl: { variants: [], scope: ["ui"], otherCase: true } } };
+        const bag = { glossary: { entries: [entry] }, shipped: ["E00"],
+            en: { "DRPG.A": "Spends one of its search tokens.", "DRPG.B": "Search Tokens: 2 left.", "DRPG.C": "A Search Token." },
+            pl: { "DRPG.A": "Brak search tokenów.", "DRPG.B": "Wydaje jeden z jego Search Tokenów." } };
+        const found = T.glossaryHits(bag).found.map(f => f.key).sort();
+        equal(JSON.stringify(found), JSON.stringify(["fx-token@DRPG.A", "fx-token@DRPG.A"]), "[the planted lower-case plural in each language, and nothing else]");
+        must(typeof T.shippedBaselineRows === "function", "tests-text.mjs exports no shippedBaselineRows - a row past its stage stays green");
+        const planted = T.shippedBaselineRows({ dashesIn: [{ file: "fx/a.mjs", quote: "x", issue: "S00-01", empties: "E01" }, { file: "fx/b.mjs", quote: "y", issue: "S00-02", empties: "E99" }] }, ["E01"]);
+        equal(JSON.stringify(planted.map(r => r.file)), JSON.stringify(["fx/a.mjs"]), "[the planted row whose stage has shipped]");
+        equal(JSON.stringify(TEXT_BASELINES.dashesIn ?? null), "[]", "T6's baseline still holds a row (action-report.mjs's two minus signs)");
+    }],
+
+    ["R8066 - a repeated key in an object literal is a lint error (1.2.122 line TEXT; the audit of 1.2.118: DOC-03): eslint.config.mjs turns `no-dupe-keys` on as an error for the module's scripts", async () => {
+        /* 1.2.122 line TEXT, 21.11.2026. A1's class of defect, a key written twice so the first value is dead, had no guard;
+           measured on 21bf5d18 with `npm run lint` and the rule on: 0 repeated keys in scripts/, so it holds today. */
+        needs(env.tools(), "eslint.config.mjs is read from the repository (an installed module's zip leaves it out)");
+        const text = await fetch(`/modules/${MODULE_ID}/eslint.config.mjs`, { cache: "no-cache" }).then(r => (r.ok ? lfText(r) : ""));
+        must(text.length > 200, "eslint.config.mjs was not served - this reads nothing");
+        ok(/["']no-dupe-keys["']\s*:\s*["']error["']/.test(stripComments(text)), "eslint.config.mjs does not set no-dupe-keys to error");
+    }],
+
+    ["R8067 - the Document language setting promises only what goes through it (1.2.122 line TEXT; the audit of 1.2.118: STG-28): while vault-store.mjs `grantBedroomKey` names a key with game.i18n, the setting's hint says in both languages that a bedroom key's name is not in the document language", async () => {
+        /*
+         * 1.2.122 line TEXT, 21.11.2026. utils.mjs `worldLocalize` (the setting's one road) is called by inventory.mjs
+         * alone: a usable's tier line. A bedroom key, a Truth Bullet taken from a body and the project token are named in
+         * the language of the GM's page that writes them. The hint said "the documents the module writes into this world,
+         * one for everyone". The row ties the hint to the code: once grantBedroomKey goes through worldLocalize, its
+         * exception in the hint is the stale half. Red at 21bf5d18: the hint named no exception.
+         */
+        const code = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/vault-store.mjs`, { cache: "no-cache" }).then(lfText));
+        const grant = fnSource(code, "grantKeyNow");
+        // ITEMS' line of 1.2.122 names the key through `keyNameFor` (worldLocalize); before it, game.i18n.format did
+        must(/"DRPG\.Vault\.keyName"|keyNameFor\(/.test(grant), "vault-store.mjs `grantKeyNow` (grantBedroomKey's step) names its key neither way - this reads nothing");
+        const byPage = /game\.i18n\.format\(\s*"DRPG\.Vault\.keyName"/.test(grant);
+        const lang = {};
+        for (const c of ["en", "pl"]) lang[c] = await fetch(`/modules/${MODULE_ID}/lang/${c}.json`, { cache: "no-cache" }).then(r => r.json());
+        const hints = [lang.en.DRPG.Settings.documentLanguage.hint, lang.pl.DRPG.Settings.documentLanguage.hint];
+        // the exception's own words: a name in the writing GM's language
+        const named = [/writing GM's language/.test(hints[0]), /w języku GM-a, który je zapisuje/.test(hints[1])];
+        equal(JSON.stringify(named), JSON.stringify([byPage, byPage]), `the hint ${byPage ? "does not say" : "still says"} that a bedroom key's name is outside the document language [en, pl]`);
+    }],
+
+    ["R8068 - the style guide waits on no shipped stage (1.2.122 line TEXT; the audit of 1.2.118: STG-59): no rule's status in docs/text-style.md says \"to confirm in E<nn>\" for a stage tools/stages.json says has shipped", async () => {
+        /* 1.2.122 line TEXT, 21.11.2026. E71 shipped in 1.2.113; 30 lines still said "to confirm in E71 (row 1.2.113)" on
+           21bf5d18 (the red). E71's outcomes are its STATUS.md's table; the guide now says each. */
+        needs(env.tools(), "docs/text-style.md and tools/stages.json are read from the repository");
+        const { stageLedger } = await import("./tests-kit.mjs");
+        const ledger = await stageLedger();
+        must(ledger && ledger.size > 50, "tools/stages.json was not served - this reads nothing");
+        const text = await fetch(`/modules/${MODULE_ID}/docs/text-style.md`, { cache: "no-cache" }).then(r => (r.ok ? lfText(r) : ""));
+        must(text.length > 10000, "docs/text-style.md was not served - this reads nothing");
+        const due = text.split("\n").map((l, i) => [i + 1, l.match(/to confirm in (E\d\d)/)?.[1]]).filter(([, id]) => id && ledger.get(id)?.done);
+        equal(JSON.stringify(due.map(([n, id]) => `${n}:${id}`)), "[]", "[the lines whose status waits on a stage that has shipped]");
+    }],
+
+    ["R8069 - a number a config sentence tells is a row of its table, filled where the sentence is read (1.2.122 line TEXT; the audit of 1.2.118: TEXT-26; config.mjs's first rule, text-style O5): Conceal Your Intent's Despair bonus, Breath's Hope, the lower Confusion's +1/-1 and each usable's restore are fields of their rows, their sentences hold a placeholder and no digit in English and in Polish, the code that applies each reads the field, and the four readers of the sentences fill them with the rule's numbers", async () => {
+        /*
+         * 1.2.122 line TEXT, 21.11.2026; the owner: everything the auditor named goes into 1.2.122. Until here the
+         * numbers lived twice: action-project.mjs `CONCEALED_WITH_DESPAIR = 1` beside "gains +1 progress", rest.mjs and
+         * sheet-audit.mjs `full ? 2 : 1` beside "Grants 2 Hope" / "Grants 1 Hope", monocub.mjs `help ? 1 : -1` beside four
+         * "+1"/"-1" sentences, and USABLE_EFFECTS' amounts beside nine "Restores N" lines. Each is now a field
+         * (`despairBonus`, `grants`, `amount`, USABLE_EFFECTS' `amount`) and a PROSE_NUMBERS row (`despairBonus`,
+         * `breathHope`, `amount`, `restores`). Red at 0d429d2c: no field, the digits typed, the code's own constants.
+         */
+        const C = await import("./config.mjs");
+        const pl = await fetch(`/modules/${MODULE_ID}/lang/pl.json`, { cache: "no-cache" }).then(r => (r.ok ? r.json() : null));
+        must(pl?.DRPG?.Config, "lang/pl.json's DRPG.Config was not served - this would read nothing");
+        const src = async file => stripComments(await fetch(`/modules/${MODULE_ID}/scripts/${file}`, { cache: "no-cache" }).then(lfText));
+        const [project, rest, audit, cub] = await Promise.all(["action-project.mjs", "rest.mjs", "sheet-audit.mjs", "monocub.mjs"].map(src));
+        must(project.length > 1000 && rest.length > 1000 && audit.length > 1000 && cub.length > 1000, "a script did not load - this reads nothing");
+        const plOf = key => foundry.utils.getProperty(pl, key) ?? "";
+        const conceal = C.INDIRECT_MURDER.concealIntent, breath = C.REST.options.breath;
+        const meddle = C.MONOCUB.abilities.meddle, lower = meddle.thresholds.find(t => t.grants === "bonus");
+        must(conceal && breath && lower, "a row this test reads is gone from config.mjs - it reads nothing");
+        const wrong = [];
+        const sentence = (id, entry, field, key, placeholder, want) => {
+            const en = entry?.[field] ?? "", polish = plOf(key);
+            if (!en.includes(`{${placeholder}}`) || /\d/.test(en)) wrong.push(`${id} en ${key}`);
+            if (!polish.includes(`{${placeholder}}`) || /\d/.test(polish)) wrong.push(`${id} pl ${key}`);
+            if (!C.fillProse(entry, field).includes(want)) wrong.push(`${id} ${key} fills to "${C.fillProse(entry, field)}", not "...${want}..."`);
+        };
+        // Conceal Your Intent
+        if (!Number.isFinite(conceal.despairBonus)) wrong.push("concealIntent has no despairBonus");
+        sentence("conceal", conceal, "successWithDespair", "DRPG.Config.INDIRECT_MURDER.concealIntent.successWithDespair", "despairBonus", `+${conceal.despairBonus}`);
+        if (!/CONCEALED_WITH_DESPAIR\s*=\s*INDIRECT_MURDER\.concealIntent\.despairBonus/.test(project)) wrong.push("action-project.mjs's bonus is not the row's despairBonus");
+        if (!/proseOf\(\s*INDIRECT_MURDER\.concealIntent\s*,\s*"successWithDespair"\s*\)/.test(project)) wrong.push("action-project.mjs does not fill the concealment's sentence");
+        // Breath
+        if (!Number.isFinite(breath.grants?.long) || !Number.isFinite(breath.grants?.short)) wrong.push("Breath has no grants");
+        for (const kind of ["long", "short"]) sentence("breath", breath, kind, `DRPG.Config.REST.options.breath.${kind}`, "breathHope", `${breath.grants?.[kind]}`);
+        if (/full\s*\?\s*2\s*:\s*1/.test(rest) || !/grants\?*\.\[\s*full/.test(rest)) wrong.push("rest.mjs gives Breath's Hope by its own numbers");
+        if (/hope:\s*relief\s*\?\s*0\s*:\s*full\s*\?\s*2\s*:\s*1/.test(audit) || !/breath\.grants/.test(audit)) wrong.push("sheet-audit.mjs allows Breath's Hope by its own numbers");
+        if (!/proseOf\(\s*opt\s*,\s*kind\s*\)/.test(rest)) wrong.push("rest.mjs does not fill a rest option's sentence");
+        // Confusion's lower tier
+        if (!Number.isFinite(lower.amount)) wrong.push("the lower Confusion has no amount");
+        const tier = meddle.thresholds.indexOf(lower);
+        for (const [field, sign] of [["help", "+"], ["hinder", "-"], ["helpTarget", "+"], ["hinderTarget", "-"]]) {
+            sentence("confusion", lower, field, `DRPG.Config.MONOCUB.abilities.meddle.thresholds.${tier}.${field}`, "amount", `${sign}${lower.amount}`);
+        }
+        if (/amount:\s*help\s*\?\s*1\s*:\s*-1/.test(cub) || !/hit\.amount/.test(cub)) wrong.push("monocub.mjs arms the lower Confusion with its own numbers");
+        if (!/proseOf\(\s*hit\s*,/.test(cub)) wrong.push("monocub.mjs does not fill the Confusion's sentences");
+        // the usables: the sentence's number is USABLE_EFFECTS' amount, in each table and through each reader
+        for (const [path, row] of [["TIER_EFFECTS.usable", C.TIER_EFFECTS.usable], ["USABLE_KIND_EFFECTS.healing", C.USABLE_KIND_EFFECTS.healing], ["USABLE_KIND_EFFECTS.stress", C.USABLE_KIND_EFFECTS.stress]]) {
+            for (const n of [1, 2, 3]) sentence("usable", row, n, `DRPG.Config.${path}.${n}`, "restores", `${C.USABLE_EFFECTS[n].amount}`);
+        }
+        const { tierDescription } = await import("./inventory.mjs");
+        const { tableDescription } = await import("./tables-pools.mjs");
+        const given = await tierDescription({ category: "usable", kind: "healing", tier: 2 });
+        if (!given.includes(`${C.USABLE_EFFECTS[2].amount}`) || given.includes("{restores}")) wrong.push(`inventory.mjs tierDescription: ${given}`);
+        const table = tableDescription("usable", 3, "stress");
+        if (!table.includes(`${C.USABLE_EFFECTS[3].amount}`) || table.includes("{restores}")) wrong.push(`tables-pools.mjs tableDescription: ${table}`);
+        const items = await src("gm-items.mjs");
+        if (!/proseOf\(\s*USABLE_KIND_EFFECTS\[kind\]\s*,\s*give\.tier\s*\)/.test(items)) wrong.push("gm-items.mjs's receipt does not fill the usable's sentence");
+        equal(JSON.stringify(wrong), "[]", "[a number told twice, or a sentence its reader does not fill]");
+    }],
+    ["R8070 - a text the auditor's unrouted list named says no more than holds (1.2.122 line TEXT; the audit of 1.2.118's unrouted items, TEXT-04, TEXT-09 and TEXT-LC2): the giver of a Truth Bullet the receiver already holds a copy of is told only that nothing changed hands", async () => {
+        /*
+         * 1.2.122 line TEXT, 21.11.2026; the owner: everything the auditor named goes into 1.2.122.
+         * TEXT-04 (the Eclipse's "or anywhere at night" under Darkness) was fixed twice, by TEXT and by STG (3.1-03); the
+         * assembly kept STG's, which names the night's rooms, and its test is R8462. TEXT-09 / TEXT-LC2: DRPG.Handover.alreadyHasIt,
+         * whispered to the giver (handover.mjs `mintCopy`'s HELD_COPY), said "They already hold a Truth Bullet of this
+         * Remnant" - a fact about the receiver's evidence (AUDIT-1.2.42.md 3.4, fixed in task 13 as "Nothing changed
+         * hands.", reworded back in E71 B08 with no owner's verdict). Red at aa564cca.
+         */
+        const wrong = [];
+        for (const code of ["en", "pl"]) {
+            const json = await fetch(`/modules/${MODULE_ID}/lang/${code}.json`, { cache: "no-cache" }).then(r => r.json());
+            const text = json?.DRPG?.Handover?.alreadyHasIt ?? "";
+            must(text.length > 5, `${code} DRPG.Handover.alreadyHasIt is missing - this reads nothing`);
+            if (/already|ma już|Remnant/.test(text)) wrong.push(`${code} alreadyHasIt: ${text}`);
+        }
+        equal(JSON.stringify(wrong), "[]", "[what the text still says beyond what holds]");
+    }],
+    ["R8542 - Fit to view shows the whole case however far it must zoom out (the owner, 21.11.2026: \"niech fit to view w planerze zagadki przekracza maksymalne oddalenie (aktualnie 25%) - niech je ignoruje\"; case-view.mjs `fitCamera`, `zoomFloor`, `wireCaseCamera`): a case wider than the view at 25% fits at its own zoom, down to CAMERA_LIMITS.fitMin (5%); the zoom's floor in the window is the lower of 25% and that fit, so a step out or the wheel stops at the fit and does not pull the view back to 25%, and a step in from it zooms in; a case that fits at 25% or more keeps 25% as the floor; the toolbar's readout shows the zoom as it is", async () => {
+        /*
+         * 1.2.122, the assembly, 21.11.2026. Until here `fitCamera` clamped its zoom to CAMERA_LIMITS.min (0.25), and so
+         * did every apply, so a case of more than four views' width showed in part after Fit to view. Pure over handed
+         * sizes, and the window's road read in wireCaseCamera's source (tier 0 lays nothing out). Red at 6ad57066: no
+         * `zoomFloor`, and the fit of an 8000 px case in a 1000 px view read 0.25.
+         */
+        const V = await import("./case-view.mjs");
+        must(typeof V.fitCamera === "function" && V.CAMERA_LIMITS, "case-view.mjs has no fitCamera or CAMERA_LIMITS - this would measure nothing");
+        const lim = V.CAMERA_LIMITS;
+        const wide = { w: 8000, h: 2000 }, box = { w: 1000, h: 400 }, small = { w: 2000, h: 800 };
+        const floor = typeof V.zoomFloor === "function" ? V.zoomFloor(wide, box) : null;
+        const held = floor === null ? null : { ...lim, min: floor };
+        const src = stripComments((await moduleSources()).get("case-view.mjs") ?? "");
+        const wire = fnSource(src, "wireCaseCamera") ?? "";
+        const map = stripComments((await moduleSources()).get("case-map.mjs") ?? "");
+        equal(JSON.stringify({
+            fitMin: lim.fitMin, fit: V.fitCamera(wide, box).z, tiny: V.fitCamera({ w: 100000, h: 100 }, box).z,
+            floor, smallFloor: typeof V.zoomFloor === "function" ? V.zoomFloor(small, box) : null,
+            unknownFloor: typeof V.zoomFloor === "function" ? V.zoomFloor({ w: 0, h: 0 }, box) : null,
+            outAtFit: held ? V.zoomAt({ x: 0, y: 0, z: floor }, 1 / lim.step, 500, 200, held).z : null,
+            inFromFit: held ? Math.round(V.zoomAt({ x: 0, y: 0, z: floor }, lim.step, 500, 200, held).z * 10000) / 10000 : null,
+            keptByApply: held ? V.clampCamera({ x: 0, y: 0, z: floor }, wide, box, held).z : null,
+            transform: held ? V.cameraTransform({ x: 0, y: 0, z: floor }, held) : null,
+            road: [/zoomFloor\(/.test(wire), /fitCamera\(canvasSize\(canvas\(\)\), boxSize\(graph\)\)/.test(wire),
+                /zoomAt\(now\(\), factor, [^;]*limitsNow\(\)\)/.test(wire), /clampCamera\(cam, canvasSize\(c\), boxSize\(graph\), limits\)/.test(wire),
+                /cameraTransform\(held, limits\)/.test(wire)],
+            readout: /CAMERA_LIMITS\.fitMin/.test(map.match(/const clampZoomOf = [^;]+;/)?.[0] ?? "")
+        }), JSON.stringify({ fitMin: 0.05, fit: 0.125, tiny: 0.05, floor: 0.125, smallFloor: 0.25, unknownFloor: 0.25, outAtFit: 0.125,
+            inFromFit: 0.1563, keptByApply: 0.125, transform: "translate(0px, 0px) scale(0.125)", road: [true, true, true, true, true], readout: true }),
+            "{fitMin; fit: an 8000x2000 case in a 1000x400 view; tiny: one past the 5% floor; floor: the window's floor for it; smallFloor: a case that fits at 40%; unknownFloor: sizes not laid out; outAtFit, inFromFit: a step out and in from the fit; keptByApply: the clamp of the fit; transform; road: [wireCaseCamera asks the floor, fits the canvas to the box, zooms (buttons, keys, wheel) to the floor, clamps each apply to it, draws it]; readout: the toolbar's percent reads below 25%}");
     }],
 ];
 

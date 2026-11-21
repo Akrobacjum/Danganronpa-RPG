@@ -43,7 +43,7 @@ export async function handleProgress(payload, sender, ctx) {
     // recorded who proposed it; and whose character's roll it was (`owns`), so the change is that
     // character's in the entry (E36 C3): a completion row that keeps a project for a Reroll reads it.
     const result = await addProgress(payload.countdownId, amount, { by: asker, actorId: payload.actorId ?? null, kind: sender.isGM ? "gm" : "player" });
-    debug(`Applied ${amount} progress to ${payload.countdownId} on behalf of a player.`, result);
+    debug(`Applied ${amount} progress to ${payload.countdownId} for ${sender.isGM ? "a GM" : "a player"}.`, result);
     // Null: the project is not there any more - nothing was added, and the asker
     // is told so once, by the refusal (E31 review). A project that did not move
     // (already full) is an answer, whispered below; a frozen one is refused
@@ -608,6 +608,33 @@ export async function handleOverflowAdd(payload, sender, ctx) {
     return { reply: { after } };
 }
 
+/** The run of `call.world` (1.2.122, COMM-26): the primary's own write of a seal or a restriction, its answer whether it wrote. */
+export async function handleCallWorld(payload, sender, ctx) {
+    if (!payload.kind) return { refused: "nothing was carried out: the change is not a seal or a restriction" };
+    const { writeCallWorld } = await import("./call-world.mjs");
+    const done = await writeCallWorld({ kind: payload.kind, room: payload.room ?? null, actorId: payload.actorId ?? null,
+        silenced: payload.silenced === true, chained: payload.chained === true });
+    if (!done) return { refused: "nothing was carried out: the seal or the restriction was not written" };
+    return { reply: { done: true } };
+}
+
+/**
+ * The run of `music.track` (1.2.122, the owner's decision of 21.11.2026): another GM's Play of a cue or Stop the track,
+ * carried out by the primary's own `playTrack` or `resetMusic`; what it did is the reply, for the asker's notice.
+ */
+export async function handleMusicTrack(payload, sender, ctx) {
+    if (!payload.kind) return { refused: "nothing was carried out: the press is not a play or a stop" };
+    const { playTrack, resetMusic } = await import("./music-play.mjs");
+    if (payload.kind === "play") {
+        const played = await playTrack(payload.track);
+        if (!played) return { refused: "nothing was carried out: the cue was not played" };
+        return { reply: { played: played.id } };
+    }
+    const done = await resetMusic();
+    if (!done) return { refused: "nothing was carried out: the music was not stopped" };
+    return { reply: { stopped: done.stopped, given: done.given } };
+}
+
 /** The run of `overflow.clear` (H84-06): the primary's own `resetOverflow` of the count alone, for the GM who asked. */
 export async function handleOverflowClear(payload, sender, ctx) {
     const { resetOverflow } = await import("./overflow.mjs");
@@ -671,8 +698,12 @@ export async function handleDespair(payload, sender, ctx) {
     const delta = Math.trunc(payload.delta);
     const target = game.users.get(payload.targetUserId);
     const { adjustDespair } = await import("./despair.mjs");
-    await adjustDespair(target.id, delta, { clamp: payload.clamp === true });
+    // `price` (1.2.122, DESP-21): a Despair Call's, which the asker waits for - taken whole, or refused when the pool
+    // cannot spend it here; the pool written is the answer.
+    const value = await adjustDespair(target.id, delta, { clamp: payload.clamp === true, price: payload.price === true });
+    if (value === null || value === undefined) return { refused: "nothing was carried out: the pool has not the Despair for it" };
     debug(`Adjusted Despair for ${target.name} by ${delta} on behalf of ${sender.name}.`);
+    return { reply: { value } };
 }
 
     // An Eclipse crossing. Counted on this side, where the allowance is judged since E05

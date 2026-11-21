@@ -1044,9 +1044,26 @@ export async function run({ gm, gm2, p1, p2, check, phase, settle, connect, disc
     verdict("a \"Rests on\" box gm2 ticks on its open Map is drawn as a line on the GM's open Map at once, with no Save",
         mRead?.ticked === true && mRead?.lineOnGm === true, J(mRead));
 
+    /* ------------------------------ Q. an Observe's row reaches the other GM ------------------------------ */
+
+    begin("Q", "an Observe's declaration written on the primary GM reaches the second GM, so a primary that changes before the roll comes back still holds it", "gm-store");
+    /* Line INVEST of 1.2.122 (the audit's CASE-LC3 of 1.2.42). The GMs' store of Observe declarations (gm-stores.mjs
+       `observeStore`) was this browser's alone (`sync: false`): a GM who became the primary between an Observe's target
+       and its roll held no row, and the player's action and roll were lost, told on both screens. A row written on the GM,
+       read on gm2; dropped after. Red at 22e053f2: gm2 never held it. */
+    const qKey = "s62qObserveRow";
+    await gm.eval(`const { observeStore } = await import("${repoUrl}/scripts/gm-stores.mjs");
+        await observeStore.patch("${qKey}", { at: Date.now(), actorId: null, by: null, room: "S62 Q", declaration: "general", request: "", tokenId: null, sceneId: null, dc: null, data: null, nothingHere: true });
+        return true;`, { timeout: 30000 });
+    const qOnGm2 = await gm2.eval(`${until} const { observeStore } = await import("${repoUrl}/scripts/gm-stores.mjs");
+        return Boolean(await until(() => observeStore.get("${qKey}")?.room === "S62 Q" || null, 10000));`, { timeout: 30000 });
+    await gm.eval(`const { observeStore } = await import("${repoUrl}/scripts/gm-stores.mjs"); const E = await import("${repoUrl}/scripts/gm-store.mjs");
+        await observeStore.drop("${qKey}"); await E.gmStoresIdle(); return true;`, { timeout: 30000 });
+    verdict("an Observe's row written on the primary GM is held by the second GM", qOnGm2 === true, J({ qOnGm2 }));
+
     /* ------------------------------ every phase measured ------------------------------ */
 
-    for (const letter of ["A", "O", "N", "T", "V", "D", "K", "P", "E", "L", "S", "M"]) {
+    for (const letter of ["A", "O", "N", "T", "V", "D", "K", "P", "E", "L", "S", "M", "Q"]) {
         check(`${letter}0: phase ${letter} measured something`, (counts[letter] ?? 0) > 0, J(counts));
     }
     await disconnect("gm2");

@@ -2,7 +2,7 @@
  "handbook": "docs/handbooks/gm-handbook.en.md",
  "facts": [
   {"id": "s0.p1.f1", "unit": "s0.p1", "place": "(before the first section), line 3", "text": "The handbook is for the Foundry VTT v14 module \"Danganronpa RPG\".", "kind": "rule", "keywords": ["Foundry VTT v14", "Danganronpa RPG"]},
-  {"id": "s0.p1.f2", "unit": "s0.p1", "place": "(before the first section), line 3", "text": "The module's version is 1.2.121.", "kind": "number", "keywords": ["1.2.121"]},
+  {"id": "s0.p1.f2", "unit": "s0.p1", "place": "(before the first section), line 3", "text": "The module's version is 1.2.122.", "kind": "number", "keywords": ["1.2.122"]},
   {"id": "s0.p1.f3", "unit": "s0.p1", "place": "(before the first section), line 3", "text": "The module is built on the Daggerheart system.", "kind": "rule", "keywords": ["Daggerheart"]},
   {"id": "s0.p2.f1", "unit": "s0.p2", "place": "(before the first section), line 5", "text": "This is the handbook for the people running the killing game.", "kind": "rule", "keywords": ["handbook", "killing game"]},
   {"id": "s0.p2.f2", "unit": "s0.p2", "place": "(before the first section), line 5", "text": "The handbook follows the order a season is built and played.", "kind": "rule", "keywords": ["order"]},
@@ -5054,7 +5054,7 @@
   {"id": "s15.p75.f10", "unit": "s15.p75", "place": "15. The Class Trial > 15.2 The hall's zones: Straw Poll, Logic Dive and Scrum Debate, line 1584", "text": "Then a simple majority is judged.", "kind": "rule", "keywords": ["simple majority"]},
   {"id": "s15.p75.f11", "unit": "s15.p75", "place": "15. The Class Trial > 15.2 The hall's zones: Straw Poll, Logic Dive and Scrum Debate, line 1584", "text": "A right answer goes on to the next question.", "kind": "rule", "keywords": ["right goes on to the next question"]},
   {"id": "s15.p75.f12", "unit": "s15.p75", "place": "15. The Class Trial > 15.2 The hall's zones: Straw Poll, Logic Dive and Scrum Debate, line 1584", "text": "The last question right gives the set's Finding.", "kind": "rule", "keywords": ["set's Finding"]},
-  {"id": "s15.p75.f13", "unit": "s15.p75", "place": "15. The Class Trial > 15.2 The hall's zones: Straw Poll, Logic Dive and Scrum Debate, line 1584", "text": "A wrong answer or a tie - 0:0 too - ends the set and reveals nothing.", "kind": "warning", "keywords": ["A wrong answer or a tie - 0:0 too - ends the set and reveals nothing."]},
+  {"id": "s15.p75.f13", "unit": "s15.p75", "place": "15. The Class Trial > 15.2 The hall's zones: Straw Poll, Logic Dive and Scrum Debate, line 1584", "text": "A wrong answer or a tie - 0:0 too - ends the set.", "kind": "warning", "keywords": ["A wrong answer or a tie - 0:0 too - ends the set."]},
   {"id": "s15.p75.f14", "unit": "s15.p75", "place": "15. The Class Trial > 15.2 The hall's zones: Straw Poll, Logic Dive and Scrum Debate, line 1584", "text": "Skip question goes on with no answer kept.", "kind": "rule", "keywords": ["no answer kept"]},
   {"id": "s15.p75.f15", "unit": "s15.p75", "place": "15. The Class Trial > 15.2 The hall's zones: Straw Poll, Logic Dive and Scrum Debate, line 1584", "text": "End this mode keeps the question it stopped at.", "kind": "rule", "keywords": ["keeps the question it stopped at"]},
   {"id": "s15.p75.f16", "unit": "s15.p75", "place": "15. The Class Trial > 15.2 The hall's zones: Straw Poll, Logic Dive and Scrum Debate, line 1584", "text": "The set starts at that question next time.", "kind": "rule", "keywords": ["the set starts there next time"]},

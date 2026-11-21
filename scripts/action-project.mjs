@@ -39,7 +39,7 @@ import {
     addProgress, isIndirectMurder, isSecret, projectsListedIn, buildsOwnMurder, projectLabel
 } from "./projects.mjs";
 import { callGm } from "./gm-bridge.mjs";
-import { announce, resolveThreshold, whisperToOwner, plural, cardHead, esc, easedBy, listOf } from "./utils.mjs";
+import { announce, resolveThreshold, whisperToOwner, plural, cardHead, esc, easedBy, listOf, proseOf, ownerOf } from "./utils.mjs";
 import { equippedFor, tierOf } from "./use-items.mjs";
 import { playSfx } from "./sfx.mjs";
 import {
@@ -57,13 +57,29 @@ import { drpgWindow, formGrid, helpText, box, tipAttr, tipText } from "./ui-kit.
  * PROJECTS
  * ========================================================================== */
 
+/*
+ * WHOSE SIGHT A STUDENT'S PROJECT LISTS ARE READ WITH (1.2.122 line ITEMS; the audit's ITEM-22). The lists asked
+ * `game.user`, and on a GM's browser that sees every project: a GM playing an absent player's student was offered every
+ * secret project in the room, another player's indirect murder among them, preselected when it came first. A student's
+ * lists are read with the sight of the character's player (`ownerOf`), as the bridge reads the sender's; a Monokuma, or
+ * a character no player owns, with this user's. The same player is the Work's mover, so the GMs' record
+ * files it as that student's work (projects.mjs `addProgress`: a mover who is not this GM is "player"), which the
+ * Monocub's Tinker rule reads.
+ */
+async function sightOf(actor) {
+    if (!game.user.isGM) return game.user;
+    const { isMonokuma } = await import("./monokuma.mjs");
+    return isMonokuma(actor) ? game.user : ownerOf(actor) ?? game.user;
+}
+
 /** Start something new (GM ruling) or push an existing project (automatic). */
 export async function performProject(actor, def, options) {
     const { projectsAvailableIn } = await import("./projects.mjs");
     // Where the character stands, the room and its scene: a project is listed on its own scene only (E12 fix r1-G3).
     const place = locateActor(actor);
     const room = place?.room ?? null;
-    const here = room ? projectsAvailableIn(place) : [];
+    const sight = await sightOf(actor);
+    const here = room ? projectsAvailableIn(place, sight) : [];
 
     // ONE WINDOW: which kind of work, and WHICH project.
     //
@@ -105,7 +121,7 @@ export async function performProject(actor, def, options) {
      */
     const { isMonokuma } = await import("./monokuma.mjs");
     const { sabotageTargetsIn } = await import("./projects.mjs");
-    const breakable = sabotageTargetsIn(place, { anyRoom: isMonokuma(actor) });
+    const breakable = sabotageTargetsIn(place, { anyRoom: isMonokuma(actor), user: sight });
 
     const picked = await chooseVariant({
         actor,
@@ -138,6 +154,7 @@ export async function performProject(actor, def, options) {
                 why: game.i18n.localize("DRPG.Project.nothingToSabotage")
             }
         ],
+        onRender: (event, dialog) => keepProjectRowsLive(dialog, actor, sight),
         // Both targets ride along (ROLL-12): which project to push, and which
         // to break. Sabotage used to open a second window that asked for the
         // same two things this one already showed.
@@ -162,19 +179,107 @@ export async function performProject(actor, def, options) {
 
     if (!picked) return null;
     if (picked.value === "start") return startProject(actor);
+    // The lists as they are now (REFR-36: the window's rows followed the projects while it stood, so the pick may name a
+    // project made since the open).
+    const placeNow = locateActor(actor);
+    const hereNow = placeNow?.room ? projectsAvailableIn(placeNow, sight) : [];
+    const breakableNow = sabotageTargetsIn(placeNow, { anyRoom: isMonokuma(actor), user: sight });
     // Straight through to the action it always was - its own concealment roll,
     // its own trace - with the target read off THIS window.
     if (picked.value === "sabotage") {
-        const target = breakable.find(pr => pr.id === picked.form?.querySelector("[name=sabotage]")?.value)
-            ?? breakable[0];
+        const target = breakableNow.find(pr => pr.id === picked.form?.querySelector("[name=sabotage]")?.value)
+            ?? breakableNow[0] ?? breakable[0];
         return performSabotage(actor, ACTIONS.sabotage, options, { project: target });
     }
 
     // The window is closed by now, but `chooseVariant` hands back the form it
     // was read from, so the field is still there to be read.
-    const chosen = here.find(pr => pr.id === picked.form?.querySelector("[name=project]")?.value)
-        ?? here[0];
+    const chosen = hereNow.find(pr => pr.id === picked.form?.querySelector("[name=project]")?.value)
+        ?? hereNow[0] ?? here[0];
     return workOnProject(actor, def, options, { project: chosen });
+}
+
+/*
+ * THE PROJECTS WINDOW FOLLOWS THE PROJECTS (1.2.122 line ITEMS; the audit's REFR-36; the owner's rule "Zawsze odswiezamy
+ * okna od razu przy zmianie"). The rows' state and the two selects were built once: a project made, finished, frozen or
+ * let into in the character's room left "Work on" struck through, or a project listed, until the window was reopened.
+ * Kept fresh in place on what the lists read - the Countdowns and projectMeta, the GMs' store and a player's sight copy,
+ * the discovery record, a token's move: each of the two rows is struck through or not by its list now, with its line,
+ * and its select drawn again with the pick kept (a select the open did not draw, for a list that was empty, is added in
+ * the form beside the other). The roll judges the pick again before anything is paid, as it did.
+ */
+async function keepProjectRowsLive(dialog, actor, sight) {
+    const { projectsAvailableIn, sabotageTargetsIn } = await import("./projects.mjs");
+    const { isMonokuma } = await import("./monokuma.mjs");
+    const { keepFresh } = await import("./live.mjs");
+    const { COUNTDOWNS_KEY } = await import("./projects-secrecy.mjs");
+    const { discoveryStore, fogCopy, projectSecretStore, projectSightCopy } = await import("./gm-stores.mjs");
+    const paintRow = (root, value, n, line) => {
+        const input = root.querySelector(`input[name="variant"][value="${value}"]`);
+        const label = input?.closest("label.drpg-choice");
+        if (!input || !label) return;
+        input.disabled = !n;
+        label.classList.toggle("unavailable", !n);
+        const small = label.querySelector(".drpg-choice-text small");
+        if (small && small.textContent !== line) small.textContent = line;
+    };
+    const paintSelect = (root, name, when, prompt, tip, list) => {
+        let select = root.querySelector(`select[name="${name}"]`);
+        if (!select && list.length) {
+            const form = root.querySelector("form");
+            const slot = form?.querySelector(".drpg-action-trait") ?? null;
+            const wrap = document.createElement("div");
+            wrap.innerHTML = `<label class="drpg-specific-note" data-drpg-when="${when}">
+                <span>${game.i18n.localize(prompt)}</span>
+                <select name="${name}"${tipAttr(tip)}></select>
+            </label>`;
+            const node = wrap.firstElementChild;
+            // Where the open draws it: after the rows and before the statistic's slot, which may stand deeper in the form.
+            if (slot?.parentNode) slot.parentNode.insertBefore(node, slot);
+            else form?.append(node);
+            select = node.querySelector("select");
+        }
+        if (!select) return;
+        const keep = select.value;
+        const html = projectOptionsHtml(list);
+        if (select.innerHTML === html) return;
+        select.innerHTML = html;
+        if (keep && [...select.options].some(o => o.value === keep)) select.value = keep;
+    };
+    keepFresh(dialog, {
+        run: root => {
+            const place = locateActor(actor);
+            const room = place?.room ?? null;
+            const here = room ? projectsAvailableIn(place, sight) : [];
+            const breakable = sabotageTargetsIn(place, { anyRoom: isMonokuma(actor), user: sight });
+            paintRow(root, "work", here.length, here.length ? plural("DRPG.Project.workOnHint", { n: here.length })
+                : room ? game.i18n.format("DRPG.Project.noneHere", { room }) : game.i18n.localize("DRPG.Action.noRoomNote"));
+            paintRow(root, "sabotage", breakable.length, breakable.length ? plural("DRPG.Project.sabotageHint", { n: breakable.length })
+                : game.i18n.localize("DRPG.Project.nothingToSabotage"));
+            paintSelect(root, "project", "work", "DRPG.Project.whichWork", "DRPG.Tips.Sweep.Actions.workWhichTooltip", here);
+            paintSelect(root, "sabotage", "sabotage", "DRPG.Project.whichSabotage", "DRPG.Tips.Sweep.Actions.sabotageWhichTooltip", breakable);
+        },
+        watch: { settingKeys: [COUNTDOWNS_KEY, `${MODULE_ID}.projectMeta`], tokens: true,
+            stores: [discoveryStore, fogCopy, projectSecretStore, projectSightCopy],
+            hooks: ["drpgProjectSightChanged", "drpgSecretStored", "drpgSeenChanged"] }
+    });
+}
+
+/** The proposal's rows under their Kind (CTRL-72): a row shown only under the kinds its `data-drpg-show` names. */
+function wireKindRows(root) {
+    const kind = root?.querySelector('[name="preset"]');
+    if (!kind) return;
+    const sync = () => {
+        const now = kind.value || "own";
+        for (const node of root.querySelectorAll("[data-drpg-show]")) {
+            node.hidden = !node.dataset.drpgShow.split(" ").includes(now);
+            // A hidden field is disabled too: a hidden `required` Statistic would hold the form's submission in a
+            // browser with no way to say so (a disabled control is barred from the form's checks).
+            for (const field of node.querySelectorAll("input, select, textarea")) field.disabled = node.hidden;
+        }
+    };
+    kind.addEventListener("change", sync);
+    sync();
 }
 
 /**
@@ -197,9 +302,15 @@ export async function startProject(actor) {
         // In the page's language, as projects-ui.mjs writes them (the needsCode line, R6906): "progress" stood here in English.
         .map(([key, s]) => `<option value="${s.progress}"${key === "everyday" ? " selected" : ""}>${esc(plural("DRPG.Project.scaleOption", { label: s.label, n: s.progress }))}</option>`)
         .join("");
+    /* NAMED AS LISTEN NAMES THEM (1.2.122 line ITEMS; the audit's ITEM-25). The list gave every room of the scene by its
+       name, rooms the fog still hides among them, in the window whose passage rows name a room beyond a wall as Listen
+       does. A room this player has not been in is "Unexplored room n" here too (`listenLabels`), and each option is an
+       index, read back into the room's name when the card is sent (the GM's approval reads the room again). */
+    const { roomsKnownToMe: knownRooms } = await import("./movement.mjs");
+    const roomLabels = listenLabels(rooms, knownRooms(locateActor(actor)?.scene));
     const roomOptions = [
         `<option value="">${game.i18n.localize("DRPG.Project.anyRoom")}</option>`,
-        ...rooms.map(r => `<option value="${foundry.utils.escapeHTML(r)}"${r === room ? " selected" : ""}>${foundry.utils.escapeHTML(r)}</option>`)
+        ...rooms.map((r, i) => `<option value="${i}"${r === room ? " selected" : ""}>${foundry.utils.escapeHTML(roomLabels.get(r) ?? r)}</option>`)
     ].join("");
 
     /*
@@ -246,19 +357,25 @@ export async function startProject(actor) {
        its own, not a row. The agreement's warning is the kit's warning box. */
     const uid = foundry.utils.randomID(6);
     const idOf = name => `drpg-propose-${name}-${uid}`;
-    const choose = (name, label, options, note) => ({ label: game.i18n.localize(label), id: idOf(name),
+    /* EACH ROW UNDER THE KIND IT BELONGS TO (1.2.122 line ITEMS; the audit's CTRL-72). A preset fixes the Scale, the
+       Statistic, the room (but for Repair an item) and "This is my indirect murder", and every preset's own select stood
+       under every Kind: a player who ticked the murder and picked Secret Passage was never told the tick was dropped. A
+       row says the kinds it is shown under (`data-drpg-show`, "own" for A project of your own); `wireKindRows` shows it
+       only under those. */
+    const under = (...kinds) => ({ "data-drpg-show": kinds.join(" ") });
+    const choose = (name, label, options, note, shown = [name]) => ({ attrs: under(...shown), label: game.i18n.localize(label), id: idOf(name),
         field: `<select name="${name}" id="${idOf(name)}">${options.map((text, i) => `<option value="${i}">${esc(text)}</option>`).join("")}</select>
                 ${note.map(key => helpText(key)).join("")}` });
     const presetRows = kinds.length ? [
         { label: game.i18n.localize("DRPG.Project.kind"), id: idOf("preset"),
             field: `<select name="preset" id="${idOf("preset")}"><option value="">${game.i18n.localize("DRPG.Project.kindOwn")}</option>${
                 kinds.map(key => `<option value="${key}">${game.i18n.localize(`DRPG.Project.preset.${key}`)}</option>`).join("")}</select>` },
-        ...(offer ? [choose("to", "DRPG.Project.passageTo", offer.neighbours.map(r => beyond.get(r) ?? r), ["DRPG.Project.passageNote", "DRPG.Project.breachNote"])] : []),
-        ...(owned.seal.length ? [choose("seal", "DRPG.Project.sealWhich", owned.seal.map(p => named(p.rooms)), ["DRPG.Project.sealNote"])] : []),
-        ...(owned.breaches.length ? [choose("unbreach", "DRPG.Project.unbreachWhich", owned.breaches.map(b => named(b.rooms)), ["DRPG.Project.unbreachNote"])] : []),
+        ...(offer ? [choose("to", "DRPG.Project.passageTo", offer.neighbours.map(r => beyond.get(r) ?? r), ["DRPG.Project.passageNote", "DRPG.Project.breachNote"], ["secretPassage", "breach"])] : []),
+        ...(owned.seal.length ? [choose("seal", "DRPG.Project.sealWhich", owned.seal.map(p => named(p.rooms)), ["DRPG.Project.sealNote"], ["sealPassage"])] : []),
+        ...(owned.breaches.length ? [choose("unbreach", "DRPG.Project.unbreachWhich", owned.breaches.map(b => named(b.rooms)), ["DRPG.Project.unbreachNote"], ["closeBreach"])] : []),
         ...(mendable.length ? [choose("mend", "DRPG.Project.repairWhich", mendable.map(i => game.i18n.format("DRPG.Project.repairOption", { item: i.name, tier: tierOf(i) })),
-            ["DRPG.Project.repairNote"])] : []),
-        ...(lockable.length ? [choose("lockfix", "DRPG.Project.repairLockWhich", lockable.map(r => named([r])), ["DRPG.Project.repairLockNote"])] : [])] : [];
+            ["DRPG.Project.repairNote"], ["repairItem"])] : []),
+        ...(lockable.length ? [choose("lockfix", "DRPG.Project.repairLockWhich", lockable.map(r => named([r])), ["DRPG.Project.repairLockNote"], ["repairLock"])] : [])] : [];
 
     // On the kit's frame (E21 C5a): the proposal is the GM's road (D11), its one answer; Cancel withdraws it.
     const result = await drpgWindow({
@@ -272,12 +389,12 @@ export async function startProject(actor) {
             { label: game.i18n.localize("DRPG.Project.name"), id: idOf("name"),
                 field: `<input type="text" name="name" id="${idOf("name")}" placeholder="${game.i18n.localize("DRPG.Project.namePlaceholder")}"${tipAttr("DRPG.Tips.Sweep.Actions.proposeNameTooltip")} autofocus />` },
             descriptionField(""),
-            { label: game.i18n.localize("DRPG.Project.scale"), id: idOf("target"), field: `<select name="target" id="${idOf("target")}"${tipAttr("DRPG.Tips.Actions.scaleTooltip")}>${scaleOptions}</select>` },
-            { label: game.i18n.localize("DRPG.Project.room"), id: idOf("room"), field: `<select name="room" id="${idOf("room")}"${tipAttr("DRPG.Tips.Actions.roomTooltip")}>${roomOptions}</select>` },
-            { label: game.i18n.localize("DRPG.Project.trait"), id: idOf("trait"), field: `<select name="trait" id="${idOf("trait")}" required${tipAttr("DRPG.Tips.Actions.requiredWorkTooltip")}>${projectTraitOptions()}</select>` },
-            { full: `<label class="drpg-checkbox">
+            { attrs: under("own"), label: game.i18n.localize("DRPG.Project.scale"), id: idOf("target"), field: `<select name="target" id="${idOf("target")}"${tipAttr("DRPG.Tips.Actions.scaleTooltip")}>${scaleOptions}</select>` },
+            { attrs: under("own", "repairItem"), label: game.i18n.localize("DRPG.Project.room"), id: idOf("room"), field: `<select name="room" id="${idOf("room")}"${tipAttr("DRPG.Tips.Actions.roomTooltip")}>${roomOptions}</select>` },
+            { attrs: under("own"), label: game.i18n.localize("DRPG.Project.trait"), id: idOf("trait"), field: `<select name="trait" id="${idOf("trait")}" required${tipAttr("DRPG.Tips.Actions.requiredWorkTooltip")}>${projectTraitOptions()}</select>` },
+            { attrs: under("own"), full: `<label class="drpg-checkbox">
                 <input type="checkbox" name="murder" /> ${game.i18n.localize("DRPG.Project.indirectMine")}</label>` },
-            { label: game.i18n.localize("DRPG.Project.condition"), id: idOf("condition"),
+            { attrs: under("own"), label: game.i18n.localize("DRPG.Project.condition"), id: idOf("condition"),
                 field: `<input type="text" name="condition" id="${idOf("condition")}"
                        placeholder="${game.i18n.localize("DRPG.Project.conditionPlaceholder")}" />${helpText("DRPG.Project.conditionNote")}` },
             { full: requestFieldHtml({
@@ -297,7 +414,8 @@ export async function startProject(actor) {
                     return {
                         name: f.name.value.trim(),
                         target: Number(f.target.value) || PROJECT_SCALE.everyday.progress,
-                        room: f.room.value || null,
+                        // The option is an index (ITEM-25): the room's name back from the list it was drawn from.
+                        room: f.room.value === "" ? null : rooms[Number(f.room.value)] ?? null,
                         trait: f.trait.value || null,
                         murder: f.murder.checked,
                         condition: f.condition.value.trim(),
@@ -321,6 +439,7 @@ export async function startProject(actor) {
             guardDescription(dialog.element, "create",
                 { optional: () => Boolean(dialog.element.querySelector('[name="preset"]')?.value) });
             wirePresetDescription(dialog.element);
+            wireKindRows(dialog.element);
         },
         rejectClose: false
     });
@@ -471,7 +590,8 @@ async function workOnProject(actor, def, options, chosen = null) {
     const room = place?.room ?? null;
     // Two lists, because a finished project is neither absent nor workable.
     // `listed` is what the player sees; `workable` is what they may pick.
-    const listed = projectsListedIn(place);
+    const sight = await sightOf(actor);
+    const listed = projectsListedIn(place, sight);
     const here = listed.filter(p => !p.complete);
     if (!here.length) {
         // Say that there is nothing here, and nothing else.
@@ -572,7 +692,8 @@ async function workOnProject(actor, def, options, chosen = null) {
        Since C16 the GM adds what the roll earned on its record, with what only this browser saw - the tool's
        relief and the concealment's bonus - held to what the rules allow (bridge-runs-records.mjs `progressOf`). */
     if (progress > 0) {
-        applied = await addProgress(project.id, progress, { actorId: actor.id, rollId: rollInHand(actor)?.messageId ?? null, relief, bonus });
+        applied = await addProgress(project.id, progress, { actorId: actor.id, rollId: rollInHand(actor)?.messageId ?? null, relief, bonus,
+            ...(sight !== game.user ? { by: sight.id } : {}) });
     }
 
     // Reroll needs to know what this roll gave the project, so it can take the
@@ -646,7 +767,9 @@ export function projectProgress(roll, { relief = 0, bonus = 0 } = {}, def = ACTI
 }
 
 /** A concealment of intent made with Despair adds this much (the guide); working alone adds `aloneBonus`. */
-const CONCEALED_WITH_DESPAIR = 1;
+// config.mjs INDIRECT_MURDER.concealIntent.despairBonus since 1.2.122 (line TEXT; the audit of 1.2.118, TEXT-26), where
+// its sentence reads it too
+const CONCEALED_WITH_DESPAIR = INDIRECT_MURDER.concealIntent.despairBonus;
 
 /** The most a concealment adds to a Work's progress: the two never both apply (`projectExtrasHeld`). */
 export const PROJECT_BONUS_MOST = Math.max(INDIRECT_MURDER.concealIntent.aloneBonus ?? 0, CONCEALED_WITH_DESPAIR);
@@ -719,7 +842,7 @@ async function concealProjectIntent(actor, { indirect, witnesses, paid, lines })
             const ok = conceal.isCritical || conceal.total >= INDIRECT_MURDER.concealIntent.threshold;
             lines.push(`<p><strong>${INDIRECT_MURDER.concealIntent.label}</strong> - ${conceal.total}${neededNote(conceal.dc)}: ${
                 ok ? (conceal.withFear
-                        ? INDIRECT_MURDER.concealIntent.successWithDespair
+                        ? proseOf(INDIRECT_MURDER.concealIntent, "successWithDespair")
                         : INDIRECT_MURDER.concealIntent.success)
                    : INDIRECT_MURDER.concealIntent.failure
             }</p>`);
@@ -1162,7 +1285,8 @@ async function sabotageTargets(actor, place, { sabotageTargetsIn }) {
     // character, and it survives whoever is logged in as them.
     const { isMonokuma } = await import("./monokuma.mjs");
     const anyRoom = isMonokuma(actor);
-    const targets = sabotageTargetsIn(place, { anyRoom });
+    // With the character's player's sight on a GM (ITEM-22, `sightOf`), as the window's list above.
+    const targets = sabotageTargetsIn(place, { anyRoom, user: await sightOf(actor) });
 
     // Say what is being held back and why.
     //

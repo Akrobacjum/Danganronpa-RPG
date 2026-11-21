@@ -31,6 +31,7 @@
 import { getClock } from "./settings.mjs";
 import { reducedMotion } from "./motion.mjs";
 import { count } from "./perf-counters.mjs";
+import { clockHiddenHere } from "./incident-store.mjs";
 import { sequencesOn, holdEscape, playDayStart, playDayEnd, playTrialExit, whenTrialExitEnds } from "./sequence.mjs";
 
 const HOURS = ["morning", "noon", "afternoon", "evening", "night"];
@@ -175,10 +176,17 @@ export function bodyBoardsOf(t, before, clock) {
  * The clock this page sees moved from `seen` to `clock` (E62 C1): hand the curtain its direction, schedule the flashes
  * and their sounds, hold Escape for the length. Answers the transition or null. `on` is the table's switch as read now.
  */
-export function onClockHeard(clock, { on = sequencesOn(), still = reducedMotion(), keep = true } = {}) {
+export function onClockHeard(clock, { on = sequencesOn(), still = reducedMotion(), keep = true, hidden = clockHiddenHere() } = {}) {
     const before = seen;
     seen = clock ? { ...clock } : seen;
     const t = transitionFor(before, clock);
+    /* NOTHING WHERE THE CLOCK IS HIDDEN (the audit's STG-06, 1.2.122, 21.11.2026). While an incident runs, a bystander's
+       HUD holds the hour it showed (hud-elapsed.mjs `clockForDisplay`, incident-store.mjs `clockHiddenHere`), and the GM's
+       Next time of day moves the clock with no readiness round before Stage 6 - so the day's boards, their chime and the
+       curtain's turn told this page what its HUD hides. A move heard here then plays nothing: no board, no turn, no
+       flash, no Escape held; `seen` still follows the clock, so the move is not played later either, as the HUD catches
+       up silently when the incident ends. The incident's seats, a GM and a page with no incident play as before. */
+    if (hidden) return null;
     /* The day's boards (E94; when each plays, `boardsOf`), over the curtain's turn, still under reduced motion (C2, C3).
        AFTER THE TRIAL'S EXIT (the owner's decision of 12.11.2026: a chapter's end that closes the trial and opens the
        next morning in one Finish plays the exit first, then the boards): a board started while the exit plays would cut

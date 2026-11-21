@@ -13,7 +13,8 @@
  * in) and a room action's effects applied stand when the new roll is lower: each line says the first result stands. A
  * pass not yet used is taken back. Spent free crossings are not
  * taken back (only those left). Everything else is replaced: a Dash's crossings, a tail's and a barricade's strength, a
- * watch kept or let go, a door forced and a lock picked by a higher roll, a room action's effects by a success.
+ * watch kept or let go and its Sanity mark, a door forced and a lock picked by a higher roll, a room action's effects by a
+ * success. A replay tells no room and leaves no Remnant of its own: the first throw's stand for the one attempt.
  */
 
 import { INFILTRATE, MODULE_ID, FLAGS } from "./config.mjs";
@@ -22,7 +23,7 @@ import { log } from "./utils.mjs";
 const line = (key, data = {}) => game.i18n.format(`DRPG.Reroll.infiltrate.${key}`, data);
 
 /** Replay `bookmark.actionKey` with the new result `after` (`{ total, isCritical, withHope }`); pushes its line on `done`. */
-export async function settleInfiltrate(actor, bookmark, after, done) {
+export async function settleInfiltrate(actor, bookmark, after, done, before = null) {
     const total = Number(after?.total) || 0, isCritical = Boolean(after?.isCritical), withHope = after?.withHope !== false;
     switch (bookmark?.actionKey) {
         case "dash": return settleDash(actor, bookmark, total, isCritical, done);
@@ -30,7 +31,7 @@ export async function settleInfiltrate(actor, bookmark, after, done) {
         case "shut": return settleShut(actor, bookmark, total, done);
         case "force": return settleForce(actor, bookmark, total, isCritical, withHope, done);
         case "pick": return settlePick(actor, bookmark, total, isCritical, withHope, done);
-        case "keepWatch": return settleWatch(actor, total, isCritical, done);
+        case "keepWatch": return settleWatch(actor, bookmark, { total, isCritical, withHope }, before, done);
         case "facility": return settleFacility(actor, bookmark, total, isCritical, done);
         default: return {};
     }
@@ -38,7 +39,7 @@ export async function settleInfiltrate(actor, bookmark, after, done) {
 
 /** A Dash: the band of the new total; crossings granted up to it, or those still left taken down to it. */
 async function settleDash(actor, bookmark, total, isCritical, done) {
-    const { freeMovesLeft, grantFreeMoves } = await import("./actions.mjs");
+    const { grantFreeMoves } = await import("./actions.mjs");
     const { trustedWrite } = await import("./resource-guard.mjs");
     const rule = INFILTRATE.dash;
     const band = [...rule.bands].sort((a, b) => b.min - a.min).find(b => total >= b.min);
@@ -46,8 +47,10 @@ async function settleDash(actor, bookmark, total, isCritical, done) {
     const before = Number(bookmark.dashMoves) || 0;
     if (moves > before) await grantFreeMoves(actor, moves - before, { reason: "infiltrate" });
     else if (moves < before) {
-        const left = freeMovesLeft(actor);
-        await trustedWrite(actor, { [`flags.${MODULE_ID}.${FLAGS.freeMoveGrants}`]: Math.max(0, left - (before - moves)) }, { reason: "infiltrate" });
+        // The crossings as the GMs hold them (the audit's ROLL-26, 1.2.122; sheet-audit.mjs `meansWrite`).
+        const { meansWrite } = await import("./sheet-audit.mjs");
+        await meansWrite(actor, ({ freeMoveGrants }) => trustedWrite(actor,
+            { [`flags.${MODULE_ID}.${FLAGS.freeMoveGrants}`]: Math.max(0, (Number(freeMoveGrants) || 0) - (before - moves)) }, { reason: "infiltrate" }));
     }
     done.push(line("dash", { n: moves }));
     return { dashMoves: moves };
@@ -86,7 +89,7 @@ async function settleForce(actor, bookmark, total, isCritical, withHope, done) {
         return {};
     }
     const { forceDoor } = await import("./doors-gm.mjs");
-    const out = await forceDoor({ actor, room: bookmark.forceRoom ?? null, total, isCritical, withHope });
+    const out = await forceDoor({ actor, room: bookmark.forceRoom ?? null, total, isCritical, withHope, tell: false });
     if (out.refused) {
         done.push(line("forceRefused"));
         return {};
@@ -123,18 +126,35 @@ async function settlePick(actor, bookmark, total, isCritical, withHope, done) {
     return { opened: Boolean(out.opened) };
 }
 
-/** A watch: kept or let go by the new total; refused where a watch can be declared no more (an Eclipse has begun). */
-async function settleWatch(actor, total, isCritical, done) {
+/**
+ * A watch: kept or let go by the new total; refused where a watch can be declared no more (an Eclipse has begun).
+ *
+ * JUDGED ON THE NEW ROLL'S DUALITY, AS THE FIRST THROW WAS (the audit's ROLL-24, 1.2.122). A miss with Despair costs a
+ * Sanity mark (watch-gm.mjs `declareWatch`); the replay declared with no `withHope`, its default true, so a Reroll into
+ * such a miss cost none and the first throw's mark stayed when the Reroll kept the watch. Now the mark follows the result
+ * that stands: the first throw's (`watchMarked` once a Reroll has written it, else a watch not kept on a roll with Despair)
+ * is given back when the new result is no miss with Despair, and one is charged for a new one where none was.
+ */
+async function settleWatch(actor, bookmark, { total, isCritical, withHope }, before, done) {
     const { watchStore } = await import("./gm-stores.mjs");
     const { watchRefusal, declareWatch } = await import("./watch-gm.mjs");
     if (await watchRefusal(actor)) {
         done.push(line("watchStands"));
         return {};
     }
+    const marked = typeof bookmark?.watchMarked === "boolean" ? bookmark.watchMarked
+        : bookmark?.watchKept === false && before?.withHope === false && !before?.isCritical;
     if (watchStore.get(actor.id)) await watchStore.drop(actor.id);
-    const out = await declareWatch({ actor, total, isCritical });
+    // The mark already charged is not charged again: declared as with Hope, and taken back below where it no longer stands.
+    const out = await declareWatch({ actor, total, isCritical, withHope: marked ? true : withHope });
+    const missWithDespair = !out.kept && !withHope;
+    if (marked && !missWithDespair) {
+        const { trustedWrite } = await import("./resource-guard.mjs");
+        const stress = Number(actor.system?.resources?.stress?.value) || 0;
+        if (stress > 0) await trustedWrite(actor, { "system.resources.stress.value": stress - 1 }, { reason: "infiltrate" });
+    }
     done.push(line(out.kept ? "watchKept" : "watchNone"));
-    return { watchKept: Boolean(out.kept) };
+    return { watchKept: Boolean(out.kept), watchMarked: missWithDespair };
 }
 
 /** A GM's room action: a failure rerolled into a success applies its effects; a success stands (its effects are given). */

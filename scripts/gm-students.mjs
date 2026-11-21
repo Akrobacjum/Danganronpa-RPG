@@ -29,7 +29,7 @@ import { studentActors, isMonokuma, isNotInClass, isSpectator, markFromSheet, se
 import { error, plural, esc, wholeNumber } from "./utils.mjs";
 import { stepper, drpgWindow, dataTable, iconButton, roleButton, tipAttr, tipText } from "./ui-kit.mjs";
 import { keepLive, alreadyOpen, handOff, RAISED } from "./live.mjs";
-import { crossingStore } from "./gm-stores.mjs";
+import { crossingStore, offerStore } from "./gm-stores.mjs";
 import { roomPhrase } from "./rooms.mjs";
 import { isDeadWatcher } from "./spectator-dead.mjs";
 import { actionsLeft, actionsMax, hasFreeMove } from "./actions.mjs";
@@ -44,12 +44,18 @@ import { actionsLeft, actionsMax, hasFreeMove } from "./actions.mjs";
  * only the living, the Monocub dialog only the dead, and the repair table
  * could move the flags but refused to run either procedure properly.
  *
- * THE DROPDOWN IS STILL THE REPAIR TOOL, exactly as it was - it moves the two
- * flags and nothing else, which is what you want after a mis-click. The two
- * row buttons are the real procedures:
+ * THE DROPDOWN IS STILL THE REPAIR TOOL - it keeps the bag and posts no card,
+ * which is what you want after a mis-click - but it is no longer the two flags
+ * and nothing else (`applyAliveStates`, read 21.11.2026; "the two flags and
+ * nothing else" until the audit's D 163, 1.2.122): Dead on a death the GMs kept
+ * publishes it (`publishDeath`, its Truth Bullets with it), Monocub sends the
+ * invitation (`offerMonocub`), Alive revives (`reviveCharacter`), and the running
+ * incident's victim made dead ties the chapter's traces and offers Stage 6. The
+ * two row buttons are the real procedures:
  *
  *   Kill                 `openDeathDialog` for that one character, with the
- *                        warning about the inventory it destroys.
+ *                        warning about the Truth Bullets it destroys (the rest
+ *                        of the sheet stays; "the inventory" until the audit's Q3).
  *   Invite as a Monocub  the guide's offer to somebody already dead.
  *
  * The Monocub half of the old window comes across whole: how much Hope a cub
@@ -92,6 +98,11 @@ function aliveTableHtml({ roster, others, stateOf, donors, isCrimeSilenced, invi
          * on every row under a head of three columns fewer. Since E49 A3 there is no gate to misread: the cells and the
          * heads are built on every student's row and in every table.
          */
+        /* ENTER IN THE ROW MEANS ITS GIVE HOPE (1.2.122 line ITEMS; the audit's CTRL-35). The row sits in the window's one
+           form, whose first submit is Apply, so Enter in the pool or the amount pressed Apply: the window closed and no Hope
+           was given. The two fields name the row's button, as the Mastermind window's do (utils.mjs `guardTextFields`, the
+           third rule, MM-02). Tier 2's "1.2.122 CTRL-35 ...". */
+        const giveOf = row => `[data-drpg-give="${row.id}"]`;
         const none = `<span class="drpg-alive-none" aria-label="${esc(L("DRPG.Monocub.notCub"))}" data-tooltip="${esc(L("DRPG.Monocub.notCub"))}">-</span>`;
         const cubCells = {
             // The sheet's and the purse's (E72 C14; DC37), the purse named in the tooltip when it holds any.
@@ -99,9 +110,9 @@ function aliveTableHtml({ roster, others, stateOf, donors, isCrimeSilenced, invi
                 ? `<span data-tooltip="${esc(game.i18n.format("DRPG.Monocub.purseTip", { n: purseOf(a) }))}">${cubHopeTotal(a)} / ${resourceMax(a, "hope")}</span>`
                 : `${resourceValue(a, "hope")} / ${resourceMax(a, "hope")}`) : none,
             give: !cub ? none : donors ? `
-                <select name="donor:${a.id}"${tipAttr("DRPG.Tips.Gm.monokumaPoolTooltip")}>${donors}</select>
+                <select name="donor:${a.id}" data-drpg-enter="${esc(giveOf(a))}"${tipAttr("DRPG.Tips.Gm.monokumaPoolTooltip")}>${donors}</select>
                 ${stepper({ name: `amount:${a.id}`, value: 1, min: 1, compact: true,
-                    attrs: { "data-tooltip": tipText("DRPG.Tips.Gm.amountTooltip") } })}
+                    attrs: { "data-drpg-enter": giveOf(a), "data-tooltip": tipText("DRPG.Tips.Gm.amountTooltip") } })}
                 <button type="button" class="drpg-mini-button" data-drpg-give="${a.id}"${tipAttr("DRPG.Tips.Gm.giveTooltip")}>
                     ${L("DRPG.Monocub.give")}</button>` : "-",
             silenced: cub
@@ -433,7 +444,13 @@ function wireAliveTable(dialog, { openDeathDialog, offerMonocub, cancelMonocubOf
             const actor = game.actors.get(id);
             const donorId = dialog.element.querySelector(`[name="donor:${id}"]`)?.value;
             const amount = wholeNumber(dialog.element.querySelector(`[name="amount:${id}"]`)?.value, { min: 0, fallback: 0 });
-            if (!actor || !donorId || amount <= 0) return;
+            if (!actor || !donorId) return;
+            // SAYS WHY (1.2.122 line ITEMS; the audit's CTRL-83): an empty or 0 amount returned with no word, where the
+            // Mastermind window's same button warns (MM-02). Tier 2's "1.2.122 CTRL-35 ...".
+            if (amount <= 0) {
+                ui.notifications.warn(game.i18n.format("DRPG.Monocub.giveAtLeast", { n: 1 }));
+                return;
+            }
 
             const { convertDespairToHope } = await import("./despair.mjs");
             await convertDespairToHope(donorId, actor, amount);
@@ -572,7 +589,9 @@ export async function openWhoIsAliveDialog(options = {}) {
                 region: ".drpg-alive-live",
                 build: table,
                 // A death kept by the GMs writes no actor (E05 C10): its store's change is the sign; so is a Monocub's row (E72 C2).
-                watch: { actors: true, hooks: ["drpgDeathsChanged", "drpgDespairOwedChanged", "drpgCrossingsChanged", "drpgCubsChanged", "drpgCastChanged"] },
+                // The standing Level Up offers too (1.2.122 line ITEMS; the audit's REFR-48): the Level Up button counts them,
+                // and another GM's offer merged here writes no actor and fires no hook, only the store's key. Tier 2's "1.2.122 CTRL-35 ...".
+                watch: { actors: true, hooks: ["drpgDeathsChanged", "drpgDespairOwedChanged", "drpgCrossingsChanged", "drpgCubsChanged", "drpgCastChanged"], stores: [offerStore] },
                 after: wireAll
             });
         },
@@ -593,7 +612,7 @@ export async function openWhoIsAliveDialog(options = {}) {
 }
 
 /**
- * Write what the Players window was told, row by row, outside in: deceased first,
+ * Write what the Students window was told, row by row, outside in: deceased first,
  * then Monocub, then silence. Answers how many CHARACTERS changed (E51 C7, 31.10.2026;
  * audit S10-60): the ids written go into a Set, so a row whose state and silence both
  * moved is one, where the window's toast used to say "2 characters changed" over it.
@@ -633,10 +652,15 @@ export async function applyAliveStates(chosen = {}) {
         // Order matters: a Monocub is a dead student with a second flag, so the
         // flags are set from the outside in - deceased first, then Monocub.
         //
-        // Dying through the DROPDOWN keeps the inventory AND stays quiet (F16).
-        // This half of the window is the repair tool: nobody expects a select to
-        // empty a bag or to announce a death to the table, and the row's own Kill
-        // button is the one that runs the real procedure, warning and all.
+        // Dying through the DROPDOWN keeps the inventory AND stays quiet (F16) - for a
+        // student no death was kept for. This half of the window is the repair tool:
+        // nobody expects a select to empty a bag or to announce a death to the table,
+        // and the row's own Kill button is the one that runs the real procedure,
+        // warning and all. A "Dead, not found" row is the exception (the owner's Q3,
+        // `makeKnown` above): Dead or Monocub there makes the kept death known as the
+        // discovery does - written to the world, its Truth Bullets destroyed unless the
+        // kill kept them (death.mjs `publishDeath`); the window's note says so since
+        // 1.2.122 (the audit's ITEM-33).
         if (want.state !== stateOf(actor)) {
             // A death this pass makes, not one the GMs kept: that one went through `killCharacter`.
             const living = !isDeadForGm(actor);
@@ -673,10 +697,11 @@ export async function applyAliveStates(chosen = {}) {
 
         // Silence only means anything for a cub, and only after the state above has
         // settled. THE WINDOW DRAWS THE BOX FOR A CURRENT MONOCUB ONLY (E51 C7; audit
-        // S10-60): a student made a Monocub by the dropdown and Apply gets the box the
-        // next time the window opens, one made by the row's Invite as the open table
-        // redraws (`keepLive`). A caller that hands both at once - the suite, the
-        // console - gets both in this pass, counted as one character.
+        // S10-60). Since E72 C6 neither the dropdown nor the row's Invite makes a Monocub:
+        // both send an invitation (`offerMonocub`), and the box appears once the player
+        // accepts and the open table redraws (`keepLive`). So a silence handed with
+        // state "monocub" in one pass is not applied in it - `isMonocub` is still false
+        // (the audit's D 165, 1.2.122; until then this said both were applied at once).
         if (isMonocub(actor) && "silenced" in want && want.silenced !== isCrimeSilenced(actor)) {
             await setSilenced(actor, want.silenced);
             changed.add(actor.id);

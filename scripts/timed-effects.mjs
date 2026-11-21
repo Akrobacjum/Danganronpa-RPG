@@ -11,12 +11,13 @@
  *
  *   - `timeOfDay`: when the time of day it was given in ends (`mark`, facilities.mjs `facilityMark`) - with an Eclipse,
  *     as it starts;
- *   - `day`: when the clock's day changes (`day`, `dayMark`) - with an Eclipse, as Night's starts.
+ *   - `day`: when the clock's day changes (`day`, `dayMark`), on the advance into Morning - with an Eclipse, as the
+ *     Morning Eclipse starts (an Eclipse is named by the time of day it leads into: eclipse.mjs `eclipseLabel`).
  *
  * WHEN IT ENDS. On the primary as an Eclipse starts (`endAtEclipseStart`, A113-C2-6: the one boundary, read on the
  * clock the Eclipse leads into) and at `drpgTimeOfDayChanged` (`endTimedEffects`): each row past its end is taken back
- * (`KINDS[kind].take`) and dropped; a row that lasts until an Eclipse at its end (`endEclipseEffects`). Those two are
- * the only callers of `endTimedEffect` outside the tests (through `endAtEclipseStart` too): no window, button or game.drpg command ends a row by hand
+ * (`KINDS[kind].take`) and dropped; a row that lasts until an Eclipse at its end (`endEclipseEffects`). Those three -
+ * `endTimedEffects`, `endAtEclipseStart` and `endEclipseEffects` - are the only callers of `endTimedEffect` outside the tests: no window, button or game.drpg command ends a row by hand
  * (A113-C6-5, 13.11.2026; this line said "a GM may end one by hand" until then). A GM who edits a trait the row raised
  * back to its number by hand does not end the row, and its end takes the bonus again from whatever the sheet holds:
  * measured headless on 13.11.2026, a +2 on a trait of 0, edited back to 0, read -2 after `endTimedEffect`.
@@ -149,7 +150,8 @@ export async function boostUltimate(actor) {
     const row = timedEffectsOf(actor.id).find(r => r.kind === "ultimateBoost");
     if (!row) return false;
     await writeList(actor.id, timedEffectsOf(actor.id).filter(r => r.id !== row.id));
-    tellOwners(actor);
+    // From this GM, the primary or not: this is the one write of the rows any GM makes (`timedOwnersToTell`).
+    tellOwners(actor, { anyGm: true });
     const { appendArmedCall } = await import("./call-effects.mjs");
     await appendArmedCall(actor, { key: "facility", kind: "hope", grants: "advantage", amount: null, nonce: foundry.utils.randomID(16) }, { by: game.user });
     log(`${actor.name}'s Ultimate is stronger this once: a second die of advantage.`);
@@ -197,17 +199,30 @@ export async function giveTimed(actor, effect, clock = getClock()) {
     return id;
 }
 
-/** End one row: what it did taken back, the row dropped, its owners told. Answers whether there was one. */
+/**
+ * End one row: what it did taken back, the row dropped, its owners told. Answers whether it ended.
+ *
+ * A TAKE-BACK THAT THROWS KEEPS ITS ROW (the audit's CORE-46, 1.2.122, 21.11.2026). The take ran in `try` and the row was
+ * dropped in `finally`, so a sheet write that failed (refused, the connection gone) dropped the row all the same - the
+ * +n or the Experience stayed on the sheet with nothing left to end it - and the throw left the loops below mid-way,
+ * every other row of that boundary not ended and, at an Eclipse's start, nothing kept for the take-back. Now the row
+ * stays, the GM on this browser is told, and the answer is false: the loops go on to the next row, and the row is tried
+ * again at the next boundary (it is still past its end).
+ */
 export async function endTimedEffect(id) {
     const found = rowById(id);
     if (!found) return false;
     const actor = game.actors.get(found.actorId);
     try {
         if (actor) await KINDS[found.row.kind]?.take?.(actor, found.row);
-    } finally {
-        await writeList(found.actorId, timedEffectsOf(found.actorId).filter(r => r.id !== id));
-        tellOwners(actor ?? { id: found.actorId });
+    } catch (err) {
+        error(`A timed effect of ${actor?.name ?? found.actorId} could not be taken back; its row is kept`, err);
+        ui.notifications?.warn?.(game.i18n.format("DRPG.Facility.timed.takeFailed",
+            { name: actor?.name ?? "", line: KINDS[found.row.kind]?.line?.(found.row) ?? found.row.kind }));
+        return false;
     }
+    await writeList(found.actorId, timedEffectsOf(found.actorId).filter(r => r.id !== id));
+    tellOwners(actor ?? { id: found.actorId });
     return true;
 }
 
@@ -286,13 +301,22 @@ function sendTimedEffectsTo(userId) {
     return true;
 }
 
-/** Tell `actor`'s owners their rows again (one given or ended). */
-function tellOwners(actor) {
+/**
+ * The players `tellOwners` sends `actor`'s rows to from this browser: its owners, on the primary - and on any GM with
+ * `anyGm`, for the one write a GM who is not the primary makes (`boostUltimate`; the audit's CORE-34, 1.2.122). The owner's
+ * copy was sent by the primary alone, and no watch resends it when the primary merges another GM's change, so an Ultimate
+ * boosted on a second GM left the badge on the player's sheet until some other row moved. An owner takes the copy from
+ * any GM (`replyForMe`), the newer stamp winning, and the GM that wrote holds the newest. Answers user ids.
+ */
+export function timedOwnersToTell(actor, { anyGm = false } = {}) {
     const doc = game.actors.get(actor?.id ?? "");
-    if (!doc || !isPrimaryGm()) return;
-    for (const user of game.users ?? []) {
-        if (!user.isGM && doc.testUserPermission?.(user, "OWNER")) sendTimedEffectsTo(user.id);
-    }
+    if (!doc || !(anyGm ? Boolean(game.user?.isGM) : isPrimaryGm())) return [];
+    return (game.users ?? []).filter(user => !user.isGM && doc.testUserPermission?.(user, "OWNER")).map(user => user.id);
+}
+
+/** Tell `actor`'s owners their rows again (one given or ended). */
+function tellOwners(actor, { anyGm = false } = {}) {
+    for (const userId of timedOwnersToTell(actor, { anyGm })) sendTimedEffectsTo(userId);
 }
 
 /** After a restore (gm-stores.mjs `restoreCase`): every connected player is sent their rows again. Answers how many. */
@@ -350,8 +374,8 @@ function onTimedSocket(payload, senderId) {
  * with an Eclipse is its END - so a +2 Body bought in the afternoon lasted through the dark, and at the lights
  * `endTimedEffects`, started from that hook, raced `judgePendingMurders` over whether it was still on the killer's sheet
  * as the fight opened. Now, as an Eclipse starts, every row is ended that would be past its end on the clock the Eclipse
- * leads into (clock.mjs `clockAfter`): the time of day's, and at Night's Eclipse the day's too, since that advance
- * begins a new day. Nothing given before the dark is left to end at the lights; a row given during it ends there, as
+ * leads into (clock.mjs `clockAfter`): the time of day's, and at the Morning Eclipse the day's too, since that advance
+ * begins a new day (`clockAfter`'s `rolledOver`). Nothing given before the dark is left to end at the lights; a row given during it ends there, as
  * before. A time of day changed with no Eclipse still ends them at `drpgTimeOfDayChanged`. Answers how many ended.
  *
  * TAKEN BACK WITH THE BOUNDARY (the coordinator's follow-up, 13.11.2026): the rows it ends are kept in the GMs'

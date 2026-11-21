@@ -21,6 +21,8 @@
  *   L  (after K) a full localStorage: gm's refuses the discovery store's key and p1's its fog copy's, and a Fog cell gm
  *      ticks and a room p1 walks into still clear on gm's drawn fog (L1), and the ticked room is under the veil on p1's (L2)
  *      (1.2.120 line F).
+ *   V  (after L, gm2 here) 1.2.122 line MURDER, the audit's STG-31: gm2 puts up the lights' veil and ends the lights
+ *      through the primary (`mask.veil`): a killer with a declaration veiled, one with none not (V1), lifted at the end (V2).
  *   I  the owner's world of 20.11.2026 (1.2.119 line F): two GM users, gm2 gone, a season reset's discovery cut two
  *      hours ahead of gm's clock, as a reset made on gm2's computer with its clock ahead writes it; p1 walks Aiko into
  *      a room, and gm's record holds it, after gm's reload too, p1's copy holds it, and gm is told once (I1, I2). Last:
@@ -30,7 +32,10 @@
  *      its shading) at once and after gm's reload, and p1's copy (J1).
  *   K  1.2.121 line M1 (the audit's CORE-20 residue, N119-4): a card rewritten naming Chie while her mask stood, gm2 and
  *      p2 away; the time of day ends the mask, gm2 fetches the words, gm leaves, and gm2 serves p2 with Chie "?" (K1);
- *      gm2's own rewrite reaches p2 cut too (K2). Red at e515907d: K1 and K2 named her.
+ *      gm2's own rewrite reaches p2 cut too (K2). Red at e515907d: K1 and K2 named her. And her reveal on gm reaches
+ *      gm2, connected, which forgets the same masked rows (K4; 1.2.122 line CORE, r121-M-3; red at 21bf5d18).
+ *   M  1.2.122, the owner's decision of 21.11.2026: the second GM's Play and Stop the track, carried out on the primary
+ *      and read there (M1, M2); and the second GM's Silence through `call.world` (M3, the audit's COMM-26).
  *
  * What this cannot see: a real F5 (a new process with the old localStorage, no cookie, IndexedDB or cache; the
  * order of "inactive", "active" and `ready` on v14 is LIVE-E30-05 and LIVE-E04-12), and a real server's delivery
@@ -437,6 +442,33 @@ export async function run(api) {
     check("L2: p1's localStorage refuses its fog copy: the room gm ticked for Aiko is under the veil on p1's drawn fog, found and not stood in, before p1 moves anything (1.2.120 line F)",
         p1L?.[tickL] === "veil", J({ tickL, p1L }));
 
+    /* ------------------------------------------------------------------ V */
+    /* 1.2.122 line MURDER (the audit's STG-31): the opening's veil is the primary's to write, and on a GM who is not the
+       primary the lights' veil (`veilAtTheLights`) and their end (`lightsJudged`) answered nothing, so an Eclipse ended
+       there put the veil up only once the primary heard the incident's write. gm2 asks the primary now (`mask.veil`) and
+       waits. A declaration of this Eclipse is written on gm for Aiko alone (`pendingMurderStore`); gm2 asks the lights'
+       veil for Aiko and Botan, then ends the lights. Red at 749b35b5: gm2's veil answered 0 and gm held no row. Put back:
+       the declaration, any veil left. */
+    phase("V the opening's veil asked of the primary by the second GM", { flow: "mask" });
+    const VEILS = `const S = ${imp("gm-stores.mjs")}; return [S.veilStore.get("${IDS.aiko}")?.why ?? null, S.veilStore.has("${IDS.botan}")];`;
+    await gm.eval(`const S = ${imp("gm-stores.mjs")}; await S.pendingMurderStore.patch("${IDS.aiko}", { killerId: "${IDS.aiko}", eclipse: "SUITE122V", room: null, note: "" }); return true;`, { timeout: 30000 });
+    await settle(500);
+    let v1 = null, row1 = null, row2 = null;
+    try {
+        v1 = await gm2.eval(`return (${imp("mask-gm.mjs")}).veilAtTheLights(["${IDS.aiko}", "${IDS.botan}"]);`, { timeout: 30000 });
+        row1 = await until(() => gm.eval(VEILS), r => r?.[0] === "lights");
+        await gm2.eval(`await (${imp("mask-gm.mjs")}).lightsJudged(); return true;`, { timeout: 30000 });
+        row2 = await until(() => gm.eval(VEILS), r => r?.[0] === null);
+    } finally {
+        await gm.eval(`const S = ${imp("gm-stores.mjs")}; if (S.pendingMurderStore.has("${IDS.aiko}")) await S.pendingMurderStore.drop("${IDS.aiko}");
+            if (S.veilStore.get("${IDS.aiko}")) await (${imp("mask-gm.mjs")}).lightsJudged(); return true;`, { timeout: 30000 });
+        await settle(500);
+    }
+    check("V1: gm2, not the primary, puts up the lights' veil through the primary: Aiko, who holds a declaration, veiled for the lights, Botan, who holds none, not (1.2.122, the audit's STG-31)",
+        v1 === 1 && J(row1) === J(["lights", false]), J({ v1, row1 }), { flow: "mask" });
+    check("V2: gm2's end of the lights lifts the veil through the primary (1.2.122, the audit's STG-31)",
+        J(row2) === J([null, false]), J({ row2 }), { flow: "mask" });
+
     /* ------------------------------------------------------------------ I */
     /* 1.2.119 line F (the owner's item #2 of 20.11.2026: the GM's fog stopped showing the rooms the players found, F5 did
        not bring them back; two GM users, one connected). On The Forge `game.time.serverTime` is an uptime and each GM
@@ -574,7 +606,108 @@ export async function run(api) {
         return got;`);
     check("K3: gm's rewrite of the card after the mask ended sends gm2 the masked rows it kept (Chie's)",
         toGm2K.length > 0 && toGm2K.every(ids => J(ids) === J([IDS.chie])), J(toGm2K));
+    /* K4 (1.2.122 line CORE; the audit of 1.2.121, r121-M-3): Chie reveals herself on gm (mask-gm.mjs `endMask` calls
+       secret.mjs `forgetHeldMask` with `tell`), and gm2 - connected - forgets the same rows, so its next serve names her.
+       Red at 21bf5d18: gm2 kept Chie's row, and the name stayed "?" on every card it served. */
+    const heldOn = c => c.eval(`${CARD_K} return (game.settings.get("${MOD}", "secretCards")?.[card()?.id]?.hid ?? []).map(r => r.id);`);
+    const heldBefore = await heldOn(gm2);
+    await gm.eval(`const S = ${imp("secret.mjs")}; await S.forgetHeldMask("${IDS.chie}", { tell: true }); return true;`);
+    const heldAfter = await until(() => heldOn(gm2), ids => !ids.includes(IDS.chie), 6000);
+    check("K4: a reveal on gm takes the revealed killer off the masked rows gm2 keeps (r121-M-3)",
+        J(heldBefore) === J([IDS.chie]) && Array.isArray(heldAfter) && !heldAfter.includes(IDS.chie), J({ heldBefore, heldAfter }));
+    /* K5 (1.2.122 line CORE; the audit of 1.2.118, CORE-22 and ROLL-22): gm2, not the primary, asks Echoes and a Dash for
+       Aiko as a GM playing her would. Each goes over the socket to the GMs, the primary among them, which judges it (`onPrimary`) and comes back read as a
+       player's answer is (`localRun`): the reply's fields, not `{ reply }`. The Dash names no roll (a GM's roll is not
+       drawn), and the judge takes a GM sender's numbers when no record names one; a total of 0 grants no crossing, so nothing
+       is written.
+       Red at 21bf5d18: both ran on gm2 itself, nothing was sent, and the values were `{ reply: ... }`. */
+    const asked = await gm2.eval(`const B = ${imp("bridge-asks.mjs")};
+        const socket = game.socket, send = socket.emit, sent = [];
+        socket.emit = function (event, packet, options, ...rest) {
+            if (["listen.echoes", "dash.settle"].includes(packet?.action)) sent.push([packet.action, (options?.recipients ?? []).join(",")]);
+            return send.call(this, event, packet, options, ...rest);
+        };
+        let echoes, dash;
+        try {
+            echoes = await B.requestEchoes({ actorId: "${IDS.aiko}" });
+            dash = await B.requestDash({ actorId: "${IDS.aiko}", total: 0 });
+        } finally { socket.emit = send; }
+        const shape = r => r?.ok ? Object.keys(r.value ?? {}).sort() : (r?.refused ? "refused " + r.reason : "not ok " + (r?.reason ?? ""));
+        return { sent, echoes: shape(echoes), dash: shape(dash) };`, { timeout: 60000 });
+    check("K5: gm2's own Echoes and Dash for a student go to the primary and come back as the run's reply (CORE-22, ROLL-22)",
+        J(asked.sent.map(([action]) => action)) === J(["listen.echoes", "dash.settle"]) && asked.sent.every(([, to]) => to.split(",").includes(IDS.gm))
+            && !J(asked.echoes).includes("reply") && !J(asked.dash).includes("reply")
+            && Array.isArray(asked.echoes) && Array.isArray(asked.dash), J(asked));
     await gm.eval(`${CARD_K} await card()?.delete(); return true;`);
+    await settle(800);
+
+    /* ------------------------------------------------------------------ M */
+    /* PLAY AND STOP THE TRACK FROM THE SECOND GM (1.2.122, the owner's decision of 21.11.2026: "Odtworz i zatrzymaj
+       muzyke niech dziala u kazdego gma"). gm, the primary, makes an ambient playlist and plays it, and puts a track on
+       the cue playlist; gm2 presses Play (music-play.mjs `playTrack`), then Stop the track (`resetMusic`). Read on gm,
+       which keeps the music's record: the cue recorded and the ambient held after the Play, and the ambient given back
+       after the Stop; and gm2's answers. Red at 21bf5d18 (and through COMM-29): gm2's Play played on gm2 and recorded
+       nothing on gm; then (COMM-29) both were refused on gm2. */
+    phase("M Play and Stop the track from the second GM", { flow: "music-track" });
+    // The harness's CONST has no PLAYLIST_MODES, which the music engine reads: Foundry's values stood in on both GMs, as the
+    // tier-2 music test stands them in, and taken off after.
+    const MODES = `if (!CONST.PLAYLIST_MODES && Object.isExtensible(CONST)) { Object.defineProperty(CONST, "PLAYLIST_MODES",
+        { value: { DISABLED: -1, SEQUENTIAL: 0, SHUFFLE: 1, SIMULTANEOUS: 2 }, configurable: true }); globalThis.__e122modes = true; } return true;`;
+    await gm.eval(MODES);
+    await gm2.eval(MODES);
+    const MUSIC = `const P = ${imp("music-play.mjs")};`;
+    const setM = await gm.eval(`${MUSIC} const C = ${imp("config.mjs")};
+        const made = [];
+        const ambient = await Playlist.create({ name: "E122M ambient", mode: CONST.PLAYLIST_MODES?.SEQUENTIAL ?? 0,
+            sounds: [{ name: "E122M ambient one", path: "sounds/lock.wav" }] });
+        made.push(ambient.id);
+        let cue = P.situationalPlaylist();
+        if (!cue) { cue = await Playlist.create({ name: C.SITUATIONAL_PLAYLIST, mode: CONST.PLAYLIST_MODES?.SEQUENTIAL ?? 0 }); made.push(cue.id); }
+        const [track] = await cue.createEmbeddedDocuments("PlaylistSound", [{ name: "E122M cue", path: "sounds/notify.wav" }]);
+        await ambient.playAll();
+        await ambient.sounds.contents[0].update({ playing: true });
+        await new Promise(r => setTimeout(r, 400));
+        globalThis.__e122m = { made, ambient: ambient.id, cue: cue.id, track: track.id };
+        return { ...globalThis.__e122m, playing: ambient.playing, primary: (${imp("utils.mjs")}).isPrimaryGm() };`, { timeout: 60000 });
+    const playM = await gm2.eval(`${MUSIC} const U = ${imp("utils.mjs")};
+        const sound = await P.playTrack(${J(setM.track)});
+        return { primary: U.isPrimaryGm(), played: Boolean(sound) };`, { timeout: 60000 });
+    await settle(1500);
+    const afterPlayM = await gm.eval(`${MUSIC} return { interrupted: Boolean(P.musicStatus().interrupted),
+        ambient: game.playlists.get(${J(setM.ambient)})?.playing ?? null,
+        cue: game.playlists.get(${J(setM.cue)})?.sounds.get(${J(setM.track)})?.playing ?? null };`);
+    const stopM = await gm2.eval(`${MUSIC} return await P.resetMusic();`, { timeout: 60000 });
+    await settle(1500);
+    const afterStopM = await gm.eval(`${MUSIC} return { interrupted: Boolean(P.musicStatus().interrupted),
+        ambient: game.playlists.get(${J(setM.ambient)})?.playing ?? null,
+        cue: game.playlists.get(${J(setM.cue)})?.sounds.get(${J(setM.track)})?.playing ?? null };`);
+    check("M1: the second GM's Play of a cue is carried out on the primary: gm2 is told it played, and gm records the cue playing with the ambient held (the owner's decision of 21.11.2026)",
+        setM.primary === true && setM.playing === true && playM.primary === false && playM.played === true
+            && afterPlayM.interrupted === true && afterPlayM.cue === true && afterPlayM.ambient === false,
+        J({ setM, playM, afterPlayM }));
+    check("M2: the second GM's Stop the track stops the cue on the primary and gives the ambient back, and gm2 is answered what it did",
+        stopM?.stopped >= 1 && stopM?.given >= 1 && afterStopM.interrupted === false && afterStopM.cue === false && afterStopM.ambient === true,
+        J({ stopM, afterStopM }));
+    await gm.eval(`${MUSIC} const m = globalThis.__e122m;
+        for (const id of m.made) { const p = game.playlists.get(id); if (p) { await p.stopAll().catch(() => {}); await p.delete(); } }
+        const cue = game.playlists.get(m.cue); if (cue) for (const s of cue.sounds.filter(s => s.name === "E122M cue")) await s.delete();
+        delete globalThis.__e122m; return true;`, { timeout: 60000 });
+    /* AND A DESPAIR CALL'S RESTRICTION FROM THE SECOND GM (1.2.122, the audit's COMM-26): gm2's Silence is asked of the
+       primary (`call.world`) and written there; read on gm, and the restrictions put back on gm after (a restriction is
+       lifted by the end of its time of day, call-world.mjs `clearSeals`, not by a Call). Red at d4d1ddec: the row's
+       kind guard read a number, so every such ask from a GM who is not the primary was refused. */
+    const W = `const W = ${imp("call-world.mjs")};`;
+    const restrictionsWas = await gm.eval(`${W} return foundry.utils.deepClone(W.restrictions());`);
+    const silenceN = await gm2.eval(`${W} return await W.restrict(game.actors.get("${IDS.chie}"), { silenced: true });`, { timeout: 60000 });
+    await settle(1000);
+    const onGmN = await gm.eval(`${W} return W.isCallSilenced(game.actors.get("${IDS.chie}"));`);
+    const onGm2N = await gm2.eval(`${W} return W.isCallSilenced(game.actors.get("${IDS.chie}"));`);
+    check("M3: the second GM's Silence on Chie is written by the primary, and both GMs read it (call-world.mjs `restrict` through `call.world`)",
+        silenceN === true && onGmN === true && onGm2N === true, J({ silenceN, onGmN, onGm2N }));
+    await gm.eval(`await game.settings.set("${MOD}", "restrictions", ${J(restrictionsWas)}); return true;`);
+    const UNMODES = `if (globalThis.__e122modes) { delete CONST.PLAYLIST_MODES; delete globalThis.__e122modes; } return true;`;
+    await gm.eval(UNMODES);
+    await gm2.eval(UNMODES);
     await settle(800);
 
     return { primary: { before, joined, afterGmReload, moved, backAgain }, reloads: { p1: r1, gm: r2, card: r3 },

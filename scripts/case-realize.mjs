@@ -197,8 +197,9 @@ export async function confirmUndoRealization({ chapter = keyPlan().chapter } = {
  * discovery (`writer`, the primary - body.mjs `runDiscovery` runs there on both roads), a payload not the suite's
  * rehearsal, a chapter with a case built (a schema row or a Key slot not yet on the map) whose realization has not
  * run and that was not asked yet: a small window, "Show the preview" or "Not now". Nothing is handed `waitUntil`: the
- * gather does not wait for it, and the window opens after the stamp. Answering writes `askedAt`, so a second body asks
- * nothing.
+ * gather does not wait for it, and the window opens after the stamp. `askedAt` is written as the question opens, before
+ * any answer, so a second body asks nothing - and nor does a reload of the primary while the question stands, which
+ * counts as asked (corrected by line INVEST of 1.2.122: this said answering wrote it).
  */
 export function registerCaseAsk() {
     /* the planned Autopsy goes out first, with no window (13.11.2026; `sendPlannedAutopsy`). On the primary GM alone,
@@ -235,7 +236,14 @@ export async function askAtBody(chapter) {
             secondary: [{ action: "preview", label: L("DRPG.CaseRealize.showPreview"), tooltip: tipText("DRPG.Tips.Case.showPreviewTooltip") }], default: "later" },
         rejectClose: false
     });
-    if (answer === "preview") return openRealization({ chapter });
+    /* WHAT THE RUN DID IS SAID HERE TOO (line INVEST of 1.2.122; audit 1.2.118 controls-03, finding 9): opened from the
+       dashboard the sentence is the dashboard's first line; opened here nothing drew it, so "Nothing was placed." was told
+       nowhere. It is a notice here. Tier 2 "1.2.122 CTRL-54". */
+    if (answer === "preview") {
+        const said = await openRealization({ chapter });
+        if (typeof said === "string" && said) ui.notifications.info(said);
+        return said;
+    }
     return null;
 }
 
@@ -251,31 +259,54 @@ export async function askAtBody(chapter) {
  * hand blocks none: the planned ones go out on their own bodies, and the GM may send more by hand whenever (the GM
  * panel's window fills in the next one planned and marks it sent, gm-items.mjs). Two calls at once send once
  * (`sending`). Answers how many students got one, over all sent.
+ *
+ * A CALL THAT COMES WHILE ONE RUNS IS QUEUED, NOT DROPPED (line INVEST of 1.2.122; audit 1.2.118
+ * domain-case-f-planner-stores 6): the running call walks the list it read when it began, so a second body announced
+ * meanwhile was turned away by `sending` and its planned Autopsy stayed planned until a third body. Now the second call
+ * is remembered (`again`) and the running one reads what is due once more when it ends, until nothing new came. `send`
+ * is the suite's, to stand in for the sending (tier 2 "1.2.122 CASE-55"); exported for it.
  */
 const sending = new Set();
-async function sendPlannedAutopsy(chapter) {
-    if (!game.user?.isGM || game.user.id !== primaryGmId() || !Number.isInteger(chapter) || sending.has(chapter)) return 0;
+const again = new Set();
+export async function sendPlannedAutopsy(chapter, { send = sendDueAutopsies } = {}) {
+    if (!game.user?.isGM || game.user.id !== primaryGmId() || !Number.isInteger(chapter)) return 0;
+    if (sending.has(chapter)) {
+        again.add(chapter);
+        return 0;
+    }
+    sending.add(chapter);
+    let total = 0;
+    try {
+        do {
+            again.delete(chapter);
+            total += await send(chapter);
+        } while (again.has(chapter));
+        return total;
+    } finally {
+        sending.delete(chapter);
+        again.delete(chapter);
+    }
+}
+
+/** The planned Autopsies due in `chapter` now, sent (`sendPlannedAutopsy`, which keeps one run a chapter). Answers how
+ *  many students got one. */
+async function sendDueAutopsies(chapter) {
     const { rows, meta } = caseRows(chapter);
     const due = autopsiesDue({ count: autopsyCount(chapter), rows, sent: caseMetaOf(meta).autopsySent,
         bodies: bodiesInOrder(bodiesFoundIn(chapter)).length });
     if (!due.length) return 0;
-    sending.add(chapter);
     let total = 0;
-    try {
-        const [{ studentActors }, { isDeadForGm }, { issueAutopsy }, { TRUTH_BULLET_TYPES }] = await Promise.all([
-            import("./monokuma.mjs"), import("./chapter.mjs"), import("./truth-bullets.mjs"), import("./config.mjs")]);
-        for (const { id } of due) {
-            const plan = caseNodeOf(caseRows(chapter).rows[id]);
-            const living = studentActors().filter(a => !isDeadForGm(a));
-            if (!plan || !living.length) break;
-            const issued = await issueAutopsy(living, { name: plan.label || TRUTH_BULLET_TYPES.autopsy.label, playerText: plan.text, gmNote: plan.note ?? "" });
-            if (!issued) continue;
-            await setCaseMeta(chapter, { autopsySent: { ...caseMetaOf(caseRows(chapter).meta).autopsySent, [id]: Date.now() } });
-            ui.notifications.info(plural("DRPG.CaseMap.autopsyWentOut", { n: issued }));
-            total += issued;
-        }
-        return total;
-    } finally {
-        sending.delete(chapter);
+    const [{ studentActors }, { isDeadForGm }, { issueAutopsy }, { TRUTH_BULLET_TYPES }] = await Promise.all([
+        import("./monokuma.mjs"), import("./chapter.mjs"), import("./truth-bullets.mjs"), import("./config.mjs")]);
+    for (const { id } of due) {
+        const plan = caseNodeOf(caseRows(chapter).rows[id]);
+        const living = studentActors().filter(a => !isDeadForGm(a));
+        if (!plan || !living.length) break;
+        const issued = await issueAutopsy(living, { name: plan.label || TRUTH_BULLET_TYPES.autopsy.label, playerText: plan.text, gmNote: plan.note ?? "" });
+        if (!issued) continue;
+        await setCaseMeta(chapter, { autopsySent: { ...caseMetaOf(caseRows(chapter).meta).autopsySent, [id]: Date.now() } });
+        ui.notifications.info(plural("DRPG.CaseMap.autopsyWentOut", { n: issued }));
+        total += issued;
     }
+    return total;
 }

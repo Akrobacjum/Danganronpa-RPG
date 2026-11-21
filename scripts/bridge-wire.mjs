@@ -35,6 +35,12 @@ export const ACTION_SENDBACK = "token.sendBack";
 export const ACTION_ECLIPSE_MOVE = "eclipse.move";
 export const ACTION_ARM = "call.arm";
 export const ACTION_DESPAIR = "despair.adjust";
+/** GM -> primary GM: a Despair Call's seal or restriction written by the primary, one after another (1.2.122, the audit's
+    COMM-26) - see call-world.mjs `sealRoom`, `restrict`. */
+export const ACTION_CALL_WORLD = "call.world";
+/** GM -> primary GM: the Sound window's Play of a cue and Stop the track, carried out by the primary, which keeps the music's
+    record (1.2.122, the owner's decision of 21.11.2026) - see music-play.mjs `playTrack`, `resetMusic`. */
+export const ACTION_MUSIC_TRACK = "music.track";
 /** GM -> primary GM: add to the overflow's count (E17 C5) - see overflow.mjs `addOverflow`. */
 export const ACTION_OVERFLOW_ADD = "overflow.add";
 /** GM -> primary GM: a GM's Clear of the overflow's count (H84-06) - see overflow.mjs `clearOverflowAsGm`. */
@@ -126,6 +132,8 @@ export const ACTION_LISTEN_STOP = "listen.stop";
 export const ACTION_LISTEN_ECHOES = "listen.echoes";
 /** player -> primary GM: a killer behind a "?" reveals themselves (E69 C8; mask-gm.mjs `revealMask`). */
 export const ACTION_MASK_REVEAL = "mask.reveal";
+/** GM -> primary GM: the opening's veil, asked by a GM who is not the primary - at the lights, after them, at an open (1.2.122, the audit's STG-31; mask-gm.mjs `veilOnPrimary`). */
+export const ACTION_MASK_VEIL = "mask.veil";
 /** player -> primary GM: a barricade put up, its Body roll on the GMs' record (E74 C2; doors-gm.mjs `shutDoor`). */
 export const ACTION_DOOR_SHUT = "door.shut";
 /** player -> primary GM: a door forced, its Body roll on the GMs' record (E74 C3; doors-gm.mjs `forceDoor`). */

@@ -28,8 +28,10 @@
  * open node's face's width where it is drawn (`openW`: a map with no fields; on the Map its fields take the face's width
  * as clicked, `relayoutCaseMap`), the gap between columns, the pitch between rows when every node
  * is its least height (so the gap between two nodes of a column is `pitch - nodeH`), the margin around the graph and the
- * room the column heads take above it. Read by `mapPlace` and by the stylesheet's node rule (components.css "THE CASE
- * MAP", whose least width and height and open width are these three numbers).
+ * room the column heads take above it. Read by `mapPlace` and the routes; `openW` is read by no script, and the
+ * stylesheet's node rule (components.css "THE CASE MAP") states its least width and height and the open width (352px)
+ * on its own, so these numbers and those are kept equal by hand (corrected by line INVEST of 1.2.122: this said the
+ * stylesheet read them).
  *
  * THE COLUMNS 80 PX APART (the owner, 13.11.2026: "Wnioski w planerze/schemacie sprawy sa za blisko bulletow i za blisko
  * siebie. Chodzi o odstep miedzy kolumnami"): 48 px until then. Measured in Chromium at 1366x768 (STATUS): the Map's
@@ -180,8 +182,9 @@ export function mapPlace(layout, g = MAP_GEOMETRY, sizes = null, { gapH = 0, edg
        of every line that passes it - from a source in an earlier column to a target in a later one - and a node in the way
        moves down below the lane, the rest of the column after it: the column spreads, nodes keep their order and stay a
        row gap apart. The sources stand in earlier columns, already placed, so one pass left to right. A line back to an
-       earlier column is not given a lane (its source is placed after the columns it passes; a counter refutes beside its
-       target, in its own column, and its bracket passes nothing). Tier 0 R8014. */
+       earlier column is not given a lane (its source is placed after the columns it passes): it turns in the gutter after
+       its target's column since line INVEST of 1.2.122 (`routePlan`, R8180), so one back to the column before passes
+       nothing, and one that skips a column still runs at the counter's height across the columns between. Tier 0 R8014. */
     const clearLanes = (c, list) => {
         if (!Array.isArray(edges) || c === 0) return null;
         const lanes = [...new Set(edges.filter(e => at[e.from] && colOf.get(e.from) < c && colOf.get(e.to) > c)
@@ -311,10 +314,37 @@ function routePlan(shown, at, g, choose = new Map()) {
            height across the columns between, through the lane `mapPlace` keeps there, and turns in the gutter before its
            target; until then it turned in the gutter after its source and ran at its target's height through the column
            between (R8014). Between neighbouring columns the two gutters are one. */
-        const hi = T.x;
+        /* A LINE BACK TO AN EARLIER COLUMN TURNS IN THE GUTTER AFTER ITS TARGET'S COLUMN, AND ENDS ON ITS TARGET'S RIGHT
+           SIDE (line INVEST of 1.2.122; the audit's r120-P-4): it turned in the gutter before the target's column, so its
+           first stretch ran left at the counter's height across the target's own column - through whatever deduction stood
+           there, also when it skipped no column (a counter stands in its deepest target's column, case-layout.mjs
+           `depthOf`). Now it crosses only the columns between, which a counter refuting in two neighbouring columns has
+           none of. A bracket beside a target of the same column is as before. Tier 0 R8180. */
+        const across = back && T.x < S.x;
+        const after = across ? Object.values(at).filter(p => p.x > T.x).map(p => p.x) : [];
+        const hi = across ? (after.length ? Math.min(...after) : right(T) + g.colGap) : T.x;
         const before = Object.values(at).filter(p => p.x < hi).map(right);
         const lo = before.length ? Math.max(...before) : hi - g.colGap;
-        info.set(e, { back, hi, lo, owner: `${back ? "back:" : ""}${e.from}`, ex: back ? S.x : right(S), ys: midOf(S, g) });
+        /* AND ONE THAT SKIPS A COLUMN TAKES A FREE HEIGHT ACROSS IT (line INVEST of 1.2.122; the audit's r120-P-4, its rest):
+           no lane is kept for a line back (`mapPlace`: its source is placed after the columns it passes), so where a node
+           of a column between stands at the counter's height the line drops, in the gutter before the counter's column,
+           to the nearest height every column between leaves free by `LANE` (below them all at the least), runs across
+           there, and turns in its track as before. Tier 0 R8181. */
+        const ys = midOf(S, g);
+        let detour = null;
+        if (across) {
+            const between = Object.values(at).filter(p => p.x > T.x && p.x < S.x);
+            const blocked = between.map(p => [p.y - LANE, p.y + (p.h ?? g.nodeH) + LANE]);
+            const free = y => blocked.every(([a, b]) => y <= a || y >= b);
+            if (!free(ys)) {
+                const tries = blocked.flatMap(([a, b]) => [a - 1, b + 1]).filter(free).sort((a, b) => Math.abs(a - ys) - Math.abs(b - ys));
+                const y = tries[0] ?? Math.max(...blocked.map(([, b]) => b)) + 1;
+                const left = Object.values(at).filter(p => p.x < S.x).map(right);
+                const from = left.length ? Math.max(...left) : S.x - g.colGap;
+                detour = { x: r1((from + S.x) / 2), y: r1(y) };
+            }
+        }
+        info.set(e, { back, hi, lo, end: across ? right(T) : T.x, owner: `${back ? "back:" : ""}${e.from}`, ex: back ? S.x : right(S), ys, detour });
     }
     // the gutters and their owners
     const gutters = new Map();
@@ -343,7 +373,10 @@ function routePlan(shown, at, g, choose = new Map()) {
     const placed = [];
     for (const e of shown) {
         const i = info.get(e), x = tx(e);
-        placed.push({ y: i.ys, a: Math.min(i.ex, x), b: Math.max(i.ex, x), owner: i.owner });
+        if (i.detour) {
+            placed.push({ y: i.ys, a: Math.min(i.ex, i.detour.x), b: Math.max(i.ex, i.detour.x), owner: i.owner });
+            placed.push({ y: i.detour.y, a: Math.min(i.detour.x, x), b: Math.max(i.detour.x, x), owner: i.owner });
+        } else placed.push({ y: i.ys, a: Math.min(i.ex, x), b: Math.max(i.ex, x), owner: i.owner });
     }
     // the ports, target by target (left to right, top to bottom)
     const byTarget = new Map();
@@ -367,8 +400,9 @@ function routePlan(shown, at, g, choose = new Map()) {
                 const owner = info.get(e).owner;
                 const ideal = Math.max(top, Math.min(bottom, start + i * step));
                 // the preferred step where it is free, `ROUTE.port` at the least where a move needs the room
+                const end = info.get(e).end;
                 const free = y => y >= prev + Math.min(step, ROUTE.port) - 0.01 && y >= top && y <= bottom
-                    && (!nudge || !placed.some(q => q.owner !== owner && Math.abs(q.y - y) < ROUTE.track && Math.min(q.b, T.x) - Math.max(q.a, x) > 0.5));
+                    && (!nudge || !placed.some(q => q.owner !== owner && Math.abs(q.y - y) < ROUTE.track && Math.min(q.b, Math.max(x, end)) - Math.max(q.a, Math.min(x, end)) > 0.5));
                 let y = null;
                 for (let d = 0; d <= h && y === null; d++) {
                     if (free(ideal + d)) y = ideal + d;
@@ -384,7 +418,7 @@ function routePlan(shown, at, g, choose = new Map()) {
             ?? list.map((_, i) => (k > 1 ? top + i * (bottom - top) / (k - 1) : my));
         list.forEach(({ e, x }, i) => {
             port.set(e, ys[i]);
-            placed.push({ y: ys[i], a: Math.min(x, T.x), b: Math.max(x, T.x), owner: info.get(e).owner });
+            placed.push({ y: ys[i], a: Math.min(x, info.get(e).end), b: Math.max(x, info.get(e).end), owner: info.get(e).owner });
         });
     }
     return { info, tx, port };
@@ -392,14 +426,23 @@ function routePlan(shown, at, g, choose = new Map()) {
 
 /** One route's path and its three stretches. */
 function routePath(e, at, plan) {
-    const i = plan.info.get(e), x = plan.tx(e), yp = plan.port.get(e), T = at[e.to];
+    const i = plan.info.get(e), x = plan.tx(e), yp = plan.port.get(e), end = i.end;
+    // a line back that skips a column (`routePlan`'s `detour`): down to a free height before the counter's column, across it
+    if (i.detour) {
+        const { x: dx, y: dy } = i.detour;
+        const segs = [{ h: true, y: i.ys, a: Math.min(i.ex, dx), b: Math.max(i.ex, dx) }, { h: false, x: dx, a: Math.min(i.ys, dy), b: Math.max(i.ys, dy) },
+            { h: true, y: dy, a: Math.min(dx, x), b: Math.max(dx, x) }, { h: false, x, a: Math.min(dy, yp), b: Math.max(dy, yp) },
+            { h: true, y: yp, a: Math.min(x, end), b: Math.max(x, end) }];
+        return { segs, d: `M${r1(i.ex)} ${r1(i.ys)} H${r1(dx)} V${r1(dy)} H${r1(x)} V${r1(yp)} H${r1(end)}` };
+    }
     const segs = [{ h: true, y: i.ys, a: Math.min(i.ex, x), b: Math.max(i.ex, x) }, { h: false, x, a: Math.min(i.ys, yp), b: Math.max(i.ys, yp) },
-        { h: true, y: yp, a: Math.min(x, T.x), b: Math.max(x, T.x) }];
-    if (Math.abs(yp - i.ys) < 0.5 && !i.back) return { segs, d: `M${r1(i.ex)} ${r1(i.ys)} H${r1(T.x)}` };
-    const dx = Math.sign(x - i.ex) || 1, dy = Math.sign(yp - i.ys) || 1;
-    const r = Math.max(0, Math.min(ROUTE.radius, Math.abs(yp - i.ys) / 2, Math.abs(x - i.ex), Math.abs(T.x - x)));
+        { h: true, y: yp, a: Math.min(x, end), b: Math.max(x, end) }];
+    if (Math.abs(yp - i.ys) < 0.5 && !i.back) return { segs, d: `M${r1(i.ex)} ${r1(i.ys)} H${r1(end)}` };
+    // the last stretch towards its end: right into a target's left side, left into a line back's right side (`routePlan`)
+    const dx = Math.sign(x - i.ex) || 1, dy = Math.sign(yp - i.ys) || 1, dz = Math.sign(end - x) || 1;
+    const r = Math.max(0, Math.min(ROUTE.radius, Math.abs(yp - i.ys) / 2, Math.abs(x - i.ex), Math.abs(end - x)));
     return { segs, d: `M${r1(i.ex)} ${r1(i.ys)} H${r1(x - dx * r)} Q${r1(x)} ${r1(i.ys)} ${r1(x)} ${r1(i.ys + dy * r)} V${r1(yp - dy * r)}`
-        + ` Q${r1(x)} ${r1(yp)} ${r1(x + r)} ${r1(yp)} H${r1(T.x)}` };
+        + ` Q${r1(x)} ${r1(yp)} ${r1(x + dz * r)} ${r1(yp)} H${r1(end)}` };
 }
 
 /** How many times a horizontal stretch of one source crosses a vertical of another, inside both. */
@@ -486,8 +529,10 @@ export function lightEdges(canvas, id = null) {
    middle and fit. The zoom is clamped to CAMERA_LIMITS and the pan keeps a margin of the graph in view. ---- */
 
 /** The zoom's bounds and one step of the buttons and keys: a quarter of the size at the least (the whole of a
- *  sixty-Remnant chapter in the view's box at 1366x768), twice at the most. */
-export const CAMERA_LIMITS = Object.freeze({ min: 0.25, max: 2, step: 1.25, margin: 48 });
+ *  sixty-Remnant chapter in the view's box at 1366x768), twice at the most. `fitMin`: how far Fit to view may go past
+ *  `min` to show a case wider than that (the owner, 21.11.2026: "niech fit to view w planerze zagadki przekracza
+ *  maksymalne oddalenie (aktualnie 25%) - niech je ignoruje"); under 5% a node is a dot. R8542. */
+export const CAMERA_LIMITS = Object.freeze({ min: 0.25, max: 2, step: 1.25, margin: 48, fitMin: 0.05 });
 
 /** `z` held to the limits (a value that is no number reads 1). Pure. */
 export function clampZoom(z, limits = CAMERA_LIMITS) {
@@ -518,17 +563,25 @@ export function zoomAt(cam, factor, px, py, limits = CAMERA_LIMITS) {
 }
 
 /** The camera that shows the whole content (`{ w, h }`) in the box (`{ w, h }`), centred, at most at 1 (fit never
- *  enlarges a small case) and never under the limit. Pure. */
+ *  enlarges a small case) and down to `fitMin`, past the zoom's `min` (R8542). Pure. */
 export function fitCamera(content, box, limits = CAMERA_LIMITS) {
     if (!(content?.w > 0) || !(content?.h > 0) || !(box?.w > 0) || !(box?.h > 0)) return { x: 0, y: 0, z: 1 };
-    const z = clampZoom(Math.min(1, box.w / content.w, box.h / content.h), limits);
+    const z = clampZoom(Math.min(1, box.w / content.w, box.h / content.h), { ...limits, min: limits.fitMin ?? limits.min });
     return { x: Math.round((box.w - content.w * z) / 2), y: Math.round(Math.max(0, (box.h - content.h * z) / 2)), z };
+}
+
+/** The zoom's floor in the window: the lower of `min` and the zoom Fit to view takes for this content in this box, so
+ *  a step out or the wheel stops at the fit and never pulls a fitted view back up to `min`; `min` where either size is
+ *  not laid out (R8542). Pure. */
+export function zoomFloor(content, box, limits = CAMERA_LIMITS) {
+    if (!(content?.w > 0) || !(content?.h > 0) || !(box?.w > 0) || !(box?.h > 0)) return limits.min;
+    return Math.min(limits.min, fitCamera(content, box, limits).z);
 }
 
 /** The camera moved the least so `rect` (`{ x, y, w, h }`, in the graph's unscaled pixels) is in the box, its top left
  *  corner first when it is larger than the box. Pure. */
-export function revealCamera(cam, rect, box, edge = 8) {
-    const z = clampZoom(cam?.z);
+export function revealCamera(cam, rect, box, edge = 8, limits = CAMERA_LIMITS) {
+    const z = clampZoom(cam?.z, limits);
     let { x, y } = { x: Number(cam?.x) || 0, y: Number(cam?.y) || 0 };
     const left = rect.x * z + x, top = rect.y * z + y, right = left + rect.w * z, bottom = top + rect.h * z;
     if (right > box.w - edge) x -= right - (box.w - edge);
@@ -540,7 +593,7 @@ export function revealCamera(cam, rect, box, edge = 8) {
 }
 
 /** The canvas's transform for a camera. Pure. */
-export const cameraTransform = cam => `translate(${Math.round(Number(cam?.x) || 0)}px, ${Math.round(Number(cam?.y) || 0)}px) scale(${clampZoom(cam?.z)})`;
+export const cameraTransform = (cam, limits = CAMERA_LIMITS) => `translate(${Math.round(Number(cam?.x) || 0)}px, ${Math.round(Number(cam?.y) || 0)}px) scale(${clampZoom(cam?.z, limits)})`;
 
 /* ---- WHAT A BROWSER DOES WITH THE DRAWN MAP ---- */
 
@@ -657,13 +710,16 @@ const boxSize = el => ({ w: el?.clientWidth || 0, h: el?.clientHeight || 0 });
  */
 export function wireCaseCamera(graph, { get = () => null, set = () => {}, still = () => false, onZoom = () => {} } = {}) {
     const canvas = () => graph?.querySelector?.(":scope > .drpg-case-canvas");
+    // The floor is this case's fit when that is under `min` (R8542): read at each move, the case and the window may change.
+    const limitsNow = () => ({ ...CAMERA_LIMITS, min: zoomFloor(canvasSize(canvas()), boxSize(graph)) });
     const apply = (cam, { ease = false } = {}) => {
         const c = canvas();
-        const held = clampCamera(cam, canvasSize(c), boxSize(graph));
+        const limits = limitsNow();
+        const held = clampCamera(cam, canvasSize(c), boxSize(graph), limits);
         set(held);
         if (c) {
             c.classList.toggle("is-easing", Boolean(ease) && !still());
-            c.style.transform = cameraTransform(held);
+            c.style.transform = cameraTransform(held, limits);
         }
         if (graph) { graph.scrollLeft = 0; graph.scrollTop = 0; }
         onZoom(held);
@@ -673,7 +729,7 @@ export function wireCaseCamera(graph, { get = () => null, set = () => {}, still 
     const middle = () => { const b = boxSize(graph); return [b.w / 2, b.h / 2]; };
     const zoomBy = (factor, px, py, opts) => {
         const [mx, my] = middle();
-        return apply(zoomAt(now(), factor, px ?? mx, py ?? my), opts);
+        return apply(zoomAt(now(), factor, px ?? mx, py ?? my, limitsNow()), opts);
     };
     const fit = () => apply(fitCamera(canvasSize(canvas()), boxSize(graph)), { ease: true });
     /* `els` one element or several (an open node's face and its fields): their union brought into view. */
@@ -682,14 +738,15 @@ export function wireCaseCamera(graph, { get = () => null, set = () => {}, still 
         const list = (Array.isArray(els) ? els : [els]).filter(el => el && c?.contains?.(el));
         if (!c || !list.length) return;
         const cam = now();
-        const z = clampZoom(cam.z);
+        const limits = limitsNow();
+        const z = clampZoom(cam.z, limits);
         const cr = c.getBoundingClientRect?.();
         const rs = list.map(el => el.getBoundingClientRect?.()).filter(r => r && (r.width || r.height));
         if (!cr || !rs.length) return;
         const left = Math.min(...rs.map(r => r.left)), top = Math.min(...rs.map(r => r.top));
         const right = Math.max(...rs.map(r => r.right)), bottom = Math.max(...rs.map(r => r.bottom));
         const rect = { x: (left - cr.left) / z, y: (top - cr.top) / z, w: (right - left) / z, h: (bottom - top) / z };
-        const next = revealCamera(cam, rect, boxSize(graph));
+        const next = revealCamera(cam, rect, boxSize(graph), 8, limits);
         if (next.x !== Math.round(cam.x) || next.y !== Math.round(cam.y)) apply(next);
     };
     if (!graph || graph.dataset.drpgCamera) return { apply, zoomBy, fit, reveal };

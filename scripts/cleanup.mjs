@@ -15,11 +15,13 @@
  * simply nothing that called any of it. This is the missing half.
  *
  * WHY THE SCORING RUNS ON THE GM'S CLIENT. Same reason as Observe (see
- * observe.mjs): the threshold comes from how visible the trace is, which is a
- * flag on a hidden token - and Foundry ships every token to every client, so the
- * killer's own browser physically holds the answer. Their client picks a target
- * and throws the dice; the number travels here, and the verdict, the deletion
- * and the new trace are all produced on this side.
+ * observe.mjs): the threshold comes from how visible the trace is, which is the
+ * band in the GMs' ledger (remnants.mjs, since the answer key left the tokens) -
+ * no player's browser holds it. Their client picks a target; the roll is drawn on
+ * the primary GM and its result read off the GMs' record of it (the bridge row's
+ * `rolled`, `cleanup` kind), and the verdict, the deletion and the new trace are
+ * all produced on this side (the audit's D9 of 1.2.122: this said a token's flag
+ * and a number that travels).
  *
  * WHAT IS NOT AUTOMATED. Whether the killer is standing in the right room, and
  * whether Stage 6 has gone on long enough - both the GM's, as everywhere else in
@@ -42,9 +44,11 @@
  *              an incident trace you watched being made (ACT-02, see
  *              `cleanupRefusal`). A killer in their own Stage 6 may wipe
  *              anything in the room, including traces nobody has found yet.
- *   WHAT IT    `PRICE_CHAINS.tamper` on both roads: an action, or a Sanity mark
- *   COSTS.     when there is no action. The killer on their own night skips
- *              the action step (`tamperPriceSkip`, D3) and pays the mark.
+ *   WHAT IT    `PRICE_CHAINS.tamper` on both roads, cut by `tamperPriceSkip`:
+ *   COSTS.     anybody's Tamper is one action, and with none left there is no
+ *              Tamper (E64: the Sanity step skipped); the killer on their own
+ *              night skips the action step (D3) and pays the mark (the audit's
+ *              D10 of 1.2.122: this said "or a Sanity mark" for everyone).
  *
  * The concealment roll happens on BOTH routes, and it is the one thing that can
  * still cost Sanity outside Stage 6. That is not the tile's price being
@@ -68,11 +72,11 @@ import { PRICE_CHAINS, ACTIONS, MODULE_ID, CLEANUP, RESOLUTION_STRESS_COST, REMN
 import { quotePrice, payPrice, refundPrice, paidLine, priceLabel } from "./price.mjs";
 import { getClock } from "./clock.mjs";
 import { bodyDiscovery, seasonEpoch } from "./settings.mjs";
-import { murderState, killerIds, blackenedIds, refOf, swungWeaponOf, spendFreeCleanup, knowsOfDeath } from "./murder.mjs";
+import { murderState, killerIds, participantIds, blackenedIds, refOf, swungWeaponOf, spendFreeCleanup, knowsOfDeath } from "./murder.mjs";
 import { usedToolStore, blackenedStore, cleanupAttemptStore, caseMark, deathStore } from "./gm-stores.mjs";
 import { readMine } from "./gm-store.mjs";
 import { remnantsInRoom, remnantData, removeRemnant, dropRemnant, setRemnantPublic, remnantPublic, remnantById } from "./remnants.mjs";
-import { locateActor, sameRoom, whilePlacing } from "./movement.mjs";
+import { locateActor, whilePlacing } from "./movement.mjs";
 import { isCubToken } from "./spectator.mjs";
 import { roomRegions } from "./rooms.mjs";
 import { equippedFor, breakOnDespair } from "./use-items.mjs";
@@ -86,7 +90,7 @@ import { trustedWrite } from "./resource-guard.mjs";
 import { announce as announcePlain, whisperToGms, log, error, cardHead, isPrimaryGm, plural, listOf } from "./utils.mjs";
 import { drpgWindow, tipAttr, tipText } from "./ui-kit.mjs";
 
-import { findRemnantToken, askTransform, whisperToOwner, plainText, proposeReshape, keepAttempt, recreationDataFor, attemptOf, forgetAttempt, keepAttemptFact } from "./cleanup-reshape.mjs";
+import { findRemnantToken, askTransform, whisperToOwner, plainText, proposeReshape, keepAttempt, recreationDataFor, attemptOf, forgetAttempt, keepAttemptFact, traceLabelFor } from "./cleanup-reshape.mjs";
 export { askTransform, plainText, reshapeCardParts, applyReshapeRuling, declineReshapeRuling, ruleReshape, askTransformChange, attemptOf } from "./cleanup-reshape.mjs";
 
 const announce = data =>
@@ -147,11 +151,29 @@ export function isCleaner(actor) {
  * killer's scene, found none: "The body would not move", and the step was gone.
  * A body that cannot be placed is not here, and the action is refused before it
  * is paid for.
+ *
+ * WHERE THE BODY LIES, NOT WHERE ITS MONOCUB WALKS (the audit's CASE-32, 1.2.122).
+ * A victim who became a Monocub holds two tokens, and `sameRoom` asks for the one
+ * it walks (movement.mjs `walkerOrBody`): with the Monocub beside the killer the
+ * check passed and `applyMoveBody`, which carries the corpse (`!isCubToken`),
+ * pulled it from wherever it lay; with the corpse beside the killer the action was
+ * refused. The body's place now (`locateActor(victim, { body: true })`), on the
+ * same scene, floor and room as the killer's own. Red at 21bf5d18 (R8223 reads
+ * the two places this compares).
  */
 export function bodyIsHere(actor) {
     const victim = game.actors.get(murderState()?.victimId ?? "");
     if (!victim) return false;
-    return sameRoom(actor, victim);
+    return samePlace(locateActor(actor), locateActor(victim, { body: true }));
+}
+
+/** Whether two of `locateActor`'s answers are one room on one scene and floor (movement.mjs `sameRoom`'s rule). */
+export function samePlace(here, there) {
+    if (!here?.room || !there?.room) return false;
+    if (here.scene?.id !== there.scene?.id) return false;
+    const level = place => place.level?.id ?? place.level ?? null;
+    if (level(here) !== level(there)) return false;
+    return here.room === there.room;
 }
 
 /** Say which of the four it is, and refuse. @returns {null} always. */
@@ -310,8 +332,9 @@ export function cleanableTracesForPlayer(actorId, { mine = false } = {}) {
      * price; and a reshaped trace's category said that somebody had reworked it. Off Stage 6
      * a trace this character holds a copy of is labelled by that copy's name, which is theirs
      * already, and by nothing of the ledger (`DRPG.Tamper.yourCopy`). One they watched being
-     * made keeps its label: only the running incident's own traces reach this list that way,
-     * and its category is the incident they stood in. Stage 6's whole room keeps the whole
+     * made keeps its label: what reaches this list that way is every Incident Remnant in the
+     * room for a seat of the running incident (`watched`), an earlier incident's in the same room included
+     * (the audit's D11 of 1.2.122; `cleanupRefusal` reads the same), and its category is an incident's. Stage 6's whole room keeps the whole
      * label - the guide opens the killer's eyes to their own scene.
      */
     const copies = unfiltered ? null : copyNamesOf(actor);
@@ -553,8 +576,9 @@ async function cleanupTrait(actor, key, viaAction) {
 /**
  * Attempt to erase one trace.
  *
- * Costs Tamper's price chain (T-1): an action, or a Sanity mark when there is no
- * action. The killer on their own night starts at the mark, as the guide has it:
+ * Costs Tamper's price chain (T-1) as `tamperPriceSkip` cuts it: one action, and
+ * since E64 no Sanity step for anybody but the killer on their own night, who
+ * starts at the mark, as the guide has it:
  * Stage 6 is not part of the day's economy, and a killer with nothing left to
  * give simply cannot keep scrubbing. Refused before the dice when the chain
  * cannot be paid, so nobody rolls for something they cannot pay for.
@@ -593,8 +617,8 @@ export async function attemptCleanup(actor, tokenId, {
      *
      * Tamper used to cost an action AND a Sanity mark - the action here, the mark
      * on the GM's side - which made the tile more expensive than the stage rule
-     * it was standing in for. It is a chain now: an action, or a Sanity mark when
-     * there is no action, and the killer on their own night starts at the mark.
+     * it was standing in for. It is a chain now: an action (with none left, no
+     * Tamper since E64, `tamperPriceSkip`), and the killer on their own night starts at the mark.
      *
      * THE ORDER IS THE RULE. Refused before the dice, because an action that
      * takes a price it cannot take either forgives it silently or breaks somebody
@@ -720,6 +744,8 @@ export async function attemptCleanup(actor, tokenId, {
     await requestCleanup({
         actorId: actor.id,
         tokenId,
+        // The cover's critical and its roll, for the GM to give back (CASE-27, `coverGiveBack`).
+        ...takeCoverRefund(actor.id),
         // The roll the GMs' fact of the attempt goes on (fix r1-G2).
         rollId: rollInHand(actor)?.messageId ?? null,
         total: roll.total,
@@ -794,7 +820,7 @@ async function cleanupRefusal(actor, token, data, viaAction, price = null, grant
     // what the player's browser paid before the dice comes back with the refusal.
     if (data.reinforced) {
         await whisperToOwner(actor, `<p>${game.i18n.format("DRPG.Cleanup.reinforced", {
-            what: foundry.utils.escapeHTML(`${data.visibilityLabel} ${data.typeLabel}`)
+            what: foundry.utils.escapeHTML(traceLabelFor(actor, token.id, data, { cleaner: isCleaner(actor) }))
         })}</p>${await refundRefused(actor, price, grant, by)}`);
         return { removed: false, reinforced: true };
     }
@@ -832,10 +858,12 @@ function cleanupVerdict(held, data, { total, isCritical, withHope, mode }) {
 }
 
     /*
-     * G-20: THE CRITICAL'S SECOND OPTION.
+     * G-20: THE CRITICAL'S SECOND OPTION. Asked in `resolveEraseRoad` below
+     * (its `rewrite`), not here: this note stands above the transform road, which
+     * is the other one (the audit's D13 of 1.2.122).
      *
      * Checked before the removal rather than instead of it, and every clause
-     * here is load-bearing:
+     * there is load-bearing:
      *
      *   the outcome must allow it   - `mayTransform`, so the permission lives
      *                                 in the rules table with everything else
@@ -845,8 +873,10 @@ function cleanupVerdict(held, data, { total, isCritical, withHope, mode }) {
      *                                 the GM placed to make the case solvable
      *                                 into whatever the killer fancied.
      *
-     * Reinforced traces never get here: they are refused above, before the
-     * Sanity is spent, and a critical does not lift that.
+     * Reinforced traces never get there: `cleanupRefusal` refuses them before
+     * the GM's side charges anything, and what the roller's browser paid before
+     * the dice comes back with the refusal (`refundRefused`); a critical does not
+     * lift that.
      */
     /*
      * THE TRANSFORM ROAD'S OWN VERDICT (Z5).
@@ -960,7 +990,7 @@ async function resolveEraseRoad(actor, token, data, { outcome, transforming, isC
             // difference between a rule and two rules that can drift apart.
             await removeRemnant(token);
             done.push(game.i18n.format("DRPG.Cleanup.removed", {
-                what: `${data.visibilityLabel} ${data.typeLabel}`
+                what: foundry.utils.escapeHTML(traceLabelFor(actor, token.id, data, { cleaner: isCleaner(actor) }))
             }));
         } catch (err) {
             error("Could not remove the Remnant a clean-up erased", err);
@@ -1105,7 +1135,9 @@ export async function resolveCleanup({
     // The roll it was thrown with and who threw it, for the GMs' fact of the attempt (fix
     // r1-G2): action-pipeline.mjs `rollOfFact`. `by` is the bridge's sender, null for a GM's own
     // attempt, and a give-back the GMs' audit cannot check is not made on a player's word (`paidBack`).
-    rollId = null, by = null
+    rollId = null, by = null,
+    // The cover's critical, as the packet claims it, and its roll (CASE-27): given back on this side, bounded (`coverGiveBack`).
+    cover = 0, coverRollId = null
 } = {}) {
     if (!game.user.isGM) return null;
 
@@ -1202,7 +1234,8 @@ export async function resolveCleanup({
 
     // THE SERVER-SIDE PRICE - see the long note in `resolveStageSix`. A client
     // that paid the chain and says which step is not charged again; a packet with
-    // no claim pays the Sanity here, as every packet used to.
+    // no claim pays here (`chargeUnclaimed`): an action through Tamper's door, the
+    // Sanity only on Stage 6's own road (the audit's D12 of 1.2.122).
     let paidStep = validPrice(price, { viaAction });
     const free = replayFree || await consumeFreeCleanup(actor);
     receipt.free = free;
@@ -1226,6 +1259,8 @@ export async function resolveCleanup({
 
     const done = [];
     if (free) done.push(game.i18n.localize("DRPG.Cleanup.freeAttempt"));
+    const coverLine = await coverGiveBack(actor, cover, { receipt, by, coverRollId });
+    if (coverLine) done.push(coverLine);
 
     if (transforming && success) {
         const road = await resolveTransformRoad(actor, token, data, verdict,
@@ -1376,6 +1411,45 @@ export async function tamperWatchBlock(actor, { conceals = true } = {}) {
     return game.i18n.localize("DRPG.Tamper.watchedNoSanity");
 }
 
+/** The cover's critical give-back each roller's next attempt carries (`concealFromWitnesses`, CASE-27), by actor id. */
+const coverRefunds = new Map();
+
+/** The cover give-back `actorId`'s last concealment earned, taken: `{ cover, coverRollId }`, both empty when none. */
+export function takeCoverRefund(actorId) {
+    const held = coverRefunds.get(actorId) ?? null;
+    coverRefunds.delete(actorId);
+    return { cover: Number(held?.amount) || 0, coverRollId: held?.rollId ?? null };
+}
+
+/**
+ * The GM's give-back of a cover's critical (CASE-27): at most the table's `conceal.refundStress.critical`, only while the
+ * GM reads a witness in the roller's room (a cover is rolled for one), on the GM's own write; the Sanity it moved is the
+ * attempt's (`receipt.stressMoved`), so a Reroll of an erase or a reshape takes it back with the rest (read in `undoLastCleanup`,
+ * not measured; Stage 6's two keep no receipt). Answers the line for the card, or null.
+ * A player's packet (`by`) is held to the GMs' record of the cover's roll (`coverRollId`): drawn for that player and
+ * character, a critical, and not given back on before - marked `resolved` "cover" as it is, the way search-tokens.mjs
+ * marks a Search it settled. A GM's own attempt (`by` null) threw its cover on this browser and is taken as it says.
+ */
+async function coverGiveBack(actor, cover, { receipt = null, by = null, coverRollId = null } = {}) {
+    const back = Math.min(Math.max(0, Math.floor(Number(cover) || 0)), Number(CLEANUP.conceal?.refundStress?.critical) || 0);
+    if (!back || !game.user.isGM) return null;
+    const { othersInRoom } = await import("./movement.mjs");
+    if (!witnessesTo(actor, othersInRoom(actor)).length) return null;
+    if (by) {
+        const { rollStore } = await import("./gm-stores.mjs");
+        await rollStore.whenHydrated();
+        const row = typeof coverRollId === "string" && coverRollId ? rollStore.get(coverRollId) ?? null : null;
+        const resolved = Array.isArray(row?.resolved) ? row.resolved : [];
+        if (!row || row.actorId !== actor.id || row.userId !== by || row.isCritical !== true || resolved.includes("cover")) return null;
+        await rollStore.patch(coverRollId, { resolved: [...resolved, "cover"] });
+    }
+    const before = resourceValue(actor, "stress");
+    await restoreStress(actor, back);
+    const moved = before - resourceValue(actor, "stress");
+    if (receipt && moved) receipt.stressMoved -= moved;
+    return moved ? backLine({ pay: "stress", amount: moved }) : null;
+}
+
 /**
  * Cover what you are doing, when somebody is watching you do it.
  *
@@ -1404,6 +1478,8 @@ async function concealFromWitnesses(actor) {
     // concealment roll landed and paid out, null its window was closed. The
     // callers charge the price only after this answers, so null costs nothing;
     // a main roll closed after "alone" gets the price back, after "rolled" not.
+    // A give-back an earlier cover left untaken (its attempt never sent) is not this attempt's (CASE-27).
+    coverRefunds.delete(actor.id);
     const def = CLEANUP.conceal;
     if (!def) return "alone";
 
@@ -1425,8 +1501,15 @@ async function concealFromWitnesses(actor) {
     }
     for (let i = 0; i < cost; i++) await spendStress(actor);
 
+    /* THE CRITICAL'S SANITY COMES BACK ON THE GM (the audit's CASE-27, 1.2.122; the rule unchanged: "a critical gives 1
+       Sanity back"). It was cleared here, on the roller's browser, through `trustedWrite` "refund" - a refund of nothing,
+       since the cover cost nothing: with no recent payment the GMs' audit flagged it, with one it ate that payment's
+       credit. Kept for the attempt's packet now (`takeCoverRefund`, its `cover`), and given back by the GM as it scores
+       the attempt (`coverGiveBack`), held to the table's number and to a witness the GM reads in the room - the cover's
+       own reading stays the roller's (the trust model's open item). */
     const refund = hidden ? (def.refundStress?.[band] ?? 0) : 0;
-    if (refund) await restoreStress(actor, refund);
+    const { DRAWN_ROLL } = await import("./action-pipeline.mjs");
+    if (refund) coverRefunds.set(actor.id, { amount: refund, rollId: roll.raw?.[DRAWN_ROLL]?.rollId ?? null });
 
     const line = hidden
         ? (band === "despair" ? def.successWithDespair : def.success)
@@ -1595,10 +1678,20 @@ function stageSixDef(actor, key, { viaAction = false } = {}) {
  * The murder victim is excluded only when there IS one. Framing the person
  * lying dead in the room is a confession with extra steps - but outside an
  * incident `murderState()` has no victim and the filter simply does not bite.
+ *
+ * AND ONLY FOR A ROLLER IN THE INCIDENT (the audit's CASE-30, 1.2.122). A
+ * bystander's browser holds no cast, so their Tamper menu offered the victim;
+ * the GM, holding the whole cast, then left the victim out and refused the
+ * trail with "You cannot frame that student" - the one name the menu offered
+ * that could be refused, so the refusal named the victim of an incident the
+ * bystander is kept out of. Asked of the seats (`participantIds`) on both
+ * browsers: a bystander's trail at the victim stands like any other. Red at
+ * 21bf5d18: the GM's list for a bystander lacked the victim.
  */
 export async function framingCandidates(actor) {
     const { livingStudents } = await import("./chapter.mjs");
-    const victimId = murderState()?.victimId;
+    const state = murderState();
+    const victimId = actor && participantIds(state).has(actor.id) ? state?.victimId : null;
     return livingStudents()
         .filter(a => a.id !== actor?.id && a.id !== victimId && !isMonokuma(a));
 }
@@ -1713,6 +1806,8 @@ export async function attemptStageSix(actor, key, targetId = null, { viaAction =
         tokenId: null,
         key,
         targetId,
+        // The cover's critical and its roll, for the GM to give back (CASE-27, `coverGiveBack`).
+        ...takeCoverRefund(actor.id),
         // The roll the GM scores it on, as the two that aim at a trace name theirs (E08+E28 C17).
         rollId: rollInHand(actor)?.messageId ?? null,
         total: roll.total,
@@ -1735,7 +1830,9 @@ export async function resolveStageSix({
     // Who sent it, as `resolveCleanup` is told: null for a GM's own (fix r2-G8, `paidBack`).
     by = null,
     // The roll it was thrown with, as `resolveCleanup`'s: the author's copy (`authorsCopy`) is noted on that roll's row.
-    rollId = null
+    rollId = null,
+    // The cover's critical and its roll (CASE-27), as `resolveCleanup` takes them.
+    cover = 0, coverRollId = null
 } = {}) {
     if (!game.user.isGM) return null;
     const actor = game.actors.get(actorId);
@@ -1753,8 +1850,8 @@ export async function resolveStageSix({
      *
      * IT KEEPS THE PRICE, where the two refusals below give it back (E09 fix
      * r2-G3, 08.10.2026; review round 2 sec S2-3). No sheet sends this packet:
-     * the Tamper tile offers the trail alone (action-rolls.mjs, `attemptStageSix`
-     * with `viaAction`), and Move the body is Stage 6's own panel's, which never
+     * the Tamper tile offers the trail alone (action-tamper.mjs since E41 C4,
+     * `attemptStageSix` with `viaAction`), and Move the body is Stage 6's own panel's, which never
      * claims the tile's door - so one that arrives was written by hand, and what
      * it paid on the way, if anything, is not an honest killer's.
      */
@@ -1810,9 +1907,10 @@ export async function resolveStageSix({
      * A legitimate client has already paid the chain and says which step, so
      * charging here would be the second price this commit exists to delete. But
      * `requestCleanup`'s socket branch checks only that the sender owns the actor,
-     * so a forged packet can simply omit the step - and then the Sanity is taken
-     * here, exactly as it was before. One price per attempt, and the GM decides
-     * which when the claim is missing.
+     * so a forged packet can simply omit the step - and then the price is taken
+     * here (`chargeUnclaimed`: the Sanity on this road, an action through Tamper's
+     * door). One price per attempt, and the GM decides which when the claim is
+     * missing (the audit's D12 of 1.2.122).
      */
     let paidStep = validPrice(price, { viaAction });
     const free = await consumeFreeCleanup(actor);
@@ -1821,6 +1919,8 @@ export async function resolveStageSix({
     if (viaAction && !paidStep && !free) return { refused: "nothing was carried out: no action was left to pay for it" };
     if (free) await waivePrice(actor, paidStep, by);
     const done = [];
+    const coverLine = await coverGiveBack(actor, cover, { by, coverRollId });
+    if (coverLine) done.push(coverLine);
     if (free) done.push(game.i18n.localize("DRPG.Cleanup.freeAttempt"));
 
     const left = key === "misleadingTrail" ? await applyMisleadingTrail(actor, def, targetId, success, band, done)
@@ -2120,7 +2220,7 @@ async function undoLastCleanup(actor, tokenId) {
     if (receipt.erased) {
         try {
             const { placeRemnant } = await import("./remnants.mjs");
-            const { public: pub, ...data } = receipt.erased;
+            const { public: pub, hidden: wasHidden = true, marks = {}, ...data } = receipt.erased;
             data.tiedToCrime = receiptTie(actor.id, "erased", data.tiedToCrime);
             // Under the id it had (`recreationDataFor`).
             const back = await placeRemnant(data, { keepId: true });
@@ -2131,7 +2231,9 @@ async function undoLastCleanup(actor, tokenId) {
             // or not (`removalRefusal`, asked by reroll.mjs `traceKept`).
             if (back) {
                 const { setRemnantSecret } = await import("./remnants.mjs");
-                await setRemnantSecret(back, { restored: true });
+                await setRemnantSecret(back, { restored: true, ...marks });
+                // Shown again where it stood shown (CASE-31, `recreationDataFor`): after the row is live.
+                if (game.user.isGM && !wasHidden && back.hidden) await back.update({ hidden: false });
             }
         } catch (err) {
             error("Could not put back the Remnant a rerolled clean-up erased", err);
@@ -2506,8 +2608,9 @@ async function spendStress(actor) {
  * this attempt is the one a critical Finishing blow paid for, and if it is, spent - the first
  * attempt that reaches its price, hit or miss, and no other. Asked where each attempt pays
  * (`resolveCleanup`, both roads, and `resolveStageSix`), after every refusal, so a refused
- * attempt keeps it. GM-side: the grant is in the GMs' cast (murder.mjs `freeCleanup`, held
- * null in every player's copy).
+ * attempt keeps it. GM-side: the grant is in the GMs' cast (murder.mjs `freeCleanup`), and since
+ * fix r2-G3 the killers' copies hold it too (incident-store.mjs `castCopyFor`), which `tamperQuote`
+ * reads; every other player's copy holds it null (the audit's D7 of 1.2.122).
  */
 async function consumeFreeCleanup(actor) {
     if (!game.user.isGM || !actor) return false;
@@ -2591,9 +2694,9 @@ async function report(actor, data, {
         ${summary ? `<ul>${summary}</ul>` : ""}
         ${charged
             // What was really taken, rather than which door the attempt came
-            // through: since T-1 the two no longer decide each other (a killer
-            // pays Sanity from the tile, and an investigator in Stage 6's window
-            // pays an action).
+            // through: since T-1 the two no longer decide each other (the killer
+            // on their night pays Sanity, from the tile or Stage 6's window, which
+            // takes nobody else; anyone else pays an action from the tile).
             ? `<p><small>${paidLine(charged)}</small></p>`
             : free ? "" : `<p><small>${game.i18n.format("DRPG.Cleanup.stressSpent", {
                 n: RESOLUTION_STRESS_COST })}</small></p>`}`,
@@ -2636,6 +2739,11 @@ async function report(actor, data, {
  * over the bridge and gets back only what `cleanableTracesForPlayer` (in this
  * same file) is willing to say - no `tiedToCrime`, and the number to beat for
  * the roll window alone.
+ *
+ * NO CONTROL OPENS IT (the audit's CTRL-56, 1.2.122 line MURDER, read 21.11.2026): a killer's clean-up is Tamper's
+ * (action-tamper.mjs `runTamperChoice` calls `attemptCleanup` with the trace its own menu picked), and this window is
+ * reached only from a console, as `game.drpg.cleanupDialog` (tools/api-surface.json). Kept as that road: taking it off
+ * the API is the owner's call, asked with this line's report.
  */
 export async function openCleanupDialog(actor) {
     if (!isCleaner(actor)) return refuseCleanup(actor);

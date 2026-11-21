@@ -272,7 +272,7 @@
     "Settings": {
       "forceDiceLook": {
         "name": "Wygląd kości przy stole",
-        "hint": "Przy każdej z opcji „Wszyscy”, gracze i Asystenci GM-a rzucają w wyglądzie Dice So Nice jednego pełnego Gamemastera, ustalonym, gdy gra pierwszy raz działa z tym ustawieniem. Opcja „Wszyscy: Daggerheart” dodaje kolory Hope i Despair z tego systemu.",
+        "hint": "Przy każdej z opcji „Wszyscy” gracze i Asystenci GM-a rzucają w wyglądzie Dice So Nice jednego pełnego Gamemastera, ustalonym, gdy gra pierwszy raz działa z tym ustawieniem. „Wszyscy: Daggerheart” daje kościom Hope, Despair, przewagi i utrudnienia kolory systemu.",
         "choices": {
           "own": "Każdy gracz własny",
           "dsn": "Wszyscy: Dice So Nice",
@@ -293,7 +293,7 @@
       },
       "lockRollDialog": {
         "name": "Zablokuj graczom okno rzutu",
-        "hint": "W oknie rzutu gracze nie mogą zmienić kości, statystyki, przewagi, doświadczeń ani premii; ustala je akcja, Hope Call albo GM. GM-ów to nie dotyczy."
+        "hint": "W oknie rzutu gracze nie mogą zmienić kości, statystyki, przewagi, doświadczeń ani premii. Wyłączone: mogą, ale rzut GM-a liczy tylko to, co dają akcja i Calle. GM-ów to nie dotyczy."
       },
       "roomVisibility": {
         "name": "Gracze widzą tylko osoby w swoim pokoju",
@@ -365,7 +365,7 @@
       },
       "documentLanguage": {
         "name": "Język dokumentów",
-        "hint": "Język dokumentów, które moduł zapisuje w tym świecie, jeden dla wszystkich. Okna, karty i arkusz zostają w języku ustawionym w każdej przeglądarce. Gdy główny GM pierwszy raz uruchomi grę, moduł ustawia tu język jego przeglądarki."
+        "hint": "Język, w którym moduł zapisuje dokumenty tego świata, jeden dla wszystkich: teksty przedmiotów, klucze do sypialni, Truth Bullety zabrane z ciała, tokeny projektów. Okna i karty zostają w języku każdej przeglądarki. Ustawia go pierwsze uruchomienie przez głównego GM-a."
       },
       "moveAudit": {
         "name": "Token gracza przesunięty przez ścianę",
@@ -389,7 +389,7 @@
       },
       "sequences": {
         "name": "Sekwencje na cały ekran",
-        "hint": "Wejście do Class Trial, werdykt, obroty i błyski zegara oraz plansze dnia na każdym ekranie. Po wyłączeniu grają tylko dźwięki rozprawy i werdyktu. Esc pomija jedną sekwencję."
+        "hint": "Na każdym ekranie: wejście do Class Trial i wyjście z niego, werdykt, podsumowanie sprawy, obroty i błyski zegara, wygaszenie po śmierci i plansze dnia. Po wyłączeniu grają tylko ich dźwięki. Esc pomija jedną sekwencję."
       },
       "reducedMotion": {
         "name": "Ograniczone animacje",
@@ -511,6 +511,7 @@
       "otherHint": "Przedmiot bez znanej kategorii nie trafia pod żaden nagłówek. Poproś GM-a, żeby nadał mu kategorię.",
       "biographyLabel": "Przeszłość",
       "biographyPlaceholder": "Kim była twoja postać, zanim zaczęła się killing game.",
+      "biographyChangedClosed": "W międzyczasie ktoś zmienił przeszłość tej postaci. Arkusz został zamknięty, więc twój tekst zapisano w miejsce tamtego.",
       "biographyChanged": "W międzyczasie ktoś zmienił przeszłość tej postaci, więc twojego tekstu nie zapisano. Wyjdź z pola jeszcze raz, żeby zastąpić tamten."
     },
     "Guard": {
@@ -611,6 +612,7 @@
       "save": "Zapisz",
       "splitEvenly": "Podziel po równo",
       "splitDone": "Uczniowie są teraz podzieleni po równo między Monokumy.",
+      "splitAsk": "Podział po równo przydziela każdemu uczniowi pulę od nowa, w kolejności imion, i zastępuje dotychczasowe przydziały. Uczeń przypisany do nikogo zostaje bez puli. Zapisuje się od razu.",
       "failed": "Nie udało się zapisać podziału. Zajrzyj do Dziennika debugowania.",
       "noMonokumas": "Nikt nie ma puli Despair: w tym świecie nie ma konta Gamemastera. Nadaj komuś tę rolę i otwórz Despair Flow ponownie.",
       "nobody": "- nikt -",
@@ -667,6 +669,7 @@
     },
     "TokenHud": {
       "show": "Pokaż token graczom",
+      "configGm": "Ustawienia tokenu należą do GM-a.",
       "hide": "Ukryj token przed graczami",
       "lock": "Zablokuj token w miejscu",
       "unlock": "Odblokuj token",
@@ -689,7 +692,7 @@
         "other": "Ile trwa ta pora dnia. Bursztyn po {first} minutach, czerwień po {second}."
       },
       "stillToAct": "Zostały akcje",
-      "stillToActTooltip": "Uczniowie, którym zostały akcje. Lista po lewej pokazuje, którzy.",
+      "stillToActTooltip": "Uczniowie, którym zostały akcje. Okno Uczniowie pokazuje, którzy.",
       "stillPlacing": "Jeszcze się ustawiają",
       "stillPlacingTooltip": "Uczniowie, którym zostało przejście Eclipse.",
       "stillPlacingFreeTooltip": "Uczniowie, którzy w tym Eclipse jeszcze się nie ruszyli.",
@@ -733,7 +736,7 @@
         "dive": "Logic Dive",
         "scrum": "Scrum Debate"
       },
-      "trialTooltip": "Class Trial. Debatą kieruje GM ze swojej konsoli.",
+      "trialTooltip": "Trwa Class Trial.",
       "trialClockTooltip": "Ile zostało tej części debaty.",
       "trialEveryone": "Wszyscy",
       "trialVersus": "kontra {who}",
@@ -757,7 +760,7 @@
         "wallGone": "ściana, z której go wycięto, już nie istnieje. Pokój po drugiej stronie ma z powrotem zamek i klucz do sypialni; otwór usuń ręcznie narzędziem ścian.",
         "cannotClose": "tajnego przejścia nie udało się zamknąć. Zamknij je ręcznie w zakładce Tajne przejścia.",
         "notKnown": "postać nie zna tego tajnego przejścia albo jest ono już zamknięte. Sprawdź je w zakładce Tajne przejścia.",
-        "isBreach": "to wyłom. Ścianę przywraca przycisk Zamknij wyłom w zakładce Tajne przejścia albo projekt Close the breach.",
+        "isBreach": "to wyłom. Ścianę przywraca przycisk Zamknij wyłom w zakładce Tajne przejścia albo projekt Close the Breach.",
         "noSide": "to tajne przejście albo wyłom nie prowadzi do pokoju, w którym stoi postać. Zatwierdź projekt tylko w pokoju, do którego prowadzi.",
         "lockWhole": "ten zamek nie jest zepsuty, więc nie ma czego naprawiać.",
         "lockTaken": "inny projekt już naprawia ten zamek.",
@@ -769,6 +772,9 @@
         "otherRooms": "końce odcinka stoją między różnymi pokojami. Wybierz oba końce między tymi samymi dwoma pokojami.",
         "short": "odcinek jest za krótki. Wybierz dłuższy odcinek.",
         "door": "ta ściana to drzwi. Wybierz odcinek pełnej ściany.",
+        "roomsPicked": "ściana nie stoi już między wybranymi pokojami. Wybierz odcinek ponownie.",
+        "floorNamed": "na tej scenie nie ma już wybranego piętra. Wybierz odcinek ponownie na jednym z jej pięter.",
+        "noFloors": "ta scena nie ma już pięter. Wybierz odcinek ponownie.",
         "noMove": "ta ściana nikogo nie zatrzymuje. Wybierz odcinek pełnej ściany.",
         "sameEnds": "oba końce odcinka są w tym samym miejscu. Wybierz odcinek ponownie.",
         "offWall": "odcinek nie leży już na tej ścianie. Wybierz go ponownie.",
@@ -964,7 +970,7 @@
       "dcConceal": "Gdy ktoś tu jest, przed Sabotage rzucasz Shadow na {n}+, żeby ukryć, co robisz. Praca nad projektem nie wymaga takiego rzutu.",
       "dcIndirect": "Gdy przy pracy nad pośrednim morderstwem ktoś tu jest, najpierw rzucasz Shadow na {n}+, żeby ukryć zamiar.",
       "dcListen": "Przy {a}+ wiesz, ile osób tam jest albo że pokój jest pusty, przy {b}+ także kto to. Krytyk zdradza, kto jest w każdym sąsiednim pokoju.",
-      "dcPalm": "Najpierw rzucasz Shadow, żeby nikt nie zauważył, a potem Hand. Zabranie: Shadow {unseen}+ i Hand {take}+. Podłożenie: Shadow {plantUnseen}+ i Hand {plant}+.",
+      "dcPalm": "Najpierw rzucasz Shadow, żeby nikt nie zauważył, a potem Hand. Zabranie: Shadow {unseen}+ i Hand {take}+. Podłożenie: Shadow {plantUnseen}+ i Hand {plant}+. Gdy druga osoba zauważy, inni w pokoju, którzy to widzą, też dowiadują się, czyja to ręka.",
       "dcTamper": "Erase a Trace działa na każdy Remnant w tym pokoju, o którym wiesz, chyba że jest Reinforced. Progi według widoczności: {rows}{relief}.",
       "dcTamperRelief": " (już obniżone {what})",
       "reliefTool": "o {n} dzięki narzędziu do sprzątania w ręku",
@@ -1084,6 +1090,7 @@
       "murderSpendsAnyway": "Potwierdzając, wydajesz akcję bez względu na wynik. Czy się udało, dowiesz się po zakończeniu Eclipse albo wcześniej, jeśli GM ją odrzuci.",
       "murderPromptParked": "Co robisz i jak? Notatka trafia do GM-a razem ze zgłoszeniem, a GM ma ją przed sobą także po zakończeniu Eclipse.",
       "murderParkedConfirm": "Podejmij próbę",
+      "murderDeclareYes": "Zadeklaruj morderstwo",
       "murderParked": "Zgłoszenie jest przyjęte. Jeśli GM odmówi, dowiesz się od razu; jeśli pozwoli, nic nie usłyszysz do końca Eclipse. Wtedy incydent się otworzy, jeśli zostaniesz z kimś sam na sam i żaden incydent nie będzie jeszcze otwarty.",
       "murderParkedToast": "Zgłoszenie przyjęte. Wynik poznasz po zakończeniu Eclipse.",
       "murderSecondDeclaration": "{killer} też zgłasza Direct Murder podczas Eclipse, ale incydent jest już otwarty. Próba zostaje odrzucona, a akcja przepada.",
@@ -1149,8 +1156,10 @@
     },
     "Items": {
       "autoReadied": "„{item}” trafia od razu do twojej ręki, bo z grupy {group} możesz mieć schowaną tylko jedną rzecz.",
+      "discardGone": "Przedmiotu „{item}” nie masz już pod ręką, więc nic nie zostało wyrzucone.",
       "useGone": "Przedmiotu „{item}” nie masz już pod ręką, więc nie możesz go użyć.",
       "rulingOpen": "Już orzekasz w sprawie przedmiotu „{item}”. Odpowiedz na tę kartę, gdy skończysz.",
+      "tablesOpenNoPreset": "W otwartych tabelach przedmiotów wpisywany jest nowy przedmiot, więc dane z karty nie zostały wpisane. Dokończ albo wyczyść zakładkę Nowy przedmiot i naciśnij jeszcze raz Utwórz przedmiot.",
       "rulingGone": "{name} zamyka kartę bez efektu: przedmiot zniknął, zepsuł się, trafił do skrytki, nie da się go już użyć albo jego właściciel nie żyje. Przedmiot się nie zużywa.",
       "kindFromTables": "Według tabel przedmiotów „{item}” ma rodzaj {kind}. Przedmiot dostanie ten rodzaj bez względu na twój wybór i to on zdecyduje, co przywraca.",
       "itemWorks": "Działa i daje efekt",
@@ -1169,7 +1178,6 @@
       "caption": "Daj / zabierz",
       "give": "Daj przedmiot",
       "take": "Zabierz przedmiot",
-      "takeFrom": "Zabierz przedmiot postaci {actor}",
       "takeFromWhom": "Zabierz od",
       "whichItem": "Który przedmiot?",
       "category": "Kategoria",
@@ -1198,6 +1206,7 @@
       "gave": "{actor} dostaje przedmiot „{item}”.",
       "took": "Zabierasz przedmiot „{item}” postaci {actor}. Przedmiot przepada, a jeśli to Truth Bullet, razem z nim jego klucz odpowiedzi.",
       "nothingToTake": "{actor} nie ma niczego, co moduł śledzi.",
+      "itemGone": "{actor} nie ma już tego przedmiotu.",
       "failed": "To nie zadziałało. Zajrzyj do konsoli.",
       "useTitle": "Użycie przedmiotu „{item}”",
       "useTooltip": "Użyj tego przedmiotu.",
@@ -1214,6 +1223,7 @@
       "equipTooltip": "Weź do ręki.",
       "unequipTooltip": "Odłóż.",
       "readyTooltip": "W ręku.",
+      "noneReadiedGm": "Nie trzyma niczego w ręku, a w incydencie i przy sprzątaniu liczy się tylko to, co trzyma. Tak samo jest w projekcie i przy sabotażu.",
       "noneReadied": "Nie trzymasz niczego w ręku, a w incydencie i przy sprzątaniu liczy się tylko to, co trzymasz. Tak samo jest w projekcie i przy sabotażu.",
       "rowGone": "„{item}” już tam nie ma.",
       "restoreN": "Przywraca {n}.",
@@ -1287,6 +1297,7 @@
       "inviteAccept": "Przyjmuję Zasadę",
       "inviteDecline": "Nie teraz",
       "invited": "{name}: zaproszenie wysłane. Postać zostaje Monocubem, gdy gracz przyjmie Zasadę Monocuba.",
+      "invitedNoPlayer": "{name}: zaproszenie wysłane, ale postać nie ma gracza, więc nikt go jeszcze nie przyjmie. Zaproszenie czeka na gracza, któremu dasz tę postać.",
       "inviteDeclined": "Gracz postaci {name} odrzucił zaproszenie Monocuba.",
       "inviteSent": "Zaproszenie wysłane",
       "cancelInvite": "Wycofaj",
@@ -1302,7 +1313,7 @@
       "askBody": "{name} prosi GM-ów o Hope.",
       "askGive": "Daj {n} Hope",
       "askNotNow": "Nie teraz",
-      "askGiven": "{n} Hope od gracza {name}.",
+      "askGiven": "{name}: {n} Hope dla ciebie.",
       "askDeclined": "{name}: nie teraz.",
       "askNotNowTold": "Twoje Ask for Hope: nie teraz. Możesz poprosić znowu.",
       "panelTitle": "Monocub",
@@ -1321,7 +1332,7 @@
       "giveHopeColumn": "Despair → Hope",
       "give": "Daj Hope",
       "silenced": "Świadek zbrodni",
-      "silencedNote": "Zaznacza się samo, gdy ten Monocub jest w pokoju morderstwa. Zaznacz, jeśli widział zbrodnię inaczej. Nie może o niej mówić do końca rozdziału; Confusion wciąż działa.",
+      "silencedNote": "Zaznacza się samo w pokoju morderstwa; zaznacz, jeśli widział zbrodnię inaczej. Do końca rozdziału nie może o niej mówić; Confusion wciąż działa.",
       "notCub": "Nie jest Monocubem",
       "needHope": "Masz za mało Hope na ten ruch. Hope zdobędziesz przez Redeem albo Ask for Hope.",
       "nobodyHere": "W twoim pokoju nie ma nikogo, na kim możesz użyć Confusion.",
@@ -1382,6 +1393,7 @@
         "other": "{n} Despair, które pula {pool} za nie zapłaciła, wraca do puli."
       },
       "bountyPaid": "Odbierasz Bounty na postać {name}: {n} Hope w twojej sakiewce.",
+      "bountyKept": "Do twojej sakiewki nie trafi teraz żadne Hope, więc Bounty na postać {name} pozostaje otwarte.",
       "bountyNoDespair": "W twojej puli nie ma Despair na Bounty.",
       "bet": "Postaw",
       "betIntro": "Wskaż, kogo skaże trafny werdykt. Jeśli tak będzie, sakiewka dostaje 4 Hope przed ogłoszeniem ciała, 3 po nim, 2 w rozprawie, 1 w trakcie głosowania.",
@@ -1427,7 +1439,7 @@
         "room": "Twój pokój: {room}",
         "locked": "Zamknięty",
         "open": "Otwarty",
-        "lock": "Zamknij na klucz",
+        "lock": "Zamknij",
         "unlock": "Otwórz"
       },
       "noLair": "- bez pokoju -",
@@ -1467,6 +1479,7 @@
       "endFinalTrial": "Zakończ Final Trial",
       "confirmed": "{name} jest Mastermindem. Wiadomość o tym, razem z nazwą pokoju Masterminda, dostaje tylko gracz tej postaci.",
       "cleared": "Nikt nie jest już Mastermindem i nie ma pokoju Masterminda.",
+      "lairStored": "Pokój Masterminda: {room}. Nikt nie jest jeszcze Mastermindem.",
       "finalBanner": "FINAL TRIAL",
       "finalAnnounce": "To ostatnia rozprawa. Na stół trafia wszystko, co uczniom powiedziano o tym miejscu, i ten, kto im to mówił.",
       "finalRemnantsTitle": "Final Truth Remnanty",
@@ -1593,7 +1606,8 @@
       "pick": {
         "body": "Nie masz tokenu w sali rozpraw. Wybierz stronę, po której stoisz.",
         "side": "{zone}: {answer}",
-        "done": "Twoja strona to {zone}."
+        "done": "Twoja strona to {zone}.",
+        "dismissed": "Nie stoisz w żadnej strefie. To okno wróci za {seconds} s."
       },
       "findings": {
         "title": "Findings",
@@ -1607,6 +1621,8 @@
         "add": "Dodaj Finding",
         "text": "Finding",
         "save": "Zapisz",
+        "empty": "Najpierw wpisz treść Findingu.",
+        "unchanged": "Ten Finding ma już tę treść.",
         "added": "GM dodaje Finding: {text}",
         "edited": "GM zmienia Finding z „{was}” na „{text}”.",
         "deleted": "GM usuwa Finding z listy: {text}",
@@ -1622,6 +1638,7 @@
         "closeDebate": "Debata jest otwarta. Zamknij ją, gdy spór się wyczerpie.",
         "endRound": "Głos ma runda. Zakończ rundę, gdy każdy mówca zabierze głos.",
         "endClosing": "Głos ma Closing Argument. Zakończ go, potem wyślij karty.",
+        "closingChoice": "Closing Argument czeka na ciebie: zatwierdź albo wybierz mówcę albo zdecyduj, kto mówi dalej po Objection.",
         "vote": "Karty są rozesłane. Gdy wrócą, użyj Zamknij i policz w oknie Głosowanie.",
         "verdict": "Głosy policzone. Ogłoś werdykt.",
         "finishVerdict": "Werdykt zatrzymał się, zanim wykonał wszystkie kroki. Dokończ werdykt.",
@@ -1688,6 +1705,7 @@
         "sentenceWaits": "Wyrok zostanie wykonany, gdy Class Trial się skończy.",
         "round": "Głos ma runda, w której mówcy przemawiają po kolei. Pomiń oddaje głos następnemu mówcy, a Zakończ ten tryb kończy rundę.",
         "closing": "Głos ma Closing Argument: zatwierdź albo wybierz mówcę, a po Objection zdecyduj, kto mówi dalej. Zakończ Closing Argument go kończy; następny krok to głosowanie.",
+        "closingChoice": "Stół czeka na ciebie: zatwierdź albo wybierz mówcę Closing Argument w jego wierszu poniżej, a po Objection zdecyduj, kto mówi dalej. Zakończ Closing Argument go kończy; następny krok to głosowanie.",
         "zones": "Głos ma tryb stref: każdy odpowiada tym, gdzie stoi jego token. Policz teraz i Pomiń na pasku przyspieszają liczenie; Zakończ ten tryb go kończy.",
         "scrum": "Straw Poll podzieliła klasę. Scrum Debate ze Stref sali pozwoli obu obozom to rozstrzygnąć; debata i głosowanie nadal są dostępne."
       },
@@ -1985,6 +2003,7 @@
       "close": "Zamknij",
       "cancel": "Anuluj",
       "tableEmpty": "Na razie nie ma tu nic do pokazania.",
+      "scrollMoreRight": "Po prawej jest więcej. Przewiń w bok, żeby zobaczyć.",
       "scrollMore": "Niżej jest więcej. Przewiń, żeby zobaczyć.",
       "details": "Szczegóły",
       "thresholds": "Progi",
@@ -2186,7 +2205,7 @@
         "moveUpMoveDownTooltip": "Przesuwa ten węzeł o jedno miejsce w kolumnie; kolejność zmienia się na Ręcznie",
         "checkConsistencyTooltip": "Wypisuje, co w sprawie się nie zgadza",
         "addDeductionCounterSolutionTooltip": "Dodaje od razu do sprawy, bez naciskania Zapisz",
-        "notNowTooltip": "W tym rozdziale pytanie nie wróci. Podgląd realizacji w oknie Investigation otworzysz w każdej chwili",
+        "notNowTooltip": "W tym rozdziale pytanie nie wróci. Przycisk Podejrzyj realizację w oknie Investigation otwiera je w każdej chwili",
         "showPreviewTooltip": "Otwiera podgląd realizacji. Nic nie stanie na mapie, dopóki nie naciśniesz tam Uruchom realizację",
         "sendToEveryoneTooltip": "Publikuje to podsumowanie na czacie dla całego stołu, raz na Class Trial",
         "difficultyTooltip": "Jak trudno go zauważyć przy Observe, przeanalizować i usunąć przez Tamper",
@@ -2204,6 +2223,7 @@
         "chapterFilterTooltip": "Pokazuje Remnanty tego rozdziału i wybiera rozdział, który rysuje Mapa",
         "whichRemnantTooltip": "Łączy ten zaplanowany trop z Key Remnantem, który już jest na mapie",
         "placeTooltip": "Stawia Key Remnant tego tropu na mapie, w pokoju i z trudnością, które potwierdzisz",
+        "placeOverLimitTooltip": "Ponad limit rzutu otwarcia w tym rozdziale. By go postawić, zaznacz Postaw więcej, niż pozwala rzut otwarcia (na Mapie, w przeglądzie rozdziału)",
         "mapTableTooltip": "Pokazuje sprawę jako mapę dowodów i wniosków albo jako tabele",
         "nameNodeTooltip": "Jego nazwa na mapie i w podsumowaniu sprawy dla graczy, jeśli tam trafi",
         "noteForTheGmsTooltip": "Twoje słowa o tym węźle. Słowa rozwiązania trafiają do graczy w podsumowaniu sprawy",
@@ -2213,7 +2233,7 @@
         "roomPlannedFinalTooltip": "Pokój, w którym stanie Final Truth Remnant, gdy go postawisz; przy pustym polu wybierzesz go wtedy",
         "placeOnTheMapTooltip": "Otwiera Nowy Remnant z wypełnionym każdym polem tego planu; gdy go anulujesz, nic nie staje na mapie",
         "placeFinalPlanTooltip": "Stawia ten Final Truth Remnant na mapie w zaplanowanym pokoju albo najpierw pyta o pokój",
-        "giveFromPlanTooltip": "Otwiera okno wydania Truth Bulleta, wypełnione z tego planu i z jego odbiorcą",
+        "giveFromPlanTooltip": "Otwiera okno wydania Truth Bulletu, wypełnione z tego planu i z jego odbiorcą",
         "removeFromTheCaseTooltip": "Najpierw pyta, potem usuwa ten węzeł ze sprawy; Sprawdź spójność wskaże, co się na nim opierało",
         "saveTooltip": "Zapisuje każde zmienione pole i stawia Final Truth Remnant, jeśli wybrano mu pokój",
         "newRemnantTooltip": "Otwiera Nowy Remnant, żeby postawić własny Remnant w wybranym pokoju",
@@ -2427,7 +2447,7 @@
           "filterNotDoneTooltip": "Pokazuje tylko prośby, których nie wykonano, każdą z powodem.",
           "moreFiltersTooltip": "Pokazuje tylko powiadomienia wybranego tu rodzaju zamiast filtrów obok.",
           "markAllReadTooltip": "Zdejmuje oznaczenie nieprzeczytanych ze wszystkich powiadomień i zeruje licznik na przycisku historii.",
-          "showNewNoticesTooltip": "W trakcie czytania przyszły nowe powiadomienia. Ten przycisk dodaje je na górę listy.",
+          "showNewNoticesTooltip": "W trakcie czytania na górze listy pojawiły się nowe powiadomienia. Ten przycisk przewija do nich.",
           "chapterFoldTooltip": "Pokazuje albo ukrywa powiadomienia z tego wcześniejszego rozdziału. Te z bieżącego są zawsze widoczne.",
           "noticeLineTooltip": "Rozwija albo zwija całe powiadomienie, tak jak wyglądała jego karta.",
           "openConversationTooltip": "Otwiera w komunikatorze wątek, z którego przyszło to powiadomienie.",
@@ -2682,7 +2702,7 @@
       "notSet": "- nie ustawiono -",
       "intro": "Wybierz playlistę dla każdego stanu.",
       "howOrder": "Jak działa kolejność",
-      "orderNote": "Wygrywa pierwszy pasujący stan, w podanej kolejności. Class Trial nocą używa playlist Class Trial; Eclipse w jego trakcie używa playlist Eclipse.",
+      "orderNote": "Wygrywa pierwszy pasujący stan, w podanej kolejności. Class Trial nocą używa playlist Class Trial; wstrzymana gra używa playlist pauzy, cokolwiek innego trwa.",
       "trialNote": "Wyższy wiersz ma pierwszeństwo. Tryb bez własnej playlisty gra jak dotąd: Rebuttal muzykę Objection, tryb stref muzykę Debaty, Testimony, Panic Round i Closing Argument muzykę Dyskusji. Własna playlista Closing Argument zaczyna grać, gdy GM zatwierdzi mówcę.",
       "incidentNote": "Morderstwo słyszą tylko jego uczestnicy i GM-owie.",
       "fadeNote": "Wyciszenie ustawiasz w Fade Duration playlisty. Po znalezieniu ciała, gdy nic nie jest do niego przypisane, cisza zatrzymuje też twój własny utwór.",
@@ -2716,6 +2736,8 @@
       "reset": "Wyłącz utwór",
       "playing": "Gra „{track}”.",
       "wasReset": "Utwór wyłączony, a to, co przerwał, wraca tam, gdzie stanęło.",
+      "resetStopped": "Utwór wyłączony. Nic nie czekało na jego koniec, więc nic innego nie wraca.",
+      "nothingToReset": "Żaden utwór nie grał, więc nic się nie zmieniło.",
       "noTrack": "Najpierw wybierz utwór.",
       "noTracks": "Ta playlista nie ma utworów",
       "playFailed": "Ten utwór nie chciał zagrać. Zajrzyj do konsoli.",
@@ -2884,6 +2906,8 @@
       "reshapeRulingGone": "Tego Remnantu już nie ma, więc nie ma czego zmieniać. Gracz dostaje o tym wiadomość.",
       "reshapeUnsent": "Karta ze zmianą Remnantu nie została wysłana, więc na Remnancie nic nie zapisano. Jeśli był to krytyk przy Erase a Trace, Remnant jest już wymazany; w przeciwnym razie rozstrzygnij zmianę na głos i, jeśli się zgadzasz, zmień Remnant ręcznie.",
       "reshapeUnsentPlayer": "Twoja wersja Remnantu nie dotarła do GM-a i nic na nim nie zapisano. Opowiedz ją przy stole.",
+      "reshapeSettledGone": "Remnant już zniknął, więc nic nie zostało przekształcone.",
+      "reshapeDeclinedGone": "{name} odrzuca przekształcenie. Remnant, nad którym pracujesz, już zniknął.",
       "reshapeVoided": "Cofnięte przez Reroll albo zastąpione późniejszą próbą, zanim {name} rozstrzygnął.",
       "reshapeTakenBack": "Reroll albo późniejsza próba zajęła miejsce tej, więc ta karta już o niczym nie rozstrzyga.",
       "alreadyRuled": "Ta zmiana Remnantu jest już rozstrzygnięta ({name}).",
@@ -2934,7 +2958,10 @@
     },
     "Murder": {
       "openingReask": "Poproś o rzut otwarcia ponownie",
-      "openingReaskSent": "Prośba o rzut otwarcia poszła jeszcze raz: przy pułapce do ofiary, w przeciwnym razie do zabójcy.",
+      "openingReaskSent": "Prośba o rzut otwarcia poszła jeszcze raz do gracza {name}.",
+      "openingReaskHere": "Nikt, kto gra uczniem {name}, nie jest połączony, więc rzut otwarcia odbył się tutaj.",
+      "openingReaskNoticed": "Nic nie poszło: ofiara pułapki wykonała już rzut otwarcia i zauważyła pułapkę.",
+      "openingReaskNone": "Nic nie poszło: okno statystyki otwarcia jest już otwarte albo zostało zamknięte bez wyboru.",
       "openingReaskWait": "Prośba poszła przed chwilą. Odczekaj kilka sekund i spróbuj znowu.",
       "victimNoticedNext": "Ofiara zauważa pułapkę. Incydent zatrzymuje się na otwarciu i sam z siebie nie ruszy dalej. Ofiara może użyć Free Move, jeśli jeszcze go ma; incydent zakończysz przyciskiem „Zakończ morderstwo” w oknie śledzenia incydentu.",
       "openTitle": "Morderstwo",
@@ -2945,7 +2972,7 @@
       "indirectCost": "Pułapkę buduje się jako projekty. Zaplanuj około {low}-{high} postępu łącznie, mniej więcej {fewest} do {actions}.",
       "openConfirm": "Otwórz incydent",
       "needOne": "Morderstwa nie otworzysz bez żywego ucznia. Wystarczy jeden: może zająć oba pola.",
-      "openSelfNote": "Ten sam uczeń w obu polach to śmierć z własnej ręki; pole „Pułapka” zostaje odznaczone i zablokowane. Walki nie ma: rzut otwarcia rozstrzyga, czy uczeń się na to zdecyduje, a po udanym rzucie incydent przechodzi od razu do sprzątania.",
+      "openSelfNote": "Ten sam uczeń w obu polach to śmierć z własnej ręki; pole „Pułapka” zostaje odznaczone i zablokowane. Walki nie ma: rzut otwarcia rozstrzyga, czy uczeń się na to zdecyduje, a po udanym rzucie incydent przechodzi od razu do Tamper.",
       "killerNotAlive": "Postaci {name} nie ma wśród żywych, więc na liście Zabójca stoi ktoś inny. Wybierz, kto zabija.",
       "roomsDiffer": "{killer} jest w pokoju {killerRoom}, {victim} w pokoju {victimRoom}. Zbierz obie postacie w jednym pokoju albo otwórz mimo to.",
       "openingStatistic": "Statystyka rzutu otwarcia",
@@ -2980,6 +3007,7 @@
       "rerollLost": "Rerolla akcji kryzysowej nie dało się przeprowadzić: brakuje jej zapisu albo incydent zdążył się zamknąć lub pójść dalej. Zostaje pierwszy rzut, a Hope wraca do gracza. Jeśli incydent się w tym czasie zamknął, sprawdź ręcznie Remnant tej akcji i arkusze.",
       "trackerState": "{stage} · tura {turn} · działa: {side}",
       "trackerWaiting": "{stage} · czeka na rzut otwarcia: {name}",
+      "trackerNoticed": "{stage} · {name} zauważa pułapkę; zakończ incydent, gdy zechcesz",
       "trackerInvited": "Zaproszenie dostaje {user}.",
       "trackerTurnLine": "Tura {turn} - {side}: {action}, {result}.",
       "trackerResult": {
@@ -2993,6 +3021,9 @@
       "passTooSoon": "Turę oddano przed chwilą. Naciśnij Oddaj turę jeszcze raz, by oddać następną.",
       "endMurder": "Zakończ morderstwo",
       "endConfirm": "Przestać śledzić to morderstwo? Utracone Health i Sanity, przedmioty i Remnanty zostają, jak są.",
+      "betrayalOfferKept": "{kept} nadal ma do końca dnia propozycję zdrady wobec {killer}, więc {third} nie dostaje propozycji zdrady za to ciało.",
+      "afterPhaseMoved": "Faza zmieniła się od otwarcia tego okna, więc zostaje taka, jaka jest teraz.",
+      "endConfirmSelf": "Zakończenie zapisuje śmierć ucznia {name}. GM-owie trzymają ją dla siebie, dopóki ktoś nie znajdzie ciała.",
       "afterTitle": "Po incydencie",
       "afterIntro": "{killer} przeciw {victim}. Wszystko poniżej wynika z tego, jak skończył się incydent, a moduł już go nie śledzi.",
       "afterRoom": "Ciało leży w pokoju {room}.",
@@ -3105,6 +3136,7 @@
       "thirdEscapedAlone": "{name} ucieka w pojedynkę i nie może już wrócić do incydentu. Ofiara zostaje, a incydent trwa dalej.",
       "openingYours": "To twój rzut otwarcia. Jeśli zamkniesz okno, otworzy się znowu, a po kilku odmowach GM-owie dostaną o tym wiadomość.",
       "openingRequired": "Tego rzutu nie pominiesz: okno rzutu otwiera się znowu.",
+      "openingNoCopy": "Rzut otwarcia ucznia {name} się nie otworzył: jego przeglądarka nie ma jeszcze kopii incydentu. Poproś o rzut jeszcze raz przyciskiem „Poproś o rzut otwarcia ponownie” w oknie śledzenia incydentu.",
       "openingDeclined": "{name} odmawia rzutu otwarcia. Za każdym razem zamyka okno. Poproś o rzut jeszcze raz przyciskiem „Poproś o rzut otwarcia ponownie” w oknie śledzenia incydentu albo zakończ incydent.",
       "openingRemnantNote": "{name} - próba wyczuta ({band}). Coś z szamotaniny zostało do zauważenia.",
       "leftRemnants": {
@@ -3124,6 +3156,7 @@
       "nightNoteIndirect": "Jest noc: rzut otwarcia ofiary ma utrudnienie.",
       "betrayalNote": "Do końca dnia {third} może zwrócić się przeciw postaci {killer}, jeśli {killer} wciąż żyje. Poza Eclipse to jedyne zabójstwo, którego zdrajca nie musi wcześniej zgłaszać; podczas Eclipse zdradę tylko się zgłasza, a zaczyna się, gdy Eclipse się skończy.",
       "betrayalButton": "{third} zwraca się przeciw zabójcy",
+      "betrayalYes": "Zdradź zabójcę",
       "betrayalTitle": "Zdrada",
       "betrayalIntro": "{third} zwraca się przeciw postaci {killer}. Jeśli incydent jeszcze trwa, kończy się, a nowe morderstwo zaczyna się od rzutu otwarcia: zabójcą jest {third}, ofiarą {killer}.",
       "betrayalRule": "Zdrada otwiera osobny incydent, więc tego dnia są dwa zabójstwa, a każde ma własnego Blackened. Możesz zdecydować do końca dnia.",
@@ -3159,7 +3192,7 @@
       "criticalChoiceHp": "Oba z Health",
       "criticalChoiceStress": "Oba z Sanity",
       "ranOutTwoKillers": "{victim} nie ma już Health ani Sanity, a po stronie zabójców stoją {killers}. Zakończyć incydent?",
-      "ranOutTwoKillersNote": "Po „Zakończ incydent” zaczyna się etap Tamper. Po „Anuluj” tury idą dalej, a incydent zakończysz później w oknie śledzenia incydentu.",
+      "ranOutTwoKillersNote": "Po „Zakończ incydent” zaczyna się etap Tamper. Po „Anuluj” tury idą dalej, a to pytanie wróci po następnej akcji kryzysowej.",
       "ranOutEndNow": "Zakończ incydent",
       "crowdedTitle": "Za dużo osób",
       "crowded": "{name} wchodzi zaraz po postaci {third}. W pokoju są teraz cztery osoby, więc incydent zostaje odwołany.",
@@ -3209,6 +3242,7 @@
       "finalAskBody": "Final Truth Remnant ma już wybrany pokój, ale zamykasz okno, nie klikając Zapisz. Postawić go teraz?",
       "finalAskPlace": "Postaw",
       "plannedRoomGone": "Zaplanowanego pokoju „{room}” nie ma na tej scenie. Wybierz pokój.",
+      "newTraceNoRoom": "Nie wybrano pokoju, więc nic nie stanęło na mapie. Wybierz pokój.",
       "plannedRoom": "Zaplanowany pokój",
       "noRemnant": "- bez Remnantu -",
       "room": "Pokój",
@@ -3335,7 +3369,7 @@
       "newTraceBadType": "Ten moduł nie zna takiego rodzaju Remnantu.",
       "newTraceDone": "{type} jest teraz w pokoju {room}.",
       "noRooms": "Na tej scenie nie ma jeszcze pokoi, więc nie ma gdzie postawić Remnantu. Najpierw narysuj regiony; jak to zrobić, wyjaśniają Ustawienia pokoi.",
-      "keyDcNote": "Key Remnant to najłatwiejsza do zauważenia rzecz w pokoju, a jak łatwo go zauważyć, zależy od jego widoczności: {list}. Zwykły dowód o tej samej widoczności ma próg wyższy o trzy do sześciu. Skala powyżej nie zmienia tego progu; mówi tylko, ile trop zdradza.",
+      "keyDcNote": "Key Remnant to najłatwiejsza do zauważenia rzecz w pokoju, a jak łatwo go zauważyć, zależy od jego widoczności: {list}. Zwykły dowód o tej samej widoczności ma próg wyższy o {low} do {high}. Skala powyżej nie zmienia tego progu; mówi tylko, ile trop zdradza.",
       "newTraceUnfindable": "Observe nie ma progu dla Remnantu tego rodzaju przy tej widoczności, więc nikt by go nie znalazł. Otwórz Nowy Remnant jeszcze raz i wybierz inny rodzaj albo inną widoczność."
     },
     "Live": {
@@ -3354,7 +3388,7 @@
       "handFirst": "Przedmiot „{item}” jest zepsuty i nie trafi do ręki, a z grupy {group} schowana może być tylko jedna rzecz. Weź najpierw do ręki inną sprawną rzecz z tej grupy.",
       "noBullets": "Truth Bullets to twoja wiedza, więc nie trafiają do skrytki.",
       "full": "Skrytka w pokoju {room} jest pełna: mieści {limit} rzeczy. Wyjmij coś, zanim włożysz nową.",
-      "overflowed": "Nie uniesiesz więcej rzeczy z kategorii {category}, więc „{item}” trafia do twojej skrytki na tej scenie.",
+      "overflowed": "Nie uniesiesz więcej rzeczy z kategorii {category}, więc „{item}” trafia do twojej skrytki.",
       "stole": "Wyjmujesz „{item}” ze skrytki postaci {who}.",
       "rifledAgain": "Do skrytki postaci {who} sięgasz raz na porę dnia, a ta pora jest już wykorzystana. Spróbuj znowu o następnej porze dnia.",
       "noticed": "Ktoś ruszał twoją skrytkę i czegoś w niej brakuje. Nie masz pojęcia, czyje ręce w niej były ani kiedy.",
@@ -3363,7 +3397,7 @@
       "gmTold": "{owner} wchodzi do pokoju {room} i dowiaduje się, że ktoś był w skrytce, ale nie wie kto. Ta wiadomość obejmuje to, co zabrały te postacie: {names}.",
       "tabStashes": "Skrytki",
       "stashesIntro": "Kto ma skrytkę w którym pokoju. Kliknij komórkę, by zmienić stan. Właściciel sypialni ma w niej skrytkę od razu; możesz ją tu odebrać.",
-      "stashesNote": "Do otwartej skrytki może sięgnąć każdy, kto stoi w pokoju: bierze z niej za darmo jedną rzecz, raz na porę dnia. Ukrytą skrytkę uczeń musi najpierw znaleźć przez Find Stash w Analyze (16+); od tej chwili jest dla niego otwarta. Mastermind widzi każdą ukrytą skrytkę. Skrytka w cudzym pokoju nie daje klucza do niego.",
+      "stashesNote": "Do otwartej skrytki może sięgnąć każdy, kto stoi w pokoju: bierze z niej za darmo jedną rzecz, raz na porę dnia. Ukrytą skrytkę uczeń musi najpierw znaleźć przez Find Stash w Analyze ({n}+); od tej chwili jest dla niego otwarta. Mastermind widzi każdą ukrytą skrytkę. Skrytka w cudzym pokoju nie daje klucza do niego.",
       "stashCycle": "Kliknij, by przełączać: brak / otwarta / ukryta",
       "stashNone": "Brak skrytki",
       "stashOpen": "Otwarta",
@@ -3467,6 +3501,8 @@
       "whichKey": "Czyj pokój?",
       "giveKeyNote": "To kopia, więc właściciel zachowuje swój klucz. Na liście są tylko sypialnie z właścicielem; nie ma na niej własnej sypialni tej postaci ani tych, do których ma już klucz.",
       "keyGivenGm": "{actor} ma teraz klucz do pokoju {room}.",
+      "keyAlreadyHeld": "{actor} ma już klucz do pokoju {room}, więc nic nie zostało przekazane.",
+      "keyNotGiven": "Klucz nie został przekazany. Szczegóły znajdziesz w Dzienniku debugowania, w sekcji Diagnostyka.",
       "keyDuplicatesTaken": "{actor} ma więcej niż jeden klucz do pokoju {room}. Jeden zostaje, pozostałe znikają z arkusza.",
       "keyTakenGm": "{actor} nie ma już klucza do pokoju {room}. Ten pokój nie jest już przypisany do tej postaci.",
       "keyTakenBack": "Twój klucz do pokoju {room} został zabrany. Ten pokój nie jest już twój.",
@@ -3487,7 +3523,7 @@
       "notSharedHint": "Ten region nie wlicza się do liczby wspólnych pokoi na żyjącego ucznia. Ruch, przeszukiwanie, odpoczynek i mgła działają w nim tak samo.",
 
       "neighboursColumn": "Sąsiedzi",
-      "neighboursHint": "Pokoje, do których ten pokój ma drzwi, rozdzielone przecinkami. Gdy pole jest puste, decydują ściany, a połączone przez nie pokoje widać w nim na szaro.",
+      "neighboursHint": "Pokoje, do których ten pokój ma drzwi, rozdzielone przecinkami. Gdy pole jest puste, decydują ściany (nazwy na szaro).",
       "neighboursNote": "„Sąsiedzi” to miejsce, w którym drzwi mają pierwszeństwo przed mapą: wpisz pokoje, do których ten pokój prowadzi, rozdzielone przecinkami. Dwa pokoje są połączone, gdy którykolwiek z nich wpisał drugi, w obie strony. Pokój z listą nie łączy się z niczym innym, a pokój obok niego nie wejdzie do środka, dopóki jeden z nich nie wpisze drugiego. Gdy pole jest puste, sąsiedzi pokoju to pokoje bez listy, których ściany mają z jego ścianami wspólną krawędź (sam narożnik nie wystarczy), i każdy pokój, który go wpisał. Pokój, któremu listy i ściany nie dały żadnego sąsiada, nie ma żadnych drzwi. Pokój bez listy, którego nie wpisał żaden inny i który nie styka się z żadnym pokojem, nawet narożnikiem, nie jest sprawdzany: można z niego przejść do dowolnego pokoju.",
       "neighboursUnknown": "Na liście sąsiadów pokoju {room} jest coś, co nie jest pokojem tej sceny: {names}. Zostaje wpisane, ale niczego nie łączy, dopóki taki pokój nie powstanie.",
       "imageLarge": "To zdjęcie jest duże i każdemu graczowi wczytuje się powoli: {size}.",
@@ -3516,6 +3552,7 @@
       "revived": "Postać {name} nie jest już oznaczona jako martwa. Truth Bullets, które przepadły razem z tą postacią, nie wracają.",
       "nobodyLeft": "Wszyscy uczniowie już nie żyją.",
       "deadShort": "nie żyje",
+      "deadPanelTitleGm": "Nie żyje",
       "deadPanelTitle": "Nie żyjesz",
       "deadPanelNote": "Zmarli nie wykonują akcji i nie wydają Hope. Przywrócony jako Monocub, ten panel pokazuje Confusion i pozostałe kafelki Monocuba.",
       "deadCannotAct": "{name} nie żyje i nie może wykonywać akcji.",
@@ -3525,6 +3562,7 @@
       "nobodyFoundYou": "Nikt jeszcze nie znalazł twojego ciała.",
       "youFoundBody": "W pokoju {room} znajdujesz ciało postaci {name}. Nikt inny go jeszcze nie widział i na razie nic nie jest ogłaszane.",
       "youFoundBodyWith": "W {room} znajdujesz ciało: {name}. Nie jesteś tu sam i nic nie zostaje ogłoszone, dopóki GM o tym nie zdecyduje.",
+      "pendingGone": "Odkrycie ciała ucznia {name} już nie czeka: w międzyczasie ktoś je ogłosił albo zniknęło, więc nic więcej się nie stało.",
       "pendingTitle": "Uczniowie znaleźli ciało",
       "pendingBody": "W {room} leży ciało: {name}. Widzą je już: {names}. Ogłosić znalezienie teraz?",
       "pendingNote": "Ogłoś sprowadza wszystkich na miejsce i odtwarza dźwięk znalezienia całemu stołowi. Jeszcze nie zostawia je w oczekiwaniu: ogłosisz je później przyciskiem Znaleziono ciało w oknie Investigation.",
@@ -3834,7 +3872,9 @@
         "thesisLabel": "Jedno krótkie zdanie za twoją strefą",
         "thesisPost": "Wystaw tezę",
         "closingPassEarly": "Pasuję w pierwszych {seconds} s oddaje wybór GM-owi; potem kończy Closing Argument.",
-        "closingPass": "Pasuję kończy Closing Argument, tak jak Gotowe."
+        "closingPass": "Pasuję kończy Closing Argument, tak jak Gotowe.",
+        "left": "Pozostały czas: {seconds} s.",
+        "keepNote": "Mówię dalej chowa to okno. Wróci za {seconds} s, z Gotowe i Pasuję."
       },
       "claim": {
         "body": "Podsumujesz sprawę w Closing Argument? Na zgłoszenie masz {seconds} s. Potem jedna zgłoszona osoba zostaje wylosowana, a GM ją zatwierdza albo wybiera kogoś innego.",
@@ -3875,7 +3915,7 @@
       "keyAlreadyHeld": "Masz już klucz do pokoju {room}. Nadal masz tylko jeden.",
       "changedMidway": "Przedmiot „{name}” zmienił się na arkuszu postaci {from}, zanim trafił do postaci {to}: został zużyty, zepsuty, schowany do skrytki albo zniknął. Kopię zabrano postaci {to}, więc nic nie zmienia właściciela.",
       "changedMidwayKept": "Przedmiot „{name}” zmienił się na arkuszu postaci {from}, zanim trafił do postaci {to}: został zużyty, zepsuty, schowany do skrytki albo zniknął. Kopii nie dało się zabrać postaci {to}, więc przedmiotu jest o jedną sztukę za dużo. Usuń ją ręcznie z arkusza postaci {to}.",
-      "alreadyHasIt": "Ta osoba ma już Truth Bullet z tego Remnantu, więc nie dostaje drugiego.",
+      "alreadyHasIt": "Nic nie zmieniło właściciela; twój Truth Bullet zostaje u ciebie.",
       "shared": "{who} ma teraz kopię Truth Bulletu „{name}”.",
       "gave": "{who} ma teraz przedmiot „{name}”.",
       "gaveOne": {
@@ -3888,7 +3928,8 @@
       "receivedBulletFrom": "{who} daje ci kopię Truth Bulletu „{name}”. Masz ją teraz w swoich dowodach.",
       "receivedItem": "Ktoś ci coś przekazał",
       "receivedItemFrom": "{who} przekazuje ci przedmiot „{name}”.",
-      "answerKeyMissing": "Nie da się teraz zrobić kopii Truth Bulletu „{name}”: GM nie ma zapisu, czym ten dowód naprawdę jest. GM może przywrócić ten zapis z pliku (panel GM-a, Diagnostyka, Sprawa: Przywróć z pliku)."
+      "answerKeyMissingGm": "Zapis, czym naprawdę jest Truth Bullet „{name}”, zaginął, więc nikt nie zrobi teraz jego kopii. Przywróć go z kopii zapasowej: panel GM-a, Diagnostyka, Sprawa: Przywróć z pliku.",
+      "answerKeyMissing": "Nie da się teraz zrobić kopii Truth Bulletu „{name}”: GM nie ma zapisu, czym ten dowód naprawdę jest. GM-owie już o tym wiedzą."
     },
     "Observe": {
       "projectFoundDone": "Tajny projekt, który odkryto, jest ukończony: {name}.",
@@ -3925,6 +3966,9 @@
       "pickGone": "Nikt już nie czeka na to Observe: gracz przestał czekać, minął czas albo inny GM odpowiedział pierwszy.",
       "tiedFlag": "powiązany ze zbrodnią",
       "describeTitle": "Znalezisko z Observe",
+      "describeRecovered": "Znalezisko ucznia {actor} w pokoju {room} czekało na okno opisu, które zamknęło odświeżenie strony. Trafiło do niego pod nazwą domyślną, bez opisu: dopisz go w oknie Investigation.",
+      "describeWaiting": "Znalezisko ucznia {actor} w pokoju {room} czeka na opis na ekranie GM-a {gm}.",
+      "describeTimedOut": "Nikt nie odpowiedział w porę na okno, więc znalezisko ucznia {actor} trafiło do niego pod nazwą „{name}”, bez opisu. Opis dopiszesz w oknie Investigation.",
       "describeIntro": "{actor} coś znajduje w pokoju {room}. Nazwij to tak, jak nazwałaby to ta osoba, i powiedz, co widzi.",
       "critPrompt": "Krytyk: obserwator od razu rozpoznaje kategorię. Daj solidną podpowiedź.",
       "critHint": "Podpowiedź tylko dla tej osoby",
@@ -4158,6 +4202,8 @@
       },
       "tail": {
         "nobody": "Nikt inny nie stoi w tym pokoju, by go śledzić.",
+        "gone": "Postaci {name} nie ma już w tym pomieszczeniu.",
+        "actionBack": "Śledzenie się nie zaczęło: postać {name} wyszła wcześniej z pomieszczenia, więc akcja wraca.",
         "prompt": "Wybierz, kogo z tego pokoju chcesz śledzić, i zaproponuj Leg albo Shadow. Rzut Shadow poniżej {n} od razu zdradza celowi, kto go śledzi, ale śledzenie trwa dalej.",
         "who": "Kogo",
         "unseenTitle": "Tail Someone: czy cel cię zauważy?",
@@ -4223,7 +4269,8 @@
         "experience": "Experience {label} +{n}",
         "despairShield": "Następny rzut z Despair nie daje Monokumie pierwszego punktu Despair",
         "eclipseCrossing": "Przejścia w Eclipse +{n}",
-        "ultimateBoost": "Następne Ultimate: druga kość przewagi"
+        "ultimateBoost": "Następne Ultimate: druga kość przewagi",
+        "takeFailed": "{name}: nie udało się zdjąć efektu „{line}”. Zostaje i zejdzie przy następnej porze dnia."
       },
       "until": {
         "timeOfDay": "do końca pory dnia",
@@ -4302,6 +4349,10 @@
       },
       "editor": {
         "until": "Trwa",
+        "dropped": { "one": "Nie zapisano {n} wiersza: akcja musi mieć nazwę, a efekt tego rodzaju - tekst.", "few": "Nie zapisano {n} wierszy: akcja musi mieć nazwę, a efekt tego rodzaju - tekst.", "many": "Nie zapisano {n} wierszy: akcja musi mieć nazwę, a efekt tego rodzaju - tekst.", "other": "Nie zapisano {n} wiersza: akcja musi mieć nazwę, a efekt tego rodzaju - tekst." },
+        "keptOthers": "Zostały obok twoich, bo inny GM dodał je, gdy okno było otwarte: {items}.",
+        "needsName": "Najpierw nazwij akcję. Nic nie zapisano, a to, co wpisano, wróciło do okna.",
+        "savedOver": "Inny GM zmienił tę akcję, gdy okno było otwarte. Zapisano twoją w jej miejsce.",
         "trait": "Statystyka",
         "roomTitle": "Facilities: {room}",
         "saveProject": "Zapisz akcję",
@@ -4476,6 +4527,7 @@
         "other": "Do pokoju {room} trafia {n} postaci."
       },
       "destroyed": "Przedmiot „{item}” zostaje zniszczony.",
+      "destroyedNotice": "Contraband niszczy twój przedmiot „{item}”.",
       "effectFailed": "Call {call} jest opłacony, ale jego efektu nie udało się zastosować.",
       "refunded": "{call} nic nie dał, więc koszt ({cost}) wraca.",
       "silenced": "{name} nie może wydawać Hope Calls, dopóki zegar się nie przesunie.",
@@ -4586,6 +4638,7 @@
       "failedSteps": "Części arkusza postaci nie udało się narysować: {steps}. Najczęściej to skutek nowszej wersji Daggerheart; każdy błąd jest w konsoli (F12).",
       "fogFreeMove": "Fog: o tej porze dnia nie ma Free Move. Każde przejście kosztuje akcję.",
       "fogBudget": "Fog: bez Free Move",
+      "noExperiencesGm": "Brak doświadczeń. Postać zaczyna z dwoma po +2, a Level Up może dodać kolejne.",
       "noExperiences": "Nie masz jeszcze doświadczeń. Zaczynasz z dwoma po +2, a Level Up może dodać kolejne."
     },
     "Spectator": {
@@ -4606,7 +4659,8 @@
       "markedIn": "{name} znów jest uczniem.",
       "npcLine": "Poza klasą: bez akcji, głosów i Level Upów.",
       "deathMark": "Nie żyje",
-      "deadStill": "Poza Class Trial nadal mówisz przy stole. Podczas Class Trial twój mikrofon jest wyłączony i nie oddajesz głosu."
+      "deadStillGm": "Poza Class Trial gracz tej postaci nadal mówi przy stole. Gdy włączony jest Głos osobno w każdym pokoju, moduł przenosi go do pokoju Widzów, gdzie żywi go nie słyszą. Podczas Class Trial jego mikrofon jest wyłączony, a postać nie oddaje głosu.",
+      "deadStill": "Poza Class Trial nadal mówisz przy stole. Gdy włączony jest Głos osobno w każdym pokoju, moduł przenosi cię do pokoju Widzów, gdzie żywi cię nie słyszą. Podczas Class Trial twój mikrofon jest wyłączony i nie oddajesz głosu."
     },
     "Overflow": {
       "hopeBlocked": "Zaciemnienie blokuje Hope o tej porze dnia.",
@@ -4706,7 +4760,7 @@
         "despair": "Nikt nie zdobywa Hope, ale zebrany wcześniej Hope można wydawać jak zwykle.",
         "silence": "Żadnych Hope Calls dla nikogo. Despair Calls działają jak zwykle.",
         "fog": "Nikt nie ma Free Move, więc nawet pierwsze przejście do innego pokoju kosztuje akcję albo przejście z Calla Sprint.",
-        "rot": "Rzeczy niszczeją: każdy przedmiot, który nosi ktoś żywy, traci do {n} wytrzymałości, ale ostatni punkt zostaje, więc nic się nie psuje.",
+        "rot": "Rzeczy niszczeją: każdy przedmiot żywego ucznia, także ten w skrytce, traci do {n} wytrzymałości, ale ostatni punkt zostaje, więc nic się nie psuje.",
         "earthquake": "Budynek się trzęsie: każdy rozpoczęty projekt, który nie jest ukończony ani zamrożony, traci do {n} postępu.",
         "lockdown": "Pokoje są zamknięte: żadnych akcji w pokojach o tej porze dnia. Odpoczynki działają.",
         "insomnia": "Nikt nie może zasnąć: żadnego Short Rest o tej porze dnia. Long Rest działa.",
@@ -4740,10 +4794,10 @@
         "other": "Gasną światła. Każdy uczeń ma {n} przejść między połączonymi pokojami. Dopóki trwa Eclipse, nikt nie widzi tokenów pozostałych uczniów."
       },
       "yourMoves": {
-        "one": "Masz jedno przejście między pokojami. Jesteś w pokoju {room}. Przeciągnij token do połączonego pokoju; zamknięte drzwi i zapieczętowane pokoje wciąż cię nie wpuszczą.",
-        "few": "Masz {n} przejścia między pokojami. Jesteś w pokoju {room}. Przeciągnij token do połączonego pokoju; zamknięte drzwi i zapieczętowane pokoje wciąż cię nie wpuszczą.",
-        "many": "Masz {n} przejść między pokojami. Jesteś w pokoju {room}. Przeciągnij token do połączonego pokoju; zamknięte drzwi i zapieczętowane pokoje wciąż cię nie wpuszczą.",
-        "other": "Masz {n} przejść między pokojami. Jesteś w pokoju {room}. Przeciągnij token do połączonego pokoju; zamknięte drzwi i zapieczętowane pokoje wciąż cię nie wpuszczą."
+        "one": "Masz jedno przejście między pokojami. Jesteś w pokoju {room}. Przeciągnij token do połączonego pokoju; zamknięte drzwi wciąż cię nie wpuszczą.",
+        "few": "Masz {n} przejścia między pokojami. Jesteś w pokoju {room}. Przeciągnij token do połączonego pokoju; zamknięte drzwi wciąż cię nie wpuszczą.",
+        "many": "Masz {n} przejść między pokojami. Jesteś w pokoju {room}. Przeciągnij token do połączonego pokoju; zamknięte drzwi wciąż cię nie wpuszczą.",
+        "other": "Masz {n} przejść między pokojami. Jesteś w pokoju {room}. Przeciągnij token do połączonego pokoju; zamknięte drzwi wciąż cię nie wpuszczą."
       },
       "moved": {
         "one": "Jesteś teraz w pokoju {room}. Do końca Eclipse zostało ci {left} przejście.",
@@ -4760,6 +4814,7 @@
       "movesColumn": "Przejścia",
       "named": "Eclipse ({time})",
       "announceFree": "Gasną światła. Każdy wybiera dowolny pokój na mapie i stawia tam swój token. Nikt nie widzi nikogo, dopóki Eclipse się nie skończy.",
+      "declarationClosed": "Zamknięte, gdy wróciło światło: Eclipse się skończyło, więc ta deklaracja już tu nie czeka.",
       "yourMovesFree": "Możesz stanąć w dowolnym pokoju na mapie. Jesteś w pokoju {room}. Przeciągnij token do pokoju, w którym chcesz być.",
       "movedFree": "Jesteś teraz w pokoju {room}.",
       "murderOnlyInEclipse": "Direct Murder można zgłosić tylko podczas Eclipse.",
@@ -4815,6 +4870,8 @@
       "noBudgetLong": "Nie masz już Free Move ani akcji, więc to przejście nie jest opłacone. Token wraca na miejsce; zapytaj GM-a.",
       "refundedBack": "GM cofa twoje ostatnie przejście: token stoi tam, gdzie stał przed nim.",
       "refundedStays": "GM cofa twoje ostatnie przejście, ale tokenu nie da się postawić tam, gdzie stał. Zapytaj GM-a.",
+      "refundedMoved": "GM cofa twoje ostatnie przejście. Token od tego czasu poszedł dalej, więc zostaje tam, gdzie stoi.",
+      "refundMovedGm": "Ostatnie przejście postaci {name} cofnięte, ale token od tego czasu poszedł dalej, więc zostaje {at}.",
       "refundedPrice": "To, co przejście kosztowało, wraca do ciebie.",
       "refundedNoPrice": "Za to przejście nic do ciebie nie wraca. Jeśli coś cię kosztowało, zapytaj GM-a.",
       "locked": "Drzwi są zamknięte.",
@@ -4840,17 +4897,17 @@
         "breach": "Breach the Wall",
         "sealPassage": "Seal the Passage",
         "closeBreach": "Close the Breach",
-        "repairItem": "Repair an item",
+        "repairItem": "Repair an Item",
         "repairLock": "Repair the Lock"
       },
       "kindOwn": "Własny projekt",
       "sealWhich": "Przejście do zamknięcia",
       "sealNote": "Seal the Passage: Hand, Complex (6). Po ukończeniu przejście jest zamknięte dla wszystkich, którzy je znają, także dla ciebie. GM może je znów otworzyć.",
       "unbreachWhich": "Wyłom do zamknięcia",
-      "unbreachNote": "Close the breach: Body, Complex (6). Gdy zostanie ukończony, ściana znów będzie cała.",
+      "unbreachNote": "Close the Breach: Body, Complex (6). Gdy zostanie ukończony, ściana znów będzie cała.",
       "repairWhich": "Przedmiot do naprawy",
       "repairOption": "„{item}” (Tier {tier})",
-      "repairNote": "Repair an item: Hand; Trivial (3) dla przedmiotu Tier 0 lub 1, Complex (6) dla Tier 2 lub 3. Gdy zostanie ukończony, przedmiot znów będzie cały.",
+      "repairNote": "Repair an Item: Hand; Trivial (3) dla przedmiotu Tier 0 lub 1, Complex (6) dla Tier 2 lub 3. Gdy zostanie ukończony, przedmiot znów będzie cały.",
       "repairItemName": "Naprawa: „{item}”",
       "sealPassageSummary": "Seal the Passage: {target}",
       "closeBreachSummary": "Close the Breach: {target}",
@@ -4973,6 +5030,7 @@
       "noPlayers": "Nie ma graczy, którym można udostępnić.",
       "player": "Gracz",
       "gone": "Ten projekt już nie istnieje.",
+      "notPlaced": "Nie postawiono żetonu: pokoju projektu nie ma na żadnej scenie albo projekt nie ma pokoju.",
       "alreadyFull": "{name} ma już {current}/{target}, więcej postępu się nie zmieści.",
       "alreadyEmpty": "{name} ma już 0 postępu, więc nie ma czego odjąć.",
       "noneHere": "W pokoju {room} nie ma projektu, nad którym możesz pracować.",
@@ -5053,7 +5111,7 @@
       "cardUnknown": "Nie wiesz, czym to jest.",
       "frozenNoProgress": "Projekt {name} został zepsuty sabotażem i nie ruszy dalej, dopóki ktoś nie ukończy jego naprawy.",
       "effectFailed": "{name}: nie udało się wykonać części tego, co dzieje się, gdy projekt zostaje ukończony albo cofnięty poniżej celu ({error}). Postęp zostaje bez zmian; szczegóły są w konsoli.",
-      "everyone": "Ten projekt jest jawny, więc widzi go każdy gracz, który był w jego pokoju, a gdy nie ma pokoju, każdy gracz. Zaznaczeni to ci, którzy wiedzieli o nim przed ujawnieniem; jeśli projekt znów stanie się tajny, zobaczą go oni i budujący.",
+      "everyone": "Jawny: widzi go każdy, kto był w jego pokoju, a gdy nie ma pokoju, każdy. Zaznaczeni: ci, którzy wiedzieli przed ujawnieniem.",
       "builderStays": "{name} buduje „{project}”: nie możesz odsunąć budującego od jego własnego projektu.",
       "description": "Opis",
       "descriptionPlaceholder": "np. Fałszywe dno w regale, dość głębokie, by schować notes",
@@ -5096,6 +5154,7 @@
       "diag": {
         "title": "Wygląd kości",
         "open": "Otwórz wygląd kości",
+        "copyFailed": "Nie udało się skopiować raportu. Zaznacz jego tekst na dole okna i skopiuj go ręcznie.",
         "introGm": "Wygląd kości widziany u ciebie. U gracza sprawdzi go tylko on sam.",
         "introPlayer": "Co ta przeglądarka odczytuje z wyglądu twoich kości. Skopiuj tekst z dołu okna i wyślij go GM-owi.",
         "who": "Użytkownik",
@@ -5144,7 +5203,7 @@
           "missingTexture": "Dice So Nice w tej przeglądarce nie ma tekstury „{name}”, więc kości, które jej używają, rysują się tu bez tekstury.",
           "missingMaterial": "Dice So Nice w tej przeglądarce nie ma materiału „{name}”, więc kości, które go używają, rysują się tu z materiałem automatycznym.",
           "dsnApiMoved": "Dice So Nice {version} kopiuje tylko część wyglądu GM-a; resztę gracze mają po swojemu.",
-          "rolesUnforced": "Daggerheart {version} koloruje kości Hope i Despair rolami Dice So Nice, których wymuszony wygląd stołu nie ustawia.",
+          "rolesUnforced": "Daggerheart {version} koloruje kości Hope i Despair rolami Dice So Nice. Wygląd stołu nie jest wymuszony w tej przeglądarce, więc widać jej własne wyglądy ról.",
           "otherBrowser": "Przeglądarki użytkownika {name} nie odczytuje się tutaj. Poproś, by uruchomił game.drpg.diagnoseDiceLook() i przesłał ci tekst."
         }
       }
@@ -5207,6 +5266,8 @@
         "note.save": "Notatka przed sesją",
         "despair.adjust": "Zmiana puli Despair",
         "overflow.add": "Dodanie Despair do Overflow",
+        "call.world": "Zapieczętowanie lub ograniczenie z Despair Call",
+        "music.track": "Odtwórz albo Wyłącz utwór w oknie Dźwięk",
         "overflow.clear": "Wyczyszczenie Overflow",
         "despair.set": "Ustawienie puli Despair",
         "despair.all": "Napełnienie albo opróżnienie wszystkich pul Despair",
@@ -5222,6 +5283,7 @@
         "listen.stop": "Przestań słuchać",
         "listen.echoes": "Echoes",
         "mask.reveal": "Ujawnij się",
+        "mask.veil": "Zasłona otwarcia, o którą GM prosi głównego GM-a",
         "door.shut": "Shut the Door",
         "door.force": "Force the Door",
         "door.pick": "Pick the Lock",
@@ -5290,6 +5352,7 @@
         "searchTokens.takePlant": "Szukanie podłożonego przedmiotu",
         "searchTokens.returnPlant": "Zwrot podłożonego przedmiotu",
         "searchTokens.returnToken": "Zwrot Search Tokenu po spóźnionej odpowiedzi",
+        "searchTokens.gmWrite": "Ustawienie Search Tokenów",
         "floor.now": "Następny krok Class Trial",
         "vote.run": "Krok głosowania",
         "vote.cast": "Oddanie głosu",
@@ -5372,7 +5435,7 @@
         "rollMissed": "Twój rzut nie daje takiego wyniku.",
         "projectFrozen": "Sabotaż zamroził ten projekt do końca jego naprawy.",
         "rollReplaced": "Ten rzut już się nie liczy: zastąpił go późniejszy rzut tej samej akcji.",
-        "notPaid": "Ten rzut nie ma opłaconej akcji. Wykonaj akcję jeszcze raz.",
+        "notPaid": "GM nie widzi za to opłaty. Spróbuj jeszcze raz.",
         "rollThrown": "Rzut tej akcji już padł.",
         "callNotPaid": "Ten Call nie jest opłacony Hope.",
         "callNotApproved": "Żaden GM nie zatwierdził tego Calla albo zgoda już wygasła. Poproś jeszcze raz.",
@@ -5411,10 +5474,14 @@
       "settledDeclined": "{name} odrzuca prośbę.",
       "settledApproved": "{name} zatwierdza prośbę.",
       "settledHandled": "{name} spełnia prośbę.",
+      "settledNotTheirs": "{name} zamyka kartę: karta wskazuje postać, której autor karty nie jest właścicielem, więc nic nie zostało rozstrzygnięte.",
+      "settledNoCharacter": "{name} zamyka kartę: tej postaci nie ma już w świecie, więc nie ma o czym decydować.",
       "settledExpired": "Nikt nie odpowiedział na czas. Możesz zapytać jeszcze raz.",
       "settledGone": "Gracz już nie czekał.",
       "settledUnconfirmed": "{name} odpowiada, ale nie wiadomo, czy odpowiedź dotarła.",
       "alreadyRuled": "Ta karta jest już rozstrzygnięta przez GM-a {gm}.",
+      "askNotHeld": "Gracz już nie czeka na tę kartę: przeładował stronę i zapytał ponownie albo minął jej czas. Nic nie zostało wysłane.",
+      "notTheirCharacter": "Ta karta wskazuje postać, której jej autor nie jest właścicielem. Nic nie zostało rozstrzygnięte, a karta jest zamknięta.",
       "claimBusy": "Tę kartę rozstrzyga właśnie GM {gm}.",
       "alreadySettled": "Ta karta ma już odpowiedź.",
       "replyTitle": "Odpowiedz postaci {name}",
@@ -5514,6 +5581,7 @@
       "installAction": "Zainstaluj / przeinstaluj",
       "renameNote": "Nazwa tabeli Tier musi zachować jej kategorię i Tier. Tabela pokoju może mieć każdą inną nazwę.",
       "renamed": "Zmieniono nazwę na „{name}”.",
+      "familyRenamed": "Razem z nią zmieniono nazwy tabel: {items}.",
       "deleteConfirm": {
         "one": "Usunąć tabelę „{name}” razem z {n} przedmiotem? Tego nie da się cofnąć.",
         "few": "Usunąć tabelę „{name}” razem z {n} przedmiotami? Tego nie da się cofnąć.",
@@ -5585,10 +5653,10 @@
       "nextEclipse": "Trwa Eclipse. Zakończ je, gdy wszyscy ustawią swoje tokeny.",
       "nextBodyFound": "Znaleziono ciało. Rozpocznij Investigation, gdy stół będzie gotowy.",
       "nextKeysToPlace": {
-        "one": "{n} Key Remnant tej sprawy nie stoi jeszcze na mapie. Postaw go w zakładce Key Remnanty okna Investigation.",
-        "few": "{n} Key Remnanty tej sprawy nie stoją jeszcze na mapie. Postaw je w zakładce Key Remnanty okna Investigation.",
-        "many": "{n} Key Remnantów tej sprawy nie stoi jeszcze na mapie. Postaw je w zakładce Key Remnanty okna Investigation.",
-        "other": "{n} Key Remnantów tej sprawy nie stoi jeszcze na mapie. Postaw je w zakładce Key Remnanty okna Investigation."
+        "one": "{n} Key Remnant tej sprawy nie stoi jeszcze na mapie. W oknie Investigation kliknij Postaw na mapie przy jego węźle w widoku Mapa albo użyj zakładki Key Remnanty w widoku Tabela.",
+        "few": "{n} Key Remnanty tej sprawy nie stoją jeszcze na mapie. W oknie Investigation kliknij Postaw na mapie przy ich węzłach w widoku Mapa albo użyj zakładki Key Remnanty w widoku Tabela.",
+        "many": "{n} Key Remnantów tej sprawy nie stoi jeszcze na mapie. W oknie Investigation kliknij Postaw na mapie przy ich węzłach w widoku Mapa albo użyj zakładki Key Remnanty w widoku Tabela.",
+        "other": "{n} Key Remnantów tej sprawy nie stoi jeszcze na mapie. W oknie Investigation kliknij Postaw na mapie przy ich węzłach w widoku Mapa albo użyj zakładki Key Remnanty w widoku Tabela."
       },
       "nextAutopsy": "Truth Bullet z sekcji zwłok nie został jeszcze wydany w tym rozdziale. Wydaj go wszystkim żyjącym.",
       "nextBodyAsked": "Uczniowie znaleźli ciało w pokoju {room}. Czeka ono na twoją decyzję: ogłoś je albo na razie zostaw.",
@@ -5610,6 +5678,7 @@
       "advanceOffEclipse": "Trwa Eclipse: jego koniec przesuwa zegar.",
       "advanceOffTrial": "Trwa Class Trial: koniec rozdziału przesuwa zegar.",
       "advanceDuringEclipse": "Trwa Eclipse: zegar przesunie dopiero jego koniec. Zakończ je strzałką przy zegarze.",
+      "advanceDuringIncident": "Trwa incydent, który nie doszedł do Stage 6. Zakończ go albo naciśnij Przejdź do Stage 6 w Śledzeniu incydentu, zanim przesuniesz porę dnia.",
       "jump": "Edytuj kampanię",
       "resetHint": "Daje wszystkim pełne akcje. Przy samej poprawce zostaw wyłączone.",
       "section": {
@@ -5626,7 +5695,6 @@
       "noCharacters": "W tym świecie nie ma żywych uczniów.",
       "installTables": "Utwórz tabele przedmiotów",
       "despairFlow": "Despair Flow",
-      "clearFaint": "Wyczyść Faint Remnanty",
       "sweepBullets": "Zbierz Truth Bullets",
       "sweepNone": "Nie ma czego zbierać: każdy Truth Bullet w grze jest Faint albo Final.",
       "sweepConfirm": {
@@ -5642,12 +5710,6 @@
         "many": "Zebrano {n} Truth Bulletów.",
         "other": "Zebrano {n} Truth Bulletów."
       },
-      "faintCleared": {
-        "one": "Wyczyszczono {n} Faint Remnant.",
-        "few": "Wyczyszczono {n} Faint Remnanty.",
-        "many": "Wyczyszczono {n} Faint Remnantów.",
-        "other": "Wyczyszczono {n} Faint Remnantów."
-      },
       "voiceReset": "Napraw głos",
       "studentsLeft": {
         "one": "{n} uczeń ma jeszcze akcje",
@@ -5660,14 +5722,6 @@
         "badFormula": "„{formula}” to nie jest formuła rzutu."
       },
       "failed": "To nie zadziałało. Szczegóły znajdziesz w Dzienniku debugowania, w sekcji Diagnostyka.",
-      "faintNone": "Nie ma Faint Remnantów do wyczyszczenia: każdy pozostały Faint Remnant jest Reinforced albo powiązany ze zbrodnią.",
-      "faintConfirm": {
-        "one": "Usunąć {n} Faint Remnant ze wszystkich scen?",
-        "few": "Usunąć {n} Faint Remnanty ze wszystkich scen?",
-        "many": "Usunąć {n} Faint Remnantów ze wszystkich scen?",
-        "other": "Usunąć {n} Faint Remnantów ze wszystkich scen?"
-      },
-      "faintConfirmNote": "Reinforced Remnanty i wszystko powiązane ze zbrodnią zostają w spokoju. Reszta znika na dobre.",
       "stateColumn": "Stan",
       "state": {
         "alive": "Żyje",
@@ -5698,10 +5752,9 @@
       "checksImagesSized": "{rooms}: {size}",
       "checksImagesPixels": "{width} x {height} px",
       "checksImagesBytes": "{mb} MB",
-      "seasonChecks": "Kontrola przed sezonem",
       "foundryReport": "Foundry i moduły",
       "whoIsAlive": "Uczniowie",
-      "whoIsAliveNote": "Stan służy do poprawiania pomyłek i zapisuje się po kliknięciu Zastosuj. Rola zmienia się od razu. Przyciski w wierszu działają od razu, ze wszystkimi skutkami: śmierć niszczy Truth Bullety. Wybór Monocuba, przyciskiem albo z listy Stan, wysyła zaproszenie: uczeń zostaje Monocubem, gdy jego gracz przyjmie Zasadę Monocuba.",
+      "whoIsAliveNote": "Stan służy do poprawiania pomyłek i zapisuje się po kliknięciu Zastosuj, bez ogłoszenia. Wyjątek to wiersz „Nie żyje, ciała nie znaleziono”, gdzie wybór Nie żyje albo Monocub ujawnia śmierć tak jak znalezienie ciała i niszczy Truth Bullety. Rola zmienia się od razu. Przyciski w wierszu działają od razu, ze wszystkimi skutkami: śmierć niszczy Truth Bullety. Wybór Monocuba, przyciskiem albo z listy Stan, wysyła zaproszenie: uczeń zostaje Monocubem, gdy jego gracz przyjmie Zasadę Monocuba.",
       "doColumn": "Zrób",
       "refundCrossing": "Zwróć ostatnie przejście",
       "refundCrossingNote": "{leaving} z powrotem {returning}",
@@ -5792,6 +5845,8 @@
       "noExperienceToRaise": "Nie ma doświadczenia do podniesienia. Wybierz inne ulepszenie; Level Up wciąż czeka.",
       "notOnSheet": "Wybór wskazuje statystykę albo doświadczenie, których {name} nie ma, więc nic nie zapisano.",
       "experienceNeedsName": "Nowe doświadczenie potrzebuje nazwy. Ten wybór pominięto.",
+      "experienceNeedsNameGm": "Nowe doświadczenie musi mieć nazwę. Nic nie zapisano: otwórz Level Up jeszcze raz i wybierz.",
+      "takeBackGone": "Ta oferta Level Up dla postaci {name} już nie stoi: została wykorzystana albo cofnięta.",
       "nothingToApply": "Nic nie wybrano, więc nic się nie zmieniło.",
       "unknownKind": "Nieznany typ Level Up: {kind}.",
       "failed": "Nie udało się zapisać Level Up. Zajrzyj do konsoli.",
@@ -5917,6 +5972,8 @@
       "heldNothing": "Ustawienia Foundry zostały oddane, więc moduł nie trzyma teraz żadnego z nich: automatyki Vulnerable i Defeated z Daggerheart, uprawnienia do plików i pilnowane ustawienia graczy zostają takie, jakie są. Przejmij je znowu, żeby moduł grał tak, jak powinien, albo zostaw je oddane."
     },
     "Enforced": {
+      "filesNeedFullGm": "W tej sesji uprawnienia do plików nie są pilnowane: uprawnienia Foundry może zmienić tylko pełny Gamemaster, a głównym GM-em jest Asystent GM-a. Będą pilnowane znowu, gdy połączy się pełny Gamemaster.",
+      "avFieldHeld": "Kamery pokazuje kafelek głosu stołu, więc to pole zostaje bez zmian. GM może wyłączyć kafelek głosu w ustawieniach gry.",
       "filesPutBack": "Moduł cofnął zmianę uprawnień do plików. Dopóki włączone jest „Bez przeglądarki plików dla graczy”, Gracze i Zaufani Gracze nie mogą przeglądać ani wysyłać plików.",
       "filesFirstHold": "„Bez przeglądarki plików dla graczy” odebrało te uprawnienia: {lost}. Wyłączenie tego ustawienia ich nie przywróci. Nadaj je ponownie w uprawnieniach Foundry albo naciśnij „Oddaj ustawienia Foundry” w ustawieniach tego modułu.",
       "lost": {
@@ -6231,6 +6288,7 @@
       "actionOwed": "Krytyk zniknął, ale nie masz już akcji, którą Reroll mógłby zabrać.",
       "gmReasked": "GM dostaje twoją prośbę jeszcze raz, z nowym wynikiem, i decyduje od nowa.",
       "rulingVoid": "Reroll: {old} już nie obowiązuje, wynik to teraz {new}. Zdecyduj ponownie.",
+      "rulingReplaced": "Reroll zastąpił ten rzut. Nowa karta pyta ponownie.",
       "lootStands": "Kości przepisano, ale chwila nie. Zabrane rzeczy są już u ciebie, a ciało wygląda tak jak wcześniej."
     },
     "Audit": {
@@ -6313,6 +6371,11 @@
       "waitsForGm": "Rzut akcji wymaga połączonego GM-a, a żaden nie jest teraz połączony, więc rzut się nie odbywa.",
       "gmThrowing": "GM rzuca twoimi kośćmi.",
       "unwitnessed": "Rzucono bez połączonego GM-a, więc na razie rzut nie zmienia Hope, Sanity ani Despair. Gdy GM się połączy, zdecyduje, czy przyznać to, co rzut by zmienił.",
+      "unwitnessedGranted": "Rzucono bez połączonego GM-a; przyznano to, co rzut by zmienił.",
+      "unwitnessedNotGranted": "Rzucono bez połączonego GM-a; nie przyznano tego, więc rzut nie zmienia Hope, Sanity ani Despair.",
+      "awayDecidedGrant": "Rozstrzygnięto: przyznano.",
+      "awayDecidedNone": "Rozstrzygnięto: nie przyznano.",
+      "awayAlreadyDecided": "Te rzuty są już rozstrzygnięte.",
       "awayTitle": "Rzuty graczy pod nieobecność GM-a",
       "awayLine": "{name}: kość Hope {hope}, kość Despair {fear}; {moves}",
       "awayHope": "+{n} Hope",
@@ -6348,7 +6411,7 @@
       "mainRoom": "główny pokój",
       "deadRoom": "pokój Widzów",
       "claimTrial": "podczas Class Trial wszyscy są w jednym pokoju",
-      "trialMuteLeft": "Mikrofon gracza {name} jest nadal zablokowany po rozprawie. Odblokuj go w „Kogo słyszysz” na kafelku głosu.",
+      "trialMuteLeft": "Mikrofon gracza {name} jest nadal zablokowany po rozprawie. Odblokuj go w „Kogo słyszysz” na kafelku głosu, gdy {name} jest w twoim kanale głosowym: lista pokazuje tylko osoby, które słyszysz.",
       "needsAvclient": "Ustawienie „Głos osobno w każdym pokoju” jest włączone, ale LiveKit AVClient nie jest aktywny. Włącz go w Zarządzaj modułami i przeładuj świat.",
       "avDisabled": "Ustawienie „Głos osobno w każdym pokoju” jest włączone, ale Audio/Wideo jest wyłączone dla tego świata. Włącz je w Konfiguracji ustawień.",
       "resetDone": {
@@ -6376,6 +6439,7 @@
           "disconnected": "Rozłączono",
           "connected": "Połączono",
           "eclipsed": "Eclipse",
+          "hidden": "Ukrycie",
           "blocked": "Zablokowano",
           "external": "Osobne okno"
         },
@@ -6409,7 +6473,7 @@
         "floorHeld": "Głos ma {name}: twój mikrofon pozostaje wyłączony, dopóki nie dostaniesz głosu albo tryb się nie skończy.",
         "floorHeldPair": "Głos mają {name} i {target}: twój mikrofon pozostaje wyłączony, dopóki nie dostaniesz głosu albo tryb się nie skończy.",
         "listening": "Słuchasz pod drzwiami: mikrofon jest wyłączony, dopóki nie przestaniesz.",
-        "masked": "Ukrywasz się za „?”: mikrofon jest wyłączony, dopóki się nie ujawnisz.",
+        "masked": "Ukrywasz się za „?”: nie ma cię w głosie. Nikogo nie słyszysz i nikt nie słyszy ciebie, dopóki się nie ujawnisz albo nie zmieni się pora dnia.",
         "veiled": "Przed twoim rzutem otwarcia: mikrofon jest wyłączony, dopóki nie rzucisz.",
         "cubSpeak": "Dyskusja: możesz mówić.",
         "cubListen": "Tryb: {mode}. Słuchasz.",
@@ -6471,6 +6535,9 @@
         "settingOff": "wyłączone, więc nic nie jest stosowane",
         "avMode": "Tryb A/V: {mode}",
         "avDisabled": "wyłączony, więc nikt się nie połączy",
+        "avAudio": "tylko dźwięk",
+        "avVideo": "tylko obraz, więc nikogo nie słychać: głos potrzebuje dźwięku",
+        "avAudioVideo": "dźwięk i obraz",
         "loop": "Ten klient prowadzi pętlę przydziału: {answer}",
         "yes": "tak",
         "no": "nie",
@@ -6483,6 +6550,8 @@
         "spectatorGroup": "(pokój Widzów)",
         "mainGroup": "(główny pokój)",
         "deadGroup": "(pokój Widzów)",
+        "silentGroup": "(własny cichy pokój)",
+        "campGroup": "(Scrum Debate: pokój Strefy {zone})",
         "nowhere": "(nigdzie nie wysłano)",
         "ignored": "← pominięte, {name} trafia tam, gdzie {actor}",
         "itsAccount": "jego konto",
@@ -6555,6 +6624,7 @@
       "none": "Żaden Motive nie obowiązuje.",
       "withdraw": "Wycofaj Motive",
       "withdrawNote": "Wycofanie ogłasza wszystkim, że Motive już nie obowiązuje.",
+      "changedMeanwhile": "Motive zmienił się, gdy okno było otwarte. Teraz widać ten, który obowiązuje; naciśnij Wycofaj Motive jeszcze raz, żeby go wycofać.",
       "deadline": {
         "one": "Jedna pora dnia, by coś z tym zrobić.",
         "few": "{n} pory dnia, by coś z tym zrobić.",
@@ -6588,7 +6658,8 @@
       "speaker": "Monokuma",
       "storeFull": "Pamięć tej przeglądarki jest pewnie pełna: prywatne karty i klucze odpowiedzi przestają się tu zapisywać. Usuń stare wiadomości czatu, ale nie czyść danych strony, bo stracisz klucze odpowiedzi.",
       "tooLong": "Ta wiadomość ma ponad {kb} KB, więc jest za długa, by wysłać ją prywatnie. Podziel ją na krótsze.",
-      "wordsElsewhere": "Prywatna karta. Jej treść nie dotarła do tej przeglądarki."
+      "wordsElsewhere": "Prywatna karta. Jej treść nie dotarła do tej przeglądarki.",
+      "wordsHeldForReaders": "Prywatna karta dla jej odbiorców. Ta przeglądarka przechowuje jej treść dla nich."
     },
     "Legacy": {
       "safeword": "MISIUBOMBO"
@@ -6611,7 +6682,7 @@
     },
     "Note": {
       "tab": "Notatka",
-      "intro": "Tu zapisujesz dla GM-ów swoje plany na sesję. Pierwsze cztery pytania to twoje granice, a GM-owie biorą je pod uwagę. Jeśli nic się nie zmieniło, napisz „Bez zmian” i gotowe.",
+      "intro": "Tu zapisujesz dla GM-ów swoje plany na sesję. Pytania o śmierć postaci, tortury, romans i triggery to twoje granice, a GM-owie biorą je pod uwagę. Jeśli nic się nie zmieniło, napisz „Bez zmian” i gotowe.",
       "gmIntro": "Notatka tego gracza przed sesją. Możesz ją zmienić, a gracz zobaczy twoje zmiany.",
       "placeholder": "Bez zmian",
       "useTemplate": "Użyj szablonu",
@@ -7051,14 +7122,14 @@
         "incident": "Incydent, Blackened, zdrada wciąż dostępna i każde morderstwo zgłoszone w ciemności",
         "trialFloor": "Głos w Class Trial",
         "trialProgress": "Postęp Class Trial i jego głosowanie",
-        "keyPlan": "Plan Key Remnantów",
+        "keyPlan": "Plan Key Remnantów, mapa sprawy i zestawy Logic Dive (zachowane: rozdział, na którym kończy się sezon, bez znaczników poprzedniego sezonu)",
         "searchTokens": "Search Tokeny wydane w każdym pokoju",
         "discovered": "Które pokoje zostały odkryte",
         "bodyFound": "Znalezione ciało, które czeka na decyzję GM-a, i zapis, czyje ciała znaleziono",
         "deaths": "Śmierci, Monocuby i ciała na mapach, a zmarli wracają i każdy uczeń ma znów pełne Health i Sanity",
         "items": "Co nosi obsada, a klucz do każdej sypialni wraca do jej właściciela",
         "advancement": "Level Upy i doświadczenia, które dodały, a statystyki i maksima wracają do arkusza startowego",
-        "actions": "Budżet akcji odnowiony, a to, co akcje sezonu zostawiły w mocy, wyczyszczone: odpoczynki, barykady, Bounty, Confusion, efekty pokoi, maski, śledzenia, warty, podsłuchy, wytrychy, przejścia i zapisy rzutów",
+        "actions": "Budżet akcji odnowiony, a to, co akcje sezonu zostawiły w mocy, wyczyszczone: odpoczynki, barykady, Bounty, Confusion, efekty pokoi, maski, śledzenia, warty, podsłuchy, wytrychy, przejścia, kto korzystał z których Facilities, notatki w sypialniach czekające na właścicieli, liczniki ruchów Monocubów, ukrycie zabójcy do rzutu otwarcia, zapisy rzutów i lista zmian w arkuszach",
         "preNotes": "Notatki przed sesją dla GM-ów",
         "stashesFound": "Skrytki, które każdy uczeń już znalazł, a każda ukryta skrytka znów otwarta",
         "projects": "Naprawy, projekty i ich Countdowny",
@@ -7086,6 +7157,7 @@
       "phase": {
         "eclipseTitle": "Eclipse",
         "eclipse": "Światła są zgaszone. Każdy ustawia swój token: można przejść {reach}, a nocą gdziekolwiek na mapie. Nikt nie widzi, kto dokąd poszedł. Akcje są już odnowione, ale do powrotu świateł można je wydać tylko na Direct Murder i nikt nie używa Calli.",
+        "eclipseDark": "Światła są zgaszone. Każdy ustawia swój token: można przejść {reach}, a nocą {night}. Nikt nie widzi, kto dokąd poszedł. Akcje są już odnowione, ale do powrotu świateł można je wydać tylko na Direct Murder i nikt nie używa Calli.",
         "eclipseReach": {
           "one": "do {n} połączonego pokoju",
           "few": "do {n} połączonych pokoi",
@@ -7094,7 +7166,7 @@
         },
         "dailyLife": "Zwykłe dni w szkole. Masz {actions} na każdą porę dnia: na przeszukiwanie pokoi, pracę nad projektami, odpoczynek, rozmowy i przygotowania. W tym rozdziale nie znaleziono jeszcze ciała. To czas, w którym decydujesz, komu ufasz.",
         "investigation": "Znaleziono ciało. Używaj Observe na Remnantach na mapie, Analyze na tym, co zbierzesz, a każdy Truth Bullet, który zbudujesz, możesz przedstawić w Class Trial. Czego nie znajdziesz, tego nie będziesz mieć.",
-        "classTrial": "Wszyscy są w sali i jedno z was to zrobiło. Zeznania, Objections i wreszcie głosowanie. Trafcie, a zabójca zostanie ukarany; pomylcie się, a ukarani zostaną wszyscy pozostali."
+        "classTrial": "Wszyscy są w sali, a ktoś z uczniów to zrobił. Zeznania, Objections i wreszcie głosowanie. Jeśli klasa wskaże zabójcę, zabójca zostanie ukarany; jeśli nie, ukarani zostaną wszyscy pozostali."
       },
       "time": {
         "title": "Pora dnia",
@@ -7150,6 +7222,7 @@
       "intro": "Wszystko, co moduł potrafi tu sprawdzić, w jednym tekście. Skopiuj go i wyślij osobie, która ci pomaga.",
       "copy": "Kopiuj raport",
       "copied": "Raport jest w schowku. Wklej go (Ctrl+V) tam, gdzie ma trafić.",
+      "copyFailed": "Nie udało się skopiować raportu. Zaznacz jego tekst w oknie i skopiuj go klawiszami Ctrl+C.",
       "gmOnly": "Tę część raportu sprawdza tylko przeglądarka GM-a. Zbierz raport w przeglądarce GM-a, żeby ją zobaczyć.",
       "silencesTitle": "Wyciszone przez ciebie ostrzeżenia",
       "showAgain": "Pokaż znowu",
@@ -7170,7 +7243,8 @@
       "clear": "Wyczyść dziennik",
       "cleared": "Debug log w tej przeglądarce jest teraz pusty.",
       "copy": "Kopiuj do schowka",
-      "copied": "Dziennik jest w schowku. Wklej go (Ctrl+V) tam, gdzie ma trafić."
+      "copied": "Dziennik jest w schowku. Wklej go (Ctrl+V) tam, gdzie ma trafić.",
+      "copyFailed": "Ta przeglądarka nie pozwoliła skopiować tekstu do schowka. Nic nie zostało skopiowane."
     },
     "Fog": {
       "scenesPrepared": {
@@ -7305,6 +7379,11 @@
       },
       "stepFailed": "Mgła: krok „{step}” się nie powiódł; pozostałe kroki działają dalej",
       "stepFailedLater": "Mgła: krok „{step}” nie powiódł się już po powrocie",
+      "reason": {
+        "unchanged": "bez zmian - ostatnio: {reason}",
+        "painted": "narysowano: pod mgłą {fogged}, przysłonięte {veiled}, odsłonięte {clear}",
+        "threw": "odświeżenie się nie udało: {error}"
+      },
       "stand": {
         "notRunYet": "jeszcze nie uruchomiona",
         "canvasNotReady": "mapa nie jest jeszcze gotowa",
@@ -7357,7 +7436,7 @@
         "other": "Pominięto {n} regionu bez nazwy: pokój musi mieć nazwę."
       },
       "flagKept": "Konto {user} zmieniło, czy „{region}” na scenie {scene} jest pokojem. Pokój oznacza tylko GM, więc oznaczenie zostaje takie, jakie zostawił GM.",
-      "renamed": "„{from}” na scenie {scene} nazywa się teraz „{to}”. Przeniesiono na nową nazwę: klucze ({keys}), schowane przedmioty ({items}), notatki o znalezionej skrytce ({found}), odkrycia pokoju ({cells}), projekty ({projects}), rzeczy zostawione dla pułapki ({plants}), listy Sąsiadów innych pokoi ({lists}), pokój Masterminda ({lair}), zwołane zebranie ({gather}), pieczęć nałożona przez Despair Call ({sealed}), znalezione tam ciała ({bodies}).",
+      "renamed": "„{from}” na scenie {scene} nazywa się teraz „{to}”. Przeniesiono na nową nazwę: klucze ({keys}), schowane przedmioty ({items}), notatki o znalezionej skrytce ({found}), odkrycia pokoju ({cells}), projekty ({projects}), rzeczy zostawione dla pułapki ({plants}), listy Sąsiadów innych pokoi ({lists}), pokój Masterminda ({lair}), zwołane zebranie ({gather}), pieczęć nałożona przez Despair Call ({sealed}), znalezione tam ciała ({bodies}), zapisy tajnych przejść ({passages}).",
       "flagUnjudged": "Konto {user} zmieniło, czy „{region}” na scenie {scene} jest pokojem. Wcześniejsze oznaczenie nie jest znane, więc niczego nie przywrócono. Sprawdź region w Ustawieniach pokoi, w zakładce Pokoje.",
       "renameJoined": "Region „{room}” na scenie {scene} dostał nazwę „{name}”, a pokój o tej nazwie już tam był, więc region jest teraz kolejnym kawałkiem tego pokoju. Klucze, schowane przedmioty, notatki o znalezionej skrytce i odkrycia nadal wskazują „{room}”. Zdjęte z regionu: {carried}.",
       "carriedNothing": "nic",
@@ -7433,7 +7512,10 @@
       "alertReading": "{who}, w pokoju {room} ({scene}), {when}.",
       "rearm": "Uzbrój pułapkę ponownie",
       "rearmed": "Pułapka znów czuwa.",
+      "rearmGone": "{name} zamyka kartę: projektu tej pułapki już nie ma, więc nie ma czego uzbrajać.",
       "plantTitle": "Przedmiot pułapki",
+      "plantNeedsName": "Najpierw nazwij przedmiot. Pułapka nadal na niego czeka.",
+      "plantNeedsRoom": "Najpierw wybierz pokój. Pułapka nadal czeka na przedmiot.",
       "plantPrompt": "Wpisz przedmiot, który jest pułapką, i wybierz pokój, w którym czeka. Wyciągnie go pierwszy udany Search w tym pokoju. Kto go użyje, uruchomi pułapkę, a ty zdecydujesz, co dalej.",
       "plantItem": "Co to jest",
       "plantRoom": "Gdzie czeka",
@@ -7508,7 +7590,7 @@
         "cleaningTool": {
           "label": "Narzędzie do sprzątania",
           "plural": "Narzędzia do sprzątania",
-          "hint": "W ręku daje przewagę na rzuty sprzątania, poza Move the Body, a jego tier obniża próg, choć nie poniżej minimum. Użyte przy morderstwie psuje się, gdy ktoś znajdzie ciało."
+          "hint": "W ręku: zatarcie albo przeróbka Remnantu ma przewagę, a jego Tier obniża próg, choć nie poniżej minimum; Misleading Trail ma przewagę; Move the Body ma próg niższy o Tier, bez przewagi. Użyte przy morderstwie psuje się, gdy ktoś znajdzie ciało."
         },
         "tool": {
           "label": "Narzędzie",
@@ -7529,9 +7611,9 @@
       "TIER_EFFECTS": {
         "usable": {
           "0": "Losowy, z pozoru bezużyteczny przedmiot. Otwarty na kreatywne użycie.",
-          "1": "Przywraca 1 Health (leczący) albo 1 Sanity (uspokajający), zależnie od rodzaju.",
-          "2": "Przywraca 2 Health (leczący) albo 2 Sanity (uspokajający), zależnie od rodzaju.",
-          "3": "Przywraca 3 Health (leczący) albo 3 Sanity (uspokajający), zależnie od rodzaju."
+          "1": "Przywraca {restores} Health (leczący) albo {restores} Sanity (uspokajający), zależnie od rodzaju.",
+          "2": "Przywraca {restores} Health (leczący) albo {restores} Sanity (uspokajający), zależnie od rodzaju.",
+          "3": "Przywraca {restores} Health (leczący) albo {restores} Sanity (uspokajający), zależnie od rodzaju."
         },
         "crimeTool": {
           "0": "Losowy, z pozoru bezużyteczny przedmiot.",
@@ -7558,14 +7640,14 @@
       },
       "USABLE_KIND_EFFECTS": {
         "healing": {
-          "1": "Przywraca 1 Health.",
-          "2": "Przywraca 2 Health.",
-          "3": "Przywraca 3 Health."
+          "1": "Przywraca {restores} Health.",
+          "2": "Przywraca {restores} Health.",
+          "3": "Przywraca {restores} Health."
         },
         "stress": {
-          "1": "Przywraca 1 Sanity.",
-          "2": "Przywraca 2 Sanity.",
-          "3": "Przywraca 3 Sanity."
+          "1": "Przywraca {restores} Sanity.",
+          "2": "Przywraca {restores} Sanity.",
+          "3": "Przywraca {restores} Sanity."
         }
       },
       "REMNANT_VISIBILITY_LABELS": {
@@ -7649,7 +7731,7 @@
         "search": {
           "label": "Search",
           "hint": "Przeszukaj pokój pod kątem czegoś, co nazwiesz. Wydaje jeden z jego Search Tokenów.",
-          "description": "Rzucasz Eye: im wyższy wynik, tym lepsze znalezisko, a przy zbyt niskim nie znajdujesz nic. Remnant zostaje tylko wtedy, gdy znajdziesz coś, co liczy się jako Narzędzie zbrodni albo narzędzie do sprzątania.",
+          "description": "Rzucasz Eye albo inną statystykę, na którą zgodzi się GM: im wyższy wynik, tym lepsze znalezisko, a przy zbyt niskim nie znajdujesz nic. Remnant zostaje tylko wtedy, gdy znajdziesz coś, co liczy się jako Narzędzie zbrodni albo Narzędzie do sprzątania.",
           "failure": "Nic nie znaleziono."
         },
         "observe": {
@@ -7671,8 +7753,7 @@
           },
           "hintCritical": {
             "result": "Zadajesz GM-owi jedno pytanie - np. „Czy ofiara naprawdę zginęła w tym pokoju?”"
-          },
-          "hintFailure": "Bez pomocy."
+          }
         },
         "project": {
           "label": "Projects",
@@ -7689,33 +7770,18 @@
           "label": "Infiltrate",
           "hint": "Listen przy ścianie, Echoes, Tail Someone, Keep Watch, Dash przez korytarze, Shut the Door, Force the Door albo Pick the Lock. Każde kosztuje akcję.",
           "description": "Wybierasz sąsiedni pokój, wydajesz akcję i rzucasz Shadow. Niezły wynik mówi, ile osób tam jest, wyższy zdradza, kto to jest, a krytyk pokazuje, kto jest w każdym sąsiednim pokoju. Przy pudle nic nie słyszysz. Gdy obok nie ma żadnego pokoju, nie tracisz akcji.",
-          "thresholds": {
-            "0": {
-              "result": "Wybierz jeden pokój; dowiedz się, czy ktoś tam jest."
-            },
-            "1": {
-              "result": "Wybierz jeden pokój; zobacz tokeny wszystkich, którzy tam są."
-            }
-          },
-          "critical": {
-            "result": "Zobacz każdy token gracza we wszystkich sąsiednich pokojach."
-          },
           "failure": "Niczego się nie dowiadujesz."
         },
         "palm": {
           "label": "Palm",
           "hint": "Wyjmij coś z kieszeni kogoś w tym pokoju, podrzuć tam coś swojego albo zobacz, co ktoś nosi. Wydajesz akcję.",
           "description": "Przy wyjmowaniu i podrzucaniu Shadow decyduje, czy druga osoba zauważy, a Hand, czy się uda. Gdy zauważy, że wyjmujesz, wie, kto to i co zniknęło. Możesz też poprosić tę osobę, żeby pokazała kieszenie. Po odmowie albo milczeniu spróbuj ją zmusić rzutem Body, przy wszystkich.",
-          "unseen": {
-            "label": "Trzymaj ręce poza zasięgiem wzroku"
-          },
           "frisk": {
             "label": "Zmuś do pokazania kieszeni"
           },
           "rummage": {
             "label": "Przejrzyj kieszenie ukradkiem"
-          },
-          "failure": "Twoja ręka wraca pusta."
+          }
         },
         "tamper": {
           "label": "Tamper",
@@ -7755,7 +7821,7 @@
         "concealIntent": {
           "label": "Conceal Your Intent",
           "success": "Pozostali nie widzą, że cokolwiek robisz. Możesz swobodnie kłamać.",
-          "successWithDespair": "Pozostali nic nie widzą, a projekt zyskuje dodatkowo +1 postępu.",
+          "successWithDespair": "Pozostali nic nie widzą, a projekt zyskuje dodatkowo +{despairBonus} postępu.",
           "failure": "Pozostali w pokoju widzą, że przy czymś się krzątasz, ale nie wiedzą, przy jakim projekcie. Praca idzie dalej."
         },
         "hideTraces": {
@@ -7810,8 +7876,8 @@
           },
           "breath": {
             "label": "Breath",
-            "long": "Daje 2 Hope",
-            "short": "Daje 1 Hope"
+            "long": "Daje {breathHope} Hope",
+            "short": "Daje {breathHope} Hope"
           }
         }
       },
@@ -7876,7 +7942,7 @@
         },
         "behindClosedDoors": {
           "label": "Behind Closed Doors",
-          "effect": "Wybrany pokój zostaje zapieczętowany do końca pory dnia. Wejść do niego można jeszcze po udanym Pick the Lock, a kto jest w środku, zostaje w środku."
+          "effect": "Wybrany pokój zostaje zapieczętowany do końca pory dnia. Wejść do niego można jeszcze po udanym Pick the Lock; Force the Door albo ukończony Breach the Wall zdejmuje pieczęć dla wszystkich, a kto jest w środku, zostaje w środku."
         },
         "thisWillHurt": {
           "label": "Pain",
@@ -8091,10 +8157,10 @@
             "label": "Confusion",
             "thresholds": {
               "0": {
-                "help": "Ta postać dostaje +1 do następnego rzutu.",
-                "hinder": "Ta postać dostaje -1 do następnego rzutu.",
-                "helpTarget": "Coś uspokaja twoją rękę: +1 do następnego rzutu.",
-                "hinderTarget": "Coś cię rozprasza: -1 do następnego rzutu."
+                "help": "Ta postać dostaje +{amount} do następnego rzutu.",
+                "hinder": "Ta postać dostaje -{amount} do następnego rzutu.",
+                "helpTarget": "Coś uspokaja twoją rękę: +{amount} do następnego rzutu.",
+                "hinderTarget": "Coś cię rozprasza: -{amount} do następnego rzutu."
               },
               "1": {
                 "help": "Ta postać dostaje przewagę na następny rzut.",
@@ -8890,7 +8956,7 @@
         "countdownsWhole": "całe ustawienie Countdowns",
         "newCountdowns": "nowe odliczania ({names})",
         "countdownsOdd": "zmiana odliczań, którą robi tylko GM",
-        "saveNotOwn": "rzut obronny tokena, którym ten gracz nie gra",
+        "saveNotOwn": "rzut obronny tokenu, którym ten gracz nie gra",
         "newDocument": "nowy dokument typu {type}",
         "otherDocument": "zmiana dokumentu typu {type}",
         "unnamed": "zmiana, której ten moduł nie pozwala robić graczowi"
@@ -9049,6 +9115,7 @@
         "watches": "Kto czuwa przez Eclipse, w którym pokoju i co widział",
         "pendingBodies": "Znalezione ciała, których ogłoszenie czeka na decyzję GM-a",
         "bodiesHeard": "Przy których ciałach każda postać usłyszała dźwięk znalezienia",
+        "hiddenStashes": "Które skrytki są ukryte i czyje",
         "lockpicks": "Kto może wejść do którego pokoju przez zamek otwarty wytrychem",
         "eavesdrops": "Kto podsłuchuje pod którymi drzwiami, z którego pokoju i którego pokoju może znów posłuchać za darmo",
         "masks": "Który zabójca ukrywa się za „?” po otwarciu morderstwa i jak wyglądał jego token",
@@ -9089,9 +9156,9 @@
           "same": "Kopia na serwerze ma już tę sprawę."
         },
         "refused": {
-          "switchOff": "Na serwer nie trafia żadna kopia: ustawienie Bez przeglądarki plików dla graczy jest wyłączone. Włącz je, a kopia się zapisze.",
-          "roles": "Na serwer nie trafia żadna kopia: rola Gracz albo Zaufany gracz może przeglądać lub wysyłać pliki. Odbierz tym rolom oba uprawnienia w uprawnieniach Foundry.",
-          "account": "Na serwer nie trafia żadna kopia: konto gracza może przeglądać lub wysyłać pliki. Odbierz to uprawnienie temu kontu w ustawieniach użytkownika Foundry.",
+          "switchOff": "Na serwer nie trafia żadna kopia i żadna nie jest z niego czytana: ustawienie Bez przeglądarki plików dla graczy jest wyłączone. Włącz je, a kopia się zapisze. Kopia zapisana wcześniej zostaje na serwerze w folderze drpg-case tego świata, gdzie gracz może ją teraz otworzyć: usuń ją tam ręcznie.",
+          "roles": "Na serwer nie trafia żadna kopia i żadna nie jest z niego czytana: rola Gracz albo Zaufany gracz może przeglądać lub wysyłać pliki. Odbierz tym rolom oba uprawnienia w uprawnieniach Foundry. Kopia zapisana wcześniej zostaje na serwerze w folderze drpg-case tego świata, gdzie gracz może ją teraz otworzyć: usuń ją tam ręcznie.",
+          "account": "Na serwer nie trafia żadna kopia i żadna nie jest z niego czytana: konto gracza może przeglądać lub wysyłać pliki. Odbierz to uprawnienie temu kontu w ustawieniach użytkownika Foundry. Kopia zapisana wcześniej zostaje na serwerze w folderze drpg-case tego świata, gdzie gracz może ją teraz otworzyć: usuń ją tam ręcznie.",
           "notGm": "Kopię sprawy zapisuje tylko GM.",
           "notPrimary": "Kopię sprawy zapisuje tylko główny GM.",
           "notHydrated": "Kopie sprawy od innych GM-ów jeszcze nie dotarły. Spróbuj za chwilę.",
@@ -9199,6 +9266,7 @@
       },
       "chargeAgain": "Pobierz opłatę za Key Remnanty",
       "chargeAgainHint": "Liczy opłatę za Key Remnanty jeszcze raz w przeglądarce głównego GM-a; wstrzymuje ją znowu, dopóki brakuje klucza odpowiedzi",
+      "chargeStale": "Ta karta nie ma już czego pobrać: opłata za Key Remnanty jest pobrana albo zegar jest w innym rozdziale.",
       "chargeDone": "Opłata za Key Remnanty w tej rozprawie jest już pobrana.",
       "fillFromTraces": "Uzupełnij z ich Remnantów ({n})",
       "filled": {
@@ -9217,6 +9285,7 @@
       "castVictim": "Ofiara",
       "castThird": "Trzecia osoba, jeśli była",
       "castEnter": "Wpisz obsadę",
+      "castNeedsTwo": "Wybierz zabójcę i ofiarę. Nic nie zostało wpisane.",
       "previewRecord": "{store}: z innego świata, brane tylko wtedy, gdy zaznaczysz to niżej.",
       "previewClamped": {"one": "{n} wiersz ma stempel późniejszy, niż pozwala zegar: zostałby przyjęty z tą chwilą.", "few": "{n} wiersze mają stemple późniejsze, niż pozwala zegar: zostałyby przyjęte z tą chwilą.", "many": "{n} wierszy ma stemple późniejsze, niż pozwala zegar: zostałyby przyjęte z tą chwilą.", "other": "{n} wiersza ma stemple późniejsze, niż pozwala zegar: zostałyby przyjęte z tą chwilą."},
       "previewNotThisWorld": {"one": "{n} wiersz jest z innego świata i zostaje pominięty.", "few": "{n} wiersze są z innego świata i zostają pominięte.", "many": "{n} wierszy jest z innego świata i zostaje pominiętych.", "other": "{n} wiersza jest z innego świata i zostaje pominiętych."},
@@ -9409,10 +9478,13 @@
     "CaseSummary": {
       "show": "Pokaż podsumowanie",
       "shown": "Podsumowanie wysłane",
+      "afterVerdict": "Podsumowanie wysyła się po werdykcie.",
+      "noneInFinal": "Final Trial nie ma podsumowania sprawy.",
       "previewTitle": "Podsumowanie sprawy",
       "intro": "Gracze dostaną tylko to: co znaleźli, zaznaczone wnioski i kontry, a rozwiązanie, jeśli zagłosowali dobrze.",
       "send": "Wyślij wszystkim",
       "sent": "Podsumowanie wysłane.",
+      "notSent": "Podsumowanie nie wyszło i nic nie jest oznaczone jako wysłane. Naciśnij Wyślij wszystkim jeszcze raz.",
       "already": "Już wysłane w tej rozprawie.",
       "replay": "Odtwórz podsumowanie",
       "replayNone": "Karty podsumowania nie ma już na czacie, więc nie ma czego odtworzyć.",

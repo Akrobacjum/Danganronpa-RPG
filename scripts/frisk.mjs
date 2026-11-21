@@ -412,13 +412,18 @@ export async function performFrisk(actor, def, victim, mode, { cost = def?.cost 
         total: hand.total, isCritical: Boolean(hand.isCritical), unseenTotal: shadow.total, unseenCritical: Boolean(shadow.isCritical),
         rollId: A.rollInHand(actor)?.messageId ?? null, unseenRollId: shadow.raw?.message?.id ?? shadow.raw?.message?._id ?? null
     });
+    /* REFUSED BEFORE ITS ROLLS WERE READ, THE ACTION BACK (the audit's CASE-34, 1.2.122, 21.11.2026; the owner's Q3 of
+       18.10.2026). `friskPerson` asks the one gate first (`personActionRefusal`: the target walked out, an Eclipse or a
+       Class Trial began, the asker now knows the target dead), and an unseen Frisk so refused kept its action spent
+       while a Steal, a Plant and an open Frisk refused the same way gave it back. As a Palm's (palm.mjs). */
+    await (await import("./palm.mjs")).handBackIfRefusedBeforeRolls(actor, paid, { ok: res.ok, refused: res.refused, reason: res.reason, value: res.value });
     // The hand keeps the key it was thrown as (`rummage`), here and in the GMs' row: it names the Reroll's replay (the
     // design's step 11, reroll.mjs `settleRummage`), so no context renames it (the review's er-cor-5).
     await A.noteRollContext(actor, { direction: "frisk", mode, room, victimId: victim.id, seen, success });
     // "Sent" only when the primary judged it (E31): a request it did not carry out has been said once already.
     const outcome = {
         success, seen, direction: "frisk", mode, target: victim.name,
-        text: res.ok && res.value ? game.i18n.format("DRPG.Frisk.sent", { name: victim.name }) : ""
+        text: res.ok && res.value && !res.value.refused ? game.i18n.format("DRPG.Frisk.sent", { name: victim.name }) : ""
     };
     await A.report(actor, def, hand, outcome);
     Hooks.callAll("drpgActionResolved", { actor, actionKey: "palm", roll: hand, outcome });
@@ -1025,8 +1030,9 @@ async function dropFriskAsks(why = "This GM is no longer the primary") {
  * the ask, and the target's yes after it posted the list to a searcher whose action was back. So a GM whose socket comes
  * back drops every ask it holds, with nothing posted, as a reload would have (A11: a reload or a new primary ends an ask
  * with no dice thrown): the searcher's wait, where it still runs, runs out and hands the action back, and an answer is
- * told `missing`. A drop without a reload is not measured on v14, nor whether its socket emits "connect" again
- * (LIVE-E04-04; gm-store.mjs listens for the same). Answers the ask ids it dropped; the first connect holds none.
+ * told `missing`. v14's socket does emit "connect" again after a drop without a reload: read on 14.370 for a console's
+ * `game.socket.disconnect()` then `connect()` (docs/dev/e58/LOCAL-REPORT.md item 44, LIVE-E04-04; gm-store.mjs listens
+ * for the same); a real network loss is not measured. Answers the ask ids it dropped; the first connect holds none.
  */
 export function friskSocketBack() {
     if (!game.user?.isGM || !friskAsks.size) return Promise.resolve([]);

@@ -41,8 +41,10 @@ export function enclosingName(text, index) {
     return "(top level)";
 }
 
-/* The kit's three openers, a class on DrpgApp(), and what opens a window outside the kit. */
-const OPENERS = /\b(drpgWindow|drpgConfirm|drpgPrompt)\s*\(|\bclass(?:\s+([\w$]+))?\s+extends\s+([^{]+?)\s*\{|\bnew\s+((?:[\w$]+\.)*(?:DialogV2|ApplicationV2|ImagePopout|DocumentSheetV2|HandlebarsApplicationMixin|Dialog|Application|FormApplication))\s*\(|\b(DialogV2\s*\.\s*(?:wait|confirm|prompt|query|input))\s*\(/g;
+/* The kit's three openers, a class on DrpgApp(), and what opens a window outside the kit. An opener at the end of a
+   conditional callee counts too, `(columns ? actionWindow : drpgWindow)({` (1.2.122, the audit's CTRL-65: call-gm.mjs's
+   request window was in no census, so R6750-R6753 never read it). */
+const OPENERS = /\b(drpgWindow|drpgConfirm|drpgPrompt)\s*\)?\s*\(|\bclass(?:\s+([\w$]+))?\s+extends\s+([^{]+?)\s*\{|\bnew\s+((?:[\w$]+\.)*(?:DialogV2|ApplicationV2|ImagePopout|DocumentSheetV2|HandlebarsApplicationMixin|Dialog|Application|FormApplication))\s*\(|\b(DialogV2\s*\.\s*(?:wait|confirm|prompt|query|input))\s*\(/g;
 const FOUNDRY_APP = /ApplicationV2|DialogV2|ApplicationMixin|DocumentSheetV2|ImagePopout|\bApplication\b|FormApplication/;
 
 /**

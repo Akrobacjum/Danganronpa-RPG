@@ -24,8 +24,10 @@
  * removing the TABS entry and the PARTS template, both saved and restorable.
  * The `_preparePartContext` wrapper itself stays: with the part gone its
  * isometric branch is never asked for, and every other part is delegated to
- * the saved default, so it is inert. Nothing in the other module's files is
- * touched, and switching the setting off puts every piece back live, no
+ * the saved default, so it is inert. And it parks a third piece the list above
+ * leaves out: the mixin's `_refreshState` override on the Token class, passed
+ * through to the class below it (`parkRefreshStateOverride`, below). Nothing in
+ * the other module's files is touched, and switching the setting off puts every piece back live, no
  * reload needed.
  *
  * Scene configuration is deliberately left alone (Dawid, 26.08: option A,

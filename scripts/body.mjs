@@ -15,6 +15,7 @@ import { remnantsOn, remnantData, setRemnantFlagsMany } from "./remnants.mjs";
 import { studentActors } from "./monokuma.mjs";
 import { log, error, isPrimaryGm, hiddenByGm, primaryGmId, announce, whisperToGms, serverNow, plural, warn, esc, listOf, ownerIdsOf } from "./utils.mjs";
 import { drpgWindow, emptyOption, tipAttr } from "./ui-kit.mjs";
+import { keepLive } from "./live.mjs";
 import { pendingBodyStore, deathStore, bodyHeardStore } from "./gm-stores.mjs";
 import { onGmStoresHydrated, gmStoresQuiet } from "./gm-store.mjs";
 import { sceneOfRoom, placeScenes, roomNames } from "./rooms.mjs";
@@ -723,6 +724,13 @@ export function witnessesOf({ tokens = [], room = null, bodies = new Set(), stud
  * Two is the count, and at least one of the two has to be unconnected to the
  * incident - a room full of nothing but killers and accomplices is not a
  * discovery.
+ *
+ * A BODY CARRIED INTO A ROOM COUNTS AS THE ROOM WALKED IN ON - THE OWNER'S DECISION OF 21.11.2026 (asked by line INVEST
+ * of 1.2.122 through the coordinator; the audit's CASE-LC5 of 1.2.42 found the choice written nowhere; the owner: yes, as
+ * the code does). Every token move on the primary comes here, the victim's token moved by Stage 6's Move the body
+ * included (cleanup.mjs), and the room read is the moved token's: a body carried into a room where two students stand,
+ * one uninvolved, is found there - each told privately and the GM asked, as a walk-in is (1.2.113's decisions A and B),
+ * while the killer's Stage 6 still runs. Tier 0 R8184 holds the move hook to it.
  */
 // Queued with the GM's own announcement - see `enqueueBodyWork`.
 export function maybeBodyFound(tokenDoc) {
@@ -912,14 +920,27 @@ export function askPendingBodies({ leaving = null } = {}) {
     return askingPending;
 }
 
+/*
+ * THE ROWS READ AGAIN AFTER EACH WINDOW (the audit's CTRL-34 and CASE-67, 1.2.122). The rows were read once, before the
+ * first window, and a second room whose witnesses reached the count while it stood wrote its row and was handed the
+ * running prompt's promise (`askPendingBodies`) - asked by nothing when that prompt ended, and by no later walk into its
+ * room, whose row stood. Each window now takes the oldest waiting row this prompt has not asked yet, read afresh, so a
+ * row written meanwhile is asked in the same prompt; a row answered "Not yet" is not asked twice by one prompt. Red at
+ * 21bf5d18 (tier 2 "1.2.122 CTRL-34"): one window for two discoveries.
+ */
 async function promptPendingBodies() {
     const { flagsHeldNow } = await import("./sheet-audit.mjs");
-    const rows = pendingBodyDiscoveries({ held: flagsHeldNow });
-    const live = new Set(rows.map(r => r.key));
-    const stale = Object.keys(pendingBodyStore.entries() ?? {}).filter(key => !live.has(key));
-    if (stale.length) await pendingBodyStore.dropMany(stale);
+    const asked = new Set();
+    const nextRow = async () => {
+        const rows = pendingBodyDiscoveries({ held: flagsHeldNow });
+        const live = new Set(rows.map(r => r.key));
+        const stale = Object.keys(pendingBodyStore.entries() ?? {}).filter(key => !live.has(key));
+        if (stale.length) await pendingBodyStore.dropMany(stale);
+        return rows.find(r => !asked.has(r.key)) ?? null;
+    };
     let announced = 0;
-    for (const row of rows) {
+    for (let row = await nextRow(); row; row = await nextRow()) {
+        asked.add(row.key);
         if (!pendingBodyStore.has(row.key) || !isPrimaryGm()) continue;
         const body = game.actors.get(row.victimId);
         /* WHERE THE BODY LIES NOW (E59 on the 1.2.115 line, CHAINS.md B-M2; R7174): the row keeps the room the witnesses saw
@@ -940,12 +961,27 @@ async function promptPendingBodies() {
             },
             rejectClose: false
         });
-        if (answer !== "announce" || !pendingBodyStore.has(row.key)) continue;
+        if (answer !== "announce") continue;
+        // Announced meanwhile by another road (the discovery window's own), the row dropped: said, not silent (REFR-39).
+        if (!pendingBodyStore.has(row.key)) {
+            ui.notifications.info(game.i18n.format("DRPG.Chapter.pendingGone", { name: body?.name ?? "?" }));
+            continue;
+        }
         const scene = (lies?.room ? lies.scene : null) ?? game.scenes.get(row.sceneId ?? "") ?? null;
         const done = await discoverBody({ room, victim: body ?? null, scene, by: "witnesses" });
         if (done) announced++;
     }
     return announced;
+}
+
+/**
+ * Whom "Whose body?" offers (the GM's Body found window): every student dead as the GMs hold it but a Monocub (the
+ * audit's CASE-68, 1.2.122). A Monocub keeps the deceased flag and walks the map, and no walk-in ever names one (the
+ * walk-in's rule, `deadIn` with `FLAGS.monocub` above); offered unmarked, a press announced "the body of X" while X walked
+ * as a Monocub. Pure but for the flags it reads (R8226).
+ */
+export function bodyCandidates(actors, { dead = isDeadForGm } = {}) {
+    return (actors ?? []).filter(a => dead(a) && !a?.getFlag?.(MODULE_ID, FLAGS.monocub));
 }
 
 /**
@@ -1164,12 +1200,15 @@ export async function openBodyDiscoveryDialog() {
     // The dead are the candidates here - the victim is normally already marked
     // by the time anybody trips over them. One this chapter has announced says so (E11 fix
     // r1-G2): `runDiscovery` refuses it a second time.
-    const dead = studentActors().filter(isDeadForGm);
-    const victims = dead.map(a => {
+    const victimsNow = () => bodyCandidates(studentActors()).map(a => {
         const name = foundry.utils.escapeHTML(a.name);
         const label = announcedAlready(a, flagsHeldNow) ? game.i18n.format("DRPG.Chapter.victimAnnounced", { name }) : name;
         return `<option value="${a.id}"${chosenVictim && a.id === chosenVictim ? " selected" : ""}>${label}</option>`;
     }).join("");
+    const victimsField = () => `<span class="drpg-body-victims"><select name="victim"${tipAttr("DRPG.Tips.Sweep.Trial.bodyVictimTooltip")}>
+                    <option value="">${game.i18n.localize("DRPG.Chapter.unnamedVictim")}</option>
+                    ${victimsNow()}
+                </select></span>`;
     /* THE NOTE SAYS WHAT THIS PRESS DOES NOW (E11 C4, 1.2.73; audit S13-27). One note said "the
        phase stays Daily Life ... until you start the Investigation" in every phase - from the
        Investigation's own footer too - and promised the doubtful Prep traces, which a world with
@@ -1189,10 +1228,7 @@ export async function openBodyDiscoveryDialog() {
             <label>${game.i18n.localize("DRPG.Chapter.whereBody")}
                 <select name="room"${tipAttr("DRPG.Tips.Sweep.Trial.bodyRoomTooltip")}>${emptyOption("DRPG.Chapter.chooseOne", { selected: !roomOptions.includes(" selected") })}${roomOptions}</select></label>
             <label>${game.i18n.localize("DRPG.Chapter.whoseBody")}
-                <select name="victim"${tipAttr("DRPG.Tips.Sweep.Trial.bodyVictimTooltip")}>
-                    <option value="">${game.i18n.localize("DRPG.Chapter.unnamedVictim")}</option>
-                    ${victims}
-                </select></label>
+                ${victimsField()}</label>
             <p class="notes">${notes.join(" ")}</p>
         </form>`,
         // A body announced to the table is not taken back (E22 rule 4): destructive, Cancel the default and first under Enter.
@@ -1208,7 +1244,14 @@ export async function openBodyDiscoveryDialog() {
             close: "cancel",
             default: "cancel"
         },
-        render: (event, dialog) => chooseFirst(dialog, "room"),
+        /* "WHOSE BODY?" FOLLOWS THE DEATHS (the audit's REFR-65, 1.2.122; the owner's "Zawsze odswiezamy okna od razu przy
+           zmianie"): the list was read once, so a death recorded while the window stood was not in it, and one announced
+           meanwhile was not marked. The select is redrawn on an actor's write and on the GMs' deaths (`deathStore`),
+           keepLive carrying the student picked. Which room? and the notes stay as drawn. */
+        render: (event, dialog) => {
+            chooseFirst(dialog, "room");
+            keepLive(dialog, { region: ".drpg-body-victims", build: victimsField, watch: { actors: true, stores: [deathStore, bodyHeardStore] } });
+        },
         rejectClose: false
     });
 

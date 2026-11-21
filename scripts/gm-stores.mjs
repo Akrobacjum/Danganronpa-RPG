@@ -24,6 +24,7 @@ import { MODULE_ID, FLAGS, TIMING, LEVEL_UP, moduleVersion } from "./config.mjs"
 import { SETTINGS, getClock, getSetting, setSetting, incidentCast, seasonEpoch, deathRecordFor } from "./settings.mjs";
 import { activeGmIds, primaryGmId, isPrimaryGm, warn, error, debug, plural, esc, localeFormat, listOf } from "./utils.mjs";
 import { emptyOption, drpgWindow, drpgConfirm, box, checkList, tipAttr, tipText, WINDOW_HELP } from "./ui-kit.mjs";
+import { keepFresh } from "./live.mjs";
 import {
     configureGmStore, openGmStoreEngine, defineGmStore, defineGmCopy, gmStoreByName, gmStoreHandles, gmStoresHydrated, whenGmStoresHydrated, gmStoresIdle,
     gmStoreHydration, gmStoreSkew, gmStoreNow, onGmStoresHydrated, flatToSection, previewSection, mergeSections, writeFields, dropKey, newerStamps, RECORD,
@@ -32,8 +33,6 @@ import {
 import { WORLD_SECRET_RULES } from "./world-secrets.mjs";
 import { plainWhat } from "./relay-guard.mjs";
 import { keepRoom } from "./notice-history.mjs";
-
-// E57 C4 (D35): the header's "?" - its own line, so a line that edits the imports above does not meet it.
 
 const isPlain = o => o !== null && typeof o === "object" && !Array.isArray(o);
 
@@ -690,17 +689,19 @@ export const pendingMurderStore = defineGmStore({
 });
 
 /**
- * THE OBSERVE DECLARATIONS WAITING FOR THEIR ROLL (E04 C7). Local: this browser's,
- * a section per world, neither synced nor backed up - the declaration and its
- * answer go through one GM, whoever `primaryGmId()` names, and last an hour at
- * most (observe.mjs). The old ones are claimed when their scene or actor is this
+ * THE OBSERVE DECLARATIONS WAITING FOR THEIR ROLL (E04 C7). Not backed up, and
+ * synced between the GMs since line INVEST of 1.2.122 (the audit's CASE-LC3 of
+ * 1.2.42): the declaration and its answer go through one GM, whoever
+ * `primaryGmId()` names, and a GM who became the primary between the two held no
+ * row, so the player's action and roll were lost (scenario 62 Q). They last an
+ * hour at most (observe.mjs). The old ones are claimed when their scene or actor is this
  * world's and they are inside that hour - weak, like every old row with no stamp
  * of the store's own: the hour is read off the entry's `at`, and a later write here
  * wins.
  */
 export const observeStore = defineGmStore({
     name: "observe", key: SETTINGS.observePending, legacyKey: SETTINGS.legacyObservePending,
-    kind: "ledger", resetGroup: "remnants", backup: false, sync: false,
+    kind: "ledger", resetGroup: "remnants", backup: false, sync: true,
     claim: legacy => {
         const cutoff = Date.now() - TIMING.pendingObserveTtlMs;
         const rows = [], left = [];
@@ -1148,6 +1149,36 @@ export const lockpickCopy = defineGmCopy({
 });
 
 /**
+ * THE HIDDEN STASHES (1.2.122 line ITEMS; the audit's CORE-25; hidden-stashes.mjs's header). A row per stash its owner
+ * built a hiding place for, keyed `<sceneId>|<actorId>|<room>`, `{ sceneId, actorId, room }`: no longer an entry of the
+ * room's region, which every browser holds. Read by vault-store.mjs `stashesOn` on a GM, written by `setStash` (through
+ * hidden-stashes.mjs `setHiddenStash`), moved by a room's rename and lifted from a world before 1.2.122 by migrate.mjs
+ * `liftHiddenStashes`. Synced; backed up, and every connected player sent their copy again after a restore (R182). NO
+ * RESET CUTS IT: the season reset makes a hidden stash an open one (vault-store.mjs `unconcealStashes`, its
+ * "stashesFound" part), which reads these rows - and the reset writes its cut before its first step, so a cut would take
+ * the rows first and leave the stashes nowhere (tier 0's UNCUT list, with this reason).
+ */
+export const hiddenStashStore = defineGmStore({
+    name: "hiddenStashes", key: SETTINGS.gmHiddenStashes,
+    kind: "ledger", backup: true, sync: true,
+    afterRestore: () => import("./hidden-stashes.mjs").then(m => m.retellHiddenStashes()),
+    exists: key => {
+        const [sceneId, actorId] = String(key).split("|");
+        return Boolean(game.scenes?.has(sceneId) && game.actors?.has(actorId));
+    }
+});
+
+/**
+ * A PLAYER'S HIDDEN STASHES (1.2.122, CORE-25): `{ actorId: [{ sceneId, room }] }` for the characters this user owns -
+ * every character for the Mastermind's player - as a GM sent them, a stamp per character, taken by the offers' rule
+ * (`offersCombine`: the answer is the user's whole set). Read by vault-store.mjs `stashesOn` on a player's browser.
+ */
+export const hiddenStashCopy = defineGmCopy({
+    name: "hiddenStashes", key: SETTINGS.mineHiddenStashes, from: "hiddenStashes", fallback: {},
+    combine: offersCombine
+});
+
+/**
  * THE EAVESDROPS (E69 C6, 13.11.2026; the owner's 10.11 (a), the plan's C6). A row per listener, keyed by the listener's
  * actor id - one channel at a time: `{ actorId, userId, sceneId, from, into, mark, active, endedAt, at }`, `from` the room
  * the listener stands in, `into` the neighbouring room whose voice channel they hear, `mark` the time of day it began in
@@ -1180,10 +1211,12 @@ export const maskStore = defineGmStore({
 /**
  * THE OPENING'S VEIL (E112, 15.11.2026; the owner's request 1: "gdy morderca rzuca, dopoki nie rzuci otwarcia, jego token
  * powinien byc niewidzialny dla ofiary, a sam morderca wyciszony"). A row per character the opening of a direct murder
- * hides, keyed by its actor id: `{ actorId, userIds, why, openedAt, tokens, at }` - `userIds` its owners, whose microphone
+ * hides, keyed by its actor id: `{ actorId, userIds, why, openedAt, hides, tokens, at }` - `userIds` its owners, whose microphone
  * the veil blocks, `why` "lights" (put up as an Eclipse ends, for a declaration the lights judge) or "opening", `openedAt`
- * the incident's, `tokens` each token's `{ sceneId, tokenId, hidden }`, its own `hidden` before the veil, written back at
- * the end (mask-gm.mjs `liftVeil`). Written, read and dropped by the primary alone; synced, so a new primary lifts what no
+ * the incident's, `hides` "module" since E112v, `tokens` each token's `{ sceneId, tokenId }`: the veil is the module's flag
+ * and the token's own `hidden` is not touched. A row from before E112v (no `hides`; 1.2.116-1.2.117) carries each token's
+ * `hidden` before the veil, and only such a row's is written back at the end (mask-gm.mjs `liftVeil`, `writtenWithHidden`; the
+ * audit's D 275, 1.2.122: until then this described the older row alone). Written, read and dropped by the primary alone; synced, so a new primary lifts what no
  * opening holds any more (`settleVeils`); not backed up: a row is worth one opening. Cut by the reset's "actions" group.
  * No player copy - a player reads the token's flag, which names nobody - and no old key.
  */
@@ -1662,8 +1695,11 @@ export const keyPlanStore = defineGmStore({
 
 /**
  * THE CASE SCHEMA (E97 C3, 11.11.2026): what a GM builds on a chapter's evidence in the Investigation panel's Map - a
- * row per node, `${chapter}:${nodeId}`: `{ kind, label, text, inputs, refutes, mode, order, made }`, and one
- * `${chapter}:meta` `{ sort, manual, run, askedAt }` (case-schema.mjs, its only reader and writer). The case worked
+ * row per node, `${chapter}:${nodeId}`, of case-schema.mjs NODE_FIELDS (32 names: `kind`, `label`, `text`, `inputs`,
+ * `refutes`, `mode`, `order`, `made` and the evidence's and the zones' own), and one `${chapter}:meta` of META_FIELDS
+ * (`sort`, `manual`, `run`, `askedAt`, `made`, `autopsies`, `autopsySent`), counted 21.11.2026. case-schema.mjs writes it
+ * alone; investigation.mjs reads its entries too (`planToClear`). The audit's D 281, 1.2.122: until then this named the
+ * first eight and four and called case-schema.mjs the only reader. The case worked
  * out ahead of the trial, so the GMs' alone (R3374); any GM writes it, an Assistant too (Q8). Backed up and synced like
  * the Key Remnant plan it is built beside, and cut with it (`resetGroup` "keyPlan"); no `exists`, as a node names no
  * document. No old key: nothing held it before 1.2.107.
@@ -2227,6 +2263,28 @@ export async function settleTieStates({ before = tiesLoadedAt, keys = null } = {
     return moved;
 }
 
+/*
+ * A "NOT TIED" RESTORED FROM ANOTHER WORLD'S FILE STAYS (1.2.122 line ITEMS; the audit's STG-10). A restore keeps a file's
+ * stamps (gm-store.mjs `fileSection`), and every load reads the traces' "not tied" against this world's first settle cut
+ * (`settleTieStates`): a case restored from another world - "Restore it here anyway" - brings rows stamped before the
+ * cut, and the next load of any GM made each of them undecided, silently, so the next death tied those red herrings to
+ * the crime. The cut is for rows written before 1.2.71 that this world's first settle could not read; a row a GM brought
+ * in by a restore of another world's file is that GM's decision now, so its "not tied" is written again with this
+ * moment's stamp, over the cut. Only a row the merge left "not tied" (a stamp of this world's that won keeps its own).
+ */
+async function keepRestoredNotTied(section) {
+    const cut = caseMark().tiesSettledBefore;
+    if (!Number.isFinite(cut)) return 0;
+    const again = {};
+    for (const [key, fields] of Object.entries(section?.e ?? {})) {
+        if (!isPlain(fields) || !Object.hasOwn(fields, "tiedToCrime")) continue;
+        if (remnantStore.get(key)?.tiedToCrime === false && remnantStore.stampOf(key, "tiedToCrime") < cut) again[key] = { tiedToCrime: false };
+    }
+    const n = Object.keys(again).length;
+    if (n) await remnantStore.patchMany(again, { ifLive: true });
+    return n;
+}
+
 /** Whether the stores whose rows mirror world documents - the bullets', the traces' - hold any. Pure over the handles. */
 export function caseHasRows(handles) {
     return handles.some(h => ["bullets", "remnants"].includes(h.name) && Object.keys(h.entries()).length > 0);
@@ -2295,16 +2353,27 @@ export async function backupCase({ ask = false } = {}) {
         return null;
     }
     if (ask) {
-        const waiting = gmStoreHydration().waiting.map(id => game.users.get(id)?.name ?? id);
-        const early = !gmStoresHydrated() && waiting.length;
+        /* THE EARLY WARNING FOLLOWS THE COPIES (1.2.122 line ITEMS; the audit's REFR-51, the Back up question's part): it
+           was read at the open, so the other GMs' copies arriving meanwhile left "not all copies have arrived" standing
+           over a file that holds them. Read again while the question stands (`followWhileOpen`): the engine's hydration
+           fires no hook of its own. */
+        const earlyHtml = () => {
+            const waiting = gmStoreHydration().waiting.map(id => game.users.get(id)?.name ?? id);
+            return !gmStoresHydrated() && waiting.length
+                ? box("warning", `<p>${esc(game.i18n.format("DRPG.Case.backupEarly", { names: listOf(waiting) }))}</p>`) : "";
+        };
         // The kit's question (E21 C2b): the yes says what it does, Cancel the role's word.
         const yes = await drpgConfirm({
             classes: ["drpg-panel", "drpg-window-backup"],
             yes: { label: game.i18n.localize("DRPG.Case.backupNow") },
             title: game.i18n.localize("DRPG.Case.backupTitle"),
             // The early copy's warning a kit box since E47-C3 (E21's carried warning site, homed in E47).
-            body: `<p>${esc(game.i18n.localize("DRPG.Case.backupWhat"))}</p>${early
-                ? box("warning", `<p>${esc(game.i18n.format("DRPG.Case.backupEarly", { names: listOf(waiting) }))}</p>`) : ""}`,
+            body: `<p>${esc(game.i18n.localize("DRPG.Case.backupWhat"))}</p><div data-drpg-backup-early>${earlyHtml()}</div>`,
+            render: (event, dialog) => followWhileOpen(dialog, root => {
+                const slot = root.querySelector("[data-drpg-backup-early]");
+                const html = earlyHtml();
+                if (slot && slot.innerHTML !== html) slot.innerHTML = html;
+            }),
             rejectClose: false
         });
         if (!yes) return null;
@@ -2385,6 +2454,31 @@ function takenSection(section, otherWorld) {
     return fileSection(section, { now: gmStoreNow(), skew: TIMING.gmStoreSkewMs, otherWorld });
 }
 
+/*
+ * A FILE'S TOMBSTONES THE COMPACTION WOULD REMOVE STAY OUT (1.2.122 line ITEMS; the audit's CASE-53). `compactGmStores`
+ * removes, on every GM, a tombstone older than `TIMING.gmStoreTombstoneDays` whose subject is gone - and the server copy,
+ * a holder that never runs it, gave every one back at the next read (at each load, and before each of the primary's
+ * writes), counted as a restore that changed something: the tombstones went to the other GMs again, `afterRestore` sent
+ * the players their copies again and the Faint pass ran, from the day a world held such a tombstone. The same rule is
+ * held to the file's section before it is merged: a tombstone of a store that states `exists`, older than the bound,
+ * whose subject is gone and which this browser holds no live row for, is not taken. A subject that cannot be looked up
+ * is kept, as the compaction keeps it.
+ */
+function withoutCompacted(section, handle, now = gmStoreNow()) {
+    const exists = handle.spec.exists;
+    const dead = section?.d;
+    if (typeof exists !== "function" || !dead || typeof dead !== "object") return section;
+    const before = now - TIMING.gmStoreTombstoneDays * 24 * 60 * 60 * 1000;
+    const drop = Object.keys(dead).filter(k => {
+        if (!(dead[k] < before) || Object.hasOwn(section.e ?? {}, k) || handle.has(k)) return false;
+        try { return !exists(k); } catch { return false; }
+    });
+    if (!drop.length) return section;
+    const d = { ...dead };
+    for (const k of drop) delete d[k];
+    return { ...section, d };
+}
+
 /** Whether a read file names a world other than this one. */
 const fromOtherWorld = read => Boolean(read.world?.id && read.world.id !== game.world.id);
 
@@ -2456,9 +2550,15 @@ export async function restoreCase(file, { otherWorld = false, beforeCut = false,
             counts[name] = { skipped: true };
             continue;
         }
-        const { section, clamped } = takenSection(raw, foreign);
-        const preview = previewSection(handle.section(), section, handle.spec);
+        const { section: taken, clamped } = takenSection(raw, foreign);
+        const section = withoutCompacted(taken, handle);
+        /* THE PREVIEW ONLY WHERE IT IS READ (1.2.122 line ITEMS; the audit's CASE-51). Restore's preview clones the whole
+           section once per row of the file (`previewSection`): measured by the audit at 0.6 s for 600 answer keys and
+           2.5 s for 1200, in Node, and a quiet read - the server copy, at every GM's load and before every write on the
+           primary - used none of it. It is computed for a restore the GM sees, or one that fills under the cut. */
+        const preview = !quiet || beforeCut ? previewSection(handle.section(), section, handle.spec) : { beforeCutKeys: [], beforeCut: 0 };
         const changed = await handle.mergeIn(section, { source: "restore" });
+        if (foreign && handle === remnantStore) await keepRestoredNotTied(section);
         let filled = 0;
         if (beforeCut) {
             for (const k of preview.beforeCutKeys) {
@@ -2556,7 +2656,7 @@ export async function fillBulletsFromTraces() {
  * (`game.drpg.gmStoreHealth()`). What it cannot see - the Mastermind, the offers,
  * the Blackened register - it says it cannot see.
  */
-export async function gmStoreHealth() {
+export async function gmStoreHealth({ bytes = true } = {}) {
     if (!game.user?.isGM) return null;
     const rows = [];
     const add = (id, level, key, data = {}) => rows.push({ id, level, key, data });
@@ -2669,10 +2769,13 @@ export async function gmStoreHealth() {
     if (clamped) add("clamped", "info", "DRPG.Case.row.clamped", { n: clamped });
     const skew = Object.entries(gmStoreSkew());
     if (skew.length) add("skew", "info", "DRPG.Case.row.skew", { names: listOf(skew.map(([id, m]) => `${game.users.get(id)?.name ?? id} (+${m} min)`)) });
-    const status = gmStoreStatus();
-    add("bytes", status.total > 3 * 1024 * 1024 ? "conflict" : "info", "DRPG.Case.row.bytes",
-        { stores: Math.round(status.stores / 1024), total: Math.round(status.total / 1024) });
-    add("notices", "info", "DRPG.Case.row.notices", { notices: Math.round(status.notices / 1024) });
+    // The bytes read every store's whole key and parse it (`gmStoreStatus`): left out of the quiet recheck (CASE-72).
+    if (bytes) {
+        const status = gmStoreStatus();
+        add("bytes", status.total > 3 * 1024 * 1024 ? "conflict" : "info", "DRPG.Case.row.bytes",
+            { stores: Math.round(status.stores / 1024), total: Math.round(status.total / 1024) });
+        add("notices", "info", "DRPG.Case.row.notices", { notices: Math.round(status.notices / 1024) });
+    }
     const mark = caseMark();
     add("lastBackup", "info", mark.lastBackupAt ? "DRPG.Case.row.lastBackup" : "DRPG.Case.row.neverBackedUp",
         { when: mark.lastBackupAt ? localeFormat("dateTime", mark.lastBackupAt) : "", who: mark.lastBackupBy ?? "" });
@@ -2741,6 +2844,18 @@ export function gmStoreStatus(client = game.settings?.storage?.get?.("client")) 
 
 let lastHealth = null;
 let healthOpen = false;
+/** How long the quiet health recheck gathers the changes of the backed-up stores before it runs (CASE-72). Under the
+    1.5 s scenario 61's Z3 gives a restore's merge to clear the red line (2 s read red there, 21.11.2026). */
+const RECHECK_GATHER_MS = 750;
+
+/* THE LAST REPORT, AND A HOOK WHEN IT CHANGES (1.2.122 line ITEMS; the audit's REFR-46). The GM panel's red case line
+   reads `caseWarning`, and the report was a variable set with no event: a restore that filled the case left the red line
+   until an unrelated redraw. `drpgCaseHealthChanged` is called when what the line reads changes. */
+function setLastHealth(report) {
+    const was = Boolean(lastHealth?.missing);
+    lastHealth = report;
+    if (was !== Boolean(report?.missing)) Hooks.callAll("drpgCaseHealthChanged", report);
+}
 
 /** The panel's red line: what the last check found missing, or nothing once it passes. */
 export function caseWarning() {
@@ -2757,7 +2872,7 @@ export function caseWarning() {
 export async function runHealthCheck() {
     if (!isPrimaryGm()) return null;
     const report = await gmStoreHealth();
-    lastHealth = report;
+    setLastHealth(report);
     const decide = report?.rows?.some(r => r.id === "mastermindCleared");
     if ((!report?.missing && !decide) || healthOpen) return report;
     healthOpen = true;
@@ -2823,8 +2938,16 @@ export async function runHealthCheck() {
             const pick = game.actors.get(shown.pick);
             if (choice === "clearMastermind") await m.clearMastermind();
             else if (pick) await m.setMastermind(pick);
-            lastHealth = await gmStoreHealth();
+            setLastHealth(await gmStoreHealth());
             if (!report.missing) return lastHealth;
+        }
+        /* READ AGAIN AT CONTINUE (1.2.122 line ITEMS; the audit's REFR-51, the health window's part). The quiet recheck
+           stands aside while this window is open, so a row another GM's copy filled meanwhile was still named after
+           Continue: the red line stayed and the toast said the case was incomplete. The case as it is now decides both. */
+        const now = await gmStoreHealth();
+        if (now) {
+            setLastHealth(now);
+            if (!now.missing) return now;
         }
         ui.notifications.warn(game.i18n.localize("DRPG.Case.continued"), { permanent: true });
     } finally {
@@ -2858,19 +2981,42 @@ export function healthBody(report, { restorable = false } = {}) {
  * merge: the same two functions the two tiles called, nothing of the engine (gm-store.mjs) touched. The last copy's age
  * a fact row; Close. GM-only, as both are. Answers what the action answered, or null when closed.
  */
+/* A window's facts read again every half second while it stands, for facts that fire no hook (the engine's hydration,
+   case-copy.mjs's memory; 1.2.122, REFR-51). `paint` writes only what changed. Ends when the window leaves the page. */
+const FOLLOW_MS = 500;
+function followWhileOpen(dialog, paint) {
+    const timer = setInterval(() => {
+        const root = dialog?.element;
+        if (!root?.isConnected) return clearInterval(timer);
+        try { paint(root); } catch (err) { clearInterval(timer); error("A case window could not read its facts again", err); }
+    }, FOLLOW_MS);
+}
+
 export async function openCaseWindow() {
     if (!game.user?.isGM) {
         ui.notifications.warn(game.i18n.localize("DRPG.Case.gmOnly"));
         return null;
     }
-    const mark = caseMark();
-    const age = mark.lastBackupAt
-        ? game.i18n.format("DRPG.Case.row.lastBackup", { when: localeFormat("dateTime", mark.lastBackupAt), who: mark.lastBackupBy ?? "" })
-        : game.i18n.localize("DRPG.Case.row.neverBackedUp");
+    const ageText = () => {
+        const mark = caseMark();
+        return mark.lastBackupAt
+            ? game.i18n.format("DRPG.Case.row.lastBackup", { when: localeFormat("dateTime", mark.lastBackupAt), who: mark.lastBackupBy ?? "" })
+            : game.i18n.localize("DRPG.Case.row.neverBackedUp");
+    };
+    const age = ageText();
     /* THE SERVER COPY (E111, 14.11.2026): its state in a second fact row, and "Write the copy now" - a GM's own press,
        which reads the folder first and then writes (case-copy.mjs `writeServerCopy({ explicit: true })`). */
     const copies = await import("./case-copy.mjs");
     const copyLine = copyLineText(copies.copyStatus());
+    /* BOTH LINES FOLLOW (1.2.122 line ITEMS; the audit's REFR-51, the case window's part): another GM's Back up and a
+       copy written or found meanwhile left the lines as the window first read them. Read again while it stands
+       (`followWhileOpen`): the server copy's state is case-copy.mjs's memory, which fires no hook. */
+    const paintCase = root => {
+        for (const [selector, text] of [["[data-drpg-case-age]", ageText()], ["[data-drpg-case-server]", copyLineText(copies.copyStatus())]]) {
+            const line = root.querySelector(selector);
+            if (line && line.textContent !== text) line.textContent = text;
+        }
+    };
     const choice = await drpgWindow({
         help: WINDOW_HELP.theCase,
         title: game.i18n.localize("DRPG.Case.tile"),
@@ -2878,6 +3024,7 @@ export async function openCaseWindow() {
         // The age a fact row in the kit's body ink (components.css `.drpg-briefing-facts`), the health report's own words.
         body: `<p class="drpg-briefing-facts" data-drpg-case-age>${esc(age)}</p>
             <p class="drpg-briefing-facts" data-drpg-case-server>${esc(copyLine)}</p>`,
+        render: (event, dialog) => followWhileOpen(dialog, paintCase),
         footer: {
             primary: { action: "backup", label: game.i18n.localize("DRPG.Case.backup"), tooltip: tipText("DRPG.Tips.Gm.backUpTooltip") },
             secondary: [{ action: "restore", label: game.i18n.localize("DRPG.Case.restoreFromFile"), tooltip: tipText("DRPG.Tips.Gm.restoreFromAFileTooltip") },
@@ -2937,7 +3084,13 @@ export async function enterCastByHand() {
         },
         rejectClose: false
     });
-    if (!answer?.killerId || !answer?.victimId) return null;
+    if (!answer || answer === "cancel") return null;
+    // Said, not dropped (1.2.122 line ITEMS; the audit's CTRL-57): Enter with the killer or the victim at Nobody wrote
+    // nothing and the health window came back with the same row, with no word why.
+    if (!answer.killerId || !answer.victimId) {
+        ui.notifications.warn(game.i18n.localize("DRPG.Case.castNeedsTwo"));
+        return null;
+    }
     const { enterCast } = await import("./murder.mjs");
     return enterCast(answer);
 }
@@ -2954,6 +3107,9 @@ function chooseCaseFile() {
             try { resolve(await foundry.utils.readTextFromFile(file)); }
             catch (err) { error("Could not read the case file", err); resolve(null); }
         }, { once: true });
+        /* A DISMISSED DIALOG ANSWERS NULL TOO (1.2.122 line ITEMS; the audit's CASE-56): the browser fires `cancel` on the
+           input and no `change`, so the promise never settled and the GM panel, waiting on the tile, never came back. */
+        input.addEventListener("cancel", () => resolve(null), { once: true });
         input.click();
     });
 }
@@ -2973,7 +3129,7 @@ export async function openRestoreDialog(text = null) {
         return null;
     }
     const known = Object.entries(preview.stores).filter(([, c]) => !c.unknown);
-    const rows = known.map(([name, c]) => {
+    const rowsOf = entries => entries.map(([name, c]) => {
         const store = storeLabel(name);
         const line = c.record ? game.i18n.format("DRPG.Case.previewRecord", { store })
             : game.i18n.format("DRPG.Case.previewStore", { store, add: c.add, refresh: c.refresh, kept: c.keptNewerHere, cut: c.beforeCut, remove: c.remove });
@@ -2981,13 +3137,29 @@ export async function openRestoreDialog(text = null) {
             c.notThisWorld ? plural("DRPG.Case.previewNotThisWorld", { n: c.notThisWorld }) : ""].filter(Boolean);
         return `<li>${esc([line, ...more].join(" "))}</li>`;
     }).join("");
+    const rows = rowsOf(known);
+    /* THE COUNTS FOLLOW THE STORES (1.2.122 line ITEMS; the audit's REFR-51, the restore preview's part): "adds 3,
+       refreshes 2" was counted against the stores at the open, and another GM's write meanwhile changed what Restore
+       would do. Counted again on every change of a store the file holds a section of; the ticks below the list are
+       not redrawn, so what the GM ticked stays. Which other-world records are offered is read at the open. */
+    const followCounts = dialog => keepFresh(dialog, {
+        run: root => {
+            const list = root.querySelector("[data-drpg-restore-rows]");
+            const now = previewRestore(file);
+            if (!list || now.refused) return;
+            const html = rowsOf(Object.entries(now.stores).filter(([, c]) => !c.unknown));
+            if (list.innerHTML !== html) list.innerHTML = html;
+        },
+        watch: { stores: gmStoreHandles().filter(h => h.spec.backup) }
+    });
     // `tick`, not `box` (E47-C3): the kit's `box` is imported into this file.
     const tick = (name, label) => `<label class="drpg-checkbox"><input type="checkbox" name="${name}" /> ${esc(label)}</label>`;
     const records = known.filter(([, c]) => c.record).map(([name]) => name);
     const answer = await drpgWindow({
         title: game.i18n.localize("DRPG.Case.restoreTitle"),
         classes: ["drpg-panel", "drpg-window-restore-case"],
-        body: `<form><ul>${rows}</ul>
+        render: (event, dialog) => followCounts(dialog),
+        body: `<form><ul data-drpg-restore-rows>${rows}</ul>
             ${preview.otherWorld ? tick("otherWorld", game.i18n.format("DRPG.Case.otherWorld", { title: preview.world?.title ?? preview.world?.id ?? "?" })) : ""}
             ${records.map(name => tick(`record-${name}`, game.i18n.format("DRPG.Case.otherWorldRecord", { store: storeLabel(name) }))).join("")}
             ${tick("beforeCut", game.i18n.localize("DRPG.Case.beforeCut"))}
@@ -3028,14 +3200,18 @@ export function registerCaseHealth() {
        missing, a change to a backed-up store's key checks again - quietly, no window -
        and the line goes once a check passes. A change that lands while one runs asks
        for one more: a restore's stores arrive one flush at a time. */
-    let rechecking = false, again = false;
+    /* GATHERED, AND WITHOUT THE BYTES (1.2.122 line ITEMS; the audit's CASE-72). Every write of a backed-up store on the
+       primary ran the whole check again while a row was missing - every scene's traces, every bullet, and a read and
+       parse of every store's key for a byte count no red line reads. The changes of 0.75 s are one recheck now, and
+       the recheck leaves the bytes out (`gmStoreHealth({ bytes: false })`; the window and diagnostics still count them). */
+    let rechecking = false, again = false, gathering = null;
     const recheck = async () => {
         rechecking = true;
         try {
             do {
                 again = false;
-                const report = await gmStoreHealth();
-                if (report && !healthOpen) lastHealth = report;
+                const report = await gmStoreHealth({ bytes: false });
+                if (report && !healthOpen) setLastHealth(report);
             } while (again && lastHealth?.missing);
         } catch (err) {
             error("The case health check could not run", err);
@@ -3047,6 +3223,6 @@ export function registerCaseHealth() {
         if (!lastHealth?.missing || healthOpen || !isPrimaryGm()) return;
         if (!gmStoreHandles().some(h => h.spec.backup && key === `${MODULE_ID}.${h.spec.key}`)) return;
         if (rechecking) again = true;
-        else void recheck();
+        else if (!gathering) gathering = setTimeout(() => { gathering = null; void recheck(); }, RECHECK_GATHER_MS);
     });
 }

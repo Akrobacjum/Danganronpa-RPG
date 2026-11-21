@@ -21,7 +21,9 @@
  *          tokenami w logic dive nie skracalo czasu do konkluzji glosowania"; until then everybody on one side after 10 s
  *          closed it, R7840) - then `pause` 5 s with the count on the floor, then the judgement against the truth the step hands in (`ctx.truth`, never on the
  *          floor): right -> the next question (`ctx.next`) or, after the last, the set's Finding; wrong, or a tie (0:0
- *          too), ends the set and shows no truth (TR3, TR27). Skip question goes on with no answer kept.
+ *          too), ends the set (TR3, TR27): a tie shows no truth; a wrong answer's card names the count, and with the
+ *          question's two answers that tells the class the other was right (1.2.122, STG-74; the owner's default asked).
+ *          Skip question goes on with no answer kept.
  *   scrum  Scrum Debate, three phases in the owner's order (13.11.2026, after a table on 1.2.112: "a moment to pick
  *          sides, a moment for each side to confer in separate LiveKit rooms, and then a moment for both sides to
  *          debate"). `setup` (Sides) 45 s for the camps to form; its end - the clock, or the GM's Skip ("Sides set") -
@@ -67,7 +69,7 @@ export function countsOf(sides) {
 }
 
 /**
- * THE STRAW POLL'S RULE (TR3 = 2, the plan's 2/3; R3907): the larger side when it holds at least two thirds of those
+ * THE STRAW POLL'S RULE (TR3 = 2, the plan's 2/3; R3906): the larger side when it holds at least two thirds of those
  * counted (`3 * larger >= 2 * counted`, whole numbers, no rounding), else a split. Nobody counted is a split too.
  * `{ answer: "a" | "b" | null, split }`.
  */
@@ -80,7 +82,7 @@ export function strawVerdict(counts) {
 }
 
 /**
- * LOGIC DIVE'S JUDGEMENT (TR3 = 2, TR27: simple majority; a tie, 0:0 too, is wrong; R3910): "right" when the larger side
+ * LOGIC DIVE'S JUDGEMENT (TR3 = 2, TR27: simple majority; a tie, 0:0 too, is wrong; R3907): "right" when the larger side
  * is `truth`, "tie" when the sides are equal, else "wrong". A truth that is neither side judges every answer wrong.
  */
 export function diveVerdict(counts, truth) {
@@ -95,7 +97,7 @@ export function scrumTurns(a, b) {
 }
 
 /**
- * A Scrum turn's seconds (`scrumTurnSeconds`; R3913): the debate's budget (`budgetSeconds`, 300) over its turns, held
+ * A Scrum turn's seconds (`scrumTurnSeconds`; R3908): the debate's budget (`budgetSeconds`, 300) over its turns, held
  * between `minTurn` (20) and `maxTurn` (40). 3:2 -> 40 s, 4:3 -> 37.5 s, 8:7 and 10:5 -> 20 s. 0 with nobody in a camp.
  */
 export function scrumTurnSeconds(a, b) {
@@ -226,7 +228,10 @@ function diveQuestion(floor, next, now, cards = []) {
     // The next question told as the first was (trial-floor.mjs `zoneStartInStep`'s card): its words and both answers.
     const told = card(floor.mode, "DRPG.Zones.dive.opened", { question, a: answers.a, b: answers.b, n: String(index + 1),
         total: String(zone.set?.total ?? 1), seconds: String(seconds) });
-    return { floor: phase(floor, "vote", seconds, now, { question, answers, counts: null, set: { ...zone.set, index } }), cards: [...cards, told] };
+    /* THE PICKS GO WITH THE QUESTION (1.2.122, CASE-46, CTRL-06): a participant with no hall token answers each question by
+       the side-pick window, as a token holder answers it by standing, so the side picked for the question before is not
+       counted for this one; the window is offered again for it (trial-zones-ui.mjs `offerSidePick`, keyed by the index). */
+    return { floor: phase(floor, "vote", seconds, now, { question, answers, counts: null, picks: {}, set: { ...zone.set, index } }), cards: [...cards, told] };
 }
 
 /**

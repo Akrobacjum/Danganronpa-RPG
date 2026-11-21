@@ -282,10 +282,11 @@ export function deadClasses(css, sources) {
     }
     /*
      * A CLASS THAT ONLY EVER APPEARS IN A NEGATION IS A SWITCH, NOT A STYLE.
-     * `:not(.drpg-compact)` is an opt-out written for a window that wants
-     * the plain treatment; nothing wears it today and the rules it guards
-     * work exactly as intended because of that. Asking for an emitter would
-     * be asking somebody to add a class in order to keep a test quiet.
+     * `:not(.drpg-compact)` was such an opt-out until no sheet held it any
+     * more (danganronpa.css's note where it went; the audit of 1.2.118, UI-15:
+     * 0 selectors name it). A switch written that way again is read the same:
+     * asking for an emitter would be asking somebody to add a class in order to
+     * keep a test quiet.
      */
     const switches = new Set();
     for (const m of css.matchAll(/:not\(([^)]*)\)/g)) {

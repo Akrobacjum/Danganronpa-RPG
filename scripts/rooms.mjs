@@ -18,10 +18,9 @@
  * `roomRegions(scene, name)` returns every piece, `roomFlag` reads a flag as OR over them,
  * `setRoomFlag` writes it to every region of the name that can be a room (`writablePieces`;
  * E12 fix r1-G1, 11.10.2026: until then a Teleport of the name took the mark too, which
- * `canBeRoom` refused to read and nobody had decided). E12 C1 adds the predicate and its
- * writers; the readers that still take `filter(r => r.name)` move onto it in C2a and C2b, so
- * in this commit the flag changes what Room Setup and Season setup show and nothing a rule
- * decides.
+ * `canBeRoom` refused to read and nobody had decided). E12 C1 added the predicate and its
+ * writers, and C2a and C2b moved every reader onto it (`roomPieces`, `isRoomWith`), so the flag
+ * decides every rule that asks about a room (the audit's D198: this said "in this commit").
  *
  * A LEAF. This file imports `config.mjs` and nothing else, so every module may read rooms
  * through it without a cycle (R161 counts static imports). It does not import settings.mjs,
@@ -647,7 +646,9 @@ export const CAMERA_READERS = Object.freeze({
     /* A planned Remnant's room against the working scene's, to say in one line that it is gone (13.11.2026), as New Remnant
        then reads the same scene. */
     "investigation.mjs#placeIncident": "window",
-    "season-setup.mjs#steps": "window",
+    /* The scene the Season checklist's rooms row judges, and its Check rooms checks (1.2.122, CASE-70; `steps` and
+       `wireRoomCheck` read it through this since). */
+    "season-setup.mjs#roomRowScene": "window",
     "room-setup.mjs#openRoomSetupDialog": "window",
 
     "diagnostics.mjs#voiceDiagnosis": "diagnose",
@@ -658,8 +659,6 @@ export const CAMERA_READERS = Object.freeze({
     "fog-diagnostics.mjs#sceneUncoveredPercent": "diagnose",
     /* Its worst floor by name (E20 fix round, C-4): the same reading, floor by floor. */
     "fog-diagnostics.mjs#sceneUncoveredShare": "diagnose",
-    /* Season setup's Check rooms (E20 C1): it records the errors of the map check under the scene on screen. */
-    "season-setup.mjs#wireRoomCheck": "diagnose",
     "fog.mjs#diagnoseFog": "diagnose",
     "fog.mjs#doorwayReport": "diagnose",
     "fog.mjs#whyBlack": "diagnose",

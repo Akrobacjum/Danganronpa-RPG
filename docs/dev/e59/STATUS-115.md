@@ -70,7 +70,9 @@ Then every break that needs no Foundry and no design closed, red first, R7172-R7
 
 Left: B-M4 is Q-115-9 (new, a design question); B-H6 and B-M6 are E109's (H20, H11); B-S11's "five rows" half is
 unverified. The registry stamps R7160-R7171 E56 (the tool stamps the first stage not shipped, and a written row keeps
-its stamp); R7172 on are stamped E59 with `--stage E59`. Not hand-edited.
+its stamp); R7172 on are stamped E59 with `--stage E59`. Not hand-edited. (Read again 21.11.2026, STG-99: the registry
+stamped all of R7160-R7182 E56 - the `--stage E59` stamp did not hold. tools/registry.mjs `SINCE_CORRECTED` now stamps
+them, and R6750-R6756, E59.)
 
 ## For E83 (so it does not count these twice)
 

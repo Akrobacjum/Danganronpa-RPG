@@ -541,6 +541,8 @@ export const DrpgApi = {
     dropRemnant,
     placeRemnant: async (data = {}, options = {}) => (game.user.isGM && !sceneNamed("placeRemnant", data?.scene
         ?? (data?.sceneId ? game.scenes.get(data.sceneId) : null))) ? null : placeRemnant(data, options),
+    /** A scene's Remnants, and a room's: one frozen ref each (remnants.mjs `traceRefsOf`), not TokenDocuments, since
+        1.2.98 (E60 C1b) - no `update` or `delete`; a GM's ref carries the token as `document` (the GM handbook, 20.5). */
     remnantsOn,
     remnantsInRoom,
     revealRemnant,
@@ -1047,8 +1049,9 @@ export const DrpgApi = {
     applyFinalVerdict,
 
     /* ---- the Class Trial ---------------------------------------------------
-     * The floor is a shared clock in world data. The ballots are not: they are
-     * addressed to the GMs over the socket and counted in memory, because
+     * The floor is a shared clock in world data. The ballots are not: since
+     * 1.2.71 a ballot travels on the bridge and is kept in the GMs' store
+     * `ballotStore` (vote.mjs; in a collecting GM's memory until then), because
      * "wyniki jawne, głosy nie" and world data is not private (D6). */
 
     /* The floor is three modes rather than a queue: an open debate, the minute
@@ -1363,7 +1366,7 @@ export const DrpgApi = {
 
     /* ---- actions ------------------------------------------------------- */
 
-    /** 2 per time of day, or 1 while all Health is marked. */
+    /** The actions a student has this time of day: actions.mjs `actionBudget` (a wound takes one in Daily Life and the Investigation, a Monocub loses none, a darkened time of day takes one more, floored). */
     actionBudget,
     actionsLeft,
     actionsMax,
@@ -1477,7 +1480,7 @@ export const DrpgApi = {
     /** Check every room on this scene against the rules the fog depends on:
      *  overlapping rooms, borders drawn away from their walls, openings too
      *  long to be doorways, corners off the grid. Reports, never repairs - the
-     *  map belongs to the GM. Also on a button in Room setup ▸ Fog. */
+     *  map belongs to the GM. Also the Check rooms button of the Season checklist's rooms row (season-setup.mjs `wireRoomCheck`). */
     checkRegions,
     /** What a screen reader cannot read: every kind of control in the module's own
      *  chrome that carries no name, after the sweep in a11y.mjs has done what it
@@ -1630,8 +1633,9 @@ export const DrpgApi = {
  *
  * So every API function that takes an actor positionally now accepts either.
  * The set is derived from the functions themselves rather than hand-listed: a
- * parameter literally named `actor` is the module's own convention, used
- * consistently across all 117 of them, and deriving it means a function added
+ * parameter literally named `actor` is the module's own convention (about 107 of
+ * game.drpg's 418 names take one, by the audit's static pass of the 1.2.118 tree - a
+ * script over source text, approximate; "117" was an older count), and deriving it means a function added
  * next year is covered without anybody remembering to update a list.
  *
  * This reads function source, which is safe here for a specific reason: the
@@ -1665,17 +1669,20 @@ export function asActor(value, key = "", actors = game.actors) {
     return actors.getName(value) ?? named[0];
 }
 
-/** Which positional parameter, if any, is the actor. */
-function actorPosition(fn) {
+/** Which positional parameter, if any, is the actor. Exported for R8104 (1.2.122). */
+export function actorPosition(fn) {
     try {
         const src = Function.prototype.toString.call(fn);
         const open = src.indexOf("(");
         if (open < 0) return -1;
         const params = src.slice(open + 1, src.indexOf(")", open));
         // Destructured or defaulted parameters are left alone: `{actorId}` is an
-        // options bag, not an actor, and must not be coerced.
+        // options bag, not an actor, and must not be coerced. A first parameter
+        // named `actor` is the actor with a default or without one (1.2.122; the
+        // audit of 1.2.118, CORE-44): `openItemManager(actor = null, { give } = {})`
+        // was handed on unwrapped, so manageItems("Aoi") reached it as a string.
         if (params.includes("{")) {
-            const flat = params.split(",").map(p => p.trim());
+            const flat = params.split(",").map(p => p.split("=")[0].trim());
             return flat[0] === "actor" ? 0 : -1;
         }
         return params.split(",").map(p => p.split("=")[0].trim()).indexOf("actor");

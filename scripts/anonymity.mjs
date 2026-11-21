@@ -52,6 +52,7 @@ import { SETTINGS } from "./settings.mjs";
 import { isDeadForGm, isDeceased, BODY_ANNOUNCED_HOOK } from "./chapter.mjs";
 import { isStashed } from "./inventory.mjs";
 import { isTruthBullet } from "./truth-bullets.mjs";
+import { chooseOwnStudent, ownedStudents } from "./monokuma.mjs";
 import { whisperToGms, gmReport, isPrimaryGm, activeGmIds, debug, error, plural, esc, listOf } from "./utils.mjs";
 import { sheetMode } from "./sheet.mjs";
 import { isMaskedActor } from "./mask-gm.mjs";
@@ -124,8 +125,17 @@ function onRenderSheet(app, element) {
             app?.close?.({ force: true, animate: false })?.catch?.(() => {});
             return;
         }
-        if (!enforcing()) return;
         if (!actor || actor.type !== "character") return;
+        if (!enforcing()) {
+            /* TAKE FROM THE BODY WITH THE SWITCH OFF (1.2.122, CTRL-33): its one opener was drawn at the end of the
+               redaction, so in a world with "Keep character sheets anonymous" off a body could not be searched by any
+               player. The sheet is whole then; only the Take's button is added to its inventory, for a viewer who does
+               not own it (the sheet's one mode, as below). */
+            if (root && sheetMode(actor, game.user, { app }).viewer) {
+                addLootButton(root, actor)?.catch?.(err => error("Could not read whether the body's Take is open", err));
+            }
+            return;
+        }
 
         // Nobody may open the settings sheet, their own included (Dawid,
         // 27.08). It is Daggerheart's configuration for the character, and it
@@ -294,22 +304,39 @@ export function buildBodyLoot(root, actor) {
         list.append(row);
     }
 
-    const foot = document.createElement("p");
-    foot.className = "drpg-loot-foot";
-    const open = document.createElement("button");
-    open.type = "button";
-    open.className = "drpg-mini-button drpg-loot-open";
-    open.innerHTML = `<i class="fa-solid fa-hand" inert></i> ${foundry.utils.escapeHTML(game.i18n.localize("DRPG.Loot.open"))}`;
-    open.dataset.tooltip = game.i18n.localize("DRPG.Loot.openTooltip");
-    open.addEventListener("click", event => {
-        event.preventDefault();
-        event.stopPropagation();
-        openBodyLoot(actor).catch(err => error("Could not open Take from the Body", err));
-    });
-    foot.append(open);
+    const foot = lootFoot(actor, () => openBodyLoot(actor));
 
     box.append(list, foot);
     pane.replaceChildren(box);
+}
+
+/** Take from the Body's button in its line; `open` its press (the window opened for `actor`). */
+function lootFoot(actor, open = () => openBodyLoot(actor)) {
+    const foot = document.createElement("p");
+    foot.className = "drpg-loot-foot";
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "drpg-mini-button drpg-loot-open";
+    button.innerHTML = `<i class="fa-solid fa-hand" inert></i> ${foundry.utils.escapeHTML(game.i18n.localize("DRPG.Loot.open"))}`;
+    button.dataset.tooltip = game.i18n.localize("DRPG.Loot.openTooltip");
+    button.addEventListener("click", event => {
+        event.preventDefault();
+        event.stopPropagation();
+        Promise.resolve().then(open).catch(err => error("Could not open Take from the Body", err));
+    });
+    foot.append(button);
+    return foot;
+}
+
+/**
+ * The Take's button alone on a whole sheet (anonymity off, CTRL-33): a body this browser knows of, its line put at the
+ * top of the inventory's pane, once a render. The window judges the gate as it does on a redacted sheet.
+ */
+export async function addLootButton(root, actor) {
+    if (!isDeadForGm(actor)) return;
+    const pane = root.querySelector('section.tab[data-tab="inventory"]');
+    if (!pane || pane.querySelector(".drpg-loot-open")) return;
+    pane.prepend(lootFoot(actor, () => openBodyLoot(actor)));
 }
 
 /** What a body carries that may be taken: the module's items, no Truth Bullet (they die with it), nothing in a stash. */
@@ -573,19 +600,17 @@ async function takeFromBody(body, items) {
 }
 
 /**
- * The character this viewer is playing.
- *
- * By OWNERSHIP first, then by `game.user.character` - the order hud.mjs settled
- * on and for the reason written out there: nothing in this game asks anybody to
- * set the actor in Foundry's user configuration, so a table that assigns
- * characters the module's own way leaves it null for every player.
+ * The character this viewer is playing: the one answer the clock, the room tile and 'Where are we' give (monokuma.mjs
+ * `chooseOwnStudent`, E51 C4, as hud.mjs `viewerActor` asks it) - the assigned student, else the only one owned, else
+ * the one whose token this player controls, else the first by name, never a Spectator (1.2.122, CASE-50). Until 1.2.122
+ * a rule of its own took the first owned actor in the world's order, so a player with two students who walked the second
+ * to a body asked the Take for the first, who stood elsewhere, and every row was shut.
  */
 function myCharacter() {
-    const owned = game.actors.filter(a =>
-        a.type === "character" && a.testUserPermission(game.user, "OWNER"));
-    if (owned.length === 1) return owned[0];
-    // Two characters, or none owned: the one they picked, if they picked one.
-    return game.user.character ?? owned[0] ?? null;
+    return chooseOwnStudent(ownedStudents(), {
+        assigned: game.user.character ?? null,
+        controlled: (globalThis.canvas?.tokens?.controlled ?? []).map(token => token.actor).filter(Boolean)
+    });
 }
 
 /** Give one tab back what `disarmSheet` and `redactTabs` took off it. */
@@ -797,7 +822,9 @@ function onPreUpdateActor(actor, changes) {
     delete changes.ownership.default;
     if (!Object.keys(changes.ownership).length) delete changes.ownership;
 
-    ui.notifications.warn(game.i18n.format("DRPG.Anonymity.blocked", { actor: actor.name }));
+    // Escaped (1.2.122, STG-41): a toast draws its markup on v14 (sanitised, not escaped; LOCAL-REPORT.md:425), and the
+    // name is the player's to write - as the whisper below has it.
+    ui.notifications.warn(game.i18n.format("DRPG.Anonymity.blocked", { actor: esc(actor.name) }));
     debug(`Blocked a default-ownership raise on "${actor.name}" - OBSERVER is the ceiling.`);
 }
 
@@ -807,13 +834,15 @@ function onPreUpdateActor(actor, changes) {
  * The guard above never saw the one window a GM actually uses for this:
  * Configure Ownership saves with `noHook: true`, which skips every `pre`
  * hook, so "All Players: Owner" went through and handed the whole table an
- * unredacted sheet, Truth Bullets and all. Whether `noHook` also silences the
- * `updateActor` hook for that save has not been read off a live v14 table
- * (AUDIT §9), so three roads lead here: that hook on the primary GM, the
- * ownership window closing on the GM who used it, and a sweep at `ready`. The
- * harness takes the pessimistic reading - `noHook` silences both - so what it
- * proves is the window road, on a table with one GM, who is also the primary:
- * a GM who is not the primary closing the window is not measured. The GM
+ * unredacted sheet, Truth Bullets and all. On Foundry 14.370 (the owner's
+ * sandbox, 16.11.2026; docs/dev/e39/CALIBRATION.md, "noHook") that save
+ * skipped the pre hook alone: `updateActor` reached the primary GM, with
+ * `options.noHook` true. Three roads lead here all the same: that hook on the
+ * primary GM, the ownership window closing on the GM who used it, and a sweep at
+ * `ready`. The harness still takes the older, pessimistic reading - `noHook`
+ * silences both hooks (shim.mjs; D9, its open difference from v14, not built) -
+ * so what it proves is the window road, on a table with one GM, who is also the
+ * primary: a GM who is not the primary closing the window is not measured. The GM
  * lowers it back to OBSERVER and says so.
  * Characters only, and only while anonymity is enforced; lowering is never
  * undone.

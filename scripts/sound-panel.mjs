@@ -18,8 +18,9 @@
  * `import("./sfx.mjs")`: moved here (E41 C9b, built on a scratch copy and not
  * committed), they made sfx.mjs import this file, and this file reaches
  * sfx.mjs through music-states.mjs, clock.mjs and actions.mjs - a static
- * import cycle in which the module did not boot. E41-16 is carried to E73,
- * which writes its sfx rows here. It reads the states and the map from
+ * import cycle in which the module did not boot. E41-16 was carried to E73,
+ * which shipped in 1.2.108 without moving the sfx rows here; no stage owns the
+ * move now (1.2.122, the audit's STG-62). It reads the states and the map from
  * music-states.mjs and the engine's Play and Reset from music-play.mjs; it
  * imports music.mjs by no road (the facade rule, .claude/rules/code.md).
  */
@@ -37,7 +38,6 @@ import { situationalPlaylist, playTrack, resetMusic } from "./music-play.mjs";
  * GM SCREEN
  * ========================================================================== */
 
-/** Map each state to one of the world's playlists. */
 /*
  * A PLAYER GETS THE SLIDERS AND NOTHING ELSE.
  *
@@ -47,9 +47,14 @@ import { situationalPlaylist, playTrack, resetMusic } from "./music-play.mjs";
  * browser, they change nothing anybody else hears, and a GM setting them
  * for a player would be setting them wrong.
  *
- * So the same window opens for everybody and simply has less in it. Not a
- * second, player-shaped window: two windows about the same two sliders is
- * how the two drift apart.
+ * What the code does (read 21.11.2026): a player is given a window of its
+ * own, this one, with the two sliders alone; the GM's Sound window is built
+ * below. The sliders are drawn in a third place too, the settings window's
+ * Sound section (settings-window.mjs, through sfx.mjs `volumeSliders` and
+ * `wireVolumeSliders`), which is the one the launcher by the chat opens; this
+ * window is reached only by `game.drpg.soundDialog`. What keeps the copies
+ * from drifting apart is that every one reads `volumeSliders` and saves through
+ * the same writer, not that there is one window.
  */
 async function openPlayerSoundDialog({ drpgWindow, soundSlidersHtml, wireSoundPanel }) {
     await drpgWindow({
@@ -91,7 +96,6 @@ export function musicMapRows(playlists) {
 function musicMapTable(playlists) {
     const map = musicMap();
     const offered = playlists.filter(p => !isCuePlaylist(p));
-    const esc = foundry.utils.escapeHTML;
     const rows = MUSIC_STATES.map(state => {
         const label = state.label ?? game.i18n.localize(state.labelKey);
         const options = [emptyOption("DRPG.Music.notSet"), ...offered.map(p =>
@@ -181,6 +185,17 @@ function soundPlayPane() {
             </fieldset>`;
 }
 
+/**
+ * The Music tab's box saying the world has no playlist to map yet, in a region of its own that is always drawn - empty
+ * once one other than the cue playlist exists - so `openSoundDialog` keeps it live on the playlist hooks (1.2.122, the
+ * rest of the audit's REFR-25): drawn once, a first playlist made with the window open left it saying there was none.
+ */
+export function musicEmptyBox(playlists) {
+    const offered = playlists.filter(p => !isCuePlaylist(p));
+    return `<div class="drpg-music-empty" data-drpg-music-empty>${offered.length ? "" : box("info", `<p class="notes">${
+        game.i18n.localize("DRPG.Music.noPlaylists")}</p>`)}</div>`;
+}
+
 /** The mapping tab: the intro, the notes, and the state-to-playlist table. A world with no playlists is told so in
  *  the kit's information box (E22 fix G1; the end review's SCREENS m2): it was a warning's red bar, and nothing is
  *  wrong - there is only nothing to map yet (D11, E22-07). */
@@ -189,12 +204,10 @@ export function soundPlaylistsPane(playlists) {
        of intro and four paragraphs of notes, three over the table and one under it (1595 px of body at 3c952c67, glass,
        1366x768). The intro is one sentence now, and the four notes - which state wins, the trial's, the incident's and
        the fades - are a closed `details` above the table, in their order. */
-    const offered = playlists.filter(p => !isCuePlaylist(p));
     return `
             <p>${game.i18n.localize("DRPG.Music.intro")}</p>
             ${soundSettingSwitch("musicEnabled")}
-            ${offered.length ? "" : box("info", `<p class="notes">${
-                game.i18n.localize("DRPG.Music.noPlaylists")}</p>`)}
+            ${musicEmptyBox(playlists)}
             <details class="drpg-sound-order">
                 <summary>${game.i18n.localize("DRPG.Music.howOrder")}</summary>
                 <p class="drpg-help">${game.i18n.localize("DRPG.Music.orderNote")}</p>
@@ -283,8 +296,12 @@ function wireSoundPlay(root) {
     });
 
     root.querySelector("[data-drpg-reset-music]")?.addEventListener("click", async () => {
-        await resetMusic();
-        ui.notifications.info(game.i18n.localize("DRPG.Music.wasReset"));
+        // Said as it went (1.2.122, the audit's COMM-50): nothing playing, a track stopped with nothing to give back,
+        // or a track stopped and the music it interrupted back. Refused (null) is said by `resetMusic`.
+        const done = await resetMusic();
+        if (!done) return;
+        const key = !done.stopped && !done.given ? "DRPG.Music.nothingToReset" : done.given ? "DRPG.Music.wasReset" : "DRPG.Music.resetStopped";
+        ui.notifications.info(game.i18n.localize(key));
     });
 
     /*
@@ -336,7 +353,11 @@ function wireSoundDialog(root, { wireKitTabs, wireSoundPanel, dialog = null }) {
     wireSoundPanel(root);
     wireSoundPlay(root);
     wireMusicMap(root, root);
-    // The two world switches (E101 item 7): written as they are touched, like the map's rows; a refusal puts the switch back.
+    wireSoundSwitches(root);
+}
+
+/** The two world switches (E101 item 7): written as they are touched, like the map's rows; a refusal puts the switch back. */
+function wireSoundSwitches(root) {
     for (const input of root.querySelectorAll("[data-drpg-sound-setting] input[role='switch']")) {
         const key = input.closest("[data-drpg-sound-setting]").dataset.drpgSoundSetting;
         input.addEventListener("change", () => {
@@ -441,18 +462,29 @@ export async function openSoundDialog() {
              * with the old playlist - true only until it was read. The rows are a region of their own, woken by the
              * map's key alone: another key of the module, the Effects tab's `sfxMap` among them, redraws nothing here
              * (the Effects tab's own region follows `sfxMap`, below).
-             * A select being chosen from with the pointer holds the redraw until the press is let go (rule 1); a select
+             * A select being chosen from with the pointer holds the redraw only until the click that opened its list is let
+             * go (rule 1): the list stays open after the release, and a redraw then closes it (the audit's r121-R-3,
+             * measured in Chromium; 1.2.122, r121-R-9 - this said "until the press is let go" as if the pick were held); a select
              * left focused after its pick holds nothing (UI-17, the line claude/refresh-120, 21.11.2026: until then it
              * held the rows until the GM clicked elsewhere) and has the focus again after the redraw; a dirty select and
              * a row's save marker are carried across (rule 2); `after` wires the new selects, whose answer finds its
              * marker in the window. R7971.
              */
+            /* And the world's playlists (1.2.122, the audit's REFR-25): a playlist made, renamed or deleted in the sidebar with
+               the window open was offered by no select, kept its old name or stayed selectable until the window was opened
+               again, while the Play tab beside it followed the same six hooks. */
             keepLive(dialog, {
                 region: ".drpg-music-map",
                 build: musicMapBody,
-                watch: { settings: [SETTINGS.musicMap] },
+                watch: { settings: [SETTINGS.musicMap], hooks: ["createPlaylist", "deletePlaylist", "updatePlaylist"] },
                 whileEditing: true,
                 after: next => wireMusicMap(next, dialog.element)
+            });
+            // The box saying there is no playlist yet follows the same three hooks (1.2.122, the rest of REFR-25).
+            keepLive(dialog, {
+                region: '[data-drpg-music-empty]',
+                build: () => musicEmptyBox(sortedPlaylists()),
+                watch: { settings: [], hooks: ["createPlaylist", "deletePlaylist", "updatePlaylist"] }
             });
             /*
              * THE EFFECTS ROWS FOLLOW THE MAP (1.2.119; the owner's standing rule: "Zawsze odswiezamy okna od razu przy
@@ -461,6 +493,21 @@ export async function openSoundDialog() {
              * chip kept its old count until the window was opened again. Since the line claude/refresh-120 (21.11.2026) a
              * box being typed in no longer holds the redraw (`whileEditing`): what was typed is carried, with the focus.
              */
+            /* The two world switches follow another GM (1.2.122, the audit's REFR-25): each its own region, woken by its own
+               setting, its listener put back on the new switch. */
+            // One call each, not a loop: R1317 holds each region a window keeps to a `keepLive(` call of its source.
+            keepLive(dialog, {
+                region: '[data-drpg-sound-setting="musicEnabled"]',
+                build: () => soundSettingSwitch("musicEnabled"),
+                watch: { settings: [SETTINGS.musicEnabled] },
+                after: next => wireSoundSwitches(next)
+            });
+            keepLive(dialog, {
+                region: '[data-drpg-sound-setting="sfxVary"]',
+                build: () => soundSettingSwitch("sfxVary"),
+                watch: { settings: [SETTINGS.sfxVary] },
+                after: next => wireSoundSwitches(next)
+            });
             keepLive(dialog, {
                 region: "[data-drpg-sfx-region]",
                 build: soundEffectsRegion,

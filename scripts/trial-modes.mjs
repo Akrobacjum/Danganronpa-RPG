@@ -270,7 +270,12 @@ async function closingCall(op, args = {}) {
         return null;
     }
     const written = await floorStep(op, args);
-    if (written === null) ui.notifications.warn(game.i18n.localize("DRPG.Floor.closing.notDone"));
+    if (written === null) {
+        // The machine's reason where it gives one (1.2.122; CTRL-04, CASE-41), else the general line.
+        const { closingStepRefusal } = await import("./trial-floor.mjs");
+        const why = await closingStepRefusal(op, args);
+        ui.notifications.warn(game.i18n.localize(why ?? "DRPG.Floor.closing.notDone"));
+    }
     return written;
 }
 

@@ -21,10 +21,9 @@ import { roomOfToken, roomAt, locateActor } from "./movement.mjs";
 import { SETTINGS, isDeceased, isDeadForGm, seasonEpoch, sameSeason } from "./settings.mjs";
 import { isPrimaryGm, log, warn, error, plural, esc, forcedDeletion, serverNow } from "./utils.mjs";
 // The kit's frame (E21 C3a): Clear Faint Remnants' question.
-import { drpgConfirm } from "./ui-kit.mjs";
 // The ledger's store. gm-stores.mjs reaches this file only by a dynamic `import()`,
 // so a static import here is no cycle (R161).
-import { remnantStore, bulletStore, traceDigestStore, upgradeMark } from "./gm-stores.mjs";
+import { remnantStore, bulletStore, traceDigestStore, upgradeMark, deathStore } from "./gm-stores.mjs";
 // A leaf (season-exceptions.mjs alone): the registry of season state the reset walks (E42 C3).
 import { registerSeasonState } from "./season-reset.mjs";
 
@@ -185,8 +184,8 @@ const TINTS = {
  * word is the ledger's own DC lookup key (`observeDc`'s `OBSERVE_TYPE_ALIAS`),
  * and a player told "Obvious" or "Hidden" for their own trace could compare
  * it against later finds and back out what type each one really was - the
- * same leak `difficultyTag` exists to close on the finder's side of the same
- * question.
+ * leak the difficulty band once carried on the finder's side, which went with
+ * `difficultyTag` (the block above; the audit's D19 of 1.2.122).
  *
  * @param {{isCritical?: boolean, withHope?: boolean}} roll
  * @param {*} placed  What `dropRemnant`/`placeRemnant`/`retuneRemnant`
@@ -387,8 +386,15 @@ export async function placeRemnant(data = {}, { keepId = false, rollId = null, d
                 const cast = [state.killerId, state.victimId, state.thirdId].filter(Boolean);
                 let tied = Boolean(data.sourceActor && cast.includes(data.sourceActor));
                 if (!tied) {
+                    /* THE ROOM IT HAPPENED IN, NOT WHERE THE BODY WAS CARRIED (the audit's CASE-74, 1.2.122 line MURDER):
+                       this read the victim's token, which Move the body takes to another room, and the tie went with it - a
+                       trace left where the murder was came out untied, one left where the body was dumped tied. The death's
+                       row keeps the room the body lay in at the kill (death.mjs `recordSecretDeath`); the token is read only
+                       while there is no such row - the victim alive, or the death published. Tier 2 "1.2.122 CASE-74". */
                     const { locateActor } = await import("./movement.mjs");
-                    const where = locateActor(game.actors.get(state.victimId));
+                    const fell = deathStore.get(state.victimId) ?? null;
+                    const where = fell?.room ? { room: fell.room, scene: game.scenes.get(fell.sceneId ?? "") ?? null }
+                        : locateActor(game.actors.get(state.victimId));
                     const sceneId = data.sceneId ?? data.scene?.id ?? null;
                     tied = Boolean(where?.room && data.room && data.room === where.room
                         && (!where.scene || !sceneId || where.scene.id === sceneId));
@@ -636,8 +642,9 @@ export function traceRowOf(data = {}, { x, y, level = null, id = null, sceneId =
             itemIdentity,
             sourceActor, sourceName, room, chapter, day, timeOfDay,
             epoch,
-            // Kept for the GM's own screens, which used to read it off the
-            // token's name - see `label` in `placeRemnant`.
+            // Worded once, at the placing (see `label` in `placeRemnant`), and read by no
+            // screen today: `remnantData` does not hand it on (the audit's D18 of 1.2.122;
+            // the migration's fill of it apart). Kept so a row says what it was placed as.
             label,
             // WHEN, in real time, so a Reroll can be held to a trace it
             // could have made (`removalRefusal`, bridge-guards.mjs, asked by
@@ -1107,10 +1114,9 @@ export async function adoptQuestionMark(actor = findRemnantActor()) {
 }
 
 /* ==========================================================================
- * QUERYING
+ * QUERYING - everything recorded on a Remnant, as a plain object, is `remnantData`, below the ledger's section (the
+ * audit's D17 of 1.2.122: a doc comment stood here alone over a section header).
  * ========================================================================== */
-
-/** Everything recorded on a Remnant, as a plain object. */
 
 /* ==========================================================================
  * WHAT A REMNANT REALLY IS
@@ -1221,6 +1227,22 @@ export async function setRemnantSecretById(sceneId, tokenId, patch = {}) {
     const ref = remnantById(sceneId, tokenId);
     if (!ref) return null;
     return setRemnantSecret(ref, patch, { ifLive: true });
+}
+
+/**
+ * A trace's found state and the GM's marks on its row (the audit's CASE-31, 1.2.122): what an erase's receipt keeps
+ * (cleanup-reshape.mjs `recreationDataFor`) so a Reroll puts it back as found as it stood - `foundAt`, `foundVia`,
+ * `incidentFound`, the GM's words (`gmEdited`) and band (`gmBand`, `gmBandAt`), each only where the row holds it.
+ * GM-side; `{}` for a trace with no row.
+ */
+export function rowMarksOf(trace) {
+    const key = trace ? keyOf(trace) : null;
+    const row = key ? readRemnantLedger()[key] : null;
+    const out = {};
+    for (const field of ["foundAt", "foundVia", "incidentFound", "gmEdited", "gmBand", "gmBandAt"]) {
+        if (row?.[field] !== undefined && row[field] !== null && row[field] !== false) out[field] = row[field];
+    }
+    return out;
 }
 
 /**
@@ -2450,39 +2472,10 @@ export async function handTiesOn(from, to) {
     return rows.length;
 }
 
-/**
- * Count the Faint traces that would go, confirm, then clear them.
- *
- * Counted BEFORE the confirmation, not after: these tokens do not come back,
- * and "delete 14 things?" is a question a GM can answer while "deleted 14
- * things" is only a report. No button calls it since E64-inv: End the chapter
- * clears the Faint Remnants (chapter.mjs `chapterEndForm`, `faint`), and the
- * Investigation bar's own button, its twin, is gone.
- */
-export async function confirmClearFaint({ tokens = null } = {}) {
-    const doomed = (tokens ?? Array.from(game.scenes).flatMap(scene => remnantsOn(scene))).filter(clearable).length;
-
-    if (!doomed) {
-        ui.notifications.warn(game.i18n.localize("DRPG.Panel.faintNone"));
-        return 0;
-    }
-
-    // These tokens do not come back (E22 rule 4): destructive, named by its effect, Cancel the default and first under Enter.
-    const sure = await drpgConfirm({
-        yes: { role: "destructive", label: game.i18n.localize("DRPG.Panel.clearFaint") },
-        no: "cancel",
-        title: game.i18n.localize("DRPG.Panel.clearFaint"),
-        classes: ["drpg-panel"],
-        body: `<p>${plural("DRPG.Panel.faintConfirm", { n: doomed })}</p>
-                  <p class="notes">${game.i18n.localize("DRPG.Panel.faintConfirmNote")}</p>`,
-        rejectClose: false
-    });
-    if (!sure) return 0;
-
-    const cleared = await clearFaintRemnants(null, { tokens });
-    ui.notifications.info(plural("DRPG.Panel.faintCleared", { n: cleared }));
-    return cleared;
-}
+/* CLEAR FAINT REMNANTS IS GONE (the audit's CTRL-56, 1.2.122 line MURDER). Its question asked and cleared, and since
+   E64-inv nothing called it: End the chapter clears the Faint Remnants (chapter.mjs `chapterEndForm`, `faint`), and the
+   Investigation bar's button is gone. Neither the suite nor a scenario drove it - a window no control opens. The clear
+   itself is `clearFaintRemnants`, above, which the chapter's end and `game.drpg.clearFaintRemnants` reach. */
 
 /**
  * Change or remove a Remnant that has already been placed.
@@ -2847,9 +2840,9 @@ export function answerKeyOnToken(token) {
 /**
  * One trace's part of `migrateRemnants` (E30, 24.09.2026; audit S17-01, S05-43).
  *
- * THE STRIP IS READ BACK. It was written with `-=` keys, which remove nothing in
- * this Foundry (the measured notes in migrate.mjs, actions.mjs, music.mjs and
- * fog.mjs), so the answer key stayed on a token every client receives while the
+ * THE STRIP IS READ BACK. It was written with `-=` keys, which the module's older
+ * notes measured removing nothing (migrate.mjs, actions.mjs, music.mjs and fog.mjs;
+ * 14.370 deletes them with a deprecation warning, LIVE-E30-01), so the answer key stayed on a token every client receives while the
  * summary counted the token as stripped. It is one write now, the flags deleted
  * with `forcedDeletion()` (one `unsetFlag` each in a Foundry without it), and what
  * is still on the token afterwards comes back in `left` - migrate.mjs's rule for
@@ -3255,7 +3248,10 @@ export function traceTokenHeard(doc, changes) {
     return Boolean(ours && Object.keys(ours).some(k => k.replace(/^-=/, "") === REMNANT_FLAGS.isRemnant));
 }
 
-/** Every trace on a scene, one ref each (`traceRefsOf`): the store's rows read once a call. */
+/**
+ * Every trace on a scene, one ref each (`traceRefsOf`): the store's rows read once a call. Also `game.drpg.remnantsOn`:
+ * a macro gets frozen refs, not TokenDocuments, since E60 C1b (1.2.98; the GM handbook, 20.5; the audit's STG-66).
+ */
 export function remnantsOn(scene) {
     if (!scene) return [];
     return traceRefsOf(readRemnantLedger(), scene, scene.tokens);
@@ -3291,7 +3287,7 @@ export function sceneOfRemnant(tokenId) {
 }
 
 /**
- * Remnants inside a named room region.
+ * Remnants inside a named room region - frozen refs, as `remnantsOn` answers, also to a macro (`game.drpg.remnantsInRoom`).
  *
  * Resolved through `roomOfToken`, which falls back to a geometric test when a
  * token's region set is empty. Reading `t.regions` directly returned nothing at

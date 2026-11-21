@@ -9,10 +9,10 @@
  * loot (they persist until used in a crime and removed).
  */
 
-import { MODULE_ID, ITEM_CATEGORIES, ITEM_DURABILITY, LIMIT_GROUPS, TIER_EFFECTS, USABLE_KINDS, USABLE_KIND_EFFECTS, itemIcon,
+import { MODULE_ID, ITEM_CATEGORIES, ITEM_DURABILITY, LIMIT_GROUPS, TIER_EFFECTS, USABLE_KINDS, USABLE_KIND_EFFECTS, USABLE_EFFECTS, itemIcon,
     BEDROOM_KEY_FLAG, ACTIONS, PROJECT_SCALE }
     from "./config.mjs";
-import { whisperToOwner, whisperToGms, log, warn, error, serialWrite, worldLocalize } from "./utils.mjs";
+import { whisperToOwner, whisperToGms, log, warn, error, serialWrite, worldLocalize, esc } from "./utils.mjs";
 // E57 C3 (D34): an item's tier line in the world's document language; its own line.
 import { trustedWrite, trustedCreate, trustedDelete } from "./resource-guard.mjs";
 
@@ -484,7 +484,12 @@ function replaceableIcon(img) {
  *
  * IT LOOKS FIRST AND REFUSES TO GUESS. Only a picture the module itself put
  * there - or none at all - is replaced; a Truth Bullet wearing the photograph
- * of the trace it came from, or an item a GM picked art for, is left alone.
+ * of the trace it came from, or an item a GM picked art for from outside the
+ * module's drawings, is left alone. A drawing of the module's own picked in
+ * the item form's grid (H83, tables-editor.mjs `wireItemPicture`) cannot be
+ * told from a placeholder an older category left (`replaceableIcon` reads the
+ * path alone), so it IS reset to the category's drawing - the 1.2.86 notes say
+ * so, and this header did not until 1.2.122 (the audit's STG-55).
  * `all: true` drops that rule for a GM who wants every module item reset to its
  * category's placeholder, and says so in what it reports.
  *
@@ -737,7 +742,8 @@ export async function tierDescription({ category, kind = null, tier, lang = unde
     const options = lang === undefined ? {} : { lang };
     const key = USABLE_KIND_EFFECTS[kind]?.[tier] !== undefined ? `DRPG.Config.USABLE_KIND_EFFECTS.${kind}.${tier}`
         : TIER_EFFECTS[category]?.[tier] !== undefined ? `DRPG.Config.TIER_EFFECTS.${category}.${tier}` : null;
-    const effect = key ? await worldLocalize(key, {}, options) : "";
+    // the tier's restore fills `{restores}` (1.2.122 line TEXT, the audit of 1.2.118 TEXT-26)
+    const effect = key ? await worldLocalize(key, { restores: USABLE_EFFECTS[tier]?.amount }, options) : "";
     return `<p>${await worldLocalize("DRPG.Items.tierN", { n: tier }, options)}. ${effect}</p>`;
 }
 
@@ -854,10 +860,11 @@ export async function grantItem(actor, {
                 // `quiet` said, so an unseen Plant into full pockets named itself to its victim. No road passes
                 // `quiet` here since D42 refuses that Plant (inventory.mjs `transferItem`), and the rule holds for any.
                 if (!quiet) {
+                    // The limit that was hit (1.2.122 line ITEMS; the audit's ITEM-28, ITEM-41): the shared Gear's for a
+                    // Murder Weapon, a Cleaning Tool or a Tool, as the refusals beside this one say (`capacityLabel`).
                     await whisperToOwner(actor, `<p>${game.i18n.format("DRPG.Vault.overflowed", {
                         item: foundry.utils.escapeHTML(name),
-                        category: foundry.utils.escapeHTML(
-                            ITEM_CATEGORIES[category]?.plural ?? category)
+                        category: foundry.utils.escapeHTML(capacityLabel(category))
                     })}</p>`);
                 }
             } else {
@@ -1181,7 +1188,6 @@ export async function transferItem(from, to, item, { mode, quiet = false, asker 
         const name = held.name;
         const pieces = piecesOf(held);
         const hushFrom = quiet && mode !== "plant", hushTo = quiet && mode === "plant";
-        const esc = foundry.utils.escapeHTML;
 
         /*
          * ONE PIECE OFF THE GIVER, COUNTED AGAIN AS THE GMS HOLD IT NOW (E35 fix e1-G1; the review's SEC-1). The count
@@ -1236,6 +1242,15 @@ export async function transferItem(from, to, item, { mode, quiet = false, asker 
                     await whisperToOwner(to, `<p>${game.i18n.format("DRPG.Handover.keyAlreadyHeld", { room: esc(keyRoom) })}</p>`);
                 }
                 log(`${to.name} already held a key to ${keyRoom}; the one from ${from.name} was not copied.`);
+                /* A STUCK REMOVAL IS SAID HERE TOO (1.2.122 line ITEMS; the audit's ITEM-30): `takeOne` answers `stuck`
+                   when the giver's piece could not be taken off (a refused delete resolves quietly), and this branch
+                   answered a clean move - stuck false, no GM told - where the main road below says both. */
+                if (taken.stuck) {
+                    await whisperToGms({ tone: "warning", body: `<p>${game.i18n.format(TRANSFER_STUCK[mode], {
+                        name: esc(name), from: esc(from.name), to: esc(to.name)
+                    })}</p>` });
+                    return { ok: true, copy: null, left: taken.left, keyHeld: keyRoom, stuck: true };
+                }
                 return { ok: true, copy: null, left: taken.left, keyHeld: keyRoom, stuck: false };
             }
         }
@@ -1355,6 +1370,19 @@ export function registerInventoryLimits() {
         }));
         return false;
     });
+    /* THE GEAR SHAPE ON FOUNDRY'S OWN CREATE (1.2.122 line ITEMS; the audit's ITEM-04). D4 (13.09.2026) chose to
+       ready a Gear on every way in, and each module road ends on `keepGearShape` (`grantItem`, `retrieve`); a drop from
+       a compendium, the sidebar or another sheet is Foundry's create, which the hook above held to the slots alone, so
+       two Gear could stand stowed for good (tier 2 "1.2.122 ITEM-04", red at 21bf5d18). Run on the browser that made
+       the item and only for a create no module road stamped (`drpgAutomated`, resource-guard.mjs `SYSTEM_WRITE`): a
+       module road asks the shape itself, and two asks of one arrival at once are not measured here (read in the code). */
+    Hooks.on("createItem", (item, options, userId) => {
+        if (userId !== game.user?.id || options?.drpgAutomated) return;
+        const actor = item?.parent;
+        if (!actor || actor.type !== "character" || isStashed(item)) return;
+        if (!item.getFlag(MODULE_ID, ITEM_FLAGS.category)) return;
+        keepGearShape(actor, item).catch(err => error("Could not hold a dropped item to the Gear shape", err));
+    });
 }
 
 /**
@@ -1378,7 +1406,8 @@ export function carriedInCategory(actor, category) {
  *
  * Trap 69: four screens put a limit in front of somebody - the sheet's rows,
  * this summary, the item manager and the refusal message - and with a shared
- * budget all four have to say "2/3 Gear" rather than three separate "1/1"s. A
+ * budget all four have to say "2/2 Gear" (the shared limit is 2 since D10c, config.mjs LIMIT_GROUPS.gear) rather
+ * than three separate "1/1"s. A
  * player who reads "Murder Weapons 1/1" beside an empty slot has been told two
  * contradictory things by the same window.
  */
@@ -1393,7 +1422,7 @@ export function capacityLabel(category) {
  * A short inventory summary for the GM.
  *
  * Grouped categories are folded into one entry, because that is what they are:
- * "Gear: 2/3" rather than three counters that each look nearly full.
+ * "Gear: 2/2" rather than three counters that each look nearly full.
  */
 export function inventorySummary(actor) {
     const seen = new Set();

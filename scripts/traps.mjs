@@ -19,7 +19,9 @@
  * ---------------------------------------------------------------------------
  * SIX LISTENERS FOR NINE TRIGGERS, AND THAT IS THE POINT OF DOING IT HERE.
  *
- * The plan called it eight listeners on hot paths. It was five, because three of
+ * Nine triggers are watched; the tenth, `manual`, watches nothing (config.mjs
+ * TRAP_TRIGGERS). The plan called it eight listeners on hot paths. It was five
+ * until E80 C3 added the passage's, because three of
  * the triggers are the same event asked three questions (`drpgActionResolved`
  * for Search, project and sabotage) and two more are the same crossing:
  *
@@ -32,19 +34,25 @@
  *
  * A room crossing and an action resolution happen several hundred times in a
  * session, so what each listener does FIRST matters more than what it does
- * afterwards. Every one of them starts with a lookup in `armed()` - a Map built
- * once and rebuilt only when the projects change - and returns on a miss before
- * touching an actor, a token or a setting. Walking every project on every step
- * is the shape that produced the quadratic in E11, found by measuring rather
- * than by anything going wrong.
+ * afterwards. The trap half of each starts with a lookup in `armed()` - a Map
+ * built once and rebuilt when the projects, the GMs' secrets or deaths change,
+ * or any actor is written (`updateActor`: a killer who dies stops hunting, and
+ * that is read off the actor) - and returns on a miss before touching an actor,
+ * a token or a setting. Walking every project on every step is the shape that
+ * produced the quadratic in E11, found by measuring rather than by anything
+ * going wrong. Since 1.2.112 a crossing on the primary first asks two GM stores
+ * whether a stash's owner or a bedroom's waits for a notice (`onCrossed`), rows
+ * read and nothing written where none waits; that cost per crossing is not
+ * measured (scenario 86 counts no crossing of the primary's). Written so by the
+ * audit's ITEM-32 (1.2.122), where this said the map came first for every one.
  *
  * ---------------------------------------------------------------------------
  * WHAT LIVES WHERE, AND WHY THE ITEM TRIGGER IS DIFFERENT.
  *
- * Seven triggers are answered from the trap's row in the GM store
+ * Eight of the nine watched triggers are answered from the trap's row in the GM store
  * `projectSecrets` - its killer, its condition and its trigger, which were
  * projectMeta's, a world setting any console reads, until E05 (1.2.64; audit
- * S09-05) - and from projectMeta's room and flags. The eighth - the planted
+ * S09-05) - and from projectMeta's room and flags. The ninth - the planted
  * item - must not be, and the reason is the whole design decision of this
  * stage: an item on a character sheet is fully readable from its owner's
  * console, so a flag saying "this is the trap" would be a poisoned first aid
@@ -671,10 +679,25 @@ export async function openPlantDialog(projectId) {
             // Its "Close" withdrew the question (E21 rule 3): the role's Cancel, the answer "cancel" as before.
             close: "cancel"
         },
+        /* PLANT WAITS FOR A NAME (the audit's CTRL-62, 1.2.122, 21.11.2026): pressed before anything was typed, the window
+           closed and answered nothing, and the card stayed with no word why. The button is shut while the name is empty,
+           and an answer that comes without one all the same (Enter in the field) is told. */
+        render: (event, dialog) => {
+            const field = dialog.element?.querySelector('input[name="name"]');
+            const button = dialog.element?.querySelector('footer button[data-action="plant"]');
+            if (!field || !button) return;
+            const sync = () => { button.disabled = !field.value.trim(); };
+            field.addEventListener("input", sync);
+            sync();
+        },
         rejectClose: false
     });
 
-    if (!answer || answer === "cancel" || !answer.name || !answer.room) return null;
+    if (!answer || answer === "cancel") return null;
+    if (!answer.name || !answer.room) {
+        ui.notifications.warn(game.i18n.localize(answer.name ? "DRPG.Trap.plantNeedsRoom" : "DRPG.Trap.plantNeedsName"));
+        return null;
+    }
 
     /*
      * NO CATEGORY, AND NO TIER (A23; Dawid, 03.09).

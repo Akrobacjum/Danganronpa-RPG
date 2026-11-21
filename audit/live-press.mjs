@@ -3,7 +3,7 @@
  * second reader: "after a GM edits a planner field, the next press on Move, a 'Rests on' box or Add deduction is lost").
  *
  *   cd audit/harness && npm ci        (once: Playwright comes from there; it downloads no browser)
- *   node audit/live-press.mjs [--chromium <executable>] [--repo <checkout>]     (from the repository's root)
+ *   node audit/live-press.mjs [--chromium <executable>] [--repo <checkout>]   (or DRPG_CHROMIUM=<executable>)     (from the repository's root)
  *
  * The module's own scripts/live.mjs (`keepLive`), loaded in Chromium on a page of its own: config.mjs, utils.mjs and
  * perf-timings.mjs answered by stubs of the names live.mjs imports, and Foundry's `Hooks` and `foundry.utils.debounce`
@@ -100,7 +100,9 @@ function serve() {
 
 const server = await serve();
 const base = `http://127.0.0.1:${server.address().port}/press`;
-const browser = await chromium.launch(chromeAt >= 0 ? { executablePath: args[chromeAt + 1] } : {});
+// --chromium, else DRPG_CHROMIUM (what `npm run press` reads; the local gate passes it as --chromium), else Playwright's own
+const executablePath = chromeAt >= 0 ? args[chromeAt + 1] : process.env.DRPG_CHROMIUM || null;
+const browser = await chromium.launch(executablePath ? { executablePath } : {});
 let failed = 0;
 const say = (ok, line) => { console.log(`${ok ? "ok  " : "FAIL"} ${line}`); if (!ok) failed++; };
 const open = async (plant = false) => {

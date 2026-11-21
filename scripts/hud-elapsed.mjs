@@ -165,8 +165,25 @@ export async function beatClock() {
  */
 export function shownClock(clock, { hide = false, last = null } = {}) {
     if (!hide) return clock;
-    if (last) return last;
-    return clock?.clockAtOpen ? { ...clock, ...clock.clockAtOpen } : clock;
+    const frozen = last ?? (clock?.clockAtOpen ? { ...clock, ...clock.clockAtOpen } : null);
+    return frozen ? withLivePauses(frozen, clock) : clock;
+}
+
+/*
+ * A PAUSE IS NOT THE INCIDENT'S (the audit of 1.2.118, UI-21, CORE-49; 1.2.122 line UI). The frozen copy kept the
+ * pause fields of its own moment, and a pause is written to the live clock (`pausedAt`, then `pausedTotalMs` at the
+ * unpause): a bystander's minutes counted on through a pause in the incident, undrawn as paused, and fell back by the
+ * break when the incident ended and the live clock showed through. A pause says nothing of the incident - every
+ * screen's game stops with it, and the HUD's "On hold" stamp reads `game.paused` on each - so the copy takes the live
+ * `pausedAt`, and the breaks the live clock has added since the copy was taken: the difference of the two totals while
+ * the live clock still runs the copy's time of day, the live total whole once the incident moved the hour (its total
+ * starts again with the new time of day; the breaks between the copy and that move are not counted then, and the
+ * reading is the live one again when the incident ends). Pure: E17-T10 and R8420 hand it clocks.
+ */
+function withLivePauses(frozen, live) {
+    const sameHour = Number(live?.timeOfDayStartedAt) === Number(frozen?.timeOfDayStartedAt);
+    const liveTotal = Number(live?.pausedTotalMs) || 0, frozenTotal = Number(frozen?.pausedTotalMs) || 0;
+    return { ...frozen, pausedAt: live?.pausedAt ?? null, pausedTotalMs: sameHour ? Math.max(frozenTotal, liveTotal) : frozenTotal + liveTotal };
 }
 
 /**
@@ -257,12 +274,14 @@ export function stopElapsed() {
  * WRITTEN ONLY WHEN THE WORDS CHANGE, BECAUSE SOMEBODY IS WATCHING THE DOM.
  *
  * `el.textContent = x` replaces the element's children even when `x` is what is
- * already there, and that is a childList mutation. `#drpg-hud` lives in
- * `#ui-left-column-1`, which a11y.mjs observes with `subtree: true`, so every
- * such write runs the accessibility sweep. The elapsed line is the most regular
- * writer in the module - a ten-second interval at rest and a one-second one for
- * the whole length of a Class Trial - and it prints WHOLE MINUTES, so at rest
- * five of every six writes said exactly what the line already said. The comment
+ * already there, and that is a childList mutation. `#drpg-hud` is one of the
+ * hosts a11y.mjs observes with `subtree: true` (its SURFACES, since E48 K4), so
+ * every such write runs the accessibility sweep. The elapsed line is the most
+ * regular writer in the module - a ten-second interval, always (`buildElapsed`;
+ * a Class Trial draws no line at all, `showsStopwatch`, and the debate's
+ * per-second clock is the Event panel's) - and it prints WHOLE MINUTES, so five
+ * of every six writes said exactly what the line already said (the audit of
+ * 1.2.118, D-119, D-255: this note named the left column and a one-second tick). The comment
  * on the interval below already explains that a per-second tick "would repaint
  * sixty times for each visible change"; this is the other half of that argument,
  * for the ticks that survived it.
