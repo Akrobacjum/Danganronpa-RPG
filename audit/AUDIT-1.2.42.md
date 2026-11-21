@@ -6220,6 +6220,180 @@ Po E77 (1.2.76: kafelek pokoju pod zegarem, paski Foundry poza ekranem, okna Nar
 
 742. **LIVE-E25-03 - okno podręcznika pod Stained Glass w prawdziwej przeglądarce (E25; plan E25 sekcja 5, docs/dev/plans/E25.md na origin/claude/plan-130; docs/dev/e59/GAPS.md; wpisane do 9.2 21.11.2026, STG-87):** na stole v14 w motywie Stained Glass: otworzyć podręcznik GM-a i gracza w obu językach. Zapisz rozmiary nagłówków (zrzut) i czy znacznik bieżącej sekcji idzie za przewijaniem.
 
+743. **LIVE-X122-01 - kafelki Calli Monokumy pod czcionką pikselową (linia TEXT, TEXT-LC3; sheet-fit.mjs, `--drpg-tile-text`; wpisane do 9.2 21.11.2026, 1.2.122):** na prawdziwym Foundry v14, w motywie Stained Glass z włączoną czcionką pikselową: otwórz arkusz Monokumy z kafelkami Calli (Behind Closed Doors, Public Announcement). Sprawdź w konsoli wartość `--drpg-tile-text` na siatkach kafelków: czy najdłuższe słowo (12 liter) spycha ją do dolnej granicy 0.68 dla wszystkich siatek naraz. Zrób zrzut ekranu arkusza przy 1366x768 i 1920x1080. Headless tego nie ma: harness nie ma czcionek ani układu.
+
+744. **LIVE-C122-01 - okno rzutu otwarcia po odświeżeniu strony gracza (linia CORE, CASE-24; wpisane do 9.2 21.11.2026, 1.2.122):** na stole v14: gracz zaproszony do rzutu otwarcia odświeża stronę z otwartym oknem rzutu. Po powrocie okno otwiera się samo, GM nic nie naciska, i nie ma dwóch okien. Zamknięte w kodzie (R8103, odczyt źródła), na przeładowaniu nie zmierzone; pokrewne LIVE-I122-04 (CASE-LC2).
+
+745. **LIVE-C122-02 - okno ustawień gry u dwóch GM-ów (linia CORE, CORE-27; settings-window.mjs `followSettingRows`; wpisane do 9.2 21.11.2026, 1.2.122):** na stole v14 z dwoma GM-ami, u obu otwarte okno ustawień gry: jeden zmienia i zapisuje ustawienie. Drugie okno pokazuje je od razu, a zapis drugiego GM-a go nie cofa.
+
+746. **LIVE-C122-03 - reset sezonu „każdy do swojej sypialni” i kamery graczy (linia CORE, CORE-24; call-world.mjs `panToGathered`; wpisane do 9.2 21.11.2026, 1.2.122):** na stole v14, czterech graczy na jednej scenie: reset sezonu z „każdy do swojej sypialni”. Kamera każdego gracza jedzie do jego żetonu. Headless nie zmierzono dwóch teleportów w ciągu 120 ms szyny.
+
+747. **LIVE-C122-04 - sesja tylko z Asystentem GM-a i „Bez przeglądarki plików dla graczy” (linia CORE, CORE-31; enforced.mjs, `DRPG.Enforced.filesNeedFullGm`; wpisane do 9.2 21.11.2026, 1.2.122):** na stole v14, w sesji tylko z Asystentem GM-a i z włączonym „Bez przeglądarki plików dla graczy”: GM-owie dostają jedną kartę, a w logu nie ma czerwonych linii o uprawnieniach. Harness nie ma głównego GM-a z rolą Asystenta.
+
+748. **LIVE-C122-05 - plakietka nieprzeczytanych przy dwóch kontach w jednej przeglądarce (linia CORE, COMM-23; wpisane do 9.2 21.11.2026, 1.2.122):** na stole v14: GM i gracz logują się kolejno w jednej przeglądarce. Przeczytanie wątku przez GM-a nie gasi plakietki nieprzeczytanych u gracza.
+
+749. **LIVE-C122-06 - pełny localStorage u GM-a (linia CORE, r120-F-4; gm-store.mjs; wpisane do 9.2 21.11.2026, 1.2.122):** na stole v14, przy pełnym localStorage w przeglądarce GM-a: mapa projektów, panel śledztwa i pasek Despair odświeżają się po zapisie. Mgłę przy pełnej pamięci sprawdza pozycja 700 (LIVE-F120-01), krok (5).
+
+750. **LIVE-C122-07 - słowo bezpieczeństwa na świeżym świecie i na świecie sprzed stempla migracji (linia CORE, CORE-LC1; migrate.mjs, `DEFAULT_SAFEWORD`; wpisane do 9.2 21.11.2026, 1.2.122):** na świeżo utworzonym świecie v14 (bez stempla migracji, nigdy nie grany) włączyć moduł jako GM i po pełnym załadowaniu odczytać Ustawienia gry -> Prywatność: słowo bezpieczeństwa ma być domyślne (`DEFAULT_SAFEWORD`), a na czacie nie ma karty „znaleziono dotychczasowe słowo”. Potem to samo na kopii świata z wersji sprzed stempla, w którym grano: tam słowo z pliku językowego ma zostać zachowane, z kartą (to drugie pyta też pozycja 50, LIVE-E04-10). Zapisać wersję Foundry, oba odczyty i datę.
+
+751. **LIVE-C122-08 - przerysowania HUD-u przy jednym End of chapter (linia CORE, CORE-LC5; `game.drpg.counters()`; wpisane do 9.2 21.11.2026, 1.2.122):** przy stole v14 (GM i co najmniej dwóch graczy) wywołać `game.drpg.counters()` tuż przed i tuż po jednym End of chapter na każdej przeglądarce i zapisać, ile razy przerysował się HUD (zegar) w trakcie tego jednego zakończenia rozdziału. Oczekiwane: liczba skończona i mała, bez pętli przerysowań; zapisać liczby na przeglądarkę, motyw i commit.
+
+752. **LIVE-T122-01 - Tab i Enter w konsoli rozprawy w trakcie Objection (linia TRIAL, CASE-63, CTRL-39; wpisane do 9.2 21.11.2026, 1.2.122):** na stole v14, konsola rozprawy w trakcie Objection: Tab do Skip/+30 s i Enter - przycisk ma zadziałać, a Enter w polu tekstowym nie ma naciskać domyślnego przycisku stopki. Headless: audit/live-enter.mjs w Chromium na własnej stronie; okna DialogV2 z v14 wokół konsoli nie odczytano.
+
+753. **LIVE-T122-02 - okno wyboru strony w Logic Dive u gracza bez tokenu w sali (linia TRIAL, CASE-46, CTRL-06, CTRL-07, REFR-44; wpisane do 9.2 21.11.2026, 1.2.122):** na stole v14, gracz bez tokenu w sali: okno wyboru strony pojawia się przy każdym pytaniu Logic Dive; po Anuluj jest komunikat, a okno wraca po 15 s; okno zamyka się samo na końcu trybu.
+
+754. **LIVE-T122-03 - Twoja tura: Mówię dalej i pozostałe sekundy (linia TRIAL, CASE-38, CTRL-03, CASE-64, REFR-66; wpisane do 9.2 21.11.2026, 1.2.122):** na stole v14, okno Twoja tura: Mówię dalej chowa okno, które wraca po 20 s z Gotowe i Pasuję; tytuł i linia pokazują pozostałe sekundy i nadążają za +30 s GM-a. Tytułu jako elementu okna v14 headless nie zmierzono.
+
+755. **LIVE-T122-04 - Twoja tura w pierwszej turze nowego świata (linia TRIAL, CTRL-05; trial-prompt.mjs, hak `createSetting`; wpisane do 9.2 21.11.2026, 1.2.122):** na nowym świecie v14 bez zapisanego `trialQueue`: pierwszy tryb (Testimony) otwiera Twoją turę u gracza już w pierwszej turze. Harness woła `updateSetting` także przy pierwszym zapisie, więc żaden przebieg nie odróżnia tych dwóch haków.
+
+756. **LIVE-T122-05 - Take from the Body na arkuszu ciała przy wyłączonych anonimowych arkuszach (linia TRIAL, CTRL-33; `sheetMode().viewer`; wpisane do 9.2 21.11.2026, 1.2.122):** na stole v14 z wyłączonymi „Anonimowymi arkuszami postaci”: gracz otwiera arkusz ciała i widzi Take from the Body na górze ekwipunku. Prawdziwego arkusza Daggerhearta headless nie odczytano (R8147 czyta źródło).
+
+757. **LIVE-I122-01 - Enter w oknie Investigation (linia INVEST, CTRL-49; investigation.mjs; wpisane do 9.2 21.11.2026, 1.2.122):** na stole v14: Enter w polu okna Investigation (Tabela i Mapa), przed i po zmianie filtra. Zapisać, czy za każdym razem naciska Zapisz.
+
+758. **LIVE-I122-02 - stopka okna Investigation przy 600 px (linia INVEST, stopka przy 600 px; wpisane do 9.2 21.11.2026, 1.2.122):** na stole v14, okno Investigation zwężone do 600 px w obu motywach: czy przyciski stopki łamią się w środku słowa. Headless zamknięte zapytaniem kontenera i odczytane w Chromium (sweep `word`); pierwszego układu stopki przy prawdziwym stole nie odczytano.
+
+759. **LIVE-I122-03 - wielkość tekstów Mapy pod Stained Glass (linia INVEST, teksty Mapy; audit/case-map-sweep.mjs `sizes`; wpisane do 9.2 21.11.2026, 1.2.122):** na stole v14 pod Stained Glass, na Mapie okna Investigation: rozdział, 100%, legenda, pola Nazwa i Notatka mają tę samą wielkość co etykiety pól (zrzut).
+
+760. **LIVE-I122-04 - rzut otwarcia, gdy gracz odświeża stronę w chwili prośby GM-a (linia INVEST, CASE-LC2; murder-rules.mjs, `TIMING.openingCopyWaitMs`, `DRPG.Murder.openingNoCopy`; wpisane do 9.2 21.11.2026, 1.2.122):** na stole v14: gracz odświeża stronę w chwili, gdy GM prosi o rzut otwarcia. Zapisać, czy okno rzutu otwiera się po wczytaniu kopii incydentu, a jeśli nie, czy GM-owie dostają komunikat, że rzut się nie otworzył. Zamknięte w kodzie (R8183, odczyt źródła), wyścig jest stołu; pokrewne LIVE-C122-01 (CASE-24).
+
+761. **LIVE-I122-05 - główny GM rozłącza się w trakcie Objection, gdy czas się kończy (linia INVEST, CASE-LC4; wpisane do 9.2 21.11.2026, 1.2.122):** na stole v14: główny GM rozłącza się w trakcie Objection, gdy czas się kończy. Zapisać, co pokazuje HUD graczy po zerze i czy tryb przechodzi dalej, gdy GM wraca albo inny GM staje się główny.
+
+762. **LIVE-I122-06 - trackery incydentu u dwóch GM-ów przy zmianie etapu (linia INVEST, CASE-LC6; wpisane do 9.2 21.11.2026, 1.2.122):** na stole v14 z dwoma GM-ami, każdy z otwartym trackerem incydentu, przez zmianę etapu (po, zamknięcie, ponowne otwarcie): czy każdy tracker zamyka się i otwiera raz, bez pętli.
+
+763. **LIVE-I122-07 - okno opisu znaleziska Observe przy dwóch GM-ach i przeładowaniu (linia INVEST, CASE-37; observe.mjs `recoverDescribing`, `DRPG.Observe.describeWaiting`, `DRPG.Observe.describeRecovered`; wpisane do 9.2 21.11.2026, 1.2.122):** na stole v14 z dwoma GM-ami; gracz robi Observe na nienazwanym tropie i trafia: drugi GM dostaje wiadomość, że znalezisko czeka na opis u pierwszego. Główny GM odświeża stronę z otwartym oknem opisu: po wczytaniu znalezisko trafia do gracza pod nazwą domyślną, a GM-owie dostają komunikat.
+
+764. **LIVE-M122-01 - przyciski pięter poza pokojem, dwa szybkie przejścia przez drzwi i światło pierścieni przy 0,3 (linia MAP, MAP-31, MAP-38, MAP-29; wpisane do 9.2 21.11.2026, 1.2.122):** na Foundry 14.370 z GM-em i graczem: (1) gracz, którego postać nie stoi w żadnym pokoju, klika przyciski pięter: czy słychać dźwięk wejścia do pokoju i czy obrys podskakuje; (2) gracz upuszcza token za drzwi i od razu za następne, zanim pierwszy zapis wróci: czy oba przejścia mówią „To był twój darmowy ruch”; (3) Stained Glass przy powiększeniu 0,3: czy światło pierścieni Remnantów ma szerokość jak krawędź pokoju (poświatę obrysu pokoju sprawdza pozycja 470, LIVE-E49-04).
+
+765. **LIVE-M122-02 - token między pokojami, które się nie stykają (linia MAP, MAP-LC1; wpisane do 9.2 21.11.2026, 1.2.122):** na Foundry 14.370, z drugiego miejsca gracza: student i Monokuma po kolei przechodzą jednym ruchem z Dorm A do Cafeterii (pokoje się nie stykają). Próbkować płótno co klatkę: czy token pokazuje się dopiero przy krawędzi Cafeterii, a nigdy w przerwie między pokojami (x 800-1200)? Zapisać liczbę próbek i najmniejszy odstęp między nimi.
+
+766. **LIVE-M122-03 - tryb mgły eksploracji sceny po wyłączeniu mgły pokoi (linia MAP, MAP-LC4; fog.mjs `restoreSceneVisionMode`; wpisane do 9.2 21.11.2026, 1.2.122):** na Foundry 14.370 w konsoli: `CONST.FOG_MODES` i `typeof canvas.scene.fog.mode`. Jeśli to napisy, wyłączyć ustawienie mgły pokoi i sprawdzić, czy scena odzyskała swój tryb mgły eksploracji (`restoreSceneVisionMode` przywraca go tylko z liczby).
+
+767. **LIVE-M122-04 - przełączanie między scenami z odkrytym pokojem (linia MAP, MAP-LC5; fog.mjs `fogSets`; wpisane do 9.2 21.11.2026, 1.2.122):** na Foundry 14.370 GM z odkrytym pokojem na dwóch scenach przełącza się między nimi: czy zasłona odkrycia i dźwięk wejścia grają przy przełączeniu (nie powinny). W kodzie już tak jest (księga porównywana tylko z tą samą sceną); obraz i dźwięk są stołu.
+
+768. **LIVE-D122-01 - podpowiedź podpisu przepełnienia Despair (linia DESP, CTRL-28; despair.mjs, danganronpa.css; wpisane do 9.2 21.11.2026, 1.2.122):** na pulpicie (1366x768, oba motywy) najechać na podpis przepełnienia Despair: pokazuje się podpowiedź z licznikiem GM-a. Headless: audit/caption-hit.mjs w Chromium.
+
+769. **LIVE-D122-02 - Przyznaj wszystkie u dwóch GM-ów (linia DESP, REFR-19; wpisane do 9.2 21.11.2026, 1.2.122):** na stole v14 z dwoma GM-ami: A naciska Przyznaj wszystkie; u B karta od razu traci przyciski i mówi Rozstrzygnięto. Przerysowania na drugim kliencie GM-a headless nie odczytano.
+
+770. **LIVE-D122-03 - Despair Call Asystenta GM-a tuż po wydatku głównego GM-a (linia DESP, DESP-21; despair.mjs; wpisane do 9.2 21.11.2026, 1.2.122):** na stole v14: Asystent GM-a z pulą kupuje Despair Call tuż po wydatku głównego GM-a z tej puli. Oczekiwane: odmowa, pula bez zmian.
+
+771. **LIVE-D122-04 - okno rzutu przy ostatniej Sanity (linia DESP, REFR-18; wpisane do 9.2 21.11.2026, 1.2.122):** na stole v14: gracz otwiera okno rzutu przy 1 Sanity, GM zaznacza ostatnią: okno od razu pokazuje utrudnienie.
+
+772. **LIVE-D122-05 - kapelusz Overflow z samym „Despair” (linia DESP, DESP-LC2; wpisane do 9.2 21.11.2026, 1.2.122):** na stole v14, przy kapeluszu Overflow z zaznaczonym tylko „Despair”: wywołać go, potem dać Monocubowi Despair i dolać mu Hope. Odczytać, czy pula Monokumy spada, a Hope zostaje. Kod się zgadza według audytu, ale żaden test nie czyta puli.
+
+773. **LIVE-D122-06 - dźwięk stanu ucznia u jego gracza i u każdego GM-a (linia DESP, DESP-LC3; wpisane do 9.2 21.11.2026, 1.2.122):** na stole v14: gdy uczeń wpada w stan (np. Breakdown), sprawdzić, czy dźwięk stanu słyszy gracz tego ucznia i każdy GM, a nie tylko przeglądarka, która zapisała zmianę.
+
+774. **LIVE-D122-07 - Hope z rzutu Daggerheart przy zaciemnieniu Overflow (linia DESP, DESP-LC4; hak `preUpdateActor`; wpisane do 9.2 21.11.2026, 1.2.122):** na Foundry v14, przy zaciemnieniu Overflow: rzucić rzut Daggerheart, który przyznaje Hope. Odczytać kształt `changes.system.resources.hope.value` w `preUpdateActor` (płaska liczba czy rozwinięty obiekt) i czy zaciemnienie blokuje ten Hope.
+
+775. **LIVE-D122-08 - licznik Overflow napełniony w trakcie Nocnego Zaćmienia (linia DESP, DESP-LC6; wpisane do 9.2 21.11.2026, 1.2.122):** na stole v14: napełnić licznik Overflow w trakcie Nocnego Zaćmienia. Odczytać, czy ciemność obejmuje to Zaćmienie i następną noc, i czy odznaka przy podpisie pokazuje się na klientach graczy.
+
+776. **LIVE-D122-09 - Palm z dokończonym Shadow i zamkniętym oknem Hand (linia DESP, ROLL-LC3; palm.mjs `spentAfterRoll`; wpisane do 9.2 21.11.2026, 1.2.122):** na stole v14: Palm na kimś, dokończyć rzut Shadow, zamknąć okno rzutu Hand. Odczytać, czy pip akcji nie wraca, a Hope z pierwszego rzutu zostaje. Kod się zgadza.
+
+777. **LIVE-D122-10 - uzbrojony Call wydany przez zamknięcie okna i przez `throwDice` (linia DESP, ROLL-LC4; wpisane do 9.2 21.11.2026, 1.2.122):** na v14: uzbroić Call i rzucić. Zarówno zamknięcie okna, jak i `throwDice` wydają Call: sprawdzić, czy flaga nie jest kasowana dwa razy i czy konsola nie pokazuje ostrzeżenia o przestarzałym usuwaniu.
+
+778. **LIVE-D122-11 - Observe „specific”, gdy GM odmawia w pickerze celu (linia DESP, ROLL-LC5; action-observe.mjs; wpisane do 9.2 21.11.2026, 1.2.122):** na stole v14: Observe „specific”, GM odmawia w pickerze celu. Odczytać, czy karta orzeczenia dociera do GM-a z przyciskiem `keyRemnantHere` i czy akcja jest pobrana dokładnie raz (kod: jedna zapłata przed kośćmi).
+
+779. **LIVE-D122-12 - pickery trudności Dynamic i Observe przy dwóch GM-ach i zmianie głównego (linia DESP, ROLL-LC6; observe.mjs; wpisane do 9.2 21.11.2026, 1.2.122):** na stole v14 z dwoma GM-ami: sprawdzić, że tylko główny GM otwiera pickery trudności Dynamic i Observe. Potem zmienić głównego GM-a, gdy Observe czeka: zapisać, co widzi gracz i GM. Gdy linia DESP to pisała, wiersz Observe był tylko w przeglądarce GM-a, który go przyjął; linia INVEST tego wydania wymienia go między GM-ami (CASE-LC3), więc nowy główny GM ma go mieć - zapisać, czy ma.
+
+780. **LIVE-U122-01 - zaufany gracz nie otwiera ustawień tokenu (linia UI, H-3; token-hud.mjs `refuseTokenConfig`; wpisane do 9.2 21.11.2026, 1.2.122):** na stole v14: zaufany gracz (Trusted) klika dwa razy prawym przyciskiem na swój token, potem otwiera „Prototype Token” z arkusza. Okno ustawień tokenu nie pojawia się (albo znika od razu), gracz widzi „Ustawienia tokenu należą do GM-a.”; GM namierza token klawiszem T. Zamknięte tak daleko, jak sięga kod; na v14 nie odczytane.
+
+781. **LIVE-U122-02 - licznik minut incydentu u gracza spoza niego przy pauzie (linia UI, UI-21; wpisane do 9.2 21.11.2026, 1.2.122):** na stole v14, gracz poza incydentem i GM: incydent otwarty, GM pauzuje grę na 2 minuty i wznawia, incydent się kończy. Licznik minut u gracza stoi podczas pauzy i nie cofa się po końcu incydentu.
+
+782. **LIVE-U122-03 - kafelek Palm odświeża się, gdy ktoś wchodzi do pokoju (linia UI, REFR-12; sheet.mjs `roomSignature`; wpisane do 9.2 21.11.2026, 1.2.122):** na stole v14, dwóch graczy w dwóch pokojach, arkusz A otwarty (Palm przekreślony „Nikogo tu nie ma”); B wchodzi do pokoju A: kafelek Palm u A odświeża się sam.
+
+783. **LIVE-U122-04 - Stop Widza bez połączonego GM-a (linia UI, STG-04; wpisane do 9.2 21.11.2026, 1.2.122):** na stole v14: Widz (Spectator) bez połączonego GM-a naciska Stop na swoim arkuszu i potwierdza. Karta safeword pojawia się u wszystkich, gra się zatrzymuje.
+
+784. **LIVE-U122-05 - okno z zakładkami poszerzone dla zakładek (linia UI, UI-23; `app.setPosition`; wpisane do 9.2 21.11.2026, 1.2.122):** na stole v14 przy 1024x768, w obu motywach: okno z zakładkami, które poszerzyło się, by zakładki zmieściły się w jednej linii. Kliknięcie innej zakładki nie zwęża okna, a podpisy zakładek są całe. Zamknięte w kodzie; co v14 potem rysuje, nie zmierzono (R8432 na podstawionych szerokościach).
+
+785. **LIVE-U122-06 - rozmiar arkusza ucznia i jego okien pobocznych pod Stained Glass (linia UI, UI-LC1, UI-09; window-scale.mjs `isCharacterSheet`; wpisane do 9.2 21.11.2026, 1.2.122):** na stole v14 pod Stained Glass: otworzyć arkusz ucznia, potem jego okno ustawień Daggerheart (klucz) i Configure Ownership tego ucznia. Tylko arkusz ma rozmiar arkusza (1120x1160 razy suwak) i stoi pod pasem u góry; oba pozostałe okna mają swój zwykły rozmiar i uchwyt zmiany rozmiaru.
+
+786. **LIVE-U122-07 - komunikat odmowy na Class Trial i stos kart na kafelku (linia UI, UI-LC2; wpisane do 9.2 21.11.2026, 1.2.122):** na Class Trial pod Stained Glass, z dwoma kartami dowodów na scenie dowodów: wywołać odmowę u gracza. Komunikat staje na kafelku w rogu, nie na scenie dowodów; trzecia karta na kafelku chowa najstarszą pod stos z licznikiem „+N” (nie usuwa jej), a zamknięcie widocznej karty przywraca ją.
+
+787. **LIVE-U122-08 - #scene-controls po przełączeniu na Monokuma Legacy (linia UI, UI-LC3; glass.mjs `unmount`; wpisane do 9.2 21.11.2026, 1.2.122):** na ekranie o wysokości 900 px, pod Stained Glass, z otwartą paletą narzędzi sceny: przełączyć na Monokuma Legacy. `#scene-controls` nie ma w stylu inline `max-height` ani `overflow`.
+
+788. **LIVE-U122-09 - kontrast pod Stained Glass nad jasną mapą (linia UI, UI-LC4; stained-glass.css; wpisane do 9.2 21.11.2026, 1.2.122):** na stole v14 pod Stained Glass, nad jasną mapą (biała lub bardzo jasna scena), o porze Night, w Eclipse i w Class Trial: odczytać pipetą kontrast tytułu karty zdarzenia, nagłówków tabel panelu GM-a i ikon panelu; zapisać liczby (w kodzie, bez rozmycia: 1.9-2.3:1 dla słów w kolorze stanu, 4.35:1 dla Bone).
+
+789. **LIVE-U122-10 - pliki Latin-Ext krojów przy polskim imieniu postaci (linia UI, UI-LC5; wpisane do 9.2 21.11.2026, 1.2.122):** na stole v14, gracz z polskim imieniem postaci (np. z Ł, Ś, Ż): w zakładce Sieć przeglądarki przy pierwszym narysowaniu imienia pobiera się plik Latin-Ext każdego kroju (VT323, Special Elite, krój pikselowy), a litery nie są krojem zastępczym.
+
+790. **LIVE-U122-11 - puls szkła na tablecie (linia UI, UI-LC6; `game.drpg.fps()`; wpisane do 9.2 21.11.2026, 1.2.122):** na tablecie, Stained Glass z włączonym pulsem i 120 lub więcej szybami: `await game.drpg.fps({ toChat: false })`. Zapisać liczbę klatek i różnicę z wyłączonym pulsem.
+
+791. **LIVE-U122-12 - Show przejścia na innym piętrze lub scenie (linia UI, C[35] raportu UI; passages-tab.mjs `showPassage`, passages.mjs `viewPassage`; wpisane do 9.2 21.11.2026, 1.2.122):** na stole v14: Room setup > Passages > Show przy przejściu na innym piętrze lub scenie. Kamera przechodzi na tę scenę i piętro i przesuwa się do środka przejścia. Headless nie ma płótna.
+
+792. **LIVE-S122-01 - scena GM-a po tier 2 (linia STG, DOC-07, E101-T10; wpisane do 9.2 21.11.2026, 1.2.122):** na stole v14 po `runTests({ tier: 2 })`: GM ogląda tę samą scenę co przed testem (nie usuniętą salę ani pustą), a testy po nim nie przechodzą w pominięcia „a scene on screen”.
+
+793. **LIVE-S122-02 - obiekty PIXI po zmianach sceny na największej mapie (linia STG, OA-1; docs/dev/stg-122/UNROUTED.md L-1; wpisane do 9.2 21.11.2026, 1.2.122):** na stole v14 z największą mapą izometryczną właściciela: zmienić scenę trzy razy tam i z powrotem przy otwartym Investigation. Po każdej zmianie `game.drpg.counters()` i liczba obiektów PIXI warstwy mgły i pierścieni (`canvas.stage` przeszukany) wracają do tej samej liczby - nic nie zostaje po starej scenie. Koszt na tej mapie pyta pozycja 561 (LIVE-E53-01).
+
+794. **LIVE-S122-03 - muzyka za porą dnia przy pokojach LiveKit (linia STG, OA-3; docs/dev/stg-122/UNROUTED.md L-3; wpisane do 9.2 21.11.2026, 1.2.122):** przy stole v14 z muzyką przypisaną do pór dnia i z avclient-livekit: zmiana pory dnia przez GM-a przełącza playlistę u każdego gracza w ciągu kilku sekund, a głos zostaje w pokojach. Zapisać czas u każdego gracza.
+
+795. **LIVE-S122-04 - `worldDump` przed tier 2 i po nim na kopii świata (linia STG, LF-CLEANUP; docs/dev/stg-122/UNROUTED.md L-4; wpisane do 9.2 21.11.2026, 1.2.122):** na v14, na kopii świata: `worldDump` przed `game.drpg.runTests({ tier: 2 })` i po nim różni się o nic; zapisać każdą ścieżkę, która została.
+
+796. **LIVE-W122-01 - notatka węzła mapy sprawy przy zoomie (linia WORLD, COMM-32; audit/float-zoom.mjs; wpisane do 9.2 21.11.2026, 1.2.122):** na stole v14, na mapie sprawy przy zoomie 0,5 i 2: kliknąć notatkę węzła. Tekst pływającego pola ma ten sam rozmiar co przed kliknięciem. Headless zmierzone w Chromium (R8506).
+
+797. **LIVE-W122-02 - kropki Hope na pasku statusu gracza z Monocubem (linia WORLD, UI-20; player-status.mjs; wpisane do 9.2 21.11.2026, 1.2.122):** na stole v14, gracz z Monocubem: GM dodaje Hope do sakiewki; pasek statusu gracza od razu pokazuje nowe kropki Hope. Headless zmierzono pasek GM-a, kropek gracza nie odczytano.
+
+798. **LIVE-W122-03 - brak planszy końca dnia u gracza spoza incydentu (linia WORLD, STG-06; transitions.mjs; wpisane do 9.2 21.11.2026, 1.2.122):** na stole v14, podczas incydentu, gracz spoza niego: GM przesuwa zegar na Noc. Na ekranie gracza nie ma planszy końca dnia ani jej dźwięku.
+
+799. **LIVE-W122-04 - barykada znika, gdy zebranie po ciele przenosi jej autora (linia WORLD, STG-08; doors-gm.mjs; wpisane do 9.2 21.11.2026, 1.2.122):** na stole v14: zebranie po znalezieniu ciała przenosi autora barykady. Po około 2 s barykada znika, a drzwi do pokoju znów się otwierają.
+
+800. **LIVE-W122-05 - Enter w pustym polu nazwy okna przedmiotu pułapki (linia WORLD, CTRL-62; wpisane do 9.2 21.11.2026, 1.2.122):** na stole v14, okno przedmiotu pułapki: Enter w pustym polu nazwy nie zamyka okna bez słowa. Enter w prawdziwej przeglądarce przy zamkniętym Plant nie zmierzony.
+
+801. **LIVE-W122-06 - wcześniejsze karty ucznia, który został Widzem (linia WORLD, STG-05; spectator-ui.mjs; wpisane do 9.2 21.11.2026, 1.2.122):** na stole v14: uczeń zostaje Widzem; po przeładowaniu jego wcześniejsze karty są w czacie u GM-a i u innych graczy.
+
+802. **LIVE-ITEMS122-01 - projekt morderstwa pośredniego zatwierdzony z karty u proponującego i u innego gracza (linia ITEMS, ITEM-LC2; wpisane do 9.2 21.11.2026, 1.2.122):** na świecie v14 z dwoma kontami graczy: jako gracz A zaproponuj morderstwo pośrednie, GM zatwierdza z karty bez ruszania „Widoczne także dla”. Odczytaj u A listę Pracy nad projektem i tacę Daggerheart: projekt ma być na obu; u gracza B nie ma go na żadnej. Zapisz wersję Foundry i Daggerheart.
+
+803. **LIVE-ITEMS122-02 - narzędzia w ręce: dwa Przeszukaj, przygotuj i schowaj, Gear z kompendium (linia ITEMS, ITEM-LC3, ITEM-04; wpisane do 9.2 21.11.2026, 1.2.122):** na stole v14, postać z pustą ręką: dwa razy Przeszukaj po narzędzie. Oczekiwane: drugie trafia do ręki, a właściciel dostaje szept. Potem: przygotuj jedno, schowaj drugie do skrytki, przygotuj pierwsze, wyjmij drugie. Na arkuszu ma stać jedna odznaka pięści. Dodatkowo (ITEM-04, nowy hak): przeciągnij Gear z kompendium na arkusz obok jednego schowanego - jeden z nich ląduje w ręce.
+
+804. **LIVE-ITEMS122-03 - podłożony przedmiot pułapki po usunięciu jej projektu (linia ITEMS, ITEM-LC4; wpisane do 9.2 21.11.2026, 1.2.122):** na stole v14: podłóż przedmiot pułapki w pokoju, usuń jej projekt w menedżerze projektów, przeszukaj ten pokój. Oczekiwane: podłożony przedmiot nie wychodzi, a wiersz pułapki znika z księgi.
+
+805. **LIVE-ITEMS122-04 - nazwa puli tieru po przeładowaniu (linia ITEMS, ITEM-LC5; wpisane do 9.2 21.11.2026, 1.2.122):** na stole v14: zmień nazwę puli tieru w edytorze tabel, przeładuj jako GM, odczytaj nazwę w pasku bocznym: ma zostać nazwa GM-a.
+
+806. **LIVE-ITEMS122-05 - Daj klucz, gdy GM patrzy na inną scenę niż sypialnie (linia ITEMS, ITEM-LC6; wpisane do 9.2 21.11.2026, 1.2.122):** na stole v14, GM patrzy na scenę B, sypialnie stoją na scenie A: Daj / zabierz przedmioty -> Daj klucz. Lista ma oferować pokoje ze sceny A, a opis klucza ma nazywać właściciela.
+
+807. **LIVE-ITEMS122-06 - karta alarmu pułapki odpalonej przez zabójcę (linia ITEMS, ITEM-LC8; wpisane do 9.2 21.11.2026, 1.2.122):** na świecie v14 z dwoma kontami: pułapka odpalona przez zabójcę. Karta alarmu (`gmOnly`) ma być tylko w czacie GM-ów i nie pojawić się w wątku komunikatora zabójcy.
+
+808. **LIVE-ITEMS122-07 - koszt otwartego panelu GM-a przy ruchu przy stole (linia ITEMS, ITEM-35; `game.drpg.fps()`, `game.drpg.counters()`; wpisane do 9.2 21.11.2026, 1.2.122):** przy prawdziwym stole v14, GM i co najmniej czterech graczy, 16 tokenów: na przeglądarce GM-a z otwartym panelem GM uruchom `await game.drpg.fps({ toChat: false })`, gdy gracze ruszają tokenami i wydają akcje; potem to samo z zamkniętym panelem. Porównaj medianę klatki, najwolniejszą dwudziestą część i klatki ponad 33 i 50 ms; dodatkowo `game.drpg.counters()` przed i po. Panel nie ma własnego licznika przebudów (perf-counters.mjs go nie zna), więc różnica otwarty/zamknięty jest jedynym odczytem. Zapisz liczby, wersję i maszynę; dopóki ich nie ma, ITEM-35 zostaje otwarty.
+
+809. **LIVE-ITEMS122-08 - drugi GM widzi zmiany Despair Flow, menedżera projektów i Masterminda (linia ITEMS, REFR-45, REFR-07, REFR-26, REFR-32; gm-team-dialog.mjs `changedOverflow`; wpisane do 9.2 21.11.2026, 1.2.122):** na stole v14 z dwoma GM-ami: drugi GM otwiera Despair Flow, Menedżer projektów i okno Masterminda; pierwszy zmienia nazwę puli, próg Overflow, pokój projektu i Masterminda. Drugi widzi zmiany od razu (okno Masterminda, menedżer) albo jego Zapisz ich nie cofa (Despair Flow), a karta zasad Overflow nie pojawia się ponownie.
+
+810. **LIVE-ITEMS122-09 - ukryta skrytka nie dociera do innego gracza (linia ITEMS, CORE-25; hidden-stashes.mjs, vault-store.mjs `stashesOn`, migrate.mjs `liftHiddenStashes`; wpisane do 9.2 21.11.2026, 1.2.122):** na stole v14, gracz bez Masterminda: GM ukrywa skrytkę ucznia B w Room Setup. Na konsoli gracza A `game.scenes.contents.flatMap(s => s.regions.contents).map(r => r.flags['danganronpa-rpg']?.drpgStashes)` nie wymienia ukrytej skrytki B; arkusz gracza B nadal pokazuje jego ukrytą skrytkę; po przeładowaniu świata ze starszą wersją ukryte wpisy znikają z regionów (migracja `liftHiddenStashes`).
+
+811. **LIVE-CM122-01 - dok kamer ofiary pod zasłoną otwarcia bez pudełka zabójcy (linia COMM, COMM-20; camera-view.mjs; wpisane do 9.2 21.11.2026, 1.2.122):** na stole v14, zasłona otwarcia, kafel głosu wyłączony: w doku kamer ofiary nie ma pudełka zabójcy (ani awatara, ani obrazu), a po zdjęciu zasłony wraca. Od 1.2.122 moduł zdejmuje pudełko ukrytego uczestnika w każdym trybie tabliczki; to, co rysuje sam avclient-livekit, zostaje w pozycji 711 (LIVE-M121-02, krok 1) i LIVE-F119-03.
+
+812. **LIVE-CM122-02 - nowy klawisz push-to-talk w sekcji Głos (linia COMM, REFR-55; wpisane do 9.2 21.11.2026, 1.2.122):** na stole v14: gracz zmienia klawisz push-to-talk w Configure Controls. Sekcja Głos w ustawieniach od razu pokazuje nowy klawisz (`clientSettingChanged` dla `core.keybindings` na v14 nie odczytane).
+
+813. **LIVE-CM122-03 - muzyka po ciszy po ciele i przesunięciu pory dnia przez drugiego GM-a (linia COMM, COMM-30; wpisane do 9.2 21.11.2026, 1.2.122):** na stole v14 z dwoma GM-ami: główny GM zamyka kartę w ciszy po ciele, a drugi GM przesuwa porę dnia. Muzyka wraca jak należy; GM, który zostaje głównym, przejmuje grający utwór albo trzymaną ciszę. Odtwórz i Wyłącz utwór u drugiego GM-a sprawdza LIVE-CM122-05.
+
+814. **LIVE-CM122-04 - karta „rozłączono” po przeładowaniu przed przydziałem pokoju (linia COMM, COMM-28; wpisane do 9.2 21.11.2026, 1.2.122):** na stole v14 z avclient-livekit: gracz przeładowuje stronę, zanim główny GM przydzieli pokój, i LiveKit się rozłącza. Karta „rozłączono” zostaje do odpowiedzi GM-a.
+
+815. **LIVE-CM122-05 - Hope Call opłacony przez GM-a: pozostała Hope na karcie (linia COMM, DESP-36; wpisane do 9.2 21.11.2026, 1.2.122):** na stole v14: gracz kupuje Hope Call, który płaci GM. Liczba pozostałej Hope na karcie zgadza się z arkuszem. Headless nie zmierzone (zestaw działa na GM-ie).
+
+816. **LIVE-CM122-06 - klawiatura od przycisku czatu GM do rozmowy z graczem (linia COMM, CTRL-63; wpisane do 9.2 21.11.2026, 1.2.122):** na stole v14: z przycisku czatu GM Tabem dojść do wiersza gracza na liście i Enterem otworzyć rozmowę.
+
+817. **LIVE-CM122-07 - karta pułapki u GM-a i u gracza-świadka bez nazwy projektu (linia COMM, COMM-LC3; wpisane do 9.2 21.11.2026, 1.2.122):** przy prawdziwym stole v14 odpala pułapka (morderstwo pośrednie, ekran S7-6): u GM-a karta „Do rozstrzygnięcia” bez nazwy projektu w tytule, a u gracza-świadka żadnej karty i żadnej nazwy projektu w kopii wiadomości.
+
+818. **LIVE-CM122-08 - Odtwórz i Wyłącz utwór u drugiego GM-a, i nieprzeczytana wiadomość przy cofniętym zegarze (linia COMM, COMM-LC5; decyzja właściciela: każdy GM może odtwarzać i zatrzymywać muzykę; scenariusz 97 M1-M3; wpisane do 9.2 21.11.2026, 1.2.122):** na stole v14 z dwoma GM-ami: drugi GM naciska Odtwórz, a potem Wyłącz utwór w oknie Dźwięk; muzyka zmienia się u wszystkich, a drugi GM dostaje komunikat, co się stało. Gracz z zegarem cofniętym o 2 minuty pisze do GM-a, który przeczytał już wątek; wiadomość liczy się jako nieprzeczytana (plakietka +1).
+
+819. **LIVE-CM122-09 - plakietka wyrzutni komunikatora obok doku kamer (linia COMM, COMM-LC6; wpisane do 9.2 21.11.2026, 1.2.122):** na prawdziwym ekranie (1366x768 i 1920x1080, oba motywy): plakietka wyrzutni komunikatora obok doku kamer nie zasłania doku i nie jest przez niego zasłonięta (zrzuty).
+
+820. **LIVE-CM122-10 - czy serwer 14.370 nadpisuje `ChatMessage.timestamp` (linia COMM, COMM-LC7; wpisane do 9.2 21.11.2026, 1.2.122):** na Foundry 14.370: gracz z zegarem przestawionym o +5 minut wysyła wiadomość; na GM-ie odczytać `message.timestamp` i porównać z `Date.now()` GM-a. Pokrewne: pozycja 134 (LIVE-E33-10).
+
+821. **LIVE-COMM-49 - opóźnienie dźwięku przycisku `YIELD_MS` na słuch (linia COMM, COMM-49; sfx-play.mjs, config.mjs `YIELD_MS`; wpisane do 9.2 21.11.2026, 1.2.122):** przy stole v14 dostroić na słuch `YIELD_MS` (120 ms). Przycisk otwierający okno: czy dźwięk przycisku nie wyprzedza okna i czy klik nie wydaje się opóźniony; spróbować 80, 120 i 200 ms i zapisać, która wartość brzmi dobrze.
+
+822. **LIVE-COMM-48 - reset sezonu z dwoma Monocubami bez dźwięku Monocuba (linia COMM, COMM-48; monocub.mjs, sfx.mjs `monocubQuiet`; wpisane do 9.2 21.11.2026, 1.2.122):** na stole v14: reset sezonu z dwoma Monocubami. Ani drugi GM, ani gracz Monocuba nie słyszą dźwięku Monocuba (znacznik `monocubQuiet` w zmianach aktualizacji).
+
+823. **LIVE-REFR-55 - notka o mikrofonie ustępuje liście mikrofonów po zezwoleniu (linia COMM, REFR-55; wpisane do 9.2 21.11.2026, 1.2.122):** w Chrome i w Firefoksie, na v14, z otwartym oknem ustawień i notką o mikrofonie: zezwolić na mikrofon; notka ustępuje liście mikrofonów bez ponownego otwierania okna. Zapisać, które zdarzenie przyszło (`devicechange`, zmiana uprawnienia, `rtcSettingsChanged`).
+
+824. **LIVE-REFR-25 - przełączniki okna Dźwięk i notka o braku playlist u drugiego GM-a (linia COMM, REFR-25; sound-panel.mjs; wpisane do 9.2 21.11.2026, 1.2.122):** na stole v14 z dwoma GM-ami z otwartym oknem Dźwięk: jeden przełącza „Muzyka podąża za stanem gry” i „Zmieniaj często słyszane dźwięki”, a u drugiego przełączniki zmieniają się bez ponownego otwarcia. Jeden tworzy pierwszą playlistę, a u drugiego znika komunikat o braku playlist.
+
+825. **LIVE-R122-01 - dwucyfrowa liczba żetonów w Room setup przy ruchu drugiego GM-a (linia R1, r121-R-2; room-setup.mjs; wpisane do 9.2 21.11.2026, 1.2.122):** na stole v14, w Room setup, przy pokoju o 12 lub więcej komórkach: wpisać 10 w liczbę żetonów, gdy drugi GM przesuwa token. Pole ma pokazywać 10. To przypadek dwucyfrowy, którego harness nie ma (jego pokoje mają najwyżej 3 komórki); resztę pyta pozycja 714 (LIVE-R121-02).
+
+826. **LIVE-122-01 - krytyk rzutu osłony przy Tamper i zwrot Sanity (linia MURDER, CASE-27; cleanup.mjs; wpisane do 9.2 21.11.2026, 1.2.122):** przy prawdziwym stole v14: krytyk rzutu osłony przy Tamper, przy świadku w pokoju. Sanity wraca raz, na karcie próby; Reroll tej próby cofa ten zwrot.
+
+827. **LIVE-122-02 - wybór autora w „By” na karcie Remnanta i Cancel (linia MURDER, CTRL-19; remnant-ring.mjs; wpisane do 9.2 21.11.2026, 1.2.122):** karta Remnanta w Chromium: wybór w „By”, przerysowanie pod pytaniem, Cancel - lista wyboru pokazuje starego autora.
+
+828. **LIVE-122-03 - zasłona otwarcia przy dwóch GM-ach (linia MURDER, STG-31; mask-gm.mjs, `mask.veil`; wpisane do 9.2 21.11.2026, 1.2.122):** na v14 z dwoma GM-ami: zasłona otwarcia (`mask.veil`) prosi głównego GM-a i trzyma się jego deklaracji.
+
+829. **LIVE-122-04 - ślady po Move the body w Stage 6 (linia MURDER, CASE-74; death.mjs, remnants.mjs; wpisane do 9.2 21.11.2026, 1.2.122):** na stole v14: Move the body w Stage 6, potem ślad w pokoju zbrodni - ma być powiązany ze zbrodnią; ślad przy ciele - nie.
+
 B-E20-1. **LIVE-E20-01 - Ustaw sezon i Kontrola przed sezonem na ekranie (E20 C2, C4; E20-10, E20-15, E20-16):** na stole v14, przy 1366x768 i 1920x1080, w obu motywach i obu językach: (1) **Ustaw sezon** otwiera się na górze, z kursorem w nazwie kampanii, a nie przewinięte do przycisku Zapisz; pasek przewijania widać; podpowiedzi pod wierszami są czytelne, wyrównane do lewej, a wiersz zrobiony przygasza tytuł i znak, nie cały wiersz (zrzuty); (2) **Otwórz** przy wierszu (na przykład Każdy ma Ultimate - arkusz, Co najmniej jeden Monokuma - Despair Flow): okno, które otworzył, stoi przed listą, która wróciła - prawdziwe układanie okien Foundry, którego harness nie ma (zapisz, czy któreś okno zostało pod listą); (3) **Kontrola przed sezonem** z obsadą, której brakuje zasobów: sekcja Obsada nie jest ucięta ani przewijana we własnej ramce, zdanie "Jak to naprawić" stoi na jej górze, a okno przewija się całe (zrzuty).
 
 B-E20-2. **LIVE-E20-02 - świat bez Dice So Nice (E20 C5; E20-17, E20-18):** na świeżym świecie v14 z wyłączonym Dice So Nice, jako GM i jako gracz, w obu językach: okno wymagań podaje powód Dice So Nice w języku stołu, bez "dwóch rzeczy"; w konsoli przeglądarki nie ma błędu z `danganronpa-rpg`; pasek skrótów, nawigacja scen i lista graczy stoją tak, jak rysuje je Foundry; w `document.styleSheets` nie zostaje arkusz z `modules/danganronpa-rpg/` (zapisz liczbę). Potem włączyć Dice So Nice i wczytać świat: moduł startuje.
