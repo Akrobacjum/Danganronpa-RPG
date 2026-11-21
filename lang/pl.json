@@ -1287,6 +1287,7 @@
       "inviteAccept": "Przyjmuję Zasadę",
       "inviteDecline": "Nie teraz",
       "invited": "{name}: zaproszenie wysłane. Postać zostaje Monocubem, gdy gracz przyjmie Zasadę Monocuba.",
+      "invitedNoPlayer": "{name}: zaproszenie wysłane, ale postać nie ma gracza, więc nikt go jeszcze nie przyjmie. Zaproszenie czeka na gracza, któremu dasz tę postać.",
       "inviteDeclined": "Gracz postaci {name} odrzucił zaproszenie Monocuba.",
       "inviteSent": "Zaproszenie wysłane",
       "cancelInvite": "Wycofaj",
@@ -4159,6 +4160,7 @@
       },
       "tail": {
         "nobody": "Nikt inny nie stoi w tym pokoju, by go śledzić.",
+        "gone": "Postaci {name} nie ma już w tym pomieszczeniu.",
         "prompt": "Wybierz, kogo z tego pokoju chcesz śledzić, i zaproponuj Leg albo Shadow. Rzut Shadow poniżej {n} od razu zdradza celowi, kto go śledzi, ale śledzenie trwa dalej.",
         "who": "Kogo",
         "unseenTitle": "Tail Someone: czy cel cię zauważy?",

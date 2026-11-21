@@ -32598,6 +32598,21 @@ const INVARIANTS = [
         const loose = [...keyed].filter(key => !spends.includes(key) && !takes.includes(key)).sort();
         equal(stableJson(loose), "[]", "[the keys of supporting rolls (`remember: false`) the GM's draw would throw and spend hindering Calls into]");
     }],
+    ["R8382 - Tail Someone holds its target to the room again before it pays (1.2.122 line DESP; the audit's REFR-20): action-tail.mjs `performTail` reads `tailTargets` again after the GM's statistic card and before `spendAction`, and a target gone is said and costs nothing", async () => {
+        /*
+         * 21.11.2026, 1.2.122 line DESP. The target list was read before the window and the GM's card (`traitFor`, which can
+         * wait on a person), and the pick was found in it after; a target who crossed meanwhile was refused by the primary
+         * only after the action was paid and both rolls thrown. Read off the source, the order of the four calls in
+         * `performTail`. Red at 21bf5d18: no second `tailTargets` before the price. The table's own order (a target who
+         * walks out while the card waits) is not driven here.
+         */
+        const src = fnSource(stripComments((await moduleSources()).get("action-tail.mjs") ?? ""), "performTail");
+        const at = re => { const m = src.match(re); return m ? m.index : -1; };
+        const order = { ruled: at(/await traitFor\(/), again: at(/if \(!tailTargets\(actor\)\.some\(a => a\.id === target\.id\)\) \{\s*ui\.notifications\.warn\(game\.i18n\.format\("DRPG\.Infiltrate\.tail\.gone"[\s\S]{0,80}?return null;/), paid: at(/await spendAction\(actor, cost\)/) };
+        must(order.ruled > 0 && order.paid > 0, `performTail's card or price was not read - this would measure nothing: ${stableJson(order)}`);
+        equal(stableJson([order.again > order.ruled, order.again > 0 && order.again < order.paid]), stableJson([true, true]),
+            "[the target held to the room again after the GM's card; before the action is paid]");
+    }],
     ["R8380 - the Despair panel's overflow caption takes the pointer as the panel's controls do (1.2.122 line DESP; the audit's CTRL-28): under `#drpg-despair`'s `pointer-events: none` the caption computes `auto`, as the pool's count does, so its tooltip - the GM's real count past the threshold and why a full counter has not fired - can show on a desk layout; in Chromium audit/caption-hit.mjs measures the hit itself", async () => {
         /*
          * 21.11.2026, 1.2.122 line DESP. The panel is `pointer-events: none` so the canvas takes clicks through it, and its

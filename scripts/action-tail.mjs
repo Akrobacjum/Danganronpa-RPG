@@ -75,6 +75,14 @@ export async function performTail(actor, options = {}) {
     const ruled = await traitFor(actor, { kind: "generic", key: "tail" }, { proposed: picked.proposed ?? null, note: picked.note ?? "" });
     if (!ruled?.trait) return null;
 
+    /* THE TARGET HELD TO THE ROOM AGAIN BEFORE THE PRICE (the audit's REFR-20, 1.2.122). The list was read before the
+       window and the GM's statistic card, which can wait on a person; a target who walked out meanwhile was refused by
+       the primary only after the action was paid and both rolls thrown. Read again here, as this browser sees the room:
+       one gone is said, and nothing is paid. */
+    if (!tailTargets(actor).some(a => a.id === target.id)) {
+        ui.notifications.warn(game.i18n.format("DRPG.Infiltrate.tail.gone", { name: nameAsSeen(target) }));
+        return null;
+    }
     const paid = cost > 0 ? await spendAction(actor, cost) : null;
     if (cost > 0 && !paid) return null;
     // Whether the target notices: a supporting roll, nothing remembers it (as a Palm's cover).

@@ -319,12 +319,34 @@ async function receiveCubs(cubs, stamps) {
     const taken = await cubCopy.receive(mine, own);
     // An invitation the copy now holds opens its window on the owner's browser (E72 C6), once per invitation here;
     // so does each Bribe offered to the Monocub (E72 C15), once per offer.
-    for (const [actorId, row] of Object.entries(cubCopy.read() ?? {})) {
+    const rows = cubCopy.read() ?? {};
+    await closeGoneCubWindows(rows);
+    for (const [actorId, row] of Object.entries(rows)) {
         if (row?.invited) openInvitation(game.actors.get(actorId));
-        else invitationsShown.delete(actorId);
         for (const [bribeId, offer] of Object.entries(row?.bribes ?? {})) openBribeOffer(game.actors.get(actorId), bribeId, offer);
     }
     return taken;
+}
+
+/**
+ * THE WINDOW GOES WITH ITS OFFER (the audit's REFR-29, 1.2.122). An invitation withdrawn by a GM, or a Bribe answered from
+ * the sheet's Monocub panel, lapsed at the turn of the time of day or closed by the darkening, left its window standing,
+ * and its Accept was refused by the primary. A copy that no longer holds the invitation, or the offer, closes its window
+ * here (live.mjs `closeOpen`, by the class the window carries: the student's, or the offer's id) and forgets it was shown.
+ */
+export async function closeGoneCubWindows(rows) {
+    const { closeOpen } = await import("./live.mjs");
+    for (const actorId of [...invitationsShown]) {
+        if (rows?.[actorId]?.invited) continue;
+        invitationsShown.delete(actorId);
+        closeOpen(`drpg-cub-invite-${actorId}`);
+    }
+    const open = new Set(Object.values(rows ?? {}).flatMap(row => Object.keys(row?.bribes ?? {})));
+    for (const bribeId of [...bribesShown]) {
+        if (open.has(bribeId)) continue;
+        bribesShown.delete(bribeId);
+        closeOpen(`drpg-cub-bribe-${bribeId}`);
+    }
 }
 
 /**
@@ -433,7 +455,11 @@ export async function offerMonocub(actor) {
     }
     if (isMonocub(actor)) return false;
     await patchCubRow(actor.id, { invite: { at: serverNow(), by: game.user.id } });
-    ui.notifications.info(game.i18n.format("DRPG.Monocub.invited", { name: actor.name }));
+    /* A student no player owns has nobody to answer (the audit's CTRL-88, 1.2.122): the window opens only on a player's
+       browser that owns the character, so the notice said "once their player accepts" of a player there is not. Said so;
+       the invitation stands for a player the GM gives the student to, and `game.drpg.setMonocub` is the GM's own road. */
+    const played = (game.users ?? []).some(u => !u.isGM && actor.testUserPermission?.(u, "OWNER"));
+    ui.notifications.info(game.i18n.format(played ? "DRPG.Monocub.invited" : "DRPG.Monocub.invitedNoPlayer", { name: actor.name }));
     log(`${actor.name} is invited to become a Monocub; waiting for their player to accept the Monocub Rule.`);
     return true;
 }
@@ -491,7 +517,7 @@ export async function openInvitation(actor) {
     const L = key => foundry.utils.escapeHTML(game.i18n.localize(key));
     const answer = await drpgWindow({
         title: game.i18n.localize("DRPG.Monocub.inviteTitle"),
-        classes: ["drpg-panel", "drpg-cub-invite"],
+        classes: ["drpg-panel", "drpg-cub-invite", `drpg-cub-invite-${actor.id}`],
         body: `<div class="drpg-cub-invite-body">
             <p>${foundry.utils.escapeHTML(game.i18n.format("DRPG.Monocub.inviteIntro", { name: actor.name }))}</p>
             <h3>${L("DRPG.Monocub.ruleTitle")}</h3>
@@ -1592,7 +1618,7 @@ export async function openBribeOffer(actor, bribeId, offer) {
     const esc = foundry.utils.escapeHTML;
     const answer = await drpgWindow({
         title: game.i18n.localize("DRPG.Monocub.bribeTitle"),
-        classes: ["drpg-panel", "drpg-cub-bribe"],
+        classes: ["drpg-panel", "drpg-cub-bribe", `drpg-cub-bribe-${bribeId}`],
         body: `<p>${esc(game.i18n.format("DRPG.Monocub.bribeAsk", { name: offer?.fromName ?? "?", cost: offer?.cost ?? 0, cub: actor.name }))}</p>`,
         footer: {
             primary: { action: "accept", label: game.i18n.localize("DRPG.Monocub.bribeAccept"), callback: () => "accept" },

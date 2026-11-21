@@ -20169,6 +20169,97 @@ const SCENARIOS = [
         }), stableJson({ line: "pool", polishPlayer: false, header: true }),
             "{whom the declined line names; whether the Polish given line says 'gracz'; whether the ability window's header is drawn from priceOf}");
     }],
+    ["1.2.122 REFR-29 - a Monocub's invitation window and a Bribe's window close when the copy no longer holds the invitation or the offer, and stand while it does (scripts/monocub.mjs `closeGoneCubWindows`, `receiveCubs`, `openInvitation`, `openBribeOffer`; the audit's REFR-29, 1.2.122 line DESP)", async () => {
+        /*
+         * 21.11.2026, 1.2.122 line DESP. The audit's REFR-29: each window was opened from the owner's copy of the Monocub
+         * row and never closed by a later copy; a withdrawn invitation, or a Bribe answered from the sheet, lapsed or
+         * closed by the darkening, left its window, and its Accept was refused. The two windows opened as on the owner's
+         * browser (`asConsole`: `game.user.isGM` reads false for the opener's start, and the student `isOwner`), for a student of the cast, then the
+         * copy's rows handed in as `receiveCubs` hands them: first still holding both (the control), then holding neither.
+         * Read: each window's presence after each, and what each opener answered. Put back: the windows. Red at
+         * 21bf5d18: no `closeGoneCubWindows`, both windows stand.
+         */
+        const [student] = cast(1);
+        const M = await import("./monocub.mjs");
+        must(typeof M.openInvitation === "function" && typeof M.openBribeOffer === "function", "monocub.mjs opens no invitation or Bribe window - this would measure nothing");
+        const BRIBE = `SUITEr29${foundry.utils.randomID(6)}`;
+        needs(env.dialogs(), "the two windows are drawn and read");
+        const elementOf = app => (app?.element instanceof HTMLElement ? app.element : app?.element?.[0]) ?? null;
+        const isOpen = cls => [...(foundry.applications.instances?.values?.() ?? [])].some(app => app?.rendered && elementOf(app)?.isConnected && elementOf(app)?.classList?.contains(cls));
+        // The owner's browser: `isGM` false and the student owned, for each opener's synchronous start.
+        const asOwner = call => {
+            Object.defineProperty(student, "isOwner", { value: true, configurable: true });
+            try { return asConsole(call); } finally { delete student.isOwner; }
+        };
+        const invite = asOwner(() => M.openInvitation(student));
+        const bribe = asOwner(() => M.openBribeOffer(student, BRIBE, { fromName: "SUITE", cost: 1 }));
+        const read = {};
+        try {
+            await until(() => isOpen(`drpg-cub-invite-${student.id}`) && isOpen(`drpg-cub-bribe-${BRIBE}`), 3000);
+            read.opened = [isOpen(`drpg-cub-invite-${student.id}`), isOpen(`drpg-cub-bribe-${BRIBE}`)];
+            await M.closeGoneCubWindows?.({ [student.id]: { invited: true, bribes: { [BRIBE]: { fromName: "SUITE", cost: 1 } } } });
+            await settle();
+            read.kept = [isOpen(`drpg-cub-invite-${student.id}`), isOpen(`drpg-cub-bribe-${BRIBE}`)];
+            await M.closeGoneCubWindows?.({ [student.id]: { bribes: {} } });
+            await settle();
+            read.gone = [isOpen(`drpg-cub-invite-${student.id}`), isOpen(`drpg-cub-bribe-${BRIBE}`)];
+            read.answers = await Promise.race([Promise.all([invite, bribe]), wait(1500).then(() => "pending")]);
+        } finally {
+            for (const app of [...(foundry.applications.instances?.values?.() ?? [])]) {
+                const el = elementOf(app);
+                if (el?.classList?.contains(`drpg-cub-invite-${student.id}`) || el?.classList?.contains(`drpg-cub-bribe-${BRIBE}`)) await app.close().catch(() => {});
+            }
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ opened: [true, true], kept: [true, true], gone: [false, false], answers: [null, null] }),
+            "{[the invitation's window, the Bribe's] open; after a copy still holding both; after a copy holding neither; what the two openers answered}");
+    }],
+    ["1.2.122 CTRL-88 - an invitation to become a Monocub says when no player owns the student, so nobody can accept it yet; a played student's says its player will (scripts/monocub.mjs `offerMonocub`; the audit's CTRL-88, 1.2.122 line DESP)", async () => {
+        /*
+         * 21.11.2026, 1.2.122 line DESP. The audit's CTRL-88: the notice said "they become a Monocub once their player
+         * accepts the Monocub Rule" for a dead student no player owns, whose invitation window opens on nobody's browser.
+         * A student of the cast with a player, marked dead; invited twice: as it stands, and with its players' ownership
+         * stood in as none (`testUserPermission` answering false for every player). Read: the notice each invitation said.
+         * Put back: the flag, the row, the stand-in. Red at 21bf5d18: both said "invited".
+         */
+        const { cubStore } = await import("./gm-stores.mjs");
+        const M = await import("./monocub.mjs");
+        const { livingStudents } = await import("./chapter.mjs");
+        const [actor] = livingStudents().filter(a => game.users.some(u => !u.isGM && a.testUserPermission(u, "OWNER")));
+        must(actor, "a living student with a player - this would measure nothing");
+        const flagWas = foundry.utils.deepClone(actor.getFlag(MODULE_ID, FLAGS.deceased) ?? null);
+        const rowWas = foundry.utils.deepClone(cubStore?.get(actor.id) ?? null);
+        const clock = getClock();
+        const info = ui.notifications.info, said = [];
+        const words = key => game.i18n.format(key, { name: actor.name });
+        const read = [];
+        try {
+            await actor.setFlag(MODULE_ID, FLAGS.deceased, { chapter: clock.chapter, day: clock.day, timeOfDay: clock.timeOfDay });
+            await settle();
+            ui.notifications.info = m => { said.push(m); return null; };
+            for (const owned of [true, false]) {
+                said.length = 0;
+                if (cubStore.has(actor.id)) await cubStore.drop(actor.id);
+                const real = actor.testUserPermission;
+                if (!owned) Object.defineProperty(actor, "testUserPermission", { configurable: true, value: (user, level, opts) => (user?.isGM ? real.call(actor, user, level, opts) : false) });
+                try {
+                    await M.offerMonocub(actor);
+                    await settle();
+                } finally {
+                    delete actor.testUserPermission;
+                }
+                read.push(said.includes(words("DRPG.Monocub.invitedNoPlayer")) ? "noPlayer" : said.includes(words("DRPG.Monocub.invited")) ? "invited" : stableJson(said));
+            }
+        } finally {
+            ui.notifications.info = info;
+            if (cubStore.has(actor.id)) await cubStore.drop(actor.id);
+            if (rowWas) await cubStore.patch(actor.id, rowWas);
+            if (flagWas) await actor.setFlag(MODULE_ID, FLAGS.deceased, flagWas);
+            else await actor.unsetFlag(MODULE_ID, FLAGS.deceased);
+            await settle();
+        }
+        equal(stableJson(read), stableJson(["invited", "noPlayer"]), "[the notice of an invitation for a played student; for one no player owns]");
+    }],
     ["1.2.122 DESP-23 - a Bounty claim that would pay no Hope leaves the Bounty standing and its Despair owed for the lapse to give back: a Monocub at its Hope limit lands on a Bounty, which stays open, the pool's debt stays, and its player is told why; with room in the purse the same claim pays and takes the Bounty (scripts/monocub.mjs `claimBounty`; the audit's DESP-23 and DESP-29, 1.2.122 line DESP)", async () => {
         /*
          * 21.11.2026, 1.2.122 line DESP; the line's default sent to the coordinator. The audit's DESP-23 (and DESP-29):
