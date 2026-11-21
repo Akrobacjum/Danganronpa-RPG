@@ -82,7 +82,17 @@ function cycleOf(nodes, inputEdges) {
  * unrelated: [id], gapAt, positions: { id: { col, row } }, cycle }` - `cycle` null, or the nodes on one with no
  * columns at all.
  */
-export function layoutCase(graph, { sort = "kind", manual = {} } = {}) {
+/*
+ * A NODE MOVED A COLUMN TO THE RIGHT BY THE GM (the owner, 21.11.2026: "Do planera - dodajmy opcje move left/right dla
+ * counters, dedukcji itd."; the line INVEST of 1.2.123). A column is a depth, so a deduction or a counter may stand
+ * further right than one past its deepest input, never nearer: `shift` (the chapter's meta row, case-schema.mjs
+ * `caseMetaOf`) holds how many columns past its own depth each such node stands, and whatever rests on it stands past it
+ * in turn. Evidence keeps the first column and the solution the last (the Move left / Move right buttons are shut for
+ * them, case-map.mjs `nodeEditHtml`). Tier 1 R8570.
+ */
+const shiftOf = (shift, id) => { const n = Number(shift?.[id]); return Number.isInteger(n) && n > 0 ? n : 0; };
+
+export function layoutCase(graph, { sort = "kind", manual = {}, shift = graph?.meta?.shift ?? {} } = {}) {
     const order = LAYOUT_SORTS.includes(sort) ? sort : "kind";
     const nodes = [...(graph?.nodes ?? [])];
     const edges = [...(graph?.edges ?? [])];
@@ -112,6 +122,7 @@ export function layoutCase(graph, { sort = "kind", manual = {} } = {}) {
                 const targets = edges.filter(e => e.kind === "refutes" && e.from === id && byId.has(e.to) && !byId.get(e.to).evidence);
                 d = Math.max(1, ...targets.map(e => depthOf(e.to)));
             } else d = 1;
+            if (n.kind !== "solution") d += shiftOf(shift, id);
         }
         working.delete(id);
         depth.set(id, d);

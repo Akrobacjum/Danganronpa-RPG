@@ -1697,7 +1697,7 @@ export const keyPlanStore = defineGmStore({
  * THE CASE SCHEMA (E97 C3, 11.11.2026): what a GM builds on a chapter's evidence in the Investigation panel's Map - a
  * row per node, `${chapter}:${nodeId}`, of case-schema.mjs NODE_FIELDS (32 names: `kind`, `label`, `text`, `inputs`,
  * `refutes`, `mode`, `order`, `made` and the evidence's and the zones' own), and one `${chapter}:meta` of META_FIELDS
- * (`sort`, `manual`, `run`, `askedAt`, `made`, `autopsies`, `autopsySent`), counted 21.11.2026. case-schema.mjs writes it
+ * (`sort`, `manual`, `run`, `askedAt`, `made`, `autopsies`, `autopsySent`, and since 1.2.123 `shift`), counted 21.11.2026. case-schema.mjs writes it
  * alone; investigation.mjs reads its entries too (`planToClear`). The audit's D 281, 1.2.122: until then this named the
  * first eight and four and called case-schema.mjs the only reader. The case worked
  * out ahead of the trial, so the GMs' alone (R3374); any GM writes it, an Assistant too (Q8). Backed up and synced like

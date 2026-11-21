@@ -2203,6 +2203,10 @@
         "onANodeTooltip": "Zaznacza ten węzeł jako osiągnięty podczas Class Trial. Zaznaczony wniosek albo kontra trafia do podsumowania sprawy dla graczy",
         "notTiedToTheTooltip": "Pokazuje albo ukrywa te Remnanty",
         "moveUpMoveDownTooltip": "Przesuwa ten węzeł o jedno miejsce w kolumnie; kolejność zmienia się na Ręcznie",
+        "moveLeftMoveRightTooltip": "Przesuwa ten węzeł o jedną kolumnę w lewo albo w prawo; to, co na nim opiera się, przesuwa się razem z nim",
+        "moveSideEvidenceTooltip": "Dowody stoją w pierwszej kolumnie",
+        "moveSideSolutionTooltip": "Rozwiązanie stoi w ostatniej kolumnie, za wszystkim, na czym się opiera",
+        "moveSideLeftmostTooltip": "Ten węzeł stoi już o jedną kolumnę za tym, na czym się opiera",
         "checkConsistencyTooltip": "Wypisuje, co w sprawie się nie zgadza",
         "addDeductionCounterSolutionTooltip": "Dodaje od razu do sprawy, bez naciskania Zapisz",
         "notNowTooltip": "W tym rozdziale pytanie nie wróci. Przycisk Podejrzyj realizację w oknie Investigation otwiera je w każdej chwili",
@@ -9365,6 +9369,8 @@
       "sortLabel": "Kolejność w kolumnie",
       "moveUp": "W górę",
       "moveDown": "W dół",
+      "moveLeft": "W lewo",
+      "moveRight": "W prawo",
       "moveEnd": {
         "up": "Nie da się przesunąć „{name}” wyżej.",
         "down": "Nie da się przesunąć „{name}” niżej."

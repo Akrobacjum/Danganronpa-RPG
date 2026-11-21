@@ -28991,6 +28991,10 @@ const INVARIANTS = [
             ["DRPG.Tips.Case.onANodeTooltip","case-map.mjs","caseGraphHtml"],
             ["DRPG.Tips.Case.notTiedToTheTooltip","case-map.mjs","caseGraphHtml"],
             ["DRPG.Tips.Case.moveUpMoveDownTooltip","case-map.mjs","nodeEditHtml"],
+            ["DRPG.Tips.Case.moveLeftMoveRightTooltip","case-map.mjs","nodeEditHtml"],
+            ["DRPG.Tips.Case.moveSideEvidenceTooltip","case-map.mjs","nodeEditHtml"],
+            ["DRPG.Tips.Case.moveSideSolutionTooltip","case-map.mjs","nodeEditHtml"],
+            ["DRPG.Tips.Case.moveSideLeftmostTooltip","case-map.mjs","nodeEditHtml"],
             ["DRPG.Tips.Case.closeNodeTooltip","case-map.mjs","nodeEditHtml"],
             ["DRPG.Tips.Case.checkConsistencyTooltip","case-map.mjs","caseOverviewHtml"],
             ["DRPG.Tips.Case.addDeductionCounterSolutionTooltip","case-map.mjs","caseToolsHtml"],
@@ -67066,6 +67070,37 @@ const INVARIANTS = [
         }
         equal(stableJson(read), stableJson({ adopted: 4, goneHeld: 0, leftHeld: false, observers: true }),
             "{adopted: hosts the watch took on; observers: some observer registered on the fourth host; goneHeld: the three removed hosts held by them; leftHeld: any node off the page held by them}");
+    }],
+    ["R8570 - a deduction or a counter the GM moved right stands that many columns past its own depth and what rests on it past that; evidence keeps the first column and the solution the last whatever its shift says (case-layout.mjs `layoutCase`'s `shift`; the owner, 21.11.2026, OWNER-123-PLAN-1; the line INVEST of 1.2.123)", async () => {
+        /* Pure. Two Remnants, d1 resting on the first, d2 on d1, a counter c on d1, the solution on d2; read with no shift,
+           with d1 shifted 2, and with a shift written for the first Remnant and the solution (which the layout must not
+           take). Red before 1.2.123: `layoutCase` took no `shift`, and every node stood at its depth. */
+        const { layoutCase } = await import("./case-layout.mjs");
+        const nodes = [{ id: "e1", kind: "trace", evidence: true, tied: true }, { id: "e2", kind: "trace", evidence: true, tied: true },
+            { id: "d1", kind: "deduction" }, { id: "d2", kind: "deduction" }, { id: "c", kind: "counter" }, { id: "s", kind: "solution" }];
+        const edges = [{ kind: "input", from: "e1", to: "d1" }, { kind: "input", from: "d1", to: "d2" }, { kind: "input", from: "d1", to: "c" }, { kind: "input", from: "d2", to: "s" }];
+        const colOf = layout => Object.fromEntries(layout.columns.flatMap((col, i) => col.map(id => [id, i])));
+        const plain = colOf(layoutCase({ nodes, edges, meta: {} }));
+        const shifted = colOf(layoutCase({ nodes, edges, meta: { shift: { d1: 2 } } }));
+        const ignored = colOf(layoutCase({ nodes, edges, meta: { shift: { e1: 3, s: 2 } } }));
+        equal(JSON.stringify({ plain, shifted, ignored }), JSON.stringify({
+            plain: { e1: 0, e2: 0, d1: 1, d2: 2, c: 2, s: 3 },
+            shifted: { e1: 0, e2: 0, d1: 3, d2: 4, c: 4, s: 5 },
+            ignored: { e1: 0, e2: 0, d1: 1, d2: 2, c: 2, s: 3 } }), "{plain, shifted, ignored: each node's column with no shift, d1 shifted 2, and a shift on evidence and the solution}");
+    }],
+    ["R8571 - the camera centred on a node keeps its zoom while the node fits the view, and zooms out to fit one that does not, held to the window's floor (case-view.mjs `centreCamera`; the owner, 21.11.2026, OWNER-123-PLAN-2; the line INVEST of 1.2.123)", async () => {
+        /* Pure. A 1000 x 600 box, an edge of 16. A 200 x 100 node at (900, 400) under a zoom of 1.5: centred at 1.5. A
+           1500 x 300 node at (0, 0) under 1: zoomed to fit (968 / 1500), centred. The same under a floor of 0.8: 0.8. */
+        const { centreCamera, CAMERA_LIMITS } = await import("./case-view.mjs");
+        const box = { w: 1000, h: 600 };
+        const small = centreCamera({ x: 0, y: 0, z: 1.5 }, { x: 900, y: 400, w: 200, h: 100 }, box);
+        const wide = centreCamera({ x: 0, y: 0, z: 1 }, { x: 0, y: 0, w: 1500, h: 300 }, box);
+        const floored = centreCamera({ x: 0, y: 0, z: 1 }, { x: 0, y: 0, w: 1500, h: 300 }, box, 16, { ...CAMERA_LIMITS, min: 0.8 });
+        const z = 968 / 1500;
+        equal(JSON.stringify({ small, wide, floored }), JSON.stringify({
+            small: { x: Math.round(500 - 1000 * 1.5), y: Math.round(300 - 450 * 1.5), z: 1.5 },
+            wide: { x: Math.round(500 - 750 * z), y: Math.round(300 - 150 * z), z },
+            floored: { x: Math.round(500 - 750 * 0.8), y: Math.round(300 - 150 * 0.8), z: 0.8 } }), "{small, wide, floored: the camera centred on each}");
     }],
 ];
 
