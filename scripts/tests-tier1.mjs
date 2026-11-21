@@ -64268,7 +64268,7 @@ const INVARIANTS = [
         stableJson({ known: Object.values(O.DECLARATIONS), unknown: [null, null, null, null], run: "badRequest" }),
             "{known: each declaration Observe knows as the run is handed it; unknown: a word it does not know, an object, empty, none; run: the reason a null one is refused with}");
     }],
-    ["R8103 - the small fixes of 1.2.122 line CORE hold in the source (the audit of 1.2.118, CORE-38, CORE-42, CORE-29, CORE-40, CASE-66, CASE-70, MAP-32): gm-bridge.mjs asks a drawn message whether it rules on anything before it imports messenger-app.mjs; migrate.mjs's three older clauses whose read-back failed throw, so the world is not stamped, where they answered null; diagnoseDespair reads on a player only a roll that player may see; a returning player's notice slots go to the cards answered; the season reset tells a Monocub's end to make no Spectator; Check rooms checks the scene its row judges; the room fog's restore is the primary's alone", async () => {
+    ["R8103 - the small fixes of 1.2.122 line CORE hold in the source (the audit of 1.2.118, CORE-38, CORE-42, CORE-29, CORE-40, CASE-66, CASE-70, MAP-32, CORE-24, CORE-31, CASE-24): gm-bridge.mjs asks a drawn message whether it rules on anything before it imports messenger-app.mjs; migrate.mjs's three older clauses whose read-back failed throw, so the world is not stamped, where they answered null; diagnoseDespair reads on a player only a roll that player may see; a returning player's notice slots go to the cards answered; the season reset tells a Monocub's end to make no Spectator; Check rooms checks the scene its row judges; the room fog's restore is the primary's alone; the reset's move to the bedrooms sends one gather for every token it moved, after the moves, and the pan takes a list of scenes; an Assistant GM primary does not try the file permissions' hold Foundry refuses it, and tells the GMs once; a player's ready ask has the primary send again an opening roll owed to that player, and a page whose opening window stands starts no second", async () => {
         /* Red at 21bf5d18: the import came first; the three clauses logged and answered null (the runner's "nothing to do").
            Text reads, the kit's cuts; what they read is named in each row. */
         const src = new Map(await moduleSources());
@@ -64279,7 +64279,16 @@ const INVARIANTS = [
         const secret = src.get("secret.mjs") ?? "";
         const wipe = src.get("season-wipe.mjs") ?? "", check = fnSource(src.get("season-setup.mjs") ?? "", "wireRoomCheck");
         const fog = fnSource(src.get("fog.mjs") ?? "", "restoreScenes");
+        const place = fnSource(wipe, "placeCast"), pan = fnSource(src.get("call-world.mjs") ?? "", "panToGathered");
+        const hold = fnSource(src.get("enforced.mjs") ?? "", "holdPermissions");
+        const acts = src.get("bridge-runs-acts.mjs") ?? "", owed = fnSource(acts, "reaskOwedOpening");
         equal(stableJson({
+            "CASE-24": [/reaskOwedOpening\(sender\)/.test(fnSource(acts, "handleAdvancementAsk")), /if \(state\?\.stage !== "openingRoll"\) return false;/.test(owed),
+                /!actor\.testUserPermission\?\.\(sender, "OWNER"\)\) return false;\s*await rollOpening\(side, state\);/.test(owed),
+                /if \(openingRollsInFlight > 0\) return null;\s*let roll = null;\s*openingRollsInFlight\+\+;/.test(fnSource(src.get("murder-rules.mjs") ?? "", "throwOpeningRoll"))],
+            "CORE-31": /if \(!canGiveBack\(game\.user\)\) \{[\s\S]{0,240}DRPG\.Enforced\.filesNeedFullGm[\s\S]{0,80}return false;\s*\}\s*await keepOriginal\("permissions"/.test(hold),
+            "CORE-24": [(place.match(/broadcast\(SYNC\.gather,/g) ?? []).length, /\}\s*if \(moved\.length\) broadcast\(SYNC\.gather, \{ scene: \[\.\.\.scenes\], tokenIds: moved \}\);/.test(place),
+                /const scenes = Array\.isArray\(scene\) \? scene : \[scene\];/.test(pan)],
             "CORE-29": /\.find\(m => \(m\.rolls\?\.length \?\? 0\) > 0 && \(gm \|\| m\.visible !== false\)\)/.test(diag),
             "CORE-40": [/for \(const id of mine\) noticeOnReturn\.add\(id\);\s*returnNoticesLeft = RETURN_NOTICES;/.test(fnSource(secret, "askForWords")),
                 /if \(!message \|\| returnNoticesLeft <= 0\) return false;\s*returnNoticesLeft -= 1;/.test(fnSource(secret, "cardOnReturn"))],
@@ -64289,7 +64298,7 @@ const INVARIANTS = [
             "CORE-38": /if \(!cardFlag\(message, "callCard"\) && !body\?\.querySelector\?\.\("\[data-drpg-call\]"\)\) return null;\s*return import\("\.\/messenger-app\.mjs"\)/.test(bridge),
             "CORE-42": [/if \(stillThere\) throw new Error\(/.test(migrate), /if \(!Number\.isFinite\(check\.remaining\)\) throw new Error\(/.test(migrate),
                 /!== legacy\) throw new Error\(/.test(safe), /Could not clear the Monokuma rows|could not be given a timer|Could not keep this world's existing safeword/.test(migrate)]
-        }), stableJson({ "CORE-29": true, "CORE-40": [true, true], "CASE-66": true, "CASE-70": [true, true, false], "MAP-32": true, "CORE-38": true, "CORE-42": [true, true, true, false] }),
+        }), stableJson({ "CASE-24": [true, true, true, true], "CORE-31": true, "CORE-24": [1, true, true], "CORE-29": true, "CORE-40": [true, true], "CASE-66": true, "CASE-70": [true, true, false], "MAP-32": true, "CORE-38": true, "CORE-42": [true, true, true, false] }),
             "{each finding: whether its fix stands in the source as read}");
     }],
     ["R8104 - every API function whose first parameter is the actor takes a name or an id there, a default and an options bag beside it included (1.2.122 line CORE; the audit of 1.2.118, CORE-44): api.mjs `actorPosition` answers 0 for gm-items.mjs `openItemManager(actor = null, { give = null } = {})`, the function game.drpg.manageItems hands on, as for `(actor, { quiet })` and `(actor)`, and -1 for an options bag alone", async () => {
@@ -64377,6 +64386,97 @@ const INVARIANTS = [
             other: W.fieldValue(pick("R8108other", ""), { choices: { "": "a", b: "b" } }) }),
         stableJson({ empty: stored === "", set: stored !== "", read: "nothing", other: "" }),
             "{empty: the row offers the empty choice; set: the world's language is set; read: an empty pick of it as Save reads it; other: another select's empty choice}");
+    }],
+    ["R8109 - a GM playing a student is told what the run did, as a player is (1.2.122 line CORE; the audit of 1.2.118, ROLL-22 and CORE-22): bridge-guards.mjs `createWaiter`, asked on a GM with a `local` that is the row's run (`localRun`), answers the run's reply as the value, a refusal as refused with its code said once, a later one pending; a `local` that is not a run answers as before; the twelve Infiltrate and room asks of bridge-asks.mjs pass `localRun`, and the four with no roll ask the primary (`onPrimary`)", async () => {
+        /* Red at 21bf5d18: no `localRun` - a GM's own client settled with the run's whole answer, so a Dash read
+           `{ reply: { moves: 2 } }.moves` and a refusal read as a done. A waiter built with fakes (as R165), and the asks'
+           sources cut by the kit. */
+        const B = await import("./bridge-guards.mjs");
+        const told = [];
+        const waiter = B.createWaiter({ emit: () => {}, gmIds: () => ["R8109GM"], me: () => ({ id: "R8109GM", isGM: true, isPrimary: true }),
+            notify: (action, reason) => told.push([action, reason]), fromGm: () => true,
+            clock: { set: () => 0, clear: () => {} }, newId: () => "R8109ID", report: () => {} });
+        const ask = (local, localRun = true) => waiter.request("door.force", {}, { settle: "reply", local, localRun });
+        const read = {
+            reply: await ask(() => ({ reply: { forced: true, held: [] } })),
+            refused: await ask(() => ({ refused: "sender does not own that character" })),
+            later: await ask(() => ({ later: true })),
+            plain: await ask(() => ({ ok: true, key: "K" }), false)
+        };
+        const src = new Map(await moduleSources());
+        const asks = src.get("bridge-asks.mjs") ?? "";
+        const names = ["requestFacilityUse", "requestDoorShut", "requestDoorForce", "requestDoorPick", "requestDoorKnock", "requestWatchDeclare",
+            "requestTailStart", "requestEavesdrop", "requestEavesdropStop", "requestEchoes", "requestMaskReveal", "requestDash"];
+        const runs = names.filter(n => !/localRun: true,/.test(fnSource(asks, n)));
+        const primary = names.filter(n => /onPrimary: true,/.test(fnSource(asks, n)));
+        equal(stableJson({ ...read, told, runs, primary }), stableJson({
+            reply: { ok: true, value: { forced: true, held: [] } }, refused: { ok: false, refused: true, reason: "notYours" },
+            later: { ok: true, pending: true }, plain: { ok: true, value: { ok: true, key: "K" } }, told: [["door.force", "notYours"]],
+            runs: [], primary: ["requestDoorKnock", "requestEavesdropStop", "requestEchoes", "requestMaskReveal"] }),
+            "{reply, refused, later: a run's three answers as the GM's caller reads them; plain: a local that is not a run; told: what was said; runs: asks not read as their run; primary: asks the primary carries out}");
+    }],
+    ["R8110 - Echoes is answered only against its price (1.2.122 line CORE; the audit of 1.2.118, CORE-21): bridge-runs-acts.mjs `handleEchoes`, asked for a living student by a player whose payment this GM never saw, is refused `notPaid`; asked by a GM it is judged as before (not refused for the price)", async () => {
+        /* Red at 21bf5d18: the run read no payment - a console's ask was answered every time. The run is called with a
+           stand-in player sender; no payment exists for it, so the claim waits its margin (roll-draw.mjs PAY_WAIT_MS) and
+           takes none. Nothing is written: Echoes reads the map, and a claim touches only this GM's memory of tickets. */
+        needs(world.atLeast("livingStudents"), "a living student to ask Echoes for");
+        const R = await import("./bridge-runs-acts.mjs");
+        const B = await import("./bridge-guards.mjs");
+        const student = studentActors().find(a => game.actors.get(a.id));
+        const code = out => out?.refused ? B.reasonOf(out.refused) : out?.reply ? "reply" : stableJson(out);
+        const player = await R.handleEchoes({ actorId: student.id }, { isGM: false, id: "R8110PLAYER" }, {});
+        const gm = await R.handleEchoes({ actorId: student.id }, { isGM: true, id: game.user.id }, {});
+        equal(stableJson({ player: code(player), gmPriced: code(gm) === "notPaid" }), stableJson({ player: "notPaid", gmPriced: false }),
+            "{player: how a player's unpaid ask is answered; gmPriced: whether a GM's ask is refused for the price}");
+    }],
+    ["R8111 - a write the browser could not store is told to every reader of the store's setting, not to its onChange alone (1.2.122 line CORE; the audit of 1.2.120, r120-F-4): gm-store.mjs's real env fires `clientSettingChanged` after the onChange; and the engine, told of its own refused write through that hook while it tells, keeps what memory holds - for a GM's store and a player's copy", async () => {
+        /* Red at 21bf5d18: the env ran the setting's onChange alone, so the live windows, the Despair bar, the case backup
+           and the health recheck - all on `clientSettingChanged` - heard nothing under a full storage; and had the hook been
+           fired, the engine's own listener forgets memory on a write it did not make. Engines over a refusing storage, as
+           R8031, whose `changed` hands the key back to the engine's listener as Foundry's hook would. */
+        const G = await import("./gm-store.mjs");
+        const quiet = { warn: () => {}, error: () => {}, debug: () => {} };
+        const heard = [];
+        const engineOf = gm => {
+            const flushes = [];
+            let eng = null;
+            eng = G.createGmStoreEngine({
+                selfId: () => gm ? "R8111GM" : "R8111P", isGM: () => gm, isPrimary: () => gm, worldId: () => "R8111WORLD",
+                activeGmIds: () => [], primaryGmId: () => "R8111GM", senderIsGM: () => true, userName: u => u, send: () => {},
+                storage: { read: () => null, write: async () => { const e = new Error("R8111 full"); e.name = "QuotaExceededError"; throw e; } },
+                changed: key => { heard.push(key); eng.onClientSettingChanged(`${MODULE_ID}.${key}`); },
+                readLegacy: () => undefined, now: () => 5_000_000,
+                timers: { set: fn => { flushes.push(Promise.resolve().then(fn)); return flushes.length; }, clear: () => {} },
+                clock: () => ({}), log: quiet, notify: () => {}, text: key => key
+            });
+            return { eng, settle: async () => { for (let i = 0; i < 4; i++) await Promise.all(flushes); } };
+        };
+        const gm = engineOf(true);
+        const store = gm.eng.define({ name: "r8111", key: "r8111Key", kind: "ledger", sync: false, backup: false });
+        await store.patch("SCENE/ACTOR", { Gym: true });
+        await gm.settle();
+        const player = engineOf(false);
+        const copy = player.eng.defineCopy({ name: "r8111copy", key: "r8111Copy", fallback: null });
+        await copy.receive({ Gym: true }, 5_000_000 - 10).catch(() => null);
+        const env = (await moduleSources()).get("gm-store.mjs") ?? "";
+        equal(stableJson({ heard, store: store.get("SCENE/ACTOR"), copy: copy.read(),
+            hook: /finally \{ Hooks\.callAll\("clientSettingChanged", fullKey, value, \{\}\); \}/.test(env) }),
+        stableJson({ heard: ["r8111Key", "r8111Copy"], store: { Gym: true }, copy: { Gym: true }, hook: true }),
+            "{heard: the keys told; store, copy: what memory holds after the telling reached the engine's own listener; hook: the real env fires clientSettingChanged}");
+    }],
+    ["R8112 - the messenger's read state is each login's own on a shared browser (1.2.122 line CORE; the audit of 1.2.118, COMM-23): messenger.mjs `readMap` reads the section of this world and this login, so a GM's reading of a player's thread is not that player's on the same browser, nor another world's; a map from before 1.2.122 (plain stamps) is read as this login's until it writes its own; `markThreadRead` writes the section alone, keeping the others", async () => {
+        /* Red at 21bf5d18: `readMap` was not exported and read one map for every login - the GM's stamp for Aiko's thread was
+           Aiko's. Pure over handed maps; the write's shape is read in the source (the write itself would change this
+           browser's settings, which tier 1 does not). */
+        const M = await import("./messenger.mjs");
+        must(typeof M.readMap === "function", "messenger.mjs exports no readMap");
+        const all = { "W1.GM": { AIKO: 500 }, "W1.AIKO": { AIKO: 100 }, "W2.AIKO": { AIKO: 900 } };
+        const legacy = { AIKO: 300, BOTAN: 200 };
+        const write = fnSource((new Map(await moduleSources())).get("messenger.mjs") ?? "", "markThreadRead");
+        equal(stableJson({ gm: M.readMap(all, "W1.GM"), aiko: M.readMap(all, "W1.AIKO"), otherWorld: M.readMap(all, "W2.AIKO"), none: M.readMap(all, "W1.BOTAN"),
+            legacy: M.readMap(legacy, "W1.AIKO"), writesSection: /const map = \{ \.\.\.all, \[section\]: \{ \.\.\.readMap\(all, section\), \[playerUserId\]: newest \} \};/.test(write) }),
+        stableJson({ gm: { AIKO: 500 }, aiko: { AIKO: 100 }, otherWorld: { AIKO: 900 }, none: {}, legacy: { AIKO: 300, BOTAN: 200 }, writesSection: true }),
+            "{gm, aiko: the same thread as each login on one browser reads it; otherWorld: another world's; none: a login with no section; legacy: a map from before; writesSection: the write keeps the other sections}");
     }],
     ["R8050 - Foundry's token HUD holds only the controls kept (1.2.120 line H; the owner, 21.11.2026: \"Niepotrzebne jest: combat, target, movement action, assign status, liczby na gorze i na dole i elevation\"): token-hud.mjs `trimHudFor` on Daggerheart 2.12.8's tokenHUD.hbs as drawn for a GM leaves the floor's palette, bring to front, the companion's button, lock, the token's settings and visibility, with no input, status palette, movement palette, target or combat; as drawn for a player it leaves nothing, the HUD marked not to be drawn (the owner, 21.11.2026: \"Niech gracz nie ma menu tokena\")", async () => {
         /*

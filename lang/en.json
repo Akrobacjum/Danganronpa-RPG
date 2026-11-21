@@ -5505,6 +5505,7 @@
       "heldNothing": "Foundry's settings were given back, so the module holds none of them now: Daggerheart's Vulnerable and Defeated automations, the file permissions, and the players' held settings stay as they are. Hold them again so the module plays as it should, or leave them given back."
     },
     "Enforced": {
+      "filesNeedFullGm": "The file permissions are not held this session: only a full Gamemaster can change Foundry's permissions, and the primary GM is an Assistant GM. They are held again when a full Gamemaster connects.",
       "avFieldHeld": "The table's voice tile shows the cameras, so this stays as it is. A GM can turn the voice tile off in the game's settings.",
       "filesPutBack": "The module put back a change to the file permissions. While “Keep players out of the file browser” is on, Players and Trusted Players cannot browse or upload files.",
       "filesFirstHold": "“Keep players out of the file browser” took away these permissions: {lost}. Turning it off does not give them back. Grant them again in Foundry's permissions, or press “Give back Foundry's settings” in this module's settings.",

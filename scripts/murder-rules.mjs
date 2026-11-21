@@ -4734,6 +4734,10 @@ export async function throwOpeningRoll(side, actorId, trait = null, { hindrance 
     // closing it took three closes, and four abandoned incidents left four
     // stacked "Body Roll" windows warning about a murder that no longer existed.
     const MAX_ATTEMPTS = TIMING.openingAttempts;
+    /* ONE WINDOW AT A TIME (1.2.122; CASE-24). The primary sends the invitation again when the invited browser asks at its
+       ready (bridge-runs-acts.mjs `reaskOwedOpening`), and a primary's own reload makes the player ask too: a page whose
+       window still stands keeps that one and starts no second loop, which would stack two windows. */
+    if (openingRollsInFlight > 0) return null;
     let roll = null;
     openingRollsInFlight++;
     try {

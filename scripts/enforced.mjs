@@ -562,6 +562,8 @@ function permissionsLost(stored, inForce, held, row = ENFORCED.find(r => r.kind 
  *
  * @returns {Promise<boolean>} whether this browser holds the row.
  */
+/* Whether the GMs were told this session that an Assistant GM primary could not hold the file permissions (CORE-31). */
+let toldAssistantHold = false;
 function holdPermissions(row, { tell = false, first = false } = {}) {
     const run = permissionsQueue.then(async () => {
         if (readyAt === null || !isPrimaryGm() || !wanted(row)) return false;
@@ -570,6 +572,19 @@ function holdPermissions(row, { tell = false, first = false } = {}) {
         const inForce = permissionsInForce();
         const held = heldPermissions(stored, inForce, row);
         if (row.permissions.every(name => sameRoles(stored[name], held[name]))) return true;
+        /* AN ASSISTANT GM PRIMARY ASKS NOTHING IT WILL BE REFUSED, AND SAYS SO (1.2.122; the audit of 1.2.118, CORE-31).
+           With no full Gamemaster connected an Assistant GM is the primary (utils.mjs `primaryGmId`), and Foundry lets only
+           a full Gamemaster write `core.permissions` - the module's own reading, which Give back asks too (`canGiveBack`;
+           not read on v14 here). The write was tried, refused and logged at every ready and every permissions update, told
+           to nobody, while the players kept browsing files. Now nothing is written and the GMs are told once a session; a
+           full Gamemaster who connects is the primary, and its ready holds the row. */
+        if (!canGiveBack(game.user)) {
+            if (!toldAssistantHold) {
+                toldAssistantHold = true;
+                await whisperToGms(`<p>${game.i18n.localize("DRPG.Enforced.filesNeedFullGm")}</p>`);
+            }
+            return false;
+        }
         await keepOriginal("permissions", permissionsOriginal(stored, row));
         await game.settings.set("core", "permissions", held);
         if (tell) await whisperToGms(`<p>${game.i18n.localize("DRPG.Enforced.filesPutBack")}</p>`);

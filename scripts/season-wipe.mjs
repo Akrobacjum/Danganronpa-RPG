@@ -527,8 +527,9 @@ export async function wipeStudent(actor, key, { left = null } = {}) {
  * The moves are the gather's (`teleportInto`), made by a GM, which movement.mjs does not bill.
  * AND EACH CAMERA GOES WITH ITS TOKEN, as the gather's does (E11 fix r2-H4; goal census K4, the
  * class of S06-07 that C3 closed for the gather): until then a player whose token the reset moved
- * kept looking at the room it had left. After each room's moves, `SYNC.gather` names the room, its
- * scene and the tokens moved there; each client pans to its own (call-world.mjs `panToGathered`),
+ * kept looking at the room it had left. After the moves, one `SYNC.gather` names every scene the
+ * cast was put on and every token moved (one per room until 1.2.122, which the bus merged: CORE-24,
+ * below); each client pans to its own (call-world.mjs `panToGathered`),
  * and the packet is applied only from a GM (sync.mjs `registerSync`). Scenario 65 U0.
  * Called by the reset's step on the primary GM, and by tier 2's "the cast goes where the GM chose"
  * with three students of its own.
@@ -573,10 +574,19 @@ export async function placeCast(choice, actors = studentActors()) {
         placed.moved.push(actor.id);
     }
     const { broadcast, SYNC } = await import("./sync.mjs");
+    /* ONE GATHER FOR THE WHOLE MOVE, AFTER IT (1.2.122; the audit of 1.2.118, CORE-24). One was sent per bedroom batch, and
+       the bus merges the events of a kind that arrive within its window field by field, the newest winning (sync.mjs): two
+       teleports done inside 120 ms left only the later batch's `tokenIds`, so only the players of the last bedroom or two
+       were panned to where their token now stands. Every moved token goes in one packet, with every scene it stands on
+       (call-world.mjs `panToGathered` takes a list), so a merge has nothing to drop. Whether two teleports finish inside
+       the window on a real server is not measured. */
+    const moved = [], scenes = new Set();
     for (const { scene, region, tokens } of batches.values()) {
         await teleportInto(scene, region, tokens);
-        broadcast(SYNC.gather, { room: region.name, scene: scene.id, tokenIds: tokens.map(t => t.id) });
+        moved.push(...tokens.map(t => t.id));
+        scenes.add(scene.id);
     }
+    if (moved.length) broadcast(SYNC.gather, { scene: [...scenes], tokenIds: moved });
     return placed;
 }
 

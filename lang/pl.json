@@ -5917,6 +5917,7 @@
       "heldNothing": "Ustawienia Foundry zostały oddane, więc moduł nie trzyma teraz żadnego z nich: automatyki Vulnerable i Defeated z Daggerheart, uprawnienia do plików i pilnowane ustawienia graczy zostają takie, jakie są. Przejmij je znowu, żeby moduł grał tak, jak powinien, albo zostaw je oddane."
     },
     "Enforced": {
+      "filesNeedFullGm": "W tej sesji uprawnienia do plików nie są pilnowane: uprawnienia Foundry może zmienić tylko pełny Gamemaster, a głównym GM-em jest Asystent GM-a. Będą pilnowane znowu, gdy połączy się pełny Gamemaster.",
       "avFieldHeld": "Kamery pokazuje kafelek głosu stołu, więc to pole zostaje bez zmian. GM może wyłączyć kafelek głosu w ustawieniach gry.",
       "filesPutBack": "Moduł cofnął zmianę uprawnień do plików. Dopóki włączone jest „Bez przeglądarki plików dla graczy”, Gracze i Zaufani Gracze nie mogą przeglądać ani wysyłać plików.",
       "filesFirstHold": "„Bez przeglądarki plików dla graczy” odebrało te uprawnienia: {lost}. Wyłączenie tego ustawienia ich nie przywróci. Nadaj je ponownie w uprawnieniach Foundry albo naciśnij „Oddaj ustawienia Foundry” w ustawieniach tego modułu.",

@@ -107053,6 +107053,50 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         ok(line !== "DRPG.Secret.wordsHeldForReaders", "DRPG.Secret.wordsHeldForReaders has no text in this language");
     }],
 
+    ["1.2.122 REFR-27 - the Season checklist's Mastermind row follows a Mastermind picked elsewhere while it stands open (season-setup.mjs `followChecklist`'s `clientSettingChanged` for the Mastermind's store; the audit of 1.2.118, REFR-27's residue)", async () => {
+        /*
+         * 1.2.122 line CORE, 21.11.2026. The Mastermind is a GM store, whose write fires `clientSettingChanged` alone, and the
+         * checklist heard world settings and documents: a pick in The Mastermind window beside it left the row as drawn. The
+         * checklist drawn with no Mastermind; while it stands open a student is made the Mastermind (mastermind.mjs
+         * `setMastermind`, the window's own write), then the pick is cleared. Read: the "mastermind" row's state each time,
+         * within 2 s. The Mastermind and its lair are put back as found. Red at 21bf5d18: the row kept the state it was
+         * drawn with.
+         */
+        needs(env.dialogs(), "the Season checklist is drawn and read");
+        needs(world.atLeast("livingStudents"), "a student to make the Mastermind");
+        const SS = await import("./season-setup.mjs");
+        const MM = await import("./mastermind.mjs");
+        const { studentActors } = await import("./monokuma.mjs");
+        const was = MM.mastermindActor();
+        const lair = (await import("./gm-stores.mjs")).mastermindStore.record()?.room ?? null;
+        const pick = studentActors().find(a => a.id !== was?.id) ?? studentActors()[0];
+        const read = {};
+        let answer = null;
+        const rowState = () => [...foundry.applications.instances.values()].filter(a => a.rendered)
+            .map(a => a.element?.querySelector('li.drpg-check-row[data-drpg-key="mastermind"]')).find(Boolean)?.dataset.drpgState ?? null;
+        try {
+            if (was) await MM.clearMastermind();
+            await settle();
+            answer = Promise.resolve().then(() => SS.openSeasonChecklist()).catch(err => `threw: ${err.message}`);
+            await until(() => rowState(), 6000).catch(() => {});
+            read.before = rowState();
+            must(read.before, "the Season checklist drew no Mastermind row - this would measure nothing");
+            await MM.setMastermind(pick);
+            await until(() => rowState() !== read.before, 2000).catch(() => {});
+            read.picked = rowState();
+            await MM.clearMastermind();
+            await until(() => rowState() === read.before, 2000).catch(() => {});
+            read.cleared = rowState();
+        } finally {
+            for (const app of [...foundry.applications.instances.values()].filter(a => a.rendered && a.element?.querySelector('li.drpg-check-row[data-drpg-key="mastermind"]'))) await app.close().catch(() => {});
+            await Promise.race([answer, wait(6000)]);
+            if (was) await MM.setMastermind(was, { room: lair });
+            else if (MM.mastermindActor()) await MM.clearMastermind();
+            await settle();
+        }
+        equal(stableJson({ changed: read.picked !== read.before, back: read.cleared === read.before }), stableJson({ changed: true, back: true }),
+            `the Season checklist's Mastermind row did not follow the pick (before, picked, cleared: ${stableJson(read)})`);
+    }],
     ["1.2.122 REFR-02 - a field left as drawn is the world's at the write, not the press's: Edit campaign and Season setup with the chapter moved, while the chapter's question stands open the time of day is moved (and, in Season setup, the safeword set) elsewhere; Cancel writes neither back (gm-campaign.mjs `untouchedKept`'s `KEPT_FIELDS`, `applyCampaignForm`; season-setup.mjs `openSeasonSetup`; the audit of 1.2.118, REFR-02's rest, LIVE-R121-02)", async () => {
         /*
          * 1.2.122 line CORE, 21.11.2026. `untouchedKept` took a field left as drawn from the clock at the press, but

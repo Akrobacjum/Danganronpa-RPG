@@ -1936,8 +1936,8 @@ export function createWaiter({ emit, gmIds, me, notify, fromGm, clock = WINDOW_C
     };
 
     function request(action, payload = {}, { settle: kind = "ack", patient = false, resend = false, ackMs = TIMING.ackMs,
-        timeoutMs = TIMING.rulingMs, local = null, onPrimary = false, quiet = false, nothingSpent = false, late = null, lateRefused = null,
-        lateMs = 0, expired = null, received = null, untilPrimaryLeaves = false } = {}) {
+        timeoutMs = TIMING.rulingMs, local = null, onPrimary = false, localRun = false, quiet = false, nothingSpent = false, late = null,
+        lateRefused = null, lateMs = 0, expired = null, received = null, untilPrimaryLeaves = false } = {}) {
         return new Promise(resolve => {
             const entry = { id: null, action, kind, patient, resend, resent: 0, quiet, nothingSpent, late, lateRefused, lateMs, timeoutMs,
                 expired, received, untilPrimaryLeaves, resolve, settled: false, ackTimer: null, answerTimer: null, packet: null };
@@ -1946,8 +1946,24 @@ export function createWaiter({ emit, gmIds, me, notify, fromGm, clock = WINDOW_C
                 // 1. The GM's own client does it here; a GM does not talk to itself down a socket. What
                 //    only one client may decide (`onPrimary`) is done here on the primary alone, and any
                 //    other GM asks it as a player does (E08+E28 fix r2-H7; the round-2 review's S2-7, m5).
+                /* A `local` that is the row's own run (`localRun`; 1.2.122, the audit of 1.2.118, ROLL-22) answers as the
+                   run answers the runner - `{ reply }`, `{ refused }` or `{ later }` - and is read as a player's answer is
+                   read: the reply its value, a refusal said in this user's language and settled refused (its code read
+                   off the English reason, `reasonOf`), a later one pending. Until 1.2.122 the GM's own client settled
+                   with the run's whole answer, so a GM playing a student read `{ reply: { moves } }.moves` - undefined -
+                   and was told a Dash of 0 crossings, a forced door that held, a watch not kept; and a refusal read as a
+                   done. */
                 if (self.isGM && typeof local === "function" && (!onPrimary || self.isPrimary)) {
-                    Promise.resolve().then(local).then(value => settle(entry, { ok: true, value }), err => {
+                    Promise.resolve().then(local).then(value => {
+                        if (!localRun) return settle(entry, { ok: true, value });
+                        if (value?.refused) {
+                            const reason = reasonOf(value.refused);
+                            tell(entry, reason);
+                            return settle(entry, { ok: false, refused: true, reason });
+                        }
+                        if (value?.later) return settle(entry, { ok: true, pending: true });
+                        return settle(entry, { ok: true, value: value?.reply ?? null });
+                    }, err => {
                         report(`The GM's own client failed while carrying out "${action}"`, err);
                         fail(entry, "failed");
                     });

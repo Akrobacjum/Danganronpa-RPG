@@ -49,6 +49,18 @@ export function requestOpeningResult({ actorId, side, total, isCritical, withHop
     });
 }
 
+/*
+ * A GM'S OWN INFILTRATE AND ROOM ACTIONS, ON WHICH BROWSER (1.2.122; the audit of 1.2.118, CORE-22 and ROLL-22). Each ask
+ * below hands its row's own run to a GM's client (`local`), read as a player's answer is read (`localRun`, bridge-guards.mjs
+ * `createWaiter`). The four with no roll - Stop listening, Echoes, a "?" revealed, a knock at a barricade - are the
+ * primary's to carry out (`onPrimary`): a second GM asks them as a player does, so their GM halves, written "on the primary
+ * GM" and some gated on it (eavesdrop-gm.mjs `settleBlock` gives the microphone back on the primary alone), run there. The
+ * eight that settle a roll stay on the GM who pressed them: a GM's own rolls are not drawn (roll-draw.mjs `drawsHere`), so
+ * the primary holds no record of that GM's roll, and asked over the socket the row's `rolled` would refuse it ("no roll the
+ * GM drew is named"). Their writes are GM stores every GM holds and merges; what is left is that a second GM's
+ * once-a-time-of-day facility check is queued on that GM's browser (`serialWrite`), not the primary's - not measured.
+ */
+
 /**
  * Use a room action of the Facilities tile (E93 C3): a GM's, named by its id with the roll thrown for it (`rollId`, the
  * message the GM wrote for it, whose record the GM reads the total and the critical off), or a completed project's,
@@ -57,6 +69,7 @@ export function requestOpeningResult({ actorId, side, total, isCritical, withHop
  */
 export function requestFacilityUse({ actorId, actionId, total = 0, isCritical = false, rollId = null }) {
     return ask(ACTION_FACILITY_USE, { actorId, actionId, total, isCritical, rollId }, {
+        localRun: true,
         local: () => import("./bridge-runs-acts.mjs").then(m => m.handleFacilityUse({ actorId, actionId, total, isCritical, rollId }, game.user))
     });
 }
@@ -65,6 +78,7 @@ export function requestFacilityUse({ actorId, actionId, total = 0, isCritical = 
 export function requestDoorShut({ actorId, total = 0, rollId = null }) {
     const packet = { actorId, total, rollId };
     return ask(ACTION_DOOR_SHUT, packet, {
+        localRun: true,
         local: () => import("./bridge-runs-acts.mjs").then(m => m.handleDoorShut(packet, game.user))
     });
 }
@@ -73,6 +87,7 @@ export function requestDoorShut({ actorId, total = 0, rollId = null }) {
 export function requestDoorForce({ actorId, room, total = 0, isCritical = false, withHope = true, rollId = null }) {
     const packet = { actorId, room, total, isCritical, withHope, rollId };
     return ask(ACTION_DOOR_FORCE, packet, {
+        localRun: true,
         local: () => import("./bridge-runs-acts.mjs").then(m => m.handleDoorForce(packet, game.user))
     });
 }
@@ -82,6 +97,7 @@ export function requestDoorPick({ actorId, room, total = 0, isCritical = false, 
     rollId = null, coverRollId = null }) {
     const packet = { actorId, room, total, isCritical, withHope, coverTotal, coverCritical, rollId, coverRollId };
     return ask(ACTION_DOOR_PICK, packet, {
+        localRun: true,
         local: () => import("./bridge-runs-acts.mjs").then(m => m.handleDoorPick(packet, game.user))
     });
 }
@@ -89,6 +105,8 @@ export function requestDoorPick({ actorId, room, total = 0, isCritical = false, 
 /** Somebody at a barricaded door (E74): the walker's veto refused the walk in; the GM tells the barricade's author. */
 export function requestDoorKnock({ actorId, room }) {
     return ask(ACTION_DOOR_KNOCK, { actorId, room }, {
+        localRun: true,
+        onPrimary: true,
         local: () => import("./bridge-runs-acts.mjs").then(m => m.handleDoorKnock({ actorId, room }, game.user))
     });
 }
@@ -97,6 +115,7 @@ export function requestDoorKnock({ actorId, room }) {
 export function requestWatchDeclare({ actorId, total = 0, isCritical = false, withHope = true, rollId = null }) {
     const packet = { actorId, total, isCritical, withHope, rollId };
     return ask(ACTION_WATCH_DECLARE, packet, {
+        localRun: true,
         local: () => import("./bridge-runs-acts.mjs").then(m => m.handleWatchDeclare(packet, game.user))
     });
 }
@@ -106,6 +125,7 @@ export function requestTailStart({ tailerId, targetId, total = 0, isCritical = f
     rollId = null, unseenRollId = null }) {
     const packet = { tailerId, targetId, total, isCritical, unseenTotal, unseenCritical, rollId, unseenRollId };
     return ask(ACTION_TAIL_START, packet, {
+        localRun: true,
         local: () => import("./bridge-runs-acts.mjs").then(m => m.handleTailStart(packet, game.user))
     });
 }
@@ -114,6 +134,7 @@ export function requestTailStart({ tailerId, targetId, total = 0, isCritical = f
 export function requestEavesdrop({ actorId, room, total = 0, isCritical = false, rollId = null }) {
     const packet = { actorId, room, total, isCritical, rollId };
     return ask(ACTION_LISTEN_EAVESDROP, packet, {
+        localRun: true,
         local: () => import("./bridge-runs-acts.mjs").then(m => m.handleEavesdrop(packet, game.user))
     });
 }
@@ -121,6 +142,8 @@ export function requestEavesdrop({ actorId, room, total = 0, isCritical = false,
 /** Stop listening (E69 C6). */
 export function requestEavesdropStop({ actorId }) {
     return ask(ACTION_LISTEN_STOP, { actorId }, {
+        localRun: true,
+        onPrimary: true,
         local: () => import("./bridge-runs-acts.mjs").then(m => m.handleEavesdropStop({ actorId }, game.user))
     });
 }
@@ -128,6 +151,8 @@ export function requestEavesdropStop({ actorId }) {
 /** Echoes (E69 C7): answers `{ room, steps }` as `.value`, `room` null when nobody is found. */
 export function requestEchoes({ actorId }) {
     return ask(ACTION_LISTEN_ECHOES, { actorId }, {
+        localRun: true,
+        onPrimary: true,
         local: () => import("./bridge-runs-acts.mjs").then(m => m.handleEchoes({ actorId }, game.user))
     });
 }
@@ -135,6 +160,8 @@ export function requestEchoes({ actorId }) {
 /** A killer behind a "?" reveals themselves (E69 C8). */
 export function requestMaskReveal({ actorId }) {
     return ask(ACTION_MASK_REVEAL, { actorId }, {
+        localRun: true,
+        onPrimary: true,
         local: () => import("./bridge-runs-acts.mjs").then(m => m.handleMaskReveal({ actorId }, game.user))
     });
 }
@@ -144,6 +171,7 @@ export function requestMaskReveal({ actorId }) {
  */
 export function requestDash({ actorId, total = 0, isCritical = false, rollId = null }) {
     return ask(ACTION_DASH, { actorId, total, isCritical, rollId }, {
+        localRun: true,
         local: () => import("./bridge-runs-acts.mjs").then(m => m.handleDash({ actorId, total, isCritical, rollId }, game.user))
     });
 }

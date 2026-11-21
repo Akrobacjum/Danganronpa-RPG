@@ -1064,6 +1064,18 @@ function followChecklist(dialog, { rewire = null } = {}) {
         rewire?.();
     }, TIMING.coalesceMs);
     for (const name of names) ids.push([name, Hooks.on(name, () => { if (!root.isConnected) return stop(); repaint(); })]);
+    /* AND THE MASTERMIND'S PICK (1.2.122; the audit of 1.2.118, REFR-27's residue). The Mastermind is a GM store
+       (mastermind.mjs `mastermindStore`), whose write fires `clientSettingChanged` alone - no world setting, no actor - so
+       a Mastermind picked in The Mastermind window beside the checklist left its row, and "Mastermind feeds no pool", as
+       drawn. Heard for that store's key alone, read off the store's own handle (nothing outside the engine names a store's
+       key, R171): the other client keys are written often and the rows read none of them. */
+    let mastermindKey = null;
+    import("./gm-stores.mjs").then(m => { mastermindKey = `${MODULE_ID}.${m.mastermindStore.spec.key}`; })
+        .catch(err => error("The Season checklist could not follow the Mastermind", err));
+    ids.push(["clientSettingChanged", Hooks.on("clientSettingChanged", key => {
+        if (!root.isConnected) return stop();
+        if (mastermindKey && key === mastermindKey) repaint();
+    })]);
 }
 
 /** The checklist's intro: how many required rows are still to do, or that the season is ready. */

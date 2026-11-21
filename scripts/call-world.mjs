@@ -682,7 +682,9 @@ export async function clearCarriedFrom(token, whole = false) {
  * measured: both go through the server from the same GM, and the position's write is sent first.
  */
 export async function panToGathered({ scene, tokenIds } = {}) {
-    if (!canvas?.ready || !scene || canvas.scene?.id !== scene || !Array.isArray(tokenIds)) return null;
+    // `scene` is one id, or the list of the scenes a move put tokens on (the season reset's, 1.2.122: CORE-24).
+    const scenes = Array.isArray(scene) ? scene : [scene];
+    if (!canvas?.ready || !scene || !scenes.includes(canvas.scene?.id) || !Array.isArray(tokenIds)) return null;
     const { ownStudent } = await import("./monokuma.mjs");
     const mine = ownStudent();
     if (!mine) return null;
