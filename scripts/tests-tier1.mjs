@@ -456,7 +456,8 @@ const INVARIANTS = [
          * bubbles to nothing. Measured: typed, clicked another table, the entry
          * kept its old text.
          */
-        const rows = bodyOf(tables, "function tableItemsHtml", { until: "async function addResult" });
+        // To where the rows' builders end in tables-editor.mjs: `addResult` followed them there until 1.2.122 moved it to tables-entries.mjs.
+        const rows = bodyOf(tables, "function tableItemsHtml", { until: "export async function promptForTableName" });
         ok(/data-drpg-initial/.test(rows),
             "table rows no longer carry the value they were rendered with, so there is "
             + "nothing to compare against and every blur is a write again");
@@ -44341,7 +44342,7 @@ const INVARIANTS = [
             ["gm-campaign.mjs", "confirmCorrection"], ["gm-campaign.mjs", "openClockDialog"], ["gm-items.mjs", "openItemManager"],
             ["gm-items.mjs", "giveKeyDialog"], ["gm-items.mjs", "gmGiveItemDialog"], ["gm-items.mjs", "giveTruthBulletDialog"],
             ["gm-items.mjs", "issueAutopsyDialog"], ["gm-items.mjs", "takeItemDialog"], ["tables-editor.mjs", "installTables"],
-            ["tables-editor.mjs", "placeResultDialog"], ["tables-editor.mjs", "promptForTableName"], ["tables-editor.mjs", "wirePaneHeading"],
+            ["tables-entries.mjs", "placeResultDialog"], ["tables-editor.mjs", "promptForTableName"], ["tables-editor.mjs", "wirePaneHeading"],
             ["tables-editor.mjs", "openItemTables"], ["gm-stores.mjs", "backupCase"], ["gm-stores.mjs", "runHealthCheck"],
             ["gm-stores.mjs", "enterCastByHand"], ["gm-stores.mjs", "openRestoreDialog"], ["gm-team-dialog.mjs", "confirmRemovePool"],
             ["gm-team-dialog.mjs", "clearOverflowFromTab"], ["passages-tab.mjs", "askRevoke"], ["passages-tab.mjs", "confirmDelete"],
@@ -44730,7 +44731,7 @@ const INVARIANTS = [
         must(rules > 2000, `${rules} rule(s) read - this would measure too little`);
         const wideAdded = [...sources].filter(([file]) => !/^tests/.test(file)).filter(([, text]) => /["'`]drpg-wide["'`]/.test(stripComments(text))).map(([file]) => file);
         // Each window that had a width rule, and the name it states now.
-        const SITES = [["sound-panel.mjs", "openSoundDialog", "wide"], ["tables-editor.mjs", "placeResultDialog", "wide"], ["tables-editor.mjs", "openItemTables", "tables"],
+        const SITES = [["sound-panel.mjs", "openSoundDialog", "wide"], ["tables-entries.mjs", "placeResultDialog", "wide"], ["tables-editor.mjs", "openItemTables", "tables"],
             ["diagnostics.mjs", "openReport", "wide"], ["season-setup.mjs", "openSeasonSetup", "tables"], ["season-setup.mjs", "openFoundryReport", "wide"],
             ["dice-look.mjs", "diagnoseDiceLook", "wide"], ["gm-panel.mjs", "openFailureLog", "wide"], ["gm-panel.mjs", "openGmPanel", "panel"], ["projects-ui.mjs", "openProjectManager", "matrix"]];
         const sites = SITES.filter(([file, fn, name]) => !new RegExp(`\\bwidth:\\s*"${name}"`).test(fnSource(stripComments(sources.get(file) ?? ""), fn))).map(([file, fn]) => `${file} ${fn}`);

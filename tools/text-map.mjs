@@ -121,8 +121,9 @@ export const SCREENS = Object.freeze([
     row("give-items", "the GM gives a key or an item", "window", "gm", ["scripts/gm-items.mjs:giveKeyDialog", "scripts/gm-items.mjs:gmGiveItemDialog"], { stage: "E14" }),
     row("gm-items", "the GM hands things out and takes them away", "window", "gm", ["scripts/gm-items.mjs:*"]),
     // E41 C8 (1.2.97): tables.mjs's code in tables-pools.mjs (the names, the pools, the draw) and tables-editor.mjs (the window, Install).
+    // 1.2.122 (line WORLD): an entry's add, edit, drop and place in tables-entries.mjs, moved out of tables-editor.mjs.
     row("table-names", "an item table named and its pane", "window", "gm", ["scripts/tables-editor.mjs:promptForTableName", "scripts/tables-editor.mjs:wirePaneHeading"], { stage: "E14" }),
-    row("item-tables", "the item tables", "window", "gm", ["scripts/tables-pools.mjs:*", "scripts/tables-editor.mjs:*"], { note: "tables-pools.mjs: the guide \"tells the GM to improvise\"" }),
+    row("item-tables", "the item tables", "window", "gm", ["scripts/tables-pools.mjs:*", "scripts/tables-editor.mjs:*", "scripts/tables-entries.mjs:*"], { note: "tables-pools.mjs: the guide \"tells the GM to improvise\"" }),
     row("sheet-other", "the sheet's Other section", "window", "both", ["scripts/sheet-inventory.mjs:buildOtherSection"], { stage: "E14" }),
     row("projects", "projects and the countdown tray", "window", "both", ["scripts/projects-ui.mjs:*", "scripts/projects-tray.mjs:*", "scripts/projects.mjs:*"], { stage: "E15" }),
     row("betrayal", "the betrayal and a dynamic difficulty", "window", "both", ["scripts/action-murder.mjs:performBetrayal", "scripts/action-dynamic.mjs:askDynamicDifficulty"], { stage: "E16" }),

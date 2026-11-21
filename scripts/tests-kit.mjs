@@ -1669,10 +1669,11 @@ function hudText(sources, family = HUD_FAMILY) {
 /**
  * The item tables' family (E41 C8): tables.mjs - the facade, which holds no code since C8 - and the files its code
  * moved into, in the order it stood there: a table's names, the pools, the roles, the draw and the index
- * (tables-pools.mjs), then Install and the item tables window (tables-editor.mjs). A reader of tables.mjs's text reads
+ * (tables-pools.mjs), then Install and the item tables window (tables-editor.mjs), and since 1.2.122 an entry added,
+ * edited, dropped or placed (tables-entries.mjs, moved out of the window's file). A reader of tables.mjs's text reads
  * the family through `tablesText` and follows each file here without a repoint of its own.
  */
-const TABLES_FAMILY = Object.freeze(["tables.mjs", "tables-pools.mjs", "tables-editor.mjs"]);
+const TABLES_FAMILY = Object.freeze(["tables.mjs", "tables-pools.mjs", "tables-editor.mjs", "tables-entries.mjs"]);
 
 /** The line `tablesText` puts between two files: `topLevelFunction`'s second end, so no cut runs on into the next file. */
 const TABLES_FAMILY_END = "const TABLES_FAMILY_END = {};";
