@@ -951,10 +951,9 @@ async function remember(id, html, at, pin = false, trusted = false, summary = un
 
 /**
  * The readers an entry keeps after a write: those it held, with the ones this write names added. Never fewer: who
- * was given a card's words may be given them again. Null when neither names anybody. Pure. (Read 21.11.2026: this
- * comment named a freed victim's line as a write that adds a reader, but that line is sent by a GM that is not a reader
- * of the card, and `updateSecret` remembers only on a reader's browser, so that road adds nobody here; an added reader
- * comes from a remember whose readers name more than the entry held.)
+ * was given a card's words may be given them again. Null when neither names anybody. Pure. (Read 21.11.2026: an
+ * added reader comes from a remember whose readers name more than the entry held, and, on an author's hold, from
+ * `holdWordsFor` - a freed victim's line among them, CORE-23.)
  */
 function heldReadersAfter(before, added) {
     const ids = [...(Array.isArray(before) ? before : []), ...(Array.isArray(added) ? added : [])]
