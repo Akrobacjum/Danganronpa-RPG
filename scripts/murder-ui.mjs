@@ -673,7 +673,8 @@ function emptyButtons() {
 }
 
 /**
- * Send the opening roll again, once the cooldown allows. Answers the promise of the re-ask (the suite's, R8224); the
+ * Send the opening roll again, once the cooldown allows. Answers the promise of the re-ask (the suite's tier 2 "1.2.122
+ * CTRL-32 CTRL-77"; this said R8224, a number of the line's block never given to a test: the auditor's r122-C-4); the
  * tracker does not wait on it.
  *
  * SAID WHEN IT IS KNOWN, AND AS IT WENT (the audit's CTRL-77, CTRL-78, 1.2.122). "The opening roll was offered again"

@@ -3016,6 +3016,7 @@
       "tileCrisis": "Crisis Actions",
       "tileFightBack": "Fight Back",
       "offTurn": "It is their turn. Your crisis actions open when it comes back to you.",
+      "fightOver": "The fight is over, so there are no crisis actions left to take.",
       "briefCostStress": "Costs {n} Sanity.",
       "briefRoll": "Roll",
       "briefTake": "Do it",
