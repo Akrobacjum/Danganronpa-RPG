@@ -293,7 +293,7 @@ What turns up is what the room holds. A room the GM has stocked answers first, s
 
 ### Observe - Eye, 1 action
 
-Look for evidence. A hit copies a Remnant into your inventory as a **Neutral Truth Bullet** and leaves the original in place for others; a miss costs you **1 Sanity**. A critical also identifies what kind of Remnant it is and earns you a substantial hint from the GM, written on your copy alone: whoever finds the Remnant after you does not read it. You hold at most one copy of a Remnant, and a second copy is never made: Observe skips a Remnant you already hold, and one the GM is still describing to you from an earlier Observe.
+Look for evidence. A hit copies a Remnant into your inventory as a **Neutral Truth Bullet** and leaves the original in place for others; a miss costs you **1 Sanity**. A critical also identifies what kind of Remnant it is and earns you a substantial hint from the GM, written on your copy alone: whoever finds the Remnant after you does not read it. You hold at most one copy of a Remnant, and a second copy is never made: Observe skips a Remnant you already hold, and one the GM is still describing to you from an earlier Observe. A Remnant you are told you left is yours at once: When an action's card tells you that you leave a Remnant behind (a roll with Hope, a critical, or a Remnant of an incident you are in), its Truth Bullet is on your sheet straight away, as an Observe hit would give it: a Neutral Truth Bullet, with no roll, and you see its token on the map from then on. A plain Despair tells you nothing and gives you nothing; you may still find it with Observe. A Reroll that turns your Hope into Despair leaves the Truth Bullet where it is.
 
 You choose how you are looking:
 

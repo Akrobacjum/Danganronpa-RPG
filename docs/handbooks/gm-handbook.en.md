@@ -1383,6 +1383,8 @@ The player declares how they are looking:
 
 The roll is scored against the Remnant's real type and visibility (the table below), and the player is told the outcome, never which DC applied. A hit copies the Remnant into their inventory as a Neutral Truth Bullet and leaves the original; a miss costs **1 Sanity**. One Remnant yields one copy per person, and Remnants tied to the murder are shown first. The first time anyone copies a Remnant, you are asked to describe it (name, player text and analysis text, prefilled); everyone who copies it later gets the same words, and a critical asks you again only for the bigger hint.
 
+**A Remnant its leaver is told of is their copy at once** (1.2.124). When an action's card tells the player they leave a Remnant behind - Hope, a critical, or an incident's Remnant they are in - the character that left it gets its Neutral Truth Bullet at once, made as an Observe hit makes it, with no roll and no type recognized. You are not asked to describe it for this copy; its first Observe by anyone else asks as usual. Nobody else in the room gets one, a plain Despair gives none, and a later Observe by the same character skips it. A Reroll that turns the Hope into Despair leaves the copy.
+
 | Visibility | Daily Life | Key | Faint | Prep / Incident / Tamper |
 |---|---|---|---|---|
 | Obvious | 8 | 6 | 12 | 9 |

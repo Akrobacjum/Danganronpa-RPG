@@ -1104,7 +1104,8 @@ async function leaveTamperTrace(actor, data, outcome, { isCritical, withHope, re
          * thing and says nothing, and they find out at the trial.
          */
         if (traceFeedback({ isCritical, withHope }, placed)) {
-            done.push(game.i18n.localize("DRPG.Cleanup.leftTrace"));
+            // Told, so its Truth Bullet is the Tamperer's at once (remnants.mjs `noteToldTrace`, 1.2.124): the line says so.
+            done.push(game.i18n.localize("DRPG.Cleanup.leftTraceKept"));
         }
     }
 }
