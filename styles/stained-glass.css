@@ -2997,6 +2997,16 @@ body.drpg-theme-stained-glass .drpg-duality-formula {
     letter-spacing: 0.06em;
     color: var(--drpg-sg-bone-dim);
 }
+/* A CENTRED NOTICE IS OPAQUE (1.2.124; the coordinator's reading of the shots, 22.11.2026: the window behind read through
+   the card). The theme's card plate is rgba(9, 8, 13, 0.92) and the body's plate 0.42 over it - about 95 % together, so a
+   dialog under a card that stands over the windows (popup.mjs `centreStage`) showed its words through the dice row. The
+   centred card alone takes the same colour fully opaque; its seam, its glow and its cut corners are the theme's as they
+   were, and the corner's card, which stands on its pane, keeps its own. Measured in docs/dev/owner124/notices/shots.mjs
+   ("see-through"): the pixels of the card's body that change when the window behind it is taken away, and the worst
+   contrast of the body's words against them. */
+body.drpg-theme-stained-glass #drpg-notice-centre .drpg-popup {
+    background: rgb(9, 8, 13);
+}
 /* A centred notice's second roll (a Tail's effect roll under its Shadow roll, 1.2.124; danganronpa.css's
    `#drpg-notice-centre` rules): its plates smaller than the first roll's 54 px, their cut corners with them. */
 body.drpg-theme-stained-glass #drpg-notice-centre .drpg-duality ~ .drpg-duality .drpg-duality-die {
