@@ -66000,7 +66000,8 @@ const INVARIANTS = [
         let answer = null;
         try {
             if (ui.notifications) ui.notifications.warn = text => { warned.push(String(text)); };
-            // A GM who is not the primary: an Assistant GM is refused; a second full GM's end goes to the primary (E128).
+            // A GM who is not the primary: an Assistant GM is refused; a second full GM's end goes to the primary (E128; the owner at
+            // the table, 22.11.2026: "Drugi GM ... powinien byc na rowni z pierwszym gmem" - for full GMs; an Assistant's role kept).
             answer = [G.mayEndChapterHere({ primary: false, full: false }), G.mayEndChapterHere({ primary: true }),
                 G.mayEndChapterHere({ primary: false, full: true })];
         } finally {
@@ -66522,6 +66523,20 @@ const INVARIANTS = [
         equal(stableJson([of("K", "victim"), of("V", "victim"), of("T", "victim"), of("T", "killer"), of("X", "killer"), of(null, "killer"),
             R.incidentShowsTo("K", [], {})]), stableJson([true, true, false, true, false, false, false]),
             "[the killer, the victim, a victim-side third, a killer-side third, one outside the cast, no leaver, the killer with no cast]");
+    }],
+    ["R8733 - a second GM's own opening roll, sent to the primary, reads as made on this browser: the tracker's Ask again says the roll is thrown here, not that nothing was sent (E128; scripts/murder-rules.mjs `rollOpening`, murder-ui.mjs `reaskOpening`; OWNER-128-SECOND-GM fix 2)", async () => {
+        /* Red at ed0b1ad3's parent (9eb89710): a GM's answer was `res.value`, and a result relayed to the primary carries none,
+           so `rollOpening` answered undefined and Ask again said "openingReaskNone". Read off the source (tier 1 rolls nothing):
+           the answer a GM reads, and the tracker's three lines by what it answered. Scenario 97 O1 drives the relay itself. */
+        const src = new Map(await moduleSources());
+        const roll = fnSource(stripComments(src.get("murder-rules.mjs") ?? ""), "rollOpening") ?? "";
+        const reask = fnSource(stripComments(src.get("murder-ui.mjs") ?? ""), "reaskOpening") ?? "";
+        must(roll && reask, "murder-rules.mjs has no rollOpening or murder-ui.mjs no reaskOpening - this would measure nothing");
+        equal(stableJson({
+            relayed: /return game\.user\.isGM && res\.value !== undefined \? res\.value : \{ pending: true \};/.test(roll),
+            lines: /if \(out\?\.asked\)[^\n]*openingReaskSent[\s\S]{0,200}else if \(out\)[^\n]*openingReaskHere[\s\S]{0,120}else[^\n]*openingReaskNone/.test(reask)
+        }), stableJson({ relayed: true, lines: true }),
+            "{relayed: a GM's answer with no value (relayed to the primary) reads as pending; lines: Ask again says Sent, Here for any answer, None for none}");
     }],
     ["R8732 - a Finish of a stopped verdict runs on its runner, is asked of the primary by a second full GM when the primary runs it, and is refused with whom to ask otherwise (E128; scripts/verdict.mjs `finishRoute`, `finishVerdict`; OWNER-128-SECOND-GM, line CORE's inventory row 6)", async () => {
         /* Red at 9eb89710: no `finishRoute` - a second GM's Finish of a verdict the primary ran was refused

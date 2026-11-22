@@ -68945,7 +68945,9 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         /* SINCE E128 (22.11.2026; OWNER-128-SECOND-GM) this GM - a full GM, the stand-in the primary - sends its announcement
            to the primary (body.mjs `sentToPrimary`, `body.discover`), which no client answers here: nothing is stamped or
            posted on this browser still, and its window draws its form (answered with nothing) and nobody is told the
-           announcement is the primary's. An Assistant GM is still told (17-assistant F1); 97-two-gms Q drives the road. */
+           announcement is the primary's. An Assistant GM is still told (17-assistant F1); 97-two-gms Q drives the road. The
+           owner at the table, 22.11.2026: "Drugi GM ... powinien byc na rowni z pierwszym gmem" - a full GM relays, an Assistant
+           GM's role is kept (the coordinator's answer of the same day). */
         equal(stableJson(read), stableJson([0, false, 0, false, true, 0, [[victim.id]]]),
             "a GM who is not the primary announced a body on its own browser, or its window was not drawn, or it was told the announcement is the primary's, or the primary's stamp named the student whose "
             + "flag nobody judged (off the primary: the stamp rows the press added, one naming that student, the discovery cards since, the hold, "
