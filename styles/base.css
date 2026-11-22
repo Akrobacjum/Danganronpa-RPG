@@ -18,7 +18,8 @@
    THE MESSENGER. Three pieces:
      #drpg-messenger-launcher   fixed button, the top of the bottom-right corner's
                                 three (the grid's tokens: danganronpa.css), always on screen
-     #drpg-messenger-roster     the GM's popover picker, anchored above it
+     .drpg-messenger-gm         the GM's window, the Console and every player (1.2.124;
+                                the roster popover until then)
      .drpg-messenger            the conversation window itself (ApplicationV2)
 
    Reuses the theme tokens from danganronpa.css (--drpg-eye / --drpg-gold /
@@ -84,42 +85,116 @@
 }
 
 /* ==========================================================================
-   GM ROSTER POPOVER
-   ========================================================================== */
+   THE GM'S MESSENGER WINDOW (1.2.124, the owner's OWNER-124-CONSOLE; messenger-gm.mjs)
+   ==========================================================================
+   The list on the left (the Console, then every player, the roster's rows' text and
+   badge as they were), the view on the right: the Console's two parts, each scrolling
+   inside it, or a player's conversation as the thread window draws it. The roster popover
+   this replaces (#drpg-messenger-roster) is gone with its rules. Its three shades of the
+   eye colour are tokens here, set once (base.css's colour budget, tools/check.mjs css). */
 
-#drpg-messenger-roster {
-    position: fixed;
-    /* ON THE BUTTON IT OPENS FROM (E81 C12, S12-57): right edge with the messenger's, foot
-       8 px over its top - `--drpg-stack-foot`, which carries the camera dock's lift. It
-       stood at `16px` and `68px`, which was the wall and a 52 px button's top until the
-       button grew to 66 and moved inboard; the panel then opened over the button it came
-       from. The ceiling keeps its top 8 px inside the screen. 60vh alone, from this foot
-       under Monokuma Legacy (140.64 px), leaves the top 3.4 px from the screen's at
-       640 x 360 and puts it 8.6 px above it at 1920 x 1080 with a 300 px dock (by hand,
-       12.10; the A7 design's P8-6 had -12 and -24 from 1.2.74's 156 px foot). R474 redoes
-       the sum from the cascade. The ceiling is the panel's whole height, padding and
-       frame with it: as a content height it let the top out by those 21 px - run long
-       with 120 rows at 640 x 360, its top 13.2 px above the screen under Monokuma Legacy
-       and 10.1 px under Stained Glass, and 8.0 and 11.1 px inside it as the whole height
-       (Chromium on the glass harness, 13.10.2026; the 13 written here on 12.10 was
-       Legacy's alone - review round 2's P22). Those readings were made on the stack's foot;
-       since E77 fix r2-H3 (13.10.2026) the foot is `--drpg-roster-foot`, 8 px over the GM's
-       upper row (danganronpa.css), which R474 and R299 (c) read, with the ceiling taken
-       from the same foot. */
-    right: calc(var(--drpg-edge, 16px) + var(--drpg-launch-m-right));
-    bottom: var(--drpg-roster-foot);
-    z-index: 71;
-    box-sizing: border-box;
-    width: 260px;
-    max-height: min(60vh, calc(100dvh - var(--drpg-roster-foot) - 8px));
-    overflow-y: auto;
-    padding: 0.6rem;
-    border: 1px solid var(--drpg-eye);
-    box-shadow: 0 4px 18px rgba(var(--drpg-shadow-rgb), 0.45);
+.drpg-messenger-gm-body {
+    --drpg-console-line: rgba(var(--drpg-eye-rgb), 0.3);
+    --drpg-console-hover: rgba(var(--drpg-eye-rgb), 0.14);
+    --drpg-console-on: rgba(var(--drpg-eye-rgb), 0.22);
+    flex: 1 1 auto;
+    min-height: 0;
+    display: flex;
+    gap: 0.6rem;
 }
 
-#drpg-messenger-roster h4 {
-    margin: 0 0 0.4rem;
+.drpg-messenger-gm-nav {
+    flex: 0 0 13.5rem;
+    min-height: 0;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: 0.4rem 0.4rem 0.4rem 0;
+    border-right: 1px solid var(--drpg-console-line);
+}
+
+.drpg-messenger-gm-nav-row {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    width: 100%;
+    min-height: 44px;
+    padding: 0.35rem 0.45rem;
+    border: 1px solid transparent;
+    border-radius: 4px;
+    background: none;
+    text-align: start;
+    cursor: pointer;
+}
+
+.drpg-messenger-gm-nav-row:hover {
+    background: var(--drpg-console-hover);
+}
+
+.drpg-messenger-gm-nav-row[aria-pressed="true"] {
+    border-color: var(--drpg-eye);
+    background: var(--drpg-console-on);
+}
+
+.drpg-messenger-gm-nav-row .drpg-messenger-roster-text {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    overflow: hidden;
+}
+
+.drpg-messenger-gm-nav-row .drpg-messenger-roster-name,
+.drpg-messenger-gm-nav-row .drpg-messenger-roster-preview {
+    display: block;
+}
+
+.drpg-messenger-gm-console-row {
+    margin-bottom: 0.3rem;
+}
+
+.drpg-messenger-gm-main {
+    flex: 1 1 auto;
+    min-width: 0;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+}
+
+.drpg-console {
+    flex: 1 1 auto;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+}
+
+.drpg-console-bar {
+    flex: 0 0 auto;
+    display: flex;
+    justify-content: flex-end;
+    padding: 0.4rem 0.75rem;
+    border-bottom: 1px solid var(--drpg-console-line);
+}
+
+.drpg-console-filter {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.drpg-console-scroll {
+    flex: 1 1 auto;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    padding: 0.6rem 0.75rem 0;
+}
+
+/* The two parts' headings alone: a ruling card's own title (an `h3` in its words) keeps the bubble's style. */
+.drpg-console-waiting > h3,
+.drpg-console-stream > h3 {
+    margin: 0.2rem 0 0.5rem;
     border: none;
     font-size: var(--font-size-13, 0.82rem);
     text-transform: uppercase;
@@ -127,27 +202,69 @@
     opacity: 0.85;
 }
 
-#drpg-messenger-roster ul {
-    list-style: none;
-    margin: 0;
-    padding: 0;
+/* Each part its own scroller: what waits stays in sight, up to three fifths of the console, while the stream scrolls in
+   the rest. The stream's basis is 0, not its content: with both on `auto` the stream's long list took the shrink's
+   share from the waiting part, which came out 157-163 px of 556-574 with its buttons under the fold (the owner's
+   shots, 1366 x 768, both themes, 22.11.2026). */
+.drpg-console-waiting {
+    flex: 0 0 auto;
+    max-height: 60%;
+    overflow-y: auto;
+    margin-bottom: 0.6rem;
+    padding-bottom: 0.6rem;
+    border-bottom: 1px solid var(--drpg-console-line);
+}
+
+.drpg-console-stream {
+    flex: 1 1 0;
+    min-height: 6rem;
+    overflow-y: auto;
+    padding-bottom: 0.6rem;
+}
+
+.drpg-console-waiting-list,
+.drpg-console-stream-list {
     display: flex;
     flex-direction: column;
-    gap: 2px;
-}
-
-.drpg-messenger-roster-row {
-    position: relative;
-    display: flex;
-    align-items: center;
     gap: 0.5rem;
-    padding: 0.35rem 1.6rem 0.35rem 0.45rem;
-    border-radius: 4px;
-    cursor: pointer;
+    margin: 0;
+    padding: 0;
+    list-style: none;
 }
 
-.drpg-messenger-roster-row:hover {
-    background: rgba(var(--drpg-eye-rgb), 0.14);
+.drpg-console-stream-list > .drpg-console-item > .drpg-messenger-bubble,
+.drpg-console-waiting-list > .drpg-console-card > .drpg-messenger-bubble {
+    max-width: none;
+}
+
+/* A waiting card's words scroll under a cap, its buttons (moved out of them, messenger-gm.mjs `waitingCard`) always in
+   sight below. */
+.drpg-console-card > .drpg-messenger-bubble > .drpg-messenger-text {
+    max-height: 9rem;
+    overflow-y: auto;
+}
+
+.drpg-console-card > .drpg-messenger-bubble > .drpg-call-actions {
+    margin-top: 0.4rem;
+}
+
+.drpg-console-item-head {
+    display: flex;
+    justify-content: space-between;
+    gap: 0.5rem;
+    margin-bottom: 0.15rem;
+    font-size: var(--font-size-11, 0.7rem);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    opacity: 0.7;
+}
+
+.drpg-console-notice-body {
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
+    padding: 0.35rem 0.6rem;
+    border-left: 3px solid var(--drpg-eye);
 }
 
 .drpg-messenger-roster-text {
@@ -168,7 +285,7 @@
     opacity: 0.7;
 }
 
-.drpg-messenger-roster-row .drpg-messenger-badge {
+.drpg-messenger-gm-nav-row .drpg-messenger-badge {
     position: static;
     box-shadow: none;
     flex: 0 0 auto;
@@ -324,7 +441,8 @@
 
 body.drpg-pixel-font .drpg-messenger-participants,
 body.drpg-pixel-font .drpg-messenger-roster-name,
-body.drpg-pixel-font #drpg-messenger-roster h4 {
+body.drpg-pixel-font .drpg-console-waiting > h3,
+body.drpg-pixel-font .drpg-console-stream > h3 {
     font-family: var(--drpg-font-pixel, var(--font-primary, sans-serif));
 }
 

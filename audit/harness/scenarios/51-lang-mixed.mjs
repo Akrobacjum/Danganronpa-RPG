@@ -46,7 +46,7 @@ export const OPENED = Object.freeze({
     "projects": { who: "gm", file: "projects-ui.mjs", fn: "openProjectManager", title: null },
     "notice-history": { who: "all", file: "notice-history-app.mjs", fn: "openNotices", title: null },
     "handbooks": { who: "all", file: "handbooks.mjs", fn: "openHandbooks", title: "Handbooks.title" },
-    /* A player's own thread; a GM asking for "the messenger" gets the roster (messenger-app.mjs, D-F4), no thread window. */
+    /* A player's own thread; a GM asking for "the messenger" gets the GM's window (messenger-gm.mjs, 1.2.124; the roster before), not read here. */
     "messenger": { who: "players", file: "messenger-app.mjs", fn: "openMessenger", title: null },
     "explain": { who: "all", file: "explain.mjs", fn: "openStatusExplainer", title: null }
 });

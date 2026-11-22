@@ -408,10 +408,11 @@ async function createThreadMessage(playerUserId, content, kind, gmAsk = false, v
  * --------------------------------------------------------------------------
  * `drpgMessengerMessage` lets an open window append the new message without a
  * full re-render (and without losing whatever the player was mid-typing).
- * `drpgMessengerRead` lets this browser's launcher badge and an open roster
+ * `drpgMessengerRead` lets this browser's launcher badge and the GM's list
  * refresh the moment a window here reads its thread (`Hooks.callAll` is this
  * browser's alone, and the read map a client setting, so no other client hears
- * it; the roster follows it since 1.2.122, messenger-app.mjs `refreshRoster`).
+ * it; the roster followed it from 1.2.122, the GM's window from 1.2.124,
+ * messenger-gm.mjs `refreshNav`).
  * `drpgMessengerEdited` carries a message that CHANGED - a ruling card being
  * closed out, today - so an open window can redraw that one bubble instead of
  * re-rendering itself and throwing away whatever is half-typed in the box.

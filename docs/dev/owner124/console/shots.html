@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Danganronpa RPG - the GM's messenger window, for the owner's approval</title>
+<!-- THE OWNER'S SCREENSHOTS OF THE GM'S MESSENGER WINDOW (1.2.124, OWNER-124-CONSOLE, 22.11.2026). One window as
+     audit/harness/probes/124-console-shots.mjs kept it (capture/), under the module's sheets as module.json lists them,
+     as audit/style-harness.html draws a captured window: its parts put inside `section.window-content`, and a header
+     written as Foundry writes one (`header.window-header` with `h1.window-title`). The window stands where Foundry
+     places a new one, centred, at the width and height it was given.
+     Served from the repository's root (`python3 -m http.server 8765`), then
+       /docs/dev/owner124/console/shots.html?file=console.html[&theme=legacy]
+     WHAT THIS PAGE IS NOT: Foundry's own stylesheet, its canvas behind the window, or the stained glass glass.mjs paints
+     over the screen under Stained Glass (the window is drawn on the style harness's plain ground). Foundry's icon font is
+     Foundry's too: the page asks for /vendor-fa/css/all.min.css, which shoot.mjs serves from the free Font Awesome package
+     when DRPG_FONTAWESOME names it (npm @fortawesome/fontawesome-free 6.5.1; Foundry v14 ships its own build), and
+     which is a harmless 404 otherwise - the Legacy send button is then an empty circle. -->
+<link rel="stylesheet" href="/vendor-fa/css/all.min.css">
+<style>
+  /* The module's sheets ask for Foundry v14's family by name, "Font Awesome 7 Pro"; the free package calls its solid
+     face "Font Awesome 6 Free". The name is lent to the free solid face here (the glyphs drawn are at the same code
+     points), on this page only. */
+  @font-face { font-family: "Font Awesome 7 Pro"; font-weight: 100 900; font-display: block; src: url("/vendor-fa/webfonts/fa-solid-900.woff2") format("woff2"); }
+</style>
+<script>
+  (function () {
+    var req = new XMLHttpRequest();
+    req.open("GET", "/module.json", false);
+    req.send();
+    var styles = JSON.parse(req.responseText).styles || [];
+    for (var i = 0; i < styles.length; i++) document.write('<link rel="stylesheet" href="/' + styles[i] + '">');
+  })();
+</script>
+<style>
+  html, body.drpg-owner-shot { background: #2a2430; margin: 0; height: 100vh; overflow: hidden; }
+  .drpg-owner-shot .application { position: fixed; margin: 0; display: flex; flex-direction: column; }
+  /* The header is this page's, written as Foundry writes one; Foundry's own stylesheet, which draws it, is not here. */
+  .drpg-owner-shot .window-header { display: flex; align-items: center; gap: 8px; flex: 0 0 auto; padding: 6px 10px; }
+  .drpg-owner-shot .window-header .window-title { flex: 1 1 auto; margin: 0; font-size: 15px; line-height: 1.4; border: none; }
+  .drpg-owner-shot .window-header .header-control { background: none; border: none; color: inherit; font: inherit; cursor: pointer; }
+  .drpg-owner-shot .application > .window-content { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; overflow: hidden; }
+</style>
+</head>
+<body class="drpg-theme-stained-glass drpg-gm drpg-owner-shot" data-drpg-time="afternoon" data-drpg-phase="dailyLife">
+<script>
+  (function () {
+    var q = new URLSearchParams(location.search);
+    if (q.get("theme") === "legacy") {
+      document.body.classList.replace("drpg-theme-stained-glass", "drpg-theme-monokuma-legacy");
+      document.body.classList.add("drpg-pixel-font");
+    }
+    var get = function (path) {
+      var req = new XMLHttpRequest();
+      req.open("GET", path, false);
+      req.send();
+      return req.status === 200 ? req.responseText : null;
+    };
+    var manifest = JSON.parse(get("capture/manifest.json") || "{\"windows\": []}");
+    var file = q.get("file") || "console.html";
+    var row = manifest.windows.filter(function (r) { return r.file === file; })[0];
+    var html = get("capture/" + file);
+    if (!row || html === null) { document.write("<p>no capture " + file + "</p>"); return; }
+    var holder = document.createElement("div");
+    holder.innerHTML = html.trim();
+    var app = holder.firstElementChild;
+    if (!app.querySelector(":scope > .window-content")) {
+      var section = document.createElement("section");
+      section.className = "window-content";
+      while (app.firstChild) section.appendChild(app.firstChild);
+      app.appendChild(section);
+    }
+    var esc = function (s) { return String(s == null ? "" : s).replace(/[&<>"]/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;" }[c]; }); };
+    app.insertAdjacentHTML("afterbegin", '<header class="window-header"><h1 class="window-title">'
+      + esc(row.title) + '</h1><button type="button" class="header-control" data-action="close" aria-label="Close"></button></header>');
+    var w = Math.min(row.width || 976, innerWidth - 16), h = Math.min(row.height || 680, innerHeight - 16);
+    ["left", "top", "height", "width", "position", "z-index"].forEach(function (p) { app.style.removeProperty(p); });
+    app.style.width = w + "px";
+    app.style.height = h + "px";
+    app.style.left = Math.round((innerWidth - w) / 2) + "px";
+    app.style.top = Math.max(0, Math.round((innerHeight - h) / 2)) + "px";
+    document.write(app.outerHTML);
+    // The stream opens on its newest item, as the window's own wiring scrolls it (messenger-gm.mjs `scrollConsoleDown`).
+    var stream = document.querySelector(".drpg-console-stream");
+    if (stream) stream.scrollTop = stream.scrollHeight;
+    document.body.setAttribute("data-drpg-shot-ready", "");
+  })();
+</script>
+</body>
+</html>
