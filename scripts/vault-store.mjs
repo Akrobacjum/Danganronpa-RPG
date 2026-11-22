@@ -669,7 +669,7 @@ export function safeRoomImage(path) {
        encoded path and the answer holds no parenthesis that could close a CSS `url()`; the URL parser leaves both as
        written, so the re-read below still holds, and a path already typed with `%28`/`%29` (the table's workaround) is
        the same answer. The file is fetched by the encoded name, which a server decodes as usual (on The Forge, the owner's
-       workaround measured it; Foundry's own server not measured, LIVE-127-05). */
+       workaround measured it; Foundry's own server not measured, a live check the 1.2.127 report proposes). */
     const text = path.trim().replace(/\(/g, "%28").replace(/\)/g, "%29");
     if (!text || /[\u0000-\u001f\u007f"'<>\\?#]/.test(text)) return null;
     if (/(?:^|\/)(?:\.|%2e){2}(?:\/|$)/i.test(text) || /%(?:2f|5c)/i.test(text)) return null;
