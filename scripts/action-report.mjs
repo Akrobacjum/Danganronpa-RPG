@@ -192,6 +192,19 @@ export function rollCardFlags(def, roll) {
 }
 
 /**
+ * AN INFILTRATE ACTION'S RESULT CARD, WITH ITS ROLL (1.2.124 line UI; the owner, 22.11.2026: a centred action card
+ * carries "wynik rzutu vs threshold oraz efekt"). Shut, Force the Door, Pick the Lock, Keep Watch and Dash said their
+ * effect in one sentence and nothing of the roll: the card is now that roll's head and dice (`rollHead`, with "needed N"
+ * where the action's window named a number to beat - `rollTrait`'s `dc`) over the same sentence, under the Infiltrate
+ * tile's glyph as before, and its flags (`rollCardFlags`): the action's title, the roll's tone and the middle of the
+ * roller's screen. `lines` are the card's own paragraphs, already markup; `extra` more lines before them (a supporting
+ * roll). Answers `[spec, flags]` for `whisperToOwner(actor, ...)`.
+ */
+export function rollResultCard(label, roll, lines, { extra = "" } = {}) {
+    return [{ glyph: "ACTIONS.listen", body: `${rollHead({ label }, roll)}${extra}${lines}` }, rollCardFlags({ label }, roll)];
+}
+
+/**
  * The header for a card that reports a roll and nothing more about it.
  *
  * Five call sites (now in action-analyze.mjs, action-listen.mjs and action-observe.mjs, E41 C4) had these exact three slots written out

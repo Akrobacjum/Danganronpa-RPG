@@ -2700,7 +2700,9 @@ async function report(actor, data, {
             ? `<p><small>${paidLine(charged)}</small></p>`
             : free ? "" : `<p><small>${game.i18n.format("DRPG.Cleanup.stressSpent", {
                 n: RESOLUTION_STRESS_COST })}</small></p>`}`,
-        success ? {} : { flags: { [MODULE_ID]: { sfx: "cleanupFailed" } } });
+        /* In the middle of the killer's screen (notice-centre.mjs "actionResult", 1.2.124), with its band and what was done
+           - and, on purpose, no total against a number: the scored reading stays the GMs' (the comment above). */
+        { flags: { [MODULE_ID]: { popupCentre: "actionResult", ...(success ? {} : { sfx: "cleanupFailed" }) } } });
 
     await whisperToGms(`
         <h3>${game.i18n.localize("DRPG.Cleanup.title")}</h3>

@@ -67122,7 +67122,7 @@ const INVARIANTS = [
         const written = new Map();
         for (const [file, text] of sources) {
             if (/^tests/.test(file) || file === "notice-centre.mjs") continue;
-            for (const m of stripComments(text).matchAll(/popupCentre:\s*([^,}\n]+)/g)) {
+            for (const m of stripComments(text).matchAll(/popupCentre(?::|\s*=)\s*([^,};\n]+)/g)) {
                 for (const name of m[1].match(/"([A-Za-z]+)"/g) ?? [m[1].trim()]) written.set(name.replace(/"/g, ""), [...(written.get(name.replace(/"/g, "")) ?? []), file]);
             }
         }
@@ -67170,11 +67170,14 @@ const INVARIANTS = [
             const afterClick = front();
             const down = new MouseEvent("mousedown", { bubbles: true, cancelable: true });
             shown.dispatchEvent(down);
+            // on top until its X: a touch sinks nothing (the owner's "na wierzchu", 22.11.2026)
+            shown.dispatchEvent(new Event("pointerdown", { bubbles: true }));
+            const stillRaised = stage.classList.contains("is-raised");
             shown.querySelector(".drpg-popup-close").click();
             await new Promise(r => setTimeout(r, 1400));
             const afterClose = { front: front(), parked: cards().filter(c => c.classList.contains("drpg-popup-parked")).length };
-            equal(stableJson({ first, afterClick, focusKept: down.defaultPrevented, afterClose }),
-                stableJson({ first: { front: ["R8672 one"], parked: 2, more: "+2", moreIsButton: false, raised: true, corner: 0 }, afterClick: ["R8672 one"], focusKept: true,
+            equal(stableJson({ first, afterClick, focusKept: down.defaultPrevented, stillRaised, afterClose }),
+                stableJson({ first: { front: ["R8672 one"], parked: 2, more: "+2", moreIsButton: false, raised: true, corner: 0 }, afterClick: ["R8672 one"], focusKept: true, stillRaised: true,
                     afterClose: { front: ["R8672 two"], parked: 1 } }),
             "{first: the oldest in front, two waiting as a label, raised, none in the corner; afterClick: a click on its words closes nothing; focusKept: its mousedown cancelled; afterClose: the next in order}");
         } finally {
@@ -67193,12 +67196,17 @@ const INVARIANTS = [
         equal(stableJson({
             rollCard: flags.popupCentre ?? null,
             report: /popupTone: rollTone\(roll\),\s*popupCentre: "actionResult"/.test(src("action-report.mjs")),
-            tail: /popupCentre: seen \? "failedShadow" : "actionResult"/.test(src("action-tail.mjs")),
+            tail: /popupCentre = seen \? "failedShadow" : "actionResult"/.test(src("action-tail.mjs"))
+                && /neededNote\(rule\.unseen\.threshold\)/.test(src("action-tail.mjs")) && /rollHead\(\{ label \}, roll\)/.test(src("action-tail.mjs")),
             bedroom: /kinds\.some\(kind => kind !== "mended"\)[\s\S]{0,200}popupCentre: "lockBroken"/.test(src("doors-gm.mjs")),
             bedroomCalls: (src("doors-gm.mjs").match(/whisperToOwnerOnly\(owner, await bedroomCard\([^)]*\)[^;]*bedroomExtra\(/g) ?? []).length,
-            body: /popupCentre: "bodyFound"/.test(src("body.mjs"))
-        }), stableJson({ rollCard: "actionResult", report: true, tail: true, bedroom: true, bedroomCalls: 2, body: true }),
-        "{rollCard: Observe/Analyze/Listen; report: every action's result; tail: noticed or not; bedroom: not a lock only mended; bedroomCalls: both of the owner's cards; body}");
+            body: /popupCentre: "bodyFound"/.test(src("body.mjs")),
+            // Shut, Force the Door, Pick the Lock (with its cover), Keep Watch and Dash: their roll over their sentence
+            infiltrate: [["action-doors.mjs", 3], ["action-watch.mjs", 1], ["action-listen.mjs", 1]].map(([f, n]) => (src(f).match(/whisperToOwner\(actor, \.\.\.rollResultCard\(/g) ?? []).length === n),
+            cover: /extra: coverLine/.test(src("action-doors.mjs")) && /neededNote\(rule\.cover\.threshold\)/.test(src("action-doors.mjs")),
+            tamper: /popupCentre: "actionResult", \.\.\.\(success \? \{\} : \{ sfx: "cleanupFailed" \}\)/.test(src("cleanup.mjs"))
+        }), stableJson({ rollCard: "actionResult", report: true, tail: true, bedroom: true, bedroomCalls: 2, body: true, infiltrate: [true, true, true], cover: true, tamper: true }),
+        "{rollCard: Observe/Analyze/Listen; report: every action's result; tail: noticed or not, with both rolls and the Shadow's 15; bedroom: not a lock only mended; bedroomCalls: both of the owner's cards; body; infiltrate: the five Infiltrate cards with their roll; cover: Pick's second roll; tamper: Tamper's card}");
     }],
     ["R8431 - the token HUD's on toggles and its focus read under Stained Glass with high contrast (the audit of 1.2.120, H-1, H-7; 1.2.122 line UI): a rule under high contrast and the glass gives `.control-icon.active` the Bone ground and the Ink glyph after the high-contrast ground, and the glass draws the focus ring inside the hexagon (a negative `outline-offset`)", async () => {
         /* Red at 21bf5d18: the high-contrast rule (1,5,1) took the on toggle's ground to Ink under an Ink glyph, and the

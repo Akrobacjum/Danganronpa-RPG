@@ -15,7 +15,8 @@ import { INFILTRATE, MODULE_ID, FLAGS } from "./config.mjs";
 import { spendAction } from "./actions.mjs";
 import { othersInRoom } from "./movement.mjs";
 import { whisperToOwner, esc } from "./utils.mjs";
-import { rollTrait, rollInHand, abort, spentAfterRoll, canAfford, dualityOf } from "./action-pipeline.mjs";
+import { rollTrait, rollInHand, abort, spentAfterRoll, canAfford, dualityOf, neededNote } from "./action-pipeline.mjs";
+import { rollHead, rollCardFlags } from "./action-report.mjs";
 import { briefingBlock } from "./action-briefing.mjs";
 import { actionWindow, traitFieldHtml, readProposal } from "./action-menus.mjs";
 import { isMonokuma } from "./monokuma.mjs";
@@ -151,9 +152,16 @@ export async function performTail(actor, options = {}) {
     if (!res.ok || res.value?.refused) return null;
     const seen = res.value?.seen === true;
     // The roller's result: E49's card under the Infiltrate tile's glyph (the coordinator's rule of 12.11.2026), its words as before.
-    // In the middle of the roller's screen (notice-centre.mjs, 1.2.124): noticed, a failed Shadow with its consequence.
-    await whisperToOwner(actor, { glyph: "ACTIONS.listen", body: `<p>${esc(game.i18n.format(seen ? "DRPG.Infiltrate.tail.startedSeen" : "DRPG.Infiltrate.tail.started", { name: target.name }))}</p>` },
-        { flags: { [MODULE_ID]: { popupCentre: seen ? "failedShadow" : "actionResult" } } });
+    /* In the middle of the roller's screen (notice-centre.mjs, 1.2.124): noticed, a failed Shadow with its consequence.
+       With both rolls, as the owner asked of a centred action card (22.11.2026: "wynik rzutu vs threshold oraz efekt"):
+       the effect's roll under the action's head (`rollHead`, no threshold - a Tail's effect has none) and the Shadow
+       roll against the 15 that decides whether the target notices (tail-gm.mjs `startTail`), "needed 15" as every
+       other card says it (`neededNote`). Until 1.2.124 the card said only the sentence. */
+    const unseenLine = `<p><small>${esc(game.i18n.localize("DRPG.Infiltrate.tail.unseenTitle"))} - <b>${esc(String(shadow.total ?? ""))}</b>${esc(neededNote(rule.unseen.threshold))}</small></p>`;
+    const flags = rollCardFlags({ label }, roll);
+    flags.flags[MODULE_ID].popupCentre = seen ? "failedShadow" : "actionResult";
+    await whisperToOwner(actor, { glyph: "ACTIONS.listen", body: `${rollHead({ label }, roll)}${unseenLine}<p>${esc(game.i18n.format(seen ? "DRPG.Infiltrate.tail.startedSeen" : "DRPG.Infiltrate.tail.started", { name: target.name }))}</p>` },
+        flags);
     Hooks.callAll("drpgActionResolved", { actor, actionKey: "tail", roll, outcome: { success: true, seen, target: target.name } });
     return { seen, target: target.name, roll };
 }

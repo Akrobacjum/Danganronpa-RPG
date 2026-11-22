@@ -31,10 +31,13 @@ export const CENTRE_FLAG = "popupCentre";
  * that every name has a poster and every poster a name.
  */
 export const CENTRED_NOTICES = Object.freeze({
-    /* An action's result, the card its player waits on: action-report.mjs `report` (Search, Work on Project, Sabotage,
-       Tamper and every action that ends on it), `rollCardFlags` (Observe, Analyze, Listen) and a Tail begun unseen
-       (action-tail.mjs `performTail`). Written by the acting player's browser: centred on that player's screen. */
-    actionResult: "an action's result card (action-report.mjs `report`, `rollCardFlags`; action-tail.mjs `performTail`)",
+    /* An action's result, the card its player waits on, each with its roll against the number it had to beat where the
+       action has one, and its effect (the owner, 22.11.2026): action-report.mjs `report` (Search, Work on Project,
+       Sabotage, the Dynamic action, Palm), `rollCardFlags` (Observe, Analyze, Listen) and `rollResultCard` (Shut, Force
+       the Door, Pick the Lock, Keep Watch, Dash), a Tail begun unseen (action-tail.mjs `performTail`) - written by the
+       acting player's browser, centred on that player's screen - and Tamper's (cleanup.mjs `report`), written by the GM
+       that scored it, which says the band and not the total, on purpose. */
+    actionResult: "an action's result card (action-report.mjs `report`, `rollCardFlags`, `rollResultCard`; action-tail.mjs `performTail`; cleanup.mjs `report`)",
     /* A failed Shadow with a consequence: the tailer's card that the target noticed the tail (action-tail.mjs
        `performTail`). The acting player's own card. */
     failedShadow: "a Shadow roll failed and the character was noticed (action-tail.mjs `performTail`)",

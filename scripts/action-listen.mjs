@@ -20,7 +20,7 @@ import { roomOfActor, locateActor, neighbouringRooms, isLocked } from "./movemen
 import { roomFlag } from "./rooms.mjs";
 import { resolveThreshold, whisperToOwner, plural } from "./utils.mjs";
 import { rollTrait, noteRollContext, abort, canAfford } from "./action-pipeline.mjs";
-import { rollCardFlags, rollHead } from "./action-report.mjs";
+import { rollCardFlags, rollHead, rollResultCard } from "./action-report.mjs";
 import { briefingBlock } from "./action-briefing.mjs";
 import { actionWindow, chooseVariant } from "./action-menus.mjs";
 import { watchShutWhy } from "./action-watch.mjs";
@@ -384,6 +384,8 @@ export async function performDash(actor, options = {}) {
     if (!res.ok) return null;
     const moves = Number(res.value?.moves) || 0;
     // The roller's result: E49's card under the Infiltrate tile's glyph (the coordinator's rule of 12.11.2026), its words as before.
-    await whisperToOwner(actor, { glyph: "ACTIONS.listen", body: `<p>${plural("DRPG.Infiltrate.dashResult", { n: moves })}</p>` });
+    // With its roll against the bands, in the middle of the roller's screen (action-report.mjs `rollResultCard`, 1.2.124).
+    await whisperToOwner(actor, ...rollResultCard(game.i18n.localize("DRPG.Infiltrate.row.dash.label"), roll,
+        `<p>${plural("DRPG.Infiltrate.dashResult", { n: moves })}</p>`));
     return { roll, moves };
 }

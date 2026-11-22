@@ -236,8 +236,10 @@ function evidenceStage() {
  * stand here and nowhere else: one at a time, the oldest in front - they wait in the order they came, the rest parked
  * and counted on the one in front (`trimStack`, `unparkInto`, `markParked`) - so two never stack over each other or run
  * off the screen. A stage of its own rather than the trial's: evidence stands for minutes and two of it may show
- * (`MAX_EVIDENCE`); a notice is read and closed. Over the windows until touched (`showPopup`, as an Objection), and
- * gone with its last card, as the evidence stage is. Announced as the other stacks are.
+ * (`MAX_EVIDENCE`); a notice is read and closed. Over the windows (`showPopup`), and
+ * gone with its last card, as the evidence stage is. Announced as the other stacks are. Over the windows until its X
+ * closes it, never sunk by a touch (the owner's "na wierzchu" of 22.11.2026). The same card as the corner's, scaled
+ * whole and upright (danganronpa.css `#drpg-notice-centre`).
  */
 function centreStage() {
     let el = document.getElementById(CENTRE_ID);
@@ -1027,7 +1029,12 @@ export function showPopup(bodyHtml, {
        stage (`is-raised`, the stylesheet's `#drpg-evidence.is-raised`) until the first
        pointerdown on it, and then it sinks under the windows like any evidence. Per card: the
        stage stays raised while any objection on it is untouched. */
-    if ((host.id === EVIDENCE_ID && kind === "objection") || host.id === CENTRE_ID) {
+    /* A centred notice stays over the windows until its X closes it (the owner, 22.11.2026: "Maja wyskakiwac na
+       wierzchu"): raised with no touch to sink it, so it is never lost behind a window unread. */
+    if (host.id === CENTRE_ID) {
+        card.classList.add(RAISED);
+        raiseIfObjecting(host);
+    } else if (host.id === EVIDENCE_ID && kind === "objection") {
         card.classList.add(RAISED);
         card.addEventListener("pointerdown", () => {
             card.classList.remove(RAISED);
@@ -1113,7 +1120,7 @@ export function showPopup(bodyHtml, {
     /* A CENTRED NOTICE IS CLOSED BY ITS X ALONE, AND TAKES NO FOCUS (1.2.124, `centreStage`): it stands in the middle,
        where a click meant for the map or a sheet beside it would close an important card unread; and a press on it -
        its X, its words - leaves the focus where it was, so a player typing in a window keeps typing (a mousedown's
-       default is what moves the focus). Its X closes it; a touch sinks it under the windows (above). */
+       default is what moves the focus). Its X closes it. */
     if (host.id === CENTRE_ID) card.addEventListener("mousedown", event => event.preventDefault());
     if ((!sticky && host.id !== CENTRE_ID) || onClick) {
         card.addEventListener("click", () => {
