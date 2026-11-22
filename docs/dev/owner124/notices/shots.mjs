@@ -104,6 +104,62 @@ for (const [theme, size] of LOOKS) for (const [i, shot] of SHOTS.entries()) {
     if (!ok) bad++;
     console.log(`${shot} ${theme} ${size}: ${JSON.stringify(read)}${ok ? "" : "  - FAIL"} -> ${file.slice(out.length)}`);
 }
+/* SEE-THROUGH: does the window behind a centred card read through it? The Search card over the harness's open dialog,
+   shot as it stands (A) and again with the dialog taken away (B), the card's body clipped the same in both: a pixel of
+   the body that differs between A and B is the window showing through. Printed: how many such pixels, and the worst WCAG
+   contrast between the body's words (their computed colour) and those pixels - against the plate alone where there are
+   none. The card is held still (no transition) so only the window differs. Read 6 px inside the body: under Monokuma
+   Legacy the card's 1 px edge lets a column of the window through (130 pixels at 1366x768, read 22.11.2026), its frame
+   and not its plate. */
+const lum = ([r, g, b]) => { const f = c => { c /= 255; return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4; }; return 0.2126 * f(r) + 0.7152 * f(g) + 0.0722 * f(b); };
+const contrast = (a, b) => { const [x, y] = [lum(a), lum(b)].sort((p, q) => q - p); return (x + 0.05) / (y + 0.05); };
+for (const [theme, W, H] of [["stained", 1920, 1080], ["legacy", 1366, 768]]) {
+    const page = await browser.newPage({ viewport: { width: W, height: H } });
+    await page.goto(`${base}?role=player${theme === "legacy" ? "&theme=legacy" : ""}`);
+    await page.waitForFunction(() => window.__glass && document.getElementById("drpg-popups"), null, { timeout: 15000 });
+    await page.waitForTimeout(2000);
+    const box = await page.evaluate(async () => {
+        const en = await (await fetch("/lang/en.json")).json();
+        const at = key => key.split(".").reduce((o, k) => (o && typeof o === "object" ? o[k] : undefined), en);
+        const fill = (s, d = {}) => String(s).replace(/\{(\w+)\}/g, (m, k) => (k in d ? d[k] : m));
+        game.i18n = { ...game.i18n, localize: k => (typeof at(k) === "string" ? at(k) : k), format: (k, d) => fill(typeof at(k) === "string" ? at(k) : k, d), has: k => at(k) !== undefined };
+        globalThis.CONST ??= { DOCUMENT_OWNERSHIP_LEVELS: { INHERIT: -1, NONE: 0, LIMITED: 1, OBSERVER: 2, OWNER: 3 } };
+        const P = await import("/scripts/popup.mjs"), R = await import("/scripts/action-report.mjs");
+        const rolled = { total: 14, dc: "8 / 12 / 16", trait: "eye", withHope: true, raw: { total: 14, hope: { total: 9 }, fear: { total: 3 }, data: { traits: {} } } };
+        P.showPopup(R.reportHtml({ label: "Search" }, rolled, { item: "Rusty Key", tier: 1, room: "Library", tokensLeft: 2, leftTrace: false }, "Library"), { title: "Search", tone: "hope", centre: true, record: false });
+        await new Promise(r => setTimeout(r, 900));
+        const card = document.querySelector("#drpg-notice-centre .drpg-popup");
+        card.style.transition = "none";
+        const b = card.querySelector(".drpg-popup-body").getBoundingClientRect();
+        // 6 px inside the body: the card's own 1 px edge (the window edge's colour, translucent under Monokuma Legacy) is its frame, not its plate
+        return { x: Math.round(b.left) + 6, y: Math.round(b.top) + 6, width: Math.round(b.width) - 12, height: Math.round(b.height) - 12,
+            text: getComputedStyle(card.querySelector(".drpg-popup-body p:last-of-type") ?? card).color };
+    });
+    const clip = { x: box.x, y: box.y, width: box.width, height: box.height };
+    const shotA = await page.screenshot({ clip });
+    await page.evaluate(() => { for (const d of document.querySelectorAll(".application.dialog")) d.style.visibility = "hidden"; });
+    await page.waitForTimeout(300);
+    const shotB = await page.screenshot({ clip });
+    const r = await page.evaluate(async ([a, b]) => {
+        const read = async data => { const img = new Image(); img.src = `data:image/png;base64,${data}`; await img.decode(); const c = document.createElement("canvas"); c.width = img.width; c.height = img.height; const g = c.getContext("2d"); g.drawImage(img, 0, 0); return g.getImageData(0, 0, c.width, c.height).data; };
+        const [da, db] = [await read(a), await read(b)];
+        const through = [], plate = new Map();
+        for (let i = 0; i < da.length; i += 4) {
+            const p = [da[i], da[i + 1], da[i + 2]];
+            if (Math.abs(da[i] - db[i]) + Math.abs(da[i + 1] - db[i + 1]) + Math.abs(da[i + 2] - db[i + 2]) > 6) through.push(p);
+            else { const k = p.join(","); plate.set(k, (plate.get(k) ?? 0) + 1); }
+        }
+        const common = [...plate.entries()].sort((x, y) => y[1] - x[1])[0][0].split(",").map(Number);
+        return { through, common, of: da.length / 4 };
+    }, [shotA.toString("base64"), shotB.toString("base64")]);
+    const text = (box.text.match(/\d+(\.\d+)?/g) ?? []).slice(0, 3).map(Number);
+    const worst = r.through.length ? Math.min(...r.through.map(p => contrast(text, p))) : contrast(text, r.common);
+    const ok = r.through.length === 0;
+    if (!ok) bad++;
+    console.log(`see-through ${theme} ${W}x${H}: ${r.through.length} of ${r.of} body pixels change with the window behind; worst contrast of the words (${text.join(",")}) ${worst.toFixed(2)}:1 ${r.through.length ? "against the window showing through" : `against the plate (${r.common.join(",")})`}${ok ? "" : "  - FAIL"}`);
+    await page.close();
+}
+
 /* THE FOCUS STAYS WHERE IT WAS (no screenshot): a field in an open window has the focus and its caret, a centred card
    arrives, the player clicks the card's words and then its X with the mouse; the field must still have the focus and the
    caret where it was, and the card must be gone. Both themes, 1366x768. */
