@@ -6140,15 +6140,6 @@ body:not(.drpg-theme-stained-glass) #drpg-notice-centre .drpg-duality .drpg-dual
 #drpg-notice-centre .drpg-duality ~ .drpg-duality .drpg-duality-total { font-size: 1.8em; }
 #drpg-notice-centre .drpg-duality ~ .drpg-duality .drpg-duality-formula { margin-top: 6px; }
 body:not(.drpg-theme-stained-glass) #drpg-notice-centre .drpg-duality ~ .drpg-duality .drpg-duality-die { width: 1.8em; height: 1.8em; font-size: 0.95em; }
-body.drpg-theme-stained-glass #drpg-notice-centre .drpg-duality ~ .drpg-duality .drpg-duality-die {
-    width: 36px;
-    height: 36px;
-    font-size: max(var(--drpg-sg-floor), calc(20px * var(--drpg-sg-scale)));
-    clip-path: polygon(9px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 9px) 100%, 0 100%, 0 10px);
-}
-body.drpg-theme-stained-glass #drpg-notice-centre .drpg-duality ~ .drpg-duality .drpg-duality-die.is-despair {
-    clip-path: polygon(0 0, calc(100% - 9px) 0, 100% 10px, 100% 100%, 9px 100%, 0 calc(100% - 10px));
-}
 /* A card with no roll (a lock found broken, a body found) opens on its first sentence as a headline, in the same frame. */
 #drpg-notice-centre .drpg-popup-body:not(:has(.drpg-duality)) > p:first-of-type {
     font-size: 1.2em;

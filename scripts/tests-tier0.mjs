@@ -10740,7 +10740,9 @@ const REGRESSIONS = [
             ["FLAG popup.mjs#onCreateChatMessage#popupTitle", "the author's string, drawn with textContent; kept as the entry's title (R293), which the store clips to 200 characters (R292)"],
             ["FLAG notice-history.mjs#noticeSecretStored#rerolled", "a Reroll's mark on a private card it replaced, written by a GM into the card's meta (reroll.mjs `markReplacedCard`), read from the meta alone (`cardMeta`), which a player's packet cannot fill with it (secret.mjs `GM_META`): only the closed mark `rerolled`, no snapshot change (R295, 73-notice-history G3)"],
             ["FLAG notice-history.mjs#noticeSecretStored#MESSENGER_FLAGS.settled", "a GM's ruling on a private call (gm-bridge.mjs `settleCall`), written into the card's meta, read from the meta alone (`cardMeta`), which a player's packet cannot fill with it (secret.mjs `GM_META`): only the closed mark `settled`, no snapshot change (R295, 73-notice-history G3)"],
-            ["FLAG popup.mjs#onCreateChatMessage#popupCentre", "where the card stands, not what it says: `true` alone, and from a GM's card only (`cardWriter`, as `popupForce`); the card is kept in the history as any card is (E62 C5)"],
+            /* "FLAG popup.mjs#onCreateChatMessage#popupCentre" struck in 1.2.124 (line UI, OWNER-124-NOTICES): the catch-all
+               no longer reads the flag - notice-centre.mjs `centredNotice` does, a name of its closed list from a GM's card
+               or a player's own (R8670, R8671); where the card stands, not what it says, and the card is kept as before. */
             ["FLAG popup.mjs#onCreateChatMessage#popupTone", "a closed list (`TONES`) on draw; a tone outside it refused on read (E81 C2)"],
             ["DELETE incident-store.mjs#retireOpeningNotices", "the module takes back the opening's request cards with its withdraw option: every browser's entry of them goes with the card (R295, 13-murder-signals)"],
             ["DELETE murder-rules.mjs#undoLastCrisis", "a crisis taken back deletes its receipt card with the withdraw option: every browser's entry of it goes with the card (R295)"],
@@ -23523,10 +23525,12 @@ const REGRESSIONS = [
             // result an action's roller reads - Shut, Force, Pick, a tail begun, a watch kept, a Dash, a room action, the GM's
             // text, a watch's summary - is E49's card; a note to another reader or a running report is a line (WHY.line); a
             // GMs' warning is a warning card. Each site's verdict: docs/dev/e93/STATUS.md. In the table's order.
-            "action-doors.mjs": {"card": 3}, "action-dynamic.mjs": {"line": 2}, "action-listen.mjs": {"card": 3, "line": 1},
+            /* 1.2.124 (line UI): Shut, Force the Door, Pick the Lock, Keep Watch, Dash and Tail post through
+               action-report.mjs `rollResultCard` / action-tail.mjs `tailCard`, which build the card's spec (built). */
+            "action-doors.mjs": {"built": 3}, "action-dynamic.mjs": {"line": 2}, "action-listen.mjs": {"built": 1, "card": 2, "line": 1},
             "action-murder.mjs": {"action": 2}, "action-observe.mjs": {"line": 1},
             "action-pipeline.mjs": {"action": 1}, "action-project.mjs": {"action": 1, "line": 1, "message": 3},
-            "action-report.mjs": {"built": 1}, "action-tail.mjs": {"card": 1}, "action-watch.mjs": {"card": 1}, "analyze.mjs": {"card": 1, "heading": 1, "line": 2},
+            "action-report.mjs": {"built": 1}, "action-tail.mjs": {"built": 1}, "action-watch.mjs": {"built": 1}, "analyze.mjs": {"card": 1, "heading": 1, "line": 2},
             "anonymity.mjs": {"card": 2}, "body.mjs": {"card": 1, "message": 1}, "bridge-runs-acts.mjs": {"card": 1},
             "bridge-runs-records.mjs": {"action": 1, "message": 1},
             "call-effects.mjs": {"action": 2, "card": 1, "message": 1}, "call-gm.mjs": {"built": 1},
@@ -27032,7 +27036,8 @@ const REGRESSIONS = [
     }],
     ["R7165 - every clean-up roll that misses sounds the same (E59 C-115, CHAINS.md B-M5): `cleanupFailed` (\"a Tamper, Erase a Trace, or Reshape a Trace roll misses\") is on the roller's card of an Erase or a Reshape (cleanup.mjs `report`) and of Stage Six's other two rolls, the Misleading Trail and Move the Body (`resolveStageSix`), on a miss alone - the trail, the Tamper tile's one road in Stage Six, missed in silence", async () => {
         const cleanup = stripComments(new Map(await otherSources()).get("cleanup.mjs") ?? "");
-        const MISS = /success\s*\?\s*\{\s*\}\s*:\s*\{\s*flags:\s*\{\s*\[MODULE_ID\]:\s*\{\s*sfx:\s*"cleanupFailed"/;
+        // the roller's card in cleanup.mjs `report` carries its centring since 1.2.124 and the sound on a miss beside it
+        const MISS = /success\s*\?\s*\{\s*\}\s*:\s*\{\s*flags:\s*\{\s*\[MODULE_ID\]:\s*\{\s*sfx:\s*"cleanupFailed"|popupCentre:\s*"actionResult",\s*\.\.\.\(success\s*\?\s*\{\s*\}\s*:\s*\{\s*sfx:\s*"cleanupFailed"/;
         const shape = Object.fromEntries(["report", "resolveStageSix"].map(name => [name, MISS.test(fnSource(cleanup, name))]));
         equal(JSON.stringify(shape), JSON.stringify({ report: true, resolveStageSix: true }), "{each clean-up result card: whether its miss carries cleanupFailed}");
     }],

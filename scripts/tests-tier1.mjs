@@ -38757,7 +38757,8 @@ const INVARIANTS = [
         const ladder = html({ action: "R1108", total: 13, dc: "12 / 18" });
         const none = html({ action: "R1108", total: 13 });
         const noTotal = html({ action: "R1108", dc: 10 });
-        equal(JSON.stringify([one.includes(needed(10)), /drpg-card-total">13<\/span> <small class="drpg-card-needed">/.test(one),
+        // `data-dc` since 1.2.124 (the centred notice's "needed N" beside the dice, popup.mjs `centreRoll`)
+        equal(JSON.stringify([one.includes(needed(10)), /drpg-card-total">13<\/span> <small class="drpg-card-needed" data-dc="10">/.test(one),
             ladder.includes(needed("12 / 18")), none.includes("drpg-card-needed"), noTotal.includes("drpg-card-needed"), needed(10) !== "DRPG.Action.needed"]),
             JSON.stringify([true, true, true, false, false, true]),
             "[a dc of 10 says needed 10; beside the total; a ladder too; no dc says nothing; no total says nothing; the key is worded]");
@@ -60791,6 +60792,10 @@ const INVARIANTS = [
          * E62 C5 (1.2.109), 12.11.2026. Red at 6230945: showPopup has no `centre`. The stage is the one the trial's
          * evidence stands on (`#drpg-evidence`), which carries no history button; the card is kept in the history as any
          * card is (`record`, untouched here: tiers 0-1 write no setting, so the stand-in passes `record: false`).
+         * CHANGED ON PURPOSE IN 1.2.124 (line UI; the owner's OWNER-124-NOTICES of 22.11.2026): the stage is the notices'
+         * own (`#drpg-notice-centre`), the card stays raised until its X ("na wierzchu" - a touch no longer sinks it), a
+         * chat card asks by a name of notice-centre.mjs's list (`centredNotice`, R8670-R8671), and the body's card asks
+         * "bodyFound". R8672 holds the queue and the focus.
          */
         const P = await import("./popup.mjs");
         const close = P.showPopup("<p>R3729 centre</p>", { title: "R3729", sticky: true, centre: true, record: false });
@@ -60809,12 +60814,12 @@ const INVARIANTS = [
         must(catchAll.length > 200 && summary.length > 200, "the catch-all or the summary was not read - this reads nothing");
         equal(stableJson({
             stage: stage?.id ?? null, centreClass: Boolean(card?.classList.contains("drpg-popup-centre")), raisedBefore, raisedAfter, button,
-            flag: /popupCentre/.test(catchAll) && /cardFlag\(message, "popupCentre"\) === true && Boolean\(cardWriter\(message\)\?\.isGM\)/.test(catchAll),
-            summary: /centre: true/.test(summary), body: /popupCentre: true,\s*popupKind: "objection"/.test(chapter)
+            flag: /centre: centredNotice\(message\)/.test(catchAll),
+            summary: /centre: true/.test(summary), body: /popupCentre: "bodyFound",\s*popupKind: "objection"/.test(chapter)
         }), stableJson({
-            stage: "drpg-evidence", centreClass: true, raisedBefore: [true, true], raisedAfter: [false, false], button: false,
+            stage: "drpg-notice-centre", centreClass: true, raisedBefore: [true, true], raisedAfter: [true, true], button: false,
             flag: true, summary: true, body: true
-        }), "[the centre stage; marked a centre card; raised until touched; sunk after; no history button on the stage; the chat flag from a GM's card only; the summary asks for it; the body's card asks for it]");
+        }), "[the notices' stage; marked a centre card; raised; still raised after a touch; no history button on the stage; the chat flag through the list's rule; the summary asks for it; the body's card asks for it]");
     }],
     ["R3730 - the day summary waits for the clock's turn, and its rows come in one after another (scripts/day-summary.mjs `summaryDelay`, `sumUp`, `showDaySummary`; styles/danganronpa.css; E62 C5, MK-R2's card): the summary is put up when the turn of the change that closed its time of day has ended - at once with no turn, under reduced motion or with the table's switch off; each row carries its place, and the centre card's rows slide in 160 ms apart from 150 ms, none under reduced motion", async () => {
         /* E62 C5 (1.2.109), 12.11.2026. Red at 6230945: day-summary.mjs has no summaryDelay. */
@@ -64932,7 +64937,9 @@ const INVARIANTS = [
         const src = async file => stripComments(await fetch(`/modules/${MODULE_ID}/scripts/${file}`).then(r => (r.ok ? lfText(r) : "")));
         const trial = await src("trial.mjs"), stash = await src("stash-reach.mjs"), doors = await src("doors-gm.mjs");
         read.flags = [/key:\s*"present"/.test(fnSource(trial, "presentOnPrimary")), /key:\s*"stashFound"/.test(stash),
-            (stash.match(/STASH_MISS\)/g) ?? []).length, /sfx:\s*"searchNothing"/.test(stash), (doors.match(/BEDROOM_SOUND\)/g) ?? []).length, /sfx:\s*"bedroomEntered"/.test(doors)];
+            (stash.match(/STASH_MISS\)/g) ?? []).length, /sfx:\s*"searchNothing"/.test(stash), /* the two bedroom cards through `bedroomExtra` since 1.2.124 (its sound and, for a lock broken, the middle of the
+               owner's screen, notice-centre.mjs "lockBroken"); the sound is BEDROOM_SOUND's in both */
+            (doors.match(/bedroomExtra\(/g) ?? []).length * (/\.\.\.BEDROOM_SOUND\.flags\[MODULE_ID\]/.test(doors) && /: BEDROOM_SOUND\);/.test(doors) ? 1 : 0), /sfx:\s*"bedroomEntered"/.test(doors)];
         const clock = { phase: "classTrial", chapter: 2 };
         const yes = () => true;
         read.vote = [
@@ -67250,7 +67257,12 @@ const INVARIANTS = [
             const before = new Set(NH.noticeEntries().map(e => e.id));
             const corner = P.showPopup(html, { title: "R8676 Force", tone: "hope", persist: "session" });
             const centre = P.showPopup(html, { title: "R8676 Force", tone: "hope", centre: true, persist: "session" });
-            await new Promise(r => setTimeout(r, 400));
+            /* the words grow after the card is drawn, as a private card's do when they land (popup.mjs `watchCard`): the
+               entry is kept again from the card as it reads then, the centred additions with it unless they are struck */
+            for (const body of document.querySelectorAll(".drpg-popup-body")) {
+                if (body.textContent.includes("R8676 the door gives way")) body.insertAdjacentHTML("beforeend", "<p>R8676 later</p>");
+            }
+            await new Promise(r => setTimeout(r, 700));
             shown = document.querySelector("#drpg-notice-centre .drpg-duality-vs")?.textContent ?? null;
             entries = NH.noticeEntries().filter(e => !before.has(e.id));
             corner?.({ instant: true });
@@ -67258,7 +67270,8 @@ const INVARIANTS = [
         } finally {
             await NH.holdNoticeHistory(false);
         }
-        must(entries.length === 2 && shown, "the two cards were not both kept, or the centred one showed no number beside its dice - this would measure nothing");
+        must(entries.length === 2 && shown && entries.every(e => String(e.html).includes("R8676 later")),
+            "the two cards were not both kept again after their words grew, or the centred one showed no number beside its dice - this would measure nothing");
         const [a, b] = entries;
         equal(stableJson({ html: a.html === b.html, text: a.text === b.text, title: a.title === b.title, centreOnly: entries.some(e => String(e.html).includes("drpg-centre-only")), shown: Boolean(shown) }),
             stableJson({ html: true, text: true, title: true, centreOnly: false, shown: true }),
