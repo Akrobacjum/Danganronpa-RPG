@@ -30,7 +30,7 @@ import { MODULE_ID, KEY_REMNANTS, TRUTH_BULLET_TYPES, OBSERVE_DC, REMNANT_TYPES,
 import { isEclipse, sameSeason, bodiesFoundIn } from "./settings.mjs";
 import { getClock } from "./clock.mjs";
 import { remnantsOn, remnantData, setRemnantFlags, setRemnantPublic, markRemnantEdited, shownBand, bandOptions, removeRemnant, traceContextLine, traceLabel, authorOptions, keyOf, traceTokenHeard } from "./remnants.mjs";
-import { bulletsOf, findsOf, isTruthBullet, secretOf, truthBulletData } from "./truth-bullets.mjs";
+import { bulletsOf, findsOf, isToldCopy, isTruthBullet, secretOf, truthBulletData } from "./truth-bullets.mjs";
 import { studentActors } from "./monokuma.mjs";
 import { itemsHeldNow } from "./sheet-audit.mjs";
 import { livingStudentsForGm, sweepPlan, sweepTruthBullets } from "./chapter.mjs";
@@ -1305,8 +1305,8 @@ function caseReach(graph) {
     for (const n of graph.nodes) if (n.evidence && n.trace) byToken.set(String(n.trace).split(".").pop(), n.id);
     const holders = new Map();
     for (const actor of studentActors()) {
-        // Finds alone: the leaver's own told copy reaches nothing for the case (1.2.125 H2, `findsOf`).
-        for (const item of findsOf(actor)) {
+        // Finds alone: the leaver's own told copy reaches nothing for the case (1.2.125 H2, `isToldCopy`).
+        for (const item of bulletsOf(actor).filter(bullet => !isToldCopy(bullet))) {
             const secret = secretOf(item.uuid);
             /* an Autopsy's node is held by whoever holds this chapter's Autopsy of its name (13.11.2026; several a chapter
                since the owner's 13.11), and one of no planned name by the first */

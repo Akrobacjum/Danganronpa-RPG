@@ -559,12 +559,12 @@ async function runSuite(tier, only = null, cut = { index: 1, count: 1 }) {
                     running = entry[0];
                     // The test's named dice for its own length, taken off and its `__forceRoll` put back whatever it did -
                     // passed, threw or ran out of time (`scriptDice`'s note).
+                    /* This test's told copies and no other's - not a copy a player was given before the run (1.2.125 H1). */
+                    (await import("./remnants.mjs")).openToldScope();
                     const unscript = scriptDice();
                     const unanswer = answerDialogs();
                     const hadForce = Object.hasOwn(globalThis, "__forceRoll"), force = globalThis.__forceRoll;
                     let r;
-                    /* This test's told copies and no other's - not a copy a player was given before the run (1.2.125 H1). */
-                    (await import("./remnants.mjs")).openToldScope();
                     try {
                         r = await runOne(entry, { tier: 2, ledger });
                     } finally {

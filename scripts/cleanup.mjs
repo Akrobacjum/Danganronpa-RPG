@@ -2214,10 +2214,9 @@ async function undoLastCleanup(actor, tokenId) {
                 ? game.scenes.get(receipt.leftBehind.sceneId)
                 : null;
             // The trace's token through its ref (E60 C1b): every trace has one (D38 = 1), found or not.
-            const ref = remnantById(scene?.id, receipt.leftBehind.id);
             // Its leaver's told copy goes with it; a finder's stays (1.2.125, r124-T1-1: truth-bullets.mjs `takeBackToldCopiesOf`).
-            if (ref) await takeBackToldCopiesOf(receipt.leftBehind.id);
-            await ref?.document?.delete();
+            await takeBackToldCopiesOf(receipt.leftBehind.id);
+            await remnantById(scene?.id, receipt.leftBehind.id)?.document?.delete();
         } catch (err) {
             error("Could not take back the trace a rerolled clean-up left", err);
         }
