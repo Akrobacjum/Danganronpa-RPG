@@ -4636,7 +4636,9 @@ let lastLeadSignature = "";
  * as before the fix. The fog itself stays `isMine`'s: every Monokuma clears a GM's rooms.
  */
 function leadsHere(token, gm = game.user.isGM) {
-    if (!isMine(token, gm)) return spectatorLeadRoom(token, gm) !== null;
+    // A Spectator viewer's own Spectator token, in the class's map (E127): a lead of the outline, never `isMine`.
+    if (spectatorLeadRoom(token, gm) !== null) return true;
+    if (!isMine(token, gm)) return false;
     if (!gm) return true;
     const me = game.user?.id;
     if (poolUserFor(token.actor)?.id === me) return true;
@@ -4659,7 +4661,7 @@ function spectatorLeadRoom(token, gm = game.user.isGM, { watching = spectatorVie
     const doc = token.document ?? token;
     if (isMonocubCorpse(doc) || !watching()) return null;
     const room = roomOf(doc);
-    return room && cleared(doc.parent ?? canvas?.scene).has(room) ? room : null;
+    return room && doc.parent && cleared(doc.parent).has(room) ? room : null;
 }
 
 /** Whether a token the outline follows here (`lead`, `leadsHere`) has a move held for its waypoints (fog.mjs `onUpdateToken`
