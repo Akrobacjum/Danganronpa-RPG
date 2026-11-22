@@ -4691,7 +4691,7 @@ Audyt był wstrzymany od 1.2.123. Właściciel poprosił 22.11 o 11:30Z o jeszcz
 
 **Czytanie:** pięć torów (kopia własnego śladu, jej otoczenie, okno komunikatora GM-a, powiadomienia na środku, strażnik wątków), każdy z drugim czytającym. Nic nie obalono, 4 pozycje osłabiono.
 
-**Wynik: 0 `BLOCKER`, 7 `SHOULD`, 17 `LATER`.** Jedynego kandydata na `BLOCKER` (r124-T2-1: podsumowanie sprawy po werdykcie liczy własną kopię zabójcy jako znalezisko; `case-summary.mjs:81-82`) drugi czytający obniżył do `SHOULD`: podsumowanie idzie dopiero po werdykcie, nie nazywa autora i GM je ogląda przed wysłaniem; 1.2.123 liczył tak samo kopię autora po udanym Tamper. Koordynator skierował je razem z ostrzeżeniem o tierze 2 (r124-T1-4: przebieg tieru 2 w świecie sesji usuwa prawdziwe kopie graczy, `tests.mjs:569-571`) do CORE jako HOTFIX-125, z listą każdego miejsca, które czyta "znalezione".
+**Wynik: 0 `BLOCKER`, 7 `SHOULD`, 18 `LATER` (w tym ostrzeżenie o tierze 2); 26 pozycji, jedna to duplikat.** Jedynego kandydata na `BLOCKER` (r124-T2-1: podsumowanie sprawy po werdykcie liczy własną kopię zabójcy jako znalezisko; `case-summary.mjs:81-82`) drugi czytający obniżył do `SHOULD`: podsumowanie idzie dopiero po werdykcie, nie nazywa autora i GM je ogląda przed wysłaniem; 1.2.123 liczył tak samo kopię autora po udanym Tamper. Koordynator skierował je razem z ostrzeżeniem o tierze 2 (r124-T1-4: przebieg tieru 2 w świecie sesji usuwa prawdziwe kopie graczy, `tests.mjs:569-571`) do CORE jako HOTFIX-125, z listą każdego miejsca, które czyta "znalezione".
 
 `SHOULD`:
 - r124-C-1: okno GM-a otwiera się drugi raz w rozmiarze okna gracza;
