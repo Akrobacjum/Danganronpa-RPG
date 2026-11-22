@@ -2131,8 +2131,9 @@ async function traceKept(actor, bookmark, { removal, total }) {
     const data = remnantData(token);
     let copied = false;
     if (removal) {
-        const { copiedRemnants } = await import("./truth-bullets.mjs");
-        copied = game.actors.some(a => a.type === "character" && copiedRemnants(a).has(token.id));
+        // Found by somebody: a leaver's own told copy is no find, and goes with the trace (1.2.125 H2, `findsOf`).
+        const { findsOf, secretOf } = await import("./truth-bullets.mjs");
+        copied = game.actors.some(a => a.type === "character" && findsOf(a).some(item => secretOf(item.uuid).remnantId === token.id));
     }
     const why = removalRefusal(token.document ?? token, {
         gmEdited: remnantGmEdited(token), gmBand: Boolean(gmSetBand(token)), copied, placedAt: data?.placedAt ?? null, restored: Boolean(data?.restored)

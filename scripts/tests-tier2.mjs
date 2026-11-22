@@ -117206,6 +117206,59 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         }), "{told: after the leaver's own copy alone; observed: after a second student's Observe hit} x {leaver: the leaver holds a copy; own: the answer key marks it the leaver's own; "
             + "finders: who found the trace; found: its ref; foundAt, via: its row's first find; shown: its token un-hidden (shown to its holders); summary: the case summary's evidence}");
     }],
+    ["1.2.125 T2-4 T1-1 - a told copy whispers the GMs nothing and counts as no finder's on the reshape card, and a Reroll that removes its trace takes the leaver's told copy with it and leaves a finder's (scripts/truth-bullets.mjs `createTruthBullet` with `told`, `heldCopiesOf`, `takeBackToldCopiesOf`; remnants.mjs `revealRemnantToFinder`, `retuneRemnant` with `remove`; the auditor's r124-T2-4 and r124-T1-1, 22.11.2026)", async () => {
+        /*
+         * 1.2.125, 22.11.2026. A told trace left by one student, the chat messages made meanwhile counted (the GMs'
+         * "a found Remnant no GM has described" is a whisper: 1.2.124 sent one per told copy, its `tell: false` lost in
+         * `createTruthBullet`'s own reveal); then a second student's Observe hit; the reshape card's count of the copies
+         * its finders hold; then the Reroll's removal of the trace (`retuneRemnant`, as reroll.mjs `settleRemnant` asks
+         * it). Read: the whispers, the count, and whose copy is on each sheet after the removal. Red at 206148b7: one
+         * whisper, a count of 2, and the leaver's copy left behind its deleted trace.
+         */
+        must(game.user.isGM, "the copies and the answer key are a GM's");
+        const R = await import("./remnants.mjs");
+        const O = await import("./observe.mjs");
+        const TB = await import("./truth-bullets.mjs");
+        const { locateActor } = await import("./movement.mjs");
+        const scene = canvas?.scene;
+        const here = cast(4).filter(a => { const at = locateActor(a); return at?.room && at.scene === scene; });
+        must(here.length >= 2, "two students of the cast do not stand in rooms on the scene on screen - this would measure nothing");
+        const [leaver, finder] = here;
+        const copyOf = (actor, id) => actor.items.find(i => TB.secretOf(i.uuid).remnantId === id) ?? null;
+        const made = [];
+        const hook = Hooks.on("createChatMessage", m => made.push(m.id));
+        let trace = null, id = null;
+        const read = {};
+        try {
+            trace = await R.dropRemnant(leaver, { type: "prep", visibility: "evident", note: "SUITE 1.2.125 T2-4", told: true });
+            must(trace, "the told trace was not placed - this would measure nothing");
+            id = trace.id;
+            await R.settleToldCopies();
+            await settle();
+            must(copyOf(leaver, id), "the leaver was not given the trace's copy - this would measure nothing");
+            read.whispers = made.map(m => game.messages.get(m)).filter(m => (m?.whisper?.length ?? 0) > 0).length;
+            await O.mintFindCopy(finder, { tokenId: id, sceneId: scene.id, room: locateActor(finder).room, data: R.remnantData(R.remnantById(scene.id, id)) },
+                { name: "SUITE 1.2.125 T1-1 find", tell: false });
+            read.held = TB.heldCopiesOf(id);
+            read.removed = await R.retuneRemnant(scene.id, id, { remove: true });
+            read.after = { leaver: Boolean(copyOf(leaver, id)), finder: Boolean(copyOf(finder, id)), trace: scene.tokens.has(id) };
+        } finally {
+            Hooks.off("createChatMessage", hook);
+            for (const m of made) await game.messages.get(m)?.delete().catch(() => {});
+            if (id) {
+                for (const actor of [leaver, finder]) {
+                    const item = copyOf(actor, id);
+                    if (item) { await TB.dropSecret(item.uuid); await item.delete(); }
+                }
+                if (trace) await R.dropRemnantSecret(trace);
+                if (scene.tokens.has(id)) await scene.deleteEmbeddedDocuments("Token", [id]);
+            }
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ whispers: 0, held: 1, removed: true, after: { leaver: false, finder: true, trace: false } }),
+            "{whispers: messages whispered while the told copy was made; held: the reshape card's count of the copies its finders hold, after the second student's find; "
+            + "removed: the Reroll's removal; after: whose copy is on the sheet once the trace is gone, and the trace}");
+    }],
 ];
 
 // `drawnForPlayer` for the grid (E33 C7): a drawn crisis roll goes through the suite's one road to a draw (tests-grid.mjs `drawnAct`).

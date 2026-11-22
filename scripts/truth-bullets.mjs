@@ -294,7 +294,31 @@ function copiesInKey(matches) {
  */
 export function heldCopiesOf(remnantTokenId) {
     if (!game.user.isGM || !remnantTokenId) return 0;
-    return copiesInKey(row => row.remnantId === remnantTokenId).length;
+    // Its finders' copies: a leaver's own told copy is none (1.2.125 H2, `isToldCopy`).
+    return copiesInKey(row => row.remnantId === remnantTokenId && row.told !== true).length;
+}
+
+/**
+ * A TRACE TAKEN BACK TAKES ITS LEAVER'S TOLD COPY (1.2.125; the auditor's r124-T1-1). A Reroll or an undo that deletes
+ * a trace left the copy its leaver was told of, and a replay that told them again gave a second. The told copies of the
+ * trace `remnantTokenId` (the answer key's `told`, `isToldCopy`) are deleted with their rows, and no other: a copy found
+ * by Observe is the finder's, and stays as a found trace's copy stays. A trace that stays takes nothing back (the
+ * owner's rule of 22.11.2026: a Reroll from Hope to Despair leaves the copy). GM-side; answers how many it took.
+ */
+export async function takeBackToldCopiesOf(remnantTokenId) {
+    if (!game.user.isGM || !remnantTokenId) return 0;
+    let n = 0;
+    for (const { item } of copiesInKey(row => row.remnantId === remnantTokenId && row.told === true)) {
+        const uuid = item.uuid;
+        try {
+            await item.delete();
+            await dropSecret(uuid);
+            n++;
+        } catch (err) {
+            error("Could not take back a deleted trace's told copy", err);
+        }
+    }
+    return n;
 }
 
 /**

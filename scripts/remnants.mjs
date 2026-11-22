@@ -18,7 +18,7 @@ import { MODULE_ID, ACTIONS, REMNANT_TYPES, REMNANT_VISIBILITY, REMNANT_VISIBILI
 // Statically imported: `remnantsInRoom` and `tokenFor` are synchronous, and movement.mjs does
 // not reach back into this file, so there is no cycle to break.
 import { roomOfToken, roomAt, locateActor } from "./movement.mjs";
-import { SETTINGS, isDeceased, isDeadForGm, seasonEpoch, sameSeason } from "./settings.mjs";
+import { SETTINGS, isDeceased, isDeadForGm, seasonEpoch, sameSeason, incidentParticipants, incidentCast } from "./settings.mjs";
 import { isPrimaryGm, log, warn, error, plural, esc, forcedDeletion, serverNow } from "./utils.mjs";
 // The kit's frame (E21 C3a): Clear Faint Remnants' question.
 // The ledger's store. gm-stores.mjs reaches this file only by a dynamic `import()`,
@@ -214,10 +214,22 @@ export function traceFeedback(roll, placed) {
 function shownToItsCast(placed) {
     const doc = placed?.document ?? placed;
     try {
-        return typeof doc?.getFlag === "function" && Boolean(doc.getFlag(MODULE_ID, REMNANT_FLAGS.fromIncident));
+        if (typeof doc?.getFlag !== "function" || !doc.getFlag(MODULE_ID, REMNANT_FLAGS.fromIncident)) return false;
+        /* SHOWN TO ITS LEAVER, NOT ONLY TO ITS CAST (1.2.125; the auditor's r124-T1-2): D11 shows an incident's traces to
+           the killer, the victim and a third on the killer's side (visibility.mjs `inTheIncident`), and this told every
+           leaver of one - a victim-side third's Escape Together on a plain Despair was told and given a trace its own
+           screen never draws. The leaver is the row's `sourceActor`; a trace with no leaver named is told to nobody. */
+        return incidentShowsTo(remnantData(doc)?.sourceActor ?? null, incidentParticipants(), incidentCast());
     } catch {
         return false;
     }
+}
+
+/** Whether D11 shows a running incident's traces to the character `actorId`: one of `participants`, and a third only on
+    the killer's side (`cast.thirdSide`), as visibility.mjs `inTheIncident` reads them. Pure. */
+export function incidentShowsTo(actorId, participants = [], cast = {}) {
+    if (!actorId || !(participants ?? []).includes(actorId)) return false;
+    return !(cast?.thirdId === actorId && cast?.thirdSide !== "killer");
 }
 
 /**
@@ -2665,6 +2677,8 @@ export async function retuneRemnant(sceneId, tokenId,
         // the killer, but the rule is worth honouring: the GM placed it to make
         // the case solvable.
         if (remnantData(token)?.reinforced) return null;
+        // Its leaver's told copy goes with it; a finder's stays (1.2.125, r124-T1-1: truth-bullets.mjs `takeBackToldCopiesOf`).
+        await import("./truth-bullets.mjs").then(m => m.takeBackToldCopiesOf(tokenId));
         await token.delete();
         return true;
     }

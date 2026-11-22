@@ -66459,9 +66459,23 @@ const INVARIANTS = [
                 && /game\.actors\.get\(data\.sourceActor\)/.test(fnSource(src("remnants.mjs"), "noteToldTrace") ?? "")
         };
         equal(stableJson({ rule, claim: [claim(true), claim(false), claim("yes")], callers }), stableJson({
-            rule: [true, true, false, false, true, true], claim: [true, false, false],
+            /* The incident's two stand-ins name no leaver, so since 1.2.125 (r124-T1-2) neither is told: an incident's trace is told
+               on a Despair to a leaver D11 shows it to alone (`incidentShowsTo`, R8693). */
+            rule: [true, true, false, false, false, false], claim: [true, false, false],
             callers: { search: true, hideTraces: true, sabotage: true, dynamic: true, discard: true, tamper: true, crisis: true, reroll: 2, placed: true, held: true, copy: true }
         }), "{rule: Hope, a critical, a plain Despair, nothing placed, an incident's trace on a Despair, the same through its document; claim: a player's told kept only when it is true; callers: each placement carries the card's answer, the GM's roads give the copy, the primary holds a claim to its record of the roll, and the copy is the leaver's, made as a hit's with no word to the GMs}");
+    }],
+    ["R8693 - an incident's trace is told on a Despair only to a leaver D11 shows it to: the killer, the victim, a third on the killer's side, never a victim-side third or someone outside the cast (remnants.mjs `incidentShowsTo`, read by `shownToItsCast`; visibility.mjs `inTheIncident`; the auditor's r124-T1-2, 1.2.125)", async () => {
+        /* Red at 206148b7: no `incidentShowsTo` - `shownToItsCast` read the token's `fromIncident` alone, so a victim-side
+           third's Escape Together on a plain Despair was told of, and given, a trace its own screen never draws. Pure, on
+           stand-in ids; nothing written. */
+        const R = await import("./remnants.mjs");
+        must(typeof R.incidentShowsTo === "function", "no `incidentShowsTo`: every leaver of an incident's trace is told of it");
+        const cast = side => ({ killerId: "K", victimId: "V", thirdId: "T", thirdSide: side });
+        const of = (id, side) => R.incidentShowsTo(id, ["K", "V", "T"], cast(side));
+        equal(stableJson([of("K", "victim"), of("V", "victim"), of("T", "victim"), of("T", "killer"), of("X", "killer"), of(null, "killer"),
+            R.incidentShowsTo("K", [], {})]), stableJson([true, true, false, true, false, false, false]),
+            "[the killer, the victim, a victim-side third, a killer-side third, one outside the cast, no leaver, the killer with no cast]");
     }],
     ["R8692 - a told copy is named for the suite's take-back only while a tier-2 test's scope is open, and as it was asked for: none before the scope, none asked for outside it, each one of the scope taken once (remnants.mjs `openToldScope`, `closeToldScope`, `noteToldCopyMade`, `takeToldCopies`; 1.2.125 H1)", async () => {
         /* Red at 206148b7: no scope - every copy made since the page loaded was named, and tier 2 deleted a played world's

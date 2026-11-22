@@ -83,7 +83,7 @@ import { equippedFor, breakOnDespair } from "./use-items.mjs";
 import { isMonokuma } from "./monokuma.mjs";
 // What this character has copied into their inventory as a Truth Bullet, which
 // is this module's only record of "they know this trace is there".
-import { copiedRemnants, bulletsOf, secretOf, dropSecret } from "./truth-bullets.mjs";
+import { copiedRemnants, bulletsOf, secretOf, dropSecret, takeBackToldCopiesOf } from "./truth-bullets.mjs";
 import { ITEM_FLAGS, isBroken, isStashed } from "./inventory.mjs";
 import { resourceValue, resourceMax } from "./character.mjs";
 import { trustedWrite } from "./resource-guard.mjs";
@@ -2214,7 +2214,10 @@ async function undoLastCleanup(actor, tokenId) {
                 ? game.scenes.get(receipt.leftBehind.sceneId)
                 : null;
             // The trace's token through its ref (E60 C1b): every trace has one (D38 = 1), found or not.
-            await remnantById(scene?.id, receipt.leftBehind.id)?.document?.delete();
+            const ref = remnantById(scene?.id, receipt.leftBehind.id);
+            // Its leaver's told copy goes with it; a finder's stays (1.2.125, r124-T1-1: truth-bullets.mjs `takeBackToldCopiesOf`).
+            if (ref) await takeBackToldCopiesOf(receipt.leftBehind.id);
+            await ref?.document?.delete();
         } catch (err) {
             error("Could not take back the trace a rerolled clean-up left", err);
         }
