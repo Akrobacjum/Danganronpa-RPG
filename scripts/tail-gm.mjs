@@ -33,6 +33,7 @@ import { isPrimaryGm, whisperToOwnerOnly, log, error, esc, listOf } from "./util
 import { tailStore } from "./gm-stores.mjs";
 import { CROSSING_SETTLED } from "./crossing-settle.mjs";
 import { BODY_ANNOUNCED_HOOK } from "./chapter.mjs";
+import { withCentre } from "./notice-centre.mjs";
 
 /** The day a tail is counted in: the chapter's and the clock's day, as one mark. */
 function tailDay(clock = getClock()) {
@@ -65,7 +66,8 @@ export async function startTail({ tailer, target, total = 0, isCritical = false,
     const seen = !(unseenCritical || (Number(unseenTotal) || 0) >= INFILTRATE.tail.unseen.threshold);
     await tailStore.patch(tailer.id, { tailerId: tailer.id, targetId: target.id, total: Number(total) || 0,
         critical: Boolean(isCritical), day: tailDay(), at: Date.now(), userId });
-    if (seen) await whisperToOwnerOnly(target, `<p>${esc(game.i18n.format("DRPG.Infiltrate.tail.noticed", { name: tailer.name }))}</p>`);
+    // in the middle of the target's screen (notice-centre.mjs "doneToYou", 1.2.127)
+    if (seen) await whisperToOwnerOnly(target, `<p>${esc(game.i18n.format("DRPG.Infiltrate.tail.noticed", { name: tailer.name }))}</p>`, withCentre({}, "doneToYou"));
     log(`${tailer.name} tails ${target.name} (effect ${Number(total) || 0}${isCritical ? ", critical" : ""}; ${seen ? "noticed" : "unseen"}).`);
     return { seen };
 }

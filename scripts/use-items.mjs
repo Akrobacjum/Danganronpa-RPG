@@ -45,6 +45,7 @@ import { trustedWrite, trustedDelete } from "./resource-guard.mjs";
 import { overflowBlocksHope } from "./overflow.mjs";
 import { whisperToOwner, resolveThreshold, log, error } from "./utils.mjs";
 import { drpgWindow, drpgConfirm, tipText } from "./ui-kit.mjs";
+import { withCentre } from "./notice-centre.mjs";
 
 
 
@@ -580,7 +581,7 @@ export async function useItem(actor, item, { again = null, held = item } = {}) {
         <p><strong>${game.i18n.format("DRPG.Items.used", {
             item: foundry.utils.escapeHTML(item.name)
         })}</strong></p>
-        <p>${summary || game.i18n.localize("DRPG.Items.usedNothing")}</p>`, stamp);
+        <p>${summary || game.i18n.localize("DRPG.Items.usedNothing")}</p>`, withCentre(stamp));
 
     log(`${actor.name} used "${item.name}" (Tier ${tier}): ${summary || "no effect"}.`);
     return restored;
@@ -1125,7 +1126,7 @@ export async function grantItemEffect(actor, item, amounts = {}, { consumeItem =
     await whisperToOwner(actor, `<p>${game.i18n.format("DRPG.Items.used", {
         item: foundry.utils.escapeHTML(item?.name ?? "?")
     })}</p>
-        <p>${summary || game.i18n.localize("DRPG.Items.usedNothing")}</p>`, stamp);
+        <p>${summary || game.i18n.localize("DRPG.Items.usedNothing")}</p>`, withCentre(stamp));
 
     return restored;
 }

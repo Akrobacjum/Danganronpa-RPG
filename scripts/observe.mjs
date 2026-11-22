@@ -38,6 +38,7 @@ import { SETTINGS } from "./settings.mjs";
 import { observeStore } from "./gm-stores.mjs";
 import { stableJson, onGmStoresHydrated, gmStoresQuiet } from "./gm-store.mjs";
 import { drpgWindow, tipAttr, tipText } from "./ui-kit.mjs";
+import { withCentre } from "./notice-centre.mjs";
 
 
 /** How the player said they were looking. */
@@ -564,7 +565,7 @@ async function shareFoundProject(actor, projectId) {
         <p>${game.i18n.format("DRPG.Observe.projectFound", {
             name: foundry.utils.escapeHTML(project.name ?? "-")
         })}</p>`,
-        { flags: { [MODULE_ID]: { sfx: "projectFound" } } });
+        withCentre({ flags: { [MODULE_ID]: { sfx: "projectFound" } } }));
 
     log(`Observe: ${actor.name} found the secret project "${project.name}".`);
     return true;
@@ -1057,7 +1058,7 @@ export async function chargeObserveMiss(actor, { total = null, dc = null } = {})
     await whisperToOwner(actor, `
         <p><strong>${game.i18n.localize("DRPG.Observe.failedTitle")}</strong></p>
         <p>${game.i18n.localize("DRPG.Observe.failed")}${stressLine}</p>`,
-        { flags: { [MODULE_ID]: { sfx: "observeFail" } } });
+        withCentre({ flags: { [MODULE_ID]: { sfx: "observeFail" } } }));
 
     log(total === null
         ? `Observe: ${actor.name} was told there was nothing there.`
@@ -1198,7 +1199,7 @@ async function createFind(actor, entry, isCritical, { ask = true } = {}) {
         ${pub?.playerText ? `<p>${foundry.utils.escapeHTML(pub.playerText)}</p>` : ""}
         ${texts.hint ? `<p>${foundry.utils.escapeHTML(texts.hint)}</p>` : ""}
         ${isCritical ? `<p><em>${game.i18n.localize("DRPG.Observe.critIdentified")}</em></p>` : ""}
-        <p><small>${game.i18n.localize("DRPG.TruthBullet.whereToFind")}</small></p>`);
+        <p><small>${game.i18n.localize("DRPG.TruthBullet.whereToFind")}</small></p>`, withCentre());
 
     log(`Observe: ${actor.name} copied a ${data.type} Remnant as "${item.name}".`);
     return item;
@@ -1300,7 +1301,7 @@ const describingTraces = new Map();
 /** A find of a trace the character holds a copy of: no bullet, the character told, and null for `createFind`. */
 async function alreadyHeld(actor, entry) {
     log(`Observe: ${actor.name} already holds a copy of the trace in ${entry.room}; no second Truth Bullet was made.`);
-    await whisperToOwner(actor, `<p>${game.i18n.localize("DRPG.Observe.alreadyHeld")}</p>`);
+    await whisperToOwner(actor, `<p>${game.i18n.localize("DRPG.Observe.alreadyHeld")}</p>`, withCentre());
     return null;
 }
 

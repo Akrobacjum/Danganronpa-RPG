@@ -94,6 +94,7 @@ import {
     sweepBetrayalWindows, sideOf, killerIds, participantIds, castHeldHere, registerIncidentCastSync,
     registerDeathCopy, recordBlackened, leftABody, betrayalCandidate, keepOpeningNotice, openingCardStandsFor, retireOpeningNotices, castFor
 } from "./incident-store.mjs";
+import { withCentre } from "./notice-centre.mjs";
 
 
 /*
@@ -808,7 +809,7 @@ export async function resolveKillerOpening({ total, isCritical, withHope }) {
             const actor = game.actors.get(state.victimId);
             if (actor) {
                 await whisperToOwner(actor,
-                    `<p>${game.i18n.localize("DRPG.Murder.selfWentThrough")}</p>`);
+                    `<p>${game.i18n.localize("DRPG.Murder.selfWentThrough")}</p>`, withCentre());
             }
         } catch (err) {
             error("Could not tell the player their Stage 4 roll had landed", err);
@@ -4484,12 +4485,13 @@ async function announceCrisis(actor, def, { key = null, success, band, total, th
      * the defence is 1 - the outcome has to be told. Red at e515907d (tier 2 "1.2.121 CASE-16"): the victim's card held 19.
      */
     const hiddenTo = rolled && key && state ? Array.from(recipients).filter(id => defenseHiddenFor(id, key, state)) : [];
-    if (!hiddenTo.length) return { card: await announce({ content, whisper: Array.from(recipients) }), hiddenCopy: null };
+    // each seat's card in the middle of its screen (notice-centre.mjs `withCentre`, 1.2.127): the turn they all wait on
+    if (!hiddenTo.length) return { card: await announce(withCentre({ content, whisper: Array.from(recipients) })), hiddenCopy: null };
     const shown = threshold - crisisDefense(key, state);
     const hiddenScore = `<p>${game.i18n.format(`DRPG.Murder.scoreHidden.${success ? "hit" : "miss"}`, { total, n: shown })} · ${
         game.i18n.localize(`DRPG.Murder.band.${band}`)}</p>`;
-    const card = await announce({ content, whisper: Array.from(recipients).filter(id => !hiddenTo.includes(id)) });
-    const hiddenCopy = await announce({ content: content.replace(score, () => hiddenScore), whisper: hiddenTo });
+    const card = await announce(withCentre({ content, whisper: Array.from(recipients).filter(id => !hiddenTo.includes(id)) }));
+    const hiddenCopy = await announce(withCentre({ content: content.replace(score, () => hiddenScore), whisper: hiddenTo }));
     return { card, hiddenCopy };
 }
 
@@ -4556,7 +4558,7 @@ async function announceOpening(state, label, { rollerId, success, band, total, t
             <h3>${foundry.utils.escapeHTML(label ?? "")}${roller ? ` - ${maskedName(roller, state)}` : ""}</h3>
             <p>${total} ${success ? "≥" : "<"} ${threshold} · ${game.i18n.localize(`DRPG.Murder.band.${band}`)}</p>`;
         const recipients = new Set([...gmIds(), ...incidentAudienceIds(state, { stage: "openingRoll" })]);
-        await announce({ content, whisper: Array.from(recipients) });
+        await announce(withCentre({ content, whisper: Array.from(recipients) }));
     } catch (err) {
         // The opening is scored either way; the card is what it came to, not what it does.
         error("Could not tell the opening roll's side what it came to", err);
