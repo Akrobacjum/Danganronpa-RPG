@@ -6926,6 +6926,10 @@
       "notPrimary": "Danganronpa RPG: only the primary GM can finish the data migration. It runs when the primary GM next loads this world."
     },
     "Popup": {
+      "centre": {
+        "reached": "reached",
+        "short": "not reached"
+      },
       "moreTip": {
         "one": "{n} more notice waits under these. Close one to see it.",
         "other": "{n} more notices wait under these. Close one to see the next."

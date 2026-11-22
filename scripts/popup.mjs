@@ -4,8 +4,9 @@
  * Search, Work on Project, Sabotage, a refused room crossing, a DM's reply, a
  * Despair Call, the time of day - all of it used to be a line in the sidebar
  * somebody had to notice. This is where all of it surfaces instead: a card in
- * the notice tile's corner (`hostFor`; only sticky evidence and an Objection,
- * and a card that asks `popupCentre`, take the middle of the screen), purple for
+ * the notice tile's corner (`hostFor`; only sticky evidence and an Objection
+ * take the trial's stage in the middle, and a card of notice-centre.mjs's list
+ * the notices' stage beside it, `centreStage`), purple for
  * an ordinary update, red for something that was refused, gold for evidence.
  *
  * Every player gets them. A GM gets the ones addressed to the table or to them
@@ -49,10 +50,13 @@ import { recordNotice, updateNotice, noticeUnread, onNoticeHistoryChange } from 
 import { wordsOf, secretHtml, isVeiled, cardFlag, cardWriter, SECRET_FLAG } from "./secret.mjs";
 
 import { setTip } from "./ui-kit.mjs";
+import { centredNotice } from "./notice-centre.mjs";
 
 const CONTAINER_ID = "drpg-popups";
 const EVIDENCE_ID = "drpg-evidence";
 const CORNER_ID = "drpg-notices-corner";
+/** The stage the important notices stand on, one at a time (notice-centre.mjs; `centreStage`). */
+const CENTRE_ID = "drpg-notice-centre";
 
 /**
  * How many cards may be on screen at once.
@@ -227,6 +231,63 @@ function evidenceStage() {
 }
 
 /**
+ * THE NOTICES' STAGE (1.2.124 line UI; the owner's OWNER-124-NOTICES of 22.11.2026: the more important notices as
+ * pop-ups in the middle, closed by hand, kept in the history, not in the corner). The cards of notice-centre.mjs's list
+ * stand here and nowhere else: one at a time, the oldest in front - they wait in the order they came, the rest parked
+ * and counted on the one in front (`trimStack`, `unparkInto`, `markParked`) - so two never stack over each other or run
+ * off the screen. A stage of its own rather than the trial's: evidence stands for minutes and two of it may show
+ * (`MAX_EVIDENCE`); a notice is read and closed. Over the windows (`showPopup`), and
+ * gone with its last card, as the evidence stage is. Announced as the other stacks are. Over the windows until its X
+ * closes it, never sunk by a touch (the owner's "na wierzchu" of 22.11.2026). The same card as the corner's, scaled
+ * whole and upright (danganronpa.css `#drpg-notice-centre`).
+ */
+function centreStage() {
+    let el = document.getElementById(CENTRE_ID);
+    if (!el) {
+        el = document.createElement("div");
+        el.id = CENTRE_ID;
+        el.setAttribute("role", "status");
+        el.setAttribute("aria-live", "polite");
+        markLanguage(el);
+        document.body.append(el);
+    }
+    return el;
+}
+
+/* THE ROLL AT THE CENTRE OF A CENTRED CARD (the owner on the first screenshots, 22.11.2026: "Jest powiadomienie w module z
+   wynikiem rzutu - zolty i rozowy kwadrat z wynikiem poszczegolnych kosci. Zainspirujmy sie nim"). A centred card that
+   carries a roll's dice (action-report.mjs `dualityBar`, `.drpg-duality`) shows them as its centre-piece, larger
+   (danganronpa.css and stained-glass.css, `#drpg-notice-centre .drpg-duality`), and beside the total the number it had
+   to beat - the head's own "needed N" (utils.mjs `cardHead`, `data-dc`) - with, where that number is one number, whether
+   the total reached it ("reached", "not reached"; a critical reaches any). A ladder ("8 / 12 / 16") says itself, and
+   the effect lines under the dice say what it bought. Read off the card alone: the total, the number and the dice's
+   side, none of which differs between a Despair roll that left a trace and one that left none (remnants.mjs
+   `traceFeedback`: the card says a trace only with Hope or a critical) - R8675 holds the two cards byte for byte. Every
+   addition carries `CENTRE_ONLY`, and the notice history keeps the corner's card without them (`showPopup`'s `kept`). */
+const CENTRE_ONLY = "drpg-centre-only";
+export function centreRoll(body) {
+    const result = body?.querySelector?.(".drpg-duality .drpg-duality-result");
+    const needed = body?.querySelector?.(".drpg-card-head .drpg-card-needed");
+    if (!result || !needed || result.querySelector(`.${CENTRE_ONLY}`)) return false;
+    const vs = document.createElement("span");
+    vs.className = `drpg-duality-vs ${CENTRE_ONLY}`;
+    const words = document.createElement("span");
+    words.className = "drpg-duality-needed";
+    words.textContent = needed.textContent.trim();
+    vs.append(words);
+    const dc = String(needed.dataset.dc ?? "").trim(), total = Number(result.querySelector(".drpg-duality-total")?.textContent);
+    if (/^\d+$/.test(dc) && Number.isFinite(total)) {
+        const reached = total >= Number(dc) || result.closest(".drpg-duality")?.dataset.side === "critical";
+        const mark = document.createElement("span");
+        mark.className = `drpg-duality-mark ${reached ? "is-reached" : "is-short"}`;
+        mark.textContent = game.i18n.localize(reached ? "DRPG.Popup.centre.reached" : "DRPG.Popup.centre.short");
+        vs.append(mark);
+    }
+    result.append(vs);
+    return true;
+}
+
+/**
  * Which of the two this card belongs in.
  *
  * Only a STICKY piece of evidence takes the stage. A non-sticky one is a
@@ -333,6 +394,7 @@ function watchWidgets() {
 /** How many cards a stack SHOWS. The rest wait, parked - see `MAX_VISIBLE`. */
 function capacityOf(host) {
     if (host.id === EVIDENCE_ID) return MAX_EVIDENCE;
+    if (host.id === CENTRE_ID) return 1;
     // Under Stained Glass the stack lives on a tile of the curtain cut for two short cards or one
     // long one (glass.mjs, "note-block"), so two is the most it may show.
     return document.body.classList.contains("drpg-theme-stained-glass") ? 2 : MAX_VISIBLE;
@@ -372,6 +434,13 @@ const byArrival = (a, b) => seqOf(a) - seqOf(b);
 function trimStack(host = container()) {
     const shown = Array.from(host.querySelectorAll(`.drpg-popup:not(.leaving):not(.${PARKED})`))
         .sort(byArrival);
+    /* The notices' stage keeps its OLDEST in front and parks what came after it (`centreStage`): a queue, read in the
+       order it happened, where the corner shows the newest. */
+    if (host.id === CENTRE_ID) {
+        shown.slice(1).forEach(card => card.classList.add(PARKED));
+        markParked(host);
+        return;
+    }
     let excess = shown.length - capacityOf(host);
     if (excess > 0) {
         const order = [
@@ -451,7 +520,8 @@ function unparkInto(host) {
         .sort(byArrival);
     const room = capacityOf(host);
     while (shown < room && parked.length) {
-        const card = parked.pop();
+        // the newest that waits, but on the notices' stage the oldest: it is a queue (`centreStage`)
+        const card = host.id === CENTRE_ID ? parked.shift() : parked.pop();
         card.classList.remove(PARKED);
         setFloor(host);
         shown++;
@@ -492,7 +562,8 @@ function markParked(host) {
         .sort(byArrival)[0];
     const top = oldest?.querySelector(".drpg-popup-title");
     if (!top) return;
-    const closes = host.querySelector(`.drpg-popup:not(.leaving):not(.${STICKY})`) !== null;
+    // on the notices' stage a label: each important notice is closed by its reader, one at a time (`centreStage`)
+    const closes = host.id !== CENTRE_ID && host.querySelector(`.drpg-popup:not(.leaving):not(.${STICKY})`) !== null;
     const badge = document.createElement(closes ? "button" : "span");
     badge.className = "drpg-popup-more";
     badge.textContent = `+${waiting}`;
@@ -918,9 +989,17 @@ export function showPopup(bodyHtml, {
         }
     }
     if (!title) title = kindWord;
+    // what the history keeps is the corner's card: the centred card's own additions (`centreRoll`) are left out of it
+    const cornerOnlyHtml = html => {
+        if (!html.includes(CENTRE_ONLY)) return html;
+        const wrap = document.createElement("div");
+        wrap.innerHTML = html;
+        wrap.querySelectorAll(`.${CENTRE_ONLY}`).forEach(el => el.remove());
+        return wrap.innerHTML;
+    };
     const critical = tone === "critical";
     if (critical) body.prepend(critLine(messageId ?? fromMessage, title === kindWord ? null : title));
-    const kept = () => lifted + body.innerHTML;
+    const kept = () => lifted + cornerOnlyHtml(body.innerHTML);
 
     {
         const head = document.createElement("div");
@@ -965,11 +1044,14 @@ export function showPopup(bodyHtml, {
         }
     }
 
-    /* A CENTRE CARD (E62 C5, 1.2.109): the day summary and the body's card stand in the middle of the screen, on the
-       stage the trial's evidence stands on - which carries no history button - and come over the windows until
-       touched, as an objection does (the plan's Q8 default). Kept in the history as every card is. */
-    const host = centre ? evidenceStage() : hostFor(kind, sticky);
-    if (centre) card.classList.add("drpg-popup-centre");
+    /* A CENTRE CARD (E62 C5, 1.2.109; its own stage since 1.2.124, `centreStage`): a card of notice-centre.mjs's list
+       stands in the middle of the screen - no history button there - and comes over the windows until touched, as an
+       objection does (the plan's Q8 default). Kept in the history as every card is. */
+    const host = centre ? centreStage() : hostFor(kind, sticky);
+    if (centre) {
+        card.classList.add("drpg-popup-centre");
+        centreRoll(body);
+    }
     const followed = notice && observe ? notice : null;
     if (followed !== null || host.id === CONTAINER_ID) unwatch = watchCard(card, body, followed, kept);
     card.dataset.drpgSeq = String(++arrivals);
@@ -980,7 +1062,7 @@ export function showPopup(bodyHtml, {
        below the ones already there. It goes in first now; what it pushes past the tile's
        two is parked underneath (`trimStack`). The evidence stage keeps its order: there
        an objection is read AFTER the presentation it answers. */
-    if (host.id === EVIDENCE_ID) host.append(card);
+    if (host.id === EVIDENCE_ID || host.id === CENTRE_ID) host.append(card);
     else host.prepend(card);
     if (critical) cutCritical(card);
 
@@ -991,7 +1073,12 @@ export function showPopup(bodyHtml, {
        stage (`is-raised`, the stylesheet's `#drpg-evidence.is-raised`) until the first
        pointerdown on it, and then it sinks under the windows like any evidence. Per card: the
        stage stays raised while any objection on it is untouched. */
-    if (host.id === EVIDENCE_ID && (kind === "objection" || centre)) {
+    /* A centred notice stays over the windows until its X closes it (the owner, 22.11.2026: "Maja wyskakiwac na
+       wierzchu"): raised with no touch to sink it, so it is never lost behind a window unread. */
+    if (host.id === CENTRE_ID) {
+        card.classList.add(RAISED);
+        raiseIfObjecting(host);
+    } else if (host.id === EVIDENCE_ID && kind === "objection") {
         card.classList.add(RAISED);
         card.addEventListener("pointerdown", () => {
             card.classList.remove(RAISED);
@@ -1044,14 +1131,16 @@ export function showPopup(bodyHtml, {
             unwatch?.();
             card.remove();
             unparkInto(home);
-            if (home?.id === EVIDENCE_ID) raiseIfObjecting(home);
+            if (home?.id === EVIDENCE_ID || home?.id === CENTRE_ID) raiseIfObjecting(home);
             /* The stage is a box in the middle of the screen. Empty, it has
                nothing to draw and nothing to say, so it goes rather than
                sitting there as an invisible `role="status"` region. The corner
                tile is the opposite case and stays: it is a cut pane of the
                curtain whether or not anything is on it. */
-            const stage = document.getElementById(EVIDENCE_ID);
-            if (stage && !stage.querySelector(".drpg-popup")) stage.remove();
+            for (const id of [EVIDENCE_ID, CENTRE_ID]) {
+                const stage = document.getElementById(id);
+                if (stage && !stage.querySelector(".drpg-popup")) stage.remove();
+            }
         };
         if (instant) {
             remove();
@@ -1072,7 +1161,12 @@ export function showPopup(bodyHtml, {
     // Click-anywhere-to-dismiss is right for a notification and wrong for a card
     // somebody is reading: a sticky one closes only from its own button, unless
     // the caller gave it something to do on click.
-    if (!sticky || onClick) {
+    /* A CENTRED NOTICE IS CLOSED BY ITS X ALONE, AND TAKES NO FOCUS (1.2.124, `centreStage`): it stands in the middle,
+       where a click meant for the map or a sheet beside it would close an important card unread; and a press on it -
+       its X, its words - leaves the focus where it was, so a player typing in a window keeps typing (a mousedown's
+       default is what moves the focus). Its X closes it. */
+    if (host.id === CENTRE_ID) card.addEventListener("mousedown", event => event.preventDefault());
+    if ((!sticky && host.id !== CENTRE_ID) || onClick) {
         card.addEventListener("click", () => {
             onClick?.();
             dismiss({ reason: "user" });
@@ -1334,9 +1428,9 @@ export async function onCreateChatMessage(message) {
         // reason the title is: the card appears on every screen the whisper
         // reached, and only the client that posted it knows what the roll did.
         tone: cardFlag(message, "popupTone") ?? null,
-        // In the middle of the screen (E62 C5): only a GM's card may ask, as `popupForce` (a player's console would
-        // put a card in the middle of every screen otherwise)
-        centre: cardFlag(message, "popupCentre") === true && Boolean(cardWriter(message)?.isGM),
+        // In the middle of the screen (E62 C5; a closed list since 1.2.124, notice-centre.mjs): a GM's card, or a
+        // player's own on that player's screen - never a player's card on anybody else's
+        centre: centredNotice(message),
         messageId: message.id
     });
 }

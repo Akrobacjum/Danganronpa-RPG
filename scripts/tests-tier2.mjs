@@ -115987,6 +115987,28 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         equal(stableJson(read), stableJson({ desc: true, locked: true, redrawn: true, start: false }),
             "[the description typed written; the lock forced while open kept; the window drew it before Apply; the start lock Apply stored: as the window read it at the open, unlocked]");
     }],
+    ["a GM's card that asks for the middle by a listed name is drawn there, through the catch-all, and kept; one that names no listed notice stays in the corner (OWNER-124-NOTICES; 1.2.124 line UI): two public cards posted with `announce`, `popupCentre: \"lockBroken\"` and `popupCentre: \"timeOfDay\"`; the first stands on `#drpg-notice-centre` with its message's id and a notice history entry, the second in `#drpg-popups`; both go with their messages", async () => {
+        /* Red at 52057a2b: no `#drpg-notice-centre`, and a name was not `true`, so both cards went to the corner. */
+        const { announce } = await import("./utils.mjs");
+        const posted = [];
+        const at = id => document.querySelector(`.drpg-popup[data-drpg-message="${id}"]`);
+        const waitFor = async (id, ms = 4000) => { const t0 = Date.now(); while (!at(id) && Date.now() - t0 < ms) await new Promise(r => setTimeout(r, 50)); return at(id); };
+        try {
+            const centred = await announce({ content: "<p>R8674 the lock</p>", flags: { [MODULE_ID]: { popupCentre: "lockBroken" } } });
+            const corner = await announce({ content: "<p>R8674 the hour</p>", flags: { [MODULE_ID]: { popupCentre: "timeOfDay" } } });
+            posted.push(centred, corner);
+            must(centred?.id && corner?.id, "announce posted no card - this would measure nothing");
+            const a = await waitFor(centred.id), b = await waitFor(corner.id);
+            equal(stableJson({ centred: a?.closest("#drpg-notice-centre, #drpg-popups, #drpg-evidence")?.id ?? null, kept: Boolean(a?.dataset.drpgNotice),
+                corner: b?.closest("#drpg-notice-centre, #drpg-popups, #drpg-evidence")?.id ?? null }),
+            stableJson({ centred: "drpg-notice-centre", kept: true, corner: "drpg-popups" }),
+            "{centred: the listed name's card on the notices' stage; kept: in the notice history; corner: a name not on the list}");
+        } finally {
+            for (const m of posted) if (m && game.messages.get(m.id)) await m.delete();
+        }
+        await new Promise(r => setTimeout(r, 1300));
+        ok(!posted.some(m => m?.id && at(m.id) && !at(m.id).classList.contains("leaving")), "a card stayed on screen after its message was deleted");
+    }],
     ["Room setup's start-lock box shows the start lock Apply would keep, and a room the GM did not touch whose lock was forced while the window stood is not written (the audit's check of 1.2.122, r122-H-3; the line claude/refresh-120 for 1.2.123)", async () => {
         /*
          * r122-H-3, after r121-R-5: the box was drawn from `startLocked` (the lock itself while no start lock is stored),

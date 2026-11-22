@@ -38918,7 +38918,8 @@ const INVARIANTS = [
         const ladder = html({ action: "R1108", total: 13, dc: "12 / 18" });
         const none = html({ action: "R1108", total: 13 });
         const noTotal = html({ action: "R1108", dc: 10 });
-        equal(JSON.stringify([one.includes(needed(10)), /drpg-card-total">13<\/span> <small class="drpg-card-needed">/.test(one),
+        // `data-dc` since 1.2.124 (the centred notice's "needed N" beside the dice, popup.mjs `centreRoll`)
+        equal(JSON.stringify([one.includes(needed(10)), /drpg-card-total">13<\/span> <small class="drpg-card-needed" data-dc="10">/.test(one),
             ladder.includes(needed("12 / 18")), none.includes("drpg-card-needed"), noTotal.includes("drpg-card-needed"), needed(10) !== "DRPG.Action.needed"]),
             JSON.stringify([true, true, true, false, false, true]),
             "[a dc of 10 says needed 10; beside the total; a ladder too; no dc says nothing; no total says nothing; the key is worded]");
@@ -60959,6 +60960,10 @@ const INVARIANTS = [
          * E62 C5 (1.2.109), 12.11.2026. Red at 6230945: showPopup has no `centre`. The stage is the one the trial's
          * evidence stands on (`#drpg-evidence`), which carries no history button; the card is kept in the history as any
          * card is (`record`, untouched here: tiers 0-1 write no setting, so the stand-in passes `record: false`).
+         * CHANGED ON PURPOSE IN 1.2.124 (line UI; the owner's OWNER-124-NOTICES of 22.11.2026): the stage is the notices'
+         * own (`#drpg-notice-centre`), the card stays raised until its X ("na wierzchu" - a touch no longer sinks it), a
+         * chat card asks by a name of notice-centre.mjs's list (`centredNotice`, R8670-R8671), and the body's card asks
+         * "bodyFound". R8672 holds the queue and the focus.
          */
         const P = await import("./popup.mjs");
         const close = P.showPopup("<p>R3729 centre</p>", { title: "R3729", sticky: true, centre: true, record: false });
@@ -60977,12 +60982,12 @@ const INVARIANTS = [
         must(catchAll.length > 200 && summary.length > 200, "the catch-all or the summary was not read - this reads nothing");
         equal(stableJson({
             stage: stage?.id ?? null, centreClass: Boolean(card?.classList.contains("drpg-popup-centre")), raisedBefore, raisedAfter, button,
-            flag: /popupCentre/.test(catchAll) && /cardFlag\(message, "popupCentre"\) === true && Boolean\(cardWriter\(message\)\?\.isGM\)/.test(catchAll),
-            summary: /centre: true/.test(summary), body: /popupCentre: true,\s*popupKind: "objection"/.test(chapter)
+            flag: /centre: centredNotice\(message\)/.test(catchAll),
+            summary: /centre: true/.test(summary), body: /popupCentre: "bodyFound",\s*popupKind: "objection"/.test(chapter)
         }), stableJson({
-            stage: "drpg-evidence", centreClass: true, raisedBefore: [true, true], raisedAfter: [false, false], button: false,
+            stage: "drpg-notice-centre", centreClass: true, raisedBefore: [true, true], raisedAfter: [true, true], button: false,
             flag: true, summary: true, body: true
-        }), "[the centre stage; marked a centre card; raised until touched; sunk after; no history button on the stage; the chat flag from a GM's card only; the summary asks for it; the body's card asks for it]");
+        }), "[the notices' stage; marked a centre card; raised; still raised after a touch; no history button on the stage; the chat flag through the list's rule; the summary asks for it; the body's card asks for it]");
     }],
     ["R3730 - the day summary waits for the clock's turn, and its rows come in one after another (scripts/day-summary.mjs `summaryDelay`, `sumUp`, `showDaySummary`; styles/danganronpa.css; E62 C5, MK-R2's card): the summary is put up when the turn of the change that closed its time of day has ended - at once with no turn, under reduced motion or with the table's switch off; each row carries its place, and the centre card's rows slide in 160 ms apart from 150 ms, none under reduced motion", async () => {
         /* E62 C5 (1.2.109), 12.11.2026. Red at 6230945: day-summary.mjs has no summaryDelay. */
@@ -65100,7 +65105,9 @@ const INVARIANTS = [
         const src = async file => stripComments(await fetch(`/modules/${MODULE_ID}/scripts/${file}`).then(r => (r.ok ? lfText(r) : "")));
         const trial = await src("trial.mjs"), stash = await src("stash-reach.mjs"), doors = await src("doors-gm.mjs");
         read.flags = [/key:\s*"present"/.test(fnSource(trial, "presentOnPrimary")), /key:\s*"stashFound"/.test(stash),
-            (stash.match(/STASH_MISS\)/g) ?? []).length, /sfx:\s*"searchNothing"/.test(stash), (doors.match(/BEDROOM_SOUND\)/g) ?? []).length, /sfx:\s*"bedroomEntered"/.test(doors)];
+            (stash.match(/STASH_MISS\)/g) ?? []).length, /sfx:\s*"searchNothing"/.test(stash), /* the two bedroom cards through `bedroomExtra` since 1.2.124 (its sound and, for a lock broken, the middle of the
+               owner's screen, notice-centre.mjs "lockBroken"); the sound is BEDROOM_SOUND's in both */
+            (doors.match(/bedroomExtra\(/g) ?? []).length * (/\.\.\.BEDROOM_SOUND\.flags\[MODULE_ID\]/.test(doors) && /: BEDROOM_SOUND\);/.test(doors) ? 1 : 0), /sfx:\s*"bedroomEntered"/.test(doors)];
         const clock = { phase: "classTrial", chapter: 2 };
         const yes = () => true;
         read.vote = [
@@ -67296,6 +67303,163 @@ const INVARIANTS = [
             recut: /if \(!same\) \{ carryPaneLook\(panes, job\.panes\); job\.panes = panes;/.test(src) }),
         stableJson({ kept: 2, seeds: [[0.9, 0.3], [0.1, 0.7], [null, null], [null, null]], reads: [true, true, true], recut: true }),
         "{kept: two panes moved; seeds: moved 0.6 px, moved 30 px, a new pane, a pane cut to 0.4 of the old; reads: paintGlass's two numbers and the lum kept; recut: carried before the panes are replaced}");
+    }],
+    ["R8670 - the notices that take the middle of the screen are one closed list (the owner's OWNER-124-NOTICES of 22.11.2026; 1.2.124 line UI): every `popupCentre` a script writes is a name of notice-centre.mjs `CENTRED_NOTICES`, every name has a writer, and `centreFlag` refuses a name not on it", async () => {
+        /* Red at 52057a2b: no notice-centre.mjs; body.mjs wrote `popupCentre: true` and the catch-all honoured a GM's `true`. */
+        const NC = await import("./notice-centre.mjs").catch(() => null);
+        must(NC && NC.CENTRED_NOTICES && typeof NC.centreFlag === "function", "no notice-centre.mjs - the middle of the screen has no list");
+        const sources = await moduleSources();
+        must(sources.size > 200, "the module's sources read as nothing - this would measure nothing");
+        const written = new Map();
+        for (const [file, text] of sources) {
+            if (/^tests/.test(file) || file === "notice-centre.mjs") continue;
+            for (const m of stripComments(text).matchAll(/popupCentre(?::|\s*=)\s*([^,};\n]+)/g)) {
+                for (const name of m[1].match(/"([A-Za-z]+)"/g) ?? [m[1].trim()]) written.set(name.replace(/"/g, ""), [...(written.get(name.replace(/"/g, "")) ?? []), file]);
+            }
+        }
+        // the day summary asks by showPopup's own option on the GM's screen (day-summary.mjs), not by the flag
+        const direct = [...sources].filter(([file, text]) => !/^tests/.test(file) && /centre:\s*true/.test(stripComments(text))).map(([file]) => file).sort();
+        const names = Object.keys(NC.CENTRED_NOTICES).sort();
+        let refused = false;
+        try { NC.centreFlag("notOnTheList"); } catch { refused = true; }
+        equal(stableJson({ notListed: [...written.keys()].filter(n => !names.includes(n)).sort(), unwritten: names.filter(n => !written.has(n) && !(n === "daySummary" && direct.includes("day-summary.mjs"))),
+            direct, refused, flag: NC.centreFlag("lockBroken") }),
+        stableJson({ notListed: [], unwritten: [], direct: ["day-summary.mjs"], refused: true, flag: { popupCentre: "lockBroken" } }),
+        "{notListed: a name written that the list lacks; unwritten: a name nobody writes; direct: showPopup's own centre callers; refused: a name not on the list; flag: the flags of a name}");
+    }],
+    ["R8671 - who a centred notice takes the middle for (OWNER-124-NOTICES; 1.2.124 line UI): notice-centre.mjs `centredNotice` answers yes for a listed name a GM wrote, and for a listed name read by its own writer; no for a player's card on another player's screen, for a name not on the list and for `true`", async () => {
+        /* Red at 52057a2b: no notice-centre.mjs. The catch-all took `popupCentre === true` from a GM alone. */
+        const NC = await import("./notice-centre.mjs").catch(() => null);
+        must(NC && typeof NC.centredNotice === "function", "no notice-centre.mjs `centredNotice`");
+        const gm = { id: "R8671gm", isGM: true }, p1 = { id: "R8671p1", isGM: false }, p2 = { id: "R8671p2", isGM: false };
+        const card = (author, popupCentre) => ({ author, flags: { [MODULE_ID]: { popupCentre } }, getFlag: (scope, key) => (scope === MODULE_ID ? { popupCentre }[key] : undefined) });
+        equal(stableJson({
+            gmToP1: NC.centredNotice(card(gm, "lockBroken"), p1),
+            ownResult: NC.centredNotice(card(p1, "actionResult"), p1),
+            othersResult: NC.centredNotice(card(p1, "actionResult"), p2),
+            notListed: NC.centredNotice(card(gm, "timeOfDay"), p1),
+            bare: NC.centredNotice(card(gm, true), p1),
+            none: NC.centredNotice(card(gm, undefined), p1)
+        }), stableJson({ gmToP1: true, ownResult: true, othersResult: false, notListed: false, bare: false, none: false }),
+        "{gmToP1: a GM's lock card; ownResult: a player's own result on its own screen; othersResult: on another's; notListed; bare true; none}");
+    }],
+    ["R8672 - the centred notices wait in order, one in front, closed by hand, and take no focus (OWNER-124-NOTICES; 1.2.124 line UI): popup.mjs `showPopup` with `centre` puts three cards on `#drpg-notice-centre`: the first shown, the other two parked and counted \"+2\" as a label; a click on the card closes nothing, its X closes it and the next in arrival order comes forward; a mousedown on it is cancelled; the stage is raised and goes with its last card; the corner holds none of them", async () => {
+        /* Red at 52057a2b: the centre cards went to the trial's evidence stage, two shown at once, the newest parked last. */
+        const P = await import("./popup.mjs");
+        const titles = ["R8672 one", "R8672 two", "R8672 three"];
+        const closers = titles.map(title => P.showPopup(`<p>${title}</p>`, { title, centre: true, record: false }));
+        try {
+            const stage = document.getElementById("drpg-notice-centre");
+            must(stage, "no #drpg-notice-centre stage was drawn - the cards went elsewhere");
+            const cards = () => [...stage.querySelectorAll(".drpg-popup:not(.leaving)")];
+            const front = () => cards().filter(c => !c.classList.contains("drpg-popup-parked")).map(c => c.querySelector(".drpg-popup-title")?.firstChild?.textContent?.trim());
+            const first = { front: front(), parked: cards().filter(c => c.classList.contains("drpg-popup-parked")).length,
+                more: stage.querySelector(".drpg-popup-more")?.textContent ?? null, moreIsButton: stage.querySelector(".drpg-popup-more")?.tagName === "BUTTON",
+                raised: stage.classList.contains("is-raised"), corner: document.querySelectorAll("#drpg-popups .drpg-popup").length };
+            const shown = cards().find(c => !c.classList.contains("drpg-popup-parked"));
+            shown.querySelector(".drpg-popup-body").click();
+            const afterClick = front();
+            const down = new MouseEvent("mousedown", { bubbles: true, cancelable: true });
+            shown.dispatchEvent(down);
+            // on top until its X: a touch sinks nothing (the owner's "na wierzchu", 22.11.2026)
+            shown.dispatchEvent(new Event("pointerdown", { bubbles: true }));
+            const stillRaised = stage.classList.contains("is-raised") && shown.classList.contains("is-raised");
+            shown.querySelector(".drpg-popup-close").click();
+            await new Promise(r => setTimeout(r, 1400));
+            const afterClose = { front: front(), parked: cards().filter(c => c.classList.contains("drpg-popup-parked")).length };
+            equal(stableJson({ first, afterClick, focusKept: down.defaultPrevented, stillRaised, afterClose }),
+                stableJson({ first: { front: ["R8672 one"], parked: 2, more: "+2", moreIsButton: false, raised: true, corner: 0 }, afterClick: ["R8672 one"], focusKept: true, stillRaised: true,
+                    afterClose: { front: ["R8672 two"], parked: 1 } }),
+            "{first: the oldest in front, two waiting as a label, raised, none in the corner; afterClick: a click on its words closes nothing; focusKept: its mousedown cancelled; afterClose: the next in order}");
+        } finally {
+            closers.forEach(close => close?.({ instant: true }));
+        }
+        await new Promise(r => setTimeout(r, 50));
+        ok(!document.getElementById("drpg-notice-centre"), "the notices' stage stayed after its last card closed");
+    }],
+    ["R8673 - the posters of the centred notices ask by name (OWNER-124-NOTICES; 1.2.124 line UI): action-report.mjs `rollCardFlags` and `report` ask `actionResult`, action-tail.mjs asks `failedShadow` when the target noticed and `actionResult` when not, doors-gm.mjs asks `lockBroken` for a lock picked, forced or breached and nothing for one only mended, body.mjs asks `bodyFound`", async () => {
+        /* Red at 52057a2b: none asked but body.mjs's `true`. */
+        const R = await import("./action-report.mjs");
+        const flags = R.rollCardFlags({ label: "Observe" }, { total: 12, withHope: true })?.flags?.[MODULE_ID] ?? {};
+        const sources = await moduleSources();
+        const src = f => stripComments(sources.get(f) ?? "");
+        must(src("doors-gm.mjs").length > 1000 && src("action-report.mjs").length > 1000, "the posters' sources read as nothing - this would measure nothing");
+        equal(stableJson({
+            rollCard: flags.popupCentre ?? null,
+            report: /popupTone: rollTone\(roll\),\s*popupCentre: "actionResult"/.test(src("action-report.mjs")),
+            tail: /popupCentre = seen \? "failedShadow" : "actionResult"/.test(src("action-tail.mjs"))
+                && /rollHead\(\{ label: game\.i18n\.localize\("DRPG\.Infiltrate\.tail\.unseenTitle"\) \}, shadow\)/.test(src("action-tail.mjs"))
+                && /rollHead\(\{ label \}, roll\)/.test(src("action-tail.mjs"))
+                && /\.\.\.tailCard\(label, roll, shadow, seen, target\.name\)/.test(src("action-tail.mjs")),
+            bedroom: /kinds\.some\(kind => kind !== "mended"\)[\s\S]{0,200}popupCentre: "lockBroken"/.test(src("doors-gm.mjs")),
+            bedroomCalls: (src("doors-gm.mjs").match(/whisperToOwnerOnly\(owner, await bedroomCard\([^)]*\)[^;]*bedroomExtra\(/g) ?? []).length,
+            body: /popupCentre: "bodyFound"/.test(src("body.mjs")),
+            // Shut, Force the Door, Pick the Lock (with its cover), Keep Watch and Dash: their roll over their sentence
+            infiltrate: [["action-doors.mjs", 3], ["action-watch.mjs", 1], ["action-listen.mjs", 1]].map(([f, n]) => (src(f).match(/whisperToOwner\(actor, \.\.\.rollResultCard\(/g) ?? []).length === n),
+            cover: /extra: coverLine/.test(src("action-doors.mjs")) && /neededNote\(rule\.cover\.threshold\)/.test(src("action-doors.mjs")),
+            tamper: /popupCentre: "actionResult", \.\.\.\(success \? \{\} : \{ sfx: "cleanupFailed" \}\)/.test(src("cleanup.mjs"))
+        }), stableJson({ rollCard: "actionResult", report: true, tail: true, bedroom: true, bedroomCalls: 2, body: true, infiltrate: [true, true, true], cover: true, tamper: true }),
+        "{rollCard: Observe/Analyze/Listen; report: every action's result; tail: noticed or not, the Shadow roll with its number first, then the effect roll; bedroom: not a lock only mended; bedroomCalls: both of the owner's cards; body; infiltrate: the five Infiltrate cards with their roll; cover: Pick's second roll; tamper: Tamper's card}");
+    }],
+    ["R8675 - a centred action card tells a Despair roll's trace no more than the corner did (the owner, 22.11.2026: \"by nie zdradzaly ze gracz zostawia remnant, gdy nie powinien o tym wiedziec\"; 1.2.124 line UI): action-report.mjs `reportHtml` with `leftTrace` from remnants.mjs `traceFeedback`, drawn centred by popup.mjs `showPopup`: a Despair roll with a trace placed and one with none give the same centred card, byte for byte, the number beside its dice included; a Hope roll with a trace says so and one with none does not", async () => {
+        /* Red at 52057a2b: no `reportHtml` and no centred card. The mutant that answers `traceFeedback` with `placed` alone
+           (the Despair card saying its trace) turns it red. */
+        const R = await import("./action-report.mjs");
+        const { traceFeedback } = await import("./remnants.mjs");
+        const P = await import("./popup.mjs");
+        must(typeof R.reportHtml === "function", "action-report.mjs has no reportHtml - the card's words cannot be read apart from its post");
+        const roll = (side, total, hope, fear) => ({ total, dc: "8 / 12 / 16", trait: "eye", withHope: side === "hope", withFear: side === "fear",
+            raw: { total, hope: { total: hope }, fear: { total: fear }, data: { traits: {} } } });
+        const centred = (rolled, placed) => {
+            const html = R.reportHtml({ label: "R8675 Search" }, rolled, { text: "R8675 nothing here", room: "Library", tokensLeft: 1, leftTrace: traceFeedback(rolled, placed) }, "Library");
+            const close = P.showPopup(html, { title: "R8675 Search", tone: R.rollTone(rolled), centre: true, record: false });
+            const card = document.querySelector("#drpg-notice-centre .drpg-popup:not(.leaving)");
+            const body = card?.querySelector(".drpg-popup-body")?.innerHTML ?? null;
+            const vs = card?.querySelector(".drpg-duality-vs")?.textContent ?? null;
+            close?.({ instant: true });
+            return { body, vs };
+        };
+        const despair = roll("fear", 11, 3, 6), hope = roll("hope", 13, 7, 4);
+        const [dPlaced, dNone, hPlaced, hNone] = [centred(despair, true), centred(despair, false), centred(hope, true), centred(hope, false)];
+        must(dPlaced.body && dPlaced.vs, "no centred card with its number beside the dice was drawn - this would measure nothing");
+        const said = c => c.body.includes(game.i18n.localize("DRPG.Action.leavesRemnant"));
+        equal(stableJson({ despairSame: dPlaced.body === dNone.body, despairSays: said(dPlaced), hopeSays: [said(hPlaced), said(hNone)], vsSame: dPlaced.vs === dNone.vs }),
+            stableJson({ despairSame: true, despairSays: false, hopeSays: [true, false], vsSame: true }),
+            "{despairSame: a Despair card with a trace and without, byte for byte; despairSays: it never says one; hopeSays: Hope with a trace, without; vsSame: the number beside the dice}");
+    }],
+    ["R8676 - a centred card is kept in the notice history as the corner's card, byte for byte (OWNER-124-NOTICES; 1.2.124 line UI): the same action card (action-report.mjs `reportHtml`, a Hope roll against one number) drawn in the corner and in the middle with the history held keeps two entries of the same words, html and title, and the centred one holds no `drpg-centre-only` addition though its screen shows \"needed N\" beside the dice", async () => {
+        /* Red at 52057a2b: no `reportHtml`. A mutant of popup.mjs's `kept` that keeps the centred additions turns it red. */
+        const R = await import("./action-report.mjs").catch(() => null);
+        const P = await import("./popup.mjs");
+        const NH = await import("./notice-history.mjs");
+        must(R && typeof R.reportHtml === "function", "action-report.mjs has no reportHtml");
+        const rolled = { total: 15, dc: 12, trait: "body", withHope: true, raw: { total: 15, hope: { total: 8 }, fear: { total: 5 }, data: { traits: {} } } };
+        const html = R.reportHtml({ label: "R8676 Force" }, rolled, { text: "R8676 the door gives way", leftTrace: false }, null);
+        await NH.holdNoticeHistory(true);
+        let entries = [], shown = null;
+        try {
+            const before = new Set(NH.noticeEntries().map(e => e.id));
+            const corner = P.showPopup(html, { title: "R8676 Force", tone: "hope", persist: "session" });
+            const centre = P.showPopup(html, { title: "R8676 Force", tone: "hope", centre: true, persist: "session" });
+            /* the words grow after the card is drawn, as a private card's do when they land (popup.mjs `watchCard`): the
+               entry is kept again from the card as it reads then, the centred additions with it unless they are struck */
+            for (const body of document.querySelectorAll(".drpg-popup-body")) {
+                if (body.textContent.includes("R8676 the door gives way")) body.insertAdjacentHTML("beforeend", "<p>R8676 later</p>");
+            }
+            await new Promise(r => setTimeout(r, 700));
+            shown = document.querySelector("#drpg-notice-centre .drpg-duality-vs")?.textContent ?? null;
+            entries = NH.noticeEntries().filter(e => !before.has(e.id));
+            corner?.({ instant: true });
+            centre?.({ instant: true });
+        } finally {
+            await NH.holdNoticeHistory(false);
+        }
+        must(entries.length === 2 && shown && entries.every(e => String(e.html).includes("R8676 later")),
+            "the two cards were not both kept again after their words grew, or the centred one showed no number beside its dice - this would measure nothing");
+        const [a, b] = entries;
+        equal(stableJson({ html: a.html === b.html, text: a.text === b.text, title: a.title === b.title, centreOnly: entries.some(e => String(e.html).includes("drpg-centre-only")), shown: Boolean(shown) }),
+            stableJson({ html: true, text: true, title: true, centreOnly: false, shown: true }),
+            "{html, text, title: the corner's and the middle's entries the same; centreOnly: an addition kept; shown: the middle showed it}");
     }],
     ["R8431 - the token HUD's on toggles and its focus read under Stained Glass with high contrast (the audit of 1.2.120, H-1, H-7; 1.2.122 line UI): a rule under high contrast and the glass gives `.control-icon.active` the Bone ground and the Ink glyph after the high-contrast ground, and the glass draws the focus ring inside the hexagon (a negative `outline-offset`)", async () => {
         /* Red at 21bf5d18: the high-contrast rule (1,5,1) took the on toggle's ground to Ink under an Ink glyph, and the
