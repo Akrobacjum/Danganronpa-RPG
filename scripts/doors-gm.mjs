@@ -59,6 +59,10 @@ import { roomFlag } from "./rooms.mjs";
    were, which the Eclipse's own crossing card is veiled to keep (eclipse.mjs). Its sound still reaches its readers:
    sfx.mjs asks for it once the words are here. */
 const BEDROOM_SOUND = { flags: { [MODULE_ID]: { sfx: "bedroomEntered" } }, veiled: true };
+/* A lock found picked, forced or breached takes the middle of its owner's screen (notice-centre.mjs's "lockBroken",
+   the owner's OWNER-124-NOTICES of 22.11.2026); a card that says only that it was mended stays in the corner. */
+const bedroomExtra = kinds => (kinds.some(kind => kind !== "mended")
+    ? { ...BEDROOM_SOUND, flags: { [MODULE_ID]: { ...BEDROOM_SOUND.flags[MODULE_ID], popupCentre: "lockBroken" } } } : BEDROOM_SOUND);
 
 /** A barricade's key in the GMs' store: the scene and the room. */
 export const barricadeKey = (sceneId, room) => `${sceneId}:${room}`;
@@ -375,7 +379,7 @@ export async function noteBedroom({ scene, room, kind, told = new Set(), by = nu
     if (at?.scene?.id === scene.id && at.room === room) {
         const { whisperToOwnerOnly } = await import("./utils.mjs");
         // Its sound for the owner alone (E110 part 3, 14.11.2026): `bedroomEntered`, the card's flag.
-        await whisperToOwnerOnly(owner, await bedroomCard(room, [kind], { unsealed }), BEDROOM_SOUND);
+        await whisperToOwnerOnly(owner, await bedroomCard(room, [kind], { unsealed }), bedroomExtra([kind]));
         return "told";
     }
     await bedroomNoteStore.whenHydrated();
@@ -425,7 +429,7 @@ async function tellBedroomNotesNow(owner, room, scene) {
         .sort((a, b) => (Number(row[a]) - Number(row[b])) || NOTE_KINDS.indexOf(a) - NOTE_KINDS.indexOf(b));
     if (!kinds.length) return false;
     const { whisperToOwnerOnly } = await import("./utils.mjs");
-    await whisperToOwnerOnly(owner, await bedroomCard(room, kinds, { unsealed: row.unsealed ?? null }), BEDROOM_SOUND);
+    await whisperToOwnerOnly(owner, await bedroomCard(room, kinds, { unsealed: row.unsealed ?? null }), bedroomExtra(kinds));
     log(`${owner.name} was told what happened to ${room} while they were away (${kinds.join(", ")}).`);
     return true;
 }

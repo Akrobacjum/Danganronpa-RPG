@@ -187,7 +187,21 @@ export function rollTone(roll) {
  * callers are action-analyze.mjs, action-listen.mjs and action-observe.mjs.
  */
 export function rollCardFlags(def, roll) {
-    return { flags: { [MODULE_ID]: { popupTitle: def.label, popupTone: rollTone(roll) } } };
+    // the result its player waits on, in the middle of that player's screen (notice-centre.mjs, 1.2.124)
+    return { flags: { [MODULE_ID]: { popupTitle: def.label, popupTone: rollTone(roll), popupCentre: "actionResult" } } };
+}
+
+/**
+ * AN INFILTRATE ACTION'S RESULT CARD, WITH ITS ROLL (1.2.124 line UI; the owner, 22.11.2026: a centred action card
+ * carries "wynik rzutu vs threshold oraz efekt"). Shut, Force the Door, Pick the Lock, Keep Watch and Dash said their
+ * effect in one sentence and nothing of the roll: the card is now that roll's head and dice (`rollHead`, with "needed N"
+ * where the action's window named a number to beat - `rollTrait`'s `dc`) over the same sentence, under the Infiltrate
+ * tile's glyph as before, and its flags (`rollCardFlags`): the action's title, the roll's tone and the middle of the
+ * roller's screen. `lines` are the card's own paragraphs, already markup; `extra` more lines before them (a supporting
+ * roll). Answers `[spec, flags]` for `whisperToOwner(actor, ...)`.
+ */
+export function rollResultCard(label, roll, lines, { extra = "" } = {}) {
+    return [{ glyph: "ACTIONS.listen", body: `${rollHead({ label }, roll)}${extra}${lines}` }, rollCardFlags({ label }, roll)];
 }
 
 /**
@@ -219,17 +233,11 @@ export function rollHead(def, roll) {
 }
 
 /**
- * The action's card: posted from the roller's browser, to the owner and the GMs. Answers the
- * card (null when there was nothing to report or nothing was posted), and names it to the GMs
- * as the card of the roll it reports (`nameReportCard`, E08+E28 C5). Exported for the suite.
+ * The action card's words for `roll` and `outcome` in `room` (`report`'s, moved here unchanged for the suite, 1.2.124:
+ * the centred notice is held to show the same card for a Despair roll with a trace placed and without, R8675). Pure but
+ * for `game.i18n`.
  */
-export async function report(actor, def, roll, outcome) {
-    if (!outcome) return null;
-
-    // The one moment at a roll the whole table waits for. Local: this runs on
-    // the client that rolled, and the card it is about is on its way.
-    if (roll?.isCritical) playSfx("critical");
-
+export function reportHtml(def, roll, outcome, room = null) {
     const traitLabel = TRAITS[roll?.trait]?.label ?? "";
     const lines = [];
 
@@ -245,7 +253,6 @@ export async function report(actor, def, roll, outcome) {
      * had it. Everything about the four slots, and what goes in them, is
      * documented there.
      */
-    const room = roomOfActor(actor);
     // Only two outcomes are short enough to be a header slot and precise enough
     // to be worth one. Anything else leaves the slot out rather than paraphrase
     // the paragraph below it, which is where the detail belongs.
@@ -322,7 +329,23 @@ export async function report(actor, def, roll, outcome) {
         lines.push(`<p><em>${game.i18n.localize("DRPG.Action.actionReturned")}</em></p>`);
     }
 
-    const html = lines.join("");
+    return lines.join("");
+}
+
+/**
+ * The action's card: posted from the roller's browser, to the owner and the GMs. Answers the
+ * card (null when there was nothing to report or nothing was posted), and names it to the GMs
+ * as the card of the roll it reports (`nameReportCard`, E08+E28 C5). Exported for the suite.
+ */
+export async function report(actor, def, roll, outcome) {
+    if (!outcome) return null;
+
+    // The one moment at a roll the whole table waits for. Local: this runs on
+    // the client that rolled, and the card it is about is on its way.
+    if (roll?.isCritical) playSfx("critical");
+
+    const room = roomOfActor(actor);
+    const html = reportHtml(def, roll, outcome, room);
 
     // The dice land before the card says what they landed on. See `diceSettled`.
     await diceSettled(roll?.raw?.message?.id ?? roll?.raw?.message?._id);
@@ -361,7 +384,10 @@ export async function report(actor, def, roll, outcome) {
                 popupTitle: def.label,
                 // See `rollTone`, which the five cards that go through
                 // `rollHead` share with this one.
-                popupTone: rollTone(roll)
+                popupTone: rollTone(roll),
+                // The result its player waits on: in the middle of that player's screen, closed by hand, and kept in the
+                // notice history as before (notice-centre.mjs, the owner's OWNER-124-NOTICES of 22.11.2026).
+                popupCentre: "actionResult"
             }
         },
         summary: {

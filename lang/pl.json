@@ -7482,6 +7482,10 @@
       "notPrimary": "Danganronpa RPG: nie jesteś głównym GM-em. Migrację danych przeprowadzi główny GM, gdy wczyta ten świat."
     },
     "Popup": {
+      "centre": {
+        "reached": "osiągnięto",
+        "short": "nie osiągnięto"
+      },
       "moreTip": {
         "one": "Pod nimi czeka jeszcze {n} powiadomienie. Zamknij jedno, żeby je zobaczyć.",
         "few": "Pod nimi czekają jeszcze {n} powiadomienia. Zamknij jedno, żeby zobaczyć następne.",
