@@ -64,6 +64,10 @@ export const ACTION_KEYS_CHARGE = "keys.charge";
 export const ACTION_BODY_DISCOVER = "body.discover";
 /** GM -> primary GM: a full GM's end of the chapter, or its Finish or Drop (E128; chapter.mjs `applyChapterEnd`, `finishChapterEnd`). */
 export const ACTION_CHAPTER_END = "chapter.end";
+/** GM -> primary GM: a full GM's Fix voice, every voice room sent again by the primary (E128; voice.mjs `resetAllVoice`). */
+export const ACTION_VOICE_RESET = "voice.reset";
+/** GM -> primary GM: a second full GM's Finish of a verdict the primary runs (E128; verdict.mjs `finishVerdict`). */
+export const ACTION_VERDICT_FINISH = "verdict.finish";
 /** GM -> primary GM: a step of the vote - open, close, restart, resend or remind (E10 C1; vote.mjs `runVoteOp`). */
 export const ACTION_VOTE_RUN = "vote.run";
 /** player -> primary GM: a ballot (E10 C2; vote.mjs `sendBallot`, `recordBallot`). */

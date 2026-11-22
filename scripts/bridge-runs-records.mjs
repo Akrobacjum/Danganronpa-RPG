@@ -814,6 +814,19 @@ export async function handleChapterEnd(payload) {
         : { refused: "nothing was carried out: the primary GM's end of the chapter refused it (its own checks)" };
 }
 
+/** The run of `voice.reset` (E128): a second full GM's Fix voice, sent by this primary (voice.mjs `resetAllVoice`): how many. */
+export async function handleVoiceReset() {
+    const { resetAllVoice } = await import("./voice.mjs");
+    const n = await resetAllVoice();
+    return n === null ? { refused: "nothing was carried out: the primary GM has no LiveKit AVClient active" } : { reply: n };
+}
+
+/** The run of `verdict.finish` (E128): a second full GM's Finish, run by this primary's own (verdict.mjs `finishVerdict`). */
+export async function handleVerdictFinish() {
+    const { finishVerdict } = await import("./vote.mjs");
+    return (await finishVerdict()) ? { reply: true } : { refused: "nothing was carried out: the primary GM's Finish of the verdict did nothing (its reason is on its screen)" };
+}
+
 /** The run of `trial.record` (E70 fix p1-G2): the record's write on this primary (trial-progress.mjs `recordOnPrimary`), its answer or null. */
 export async function handleTrialRecord(payload) {
     const { recordOnPrimary } = await import("./vote.mjs");

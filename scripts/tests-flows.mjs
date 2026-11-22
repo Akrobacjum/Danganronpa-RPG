@@ -154,10 +154,12 @@ export const FLOWS = Object.freeze([
     // Scrum speaker's thesis (`trial.keyword`); 68-trial-zones drives both from the players.
     // E40 C5 (13.11.2026): 18-trial drives the trial step by step - real ballots from the three players, the count, a
     // wrong verdict, the close - with a player leak scan after every step.
+    // E128 (22.11.2026; OWNER-128-SECOND-GM): a second full GM's Finish of a verdict the primary runs is asked of it
+    // (`verdict.finish`, gmOnly); R8732 holds where a Finish runs (verdict.mjs `finishRoute`). No scenario drives it yet.
     { id: "class-trial", what: "The Class Trial: advancement offers and asks, the vote and its ballots, an Objection raised, proved and re-pointed, and a round's turns",
         entry: { bridge: ["advancement.apply", "advancement.offer", "advancement.ask", "keys.charge", "vote.run", "vote.cast", "vote.ask", "floor.now",
             "trial.object", "trial.evidence", "trial.withdraw", "floor.repoint", "trial.gm", "trial.enter", "trial.record", "trial.turn",
-            "trial.claim", "trial.present", "trial.side", "trial.keyword"],
+            "trial.claim", "trial.present", "trial.side", "trial.keyword", "verdict.finish"],
             sockets: ["vote.mjs"] },
         scenarios: ["10-murder", "11-killer-secrecy", "18-trial", "30-security", "33-bridge-paths", "61-gmstore-case", "63-class-trial", "67-trial-modes", "68-trial-zones", "88-flow-length"], status: "partial", stage: "E40" },
     // E37 C3 (01.11.2026): the readiness round before a GM's press moves the clock - opened and ended by a GM
@@ -442,8 +444,10 @@ export const FLOWS = Object.freeze([
         scenarios: ["41-trial-scene"], status: "covered", stage: "1.2.74" },
     { id: "truth-bullets", what: "Truth Bullets: an edit on one end reaches the other, a player's edit is put back, each player's copy of which traces their own came from, and a GM's Give carried to the primary so one copy is made across two GMs (E38, bullet.give); covered since 1.2.113, D153 across two GMs by R5000 (E54) and 97 G",
         entry: { sockets: ["truth-bullets.mjs"], bridge: ["bullet.give"] }, scenarios: ["30-security", "61-gmstore-case", "72-canary", "97-two-gms"], status: "covered", stage: "1.2.113" },
+    // E128 (22.11.2026; OWNER-128-SECOND-GM): a second full GM's Fix voice is sent by the primary (`voice.reset`, gmOnly);
+    // 97-two-gms S drives it from gm2.
     { id: "voice", what: "Voice rooms: who hears whom",
-        entry: { sockets: ["voice.mjs", "voice-client.mjs"] }, scenarios: [], status: "planned", stage: "E58" }
+        entry: { sockets: ["voice.mjs", "voice-client.mjs"], bridge: ["voice.reset"] }, scenarios: ["97-two-gms"], status: "planned", stage: "E58" }
 ]);
 
 export const FLOW_EXEMPT = Object.freeze({

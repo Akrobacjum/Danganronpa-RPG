@@ -125,6 +125,20 @@ export function mayEndChapterHere({ primary = isPrimaryGm(), full = game.user?.r
     return false;
 }
 
+/**
+ * Whether this GM may reset the season, asked at Season setup's press before the window closes (E128, 22.11.2026;
+ * OWNER-128-SECOND-GM, line CORE's inventory row 7). The reset stays the primary GM's (season-wipe.mjs `resetSeason`:
+ * its cut is stamped over every GM's rows, on one browser), and on another GM the press closed Season setup unsaved and
+ * only then was refused, so what that GM had typed was lost. Told now with the reset's own words
+ * (`DRPG.GmStore.resetPrimaryOnly`), the window kept. `primary` stands in for `isPrimaryGm()` (R8731).
+ */
+export function mayResetSeasonHere({ primary = isPrimaryGm() } = {}) {
+    if (primary) return true;
+    const name = game.users.get(primaryGmId())?.name ?? "?";
+    ui.notifications?.warn(game.i18n.format("DRPG.GmStore.resetPrimaryOnly", { name }));
+    return false;
+}
+
 /** Whether a form field holds other than what it was drawn with: a select's choice, a box's tick, a field's text. */
 export function changedField(el) {
     if (el.tagName === "SELECT") return [...el.options].some(o => o.selected !== o.defaultSelected);

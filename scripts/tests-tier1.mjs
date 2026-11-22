@@ -66523,6 +66523,39 @@ const INVARIANTS = [
             R.incidentShowsTo("K", [], {})]), stableJson([true, true, false, true, false, false, false]),
             "[the killer, the victim, a victim-side third, a killer-side third, one outside the cast, no leaver, the killer with no cast]");
     }],
+    ["R8732 - a Finish of a stopped verdict runs on its runner, is asked of the primary by a second full GM when the primary runs it, and is refused with whom to ask otherwise (E128; scripts/verdict.mjs `finishRoute`, `finishVerdict`; OWNER-128-SECOND-GM, line CORE's inventory row 6)", async () => {
+        /* Red at 9eb89710: no `finishRoute` - a second GM's Finish of a verdict the primary ran was refused
+           (`DRPG.Vote.finishOtherGm`). Pure on stand-in ids, and a text read of `finishVerdict`; nothing written. */
+        const V = await import("./verdict.mjs");
+        must(typeof V.finishRoute === "function", "verdict.mjs has no finishRoute: a second GM's Finish is refused whoever runs the verdict");
+        const r = (runner, me, full = true) => V.finishRoute({ runner, me, primary: "PRIMARY", full });
+        const finish = fnSource(stripComments((new Map(await moduleSources())).get("verdict.mjs") ?? ""), "finishVerdict") ?? "";
+        equal(stableJson({ routes: [r(null, "SECOND"), r("SECOND", "SECOND"), r("PRIMARY", "SECOND"), r("PRIMARY", "SECOND", false), r("THIRD", "SECOND"), r("PRIMARY", "PRIMARY")],
+            asks: /const route = finishRoute\(\{ runner \}\);\s*if \(route === "primary"\) \{[\s\S]{0,160}bridgeRequest\("verdict\.finish"/.test(finish) }),
+            stableJson({ routes: ["here", "here", "primary", "refuse", "refuse", "here"], asks: true }),
+            "{routes: no runner, the runner itself, a second full GM while the primary runs it, an Assistant GM then, another GM runs it, the primary runs it and presses; asks: finishVerdict sends a second GM's Finish to the primary}");
+    }],
+    ["R8731 - Season setup's Reset the season asks who may reset at the press, before the window closes: a GM who is not the primary is told the reset is the primary's and the window is kept (E128; scripts/gm-campaign.mjs `mayResetSeasonHere`, season-setup.mjs `openSeasonSetup`; OWNER-128-SECOND-GM, line CORE's inventory row 7)", async () => {
+        /* Red at 9eb89710: no `mayResetSeasonHere`; the press closed Season setup unsaved and season-wipe.mjs `resetSeason`
+           refused after, so a second GM's typed edits were lost. Pure (the warning caught) and a text read of the handler;
+           nothing written. */
+        const G = await import("./gm-campaign.mjs");
+        must(typeof G.mayResetSeasonHere === "function", "gm-campaign.mjs has no mayResetSeasonHere: the reset is refused only after Season setup has closed");
+        const season = fnSource(stripComments((new Map(await moduleSources())).get("season-setup.mjs") ?? ""), "openSeasonSetup") ?? "";
+        const warned = [], realWarn = ui.notifications?.warn;
+        let answer = null;
+        try {
+            if (ui.notifications) ui.notifications.warn = text => { warned.push(String(text)); };
+            answer = [G.mayResetSeasonHere({ primary: false }), G.mayResetSeasonHere({ primary: true })];
+        } finally {
+            if (ui.notifications) ui.notifications.warn = realWarn;
+        }
+        const said = game.i18n.format("DRPG.GmStore.resetPrimaryOnly", { name: "" }).split("{")[0].slice(0, 12);
+        equal(stableJson({ answer, warned: warned.length, words: warned.every(w => w.startsWith(said)),
+            asks: /\[data-drpg-reset-season\][\s\S]{0,160}if \(!mayResetSeasonHere\(\)\) return;\s*resetAsked = true;/.test(season) }),
+            stableJson({ answer: [false, true], warned: 1, words: true, asks: true }),
+            "{answer: a GM who is not the primary, the primary; warned: how often; words: the reset's own; asks: the press asks before it marks the reset and closes}");
+    }],
     ["R8730 - a Spectator viewer's outline stands round the room its own Spectator token stands in, where its screen clears the room, and nowhere its fog does not; its walk still finds nothing and stands in no room of the fog's; a living player's outline is its own rooms as before (E127; scripts/fog.mjs `outlineLeadRooms`, `spectatorLeadRoom`, `leadsHere`, `myCurrentRooms`, `recordDiscovery`, `seedCells`; the owner at the table, 22.11.2026)", async () => {
         /*
          * E127, 22.11.2026; the owner: "Spectatorzy nie widza obramowania pokoju (i dziur w scianach/drzwi) tak jak reszta

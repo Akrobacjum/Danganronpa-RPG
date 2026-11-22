@@ -36,7 +36,7 @@ import {
     ACTION_PROGRESS, ACTION_SHARE, ACTION_REMNANT, ACTION_TIE_TRACE, ACTION_REMNANT_EDIT, ACTION_SABOTAGE,
     ACTION_UNSABOTAGE, ACTION_PROJECT_CHANGE, ACTION_SENDBACK, ACTION_ECLIPSE_MOVE, ACTION_ARM, ACTION_DESPAIR,
     ACTION_OVERFLOW_ADD, ACTION_CALL_WORLD, ACTION_MUSIC_TRACK, ACTION_OVERFLOW_CLEAR, ACTION_DESPAIR_SET, ACTION_DESPAIR_ALL, ACTION_DESPAIR_ROSTER,
-    ACTION_OVERFLOW_TAKE, ACTION_OVERFLOW_CHECK, ACTION_DIFFICULTY, ACTION_AUDIT_DECIDE, ACTION_KEYS_CHARGE, ACTION_BODY_DISCOVER, ACTION_CHAPTER_END,
+    ACTION_OVERFLOW_TAKE, ACTION_OVERFLOW_CHECK, ACTION_DIFFICULTY, ACTION_AUDIT_DECIDE, ACTION_KEYS_CHARGE, ACTION_BODY_DISCOVER, ACTION_CHAPTER_END, ACTION_VOICE_RESET, ACTION_VERDICT_FINISH,
     ACTION_VOTE_RUN, ACTION_VOTE_CAST, ACTION_VOTE_ASK, ACTION_FLOOR_NOW, ACTION_TRIAL_OBJECT, ACTION_TRIAL_EVIDENCE,
     ACTION_TRIAL_WITHDRAW, ACTION_FLOOR_REPOINT, ACTION_TRIAL_GM, ACTION_TRIAL_TURN, ACTION_TRIAL_CLAIM, ACTION_TRIAL_SIDE, ACTION_TRIAL_KEYWORD,
     ACTION_TRIAL_PRESENT, ACTION_READY_OPEN, ACTION_READY_ANSWER, ACTION_READY_END, ACTION_TRIAL_ENTER,
@@ -67,7 +67,7 @@ import {
     handleRemnantEdit, sabotageAgain, handleSabotage, handleProjectChange, handleUnsabotage, handleSendback, handleLoot,
     handleArm, handleOverflowAdd, handleCallWorld, handleMusicTrack, handleOverflowClear, handleDespairSet, handleDespairAll, handleDespairRoster,
     handleOverflowTake, handleOverflowCheck, handleDespair, handleEclipseMove, handleNoteSave, handleRollBookmark,
-    handleReroll, handleAuditDecide, handleKeysCharge, handleBodyDiscover, handleChapterEnd, handleTrialRecord, handleTrialEnter, handleVoteRun, handleBallot,
+    handleReroll, handleAuditDecide, handleKeysCharge, handleBodyDiscover, handleChapterEnd, handleVoiceReset, handleVerdictFinish, handleTrialRecord, handleTrialEnter, handleVoteRun, handleBallot,
     handleBallotAsk, handleFloorNow, handleTrialObject, handleTrialEvidence, handleTrialWithdraw, handleFloorRepoint,
     handleTrialGm, handleTrialTurn, handleTrialClaim, handleTrialSide, handleTrialKeyword, handleReadyOpen, handleReadyAnswer, handleReadyEnd,
     handleTrialPresent, handleReshapeRuling, handleObservePick, handleObserveDescribe, handleCardClaim, handleCardPost, handleGiveBullet
@@ -1210,10 +1210,8 @@ export const BRIDGE_ACTIONS = table({
         sanitize: pick({ room: as.text, victimId: as.id, sceneId: as.id }),
         run: handleBodyDiscover,
         answer: "reply",
-        claims: {
-            victimId: "read by runDiscovery (body.mjs) against the GMs' deaths: a victim nobody holds dead is announced as no one",
-            sceneId: "the scene the room is looked up on (body.mjs runDiscovery); a room the scene does not hold announces nothing"
-        }
+        claims: { victimId: "read by runDiscovery (body.mjs) against the GMs' deaths: a victim nobody holds dead is announced as no one",
+            sceneId: "the scene the room is looked up on (body.mjs runDiscovery); a room the scene does not hold announces nothing" }
     },
     [ACTION_CHAPTER_END]: {
         label: "DRPG.Bridge.what.chapter.end",
@@ -1224,6 +1222,12 @@ export const BRIDGE_ACTIONS = table({
         answer: "reply",
         claims: { opened: "kept to its four fields by handleChapterEnd and compared by applyChapterEnd (chapter.mjs) with this clock: a window opened on another clock ends nothing" }
     },
+    // A second full GM's Fix voice (E128): the rooms are the primary's to send (voice.mjs `resetAllVoice`). Carries nothing.
+    [ACTION_VOICE_RESET]: { label: "DRPG.Bridge.what.voice.reset", guards: [gmOnly("only a GM sends the voice rooms again")],
+        sanitize: pick({}), run: handleVoiceReset, answer: "reply" },
+    // A second full GM's Finish of a verdict the primary runs (E128; verdict.mjs `finishRoute`). Carries nothing.
+    [ACTION_VERDICT_FINISH]: { label: "DRPG.Bridge.what.verdict.finish", guards: [gmOnly("only a GM finishes a verdict")],
+        sanitize: pick({}), run: handleVerdictFinish, answer: "reply" },
     /*
      * THE TRIAL'S VOICES, SETTLED ON THE PRIMARY GM (E70 C5, 28.10.2026; amend 6, answer 3 (b)). The trial opens and
      * ends on whichever GM moved the phase (clock.mjs `reconcilePhase`); its list of the dead reads the GMs' deaths

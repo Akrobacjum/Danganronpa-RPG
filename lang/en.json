@@ -5006,6 +5006,8 @@
         "keys.charge": "The Key fee charged as a Class Trial opens",
         "body.discover": "A body announced by a second GM, on the primary GM",
         "chapter.end": "The chapter ended by a second GM, on the primary GM",
+        "voice.reset": "Fix voice pressed by a second GM, on the primary GM",
+        "verdict.finish": "A second GM's Finish of the verdict, on the primary GM",
         "trial.enter": "Setting the microphones as the Class Trial opens or ends",
         "trial.record": "A change to the Class Trial's record",
         "reroll.ask": "Reroll",

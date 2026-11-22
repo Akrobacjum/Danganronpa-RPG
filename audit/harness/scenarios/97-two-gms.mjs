@@ -910,6 +910,28 @@ export async function run(api) {
             && waited.answer?.name === WORDS.name && waited.answer?.playerText === WORDS.playerText && waited.answer?.analyzedText === WORDS.analyzedText,
         J({ placed, pressed, waited }), { flow: "search-observe" });
 
+    /* ------------------------------------------------------------------ S */
+    /* E128, 22.11.2026 (OWNER-128-SECOND-GM, line CORE's inventory row 8). Fix voice was drawn disabled on a GM that is not
+       the primary: the rooms are the primary's to send. gm2's press is asked of the primary now (voice.mjs
+       `resetVoiceFromHere`, `voice.reset`). With LiveKit's module stood in as active on gm alone (voice-client.mjs
+       `avclientActive` reads the module's `active`), gm2 presses: read what it answered - how many the primary sent, a number -
+       and, the module stood in as inactive on gm, that the primary's refusal comes back as null; gm's own entry put back. Red at 9eb89710: no
+       `resetVoiceFromHere`. */
+    phase("S a second GM's Fix voice", { flow: "voice" });
+    const AV = "avclient-livekit";
+    await gm.eval(`globalThis.__e128sHad = game.modules.get("${AV}") ?? null; game.modules.set("${AV}", { id: "${AV}", active: true }); return true;`);
+    let sentOn = null, refusedOn = null;
+    const PRESS = `const V = ${imp("voice.mjs")}; return typeof V.resetVoiceFromHere === "function" ? await V.resetVoiceFromHere() : "none";`;
+    try {
+        sentOn = await gm2.eval(PRESS, { timeout: 60000 });
+        await gm.eval(`game.modules.set("${AV}", { id: "${AV}", active: false }); return true;`);
+        refusedOn = await gm2.eval(PRESS, { timeout: 60000 });
+    } finally {
+        await gm.eval(`const had = globalThis.__e128sHad; if (had) game.modules.set("${AV}", had); else game.modules.delete("${AV}"); return true;`);
+    }
+    check("S1: gm2's Fix voice is sent by the primary - a count with LiveKit active on gm, null without (E128)",
+        Number.isFinite(sentOn) && refusedOn === null, J({ sentOn, refusedOn }), { flow: "voice" });
+
     return { primary: { before, joined, afterGmReload, moved, backAgain }, reloads: { p1: r1, gm: r2, card: r3 },
         d153: { before: gBefore, onGm: gAfter, onGm2: gAfter2, found: gFound, gave: gGave } };
 }
