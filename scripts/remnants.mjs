@@ -239,7 +239,7 @@ export async function noteToldTrace(placed) {
     const { mintFindCopy } = await import("./observe.mjs");
     const item = await mintFindCopy(actor, { tokenId: doc.id, sceneId: doc.parent?.id ?? null, room: data.room ?? null, data }, {
         name: pub?.name || data.subject || game.i18n.format("DRPG.Observe.defaultName", { room: data.room ?? "?" }),
-        playerText: pub?.playerText ?? "", analyzedText: pub?.analyzedText ?? "", img: pub?.img ?? null, tell: false
+        playerText: pub?.playerText ?? "", analyzedText: pub?.analyzedText ?? "", img: pub?.img ?? null, tell: false, told: true
     });
     return item?.id ? item : null;
 }
@@ -1295,7 +1295,7 @@ export function rowMarksOf(trace) {
     const key = trace ? keyOf(trace) : null;
     const row = key ? readRemnantLedger()[key] : null;
     const out = {};
-    for (const field of ["foundAt", "foundVia", "incidentFound", "gmEdited", "gmBand", "gmBandAt"]) {
+    for (const field of ["foundAt", "foundVia", "incidentFound", "toldShown", "gmEdited", "gmBand", "gmBandAt"]) {
         if (row?.[field] !== undefined && row[field] !== null && row[field] !== false) out[field] = row[field];
     }
     return out;
@@ -1662,7 +1662,21 @@ export async function revealRemnantToFinder(trace, { tell = true, via = "find" }
        `revealSourceOf` as the copy is made, then observe.mjs `mintFindCopy`), and the second said it again (E51-T13: two
        whispers, 31.10.2026). Any other trace not hidden was revealed by its first find, and a second finder walks up to it. */
     const incident = Boolean(tokenDoc.getFlag?.(MODULE_ID, REMNANT_FLAGS.fromIncident));
-    if (!tokenDoc.hidden && (!incident || readRemnantLedger()[keyOf(tokenDoc)]?.incidentFound)) return tokenDoc;
+    const row = readRemnantLedger()[keyOf(tokenDoc)];
+    /* THE LEAVER'S OWN ROAD FINDS NOTHING (1.2.125 H2; the auditor's r124-T2-1). A told copy (`noteToldTrace`) un-hides
+       the token so its holder's map shows it (visibility.mjs `applyToRemnantToken`: a holder's ref), and writes no find:
+       no `foundAt`, no `incidentFound`, no whisper. The row says the token is up for a holder alone (`toldShown`), so the
+       ref does not read an un-hidden trace as found (`traceRef`), and the first real find below still goes the whole way. */
+    if (via === "told") {
+        if (tokenDoc.hidden && !row?.foundAt) {
+            await tokenDoc.update({ hidden: false });
+            await setRemnantSecret(tokenDoc, { toldShown: true }, { ifLive: true });
+        }
+        return tokenDoc;
+    }
+    const toldOnly = row?.toldShown === true;
+    if (!tokenDoc.hidden && !toldOnly && (!incident || row?.incidentFound)) return tokenDoc;
+    if (toldOnly) await setRemnantSecret(tokenDoc, { toldShown: false }, { ifLive: true });
 
     /* THE ROW SAYS IT IS FOUND (E60 C1b, 03.11.2026): `foundAt` and the road (`via`), where the token is un-hidden
        or an incident's trace first found - so a ref reads the trace found from its row (`traceRefsOf`) as well as
@@ -1738,18 +1752,47 @@ export async function setRemnantPublicById(sceneId, tokenId, patch = {}) {
  * about seventy tier-2 tests read "restore left: Actor ... items.<id> appeared"). A told trace's copy is made after its
  * card, and no action waits on it at a table (`giveToldCopy`). A test does not wait either, and does not know of it: the
  * copy landed after the runner's restore, or before it with nobody to take it away. Each copy in flight stands in
- * `pendingToldCopies` until it lands or fails, and each one made is named in `toldCopiesMade`: the runner awaits
- * `settleToldCopies` and takes back exactly the copies `takeToldCopies` names before it restores (tests.mjs), so any
- * other item a test leaves still fails as "appeared". Nothing at a table reads either set; `toldCopiesMade` holds uuids
- * alone, and is emptied by each take.
+ * `pendingToldCopies` until it lands or fails; the runner awaits `settleToldCopies` and takes back the copies made inside
+ * the test (tests.mjs `takeBackToldCopies`) before it restores, so any other item a test leaves still fails as "appeared".
+ *
+ * ONLY A TEST'S OWN COPIES (1.2.125 H1; the coordinator's read of 22.11.2026): `toldCopiesMade` named every copy made
+ * since the GM's page loaded, and a GM who ran `runTests({ tier: 2 })` in a played world had the players' own copies
+ * deleted at the first tier-2 restore. A copy is named now only while a scope is open (`openToldScope`), which the runner
+ * opens before each tier-2 test's body and closes after its take-back, and whether a copy is the scope's is decided
+ * when it is asked for, not when it lands. At a table no scope is open, and nothing is named. What a scope cannot tell
+ * apart: a player's own copy asked for by a live roll while a tier-2 test runs is taken back with the test's - a GM runs
+ * tier 2 with the table quiet (the suite's own warning). Nothing at a table reads either set; uuids alone.
  */
 const pendingToldCopies = new Set();
 const toldCopiesMade = new Set();
+let toldScope = false;
+
+/** Name the copies asked for from now on, and none before: the scope of one tier-2 test (tests.mjs). */
+export function openToldScope() {
+    toldCopiesMade.clear();
+    toldScope = true;
+}
+
+/** Stop naming copies; the ones named stay for a take. */
+export function closeToldScope() {
+    toldScope = false;
+}
+
+/** Whether a scope is open now: tier 1's R8692 puts it back as it found it. */
+export function toldScopeOpen() {
+    return toldScope;
+}
+
+/** One copy made: named when a scope was open as it was asked for (`scoped`), else not. */
+export function noteToldCopyMade(uuid, scoped = toldScope) {
+    if (scoped && uuid) toldCopiesMade.add(uuid);
+}
 
 /** `noteToldTrace`, not awaited by its caller, held in `pendingToldCopies` until it settles; a failure is logged. */
 export function giveToldCopy(placed) {
+    const scoped = toldScope;
     const job = noteToldTrace(placed).then(item => {
-        if (item?.uuid) toldCopiesMade.add(item.uuid);
+        noteToldCopyMade(item?.uuid, scoped);
         return item;
     }).catch(err => error("Could not give a trace's leaver its copy", err))
         .finally(() => pendingToldCopies.delete(job));
@@ -1757,7 +1800,7 @@ export function giveToldCopy(placed) {
     return job;
 }
 
-/** The uuids of the copies `giveToldCopy` made since the last take, and none after: the suite's list to take back. */
+/** The uuids of the copies named since the scope opened or the last take, and none after. */
 export function takeToldCopies() {
     const made = [...toldCopiesMade];
     toldCopiesMade.clear();
@@ -3308,8 +3351,9 @@ function traceRef(scene, id, row, token) {
         key: `${scene.id}.${id}`, id, sceneId: scene.id, parent: scene,
         x: spot.x, y: spot.y, level: (token ? token.level : row.level) ?? null,
         width: token?.width ?? 1, height: token?.height ?? 1, elevation: token?.elevation ?? null,
+        // Un-hidden for its leaver's own copy alone is not found (`toldShown`, 1.2.125 H2).
         found: Boolean(row?.foundAt || row?.incidentFound
-            || (token && !token.hidden && !flagOf(token, REMNANT_FLAGS.fromIncident))),
+            || (token && !token.hidden && !flagOf(token, REMNANT_FLAGS.fromIncident) && row?.toldShown !== true)),
         document: token ?? null
     });
 }

@@ -1223,7 +1223,7 @@ export function findTexts({ pub = null, written = null, isCritical = false } = {
  * "say what it is" whisper back). Observe's own (`createFind`) and, since E70 C12, the copy a successful Tamper
  * hands the trace's author (cleanup.mjs `authorsCopy`): one road, so the two are the same bullet.
  */
-export async function mintFindCopy(actor, entry, { name, playerText = "", analyzedText = "", img = null, isCritical = false, tell = true } = {}) {
+export async function mintFindCopy(actor, entry, { name, playerText = "", analyzedText = "", img = null, isCritical = false, tell = true, told = false } = {}) {
     const data = entry.data;
     const made = await serialWrite(observeFindKey(actor.id), () => copiedRemnants(actor).has(entry.tokenId) ? HELD : createTruthBullet(actor, {
         name,
@@ -1268,7 +1268,9 @@ export async function mintFindCopy(actor, entry, { name, playerText = "", analyz
         // r1-G1; goal G2a): `Boolean()` gave this copy the ledger's tie whole, and this critical
         // find shows it at once (tier 2 "a copy made between the death and the discovery holds
         // the death's tie back until the death is the table's").
-        tiedToCrime: tieForCopy(data, { sceneId: entry.sceneId, tokenId: entry.tokenId })
+        tiedToCrime: tieForCopy(data, { sceneId: entry.sceneId, tokenId: entry.tokenId }),
+        // The leaver's own copy of a trace they were told of (remnants.mjs `noteToldTrace`): held, not found (1.2.125 H2).
+        told
     }));
     if (made === HELD || !made) return made ?? null;
 
@@ -1279,7 +1281,7 @@ export async function mintFindCopy(actor, entry, { name, playerText = "", analyz
     // invisible to everyone who has not found it themselves.
     try {
         const { revealRemnantToFinderById } = await import("./remnants.mjs");
-        await revealRemnantToFinderById(entry.sceneId, entry.tokenId, { tell });
+        await revealRemnantToFinderById(entry.sceneId, entry.tokenId, told ? { tell: false, via: "told" } : { tell });
     } catch (err) {
         error("Could not reveal the Remnant token to its finder", err);
     }

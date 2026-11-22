@@ -66463,6 +66463,32 @@ const INVARIANTS = [
             callers: { search: true, hideTraces: true, sabotage: true, dynamic: true, discard: true, tamper: true, crisis: true, reroll: 2, placed: true, held: true, copy: true }
         }), "{rule: Hope, a critical, a plain Despair, nothing placed, an incident's trace on a Despair, the same through its document; claim: a player's told kept only when it is true; callers: each placement carries the card's answer, the GM's roads give the copy, the primary holds a claim to its record of the roll, and the copy is the leaver's, made as a hit's with no word to the GMs}");
     }],
+    ["R8692 - a told copy is named for the suite's take-back only while a tier-2 test's scope is open, and as it was asked for: none before the scope, none asked for outside it, each one of the scope taken once (remnants.mjs `openToldScope`, `closeToldScope`, `noteToldCopyMade`, `takeToldCopies`; 1.2.125 H1)", async () => {
+        /* Red at 206148b7: no scope - every copy made since the page loaded was named, and tier 2 deleted a played world's
+           copies at its first restore (the coordinator's H1, 22.11.2026). Stand-in uuids, in memory alone; the scope is put
+           back as it was found. Tier 2's "1.2.125 H1" makes the copies and runs the runner's own step. */
+        const R = await import("./remnants.mjs");
+        must(typeof R.openToldScope === "function" && typeof R.noteToldCopyMade === "function",
+            "no told scope (remnants.mjs `openToldScope`, `noteToldCopyMade`): every copy made since the page loaded is named");
+        const was = R.toldScopeOpen();
+        let read = null;
+        try {
+            R.closeToldScope();
+            R.noteToldCopyMade("R8692.before");
+            R.openToldScope();
+            R.noteToldCopyMade("R8692.inside");
+            R.noteToldCopyMade("R8692.askedOutside", false);
+            R.noteToldCopyMade(null);
+            const first = R.takeToldCopies(), second = R.takeToldCopies();
+            R.closeToldScope();
+            R.noteToldCopyMade("R8692.after");
+            read = { first, second, closed: R.takeToldCopies(), open: R.toldScopeOpen() };
+        } finally {
+            if (was) R.openToldScope(); else R.closeToldScope();
+        }
+        equal(stableJson(read), stableJson({ first: ["R8692.inside"], second: [], closed: [], open: false }),
+            "{first: the take after a copy before the scope, one inside it, one asked for outside it and none; second: the next take; closed: after the scope closed; open: the scope then}");
+    }],
     ["R8050 - Foundry's token HUD holds only the controls kept (1.2.120 line H; the owner, 21.11.2026: \"Niepotrzebne jest: combat, target, movement action, assign status, liczby na gorze i na dole i elevation\"): token-hud.mjs `trimHudFor` on Daggerheart 2.12.8's tokenHUD.hbs as drawn for a GM leaves the floor's palette, bring to front, the companion's button, lock, the token's settings and visibility, with no input, status palette, movement palette, target or combat; as drawn for a player it leaves nothing, the HUD marked not to be drawn (the owner, 21.11.2026: \"Niech gracz nie ma menu tokena\")", async () => {
         /*
          * 21.11.2026, 1.2.120 line H. The harness draws no token HUD (no canvas), so this hands the transform the markup

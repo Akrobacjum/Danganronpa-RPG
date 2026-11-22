@@ -504,6 +504,24 @@ export function analysableBullets(actor) {
 }
 
 /**
+ * A LEAVER'S OWN COPY IS NOT A FIND (1.2.125 H2; the auditor's r124-T2-1, 22.11.2026). Since 1.2.124 a trace whose
+ * leaver is told of it gives that leaver its copy at once (remnants.mjs `noteToldTrace`): on their sheet and their map,
+ * as the owner asked, and found by nobody. Every reader of "who found it" read any holder as its finder, so the case
+ * summary sent to the whole table after the verdict listed the killer's incident traces as found evidence that nobody
+ * had Observed. The answer key's row says it (`told: true`, written by `createTruthBullet` on a GM, read on a GM: no
+ * field a player's browser holds names it). A copy of it handed or presented to another student is that student's
+ * find, as any copy is: its row has no `told`.
+ */
+export function isToldCopy(item) {
+    return secretOf(item?.uuid).told === true;
+}
+
+/** A student's Truth Bullets that are finds: `bulletsOf` less the leaver's own told copies (`isToldCopy`). */
+export function findsOf(actor) {
+    return bulletsOf(actor).filter(item => !isToldCopy(item));
+}
+
+/**
  * Which Remnants this character has already copied.
  *
  * GM-side by necessity: a bullet's source Remnant is part of the answer key, so
@@ -586,11 +604,11 @@ export function unanalysedType(shownType) {
  * Un-hiding is global and that is correct - it does not show the trace to the
  * table, it lets the per-client rule decide. See `revealRemnantToFinder`.
  */
-async function revealSourceOf(sceneId, remnantId) {
+async function revealSourceOf(sceneId, remnantId, options = {}) {
     if (!sceneId || !remnantId) return;
     try {
         const { revealRemnantToFinderById } = await import("./remnants.mjs");
-        await revealRemnantToFinderById(sceneId, remnantId);
+        await revealRemnantToFinderById(sceneId, remnantId, options);
     } catch (err) {
         // A bullet that exists and a marker that stays hidden is worse than
         // this line failing, but it is not worth losing the bullet over.
@@ -669,7 +687,7 @@ export async function createTruthBullet(actor, {
     faint = false, playerText = "", analyzedText = "", img = null, gmNote = "",
     remnantId = null, sceneId = null,
     room = null, analyzed = null, stamp = null, foundIn = undefined, epoch = undefined,
-    sourceAction = null, tiedToCrime = null, leftBy = undefined, leftByName = undefined
+    sourceAction = null, tiedToCrime = null, leftBy = undefined, leftByName = undefined, told = false
 } = {}) {
     if (!actor || !name) return null;
 
@@ -761,6 +779,8 @@ export async function createTruthBullet(actor, {
         realType, gmNote, remnantId, sceneId, sourceAction, tiedToCrime, analyzedText,
         faint: !!faint,
         ...(author.leftBy ? author : {}),
+        // Its leaver's own copy of a trace they were told of (1.2.125 H2): held, never a find (`isToldCopy`).
+        ...(told ? { told: true } : {}),
         chapter: foundIn !== undefined ? foundIn : (stamp?.chapter ?? clock.chapter),
         ...(season !== undefined ? { epoch: season } : {})
     });
@@ -782,8 +802,8 @@ export async function createTruthBullet(actor, {
      */
     playSfxFor(actor, "truthBullet");
 
-    // The marker this came off is now a thing this player has seen.
-    await revealSourceOf(sceneId, remnantId);
+    // The marker this came off is now a thing this player has seen - a told copy's by its own road, which finds nothing.
+    await revealSourceOf(sceneId, remnantId, told ? { tell: false, via: "told" } : {});
 
     log(`${actor.name} gained Truth Bullet "${name}" (really ${realType}, ${visibility}).`);
     return item;
