@@ -769,29 +769,64 @@ export async function run(api) {
 
     /* ------------------------------------------------------------------ O */
     /* E128, 22.11.2026 (OWNER-128-SECOND-GM, the owner: "Drugi GM ... powinien byc na rowni z pierwszym gmem"; line CORE's
-       inventory row 2). The opening roll a second GM throws itself - its roller's player away, the murder opened or asked
-       again by that GM - was resolved on that GM's browser, where the opening's mask and the Monocubs' witness marks are
+       inventory row 2). The opening roll a second GM throws itself - its roller has no player at the table, the murder
+       opened by that GM - was resolved on that GM's browser, where the opening's mask and the Monocubs' witness marks are
        the primary's alone (mask-gm.mjs `maskKiller`, monocub.mjs `markWitnessesAt`): an opening on Hope put up no "?" for
-       the killer. gm opens Chie's murder of Aiko; gm2 sends the killer's opening on Hope as its own throw does
-       (bridge-asks.mjs `requestOpeningResult`, a GM's packet naming no roll of the GMs). Read on gm: the incident's stage,
-       and whether Chie's mask stands; and what gm2's call answered. Red at 9eb89710: resolved on gm2, no mask. */
+       the killer. gm2 opens Daichi's murder of Aiko - Daichi has no player, so gm2's own browser throws the opening
+       (murder-rules.mjs `rollOpening`), on Hope by its dice (`__forceRoll`). Read on gm: the incident's stage before and
+       after, and whether Daichi's mask stands. Red at ed0b1ad3's parent (9eb89710): the stage moved on, no mask. An
+       earlier version of this phase had p3's own Chie answer the invitation first, a race (1 in 2 runs). */
     phase("O a second GM's own opening roll", { flow: "murder-incident" });
-    const opened = await gm.eval(`if (game.drpg.murderState()?.active) await game.drpg.endMurder({ reason: "suite", followUp: false });
-        const r = await game.drpg.openMurder({ killerId: "${IDS.chie}", victimId: "${IDS.aiko}", openingTrait: "body" });
-        return r?.stage ?? null;`, { timeout: 60000 });
-    await settle(900);
-    const sent = await gm2.eval(`const B = ${imp("gm-bridge.mjs")};
-        const res = await B.requestOpeningResult({ actorId: "${IDS.chie}", side: "killer", total: 30, isCritical: false, withHope: true });
-        return { ok: res?.ok === true, refused: res?.refused ?? null };`, { timeout: 60000 });
+    const opened = await gm2.eval(`if (game.drpg.murderState()?.active) await game.drpg.endMurder({ reason: "suite", followUp: false });
+        globalThis.__forceRoll = { hope: 11, fear: 5 };
+        try {
+            const r = await game.drpg.openMurder({ killerId: "${IDS.daichi}", victimId: "${IDS.aiko}", openingTrait: "body" });
+            return r?.stage ?? null;
+        } finally { /* the throw is started by openMurder; the dice are taken off once it has landed, below */ }`, { timeout: 60000 });
     const after = await until(() => gm.eval(`const K = ${imp("mask-gm.mjs")};
-        return { stage: game.drpg.murderState()?.stage ?? null, masked: K.maskStands("${IDS.chie}") };`), v => v.masked === true, 8000);
+        return { stage: game.drpg.murderState()?.stage ?? null, masked: K.maskStands("${IDS.daichi}") };`), v => v.masked === true, 10000);
+    await gm2.eval(`delete globalThis.__forceRoll; return true;`);
     await gm.eval(`const K = ${imp("mask-gm.mjs")};
         if (game.drpg.murderState()?.active) await game.drpg.endMurder({ reason: "suite", followUp: false });
-        if (K.maskStands("${IDS.chie}")) await K.endMask("${IDS.chie}", "end");
+        if (K.maskStands("${IDS.daichi}")) await K.endMask("${IDS.daichi}", "end");
         return true;`, { timeout: 60000 });
     await settle(900);
-    check("O1: gm2's own opening roll for the killer, on Hope, is resolved on the primary: the stage moves on and the killer's mask stands (E128)",
-        opened !== null && sent.ok === true && after.masked === true && after.stage !== opened, J({ opened, sent, after }), { flow: "murder-incident" });
+    check("O1: gm2's own opening roll for a killer with no player, on Hope, is resolved on the primary: the stage moves on and the killer's mask stands (E128)",
+        opened === "openingRoll" && after.masked === true && after.stage !== opened, J({ opened, after }), { flow: "murder-incident" });
+
+    /* ------------------------------------------------------------------ P */
+    /* E128, 22.11.2026 (OWNER-128-SECOND-GM, line CORE's inventory row 5). A Call's yes and a Dynamic action's refusal on an
+       ask the primary no longer holds: on the primary the card says the player was no longer waiting and settles; on a
+       second GM the primary's refusal came back as the bridge's "not done" and the card stayed open with live buttons. p1
+       posts two cards whose answers name an ask nobody holds; gm2 presses Approve on the first and Refuse on the second, in
+       its Timeline. Read on gm: whether each card settled with the line the primary writes ("settledGone"), and on gm2 how
+       many "not done" notices it was shown. Red at ed0b1ad3: neither settled, two notices. */
+    phase("P a second GM's answer to an ask the primary no longer holds", { flow: "messenger" });
+    const NOT_DONE = `const N = ${imp("notice-history.mjs")}; return N.noticeEntries().filter(e => e.source === "notDone").length;`;
+    await gm2.eval(`${APP} const app = A.openMessenger(); const end = Date.now() + 3000;
+        while (!app?.element?.querySelector(".drpg-console") && Date.now() < end) await new Promise(r => setTimeout(r, 50)); return true;`);
+    const notDoneBefore = await gm2.eval(NOT_DONE);
+    const gone = await gm.eval(`return game.i18n.format("DRPG.Bridge.settledGone", { name: "${"Second GM"}" });`);
+    const stale = [];
+    for (const [press, label] of [["approveCall", "Approve"], ["refuseDynamic", "Refuse"]]) {
+        const words = `E128 P ${press} ${Date.now()}`;
+        await p1.eval(`const C = ${imp("call-gm.mjs")};
+            return Boolean(await C.callGm(game.actors.get("${IDS.aiko}"), { title: "E128 P", request: ${J(words)},
+                actions: [{ action: "${press}", label: "${label}", data: { rid: "E128STALE${press}", asker: "${IDS.p1}" } }] }));`, { timeout: 60000 });
+        await settle(1200);
+        const FIND = `const S = ${imp("secret.mjs")}; const M = ${imp("messenger.mjs")};
+            const card = M.threadMessages("${IDS.p1}").find(m => S.contentOf(m).includes(${J(words)}));`;
+        const pressed = await gm2.eval(`${FIND} ${APP} const el = A.gmMessengerWindow()?.element;
+            const b = card ? el?.querySelector('.drpg-console-waiting-list [data-message-id="' + card.id + '"] [data-drpg-call="${press}"]') : null;
+            b?.click(); return Boolean(b);`);
+        const read = await until(() => gm.eval(`${FIND} const text = S.contentOf(card ?? {});
+            return { buttons: (text.match(/data-drpg-call=/g) ?? []).length, gone: text.includes(${J(gone)}) };`), v => v.gone, 8000);
+        stale.push({ press, pressed, ...read });
+    }
+    const notDone = (await gm2.eval(NOT_DONE)) - notDoneBefore;
+    await gm2.eval(`${APP} await A.gmMessengerWindow()?.close(); return true;`);
+    check("P1: gm2's Approve on a Call and Refuse on a Dynamic action the primary no longer holds settle each card as the primary does - the player was no longer waiting - and no \"not done\" is shown (E128)",
+        stale.length === 2 && stale.every(r => r.pressed && r.gone && r.buttons === 0) && notDone === 0, J({ stale, notDone, gone }), { flow: "messenger" });
 
     return { primary: { before, joined, afterGmReload, moved, backAgain }, reloads: { p1: r1, gm: r2, card: r3 },
         d153: { before: gBefore, onGm: gAfter, onGm2: gAfter2, found: gFound, gave: gGave } };

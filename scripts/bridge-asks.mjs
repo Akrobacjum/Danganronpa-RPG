@@ -786,10 +786,15 @@ export async function answerHopeCall(requestId, asker, verdict, messageId = null
     if (!game.user.isGM || !requestId || !asker) return false;
     if (verdict) {
         const res = await ask(ACTION_CALL_YES, { rid: requestId, asker, messageId }, {
-            onPrimary: true, local: () => yesOnPrimary(requestId, asker, game.user.id, messageId) });
+            onPrimary: true, sayRefused: false, local: () => yesOnPrimary(requestId, asker, game.user.id, messageId) });
         // `out.told` (1.2.122, the audit's CTRL-23): the bridge said why it was not carried out; a false with none is the
         // primary holding no such ask, which the card's ruling says (messenger-app.mjs).
-        if (out) out.told = !res.ok;
+        /* A REFUSAL IS THAT FALSE, ON A SECOND GM (E128; OWNER-128-SECOND-GM, line CORE's inventory row 5). On the primary
+           `yesOnPrimary` answers false; another GM's yes is asked of the primary, whose run refuses ("nothing was carried
+           out", bridge-runs-acts.mjs `handleCallYes`) - its row's one refusal a GM can meet (`gmOnly` passes a GM) - and the
+           second GM was shown the bridge's "not done" while the card stayed open with live buttons. Not said by the bridge
+           now (`sayRefused`), and ruled as the primary rules it: the card says the player was no longer waiting. */
+        if (out) out.told = !res.ok && !res.refused;
         return res.ok && res.value === true;
     }
     game.socket.emit(SOCKET_EVENT, {
@@ -829,8 +834,8 @@ export async function answerDynamic(requestId, asker, ruling, messageId = null, 
     const refuse = !ruling;
     const res = await ask(ACTION_DYNAMIC_ANSWER, {
         rid: requestId, asker, tier: refuse ? 0 : Number(ruling.tier), trait: refuse ? null : ruling.trait ?? null, refuse, messageId
-    }, { onPrimary: true, local: () => dynamicOnPrimary(requestId, asker, refuse ? false : ruling, game.user.id, messageId) });
-    if (out) out.told = !res.ok;   // As answerHopeCall's (CTRL-23).
+    }, { onPrimary: true, sayRefused: false, local: () => dynamicOnPrimary(requestId, asker, refuse ? false : ruling, game.user.id, messageId) });
+    if (out) out.told = !res.ok && !res.refused;   // As answerHopeCall's (CTRL-23; a second GM's refusal, E128).
     return res.ok && res.value === true;
 }
 
