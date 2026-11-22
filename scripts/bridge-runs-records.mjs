@@ -140,6 +140,17 @@ export async function handleRemnant(payload, sender, ctx) {
            Filed here by the same reading on what the GMs hold (use-items.mjs `discardRemnantType`). */
         if (data.action === "discard") data.type = await (await import("./use-items.mjs")).discardRemnantType(actor);
         if (await worksOwnMurder(payload, actor, data.action, sender)) data.tiedToCrime = true;
+        /* TOLD, HELD TO THE GMS' ROLL (1.2.124, option B; remnants.mjs `traceFeedback`'s note). The card's answer travels as
+           a claim on the sender's own character's trace; where the GMs drew the roll the packet names, their record
+           decides: a console claiming a Despair's trace told is given no copy of it (remnants.mjs `noteToldTrace`). A roll the
+           GMs did not draw (a discard's, with no GM's record) keeps the claim - the trace is the sender's own, which they
+           left, and the copy is of that trace alone. */
+        if (data.told) {
+            const { drawnRecordOf } = await import("./roll-draw.mjs");
+            const { traceFeedback } = await import("./remnants.mjs");
+            const record = payload.rollId ? drawnRecordOf(game.messages.get(payload.rollId)) : null;
+            if (record && !traceFeedback(record, true)) data.told = false;
+        }
     }
     // A trace this client could not place (no scene, no Remnant actor, a token
     // that could not be created) is a failure, not "placed" (E31 review): the

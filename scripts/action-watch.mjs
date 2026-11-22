@@ -13,6 +13,7 @@ import { spendAction } from "./actions.mjs";
 import { getClock, incomingTimeOfDay, isEclipse } from "./settings.mjs";
 import { whisperToOwner, esc } from "./utils.mjs";
 import { rollTrait, rollInHand, abort, canAfford } from "./action-pipeline.mjs";
+import { rollResultCard } from "./action-report.mjs";
 
 /** Why the Keep Watch row is shut now, as this browser reads the clock, or null: an Eclipse running, or the Night one next. */
 export function watchShutWhy(clock = getClock()) {
@@ -46,6 +47,8 @@ export async function performWatch(actor, options = {}) {
     if (!res.ok || res.value?.refused) return null;
     const kept = res.value?.kept === true;
     // The roller's result: E49's card under the Infiltrate tile's glyph (the coordinator's rule of 12.11.2026), its words as before.
-    await whisperToOwner(actor, { glyph: "ACTIONS.listen", body: `<p>${esc(game.i18n.localize(kept ? "DRPG.Infiltrate.watch.kept" : "DRPG.Infiltrate.watch.notKept"))}</p>` });
+    // With its roll against the watch's number, in the middle of the roller's screen (`rollResultCard`, 1.2.124).
+    await whisperToOwner(actor, ...rollResultCard(game.i18n.localize("DRPG.Infiltrate.row.keepWatch.label"), roll,
+        `<p>${esc(game.i18n.localize(kept ? "DRPG.Infiltrate.watch.kept" : "DRPG.Infiltrate.watch.notKept"))}</p>`));
     return { kept, roll };
 }

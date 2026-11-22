@@ -14825,9 +14825,11 @@ const INVARIANTS = [
          * with `entryElement`'s condition taken out (measured as a mutant, 13.10.2026).
          */
         const NH = await import("./notice-history.mjs");
-        const { DrpgMessengerApp } = await import("./messenger-app.mjs");
+        const { DrpgMessengerApp, gmMessengerWindow } = await import("./messenger-app.mjs");
         const isGM = Boolean(game.user?.isGM);
         if (isGM) needs(world.atLeast("playerAccounts", 1), "the conversation button needs a player's thread to name");
+        // On a GM the button opens the GM's window since 1.2.124 (OWNER-124-CONSOLE): one this test did not open is in the way.
+        must(!gmMessengerWindow(), "the GM's messenger window is open - close it, or the button would raise it rather than ask for it");
         const thread = isGM ? game.users.find(user => !user.isGM)?.id : game.user.id;
         ok(typeof game.drpg?.openNotices === "function", "game.drpg.openNotices is not there - there is no notice history window to open");
         must(!document.querySelector(".drpg-window-notices"), "the notice history window is open - close it: the suite measures a window it opened itself");
@@ -15014,6 +15016,9 @@ const INVARIANTS = [
         } finally {
             putRenderBack();
             DrpgMessengerApp.instances.delete(thread);
+            // The GM's window the button opened, closed with its place held (tier 1 writes no setting).
+            const putPositionsBack = holdMessengerPositions();
+            try { await gmMessengerWindow()?.close(); } finally { putPositionsBack(); }
             await win?.close();
             NH.holdNoticeHistory(false);
             Hooks.off("preCreateChatMessage", createHook);
@@ -15049,7 +15054,7 @@ const INVARIANTS = [
         "[the window takes a road that shows, plays, sends or writes markup; draws a snapshot through the history's road; calls openMessenger once; "
             + "the keybinding noticeHistory, with no default key, opens it; game.drpg.openNotices opens it]");
     }],
-    ["R299 - the notice history window fits the screen it opens on: within the screen less 8 px a side, its foot in view with a full history, and no text under 11 px; and the tile's button is square, its focus ring round it, both within the Stained Glass tile, and the bottom card's text clear of it; under Monokuma Legacy on a desk the button stands alone under the clock, below the windows, and on a stacked screen only with a card; the corner's three buttons on their grid as drawn in both themes, the unread badge on the screen and clear of the book; and the GM's roster opened from its button 8 px over the upper row with the button's right edge, its top on the screen with the camera dock up, and over the notice cards on a stacked screen; and there the notice stack, in both themes, 8 px over the corner's buttons or beside them on a short screen, at narrow.mjs's insets, under the blocks' stack, and what does not fit parked; and with a camera dock at the bottom, in both themes, the corner's buttons clear of it while it is shown and standing where they stand with no dock while the voice tile hides it, the lift 0px then whatever is written", async () => {
+    ["R299 - the notice history window fits the screen it opens on: within the screen less 8 px a side, its foot in view with a full history, and no text under 11 px; and the tile's button is square, its focus ring round it, both within the Stained Glass tile, and the bottom card's text clear of it; under Monokuma Legacy on a desk the button stands alone under the clock, below the windows, and on a stacked screen only with a card; the corner's three buttons on their grid as drawn in both themes, the unread badge on the screen and clear of the book; and the GM's window opened from its button on the Timeline, within the screen and 8 px clear of its sides (the roster it replaced, 1.2.124); and there the notice stack, in both themes, 8 px over the corner's buttons or beside them on a short screen, at narrow.mjs's insets, under the blocks' stack, and what does not fit parked; and with a camera dock at the bottom, in both themes, the corner's buttons clear of it while it is shown and standing where they stand with no dock while the voice tile hides it, the lift 0px then whatever is written", async () => {
         /*
          * E81 C7, 12.10.2026: clause (e) of the A7 design's A7-8; the corner button's clauses (a-d) come with C8-C13.
          * A window as long as its history would carry its foot - Clear, and what is kept where - off the bottom of the
@@ -15173,9 +15178,7 @@ const INVARIANTS = [
                 document.body.classList.toggle(CORNER_THEMES[1], !toGlass);
                 Hooks.callAll("drpgThemeApplied");
                 const label = toGlass ? "Stained Glass" : "Monokuma Legacy";
-                const { seen: grid, want: gridWant } = cornerReading(document.createElement("div"), [{ w: innerWidth, h: innerHeight }]);
-                delete grid.roster;
-                delete gridWant.roster;
+                const { seen: grid, want: gridWant } = cornerReading();
                 /* The badge in the corner's own terms: its box from the chat's border box (offset* from the padding
                    edge, plus the frame), as insets from the right and the bottom like the buttons'. */
                 const [chat, , book] = launchers, chatRight = cascadePx(chat, "right"), chatBottom = cascadePx(chat, "bottom");
@@ -15205,41 +15208,24 @@ const INVARIANTS = [
             `the corner at ${innerWidth}x${innerHeight} as drawn [per theme: R474's reading of the grid; the boxes the buttons are drawn in; the unread badge's box on the screen `
             + "and at least the gap clear of the book's]");
 
-        /* (c) The GM's roster, opened from its button (E81 C12). */
+        /* (c) The GM's window, opened from its button (1.2.124, OWNER-124-CONSOLE; the roster it replaced was read here
+           from E81 C12): the window opens on the Timeline and stands on the screen, 8 px clear of its left and right. */
         if (game.user.isGM) {
-            must(!document.getElementById("drpg-messenger-roster"), "the GM's roster is open - close it: the suite opens it from its button and measures that");
+            const A = await import("./messenger-app.mjs");
+            must(!A.gmMessengerWindow(), "the GM's messenger window is open - close it: the suite opens it from its button and measures that");
             launchers[0].click();
-            must(await until(() => document.querySelector("#drpg-messenger-roster.visible"), 2000), "the roster did not open from the messenger button");
-            const panel = document.getElementById("drpg-messenger-roster");
-            const filler = document.createElement("ul");
-            filler.innerHTML = "<li>R299 roster</li>".repeat(120);
-            panel.append(filler);
-            const roster = {}, liftWas = document.body.style.getPropertyValue("--drpg-av-lift"), dockHiddenWas = document.body.classList.contains("drpg-dock-hidden");
-            document.body.classList.remove("drpg-dock-hidden");
+            must(await until(() => A.gmMessengerWindow()?.rendered, 2000), "the GM's window did not open from the messenger button");
+            const app = A.gmMessengerWindow();
+            let placed = null;
             try {
-                for (const [label, lift] of [["as it is", null], ["lifted", `${Math.min(300, Math.floor(innerHeight / 2))}px`]]) {
-                    if (lift) document.body.style.setProperty("--drpg-av-lift", lift);
-                    const chat = launchers[0], foot = cascadePx(panel, "bottom");
-                    const row = ["drpg-gm-launcher", "drpg-foundry-tools"].map(id => document.getElementById(id)).filter(Boolean);
-                    roster[label] = {
-                        foot: (foot - Math.max(...row.map(el => cascadePx(el, "bottom") + el.offsetHeight), row.length ? -Infinity : NaN)).toFixed(2),
-                        right: (cascadePx(panel, "right") - cascadePx(chat, "right")).toFixed(2),
-                        top: insetBox(panel).bottom - foot - panel.offsetHeight >= 8 - 0.5
-                    };
-                    if (liftWas) document.body.style.setProperty("--drpg-av-lift", liftWas);
-                    else document.body.style.removeProperty("--drpg-av-lift");
-                }
-                roster.overCards = !document.body.classList.contains("drpg-stacked") || Number(getComputedStyle(panel).zIndex) > 99990;
+                const box = app.element.getBoundingClientRect();
+                placed = { console: app.view === "console" && Boolean(app.element.querySelector(".drpg-console")),
+                    inside: box.left >= 8 - 0.5 && box.top >= 0 && box.right <= innerWidth - 8 + 0.5 && box.bottom <= innerHeight + 0.5 };
             } finally {
-                document.body.classList.toggle("drpg-dock-hidden", dockHiddenWas);
-                filler.remove();
-                launchers[0].click();
-                await until(() => !document.getElementById("drpg-messenger-roster"), 2000);
+                await app.close();
             }
-            const placed = { foot: "8.00", right: "0.00", top: true };
-            equal(stableJson(roster), stableJson({ "as it is": placed, lifted: placed, overCards: true }),
-                `the GM's roster at ${innerWidth}x${innerHeight}, run long [8 px over the upper row, its right edge with the chat's, its drawn top at least 8 px inside the screen; `
-                + "with a dock of 300 px or half the screen; over the notice cards on a stacked screen]");
+            equal(stableJson(placed), stableJson({ console: true, inside: true }),
+                `the GM's window at ${innerWidth}x${innerHeight} [on the Timeline; on the screen, 8 px clear of its left and right]`);
         }
 
         /* (b) The tile's button and its focus ring (E81 C8). */
@@ -15537,7 +15523,7 @@ const INVARIANTS = [
             + "the corner's room tall, under the window layer, its top under the widgets; the tile's z-index with a card; under the windows again after it; the top after the "
             + "clock grew with no card; back on Stained Glass, the top]");
     }],
-    ["R474 - the three corner buttons stand on the grid their tokens describe, in both themes: each the size its token gives, square; settings and the handbooks on the bottom line with the handbooks at the wall; the chat over the midpoint of the two; every two neighbours the gap apart, flat side to flat side or rim to rim; the corner as tall as --drpg-launch-h; with the camera dock's lift and the tab rail's clearance as well; and the GM's roster 8 px over the upper row with the chat's right edge, its top 8 px inside the screen (also at 640 x 360 headless), and over the notice cards on a stacked screen", async () => {
+    ["R474 - the three corner buttons stand on the grid their tokens describe, in both themes: each the size its token gives, square; settings and the handbooks on the bottom line with the handbooks at the wall; the chat over the midpoint of the two; every two neighbours the gap apart, flat side to flat side or rim to rim; the corner as tall as --drpg-launch-h; with the camera dock's lift and the tab rail's clearance as well (the GM's roster read here until 1.2.124 went with the roster, OWNER-124-CONSOLE)", async () => {
         /*
          * E81 C12, 12.10.2026: the owner's grid (AM-18 of 11.10, variant B accepted in AM-21 of 12.10), read from the
          * cascade so it runs headless - R299 (a) and (c) read the same and the boxes as drawn, but only in a browser.
@@ -15549,12 +15535,10 @@ const INVARIANTS = [
          * and with `--drpg-av-lift` at 300 px (or half the window, the most camera-view.mjs ever lifts: the 640 x 360
          * reading is made unlifted, as a 300 px dock there is not a screen anybody has) and `--drpg-launch-clear` at
          * 37 px written on the body and put back, so a
-         * rule that forgets the camera dock or the tab rail is read moving away from the others. The roster is the
-         * GM's own when it is open, otherwise one made for the reading and removed. Its ceiling is worked out at the
-         * window's size and, headless, where the values come back unresolved, at 640 x 360 too; in a browser they
-         * come back in px for the window that runs the suite and nothing else. Over the cards: a stacked screen's
-         * notice cards stand at 99990 (danganronpa.css `#drpg-popups`, R299 (b) reads that number with a card); the
-         * reading is made with `drpg-stacked` on the body, put there for it on a desk.
+         * rule that forgets the camera dock or the tab rail is read moving away from the others. Until 1.2.124 the GM's
+         * roster was read here too (its foot over the upper row, its ceiling at the window's size and at 640 x 360, and
+         * over a stacked screen's cards); the owner's OWNER-124-CONSOLE replaced it with a window of its own
+         * (messenger-gm.mjs), which Foundry places, and those readings went with it.
          */
         const ids = ["drpg-messenger-launcher", "drpg-sound-launcher", "drpg-book-launcher"];
         must(ids.every(id => document.getElementById(id)), "a corner button is not on the page - there is nothing to read");
@@ -15564,17 +15548,7 @@ const INVARIANTS = [
         const CLASSES = ["drpg-theme-stained-glass", "drpg-theme-monokuma-legacy", "drpg-stacked", "drpg-dock-hidden"], classWas = CLASSES.map(name => body.classList.contains(name));
         const INLINE = ["--drpg-av-lift", "--drpg-launch-clear"], inlineWas = INLINE.map(name => body.style.getPropertyValue(name));
         const putBack = () => INLINE.forEach((name, i) => inlineWas[i] ? body.style.setProperty(name, inlineWas[i]) : body.style.removeProperty(name));
-        let roster = document.getElementById("drpg-messenger-roster");
-        const made = !roster;
-        if (made) {
-            roster = document.createElement("div");
-            roster.id = "drpg-messenger-roster";
-            body.append(roster);
-        }
-        const resolved = /^-?[\d.]+px$/.test(getComputedStyle(document.getElementById(ids[0])).right.trim());
-        const views = [{ w: innerWidth, h: innerHeight }, ...(resolved ? [] : [{ w: 640, h: 360 }])];
         const seen = {}, want = {};
-        let overCards = null;
         try {
             body.classList.remove(CLASSES[3]);
             for (const glass of [true, false]) {
@@ -15585,25 +15559,21 @@ const INVARIANTS = [
                         body.style.setProperty(INLINE[0], lift);
                         body.style.setProperty(INLINE[1], clear);
                     }
-                    const reading = cornerReading(roster, lift ? views.slice(0, 1) : views);
+                    const reading = cornerReading();
                     seen[`${glass ? "Stained Glass" : "Monokuma Legacy"}, ${label}`] = reading.seen;
                     want[`${glass ? "Stained Glass" : "Monokuma Legacy"}, ${label}`] = reading.want;
                     putBack();
                 }
             }
-            body.classList.add(CLASSES[2]);
-            overCards = Number(getComputedStyle(roster).zIndex) > 99990;
         } finally {
             CLASSES.forEach((name, i) => body.classList.toggle(name, classWas[i]));
             putBack();
-            if (made) roster.remove();
         }
         /* Both sides are read through the same parser, so a value it could not read would be "NaN" on both and equal. */
         ok(!/NaN/.test(stableJson({ seen, want })), `a length in the corner could not be read: ${stableJson({ seen, want })}`);
-        equal(stableJson({ ...seen, overCards }), stableJson({ ...want, overCards: true }),
-            `the corner at ${innerWidth}x${innerHeight}${resolved ? "" : " and 640x360"} [per theme and reading: the shape; the sizes; the book's right and bottom; `
-            + "settings' bottom; the three gaps; the chat's centre off the midpoint; the chat above both; the corner's height; the roster's foot over the upper row, "
-            + "its right edge against the chat's, its top at least 8 px in - and the roster over the cards on a stacked screen]");
+        equal(stableJson(seen), stableJson(want),
+            `the corner at ${innerWidth}x${innerHeight} [per theme and reading: the shape; the sizes; the book's right and bottom; `
+            + "settings' bottom; the three gaps; the chat's centre off the midpoint; the chat above both; the corner's height]");
     }],
     ["R476 - the notice stack on a stacked screen stands clear of the corner buttons and of the blocks' stack, in both themes: its foot 8 px over the buttons - a GM's five, a player's three - or on a short screen beside them on the bottom line (over a GM's gauge there, by its line), 24 px past the widest; its sides at the insets narrow.mjs measures; never at the inline top popup.mjs writes under the clock; its ceiling 8 px under the blocks' stack at its tallest, from the token both read; and a card under the same ceiling scrolls", async () => {
         /*
@@ -31069,7 +31039,7 @@ const INVARIANTS = [
         ]), "[the bar's winning font-size and its sheet under Legacy, Legacy with the pixel face and Stained Glass; the module's floor token; "
             + "the body's discovery posted as an objection with its title before the banner; the title's key]");
     }],
-    ["R849 - in the messenger the bubbles take their ground, rule, corners and type from the theme's sheets and none from base.css (messenger.css until E49 B3), a card's buttons are at least the small text and 28 px tall, and E81's messenger button and roster keep their places from base.css, in both themes (E18 C6; S12-28, S11-24)", async () => {
+    ["R849 - in the messenger the bubbles take their ground, rule, corners and type from the theme's sheets and none from base.css (messenger.css until E49 B3), a card's buttons are at least the small text and 28 px tall, and E81's messenger button keeps its place from base.css, in both themes (E18 C6; S12-28, S11-24; the roster, read here too until 1.2.124, went with OWNER-124-CONSOLE)", async () => {
         /*
          * E18 C6, 20.10.2026; audit S12-28 and S11-24 (E18-26, E18-27). messenger.css loads after danganronpa.css and
          * stated the bubbles' ground, rule, corners and type at the same weight, so the later file won: the GM's bubbles
@@ -31114,21 +31084,20 @@ const INVARIANTS = [
                     bubbles.button = [C.winner(button, "font-size")?.value ?? null, C.winner(button, "min-height")?.value ?? null];
                 }
             }
-            const launcher = el("button", null, body), roster = el("div", null, body);
+            const launcher = el("button", null, body);
             launcher.id = "drpg-messenger-launcher";
-            roster.id = "drpg-messenger-roster";
-            bubbles.places = [from(launcher, "bottom"), from(roster, "bottom"), from(roster, "right"), from(roster, "max-height")];
+            bubbles.places = [from(launcher, "bottom")];
             return bubbles;
         };
         const D = "danganronpa.css", SG = "stained-glass.css", M = "base.css";
         equal(stableJson([read("drpg-theme-monokuma-legacy"), read("drpg-theme-stained-glass")]), stableJson([{
             mine: [D, D, D, D, D, D, null], player: [D, D, D, D, D, D, null], gm: [D, D, D, D, D, D, null], action: [D, D, D, D, null, D, D],
-            button: ["var(--drpg-text-sm)", "28px"], places: [M, M, M, M]
+            button: ["var(--drpg-text-sm)", "28px"], places: [M]
         }, {
             mine: [D, SG, SG, SG, SG, D, null], player: [D, D, SG, SG, SG, D, null], gm: [D, SG, SG, SG, SG, D, null], action: [D, D, SG, SG, null, D, SG],
-            button: ["max(var(--drpg-text-sm), var(--drpg-sg-floor))", "max(28px, calc(28px * var(--drpg-sg-scale)))"], places: [M, M, SG, M]
+            button: ["max(var(--drpg-text-sm), var(--drpg-sg-floor))", "max(28px, calc(28px * var(--drpg-sg-scale)))"], places: [M]
         }]), "[Legacy, then Stained Glass: per bubble the sheet of its ground, rule, corners, type, author line, time and heading; a card button's "
-            + "font-size and min-height; the sheet of the messenger button's bottom and the roster's bottom, right and max-height]");
+            + "font-size and min-height; the sheet of the messenger button's bottom (the roster's three went with it in 1.2.124)]");
     }],
     ["R3490 - the messenger's sheet loads before the themes, and in it a card's lines run at 1.35, a bubble's time takes an 11 px floor, the log fades under the tabs rather than cutting the first card, and the note's Save is drawn as its default, in both themes (E49 B3; S11-48)", async () => {
         /*
@@ -31435,81 +31404,69 @@ const INVARIANTS = [
             "[every row where threadStatsOf and 419d3b42's reading differ: viewer, read map, thread, unread then and now - only a GM's own unsettled gmAsk after its read stamp; "
             + "a settled one (GM, the second thread), an own receipt, a player's own ask and the veiled card read as they did]");
     }],
-    ["R1065 - a GM's launcher and roster count the threads in one pass: one renderLauncher() and a roster of 8 rows and more walk game.messages once and read the read map once, and the counters messenger.threadStats and messenger.readMap move by one each (E50 C2; S11-57, E50-12)", async () => {
+    ["R1065 - a GM's launcher and messenger window count the threads in one pass: one renderLauncher() with the window open, its list of 8 players and more redrawn, walks game.messages once and reads the read map once, and the counters messenger.threadStats and messenger.readMap move by one each (E50 C2; S11-57, E50-12; the roster's list until 1.2.124)", async () => {
         /*
          * E50 C2, 30.10.2026; audit S11-57 (E50-12). The badge summed `unreadCount` over the thread users - one walk of
          * every message and one read of the read map per thread - and each roster row added `lastMessage` and
-         * `unreadCount`, two walks more: O(threads x messages) on every message that arrived. For one synchronous
-         * renderLauncher() and openMessenger() (a GM's roster) with eight stand-in players added to the thread users
-         * (game.users.filter stood in, the stand-ins added to what it answers), game.messages' `values` (the road
-         * every walk of a Collection takes, Foundry's and the harness's: its iterator, contents, filter) and
-         * game.settings.get of the read map are counted, all put back in `finally`, and the roster is closed again.
-         * Red at C2's parent: one walk per thread for the badge and two per row, a read per thread and per row.
+         * `unreadCount`, two walks more: O(threads x messages) on every message that arrived. 1.2.124 (OWNER-124-CONSOLE)
+         * put the roster's rows in the GM's window (messenger-gm.mjs `navRows`), which renderLauncher() redraws in the
+         * same go (`refreshNav`): the GM's window is opened first and awaited, then for one synchronous renderLauncher()
+         * with eight stand-in players added to the thread users (game.users.filter stood in, the stand-ins added to what
+         * it answers), game.messages' `values` (the road every walk of a Collection takes, Foundry's and the harness's:
+         * its iterator, contents, filter) and game.settings.get of the read map are counted, all put back in `finally`,
+         * and the window is closed again. Red at C2's parent: one walk per thread for the badge and two per row.
          */
         must(game.user.isGM, "the launcher's count of every thread is a GM's");
-        must(!document.getElementById("drpg-messenger-roster"), "the GM's roster is open - close it: this test opens its own");
         const A = await import("./messenger-app.mjs");
+        must(!A.gmMessengerWindow(), "the GM's messenger window is open - close it: this test opens its own");
         const C = await import("./perf-counters.mjs");
         const msgs = game.messages, users = game.users, settings = game.settings;
         const own = (obj, key) => [Object.prototype.hasOwnProperty.call(obj, key), obj[key]];
         const [hadValues, realValues] = own(msgs, "values"), [hadFilter, realFilter] = own(users, "filter"), [hadGet, realGet] = own(settings, "get");
         const stand = Array.from({ length: 8 }, (_, i) => ({ id: `R1065Player0000${i}`, name: `R1065 player ${i}`, isGM: false }));
         let walks = 0, reads = 0, rows = 0, moved = {};
-        const before = C.snapshot();
+        const app = A.openGmMessenger("console");
+        const putPositionsBack = holdMessengerPositions();
         try {
+            must(await until(() => app?.rendered && app.element?.querySelector(".drpg-messenger-gm-nav"), 2000), "the GM's window did not draw its list");
+            await wait(30);
+            const before = C.snapshot();
             msgs.values = function (...a) { walks++; return realValues.apply(this, a); };
             users.filter = function (fn, ...a) { return [...realFilter.call(this, fn, ...a), ...stand.filter(fn)]; };
             settings.get = function (scope, key, ...a) { if (scope === MODULE_ID && key === SETTINGS.messengerLastRead) reads++; return realGet.call(this, scope, key, ...a); };
             A.renderLauncher();
-            A.openMessenger();
             moved = C.delta(before, C.snapshot());
-            rows = document.querySelectorAll("#drpg-messenger-roster .drpg-messenger-roster-row").length;
+            rows = app.element.querySelectorAll(".drpg-messenger-gm-nav-row").length;
         } finally {
             if (hadValues) msgs.values = realValues; else delete msgs.values;
             if (hadFilter) users.filter = realFilter; else delete users.filter;
             if (hadGet) settings.get = realGet; else delete settings.get;
-            await wait(30);
-            document.body.click();
-            await until(() => !document.getElementById("drpg-messenger-roster"), 2000);
-            for (const left of document.querySelectorAll("#drpg-messenger-roster")) left.remove();
+            await app?.close();
+            putPositionsBack();
         }
-        equal(stableJson({ walks, reads, threadStats: moved["messenger.threadStats"] ?? 0, readMap: moved["messenger.readMap"] ?? 0, rows: rows >= 8 }),
+        equal(stableJson({ walks, reads, threadStats: moved["messenger.threadStats"] ?? 0, readMap: moved["messenger.readMap"] ?? 0, rows: rows >= 9 }),
             stableJson({ walks: 1, reads: 1, threadStats: 1, readMap: 1, rows: true }),
-            `[walks of game.messages, reads of the read map, the two counters' deltas, whether the roster drew 8 rows or more (it drew ${rows})]`);
+            `[walks of game.messages, reads of the read map, the two counters' deltas, whether the window's list drew the Timeline and 8 players and more (it drew ${rows} rows)]`);
     }],
-    ["R1066 - the GM's roster closes by one road: clicks inside it leave it open and the outside click after them still closes it, a second open leaves one roster, a row's click closes it through closeRoster, and no click listener of the roster's is left on the document (E50 C2; S11-44, E50-13)", async () => {
+    ["R1066 - the GM's messenger is one window: openMessenger() twice leaves one, a player's row shows that player in it and the Timeline's row the Timeline again, openMessenger(player) shows that player, and no click listener is left on the document (E50 C2; S11-44, E50-13; the roster's one road until 1.2.124)", async () => {
         /*
-         * E50 C2, 30.10.2026; audit S11-44 (E50-13). The outside click was a `{ once: true }` document listener, spent on
-         * the first click inside the roster, after which nothing closed it but the button; `openMessenger()` on a GM
-         * built a second roster beside an open one; a row's click took the panel off the page itself. Here, on a GM's
-         * page: the roster opened by openMessenger() with one stand-in player added to its rows (game.users.filter
-         * stood in for that call only), three clicks on its heading and its own box, then one on the body; two opens in
-         * a row; then the stand-in's row clicked (openMessenger answers "not a player" for an id no user has: no window
-         * opens, nothing is written; ui.notifications.warn stood in). document's add/removeEventListener are wrapped
-         * for the whole test to keep the click listeners added meanwhile that are still there. Everything is put back
-         * in `finally`. Red at C2's parent: open after the outside click, two rosters, the row's panel removed without
-         * the leaving class.
+         * E50 C2, 30.10.2026; audit S11-44 (E50-13): the roster's outside click was spent on the first click inside it,
+         * and a second openMessenger() built a second roster beside an open one. 1.2.124 (OWNER-124-CONSOLE) replaced the
+         * roster with one window (messenger-gm.mjs); this holds what was promised of the roster to it. On a GM's page with
+         * a player in the world: openMessenger() twice, the window counted by its id; the player's row clicked, then the
+         * Timeline's; openMessenger(<that player>). document's add/removeEventListener are wrapped for the whole test, to
+         * keep the click listeners added meanwhile that are still there. The window is closed in `finally`.
          */
-        must(game.user.isGM, "the roster is a GM's");
-        must(!document.getElementById("drpg-messenger-roster"), "the GM's roster is open - close it: this test opens its own");
+        must(game.user.isGM, "the GM's window is a GM's");
+        needs(world.atLeast("playerAccounts", 1));
         const A = await import("./messenger-app.mjs");
-        const users = game.users, doc = document;
-        const [hadFilter, realFilter] = [Object.prototype.hasOwnProperty.call(users, "filter"), users.filter];
-        const realAdd = doc.addEventListener, realRemove = doc.removeEventListener;
-        const kept = new Map();   // listener -> its stand-in, for the click listeners added while the test runs
-        const stand = { id: "R1066NoSuchUser1", name: "R1066 stand-in", isGM: false };
-        const open = () => {
-            users.filter = function (fn, ...a) { return [...realFilter.call(this, fn, ...a), ...[stand].filter(fn)]; };
-            try { A.openMessenger(); } finally { if (hadFilter) users.filter = realFilter; else delete users.filter; }
-        };
-        const panels = () => doc.querySelectorAll("#drpg-messenger-roster");
-        const state = () => { const p = panels(); return p.length === 0 ? "closed" : p.length > 1 ? `${p.length} rosters` : p[0].classList.contains("leaving") ? "leaving" : "open"; };
-        const warns = [], realWarn = ui.notifications.warn;
-        const read = {};
+        must(!A.gmMessengerWindow(), "the GM's messenger window is open - close it: this test opens its own");
+        const player = game.users.find(u => !u.isGM);
+        const doc = document, realAdd = doc.addEventListener, realRemove = doc.removeEventListener;
+        const kept = new Map();
         doc.addEventListener = function (type, fn, options) {
             if (type !== "click" || typeof fn !== "function") return realAdd.call(this, type, fn, options);
-            const once = typeof options === "object" && options?.once;
-            const proxy = function (event) { if (once) kept.delete(fn); return fn.call(this, event); };
+            const proxy = function (event) { return fn.call(this, event); };
             kept.set(fn, proxy);
             return realAdd.call(this, type, proxy, options);
         };
@@ -31517,40 +31474,244 @@ const INVARIANTS = [
             if (type === "click" && kept.has(fn)) { const proxy = kept.get(fn); kept.delete(fn); return realRemove.call(this, type, proxy, options); }
             return realRemove.call(this, type, fn, options);
         };
+        const read = {};
+        const windows = () => doc.querySelectorAll("#drpg-messenger-gm").length;
+        const putPositionsBack = holdMessengerPositions();
         try {
-            open();
+            A.openMessenger();
+            A.openMessenger();
+            await until(() => A.gmMessengerWindow()?.rendered, 2000);
             await wait(30);
-            const panel = panels()[0];
-            for (const target of [panel?.querySelector("h4"), panel, panel?.querySelector("h4")]) target?.click();
-            read.inside = state();
-            doc.body.click();
-            read.outside = state();
-            await until(() => panels().length === 0, 2000);
-            read.afterOutside = state();
-            open();
-            open();
-            read.twice = state();
-            await until(() => panels().length === 1 && !panels()[0].classList.contains("leaving"), 1000);
-            await wait(30);
-            const row = [...doc.querySelectorAll("#drpg-messenger-roster .drpg-messenger-roster-row")].find(li => li.textContent.includes(stand.name));
-            ui.notifications.warn = text => { warns.push(String(text)); };
-            row?.click();
-            read.row = [Boolean(row), state()];
-            await until(() => panels().length === 0, 2000);
-            read.afterRow = state();
-            read.warned = warns.includes(game.i18n.localize("DRPG.Messenger.notAPlayer"));
-            await wait(30);
+            const app = A.gmMessengerWindow();
+            read.twice = [windows(), app?.view];
+            app?.element?.querySelector(`.drpg-messenger-gm-nav-row[data-drpg-view="${player.id}"]`)?.click();
+            await until(() => app?.element?.querySelector(".drpg-messenger-log"), 2000);
+            read.row = [app?.view === player.id, Boolean(app?.element?.querySelector(".drpg-messenger-log"))];
+            app?.element?.querySelector('.drpg-messenger-gm-nav-row[data-drpg-view="console"]')?.click();
+            await until(() => app?.element?.querySelector(".drpg-console"), 2000);
+            read.console = [app?.view, Boolean(app?.element?.querySelector(".drpg-console"))];
+            A.openMessenger(player.id);
+            await until(() => app?.view === player.id && app.element?.querySelector(".drpg-messenger-log"), 2000);
+            read.named = [windows(), app?.view === player.id];
             read.left = kept.size;
         } finally {
-            ui.notifications.warn = realWarn;
             doc.addEventListener = realAdd;
             doc.removeEventListener = realRemove;
-            if (hadFilter) users.filter = realFilter; else delete users.filter;
             for (const proxy of kept.values()) realRemove.call(doc, "click", proxy);
-            for (const left of panels()) left.remove();
+            await A.gmMessengerWindow()?.close();
+            putPositionsBack();
         }
-        equal(stableJson(read), stableJson({ inside: "open", outside: "leaving", afterOutside: "closed", twice: "open", row: [true, "leaving"], afterRow: "closed", warned: true, left: 0 }),
-            "[after three clicks inside; at the body's click, and after it; after two opens; a row clicked (found, then the roster), and after; whether openMessenger said 'not a player' for the stand-in; the roster's click listeners left on the document]");
+        equal(stableJson(read), stableJson({ twice: [1, "console"], row: [true, true], console: ["console", true], named: [1, true], left: 0 }),
+            "[after two opens: the windows, the view; the player's row clicked: that player's view, its log; the Timeline's row: the view, the Timeline; openMessenger(player): the windows, the view; click listeners left on the document]");
+    }],
+    ["R8650 - a GM's messenger launcher opens one window on its Timeline, not a roster: the Timeline's two parts and the list (the Timeline, then every player) drawn, no #drpg-messenger-roster on the page, and openMessenger(<player>) shows that player's conversation in the same window, with no thread window of its own (1.2.124, the owner's OWNER-124-CONSOLE)", async () => {
+        /*
+         * The owner, 22.11.2026: "Okno gma niech otwiera zupelnie nowe okno. Niech znajduje sie tam konsola, a takze
+         * mozliwosc przelaczenia sie na czat z dowolnym graczem. Koniec listy rozwijanej - nowe okno." On a GM's page with a
+         * player in the world: the launcher drawn and clicked, the window read (its view, the Timeline's parts, the list's
+         * rows, a roster on the page); then openMessenger(<the player>) and the window read again, and the messenger's
+         * own thread windows. The window is closed in `finally`. Its mutant, the Timeline's body not drawn, fails it (22.11.2026).
+         */
+        must(game.user.isGM, "the GM's window is a GM's");
+        needs(world.atLeast("playerAccounts", 1));
+        const A = await import("./messenger-app.mjs");
+        must(!A.gmMessengerWindow(), "the GM's messenger window is open - close it: this test opens its own");
+        const player = game.users.find(u => !u.isGM);
+        const read = {};
+        const putPositionsBack = holdMessengerPositions();
+        try {
+            A.renderLauncher();
+            document.getElementById("drpg-messenger-launcher")?.click();
+            await until(() => A.gmMessengerWindow()?.element?.querySelector(".drpg-console"), 2000);
+            const app = A.gmMessengerWindow(), el = app?.element;
+            read.launcher = [app?.view ?? null, Boolean(el?.querySelector(".drpg-console-waiting")), Boolean(el?.querySelector(".drpg-console-stream")),
+                el?.querySelector(".drpg-messenger-gm-nav-row")?.dataset.drpgView ?? null,
+                Boolean(el?.querySelector(`.drpg-messenger-gm-nav-row[data-drpg-view="${player.id}"]`)), Boolean(document.getElementById("drpg-messenger-roster"))];
+            const again = A.openMessenger(player.id);
+            await until(() => app?.element?.querySelector(".drpg-messenger-log"), 2000);
+            read.player = [again === app, app?.view === player.id, Boolean(app?.element?.querySelector(".drpg-messenger-log")),
+                Boolean(app?.element?.querySelector(".drpg-messenger-input textarea")), A.DrpgMessengerApp.instances.has(player.id)];
+        } finally {
+            await A.gmMessengerWindow()?.close();
+            putPositionsBack();
+        }
+        equal(stableJson(read), stableJson({ launcher: ["console", true, true, "console", true, false], player: [true, true, true, true, false] }),
+            "[the launcher's click: the view, Waiting, the stream, the list's first row, the player's row, a roster on the page; "
+            + "openMessenger(player): the same window, its view, the log, the send box, a thread window of its own]");
+    }],
+    ["R8651 - in the GM's window each view keeps its own typed text: a player's chat draft is put back when the GM comes back from the Timeline and another player, and another player's view starts empty (1.2.124, OWNER-124-CONSOLE: \"bez otwierania i zamykania okna\")", async () => {
+        /*
+         * The window is one for every view, so the box a GM typed in is drawn again for the next view. On a GM's page with
+         * two players: the first player's view opened, words typed in its send box (no message sent), the Timeline shown,
+         * then the second player's view (its box read), then the first's again (its box read). Nothing is written; the
+         * window is closed in `finally`. Red before messenger-gm.mjs `_replaceHTML` cleared the last view's boxes: the
+         * first player's words came back "" (22.11.2026, the mutant that takes the clearing out).
+         */
+        must(game.user.isGM, "the GM's window is a GM's");
+        needs(world.atLeast("playerAccounts", 2));
+        const A = await import("./messenger-app.mjs");
+        must(!A.gmMessengerWindow(), "the GM's messenger window is open - close it: this test opens its own");
+        const [one, two] = game.users.filter(u => !u.isGM);
+        const box = () => A.gmMessengerWindow()?.element?.querySelector(".drpg-messenger-input textarea") ?? null;
+        const show = async view => {
+            A.openMessenger(view === "console" ? undefined : view);
+            // Drawn for that view: its row pressed in the list, which is drawn with the body (the last view's box stands until then).
+            await until(() => A.gmMessengerWindow()?.element?.querySelector(`.drpg-messenger-gm-nav-row[data-drpg-view="${view}"][aria-pressed="true"]`)
+                && (view === "console" ? A.gmMessengerWindow().element.querySelector(".drpg-console") : box()), 2000);
+        };
+        const WORDS = `R8651 draft ${foundry.utils.randomID(4)}`;
+        const read = {};
+        const putPositionsBack = holdMessengerPositions();
+        try {
+            await show(one.id);
+            const typed = box();
+            if (typed) typed.value = WORDS;
+            await show("console");
+            read.console = !box();
+            await show(two.id);
+            read.other = box()?.value ?? null;
+            await show(one.id);
+            read.back = box()?.value ?? null;
+        } finally {
+            await A.gmMessengerWindow()?.close();
+            putPositionsBack();
+        }
+        equal(stableJson(read), stableJson({ console: true, other: "", back: WORDS }),
+            "[the Timeline has no send box; the second player's box; the first player's box when the GM came back]");
+    }],
+    ["R8652 - the GM's Timeline takes a new event in place: a notice recorded while it is open lands in its stream without the Timeline being drawn again, and the filter's choice and the focus on it are kept (1.2.124, OWNER-124-CONSOLE: \"odswiezac na biezaco\")", async () => {
+        /*
+         * The owner: the console "musialaby sie tez odswiezac na biezaco (bez otwierania i zamykania okna)". On a GM's
+         * page: the window opened on its Timeline, the filter set to "actions only" and focused, then a notice recorded
+         * under the notice history's hold (nothing reaches the setting, notice-history.mjs `holdNoticeHistory`). Read: the
+         * Timeline's node before and after, the new item in the stream, the select's value and the focus. The window is
+         * closed and the hold let go in `finally`.
+         */
+        must(game.user.isGM, "the GM's window is a GM's");
+        const A = await import("./messenger-app.mjs");
+        const NH = await import("./notice-history.mjs");
+        must(!A.gmMessengerWindow(), "the GM's messenger window is open - close it: this test opens its own");
+        const TITLE = `R8652 ${foundry.utils.randomID(6)}`;
+        let read = null;
+        NH.holdNoticeHistory(true);
+        const putPositionsBack = holdMessengerPositions();
+        try {
+            const app = A.openMessenger();
+            await until(() => app?.element?.querySelector(".drpg-console"), 2000);
+            const before = app.element.querySelector(".drpg-console");
+            const select = app.element.querySelector('select[name="drpg-console-filter"]');
+            select.value = "actions";
+            select.dispatchEvent(new Event("change", { bubbles: true }));
+            select.focus();
+            NH.recordNotice({ source: "public", kind: "info", title: TITLE, text: TITLE, html: "" });
+            await until(() => [...app.element.querySelectorAll(".drpg-console-stream-list .drpg-console-notice")].some(li => li.textContent.includes(TITLE)), 2000);
+            const item = [...app.element.querySelectorAll(".drpg-console-stream-list .drpg-console-notice")].find(li => li.textContent.includes(TITLE));
+            read = [app.element.querySelector(".drpg-console") === before, Boolean(item), item ? !item.hidden : null,
+                app.element.querySelector('select[name="drpg-console-filter"]') === select, select.value, document.activeElement === select];
+        } finally {
+            await A.gmMessengerWindow()?.close();
+            NH.holdNoticeHistory(false);
+            putPositionsBack();
+        }
+        equal(stableJson(read), stableJson([true, true, true, true, "actions", true]),
+            "[the same Timeline node; the notice in the stream; shown under \"actions only\"; the same select; its value; the focus on it]");
+    }],
+    ["R8653 - the GM's Timeline filter shows everything, actions only (an action card or an event) or one player (that player's messages and events), and says so where a part shows nothing (1.2.124, OWNER-124-CONSOLE)", async () => {
+        /*
+         * The brief's 3c: filters all / actions only / one player. On a GM's page: the window opened on its Timeline and
+         * four items of the stream's own shape put in its list for the reading - a's chat, a's action card, b's chat, an
+         * event with no author - then each choice of the select (its change event), and the items shown read. The items
+         * are the test's, taken out with the window, closed in `finally`.
+         */
+        must(game.user.isGM, "the GM's window is a GM's");
+        const A = await import("./messenger-app.mjs");
+        must(!A.gmMessengerWindow(), "the GM's messenger window is open - close it: this test opens its own");
+        const read = {};
+        const putPositionsBack = holdMessengerPositions();
+        try {
+            const app = A.openMessenger();
+            await until(() => app?.element?.querySelector(".drpg-console-stream-list"), 2000);
+            const list = app.element.querySelector(".drpg-console-stream-list");
+            for (const left of list.querySelectorAll(":scope > *")) left.remove();
+            const made = [["a-chat", "R8653PlayerA0000", "false"], ["a-card", "R8653PlayerA0000", "true"], ["b-chat", "R8653PlayerB0000", "false"], ["event", null, "true"]];
+            for (const [name, player, action] of made) {
+                const li = document.createElement("li");
+                li.className = "drpg-console-item";
+                li.dataset.r8653 = name;
+                if (player) li.dataset.player = player;
+                li.dataset.action = action;
+                list.append(li);
+            }
+            const select = app.element.querySelector('select[name="drpg-console-filter"]');
+            const option = document.createElement("option");
+            option.value = "player:R8653PlayerB0000";
+            select.append(option);
+            const shown = () => [...list.querySelectorAll("[data-r8653]")].filter(li => !li.hidden).map(li => li.dataset.r8653);
+            for (const value of ["actions", "player:R8653PlayerB0000", "all"]) {
+                select.value = value;
+                select.dispatchEvent(new Event("change", { bubbles: true }));
+                read[value] = shown();
+            }
+            select.value = "player:R8653PlayerB0000";
+            select.dispatchEvent(new Event("change", { bubbles: true }));
+            for (const li of list.querySelectorAll('[data-player="R8653PlayerB0000"]')) li.remove();
+            select.value = "player:R8653PlayerB0000";
+            select.dispatchEvent(new Event("change", { bubbles: true }));
+            read.empty = list.querySelector(".drpg-console-empty")?.textContent ?? null;
+        } finally {
+            await A.gmMessengerWindow()?.close();
+            putPositionsBack();
+        }
+        equal(stableJson(read), stableJson({ actions: ["a-card", "event"], "player:R8653PlayerB0000": ["b-chat"], all: ["a-chat", "a-card", "b-chat", "event"],
+            empty: game.i18n.localize("DRPG.Messenger.gm.nothingYet") }),
+            "[shown under actions only; under player B; under everything; the stream's line when the filter leaves nothing]");
+    }],
+    ["R8654 - the GM's Timeline leaves out a card another player wrote into a thread: such a card, among the world's messages when the Timeline is drawn, is in neither Waiting nor the stream, and the Timeline is drawn (1.2.124; messenger.mjs `threadCardAllowed`, line CORE's guard of the same day)", async () => {
+        /*
+         * Line CORE closed the road a player's console had into another player's thread (claude/core-122, 2d17b74e): a card
+         * counts in a thread only when its author is a GM or that thread's player. The Timeline reads game.messages itself,
+         * so it asks the same question (messenger-gm.mjs `buildConsole`). On a GM's page with two players: game.messages'
+         * `values` stood in to add one card naming the first player's thread, written by the second, with live-looking
+         * buttons in its words; the Timeline opened and read; everything put back in `finally`. Its mutant, the Timeline's
+         * check taken out, fails it (22.11.2026).
+         */
+        must(game.user.isGM, "the Timeline is a GM's");
+        needs(world.atLeast("playerAccounts", 2));
+        const A = await import("./messenger-app.mjs");
+        must(!A.gmMessengerWindow(), "the GM's messenger window is open - close it: this test opens its own");
+        const [one, two] = game.users.filter(u => !u.isGM);
+        const ID = "R8654Refused0000";
+        const forged = { id: ID, author: two, timestamp: Date.now(), content: '<p>R8654</p><div class="drpg-call-actions"><button data-drpg-call="decline">x</button></div>',
+            whisper: [one.id], flags: { [MODULE_ID]: { thread: one.id, kind: "action", gmAsk: true } }, getFlag(scope, key) { return this.flags?.[scope]?.[key]; } };
+        const msgs = game.messages, own = Object.prototype.hasOwnProperty.call(msgs, "values"), realValues = msgs.values;
+        const putPositionsBack = holdMessengerPositions();
+        let read = null;
+        try {
+            msgs.values = function (...a) { return [...realValues.apply(this, a), forged][Symbol.iterator](); };
+            const app = A.openMessenger();
+            await until(() => app?.element?.querySelector(".drpg-console-stream-list"), 2000);
+            read = [Boolean(app.element.querySelector(".drpg-console-stream-list")), Boolean(app.element.querySelector(`[data-message-id="${ID}"]`))];
+        } finally {
+            if (own) msgs.values = realValues; else delete msgs.values;
+            await A.gmMessengerWindow()?.close();
+            putPositionsBack();
+        }
+        equal(stableJson(read), stableJson([true, false]), "[the Timeline drawn; the other player's card anywhere in it]");
+    }],
+    ["R8655 - a row's preview in the GM's messenger window keeps a card's title apart from its text: messenger-app.mjs `stripHtml` reads a card as its title, \" - \", then its lines with a space between blocks, its buttons left out (1.2.124, OWNER-124-CONSOLE; the coordinator's fix 1 of 22.11.2026: \"SearchBotan Ka...\")", async () => {
+        /*
+         * The preview was the card's `textContent`, which runs one block into the next: a Search card's row read
+         * "SearchBotan Kage". Three cards of the module's own shape read through `stripHtml`: a ruling card (title, a line,
+         * the request, its buttons), a chat line, a title alone. Red before the fix: "SearchBotan Kage · Workshopa crowbar".
+         */
+        const A = await import("./messenger-app.mjs");
+        const read = [
+            A.stripHtml('<h3>Search</h3><p><strong>Botan Kage</strong> · Workshop</p><blockquote>a crowbar</blockquote><div class="drpg-call-actions"><button data-drpg-call="decline">Refuse</button></div>'),
+            A.stripHtml("<p>Is the door locked?</p>"),
+            A.stripHtml("<h3>Search</h3>")
+        ];
+        equal(stableJson(read), stableJson(["Search - Botan Kage · Workshop a crowbar", "Is the door locked?", "Search"]),
+            "[a ruling card; a chat line; a title alone]");
     }],
     ["R1067 - the cue playlist cannot be mapped: the Music tab offers it in no select, a stored mapping onto it is dropped by the primary GM alone with one write of the map without that key (the other keys kept, a second call writing nothing), and playlistFor answers null for it (E50 C3; S11-47, E50-23, Q-E50-1)", async () => {
         /*
@@ -38757,7 +38918,8 @@ const INVARIANTS = [
         const ladder = html({ action: "R1108", total: 13, dc: "12 / 18" });
         const none = html({ action: "R1108", total: 13 });
         const noTotal = html({ action: "R1108", dc: 10 });
-        equal(JSON.stringify([one.includes(needed(10)), /drpg-card-total">13<\/span> <small class="drpg-card-needed">/.test(one),
+        // `data-dc` since 1.2.124 (the centred notice's "needed N" beside the dice, popup.mjs `centreRoll`)
+        equal(JSON.stringify([one.includes(needed(10)), /drpg-card-total">13<\/span> <small class="drpg-card-needed" data-dc="10">/.test(one),
             ladder.includes(needed("12 / 18")), none.includes("drpg-card-needed"), noTotal.includes("drpg-card-needed"), needed(10) !== "DRPG.Action.needed"]),
             JSON.stringify([true, true, true, false, false, true]),
             "[a dc of 10 says needed 10; beside the total; a ladder too; no dc says nothing; no total says nothing; the key is worded]");
@@ -39903,7 +40065,7 @@ const INVARIANTS = [
         const fn = (file, name) => fnSource(stripComments(rootSources.get(file) ?? ""), name) ?? "";
         const ROOTS = [["player-status.mjs", "renderPlayerStatus", "el"], ["room-tile.mjs", "ensureRoomTile", "tile"],
             ["sfx.mjs", "renderSoundLauncher", "button"], ["voice-tile.mjs", "buildVoiceTile", "tile"], ["voice-tile.mjs", "buildVoiceList", "list"],
-            ["messenger-app.mjs", "renderLauncher", "button"], ["messenger-app.mjs", "buildRoster", "panel"], ["handbooks.mjs", "renderBookLauncher", "button"],
+            ["messenger-app.mjs", "renderLauncher", "button"], ["handbooks.mjs", "renderBookLauncher", "button"],
             ["foundry-windows.mjs", "buildFrame", "head"], ["foundry-windows.mjs", "buildLauncher", "btn"], ["fog.mjs", "renderFloorSwitcher", "nav"],
             // E66 fix r2: the two buttons the module puts into Daggerheart's countdown window's header, whose other words are Daggerheart's.
             ["projects-ui.mjs", "onRenderCountdowns", "gear"], ["projects-tray.mjs", "addCollapseControl", "button"]];
@@ -39919,8 +40081,10 @@ const INVARIANTS = [
         read.roots = [...ROOTS.filter(([file, name, el]) => !new RegExp(`\\bmarkLanguage\\(\\s*${el}\\s*\\)`).test(fn(file, name))
             && !(viaKit[`${file} ${name}`]?.test(fn(file, name)))).map(([file, name]) => `${file} ${name}`), ...kitMarks];
         read.frameMarked = /\bmarkLanguage\(\s*frame\s*\)/.test(fn("foundry-windows.mjs", "buildFrame"));
+        /* The GM's roster was one of these roots until 1.2.124; the window that replaced it (messenger-gm.mjs) is a module
+           window, marked as the windows above are. */
         const DRAWN = ["drpg-player-status", "drpg-room-tile", "drpg-sound-launcher", "drpg-voice-tile", "drpg-voice-list", "drpg-messenger-launcher",
-            "drpg-messenger-roster", "drpg-book-launcher", "drpg-foundry-tools", "drpg-floors"];
+            "drpg-book-launcher", "drpg-foundry-tools", "drpg-floors"];
         const drawn = DRAWN.filter(id => document.getElementById(id));
         read.drawn = drawn.filter(id => document.getElementById(id).getAttribute("lang") !== page);
         read.frames = ["drpg-win-ftools", "drpg-win-maptools"].map(id => document.getElementById(id)).filter(Boolean)
@@ -44964,16 +45128,21 @@ const INVARIANTS = [
         const student = studentActors().find(a => game.users.some(u => !u.isGM && a.testUserPermission(u, "OWNER"))) ?? studentActors()[0];
         needs(world.ownedByPlayer(student), "the messenger's reading needs a player's conversation");
         const player = game.users.find(u => !u.isGM && student.testUserPermission(u, "OWNER"));
-        const kept = MA.DrpgMessengerApp.instances.get(player?.id);
-        const thread = stand(true, "r1339-thread");
+        /* On a GM the conversation is a view of the GM's window since 1.2.124 (OWNER-124-CONSOLE): the folded stand-in is
+           that window, showing the player's view, and on a player's page their own thread window, as before. */
+        const gmSide = game.user.isGM;
+        const kept = gmSide ? MA.DrpgGmMessengerApp.current : MA.DrpgMessengerApp.instances.get(player?.id);
+        const thread = Object.assign(stand(true, "r1339-thread"), { view: player?.id ?? null });
         let messenger = null;
         try {
             if (player) {
-                MA.DrpgMessengerApp.instances.set(player.id, thread);
+                if (gmSide) MA.DrpgGmMessengerApp.current = thread;
+                else MA.DrpgMessengerApp.instances.set(player.id, thread);
                 messenger = MA.openMessenger(player.id) === thread;
             }
         } finally {
-            if (player) { if (kept) MA.DrpgMessengerApp.instances.set(player.id, kept); else MA.DrpgMessengerApp.instances.delete(player.id); }
+            if (gmSide) MA.DrpgGmMessengerApp.current = kept ?? null;
+            else if (player) { if (kept) MA.DrpgMessengerApp.instances.set(player.id, kept); else MA.DrpgMessengerApp.instances.delete(player.id); }
             thread.element.remove();
         }
         equal(stableJson({ asked, roomFolds, windows, answers, messenger, said }), stableJson({
@@ -60791,6 +60960,10 @@ const INVARIANTS = [
          * E62 C5 (1.2.109), 12.11.2026. Red at 6230945: showPopup has no `centre`. The stage is the one the trial's
          * evidence stands on (`#drpg-evidence`), which carries no history button; the card is kept in the history as any
          * card is (`record`, untouched here: tiers 0-1 write no setting, so the stand-in passes `record: false`).
+         * CHANGED ON PURPOSE IN 1.2.124 (line UI; the owner's OWNER-124-NOTICES of 22.11.2026): the stage is the notices'
+         * own (`#drpg-notice-centre`), the card stays raised until its X ("na wierzchu" - a touch no longer sinks it), a
+         * chat card asks by a name of notice-centre.mjs's list (`centredNotice`, R8670-R8671), and the body's card asks
+         * "bodyFound". R8672 holds the queue and the focus.
          */
         const P = await import("./popup.mjs");
         const close = P.showPopup("<p>R3729 centre</p>", { title: "R3729", sticky: true, centre: true, record: false });
@@ -60809,12 +60982,12 @@ const INVARIANTS = [
         must(catchAll.length > 200 && summary.length > 200, "the catch-all or the summary was not read - this reads nothing");
         equal(stableJson({
             stage: stage?.id ?? null, centreClass: Boolean(card?.classList.contains("drpg-popup-centre")), raisedBefore, raisedAfter, button,
-            flag: /popupCentre/.test(catchAll) && /cardFlag\(message, "popupCentre"\) === true && Boolean\(cardWriter\(message\)\?\.isGM\)/.test(catchAll),
-            summary: /centre: true/.test(summary), body: /popupCentre: true,\s*popupKind: "objection"/.test(chapter)
+            flag: /centre: centredNotice\(message\)/.test(catchAll),
+            summary: /centre: true/.test(summary), body: /popupCentre: "bodyFound",\s*popupKind: "objection"/.test(chapter)
         }), stableJson({
-            stage: "drpg-evidence", centreClass: true, raisedBefore: [true, true], raisedAfter: [false, false], button: false,
+            stage: "drpg-notice-centre", centreClass: true, raisedBefore: [true, true], raisedAfter: [true, true], button: false,
             flag: true, summary: true, body: true
-        }), "[the centre stage; marked a centre card; raised until touched; sunk after; no history button on the stage; the chat flag from a GM's card only; the summary asks for it; the body's card asks for it]");
+        }), "[the notices' stage; marked a centre card; raised; still raised after a touch; no history button on the stage; the chat flag through the list's rule; the summary asks for it; the body's card asks for it]");
     }],
     ["R3730 - the day summary waits for the clock's turn, and its rows come in one after another (scripts/day-summary.mjs `summaryDelay`, `sumUp`, `showDaySummary`; styles/danganronpa.css; E62 C5, MK-R2's card): the summary is put up when the turn of the change that closed its time of day has ended - at once with no turn, under reduced motion or with the table's switch off; each row carries its place, and the centre card's rows slide in 160 ms apart from 150 ms, none under reduced motion", async () => {
         /* E62 C5 (1.2.109), 12.11.2026. Red at 6230945: day-summary.mjs has no summaryDelay. */
@@ -64932,7 +65105,9 @@ const INVARIANTS = [
         const src = async file => stripComments(await fetch(`/modules/${MODULE_ID}/scripts/${file}`).then(r => (r.ok ? lfText(r) : "")));
         const trial = await src("trial.mjs"), stash = await src("stash-reach.mjs"), doors = await src("doors-gm.mjs");
         read.flags = [/key:\s*"present"/.test(fnSource(trial, "presentOnPrimary")), /key:\s*"stashFound"/.test(stash),
-            (stash.match(/STASH_MISS\)/g) ?? []).length, /sfx:\s*"searchNothing"/.test(stash), (doors.match(/BEDROOM_SOUND\)/g) ?? []).length, /sfx:\s*"bedroomEntered"/.test(doors)];
+            (stash.match(/STASH_MISS\)/g) ?? []).length, /sfx:\s*"searchNothing"/.test(stash), /* the two bedroom cards through `bedroomExtra` since 1.2.124 (its sound and, for a lock broken, the middle of the
+               owner's screen, notice-centre.mjs "lockBroken"); the sound is BEDROOM_SOUND's in both */
+            (doors.match(/bedroomExtra\(/g) ?? []).length * (/\.\.\.BEDROOM_SOUND\.flags\[MODULE_ID\]/.test(doors) && /: BEDROOM_SOUND\);/.test(doors) ? 1 : 0), /sfx:\s*"bedroomEntered"/.test(doors)];
         const clock = { phase: "classTrial", chapter: 2 };
         const yes = () => true;
         read.vote = [
@@ -66237,6 +66412,57 @@ const INVARIANTS = [
             ghost: false, named: true, gone: true, aOnce: 1, aReload: true
         }), "{listed: the scripts loadedFiles names; ghost: the fixture's name reported as not arrived; named: it is named apart; gone: a module file the server lacks still is; aOnce, aReload: a.mjs fetched once by fileSizes, past the cache}");
     }],
+    ["R8690 - a thread card counts in its thread only when its author is a GM or that thread's player (1.2.124; line COMM's probe of 22.11.2026: messenger.mjs `threadCardAllowed`, `threadStatsOf`, `readEntryOf`)", async () => {
+        /* Red at 52057a2b: no `threadCardAllowed`, and a card p2 wrote naming p3's thread was counted in it. Stand-ins of
+           three cards in p3's thread - p3's own, a GM's, p2's - read as the pure counts read them; nothing written.
+           scenario 30's "another player's thread" drives the same on the browsers. */
+        const M = await import("./messenger.mjs");
+        must(typeof M.threadStatsOf === "function" && typeof M.readEntryOf === "function", "messenger.mjs exports no threadStatsOf or readEntryOf - this would measure nothing");
+        const card = (id, author, at) => ({ id, timestamp: at, author, flags: { [MODULE_ID]: { thread: "R8690P3000000000" } } });
+        const p3 = { id: "R8690P3000000000", isGM: false }, gm = { id: "R8690GM000000000", isGM: true }, p2 = { id: "R8690P2000000000", isGM: false };
+        const messages = [card("R8690OWN", p3, 1), card("R8690GMS", gm, 2), card("R8690P2S", p2, 3)];
+        const allowed = typeof M.threadCardAllowed === "function" ? messages.map(m => M.threadCardAllowed(m)) : null;
+        const row = M.threadStatsOf(messages, { me: p3.id, readMap: {}, isGM: false }).get(p3.id);
+        const entry = M.readEntryOf(messages, p3.id);
+        equal(stableJson({ allowed, count: row?.count ?? 0, last: row?.last?.id ?? null, unread: row?.unread ?? 0, read: entry?.ids ?? null }),
+            stableJson({ allowed: [true, true, false], count: 2, last: "R8690GMS", unread: 1, read: ["R8690OWN", "R8690GMS"] }),
+            "{allowed: p3's own card, a GM's, p2's; count, last, unread: p3's thread as counted on p3; read: the ids its read stamp keeps}");
+    }],
+    ["R8691 - told is shown and shown is told: a trace its leaver is told of on Hope or a critical, or that an incident's cast is shown, is told on its card, and every placement and its callers carry that answer to the copy its leaver is given (1.2.124, OWNER-124-TRACE; remnants.mjs `traceFeedback`, `narrowPlayerRemnant`, `noteToldTrace`, `placeRemnant`)", async () => {
+        /* Red at 2d17b74e: `traceFeedback` read the roll alone (an incident's trace on a Despair said nothing), no placement
+           carried the card's answer, and no road gave the leaver a copy. Pure parts on stand-ins; the callers read in the
+           source; nothing written. Scenario 73's "T: a told trace" drives the copy on the browsers. */
+        const R = await import("./remnants.mjs");
+        const sources = new Map(await otherSources());
+        const src = file => stripComments(sources.get(file) ?? "");
+        const incident = { getFlag: (scope, key) => scope === MODULE_ID && key === "fromIncident" };
+        const plain = { getFlag: () => undefined };
+        const rule = [
+            R.traceFeedback({ withHope: true }, plain), R.traceFeedback({ isCritical: true }, plain), R.traceFeedback({}, plain),
+            R.traceFeedback({ withHope: true }, null), R.traceFeedback({}, incident), R.traceFeedback({ withFear: true }, { document: incident })
+        ];
+        const where = { tokenDoc: { x: 1, y: 2 }, scene: { id: "R8691SCENE000001" }, room: "Gym" };
+        const actor = { id: "R8691ACTOR000001", name: "R8691", items: [] };
+        const claim = told => R.narrowPlayerRemnant({ visibility: "evident", action: "manual", told }, actor, where, {})?.data?.told ?? null;
+        const callers = {
+            search: /told: traceFeedback\(roll, true\)/.test(fnSource(src("action-search.mjs"), "leaveSearchTrace") ?? ""),
+            hideTraces: /told: traceFeedback\(trace, true\)/.test(fnSource(src("action-project.mjs"), "hideProjectTraces") ?? ""),
+            sabotage: /told: traceFeedback\(roll, true\)/.test(fnSource(src("action-project.mjs"), "dropSabotageTrace") ?? ""),
+            dynamic: /told: traceFeedback\(roll, true\)/.test(fnSource(src("action-dynamic.mjs"), "performDynamic") ?? ""),
+            discard: /told: traceFeedback\(roll, true\)/.test(fnSource(src("use-items.mjs"), "discardBroken") ?? ""),
+            tamper: /told: traceFeedback\(\{ isCritical, withHope \}, true\)/.test(fnSource(src("cleanup.mjs"), "leaveTamperTrace") ?? ""),
+            crisis: /traceFeedback\(\{[^}]*\}, last\)\)\s*\{[\s\S]{0,400}giveToldCopy\(doc\)/.test(fnSource(src("murder-rules.mjs"), "applyRemnant") ?? ""),
+            reroll: (fnSource(src("reroll.mjs"), "settleRemnant")?.match(/(?:giveToldCopy|noteToldTraceById)\((?:doc|bookmark\.remnantScene, bookmark\.remnantId)\)/g) ?? []).length,
+            placed: /if \(data\.told === true\) void giveToldCopy\(created\)/.test(fnSource(src("remnants.mjs"), "placeRemnant") ?? ""),
+            held: /drawnRecordOf\([\s\S]{0,120}if \(record && !traceFeedback\(record, true\)\) data\.told = false;/.test(fnSource(src("bridge-runs-records.mjs"), "handleRemnant") ?? ""),
+            copy: /mintFindCopy\(actor,[\s\S]{0,900}?tell: false/.test(fnSource(src("remnants.mjs"), "noteToldTrace") ?? "")
+                && /game\.actors\.get\(data\.sourceActor\)/.test(fnSource(src("remnants.mjs"), "noteToldTrace") ?? "")
+        };
+        equal(stableJson({ rule, claim: [claim(true), claim(false), claim("yes")], callers }), stableJson({
+            rule: [true, true, false, false, true, true], claim: [true, false, false],
+            callers: { search: true, hideTraces: true, sabotage: true, dynamic: true, discard: true, tamper: true, crisis: true, reroll: 2, placed: true, held: true, copy: true }
+        }), "{rule: Hope, a critical, a plain Despair, nothing placed, an incident's trace on a Despair, the same through its document; claim: a player's told kept only when it is true; callers: each placement carries the card's answer, the GM's roads give the copy, the primary holds a claim to its record of the roll, and the copy is the leaver's, made as a hit's with no word to the GMs}");
+    }],
     ["R8050 - Foundry's token HUD holds only the controls kept (1.2.120 line H; the owner, 21.11.2026: \"Niepotrzebne jest: combat, target, movement action, assign status, liczby na gorze i na dole i elevation\"): token-hud.mjs `trimHudFor` on Daggerheart 2.12.8's tokenHUD.hbs as drawn for a GM leaves the floor's palette, bring to front, the companion's button, lock, the token's settings and visibility, with no input, status palette, movement palette, target or combat; as drawn for a player it leaves nothing, the HUD marked not to be drawn (the owner, 21.11.2026: \"Niech gracz nie ma menu tokena\")", async () => {
         /*
          * 21.11.2026, 1.2.120 line H. The harness draws no token HUD (no canvas), so this hands the transform the markup
@@ -67113,6 +67339,163 @@ const INVARIANTS = [
         stableJson({ kept: 2, seeds: [[0.9, 0.3], [0.1, 0.7], [null, null], [null, null]], reads: [true, true, true], recut: true }),
         "{kept: two panes moved; seeds: moved 0.6 px, moved 30 px, a new pane, a pane cut to 0.4 of the old; reads: paintGlass's two numbers and the lum kept; recut: carried before the panes are replaced}");
     }],
+    ["R8670 - the notices that take the middle of the screen are one closed list (the owner's OWNER-124-NOTICES of 22.11.2026; 1.2.124 line UI): every `popupCentre` a script writes is a name of notice-centre.mjs `CENTRED_NOTICES`, every name has a writer, and `centreFlag` refuses a name not on it", async () => {
+        /* Red at 52057a2b: no notice-centre.mjs; body.mjs wrote `popupCentre: true` and the catch-all honoured a GM's `true`. */
+        const NC = await import("./notice-centre.mjs").catch(() => null);
+        must(NC && NC.CENTRED_NOTICES && typeof NC.centreFlag === "function", "no notice-centre.mjs - the middle of the screen has no list");
+        const sources = await moduleSources();
+        must(sources.size > 200, "the module's sources read as nothing - this would measure nothing");
+        const written = new Map();
+        for (const [file, text] of sources) {
+            if (/^tests/.test(file) || file === "notice-centre.mjs") continue;
+            for (const m of stripComments(text).matchAll(/popupCentre(?::|\s*=)\s*([^,};\n]+)/g)) {
+                for (const name of m[1].match(/"([A-Za-z]+)"/g) ?? [m[1].trim()]) written.set(name.replace(/"/g, ""), [...(written.get(name.replace(/"/g, "")) ?? []), file]);
+            }
+        }
+        // the day summary asks by showPopup's own option on the GM's screen (day-summary.mjs), not by the flag
+        const direct = [...sources].filter(([file, text]) => !/^tests/.test(file) && /centre:\s*true/.test(stripComments(text))).map(([file]) => file).sort();
+        const names = Object.keys(NC.CENTRED_NOTICES).sort();
+        let refused = false;
+        try { NC.centreFlag("notOnTheList"); } catch { refused = true; }
+        equal(stableJson({ notListed: [...written.keys()].filter(n => !names.includes(n)).sort(), unwritten: names.filter(n => !written.has(n) && !(n === "daySummary" && direct.includes("day-summary.mjs"))),
+            direct, refused, flag: NC.centreFlag("lockBroken") }),
+        stableJson({ notListed: [], unwritten: [], direct: ["day-summary.mjs"], refused: true, flag: { popupCentre: "lockBroken" } }),
+        "{notListed: a name written that the list lacks; unwritten: a name nobody writes; direct: showPopup's own centre callers; refused: a name not on the list; flag: the flags of a name}");
+    }],
+    ["R8671 - who a centred notice takes the middle for (OWNER-124-NOTICES; 1.2.124 line UI): notice-centre.mjs `centredNotice` answers yes for a listed name a GM wrote, and for a listed name read by its own writer; no for a player's card on another player's screen, for a name not on the list and for `true`", async () => {
+        /* Red at 52057a2b: no notice-centre.mjs. The catch-all took `popupCentre === true` from a GM alone. */
+        const NC = await import("./notice-centre.mjs").catch(() => null);
+        must(NC && typeof NC.centredNotice === "function", "no notice-centre.mjs `centredNotice`");
+        const gm = { id: "R8671gm", isGM: true }, p1 = { id: "R8671p1", isGM: false }, p2 = { id: "R8671p2", isGM: false };
+        const card = (author, popupCentre) => ({ author, flags: { [MODULE_ID]: { popupCentre } }, getFlag: (scope, key) => (scope === MODULE_ID ? { popupCentre }[key] : undefined) });
+        equal(stableJson({
+            gmToP1: NC.centredNotice(card(gm, "lockBroken"), p1),
+            ownResult: NC.centredNotice(card(p1, "actionResult"), p1),
+            othersResult: NC.centredNotice(card(p1, "actionResult"), p2),
+            notListed: NC.centredNotice(card(gm, "timeOfDay"), p1),
+            bare: NC.centredNotice(card(gm, true), p1),
+            none: NC.centredNotice(card(gm, undefined), p1)
+        }), stableJson({ gmToP1: true, ownResult: true, othersResult: false, notListed: false, bare: false, none: false }),
+        "{gmToP1: a GM's lock card; ownResult: a player's own result on its own screen; othersResult: on another's; notListed; bare true; none}");
+    }],
+    ["R8672 - the centred notices wait in order, one in front, closed by hand, and take no focus (OWNER-124-NOTICES; 1.2.124 line UI): popup.mjs `showPopup` with `centre` puts three cards on `#drpg-notice-centre`: the first shown, the other two parked and counted \"+2\" as a label; a click on the card closes nothing, its X closes it and the next in arrival order comes forward; a mousedown on it is cancelled; the stage is raised and goes with its last card; the corner holds none of them", async () => {
+        /* Red at 52057a2b: the centre cards went to the trial's evidence stage, two shown at once, the newest parked last. */
+        const P = await import("./popup.mjs");
+        const titles = ["R8672 one", "R8672 two", "R8672 three"];
+        const closers = titles.map(title => P.showPopup(`<p>${title}</p>`, { title, centre: true, record: false }));
+        try {
+            const stage = document.getElementById("drpg-notice-centre");
+            must(stage, "no #drpg-notice-centre stage was drawn - the cards went elsewhere");
+            const cards = () => [...stage.querySelectorAll(".drpg-popup:not(.leaving)")];
+            const front = () => cards().filter(c => !c.classList.contains("drpg-popup-parked")).map(c => c.querySelector(".drpg-popup-title")?.firstChild?.textContent?.trim());
+            const first = { front: front(), parked: cards().filter(c => c.classList.contains("drpg-popup-parked")).length,
+                more: stage.querySelector(".drpg-popup-more")?.textContent ?? null, moreIsButton: stage.querySelector(".drpg-popup-more")?.tagName === "BUTTON",
+                raised: stage.classList.contains("is-raised"), corner: document.querySelectorAll("#drpg-popups .drpg-popup").length };
+            const shown = cards().find(c => !c.classList.contains("drpg-popup-parked"));
+            shown.querySelector(".drpg-popup-body").click();
+            const afterClick = front();
+            const down = new MouseEvent("mousedown", { bubbles: true, cancelable: true });
+            shown.dispatchEvent(down);
+            // on top until its X: a touch sinks nothing (the owner's "na wierzchu", 22.11.2026)
+            shown.dispatchEvent(new Event("pointerdown", { bubbles: true }));
+            const stillRaised = stage.classList.contains("is-raised") && shown.classList.contains("is-raised");
+            shown.querySelector(".drpg-popup-close").click();
+            await new Promise(r => setTimeout(r, 1400));
+            const afterClose = { front: front(), parked: cards().filter(c => c.classList.contains("drpg-popup-parked")).length };
+            equal(stableJson({ first, afterClick, focusKept: down.defaultPrevented, stillRaised, afterClose }),
+                stableJson({ first: { front: ["R8672 one"], parked: 2, more: "+2", moreIsButton: false, raised: true, corner: 0 }, afterClick: ["R8672 one"], focusKept: true, stillRaised: true,
+                    afterClose: { front: ["R8672 two"], parked: 1 } }),
+            "{first: the oldest in front, two waiting as a label, raised, none in the corner; afterClick: a click on its words closes nothing; focusKept: its mousedown cancelled; afterClose: the next in order}");
+        } finally {
+            closers.forEach(close => close?.({ instant: true }));
+        }
+        await new Promise(r => setTimeout(r, 50));
+        ok(!document.getElementById("drpg-notice-centre"), "the notices' stage stayed after its last card closed");
+    }],
+    ["R8673 - the posters of the centred notices ask by name (OWNER-124-NOTICES; 1.2.124 line UI): action-report.mjs `rollCardFlags` and `report` ask `actionResult`, action-tail.mjs asks `failedShadow` when the target noticed and `actionResult` when not, doors-gm.mjs asks `lockBroken` for a lock picked, forced or breached and nothing for one only mended, body.mjs asks `bodyFound`", async () => {
+        /* Red at 52057a2b: none asked but body.mjs's `true`. */
+        const R = await import("./action-report.mjs");
+        const flags = R.rollCardFlags({ label: "Observe" }, { total: 12, withHope: true })?.flags?.[MODULE_ID] ?? {};
+        const sources = await moduleSources();
+        const src = f => stripComments(sources.get(f) ?? "");
+        must(src("doors-gm.mjs").length > 1000 && src("action-report.mjs").length > 1000, "the posters' sources read as nothing - this would measure nothing");
+        equal(stableJson({
+            rollCard: flags.popupCentre ?? null,
+            report: /popupTone: rollTone\(roll\),\s*popupCentre: "actionResult"/.test(src("action-report.mjs")),
+            tail: /popupCentre = seen \? "failedShadow" : "actionResult"/.test(src("action-tail.mjs"))
+                && /rollHead\(\{ label: game\.i18n\.localize\("DRPG\.Infiltrate\.tail\.unseenTitle"\) \}, shadow\)/.test(src("action-tail.mjs"))
+                && /rollHead\(\{ label \}, roll\)/.test(src("action-tail.mjs"))
+                && /\.\.\.tailCard\(label, roll, shadow, seen, target\.name\)/.test(src("action-tail.mjs")),
+            bedroom: /kinds\.some\(kind => kind !== "mended"\)[\s\S]{0,200}popupCentre: "lockBroken"/.test(src("doors-gm.mjs")),
+            bedroomCalls: (src("doors-gm.mjs").match(/whisperToOwnerOnly\(owner, await bedroomCard\([^)]*\)[^;]*bedroomExtra\(/g) ?? []).length,
+            body: /popupCentre: "bodyFound"/.test(src("body.mjs")),
+            // Shut, Force the Door, Pick the Lock (with its cover), Keep Watch and Dash: their roll over their sentence
+            infiltrate: [["action-doors.mjs", 3], ["action-watch.mjs", 1], ["action-listen.mjs", 1]].map(([f, n]) => (src(f).match(/whisperToOwner\(actor, \.\.\.rollResultCard\(/g) ?? []).length === n),
+            cover: /extra: coverLine/.test(src("action-doors.mjs")) && /neededNote\(rule\.cover\.threshold\)/.test(src("action-doors.mjs")),
+            tamper: /popupCentre: "actionResult", \.\.\.\(success \? \{\} : \{ sfx: "cleanupFailed" \}\)/.test(src("cleanup.mjs"))
+        }), stableJson({ rollCard: "actionResult", report: true, tail: true, bedroom: true, bedroomCalls: 2, body: true, infiltrate: [true, true, true], cover: true, tamper: true }),
+        "{rollCard: Observe/Analyze/Listen; report: every action's result; tail: noticed or not, the Shadow roll with its number first, then the effect roll; bedroom: not a lock only mended; bedroomCalls: both of the owner's cards; body; infiltrate: the five Infiltrate cards with their roll; cover: Pick's second roll; tamper: Tamper's card}");
+    }],
+    ["R8675 - a centred action card tells a Despair roll's trace no more than the corner did (the owner, 22.11.2026: \"by nie zdradzaly ze gracz zostawia remnant, gdy nie powinien o tym wiedziec\"; 1.2.124 line UI): action-report.mjs `reportHtml` with `leftTrace` from remnants.mjs `traceFeedback`, drawn centred by popup.mjs `showPopup`: a Despair roll with a trace placed and one with none give the same centred card, byte for byte, the number beside its dice included; a Hope roll with a trace says so and one with none does not", async () => {
+        /* Red at 52057a2b: no `reportHtml` and no centred card. The mutant that answers `traceFeedback` with `placed` alone
+           (the Despair card saying its trace) turns it red. */
+        const R = await import("./action-report.mjs");
+        const { traceFeedback } = await import("./remnants.mjs");
+        const P = await import("./popup.mjs");
+        must(typeof R.reportHtml === "function", "action-report.mjs has no reportHtml - the card's words cannot be read apart from its post");
+        const roll = (side, total, hope, fear) => ({ total, dc: "8 / 12 / 16", trait: "eye", withHope: side === "hope", withFear: side === "fear",
+            raw: { total, hope: { total: hope }, fear: { total: fear }, data: { traits: {} } } });
+        const centred = (rolled, placed) => {
+            const html = R.reportHtml({ label: "R8675 Search" }, rolled, { text: "R8675 nothing here", room: "Library", tokensLeft: 1, leftTrace: traceFeedback(rolled, placed) }, "Library");
+            const close = P.showPopup(html, { title: "R8675 Search", tone: R.rollTone(rolled), centre: true, record: false });
+            const card = document.querySelector("#drpg-notice-centre .drpg-popup:not(.leaving)");
+            const body = card?.querySelector(".drpg-popup-body")?.innerHTML ?? null;
+            const vs = card?.querySelector(".drpg-duality-vs")?.textContent ?? null;
+            close?.({ instant: true });
+            return { body, vs };
+        };
+        const despair = roll("fear", 11, 3, 6), hope = roll("hope", 13, 7, 4);
+        const [dPlaced, dNone, hPlaced, hNone] = [centred(despair, true), centred(despair, false), centred(hope, true), centred(hope, false)];
+        must(dPlaced.body && dPlaced.vs, "no centred card with its number beside the dice was drawn - this would measure nothing");
+        const said = c => c.body.includes(game.i18n.localize("DRPG.Action.leavesRemnant"));
+        equal(stableJson({ despairSame: dPlaced.body === dNone.body, despairSays: said(dPlaced), hopeSays: [said(hPlaced), said(hNone)], vsSame: dPlaced.vs === dNone.vs }),
+            stableJson({ despairSame: true, despairSays: false, hopeSays: [true, false], vsSame: true }),
+            "{despairSame: a Despair card with a trace and without, byte for byte; despairSays: it never says one; hopeSays: Hope with a trace, without; vsSame: the number beside the dice}");
+    }],
+    ["R8676 - a centred card is kept in the notice history as the corner's card, byte for byte (OWNER-124-NOTICES; 1.2.124 line UI): the same action card (action-report.mjs `reportHtml`, a Hope roll against one number) drawn in the corner and in the middle with the history held keeps two entries of the same words, html and title, and the centred one holds no `drpg-centre-only` addition though its screen shows \"needed N\" beside the dice", async () => {
+        /* Red at 52057a2b: no `reportHtml`. A mutant of popup.mjs's `kept` that keeps the centred additions turns it red. */
+        const R = await import("./action-report.mjs").catch(() => null);
+        const P = await import("./popup.mjs");
+        const NH = await import("./notice-history.mjs");
+        must(R && typeof R.reportHtml === "function", "action-report.mjs has no reportHtml");
+        const rolled = { total: 15, dc: 12, trait: "body", withHope: true, raw: { total: 15, hope: { total: 8 }, fear: { total: 5 }, data: { traits: {} } } };
+        const html = R.reportHtml({ label: "R8676 Force" }, rolled, { text: "R8676 the door gives way", leftTrace: false }, null);
+        await NH.holdNoticeHistory(true);
+        let entries = [], shown = null;
+        try {
+            const before = new Set(NH.noticeEntries().map(e => e.id));
+            const corner = P.showPopup(html, { title: "R8676 Force", tone: "hope", persist: "session" });
+            const centre = P.showPopup(html, { title: "R8676 Force", tone: "hope", centre: true, persist: "session" });
+            /* the words grow after the card is drawn, as a private card's do when they land (popup.mjs `watchCard`): the
+               entry is kept again from the card as it reads then, the centred additions with it unless they are struck */
+            for (const body of document.querySelectorAll(".drpg-popup-body")) {
+                if (body.textContent.includes("R8676 the door gives way")) body.insertAdjacentHTML("beforeend", "<p>R8676 later</p>");
+            }
+            await new Promise(r => setTimeout(r, 700));
+            shown = document.querySelector("#drpg-notice-centre .drpg-duality-vs")?.textContent ?? null;
+            entries = NH.noticeEntries().filter(e => !before.has(e.id));
+            corner?.({ instant: true });
+            centre?.({ instant: true });
+        } finally {
+            await NH.holdNoticeHistory(false);
+        }
+        must(entries.length === 2 && shown && entries.every(e => String(e.html).includes("R8676 later")),
+            "the two cards were not both kept again after their words grew, or the centred one showed no number beside its dice - this would measure nothing");
+        const [a, b] = entries;
+        equal(stableJson({ html: a.html === b.html, text: a.text === b.text, title: a.title === b.title, centreOnly: entries.some(e => String(e.html).includes("drpg-centre-only")), shown: Boolean(shown) }),
+            stableJson({ html: true, text: true, title: true, centreOnly: false, shown: true }),
+            "{html, text, title: the corner's and the middle's entries the same; centreOnly: an addition kept; shown: the middle showed it}");
+    }],
     ["R8431 - the token HUD's on toggles and its focus read under Stained Glass with high contrast (the audit of 1.2.120, H-1, H-7; 1.2.122 line UI): a rule under high contrast and the glass gives `.control-icon.active` the Bone ground and the Ink glyph after the high-contrast ground, and the glass draws the focus ring inside the hexagon (a negative `outline-offset`)", async () => {
         /* Red at 21bf5d18: the high-contrast rule (1,5,1) took the on toggle's ground to Ink under an Ink glyph, and the
            ring stood 2 px outside the clip. Read off the sheets' text; drawn in Chromium by docs/dev/ui122/hud-shots.mjs. */
@@ -67841,24 +68224,37 @@ function cornerGeometry() {
 }
 
 /**
- * THE CORNER'S GRID, READ BACK (E81 C12, 12.10.2026; R474 headless, R299 (a) and (c) in a browser). The three
- * buttons and the roster as the cascade places them - each one's inset from the right and from the bottom and its
+ * The GM's messenger window's place, held while a test opens and closes it (1.2.124): its close saves where it stood
+ * (messenger-app.mjs `savePosition`, a write of the client setting `messengerWindowPositions`), which tier 1 may not
+ * make. Every write of that key is answered here and not made; anything else goes through. Returns the put-back.
+ */
+function holdMessengerPositions() {
+    const settings = game.settings, own = Object.prototype.hasOwnProperty.call(settings, "set"), realSet = settings.set;
+    settings.set = function (scope, key, ...rest) {
+        if (scope === MODULE_ID && key === SETTINGS.messengerWindowPositions) return Promise.resolve(null);
+        return realSet.call(this, scope, key, ...rest);
+    };
+    return () => { if (own) settings.set = realSet; else delete settings.set; };
+}
+
+/**
+ * THE CORNER'S GRID, READ BACK (E81 C12, 12.10.2026; R474 headless, R299 (a) in a browser). The three
+ * buttons as the cascade places them - each one's inset from the right and from the bottom and its
  * size, through `cascadePx`, never a box: under Stained Glass the corner turns with its pane and a turned box is not
  * the button - set beside what the tokens say they should be. Every entry is a pair of strings rounded to 0.01 px or
  * a truth, so one `equal` shows the whole reading against the whole expectation.
  * The shape is the drawn one: the clip-path's hexagon (its slanted sides read off the polygon: from the top vertex
  * to (100%, k), so a side stands 0.25 / |(k, 0.5)| of the size from the centre, along that normal) or, with no
  * clip-path, Monokuma Legacy's circle. A pair on one row faces flat to flat, a pair across rows slanted to slanted.
- * `roster` is the panel to read (the caller's: a temporary one, or the GM's own); `views` the window sizes its
- * ceiling is worked out at - the window's own in a browser, where the value comes back already resolved.
+ * The GM's roster was read here as well until 1.2.124, which replaced it with a window of its own (messenger-gm.mjs,
+ * OWNER-124-CONSOLE): a window Foundry places, not a panel on the corner's grid.
  */
-function cornerReading(roster, views) {
+function cornerReading() {
     const body = document.body, glass = body.classList.contains("drpg-theme-stained-glass");
     const token = name => cascadePx(body, name);
     const round = value => Number.isFinite(value) ? value.toFixed(2) : String(value);
     const { place, clip, k, centre, gap } = cornerGeometry();
     const M = place("drpg-messenger-launcher"), S = place("drpg-sound-launcher"), B = place("drpg-book-launcher");
-    const upper = ["drpg-gm-launcher", "drpg-foundry-tools"].filter(id => document.getElementById(id)).map(place);
     const edge = token("--drpg-edge"), lift = token("--drpg-av-lift") || 0, clear = glass ? token("--drpg-launch-clear") || 0 : 0;
     const L = token("--drpg-launcher"), s = token("--drpg-launcher-small"), b = token("--drpg-launcher-book"), g = token("--drpg-launch-gap");
     const seen = {
@@ -67869,17 +68265,7 @@ function cornerReading(roster, views) {
         gaps: [gap(M, S), gap(M, B), gap(S, B)].map(round).join(" "),
         centred: round(centre(M).x - (centre(S).x + centre(B).x) / 2),
         above: centre(M).y > S.bottom + S.h && centre(M).y > B.bottom + B.h,
-        height: round(M.bottom + M.h - S.bottom),
-        roster: {
-            /* Over the upper row since E77 fix r2-H3 (13.10.2026): on the chat's foot it stood on the GM's red button and
-               Foundry tools. The row's top is the higher of the two on the page (Foundry tools is not there with the
-               windows switched off), read like the rest from the cascade; with neither, NaN, which the caller fails. */
-            foot: round(cascadePx(roster, "bottom") - Math.max(...upper.map(q => q.bottom + q.h), upper.length ? -Infinity : NaN)),
-            right: round(cascadePx(roster, "right") - M.right),
-            /* A ceiling below zero is none (CSS clamps it); the parser does not, so it is clamped here. */
-            top: views.map(view => view.h - cascadePx(roster, "bottom", view) - Math.max(0, cascadePx(roster, "max-height", view)))
-                .map(top => (top >= 8 - 0.05 ? "8 or more" : round(top))).join(" ")
-        }
+        height: round(M.bottom + M.h - S.bottom)
     };
     const want = {
         shape: glass ? "hexagon" : "none",
@@ -67889,8 +68275,7 @@ function cornerReading(roster, views) {
         gaps: [g, g, g].map(round).join(" "),
         centred: round(0),
         above: true,
-        height: round(token("--drpg-launch-h")),
-        roster: { foot: round(8), right: round(0), top: views.map(() => "8 or more").join(" ") }
+        height: round(token("--drpg-launch-h"))
     };
     return { seen, want };
 }

@@ -284,5 +284,6 @@ export async function showDaySummary(window = null) {
      * newest whole, the older ones by their words alone (notice-history.mjs, R292).
      */
     // in the middle of the screen, its rows one after another (E62 C5, MK-R2's card)
+    // in the middle (notice-centre.mjs's "daySummary": drawn here, on the GM's own screen, not by the catch-all)
     showPopup(content, { title: game.i18n.localize("DRPG.Summary.title"), sticky: true, source: "summary", centre: true });
 }

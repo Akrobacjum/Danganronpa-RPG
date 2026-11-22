@@ -2278,6 +2278,7 @@ async function swingFixture(identity = null) {
     const M = await import("./murder.mjs");
     const { livingStudents } = await import("./chapter.mjs");
     const { equippedFor } = await import("./use-items.mjs");
+    const { isTruthBullet } = await import("./truth-bullets.mjs");
     const player = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
     const [killer, victim] = livingStudents().filter(player);
     const { gameSettings } = CONFIG.DH.SETTINGS;
@@ -2301,7 +2302,9 @@ async function swingFixture(identity = null) {
     must(ready, `the fixture's fight is not at the killer's turn with the knife in hand: ${stableJson(M.murderState())}`);
     return { M, killer, victim, knife, putBack, traits,
         health: () => victim.system.resources.hitPoints.value,
-        handed: () => killer.items.filter(i => !had.has(i.id)).length };
+        /* A weapon handed, not a Truth Bullet: the swing's incident trace is told to its cast, and its leaver - the killer -
+           holds its copy at once (1.2.124, remnants.mjs `traceFeedback`, `noteToldTrace`), which is right by the rule. */
+        handed: () => killer.items.filter(i => !had.has(i.id) && !isTruthBullet(i)).length };
 }
 
 /**
@@ -25066,7 +25069,11 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             await R.settleSearch(actor, R.replayBookmark(F.row()), { total: 30, isCritical: false, withHope: true, withFear: false }, done);
             await settle();
             must(drawnHead && done.some(line => line.startsWith(drawnHead)), `the replay drew nothing - this would measure nothing: ${stableJson(done)}`);
-            read = actor.items.filter(i => !had.has(i.id) && !tools.some(t => t?.id === i.id) && !INV.isStashed(i)).length;
+            /* A find carried, not the searcher's copy of the trace the replay left on Hope: that copy is the rule's
+               (1.2.124, remnants.mjs `noteToldTrace`), and a Truth Bullet takes no slot (config.mjs ITEM_CATEGORIES
+               `truthBullet`: no limit, no group). */
+            read = actor.items.filter(i => !had.has(i.id) && !tools.some(t => t?.id === i.id) && !INV.isStashed(i)
+                && i.getFlag(MODULE_ID, "category") !== "truthBullet").length;
         } finally {
             for (const item of [...actor.items]) if (!had.has(item.id)) await item.delete();
             for (const [i, was] of stowed) if (actor.items.has(i.id)) await i.update({ [flag("location")]: was ?? forcedDeletion() });
@@ -56869,63 +56876,113 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             + "the note box after Chat and back, the dot before a note, the dot after one written meanwhile, the line names a renamed GM])");
     }],
 
-    ["1.2.122 REFR-15 COMM-34 CTRL-63 - the messenger's launcher is one button kept and redrawn in place, the GM's open roster follows a thread's new message, and a roster row opens its conversation from the keyboard (messenger-app.mjs `renderLauncher`, `refreshRoster`, `rosterRow`; the audit's REFR-15, COMM-34, CTRL-63)", async () => {
+    ["1.2.122 REFR-15 COMM-34 CTRL-63 - the messenger's launcher is one button kept and redrawn in place, the GM's open messenger window follows a thread's new message in its list, and a player's row there is a keyboard's control that shows the conversation (messenger-app.mjs `renderLauncher`, messenger-gm.mjs `refreshNav`, `navRow`; the audit's REFR-15, COMM-34, CTRL-63; the roster's until 1.2.124)", async () => {
         /*
          * The audit of 1.2.118: every thread event took the launcher off the page and built it again (COMM-34), so a
          * keyboard user's focus on it was thrown back to the page; the open roster kept the rows it was drawn with
-         * (REFR-15); a row was an li with a click listener alone, which Tab never reached (CTRL-63). On a GM's page: the
-         * launcher drawn and focused, the roster opened from it; a message posted into a player's thread; then the
-         * launcher's node and the focus, the player's row's preview, and the row's role, tab stop and Enter. Red at
-         * 21bf5d18: a new launcher node, the focus lost, the old preview, no role or tab stop, Enter opened nothing.
+         * (REFR-15); a row was an li with a click listener alone, which Tab never reached (CTRL-63). 1.2.124
+         * (OWNER-124-CONSOLE) put the roster's rows in the GM's window, and this holds them there. On a GM's page: the
+         * launcher drawn and focused, a message posted into a player's thread, the launcher's node and the focus read;
+         * then the window opened from the launcher, a second message posted, and the player's row read - its preview, its
+         * tag and tab stop - and clicked. Red at 21bf5d18 for the launcher's two readings; the rows' readings were the
+         * roster's there.
          */
-        needs(world.atLeast("playerAccounts", 1), "the roster lists a player's thread");
-        must(game.user.isGM, "the roster is a GM's");
-        must(!document.getElementById("drpg-messenger-roster"), "the GM's roster is open - close it: this test opens its own");
+        needs(world.atLeast("playerAccounts", 1), "the window lists a player's thread");
+        must(game.user.isGM, "the window is a GM's");
         const A = await import("./messenger-app.mjs");
+        must(!A.gmMessengerWindow(), "the GM's messenger window is open - close it: this test opens its own");
         const { sendMessage } = await import("./messenger.mjs");
         const [one] = game.users.filter(u => !u.isGM);
-        const earlier = A.DrpgMessengerApp.instances.get(one.id) ?? null;
         const kept = [SETTINGS.messengerLastRead, SETTINGS.messengerWindowPositions]
             .map(key => [key, foundry.utils.deepClone(game.settings.get(MODULE_ID, key))]);
-        const TEXT = `SUITE REFR-15 ${foundry.utils.randomID(6)}`;
+        const TEXT = `SUITE REFR-15 ${foundry.utils.randomID(6)}`, LATER = `SUITE REFR-15b ${foundry.utils.randomID(6)}`;
         const made = [];
         const hook = Hooks.on("createChatMessage", m => made.push(m.id));
         let read = null;
         try {
-            if (earlier) await earlier.close();
             A.renderLauncher();
             const launcher = document.getElementById("drpg-messenger-launcher");
             launcher.focus();
-            launcher.click();
-            await until(() => document.getElementById("drpg-messenger-roster"), 1000);
-            await settle();
             await sendMessage(one.id, TEXT);
             await settle();
-            await until(() => false, 100);
             const now = document.getElementById("drpg-messenger-launcher");
-            const rowOf = () => [...document.querySelectorAll("#drpg-messenger-roster .drpg-messenger-roster-row")]
-                .find(li => li.textContent.includes(one.name));
-            const row = rowOf();
-            const preview = row?.querySelector(".drpg-messenger-roster-preview")?.textContent ?? "";
-            const keys = [row?.getAttribute("role") ?? null, row?.tabIndex ?? null];
             const stillFocused = document.activeElement === launcher;
-            row?.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true, cancelable: true }));
+            launcher.click();
+            await until(() => A.gmMessengerWindow()?.rendered, 2000);
             await settle();
-            await until(() => A.DrpgMessengerApp.instances.get(one.id)?.rendered, 1000);
-            read = [now === launcher, stillFocused, preview.includes(TEXT), ...keys,
-                Boolean(A.DrpgMessengerApp.instances.get(one.id)?.rendered)];
+            await sendMessage(one.id, LATER);
+            await settle();
+            await until(() => false, 100);
+            const app = A.gmMessengerWindow();
+            const row = app?.element?.querySelector(`.drpg-messenger-gm-nav-row[data-drpg-view="${one.id}"]`) ?? null;
+            const preview = row?.querySelector(".drpg-messenger-roster-preview")?.textContent ?? "";
+            const keys = [row?.tagName ?? null, row?.tabIndex ?? null];
+            row?.click();
+            await until(() => app?.element?.querySelector(".drpg-messenger-log"), 2000);
+            read = [now === launcher, stillFocused, preview.includes(LATER), ...keys, app?.view === one.id && Boolean(app.element.querySelector(".drpg-messenger-log"))];
         } finally {
             Hooks.off("createChatMessage", hook);
-            await A.DrpgMessengerApp.instances.get(one.id)?.close();
-            for (const panel of document.querySelectorAll("#drpg-messenger-roster")) panel.remove();
+            await A.gmMessengerWindow()?.close();
             for (const id of made) await game.messages.get(id)?.delete();
             for (const [key, value] of kept) await game.settings.set(MODULE_ID, key, value);
             A.renderLauncher();
             await settle();
         }
-        equal(stableJson(read), stableJson([true, true, true, "button", 0, true]),
-            "the launcher was built again or lost the focus, the open roster kept an old row, or a row is not a keyboard's control "
-            + "([the same launcher node, the focus still on it, the row's preview shows the new message, the row's role, its tabIndex, Enter opened the conversation])");
+        equal(stableJson(read), stableJson([true, true, true, "BUTTON", 0, true]),
+            "the launcher was built again or lost the focus, the open window's list kept an old row, or a row is not a keyboard's control "
+            + "([the same launcher node after a message, the focus still on it, the row's preview shows the newer message, the row's tag, its tabIndex, its click showed the conversation])");
+    }],
+
+    ["1.2.124 OWNER-124-CONSOLE - the GM's Timeline lists a player's ruling card under Waiting with its answers live while it is open, and the same card in its stream without them; once the card is settled it leaves Waiting and stays in the stream, the Timeline's node kept (messenger-gm.mjs `waitingCard`, `threadEdited`)", async () => {
+        /*
+         * The owner, 22.11.2026: one console "ktory sluzy tylko do wciskania przyciskow na wiadomosciach wysylanych przez
+         * akcje", which "musialaby sie tez odswiezac na biezaco". On a GM's page: the window opened on its Timeline; a card
+         * with one answer posted for a player's character (call-gm.mjs `callGm`, the road every ruling card takes); the
+         * card read in Waiting (its buttons) and in the stream; then settled (`settleCall`, what a ruling ends on) and read
+         * again, with the Timeline's node. The card is deleted and the read state and the windows' places put back after.
+         */
+        needs(world.atLeast("playersWithCharacter", 1), "a ruling card is asked about a player's character");
+        must(game.user.isGM, "the Timeline is a GM's");
+        const A = await import("./messenger-app.mjs");
+        must(!A.gmMessengerWindow(), "the GM's messenger window is open - close it: this test opens its own");
+        const C = await import("./call-gm.mjs");
+        const P = await import("./action-pipeline.mjs");
+        const player = game.users.find(u => !u.isGM && u.character);
+        const actor = player.character;
+        const kept = [SETTINGS.messengerLastRead, SETTINGS.messengerWindowPositions]
+            .map(key => [key, foundry.utils.deepClone(game.settings.get(MODULE_ID, key))]);
+        const WORDS = `SUITE E124 ${foundry.utils.randomID(6)}`;
+        const made = [];
+        const hook = Hooks.on("createChatMessage", m => made.push(m.id));
+        let read = null;
+        try {
+            const app = A.openMessenger();
+            await until(() => app?.element?.querySelector(".drpg-console"), 2000);
+            const before = app.element.querySelector(".drpg-console");
+            await C.callGm(actor, { title: "SUITE E124", request: WORDS, actions: [P.ruledMissAction(actor)] });
+            await settle();
+            const card = () => made.map(id => game.messages.get(id))
+                .find(m => m && app.element.querySelector(`.drpg-console-stream-list [data-message-id="${m.id}"]`));
+            await until(() => card(), 2000);
+            const id = card()?.id ?? null;
+            const inWaiting = () => app.element.querySelector(`.drpg-console-waiting-list [data-message-id="${id}"]`);
+            const open = [Boolean(inWaiting()), inWaiting()?.querySelectorAll("[data-drpg-call]").length ?? 0,
+                app.element.querySelector(`.drpg-console-stream-list [data-message-id="${id}"]`)?.querySelectorAll("[data-drpg-call]").length ?? null];
+            await C.settleCall(game.messages.get(id), "SUITE E124 settled");
+            await settle();
+            await until(() => !inWaiting(), 2000);
+            read = { open, settled: [Boolean(inWaiting()), Boolean(app.element.querySelector(`.drpg-console-stream-list [data-message-id="${id}"]`)),
+                app.element.querySelector(".drpg-console") === before] };
+        } finally {
+            Hooks.off("createChatMessage", hook);
+            await A.gmMessengerWindow()?.close();
+            for (const id of made) await game.messages.get(id)?.delete();
+            for (const [key, value] of kept) await game.settings.set(MODULE_ID, key, value);
+            A.renderLauncher();
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ open: [true, 1, 0], settled: [false, true, true] }),
+            "[open: in Waiting, its answers there, its answers in the stream; settled: in Waiting, in the stream, the same Timeline node]");
     }],
 
     ["the case health check names a secret project and a note this browser does not hold, and a restore's flags keep a newer note's date", async () => {
@@ -115936,6 +115993,28 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         }
         equal(stableJson(read), stableJson({ desc: true, locked: true, redrawn: true, start: false }),
             "[the description typed written; the lock forced while open kept; the window drew it before Apply; the start lock Apply stored: as the window read it at the open, unlocked]");
+    }],
+    ["a GM's card that asks for the middle by a listed name is drawn there, through the catch-all, and kept; one that names no listed notice stays in the corner (OWNER-124-NOTICES; 1.2.124 line UI): two public cards posted with `announce`, `popupCentre: \"lockBroken\"` and `popupCentre: \"timeOfDay\"`; the first stands on `#drpg-notice-centre` with its message's id and a notice history entry, the second in `#drpg-popups`; both go with their messages", async () => {
+        /* Red at 52057a2b: no `#drpg-notice-centre`, and a name was not `true`, so both cards went to the corner. */
+        const { announce } = await import("./utils.mjs");
+        const posted = [];
+        const at = id => document.querySelector(`.drpg-popup[data-drpg-message="${id}"]`);
+        const waitFor = async (id, ms = 4000) => { const t0 = Date.now(); while (!at(id) && Date.now() - t0 < ms) await new Promise(r => setTimeout(r, 50)); return at(id); };
+        try {
+            const centred = await announce({ content: "<p>R8674 the lock</p>", flags: { [MODULE_ID]: { popupCentre: "lockBroken" } } });
+            const corner = await announce({ content: "<p>R8674 the hour</p>", flags: { [MODULE_ID]: { popupCentre: "timeOfDay" } } });
+            posted.push(centred, corner);
+            must(centred?.id && corner?.id, "announce posted no card - this would measure nothing");
+            const a = await waitFor(centred.id), b = await waitFor(corner.id);
+            equal(stableJson({ centred: a?.closest("#drpg-notice-centre, #drpg-popups, #drpg-evidence")?.id ?? null, kept: Boolean(a?.dataset.drpgNotice),
+                corner: b?.closest("#drpg-notice-centre, #drpg-popups, #drpg-evidence")?.id ?? null }),
+            stableJson({ centred: "drpg-notice-centre", kept: true, corner: "drpg-popups" }),
+            "{centred: the listed name's card on the notices' stage; kept: in the notice history; corner: a name not on the list}");
+        } finally {
+            for (const m of posted) if (m && game.messages.get(m.id)) await m.delete();
+        }
+        await new Promise(r => setTimeout(r, 1300));
+        ok(!posted.some(m => m?.id && at(m.id) && !at(m.id).classList.contains("leaving")), "a card stayed on screen after its message was deleted");
     }],
     ["Room setup's start-lock box shows the start lock Apply would keep, and a room the GM did not touch whose lock was forced while the window stood is not written (the audit's check of 1.2.122, r122-H-3; the line claude/refresh-120 for 1.2.123)", async () => {
         /*

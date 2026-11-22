@@ -105,6 +105,28 @@ export function isThreadUser(userId) {
     return Boolean(user && !user.isGM);
 }
 
+/*
+ * A THREAD IS ITS PLAYER'S AND THE GMS' (1.2.124; line COMM's probe of 22.11.2026: p2's console `sendMessage` posted into
+ * PlayerThree's thread). A thread card is a whispered ChatMessage with the module's `thread` flag, and the flag is the
+ * writer's to set: Foundry lets a player whisper any user and write any flag of its own message, so the module is where
+ * it is decided (the window already refused a player another's thread, messenger-app.mjs `openMessenger`; the console did
+ * not ask the window). A card counts in a thread only when the document's author - Foundry's stamp, not `cardWriter`, whose
+ * `askedBy` is meta - is a GM or that thread's own player; any other is placed in no thread on any browser
+ * (`threadMessages`, `threadStatsOf`, `readEntryOf`, the create and update listeners), and a player's own browser refuses
+ * to post one (`sendMessage`, `postToThread`). That the server stamps the author of a player's create is assumed, as the
+ * trust model assumes it (LIVE-E33-10). Pure but for what `cardFlag` reads.
+ */
+export function threadCardAllowed(message) {
+    const thread = cardFlag(message, MESSENGER_FLAGS.thread);
+    const author = message?.author ?? message?.user ?? null;
+    return Boolean(thread && author && (author.isGM || author.id === thread));
+}
+
+/** Whether this browser may post into `playerUserId`'s thread: a GM into any, a player into their own (above). */
+function mayPostInto(playerUserId) {
+    return Boolean(game.user?.isGM) || playerUserId === game.user?.id;
+}
+
 /* ==========================================================================
  * READING
  * ========================================================================== */
@@ -113,7 +135,7 @@ export function isThreadUser(userId) {
 export function threadMessages(playerUserId) {
     return game.messages
         // A veiled thread card keeps its thread in the meta its words brought (E06 C7a).
-        .filter(m => cardFlag(m, MESSENGER_FLAGS.thread) === playerUserId)
+        .filter(m => cardFlag(m, MESSENGER_FLAGS.thread) === playerUserId && threadCardAllowed(m))
         .sort((a, b) => a.timestamp - b.timestamp);
 }
 
@@ -157,7 +179,7 @@ function unreadUnder(message, at, entry) {
  * messages within `READ_SKEW_MS` under it; null when `previous` already holds all of that (nothing to mark).
  */
 export function readEntryOf(messages, thread, previous = null) {
-    const mine = [...(messages ?? [])].filter(m => cardFlag(m, MESSENGER_FLAGS.thread) === thread);
+    const mine = [...(messages ?? [])].filter(m => cardFlag(m, MESSENGER_FLAGS.thread) === thread && threadCardAllowed(m));
     const at = mine.reduce((max, m) => Math.max(max, m.timestamp ?? 0), 0);
     const ids = mine.filter(m => (m.timestamp ?? 0) > at - READ_SKEW_MS).map(m => m.id);
     const was = stampAt(previous);
@@ -171,7 +193,7 @@ export function threadStatsOf(messages, { me = null, readMap = {}, isGM = false 
     for (const message of messages ?? []) {
         // A veiled thread card keeps its thread in the meta its words brought (E06 C7a), which `cardFlag` reads.
         const thread = cardFlag(message, MESSENGER_FLAGS.thread);
-        if (!thread) continue;
+        if (!thread || !threadCardAllowed(message)) continue;
         let row = stats.get(thread);
         if (!row) stats.set(thread, row = { count: 0, unread: 0, last: null });
         row.count++;
@@ -300,6 +322,11 @@ export async function sendMessage(playerUserId, text, { kind = THREAD_KIND.dm, o
         warn(`Messenger: ${playerUserId} is not a player - refusing to send.`);
         return null;
     }
+    // Another player's thread, from a player's browser (1.2.124, `threadCardAllowed`): refused, and said as the window says it.
+    if (!mayPostInto(playerUserId)) {
+        ui.notifications?.warn(game.i18n.localize("DRPG.Messenger.onlyOwnThread"));
+        return null;
+    }
 
     const esc = foundry.utils.escapeHTML(body).replace(/\n/g, "<br>");
     return createThreadMessage(playerUserId, `<p>${esc}</p>`, kind, false, false, null, outcome, traitPass);
@@ -325,6 +352,11 @@ export async function sendMessage(playerUserId, text, { kind = THREAD_KIND.dm, o
  */
 export async function postToThread(playerUserId, html, { kind = THREAD_KIND.action, gmAsk = false, veiled = false, rid = null } = {}) {
     if (!isThreadUser(playerUserId)) return null;
+    // A player's card goes to their own thread alone (1.2.124, `threadCardAllowed`; call-gm.mjs `threadOf` sends it there).
+    if (!mayPostInto(playerUserId)) {
+        warn(`Messenger: a card for ${playerUserId}'s thread was not posted - a player posts into their own thread alone.`);
+        return null;
+    }
     return createThreadMessage(playerUserId, html, kind, gmAsk, veiled, rid);
 }
 
@@ -376,10 +408,11 @@ async function createThreadMessage(playerUserId, content, kind, gmAsk = false, v
  * --------------------------------------------------------------------------
  * `drpgMessengerMessage` lets an open window append the new message without a
  * full re-render (and without losing whatever the player was mid-typing).
- * `drpgMessengerRead` lets this browser's launcher badge and an open roster
+ * `drpgMessengerRead` lets this browser's launcher badge and the GM's list
  * refresh the moment a window here reads its thread (`Hooks.callAll` is this
  * browser's alone, and the read map a client setting, so no other client hears
- * it; the roster follows it since 1.2.122, messenger-app.mjs `refreshRoster`).
+ * it; the roster followed it from 1.2.122, the GM's window from 1.2.124,
+ * messenger-gm.mjs `refreshNav`).
  * `drpgMessengerEdited` carries a message that CHANGED - a ruling card being
  * closed out, today - so an open window can redraw that one bubble instead of
  * re-rendering itself and throwing away whatever is half-typed in the box.
@@ -398,6 +431,11 @@ async function onCreateChatMessage(message) {
         thread = cardFlag(message, MESSENGER_FLAGS.thread);
     }
     if (!thread) return;
+    // A card its author may not place in this thread is placed in none (1.2.124, `threadCardAllowed`).
+    if (!threadCardAllowed(message)) {
+        if (game.user.isGM) warn(`Messenger: card ${message.id} names ${thread}'s thread, and its author is neither a GM nor that player - left out of every thread.`);
+        return;
+    }
 
     // Relevant to this client only if it is their own thread, or they are a
     // GM - every GM sees every thread.
@@ -444,7 +482,7 @@ async function onCreateChatMessage(message) {
 function onUpdateChatMessage(message) {
     dropThreadStats();
     const thread = cardFlag(message, MESSENGER_FLAGS.thread);
-    if (!thread) return;
+    if (!thread || !threadCardAllowed(message)) return;
     if (!game.user.isGM && game.user.id !== thread) return;
     Hooks.callAll("drpgMessengerEdited", thread, message);
 }

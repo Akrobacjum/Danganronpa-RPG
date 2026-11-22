@@ -15,7 +15,8 @@
 import { INFILTRATE } from "./config.mjs";
 import { spendAction } from "./actions.mjs";
 import { whisperToOwner, esc } from "./utils.mjs";
-import { rollTrait, rollInHand, abort, spentAfterRoll, canAfford } from "./action-pipeline.mjs";
+import { rollTrait, rollInHand, abort, spentAfterRoll, canAfford, neededNote } from "./action-pipeline.mjs";
+import { rollResultCard } from "./action-report.mjs";
 import { locateActor, roomOfActor, neighbouringRooms, roomsKnownToMe } from "./movement.mjs";
 import { listenLabels } from "./action-listen.mjs";
 import { actionWindow } from "./action-menus.mjs";
@@ -41,7 +42,9 @@ export async function performShut(actor, options = {}) {
     if (!res.ok || res.value?.refused) return null;
     const room = res.value?.room ?? "";
     // The roller's result: E49's card under the Infiltrate tile's glyph (the coordinator's rule of 12.11.2026), its words as before.
-    await whisperToOwner(actor, { glyph: "ACTIONS.listen", body: `<p>${esc(game.i18n.format("DRPG.Infiltrate.shut.done", { room }))}</p>` });
+    // With its roll, in the middle of the roller's screen (action-report.mjs `rollResultCard`, 1.2.124).
+    await whisperToOwner(actor, ...rollResultCard(game.i18n.localize("DRPG.Infiltrate.row.shut.label"), roll,
+        `<p>${esc(game.i18n.format("DRPG.Infiltrate.shut.done", { room }))}</p>`));
     return { room, roll };
 }
 
@@ -93,7 +96,8 @@ export async function performForce(actor, options = {}) {
     const held = Array.isArray(res.value?.held) ? res.value.held : [];
     const shown = labelOf.get(room) ?? room;
     const key = forced ? "forced" : held.length ? "held" : "open";
-    await whisperToOwner(actor, { glyph: "ACTIONS.listen", body: `<p>${esc(game.i18n.format(`DRPG.Infiltrate.force.${key}`, { room: shown }))}</p>` });
+    // With its roll against the lock's number, in the middle of the roller's screen (`rollResultCard`, 1.2.124).
+    await whisperToOwner(actor, ...rollResultCard(label, roll, `<p>${esc(game.i18n.format(`DRPG.Infiltrate.force.${key}`, { room: shown }))}</p>`));
     return { forced, held, room, roll };
 }
 
@@ -154,6 +158,9 @@ export async function performPick(actor, options = {}) {
     const held = Array.isArray(res.value?.held) ? res.value.held : [];
     const shown = labelOf.get(room) ?? room;
     const key = opened ? "opened" : held.length ? "held" : "open";
-    await whisperToOwner(actor, { glyph: "ACTIONS.listen", body: `<p>${esc(game.i18n.format(`DRPG.Infiltrate.pick.${key}`, { room: shown }))}</p>` });
+    // With both rolls - the Hand against the lock's number, the cover against its own (`neededNote`) - in the middle of
+    // the roller's screen (`rollResultCard`, 1.2.124).
+    const coverLine = `<p><small>${esc(game.i18n.localize("DRPG.Infiltrate.pick.coverTitle"))} - <b>${esc(String(cover.total ?? ""))}</b>${esc(neededNote(rule.cover.threshold))}</small></p>`;
+    await whisperToOwner(actor, ...rollResultCard(label, roll, `<p>${esc(game.i18n.format(`DRPG.Infiltrate.pick.${key}`, { room: shown }))}</p>`, { extra: coverLine }));
     return { opened, held, room, roll };
 }

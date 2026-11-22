@@ -917,6 +917,8 @@ export async function hideProjectTraces(actor, project, progress, lines) {
         // A player's packet is never taken at its word on the tie: the GM reads it off this
         // project (bridge-runs-records.mjs `handleRemnant`, fix r2-G3).
         projectId: project.id,
+        // The card's answer, so its leaver holds the trace it tells of as a Truth Bullet (remnants.mjs `noteToldTrace`, 1.2.124).
+        told: traceFeedback(trace, true),
         action: "project",
         subject: project.name,
         note: trace
@@ -1431,7 +1433,7 @@ export function sabotageRepairScale(roll, score, relief) {
 
     // Sabotage always leaves a trace, success or not.
 async function dropSabotageTrace(actor, def, roll, { project, room, success, hit, repair }) {
-    const { dropRemnant } = await import("./remnants.mjs");
+    const { dropRemnant, traceFeedback } = await import("./remnants.mjs");
     const visibility = success ? hit.remnant : def.failureRemnant;
     // The type and the Faint mark are the Sabotage's `leavesRemnant` (config.mjs), not spelt here (E41 C1b).
     const { type, faint } = def.leavesRemnant;
@@ -1443,6 +1445,8 @@ async function dropSabotageTrace(actor, def, roll, { project, room, success, hit
         tiedToCrime: project && buildsOwnMurder(project.id, actor.id) ? true : null,
         visibility,
         faint,
+        // The card's answer, so its leaver holds the trace it tells of as a Truth Bullet (remnants.mjs `noteToldTrace`, 1.2.124).
+        told: traceFeedback(roll, true),
         action: "sabotage",
         rollId: rollInHand(actor)?.messageId ?? null,
         subject: project.name,

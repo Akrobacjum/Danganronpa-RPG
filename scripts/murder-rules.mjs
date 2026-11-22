@@ -2603,6 +2603,7 @@ async function applyRemnant(actor, visibility, def, band, done, reinforced = fal
     const count = Math.max(1, override?.count?.[band] ?? 1);
 
     let last = null;
+    const left = [];
     for (let i = 0; i < count; i++) {
         last = await dropRemnant(actor, {
             type: def.remnantType ?? "incident",
@@ -2612,13 +2613,18 @@ async function applyRemnant(actor, visibility, def, band, done, reinforced = fal
             action: "incident",
             note: def.label
         });
+        if (last) left.push(last);
     }
 
     // Never the exact band - see `traceFeedback` in remnants.mjs. Gated on
     // `band` rather than a roll object because that is all this function
     // ever had: Hope or a critical tells the killer/victim what they left,
     // a plain Despair does not.
+    /* And a trace the cast is shown is told, whatever the band (1.2.124, option B: `traceFeedback` reads the token's
+       `fromIncident`); each trace told is its leaver's Truth Bullet at once, not waited on (remnants.mjs `noteToldTrace`). */
     if (last && traceFeedback({ isCritical: band === "critical", withHope: band === "hope" }, last)) {
+        const { giveToldCopy } = await import("./remnants.mjs");
+        for (const doc of left) void giveToldCopy(doc);
         done.push(count > 1
             ? plural("DRPG.Murder.leftRemnants", { n: count })
             : game.i18n.localize("DRPG.Murder.leftRemnant"));

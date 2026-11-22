@@ -22,14 +22,14 @@
  *     A0 the harness's models (`ui.activeWindow` set by a first render and `bringToFront`, cleared by a close; a page
  *        hidden by `__pageVisibility`) are listed as unconfirmed on v14 (LIVE-E50-01, LIVE-E50-02).
  *
- *   B (E50 C2; E50-11, E50-13) - the counts and the GM's roster:
+ *   B (E50 C2; E50-11, E50-13) - the counts and the GM's list (the roster until 1.2.124):
  *     B1 gm, the primary, posts an ask in p1's thread from its own session, as the bridge does (`callGm` run on gm):
- *        gm's badge, its roster row for p1 and its count say 1 more, and gm2's too; gm reads it in p1's window: 0 on
+ *        gm's badge, its window's row for p1 and its count say 1 more, and gm2's too; gm reads it in p1's window: 0 on
  *        gm, still 1 on gm2. gm posts a second ask: 1 on gm; gm settles it (`settleCall`): 0 on gm, 2 on gm2; and
  *        (fix FG2, F2) the launcher's badge is the count on both before anything is opened, again after gm posts a
  *        third ask and gm2 settles it (the settle reaching gm as new words alone); gm2 reads the thread: 0.
- *     B2 the roster on gm and on gm2: three clicks inside leave it open, the outside click after them closes it,
- *        two opens in a row leave one roster.
+ *     B2 the GM's window on gm and on gm2: two opens in a row leave one (the roster's one road to close until
+ *        1.2.124, which replaced it with the window).
  *
  *   C (E50 C3; E50-20 to E50-22, E50-25) - the Sound window saves as you go, and the primary follows:
  *     C0 Foundry's curve for the Music slider (AudioHelper, read in fvtt-types) is listed as unconfirmed (LIVE-E50-03).
@@ -116,7 +116,7 @@ export async function run({ gm, gm2, p1, p2, p3, check, phase, settle, environme
     const UNREAD = `${M} return M.unreadCount("${P1}");`;
     const unread = async () => ({ gm: await gm.eval(UNREAD), gm2: await gm2.eval(UNREAD), p1: await p1.eval(UNREAD) });
     // What a browser's open window of p1's thread shows: its tab, the bubbles' words, the empty notice, whether it is in front.
-    const WINDOW = `${M} const app = A.DrpgMessengerApp.instances.get("${P1}") ?? null;
+    const WINDOW = `${M} const app = A.threadWindow("${P1}") ?? null;
         const log = app?.element?.querySelector(".drpg-messenger-log") ?? null;
         return { open: Boolean(app?.rendered), tab: app?.tab ?? null, front: Boolean(app) && ui.activeWindow === app,
             bubbles: log ? [...log.querySelectorAll(".drpg-messenger-bubble")].map(b => ({ id: b.dataset.messageId, text: b.textContent.trim().slice(-60) })) : null,
@@ -146,17 +146,17 @@ export async function run({ gm, gm2, p1, p2, p3, check, phase, settle, environme
     const start = { thread: await gm.eval(`${M} return M.threadMessages("${P1}").length;`), unread: await unread() };
     check("A1: p1's thread starts empty and unread nowhere", start.thread === 0 && start.unread.gm === 0 && start.unread.gm2 === 0 && start.unread.p1 === 0, J(start));
     const opened = await gm2.eval(OPEN);
-    await gm2.eval(`${M} ${UNTIL} const app = A.DrpgMessengerApp.instances.get("${P1}");
+    await gm2.eval(`${M} ${UNTIL} const app = A.threadWindow("${P1}");
         app.element.querySelector('nav.drpg-tabs [data-drpg-tab-key="note"]').click(); await until(() => app.element.querySelector(".drpg-messenger-note-text")); return true;`);
     const a1Sent = await p1.eval(`${M} const m = await M.sendMessage("${P1}", ${J(WORDS.a1)}); return m?.id ?? null;`, { timeout: 60000 });
     await settle(900);
     // The Note tab drawn again (a note changed, a click on Note): a render that does not show the chat.
-    await gm2.eval(`${M} ${UNTIL} const app = A.DrpgMessengerApp.instances.get("${P1}"); await app.render(); await new Promise(r => setTimeout(r, 200)); return app.tab;`);
+    await gm2.eval(`${M} ${UNTIL} const app = A.threadWindow("${P1}"); await app.render(); await new Promise(r => setTimeout(r, 200)); return app.tab;`);
     const a1Note = { unread: await unread(), window: await gm2.eval(WINDOW) };
     check("A1: p1's message stays unread on gm2 while gm2's window is drawn on its Note tab, and is unread on gm (S11-37, E50-01)",
         opened && Boolean(a1Sent) && a1Note.window.tab === "note" && a1Note.unread.gm2 === 1 && a1Note.unread.gm === 1 && a1Note.unread.p1 === 0,
         J({ opened, a1Sent, a1Note }), { flow: "messenger" });
-    await gm2.eval(`${M} ${UNTIL} const app = A.DrpgMessengerApp.instances.get("${P1}");
+    await gm2.eval(`${M} ${UNTIL} const app = A.threadWindow("${P1}");
         app.element.querySelector('nav.drpg-tabs [data-drpg-tab-key="chat"]').click(); await until(() => app.element.querySelector(".drpg-messenger-log")); await new Promise(r => setTimeout(r, 300)); return true;`);
     const a1Chat = { unread: await unread(), window: await gm2.eval(WINDOW) };
     check("A1: gm2 goes to the Chat tab: read on gm2, still unread on gm - each browser keeps its own read state",
@@ -170,7 +170,7 @@ export async function run({ gm, gm2, p1, p2, p3, check, phase, settle, environme
     const SEEN = wait => `${M} ${UNTIL} const S = await import("${repoUrl}/scripts/secret.mjs"); const NH = await import("${repoUrl}/scripts/notice-history.mjs");
         const ask = () => M.threadMessages("${P1}").find(m => S.cardFlag(m, M.MESSENGER_FLAGS.gmAsk) && S.contentOf(m).includes(${J(WORDS.a1b)}));
         await until(() => ask() && ${wait});
-        const id = ask()?.id ?? null, app = A.DrpgMessengerApp.instances.get("${P1}") ?? null;
+        const id = ask()?.id ?? null, app = A.threadWindow("${P1}") ?? null;
         return { id, front: Boolean(app) && ui.activeWindow === app, tab: app?.tab ?? null, visible: document.visibilityState,
             bubble: Boolean(id && document.querySelector('.drpg-messenger-bubble[data-message-id="' + id + '"]')),
             kept: NH.noticeEntries().filter(e => e.messageId === id).length, unread: M.unreadCount("${P1}") };`;
@@ -201,7 +201,7 @@ export async function run({ gm, gm2, p1, p2, p3, check, phase, settle, environme
         a2Asked === true && a2.bubble && a2.unread === 1 && a2.kept.length === 1
             && J(a2.kept[0]) === J({ source: "messenger", messageId: a2.id, link: P1 }),
         J({ a2Asked, a2 }), { flow: "messenger" });
-    const a2Front = await gm2.eval(`${M} const app = A.DrpgMessengerApp.instances.get("${P1}"); app.bringToFront();
+    const a2Front = await gm2.eval(`${M} const app = A.threadWindow("${P1}"); app.bringToFront();
         await new Promise(r => setTimeout(r, 300)); await foundry.applications.instances.get("s87-other")?.close();
         return { front: ui.activeWindow === app, unread: M.unreadCount("${P1}") };`);
     check("A2: gm2 brings the window forward: read", a2Front.unread === 0, J(a2Front), { flow: "messenger" });
@@ -216,7 +216,7 @@ export async function run({ gm, gm2, p1, p2, p3, check, phase, settle, environme
         const NH = await import("${repoUrl}/scripts/notice-history.mjs");
         await until(() => document.querySelector('.drpg-messenger-bubble[data-message-id="${a3Sent}"]'));
         await until(() => NH.noticeEntries().some(e => e.messageId === "${a3Sent}"), 3000);
-        const app = A.DrpgMessengerApp.instances.get("${P1}");
+        const app = A.threadWindow("${P1}");
         return { front: ui.activeWindow === app, bubble: Boolean(document.querySelector('.drpg-messenger-bubble[data-message-id="${a3Sent}"]')), unread: M.unreadCount("${P1}"),
             kept: NH.noticeEntries().filter(e => e.messageId === "${a3Sent}").map(e => ({ source: e.source, link: e.link?.messenger ?? null })) };`, { timeout: 60000 });
     check("A3: with p1's page hidden, gm's reply is in p1's window, unread on p1, and p1 is shown its card (E50-01, E50-02)",
@@ -229,7 +229,7 @@ export async function run({ gm, gm2, p1, p2, p3, check, phase, settle, environme
     /* ------------------------------ A4. a failed send ------------------------------ */
     phase("A4: p1's send fails once", { flow: "messenger" });
     const SUBMIT = `${M} ${UNTIL}
-        const app = A.DrpgMessengerApp.instances.get("${P1}");
+        const app = A.threadWindow("${P1}");
         const area = app.element.querySelector(".drpg-messenger-input textarea");
         area.value = ${J(WORDS.a4)};
         app.element.querySelector(".drpg-messenger-input").requestSubmit();
@@ -287,23 +287,20 @@ export async function run({ gm, gm2, p1, p2, p3, check, phase, settle, environme
             && reads.slice(0, -1).every(r => !r.p1Empty && !r.gm2Empty) && reads.at(-1)?.p1Empty === true && reads.at(-1)?.gm2Empty === true,
         J({ ids, before: { p1: before.p1.bubbles, gm2: before.gm2.bubbles }, reads }), { flow: "messenger" });
 
-    for (const client of [p1, gm2]) await client.eval(`${M} await A.DrpgMessengerApp.instances.get("${P1}")?.close(); return true;`);
+    for (const client of [p1, gm2]) await client.eval(`${M} await A.threadWindow("${P1}")?.close(); return true;`);
     await settle(200);
 
     /* ------------------------------ B1. the primary's own asks ------------------------------ */
     phase("B1: gm, the primary, posts an ask in p1's thread from its own session; gm and gm2 count it", { flow: "messenger" });
-    // A GM's three readings of p1's thread: the count, the launcher's badge, and p1's row in the roster (opened, read, closed by an outside click).
+    // A GM's three readings of p1's thread: the count, the launcher's badge, and p1's row in the GM's window's list - the
+    // window opened on its Timeline, which marks nothing read, read and closed (the roster's row until 1.2.124).
     const COUNTS = `${M} ${UNTIL}
         const badge = Number(document.querySelector("#drpg-messenger-launcher .drpg-messenger-badge")?.textContent ?? 0);
-        A.openMessenger();
-        await until(() => document.getElementById("drpg-messenger-roster"), 2000);
-        const name = game.users.get("${P1}")?.name;
-        const row = [...document.querySelectorAll("#drpg-messenger-roster .drpg-messenger-roster-row")].find(li => li.querySelector(".drpg-messenger-roster-name")?.textContent === name);
+        const app = A.openMessenger();
+        await until(() => app?.element?.querySelector(".drpg-messenger-gm-nav"), 2000);
+        const row = app?.element?.querySelector('.drpg-messenger-gm-nav-row[data-drpg-view="${P1}"]') ?? null;
         const inRow = row ? Number(row.querySelector(".drpg-messenger-badge")?.textContent ?? 0) : null;
-        await new Promise(r => setTimeout(r, 50));
-        document.body.click();
-        await until(() => !document.getElementById("drpg-messenger-roster"), 2000);
-        for (const left of document.querySelectorAll("#drpg-messenger-roster")) left.remove();
+        await app?.close();
         return { unread: M.unreadCount("${P1}"), badge, row: inRow };`;
     const counts = async () => ({ gm: await gm.eval(COUNTS), gm2: await gm2.eval(COUNTS) });
     const ASK = words => `const B = await import("${repoUrl}/scripts/gm-bridge.mjs");
@@ -318,7 +315,7 @@ export async function run({ gm, gm2, p1, p2, p3, check, phase, settle, environme
     const b1Author = await gm.eval(`return game.messages.get(${J(b1Card.gm)})?.author?.id ?? null;`);
     const b1After = await counts();
     const plusOne = (after, before) => after.unread === before.unread + 1 && after.badge === before.badge + 1 && after.row === (before.row ?? 0) + 1;
-    check("B1: an ask the primary posts in p1's thread from its own session is unread for it - its badge, its roster row and its count - and for gm2 (S11-45, E50-11)",
+    check("B1: an ask the primary posts in p1's thread from its own session is unread for it - its badge, its row in the GM's window and its count - and for gm2 (S11-45, E50-11)",
         b1Asked === true && Boolean(b1Card.gm) && b1Card.gm === b1Card.gm2 && b1Author === gm.userId
             && plusOne(b1After.gm, b1Before.gm) && plusOne(b1After.gm2, b1Before.gm2),
         J({ b1Asked, b1Card, b1Author, b1Before, b1After }), { flow: "messenger" });
@@ -327,7 +324,7 @@ export async function run({ gm, gm2, p1, p2, p3, check, phase, settle, environme
     const b1Read = await counts();
     check("B1: gm reads p1's thread: 0 on gm, the ask still unread on gm2",
         b1Read.gm.unread === 0 && b1Read.gm2.unread === b1After.gm2.unread, J(b1Read), { flow: "messenger" });
-    await gm.eval(`${M} await A.DrpgMessengerApp.instances.get("${P1}")?.close(); return true;`);
+    await gm.eval(`${M} await A.threadWindow("${P1}")?.close(); return true;`);
     await settle(200);
     await gm.eval(ASK(WORDS.b1b), { timeout: 60000 });
     const b1bId = await gm.eval(ASK_HERE(WORDS.b1b), { timeout: 60000 });
@@ -366,34 +363,28 @@ export async function run({ gm, gm2, p1, p2, p3, check, phase, settle, environme
     await settle(400);
     const b1bRead = await gm2.eval(UNREAD);
     check("B1: gm2 reads p1's thread: 0 on gm2", b1bRead === 0, J({ b1bRead }), { flow: "messenger" });
-    await gm2.eval(`${M} await A.DrpgMessengerApp.instances.get("${P1}")?.close(); return true;`);
+    await gm2.eval(`${M} await A.threadWindow("${P1}")?.close(); return true;`);
     await settle(200);
 
-    /* ------------------------------ B2. one road to close the roster ------------------------------ */
-    phase("B2: the roster on gm and gm2 - clicks inside, the outside click, two opens", { flow: "messenger" });
-    const ROSTER = `${M} ${UNTIL}
-        const n = () => document.querySelectorAll("#drpg-messenger-roster").length;
+    /* ------------------------------ B2. one window ------------------------------ */
+    /* Until 1.2.124 this was the roster's one road to close (S11-44, E50-13: an outside click spent on the first click
+       inside, and two opens built two rosters). The roster went with OWNER-124-CONSOLE; what is left of the promise is
+       the window's: two opens in a row leave one GM window, on gm and on gm2 each. */
+    phase("B2: the GM's window on gm and gm2 - two opens leave one", { flow: "messenger" });
+    const ONE = `${M} ${UNTIL}
+        const n = () => document.querySelectorAll("#drpg-messenger-gm").length;
         try {
             A.openMessenger();
-            await new Promise(r => setTimeout(r, 50));
-            const panel = document.getElementById("drpg-messenger-roster");
-            for (const target of [panel?.querySelector("h4"), panel, panel?.querySelector("h4")]) target?.click();
-            const inside = n() === 1 && !panel.classList.contains("leaving");
-            document.body.click();
-            const closed = await until(() => n() === 0, 2000);
             A.openMessenger();
-            A.openMessenger();
-            const twice = n();
+            await until(() => A.gmMessengerWindow()?.rendered, 2000);
             await new Promise(r => setTimeout(r, 50));
-            document.body.click();
-            const after = await until(() => n() === 0, 2000);
-            return { inside, closed: Boolean(closed), twice, after: Boolean(after) };
+            return { twice: n(), view: A.gmMessengerWindow()?.view ?? null };
         } finally {
-            for (const left of document.querySelectorAll("#drpg-messenger-roster")) left.remove();
+            await A.gmMessengerWindow()?.close();
         }`;
-    const b2 = { gm: await gm.eval(ROSTER), gm2: await gm2.eval(ROSTER) };
-    const b2Want = J({ inside: true, closed: true, twice: 1, after: true });
-    check("B2: on gm and on gm2 the roster stays open through clicks inside, closes on the outside click after them, and two opens leave one (S11-44, E50-13)",
+    const b2 = { gm: await gm.eval(ONE), gm2: await gm2.eval(ONE) };
+    const b2Want = J({ twice: 1, view: "console" });
+    check("B2: on gm and on gm2 two opens of the messenger leave one GM window, on its Timeline (S11-44, E50-13; the roster's until 1.2.124)",
         J(b2.gm) === b2Want && J(b2.gm2) === b2Want, J(b2), { flow: "messenger" });
 
     /* ------------------------------ C. the Sound window and the primary's playback ------------------------------ */
@@ -685,7 +676,7 @@ export async function run({ gm, gm2, p1, p2, p3, check, phase, settle, environme
             noAnswer: game.i18n.localize("DRPG.Bridge.why.noAnswer"), failed: game.i18n.localize("DRPG.Messenger.sendFailed"),
             unsure: game.i18n.localize("DRPG.Messenger.sendUnsure") };`, { timeout: 60000 });
     const D4_SEND = words => `${M} ${UNTIL} const words = ${J(words)};
-        const app = A.DrpgMessengerApp.instances.get("${P1}");
+        const app = A.threadWindow("${P1}");
         const area = app.element.querySelector(".drpg-messenger-input textarea");
         const from = globalThis.__s87Says.length;
         area.value = words;
@@ -729,7 +720,7 @@ export async function run({ gm, gm2, p1, p2, p3, check, phase, settle, environme
     // Put back: p1's toasts and window, and the card the primary posted.
     await p1.eval(`${M} for (const [kind, fn] of Object.entries(globalThis.__s87SaysReal ?? {})) ui.notifications[kind] = fn;
         delete globalThis.__s87SaysReal; delete globalThis.__s87Says;
-        await A.DrpgMessengerApp.instances.get("${P1}")?.close(); return true;`);
+        await A.threadWindow("${P1}")?.close(); return true;`);
     await gm.eval(`const ids = await (async () => { ${ON_GM} })(); for (const id of ids) await game.messages.get(id)?.delete(); return ids.length;`, { timeout: 60000 });
     await settle(600);
 

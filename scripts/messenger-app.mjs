@@ -10,8 +10,9 @@
  *
  *   the launcher       A small persistent button, bottom-right. A player
  *                      clicks it to open their own thread. A GM clicks it to
- *                      open a roster - every player, an unread badge, a
- *                      one-line preview - and picks who to open.
+ *                      open the GM's messenger window (messenger-gm.mjs, since
+ *                      1.2.124): the Timeline and every player's conversation
+ *                      in one window. The roster it opened until then is gone.
  *
  * No Handlebars template: the rest of this module builds DOM by hand, so
  * ApplicationV2 is used here without the Handlebars mixin, for the same
@@ -25,7 +26,7 @@ import { DrpgApp, drpgWindow, kitTabBar, wireKitTabs, stepper, stepperId, tipTex
 import { showPopup } from "./popup.mjs";
 import {
     MESSENGER_FLAGS, THREAD_KIND,
-    threadUsers, isThreadUser, threadMessages, threadStats,
+    isThreadUser, threadMessages,
     totalUnread, markThreadRead, sendMessage
 } from "./messenger.mjs";
 import { noteFor, noteStatus, noteTemplate, saveNote, whenNotesHeld } from "./pre-session-note.mjs";
@@ -34,6 +35,7 @@ import { markOutcome, rollOutcomeOf } from "./private-rolls.mjs";
 import { playSfx } from "./sfx.mjs";
 
 import { contentOf, shownWordsOf, wordsOf, cardFlag, cardWriter, readersLines, dropOldGmLines } from "./secret.mjs";
+import { gmMessengerClass } from "./messenger-gm.mjs";
 
 
 const LAUNCHER_ID = "drpg-messenger-launcher";
@@ -46,7 +48,8 @@ export function registerMessengerUi() {
     /* A card that changed: a settled ask no longer counts for the GM that posted it (messenger.mjs `threadStatsOf`, E50
        C2), and a settle reaches a browser as this hook alone - new words through `updateSecret` (secret.mjs `remember`),
        or a document's update - so the badge is drawn again here (E50 fix FG2; the end review's F2, 87 B1). Since 1.2.122
-       an open roster's rows follow too, as they do for a message or a read (`refreshRoster`, the audit's REFR-15). */
+       the GM's window's list follows too, as it does for a message or a read (`refreshNav`; the roster's rows did until
+       1.2.124, the audit's REFR-15). */
     Hooks.on("drpgMessengerEdited", () => renderLauncher());
     Hooks.on("drpgMessengerDeleted", onMessengerDeleted);
     /* The page shown again (another tab, a minimised browser): the frontmost messenger window reads what came while it
@@ -59,12 +62,16 @@ export function registerMessengerUi() {
     // A note changed on this browser (settings.mjs, the note store's and copy's `onChange`).
     Hooks.on("drpgNotesChanged", () => {
         for (const app of DrpgMessengerApp.instances.values()) app.refreshNote();
+        gmMessengerWindow()?.refreshNote();
     });
     /* A user created, renamed or given another role (1.2.122, the audit's REFR-53): the open windows' title and
        participants line read the users at their render alone. Followed in place, never redrawn under the typing. */
     for (const hook of ["createUser", "updateUser", "deleteUser"]) {
         Hooks.on(hook, () => {
             for (const app of DrpgMessengerApp.instances.values()) app.refreshHead();
+            const gm = gmMessengerWindow();
+            if (gm?.view !== "console") gm?.refreshHead();
+            gm?.refreshNav();
         });
     }
 
@@ -102,25 +109,14 @@ export function openMessenger(playerUserId = game.user.id) {
     }
 
     /*
-     * A GM ASKING FOR "THE MESSENGER" MEANS THE ROSTER (D-F4).
-     *
-     * The default is the caller's own id, and a GM has no thread of their own -
-     * threads belong to players and a GM is the other end of all of them. So
-     * `game.drpg.openMessenger()` from a GM's console or a macro fell straight
-     * through to "that is not a player" and opened nothing at all: the one call
-     * with an obvious meaning was the one call that did nothing.
-     *
-     * It means "show me my conversations", and that list already exists - it is
-     * what the launcher's own button opens. Only the no-argument case is
-     * redirected; a GM naming a player still gets that player's thread, and a
-     * player still gets their own.
+     * A GM'S EVERY CONVERSATION IS ONE WINDOW (1.2.124, the owner's request OWNER-124-CONSOLE: "Okno gma niech otwiera
+     * zupelnie nowe okno. Niech znajduje sie tam konsola, a takze mozliwosc przelaczenia sie na czat z dowolnym
+     * graczem"). A GM naming a player gets that player's view of the GM's window; a GM naming nobody, or a GM, the
+     * Timeline. Every road that opened a GM's thread comes here: the launcher, a card's click, the notice history's Open
+     * conversation, the Players sidebar's entry, `game.drpg.openMessenger`. A GM's `openMessenger()` with no argument
+     * named the GM's own id, which no thread has, and opened the roster until 1.2.124 (D-F4); now the Timeline.
      */
-    if (game.user.isGM && playerUserId === game.user.id && !isThreadUser(playerUserId)) {
-        // No anchor: that argument only exists so the click which opened the
-        // panel does not immediately close it, and this call came from script.
-        buildRoster(null);
-        return null;
-    }
+    if (game.user.isGM) return openGmMessenger(isThreadUser(playerUserId) ? playerUserId : "console");
 
     if (!isThreadUser(playerUserId)) {
         ui.notifications.warn(game.i18n.localize("DRPG.Messenger.notAPlayer"));
@@ -593,9 +589,54 @@ export class DrpgMessengerApp extends DrpgApp() {
     }
 }
 
+/* THE GM'S WINDOW (1.2.124; messenger-gm.mjs): the thread window's class, with the Timeline and the list of players.
+   Exported for the suite alone (R1339 stands a folded window in as `current`). */
+export const DrpgGmMessengerApp = gmMessengerClass(DrpgMessengerApp, {
+    buildBubble: message => buildBubble(message),
+    previewOf: message => stripHtml(contentOf(message)),
+    savePosition: (key, position) => savePosition(key, position)
+});
+
+/** The GM's messenger window opened, or raised and turned to `view` ("console" or a player's id). */
+export function openGmMessenger(view = "console") {
+    const existing = DrpgGmMessengerApp.current;
+    if (existing) {
+        if (existing.view !== view) existing.setView(view);
+        if (existing.minimized) Promise.resolve(existing.maximize()).catch(err => debug("Could not unfold the messenger", err));
+        existing.bringToFront();
+        return existing;
+    }
+    const app = new DrpgGmMessengerApp(view);
+    DrpgGmMessengerApp.current = app;
+    app.render({ force: true });
+    return app;
+}
+
+/** This browser's GM messenger window, or null (the suite's, and the routing below). */
+export function gmMessengerWindow() {
+    return DrpgGmMessengerApp.current ?? null;
+}
+
+/**
+ * The window that shows a player's conversation here, or null: on a GM the GM's window while it shows that player's
+ * view (1.2.124), on a player their own thread window. The scenarios read a thread's window through it.
+ */
+export function threadWindow(playerUserId) {
+    if (!game.user?.isGM) return DrpgMessengerApp.instances.get(playerUserId) ?? null;
+    const gm = gmMessengerWindow();
+    return gm?.view === playerUserId ? gm : null;
+}
+
 // The module-level hook lives here, not per instance: one listener regardless
 // of how many windows are open, and nothing to leak when one closes.
 Hooks.on("drpgMessengerMessage", async (playerUserId, message) => {
+    /* The GM's window shows it where it is shown - the player's view, or the Timeline - and a GM looking at it there
+       is shown no card for it (1.2.124). */
+    const gm = gmMessengerWindow();
+    if (gm) {
+        gm.threadMessage(playerUserId, message);
+        if (gm.showsThread(playerUserId)) return;
+    }
     const instance = DrpgMessengerApp.instances.get(playerUserId);
     if (instance) {
         instance.appendMessage(message);
@@ -666,6 +707,7 @@ function keptAsMessenger(message, playerUserId) {
  */
 function onMessengerDeleted(message) {
     for (const app of DrpgMessengerApp.instances.values()) app.removeMessage?.(message?.id ?? null);
+    gmMessengerWindow()?.removeEverywhere(message?.id ?? null);
     renderLauncher();
 }
 
@@ -674,6 +716,7 @@ function onMessengerDeleted(message) {
 // messages when it opens, and they are already the new ones.
 Hooks.on("drpgMessengerEdited", (playerUserId, message) => {
     DrpgMessengerApp.instances.get(playerUserId)?.replaceMessage(message);
+    gmMessengerWindow()?.threadEdited(playerUserId, message);
 });
 
 /**
@@ -1607,8 +1650,9 @@ function savePosition(playerUserId, position) {
  * ONE BUTTON, REDRAWN IN PLACE (1.2.122, the audit's COMM-34). Every thread event - a message, a read, an edited card,
  * a deletion, each card's words landing after a return - took the launcher off the page and built a new one, so a
  * keyboard user's focus on it went back to the page and a hover tooltip went with the node. It is made once now, and
- * a later call writes only its tooltip, its name and its badge, each when it changed; the open roster's rows follow
- * the same call (`refreshRoster`, REFR-15). The count is still one `threadStats` pass a call (messenger.mjs).
+ * a later call writes only its tooltip, its name and its badge, each when it changed; the GM's window's list follows
+ * the same call (messenger-gm.mjs `refreshNav`; the roster's rows until 1.2.124, REFR-15). The count is still one
+ * `threadStats` pass a call (messenger.mjs).
  */
 export function renderLauncher() {
     try {
@@ -1639,7 +1683,8 @@ export function renderLauncher() {
             if (badge.textContent !== count) badge.textContent = count;
         } else badge?.remove();
 
-        refreshRoster();
+        // The GM's window's list follows the same call as the badge (1.2.124: a message, a read, an edited card).
+        gmMessengerWindow()?.refreshNav();
         if (!made) return;
 
         button.addEventListener("click", event => {
@@ -1649,7 +1694,7 @@ export function renderLauncher() {
             // not inside any window, so the delegated listener in sfx.mjs
             // never sees it - and the chat opening is a moment of its own.
             playSfx("chatOpen");
-            if (game.user.isGM) toggleRoster(button);
+            if (game.user.isGM) openGmMessenger("console");
             else openMessenger(game.user.id);
         });
 
@@ -1663,160 +1708,14 @@ function launcherTooltip() {
     return game.i18n.localize("DRPG.Messenger.launcherTooltip");
 }
 
-/**
- * The GM's open roster drawn again from the threads as they stand (1.2.122, the audit's REFR-15): a message, a read or
- * a settled ask while it stood open changed the launcher's badge and not the row's preview or badge. Its list is
- * replaced in place, the focus kept on the row it was on; a roster on its way out is left alone.
- */
-function refreshRoster() {
-    const panel = document.getElementById("drpg-messenger-roster");
-    const list = panel?.querySelector("ul");
-    if (!panel || !list || panel.classList.contains("leaving")) return;
-    const focused = document.activeElement?.closest?.(".drpg-messenger-roster-row")?.dataset.drpgUser ?? null;
-    const stats = threadStats();
-    const rows = threadUsers().sort((a, b) => a.name.localeCompare(b.name)).map(user => rosterRow(user, stats));
-    list.replaceChildren(...rows);
-    if (focused) rows.find(li => li.dataset.drpgUser === focused)?.focus();
-}
-
-function toggleRoster(anchor) {
-    const existing = document.getElementById("drpg-messenger-roster");
-    // A roster on its way out is closed already: the click opens a new one (buildRoster takes the old one off at once).
-    if (existing && !existing.classList.contains("leaving")) {
-        closeRoster(existing);
-        return;
-    }
-    buildRoster(anchor);
-}
-
-/*
- * ONE ROAD TO CLOSE THE ROSTER (E50 C2, 30.10.2026; audit S11-44, E50-13). The outside click was a document listener
- * added `{ once: true }`, so the first click INSIDE the roster spent it - a click on the heading, on the space between
- * rows - and from then on nothing closed the roster but its button; `openMessenger()` on a GM built a second roster
- * beside an open one; and a row's click took the panel off the page itself, past the leaving class. Now the listener
- * stays until `closeRoster` takes it away, a new roster takes an open one off first (at once, through `closeRoster`),
- * and a row closes through `closeRoster`. R1066 and scenario 87 B2 measured the three at C2's parent: open after the
- * outside click, three rosters after two opens, the row's panel gone with no leaving class.
- */
-const rosterOutside = new WeakMap();
-
-/**
- * Take the roster off screen the way the popups leave - a beat out, then gone.
- *
- * The class drives the transition (see the stylesheet); the timeout is the
- * guarantee, because a `transitionend` that never fires - reduced motion, a
- * backgrounded tab - must not leave a dead roster blocking the next open.
- */
-function closeRoster(panel, { instant = false } = {}) {
-    rosterOutside.get(panel)?.();
-    rosterOutside.delete(panel);
-    if (instant) {
-        panel.remove();
-        return;
-    }
-    if (panel.classList.contains("leaving")) return;
-    panel.classList.remove("visible");
-    panel.classList.add("leaving");
-    const drop = () => panel.remove();
-    panel.addEventListener("transitionend", drop, { once: true });
-    setTimeout(drop, 400);
-}
-
-function buildRoster(anchor) {
-    for (const old of document.querySelectorAll("#drpg-messenger-roster")) closeRoster(old, { instant: true });
-    const panel = document.createElement("div");
-    panel.id = "drpg-messenger-roster";
-    // Its language, the page's (E66 fix r1 F1; C1's `lang` on the module's containers, STATUS Open 3 and 19).
-    markLanguage(panel);
-
-    const title = document.createElement("h4");
-    title.textContent = game.i18n.localize("DRPG.Messenger.rosterTitle");
-    panel.append(title);
-
-    const players = threadUsers();
-    if (!players.length) {
-        const empty = document.createElement("p");
-        empty.className = "drpg-messenger-empty";
-        empty.textContent = game.i18n.localize("DRPG.Messenger.rosterEmpty");
-        panel.append(empty);
-    } else {
-        const list = document.createElement("ul");
-        const stats = threadStats();
-        for (const user of players.sort((a, b) => a.name.localeCompare(b.name))) {
-            list.append(rosterRow(user, stats));
-        }
-        panel.append(list);
-    }
-
-    document.body.append(panel);
-
-    // Two frames, not one: the element has to be laid out in its resting
-    // (hidden) state before the class flips, or the browser coalesces both
-    // states into a single style and nothing animates. Same dance as the
-    // popups.
-    requestAnimationFrame(() => requestAnimationFrame(() => panel.classList.add("visible")));
-
-    // Close on an outside click, but not on the click that just opened it: armed after it, kept until closeRoster.
-    const onOutsideClick = event => {
-        if (panel.contains(event.target) || (anchor && anchor.contains(event.target))) return;
-        closeRoster(panel);
-    };
-    const arm = setTimeout(() => document.addEventListener("click", onOutsideClick), 0);
-    rosterOutside.set(panel, () => {
-        clearTimeout(arm);
-        document.removeEventListener("click", onOutsideClick);
-    });
-}
-
-function rosterRow(user, stats = threadStats()) {
-    const li = document.createElement("li");
-    li.className = "drpg-messenger-roster-row";
-    li.dataset.drpgUser = user.id;
-    // A keyboard's control (1.2.122, the audit's CTRL-63): Tab reaches the row, Enter or Space opens it as a click does.
-    li.setAttribute("role", "button");
-    li.tabIndex = 0;
-
-    const row = stats.get(user.id);
-    const last = row?.last ?? null;
-    const preview = last ? stripHtml(contentOf(last)) : game.i18n.localize("DRPG.Messenger.rosterNoMessages");
-    const unread = row?.unread ?? 0;
-
-    const name = document.createElement("div");
-    name.className = "drpg-messenger-roster-name";
-    name.textContent = user.name;
-
-    const snippet = document.createElement("div");
-    snippet.className = "drpg-messenger-roster-preview";
-    snippet.textContent = preview;
-
-    const text = document.createElement("div");
-    text.className = "drpg-messenger-roster-text";
-    text.append(name, snippet);
-    li.append(text);
-
-    if (unread > 0) {
-        const badge = document.createElement("span");
-        badge.className = "drpg-messenger-badge";
-        badge.textContent = unread > 99 ? "99+" : String(unread);
-        li.append(badge);
-    }
-
-    li.addEventListener("click", () => {
-        const panel = li.closest("#drpg-messenger-roster");
-        if (panel) closeRoster(panel);
-        openMessenger(user.id);
-    });
-    li.addEventListener("keydown", event => {
-        if (event.key !== "Enter" && event.key !== " ") return;
-        event.preventDefault();
-        li.click();
-    });
-
-    return li;
-}
-
-function stripHtml(html) {
+export function stripHtml(html) {
     // The same trimming the thread itself does: no ruling buttons, no GM-only
-    // prose for a player, and the browser's own text extraction.
-    return cardPreview(html).textContent.replace(/\s+/g, " ").trim();
+    // prose for a player, and the browser's own text extraction - with the card's
+    // blocks kept apart: `textContent` ran a card's title into its first line
+    // ("SearchBotan Kage", the GM's list on the owner's shots of 22.11.2026), so a
+    // title is followed by " - " and every other block by a space.
+    const wrap = cardPreview(html);
+    for (const block of wrap.querySelectorAll("h1, h2, h3, h4, h5, h6")) block.append(" - ");
+    for (const block of wrap.querySelectorAll("p, div, li, blockquote, br")) block.after(" ");
+    return wrap.textContent.replace(/\s+/g, " ").replace(/\s+-\s*$/, "").trim();
 }

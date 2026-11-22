@@ -990,6 +990,8 @@ export async function discardBroken(actor, item) {
         type: await discardRemnantType(actor),
         visibility,
         faint: BROKEN_ITEMS.faint,
+        // The card's answer, so its leaver holds the trace it tells of as a Truth Bullet (remnants.mjs `noteToldTrace`, 1.2.124).
+        told: traceFeedback(roll, true),
         action: "discard",
         subject: name,
         note: game.i18n.format("DRPG.Remnant.discardNote", {

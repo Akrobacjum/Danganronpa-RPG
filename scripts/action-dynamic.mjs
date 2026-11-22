@@ -145,6 +145,8 @@ export async function performDynamic(actor, options) {
             type: "prep",
             visibility,
             faint: true,
+            // The card's answer, so its leaver holds the trace it tells of as a Truth Bullet (remnants.mjs `noteToldTrace`, 1.2.124).
+            told: traceFeedback(roll, true),
             action: "dynamic",
             rollId: rollInHand(actor)?.messageId ?? null,
             subject: description.slice(0, 60),

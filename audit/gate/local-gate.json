@@ -3,16 +3,16 @@
   "writtenBy": "audit/gate/local-gate.mjs",
   "module": {
     "id": "danganronpa-rpg",
-    "version": "1.2.123"
+    "version": "1.2.124"
   },
-  "commit": "d64d5f3e96f820d765c30ee809c1122f05659292",
+  "commit": "3675db3d2480fff8e6df1b3f69e30866a94b9114",
   "bound": {
-    "scripts": "8bf8477b0c28ad05aeb719a5264cbfe2fc56a499",
-    "styles": "93254ed868dbff306bb78cd0d9e1125a9dfcae09",
-    "lang": "c4e16f151b53cb52a46c6c9d77082888511dda27",
+    "scripts": "62ff1d0c2f972278c4e3461be30e6fa607ec7c57",
+    "styles": "16d8d1e5fbc72c9b19c3babcb2f691e966f6beed",
+    "lang": "8d3d06d827936906c1477f51da7f91c2c7d5aa20",
     "fonts": "67a9597cecb677fad7cc6fa7a0fad2608f59299f",
     "icons": "4e0ca61cd4e76b235ce63268f62ed0907293148a",
-    "module.json": "2b4a1c28f82f849f692cee185006badf07677611",
+    "module.json": "df3201270544468be537c4cfdf8f6194a42e8b94",
     "audit/gate/local-gate.mjs": "d98d6271b80ec1afae5e7c680b55e8d799899197",
     "audit/gate/gate-lib.mjs": "dc72798601b4f192d6b89403bc6298ff25b8bf67",
     "audit/live": "b2efd94136a6dbcaac935ab45c1a3490b8004fa8",
@@ -25,8 +25,8 @@
     "audit/harness/scenarios/83-roll-integrity.mjs": "34abed6aeb225c69f7d9805b512539334066368b",
     "audit/harness/scenarios/84-viewports.mjs": "728b2c2ae9533e178568cb1acaaf8fe11817e083"
   },
-  "startedAt": "2026-11-21T23:55:03.646Z",
-  "finishedAt": "2026-11-21T23:55:13.810Z",
+  "startedAt": "2026-11-22T08:15:03.914Z",
+  "finishedAt": "2026-11-22T08:15:14.347Z",
   "host": {
     "node": "v22.23.5",
     "platform": "linux-x64",
@@ -123,11 +123,11 @@
       "id": "press-live-region",
       "layer": "press",
       "status": "passed",
-      "ranAt": "2026-11-21T23:55:13.734Z",
+      "ranAt": "2026-11-22T08:15:14.269Z",
       "evidence": [
         {
           "path": "audit/gate/evidence/press-live-region.json",
-          "sha256": "41b4c5ccaf7c034c581987380dd1fea08b2149d44059820b662b930966fb559a",
+          "sha256": "4d11cd773f73281c35f7014a23716b7e9c1f95ba2dbf36a0e25124d3e5348a46",
           "bytes": 2244
         }
       ]
@@ -140,6 +140,6 @@
     "notRun": 8
   },
   "verdict": "incomplete",
-  "digest": "sha256:d7b1ef03d45ed9e7c92aa388af6ad975efcdc379b9539dde31e7af6a6168fa47",
+  "digest": "sha256:cce7b4cfdc46cf0415c5ac58582d41d90a1feb04b34e214b5a45c60b84bbf965",
   "hmac": null
 }
