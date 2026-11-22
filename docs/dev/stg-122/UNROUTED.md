@@ -1,6 +1,6 @@
 # The audit's unrouted items given to line STG (1.2.122, 21.11.2026)
 
-From audit/findings-1.2.118/unrouted-122.json (origin/claude/audit-119 bb96d8dd): section A's DOC-05, section B's 69 ids and
+From audit/findings-1.2.118/unrouted-122.json (origin/claude/audit-119 bb96d8dd): section A's DOC-05, section B's 67 ids (what ROUTING.md:130 leaves STG once the prefixes are routed and DEC-1b and H1b sent to MURDER) and
 section D's indexes 8, 21, 159, 171, 274, 276 and 282, plus UI's H-5 (AUDIT 9.2 items 111 and 414). Each re-read on this
 line's tree (aa0f6767 and after). Kinds, for B: **old strength** (a "mocna strona" of an old report, held by a harness
 run), **live area** (only a table settles it), **record** (an old report's claim or count), **plan step** (a 1.2.13 step

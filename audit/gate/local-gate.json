@@ -3,30 +3,30 @@
   "writtenBy": "audit/gate/local-gate.mjs",
   "module": {
     "id": "danganronpa-rpg",
-    "version": "1.2.122"
+    "version": "1.2.123"
   },
-  "commit": "fcbb2753715bdd9a3a9030c6cfe9a56a6830a62f",
+  "commit": "d64d5f3e96f820d765c30ee809c1122f05659292",
   "bound": {
-    "scripts": "c381b2022bd4ce3cc5cafca515605fc77ff52e5c",
-    "styles": "11c68574e62892c25bae49d96b98a304431f63d1",
-    "lang": "47b3c6ba59cf506f9e596b2fc2150b41e6f25f34",
+    "scripts": "8bf8477b0c28ad05aeb719a5264cbfe2fc56a499",
+    "styles": "93254ed868dbff306bb78cd0d9e1125a9dfcae09",
+    "lang": "c4e16f151b53cb52a46c6c9d77082888511dda27",
     "fonts": "67a9597cecb677fad7cc6fa7a0fad2608f59299f",
     "icons": "4e0ca61cd4e76b235ce63268f62ed0907293148a",
-    "module.json": "1b26042610e27bb8912c85f01b4ba82374ca09e5",
+    "module.json": "2b4a1c28f82f849f692cee185006badf07677611",
     "audit/gate/local-gate.mjs": "d98d6271b80ec1afae5e7c680b55e8d799899197",
     "audit/gate/gate-lib.mjs": "dc72798601b4f192d6b89403bc6298ff25b8bf67",
     "audit/live": "b2efd94136a6dbcaac935ab45c1a3490b8004fa8",
     "audit/harness/lib/seed.mjs": "631648825551c068a82d83f080f6bc78877717e5",
     "audit/live-press.mjs": "e74442646869aaaa079eb9fac3292cb0e93fcbea",
-    "audit/live-redraw.mjs": "27e7721ecb9aa2d1d34e6faac161960232928b3e",
+    "audit/live-redraw.mjs": "14c73670c2926b20206ad9bdc982eecd469df9b2",
     "audit/harness/scenarios/14-quiet.mjs": "ab210846f646d88f51951f6c65288a16bfb39144",
     "audit/harness/scenarios/60-ledger.mjs": "62ae55bdb85a1708f04045dffa44971cdb1af282",
     "audit/harness/scenarios/81-render-budget.mjs": "4f0c592c86e2f988c7f49aad46f838e9966b37dc",
     "audit/harness/scenarios/83-roll-integrity.mjs": "34abed6aeb225c69f7d9805b512539334066368b",
     "audit/harness/scenarios/84-viewports.mjs": "728b2c2ae9533e178568cb1acaaf8fe11817e083"
   },
-  "startedAt": "2026-11-21T17:43:29.125Z",
-  "finishedAt": "2026-11-21T17:43:39.780Z",
+  "startedAt": "2026-11-21T23:55:03.646Z",
+  "finishedAt": "2026-11-21T23:55:13.810Z",
   "host": {
     "node": "v22.23.5",
     "platform": "linux-x64",
@@ -123,12 +123,12 @@
       "id": "press-live-region",
       "layer": "press",
       "status": "passed",
-      "ranAt": "2026-11-21T17:43:39.699Z",
+      "ranAt": "2026-11-21T23:55:13.734Z",
       "evidence": [
         {
           "path": "audit/gate/evidence/press-live-region.json",
-          "sha256": "584562d6227e57d866a0be307f0698d8387c736aaa57893b9ff2e7c56e74f806",
-          "bytes": 2097
+          "sha256": "41b4c5ccaf7c034c581987380dd1fea08b2149d44059820b662b930966fb559a",
+          "bytes": 2244
         }
       ]
     }
@@ -140,6 +140,6 @@
     "notRun": 8
   },
   "verdict": "incomplete",
-  "digest": "sha256:f7354397330584255e0e2dc3141fedff8e9de1c903002cfb279bb8c9fcad3182",
+  "digest": "sha256:d7b1ef03d45ed9e7c92aa388af6ad975efcdc379b9539dde31e7af6a6168fa47",
   "hmac": null
 }

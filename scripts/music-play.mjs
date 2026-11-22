@@ -1132,8 +1132,11 @@ function resumeAmbient() {
  * @param {string} track  A sound id in the cue playlist, or its name.
  * @param {string} [soundId]  Ignored except as the old `(playlistId, soundId)`
  *   signature, from before the playlist stopped being a choice.
+ * @param {object} [options]
+ * @param {Function} [options.say]  How a reason it plays nothing is said: `(level, key, data)`, this browser's notice by
+ *   default; the bridge's run hands one that keeps it for the GM who asked (`music.track`, 1.2.123, the audit's r122-G-6).
  */
-export async function playTrack(track, soundId) {
+export async function playTrack(track, soundId, { say = sayHere } = {}) {
     if (!game.user.isGM) {
         ui.notifications.warn(game.i18n.localize("DRPG.Panel.gmOnly"));
         return null;
@@ -1143,14 +1146,16 @@ export async function playTrack(track, soundId) {
     if (onPrimaryElsewhere()) {
         const { requestMusicTrack } = await import("./bridge-asks.mjs");
         const res = await requestMusicTrack("play", String(soundId ?? track ?? "").trim());
+        // What the primary would have said is said here, in this GM's language (r122-G-6): the primary keeps it off its screen.
+        const said = res.ok ? res.value?.said : null;
+        if (said?.key && /^DRPG\.Music\./.test(said.key)) sayHere(said.level === "error" ? "error" : "warn", said.key, said.data ?? null);
         const id = res.ok ? res.value?.played : null;
         return id ? (situationalPlaylist()?.sounds.get(id) ?? null) : null;
     }
 
     const playlist = situationalPlaylist();
     if (!playlist) {
-        ui.notifications.warn(game.i18n.format("DRPG.Music.noSituational",
-            { name: SITUATIONAL_PLAYLIST }));
+        say("warn", "DRPG.Music.noSituational", { name: SITUATIONAL_PLAYLIST });
         return null;
     }
 
@@ -1158,7 +1163,7 @@ export async function playTrack(track, soundId) {
     const sound = playlist.sounds.get(wanted)
         ?? playlist.sounds.find(s => s.name?.trim().toLowerCase() === wanted.toLowerCase());
     if (!sound) {
-        ui.notifications.warn(game.i18n.localize("DRPG.Music.noTrack"));
+        say("warn", "DRPG.Music.noTrack");
         return null;
     }
 
@@ -1196,7 +1201,7 @@ export async function playTrack(track, soundId) {
         await asOurs(() => playlist.playSound(sound));
     } catch (err) {
         error(`Could not play "${sound.name}"`, err);
-        ui.notifications.error(game.i18n.localize("DRPG.Music.playFailed"));
+        say("error", "DRPG.Music.playFailed");
         return null;
     }
 
@@ -1278,6 +1283,13 @@ export async function resetMusic() {
     // What the press did, for its notice (1.2.122, the audit's COMM-50): it said a track stopped and the music came
     // back whatever it found. Truthy as `true` was.
     return { stopped, given: giveBack.length };
+}
+
+/** A reason `playTrack` plays nothing, said on this browser: a warning or an error, a key and its words' data. */
+function sayHere(level, key, data = null) {
+    const text = data ? game.i18n.format(key, data) : game.i18n.localize(key);
+    if (level === "error") ui.notifications.error(text);
+    else ui.notifications.warn(text);
 }
 
 /**

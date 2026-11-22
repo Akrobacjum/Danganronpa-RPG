@@ -1813,7 +1813,9 @@ function voteText(sources, family = VOTE_FAMILY) {
 /**
  * The glass's family (E54): glass.mjs - the facade, which keeps everything else - and the files its
  * code moved into, in the order of the split's manifest (tools/e54/glass.json): glass-geometry.mjs, glass-blocks.mjs.
- * Written by tools/e54/repoint.mjs from that manifest. A reader of glass.mjs's text reads the family through `glassText`
+ * Written by tools/e54/repoint.mjs from that manifest; both are on the branch claude/e54-prep (defd60c0, 14.11.2026)
+ * and in no commit of main (`git merge-base --is-ancestor` says no, 21.11.2026), so here the list is kept by hand: each
+ * name above was read against that manifest's `targets` on 21.11.2026 and matched (STG-82). A reader of glass.mjs's text reads the family through `glassText`
  * (or `glassFetch`, or `glassBy` over a helper of its own) and follows each file here without a repoint of its own.
  */
 const GLASS_FAMILY = Object.freeze(["glass.mjs", "glass-geometry.mjs", "glass-blocks.mjs"]);
@@ -1859,7 +1861,9 @@ function glassBy(reader, family = GLASS_FAMILY) {
 /**
  * The chapter's family (E54): chapter.mjs - the facade, which keeps everything else - and the files its
  * code moved into, in the order of the split's manifest (tools/e54/chapter.json): body.mjs, death.mjs.
- * Written by tools/e54/repoint.mjs from that manifest. A reader of chapter.mjs's text reads the family through `chapterText`
+ * Written by tools/e54/repoint.mjs from that manifest; both are on the branch claude/e54-prep (defd60c0, 14.11.2026)
+ * and in no commit of main (`git merge-base --is-ancestor` says no, 21.11.2026), so here the list is kept by hand: each
+ * name above was read against that manifest's `targets` on 21.11.2026 and matched (STG-82). A reader of chapter.mjs's text reads the family through `chapterText`
  * (or `chapterFetch`, or `chapterBy` over a helper of its own) and follows each file here without a repoint of its own.
  */
 const CHAPTER_FAMILY = Object.freeze(["chapter.mjs", "body.mjs", "death.mjs"]);
@@ -1905,7 +1909,9 @@ function chapterBy(reader, family = CHAPTER_FAMILY) {
 /**
  * The cleanup's family (E54): cleanup.mjs - the facade, which keeps everything else - and the files its
  * code moved into, in the order of the split's manifest (tools/e54/cleanup-reshape.json): cleanup-reshape.mjs.
- * Written by tools/e54/repoint.mjs from that manifest. A reader of cleanup.mjs's text reads the family through `cleanupText`
+ * Written by tools/e54/repoint.mjs from that manifest; both are on the branch claude/e54-prep (defd60c0, 14.11.2026)
+ * and in no commit of main (`git merge-base --is-ancestor` says no, 21.11.2026), so here the list is kept by hand: each
+ * name above was read against that manifest's `targets` on 21.11.2026 and matched (STG-82). A reader of cleanup.mjs's text reads the family through `cleanupText`
  * (or `cleanupFetch`, or `cleanupBy` over a helper of its own) and follows each file here without a repoint of its own.
  */
 const CLEANUP_FAMILY = Object.freeze(["cleanup.mjs", "cleanup-reshape.mjs"]);
@@ -1951,7 +1957,9 @@ function cleanupBy(reader, family = CLEANUP_FAMILY) {
 /**
  * The investigation's family (E54): investigation.mjs - the facade, which keeps everything else - and the files its
  * code moved into, in the order of the split's manifest (tools/e54/key-remnants.json): key-remnants.mjs.
- * Written by tools/e54/repoint.mjs from that manifest. A reader of investigation.mjs's text reads the family through `investigationText`
+ * Written by tools/e54/repoint.mjs from that manifest; both are on the branch claude/e54-prep (defd60c0, 14.11.2026)
+ * and in no commit of main (`git merge-base --is-ancestor` says no, 21.11.2026), so here the list is kept by hand: each
+ * name above was read against that manifest's `targets` on 21.11.2026 and matched (STG-82). A reader of investigation.mjs's text reads the family through `investigationText`
  * (or `investigationFetch`, or `investigationBy` over a helper of its own) and follows each file here without a repoint of its own.
  */
 const INVESTIGATION_FAMILY = Object.freeze(["investigation.mjs", "key-remnants.mjs"]);
@@ -1997,7 +2005,9 @@ function investigationBy(reader, family = INVESTIGATION_FAMILY) {
 /**
  * The settings's family (E54): settings.mjs - the facade, which keeps everything else - and the files its
  * code moved into, in the order of the split's manifest (tools/e54/windows-settings.json): window-scale.mjs.
- * Written by tools/e54/repoint.mjs from that manifest. A reader of settings.mjs's text reads the family through `settingsText`
+ * Written by tools/e54/repoint.mjs from that manifest; both are on the branch claude/e54-prep (defd60c0, 14.11.2026)
+ * and in no commit of main (`git merge-base --is-ancestor` says no, 21.11.2026), so here the list is kept by hand: each
+ * name above was read against that manifest's `targets` on 21.11.2026 and matched (STG-82). A reader of settings.mjs's text reads the family through `settingsText`
  * (or `settingsFetch`, or `settingsBy` over a helper of its own) and follows each file here without a repoint of its own.
  */
 const SETTINGS_FAMILY = Object.freeze(["settings.mjs", "window-scale.mjs"]);
@@ -2043,7 +2053,9 @@ function settingsBy(reader, family = SETTINGS_FAMILY) {
 /**
  * The utils's family (E54): utils.mjs - the facade, which keeps everything else - and the files its
  * code moved into, in the order of the split's manifest (tools/e54/windows.json): windows.mjs.
- * Written by tools/e54/repoint.mjs from that manifest. A reader of utils.mjs's text reads the family through `utilsText`
+ * Written by tools/e54/repoint.mjs from that manifest; both are on the branch claude/e54-prep (defd60c0, 14.11.2026)
+ * and in no commit of main (`git merge-base --is-ancestor` says no, 21.11.2026), so here the list is kept by hand: each
+ * name above was read against that manifest's `targets` on 21.11.2026 and matched (STG-82). A reader of utils.mjs's text reads the family through `utilsText`
  * (or `utilsFetch`, or `utilsBy` over a helper of its own) and follows each file here without a repoint of its own.
  */
 const UTILS_FAMILY = Object.freeze(["utils.mjs", "windows.mjs"]);
@@ -2089,7 +2101,9 @@ function utilsBy(reader, family = UTILS_FAMILY) {
 /**
  * The sheet's family (E54): sheet.mjs - the facade, which keeps `registerSheetTweaks`, `SHEET_STEPS`, `runSheetSteps`, `onRenderCharacterSheet` - and the files its
  * code moved into, in the order of the split's manifest (tools/e54/sheet.json): sheet-mode.mjs, sheet-item.mjs, sheet-repaint.mjs, sheet-fit.mjs, sheet-header.mjs, sheet-sidebar.mjs, sheet-inventory.mjs, sheet-actions.mjs.
- * Written by tools/e54/repoint.mjs from that manifest. A reader of sheet.mjs's text reads the family through `sheetText`
+ * Written by tools/e54/repoint.mjs from that manifest; both are on the branch claude/e54-prep (defd60c0, 14.11.2026)
+ * and in no commit of main (`git merge-base --is-ancestor` says no, 21.11.2026), so here the list is kept by hand: each
+ * name above was read against that manifest's `targets` on 21.11.2026 and matched (STG-82). A reader of sheet.mjs's text reads the family through `sheetText`
  * (or `sheetFetch`, or `sheetBy` over a helper of its own) and follows each file here without a repoint of its own.
  */
 const SHEET_FAMILY = Object.freeze(["sheet.mjs", "sheet-mode.mjs", "sheet-item.mjs", "sheet-repaint.mjs", "sheet-fit.mjs", "sheet-header.mjs", "sheet-sidebar.mjs", "sheet-inventory.mjs", "sheet-actions.mjs"]);

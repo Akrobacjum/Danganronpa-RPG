@@ -1621,6 +1621,44 @@ export async function run({ gm, ag, p1, p2, p3, check, phase, settle, opLog, set
         a23.set.primary === false && a23.set.n === 1 && Object.entries(a23.afterSet).some(([k, v]) => /Gym$/.test(k) && v === 1)
             && a23.reset === true && Object.keys(a23.afterReset).length === 0 && JSON.stringify(a23.writers) === JSON.stringify(["gm"]) && a23.logged.length === 0,
         JSON.stringify(a23), { flow: "search-observe" });
+
+    /* A25 (1.2.123; the audit's r122-lane-B-7, a rest of MAP-40): Room Setup's step was computed on the GM who typed it,
+       from that browser's count, and only the number travelled - so a spend the primary wrote that had not reached the
+       Assistant yet was written over. Emulated: the primary holds the Gym at 1, and on the Assistant `left` answers 2 for
+       the length of one press (its copy before the primary's spend arrived); its Room Setup field drawn at 2 is typed to
+       3 (`wireTokenButtons`, the code the window runs). Below the cap of 3 on purpose: the first reading (2 held, 3 seen,
+       4 typed) read 3 at the base too, its 4 clamped to the cap. The primary must hold 2 (its 1 and the step), written by
+       the GM alone. Then the Assistant's own spend (`claim`, a GM's Search for a character it plays) is carried out on the
+       primary: 2 -> 1, written by the GM alone. Red at 14bb0d92: 3 written (the stale 2 and the step), and the spend
+       written by the Assistant. Put back with A24's counters, below. */
+    phase("A25: an Assistant GM's step and spend from a count the primary has moved", { flow: "search-observe" });
+    const a25Gym = `return Object.entries(game.settings.get("${MOD}", "searchTokens") ?? {}).find(([k]) => /Gym$/.test(k))?.[1] ?? null;`;
+    await gm.eval(`await ${a23Tokens}.setFor("Gym", 1, canvas.scene.id); return true;`);
+    await settle(800);
+    const a25Written = settingLog.length;
+    await ag.eval(`const T = ${a23Tokens}; const R = await import("${repoUrl}/scripts/room-setup.mjs");
+        const real = T.left;
+        T.left = () => 2;
+        try {
+            const root = document.createElement("div");
+            root.innerHTML = '<input type="number" data-drpg-token="Gym" value="2">';
+            const input = root.querySelector("input");
+            R.wireTokenButtons(root, canvas.scene, () => {});
+            input.value = "3";
+            input.dispatchEvent(new Event("change"));
+            await new Promise(r => setTimeout(r, 2500));
+        } finally { T.left = real; }
+        return true;`, { timeout: 30000 });
+    await settle(800);
+    const a25Stepped = await gm.eval(a25Gym);
+    const a25Spent = await ag.eval(`const c = await ${a23Tokens}.claim("Gym", canvas.scene.id); return { ok: c.ok, why: c.why ?? null };`, { timeout: 30000 });
+    await settle(800);
+    const a25 = { stepped: a25Stepped, spent: a25Spent, afterSpend: await gm.eval(a25Gym),
+        writers: [...new Set(settingLog.slice(a25Written).filter(w => /searchTokens$/.test(w.key)).map(w => w.who))],
+        logged: await refusalsLogged(gm, "searchTokens.gmWrite") };
+    check("A25: the Assistant GM's step typed over a count the primary had moved lands on the primary's count, and its own spend is the primary's - 1 + 1 = 2, then 1, written by the GM alone, nothing refused (r122-lane-B-7)",
+        a25.stepped === 2 && a25.spent.ok === true && a25.afterSpend === 1 && JSON.stringify(a25.writers) === JSON.stringify(["gm"]) && a25.logged.length === 0,
+        JSON.stringify(a25), { flow: "search-observe" });
     await gm.eval(`await game.settings.set("${MOD}", "searchTokens", ${JSON.stringify(a23Before)}); return true;`);
     await settle(300);
 

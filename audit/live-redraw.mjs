@@ -19,7 +19,10 @@
  *                      fragment not saved by the redraw, and the whole word still saved at the leave);
  *   list-mouse         the select's list opened with the mouse, a change elsewhere: the list still open 300 ms later, and
  *                      the region drawn again once it is closed (Escape) (r121-R-3);
- *   list-keyboard      the same with the list opened by Alt+ArrowDown.
+ *   list-keyboard      the same with the list opened by Alt+ArrowDown;
+ *   card-type-redraw-type  the Remnant card's text box - no name, key or id, saved on its own blur, float-text's
+ *                      placeholder before it while focused (r122-H-R1): "ab" typed, a change elsewhere, "c", Tab: the
+ *                      box still holds "ab" and the focus after the redraw, nothing saved before the leave, "abc" once.
  * THE CONTROLS FIRST (CLAUDE.md, the stackShapes lesson): the list reads open (`:open`) after the press that opens it, and a
  * region woken with nothing focused is drawn again - so a case that reads "not drawn" or "still open" reads something.
  * Exit 1 on a case or a control that fails. Writes nothing.
@@ -55,11 +58,21 @@ const { keepLive, liveRegions } = await import("/scripts/live.mjs");
 const world = { builds: 0, saves: [] };
 const build = () => { world.builds++; return \`<div class="live" data-build="\${world.builds}">
   <label>Words <input type="text" name="words" value=""></label>
-  <select name="pick"><option value="a" selected>a</option><option value="b">b</option><option value="c">c</option></select></div>\`; };
+  <select name="pick"><option value="a" selected>a</option><option value="b">b</option><option value="c">c</option></select>
+  <label>Card <textarea rows="3" data-card="text" data-was=""></textarea></label></div>\`; };
 const app = { element: document.getElementById("app"), options: { window: { title: "redraw" } } };
 app.element.innerHTML = build();
 app.element.addEventListener("change", e => { if (e.target?.name === "words") world.saves.push(e.target.value); });
-keepLive(app, { region: ".live", build, delay: 0, watch: {} });
+/* The Remnant card's text box (remnant-ring.mjs wireCardEditing): no name, key or id, saved on its own blur when it
+   differs from what it was drawn with, wired again after every redraw; and float-text.mjs's placeholder
+   (drpg-float-text-hold) stood before it in its label while it has the focus, as float-text lifts it. */
+const wire = root => { for (const area of root.querySelectorAll("[data-card]")) {
+  area.addEventListener("focus", () => { if (!area.previousElementSibling?.classList.contains("drpg-float-text-hold")) area.before(Object.assign(document.createElement("div"), { className: "drpg-float-text-hold", hidden: true })); });
+  area.addEventListener("blur", () => { if (area.value !== area.dataset.was) world.cards.push(area.value); });
+} };
+world.cards = [];
+wire(app.element);
+keepLive(app, { region: ".live", build, delay: 0, watch: {}, after: wire });
 window.__world = world;
 window.__wake = () => liveRegions(app)[0]?.wake?.();
 window.__open = () => { try { return document.querySelector('.live select[name="pick"]')?.matches(":open") ?? null; } catch { return null; } };
@@ -93,8 +106,9 @@ const open = async () => {
     await page.waitForFunction(() => window.__ready === true);
     return page;
 };
-const world = page => page.evaluate(() => ({ builds: window.__world.builds, saves: [...window.__world.saves], open: window.__open(),
-    focus: document.activeElement?.getAttribute?.("name") ?? document.activeElement?.id ?? null, value: document.querySelector('.live [name="words"]')?.value ?? null }));
+const world = page => page.evaluate(() => ({ builds: window.__world.builds, saves: [...window.__world.saves], cards: [...window.__world.cards], open: window.__open(),
+    card: document.querySelector('.live [data-card]')?.value ?? null,
+    focus: document.activeElement?.getAttribute?.("name") ?? document.activeElement?.dataset?.card ?? document.activeElement?.id ?? null, value: document.querySelector('.live [name="words"]')?.value ?? null }));
 const wake = async page => { await page.evaluate(() => window.__wake()); await page.waitForTimeout(150); };
 try {
     // THE CONTROLS: a wake with nothing focused draws the region again; the list reads open after the click that opens it
@@ -137,6 +151,22 @@ try {
         const c = await world(page);
         say(b.builds > a.builds && b.saves.length === 0 && b.focus === "words" && c.saves.length === 1 && c.saves[0] === "abc",
             `type-redraw-leave: drawn again ${b.builds - a.builds} time(s), the focus on "${b.focus}"; saved before the leave ${JSON.stringify(b.saves)}, after it ${JSON.stringify(c.saves)}`);
+        await page.close();
+    }
+    // the Remnant card's box (r122-H-R1): typed, a change elsewhere, typed more, left
+    {
+        const page = await open();
+        await page.click('.live [data-card]');
+        await page.keyboard.type("ab");
+        const a = await world(page);
+        await wake(page);
+        const b = await world(page);
+        await page.keyboard.type("c");
+        await page.keyboard.press("Tab");
+        await page.waitForTimeout(100);
+        const c = await world(page);
+        say(b.builds > a.builds && b.cards.length === 0 && b.focus === "text" && b.card === "ab" && c.cards.length === 1 && c.cards[0] === "abc",
+            `card-type-redraw-type: drawn again ${b.builds - a.builds} time(s); after it the box held "${b.card}", the focus on "${b.focus}", saved ${JSON.stringify(b.cards)}; after the leave saved ${JSON.stringify(c.cards)}`);
         await page.close();
     }
     for (const [name, opener] of [["list-mouse", async page => page.click('.live select[name="pick"]')],

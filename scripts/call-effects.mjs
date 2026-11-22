@@ -62,11 +62,11 @@ export {
 } from "./call-world.mjs";
 
 /** Let the victim of a Call know what has been done to them. */
-async function tell(actor, key, data = null) {
+async function tell(actor, key, data = null, { veiled = false } = {}) {
     try {
         const words = data ? game.i18n.format(key, Object.fromEntries(Object.entries(data).map(([k, v]) => [k, foundry.utils.escapeHTML(String(v ?? ""))])))
             : game.i18n.localize(key);
-        await whisperToOwner(actor, { tone: "warning", body: `<p>${words}</p>` });
+        await whisperToOwner(actor, { tone: "warning", body: `<p>${words}</p>` }, veiled ? { veiled: true } : {});
     } catch {
         // The restriction stands whether or not the notice got through.
     }
@@ -1384,8 +1384,11 @@ async function destroyItemEffect(actor, call, choice, done) {
     await choice.item.delete();
     done.push(game.i18n.format("DRPG.Calls.destroyed", { item: name }));
     // Its owner told, privately, as Silence and Chain tell theirs (1.2.122, the audit's COMM-36): the public card named
-    // the item alone, and the player found an empty slot later.
-    if (owner) await tell(owner, "DRPG.Calls.destroyedNotice", { item: name });
+    // the item alone, and the player found an empty slot later. VEILED (1.2.123, the audit's r122-G-2): an unveiled
+    // whisper's document is spoken as the owner and addressed to the owner's players on every browser, so beside the
+    // public card it named who carried the item - the pair the public card leaves out. Silence's and Chain's public
+    // cards name their target already, so theirs stay as they were.
+    if (owner) await tell(owner, "DRPG.Calls.destroyedNotice", { item: name }, { veiled: true });
 }
 
 /**

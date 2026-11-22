@@ -626,7 +626,13 @@ export async function handleMusicTrack(payload, sender, ctx) {
     if (!payload.kind) return { refused: "nothing was carried out: the press is not a play or a stop" };
     const { playTrack, resetMusic } = await import("./music-play.mjs");
     if (payload.kind === "play") {
-        const played = await playTrack(payload.track);
+        /* WHY IT DID NOT PLAY GOES TO THE GM WHO PRESSED (1.2.123, the audit's r122-G-6): `playTrack`'s reasons - no cue
+           playlist, no such track, the track would not play - were notices on the primary, for a press it did not make,
+           and the asker heard the bridge's "nothing was carried out". Kept here and answered, the asker says it in its
+           own language (music-play.mjs `playTrack`); a reason none of these is the refusal as before. */
+        let said = null;
+        const played = await playTrack(payload.track, undefined, { say: (level, key, data = null) => { said = { level, key, data }; } });
+        if (!played && said) return { reply: { played: null, said } };
         if (!played) return { refused: "nothing was carried out: the cue was not played" };
         return { reply: { played: played.id } };
     }

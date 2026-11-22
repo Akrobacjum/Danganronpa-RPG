@@ -456,6 +456,7 @@ export function callProjectPool(listed, progress, { isComplete, isFrozen }) {
 async function pickProject(actor, ask) {
     const { kind, call } = ask;
     const { knownProjects, projectsAvailableIn, isComplete, isFrozen, projectLabel } = await import("./projects.mjs");
+    const { COUNTDOWNS_KEY } = await import("./projects-secrecy.mjs");
     const { locateActor } = await import("./movement.mjs");
 
     // Hope's Contribution is "a project being run in your current room";
@@ -515,7 +516,10 @@ async function pickProject(actor, ask) {
     const toRows = list => callProjectPool(list, Boolean(call?.progress), { isComplete, isFrozen })
         .map(p => ({ value: p.id, label: projectLabel(p) }));
     const id = await choose(ask, "DRPG.Calls.whichProject", toRows(listed), "fa-list-check", {
-        rows: () => toRows(listedNow()), watch: { tokens: true, hooks: ["drpgProjectSightChanged"] }
+        // And Daggerheart's countdowns (1.2.123, the audit's r122-G-8): a project's progress, so whether it is finished,
+        // lives in `daggerheart.Countdowns`, which the live region's filter drops unless it is named in full; a freeze is
+        // projectMeta's, a setting of this module, which wakes it without being named.
+        rows: () => toRows(listedNow()), watch: { tokens: true, hooks: ["drpgProjectSightChanged"], settingKeys: [COUNTDOWNS_KEY] }
     });
     if (!id) return null;
     return { project: id };

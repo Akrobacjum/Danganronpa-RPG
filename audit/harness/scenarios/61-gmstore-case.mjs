@@ -1085,6 +1085,32 @@ export async function run({ gm, gm2, gm3, gma, gmb, gmc, p1, p2, p3, p4, check, 
         && picksAfter.gm - picksBefore.gm === 1 && picksAfter.gm2 === picksBefore.gm2
         && J(f9reask.invites) === J(["hand"]) && J(f9p3.held) === J([["finesse", true]]) && f9p3.copy === null,
         J({ f9open, f9reask, f9p3, picksBefore, picksAfter }), { flow: "trait-ruling" });
+    /* THE PLAYER'S RE-ASK, READ ON THE PRIMARY (1.2.123; the auditor's check of 1.2.122, r122-lane-B-2 and -3). p3 sends
+       the ask its page sends at its ready (gm-bridge.mjs `askForOffers`), and the primary's packets and cards are read:
+       the invitations it sends p3 (`murder.openingAsk`) and the request cards to p3 it posts. */
+    const REASK = `const socket = game.socket, send = socket.emit, invites = [];
+        const yours = game.i18n.localize("DRPG.Murder.openingYours");
+        const { wordsOf } = await import("${repoUrl}/scripts/secret.mjs");
+        const cards = async () => { let n = 0; for (const m of game.messages.contents) if ((await wordsOf(m, 500) ?? "").includes(yours)) n++; return n; };
+        const before = await cards();
+        socket.emit = function (event, packet, options, ...rest) {
+            if (packet?.action === "murder.openingAsk") invites.push(packet.trait ?? null);
+            return send.call(this, event, packet, options, ...rest);
+        };
+        globalThis.__reaskDone = async () => { socket.emit = send; return { invites, cards: (await cards()) - before }; };
+        return true;`;
+    const reaskFromP3 = async () => {
+        await gm.eval(REASK);
+        await p3.eval(`const B = await import("${repoUrl}/scripts/bridge-table.mjs"); const W = await import("${repoUrl}/scripts/bridge-wire.mjs");
+            await B.ask(W.ACTION_ADVANCEMENT_ASK, {}); return true;`, { timeout: 30000 });
+        await settle(1500);
+        return gm.eval(`return await globalThis.__reaskDone();`);
+    };
+    /* F9d (r122-lane-B-3): with p3's card from F9 standing and no GM's window open, p3's re-ask is sent the invitation
+       again and no second card. Red at 8516ae4b: a card a re-ask. */
+    const f9d = await reaskFromP3();
+    check("F9d: a player's re-ask while their opening's card stands is sent the invitation again, and no second card (r122-lane-B-3)",
+        J(f9d.invites) === J(["hand"]) && f9d.cards === 0, J(f9d), { flow: "trait-ruling" });
     /* F9c (1.2.122, CASE-24 narrowed at the coordinator's ask): the opening's guard is one window per side and character.
        On gm, with the incident F9 opened standing at its opening roll, the killer's and the victim's openings are thrown on
        this one client (as a GM throws them for characters nobody connected plays), each window held; then the killer's is
@@ -1104,6 +1130,11 @@ export async function run({ gm, gm2, gm3, gma, gmb, gmc, p1, p2, p3, p4, check, 
         return { stage, thrown: [...globalThis.__f9cThrown], again: again ?? null };`, { timeout: 30000 });
     check("F9c: one client throws two characters' openings at once, each in its own window, and a second ask of one of them opens no second window (1.2.122, CASE-24 per side and character)",
         f9c.stage === "openingRoll" && J(f9c.thrown) === J(["killer", "victim"]) && f9c.again === null, J(f9c), { flow: "trait-ruling" });
+    /* F9e (r122-lane-B-2): the primary's own window now throws the killer's opening (F9c's, held), as a GM's does for a
+       player who was away; p3 comes back and asks: the primary invites nobody. Red at 8516ae4b: invited. */
+    const f9e = await reaskFromP3();
+    check("F9e: a player's re-ask while the primary's own window throws that opening for them invites nobody (r122-lane-B-2)",
+        J(f9e.invites) === "[]" && f9e.cards === 0, J(f9e), { flow: "trait-ruling" });
     /* E32+E07 fix r2-G4 (03.10.2026; the correctness review's m3): the request cards go when the
        murder closes, whichever GM posted them. Each GM kept the ids of the cards it posted, and the
        primary closing here deleted its own alone: gm2's re-ask stayed on the killer's player's
@@ -1125,8 +1156,9 @@ export async function run({ gm, gm2, gm3, gma, gmb, gmc, p1, p2, p3, p4, check, 
     await settle(800);
     const HELD = `return ${J(f9cards)}.filter(id => game.messages.has(id)).length;`;
     const f9left = { gm: await gm.eval(HELD), gm2: await gm2.eval(HELD), p3: await p3.eval(HELD), memo: [await gm.eval(MEMO), await gm2.eval(MEMO)] };
-    check("F9b: the close on the primary deletes the opening's request cards both GMs posted, on every browser; both GMs hold their ids until then and forget them after, and the killer's player is sent none and holds none, nor does the incident the GM reads",
-        f9cards.length === 2 && f9held.gm >= 2 && f9held.gm2 === f9held.gm && f9held.sent === false && f9held.p3 === false && f9held.state === false
+    // One card since 1.2.123: gm2's re-ask finds the primary's card to p3 standing and posts no second one (r122-lane-B-3, F9d).
+    check("F9b: the close on the primary deletes the opening's request card, on every browser; both GMs hold its id until then and forget it after, and the killer's player is sent none and holds none, nor does the incident the GM reads",
+        f9cards.length === 1 && f9held.gm >= 2 && f9held.gm2 === f9held.gm && f9held.sent === false && f9held.p3 === false && f9held.state === false
         && f9left.gm === 0 && f9left.gm2 === 0 && f9left.p3 === 0 && J(f9left.memo) === "[0,0]", J({ f9cards, f9held, f9left }), { flow: "trait-ruling" });
     // F9c's held windows let go and its stubs taken off, now the incident is closed (its loops end on the closed state).
     await gm.eval(`for (const r of globalThis.__f9cHeld ?? []) r(null);

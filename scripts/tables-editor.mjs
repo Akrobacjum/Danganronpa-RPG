@@ -721,7 +721,7 @@ function newItemPaneHtml(preset, presetTargets, roomTablesList, draft = null) {
                          class="drpg-tables-preview" />
                     <input type="hidden" name="img.new" value="${esc(draft?.img || preset?.img || "")}" />
                     <label>${game.i18n.localize("DRPG.Items.name")}
-                        <input type="text" name="newName" value="${esc(draft?.name ?? preset?.name ?? "")}"${tipAttr("DRPG.Tips.Sweep.Setup.newItemNameTooltip")}
+                        <input type="text" name="newName" value="${esc(draft?.name ?? preset?.name ?? "")}" data-drpg-prefill="${esc(draft?.name == null ? preset?.name ?? "" : "")}"${tipAttr("DRPG.Tips.Sweep.Setup.newItemNameTooltip")}
                                placeholder="${esc(game.i18n.localize("DRPG.Items.namePlaceholder"))}" /></label>
                 </div>
                 ${itemPictureGrid(draft?.img || preset?.img || "")}
@@ -1232,6 +1232,8 @@ function wirePaneRows(pane, root, show) {
     pane.addEventListener("focusout", async ev => {
         const field = ev.target.closest("[data-drpg-field]");
         if (!field) return;
+        // The pane's own redraw taking the field out, not the GM leaving it (`refresh`, r122-H-1).
+        if (pane.drpgQuiet) return;
 
         /*
          * ONLY A FIELD SOMEBODY CHANGED IS WRITTEN (Dawid, 31.08).
@@ -1330,6 +1332,8 @@ function wirePoolPane(pane, root) {
         showPoolName(nameEl, table?.name ?? "");
         bodyEl.innerHTML = table ? tableItemsHtml(table)
             : `<p class="notes">${game.i18n.localize("DRPG.Tables.noneYet")}</p>`;
+        // What `refresh` compares with: the table as drawn here (r122-H-1).
+        bodyEl.dataset.drpgDrawn = table ? tableItemsHtml(table) : "";
         wireRoomFilter(bodyEl);
         // Nothing selected is a real state - an empty world has no
         // tables at all - and a live button over nothing is a trap.
@@ -1356,9 +1360,21 @@ function wirePoolPane(pane, root) {
             ? { key: keyOf(document.activeElement), start: document.activeElement.selectionStart, end: document.activeElement.selectionEnd } : null;
         const filter = bodyEl.querySelector("select[data-drpg-room-filter]")?.value ?? null;
         const html = tableItemsHtml(table);
-        if (!typed.size && !focused && bodyEl.dataset.drpgDrawn === html) return;
+        /*
+         * NOT DRAWN AGAIN FOR NOTHING, AND DRAWN QUIETLY (the audit's check of 1.2.122, r122-H-1 and B-6; the line
+         * claude/refresh-120 for 1.2.123). Every table's hooks run every pane's refresh (`freshTableCounts`), and a pane with
+         * a field focused or typed in was drawn again even when its own table drew the same. Drawing it again takes the
+         * focused field out, and Chromium fires its focusout inside the removal (read for `innerHTML` in Chromium 153 on
+         * 21.11.2026: change, blur and focusout on the typed field, still connected), where the pane's own focusout writes a field whose value differs from what it was drawn with: the half-typed name or
+         * description was written to the table. So a table that draws the same is not drawn again, typed or not; and the
+         * removal this draws makes is not heard by the pane's focusout (`drpgQuiet`, read there): the words are carried to
+         * the new field below, which keeps the focus and still differs from what it was drawn with, so its leave writes them
+         * whole, as at any leave.
+         */
+        if (bodyEl.dataset.drpgDrawn === html) return;
         showPoolName(nameEl, table.name);
-        bodyEl.innerHTML = html;
+        pane.drpgQuiet = true;
+        try { bodyEl.innerHTML = html; } finally { pane.drpgQuiet = false; }
         bodyEl.dataset.drpgDrawn = html;
         wireRoomFilter(bodyEl);
         const picker = bodyEl.querySelector("select[data-drpg-room-filter]");
@@ -1488,9 +1504,17 @@ export async function openItemTables({ preset = null, poolError = null, draft = 
         /* A CARD'S PRESET REACHES AN OPEN WINDOW (1.2.122, the audit's CTRL-25): raised as it stood, the window dropped the
            card's category, tier, room and name and the GM retyped them. Its rows save as they change, so the one thing
            a close can lose is what was typed in Add an item: with nothing there, the window is opened again on the
-           preset; with something, it stays as it is, and the GM is told the card's details were not carried. */
+           preset; with something, it stays as it is, and the GM is told the card's details were not carried.
+           WHAT A CARD FILLED IN IS NOT TYPED (1.2.123, the audit's r122-G-1): the name box is filled from the preset, so
+           tables one card opened held that card's want and a second card's press found it "typed" and was refused. A
+           field counts as typed when it differs from what the window filled it with (`data-drpg-prefill`: the preset's
+           name; empty for a draft, which is the GM's own typing, and for the description, which no preset fills). */
         const open = [...foundry.applications.instances.values()].find(app => app.options?.classes?.includes("drpg-window-tables"));
-        const typed = ["newName", "newText"].some(name => String(open?.element?.querySelector(`[name="${name}"]`)?.value ?? "").trim());
+        const typed = ["newName", "newText"].some(name => {
+            const field = open?.element?.querySelector(`[name="${name}"]`);
+            const now = String(field?.value ?? "").trim();
+            return Boolean(now) && now !== String(field?.dataset?.drpgPrefill ?? "").trim();
+        });
         if (typed || !open) {
             ui.notifications.warn(game.i18n.localize("DRPG.Items.tablesOpenNoPreset"));
             return RAISED;

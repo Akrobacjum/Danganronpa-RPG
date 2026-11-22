@@ -7,9 +7,9 @@
     "chromium": "/opt/pw-browsers/chromium"
   },
   "body": {
-    "passed": 11,
+    "passed": 12,
     "failed": 0,
-    "total": 11,
+    "total": 12,
     "scripts": [
       {
         "file": "audit/live-press.mjs",
@@ -18,16 +18,16 @@
         "ok": 5,
         "fail": 0,
         "failing": 0,
-        "output": "ok   control: a region rebuilt under the press of Move read the click as lost (heard 0)\nok   edit-then-move: the press heard 1 time(s), the name written \"Name edit-then-move\", the region drawn again 1 time(s)\nok   edit-then-add: the press heard 1 time(s), the name written \"Name edit-then-add\", the region drawn again 1 time(s)\nok   edit-then-box: the press heard 1 time(s), the name written \"Name edit-then-box\", the region drawn again 1 time(s), the box ticked after the redraw: true\nok   pick: the region drawn again 1 time(s), 25 ms after the pick, showing \"manual\"\nlive-press: 0 failing (live.mjs of /tmp/claude-0/-home-user-Danganronpa-RPG/5fca4a62-94a8-5d11-ad7b-5b580350fb4f/scratchpad/wt122)\n"
+        "output": "ok   control: a region rebuilt under the press of Move read the click as lost (heard 0)\nok   edit-then-move: the press heard 1 time(s), the name written \"Name edit-then-move\", the region drawn again 1 time(s)\nok   edit-then-add: the press heard 1 time(s), the name written \"Name edit-then-add\", the region drawn again 1 time(s)\nok   edit-then-box: the press heard 1 time(s), the name written \"Name edit-then-box\", the region drawn again 1 time(s), the box ticked after the redraw: true\nok   pick: the region drawn again 1 time(s), 18 ms after the pick, showing \"manual\"\nlive-press: 0 failing (live.mjs of /tmp/claude-0/-home-user-Danganronpa-RPG/5fca4a62-94a8-5d11-ad7b-5b580350fb4f/scratchpad/wt122)\n"
       },
       {
         "file": "audit/live-redraw.mjs",
         "exit": 0,
         "signal": null,
-        "ok": 6,
+        "ok": 7,
         "fail": 0,
         "failing": 0,
-        "output": "ok   control: a wake with nothing focused drew the region again (1 -> 2)\nok   control: the select's list reads open after the click that opens it (:open true)\nok   type-redraw-type: drawn again 1 time(s) while typing; saved before the leave [], after it [\"abc\"]\nok   type-redraw-leave: drawn again 1 time(s), the focus on \"words\"; saved before the leave [], after it [\"abc\"]\nok   list-mouse: open before the change true, 450 ms after it true; after Escape open false, drawn again 1 time(s)\nok   list-keyboard: open before the change true, 450 ms after it true; after Escape open false, drawn again 1 time(s)\nlive-redraw: 0 failing (live.mjs of /tmp/claude-0/-home-user-Danganronpa-RPG/5fca4a62-94a8-5d11-ad7b-5b580350fb4f/scratchpad/wt122)\n"
+        "output": "ok   control: a wake with nothing focused drew the region again (1 -> 2)\nok   control: the select's list reads open after the click that opens it (:open true)\nok   type-redraw-type: drawn again 1 time(s) while typing; saved before the leave [], after it [\"abc\"]\nok   type-redraw-leave: drawn again 1 time(s), the focus on \"words\"; saved before the leave [], after it [\"abc\"]\nok   card-type-redraw-type: drawn again 1 time(s); after it the box held \"ab\", the focus on \"text\", saved []; after the leave saved [\"abc\"]\nok   list-mouse: open before the change true, 450 ms after it true; after Escape open false, drawn again 1 time(s)\nok   list-keyboard: open before the change true, 450 ms after it true; after Escape open false, drawn again 1 time(s)\nlive-redraw: 0 failing (live.mjs of /tmp/claude-0/-home-user-Danganronpa-RPG/5fca4a62-94a8-5d11-ad7b-5b580350fb4f/scratchpad/wt122)\n"
       }
     ]
   }

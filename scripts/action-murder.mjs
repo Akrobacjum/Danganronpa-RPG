@@ -58,7 +58,7 @@ import { drpgConfirm, tipText } from "./ui-kit.mjs";
  * where the action lists several statistics, then the roll window.
  */
 export async function openCrisisMenu(actor) {
-    const { availableCrisisActions, isTheirTurn, takeCrisisAction, crisisVariant } =
+    const { availableCrisisActions, isTheirTurn, takeCrisisAction, crisisVariant, murderState } =
         await import("./murder.mjs");
     const { listedTraits, resolveArmed } = await import("./trait-ruling.mjs");
     const { isBrokenDown } = await import("./character.mjs");
@@ -91,17 +91,21 @@ export async function openCrisisMenu(actor) {
         return null;
     }
 
-    const brokenDown = isBrokenDown(actor);
-    const youPick = resolveArmed(actor);
     // What each row lists (a trap victim's own table where the incident gives one), and whether its roll asks a GM.
     const listed = Object.fromEntries(options.map(({ key }) => [key, listedTraits({ kind: "crisis", key, variant: crisisVariant(actor, key) })]));
-    const asks = ({ key, def, free }) => !free && !def.noRoll && !youPick && (listed[key] ?? []).length > 1;
+    const asks = ({ key, def, free }, youPick) => !free && !def.noRoll && !youPick && (listed[key] ?? []).length > 1;
     /* THE MENU IS LIVE (1.2.122 line MURDER; 1.2.121's line K left it; the audit's REFR-21): its rows are the turn's
        numbers and shut reasons, read again (`rowsOf`) when the incident, the cast or an actor changes while it stands
        (`chooseVariant`'s `live`); a turn gone to the other side, or an incident over, closes it with the off-turn
-       sentence. A row's statistic list is the one read at the open (`listed`), as its field is. R8228 reads the rows
-       rebuilt. */
-    const rowsOf = rows => rows.map(({ key, def, threshold, defense, defenseHidden, free, hindered, blocked, locked, spent, lockedBy, denied, why }) => ({
+       sentence. A row's statistic list is the one read at the open (`listed`), as its field is. Tier 2 "1.2.122 REFR-21"
+       reads the rows rebuilt (this said R8228, the block's next free number then, never a test: the auditor's r122-C-4).
+       AND WHAT A ROW UNFOLDS (1.2.123; the auditor's recheck read REFR-21 as partly done): Breakdown and a Resolve armed
+       are read again at every rebuild, not once at the open, so a row's details and facts follow them (action-menus.mjs
+       `keepRowsLive`); tier 2 "1.2.123 REFR-21 r122-C-2". */
+    const rowsOf = rows => {
+        const brokenDown = isBrokenDown(actor);
+        const youPick = resolveArmed(actor);
+        return rows.map(({ key, def, threshold, defense, defenseHidden, free, hindered, blocked, locked, spent, lockedBy, denied, why }) => ({
             value: key,
             icon: def.icon ?? "fa-burst",
             label: def.label,
@@ -124,9 +128,9 @@ export async function openCrisisMenu(actor) {
             // The player's proposal, for the row that asks a GM (E68 C4; DA18): the first listed checked. In the right
             // column's statistic slot while the row is picked (E68 C13's merge; the owner's Q3 of round M), not with
             // the row's details on the left.
-            field: asks({ key, def, free }) ? traitFieldHtml(actor, listed[key], { propose: true }) : "",
+            field: asks({ key, def, free }, youPick) ? traitFieldHtml(actor, listed[key], { propose: true }) : "",
             // A roll that sends a card wears the GM's road (D11; utils.mjs `GM_ROUTE_CLASS`), as a project's does.
-            gmRoute: asks({ key, def, free }),
+            gmRoute: asks({ key, def, free }, youPick),
             confirm: game.i18n.localize(free || def.noRoll ? "DRPG.Murder.briefTake" : "DRPG.Murder.briefRoll"),
             disabled: blocked,
             // Taken away by the incident (`deniedToVictim`): drawn struck through, with why (E51 C1; S02-51 (g)).
@@ -142,6 +146,7 @@ export async function openCrisisMenu(actor) {
                     ? game.i18n.localize("DRPG.Murder.actionSpent")
                     : game.i18n.localize("DRPG.Murder.actionBlocked")
         }));
+    };
     const picked = await chooseVariant({
         actor,
         title: game.i18n.localize("DRPG.Murder.yourTurn"),
@@ -153,7 +158,11 @@ export async function openCrisisMenu(actor) {
         live: {
             options: () => rowsOf(availableCrisisActions(actor).filter(o => !o.hidden && listed[o.key])),
             watch: { actors: true, settings: [SETTINGS.murderState], hooks: ["drpgCastChanged"] },
-            closeWhen: () => (isTheirTurn(actor) ? null : "DRPG.Murder.offTurn")
+            /* THE FIGHT'S END SAYS SO (the auditor's r122-C-2, 1.2.123): `isTheirTurn` is false for every stage but the
+               fight's, so the menu closed by the incident's end, or by Stage 6 after a kill, said the turn would come
+               back. A stage other than the fight's says the fight is over; a turn gone to the other side, as before. */
+            closeWhen: () => (isTheirTurn(actor) ? null
+                : murderState()?.stage === "incident" ? "DRPG.Murder.offTurn" : "DRPG.Murder.fightOver")
         }
     });
 

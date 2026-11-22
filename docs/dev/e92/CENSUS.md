@@ -73,7 +73,7 @@ ones.
 | sheet-audit.mjs:783, 803, 927, 1215, 3226, 3320 | the audit's marks | character here: its flag is held there (C1, `GM_FLAGS`) |
 | sheet-mode.mjs:152 | sheet renders | character here (the mode is `sheetMode`'s, C5) |
 | sheet-repaint.mjs:171 | sheet renders | character here (the mode is `sheetMode`'s, C5) |
-| sheet-inventory.mjs `openCharacterSheets` (1.2.122 line UI) | the open sheets the room watch redraws (`redrawRoomSheets`, REFR-12) | character here: a Spectator's sheet is redrawn like any other, and draws no room parts (`sheetMode`, C5) |
+| sheet-inventory.mjs `openCharacterSheets` (1.2.122 line UI; since 1.2.123, r122-E-R1, through window-scale.mjs `isCharacterSheet`, so no line of its own) | the open sheets the room watch redraws (`redrawRoomSheets`, REFR-12) | character here: a Spectator's sheet is redrawn like any other, and draws no room parts (`sheetMode`, C5) |
 | sheet.mjs `registerSheetTweaks` (1.2.122 line UI) | an item changed on a character, for the room watch (REFR-12) | character here: it only asks the watch, which redraws by the signature |
 | sheet-sidebar.mjs:751, 892 | sheet renders | character here (the mode is `sheetMode`'s, C5) |
 | spectator-dead.mjs `ownStudentOf` (E62 C3b fix, 13.11.2026) | the player's own student a moment names, on that player's browser | leave it out: a Spectator's flag is read beside it |

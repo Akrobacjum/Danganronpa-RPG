@@ -13827,7 +13827,8 @@ const REGRESSIONS = [
         };
         // E41 C3 (1.2.97): the action family's text (the kit's `actionText`), where action-rolls.mjs's alone was read.
         const rolls = stripComments(actionText(await otherSources()));
-        const menu = bodyOf(fnSource(rolls, "chooseTamper"), "options: [", { until: "...(stageSix" });
+        // CHANGED ON PURPOSE BY 1.2.123 (the auditor's p43-1): the rows are `rowsFor`'s, rebuilt while the menu stands.
+        const menu = bodyOf(fnSource(rolls, "chooseTamper"), "const rowsFor = list => [", { until: "...(stageSix" });
         const things = [...menu.matchAll(/\bvalue:\s*"\w+"/g)].length;
         ok(things > 0, "chooseTamper's menu was read and offers nothing - this test measured nothing");
         const { unfoundBar: bar, unfoundDespair: despair } = KEY_REMNANTS;
@@ -24229,7 +24230,8 @@ const REGRESSIONS = [
         read.analyzeLayers = [...ana.querySelectorAll(".drpg-action-details-box .drpg-details-stack > .drpg-details-layer[data-drpg-when]")].map(l => l.dataset.drpgWhen).sort();
         read.boundLi = ana.querySelectorAll("li[data-drpg-when]").length;
         const code = stripComments(actionText(await moduleSources()));
-        const facts = fnSource(code, "briefingFacts") ?? "", block = fnSource(code, "briefingBlock") ?? "";
+        // CHANGED ON PURPOSE BY 1.2.123 (the auditor's p43-1): the markup is `briefingMarkup`'s, which `briefingBlock` draws and keeps live.
+        const facts = fnSource(code, "briefingFacts") ?? "", block = fnSource(code, "briefingMarkup") ?? "";
         read.watched = [/DRPG\.Tamper\.watched[\s\S]{0,120}\btop\s*:\s*true/.test(facts), /drpg-briefing-watched/.test(block)];
         read.lang = ["DRPG.Kit.details", "DRPG.Kit.thresholds"].map(k => game.i18n.localize(k) !== k).concat(game.i18n.localize("DRPG.Kit.allThresholds") === "DRPG.Kit.allThresholds");
         const yes = { one: true, outside: 0, inside: true, all: 0, aria: true, hidden: 0 };
@@ -24405,7 +24407,7 @@ const REGRESSIONS = [
             keys: ["2:deduction-a", "2:meta", false, false, true],
             node: { kind: "deduction", label: "R3373 who", text: "", inputs: ["S1.T1", "key:1"], refutes: [], mode: "debate", order: 2, made: null, room: null, trace: null, type: null, note: null, scene: null, author: null, vis: null, tie: null, reinforced: null, analysis: null, img: null, recipient: null, tell: null, realType: null, shown: null, faint: null, tied: null, given: null, atBody: null, zoneQuestion: "", zoneA: "", zoneB: "", zoneThesis: "", diveSet: "" },
             other: null, empty: { kind: "counter", label: "", text: "", inputs: [], refutes: [], mode: null, order: null, made: null, room: null, trace: null, type: null, note: null, scene: null, author: null, vis: null, tie: null, reinforced: null, analysis: null, img: null, recipient: null, tell: null, realType: null, shown: null, faint: null, tied: null, given: null, atBody: null, zoneQuestion: "", zoneA: "", zoneB: "", zoneThesis: "", diveSet: "" },
-            meta: [{ sort: "kind", manual: { a: 1 }, run: null, askedAt: null, made: {}, autopsies: null, autopsySent: {} }, { sort: "room", manual: {}, run: "R1", askedAt: 9, made: {}, autopsies: null, autopsySent: {} }],
+            meta: [{ sort: "kind", manual: { a: 1 }, run: null, askedAt: null, made: {}, autopsies: null, autopsySent: {}, shift: {} }, { sort: "room", manual: {}, run: "R1", askedAt: 9, made: {}, autopsies: null, autopsySent: {}, shift: {} }],
             sorts: ["manual", "kind", "room", "state", "uncrossed"], kinds: ["deduction", "counter", "solution", "incident", "autopsy", "final", "bullet"],
             nodes: [["S1.T1", "trace", true, false, null], ["S1.T2", "key", true, false, 1], ["S1.T3", "final", true, false, null], ["S1.T4", "trace", true, false, null],
                 ["key:0", "key", true, true, 0], ["deduction-a", "deduction", false, false, null], ["counter-b", "counter", false, false, null], ["solution-c", "solution", false, false, null]],
@@ -25919,7 +25921,7 @@ const REGRESSIONS = [
         must(Object.keys(found).every(k => fnSource(k === "onSecretPacket" ? secret : bridge, k).length > 40), "a listener was not found in its file - this would measure nothing");
         equal(JSON.stringify(found), JSON.stringify({ onOpeningAsk: [], onOpeningCancel: [], askForOffers: [], onSecretPacket: [] }), "{each listener: the bare reads of game.user in it}");
     }],
-    ["R8183 - an opening-roll invitation that reaches a player before their copy of the incident waits for it, and tells the GMs when none comes (line INVEST of 1.2.122; the audit's CASE-LC2 of 1.2.42): murder-rules.mjs `throwOpeningRoll`, on a browser that is not a GM's and holds no running incident, waits `TIMING.openingCopyWaitMs` for its copy before it reads the seat, and with none whispers the GMs DRPG.Murder.openingNoCopy - before the loop that reads the seat", async () => {
+    ["R8183 - an opening-roll invitation that reaches a player before their copy of the incident waits for it, and tells the GMs when none comes (line INVEST of 1.2.122; the audit's CASE-LC2 of 1.2.42; the seat since 1.2.123, r122-D-3): murder-rules.mjs `throwOpeningRoll`, on a browser that is not a GM's and holds no running incident, or one at the opening with the seat still empty, waits `TIMING.openingCopyWaitMs` for its copy before it reads the seat, and with none whispers the GMs DRPG.Murder.openingNoCopy - before the loop that reads the seat", async () => {
         /*
          * Line INVEST of 1.2.122 (the auditor's unrouted list, B). Source read, comments stripped: the wait and the whisper,
          * and their order against the loop's first `openingStillWanted`. The race itself - the invitation before the copy -
@@ -25930,8 +25932,10 @@ const REGRESSIONS = [
         must(body.length > 500, "throwOpeningRoll was not found - this would measure nothing");
         const wait = body.indexOf("TIMING.openingCopyWaitMs"), told = body.indexOf("DRPG.Murder.openingNoCopy"), loop = body.indexOf("for (let attempt");
         const cfg = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/config.mjs`).then(lfText));
-        equal(JSON.stringify({ waits: wait > 0 && /!game\.user\?\.isGM && !murderState\(\)\?\.active/.test(body), told: told > wait, beforeLoop: loop > told, timing: /openingCopyWaitMs:\s*\d+/.test(cfg) }),
-            JSON.stringify({ waits: true, told: true, beforeLoop: true, timing: true }), "{waits: a player's browser with no incident waits; told: the GMs are told after the wait; beforeLoop: both before the loop; timing: the wait is a TIMING row}");
+        /* 1.2.123 (r122-D-3): the wait also covers a copy at the opening with the seat still empty (`copyOnItsWay`). */
+        const onItsWay = /const copyOnItsWay = \(\) => \{[^}]*!state\?\.active \|\| \(state\.stage === "openingRoll" && !seatOf\(state\)\)/.test(body);
+        equal(JSON.stringify({ waits: wait > 0 && /!game\.user\?\.isGM && copyOnItsWay\(\)/.test(body), seat: onItsWay, told: told > wait, beforeLoop: loop > told, timing: /openingCopyWaitMs:\s*\d+/.test(cfg) }),
+            JSON.stringify({ waits: true, seat: true, told: true, beforeLoop: true, timing: true }), "{waits: a player's browser whose copy is on its way waits; seat: on its way is no incident, or the opening with this seat empty; told: the GMs are told after the wait; beforeLoop: both before the loop; timing: the wait is a TIMING row}");
     }],
     ["R8184 - a body carried into a room by Move the body counts as the room walked in on (the owner's decision of 21.11.2026; line INVEST of 1.2.122, the audit's CASE-LC5 of 1.2.42): murder-rules.mjs `registerMurder`'s token-move hook hands every move on the primary to body.mjs `maybeBodyFound`, with no test of whose token moved or why, and body.mjs records the decision beside it", async () => {
         /*
@@ -27304,7 +27308,7 @@ const REGRESSIONS = [
         equal(JSON.stringify([read.unnoted, read.stale]), "[[],[]]", "a bare write of a student's guarded flag does not tell the GMs' audit first, or a NOT_NOTED row names nothing [unnoted, stale]");
     }],
 
-    ["R8060 - the language files say what the code does (1.2.122 line TEXT; the audit of 1.2.118: CORE-37, CORE-52, ROLL-29, STG-29, STG-33, STG-51, STG-80, STG-86, STG-87, STG-90, STG-91, TEXT-31, TEXT-33, TEXT-34, TEXT-35, TEXT-37, TEXT-38, UI-31; the check of 1.2.121: r121-R-8): each row reads one key, or every value, of lang/en.json and lang/pl.json and holds it to the fact the finding read off the code", async () => {
+    ["R8060 - the language files say what the code does (1.2.122 line TEXT; the audit of 1.2.118: CORE-37, CORE-52, ROLL-29, STG-29, STG-33, STG-51, STG-80, STG-86, STG-87, STG-90, STG-91, TEXT-31, TEXT-33, TEXT-34, TEXT-35, TEXT-37, TEXT-38, UI-31; the check of 1.2.121: r121-R-8; the check of 1.2.122: r122-A-7): each row reads one key, or every value, of lang/en.json and lang/pl.json and holds it to the fact the finding read off the code", async () => {
         /*
          * 1.2.122 line TEXT, 21.11.2026. One row a finding; each is the reading the finding made at its file:line on
          * 21bf5d18, turned into the words the text must (or must not) hold. They are words, not behaviour: what each
@@ -27352,7 +27356,11 @@ const REGRESSIONS = [
             // the glossary declines Truth Bullet and token with -u (DB4).
             ["TEXT-35", () => !all("pl").some(([, v]) => /Truth Bulleta(?![\p{L}])|(?<![\p{L}])tokena(?![\p{L}])/u.test(v))],
             // a no-wrap mini button: the Polish no more than twice the English.
-            ["TEXT-37", () => at("pl", "DRPG.Mastermind.lair.lock").length <= 2 * at("en", "DRPG.Mastermind.lair.lock").length],
+            // and the finding's second button, the roll window's Pass (1.2.123 line TEXT; the audit of 1.2.122, recheck of TEXT-37)
+            ["TEXT-37", () => ["DRPG.Mastermind.lair.lock", "DRPG.TraitRuling.pass"].every(k => at("pl", k).length <= 2 * at("en", k).length)],
+            // stash-reach.mjs: the Mastermind reaches a hidden stash with no Search; both languages say it or neither does
+            // (1.2.123 line TEXT; the audit of 1.2.122, r122-A-7: the Polish said it, the English did not)
+            ["r122-A-7", () => /Mastermind/.test(at("en", "DRPG.Vault.stashesNote")) === /Mastermind/.test(at("pl", "DRPG.Vault.stashesNote"))],
             // explain.mjs shows the paragraph to whoever clicks, GM included: no "you" spoken to the class.
             ["TEXT-38", () => !/one of you|Get it right/.test(at("en", "DRPG.Explain.phase.classTrial")) && !/z was|Trafcie|pomylcie/.test(at("pl", "DRPG.Explain.phase.classTrial"))],
             // notice-history-app.mjs `changed` draws new entries at once since 1.2.120; the pill only scrolls up to them
@@ -27627,14 +27635,15 @@ const REGRESSIONS = [
         if (!/proseOf\(\s*USABLE_KIND_EFFECTS\[kind\]\s*,\s*give\.tier\s*\)/.test(items)) wrong.push("gm-items.mjs's receipt does not fill the usable's sentence");
         equal(JSON.stringify(wrong), "[]", "[a number told twice, or a sentence its reader does not fill]");
     }],
-    ["R8070 - a text the auditor's unrouted list named says no more than holds (1.2.122 line TEXT; the audit of 1.2.118's unrouted items, TEXT-04, TEXT-09 and TEXT-LC2): the giver of a Truth Bullet the receiver already holds a copy of is told only that nothing changed hands", async () => {
+    ["R8070 - a text the auditor's unrouted list named says no more than holds (1.2.122 line TEXT; the audit of 1.2.118's unrouted items, TEXT-09 and TEXT-LC2; TEXT-04 is R8462's): the giver of a Truth Bullet the receiver already holds a copy of is told only that nothing changed hands", async () => {
         /*
          * 1.2.122 line TEXT, 21.11.2026; the owner: everything the auditor named goes into 1.2.122.
          * TEXT-04 (the Eclipse's "or anywhere at night" under Darkness) was fixed twice, by TEXT and by STG (3.1-03); the
          * assembly kept STG's, which names the night's rooms, and its test is R8462. TEXT-09 / TEXT-LC2: DRPG.Handover.alreadyHasIt,
          * whispered to the giver (handover.mjs `mintCopy`'s HELD_COPY), said "They already hold a Truth Bullet of this
          * Remnant" - a fact about the receiver's evidence (AUDIT-1.2.42.md 3.4, fixed in task 13 as "Nothing changed
-         * hands.", reworded back in E71 B08 with no owner's verdict). Red at aa564cca.
+         * hands.", reworded back in E71 B08 with no owner's verdict). Red at aa564cca. The title named TEXT-04 until 1.2.123
+         * (line TEXT; the audit of 1.2.122, r122-A-6), though this body reads only the Handover sentence.
          */
         const wrong = [];
         for (const code of ["en", "pl"]) {
@@ -27644,6 +27653,73 @@ const REGRESSIONS = [
             if (/already|ma już|Remnant/.test(text)) wrong.push(`${code} alreadyHasIt: ${text}`);
         }
         equal(JSON.stringify(wrong), "[]", "[what the text still says beyond what holds]");
+    }],
+    ["R8620 - the handbooks say what the code does (1.2.123 line TEXT; the check of 1.2.122, lane HB: r122-HB-1 to r122-HB-6): each row reads the code a handbook sentence describes and holds the English and the Polish handbook to it - the camera dock takes a hidden killer's tile off, the voice tile's Hidden, the Debug log's buttons following its rows, Take from the Body at the top of a whole sheet's inventory, the hidden stashes' store and a secret project's completion in section 22, and Repair the Lock a preset", async () => {
+        /*
+         * 1.2.123 line TEXT, 21.11.2026; the auditor's lane HB of recheck-122.json, routed to TEXT by the coordinator. Each
+         * row is the reading the finding made at its file on 14bb0d92, read again by hand there, and the words the
+         * handbooks must (or must no longer) hold. Red at 22629bda: every row (each sentence as it stood). A row whose code
+         * half goes red means the code moved and the handbook's sentence with it must be read again. r122-HB-3 did: line R1's
+         * r122-H-8 (34143265, merged here) made the Debug log's Copy and Clear follow its rows, and its rows read that code;
+         * red with 14bb0d92's gm-panel.mjs.
+         */
+        const doc = async name => fetch(`/modules/${MODULE_ID}/docs/handbooks/${name}.md`, { cache: "no-cache" }).then(r => (r.ok ? lfText(r) : ""));
+        const src = async file => stripComments(await fetch(`/modules/${MODULE_ID}/scripts/${file}`, { cache: "no-cache" }).then(lfText));
+        const [gmEn, gmPl, plEn, plPl] = await Promise.all(["gm-handbook.en", "gm-handbook.pl", "player-handbook.en", "player-handbook.pl"].map(doc));
+        must([gmEn, gmPl, plEn, plPl].every(t => t.length > 50000), "a handbook was not served - this would read nothing");
+        const [cam, tile, panel, anon, stores, secrecy, project] = await Promise.all(["camera-view.mjs", "voice-tile.mjs", "gm-panel.mjs",
+            "anonymity.mjs", "gm-stores.mjs", "projects-secrecy.mjs", "action-project.mjs"].map(src));
+        must([cam, tile, panel, anon, stores, secrecy, project].every(s => s.length > 1000), "a script did not load - this reads nothing");
+        const lang = {};
+        for (const code of ["en", "pl"]) lang[code] = await fetch(`/modules/${MODULE_ID}/lang/${code}.json`, { cache: "no-cache" }).then(r => (r.ok ? r.json() : null));
+        must(lang.en?.DRPG && lang.pl?.DRPG, "lang/en.json or lang/pl.json was not served - this would read nothing");
+        const word = code => foundry.utils.getProperty(lang[code], "DRPG.Voice.tile.state.hidden") ?? "";
+        must(word("en").length > 2 && word("pl").length > 2, "DRPG.Voice.tile.state.hidden is missing - this reads nothing");
+        // A paragraph of a handbook, found by its first words.
+        const paragraph = (text, start) => {
+            const i = text.indexOf(start);
+            must(i >= 0, `no handbook paragraph starts "${start}" - this row reads nothing until it is pointed at the text again`);
+            return lineAround(text, i);
+        };
+        const relabel = fnSource(cam, "relabel"), failureLog = fnSource(panel, "openFailureLog"), loot = fnSource(anon, "addLootButton");
+        const ROWS = [
+            // camera-view.mjs `relabel`: the box is taken off (`showBox`) before the nameplate's Off returns, in every mode.
+            ["r122-HB-2 code", () => relabel.indexOf("showBox(box, !hidden(user))") >= 0
+                && relabel.indexOf("showBox(box, !hidden(user))") < relabel.indexOf("plate.MODES.OFF")],
+            ["r122-HB-2 en", () => !/camera dock shows "\?" for every name/.test(gmEn) && (gmEn.match(/killer's player's tile is taken off/g) ?? []).length === 2],
+            ["r122-HB-2 pl", () => !/pokazuje[^.]*„\?” zamiast każdego imienia/.test(gmPl) && (gmPl.match(/znika z doku kamer/g) ?? []).length === 2],
+            // voice-tile.mjs WORDS.masked: the word a killer behind a "?" reads, before any connection state.
+            ["r122-HB-1 code", () => /masked:\s*\{\s*word:\s*"DRPG\.Voice\.tile\.state\.hidden"/.test(tile)],
+            ["r122-HB-1 en", () => plEn.includes(`| **${word("en")}** |`) && gmEn.includes(`reads **${word("en")}**`)],
+            ["r122-HB-1 pl", () => plPl.includes(`| **${word("pl")}** |`) && gmPl.includes(`widzi **${word("pl")}**`)],
+            // gm-panel.mjs `openFailureLog` since line R1's r122-H-8 (34143265): Copy and Clear always drawn, hidden while the log
+            // is empty - at the open (`showButtons(rows.length)`) and at each redraw (`showButtons(fresh.length)`). At 14bb0d92
+            // they were drawn only when the rows read at the open were some (`rows.length ? [{ action: "copy" ...`).
+            ["r122-HB-3 code", () => /button\.hidden = !n/.test(failureLog) && /showButtons\(rows\.length\)/.test(failureLog)
+                && /showButtons\(fresh\.length\)/.test(failureLog) && !/rows\.length \? \[\{ action: "copy"/.test(failureLog)],
+            ["r122-HB-3 en", () => paragraph(gmEn, "**Debug log** lists").includes("hide while it is empty, a log opened empty included")
+                && !gmEn.includes("offers neither button until you close it")],
+            ["r122-HB-3 pl", () => paragraph(gmPl, "**Dziennik debugowania** wymienia").includes("gdy jest pusty, znikają, także w dzienniku otwartym pustym")
+                && !gmPl.includes("żadnego z tych dwóch przycisków nie da")],
+            // anonymity.mjs `addLootButton`: with the switch off the button is prepended to the inventory pane.
+            ["r122-HB-4 code", () => /pane\.prepend\(lootFoot\(/.test(loot)],
+            ["r122-HB-4 en", () => paragraph(plEn, "- The **body** can be searched").includes("top of its inventory")],
+            ["r122-HB-4 pl", () => paragraph(plPl, "- **Ciało** można przeszukać").includes("na górze jego ekwipunku")],
+            // gm-stores.mjs: the hidden stashes a GM store, backed up, with a player's copy; projects-secrecy.mjs: completedAt a secret.
+            ["r122-HB-5 code", () => /name: "hiddenStashes", key: SETTINGS\.gmHiddenStashes,\s*kind: "ledger", backup: true/.test(stores)
+                && /name: "hiddenStashes", key: SETTINGS\.mineHiddenStashes, from: "hiddenStashes"/.test(stores)
+                && /PROJECT_SECRET_WHILE_SECRET = Object\.freeze\(\[[^\]]*"completedAt"/.test(secrecy)],
+            ["r122-HB-5 en", () => /Since 1\.2\.122 also: which stashes are hidden[\s\S]{0,160}completed/.test(paragraph(gmEn, "What the GMs' browsers hold, and since when."))
+                && /Since 1\.2\.122 also which of their own characters' stashes are hidden/.test(paragraph(gmEn, "What a player's browser holds:"))],
+            ["r122-HB-5 pl", () => /Od 1\.2\.122 trzymają także to, które skrytki są ukryte[\s\S]{0,160}ukończono/.test(paragraph(gmPl, "Od 1.2.63 przeglądarki GM-ów trzymają:"))
+                && /Od 1\.2\.122 trzyma także to, które skrytki jego własnych postaci są ukryte/.test(paragraph(gmPl, "Przeglądarka gracza trzyma to,"))],
+            // action-project.mjs: Repair the Lock is a preset beside the others.
+            ["r122-HB-6 code", () => /lockable\.length \? \["repairLock"\]/.test(project)],
+            ["r122-HB-6 en", () => !gmEn.includes("not yet built as a project preset") && paragraph(gmEn, "**Broken** (the Doors tab)").includes("A finished Repair the Lock project unticks it")],
+            ["r122-HB-6 pl", () => !gmPl.includes("Gotowego projektu Repair the Lock jeszcze nie ma") && paragraph(gmPl, "Pole **Zepsute** (zakładka Drzwi)").includes("Ukończony projekt Repair the Lock też je odznacza")]
+        ];
+        const wrong = ROWS.filter(([, holds]) => !holds()).map(([id]) => id);
+        equal(JSON.stringify(wrong), "[]", "[a handbook sentence that does not say what the code does, or code that moved under one]");
     }],
     ["R8542 - Fit to view shows the whole case however far it must zoom out (the owner, 21.11.2026: \"niech fit to view w planerze zagadki przekracza maksymalne oddalenie (aktualnie 25%) - niech je ignoruje\"; case-view.mjs `fitCamera`, `zoomFloor`, `wireCaseCamera`): a case wider than the view at 25% fits at its own zoom, down to CAMERA_LIMITS.fitMin (5%); the zoom's floor in the window is the lower of 25% and that fit, so a step out or the wheel stops at the fit and does not pull the view back to 25%, and a step in from it zooms in; a case that fits at 25% or more keeps 25% as the floor; the toolbar's readout shows the zoom as it is", async () => {
         /*

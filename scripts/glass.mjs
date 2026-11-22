@@ -1662,7 +1662,9 @@ globalThis.drpgGlassRebuild = () => import("./glass.mjs").then(m => m.refreshGla
     panes.forEach((p, i) => {
       const k = p.tone && TONE[p.tone] ? p.tone : null;
       const bb = bbox(p.poly);
-      const hsh = hash((bb.x0 + bb.x1) / 2, (bb.y0 + bb.y1) / 2);
+      /* a pane of a recut that is an old pane moved keeps the old one's numbers (`carryPaneLook`), so its colour, its
+         stain and its texture stay with it through the move; any other pane takes them from its centre, as before */
+      const hsh = p.seed ?? hash((bb.x0 + bb.x1) / 2, (bb.y0 + bb.y1) / 2);
       /* AN EMPTY TILE IS GLASS. A pane cut for a block that is not there (the notice tile
          between notices, the GM bar on a player's screen) keeps its place in the partition
          but is painted like the filler around it - never a dark plate with nothing on it. */
@@ -1671,7 +1673,7 @@ globalThis.drpgGlassRebuild = () => import("./glass.mjs").then(m => m.refreshGla
       const stained = !content && !p.empty && !p.plain && hsh > 0.72;
       ctx.save(); path(ctx, p.poly); ctx.clip();
       // black glass first, then a little colour: a panel keeps its tone, most filler a faint tint, one in five stained
-      const lum = hash((bb.x0 + bb.x1) / 2 + 17, (bb.y0 + bb.y1) / 2 - 31);
+      const lum = p.lumSeed ?? hash((bb.x0 + bb.x1) / 2 + 17, (bb.y0 + bb.y1) / 2 - 31);
       const shade = paneShade(p, { stained, lum });
       ctx.globalAlpha = shade.base;
       ctx.fillStyle = content ? (k ? TONE[k] : "#0d0b16") : (lum > 0.5 ? "#0c0a14" : "#0a0810");
@@ -1689,7 +1691,7 @@ globalThis.drpgGlassRebuild = () => import("./glass.mjs").then(m => m.refreshGla
       g.addColorStop(0, "rgba(255,255,255,0.08)"); g.addColorStop(0.55, "rgba(255,255,255,0.01)"); g.addColorStop(1, "rgba(0,0,0,0.20)");
       ctx.fillStyle = g; ctx.fillRect(bb.x0, bb.y0, bb.x1 - bb.x0, bb.y1 - bb.y0);
       ctx.restore();
-      p.stained = stained; p.hsh = hsh; p.bb = bb; p.tex = null;
+      p.stained = stained; p.hsh = hsh; p.lum = lum; p.bb = bb; p.tex = null;
       if (stained && bb.x1 - bb.x0 > 2 && bb.y1 - bb.y0 > 2) {
         // the texture of coloured glass, and only of coloured glass: fine translucent streaks along the
         // shear, three brighter ones in the state colour, a faint grain. Pre-rendered here, shown by the
@@ -1969,7 +1971,7 @@ globalThis.drpgGlassRebuild = () => import("./glass.mjs").then(m => m.refreshGla
        is the whole geometry, so equal strings mean the old panes are exactly right. */
     const same = job.pathD === d && Array.isArray(job.panes);
     job.pathD = d;
-    if (!same) { job.panes = panes; el.style.clipPath = "path('" + d + "')"; }
+    if (!same) { carryPaneLook(panes, job.panes); job.panes = panes; el.style.clipPath = "path('" + d + "')"; }
     el.style.visibility = "";
     const t = panes.meta.tiles || {};
     for (const [sel, side] of [["#scene-controls", "left"], ["#sidebar-tabs", "right"]]) {
@@ -2704,6 +2706,47 @@ function curtainSibling(j, id, cls, extra = "") {
   const css = STYLE + "z-index:" + j.el.style.zIndex + ";" + extra;
   if (el.drpgCss !== css) { el.drpgCss = css; el.style.cssText = css; el.drpgClip = null; }
   return el;
+}
+/* A PANE MOVED KEEPS ITS GLASS (1.2.123 line UI; the owner at the table, 21.11.2026: "Przy ruchu kurtyny czasem kafle
+   traca kolor/teksture, a powinny go utrzymywac"). `paintGlass` took each pane's numbers - whether it is stained (and so
+   textured: only stained glass is), its tint, its shade, its pulse's phase and period - from a hash of its box's centre,
+   a hash that jumps for any change of the centre. So every pane a recut moved drew a new tint, and some went from
+   stained to plain or back. Read on the glass harness (headless Chromium, 21.11.2026, at 19e0f39c, GM and player alike;
+   docs/dev/ui123/pane-keep.mjs): every pane a recut moved took new numbers - the phase recut 3, 2 and 8 at 1366x768,
+   1600x900 and 1920x1080, the layout 5 and 9 at 1600x900 and 1920x1080 (none moved at 1366x768) - and 2, 0, 2, 1 and
+   4 of them changed stained for plain or back: at 1920x1080's layout a stained pane moved 0.6 px lost its colour and
+   its streaks. The owner's own move, the Projects tray folded, moved 3, 3 and 4 panes at the three sizes (the tray's
+   and the top pane beside it), each with new numbers; at 1366x768 that top pane lost its stain for a player. The look
+   stayed until the next recut, as the owner saw it. With the carry, 0 of the same took new numbers. Those are the
+   owner's tiles that lost their pink streaks and their blue texture at a move. The art layers of the room and voice
+   tiles (the first lead) stayed seated over the curtain in every animation frame of the four turns at 1600x900, GM, and
+   their texture within 1 % of rest at nine frozen moments of three turns at 1600x900 and 1920x1080 (a scratch probe,
+   not kept).
+   Now a pane of the new cut that is an old pane moved - they share at least `share` of the area of each - takes the old
+   pane's two numbers (`seed`, `lumSeed`), and `paintGlass` reads them before the centre's hash. A pane the recut made
+   or split takes its centre's, as every pane did. Pure but for `overlapPolygon` (R8630); the reading is
+   docs/dev/ui123/pane-keep.mjs. Answers how many panes kept their look. */
+export function carryPaneLook(next, prev, { share = 0.5 } = {}) {
+  if (!Array.isArray(next) || !Array.isArray(prev) || !prev.length) return 0;
+  const area = p => Math.abs(p.reduce((s, q, i) => { const r = p[(i + 1) % p.length]; return s + q[0] * r[1] - r[0] * q[1]; }, 0) / 2);
+  const old = prev.filter(q => q?.poly?.length >= 3 && q.hsh != null).map(q => ({ q, b: bboxOf(q.poly), a: area(q.poly) }));
+  let kept = 0;
+  for (const p of next) {
+    if (!(p?.poly?.length >= 3)) continue;
+    const b = bboxOf(p.poly), a = area(p.poly);
+    let best = null, most = 0;
+    for (const o of old) {
+      if (o.b.x1 <= b.x0 || o.b.x0 >= b.x1 || o.b.y1 <= b.y0 || o.b.y0 >= b.y1) continue;
+      const cut = overlapPolygon(p.poly, o.q.poly), v = cut ? area(cut) : 0;
+      if (v > most) { most = v; best = o; }
+    }
+    if (best && most >= share * a && most >= share * best.a) { p.seed = best.q.hsh; p.lumSeed = best.q.lum; kept++; }
+  }
+  return kept;
+}
+/** The first curtain's panes as painted, `{ x0, y0, x1, y1, hsh, lum, stained }` each: read by docs/dev/ui123/pane-keep.mjs. */
+export function paneLooks() {
+  return (curtains[0]?.panes ?? []).map(p => { const b = bboxOf(p.poly); return { ...b, hsh: p.hsh ?? null, lum: p.lum ?? null, stained: Boolean(p.stained) }; });
 }
 /* The overlap of two convex polygons (Sutherland-Hodgman: `a` clipped by each edge of `b`), either winding; null when
    they share no area. For the frost of a pane that travels (`glassTurn`). */

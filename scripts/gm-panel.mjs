@@ -778,14 +778,25 @@ async function openFailureLog() {
                section's since Pre-season checks became part of the Season checklist (season-setup.mjs `openFoundryReport`).
                A button of the Debug log, the Diagnostics window a report of a fault starts from, not a tile of its own. */
             secondary: [
-                ...(rows.length ? [{ action: "copy", label: game.i18n.localize("DRPG.Failures.copy"),
-                    tooltip: tipText("DRPG.Tips.Gm.copyToClipboardTooltip") }] : []),
+                { action: "copy", label: game.i18n.localize("DRPG.Failures.copy"),
+                    tooltip: tipText("DRPG.Tips.Gm.copyToClipboardTooltip") },
                 { action: "foundry", label: game.i18n.localize("DRPG.Panel.foundryReport"), tooltip: tipText("DRPG.Tips.Gm.foundryAndModulesTooltip") }
             ],
-            destructive: rows.length ? [{ action: "clear", label: game.i18n.localize("DRPG.Failures.clear"),
-                tooltip: tipText("DRPG.Tips.Gm.clearTheLogTooltip") }] : []
+            destructive: [{ action: "clear", label: game.i18n.localize("DRPG.Failures.clear"),
+                tooltip: tipText("DRPG.Tips.Gm.clearTheLogTooltip") }]
         },
         render: (event, dialog) => {
+            /* COPY AND CLEAR FOLLOW THE ROWS (the audit's check of 1.2.122, r122-H-8; the line claude/refresh-120 for 1.2.123):
+               they were drawn only when the log held rows at the open, so a log opened empty to watch for a failure never
+               offered Copy, and one cleared elsewhere kept both over an empty list. Both are drawn, and shown while the log
+               holds a row - at the open and at each redraw below. */
+            const showButtons = n => {
+                for (const name of ["copy", "clear"]) {
+                    const button = dialog.element?.querySelector(`footer button[data-action="${name}"]`);
+                    if (button) button.hidden = !n;
+                }
+            };
+            showButtons(rows.length);
             let seen = signature();
             const timer = setInterval(() => {
                 const region = dialog.element?.isConnected ? dialog.element.querySelector(".drpg-failure-live") : null;
@@ -795,6 +806,7 @@ async function openFailureLog() {
                 seen = now;
                 const fresh = sessionFailures();
                 region.innerHTML = `${head(sessionFailuresDropped(), fresh.length)}${listOf(fresh)}`;
+                showButtons(fresh.length);
             }, 500);
         },
         rejectClose: false

@@ -84,14 +84,15 @@ import { dropRemnant, traceFeedback, publishTiesFor, fightKey, remnantById } fro
 import { closeOpen } from "./live.mjs";
 import {
     announce as announcePlain, whisperToGms, whisperToOwner as whisperToOwnerPlain, ownerOf,
-    ownerIdsOf, gmIds, isPrimaryGm, primaryGmId, hiddenByGm, worldLocalize, log, warn, error, plural, listOf, proseOf, debug, esc, cardHead, markFired
+    ownerIdsOf, gmIds, isPrimaryGm, primaryGmId, hiddenByGm, worldLocalize, log, warn, error, plural, listOf, proseOf, debug, esc, cardHead, markFired,
+    playerOwns
 } from "./utils.mjs";
 // The kit's frame (E21 C3a): the fight's questions and the checklists after it, answering as before.
 import { drpgWindow, drpgConfirm, tipText } from "./ui-kit.mjs";
 import {
     readCast, murderState, writeCast, incidentWrite, stillHolds, restoreState, incidentAudienceIds, writeState,
     sweepBetrayalWindows, sideOf, killerIds, participantIds, castHeldHere, registerIncidentCastSync,
-    registerDeathCopy, recordBlackened, leftABody, betrayalCandidate, keepOpeningNotice, retireOpeningNotices, castFor
+    registerDeathCopy, recordBlackened, leftABody, betrayalCandidate, keepOpeningNotice, openingCardStandsFor, retireOpeningNotices, castFor
 } from "./incident-store.mjs";
 
 
@@ -4496,7 +4497,18 @@ function defenseHiddenFor(userId, key, state) {
     const user = game.users.get(userId);
     if (!user || user.isGM) return false;
     const world = game.settings.get(MODULE_ID, SETTINGS.murderState) ?? {};
-    const copy = castFor(userId, readCast(), world) ?? {};
+    const cast = readCast();
+    let copy = castFor(userId, cast, world) ?? {};
+    /* AND A THIRD WHO HAS JUST LEFT READS THE COPY THEY HELD (the auditor's r122-C-R1, 1.2.123): the fix above left such a
+       third with an empty copy, so in an OPEN murder - where they saw the killer and their menu said "Beat 16" - the card
+       of their own failed Escape Together read "12 against 15 + a hidden defense". A reader whose copy holds no seat and
+       who plays a third on `departed` reads the copy that third was sent while seated (`castFor` with them in the third's
+       seat): the killer named in an open murder, hidden in a trap or behind a mask, as before. Tier 2 "1.2.123 r122-C-R1". */
+    if (!copy.killerId && !copy.victimId && !copy.thirdId) {
+        const departed = Array.isArray(cast?.departed) ? cast.departed : [];
+        const left = [...departed].reverse().find(id => playerOwns(game.actors.get(id), user));
+        if (left) copy = castFor(userId, { ...cast, thirdId: left }, world) ?? {};
+    }
     return crisisDefenseHidden(key, { ...state, ...world, ...copy, killerId: copy.killerId ?? null, victimId: copy.victimId ?? null, active: true, stage: "incident" });
 }
 
@@ -4598,9 +4610,15 @@ export async function rollOpening(side, state, { proposal = null } = {}) {
         if (askOpeningRoll({ userId: owner.id, actorId: actor.id, side, trait, hindrance })) {
             openingInvited = { openedAt: state?.openedAt ?? null, userId: owner.id };
             const title = openingTitle(side, state);
-            keepOpeningNotice(await whisperToOwner(actor,
-                `${cardHead({ action: title })}<p>${game.i18n.localize("DRPG.Murder.openingYours")}</p>`,
-                { flags: { [MODULE_ID]: { popupTitle: title } } }));
+            /* ONE CARD A PLAYER (1.2.123; the auditor's check of 1.2.122, r122-lane-B-3): the invitation goes again on
+               every ask - a reload ends the window it opens - but the card that says the roll is theirs is posted once:
+               a re-ask at the player's ready, at a primary's ready or from a tracker found it still standing and posted
+               another, each raised as a popup. Read in the GMs' memo of the opening's cards (`openingCardStandsFor`). */
+            if (!openingCardStandsFor(owner.id)) {
+                keepOpeningNotice(await whisperToOwner(actor,
+                    `${cardHead({ action: title })}<p>${game.i18n.localize("DRPG.Murder.openingYours")}</p>`,
+                    { flags: { [MODULE_ID]: { popupTitle: title } } }), owner.id);
+            }
             return { asked: true, of: owner.name };
         }
     }
@@ -4694,6 +4712,11 @@ let openingRollsInFlight = 0;
 /* Which of them, as `${side}|${actorId}` (1.2.122, CASE-24 narrowed): `throwOpeningRoll` starts no second loop for a
    side and character whose window stands here, and starts one for any other. */
 const openingKeysInFlight = new Set();
+
+/** Whether this browser's own window throws `side`'s opening for `actorId` now (r122-lane-B-2: the re-ask reads it). */
+export function openingThrownHere(side, actorId) {
+    return openingKeysInFlight.has(`${side}|${actorId}`);
+}
 
 /**
  * AND WHICH WINDOWS THEY OPENED (E32+E07 C16, 03.10.2026; audit S04-35). The count above was
@@ -4825,11 +4848,19 @@ export async function throwOpeningRoll(side, actorId, trait = null, { hindrance 
        CASE-LC2 of 1.2.42): `openingStillWanted` reads the seat from this browser's copy, and an invitation that reached a
        player before it - a reload, or a copy still on its way - ended at once and nobody was told; the GM's tracker waited
        until the GM pressed Ask again. A player's browser with no running incident waits for its copy a few seconds, and
-       if none comes the GMs are told the window could not open. Tier 0 R8183; the race itself is a table's. */
-    if (!game.user?.isGM && !murderState()?.active) {
+       if none comes the GMs are told the window could not open. Tier 0 R8183; the race itself is a table's.
+       AND FOR THE CAST, NOT ONLY THE INCIDENT (the line INVEST of 1.2.123; the auditor's r122-D-3, CASE-LC2's rest): a
+       player's copy is the world setting merged with its own copy of the cast (incident-store.mjs `murderState`,
+       `readCast`), which comes in a packet of its own; an incident read as running at the opening with the seat still
+       empty is the same copy on its way, and it ended as silently. A fresh incident is written whole at the opening
+       (`freshIncidentState`), so a copy one stage behind is not reached; a copy past the opening, or with the seat
+       another's, goes on to the loop's own read as before. */
+    const seatOf = state => (side === "killer" ? state?.killerId : state?.victimId) ?? null;
+    const copyOnItsWay = () => { const state = murderState(); return !state?.active || (state.stage === "openingRoll" && !seatOf(state)); };
+    if (!game.user?.isGM && copyOnItsWay()) {
         const until = Date.now() + TIMING.openingCopyWaitMs;
-        while (Date.now() < until && !murderState()?.active) await new Promise(resolve => setTimeout(resolve, 100));
-        if (!murderState()?.active) {
+        while (Date.now() < until && copyOnItsWay()) await new Promise(resolve => setTimeout(resolve, 100));
+        if (copyOnItsWay()) {
             const { whisperToGms } = await import("./utils.mjs");
             await whisperToGms({ tone: "warning", body: `<p>${game.i18n.format("DRPG.Murder.openingNoCopy", {
                 name: foundry.utils.escapeHTML(actor.name) })}</p>` });

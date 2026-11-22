@@ -432,6 +432,11 @@ export function gmRemnantCard(tokenOrActor, esc) {
        reading a name nothing declared - so the GM's card threw before it drew. */
     const pub = data.public ?? {};
 
+    /* A KEY ON EACH OF THE PLAYER'S HALF'S FIELDS (`data-drpg-key`; the line INVEST of 1.2.123, the auditor's r122-H-R1, read
+       in Chromium). The card is a live region redrawn on any token step (`showRemnantCard`'s keepLive), and a field with no
+       name, key or id is carried across a redraw by its place (live.mjs `keyFor`). A floating text box puts its placeholder
+       before itself (float-text.mjs `lift`), so its place in the region drawn was not its place in the new one: the typed
+       words went nowhere, the focus was lost, and leaving the box saved nothing (tier 2 "1.2.123 r122-H-R1"). */
     return `<div class="drpg-panel drpg-remnant-card">
         <header class="drpg-remnant-head">
             ${glyph(data.action)}
@@ -450,14 +455,14 @@ export function gmRemnantCard(tokenOrActor, esc) {
         <section class="drpg-remnant-box drpg-remnant-public">
             <h4>${esc(t("DRPG.Remnant.cardPlayerHalf"))}</h4>
             <label>${esc(t("DRPG.TruthBullet.name"))}
-                <input type="text" data-drpg-public="name" data-drpg-was="${esc(pub.name ?? "")}"
+                <input type="text" data-drpg-public="name" data-drpg-key="remnant-name" data-drpg-was="${esc(pub.name ?? "")}"
                        value="${esc(pub.name ?? "")}" /></label>
             <label>${esc(t("DRPG.TruthBullet.playerText"))}
-                <textarea rows="3" data-drpg-public="playerText"
+                <textarea rows="3" data-drpg-public="playerText" data-drpg-key="remnant-playerText"
                     data-drpg-was="${esc(pub.playerText ?? "")}"
                     placeholder="${esc(t("DRPG.TruthBullet.playerTextPlaceholder"))}">${esc(pub.playerText ?? "")}</textarea></label>
             <label>${esc(t("DRPG.TruthBullet.analyzedText"))}
-                <textarea rows="3" data-drpg-public="analyzedText"
+                <textarea rows="3" data-drpg-public="analyzedText" data-drpg-key="remnant-analyzedText"
                     data-drpg-was="${esc(pub.analyzedText ?? "")}"
                     placeholder="${esc(t("DRPG.TruthBullet.analyzedTextPlaceholder"))}">${esc(pub.analyzedText ?? "")}</textarea></label>
             <p class="notes">${esc(t("DRPG.TruthBullet.analyzedTextNote"))}</p>

@@ -35,7 +35,7 @@ import { projectsAvailableIn, isIndirectMurder } from "./projects.mjs";
 import { error, plural, esc, listOf } from "./utils.mjs";
 import { equippedFor, tierOf } from "./use-items.mjs";
 import { toolRelief } from "./action-pipeline.mjs";
-import { detailsHtml, detailsStack, factsList } from "./action-menus.mjs";
+import { detailsHtml, detailsStack, factsList, keepBriefing } from "./action-menus.mjs";
 
 /* ==========================================================================
  * BRIEFING
@@ -56,8 +56,24 @@ import { detailsHtml, detailsStack, factsList } from "./action-menus.mjs";
  *
  * Move has no window since E100 item 1: its sentence is on the Monocub's tile and
  * the HUD's Move row.
+ *
+ * THE BRIEFING FOLLOWS WHAT IT SAYS (the auditor's probe 43, p43-1, 1.2.123; first measured on 1.2.118, AUDIT 18.1). It
+ * was drawn once, at the window's open: Observe, Search, Analyze, Tamper, Projects and a Dynamic action kept "You have 3"
+ * after the actions changed, where a fresh window said 2. Each block is drawn under an id (`data-drpg-brief`) and its
+ * builder is kept beside it (action-menus.mjs `keepBriefing`); the one window builder of an action (`actionWindow`, which
+ * `chooseVariant` opens through) rebuilds the lead and the briefing's own lines in Details from the world on every write
+ * they read (`wireLiveBriefings`): the character, its items, the tokens, the time of day. The thresholds under their
+ * sub-heading stay as drawn (they are the action's rules), and so does what a window adds to Details (the rows' facts).
+ * `extraFacts` are the caller's, read at the open: Tamper's ladder is its rules.
  */
-export function briefingBlock(actor, actionKey, def, { extraFacts = [] } = {}) {
+export function briefingBlock(actor, actionKey, def, options = {}) {
+    const id = `brief-${++briefingsDrawn}`;
+    keepBriefing(id, () => briefingMarkup(actor, actionKey, def, options, id));
+    return briefingMarkup(actor, actionKey, def, options, id);
+}
+let briefingsDrawn = 0;
+
+function briefingMarkup(actor, actionKey, def, { extraFacts = [] } = {}, id = "") {
     /* A FACT IS A LINE, OR A LINE BOUND TO A ROW (E21 C5b, 06.11.2026; audit S02-07, S02-06), AND EVERY ONE STANDS IN
        DETAILS (E49 A8.1, 11.11.2026; the owner's of that day, action-menus.mjs `detailsHtml`). A string is a line;
        `{ text, when }` a line of the row(s) `when` names, a layer of the box's stack (`detailsStack`: lit while that
@@ -93,12 +109,12 @@ export function briefingBlock(actor, actionKey, def, { extraFacts = [] } = {}) {
     const thresholds = sub.length
         ? `<p class="drpg-action-details-sub">${esc(game.i18n.localize("DRPG.Kit.thresholds"))}</p>${factsList(sub.map(f => f.text))}` : "";
 
-    return `<div class="drpg-briefing-block">
+    return `<div class="drpg-briefing-block" data-drpg-brief="${id}">
         ${paragraphs}
         ${rolls}
         ${instruction}
         ${top.map(f => `<p class="drpg-briefing-watched">${f.text}</p>`).join("")}
-    </div>${detailsHtml(`${factsList(plain.map(f => f.text))}${stack}${thresholds}`)}`;
+    </div>${detailsHtml(`<div class="drpg-briefing-live" data-drpg-brief="${id}">${factsList(plain.map(f => f.text))}${stack}</div>${thresholds}`)}`;
 }
 
 /**

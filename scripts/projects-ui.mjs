@@ -32,7 +32,7 @@ import { emptyOption, drpgConfirm, drpgWindow, dataTable, formGrid, helpText, bo
 import { SETTINGS } from "./settings.mjs";
 // The projects' queue key, from the file that keeps it (projects.mjs does not re-export it), as traps.mjs and fog.mjs read it.
 import { COUNTDOWNS_KEY } from "./projects-secrecy.mjs";
-import { alreadyOpen, keepLive, isDirty, RAISED } from "./live.mjs";
+import { alreadyOpen, keepLive, keepFresh, isDirty, RAISED } from "./live.mjs";
 import { projectSecretStore } from "./gm-stores.mjs";
 // The scale option's count (E71, 12.11.2026): its own line, so the utils import above stays as other lines edit it.
 import {
@@ -1249,6 +1249,24 @@ export async function openProjectDialog({ project = null, preset = null, rooms =
             if (editing && !isSecret(project.id)) wireViewerLock(dialog.element);
             if (passageOf?.offer) wirePassagePick(dialog, passageOf.offer, { over: passageOf.preset === "breach" });
             wireRoomScenePicker(dialog.element, currentPick, proposer);
+            /* "WHICH PROJECT" FOLLOWS THE PROJECTS (1.2.123; read for the auditor's probe 43, p43-4): the list a trap may watch
+               was drawn once, so a project created or deleted elsewhere while this window stood was missing or still offered.
+               Its options are written again on the manager table's watch (`wireProjectManager`), the pick kept while its
+               project stands; the rest of the form, typed, is not touched. */
+            keepFresh(dialog, {
+                run: root => {
+                    const select = root.querySelector('select[name="triggerTarget"]');
+                    if (!select) return;
+                    const keep = select.value;
+                    const html = emptyOption("DRPG.Trap.noProject") + allProjects()
+                        .filter(p => !editing || p.id !== project.id)
+                        .map(p => `<option value="${p.id}">${foundry.utils.escapeHTML(p.name)}</option>`).join("");
+                    if (select.innerHTML === html) return;
+                    select.innerHTML = html;
+                    select.value = [...select.options].some(o => o.value === keep) ? keep : "";
+                },
+                watch: { settingKeys: [`${MODULE_ID}.projectMeta`, COUNTDOWNS_KEY], stores: [projectSecretStore], hooks: ["drpgProjectSightChanged"] }
+            });
         },
         rejectClose: false
     });

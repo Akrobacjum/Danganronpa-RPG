@@ -65,9 +65,11 @@ export const SYNC = {
      */
     overflow: "overflow",
     /**
-     * The cast was gathered into one room: `{ room, scene, tokenIds }`, the tokens moved
-     * (call-world.mjs `gatherEveryone`). Each client pans its camera to its own token among
-     * them (`panToGathered`); nothing is written (E11 C3).
+     * The cast was gathered, the tokens moved: `{ room, scene, tokenIds }` from call-world.mjs
+     * `gatherEveryone` (one scene's id), and `{ scene: [...ids], tokenIds }` from the season
+     * reset (season-wipe.mjs `placeCast`, every scene a token was moved on, no room; 1.2.122,
+     * CORE-24). Each client pans its camera to its own token among them (`panToGathered`, which
+     * takes one id or the list and reads no room); nothing is written (E11 C3).
      */
     gather: "gather",
     /**

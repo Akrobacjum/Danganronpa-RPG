@@ -1618,8 +1618,10 @@ async function postHopeAsk(actor) {
 export async function answerHopeAsk(actor, n) {
     if (!game.user?.isGM || !actor) return null;
     // A student who is a Monocub no more is answered Not now (the 1.2.110 review's #5): no Despair turned into its Hope.
-    // At most what the card offers (1.2.122, the rest of the audit's COMM-21): the card is written on the Monocub's
-    // player's browser, so the `n` its Give button carries is a claim.
+    // At most what the card offers (1.2.122, the rest of the audit's COMM-21). The module's own Ask card is a GM's
+    // (`postHopeAsk` is a CUB_RESOLVERS row, run only in `cubAbilityOnGm`), so the cap is for a card a player's console
+    // posts to look like it, whose Give names any number (1.2.123, the audit's r122-G-4). Such a card naming somebody
+    // else's Monocub is closed before this (messenger-app.mjs `CARD_CHARACTER_FIELD`, r122-G-3).
     const amount = isMonocub(actor) ? wholeNumber(n, { min: 0, max: ASK_GIVE_MAX, fallback: 0 }) : 0;
     if (amount > 0) {
         const { convertDespairToHope } = await import("./despair.mjs");
@@ -1787,8 +1789,7 @@ export async function answerBribeOnGm({ cubId, bribeId, accept } = {}, sender = 
         const flags = bribeFlags(cub, payer);
         if (flags.length) {
             const { whisperToGms } = await import("./utils.mjs");
-            const esc2 = foundry.utils.escapeHTML;
-            await whisperToGms(flags.map(flag => `<p>${esc2(game.i18n.format(`DRPG.Monocub.flag.${flag}`, { cub: cub.name, name: payer.name }))}</p>`).join(""));
+            await whisperToGms(flags.map(flag => `<p>${esc(game.i18n.format(`DRPG.Monocub.flag.${flag}`, { cub: cub.name, name: payer.name }))}</p>`).join(""));
         }
         await tell("bribeAccepted");
         await whisperToOwner(cub, `<p>${esc(game.i18n.format("DRPG.Monocub.bribeAcceptedCub", { name: payer.name, cost: offer.cost }))}</p>`, { veiled: true });

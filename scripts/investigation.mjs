@@ -1013,6 +1013,8 @@ function caseKeyPanel({ plan, status, placed, limit }) {
  * drawn into the form the next time it is drawn, on the Table or the Map. A reload forgets it. Tier 2 "1.2.122 CASE-36".
  */
 let finalDraft = null;
+/** The standing dashboard's own road to a node asked of it (`openInvestigationDashboard({ node })`); null while none stands. */
+let caseHandOff = null;
 
 /** The Final Truth form's fields of `final` (`readDashboardForm`'s), or null when it holds nothing a GM typed or picked. */
 function finalDraftOf(final) {
@@ -1912,8 +1914,15 @@ function saveDrawnForm(root) {
 }
 
 /** The changed fields inside `scope` (a node's editor or the window's form), written one write after another. */
+/* ONLY WHAT THE WRITE WRITES IS TAKEN AS DRAWN (the line INVEST of 1.2.123; the auditor's r122-D-R1). `applyDashboardSave`
+   writes the Remnants, the Key rows and the case schema; the Final Truth form (`FINAL_FIELDS`, placed by Save or asked at
+   a close, `offerFinalOnClose`) and the Key limit's tick (`keyOverride`, read by Save's placing) are not its. Until this
+   line every changed `[name]` field was marked drawn here, so 1.2.122's filter (`wireCaseFilters`, which writes first)
+   dropped them: the redraw drew the Final Truth form from its kept words and the tick from nothing, and Save or a close
+   asked nothing (tier 2 "1.2.123 r122-D-R1"). Left out, they stay changed and the redraw carries them. */
+const notWrittenHere = field => field.name === "keyOverride" || FINAL_FIELDS.includes(field.name);
 function saveFieldsIn(scope) {
-    const fields = scope ? [...scope.querySelectorAll("[name]")].filter(isDirty) : [];
+    const fields = scope ? [...scope.querySelectorAll("[name]")].filter(f => isDirty(f) && !notWrittenHere(f)) : [];
     if (!fields.length) return nodeWrites;
     const result = readCaseFields(scope);
     const drawn = fields.map(field => [field, keepDrawn(field)]);
@@ -2029,7 +2038,14 @@ function wireMap(dialog, reading, refresh) {
             });
         },
         onOverview: open => { reading.overview = open; },
-        camera: { get: () => reading.camera, set: cam => { reading.camera = cam; } },
+        /* `take`: the node this GM's own change moved (a Move, a sort), read by each draw for `OWN_CHANGE_MS` after the
+           press, which centres the camera on it (the owner, 21.11.2026; case-map.mjs `wireCaseMap`): a press is drawn more
+           than once - the store's own echo, then the window's refresh - and each draw places the nodes again, so each
+           centres. A draw no press of this GM asked for leaves the camera where it was, the open node only brought into
+           view as before. */
+        camera: { get: () => reading.camera, set: cam => { reading.camera = cam; },
+            take: () => (reading.centre && Date.now() < reading.centre.until ? reading.centre.id : null),
+            revealed: () => reading.revealed ?? null, reveal: id => { reading.revealed = id ?? null; } },
         /* ADD, SORT, MOVE, REMOVE: AT ONCE (E97 C6; Q-E97-6's default keeps the fields on Save). A node added is the
            schema's arrangement, as New Remnant's trace is the world's: written now, opened, its fields then edited and
            saved with the rest. The column's order is the GMs' shared arrangement of the map, not a field of a node. */
@@ -2038,8 +2054,9 @@ function wireMap(dialog, reading, refresh) {
             setCaseNode(chapterNow(), id, { kind, label: game.i18n.localize(`DRPG.CaseMap.newLabel.${kind}`) })
                 .then(() => { reading.node = id; reading.focus = id; refresh(); }, fail("add"));
         },
-        onSort: sort => { setCaseMeta(chapterNow(), { sort }).then(() => refresh(), fail("sort")); },
-        onMove: (id, step) => { reading.focus = id; moveCaseNode(reading, id, step, drawnTops(root)).then(() => refresh(), fail("move")); },
+        onSort: sort => { reading.centre = reading.node ? ownChange(reading.node) : null; setCaseMeta(chapterNow(), { sort }).then(() => refresh(), fail("sort")); },
+        onMove: (id, step) => { reading.focus = id; reading.centre = ownChange(id); moveCaseNode(reading, id, step, drawnTops(root)).then(() => refresh(), fail("move")); },
+        onShift: (id, step) => { reading.focus = id; reading.centre = ownChange(id); shiftCaseNode(reading, id, step).then(() => refresh(), fail("move")); },
         onDrop: id => dropMapNode(chapterNow(), id).then(gone => { if (gone) { reading.node = null; refresh(); } }, fail("remove")),
         // "Check consistency" (Q-C): the overview's list read again now, the overview left open.
         /* The check and Place read the case as written (line INVEST of 1.2.122; audit 1.2.118 controls-03, findings 2 and
@@ -2141,6 +2158,35 @@ async function moveCaseNode(reading, id, step, drawn = null) {
     const manual = { ...(graph.meta?.manual ?? {}) };
     asDrawn.forEach((col, c) => (c === index ? order : col).forEach((nodeId, i) => { manual[nodeId] = i; }));
     await setCaseMeta(chapter, { sort: "manual", manual });
+    return true;
+}
+
+/** How long after this GM's press the Map's draws centre on the node it moved (`wireMap`'s camera `take`). */
+const OWN_CHANGE_MS = 1500;
+const ownChange = id => ({ id, until: Date.now() + OWN_CHANGE_MS });
+
+/**
+ * A deduction or a counter one column left or right (the owner, 21.11.2026: "Do planera - dodajmy opcje move left/right dla
+ * counters, dedukcji itd."; the line INVEST of 1.2.123). A column is a depth (case-layout.mjs `layoutCase`), so the move
+ * is the node's `shift` in the chapter's meta row: one more column past its own depth, or one fewer, down to none - what
+ * rests on it follows, as a column past its inputs. Its row in the new column is the column's sort's: under By hand its
+ * kept place, so it stands as near its row as that column allows. Evidence keeps the first column and the solution the
+ * last: no move for either, nor a move left past a node's own depth (the buttons are drawn shut for those, case-map.mjs
+ * `nodeEditHtml`; asked here too, and told). Answers whether it moved. Tier 2 "1.2.123 OWNER-123-PLAN-1".
+ */
+async function shiftCaseNode(reading, id, step) {
+    if (!id || !game.user?.isGM || !(step === 1 || step === -1)) return false;
+    const { chapter, graph } = caseMapGraph(reading);
+    const node = graph.nodes.find(n => n.id === id);
+    if (!node || node.evidence || node.kind === "solution") return false;
+    const shift = { ...(graph.meta?.shift ?? {}) };
+    const next = (Number(shift[id]) || 0) + step;
+    if (next < 0) {
+        ui.notifications.info(game.i18n.localize("DRPG.Tips.Case.moveSideLeftmostTooltip"));
+        return false;
+    }
+    if (next) shift[id] = next; else delete shift[id];
+    await setCaseMeta(chapter, { shift });
     return true;
 }
 
@@ -2440,6 +2486,10 @@ export async function openInvestigationDashboard({ said = null, node = null, vie
     // other, so the older one goes on looking authoritative while showing
     // something that stopped being true. Raised rather than refused: pressing
     // twice usually means the window is behind something.
+    /* A NODE ASKED OF THE WINDOW THAT STANDS (1.2.123; the audit's r122-C-3): the trial console's schema asks for its
+       pressed node here, and the early answer left the window on the node it stood on - raised, with `node` never read.
+       The standing window takes the node now (`caseHandOff`, set only while one stands). Tier 2 "1.2.123 r122-C-3". */
+    if (node) caseHandOff?.(node);
     if (alreadyOpen("drpg-window-case")) return RAISED;
 
     if (!game.user.isGM) {
@@ -2580,6 +2630,18 @@ export async function openInvestigationDashboard({ said = null, node = null, vie
         },
         render: (event, dialog) => {
             drawnRoot = dialog.element;
+            /* The Map on that node, as a pick opens it: the open node's fields written first; from the Table the view goes
+               back to the Map as the opening with a node does, the switch pressed with it and the GM's own view left as
+               stored. */
+            caseHandOff = id => {
+                (reading.view === "map" ? saveOpenNode(drawnRoot) : Promise.resolve()).then(() => {
+                    reading.view = "map";
+                    reading.node = id;
+                    reading.focus = id;
+                    for (const b of drawnRoot?.querySelectorAll?.('[data-drpg-slot="switch"] button[data-drpg-mode]') ?? []) b.setAttribute("aria-pressed", String(b.dataset.drpgMode === "map"));
+                    live?.refresh?.();
+                }, err => error("Could not open the node asked of the Investigation window", err));
+            };
             wireCase(dialog);
             wireCaseFilters(dialog, reading, () => live?.refresh?.());
             wireMap(dialog, reading, () => live?.refresh?.());
@@ -2664,6 +2726,7 @@ export async function openInvestigationDashboard({ said = null, node = null, vie
         },
         rejectClose: false
     });
+    caseHandOff = null;
 
     /* CLOSED WITH A NODE OPEN, NOT BY SAVE (the owner, 12.11.2026): its fields written now, off the element as it was
        closed (a closed window's element keeps its fields), before a button's reopened window reads the world. Save

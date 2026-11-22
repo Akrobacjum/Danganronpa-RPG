@@ -232,7 +232,14 @@ export function passagesTabBody(scene, { stores = PASSAGE_STORES, students = [],
     return `${table}<p class="notes">${esc(t("DRPG.Passage.tab.footnote"))} ${esc(t("DRPG.Passage.tab.startHint"))} ${esc(t("DRPG.Passage.tab.wayHint"))}</p>`;
 }
 
-/** The Passages panel's inside, for Room Setup (room-setup.mjs `roomSetupContent`): nothing on a player's browser. */
+/**
+ * The Passages panel's inside, for Room Setup (room-setup.mjs `roomSetupContent`): nothing on a player's browser.
+ *
+ * The `[data-drpg-passages]` box holds no control of its own: `wirePassagesTab` hangs one change and one click listener
+ * on it for every row's buttons and selects, so the rows can be redrawn inside it without wiring them again. The audit
+ * of 1.2.118's click probe (probe-42-rerun-2.json, row C[33]) clicked the box on a scene with no passage and saw
+ * nothing happen, which is what a click outside every button does; the buttons inside it are rows of their own.
+ */
 export function passagesTabHtml(scene, options = {}) {
     if (!game.user?.isGM) return "";
     return `<p>${esc(t("DRPG.Passage.tab.introLine"))}</p><div class="drpg-passage-bar"><button type="button" class="drpg-mini-button"
@@ -324,7 +331,17 @@ export function wirePassagesTab(root, scene, { dialog = null, stores = PASSAGE_S
        another player showed on the next store change or a reopen. `students` may be a function, read at every draw, and
        the tab redraws on an actor made or deleted, a name, an ownership or a module flag written, and a user changed. */
     const studentsNow = () => (typeof students === "function" ? students() : students) ?? [];
-    const draw = () => { box.innerHTML = passagesTabBody(scene, { stores, students: studentsNow(), actors, users, told }); };
+    /* DRAWN AGAIN ONLY WHEN IT DRAWS SOMETHING ELSE (the audit's check of 1.2.122, r122-H-2; the line claude/refresh-120 for
+       1.2.123). The watch below hears every module flag written on any actor - an action spent, a step, a Call - so during
+       Daily Life the box was drawn anew at every player's action: an open '+' menu drawn shut, a press in flight lost, an
+       open list closed. What the box would draw is compared with what it drew, and an equal one is not drawn. */
+    let drawn = null;
+    const draw = () => {
+        const html = passagesTabBody(scene, { stores, students: studentsNow(), actors, users, told });
+        if (html === drawn && box.isConnected) return;
+        box.innerHTML = html;
+        drawn = html;
+    };
     let busy = Promise.resolve();
 
     const work = async (act, passageId, actorId) => {

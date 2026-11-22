@@ -1,6 +1,6 @@
 # Danganronpa RPG - Player Handbook
 
-*For students of the killing game. Module version 1.2.122, built on Daggerheart for Foundry VTT v14.*
+*For students of the killing game. Module version 1.2.123, built on Daggerheart for Foundry VTT v14.*
 
 This is the whole game from your chair: what the numbers on your sheet mean, what an action costs, what Hope buys, what happens when somebody dies, and what to press. Every number in here is the module's own; where a decision belongs to a human, it says "the GM decides". How the module does what it does, for the curious, is in section 17.
 
@@ -218,6 +218,7 @@ While nobody speaks, the tile says in one word where your voice stands; point at
 | **Connecting** | you join, move to another channel, or the connection comes back |
 | **Disconnected** | voice is lost; a **Voice disconnected** card then says you are being reconnected or, when only a reload helps, to press F5 |
 | **Eclipsed** | an Eclipse is on |
+| **Hidden** | you stand behind a "?" after a murder's opening: out of voice until you reveal yourself or the time of day changes (not in the Class Trial) |
 | **Blocked** | the GM blocked your microphone |
 | **Own window** | voice runs in its own window |
 
@@ -854,7 +855,7 @@ Whenever your character walks into a room where a body lies, you hear the discov
 - Every living student receives an **Autopsy Truth Bullet**, with no roll: the time of discovery, the cause of death, and what the body shows.
 - **Observe** the Remnants on the map, **Analyze** what you collect, and **Share a copy** with people in your room. Remnants tied to the crime are shown first.
 - The GMs prepared **Key Remnants** for this case: never more than 5 and never fewer than 3, and the better the killer's opening roll went, the fewer there are (section 10); a trap's case keeps 5. Together they narrow the suspects to 2 to 4 people: a clue narrows the circle and never names a name.
-- The **body** can be searched, and it costs no action: open the dead student's sheet and press **Take from the Body** under what they carried. Its window lists their things beside its briefing; tick what you take and press **Take**.
+- The **body** can be searched, and it costs no action: open the dead student's sheet and press **Take from the Body** under what they carried (if the GM has turned *Keep character sheets anonymous* off, the sheet opens whole and the button stands at the top of its inventory). Its window lists their things beside its briefing; tick what you take and press **Take**.
 - Every Take rolls **Hand** once, and only the first roll thrown for it counts; a Take refused because you had walked out keeps its roll for your next try. The lower the roll, the easier the Remnant you leave is to find: under 12 Evident, 12 to 17 Subtle, and 18 or more or a critical Hidden.
 - You get the thing itself and a Truth Bullet recording what you took and off whom. The body gets one Remnant that somebody has been through its pockets, however many things leave it; later Takes can make that Remnant easier to find, never harder.
 - With anyone else in the room, even somebody your screen does not show, you also roll **Shadow** against **16** to go unnoticed. A miss tells the others in the room and the GMs that you went through the body's pockets, and after a Despair what you took; it costs no Sanity.

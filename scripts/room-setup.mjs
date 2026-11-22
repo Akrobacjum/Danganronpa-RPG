@@ -211,7 +211,7 @@ function stashMatrixRows(rooms, students, scene) {
  * cells into four thematic tables. The input NAMES are the contract with
  * the Apply callback below, identical whichever table a cell sits in -
  * Apply reads the whole form and never asks which tab was showing. */
-function roomCells(rooms, { students, tables, categories, regions, scene, maxTokens, REST_FLAGS }) {
+function roomCells(rooms, { students, tables, categories, regions, scene, maxTokens, REST_FLAGS, openedStartLocks = null }) {
     /* THE PLACEHOLDER ONCE (E46-C2a; audit S13-36 (4)): the example sentence stood in every empty description, eighteen
        times on a school of eighteen rooms; it shows how to write one, so it stands in the first empty field alone. */
     const words = new Map(rooms.map(room => [room, flagOver(regions.get(room) ?? [], VAULT_FLAGS.description) ?? ""]));
@@ -330,7 +330,11 @@ function roomCells(rooms, { students, tables, categories, regions, scene, maxTok
                     disabled: !possible, attrs: { "data-drpg-facility-edit": room } })}</span>`,
             long: check("long", flagOver(pieces, REST_FLAGS.long)),
             locked: check("locked", flagOver(pieces, ROOM_FLAGS.locked)),
-            startlocked: check("startlocked", pieces.some(startLocked),
+            /* An unset start lock as the window read it at its open, the value Apply keeps for it untouched (`applyRoomRows`;
+               r122-H-3): drawn from `startLocked`, which reads the lock itself while none is stored, the box showed a lock
+               forced while the window stood and Apply stored the open's value under it. */
+            startlocked: check("startlocked", pieces.every(piece => piece.getFlag(MODULE_ID, ROOM_FLAGS.lockedAtStart) == null)
+                && openedStartLocks?.has(room) ? openedStartLocks.get(room) : pieces.some(startLocked),
                 game.i18n.localize("DRPG.Vault.lockedAtStartHint")),
             // Broken (E74 C5): a lock Force the Door or a breach forced (movement.mjs `roomBroken`); unticked and applied,
             // the lock holds again - the GM's repair by hand.
@@ -798,7 +802,8 @@ export function wireTokenButtons(root, scene, recount, { tokens = SearchTokens }
             const typed = Number(input.value);
             if (!Number.isFinite(typed) || !Number.isFinite(was) || typed === was) return;
             input.dataset.drpgShown = String(typed);
-            await tokens.setFor(room, tokens.left(room, scene) + (typed - was), scene);
+            // The step, not this browser's count plus it (r122-lane-B-7): the primary adds it to its own (`stepFor`).
+            await tokens.stepFor(room, typed - was, scene);
             // The write comes back through `recount` below like anybody
             // else's, so there is no second copy of "what the cell says".
             recount(root);
@@ -1136,7 +1141,10 @@ async function applyRoomRows(rowResults, { REST_FLAGS, setRestRoom, scene, opene
            claude/refresh-120 for 1.2.122). With no start lock stored, `startLocked` reads the lock itself, so a lock forced
            while the window stood open read as the start lock, the untouched column took it (REFR-03), and Apply - which pins
            the start lock on every row (below) - pinned it to the forced lock. Untouched and unset, the column keeps the
-           start lock the window drew at its open (`startLocksAtOpen`), as it did before the column followed the world. */
+           start lock the window drew at its open (`startLocksAtOpen`), as it did before the column followed the world.
+           AND THAT IS WHAT THE BOX SHOWS AND WHAT `same` COMPARES (the audit's check of 1.2.122, r122-H-3): the box is drawn
+           from the open's value too (`roomCells`), and a row compares its start lock with it, so a room the GM did not touch
+           whose lock moved while the window stood is `same` again, skipped and left unset, as on 1.2.121. */
         const unsetStart = pieces.every(piece => piece.getFlag(MODULE_ID, ROOM_FLAGS.lockedAtStart) == null);
         const startAtOpen = unsetStart && openedStartLocks?.has(drawnRow.room) ? openedStartLocks.get(drawnRow.room) : wasLockedAtStart;
         const row = untouchedRoomRow(drawnRow, {
@@ -1169,7 +1177,7 @@ async function applyRoomRows(rowResults, { REST_FLAGS, setRestRoom, scene, opene
             && before.hinders.length === row.hinders.length
             && before.hinders.every(h => row.hinders.includes(h))
             && wasLocked === row.locked
-            && wasLockedAtStart === row.lockedAtStart
+            && startAtOpen === row.lockedAtStart
             && wasBroken === row.broken
             && wasSealed === row.noSearch
             && wasNotShared === row.notShared
@@ -1433,7 +1441,7 @@ export async function openRoomSetupDialog({ tab = null } = {}) {
         const known = new Map(students.map(a => [a.id, new Set(discoveredFor(scene?.id, a.id))]));
         const fogRows = fogMatrixRows(rooms, students, known, mastermindActor()?.id ?? null);
         const stashRows = stashMatrixRows(rooms, students, scene);
-        const cells = roomCells(rooms, { students, tables, categories, regions, scene, maxTokens, REST_FLAGS });
+        const cells = roomCells(rooms, { students, tables, categories, regions, scene, maxTokens, REST_FLAGS, openedStartLocks });
         return roomSetupContent({ initial, cells, students, stashRows, fogRows, uncovered: sceneUncoveredPercent(scene), maxTokens,
             passagesPanel: passagesTab.passagesTabHtml(scene, { students }) });
     };
@@ -1489,6 +1497,11 @@ export async function openRoomSetupDialog({ tab = null } = {}) {
                 // as the description's is `desc:<room>`, and the button that empties the cell it stands in.
                 wirePortraitPickers(form, { prefix: "img:" });
                 wirePictureWarnings(form);
+                /* What Remove the picture shows (the audit of 1.2.118's click probe, probe-42-rerun-2.json, row C[34]: a
+                   press with no visible effect): it empties the hidden field and takes the thumbnail's `src` off, and
+                   `wirePictureWarnings`' observer of that `src` empties the warning line under it; nothing is written
+                   until Apply. On a row with no picture, as the probe's Cafeteria was, the cell is empty already and a
+                   press changes nothing on the screen. */
                 for (const button of form.querySelectorAll("[data-drpg-picture-clear]")) {
                     button.addEventListener("click", () => {
                         const cell = button.closest("td");

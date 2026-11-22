@@ -652,7 +652,10 @@ export function pendingVoters() {
         const user = game.users.get(id);
         if (!user || back.has(id) || listed.has(id)) continue;
         listed.add(id);
-        out.push({ user, actor: user.character ?? null, name: user.character?.name ?? user.name });
+        /* `away` (the line INVEST of 1.2.123; the auditor's r122-D-5): named as out, but no ballot can reach them - a
+           reminder goes to the connected participants alone (`sendAgain`), and the vote window's "Send another ballot
+           (n)" counts the ones it reaches (trial-floor-ui.mjs `voteFooter`). */
+        out.push({ user, actor: user.character ?? null, name: user.character?.name ?? user.name, away: true });
     }
     return out;
 }
@@ -1112,7 +1115,6 @@ async function closeRound(progress) {
        among names that each carried the room (`countBallots`). The bar is drawn, not read: it is
        hidden from a screen reader, which has the count beside it. */
     const share = n => Math.round(100 * n / Math.max(1, issued));
-
     // The two that count ballots are plural families on {total} (E66 C3, the census); the one-name line is a ratio.
     const accusing = { names: listOf(accused.map(r => esc(named(r.id)))), n: Math.min(...accused.map(r => r.n)), total: issued };
     const sentence = noMajority

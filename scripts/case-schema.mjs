@@ -221,7 +221,9 @@ export function caseMetaOf(raw) {
         // 13.11.2026: how many Autopsies the chapter plans (null: the preset), and when each planned one went out
         autopsies: atBodyOf(row.autopsies),
         autopsySent: Object.fromEntries(Object.entries(isPlain(row.autopsySent) ? row.autopsySent : {})
-            .filter(([k, v]) => autopsyNumber(k) !== null && Number.isFinite(v)))
+            .filter(([k, v]) => autopsyNumber(k) !== null && Number.isFinite(v))),
+        // the line INVEST of 1.2.123: how many columns right of its own depth a deduction or counter stands (case-layout.mjs)
+        shift: Object.fromEntries(Object.entries(isPlain(row.shift) ? row.shift : {}).filter(([, v]) => Number.isInteger(v) && v > 0))
     };
 }
 
@@ -402,7 +404,7 @@ function autopsyNode(chapter, n = 1, node = null, sent = false) {
 const NODE_FIELDS = Object.freeze(["kind", "label", "text", "inputs", "refutes", "mode", "order", "made", "room", "trace", "type", "note", "atBody", "scene", "author", "vis", "tie", "reinforced", "analysis", "img",
     "recipient", "tell", "realType", "shown", "faint", "tied", "given",
     "zoneQuestion", "zoneA", "zoneB", "zoneThesis", "diveSet"]);
-const META_FIELDS = Object.freeze(["sort", "manual", "run", "askedAt", "made", "autopsies", "autopsySent"]);
+const META_FIELDS = Object.freeze(["sort", "manual", "run", "askedAt", "made", "autopsies", "autopsySent", "shift"]);
 const same = (a, b) => JSON.stringify(a ?? null) === JSON.stringify(b ?? null);
 
 /**

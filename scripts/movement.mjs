@@ -3546,7 +3546,9 @@ export async function announceCrossingOnGm(actor, from, to, tokenDoc, cost) {
  * had landed - a refused crossing stood, a refund was paid with the token left where it was. So where the copy holds every
  * coordinate of `to`, the put-back waits for the token's next move heard here (`TIMING.putBackWaitMs`, unmeasured,
  * LIVE-E39-20) - the move in flight - and writes then, its copy no longer holding `to`; if none comes, the token stands at
- * `to` as far as this browser can know (a copy wrong with nothing in flight is not read and not covered). Answers
+ * `to` as far as this browser can know (a copy wrong with nothing in flight is not read and not covered: the audit's
+ * STG-32 stays open on that, and on whether 14.370 carries the move's origin and the wait works - a table's,
+ * LIVE-E39-20 and LIVE-E39-12 part 3, no headless reading settles any of them). Answers
  * `{ sent, landed }`: `landed` when the write was answered and the copy holds `to` after it (a write stopped at a wall
  * did not land; the walls are passed with `constrainOptions`, which 14.370 honours here: r3), or when nothing needed
  * sending. The callers read `landed`, never the bare call: `sendBack`'s `landed`, `refundLastCrossing`'s `back`, the

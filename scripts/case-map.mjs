@@ -392,7 +392,24 @@ function nodeEditHtml({ graph, node, p, open, allOpen = false, state = null, fin
     // every node open (owner-116) there is nothing to close to, so no Close; the face's head stands on top instead.
     const close = allOpen ? "" : `<button type="button" data-drpg-case-close${tipAttr("DRPG.Tips.Case.closeNodeTooltip")}>${esc(L("DRPG.Panel.close"))}</button>`;
     const head = allOpen ? nodeHeadHtml(node, { state: state ?? nodeState(node, finders), reach: reach?.[node.id] ?? null, warn }) : "";
-    const moves = `<div class="drpg-case-edit-actions drpg-case-edit-moves">${b(-1, "DRPG.CaseMap.moveUp")}${b(1, "DRPG.CaseMap.moveDown")}${close}</div>`;
+    /* MOVE LEFT AND MOVE RIGHT (the owner, 21.11.2026: "Do planera - dodajmy opcje move left/right dla counters, dedukcji
+       itd."; the line INVEST of 1.2.123). A column is a depth (case-layout.mjs `layoutCase`): evidence stands in the
+       first, the solution past everything, and a deduction or a counter one column past what it rests on, or further
+       right by the GM's own moves (the meta row's `shift`). So the buttons move a deduction or a counter a column right,
+       and back left as far as its own depth; for evidence and the solution, and for a node already as far left as what it
+       rests on allows, each is drawn shut, its tooltip saying why (as a Key slot's Place past the limit says its own). */
+    const shiftNow = Number(graph?.meta?.shift?.[node.id]) || 0;
+    const fixed = node.evidence ? "evidence" : node.kind === "solution" ? "solution" : null;
+    // a shut button's reason in `title`: a disabled button takes no pointer, so Foundry's tooltip never shows on it
+    const side = (step, key) => {
+        const why = fixed ?? (step < 0 && shiftNow <= 0 ? "leftmost" : null);
+        return `<button type="button" data-drpg-case-shift="${step}"${why ? " disabled" : ""}${why === "evidence" ? tipAttr("DRPG.Tips.Case.moveSideEvidenceTooltip", null, { title: true })
+            : why === "solution" ? tipAttr("DRPG.Tips.Case.moveSideSolutionTooltip", null, { title: true })
+                : why === "leftmost" ? tipAttr("DRPG.Tips.Case.moveSideLeftmostTooltip", null, { title: true })
+                    : tipAttr("DRPG.Tips.Case.moveLeftMoveRightTooltip")}>${esc(L(key))}</button>`;
+    };
+    const moves = `<div class="drpg-case-edit-actions drpg-case-edit-moves">${b(-1, "DRPG.CaseMap.moveUp")}${b(1, "DRPG.CaseMap.moveDown")}`
+        + `${side(-1, "DRPG.CaseMap.moveLeft")}${side(1, "DRPG.CaseMap.moveRight")}${close}</div>`;
     const cells = String(html ?? "");
     // The node's facts only where it has no field of its own (another chapter's Remnant); otherwise its warnings alone
     const said = nodeInfoHtml({ graph, node, finders, authors, reach, problems, rows: !cells.trim() });
@@ -551,7 +568,7 @@ function motionStill() {
  * Every node is measured and placed at its whole content first (case-view.mjs `relayoutCaseMap`), again when the fonts
  * have loaded and whenever a node's box changes size. Answers the camera's handle.
  */
-export function wireCaseMap(root, { onPick = () => {}, onClose = () => {}, onFold = () => {}, onAdd = () => {}, onSort = () => {}, onMove = () => {}, onDrop = () => {},
+export function wireCaseMap(root, { onPick = () => {}, onClose = () => {}, onFold = () => {}, onAdd = () => {}, onSort = () => {}, onMove = () => {}, onShift = () => {}, onDrop = () => {},
     onCheck = () => {}, onPlace = () => {}, onOverview = () => {}, onView = () => {}, camera: keep = {} } = {}) {
     const graph = root?.querySelector?.(".drpg-case-graph");
     const canvas = graph?.querySelector?.(":scope > .drpg-case-canvas") ?? null;
@@ -608,6 +625,8 @@ export function wireCaseMap(root, { onPick = () => {}, onClose = () => {}, onFol
                 if (t.closest("[data-drpg-case-close]")) { onClose(id); return; }
                 const move = t.closest("[data-drpg-case-move]");
                 if (move && !move.disabled) { onMove(id, Number(move.dataset.drpgCaseMove)); return; }
+                const shift = t.closest("[data-drpg-case-shift]");
+                if (shift && !shift.disabled) { onShift(id, Number(shift.dataset.drpgCaseShift)); return; }
                 const drop = t.closest("[data-drpg-case-drop]");
                 if (drop) { onDrop(drop.dataset.drpgCaseDrop); return; }
                 const place = t.closest("[data-drpg-case-place]");
@@ -667,8 +686,43 @@ export function wireCaseMap(root, { onPick = () => {}, onClose = () => {}, onFol
         relayoutCaseMap(canvas);
         camera.apply(keep.get?.() ?? { x: 0, y: 0, z: 1 });
         const open = openId();
-        if (open) camera.reveal([canvas.querySelector(`[data-drpg-node="${CSS.escape(open)}"]`), canvas.querySelector(`.drpg-case-edit[data-drpg-edit="${CSS.escape(open)}"]`)]);
-        const again = () => { if (canvas.isConnected) relayoutCaseMap(canvas); };
+        const nodeEls = id => [canvas.querySelector(`[data-drpg-node="${CSS.escape(id)}"]`), canvas.querySelector(`.drpg-case-edit[data-drpg-edit="${CSS.escape(id)}"]`)];
+        /* THE CAMERA FOLLOWS THE NODE THIS GM'S CHANGE MOVED (the owner, 21.11.2026: "gdy w wyniku naszej zmiany otwarty
+           node zmienia pozycje/rozmiar, niech kamera wysrodkowuje sie na tym node, zamiast zmuszac uzytkownika do recznego
+           gonienia kamera za nodem"; the line INVEST of 1.2.123). The draw after this GM's Move up, down, left or right, or
+           sort, centres the camera on the node it named (`keep.take`, investigation.mjs), the zoom kept unless the node no
+           longer fits (case-view.mjs `centreCamera`); and typing in an open node that changes its size centres on it, for
+           a moment after the keystroke. A draw nobody here asked for - another GM's write, the world moving - keeps the
+           camera where it was: the open node is brought into view once, at the draw that opened it (`keep.revealed`), and no
+           more - until 1.2.123 every draw did, so another GM's write that moved the open node pulled this GM's view after
+           it. A window that hands no `take` (the trial console's map) reveals the open node at every draw, as before.
+           Tier 2 "1.2.123 OWNER-123-PLAN-2". */
+        /* A RELAYOUT SOON AFTER IS FOLLOWED TOO: the nodes are placed again once the fonts have loaded and whenever a box
+           changes size (below), which can move the node after the camera centred on it - read headless: a column's x moved
+           after the first centring. For a moment after this GM's change the camera follows such a move or resize. */
+        const boxOf = id => nodeEls(id).map(el => { const r = el?.getBoundingClientRect?.(); return r ? `${Math.round(r.left)},${Math.round(r.top)},${Math.round(r.width)}x${Math.round(r.height)}` : ""; }).join("|");
+        const target = keep.take?.() ?? null;
+        let follow = null;
+        if (target && canvas.querySelector(`[data-drpg-node="${CSS.escape(target)}"]`)) {
+            camera.centre(nodeEls(target));
+            follow = { id: target, until: Date.now() + 1500, box: boxOf(target) };
+        } else if (open && (!keep.take || keep.revealed?.() !== open)) camera.reveal(nodeEls(open));
+        // the node brought into view once, when this GM opened it; a later draw that moves it, nobody's press here, is left
+        keep.reveal?.(open);
+        canvas.addEventListener("input", event => {
+            const edit = event.target?.closest?.(".drpg-case-edit[data-drpg-edit]");
+            if (!edit) return;
+            const id = edit.dataset.drpgEdit;
+            follow = { id, until: Date.now() + 1500, box: follow?.id === id ? follow.box : boxOf(id) };
+        });
+        const followOwn = () => {
+            if (!follow || Date.now() > follow.until) return;
+            const box = boxOf(follow.id);
+            if (!box || box === follow.box) return;
+            camera.centre(nodeEls(follow.id));
+            follow.box = boxOf(follow.id);
+        };
+        const again = () => { if (canvas.isConnected) { relayoutCaseMap(canvas); followOwn(); } };
         document.fonts?.ready?.then?.(again, () => {});
         if (typeof ResizeObserver === "function") {
             const watch = new ResizeObserver(() => { if (!canvas.isConnected) { watch.disconnect(); return; } again(); });

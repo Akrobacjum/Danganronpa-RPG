@@ -166,11 +166,33 @@ export function requestFieldHtml({ prompt, placeholder, optional = true, when = 
  * `live`: `options()` reads the rows again, `watch` is keepLive's (`actors`, `settings`, `hooks` ...), and `closeWhen()`,
  * when it answers a key of lang, closes the menu and says that sentence - the crisis menu's turn gone to the other side or
  * its incident over. The list (`.drpg-choice-list`) is rebuilt from the fresh rows, the first usable one checked, and
- * keepLive carries the row the player picked (live.mjs keys a radio by its name and value). A row's details, fields and
- * facts stay as drawn: the menu's own rows are the turn's numbers and shut reasons. Chromium's press order on a rebuilt
- * row is not measured here (jsdom; the 1.2.120 lesson, r120-P-1).
+ * keepLive carries the row the player picked (live.mjs keys a radio by its name and value). A row's field stays as
+ * drawn (what the player proposed in it is theirs). Chromium's press order on a rebuilt row is not measured here (jsdom;
+ * the 1.2.120 lesson, r120-P-1).
+ *
+ * AND WHAT THE ROWS UNFOLD (1.2.123 line MURDER; the auditor's recheck of 1.2.122 read REFR-21 as partly done, because
+ * "a row's details and facts stay as drawn"). The left column's blocks (`.drpg-variant-details`, `details`) and the
+ * Details' layers (`.drpg-details-stack`, `facts`) are rebuilt from the same fresh rows, the picked row's lit again
+ * (`syncDetails`): a victim whose Sanity ran out under the menu was offered a roll with no word of Breakdown's
+ * disadvantage, which `crisisDetails` puts on top for that reason. Tier 2 "1.2.123 REFR-21 r122-C-2".
  */
-function keepRowsLive(dialog, live, rowsOf) {
+function keepRowsLive(dialog, live, rowsOf, { detailsOf = null } = {}) {
+    const picked = () => dialog.element?.querySelector('input[name="variant"]:checked')?.value ?? null;
+    const relight = () => syncDetails(dialog, picked());
+    if (detailsOf) {
+        keepLive(dialog, {
+            region: ".drpg-variant-details",
+            build: () => `<div class="drpg-variant-details">${(live.options?.() ?? []).map(detailsOf).join("")}</div>`,
+            watch: live.watch ?? {},
+            after: relight
+        });
+        keepLive(dialog, {
+            region: ".drpg-details-stack",
+            build: () => factsStackOf(live.options?.() ?? []) || `<div class="drpg-details-stack"></div>`,
+            watch: live.watch ?? {},
+            after: relight
+        });
+    }
     keepLive(dialog, {
         region: ".drpg-choice-list",
         build: () => {
@@ -244,9 +266,10 @@ export async function chooseVariant({
     const beside = columns ? options.map(detailsOf).join("") : "";
     // A row's fact lines (`facts`: the crisis menu's, `crisisDetails`) go into the window's Details (E49 A8.1), one layer
     // a row in one stack: into the briefing's own box where the intro drew one (`DETAILS_ROWS`), else a Details of their own.
-    const rowFacts = columns ? detailsStack(options.filter(o => o.facts?.length && !o.disabled)
-        .map(o => ({ when: o.value, html: factsList(o.facts) }))) : "";
-    const lead = `${intro}${beside ? `<div class="drpg-variant-details">${beside}</div>` : ""}`;
+    // A live menu (`keepRowsLive`) draws both places even empty, so a block or a layer that comes later has its region.
+    const liveMenu = Boolean(live && typeof live.options === "function" && columns);
+    const rowFacts = columns ? factsStackOf(options) || (liveMenu ? `<div class="drpg-details-stack"></div>` : "") : "";
+    const lead = `${intro}${beside || liveMenu ? `<div class="drpg-variant-details">${beside}</div>` : ""}`;
     const brief = !rowFacts ? lead
         : lead.includes(DETAILS_ROWS) ? lead.replace(DETAILS_ROWS, () => rowFacts) : `${lead}${detailsHtml(rowFacts)}`;
     // A row's own statistic field (`field`: the crisis menu's proposal, E68 C4) stands in the right column's slot, not
@@ -294,7 +317,7 @@ export async function chooseVariant({
                 drawn = dialog;
                 dialog.element?.addEventListener("change", e => { if (e.target?.name === "variant") checkedNow = e.target.value; });
             }
-            if (live && typeof live.options === "function") keepRowsLive(dialog, live, rowsOf);
+            if (live && typeof live.options === "function") keepRowsLive(dialog, live, rowsOf, { detailsOf: columns ? detailsOf : null });
             if (liveRows || options.some(o => o.confirm)) followConfirmLabel(dialog, confirmFor);
             if (columns) {
                 holdFields(dialog);
@@ -371,7 +394,7 @@ export function actionWindow({ brief = "", ask = "", classes = [], render = null
     return wideWindow({
         ...(ask ? {} : { width: WIDE.width / 2 }),
         ...rest,
-        render: (event, dialog) => { wireDetails(dialog); return render?.(event, dialog); },
+        render: (event, dialog) => { wireDetails(dialog); wireLiveBriefings(dialog); return render?.(event, dialog); },
         classes: [...new Set(["drpg-panel", ...classes, "drpg-action-window"])],
         columns: [{ cls: "drpg-variant-brief", html: brief }, ...(ask ? [{ cls: "drpg-variant-ask", html: ask }] : [])]
     });
@@ -425,11 +448,57 @@ export function factsList(lines = []) {
     return lines.length ? `<ul class="drpg-briefing-facts">${lines.map(line => `<li>${line}</li>`).join("")}</ul>` : "";
 }
 
+/** The rows' fact lines (`facts`) as Details' layers, one a usable row (`chooseVariant`, `keepRowsLive`), or "" for none. */
+function factsStackOf(options = []) {
+    return detailsStack(options.filter(o => o.facts?.length && !o.disabled).map(o => ({ when: o.value, html: factsList(o.facts) })));
+}
+
 /** `{ when, html }` layers in one place: the rows' lines over one another, each named by its row(s), or "" for none. */
 export function detailsStack(layers = []) {
     const shown = layers.filter(layer => layer?.html);
     return shown.length ? `<div class="drpg-details-stack">${shown.map(layer =>
         `<div class="drpg-details-layer" data-drpg-when="${esc(layer.when)}">${layer.html}</div>`).join("")}</div>` : "";
+}
+
+/*
+ * THE BRIEFINGS KEPT LIVE (the auditor's probe 43, p43-1, 1.2.123; action-briefing.mjs `briefingBlock`). A briefing drawn
+ * under an id keeps its builder here (`keepBriefing`, the newest 64: a builder lives as long as its window is likely to);
+ * `wireLiveBriefings` stands keepLive on its two regions in a drawn window - the lead (`.drpg-briefing-block`) and its own
+ * lines in Details (`.drpg-briefing-live`) - each rebuilt from a fresh draw of the whole block. The lines bound to a row
+ * are lit again for the row picked (`syncDetails`'s rule). Kept here, not in action-briefing.mjs, which imports this file.
+ */
+const liveBriefings = new Map();
+/** The writes a briefing reads: the character's budget and Sanity, its items (tools, bullets), the tokens (the room, who is there), and the hour (WORLD_HOOKS). */
+const BRIEFING_WATCH = Object.freeze({ actors: true, items: true, tokens: true, hooks: ["drpgDeathsChanged"] });
+
+export function keepBriefing(id, build) {
+    liveBriefings.set(id, build);
+    while (liveBriefings.size > 64) liveBriefings.delete(liveBriefings.keys().next().value);
+}
+
+function wireLiveBriefings(dialog) {
+    const root = dialog?.element;
+    if (!root) return;
+    for (const id of new Set([...root.querySelectorAll("[data-drpg-brief]")].map(node => node.dataset.drpgBrief))) {
+        const build = liveBriefings.get(id);
+        if (typeof build !== "function") continue;
+        const part = cls => () => {
+            const holder = document.createElement("div");
+            holder.innerHTML = build();
+            return holder.querySelector(`.${cls}[data-drpg-brief="${CSS.escape(id)}"]`)?.outerHTML ?? `<div class="${cls}" data-drpg-brief="${esc(id)}"></div>`;
+        };
+        keepLive(dialog, { region: `.drpg-briefing-block[data-drpg-brief="${CSS.escape(id)}"]`, build: part("drpg-briefing-block"), watch: BRIEFING_WATCH });
+        keepLive(dialog, {
+            region: `.drpg-briefing-live[data-drpg-brief="${CSS.escape(id)}"]`, build: part("drpg-briefing-live"), watch: BRIEFING_WATCH,
+            after: element => {
+                const value = root.querySelector('input[name="variant"]:checked')?.value;
+                if (value === undefined) return;
+                for (const layer of element?.querySelectorAll?.(".drpg-details-layer") ?? []) {
+                    layer.classList.toggle(UNPICKED, !String(layer.dataset.drpgWhen ?? "").split(/\s+/).includes(value));
+                }
+            }
+        });
+    }
 }
 
 /** The toggle opens and shuts its box and writes the setting; Enter on it does what a click does (the kit's form takes no part). */

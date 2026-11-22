@@ -1964,7 +1964,7 @@ const LENGTHS_ACCEPTED = Object.freeze({
     "scripts/vault-store.mjs": "the owner, 21.11.2026: exceptions accepted up to 1750 lines (STG-61)",
     "scripts/room-setup.mjs": "the owner, 21.11.2026: exceptions accepted up to 1750 lines (STG-61)",
     "scripts/sheet-actions.mjs": "the owner, 21.11.2026: exceptions accepted up to 1750 lines (STG-61)",
-    "scripts/tables-editor.mjs": "the owner, 21.11.2026: exceptions accepted up to 1750 lines (STG-61); line WORLD splits it below 1750 in 1.2.122"
+    "scripts/tables-editor.mjs": "the owner, 21.11.2026: exceptions accepted up to 1750 lines (STG-61); line WORLD split it below 1750 in 1.2.122 (1675 lines on 14bb0d92); kept here, not split again, while WORLD, R1 and COMM edit it in 1.2.123"
 });
 function lengthProblems(files, lengthOf, accepted = LENGTHS_ACCEPTED) {
     const problems = [];

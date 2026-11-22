@@ -223,7 +223,14 @@ function roomCountLine(census, living) {
  */
 const lastRoomChecks = new Map();
 
-/** The room guide and the Check rooms button under the rooms step. */
+/**
+ * The room guide and the Check rooms button under the rooms step.
+ *
+ * `[data-drpg-check-out]` is empty until Check rooms is pressed (`wireRoomCheck` writes the findings into it), and its
+ * click listener is `wireShowOnMap`'s, delegated for the Show on map buttons those findings draw. The audit of
+ * 1.2.118's click probe (probe-42-rerun-2.json, rows C[36] and C[38], two of its rows for the one window titled Season checklist) clicked the empty box
+ * and saw nothing, which is what it does before the check has run.
+ */
 function roomGuideHtml() {
     return `<div class="drpg-room-guide">
         <p>${foundry.utils.escapeHTML(game.i18n.localize("DRPG.Season.roomGuide"))}</p>
@@ -1661,7 +1668,10 @@ export async function preSessionReport({ av = {}, scenes = game.scenes, head, pr
        pictures and the voice are built here from data (the cast and the scenes, read as marked text through
        `markedChecks` until E101, are the checklist's rows now; `markedChecks`, kept after that for R2033 though R2033 reads
        `preSessionReport`, went in E56 part 2, 14.11.2026). The anonymity audit stays the audit's own markup with its
-       marks (`checkMarks`, R1530): anonymity.mjs `wireAnonymityFix` draws it again in place after "Set them to Observer". */
+       marks (`checkMarks`, R1530): anonymity.mjs `wireAnonymityFix` draws it again in place after "Set them to Observer".
+       Its click listener is on the `[data-drpg-anon]` box and answers only that button, so the box is redrawn without
+       wiring it again; a click on the audit's text does nothing (the audit of 1.2.118's click probe, probe-42-rerun-2.json,
+       rows C[37] and C[39]). */
     return `<div>
             ${pictures}
             ${video}

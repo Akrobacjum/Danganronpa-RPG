@@ -556,7 +556,10 @@ export async function takeOldOwnersKeys(left) {
  * room, carried or stashed, as the GMs hold it (`itemsHeldNow` after `judgedFor`), loses every such key by a GM's ruling
  * (`trustedDelete`, "gmRuling"), whatever its text says; the GM is told who lost one ("keyCopiesTakenGm") and each holder is
  * whispered ("keyCopyTakenBack"). The new owner's own keys stay, and one whose text is the module's own for the old owner
- * (`grantBedroomKey`'s, in the language it was written in: the GM's until 1.2.122, the world's since, STG-28) is rewritten for them. Answers the holders who lost one.
+ * (`grantBedroomKey`'s, read in this GM's page language and the world's: `keyTextsOf`, STG-28) is rewritten for them. A key
+ * written before 1.2.122 in a granting GM's page language that is neither of those two is not recognised and stays as
+ * written - as it was not on 1.2.121 either, which read this GM's page language alone (the auditor's r122-F-7, weakened:
+ * no regression; until then this said "in the language it was written in"). Answers the holders who lost one.
  */
 async function keyCopiesAfterOwnerLeft(room, old, owner) {
     // The old owner's grant text in either language (STG-28), the new owner's in the world's.
@@ -658,21 +661,6 @@ const ROOM_IMAGE_TYPES = new Set(["jpg", "jpeg", "png", "webp", "avif"]);
  * owner sets and the account's avatar (voice-tile.mjs `voicePortrait`) - so on The Forge a player's portrait
  * may be any file of that host, which every browser of their voice room then fetches.
  */
-/*
- * A PORTRAIT'S PATH (1.2.122 line ITEMS; the audit's STG-100): `safeRoomImage`'s, and one SVG besides - the module's own
- * mask, the "?" a masked student wears (mask-gm.mjs `MASK_IMG`). The sequence boards and the voice tile read a portrait
- * through the room pictures' filter, which refuses every SVG (E77 fix r1-G1, above), so the "?" the notes say those two
- * surfaces wear was a letter, or the next face. Only that file of the module's own folder passes, by its exact path; no
- * other SVG does.
- */
-const MASK_PORTRAIT = `modules/${MODULE_ID}/icons/mask-unknown.svg`;
-export function safePortrait(path) {
-    const safe = safeRoomImage(path);
-    if (safe) return safe;
-    const text = typeof path === "string" ? path.trim().replace(/^\//, "") : "";
-    return text === MASK_PORTRAIT ? MASK_PORTRAIT : null;
-}
-
 export function safeRoomImage(path) {
     if (typeof path !== "string") return null;
     const text = path.trim();
@@ -713,6 +701,21 @@ export function safeRoomImage(path) {
     } catch {
         return null;
     }
+}
+
+/*
+ * A PORTRAIT'S PATH (1.2.122 line ITEMS; the audit's STG-100): `safeRoomImage`'s, and one SVG besides - the module's own
+ * mask, the "?" a masked student wears (mask-gm.mjs `MASK_IMG`). The sequence boards and the voice tile read a portrait
+ * through the room pictures' filter, which refuses every SVG (E77 fix r1-G1, above), so the "?" the notes say those two
+ * surfaces wear was a letter, or the next face. Only that file of the module's own folder passes, by its exact path; no
+ * other SVG does.
+ */
+const MASK_PORTRAIT = `modules/${MODULE_ID}/icons/mask-unknown.svg`;
+export function safePortrait(path) {
+    const safe = safeRoomImage(path);
+    if (safe) return safe;
+    const text = typeof path === "string" ? path.trim().replace(/^\//, "") : "";
+    return text === MASK_PORTRAIT ? MASK_PORTRAIT : null;
 }
 
 /**
