@@ -100,6 +100,11 @@ async function snapshot(cast) {
         // recorded cannot be put back.
         resources: cast.map(a => ({
             id: a.id,
+            /* THE ITEMS EACH HELD (1.2.124; the release CI of 22.11.2026, shard 3/8). A told trace's copy is its leaver's
+               Truth Bullet, made by the module where its card tells of the trace (remnants.mjs `noteToldTrace`) - not by
+               the test - so no test deletes it, and the restore left fifteen "items.<id> appeared". The ids held here, and
+               an item none of them names removed below, after the copies in flight have landed (tests.mjs). */
+            items: new Set((a.items?.contents ?? []).map(i => i.id)),
             hp: a.system?.resources?.hitPoints?.value ?? 0,
             stress: a.system?.resources?.stress?.value ?? 0,
             hope: a.system?.resources?.hope?.value ?? 0,
@@ -370,6 +375,9 @@ async function restore(snap) {
             else if (stableJson(now[key]) !== stableJson(row.flags[key])) update[`flags.${MODULE_ID}.${key}`] = replaced(row.flags[key]);
         }
         await actor.update(update);
+        // An item the actor did not hold at the snapshot - a told trace's copy among them (above) - removed.
+        const appeared = row.items ? (actor.items?.contents ?? []).filter(i => !row.items.has(i.id)).map(i => i.id) : [];
+        if (appeared.length) await actor.deleteEmbeddedDocuments("Item", appeared);
     }
     // The documents that appeared - the helper actors the module makes on first need
     // among them - removed, after the tokens that may stand on them.
@@ -2278,6 +2286,7 @@ async function swingFixture(identity = null) {
     const M = await import("./murder.mjs");
     const { livingStudents } = await import("./chapter.mjs");
     const { equippedFor } = await import("./use-items.mjs");
+    const { isTruthBullet } = await import("./truth-bullets.mjs");
     const player = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
     const [killer, victim] = livingStudents().filter(player);
     const { gameSettings } = CONFIG.DH.SETTINGS;
@@ -2301,7 +2310,9 @@ async function swingFixture(identity = null) {
     must(ready, `the fixture's fight is not at the killer's turn with the knife in hand: ${stableJson(M.murderState())}`);
     return { M, killer, victim, knife, putBack, traits,
         health: () => victim.system.resources.hitPoints.value,
-        handed: () => killer.items.filter(i => !had.has(i.id)).length };
+        /* A weapon handed, not a Truth Bullet: the swing's incident trace is told to its cast, and its leaver - the killer -
+           holds its copy at once (1.2.124, remnants.mjs `traceFeedback`, `noteToldTrace`), which is right by the rule. */
+        handed: () => killer.items.filter(i => !had.has(i.id) && !isTruthBullet(i)).length };
 }
 
 /**

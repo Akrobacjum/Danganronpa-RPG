@@ -635,7 +635,7 @@ export async function placeRemnant(data = {}, { keepId = false, rollId = null, d
             });
             await setRemnantSecret(created, row);
             // A trace its leaver was told of: their copy, at once and not waited on (`noteToldTrace`, 1.2.124).
-            if (data.told === true) void noteToldTrace(created).catch(err => error("Could not give a trace's leaver its copy", err));
+            if (data.told === true) void giveToldCopy(created);
         }
 
         if (givenId && created && !remnantStore.has(keyOf(created))) {
@@ -1733,10 +1733,38 @@ export async function setRemnantPublicById(sceneId, tokenId, patch = {}) {
     return ref ? setRemnantPublic(ref, patch) : null;
 }
 
+/*
+ * THE COPIES NOBODY WAITS ON, HELD WHERE THE SUITE CAN SETTLE THEM (1.2.124; the release CI of 22.11.2026, shard 3/8:
+ * fifteen tier-2 tests read "restore left: Actor ... items.<id> appeared"). A told trace's copy is made after its card,
+ * and no action waits on it at a table (`giveToldCopy`). A test does not wait either, so the copy landed after the
+ * runner's restore had put the world back. Each copy in flight stands in `pendingToldCopies` until it lands or fails,
+ * and the runner awaits `settleToldCopies` before it restores (tests.mjs). Nothing at a table reads the set.
+ */
+const pendingToldCopies = new Set();
+
+/** `noteToldTrace`, not awaited by its caller, held in `pendingToldCopies` until it settles; a failure is logged. */
+export function giveToldCopy(placed) {
+    const job = noteToldTrace(placed).catch(err => error("Could not give a trace's leaver its copy", err))
+        .finally(() => pendingToldCopies.delete(job));
+    pendingToldCopies.add(job);
+    return job;
+}
+
+/** Every copy in flight, landed (or failed): what tests.mjs awaits before a restore. Answers how many it waited on. */
+export async function settleToldCopies() {
+    let n = 0;
+    while (pendingToldCopies.size) {
+        const jobs = [...pendingToldCopies];
+        n += jobs.length;
+        await Promise.allSettled(jobs);
+    }
+    return n;
+}
+
 /** `noteToldTrace` for a trace named by its scene and token ids (a Reroll's bookmark names it so): the one read is `remnantById`'s. */
 export async function noteToldTraceById(sceneId, tokenId) {
     const ref = remnantById(sceneId, tokenId);
-    return ref?.document ? noteToldTrace(ref.document) : null;
+    return ref?.document ? giveToldCopy(ref.document) : null;
 }
 
 export async function revealRemnantToFinderById(sceneId, tokenId, options = {}) {
