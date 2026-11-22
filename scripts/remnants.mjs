@@ -3472,8 +3472,11 @@ export async function revealRemnant(trace) {
     const tokenDoc = tokenOf(trace);
     if (!game.user.isGM || !tokenDoc) return null;
     ui.notifications.warn(game.i18n.localize("DRPG.Remnant.revealWarning"));
-    // Found by the GM's hand (E60 C1b): the row says so where the token was hidden, as a find's does.
-    if (tokenDoc.hidden) await markFound(trace, "gm");
+    // Found by the GM's hand (E60 C1b): the row says so where the token was hidden, as a find's does - or up for its
+    // leaver's own told copy alone, which found nothing (`toldShown`, 1.2.125 H2).
+    const toldOnly = readRemnantLedger()[keyOf(tokenDoc)]?.toldShown === true;
+    if (tokenDoc.hidden || toldOnly) await markFound(trace, "gm");
+    if (toldOnly) await setRemnantSecret(tokenDoc, { toldShown: false }, { ifLive: true });
     return tokenDoc.update({ hidden: false });
 }
 

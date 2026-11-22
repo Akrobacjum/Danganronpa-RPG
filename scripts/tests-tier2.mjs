@@ -117259,6 +117259,45 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             "{whispers: messages whispered while the told copy was made; held: the reshape card's count of the copies its finders hold, after the second student's find; "
             + "removed: the Reroll's removal; after: whose copy is on the sheet once the trace is gone, and the trace}");
     }],
+    ["1.2.125 H2 reveal - a GM's Reveal of a trace up for its leaver's own told copy alone marks it found by the GM's hand (scripts/remnants.mjs `revealRemnant`, `toldShown`; 1.2.125 H2)", async () => {
+        /*
+         * 1.2.125 H2, 22.11.2026. The told road un-hides a trace for its holder and finds nothing; the GM's Reveal marked
+         * a find only where the token was hidden, so a told trace a GM revealed stayed unfound for every reader. A told
+         * trace left by one student, then the GM's Reveal. Read: the row's first find and road, and the ref's `found`,
+         * before and after. Red before this fix: no find after the Reveal.
+         */
+        must(game.user.isGM, "the reveal is a GM's");
+        const R = await import("./remnants.mjs");
+        const TB = await import("./truth-bullets.mjs");
+        const { remnantStore } = await import("./gm-stores.mjs");
+        const { locateActor } = await import("./movement.mjs");
+        const scene = canvas?.scene;
+        const leaver = cast(4).find(a => { const at = locateActor(a); return at?.room && at.scene === scene; });
+        must(leaver, "no student of the cast stands in a room on the scene on screen - this would measure nothing");
+        const copyOf = id => leaver.items.find(i => TB.secretOf(i.uuid).remnantId === id) ?? null;
+        let trace = null;
+        const read = {};
+        try {
+            trace = await R.dropRemnant(leaver, { type: "prep", visibility: "evident", note: "SUITE 1.2.125 H2 reveal", told: true });
+            must(trace, "the told trace was not placed - this would measure nothing");
+            await R.settleToldCopies();
+            must(copyOf(trace.id), "the leaver was not given the trace's copy - this would measure nothing");
+            const reading = () => { const row = remnantStore.get(`${scene.id}.${trace.id}`);
+                return [Number.isFinite(row?.foundAt), row?.foundVia ?? null, R.remnantById(scene.id, trace.id)?.found ?? null]; };
+            read.told = reading();
+            await R.revealRemnant(R.remnantById(scene.id, trace.id));
+            read.revealed = reading();
+        } finally {
+            if (trace) {
+                const item = copyOf(trace.id);
+                if (item) { await TB.dropSecret(item.uuid); await item.delete(); }
+                await R.dropRemnantSecret(trace);
+                if (scene.tokens.has(trace.id)) await scene.deleteEmbeddedDocuments("Token", [trace.id]);
+            }
+        }
+        equal(stableJson(read), stableJson({ told: [false, null, false], revealed: [true, "gm", true] }),
+            "{told: after the leaver's own copy alone; revealed: after the GM's Reveal} x [the row's first find, its road, the ref's found]");
+    }],
 ];
 
 // `drawnForPlayer` for the grid (E33 C7): a drawn crisis roll goes through the suite's one road to a draw (tests-grid.mjs `drawnAct`).
