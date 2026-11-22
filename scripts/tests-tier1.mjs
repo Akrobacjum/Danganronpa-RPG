@@ -66428,6 +66428,41 @@ const INVARIANTS = [
             stableJson({ allowed: [true, true, false], count: 2, last: "R8690GMS", unread: 1, read: ["R8690OWN", "R8690GMS"] }),
             "{allowed: p3's own card, a GM's, p2's; count, last, unread: p3's thread as counted on p3; read: the ids its read stamp keeps}");
     }],
+    ["R8691 - told is shown and shown is told: a trace its leaver is told of on Hope or a critical, or that an incident's cast is shown, is told on its card, and every placement and its callers carry that answer to the copy its leaver is given (1.2.124, OWNER-124-TRACE; remnants.mjs `traceFeedback`, `narrowPlayerRemnant`, `noteToldTrace`, `placeRemnant`)", async () => {
+        /* Red at 2d17b74e: `traceFeedback` read the roll alone (an incident's trace on a Despair said nothing), no placement
+           carried the card's answer, and no road gave the leaver a copy. Pure parts on stand-ins; the callers read in the
+           source; nothing written. Scenario 73's "T: a told trace" drives the copy on the browsers. */
+        const R = await import("./remnants.mjs");
+        const sources = new Map(await otherSources());
+        const src = file => stripComments(sources.get(file) ?? "");
+        const incident = { getFlag: (scope, key) => scope === MODULE_ID && key === "fromIncident" };
+        const plain = { getFlag: () => undefined };
+        const rule = [
+            R.traceFeedback({ withHope: true }, plain), R.traceFeedback({ isCritical: true }, plain), R.traceFeedback({}, plain),
+            R.traceFeedback({ withHope: true }, null), R.traceFeedback({}, incident), R.traceFeedback({ withFear: true }, { document: incident })
+        ];
+        const where = { tokenDoc: { x: 1, y: 2 }, scene: { id: "R8691SCENE000001" }, room: "Gym" };
+        const actor = { id: "R8691ACTOR000001", name: "R8691", items: [] };
+        const claim = told => R.narrowPlayerRemnant({ visibility: "evident", action: "manual", told }, actor, where, {})?.data?.told ?? null;
+        const callers = {
+            search: /told: traceFeedback\(roll, true\)/.test(fnSource(src("action-search.mjs"), "leaveSearchTrace") ?? ""),
+            hideTraces: /told: traceFeedback\(trace, true\)/.test(fnSource(src("action-project.mjs"), "hideProjectTraces") ?? ""),
+            sabotage: /told: traceFeedback\(roll, true\)/.test(fnSource(src("action-project.mjs"), "dropSabotageTrace") ?? ""),
+            dynamic: /told: traceFeedback\(roll, true\)/.test(fnSource(src("action-dynamic.mjs"), "performDynamic") ?? ""),
+            discard: /told: traceFeedback\(roll, true\)/.test(fnSource(src("use-items.mjs"), "discardBroken") ?? ""),
+            tamper: /told: traceFeedback\(\{ isCritical, withHope \}, true\)/.test(fnSource(src("cleanup.mjs"), "leaveTamperTrace") ?? ""),
+            crisis: /traceFeedback\(\{[^}]*\}, last\)\)\s*\{[\s\S]{0,400}noteToldTrace\(doc\)/.test(fnSource(src("murder-rules.mjs"), "applyRemnant") ?? ""),
+            reroll: (fnSource(src("reroll.mjs"), "settleRemnant")?.match(/noteToldTrace(?:ById)?\((?:doc|bookmark\.remnantScene, bookmark\.remnantId)\)/g) ?? []).length,
+            placed: /if \(data\.told === true\) void noteToldTrace\(created\)/.test(fnSource(src("remnants.mjs"), "placeRemnant") ?? ""),
+            held: /drawnRecordOf\([\s\S]{0,120}if \(record && !traceFeedback\(record, true\)\) data\.told = false;/.test(fnSource(src("bridge-runs-records.mjs"), "handleRemnant") ?? ""),
+            copy: /mintFindCopy\(actor,[\s\S]{0,900}?tell: false/.test(fnSource(src("remnants.mjs"), "noteToldTrace") ?? "")
+                && /game\.actors\.get\(data\.sourceActor\)/.test(fnSource(src("remnants.mjs"), "noteToldTrace") ?? "")
+        };
+        equal(stableJson({ rule, claim: [claim(true), claim(false), claim("yes")], callers }), stableJson({
+            rule: [true, true, false, false, true, true], claim: [true, false, false],
+            callers: { search: true, hideTraces: true, sabotage: true, dynamic: true, discard: true, tamper: true, crisis: true, reroll: 2, placed: true, held: true, copy: true }
+        }), "{rule: Hope, a critical, a plain Despair, nothing placed, an incident's trace on a Despair, the same through its document; claim: a player's told kept only when it is true; callers: each placement carries the card's answer, the GM's roads give the copy, the primary holds a claim to its record of the roll, and the copy is the leaver's, made as a hit's with no word to the GMs}");
+    }],
     ["R8050 - Foundry's token HUD holds only the controls kept (1.2.120 line H; the owner, 21.11.2026: \"Niepotrzebne jest: combat, target, movement action, assign status, liczby na gorze i na dole i elevation\"): token-hud.mjs `trimHudFor` on Daggerheart 2.12.8's tokenHUD.hbs as drawn for a GM leaves the floor's palette, bring to front, the companion's button, lock, the token's settings and visibility, with no input, status palette, movement palette, target or combat; as drawn for a player it leaves nothing, the HUD marked not to be drawn (the owner, 21.11.2026: \"Niech gracz nie ma menu tokena\")", async () => {
         /*
          * 21.11.2026, 1.2.120 line H. The harness draws no token HUD (no canvas), so this hands the transform the markup

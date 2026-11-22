@@ -2069,7 +2069,11 @@ async function settleRemnant(actor, bookmark, visibility, done, drop = null, gat
 
         const placed = await dropRemnant(actor, { ...drop, visibility });
         const doc = placed?.document ?? placed;
-        if (traceFeedback(gate, doc)) done.push(game.i18n.localize("DRPG.Reroll.remnantLeft"));
+        if (traceFeedback(gate, doc)) {
+            done.push(game.i18n.localize("DRPG.Reroll.remnantLeft"));
+            // Told, so its leaver holds its copy (1.2.124; remnants.mjs `noteToldTrace`), not waited on.
+            void import("./remnants.mjs").then(m => m.noteToldTrace(doc)).catch(err => error("Could not give a Reroll's trace's leaver its copy", err));
+        }
         return doc?.id
             ? { remnantId: doc.id, remnantScene: doc.parent?.id ?? null }
             : {};
@@ -2094,7 +2098,12 @@ async function settleRemnant(actor, bookmark, visibility, done, drop = null, gat
         ? { itemIdentity: drop.itemIdentity, subject: drop.subject, note: drop.note }
         : null;
     const retuned = await retuneRemnant(bookmark.remnantScene, bookmark.remnantId, { visibility, describes });
-    if (traceFeedback(gate, retuned)) done.push(game.i18n.localize("DRPG.Reroll.remnantRetuned"));
+    if (traceFeedback(gate, retuned)) {
+        done.push(game.i18n.localize("DRPG.Reroll.remnantRetuned"));
+        // Told now, so its leaver holds its copy (1.2.124; remnants.mjs `noteToldTrace`; one held already is kept, not doubled).
+        void import("./remnants.mjs").then(m => m.noteToldTraceById(bookmark.remnantScene, bookmark.remnantId))
+            .catch(err => error("Could not give a Reroll's trace's leaver its copy", err));
+    }
     return {};
 }
 

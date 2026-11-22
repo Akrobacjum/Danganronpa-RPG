@@ -991,7 +991,7 @@
       "dynamicFound": "The roll succeeded at Tier {tier}. Decide what it gives: an item or a reply.",
       "dynamicRerollMissed": "A Reroll turned this roll into a miss, so it gives nothing.",
       "dynamicAnsweredMissed": "A Reroll turned {name}'s Dynamic success into a miss after a GM had answered its card (“{what}”). What was given stands unless a GM takes it back.",
-      "leavesRemnant": "You leave a Remnant behind.",
+      "leavesRemnant": "You leave a Remnant behind. Its Truth Bullet is on your sheet.",
       "tokensLeft": {
         "one": "{room} has {n} Search Token left this time of day.",
         "other": "{room} has {n} Search Tokens left this time of day."
@@ -1222,7 +1222,7 @@
       "discardPrompt": "Get rid of “{item}” here, in this room.",
       "discardNote": "It costs no action. You roll Shadow: the higher the total, the harder the Remnant you leave here is to spot. Putting it in your own stash leaves none.",
       "discarded": "You threw away “{item}”.",
-      "discardTrace": "You left a Remnant behind.",
+      "discardTrace": "You left a Remnant behind. Its Truth Bullet is on your sheet.",
       "discardNever": "This cannot be thrown away.",
       "noDiscardInTrial": "Nothing can be thrown away during the Class Trial.",
       "discardStashed": "Take it out of your stash first.",
@@ -2695,6 +2695,7 @@
       "freeTonight": "Cleaning up your own crime scene costs no action, only {n} Sanity per attempt; the first after a critical Finishing Blow costs none.",
       "stillThere": "The Remnant is still there.",
       "leftTrace": "You left a new Remnant.",
+      "leftTraceKept": "You left a new Remnant. Its Truth Bullet is on your sheet.",
       "remnantNote": "Left while cleaning up the {what}.",
       "stressSpent": "Each clean-up attempt costs {n} Sanity, except the first after a critical Finishing Blow.",
       "band": {
@@ -5851,7 +5852,7 @@
       "stashFound": "The new result finds a hidden stash. Its own card tells you whose it is.",
       "tokenKept": "The room's Search Token stays spent, because the room was searched either way.",
       "remnantRetuned": "The Remnant you left now matches the new result.",
-      "remnantLeft": "The new result leaves a Remnant behind.",
+      "remnantLeft": "The new result leaves a Remnant behind. Its Truth Bullet is on your sheet.",
       "remnantRemoved": "The new result removes the Remnant your first roll left.",
       "remnantManual": "The Reroll cannot adjust the Remnant your first roll left. Ask the GM to re-rate it.",
       "traceKept": "{name}'s Reroll left the first roll's Remnant ({trace}) unchanged: a GM wrote on it or set its band, a Reroll put it back, it is too old for a Reroll, or, where the new result would remove it, somebody already found it. The console says which. If the new result ({total}) should change it, re-rate or remove it by hand.",

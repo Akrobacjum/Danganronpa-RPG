@@ -293,7 +293,7 @@ Znajdujesz to, co ma pokój. Najpierw liczy się to, co GM umieścił w pokoju, 
 
 ### Observe - Eye, 1 akcja
 
-Szukasz dowodów. Trafienie kopiuje Remnant do twojego ekwipunku jako Neutral Truth Bullet i zostawia oryginał na miejscu dla innych. Pudło kosztuje cię 1 Sanity. Krytyk dodatkowo rozpoznaje rodzaj Remnantu i daje ci solidną podpowiedź od GM-a, zapisaną tylko na twojej kopii: kto znajdzie ten Remnant po tobie, jej nie przeczyta. Każdy Remnant masz najwyżej w jednej kopii, a druga nigdy nie powstaje: Observe pomija Remnant, który już masz, i taki, który GM wciąż ci opisuje po wcześniejszym Observe.
+Szukasz dowodów. Trafienie kopiuje Remnant do twojego ekwipunku jako Neutral Truth Bullet i zostawia oryginał na miejscu dla innych. Pudło kosztuje cię 1 Sanity. Krytyk dodatkowo rozpoznaje rodzaj Remnantu i daje ci solidną podpowiedź od GM-a, zapisaną tylko na twojej kopii: kto znajdzie ten Remnant po tobie, jej nie przeczyta. Każdy Remnant masz najwyżej w jednej kopii, a druga nigdy nie powstaje: Observe pomija Remnant, który już masz, i taki, który GM wciąż ci opisuje po wcześniejszym Observe. Remnant, o którym karta mówi, że go zostawiasz, jest od razu twój: Gdy karta akcji mówi, że zostawiasz Remnant (rzut z Hope, krytyk albo Remnant incydentu, w którym jesteś), jego Truth Bullet od razu trafia na twój arkusz, tak jak dałoby go trafienie Observe: jako Neutral Truth Bullet, bez rzutu, a jego token widzisz odtąd na mapie. Zwykły Despair nic nie mówi i nic nie daje; taki Remnant wciąż możesz znaleźć przez Observe. Reroll, który zamienia twoje Hope w Despair, zostawia Truth Bullet na miejscu.
 
 Wybierasz, jak patrzysz:
 

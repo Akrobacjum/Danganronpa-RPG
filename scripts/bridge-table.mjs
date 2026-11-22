@@ -817,7 +817,7 @@ export const BRIDGE_ACTIONS = table({
            read off its record of the roll (E08+E28 C15; `traceBandOf`); another action's trace
            names no roll. One roll leaves one trace. */
         rolled: { field: "rollId", actor: "data.sourceActor", kind: TRACE_OF_ROLL, kindAt: "data.action", settles: "trace", derive: traceBandOf },
-        claims: { data: "a player's is rebuilt from a whitelist by narrowPlayerRemnant (remnants.mjs), its visibility the GM's band where its action's roll leaves it (traceBandOf), a discard's type the GM's (use-items.mjs discardRemnantType), refused in the Class Trial, and once placed the ticket its item's deletion stands on (sheet-audit.mjs noteDiscardTrace); a GM's is placed as written",
+        claims: { data: "a player's is rebuilt from a whitelist by narrowPlayerRemnant (remnants.mjs), its visibility the GM's band where its action's roll leaves it (traceBandOf), a discard's type the GM's (use-items.mjs discardRemnantType), refused in the Class Trial, and once placed the ticket its item's deletion stands on (sheet-audit.mjs noteDiscardTrace); its told the card's answer, held to the GMs' record of a drawn roll (handleRemnant, 1.2.124); a GM's is placed as written",
             rollId: "the roll a Search's, Sabotage's or Dynamic action's trace takes its band from (traceBandOf), and written on only by noteFactOfRoll (action-pipeline.mjs): the sender's own row of that message, its character and an action that owns a trace" }
     },
     [ACTION_TIE_TRACE]: {
