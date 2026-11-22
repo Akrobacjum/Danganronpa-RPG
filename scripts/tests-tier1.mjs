@@ -67623,6 +67623,33 @@ const INVARIANTS = [
             pickBarricade: [null, true], pickLockOpens: [reached, true]
         }), "{each case: [the mark beside the dice, \"needed N\" shown] - a barricade's case says the number and no mark; a lock's says the mark its sentence says}");
     }],
+    ["R8694 - a Spectator's frame fades with its token (E127; the owner, 22.11.2026: \"Spectatorzy. Ich ramka kwadratowa renderowana przez modul niech tez ma zmniejszone opacity\", OWNER-127-SPECTATOR-FRAME): own-ring.mjs `dressFrame` sets the frame's alpha to config.mjs `SPECTATOR_ALPHA` on a GM's browser for a Spectator's token - the factor visibility.mjs `dressSpectator` sets its sprite at - and back to 1 when the actor is no Spectator; a player's browser leaves it at 1; `paint` dresses the frame on every road that shows one, and a Spectator flag written repaints the actor's frames", async () => {
+        /* Red at 2e28785a: no `dressFrame` and no `SPECTATOR_ALPHA` in config.mjs; the frame kept full alpha under a
+           sprite at 0.3. Stand-in tokens, frames and actors: nothing of the world is read or written. */
+        const R = await import("./own-ring.mjs");
+        const C = await import("./config.mjs");
+        const V = await import("./visibility.mjs");
+        must(typeof R.dressFrame === "function" && typeof C.SPECTATOR_ALPHA === "number", "own-ring.mjs has no dressFrame or config.mjs no SPECTATOR_ALPHA - a Spectator's frame keeps full alpha");
+        let watching = true;
+        const actor = { getFlag: (scope, key) => (scope === MODULE_ID && key === C.FLAGS.spectator ? watching : undefined) };
+        const frame = { alpha: 1 };
+        const token = { actor, document: { alpha: 1 }, mesh: { alpha: 1 }, drpgOwnRing: frame };
+        const gm = { isGM: true }, player = { isGM: false };
+        V.dressSpectator(token);
+        const asGm = [R.dressFrame(token, gm), frame.alpha, token.mesh.alpha];
+        const asPlayer = (() => { const f = { alpha: 1 }; return [R.dressFrame({ ...token, drpgOwnRing: f }, player), f.alpha]; })();
+        watching = false;
+        V.dressSpectator(token);
+        const back = [R.dressFrame(token, gm), frame.alpha, token.mesh.alpha];
+        const sources = await moduleSources();
+        const paint = fnSource(stripComments(sources.get("own-ring.mjs") ?? ""), "paint");
+        const reg = fnSource(stripComments(sources.get("own-ring.mjs") ?? ""), "registerOwnRing");
+        must(paint.length > 500, "own-ring.mjs `paint` was not read - this would measure nothing");
+        equal(stableJson({ asGm, asPlayer, back, paintDresses: (paint.match(/dressFrame\(token\)/g) ?? []).length >= 3,
+            flagRepaints: /FLAGS\.spectator/.test(reg), oneConstant: !/0\.3\b/.test(stripComments(sources.get("visibility.mjs") ?? "").match(/SPECTATOR_ALPHA\s*=\s*[\d.]+/)?.[0] ?? "") }),
+        stableJson({ asGm: [C.SPECTATOR_ALPHA, C.SPECTATOR_ALPHA, C.SPECTATOR_ALPHA], asPlayer: [1, 1], back: [1, 1, 1], paintDresses: true, flagRepaints: true, oneConstant: true }),
+        "{asGm: [answered, the frame, the sprite] for a Spectator on a GM's screen; asPlayer: on a player's; back: no Spectator any more; paintDresses: every road of paint that shows a frame; flagRepaints: the flag's write repaints; oneConstant: visibility.mjs states no 0.3 of its own}");
+    }],
     ["R8431 - the token HUD's on toggles and its focus read under Stained Glass with high contrast (the audit of 1.2.120, H-1, H-7; 1.2.122 line UI): a rule under high contrast and the glass gives `.control-icon.active` the Bone ground and the Ink glyph after the high-contrast ground, and the glass draws the focus ring inside the hexagon (a negative `outline-offset`)", async () => {
         /* Red at 21bf5d18: the high-contrast rule (1,5,1) took the on toggle's ground to Ink under an Ink glyph, and the
            ring stood 2 px outside the clip. Read off the sheets' text; drawn in Chromium by docs/dev/ui122/hud-shots.mjs. */
