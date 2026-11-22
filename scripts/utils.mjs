@@ -878,7 +878,8 @@ async function privately(payload) {
 export function cardHead({ action = null, room = null, total = null, result = null, resultKind = null, trait = null, dc = null } = {}) {
     const hasTotal = total != null && total !== "";
     const needed = hasTotal && dc != null && dc !== ""
-        ? ` <small class="drpg-card-needed">${esc(game.i18n.format("DRPG.Action.needed", { n: dc }))}</small>` : "";
+        // the number itself on `data-dc` too, for the centred notice's "needed N" beside the dice (popup.mjs `centreRoll`)
+        ? ` <small class="drpg-card-needed" data-dc="${esc(dc)}">${esc(game.i18n.format("DRPG.Action.needed", { n: dc }))}</small>` : "";
     const slots = [
         action ? `<span class="drpg-card-action">${esc(action)}</span>` : null,
         room ? `<span class="drpg-card-room">${esc(room)}</span>` : null,

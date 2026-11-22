@@ -67197,7 +67197,9 @@ const INVARIANTS = [
             rollCard: flags.popupCentre ?? null,
             report: /popupTone: rollTone\(roll\),\s*popupCentre: "actionResult"/.test(src("action-report.mjs")),
             tail: /popupCentre = seen \? "failedShadow" : "actionResult"/.test(src("action-tail.mjs"))
-                && /neededNote\(rule\.unseen\.threshold\)/.test(src("action-tail.mjs")) && /rollHead\(\{ label \}, roll\)/.test(src("action-tail.mjs")),
+                && /rollHead\(\{ label: game\.i18n\.localize\("DRPG\.Infiltrate\.tail\.unseenTitle"\) \}, shadow\)/.test(src("action-tail.mjs"))
+                && /rollHead\(\{ label \}, roll\)/.test(src("action-tail.mjs"))
+                && /\.\.\.tailCard\(label, roll, shadow, seen, target\.name\)/.test(src("action-tail.mjs")),
             bedroom: /kinds\.some\(kind => kind !== "mended"\)[\s\S]{0,200}popupCentre: "lockBroken"/.test(src("doors-gm.mjs")),
             bedroomCalls: (src("doors-gm.mjs").match(/whisperToOwnerOnly\(owner, await bedroomCard\([^)]*\)[^;]*bedroomExtra\(/g) ?? []).length,
             body: /popupCentre: "bodyFound"/.test(src("body.mjs")),
@@ -67206,7 +67208,7 @@ const INVARIANTS = [
             cover: /extra: coverLine/.test(src("action-doors.mjs")) && /neededNote\(rule\.cover\.threshold\)/.test(src("action-doors.mjs")),
             tamper: /popupCentre: "actionResult", \.\.\.\(success \? \{\} : \{ sfx: "cleanupFailed" \}\)/.test(src("cleanup.mjs"))
         }), stableJson({ rollCard: "actionResult", report: true, tail: true, bedroom: true, bedroomCalls: 2, body: true, infiltrate: [true, true, true], cover: true, tamper: true }),
-        "{rollCard: Observe/Analyze/Listen; report: every action's result; tail: noticed or not, with both rolls and the Shadow's 15; bedroom: not a lock only mended; bedroomCalls: both of the owner's cards; body; infiltrate: the five Infiltrate cards with their roll; cover: Pick's second roll; tamper: Tamper's card}");
+        "{rollCard: Observe/Analyze/Listen; report: every action's result; tail: noticed or not, the Shadow roll with its number first, then the effect roll; bedroom: not a lock only mended; bedroomCalls: both of the owner's cards; body; infiltrate: the five Infiltrate cards with their roll; cover: Pick's second roll; tamper: Tamper's card}");
     }],
     ["R8431 - the token HUD's on toggles and its focus read under Stained Glass with high contrast (the audit of 1.2.120, H-1, H-7; 1.2.122 line UI): a rule under high contrast and the glass gives `.control-icon.active` the Bone ground and the Ink glyph after the high-contrast ground, and the glass draws the focus ring inside the hexagon (a negative `outline-offset`)", async () => {
         /* Red at 21bf5d18: the high-contrast rule (1,5,1) took the on toggle's ground to Ink under an Ink glyph, and the

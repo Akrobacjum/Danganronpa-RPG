@@ -233,17 +233,11 @@ export function rollHead(def, roll) {
 }
 
 /**
- * The action's card: posted from the roller's browser, to the owner and the GMs. Answers the
- * card (null when there was nothing to report or nothing was posted), and names it to the GMs
- * as the card of the roll it reports (`nameReportCard`, E08+E28 C5). Exported for the suite.
+ * The action card's words for `roll` and `outcome` in `room` (`report`'s, moved here unchanged for the suite, 1.2.124:
+ * the centred notice is held to show the same card for a Despair roll with a trace placed and without, R8675). Pure but
+ * for `game.i18n`.
  */
-export async function report(actor, def, roll, outcome) {
-    if (!outcome) return null;
-
-    // The one moment at a roll the whole table waits for. Local: this runs on
-    // the client that rolled, and the card it is about is on its way.
-    if (roll?.isCritical) playSfx("critical");
-
+export function reportHtml(def, roll, outcome, room = null) {
     const traitLabel = TRAITS[roll?.trait]?.label ?? "";
     const lines = [];
 
@@ -259,7 +253,6 @@ export async function report(actor, def, roll, outcome) {
      * had it. Everything about the four slots, and what goes in them, is
      * documented there.
      */
-    const room = roomOfActor(actor);
     // Only two outcomes are short enough to be a header slot and precise enough
     // to be worth one. Anything else leaves the slot out rather than paraphrase
     // the paragraph below it, which is where the detail belongs.
@@ -336,7 +329,23 @@ export async function report(actor, def, roll, outcome) {
         lines.push(`<p><em>${game.i18n.localize("DRPG.Action.actionReturned")}</em></p>`);
     }
 
-    const html = lines.join("");
+    return lines.join("");
+}
+
+/**
+ * The action's card: posted from the roller's browser, to the owner and the GMs. Answers the
+ * card (null when there was nothing to report or nothing was posted), and names it to the GMs
+ * as the card of the roll it reports (`nameReportCard`, E08+E28 C5). Exported for the suite.
+ */
+export async function report(actor, def, roll, outcome) {
+    if (!outcome) return null;
+
+    // The one moment at a roll the whole table waits for. Local: this runs on
+    // the client that rolled, and the card it is about is on its way.
+    if (roll?.isCritical) playSfx("critical");
+
+    const room = roomOfActor(actor);
+    const html = reportHtml(def, roll, outcome, room);
 
     // The dice land before the card says what they landed on. See `diceSettled`.
     await diceSettled(roll?.raw?.message?.id ?? roll?.raw?.message?._id);

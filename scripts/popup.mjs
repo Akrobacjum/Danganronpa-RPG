@@ -254,6 +254,39 @@ function centreStage() {
     return el;
 }
 
+/* THE ROLL AT THE CENTRE OF A CENTRED CARD (the owner on the first screenshots, 22.11.2026: "Jest powiadomienie w module z
+   wynikiem rzutu - zolty i rozowy kwadrat z wynikiem poszczegolnych kosci. Zainspirujmy sie nim"). A centred card that
+   carries a roll's dice (action-report.mjs `dualityBar`, `.drpg-duality`) shows them as its centre-piece, larger
+   (danganronpa.css and stained-glass.css, `#drpg-notice-centre .drpg-duality`), and beside the total the number it had
+   to beat - the head's own "needed N" (utils.mjs `cardHead`, `data-dc`) - with, where that number is one number, whether
+   the total reached it ("reached", "not reached"; a critical reaches any). A ladder ("8 / 12 / 16") says itself, and
+   the effect lines under the dice say what it bought. Read off the card alone: the total, the number and the dice's
+   side, none of which differs between a Despair roll that left a trace and one that left none (remnants.mjs
+   `traceFeedback`: the card says a trace only with Hope or a critical) - R8675 holds the two cards byte for byte. Every
+   addition carries `CENTRE_ONLY`, and the notice history keeps the corner's card without them (`showPopup`'s `kept`). */
+const CENTRE_ONLY = "drpg-centre-only";
+export function centreRoll(body) {
+    const result = body?.querySelector?.(".drpg-duality .drpg-duality-result");
+    const needed = body?.querySelector?.(".drpg-card-head .drpg-card-needed");
+    if (!result || !needed || result.querySelector(`.${CENTRE_ONLY}`)) return false;
+    const vs = document.createElement("span");
+    vs.className = `drpg-duality-vs ${CENTRE_ONLY}`;
+    const words = document.createElement("span");
+    words.className = "drpg-duality-needed";
+    words.textContent = needed.textContent.trim();
+    vs.append(words);
+    const dc = String(needed.dataset.dc ?? "").trim(), total = Number(result.querySelector(".drpg-duality-total")?.textContent);
+    if (/^\d+$/.test(dc) && Number.isFinite(total)) {
+        const reached = total >= Number(dc) || result.closest(".drpg-duality")?.dataset.side === "critical";
+        const mark = document.createElement("span");
+        mark.className = `drpg-duality-mark ${reached ? "is-reached" : "is-short"}`;
+        mark.textContent = game.i18n.localize(reached ? "DRPG.Popup.centre.reached" : "DRPG.Popup.centre.short");
+        vs.append(mark);
+    }
+    result.append(vs);
+    return true;
+}
+
 /**
  * Which of the two this card belongs in.
  *
@@ -956,9 +989,17 @@ export function showPopup(bodyHtml, {
         }
     }
     if (!title) title = kindWord;
+    // what the history keeps is the corner's card: the centred card's own additions (`centreRoll`) are left out of it
+    const cornerOnlyHtml = html => {
+        if (!html.includes(CENTRE_ONLY)) return html;
+        const wrap = document.createElement("div");
+        wrap.innerHTML = html;
+        wrap.querySelectorAll(`.${CENTRE_ONLY}`).forEach(el => el.remove());
+        return wrap.innerHTML;
+    };
     const critical = tone === "critical";
     if (critical) body.prepend(critLine(messageId ?? fromMessage, title === kindWord ? null : title));
-    const kept = () => lifted + body.innerHTML;
+    const kept = () => lifted + cornerOnlyHtml(body.innerHTML);
 
     {
         const head = document.createElement("div");
@@ -1007,7 +1048,10 @@ export function showPopup(bodyHtml, {
        stands in the middle of the screen - no history button there - and comes over the windows until touched, as an
        objection does (the plan's Q8 default). Kept in the history as every card is. */
     const host = centre ? centreStage() : hostFor(kind, sticky);
-    if (centre) card.classList.add("drpg-popup-centre");
+    if (centre) {
+        card.classList.add("drpg-popup-centre");
+        centreRoll(body);
+    }
     const followed = notice && observe ? notice : null;
     if (followed !== null || host.id === CONTAINER_ID) unwatch = watchCard(card, body, followed, kept);
     card.dataset.drpgSeq = String(++arrivals);

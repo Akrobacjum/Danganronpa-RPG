@@ -15,7 +15,7 @@ import { INFILTRATE, MODULE_ID, FLAGS } from "./config.mjs";
 import { spendAction } from "./actions.mjs";
 import { othersInRoom } from "./movement.mjs";
 import { whisperToOwner, esc } from "./utils.mjs";
-import { rollTrait, rollInHand, abort, spentAfterRoll, canAfford, dualityOf, neededNote } from "./action-pipeline.mjs";
+import { rollTrait, rollInHand, abort, spentAfterRoll, canAfford, dualityOf } from "./action-pipeline.mjs";
 import { rollHead, rollCardFlags } from "./action-report.mjs";
 import { briefingBlock } from "./action-briefing.mjs";
 import { actionWindow, traitFieldHtml, readProposal } from "./action-menus.mjs";
@@ -32,6 +32,20 @@ export function tailTargets(actor) {
 /** Whether any of `rolls` (`rollTrait`'s results) came up with Hope or a critical (`dualityOf`): the rolls that earn the roller Hope (r122-F-2). Pure. */
 export function rollsEarnedHope(rolls) {
     return (rolls ?? []).some(r => { const d = dualityOf(r); return Boolean(d.withHope || d.isCritical); });
+}
+
+/**
+ * The tailer's card (1.2.124; the owner, 22.11.2026: a centred action card says "wynik rzutu vs threshold oraz efekt"):
+ * first the Shadow roll, whether the target notices - its head with "needed N" (the threshold the window named,
+ * `rollTrait`'s `dc`) and its dice (`rollHead`) - then the effect roll's head and dice, then the sentence. Noticed, it is
+ * a failed Shadow in the middle of the roller's screen (notice-centre.mjs "failedShadow"), else an action's result.
+ * Answers `[spec, flags]` for `whisperToOwner`. Until 1.2.124 the card said the sentence alone.
+ */
+export function tailCard(label, roll, shadow, seen, name) {
+    const flags = rollCardFlags({ label }, roll);
+    flags.flags[MODULE_ID].popupCentre = seen ? "failedShadow" : "actionResult";
+    return [{ glyph: "ACTIONS.listen", body: `${rollHead({ label: game.i18n.localize("DRPG.Infiltrate.tail.unseenTitle") }, shadow)}${
+        rollHead({ label }, roll)}<p>${esc(game.i18n.format(seen ? "DRPG.Infiltrate.tail.startedSeen" : "DRPG.Infiltrate.tail.started", { name }))}</p>` }, flags];
 }
 
 /** Tail Someone: the window, the GM's pick, the action, the two rolls, the ask. Answers `{ seen, target }` or null. */
@@ -157,11 +171,7 @@ export async function performTail(actor, options = {}) {
        the effect's roll under the action's head (`rollHead`, no threshold - a Tail's effect has none) and the Shadow
        roll against the 15 that decides whether the target notices (tail-gm.mjs `startTail`), "needed 15" as every
        other card says it (`neededNote`). Until 1.2.124 the card said only the sentence. */
-    const unseenLine = `<p><small>${esc(game.i18n.localize("DRPG.Infiltrate.tail.unseenTitle"))} - <b>${esc(String(shadow.total ?? ""))}</b>${esc(neededNote(rule.unseen.threshold))}</small></p>`;
-    const flags = rollCardFlags({ label }, roll);
-    flags.flags[MODULE_ID].popupCentre = seen ? "failedShadow" : "actionResult";
-    await whisperToOwner(actor, { glyph: "ACTIONS.listen", body: `${rollHead({ label }, roll)}${unseenLine}<p>${esc(game.i18n.format(seen ? "DRPG.Infiltrate.tail.startedSeen" : "DRPG.Infiltrate.tail.started", { name: target.name }))}</p>` },
-        flags);
+    await whisperToOwner(actor, ...tailCard(label, roll, shadow, seen, target.name));
     Hooks.callAll("drpgActionResolved", { actor, actionKey: "tail", roll, outcome: { success: true, seen, target: target.name } });
     return { seen, target: target.name, roll };
 }
