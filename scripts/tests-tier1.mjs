@@ -67236,6 +67236,34 @@ const INVARIANTS = [
             stableJson({ despairSame: true, despairSays: false, hopeSays: [true, false], vsSame: true }),
             "{despairSame: a Despair card with a trace and without, byte for byte; despairSays: it never says one; hopeSays: Hope with a trace, without; vsSame: the number beside the dice}");
     }],
+    ["R8676 - a centred card is kept in the notice history as the corner's card, byte for byte (OWNER-124-NOTICES; 1.2.124 line UI): the same action card (action-report.mjs `reportHtml`, a Hope roll against one number) drawn in the corner and in the middle with the history held keeps two entries of the same words, html and title, and the centred one holds no `drpg-centre-only` addition though its screen shows \"needed N\" beside the dice", async () => {
+        /* Red at 52057a2b: no `reportHtml`. A mutant of popup.mjs's `kept` that keeps the centred additions turns it red. */
+        const R = await import("./action-report.mjs").catch(() => null);
+        const P = await import("./popup.mjs");
+        const NH = await import("./notice-history.mjs");
+        must(R && typeof R.reportHtml === "function", "action-report.mjs has no reportHtml");
+        const rolled = { total: 15, dc: 12, trait: "body", withHope: true, raw: { total: 15, hope: { total: 8 }, fear: { total: 5 }, data: { traits: {} } } };
+        const html = R.reportHtml({ label: "R8676 Force" }, rolled, { text: "R8676 the door gives way", leftTrace: false }, null);
+        await NH.holdNoticeHistory(true);
+        let entries = [], shown = null;
+        try {
+            const before = new Set(NH.noticeEntries().map(e => e.id));
+            const corner = P.showPopup(html, { title: "R8676 Force", tone: "hope", persist: "session" });
+            const centre = P.showPopup(html, { title: "R8676 Force", tone: "hope", centre: true, persist: "session" });
+            await new Promise(r => setTimeout(r, 400));
+            shown = document.querySelector("#drpg-notice-centre .drpg-duality-vs")?.textContent ?? null;
+            entries = NH.noticeEntries().filter(e => !before.has(e.id));
+            corner?.({ instant: true });
+            centre?.({ instant: true });
+        } finally {
+            await NH.holdNoticeHistory(false);
+        }
+        must(entries.length === 2 && shown, "the two cards were not both kept, or the centred one showed no number beside its dice - this would measure nothing");
+        const [a, b] = entries;
+        equal(stableJson({ html: a.html === b.html, text: a.text === b.text, title: a.title === b.title, centreOnly: entries.some(e => String(e.html).includes("drpg-centre-only")), shown: Boolean(shown) }),
+            stableJson({ html: true, text: true, title: true, centreOnly: false, shown: true }),
+            "{html, text, title: the corner's and the middle's entries the same; centreOnly: an addition kept; shown: the middle showed it}");
+    }],
     ["R8431 - the token HUD's on toggles and its focus read under Stained Glass with high contrast (the audit of 1.2.120, H-1, H-7; 1.2.122 line UI): a rule under high contrast and the glass gives `.control-icon.active` the Bone ground and the Ink glyph after the high-contrast ground, and the glass draws the focus ring inside the hexagon (a negative `outline-offset`)", async () => {
         /* Red at 21bf5d18: the high-contrast rule (1,5,1) took the on toggle's ground to Ink under an Ink glyph, and the
            ring stood 2 px outside the clip. Read off the sheets' text; drawn in Chromium by docs/dev/ui122/hud-shots.mjs. */
