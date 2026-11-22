@@ -129,6 +129,17 @@
     cursor: pointer;
 }
 
+/* A ROW KEEPS ITS HEIGHT HOWEVER MANY PLAYERS THERE ARE (1.2.126; the owner's screenshot of 22.11.2026, about twenty
+   players at a real table): the list is a flex column, and a row could shrink below its two lines when Foundry's own
+   button rules, which weigh more than one class, took its `min-height` away - every row squashed to about 18 px and
+   the names and previews drew over each other. Measured in Chromium with `.application button { min-height: 0 }` beside
+   this sheet: 18 px a row before, 44 px after. Two classes outweigh `.application button`; the list scrolls instead. */
+.drpg-messenger-gm-nav > .drpg-messenger-gm-nav-row {
+    flex: 0 0 auto;
+    height: auto;
+    min-height: 44px;
+}
+
 .drpg-messenger-gm-nav-row:hover {
     background: var(--drpg-console-hover);
 }
