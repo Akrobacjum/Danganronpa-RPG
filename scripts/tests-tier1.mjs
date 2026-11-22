@@ -31713,6 +31713,50 @@ const INVARIANTS = [
         equal(stableJson(read), stableJson(["Search - Botan Kage · Workshop a crowbar", "Is the door locked?", "Search"]),
             "[a ruling card; a chat line; a title alone]");
     }],
+    ["R8656 - the GM's messenger window opens at its own size every time, 980 x 680, and a player's at 544 x 520, each where it was last left: a saved place (left, top) is kept and no size is saved (1.2.125 HOTFIX-125, the audit's r124-C-1)", async () => {
+        /*
+         * The audit of 1.2.124 (r124-C-1): the window's constructor spread the player window's default size under a saved
+         * place (messenger-app.mjs `DrpgMessengerApp`), so the GM's window, built on it, opened at 544 x 520 from its second
+         * opening on - the first close saves its place. On a GM's page with a player: the setting
+         * `messengerWindowPositions` read through a stand-in of game.settings.get holding a place for "gm" and for the
+         * player, and its writes held (`holdMessengerPositions`); the GM's window opened, read, closed, opened again and
+         * read; a player's window built (not drawn) and its position read, each as the window asks for it. Put back in
+         * `finally`. Red at 206148b7 (v1.2.124): the GM's window asked for 544 x 520 at both openings.
+         */
+        must(game.user.isGM, "the GM's window is a GM's");
+        needs(world.atLeast("playerAccounts", 1));
+        const A = await import("./messenger-app.mjs");
+        must(!A.gmMessengerWindow(), "the GM's messenger window is open - close it: this test opens its own");
+        const player = game.users.find(u => !u.isGM);
+        const PLACES = { gm: { left: 120, top: 40 }, [player.id]: { left: 300, top: 60 } };
+        const settings = game.settings, ownGet = Object.prototype.hasOwnProperty.call(settings, "get"), realGet = settings.get;
+        const putPositionsBack = holdMessengerPositions();
+        const read = {};
+        try {
+            settings.get = function (scope, key, ...rest) {
+                if (scope === MODULE_ID && key === SETTINGS.messengerWindowPositions) return foundry.utils.deepClone(PLACES);
+                return realGet.call(this, scope, key, ...rest);
+            };
+            /* What the window asks for (`options.position`): the harness's screen is about 1024 px wide, and a window drawn
+               there is kept inside it (976 px, its place moved), as Foundry keeps one inside a small screen. */
+            const box = app => { const p = app?.options?.position ?? {}; return [p.width, p.height, p.left, p.top]; };
+            for (const label of ["first", "second"]) {
+                const app = A.openMessenger();
+                await until(() => app?.rendered, 2000);
+                read[label] = box(app);
+                await app?.close();
+            }
+            const thread = new A.DrpgMessengerApp(player.id);
+            const p = thread.options.position ?? {};
+            read.player = [p.width, p.height, p.left, p.top];
+        } finally {
+            if (ownGet) settings.get = realGet; else delete settings.get;
+            await A.gmMessengerWindow()?.close();
+            putPositionsBack();
+        }
+        equal(stableJson(read), stableJson({ first: [980, 680, 120, 40], second: [980, 680, 120, 40], player: [544, 520, 300, 60] }),
+            "[the GM's window at its first and its second opening, then a player's window built: width, height, left, top]");
+    }],
     ["R1067 - the cue playlist cannot be mapped: the Music tab offers it in no select, a stored mapping onto it is dropped by the primary GM alone with one write of the map without that key (the other keys kept, a second call writing nothing), and playlistFor answers null for it (E50 C3; S11-47, E50-23, Q-E50-1)", async () => {
         /*
          * E50 C3, 30.10.2026; audit S11-47 and the owner's answer on Q-E50-1 (30.10: the mapping is removed by itself).
