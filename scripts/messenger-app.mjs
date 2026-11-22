@@ -211,9 +211,15 @@ export class DrpgMessengerApp extends DrpgApp() {
         // The size comes from DEFAULT_OPTIONS every time and is spread in here
         // explicitly rather than left to ApplicationV2's option merge, which the
         // comment above already records as not reliable in this direction.
+        //
+        // The size is the class's own being built (`new.target`): the GM's window (messenger-gm.mjs) states 980 x 680,
+        // and this class's 544 x 520 was spread under its saved place, so from its second opening on - its first close
+        // saves the place - the GM's window opened at the player window's size (the audit's r124-C-1; R8656, red at
+        // 206148b7). Only the place is kept (`savePosition` writes left and top), never a size a user dragged, as
+        // before for the player's window.
         const saved = readSavedPosition(playerUserId);
         if (saved) {
-            options.position = { ...DrpgMessengerApp.DEFAULT_OPTIONS.position, ...saved };
+            options.position = { ...DrpgMessengerApp.DEFAULT_OPTIONS.position, ...new.target.DEFAULT_OPTIONS?.position, ...saved };
         }
         super(options);
         this.playerUserId = playerUserId;
