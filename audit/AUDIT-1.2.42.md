@@ -4683,6 +4683,27 @@ Regresje sprawdzenia 1.2.121: R-2, R-3, R-6, R-7, R-11 zrobione; R-1 i R-5 w cz�
 
 **Czego nie ustalono.** `action-loot` (Take from the Body w sondzie 08): na `14bb0d92` okno otworzyło się w 6 z 11 przebiegów próbnych (4 chybienia, 1 bez odczytu; sondy 42 i 44 też chybiły), na `1eee4d62` w 5 z 5. Przy chybieniu p1 po 12 s nie widział śmierci ciała ani jego przedmiotów, a strona GM-a była taka sama jak na 1.2.121. Obok każdego przebiegu chodziła sonda 43, więc obciążenia nie da się oddzielić od wolniejszej drogi śmierci do kopii gracza. Powtórka tego samego wieczoru: 8 par na przemian `1eee4d62` i `14bb0d92` przy tym samym obciążeniu - po 6 z 6 czytelnych przebiegów otwartych na każdej wersji, po 2 bez odczytu na każdej. 1.2.122 nie chybił w ostatnich 11 czytelnych przebiegach, a jego 4 chybienia przyszły blisko siebie wcześniej. Czytam to jako czas pod obciążeniem, nie regresję; nie rozstrzygnięte. Przy stole: gracz obok ciała, które GM zabija jawną śmiercią, otwiera Take from the Body od razu.
 
+### 18.9 Celowane sprawdzenie 1.2.124 przed sesją właściciela (22.11.2026)
+
+Audyt był wstrzymany od 1.2.123. Właściciel poprosił 22.11 o 11:30Z o jeszcze jedno sprawdzenie przed wieczorną sesją; wstrzymanie zdjęto tylko na nie. Pytanie: co przy stole zepsuje się albo wprowadzi w błąd. To nie jest pełny audyt wydania. Drzewo `206148b7` (`v1.2.124`) wobec `52057a2b` (`v1.2.123`). Surowe wyniki: `audit/findings-1.2.118/check-124.json`.
+
+**Przebiegi:** tiery 0-1: 1 994 zaliczonych, 0 niezaliczonych, 16 pominiętych; testy tieru 2 z nazwą wydania: 28 zaliczonych, 0 niezaliczonych; scenariusze 73 (historia powiadomień) 37/37, 87 (komunikator) 36/36, 30 (bezpieczeństwo) 308/310 z 2 spodziewanymi czerwonymi, 97 (dwóch GM-ów) 43/43, 51 (języki) 38/38.
+
+**Czytanie:** pięć torów (kopia własnego śladu, jej otoczenie, okno komunikatora GM-a, powiadomienia na środku, strażnik wątków), każdy z drugim czytającym. Nic nie obalono, 4 pozycje osłabiono.
+
+**Wynik: 0 `BLOCKER`, 7 `SHOULD`, 17 `LATER`.** Jedynego kandydata na `BLOCKER` (r124-T2-1: podsumowanie sprawy po werdykcie liczy własną kopię zabójcy jako znalezisko; `case-summary.mjs:81-82`) drugi czytający obniżył do `SHOULD`: podsumowanie idzie dopiero po werdykcie, nie nazywa autora i GM je ogląda przed wysłaniem; 1.2.123 liczył tak samo kopię autora po udanym Tamper. Koordynator skierował je razem z ostrzeżeniem o tierze 2 (r124-T1-4: przebieg tieru 2 w świecie sesji usuwa prawdziwe kopie graczy, `tests.mjs:569-571`) do CORE jako HOTFIX-125, z listą każdego miejsca, które czyta "znalezione".
+
+`SHOULD`:
+- r124-C-1: okno GM-a otwiera się drugi raz w rozmiarze okna gracza;
+- r124-G-1: lista Waiting konsoli bierze kartę, którą inny gracz wpisał do wątku (tylko z konsoli przeglądarki);
+- r124-N-1: Force the Door i Pick the Lock - znak "osiągnięte / nie" przeczy zdaniu karty przy barykadzie;
+- r124-T1-1 (= T2-2): Reroll, który zdejmuje ślad, zostawia kopię, a powtórka daje drugą;
+- r124-T1-2: trzeci po stronie ofiary dostaje kopię śladu Escape Together przy zwykłym Despair;
+- r124-T2-1: jak wyżej;
+- r124-T2-4: każda kopia nadal szepcze GM-om "znaleziony Remnant bez opisu".
+
+**Nie sprawdzono:** nic nie szło w prawdziwej przeglądarce ani na Foundry v14 (rozmiary okien, warstwy powiadomień wobec okien modalnych, czas okien reakcji pod kartą na środku); dwóch GM-ów przy kopii minted naraz; świat właściciela (stare karty współwłaściciela, G-2). Po tym sprawdzeniu audyt jest znów wstrzymany.
+
 ## Część II - raport 1.2.42 z 12.09.2026 (zapis)
 
 > Część II to zapis z 12.09.2026 i dopisków etapów. Stan każdej jej pozycji na 1.2.118 jest w części I (tabela "Gdzie jest każda kategoria" na górze). Nic tu nie jest przenumerowane ani skrócone.

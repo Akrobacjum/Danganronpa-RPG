@@ -1,0 +1,444 @@
+{
+ "what": "The audit's targeted check of v1.2.124 before the owner's session of 22.11.2026 (the owner's ask, the hold lifted for this check only): what would break or mislead at tonight's table",
+ "date": "22.11.2026",
+ "tree": "206148b7 (tag v1.2.124)",
+ "previous": "52057a2b (v1.2.123)",
+ "runs": {
+  "tiers_0_1": "2009 ran, 1994 passed, 0 failed, 16 skipped, 0 red (666 s)",
+  "tier_2_selected": "--only \"1.2.124\" --only \"OWNER-124\" --only \"R86\": 23 ran, 28 passed, 0 failed, 1 skipped (23 s; few tier-2 tests carry those names)",
+  "scenarios": "73-notice-history 37/37; 87-messenger-sound 36/36; 30-security 308/310 (2 expected red, Foundry limits), 0 failed; 97-two-gms 43/43; 51-lang-mixed 38/38"
+ },
+ "method": "5 lanes (T1 the told copy, T2 what it changes around it, C the GM messenger window, N the centred notices, G the thread guard), each a first reader on the diff and the tree, then a second reader who tried to overturn every finding and rank. Read only; nothing driven in a browser.",
+ "counts": {
+  "rows": 26,
+  "standing": {
+   "SHOULD": 7,
+   "LATER": 17,
+   "LATER (warn the owner)": 1
+  },
+  "refuted": 0,
+  "weakened": 4,
+  "duplicates": [
+   "r124-T2-2 = r124-T1-1"
+  ]
+ },
+ "blockers": [],
+ "sent_early": [
+  "the tier-2 warning (r124-T1-4, tests.mjs:569-571) as H1, and r124-T2-1 as a BLOCKER candidate (weakened to SHOULD by its refuter); routed to CORE as HOTFIX-125 H1, H2, with the list of every 'found' reader"
+ ],
+ "findings": [
+  {
+   "id": "r124-C-1",
+   "lane": "C",
+   "rank": "SHOULD",
+   "first_rank": "SHOULD",
+   "verdict": "holds",
+   "title": "The GM's messenger window opens at the player window's 544 x 520 from its second opening on, not at its own 980 x 680",
+   "where": "scripts/messenger-app.mjs:214-216 (base constructor), scripts/messenger-app.mjs:1611-1634 (positions keep left/top only), scripts/messenger-gm.mjs:65 and 85-86 and 542",
+   "path": "Primary GM, Assistant GM or second GM opens the window from the launcher: no saved \"gm\" key yet, so ApplicationV2 merges the GM class's DEFAULT_OPTIONS and it opens 980 x 680. The GM closes it: close() calls savePosition(\"gm\", position), which stores {left, top}. Next open (same evening or after a reload, the setting is client-scoped and kept): super(\"gm\") finds the saved key and passes options.position = { ...DrpgMessengerApp.DEFAULT_OPTIONS.position, ...saved } - the BASE class's 544 x 520, named by its class binding - and constructor options override every DEFAULT_OPTIONS in the merge. The window then has a 13.5rem list plus about 300 px for the Timeline or a conversation; ruling cards and their buttons wrap in that column. Under Stained Glass section 7 no longer grows it (the GM window is excluded), so it stays 520 tall. It happens every time after the first close.",
+   "fix": "In the base constructor read the size from the class being built: `options.position = { ...new.target.DEFAULT_OPTIONS.position, ...saved }` (or let the GM class pass its own size), so the GM window keeps 980 x 680 with the saved left/top.",
+   "refuter_why": "Read as the first reader says. The base constructor spreads DrpgMessengerApp.DEFAULT_OPTIONS.position (544 x 520), named by its class binding, whenever a saved key exists; the GM class calls super(\"gm\") and saves {left, top} on close, so from the second opening on the constructor's position carries 544 x 520 and ApplicationV2 merges constructor options over the class chain's DEFAULT_OPTIONS. No setPosition, _onFirstRender or CSS min-width on .drpg-messenger-gm restores 980 x 680 (base.css 96-300"
+  },
+  {
+   "id": "r124-G-1",
+   "lane": "G",
+   "rank": "SHOULD",
+   "first_rank": "SHOULD",
+   "verdict": "holds",
+   "title": "The Console's Waiting list still takes a card another player wrote into a thread, on the live road: when its words land the unguarded drpgMessengerEdited hook appends it with its buttons",
+   "where": "scripts/secret.mjs:956-958 (and 1091-1092) -> scripts/messenger-app.mjs:717-720 -> scripts/messenger-gm.mjs:456-467",
+   "path": "A GM has the messenger window open on the Console (its default view since 1.2.124). PlayerTwo, from the console, posts a private card with the thread flag PlayerThree and a ruling button (postSecret around sendMessage, the road scenario 30 drives). On the GM's browser the document arrives first (post() sends the words only after ChatMessage.create answers, secret.mjs:1381-1405): onCreateChatMessage drops it (messenger.mjs:435-438, the guard works). Then the words land: remember() reads cardFlag(message,'thread') = PlayerThree and calls Hooks.callAll('drpgMessengerEdited', PlayerThree, message) with no guard; messenger-app.mjs:719 calls gm.threadEdited; in the console view `was` is null and `live = this.waitingCard(message, player)` is a node whenever the bubble has a [data-drpg-call] button (cleanHTML keeps them; player-written ruling cards carry them by design), so line 467 appends it to Waiting under PlayerThree's name, and waitingCount (messenger-gm.mjs:424) counts it from the DOM. It stays until the Console is rebuilt (the build is guarded, so R8654 passes - it tests the drawn Timeline, not the live append). The same happens when a returning GM catches up words (secret.mjs:1092). cdc5c51e claims such a card 'reaches neither Waiting nor the stream, nor the Console's count'; the stream holds (threadEdited only replaces an existing node), Waiting and its count do not. Only a player at the browser console can make such a card, so no legitimate card is affected; the harm is a forged ask shown to the GM as PlayerThree's.",
+   "fix": "Guard the hook once: in messenger-app.mjs's drpgMessengerEdited listener (or at the top of messenger-gm.mjs threadEdited and consoleAdd) return when !threadCardAllowed(message); a tier-2 or scenario-30 check that opens the Console, posts the forged card and reads Waiting after the words land would pin it.",
+   "refuter_why": "Could not overturn it. Every road the 1.2.124 guard was added to is guarded (threadMessages, threadStatsOf, readEntryOf, onCreate, onUpdate, the Console build, waitingCount's non-console branch), but the words-landed hook is not: secret.mjs remember() fires drpgMessengerEdited off cardFlag(message,'thread') alone, and the listener calls gm.threadEdited, whose console branch appends waitingCard(message) to Waiting when no node exists yet. The player-words receive handler only checks that the send"
+  },
+  {
+   "id": "r124-N-1",
+   "lane": "N",
+   "rank": "SHOULD",
+   "first_rank": "SHOULD",
+   "verdict": "holds",
+   "title": "Force the Door and Pick the Lock: the centred card's reached / not reached mark contradicts the card's own sentence whenever a barricade holds the door",
+   "where": "scripts/popup.mjs:279-280 (centreRoll's mark: total >= data-dc); scripts/action-doors.mjs:89,100 (Force: dc = INFILTRATE.force.lockDc 18) and 150,164 (Pick: dc = INFILTRATE.pick.dc 15); scripts/doors-gm.mjs:180 and 235-236 (how the GM actually scores them)",
+   "path": "Player A shuts a door (barricade strength = A's Shut total, say 11; kept secret in barricadeStore). Player B forces that door and rolls 14 with Hope. forceDoor: passes('barricade') = 14 > 11, forced. B's centred card: head 'needed 18', centreRoll adds '14 / needed 18 / NOT REACHED' in crimson, and under it 'The door to X gives way.' Reverse case: barricade 20, B rolls 19: 'REACHED' in Bone beside 'The door to X holds.' Pick the Lock at any barricaded door: lockish is false, so the result is 'held' ('stays shut') even with 15+, and the card says 'needed 15 REACHED' over 'The door to X stays shut.' The corner card never had the mark (and before 1.2.124 these cards showed no roll at all), so the middle of the screen now states a verdict the GM's ruling did not make. Players will ask the GM whether the roll was scored wrong.",
+   "fix": "Let the card say the verdict the GM returned rather than recompute it: for Force and Pick, give rollResultCard an option that suppresses the mark (e.g. a `data-mark=\"none\"` on the head that centreRoll honours) whenever res.value.held includes \"barricade\", or simply for these two actions; Watch, Tail and the report path agree with their scoring and can keep it.",
+   "refuter_why": "Not on the corner card in v1.2.123, so it is new in 1.2.124, not only larger. In v1.2.123 performForce and performPick whispered the sentence alone (`{ glyph, body: <p>force.forced|held|open</p> }`): no head, no total, no 'needed N', and popup.mjs had no centreRoll and no reached/short strings. 1.2.124 gives both cards rollHead (total, 'needed 18' / 'needed 15' from rollTrait's dc) on the corner and in history too, which already reads oddly beside 'gives way' at a barricade-only door; the centre"
+  },
+  {
+   "id": "r124-T1-1",
+   "lane": "T1",
+   "rank": "SHOULD",
+   "first_rank": "SHOULD",
+   "verdict": "holds",
+   "title": "A Reroll that takes the trace back leaves the told copy behind, and its replay hands a second one",
+   "where": "scripts/murder-rules.mjs:2244-2247 (undoLastCrisis deletes the trace) with :2625-2627 (the replay's applyRemnant gives a new copy); scripts/cleanup.mjs:2211-2217 (undoLastCleanup deletes leftBehind) with :1082; scripts/reroll.mjs:2087-2090 (settleRemnant's remove)",
+   "path": "In an incident every crisis trace is told (shownToItsCast), so the killer's Hope or Despair strike gives the killer a copy at once. The killer (or the GM for them) Rerolls the strike: undoLastCrisis deletes the receipt's trace token, the copy on the killer's sheet stays (nothing takes it back), and the replay runs applyRemnant again, placing a new trace and giving a second copy (HELD is per token id, the new token is another). The killer ends with two Truth Bullets for one strike, one of a trace that no longer exists. The same for a Tamper replayed by its Reroll (leftBehind deleted, a new Tamper trace told again), and for a player's Search or Dynamic action told on Hope and Rerolled into no trace (retuneRemnant remove): the copy, named after the found item (subject), stays while the Reroll takes the item itself back. The module already takes back the analogous author's copy on a Reroll (reroll.mjs settleCleanup, E70 C12 takeBackAuthorsCopy); the told copy has no such road. The release notes only say a Reroll to Despair takes nothing back, which is the retune case, not the removal.",
+   "fix": "Where a Reroll or an undo deletes a trace (the three sites), also delete the sourceActor's own bullet whose secret remnantId is that token (as takeBackAuthorsCopy does: item.delete then dropSecret), or keep the told copy's item id on the receipt/bookmark and take it back there.",
+   "refuter_why": "No road takes a told copy back when its trace is deleted. undoLastCrisis deletes the receipt's token directly (murder-rules.mjs:2241-2249) and the replay runs applyRemnant again, which places a new token and, in an incident, tells it whatever the band (fromIncident), giving a second copy (:2625-2627); HELD in mintFindCopy is per token id, and the new token has a new id. The Tamper undo deletes leftBehind (cleanup.mjs:2211-2219) and its replay's dropRemnant carries told again (:1082). settleRemna"
+  },
+  {
+   "id": "r124-T1-2",
+   "lane": "T1",
+   "rank": "SHOULD",
+   "first_rank": "SHOULD",
+   "verdict": "holds",
+   "title": "A third party on the victim's side is now told of, and handed, its Escape Together trace on a plain Despair, though D11 never shows it that trace",
+   "where": "scripts/remnants.mjs:194-196 and :214-221 (shownToItsCast reads the token's fromIncident only); scripts/murder-rules.mjs:2625; scripts/visibility.mjs:799",
+   "path": "A third walks in and takes Escape Together (side third, rolled; leaves an incident trace on every band, config.mjs:4243 and :4249). The token is created un-hidden with fromIncident because an incident runs (incidentCastSees reads only the type). applyRemnant asks traceFeedback(band, last): shownToItsCast(last) is true whatever the band, so on a Despair the third's card says it left a Remnant and a copy goes on the third's sheet, which then shows the token to them. But D11 does not show incident traces to a third not on the killers' side (visibility.mjs:799 removes them from the cast that sees), so this is not 'a trace you can see because you were there' - it is a plain Despair told, against the rule the notes still state ('A plain Despair still tells you nothing and gives nothing').",
+   "fix": "In applyRemnant, use the cast rule for the leaver: count shownToItsCast only when the actor is the killer, the victim or a third with thirdSide \"killer\" (the same set inTheIncident draws for); otherwise fall back to the band.",
+   "refuter_why": "The path is real, but nothing the rules hide from the player reaches them, so not a BLOCKER. (a) The order: applyRemnant runs before finishIncident in the success branch (murder-rules.mjs:1910 then :1925) and the failure branch never ends the incident, so the Escape Together token is created with fromIncident (remnants.mjs:500, :612; incidentCastSees reads only the type and murderState, :1812-1820) and shownToItsCast (:214-221) makes traceFeedback true on a plain Despair (:194-196). applyRemnant"
+  },
+  {
+   "id": "r124-T2-1",
+   "lane": "T2",
+   "rank": "SHOULD",
+   "first_rank": "BLOCKER",
+   "verdict": "weakened",
+   "title": "The case summary sent to every player after the verdict lists the killer's own told traces as discovered evidence",
+   "where": "scripts/case-summary.mjs:81-82 (found = any holder via investigation.mjs:337 findersByAnyRemnant), fed by scripts/murder-rules.mjs:2627 and remnants.mjs:638",
+   "path": "Night: killer K takes Strike on victim V in the Kitchen during the incident. applyRemnant drops an Incident Remnant T1 (tiedToCrime true, fromIncident) and, since 1.2.124, traceFeedback is true whatever the band, so giveToldCopy gives K a Truth Bullet of T1. Next day the GM pre-describes T1 on the Traces tab ('Broken plate, smeared') as GMs do for crime-scene traces. Nobody Observes T1. Trial, verdict (say wrong: K walks free and stays unknown). GM presses Show Summary: showCaseSummary counts an evidence node as found when any student holds a copy, K's own copy included, so composeCaseSummary takes T1 (tied, not planned, held) and the card to everyone lists 'Broken plate, smeared' and its words under Evidence. The owner's rule for this card (case-summary.mjs:2-4) is 'only what was discovered'. Same for every crisis trace the victim or a third left, and for a killer's Tamper trace told on Hope (cleanup.mjs:1082). With an undescribed T1 it still adds a '-' entry, a count of undiscovered evidence the rule also forbids. The GM's preview shows the extra rows but nothing marks them as undiscovered.",
+   "fix": "In showCaseSummary, count a node found only when a holder other than the trace's leaver holds it (skip the name equal to the trace row's sourceName / actor sourceActor); simplest: build finders from findersByAnyRemnant and drop data.sourceActor's actor name per trace before the filter.",
+   "refuter_why": "The mechanics hold, all read on the shipped tree. caseGraph (case-schema.mjs:372-394) makes every trace of this chapter and season a non-planned evidence node, tied = tiedToCrime === true (graphOf, case-schema.mjs:255-257). showCaseSummary (case-summary.mjs:81-82) counts a node found when findersByAnyRemnant (investigation.mjs:337-347) names any studentActor (monokuma.mjs:77-84, the dead and the killer included) holding a bullet whose secret remnantId is the trace. The told copy is a new road in"
+  },
+  {
+   "id": "r124-T2-2",
+   "lane": "T2",
+   "rank": "SHOULD",
+   "first_rank": "SHOULD",
+   "verdict": "holds",
+   "title": "A Reroll of a crisis action or of a Tamper deletes the told trace but leaves the leaver's copy, and the replay gives a second copy",
+   "where": "scripts/murder-rules.mjs:2244-2247 (undoLastCrisis deletes receipt.remnant) with 2627; scripts/cleanup.mjs:2211-2217 (undoLastCleanup deletes receipt.leftBehind) with 1082",
+   "path": "Incident: K takes Strike (Hope or Despair, any band): trace T1 placed, K's copy C1 given at once. K spends Hope to Reroll: settleCrisis -> resolveCrisisAction(undo) -> undoLastCrisis deletes T1's token directly, nothing takes C1 back; the replay's applyRemnant places T2 and giveToldCopy gives C2. K now holds two Truth Bullets for one Strike, C1 of a trace that no longer exists (it still counts as found everywhere: T2-1, the GM's 'Found by', 'Who has what'). The victim's own crisis Rerolls do the same to the victim's sheet. Tamper: a failed Tamper with Hope leaves a told Tamper trace L1 and the Tamperer's copy; its Reroll deletes L1 (cleanup.mjs:2217) and the replay, failing with Hope again, gives a second copy of L2. cleanup.mjs takeBackAuthorsCopy exists for the Stage 6 author's copy but nothing does the same for the told copy.",
+   "fix": "Where a Reroll deletes a trace it placed (undoLastCrisis, undoLastCleanup's leftBehind), also delete the trace leaver's bullet whose secret remnantId is that token id (as takeBackAuthorsCopy does), or keep the told copy's id on the receipt and take it back.",
+   "refuter_why": "undoLastCrisis deletes the trace's token directly (murder-rules.mjs:2244-2250) and nothing takes back the copy giveToldCopy made at murder-rules.mjs:2627; no deleteToken hook in scripts/ deletes bullets (fog.mjs, investigation.mjs:1198, live.mjs, projects-map.mjs only). The replay's applyRemnant places a new token and gives a second copy; noteToldTrace's HELD check is by token id (observe.mjs:1228) so it does not stop it. The first copy now names a deleted trace: it adds nothing to the case summ",
+   "same_as": "r124-T1-1"
+  },
+  {
+   "id": "r124-T2-4",
+   "lane": "T2",
+   "rank": "SHOULD",
+   "first_rank": "SHOULD",
+   "verdict": "holds",
+   "title": "Every told copy still whispers the GMs 'A found Remnant no GM has described'; tell: false never takes effect, and the GMs' screens read the trace as found by its leaver",
+   "where": "scripts/truth-bullets.mjs:786 (createTruthBullet -> revealSourceOf with default tell) and remnants.mjs:1696; noteToldTrace remnants.mjs:232-242",
+   "path": "noteToldTrace -> mintFindCopy(..., tell: false) -> createTruthBullet, whose last step revealSourceOf calls revealRemnantToFinderById(sceneId, remnantId) with no options, so tell is true: the hidden token is un-hidden, foundAt/foundVia 'find' are written, and since no GM has edited it the GMs get whisperTraceNow('DRPG.Remnant.foundTitle'). mintFindCopy's own reveal with tell:false comes second and returns early (token no longer hidden / incidentFound set). So on every Hope Search, Sabotage, Dynamic, project trace and every crisis action the GMs are told a trace was found and nobody has described it, while no investigator found anything. With it: the Traces tab and the Key tab say 'Found by: <leaver>', the GM's Remnant report says 'revealed', the case Map's 'state' sort puts it with found traces, 'Who has what' lists it, and gm-items' Give answers GIVEN_ALREADY for the leaver. The release notes say 'The GMs get no say what it is request for that copy'. R8691 pins only the source text 'tell: false'.",
+   "fix": "In noteToldTrace call revealRemnantToFinder(doc, { tell: false, via: \"told\" }) before mintFindCopy, so the later reveals return early; optionally have the GMs' 'Found by' lists mark or skip the trace's own sourceActor.",
+   "refuter_why": "Confirmed order: createTruthBullet ends with revealSourceOf (truth-bullets.mjs:786), which calls revealRemnantToFinderById(sceneId, remnantId) with no options (truth-bullets.mjs:589-593), so tell defaults true (remnants.mjs:1663); the token is un-hidden or incidentFound written, markFound runs with via 'find', and with no gmEdited the GMs get whisperTraceNow 'DRPG.Remnant.foundTitle' (remnants.mjs:1693-1697). mintFindCopy's own reveal with tell:false (observe.mjs:1281-1282) then returns early at"
+  },
+  {
+   "id": "r124-C-2",
+   "lane": "C",
+   "rank": "LATER",
+   "first_rank": "SHOULD",
+   "verdict": "weakened",
+   "title": "With the Timeline filtered to one player, a ruling request from another player arrives with no notice card and is hidden by the filter",
+   "where": "scripts/messenger-gm.mjs:530-533 (showsThread), scripts/messenger-app.mjs:632-639 (the message hook returns before the GM's card)",
+   "path": "GM is on the Timeline, window in front, filter set to \"PlayerOne\" (to read one player's actions). PlayerTwo's Dynamic action posts a gmAsk card. threadMessage adds it to Waiting and the stream, settleConsole hides both (filter player:p1). The hook asks gm.showsThread(p2): view is console, so it answers true and returns before showPopup - no card, no notice history entry. Only PlayerTwo's list badge, the Timeline's count and (if sound is on) the gmAsk sound say anything; the request can wait unseen. The same holds, less sharply, when Waiting is scrolled and the new card lands below its fold.",
+   "fix": "In showsThread answer true for the Timeline only when the filter shows that player's card (filter all or actions, or player:<that id>); otherwise the usual GM card is raised.",
+   "refuter_why": "The mechanism holds: on the Timeline, frontmost and visible, showsThread answers true for every player whatever the filter, so the hook returns before showPopup - no notice card, no notice-history entry - and applyFilterTo hides the new card in Waiting and in the stream; if the filtered player has nothing waiting, Waiting even reads 'Nothing is waiting for a decision.' But 'no other road' is wrong. (1) The chat log: a thread card is a whisper to the player and every GM (createThreadMessage, whis"
+  },
+  {
+   "id": "r124-C-3",
+   "lane": "C",
+   "rank": "LATER",
+   "first_rank": "LATER",
+   "verdict": "holds",
+   "title": "One card or notice that throws while the Timeline is drawn leaves the GM with no messenger at all until a reload",
+   "where": "scripts/messenger-app.mjs:603-612 (openGmMessenger), scripts/messenger-gm.mjs:283-299 (buildConsole builds a bubble for every thread message in the world)",
+   "path": "openGmMessenger sets DrpgGmMessengerApp.current before render and does not catch the render's rejection. buildConsole calls buildBubble for every unsettled thread message of every player (waitingCard) and for the newest 300 in the stream. If any one throws, the render fails, `current` stays set to an unrendered window, and every later road (launcher, Players menu, notice's Open conversation, openMessenger) goes to existing.setView/bringToFront of that window: nothing opens, and every player's conversation is unreachable from this GM until reload. Before 1.2.124 the same throw broke one player's thread window and the roster still listed the others.",
+   "fix": "Catch the first render's rejection in openGmMessenger and clear `current` (log the error); wrap each item of buildConsole in try/catch so one bad card is left out, not the window.",
+   "refuter_why": "openGmMessenger sets current before render and neither catches the render's rejection nor clears current, so one throwing bubble would leave every GM road pointing at an unrendered window until reload; the blast radius is new in 1.2.124. No trigger found here either: buildBubble already ran for every one of these messages in the per-player windows. Whether v14's ApplicationV2 leaves a failed first render in a state bringToFront can recover from was not read. LATER is right while no input that th"
+  },
+  {
+   "id": "r124-C-4",
+   "lane": "C",
+   "rank": "LATER",
+   "first_rank": "LATER",
+   "verdict": "holds",
+   "title": "A send that finishes after the GM switched to another player clears that player's draft and puts the sent text back in the first player's box",
+   "where": "scripts/messenger-app.mjs:478-488 (submit handler), scripts/messenger-gm.mjs:97-115 (setView keeps drafts by view)",
+   "path": "GM in PlayerOne's view types and presses Enter; the send awaits (the card's words go through the secret store). While it waits the GM clicks PlayerTwo's row: setView stores PlayerOne's draft from the still-filled, disabled box and makes this.drafts PlayerTwo's. The send resolves: `this.drafts.chat = \"\"` now empties PlayerTwo's draft, and PlayerOne's kept draft still holds the sent words, so going back shows them again and Enter sends them twice.",
+   "fix": "Capture `const drafts = this.drafts` before the await and clear that object (and skip the clear when it is no longer the current view's), or make setView skip a box that is disabled for a send.",
+   "refuter_why": "send() reads this.playerUserId synchronously (sendMessage(this.playerUserId, ...)), so the words go to the right player; but after the await the handler writes this.drafts.chat = \"\" on whatever drafts object is current, and setView already stored the first player's still-filled box. The textarea it clears is the detached old one (_replaceHTML clears content on a view change). Needs a row click inside the send's await; rare, and the double send it invites is a visible duplicate, not a wrong rulin"
+  },
+  {
+   "id": "r124-C-5",
+   "lane": "C",
+   "rank": "LATER",
+   "first_rank": "LATER",
+   "verdict": "holds",
+   "title": "The Timeline row's waiting count reads 0 right after the GM comes back to the Timeline, and counts by another rule in a player's view",
+   "where": "scripts/messenger-gm.mjs:423-431 (waitingCount), :122-125 (_renderHTML builds the list before the Timeline)",
+   "path": "GM in PlayerOne's view switches to the Timeline: _renderHTML calls buildNav while this.element is still the old player-view DOM and this.view is already \"console\", so waitingCount counts .drpg-console-card in the old DOM: 0. The badge stays absent until the next thread event refreshes the list. In a player's view the count is cards with the gmAsk flag; on the Timeline it is cards with live buttons; the badge can change number on a view switch with nothing ruled.",
+   "fix": "Call refreshNav() at the end of _onRender for the Timeline, and count one way (live buttons, as Waiting does) in both views.",
+   "refuter_why": "In _renderHTML buildNav runs before the new body exists, with this.element still the player view's DOM and this.view already \"console\", so waitingCount reads 0 there; nothing calls refreshNav after the Timeline's first draw in that render. The two counting rules (live buttons on the Timeline, gmAsk flag elsewhere) differ as stated. Cosmetic: the Waiting list itself is on screen."
+  },
+  {
+   "id": "r124-C-6",
+   "lane": "C",
+   "rank": "LATER",
+   "first_rank": "LATER",
+   "verdict": "holds",
+   "title": "consoleAdd checks only the stream for a card already drawn, so a card that reached Waiting through an edit first would be listed twice",
+   "where": "scripts/messenger-gm.mjs:444-453 (consoleAdd), :456-471 (threadEdited appends to Waiting when the card is in neither part)",
+   "path": "If drpgMessengerEdited for a new veiled card (secret.mjs:958, its words landing) runs before drpgMessengerMessage (messenger.mjs:444, after onCreate's await wordsOf), threadEdited appends it to Waiting, then consoleAdd finds no stream node and appends a second Waiting card with its own live buttons. By the microtask order read (wake, then remember's `await saving` before the edit hook) the message hook comes first, so this was not seen to happen.",
+   "fix": "In consoleAdd replace or skip an existing Waiting node of the same message id before appending.",
+   "refuter_why": "consoleAdd's duplicate check looks only in the stream list, so an edit that reached Waiting first would be listed twice; the event order the first reader traced (the message hook after onCreate's await wordsOf, the edit hook after remember's await) makes it unlikely, and claimCard on the primary keeps a second press from ruling twice. Suspected, not seen."
+  },
+  {
+   "id": "r124-G-2",
+   "lane": "G",
+   "rank": "LATER",
+   "first_rank": "LATER",
+   "verdict": "weakened",
+   "title": "Cards already in the world that a co-owner's browser posted into the first owner's thread before 1.2.122 now vanish from every thread and from the Console, unanswered asks included, with nobody told",
+   "where": "scripts/messenger.mjs:119-123 (threadCardAllowed), applied at 138, 182, 196, and messenger-gm.mjs:288, 428",
+   "path": "Until 1.2.122 (COMM-25, call-gm.mjs:1025-1033 comment) a co-owner P2's own browser posted its Search / Observe / Analyze / project card for a co-owned character into the FIRST owner P1's thread: author P2, thread P1. Under 1.2.124 that card fails threadCardAllowed on every browser: it leaves P1's thread, P2 never had it, the GM's thread view, the Console's Waiting and the badges all drop it, and onCreate's GM log line does not run for an existing card, so no one is told. A card still waiting for a ruling from such a session cannot be found in the messenger any more (it is still in the chat log as a whisper). Needs a co-owned character and a world played on 1.2.121 or older with such cards still relevant; no road in 1.2.124 makes new ones.",
+   "fix": "Allow a card whose author owns the character the card names (the card's `by` / speaker actor) as well as the thread's player, or tell the GM once per world how many thread cards were left out; or accept it and say so in the release notes.",
+   "refuter_why": "Real as read: v1.2.121's threadOf(actor, userId) fell back to ownerOf(actor) when no asker was named, and the guard now drops a player-authored card whose thread is another player. Narrower than stated: ownerOf prefers an ACTIVE owner (utils.mjs:645), so such a card was only placed in the first owner's thread when that owner (or another co-owner listed before the poster) was online at the time; when the co-owner was the only owner online, ownerOf returned the poster and the card is in the poster"
+  },
+  {
+   "id": "r124-G-3",
+   "lane": "G",
+   "rank": "LATER",
+   "first_rank": "LATER",
+   "verdict": "holds",
+   "title": "A GM's rulings leave every thread when that GM's user is deleted or demoted to a player",
+   "where": "scripts/messenger.mjs:121-122",
+   "path": "The guard reads the author's role now, not when the card was written. An Assistant GM demoted to Player (or a GM user deleted) after the session: every ruling card and typed DM that user wrote into players' threads fails threadCardAllowed (author not GM and not that thread's player; a deleted user gives author null) and disappears from the players' windows, badges and the Console. Not a table event tonight unless a role is changed mid-session.",
+   "fix": "Optional for 1.2.125: also accept a card whose meta says a GM wrote it (writtenByGm / cardWriter on the GM's copy) or note the role rule in the GM handbook.",
+   "refuter_why": "threadCardAllowed reads author.isGM live (messenger.mjs:121-122), so a demoted or deleted GM's thread cards drop out. No module road changes roles and it is not an ordinary table event, so LATER is right."
+  },
+  {
+   "id": "r124-N-2",
+   "lane": "N",
+   "rank": "LATER",
+   "first_rank": "LATER",
+   "verdict": "holds",
+   "title": "A Reroll leaves the superseded result card in front of the centred queue, unmarked",
+   "where": "scripts/reroll.mjs:761-784 (markReplacedCard writes `rerolled`); scripts/popup.mjs:1249-1250 (followSettled closes only on `settled`), 1279-1292 (onUpdateChatMessage reads only `settled` and the overruled flag), 440 (oldest stays in front)",
+   "path": "Player rolls Search, gets 'nothing found' in the middle, spends 3 Hope on Reroll while the card is still up (the Hope Call is reachable outside the card). The GM replays and marks the old card `rerolled`; nothing closes or marks the popup, so the old verdict stays in front, while the reroll's own card lands in the corner (under Stained Glass, under the windows). In the corner before 1.2.124 the newest card was on top; the middle is a queue, so the stale one is what the player reads first.",
+   "fix": "In onUpdateChatMessage and the drpgSecretStored handler, also dismiss (reason \"code\") a centred card whose message now carries `rerolled`, as followSettled does for a ruling; the history entry already shows the mark.",
+   "refuter_why": "Read the same: markReplacedCard writes `rerolled` (as meta via updateSecret for a private card), notice-history.mjs marks the history entry, private-rolls.mjs markReplaced strikes the total in the chat log, but popup.mjs has no reader of `rerolled` (grep: only a comment at 1232), so a drawn centred card keeps its old total and words. Needs a Reroll made while the card is still open; nothing is lost and the history is right. LATER stands; confidence stays 'suspected' since I did not check whether"
+  },
+  {
+   "id": "r124-N-3",
+   "lane": "N",
+   "rank": "LATER",
+   "first_rank": "LATER",
+   "verdict": "holds",
+   "title": "A card arriving while the front card is fading out jumps the queue",
+   "where": "scripts/popup.mjs:435-443 (trimStack on the centre stage counts shown cards without `.leaving`), 518-531 (unparkInto finds the seat taken)",
+   "path": "A in front, B parked (+1). The player closes A; A gets `.leaving` and stays until its transition ends (or the 1 s backstop). If C arrives in that window, trimStack sees only C as shown and leaves it in front; when A is removed unparkInto finds one card shown and keeps B parked. C is read before the older B. Nothing is lost or stuck; B comes after C's X.",
+   "fix": "On the centre stage, have trimStack park every non-leaving card that is not the oldest of all non-leaving cards (parked included), and unpark the oldest after removal.",
+   "refuter_why": "trimStack's centre branch takes `shown` without .leaving and parks all but its oldest, so a card arriving while the front one fades is left in front; unparkInto then sees one shown at capacity and leaves the older parked card waiting. Order only, nothing stranded."
+  },
+  {
+   "id": "r124-N-4",
+   "lane": "N",
+   "rank": "LATER",
+   "first_rank": "LATER",
+   "verdict": "holds",
+   "title": "No keyboard way to close a centred card, and its text cannot be selected",
+   "where": "scripts/popup.mjs:1168 (mousedown preventDefault on the whole card), 1169-1174 (no click close); no Escape handling for the stage",
+   "path": "The card stands over the windows until its X. Escape closes the Foundry window behind it, not the card; the X is reachable by Tab only after the rest of the UI (the stage is appended last to body). The cancelled mousedown also stops selecting or copying the card's words (a found item's name, a room name). Mouse users are never stuck.",
+   "fix": "Cancel mousedown only on the title bar and the X (enough to keep focus in a field), and let Escape close the front centred card when focus is not in an input.",
+   "refuter_why": "popup.mjs:1168 cancels mousedown on the whole centred card, so its text cannot be selected, and no Escape handler exists for the stage; the X still works with a mouse. Accessibility and convenience, not a session breaker."
+  },
+  {
+   "id": "r124-T1-3",
+   "lane": "T1",
+   "rank": "LATER",
+   "first_rank": "LATER",
+   "verdict": "holds",
+   "title": "The told copy shows its trace's visibility band as a badge, which traceFeedback's own rule says a leaver is never shown",
+   "where": "scripts/observe.mjs:1248 (mintFindCopy writes `visibility: data.visibility`); scripts/truth-bullets.mjs:727; scripts/sheet-item.mjs:395; scripts/remnants.mjs:182-188",
+   "path": "A player Searches with Hope; the card still says only 'You leave a Remnant behind', never the band - but the copy now on their sheet carries the trace's band (Obvious / Evident / Subtle / Hidden) as a badge on the inventory row, the item window and the trial pack. In an incident the killer's and the victim's copies show the band on every band, Despair included.",
+   "fix": "An owner's call: either accept it (an Observe hit shows the band too, and the owner asked for 'as an Observe hit') and reword the traceFeedback note, or give the own copy no band badge.",
+   "refuter_why": "mintFindCopy writes visibility: data.visibility (observe.mjs:1248) and the sheet always pushes the visibility badge (sheet-item.mjs:395), so the leaver's copy shows the band traceFeedback's note says a leaver is never told (remnants.mjs:182-188). The player can already work it out from the handbook's tables (for crisis actions the band is printed, player-handbook.en.md:827) and an Observe hit shows the same badge, so it is a note that no longer matches, not a secret: LATER."
+  },
+  {
+   "id": "r124-T1-5",
+   "lane": "T1",
+   "rank": "LATER",
+   "first_rank": "LATER",
+   "verdict": "holds",
+   "title": "The card promises the Truth Bullet before it exists; a GM reload or a failed create loses it silently",
+   "where": "scripts/remnants.mjs:637-638 and :1750-1757; scripts/murder-rules.mjs:2626; scripts/reroll.mjs:2075, :2104",
+   "path": "The copy is made fire-and-forget on the placing GM's browser. If that GM reloads or leaves in the second before it lands, or createTruthBullet fails, the error goes to that GM's console only, while the leaver's card already says 'Its Truth Bullet is on your sheet.' Nothing retries and the GMs are not told.",
+   "fix": "On a failure, whisper the GMs one line naming the character and the trace (as dropRemnant's noTokenGm does), so a GM can hand the copy by hand.",
+   "refuter_why": "giveToldCopy is not awaited and its failure is logged on the placing GM's console only (remnants.mjs:1750-1757), while the card already promised the bullet. Recoverable by an Observe (HELD is false for a copy never made); rare (a GM reload in the second after the card, or a create failing)."
+  },
+  {
+   "id": "r124-T2-3",
+   "lane": "T2",
+   "rank": "LATER",
+   "first_rank": "SHOULD",
+   "verdict": "weakened",
+   "title": "A Reroll that should remove a told trace is refused because the leaver's own copy counts as 'somebody has already found that trace'",
+   "where": "scripts/reroll.mjs:2082 and 2133-2136 (traceKept), scripts/bridge-guards.mjs:874",
+   "path": "Player Hina's Search (or a Dynamic action) succeeds with Hope and leaves a trace T; she is told and given its copy. She rerolls (for a better tier) and the new roll misses, so settleRemnant asks to remove T. traceKept reads copied = any character holding a copy of T, which is Hina herself, and removalRefusal answers 'somebody has already found that trace': T stays on the map for an action that no longer found anything, her card says the trace could not be adjusted, and the GMs get the 'Reroll leaves the trace as it was' whisper to fix by hand. Before 1.2.124 the trace was removed.",
+   "fix": "In traceKept, leave the trace's own sourceActor out of `copied` (and, when the removal goes ahead, delete that actor's told copy of it).",
+   "refuter_why": "The path holds: traceKept counts any character's copy (reroll.mjs:2133-2136), the leaver's told copy included, and removalRefusal answers 'somebody has already found that trace' (bridge-guards.mjs:874), so settleRemnant keeps the trace (reroll.mjs:2083-2086) where v1.2.123 removed it. Lower rank: it needs a told roll (Hope or critical) rerolled into a result that leaves no trace, which is rare; the GMs get the traceKept whisper with the trace and the new total, so the fix by hand is offered; the"
+  },
+  {
+   "id": "r124-T2-5",
+   "lane": "T2",
+   "rank": "LATER",
+   "first_rank": "LATER",
+   "verdict": "holds",
+   "title": "The leaver's copy shows the exact visibility band of their own trace, which traceFeedback's rule says a told player is never shown",
+   "where": "scripts/remnants.mjs:178-189 (the rule) against truth-bullets.mjs:727 and sheet-item.mjs bulletBadges (visibility badge)",
+   "path": "Hina's Search with Hope leaves a Subtle trace: her card says only that she left a Remnant, as D19 of 1.2.122 requires, but the copy on her sheet carries the visibility flag and its badge reads 'Subtle'. The rule's reason (compare one's own band against later finds to back out types) now applies to every told trace, not only to Stage 6's authorsCopy.",
+   "fix": "Owner's call: either accept (an Observe hit shows it too) and amend the rule's comment, or mint the told copy with a neutral band.",
+   "refuter_why": "The copy carries visibility from the GMs' row (observe.mjs:1243 visibility: data.visibility) and the sheet badges it (sheet-item.mjs:395-396), while remnants.mjs:182-188 says a told player is never shown the band. The release notes say 'as an Observe hit would give it', and an Observe hit shows the band too, so it is likely intended; the comment and the behaviour disagree, which the house style treats as a defect in itself. Own trace only."
+  },
+  {
+   "id": "r124-T2-6",
+   "lane": "T2",
+   "rank": "LATER",
+   "first_rank": "LATER",
+   "verdict": "holds",
+   "title": "Every incident trace now has a copy, so a GM's retype in the middle of an incident no longer re-hides or re-marks it, and the incident's close leaves them un-hidden",
+   "where": "scripts/remnants.mjs:1841 (followIncidentKind) and 1922-1928 (retireIncidentTraces)",
+   "path": "During an incident the GM corrects the killer's Strike trace from Incident to Prep on the dashboard: followIncidentKind returns false because ownBulletRefs holds the killer's told copy, so the token stays un-hidden and marked fromIncident and the victim's browser keeps drawing it as the incident's (E09 C13's fix no longer applies to any incident trace). At the close every incident trace stays un-hidden (copied), so a console reads them as found; only the leaver's browser draws them (visibility.mjs:733).",
+   "fix": "Count a copy held only by the trace's own sourceActor as no copy in these two readers.",
+   "refuter_why": "followIncidentKind returns false for any trace a copy is held of (remnants.mjs:1841) and retireIncidentTraces keeps un-hidden every trace with a copy (remnants.mjs:1928); since every incident trace now has its leaver's copy, a GM's mid-incident retype no longer re-hides or unmarks it and the close leaves them all un-hidden. visibility.mjs still hides an un-hidden unmarked trace from non-holders, so no other player's screen shows it; only a console read of `hidden` and the GM's found state change"
+  },
+  {
+   "id": "r124-T2-7",
+   "lane": "T2",
+   "rank": "LATER",
+   "first_rank": "LATER",
+   "verdict": "holds",
+   "title": "The told copy lands on the leaver's actor at the moment of the act, readable from any player's console (characters default to OBSERVER)",
+   "where": "scripts/murder-rules.mjs:2627 -> truth-bullets.mjs:722-738 (public flags room, day, timeOfDay on the item)",
+   "path": "At the murder, K's actor gains a Truth Bullet item with flags room 'Kitchen', the night's day and timeOfDay, before any body is found. Every browser holds K's items (anonymity.mjs sets default ownership OBSERVER; the sheet UI empties the inventory pane for other players, so only a console read sees it). A masked killer's identity is the case where this matters most.",
+   "fix": "None cheap tonight; the same console reader already sees K's resource writes during the fight. Record as a known console-level gap.",
+   "refuter_why": "A console read, so not above LATER by the brief's rule. The release notes name it themselves ('a new Truth Bullet on the leaver's sheet' under what another browser can read). Frisk, Palm and Take from the Body leave Truth Bullets out, and the redacted sheet empties the pane, as the first reader found."
+  },
+  {
+   "id": "r124-T2-8",
+   "lane": "T2",
+   "rank": "LATER",
+   "first_rank": "LATER",
+   "verdict": "holds",
+   "title": "The told claim is kept whenever the packet names no roll; Work on Project's hide-traces roll never names one",
+   "where": "scripts/bridge-runs-records.mjs:148-153, scripts/action-project.mjs:904-922",
+   "path": "A player's console sends a project or Search remnant packet with told: true and no rollId: record is null, so the claim stands and the player gets a copy (and the band, T2-5) of their own Despair trace. Own trace only, nobody else's data.",
+   "fix": "For actions in TRACE_OF_ROLL (and project), require a drawn record to keep told.",
+   "refuter_why": "bridge-runs-records.mjs:148-153 keeps told when the packet names no rollId, and hideProjectTraces' drop carries none (action-project.mjs:904-922 in the diff adds told but no rollId). Console only, the sender's own trace, a copy of what they left; the comment at :143-147 says this is deliberate for rolls the GMs did not draw."
+  },
+  {
+   "id": "r124-T1-4",
+   "lane": "T1",
+   "rank": "LATER (warn the owner)",
+   "first_rank": "LATER",
+   "verdict": "holds",
+   "title": "Running tier 2 at a live table deletes every told copy the session made before the run",
+   "where": "scripts/tests.mjs:569-571; scripts/remnants.mjs:1747-1765",
+   "path": "toldCopiesMade grows with every real told copy since the GM's page loaded and is emptied only by takeToldCopies. A GM who runs game.drpg.runTests({ tier: 2 }) in the table's world mid-session: the first tier-2 test's restore deletes every uuid in the set, i.e. the players' real Truth Bullets of their own traces from earlier tonight, not only the test's.",
+   "fix": "Call takeToldCopies() once at the start of runSuite (discarding the result) so only copies made during the run are taken back.",
+   "refuter_why": "The code deletes them: tests.mjs:569-571, after every tier-2 scenario, awaits settleToldCopies and deletes every uuid takeToldCopies returns (remnants.mjs:1760-1764). The set toldCopiesMade (remnants.mjs:1747) is filled by every real giveToldCopy on that GM's browser since its page loaded (:1752) and is emptied only by that take, so the first scenario's restore deletes the evening's real told copies made on this browser. restore(snap) does not put them back (snapshot records settings, resources,"
+  }
+ ],
+ "checked_ok": {
+  "T1": [
+   "Right actor: noteToldTrace gives the copy to the row's sourceActor (dropRemnant's actor = the character acting), so a GM rolling for a player's character gives it to that character, not to the GM; a player's packet is held to ownsActorAt and notSpectator on the bridge row before handleRemnant.",
+   "Once per placement: each road gives it exactly once - placeRemnant on data.told (search, sabotage, dynamic, project, discard, Tamper), murder-rules and settleRemnant call giveToldCopy themselves and their drops carry no told; a Reroll's retune Hope to Hope hits HELD (mintFindCopy re-checks inside serialWrite per actor).",
+   "Despair: every caller passes traceFeedback(roll, true), false on a plain Despair outside an incident; handleRemnant sets told false where the GMs drew the roll and its record (isCritical, withHope are on the record, roll-draw.mjs:1772) says Despair; drawnRecordOf(undefined) returns null without throwing.",
+   "A Reroll from Hope to Despair (retune) gives nothing new and the card says nothing; Despair to Hope retune gives the copy via noteToldTraceById.",
+   "No throw reaches an action: placeRemnant's call is inside its try and not awaited, giveToldCopy catches, the Reroll's calls are void with .catch, shownToItsCast is in a try; on a player's browser traceFeedback(roll, {pending:true}) stays false.",
+   "No new public field names the leaver: told is not in traceRowOf's row nor on the token's flags; the copy is not identified (incident and prep are not SELF_EVIDENT), so sourceAction and tiedToCrime stay null on the item; tell:false sends the GMs no 'say what it is'; the sound goes to the actor's owners only.",
+   "Token shown only on the leaver's browser: the bullet's trace key reaches its owners by address (tellBulletRefs / bulletRefsFor), not on the item; other browsers hide it in applyToRemnantToken as any found trace.",
+   "Copy name: pub.name, else the row's subject, else the room's default - the same fallback Observe's createFind uses (observe.mjs:1084), so no new naming.",
+   "Incident close: retireIncidentTraces leaves a copied (told) trace un-hidden and takes its mark off either way the copy's timing falls; a copy landing after the hide un-hides it again (revealRemnantToFinder).",
+   "Two GMs: a trace is placed on one browser only, so only that browser gives its copy; the claim's check reads the synced rollStore and fails open only to the sender's own trace.",
+   "Body loot refuses Truth Bullets (handover.mjs:575), so a dead victim's own copies cannot be looted.",
+   "The changed card keys exist in en and pl (leftTraceKept, leavesRemnant, discardTrace, remnantLeft)."
+  ],
+  "T2": [
+   "Observe: observeCandidates leaves out traces the character holds a copy of (observe.mjs:324-327); createFind and mintFindCopy re-check inside serialWrite(observeFindKey) (observe.mjs:1124, 1228), so a told trace is never a second find and never a describe window",
+   "One copy per trace per character: noteToldTrace and Observe and handover share the HELD check in the receiver's serialWrite step on one GM; a Reroll's retune (noteToldTraceById) answers HELD and makes no second copy",
+   "`told` is not written into the trace's row (traceRowOf), so an Erase's Reroll putting the trace back (placeRemnant keepId) does not give a copy again",
+   "Key fee, Key planner, Monokuma's reveal and case-realize undo read only key-type traces/bullets (key-remnants.mjs:465-470, 493-499); a told trace counts there only if a GM retypes it to Key",
+   "Chapter-end sweep (clearFaintRemnants) is not affected by copies held",
+   "Day summary reads the cards' facts; no Truth Bullet or copy count changed",
+   "visibility.mjs: an un-hidden told trace is drawn only for holders (and the running incident's cast while marked), so other players' screens do not show it",
+   "Steal/Give: Palm and Frisk exclude Truth Bullets; a Share or Present copy carries name, words, room and the original stamp, and the author only in the GM-only secret (leftBy)",
+   "Verdict propagation: the told copy is an ordinary copy under the answer key, so retype and tie reach it (73 T4)",
+   "Stage 6 authorsCopy traces are dropped without told, so no race between authorsCopy and giveToldCopy on one trace",
+   "Bridge: with a rollId the told claim is held to the primary's drawn record (bridge-runs-records.mjs:148-153)"
+  ],
+  "C": [
+   "Launcher click on any GM (primary, Assistant GM, second GM: game.user.isGM, no role gate) opens one window on the Timeline; a second click raises it, no second window (renderLauncher -> openGmMessenger('console'); R8650, R1066 green in tier2.log).",
+   "Every road the roster served reaches a player's chat: openMessenger(player) on a GM -> openGmMessenger(player) for the Players-list menu, a notice's Open conversation, a popup's click and game.drpg.openMessenger; the list's rows are buttons (Tab, Enter); openMessenger() with no argument or a GM's id opens the Timeline.",
+   "Timeline updates in place: threadMessage/threadEdited/removeEverywhere/refreshNav and the notice listener add, replace or remove one node; the filter's value is kept; the stream scrolls down only when it was near the bottom (insertByTime, nearBottom on .drpg-console-stream, the element that scrolls per base.css:218).",
+   "Typed text: a player's view keeps its chat and note drafts across view switches (setView + _replaceHTML clearing the old view's boxes, R8651); events for other players touch only the list; a card edit in the shown player's view replaces only its bubble.",
+   "Ruling buttons in Waiting are buildBubble's own, wired by wireCallActions with the same message: the same claimCard on the primary, runCallAction, settleCall; the actions read only button.dataset, so moving .drpg-call-actions under the words does not change what runs; the stream copy has its buttons removed, so one live set per card in the window; a settle by any GM reaches every GM as drpgMessengerEdited and removes it from Waiting (tier-2 OWNER-124-CONSOLE test, scenario 97 N1/N2).",
+   "Players unchanged: on a player gmMessengerWindow() is null in every hook, the launcher calls openMessenger(own id), DrpgMessengerApp is untouched; stripHtml's change is used only for the GM's list preview; the CSS changes for players are visual (an action card's title colour under glass).",
+   "Nothing of the Timeline reaches a player: the window is built only behind game.user.isGM; it reads the GM's own game.messages and this login's notice history; player-written words go through contentOf's cleaning, names and notices through esc/textContent.",
+   "No throw found at open for an empty world (empty lists, 'Nothing is waiting' / 'Nothing has happened yet'), a deleted user (threadCardAllowed and isThreadUser skip it), a deleted actor (not read), a player with no character or a Spectator (a non-GM user, listed as the roster listed them); refreshHead/refreshNote in the Timeline view do not dereference a player.",
+   "lang keys DRPG.Messenger.gm.* present in EN and PL."
+  ],
+  "N": [
+   "Who gets the middle: centredNotice (notice-centre.mjs:64-70) needs a listed name and a GM writer or reader == writer; cardWriter is the Foundry-stamped author for a player's card, and ASKED_BY is GM-only meta (secret.mjs GM_META:260), so a player's card never takes another player's or a GM's middle; R8671 ok in tier2.log.",
+   "GM screens: the catch-all returns for any whisper on a GM without gmPopup/popupForce (popup.mjs ~1409), so no player's action card and no whispered lockBroken or Tamper card reaches a GM's middle; only bodyFound (public) and the GM's own day summary do.",
+   "Incident and standing-mask path: a player's card posted by a GM through askGm keeps popupCentre in meta (not in GM_META) and cardWriter resolves to the asking player, so it is centred on that player's screen only.",
+   "Veiled bedroom card (doors-gm.mjs:62-65, 382, 432): `veiled: true` kept by bedroomExtra; popupCentre goes to meta (splitFlags), never on the document every browser holds; a mended-only note stays in the corner.",
+   "No new secret in the middle: centreRoll (popup.mjs:268-288) reads only the card's own total, its head's 'needed N' and the dice side; the dc shown is always rollTrait's window number; R8675 holds a Despair card with and without a trace byte for byte; masked names are cut by wordsFor for the Tail card's target name; Tamper's card carries no total or dc.",
+   "History: kept() strips .drpg-centre-only; the first record is taken before centreRoll and the observer starts after it; R8676 ok in tier2.log.",
+   "No posters throw: neededNote, rollResultCard, rollHead, MODULE_ID, label/cover/rule/shadow are all defined where used (action-doors.mjs, action-tail.mjs, action-watch.mjs, action-listen.mjs).",
+   "Queue cannot jam on a throwing or deleted card: deletion and code closes go through drpg-dismiss with a 1 s backstop for a parked (display:none) card; unparkInto takes the oldest; the stage goes with its last card.",
+   "Focus: nothing calls focus() on arrival; a press on the card keeps the caret in a field (R8672; shots.mjs Chromium reading); the stage is pointer-events:none outside the card, so the map and the sidebar stay usable.",
+   "Stacking: the centre stage is raised (99989) while any card is on it, above Foundry windows, under the Legacy corner (99990); a tall card scrolls in the stage with its X at the top.",
+   "Readability: Stained Glass centred card on var(--drpg-sg-ink) opaque (stained-glass.css:3003-3005), specificity beats the tone and objection rules (none set a background); Legacy .drpg-popup background is opaque ink (danganronpa.css:13314-13317); forced-colours rule includes #drpg-notice-centre.",
+   "New strings DRPG.Popup.centre.reached/short present in en.json and pl.json."
+  ],
+  "G": [
+   "The case the guard was written for: PlayerTwo's console sendMessage(PlayerThree) is refused on PlayerTwo's browser (messenger.mjs:326, mayPostInto) with the onlyOwnThread toast; a card posted around it (postSecret with thread PlayerThree) is left out of threadMessages, threadStatsOf, readEntryOf, onCreate and onUpdate on PlayerThree's and the GM's browsers; scenario 30's phase pins both, R8690 the counts. The one gap is G-1 (Console Waiting, live road).",
+   "Incident road: a player's card during an incident goes through askGm -> postAsked on the primary, which keeps the thread flag only when it is the sender's own (secret.mjs:1499-1500), so a GM-authored card cannot be steered into another player's thread that way.",
+   "GM rulings typed or pressed on a card (ruleReply, ruleDecline, ruleSearchMiss, ruleObserveMiss, ruleDeclineProject, itemRefuse; messenger-app.mjs 1076-1463): run on the GM's browser, mayPostInto true for any GM including an Assistant GM and a second GM (User#isGM is ASSISTANT and up); author GM, so threadCardAllowed passes on the player's and every GM's browser.",
+   "Cards the primary writes for a player (callGm with thread: ctx.asker for Calls, Dynamic, statistics, Observe's empty room observe.mjs:889, the Monocub's Ask for Hope monocub.mjs:1601, a project's trap receipt projects.mjs:2560/2607 after addProgress runs on the GM): author is the primary GM; pass on write and render.",
+   "Cards a player's own browser writes (action-search, -observe, -analyze, -dynamic, -project, cleanup-reshape's proposal, reroll's settleGmRuling, Analyze's critical, trait-ruling's pass line): threadOf returns the poster when the poster owns the character (call-gm.mjs:1031-1033), so the thread is the poster's own; mayPostInto true, author === thread on render. Co-owners included.",
+   "gmOnly cards (traps.mjs:331, eclipse.mjs:731, projects.mjs:1493): no thread, whispered to the GMs, the guard not involved.",
+   "whisperToOwner / whisperToOwnerOnly / whisperToGms (utils.mjs:736-769) carry no thread flag: not thread cards, guard not involved. Roll cards and action reports post no thread flag (no other writer of MESSENGER_FLAGS.thread than createThreadMessage, messenger.mjs:392).",
+   "The messenger window's Send (messenger-app.mjs:507-508) and the GM's window (messenger-gm.mjs sets playerUserId to the viewed player): a player can only open their own thread (openMessenger), a GM writes any; Spectators and the Mastermind window add no thread writer.",
+   "No module code sets `author` on a created ChatMessage, so Foundry's stamp is always the creating browser's user; the GM-written cards for a player carry the asker in meta (cardWriter) and the GM as author, which the guard reads correctly.",
+   "popup.mjs:1364 returns for any thread card, so a card the guard drops raises no popup anywhere; the player's window and the GM's per-player view only replace existing bubbles on drpgMessengerEdited."
+  ]
+ },
+ "not_checked": {
+  "T1": [
+   "Monocub and Spectator actors acting through a GM's own road (no dropRemnant caller in monocub.mjs or spectator*.mjs; the player road is guarded by notSpectator) - not traced further for time.",
+   "The visual layer: whether a non-holder's canvas draws a just-un-hidden trace for a frame before refreshToken hides it (pre-existing for Observe finds, needs a browser).",
+   "Whether a console can tie a new Truth Bullet item on a sheet to the newly un-hidden token by timing, and so read the leaver's Hope or Despair (the notes list it as not measured; item creation reaches every browser, known-leaks foundry-actor-items).",
+   "The tests and scenario 73 phase T themselves (run centrally; tier2.log shows R8691 ok and EXIT 0; tier1.log is empty)."
+  ],
+  "T2": [
+   "Live timing and two GMs: a told copy minted on one GM while another GM's Give or Observe of the same trace runs (the queue is per browser, E38) - not driven",
+   "A GM reload between placement and the unawaited copy (the card says the bullet is on the sheet; nothing retries) - read only, not ranked",
+   "Whether another bridge guard refuses a remnant packet without a roll for search/sabotage/dynamic (T2-8's refutation)",
+   "The Class Trial's floor modes and objection road beyond present (trial-floor, trial-zones) for copy counts",
+   "Scenario 73 phase T and R8691 were not run (brief); tier logs not read"
+  ],
+  "C": [
+   "Real Foundry v14: window sizes, ui.activeWindow, ApplicationV2 render failure state - read from code only; no harness or scenario was run (rules).",
+   "Whether a legitimate card written by one player's browser into another player's thread exists (threadCardAllowed now drops it from the Timeline and the thread) - line CORE's guard, not this lane.",
+   "Cost of opening the Timeline in a world with thousands of thread messages (a bubble is built for every unsettled one); not measured.",
+   "The screenshots and the probe under docs/dev/owner124 and audit/harness/probes - not table code."
+  ],
+  "N": [
+   "Real browser stacking against Foundry v14 windows and native modal dialogs (top layer): read from CSS only, the harness draws no stacking (LIVE-E10-03 kind).",
+   "Whether a timed prompt (a reaction or defence window) can sit under a centred card long enough to expire: not traced, timing lane.",
+   "Polish labels of the Infiltrate rows (pl.json has 'Shut the Door', 'Keep Watch', 'Dash' in English as card titles): cosmetic, outside this brief.",
+   "a11y.mjs's region list does not name #drpg-notice-centre (game.drpg.a11y() will not audit it): diagnostics only.",
+   "The Tamper card's `leftTraceKept` / noteToldTrace change in cleanup.mjs: another lane's commit."
+  ],
+  "G": [
+   "Did not run any harness or scenario; G-1 is read from code, not driven.",
+   "Did not check whether Foundry v14's server always stamps `author` to the creating user for a player's create (assumed LIVE-E33-10, as the guard's header says).",
+   "Did not inspect the owner's world for pre-1.2.122 co-owner cards (G-2) or co-owned characters.",
+   "notice-history.mjs's keeping of thread cards and season-wipe's thread sweep were not traced against the guard (not posters)."
+  ]
+ }
+}
