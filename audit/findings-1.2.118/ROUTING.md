@@ -173,3 +173,10 @@ The audit's check of 1.2.121 will give a file:line per finding so it can be rout
 - The coordinator's measurements, not the audit's: headless on 6012624a 8 shards merged 3859 passed, 0 failed, 27 skipped, 0 red; scenarios 73 37/37, 30 308/310 (2 expected red), 62 58/58, 63 79/79; CI green on 5bd4652d (the release commit's version edit had left "1.2.124" in two handbook-facts keywords; caught by check text).
 - Known and left: told copies given under 1.2.124 carry no `told` mark and still count as finds (no migration); the GMs' trace report says "revealed" for a toldShown token; the Shut/Force/Pick totals note not addressed. Local gate: the press part only, 8 sandbox parts not run.
 - The hold continues: no pass on 1.2.125, no probe 08, no trend counts.
+
+## 1.2.126 released (coordinator, 22.11.2026 ~19:02Z) - the audit held
+- v1.2.126 published 19:01:21Z, not a prerelease, assets module.json and module.zip; main 2e28785a (PR #76, merge); the latest manifest reads 1.2.126.
+- Contents: stage E126 alone, the owner's hotfix before the session: the GM's messenger list rows overlapped with about twenty players; styles/base.css `.drpg-messenger-gm-nav > .drpg-messenger-gm-nav-row { flex: 0 0 auto; height: auto; min-height: 44px; }`. The coordinator's measurement, not the audit's: in Chromium against a stand-in `.application button { min-height: 0 }`, 18 px a row before, 44 px after; which Foundry v14 rule took the height not read; no harness test (no layout), a check owed. CI green on 33eccd34 (8 shards, scenarios).
+- E39, E40, E43, E53, E58, E83 planned 1.2.127 in that release, to move again to 1.2.128.
+- OWNER-127-CENTRE -> UI (target 1.2.127): not every action's result card takes the middle (the owner's example: facilities; action-facilities.mjs writes no `popupCentre`). An inventory of every action road, each result the acting player waits on centred, red first per road; what happens to a player who did not act (a felt Frisk or Palm, a seen Sabotage, being tailed) in a separable commit, the owner's answer pending, default yes.
+- The hold continues: no pass on 1.2.126, no probe 08, no trend counts.
