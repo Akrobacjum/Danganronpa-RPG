@@ -7229,6 +7229,36 @@ export async function run({ gm, p1, p2, p3, check, note, phase, settle, permissi
     if (noticeCard) await gm.eval(`await game.messages.get("${noticeCard}")?.delete(); return true;`);
     await settle(300);
 
+    /* ANOTHER PLAYER'S THREAD (1.2.124; line COMM's probe of 22.11.2026). From p2's console, as a console reaches the
+       module: messenger.mjs `sendMessage` into p3's thread, and the same card posted around it (secret.mjs `postSecret`
+       with the `thread` flag p3, whispered to p3 and the GMs, as `createThreadMessage` writes one). Read on p2: whether
+       sendMessage posted anything; on p3 and the GM: whether the card posted around it stands in p3's thread
+       (`threadMessages`; the count, `threadStatsOf`, is R8690's). p2's own DM into its own thread is the control: posted and placed. Red at 52057a2b:
+       both cards stood in p3's thread on p3 and the GM. */
+    phase("another player's thread");
+    const P3ID = await p3.eval(`return game.user.id;`), P2ID = await p2.eval(`return game.user.id;`);
+    const threadTry = await p2.eval(`const M = await import("${repoUrl}/scripts/messenger.mjs");
+        const S = await import("${repoUrl}/scripts/secret.mjs");
+        const before = game.messages.size;
+        const sent = await M.sendMessage("${P3ID}", "S30 thread: into another player's thread");
+        const made = game.messages.size - before;
+        const gms = game.users.filter(u => u.isGM).map(u => u.id);
+        const forged = await S.postSecret({ content: "<p>S30 thread: posted around sendMessage</p>", whisper: ["${P3ID}", ...gms],
+            flags: { "danganronpa-rpg": { thread: "${P3ID}", kind: "dm" } } });
+        const own = await M.sendMessage("${P2ID}", "S30 thread: into my own thread");
+        return { sent: Boolean(sent), made, forged: forged?.id ?? null, own: own?.id ?? null };`, { timeout: 30000 });
+    await settle(1500);
+    const THREAD_READ = id => `const M = await import("${repoUrl}/scripts/messenger.mjs");
+        const ids = new Set(M.threadMessages("${P3ID}").map(m => m.id));
+        return { placed: ids.has("${id}") ? 1 : 0 };`;
+    const threadSeen = { p3: await p3.eval(THREAD_READ(threadTry.forged)), gm: await gm.eval(THREAD_READ(threadTry.forged)),
+        own: await gm.eval(`const M = await import("${repoUrl}/scripts/messenger.mjs"); return M.threadMessages("${P2ID}").some(m => m.id === "${threadTry.own}");`) };
+    check("SECURITY: a player's console cannot write into another player's thread - sendMessage refuses it, and a card posted around it stands in that thread on neither its player's browser nor a GM's; the player's own thread still takes its DM",
+        threadTry.sent === false && threadTry.made === 0 && Boolean(threadTry.forged) && threadSeen.p3.placed === 0 && threadSeen.gm.placed === 0
+            && Boolean(threadTry.own) && threadSeen.own === true, JSON.stringify({ threadTry, threadSeen }));
+    await gm.eval(`for (const id of ["${threadTry.forged}", "${threadTry.own}"]) if (id && id !== "null") await game.messages.get(id)?.delete(); return true;`);
+    await settle(300);
+
     /* THE FUZZ (E43 C4, 13.11.2026; the plan's item 3, its "31-fuzz"; lib/fuzz.mjs says what is sent and measured). From
        p1's console: every request of the four tables the primary GM judges, in six shapes - bare, every field null, every
        field of a type it is not, every field too long or too big, every id one that names nothing, the null and ghost
