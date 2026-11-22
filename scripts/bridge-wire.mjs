@@ -120,6 +120,8 @@ export const ACTION_OBSERVE_TARGET = "observe.target";
 export const ACTION_OBSERVE_RESOLVE = "observe.resolve";
 /** GM -> primary GM: a GM's pick or refusal on an Observe card (E09 C12; observe.mjs `pickFromCard`, `askObservePick`). */
 export const ACTION_OBSERVE_PICK = "observe.pick";
+/** GM -> primary GM: a find's words written by another GM, for the window that waits on the primary (E128; observe.mjs `answerDescribeFrom`). */
+export const ACTION_OBSERVE_DESCRIBE = "observe.describe";
 export const ACTION_CLEANUP_TRACES = "cleanup.traces";
 export const ACTION_ANALYZE_RESOLVE = "analyze.resolve";
 /** player -> primary GM: a room action of the Facilities tile used (E93 C3; facilities-gm.mjs `handleFacilityUse`). */

@@ -42,7 +42,7 @@ import {
     ACTION_TRIAL_PRESENT, ACTION_READY_OPEN, ACTION_READY_ANSWER, ACTION_READY_END, ACTION_TRIAL_ENTER,
     ACTION_TRIAL_RECORD, ACTION_RESHAPE_RULING, ACTION_TRAIT_RULING, ACTION_HOPE_CALL, ACTION_CALL_YES,
     ACTION_RULING_EXPIRED, ACTION_RULING_RECEIVED, ACTION_DYNAMIC_ANSWER, ACTION_OBSERVE_TARGET, ACTION_OBSERVE_RESOLVE,
-    ACTION_OBSERVE_PICK, ACTION_CLEANUP_TRACES, ACTION_ANALYZE_RESOLVE, ACTION_ADVANCEMENT, ACTION_ADVANCEMENT_OFFER,
+    ACTION_OBSERVE_PICK, ACTION_OBSERVE_DESCRIBE, ACTION_CLEANUP_TRACES, ACTION_ANALYZE_RESOLVE, ACTION_ADVANCEMENT, ACTION_ADVANCEMENT_OFFER,
     ACTION_ADVANCEMENT_ASK, ACTION_SHARE_BULLET, ACTION_GIVE_ITEM, ACTION_PASSAGE_SHARE, ACTION_PASSAGE_CROSS,
     ACTION_PASSAGE_FIND, ACTION_PASSAGE_LAIR_SEAL, ACTION_LAIR_LOCK, ACTION_REFUND_CROSSING, ACTION_VAULT_STEAL, ACTION_STEAL, ACTION_FIND_STASH, ACTION_PLANT,
     ACTION_FRISK_UNSEEN, ACTION_FRISK_ASK, ACTION_FRISK_ANSWER, ACTION_FRISK_FOLLOW, ACTION_CRISIS,
@@ -70,7 +70,7 @@ import {
     handleReroll, handleAuditDecide, handleKeysCharge, handleBodyDiscover, handleChapterEnd, handleTrialRecord, handleTrialEnter, handleVoteRun, handleBallot,
     handleBallotAsk, handleFloorNow, handleTrialObject, handleTrialEvidence, handleTrialWithdraw, handleFloorRepoint,
     handleTrialGm, handleTrialTurn, handleTrialClaim, handleTrialSide, handleTrialKeyword, handleReadyOpen, handleReadyAnswer, handleReadyEnd,
-    handleTrialPresent, handleReshapeRuling, handleObservePick, handleCardClaim, handleCardPost, handleGiveBullet
+    handleTrialPresent, handleReshapeRuling, handleObservePick, handleObserveDescribe, handleCardClaim, handleCardPost, handleGiveBullet
 } from "./bridge-runs-records.mjs";
 
 /**
@@ -1202,14 +1202,8 @@ export const BRIDGE_ACTIONS = table({
         run: handleKeysCharge,
         answer: "reply"
     },
-    /*
-     * A BODY AND A CHAPTER'S END, ASKED OF THE PRIMARY BY A SECOND FULL GM (E128, 22.11.2026; OWNER-128-SECOND-GM, the
-     * owner: "Drugi GM ... powinien byc na rowni z pierwszym gmem"). Both are the primary's alone (body.mjs `discoveryHere`,
-     * chapter.mjs `chapterEndHere`: one browser decides, by the GMs' marks the primary holds, in one queue), and a second
-     * full GM was refused with whose they are. Its window is drawn on its own browser now, and what it chose is carried out
-     * here, through every check the primary's own press passes (`discoverBody`, `applyChapterEnd`, `finishChapterEnd`); an
-     * Assistant GM is told whose they are, as before. Read with a refusal when nothing was done: the asker is told.
-     */
+    /* A SECOND FULL GM'S BODY AND CHAPTER'S END, ON THE PRIMARY (E128; OWNER-128-SECOND-GM): both stay the primary's (body.mjs
+       `discoveryHere`, chapter.mjs `chapterEndHere`), run here by the same functions and checks; an Assistant GM is told. */
     [ACTION_BODY_DISCOVER]: {
         label: "DRPG.Bridge.what.body.discover",
         guards: [gmOnly("only a GM announces a body")],
@@ -1606,6 +1600,16 @@ export const BRIDGE_ACTIONS = table({
      * traces again, and writes the Observe's row only for a trace on it. A GM's alone: the
      * card's buttons are drawn for GMs.
      */
+    /* A FIND'S WORDS FROM ANOTHER GM (E128): the window waits on the primary (observe.mjs `describeFind`), and "Write it here"
+       on a GM's whisper sends that GM's words; the first answer is the find's (`answerDescribeFrom`). */
+    [ACTION_OBSERVE_DESCRIBE]: {
+        label: "DRPG.Bridge.what.observe.describe",
+        guards: [gmOnly("only a GM writes a find's words")],
+        sanitize: pick({ askId: as.id, name: as.text, playerText: as.text, analyzedText: as.text, critHint: as.text }),
+        run: handleObserveDescribe,
+        answer: "reply",
+        claims: { askId: "answerDescribeFrom (observe.mjs) hands the words only to a find this primary's window waits on under that id, once" }
+    },
     [ACTION_OBSERVE_PICK]: {
         label: "DRPG.Bridge.what.observe.pick",
         guards: [gmOnly("only a GM picks what an Observe is aimed at")],

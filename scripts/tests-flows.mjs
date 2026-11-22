@@ -350,11 +350,13 @@ export const FLOWS = Object.freeze([
         entry: { sockets: ["safeword.mjs"] }, scenarios: ["40-flow"], status: "covered", stage: "<=1.2.50" },
     // E17 C4 (26.10.2026): a token the GM spent after the searcher's browser stopped waiting, asked back by the late answer
     // (`searchTokens.returnToken`, the spender's, once); tier 2 E17-T7 judges it. No scenario sends one yet.
+    // E128 (22.11.2026; OWNER-128-SECOND-GM): a find's words written by a second GM, for the window that waits on the primary
+    // (`observe.describe`, gmOnly); 97-two-gms R drives it from gm2, 30-security sends a player's forged one.
     { id: "search-observe", what: "A Search or an Observe: the GM judges it, spends the room's token, grants the find, and only the searcher reads the card",
-        entry: { bridge: ["observe.target", "observe.resolve", "observe.pick", "searchTokens.spend", "searchTokens.takePlant", "searchTokens.returnPlant",
+        entry: { bridge: ["observe.target", "observe.resolve", "observe.pick", "observe.describe", "searchTokens.spend", "searchTokens.takePlant", "searchTokens.returnPlant",
             "searchTokens.returnToken", "searchTokens.gmWrite"],
             sockets: ["search-tokens.mjs"] },
-        scenarios: ["40-flow", "30-security", "33-bridge-paths", "88-flow-length"], status: "partial", stage: "E39" },
+        scenarios: ["40-flow", "30-security", "33-bridge-paths", "88-flow-length", "97-two-gms"], status: "partial", stage: "E39" },
     // E29 C3 (05.10.2026): a player's own write on their student - Daggerheart's sheet, the HUD, a console - judged on
     // the primary GM (sheet-audit.mjs), no socket of the module's. 30-security writes a statistic, a maximum, a rule,
     // a GM-only flag and an effect from p1's console; 40 reads a day's writes for false alarms; 61 a statistic

@@ -867,6 +867,49 @@ export async function run(api) {
         await settle(600);
     }
 
+    /* ------------------------------------------------------------------ R */
+    /* E128, 22.11.2026 (OWNER-128-SECOND-GM, line CORE's inventory row 1). A find's words were asked on the window of the
+       browser the find is resolved on, the primary's, and a second GM was only whispered that it waited. The whisper carries
+       "Write it here" now. gm places a trace in Dorm A and opens its describing window for Aiko's find as an Observe's
+       resolution does (observe.mjs `describeFind`), its window drawn and left unanswered; gm2 finds the whisper, wires it as
+       its log would (`wireDescribeHere`), presses the button and answers its own window. Read: what gm's wait answered (the
+       find's words), and whether gm2's button left its copy of the card. Red at 9eb89710: no button on the whisper. */
+    phase("R a second GM writes a find's words", { flow: "search-observe" });
+    const WORDS = { name: "E128 R the words gm2 wrote", playerText: "E128 R what the student sees", analyzedText: "E128 R the reading" };
+    const placed = await gm.eval(`const R = ${imp("remnants.mjs")}, OB = ${imp("observe.mjs")};
+        const scene = canvas.scene, t = await R.placeRemnant({ type: "prep", visibility: "evident", scene, x: 400, y: 400, room: "Dorm A", note: "E128 R" });
+        if (!t) return null;
+        globalThis.__e128rWas = globalThis.__dialogWindows; globalThis.__dialogWindows = true;
+        globalThis.__e128rHad = new Set(game.messages.contents.map(m => m.id));
+        const entry = { sceneId: scene.id, tokenId: t.id, room: "Dorm A", data: R.remnantData(R.remnantById(scene.id, t.id)) };
+        globalThis.__e128r = { done: false, answer: null };
+        OB.describeFind(game.actors.get("${IDS.aiko}"), entry, false, "E128 R fallback", null, { waitMs: 30000 })
+            .then(a => { globalThis.__e128r = { done: true, answer: a }; }, () => { globalThis.__e128r = { done: true, answer: "threw" }; });
+        return { scene: scene.id, token: t.id };`, { timeout: 60000 });
+    await settle(1500);
+    const pressed = placed ? await gm2.eval(`const S = ${imp("secret.mjs")}, OB = ${imp("observe.mjs")};
+        const end = Date.now() + 8000; let card = null;
+        while (!card && Date.now() < end) { card = game.messages.contents.find(m => String(S.contentOf(m) ?? "").includes("${placed.token}") && String(S.contentOf(m) ?? "").includes("data-drpg-describe-find")); if (!card) await new Promise(r => setTimeout(r, 100)); }
+        if (!card) return { card: false };
+        const body = document.createElement("div"); body.innerHTML = S.contentOf(card); document.body.append(body);
+        if (typeof OB.wireDescribeHere === "function") OB.wireDescribeHere(body);
+        globalThis.__dialogAnswers.push(() => (${J(WORDS)}));
+        const button = body.querySelector("[data-drpg-describe-find]"); button?.click();
+        const until = Date.now() + 10000;
+        while (body.querySelector("[data-drpg-describe-find]") && Date.now() < until) await new Promise(r => setTimeout(r, 100));
+        const left = Boolean(body.querySelector("[data-drpg-describe-find]")); body.remove(); globalThis.__dialogAnswers.length = 0;
+        return { card: true, clicked: Boolean(button), left };`, { timeout: 60000 }) : null;
+    const waited = await until(() => gm.eval(`return globalThis.__e128r;`), v => v?.done === true, 10000);
+    await gm.eval(`const R = ${imp("remnants.mjs")}; globalThis.__dialogWindows = globalThis.__e128rWas;
+        for (const w of Object.values(ui.windows ?? {})) if (String(w?.title ?? w?.options?.window?.title ?? "") === game.i18n.localize("DRPG.Observe.describeTitle")) await w.close?.();
+        const t = canvas.scene.tokens.get("${placed?.token ?? ""}"); if (t) { await R.dropRemnantSecret(t); await t.delete(); }
+        return true;`, { timeout: 60000 });
+    await settle(600);
+    check("R1: gm2's Write it here on a find waiting on gm's window gives the find gm2's words, and its button leaves gm2's card (E128)",
+        Boolean(placed) && pressed?.card === true && pressed.clicked === true && pressed.left === false && waited?.done === true
+            && waited.answer?.name === WORDS.name && waited.answer?.playerText === WORDS.playerText && waited.answer?.analyzedText === WORDS.analyzedText,
+        J({ placed, pressed, waited }), { flow: "search-observe" });
+
     return { primary: { before, joined, afterGmReload, moved, backAgain }, reloads: { p1: r1, gm: r2, card: r3 },
         d153: { before: gBefore, onGm: gAfter, onGm2: gAfter2, found: gFound, gave: gGave } };
 }
