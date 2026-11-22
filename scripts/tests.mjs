@@ -283,6 +283,23 @@ async function loadSettled() {
     }
 }
 
+/**
+ * The runner's step before a tier-2 restore (1.2.124; 1.2.125 H1): every told copy in flight landed, then each one the
+ * open scope named (remnants.mjs `openToldScope`, `takeToldCopies`) deleted, and the scope closed - a copy asked for
+ * outside it, a player's own from before the run, is not named and stays. Answers how many it deleted.
+ */
+export async function takeBackToldCopies() {
+    const told = await import("./remnants.mjs");
+    await told.settleToldCopies();
+    told.closeToldScope();
+    let n = 0;
+    for (const uuid of told.takeToldCopies()) {
+        const item = await fromUuid(uuid);
+        if (item) { await item.delete(); n++; }
+    }
+    return n;
+}
+
 async function runSuite(tier, only = null, cut = { index: 1, count: 1 }) {
     const lines = [], results = [];
     /* SHARD 1 HOLDS TIERS 0 AND 1 (INFRA I2, 18.10.2026). They read; their purity line reads the
@@ -542,6 +559,8 @@ async function runSuite(tier, only = null, cut = { index: 1, count: 1 }) {
                     running = entry[0];
                     // The test's named dice for its own length, taken off and its `__forceRoll` put back whatever it did -
                     // passed, threw or ran out of time (`scriptDice`'s note).
+                    /* This test's told copies and no other's - not a copy a player was given before the run (1.2.125 H1). */
+                    (await import("./remnants.mjs")).openToldScope();
                     const unscript = scriptDice();
                     const unanswer = answerDialogs();
                     const hadForce = Object.hasOwn(globalThis, "__forceRoll"), force = globalThis.__forceRoll;
@@ -564,11 +583,9 @@ async function runSuite(tier, only = null, cut = { index: 1, count: 1 }) {
                     try {
                         await game.drpg.endMurder({ reason: "test", followUp: false });
                         /* A told trace's copy nobody waited on lands before the restore, not after it, and the copies the
-                           module made for the test's traces are taken back by name - any other item left still fails below
-                           as "appeared" (1.2.124, remnants.mjs `settleToldCopies`, `takeToldCopies`). */
-                        const told = await import("./remnants.mjs");
-                        await told.settleToldCopies();
-                        for (const uuid of told.takeToldCopies()) await (await fromUuid(uuid))?.delete();
+                           module made for this test's traces are taken back by name - any other item left still fails below
+                           as "appeared" (1.2.124; since 1.2.125 H1 only the copies asked for inside the test's scope). */
+                        await takeBackToldCopies();
                         // A store write not yet flushed would land on top of the raw restore.
                         await gmStoresIdle();
                         await restore(snap);
@@ -634,6 +651,7 @@ async function runSuite(tier, only = null, cut = { index: 1, count: 1 }) {
         }
     } finally {
         writes.stop();
+        (await import("./remnants.mjs")).closeToldScope();
         (await import("./body-tile.mjs")).holdBodyTiles(null);
         // Released whatever happened above; a hold the suite never took is released as a no-op.
         gmStoreHold(false);

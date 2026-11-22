@@ -3,16 +3,16 @@
   "writtenBy": "audit/gate/local-gate.mjs",
   "module": {
     "id": "danganronpa-rpg",
-    "version": "1.2.124"
+    "version": "1.2.125"
   },
-  "commit": "3675db3d2480fff8e6df1b3f69e30866a94b9114",
+  "commit": "d2a9057aa40f6051c6e9ddadc760eafb4f12b917",
   "bound": {
-    "scripts": "62ff1d0c2f972278c4e3461be30e6fa607ec7c57",
-    "styles": "16d8d1e5fbc72c9b19c3babcb2f691e966f6beed",
+    "scripts": "42a7978f9f60596505d7d3063ac452647f3ce5e4",
+    "styles": "30f8a10bbb82d45d55e6e14906b7d78047bba253",
     "lang": "8d3d06d827936906c1477f51da7f91c2c7d5aa20",
     "fonts": "67a9597cecb677fad7cc6fa7a0fad2608f59299f",
     "icons": "4e0ca61cd4e76b235ce63268f62ed0907293148a",
-    "module.json": "df3201270544468be537c4cfdf8f6194a42e8b94",
+    "module.json": "563b75c7e24a7997506d4fc5c811f5e73f2978a1",
     "audit/gate/local-gate.mjs": "d98d6271b80ec1afae5e7c680b55e8d799899197",
     "audit/gate/gate-lib.mjs": "dc72798601b4f192d6b89403bc6298ff25b8bf67",
     "audit/live": "b2efd94136a6dbcaac935ab45c1a3490b8004fa8",
@@ -25,8 +25,8 @@
     "audit/harness/scenarios/83-roll-integrity.mjs": "34abed6aeb225c69f7d9805b512539334066368b",
     "audit/harness/scenarios/84-viewports.mjs": "728b2c2ae9533e178568cb1acaaf8fe11817e083"
   },
-  "startedAt": "2026-11-22T08:15:03.914Z",
-  "finishedAt": "2026-11-22T08:15:14.347Z",
+  "startedAt": "2026-11-22T14:58:51.238Z",
+  "finishedAt": "2026-11-22T14:59:00.965Z",
   "host": {
     "node": "v22.23.5",
     "platform": "linux-x64",
@@ -123,11 +123,11 @@
       "id": "press-live-region",
       "layer": "press",
       "status": "passed",
-      "ranAt": "2026-11-22T08:15:14.269Z",
+      "ranAt": "2026-11-22T14:59:00.902Z",
       "evidence": [
         {
           "path": "audit/gate/evidence/press-live-region.json",
-          "sha256": "4d11cd773f73281c35f7014a23716b7e9c1f95ba2dbf36a0e25124d3e5348a46",
+          "sha256": "b7434ed7089d3318848e9f33bf99f89f2a82e2435c0deb38662cd0f81ef81831",
           "bytes": 2244
         }
       ]
@@ -140,6 +140,6 @@
     "notRun": 8
   },
   "verdict": "incomplete",
-  "digest": "sha256:cce7b4cfdc46cf0415c5ac58582d41d90a1feb04b34e214b5a45c60b84bbf965",
+  "digest": "sha256:f66e858984851aba2ee243ee08d04bea3bc6fe5bb2f007b9e95c288ceb679b84",
   "hmac": null
 }

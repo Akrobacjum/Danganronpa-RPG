@@ -1,6 +1,6 @@
 # Danganronpa RPG - GM Handbook
 
-*For the Foundry VTT v14 module "Danganronpa RPG", version 1.2.124, built on the Daggerheart system.*
+*For the Foundry VTT v14 module "Danganronpa RPG", version 1.2.125, built on the Daggerheart system.*
 
 This is the handbook for the people running the killing game. It follows the order a season is built and played: install, set up, run a day, run a murder, run an investigation, run a trial, end the chapter, start again. Where a decision is the GM's to make rather than the module's, the text says so.
 
@@ -1383,7 +1383,7 @@ The player declares how they are looking:
 
 The roll is scored against the Remnant's real type and visibility (the table below), and the player is told the outcome, never which DC applied. A hit copies the Remnant into their inventory as a Neutral Truth Bullet and leaves the original; a miss costs **1 Sanity**. One Remnant yields one copy per person, and Remnants tied to the murder are shown first. The first time anyone copies a Remnant, you are asked to describe it (name, player text and analysis text, prefilled); everyone who copies it later gets the same words, and a critical asks you again only for the bigger hint.
 
-**A Remnant its leaver is told of is their copy at once** (1.2.124). When an action's card tells the player they leave a Remnant behind - Hope, a critical, or an incident's Remnant they are in - the character that left it gets its Neutral Truth Bullet at once, made as an Observe hit makes it, with no roll and no type recognized. You are not asked to describe it for this copy; its first Observe by anyone else asks as usual. Nobody else in the room gets one, a plain Despair gives none, and a later Observe by the same character skips it. A Reroll that turns the Hope into Despair leaves the copy.
+**A Remnant its leaver is told of is their copy at once** (1.2.124). When an action's card tells the player they leave a Remnant behind - Hope, a critical, or an incident's Remnant they are in - the character that left it gets its Neutral Truth Bullet at once, made as an Observe hit makes it, with no roll and no type recognized. You are not asked to describe it for this copy; its first Observe by anyone else asks as usual. Nobody else in the room gets one, a plain Despair gives none, and a later Observe by the same character skips it. A Reroll that turns the Hope into Despair leaves the copy. Since 1.2.125 this copy is not a find: the case summary, the dashboard's "Found by", the case map and the Key Remnants count only what someone else found, so a Remnant held by its leaver alone still reads as not found.
 
 | Visibility | Daily Life | Key | Faint | Prep / Incident / Tamper |
 |---|---|---|---|---|

@@ -31713,6 +31713,50 @@ const INVARIANTS = [
         equal(stableJson(read), stableJson(["Search - Botan Kage · Workshop a crowbar", "Is the door locked?", "Search"]),
             "[a ruling card; a chat line; a title alone]");
     }],
+    ["R8656 - the GM's messenger window opens at its own size every time, 980 x 680, and a player's at 544 x 520, each where it was last left: a saved place (left, top) is kept and no size is saved (1.2.125 HOTFIX-125, the audit's r124-C-1)", async () => {
+        /*
+         * The audit of 1.2.124 (r124-C-1): the window's constructor spread the player window's default size under a saved
+         * place (messenger-app.mjs `DrpgMessengerApp`), so the GM's window, built on it, opened at 544 x 520 from its second
+         * opening on - the first close saves its place. On a GM's page with a player: the setting
+         * `messengerWindowPositions` read through a stand-in of game.settings.get holding a place for "gm" and for the
+         * player, and its writes held (`holdMessengerPositions`); the GM's window opened, read, closed, opened again and
+         * read; a player's window built (not drawn) and its position read, each as the window asks for it. Put back in
+         * `finally`. Red at 206148b7 (v1.2.124): the GM's window asked for 544 x 520 at both openings.
+         */
+        must(game.user.isGM, "the GM's window is a GM's");
+        needs(world.atLeast("playerAccounts", 1));
+        const A = await import("./messenger-app.mjs");
+        must(!A.gmMessengerWindow(), "the GM's messenger window is open - close it: this test opens its own");
+        const player = game.users.find(u => !u.isGM);
+        const PLACES = { gm: { left: 120, top: 40 }, [player.id]: { left: 300, top: 60 } };
+        const settings = game.settings, ownGet = Object.prototype.hasOwnProperty.call(settings, "get"), realGet = settings.get;
+        const putPositionsBack = holdMessengerPositions();
+        const read = {};
+        try {
+            settings.get = function (scope, key, ...rest) {
+                if (scope === MODULE_ID && key === SETTINGS.messengerWindowPositions) return foundry.utils.deepClone(PLACES);
+                return realGet.call(this, scope, key, ...rest);
+            };
+            /* What the window asks for (`options.position`): the harness's screen is about 1024 px wide, and a window drawn
+               there is kept inside it (976 px, its place moved), as Foundry keeps one inside a small screen. */
+            const box = app => { const p = app?.options?.position ?? {}; return [p.width, p.height, p.left, p.top]; };
+            for (const label of ["first", "second"]) {
+                const app = A.openMessenger();
+                await until(() => app?.rendered, 2000);
+                read[label] = box(app);
+                await app?.close();
+            }
+            const thread = new A.DrpgMessengerApp(player.id);
+            const p = thread.options.position ?? {};
+            read.player = [p.width, p.height, p.left, p.top];
+        } finally {
+            if (ownGet) settings.get = realGet; else delete settings.get;
+            await A.gmMessengerWindow()?.close();
+            putPositionsBack();
+        }
+        equal(stableJson(read), stableJson({ first: [980, 680, 120, 40], second: [980, 680, 120, 40], player: [544, 520, 300, 60] }),
+            "[the GM's window at its first and its second opening, then a player's window built: width, height, left, top]");
+    }],
     ["R1067 - the cue playlist cannot be mapped: the Music tab offers it in no select, a stored mapping onto it is dropped by the primary GM alone with one write of the map without that key (the other keys kept, a second call writing nothing), and playlistFor answers null for it (E50 C3; S11-47, E50-23, Q-E50-1)", async () => {
         /*
          * E50 C3, 30.10.2026; audit S11-47 and the owner's answer on Q-E50-1 (30.10: the mapping is removed by itself).
@@ -66459,9 +66503,49 @@ const INVARIANTS = [
                 && /game\.actors\.get\(data\.sourceActor\)/.test(fnSource(src("remnants.mjs"), "noteToldTrace") ?? "")
         };
         equal(stableJson({ rule, claim: [claim(true), claim(false), claim("yes")], callers }), stableJson({
-            rule: [true, true, false, false, true, true], claim: [true, false, false],
+            /* The incident's two stand-ins name no leaver, so since 1.2.125 (r124-T1-2) neither is told: an incident's trace is told
+               on a Despair to a leaver D11 shows it to alone (`incidentShowsTo`, R8693). */
+            rule: [true, true, false, false, false, false], claim: [true, false, false],
             callers: { search: true, hideTraces: true, sabotage: true, dynamic: true, discard: true, tamper: true, crisis: true, reroll: 2, placed: true, held: true, copy: true }
         }), "{rule: Hope, a critical, a plain Despair, nothing placed, an incident's trace on a Despair, the same through its document; claim: a player's told kept only when it is true; callers: each placement carries the card's answer, the GM's roads give the copy, the primary holds a claim to its record of the roll, and the copy is the leaver's, made as a hit's with no word to the GMs}");
+    }],
+    ["R8693 - an incident's trace is told on a Despair only to a leaver D11 shows it to: the killer, the victim, a third on the killer's side, never a victim-side third or someone outside the cast (remnants.mjs `incidentShowsTo`, read by `shownToItsCast`; visibility.mjs `inTheIncident`; the auditor's r124-T1-2, 1.2.125)", async () => {
+        /* Red at 206148b7: no `incidentShowsTo` - `shownToItsCast` read the token's `fromIncident` alone, so a victim-side
+           third's Escape Together on a plain Despair was told of, and given, a trace its own screen never draws. Pure, on
+           stand-in ids; nothing written. */
+        const R = await import("./remnants.mjs");
+        must(typeof R.incidentShowsTo === "function", "no `incidentShowsTo`: every leaver of an incident's trace is told of it");
+        const cast = side => ({ killerId: "K", victimId: "V", thirdId: "T", thirdSide: side });
+        const of = (id, side) => R.incidentShowsTo(id, ["K", "V", "T"], cast(side));
+        equal(stableJson([of("K", "victim"), of("V", "victim"), of("T", "victim"), of("T", "killer"), of("X", "killer"), of(null, "killer"),
+            R.incidentShowsTo("K", [], {})]), stableJson([true, true, false, true, false, false, false]),
+            "[the killer, the victim, a victim-side third, a killer-side third, one outside the cast, no leaver, the killer with no cast]");
+    }],
+    ["R8692 - a told copy is named for the suite's take-back only while a tier-2 test's scope is open, and as it was asked for: none before the scope, none asked for outside it, each one of the scope taken once (remnants.mjs `openToldScope`, `closeToldScope`, `noteToldCopyMade`, `takeToldCopies`; 1.2.125 H1)", async () => {
+        /* Red at 206148b7: no scope - every copy made since the page loaded was named, and tier 2 deleted a played world's
+           copies at its first restore (the coordinator's H1, 22.11.2026). Stand-in uuids, in memory alone; the scope is put
+           back as it was found. Tier 2's "1.2.125 H1" makes the copies and runs the runner's own step. */
+        const R = await import("./remnants.mjs");
+        must(typeof R.openToldScope === "function" && typeof R.noteToldCopyMade === "function",
+            "no told scope (remnants.mjs `openToldScope`, `noteToldCopyMade`): every copy made since the page loaded is named");
+        const was = R.toldScopeOpen();
+        let read = null;
+        try {
+            R.closeToldScope();
+            R.noteToldCopyMade("R8692.before");
+            R.openToldScope();
+            R.noteToldCopyMade("R8692.inside");
+            R.noteToldCopyMade("R8692.askedOutside", false);
+            R.noteToldCopyMade(null);
+            const first = R.takeToldCopies(), second = R.takeToldCopies();
+            R.closeToldScope();
+            R.noteToldCopyMade("R8692.after");
+            read = { first, second, closed: R.takeToldCopies(), open: R.toldScopeOpen() };
+        } finally {
+            if (was) R.openToldScope(); else R.closeToldScope();
+        }
+        equal(stableJson(read), stableJson({ first: ["R8692.inside"], second: [], closed: [], open: false }),
+            "{first: the take after a copy before the scope, one inside it, one asked for outside it and none; second: the next take; closed: after the scope closed; open: the scope then}");
     }],
     ["R8050 - Foundry's token HUD holds only the controls kept (1.2.120 line H; the owner, 21.11.2026: \"Niepotrzebne jest: combat, target, movement action, assign status, liczby na gorze i na dole i elevation\"): token-hud.mjs `trimHudFor` on Daggerheart 2.12.8's tokenHUD.hbs as drawn for a GM leaves the floor's palette, bring to front, the companion's button, lock, the token's settings and visibility, with no input, status palette, movement palette, target or combat; as drawn for a player it leaves nothing, the HUD marked not to be drawn (the owner, 21.11.2026: \"Niech gracz nie ma menu tokena\")", async () => {
         /*
@@ -67430,7 +67514,7 @@ const INVARIANTS = [
             bedroomCalls: (src("doors-gm.mjs").match(/whisperToOwnerOnly\(owner, await bedroomCard\([^)]*\)[^;]*bedroomExtra\(/g) ?? []).length,
             body: /popupCentre: "bodyFound"/.test(src("body.mjs")),
             // Shut, Force the Door, Pick the Lock (with its cover), Keep Watch and Dash: their roll over their sentence
-            infiltrate: [["action-doors.mjs", 3], ["action-watch.mjs", 1], ["action-listen.mjs", 1]].map(([f, n]) => (src(f).match(/whisperToOwner\(actor, \.\.\.rollResultCard\(/g) ?? []).length === n),
+            infiltrate: [["action-doors.mjs", 3], ["action-watch.mjs", 1], ["action-listen.mjs", 1]].map(([f, n]) => (src(f).match(/whisperToOwner\(actor, \.\.\.(?:rollResultCard|doorCard)\(/g) ?? []).length === n), // doorCard since 1.2.125 (R8677)
             cover: /extra: coverLine/.test(src("action-doors.mjs")) && /neededNote\(rule\.cover\.threshold\)/.test(src("action-doors.mjs")),
             tamper: /popupCentre: "actionResult", \.\.\.\(success \? \{\} : \{ sfx: "cleanupFailed" \}\)/.test(src("cleanup.mjs"))
         }), stableJson({ rollCard: "actionResult", report: true, tail: true, bedroom: true, bedroomCalls: 2, body: true, infiltrate: [true, true, true], cover: true, tamper: true }),
@@ -67495,6 +67579,49 @@ const INVARIANTS = [
         equal(stableJson({ html: a.html === b.html, text: a.text === b.text, title: a.title === b.title, centreOnly: entries.some(e => String(e.html).includes("drpg-centre-only")), shown: Boolean(shown) }),
             stableJson({ html: true, text: true, title: true, centreOnly: false, shown: true }),
             "{html, text, title: the corner's and the middle's entries the same; centreOnly: an addition kept; shown: the middle showed it}");
+    }],
+    ["R8677 - a centred door card's mark agrees with its sentence (the auditor's r124-N-1, HOTFIX-125; 1.2.125 line UI): action-doors.mjs `doorCard` for Force the Door and Pick the Lock writes \"reached\" or \"not reached\" only where the lock's one number decided the outcome - a lock or a seal alone - and \"needed N\" without a mark where a barricade held or nothing did; drawn centred by popup.mjs, each case's mark is the sentence's", async () => {
+        /* Red at 206148b7 (v1.2.124): no `doorCard`; the card the door actions posted there (`rollResultCard` with the
+           lock's number) marked a barricade's door "reached" beside "The door ... holds", and one a barricade alone held
+           "not reached" beside "gives way" (doors-gm.mjs `forceDoor`, `pickLock`: a barricade is passed by its strength,
+           not by the lock's 18, and stops a pick whatever the roll). */
+        const A = await import("./action-doors.mjs");
+        const R = await import("./action-report.mjs");
+        const P = await import("./popup.mjs");
+        const { cardMarkup } = await import("./chat-card.mjs");
+        const { INFILTRATE } = await import("./config.mjs");
+        const roll = (total, dc) => ({ total, dc, trait: "body", withHope: true, raw: { total, hope: { total: Math.ceil(total / 2) }, fear: { total: 2 }, data: { traits: {} } } });
+        const sentence = (kind, done, held) => game.i18n.format(`DRPG.Infiltrate.${kind}.${done ? (kind === "force" ? "forced" : "opened") : held.length ? "held" : "open"}`, { room: "R8677 room" });
+        // what the poster built at 206148b7, when it has no `doorCard`
+        const build = (kind, rolled, done, held) => (typeof A.doorCard === "function"
+            ? A.doorCard(kind, kind === "force" ? "Force the Door" : "Pick the Lock", rolled, { done, held, room: "R8677 room" })
+            : R.rollResultCard(kind === "force" ? "Force the Door" : "Pick the Lock", rolled, `<p>${foundry.utils.escapeHTML(sentence(kind, done, held))}</p>`));
+        const markOf = ([spec, flags]) => {
+            const close = P.showPopup(cardMarkup(spec), { title: "R8677", centre: true, record: false });
+            const card = document.querySelector("#drpg-notice-centre .drpg-popup:not(.leaving)");
+            const mark = card?.querySelector(".drpg-duality-mark")?.textContent ?? null;
+            const words = card?.querySelector(".drpg-duality-needed")?.textContent ?? null;
+            close?.({ instant: true });
+            return [mark, Boolean(words)];
+        };
+        const reached = game.i18n.localize("DRPG.Popup.centre.reached"), short = game.i18n.localize("DRPG.Popup.centre.short");
+        const force = INFILTRATE.force.lockDc, pick = INFILTRATE.pick.dc;
+        const cases = {
+            // a barricade stronger than the roll holds a locked door the roll would have opened
+            forceBarricadeHolds: markOf(build("force", roll(force + 1, force), false, ["barricade", "lock"])),
+            // a barricade weaker than the roll gives way with no lock behind it, the roll under the lock's number
+            forceBarricadeGives: markOf(build("force", roll(force - 4, force), true, ["barricade"])),
+            forceLockGives: markOf(build("force", roll(force + 1, force), true, ["lock"])),
+            forceLockHolds: markOf(build("force", roll(force - 1, force), false, ["lock"])),
+            // a barricade stops a pick whatever the roll
+            pickBarricade: markOf(build("pick", roll(pick + 2, pick), false, ["barricade", "lock"])),
+            pickLockOpens: markOf(build("pick", roll(pick + 1, pick), true, ["lock"]))
+        };
+        must(cases.forceLockGives[1], "no centred card with its number beside the dice was drawn - this would measure nothing");
+        equal(stableJson(cases), stableJson({
+            forceBarricadeHolds: [null, true], forceBarricadeGives: [null, true], forceLockGives: [reached, true], forceLockHolds: [short, true],
+            pickBarricade: [null, true], pickLockOpens: [reached, true]
+        }), "{each case: [the mark beside the dice, \"needed N\" shown] - a barricade's case says the number and no mark; a lock's says the mark its sentence says}");
     }],
     ["R8431 - the token HUD's on toggles and its focus read under Stained Glass with high contrast (the audit of 1.2.120, H-1, H-7; 1.2.122 line UI): a rule under high contrast and the glass gives `.control-icon.active` the Bone ground and the Ink glyph after the high-contrast ground, and the glass draws the focus ring inside the hexagon (a negative `outline-offset`)", async () => {
         /* Red at 21bf5d18: the high-contrast rule (1,5,1) took the on toggle's ground to Ink under an Ink glyph, and the
