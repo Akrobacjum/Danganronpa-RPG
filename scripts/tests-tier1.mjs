@@ -67430,7 +67430,7 @@ const INVARIANTS = [
             bedroomCalls: (src("doors-gm.mjs").match(/whisperToOwnerOnly\(owner, await bedroomCard\([^)]*\)[^;]*bedroomExtra\(/g) ?? []).length,
             body: /popupCentre: "bodyFound"/.test(src("body.mjs")),
             // Shut, Force the Door, Pick the Lock (with its cover), Keep Watch and Dash: their roll over their sentence
-            infiltrate: [["action-doors.mjs", 3], ["action-watch.mjs", 1], ["action-listen.mjs", 1]].map(([f, n]) => (src(f).match(/whisperToOwner\(actor, \.\.\.rollResultCard\(/g) ?? []).length === n),
+            infiltrate: [["action-doors.mjs", 3], ["action-watch.mjs", 1], ["action-listen.mjs", 1]].map(([f, n]) => (src(f).match(/whisperToOwner\(actor, \.\.\.(?:rollResultCard|doorCard)\(/g) ?? []).length === n), // doorCard since 1.2.125 (R8677)
             cover: /extra: coverLine/.test(src("action-doors.mjs")) && /neededNote\(rule\.cover\.threshold\)/.test(src("action-doors.mjs")),
             tamper: /popupCentre: "actionResult", \.\.\.\(success \? \{\} : \{ sfx: "cleanupFailed" \}\)/.test(src("cleanup.mjs"))
         }), stableJson({ rollCard: "actionResult", report: true, tail: true, bedroom: true, bedroomCalls: 2, body: true, infiltrate: [true, true, true], cover: true, tamper: true }),
@@ -67495,6 +67495,49 @@ const INVARIANTS = [
         equal(stableJson({ html: a.html === b.html, text: a.text === b.text, title: a.title === b.title, centreOnly: entries.some(e => String(e.html).includes("drpg-centre-only")), shown: Boolean(shown) }),
             stableJson({ html: true, text: true, title: true, centreOnly: false, shown: true }),
             "{html, text, title: the corner's and the middle's entries the same; centreOnly: an addition kept; shown: the middle showed it}");
+    }],
+    ["R8677 - a centred door card's mark agrees with its sentence (the auditor's r124-N-1, HOTFIX-125; 1.2.125 line UI): action-doors.mjs `doorCard` for Force the Door and Pick the Lock writes \"reached\" or \"not reached\" only where the lock's one number decided the outcome - a lock or a seal alone - and \"needed N\" without a mark where a barricade held or nothing did; drawn centred by popup.mjs, each case's mark is the sentence's", async () => {
+        /* Red at 206148b7 (v1.2.124): no `doorCard`; the card the door actions posted there (`rollResultCard` with the
+           lock's number) marked a barricade's door "reached" beside "The door ... holds", and one a barricade alone held
+           "not reached" beside "gives way" (doors-gm.mjs `forceDoor`, `pickLock`: a barricade is passed by its strength,
+           not by the lock's 18, and stops a pick whatever the roll). */
+        const A = await import("./action-doors.mjs");
+        const R = await import("./action-report.mjs");
+        const P = await import("./popup.mjs");
+        const { cardMarkup } = await import("./chat-card.mjs");
+        const { INFILTRATE } = await import("./config.mjs");
+        const roll = (total, dc) => ({ total, dc, trait: "body", withHope: true, raw: { total, hope: { total: Math.ceil(total / 2) }, fear: { total: 2 }, data: { traits: {} } } });
+        const sentence = (kind, done, held) => game.i18n.format(`DRPG.Infiltrate.${kind}.${done ? (kind === "force" ? "forced" : "opened") : held.length ? "held" : "open"}`, { room: "R8677 room" });
+        // what the poster built at 206148b7, when it has no `doorCard`
+        const build = (kind, rolled, done, held) => (typeof A.doorCard === "function"
+            ? A.doorCard(kind, kind === "force" ? "Force the Door" : "Pick the Lock", rolled, { done, held, room: "R8677 room" })
+            : R.rollResultCard(kind === "force" ? "Force the Door" : "Pick the Lock", rolled, `<p>${foundry.utils.escapeHTML(sentence(kind, done, held))}</p>`));
+        const markOf = ([spec, flags]) => {
+            const close = P.showPopup(cardMarkup(spec), { title: "R8677", centre: true, record: false });
+            const card = document.querySelector("#drpg-notice-centre .drpg-popup:not(.leaving)");
+            const mark = card?.querySelector(".drpg-duality-mark")?.textContent ?? null;
+            const words = card?.querySelector(".drpg-duality-needed")?.textContent ?? null;
+            close?.({ instant: true });
+            return [mark, Boolean(words)];
+        };
+        const reached = game.i18n.localize("DRPG.Popup.centre.reached"), short = game.i18n.localize("DRPG.Popup.centre.short");
+        const force = INFILTRATE.force.lockDc, pick = INFILTRATE.pick.dc;
+        const cases = {
+            // a barricade stronger than the roll holds a locked door the roll would have opened
+            forceBarricadeHolds: markOf(build("force", roll(force + 1, force), false, ["barricade", "lock"])),
+            // a barricade weaker than the roll gives way with no lock behind it, the roll under the lock's number
+            forceBarricadeGives: markOf(build("force", roll(force - 4, force), true, ["barricade"])),
+            forceLockGives: markOf(build("force", roll(force + 1, force), true, ["lock"])),
+            forceLockHolds: markOf(build("force", roll(force - 1, force), false, ["lock"])),
+            // a barricade stops a pick whatever the roll
+            pickBarricade: markOf(build("pick", roll(pick + 2, pick), false, ["barricade", "lock"])),
+            pickLockOpens: markOf(build("pick", roll(pick + 1, pick), true, ["lock"]))
+        };
+        must(cases.forceLockGives[1], "no centred card with its number beside the dice was drawn - this would measure nothing");
+        equal(stableJson(cases), stableJson({
+            forceBarricadeHolds: [null, true], forceBarricadeGives: [null, true], forceLockGives: [reached, true], forceLockHolds: [short, true],
+            pickBarricade: [null, true], pickLockOpens: [reached, true]
+        }), "{each case: [the mark beside the dice, \"needed N\" shown] - a barricade's case says the number and no mark; a lock's says the mark its sentence says}");
     }],
     ["R8431 - the token HUD's on toggles and its focus read under Stained Glass with high contrast (the audit of 1.2.120, H-1, H-7; 1.2.122 line UI): a rule under high contrast and the glass gives `.control-icon.active` the Bone ground and the Ink glyph after the high-contrast ground, and the glass draws the focus ring inside the hexagon (a negative `outline-offset`)", async () => {
         /* Red at 21bf5d18: the high-contrast rule (1,5,1) took the on toggle's ground to Ink under an Ink glyph, and the

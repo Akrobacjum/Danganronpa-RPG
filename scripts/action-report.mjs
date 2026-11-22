@@ -198,10 +198,12 @@ export function rollCardFlags(def, roll) {
  * where the action's window named a number to beat - `rollTrait`'s `dc`) over the same sentence, under the Infiltrate
  * tile's glyph as before, and its flags (`rollCardFlags`): the action's title, the roll's tone and the middle of the
  * roller's screen. `lines` are the card's own paragraphs, already markup; `extra` more lines before them (a supporting
- * roll). Answers `[spec, flags]` for `whisperToOwner(actor, ...)`.
+ * roll). `decides` false where the number the window named did not decide the outcome (a door a barricade held): the card
+ * still says "needed N", and the centred notice marks no "reached" (the auditor's r124-N-1, 1.2.125). Answers
+ * `[spec, flags]` for `whisperToOwner(actor, ...)`.
  */
-export function rollResultCard(label, roll, lines, { extra = "" } = {}) {
-    return [{ glyph: "ACTIONS.listen", body: `${rollHead({ label }, roll)}${extra}${lines}` }, rollCardFlags({ label }, roll)];
+export function rollResultCard(label, roll, lines, { extra = "", decides = true } = {}) {
+    return [{ glyph: "ACTIONS.listen", body: `${rollHead({ label }, roll, { decides })}${extra}${lines}` }, rollCardFlags({ label }, roll)];
 }
 
 /**
@@ -220,8 +222,9 @@ export function rollResultCard(label, roll, lines, { extra = "" } = {}) {
  * `supersedingRoll` - so a card that showed only a total would have taken the
  * two faces off the table rather than moved them.
  */
-export function rollHead(def, roll) {
+export function rollHead(def, roll, { decides = true } = {}) {
     return cardHead({
+        decides,
         action: def.label,
         total: roll?.total,
         result: roll?.isCritical ? game.i18n.localize("DRPG.Action.critical") : null,

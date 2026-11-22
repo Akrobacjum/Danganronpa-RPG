@@ -48,6 +48,22 @@ export async function performShut(actor, options = {}) {
     return { room, roll };
 }
 
+/**
+ * A door action's card (Force the Door, Pick the Lock; 1.2.124, 1.2.125): its roll's head and dice and the sentence of what
+ * the door did (`done` forced or opened, else held by what `held` names, else nothing held it), through action-report.mjs
+ * `rollResultCard`. The roll's window named the lock's number (`rollTrait`'s `dc`: Force's 18, Pick's 15), and the card
+ * says "needed N" with it; whether the total reached it is marked only where that number decided the outcome - the door
+ * held by a lock or a seal alone (doors-gm.mjs `forceDoor` judges both by the lock's number, `pickLock` opens nothing a
+ * barricade holds). A barricade is passed by its own strength and stops a pick whatever the roll, and an open door holds
+ * nothing: there a mark beside the lock's number said "reached" beside "The door ... holds", or "not reached" beside
+ * "gives way" (the auditor's r124-N-1, read on v1.2.124; R8677). Answers `[spec, flags]` for `whisperToOwner`.
+ */
+export function doorCard(kind, label, roll, { done = false, held = [], room = "", extra = "" } = {}) {
+    const key = done ? (kind === "force" ? "forced" : "opened") : held.length ? "held" : "open";
+    const decides = held.length > 0 && !held.includes("barricade");
+    return rollResultCard(label, roll, `<p>${esc(game.i18n.format(`DRPG.Infiltrate.${kind}.${key}`, { room }))}</p>`, { extra, decides });
+}
+
 /** Force the Door: the door, the action, the Body roll, the ask. Answers `{ forced, held, room, roll }` or null. */
 export async function performForce(actor, options = {}) {
     const { gmOnline, sayNotDone } = await import("./bridge-guards.mjs");
@@ -95,9 +111,8 @@ export async function performForce(actor, options = {}) {
     const forced = res.value?.forced === true;
     const held = Array.isArray(res.value?.held) ? res.value.held : [];
     const shown = labelOf.get(room) ?? room;
-    const key = forced ? "forced" : held.length ? "held" : "open";
-    // With its roll against the lock's number, in the middle of the roller's screen (`rollResultCard`, 1.2.124).
-    await whisperToOwner(actor, ...rollResultCard(label, roll, `<p>${esc(game.i18n.format(`DRPG.Infiltrate.force.${key}`, { room: shown }))}</p>`));
+    // With its roll against the lock's number, in the middle of the roller's screen (`doorCard`, 1.2.124; 1.2.125).
+    await whisperToOwner(actor, ...doorCard("force", label, roll, { done: forced, held, room: shown }));
     return { forced, held, room, roll };
 }
 
@@ -157,10 +172,9 @@ export async function performPick(actor, options = {}) {
     const opened = res.value?.opened === true;
     const held = Array.isArray(res.value?.held) ? res.value.held : [];
     const shown = labelOf.get(room) ?? room;
-    const key = opened ? "opened" : held.length ? "held" : "open";
     // With both rolls - the Hand against the lock's number, the cover against its own (`neededNote`) - in the middle of
-    // the roller's screen (`rollResultCard`, 1.2.124).
+    // the roller's screen (`doorCard`, 1.2.124; 1.2.125).
     const coverLine = `<p><small>${esc(game.i18n.localize("DRPG.Infiltrate.pick.coverTitle"))} - <b>${esc(String(cover.total ?? ""))}</b>${esc(neededNote(rule.cover.threshold))}</small></p>`;
-    await whisperToOwner(actor, ...rollResultCard(label, roll, `<p>${esc(game.i18n.format(`DRPG.Infiltrate.pick.${key}`, { room: shown }))}</p>`, { extra: coverLine }));
+    await whisperToOwner(actor, ...doorCard("pick", label, roll, { done: opened, held, room: shown, extra: coverLine }));
     return { opened, held, room, roll };
 }
