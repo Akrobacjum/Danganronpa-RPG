@@ -65,7 +65,7 @@ Key to the columns:
 | 40 | Tamper - a Misleading Trail, Move the Body (Stage Six) | cleanup.mjs `resolveStageSix` | GM | no | **yes** |
 | 41 | Direct Murder - the opening roll scored | murder-rules.mjs `announceOpening` | GM | no | **yes** |
 | 42 | Direct Murder - a killer's own Stage 4 went through | murder-rules.mjs `resolveKillerOpening` | GM | no | **yes** |
-| 43 | Every crisis action (Use an Item, Leave a Clue, Secure a Trace, Self-Defence, Survive, Role Reversal, Strike, Pin, Keep Distance, Weapon Attack, Finishing Blow, Escape Together, Double Role Reversal, Crime Partners, Averted Eyes) | murder-rules.mjs `announceCrisis` (the card and its hidden copy) | GM | no | **yes** |
+| 43 | Every crisis action (Use an Item, Leave a Clue, Secure a Trace, Self-Defence, Survive, Role Reversal, Strike, Pin, Keep Distance, the weapon swing (`weaponAttack`), Finishing Blow, Escape Together, Double Role Reversal, Crime Partners, Averted Eyes) | murder-rules.mjs `announceCrisis` (the card and its hidden copy) | GM | no | **yes** |
 | 44 | Use an Item | use-items.mjs `useItem` | P | no | **yes** |
 | 45 | Use an Item creatively - the GM's ruling | use-items.mjs `grantItemEffect` | GM (the ruling GM) | no | **yes** |
 | 46 | A stash rifled - what was taken | stash-reach.mjs `stealFromVault` | GM | no | **yes** |
