@@ -1734,20 +1734,34 @@ export async function setRemnantPublicById(sceneId, tokenId, patch = {}) {
 }
 
 /*
- * THE COPIES NOBODY WAITS ON, HELD WHERE THE SUITE CAN SETTLE THEM (1.2.124; the release CI of 22.11.2026, shard 3/8:
- * fifteen tier-2 tests read "restore left: Actor ... items.<id> appeared"). A told trace's copy is made after its card,
- * and no action waits on it at a table (`giveToldCopy`). A test does not wait either, so the copy landed after the
- * runner's restore had put the world back. Each copy in flight stands in `pendingToldCopies` until it lands or fails,
- * and the runner awaits `settleToldCopies` before it restores (tests.mjs). Nothing at a table reads the set.
+ * THE COPIES NOBODY WAITS ON, HELD WHERE THE SUITE CAN SETTLE THEM (1.2.124; the release CI of 22.11.2026, shards 3-8:
+ * about seventy tier-2 tests read "restore left: Actor ... items.<id> appeared"). A told trace's copy is made after its
+ * card, and no action waits on it at a table (`giveToldCopy`). A test does not wait either, and does not know of it: the
+ * copy landed after the runner's restore, or before it with nobody to take it away. Each copy in flight stands in
+ * `pendingToldCopies` until it lands or fails, and each one made is named in `toldCopiesMade`: the runner awaits
+ * `settleToldCopies` and takes back exactly the copies `takeToldCopies` names before it restores (tests.mjs), so any
+ * other item a test leaves still fails as "appeared". Nothing at a table reads either set; `toldCopiesMade` holds uuids
+ * alone, and is emptied by each take.
  */
 const pendingToldCopies = new Set();
+const toldCopiesMade = new Set();
 
 /** `noteToldTrace`, not awaited by its caller, held in `pendingToldCopies` until it settles; a failure is logged. */
 export function giveToldCopy(placed) {
-    const job = noteToldTrace(placed).catch(err => error("Could not give a trace's leaver its copy", err))
+    const job = noteToldTrace(placed).then(item => {
+        if (item?.uuid) toldCopiesMade.add(item.uuid);
+        return item;
+    }).catch(err => error("Could not give a trace's leaver its copy", err))
         .finally(() => pendingToldCopies.delete(job));
     pendingToldCopies.add(job);
     return job;
+}
+
+/** The uuids of the copies `giveToldCopy` made since the last take, and none after: the suite's list to take back. */
+export function takeToldCopies() {
+    const made = [...toldCopiesMade];
+    toldCopiesMade.clear();
+    return made;
 }
 
 /** Every copy in flight, landed (or failed): what tests.mjs awaits before a restore. Answers how many it waited on. */

@@ -563,8 +563,12 @@ async function runSuite(tier, only = null, cut = { index: 1, count: 1 }) {
                     let broke = null;
                     try {
                         await game.drpg.endMurder({ reason: "test", followUp: false });
-                        // A told trace's copy nobody waited on lands before the restore, not after it (1.2.124, remnants.mjs).
-                        await (await import("./remnants.mjs")).settleToldCopies();
+                        /* A told trace's copy nobody waited on lands before the restore, not after it, and the copies the
+                           module made for the test's traces are taken back by name - any other item left still fails below
+                           as "appeared" (1.2.124, remnants.mjs `settleToldCopies`, `takeToldCopies`). */
+                        const told = await import("./remnants.mjs");
+                        await told.settleToldCopies();
+                        for (const uuid of told.takeToldCopies()) await (await fromUuid(uuid))?.delete();
                         // A store write not yet flushed would land on top of the raw restore.
                         await gmStoresIdle();
                         await restore(snap);

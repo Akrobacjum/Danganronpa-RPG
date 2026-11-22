@@ -100,11 +100,6 @@ async function snapshot(cast) {
         // recorded cannot be put back.
         resources: cast.map(a => ({
             id: a.id,
-            /* THE ITEMS EACH HELD (1.2.124; the release CI of 22.11.2026, shard 3/8). A told trace's copy is its leaver's
-               Truth Bullet, made by the module where its card tells of the trace (remnants.mjs `noteToldTrace`) - not by
-               the test - so no test deletes it, and the restore left fifteen "items.<id> appeared". The ids held here, and
-               an item none of them names removed below, after the copies in flight have landed (tests.mjs). */
-            items: new Set((a.items?.contents ?? []).map(i => i.id)),
             hp: a.system?.resources?.hitPoints?.value ?? 0,
             stress: a.system?.resources?.stress?.value ?? 0,
             hope: a.system?.resources?.hope?.value ?? 0,
@@ -375,9 +370,6 @@ async function restore(snap) {
             else if (stableJson(now[key]) !== stableJson(row.flags[key])) update[`flags.${MODULE_ID}.${key}`] = replaced(row.flags[key]);
         }
         await actor.update(update);
-        // An item the actor did not hold at the snapshot - a told trace's copy among them (above) - removed.
-        const appeared = row.items ? (actor.items?.contents ?? []).filter(i => !row.items.has(i.id)).map(i => i.id) : [];
-        if (appeared.length) await actor.deleteEmbeddedDocuments("Item", appeared);
     }
     // The documents that appeared - the helper actors the module makes on first need
     // among them - removed, after the tokens that may stand on them.
@@ -25077,7 +25069,11 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             await R.settleSearch(actor, R.replayBookmark(F.row()), { total: 30, isCritical: false, withHope: true, withFear: false }, done);
             await settle();
             must(drawnHead && done.some(line => line.startsWith(drawnHead)), `the replay drew nothing - this would measure nothing: ${stableJson(done)}`);
-            read = actor.items.filter(i => !had.has(i.id) && !tools.some(t => t?.id === i.id) && !INV.isStashed(i)).length;
+            /* A find carried, not the searcher's copy of the trace the replay left on Hope: that copy is the rule's
+               (1.2.124, remnants.mjs `noteToldTrace`), and a Truth Bullet takes no slot (config.mjs ITEM_CATEGORIES
+               `truthBullet`: no limit, no group). */
+            read = actor.items.filter(i => !had.has(i.id) && !tools.some(t => t?.id === i.id) && !INV.isStashed(i)
+                && i.getFlag(MODULE_ID, "category") !== "truthBullet").length;
         } finally {
             for (const item of [...actor.items]) if (!had.has(item.id)) await item.delete();
             for (const [i, was] of stowed) if (actor.items.has(i.id)) await i.update({ [flag("location")]: was ?? forcedDeletion() });
