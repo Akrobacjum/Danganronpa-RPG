@@ -875,11 +875,13 @@ async function privately(payload) {
  *   the card. Printed only with a total; the card goes to whom it went before.
  * @returns {string} the `<p>`, or "" when there is nothing to put in it.
  */
-export function cardHead({ action = null, room = null, total = null, result = null, resultKind = null, trait = null, dc = null } = {}) {
+export function cardHead({ action = null, room = null, total = null, result = null, resultKind = null, trait = null, dc = null, decides = true } = {}) {
     const hasTotal = total != null && total !== "";
     const needed = hasTotal && dc != null && dc !== ""
-        // the number itself on `data-dc` too, for the centred notice's "needed N" beside the dice (popup.mjs `centreRoll`)
-        ? ` <small class="drpg-card-needed" data-dc="${esc(dc)}">${esc(game.i18n.format("DRPG.Action.needed", { n: dc }))}</small>` : "";
+        /* the number itself on `data-dc` too, for the centred notice's "needed N" beside the dice and its "reached" mark
+           (popup.mjs `centreRoll`) - only where that number decided the outcome (`decides`): a door a barricade held was
+           judged by the barricade, not by the lock's number the window named (the auditor's r124-N-1, 1.2.125) */
+        ? ` <small class="drpg-card-needed"${decides === false ? "" : ` data-dc="${esc(dc)}"`}>${esc(game.i18n.format("DRPG.Action.needed", { n: dc }))}</small>` : "";
     const slots = [
         action ? `<span class="drpg-card-action">${esc(action)}</span>` : null,
         room ? `<span class="drpg-card-room">${esc(room)}</span>` : null,
