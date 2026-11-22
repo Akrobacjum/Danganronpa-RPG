@@ -3876,7 +3876,8 @@ async function afterIncident(state) {
        this checklist, but only the primary GM announces a body (body.mjs `discoveryHere`): on another GM the primary
        button - the one Enter presses - closed the window and was refused. There it is not drawn, and the note says whose
        the announcement is, in the words the refusal used. */
-    const announcesHere = isPrimaryGm();
+    // And on a second full GM, whose announcement is carried out on the primary (E128, body.mjs `sentToPrimary`).
+    const announcesHere = isPrimaryGm() || game.user?.role === CONST.USER_ROLES.GAMEMASTER;
     const primaryName = game.users.get(primaryGmId() ?? "")?.name ?? "?";
 
     // Zdrada. The guide's fifth walk-in entry, and the one place two bodies come

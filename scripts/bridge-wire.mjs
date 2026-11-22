@@ -60,6 +60,10 @@ export const ACTION_DIFFICULTY = "dynamic.difficulty";
 export const ACTION_AUDIT_DECIDE = "audit.decide";
 /** GM -> primary GM: charge the Key fee as a Class Trial opens (E09 fix r1-G3; key-remnants.mjs `askToChargeForUnfoundKeys`). */
 export const ACTION_KEYS_CHARGE = "keys.charge";
+/** GM -> primary GM: a full GM's body announced (E128; body.mjs `discoverBody`, the discovery the primary's alone). */
+export const ACTION_BODY_DISCOVER = "body.discover";
+/** GM -> primary GM: a full GM's end of the chapter, or its Finish or Drop (E128; chapter.mjs `applyChapterEnd`, `finishChapterEnd`). */
+export const ACTION_CHAPTER_END = "chapter.end";
 /** GM -> primary GM: a step of the vote - open, close, restart, resend or remind (E10 C1; vote.mjs `runVoteOp`). */
 export const ACTION_VOTE_RUN = "vote.run";
 /** player -> primary GM: a ballot (E10 C2; vote.mjs `sendBallot`, `recordBallot`). */

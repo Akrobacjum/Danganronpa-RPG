@@ -828,6 +828,45 @@ export async function run(api) {
     check("P1: gm2's Approve on a Call and Refuse on a Dynamic action the primary no longer holds settle each card as the primary does - the player was no longer waiting - and no \"not done\" is shown (E128)",
         stale.length === 2 && stale.every(r => r.pressed && r.gone && r.buttons === 0) && notDone === 0, J({ stale, notDone, gone }), { flow: "messenger" });
 
+    /* ------------------------------------------------------------------ Q */
+    /* E128, 22.11.2026 (OWNER-128-SECOND-GM, line CORE's inventory row 3). A second full GM's announcement of a body was
+       refused (`DRPG.Chapter.bodyPrimaryOnly`); it is carried out on the primary now (`body.discover`). Daichi's death kept by
+       the GMs; gm2 announces it in a room no region has (17-assistant F1's fixture, with a second full GM in place of the
+       Assistant), then gm presses too. Read on gm: the discovery cards the presses added and their authors, the stamp rows
+       added; on gm2: what its call answered, and whether it was told whose the announcement is. Put back after. Red at
+       9eb89710: gm2 told, its press announcing nothing, and the one card gm's own. */
+    phase("Q a second GM announces a body", { flow: "body-discovery" });
+    const CH = `(await import("${REPO}/scripts/chapter.mjs"))`;
+    const bodyCards = `game.messages.filter(m => m.flags?.["${MOD}"]?.sfx?.key === "bodyFound")`;
+    const stampRows = `Object.values(game.settings.get("${MOD}", "bodiesFound") ?? {}).flat().length`;
+    const q0 = await gm.eval(`const kept = Boolean(await ${CH}.killCharacter(game.actors.get("${IDS.daichi}"), { secret: true, keepBullets: true }));
+        return { kept, scene: canvas.scene.id, cards: ${bodyCards}.map(m => m.id), rows: ${stampRows},
+            stamps: foundry.utils.deepClone(game.settings.get("${MOD}", "bodiesFound") ?? {}), hold: game.settings.get("${MOD}", "bodyFound") ?? {} };`);
+    await settle(800);
+    const gm2Mark = await gm2.eval(`return globalThis.__notifications.length;`);
+    const announceOn = c => c.eval(`return Boolean(await ${CH}.discoverBody({ room: "E128 Q a room no region has",
+        victim: game.actors.get("${IDS.daichi}"), scene: game.scenes.get("${q0.scene}") }));`, { timeout: 60000 });
+    try {
+        // gm2 alone first - the one card must be its press's, made on the primary - then gm's own, which finds it announced.
+        const pressed = [await announceOn(gm2)];
+        await settle(1500);
+        pressed.push(await announceOn(gm));
+        await settle(1200);
+        const q1 = { kept: q0.kept, pressed,
+            ...await gm.eval(`const before = new Set(${J(q0.cards)});
+                return { cards: ${bodyCards}.filter(m => !before.has(m.id)).map(m => m.author?.id ?? m.user?.id ?? null), rows: ${stampRows} - ${q0.rows} };`),
+            told: await gm2.eval(`const said = game.i18n.format("DRPG.Chapter.bodyPrimaryOnly", { name: game.users.get("${IDS.gm}")?.name ?? "?" });
+                return globalThis.__notifications.slice(${gm2Mark}).some(n => n.msg === said);`) };
+        check("Q1: gm2's announcement of a body is carried out on the primary - one card, written by gm, and one stamp row - and gm2 is not told it is the primary's; gm's own press after it adds nothing (E128)",
+            q1.kept && q1.pressed[0] === true && J(q1.cards) === J([IDS.gm]) && q1.rows === 1 && q1.told === false, J(q1), { flow: "body-discovery" });
+    } finally {
+        await gm.eval(`const C = ${CH}; const a = game.actors.get("${IDS.daichi}");
+            if (C.isDeadForGm(a)) await C.reviveCharacter(a, { quiet: true });
+            await game.settings.set("${MOD}", "bodyFound", ${J(q0.hold)});
+            await game.settings.set("${MOD}", "bodiesFound", ${J(q0.stamps)}); return true;`);
+        await settle(600);
+    }
+
     return { primary: { before, joined, afterGmReload, moved, backAgain }, reloads: { p1: r1, gm: r2, card: r3 },
         d153: { before: gBefore, onGm: gAfter, onGm2: gAfter2, found: gFound, gave: gGave } };
 }

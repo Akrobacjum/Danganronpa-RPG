@@ -66000,7 +66000,9 @@ const INVARIANTS = [
         let answer = null;
         try {
             if (ui.notifications) ui.notifications.warn = text => { warned.push(String(text)); };
-            answer = [G.mayEndChapterHere({ primary: false }), G.mayEndChapterHere({ primary: true })];
+            // A GM who is not the primary: an Assistant GM is refused; a second full GM's end goes to the primary (E128).
+            answer = [G.mayEndChapterHere({ primary: false, full: false }), G.mayEndChapterHere({ primary: true }),
+                G.mayEndChapterHere({ primary: false, full: true })];
         } finally {
             if (ui.notifications) ui.notifications.warn = realWarn;
         }
@@ -66009,7 +66011,7 @@ const INVARIANTS = [
             word: /KEPT_FIELDS\] \?\? \[\]\)\.includes\("safeword"\)/.test(season), asks: [asksFirst(season), asksFirst(edit)],
             here: [answer, warned.length] }),
         stableJson({ kept: ["chapter", "day", "phase", "session", "timeOfDay", "safeword"], json: "typed", readNow: true, word: true, asks: [true, true],
-            here: [[false, true], 1] }),
+            here: [[false, true, true], 1] }),
             "{kept: the fields named as taken from the world; json: the answer as JSON still the GM's name; readNow: the clock read again after the questions, and again after the assembly's call-off, right before the write; word: Season setup's safeword line reads them; asks: Season setup's and Edit campaign's End the chapter ask first; here: [as a GM not the primary, as the primary], warnings}");
     }],
     ["R8101 - a settings window's row left as drawn follows its setting, and one the person changed keeps their value (1.2.122 line CORE; the audit of 1.2.118, CORE-27, REFR-28, STG-15): settings-window.mjs `followSettingRows` on a row drawn with the other value than the one stored, told the setting changed (a recorder for Hooks), sets the field to the stored value as drawn (`untouchedField` still true); a second row the person changed is left; `saveSettings` skips a field `untouchedField` reads as drawn", async () => {

@@ -1656,7 +1656,7 @@ A death nobody has found is not mentioned and not published: make it known by ha
 
 **Chapter 6 is the last of a season.** There the next chapter's box starts unticked and a warning says so: reset the season (section 16.2) instead of moving to 7.
 
-Only the primary GM can end the chapter: on another GM's browser the window does not open, and says whom to ask. The window keeps the chapter, session, day and phase it was opened on. If any of them moves before you confirm - by Edit campaign, by a time of day turning into a new day, by another End of chapter, by a Class Trial opened or closed, or by the Investigation started - nothing is done, and the GMs are told to open the window again.
+The chapter's end runs on the primary GM's browser. A second full Gamemaster opens the window on their own browser as well, and what they confirm is carried out by the primary GM's (since 1.2.128); an Assistant GM's window does not open, and says whom to ask. The same holds for announcing a body. The window keeps the chapter, session, day and phase it was opened on. If any of them moves before you confirm - by Edit campaign, by a time of day turning into a new day, by another End of chapter, by a Class Trial opened or closed, or by the Investigation started - nothing is done, and the GMs are told to open the window again.
 
 The steps run one after another. A step that fails is named in a warning and the rest still run, except the next morning, which waits when closing the trial failed. The phase is read again before every step: a Class Trial opened or an Investigation started while the end runs stops it there, what ran stays done, and the GMs are told which of the steps you asked for did not run.
 

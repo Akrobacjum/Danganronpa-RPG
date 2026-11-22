@@ -788,6 +788,32 @@ export async function handleKeysCharge() {
     return { reply: await chargeForUnfoundKeys() };
 }
 
+/** The run of `body.discover` (E128): a second full GM's announcement, run here as the primary's own press runs it. */
+export async function handleBodyDiscover(payload) {
+    const { discoverBody } = await import("./chapter.mjs");
+    const done = await discoverBody({ room: payload.room, victim: game.actors.get(payload.victimId ?? "") ?? null,
+        scene: game.scenes.get(payload.sceneId ?? "") ?? null });
+    return done ? { reply: true } : { refused: "nothing was carried out: the primary GM announced no body (its own checks refused it)" };
+}
+
+/**
+ * The run of `chapter.end` (E128): a second full GM's end of the chapter, or its Finish or Drop, run in this primary's
+ * one queue (chapter.mjs `applyChapterEnd`, `finishChapterEnd`). `opened` is the clock the asker's window was shown on,
+ * kept to its four fields; an end whose clock has moved since is refused there, as the primary's own is.
+ */
+export async function handleChapterEnd(payload) {
+    const C = await import("./chapter.mjs");
+    const o = payload.opened && typeof payload.opened === "object" ? payload.opened : null;
+    const opened = o ? { chapter: Number(o.chapter) || 0, session: Number(o.session) || 0, day: Number(o.day) || 1,
+        phase: typeof o.phase === "string" ? o.phase : null } : null;
+    const lines = payload.finish || payload.drop ? await C.finishChapterEnd({ drop: Boolean(payload.drop) })
+        : await C.applyChapterEnd({ reveal: payload.reveal, sweep: payload.sweep, faint: payload.faint, keys: payload.keys,
+            endTrial: payload.endTrial, nextChapter: payload.nextChapter, nextSession: payload.nextSession,
+            nextMorning: payload.nextMorning, opened });
+    return lines ? { reply: Array.isArray(lines) ? lines.map(String) : true }
+        : { refused: "nothing was carried out: the primary GM's end of the chapter refused it (its own checks)" };
+}
+
 /** The run of `trial.record` (E70 fix p1-G2): the record's write on this primary (trial-progress.mjs `recordOnPrimary`), its answer or null. */
 export async function handleTrialRecord(payload) {
     const { recordOnPrimary } = await import("./vote.mjs");

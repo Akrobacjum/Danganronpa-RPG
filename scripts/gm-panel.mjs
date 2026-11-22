@@ -1116,7 +1116,8 @@ export function nextLineHtml(step) {
 const PRIMARY_ONLY = Object.freeze({ chapterEnd: "DRPG.Chapter.endPrimaryOnly", bodyDialog: "DRPG.Chapter.bodyPrimaryOnly" });
 function primaryOnlyAttrs(action) {
     const key = PRIMARY_ONLY[action];
-    if (!key || isPrimaryGm()) return "";
+    // A second full GM's end and body are carried out on the primary (E128; chapter.mjs, body.mjs): drawn live there.
+    if (!key || isPrimaryGm() || game.user?.role === CONST.USER_ROLES.GAMEMASTER) return "";
     return ` disabled title="${esc(game.i18n.format(key, { name: game.users.get(primaryGmId())?.name ?? "?" }))}"`;
 }
 

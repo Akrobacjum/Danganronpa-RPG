@@ -73,8 +73,10 @@ export const FLOWS = Object.freeze([
         entry: { bridge: ["analyze.resolve"] }, scenarios: ["30-security", "40-flow", "88-flow-length"], status: "partial", stage: "E39" },
     // E12 C5 (11.10.2026): 66-rooms's phase I (a body in a locked room) is tagged with this flow and now named.
     // E12 C12 (11.10.2026): its I1-I4 read whom the discovery counts when a student reached the room past the rules.
+    // E128 (22.11.2026; OWNER-128-SECOND-GM): a second full GM's announcement is carried out on the primary (`body.discover`,
+    // gmOnly); 97-two-gms Q drives it from gm2 beside the primary's own, 30-security sends a player's forged one.
     { id: "body-discovery", what: "A body is found: the finder's client asks, the incident moves on, every screen learns of it",
-        entry: { api: ["discoverBody"] }, scenarios: ["10-murder", "65-season", "66-rooms"], status: "covered", stage: "<=1.2.50" },
+        entry: { api: ["discoverBody"], bridge: ["body.discover"] }, scenarios: ["10-murder", "65-season", "66-rooms", "97-two-gms"], status: "covered", stage: "<=1.2.50" },
     // E29 C8 (05.10.2026): a player's Call on their own character is bought on the GM too - 40 buys one, 30 forges
     // one on the flag and draws a roll naming it, 33 asks for one with no GM connected. E33 C4 (07.10.2026): 83 arms
     // p2's Experience on his own character and his Support on Aiko, and reads the rolls that spend them clean.
@@ -165,9 +167,11 @@ export const FLOWS = Object.freeze([
     // 61-gmstore-case's part RR drives two GMs on one round (the suite's clients hold one GM). Covered as of 1.2.97 (E37's
     // train): each entry is driven by a scenario of the list - setClock and endEclipse in 40, 30, 33 and 61, advanceTimeOfDay
     // in 40 and 61, startEclipse in 61, ready.open, ready.answer and ready.end in 30 and 33.
+    // E128 (22.11.2026; OWNER-128-SECOND-GM): a second full GM's end of the chapter, or its Finish or Drop, is carried out on
+    // the primary (`chapter.end`, gmOnly); 65-season's H drives it from gm2 while the primary's end runs.
     { id: "clock-day", what: "The clock: a GM moves the time of day or opens an Eclipse, the players asked first, every client redraws and refills",
-        entry: { api: ["setClock", "advanceTimeOfDay", "startEclipse", "endEclipse"], bridge: ["ready.open", "ready.answer", "ready.end"] },
-        scenarios: ["40-flow", "14-quiet", "30-security", "33-bridge-paths", "61-gmstore-case"],
+        entry: { api: ["setClock", "advanceTimeOfDay", "startEclipse", "endEclipse"], bridge: ["ready.open", "ready.answer", "ready.end", "chapter.end"] },
+        scenarios: ["40-flow", "14-quiet", "30-security", "33-bridge-paths", "61-gmstore-case", "65-season"],
         status: "covered", stage: "1.2.97" },
     // E17 C3 (26.10.2026): a GM's "Refund last crossing" (`token.refundCrossing`, gmOnly), given back on the primary from the
     // GMs' record of the crossing; tier 2 E17-T6 judges the row as a player's ask and as a GM's. No scenario drives it yet.

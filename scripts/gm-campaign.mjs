@@ -114,10 +114,12 @@ export function untouchedKept(form, result, { clock = getClock(), safeword = und
  * who is not the primary that only the primary ends a chapter - what was typed was gone and a destructive question
  * answered for nothing. Now the press asks first, with chapter.mjs's own words (`DRPG.Chapter.endPrimaryOnly`), and on a
  * GM who is not the primary the window stays as it is. chapter.mjs still refuses on its own road. Answers whether the
- * press may go on. `primary` stands in for `isPrimaryGm()` (R8100 asks it as a GM who is not the primary).
+ * press may go on. `primary` stands in for `isPrimaryGm()`, `full` for a full GM's role (R8100 asks it as an Assistant GM, and
+ * as a second full GM, whose end goes to the primary since E128).
  */
-export function mayEndChapterHere({ primary = isPrimaryGm() } = {}) {
-    if (primary) return true;
+export function mayEndChapterHere({ primary = isPrimaryGm(), full = game.user?.role === CONST.USER_ROLES.GAMEMASTER } = {}) {
+    // A second full GM's end is carried out on the primary (E128; chapter.mjs `endSentToPrimary`): an Assistant GM is told.
+    if (primary || full) return true;
     const name = game.users.get(primaryGmId())?.name ?? "?";
     ui.notifications?.warn(game.i18n.format("DRPG.Chapter.endPrimaryOnly", { name }));
     return false;

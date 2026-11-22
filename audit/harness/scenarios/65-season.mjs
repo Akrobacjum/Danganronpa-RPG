@@ -997,12 +997,18 @@ export async function run({ gm, gm2, gm0, p1, p2, p3, check, phase, settle, conn
     check("LC5: one End of chapter draws the HUD at least once and at most three times on each browser, and passes its sheets at most three times (CORE-LC5)",
         Object.keys(lc5).length === 4 && Object.values(lc5).every(r => r["hud.renderHud"] >= 1 && r["hud.renderHud"] <= 3 && r["clock.refreshSheets"] <= 3),
         J(lc5), { flow: "clock-day" });
-    check("H1: a second GM's End of chapter started on the same clock while the primary's runs is refused and told whose the end is, and the chapter's end counts one session and one day (E11 fix r1-G5)",
-        primary.ended === true && secondGm.ended === null && secondGm.warned === 1
+    /* SINCE E128 (22.11.2026; OWNER-128-SECOND-GM, line CORE's inventory row 4) a second full GM's end is carried out on the
+       primary (`chapter.end`), in the primary's one queue: the two ends on one clock are one end - whichever reaches the
+       queue first; the other is refused there, its clock moved (`endTwice`) - and the second GM is not told the end is the
+       primary's. Before E128 the second GM's was refused at its press, the primary's ran (E11 fix r1-G5's reading). The
+       hold on gm2's first step above no longer runs (the steps are the primary's), so gm2's end reaches the queue first. */
+    const ranOn = [primary.ended === true, Boolean(secondGm.ended) && secondGm.ended !== "null"];
+    check("H1: a second GM's End of chapter and the primary's, started on the same clock, are one end on the primary - one of the two runs, the other is refused - and the chapter's end counts one session and one day; the second GM is not told the end is the primary's (E11 fix r1-G5; E128)",
+        ranOn.filter(Boolean).length === 1 && secondGm.warned === 0
             && after.chapter === opened.chapter && after.session === opened.session + 1 && after.day === opened.day + 1
-            && J(primary.after) === J(after) && J(secondGm.atEnd) === J(after), J({ opened, primary, second: secondGm, after }), { flow: "clock-day" });
-    check("H2: the second GM's End of chapter window is refused before anything is asked, and told whose the end is (E11 fix r1-G5)",
-        secondGm.window === null && J(secondGm.asked) === J([]) && secondGm.windowWarned === 1, J(secondGm), { flow: "clock-day" });
+            && J(primary.after) === J(after) && J(secondGm.atEnd) === J(after), J({ opened, ranOn, primary, second: secondGm, after }), { flow: "clock-day" });
+    check("H2: the second GM's End of chapter window opens - drawn on its own browser, its end carried out on the primary - and it is not told the end is the primary's (E11 fix r1-G5; E128)",
+        secondGm.window === null && J(secondGm.asked) === J(["End the chapter"]) && secondGm.windowWarned === 0, J(secondGm), { flow: "clock-day" });
 
     /* ------------------- K. last season's Key Remnants, autopsy and crime witness ------------------- */
     phase("K: last season's chapter 1 after a reset that keeps the Remnants, the Truth Bullets and the Monocubs", { flow: "season-reset" });
