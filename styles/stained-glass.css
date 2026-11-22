@@ -1277,12 +1277,6 @@ body.drpg-theme-stained-glass #drpg-book-launcher {
     right: calc(var(--drpg-edge) + var(--drpg-launch-clear, 0px));
 }
 
-/* AND THE ROSTER GOES WITH ITS BUTTON. Its right edge is the messenger's (base.css),
-   which stopped being the whole story the moment the button could move: without the
-   clearance the panel would open a rail's width to the right of the button it came from. */
-body.drpg-theme-stained-glass #drpg-messenger-roster {
-    right: calc(var(--drpg-edge, 16px) + var(--drpg-launch-m-right) + var(--drpg-launch-clear, 0px));
-}
 body.drpg-theme-stained-glass #drpg-sound-launcher:hover,
 body.drpg-theme-stained-glass #drpg-book-launcher:hover,
 body.drpg-theme-stained-glass #drpg-foundry-tools:hover,
@@ -3677,8 +3671,9 @@ body.drpg-theme-stained-glass .drpg-panel .window-header .header-control {
    another width is too tall or too short. The height follows the content, to the screen; what is
    taller than the screen scrolls inside the window instead of being cut. The GM's messenger window keeps the height it
    was given (1.2.124, messenger-gm.mjs): its two parts and its list scroll each inside it, which a height that follows
-   the content would undo - the window ran past the screen's foot at 1920 x 1080 (the owner's shots, 22.11.2026). */
-body.drpg-theme-stained-glass .application.drpg-panel:not(.minimized):not(.drpg-messenger-gm) {
+   the content would undo - the window ran past the screen's foot at 1920 x 1080 (the owner's shots, 22.11.2026). Left
+   out in `:where()`, so the rule keeps the weight it had and wins what it won (R1323, R1331, R1333 read that). */
+body.drpg-theme-stained-glass .application.drpg-panel:not(.minimized):where(:not(.drpg-messenger-gm)) {
     height: auto !important;
     max-height: calc(100vh - 24px);
 }

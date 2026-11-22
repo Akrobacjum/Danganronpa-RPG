@@ -140,26 +140,6 @@ export function openMessenger(playerUserId = game.user.id) {
     return app;
 }
 
-/** The GM's messenger window opened, or raised and turned to `view` ("console" or a player's id). */
-export function openGmMessenger(view = "console") {
-    const existing = DrpgGmMessengerApp.current;
-    if (existing) {
-        if (existing.view !== view) existing.setView(view);
-        if (existing.minimized) Promise.resolve(existing.maximize()).catch(err => debug("Could not unfold the messenger", err));
-        existing.bringToFront();
-        return existing;
-    }
-    const app = new DrpgGmMessengerApp(view);
-    DrpgGmMessengerApp.current = app;
-    app.render({ force: true });
-    return app;
-}
-
-/** This browser's GM messenger window, or null (the suite's, and the routing below). */
-export function gmMessengerWindow() {
-    return DrpgGmMessengerApp.current ?? null;
-}
-
 /* ==========================================================================
  * THE CONVERSATION WINDOW
  * ========================================================================== */
@@ -609,12 +589,43 @@ export class DrpgMessengerApp extends DrpgApp() {
     }
 }
 
-/* THE GM'S WINDOW (1.2.124; messenger-gm.mjs): the thread window's class, with the Console and the list of players. */
-const DrpgGmMessengerApp = gmMessengerClass(DrpgMessengerApp, {
+/* THE GM'S WINDOW (1.2.124; messenger-gm.mjs): the thread window's class, with the Console and the list of players.
+   Exported for the suite alone (R1339 stands a folded window in as `current`). */
+export const DrpgGmMessengerApp = gmMessengerClass(DrpgMessengerApp, {
     buildBubble: message => buildBubble(message),
     previewOf: message => stripHtml(contentOf(message)),
     savePosition: (key, position) => savePosition(key, position)
 });
+
+/** The GM's messenger window opened, or raised and turned to `view` ("console" or a player's id). */
+export function openGmMessenger(view = "console") {
+    const existing = DrpgGmMessengerApp.current;
+    if (existing) {
+        if (existing.view !== view) existing.setView(view);
+        if (existing.minimized) Promise.resolve(existing.maximize()).catch(err => debug("Could not unfold the messenger", err));
+        existing.bringToFront();
+        return existing;
+    }
+    const app = new DrpgGmMessengerApp(view);
+    DrpgGmMessengerApp.current = app;
+    app.render({ force: true });
+    return app;
+}
+
+/** This browser's GM messenger window, or null (the suite's, and the routing below). */
+export function gmMessengerWindow() {
+    return DrpgGmMessengerApp.current ?? null;
+}
+
+/**
+ * The window that shows a player's conversation here, or null: on a GM the GM's window while it shows that player's
+ * view (1.2.124), on a player their own thread window. The scenarios read a thread's window through it.
+ */
+export function threadWindow(playerUserId) {
+    if (!game.user?.isGM) return DrpgMessengerApp.instances.get(playerUserId) ?? null;
+    const gm = gmMessengerWindow();
+    return gm?.view === playerUserId ? gm : null;
+}
 
 // The module-level hook lives here, not per instance: one listener regardless
 // of how many windows are open, and nothing to leak when one closes.

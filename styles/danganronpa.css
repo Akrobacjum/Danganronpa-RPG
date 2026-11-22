@@ -577,7 +577,6 @@ body {
 #drpg-popups,
 #drpg-despair,
 #drpg-messenger-launcher,
-#drpg-messenger-roster,
 .application.sheet.actor,
 .application.sheet.item,
 .application.roll-selection,
@@ -13296,63 +13295,15 @@ form:has(input[name="secret"]:not(:checked)):has(input[name="murder"]:not(:check
    one accent. The frame and the bubbles go to Ink and Bone; the accent is kept
    for the two things that genuinely are accents: an unread badge, and the
    outcome of a roll. */
-.drpg-messenger .window-content,
-#drpg-messenger-roster {
+.drpg-messenger .window-content {
     background: light-dark(var(--drpg-paper-alt), var(--drpg-ink));
-}
-
-/* The roster arrives and leaves like the popups do - a short rise on the way
-   in, the same path back out - instead of blinking into existence next to a
-   corner full of things that animate (Dawid, 26.08). The classes are driven
-   from `toggleRoster` / `closeRoster`; the resting state here IS the hidden
-   one, so a client that never runs the script shows nothing half-faded.
-
-   ITS OWN RULE, never appended to the ground rule above: that one is a
-   GROUPED selector whose first member is the messenger WINDOW's content, and
-   the first cut of this animation was pasted into it - which shipped a chat
-   window whose nine bubbles rendered at opacity 0. When extending a rule,
-   read up for the comma. */
-#drpg-messenger-roster {
-    opacity: 0;
-    transform: translateY(8px) scale(0.98);
-    transition: opacity var(--drpg-t-enter) var(--drpg-ease-arrive),
-                transform var(--drpg-t-enter) var(--drpg-ease-arrive);
-}
-
-#drpg-messenger-roster.visible {
-    opacity: 1;
-    transform: none;
-}
-
-#drpg-messenger-roster.leaving {
-    opacity: 0;
-    transform: translateY(8px) scale(0.98);
-    pointer-events: none;
-}
-
-body.drpg-reduced-motion #drpg-messenger-roster {
-    transition: none;
-    opacity: 1;
-    transform: none;
-}
-body.drpg-reduced-motion #drpg-messenger-roster.leaving { opacity: 0; }
-
-/* THE EDGE AND THE GLYPH ARE base.css's (E49 B3, 11.11.2026; S11-48). This rule gave the button and the
-   roster `border-color: var(--drpg-line-strong)` and the button `color: var(--drpg-bone)`, and neither was
-   ever drawn: messenger.css loaded after this sheet and its `border: 1px solid var(--drpg-eye)` and
-   `color: var(--drpg-eye)` won the tie by order (Chromium on the glass harness, 1366x768, both themes: the
-   button's glyph and the roster's edge rgb(224, 24, 47)). With the messenger's rules moved into base.css,
-   which loads before the themes, the two dead lines would have started to win; they are gone, and what the
-   screen showed stays. */
-#drpg-messenger-roster {
-    border-radius: var(--drpg-panel-radius, 4px);
 }
 
 #drpg-messenger-launcher {
     /* The one round thing in the module, and it stays round: it is a button
        floating over the map, not a panel. Its radius is stated here alone: the
-       panel radius above was the roster's and the launcher's both, and this rule
-       took the launcher's back at once (the audit of 1.2.118, UI-15). */
+       panel radius the roster and the launcher once shared was taken back for the
+       launcher at once (the audit of 1.2.118, UI-15); the roster went in 1.2.124. */
     border-radius: 50%;
 }
 

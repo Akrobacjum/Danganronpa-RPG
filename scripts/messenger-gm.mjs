@@ -77,6 +77,9 @@ export function gmMessengerClass(Base, { buildBubble, previewOf, savePosition })
 
         unlistenNotices = null;
 
+        /** The view the window's body was last drawn for (`_replaceHTML`). */
+        drawnView = null;
+
         constructor(view = "console") {
             super("gm");
             this.playerUserId = null;
@@ -124,6 +127,16 @@ export function gmMessengerClass(Base, { buildBubble, previewOf, savePosition })
             else main.append(await super._renderHTML(context, options));
             root.append(main);
             return root;
+        }
+
+        /* The thread window's redraw reads what was typed off the boxes it draws over (messenger-app.mjs `_replaceHTML`,
+           CTRL-13). After a change of view those boxes are the last view's, and their words would land in the drafts of
+           the view drawn now - a player's draft came back empty from another player's box (R8651, red before this). So a
+           redraw for another view clears the old boxes first: `setView` has already kept their words for their own view. */
+        async _replaceHTML(result, content, options) {
+            if (this.drawnView !== this.view) content.replaceChildren();
+            this.drawnView = this.view;
+            return super._replaceHTML(result, content, options);
         }
 
         _onRender(context, options) {
