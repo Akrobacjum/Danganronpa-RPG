@@ -66521,6 +66521,44 @@ const INVARIANTS = [
             R.incidentShowsTo("K", [], {})]), stableJson([true, true, false, true, false, false, false]),
             "[the killer, the victim, a victim-side third, a killer-side third, one outside the cast, no leaver, the killer with no cast]");
     }],
+    ["R8730 - a Spectator viewer's outline stands round the room its own Spectator token stands in, where its screen clears the room, and nowhere its fog does not; its walk still finds nothing and stands in no room of the fog's; a living player's outline is its own rooms as before (E127; scripts/fog.mjs `outlineLeadRooms`, `spectatorLeadRoom`, `leadsHere`, `myCurrentRooms`, `recordDiscovery`, `seedCells`; the owner at the table, 22.11.2026)", async () => {
+        /*
+         * E127, 22.11.2026; the owner: "Spectatorzy nie widza obramowania pokoju (i dziur w scianach/drzwi) tak jak reszta
+         * graczy". On a Spectator's browser no token led the outline: `isMine` refuses a Spectator (E92 C4), so the lead
+         * rooms were `mine`, empty - no outline, no doorway gaps (drawn on the outline, fog-doorways.mjs), no name. Read on
+         * stand-in tokens with the browser's facts handed in (whether this viewer watches, a token's room, the rooms its
+         * screen clears), as R563 reads `myCurrentRooms`; and off the source, the walk's two refusals of a Spectator. Red at
+         * 2e28785a: fog.mjs had no `outlineLeadRooms`. Nothing written; no canvas drawn (LIVE-E127-01).
+         */
+        const F = await import("./fog.mjs");
+        must(typeof F.outlineLeadRooms === "function" && typeof F.myCurrentRooms === "function",
+            "fog.mjs has no outlineLeadRooms: a Spectator viewer's outline follows `mine`, which holds none of its tokens");
+        const { FLAGS } = await import("./config.mjs");
+        const scene = { id: "R8730SCENE" };
+        const token = (id, room, { spectator = false, owner = true } = {}) => ({
+            isOwner: owner,
+            actor: { id, type: "character", getFlag: (scope, key) => scope === MODULE_ID && key === FLAGS.spectator ? spectator : undefined },
+            document: { id: `${id}tok`, parent: scene, room }
+        });
+        const facts = (watching = true) => ({ watching: () => watching, roomOf: doc => doc.room ?? null, cleared: () => new Set(["R8730 Gym", "R8730 Hall"]) });
+        const lead = (mine, tokens, watching) => [...F.outlineLeadRooms(new Set(mine), { tokens, gm: false, facts: facts(watching) })].sort();
+        const watcher = token("R8730SPEC", "R8730 Gym", { spectator: true });
+        const read = {
+            spectator: lead([], [watcher], true),
+            fogged: lead([], [token("R8730SPEC", "R8730 Lab", { spectator: true })], true),
+            notWatching: lead([], [watcher], false),
+            notOwned: lead([], [token("R8730OTHER", "R8730 Gym", { spectator: true, owner: false })], true),
+            living: lead(["R8730 Hall"], [token("R8730LIVE", "R8730 Hall"), token("R8730OTHER", "R8730 Gym", { spectator: true, owner: false })], true),
+            standsInFog: [...F.myCurrentRooms({ tokens: [watcher], gm: false })]
+        };
+        const src = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/fog.mjs`).then(lfText));
+        read.walk = [/if \(isSpectator\(actor\)\) return false;/.test(fnSource(src, "recordDiscovery") ?? ""),
+            /if \(isSpectator\(actor\)\) continue;/.test(fnSource(src, "seedCells") ?? "")];
+        equal(stableJson(read), stableJson({ spectator: ["R8730 Gym"], fogged: [], notWatching: [], notOwned: [], living: ["R8730 Hall"], standsInFog: [], walk: [true, true] }),
+            "{spectator: a Spectator viewer's own Spectator token in a room its screen clears; fogged: in a room under its fog; notWatching: a viewer that also plays a living character; "
+            + "notOwned: another's Spectator; living: a living player's own rooms beside another's Spectator; standsInFog: the Spectator's token in the fog's rooms (`myCurrentRooms`); "
+            + "walk: recordDiscovery and seedCells still refuse a Spectator's walk}");
+    }],
     ["R8692 - a told copy is named for the suite's take-back only while a tier-2 test's scope is open, and as it was asked for: none before the scope, none asked for outside it, each one of the scope taken once (remnants.mjs `openToldScope`, `closeToldScope`, `noteToldCopyMade`, `takeToldCopies`; 1.2.125 H1)", async () => {
         /* Red at 206148b7: no scope - every copy made since the page loaded was named, and tier 2 deleted a played world's
            copies at its first restore (the coordinator's H1, 22.11.2026). Stand-in uuids, in memory alone; the scope is put
@@ -67809,10 +67847,15 @@ const INVARIANTS = [
         const repaint = fnSource(src, "repaintFog"), lead = fnSource(src, "leadRoomsHere"), leads = fnSource(src, "leadsHere");
         must(repaint && lead && leads, "fog.mjs has no repaintFog, leadRoomsHere or leadsHere - this would measure nothing");
         const chose = repaint.match(/const leadRooms = ([^;]+);/)?.[1] ?? null;
+        /* Since E127 (22.11.2026) through `outlineLeadRooms`: on a GM `leadRoomsHere` with `leadsHere`, on a player `mine` and
+           a Spectator viewer's own Spectator token's room (R8730). */
+        const outline = fnSource(src, "outlineLeadRooms") ?? "";
         equal(JSON.stringify([chose, /^export function leadRoomsHere\(tokens = [^,]+, lead = leadsHere\)/.test(lead),
-            /if \(!gm\) return true;/.test(leads), (repaint.match(/!leadRooms\.has\(roomOutline\.room\)\) fadeRoomOutline\(\)/g) ?? []).length]),
-            JSON.stringify(["game.user.isGM ? leadRoomsHere() : mine", true, true, 2]),
-            "[what leadRooms is, leadRoomsHere's default lead leadsHere, leadsHere answering every own token on a player, the fades reading leadRooms]");
+            /if \(!gm\) return true;/.test(leads), (repaint.match(/!leadRooms\.has\(roomOutline\.room\)\) fadeRoomOutline\(\)/g) ?? []).length,
+            /if \(gm\) return leadRoomsHere\(tokens, token => leadsHere\(token, gm\)\);\s*const rooms = new Set\(mine\);/.test(outline)]),
+            JSON.stringify(["outlineLeadRooms(mine)", true, true, 2, true]),
+            "[what leadRooms is, leadRoomsHere's default lead leadsHere, leadsHere answering every own token on a player, the fades reading leadRooms, "
+            + "outlineLeadRooms: a GM's own Monokuma's rooms, a player's mine]");
     }],
     ["R8350 - a token sliding towards a room of the viewer's is held hidden until its sprite is in one of the viewer's rooms, the stretch between two rooms included (1.2.122 line MAP; scripts/visibility.mjs `slideHeld`, `applyToToken`; the audit's MAP-02)", async () => {
         /*
