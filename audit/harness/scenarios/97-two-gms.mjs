@@ -37,8 +37,8 @@
  *   M  1.2.122, the owner's decision of 21.11.2026: the second GM's Play and Stop the track, carried out on the primary
  *      and read there (M1, M2); and the second GM's Silence through `call.world` (M3, the audit's COMM-26); and why a
  *      second GM's Play did not play, told to that GM and not the primary (M4, 1.2.123, the audit's r122-G-6).
- *   N  1.2.124, the owner's OWNER-124-CONSOLE: both GMs' messenger windows open on the Console; p1's Search card with
- *      its answers waits on both, its buttons live (N1); gm answers it from its Console, and the card leaves gm2's
+ *   N  1.2.124, the owner's OWNER-124-CONSOLE: both GMs' messenger windows open on the Timeline; p1's Search card with
+ *      its answers waits on both, its buttons live (N1); gm answers it from its Timeline, and the card leaves gm2's
  *      "Waiting" too, while its line stays in both streams (N2).
  *
  * What this cannot see: a real F5 (a new process with the old localStorage, no cookie, IndexedDB or cache; the
@@ -734,8 +734,8 @@ export async function run(api) {
     await gm2.eval(UNMODES);
     await settle(800);
 
-    /* ------------------------------ N. the Console on two GMs (1.2.124) ------------------------------ */
-    phase("N the Console on two GMs: a card ruled on one leaves the other's Waiting", { flow: "messenger" });
+    /* ------------------------------ N. the Timeline on two GMs (1.2.124) ------------------------------ */
+    phase("N the Timeline on two GMs: a card ruled on one leaves the other's Waiting", { flow: "messenger" });
     const APP = `const A = ${imp("messenger-app.mjs")};`;
     const OPEN_CONSOLE = `${APP} const app = A.openMessenger(); const end = Date.now() + 3000;
         while (!app?.element?.querySelector(".drpg-console") && Date.now() < end) await new Promise(r => setTimeout(r, 50));
@@ -747,7 +747,7 @@ export async function run(api) {
         return Boolean(await C.callGm(actor, { title: "E124 N", request: ${J(WORDS_E124)}, actions: [P.ruledMissAction(actor), P.declineAction(actor, null)] }));`,
         { timeout: 60000 });
     await settle(1200);
-    // What a GM's Console shows of the card: in Waiting (and its live buttons), in the stream.
+    // What a GM's Timeline shows of the card: in Waiting (and its live buttons), in the stream.
     const SHOWN = `${APP} const S = ${imp("secret.mjs")}; const M = ${imp("messenger.mjs")};
         const card = M.threadMessages("${IDS.p1}").find(m => S.contentOf(m).includes(${J(WORDS_E124)}));
         const el = A.gmMessengerWindow()?.element;
@@ -755,14 +755,14 @@ export async function run(api) {
         return { id: card?.id ?? null, waiting: Boolean(waiting), buttons: waiting?.querySelectorAll("[data-drpg-call]").length ?? 0,
             stream: Boolean(card && el?.querySelector('.drpg-console-stream-list [data-message-id="' + card.id + '"]')) };`;
     const c1 = await until(async () => ({ gm: await gm.eval(SHOWN), gm2: await gm2.eval(SHOWN) }), v => v.gm.waiting && v.gm2.waiting);
-    check("N1: p1's card waits in the Console of both GMs, with its two answers live, and is in both streams",
+    check("N1: p1's card waits in the Timeline of both GMs, with its two answers live, and is in both streams",
         consoleOpen.gm && consoleOpen.gm2 && askedC && Boolean(c1.gm.id) && c1.gm.id === c1.gm2.id && c1.gm.buttons === 2 && c1.gm2.buttons === 2
             && c1.gm.stream && c1.gm2.stream, J({ consoleOpen, askedC, c1 }), { flow: "messenger" });
     const ruled = await gm.eval(`${APP} const button = A.gmMessengerWindow()?.element
             ?.querySelector('.drpg-console-waiting-list [data-message-id="${c1.gm.id}"] [data-drpg-call="decline"]');
         button?.click(); return Boolean(button);`);
     const c2 = await until(async () => ({ gm: await gm.eval(SHOWN), gm2: await gm2.eval(SHOWN) }), v => !v.gm.waiting && !v.gm2.waiting, 10000);
-    check("N2: gm answers the card from its Console; it leaves Waiting on gm and on gm2, and stays in both streams",
+    check("N2: gm answers the card from its Timeline; it leaves Waiting on gm and on gm2, and stays in both streams",
         ruled && !c2.gm.waiting && !c2.gm2.waiting && c2.gm.stream && c2.gm2.stream, J({ ruled, c2 }), { flow: "messenger" });
     for (const client of [gm, gm2]) await client.eval(`${APP} await A.gmMessengerWindow()?.close(); return true;`);
     await settle(400);

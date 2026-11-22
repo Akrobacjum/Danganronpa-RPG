@@ -1,5 +1,7 @@
 /**
- * Danganronpa RPG - the GM's messenger window: the Console and every player's conversation in one window.
+ * Danganronpa RPG - the GM's messenger window: the Timeline and every player's conversation in one window.
+ * The view the owner first called a console is named the Timeline since their rename of 22.11.2026 ('Przemianujmy
+ * nazwe "console" na "timeline"'): what a GM reads says Timeline (Oś czasu); the keys and the code keep `console`.
  * ---------------------------------------------------------------------------
  * WHY (1.2.124, the owner's request OWNER-124-CONSOLE, approved 22.11.2026): "Aktualnie gm musi specjalnie szukac
  * czatu z graczem by cos zatwierdzic. [...] jednego wspolnego czatu, ktory sluzy tylko do wciskania przyciskow na
@@ -9,12 +11,12 @@
  * konsola, a takze mozliwosc przelaczenia sie na czat z dowolnym graczem. Koniec listy rozwijanej - nowe okno."
  *
  * WHAT IT IS. One window per GM's browser (`current`), opened by the GM's launcher and by every road that opened a GM's
- * thread before (messenger-app.mjs `openMessenger`): a list on the left - Console, then every player with the unread
+ * thread before (messenger-app.mjs `openMessenger`): a list on the left - Timeline, then every player with the unread
  * badge and the one-line preview the roster showed - and the view chosen on the right.
  *   - A player's view is that player's conversation as the thread window draws it (DrpgMessengerApp, whose class this
  *     extends): the log with live buttons, the send form, the Note tab. What was typed in one player's view is kept for
  *     that player when the GM looks at another (`viewDrafts`).
- *   - The Console is two parts: "Waiting for a decision", every card of every player's thread with live ruling
+ *   - The Timeline is two parts: "Waiting for a decision", every card of every player's thread with live ruling
  *     buttons (a card not settled whose words hold a `data-drpg-call` button), and below it one stream in time order of
  *     every player's thread messages and the module's notices this browser was shown (the notice history's entries,
  *     those of a thread's card left out: the card is in the stream already). A filter shows all of it, the actions only
@@ -66,7 +68,7 @@ export function gmMessengerClass(Base, { buildBubble, previewOf, savePosition })
         /** "console", or the player whose conversation is shown. */
         view = "console";
 
-        /** The Console's filter (`FILTER_ALL`, `FILTER_ACTIONS`, or "player:<id>"). */
+        /** The Timeline's filter (`FILTER_ALL`, `FILTER_ACTIONS`, or "player:<id>"). */
         filter = FILTER_ALL;
 
         /** What was typed in each player's view, kept while another is shown. */
@@ -508,7 +510,7 @@ export function gmMessengerClass(Base, { buildBubble, previewOf, savePosition })
             if (pinned) this.scrollConsoleDown();
         }
 
-        /** The filter and the empty lines after a change, and the Console's count in the list. */
+        /** The filter and the empty lines after a change, and the Timeline's count in the list. */
         settleConsole() {
             this.applyFilterTo(this.element);
             this.showEmpties(this.element);
@@ -524,7 +526,7 @@ export function gmMessengerClass(Base, { buildBubble, previewOf, savePosition })
             if (scroll) scroll.scrollTop = scroll.scrollHeight;
         }
 
-        /** Whether the GM is looking at what `player`'s new message would show: their conversation, or the Console. */
+        /** Whether the GM is looking at what `player`'s new message would show: their conversation, or the Timeline. */
         showsThread(player) {
             if (!this.rendered || this.minimized || ui.activeWindow !== this || document.visibilityState !== "visible") return false;
             return this.view === "console" || (this.view === player && this.tab === "chat");

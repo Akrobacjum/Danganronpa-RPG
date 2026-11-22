@@ -3,7 +3,7 @@
  *
  *     node docs/dev/owner124/console/shoot.mjs        (from the repository's root; Playwright from audit/harness)
  *
- * Serves the repository (python3 -m http.server on a free port), opens shots.html for each capture (the Console and a
+ * Serves the repository (python3 -m http.server on a free port), opens shots.html for each capture (the Timeline and a
  * player's view), each theme and each screen, at deviceScaleFactor 2, and writes <view>-<theme>-<w>x<h>.png beside this
  * file. Chromium is the session's (/opt/pw-browsers/chromium-1243) unless DRPG_CHROMIUM names another executable.
  * DRPG_FONTAWESOME, the folder of an unpacked @fortawesome/fontawesome-free package (`npm pack` it and untar), serves

@@ -56926,16 +56926,16 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             + "([the same launcher node after a message, the focus still on it, the row's preview shows the newer message, the row's tag, its tabIndex, its click showed the conversation])");
     }],
 
-    ["1.2.124 OWNER-124-CONSOLE - the GM's Console lists a player's ruling card under Waiting with its answers live while it is open, and the same card in its stream without them; once the card is settled it leaves Waiting and stays in the stream, the Console's node kept (messenger-gm.mjs `waitingCard`, `threadEdited`)", async () => {
+    ["1.2.124 OWNER-124-CONSOLE - the GM's Timeline lists a player's ruling card under Waiting with its answers live while it is open, and the same card in its stream without them; once the card is settled it leaves Waiting and stays in the stream, the Timeline's node kept (messenger-gm.mjs `waitingCard`, `threadEdited`)", async () => {
         /*
          * The owner, 22.11.2026: one console "ktory sluzy tylko do wciskania przyciskow na wiadomosciach wysylanych przez
-         * akcje", which "musialaby sie tez odswiezac na biezaco". On a GM's page: the window opened on its Console; a card
+         * akcje", which "musialaby sie tez odswiezac na biezaco". On a GM's page: the window opened on its Timeline; a card
          * with one answer posted for a player's character (call-gm.mjs `callGm`, the road every ruling card takes); the
          * card read in Waiting (its buttons) and in the stream; then settled (`settleCall`, what a ruling ends on) and read
-         * again, with the Console's node. The card is deleted and the read state and the windows' places put back after.
+         * again, with the Timeline's node. The card is deleted and the read state and the windows' places put back after.
          */
         needs(world.atLeast("playersWithCharacter", 1), "a ruling card is asked about a player's character");
-        must(game.user.isGM, "the Console is a GM's");
+        must(game.user.isGM, "the Timeline is a GM's");
         const A = await import("./messenger-app.mjs");
         must(!A.gmMessengerWindow(), "the GM's messenger window is open - close it: this test opens its own");
         const C = await import("./call-gm.mjs");
@@ -56975,7 +56975,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             await settle();
         }
         equal(stableJson(read), stableJson({ open: [true, 1, 0], settled: [false, true, true] }),
-            "[open: in Waiting, its answers there, its answers in the stream; settled: in Waiting, in the stream, the same Console node]");
+            "[open: in Waiting, its answers there, its answers in the stream; settled: in Waiting, in the stream, the same Timeline node]");
     }],
 
     ["the case health check names a secret project and a note this browser does not hold, and a restore's flags keep a newer note's date", async () => {

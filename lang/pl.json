@@ -6413,8 +6413,8 @@
       "tabChat": "Czat",
       "gm": {
         "windowTitle": "Komunikator",
-        "navLabel": "Konsola i rozmowy",
-        "console": "Konsola",
+        "navLabel": "Oś czasu i rozmowy",
+        "console": "Oś czasu",
         "consoleHint": "Co czeka na ciebie i co się dzieje",
         "filter": "Pokaż",
         "filterAll": "Wszystko",
@@ -6425,7 +6425,7 @@
         "nothingYet": "Na razie nic się nie wydarzyło.",
         "consoleTip": "Pokaż, co czeka na twoją decyzję i co się dzieje przy stole.",
         "playerTip": "Pokaż rozmowę z tą osobą.",
-        "filterTip": "Wybierz, co pokazuje konsola.",
+        "filterTip": "Wybierz, co pokazuje oś czasu.",
         "inThread": "Rozmowa: {player}",
         "event": "Wydarzenie"
       }

@@ -3,18 +3,18 @@
  * ---------------------------------------------------------------------------
  *     node cluster.mjs probes/124-console-shots.mjs                  (from audit/harness)
  *
- * What the owner approves before the window merges: the GM's window with the Console - three players, a card waiting
+ * What the owner approves before the window merges: the GM's window with the Timeline - three players, a card waiting
  * for a ruling, a stream of chat, action cards and notices - and one player's conversation. The world is given those
  * through the module's own functions on the browsers that do each at a table: each player writes to the GM
  * (messenger.mjs `sendMessage` on that player's page), the GM answers one of them, a player's Search for something
  * specific posts its ruling card from that player's page (call-gm.mjs `callGm`, as action-search.mjs `searchSpecific`
  * posts it, with its three answers), and two notices are shown on the GM's page (popup.mjs `showPopup`, which keeps them
- * in the notice history the Console reads). Then the GM's launcher's road opens the window (messenger-app.mjs
- * `openMessenger()`): the Console is kept, then the first player's view. Each is kept as its element's outerHTML with
+ * in the notice history the Timeline reads). Then the GM's launcher's road opens the window (messenger-app.mjs
+ * `openMessenger()`): the Timeline is kept, then the first player's view. Each is kept as its element's outerHTML with
  * its width and height, in docs/dev/owner124/console/capture/ (`console.html`, `player.html`, `manifest.json`), for
  * docs/dev/owner124/console/shots.html and shoot.mjs to draw in Chromium under the module's sheets.
  *
- * It checks only that each view was kept, and the Console with a card waiting and items in its stream. The cards and messages it posts are left in the harness's world, which the next boot seeds afresh.
+ * It checks only that each view was kept, and the Timeline with a card waiting and items in its stream. The cards and messages it posts are left in the harness's world, which the next boot seeds afresh.
  * WHAT A CAPTURE IS NOT: Foundry's own stylesheet and frame (the shots page writes a header as Foundry writes one), and
  * the stained glass drawn behind a window (glass.mjs paints the screen, not the window; the page stands on a plain ground).
  */
@@ -92,7 +92,7 @@ export async function run({ gm, p1, p2, p3, check, note, settle, repoUrl, IDS })
         note(`kept ${file}`, JSON.stringify({ width: got.width, height: got.height, waiting: got.waiting, stream: got.stream }));
     }
     const kept = manifest.find(row => row.file === "console.html");
-    check("the Console was kept with a card waiting and items in its stream",
+    check("the Timeline was kept with a card waiting and items in its stream",
         Boolean(kept?.captured && kept.waiting >= 1 && kept.stream >= 3), JSON.stringify(kept));
     check("the player's view was kept", Boolean(manifest.find(row => row.file === "player.html")?.captured));
     fs.writeFileSync(path.join(OUT, "manifest.json"), JSON.stringify({ about: "probes/124-console-shots.mjs", windows: manifest }, null, 2) + "\n");
