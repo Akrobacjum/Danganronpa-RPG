@@ -66452,7 +66452,7 @@ const INVARIANTS = [
             discard: /told: traceFeedback\(roll, true\)/.test(fnSource(src("use-items.mjs"), "discardBroken") ?? ""),
             tamper: /told: traceFeedback\(\{ isCritical, withHope \}, true\)/.test(fnSource(src("cleanup.mjs"), "leaveTamperTrace") ?? ""),
             crisis: /traceFeedback\(\{[^}]*\}, last\)\)\s*\{[\s\S]{0,400}noteToldTrace\(doc\)/.test(fnSource(src("murder-rules.mjs"), "applyRemnant") ?? ""),
-            reroll: (fnSource(src("reroll.mjs"), "settleRemnant")?.match(/noteToldTrace\(doc\)/g) ?? []).length,
+            reroll: (fnSource(src("reroll.mjs"), "settleRemnant")?.match(/noteToldTrace(?:ById)?\((?:doc|bookmark\.remnantScene, bookmark\.remnantId)\)/g) ?? []).length,
             placed: /if \(data\.told === true\) void noteToldTrace\(created\)/.test(fnSource(src("remnants.mjs"), "placeRemnant") ?? ""),
             held: /drawnRecordOf\([\s\S]{0,120}if \(record && !traceFeedback\(record, true\)\) data\.told = false;/.test(fnSource(src("bridge-runs-records.mjs"), "handleRemnant") ?? ""),
             copy: /mintFindCopy\(actor,[\s\S]{0,900}?tell: false/.test(fnSource(src("remnants.mjs"), "noteToldTrace") ?? "")

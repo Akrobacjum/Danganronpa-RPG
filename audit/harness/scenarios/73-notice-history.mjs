@@ -756,6 +756,28 @@ export async function run({ gm, p1, p2, p4, check, phase, settle, connect, disco
         J({ tGm, tShown }));
     check("T2: on a third player's browser nothing tells whose the told trace is or that it was told: its token carries the marker alone, and no setting or flag p1 holds names it",
         tLeak !== null && J(tLeak.own) === J(["isRemnant"]) && tLeak.named === 0, J(tLeak));
+    /* T4 (the owner, 22.11.2026, through the coordinator): the own copy is a copy the verdicts' road finds, as an Observe
+       hit's is. On the GM: the told trace retyped (remnants.mjs `setRemnantFlags`, type Incident) and tied
+       (`setRemnantFlagsMany`, the road `tieTraceForItem` takes); the copy's answer key (truth-bullets.mjs `secretOf`)
+       carries the new kind and the tie, while the item still shows Neutral; then an Analyze of it that hits
+       (analyze.mjs `resolveAnalyze`) reads the new kind. */
+    const tVerdict = tGm.told ? await gm.eval(`const R = await import("${repoUrl}/scripts/remnants.mjs"); const TB = await import("${repoUrl}/scripts/truth-bullets.mjs");
+        const A = await import("${repoUrl}/scripts/analyze.mjs");
+        const [sc, id] = ${J(tGm.told)}; const told = game.scenes.get(sc)?.tokens.get(id); const daichi = game.actors.get("${IDS.daichi}");
+        const copy = daichi.items.find(i => TB.isTruthBullet(i) && TB.secretOf(i.uuid)?.remnantId === id);
+        if (!copy) return { copy: false };
+        await R.setRemnantFlags(told, { type: "incident" });
+        await R.setRemnantFlagsMany([told], { tiedToCrime: true });
+        await new Promise(r => setTimeout(r, 500));
+        const key = TB.secretOf(copy.uuid);
+        const shownBefore = copy.getFlag("${MOD}", "shownType") ?? "neutral";
+        const analysed = await A.resolveAnalyze({ actorId: daichi.id, itemId: copy.id, total: 40, isCritical: false });
+        await new Promise(r => setTimeout(r, 500));
+        return { copy: true, realType: key.realType ?? null, tied: key.tiedToCrime ?? null, shownBefore, analysed: analysed?.success ?? analysed?.refused ?? null,
+            shownAfter: daichi.items.get(copy.id)?.getFlag("${MOD}", "shownType") ?? null };`, { timeout: 30000 }) : null;
+    check("T4: the own copy follows its trace's verdicts as any copy does - retyped and tied, its answer key holds the new kind and the tie while it still shows Neutral, and an Analyze that hits reads the new kind",
+        tVerdict?.copy === true && tVerdict.realType === "incident" && tVerdict.tied === true && tVerdict.shownBefore === "neutral"
+            && tVerdict.analysed === true && tVerdict.shownAfter === "incident", J(tVerdict));
     const tStorage = await storageOf("p4");
     await disconnect("p4");
     await connect("p4", { storage: tStorage });

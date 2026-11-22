@@ -1733,6 +1733,12 @@ export async function setRemnantPublicById(sceneId, tokenId, patch = {}) {
     return ref ? setRemnantPublic(ref, patch) : null;
 }
 
+/** `noteToldTrace` for a trace named by its scene and token ids (a Reroll's bookmark names it so): the one read is `remnantById`'s. */
+export async function noteToldTraceById(sceneId, tokenId) {
+    const ref = remnantById(sceneId, tokenId);
+    return ref?.document ? noteToldTrace(ref.document) : null;
+}
+
 export async function revealRemnantToFinderById(sceneId, tokenId, options = {}) {
     const ref = remnantById(sceneId, tokenId);
     return ref ? revealRemnantToFinder(ref, options) : null;
