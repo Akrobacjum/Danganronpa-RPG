@@ -187,7 +187,8 @@ export function rollTone(roll) {
  * callers are action-analyze.mjs, action-listen.mjs and action-observe.mjs.
  */
 export function rollCardFlags(def, roll) {
-    return { flags: { [MODULE_ID]: { popupTitle: def.label, popupTone: rollTone(roll) } } };
+    // the result its player waits on, in the middle of that player's screen (notice-centre.mjs, 1.2.124)
+    return { flags: { [MODULE_ID]: { popupTitle: def.label, popupTone: rollTone(roll), popupCentre: "actionResult" } } };
 }
 
 /**
@@ -361,7 +362,10 @@ export async function report(actor, def, roll, outcome) {
                 popupTitle: def.label,
                 // See `rollTone`, which the five cards that go through
                 // `rollHead` share with this one.
-                popupTone: rollTone(roll)
+                popupTone: rollTone(roll),
+                // The result its player waits on: in the middle of that player's screen, closed by hand, and kept in the
+                // notice history as before (notice-centre.mjs, the owner's OWNER-124-NOTICES of 22.11.2026).
+                popupCentre: "actionResult"
             }
         },
         summary: {

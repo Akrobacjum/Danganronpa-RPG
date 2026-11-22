@@ -6026,8 +6026,12 @@ body.drpg-theme-stained-glass #drpg-popups {
    minutes, and a ballot, a sheet or the GM's panel opened on top of it must be
    reachable. One below Foundry's own app layer puts it over the board and the
    curtain and under every window, with no guessing at a number: Foundry states
-   `--z-index-app` itself. */
-#drpg-evidence {
+   `--z-index-app` itself.
+
+   THE NOTICES' STAGE STANDS WHERE EVIDENCE DOES (1.2.124 line UI; the owner's OWNER-124-NOTICES of 22.11.2026):
+   `#drpg-notice-centre` (popup.mjs `centreStage`) holds the important notices, one at a time, in the middle; its own
+   width below, everything else this stage's. */
+:is(#drpg-evidence, #drpg-notice-centre) {
     position: fixed;
     left: 50%;
     top: 50%;
@@ -6054,8 +6058,14 @@ body.drpg-theme-stained-glass #drpg-popups {
    under Stained Glass the stack stands under the windows (E44 C8c) and so under
    a raised objection too. Whether it stands over every window at a real
    table is LIVE-E10-03: the harness draws no stacking. */
-#drpg-evidence.is-raised {
+#drpg-evidence.is-raised,
+#drpg-notice-centre.is-raised {
     z-index: 99989;
+}
+/* A notice is a notice's width, not evidence's: the corner card's 27rem and a little (the owner's screenshots of
+   22.11.2026, 1366x768 and 1920x1080). */
+#drpg-notice-centre {
+    width: min(30rem, calc(100vw - 32px));
 }
 /* A CENTRE CARD'S ROWS COME IN ONE AFTER ANOTHER (E62 C5, 1.2.109; MK-R2's summary card: rows 160 ms apart from 150 ms,
    about a second for six). `--drpg-row` is each row's place, written by day-summary.mjs. None under reduced motion. */
@@ -6070,7 +6080,7 @@ body.drpg-theme-stained-glass #drpg-popups {
 body.drpg-reduced-motion .drpg-popup-centre .drpg-sum-row {
     animation: none;
 }
-#drpg-evidence .drpg-popup {
+:is(#drpg-evidence, #drpg-notice-centre) .drpg-popup {
     pointer-events: auto;
     width: 100%;
     /* The corner tile caps its cards; this one does not, and must not - a cap
@@ -17572,6 +17582,7 @@ body.drpg-reduced-motion .drpg-hud-track > span { animation: none; }
     #drpg-events,
     #drpg-popups .drpg-popup,
     #drpg-evidence .drpg-popup,
+    #drpg-notice-centre .drpg-popup,
     .drpg-panel {
         border: 1px solid CanvasText !important;
         background: Canvas !important;
