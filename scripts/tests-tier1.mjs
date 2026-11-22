@@ -66237,6 +66237,22 @@ const INVARIANTS = [
             ghost: false, named: true, gone: true, aOnce: 1, aReload: true
         }), "{listed: the scripts loadedFiles names; ghost: the fixture's name reported as not arrived; named: it is named apart; gone: a module file the server lacks still is; aOnce, aReload: a.mjs fetched once by fileSizes, past the cache}");
     }],
+    ["R8690 - a thread card counts in its thread only when its author is a GM or that thread's player (1.2.124; line COMM's probe of 22.11.2026: messenger.mjs `threadCardAllowed`, `threadStatsOf`, `readEntryOf`)", async () => {
+        /* Red at 52057a2b: no `threadCardAllowed`, and a card p2 wrote naming p3's thread was counted in it. Stand-ins of
+           three cards in p3's thread - p3's own, a GM's, p2's - read as the pure counts read them; nothing written.
+           scenario 30's "another player's thread" drives the same on the browsers. */
+        const M = await import("./messenger.mjs");
+        must(typeof M.threadStatsOf === "function" && typeof M.readEntryOf === "function", "messenger.mjs exports no threadStatsOf or readEntryOf - this would measure nothing");
+        const card = (id, author, at) => ({ id, timestamp: at, author, flags: { [MODULE_ID]: { thread: "R8690P3000000000" } } });
+        const p3 = { id: "R8690P3000000000", isGM: false }, gm = { id: "R8690GM000000000", isGM: true }, p2 = { id: "R8690P2000000000", isGM: false };
+        const messages = [card("R8690OWN", p3, 1), card("R8690GMS", gm, 2), card("R8690P2S", p2, 3)];
+        const allowed = typeof M.threadCardAllowed === "function" ? messages.map(m => M.threadCardAllowed(m)) : null;
+        const row = M.threadStatsOf(messages, { me: p3.id, readMap: {}, isGM: false }).get(p3.id);
+        const entry = M.readEntryOf(messages, p3.id);
+        equal(stableJson({ allowed, count: row?.count ?? 0, last: row?.last?.id ?? null, unread: row?.unread ?? 0, read: entry?.ids ?? null }),
+            stableJson({ allowed: [true, true, false], count: 2, last: "R8690GMS", unread: 1, read: ["R8690OWN", "R8690GMS"] }),
+            "{allowed: p3's own card, a GM's, p2's; count, last, unread: p3's thread as counted on p3; read: the ids its read stamp keeps}");
+    }],
     ["R8050 - Foundry's token HUD holds only the controls kept (1.2.120 line H; the owner, 21.11.2026: \"Niepotrzebne jest: combat, target, movement action, assign status, liczby na gorze i na dole i elevation\"): token-hud.mjs `trimHudFor` on Daggerheart 2.12.8's tokenHUD.hbs as drawn for a GM leaves the floor's palette, bring to front, the companion's button, lock, the token's settings and visibility, with no input, status palette, movement palette, target or combat; as drawn for a player it leaves nothing, the HUD marked not to be drawn (the owner, 21.11.2026: \"Niech gracz nie ma menu tokena\")", async () => {
         /*
          * 21.11.2026, 1.2.120 line H. The harness draws no token HUD (no canvas), so this hands the transform the markup
