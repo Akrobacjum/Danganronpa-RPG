@@ -67172,7 +67172,7 @@ const INVARIANTS = [
             shown.dispatchEvent(down);
             // on top until its X: a touch sinks nothing (the owner's "na wierzchu", 22.11.2026)
             shown.dispatchEvent(new Event("pointerdown", { bubbles: true }));
-            const stillRaised = stage.classList.contains("is-raised");
+            const stillRaised = stage.classList.contains("is-raised") && shown.classList.contains("is-raised");
             shown.querySelector(".drpg-popup-close").click();
             await new Promise(r => setTimeout(r, 1400));
             const afterClose = { front: front(), parked: cards().filter(c => c.classList.contains("drpg-popup-parked")).length };
@@ -67209,6 +67209,32 @@ const INVARIANTS = [
             tamper: /popupCentre: "actionResult", \.\.\.\(success \? \{\} : \{ sfx: "cleanupFailed" \}\)/.test(src("cleanup.mjs"))
         }), stableJson({ rollCard: "actionResult", report: true, tail: true, bedroom: true, bedroomCalls: 2, body: true, infiltrate: [true, true, true], cover: true, tamper: true }),
         "{rollCard: Observe/Analyze/Listen; report: every action's result; tail: noticed or not, the Shadow roll with its number first, then the effect roll; bedroom: not a lock only mended; bedroomCalls: both of the owner's cards; body; infiltrate: the five Infiltrate cards with their roll; cover: Pick's second roll; tamper: Tamper's card}");
+    }],
+    ["R8675 - a centred action card tells a Despair roll's trace no more than the corner did (the owner, 22.11.2026: \"by nie zdradzaly ze gracz zostawia remnant, gdy nie powinien o tym wiedziec\"; 1.2.124 line UI): action-report.mjs `reportHtml` with `leftTrace` from remnants.mjs `traceFeedback`, drawn centred by popup.mjs `showPopup`: a Despair roll with a trace placed and one with none give the same centred card, byte for byte, the number beside its dice included; a Hope roll with a trace says so and one with none does not", async () => {
+        /* Red at 52057a2b: no `reportHtml` and no centred card. The mutant that answers `traceFeedback` with `placed` alone
+           (the Despair card saying its trace) turns it red. */
+        const R = await import("./action-report.mjs");
+        const { traceFeedback } = await import("./remnants.mjs");
+        const P = await import("./popup.mjs");
+        must(typeof R.reportHtml === "function", "action-report.mjs has no reportHtml - the card's words cannot be read apart from its post");
+        const roll = (side, total, hope, fear) => ({ total, dc: "8 / 12 / 16", trait: "eye", withHope: side === "hope", withFear: side === "fear",
+            raw: { total, hope: { total: hope }, fear: { total: fear }, data: { traits: {} } } });
+        const centred = (rolled, placed) => {
+            const html = R.reportHtml({ label: "R8675 Search" }, rolled, { text: "R8675 nothing here", room: "Library", tokensLeft: 1, leftTrace: traceFeedback(rolled, placed) }, "Library");
+            const close = P.showPopup(html, { title: "R8675 Search", tone: R.rollTone(rolled), centre: true, record: false });
+            const card = document.querySelector("#drpg-notice-centre .drpg-popup:not(.leaving)");
+            const body = card?.querySelector(".drpg-popup-body")?.innerHTML ?? null;
+            const vs = card?.querySelector(".drpg-duality-vs")?.textContent ?? null;
+            close?.({ instant: true });
+            return { body, vs };
+        };
+        const despair = roll("fear", 11, 3, 6), hope = roll("hope", 13, 7, 4);
+        const [dPlaced, dNone, hPlaced, hNone] = [centred(despair, true), centred(despair, false), centred(hope, true), centred(hope, false)];
+        must(dPlaced.body && dPlaced.vs, "no centred card with its number beside the dice was drawn - this would measure nothing");
+        const said = c => c.body.includes(game.i18n.localize("DRPG.Action.leavesRemnant"));
+        equal(stableJson({ despairSame: dPlaced.body === dNone.body, despairSays: said(dPlaced), hopeSays: [said(hPlaced), said(hNone)], vsSame: dPlaced.vs === dNone.vs }),
+            stableJson({ despairSame: true, despairSays: false, hopeSays: [true, false], vsSame: true }),
+            "{despairSame: a Despair card with a trace and without, byte for byte; despairSays: it never says one; hopeSays: Hope with a trace, without; vsSame: the number beside the dice}");
     }],
     ["R8431 - the token HUD's on toggles and its focus read under Stained Glass with high contrast (the audit of 1.2.120, H-1, H-7; 1.2.122 line UI): a rule under high contrast and the glass gives `.control-icon.active` the Bone ground and the Ink glyph after the high-contrast ground, and the glass draws the focus ring inside the hexagon (a negative `outline-offset`)", async () => {
         /* Red at 21bf5d18: the high-contrast rule (1,5,1) took the on toggle's ground to Ink under an Ink glyph, and the

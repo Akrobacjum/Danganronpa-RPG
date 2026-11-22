@@ -6112,8 +6112,8 @@ body.drpg-theme-stained-glass #drpg-popups {
     text-transform: uppercase;
     white-space: nowrap;
 }
-#drpg-notice-centre .drpg-duality-mark.is-reached { color: var(--drpg-gold); }
-#drpg-notice-centre .drpg-duality-mark.is-short { color: var(--drpg-blood); }
+#drpg-notice-centre .drpg-duality-mark.is-reached { color: var(--drpg-bone); }
+#drpg-notice-centre .drpg-duality-mark.is-short { color: var(--drpg-crimson-light); }
 #drpg-notice-centre .drpg-popup-body:has(.drpg-duality-vs) .drpg-card-head .drpg-card-needed {
     display: none;
 }
