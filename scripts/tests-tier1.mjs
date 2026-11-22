@@ -31666,6 +31666,53 @@ const INVARIANTS = [
             empty: game.i18n.localize("DRPG.Messenger.gm.nothingYet") }),
             "[shown under actions only; under player B; under everything; the stream's line when the filter leaves nothing]");
     }],
+    ["R8654 - the GM's Console leaves out a card another player wrote into a thread: such a card, among the world's messages when the Console is drawn, is in neither Waiting nor the stream, and the Console is drawn (1.2.124; messenger.mjs `threadCardAllowed`, line CORE's guard of the same day)", async () => {
+        /*
+         * Line CORE closed the road a player's console had into another player's thread (claude/core-122, 2d17b74e): a card
+         * counts in a thread only when its author is a GM or that thread's player. The Console reads game.messages itself,
+         * so it asks the same question (messenger-gm.mjs `buildConsole`). On a GM's page with two players: game.messages'
+         * `values` stood in to add one card naming the first player's thread, written by the second, with live-looking
+         * buttons in its words; the Console opened and read; everything put back in `finally`. Its mutant, the Console's
+         * check taken out, fails it (22.11.2026).
+         */
+        must(game.user.isGM, "the Console is a GM's");
+        needs(world.atLeast("playerAccounts", 2));
+        const A = await import("./messenger-app.mjs");
+        must(!A.gmMessengerWindow(), "the GM's messenger window is open - close it: this test opens its own");
+        const [one, two] = game.users.filter(u => !u.isGM);
+        const ID = "R8654Refused0000";
+        const forged = { id: ID, author: two, timestamp: Date.now(), content: '<p>R8654</p><div class="drpg-call-actions"><button data-drpg-call="decline">x</button></div>',
+            whisper: [one.id], flags: { [MODULE_ID]: { thread: one.id, kind: "action", gmAsk: true } }, getFlag(scope, key) { return this.flags?.[scope]?.[key]; } };
+        const msgs = game.messages, own = Object.prototype.hasOwnProperty.call(msgs, "values"), realValues = msgs.values;
+        const putPositionsBack = holdMessengerPositions();
+        let read = null;
+        try {
+            msgs.values = function (...a) { return [...realValues.apply(this, a), forged][Symbol.iterator](); };
+            const app = A.openMessenger();
+            await until(() => app?.element?.querySelector(".drpg-console-stream-list"), 2000);
+            read = [Boolean(app.element.querySelector(".drpg-console-stream-list")), Boolean(app.element.querySelector(`[data-message-id="${ID}"]`))];
+        } finally {
+            if (own) msgs.values = realValues; else delete msgs.values;
+            await A.gmMessengerWindow()?.close();
+            putPositionsBack();
+        }
+        equal(stableJson(read), stableJson([true, false]), "[the Console drawn; the other player's card anywhere in it]");
+    }],
+    ["R8655 - a row's preview in the GM's messenger window keeps a card's title apart from its text: messenger-app.mjs `stripHtml` reads a card as its title, \" - \", then its lines with a space between blocks, its buttons left out (1.2.124, OWNER-124-CONSOLE; the coordinator's fix 1 of 22.11.2026: \"SearchBotan Ka...\")", async () => {
+        /*
+         * The preview was the card's `textContent`, which runs one block into the next: a Search card's row read
+         * "SearchBotan Kage". Three cards of the module's own shape read through `stripHtml`: a ruling card (title, a line,
+         * the request, its buttons), a chat line, a title alone. Red before the fix: "SearchBotan Kage · Workshopa crowbar".
+         */
+        const A = await import("./messenger-app.mjs");
+        const read = [
+            A.stripHtml('<h3>Search</h3><p><strong>Botan Kage</strong> · Workshop</p><blockquote>a crowbar</blockquote><div class="drpg-call-actions"><button data-drpg-call="decline">Refuse</button></div>'),
+            A.stripHtml("<p>Is the door locked?</p>"),
+            A.stripHtml("<h3>Search</h3>")
+        ];
+        equal(stableJson(read), stableJson(["Search - Botan Kage · Workshop a crowbar", "Is the door locked?", "Search"]),
+            "[a ruling card; a chat line; a title alone]");
+    }],
     ["R1067 - the cue playlist cannot be mapped: the Music tab offers it in no select, a stored mapping onto it is dropped by the primary GM alone with one write of the map without that key (the other keys kept, a second call writing nothing), and playlistFor answers null for it (E50 C3; S11-47, E50-23, Q-E50-1)", async () => {
         /*
          * E50 C3, 30.10.2026; audit S11-47 and the owner's answer on Q-E50-1 (30.10: the mapping is removed by itself).

@@ -31,7 +31,7 @@
  * so this file importing messenger-app.mjs back would close a static cycle (R161).
  */
 
-import { MESSENGER_FLAGS, THREAD_KIND, threadUsers, isThreadUser, threadStats } from "./messenger.mjs";
+import { MESSENGER_FLAGS, THREAD_KIND, threadUsers, isThreadUser, threadStats, threadCardAllowed } from "./messenger.mjs";
 import { cardFlag } from "./secret.mjs";
 import { noticeEntries, noticeTime, onNoticeHistoryChange } from "./notice-history.mjs";
 import { esc, markLanguage } from "./utils.mjs";
@@ -281,7 +281,9 @@ export function gmMessengerClass(Base, { buildBubble, previewOf, savePosition })
             const items = [];
             for (const message of game.messages ?? []) {
                 const player = cardFlag(message, MESSENGER_FLAGS.thread);
-                if (!player || !isThreadUser(player)) continue;
+                // A card another player wrote into this thread is no card of it (messenger.mjs `threadCardAllowed`,
+                // line CORE's guard of 1.2.124): not in Waiting, not in the stream.
+                if (!player || !isThreadUser(player) || !threadCardAllowed(message)) continue;
                 items.push({ at: message.timestamp ?? 0, node: () => this.streamMessage(message, player) });
                 const live = this.waitingCard(message, player);
                 if (live) waitingList.append(live);
@@ -421,7 +423,7 @@ export function gmMessengerClass(Base, { buildBubble, previewOf, savePosition })
             let n = 0;
             for (const message of game.messages ?? []) {
                 const player = cardFlag(message, MESSENGER_FLAGS.thread);
-                if (!player || !isThreadUser(player) || cardFlag(message, MESSENGER_FLAGS.settled)) continue;
+                if (!player || !isThreadUser(player) || !threadCardAllowed(message) || cardFlag(message, MESSENGER_FLAGS.settled)) continue;
                 if (cardFlag(message, MESSENGER_FLAGS.gmAsk)) n++;
             }
             return n;

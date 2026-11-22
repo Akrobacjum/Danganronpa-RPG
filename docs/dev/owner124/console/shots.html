@@ -12,7 +12,17 @@
      Served from the repository's root (`python3 -m http.server 8765`), then
        /docs/dev/owner124/console/shots.html?file=console.html[&theme=legacy]
      WHAT THIS PAGE IS NOT: Foundry's own stylesheet, its canvas behind the window, or the stained glass glass.mjs paints
-     over the screen under Stained Glass (the window is drawn on the style harness's plain ground). -->
+     over the screen under Stained Glass (the window is drawn on the style harness's plain ground). Foundry's icon font is
+     Foundry's too: the page asks for /vendor-fa/css/all.min.css, which shoot.mjs serves from the free Font Awesome package
+     when DRPG_FONTAWESOME names it (npm @fortawesome/fontawesome-free 6.5.1; Foundry v14 ships its own build), and
+     which is a harmless 404 otherwise - the Legacy send button is then an empty circle. -->
+<link rel="stylesheet" href="/vendor-fa/css/all.min.css">
+<style>
+  /* The module's sheets ask for Foundry v14's family by name, "Font Awesome 7 Pro"; the free package calls its solid
+     face "Font Awesome 6 Free". The name is lent to the free solid face here (the glyphs drawn are at the same code
+     points), on this page only. */
+  @font-face { font-family: "Font Awesome 7 Pro"; font-weight: 100 900; font-display: block; src: url("/vendor-fa/webfonts/fa-solid-900.woff2") format("woff2"); }
+</style>
 <script>
   (function () {
     var req = new XMLHttpRequest();

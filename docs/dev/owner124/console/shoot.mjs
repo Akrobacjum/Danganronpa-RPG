@@ -6,8 +6,11 @@
  * Serves the repository (python3 -m http.server on a free port), opens shots.html for each capture (the Console and a
  * player's view), each theme and each screen, at deviceScaleFactor 2, and writes <view>-<theme>-<w>x<h>.png beside this
  * file. Chromium is the session's (/opt/pw-browsers/chromium-1243) unless DRPG_CHROMIUM names another executable.
+ * DRPG_FONTAWESOME, the folder of an unpacked @fortawesome/fontawesome-free package (`npm pack` it and untar), serves
+ * the icon font Foundry would give the page at /vendor-fa/ (shots.html says why).
  */
 import { spawn } from "node:child_process";
+import fs from "node:fs";
 import { createRequire } from "node:module";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -29,6 +32,13 @@ try {
         for (const theme of ["glass", "legacy"]) {
             for (const [width, height] of [[1920, 1080], [1366, 768]]) {
                 const page = await browser.newPage({ viewport: { width, height }, deviceScaleFactor: 2 });
+                const fa = process.env.DRPG_FONTAWESOME;
+                if (fa) await page.route("**/vendor-fa/**", route => {
+                    const file = path.join(fa, new URL(route.request().url()).pathname.replace(/^\/vendor-fa\//, ""));
+                    if (!fs.existsSync(file)) return route.fulfill({ status: 404, body: "" });
+                    const type = file.endsWith(".css") ? "text/css" : file.endsWith(".woff2") ? "font/woff2" : "font/ttf";
+                    return route.fulfill({ status: 200, contentType: type, body: fs.readFileSync(file) });
+                });
                 const url = `http://127.0.0.1:${PORT}/docs/dev/owner124/console/shots.html?file=${file}${theme === "legacy" ? "&theme=legacy" : ""}`;
                 await page.goto(url, { waitUntil: "load" });
                 await page.waitForSelector("body[data-drpg-shot-ready]");

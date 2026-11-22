@@ -1959,6 +1959,8 @@ Next free: R8691. Reserved and unused: none.
 | R8651 | 1 | E39 | in the GM's window each view keeps its own typed text: a player's chat draft is put back when the GM comes back from the Console and another player, and another player's view starts empty (1.2.124, OWNER-124-CONSOLE: "bez otwierania i zamykania okna") |
 | R8652 | 1 | E39 | the GM's Console takes a new event in place: a notice recorded while it is open lands in its stream without the Console being drawn again, and the filter's choice and the focus on it are kept (1.2.124, OWNER-124-CONSOLE: "odswiezac na biezaco") |
 | R8653 | 1 | E39 | the GM's Console filter shows everything, actions only (an action card or an event) or one player (that player's messages and events), and says so where a part shows nothing (1.2.124, OWNER-124-CONSOLE) |
+| R8654 | 1 | E39 | the GM's Console leaves out a card another player wrote into a thread: such a card, among the world's messages when the Console is drawn, is in neither Waiting nor the stream, and the Console is drawn (1.2.124; messenger.mjs `threadCardAllowed`, line CORE's guard of the same day) |
+| R8655 | 1 | E39 | a row's preview in the GM's messenger window keeps a card's title apart from its text: messenger-app.mjs `stripHtml` reads a card as its title, " - ", then its lines with a space between blocks, its buttons left out (1.2.124, OWNER-124-CONSOLE; the coordinator's fix 1 of 22.11.2026: "SearchBotan Ka...") |
 | R8690 | 1 | E39 | a thread card counts in its thread only when its author is a GM or that thread's player (1.2.124; line COMM's probe of 22.11.2026: messenger.mjs `threadCardAllowed`, `threadStatsOf`, `readEntryOf`) |
 
 Tier-1 tests older than 1.2.61 with no number (70, names kept):

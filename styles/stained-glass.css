@@ -4663,9 +4663,11 @@ body.drpg-theme-stained-glass .application.sheet.actor .status-value {
    and the character are the same object. Only where a name is a name: headings and the
    character's own, never a label, a number or a sentence. */
 /* A heading whose first word is one letter ("A body was found", "W pokoju") keeps its own colour: chrome.mjs
-   `markLoneInitials` marks it (E49 B1, S12-65), the accent on a lone article read as a letter come away. */
+   `markLoneInitials` marks it (E49 B1, S12-65), the accent on a lone article read as a letter come away. A ruling card's
+   title in the messenger is no name but a label on a bone band, where the accent letter read as a clipped "S" of
+   "SEARCH" (the coordinator's fix 3 on the owner's console shots, 22.11.2026): left out in `:where()`, weight kept. */
 body.drpg-theme-stained-glass .application.sheet.actor :is(h1.actor-name, .actor-name):not(.drpg-lone-initial)::first-letter,
-body.drpg-theme-stained-glass :is(.drpg-panel, .drpg-gm-panel) :is(h1, h2, h3):not(.drpg-lone-initial)::first-letter,
+body.drpg-theme-stained-glass :is(.drpg-panel, .drpg-gm-panel) :is(h1, h2, h3):where(:not(.drpg-messenger-bubble h3)):not(.drpg-lone-initial)::first-letter,
 body.drpg-theme-stained-glass #drpg-hud .drpg-hud-campaign:not(.drpg-lone-initial)::first-letter,
 body.drpg-theme-stained-glass .application .window-title:not(.drpg-lone-initial)::first-letter {
     /* the name's own colour is set with `!important` further up, and a pseudo-element

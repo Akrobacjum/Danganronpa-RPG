@@ -1708,8 +1708,14 @@ function launcherTooltip() {
     return game.i18n.localize("DRPG.Messenger.launcherTooltip");
 }
 
-function stripHtml(html) {
+export function stripHtml(html) {
     // The same trimming the thread itself does: no ruling buttons, no GM-only
-    // prose for a player, and the browser's own text extraction.
-    return cardPreview(html).textContent.replace(/\s+/g, " ").trim();
+    // prose for a player, and the browser's own text extraction - with the card's
+    // blocks kept apart: `textContent` ran a card's title into its first line
+    // ("SearchBotan Kage", the GM's list on the owner's shots of 22.11.2026), so a
+    // title is followed by " - " and every other block by a space.
+    const wrap = cardPreview(html);
+    for (const block of wrap.querySelectorAll("h1, h2, h3, h4, h5, h6")) block.append(" - ");
+    for (const block of wrap.querySelectorAll("p, div, li, blockquote, br")) block.after(" ");
+    return wrap.textContent.replace(/\s+/g, " ").replace(/\s+-\s*$/, "").trim();
 }
