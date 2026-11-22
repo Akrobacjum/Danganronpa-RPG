@@ -5594,6 +5594,7 @@ export const SFX_EVENTS = {
 export const DRPG = {
     MODULE_ID,
     SOCKET,
+    SPECTATOR_ALPHA,
     FLAGS,
     ACTIONS_RESOURCE,
     TRAITS,
