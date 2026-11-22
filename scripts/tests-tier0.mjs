@@ -13978,7 +13978,8 @@ const REGRESSIONS = [
             finalConsole: /if \(inFinalTrial\(\)\) return openFinalVerdictDialog\(\);/.test(floorUi),
             season: /season: \(clock\.season \?\? 1\) \+ 1,\s*finalTrial: false/.test(wipe),
             deadObjector: /isDeceased\(await flagsAsHeld\(actor\)\)/.test(fnSource(code("trial.mjs"), "seizeFloor")),
-            finishRunner: /const runner = verdictRunner\(progress\);\s*if \(runner && runner !== game\.user\.id\) \{\s*ui\.notifications\.warn\(game\.i18n\.format\("DRPG\.Vote\.finishOtherGm"/
+            // Since E128 through `finishRoute`: a second full GM's press while the primary runs it is the primary's.
+            finishRunner: /const runner = verdictRunner\(progress\);\s*const route = finishRoute\(\{ runner \}\);[\s\S]{0,400}if \(route === "refuse"\) \{\s*ui\.notifications\.warn\(game\.i18n\.format\("DRPG\.Vote\.finishOtherGm"/
                 .test(fnSource(vote, "finishVerdict"))
                 && /return by\?\.active \? by\.id : primaryGmId\(\);/.test(fnSource(vote, "verdictRunner"))
                 // The console's next step is trial-floor.mjs's table since E47 C1: the two rows of a verdict another GM runs.
@@ -14028,7 +14029,7 @@ const REGRESSIONS = [
                     finalConsole: [/the console's verdict button opens \*\*Final Trial verdict\*\*/, /^\| A final verdict \| given from the trial console's verdict button, which opens \*\*Final Trial verdict\*\* in a Final Trial \|/],
                     season: [/the season counted one on and the Final Trial flag down/],
                     deadObjector: [/an Objection posted in a dead student's name is refused on the primary GM's browser/],
-                    finishRunner: [/It runs on the browser of the GM who gave the verdict while they are connected, otherwise on the primary GM's - on another GM's the console names whom to ask, and Enter presses nothing there/],
+                    finishRunner: [/It runs on the browser of the GM who gave the verdict while they are connected, otherwise on the primary GM's - a second full Gamemaster's press is then carried out by the primary GM's \(since 1\.2\.128\); on any other GM's the console names whom to ask, and Enter presses nothing there/],
                     noRepeat: [/it gives no survivor a second Level Up and posts no second card/],
                     givenGap: [/a GM who leaves between a row's Level Up and the write that records it no longer leaves that row to be given again/],
                     takeBackBusy: [/A take-back is refused, and you are told, while that character's Level Up is being written\./],
@@ -14066,7 +14067,7 @@ const REGRESSIONS = [
                     finalConsole: [/przycisk werdyktu w konsoli otwiera \*\*Werdykt Final Trial\*\*/, /^\| Werdykt finału \| wydawany przyciskiem werdyktu w konsoli Class Trial, który w Final Trial otwiera \*\*Werdykt Final Trial\*\* \|/],
                     season: [/licznikiem sezonu o jeden dalej i zdjętą flagą Final Trial/],
                     deadObjector: [/Objection wniesione w imieniu martwego ucznia jest odrzucane w przeglądarce głównego GM-a/],
-                    finishRunner: [/Wykonuje się w przeglądarce GM-a, który wydał werdykt, dopóki jest połączony, a inaczej w przeglądarce głównego GM-a - w przeglądarce innego GM-a konsola mówi, kogo poprosić, a Enter niczego tam nie naciska/],
+                    finishRunner: [/Wykonuje się w przeglądarce GM-a, który wydał werdykt, dopóki jest połączony, a inaczej w przeglądarce głównego GM-a - naciśnięcie drugiego pełnego Gamemastera wykonuje wtedy przeglądarka głównego GM-a \(od 1\.2\.128\); w przeglądarce każdego innego GM-a konsola mówi, kogo poprosić, a Enter niczego tam nie naciska/],
                     noRepeat: [/żadnemu ocalałemu nie daje drugiego Level Upa ani nie wysyła drugiej karty/],
                     givenGap: [/GM, który wyjdzie między Level Upem wiersza a zapisem, który go odnotowuje, nie zostawia już tego wiersza do przyznania jeszcze raz/],
                     takeBackBusy: [/Cofnięcie jest odmawiane, a ty się o tym dowiadujesz, dopóki Level Up tej postaci jest zapisywany\./],

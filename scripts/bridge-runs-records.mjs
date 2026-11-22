@@ -994,7 +994,8 @@ export async function handleReshapeRuling(payload, sender) {
 /** The run of `observe.describe` (E128): another GM's words for a find this primary's window waits on (observe.mjs `answerDescribeFrom`). */
 export async function handleObserveDescribe(payload, sender) {
     const { answerDescribeFrom } = await import("./observe.mjs");
-    return answerDescribeFrom(payload.askId, payload, sender?.id ?? null)
+    const answer = { name: payload.name, playerText: payload.playerText, analyzedText: payload.analyzedText, critHint: payload.critHint };
+    return answerDescribeFrom(payload.askId, answer, sender?.id ?? null)
         ? { reply: true } : { refused: "nothing was carried out: no find waits for a GM's words under that request" };
 }
 

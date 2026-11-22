@@ -48054,7 +48054,7 @@ const INVARIANTS = [
             keep: [".application.drpg-prompt", "drpg-prompt", false],
             kit: [[false, false], [true, false]],
             asking: ["action-menus.mjs chooseVariant", "action-menus.mjs promptForNote", "action-project.mjs proposeProjectTrait", "call-gm.mjs askForRequest", "frisk.mjs askToForce", "frisk.mjs openAskWindow",
-                "level-up.mjs askWhoPicks", "level-up.mjs openAdvancement", "mask-gm.mjs askReveal", "observe.mjs askWhichRemnant", "observe.mjs describeFind", "trait-ruling.mjs pickHere",
+                "level-up.mjs askWhoPicks", "level-up.mjs openAdvancement", "mask-gm.mjs askReveal", "observe.mjs askWhichRemnant", "observe.mjs describeFind", "observe.mjs wireDescribeHere", "trait-ruling.mjs pickHere",
                 "trait-ruling.mjs rollChanged", "trial-prompt.mjs promptClaim", "trial-prompt.mjs promptTurn", "vote.mjs castBallot"],
             naming: ["roll-dialog.mjs", "stacking.mjs", "ui-kit.mjs"],
             // E69 C1: the Infiltrate tile's rows (action-listen.mjs `performListen`), an action's declaration.
@@ -63363,7 +63363,8 @@ const INVARIANTS = [
         must(typeof O.findTexts === "function", "observe.mjs exports no findTexts - the critical's hint is not kept apart");
         const src = stripComments((await moduleSources()).get("observe.mjs") ?? "");
         must(src.length > 5000, "observe.mjs was not read - this would measure nothing");
-        const create = fnSource(src, "createFind"), describe = fnSource(src, "describeFind");
+        // The window's form and its read are describeFormBody's and readDescribeForm's since E128 (both GMs draw it).
+        const create = fnSource(src, "createFind"), describe = `${fnSource(src, "describeFormBody") ?? ""}\n${fnSource(src, "readDescribeForm") ?? ""}`;
         const publicWrite = /setRemnantPublicById\(entry\.sceneId, entry\.tokenId, \{([\s\S]*?)\}\)/.exec(create)?.[1] ?? null;
         must(publicWrite !== null, "createFind's write back to the trace was not found - this would measure nothing");
         const pub = { playerText: "A smear on the sill." };
@@ -63539,7 +63540,8 @@ const INVARIANTS = [
          */
         const src = stripComments((await moduleSources()).get("observe.mjs") ?? "");
         must(src.length > 5000, "observe.mjs was not read - this would measure nothing");
-        const body = fnSource(src, "describeFind");
+        // The window's form is describeFormBody's since E128 (drawn by describeFind and by another GM's Write it here).
+        const body = fnSource(src, "describeFormBody") ?? "";
         const at = needle => body.indexOf(needle);
         const [crit, hint, name, text, lab] = ['"DRPG.Observe.critPrompt"', 'name="critHint"', '"DRPG.TruthBullet.name"', 'name="playerText"', 'name="analyzedText"'].map(at);
         must([crit, hint, name, text, lab].every(i => i >= 0), `describeFind lost one of its fields - this would measure nothing: ${stableJson([crit, hint, name, text, lab])}`);
@@ -66524,14 +66526,15 @@ const INVARIANTS = [
             R.incidentShowsTo("K", [], {})]), stableJson([true, true, false, true, false, false, false]),
             "[the killer, the victim, a victim-side third, a killer-side third, one outside the cast, no leaver, the killer with no cast]");
     }],
-    ["R8733 - a second GM's own opening roll, sent to the primary, reads as made on this browser: the tracker's Ask again says the roll is thrown here, not that nothing was sent (E128; scripts/murder-rules.mjs `rollOpening`, murder-ui.mjs `reaskOpening`; OWNER-128-SECOND-GM fix 2)", async () => {
+    ["R8733 - a second GM's own opening roll, sent to the primary, reads as made on this browser: the tracker's Ask again says the roll is thrown here, not that nothing was sent (E128; scripts/murder-rules.mjs `throwOpeningRoll`, `rollOpening`, murder-ui.mjs `reaskOpening`; OWNER-128-SECOND-GM fix 2)", async () => {
         /* Red at ed0b1ad3's parent (9eb89710): a GM's answer was `res.value`, and a result relayed to the primary carries none,
-           so `rollOpening` answered undefined and Ask again said "openingReaskNone". Read off the source (tier 1 rolls nothing):
+           so `throwOpeningRoll` (and `rollOpening` with it) answered undefined and Ask again said "openingReaskNone". Read off the source (tier 1 rolls nothing):
            the answer a GM reads, and the tracker's three lines by what it answered. Scenario 97 O1 drives the relay itself. */
         const src = new Map(await moduleSources());
-        const roll = fnSource(stripComments(src.get("murder-rules.mjs") ?? ""), "rollOpening") ?? "";
+        // The answer is `throwOpeningRoll`'s, which `rollOpening` hands on for a roll thrown on this browser.
+        const roll = fnSource(stripComments(src.get("murder-rules.mjs") ?? ""), "throwOpeningRoll") ?? "";
         const reask = fnSource(stripComments(src.get("murder-ui.mjs") ?? ""), "reaskOpening") ?? "";
-        must(roll && reask, "murder-rules.mjs has no rollOpening or murder-ui.mjs no reaskOpening - this would measure nothing");
+        must(roll && reask, "murder-rules.mjs has no throwOpeningRoll or murder-ui.mjs no reaskOpening - this would measure nothing");
         equal(stableJson({
             relayed: /return game\.user\.isGM && res\.value !== undefined \? res\.value : \{ pending: true \};/.test(roll),
             lines: /if \(out\?\.asked\)[^\n]*openingReaskSent[\s\S]{0,200}else if \(out\)[^\n]*openingReaskHere[\s\S]{0,120}else[^\n]*openingReaskNone/.test(reask)
