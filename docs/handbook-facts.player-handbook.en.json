@@ -2,7 +2,7 @@
  "handbook": "docs/handbooks/player-handbook.en.md",
  "facts": [
   {"id": "s0.p1.f1", "unit": "s0.p1", "place": "(before the first section), line 3", "kind": "rule", "text": "The handbook is for students of the killing game.", "keywords": ["students of the killing game"]},
-  {"id": "s0.p1.f2", "unit": "s0.p1", "place": "(before the first section), line 3", "kind": "number", "text": "The handbook covers module version 1.2.123.", "keywords": ["Module version 1.2.123"]},
+  {"id": "s0.p1.f2", "unit": "s0.p1", "place": "(before the first section), line 3", "kind": "number", "text": "The handbook covers module version 1.2.124.", "keywords": ["Module version 1.2.124"]},
   {"id": "s0.p1.f3", "unit": "s0.p1", "place": "(before the first section), line 3", "kind": "rule", "text": "The module is built on Daggerheart for Foundry VTT v14.", "keywords": ["Daggerheart", "Foundry VTT v14"]},
   {"id": "s0.p2.f1", "unit": "s0.p2", "place": "(before the first section), line 5", "text": "This handbook is the whole game from your chair.", "kind": "rule", "keywords": ["the whole game from your chair"]},
   {"id": "s0.p2.f2", "unit": "s0.p2", "place": "(before the first section), line 5", "text": "It covers what the numbers on your sheet mean, what an action costs, what Hope buys, what happens when somebody dies, and what to press.", "kind": "rule", "keywords": ["what the numbers on your sheet mean", "what an action costs", "what Hope buys"]},
