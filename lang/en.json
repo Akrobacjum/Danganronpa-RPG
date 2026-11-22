@@ -5964,7 +5964,6 @@
       "playerWindowTitle": "GM Chat",
       "gmActionTitle": "Waiting on your ruling",
       "gmWindowTitle": "{player} - GM Chat",
-      "rosterTitle": "Messenger",
       "rosterEmpty": "No players in this world yet.",
       "rosterNoMessages": "No messages yet.",
       "noMessagesYet": "No messages yet. Say hello.",
@@ -5975,7 +5974,25 @@
       "openChat": "Open GM Chat",
       "onlyOwnThread": "You can only open your own conversation.",
       "notAPlayer": "Only players have Messenger conversations.",
-      "tabChat": "Chat"
+      "tabChat": "Chat",
+      "gm": {
+        "windowTitle": "Messenger",
+        "navLabel": "Console and conversations",
+        "console": "Console",
+        "consoleHint": "What waits for you, and what happens",
+        "filter": "Show",
+        "filterAll": "Everything",
+        "filterActions": "Actions only",
+        "waiting": "Waiting for a decision",
+        "stream": "As it happens",
+        "nothingWaiting": "Nothing is waiting for a decision.",
+        "nothingYet": "Nothing has happened yet.",
+        "consoleTip": "Show what waits for your decision and what happens at the table.",
+        "playerTip": "Show the conversation with this player.",
+        "filterTip": "Choose what the Console lists.",
+        "inThread": "Conversation with {player}",
+        "event": "Event"
+      }
     },
     "Voice": {
       "silenceNow": "Silence now",

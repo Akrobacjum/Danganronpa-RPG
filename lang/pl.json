@@ -6400,7 +6400,6 @@
       "playerWindowTitle": "Czat z GM-em",
       "gmActionTitle": "Czeka na twoją decyzję",
       "gmWindowTitle": "{player} - czat z GM-em",
-      "rosterTitle": "Komunikator",
       "rosterEmpty": "W tym świecie nie ma jeszcze graczy.",
       "rosterNoMessages": "Brak wiadomości.",
       "noMessagesYet": "Nie ma jeszcze wiadomości. Przywitaj się.",
@@ -6411,7 +6410,25 @@
       "openChat": "Otwórz czat z GM-em",
       "onlyOwnThread": "Możesz otworzyć tylko własną rozmowę.",
       "notAPlayer": "Rozmowy w komunikatorze mają tylko gracze.",
-      "tabChat": "Czat"
+      "tabChat": "Czat",
+      "gm": {
+        "windowTitle": "Komunikator",
+        "navLabel": "Konsola i rozmowy",
+        "console": "Konsola",
+        "consoleHint": "Co czeka na ciebie i co się dzieje",
+        "filter": "Pokaż",
+        "filterAll": "Wszystko",
+        "filterActions": "Tylko akcje",
+        "waiting": "Czeka na decyzję",
+        "stream": "Na bieżąco",
+        "nothingWaiting": "Nic nie czeka na decyzję.",
+        "nothingYet": "Na razie nic się nie wydarzyło.",
+        "consoleTip": "Pokaż, co czeka na twoją decyzję i co się dzieje przy stole.",
+        "playerTip": "Pokaż rozmowę z tą osobą.",
+        "filterTip": "Wybierz, co pokazuje konsola.",
+        "inThread": "Rozmowa: {player}",
+        "event": "Wydarzenie"
+      }
     },
     "Voice": {
       "silenceNow": "Wycisz teraz",

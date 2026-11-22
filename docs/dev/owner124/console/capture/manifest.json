@@ -1,0 +1,25 @@
+{
+  "about": "probes/124-console-shots.mjs",
+  "windows": [
+    {
+      "view": "console",
+      "file": "console.html",
+      "captured": true,
+      "title": "Messenger",
+      "width": 976,
+      "height": 680,
+      "waiting": 1,
+      "stream": 7
+    },
+    {
+      "view": "PlayerOne",
+      "file": "player.html",
+      "captured": true,
+      "title": "Messenger",
+      "width": 976,
+      "height": 680,
+      "waiting": 0,
+      "stream": 0
+    }
+  ]
+}

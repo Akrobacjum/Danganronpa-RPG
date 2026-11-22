@@ -3,7 +3,7 @@
   "sheets": {
     "styles/base.css": {
       "important": 4,
-      "colourLiterals": 9,
+      "colourLiterals": 7,
       "duplicates": 0,
       "deadClasses": 0,
       "overridden": 0,
