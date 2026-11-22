@@ -599,7 +599,8 @@ export function pocketsFrom(items, { undecided = null } = {}) {
  */
 async function tellPalmVictim(victim, html, { body = false } = {}) {
     const card = { veiled: true, flags: { [MODULE_ID]: { sfx: "stolen" } } };
-    return body ? whisperToGms(html, card) : whisperToOwner(victim, html, card);
+    // a living victim's card in the middle of their screen (notice-centre.mjs "doneToYou", 1.2.127); a body's stays the GMs'
+    return body ? whisperToGms(html, card) : whisperToOwner(victim, html, withCentre(card, "doneToYou"));
 }
 
 /**

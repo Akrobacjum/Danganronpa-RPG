@@ -47,6 +47,12 @@ export const CENTRED_NOTICES = Object.freeze({
     lockBroken: "a bedroom's lock found picked, forced or breached (doors-gm.mjs `noteBedroom`, `tellBedroomNotes`)",
     /* The body's discovery (body.mjs `runDiscovery`), centred since E62 C5. Written by a GM. */
     bodyFound: "a body found (body.mjs `runDiscovery`)",
+    /* Something done to a player who did not act (1.2.127; OWNER-127-CENTRE item 3, the coordinator's default to the
+       owner, in a commit of its own): a Tail noticed (tail-gm.mjs `startTail`), a Steal or a Plant felt (palm.mjs
+       `tellPalmVictim`), an unseen Frisk felt (frisk.mjs `friskPerson`), an open Frisk's outcome (`endAsk`). Written
+       by the primary GM, centred on the target's screen. A Sabotage seen is written by the saboteur's browser and stays
+       in the corner (docs/dev/owner127/INVENTORY.md section 3). */
+    doneToYou: "something done to a player who did not act (tail-gm.mjs, palm.mjs, frisk.mjs)",
     /* The time of day's summary on the GM's screen (day-summary.mjs), centred since E62 C5: drawn by its own
        `showPopup(..., { centre: true })` on that screen alone, not through the catch-all. */
     daySummary: "the time of day's summary on the GM's screen (day-summary.mjs)"

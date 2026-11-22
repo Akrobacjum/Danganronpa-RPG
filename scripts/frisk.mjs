@@ -319,7 +319,8 @@ export async function friskPerson({ searcherId, targetId, total = 0, isCritical 
     if (noticed) {
         const words = `<p>${game.i18n.format(sees ? "DRPG.Frisk.caught" : "DRPG.Frisk.caughtTrying", { who: esc(searcher.name) })}</p>`;
         const card = { veiled: true, flags: { [MODULE_ID]: { sfx: "stolen" } } };
-        await (body ? whisperToGms(words, card) : whisperToOwner(target, words, card));
+        // the target's card in the middle of their screen (notice-centre.mjs "doneToYou", 1.2.127); a body's stays the GMs'
+        await (body ? whisperToGms(words, card) : whisperToOwner(target, words, withCentre(card, "doneToYou")));
         // And the room (privacy line 2, #7): the hand, by name; a Frisk takes nothing, so no item is ever named.
         await tellOnlookers(searcher, target, say("DRPG.Steal.wHand", { who: searcher.name, target: target.name }), { body });
     }
@@ -609,7 +610,7 @@ async function endAsk(row, outcome) {
     else if (outcome === "interrupted") await cardTo(searcher, say("DRPG.Frisk.interrupted"), withCentre());
     if (forTarget[outcome] && asked && target) {
         const words = say(forTarget[outcome], { who });
-        await (row.silent ? cardToGms(words) : cardTo(target, words));
+        await (row.silent ? cardToGms(words) : cardTo(target, words, withCentre({}, "doneToYou")));
     }
     // POCKETS TURNED OUT IN FRONT OF THE ROOM ARE SEEN BY THE ROOM (privacy line 2, #6; the owner's rule of 13.11.2026: a
     // player learns what their character could know in the fiction, when they could know it). The witnesses of a "shown"

@@ -67435,6 +67435,8 @@ const INVARIANTS = [
             for (const m of stripComments(text).matchAll(/popupCentre(?::|\s*=)\s*([^,};\n]+)/g)) {
                 for (const name of m[1].match(/"([A-Za-z]+)"/g) ?? [m[1].trim()]) written.set(name.replace(/"/g, ""), [...(written.get(name.replace(/"/g, "")) ?? []), file]);
             }
+            // a name handed to notice-centre.mjs `withCentre` as its second argument (1.2.127)
+            for (const m of stripComments(text).matchAll(/withCentre\([^()]*(?:\([^()]*\)[^()]*)*,\s*"([A-Za-z]+)"\)/g)) written.set(m[1], [...(written.get(m[1]) ?? []), file]);
         }
         // the day summary asks by showPopup's own option on the GM's screen (day-summary.mjs), not by the flag
         const direct = [...sources].filter(([file, text]) => !/^tests/.test(file) && /centre:\s*true/.test(stripComments(text))).map(([file]) => file).sort();
@@ -67660,7 +67662,9 @@ const INVARIANTS = [
         const asks = (file, fn) => {
             const text = stripComments(sources.get(file) ?? "");
             const body = fn ? fnSource(text, fn) : text;
-            return (body.match(/withCentre\(|popupCentre: "actionResult"/g) ?? []).length - (fn ? 0 : (text.match(/export function withCentre\(/g) ?? []).length);
+            // an action's result only: a card to someone who did not act asks "doneToYou" (R8696) and is not counted here
+            return (body.match(/withCentre\(|popupCentre: "actionResult"/g) ?? []).length - (body.match(/withCentre\([^;]*"doneToYou"\)/g) ?? []).length
+                - (fn ? 0 : (text.match(/export function withCentre\(/g) ?? []).length);
         };
         const ROADS = [
             ["a room action (Rest's menu)", "facilities-gm.mjs", "tellUse", 1],
@@ -67696,6 +67700,23 @@ const INVARIANTS = [
         equal(stableJson(measured), stableJson({ ...Object.fromEntries(ROADS.map(([road, , , n]) => [road, n])),
             merge: { veiled: true, flags: { [MODULE_ID]: { sfx: "E127", popupCentre: "actionResult" }, other: { x: 1 } } } }),
             "{road: how many of its cards ask for the middle; merge: withCentre on a card's extra}");
+    }],
+    ["R8696 - what is done to a player who did not act takes the middle of that player's screen (E127; the coordinator's default to the owner, OWNER-127-CENTRE, item 3; docs/dev/owner127/INVENTORY.md section 3): notice-centre.mjs lists `doneToYou`, and the primary GM's cards to a target ask it - a Tail noticed (tail-gm.mjs `startTail`), a Steal or a Plant felt (palm.mjs `tellPalmVictim`, a living victim's card alone), an unseen Frisk felt (frisk.mjs `friskPerson`) and an open Frisk's outcome (`endAsk`)", async () => {
+        /* Red at 2e28785a: no `doneToYou`, and each of these cards stood in the target's corner. A Sabotage seen is written
+           by the saboteur's browser, which the writer rule never centres on another's screen: left out, said in the
+           inventory. */
+        const NC = await import("./notice-centre.mjs");
+        const sources = await moduleSources();
+        const asks = (file, fn) => (fnSource(stripComments(sources.get(file) ?? ""), fn).match(/withCentre\([^;]*"doneToYou"\)/g) ?? []).length;
+        must((sources.get("frisk.mjs") ?? "").length > 1000, "the posters' sources read as nothing - this would measure nothing");
+        equal(stableJson({
+            listed: Object.hasOwn(NC.CENTRED_NOTICES ?? {}, "doneToYou"),
+            tail: asks("tail-gm.mjs", "startTail"), palm: asks("palm.mjs", "tellPalmVictim"),
+            friskUnseen: asks("frisk.mjs", "friskPerson"), friskOpen: asks("frisk.mjs", "endAsk"),
+            // the GMs' own copy of a body's card stays theirs: only the living victim's asks
+            palmGms: /body \? whisperToGms\(html, card\) : whisperToOwner\(victim, html, withCentre\(card, "doneToYou"\)\)/.test(stripComments(sources.get("palm.mjs") ?? ""))
+        }), stableJson({ listed: true, tail: 1, palm: 1, friskUnseen: 1, friskOpen: 1, palmGms: true }),
+        "{listed; each poster's ask of doneToYou; palmGms: a body's card to the GMs asks nothing}");
     }],
     ["R8431 - the token HUD's on toggles and its focus read under Stained Glass with high contrast (the audit of 1.2.120, H-1, H-7; 1.2.122 line UI): a rule under high contrast and the glass gives `.control-icon.active` the Bone ground and the Ink glyph after the high-contrast ground, and the glass draws the focus ring inside the hexagon (a negative `outline-offset`)", async () => {
         /* Red at 21bf5d18: the high-contrast rule (1,5,1) took the on toggle's ground to Ink under an Ink glyph, and the
