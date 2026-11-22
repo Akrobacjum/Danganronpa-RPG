@@ -705,6 +705,73 @@ export async function run({ gm, p1, p2, p4, check, phase, settle, connect, disco
         await p4.eval(`for (const card of document.querySelectorAll(".drpg-popup")) card.dispatchEvent(new CustomEvent("drpg-dismiss", { detail: { instant: true } })); return true;`);
     }
 
+    phase("T: a told trace is its leaver's Truth Bullet at once, and nobody else's");
+    /* 1.2.124 (OWNER-124-TRACE; the owner, 22.11.2026: a player told of their own trace gets it at once as a Truth Bullet).
+       p4 plays Daichi. From p4's page, as its actions place them (remnants.mjs `dropRemnant`): one trace whose card tells
+       of it (`told: true`, a Hope's answer) and one whose card does not (a Despair's). Read on the GM: Daichi's copies of
+       each (truth-bullets.mjs `copiedRemnants`); a second give of the told one (`noteToldTrace`), which must make none. Read
+       on p4, p1 and p2: whether each browser shows each trace as found (visibility.mjs `shownAsFound`). The leak check on
+       p1, a third player: the told token's own flags, and whether any world data p1 holds - every module setting, every
+       user's, actor's and item's module flags - names the told token's id outside its own document. Then p4 reloads, and
+       is shown it still. Red at 2d17b74e: no copy was given (copies [], shown false on p4). */
+    await gm.eval(`await game.actors.get("${IDS.daichi}").update({ ownership: { "${P4}": 3 } }); return true;`);
+    await settle(800);
+    await p4.eval(`const R = await import("${repoUrl}/scripts/remnants.mjs"); const a = game.actors.get("${IDS.daichi}");
+        await R.dropRemnant(a, { told: true, visibility: "evident", action: "manual", subject: "S73 T told" });
+        await R.dropRemnant(a, { told: false, visibility: "evident", action: "manual", subject: "S73 T despair" });
+        return true;`, { timeout: 30000 });
+    const T_IDS = `${UNTIL} const R = await import("${repoUrl}/scripts/remnants.mjs"); const TB = await import("${repoUrl}/scripts/truth-bullets.mjs");
+        const find = subject => { for (const sc of game.scenes) for (const t of sc.tokens) if (R.remnantData(t)?.subject === subject) return t; return null; };
+        const daichi = game.actors.get("${IDS.daichi}");
+        await until(() => find("S73 T told") && find("S73 T despair") && TB.copiedRemnants(daichi).has(find("S73 T told").id), 8000);
+        const told = find("S73 T told"), despair = find("S73 T despair");`;
+    const tGm = await gm.eval(`${T_IDS}
+        const bullets = () => TB.copiedRemnants(daichi);
+        const before = daichi.items.size;
+        const again = typeof R.noteToldTrace === "function" ? await R.noteToldTrace(told) : null;
+        await new Promise(r => setTimeout(r, 500));
+        return { told: told ? [told.parent.id, told.id] : null, despair: despair ? [despair.parent.id, despair.id] : null,
+            copies: [told && bullets().has(told.id), despair && bullets().has(despair.id)], again: again?.id ?? null, grew: daichi.items.size - before,
+            hidden: [told?.hidden ?? null, despair?.hidden ?? null] };`, { timeout: 30000 });
+    await settle(1500);
+    const SHOWN = ([sc, id]) => `const V = await import("${repoUrl}/scripts/visibility.mjs"); return V.shownAsFound(game.scenes.get("${sc}")?.tokens.get("${id}"));`;
+    const tShown = tGm.told && tGm.despair ? {
+        p4: [await p4.eval(SHOWN(tGm.told)), await p4.eval(SHOWN(tGm.despair))],
+        p1: [await p1.eval(SHOWN(tGm.told)), await p1.eval(SHOWN(tGm.despair))],
+        p2: [await p2.eval(SHOWN(tGm.told)), await p2.eval(SHOWN(tGm.despair))] } : null;
+    const tLeak = tGm.told ? await p1.eval(`const [sc, id] = ${J(tGm.told)};
+        const tok = game.scenes.get(sc)?.tokens.get(id);
+        const own = Object.keys(tok?.flags?.["${MOD}"] ?? {}).sort();
+        const world = [];
+        for (const [full, def] of game.settings.settings) {
+            if (!full.startsWith("${MOD}.") || def.scope !== "world") continue;
+            try { world.push(JSON.stringify(game.settings.get("${MOD}", full.slice(${MOD.length + 1})))); } catch { /* unread */ }
+        }
+        const docs = [...game.users, ...game.actors, ...game.actors.contents.flatMap(a => [...a.items]), ...game.items]
+            .map(d => JSON.stringify(d.flags?.["${MOD}"] ?? {}));
+        return { own, named: [...world, ...docs].filter(text => text.includes(id)).length };`) : null;
+    check("T1: a told trace is its leaver's Truth Bullet at once and a Despair's is not; a second give makes none; p4 is shown the told trace as found and not the other, p1 and p2 neither (OWNER-124-TRACE)",
+        Boolean(tGm.told && tGm.despair) && J(tGm.copies) === J([true, false]) && tGm.again === null && tGm.grew === 0
+            && J(tShown?.p4) === J([true, false]) && J(tShown?.p1) === J([false, false]) && J(tShown?.p2) === J([false, false]),
+        J({ tGm, tShown }));
+    check("T2: on a third player's browser nothing tells whose the told trace is or that it was told: its token carries the marker alone, and no setting or flag p1 holds names it",
+        tLeak !== null && J(tLeak.own) === J(["isRemnant"]) && tLeak.named === 0, J(tLeak));
+    const tStorage = await storageOf("p4");
+    await disconnect("p4");
+    await connect("p4", { storage: tStorage });
+    await settle(1500);
+    const tAfter = tGm.told ? await p4.eval(`${UNTIL} const V = await import("${repoUrl}/scripts/visibility.mjs"); const [sc, id] = ${J(tGm.told)};
+        await until(() => V.shownAsFound(game.scenes.get(sc)?.tokens.get(id)), 6000);
+        return V.shownAsFound(game.scenes.get(sc)?.tokens.get(id));`, { timeout: 30000 }) : null;
+    check("T3: after a reload p4 is still shown its told trace as found (the bullet is the record)", tAfter === true, J(tAfter));
+    await gm.eval(`const TB = await import("${repoUrl}/scripts/truth-bullets.mjs"); const daichi = game.actors.get("${IDS.daichi}");
+        for (const [sc, id] of ${J([tGm.told, tGm.despair].filter(Boolean))}) {
+            for (const item of daichi.items.filter(i => TB.isTruthBullet?.(i))) if (TB.secretOf?.(item.uuid)?.remnantId === id) await item.delete();
+            await game.scenes.get(sc)?.tokens.get(id)?.delete();
+        }
+        return true;`, { timeout: 30000 });
+    await settle(600);
+
     phase("S3: the safeword with no GM connected - the caller's own card names nobody in another player's history window");
     /* E81 fix r2-H1 (13.10.2026; review round 2's C2-1, which the correctness review measured in the harness at eefa79f:
        p1's window tagged the entry "PlayerTwo"). With no GM connected the caller posts the public card itself

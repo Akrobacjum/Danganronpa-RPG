@@ -192,7 +192,56 @@ const TINTS = {
  *   returned - nothing to report if nothing was actually placed or changed.
  */
 export function traceFeedback(roll, placed) {
-    return Boolean(placed) && Boolean(roll?.isCritical || roll?.withHope);
+    return Boolean(placed) && Boolean(roll?.isCritical || roll?.withHope || shownToItsCast(placed));
+}
+
+/*
+ * TOLD IS SHOWN, AND SHOWN IS TOLD (1.2.124; the owner, 22.11.2026: "Co do powiadomien i remnantow - powinno byc to
+ * spojne z tym, czy gracz widzi pozostawiony przez siebie remnant (token), czy nie", option B: the token follows the card;
+ * and the same day: "Kiedy gracz ma swoj wlasny remnant (tzn dostaje informacje i widzi token) niech dostaje go od razu
+ * jako truth bullet"). The two halves of one rule:
+ * - A trace its leaver is told of (`traceFeedback` true) is that character's Truth Bullet at once (`noteToldTrace`): the
+ *   copy an Observe hit makes, by its road (observe.mjs `mintFindCopy`), and the token then shows to its holders by the
+ *   rule every found trace keeps (visibility.mjs `applyToRemnantToken`). A player's own placement carries the card's
+ *   answer as a claim (`narrowPlayerRemnant`), held by the primary to its own record of the drawn roll
+ *   (bridge-runs-records.mjs `handleRemnant`); a GM's own road gives the copy after placing (murder-rules.mjs, reroll.mjs).
+ * - A trace its cast is shown (D11: an incident's trace, un-hidden and marked `fromIncident`, `placeRemnant`) is told on
+ *   its card, whatever the roll: `shownToItsCast` below - and so is its own leaver's copy; another of the cast who only
+ *   sees it gets none, as before. A player's packet never places one (`narrowPlayerRemnant` keeps Preparation and
+ *   Tamper), so every such trace is placed on a GM's browser, where `placed` is its token.
+ * Still never the band (above).
+ */
+function shownToItsCast(placed) {
+    const doc = placed?.document ?? placed;
+    try {
+        return typeof doc?.getFlag === "function" && Boolean(doc.getFlag(MODULE_ID, REMNANT_FLAGS.fromIncident));
+    } catch {
+        return false;
+    }
+}
+
+/**
+ * A GM: the trace `placed` is one its leaver was told of (`traceFeedback` true), so the leaver - the row's `sourceActor`,
+ * no one else - holds its copy now: made as an Observe hit's is (observe.mjs `mintFindCopy`, which reveals the token by
+ * the find's road), not identified whatever the action's roll was, named and worded as cleanup.mjs `authorsCopy` names a
+ * Tamper's copy for its author, and with no "say what it is" for the GMs (`tell: false`): nothing waits on a GM. None for
+ * a copy held already (`mintFindCopy`'s `HELD`: one copy a trace a character, and Observe skips it after). A copy given
+ * stays given: a Reroll that turns the tell into a Despair takes nothing back, as a found trace stays found. Answers the
+ * bullet, or null.
+ */
+export async function noteToldTrace(placed) {
+    const doc = placed?.document ?? placed;
+    if (!game.user?.isGM || !doc?.id || !keyOf(doc)) return null;
+    const data = remnantData(doc);
+    const actor = data?.sourceActor ? game.actors.get(data.sourceActor) : null;
+    if (!actor) return null;
+    const pub = remnantPublic(doc);
+    const { mintFindCopy } = await import("./observe.mjs");
+    const item = await mintFindCopy(actor, { tokenId: doc.id, sceneId: doc.parent?.id ?? null, room: data.room ?? null, data }, {
+        name: pub?.name || data.subject || game.i18n.format("DRPG.Observe.defaultName", { room: data.room ?? "?" }),
+        playerText: pub?.playerText ?? "", analyzedText: pub?.analyzedText ?? "", img: pub?.img ?? null, tell: false
+    });
+    return item?.id ? item : null;
 }
 
 /* ==========================================================================
@@ -243,7 +292,9 @@ export async function dropRemnant(actor, {
      * (`tieWaitNow`, E09 fix r2-G4). GM-side, like `placeRemnant`'s `keepId`: never put in the
      * data, so it never travels.
      */
-    deathOf = null
+    deathOf = null,
+    // The card's answer, `traceFeedback(roll, true)` (1.2.124): its leaver holds this trace's copy (`noteToldTrace`).
+    told = false
 } = {}) {
     const token = tokenFor(actor);
     if (!token) {
@@ -276,6 +327,7 @@ export async function dropRemnant(actor, {
         sceneId: token.document.parent?.id,
         type, visibility, faint, reinforced, note, action, subject, pointsAt, tiedToCrime,
         itemIdentity, projectId,
+        ...(told === true ? { told: true } : {}),
         sourceActor: actor.id,
         sourceName: actor.name,
         room: roomOfActor(actor),
@@ -582,6 +634,8 @@ export async function placeRemnant(data = {}, { keepId = false, rollId = null, d
                 epoch: keepId && Number.isFinite(data.epoch) ? data.epoch : seasonEpoch()
             });
             await setRemnantSecret(created, row);
+            // A trace its leaver was told of: their copy, at once and not waited on (`noteToldTrace`, 1.2.124).
+            if (data.told === true) void noteToldTrace(created).catch(err => error("Could not give a trace's leaver its copy", err));
         }
 
         if (givenId && created && !remnantStore.has(keyOf(created))) {
@@ -907,6 +961,8 @@ export function narrowPlayerRemnant(data, actor, where, clock = {}) {
         note: String(data.note ?? "").slice(0, 400),
         subject: String(data.subject ?? "").slice(0, 80),
         itemIdentity: holds ? identity : null,
+        // The card's own answer (`traceFeedback`), a claim: the primary holds it to its record of the roll (`handleRemnant`).
+        told: data.told === true,
         sourceActor: actor.id,
         sourceName: actor.name,
         room: where.room ?? null,

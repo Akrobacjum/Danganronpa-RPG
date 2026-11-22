@@ -422,6 +422,8 @@ async function leaveSearchTrace(actor, def, roll, { hit, category, drawn, grante
         const { dropRemnant, traceFeedback } = await import("./remnants.mjs");
         const catLabel = ITEM_CATEGORIES[category]?.label ?? category;
         placed = await dropRemnant(actor, {
+            // The card's answer, so its leaver holds the trace it tells of as a Truth Bullet (remnants.mjs `noteToldTrace`, 1.2.124).
+            told: traceFeedback(roll, true),
             type,
             visibility,
             faint,

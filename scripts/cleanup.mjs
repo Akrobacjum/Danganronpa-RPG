@@ -1078,6 +1078,8 @@ async function leaveTamperTrace(actor, data, outcome, { isCritical, withHope, re
         // already defined as "Cleanup" - the vocabulary was written for this
         // stage before there was anything to fill it.
         action: "resolution",
+        // The card's answer (below), so its leaver holds the trace it tells of as a Truth Bullet (remnants.mjs `noteToldTrace`, 1.2.124).
+        told: traceFeedback({ isCritical, withHope }, true),
         note: game.i18n.format("DRPG.Cleanup.remnantNote", {
             what: `${data.visibilityLabel} ${data.typeLabel}`
         })
