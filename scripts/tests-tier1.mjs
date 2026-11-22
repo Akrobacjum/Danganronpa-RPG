@@ -67718,6 +67718,52 @@ const INVARIANTS = [
         }), stableJson({ listed: true, tail: 1, palm: 1, friskUnseen: 1, friskOpen: 1, palmGms: true }),
         "{listed; each poster's ask of doneToYou; palmGms: a body's card to the GMs asks nothing}");
     }],
+    ["R8697 - a picture's path with a parenthesis is kept, encoded (E127; OWNER-127-PORTRAIT-PARENS, the owner's table of 22.11.2026: the second GM's portrait on the voice tile was a Forge asset named `..._(Swimsuit)_Preview.webp` and was not drawn): safeRoomImage and safePortrait answer `(` as `%28` and `)` as `%29`, on The Forge and on this origin, so no answer can close a CSS `url()`; a path already written with `%28`/`%29` is kept as written; every answer is a fixed point and resolves to itself; every other refusal stands", async () => {
+        /* Red at 2e28785a: every parenthesised row refused (`null`), so the voice tile drew the next face or none. The
+           encoding is the rule's, not each caller's: the room tile, Room Setup, `setVaultRoom`, the voice tile and its list,
+           the trial scene and the sequence's portrait all read `safeRoomImage` or `safePortrait`. The art layer's
+           `url()` is read on the room tile (R546's `paintRoomTile` box) for the Forge row. `globalThis.ForgeVTT` is the
+           stand-in R546 uses, put back in `finally`. What The Forge's server answers to the encoded name is the owner's
+           table: the workaround there was the same `%28`/`%29`, typed by hand. */
+        const V = await import("./vault.mjs"), T = await import("./room-tile.mjs");
+        const LIB = "https://assets.forge-vtt.com/", origin = new URL(document.baseURI).origin;
+        const SPRITE = `${LIB}r8697user/assets/DRS_-_Kurokuma_Sprite_(Swimsuit)_Preview.webp`;
+        const SPRITE_ENC = `${LIB}r8697user/assets/DRS_-_Kurokuma_Sprite_%28Swimsuit%29_Preview.webp`;
+        const KEPT = [
+            [SPRITE, SPRITE_ENC], [SPRITE_ENC, SPRITE_ENC],
+            ["worlds/suite/faces/aiko_(beach).png", "worlds/suite/faces/aiko_%28beach%29.png"],
+            [`${origin}/worlds/suite/hall_(1).jpg`, "/worlds/suite/hall_%281%29.jpg"],
+            ["worlds/suite/)(.webp", "worlds/suite/%29%28.webp"]
+        ];
+        // A parenthesis never rescues another refusal: a quote, a query, a fragment, a `..`, a backslash, a bracket, a control, `%2f`, another host, a gif.
+        const REFUSED = ["worlds/x.png\")", "worlds/x(.png'", "worlds/(x).png?v=1", "worlds/(x).png#a", "worlds/(a)/../x.png", "worlds\\(x).png",
+            "worlds/(x)<.png", "worlds/(x)\u0001.png", "worlds/(a)%2fx.png", "https://evil.example/(x).png", "worlds/(x).gif", "url(worlds/x.png)"];
+        const judge = fn => path => { try { return fn(path); } catch (err) { return `throws ${err?.name}`; } };
+        const had = Object.getOwnPropertyDescriptor(globalThis, "ForgeVTT");
+        let read;
+        try {
+            Object.defineProperty(globalThis, "ForgeVTT", { configurable: true, writable: true, value: { usingTheForge: true, ASSETS_LIBRARY_URL_PREFIX: LIB } });
+            const answers = KEPT.map(([path]) => judge(V.safeRoomImage)(path));
+            const box = document.createElement("section");
+            T.paintRoomTile(box, { state: "room", room: "R8697 Hall", sceneId: "SUITER8697SCENE0", description: "R8697", image: SPRITE,
+                tokens: { max: 3, left: 2, sealed: false }, project: true });
+            const art = box.querySelector(".drpg-room-tile-art")?.style.backgroundImage ?? null;
+            read = {
+                kept: answers,
+                portrait: KEPT.map(([path]) => judge(V.safePortrait)(path)),
+                refused: REFUSED.map(judge(V.safeRoomImage)),
+                fixed: answers.filter(Boolean).filter(a => V.safeRoomImage(a) !== a),
+                raw: answers.filter(a => /[()"'\\]/.test(String(a))),
+                art: typeof art === "string" && art.includes("%28Swimsuit%29") && !/_\(Swimsuit\)_/.test(art)
+            };
+        } finally {
+            if (had) Object.defineProperty(globalThis, "ForgeVTT", had);
+            else delete globalThis.ForgeVTT;
+        }
+        equal(JSON.stringify(read), JSON.stringify({
+            kept: KEPT.map(([, kept]) => kept), portrait: KEPT.map(([, kept]) => kept), refused: REFUSED.map(() => null), fixed: [], raw: [], art: true
+        }), "{kept, portrait: each row's answer, parentheses as %28/%29; refused: each still null; fixed: answers that move when judged again; raw: answers holding ( ) \" ' or \; art: the room tile's url() holds the encoded name}");
+    }],
     ["R8431 - the token HUD's on toggles and its focus read under Stained Glass with high contrast (the audit of 1.2.120, H-1, H-7; 1.2.122 line UI): a rule under high contrast and the glass gives `.control-icon.active` the Bone ground and the Ink glyph after the high-contrast ground, and the glass draws the focus ring inside the hexagon (a negative `outline-offset`)", async () => {
         /* Red at 21bf5d18: the high-contrast rule (1,5,1) took the on toggle's ground to Ink under an Ink glyph, and the
            ring stood 2 px outside the clip. Read off the sheets' text; drawn in Chromium by docs/dev/ui122/hud-shots.mjs. */

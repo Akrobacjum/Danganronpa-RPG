@@ -640,8 +640,8 @@ const ROOM_IMAGE_TYPES = new Set(["jpg", "jpeg", "png", "webp", "avif"]);
  * this server serves: a relative path (Foundry's own, `worlds/<id>/rooms/hall.webp`, with a route prefix or
  * not) or an absolute URL of this origin. Refused: any other scheme (`javascript:`, `data:`, `blob:`,
  * `file:`), another host (`//host/x.png`, `https://host/x.png`), a query or a fragment (`/route?x.png`),
- * a `..` segment (plain or `%2e`), a backslash, a quote, a bracket or a control character (the path ends
- * up inside a CSS `url("...")` on the tile), a slash or a backslash written as `%2f` or `%5c`, and an
+ * a `..` segment (plain or `%2e`), a backslash, a quote, an angle bracket or a control character (the path
+ * ends up inside a CSS `url("...")` on the tile; a parenthesis is answered as `%28`/`%29` since 1.2.127), a slash or a backslash written as `%2f` or `%5c`, and an
  * extension not in ROOM_IMAGE_TYPES. Answers the relative path as written, or an absolute one's pathname,
  * trimmed - and only when that answer, read again against this page, is the same URL: the answer is final,
  * so `safeRoomImage(safeRoomImage(x)) === safeRoomImage(x)` over every row R505 reads (its KEPT, REFUSED
@@ -663,8 +663,15 @@ const ROOM_IMAGE_TYPES = new Set(["jpg", "jpeg", "png", "webp", "avif"]);
  */
 export function safeRoomImage(path) {
     if (typeof path !== "string") return null;
-    const text = path.trim();
-    if (!text || /[\u0000-\u001f\u007f"'()<>\\?#]/.test(text)) return null;
+    /* A PARENTHESIS IS ENCODED, NOT REFUSED (1.2.127, OWNER-127-PORTRAIT-PARENS; the owner's table of 22.11.2026: the
+       second GM's portrait was a Forge asset `..._Kurokuma_Sprite_(Swimsuit)_Preview.webp`, refused here until then, and
+       drew no face). `(` and `)` are written `%28` and `%29` before anything is judged, so every check below reads the
+       encoded path and the answer holds no parenthesis that could close a CSS `url()`; the URL parser leaves both as
+       written, so the re-read below still holds, and a path already typed with `%28`/`%29` (the table's workaround) is
+       the same answer. The file is fetched by the encoded name, which a server decodes as usual (on The Forge, the owner's
+       workaround measured it; Foundry's own server not measured, LIVE-127-05). */
+    const text = path.trim().replace(/\(/g, "%28").replace(/\)/g, "%29");
+    if (!text || /[\u0000-\u001f\u007f"'<>\\?#]/.test(text)) return null;
     if (/(?:^|\/)(?:\.|%2e){2}(?:\/|$)/i.test(text) || /%(?:2f|5c)/i.test(text)) return null;
     let url;
     try {
