@@ -6133,9 +6133,22 @@ body:not(.drpg-theme-stained-glass) #drpg-notice-centre .drpg-duality .drpg-dual
 }
 body:not(.drpg-theme-stained-glass) #drpg-notice-centre .drpg-duality .drpg-duality-die.is-hope { background: var(--drpg-gold); }
 body:not(.drpg-theme-stained-glass) #drpg-notice-centre .drpg-duality .drpg-duality-die.is-despair { background: var(--drpg-blood); }
-/* A second roll on the card (a Tail's effect roll under its Shadow roll) at the corner's size: the first is the news. */
-#drpg-notice-centre .drpg-duality ~ .drpg-duality .drpg-duality-total { font-size: 2.1em; }
-body:not(.drpg-theme-stained-glass) #drpg-notice-centre .drpg-duality ~ .drpg-duality .drpg-duality-die { width: 1.9em; height: 1.9em; font-size: 1em; }
+/* A second roll on the card (a Tail's effect roll under its Shadow roll) smaller than the first, with room above its
+   head: the first is the news (the coordinator's reading of the third screenshots, 22.11.2026: drawn the same size under
+   Stained Glass, whose die plates are a fixed 54 px, and its head pressed under the first roll's chips). */
+#drpg-notice-centre .drpg-duality ~ .drpg-card-head { margin-top: 18px; }
+#drpg-notice-centre .drpg-duality ~ .drpg-duality .drpg-duality-total { font-size: 1.8em; }
+#drpg-notice-centre .drpg-duality ~ .drpg-duality .drpg-duality-formula { margin-top: 6px; }
+body:not(.drpg-theme-stained-glass) #drpg-notice-centre .drpg-duality ~ .drpg-duality .drpg-duality-die { width: 1.8em; height: 1.8em; font-size: 0.95em; }
+body.drpg-theme-stained-glass #drpg-notice-centre .drpg-duality ~ .drpg-duality .drpg-duality-die {
+    width: 36px;
+    height: 36px;
+    font-size: max(var(--drpg-sg-floor), calc(20px * var(--drpg-sg-scale)));
+    clip-path: polygon(9px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 9px) 100%, 0 100%, 0 10px);
+}
+body.drpg-theme-stained-glass #drpg-notice-centre .drpg-duality ~ .drpg-duality .drpg-duality-die.is-despair {
+    clip-path: polygon(0 0, calc(100% - 9px) 0, 100% 10px, 100% 100%, 9px 100%, 0 calc(100% - 10px));
+}
 /* A card with no roll (a lock found broken, a body found) opens on its first sentence as a headline, in the same frame. */
 #drpg-notice-centre .drpg-popup-body:not(:has(.drpg-duality)) > p:first-of-type {
     font-size: 1.2em;
