@@ -64,5 +64,35 @@ for (const theme of ["stained", "legacy"]) for (const size of ["1920x1080", "136
     if (!ok) bad++;
     console.log(`${shot} ${theme} ${size}: ${JSON.stringify(read)}${ok ? "" : "  - FAIL"} -> ${file.slice(out.length)}`);
 }
+/* THE FOCUS STAYS WHERE IT WAS (no screenshot): a field in an open window has the focus and its caret, a centred card
+   arrives, the player clicks the card's words and then its X with the mouse; the field must still have the focus and the
+   caret where it was, and the card must be gone. Both themes, 1366x768. */
+for (const theme of ["stained", "legacy"]) {
+    const page = await browser.newPage({ viewport: { width: 1366, height: 768 } });
+    await page.goto(`${base}?role=player${theme === "legacy" ? "&theme=legacy" : ""}`);
+    await page.waitForFunction(() => window.__glass && document.getElementById("drpg-popups"), null, { timeout: 15000 });
+    await page.waitForTimeout(1500);
+    await page.evaluate(() => {
+        const box = document.createElement("textarea");
+        box.id = "owner124-typing";
+        box.style.cssText = "position:fixed;left:40px;bottom:40px;width:300px;height:60px;z-index:99999";
+        document.body.append(box);
+    });
+    await page.click("#owner124-typing");
+    await page.keyboard.type("I hide the knife");
+    await page.evaluate(async () => { (await import("/scripts/popup.mjs")).showPopup("<p>A result.</p>", { title: "Search", centre: true, record: false }); });
+    await page.waitForTimeout(600);
+    await page.click("#drpg-notice-centre .drpg-popup-body");
+    const afterWords = await page.evaluate(() => document.activeElement?.id ?? null);
+    await page.click("#drpg-notice-centre .drpg-popup-close");
+    await page.waitForTimeout(1300);
+    await page.keyboard.type(" under the floor");
+    const r = await page.evaluate(() => ({ focus: document.activeElement?.id ?? null, text: document.getElementById("owner124-typing").value,
+        gone: !document.querySelector("#drpg-notice-centre .drpg-popup") }));
+    const ok = afterWords === "owner124-typing" && r.focus === "owner124-typing" && r.text === "I hide the knife under the floor" && r.gone;
+    if (!ok) bad++;
+    console.log(`focus ${theme}: after a click on its words ${afterWords}, after its X ${r.focus}, typed "${r.text}", card gone ${r.gone}${ok ? "" : "  - FAIL"}`);
+    await page.close();
+}
 await browser.close();
 process.exit(bad ? 1 : 0);

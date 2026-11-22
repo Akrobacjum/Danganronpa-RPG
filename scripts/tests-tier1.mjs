@@ -67113,6 +67113,93 @@ const INVARIANTS = [
         stableJson({ kept: 2, seeds: [[0.9, 0.3], [0.1, 0.7], [null, null], [null, null]], reads: [true, true, true], recut: true }),
         "{kept: two panes moved; seeds: moved 0.6 px, moved 30 px, a new pane, a pane cut to 0.4 of the old; reads: paintGlass's two numbers and the lum kept; recut: carried before the panes are replaced}");
     }],
+    ["R8670 - the notices that take the middle of the screen are one closed list (the owner's OWNER-124-NOTICES of 22.11.2026; 1.2.124 line UI): every `popupCentre` a script writes is a name of notice-centre.mjs `CENTRED_NOTICES`, every name has a writer, and `centreFlag` refuses a name not on it", async () => {
+        /* Red at 52057a2b: no notice-centre.mjs; body.mjs wrote `popupCentre: true` and the catch-all honoured a GM's `true`. */
+        const NC = await import("./notice-centre.mjs").catch(() => null);
+        must(NC && NC.CENTRED_NOTICES && typeof NC.centreFlag === "function", "no notice-centre.mjs - the middle of the screen has no list");
+        const sources = await moduleSources();
+        must(sources.size > 200, "the module's sources read as nothing - this would measure nothing");
+        const written = new Map();
+        for (const [file, text] of sources) {
+            if (/^tests/.test(file) || file === "notice-centre.mjs") continue;
+            for (const m of stripComments(text).matchAll(/popupCentre:\s*([^,}\n]+)/g)) {
+                for (const name of m[1].match(/"([A-Za-z]+)"/g) ?? [m[1].trim()]) written.set(name.replace(/"/g, ""), [...(written.get(name.replace(/"/g, "")) ?? []), file]);
+            }
+        }
+        // the day summary asks by showPopup's own option on the GM's screen (day-summary.mjs), not by the flag
+        const direct = [...sources].filter(([file, text]) => !/^tests/.test(file) && /centre:\s*true/.test(stripComments(text))).map(([file]) => file).sort();
+        const names = Object.keys(NC.CENTRED_NOTICES).sort();
+        let refused = false;
+        try { NC.centreFlag("notOnTheList"); } catch { refused = true; }
+        equal(stableJson({ notListed: [...written.keys()].filter(n => !names.includes(n)).sort(), unwritten: names.filter(n => !written.has(n) && !(n === "daySummary" && direct.includes("day-summary.mjs"))),
+            direct, refused, flag: NC.centreFlag("lockBroken") }),
+        stableJson({ notListed: [], unwritten: [], direct: ["day-summary.mjs"], refused: true, flag: { popupCentre: "lockBroken" } }),
+        "{notListed: a name written that the list lacks; unwritten: a name nobody writes; direct: showPopup's own centre callers; refused: a name not on the list; flag: the flags of a name}");
+    }],
+    ["R8671 - who a centred notice takes the middle for (OWNER-124-NOTICES; 1.2.124 line UI): notice-centre.mjs `centredNotice` answers yes for a listed name a GM wrote, and for a listed name read by its own writer; no for a player's card on another player's screen, for a name not on the list and for `true`", async () => {
+        /* Red at 52057a2b: no notice-centre.mjs. The catch-all took `popupCentre === true` from a GM alone. */
+        const NC = await import("./notice-centre.mjs").catch(() => null);
+        must(NC && typeof NC.centredNotice === "function", "no notice-centre.mjs `centredNotice`");
+        const gm = { id: "R8671gm", isGM: true }, p1 = { id: "R8671p1", isGM: false }, p2 = { id: "R8671p2", isGM: false };
+        const card = (author, popupCentre) => ({ author, flags: { [MODULE_ID]: { popupCentre } }, getFlag: (scope, key) => (scope === MODULE_ID ? { popupCentre }[key] : undefined) });
+        equal(stableJson({
+            gmToP1: NC.centredNotice(card(gm, "lockBroken"), p1),
+            ownResult: NC.centredNotice(card(p1, "actionResult"), p1),
+            othersResult: NC.centredNotice(card(p1, "actionResult"), p2),
+            notListed: NC.centredNotice(card(gm, "timeOfDay"), p1),
+            bare: NC.centredNotice(card(gm, true), p1),
+            none: NC.centredNotice(card(gm, undefined), p1)
+        }), stableJson({ gmToP1: true, ownResult: true, othersResult: false, notListed: false, bare: false, none: false }),
+        "{gmToP1: a GM's lock card; ownResult: a player's own result on its own screen; othersResult: on another's; notListed; bare true; none}");
+    }],
+    ["R8672 - the centred notices wait in order, one in front, closed by hand, and take no focus (OWNER-124-NOTICES; 1.2.124 line UI): popup.mjs `showPopup` with `centre` puts three cards on `#drpg-notice-centre`: the first shown, the other two parked and counted \"+2\" as a label; a click on the card closes nothing, its X closes it and the next in arrival order comes forward; a mousedown on it is cancelled; the stage is raised and goes with its last card; the corner holds none of them", async () => {
+        /* Red at 52057a2b: the centre cards went to the trial's evidence stage, two shown at once, the newest parked last. */
+        const P = await import("./popup.mjs");
+        const titles = ["R8672 one", "R8672 two", "R8672 three"];
+        const closers = titles.map(title => P.showPopup(`<p>${title}</p>`, { title, centre: true, record: false }));
+        try {
+            const stage = document.getElementById("drpg-notice-centre");
+            must(stage, "no #drpg-notice-centre stage was drawn - the cards went elsewhere");
+            const cards = () => [...stage.querySelectorAll(".drpg-popup:not(.leaving)")];
+            const front = () => cards().filter(c => !c.classList.contains("drpg-popup-parked")).map(c => c.querySelector(".drpg-popup-title")?.firstChild?.textContent?.trim());
+            const first = { front: front(), parked: cards().filter(c => c.classList.contains("drpg-popup-parked")).length,
+                more: stage.querySelector(".drpg-popup-more")?.textContent ?? null, moreIsButton: stage.querySelector(".drpg-popup-more")?.tagName === "BUTTON",
+                raised: stage.classList.contains("is-raised"), corner: document.querySelectorAll("#drpg-popups .drpg-popup").length };
+            const shown = cards().find(c => !c.classList.contains("drpg-popup-parked"));
+            shown.querySelector(".drpg-popup-body").click();
+            const afterClick = front();
+            const down = new MouseEvent("mousedown", { bubbles: true, cancelable: true });
+            shown.dispatchEvent(down);
+            shown.querySelector(".drpg-popup-close").click();
+            await new Promise(r => setTimeout(r, 1400));
+            const afterClose = { front: front(), parked: cards().filter(c => c.classList.contains("drpg-popup-parked")).length };
+            equal(stableJson({ first, afterClick, focusKept: down.defaultPrevented, afterClose }),
+                stableJson({ first: { front: ["R8672 one"], parked: 2, more: "+2", moreIsButton: false, raised: true, corner: 0 }, afterClick: ["R8672 one"], focusKept: true,
+                    afterClose: { front: ["R8672 two"], parked: 1 } }),
+            "{first: the oldest in front, two waiting as a label, raised, none in the corner; afterClick: a click on its words closes nothing; focusKept: its mousedown cancelled; afterClose: the next in order}");
+        } finally {
+            closers.forEach(close => close?.({ instant: true }));
+        }
+        await new Promise(r => setTimeout(r, 50));
+        ok(!document.getElementById("drpg-notice-centre"), "the notices' stage stayed after its last card closed");
+    }],
+    ["R8673 - the posters of the centred notices ask by name (OWNER-124-NOTICES; 1.2.124 line UI): action-report.mjs `rollCardFlags` and `report` ask `actionResult`, action-tail.mjs asks `failedShadow` when the target noticed and `actionResult` when not, doors-gm.mjs asks `lockBroken` for a lock picked, forced or breached and nothing for one only mended, body.mjs asks `bodyFound`", async () => {
+        /* Red at 52057a2b: none asked but body.mjs's `true`. */
+        const R = await import("./action-report.mjs");
+        const flags = R.rollCardFlags({ label: "Observe" }, { total: 12, withHope: true })?.flags?.[MODULE_ID] ?? {};
+        const sources = await moduleSources();
+        const src = f => stripComments(sources.get(f) ?? "");
+        must(src("doors-gm.mjs").length > 1000 && src("action-report.mjs").length > 1000, "the posters' sources read as nothing - this would measure nothing");
+        equal(stableJson({
+            rollCard: flags.popupCentre ?? null,
+            report: /popupTone: rollTone\(roll\),\s*popupCentre: "actionResult"/.test(src("action-report.mjs")),
+            tail: /popupCentre: seen \? "failedShadow" : "actionResult"/.test(src("action-tail.mjs")),
+            bedroom: /kinds\.some\(kind => kind !== "mended"\)[\s\S]{0,200}popupCentre: "lockBroken"/.test(src("doors-gm.mjs")),
+            bedroomCalls: (src("doors-gm.mjs").match(/whisperToOwnerOnly\(owner, await bedroomCard\([^)]*\)[^;]*bedroomExtra\(/g) ?? []).length,
+            body: /popupCentre: "bodyFound"/.test(src("body.mjs"))
+        }), stableJson({ rollCard: "actionResult", report: true, tail: true, bedroom: true, bedroomCalls: 2, body: true }),
+        "{rollCard: Observe/Analyze/Listen; report: every action's result; tail: noticed or not; bedroom: not a lock only mended; bedroomCalls: both of the owner's cards; body}");
+    }],
     ["R8431 - the token HUD's on toggles and its focus read under Stained Glass with high contrast (the audit of 1.2.120, H-1, H-7; 1.2.122 line UI): a rule under high contrast and the glass gives `.control-icon.active` the Bone ground and the Ink glyph after the high-contrast ground, and the glass draws the focus ring inside the hexagon (a negative `outline-offset`)", async () => {
         /* Red at 21bf5d18: the high-contrast rule (1,5,1) took the on toggle's ground to Ink under an Ink glyph, and the
            ring stood 2 px outside the clip. Read off the sheets' text; drawn in Chromium by docs/dev/ui122/hud-shots.mjs. */
