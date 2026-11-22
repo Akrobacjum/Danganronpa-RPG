@@ -117091,6 +117091,213 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         equal(stableJson({ settled, flags }), stableJson({ settled: 1, flags: [true, false] }),
             "{settled: the cards the lights closed; flags: [the first killer's card settled, the second's]}");
     }],
+    ["1.2.125 H1 - tier 2 takes back the told copies its test was given and no other: a copy its leaver was given before the test's scope opened stays on the sheet (scripts/remnants.mjs `openToldScope`, `closeToldScope`, `takeToldCopies`; tests.mjs `takeBackToldCopies`; the coordinator's H1, 22.11.2026)", async () => {
+        /*
+         * 1.2.125 H1, 22.11.2026. 1.2.124's runner deleted every told copy made since the GM's page loaded, so a GM who
+         * ran tier 2 in a played world had the players' own copies deleted at the first restore. Two told traces left by
+         * one student: the first with the scope closed (a copy given in play, before the run), the second inside it;
+         * then the runner's own step. Read: whether each copy is on the sheet after the step, and how many it deleted.
+         * Red at 206148b7: no scope - the step deleted both.
+         */
+        must(game.user.isGM, "the told copies are made on a GM");
+        const R = await import("./remnants.mjs");
+        const T = await import("./tests.mjs");
+        const { secretOf, dropSecret } = await import("./truth-bullets.mjs");
+        const { locateActor } = await import("./movement.mjs");
+        must(typeof R.openToldScope === "function" && typeof R.closeToldScope === "function" && typeof T.takeBackToldCopies === "function",
+            "no told scope (remnants.mjs `openToldScope`, `closeToldScope`) or no runner step (tests.mjs `takeBackToldCopies`): every copy made since the page loaded is taken back");
+        const scene = canvas?.scene;
+        const student = cast(4).find(a => { const at = locateActor(a); return at?.room && at.scene === scene; });
+        must(student, "no student of the cast stands in a room on the scene on screen - this would measure nothing");
+        const copyOf = trace => student.items.find(i => secretOf(i.uuid).remnantId === trace?.id) ?? null;
+        const traces = [];
+        let read = null;
+        try {
+            R.closeToldScope();
+            const played = await R.dropRemnant(student, { type: "prep", visibility: "evident", note: "SUITE 1.2.125 H1 played", told: true });
+            if (played) traces.push(played);
+            await R.settleToldCopies();
+            R.openToldScope();
+            const inTest = await R.dropRemnant(student, { type: "prep", visibility: "evident", note: "SUITE 1.2.125 H1 in the test", told: true });
+            if (inTest) traces.push(inTest);
+            await R.settleToldCopies();
+            must(traces.length === 2 && copyOf(played) && copyOf(inTest), "the two told copies were not both made - this would measure nothing");
+            const deleted = await T.takeBackToldCopies();
+            read = { played: Boolean(copyOf(played)), inTest: Boolean(copyOf(inTest)), deleted };
+        } finally {
+            R.openToldScope();
+            for (const trace of traces) {
+                const item = copyOf(trace);
+                if (item) { await dropSecret(item.uuid); await item.delete(); }
+                await R.dropRemnantSecret(trace);
+                if (scene.tokens.has(trace.id)) await scene.deleteEmbeddedDocuments("Token", [trace.id]);
+            }
+        }
+        equal(stableJson(read), stableJson({ played: true, inTest: false, deleted: 1 }),
+            "{played: the copy given before the scope opened is on the sheet after the runner's step; inTest: the test's own copy; deleted: how many the step took back}");
+    }],
+    ["1.2.125 H2 - a leaver's own told copy is no find: the trace stays unfound for the case summary, the finders, its ref and its row, and its token shows to its holder; a second student's Observe hit then finds it, named alone (scripts/truth-bullets.mjs `isToldCopy`, `findsOf`; investigation.mjs `findersByAnyRemnant`; case-summary.mjs `caseSummaryFound`; remnants.mjs `revealRemnantToFinder` with `told`, `traceRef`; the auditor's r124-T2-1, 22.11.2026)", async () => {
+        /*
+         * 1.2.125 H2, 22.11.2026. Since 1.2.124 a trace's leaver told of it holds its copy at once, and every reader of
+         * "who found it" read any holder as a finder: the case summary sent to every player after the verdict listed the
+         * killer's own traces as found evidence nobody had Observed. A told trace left by one student (the leaver), then
+         * a second student's copy by the Observe hit's road (observe.mjs `mintFindCopy`). Read after each: the leaver
+         * holds a copy, the answer key marks it own, the finders of the trace, the ref's `found`, the row's `foundAt` and
+         * road, the token un-hidden, and the case summary's evidence for one node tied to the trace (`composeCaseSummary`
+         * on the found list the window reads). Red at 206148b7: the leaver's copy alone listed the trace as found.
+         */
+        must(game.user.isGM, "the copies and the answer key are a GM's");
+        const R = await import("./remnants.mjs");
+        const O = await import("./observe.mjs");
+        const TB = await import("./truth-bullets.mjs");
+        const CS = await import("./case-summary.mjs");
+        const { findersByAnyRemnant } = await import("./investigation.mjs");
+        const { remnantStore } = await import("./gm-stores.mjs");
+        const { locateActor } = await import("./movement.mjs");
+        const scene = canvas?.scene;
+        const here = cast(4).filter(a => { const at = locateActor(a); return at?.room && at.scene === scene; });
+        must(here.length >= 2, "two students of the cast do not stand in rooms on the scene on screen - this would measure nothing");
+        const [leaver, finder] = here;
+        const copyOf = (actor, trace) => actor.items.find(i => TB.secretOf(i.uuid).remnantId === trace?.id) ?? null;
+        let trace = null;
+        const read = {};
+        try {
+            trace = await R.dropRemnant(leaver, { type: "prep", visibility: "evident", note: "SUITE 1.2.125 H2", told: true });
+            must(trace, "the told trace was not placed - this would measure nothing");
+            await R.settleToldCopies();
+            must(copyOf(leaver, trace), "the leaver was not given the trace's copy - this would measure nothing");
+            const graph = { chapter: getClock().chapter, nodes: [{ id: "suiteH2", kind: "remnant", evidence: true, tied: true, planned: false,
+                trace: `${scene.id}.${trace.id}`, label: "SUITE 1.2.125 H2", text: "" }] };
+            const summaryFound = () => {
+                const finders = findersByAnyRemnant();
+                const found = typeof CS.caseSummaryFound === "function" ? CS.caseSummaryFound(graph, finders)
+                    : graph.nodes.filter(n => n.evidence && n.trace && (finders.get(String(n.trace).split(".").pop())?.size ?? 0) > 0).map(n => n.id);
+                return (CS.composeCaseSummary({ graph, found })?.nodes ?? []).map(n => n.name);
+            };
+            const reading = () => {
+                const row = remnantStore.get(`${scene.id}.${trace.id}`);
+                return {
+                    leaver: Boolean(copyOf(leaver, trace)),
+                    own: typeof TB.isToldCopy === "function" ? TB.isToldCopy(copyOf(leaver, trace)) : null,
+                    finders: [...(findersByAnyRemnant().get(trace.id) ?? [])].map(name => name === leaver.name ? "leaver" : name === finder.name ? "finder" : name),
+                    found: R.remnantById(scene.id, trace.id)?.found ?? null,
+                    foundAt: Number.isFinite(row?.foundAt), via: row?.foundVia ?? null,
+                    shown: scene.tokens.get(trace.id)?.hidden === false,
+                    summary: summaryFound()
+                };
+            };
+            read.told = reading();
+            await O.mintFindCopy(finder, { tokenId: trace.id, sceneId: scene.id, room: locateActor(finder).room, data: R.remnantData(R.remnantById(scene.id, trace.id)) },
+                { name: "SUITE 1.2.125 H2 find", tell: false });
+            read.observed = reading();
+        } finally {
+            if (trace) {
+                for (const actor of [leaver, finder]) {
+                    const item = copyOf(actor, trace);
+                    if (item) { await TB.dropSecret(item.uuid); await item.delete(); }
+                }
+                await R.dropRemnantSecret(trace);
+                if (scene.tokens.has(trace.id)) await scene.deleteEmbeddedDocuments("Token", [trace.id]);
+            }
+        }
+        equal(stableJson(read), stableJson({
+            told: { leaver: true, own: true, finders: [], found: false, foundAt: false, via: null, shown: true, summary: [] },
+            observed: { leaver: true, own: true, finders: ["finder"], found: true, foundAt: true, via: "find", shown: true, summary: ["SUITE 1.2.125 H2"] }
+        }), "{told: after the leaver's own copy alone; observed: after a second student's Observe hit} x {leaver: the leaver holds a copy; own: the answer key marks it the leaver's own; "
+            + "finders: who found the trace; found: its ref; foundAt, via: its row's first find; shown: its token un-hidden (shown to its holders); summary: the case summary's evidence}");
+    }],
+    ["1.2.125 T2-4 T1-1 - a told copy whispers the GMs nothing and counts as no finder's on the reshape card, and a Reroll that removes its trace takes the leaver's told copy with it and leaves a finder's (scripts/truth-bullets.mjs `createTruthBullet` with `told`, `heldCopiesOf`, `takeBackToldCopiesOf`; remnants.mjs `revealRemnantToFinder`, `retuneRemnant` with `remove`; the auditor's r124-T2-4 and r124-T1-1, 22.11.2026)", async () => {
+        /*
+         * 1.2.125, 22.11.2026. A told trace left by one student, the chat messages made meanwhile counted (the GMs'
+         * "a found Remnant no GM has described" is a whisper: 1.2.124 sent one per told copy, its `tell: false` lost in
+         * `createTruthBullet`'s own reveal); then a second student's Observe hit; the reshape card's count of the copies
+         * its finders hold; then the Reroll's removal of the trace (`retuneRemnant`, as reroll.mjs `settleRemnant` asks
+         * it). Read: the whispers, the count, and whose copy is on each sheet after the removal. Red at 206148b7: one
+         * whisper, a count of 2, and the leaver's copy left behind its deleted trace.
+         */
+        must(game.user.isGM, "the copies and the answer key are a GM's");
+        const R = await import("./remnants.mjs");
+        const O = await import("./observe.mjs");
+        const TB = await import("./truth-bullets.mjs");
+        const { locateActor } = await import("./movement.mjs");
+        const scene = canvas?.scene;
+        const here = cast(4).filter(a => { const at = locateActor(a); return at?.room && at.scene === scene; });
+        must(here.length >= 2, "two students of the cast do not stand in rooms on the scene on screen - this would measure nothing");
+        const [leaver, finder] = here;
+        const copyOf = (actor, id) => actor.items.find(i => TB.secretOf(i.uuid).remnantId === id) ?? null;
+        const made = [];
+        const hook = Hooks.on("createChatMessage", m => made.push(m.id));
+        let trace = null, id = null;
+        const read = {};
+        try {
+            trace = await R.dropRemnant(leaver, { type: "prep", visibility: "evident", note: "SUITE 1.2.125 T2-4", told: true });
+            must(trace, "the told trace was not placed - this would measure nothing");
+            id = trace.id;
+            await R.settleToldCopies();
+            await settle();
+            must(copyOf(leaver, id), "the leaver was not given the trace's copy - this would measure nothing");
+            read.whispers = made.map(m => game.messages.get(m)).filter(m => (m?.whisper?.length ?? 0) > 0).length;
+            await O.mintFindCopy(finder, { tokenId: id, sceneId: scene.id, room: locateActor(finder).room, data: R.remnantData(R.remnantById(scene.id, id)) },
+                { name: "SUITE 1.2.125 T1-1 find", tell: false });
+            read.held = TB.heldCopiesOf(id);
+            read.removed = await R.retuneRemnant(scene.id, id, { remove: true });
+            read.after = { leaver: Boolean(copyOf(leaver, id)), finder: Boolean(copyOf(finder, id)), trace: scene.tokens.has(id) };
+        } finally {
+            Hooks.off("createChatMessage", hook);
+            for (const m of made) await game.messages.get(m)?.delete().catch(() => {});
+            if (id) {
+                for (const actor of [leaver, finder]) {
+                    const item = copyOf(actor, id);
+                    if (item) { await TB.dropSecret(item.uuid); await item.delete(); }
+                }
+                if (trace) await R.dropRemnantSecret(trace);
+                if (scene.tokens.has(id)) await scene.deleteEmbeddedDocuments("Token", [id]);
+            }
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ whispers: 0, held: 1, removed: true, after: { leaver: false, finder: true, trace: false } }),
+            "{whispers: messages whispered while the told copy was made; held: the reshape card's count of the copies its finders hold, after the second student's find; "
+            + "removed: the Reroll's removal; after: whose copy is on the sheet once the trace is gone, and the trace}");
+    }],
+    ["1.2.125 H2 reveal - a GM's Reveal of a trace up for its leaver's own told copy alone marks it found by the GM's hand (scripts/remnants.mjs `revealRemnant`, `toldShown`; 1.2.125 H2)", async () => {
+        /*
+         * 1.2.125 H2, 22.11.2026. The told road un-hides a trace for its holder and finds nothing; the GM's Reveal marked
+         * a find only where the token was hidden, so a told trace a GM revealed stayed unfound for every reader. A told
+         * trace left by one student, then the GM's Reveal. Read: the row's first find and road, and the ref's `found`,
+         * before and after. Red before this fix: no find after the Reveal.
+         */
+        must(game.user.isGM, "the reveal is a GM's");
+        const R = await import("./remnants.mjs");
+        const TB = await import("./truth-bullets.mjs");
+        const { remnantStore } = await import("./gm-stores.mjs");
+        const { locateActor } = await import("./movement.mjs");
+        const scene = canvas?.scene;
+        const leaver = cast(4).find(a => { const at = locateActor(a); return at?.room && at.scene === scene; });
+        must(leaver, "no student of the cast stands in a room on the scene on screen - this would measure nothing");
+        const copyOf = id => leaver.items.find(i => TB.secretOf(i.uuid).remnantId === id) ?? null;
+        let trace = null;
+        const read = {};
+        try {
+            trace = await R.dropRemnant(leaver, { type: "prep", visibility: "evident", note: "SUITE 1.2.125 H2 reveal", told: true });
+            must(trace, "the told trace was not placed - this would measure nothing");
+            await R.settleToldCopies();
+            must(copyOf(trace.id), "the leaver was not given the trace's copy - this would measure nothing");
+            const reading = () => { const row = remnantStore.get(`${scene.id}.${trace.id}`);
+                return [Number.isFinite(row?.foundAt), row?.foundVia ?? null, R.remnantById(scene.id, trace.id)?.found ?? null]; };
+            read.told = reading();
+            await R.revealRemnant(R.remnantById(scene.id, trace.id));
+            read.revealed = reading();
+        } finally {
+            if (trace) {
+                const item = copyOf(trace.id);
+                if (item) { await TB.dropSecret(item.uuid); await item.delete(); }
+                await R.dropRemnantSecret(trace);
+                if (scene.tokens.has(trace.id)) await scene.deleteEmbeddedDocuments("Token", [trace.id]);
+            }
+        }
+        equal(stableJson(read), stableJson({ told: [false, null, false], revealed: [true, "gm", true] }),
+            "{told: after the leaver's own copy alone; revealed: after the GM's Reveal} x [the row's first find, its road, the ref's found]");
+    }],
 ];
 
 // `drawnForPlayer` for the grid (E33 C7): a drawn crisis roll goes through the suite's one road to a draw (tests-grid.mjs `drawnAct`).

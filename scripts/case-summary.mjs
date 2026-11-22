@@ -13,6 +13,15 @@
  * preview is the GM's look at it (E99 C7); the module does not judge prose.
  */
 
+/**
+ * The evidence nodes of `graph` some student has found: a node whose trace's token id has a finder in `finders`
+ * (investigation.mjs `findersByAnyRemnant`, which since 1.2.125 H2 counts no leaver's own told copy). What
+ * `composeCaseSummary` takes as `found`; pure.
+ */
+export function caseSummaryFound(graph, finders) {
+    return (graph?.nodes ?? []).filter(n => n.evidence && n.trace && (finders?.get(String(n.trace).split(".").pop())?.size ?? 0) > 0).map(n => n.id);
+}
+
 /** The payload's roles, in the order its list holds them. */
 export const SUMMARY_ROLES = Object.freeze(["evidence", "deduction", "counter", "solution"]);
 
@@ -78,8 +87,7 @@ export async function showCaseSummary() {
     if (progress?.summaryShown) { ui.notifications.info(L("DRPG.CaseSummary.already")); return null; }
     if (!progress?.verdictApplied) { ui.notifications.warn(L("DRPG.CaseSummary.noVerdict")); return null; }
     const graph = caseGraph(chapter);
-    const finders = findersByAnyRemnant();
-    const found = graph.nodes.filter(n => n.evidence && n.trace && (finders.get(String(n.trace).split(".").pop())?.size ?? 0) > 0).map(n => n.id);
+    const found = caseSummaryFound(graph, findersByAnyRemnant());
     const payload = composeCaseSummary({ graph, ticks: caseTicks(chapter), found, correct: progress.verdict?.correct === true });
     const html = caseSummaryHtml(payload, { esc, L });
     const answer = await drpgWindow({

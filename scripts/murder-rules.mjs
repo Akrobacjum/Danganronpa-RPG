@@ -2244,6 +2244,8 @@ async function undoLastCrisis({ actorId, key, before = null }) {
     if (receipt.remnant?.id) {
         try {
             // The trace's token through its ref (E60 C1b): every trace has one (D38 = 1), found or not.
+            // Its leaver's told copy goes with it; a finder's stays (1.2.125, r124-T1-1: truth-bullets.mjs `takeBackToldCopiesOf`).
+            await import("./truth-bullets.mjs").then(m => m.takeBackToldCopiesOf(receipt.remnant.id));
             await remnantById(receipt.remnant.sceneId, receipt.remnant.id)?.document?.delete();
         } catch (err) {
             error("Could not take back the Remnant a rerolled crisis action left", err);

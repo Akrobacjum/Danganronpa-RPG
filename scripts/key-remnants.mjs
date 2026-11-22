@@ -10,7 +10,7 @@ import { itemIcon, KEY_REMNANTS, REMNANT_VISIBILITY, MODULE_ID, REMNANT_VISIBILI
 import { SETTINGS, sameSeason } from "./settings.mjs";
 import { getClock } from "./clock.mjs";
 import { remnantsOn, remnantData, remnantById, setRemnantPublic, traceLabel, authorOptions } from "./remnants.mjs";
-import { BULLET_CATEGORY, bulletsOf, secretOf, isTruthBullet } from "./truth-bullets.mjs";
+import { BULLET_CATEGORY, findsOf, secretOf, isTruthBullet } from "./truth-bullets.mjs";
 import { studentActors } from "./monokuma.mjs";
 import { livingStudentsForGm } from "./chapter.mjs";
 import { log, isPrimaryGm, error, plural, whisperToGms, workingScene, esc } from "./utils.mjs";
@@ -492,7 +492,8 @@ export function placedKeyRemnants() {
 function findersByRemnant() {
     const map = new Map();
     for (const actor of livingStudentsForGm()) {
-        for (const item of bulletsOf(actor)) {
+        // Finds alone (1.2.125 H2, `findsOf`): a leaver's own told copy finds no Key.
+        for (const item of findsOf(actor)) {
             const secret = secretOf(item.uuid);
             if (secret.realType !== "key" || !secret.remnantId) continue;
             if (!map.has(secret.remnantId)) map.set(secret.remnantId, new Set());
@@ -692,7 +693,8 @@ export async function keyFeeOf(chapter = getClock().chapter) {
                 held++;
                 continue;
             }
-            if (secret.realType !== "key" || !secret.remnantId || !living.has(actor.id)) continue;
+            // A leaver's own told copy is no find, and pays no fee off (1.2.125 H2: the answer key's `told`, truth-bullets.mjs `isToldCopy`).
+            if (secret.realType !== "key" || !secret.remnantId || !living.has(actor.id) || secret.told === true) continue;
             const trace = remnantStore.get(`${secret.sceneId}.${secret.remnantId}`);
             const foundIn = trace ? (sameSeason(trace) ? trace.chapter ?? now : null) : secret.chapter ?? null;
             if (foundIn !== null && Number(foundIn) === now) found.add(secret.remnantId);
