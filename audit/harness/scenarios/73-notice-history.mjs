@@ -67,8 +67,12 @@ export const layers = ["ci"];
    two other lanes 36157ms. Still inside 60 s.
    E18 C4's phase R (20.10.2026, in the local gate, once): run-all read "43 s  32/32 passed", the results file 39058 ms -
    p4 leaves, two cards are posted, p4 comes back and waits for the words and for the 4 s give-up on the card no GM holds,
-   not timed apart by phase. Still inside 60 s, so it stays. */
-export const timeoutMs = 60000;
+   not timed apart by phase. Still inside 60 s, so it stays.
+   1.2.124 OWNER-124-TRACE's phase T (22.11.2026, 4 cores, beside two other harness runs, once each): the scenario
+   without T, its da0f95a8 file on this code, "33/33 checks passed, 0 failed in 45615ms", 51 s by the wall clock; with
+   T "37/37 checks passed, 0 failed in 55693ms", 61 s - and run-all killed it at 60 s. T's reload and the copy's Analyze
+   cost about 10 s. Two minutes: a hang detector with room for a slower runner. */
+export const timeoutMs = 120000;
 
 export const accounts = [{ who: "p4", id: "USERP4000000000A", name: "Player Four", role: 1, character: null, color: "#2a7f62", late: true }];
 

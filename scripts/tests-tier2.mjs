@@ -2278,6 +2278,7 @@ async function swingFixture(identity = null) {
     const M = await import("./murder.mjs");
     const { livingStudents } = await import("./chapter.mjs");
     const { equippedFor } = await import("./use-items.mjs");
+    const { isTruthBullet } = await import("./truth-bullets.mjs");
     const player = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
     const [killer, victim] = livingStudents().filter(player);
     const { gameSettings } = CONFIG.DH.SETTINGS;
@@ -2301,7 +2302,9 @@ async function swingFixture(identity = null) {
     must(ready, `the fixture's fight is not at the killer's turn with the knife in hand: ${stableJson(M.murderState())}`);
     return { M, killer, victim, knife, putBack, traits,
         health: () => victim.system.resources.hitPoints.value,
-        handed: () => killer.items.filter(i => !had.has(i.id)).length };
+        /* A weapon handed, not a Truth Bullet: the swing's incident trace is told to its cast, and its leaver - the killer -
+           holds its copy at once (1.2.124, remnants.mjs `traceFeedback`, `noteToldTrace`), which is right by the rule. */
+        handed: () => killer.items.filter(i => !had.has(i.id) && !isTruthBullet(i)).length };
 }
 
 /**
@@ -25066,7 +25069,11 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             await R.settleSearch(actor, R.replayBookmark(F.row()), { total: 30, isCritical: false, withHope: true, withFear: false }, done);
             await settle();
             must(drawnHead && done.some(line => line.startsWith(drawnHead)), `the replay drew nothing - this would measure nothing: ${stableJson(done)}`);
-            read = actor.items.filter(i => !had.has(i.id) && !tools.some(t => t?.id === i.id) && !INV.isStashed(i)).length;
+            /* A find carried, not the searcher's copy of the trace the replay left on Hope: that copy is the rule's
+               (1.2.124, remnants.mjs `noteToldTrace`), and a Truth Bullet takes no slot (config.mjs ITEM_CATEGORIES
+               `truthBullet`: no limit, no group). */
+            read = actor.items.filter(i => !had.has(i.id) && !tools.some(t => t?.id === i.id) && !INV.isStashed(i)
+                && i.getFlag(MODULE_ID, "category") !== "truthBullet").length;
         } finally {
             for (const item of [...actor.items]) if (!had.has(item.id)) await item.delete();
             for (const [i, was] of stowed) if (actor.items.has(i.id)) await i.update({ [flag("location")]: was ?? forcedDeletion() });

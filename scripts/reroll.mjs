@@ -2072,7 +2072,7 @@ async function settleRemnant(actor, bookmark, visibility, done, drop = null, gat
         if (traceFeedback(gate, doc)) {
             done.push(game.i18n.localize("DRPG.Reroll.remnantLeft"));
             // Told, so its leaver holds its copy (1.2.124; remnants.mjs `noteToldTrace`), not waited on.
-            void import("./remnants.mjs").then(m => m.noteToldTrace(doc)).catch(err => error("Could not give a Reroll's trace's leaver its copy", err));
+            void import("./remnants.mjs").then(m => m.giveToldCopy(doc)).catch(err => error("Could not give a Reroll's trace's leaver its copy", err));
         }
         return doc?.id
             ? { remnantId: doc.id, remnantScene: doc.parent?.id ?? null }

@@ -2623,8 +2623,8 @@ async function applyRemnant(actor, visibility, def, band, done, reinforced = fal
     /* And a trace the cast is shown is told, whatever the band (1.2.124, option B: `traceFeedback` reads the token's
        `fromIncident`); each trace told is its leaver's Truth Bullet at once, not waited on (remnants.mjs `noteToldTrace`). */
     if (last && traceFeedback({ isCritical: band === "critical", withHope: band === "hope" }, last)) {
-        const { noteToldTrace } = await import("./remnants.mjs");
-        for (const doc of left) void noteToldTrace(doc).catch(err => error("Could not give a crisis trace's leaver its copy", err));
+        const { giveToldCopy } = await import("./remnants.mjs");
+        for (const doc of left) void giveToldCopy(doc);
         done.push(count > 1
             ? plural("DRPG.Murder.leftRemnants", { n: count })
             : game.i18n.localize("DRPG.Murder.leftRemnant"));
