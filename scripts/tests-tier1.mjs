@@ -67650,6 +67650,53 @@ const INVARIANTS = [
         stableJson({ asGm: [C.SPECTATOR_ALPHA, C.SPECTATOR_ALPHA, C.SPECTATOR_ALPHA], asPlayer: [1, 1], back: [1, 1, 1], paintDresses: true, flagRepaints: true, oneConstant: true }),
         "{asGm: [answered, the frame, the sprite] for a Spectator on a GM's screen; asPlayer: on a player's; back: no Spectator any more; paintDresses: every road of paint that shows a frame; flagRepaints: the flag's write repaints; oneConstant: visibility.mjs states no 0.3 of its own}");
     }],
+    ["R8695 - every action's result card its player waits on asks for the middle (E127; the owner at the table, 22.11.2026: \"nie wszystkie akcje wyswietlaja powiadomienie na srodku (np facilities)\", OWNER-127-CENTRE; docs/dev/owner127/INVENTORY.md): each road of the inventory that did not centre on v1.2.126 - a room action, Observe's and Analyze's verdicts, a Find Stash, a passage, a Steal's and a Plant's verdicts, a Frisk's, an item used, a Rest, Echoes, a crisis action, the opening, a killer's own Stage 4, Stage Six - asks notice-centre.mjs `actionResult` (`withCentre`, or the flag written) on as many of its cards as the row names", async () => {
+        /* Red at 2e28785a: every row 0 - the verdicts the GMs' runs write, and a Rest's, an item's and Echoes' cards
+           written by their players, stood in the corner (the inventory's rows 7-10, 13, 14, 17, 18, 20, 26, 27, 30, 39,
+           41, 43-45, 47-48, 52-55, 57). The middle itself is the rule's (R8671) and the stage's (R8672). */
+        const sources = await moduleSources();
+        const NC = await import("./notice-centre.mjs");
+        must(typeof NC.withCentre === "function", "notice-centre.mjs has no withCentre - the posters have no way to ask");
+        const asks = (file, fn) => {
+            const text = stripComments(sources.get(file) ?? "");
+            const body = fn ? fnSource(text, fn) : text;
+            return (body.match(/withCentre\(|popupCentre: "actionResult"/g) ?? []).length - (fn ? 0 : (text.match(/export function withCentre\(/g) ?? []).length);
+        };
+        const ROADS = [
+            ["a room action (Rest's menu)", "facilities-gm.mjs", "tellUse", 1],
+            ["Observe - a secret project noticed", "observe.mjs", "shareFoundProject", 1],
+            ["Observe - a miss", "observe.mjs", "chargeObserveMiss", 1],
+            ["Observe - a Truth Bullet copied", "observe.mjs", "createFind", 1],
+            ["Observe - a trace already held", "observe.mjs", "alreadyHeld", 1],
+            ["Analyze - a bullet identified", "analyze.mjs", "identify", 1],
+            ["Analyze - a bullet locked", "analyze.mjs", "lockOut", 1],
+            ["Analyze - a stash found", "stash-reach.mjs", "resolveStashSearch", 1],
+            ["Analyze - a stash's nothing (STASH_MISS), a stash found, a stash rifled", "stash-reach.mjs", null, 3],
+            ["a stash rifled - what was taken", "stash-reach.mjs", "stealFromVault", 1],
+            ["Analyze - a passage found or nothing", "passages-gm.mjs", "resolvePassageSearch", 1],
+            ["Palm - a Steal's verdict", "palm.mjs", "stealFromPerson", 1],
+            ["Palm - a Plant's verdict", "palm.mjs", "plantOnPerson", 1],
+            ["Frisk unseen - what was seen", "frisk.mjs", "friskPerson", 1],
+            ["Frisk unseen - a Reroll's replay", "frisk.mjs", "replayRummage", 1],
+            ["Frisk openly - shown, forced, missed, gone, interrupted", "frisk.mjs", "endAsk", 5],
+            ["Frisk openly - refused or no answer", "frisk.mjs", "noYes", 1],
+            ["Use an Item", "use-items.mjs", "useItem", 1],
+            ["Use an Item creatively - the GM's ruling", "use-items.mjs", "grantItemEffect", 1],
+            ["Rest", "rest.mjs", "takeRest", 1],
+            ["Echoes", "action-listen.mjs", "performEchoes", 1],
+            ["a crisis action (each seat's card and its hidden copy)", "murder-rules.mjs", "announceCrisis", 3],
+            ["the opening roll", "murder-rules.mjs", "announceOpening", 1],
+            ["a killer's own Stage 4 went through", "murder-rules.mjs", "resolveKillerOpening", 1],
+            ["Stage Six - a Misleading Trail or Move the Body", "cleanup.mjs", "resolveStageSix", 1]
+        ];
+        const measured = Object.fromEntries(ROADS.map(([road, file, fn]) => [road, asks(file, fn)]));
+        // what the helper hands a poster: its ask merged into the card's own flags, the rest of the extra kept
+        measured.merge = NC.withCentre({ veiled: true, flags: { [MODULE_ID]: { sfx: "E127" }, other: { x: 1 } } });
+        must(Object.values(measured).some(n => n > 0) || ROADS.every(([, file]) => (sources.get(file) ?? "").length > 1000), "the posters' sources read as nothing - this would measure nothing");
+        equal(stableJson(measured), stableJson({ ...Object.fromEntries(ROADS.map(([road, , , n]) => [road, n])),
+            merge: { veiled: true, flags: { [MODULE_ID]: { sfx: "E127", popupCentre: "actionResult" }, other: { x: 1 } } } }),
+            "{road: how many of its cards ask for the middle; merge: withCentre on a card's extra}");
+    }],
     ["R8431 - the token HUD's on toggles and its focus read under Stained Glass with high contrast (the audit of 1.2.120, H-1, H-7; 1.2.122 line UI): a rule under high contrast and the glass gives `.control-icon.active` the Bone ground and the Ink glyph after the high-contrast ground, and the glass draws the focus ring inside the hexagon (a negative `outline-offset`)", async () => {
         /* Red at 21bf5d18: the high-contrast rule (1,5,1) took the on toggle's ground to Ink under an Ink glyph, and the
            ring stood 2 px outside the clip. Read off the sheets' text; drawn in Chromium by docs/dev/ui122/hud-shots.mjs. */

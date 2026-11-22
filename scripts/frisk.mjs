@@ -25,6 +25,7 @@ import { drpgWindow, tipText } from "./ui-kit.mjs";
 import { knowsOfDeath } from "./incident-store.mjs";
 import { sayNotDone } from "./bridge-guards.mjs";
 import { namesHiddenFrom, MASK_NAME } from "./mask-gm.mjs";
+import { withCentre } from "./notice-centre.mjs";
 
 
 /**
@@ -314,7 +315,7 @@ export async function friskPerson({ searcherId, targetId, total = 0, isCritical 
     const { pocketsAsHeld } = await import("./vault.mjs");
     const pockets = sees ? await pocketsAsHeld(target, searcher, { undecided: "drop" }) : [];
 
-    await whisperToOwner(searcher, searcherCard(target, sees ? pockets : null, noticed), { veiled: true });
+    await whisperToOwner(searcher, searcherCard(target, sees ? pockets : null, noticed), withCentre({ veiled: true }));
     if (noticed) {
         const words = `<p>${game.i18n.format(sees ? "DRPG.Frisk.caught" : "DRPG.Frisk.caughtTrying", { who: esc(searcher.name) })}</p>`;
         const card = { veiled: true, flags: { [MODULE_ID]: { sfx: "stolen" } } };
@@ -373,7 +374,7 @@ export async function replayRummage(searcher, fact, { total = 0, isCritical = fa
     }
     const { pocketsAsHeld } = await import("./vault.mjs");
     const pockets = await pocketsAsHeld(target, searcher, { undecided: "drop" });
-    await whisperToOwner(searcher, searcherCard(target, pockets, false), { veiled: true });
+    await whisperToOwner(searcher, searcherCard(target, pockets, false), withCentre({ veiled: true }));
     log(`A Reroll of ${searcher.name}'s Frisk of ${target.name} saw ${pockets.length} item(s), unnoticed.`);
     return { line: null, patch: { frisk: { ...fact, shown: true, replayed: true } } };
 }
@@ -599,12 +600,13 @@ async function endAsk(row, outcome) {
     const forTarget = { shown: "DRPG.Frisk.shown", forced: "DRPG.Frisk.forced", forceFailed: "DRPG.Frisk.forcedFailed", letGo: "DRPG.Frisk.letGo" };
     const forRoom = { shown: "DRPG.Frisk.wShown", forced: "DRPG.Frisk.wForced", forceFailed: "DRPG.Frisk.wForcedFailed",
         letGo: "DRPG.Frisk.wLetGo", gone: "DRPG.Frisk.wWalkedAway" };
-    if (outcome === "shown") await cardTo(searcher, `${listOfLines(target, row.lines, "DRPG.Frisk.shownHeading")}${asAsked}`);
-    else if (outcome === "forced") await cardTo(searcher, `${listOfLines(target, row.lines)}${asAsked}`);
-    else if (outcome === "forceFailed") await cardTo(searcher, say("DRPG.Frisk.missed", { who: them }));
+    // the searcher's result, in the middle of their screen (notice-centre.mjs `withCentre`, 1.2.127)
+    if (outcome === "shown") await cardTo(searcher, `${listOfLines(target, row.lines, "DRPG.Frisk.shownHeading")}${asAsked}`, withCentre());
+    else if (outcome === "forced") await cardTo(searcher, `${listOfLines(target, row.lines)}${asAsked}`, withCentre());
+    else if (outcome === "forceFailed") await cardTo(searcher, say("DRPG.Frisk.missed", { who: them }), withCentre());
     // A target who refused and then walked away did answer: 'before answering' is for an ask still waiting (E80-C3-5).
-    else if (outcome === "gone") await cardTo(searcher, say(row.state === "refused" ? "DRPG.Frisk.goneAfterNo" : "DRPG.Frisk.gone", { who: them }));
-    else if (outcome === "interrupted") await cardTo(searcher, say("DRPG.Frisk.interrupted"));
+    else if (outcome === "gone") await cardTo(searcher, say(row.state === "refused" ? "DRPG.Frisk.goneAfterNo" : "DRPG.Frisk.gone", { who: them }), withCentre());
+    else if (outcome === "interrupted") await cardTo(searcher, say("DRPG.Frisk.interrupted"), withCentre());
     if (forTarget[outcome] && asked && target) {
         const words = say(forTarget[outcome], { who });
         await (row.silent ? cardToGms(words) : cardTo(target, words));
@@ -709,7 +711,7 @@ async function noYes(row, state) {
             forceDrawnBy(row) - Date.now() + FRISK_MARGIN_MS + 50);
     }
     const target = game.actors.get(row.targetId) ?? null;
-    await cardTo(game.actors.get(row.searcherId) ?? null, say(state === "refused" ? "DRPG.Frisk.refused" : "DRPG.Frisk.noAnswer", { who: target?.name }));
+    await cardTo(game.actors.get(row.searcherId) ?? null, say(state === "refused" ? "DRPG.Frisk.refused" : "DRPG.Frisk.noAnswer", { who: target?.name }), withCentre());
     if (!force) return endAsk(row, "letGo");
     if (!friskAsks.has(row.askId) || row.ending) return false;
     answerSearcher(row, { askId: row.askId, outcome: state, forceMs: TIMING.friskForceMs });

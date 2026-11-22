@@ -40,6 +40,7 @@ import { judgedFor } from "./sheet-audit.mjs";
 import { drpgWindow, tipAttr, tipText } from "./ui-kit.mjs";
 import { keepLive } from "./live.mjs";
 import { nameAsSeen, seenHere } from "./mask-gm.mjs";
+import { withCentre } from "./notice-centre.mjs";
 
 /**
  * A Palm's or a Frisk's roll window, named by the part it throws (E51 C1; the owner's A11 of 13.10: "Palm - Hand, beat
@@ -761,7 +762,7 @@ export async function stealFromPerson({
             : "DRPG.Steal.cardMissed",
         { item: esc(item?.name ?? ""), who: esc(victim.name) }
     )}</p><p><small>${game.i18n.localize(seen
-        ? "DRPG.Steal.cardSeen" : "DRPG.Steal.cardUnseen")}</small></p>`);
+        ? "DRPG.Steal.cardSeen" : "DRPG.Steal.cardUnseen")}</small></p>`, withCentre());
 
     /*
      * THE VICTIM, AND ONLY WHEN THEY NOTICED - and, since privacy line 2 (#7), the room with them (below).
@@ -937,7 +938,7 @@ export async function plantOnPerson({
             : "DRPG.Steal.cardPlantMissed",
         { item: esc(item.name), who: esc(victim.name) }
     )}</p><p><small>${game.i18n.localize(handsFull ? "DRPG.Steal.cardUnfelt"
-        : seen ? "DRPG.Steal.cardSeen" : "DRPG.Steal.cardUnseen")}</small></p>`);
+        : seen ? "DRPG.Steal.cardSeen" : "DRPG.Steal.cardUnseen")}</small></p>`, withCentre());
     // FULL POCKETS: NO "THEY NOTICED" (E35 fix e1-G3; the review's E35-R1). A missed Shadow roll into full pockets told
     // the planter "They noticed." while D42 tells the victim nothing - the planter played a scene of being caught that
     // the victim's player knew nothing of (E35-T6's seen rows, at 78457d7: the card read "... It stays with you.They
