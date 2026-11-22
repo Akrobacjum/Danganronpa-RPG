@@ -18,7 +18,7 @@
    THE MESSENGER. Three pieces:
      #drpg-messenger-launcher   fixed button, the top of the bottom-right corner's
                                 three (the grid's tokens: danganronpa.css), always on screen
-     .drpg-messenger-gm         the GM's window, the Console and every player (1.2.124;
+     .drpg-messenger-gm         the GM's window, the Timeline and every player (1.2.124;
                                 the roster popover until then)
      .drpg-messenger            the conversation window itself (ApplicationV2)
 
@@ -87,8 +87,8 @@
 /* ==========================================================================
    THE GM'S MESSENGER WINDOW (1.2.124, the owner's OWNER-124-CONSOLE; messenger-gm.mjs)
    ==========================================================================
-   The list on the left (the Console, then every player, the roster's rows' text and
-   badge as they were), the view on the right: the Console's two parts, each scrolling
+   The list on the left (the Timeline, then every player, the roster's rows' text and
+   badge as they were), the view on the right: the Timeline's two parts, each scrolling
    inside it, or a player's conversation as the thread window draws it. The roster popover
    this replaces (#drpg-messenger-roster) is gone with its rules. Its three shades of the
    eye colour are tokens here, set once (base.css's colour budget, tools/check.mjs css). */

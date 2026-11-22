@@ -11,7 +11,7 @@
  *   the launcher       A small persistent button, bottom-right. A player
  *                      clicks it to open their own thread. A GM clicks it to
  *                      open the GM's messenger window (messenger-gm.mjs, since
- *                      1.2.124): the Console and every player's conversation
+ *                      1.2.124): the Timeline and every player's conversation
  *                      in one window. The roster it opened until then is gone.
  *
  * No Handlebars template: the rest of this module builds DOM by hand, so
@@ -112,9 +112,9 @@ export function openMessenger(playerUserId = game.user.id) {
      * A GM'S EVERY CONVERSATION IS ONE WINDOW (1.2.124, the owner's request OWNER-124-CONSOLE: "Okno gma niech otwiera
      * zupelnie nowe okno. Niech znajduje sie tam konsola, a takze mozliwosc przelaczenia sie na czat z dowolnym
      * graczem"). A GM naming a player gets that player's view of the GM's window; a GM naming nobody, or a GM, the
-     * Console. Every road that opened a GM's thread comes here: the launcher, a card's click, the notice history's Open
+     * Timeline. Every road that opened a GM's thread comes here: the launcher, a card's click, the notice history's Open
      * conversation, the Players sidebar's entry, `game.drpg.openMessenger`. A GM's `openMessenger()` with no argument
-     * named the GM's own id, which no thread has, and opened the roster until 1.2.124 (D-F4); now the Console.
+     * named the GM's own id, which no thread has, and opened the roster until 1.2.124 (D-F4); now the Timeline.
      */
     if (game.user.isGM) return openGmMessenger(isThreadUser(playerUserId) ? playerUserId : "console");
 
@@ -589,7 +589,7 @@ export class DrpgMessengerApp extends DrpgApp() {
     }
 }
 
-/* THE GM'S WINDOW (1.2.124; messenger-gm.mjs): the thread window's class, with the Console and the list of players.
+/* THE GM'S WINDOW (1.2.124; messenger-gm.mjs): the thread window's class, with the Timeline and the list of players.
    Exported for the suite alone (R1339 stands a folded window in as `current`). */
 export const DrpgGmMessengerApp = gmMessengerClass(DrpgMessengerApp, {
     buildBubble: message => buildBubble(message),
@@ -630,7 +630,7 @@ export function threadWindow(playerUserId) {
 // The module-level hook lives here, not per instance: one listener regardless
 // of how many windows are open, and nothing to leak when one closes.
 Hooks.on("drpgMessengerMessage", async (playerUserId, message) => {
-    /* The GM's window shows it where it is shown - the player's view, or the Console - and a GM looking at it there
+    /* The GM's window shows it where it is shown - the player's view, or the Timeline - and a GM looking at it there
        is shown no card for it (1.2.124). */
     const gm = gmMessengerWindow();
     if (gm) {

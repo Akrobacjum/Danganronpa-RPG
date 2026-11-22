@@ -293,7 +293,7 @@ export async function run({ gm, gm2, p1, p2, p3, check, phase, settle, environme
     /* ------------------------------ B1. the primary's own asks ------------------------------ */
     phase("B1: gm, the primary, posts an ask in p1's thread from its own session; gm and gm2 count it", { flow: "messenger" });
     // A GM's three readings of p1's thread: the count, the launcher's badge, and p1's row in the GM's window's list - the
-    // window opened on its Console, which marks nothing read, read and closed (the roster's row until 1.2.124).
+    // window opened on its Timeline, which marks nothing read, read and closed (the roster's row until 1.2.124).
     const COUNTS = `${M} ${UNTIL}
         const badge = Number(document.querySelector("#drpg-messenger-launcher .drpg-messenger-badge")?.textContent ?? 0);
         const app = A.openMessenger();
@@ -384,7 +384,7 @@ export async function run({ gm, gm2, p1, p2, p3, check, phase, settle, environme
         }`;
     const b2 = { gm: await gm.eval(ONE), gm2: await gm2.eval(ONE) };
     const b2Want = J({ twice: 1, view: "console" });
-    check("B2: on gm and on gm2 two opens of the messenger leave one GM window, on its Console (S11-44, E50-13; the roster's until 1.2.124)",
+    check("B2: on gm and on gm2 two opens of the messenger leave one GM window, on its Timeline (S11-44, E50-13; the roster's until 1.2.124)",
         J(b2.gm) === b2Want && J(b2.gm2) === b2Want, J(b2), { flow: "messenger" });
 
     /* ------------------------------ C. the Sound window and the primary's playback ------------------------------ */

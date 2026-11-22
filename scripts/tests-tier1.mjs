@@ -15054,7 +15054,7 @@ const INVARIANTS = [
         "[the window takes a road that shows, plays, sends or writes markup; draws a snapshot through the history's road; calls openMessenger once; "
             + "the keybinding noticeHistory, with no default key, opens it; game.drpg.openNotices opens it]");
     }],
-    ["R299 - the notice history window fits the screen it opens on: within the screen less 8 px a side, its foot in view with a full history, and no text under 11 px; and the tile's button is square, its focus ring round it, both within the Stained Glass tile, and the bottom card's text clear of it; under Monokuma Legacy on a desk the button stands alone under the clock, below the windows, and on a stacked screen only with a card; the corner's three buttons on their grid as drawn in both themes, the unread badge on the screen and clear of the book; and the GM's window opened from its button on the Console, within the screen and 8 px clear of its sides (the roster it replaced, 1.2.124); and there the notice stack, in both themes, 8 px over the corner's buttons or beside them on a short screen, at narrow.mjs's insets, under the blocks' stack, and what does not fit parked; and with a camera dock at the bottom, in both themes, the corner's buttons clear of it while it is shown and standing where they stand with no dock while the voice tile hides it, the lift 0px then whatever is written", async () => {
+    ["R299 - the notice history window fits the screen it opens on: within the screen less 8 px a side, its foot in view with a full history, and no text under 11 px; and the tile's button is square, its focus ring round it, both within the Stained Glass tile, and the bottom card's text clear of it; under Monokuma Legacy on a desk the button stands alone under the clock, below the windows, and on a stacked screen only with a card; the corner's three buttons on their grid as drawn in both themes, the unread badge on the screen and clear of the book; and the GM's window opened from its button on the Timeline, within the screen and 8 px clear of its sides (the roster it replaced, 1.2.124); and there the notice stack, in both themes, 8 px over the corner's buttons or beside them on a short screen, at narrow.mjs's insets, under the blocks' stack, and what does not fit parked; and with a camera dock at the bottom, in both themes, the corner's buttons clear of it while it is shown and standing where they stand with no dock while the voice tile hides it, the lift 0px then whatever is written", async () => {
         /*
          * E81 C7, 12.10.2026: clause (e) of the A7 design's A7-8; the corner button's clauses (a-d) come with C8-C13.
          * A window as long as its history would carry its foot - Clear, and what is kept where - off the bottom of the
@@ -15209,7 +15209,7 @@ const INVARIANTS = [
             + "and at least the gap clear of the book's]");
 
         /* (c) The GM's window, opened from its button (1.2.124, OWNER-124-CONSOLE; the roster it replaced was read here
-           from E81 C12): the window opens on the Console and stands on the screen, 8 px clear of its left and right. */
+           from E81 C12): the window opens on the Timeline and stands on the screen, 8 px clear of its left and right. */
         if (game.user.isGM) {
             const A = await import("./messenger-app.mjs");
             must(!A.gmMessengerWindow(), "the GM's messenger window is open - close it: the suite opens it from its button and measures that");
@@ -15225,7 +15225,7 @@ const INVARIANTS = [
                 await app.close();
             }
             equal(stableJson(placed), stableJson({ console: true, inside: true }),
-                `the GM's window at ${innerWidth}x${innerHeight} [on the Console; on the screen, 8 px clear of its left and right]`);
+                `the GM's window at ${innerWidth}x${innerHeight} [on the Timeline; on the screen, 8 px clear of its left and right]`);
         }
 
         /* (b) The tile's button and its focus ring (E81 C8). */
@@ -31446,15 +31446,15 @@ const INVARIANTS = [
         }
         equal(stableJson({ walks, reads, threadStats: moved["messenger.threadStats"] ?? 0, readMap: moved["messenger.readMap"] ?? 0, rows: rows >= 9 }),
             stableJson({ walks: 1, reads: 1, threadStats: 1, readMap: 1, rows: true }),
-            `[walks of game.messages, reads of the read map, the two counters' deltas, whether the window's list drew the Console and 8 players and more (it drew ${rows} rows)]`);
+            `[walks of game.messages, reads of the read map, the two counters' deltas, whether the window's list drew the Timeline and 8 players and more (it drew ${rows} rows)]`);
     }],
-    ["R1066 - the GM's messenger is one window: openMessenger() twice leaves one, a player's row shows that player in it and the Console's row the Console again, openMessenger(player) shows that player, and no click listener is left on the document (E50 C2; S11-44, E50-13; the roster's one road until 1.2.124)", async () => {
+    ["R1066 - the GM's messenger is one window: openMessenger() twice leaves one, a player's row shows that player in it and the Timeline's row the Timeline again, openMessenger(player) shows that player, and no click listener is left on the document (E50 C2; S11-44, E50-13; the roster's one road until 1.2.124)", async () => {
         /*
          * E50 C2, 30.10.2026; audit S11-44 (E50-13): the roster's outside click was spent on the first click inside it,
          * and a second openMessenger() built a second roster beside an open one. 1.2.124 (OWNER-124-CONSOLE) replaced the
          * roster with one window (messenger-gm.mjs); this holds what was promised of the roster to it. On a GM's page with
          * a player in the world: openMessenger() twice, the window counted by its id; the player's row clicked, then the
-         * Console's; openMessenger(<that player>). document's add/removeEventListener are wrapped for the whole test, to
+         * Timeline's; openMessenger(<that player>). document's add/removeEventListener are wrapped for the whole test, to
          * keep the click listeners added meanwhile that are still there. The window is closed in `finally`.
          */
         must(game.user.isGM, "the GM's window is a GM's");
@@ -31502,15 +31502,15 @@ const INVARIANTS = [
             putPositionsBack();
         }
         equal(stableJson(read), stableJson({ twice: [1, "console"], row: [true, true], console: ["console", true], named: [1, true], left: 0 }),
-            "[after two opens: the windows, the view; the player's row clicked: that player's view, its log; the Console's row: the view, the Console; openMessenger(player): the windows, the view; click listeners left on the document]");
+            "[after two opens: the windows, the view; the player's row clicked: that player's view, its log; the Timeline's row: the view, the Timeline; openMessenger(player): the windows, the view; click listeners left on the document]");
     }],
-    ["R8650 - a GM's messenger launcher opens one window on its Console, not a roster: the Console's two parts and the list (the Console, then every player) drawn, no #drpg-messenger-roster on the page, and openMessenger(<player>) shows that player's conversation in the same window, with no thread window of its own (1.2.124, the owner's OWNER-124-CONSOLE)", async () => {
+    ["R8650 - a GM's messenger launcher opens one window on its Timeline, not a roster: the Timeline's two parts and the list (the Timeline, then every player) drawn, no #drpg-messenger-roster on the page, and openMessenger(<player>) shows that player's conversation in the same window, with no thread window of its own (1.2.124, the owner's OWNER-124-CONSOLE)", async () => {
         /*
          * The owner, 22.11.2026: "Okno gma niech otwiera zupelnie nowe okno. Niech znajduje sie tam konsola, a takze
          * mozliwosc przelaczenia sie na czat z dowolnym graczem. Koniec listy rozwijanej - nowe okno." On a GM's page with a
-         * player in the world: the launcher drawn and clicked, the window read (its view, the Console's parts, the list's
+         * player in the world: the launcher drawn and clicked, the window read (its view, the Timeline's parts, the list's
          * rows, a roster on the page); then openMessenger(<the player>) and the window read again, and the messenger's
-         * own thread windows. The window is closed in `finally`. Its mutant, the Console's body not drawn, fails it (22.11.2026).
+         * own thread windows. The window is closed in `finally`. Its mutant, the Timeline's body not drawn, fails it (22.11.2026).
          */
         must(game.user.isGM, "the GM's window is a GM's");
         needs(world.atLeast("playerAccounts", 1));
@@ -31539,10 +31539,10 @@ const INVARIANTS = [
             "[the launcher's click: the view, Waiting, the stream, the list's first row, the player's row, a roster on the page; "
             + "openMessenger(player): the same window, its view, the log, the send box, a thread window of its own]");
     }],
-    ["R8651 - in the GM's window each view keeps its own typed text: a player's chat draft is put back when the GM comes back from the Console and another player, and another player's view starts empty (1.2.124, OWNER-124-CONSOLE: \"bez otwierania i zamykania okna\")", async () => {
+    ["R8651 - in the GM's window each view keeps its own typed text: a player's chat draft is put back when the GM comes back from the Timeline and another player, and another player's view starts empty (1.2.124, OWNER-124-CONSOLE: \"bez otwierania i zamykania okna\")", async () => {
         /*
          * The window is one for every view, so the box a GM typed in is drawn again for the next view. On a GM's page with
-         * two players: the first player's view opened, words typed in its send box (no message sent), the Console shown,
+         * two players: the first player's view opened, words typed in its send box (no message sent), the Timeline shown,
          * then the second player's view (its box read), then the first's again (its box read). Nothing is written; the
          * window is closed in `finally`. Red before messenger-gm.mjs `_replaceHTML` cleared the last view's boxes: the
          * first player's words came back "" (22.11.2026, the mutant that takes the clearing out).
@@ -31577,14 +31577,14 @@ const INVARIANTS = [
             putPositionsBack();
         }
         equal(stableJson(read), stableJson({ console: true, other: "", back: WORDS }),
-            "[the Console has no send box; the second player's box; the first player's box when the GM came back]");
+            "[the Timeline has no send box; the second player's box; the first player's box when the GM came back]");
     }],
-    ["R8652 - the GM's Console takes a new event in place: a notice recorded while it is open lands in its stream without the Console being drawn again, and the filter's choice and the focus on it are kept (1.2.124, OWNER-124-CONSOLE: \"odswiezac na biezaco\")", async () => {
+    ["R8652 - the GM's Timeline takes a new event in place: a notice recorded while it is open lands in its stream without the Timeline being drawn again, and the filter's choice and the focus on it are kept (1.2.124, OWNER-124-CONSOLE: \"odswiezac na biezaco\")", async () => {
         /*
          * The owner: the console "musialaby sie tez odswiezac na biezaco (bez otwierania i zamykania okna)". On a GM's
-         * page: the window opened on its Console, the filter set to "actions only" and focused, then a notice recorded
+         * page: the window opened on its Timeline, the filter set to "actions only" and focused, then a notice recorded
          * under the notice history's hold (nothing reaches the setting, notice-history.mjs `holdNoticeHistory`). Read: the
-         * Console's node before and after, the new item in the stream, the select's value and the focus. The window is
+         * Timeline's node before and after, the new item in the stream, the select's value and the focus. The window is
          * closed and the hold let go in `finally`.
          */
         must(game.user.isGM, "the GM's window is a GM's");
@@ -31614,11 +31614,11 @@ const INVARIANTS = [
             putPositionsBack();
         }
         equal(stableJson(read), stableJson([true, true, true, true, "actions", true]),
-            "[the same Console node; the notice in the stream; shown under \"actions only\"; the same select; its value; the focus on it]");
+            "[the same Timeline node; the notice in the stream; shown under \"actions only\"; the same select; its value; the focus on it]");
     }],
-    ["R8653 - the GM's Console filter shows everything, actions only (an action card or an event) or one player (that player's messages and events), and says so where a part shows nothing (1.2.124, OWNER-124-CONSOLE)", async () => {
+    ["R8653 - the GM's Timeline filter shows everything, actions only (an action card or an event) or one player (that player's messages and events), and says so where a part shows nothing (1.2.124, OWNER-124-CONSOLE)", async () => {
         /*
-         * The brief's 3c: filters all / actions only / one player. On a GM's page: the window opened on its Console and
+         * The brief's 3c: filters all / actions only / one player. On a GM's page: the window opened on its Timeline and
          * four items of the stream's own shape put in its list for the reading - a's chat, a's action card, b's chat, an
          * event with no author - then each choice of the select (its change event), and the items shown read. The items
          * are the test's, taken out with the window, closed in `finally`.
@@ -31666,16 +31666,16 @@ const INVARIANTS = [
             empty: game.i18n.localize("DRPG.Messenger.gm.nothingYet") }),
             "[shown under actions only; under player B; under everything; the stream's line when the filter leaves nothing]");
     }],
-    ["R8654 - the GM's Console leaves out a card another player wrote into a thread: such a card, among the world's messages when the Console is drawn, is in neither Waiting nor the stream, and the Console is drawn (1.2.124; messenger.mjs `threadCardAllowed`, line CORE's guard of the same day)", async () => {
+    ["R8654 - the GM's Timeline leaves out a card another player wrote into a thread: such a card, among the world's messages when the Timeline is drawn, is in neither Waiting nor the stream, and the Timeline is drawn (1.2.124; messenger.mjs `threadCardAllowed`, line CORE's guard of the same day)", async () => {
         /*
          * Line CORE closed the road a player's console had into another player's thread (claude/core-122, 2d17b74e): a card
-         * counts in a thread only when its author is a GM or that thread's player. The Console reads game.messages itself,
+         * counts in a thread only when its author is a GM or that thread's player. The Timeline reads game.messages itself,
          * so it asks the same question (messenger-gm.mjs `buildConsole`). On a GM's page with two players: game.messages'
          * `values` stood in to add one card naming the first player's thread, written by the second, with live-looking
-         * buttons in its words; the Console opened and read; everything put back in `finally`. Its mutant, the Console's
+         * buttons in its words; the Timeline opened and read; everything put back in `finally`. Its mutant, the Timeline's
          * check taken out, fails it (22.11.2026).
          */
-        must(game.user.isGM, "the Console is a GM's");
+        must(game.user.isGM, "the Timeline is a GM's");
         needs(world.atLeast("playerAccounts", 2));
         const A = await import("./messenger-app.mjs");
         must(!A.gmMessengerWindow(), "the GM's messenger window is open - close it: this test opens its own");
@@ -31696,7 +31696,7 @@ const INVARIANTS = [
             await A.gmMessengerWindow()?.close();
             putPositionsBack();
         }
-        equal(stableJson(read), stableJson([true, false]), "[the Console drawn; the other player's card anywhere in it]");
+        equal(stableJson(read), stableJson([true, false]), "[the Timeline drawn; the other player's card anywhere in it]");
     }],
     ["R8655 - a row's preview in the GM's messenger window keeps a card's title apart from its text: messenger-app.mjs `stripHtml` reads a card as its title, \" - \", then its lines with a space between blocks, its buttons left out (1.2.124, OWNER-124-CONSOLE; the coordinator's fix 1 of 22.11.2026: \"SearchBotan Ka...\")", async () => {
         /*

@@ -5977,8 +5977,8 @@
       "tabChat": "Chat",
       "gm": {
         "windowTitle": "Messenger",
-        "navLabel": "Console and conversations",
-        "console": "Console",
+        "navLabel": "Timeline and conversations",
+        "console": "Timeline",
         "consoleHint": "What waits for you, and what happens",
         "filter": "Show",
         "filterAll": "Everything",
@@ -5989,7 +5989,7 @@
         "nothingYet": "Nothing has happened yet.",
         "consoleTip": "Show what waits for your decision and what happens at the table.",
         "playerTip": "Show the conversation with this player.",
-        "filterTip": "Choose what the Console lists.",
+        "filterTip": "Choose what the Timeline lists.",
         "inThread": "Conversation with {player}",
         "event": "Event"
       }
