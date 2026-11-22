@@ -767,6 +767,32 @@ export async function run(api) {
     for (const client of [gm, gm2]) await client.eval(`${APP} await A.gmMessengerWindow()?.close(); return true;`);
     await settle(400);
 
+    /* ------------------------------------------------------------------ O */
+    /* E128, 22.11.2026 (OWNER-128-SECOND-GM, the owner: "Drugi GM ... powinien byc na rowni z pierwszym gmem"; line CORE's
+       inventory row 2). The opening roll a second GM throws itself - its roller's player away, the murder opened or asked
+       again by that GM - was resolved on that GM's browser, where the opening's mask and the Monocubs' witness marks are
+       the primary's alone (mask-gm.mjs `maskKiller`, monocub.mjs `markWitnessesAt`): an opening on Hope put up no "?" for
+       the killer. gm opens Chie's murder of Aiko; gm2 sends the killer's opening on Hope as its own throw does
+       (bridge-asks.mjs `requestOpeningResult`, a GM's packet naming no roll of the GMs). Read on gm: the incident's stage,
+       and whether Chie's mask stands; and what gm2's call answered. Red at 9eb89710: resolved on gm2, no mask. */
+    phase("O a second GM's own opening roll", { flow: "murder-incident" });
+    const opened = await gm.eval(`if (game.drpg.murderState()?.active) await game.drpg.endMurder({ reason: "suite", followUp: false });
+        const r = await game.drpg.openMurder({ killerId: "${IDS.chie}", victimId: "${IDS.aiko}", openingTrait: "body" });
+        return r?.stage ?? null;`, { timeout: 60000 });
+    await settle(900);
+    const sent = await gm2.eval(`const B = ${imp("gm-bridge.mjs")};
+        const res = await B.requestOpeningResult({ actorId: "${IDS.chie}", side: "killer", total: 30, isCritical: false, withHope: true });
+        return { ok: res?.ok === true, refused: res?.refused ?? null };`, { timeout: 60000 });
+    const after = await until(() => gm.eval(`const K = ${imp("mask-gm.mjs")};
+        return { stage: game.drpg.murderState()?.stage ?? null, masked: K.maskStands("${IDS.chie}") };`), v => v.masked === true, 8000);
+    await gm.eval(`const K = ${imp("mask-gm.mjs")};
+        if (game.drpg.murderState()?.active) await game.drpg.endMurder({ reason: "suite", followUp: false });
+        if (K.maskStands("${IDS.chie}")) await K.endMask("${IDS.chie}", "end");
+        return true;`, { timeout: 60000 });
+    await settle(900);
+    check("O1: gm2's own opening roll for the killer, on Hope, is resolved on the primary: the stage moves on and the killer's mask stands (E128)",
+        opened !== null && sent.ok === true && after.masked === true && after.stage !== opened, J({ opened, sent, after }), { flow: "murder-incident" });
+
     return { primary: { before, joined, afterGmReload, moved, backAgain }, reloads: { p1: r1, gm: r2, card: r3 },
         d153: { before: gBefore, onGm: gAfter, onGm2: gAfter2, found: gFound, gave: gGave } };
 }

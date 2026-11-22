@@ -42,9 +42,16 @@ import { ask } from "./bridge-table.mjs";
 /**
  * Send a thrown opening roll to the GM, who owns Stage 4's state. A player's names its roll
  * (`rollId`, the message the GM wrote for it), whose record the GM scores it on (E08+E28 C17).
+ *
+ * ON THE PRIMARY, WHOEVER THREW IT (E128, 22.11.2026; OWNER-128-SECOND-GM, line CORE's inventory row 2). A GM's own
+ * throw - a roller whose player is away, the murder opened or asked again by that GM - resolved on that GM's browser,
+ * and on a GM that is not the primary the opening's mask (mask-gm.mjs `maskKiller`) and the Monocubs' witness marks
+ * (monocub.mjs `markWitnessesAt`) return at once: an opening on Hope put up no "?" for the killer, and nobody was told.
+ * `onPrimary` sends a second GM's result to the primary, which resolves it as it resolves a player's (scenario 97 O).
  */
 export function requestOpeningResult({ actorId, side, total, isCritical, withHope, rollId = null }) {
     return ask(ACTION_OPENING_RESULT, { actorId, side, total, isCritical, withHope, rollId }, {
+        onPrimary: true,
         local: () => import("./murder.mjs").then(m => m.resolveOpening({ actorId, side, total, isCritical, withHope }))
     });
 }

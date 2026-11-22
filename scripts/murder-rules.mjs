@@ -4943,9 +4943,9 @@ export async function throwOpeningRoll(side, actorId, trait = null, { hindrance 
         rollId: roll.raw?.message?.id ?? roll.raw?.message?._id ?? null
     });
     // Read here and not handed on (E31): a GM's own client answers what it
-    // resolved, a player's that the GM has it.
+    // resolved, a player's that the GM has it - and a second GM's, sent on to the primary (E128), that the primary has it.
     if (!res.ok) return null;
-    return game.user.isGM ? res.value : { pending: true };
+    return game.user.isGM && res.value !== undefined ? res.value : { pending: true };
 }
 
 /**
