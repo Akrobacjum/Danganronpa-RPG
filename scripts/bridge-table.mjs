@@ -36,13 +36,13 @@ import {
     ACTION_PROGRESS, ACTION_SHARE, ACTION_REMNANT, ACTION_TIE_TRACE, ACTION_REMNANT_EDIT, ACTION_SABOTAGE,
     ACTION_UNSABOTAGE, ACTION_PROJECT_CHANGE, ACTION_SENDBACK, ACTION_ECLIPSE_MOVE, ACTION_ARM, ACTION_DESPAIR,
     ACTION_OVERFLOW_ADD, ACTION_CALL_WORLD, ACTION_MUSIC_TRACK, ACTION_OVERFLOW_CLEAR, ACTION_DESPAIR_SET, ACTION_DESPAIR_ALL, ACTION_DESPAIR_ROSTER,
-    ACTION_OVERFLOW_TAKE, ACTION_OVERFLOW_CHECK, ACTION_DIFFICULTY, ACTION_AUDIT_DECIDE, ACTION_KEYS_CHARGE,
+    ACTION_OVERFLOW_TAKE, ACTION_OVERFLOW_CHECK, ACTION_DIFFICULTY, ACTION_AUDIT_DECIDE, ACTION_KEYS_CHARGE, ACTION_BODY_DISCOVER, ACTION_CHAPTER_END, ACTION_VOICE_RESET, ACTION_VERDICT_FINISH, ACTION_OPENING_CARD,
     ACTION_VOTE_RUN, ACTION_VOTE_CAST, ACTION_VOTE_ASK, ACTION_FLOOR_NOW, ACTION_TRIAL_OBJECT, ACTION_TRIAL_EVIDENCE,
     ACTION_TRIAL_WITHDRAW, ACTION_FLOOR_REPOINT, ACTION_TRIAL_GM, ACTION_TRIAL_TURN, ACTION_TRIAL_CLAIM, ACTION_TRIAL_SIDE, ACTION_TRIAL_KEYWORD,
     ACTION_TRIAL_PRESENT, ACTION_READY_OPEN, ACTION_READY_ANSWER, ACTION_READY_END, ACTION_TRIAL_ENTER,
     ACTION_TRIAL_RECORD, ACTION_RESHAPE_RULING, ACTION_TRAIT_RULING, ACTION_HOPE_CALL, ACTION_CALL_YES,
     ACTION_RULING_EXPIRED, ACTION_RULING_RECEIVED, ACTION_DYNAMIC_ANSWER, ACTION_OBSERVE_TARGET, ACTION_OBSERVE_RESOLVE,
-    ACTION_OBSERVE_PICK, ACTION_CLEANUP_TRACES, ACTION_ANALYZE_RESOLVE, ACTION_ADVANCEMENT, ACTION_ADVANCEMENT_OFFER,
+    ACTION_OBSERVE_PICK, ACTION_OBSERVE_DESCRIBE, ACTION_CLEANUP_TRACES, ACTION_ANALYZE_RESOLVE, ACTION_ADVANCEMENT, ACTION_ADVANCEMENT_OFFER,
     ACTION_ADVANCEMENT_ASK, ACTION_SHARE_BULLET, ACTION_GIVE_ITEM, ACTION_PASSAGE_SHARE, ACTION_PASSAGE_CROSS,
     ACTION_PASSAGE_FIND, ACTION_PASSAGE_LAIR_SEAL, ACTION_LAIR_LOCK, ACTION_REFUND_CROSSING, ACTION_VAULT_STEAL, ACTION_STEAL, ACTION_FIND_STASH, ACTION_PLANT,
     ACTION_FRISK_UNSEEN, ACTION_FRISK_ASK, ACTION_FRISK_ANSWER, ACTION_FRISK_FOLLOW, ACTION_CRISIS,
@@ -56,7 +56,7 @@ import {
     handleAdvancementOffer, handleAdvancementAsk, handleShareBulletOrGiveItem, handleShareBullet, handlePassageShare, handlePassageCross,
     handleRefundCrossing, handlePassageFind, handlePassageLairSeal, handleLairLock, friskRolls, findPassageRoll, notFindPassageRoll, palmRolls, handlePlant,
     handleFindStash, handleSteal, handleFriskUnseen, handleFriskAsk, handleFriskAnswer, handleFriskFollow,
-    friskForceRoll, handleVaultSteal, handleOpeningResult, handleCrisis, handleParkMurder,
+    friskForceRoll, handleVaultSteal, handleOpeningResult, handleOpeningCard, handleCrisis, handleParkMurder,
     handleBetrayal, handleCleanup, handleCubAbility, handleCubAnswer, handleBribeOffer, handleBribeAnswer, handleHopeCall, handleCallYes, handleDynamicAnswer,
     handleRulingExpired, handleRulingReceived, handleDifficulty, handleTraitRuling, handleFacilityUse, handleDash,
     handleTailStart, tailRolls, handleDoorShut, handleDoorForce, handleDoorPick, pickRolls, handleWatchDeclare, handleDoorKnock,
@@ -67,10 +67,10 @@ import {
     handleRemnantEdit, sabotageAgain, handleSabotage, handleProjectChange, handleUnsabotage, handleSendback, handleLoot,
     handleArm, handleOverflowAdd, handleCallWorld, handleMusicTrack, handleOverflowClear, handleDespairSet, handleDespairAll, handleDespairRoster,
     handleOverflowTake, handleOverflowCheck, handleDespair, handleEclipseMove, handleNoteSave, handleRollBookmark,
-    handleReroll, handleAuditDecide, handleKeysCharge, handleTrialRecord, handleTrialEnter, handleVoteRun, handleBallot,
+    handleReroll, handleAuditDecide, handleKeysCharge, handleBodyDiscover, handleChapterEnd, handleVoiceReset, handleVerdictFinish, handleTrialRecord, handleTrialEnter, handleVoteRun, handleBallot,
     handleBallotAsk, handleFloorNow, handleTrialObject, handleTrialEvidence, handleTrialWithdraw, handleFloorRepoint,
     handleTrialGm, handleTrialTurn, handleTrialClaim, handleTrialSide, handleTrialKeyword, handleReadyOpen, handleReadyAnswer, handleReadyEnd,
-    handleTrialPresent, handleReshapeRuling, handleObservePick, handleCardClaim, handleCardPost, handleGiveBullet
+    handleTrialPresent, handleReshapeRuling, handleObservePick, handleObserveDescribe, handleCardClaim, handleCardPost, handleGiveBullet
 } from "./bridge-runs-records.mjs";
 
 /**
@@ -1205,6 +1205,28 @@ export const BRIDGE_ACTIONS = table({
         run: handleKeysCharge,
         answer: "reply"
     },
+    /* A SECOND FULL GM'S BODY AND CHAPTER'S END, ON THE PRIMARY (E128; OWNER-128-SECOND-GM): both stay the primary's (body.mjs
+       `discoveryHere`, chapter.mjs `chapterEndHere`), run here by the same functions and checks; an Assistant GM is told. */
+    [ACTION_BODY_DISCOVER]: { label: "DRPG.Bridge.what.body.discover", guards: [gmOnly("only a GM announces a body")],
+        sanitize: pick({ room: as.text, victimId: as.id, sceneId: as.id }), run: handleBodyDiscover, answer: "reply", claims: { victimId: "read by runDiscovery (body.mjs) against the GMs' deaths: a victim nobody holds dead is announced as no one",
+            sceneId: "the scene the room is looked up on (body.mjs runDiscovery); a room the scene does not hold announces nothing" }
+    },
+    [ACTION_CHAPTER_END]: { label: "DRPG.Bridge.what.chapter.end", guards: [gmOnly("only a GM ends the chapter")],
+        sanitize: pick({ reveal: as.bool, sweep: as.bool, faint: as.bool, keys: as.bool, endTrial: as.bool, nextChapter: as.bool,
+            nextSession: as.bool, nextMorning: as.bool, opened: as.raw, finish: as.bool, drop: as.bool }),
+        run: handleChapterEnd,
+        answer: "reply",
+        claims: { opened: "kept to its four fields by handleChapterEnd and compared by applyChapterEnd (chapter.mjs) with this clock: a window opened on another clock ends nothing" }
+    },
+    // A second full GM's Fix voice (E128): the rooms are the primary's to send (voice.mjs `resetAllVoice`). Carries nothing.
+    [ACTION_VOICE_RESET]: { label: "DRPG.Bridge.what.voice.reset", guards: [gmOnly("only a GM sends the voice rooms again")],
+        sanitize: pick({}), run: handleVoiceReset, answer: "reply" },
+    // A second full GM's Finish of a verdict the primary runs (E128; verdict.mjs `finishRoute`). Carries nothing.
+    [ACTION_VERDICT_FINISH]: { label: "DRPG.Bridge.what.verdict.finish", guards: [gmOnly("only a GM finishes a verdict")],
+        sanitize: pick({}), run: handleVerdictFinish, answer: "reply" },
+    // A GM's ask for the opening's card, the primary's to post once (E128; murder-rules.mjs `postOpeningCard`). No ids.
+    [ACTION_OPENING_CARD]: { label: "DRPG.Bridge.what.murder.openingCard", guards: [gmOnly("only a GM posts the opening's card")],
+        sanitize: pick({ side: as.oneOf("killer", "victim"), openedAt: as.num }), run: handleOpeningCard, answer: "reply" },
     /*
      * THE TRIAL'S VOICES, SETTLED ON THE PRIMARY GM (E70 C5, 28.10.2026; amend 6, answer 3 (b)). The trial opens and
      * ends on whichever GM moved the phase (clock.mjs `reconcilePhase`); its list of the dead reads the GMs' deaths
@@ -1581,6 +1603,16 @@ export const BRIDGE_ACTIONS = table({
      * traces again, and writes the Observe's row only for a trace on it. A GM's alone: the
      * card's buttons are drawn for GMs.
      */
+    /* A FIND'S WORDS FROM ANOTHER GM (E128): the window waits on the primary (observe.mjs `describeFind`), and "Write it here"
+       on a GM's whisper sends that GM's words; the first answer is the find's (`answerDescribeFrom`). */
+    [ACTION_OBSERVE_DESCRIBE]: {
+        label: "DRPG.Bridge.what.observe.describe",
+        guards: [gmOnly("only a GM writes a find's words")],
+        sanitize: pick({ askId: as.id, name: as.text, playerText: as.text, analyzedText: as.text, critHint: as.text }),
+        run: handleObserveDescribe,
+        answer: "reply",
+        claims: { askId: "answerDescribeFrom (observe.mjs) hands the words only to a find this primary's window waits on under that id, once" }
+    },
     [ACTION_OBSERVE_PICK]: {
         label: "DRPG.Bridge.what.observe.pick",
         guards: [gmOnly("only a GM picks what an Observe is aimed at")],

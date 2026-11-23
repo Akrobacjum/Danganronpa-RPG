@@ -8620,8 +8620,9 @@ const REGRESSIONS = [
             // A GM's read of the owner's copy (the same for every owner); "a player owns it" at all; the change's author;
             // the Ask for Hope's card in one thread.
             "monocub.mjs": 5,
-            // The opening roll is asked of one player.
-            "murder-rules.mjs": 1,
+            // The opening roll is asked of one player, and its card's memo kept for that player on the primary
+            // (`postOpeningCard`, E128: the card itself is whispered to every owner, as it was).
+            "murder-rules.mjs": 2,
             // The secrets one account is in on, read for the observer's first owner.
             "observe.mjs": 1,
             // The Mastermind (actsAsMastermind, the door's row, roomNamerFor's reading of it): one player on purpose.
@@ -9160,6 +9161,11 @@ const REGRESSIONS = [
             ["PACKET gm-bridge.mjs#observe.pick#rid", "judged (C12): gmOnly, run on the primary (askObservePick, onPrimary); the ask the primary keeps under it (observeAsks) must still be waiting and not being answered, else refused and told the GM"],
             ["PACKET gm-bridge.mjs#observe.pick#actorId", "judged (C12): gmOnly; must be the character of the ask kept under rid, else refused and told the GM"],
             ["PACKET gm-bridge.mjs#observe.pick#tokenId", "judged (C12): read again on the primary - one of observeCandidates for that character in the room it asked in (pickObserveTarget), else nothing is written and the GM is told"],
+            ["PACKET gm-bridge.mjs#observe.describe#askId", "judged (E128): gmOnly, run on the primary (wireDescribeHere, onPrimary); a find this primary's describing window waits on under it (describeAsks), once, else refused and told the GM"],
+            ["PACKET gm-bridge.mjs#observe.describe#name", "judged (E128): gmOnly; a GM's words, the same field the primary's own window answers (describeFind), written to the trace by resolveObserve as the window's answer is"],
+            ["PACKET gm-bridge.mjs#observe.describe#playerText", "judged (E128): gmOnly; as name - the window's answer, from another GM's browser"],
+            ["PACKET gm-bridge.mjs#observe.describe#analyzedText", "judged (E128): gmOnly; as name - the window's answer, from another GM's browser"],
+            ["PACKET gm-bridge.mjs#observe.describe#critHint", "judged (E128): gmOnly; as name - a critical's hint for this finder's copy alone, as the window's (findTexts)"],
             ["PACKET gm-bridge.mjs#observe.pick#refuse", "judged (C12): gmOnly; a GM's Refuse of the ask kept under rid, told to the asker as a refusal, nothing written"],
             ["PACKET gm-bridge.mjs#cleanup.traces#actorId", "judged: knownSender + owns(actorId); lists the traces of the cleaner's own room; E09 adds no read"],
             ["PACKET gm-bridge.mjs#cleanup.traces#mine", "judged: a filter over the cleaner's own room's list; widens nothing"],
@@ -9214,6 +9220,7 @@ const REGRESSIONS = [
             ["PACKET gm-bridge.mjs#reroll.ask#actorId", "judged: knownSender + owns(actorId); the Reroll receipt (E28); C9's Undo is a GM's"],
             ["ITEM analyze.mjs#resolveAnalyze", "judged: reads bulletAsHeld (E29); unchanged by E09"],
             ["ITEM analyze.mjs#identify", "judged: reads bulletAsHeld and hands the held copy to truth-bullets.mjs publishReading, which writes (C8)"],
+            ["ITEM bridge-table.mjs#BRIDGE_ACTIONS", "judged (E128, OWNER-128-SECOND-GM): the table names two of the fields since E128 - its `chapter.end` row passes a second GM's End of chapter boxes (faint among them) to chapter.mjs applyChapterEnd on the primary, which judges them as its own window's, and its `observe.describe` row a find's words (playerText, analyzedText) to observe.mjs answerDescribeFrom, the primary's describing window's answer; both gmOnly, and no item is read or written here"],
             ["ITEM chapter.mjs#revealPlan", "judged (C8): each decision on bulletAsHeld (sparedBySweep's Faint, the kind and analyzed), in one synchronous pass; the set from allBullets by design (H22); revealAllBulletTypes writes it and openChapterEndDialog counts it"],
             ["ITEM chapter.mjs#sparedBySweep", "judged (C1; the plan's sweepPlan row, whose field read is here): faintOf(bulletAsHeld) or the answer key's final, for each bullet sweepPlan reads through bulletsHeldBy in one synchronous pass (H3)"],
             ["ITEM investigation.mjs#autopsyIssued", "judged (E11 fix r1-G4; moved from gm-panel.mjs on 13.11.2026, unchanged): the answer key (secretOf, the GMs' store) names the autopsy and its chapter (and its season since fix r2-H2, `sameSeason`), over itemsHeldNow per student in one synchronous pass (H3); the GM panel's next line, a display that writes nothing"],
@@ -13973,7 +13980,8 @@ const REGRESSIONS = [
             finalConsole: /if \(inFinalTrial\(\)\) return openFinalVerdictDialog\(\);/.test(floorUi),
             season: /season: \(clock\.season \?\? 1\) \+ 1,\s*finalTrial: false/.test(wipe),
             deadObjector: /isDeceased\(await flagsAsHeld\(actor\)\)/.test(fnSource(code("trial.mjs"), "seizeFloor")),
-            finishRunner: /const runner = verdictRunner\(progress\);\s*if \(runner && runner !== game\.user\.id\) \{\s*ui\.notifications\.warn\(game\.i18n\.format\("DRPG\.Vote\.finishOtherGm"/
+            // Since E128 through `finishRoute`: a second full GM's press while the primary runs it is the primary's.
+            finishRunner: /const runner = verdictRunner\(progress\);\s*const route = finishRoute\(\{ runner \}\);[\s\S]{0,400}if \(route === "refuse"\) \{\s*ui\.notifications\.warn\(game\.i18n\.format\("DRPG\.Vote\.finishOtherGm"/
                 .test(fnSource(vote, "finishVerdict"))
                 && /return by\?\.active \? by\.id : primaryGmId\(\);/.test(fnSource(vote, "verdictRunner"))
                 // The console's next step is trial-floor.mjs's table since E47 C1: the two rows of a verdict another GM runs.
@@ -14023,7 +14031,7 @@ const REGRESSIONS = [
                     finalConsole: [/the console's verdict button opens \*\*Final Trial verdict\*\*/, /^\| A final verdict \| given from the trial console's verdict button, which opens \*\*Final Trial verdict\*\* in a Final Trial \|/],
                     season: [/the season counted one on and the Final Trial flag down/],
                     deadObjector: [/an Objection posted in a dead student's name is refused on the primary GM's browser/],
-                    finishRunner: [/It runs on the browser of the GM who gave the verdict while they are connected, otherwise on the primary GM's - on another GM's the console names whom to ask, and Enter presses nothing there/],
+                    finishRunner: [/It runs on the browser of the GM who gave the verdict while they are connected, otherwise on the primary GM's - a second full Gamemaster's press is then carried out by the primary GM's \(since 1\.2\.128\); on any other GM's the console names whom to ask, and Enter presses nothing there/],
                     noRepeat: [/it gives no survivor a second Level Up and posts no second card/],
                     givenGap: [/a GM who leaves between a row's Level Up and the write that records it no longer leaves that row to be given again/],
                     takeBackBusy: [/A take-back is refused, and you are told, while that character's Level Up is being written\./],
@@ -14061,7 +14069,7 @@ const REGRESSIONS = [
                     finalConsole: [/przycisk werdyktu w konsoli otwiera \*\*Werdykt Final Trial\*\*/, /^\| Werdykt finału \| wydawany przyciskiem werdyktu w konsoli Class Trial, który w Final Trial otwiera \*\*Werdykt Final Trial\*\* \|/],
                     season: [/licznikiem sezonu o jeden dalej i zdjętą flagą Final Trial/],
                     deadObjector: [/Objection wniesione w imieniu martwego ucznia jest odrzucane w przeglądarce głównego GM-a/],
-                    finishRunner: [/Wykonuje się w przeglądarce GM-a, który wydał werdykt, dopóki jest połączony, a inaczej w przeglądarce głównego GM-a - w przeglądarce innego GM-a konsola mówi, kogo poprosić, a Enter niczego tam nie naciska/],
+                    finishRunner: [/Wykonuje się w przeglądarce GM-a, który wydał werdykt, dopóki jest połączony, a inaczej w przeglądarce głównego GM-a - naciśnięcie drugiego pełnego Gamemastera wykonuje wtedy przeglądarka głównego GM-a \(od 1\.2\.128\); w przeglądarce każdego innego GM-a konsola mówi, kogo poprosić, a Enter niczego tam nie naciska/],
                     noRepeat: [/żadnemu ocalałemu nie daje drugiego Level Upa ani nie wysyła drugiej karty/],
                     givenGap: [/GM, który wyjdzie między Level Upem wiersza a zapisem, który go odnotowuje, nie zostawia już tego wiersza do przyznania jeszcze raz/],
                     takeBackBusy: [/Cofnięcie jest odmawiane, a ty się o tym dowiadujesz, dopóki Level Up tej postaci jest zapisywany\./],
@@ -23568,7 +23576,10 @@ const REGRESSIONS = [
             // defence is hidden from, a second copy, by the same `announce({ content, whisper })` form as before.
             // line INVEST of 1.2.122: murder-rules.mjs +1 card (an opening that found no copy of the incident, R8183), observe.mjs
             // +2 cards (a find left waiting, told to the GMs at recovery and while its window stands; CASE-37)
-            "murder-rules.mjs": {"action": 1, "card": 6, "heading": 3, "line": 9, "message": 8},
+            /* 1.2.127 (line UI, OWNER-127-CENTRE): four of murder-rules.mjs's `announce({ content, whisper })` - the crisis
+               card, its hidden copy and the opening's score - ask for the middle through notice-centre.mjs `withCentre`
+               (built), as they were messages before. */
+            "murder-rules.mjs": {"action": 1, "built": 4, "card": 6, "heading": 3, "line": 9, "message": 4},
             "music.mjs": {"card": 1}, "observe.mjs": {"card": 4, "heading": 1, "line": 3},
             "overflow.mjs": {"built": 1, "message": 2}, "palm.mjs": {"built": 2, "line": 2}, "passages-gm.mjs": {"line": 4},
             "price.mjs": {"line": 2}, "private-rolls.mjs": {"message": 1}, "projects-map.mjs": {"card": 1, "line": 1},

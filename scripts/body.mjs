@@ -159,8 +159,25 @@ function enqueueBodyWork(work) {
  */
 export function discoverBody(options = {}) {
     if (!game.user.isGM || !options?.room) return Promise.resolve(null);
+    if (sentToPrimary()) return discoverOnPrimary(options);
     if (!discoveryHere()) return Promise.resolve(null);
     return enqueueBodyWork(() => runDiscovery(options));
+}
+
+/* A SECOND FULL GM'S ANNOUNCEMENT IS CARRIED OUT ON THE PRIMARY (E128, 22.11.2026; OWNER-128-SECOND-GM, the owner: "Drugi
+   GM ... powinien byc na rowni z pierwszym gmem"). The discovery stays the primary's (`discoveryHere`, below: its marks,
+   its queue), and a second full GM was refused with whose it is. Its window opens on its own browser now, and what it
+   chose - the room, its scene, the victim - is announced on the primary (`body.discover`, bridge-table.mjs), through the
+   same `discoverBody` the primary's own press runs. An Assistant GM is told whose it is, as before (scenario 17). */
+function sentToPrimary() {
+    return Boolean(game.user?.isGM) && !isPrimaryGm() && game.user.role === CONST.USER_ROLES.GAMEMASTER;
+}
+
+async function discoverOnPrimary({ room, victim = null, scene = null } = {}) {
+    const { bridgeRequest } = await import("./bridge-guards.mjs");
+    const res = await bridgeRequest("body.discover", { room, victimId: victim?.id ?? null, sceneId: scene?.id ?? null },
+        { settle: "reply", onPrimary: true, local: () => enqueueBodyWork(() => runDiscovery({ room, victim, scene })) });
+    return res.ok ? res.value ?? null : null;
 }
 
 /* THE DISCOVERY IS THE PRIMARY GM'S (E11 fix r1-G2, 1.2.73; round 1's sec F1 and goal K6). The
@@ -1140,8 +1157,9 @@ export async function openBodyDiscoveryDialog() {
         ui.notifications.warn(game.i18n.localize("DRPG.Panel.gmOnly"));
         return null;
     }
-    // Another GM is told whose the announcement is before a form it could not send (E11 fix r1-G2).
-    if (!discoveryHere()) return null;
+    // An Assistant GM is told whose the announcement is before a form it could not send (E11 fix r1-G2); a second full
+    // GM's form is sent to the primary (E128, `sentToPrimary`).
+    if (!sentToPrimary() && !discoveryHere()) return null;
 
     /*
      * REFUSED BEFORE THE FORM, NOT AFTER IT (F12).

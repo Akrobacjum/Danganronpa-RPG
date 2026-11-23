@@ -62,7 +62,7 @@ import { scenesReportOf } from "./trial-scene.mjs";
 import { log, error, plural, workingScene, esc, localeFormat, listOf } from "./utils.mjs";
 import { stepperId, drpgWindow, checkList, formGrid, box, roleButton, tipAttr, tipText, WINDOW_HELP } from "./ui-kit.mjs";
 // Edit campaign's fields, reader, writes and End the chapter part (E49 A1e): gm-campaign.mjs never reaches back here.
-import { campaignRows, readClockForm, applyCampaignForm, endChapterPart, endTheChapter, morningLineRow, untouchedKept, followCampaignFields, KEPT_FIELDS, mayEndChapterHere } from "./gm-campaign.mjs";
+import { campaignRows, readClockForm, applyCampaignForm, endChapterPart, endTheChapter, morningLineRow, untouchedKept, followCampaignFields, KEPT_FIELDS, mayEndChapterHere, mayResetSeasonHere } from "./gm-campaign.mjs";
 import { alreadyOpen, handOff, RAISED } from "./live.mjs";
 // Foundry's secret doors and the players' rulers (E80 C5): the doors as the map holds them, their
 // conversion, and the permissions in force where `core.permissions` names none.
@@ -1347,6 +1347,8 @@ export async function openSeasonSetup({ draft = null, opened = null } = {}) {
             // Reset the season (its warning frame at the body's foot, E101): the window closes unsaved, then the reset's own window.
             dialog.element.querySelector("[data-drpg-reset-season]")?.addEventListener("click", ev => {
                 ev.preventDefault();
+                // Asked at the press, the window kept on a GM who is not the primary (E128; as End the chapter's, CTRL-86).
+                if (!mayResetSeasonHere()) return;
                 resetAsked = true;
                 dialog.close();
             });

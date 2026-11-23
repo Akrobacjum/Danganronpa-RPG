@@ -34,7 +34,7 @@ export const PARTICIPANT_WRITES = Object.freeze([
     ["deleteActor", () => true]
 ]);
 import { RECORD } from "./gm-store.mjs";
-import { placeRoomOptions, plural, error, esc, serverNow, listOf, wholeNumber } from "./utils.mjs";
+import { placeRoomOptions, plural, error, esc, serverNow, listOf, wholeNumber, primaryGmId } from "./utils.mjs";
 import { stepper, stepperId, drpgWindow, drpgConfirm, liveFooter, box, tipAttr, tipText, WINDOW_HELP } from "./ui-kit.mjs";
 import { getClock, setClock } from "./clock.mjs";
 import { alreadyOpen, keepLive, RAISED } from "./live.mjs";
@@ -1478,7 +1478,8 @@ function trialButtons({ floor, running, finalNow, progress, afterwards, stopped,
                 ...(stopped
                     ? [{ action: "finishVerdict", label: game.i18n.localize("DRPG.Vote.finishVerdict"),
                         default: isDefault("finishVerdict"),
-                        ...(runner && runner !== game.user.id ? { disabled: true,
+                        // Live on a second full GM while the primary runs it: the press is the primary's (E128, verdict.mjs `finishRoute`).
+                        ...(runner && runner !== game.user.id && !(runner === primaryGmId() && game.user?.role === CONST.USER_ROLES.GAMEMASTER) ? { disabled: true,
                             tooltip: game.i18n.format("DRPG.Vote.finishOtherGm", { name: game.users.get(runner)?.name ?? "?" }) } : {}) }]
                     : []),
                 // The case's summary for the players (E99 C7): after the verdict, not in a Final Trial (Q-E99-5)

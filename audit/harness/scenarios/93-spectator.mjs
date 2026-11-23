@@ -194,6 +194,43 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, canary, repoUr
             && talkBack?.button?.pressed === "true" && flagBack?.flag === null && flagBack.perm === true,
             JSON.stringify({ shims, talkOff, talkP1, there, talkOn, talkBack, flagBack }));
 
+        phase("outline");
+        /* E127 (22.11.2026; the owner at the table: "Spectatorzy nie widza obramowania pokoju (i dziur w scianach/drzwi) tak
+           jak reszta graczy"). With the room fog on, p3 drags Chie into the Cafeteria - on the class's map, Aiko's find - and
+           then into the Storage, which p3's screen does not clear. Read on p3's browser: the rooms its screen clears
+           (fog.mjs `myDiscoveredRooms`, a Spectator's `current`) before the walk and after it (its own mirror took the room
+           it stood in until E127, `rememberMine`), and the room its outline stands round after each step
+           (fog-reveal.mjs `roomOutline`, the outline the doorway gaps are cut in; fog.mjs `outlineLeadRooms`,
+           `spectatorLeadRoom`); on the GM, whether Chie found either room. Red at 2e28785a: no outline on p3's browser. The
+           outline's drawing on a real canvas is LIVE-E127-01. */
+        const fogWas = await gm.eval(`const was = game.settings.get("danganronpa-rpg", "regionFog");
+            if (!was) await game.settings.set("danganronpa-rpg", "regionFog", true); return was;`);
+        let outline = null;
+        try {
+            await settle(800);
+            const step = (x, y) => p3.eval(`try { await canvas.scene.tokens.get("TOKCHIE000000000").update({ x: ${x}, y: ${y} }); return true; } catch { return false; }`);
+            const view = () => p3.eval(`const FR = ${imp("fog-reveal.mjs")}; return FR.roomOutline?.room ?? null;`);
+            const cleared = await p3.eval(`const F = ${imp("fog.mjs")}; const rooms = F.myDiscoveredRooms(canvas.scene);
+                return [rooms.has("Cafeteria"), rooms.has("Storage")];`);
+            const toCafe = await step(1300, 300);
+            await settle(1500);
+            const inCafe = await view();
+            const toStorage = await step(2300, 1300);
+            await settle(2500);
+            const inStorage = await view();
+            const found = await gm.eval(`const F = ${imp("fog.mjs")}; const rows = F.discoveredFor(canvas.scene.id, "${IDS.chie}");
+                return [rows.includes("Cafeteria"), rows.includes("Storage")];`);
+            const clearedAfter = await p3.eval(`const F = ${imp("fog.mjs")}; return F.myDiscoveredRooms(canvas.scene).has("Storage");`);
+            outline = { cleared, toCafe, inCafe, toStorage, inStorage, clearedAfter, found };
+        } finally {
+            if (!fogWas) await gm.eval(`await game.settings.set("danganronpa-rpg", "regionFog", false); return true;`);
+            await settle(800);
+        }
+        check("outline: p3's outline stands round the Cafeteria its Spectator walks into, which its screen clears, and round no room in the Storage, which it does not, and does not after the walk either; neither room is found for Chie (E127)",
+            JSON.stringify(outline?.cleared) === JSON.stringify([true, false]) && outline.toCafe === true && outline.inCafe === "Cafeteria"
+            && outline.toStorage === true && outline.inStorage === null && outline.clearedAfter === false
+            && JSON.stringify(outline.found) === JSON.stringify([false, false]), JSON.stringify(outline));
+
         phase("ghost");
         /* A Spectator moves by dragging its own token (round 3 took the room picker and its bridge action out): p3's own
            write of Chie's token, as Foundry's drag makes it. The harness models no wall stop (LIVE-E92-02). */

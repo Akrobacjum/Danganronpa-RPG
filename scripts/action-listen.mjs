@@ -27,6 +27,7 @@ import { watchShutWhy } from "./action-watch.mjs";
 import { isEclipse } from "./settings.mjs";
 import { tipAttr, tipText } from "./ui-kit.mjs";
 import { isMaskedActor, isVeiledToken, MASK_NAME, seenHere } from "./mask-gm.mjs";
+import { withCentre } from "./notice-centre.mjs";
 
 /**
  * THE DOORS, NOT THE ROOMS BEHIND THEM (22.09). The picker named every neighbouring room,
@@ -352,7 +353,7 @@ export async function performEchoes(actor, options = {}) {
     if (!res.ok) return abort(actor, paid);
     const room = typeof res.value?.room === "string" ? res.value.room : null;
     const text = room ? game.i18n.format("DRPG.Infiltrate.echoes.found", { room }) : game.i18n.localize("DRPG.Infiltrate.echoes.nobody");
-    await whisperToOwner(actor, { glyph: "ACTIONS.listen", body: `<p>${foundry.utils.escapeHTML(text)}</p>` });
+    await whisperToOwner(actor, { glyph: "ACTIONS.listen", body: `<p>${foundry.utils.escapeHTML(text)}</p>` }, withCentre());
     return { room };
 }
 
