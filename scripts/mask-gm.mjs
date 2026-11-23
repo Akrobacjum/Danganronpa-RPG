@@ -300,16 +300,21 @@ function maskFailed(actor, err) {
  * line's report says what that shows). Not a killer an incident running now names: the close of one incident does not
  * end the mask of the next. A second GM's close asks the primary (`mask.veil`, "unmask"), held there to its own rows,
  * whatever the packet names. Answers how many masks ended. Tier 2 "1.2.129 S0-MASKLEFT".
+ *
+ * QUIET WHEN THE INCIDENT IS ABANDONED (1.2.128, the coordinator's bisect of 23.11.2026: tier 2 "a reset abandons an
+ * incident" red at 54769b4c, one card posted for the stab). The season reset abandons an incident (`conclude: false`),
+ * and an abandon posts nothing; the mask still ends, as the owner's rule wants, but tells nobody (`endMask`, "abandoned",
+ * a reason with no line). A second GM asks it as "unmaskQuiet".
  */
-export async function endMasksAtClose(killerIds = []) {
+export async function endMasksAtClose(killerIds = [], { quiet = false } = {}) {
     if (!game.user?.isGM) return 0;
-    if (!isPrimaryGm()) return (await askPrimaryVeil("unmask", killerIds))?.ended ?? 0;
+    if (!isPrimaryGm()) return (await askPrimaryVeil(quiet ? "unmaskQuiet" : "unmask", killerIds))?.ended ?? 0;
     const { murderState, killerIds: killersOf } = await import("./incident-store.mjs");
     const running = murderState()?.active ? killersOf(murderState()) : [];
     let n = 0;
     for (const id of new Set((Array.isArray(killerIds) ? killerIds : []).filter(id => typeof id === "string"))) {
         if (!maskStore.get(id) || running.includes(id)) continue;
-        if (await endMask(id, "incidentEnd")) n++;
+        if (await endMask(id, quiet ? "abandoned" : "incidentEnd")) n++;
     }
     return n;
 }
@@ -697,7 +702,7 @@ export async function veilOnPrimary({ what, killerIds = [] } = {}) {
     if (what === "judged") return { settled: Boolean(await lightsJudged()) };
     if (what === "settle") return { settled: Boolean(await settleVeils()) };
     // A second GM's close of an incident (1.2.129): held to the primary's own rows (`endMasksAtClose`).
-    if (what === "unmask") return { ended: await endMasksAtClose(killerIds) };
+    if (what === "unmask" || what === "unmaskQuiet") return { ended: await endMasksAtClose(killerIds, { quiet: what === "unmaskQuiet" }) };
     return null;
 }
 

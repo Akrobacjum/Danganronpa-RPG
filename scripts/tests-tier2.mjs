@@ -6703,8 +6703,12 @@ const SCENARIOS = [
             await settle();
             must(M.murderState()?.stage === "resolution" && M.swungWeaponOf(killer)?.id === knife.id && !isBroken(knife),
                 `the fixture's stab at Stage 6, the knife written down as swung and whole, did not come: ${stableJson(M.murderState())}`);
+            /* The fight opened on Hope masks the killer: the abandon ends the mask (1.2.128 S0-MASKLEFT), and quietly, so it
+               posts nothing either (mask-gm.mjs `endMasksAtClose`, quiet; red at 54769b4c, one card for the stab). */
+            const { maskStands } = await import("./mask-gm.mjs");
+            const maskedBefore = maskStands(killer.id);
             const stab = await read(abandon);
-            const stabAfter = [isBroken(knife), S.blackenedStore.has(killer.id), stableJson(caseRow()) === stableJson(caseBefore)];
+            const stabAfter = [isBroken(knife), S.blackenedStore.has(killer.id), stableJson(caseRow()) === stableJson(caseBefore), maskedBefore, maskStands(killer.id)];
             await putBack();
 
             await suicideAtStageSix();
@@ -6724,10 +6728,10 @@ const SCENARIOS = [
         }
         equal(stableJson(readings), stableJson({
             suicide: [1, 0, null, false, false],
-            stab: [1, 0, null, false, false, true],
+            stab: [1, 0, null, false, false, true, true, false],
             control: [1, true, true, true]
         }), "an abandoned incident was concluded, or the control's close was not (suicide: closes, cards posted, state, "
-            + "victim dead, register row; stab: closes, cards posted, state, knife broken, register row, case keys as before; "
+            + "victim dead, register row; stab: closes, cards posted, state, knife broken, register row, case keys as before, masked before, masked after; "
             + "control: closes, cards posted, victim dead, register row)");
     }],
 
