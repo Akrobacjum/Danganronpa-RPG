@@ -9434,7 +9434,7 @@ const SCENARIOS = [
         const { gmPlaceOf } = await import("./movement.mjs");
         const { isTrialScene } = await import("./rooms.mjs");
         const V = await import("./voice.mjs");
-        const { INFILTRATE, TIME_OF_DAY_LABELS } = await import("./config.mjs");
+        const { INFILTRATE } = await import("./config.mjs");
         const who = game.actors.filter(a => a.type === "character" && a.hasPlayerOwner).find(a => gmPlaceOf(a)?.room && !hideStore.get(a.id) && !deathStore.get(a.id)) ?? null;
         must(who, "no player's character stands in a room - this would measure nothing");
         const owner = game.users.find(u => !u.isGM && who.testUserPermission(u, "OWNER"));
@@ -9471,10 +9471,10 @@ const SCENARIOS = [
             const sent = new Set(game.messages.map(m => m.id));
             read.timeOfDay = (await H.settleHides())?.ended ?? null;
             await settle();
-            // The card is secret: its words are held on this GM for its reader (secret.mjs, the client setting secretCards).
-            const held = getSetting(SETTINGS.secretCards) ?? {};
-            const told = game.messages.filter(m => !sent.has(m.id)).map(m => `${m.content ?? ""} ${held[m.id]?.html ?? ""}`).join(" ");
-            read.timeOfDayAfter = [Boolean(hideStore.get(who.id)), flagged(), mic(), told.includes(game.i18n.format("DRPG.Hide.ended.timeOfDay", { time: TIME_OF_DAY_LABELS.noon }))];
+            // Told in the hider's corner, not as a card (the owner's 23.11.2026): no message posted, the reason on the token.
+            const ends = mine().filter(({ trial }) => !trial).map(({ t }) => t.flags?.[MODULE_ID]?.hideEnd ?? null);
+            read.timeOfDayAfter = [Boolean(hideStore.get(who.id)), flagged(), mic(), game.messages.filter(m => !sent.has(m.id)).length,
+                ends.every(end => end?.why === "timeOfDay" && end.time === "noon")];
             // A hidden character who dies is hidden no more (the GMs' deaths store, as a death kept secret writes it).
             await H.startHide({ actor: who, total: 20 });
             const clockNow = (await import("./settings.mjs")).getClock();
@@ -9486,6 +9486,7 @@ const SCENARIOS = [
             if (deathStore.get(who.id)) await deathStore.drop(who.id);
             if (hideStore.get(who.id)) await H.endHide(who.id, "reveal");
             for (const { t } of mine()) if (H.isHidingToken(t)) await t.update(H.unhidePatch(forcedDeletion()));
+            for (const { t } of mine()) if (t.flags?.[MODULE_ID]?.hideEnd !== undefined) await t.update({ [`flags.${MODULE_ID}.hideEnd`]: forcedDeletion() });
             await V.settleTrialVoices();
             for (const m of [...game.messages]) if (!before.has(m.id)) await m.delete();
             await settle();
@@ -9493,8 +9494,8 @@ const SCENARIOS = [
         equal(stableJson(read), stableJson({ miss: { hidden: false }, missed: [false, 0, null], hit: { hidden: true }, hidden: [true, true, "hiding", true],
             again: { refused: "that cannot be done now" }, end: { ended: true }, shown: [false, 0, null],
             chapter: { ended: [who.id], flagged: 0, swept: 0 }, chapterAfter: [false, 0, null], swept: 1, sweptAfter: 0,
-            timeOfDay: [who.id], timeOfDayAfter: [false, 0, null, true], deathAfter: [false, 0, "secretDead"] }),
-        "{a miss's answer, [row, flagged tokens, the microphone's hold]; a hit's, [row, every token off the hall flagged, hold, the owner on the row]; a second hide; Reveal yourself's, [row, flags, hold]; the settle at another chapter, after; a flag with no row swept, after; the settle after the time of day it began, after [row, flags, hold, the notice naming that time of day]; after a death the GMs keep, [row, flags, the hold: the secret death's, not the hide's]}");
+            timeOfDay: [who.id], timeOfDayAfter: [false, 0, null, 0, true], deathAfter: [false, 0, "secretDead"] }),
+        "{a miss's answer, [row, flagged tokens, the microphone's hold]; a hit's, [row, every token off the hall flagged, hold, the owner on the row]; a second hide; Reveal yourself's, [row, flags, hold]; the settle at another chapter, after; a flag with no row swept, after; the settle after the time of day it began, after [row, flags, hold, chat messages posted, every token's reason naming that time of day]; after a death the GMs keep, [row, flags, the hold: the secret death's, not the hide's]}");
     }],
     ["1.2.122 STG-31 - the primary runs the opening's veil another GM asks for, held to its own declarations (scripts/bridge-runs-acts.mjs `handleMaskVeil`; mask-gm.mjs `veilOnPrimary`; the audit's STG-31, 1.2.122 line MURDER): the lights' veil for a killer with a declaration of this Eclipse and one with none veils the first alone, the lights' end lifts it, and a request of no road is refused", async () => {
         /*

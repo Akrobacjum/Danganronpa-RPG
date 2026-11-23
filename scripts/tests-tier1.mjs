@@ -9372,6 +9372,28 @@ const INVARIANTS = [
             en: { holds: true, named: true, left: false }, pl: { holds: true, named: true, left: false } }),
         "{same: one clock read twice; next, eclipse, rewind, day: each another mark; en, pl: the end's notice [takes {time}, names it, no placeholder left]}");
     }],
+    ["R8908 - a hide's end is told in the hider's own corner of notices, never as a chat card (S0-HIDE, the owner's 23.11.2026: \"notice o ujawnieniu niech bedzie w lewym dolnym rogu jak reszta powiadomien\"; hide.mjs `endHide`, `hideEndNotice`): the end writes its reason on the token (`hideEnd`), and only the token's owner, on a player's browser, reads a notice off it - the time of day's, the chapter's, a GM's, a Reroll's, in both languages - while another player, a GM, a hide ended by its own Reveal yourself or a death read none; `endHide` posts no whisper", async () => {
+        /* 1.2.128 line STG, 23.11.2026. Pure readings on stand-in changes, the two language files and endHide's source;
+           nothing written. Red at 428c5ba1: no `hideEndNotice`, and endHide whispers a card. */
+        const H = await import("./hide.mjs");
+        const src = stripComments(fnSource(await fetch(`/modules/${MODULE_ID}/scripts/hide.mjs`).then(lfText), "endHide") ?? "");
+        must(src.length > 200, "endHide did not read - this would measure nothing");
+        const read = typeof H.hideEndNotice === "function" ? H.hideEndNotice : () => "none";
+        const change = end => ({ flags: { [MODULE_ID]: { hiding: null, hideEnd: end } } });
+        const files = {};
+        for (const code of ["en", "pl"]) files[code] = await fetch(`/modules/${MODULE_ID}/lang/${code}.json`).then(r => r.json());
+        const words = Object.fromEntries(["en", "pl"].map(code => [code, ["gm", "chapter", "reroll", "timeOfDay"].every(k => typeof files[code]?.DRPG?.Hide?.ended?.[k] === "string")]));
+        const told = read(change({ why: "timeOfDay", time: "Noon", at: 1 }), { owns: true, gm: false });
+        equal(stableJson({
+            own: typeof told === "string" && told.includes("Noon") && !/[{}]/.test(told),
+            gm: read(change({ why: "gm", at: 2 }), { owns: true, gm: false }) === game.i18n.localize("DRPG.Hide.ended.gm"),
+            other: read(change({ why: "timeOfDay", time: "Noon", at: 3 }), { owns: false, gm: false }),
+            onGm: read(change({ why: "gm", at: 4 }), { owns: true, gm: true }),
+            none: [read({ flags: { [MODULE_ID]: { hiding: null } } }, { owns: true, gm: false }), read(change(null), { owns: true, gm: false }), read({}, { owns: true, gm: false })],
+            words, whisper: /whisperTo|ChatMessage\.create|announce\(/.test(src)
+        }), stableJson({ own: true, gm: true, other: null, onGm: null, none: [null, null, null], words: { en: true, pl: true }, whisper: false }),
+        "{own: the hider's notice for the time of day's end; gm: a GM's; other: another player's browser; onGm: a GM's browser; none: [no reason, a cleared one, no change]; words: en, pl; whisper: endHide still posts a card}");
+    }],
     ["R8906 - Hide's bridge roads are declared as the trust model asks, and every cover a GM reads off its record is marked as one the hide may stand in for (S0-HIDE, E129; bridge-table.mjs `hide.start`, `mask.reveal`; bridge-runs-acts.mjs `pickRolls`, `tailRolls`, `palmRolls`, `friskRolls`; bridge-guards.mjs `rollsFor`): `hide.start` is the owner's, not a Spectator's, a reply, its Shadow roll its own record's; `mask.reveal` takes `of` \"mask\" or \"hide\" and nothing else; the four covers carry `cover`, their hands do not; the runner stands a pass in only for a cover of a character the GMs hold hidden", async () => {
         /* 1.2.128 line STG, 23.11.2026. Read off the tables and the runner's source; nothing sent. Red at 5a583d82: no
            `hide.start`, `of` not sanitized, no `cover` mark. */

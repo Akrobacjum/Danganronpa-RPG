@@ -23617,10 +23617,10 @@ const REGRESSIONS = [
             "gm-items.mjs": {"action": 1, "heading": 2},
             // 1.2.122 line TEXT (TEXT-32): the missing answer key's one send to the owner and the GMs is two, the owner's and the GMs'
             "handover.mjs": {"built": 1, "heading": 2, "line": 14, "message": 1},
-            // S0-HIDE (E129): Hide's roll card (hide.mjs `performHide`, `rollResultCard`) and the one line a hide ended by a GM,
-            // the chapter or a Reroll tells its player (`endHide`); and cleanup.mjs's cover not thrown while hidden, one more
-            // action card (`concealFromWitnesses`).
-            "hide.mjs": {"built": 1, "card": 1},
+            // S0-HIDE (E129): Hide's roll card (hide.mjs `performHide`, `rollResultCard`); and cleanup.mjs's cover not thrown
+            // while hidden, one more action card (`concealFromWitnesses`). Since the owner's 23.11.2026 a hide's end is told in
+            // its hider's corner of notices (`tellHideEnd`, showPopup), not by a whisper card: hide.mjs's "card" 1 went.
+            "hide.mjs": {"built": 1},
             // 1.2.122 line MURDER (the audit's CASE-25): the GMs told a standing betrayal offer was kept (`armBetrayalWindow`).
             "incident-store.mjs": {"line": 1},
             "inventory.mjs": {"card": 3, "line": 3}, 
