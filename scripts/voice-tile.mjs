@@ -146,6 +146,7 @@ import { objectionControl, renderHud } from "./hud.mjs";
 import { trialFloor } from "./trial-floor.mjs";
 import { myEavesdrop, eavesdropsUnderWay } from "./eavesdrop-gm.mjs";
 import { myMask, requestReveal } from "./mask-gm.mjs";
+import { myHiding, requestUnhide, hiddenUnderWay, gmUnhide } from "./hide.mjs";
 import { voiceVeiledHere } from "./visibility.mjs";
 
 
@@ -1109,6 +1110,7 @@ export function paintControls(watch = live, gone = null) {
         paintSpectatorTalk(watch.tile);
         paintStopListening(watch.tile);
         paintReveal(watch.tile);
+        paintUnhide(watch.tile);
         paintFloorMark(watch.tile, watch.shown ? watch.userOf(watch.shown) : null);
         if (watch.list && !watch.list.hidden) paintList(watch);
     } catch (err) {
@@ -1273,6 +1275,93 @@ export function paintReveal(tile, { masked = myMask(), onReveal = requestReveal 
 
 /* What a press of a tile's Reveal yourself calls, kept per button. */
 const revealToggles = new WeakMap();
+
+/**
+ * REVEAL YOURSELF, FROM HIDE (S0-HIDE, E129; the owner: "dopoki nie kliknie ujawnij sie na panelu livekit"; hide.mjs). A
+ * mini button after the speaker's while this browser's own character hides (`myHiding`, off its own token's flag): a press
+ * asks the primary GM to end the hide (`mask.reveal` with `of: "hide"`), which unmutes the player and draws the token for
+ * everyone again. Its own button, beside the mask's: a masked killer who hides ends each by its own (hide.mjs's header).
+ * The glyph is Legacy's `unseen` mark.
+ *
+ * @param {HTMLElement} tile
+ * @param {object} [given]  the suite's: `hiding` (an actor or null) and the click's `onUnhide`
+ * @returns {HTMLElement|null}
+ */
+export function paintUnhide(tile, { hiding = myHiding(), onUnhide = requestUnhide } = {}) {
+    const controls = tile?.querySelector(".drpg-voice-tile-controls");
+    if (!controls) return null;
+    let button = controls.querySelector(".drpg-voice-unhide");
+    if (!hiding) {
+        button?.remove();
+        return null;
+    }
+    if (!button) {
+        button = miniButton("drpg-voice-unhide", "unseen", "");
+        button.addEventListener("click", event => {
+            event.preventDefault();
+            event.stopPropagation();
+            Promise.resolve().then(() => unhideToggles.get(button)?.()).catch(err => error("Could not reveal from hiding", err));
+        });
+        const after = controls.querySelector(".drpg-voice-reveal") ?? controls.querySelector(".drpg-voice-speaker");
+        if (after) after.after(button);
+        else controls.append(button);
+    }
+    unhideToggles.set(button, () => onUnhide(hiding));
+    const label = game.i18n.localize("DRPG.Hide.reveal");
+    if (button.getAttribute("aria-label") !== label) {
+        button.setAttribute("aria-label", label);
+        button.dataset.tooltipText = label;
+    }
+    return button;
+}
+
+/* What a press of a tile's Reveal yourself from Hide calls, kept per button. */
+const unhideToggles = new WeakMap();
+
+/**
+ * THE HIDDEN, FOR A GM (S0-HIDE, E129; the coordinator's "The GM can reveal them"). At the top of a GM's list 'Who you
+ * hear', one line per character Hide hides (hide.mjs `hiddenUnderWay`), with a Reveal button that ends the hide
+ * (`gmUnhide`); none on a player's list. Answers how many lines it drew.
+ *
+ * @param {HTMLElement} list
+ * @param {object} [given]  the suite's: `gm`, `rows` and the press's `onReveal`
+ */
+export function paintHidden(list, { gm = game.user?.isGM === true, rows = gm ? hiddenUnderWay() : [], onReveal = gmUnhide } = {}) {
+    if (!list) return 0;
+    let box = list.querySelector(".drpg-voice-hidden");
+    if (!gm || !rows.length) {
+        box?.remove();
+        return 0;
+    }
+    if (!box) {
+        box = document.createElement("ul");
+        box.className = "drpg-voice-hidden";
+        box.setAttribute("aria-label", game.i18n.localize("DRPG.Hide.gmTitle"));
+        const rowsBox = list.querySelector(".drpg-voice-list-rows");
+        if (rowsBox) rowsBox.before(box);
+        else list.append(box);
+    }
+    const key = rows.map(row => `${row.actorId}:${row.name}`).join("|");
+    if (box.dataset.rows === key) return rows.length;
+    box.dataset.rows = key;
+    box.replaceChildren(...rows.map(row => {
+        const li = document.createElement("li");
+        li.className = "drpg-voice-hidden-mark";
+        const button = document.createElement("button");
+        button.type = "button";
+        button.className = "drpg-voice-hidden-reveal";
+        button.textContent = game.i18n.localize("DRPG.Hide.gmReveal");
+        setTip(button, "DRPG.Hide.gmRevealTooltip", { name: row.name }, { text: true });
+        button.addEventListener("click", event => {
+            event.preventDefault();
+            event.stopPropagation();
+            Promise.resolve().then(() => onReveal(row.actorId)).catch(err => error("Could not reveal a hidden character", err));
+        });
+        li.append(pixelGlyph("unseen"), textNode("span", "", game.i18n.format("DRPG.Hide.gmLine", { name: row.name })), button);
+        return li;
+    }));
+    return rows.length;
+}
 
 /* What a press of a tile's Stop listening calls, kept per button. */
 const stopToggles = new WeakMap();
@@ -1633,6 +1722,8 @@ export function paintList(watch = live, { holds = user => moduleHoldsMic(user) }
     putAttr(list.querySelector(".drpg-voice-list-muteall"), "aria-pressed", String(watch.muteAll() === true));
     // Every eavesdrop under way, on a GM's list (E69 C6).
     paintEavesdroppers(list, { gm });
+    // Every character Hide hides, with its Reveal, on a GM's list (S0-HIDE).
+    paintHidden(list, { gm });
     // "Nobody else is in your channel" only when nobody is: a participant mapped to no user has no row, and is still
     // there (E78 fix r1-G1).
     putHidden(list.querySelector(".drpg-voice-list-alone"), people.length > 0 || channelCount(watch) > 0);
@@ -1897,6 +1988,12 @@ export function registerVoiceTile() {
     Hooks.on("drpgEavesdropCopy", () => paintControls());
     // The murder's privacy (E69 C8): this browser's character went behind a "?" or came out.
     Hooks.on("drpgMaskChanged", () => paintControls());
+    // Hide (S0-HIDE): this browser's character hid or showed again; a GM's list follows the GMs' rows.
+    Hooks.on("drpgHideChanged", () => paintControls());
+    Hooks.on("updateToken", (doc, changes) => {
+        if (game.user?.isGM && changes?.flags?.[MODULE_ID] && ("hiding" in changes.flags[MODULE_ID] || "-=hiding" in changes.flags[MODULE_ID])
+            && live?.list && !live.list.hidden) paintList(live);
+    });
     Hooks.on("drpgEavesdropChanged", () => { if (live?.list && !live.list.hidden) paintList(live); });
     /* THE TRIAL'S LINES FOLLOW THE TRIAL (E70 fix p1-G1, 28.10.2026; the review's E70P1-R03). A Monocub's line and the
        dead's (voice.mjs `micHold`: "cubSpeak", "cubListen", "cubVote", "ownCase", "deadMuted") are read off the clock,

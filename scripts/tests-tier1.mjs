@@ -9227,6 +9227,147 @@ const INVARIANTS = [
         equal(JSON.stringify({ view: map.view, names: missing("names"), actions: missing("actions") }), JSON.stringify({ view: "map", names: [], actions: [] }),
             "{view: the region drawn after the Map button; names: the Table's fields the Map lacks; actions: its row buttons the Map lacks}");
     }],
+    ["R8900 - Hide is a row of the Infiltrate tile, priced and numbered in config.mjs, and its skipped cover passes every cover it stands in for (S0-HIDE, E129; config.mjs `ACTIONS.listen.variants`, `INFILTRATE.hide`; action-listen.mjs `infiltrateRows`): one action, Shadow at 15, its own alpha 0.4, and `coverTotal` above each Shadow cover's threshold - Palm's, a Plant's, a Frisk's, Tail's, Pick the Lock's, a Take's, a Sabotage's, an indirect murder's and a clean-up's", async () => {
+        /* 1.2.128 line STG, 23.11.2026. Read off config.mjs and the window's rows; nothing written. Red at 5a583d82: no
+           `hide` variant and no `INFILTRATE.hide`. */
+        const C = await import("./config.mjs");
+        const { infiltrateRows } = await import("./action-listen.mjs");
+        const rule = C.INFILTRATE.hide ?? null;
+        const covers = [C.ACTIONS.palm.unseen.threshold, C.ACTIONS.palm.plant.unseen, C.ACTIONS.palm.rummage.unseen, C.INFILTRATE.tail.unseen.threshold,
+            C.INFILTRATE.pick.cover.threshold, C.LOOT.cover.threshold, C.SABOTAGE_CONCEAL.threshold, C.INDIRECT_MURDER.concealIntent.threshold, C.CLEANUP.conceal.threshold];
+        must(covers.every(Number.isFinite), "a cover's threshold did not read as a number - this would measure nothing");
+        const actor = game.actors.find(a => a.type === "character") ?? null;
+        const row = actor ? infiltrateRows(actor).find(r => r.value === "hide") ?? null : null;
+        equal(stableJson({ variant: C.ACTIONS.listen.variants.includes("hide"), rule: rule && { traits: rule.traits, cost: rule.cost, dc: rule.dc, ownAlpha: rule.ownAlpha },
+            passes: Boolean(rule) && covers.every(t => rule.coverTotal >= t), row: row && { icon: row.icon, label: row.label === game.i18n.localize("DRPG.Infiltrate.row.hide.label") } }),
+        stableJson({ variant: true, rule: { traits: ["shadow"], cost: 1, dc: 15, ownAlpha: 0.4 }, passes: true, row: actor ? { icon: "fa-user-ninja", label: true } : null }),
+        "{variant: in the tile's list; rule: Shadow, one action, 15, 0.4; passes: coverTotal at or above every cover's threshold; row: the window's row and its name}");
+    }],
+    ["R8901 - a token Hide hides is drawn only for its owner and the GMs, and the flag is all it writes (S0-HIDE, E129; visibility.mjs `tokenShownTo`, `movePass`; hide.mjs `hidePatch`): its owner \"show\", every other player \"hide\" - a stranger, the killers' side, a Spectator, the owner's neighbour in an Eclipse - a GM null; no Foundry `hidden` in the patch, and the flag's write asks a whole pass", async () => {
+        /* 1.2.128 line STG, 23.11.2026. Pure readings on stand-in documents, as R7702 reads the veil's. Red at 5a583d82: no
+           hide.mjs, and a token with the flag was left to the room rule (null). */
+        const { tokenShownTo, movePass } = await import("./visibility.mjs");
+        const H = await import("./hide.mjs");
+        const doc = { actorId: "H", actor: { type: "character" }, hidden: false, flags: { [MODULE_ID]: { hiding: true } } };
+        const viewer = (owns, side = [], extra = {}) => ({ gm: false, eclipse: false, enforcing: false, rooms: new Set(), lair: null, spectator: false,
+            killersSide: new Set(side), owns: () => owns, ...extra });
+        const gone = "-" + "=" + "hiding";
+        equal(stableJson({
+            shown: [tokenShownTo(doc, viewer(true)), tokenShownTo(doc, viewer(false)), tokenShownTo(doc, viewer(false, ["H"])), tokenShownTo(doc, viewer(false, [], { spectator: true })),
+                tokenShownTo(doc, viewer(false, [], { eclipse: true })), tokenShownTo(doc, viewer(true, [], { eclipse: true })), tokenShownTo(doc, viewer(false, [], { gm: true })),
+                tokenShownTo({ ...doc, flags: { [MODULE_ID]: { hiding: true, veiled: true } } }, viewer(false, ["H"]))],
+            patch: [H.hidePatch(), H.unhidePatch(), H.unhidePatch("GONE")],
+            pass: [movePass({ isOwner: false }, { flags: { [MODULE_ID]: { hiding: true } } }), movePass({ isOwner: false }, { flags: { [MODULE_ID]: { [gone]: null } } })]
+        }), stableJson({
+            shown: ["show", "hide", "hide", "hide", "hide", "show", null, "hide"],
+            patch: [{ [`flags.${MODULE_ID}.hiding`]: true }, { [`flags.${MODULE_ID}.hiding`]: false }, { [`flags.${MODULE_ID}.hiding`]: "GONE" }],
+            pass: ["all", "all"]
+        }), "{shown: [owner, stranger, the killers' side, a Spectator, a stranger in an Eclipse, the owner in an Eclipse, a GM, the killers' side for a veiled token that hides]; patch: hide, show, show by deletion; pass: set, deleted}");
+    }],
+    ["R8902 - a hidden token is drawn faded for its owner, as a GM's hidden token for a GM, and gets its own alpha back once it shows (S0-HIDE, E129; hide.mjs `hidingAlpha`, visibility.mjs `dressHiding`): 0.4 times the token's own alpha on its owner's browser, 0.5 on a GM's, untouched on any other, and the token's alpha again when the flag goes", async () => {
+        /* 1.2.128 line STG, 23.11.2026. Stand-in tokens with a mesh; no canvas (LIVE-129-01). Red at 5a583d82: no hide.mjs. */
+        const H = await import("./hide.mjs");
+        const { dressHiding } = await import("./visibility.mjs");
+        const doc = (hiding, alpha = 1) => ({ alpha, flags: { [MODULE_ID]: hiding ? { hiding: true } : {} } });
+        const token = (hiding, owner) => ({ isOwner: owner, mesh: { alpha: 1 }, document: doc(hiding, 0.5) });
+        const mine = token(true, true), theirs = token(true, false), gmSees = token(true, true);
+        dressHiding(mine, { gm: false });
+        dressHiding(theirs, { gm: false });
+        dressHiding(gmSees, { gm: true });
+        const faded = [mine.mesh.alpha, theirs.mesh.alpha, gmSees.mesh.alpha];
+        mine.document = doc(false, 0.5);
+        dressHiding(mine, { gm: false });
+        equal(stableJson({ alpha: [H.hidingAlpha(doc(true), { owns: true }), H.hidingAlpha(doc(true), { gm: true }), H.hidingAlpha(doc(true), {}), H.hidingAlpha(doc(false), { owns: true })],
+            faded, back: mine.mesh.alpha }),
+        stableJson({ alpha: [0.4, 0.5, null, null], faded: [0.2, 1, 0.25], back: 0.5 }),
+        "{alpha: [owner, GM, another player, a token that does not hide]; faded: the meshes [owner, another player, GM] at a token alpha of 0.5; back: the owner's mesh once the flag went}");
+    }],
+    ["R8903 - while a character hides, the cover roll an action would throw stands passed and earns nothing (S0-HIDE, E129; hide.mjs `coverWhileHidden`, `HIDDEN_COVER`, `withCover`; action-tail.mjs `rollsEarnedHope`): null for a character with no hiding token, else a frozen pass at `coverTotal` - no critical, not a roll, no Hope counted by Tail's refund - and the card's sentence says so in both languages", async () => {
+        /* 1.2.128 line STG, 23.11.2026. Plain scenes of stand-in tokens; nothing written. Red at 5a583d82: no hide.mjs. */
+        const H = await import("./hide.mjs");
+        const { rollsEarnedHope } = await import("./action-tail.mjs");
+        const { INFILTRATE } = await import("./config.mjs");
+        const scenes = [{ tokens: [{ actorId: "A", flags: { [MODULE_ID]: { hiding: true } } }, { actorId: "B", flags: {} }] }];
+        const files = {};
+        for (const code of ["en", "pl"]) files[code] = await fetch(`/modules/${MODULE_ID}/lang/${code}.json`).then(r => r.json());
+        const cover = H.coverWhileHidden({ id: "A" }, { scenes });
+        equal(stableJson({ hidden: cover && { total: cover.total, isCritical: cover.isCritical, hidden: cover.hidden, messageId: cover.messageId, frozen: Object.isFrozen(cover) },
+            other: H.coverWhileHidden({ id: "B" }, { scenes }), none: H.coverWhileHidden(null, { scenes }),
+            earned: [rollsEarnedHope([cover]), rollsEarnedHope([{ withHope: true }])],
+            text: [H.withCover("Sent.", cover) !== "Sent.", H.withCover("Sent.", null) === "Sent.", H.withCover("", cover) === game.i18n.localize("DRPG.Hide.coverSkipped")],
+            words: ["en", "pl"].map(code => typeof files[code]?.DRPG?.Hide?.coverSkipped === "string" && files[code].DRPG.Hide.coverSkipped.length > 10) }),
+        stableJson({ hidden: { total: INFILTRATE.hide.coverTotal, isCritical: false, hidden: true, messageId: null, frozen: true }, other: null, none: null,
+            earned: [false, true], text: [true, true, true], words: [true, true] }),
+        "{hidden: the stand-in for a hiding character; other: a character that does not hide; none: no character; earned: [the skipped cover, a roll with Hope]; text: [a sentence gains the line, none without, the line alone]; words: en, pl}");
+    }],
+    ["R8904 - a hidden player's microphone is held by the module outside a Class Trial, on their own browser and on a GM's, and the trial's settle blocks it (S0-HIDE, E129; voice.mjs `micHold` \"hiding\", `moduleHoldsMic`, `settleTrialVoices`): held with the reason \"hiding\", not inside the trial, the GM's twin the same, the settle's condition reads the hide's rows, and its line is in both languages", async () => {
+        /* 1.2.128 line STG, 23.11.2026. As R7405 reads the veil's; nothing written. Red at 5a583d82: no reason "hiding". */
+        const V = await import("./voice.mjs");
+        const pl = await fetch(`/modules/${MODULE_ID}/lang/pl.json`).then(r => r.json());
+        const settle = stripComments(fnSource(await fetch(`/modules/${MODULE_ID}/scripts/voice.mjs`).then(lfText), "settleTrialVoices") ?? "");
+        must(settle.length > 500, "settleTrialVoices did not read - this would measure nothing");
+        const user = { id: "R8904USER0000000", name: "R8904", isGM: false, active: true };
+        const hold = (hiding, trial = null) => V.micHold({ user, room: "drpg-x", external: false, connected: true, canBroadcastAudio: false, actors: [], trial,
+            listening: null, masked: false, veiled: false, hiding });
+        const gm = (trial) => V.moduleHoldsMic(user, { actors: [], eclipse: false, trial, dead: () => false, listening: new Set(), masked: new Set(), veiled: new Set(),
+            hiding: new Set([user.id]) })?.reason ?? null;
+        equal(stableJson({ hold: [hold(true), hold(false)?.reason ?? null, hold(true, { clock: { phase: "classTrial" } })?.reason ?? null], gm: game.user.isGM ? [gm(false), gm(true)] : null,
+            settle: /\bhiding\b/.test(settle) && settle.includes("hidingIds()"),
+            words: [game.i18n.has("DRPG.Voice.held.hiding"), typeof pl?.DRPG?.Voice?.held?.hiding === "string"] }),
+        stableJson({ hold: [{ reason: "hiding", held: true }, "gmBlock", "gmBlock"], gm: game.user.isGM ? ["hiding", null] : null, settle: true, words: [true, true] }),
+        "{hold: [hidden, not hidden, hidden in a trial]; gm: [the GM's twin outside, inside a trial]; settle: the block reads the hide's rows; words: en, pl}");
+    }],
+    ["R8905 - another player's voice tile, pickers and camera dock leave a hidden player out, and the hider's own tile keeps Reveal yourself (S0-HIDE, E129; mask-gm.mjs `veilHidesHere`, `userVeiledFromHere`; voice-tile.mjs `paintUnhide`, `paintHidden`; camera-view.mjs `movesAPlate`): the veil's one predicate answers for a hiding token this browser hides and not for one it draws, the button is drawn, named and pressed, gone once not hiding, a GM's list draws one line with a Reveal a press of which names the character, and the dock reads the flag's write", async () => {
+        /* 1.2.128 line STG, 23.11.2026. Detached nodes and stand-in scenes; nothing written, nothing sent. Red at 5a583d82:
+           no hide.mjs, and `veilHidesHere` read the veil's flag alone. */
+        const K = await import("./mask-gm.mjs");
+        const T = await import("./voice-tile.mjs");
+        const CV = await import("./camera-view.mjs");
+        const owner = { id: "R8905OWNER000000", isGM: false };
+        const tok = { actorId: "H", flags: { [MODULE_ID]: { hiding: true } }, actor: { testUserPermission: u => u?.id === owner.id } };
+        const scenes = [{ tokens: [tok] }];
+        const hiddenTo = shown => K.userVeiledFromHere(owner, { scenes, shown: () => shown, user: { id: "R8905VIEWER00000", isGM: false }, gm: false });
+        const tile = document.createElement("div");
+        const controls = document.createElement("div");
+        controls.className = "drpg-voice-tile-controls";
+        tile.append(controls);
+        const pressed = [];
+        const drawn = T.paintUnhide(tile, { hiding: { id: "R8905ACTOR000000" }, onUnhide: a => pressed.push(a.id) });
+        drawn?.click();
+        await new Promise(r => setTimeout(r, 0));
+        const label = drawn?.getAttribute("aria-label") ?? null;
+        T.paintUnhide(tile, { hiding: null });
+        const list = document.createElement("div");
+        const revealed = [];
+        const lines = T.paintHidden(list, { gm: true, rows: [{ actorId: "R8905ACTOR000000", name: "Hana" }], onReveal: id => revealed.push(id) });
+        list.querySelector(".drpg-voice-hidden-reveal")?.click();
+        await new Promise(r => setTimeout(r, 0));
+        const none = T.paintHidden(document.createElement("div"), { gm: false, rows: [{ actorId: "X", name: "X" }] });
+        equal(stableJson({ veil: [hiddenTo("hide"), hiddenTo("show")], button: [Boolean(drawn), label === game.i18n.localize("DRPG.Hide.reveal"), pressed, controls.querySelectorAll(".drpg-voice-unhide").length],
+            gm: [lines, list.querySelectorAll(".drpg-voice-hidden-mark").length, revealed, none, Boolean(list.querySelector(".drpg-voice-hidden-reveal")?.dataset.tooltipText)],
+            dock: [CV.movesAPlate({ flags: { [MODULE_ID]: { hiding: true } } }), CV.movesAPlate({ flags: { [MODULE_ID]: { other: true } } })] }),
+        stableJson({ veil: [true, false], button: [true, true, ["R8905ACTOR000000"], 0], gm: [1, 1, ["R8905ACTOR000000"], 0, true], dock: [true, false] }),
+        "{veil: [hidden here, drawn here]; button: [drawn, its name, a press, gone]; gm: [lines, rows, a press, a player's list, its tooltip]; dock: [the hide's flag, another flag]}");
+    }],
+    ["R8906 - Hide's bridge roads are declared as the trust model asks, and every cover a GM reads off its record is marked as one the hide may stand in for (S0-HIDE, E129; bridge-table.mjs `hide.start`, `mask.reveal`; bridge-runs-acts.mjs `pickRolls`, `tailRolls`, `palmRolls`, `friskRolls`; bridge-guards.mjs `rollsFor`): `hide.start` is the owner's, not a Spectator's, a reply, its Shadow roll its own record's; `mask.reveal` takes `of` \"mask\" or \"hide\" and nothing else; the four covers carry `cover`, their hands do not; the runner stands a pass in only for a cover of a character the GMs hold hidden", async () => {
+        /* 1.2.128 line STG, 23.11.2026. Read off the tables and the runner's source; nothing sent. Red at 5a583d82: no
+           `hide.start`, `of` not sanitized, no `cover` mark. */
+        const { BRIDGE_ACTIONS } = await import("./bridge-table.mjs");
+        const R = await import("./bridge-runs-acts.mjs");
+        const guards = stripComments(fnSource(await fetch(`/modules/${MODULE_ID}/scripts/bridge-guards.mjs`).then(lfText), "rollsFor") ?? "");
+        must(guards.length > 500, "rollsFor did not read - this would measure nothing");
+        const row = BRIDGE_ACTIONS["hide.start"] ?? null;
+        const reveal = BRIDGE_ACTIONS["mask.reveal"];
+        const of = v => reveal.sanitize({ actorId: "A".repeat(16), of: v }, game.user).of ?? null;
+        const marks = fn => fn({ id: "X" }).map(spec => Boolean(spec.cover));
+        equal(stableJson({ row: row && { answer: row.answer, rolled: row.rolled, guards: row.guards.length, read: Object.keys(row.sanitize({ actorId: "A".repeat(16), total: 3, isCritical: false, rollId: "B".repeat(16), extra: 1 }, game.user)).sort() },
+            of: [of("mask"), of("hide"), of("anything")],
+            covers: { pick: marks(R.pickRolls), tail: marks(R.tailRolls), palm: marks(R.palmRolls), frisk: marks(R.friskRolls) },
+            runner: /rolled\.cover && !id/.test(guards) && guards.includes("hiddenOnGm(") && /if \(skipped\) continue/.test(guards) }),
+        stableJson({ row: { answer: "reply", rolled: { field: "rollId", actor: "actorId", kind: "hide" }, guards: 4, read: ["actorId", "isCritical", "rollId", "total"] },
+            of: ["mask", "hide", null], covers: { pick: [false, true], tail: [false, true], palm: [false, true], frisk: [false, true] }, runner: true }),
+        "{row: hide.start's answer, roll, guards and fields; of: mask.reveal's [mask, hide, anything else]; covers: each declaration's [hand, cover]; runner: a pass only for an unnamed cover of a character held hidden}");
+    }],
     ["R8462 - the Eclipse's explanation under the Overflow's darkness gives the night its rooms, not \"anywhere\", in both languages: explain.mjs `eclipseExplanation(crossings, night)` with `night` the darkened night's crossings (overflow.mjs `overflowCrossings(null)`: null without the darkness, `freeBecomes` with it) (1.2.122; the 1.2.42 audit's 3.1-03, TEXT-04's verification)", async () => {
         /*
          * 1.2.122 line STG, 21.11.2026. 3.1-03 / TEXT-04: `DRPG.Explain.phase.eclipse` read its day's reach off

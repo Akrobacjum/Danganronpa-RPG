@@ -49,7 +49,7 @@ import {
     ACTION_OPENING_RESULT, ACTION_CLEANUP, ACTION_BETRAYAL, ACTION_PARK_MURDER, ACTION_CUB_ABILITY, ACTION_CUB_ANSWER, ACTION_BRIBE_OFFER, ACTION_BRIBE_ANSWER, ACTION_LOOT,
     ACTION_NOTE_SAVE, ACTION_ROLL_BOOKMARK, ACTION_REROLL, ACTION_CARD, ACTION_CARD_CLAIM, ACTION_BULLET_GIVE, ACTION_FACILITY_USE, ACTION_DASH,
     ACTION_TAIL_START, ACTION_DOOR_SHUT, ACTION_DOOR_FORCE, ACTION_DOOR_PICK, ACTION_WATCH_DECLARE, ACTION_DOOR_KNOCK,
-    ACTION_LISTEN_EAVESDROP, ACTION_LISTEN_STOP, ACTION_LISTEN_ECHOES, ACTION_MASK_REVEAL, ACTION_MASK_VEIL
+    ACTION_LISTEN_EAVESDROP, ACTION_LISTEN_STOP, ACTION_LISTEN_ECHOES, ACTION_MASK_REVEAL, ACTION_MASK_VEIL, ACTION_HIDE_START
 } from "./bridge-wire.mjs";
 import {
     handleObserveTarget, handleCleanupTraces, handleObserveResolve, handleAnalyzeResolve, handleAdvancement,
@@ -60,7 +60,7 @@ import {
     handleBetrayal, handleCleanup, handleCubAbility, handleCubAnswer, handleBribeOffer, handleBribeAnswer, handleHopeCall, handleCallYes, handleDynamicAnswer,
     handleRulingExpired, handleRulingReceived, handleDifficulty, handleTraitRuling, handleFacilityUse, handleDash,
     handleTailStart, tailRolls, handleDoorShut, handleDoorForce, handleDoorPick, pickRolls, handleWatchDeclare, handleDoorKnock,
-    handleEavesdrop, handleEavesdropStop, handleEchoes, handleMaskReveal, handleMaskVeil
+    handleEavesdrop, handleEavesdropStop, handleEchoes, handleMaskReveal, handleMaskVeil, handleHideStart
 } from "./bridge-runs-acts.mjs";
 import {
     handleProgress, handleShare, TRACE_OF_ROLL, handleRemnant, traceBandOf, progressOf, repairOf, handleTieTrace,
@@ -93,7 +93,6 @@ import {
  * `judge` (bridge-guards.mjs) carries every one of them out; R1b reads this
  * table, R163 the fields each run reads, and 33-bridge-paths drives the legal
  * roads through it.
- *
  *
  * `project.create` USED TO BE IN THE TABLE, and it is gone rather than mended.
  * Nothing sent it: a project is created by the GM, from the panel or from an
@@ -289,11 +288,16 @@ export const BRIDGE_ACTIONS = table({
     [ACTION_MASK_REVEAL]: {
         label: "DRPG.Bridge.what.mask.reveal",
         guards: [knownSender, notSpectator("actorId"), owns("actorId", "sender does not own that character")],
-        sanitize: pick({ actorId: as.id }),
+        sanitize: pick({ actorId: as.id, of: as.oneOf("mask", "hide") }),
         run: handleMaskReveal,
-        // The asker's "?" goes when the token's look comes back; nothing is said.
+        // The asker's "?" goes when the token's look comes back, a hide's fade when its flag goes (`of`); nothing is said.
         answer: "ack"
     },
+    [ACTION_HIDE_START]: { label: "DRPG.Bridge.what.hide.start", run: handleHideStart, answer: "reply", // the card says whether hidden
+        guards: [knownSender, notSpectator("actorId"), guardUndoIsTheGms, owns("actorId", "sender does not own that character")],
+        sanitize: pick({ actorId: as.id, total: as.num, isCritical: as.bool, rollId: as.id }),
+        rolled: { field: "rollId", actor: "actorId", kind: "hide" },
+        claims: { rollId: "the roll the hide is read from (bridge-guards.mjs rollRefusal): the sender's own drawn Hide roll of that character" } },
     /*
      * THE OPENING'S VEIL, ASKED OF THE PRIMARY BY ANOTHER GM (1.2.122; the audit's STG-31). The veil is the primary's to
      * write (mask-gm.mjs `settleVeilsNow`, `veilAtTheLights`), and on another GM's browser both answered nothing, so an

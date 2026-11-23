@@ -50,7 +50,7 @@ import { roomPieces, roomRegions, isMoveChange, isTrialScene } from "./rooms.mjs
 import { isMonokuma, isSpectator, poolUserFor, studentActors, characterIds } from "./monokuma.mjs";
 import { talksWithSpectators, SPECTATOR_LISTEN_FLAG } from "./spectator.mjs";
 import { isMonocub, ownCaseOpen } from "./monocub.mjs";
-import { deathStore, trialMuteStore, eavesdropStore, eavesdropCopy, maskStore, veilStore } from "./gm-stores.mjs";
+import { deathStore, trialMuteStore, eavesdropStore, eavesdropCopy, maskStore, veilStore, hideStore } from "./gm-stores.mjs";
 import { VOICE, ROOM_PREFIX, isDeadRoom, SPECTATOR_ROOM, SCRUM_ROOMS, applyLocally, forgetDesiredRoom, avclientActive, desiredRoom, externalAV, silentRoomFor } from "./voice-client.mjs";
 import { isPrimaryGm, debug, warn, error, gmReport, serialWrite, forcedDeletion, whisperToGms, esc, trialModeLabel } from "./utils.mjs";
 // A Scrum Debate's camps while they confer (the owner's 13.11.2026): zone-machine.mjs is pure and imports config.mjs alone.
@@ -1183,6 +1183,21 @@ function veiledIds() {
     return new Set(Object.values(veilStore.entries() ?? {}).flatMap(row => row?.userIds ?? []));
 }
 
+/** On a GM: the accounts whose character Hide hides now, from the GMs' rows (S0-HIDE, E129; hide.mjs `hideMutedIds`). */
+function hidingIds() {
+    if (!game.user?.isGM) return new Set();
+    return new Set(Object.values(hideStore.entries() ?? {}).flatMap(row => row?.userIds ?? []));
+}
+
+/** Whether this browser's own character hides (S0-HIDE, E129), off the one flag of its tokens, as `ownVeiled`. */
+function ownHiding(user = game.user) {
+    if (!user || user.id !== game.user?.id || user.isGM) return false;
+    for (const scene of game.scenes ?? []) for (const token of scene.tokens ?? []) {
+        if (token.flags?.[MODULE_ID]?.hiding && token.actor?.testUserPermission?.(user, "OWNER")) return true;
+    }
+    return false;
+}
+
 /** Whether this browser's own character is veiled for a murder's opening (E112), off the one flag of its tokens, as `ownMasked`. */
 function ownVeiled(user = game.user) {
     if (!user || user.id !== game.user?.id || user.isGM) return false;
@@ -1346,7 +1361,7 @@ const stillThere = row => Boolean(row?.fallen && row.gone !== true);
  */
 export function micHold({ user = game.user, room = desiredRoom(), external = externalAV(), connected = roomConnected(),
     canBroadcastAudio = broadcastAllowed(user), actors, trial = trialFacts(), listening = ownListenRoom(user),
-    masked = ownMasked(user), veiled = ownVeiled(user) } = {}) {
+    masked = ownMasked(user), veiled = ownVeiled(user), hiding = ownHiding(user) } = {}) {
     if (!user) return null;
     if (external) return { reason: "external", held: false };
     // A Spectator's account is held in every phase (E92 C2): it listens where its token stands, and speaks nowhere -
@@ -1358,6 +1373,8 @@ export function micHold({ user = game.user, room = desiredRoom(), external = ext
     if (masked && !trial) return { reason: "masked", held: true };
     // Veiled for a murder's opening (E112, mask-gm.mjs): HELD until the opening is thrown; the room is still heard.
     if (veiled && !trial) return { reason: "veiled", held: true };
+    // Hidden by Hide (S0-HIDE, E129; hide.mjs): HELD until Reveal yourself; the room is still heard. Not in the Class Trial.
+    if (hiding && !trial) return { reason: "hiding", held: true };
     const eclipse = !user.isGM && room === eclipseRoomFor(user);
     // In an Eclipse a player's browser is out of voice on purpose (E19 C4): no connection is the Eclipse's, not "offline".
     if (!connected && !eclipse) return { reason: "offline", held: false };
@@ -1403,12 +1420,14 @@ export function micHold({ user = game.user, room = desiredRoom(), external = ext
  * nobody is located at all. The facts can be handed in, as `micHold`'s.
  */
 export function moduleHoldsMic(user, { actors, eclipse = isEclipse(), trial = getClock().phase === "classTrial",
-    dead = isDeadForGm, listening = listeningIds(), masked = maskedIds(), veiled = veiledIds() } = {}) {
+    dead = isDeadForGm, listening = listeningIds(), masked = maskedIds(), veiled = veiledIds(), hiding = hidingIds() } = {}) {
     if (!game.user?.isGM || !user) return null;
     // Behind a "?" (E69 C8): the mask's block, which the GM's own is not offered over either.
     if (masked.has(user.id) && !trial) return { reason: "masked", held: true };
     // Veiled for a murder's opening (E112): the veil's block, the same.
     if (veiled.has(user.id) && !trial) return { reason: "veiled", held: true };
+    // Hidden by Hide (S0-HIDE, E129): the hide's block, the same.
+    if (hiding.has(user.id) && !trial) return { reason: "hiding", held: true };
     // Listening at a door (E69 C6): the eavesdrop's block, which the GM's own is not offered over.
     if (listening.has(user.id)) return { reason: "listening", held: true };
     const row = accountRow(user, { actors, eclipse, trial, silenced: actor => silencedByDeath(actor, dead), listed: trial ? mutedDeadIds() : null });
@@ -1746,6 +1765,8 @@ export async function settleTrialVoices({ release = false } = {}) {
     await maskStore.whenHydrated();
     // And the opening's veil (E112, mask-gm.mjs): the killer's microphone until the opening is thrown.
     await veilStore.whenHydrated();
+    // And Hide (S0-HIDE, E129; hide.mjs): a hidden character's owners until Reveal yourself.
+    await hideStore.whenHydrated();
     if (await deathStore.whenHydrated() === "timedOut") warn("The trial's dead are listed from the deaths this GM holds: the other GMs' have not arrived.");
     await trialMuteStore.whenHydrated();
     const vote = await import("./vote.mjs");
@@ -1800,9 +1821,11 @@ export async function settleTrialVoices({ release = false } = {}) {
             const masked = !release && !inTrial && mask.maskMutedIds().has(user.id);
             // The opening's veil (E112): outside the trial as the mask's, the killer's microphone until the opening is thrown.
             const veiled = !release && !inTrial && mask.veilMutedIds().has(user.id);
+            // Hide (S0-HIDE, E129): outside the trial as the veil's, until Reveal yourself.
+            const hiding = !release && !inTrial && hidingIds().has(user.id);
             const floorHeld = Boolean(speakers && voice && !listed.has(voice.id) && !holdsTheFloor(voice, speakers)
                 && !spectatorAccount(user, { held: flagsHeldNow }));
-            if (watching || listening || masked || veiled || floorHeld || (voice && listed.has(voice.id))) {
+            if (watching || listening || masked || veiled || hiding || floorHeld || (voice && listed.has(voice.id))) {
                 if (!row?.wrote && await blockForTrial(user) === "blocked") out.blocked.push(user.id);
             } else if (row?.wrote && await restoreTrialBlock(user, row) === "restored") out.restored.push(user.id);
         }

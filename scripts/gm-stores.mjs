@@ -1227,6 +1227,21 @@ export const veilStore = defineGmStore({
 });
 
 /**
+ * THE HIDDEN (S0-HIDE, E129, 23.11.2026; hide.mjs). A row per character Hide hides, keyed by its actor id: `{ actorId,
+ * userIds, chapter, total, critical, userId, at }` - `userIds` its owners, whose microphone the hide blocks, `chapter` the
+ * clock's chapter it began in (the chapter's end ends it), `total` and `critical` the Shadow roll's off the GMs' record of
+ * it. The token carries one flag, `hiding`, and the token's own `hidden` is not touched. Written, read and dropped by the
+ * primary alone; synced, so a new primary settles what it holds; backed up, as the masks are: a hide lasts until it is
+ * ended, across sessions. Cut by the reset's "actions" group, the tokens' flags swept by the primary's next settle
+ * (`settleHides`). No player copy - a player reads the token's flag, which names nobody - and no old key.
+ */
+export const hideStore = defineGmStore({
+    name: "hides", key: SETTINGS.gmHides,
+    kind: "ledger", resetGroup: "actions", backup: true, sync: true,
+    exists: actorId => Boolean(game.actors?.has(actorId))
+});
+
+/**
  * AN OWNER'S EAVESDROPS (E69 C6): `{ actorId: { sceneId, from, into, mark, active } }` for the characters this user owns,
  * as the primary GM sent them, a stamp per character - taken by the offers' rule (`offersCombine`). Read by the voice
  * tile (its Stop listening, the microphone's reason) and the Listen window (a free repeat).

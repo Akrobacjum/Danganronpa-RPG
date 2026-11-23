@@ -22,6 +22,7 @@ import { listenLabels } from "./action-listen.mjs";
 import { actionWindow } from "./action-menus.mjs";
 import { briefingBlock } from "./action-briefing.mjs";
 import { tipAttr, tipText } from "./ui-kit.mjs";
+import { coverWhileHidden, coverLine as hiddenCoverLine } from "./hide.mjs";
 
 /** Shut the Door: the action, the Body roll, the ask. Answers `{ room, roll }` or null. */
 export async function performShut(actor, options = {}) {
@@ -158,8 +159,9 @@ export async function performPick(actor, options = {}) {
     if (!room || room === "cancel") return null;
     const paid = cost > 0 ? await spendAction(actor, cost) : null;
     if (cost > 0 && !paid) return null;
-    // The cover first, a supporting roll nothing remembers (as a Palm's), then the Hand.
-    const cover = await rollTrait(actor, rule.cover.trait, { remember: false, actionKey: "pickCover",
+    // The cover first, a supporting roll nothing remembers (as a Palm's), then the Hand; while hidden the cover is not
+    // thrown and passes (S0-HIDE, hide.mjs `coverWhileHidden`).
+    const cover = coverWhileHidden(actor) ?? await rollTrait(actor, rule.cover.trait, { remember: false, actionKey: "pickCover",
         title: game.i18n.localize("DRPG.Infiltrate.pick.coverTitle"), dc: rule.cover.threshold });
     if (!cover) return abort(actor, paid);
     const roll = await rollTrait(actor, rule.traits[0], { actionKey: "pick", title: label, dc: rule.dc, context: { room } });
@@ -174,7 +176,8 @@ export async function performPick(actor, options = {}) {
     const shown = labelOf.get(room) ?? room;
     // With both rolls - the Hand against the lock's number, the cover against its own (`neededNote`) - in the middle of
     // the roller's screen (`doorCard`, 1.2.124; 1.2.125).
-    const coverLine = `<p><small>${esc(game.i18n.localize("DRPG.Infiltrate.pick.coverTitle"))} - <b>${esc(String(cover.total ?? ""))}</b>${esc(neededNote(rule.cover.threshold))}</small></p>`;
+    const coverLine = cover.hidden ? hiddenCoverLine(cover)
+        : `<p><small>${esc(game.i18n.localize("DRPG.Infiltrate.pick.coverTitle"))} - <b>${esc(String(cover.total ?? ""))}</b>${esc(neededNote(rule.cover.threshold))}</small></p>`;
     await whisperToOwner(actor, ...doorCard("pick", label, roll, { done: opened, held, room: shown, extra: coverLine }));
     return { opened, held, room, roll };
 }

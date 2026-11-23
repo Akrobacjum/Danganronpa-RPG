@@ -9416,6 +9416,65 @@ const SCENARIOS = [
         equal(stableJson([said.victim?.includes(game.i18n.localize("DRPG.Murder.closedVictimYou")), said.killer?.includes(game.i18n.localize("DRPG.Murder.closedYou"))]),
             stableJson([true, true]), `[the victim's player answered their own line, the killer's player the other]: ${stableJson(said)}`);
     }],
+    ["1.2.128 S0-HIDE - the primary hides a character on a hit and not on a miss, blocks its player's microphone, shows it again at Reveal yourself, ends it at another chapter and sweeps a flag no row holds (scripts/hide.mjs `startHide`, `endHide`, `settleHides`; voice.mjs `moduleHoldsMic`; E129, 23.11.2026)", async () => {
+        /*
+         * 23.11.2026, 1.2.128 line STG (S0-HIDE). The primary's side, as the bridge's run calls it (`handleHideStart` hands
+         * `startHide` the GMs' record of the Shadow roll). A player's character standing in a room: a miss (3), a hit (the
+         * row's `dc`), a second hide refused, Reveal yourself (`endHide` "reveal"), a hide again whose row names another
+         * chapter (the clock's chapter's end), and a flag written on a token with no row (a season's reset cuts the rows and
+         * leaves the flags). Read: the row, the flagged tokens, the module's hold on the owner's microphone. Put back: the
+         * row, every flag, the microphone's block, the whispers the chapter's end posted. Red at 5a583d82: no hide.mjs.
+         */
+        needs(env.primaryGm(), "the hide is the primary's");
+        needs(world.atLeast("studentTokensOnScreen", 1), "a character is hidden by its tokens");
+        const H = await import("./hide.mjs");
+        const { hideStore } = await import("./gm-stores.mjs");
+        const { gmPlaceOf } = await import("./movement.mjs");
+        const { isTrialScene } = await import("./rooms.mjs");
+        const V = await import("./voice.mjs");
+        const { INFILTRATE } = await import("./config.mjs");
+        const who = game.actors.filter(a => a.type === "character" && a.hasPlayerOwner).find(a => gmPlaceOf(a)?.room && !hideStore.get(a.id)) ?? null;
+        must(who, "no player's character stands in a room - this would measure nothing");
+        const owner = game.users.find(u => !u.isGM && who.testUserPermission(u, "OWNER"));
+        must(owner, "the character has no player owner - the microphone would not be read");
+        const mine = () => game.scenes.contents.flatMap(s => s.tokens.contents.filter(t => t.actorId === who.id).map(t => ({ t, trial: isTrialScene(s) })));
+        const flagged = () => mine().filter(({ t }) => H.isHidingToken(t)).length;
+        const flaggable = mine().filter(({ trial }) => !trial).length;
+        must(flaggable > 0, "the character has no token off the trial hall - this would measure nothing");
+        const mic = () => V.moduleHoldsMic(owner, { trial: false })?.reason ?? null;
+        const before = new Set(game.messages.map(m => m.id));
+        const read = {};
+        try {
+            read.miss = await H.startHide({ actor: who, total: 3 });
+            read.missed = [Boolean(hideStore.get(who.id)), flagged(), mic()];
+            read.hit = await H.startHide({ actor: who, total: INFILTRATE.hide.dc, userId: owner.id });
+            await settle();
+            read.hidden = [Boolean(hideStore.get(who.id)), flagged() === flaggable, mic(), hideStore.get(who.id)?.userIds?.includes(owner.id) ?? false];
+            read.again = await H.startHide({ actor: who, total: 20 });
+            read.end = await H.endHide(who.id, "reveal");
+            await settle();
+            read.shown = [Boolean(hideStore.get(who.id)), flagged(), mic()];
+            await H.startHide({ actor: who, total: 20 });
+            await hideStore.patch(who.id, { chapter: "SUITE128HIDE" });
+            read.chapter = await H.settleHides();
+            await settle();
+            read.chapterAfter = [Boolean(hideStore.get(who.id)), flagged(), mic()];
+            await mine().find(({ trial }) => !trial).t.update(H.hidePatch());
+            read.swept = (await H.settleHides())?.swept ?? null;
+            await settle();
+            read.sweptAfter = flagged();
+        } finally {
+            if (hideStore.get(who.id)) await H.endHide(who.id, "reveal");
+            for (const { t } of mine()) if (H.isHidingToken(t)) await t.update(H.unhidePatch(forcedDeletion()));
+            await V.settleTrialVoices();
+            for (const m of [...game.messages]) if (!before.has(m.id)) await m.delete();
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ miss: { hidden: false }, missed: [false, 0, null], hit: { hidden: true }, hidden: [true, true, "hiding", true],
+            again: { refused: "that cannot be done now" }, end: { ended: true }, shown: [false, 0, null],
+            chapter: { ended: [who.id], flagged: 0, swept: 0 }, chapterAfter: [false, 0, null], swept: 1, sweptAfter: 0 }),
+        "{a miss's answer, [row, flagged tokens, the microphone's hold]; a hit's, [row, every token off the hall flagged, hold, the owner on the row]; a second hide; Reveal yourself's, [row, flags, hold]; the settle at another chapter, after; a flag with no row swept, after}");
+    }],
     ["1.2.122 STG-31 - the primary runs the opening's veil another GM asks for, held to its own declarations (scripts/bridge-runs-acts.mjs `handleMaskVeil`; mask-gm.mjs `veilOnPrimary`; the audit's STG-31, 1.2.122 line MURDER): the lights' veil for a killer with a declaration of this Eclipse and one with none veils the first alone, the lights' end lifts it, and a request of no road is refused", async () => {
         /*
          * 21.11.2026, 1.2.122 line MURDER. The audit's STG-31: on a GM who is not the primary the veil answered nothing.

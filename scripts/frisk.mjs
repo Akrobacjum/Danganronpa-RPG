@@ -395,8 +395,10 @@ export async function performFrisk(actor, def, victim, mode, { cost = def?.cost 
     const part = def.rummage;
     const paid = cost > 0 ? await spendAction(actor, cost) : null;
     if (cost > 0 && !paid) return null;
-    // "Palm - Shadow, beat 15" and "Palm - Hand, beat 10" (palm.mjs `palmTitle`, E51 C1; the owner's A11).
-    const shadow = await A.rollTrait(actor, def.unseen.trait, {
+    // "Palm - Shadow, beat 15" and "Palm - Hand, beat 10" (palm.mjs `palmTitle`, E51 C1; the owner's A11). While hidden the
+    // Shadow roll is not thrown and passes (S0-HIDE, hide.mjs `coverWhileHidden`), and the card says so.
+    const { coverWhileHidden, withCover } = await import("./hide.mjs");
+    const shadow = coverWhileHidden(actor) ?? await A.rollTrait(actor, def.unseen.trait, {
         remember: false, actionKey: "palm", title: A.palmTitle("rummageUnseen", def), titled: true, dc: part.unseen
     });
     if (!shadow) return A.abort(actor, paid);
@@ -425,7 +427,7 @@ export async function performFrisk(actor, def, victim, mode, { cost = def?.cost 
     // "Sent" only when the primary judged it (E31): a request it did not carry out has been said once already.
     const outcome = {
         success, seen, direction: "frisk", mode, target: victim.name,
-        text: res.ok && res.value && !res.value.refused ? game.i18n.format("DRPG.Frisk.sent", { name: victim.name }) : ""
+        text: withCover(res.ok && res.value && !res.value.refused ? game.i18n.format("DRPG.Frisk.sent", { name: victim.name }) : "", shadow)
     };
     await A.report(actor, def, hand, outcome);
     Hooks.callAll("drpgActionResolved", { actor, actionKey: "palm", roll: hand, outcome });

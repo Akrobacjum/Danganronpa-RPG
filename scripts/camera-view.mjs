@@ -222,7 +222,8 @@ export function movesAPlate(changes) {
     const f = changes?.flags?.[MODULE_ID];
     if (!f || typeof f !== "object") return false;
     // Set, or taken off as Foundry's diff may carry a deletion (the key with its deletion prefix, R152's spelling).
-    return ["veiled", "masked"].some(key => key in f || `-=${key}` in f);
+    // And Hide's (S0-HIDE, E129): a hidden player's box goes by the veil's rule (`voiceVeiledHere` answers for it too).
+    return ["veiled", "masked", "hiding"].some(key => key in f || `-=${key}` in f);
 }
 
 /** The token hook: every plate of the dock read again when a veil or a mask moved. `root` and `hidden` are the suite's. */
@@ -235,7 +236,7 @@ export function onTokenChange(doc, changes, { root = dockRoot(), hidden = hidden
 function anyHiddenPlate() {
     for (const scene of game.scenes ?? []) for (const token of scene.tokens ?? []) {
         const f = (token.flags ?? token._source?.flags)?.[MODULE_ID];
-        if (f?.veiled || f?.masked) return true;
+        if (f?.veiled || f?.masked || f?.hiding) return true;
     }
     return false;
 }
