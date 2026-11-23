@@ -318,18 +318,6 @@
    "why": "label is enough: a search box whose placeholder reads Search notices and whose aria-label says it searches titles and text; typing is the whole effect"
   },
   {
-   "file": "scripts/observe.mjs",
-   "unit": "describeFind",
-   "kind": "input",
-   "key": "DRPG.TruthBullet.name",
-   "count": 1,
-   "why": "hint: on a Remnant already named, the note above (DRPG.Observe.alreadyDescribed) says every finder reads the same name, so it cannot be changed here",
-   "held": {
-    "fn": "describeFind",
-    "pattern": "DRPG\\.Observe\\.alreadyDescribed"
-   }
-  },
-  {
    "file": "scripts/passages-tab.mjs",
    "unit": "chip",
    "kind": "kit:chip",

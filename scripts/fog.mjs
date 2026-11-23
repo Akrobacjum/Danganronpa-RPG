@@ -1783,6 +1783,10 @@ function rememberMine(scene = canvas?.scene) {
     for (const tokenDoc of scene.tokens ?? []) {
         const actor = tokenDoc.actor;
         if (!actor || actor.type !== "character" || !actor.isOwner) continue;
+        /* Nor a Spectator's (E127, 22.11.2026): its walk finds nothing (`recordDiscovery`), and its own browser's mirror
+           cleared the room it walked into until a reload - read in scenario 93 "outline", where the Storage it stood in
+           read cleared on its screen and outlined. Its fog is the class's map (`fogSets`). */
+        if (flaggedSpectator(actor)) continue;
         const room = roomOfToken(tokenDoc);
         if (room) mirroredRooms.add(mirrorKey(scene.id, actor.id, room));
     }
@@ -2694,7 +2698,9 @@ export function diagnoseFog({ gm = game.user.isGM } = {}) {
 export function doorwayReport() {
     const scene = canvas?.scene;
     const level = viewedLevel();
-    const room = Array.from(myCurrentRooms())[0];
+    const mine = myCurrentRooms();
+    // A Spectator stands in no room of the fog's; its outline's room is the one it stands in (E127, `outlineLeadRooms`).
+    const room = Array.from(mine)[0] ?? (game.user.isGM ? undefined : Array.from(outlineLeadRooms(mine))[0]);
     const region = room ? roomShapeOn(scene, room, level) : null;
 
     if (!region) {
@@ -3189,7 +3195,8 @@ export function repaintFog() {
         /* The outline is taken down against the rooms it is drawn for (1.2.122 line MAP; the audit's MAP-33): the lead's,
            `leadsHere` - on a GM its own Monokuma's. `mine` on a GM is every Monokuma's rooms, so with two GMs' Monokumas a
            GM's outline stood round a room its own had left while the other's stood there. A player's lead is `mine`. */
-        const leadRooms = game.user.isGM ? leadRoomsHere() : mine;
+        // A Spectator viewer's: its own Spectator token's, in the class's map (E127, `outlineLeadRooms`).
+        const leadRooms = outlineLeadRooms(mine);
         const shading = roomShading({ regions, current, discovered });
         lastShading = shading;
         /* The rooms' polygons walked when a door control first asks them, once a repaint (1.2.122 line MAP; the audit's
@@ -4539,6 +4546,11 @@ function ownArrival(tokenDoc) {
             const lead = leadsHere(tokenDoc);
             const entered = lead && lastLeadSignature !== now.lead ? roomEnteredByMe(tokenDoc) : null;
             if (lead) lastLeadSignature = now.lead;
+            /* A Spectator's own token stands in no room of the fog's (`mine` unchanged, so no repaint below): its walk out
+               of the class's map is a change of the outline's rooms alone, and the repaint takes the outline down (E127,
+               `spectatorLeadRoom`). On a Spectator's browser only; a GM's and a living player's work is as it was. */
+            const watchedMoved = !game.user.isGM && flaggedSpectator(tokenDoc.actor) && lastLeadSignature !== now.lead;
+            if (watchedMoved) lastLeadSignature = now.lead;
 
             // BEFORE the repaint, not after: the whole point is that the room
             // being left is already remembered by the time the layer is
@@ -4560,7 +4572,7 @@ function ownArrival(tokenDoc) {
             // write half below was unreachable: `recordDiscovery` could only
             // ever fire for the GM's own character. The session mirror masked
             // it until the player's first reload, when their rooms vanished.
-            if (changedRoom) repaintFog();
+            if (changedRoom || watchedMoved) repaintFog();
             if (entered?.isNew) playDiscoveryAnimation(entered.room, tokenDoc);
             else if (entered) announceRoom(entered.room, tokenDoc.actor, tokenDoc.elevation);
         }
@@ -4624,11 +4636,32 @@ let lastLeadSignature = "";
  * as before the fix. The fog itself stays `isMine`'s: every Monokuma clears a GM's rooms.
  */
 function leadsHere(token, gm = game.user.isGM) {
+    // A Spectator viewer's own Spectator token, in the class's map (E127): a lead of the outline, never `isMine`.
+    if (spectatorLeadRoom(token, gm) !== null) return true;
     if (!isMine(token, gm)) return false;
     if (!gm) return true;
     const me = game.user?.id;
     if (poolUserFor(token.actor)?.id === me) return true;
     return !game.actors?.some(a => a?.type === "character" && isMonokuma(a) && poolUserFor(a)?.id === me);
+}
+
+/**
+ * A SPECTATOR'S OWN ROOM, OUTLINED (E127, 22.11.2026; the owner at the table: "Spectatorzy nie widza obramowania pokoju
+ * (i dziur w scianach/drzwi) tak jak reszta graczy"). A Spectator stands in no room of the viewer's (`isMine`, E92 C4):
+ * its fog is the class's map and its walk finds nothing, so on its browser no token led the outline - no outline, no
+ * doorway gaps, no name. Its own Spectator token now leads the outline (`leadsHere`) and nothing else: not the fog's
+ * `mine`, not the walk's record (`isSpectator`, `recordDiscovery`), not the reveal (`roomEnteredByMe` answers it known).
+ * Only in a room its screen already draws cleared - the class's map, `myDiscoveredRooms` - since an outline round a room
+ * still under its fog would draw that room's shape for a walk that found nothing. On a GM, a living player's browser or
+ * one that owns a living character as well (`spectatorViewer`), none. Answers the room, or null.
+ */
+function spectatorLeadRoom(token, gm = game.user.isGM, { watching = spectatorViewer, roomOf = roomOfToken, cleared = myDiscoveredRooms } = {}) {
+    const actor = token?.actor;
+    if (gm || !actor || !token.isOwner || actor.type !== "character" || !flaggedSpectator(actor)) return null;
+    const doc = token.document ?? token;
+    if (isMonocubCorpse(doc) || !watching()) return null;
+    const room = roomOf(doc);
+    return room && doc.parent && cleared(doc.parent).has(room) ? room : null;
 }
 
 /** Whether a token the outline follows here (`lead`, `leadsHere`) has a move held for its waypoints (fog.mjs `onUpdateToken`
@@ -4647,13 +4680,35 @@ export function leadRoomsHere(tokens = canvas?.tokens?.placeables ?? [], lead = 
     return rooms;
 }
 
+/**
+ * The rooms the outline stands round on this browser (MAP-33; E127): a GM's own Monokuma's (`leadRoomsHere`), a
+ * Spectator viewer's own Spectator token's in the class's map (`spectatorLeadRoom`), a living player's `mine`. `mine`
+ * is `fogSets`'; `tokens`, `gm` and `facts` (`spectatorLeadRoom`'s: whether this viewer watches, a token's room, the
+ * rooms its screen clears) are the suite's (R8730), this browser's otherwise.
+ */
+export function outlineLeadRooms(mine, { tokens = canvas?.tokens?.placeables ?? [], gm = game.user.isGM, facts = {} } = {}) {
+    if (gm) return leadRoomsHere(tokens, token => leadsHere(token, gm));
+    const rooms = new Set(mine);
+    for (const token of tokens) {
+        if (isMine(token, gm)) continue;
+        const watched = spectatorLeadRoom(token, gm, facts);
+        if (watched) rooms.add(watched);
+    }
+    return rooms;
+}
+
 /** The rooms this viewer's tokens stand in now, as `lastMineSignature` and `lastLeadSignature` hold them, in one walk of
     the drawn tokens; `without`, a token's id left out (a `deleteToken` the placeables may still hold). */
 function standingNow({ without = null } = {}) {
     const mine = new Set(), lead = new Set();
     for (const token of canvas?.tokens?.placeables ?? []) {
         if (without && (token.document?.id ?? token.id) === without) continue;
-        if (!isMine(token)) continue;
+        if (!isMine(token)) {
+            // A Spectator's own token leads the outline here and stands in nothing of the fog's (E127, `spectatorLeadRoom`).
+            const watched = spectatorLeadRoom(token);
+            if (watched) lead.add(watched);
+            continue;
+        }
         const room = roomOfToken(token.document);
         if (!room) continue;
         mine.add(room);
@@ -4685,6 +4740,7 @@ function standWhereWeStand({ without = null, redraw = false } = {}) {
     const leader = (canvas?.tokens?.placeables ?? []).find(token => (token.document?.id ?? token.id) !== without
         && leadsHere(token) && roomOfToken(token.document));
     if (!leader) return false;
+    // A Spectator's lead is outlined in its class-map room alone (E127, `spectatorLeadRoom`), which `leadsHere` held to.
     announceRoom(roomOfToken(leader.document), leader.document.actor, leader.document.elevation, { quiet: true });
     return true;
 }
@@ -4712,6 +4768,11 @@ function roomEnteredByMe(tokenDoc) {
 
     const room = roomOfToken(tokenDoc);
     if (!room) return null;
+    // A Spectator's own token finds nothing (E127): its room is outlined where the class's map clears it, and never new.
+    if (!game.user.isGM && flaggedSpectator(actor)) {
+        const watched = spectatorLeadRoom(tokenDoc);
+        return watched ? { room: watched, isNew: false } : null;
+    }
 
     const key = `${scene.id}.${actor.id}.${room}`;
     // Nothing is ever new to a GM - they know every room on the map, so a

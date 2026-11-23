@@ -68993,8 +68993,14 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             await game.settings.set(MODULE_ID, SETTINGS.bodiesFound, stampsBefore);
             await settle();
         }
-        equal(stableJson(read), stableJson([0, false, 0, false, false, 2, [[victim.id]]]),
-            "a GM who is not the primary announced a body, or was not told whose the announcement is, or the primary's stamp named the student whose "
+        /* SINCE E128 (22.11.2026; OWNER-128-SECOND-GM) this GM - a full GM, the stand-in the primary - sends its announcement
+           to the primary (body.mjs `sentToPrimary`, `body.discover`), which no client answers here: nothing is stamped or
+           posted on this browser still, and its window draws its form (answered with nothing) and nobody is told the
+           announcement is the primary's. An Assistant GM is still told (17-assistant F1); 97-two-gms Q drives the road. The
+           owner at the table, 22.11.2026: "Drugi GM ... powinien byc na rowni z pierwszym gmem" - a full GM relays, an Assistant
+           GM's role is kept (the coordinator's answer of the same day). */
+        equal(stableJson(read), stableJson([0, false, 0, false, true, 0, [[victim.id]]]),
+            "a GM who is not the primary announced a body on its own browser, or its window was not drawn, or it was told the announcement is the primary's, or the primary's stamp named the student whose "
             + "flag nobody judged (off the primary: the stamp rows the press added, one naming that student, the discovery cards since, the hold, "
             + "the window's form drawn, told the primary's name; then on the primary: the bodies its stamp names)");
     }],
@@ -116044,6 +116050,28 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         }
         equal(stableJson(read), stableJson({ desc: true, locked: true, redrawn: true, start: false }),
             "[the description typed written; the lock forced while open kept; the window drew it before Apply; the start lock Apply stored: as the window read it at the open, unlocked]");
+    }],
+    ["a room action's result card, posted by the primary GM, takes the middle of its user's screen (OWNER-127-CENTRE, E127): facilities-gm.mjs `tellUse` posts its card to a student's owners with notice-centre.mjs `actionResult`, which `centredNotice` honours for the student's player (a GM wrote it) - red at 2e28785a, where the card carried no name and stood in the corner", async () => {
+        needs(world.atLeast("connectedPlayersWithCharacter", 1), "a room action's card goes to a student's player, and the suite borrows a connected one");
+        const F = await import("./facilities-gm.mjs");
+        const NC = await import("./notice-centre.mjs");
+        const { cardFlag, wordsOf } = await import("./secret.mjs");
+        const player = game.users.find(u => !u.isGM && u.active && u.character);
+        const actor = player?.character;
+        must(actor, "no connected player with a character - this would measure nothing");
+        const before = new Set(game.messages.map(m => m.id));
+        let made = [];
+        try {
+            await F.tellUse(actor, { label: "E127 room action" }, true, ["E127 a line"]);
+            const t0 = Date.now();
+            while (!made.length && Date.now() - t0 < 4000) { made = game.messages.filter(m => !before.has(m.id)); if (!made.length) await new Promise(r => setTimeout(r, 50)); }
+            must(made.length === 1, `tellUse posted ${made.length} card(s), not one - this would measure nothing`);
+            await wordsOf(made[0]);
+            equal(stableJson({ name: cardFlag(made[0], "popupCentre") ?? null, forPlayer: NC.centredNotice(made[0], player) }),
+                stableJson({ name: "actionResult", forPlayer: true }), "{name: the card's ask; forPlayer: the middle on its user's screen}");
+        } finally {
+            for (const m of made) if (game.messages.get(m.id)) await m.delete();
+        }
     }],
     ["a GM's card that asks for the middle by a listed name is drawn there, through the catch-all, and kept; one that names no listed notice stays in the corner (OWNER-124-NOTICES; 1.2.124 line UI): two public cards posted with `announce`, `popupCentre: \"lockBroken\"` and `popupCentre: \"timeOfDay\"`; the first stands on `#drpg-notice-centre` with its message's id and a notice history entry, the second in `#drpg-popups`; both go with their messages", async () => {
         /* Red at 52057a2b: no `#drpg-notice-centre`, and a name was not `true`, so both cards went to the corner. */

@@ -94,6 +94,7 @@ import {
     sweepBetrayalWindows, sideOf, killerIds, participantIds, castHeldHere, registerIncidentCastSync,
     registerDeathCopy, recordBlackened, leftABody, betrayalCandidate, keepOpeningNotice, openingCardStandsFor, retireOpeningNotices, castFor
 } from "./incident-store.mjs";
+import { withCentre } from "./notice-centre.mjs";
 
 
 /*
@@ -808,7 +809,7 @@ export async function resolveKillerOpening({ total, isCritical, withHope }) {
             const actor = game.actors.get(state.victimId);
             if (actor) {
                 await whisperToOwner(actor,
-                    `<p>${game.i18n.localize("DRPG.Murder.selfWentThrough")}</p>`);
+                    `<p>${game.i18n.localize("DRPG.Murder.selfWentThrough")}</p>`, withCentre());
             }
         } catch (err) {
             error("Could not tell the player their Stage 4 roll had landed", err);
@@ -3876,7 +3877,8 @@ async function afterIncident(state) {
        this checklist, but only the primary GM announces a body (body.mjs `discoveryHere`): on another GM the primary
        button - the one Enter presses - closed the window and was refused. There it is not drawn, and the note says whose
        the announcement is, in the words the refusal used. */
-    const announcesHere = isPrimaryGm();
+    // And on a second full GM, whose announcement is carried out on the primary (E128, body.mjs `sentToPrimary`).
+    const announcesHere = isPrimaryGm() || game.user?.role === CONST.USER_ROLES.GAMEMASTER;
     const primaryName = game.users.get(primaryGmId() ?? "")?.name ?? "?";
 
     // Zdrada. The guide's fifth walk-in entry, and the one place two bodies come
@@ -4484,12 +4486,13 @@ async function announceCrisis(actor, def, { key = null, success, band, total, th
      * the defence is 1 - the outcome has to be told. Red at e515907d (tier 2 "1.2.121 CASE-16"): the victim's card held 19.
      */
     const hiddenTo = rolled && key && state ? Array.from(recipients).filter(id => defenseHiddenFor(id, key, state)) : [];
-    if (!hiddenTo.length) return { card: await announce({ content, whisper: Array.from(recipients) }), hiddenCopy: null };
+    // each seat's card in the middle of its screen (notice-centre.mjs `withCentre`, 1.2.127): the turn they all wait on
+    if (!hiddenTo.length) return { card: await announce(withCentre({ content, whisper: Array.from(recipients) })), hiddenCopy: null };
     const shown = threshold - crisisDefense(key, state);
     const hiddenScore = `<p>${game.i18n.format(`DRPG.Murder.scoreHidden.${success ? "hit" : "miss"}`, { total, n: shown })} · ${
         game.i18n.localize(`DRPG.Murder.band.${band}`)}</p>`;
-    const card = await announce({ content, whisper: Array.from(recipients).filter(id => !hiddenTo.includes(id)) });
-    const hiddenCopy = await announce({ content: content.replace(score, () => hiddenScore), whisper: hiddenTo });
+    const card = await announce(withCentre({ content, whisper: Array.from(recipients).filter(id => !hiddenTo.includes(id)) }));
+    const hiddenCopy = await announce(withCentre({ content: content.replace(score, () => hiddenScore), whisper: hiddenTo }));
     return { card, hiddenCopy };
 }
 
@@ -4556,7 +4559,7 @@ async function announceOpening(state, label, { rollerId, success, band, total, t
             <h3>${foundry.utils.escapeHTML(label ?? "")}${roller ? ` - ${maskedName(roller, state)}` : ""}</h3>
             <p>${total} ${success ? "≥" : "<"} ${threshold} · ${game.i18n.localize(`DRPG.Murder.band.${band}`)}</p>`;
         const recipients = new Set([...gmIds(), ...incidentAudienceIds(state, { stage: "openingRoll" })]);
-        await announce({ content, whisper: Array.from(recipients) });
+        await announce(withCentre({ content, whisper: Array.from(recipients) }));
     } catch (err) {
         // The opening is scored either way; the card is what it came to, not what it does.
         error("Could not tell the opening roll's side what it came to", err);
@@ -4617,21 +4620,50 @@ export async function rollOpening(side, state, { proposal = null } = {}) {
         const { askOpeningRoll } = await import("./gm-bridge.mjs");
         if (askOpeningRoll({ userId: owner.id, actorId: actor.id, side, trait, hindrance })) {
             openingInvited = { openedAt: state?.openedAt ?? null, userId: owner.id };
-            const title = openingTitle(side, state);
             /* ONE CARD A PLAYER (1.2.123; the auditor's check of 1.2.122, r122-lane-B-3): the invitation goes again on
                every ask - a reload ends the window it opens - but the card that says the roll is theirs is posted once:
                a re-ask at the player's ready, at a primary's ready or from a tracker found it still standing and posted
-               another, each raised as a popup. Read in the GMs' memo of the opening's cards (`openingCardStandsFor`). */
-            if (!openingCardStandsFor(owner.id)) {
-                keepOpeningNotice(await whisperToOwner(actor,
-                    `${cardHead({ action: title })}<p>${game.i18n.localize("DRPG.Murder.openingYours")}</p>`,
-                    { flags: { [MODULE_ID]: { popupTitle: title } } }), owner.id);
-            }
+               another, each raised as a popup. Read in the GMs' memo of the opening's cards (`openingCardStandsFor`),
+               and posted by the primary GM alone since E128 (`postOpeningCard`). */
+            await postOpeningCard(side, state);
             return { asked: true, of: owner.name };
         }
     }
 
     return throwOpeningRoll(side, actor.id, trait, { hindrance });
+}
+
+/* THE OPENING'S CARD HAS ONE WRITER, THE PRIMARY GM (E128, 22.11.2026; scenario 61 F9b, OWNER-128-SECOND-GM). The memo
+   was read and the card posted on whichever GM asked: a second GM's re-ask read a memo the primary's card had not reached
+   yet - the memo's row and the chat message each come over the wire after the primary's create - and posted a second
+   card, and two asks on one browser both read the memo before either card was made. Read on 61 at 5ea9323b, 1 run in 3:
+   three cards to p3 where one was due (F9b's `f9cards`). Not reproduced in 8 runs at 1c546cae; the cause is the read
+   above, not a measured trace. A GM who is not the primary asks the primary now (`murder.openingCard`), and the primary
+   holds an owner's card in flight from its memo's read to its write (`openingCardPosting`), so any number of asks, from
+   any GM, post one card. With no primary connected (an Assistant GM alone) the card is posted here, as before. Answers
+   whether a card was posted. */
+const openingCardPosting = new Set();
+
+export async function postOpeningCard(side, state = murderState()) {
+    const actor = game.actors.get(side === "killer" ? state?.killerId : state?.victimId);
+    const owner = actor ? ownerOf(actor) : null;
+    if (!owner?.active || openingCardPosting.has(owner.id) || openingCardStandsFor(owner.id)) return false;
+    if (!isPrimaryGm() && primaryGmId()) {
+        const { bridgeRequest } = await import("./bridge-guards.mjs");
+        const res = await bridgeRequest("murder.openingCard", { side, openedAt: state?.openedAt ?? 0 },
+            { settle: "reply", onPrimary: true, sayRefused: false });
+        return res.ok && res.value === true;
+    }
+    openingCardPosting.add(owner.id);
+    try {
+        const title = openingTitle(side, state);
+        await keepOpeningNotice(await whisperToOwner(actor,
+            `${cardHead({ action: title })}<p>${game.i18n.localize("DRPG.Murder.openingYours")}</p>`,
+            { flags: { [MODULE_ID]: { popupTitle: title } } }), owner.id);
+    } finally {
+        openingCardPosting.delete(owner.id);
+    }
+    return true;
 }
 
 /** Whether this browser has the GM's window open for an opening's statistic: a re-ask meanwhile sends nothing, the window answers for it. */
@@ -4701,7 +4733,7 @@ async function tellOpeningRoller(side, state, { proposed = false } = {}) {
         const whisper = incidentAudienceIds(state, { stage: "openingRoll" });
         if (!whisper.length) return;
         const key = side === "killer" ? (proposed ? "DRPG.TraitRuling.openingKillerProposed" : "DRPG.TraitRuling.openingKiller") : "DRPG.TraitRuling.openingVictim";
-        keepOpeningNotice(await announce({ content: `<p>${game.i18n.localize(key)}</p>`, whisper }));
+        void keepOpeningNotice(await announce({ content: `<p>${game.i18n.localize(key)}</p>`, whisper }));
     } catch (err) {
         // The GM still picks; a line that did not go out must not hold the roll.
         error("Could not tell the opening roll's side that the GM is choosing its statistic", err);
@@ -4943,9 +4975,9 @@ export async function throwOpeningRoll(side, actorId, trait = null, { hindrance 
         rollId: roll.raw?.message?.id ?? roll.raw?.message?._id ?? null
     });
     // Read here and not handed on (E31): a GM's own client answers what it
-    // resolved, a player's that the GM has it.
+    // resolved, a player's that the GM has it - and a second GM's, sent on to the primary (E128), that the primary has it.
     if (!res.ok) return null;
-    return game.user.isGM ? res.value : { pending: true };
+    return game.user.isGM && res.value !== undefined ? res.value : { pending: true };
 }
 
 /**
