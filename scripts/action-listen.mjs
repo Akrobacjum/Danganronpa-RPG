@@ -24,7 +24,7 @@ import { rollCardFlags, rollHead, rollResultCard } from "./action-report.mjs";
 import { briefingBlock } from "./action-briefing.mjs";
 import { actionWindow, chooseVariant } from "./action-menus.mjs";
 import { watchShutWhy } from "./action-watch.mjs";
-import { hideShutWhy } from "./hide.mjs";
+import { hideShutWhy, isHidingActor } from "./hide.mjs";
 import { isEclipse } from "./settings.mjs";
 import { tipAttr, tipText } from "./ui-kit.mjs";
 import { isMaskedActor, isVeiledToken, MASK_NAME, seenHere } from "./mask-gm.mjs";
@@ -150,7 +150,9 @@ export function heardIn(room, actor, scene, occupantsOf) {
     const heard = seenHere(occupantsOf(room, actor, scene));
     if (!game.user?.isGM) return heard;
     const veiled = who => (game.scenes ?? []).some(s => (s?.tokens ?? []).some(t => t.actorId === who?.id && isVeiledToken(t)));
-    return veiled(actor) ? heard : heard.filter(a => !veiled(a));
+    // A character Hide hides (S0-HIDE, E129) is heard by nobody else, as a player's browser leaves them out (`seenHere`).
+    const hidden = who => who?.id !== actor?.id && isHidingActor(who);
+    return (veiled(actor) ? heard : heard.filter(a => !veiled(a))).filter(a => !hidden(a));
 }
 
 /**
