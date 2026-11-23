@@ -1547,7 +1547,7 @@
         "openedBare": "Pytanie {n} z {total}. Uczniowie stają w strefie „{a}” albo w strefie „{b}”. Na wybór jest {seconds} s.",
         "right": "Dobra odpowiedź. Za „{a}” policzono {na}, za „{b}” {nb}.",
         "wrong": "Zła odpowiedź. Za „{a}” policzono {na}, za „{b}” {nb}. Logic Dive kończy się tutaj.",
-        "tie": "Remis. Za „{a}” policzono {na}, za „{b}” {nb}. Remis liczy się jako zła odpowiedź, więc Logic Dive kończy się tutaj.",
+        "tie": "Remis, {na} do {nb}. Remis liczy się jako zła odpowiedź, więc Logic Dive kończy się tutaj.",
         "solved": "Logic Dive rozwiązany: {finding}",
         "skipped": "GM pomija pytanie {n}.",
         "replay": "Ten zestaw już był grany: skończył się {when} ({outcome}). Gracze mogą go pamiętać.",

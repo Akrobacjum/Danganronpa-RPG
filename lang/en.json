@@ -1502,7 +1502,7 @@
         "openedBare": "Question {n} of {total}. Students stand in the zone for “{a}” or the zone for “{b}”. The class has {seconds} s to choose.",
         "right": "The class is right: {na} for “{a}”, {nb} for “{b}”.",
         "wrong": "The class is wrong: {na} for “{a}”, {nb} for “{b}”. The Logic Dive ends here.",
-        "tie": "A tie, {na} for “{a}” and {nb} for “{b}”, counts as wrong. The Logic Dive ends here.",
+        "tie": "A tie, {na} to {nb}, counts as wrong. The Logic Dive ends here.",
         "solved": "The Logic Dive is solved: {finding}",
         "skipped": "The GM skips question {n}.",
         "replay": "This set was played before: it ended {when} ({outcome}). Players may remember it.",

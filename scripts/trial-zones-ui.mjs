@@ -684,7 +684,9 @@ function measureLabel(label) {
     const Metrics = PIXI.TextMetrics;
     return (fontSize, wrapWidth) => {
         if (Metrics?.measureText && PIXI.TextStyle) {
-            const style = new PIXI.TextStyle({ ...(label.style ?? {}), fontSize, wordWrap: true, wordWrapWidth: wrapWidth, breakWords: true });
+            // Words whole (`breakWords` off): a word wider than the zone shrinks the size rather than losing its last letters
+            // or a comma to a line of their own - measured 23.11.2026 in Chromium under DRPG Pixel, "zewnątrz," at 110 px.
+            const style = new PIXI.TextStyle({ ...(label.style ?? {}), fontSize, wordWrap: true, wordWrapWidth: wrapWidth, breakWords: false });
             const m = Metrics.measureText(String(label.text ?? ""), style);
             return { width: m.width, height: m.height };
         }
@@ -776,7 +778,8 @@ export async function drawZones(floor) {
                 label.name = `${DRAWN}-${side}-label`;
                 const sized = fitZoneLabel({ box, base: label.style?.fontSize ?? 28, measure: measureLabel(label),
                     fitWidth: fit.fitWidth, fitHeight: fit.fitHeight, minFontPx: fit.minFontPx });
-                Object.assign(label.style, { fontSize: sized.fontSize, wordWrap: true, wordWrapWidth: sized.wrapWidth, breakWords: true });
+                // A word is broken only where nothing whole fits at the floor's size, before the clip.
+                Object.assign(label.style, { fontSize: sized.fontSize, wordWrap: true, wordWrapWidth: sized.wrapWidth, breakWords: !sized.fits });
                 label.position.set(at.x, at.y);
                 if (!sized.fits) {
                     const mask = new PIXI.Graphics();

@@ -10549,7 +10549,8 @@ const INVARIANTS = [
         const confer = M.zoneStep(start, { type: "due" }, { now: 46_000, sides: camps }).floor;
         const turn1 = M.zoneStep(confer, { type: "due" }, { now: 167_000, sides: camps }).floor;
         const read = r => (r?.floor ? { phase: r.floor.zone.phase, turn: r.floor.zone.turn, side: r.floor.zone.side, holder: r.floor.holderId ?? null, seconds: r.floor.seconds,
-            cards: (r.cards ?? []).map(c => [c.key, c.words?.zone ?? null]) }
+            // The camp by its answer since E129 S0-ZONESTYLE (the owner's 23.11.2026: no "Zone A/B" on a card): `answer`, not `zone`.
+            cards: (r.cards ?? []).map(c => [c.key, c.words?.answer ?? c.words?.zone ?? null]) }
             : { floor: r && "floor" in r ? r.floor : "refused", refused: r?.refused ?? null, finding: r?.zoneRecord?.finding?.text ?? null, cards: (r?.cards ?? []).map(c => c.key) });
         const step = (floor, type, at, sides) => M.zoneStep(floor, { type }, { now: at, sides });
         const out = { early: [step(turn1, "due", 177_000, crossed), step(turn1, "due", 206_000, crossed)].map(read) };
@@ -10574,10 +10575,10 @@ const INVARIANTS = [
         equal(stableJson(out), stableJson({
             early: [{ floor: "refused", refused: "DRPG.Floor.round.notDue", finding: null, cards: [] }, { floor: "refused", refused: "DRPG.Floor.round.notDue", finding: null, cards: [] }],
             turn2: { phase: "speak", turn: 2, side: "a", holder: "x1", seconds: 40, cards: [] },
-            turn3: { phase: "speak", turn: 3, side: "b", holder: null, seconds: 40, cards: [["DRPG.Zones.scrum.noSpeaker", "B"]] },
+            turn3: { phase: "speak", turn: 3, side: "b", holder: null, seconds: 40, cards: [["DRPG.Zones.scrum.noSpeaker", "Out"]] },
             turn3early: { floor: "refused", refused: "DRPG.Floor.round.notDue", finding: null, cards: [] },
             skipped: { phase: "speak", turn: 4, side: "a", holder: "x2", seconds: 40, cards: [] },
-            turn5: { phase: "speak", turn: 5, side: "b", holder: null, seconds: 40, cards: [["DRPG.Zones.scrum.noSpeaker", "B"]] },
+            turn5: { phase: "speak", turn: 5, side: "b", holder: null, seconds: 40, cards: [["DRPG.Zones.scrum.noSpeaker", "Out"]] },
             end: { empty: { floor: null, refused: null, finding: "In", cards: ["DRPG.Zones.scrum.empty"] },
                 both: { floor: null, refused: null, finding: null, cards: ["DRPG.Zones.scrum.over"] },
                 standing: { floor: null, refused: null, finding: null, cards: ["DRPG.Zones.scrum.over"] } },
@@ -10671,7 +10672,7 @@ const INVARIANTS = [
         }), stableJson({ split: [false, false, true], quiet: false, begun: [true, false, false], asked: true }),
         "{split: [voice off, no LiveKit, both]; quiet: the notice where voices split; begun: [into Confer, +30 s in it, out of it]; asked: commitFloor asks the notice}");
     }],
-    ["R5915 - Camps confer on screen (the owner's 13.11.2026): zone-machine.mjs `conferLineOf` says \"You confer with Zone {zone}.\" to a player in a camp, \"Zone A and Zone B confer apart.\" to a GM and \"You are in neither camp...\" to a player outside both, nothing outside Confer; the console's panel names the phase and the camps as kept; the bar's Skip reads \"Sides set\" in Sides and \"End the confer\" in Confer, and Skip elsewhere; each key in English and Polish", async () => {
+    ["R5915 - Camps confer on screen (the owner's 13.11.2026): zone-machine.mjs `conferLineOf` says \"You confer with the camp for “{answer}”.\" to a player in a camp (\"Zone {zone}\" until E129 S0-ZONESTYLE), \"The two camps confer apart.\" to a GM and \"You are in neither camp...\" to a player outside both, nothing outside Confer; the console's panel names the phase and the camps as kept; the bar's Skip reads \"Sides set\" in Sides and \"End the confer\" in Confer, and Skip elsewhere; each key in English and Polish", async () => {
         /* Pure lines and markup, nothing drawn on the page. Red at ceb9e9c8: no Confer, no lines, no labels. */
         const M = await import("./zone-machine.mjs");
         const UI = await import("./trial-floor-ui.mjs");
@@ -10695,7 +10696,8 @@ const INVARIANTS = [
             skip: [UI.barLabel("skip", 30, start), UI.barLabel("skip", 30, confer), UI.barLabel("skip", 30, speak)],
             missing: keys.filter(k => !has(en, k) || !has(pl, k))
         }), stableJson({
-            lines: [game.i18n.format("DRPG.Zones.confer.mine", { zone: "A" }), game.i18n.format("DRPG.Zones.confer.mine", { zone: "B" }), L("DRPG.Zones.confer.apart"), L("DRPG.Zones.confer.none"), null],
+            // The camp named by its answer since E129 S0-ZONESTYLE (the owner's 23.11.2026; here the answers are "A" and "B").
+            lines: [game.i18n.format("DRPG.Zones.confer.mine", { answer: "A" }), game.i18n.format("DRPG.Zones.confer.mine", { answer: "B" }), L("DRPG.Zones.confer.apart"), L("DRPG.Zones.confer.none"), null],
             panel: [true, ["(2)", "(1)"]],
             skip: [L("DRPG.Zones.confer.sidesSet"), L("DRPG.Zones.confer.conferOver"), L("DRPG.Floor.bar.skip")],
             missing: []

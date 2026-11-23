@@ -215,7 +215,9 @@ function diveJudge(floor, ctx, now) {
     const words = { ...countWords(zone, counts), n: String((zone.set?.index ?? 0) + 1), total: String(zone.set?.total ?? 1) };
     const at = { setId: zone.set?.id ?? null, index: zone.set?.index ?? 0 };
     if (verdict !== "right") {
-        return over([card(floor.mode, verdict === "tie" ? "DRPG.Zones.dive.tie" : "DRPG.Zones.dive.wrong", words, { sfx: "answerWrong" })],
+        // A tie names no answer, only its count (TR3: a tie shows no truth; R3904); a wrong answer names both, as STG-74 keeps it.
+        const told = verdict === "tie" ? { na: words.na, nb: words.nb, n: words.n, total: words.total } : words;
+        return over([card(floor.mode, verdict === "tie" ? "DRPG.Zones.dive.tie" : "DRPG.Zones.dive.wrong", told, { sfx: "answerWrong" })],
             { dive: { ...at, outcome: verdict } });
     }
     const right = card(floor.mode, "DRPG.Zones.dive.right", words, { sfx: "answerRight" });
