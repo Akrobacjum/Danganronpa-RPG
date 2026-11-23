@@ -32039,6 +32039,95 @@ const INVARIANTS = [
         ok(/hiddenVoiceIds\(\{ dead: isDeadForGm \}\)/.test(fnSource(src, "hiddenIds")),
             "moduleHoldsMic's hidden accounts read a death the table knows, not the GMs'");
     }],
+    ["R8838 - the page's own track follows the microphone button: voice-client.mjs `trackPlan` mutes a live track while the button says held, blocked by a GM or muted, opens a muted one only in \"always\" with nothing standing, asks for one to be built only then and connected, and leaves an offline page, push-to-talk and a track already right alone (E129, S0-GMMUTE; the coordinator's decision of 23.11.2026)", async () => {
+        /*
+         * The owner, a GM, muted with the tile and the players heard them (23.11.2026). avclient-livekit 0.6.8 builds the
+         * page's own track at every initialize (LiveKitClient.ts:557-586) and moves it after that only through
+         * `toggleAudio`, which returns early unless `audioBroadcastEnabled` is already on (LiveKitAVClient.ts:632); a
+         * permission change it does not hear at all. So the page holds its own track to what its button says. The table:
+         * each state `micState` answers, with a live track, a muted one and none, in "always" and "ptt". Red before E129:
+         * no `trackPlan`.
+         */
+        const C = await import("./voice-client.mjs");
+        must(typeof C.trackPlan === "function", "voice-client.mjs has no trackPlan - the page's own track follows nothing");
+        const live = { isMuted: false }, quiet = { isMuted: true };
+        const rows = [
+            ["held, live", { mic: { state: "held" }, track: live }, "mute"],
+            ["held, muted", { mic: { state: "held" }, track: quiet }, null],
+            ["gmBlock, live", { mic: { state: "gmBlock" }, track: live }, "mute"],
+            ["muted, live", { mic: { state: "muted" }, stored: true, track: live }, "mute"],
+            ["stored muted while on, live", { mic: { state: "on" }, stored: true, track: live }, "mute"],
+            ["on, muted, always", { mic: { state: "on" }, track: quiet }, "unmute"],
+            ["on, live, always", { mic: { state: "on" }, track: live }, null],
+            ["ptt, muted", { mic: { state: "ptt" }, mode: "ptt", track: quiet }, null],
+            ["on in ptt, muted", { mic: { state: "on" }, mode: "ptt", track: quiet }, null],
+            ["on, none, connected", { mic: { state: "on" }, track: null, connected: true }, "build"],
+            ["on, none, not connected", { mic: { state: "on" }, track: null, connected: false }, null],
+            ["held, none", { mic: { state: "held" }, track: null, connected: true }, null],
+            ["offline, live", { mic: { state: "offline" }, track: live }, null],
+            ["no state", { mic: null, track: live }, null]
+        ];
+        const got = rows.map(([name, facts]) => [name, C.trackPlan({ stored: false, mode: "always", connected: true, ...facts })]);
+        equal(stableJson(got), stableJson(rows.map(([name, , want]) => [name, want])), "[each state's plan for the page's own track]");
+    }],
+    ["R8839 - `followHold` moves only this page's own track, and only where avclient-livekit 0.6 is: it mutes, opens or has avclient build the track as `trackPlan` says, builds once per Room and never with the microphone source off, does nothing with the switch off, with LiveKit's own page, another avclient version (logged once) or no client, and never throws (E129, S0-GMMUTE)", async () => {
+        /*
+         * A stand-in of avclient-livekit's LiveKitClient on each row: its `audioTrack` (`mute`, `unmute`), its
+         * `changeAudioSource` and its `liveKitRoom`, every call recorded. Red before E129: no `followHold`.
+         */
+        const C = await import("./voice-client.mjs");
+        must(typeof C.followHold === "function", "voice-client.mjs has no followHold - nothing moves the page's own track");
+        const make = (muted, { track = true, room = { state: "connected" }, throws = false } = {}) => {
+            const calls = [];
+            const t = track ? { isMuted: muted,
+                mute: async () => { calls.push("mute"); if (throws) throw new Error("R8839 mute"); t.isMuted = true; },
+                unmute: async () => { calls.push("unmute"); t.isMuted = false; } } : null;
+            return { calls, client: { audioTrack: t, liveKitRoom: room, changeAudioSource: async () => { calls.push("build"); } } };
+        };
+        const settings = (mode = "always", src = "default") => ({ get: (scope, key) => key === "voice.mode" ? mode : key === "audioSrc" ? src : false });
+        const logs = [], log = line => logs.push(line);
+        const run = (rig, facts = {}) => C.followHold({ client: rig.client, settings: settings(facts.mode, facts.src), mic: facts.mic ?? { state: "on" },
+            version: facts.version ?? "0.6.8", on: facts.on ?? true, external: facts.external ?? false, log });
+        const out = {};
+        let r = make(false); out.held = [run(r, { mic: { state: "held" } }), r.calls];
+        r = make(true); out.free = [run(r), r.calls];
+        r = make(false, { track: false }); const room = r.client.liveKitRoom;
+        out.build = [run(r), run(r), [...r.calls]];
+        r.client.liveKitRoom = { state: "connected" }; out.newRoom = [run(r), r.calls];
+        r = make(false, { track: false }); out.noSource = [run(r, { src: "disabled" }), r.calls];
+        r = make(false); out.off = [run(r, { mic: { state: "held" }, on: false }), r.calls];
+        r = make(false); out.external = [run(r, { mic: { state: "held" }, external: true }), r.calls];
+        r = make(false); out.other = [run(r, { mic: { state: "held" }, version: "0.7.0" }), run(r, { mic: { state: "held" }, version: "0.7.0" }), r.calls, logs.length];
+        out.none = C.followHold({ client: null, mic: { state: "held" }, version: "0.6.8", on: true });
+        r = make(false, { throws: true });
+        let threw = false;
+        try { out.throws = run(r, { mic: { state: "held" } }); await new Promise(resolve => setTimeout(resolve, 0)); } catch { threw = true; }
+        out.threw = threw;
+        void room;
+        equal(stableJson(out), stableJson({
+            held: ["mute", ["mute"]], free: ["unmute", ["unmute"]], build: ["build", null, ["build"]], newRoom: ["build", ["build", "build"]],
+            noSource: [null, []], off: [null, []], external: [null, []], other: [null, null, [], 1], none: null, throws: "mute", threw: false }),
+            "[a hold; a release; a build, then the same Room again; a new Room; the source off; the switch off; LiveKit's own page; avclient 0.7 twice (one log); no client; a mute that rejects]");
+    }],
+    ["R8840 - the page's own track is asked to follow at every road the button is: voice-tile.mjs `paintControls` asks `followHold` before it looks for a tile, `toggleOwnMic` after its write, and `registerVoiceTile` on `liveKitClientInitialized`, on `rtcSettingsChanged` and on the hearing tick; `OWN_TRACK_FOLLOWS_HOLD` is on (E129, S0-GMMUTE)", async () => {
+        /*
+         * Read off the source, comments stripped, with the kit's cuts. `paintControls` runs on every road that repaints the
+         * button (an own user's update, the mask, Hide, the eavesdrop, a hidden token, the trial's settings), and asks
+         * before it returns for a page with no tile, so a page with the tile off follows too. Red before E129.
+         */
+        const { OWN_TRACK_FOLLOWS_HOLD } = await import("./config.mjs");
+        const src = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/voice-tile.mjs`).then(lfText));
+        const paint = fnSource(src, "paintControls"), toggle = fnSource(src, "toggleOwnMic"), reg = fnSource(src, "registerVoiceTile");
+        const followAt = paint.search(/followOwnTrack\(/), tileAt = paint.search(/if \(!watch\?\.tile\) return/);
+        const writeAt = toggle.search(/settings\.set\("client"/), afterWrite = toggle.slice(Math.max(0, writeAt)).search(/followOwnTrack\(/);
+        const hook = name => new RegExp(`Hooks\\.on\\("${name}"[^;]*?followOwnTrack\\(`, "s").test(reg);
+        const tick = /setInterval\(\(\) => \{[^}]*followOwnTrack\(/.test(reg);
+        const helper = fnSource(src, "followOwnTrack");
+        equal(stableJson({ on: OWN_TRACK_FOLLOWS_HOLD, paint: followAt >= 0 && tileAt >= 0 && followAt < tileAt, toggle: writeAt >= 0 && afterWrite >= 0,
+            init: hook("liveKitClientInitialized"), rtc: hook("rtcSettingsChanged"), tick, helper: /followHold\(\{ mic: micState\(\) \}\)/.test(helper) }),
+            stableJson({ on: true, paint: true, toggle: true, init: true, rtc: true, tick: true, helper: true }),
+            "[the switch; paintControls before its tile check; toggleOwnMic after its write; the two hooks; the tick; the helper hands followHold the button's state]");
+    }],
     ["R8833 - a hidden token's hold is said on the player's own microphone and keeps the GM's block off it: `micHold` answers \"tokenHidden\", held, outside the Class Trial and nothing of it in the trial; `moduleHoldsMic` answers it on a GM's page; both languages say it (E129, S0-HIDEMUTE)", async () => {
         /*
          * The owner: the hide "pokazuje rowniez te zmiane na przycisku mikrofonu". `micHold` with every fact handed in,

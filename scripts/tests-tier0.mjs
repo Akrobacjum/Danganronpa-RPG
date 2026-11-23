@@ -12132,10 +12132,13 @@ const REGRESSIONS = [
         equal(JSON.stringify(missing), JSON.stringify({ en: [], pl: [] }), "section 9.6 of the GM's handbook does not say who acts as the Mastermind for a passage, what a GM's move of a Monokuma passes, or what a repeated show does");
     }],
 
-    ["R544 - nothing reads the table-wide speaking signal or moves a microphone on its own: no file of scripts/ reads `settings.activity` or names `setUserIsSpeaking`, `toggleAudio(` is called and a client `muted` key written only in `toggleOwnMic`, and there only the viewer's own, `micHold` and `moduleHoldsMic` are declared once each, exported, in voice.mjs, and an account's characters are ranked only in `voiceRowFor`, which `voiceTargets` asks, itself or through `placeVoices`", async () => {
+    ["R544 - nothing reads the table-wide speaking signal, and a microphone moves only by its owner's click or key or by the page's own hold: no file of scripts/ reads `settings.activity` or names `setUserIsSpeaking`, `toggleAudio(` is called and a client `muted` key written only in `toggleOwnMic`, and there only the viewer's own, a track is muted, opened or built (`.mute(`, `.unmute(`, `changeAudioSource(`) only in voice-client.mjs `followHold`, `micHold` and `moduleHoldsMic` are declared once each, exported, in voice.mjs, and an account's characters are ranked only in `voiceRowFor`, which `voiceTargets` asks, itself or through `placeVoices`", async () => {
         /*
          * E78 C2, 13.10.2026; the A9 design's R397 (T9; the E78 plan's D2 gave it this number), S16-10: "the module
-         * never moves a microphone". Until C2 it did once: on a GM's own Monokuma walking into a room, reconcileNow called
+         * never moves a microphone" - until E129 (23.11.2026; the coordinator's decision, the owner's session-0 asks for
+         * Hide and the hidden token, S0-GMMUTE's report): since then the page holds its OWN track to its button
+         * (voice-client.mjs `followHold`, config.mjs `OWN_TRACK_FOLLOWS_HOLD`), muted while held, blocked or muted and
+         * opened only in "always" with nothing standing; it still moves nobody else's microphone and writes no setting. Until C2 it did once: on a GM's own Monokuma walking into a room, reconcileNow called
          * `game.webrtc.client.toggleAudio(true)` to undo the GM's own mute (the design read it as a no-op in
          * avclient-livekit 0.6.8; external, not re-read here) - R534's MIC row, gone with it. And the tile E78 C3 draws
          * shows who is speaking in the viewer's own LiveKit room; Foundry's table-wide signal (`settings.activity`,
@@ -12149,6 +12152,8 @@ const REGRESSIONS = [
          *     exists. `toggleOwnMic` calls no `toggleAudio` either (the design's P6: Foundry's dock writes the setting and
          *     avclient-livekit acts on it), so since C4 the module calls it nowhere - this clause would still pass a
          *     call inside `toggleOwnMic`, and scenario 75's B reads the shim's record of calls, which stays empty;
+         *   - every call of `.mute(`, `.unmute(` and `changeAudioSource(` (E129) - only inside voice-client.mjs
+         *     `followHold`, one of each, so the page's own track is moved in one place, by one rule (R8838, R8839);
          *   - the declarations of `micHold` and `moduleHoldsMic` - one each, exported, in voice.mjs: the button (C4) and
          *     the GM's block (C5) ask the one answer, not a copy (R537 holds what it answers);
          *   - every `.claim > <x>.claim` - only `voice.mjs#voiceRowFor`, and `voiceTargets` calls it, itself or (since
@@ -12165,7 +12170,7 @@ const REGRESSIONS = [
         const TOP = /^(?![\s}\])]|$)(?:export\s+)?(?:default\s+)?(?:async\s+)?(?:function\*?\s*([\w$]+)|class\s+([\w$]+)|(const|let|var)\s+([\w$]+))?/gm;
         const ALLOWED = "toggleOwnMic";
         const scan = sources => {
-            const out = { activity: [], speaking: [], toggles: [], muted: [], own: [], holds: [], ranks: [], asks: false };
+            const out = { activity: [], speaking: [], toggles: [], muted: [], own: [], tracks: [], ownTrack: [], holds: [], ranks: [], asks: false };
             const calls = {};
             for (const [file, raw] of sources) {
                 if (!file.endsWith(".mjs")) continue;
@@ -12177,6 +12182,10 @@ const REGRESSIONS = [
                 for (const m of blank.matchAll(/\.\s*settings\s*\??\.\s*activity\b/g)) out.activity.push(place(m.index));
                 for (const m of blank.matchAll(/(?<![\w$])setUserIsSpeaking\b/g)) out.speaking.push(place(m.index));
                 for (const m of blank.matchAll(/(?<![\w$])toggleAudio\s*(?:\?\.\s*)?\(/g)) if (declAt(m.index) !== ALLOWED) out.toggles.push(place(m.index));
+                for (const m of blank.matchAll(/\.\s*(mute|unmute|changeAudioSource)\s*(?:\?\.\s*)?\(/g)) {
+                    if (file === "voice-client.mjs" && declAt(m.index) === "followHold") out.ownTrack.push(`${place(m.index)}:${m[1]}`);
+                    else out.tracks.push(place(m.index));
+                }
                 for (const m of blank.matchAll(/(?<![\w$])set\s*\(/g)) {
                     const [scope, key] = callArgs(blank, m.index + m[0].length - 1).args;
                     if (!scope || !/^\s*(["'])client\1\s*$/.test(code.slice(scope.start, scope.end))) continue;
@@ -12212,11 +12221,15 @@ const REGRESSIONS = [
                 + "Hooks.on(\"rtcSettingsChanged\", () => { ui.webrtc.setUserIsSpeaking = null; });\n"
                 + "function unmute(id) {\n    game.webrtc.settings.set(\"client\", `users.${id}.muted`, false);\n}\n"
                 + "function setVolume(id, v) {\n    game.webrtc.settings.set(\"client\", `users.${id}.volume`, v);\n}\n"
-                + "function rank(a, b) {\n    return a.claim > b.claim;\n}\n"]
+                + "function rank(a, b) {\n    return a.claim > b.claim;\n}\n"
+                + "function sneak(client) {\n    // client.audioTrack.mute() in a comment\n    return client.audioTrack.unmute();\n}\n"],
+            ["voice-client.mjs", "export function followHold(c) {\n    const said = \"c.audioTrack.mute()\";\n    c.audioTrack.mute();\n    c.audioTrack.unmute();\n    c.changeAudioSource?.();\n}\n"]
         ]);
         equal(JSON.stringify(planted), JSON.stringify({
             activity: ["voice-tile.mjs#listen"], speaking: ["voice-tile.mjs#(top level)"], toggles: ["voice.mjs#reconcileNow"],
             muted: ["voice-tile.mjs#toggleOwnMic (not the viewer's own)", "voice-tile.mjs#unmute"], own: ["voice-tile.mjs#toggleOwnMic"],
+            tracks: ["voice-tile.mjs#sneak"],
+            ownTrack: ["voice-client.mjs#followHold:mute", "voice-client.mjs#followHold:unmute", "voice-client.mjs#followHold:changeAudioSource"],
             holds: ["voice.mjs#micHold#export", "voice.mjs#moduleHoldsMic#local"],
             ranks: ["voice.mjs#voiceRowFor", "voice-tile.mjs#rank"], asks: true }),
             "the reader does not read the planted fixture as planted - the live reading below would measure the wrong places");
@@ -12228,9 +12241,10 @@ const REGRESSIONS = [
             + `${live.activity.length + live.speaking.length} read(s) of the table-wide signal, ranking in ${live.ranks.join(", ") || "nothing"}`);
         equal(JSON.stringify(live), JSON.stringify({
             activity: [], speaking: [], toggles: [], muted: [], own: ["voice-tile.mjs#toggleOwnMic"],
+            tracks: [], ownTrack: ["voice-client.mjs#followHold:mute", "voice-client.mjs#followHold:unmute", "voice-client.mjs#followHold:changeAudioSource"],
             holds: ["voice.mjs#micHold#export", "voice.mjs#moduleHoldsMic#export"], ranks: ["voice.mjs#voiceRowFor"], asks: true }),
             "[a read of Foundry's table-wide speaking signal; a `toggleAudio(` call, or a client `muted` write, outside `toggleOwnMic` - the module moving "
-            + "a microphone; a write there of a key that is not the viewer's own, or no write there at all; `micHold` and `moduleHoldsMic` not one export each in voice.mjs; an account's characters ranked anywhere but `voiceRowFor`; "
+            + "a microphone; a track moved anywhere but `followHold`, or not each way there; a write there of a key that is not the viewer's own, or no write there at all; `micHold` and `moduleHoldsMic` not one export each in voice.mjs; an account's characters ranked anywhere but `voiceRowFor`; "
             + "`voiceTargets` not asking it, itself or through `placeVoices`]");
     }],
 

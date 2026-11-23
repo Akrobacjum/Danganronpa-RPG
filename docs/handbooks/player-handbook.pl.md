@@ -233,6 +233,8 @@ Na kafelku są dwa przyciski. Przycisk mikrofonu wycisza i włącza tylko twój 
 | świeci | twój mikrofon niesie twój głos |
 | z napisem **PTT** | tryb naciśnij, aby mówić: przytrzymaj klawisz, żeby mówić |
 
+Gdy mikrofon jest przekreślony, szary czy nie, twoja przeglądarka sama też wyłącza twój mikrofon, więc nikt cię nie słyszy, dopóki znów nie zaświeci; w trybie naciśnij, aby mówić otwiera go twój klawisz.
+
 Monocub zachowuje mikrofon podczas Eclipse i dostaje informację, że do powrotu światła nikt go nie słyszy. W pokoju Widzów mikrofon zostaje twój: wyciszasz go i włączasz sam, a linijka pod nim mówi, gdzie jesteś.
 
 Głośnik pokazuje, ile innych osób jest w twoim kanale, licząc każdą, która cię słyszy, mówiącą czy nie, i otwiera **Kogo słyszysz**: każdą z tych osób z suwakiem głośności i **Wycisz u siebie: *imię*** (potem **Znów słuchaj: *imię***), a na górze **Wycisz wszystkich u siebie**. Te ustawienia działają tylko u ciebie; inni przy stole niczego nie zauważą. Escape albo kliknięcie obok zamyka listę. Osoba wyciszona u ciebie ma przy sobie **Wyciszone przez ciebie**, dopóki nie naciśniesz **Znów słuchaj: *imię***; ta przeglądarka pamięta to także w następnej sesji. Osoba, której twoja strona nie słyszy z innego powodu, ma przy sobie ten powód i radę, żeby odświeżyć stronę (F5); strona sama raz próbuje wznowić wstrzymany dźwięk albo odebrać mikrofon, którego nie odbiera.

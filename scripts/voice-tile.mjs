@@ -131,7 +131,7 @@
 import { MODULE_ID } from "./config.mjs";
 import { micHold, moduleHoldsMic, broadcastAudioKnown } from "./voice.mjs";
 import { SETTINGS, getSetting, setSetting, getClock } from "./settings.mjs";
-import { avclientActive, voiceApplying, HEARING_REASONS, reportHearing } from "./voice-client.mjs";
+import { avclientActive, voiceApplying, HEARING_REASONS, reportHearing, followHold } from "./voice-client.mjs";
 import { voiceIdentity, voiceActorFor, measureCameraDock } from "./camera-view.mjs";
 import { safePortrait } from "./vault.mjs";
 import { cssString } from "./room-tile.mjs";
@@ -986,9 +986,11 @@ export function micState({ hold, settings = game.webrtc?.settings } = {}) {
 
 /**
  * The viewer's own microphone, on the viewer's own click or key: in "on", "ptt" and "muted" the one write Foundry's
- * dock makes for its own user, `users.<self>.muted` in this browser's client settings, flipped - and nothing else, no
- * `toggleAudio` (the design reads avclient-livekit as acting on the write itself; external). In "held", "gmBlock" and
- * "offline" it writes nothing and says why. The state is asked at the moment of the click, not read off the button.
+ * dock makes for its own user, `users.<self>.muted` in this browser's client settings, flipped - and no other setting,
+ * no `toggleAudio`. Until E129 the design read avclient-livekit as acting on the write itself; 0.6.8 may not
+ * (`toggleAudio`'s early return, LiveKitAVClient.ts:632, S0-GMMUTE), so the page's own track is then held to the new
+ * state (`followOwnTrack`). In "held", "gmBlock" and "offline" it writes nothing and says why. The state is asked at
+ * the moment of the click, not read off the button.
  *
  * @param {object} [options]  handed in by R537
  * @param {object} [options.mic]       `micState()`
@@ -1004,7 +1006,23 @@ export async function toggleOwnMic({ mic = micState(), settings = game.webrtc?.s
     }
     if (typeof settings?.set !== "function") return false;
     await settings.set("client", `users.${game.user.id}.muted`, mic.state !== "muted");
+    // The page's own track with it (E129, S0-GMMUTE): avclient-livekit 0.6.8 may leave it live after this write.
+    followOwnTrack();
     return true;
+}
+
+/**
+ * This page's own microphone track held to the button (E129; voice-client.mjs `followHold`, which explains why), the
+ * button's state asked now. Never throws: every road that repaints the button asks it (`paintControls`), and the hooks
+ * and the tick below ask it too, so a page with the tile off follows as well.
+ */
+function followOwnTrack() {
+    try {
+        return followHold({ mic: micState() });
+    } catch (err) {
+        error("Could not hold this page's microphone track to its button", err);
+        return null;
+    }
 }
 
 /** The core push-to-talk key as Foundry's controls name it, or `null` when none is bound (external; guarded). */
@@ -1102,6 +1120,7 @@ export function paintSpeakerButton(tile, { count, muteAll }) {
  * @param {object} [gone]  a participant the Room has just said left (`voiceStep`), not counted
  */
 export function paintControls(watch = live, gone = null) {
+    followOwnTrack();
     if (!watch?.tile) return;
     try {
         paintMic(watch.tile, typeof watch.mic === "function" ? watch.mic() : micState());
@@ -2108,8 +2127,10 @@ function dropVoiceTile() {
  * `rtcSettingsChanged`, which also tells the sound launcher about "mute all" (sfx.mjs, the design's F5).
  */
 export function registerVoiceTile() {
-    Hooks.on("liveKitClientInitialized", client => refreshVoiceTile(liveKitClient() ?? client ?? null));
+    // Every initialize builds a new track, live whatever the button says (avclient-livekit 0.6.8): held to it at once.
+    Hooks.on("liveKitClientInitialized", client => { followOwnTrack(); refreshVoiceTile(liveKitClient() ?? client ?? null); });
     Hooks.on("rtcSettingsChanged", () => {
+        followOwnTrack();
         refreshVoiceTile();
         import("./sfx.mjs").then(m => m.refreshSoundLauncher()).catch(err => error("Could not draw the sound launcher", err));
     });
@@ -2132,7 +2153,8 @@ export function registerVoiceTile() {
     // A hidden token holds its player's microphone (E129, S0-HIDEMUTE; voice.mjs `micHold` "tokenHidden"): said at once.
     Hooks.on("updateToken", (_doc, changes) => { if ("hidden" in (changes ?? {})) paintControls(); });
     // Who this page does not hear (E129, S0-VOICE; `checkHearing`), on its own tick.
-    setInterval(() => { try { checkHearing(live); } catch (err) { error("Could not check who this page hears", err); } }, HEARING_CHECK_MS);
+    // The same tick holds the page's own track to the button, should a road above have been missed (E129, `followOwnTrack`).
+    setInterval(() => { followOwnTrack(); try { checkHearing(live); } catch (err) { error("Could not check who this page hears", err); } }, HEARING_CHECK_MS);
     /* THE TRIAL'S LINES FOLLOW THE TRIAL (E70 fix p1-G1, 28.10.2026; the review's E70P1-R03). A Monocub's line and the
        dead's (voice.mjs `micHold`: "cubSpeak", "cubListen", "cubVote", "ownCase", "deadMuted") are read off the clock,
        the floor and the trial's record, and nothing here repainted on those: a debate opened, or the vote, and the

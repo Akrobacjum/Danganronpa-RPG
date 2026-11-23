@@ -41,7 +41,7 @@
  * Everything here is a no-op without avclient-livekit installed and active.
  */
 
-import { MODULE_ID } from "./config.mjs";
+import { MODULE_ID, OWN_TRACK_FOLLOWS_HOLD } from "./config.mjs";
 import { activeGmIds, primaryGmId, debug, error, markFired } from "./utils.mjs";
 import { showPopup } from "./popup.mjs";
 // E88 C6: each connect this page runs and the ms it took, for `fps()` and scenario 75 (perf-counters.mjs, a leaf).
@@ -866,3 +866,83 @@ export function forgetDesiredRoom() {
     desired = undefined;
     parkedRequestId = null;
 }
+
+/*
+ * THE PAGE'S OWN TRACK FOLLOWS ITS MICROPHONE BUTTON (E129, 23.11.2026; S0-GMMUTE, the owner: "mimo wyciszenia, gracze
+ * slyszeli moj glos", a GM muted with the tile; and the holds the owner asked for in session 0, Hide "wycisza go" and "niech
+ * chowanie tokenu automatycznie wycisza na livekit"; config.mjs `OWN_TRACK_FOLLOWS_HOLD`). Until 1.2.128 the module moved
+ * no microphone: the tile wrote the stored `users.<self>.muted` and the GMs wrote BROADCAST_AUDIO, and the rest was
+ * avclient-livekit's. Read in 0.6.8 (258d14a): it builds the page's own track at every initialize and mutes it there only
+ * when core's `canUserShareAudio` says so (LiveKitClient.ts:557-586); after that a stored mute reaches the track only
+ * through `toggleAudio`, which returns early unless `audioBroadcastEnabled` is already on (LiveKitAVClient.ts:632), and a
+ * permission change through nothing of its own (no hook; the track is built again only at a connect or a change of
+ * source, `getAudioParams`, LiveKitClient.ts:386-398). What Foundry core adds is not read (foundryvtt.com refused;
+ * LIVE-129-COMM-06, -07). So the page holds the track itself: muted while the button says held, a GM's block or muted;
+ * opened again only in "always" with nothing standing - push-to-talk is the key's - and built again, once a Room, where a
+ * connect while blocked left none (Listen's end). Only avclient-livekit 0.6's private names are touched, guarded, and
+ * nothing here throws into a hook.
+ */
+
+/**
+ * What the page's own track needs, from the button's state and the track: "mute", "unmute", "build" or null. Pure (R8838).
+ *
+ * @param {object} facts
+ * @param {object|null} facts.mic        voice-tile.mjs `micState()`'s answer
+ * @param {boolean} [facts.stored]       the stored `users.<self>.muted`
+ * @param {string} [facts.mode]          Foundry's `voice.mode`
+ * @param {{isMuted: boolean}|null} [facts.track]  avclient-livekit's `audioTrack`
+ * @param {boolean} [facts.connected]    whether the Room is connected
+ * @returns {"mute"|"unmute"|"build"|null}
+ */
+export function trackPlan({ mic, stored = false, mode = "always", track = null, connected = false } = {}) {
+    if (!mic?.state || mic.state === "offline") return null;
+    if (mic.state === "held" || mic.state === "gmBlock" || mic.state === "muted" || stored === true) return track && !track.isMuted ? "mute" : null;
+    if (mode !== "always") return null;
+    if (!track) return connected ? "build" : null;
+    return track.isMuted ? "unmute" : null;
+}
+
+/** The Rooms a track was built for (`followHold`'s "build": once a Room), and the logs another avclient was said to (once each). */
+const builtFor = new WeakSet();
+const saidOtherAvclient = new WeakSet();
+
+/**
+ * Hold this page's own track to its microphone button (`trackPlan`), through avclient-livekit 0.6's `_liveKitClient`:
+ * `audioTrack.mute()` / `unmute()`, or `changeAudioSource()` for a track that is not there. Answers the plan carried out,
+ * or null. Every fact can be handed in (R8839); left out, each is read here.
+ *
+ * @param {object} [facts]
+ * @param {object|null} [facts.mic]  voice-tile.mjs `micState()` - the caller's, since this file imports none of the tile
+ * @returns {"mute"|"unmute"|"build"|null}
+ */
+export function followHold({ client = liveKitClient(), settings = game.webrtc?.settings, mic = null, version = avclientVersion(),
+    on = OWN_TRACK_FOLLOWS_HOLD, external = externalAV(), log = debug } = {}) {
+    if (!on || !client || external) return null;
+    try {
+        if (!/^0\.6\./.test(String(version ?? ""))) {
+            if (!saidOtherAvclient.has(log)) log(`Voice: avclient-livekit ${version ?? "(no version)"} is not 0.6 - this page's microphone track is left to it.`);
+            saidOtherAvclient.add(log);
+            return null;
+        }
+        const plan = trackPlan({ mic, stored: settings?.get?.("client", `users.${game.user?.id}.muted`) === true,
+            mode: settings?.get?.("client", "voice.mode"), track: client.audioTrack ?? null, connected: client.liveKitRoom?.state === "connected" });
+        if (plan === "mute") void Promise.resolve(client.audioTrack.mute()).catch(err => error("Could not mute this page's microphone track", err));
+        else if (plan === "unmute") void Promise.resolve(client.audioTrack.unmute()).catch(err => error("Could not open this page's microphone track", err));
+        else if (plan === "build") {
+            const room = client.liveKitRoom;
+            if (builtFor.has(room) || settings?.get?.("client", "audioSrc") === "disabled" || typeof client.changeAudioSource !== "function") return null;
+            builtFor.add(room);
+            void Promise.resolve(client.changeAudioSource()).catch(err => error("Could not build this page's microphone track", err));
+        }
+        return plan;
+    } catch (err) {
+        error("Could not hold this page's microphone track to its button", err);
+        return null;
+    }
+}
+
+/** avclient-livekit's version as Foundry lists the module, or null. */
+function avclientVersion() {
+    return game.modules?.get?.(AV_MODULE)?.version ?? null;
+}
+

@@ -2309,15 +2309,14 @@ export async function sendInPasses(order, waits, { ownId, assign, waitFor, held 
                 if (!didChange) continue;
                 changed += 1;
 
-                // No microphone is moved here (E78 C2, 13.10.2026; S16-10, "the
-                // module never moves a microphone"). Until E78 a GM walking their own
-                // Monokuma into a room had `toggleAudio(true)` called "to undo a mute
-                // you may still be wearing" - the only place the module touched a
-                // microphone on its own, and one meant to undo the GM's own mute.
-                // The A9 design read avclient-livekit 0.6.8's `toggleAudio` as
-                // doing nothing for that call (11.10; external, not re-read here). A
-                // microphone moves on its owner's click or key only (E78 C4,
-                // `toggleOwnMic`; R544).
+                // No microphone is moved here (E78 C2, 13.10.2026; S16-10). Until E78 a
+                // GM walking their own Monokuma into a room had `toggleAudio(true)`
+                // called "to undo a mute you may still be wearing" - one that undid the
+                // GM's own mute. Since E129 (23.11.2026) a microphone moves on its
+                // owner's click or key (`toggleOwnMic`), or by its own page holding its
+                // own track to the button (voice-client.mjs `followHold`: muted while
+                // held, blocked or muted); never from this loop, and never anybody
+                // else's (R544).
             } catch (err) {
                 error(`Voice reconcile failed for "${row.actor?.name ?? userId}"; continuing with the rest`, err);
             }
