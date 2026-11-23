@@ -43,7 +43,7 @@ export async function run({ gm, note, settle, repoUrl }) {
     const rows = [];
     const keep = (id, got) => {
         if (!got?.captured) { rows.push({ id, captured: false, threw: got?.threw ?? null }); return; }
-        fs.writeFileSync(path.join(OUT, `${id}.html`), `${got.html.replace(/[–—−]/g, c => `&#${c.codePointAt(0)};`)}\n`);
+        fs.writeFileSync(path.join(OUT, `${id}.html`), `${got.html.replace(/[\u2013\u2014\u2212]/g, c => `&#${c.codePointAt(0)};`)}\n`);
         rows.push({ id, client: "gm", captured: true, title: got.title, classes: got.classes, tag: got.tag, width: got.width, buttons: got.buttons, file: `${id}.html` });
     };
     const W = { module: "gm-panel.mjs", call: "m.openGmPanel()", perTab: false };
