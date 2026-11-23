@@ -6163,6 +6163,7 @@
     "Frisk": {
       "rowLabel": "Zobacz, co ktoś nosi",
       "rowHint": "Przejrzyj czyjeś kieszenie i niczego nie bierz.",
+      "notInTrial": "Frisk czeka, aż skończy się Class Trial; w rozprawie Palm tylko coś zabiera albo podrzuca.",
       "noticeTitle": "Frisk",
       "unseenLabel": "Ukradkiem",
       "unseenHint": "Shadow {unseen}+, żeby nikt nie zauważył, potem Hand {hand}+, żeby zobaczyć wszystko.",
@@ -8779,6 +8780,7 @@
         "objection": "Nie masz już akcji, Hope ani Sanity, więc nie możesz wnieść objection.",
         "analyze": "Nie masz już akcji, Hope ani Sanity, więc nie masz czym zapłacić za Analyze.",
         "analyzeOneStep": "Nie masz już akcji, więc nie masz czym zapłacić za Analyze.",
+        "palm": "Nie masz już akcji, Hope ani Sanity, więc nie masz czym zapłacić za Palm.",
         "tamper": "Nie masz już akcji, a Tamper nie przyjmuje niczego innego.",
         "tamperSkippedAction": "Akcja nie jest tu potrzebna, ale nie masz już Sanity, by zapłacić."
       },

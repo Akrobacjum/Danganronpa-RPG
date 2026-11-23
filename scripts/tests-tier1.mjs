@@ -67719,6 +67719,23 @@ const INVARIANTS = [
                 ended: { mode: "testimony", holder: "suiteC", left: 50 }, spent: { over: true } }),
             "{resume: the constant; middle: after the second speaker's exchange; third: their turn's end; last: after the last speaker's exchange; after: their rest run out; skipped: the rebuttal skipped; ended: the exchange ended by the GM; spent: an Objection with nothing left}");
     }],
+    ["R8772 - Palm is open in the Class Trial and paid as Analyze is there (E129 S0-PALM; the owner's note of 23.11.2026, \"palm powinno byc dostepne w trialu za akcje, potem za hope, potem za sanity\"): allowed-now.mjs `TRIAL_OPEN_ACTIONS` holds Analyze and Palm, and in a trial the action road opens those two and shuts the rest; the person road opens Palm's key alone; config.mjs `PRICE_CHAINS.palm` is an action, then Hope, then Sanity, the later steps in the trial alone, its first step Palm's tile cost; `TRIAL.palmHallIsOneRoom` is on", async () => {
+        /* Pure over handed-in facts (allowed-now.mjs `allowedNow`'s `facts`). Red at 2e28785a: Analyze alone, no chain. */
+        const { ACTIONS, PRICE_CHAINS, TRIAL } = await import("./config.mjs");
+        const A = await import("./allowed-now.mjs");
+        const facts = trial => ({ trial: () => trial, eclipse: () => false, fighting: () => false, betrayal: () => false, participant: () => false });
+        const open = ["search", "observe", "analyze", "listen", "palm", "project", "rest", "dynamic", "tamper"].filter(k => A.allowedNow(null, k, { facts: facts(true) }).ok);
+        const chain = PRICE_CHAINS.palm ?? null;
+        equal(stableJson({
+            table: A.TRIAL_OPEN_ACTIONS ?? null, open,
+            person: [A.allowedNow(null, "palm", { road: "person", facts: facts(true) }).ok, A.allowedNow(null, null, { road: "person", facts: facts(true) }).why],
+            chain: chain ? [chain.steps.map(s => [s.pay, s.amount]), chain.stepsBeyondFirst, chain.steps[0].amount === ACTIONS.palm.cost] : null,
+            hall: TRIAL.palmHallIsOneRoom ?? null
+        }), stableJson({
+            table: ["analyze", "palm"], open: ["analyze", "palm"], person: [true, "trial"],
+            chain: [[["action", 1], ["hope", 1], ["stress", 1]], "classTrial", true], hall: true
+        }), "{table; open: the action keys a trial leaves open; person: [Palm's road, a nameless one's reason]; chain: [steps, the phase of the later ones, its first step the tile's cost]; hall}");
+    }],
     ["R8675 - a centred action card tells a Despair roll's trace no more than the corner did (the owner, 22.11.2026: \"by nie zdradzaly ze gracz zostawia remnant, gdy nie powinien o tym wiedziec\"; 1.2.124 line UI): action-report.mjs `reportHtml` with `leftTrace` from remnants.mjs `traceFeedback`, drawn centred by popup.mjs `showPopup`: a Despair roll with a trace placed and one with none give the same centred card, byte for byte, the number beside its dice included; a Hope roll with a trace says so and one with none does not", async () => {
         /* Red at 52057a2b: no `reportHtml` and no centred card. The mutant that answers `traceFeedback` with `placed` alone
            (the Despair card saying its trace) turns it red. */

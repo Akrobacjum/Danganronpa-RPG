@@ -14024,6 +14024,84 @@ const SCENARIOS = [
             + "unseen roll's payment, or a payment handed back still pays, or a second draw of the action is judged while the first is "
             + "under way (each draw in turn; the two at once; the tickets left)");
     }],
+    ["1.2.129 S0-PALM - Palm in the Class Trial: paid with Hope when no action is left, its rolls drawn on that payment, its card saying so, and the hall one room for its Steal and Plant (palm.mjs `payPalm`, price.mjs `PRICE_CHAINS.palm`, roll-draw.mjs `CHAIN_OF`, frisk.mjs `personActionRefusal` with `palm`, `palmHall`; the owner's note of 23.11.2026)", async () => {
+        /* On this GM, as a player's roll is drawn (`drawnForPlayer`, a payment written as the player's browser writes it,
+           `PAID_AS_PLAYER`). (1) In a trial, no actions and Hope: the price quoted is Hope, the cover drawn on a Hope paid,
+           the hand riding it; outside the trial the same Hope buys no cover. (2) The chain's receipt and its card's line,
+           and Sanity once Hope is gone. (3) A hall of the suite's own linked, both students' tokens on it: Palm's gate lets
+           them through, a Frisk's says the trial; the target's token hidden, not in that room; the thief with no token on
+           the hall, no token. Red at 2e28785a: Palm shut in the trial, no chain, no hall. The clock, the links, the
+           resources, the tickets and the scene are put back. */
+        needs(world.atLeast("connectedPlayersWithCharacter"), "the rolls are a connected player's, as Foundry names only those");
+        const { trustedWrite } = await import("./resource-guard.mjs");
+        const D = await import("./roll-draw.mjs");
+        const P = await import("./price.mjs");
+        const F = await import("./frisk.mjs");
+        const R = await import("./rooms.mjs");
+        const { player, theirs, other } = playerAndCharacters();
+        must(other, "the world has no character this player does not play");
+        const ACT = "system.resources.actions.value", HOPE = "system.resources.hope.value", SAN = "system.resources.stress.value";
+        const res = a => ({ act: Number(a.system.resources.actions?.value) || 0, hope: Number(a.system.resources.hope?.value) || 0, san: Number(a.system.resources.stress?.value) || 0 });
+        const was = res(theirs);
+        const clock = foundry.utils.deepClone(getClock());
+        const roles = foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS.sceneRoles) ?? {});
+        const asPlayer = { [D.PAID_AS_PLAYER]: true };
+        const draw = async actionKey => {
+            const out = await drawnForPlayer(player, theirs, { actionKey, pay: false });
+            try { return out.sent.find(r => r.action === "bridge.refused")?.reason ?? Boolean(out.record); } finally { await out.putBack(); }
+        };
+        const read = {};
+        let hall = null;
+        try {
+            await setClock({ ...clock, phase: "classTrial" });
+            await trustedWrite(theirs, { [ACT]: 0, [HOPE]: 2, [SAN]: 0 }, { reason: "gmRuling" });
+            D.forgetPayments?.(theirs.id);
+            read.quote = P.quotePrice(theirs, "palm").pay;
+            await trustedWrite(theirs, { [HOPE]: 1 }, { reason: "gmRuling", ...asPlayer });
+            read.trialDraw = [await draw("palm"), await draw("steal")];
+            await setClock({ ...clock, phase: "dailyLife" });
+            D.forgetPayments?.(theirs.id);
+            await trustedWrite(theirs, { [HOPE]: 2 }, { reason: "gmRuling" });
+            await trustedWrite(theirs, { [HOPE]: 1 }, { reason: "gmRuling", ...asPlayer });
+            read.dayDraw = await draw("palm");
+            await setClock({ ...clock, phase: "classTrial" });
+            D.forgetPayments?.(theirs.id);
+            await trustedWrite(theirs, { [ACT]: 0, [HOPE]: 1, [SAN]: 0 }, { reason: "gmRuling" });
+            const hopeReceipt = await P.payPrice(theirs, "palm", { quiet: true });
+            const stressReceipt = await P.payPrice(theirs, "palm", { quiet: true });
+            read.receipts = [hopeReceipt?.pay ?? null, P.paidLine(hopeReceipt) === game.i18n.format("DRPG.Price.paid.hope.one", { n: 1 }), stressReceipt?.pay ?? null, res(theirs).hope, res(theirs).san];
+            // (3) the hall.
+            hall = await Scene.create({ name: "SUITE S0-PALM hall", width: 1000, height: 1000, grid: { size: 100 }, active: false, navigation: false });
+            const [mine, theirsTok] = await hall.createEmbeddedDocuments("Token", [
+                { name: theirs.name, actorId: theirs.id, x: 100, y: 100, actorLink: true }, { name: other.name, actorId: other.id, x: 300, y: 100, actorLink: true }]);
+            await game.settings.set(MODULE_ID, SETTINGS.sceneRoles, { ...roles, trial: hall.id });
+            R.forgetSceneRoles?.();
+            await settle();
+            // A Frisk is refused here whatever the reason the world gives first (its room is the school's, its phase the trial's).
+            read.gate = [F.personActionRefusal(theirs, other, { palm: true }), typeof F.personActionRefusal(theirs, other) === "string"];
+            // The steal's own gate, which the primary asks before reading the rolls (inventory.mjs `transferRefusal`).
+            const { transferRefusal } = await import("./inventory.mjs");
+            read.transfer = await transferRefusal(other, theirs, { mode: "steal" });
+            await theirsTok.update({ hidden: true });
+            read.hidden = F.personActionRefusal(theirs, other, { palm: true });
+            await theirsTok.update({ hidden: false });
+            await mine.delete();
+            read.noToken = F.personActionRefusal(theirs, other, { palm: true });
+        } finally {
+            await game.settings.set(MODULE_ID, SETTINGS.sceneRoles, roles).catch(() => {});
+            R.forgetSceneRoles?.();
+            if (hall) await hall.delete().catch(() => {});
+            await setClock(clock);
+            await trustedWrite(theirs, { [ACT]: was.act, [HOPE]: was.hope, [SAN]: was.san }, { reason: "gmRuling" });
+            D.forgetPayments?.(theirs.id);
+            await settle();
+        }
+        equal(stableJson(read), stableJson({
+            quote: "hope", trialDraw: [true, true], dayDraw: "notPaid",
+            receipts: ["hope", true, "stress", 0, 1],
+            gate: [null, true], transfer: null, hidden: "the character is not in that room", noToken: "the character has no token on a scene"
+        }), "{quote: the step a trial quotes with no action; trialDraw: [the cover on a Hope paid, the hand riding it]; dayDraw: the cover on a Hope outside the trial (refused); receipts: [step, its card line, the next step, Hope, Sanity]; gate: [Palm's, a Frisk's refused]; hidden; noToken}");
+    }],
     ["a Frisk's rolls ride a Palm's one payment (A11-4): the hand after the cover and never first, never beside a Take's hand; a Search and a Call's Hope keep payments of their own; an ask's ticket carries one force, only while the GMs leave that searcher a force open", async () => {
         /*
          * E80 part 2 C0, 19.10.2026; the A11 design's step 10 and its A11-4. A Frisk unseen is two rolls on the one action a
@@ -54046,7 +54124,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
          * it stands for - and the three must agree. Red before allowed-now.mjs existed: the import throws. Since the three
          * ask one rule, their agreement cannot see a change of the rule itself, so each state's row is also held to what
          * the module answered before the move (measured at d2c6e0e5's tile and press, which agreed in every cell): daily
-         * life locks Direct Murder alone; an Eclipse every key but Direct Murder; the trial every key but Analyze, Direct
+         * life locks Direct Murder alone; an Eclipse every key but Direct Murder; the trial every key but Analyze (and Palm since 1.2.129, E129 S0-PALM), Direct
          * Murder saying it waits for an Eclipse; a fight every key of the victim's but Direct Murder, which is the fight's
          * menu. And Move, which has no tile, by its press alone: open in daily life and an Eclipse, the trial's and the
          * fight's sentence in theirs.
@@ -54184,7 +54262,8 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         const expected = key => ({
             daily: key === "directMurder" ? "murderOnlyInEclipse" : null,
             eclipse: key === "directMurder" ? null : "eclipse",
-            trial: key === "analyze" ? null : key === "directMurder" ? "murderOnlyInEclipse" : "trial",
+            // Palm open in the trial since 1.2.129 (E129 S0-PALM, allowed-now.mjs `TRIAL_OPEN_ACTIONS`; R8772), Analyze alone before.
+            trial: key === "analyze" || key === "palm" ? null : key === "directMurder" ? "murderOnlyInEclipse" : "trial",
             fight: key === "directMurder" ? null : "fight"
         });
         const offRule = Object.entries(matrix).flatMap(([state, row]) => Object.entries(row)

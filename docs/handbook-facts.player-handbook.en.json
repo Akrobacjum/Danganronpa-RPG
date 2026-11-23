@@ -1824,7 +1824,7 @@
   {"id": "s12.p1.f4", "unit": "s12.p1", "place": "12. The Class Trial, line 872", "kind": "rule", "text": "The Panic darkening still takes its one action in the trial (section 6).", "keywords": ["Panic darkening"]},
   {"id": "s12.p1.f5", "unit": "s12.p1", "place": "12. The Class Trial, line 872", "kind": "rule", "text": "The trial does not end the time of day.", "keywords": ["does not end the time of day"]},
   {"id": "s12.p1.f6", "unit": "s12.p1", "place": "12. The Class Trial, line 872", "kind": "rule", "text": "A banked Sprint or Burst stays banked.", "keywords": ["banked Sprint or Burst"]},
-  {"id": "s12.p1.f7", "unit": "s12.p1", "place": "12. The Class Trial, line 872", "kind": "rule", "text": "Only Analyze is open on your sheet, with the Hope Calls and your items.", "keywords": ["Only Analyze", "Hope Calls"]},
+  {"id": "s12.p1.f7", "unit": "s12.p1", "place": "12. The Class Trial, line 872", "kind": "rule", "text": "Only Analyze and Palm are open on your sheet, with the Hope Calls and your items.", "keywords": ["Only Analyze and Palm", "Hope Calls"]},
   {"id": "s12.p1.f8", "unit": "s12.p1", "place": "12. The Class Trial, line 872", "kind": "rule", "text": "In a trial Analyze only identifies Truth Bullets.", "keywords": ["Analyze only identifies Truth Bullets"]},
   {"id": "s12.p1.f9", "unit": "s12.p1", "place": "12. The Class Trial, line 872", "kind": "rule", "text": "In a trial Analyze gives no hint, no hidden stash, and no passage.", "keywords": ["no hint", "no passage"]},
   {"id": "s12.p1.f10", "unit": "s12.p1", "place": "12. The Class Trial, line 872", "kind": "number", "text": "In a trial Analyze costs 1 action.", "keywords": ["1 action"]},

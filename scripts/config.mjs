@@ -1448,6 +1448,9 @@ export const KEY_REMNANTS = {
  *   an Objection   1 action, else 1 Hope, else 1 Sanity
  *   Analyze        the same three - but only inside a Class Trial; anywhere
  *                  else it costs its action or nothing happens
+ *   Palm           the same three, inside a Class Trial alone (E129 S0-PALM, 23.11.2026; the owner's note of session
+ *                  0: "palm powinno byc dostepne w trialu za akcje, potem za hope, potem za sanity"), as Analyze's;
+ *                  anywhere else its action, as before
  *   Tamper         1 action, else 1 Sanity - but since E64 (12.11.2026) only the
  *                  killer's own Stage 6 reaches the Sanity step: anyone else's
  *                  Tamper costs 1 action and no Sanity, and with no action left
@@ -1487,6 +1490,14 @@ export const PRICE_CHAINS = {
         ]
     },
     analyze: {
+        steps: [
+            { pay: "action", amount: 1 },
+            { pay: "hope", amount: 1 },
+            { pay: "stress", amount: RESOLUTION_STRESS_COST }
+        ],
+        stepsBeyondFirst: "classTrial"
+    },
+    palm: {
         steps: [
             { pay: "action", amount: 1 },
             { pay: "hope", amount: 1 },
@@ -4382,6 +4393,14 @@ export const TRIAL = {
      * and the road away.
      */
     objectorMayFinish: true,
+    /*
+     * PALM IN THE HALL (E129 S0-PALM, 23.11.2026; the coordinator's default, approved that day, pending the owner): the
+     * trial's hall holds no room (R114), and Palm needs its target in the thief's room. While a Class Trial runs, every
+     * student on the hall scene, on the same floor, whose token the GMs have not hidden, counts as in the thief's room for
+     * Palm's Steal and Plant (frisk.mjs `personActionRefusal` with `palm`, palm.mjs `palmPlace`). Palm's forced Frisk
+     * stays shut in the trial (a Frisk is its own action). False takes Palm's hall away again.
+     */
+    palmHallIsOneRoom: true,
     rebuttalSeconds: 120,
     /**
      * How long an objector has to pick the Truth Bullet once their Objection is in (E79 C16, 1.2.79; the owner,

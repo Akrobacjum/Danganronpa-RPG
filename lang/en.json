@@ -606,6 +606,7 @@
         "objection": "No action, no Hope, and no Sanity left, so you cannot object.",
         "analyze": "No action, no Hope, and no Sanity left, so there is nothing to pay for Analyze with.",
         "analyzeOneStep": "No action left, so there is nothing to pay for Analyze with.",
+        "palm": "No action, no Hope, and no Sanity left, so there is nothing to pay for Palm with.",
         "tamper": "No action left, and Tamper takes nothing else.",
         "tamperSkippedAction": "No action is needed here, but you have no Sanity left to pay with."
       },
@@ -5747,6 +5748,7 @@
     "Frisk": {
       "rowLabel": "See what they carry",
       "rowHint": "Look through their pockets and take nothing.",
+      "notInTrial": "A Frisk waits until the Class Trial is over; in the trial Palm takes or leaves something.",
       "noticeTitle": "Frisk",
       "unseenLabel": "Unseen",
       "unseenHint": "Shadow {unseen}+ so they do not notice, then Hand {hand}+ to see everything.",

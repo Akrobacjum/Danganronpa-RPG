@@ -237,7 +237,7 @@
   {"id": "s7.p3.f11", "unit": "s7.p3", "place": "When it goes wrong, line 99", "kind": "rule", "text": "Monokuma may reveal what nobody finds at the trial.", "keywords": ["Monokuma may reveal it at the trial"]},
   {"id": "s7.p4.f1", "unit": "s7.p4", "place": "When it goes wrong, line 101", "kind": "rule", "text": "The Class Trial opens with a fresh set of actions.", "keywords": ["Class Trial", "a fresh set of actions"]},
   {"id": "s7.p4.f2", "unit": "s7.p4", "place": "When it goes wrong, line 101", "kind": "rule", "text": "Nobody leaves the room during the Class Trial.", "keywords": ["nobody leaves the room"]},
-  {"id": "s7.p4.f3", "unit": "s7.p4", "place": "When it goes wrong, line 101", "kind": "exception", "text": "Only Analyze stays open.", "keywords": ["only Analyze stays open"]},
+  {"id": "s7.p4.f3", "unit": "s7.p4", "place": "When it goes wrong, line 101", "kind": "exception", "text": "Only Analyze and Palm stay open.", "keywords": ["only Analyze and Palm stay open"]},
   {"id": "s7.p4.f4", "unit": "s7.p4", "place": "When it goes wrong, line 101", "kind": "rule", "text": "Hope Calls and items stay open.", "keywords": ["Hope Calls and items"]},
   {"id": "s7.p4.f5", "unit": "s7.p4", "place": "When it goes wrong, line 101", "kind": "rule", "text": "Discussion is open.", "keywords": ["Discussion is open"]},
   {"id": "s7.p4.f6", "unit": "s7.p4", "place": "When it goes wrong, line 101", "kind": "rule", "text": "Present shows a Truth Bullet from your inventory.", "keywords": ["Present", "a Truth Bullet from your inventory"]},
