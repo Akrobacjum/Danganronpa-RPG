@@ -538,6 +538,23 @@
     "Veil": {
       "card": "Do twojego rzutu otwarcia inni gracze nie widzą twoich tokenów, a twój mikrofon jest wyłączony; nadal słyszysz rozmowy."
     },
+    "Hide": {
+      "hidden": "Jesteś w ukryciu: inni gracze nie widzą twojego tokenu, a twój mikrofon jest wyłączony; nadal słyszysz rozmowy. Żeby wyjść z ukrycia, naciśnij „Ujawnij się” na swoim kafelku głosu.",
+      "notHidden": "Nie udaje ci się schować.",
+      "already": "Już jesteś w ukryciu.",
+      "notInTrial": "W czasie Class Trial nie można się schować.",
+      "coverSkipped": "Jesteś w ukryciu, więc rzut Shadow na pozostanie niezauważonym liczy się jako udany.",
+      "reveal": "Ujawnij się",
+      "gmTitle": "W ukryciu",
+      "gmLine": "{name}: w ukryciu.",
+      "gmReveal": "Ujawnij",
+      "gmRevealTooltip": "Zakończ ukrycie postaci {name}: wszyscy znów widzą jej token, a mikrofon znów działa.",
+      "ended": {
+        "gm": "GM kończy twoje ukrycie: inni gracze znów widzą twój token, a twój mikrofon znów działa.",
+        "chapter": "Rozdział się skończył, a z nim twoje ukrycie: inni gracze znów widzą twój token, a twój mikrofon znów działa.",
+        "reroll": "Po Rerollu GM-a nie jesteś już w ukryciu: inni gracze znów widzą twój token, a twój mikrofon znów działa."
+      }
+    },
     "Listen": {
       "prompt": "Jesteś w pokoju {room}. Który sąsiedni pokój chcesz podsłuchać?",
       "which": "Pokój",
@@ -4294,6 +4311,10 @@
           "label": "Keep Watch",
           "hint": "Rzuć Body przed Eclipse. Gdy Eclipse się zacznie, dowiesz się, kto jest w pokoju, w którym stoisz, potem kto wchodzi i kto wychodzi, a na koniec ile było wejść i wyjść."
         },
+        "hide": {
+          "label": "Hide",
+          "hint": "Rzuć Shadow, żeby się schować: inni gracze przestają widzieć twój token, a twój mikrofon się wyłącza, dopóki nie ujawnisz się na swoim kafelku głosu. W ukryciu rzut Shadow, którym akcja sprawdza, czy zostajesz niezauważony, liczy się jako udany."
+        },
         "dash": {
           "label": "Dash",
           "hint": "Rzuć Leg: im wyższy wynik, tym więcej darmowych przejść do końca pory dnia, a przy pudle żadnych. Wynik wyższy niż rzut tego, kto cię śledzi, zrywa śledzenie."
@@ -5334,6 +5355,7 @@
         "door.force": "Force the Door",
         "door.pick": "Pick the Lock",
         "watch.declare": "Keep Watch",
+        "hide.start": "Hide",
         "door.knock": "Ktoś przy drzwiach",
         "handover.bullet": "Udostępnienie Truth Bulletu",
         "handover.item": "Przekazanie przedmiotu",
@@ -6298,6 +6320,9 @@
         "watchStands": "Po Rerollu: czuwania nie da się już ustalić, więc zostaje wynik pierwszego rzutu.",
         "watchKept": "Po Rerollu: czuwanie zostaje.",
         "watchNone": "Po Rerollu: bez czuwania.",
+        "hideEnded": "Po Rerollu: ukrycie się kończy.",
+        "hideNow": "Po Rerollu: postać jest teraz w ukryciu.",
+        "hideStands": "Po Rerollu: ukrycie zostaje bez zmian.",
         "facilityStands": "Po Rerollu: akcja w pokoju udała się za pierwszym razem i jej efekty zostają.",
         "facilityGone": "Po Rerollu: tej akcji w pokoju już tu nie ma, więc nic się nie zmienia.",
         "facilityMissed": "Po Rerollu: akcja w pokoju dalej się nie udaje.",
@@ -6552,6 +6577,7 @@
         "masked": "Ukrywasz się za „?”: nie ma cię w głosie. Nikogo nie słyszysz i nikt nie słyszy ciebie, dopóki się nie ujawnisz albo nie zmieni się pora dnia.",
         "tokenHidden": "Twój token jest ukryty: mikrofon jest wyłączony, dopóki GM znów go nie pokaże.",
         "veiled": "Przed twoim rzutem otwarcia: mikrofon jest wyłączony, dopóki nie rzucisz.",
+        "hiding": "Jesteś w ukryciu: mikrofon zostaje wyłączony, dopóki się nie ujawnisz.",
         "cubSpeak": "Dyskusja: możesz mówić.",
         "cubListen": "Tryb: {mode}. Słuchasz.",
         "cubVote": "Głosowanie: słuchasz.",
@@ -7863,7 +7889,7 @@
         },
         "listen": {
           "label": "Infiltrate",
-          "hint": "Listen przy ścianie, Echoes, Tail Someone, Keep Watch, Dash przez korytarze, Shut the Door, Force the Door albo Pick the Lock. Każde kosztuje akcję.",
+          "hint": "Listen przy ścianie, Echoes, Tail Someone, Keep Watch, Dash przez korytarze, Shut the Door, Force the Door, Pick the Lock albo Hide. Każde kosztuje akcję.",
           "description": "Wybierasz sąsiedni pokój, wydajesz akcję i rzucasz Shadow. Niezły wynik mówi, ile osób tam jest, wyższy zdradza, kto to jest, a krytyk pokazuje, kto jest w każdym sąsiednim pokoju. Przy pudle nic nie słyszysz. Gdy obok nie ma żadnego pokoju, nie tracisz akcji.",
           "failure": "Niczego się nie dowiadujesz."
         },
@@ -9217,6 +9243,7 @@
         "eavesdrops": "Kto podsłuchuje pod którymi drzwiami, z którego pokoju i którego pokoju może znów posłuchać za darmo",
         "masks": "Który zabójca ukrywa się za „?” po otwarciu morderstwa i jak wyglądał jego token",
         "veils": "Który zabójca jest ukryty i wyciszony do rzutu otwarcia i czy każdy jego token był ukryty już wcześniej",
+        "hides": "Które postacie ukrywają się przez Hide, czyje mikrofony są przez to wyłączone i w którym rozdziale zaczęło się każde ukrycie",
         "timedEffects": "Co akcje w pokojach dały każdej postaci na jakiś czas i kiedy to mija",
         "clockBeat": "Kiedy główny GM był ostatnio przy stole",
         "takeBack": "Co zmienił ostatni początek pory dnia, zachowane na pięć minut, by GM mógł cofnąć pomyłkę",

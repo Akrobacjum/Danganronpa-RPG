@@ -43,6 +43,7 @@ import { drpgWindow, tipAttr, tipText } from "./ui-kit.mjs";
 import { keepLive } from "./live.mjs";
 import { nameAsSeen, seenHere } from "./mask-gm.mjs";
 import { withCentre } from "./notice-centre.mjs";
+import { coverWhileHidden, withCover } from "./hide.mjs";
 
 /**
  * A Palm's or a Frisk's roll window, named by the part it throws (E51 C1; the owner's A11 of 13.10: "Palm - Hand, beat
@@ -237,7 +238,7 @@ async function resolvePlant(actor, def, { victim, planted, hand, shadow, room, s
     const plantOutcome = {
         success, seen, target: victim.name,
         // On a GM's own Palm a refusal settles as done with `{ refused }` as its value, told already (fix e1-G4).
-        text: res.ok && !res.value?.refused ? game.i18n.format("DRPG.Steal.plantSent", { name: victim.name }) + paidSaid(paid) : ""
+        text: withCover(res.ok && !res.value?.refused ? game.i18n.format("DRPG.Steal.plantSent", { name: victim.name }) + paidSaid(paid) : "", shadow)
     };
     await report(actor, def, hand, plantOutcome);
     Hooks.callAll("drpgActionResolved", { actor, actionKey: "palm", roll: hand, outcome: plantOutcome });
@@ -428,7 +429,8 @@ export async function performPalm(actor, def, options) {
      * is told as the action's own key. A supporting roll all the same: nothing remembers it (`remember: false`).
      */
     // Each window named "Palm - Shadow, beat 15" by its part (`palmTitle`, E51 C1), its number the one judged below.
-    const shadow = await rollTrait(actor, unseen.trait, {
+    // While hidden it is not thrown and passes (S0-HIDE, hide.mjs `coverWhileHidden`); the card says so (`withCover`).
+    const shadow = coverWhileHidden(actor) ?? await rollTrait(actor, unseen.trait, {
         remember: false, actionKey: "palm", title: palmTitle(planting ? "plantUnseen" : "unseen", def), titled: true,
         dc: planting ? (def.plant?.unseen ?? unseen.threshold) : unseen.threshold
     });
@@ -518,7 +520,7 @@ export async function performPalm(actor, def, options) {
         seen,
         target: victim.name,
         // "Sent" only when it was (E31), as for a plant - and a GM's own refused Palm settles as done with `{ refused }` (fix e1-G4).
-        text: res.ok && !res.value?.refused ? game.i18n.format("DRPG.Steal.sent", { name: victim.name }) + paidSaid(paid) : ""
+        text: withCover(res.ok && !res.value?.refused ? game.i18n.format("DRPG.Steal.sent", { name: victim.name }) + paidSaid(paid) : "", shadow)
     };
 
     await report(actor, def, hand, outcome);

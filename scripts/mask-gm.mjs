@@ -43,6 +43,7 @@ import { SETTINGS } from "./settings.mjs";
 import { isPrimaryGm, log, error, whisperToOwnerOnly, esc, forcedDeletion } from "./utils.mjs";
 import { maskStore, veilStore } from "./gm-stores.mjs";
 import { count } from "./perf-counters.mjs";
+import { isHidingToken } from "./hide.mjs";
 
 /**
  * The name a masked token wears, and its picture. THE MODULE'S OWN "?" (E112 item 2a, 15.11.2026; the owner: "Morderca
@@ -835,7 +836,8 @@ let shownHere = null;
 export function veilHidesHere(isTheirs, { scenes = game.scenes, shown = shownHere, gm = Boolean(game.user?.isGM) } = {}) {
     if (gm || typeof shown !== "function" || typeof isTheirs !== "function") return false;
     for (const scene of scenes ?? []) for (const token of scene?.tokens ?? []) {
-        if (isVeiledToken(token) && isTheirs(token) && shown(token) === "hide") return true;
+        // A token Hide hides (S0-HIDE, E129; hide.mjs) is left out by the same rule: the pickers and the voice tile.
+        if ((isVeiledToken(token) || isHidingToken(token)) && isTheirs(token) && shown(token) === "hide") return true;
     }
     return false;
 }

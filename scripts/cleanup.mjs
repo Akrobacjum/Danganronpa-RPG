@@ -1411,6 +1411,8 @@ function holdsFreeCleanup(actor) {
 export async function tamperWatchBlock(actor, { conceals = true } = {}) {
     if (!conceals) return null;
     if (resourceValue(actor, "stress") < resourceMax(actor, "stress")) return null;
+    // Hidden, no concealment is thrown and no Sanity is at stake (S0-HIDE, `concealFromWitnesses`): nothing to stop.
+    if ((await import("./hide.mjs")).coverWhileHidden(actor)) return null;
     const { othersInRoom } = await import("./movement.mjs");
     if (!witnessesTo(actor, othersInRoom(actor)).length) return null;
     return game.i18n.localize("DRPG.Tamper.watchedNoSanity");
@@ -1490,6 +1492,16 @@ async function concealFromWitnesses(actor) {
 
     const { othersInRoom } = await import("./movement.mjs");
     if (!witnessesTo(actor, othersInRoom(actor)).length) return "alone";
+
+    /* WHILE HIDDEN, NOT THROWN (S0-HIDE, E129; hide.mjs `coverWhileHidden`): the cover passes, costs no Sanity, earns no
+       give-back, and nothing was rolled - "alone" to the callers, so a main roll closed afterwards gives the price back as
+       with nobody watching. The roller's card says the cover was not needed. */
+    const { coverWhileHidden, coverLine } = await import("./hide.mjs");
+    const skipped = coverWhileHidden(actor);
+    if (skipped) {
+        await whisperToOwner(actor, `${cardHead({ action: def.label })}${coverLine(skipped)}`);
+        return "alone";
+    }
 
     const { rollTrait } = await import("./action-rolls.mjs");
     const roll = await rollTrait(actor, def.trait,

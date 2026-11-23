@@ -153,6 +153,7 @@ import { a11yReport } from "./a11y.mjs";
 import { rollFlags } from "./roll-draw.mjs";
 import { publicRoll } from "./private-rolls.mjs";
 import { sheetWrites } from "./sheet-audit.mjs";
+import { gmUnhide } from "./hide.mjs";
 import { relayGuardStatus } from "./relay-guard.mjs";
 import {
     isMonocub, monocubActors, eligibleForMonocub, setMonocub, setSilenced, isCrimeSilenced,
@@ -1191,6 +1192,9 @@ export const DrpgApi = {
      *  macro's road since the GM panel's tile went (E60 C5a) - a vote's tie, Monokuma's lottery. GM only; a bare `/r`
      *  still goes to the GMs. */
     publicRoll,
+    /** Show a character Hide hides (S0-HIDE): `unhide(actor)` or its id ends the hide, unmutes its player and draws its
+     *  token for everyone again, as their own Reveal yourself does; the player is told. GM only; answers whether it ended. */
+    unhide: gmUnhide,
     /** Why can this player see a token in another room? Run it on THEIR
      *  client: it prints every character's room beside whether the token is
      *  visible, which is what tells the two failure modes apart. */

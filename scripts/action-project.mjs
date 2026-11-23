@@ -51,6 +51,7 @@ import { briefingBlock } from "./action-briefing.mjs";
 import { actionWindow, chooseVariant, requestFieldHtml, readRequestField, traitFieldHtml, readProposal } from "./action-menus.mjs";
 import { listenLabels } from "./action-listen.mjs";
 import { drpgWindow, formGrid, helpText, box, tipAttr, tipText } from "./ui-kit.mjs";
+import { coverWhileHidden, coverLine } from "./hide.mjs";
 
 
 /* ==========================================================================
@@ -833,14 +834,15 @@ async function concealProjectIntent(actor, { indirect, witnesses, paid, lines })
     let rolledAlready = false;
     if (indirect) {
         if (witnesses.length) {
-            const conceal = await rollTrait(actor, INDIRECT_MURDER.concealIntent.trait, {
+            // While hidden the concealment is not thrown and passes (S0-HIDE, hide.mjs `coverWhileHidden`): no roll paid out.
+            const conceal = coverWhileHidden(actor) ?? await rollTrait(actor, INDIRECT_MURDER.concealIntent.trait, {
                 remember: false, title: game.i18n.localize("DRPG.Roll.concealIntent"),
                 dc: INDIRECT_MURDER.concealIntent.threshold
             });
             if (!conceal) return { exit: await abort(actor, paid) };
-            rolledAlready = true;
+            rolledAlready = !conceal.hidden;
             const ok = conceal.isCritical || conceal.total >= INDIRECT_MURDER.concealIntent.threshold;
-            lines.push(`<p><strong>${INDIRECT_MURDER.concealIntent.label}</strong> - ${conceal.total}${neededNote(conceal.dc)}: ${
+            lines.push(conceal.hidden ? coverLine(conceal) : `<p><strong>${INDIRECT_MURDER.concealIntent.label}</strong> - ${conceal.total}${neededNote(conceal.dc)}: ${
                 ok ? (conceal.withFear
                         ? proseOf(INDIRECT_MURDER.concealIntent, "successWithDespair")
                         : INDIRECT_MURDER.concealIntent.success)
@@ -1316,15 +1318,17 @@ async function concealSabotage(actor, { room, project, witnesses, paid, lines })
     let watched = false;
     let tellRoom = null;
     if (witnesses.length) {
-        const conceal = await rollTrait(actor, SABOTAGE_CONCEAL.trait,
+        // While hidden the concealment is not thrown and passes (S0-HIDE, hide.mjs `coverWhileHidden`): no roll paid out.
+        const conceal = coverWhileHidden(actor) ?? await rollTrait(actor, SABOTAGE_CONCEAL.trait,
             { remember: false, title: game.i18n.localize("DRPG.Roll.concealIntent"), dc: SABOTAGE_CONCEAL.threshold });
         if (!conceal) return { exit: await abort(actor, paid) };
-        rolledAlready = true;
+        rolledAlready = !conceal.hidden;
 
         const hidden = conceal.isCritical || conceal.total >= SABOTAGE_CONCEAL.threshold;
         if (hidden && conceal.withFear) penalty = SABOTAGE_CONCEAL.despairPenalty;
 
-        lines.push(`<p><strong>${SABOTAGE_CONCEAL.label}</strong> - ${conceal.total}${neededNote(conceal.dc)}: ${
+        if (conceal.hidden) lines.push(coverLine(conceal));
+        else lines.push(`<p><strong>${SABOTAGE_CONCEAL.label}</strong> - ${conceal.total}${neededNote(conceal.dc)}: ${
             hidden
                 ? (conceal.withFear ? SABOTAGE_CONCEAL.successWithDespair : SABOTAGE_CONCEAL.success)
                 : SABOTAGE_CONCEAL.failure

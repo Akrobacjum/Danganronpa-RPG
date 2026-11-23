@@ -533,6 +533,23 @@
     "Veil": {
       "card": "Until your opening roll the other players do not see your tokens, and your microphone is off; you still hear everyone."
     },
+    "Hide": {
+      "hidden": "You are hidden: the other players do not see your token, and your microphone is off; you still hear everyone. To come out, press Reveal yourself on your voice tile.",
+      "notHidden": "You do not manage to hide.",
+      "already": "You are already hidden.",
+      "notInTrial": "You cannot hide during a Class Trial.",
+      "coverSkipped": "You are hidden, so the Shadow roll to stay unseen counts as passed.",
+      "reveal": "Reveal yourself",
+      "gmTitle": "Hidden",
+      "gmLine": "{name} is hidden.",
+      "gmReveal": "Reveal",
+      "gmRevealTooltip": "End the hiding of {name}: everyone sees their token again, and the microphone comes back.",
+      "ended": {
+        "gm": "A GM has ended your hiding: the other players see your token again, and your microphone is back.",
+        "chapter": "The chapter is over, and so is your hiding: the other players see your token again, and your microphone is back.",
+        "reroll": "After the GM's Reroll you are no longer hidden: the other players see your token again, and your microphone is back."
+      }
+    },
     "Listen": {
       "prompt": "You are in {room}. Which neighboring room?",
       "which": "Room",
@@ -4023,6 +4040,10 @@
           "label": "Keep Watch",
           "hint": "Before an Eclipse, roll Body to keep watch over your room through it: you learn who is there, who comes in, and who leaves, and at its end how many came and went."
         },
+        "hide": {
+          "label": "Hide",
+          "hint": "Roll Shadow to hide: the other players stop seeing your token and your microphone goes off until you reveal yourself on your voice tile. While you are hidden, the Shadow roll an action makes to keep you unseen counts as passed."
+        },
         "dash": {
           "label": "Dash",
           "hint": "Roll Leg for free crossings until the time of day ends; the higher the roll, the more you get, and a miss gets none. It can also shake off a tail."
@@ -4983,6 +5004,7 @@
         "door.force": "Force the Door",
         "door.pick": "Pick the Lock",
         "watch.declare": "Keep Watch",
+        "hide.start": "Hide",
         "door.knock": "Someone at the door",
         "handover.bullet": "Share a Truth Bullet",
         "handover.item": "Hand over an item",
@@ -5864,6 +5886,9 @@
         "watchStands": "Rerolled: a watch can no longer be set, so the first roll's stands.",
         "watchKept": "Rerolled: the watch is kept.",
         "watchNone": "Rerolled: no watch is kept.",
+        "hideEnded": "Rerolled: the hiding ends.",
+        "hideNow": "Rerolled: the character is hidden now.",
+        "hideStands": "Rerolled: nothing changes for the hiding.",
         "facilityStands": "Rerolled: the room action succeeded the first time and its effects stand.",
         "facilityGone": "Rerolled: the room action is no longer here, so nothing changes.",
         "facilityMissed": "Rerolled: the room action still fails.",
@@ -6114,6 +6139,7 @@
         "masked": "Hidden behind a \"?\": you are out of voice. You hear nobody and nobody hears you until you reveal yourself or the time of day changes.",
         "tokenHidden": "Your token is hidden: your microphone stays off until the GM shows it again.",
         "veiled": "Before your opening roll: your microphone stays off until you throw it.",
+        "hiding": "You are hidden: your microphone stays off until you reveal yourself.",
         "cubSpeak": "Discussion: you may speak.",
         "cubListen": "{mode}: you listen.",
         "cubVote": "The vote: you listen.",
@@ -7411,6 +7437,7 @@
         "eavesdrops": "Who listens at which door, from which room, and which room they may listen at again for free",
         "masks": "Which killer hides behind a \"?\" after a murder's opening, and what their token looked like",
         "veils": "Which killer is hidden and muted until their opening roll, and whether each of their tokens was hidden before",
+        "hides": "Which characters hide with Hide, whose microphones that holds off, and the chapter each hide began in",
         "timedEffects": "What room actions gave each character for a while, and when it ends",
         "clockBeat": "When the primary GM was last at the table",
         "takeBack": "What the last start of a time of day changed, kept for five minutes so a GM can take back a misclick",
