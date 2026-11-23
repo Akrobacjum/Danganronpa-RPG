@@ -34136,8 +34136,9 @@ const INVARIANTS = [
             minusDebate: { mode: "debate", left: 0, seconds: 300, stack: [], note: "DRPG.Floor.gmNoteAdjust", cards: [] },
             minusEmpty: { refused: "DRPG.Floor.bar.noTime" },
             plusOverrun: { mode: "debate", left: 30, seconds: 300, stack: [], note: "DRPG.Floor.gmNoteAdjust", cards: [] },
-            plusPastLimit: { mode: "objection", left: 80, seconds: 300, stack, note: "DRPG.Floor.gmNoteAdjust", cards: [] },
-            objection: { mode: "objection", left: 60, seconds: 300, stack, note: null, cards: [] },
+            // An Objection's own seconds are 30 since 1.2.129 (E129 S0-OBJ; R8770): 60 and 80 until then.
+            plusPastLimit: { mode: "objection", left: 50, seconds: 300, stack, note: "DRPG.Floor.gmNoteAdjust", cards: [] },
+            objection: { mode: "objection", left: 30, seconds: 300, stack, note: null, cards: [] },
             back: { mode: "debate", left: 200, seconds: 200, stack: [], note: null, cards: [] },
             backOld: { mode: "debate", left: 240, seconds: 240, stack: [], note: null, cards: [] },
             backDebate: { refused: "DRPG.Floor.bar.inDebate" },
@@ -34692,7 +34693,8 @@ const INVARIANTS = [
             seven: [1, B, 2],
             due: step2(B), skip: step2(B, [["DRPG.Floor.turnSkipped", A]]),
             gone: step2(B, [passes(A)]), goneOther: { refused: "DRPG.Floor.round.notSpeaker" },
-            objection: { mode: "objection", holder: D, left: 60, step: 1, stack: [[CARD, "testimony", 40]], cards: [] },
+            // 30 s since 1.2.129 (E129 S0-OBJ; R8770), 60 until then.
+            objection: { mode: "objection", holder: D, left: 30, step: 1, stack: [[CARD, "testimony", 40]], cards: [] },
             rebuttalDue: step2(B), rebuttalSkip: step2(B, [["DRPG.Floor.turnSkipped", A]]),
             overrule: step2(A, [], 40), lapse: step2(A, [], 40),
             endExchange: step2(B, [["DRPG.Floor.modeEnded", "objection"]]),
@@ -67519,6 +67521,51 @@ const INVARIANTS = [
             tamper: /popupCentre: "actionResult", \.\.\.\(success \? \{\} : \{ sfx: "cleanupFailed" \}\)/.test(src("cleanup.mjs"))
         }), stableJson({ rollCard: "actionResult", report: true, tail: true, bedroom: true, bedroomCalls: 2, body: true, infiltrate: [true, true, true], cover: true, tamper: true }),
         "{rollCard: Observe/Analyze/Listen; report: every action's result; tail: noticed or not, the Shadow roll with its number first, then the effect roll; bedroom: not a lock only mended; bedroomCalls: both of the owner's cards; body; infiltrate: the five Infiltrate cards with their roll; cover: Pick's second roll; tamper: Tamper's card}");
+    }],
+    ["R8770 - an Objection's own time is 30 s (E129 S0-OBJ; the owner's note of 23.11.2026, \"objection skrocic do 30s\"): config.mjs `TRIAL.objectionSeconds` is 30 and an Objection's floor runs 30 s in a debate and in a round; its seconds to pick a bullet stay `TRIAL.objectionPickSeconds` (30), the Closing's exchange keeps 60 (`TRIAL.modes.closing.objectionSeconds`, the coordinator's default) and the rebuttal 120; no handbook of either language and no text calls the objector's time a minute or 60 seconds", async () => {
+        /* Read off the machine (floor-machine.mjs `modeSecondsOf`) on floors its own events build, and off the six
+           handbooks and both language files as the module serves them. Red at 2e28785a: 60 s, and the minute words. */
+        const { TRIAL } = await import("./config.mjs");
+        const M = await import("./floor-machine.mjs");
+        const ctx = { now: 1_000_000, absent: [] };
+        const debate = M.nextFloor(null, { type: "start", seconds: 180 }, ctx).floor;
+        const round = M.nextFloor(null, { type: "round", mode: "testimony", seconds: 60, order: ["suite-a", "suite-b"] }, ctx).floor;
+        must(debate && round, "the machine opened no debate or no round - this would measure nothing");
+        const objecting = floor => M.nextFloor(floor, { type: "objection", holderId: "suite-b", targetId: floor.holderId ?? "suite-a", cardId: "suite-card" }, ctx).floor;
+        const picking = M.nextFloor(debate, { type: "objection", holderId: "suite-b", targetId: "suite-a", pending: true, messageId: "suite-card" }, ctx).floor;
+        const closingExchange = { mode: "objection", pending: false, holderId: "suite-b", targetId: "suite-a", startedAt: ctx.now, seconds: 0,
+            closing: { phase: "speak", step: 1, speakerId: "suite-a" }, before: [] };
+        const read = {
+            constant: TRIAL.objectionSeconds, debate: M.modeSecondsOf(objecting(debate)), round: M.modeSecondsOf(objecting(round)),
+            pick: [M.modeSecondsOf(picking), TRIAL.objectionPickSeconds], closing: [M.modeSecondsOf(closingExchange), TRIAL.modes?.closing?.objectionSeconds ?? null],
+            rebuttal: M.modeSecondsOf({ ...objecting(debate), mode: "rebuttal" })
+        };
+        const said = {
+            en: ["Objection's minute", "its minute", "Objection 60 seconds", "60 s, then 120 s", "| the objector alone | 60 seconds", "for **60 seconds", "then 60 s", "the 60 seconds"],
+            pl: ["minuta Objection", "minucie Objection", "jego minuty", "Objection dostaje 60", "60 s, potem 120 s", "| tylko wnoszący | 60 sekund", "przez **60 sekund", "przez 60 s", "czeka; 60 sekund"]
+        };
+        const found = [];
+        let files = 0;
+        for (const lang of ["en", "pl"]) {
+            for (const id of ["gm-handbook", "player-handbook", "player-brochure"]) {
+                const res = await fetch(`/modules/${MODULE_ID}/docs/handbooks/${id}.${lang}.md`);
+                if (!res.ok) continue;
+                files++;
+                const text = await lfText(res);
+                for (const line of text.split("\n")) {
+                    if (!/objection|wnosząc|objector/i.test(line)) continue;
+                    for (const words of said[lang]) if (line.includes(words)) found.push(`${id}.${lang}: ${words}`);
+                }
+            }
+            const keys = await (await fetch(`/modules/${MODULE_ID}/lang/${lang}.json`)).json();
+            const note = keys?.DRPG?.Floor?.gm?.objectionNote ?? keys?.DRPG?.Floor?.objectionNote ?? null;
+            files++;
+            if (typeof note !== "string") found.push(`${lang}.json: no objectionNote`);
+            else if (/minut/i.test(note)) found.push(`${lang}.json objectionNote: ${note}`);
+        }
+        must(files === 8, `read ${files} of the six handbooks and two language files - this would measure too little`);
+        equal(stableJson({ read, found }), stableJson({ read: { constant: 30, debate: 30, round: 30, pick: [30, 30], closing: [60, 60], rebuttal: 120 }, found: [] }),
+            "{read: [the constant, an Objection's seconds in a debate, in a round, [while its bullet is picked, the pick constant], [the Closing's exchange, its constant], the rebuttal]; found: the texts that still say a minute or 60 s}");
     }],
     ["R8675 - a centred action card tells a Despair roll's trace no more than the corner did (the owner, 22.11.2026: \"by nie zdradzaly ze gracz zostawia remnant, gdy nie powinien o tym wiedziec\"; 1.2.124 line UI): action-report.mjs `reportHtml` with `leftTrace` from remnants.mjs `traceFeedback`, drawn centred by popup.mjs `showPopup`: a Despair roll with a trace placed and one with none give the same centred card, byte for byte, the number beside its dice included; a Hope roll with a trace says so and one with none does not", async () => {
         /* Red at 52057a2b: no `reportHtml` and no centred card. The mutant that answers `traceFeedback` with `placed` alone

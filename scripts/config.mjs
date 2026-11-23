@@ -4350,9 +4350,11 @@ export const TRIAL = {
      */
     debateMinSeconds: 30,
     /**
-     * An OBJECTION buys exactly one minute of silence, then the person it was
+     * An OBJECTION buys half a minute of silence, then the person it was
      * aimed at gets two minutes to answer back, and then the floor returns to
-     * free discussion.
+     * free discussion. Thirty seconds since 1.2.129 (E129 S0-OBJ; the owner's note of session 0, 23.11.2026:
+     * "objection skrocic do 30s"); a minute until then. The Closing's exchange keeps its own seconds
+     * (`modes.closing.objectionSeconds`, below), the coordinator's default pending the owner.
      *
      * Both are fixed rather than GM-editable on purpose: they are the shape of
      * the interruption, not a budget. A GM who needs to cut a rebuttal short
@@ -4360,13 +4362,13 @@ export const TRIAL = {
      * has "+30 s". Making them configurable would turn one rule everybody at
      * the table already knows into a per-world variable nobody can predict.
      */
-    objectionSeconds: 60,
+    objectionSeconds: 30,
     rebuttalSeconds: 120,
     /**
      * How long an objector has to pick the Truth Bullet once their Objection is in (E79 C16, 1.2.79; the owner,
      * 17.10.2026: the bullet is chosen AFTER the objection, and the card waits "pending" for it). The floor is the
-     * objector's while they choose, and the minute above starts only when the bullet is on the card
-     * (trial-floor.mjs `fillObjectionInStep`, run by trial.mjs `evidenceOnPrimary`), so the minute is the minute they argue with it. Past these seconds the
+     * objector's while they choose, and the seconds above start only when the bullet is on the card
+     * (trial-floor.mjs `fillObjectionInStep`, run by trial.mjs `evidenceOnPrimary`), so they are the seconds they argue with it. Past these seconds the
      * Objection is withdrawn, the floor goes back to the debate and the price stays paid (trial-floor.mjs
      * `advanceIfDue`): an interruption that stopped the room and showed nothing is not free. The owner's default D4.
      */
@@ -4411,12 +4413,13 @@ export const TRIAL = {
          * TR24, TR29 = 4, TR34 = 1, DA18 "Wszedzie gracz ma proponowac, a DM zatwierdzac lub zmieniac", amend 7 of 14.10:
          * no Hope for the last voice). One per trial (`perTrial`); `volunteerSeconds` of volunteering, then a draw among
          * the volunteers that the GM confirms or changes; `seconds` for a speaker; an Objection at the speaker at any
-         * second, its exchange (`objection`, the debate's 60 + 120 s with cut-ins), after which the GM decides who
+         * second, its exchange (`objection`, `objectionSeconds` + the debate's 120 s with cut-ins: 60 s since E70, kept at 60
+         * when the debate's went to 30 in 1.2.129, E129 S0-OBJ - the coordinator's default, pending the owner), after which the GM decides who
          * continues (`gmDecides`): the speaker with the time left at the Objection or an objector with a new `seconds`.
          * A drawn or picked speaker's Pass in their first `passWindowSeconds` hands the choice back to the GM; later it
          * is Done. Chosen from the owner's words, not measured at a table (LIVE-E70-09).
          */
-        closing: { volunteerSeconds: 30, seconds: 300, perTrial: 1, objection: "exchange", gmDecides: true, passWindowSeconds: 30 },
+        closing: { volunteerSeconds: 30, seconds: 300, perTrial: 1, objection: "exchange", objectionSeconds: 60, gmDecides: true, passWindowSeconds: 30 },
         /*
          * THE ZONE MODES (E73, 12.11.2026; the plan's goal and C3-C5; zone-machine.mjs). Straw Poll: `seconds` of
          * standing in a zone, then one count, a Finding at two thirds. Logic Dive: `seconds` a question, counted when

@@ -1709,7 +1709,7 @@
         "zones": "Głos ma tryb stref: każdy odpowiada tym, gdzie stoi jego token. Policz teraz i Pomiń na pasku przyspieszają liczenie; Zakończ ten tryb go kończy.",
         "scrum": "Straw Poll podzieliła klasę. Scrum Debate ze Stref sali pozwoli obu obozom to rozstrzygnąć; debata i głosowanie nadal są dostępne."
       },
-      "objectionNote": "Objection nie uruchamiasz z konsoli: zgłasza je gracz przyciskiem OBJECTION!, a minuta rusza, gdy jego Truth Bullet trafi na stół.",
+      "objectionNote": "Objection nie uruchamiasz z konsoli: zgłasza je gracz przyciskiem OBJECTION!, a jego czas rusza, gdy jego Truth Bullet trafi na stół.",
       "manageTrial": "Class Trial",
       "mode": {
         "debate": "Nonstop Debate",
