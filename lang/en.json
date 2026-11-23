@@ -526,6 +526,8 @@
       "stay": "Stay hidden",
       "card": "You are hidden behind a \"?\" and can neither speak nor hear anyone until you reveal yourself or the time of day ends. Your voice tile has a Reveal yourself button.",
       "ended": "You are no longer hidden, and your voice is back: the time of day has ended.",
+      "endedIncident": "You are no longer hidden, and your voice is back: the murder has ended.",
+      "endedLeftRoom": "You are no longer hidden, and your voice is back: you left the room of the murder.",
       "tokenFailed": "The mask could not be put on a token of {name}: the other players may see their real picture. The console says why."
     },
     "Veil": {
@@ -4397,6 +4399,8 @@
       "role": "Spectator",
       "deadWatcher": "Dead student's Spectator",
       "deadWatcherRole": "{name} is a dead student's Spectator. It goes when the student is revived or becomes a Monocub.",
+      "deadGivenWatcher": "{name} is dead, so their player watches through a Spectator of their own. The body stays where it lies.",
+      "deadNoWatcher": "{name} is dead, but no Spectator was made: nobody plays this student.",
       "marked": "{name} is now a Spectator.",
       "unmarked": "{name} is no longer a Spectator.",
       "talk": "Talk with the Spectators",
@@ -4974,6 +4978,7 @@
         "listen.echoes": "Echoes",
         "mask.reveal": "Reveal yourself",
         "mask.veil": "The opening's veil, asked of the primary GM",
+        "spectator.dead": "A dead student's Spectator, asked of the primary GM",
         "door.shut": "Shut the Door",
         "door.force": "Force the Door",
         "door.pick": "Pick the Lock",

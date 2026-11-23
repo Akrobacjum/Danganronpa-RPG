@@ -49,7 +49,7 @@ import {
     ACTION_OPENING_RESULT, ACTION_CLEANUP, ACTION_BETRAYAL, ACTION_PARK_MURDER, ACTION_CUB_ABILITY, ACTION_CUB_ANSWER, ACTION_BRIBE_OFFER, ACTION_BRIBE_ANSWER, ACTION_LOOT,
     ACTION_NOTE_SAVE, ACTION_ROLL_BOOKMARK, ACTION_REROLL, ACTION_CARD, ACTION_CARD_CLAIM, ACTION_BULLET_GIVE, ACTION_FACILITY_USE, ACTION_DASH,
     ACTION_TAIL_START, ACTION_DOOR_SHUT, ACTION_DOOR_FORCE, ACTION_DOOR_PICK, ACTION_WATCH_DECLARE, ACTION_DOOR_KNOCK,
-    ACTION_LISTEN_EAVESDROP, ACTION_LISTEN_STOP, ACTION_LISTEN_ECHOES, ACTION_MASK_REVEAL, ACTION_MASK_VEIL
+    ACTION_LISTEN_EAVESDROP, ACTION_LISTEN_STOP, ACTION_LISTEN_ECHOES, ACTION_MASK_REVEAL, ACTION_MASK_VEIL, ACTION_DEAD_SPECTATOR
 } from "./bridge-wire.mjs";
 import {
     handleObserveTarget, handleCleanupTraces, handleObserveResolve, handleAnalyzeResolve, handleAdvancement,
@@ -60,7 +60,7 @@ import {
     handleBetrayal, handleCleanup, handleCubAbility, handleCubAnswer, handleBribeOffer, handleBribeAnswer, handleHopeCall, handleCallYes, handleDynamicAnswer,
     handleRulingExpired, handleRulingReceived, handleDifficulty, handleTraitRuling, handleFacilityUse, handleDash,
     handleTailStart, tailRolls, handleDoorShut, handleDoorForce, handleDoorPick, pickRolls, handleWatchDeclare, handleDoorKnock,
-    handleEavesdrop, handleEavesdropStop, handleEchoes, handleMaskReveal, handleMaskVeil
+    handleEavesdrop, handleEavesdropStop, handleEchoes, handleMaskReveal, handleMaskVeil, handleDeadSpectator
 } from "./bridge-runs-acts.mjs";
 import {
     handleProgress, handleShare, TRACE_OF_ROLL, handleRemnant, traceBandOf, progressOf, repairOf, handleTieTrace,
@@ -108,10 +108,8 @@ export const BRIDGE_ACTIONS = table({
     [ACTION_OBSERVE_TARGET]: {
         label: "DRPG.Bridge.what.observe.target",
         guards: [knownSender, notSpectator("actorId"), owns("actorId", "sender does not own that character")],
-        /* The declaration is one of observe.mjs's DECLARATIONS or nothing (1.2.122; the audit of 1.2.118, CASE-61): until
-           1.2.122 it was taken raw, an unknown one went down the General branch and its value - any string, any object -
-           stood on the GM's pending row for an hour. The words are spelt here, not imported: this table imports no rule
-           file but the floor's (observe.mjs reaches the bridge again); R8102 holds them to DECLARATIONS. */
+        /* One of observe.mjs's DECLARATIONS or nothing (1.2.122, CASE-61): taken raw until then, any value stood on the GM's pending row for an hour.
+           Spelt here, not imported (this table imports no rule file but the floor's; observe.mjs reaches the bridge again); R8102 holds them to DECLARATIONS. */
         sanitize: pick({ actorId: as.id, declaration: as.oneOf("general", "specific", "nonObvious", "followTraces"), request: as.text }),
         run: handleObserveTarget,
         answer: "reply", patient: true, resend: true,
@@ -291,26 +289,24 @@ export const BRIDGE_ACTIONS = table({
         guards: [knownSender, notSpectator("actorId"), owns("actorId", "sender does not own that character")],
         sanitize: pick({ actorId: as.id }),
         run: handleMaskReveal,
-        // The asker's "?" goes when the token's look comes back; nothing is said.
-        answer: "ack"
+        answer: "ack" // The asker's "?" goes when the token's look comes back; nothing is said.
     },
-    /*
-     * THE OPENING'S VEIL, ASKED OF THE PRIMARY BY ANOTHER GM (1.2.122; the audit's STG-31). The veil is the primary's to
-     * write (mask-gm.mjs `settleVeilsNow`, `veilAtTheLights`), and on another GM's browser both answered nothing, so an
-     * Eclipse ended or a murder opened there put the veil up only once the primary heard the incident's write - the
-     * killer's token drawn for the victim meanwhile. That GM asks here and waits for the answer.
-     */
+    /* THE OPENING'S VEIL AND THE MASK'S END, ASKED OF THE PRIMARY BY ANOTHER GM (1.2.122, STG-31; 1.2.128, "unmask"): the primary's to write (mask-gm.mjs
+       `veilOnPrimary`); on another GM both answered nothing, the killer's token drawn for the victim until the primary heard. That GM asks here and waits. */
     [ACTION_MASK_VEIL]: {
         label: "DRPG.Bridge.what.mask.veil",
         guards: [gmOnly("only a GM asks for the opening's veil")],
-        sanitize: pick({ what: as.oneOf("lights", "lift", "judged", "settle"), killerIds: as.raw }),
+        sanitize: pick({ what: as.oneOf("lights", "lift", "judged", "settle", "unmask"), killerIds: as.raw }),
         run: handleMaskVeil,
         answer: "reply",
         claims: {
-            what: "one of four, each the primary's own road (mask-gm.mjs `veilOnPrimary`); anything else does nothing",
-            killerIds: "read on the primary against its own declarations of this Eclipse (`pendingMurderStore`, eclipse.mjs): an id with none is veiled or lifted by nothing"
+            what: "one of five, each the primary's own road (mask-gm.mjs `veilOnPrimary`); anything else does nothing",
+            killerIds: "read on the primary against its own declarations of this Eclipse (`pendingMurderStore`, eclipse.mjs): an id with none is veiled or lifted by nothing; for \"unmask\", against its own masks' rows (`endMasksAtClose`): an id with no mask, or one a running incident names, ends nothing"
         }
     },
+    /* A dead student's Spectator, asked of the primary by another GM (1.2.128 E129 S0-VICTIM): one watcher, the body left as it lies. */
+    [ACTION_DEAD_SPECTATOR]: { label: "DRPG.Bridge.what.spectator.dead", guards: [gmOnly("only a GM makes a dead student's Spectator")],
+        sanitize: pick({ actorId: as.id }), run: handleDeadSpectator, answer: "reply", claims: { actorId: "read on the primary (spectator-dead.mjs `spectatorForTheDead`): a student dead to the GMs, no Monocub and some player's, else nothing is made" } },
     [ACTION_ADVANCEMENT]: {
         label: "DRPG.Bridge.what.advancement.apply",
         guards: [knownSender, notSpectator("actorId"), owns("actorId", "sender does not own that character")],

@@ -11,7 +11,9 @@
  * roster leaves it out (monokuma.mjs `studentActors`), its token is hidden from every other player and shown to its
  * owner (visibility.mjs `tokenShownTo`), a GM sees it at 0.3 (`dressSpectator`), and it walks free (movement.mjs's
  * exemptions; Q-C3b-3). The flag is on the new actor only, never on the student: the student's player still owns an
- * unflagged student, so `spectatorViewer` stays false and the dead keep a dead student's view (B), not a Spectator's.
+ * unflagged student; until 1.2.128 `spectatorViewer` stayed false for it and the dead kept a dead student's view (B), not a
+ * Spectator's. Since 1.2.128 (the owner, 23.11.2026) a student dead to that browser is passed over by `spectatorViewer`
+ * where its player owns the watcher (spectator.mjs `DEAD_VIEW`): the dead player has the Spectator's view at once.
  * visibility.mjs `myRooms` leaves such a token out for the same reason (a watcher walking into a room shows the dead
  * nothing of it).
  *
@@ -38,6 +40,10 @@ import { noteOwnWrite } from "./resource-guard.mjs";
 import { log, warn, error, forcedDeletion, isPrimaryGm } from "./utils.mjs";
 import { deathStore } from "./gm-stores.mjs";
 import { isDeadForGm } from "./settings.mjs";
+import { readDeathsWith } from "./spectator.mjs";
+
+// The dead student's player watches as a Spectator at once (spectator.mjs `DEAD_VIEW`, 1.2.128): that file reads deaths here.
+readDeathsWith(isDeadForGm);
 
 /** The hook the curtain listens to (glass.mjs, sequence.mjs: another line's; called on the victim's browser). */
 export const DEAD_SPECTATOR_HOOK = "drpgDeadSpectator";
@@ -210,6 +216,26 @@ export async function ensureDeadSpectator(student, { silent = false, kept = fals
     }
     log(`${student.name} watches as a Spectator now.`);
     return watcher;
+}
+
+/**
+ * A DEAD STUDENT'S SPECTATOR, ON THE GM'S WORD (1.2.128, E129 S0-VICTIM; the owner, 23.11.2026: "Po dostaniu spectatora
+ * przez gm panel zabralo token ciala"). The Students window's Spectator role on a dead student wrote E92's flag on the
+ * student itself (monokuma.mjs `setSpectator`): the body's own token became the Spectator's walking token, hidden from
+ * every other player. Now the role makes, or keeps, the student's watcher (`ensureDeadSpectator`: its own token where the
+ * body lies, kept by the GMs while the death is, public once it is), and the student and the body are left as they
+ * are. On the primary; another GM asks it (bridge `spectator.dead`). Answers the watcher, or null: no dead student, a
+ * Monocub, or nobody's (`isNpcAtDeath`).
+ */
+export async function spectatorForTheDead(student) {
+    if (!game.user?.isGM || !student || student.type !== "character" || !isDeadForGm(student)) return null;
+    if (!isPrimaryGm()) {
+        const { requestDeadSpectator } = await import("./bridge-asks.mjs");
+        const res = await requestDeadSpectator({ actorId: student.id });
+        return res.ok ? game.actors.get(res.value?.watcherId ?? "") ?? null : null;
+    }
+    const { isDeceased } = await import("./settings.mjs");
+    return ensureDeadSpectator(student, { silent: true, kept: !isDeceased(student) });
 }
 
 /** The death is the table's: the link leaves the GMs' row for the watcher's own flag (`FLAGS.watcherOf`). */

@@ -531,6 +531,8 @@
       "stay": "Zostań w ukryciu",
       "card": "Jesteś w ukryciu: inni gracze widzą twoje tokeny jako „?”, twój mikrofon jest wyłączony i nie słyszysz rozmów. Ukrycie trwa do następnej pory dnia, także po końcu incydentu. Wcześniej możesz się ujawnić przyciskiem „Ujawnij się” na swoim kafelku głosu.",
       "ended": "Zaczęła się nowa pora dnia i nie jesteś już w ukryciu: twoje tokeny wyglądają jak wcześniej, a ty znowu mówisz i słyszysz rozmowy.",
+      "endedIncident": "Morderstwo się skończyło, więc nie jesteś już w ukryciu: twoje tokeny wyglądają jak wcześniej, a ty znowu mówisz i słyszysz rozmowy.",
+      "endedLeftRoom": "Po wyjściu z pokoju morderstwa nie jesteś już w ukryciu: twoje tokeny wyglądają jak wcześniej, a ty znowu mówisz i słyszysz rozmowy.",
       "tokenFailed": "Nie udało się nałożyć maski na token postaci {name}: inni gracze mogą widzieć jej prawdziwy obrazek. Konsola mówi dlaczego."
     },
     "Veil": {
@@ -4686,6 +4688,8 @@
       "role": "Widz",
       "deadWatcher": "Widz zmarłego ucznia",
       "deadWatcherRole": "{name} to Widz zmarłego ucznia. Znika, gdy uczeń zostanie wskrzeszony albo zostanie Monocubem.",
+      "deadGivenWatcher": "{name} nie żyje, więc gracz ogląda grę przez własnego Widza. Ciało zostaje tam, gdzie leży.",
+      "deadNoWatcher": "{name} nie żyje, ale Widz nie powstał: nikt nie gra tym uczniem.",
       "marked": "{name} jest teraz Widzem.",
       "unmarked": "{name} nie jest już Widzem.",
       "talk": "Porozmawiaj z Widzami",
@@ -5325,6 +5329,7 @@
         "listen.echoes": "Echoes",
         "mask.reveal": "Ujawnij się",
         "mask.veil": "Zasłona otwarcia, o którą GM prosi głównego GM-a",
+        "spectator.dead": "Widz zmarłego ucznia, o którego GM prosi głównego GM-a",
         "door.shut": "Shut the Door",
         "door.force": "Force the Door",
         "door.pick": "Pick the Lock",

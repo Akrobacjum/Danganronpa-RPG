@@ -9398,7 +9398,9 @@ const SCENARIOS = [
             const before = new Set(game.messages.map(m => m.id));
             await M.endMurder({ reason: "closed", followUp: false });
             await settle();
-            const closing = game.messages.filter(m => !before.has(m.id)).find(m => m.getFlag(MODULE_ID, "veiled")) ?? null;
+            // The last veiled card the close posted: since 1.2.129 the close first tells a masked killer the mask ended
+            // (mask-gm.mjs `endMasksAtClose`, a veiled whisper of its own), then posts this card (`tellIncidentClosed`).
+            const closing = game.messages.filter(m => !before.has(m.id)).filter(m => m.getFlag(MODULE_ID, "veiled")).at(-1) ?? null;
             must(closing, "no veiled closing card was posted");
             for (const [who, actor] of [["victim", victim], ["killer", killer]]) {
                 const sent = [];
@@ -10011,6 +10013,138 @@ const SCENARIOS = [
             "{Silence now on the first copy, the readied tool named on the open tracker, Silence now after another GM's press}");
     }],
 
+    ["1.2.129 S0-MASKLEFT - the killer comes out from behind the \"?\" when the murder's incident ends, whoever died, and when they leave its room (scripts/murder-rules.mjs `closeIncident`; mask-gm.mjs `endMasksAtClose`, `maskLeftRoom`, `endMask`; the owner, 23.11.2026: \"Zawsze zdejmujemy maske na koniec incydentu morderstwa (po sprzataniu) lub po opuszczeniu pokoju\"): a masked fight the GM ends with the victim alive, and one closed after the kill, leave no mask, no masked token and no mute, and tell the killer's player; a masked killer whose token is carried out of the crime room is unmasked while the fight still runs", async () => {
+        /*
+         * 1.2.129 (E129), the owner's note of the table of 22.11.2026: after a murder was broken off, its killer still wore
+         * the "?" and the mute, and the GM revealed them by hand. The mask ended only at a reveal, a new time of day, a lost
+         * race at the opening or the season's reset (mask-gm.mjs's header until 1.2.129: "The incident's own end does not
+         * end it"). A direct murder between two students with players opens on Hope, so its killer is masked (`fightOpen`):
+         * (a) the GM ends it with the victim alive; (b) the same fight, the Finishing blow dealt, closed; (c) the same fight,
+         * the killer's token teleported to another named room while it runs. The words this GM sends the killer's player
+         * are read (`wordsSent`). Read for each: the mask's row, the killer's masked tokens, the killer's player muted by the
+         * mask (`maskMutedIds`), the line told; for (c) whether the fight still runs. Put back: the incident, the masks, the
+         * token, the clock. Red at 2e28785a: the mask stood in all three.
+         */
+        needs(env.primaryGm(), "the mask is the primary's");
+        needs(world.atLeast("studentsWithConnectedPlayer", 2), "a killer and a victim with players");
+        needs(world.atLeast("namedRooms", 2), "the killer is carried to another room");
+        const M = await import("./murder.mjs");
+        const MG = await import("./mask-gm.mjs");
+        const { livingStudents, isDeadForGm, reviveCharacter } = await import("./chapter.mjs");
+        const { locateActor, allRooms, positionIn } = await import("./movement.mjs");
+        const player = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const [killer, victim] = livingStudents().filter(player);
+        const lines = { incident: game.i18n.localize("DRPG.Mask.endedIncident"), room: game.i18n.localize("DRPG.Mask.endedLeftRoom") };
+        const text = w => w.html.replace(/<[^>]+>/g, " ");
+        const masked = () => [...game.scenes].flatMap(s => [...s.tokens]).filter(t => t.actorId === killer.id && MG.isMaskedToken(t)).length;
+        const reading = words => {
+            const said = words.filter(w => w.to.includes(player(killer).id)).map(text);
+            return { row: MG.maskStands(killer.id), masked: masked(), muted: MG.maskMutedIds().has(player(killer).id),
+                told: Object.keys(lines).find(k => said.some(t => t.includes(lines[k]))) ?? null };
+        };
+        const token = canvas?.scene?.tokens?.find(t => t.actorId === killer.id) ?? null;
+        must(token, "the killer has no token on the scene on screen - this would measure nothing");
+        const was = { x: token.x, y: token.y };
+        const clock = getClock();
+        const read = {};
+        let stood = null;
+        const reset = async () => {
+            if (M.murderState()) await M.endMurder({ reason: "test", followUp: false });
+            if (isDeadForGm(victim)) await reviveCharacter(victim, { quiet: true });
+            await MG.endMask(killer.id, "test");
+            await c3Incident(clock);
+            await token.update(was, { teleport: true, movementAction: "displace", animate: false });
+            await settle();
+        };
+        try {
+            await fightOpen(M, killer, victim);
+            must(MG.maskStands(killer.id) && masked() > 0, "the fight opened on Hope put up no mask - this would measure nothing");
+            read.alive = reading(await wordsSent(async () => { await M.endMurder({ followUp: false }); await settle(); }));
+            await reset();
+            await fightOpen(M, killer, victim);
+            await turnFor(M, killer, "finishingBlow");
+            await M.resolveCrisisAction({ actorId: killer.id, key: "finishingBlow", total: 99, isCritical: false, withHope: true });
+            await settle();
+            must(isDeadForGm(victim) && MG.maskStands(killer.id), "the second fight did not end in a kill behind a mask - this would measure nothing");
+            read.dead = reading(await wordsSent(async () => { await M.endMurder({ followUp: false }); await settle(); }));
+            await reset();
+            stood = await aloneTogether(killer, victim, { asked: true });
+            await fightOpen(M, killer, victim);
+            const crime = locateActor(killer)?.room ?? null;
+            const away = allRooms(canvas.scene).find(r => r !== crime) ?? null;
+            must(MG.maskStands(killer.id) && crime && away, "the third fight put up no mask, or no other room to carry the killer to - this would measure nothing");
+            read.left = reading(await wordsSent(async () => {
+                await token.update(positionIn(away, token), { teleport: true, movementAction: "displace", animate: false });
+                await until(() => !MG.maskStands(killer.id), 3000);
+                await settle();
+            }));
+            read.left.running = M.murderState()?.stage === "incident";
+        } finally {
+            await reset();
+            await stood?.back();
+        }
+        equal(stableJson(read), stableJson({
+            alive: { row: false, masked: 0, muted: false, told: "incident" },
+            dead: { row: false, masked: 0, muted: false, told: "incident" },
+            left: { row: false, masked: 0, muted: false, told: "room", running: true }
+        }), "{each road: the mask's row, the killer's tokens masked, muted by the mask, the line told; the fight still running after the killer left}");
+    }],
+    ["1.2.129 S0-VICTIM b - the Students window's Spectator role on a dead student gives their player the watcher and leaves the body where it fell (scripts/gm-students.mjs `changeRole`; spectator-dead.mjs `spectatorForTheDead`, `ensureDeadSpectator`; the owner, 23.11.2026: \"Po dostaniu spectatora przez gm panel zabralo token ciala\"): the student is not flagged a Spectator, the body's token stays the student's, unmoved and unflagged, and the watcher stands where the body lies - made when there was none, not doubled when there was", async () => {
+        /*
+         * 1.2.128 (E129), the owner's note of the table of 22.11.2026: the GM gave the dead victim a Spectator through the
+         * Students window, and the body's token went. The role wrote E92's Spectator flag on the student itself
+         * (monokuma.mjs `setSpectator`), so the body's own token became the Spectator's walking token, hidden from every
+         * other player (visibility.mjs `tokenShownTo`). A student with a player is killed as the GMs keep a death
+         * (death.mjs `killCharacter`, secret: a watcher is made); the role is pressed (`changeRole`, "spectator"); then the
+         * watcher is taken away (`removeDeadSpectator`) and the role pressed again. Read after each press: the student's
+         * Spectator flag, the body's token (whose, where, flagged), how many watchers the student has and where theirs
+         * stands. Put back: the death, the watchers, the token. Red at a8f08cab: the student flagged, its token the
+         * Spectator's.
+         */
+        needs(env.primaryGm(), "the watcher is the primary's to make");
+        needs(world.atLeast("studentsWithConnectedPlayer", 1), "a dead student with a player");
+        const { killCharacter, reviveCharacter, isDeadForGm } = await import("./chapter.mjs");
+        const GS = await import("./gm-students.mjs");
+        const SD = await import("./spectator-dead.mjs");
+        const { FLAGS } = await import("./config.mjs");
+        const player = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const [student] = cast(4).filter(a => player(a) && canvas?.scene?.tokens?.some(t => t.actorId === a.id));
+        must(student, "no student with a player has a token on the scene on screen - this would measure nothing");
+        const body = canvas.scene.tokens.find(t => t.actorId === student.id);
+        const at = { x: body.x, y: body.y };
+        const watchers = () => game.actors.filter(a => a.getFlag(MODULE_ID, FLAGS.spectator) && a.testUserPermission(player(student), "OWNER") && a.name === student.name);
+        const reading = () => {
+            const w = SD.watcherActorOf(student);
+            const wt = w ? canvas.scene.tokens.find(t => t.actorId === w.id) : null;
+            return { flagged: Boolean(student.getFlag(MODULE_ID, FLAGS.spectator)), body: [Boolean(canvas.scene.tokens.get(body.id)), body.actorId === student.id,
+                body.x === at.x && body.y === at.y, Boolean(body.actor?.getFlag?.(MODULE_ID, FLAGS.spectator))],
+                watchers: watchers().length, watcherAtBody: Boolean(wt && wt.x === at.x && wt.y === at.y) };
+        };
+        const read = {};
+        try {
+            must(await killCharacter(student, { secret: true, keepBullets: true }), "the death was not kept - this would measure nothing");
+            await settle();
+            must(SD.watcherActorOf(student), "the kept death made no watcher - this would measure nothing");
+            await GS.changeRole(student, "spectator");
+            await settle();
+            read.withWatcher = reading();
+            await SD.removeDeadSpectator(student, { silent: true });
+            await settle();
+            must(!SD.watcherActorOf(student), "the watcher was not taken away - this would measure nothing");
+            await GS.changeRole(student, "spectator");
+            await settle();
+            read.without = reading();
+        } finally {
+            if (student.getFlag(MODULE_ID, FLAGS.spectator)) await student.unsetFlag(MODULE_ID, FLAGS.spectator);
+            if (isDeadForGm(student)) await reviveCharacter(student, { quiet: true });
+            for (const w of watchers()) await w.delete().catch(() => {});
+            if (canvas.scene.tokens.get(body.id)) await body.update(at, { teleport: true, movementAction: "displace", animate: false });
+            await settle();
+        }
+        const want = { flagged: false, body: [true, true, true, false], watchers: 1, watcherAtBody: true };
+        equal(stableJson(read), stableJson({ withWatcher: want, without: want }),
+            "{after each press: the student flagged a Spectator, the body's token [there, the student's, unmoved, flagged], the student's watchers, the watcher standing at the body}");
+    }],
     ["the time of day in an incident is veiled and names nobody", async () => {
         /*
          * E06 C4, 27.09.2026; audit S10-04 (L12). While an incident runs the time of day is told
@@ -19814,6 +19948,9 @@ const SCENARIOS = [
             await heldInvitations(() => M.openMurder({ killerId: killer.id, victimId: second.id, openingTrait: "body" }));
             await M.resolveKillerOpening({ total: 20, isCritical: false, withHope: true });
             await M.endMurder({ reason: "test", followUp: false });
+            // 1.2.129: a mask ends with its incident (mask-gm.mjs `endMasksAtClose`); put up again here, it stands for one a
+            // board can still meet - a close that could not reach the primary, a row from before 1.2.129.
+            await (await import("./mask-gm.mjs")).maskKiller({ killerId: killer.id, victimId: second.id });
             await settle();
         };
         try {
@@ -19825,6 +19962,9 @@ const SCENARIOS = [
             await settle();
             must(K.maskStands(killer.id), "the opening on Hope put up no mask - this would measure nothing");
             await M.endMurder({ reason: "test", followUp: false });
+            // 1.2.129: a mask ends with its incident (mask-gm.mjs `endMasksAtClose`); put up again here, it stands for one a
+            // board can still meet - a close that could not reach the primary, a row from before 1.2.129.
+            await (await import("./mask-gm.mjs")).maskKiller({ killerId: killer.id, victimId: victim.id });
             await D.killCharacter(victim, { secret: true, keepBullets: true });
             await settle();
             must(isDeadForGm(victim) && K.maskStands(killer.id), "the victim's death was not kept, or the mask ended with the incident - this would measure something else");
@@ -19908,6 +20048,9 @@ const SCENARIOS = [
             await heldInvitations(() => M.openMurder({ killerId: killer.id, victimId: victim.id, openingTrait: "body" }));
             await M.resolveKillerOpening({ total: 20, isCritical: false, withHope: true });
             await M.endMurder({ reason: "test", followUp: false });
+            // 1.2.129: a mask ends with its incident (mask-gm.mjs `endMasksAtClose`); put up again here, it stands for one a
+            // board can still meet - a close that could not reach the primary, a row from before 1.2.129.
+            await (await import("./mask-gm.mjs")).maskKiller({ killerId: killer.id, victimId: victim.id });
             await settle();
             must(K.maskStands(killer.id), `the opening on Hope put up no mask at ${timeOfDay} - this would measure nothing`);
         };
@@ -20077,6 +20220,9 @@ const SCENARIOS = [
             await heldInvitations(() => M.openMurder({ killerId: killer.id, victimId: victim.id, openingTrait: "body" }));
             await M.resolveKillerOpening({ total: 20, isCritical: false, withHope: true });
             await M.endMurder({ reason: "test", followUp: false });
+            // 1.2.129: a mask ends with its incident (mask-gm.mjs `endMasksAtClose`); put up again here, it stands for one a
+            // board can still meet - a close that could not reach the primary, a row from before 1.2.129.
+            await (await import("./mask-gm.mjs")).maskKiller({ killerId: killer.id, victimId: victim.id });
             await settle();
             must(K.maskStands(killer.id), "the opening on Hope put up no mask - this would measure nothing");
             const c = getClock();
@@ -20521,6 +20667,9 @@ const SCENARIOS = [
             await heldInvitations(() => M.openMurder({ killerId: killer.id, victimId: victim.id, openingTrait: "body" }));
             await M.resolveKillerOpening({ total: 20, isCritical: false, withHope: true });
             await M.endMurder({ reason: "test", followUp: false });
+            // 1.2.129: a mask ends with its incident (mask-gm.mjs `endMasksAtClose`); put up again here, it stands for one a
+            // board can still meet - a close that could not reach the primary, a row from before 1.2.129.
+            await (await import("./mask-gm.mjs")).maskKiller({ killerId: killer.id, victimId: victim.id });
             await settle();
             must(K.maskStands(killer.id), "the opening on Hope put up no mask - this would measure nothing");
         };
@@ -20639,7 +20788,9 @@ const SCENARIOS = [
             read.failVeiled = [tokens().every(t => flagOf(t).veiled === true), ownHidden(hiddenLooks), hiddenBefore._source.hidden === true];
             await M.resolveKillerOpening({ total: 1, isCritical: false, withHope: false });
             await settle();
-            read.failed = [M.murderState()?.active ?? null, ...cleared(hiddenLooks), Boolean(S.trialMuteStore.get(kp.id)?.wrote)];
+            /* The block that stands after it is the hide's, not the veil's (1.2.128 E129, line COMM's S0-HIDEMUTE: a hidden token holds
+               its player's microphone, and the killer's token here stays hidden): read by its reason (voice.mjs `moduleHoldsMic`). */
+            read.failed = [M.murderState()?.active ?? null, ...cleared(hiddenLooks), (await import("./voice.mjs")).moduleHoldsMic(kp)?.reason ?? null];
             await hiddenBefore.update({ hidden: before[0][1] });
             // (C) A trap and (D) a self-inflicted death: no veil.
             await open({ indirect: true, openingTrait: "eye" });
@@ -20692,13 +20843,13 @@ const SCENARIOS = [
         equal(stableJson(read), stableJson({
             veiled: [true, true, true, true],
             hope: [true, true, false, true], afterHope: [true, false, false],
-            failVeiled: [true, true, true], failed: [null, true, false, false, false],
+            failVeiled: [true, true, true], failed: [null, true, false, false, "tokenHidden"],
             trap: false, self: false,
             swept: [[killer.id], true, false, false],
             lights: ["lights", [], "opening", true], lightsHides: tokens().flatMap(() => ["veiled"]).concat(tokens().flatMap(() => ["lifted"])), unjudged: [true, false, false]
         }), "the opening's veil did not hide the killer, did not lift on a road out, lifted before the mask, did not put back the token's own hidden, veiled a trap or a self-inflicted death, left a row no opening held, or wrote the lights' tokens twice "
             + "(veiled: flagged with each own hidden untouched, the row's tokens with no hidden and hides module, the player blocked, the mute row; hope: shown after the mask, the mask stands, a row left, hidden as before; after: looks as before, a row, blocked; "
-            + "failVeiled: all flagged, each own hidden untouched, the GM's hidden token still hidden; failed: the incident, looks, row, blocked, the mute row; trap; self; swept: lifted, looks, row, blocked; lights: why, lifted while judging, why after the open, its openedAt; the veil's writes to the tokens, in order (no hidden); unjudged: looks, row, blocked)");
+            + "failVeiled: all flagged, each own hidden untouched, the GM's hidden token still hidden; failed: the incident, looks, row, blocked, the block that stands (the hide's); trap; self; swept: lifted, looks, row, blocked; lights: why, lifted while judging, why after the open, its openedAt; the veil's writes to the tokens, in order (no hidden); unjudged: looks, row, blocked)");
     }],
 
     ["E112v - a veil written by 1.2.116 or 1.2.117 loses its hidden at the primary's settle: a row the opening still holds is converted (each token's own hidden back, the flag kept, the row hiding by the module), and one no opening holds is lifted with each token's own hidden back", async () => {
