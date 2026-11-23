@@ -49,7 +49,7 @@ import {
     ACTION_OPENING_RESULT, ACTION_CLEANUP, ACTION_BETRAYAL, ACTION_PARK_MURDER, ACTION_CUB_ABILITY, ACTION_CUB_ANSWER, ACTION_BRIBE_OFFER, ACTION_BRIBE_ANSWER, ACTION_LOOT,
     ACTION_NOTE_SAVE, ACTION_ROLL_BOOKMARK, ACTION_REROLL, ACTION_CARD, ACTION_CARD_CLAIM, ACTION_BULLET_GIVE, ACTION_FACILITY_USE, ACTION_DASH,
     ACTION_TAIL_START, ACTION_DOOR_SHUT, ACTION_DOOR_FORCE, ACTION_DOOR_PICK, ACTION_WATCH_DECLARE, ACTION_DOOR_KNOCK,
-    ACTION_LISTEN_EAVESDROP, ACTION_LISTEN_STOP, ACTION_LISTEN_ECHOES, ACTION_MASK_REVEAL, ACTION_MASK_VEIL
+    ACTION_LISTEN_EAVESDROP, ACTION_LISTEN_STOP, ACTION_LISTEN_ECHOES, ACTION_MASK_REVEAL, ACTION_MASK_VEIL, ACTION_DEAD_SPECTATOR
 } from "./bridge-wire.mjs";
 import {
     handleObserveTarget, handleCleanupTraces, handleObserveResolve, handleAnalyzeResolve, handleAdvancement,
@@ -60,7 +60,7 @@ import {
     handleBetrayal, handleCleanup, handleCubAbility, handleCubAnswer, handleBribeOffer, handleBribeAnswer, handleHopeCall, handleCallYes, handleDynamicAnswer,
     handleRulingExpired, handleRulingReceived, handleDifficulty, handleTraitRuling, handleFacilityUse, handleDash,
     handleTailStart, tailRolls, handleDoorShut, handleDoorForce, handleDoorPick, pickRolls, handleWatchDeclare, handleDoorKnock,
-    handleEavesdrop, handleEavesdropStop, handleEchoes, handleMaskReveal, handleMaskVeil
+    handleEavesdrop, handleEavesdropStop, handleEchoes, handleMaskReveal, handleMaskVeil, handleDeadSpectator
 } from "./bridge-runs-acts.mjs";
 import {
     handleProgress, handleShare, TRACE_OF_ROLL, handleRemnant, traceBandOf, progressOf, repairOf, handleTieTrace,
@@ -309,6 +309,22 @@ export const BRIDGE_ACTIONS = table({
         claims: {
             what: "one of five, each the primary's own road (mask-gm.mjs `veilOnPrimary`); anything else does nothing",
             killerIds: "read on the primary against its own declarations of this Eclipse (`pendingMurderStore`, eclipse.mjs): an id with none is veiled or lifted by nothing; for \"unmask\", against its own masks' rows (`endMasksAtClose`): an id with no mask, or one a running incident names, ends nothing"
+        }
+    },
+    /*
+     * A DEAD STUDENT'S SPECTATOR, ASKED OF THE PRIMARY BY ANOTHER GM (1.2.128, E129 S0-VICTIM; the owner, 23.11.2026: "Po
+     * dostaniu spectatora przez gm panel zabralo token ciala"). The Students window's Spectator role on a dead student makes
+     * that student's watcher (spectator-dead.mjs `ensureDeadSpectator`), the body left as it lies; on the primary, as the
+     * watcher's link is the GMs' and two GMs' makes would be two watchers. A second GM asks here and waits.
+     */
+    [ACTION_DEAD_SPECTATOR]: {
+        label: "DRPG.Bridge.what.spectator.dead",
+        guards: [gmOnly("only a GM makes a dead student's Spectator")],
+        sanitize: pick({ actorId: as.id }),
+        run: handleDeadSpectator,
+        answer: "reply",
+        claims: {
+            actorId: "read on the primary (spectator-dead.mjs `spectatorForTheDead`): a student dead to the GMs, no Monocub and some player's, else nothing is made"
         }
     },
     [ACTION_ADVANCEMENT]: {

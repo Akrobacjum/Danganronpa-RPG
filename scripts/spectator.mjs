@@ -67,18 +67,39 @@ export function flaggedSpectator(actor) {
 }
 
 /**
- * Whether `user` watches: no GM, and every character it owns that is no Monokuma is a Spectator, at least one - the
- * rule voice.mjs `spectatorAccount` holds an account to, read here on the documents (a display's question). `actors`
- * is the suite's to hand; the world's otherwise.
+ * WHAT A DEAD STUDENT'S PLAYER SEES (1.2.128, E129; the owner, 23.11.2026: "ofiara po smierci od razu powinna stawac sie
+ * spectatorem", and on the table of 22.11: "Nie dostala spectatora automatycznie"). "spectator": a student dead to this
+ * browser, whose watcher this player owns (spectator-dead.mjs, E62 C3b), counts as watching, so the player has the
+ * Spectator's view at once, walking the watcher's token. "student": the dead keep a dead student's view (B), as from
+ * E62 C3b until 1.2.128. Read on each browser for itself (`spectatorViewer`); the GMs' Spectator roads
+ * (`spectatorUserIds`: the projects in sight, the voice's Spectator account) are not changed by it, so nothing reaches
+ * another player before the body is found.
  */
-export function spectatorViewer(user = game.user, actors = game.actors) {
+export const DEAD_VIEW = "spectator";
+
+/** Whether `actor` is dead to this browser: spectator-dead.mjs hands settings.mjs `isDeadForGm` (`readDeathsWith`). */
+let deadHere = () => false;
+
+/** The reader of this browser's deaths (spectator-dead.mjs hands `isDeadForGm`; this file imports config.mjs alone). */
+export function readDeathsWith(reader) {
+    if (typeof reader === "function") deadHere = reader;
+}
+
+/**
+ * Whether `user` watches: no GM, and every character it owns that is no Monokuma is a Spectator, at least one - the
+ * rule voice.mjs `spectatorAccount` holds an account to, read here on the documents (a display's question). With
+ * `DEAD_VIEW` "spectator" a student dead to this browser is passed over where the user owns a Spectator besides (its
+ * watcher). `actors` and `dead` are the suite's to hand; the world's otherwise.
+ */
+export function spectatorViewer(user = game.user, actors = game.actors, { dead = deadHere, view = DEAD_VIEW } = {}) {
     if (!user || user.isGM) return false;
     let watching = 0;
     for (const actor of actors ?? []) {
         if (actor?.type !== "character" || !actor.testUserPermission?.(user, "OWNER")) continue;
         if (actor.getFlag?.(MODULE_ID, FLAGS.monokuma)) continue;
-        if (!flaggedSpectator(actor)) return false;
-        watching += 1;
+        if (flaggedSpectator(actor)) { watching += 1; continue; }
+        if (view === "spectator" && dead(actor)) continue;
+        return false;
     }
     return watching > 0;
 }

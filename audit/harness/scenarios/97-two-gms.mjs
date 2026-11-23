@@ -40,6 +40,8 @@
  *   N  1.2.124, the owner's OWNER-124-CONSOLE: both GMs' messenger windows open on the Timeline; p1's Search card with
  *      its answers waits on both, its buttons live (N1); gm answers it from its Timeline, and the card leaves gm2's
  *      "Waiting" too, while its line stays in both streams (N2).
+ *   W  1.2.128 (E129 S0-VICTIM): gm2's Spectator role on a dead student makes the student's watcher on the primary, its
+ *      token where the body lies, the student unflagged (W1; `spectator.dead`).
  *
  * What this cannot see: a real F5 (a new process with the old localStorage, no cookie, IndexedDB or cache; the
  * order of "inactive", "active" and `ready` on v14 is LIVE-E30-05 and LIVE-E04-12), and a real server's delivery
@@ -1015,6 +1017,35 @@ export async function run(api) {
     check("U1: gm2's console offers Finish live on a verdict the primary runs, and its press finishes it once, on gm (E128)",
         uSeen?.shown === true && uSeen.disabled === false && uSeen.runner === IDS.gm && uAfter?.stage === "done" && uAfter.by === IDS.gm
             && uAfter.summaries === 1, J({ uSeen, uAfter }), { flow: "class-trial" });
+
+    /* ------------------------------------------------------------------ W */
+    /* 1.2.128 (E129 S0-VICTIM; the owner, 23.11.2026: "Po dostaniu spectatora przez gm panel zabralo token ciala"): the
+       Students window's Spectator role on a dead student makes that student's watcher, on the primary, and leaves the
+       student and the body as they are. Chie is killed on gm as the GMs keep a death (a watcher made), the watcher taken
+       away, and gm2 presses the role (gm-students.mjs `changeRole`), which asks the primary (`spectator.dead`). Read on
+       gm: Chie's watcher, its token at the body, Chie unflagged. Put back: the revive, which takes the watcher. */
+    phase("W a second GM gives a dead student their Spectator through the primary", { flow: "dead-spectator" });
+    const W_READ = `const SD = ${imp("spectator-dead.mjs")}, chie = game.actors.get("${IDS.chie}");
+        const w = SD.watcherActorOf(chie); const body = canvas.scene.tokens.find(t => t.actorId === chie.id);
+        const wt = w ? canvas.scene.tokens.find(t => t.actorId === w.id) : null;
+        return { watcher: Boolean(w), flagged: Boolean(chie.getFlag("${MOD}", "spectator")), atBody: Boolean(wt && body && wt.x === body.x && wt.y === body.y) };`;
+    let wSet = null, wPressed = null, wRead = null;
+    try {
+        wSet = await gm.eval(`const C = ${imp("chapter.mjs")}, SD = ${imp("spectator-dead.mjs")}, chie = game.actors.get("${IDS.chie}");
+            const kept = Boolean(await C.killCharacter(chie, { secret: true, keepBullets: true, silent: true }));
+            await SD.removeDeadSpectator(chie, { silent: true }); return { kept, watcher: Boolean(SD.watcherActorOf(chie)) };`, { timeout: 60000 });
+        await settle(900);
+        wPressed = await gm2.eval(`const GS = ${imp("gm-students.mjs")}; return await GS.changeRole(game.actors.get("${IDS.chie}"), "spectator");`, { timeout: 60000 });
+        wRead = await until(() => gm.eval(W_READ), r => r?.watcher === true, 8000);
+    } finally {
+        await gm.eval(`const C = ${imp("chapter.mjs")}, chie = game.actors.get("${IDS.chie}");
+            if (chie.getFlag("${MOD}", "spectator")) await chie.unsetFlag("${MOD}", "spectator");
+            if (C.isDeadForGm(chie)) await C.reviveCharacter(chie, { quiet: true }); return true;`, { timeout: 60000 });
+        await settle(900);
+    }
+    check("W1: gm2's Spectator role on a dead Chie makes her watcher on gm, its token where her body lies, and leaves Chie unflagged (1.2.128 E129 S0-VICTIM)",
+        wSet?.kept === true && wSet.watcher === false && wPressed === true && J(wRead) === J({ watcher: true, flagged: false, atBody: true }),
+        J({ wSet, wPressed, wRead }), { flow: "dead-spectator" });
 
     return { primary: { before, joined, afterGmReload, moved, backAgain }, reloads: { p1: r1, gm: r2, card: r3 },
         d153: { before: gBefore, onGm: gAfter, onGm2: gAfter2, found: gFound, gave: gGave } };

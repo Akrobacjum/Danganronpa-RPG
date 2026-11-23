@@ -10089,6 +10089,62 @@ const SCENARIOS = [
             left: { row: false, masked: 0, muted: false, told: "room", running: true }
         }), "{each road: the mask's row, the killer's tokens masked, muted by the mask, the line told; the fight still running after the killer left}");
     }],
+    ["1.2.129 S0-VICTIM b - the Students window's Spectator role on a dead student gives their player the watcher and leaves the body where it fell (scripts/gm-students.mjs `changeRole`; spectator-dead.mjs `spectatorForTheDead`, `ensureDeadSpectator`; the owner, 23.11.2026: \"Po dostaniu spectatora przez gm panel zabralo token ciala\"): the student is not flagged a Spectator, the body's token stays the student's, unmoved and unflagged, and the watcher stands where the body lies - made when there was none, not doubled when there was", async () => {
+        /*
+         * 1.2.128 (E129), the owner's note of the table of 22.11.2026: the GM gave the dead victim a Spectator through the
+         * Students window, and the body's token went. The role wrote E92's Spectator flag on the student itself
+         * (monokuma.mjs `setSpectator`), so the body's own token became the Spectator's walking token, hidden from every
+         * other player (visibility.mjs `tokenShownTo`). A student with a player is killed as the GMs keep a death
+         * (death.mjs `killCharacter`, secret: a watcher is made); the role is pressed (`changeRole`, "spectator"); then the
+         * watcher is taken away (`removeDeadSpectator`) and the role pressed again. Read after each press: the student's
+         * Spectator flag, the body's token (whose, where, flagged), how many watchers the student has and where theirs
+         * stands. Put back: the death, the watchers, the token. Red at a8f08cab: the student flagged, its token the
+         * Spectator's.
+         */
+        needs(env.primaryGm(), "the watcher is the primary's to make");
+        needs(world.atLeast("studentsWithConnectedPlayer", 1), "a dead student with a player");
+        const { killCharacter, reviveCharacter, isDeadForGm } = await import("./chapter.mjs");
+        const GS = await import("./gm-students.mjs");
+        const SD = await import("./spectator-dead.mjs");
+        const { FLAGS } = await import("./config.mjs");
+        const player = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const [student] = cast(4).filter(a => player(a) && canvas?.scene?.tokens?.some(t => t.actorId === a.id));
+        must(student, "no student with a player has a token on the scene on screen - this would measure nothing");
+        const body = canvas.scene.tokens.find(t => t.actorId === student.id);
+        const at = { x: body.x, y: body.y };
+        const watchers = () => game.actors.filter(a => a.getFlag(MODULE_ID, FLAGS.spectator) && a.testUserPermission(player(student), "OWNER") && a.name === student.name);
+        const reading = () => {
+            const w = SD.watcherActorOf(student);
+            const wt = w ? canvas.scene.tokens.find(t => t.actorId === w.id) : null;
+            return { flagged: Boolean(student.getFlag(MODULE_ID, FLAGS.spectator)), body: [Boolean(canvas.scene.tokens.get(body.id)), body.actorId === student.id,
+                body.x === at.x && body.y === at.y, Boolean(body.actor?.getFlag?.(MODULE_ID, FLAGS.spectator))],
+                watchers: watchers().length, watcherAtBody: Boolean(wt && wt.x === at.x && wt.y === at.y) };
+        };
+        const read = {};
+        try {
+            must(await killCharacter(student, { secret: true, keepBullets: true }), "the death was not kept - this would measure nothing");
+            await settle();
+            must(SD.watcherActorOf(student), "the kept death made no watcher - this would measure nothing");
+            await GS.changeRole(student, "spectator");
+            await settle();
+            read.withWatcher = reading();
+            await SD.removeDeadSpectator(student, { silent: true });
+            await settle();
+            must(!SD.watcherActorOf(student), "the watcher was not taken away - this would measure nothing");
+            await GS.changeRole(student, "spectator");
+            await settle();
+            read.without = reading();
+        } finally {
+            if (student.getFlag(MODULE_ID, FLAGS.spectator)) await student.unsetFlag(MODULE_ID, FLAGS.spectator);
+            if (isDeadForGm(student)) await reviveCharacter(student, { quiet: true });
+            for (const w of watchers()) await w.delete().catch(() => {});
+            if (canvas.scene.tokens.get(body.id)) await body.update(at, { teleport: true, movementAction: "displace", animate: false });
+            await settle();
+        }
+        const want = { flagged: false, body: [true, true, true, false], watchers: 1, watcherAtBody: true };
+        equal(stableJson(read), stableJson({ withWatcher: want, without: want }),
+            "{after each press: the student flagged a Spectator, the body's token [there, the student's, unmoved, flagged], the student's watchers, the watcher standing at the body}");
+    }],
     ["the time of day in an incident is veiled and names nobody", async () => {
         /*
          * E06 C4, 27.09.2026; audit S10-04 (L12). While an incident runs the time of day is told

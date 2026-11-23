@@ -7090,6 +7090,21 @@ export async function run({ gm, p1, p2, p3, check, note, phase, settle, permissi
         JSON.stringify(veilsBefore) === JSON.stringify(veilsAfter) && veilRefusals.some(r => /only a GM asks for the opening's veil/.test(r)),
         JSON.stringify({ veilsBefore, veilsAfter, veilRefusals }), { flow: "mask" });
 
+    /* 1.2.128 (E129 S0-VICTIM): a dead student's Spectator asked of the primary (`spectator.dead`, a GM's road: 97-two-gms
+       W is its legal use), forged from p2's console for Aiko - refused gmOnly, logged on the GM, and no watcher made. */
+    const readWatchers = `return game.actors.filter(a => a.getFlag("${MOD}", "spectator")).map(a => a.id).sort();`;
+    const watchersBefore = await gm.eval(readWatchers);
+    await gm.eval(`(await import("${repoUrl}/scripts/utils.mjs")).clearSessionFailures(); return true;`);
+    await p2.eval(`game.socket.emit("${SOCKET}", { action: "spectator.dead", userId: "${p2.userId}", requestId: "forge-dead-spectator", actorId: "${ids.aiko}" },
+        { recipients: game.users.filter(u => u.isGM && u.active).map(u => u.id) }); return true;`);
+    await settle(900);
+    const watchersAfter = await gm.eval(readWatchers);
+    const deadRefusals = await gm.eval(`return (await import("${repoUrl}/scripts/utils.mjs")).sessionFailures()
+        .filter(e => e.message.includes('Refused a "spectator.dead"')).map(e => e.message);`);
+    check("SECURITY: p2's console asking the primary for a dead student's Spectator (spectator.dead) is refused (gmOnly) and logged - no watcher made",
+        JSON.stringify(watchersBefore) === JSON.stringify(watchersAfter) && deadRefusals.some(r => /only a GM makes a dead student's Spectator/.test(r)),
+        JSON.stringify({ watchersBefore, watchersAfter, deadRefusals }), { flow: "dead-spectator" });
+
     /* FORGERIES OF A TAIL (E69 C3, 12.11.2026). `tail.start` from p1's console: Botan's character tailing Aiko, and Aiko
        tailing Botan with no roll named - each refused, no tail kept on the GM. The legal road is 33's E69-B. */
     phase("forgeries of a tail", { flow: "tail" });
