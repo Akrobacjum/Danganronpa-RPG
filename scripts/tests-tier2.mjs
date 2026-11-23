@@ -14250,7 +14250,8 @@ const SCENARIOS = [
            say the trial (and the primary's steal refuses), the target's token hidden is not in that room, the searcher with no
            token has none; the Frisk's place is the hall and its witnesses the third. (4) The open ask on the hall, paid with
            Hope: asked, refused by the target's player, a force open and drawn on that payment; the trial ended, the follow
-           is `interrupted`. (5) The unseen Frisk judged on the hall: not refused, its cards posted. Red at ca67d7a7: the
+           is `interrupted`. (5) The unseen Frisk judged on the hall: not refused, its cards posted. (3b) Palm's window pressed on the hall: Steal
+           and Plant greyed and the Frisk checked, a Steal picked anyway refused with nothing paid. Red at ca67d7a7: the
            Frisk shut in the trial, Steal and Plant open, the ask's claim an action alone. The clock, the links, the
            resources, the tickets, the asks, the cards and the scene are put back. */
         needs(world.atLeast("connectedPlayersWithCharacter"), "the rolls are a connected player's, as Foundry names only those");
@@ -14331,6 +14332,25 @@ const SCENARIOS = [
                 steal: await transferRefusal(other, theirs, { mode: "steal" }), plant: await transferRefusal(theirs, other, { mode: "plant" }),
                 place: [place?.scene?.id === hall.id, place?.room === hall.name],
                 witnesses: F.roomWitnessesOnGm(place?.room, place?.scene, { except: [theirs.id, other.id] }).map(a => a.id).includes(third.id) };
+            // (3b) the press: Palm's window on the hall - Steal and Plant greyed, the Frisk the row checked - and a Steal picked
+            // anyway, as a console could, refused on this browser with the trial's sentence and nothing paid.
+            const { performAction } = await import("./action-rolls.mjs");
+            const warned = [], warn = ui.notifications.warn;
+            ui.notifications.warn = (text, ...rest) => { warned.push(String(text)); return null; };
+            const hopeBefore = res(theirs).hope;
+            let rows = null;
+            try {
+                await withFormAnswered(root => {
+                    const row = value => root.querySelector(`input[name="variant"][value="${value}"]`);
+                    rows = ["steal", "plant", "frisk"].map(v => [Boolean(row(v)), Boolean(row(v)?.disabled), Boolean(row(v)?.checked)]);
+                    for (const r of root.querySelectorAll('input[name="variant"]')) r.checked = r.value === "steal";
+                    const who = root.querySelector("select[name=who]");
+                    if (who) who.value = other.id;
+                    return true;
+                }, () => performAction(theirs, "palm"));
+            } finally { ui.notifications.warn = warn; }
+            await settle();
+            read.press = { rows, refused: warned.includes(game.i18n.localize("DRPG.Steal.notInTrial")), paid: hopeBefore - res(theirs).hope };
             // (4) the open ask on the hall, paid with Hope, refused, forced; then the trial ends.
             F.forgetFriskAsks?.();
             await payHope();
@@ -14378,6 +14398,7 @@ const SCENARIOS = [
                 plant: "that waits until the Class Trial is over", place: [true, true], witnesses: true },
             // `asked`: nothing sent yet - an ask answers its asker when it ends (`askToFrisk`'s `reply`); the row is its proof.
             ask: { asked: [], hall: true, room: true, no: ["refused"], open: true, forced: true, after: ["interrupted"] },
+            press: { rows: [[true, true, false], [true, true, false], [true, false, true]], refused: true, paid: 0 },
             unseen: ["done", true],
             hidden: "the character is not in that room", noToken: "the character has no token on a scene"
         }), "{quote; trialDraw: [the unseen Frisk's cover on a Hope paid, its hand riding it]; dayDraw: the cover on a Hope outside the trial; receipts: [step, its card line, the next step, Hope, Sanity]; gate: [the Frisk's, a Palm's Steal-Plant key, the primary's steal and Plant, the Frisk's place the hall, the third its witness]; ask: [asked, kept as the hall's, its room, the target's no, a force open, the force drawn on the Hope, the follow after the trial's end]; unseen: [the judgement, its cards]; hidden; noToken}");
