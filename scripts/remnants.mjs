@@ -571,9 +571,10 @@ export async function placeRemnant(data = {}, { keepId = false, rollId = null, d
             // read without ever seeing the map. The GM still gets the colour -
             // `remnant-ring.mjs` paints it from the ledger, on their client.
             texture: { src: ICON, tint: TINTS.neutral },
-            // Below characters (`sort`), and whole: the map reads as "people in a room" by the order, and a trace a
-            // player is shown is drawn whole on their screen (1.2.129, S0-REMALPHA: at 0.5 it was half there; each browser
-            // draws a Remnant at config.mjs `REMNANT_ALPHA`, visibility.mjs `dressRemnant`, whatever this says).
+            // Below characters (`sort`). The document is whole: what each browser draws is config.mjs `REMNANT_ALPHA`
+            // (visibility.mjs `dressRemnant`, whatever this says) - 0.5 on a player's, so the map still reads as
+            // "people in a room"; whole or `gmHidden` on a GM's (1.2.129, S0-REMALPHA: a hidden trace at 0.5 under
+            // Foundry's own dimming was lost on the GM's map).
             alpha: 1,
             sort: -10,
             /*

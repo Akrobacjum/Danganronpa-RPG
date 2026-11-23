@@ -3141,17 +3141,17 @@ export const PROJECT_SCALE = {
  * finest print on the map, projects are scenery, and people come first.
  */
 /*
- * A REMNANT'S TOKEN, DRAWN AT ONE ALPHA PER VIEWER (1.2.129 line MAP, stage E129; the owner's session-0 note S0-REMALPHA,
- * 23.11.2026: "niektore remnanty sa polprzezroczyste i przez to niewidoczne"). Every Remnant was created at document alpha
- * 0.5 (remnants.mjs `placeRemnant`), which every browser draws, so a trace a player was meant to see came up half there,
- * and under the fog's veil in a room the player is not in, about a fifth (0.5 x 0.4, read off the numbers, not a
- * screen). Each browser now draws a Remnant's picture at its own constant (visibility.mjs `remnantAlpha`): a player sees
- * every Remnant it is shown whole; a GM sees one the players see whole, and one hidden from them at `gmHidden` - lower,
- * so the GM tells the two apart, never so low the GM loses it. 0.6 is the coordinator's default pending the owner, chosen
- * on the comparison sheet docs/dev/owner129/map/ (two themes, two sizes). What v14 itself does to a hidden token's alpha
- * on a GM's browser is not read (LIVE-129, the report).
+ * A REMNANT'S TOKEN, DRAWN AT ONE ALPHA PER VIEWER (1.2.129 line MAP, stage E129; released in 1.2.128; the owner's
+ * session-0 note S0-REMALPHA, 23.11.2026: "niektore remnanty sa polprzezroczyste i przez to niewidoczne"). The owner's
+ * answer: on the GM's screen, Neutral Remnants. Every Remnant was created at document alpha 0.5 (remnants.mjs
+ * `placeRemnant`) and a hidden one is dimmed again by Foundry on a GM's browser, about a quarter by estimate, not a
+ * reading (LIVE-129-MAP-01). Each browser now draws a Remnant's picture at its own constant (visibility.mjs
+ * `remnantAlpha`): a GM sees one the players see whole, and one hidden from them at `gmHidden` - lower, so the GM tells
+ * the two apart, never so low the GM loses it (0.6, the coordinator's default, chosen on the comparison sheet in
+ * docs/dev/owner129/map/). A player keeps 0.5, the design the map had ("people in a room": a trace is finer print than
+ * the cast) - the owner's "Tak" to that default, 23.11.2026; raising it is this one number.
  */
-export const REMNANT_ALPHA = Object.freeze({ player: 1, gmShown: 1, gmHidden: 0.6 });
+export const REMNANT_ALPHA = Object.freeze({ player: 0.5, gmShown: 1, gmHidden: 0.6 });
 
 export const PROJECT_TOKEN = {
     /** Grid squares, square. */
