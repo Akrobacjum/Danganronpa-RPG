@@ -2087,6 +2087,8 @@
         "thesisTooltip": "Widoczna pod pytaniem, gdy obozy się spierają",
         "thesisLineTooltip": "Jedno krótkie zdanie za twoją strefą, widoczne dla całego stołu",
         "thesisPostTooltip": "Kładzie twoją tezę na stół jako kartę; twoja tura trwa dalej",
+        "finishKeepTooltip": "Zamyka to okno; twoje Objection trwa według zegara",
+        "finishDoneTooltip": "Kończy teraz czas twojego Objection; zaczyna się rebuttal",
         "setTooltip": "Zestaw Logic Dive do zagrania. Liczba to liczba jego pytań.",
         "editTooltip": "Zmienia treść. Stół dostaje wiadomość, co było i co jest teraz.",
         "deleteTooltip": "Od razu usuwa Finding z listy i mówi o tym stołowi",

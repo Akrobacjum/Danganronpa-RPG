@@ -621,8 +621,10 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, canary, repoUr
     const sDone = await gm.eval(`${F} const f = F.trialFloor(); const fresh = game.messages.filter(m => !globalThis.__s67m.has(m.id));
         const name = game.actors.get("${IDS.aiko}").name;
         const card = game.i18n.format("DRPG.Floor.turnFinished", { name }), told = game.i18n.format("DRPG.Floor.finishedGm", { name });
+        // A whisper's words are the secret store's on this GM (secret.mjs \`contentOf\`), not the message's content.
+        const { contentOf } = await import("${repoUrl}/scripts/secret.mjs");
         return { mode: f?.mode ?? null, card: fresh.some(m => String(m.content ?? "").includes(card)),
-            told: fresh.some(m => String(m.content ?? "").includes(told) && (m.whisper ?? []).length > 0 && (m.whisper ?? []).every(id => game.users.get(id)?.isGM)) };`);
+            told: fresh.some(m => String(contentOf(m) ?? "").includes(told) && (m.whisper ?? []).length > 0 && (m.whisper ?? []).every(id => game.users.get(id)?.isGM)) };`);
     verdict("its Finish my turn starts the rebuttal as the GM's Skip would; the card says Aiko finished early and the GMs are whispered",
         Boolean(s2) && sDone.mode === "rebuttal" && sDone.card && sDone.told, J({ s2, sDone }));
     await gm.eval(`${F} if (F.trialFloor()) await game.drpg.endMode(); return true;`, { timeout: 30000 });

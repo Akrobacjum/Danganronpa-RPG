@@ -4440,7 +4440,7 @@ export const TRIAL = {
              *   `goneGraceSeconds`: a speaker whose player drops is passed only when they are not back within these
              *     seconds, counted by the primary (trial-floor.mjs `speakerGone`); back in time, the turn goes on with
              *     its own clock. Until 1.2.129 they were passed at once (E70-45), so a reload during one's own turn passed
-             *     it. Chosen, not measured at a table: how long a v14 reload takes to reconnect is LIVE-129-02.
+             *     it. Chosen, not measured at a table: how long a v14 reload takes to reconnect is not measured (a LIVE item proposed in E129's report).
              */
             resumeAfterExchange: true,
             goneGraceSeconds: 15

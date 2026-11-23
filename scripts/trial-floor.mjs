@@ -655,7 +655,7 @@ export async function closingStepInStep(event, { why = false } = {}) {
  * same turn still stands and its speaker is still not connected `TRIAL.modes.round.goneGraceSeconds` later, counted on
  * this primary (`goneWaiting`, one wait a turn). Back in time, nothing is written and the turn's clock ran on as it
  * would. A speaker not connected when the turn comes still passes at once (floor-machine.mjs `turnAt`). Tier 2
- * "1.2.129 S0-CUT B". How long a v14 reload takes to reconnect is not measured (LIVE-129-02).
+ * "1.2.129 S0-CUT B". How long a v14 reload takes to reconnect is not measured (a LIVE item proposed in E129's report).
  */
 const goneWaiting = new Map();
 

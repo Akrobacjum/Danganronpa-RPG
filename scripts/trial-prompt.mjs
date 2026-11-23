@@ -227,8 +227,8 @@ async function promptFinish(floor) {
         prompt: true,
         body: `<p>${game.i18n.format("DRPG.Trial.finish.body", { seconds: `<span data-drpg-left>${seconds}</span>` })}</p>`,
         footer: {
-            primary: { action: "keep", label: game.i18n.localize("DRPG.Trial.turn.keep") },
-            secondary: [{ action: "done", label: game.i18n.localize("DRPG.Trial.finish.yes") }]
+            primary: { action: "keep", label: game.i18n.localize("DRPG.Trial.turn.keep"), tooltip: tipText("DRPG.Tips.Trial.finishKeepTooltip") },
+            secondary: [{ action: "done", label: game.i18n.localize("DRPG.Trial.finish.yes"), tooltip: tipText("DRPG.Tips.Trial.finishDoneTooltip") }]
         },
         render: (event, dialog) => {
             const watch = setInterval(() => {

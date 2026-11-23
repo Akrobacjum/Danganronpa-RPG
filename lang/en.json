@@ -1997,6 +1997,8 @@
         "thesisTooltip": "Shown under the question while the camps argue",
         "thesisLineTooltip": "One short line for your zone, shown to the whole table",
         "thesisPostTooltip": "Puts your thesis on the table as a card; your turn goes on",
+        "finishKeepTooltip": "Closes this window; your Objection runs on its clock",
+        "finishDoneTooltip": "Ends your Objection's seconds now; the rebuttal starts",
         "setTooltip": "The Logic Dive set to play. The number is how many questions it holds.",
         "editTooltip": "Changes the words. The table is told what it was and what it is now.",
         "deleteTooltip": "Takes the Finding off the list at once and tells the table",
