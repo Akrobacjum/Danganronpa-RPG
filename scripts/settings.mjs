@@ -176,6 +176,8 @@ export const SETTINGS = {
     restrictions: "restrictions",
     hideSystemFear: "hideSystemFear",
     pixelFont: "pixelFont",
+    /** Every token's name, as this viewer may know it, drawn under it (1.2.129 line MAP, S0-HOVERNAME B; hover-name.mjs). */
+    tokenCaptions: "tokenCaptions",
     /** The create, edit and propose project windows at the kit's `wide` width on this browser (E47-C6; the owner's O4, 09.11.2026). */
     wideProjectWindows: "wideProjectWindows",
     /** Whether an action window's Details stand open on this browser (E49 A8.1; the owner's answer 2 of 11.11.2026). */
@@ -1703,6 +1705,20 @@ export function registerSettings() {
         type: Boolean,
         default: true,
         onChange: () => applyTheme()
+    });
+
+    /* TOKEN NAMES AS CAPTIONS (1.2.129 line MAP, stage E129, S0-HOVERNAME B; the owner, 23.11.2026: "Dodajmy ustawienie,
+       domyslnie wlaczone, ktore zostawia tooltipy tokenow jako podpis tokenu przesuwajacy sie razem z tokenem"). Per
+       browser, on by default: each token's name, by the hover's rule (hover-name.mjs `hoverName`), stands under it as a
+       caption that moves with it; off, the name shows on a hover. A change redraws the captions here (`recaptionAll`). */
+    game.settings.register(MODULE_ID, SETTINGS.tokenCaptions, {
+        name: "DRPG.Settings.tokenCaptions.name",
+        hint: "DRPG.Settings.tokenCaptions.hint",
+        scope: "client",
+        config: true,
+        type: Boolean,
+        default: true,
+        onChange: () => import("./hover-name.mjs").then(m => m.recaptionAll()).catch(() => {})
     });
 
     /* DETAILS, OPEN OR SHUT (E49 A8.1, 11.11.2026; the owner's answer 2: "tak, jedno ustawienie dla gracza na tym

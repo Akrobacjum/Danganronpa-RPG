@@ -359,6 +359,10 @@
         "name": "Pixel font",
         "hint": "Monokuma Legacy only: a pixel face on the HUD, tabs, names, and labels. Long text keeps the normal face. Only affects this browser."
       },
+      "tokenCaptions": {
+        "name": "Token names as captions",
+        "hint": "Each token's name stands under it, as far as you may know it. Off: the name shows when the pointer rests on a token. Only affects this browser."
+      },
       "wideProjectWindows": {
         "name": "Wide project windows",
         "hint": "Project windows open wider. Only affects this browser."

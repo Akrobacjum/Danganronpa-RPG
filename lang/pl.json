@@ -359,6 +359,10 @@
         "name": "Czcionka pikselowa",
         "hint": "Tylko Monokuma Legacy: krój pikselowy na HUD-zie, zakładkach, imionach i etykietach. Długi tekst zostaje w zwykłym kroju. Dotyczy tylko tej przeglądarki."
       },
+      "tokenCaptions": {
+        "name": "Nazwy tokenów jako podpisy",
+        "hint": "Nazwa każdego tokenu stoi pod nim, o ile możesz ją znać. Wyłączone: nazwa pokazuje się, gdy kursor zatrzyma się na tokenie. Dotyczy tylko tej przeglądarki."
+      },
       "wideProjectWindows": {
         "name": "Szerokie okna projektów",
         "hint": "Okna projektów otwierają się szerzej. Dotyczy tylko tej przeglądarki."

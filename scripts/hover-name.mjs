@@ -22,7 +22,8 @@
  *   - NO DOUBLE NAME. No label where Foundry's own nameplate already shows the name to this viewer on a hover or always
  *     (`nameplateShows`: the token's `displayName`, which the world's default token setting gives a character, a trace and
  *     a project alike).
- *   - WHO SEES NONE. A token this browser does not draw: Foundry's `hidden` (but for a GM), and every rule of
+ *   - WHO SEES NONE. A token this browser does not draw: Foundry's `hidden` (but for a GM, and for a trace a GM hid that
+ *     this player holds a bullet of, S0-BULLETSEES's `remnantShownHere`), and every rule of
  *     visibility.mjs - the rooms, the Eclipse, the opening's veil, Hide, a Spectator's token, an unfound trace - which
  *     all end in the placeable's `visible` false (`drawnHere`). The label never names what the map does not show.
  *   - HOW. One DOM element, `.drpg-hover-name`, its words by `textContent`, `aria-hidden` (the map is not read to a
@@ -34,13 +35,15 @@
  * lands on v14's board is LIVE-129-MAP-04.
  */
 
-import { HOVER_NAME } from "./config.mjs";
+import { MODULE_ID, HOVER_NAME } from "./config.mjs";
 import { nameAsSeen, isMaskedToken } from "./mask-gm.mjs";
 import { isCorpseToken } from "./movement.mjs";
 import { projectIdOf } from "./projects-map.mjs";
-import { shownName } from "./projects-secrecy.mjs";
+import { shownName, COUNTDOWNS_KEY } from "./projects-secrecy.mjs";
 import { isTraceToken, keyOf as remnantKeyOf, traceLabel, ledgerLabel } from "./remnants.mjs";
-import { myBulletForRemnant } from "./visibility.mjs";
+import { myBulletForRemnant, remnantShownHere } from "./visibility.mjs";
+import { getSetting, SETTINGS } from "./settings.mjs";
+import { count } from "./perf-counters.mjs";
 
 /** The label's class: the stylesheets dress it by this, and `dropHoverName` finds none other. */
 export const HOVER_NAME_CLASS = "drpg-hover-name";
@@ -50,16 +53,21 @@ export const HOVER_NAME_CLASS = "drpg-hover-name";
  * (`drawnHere`); `user` is this browser's own (nothing here answers for another user: a player's browser holds only its
  * own knowledge).
  */
-export function hoverName(tokenDoc, { user = game.user, drawn = true } = {}) {
+export function hoverName(tokenDoc, { user = game.user, drawn = true, bulletOf = myBulletForRemnant } = {}) {
     if (!tokenDoc || !drawn) return null;
     const gm = user?.isGM === true;
-    if (tokenDoc.hidden && !gm) return null;
     if (nameplateShows(tokenDoc, user)) return null;
-    if (isCorpseToken(tokenDoc)) return null;
     if (isTraceToken(tokenDoc)) {
         if (gm) return ledgerLabel(tokenDoc);
-        return traceLabel(myBulletForRemnant(remnantKeyOf(tokenDoc)));
+        /* A trace a GM hid by hand is drawn for a holder of its bullet (S0-BULLETSEES, visibility.mjs
+           `remnantShownHere`, config.mjs `HOLDER_SEES_HIDDEN`) and named to them as their bullet names it; to anyone else
+           nothing. `bulletOf` is the suite's to hand. */
+        const bullet = bulletOf(remnantKeyOf(tokenDoc));
+        if (tokenDoc.hidden && !remnantShownHere({ hidden: true, knows: Boolean(bullet) })) return null;
+        return traceLabel(bullet);
     }
+    if (tokenDoc.hidden && !gm) return null;
+    if (isCorpseToken(tokenDoc)) return null;
     const projectId = projectIdOf(tokenDoc);
     if (projectId) return shownName(projectId) || null;
     // Any actor through the mask's reader: "?" only for a masked token, which only a character's is; any other its name.
@@ -140,10 +148,10 @@ export function dropHoverName() {
     state.el = null;
 }
 
-/** Foundry's `hoverToken`: a hover starts the wait, its end takes everything down. */
-export function onHoverToken(token, hovered, { delayMs = HOVER_NAME.delayMs } = {}) {
+/** Foundry's `hoverToken`: a hover starts the wait, its end takes everything down. No label while captions are on. */
+export function onHoverToken(token, hovered, { delayMs = HOVER_NAME.delayMs, captions = captionsOn() } = {}) {
     dropHoverName();
-    if (!hovered || !token?.document) return;
+    if (!hovered || !token?.document || captions) return;
     state.token = token;
     state.timer = setTimeout(() => {
         state.timer = null;
@@ -156,12 +164,151 @@ function onTokenChanged(tokenDoc) {
     if (state.token && state.token.document === tokenDoc) dropHoverName();
 }
 
+/* ============================ the captions ============================================================================
+ * S0-HOVERNAME B (the owner, 23.11.2026: "Dodajmy ustawienie, domyslnie wlaczone, ktore zostawia tooltipy tokenow jako
+ * podpis tokenu przesuwajacy sie razem z tokenem"; the coordinator's defaults of that day). While this browser's setting
+ * `tokenCaptions` is on (its default), each token wears its name by the hover's rule (`hoverName`) as a caption under it:
+ * one PIXI text, a child of the token placeable, so it moves with the token - a drag and a slide included - with no work
+ * of the module's per frame, and it is not drawn while its token is not (a child of a hidden display object). Built at
+ * Foundry's `drawToken`, and again only when what it reads may have changed: the token's name, flags, nameplate mode,
+ * size or `hidden` (`updateToken`), its actor's name or flags (`updateActor`), a Truth Bullet of this player's made,
+ * renamed or gone (`createItem`, `updateItem`, `deleteItem`, a player's browser), the GMs' ledger, a project's meta, the
+ * countdowns, a project's sight, and the setting itself. Each rebuild is keyed by its inputs: the same words, size and
+ * face keep the text standing (`caption.kept`); only a change draws a new one (`caption.drawn`). A move changes none of
+ * them. While captions are on the hover draws no label, and where Foundry's own nameplate already shows for this viewer
+ * no caption is drawn (`nameplateShows`, through `hoverName`).
+ * THE FACE: the hover label's own, read off the stylesheet once per theme - a probe `.drpg-hover-name` on the page, its
+ * computed font, colour and background (`captionStyle`, kept until the body's classes change) - the words in the label's
+ * colour over a keyline of its ground, as the body's caption is drawn (body-tile.mjs). No canvas in the harness: the
+ * caption's rule and its keeping are tier 1's (R8873) on stand-ins; how it sits under a real token is LIVE-129-MAP-06.
+ */
+
+/** The caption's display object name: a rebuild finds its own by it, and touches nothing else. */
+export const CAPTION_NAME = "drpg-token-caption";
+
+/** Whether this browser draws captions (its setting, on by default; off where settings cannot be read). */
+export function captionsOn() {
+    try {
+        return getSetting(SETTINGS.tokenCaptions) !== false;
+    } catch {
+        return false;
+    }
+}
+
+/** "rgb(r, g, b)" or "rgba(r, g, b, a)" as PIXI's number, or null. */
+function rgbNumber(css) {
+    const m = /rgba?\(\s*(\d+)[\s,]+(\d+)[\s,]+(\d+)/.exec(String(css ?? ""));
+    return m ? (Number(m[1]) << 16) + (Number(m[2]) << 8) + Number(m[3]) : null;
+}
+
+let styleMemo = { key: null, style: null };
+
+/** The caption's face, read off the hover label's computed style under this page's theme; kept until the body changes. */
+export function captionStyle({ doc = globalThis.document } = {}) {
+    const body = doc?.body;
+    const key = body?.className ?? "";
+    if (styleMemo.style && styleMemo.key === key) return styleMemo.style;
+    const style = { family: "sans-serif", fill: 0xeeeeee, stroke: 0x07070a };
+    try {
+        const probe = doc.createElement("div");
+        probe.className = HOVER_NAME_CLASS;
+        probe.style.visibility = "hidden";
+        body.append(probe);
+        const cs = globalThis.getComputedStyle(probe);
+        style.family = cs.fontFamily || style.family;
+        style.fill = rgbNumber(cs.color) ?? style.fill;
+        style.stroke = rgbNumber(cs.backgroundColor) ?? style.stroke;
+        probe.remove();
+    } catch {
+        // A page that cannot be read keeps the plain face.
+    }
+    styleMemo = { key, style };
+    return style;
+}
+
+function gridOf(doc) {
+    return Number(doc?.parent?.grid?.size) || Number(globalThis.canvas?.grid?.size) || 100;
+}
+
+/**
+ * Draw, keep or take off `token`'s caption on this browser; answers the caption, or null where none stands. `on`, `user`
+ * and `style` are the suite's to hand.
+ */
+export function drawCaption(token, { on = captionsOn(), user = game.user, style = null } = {}) {
+    if (!token || token.destroyed || typeof token.addChild !== "function" || !globalThis.PIXI) return null;
+    const doc = token.document ?? null;
+    const text = on && doc ? hoverName(doc, { user, drawn: true }) : null;
+    const grid = gridOf(doc);
+    const w = Number(token.w) || (Number(doc?.width) || 1) * grid;
+    const h = Number(token.h) || (Number(doc?.height) || 1) * grid;
+    const face = text ? (style ?? captionStyle()) : null;
+    const key = text ? JSON.stringify([text, w, h, grid, face.family, face.fill, face.stroke]) : null;
+    const old = (token.children ?? []).filter(c => c?.name === CAPTION_NAME && !c.destroyed);
+    const kept = key ? (old.find(c => c.drpgKey === key) ?? null) : null;
+    for (const c of old) {
+        if (c === kept) continue;
+        token.removeChild(c);
+        c.destroy?.();
+    }
+    if (!key) return null;
+    if (kept) {
+        count("caption.kept");
+        return kept;
+    }
+    count("caption.drawn");
+    const label = new PIXI.Text(text, {
+        fontFamily: face.family,
+        fontSize: Math.max(14, Math.round(grid * 0.2)),
+        fill: face.fill,
+        stroke: face.stroke,
+        strokeThickness: Math.max(3, Math.round(grid * 0.05)),
+        align: "center"
+    });
+    label.name = CAPTION_NAME;
+    label.drpgKey = key;
+    label.eventMode = "none";
+    label.resolution = 2;
+    label.anchor?.set?.(0.5, 0);
+    label.position?.set?.(w / 2, h + Math.round(grid * 0.04));
+    token.addChild(label);
+    return label;
+}
+
+/** Every token drawn on this canvas, or those `which` keeps, captioned again. */
+export function recaptionAll(which = null) {
+    for (const token of globalThis.canvas?.tokens?.placeables ?? []) {
+        if (!which || which(token.document)) drawCaption(token);
+    }
+}
+
+/* The fields of a token that its caption reads: a move (x, y, elevation, rotation) changes none of them. */
+const TOKEN_FIELDS = ["name", "displayName", "hidden", "flags", "width", "height", "actorId"];
+
 export function registerHoverName() {
     Hooks.on("hoverToken", (token, hovered) => onHoverToken(token, hovered));
     Hooks.on("canvasPan", () => dropHoverName());
     Hooks.on("canvasTearDown", () => dropHoverName());
     Hooks.on("updateToken", doc => onTokenChanged(doc));
     Hooks.on("deleteToken", doc => onTokenChanged(doc));
+    // The captions.
+    Hooks.on("drawToken", token => drawCaption(token));
+    Hooks.on("updateToken", (doc, changes) => {
+        if (doc?.object && TOKEN_FIELDS.some(f => f in (changes ?? {}))) drawCaption(doc.object);
+    });
+    Hooks.on("updateActor", (actor, changes) => {
+        if (!("name" in (changes ?? {})) && !("flags" in (changes ?? {}))) return;
+        recaptionAll(doc => doc?.actorId === actor?.id);
+    });
+    const bulletChanged = item => { if (!game.user?.isGM && item?.parent?.isOwner) recaptionAll(isTraceToken); };
+    Hooks.on("createItem", bulletChanged);
+    Hooks.on("updateItem", bulletChanged);
+    Hooks.on("deleteItem", bulletChanged);
+    Hooks.on("clientSettingChanged", key => {
+        if (key === `${MODULE_ID}.${SETTINGS.remnantSecrets}`) recaptionAll(isTraceToken);
+        else if (key === `${MODULE_ID}.projectMeta` || key === COUNTDOWNS_KEY) recaptionAll(projectIdOf);
+    });
+    Hooks.on("drpgProjectSightChanged", () => recaptionAll(projectIdOf));
+    Hooks.on("drpgSecretStored", () => recaptionAll(projectIdOf));
     // A press anywhere: a click on the token, the start of its drag, a press on a window above it.
     globalThis.document?.addEventListener("pointerdown", () => { if (state.timer !== null || state.el) dropHoverName(); }, { capture: true, passive: true });
 }
