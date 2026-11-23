@@ -1417,7 +1417,7 @@ function hiddenIds() {
  */
 export function micHold({ user = game.user, room = desiredRoom(), external = externalAV(), connected = roomConnected(),
     canBroadcastAudio = broadcastAllowed(user), actors, trial = trialFacts(), listening = ownListenRoom(user),
-    masked = ownMasked(user), veiled = ownVeiled(user), hiding = ownHiding(user), hidden = ownHidden(user) } = {}) {
+    masked = ownMasked(user), veiled = ownVeiled(user), hiding = ownHiding(user), hidden = ownHidden(user), free = trialVoicesFree() } = {}) {
     if (!user) return null;
     if (external) return { reason: "external", held: false };
     // A Spectator's account is held in every phase (E92 C2): it listens where its token stands, and speaks nowhere -
@@ -1446,13 +1446,14 @@ export function micHold({ user = game.user, room = desiredRoom(), external = ext
     // An account with a living participant and a dead student speaks as the living one (E70 fix p1-G1; `accountRow`'s
     // `listed`), as vote.mjs `trialParticipants` seats it: the lowest id alone muted a living voter as dead.
     const speaker = inTrial ? accountRow(user, { actors, trial: true, silenced: () => false, listed: mutedDeadIds(trial) })?.actor ?? null : null;
-    if (speaker && isMutedDead(speaker, trial)) return { reason: "deadMuted", held: true };
+    // Neither of the trial's two holds while its switch is off (E129 S0-NOMUTE, `trialVoicesFree`): no block is written.
+    if (speaker && !free && isMutedDead(speaker, trial)) return { reason: "deadMuted", held: true };
     // Listening at a door (E69 C6): HELD, named before the block the eavesdrop wrote, while the primary has this
     // browser in the room it listens into.
     if (listening && room === listening) return { reason: "listening", held: true };
     // The floor is somebody else's (E110 C2): HELD, named before the block the trial's settle wrote for it - a Monocub's
     // too since D-E110-A (the owner, 14.11.2026), the one exception to the design's P6.
-    const floorLine = speaker && !spectatorAccount(user, { actors }) ? floorHold(speaker, trial) : null;
+    const floorLine = speaker && !free && !spectatorAccount(user, { actors }) ? floorHold(speaker, trial) : null;
     if (floorLine) return floorLine;
     if (canBroadcastAudio === false) return { reason: "gmBlock", held: false };
     if (eclipse) return { reason: "eclipseHeard", held: false };
@@ -1478,7 +1479,8 @@ export function micHold({ user = game.user, room = desiredRoom(), external = ext
  * nobody is located at all. The facts can be handed in, as `micHold`'s.
  */
 export function moduleHoldsMic(user, { actors, eclipse = isEclipse(), trial = getClock().phase === "classTrial",
-    dead = isDeadForGm, listening = listeningIds(), masked = maskedIds(), veiled = veiledIds(), hiding = hidingIds(), hidden = hiddenIds() } = {}) {
+    dead = isDeadForGm, listening = listeningIds(), masked = maskedIds(), veiled = veiledIds(), hiding = hidingIds(), hidden = hiddenIds(),
+    free = trialVoicesFree() } = {}) {
     if (!game.user?.isGM || !user) return null;
     // Behind a "?" (E69 C8): the mask's block, which the GM's own is not offered over either.
     if (masked.has(user.id) && !trial) return { reason: "masked", held: true };
@@ -1495,9 +1497,10 @@ export function moduleHoldsMic(user, { actors, eclipse = isEclipse(), trial = ge
     // A Spectator's block is the module's (E92 C2, `settleTrialVoices`): the GM's own block is not offered over it -
     // nor while it talks in the Spectators' room (E92 C6), where the block is lifted.
     if (spectatorAccount(user, { actors })) return { reason: spectatorTalks(user, { actors }) ? "spectatorTalk" : "spectator", held: true };
-    if (actor && !row.monokuma && trial && isMutedDead(actor)) return { reason: "deadMuted", held: true };
+    // The trial's two blocks are not written while its switch says so (E129 S0-NOMUTE): the GM may block by hand then.
+    if (actor && !row.monokuma && trial && !free && isMutedDead(actor)) return { reason: "deadMuted", held: true };
     // The floor's block (E110 C2): the trial's to put back, so the GM's own is not offered over it.
-    if (actor && !row.monokuma && trial && floorHold(actor, trialFacts())) return { reason: "floorHeld", held: true };
+    if (actor && !row.monokuma && trial && !free && floorHold(actor, trialFacts())) return { reason: "floorHeld", held: true };
     if (actor && !row.monokuma && dead(actor) && !isDeceased(actor)) return { reason: "secretDead", held: true };
     return null;
 }
@@ -1660,6 +1663,15 @@ export function holdsTheFloor(actor, speakers, { actors = game.actors, users = g
         const speaker = byId(id);
         return Boolean(speaker) && players.some(u => speaker.testUserPermission?.(u, "OWNER"));
     });
+}
+
+/**
+ * Whether the Class Trial forces no microphone off (E129 S0-NOMUTE, 23.11.2026; settings.mjs `trialVoicesFree`): the
+ * world's switch, off by default. Read by the settle (it writes neither of the trial's blocks), the player's tile
+ * (`micHold`) and the GM's block button (`moduleHoldsMic`), each of which takes it as a fact like its others.
+ */
+export function trialVoicesFree() {
+    try { return getSetting(SETTINGS.trialVoicesFree) === true; } catch { return false; }
 }
 
 /**
@@ -1871,6 +1883,7 @@ export async function settleTrialVoices({ release = false } = {}) {
         // The accounts whose token is hidden (E129, S0-HIDEMUTE; `hiddenVoiceIds`), as the GMs hold the flags.
         const hiddenNow = HIDDEN_TOKEN_MUTES && !release && !inTrial ? hiddenVoiceIds({
             spectator: u => spectatorAccount(u, { held: flagsHeldNow }), dead: isDeadForGm }) : new Set();
+        const free = inTrial && trialVoicesFree();
         for (const user of game.users) {
             if (user.isGM) continue;
             const voice = listed.size || speakers ? trialVoiceActorOf(user, game.actors, list ?? []) : null;
@@ -1887,9 +1900,12 @@ export async function settleTrialVoices({ release = false } = {}) {
             // Hide (S0-HIDE, E129): outside the trial as the veil's, until Reveal yourself.
             const hiding = !release && !inTrial && hidingIds().has(user.id);
             const hidden = hiddenNow.has(user.id);
-            const floorHeld = Boolean(speakers && voice && !listed.has(voice.id) && !holdsTheFloor(voice, speakers)
+            /* THE TRIAL'S TWO BLOCKS, BOTH UNDER ONE SWITCH (E129 S0-NOMUTE; `trialVoicesFree`): with it on, neither the
+               floor's nor the dead's list is written, and a block this module wrote for either is given back below. */
+            const floorHeld = Boolean(!free && speakers && voice && !listed.has(voice.id) && !holdsTheFloor(voice, speakers)
                 && !spectatorAccount(user, { held: flagsHeldNow }));
-            if (watching || listening || masked || veiled || hiding || hidden || floorHeld || (voice && listed.has(voice.id))) {
+            const deadHeld = Boolean(!free && voice && listed.has(voice.id));
+            if (watching || listening || masked || veiled || hiding || hidden || floorHeld || deadHeld) {
                 if (!row?.wrote && await blockForTrial(user) === "blocked") out.blocked.push(user.id);
             } else if (row?.wrote && await restoreTrialBlock(user, row) === "restored") out.restored.push(user.id);
         }

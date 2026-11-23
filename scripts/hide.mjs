@@ -103,7 +103,10 @@ export function myHiding(user = game.user, { scenes = game.scenes } = {}) {
  * not hide, and the caller throws its roll. Read off the tokens this browser holds, as the rest of the table does; the GM
  * holds a declaration's cover to its own row (bridge-guards.mjs `rollsFor`). Pure but for the tokens (R8903).
  */
-export function coverWhileHidden(actor, { scenes = game.scenes } = {}) {
+export function coverWhileHidden(actor, { scenes = game.scenes, clock = getClock() } = {}) {
+    // Not in a Class Trial (TRIAL's S0-PALM opens Palm there, 1.2.128): the trial seats everyone, so a hide stands aside
+    // there as the microphone's block does, and the cover is thrown.
+    if (clock?.phase === "classTrial") return null;
     return isHidingActor(actor, { scenes }) ? HIDDEN_COVER : null;
 }
 
@@ -128,8 +131,8 @@ export function hideMutedIds() {
 }
 
 /** Whether the GMs hold `actorId` hidden (its row in `hides`). On a GM; what bridge-guards.mjs asks of a skipped cover. */
-export function hiddenOnGm(actorId) {
-    return Boolean(game.user?.isGM && actorId && hideStore.get(actorId));
+export function hiddenOnGm(actorId, { clock = getClock() } = {}) {
+    return Boolean(game.user?.isGM && actorId && clock?.phase !== "classTrial" && hideStore.get(actorId));
 }
 
 /** Why the Hide row is shut on this browser now, or null: a Class Trial, or this character hides already. */
