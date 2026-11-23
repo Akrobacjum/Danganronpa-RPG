@@ -48638,7 +48638,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         }
     }],
 
-    ["the trial shuts everything but Analyze and the Objection", async () => {
+    ["the trial shuts everything but Analyze, the Objection and Palm", async () => {
         /*
          * T-1, Dawid 17.09. One tile, the Objection, the Hope Calls and the items.
          * Asserted through the real entry points rather than off the sheet, because
@@ -48678,8 +48678,8 @@ equal(read.added, 3, "three additions to a purse at once lost one");
                 "a tile the trial refused still charged for itself");
 
             /*
-             * PALM IS OPEN IN THE TRIAL since E129 S0-PALM (the owner's answer 9, relayed by the coordinator on
-             * 23.11.2026: "Palm in trial: the whole hall counts, Steal and Plant open, a forced Frisk shut"; allowed-now.mjs
+             * PALM IS OPEN IN THE TRIAL since E129 S0-PALM (the owner's "9. Tak" of 23.11.2026, to the coordinator's question
+             * whose default was "the whole hall counts, Steal and Plant open, a forced Frisk shut"; allowed-now.mjs
              * `TRIAL_OPEN_ACTIONS`). Read: the action road's answer for Palm, and what pressing it says - not the trial's
              * lock. The student here stands on no hall, so Palm stops at its room or its targets before its window and
              * charges nothing; what it then does in the hall is "1.2.129 S0-PALM"'s. Red with "palm" taken out of
@@ -83277,7 +83277,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             "a mode into full hands, with a stash of the taker's, did not do what TRANSFER_POLICY says of it ([the taker's copies, of them in a stash, the giver still holds it])");
     }],
 
-    ["one gate in transferItem: a give, a Palm's steal and a Plant are refused across rooms, by or to the dead, in an Eclipse and a Class Trial, and a give (since E64, D001), a steal or a Plant at a Monocub, by a Monokuma or at a hidden token, each with a code of the closed list; a body the GMs keep from a player is robbed as a living one; the roads hand the refusal on to be told (E14-T1, S08-01, S16-30, S08-20)", async () => {
+    ["one gate in transferItem: a give, a Palm's steal and a Plant are refused across rooms, by or to the dead and in an Eclipse, a give is refused in a Class Trial while a Palm's steal and Plant are open there (E129 S0-PALM), and a give (since E64, D001), a steal or a Plant at a Monocub, by a Monokuma or at a hidden token, each with a code of the closed list; a body the GMs keep from a player is robbed as a living one; the roads hand the refusal on to be told (E14-T1, S08-01, S16-30, S08-20)", async () => {
         /*
          * E14 part 1 C1, 24.10.2026; E14-01, E14-02, E14-05. The harm: inventory.mjs `transferItem`, the one road an item
          * changes owner by since E35, judged nothing of where the two stood or whether they lived - each caller kept its
@@ -83405,8 +83405,8 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         equal(stableJson(read), stableJson({
             control: all("moved"), apart: all("notThere"), roads: [...all("notThere"), "notThere"],
             takerDead: all("cannotNow"), giverDead: all("cannotNow"), keptFromPlayer: "moved",
-            // In a Class Trial the give stays shut; a Palm's Steal and Plant are open (E129 S0-PALM, the owner's answer 9,
-            // relayed by the coordinator on 23.11.2026: "Palm in trial: the whole hall counts, Steal and Plant open, a forced
+            // In a Class Trial the give stays shut; a Palm's Steal and Plant are open (E129 S0-PALM, the owner's "9. Tak" of
+            // 23.11.2026, to the coordinator's question whose default was "the whole hall counts, Steal and Plant open, a forced
             // Frisk shut"; allowed-now.mjs `TRIAL_OPEN_PERSON`). Red with "palm" taken out of it: all three cannotNow.
             eclipse: all("cannotNow"), classTrial: ["cannotNow", "moved", "moved"],
             // A give through the person gate since E64 (D001): a Monocub giving, a Monokuma or a hidden token taking are refused as a Plant is.

@@ -4470,7 +4470,7 @@ export const TRIAL = {
      */
     objectorMayFinish: true,
     /*
-     * PALM IN THE HALL (E129 S0-PALM, 23.11.2026; the coordinator's default, approved that day, pending the owner): the
+     * PALM IN THE HALL (E129 S0-PALM, 23.11.2026; the coordinator's default, which the owner answered "9. Tak" that day): the
      * trial's hall holds no room (R114), and Palm needs its target in the thief's room. While a Class Trial runs, every
      * student on the hall scene, on the same floor, whose token the GMs have not hidden, counts as in the thief's room for
      * Palm's Steal and Plant (frisk.mjs `personActionRefusal` with `palm`, palm.mjs `palmPlace`). Palm's forced Frisk
