@@ -1,0 +1,74 @@
+{
+ "en": {
+  "vote": {
+   "kind": "trial",
+   "title": "Straw Poll",
+   "sub": "Who locked the library?",
+   "meta": "Stand in the zone of your answer",
+   "note": null,
+   "clock": true
+  },
+  "speak": {
+   "kind": "trial",
+   "title": "Scrum Debate",
+   "sub": "Chie Mori",
+   "meta": "Turn 1 of 4, for “Someone outside, with the janitor's key”",
+   "note": null,
+   "clock": true
+  },
+  "conferPlayer": {
+   "kind": "trial",
+   "title": "Scrum Debate",
+   "sub": "Camps confer",
+   "meta": "You confer with the camp for “Someone inside”.",
+   "note": null,
+   "clock": true
+  },
+  "conferGm": {
+   "kind": "trial",
+   "title": "Scrum Debate",
+   "sub": "Camps confer",
+   "meta": "The two camps confer apart.",
+   "note": null,
+   "clock": true
+  },
+  "mine": "Aiko Hoshino",
+  "speakSide": "b"
+ },
+ "pl": {
+  "vote": {
+   "kind": "trial",
+   "title": "Straw Poll",
+   "sub": "Kto zamknął bibliotekę?",
+   "meta": "Stań w strefie swojej odpowiedzi",
+   "note": null,
+   "clock": true
+  },
+  "speak": {
+   "kind": "trial",
+   "title": "Scrum Debate",
+   "sub": "Chie Mori",
+   "meta": "Tura 1 z 4, za „Ktoś z zewnątrz, kluczem woźnego”",
+   "note": null,
+   "clock": true
+  },
+  "conferPlayer": {
+   "kind": "trial",
+   "title": "Scrum Debate",
+   "sub": "Narada obozów",
+   "meta": "Naradzasz się z obozem za „Ktoś od środka”.",
+   "note": null,
+   "clock": true
+  },
+  "conferGm": {
+   "kind": "trial",
+   "title": "Scrum Debate",
+   "sub": "Narada obozów",
+   "meta": "Oba obozy naradzają się osobno.",
+   "note": null,
+   "clock": true
+  },
+  "mine": "Aiko Hoshino",
+  "speakSide": "b"
+ }
+}
