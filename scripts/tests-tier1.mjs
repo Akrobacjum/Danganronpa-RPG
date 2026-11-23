@@ -9394,6 +9394,28 @@ const INVARIANTS = [
         }), stableJson({ own: true, gm: true, other: null, onGm: null, none: [null, null, null], words: { en: true, pl: true }, whisper: false }),
         "{own: the hider's notice for the time of day's end; gm: a GM's; other: another player's browser; onGm: a GM's browser; none: [no reason, a cleared one, no change]; words: en, pl; whisper: endHide still posts a card}");
     }],
+    ["R8909 - a hide's end is told once on its hider's browser however many of the character's tokens carry it (S0-HIDE, 1.2.128; the coordinator's M5 of 23.11.2026: the once-per-end guard survived every other test, the harness standing one token per actor; hide.mjs `tellHideEnd`): two token writes of one end raise one notice, a second end raises its own, a GM's browser raises none, and the words go in escaped", async () => {
+        /* 1.2.128 line STG, 23.11.2026. `tellHideEnd` is called with a stand-in `show` and `gm`, as the updateToken hook
+           would call it on a player's browser for each token of the character; nothing is shown and nothing written. The
+           ends' `at` are this run's own (negative, so no real end's), and stay in the browser's told set until a reload.
+           Red at aa755da1: `tellHideEnd` not exported, no `show` to stand in. */
+        const H = await import("./hide.mjs");
+        must(typeof H.hideEndNotice === "function", "hideEndNotice did not load - this would measure nothing");
+        const tell = typeof H.tellHideEnd === "function" ? H.tellHideEnd : () => {};
+        const shown = [];
+        const show = html => shown.push(html);
+        const end = (at, why = "gm") => ({ flags: { [MODULE_ID]: { hiding: null, hideEnd: { why, time: null, at } } } });
+        const at = -Date.now();
+        tell(end(at), { gm: false, show });
+        tell(end(at), { gm: false, show });
+        const afterTwoTokens = shown.length;
+        tell(end(at - 1, "chapter"), { gm: false, show });
+        tell(end(at - 2), { gm: true, show });
+        equal(stableJson({ afterTwoTokens, total: shown.length, paragraphs: shown.every(h => /^<p>[^<>]+<\/p>$/.test(h)),
+            first: shown[0] === `<p>${game.i18n.localize("DRPG.Hide.ended.gm")}</p>` }),
+        stableJson({ afterTwoTokens: 1, total: 2, paragraphs: true, first: true }),
+        "{afterTwoTokens: notices after one end written on two tokens; total: after a second end and a GM's browser; paragraphs: each one <p> of text; first: the GM end's words}");
+    }],
     ["R8906 - Hide's bridge roads are declared as the trust model asks, and every cover a GM reads off its record is marked as one the hide may stand in for (S0-HIDE, E129; bridge-table.mjs `hide.start`, `mask.reveal`; bridge-runs-acts.mjs `pickRolls`, `tailRolls`, `palmRolls`, `friskRolls`; bridge-guards.mjs `rollsFor`): `hide.start` is the owner's, not a Spectator's, a reply, its Shadow roll its own record's; `mask.reveal` takes `of` \"mask\" or \"hide\" and nothing else; the four covers carry `cover`, their hands do not; the runner stands a pass in only for a cover of a character the GMs hold hidden", async () => {
         /* 1.2.128 line STG, 23.11.2026. Read off the tables and the runner's source; nothing sent. Red at 5a583d82: no
            `hide.start`, `of` not sanitized, no `cover` mark. */

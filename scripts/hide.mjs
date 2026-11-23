@@ -389,14 +389,20 @@ async function settleHidesNow() {
 /* The ends this browser has told, by their `at`: one notice for a hide whose character stands on several scenes. */
 const toldEnds = new Set();
 
-/** This player's own hide ended: its notice in the corner (popup.mjs `showPopup`), once. */
-function tellHideEnd(changes) {
-    const words = hideEndNotice(changes, { owns: true });
+/* The corner's own road: popup.mjs `showPopup`, kept in the notice history like any corner notice. */
+const showEndInCorner = html => import("./popup.mjs").then(m => m.showPopup(html, { kind: "info" }))
+    .catch(err => error("Could not tell a hide's end", err));
+
+/**
+ * This player's own hide ended: its notice in the corner, once for each end however many of the character's tokens carry
+ * it (the updateToken hook calls this for each). `gm` and `show` are R8909's to stand in: the hook passes neither.
+ */
+export function tellHideEnd(changes, { gm = Boolean(game.user?.isGM), show = showEndInCorner } = {}) {
+    const words = hideEndNotice(changes, { owns: true, gm });
     const at = changes?.flags?.[MODULE_ID]?.[HIDE_END_FLAG]?.at ?? null;
     if (!words || toldEnds.has(at)) return;
     toldEnds.add(at);
-    import("./popup.mjs").then(m => m.showPopup(`<p>${esc(words)}</p>`, { kind: "info" }))
-        .catch(err => error("Could not tell a hide's end", err));
+    show(`<p>${esc(words)}</p>`);
 }
 
 /* What this browser last saw of its own hide (an actor id, or null), so a redraw that changes nothing is quiet. */

@@ -447,7 +447,7 @@ A Shadow roll of 15 or more, or a critical, hides you. The other players stop se
 
 While you are hidden, an action's Shadow roll for staying unseen is not rolled and counts as passed: Palm's and an unseen Frisk's, Tail Someone's, Pick the Lock's, Taking from a body in front of others, and the cover of a Sabotage, an indirect murder's work, or a clean-up. The card says so. It gives no Hope.
 
-You stay hidden until the time of day ends, and a notice in the bottom-left corner tells you when it does. You come out sooner when you press **Reveal yourself** on your voice tile, a GM reveals you, or the chapter ends; moving and other actions do not end it. Not during a Class Trial: there, everyone sits in the hall and the trial's floor decides who speaks.
+You stay hidden until the time of day ends, and a notice on the notice tile, where your other notices appear, tells you when it does. You come out sooner when you press **Reveal yourself** on your voice tile, a GM reveals you, or the chapter ends; moving and other actions do not end it. Not during a Class Trial: there, everyone sits in the hall and the trial's floor decides who speaks.
 
 ### Dash - Leg, 1 action
 
