@@ -935,6 +935,15 @@
       "close": "Close",
       "toggle": "Open or close Foundry tools"
     },
+    "Result": {
+      "hope": { "one": "With Hope: you earn {n} Hope.", "other": "With Hope: you earn {n} Hope." },
+      "critical": { "one": "A critical: you earn {n} Hope. Unlike plain Daggerheart, it restores no Sanity.", "other": "A critical: you earn {n} Hope. Unlike plain Daggerheart, it restores no Sanity." },
+      "despair": "With Despair: you earn no Hope, and its point of Despair goes to the pool of the Monokuma who watches you.",
+      "support": "Your roll of {trait} only supports the action, so it earns no Hope.",
+      "supportDespair": "Its point of Despair still goes to the pool of the Monokuma who watches you.",
+      "supportBare": "This roll only supports the action, so it earns no Hope.",
+      "givenBack": "{what} comes back to you, as the action did not go ahead."
+    },
     "Action": {
       "murderConfirmEclipse": "It goes to the GMs at once: a GM allows it on a statistic or refuses it, and you hear of a refusal. Declare it only if you agreed on it with the GM beforehand and the victim's player consents.",
       "beat": "beat {n}",

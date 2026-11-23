@@ -845,7 +845,7 @@ async function concealProjectIntent(actor, { indirect, witnesses, paid, lines })
                         ? proseOf(INDIRECT_MURDER.concealIntent, "successWithDespair")
                         : INDIRECT_MURDER.concealIntent.success)
                    : INDIRECT_MURDER.concealIntent.failure
-            }</p>`);
+            }</p>`, (await import("./action-report.mjs")).rollEffectsHtml([conceal]));
             if (ok && conceal.withFear) bonus += CONCEALED_WITH_DESPAIR;
             /*
              * A FAILED CONCEALMENT IS TOLD TO THE ROOM (E16 part 2 C4, 26.10.2026; audit S02-17, the owner's Q5 of
@@ -937,7 +937,7 @@ export async function hideProjectTraces(actor, project, progress, lines) {
     // itself is `report()`'s generic `outcome.leftTrace` line below,
     // the same one every other action uses, so this does not print
     // its own second copy of that sentence.
-    lines.push(`<p><strong>${INDIRECT_MURDER.hideTraces.label}</strong> - ${trace.total}</p>`);
+    lines.push(`<p><strong>${INDIRECT_MURDER.hideTraces.label}</strong> - ${trace.total}</p>`, (await import("./action-report.mjs")).rollEffectsHtml([trace]));
     return traceLeftTrace;
 }
 
@@ -1328,7 +1328,7 @@ async function concealSabotage(actor, { room, project, witnesses, paid, lines })
             hidden
                 ? (conceal.withFear ? SABOTAGE_CONCEAL.successWithDespair : SABOTAGE_CONCEAL.success)
                 : SABOTAGE_CONCEAL.failure
-        }</p>`);
+        }</p>`, (await import("./action-report.mjs")).rollEffectsHtml([conceal]));
 
         /*
          * A FAILURE IS PUBLIC, AND THERE IS NO WALKING AWAY FROM IT (Dawid 18.09).

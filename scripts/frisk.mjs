@@ -424,7 +424,7 @@ export async function performFrisk(actor, def, victim, mode, { cost = def?.cost 
     await A.noteRollContext(actor, { direction: "frisk", mode, room, victimId: victim.id, seen, success });
     // "Sent" only when the primary judged it (E31): a request it did not carry out has been said once already.
     const outcome = {
-        success, seen, direction: "frisk", mode, target: victim.name,
+        success, seen, direction: "frisk", mode, target: victim.name, supportRolls: [shadow],
         text: res.ok && res.value && !res.value.refused ? game.i18n.format("DRPG.Frisk.sent", { name: victim.name }) : ""
     };
     await A.report(actor, def, hand, outcome);
