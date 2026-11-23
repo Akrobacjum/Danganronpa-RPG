@@ -56,10 +56,12 @@
       req.send();
       return req.status === 200 ? req.responseText : null;
     };
-    var manifest = JSON.parse(get("capture/manifest.json") || "{\"windows\": []}");
+    // The capture's folder: `cap` (a path from the repository's root, e.g. /docs/dev/owner129/comm/capture/), else this page's own.
+    var cap = q.get("cap") || "capture/";
+    var manifest = JSON.parse(get(cap + "manifest.json") || "{\"windows\": []}");
     var file = q.get("file") || "console.html";
     var row = manifest.windows.filter(function (r) { return r.file === file; })[0];
-    var html = get("capture/" + file);
+    var html = get(cap + file);
     if (!row || html === null) { document.write("<p>no capture " + file + "</p>"); return; }
     var holder = document.createElement("div");
     holder.innerHTML = html.trim();
@@ -73,7 +75,13 @@
     var esc = function (s) { return String(s == null ? "" : s).replace(/[&<>"]/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;" }[c]; }); };
     app.insertAdjacentHTML("afterbegin", '<header class="window-header"><h1 class="window-title">'
       + esc(row.title) + '</h1><button type="button" class="header-control" data-action="close" aria-label="Close"></button></header>');
-    var w = Math.min(row.width || 976, innerWidth - 16), h = Math.min(row.height || 680, innerHeight - 16);
+    /* The size the window asks for at THIS screen (E129): messenger-gm.mjs MESSENGER_WINDOW_SIZES and `messengerSize`, written
+       out here because this page cannot load the module - the GM's 1370 x 950, a player's 760 x 730, never past 90% of the
+       screen's width and height. A capture with no `kind` (1.2.124's) keeps the size it was captured at. */
+    var SIZES = { gm: [1370, 950], player: [760, 730] };
+    var want = SIZES[row.kind];
+    var w = want ? Math.min(want[0], Math.floor(innerWidth * 0.9)) : Math.min(row.width || 976, innerWidth - 16);
+    var h = want ? Math.min(want[1], Math.floor(innerHeight * 0.9)) : Math.min(row.height || 680, innerHeight - 16);
     ["left", "top", "height", "width", "position", "z-index"].forEach(function (p) { app.style.removeProperty(p); });
     app.style.width = w + "px";
     app.style.height = h + "px";

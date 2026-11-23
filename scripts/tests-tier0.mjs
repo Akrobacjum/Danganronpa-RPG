@@ -3077,9 +3077,11 @@ const REGRESSIONS = [
         ok(analyze.indexOf("gmOnline()") < analyze.indexOf("payPrice("),
             "a road with no GM on it is paid for before anybody notices");
 
+        // CHANGED ON PURPOSE BY E129 (1.2.128): after the dice each road gives the price back through action-pipeline.mjs
+        // `giveBackAfterRoll`, which asks the one rule of a refund after a roll and calls `refundPrice` itself.
         for (const road of ["analyseBullet", "askForHint", "locateStash"]) {
             const body = fnSource(src, road);
-            ok(body.includes("refundPrice("),
+            ok(body.includes("refundPrice(") || body.includes("giveBackAfterRoll(actor, charge, [roll], { price: true })"),
                 `${road} cannot hand the price back when the road turns out to be empty`);
         }
 
@@ -9188,6 +9190,7 @@ const REGRESSIONS = [
             ["PACKET gm-bridge.mjs#handover.bullet#fromId", "judged: knownSender + owns(fromId) (E29 handover)"],
             ["PACKET gm-bridge.mjs#handover.bullet#toId", "judged: handover's verify - a living recipient in the giver's room"],
             ["PACKET gm-bridge.mjs#handover.bullet#itemId", "judged: handover's verify - an item of the giver's; the copy is written from bulletAsHeld (shareBullet)"],
+            ["PACKET gm-bridge.mjs#handover.bullet#analysis", "judged: the giver's own choice of what their copy carries (S0-ANSHARE, 1.2.129) - false mints the copy without the reading (mintCopy analysis false), anything else with it; it gives the recipient nothing the giver's bullet does not hold"],
             ["PACKET gm-bridge.mjs#murder.cleanup#actorId", "judged: knownSender + owns(actorId); the !viaAction && !isCleaner branch (cleanup.mjs resolveCleanup, resolveStageSix: blockedOnGm) whispers blocked.* to the owner and gives the price back (C11)"],
             ["PACKET gm-bridge.mjs#murder.cleanup#tokenId", "judged: resolveCleanup finds the trace in the cleaner's room or refuses; C9 keeps the reshape off held copies, C10 keys the proposal's attempt row by it"],
             ["PACKET gm-bridge.mjs#murder.cleanup#key", "judged: resolveCleanup's road table; E09 adds no read"],
@@ -10107,6 +10110,7 @@ const REGRESSIONS = [
             ["SOCKET voice.mjs#onVoiceSocket#room", "judged: only about the sender's own voice (`userId = senderId`, voice.mjs `onVoiceSocket`) on the primary; `room` is the sender's claim about itself; no E12 commit reads it (C2a moves voice.mjs `sceneRoomWarnings`)"],
             ["SOCKET voice.mjs#onVoiceSocket#state", "judged: only about the sender's own voice (`userId = senderId`, voice.mjs `onVoiceSocket`) on the primary; `room` is the sender's claim about itself; no E12 commit reads it (C2a moves voice.mjs `sceneRoomWarnings`)"],
             ["SOCKET voice.mjs#onVoiceSocket#requestId", "judged: only about the sender's own voice (`userId = senderId`, voice.mjs `onVoiceSocket`) on the primary; `room` is the sender's claim about itself; no E12 commit reads it (C2a moves voice.mjs `sceneRoomWarnings`)"],
+            ["SOCKET voice.mjs#onVoiceSocket#gaps", "judged: a listener's report of who it does not hear (E129 S0-VOICE), kept by the GMs under Foundry's sender alone (voice.mjs `recordHearing`: users of this world and the closed reasons only); it moves no room and writes nothing"],
             ["HOOK fog.mjs#registerFog#updateToken:onUpdateToken", "out of scope as a judge: repaints and records a discovery on a move; gates on `isMoveChange` since E12 C9 (a `level`-only move is seen, scenario 66 G2 and G3) [1b.1 a token's floor]"],
             ["HOOK fog.mjs#registerFog#createToken:inline", "out of scope: a token dropped redraws the fog on every client; no rule; since E51 C3 a token of this viewer's own placed in a room plays the arrival a walk into it plays (`ownArrival`), on this browser alone"],
             ["HOOK room-tile.mjs#registerRoomTile#createRegion:onRegionChanged", "out of scope: repaints this client's room tile (E77 C3); the paint reads `viewerRoom` and decides no rule"],
@@ -10165,6 +10169,9 @@ const REGRESSIONS = [
             ["HOOK visibility.mjs#registerVisibility#createToken:inline", "out of scope: a token dropped re-applies visibility on every client; since E12 C11 it draws through visibility.mjs `tokenShownTo`, one rule on every floor (E12 C11)"],
             ["HOOK voice.mjs#registerVoice#updateToken:inline", "out of scope as a judge: schedules the voice reconcile, which places by `locateActor` on the primary; gates on `isMoveChange` since E12 C9 (a `level`-only move is seen, scenario 66 G2 and G3) [1b.1 a token's floor]"],
             ["HOOK voice.mjs#registerVoice#createToken:inline", "out of scope: a token dropped reconciles voice rooms on every client"],
+            ["HOOK voice.mjs#registerTrialVoices#updateToken:inline", "out of scope as a judge: a token hidden, shown, made hidden or deleted schedules the settle of the module's microphone block (E129 S0-HIDEMUTE, voice.mjs `settleTrialVoices`, on the primary); it places nobody and moves no room"],
+            ["HOOK voice.mjs#registerTrialVoices#createToken:inline", "out of scope as a judge: a token hidden, shown, made hidden or deleted schedules the settle of the module's microphone block (E129 S0-HIDEMUTE, voice.mjs `settleTrialVoices`, on the primary); it places nobody and moves no room"],
+            ["HOOK voice-tile.mjs#registerVoiceTile#updateToken:inline", "out of scope: a token's hide repaints this browser's own microphone button (E129 S0-HIDEMUTE, voice-tile.mjs `paintControls`); it writes nothing"],
             ["SHEET body.mjs#checkBodyFound", "judged on the primary: the room the walker stands in lawfully (`lawfulRoomOf`) and the body's place (`bodyPlaceOf` with `flagsHeldNow`), one synchronous step; since 1.2.113 the count of two writes the room's pending row (`pendingBodyStore`, keyed by the walk's scene and room) and asks the GM, and every witness is told by an addressed packet (`tellLoneFinder`) [1b.2]"],
             ["SHEET body.mjs#witnessesOf", "judged held where its caller passes `held` (`checkBodyFound`: `flagsHeldNow`; the default `held = actor => actor` reads the document); since E12 C12 `checkBodyFound` passes the standing through `roomOf` (`lawfulRoomOf`), the read still one synchronous step (H3, H17); since E12 fix r2-H3 one token a student counts"],
             ["SHEET movement.mjs#isCorpse", "out of scope: `isDeadForGm` (the GM's record) and the Monocub flag on the document (movement.mjs `isCorpse`), on the mover's browser; E12 changes neither"],
@@ -10343,6 +10350,7 @@ const REGRESSIONS = [
             ["SOCKET voice.mjs#onVoiceSocket#room", "judged: applied on the primary only for the sender's own voice (voice.mjs `onVoiceSocket`); C4 changes the room `voiceTargets` answers in the trial, not this road (no new claim) [1b.1 the hall's voice room] (E13 C4)"],
             ["SOCKET voice.mjs#onVoiceSocket#state", "judged: as the `room` row (the sender's own voice, on the primary) (E13 C4)"],
             ["SOCKET voice.mjs#onVoiceSocket#requestId", "judged: a `whoAmI` answer keyed by the asker's request id; the answer is about the sender only (voice.mjs `onVoiceSocket`)"],
+            ["SOCKET voice.mjs#onVoiceSocket#gaps", "judged: a listener's report of who it does not hear (E129 S0-VOICE), kept by the GMs under Foundry's sender alone (voice.mjs `recordHearing`: users of this world and the closed reasons only); it moves no room and writes nothing"],
             ["SOCKET sync.mjs#registerSync#kind", "judged: applied only from a GM sender (sync.mjs `registerSync`); E11 C3's gather pan rides it, and since E13 C3b so does the return from the trial's gather (`returnTheLiving`, the same `SYNC.gather` packet - no new claim)"],
             ["SOCKET sync.mjs#registerSync#data", "judged: as the `kind` row; the pan's `tokenIds` only find this client's own token, the return from the trial's as the body's"],
             ["SHEET trial-floor-ui.mjs#startClassTrial", "out of scope as a judgement: GM gate; it reads held (`judgedFor`, `flagsHeldNow`) and the document (`livingStudents`, `isDeceased`) for the briefing. Since E81 DZ6 the window holds the cast picker instead of E13 C6's count (`castPickerHtml` over `readCastActors`'s held flags, one synchronous pass after the `judgedFor` above, H3; never a player's claim) and stores the GM's changed ticks through `saveTrialCast` after both questions and before `setClock` (R437)"],
@@ -10381,6 +10389,7 @@ const REGRESSIONS = [
             ["SHEET settings.mjs#isDeadForGm", "not a source: the GM's own death record (settings.mjs `isDeadForGm`), not a player's flag"],
             ["SHEET monocub.mjs#isMonocub", "out of scope as a judgement: reads the flag of the actor it is handed; since E13 C3b the gather's filter and `leftBehind` hand it the held flags on the return from the trial (`flagsHeldNow`, after `judgedFor`), and the body's gather and every other reader hand the document, as before (the owner's item 6 of 10.10). C2 reads no Monocub flag: under Q-E13-1 (a) a Monocub a player owns is shown as any student a player owns (`readCast` reads only `monokuma`, held) [1b.2]"],
             ["HOOK diagnostics.mjs#canvasReady#canvasDrawn", "out of scope: times this client's own scene change for perf() and keeps the number in memory (E53 C1, perf-timings.mjs); it writes nothing and decides no rule [1b.1 which scene a client views]"],
+            ["HOOK context-loss.mjs#canvasReady#arrow1", "out of scope: watches this client's own board canvas for a lost drawing context and writes it to this browser's failure log and a card to the GMs (1.2.129, S0-WHITE); it writes no world document and decides no rule [1b.1 which scene a client views]"],
             ["HOOK despair.mjs#canvasReady#arrow1", "out of scope: draws for this client only; the scene a client views decides no rule (E12 C6 `CAMERA_READERS`) [1b.1 which scene a client views]"],
             ["HOOK fog.mjs#canvasReady#arrow1", "out of scope: draws for this client only; the scene a client views decides no rule (E12 C6 `CAMERA_READERS`) [1b.1 which scene a client views]"],
             ["HOOK sheet.mjs#preUpdateToken#noteStepStart", "out of scope: notes where this browser's own move starts (H81-13); the courtroom holds no tunnel, and the crossing is the primary's (`crossTunnel`)"],
@@ -10444,6 +10453,10 @@ const REGRESSIONS = [
             ["HOOK voice.mjs#updateToken#arrow1", "out of scope: reschedules this client's own voice room (a claim, 1b.1); E12 C9 gates the update on `isMoveChange`; in the trial C4's branch answers the main room whatever the token does [1b.1 the hall's voice room] (E13 C4)"],
             ["HOOK voice.mjs#createToken#arrow1", "out of scope: reschedules this client's own voice room (a claim, 1b.1); E12 C9 gates the update on `isMoveChange`; in the trial C4's branch answers the main room whatever the token does [1b.1 the hall's voice room] (E13 C4)"],
             ["HOOK voice.mjs#deleteToken#arrow1", "out of scope: reschedules this client's own voice room (a claim, 1b.1); E12 C9 gates the update on `isMoveChange`; in the trial C4's branch answers the main room whatever the token does [1b.1 the hall's voice room] (E13 C4)"],
+            ["HOOK voice.mjs#updateToken#arrow2", "out of scope as a judge: a token hidden, shown, made hidden or deleted schedules the settle of the module's microphone block (E129 S0-HIDEMUTE, voice.mjs `settleTrialVoices`, on the primary); it places nobody and moves no room"],
+            ["HOOK voice.mjs#createToken#arrow2", "out of scope as a judge: a token hidden, shown, made hidden or deleted schedules the settle of the module's microphone block (E129 S0-HIDEMUTE, voice.mjs `settleTrialVoices`, on the primary); it places nobody and moves no room"],
+            ["HOOK voice.mjs#deleteToken#arrow2", "out of scope as a judge: a token hidden, shown, made hidden or deleted schedules the settle of the module's microphone block (E129 S0-HIDEMUTE, voice.mjs `settleTrialVoices`, on the primary); it places nobody and moves no room"],
+            ["HOOK voice-tile.mjs#updateToken#arrow1", "out of scope: a token's hide repaints this browser's own microphone button (E129 S0-HIDEMUTE, voice-tile.mjs `paintControls`); it writes nothing"],
             ["HOOK voice.mjs#canvasReady#arrow1", "out of scope: reschedules this client's own voice room (a claim, 1b.1); E12 C9 gates the update on `isMoveChange`; in the trial C4's branch answers the main room whatever the token does [1b.1 the hall's voice room] (E13 C4)"],
             ["STORE settings.mjs#clock", "not a source: a world setting written only by clock.mjs `setClock`; C3's `followPhase` in `reconcilePhase` (called in clock.mjs `setClock`) is the one road in and out: every door writes the phase there and only `followPhase` activates a scene (R113)"],
             ["STORE settings.mjs#bodiesFound", "not a source: E11 C1's stamps, a world setting only a GM writes; 41 g reads them deep-equal before and after the return to the school (E13 C3's switch)"],
@@ -11578,6 +11591,9 @@ const REGRESSIONS = [
             ["HOOK visibility.mjs#registerVisibility#createToken/inline -> judge", "this file's own; E79 adds no road through it"],
             ["HOOK voice.mjs#registerVoice#updateToken/inline -> judge", "this file's own: the voice room follows the room; E79 adds no road through it"],
             ["HOOK voice.mjs#registerVoice#createToken/inline -> judge", "this file's own; E79 adds no road through it"],
+            ["HOOK voice.mjs#registerTrialVoices#updateToken/inline -> judge", "this file's own: the microphone block's settle (E129 S0-HIDEMUTE); no passage or movement road through it"],
+            ["HOOK voice.mjs#registerTrialVoices#createToken/inline -> judge", "this file's own: the microphone block's settle (E129 S0-HIDEMUTE); no passage or movement road through it"],
+            ["HOOK voice-tile.mjs#registerVoiceTile#updateToken/inline -> judge", "this file's own: the microphone button repainted (E129 S0-HIDEMUTE); no passage or movement road through it"],
             // ---- the update's options a client sets
             ["OPT movement.mjs#noteGmPosition#REVERT -> exempt", "a claim, judged: handed to `judgeArrival` as `revert`, which takes it only where `sendBackRefusal` does; the wall rule reads the option itself (below), by the same rule"],
             ["OPT movement.mjs#noteGmPosition#SENT_BACK -> exempt", "a claim, judged as REVERT is: it marks a move the GM sent back itself; on a GM's write the player it names is handed the witness judge as the one who asked (`askerOf`, E79 fix r3-G2), who acts as the Mastermind or not as that player does (R560; 76 G)"],
@@ -16718,10 +16734,11 @@ const REGRESSIONS = [
          * one. Read on every module file with comments and literals blanked; a planted source is read first.
          */
         const CALL_CENSUS = [
-            ["action-search.mjs#searchSpecific", "player", "abort(", "a Search for something specific, after the dice: the action's price comes back (`abort`), and the roll is noted as no search made"],
+            // CHANGED ON PURPOSE BY E129 (1.2.128): the three refunds after the dice go through `giveBackAfterRoll`, which asks the rule.
+            ["action-search.mjs#searchSpecific", "player", "giveBackAfterRoll(", "a Search for something specific, after the dice: the action's price comes back as the roll lets it (`giveBackAfterRoll`, E129), and the roll is noted as no search made"],
             ["action-project.mjs#startProject", "player", null, "a project proposal, its sentence typed in its one window (E22 C5c): nothing is spent before it, and false is no proposal - no 'sent' line follows"],
-            ["action-observe.mjs#ruleObserve", "player", "abort(", "an Observe the GM rules, after the dice: the action's price comes back (`abort`)"],
-            ["action-analyze.mjs#askForHint", "player", "refundPrice(", "an Analyze hint, after the dice: the step that paid comes back (`refundPrice`)"],
+            ["action-observe.mjs#ruleObserve", "player", "giveBackAfterRoll(", "an Observe the GM rules, after the dice: the action's price comes back as the roll lets it (`giveBackAfterRoll`, E129)"],
+            ["action-analyze.mjs#askForHint", "player", "giveBackAfterRoll(", "an Analyze hint, after the dice: the step that paid comes back as the roll lets it (`giveBackAfterRoll`, E129)"],
             ["action-dynamic.mjs#offerDynamicFind", "player", null, "a Dynamic success's card for the GMs, after the dice (E16 C2), and a miss's since E51 C1: the result is the roll's and stands, so nothing is handed back; with no GM the refusal is said once (`callGm`)"],
             ["use-items.mjs#useCreatively", "player", null, "a Tier 0 item's creative use: the item is spent only on the GM's ruling, and null ends the use"],
             ["gm-bridge.mjs#promptAndCallGm", "player", null, "the window's words handed to `callGm`: its false is answered as null, which each caller above reads"],
@@ -23547,7 +23564,7 @@ const REGRESSIONS = [
             "case-summary.mjs": {"message": 1},
             
             
-            "chapter.mjs": {"card": 3}, "cleanup-reshape.mjs": {"action": 2, "card": 1, "line": 1}, "cleanup.mjs": {"action": 3, "built": 1, "card": 3, "heading": 2, "line": 6, "message": 1}, "clock.mjs": {"built": 1, "line": 1, "message": 1}, "death.mjs": {"heading": 1}, "despair.mjs": {"line": 1, "message": 1},
+            "chapter.mjs": {"card": 3}, "cleanup-reshape.mjs": {"action": 2, "card": 1, "line": 1}, "cleanup.mjs": {"action": 3, "built": 1, "card": 3, "heading": 2, "line": 6, "message": 1}, "clock.mjs": {"built": 1, "line": 1, "message": 1}, "context-loss.mjs": {"line": 1}, "death.mjs": {"heading": 1}, "despair.mjs": {"line": 1, "message": 1},
             "diagnostics.mjs": {"card": 1}, "doors-gm.mjs": {"built": 2, "line": 3},
             // E69 C6, C7 (13.11.2026): the listener's line and Echoes' result are E49's card (action-listen.mjs); the GMs'
             // warning that voice per room is off is a warning card (eavesdrop-gm.mjs).

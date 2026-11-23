@@ -226,6 +226,16 @@ export async function openNewTrace({ room = null, sceneId = null, type = null, n
             author: result.author, vis: result.visibility, reinforced: result.reinforced, analysis: result.analysis, note: result.note,
             img, askRoom: true });
     }
+    return createTraceNow(result, scene, img);
+}
+
+/**
+ * A TRACE PLACED FROM `result` (the New Remnant window's read: room, type, visibility, name, text, analysis, note, tied,
+ * reinforced, author) in its room of `scene`, `img` its picture: what New Remnant's Create does after its window, out of
+ * `openNewTrace` (line INVEST of 1.2.129) so the Realization places a planned incident Remnant by the same road with no
+ * window (case-realize.mjs, S0-REALIZE). Says what it refuses and what it placed, as the window did. Answers the token.
+ */
+export async function createTraceNow(result, scene, img = "") {
     if (!REMNANT_TYPES[result.type]) {
         ui.notifications.warn(game.i18n.localize("DRPG.Investigation.newTraceBadType"));
         return null;

@@ -372,6 +372,23 @@ export const PHASES = {
 export const CHAPTERS_PER_SEASON = 6;
 
 /**
+ * WHETHER A SHARE CARRIES THE GIVER'S ANALYZE RESULT, BY DEFAULT (the owner's notes of session 0, 23.11.2026, S0-ANSHARE:
+ * "wybor czy udostepniac z analyze czy bez"; the coordinator's default, pending the owner; line INVEST of 1.2.129). The
+ * Share window of a Truth Bullet that holds a reading asks, its box ticked as this says (handover.mjs `askRecipient`). The
+ * one place the default lives.
+ */
+export const SHARE_WITH_ANALYSIS = true;
+
+/**
+ * WHAT THE CASE'S REALIZATION PLACES, BY DEFAULT (the owner's notes of session 0, 23.11.2026, S0-REALIZE: "realization
+ * niech zawiera opcje rozdania i ustawienia wszystkich remnantow zaplanowanych, albo samych key (jak teraz)"; the
+ * coordinator's default, pending the owner; line INVEST of 1.2.129): "keys", the Key Remnant plan's slots alone, as until
+ * now, or "all", the chapter's every planned Remnant placed and every planned Truth Bullet given as well (case-realize.mjs
+ * `openRealization`). The window's choice starts here.
+ */
+export const REALIZE_SCOPE = "keys";
+
+/**
  * Every timing and size the module used to keep as a local constant in the
  * file that read it (audit, hygiene: "magic numbers outside config"). None of
  * these is a rule of the game; they are how long the module waits, how much it
@@ -1287,6 +1304,36 @@ export const CRITICAL = {
     hope: 2,
     clearsStress: false
 };
+
+/*
+ * WHAT A ROLL LEAVES TO GIVE BACK (E129, 1.2.128; the owner's note of session 0, 23.11.2026: "niektore akcje zwracaja hope
+ * i akcje przy rzucie mimo ze nie powinny", and "Tamper chyba najbardziej"). The inventory is docs/dev/owner129/desp/
+ * REFUNDS.md; each row the coordinator set a default for is one key here, so the owner's answer changes a key and nothing
+ * else. The owner's answers of 23.11.2026, relayed by the coordinator, set them: rows 12, 13 and T8 "c", the price always
+ * back as before (`afterRoll` "always"; Tail keeps its own rule of 1.2.123, action-tail.mjs `rollsEarnedHope`); T5
+ * "Zostawiamy jak jest" - a critical Tamper keeps its 2 Hope and gives back what paid, as the handbook says
+ * (`tamperCritical` true); T12 as the rules say, unchanged (`freeCritical` true); row 4 and T1 "Z glownego" - Hope
+ * from the action's main roll only (`supportingHope` false).
+ *   afterRoll          an action refused or not carried out after its dice landed, before they are read (REFUNDS rows
+ *                      13, T8): "always" gives the price back as before E129 (the owner's E14 Q3 of 18.10.2026);
+ *                      "noHope" only when no roll of the action brought Hope or a critical (`mayRefundAfterRoll`,
+ *                      price.mjs; Tail's road since 1.2.123); "never" as ROLL-05 keeps a window closed after a roll.
+ *   gmRefuse           the GM's "Refuse the attempt" on a ruling card (row 12); null asks `afterRoll`.
+ *   supportingHope     whether a supporting roll - a cover or a concealment, `rollTrait`'s `remember: false` - earns
+ *                      its Hope (row 4, T1). Its critical keeps what the rules text gives it beside Hope (Tamper's
+ *                      concealment gives back 1 Sanity).
+ *   tamperCritical     whether a critical Tamper taken as an action gives back what the attempt cost (T5, T6, and the
+ *                      Misleading Trail and Move the Body through Tamper's door); its 2 Hope stand either way. The
+ *                      killer's own clean-up keeps the guide's give-back ("Morderca odzyskuje 1 stres").
+ *   freeCritical       whether the free attempt a critical Finishing Blow leaves gives anything back on a critical (T12).
+ */
+export const ROLL_REFUNDS = Object.freeze({
+    afterRoll: "always",
+    gmRefuse: null,
+    supportingHope: false,
+    tamperCritical: true,
+    freeCritical: true
+});
 
 /**
  * Analyze action DCs. Turns a Neutral Truth Bullet into an identified category.
@@ -3184,6 +3231,19 @@ export const PROJECT_TOKEN = {
      */
     isoScale: 0.72
 };
+
+/*
+ * A REMNANT'S TOKEN, DRAWN AT ONE ALPHA PER VIEWER (1.2.129 line MAP, stage E129; released in 1.2.128; the owner's
+ * session-0 note S0-REMALPHA, 23.11.2026: "niektore remnanty sa polprzezroczyste i przez to niewidoczne"). The owner's
+ * answer: on the GM's screen, Neutral Remnants. Every Remnant was created at document alpha 0.5 (remnants.mjs
+ * `placeRemnant`) and a hidden one is dimmed again by Foundry on a GM's browser, about a quarter by estimate, not a
+ * reading (LIVE-129-MAP-01). Each browser now draws a Remnant's picture at its own constant (visibility.mjs
+ * `remnantAlpha`): a GM sees one the players see whole, and one hidden from them at `gmHidden` - lower, so the GM tells
+ * the two apart, never so low the GM loses it (0.6, the coordinator's default, chosen on the comparison sheet in
+ * docs/dev/owner129/map/). A player keeps 0.5, the design the map had ("people in a room": a trace is finer print than
+ * the cast) - the owner's "Tak" to that default, 23.11.2026; raising it is this one number.
+ */
+export const REMNANT_ALPHA = Object.freeze({ player: 0.5, gmShown: 1, gmHidden: 0.6 });
 
 export const PROJECT_GLYPHS = {
     hourglass: { label: "Hourglass", fa: "fa-hourglass" },
@@ -5605,6 +5665,8 @@ export const DRPG = {
     TIME_OF_DAY_LABELS,
     PHASES,
     CHAPTERS_PER_SEASON,
+    SHARE_WITH_ANALYSIS,
+    REALIZE_SCOPE,
     ROOMS_PER_PLAYER,
     ECLIPSE_MOVES,
     ECLIPSE_FREE_PLACEMENT,
@@ -5626,6 +5688,7 @@ export const DRPG = {
     OBSERVE_TYPE_ALIAS,
     OBSERVE_FAIL_STRESS,
     CRITICAL,
+    ROLL_REFUNDS,
     ANALYZE_DC,
     analyzeDc,
     observeDc,
@@ -5645,6 +5708,7 @@ export const DRPG = {
     MOTIVE,
     PROJECT_SCALE,
     PROJECT_GLYPHS,
+    REMNANT_ALPHA,
     PROJECT_TOKEN,
     isProjectGlyph,
     PROJECT_DESCRIPTION_MAX,

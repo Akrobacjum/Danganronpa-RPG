@@ -596,6 +596,17 @@ export async function handleShareBulletOrGiveItem(payload, sender, ctx) {
     if (out?.refused) return { refused: out.refused };
 }
 
+/*
+ * A SHARE THAT SAYS WHETHER THE READING GOES WITH IT (S0-ANSHARE, line INVEST of 1.2.129): the share's own run, so that
+ * only its row lets `analysis` through (R163); a packet without the field, an older client's, carries the reading as
+ * every share did until 1.2.129. The rest is the common run's.
+ */
+export async function handleShareBullet(payload, sender, ctx) {
+    const { shareBullet } = await import("./handover.mjs");
+    const out = await shareBullet({ fromId: payload.fromId, toId: payload.toId, itemId: payload.itemId, analysis: payload.analysis !== false });
+    if (out?.refused) return { refused: out.refused };
+}
+
 // Showing a secret passage (E79 C7): the recipient learns it in the GMs' records, which only the
 // primary writes. Every check past the sender's ownership of the giver is `shareRefusal`'s, and whether
 // the sender acts as the Mastermind through the giver is asked of the sender (E79 fix r2-G2, SEC M3).

@@ -23,7 +23,9 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
-const OUT = path.resolve(HERE, "../../../docs/dev/owner124/console/capture");
+// Where the capture goes: DRPG_SHOTS_DIR (repository-relative, e.g. docs/dev/owner129/comm) + "/capture", 1.2.124's folder
+// by default.
+const OUT = path.resolve(HERE, "../../..", process.env.DRPG_SHOTS_DIR ?? "docs/dev/owner124/console", "capture");
 
 export const layers = ["probe"];
 
@@ -87,10 +89,20 @@ export async function run({ gm, p1, p2, p3, check, note, settle, repoUrl, IDS })
         const got = await capture(view, file);
         if (!got) { manifest.push({ view, file, captured: false }); continue; }
         fs.writeFileSync(path.join(OUT, file), got.html);
-        manifest.push({ view: view === "console" ? "console" : a.name, file, captured: true, title: got.title, width: got.width,
+        manifest.push({ view: view === "console" ? "console" : a.name, file, kind: "gm", captured: true, title: got.title, width: got.width,
             height: got.height, waiting: got.waiting, stream: got.stream });
         note(`kept ${file}`, JSON.stringify({ width: got.width, height: got.height, waiting: got.waiting, stream: got.stream }));
     }
+    // A player's own window (E129: its size grew too), from the first player's page.
+    const own = await p1.eval(`const A = ${imp("messenger-app.mjs")};
+        const app = A.openMessenger();
+        await new Promise(r => setTimeout(r, 1200));
+        const el = app?.element;
+        return el ? { html: el.outerHTML, width: app.position?.width ?? null, height: app.position?.height ?? null, title: app.title } : null;`, { timeout: 60000 });
+    if (own) {
+        fs.writeFileSync(path.join(OUT, "own.html"), own.html);
+        manifest.push({ view: a.name, file: "own.html", kind: "player", captured: true, title: own.title, width: own.width, height: own.height });
+    } else manifest.push({ view: a.name, file: "own.html", kind: "player", captured: false });
     const kept = manifest.find(row => row.file === "console.html");
     check("the Timeline was kept with a card waiting and items in its stream",
         Boolean(kept?.captured && kept.waiting >= 1 && kept.stream >= 3), JSON.stringify(kept));

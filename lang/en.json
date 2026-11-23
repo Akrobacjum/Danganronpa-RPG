@@ -962,6 +962,7 @@
       "reliefFresh": "-{n} for a body nobody has found yet",
       "dcFrame": "A Misleading Trail: {n}+.",
       "spentAfterRoll": "{action}: your first roll already counts, so the action stays spent.",
+      "keptAfterRoll": "Your roll already brought you Hope, so what you paid for this does not come back.",
       "dynamicRefused": "The GM turned your Dynamic Action down. You keep your action.",
       "panelTitle": "Actions",
       "unknown": "Unknown action: {key}.",
@@ -2318,6 +2319,8 @@
           "overviewFoldTooltip": "Unfolds Check consistency with the problems it found, and the chapter's Final Truth Remnant form",
           "fitViewTooltip": "Centers the map and zooms so the whole case shows. Only your view changes",
           "realizeRoomTooltip": "Where Run realization places this slot's Key Remnant, with the difficulty and words its plan holds",
+          "realizeKeysTooltip": "Places only the Key Remnant slots picked a room below, as until now",
+          "realizeAllTooltip": "Also places every planned Remnant and Final Truth not on the map in the room picked, and gives every planned Truth Bullet not given yet to its recipient",
           "tieTooltip": "Tied, it survives clearing Faint Remnants. Undecided, an incident under way may tie it by its room or who left it",
           "orderTooltip": "By room puts tied Remnants first, then sorts by room; Newest first goes by chapter, day, and time of day",
           "restsOnBoxTooltip": "Ticked, the Map draws a link from that node into this one, and Check consistency follows it",
@@ -3644,7 +3647,9 @@
       "giveIntro": "Who do you hand “{name}” to? You are in {room}.",
       "who": "Who?",
       "shareKeyNote": "They get their own copy of the key, and you keep yours. It costs no action.",
-      "shareNote": "They get their own copy with what you know of it, and you keep yours. If your Analyze of it failed, they can still Analyze theirs. It costs no action.",
+      "shareNote": "They get their own copy with what you know of it, and you keep yours. If your Analyze of it failed, they can still Analyze theirs. Its words are yours as you hold them, even if the Remnant was reshaped after you found it. It costs no action.",
+      "shareWithAnalysis": "Share it with my Analyze result",
+      "shareWithoutNote": "If you untick it, their copy shows this Truth Bullet as if nobody had analyzed it, without its reading or the type Analyze found. They can Analyze it themselves.",
       "giveNote": "One piece goes from your inventory to theirs for good. If their hands are full, it stays with you. It costs no action.",
       "pickedLeft": "{name} has left the room. Pick someone else.",
       "nobodyHere": "There is nobody else in {room} to hand anything to.",
@@ -3663,6 +3668,7 @@
       "changedMidwayKept": "“{name}” changed on {from}'s sheet (used, broken, stashed, or gone) before it reached {to}, and its copy could not be taken back. Take the copy off {to}'s sheet.",
       "alreadyHasIt": "Nothing changed hands; your Truth Bullet stays yours.",
       "shared": "{who} now has a copy of “{name}”.",
+      "sharedWithoutAnalysis": "{who} now has a copy of “{name}”, without your Analyze result.",
       "gave": "“{name}” is now {who}'s.",
       "gaveOne": {
         "one": "You hand {who} one “{name}”. You still have one.",
@@ -5275,6 +5281,9 @@
       "searchTokensRestocked": "Every room restocked with Search Tokens",
       "woundedNote": "With no Health left, these students are down an action this time of day: {names}."
     },
+    "Context": {
+      "lost": "{name}'s browser lost its drawing context ({scene})."
+    },
     "Panel": {
       "settings": "Settings",
       "nextStartTrial": "Every planned Key Remnant has been found. Start the Class Trial from the trial console.",
@@ -5340,6 +5349,9 @@
       "character": "Character",
       "freeMove": "Free Move",
       "noCharacters": "No living students in this world.",
+      "moves": "Moves",
+      "anyRoom": "Any room",
+      "rosterCaption": "What each student has left this time of day",
       "installTables": "Create item tables",
       "despairFlow": "Despair Flow",
       "sweepBullets": "Sweep Truth Bullets",
@@ -6074,11 +6086,21 @@
         "floorHeldPair": "The floor is {name}'s and {target}'s: your microphone stays off until you get the floor or the mode ends.",
         "listening": "Listening at a door: your microphone stays off until you stop.",
         "masked": "Hidden behind a \"?\": you are out of voice. You hear nobody and nobody hears you until you reveal yourself or the time of day changes.",
+        "tokenHidden": "Your token is hidden: your microphone stays off until the GM shows it again.",
         "veiled": "Before your opening roll: your microphone stays off until you throw it.",
         "cubSpeak": "Discussion: you may speak.",
         "cubListen": "{mode}: you listen.",
         "cubVote": "The vote: you listen.",
         "ownCase": "You listen: this trial is about your death."
+      },
+      "hearing": {
+          "mutedForMe": "muted by the listener (Mute for me)",
+          "volumeZero": "volume at 0 on the listener's page",
+          "notSubscribed": "their microphone is not received",
+          "noElement": "no sound player for them on the page",
+          "elementPaused": "their sound is paused on the page",
+          "elementMuted": "their sound is muted on the page",
+          "trackNotLive": "no sound arrives from them"
       },
       "list": {
         "open": "Who you hear",
@@ -6093,6 +6115,8 @@
         "unmuteFor": "Hear {name} again",
         "hidden": "You hid them in the camera dock, so you do not hear them.",
         "unhide": "Show and listen",
+        "mutedByYou": "Muted by you",
+        "gap": "You do not hear them: {why}. If it lasts, reload the page (F5).",
         "gmBlock": "Block {name}'s microphone for everyone",
         "gmUnblock": "Unblock {name}'s microphone",
         "gmHeld": "You cannot block this microphone now.",
@@ -6129,6 +6153,8 @@
           "listening": "listening at the door of {into}, from {from}",
           "masked": "behind a \"?\" after a murder's opening: a silent room of its own"
         },
+        "hearing": "Who does not hear whom (as each player's page reports it):",
+        "hearingRow": "{name} does not hear {speaker}: {why}",
         "setting": "Regional voice setting: {state}",
         "on": "on",
         "settingOff": "off, so nothing is applied",
@@ -7654,6 +7680,9 @@
       "undo": "Undo realization",
       "title": "Case realization, chapter {chapter}",
       "intro": "Nothing changes until you press Run realization. Each Key Remnant slot not on the map yet, within the chapter's limit, is placed in the room you pick; a slot with no room stays as it is.",
+      "scope": "What to realize",
+      "scopeKeys": "Key Remnants only",
+      "scopeAll": "Every planned Remnant and Truth Bullet",
       "colWhat": "What",
       "colSlot": "Slot",
       "colName": "Name",
@@ -7664,12 +7693,20 @@
       "action": {
         "create": "Will place",
         "placed": "On the map",
-        "overLimit": "Past the limit"
+        "overLimit": "Past the limit",
+        "give": "Will give",
+        "noRecipient": "No recipient"
+      },
+      "kind": {
+        "incident": "Planned Remnant",
+        "final": "Final Truth",
+        "bullet": "Truth Bullet"
       },
       "ran": "Key Remnants the realization placed: {n}.",
+      "ranAll": "Remnants the realization placed: {n}. Truth Bullets it gave: {given}.",
       "notRun": "Nothing was placed.",
       "nothingMade": "The realization placed nothing this chapter.",
-      "undoAsk": "Undo the realization? Key Remnants it placed: {n}. Those a student has found or Monokuma has revealed stay.",
+      "undoAsk": "Undo the realization? What it placed or gave: {n}. Remnants a student has found or Monokuma has revealed stay; the Truth Bullets it gave are taken back.",
       "undone": "Removed {removed}; {kept} stay because they were found or revealed.",
       "askTitle": "The case's realization",
       "askBody": "A body was found. The case for this chapter has not been realized yet. Nothing happens until you choose.",
