@@ -16,7 +16,7 @@ import { log, error, whisperToGms, gmIds, warn, plural, isPrimaryGm } from "./ut
 import { drpgConfirm, drpgWindow, emptyOption, tipAttr } from "./ui-kit.mjs";
 import { everyPart, registerSeasonState } from "./season-reset.mjs";
 import { deferredOfferStore, deathStore, lootTraceStore } from "./gm-stores.mjs";
-import { leaveBody, removeBodyTiles } from "./body-tile.mjs";
+import { leaveBody, removeBodyTiles, markCorpse } from "./body-tile.mjs";
 import { ensureDeadSpectator, takeFadedFor, removeDeadSpectator, removeAllDeadSpectators } from "./spectator-dead.mjs";
 
 /** Every student still alive, as the table knows it (rule A). */
@@ -97,6 +97,12 @@ export async function markDeceased(actor, { record: when = null, phase = null, c
         await actor.toggleStatusEffect("dead", { active: true, overlay: true });
     } catch {
         log(`Could not apply the "dead" status to ${actor.name}; the flag is set regardless.`);
+    }
+    // The skull on the corpse's token, which outlasts the status (E129 S0-DEADMARK; body-tile.mjs `markCorpse`). Tried apart.
+    try {
+        await markCorpse(actor, true);
+    } catch (err) {
+        error(`Could not mark ${actor.name}'s corpse`, err);
     }
 
     /* THE BODY, WHERE THE TOKEN LIES (E63 C0, 11.11.2026; the owner on E95 Q3: "gdy postac umiera ... Nie gdy zostaje
@@ -197,6 +203,13 @@ export async function killCharacter(actor, { keepBullets = false, secret = null,
             warn(`${actor.name}'s death could not be kept by the GMs, so it is the table's at once.`);
             secretly = false;
         } else {
+            // The skull from the death, a kept death's too (1.2.128, E129 S0-DEADMARK; body-tile.mjs `markCorpse`): the
+            // corpse's token, not the actor, so the death stays out of the actor's data until it is published.
+            try {
+                await markCorpse(actor, true);
+            } catch (err) {
+                error(`Could not mark ${actor.name}'s corpse`, err);
+            }
             // The kept death's Spectator (E62 C3b): its link in the GMs' row, no flag (spectator-dead.mjs). For an NPC
             // none, and the row says so (`watcher.npc`), so the publication makes none either (1.2.113).
             try {
@@ -679,6 +692,12 @@ export async function reviveCharacter(actor, { quiet = false, silent = false } =
         }
     }
 
+    // Nor a skull on any token of theirs (E129 S0-DEADMARK; body-tile.mjs `markCorpse`). Tried apart.
+    try {
+        await markCorpse(actor, false);
+    } catch (err) {
+        error(`Could not take the corpse's mark off ${actor.name}`, err);
+    }
     // A student back alive has no body (E95 C2; QUESTIONS Q8): the body tiles they left as a Monocub go, of whichever
     // death (body-tile.mjs `removeBodyTiles`). Tried on its own: the revive is done whether or not a tile could go.
     try {

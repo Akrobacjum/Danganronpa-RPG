@@ -286,6 +286,29 @@ export function installLiveKit({ roster = {}, external = false, names = {} } = {
         room.emit("disconnected", reason);
     }
 
+    /* THIS PAGE'S OWN MICROPHONE TRACK (E129, S0-GMMUTE; voice-client.mjs `followHold`). avclient-livekit 0.6.8 builds it
+       at every initialize (LiveKitClient.ts:557-586 `initializeAudioTrack`) and mutes it there only when core's
+       `canUserShareAudio` says so; after that a write of the stored mute reaches it only through `toggleAudio`, which
+       returns early unless `audioBroadcastEnabled` is already on (LiveKitAVClient.ts:632), and a permission change not at
+       all (no hook of its own). The stand-in takes the worst reading that code allows: built live at every initialize,
+       whatever the permission and the stored mute say, and moved by nothing but its own `mute()` and `unmute()`, which
+       the record `trackOps` keeps; `changeAudioSource()` builds one when there is none, as LiveKitClient.ts:305-337
+       does for a track built while blocked. Whether core calls in on a mute or a permission change is not read
+       (LIVE-129-COMM-06, -07). */
+    const ownTrack = () => {
+        const track = { kind: "audio", isMuted: false, serial: ++state.tracks };
+        track.mute = async () => { track.isMuted = true; state.trackOps.push({ op: "mute", serial: track.serial }); return track; };
+        track.unmute = async () => { track.isMuted = false; state.trackOps.push({ op: "unmute", serial: track.serial }); return track; };
+        return track;
+    };
+    state.tracks = 0;
+    state.trackOps = [];
+    liveKitClient.audioTrack = null;
+    liveKitClient.changeAudioSource = async () => {
+        state.trackOps.push({ op: "changeAudioSource" });
+        if (!liveKitClient.audioTrack) liveKitClient.audioTrack = ownTrack();
+    };
+
     const client = webrtc.client;
     put(client, CLIENT_FIELD, liveKitClient);
     put(client, "room", null);
@@ -293,6 +316,7 @@ export function installLiveKit({ roster = {}, external = false, names = {} } = {
         liveKitClient.initState = "initializing";
         leaveRoom(liveKitClient.liveKitRoom);
         liveKitClient.liveKitRoom = new Room(++state.rooms);
+        liveKitClient.audioTrack = ownTrack();
         liveKitClient.initState = "initialized";
         Hooks.callAll("liveKitClientInitialized", liveKitClient);
         return true;
@@ -334,6 +358,11 @@ export function installLiveKit({ roster = {}, external = false, names = {} } = {
         get rooms() { return state.rooms; },
         get attaches() { return state.attaches; },
         get toggles() { return [...state.toggles]; },
+        /** This page's own track as the stand-in holds it: null, or `{ serial, muted }`; `trackOps` every move of it. */
+        get track() { const t = liveKitClient.audioTrack; return t ? { serial: t.serial, muted: t.isMuted } : null; },
+        get trackOps() { return [...state.trackOps]; },
+        /** The track gone, as a connect while blocked leaves it (`getAudioParams` false): Listen's end reads from here. */
+        dropTrack() { liveKitClient.audioTrack = null; return true; },
         /** Who stands where from now on; the next connect reads it, a Room already connected does not. */
         setRoster(next) { state.roster = { ...next }; },
         /** A user joins this client's Room: `participantConnected`, then their view and its audio, as the dock draws them. */

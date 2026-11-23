@@ -18,6 +18,7 @@ import { whisperToOwner, esc } from "./utils.mjs";
 import { rollTrait, rollInHand, abort, spentAfterRoll, canAfford, dualityOf } from "./action-pipeline.mjs";
 import { rollHead, rollCardFlags } from "./action-report.mjs";
 import { briefingBlock } from "./action-briefing.mjs";
+import { coverWhileHidden, coverLine } from "./hide.mjs";
 import { actionWindow, traitFieldHtml, readProposal } from "./action-menus.mjs";
 import { isMonokuma } from "./monokuma.mjs";
 import { tipAttr } from "./ui-kit.mjs";
@@ -31,7 +32,8 @@ export function tailTargets(actor) {
 
 /** Whether any of `rolls` (`rollTrait`'s results) came up with Hope or a critical (`dualityOf`): the rolls that earn the roller Hope (r122-F-2). Pure. */
 export function rollsEarnedHope(rolls) {
-    return (rolls ?? []).some(r => { const d = dualityOf(r); return Boolean(d.withHope || d.isCritical); });
+    // A cover not thrown while hidden (hide.mjs `coverWhileHidden`) is no roll and earned nothing.
+    return (rolls ?? []).some(r => { const d = dualityOf(r); return !r?.hidden && Boolean(d.withHope || d.isCritical); });
 }
 
 /**
@@ -44,7 +46,9 @@ export function rollsEarnedHope(rolls) {
 export function tailCard(label, roll, shadow, seen, name) {
     const flags = rollCardFlags({ label }, roll);
     flags.flags[MODULE_ID].popupCentre = seen ? "failedShadow" : "actionResult";
-    return [{ glyph: "ACTIONS.listen", body: `${rollHead({ label: game.i18n.localize("DRPG.Infiltrate.tail.unseenTitle") }, shadow)}${
+    // While hidden the Shadow roll was not thrown (S0-HIDE): its line says so in place of its head.
+    const unseen = shadow?.hidden ? coverLine(shadow) : rollHead({ label: game.i18n.localize("DRPG.Infiltrate.tail.unseenTitle") }, shadow);
+    return [{ glyph: "ACTIONS.listen", body: `${unseen}${
         rollHead({ label }, roll)}<p>${esc(game.i18n.format(seen ? "DRPG.Infiltrate.tail.startedSeen" : "DRPG.Infiltrate.tail.started", { name }))}</p>` }, flags];
 }
 
@@ -131,8 +135,9 @@ export async function performTail(actor, options = {}) {
     }
     const paid = cost > 0 ? await spendAction(actor, cost) : null;
     if (cost > 0 && !paid) return null;
-    // Whether the target notices: a supporting roll, nothing remembers it (as a Palm's cover).
-    const shadow = await rollTrait(actor, rule.unseen.trait, {
+    // Whether the target notices: a supporting roll, nothing remembers it (as a Palm's cover); while hidden, not thrown
+    // and passed (S0-HIDE, hide.mjs `coverWhileHidden`).
+    const shadow = coverWhileHidden(actor) ?? await rollTrait(actor, rule.unseen.trait, {
         remember: false, actionKey: "tailUnseen", title: game.i18n.localize("DRPG.Infiltrate.tail.unseenTitle"), dc: rule.unseen.threshold
     });
     if (!shadow) return abort(actor, paid);

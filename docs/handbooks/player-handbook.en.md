@@ -228,12 +228,12 @@ Two buttons sit on the tile. **The microphone** mutes and unmutes your own micro
 |---|---|
 | struck through | muted, by you |
 | struck through, with a small lock | muted by the GM (**The GM blocked your microphone.**) |
-| gray and struck through | the game holds it - during an Eclipse, while you listen at a door, while the GM hides your token, in a Class Trial while the floor is somebody else's or you are on the trial's list of the dead, and as a Spectator - with the reason under it; a click then changes nothing and tells you why |
+| gray and struck through | the game holds it - during an Eclipse, while you listen at a door, while the GM hides your token, while you hide (Hide), in a Class Trial while the floor is somebody else's or you are on the trial's list of the dead, and as a Spectator - with the reason under it; a click then changes nothing and tells you why |
 | with a small dot | you are not connected to voice, or voice runs in its own window |
 | lit | your microphone carries your voice |
 | wearing **PTT** | push to talk: hold your key to speak |
 
-A Monocub keeps its microphone during an Eclipse and is told that nobody hears it until the lights come back. In the Spectators' room the microphone stays yours to mute and unmute, with a line under it saying where you are.
+A Monocub keeps its microphone during an Eclipse and is told that nobody hears it until the lights come back. In the Spectators' room the microphone stays yours to mute and unmute, with a line under it saying where you are. While the microphone is struck through, gray or not, your own browser also turns your microphone off itself, so nobody hears you until it is lit again; in push to talk your key opens it.
 
 **The speaker** shows how many others are in your channel - everyone who can hear you, speaking or not - and opens **Who you hear**: each of them with a volume slider and **Mute *name* for you** (then **Hear *name* again**), and at the top **Mute everybody for you**. All of it is yours alone: nobody else hears the difference. Escape or a click outside closes the list. A person you muted for you reads **Muted by you** until you press **Hear *name* again**; this browser keeps it for your next session too. A person your page does not hear for another reason reads why, with the advice to reload the page (F5); the page itself tries once to play a paused sound or to receive a microphone it is not receiving.
 
@@ -394,7 +394,7 @@ A room action the GM set is rolled on the statistic and difficulty its row names
 
 ### Infiltrate: Listen - Shadow, 1 action
 
-The **Infiltrate** tile's window lists its actions one under another: Listen first, then Echoes, Tail Someone, Keep Watch, Dash, Shut the Door, Force the Door, and Pick the Lock. Each has its part of this section below.
+The **Infiltrate** tile's window lists its actions one under another: Listen first, then Echoes, Tail Someone, Keep Watch, Dash, Shut the Door, Force the Door, Pick the Lock, and Hide. Each has its part of this section below.
 
 Listen works out who is in a neighboring room, with no GM ruling. You pick the room before you roll, and the answer arrives as a card only you and the GMs can read. In a room with no neighboring room Listen is grayed with the reason.
 
@@ -440,6 +440,14 @@ If you open it below 18, or miss with Despair, the bedroom's owner learns that s
 ### Keep Watch - Body, 1 action
 
 Before an Eclipse (not during one, and not before the Night Eclipse), a Body roll of 12 or more keeps watch through the coming Eclipse over the room you stand in when it starts. You are told who is in it then, by name; through the Eclipse, who comes in and who leaves, by name, never from where or to where; and at its end, how many came and went. You stay at your post through the Eclipse. A failure with Despair costs 1 Sanity. A watch of 18 or more, or a critical, makes you harder to catch: whoever opens a murder on you rolls their opening with one hindrance die, and their window does not say why. A player who agreed that their character be a murder's victim does not use Keep Watch to avoid it.
+
+### Hide - Shadow, 1 action
+
+A Shadow roll of 15 or more, or a critical, hides you. The other players stop seeing your token, its frame and its name, and your microphone goes off; you still hear the room, and on your own screen your token is pale. The GMs see you. Other players' voice lists do not show you, their actions' lists of people in the room leave you out, and their Listen does not hear you. A miss hides nothing, and the action is spent.
+
+While you are hidden, an action's Shadow roll for staying unseen is not rolled and counts as passed: Palm's and an unseen Frisk's, Tail Someone's, Pick the Lock's, Taking from a body in front of others, and the cover of a Sabotage, an indirect murder's work, or a clean-up. The card says so. It gives no Hope.
+
+You stay hidden until the time of day ends, and a notice on the notice tile, where your other notices appear, tells you when it does. You come out sooner when you press **Reveal yourself** on your voice tile, a GM reveals you, or the chapter ends; moving and other actions do not end it. Not during a Class Trial: there, everyone sits in the hall and the trial's floor decides who speaks.
 
 ### Dash - Leg, 1 action
 
@@ -900,7 +908,7 @@ In the **Closing Argument** you are first asked whether you will sum up the case
 
 ### The vote
 
-Each living player receives a **ballot**, one per person, however many students you play; a student only a GM plays gets none. A Monocub and the dead get no ballot, a dead student nobody has found yet included. If you connect while a vote is open, your ballot comes as the game loads. Vote for whoever you believe is the **Blackened**, the student who killed: you may vote for yourself, for Monokuma, and for the dead. Nobody sees your vote: it goes to the GMs alone, and only the totals are published. **Your vote is in.** means a GM has recorded it; *No GM has your vote yet* means it goes out as soon as a GM connects. Close the ballot without voting and nothing is counted for you; ask the GM to send it again.
+Each living player receives a **ballot**, one per person, however many students you play; a student only a GM plays gets none. A Monocub and the dead get no ballot, a dead student nobody has found yet included. If you connect while a vote is open, your ballot comes as the game loads. Vote for whoever you believe is the **Blackened**, the student who killed: you may vote for yourself, for each Monokuma by name, and for the dead; a vote on one Monokuma is counted for that one alone. Nobody sees your vote: it goes to the GMs alone, and only the totals are published. **Your vote is in.** means a GM has recorded it; *No GM has your vote yet* means it goes out as soon as a GM connects. Close the ballot without voting and nothing is counted for you; ask the GM to send it again.
 
 > [!IMPORTANT]
 > A conviction needs **more than half** of the ballots issued - for each name, when the vote asks for more than one. **A tie counts as a wrong vote** unless the table settles it.

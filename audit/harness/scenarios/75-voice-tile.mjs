@@ -1239,4 +1239,82 @@ export async function run({ gm, p1, p2, p3, check, phase, IDS, repoUrl }) {
     check("I: put back - voice off, Aiko and Botan where the seed stands them, p1 in the main room with its debug setting as it was",
         gmOff.voice === false && J(gmOff.aiko) === J([300, 300]) && J(gmOff.botan) === J([1300, 300]) && hOff.room === hOff.main && hOff.debug === hOn.debugWas,
         J({ gmOff, hOff }));
+
+    /* J (E129, S0-GMMUTE and the holds; the coordinator's decision of 23.11.2026, `OWN_TRACK_FOLLOWS_HOLD`). The owner, a
+       GM, muted with the tile and was heard; avclient-livekit 0.6.8 builds the page's own track at every initialize and
+       reads neither the stored mute nor the permission after that (lib/livekit.mjs's own track, the worst reading that
+       code allows). On p1, the shim's track: the tile's mute mutes it; a reconnect builds a live one and the mute holds
+       it again; the tile's unmute opens it; in push-to-talk the unmute leaves it to the key; a GM hiding Aiko's token
+       (micHold "tokenHidden") mutes it and showing her opens it again; a track gone (built while blocked, Listen's end)
+       is built again. Red before E129's `followHold`: the track stays live through every step. */
+    phase("J: p1's own microphone track follows the button - the tile's mute through a reconnect, push-to-talk, a hidden token, a track built again");
+    const trackJs = `
+        const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
+        const until = async (test, ms = 3000) => { const end = Date.now() + ms; while (Date.now() < end && !test()) await sleep(25); return test(); };
+        const T = () => __liveKit.track;
+        const { toggleOwnMic } = await import("${repoUrl}/scripts/voice-tile.mjs");
+        const s = game.webrtc.settings;`;
+    const own = await p1.eval(`${trackJs}
+        if (globalThis.__liveKit?.installed !== true) return { installed: false };
+        const out = { installed: true, modeWas: s.get("client", "voice.mode") ?? null, mutedWas: s.get("client", "users.${IDS.p1}.muted") === true };
+        try {
+            s.set("client", "voice.mode", "always");
+            if (out.mutedWas) s.set("client", "users.${IDS.p1}.muted", false);
+            await game.webrtc.connect();
+            await until(() => T() && !T().muted);
+            out.fresh = T();
+            await toggleOwnMic();
+            await until(() => T()?.muted === true);
+            out.muted = T();
+            await game.webrtc.connect();
+            await until(() => T()?.muted === true && T().serial !== out.muted.serial);
+            out.reconnected = T();
+            await toggleOwnMic();
+            await until(() => T()?.muted === false);
+            out.unmuted = T();
+            s.set("client", "voice.mode", "ptt");
+            await toggleOwnMic();
+            await until(() => T()?.muted === true);
+            out.pttMuted = T();
+            await toggleOwnMic();
+            await sleep(300);
+            out.pttUnmuted = { ...T(), stored: s.get("client", "users.${IDS.p1}.muted") === true };
+            s.set("client", "voice.mode", "always");
+            await until(() => T()?.muted === false);
+            out.always = T();
+        } finally {
+            s.set("client", "voice.mode", out.modeWas ?? "always");
+            s.set("client", "users.${IDS.p1}.muted", out.mutedWas);
+        }
+        return out;`, { timeout: 30000 });
+    check("J: the tile's mute mutes p1's own track; a reconnect builds a live track and it is muted again; the tile's unmute opens it",
+        own.installed === true && own.fresh?.muted === false && own.muted?.muted === true && own.muted.serial === own.fresh.serial
+            && own.reconnected?.muted === true && own.reconnected.serial !== own.muted.serial && own.unmuted?.muted === false,
+        J(own));
+    check("J: in push-to-talk the tile's mute mutes the track and its unmute leaves it muted for the key; back in always, open",
+        own.pttMuted?.muted === true && own.pttUnmuted?.muted === true && own.pttUnmuted.stored === false && own.always?.muted === false,
+        J(own));
+
+    const hold = async hidden => {
+        await gm.eval(`await canvas.scene.tokens.get("TOKAIKO000000000").update({ hidden: ${hidden} }); return true;`);
+        return p1.eval(`${trackJs}
+            await until(() => T()?.muted === ${hidden});
+            const { micHold } = await import("${repoUrl}/scripts/voice.mjs");
+            return { track: T(), hold: micHold()?.reason ?? null };`, { timeout: 15000 });
+    };
+    const hiddenHold = await hold(true);
+    const shownHold = await hold(false);
+    check("J: a GM hiding Aiko's token mutes p1's own track (micHold tokenHidden); showing her opens it again",
+        hiddenHold.hold === "tokenHidden" && hiddenHold.track?.muted === true && shownHold.hold !== "tokenHidden" && shownHold.track?.muted === false,
+        J({ hiddenHold, shownHold }));
+
+    const rebuilt = await p1.eval(`${trackJs}
+        __liveKit.dropTrack();
+        const gone = T();
+        Hooks.callAll("drpgEavesdropCopy");
+        await until(() => Boolean(T()));
+        return { gone, track: T(), ops: __liveKit.trackOps.filter(o => o.op === "changeAudioSource").length };`, { timeout: 15000 });
+    check("J: a track gone - built while blocked, as at Listen's end - is built again through changeAudioSource, live",
+        rebuilt.gone === null && rebuilt.track?.muted === false && rebuilt.ops >= 1,
+        J(rebuilt));
 }

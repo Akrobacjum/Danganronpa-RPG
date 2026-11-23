@@ -457,6 +457,8 @@ export async function wipeStudent(actor, key, { left = null } = {}) {
             // No Spectator made for the revive on the next line to take away (1.2.122; CASE-66), as the Students window passes it.
             if (actor.getFlag(MODULE_ID, "monocub")) await setMonocub(actor, false, { quiet: true, watcher: false });
             if (isDeceased(actor)) await reviveCharacter(actor, { quiet: true, silent: true });
+            // A kept death is no revive's (it was never published): its corpse's skull goes here (E129 S0-DEADMARK).
+            await (await import("./body-tile.mjs")).markCorpse(actor, false);
             // Everybody comes back whole, the living too: `reverse` resources, 0 is unharmed.
             await trustedWrite(actor, { "system.resources.hitPoints.value": 0, "system.resources.stress.value": 0 },
                 { reason: "setup" });

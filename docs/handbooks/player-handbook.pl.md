@@ -228,12 +228,12 @@ Na kafelku są dwa przyciski. Przycisk mikrofonu wycisza i włącza tylko twój 
 |---|---|
 | przekreślony | wyciszony, przez ciebie |
 | przekreślony, z małą kłódką | wyciszony przez GM-a: **GM zablokował twój mikrofon.** |
-| szary i przekreślony | trzyma go gra - podczas Eclipse, gdy podsłuchujesz pod drzwiami, gdy GM ukrywa twój token, w Class Trial, gdy głos ma ktoś inny albo jesteś na liście zmarłych rozprawy, i gdy jesteś Widzem - a powód stoi pod mikrofonem; kliknięcie niczego wtedy nie zmienia i mówi ci dlaczego |
+| szary i przekreślony | trzyma go gra - podczas Eclipse, gdy podsłuchujesz pod drzwiami, gdy GM ukrywa twój token, gdy się chowasz (Hide), w Class Trial, gdy głos ma ktoś inny albo jesteś na liście zmarłych rozprawy, i gdy jesteś Widzem - a powód stoi pod mikrofonem; kliknięcie niczego wtedy nie zmienia i mówi ci dlaczego |
 | z małą kropką | nie jesteś połączony z głosem albo głos działa w osobnym oknie |
 | świeci | twój mikrofon niesie twój głos |
 | z napisem **PTT** | tryb naciśnij, aby mówić: przytrzymaj klawisz, żeby mówić |
 
-Monocub zachowuje mikrofon podczas Eclipse i dostaje informację, że do powrotu światła nikt go nie słyszy. W pokoju Widzów mikrofon zostaje twój: wyciszasz go i włączasz sam, a linijka pod nim mówi, gdzie jesteś.
+Monocub zachowuje mikrofon podczas Eclipse i dostaje informację, że do powrotu światła nikt go nie słyszy. W pokoju Widzów mikrofon zostaje twój: wyciszasz go i włączasz sam, a linijka pod nim mówi, gdzie jesteś. Gdy mikrofon jest przekreślony, szary czy nie, twoja przeglądarka sama też wyłącza twój mikrofon, więc nikt cię nie słyszy, dopóki znów nie zaświeci; w trybie naciśnij, aby mówić otwiera go twój klawisz.
 
 Głośnik pokazuje, ile innych osób jest w twoim kanale, licząc każdą, która cię słyszy, mówiącą czy nie, i otwiera **Kogo słyszysz**: każdą z tych osób z suwakiem głośności i **Wycisz u siebie: *imię*** (potem **Znów słuchaj: *imię***), a na górze **Wycisz wszystkich u siebie**. Te ustawienia działają tylko u ciebie; inni przy stole niczego nie zauważą. Escape albo kliknięcie obok zamyka listę. Osoba wyciszona u ciebie ma przy sobie **Wyciszone przez ciebie**, dopóki nie naciśniesz **Znów słuchaj: *imię***; ta przeglądarka pamięta to także w następnej sesji. Osoba, której twoja strona nie słyszy z innego powodu, ma przy sobie ten powód i radę, żeby odświeżyć stronę (F5); strona sama raz próbuje wznowić wstrzymany dźwięk albo odebrać mikrofon, którego nie odbiera.
 
@@ -394,7 +394,7 @@ Akcja pokoju ustawiona przez GM-a to rzut na statystykę i próg z jej wiersza i
 
 ### Infiltrate: Listen - Shadow, 1 akcja
 
-Okno kafelka **Infiltrate** wymienia jego akcje jedna pod drugą: najpierw Listen, potem Echoes, Tail Someone, Keep Watch, Dash, Shut the Door, Force the Door i Pick the Lock. Każdą opisuje osobna część tego rozdziału, niżej.
+Okno kafelka **Infiltrate** wymienia jego akcje jedna pod drugą: najpierw Listen, potem Echoes, Tail Someone, Keep Watch, Dash, Shut the Door, Force the Door, Pick the Lock i Hide. Każdą opisuje osobna część tego rozdziału, niżej.
 
 Listen ustala, kto jest w sąsiednim pokoju, bez decyzji GM-a. Pokój wybierasz przed rzutem, a odpowiedź przychodzi jako karta, którą czytasz tylko ty i GM-owie. Gdy twój pokój nie ma sąsiadów, Listen jest wyszarzony, a obok stoi powód.
 
@@ -440,6 +440,14 @@ Jeśli otworzysz zamek z wynikiem poniżej 18 albo spudłujesz z Despair, właś
 ### Keep Watch - Body, 1 akcja
 
 Przy rzucie na Body 12 lub więcej czuwasz przez nadchodzące Eclipse nad pokojem, w którym stoisz, gdy się ono zaczyna. Keep Watch używasz przed Eclipse, ale nie w jego trakcie i nie przed nocnym Eclipse. Gdy Eclipse się zaczyna, dowiadujesz się, kto jest w pokoju, z imienia; przez całe Eclipse dowiadujesz się, kto wchodzi i kto wychodzi, z imienia, ale nigdy skąd ani dokąd; a na koniec Eclipse, ile osób weszło i wyszło. Przez całe Eclipse zostajesz na posterunku. Porażka z Despair kosztuje 1 Sanity. Gdy czuwasz z wynikiem 18 lub więcej albo krytycznym, trudniej cię zaskoczyć: kto otwiera na tobie morderstwo, rzuca na otwarcie z jedną kością utrudnienia, a jego okno nie mówi dlaczego. Gracz, który zgodził się, by jego postać była ofiarą morderstwa, nie używa Keep Watch, żeby tego uniknąć.
+
+### Hide - Shadow, 1 akcja
+
+Rzut na Shadow 15 lub więcej albo krytyk sprawia, że się chowasz. Inni gracze przestają widzieć twój token, jego ramkę i nazwę, a twój mikrofon się wyłącza; nadal słyszysz pokój, a na twoim ekranie twój token jest blady. GM-owie cię widzą. Na liście głosu innych graczy cię nie ma, ich akcje nie wymieniają cię wśród osób w pokoju, a ich Listen cię nie słyszy. Pudło nic nie daje, a akcja przepada.
+
+W ukryciu rzut Shadow na pozostanie niezauważonym przy akcji nie jest rzucany i liczy się jako udany: przy Palm i ukrytym Frisk, przy Tail Someone, Pick the Lock, braniu rzeczy z ciała przy świadkach oraz przy ukrywaniu Sabotage, pracy nad pośrednim morderstwem i sprzątaniu. Karta to mówi. Nie daje to Hope.
+
+Zostajesz w ukryciu do końca pory dnia, a powiadomienie na kafelku powiadomień, tam, gdzie pojawiają się twoje inne powiadomienia, mówi ci, kiedy się skończyło. Wcześniej wychodzisz z niego, gdy naciśniesz **Ujawnij się** na swoim kafelku głosu, ujawni cię GM albo skończy się rozdział; ruch ani inne akcje go nie kończą. Nie w czasie Class Trial: wtedy wszyscy siedzą na sali, a o tym, kto mówi, decyduje przebieg rozprawy.
 
 ### Dash - Leg, 1 akcja
 
@@ -900,7 +908,7 @@ W **Closing Argument** najpierw gra pyta cię, czy podsumujesz sprawę: odpowiad
 
 ### Głosowanie
 
-Każdy żyjący gracz dostaje **kartę do głosowania**, jedną na osobę, niezależnie od tego, ilu uczniów grasz; uczeń, którego gra tylko GM, nie dostaje żadnej. Nie dostają jej Monocub ani zmarli, także ci, których śmierci nikt jeszcze nie znalazł. Jeśli połączysz się w trakcie głosowania, twoja karta przychodzi, gdy wczytuje się gra. Głosuj na tego, kto twoim zdaniem jest **Blackened**, czyli uczniem, który zabił; możesz głosować na siebie, na Monokumę i na zmarłych. Nikt nie widzi twojego głosu: trafia tylko do GM-ów, a publikowane są tylko sumy. **Twój głos oddany.** znaczy, że GM go zapisał, a gdy widzisz *Żaden GM nie ma jeszcze twojego głosu. Trafi do GM-a, gdy tylko się połączy.*, głos wyjdzie, gdy tylko połączy się GM. Jeśli zamkniesz kartę bez głosu, twój głos się nie liczy; jeśli chcesz zagłosować, poproś GM-a, żeby wysłał kartę jeszcze raz.
+Każdy żyjący gracz dostaje **kartę do głosowania**, jedną na osobę, niezależnie od tego, ilu uczniów grasz; uczeń, którego gra tylko GM, nie dostaje żadnej. Nie dostają jej Monocub ani zmarli, także ci, których śmierci nikt jeszcze nie znalazł. Jeśli połączysz się w trakcie głosowania, twoja karta przychodzi, gdy wczytuje się gra. Głosuj na tego, kto twoim zdaniem jest **Blackened**, czyli uczniem, który zabił; możesz głosować na siebie, na każdego Monokumę z osobna i na zmarłych; głos na jednego Monokumę liczy się tylko jemu. Nikt nie widzi twojego głosu: trafia tylko do GM-ów, a publikowane są tylko sumy. **Twój głos oddany.** znaczy, że GM go zapisał, a gdy widzisz *Żaden GM nie ma jeszcze twojego głosu. Trafi do GM-a, gdy tylko się połączy.*, głos wyjdzie, gdy tylko połączy się GM. Jeśli zamkniesz kartę bez głosu, twój głos się nie liczy; jeśli chcesz zagłosować, poproś GM-a, żeby wysłał kartę jeszcze raz.
 
 > [!IMPORTANT]
 > Skazanie wymaga **więcej niż połowy** wydanych kart - dla każdego nazwiska, gdy głosowanie pyta o więcej niż jedno. **Remis liczy się jak błędny głos**, chyba że stół to rozstrzygnie.

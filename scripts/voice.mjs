@@ -50,7 +50,7 @@ import { roomPieces, roomRegions, isMoveChange, isTrialScene } from "./rooms.mjs
 import { isMonokuma, isSpectator, poolUserFor, studentActors, characterIds } from "./monokuma.mjs";
 import { talksWithSpectators, SPECTATOR_LISTEN_FLAG } from "./spectator.mjs";
 import { isMonocub, ownCaseOpen } from "./monocub.mjs";
-import { deathStore, trialMuteStore, eavesdropStore, eavesdropCopy, maskStore, veilStore } from "./gm-stores.mjs";
+import { deathStore, trialMuteStore, eavesdropStore, eavesdropCopy, maskStore, veilStore, hideStore } from "./gm-stores.mjs";
 import { VOICE, HEARING_REASONS, ROOM_PREFIX, isDeadRoom, SPECTATOR_ROOM, SCRUM_ROOMS, applyLocally, forgetDesiredRoom, avclientActive, desiredRoom, externalAV, silentRoomFor } from "./voice-client.mjs";
 import { isPrimaryGm, debug, warn, error, gmReport, serialWrite, forcedDeletion, whisperToGms, esc, trialModeLabel } from "./utils.mjs";
 // A Scrum Debate's camps while they confer (the owner's 13.11.2026): zone-machine.mjs is pure and imports config.mjs alone.
@@ -1188,6 +1188,21 @@ function veiledIds() {
     return new Set(Object.values(veilStore.entries() ?? {}).flatMap(row => row?.userIds ?? []));
 }
 
+/** On a GM: the accounts whose character Hide hides now, every owner the GMs' `hides` rows name (S0-HIDE, E129; hide.mjs). */
+function hidingIds() {
+    if (!game.user?.isGM) return new Set();
+    return new Set(Object.values(hideStore.entries() ?? {}).flatMap(row => row?.userIds ?? []));
+}
+
+/** Whether this browser's own character hides (S0-HIDE, E129), off the one flag of its tokens, as `ownVeiled`. */
+function ownHiding(user = game.user) {
+    if (!user || user.id !== game.user?.id || user.isGM) return false;
+    for (const scene of game.scenes ?? []) for (const token of scene.tokens ?? []) {
+        if (token.flags?.[MODULE_ID]?.hiding && token.actor?.testUserPermission?.(user, "OWNER")) return true;
+    }
+    return false;
+}
+
 /** Whether this browser's own character is veiled for a murder's opening (E112), off the one flag of its tokens, as `ownMasked`. */
 function ownVeiled(user = game.user) {
     if (!user || user.id !== game.user?.id || user.isGM) return false;
@@ -1402,7 +1417,7 @@ function hiddenIds() {
  */
 export function micHold({ user = game.user, room = desiredRoom(), external = externalAV(), connected = roomConnected(),
     canBroadcastAudio = broadcastAllowed(user), actors, trial = trialFacts(), listening = ownListenRoom(user),
-    masked = ownMasked(user), veiled = ownVeiled(user), hidden = ownHidden(user), free = trialVoicesFree() } = {}) {
+    masked = ownMasked(user), veiled = ownVeiled(user), hiding = ownHiding(user), hidden = ownHidden(user), free = trialVoicesFree() } = {}) {
     if (!user) return null;
     if (external) return { reason: "external", held: false };
     // A Spectator's account is held in every phase (E92 C2): it listens where its token stands, and speaks nowhere -
@@ -1414,6 +1429,8 @@ export function micHold({ user = game.user, room = desiredRoom(), external = ext
     if (masked && !trial) return { reason: "masked", held: true };
     // Veiled for a murder's opening (E112, mask-gm.mjs): HELD until the opening is thrown; the room is still heard.
     if (veiled && !trial) return { reason: "veiled", held: true };
+    // Hidden by Hide (S0-HIDE, E129; hide.mjs): HELD until Reveal yourself; the room is still heard. Not in the Class Trial.
+    if (hiding && !trial) return { reason: "hiding", held: true };
     // Its token hidden (E129, S0-HIDEMUTE): HELD, outside the trial, named before the block the settle wrote for it.
     if (hidden && !trial && !user.isGM) return { reason: "tokenHidden", held: true };
     const eclipse = !user.isGM && room === eclipseRoomFor(user);
@@ -1462,13 +1479,15 @@ export function micHold({ user = game.user, room = desiredRoom(), external = ext
  * nobody is located at all. The facts can be handed in, as `micHold`'s.
  */
 export function moduleHoldsMic(user, { actors, eclipse = isEclipse(), trial = getClock().phase === "classTrial",
-    dead = isDeadForGm, listening = listeningIds(), masked = maskedIds(), veiled = veiledIds(), hidden = hiddenIds(),
+    dead = isDeadForGm, listening = listeningIds(), masked = maskedIds(), veiled = veiledIds(), hiding = hidingIds(), hidden = hiddenIds(),
     free = trialVoicesFree() } = {}) {
     if (!game.user?.isGM || !user) return null;
     // Behind a "?" (E69 C8): the mask's block, which the GM's own is not offered over either.
     if (masked.has(user.id) && !trial) return { reason: "masked", held: true };
     // Veiled for a murder's opening (E112): the veil's block, the same.
     if (veiled.has(user.id) && !trial) return { reason: "veiled", held: true };
+    // Hidden by Hide (S0-HIDE, E129): the hide's block, the same.
+    if (hiding.has(user.id) && !trial) return { reason: "hiding", held: true };
     // Its token hidden (E129): the hide's block, the same.
     if (hidden.has(user.id) && !trial) return { reason: "tokenHidden", held: true };
     // Listening at a door (E69 C6): the eavesdrop's block, which the GM's own is not offered over.
@@ -1818,6 +1837,8 @@ export async function settleTrialVoices({ release = false } = {}) {
     await maskStore.whenHydrated();
     // And the opening's veil (E112, mask-gm.mjs): the killer's microphone until the opening is thrown.
     await veilStore.whenHydrated();
+    // And Hide (S0-HIDE, E129; hide.mjs): a hidden character's owners until Reveal yourself.
+    await hideStore.whenHydrated();
     if (await deathStore.whenHydrated() === "timedOut") warn("The trial's dead are listed from the deaths this GM holds: the other GMs' have not arrived.");
     await trialMuteStore.whenHydrated();
     const vote = await import("./vote.mjs");
@@ -1876,13 +1897,15 @@ export async function settleTrialVoices({ release = false } = {}) {
             const masked = !release && !inTrial && mask.maskMutedIds().has(user.id);
             // The opening's veil (E112): outside the trial as the mask's, the killer's microphone until the opening is thrown.
             const veiled = !release && !inTrial && mask.veilMutedIds().has(user.id);
+            // Hide (S0-HIDE, E129): outside the trial as the veil's, until Reveal yourself.
+            const hiding = !release && !inTrial && hidingIds().has(user.id);
             const hidden = hiddenNow.has(user.id);
             /* THE TRIAL'S TWO BLOCKS, BOTH UNDER ONE SWITCH (E129 S0-NOMUTE; `trialVoicesFree`): with it on, neither the
                floor's nor the dead's list is written, and a block this module wrote for either is given back below. */
             const floorHeld = Boolean(!free && speakers && voice && !listed.has(voice.id) && !holdsTheFloor(voice, speakers)
                 && !spectatorAccount(user, { held: flagsHeldNow }));
             const deadHeld = Boolean(!free && voice && listed.has(voice.id));
-            if (watching || listening || masked || veiled || hidden || floorHeld || deadHeld) {
+            if (watching || listening || masked || veiled || hiding || hidden || floorHeld || deadHeld) {
                 if (!row?.wrote && await blockForTrial(user) === "blocked") out.blocked.push(user.id);
             } else if (row?.wrote && await restoreTrialBlock(user, row) === "restored") out.restored.push(user.id);
         }
@@ -2286,15 +2309,14 @@ export async function sendInPasses(order, waits, { ownId, assign, waitFor, held 
                 if (!didChange) continue;
                 changed += 1;
 
-                // No microphone is moved here (E78 C2, 13.10.2026; S16-10, "the
-                // module never moves a microphone"). Until E78 a GM walking their own
-                // Monokuma into a room had `toggleAudio(true)` called "to undo a mute
-                // you may still be wearing" - the only place the module touched a
-                // microphone on its own, and one meant to undo the GM's own mute.
-                // The A9 design read avclient-livekit 0.6.8's `toggleAudio` as
-                // doing nothing for that call (11.10; external, not re-read here). A
-                // microphone moves on its owner's click or key only (E78 C4,
-                // `toggleOwnMic`; R544).
+                // No microphone is moved here (E78 C2, 13.10.2026; S16-10). Until E78 a
+                // GM walking their own Monokuma into a room had `toggleAudio(true)`
+                // called "to undo a mute you may still be wearing" - one that undid the
+                // GM's own mute. Since E129 (23.11.2026) a microphone moves on its
+                // owner's click or key (`toggleOwnMic`), or by its own page holding its
+                // own track to the button (voice-client.mjs `followHold`: muted while
+                // held, blocked or muted); never from this loop, and never anybody
+                // else's (R544).
             } catch (err) {
                 error(`Voice reconcile failed for "${row.actor?.name ?? userId}"; continuing with the rest`, err);
             }

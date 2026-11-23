@@ -229,7 +229,7 @@ export async function handleDoorForce(payload, sender) {
 export function pickRolls(actor) {
     return [
         { field: "rollId", actor, kind: "pick" },
-        { field: "coverRollId", actor, kind: "pickCover", into: { total: "coverTotal", isCritical: "coverCritical" } }
+        { field: "coverRollId", actor, kind: "pickCover", cover: true, into: { total: "coverTotal", isCritical: "coverCritical" } }
     ];
 }
 
@@ -271,7 +271,7 @@ export async function handleWatchDeclare(payload, sender) {
 export function tailRolls(actor) {
     return [
         { field: "rollId", actor, kind: "tail" },
-        { field: "unseenRollId", actor, kind: "tailUnseen", into: { total: "unseenTotal", isCritical: "unseenCritical" } }
+        { field: "unseenRollId", actor, kind: "tailUnseen", cover: true, into: { total: "unseenTotal", isCritical: "unseenCritical" } }
     ];
 }
 
@@ -319,6 +319,17 @@ export async function handleEavesdropStop(payload) {
     return {};
 }
 
+/** Hide on the primary GM (S0-HIDE, E129; hide.mjs `startHide`), the Shadow roll the GMs' record of `rollId`. */
+export async function handleHideStart(payload, sender) {
+    const actor = game.actors.get(payload.actorId ?? "");
+    if (!actor) return { refused: "no such character" };
+    const { startHide } = await import("./hide.mjs");
+    const out = await startHide({ actor, total: payload.total, isCritical: payload.isCritical, userId: sender?.id ?? null });
+    if (out.refused) return { refused: out.refused };
+    await factsForReroll(payload.rollId, sender, actor.id, "hide", { hid: Boolean(out.hidden) });
+    return { reply: { hidden: out.hidden } };
+}
+
 /** The opening's veil asked of the primary by another GM (1.2.122, STG-31; mask-gm.mjs `veilOnPrimary`). */
 export async function handleMaskVeil(payload) {
     const { veilOnPrimary } = await import("./mask-gm.mjs");
@@ -336,8 +347,17 @@ export async function handleDeadSpectator(payload) {
     return { reply: { watcherId: watcher.id } };
 }
 
-/** A killer behind a "?" reveals themselves (E69 C8; mask-gm.mjs `revealMask`). */
-export async function handleMaskReveal(payload) {
+/**
+ * A killer behind a "?" reveals themselves (E69 C8; mask-gm.mjs `revealMask`); with `of: "hide"`, a character Hide hides
+ * shows again (S0-HIDE, E129; hide.mjs `endHide`) - their own press, or a GM's, which their player is told of. The two are
+ * kept apart: each press ends its own (hide.mjs's header).
+ */
+export async function handleMaskReveal(payload, sender = null) {
+    if (payload.of === "hide") {
+        const { endHide } = await import("./hide.mjs");
+        const out = await endHide(payload.actorId ?? "", sender?.isGM ? "gm" : "reveal");
+        return out.refused ? { refused: out.refused } : {};
+    }
     const { revealMask } = await import("./mask-gm.mjs");
     const out = await revealMask(payload.actorId ?? "");
     if (out.refused) return { refused: out.refused };
@@ -678,7 +698,7 @@ export async function handlePassageFind(payload, sender) {
 export function friskRolls(actor) {
     return [
         { field: "rollId", actor, kind: "rummage" },
-        { field: "unseenRollId", actor, kind: "palm", into: { total: "unseenTotal", isCritical: "unseenCritical" } }
+        { field: "unseenRollId", actor, kind: "palm", cover: true, into: { total: "unseenTotal", isCritical: "unseenCritical" } }
     ];
 }
 
@@ -708,7 +728,7 @@ export function notFindPassageRoll(record) {
 export function palmRolls(actor) {
     return [
         { field: "rollId", actor, kind: "steal" },
-        { field: "unseenRollId", actor, kind: "palm", into: { total: "unseenTotal", isCritical: "unseenCritical", withHope: "unseenWithHope" } }
+        { field: "unseenRollId", actor, kind: "palm", cover: true, into: { total: "unseenTotal", isCritical: "unseenCritical", withHope: "unseenWithHope" } }
     ];
 }
 

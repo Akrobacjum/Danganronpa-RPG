@@ -45,7 +45,7 @@
  * Imports config.mjs, settings.mjs and movement.mjs only (tier 1 R3142), so frisk.mjs reads it with no cycle (R161).
  */
 
-import { MODULE_ID, FLAGS } from "./config.mjs";
+import { MODULE_ID, FLAGS, DEAD_ICON } from "./config.mjs";
 import { deathRecord } from "./settings.mjs";
 import { gmPlaceOf, roomAt, isCorpseToken } from "./movement.mjs";
 
@@ -439,6 +439,99 @@ export function drawCorpseCaption(token, { actors = game.actors, gm = Boolean(ga
     return group;
 }
 
+/*
+ * THE SKULL FROM THE DEATH (1.2.128, E129 S0-DEADMARK; the owner, 23.11.2026: "Sam token tez nie mial czaszki na
+ * obrazku", and "czaszka powinna byc od smierci, nie od ogloszenia"; the coordinator's road B). Foundry's dead overlay is
+ * the actor's status (death.mjs `markDeceased`), put on at the publication: a death the GMs keep wore none, on any
+ * browser, until the body was announced. And Daggerheart 2.12.9 takes the status off when a character's Health leaves
+ * its maximum (module/data/actor/base.mjs `_preUpdate`, documents/actor.mjs `toggleDefeated`, read in its public source
+ * on 23.11.2026), so a published corpse could lose it again. So the corpse's token carries `FLAGS.corpse` from the
+ * death - written at the kill, kept or public, and at every publication (`markCorpse`), taken off at the revive and the
+ * season's reset - and every browser draws the skull over a token so marked (`drawCorpseSkull`), standing down while the
+ * actor wears the dead status, whose own overlay is the same skull: one skull, whoever put it there.
+ * What it tells: every browser holds the flag, so a console reads a kept death off the token, and a student who walks
+ * alone into the room sees a body (world-secrets.mjs, the Token row's note; accepted by default, 23.11.2026).
+ */
+export const SKULL_MARK_NAME = "drpg-corpse-skull";
+
+/** The tokens of `actor` on every scene: the corpses this browser reads as such (`isCorpseToken`), or every one with `all`. */
+function tokensOfActor(actor, { scenes = game.scenes, all = false } = {}) {
+    const out = [];
+    for (const scene of scenes ?? []) {
+        for (const tokenDoc of scene?.tokens ?? []) {
+            if (tokenDoc?.actorId === actor?.id && (all || isCorpseToken(tokenDoc))) out.push(tokenDoc);
+        }
+    }
+    return out;
+}
+
+/**
+ * Mark `actor`'s corpse tokens (`on`), or take every mark off its tokens: a GM's write, each token once, a token already
+ * as asked left alone. Answers how many it wrote. Asked by death.mjs at the kill and the publication, and at the revive.
+ */
+export async function markCorpse(actor, on = true, { scenes = game.scenes } = {}) {
+    if (!game.user?.isGM || !actor) return 0;
+    let wrote = 0;
+    for (const tokenDoc of tokensOfActor(actor, { scenes, all: !on })) {
+        const marked = tokenDoc.getFlag?.(MODULE_ID, FLAGS.corpse) === true;
+        if (marked === Boolean(on)) continue;
+        if (on) await tokenDoc.setFlag(MODULE_ID, FLAGS.corpse, true);
+        else await tokenDoc.unsetFlag(MODULE_ID, FLAGS.corpse);
+        wrote += 1;
+    }
+    return wrote;
+}
+
+/**
+ * Whether this browser draws the skull over `tokenDoc`: its corpse mark, its actor not wearing the dead status (whose
+ * overlay stands in), and not hidden from this browser (a GM's browser draws a hidden one, at half alpha). Pure but for
+ * the token and its actor. Tier 1 R8734.
+ */
+export function corpseSkullShown(tokenDoc, { gm = Boolean(globalThis.game?.user?.isGM) } = {}) {
+    if (tokenDoc?.getFlag?.(MODULE_ID, FLAGS.corpse) !== true) return false;
+    if (tokenDoc.hidden && !gm) return false;
+    const actor = tokenDoc.actor ?? globalThis.game?.actors?.get?.(tokenDoc.actorId) ?? null;
+    return !actor?.statuses?.has?.("dead");
+}
+
+/**
+ * The skull over a marked corpse's token (`corpseSkullShown`), on every browser that draws it, from `drawToken` and
+ * `refreshToken` as the caption is: the dead status's picture as `CONFIG.statusEffects` holds it (the module's skull, or
+ * a GM's own), over the whole token, as Foundry's overlay lies. A display only. Once per redraw, keyed by its picture and
+ * size; `eventMode` "none". How it sits over a real token, and whether v14 redraws a token when its actor's status changes,
+ * are not read headless (LIVE). Answers the skull, or null where none is drawn.
+ */
+export function drawCorpseSkull(token, { gm = Boolean(game.user?.isGM) } = {}) {
+    if (!token || token.destroyed || typeof token.addChild !== "function" || !globalThis.PIXI) return null;
+    const doc = token.document ?? null;
+    const grid = gridOf(doc?.parent);
+    const width = Number(token.w) || (Number(doc?.width) || 1) * grid;
+    const height = Number(token.h) || (Number(doc?.height) || 1) * grid;
+    const img = (globalThis.CONFIG?.statusEffects ?? []).find(entry => entry?.id === "dead")?.img ?? DEAD_ICON.img;
+    const key = doc && corpseSkullShown(doc, { gm }) ? JSON.stringify([img, width, height]) : null;
+    const old = (token.children ?? []).filter(c => c?.name === SKULL_MARK_NAME);
+    const kept = key ? old.find(c => !c.destroyed && c.drpgKey === key) ?? null : null;
+    for (const child of old) {
+        if (child === kept) continue;
+        token.removeChild(child);
+        child.destroy?.({ children: true });
+    }
+    if (!key) return null;
+    if (kept) {
+        kept.alpha = doc.hidden ? 0.5 : 0.8;
+        return kept;
+    }
+    const skull = PIXI.Sprite.from(img);
+    skull.name = SKULL_MARK_NAME;
+    skull.drpgKey = key;
+    skull.eventMode = "none";
+    skull.width = width;
+    skull.height = height;
+    skull.alpha = doc.hidden ? 0.5 : 0.8;
+    token.addChild(skull);
+    return skull;
+}
+
 /**
  * The body's caption on every browser (E95 C3; module.mjs `init`; moved onto the corpse's token on 13.11.2026): Foundry's
  * `drawToken` and `refreshToken` hand the Token placeable, `drawTile` and `refreshTile` the Tile placeable, as v12 and
@@ -448,6 +541,6 @@ export function drawCorpseCaption(token, { actors = game.actors, gm = Boolean(ga
 export function registerBodyMarks() {
     Hooks.on("drawTile", tile => { drawBodyMark(tile); });
     Hooks.on("refreshTile", tile => { drawBodyMark(tile); });
-    Hooks.on("drawToken", token => { drawCorpseCaption(token); });
-    Hooks.on("refreshToken", token => { drawCorpseCaption(token); });
+    Hooks.on("drawToken", token => { drawCorpseCaption(token); drawCorpseSkull(token); });
+    Hooks.on("refreshToken", token => { drawCorpseCaption(token); drawCorpseSkull(token); });
 }

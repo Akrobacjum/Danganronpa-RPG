@@ -279,7 +279,13 @@ export const FLAGS = {
      * Token: a dead student's Spectator token the student walks as a Monocub (E62 C3b; Q-C3b-7's default), so that a
      * Monocub no more gets that token back as its Spectator's (spectator-dead.mjs `monocubBecomesWatcher`). A GM's write.
      */
-    cubToken: "cubToken"
+    cubToken: "cubToken",
+    /**
+     * Token: a dead student's corpse, from the death on - a kept death's too - so every browser that draws the token
+     * draws the skull over it (1.2.128, E129 S0-DEADMARK; body-tile.mjs `markCorpse`, `drawCorpseSkull`). `true` alone,
+     * nothing of the death. A GM's write; world-secrets.mjs says why it may stand.
+     */
+    corpse: "corpse"
 };
 
 /**
@@ -378,6 +384,15 @@ export const CHAPTERS_PER_SEASON = 6;
  * one place the default lives.
  */
 export const SHARE_WITH_ANALYSIS = true;
+
+/**
+ * WHETHER THIS PAGE'S OWN MICROPHONE TRACK FOLLOWS THE MICROPHONE BUTTON (E129 S0-GMMUTE and the holds; the coordinator's
+ * decision of 23.11.2026, the owner's session-0 asks behind it: Hide "wycisza go", "niech chowanie tokenu automatycznie
+ * wycisza na livekit"). On: voice-client.mjs `followHold` mutes the page's own LiveKit track while the button says held,
+ * blocked or muted, and opens it again only in "always" with nothing standing. Off: the module writes only the stored mute
+ * and the GM's BROADCAST_AUDIO, as before 1.2.128. The one place the switch lives.
+ */
+export const OWN_TRACK_FOLLOWS_HOLD = true;
 
 /**
  * WHAT THE CASE'S REALIZATION PLACES, BY DEFAULT (the owner's notes of session 0, 23.11.2026, S0-REALIZE: "realization
@@ -1817,9 +1832,9 @@ export const ACTIONS = {
         traits: ["shadow"],
         cost: 1,
         // Keep Watch under Tail Someone (E112 item 4, the owner 15.11.2026): the window draws its rows in this order.
-        variants: ["listen", "echoes", "tail", "keepWatch", "dash", "shut", "force", "pick"],
+        variants: ["listen", "echoes", "tail", "keepWatch", "dash", "shut", "force", "pick", "hide"],
         hint: "Listen at a wall, hear Echoes, Tail Someone, Keep Watch, Dash through the corridors, Shut the Door, Force the "
-            + "Door or Pick the Lock. Each costs an action.",
+            + "Door, Pick the Lock or Hide. Each costs an action.",
         description: "Pick a neighboring room and roll Shadow; it costs an action. A good roll counts the people "
             + "there, a better one names them, and a critical names everyone in every neighboring room. A miss tells "
             + "you nothing; with no neighboring room, you keep your action.",
@@ -2302,7 +2317,17 @@ export const INFILTRATE = Object.freeze({
     // Keep Watch (E74 C6; DA34): Body, declared before an Eclipse; a roll below `dc` keeps no watch (the owner's "Zgoda",
     // 12.11.2026). A watch of `hindranceAt` or more, or a critical, puts one hindrance die on the killer's opening roll
     // against the watcher (DA44 option A, the owner 12.11.2026: named in the killer's window, its cause not).
-    keepWatch: Object.freeze({ traits: Object.freeze(["body"]), cost: 1, dc: 12, hindranceAt: 18 })
+    keepWatch: Object.freeze({ traits: Object.freeze(["body"]), cost: 1, dc: 12, hindranceAt: 18 }),
+    /*
+     * Hide (S0-HIDE, E129, 23.11.2026; the owner: "Udany rzut na shadow chowa calkowicie token gracza i wycisza go, dopoki
+     * nie kliknie ujawnij sie na panelu livekit"). Shadow at `dc`; a hit or a critical hides the character (hide.mjs) until
+     * "Reveal yourself", a GM's reveal, the chapter's end or the season's reset. `dc` 15 is the cover the other Infiltrate
+     * rows already ask of Shadow (Tail's `unseen` 15, Palm's 15; Pick the Lock's 16) - a proposal put to the owner, not a
+     * measurement. `ownAlpha` is how the hider's own browser draws their token (the coordinator's 0.4). `coverTotal` is the
+     * total a skipped cover roll counts as while hidden: above every cover's threshold (the highest is 16), so each reads it
+     * as passed; it is never a roll and earns no Hope (the owner's answer of 23.11.2026: Hope comes from the main roll only).
+     */
+    hide: Object.freeze({ traits: Object.freeze(["shadow"]), cost: 1, dc: 15, ownAlpha: 0.4, coverTotal: 99 })
 });
 
 /* ==========================================================================
@@ -4454,7 +4479,7 @@ export const TRIAL = {
      */
     objectorMayFinish: true,
     /*
-     * PALM IN THE HALL (E129 S0-PALM, 23.11.2026; the coordinator's default, approved that day, pending the owner): the
+     * PALM IN THE HALL (E129 S0-PALM, 23.11.2026; the coordinator's default, which the owner answered "9. Tak" that day): the
      * trial's hall holds no room (R114), and Palm needs its target in the thief's room. While a Class Trial runs, every
      * student on the hall scene, on the same floor, whose token the GMs have not hidden, counts as in the thief's room for
      * Palm's Steal and Plant (frisk.mjs `personActionRefusal` with `palm`, palm.mjs `palmPlace`). Palm's forced Frisk
@@ -4583,6 +4608,17 @@ export const TRIAL = {
      */
     allowVotingForDead: true,
     allowVotingForMonokuma: true,
+    /*
+     * EACH MONOKUMA ON THE BALLOT (E129 S0-VOTEKUMA, 23.11.2026; the owner's note of that day, "w glosowaniu zamiast opcji
+     * "monokuma" niech bedzie mozliwosc wyboru kazdego indywidualnego monokumy z osobna"; the coordinator's defaults,
+     * pending the owner): with `allowVotingForMonokuma` on, the ballot lists every Monokuma actor by its own name, sorted
+     * by name, each a candidate of its own whose votes are counted apart (vote.mjs `monokumaCandidates`, the flag as the
+     * GMs hold it). A vote on any of them is read as one on "Monokuma" was - no student, so the verdict window opens on
+     * nobody (verdict.mjs `verdictCandidates`) - and its name stands on the cards. A world with no Monokuma actor lists
+     * none. False is the rule until 1.2.129: one "Monokuma" option, the id "monokuma", which a record holding it still
+     * reads either way.
+     */
+    eachMonokumaOnBallot: true,
     allowVotingForSelf: true,
     /**
      * Whether the dead CAST a ballot, which is a different question from the three
@@ -5726,6 +5762,7 @@ export const DRPG = {
     PHASES,
     CHAPTERS_PER_SEASON,
     SHARE_WITH_ANALYSIS,
+    OWN_TRACK_FOLLOWS_HOLD,
     REALIZE_SCOPE,
     ROOMS_PER_PLAYER,
     ECLIPSE_MOVES,
