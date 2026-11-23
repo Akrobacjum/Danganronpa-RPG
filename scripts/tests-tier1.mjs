@@ -67855,6 +67855,128 @@ const INVARIANTS = [
             kept: KEPT.map(([, kept]) => kept), portrait: KEPT.map(([, kept]) => kept), refused: REFUSED.map(() => null), fixed: [], raw: [], art: true
         }), "{kept, portrait: each row's answer, parentheses as %28/%29; refused: each still null; fixed: answers that move when judged again; raw: answers holding ( ) \" ' or \; art: the room tile's url() holds the encoded name}");
     }],
+    ["R8810 - the GM panel opens on the roster again: a row per acting student with the actions and the moves each has left, read as the sheet reads them, in an Eclipse too (E129; S0-GMLIST, the owner after session 0, 23.11.2026: \"przywrocmy liste akcji i ruchow graczy do glownej zakladki gm panel na gorze ... rowniez w eclipse\")", async () => {
+        /* The table stood in the panel's standing block until v1.2.104 (`buildPanelContent`: a row per acting student, its
+           actions left of the most and the Free Move) and E49 A2 (1.2.105) folded it into a count. Red at 2e28785a: no
+           `rosterTableHtml`, no `PANEL_ROSTER`, nothing above the campaign's name. On stand-ins (no world is written), with
+           the sheet's own functions: a fresh day; a day spent into (1 of the most, the Free Move used, a Burst bought, two
+           crossings banked); a student with nothing left (dimmed); a Monocub (named so); then the same students in an
+           Eclipse, the crossings handed (`crossings`: 1 of 2, and the Night Eclipse's `null`). Fog's own wording of a Free
+           Move it took is read off `overflowBlocksFreeMove` as the suite's world has it. */
+        const G = await import("./gm-panel.mjs");
+        const { MODULE_ID, FLAGS, STARTING } = await import("./config.mjs");
+        const { overflowBlocksFreeMove } = await import("./overflow.mjs");
+        ok(typeof G.rosterTableHtml === "function" && G.PANEL_ROSTER === true, "gm-panel.mjs draws no roster (`rosterTableHtml`, `PANEL_ROSTER`)");
+        if (typeof G.rosterTableHtml !== "function") return;
+        const fog = overflowBlocksFreeMove();
+        const stand = (id, name, left, max, flags = {}) => ({ id, name, system: { resources: { actions: { value: left, max } } },
+            getFlag: (scope, key) => (scope === MODULE_ID ? flags[key] : undefined) });
+        const roster = [
+            stand("R8810a", "Aiko", STARTING.actions, STARTING.actions),
+            stand("R8810b", "Botan", 1, STARTING.actions, { [FLAGS.freeMoveUsed]: true, [FLAGS.freeActionGrants]: 1, [FLAGS.freeMoveGrants]: 2 }),
+            stand("R8810c", "Chie <b>", 0, STARTING.actions, { [FLAGS.freeMoveUsed]: true }),
+            stand("R8810d", "Daichi", 2, 2, { [FLAGS.monocub]: true })
+        ];
+        const read = html => {
+            const box = document.createElement("div");
+            box.innerHTML = html;
+            return [...box.querySelectorAll("tbody tr[data-drpg-actor]")].map(tr => ({
+                id: tr.dataset.drpgActor,
+                name: tr.cells[0].textContent.trim(),
+                actions: tr.querySelector("[data-drpg-actions]")?.dataset.drpgActions ?? null,
+                burst: tr.querySelector("[data-drpg-burst]")?.dataset.drpgBurst ?? null,
+                free: tr.querySelector("[data-drpg-free-move]")?.dataset.drpgFreeMove ?? null,
+                sprint: tr.querySelector("[data-drpg-sprint]")?.dataset.drpgSprint ?? null,
+                eclipse: tr.querySelector("[data-drpg-eclipse-moves]")?.dataset.drpgEclipseMoves ?? null,
+                spent: tr.hasAttribute("data-drpg-spent"),
+                said: [tr.cells[1].textContent.trim(), tr.cells[2].textContent.trim()].join(" | ")
+            }));
+        };
+        const day = read(G.rosterTableHtml(roster, { eclipse: false }));
+        const dark = read(G.rosterTableHtml(roster, { eclipse: true, crossings: a => (a.id === "R8810a" ? [null, null] : [a.id === "R8810b" ? 1 : 2, 2]) }));
+        const freeNow = fog ? "no" : "yes";
+        const n = STARTING.actions;
+        // What the row says in words: the actions, "+N" bought; the Free Move as a count of one, "+N" banked; the Eclipse's
+        // crossings, or any room.
+        const words = (actions, more) => {
+            const [left, most] = actions.split("/");
+            const a = `${left} / ${most}${more.burst ? ` +${more.burst}` : ""}`;
+            const m = more.eclipse === "any" ? game.i18n.localize("DRPG.Panel.anyRoom")
+                : more.eclipse ? more.eclipse.replace("/", " / ")
+                : `${more.free === "yes" ? 1 : 0} / 1${more.sprint ? ` +${more.sprint}` : ""}`;
+            return `${a} | ${m}`;
+        };
+        const row = (id, name, actions, more) => ({ id, name, actions, burst: null, free: null, sprint: null, eclipse: null, spent: false, ...more,
+            said: words(actions, more) });
+        equal(stableJson({ day, dark }), stableJson({
+            day: [row("R8810a", "Aiko", `${n}/${n}`, { free: freeNow }), row("R8810b", "Botan", `1/${n}`, { burst: "1", free: "no", sprint: "2" }),
+                row("R8810c", "Chie <b>", `0/${n}`, { free: "no", spent: true }), row("R8810d", `Daichi (${game.i18n.localize("DRPG.Monocub.panelTitle")})`, "2/2", { free: freeNow })],
+            dark: [row("R8810a", "Aiko", `${n}/${n}`, { eclipse: "any" }), row("R8810b", "Botan", `1/${n}`, { burst: "1", eclipse: "1/2" }),
+                row("R8810c", "Chie <b>", `0/${n}`, { eclipse: "2/2", spent: true }), row("R8810d", `Daichi (${game.i18n.localize("DRPG.Monocub.panelTitle")})`, "2/2", { eclipse: "2/2" })]
+        }), "{day, dark: each row's actions left/most, Burst, Free Move, banked crossings, the Eclipse's crossings left/allowance or any, dimmed, and what its two cells say}");
+        // Where it stands and what it reads, off the source: first in the standing block after the case's warning, the
+        // Eclipse's crossings from eclipse.mjs's own readers, and the block redrawn on the crossings' two stores.
+        const src = stripComments((await moduleSources()).get("gm-panel.mjs") ?? "");
+        must(src.length > 1000, "gm-panel.mjs read as nothing - this would measure nothing");
+        const block = fnSource(src, "buildPanelContent");
+        const order = ["${caseLine}", "rosterTableHtml()", "campaignName(clock)"].map(s => block.indexOf(s));
+        equal(stableJson({
+            top: order.every(i => i >= 0) && order[0] < order[1] && order[1] < order[2],
+            readers: /crossings = a => \[eclipseMovesLeft\(a\), eclipseAllowanceFor\(a\)\]/.test(src),
+            watched: /stores: \[[^\]]*eclipseMoveStore[^\]]*timedEffectStore/.test(src)
+        }), stableJson({ top: true, readers: true, watched: true }),
+        "{top: the roster after the case warning, before the campaign's name; readers: eclipse.mjs movesLeft and eclipseAllowanceFor; watched: the crossings' stores redraw the block}");
+    }],
+    ["R8811 - a lost drawing context on the board is recorded and told to the GMs once per loss (E129; S0-WHITE, the owner after session 0, 23.11.2026: a player's screen went white): context-loss.mjs `watchContext` writes a `webglcontextlost` to this browser's failure log with the time, the scene and the theme, hands the GMs one card until the next `webglcontextrestored`, logs the restore as a warning, prevents nothing, and watches an element once; the board's canvas is watched at canvasReady", async () => {
+        /* Red at 2e28785a: no context-loss.mjs, nothing in scripts/ listens for a lost context. A stand-in canvas fires the
+           events (nothing is drawn; jsdom has no WebGL), `tell` is a stand-in that counts, so no card is posted. */
+        let C = null;
+        try { C = await import("./context-loss.mjs"); } catch { /* the file is not there */ }
+        ok(typeof C?.watchContext === "function", "no context-loss.mjs `watchContext`: a lost drawing context is recorded nowhere");
+        if (typeof C?.watchContext !== "function") return;
+        const { sessionFailures } = await import("./utils.mjs");
+        const LABEL = "R8811 stand-in canvas";
+        const rows = () => sessionFailures().filter(r => r.message.includes(LABEL)).map(r => [r.level, r.count]);
+        const told = [];
+        const el = document.createElement("canvas");
+        const first = C.watchContext(el, { label: LABEL, tell: reading => { told.push(reading); } });
+        const again = C.watchContext(el, { label: LABEL, tell: () => told.push("twice") });
+        const fire = async name => {
+            const ev = new Event(name, { cancelable: true });
+            el.dispatchEvent(ev);
+            await new Promise(r => setTimeout(r, 0));
+            return ev.defaultPrevented;
+        };
+        const prevented = [await fire(C.CONTEXT_EVENTS.lost)];
+        const afterOne = { told: told.length, rows: rows() };
+        prevented.push(await fire(C.CONTEXT_EVENTS.lost));
+        const afterTwo = { told: told.length, rows: rows() };
+        prevented.push(await fire(C.CONTEXT_EVENTS.restored));
+        prevented.push(await fire(C.CONTEXT_EVENTS.lost));
+        const afterRestore = { told: told.length, rows: rows() };
+        const reading = told[0] ?? {};
+        equal(stableJson({ first, again, afterOne, afterTwo, afterRestore, prevented,
+            reading: { at: typeof reading.at === "string" && !Number.isNaN(Date.parse(reading.at)), theme: typeof reading.theme === "string", scene: "scene" in reading } }),
+        stableJson({ first: true, again: false,
+            // each loss its own row: it carries its own time, so the log keeps it apart rather than counting a repeat
+            afterOne: { told: 1, rows: [["error", 1]] }, afterTwo: { told: 1, rows: [["error", 1], ["error", 1]] },
+            afterRestore: { told: 2, rows: [["error", 1], ["error", 1], ["warn", 1], ["error", 1]] }, prevented: [false, false, false, false],
+            reading: { at: true, theme: true, scene: true } }),
+        "{first, again: watched once; told and the failure log's rows after one loss, a second, and a restore then a loss; prevented: no event's default stopped; reading: the time, the theme, the scene}");
+        // Where it is wired, off the source: the board's canvas at canvasReady, the GMs' card by `whisperToGms` asking for
+        // no centre, the default on, and module.mjs registering it.
+        const sources = await moduleSources();
+        const src = stripComments(sources.get("context-loss.mjs") ?? "");
+        must(src.length > 500, "context-loss.mjs read as nothing - this would measure nothing");
+        equal(stableJson({
+            board: /Hooks\.on\("canvasReady"[\s\S]*canvas\?\.app\?\.view[\s\S]*watchContext\(/.test(fnSource(src, "registerContextWatch")),
+            gms: /whisperToGms\(/.test(fnSource(src, "tellGmsOfLoss")) && !/popupCentre|withCentre|centreFlag/.test(src),
+            prevents: /preventDefault/.test(src),
+            on: C.CONTEXT_WATCH.tellGms === true,
+            registered: /safely\([^)]*registerContextWatch\)/.test(stripComments(sources.get("module.mjs") ?? ""))
+        }), stableJson({ board: true, gms: true, prevents: false, on: true, registered: true }),
+        "{board: canvasReady watches canvas.app.view; gms: the GMs' card by whisperToGms, in their corner; prevents: no preventDefault; on: tellGms; registered: module.mjs}");
+    }],
     ["R8431 - the token HUD's on toggles and its focus read under Stained Glass with high contrast (the audit of 1.2.120, H-1, H-7; 1.2.122 line UI): a rule under high contrast and the glass gives `.control-icon.active` the Bone ground and the Ink glyph after the high-contrast ground, and the glass draws the focus ring inside the hexagon (a negative `outline-offset`)", async () => {
         /* Red at 21bf5d18: the high-contrast rule (1,5,1) took the on toggle's ground to Ink under an Ink glyph, and the
            ring stood 2 px outside the clip. Read off the sheets' text; drawn in Chromium by docs/dev/ui122/hud-shots.mjs. */

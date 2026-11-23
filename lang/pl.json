@@ -5646,6 +5646,9 @@
       "rewindDuringEclipse": "Trwa Eclipse. Najpierw je zakończ.",
       "takenBack": "Początek tej pory dnia jest cofnięty: akcje, Free Move, to, co dały Sprint i Burst, Search Tokeny pokoi i pieczęcie wracają do stanu sprzed niego."
     },
+    "Context": {
+      "lost": "Przeglądarka gracza {name} utraciła kontekst rysowania ({scene})."
+    },
     "Panel": {
       "settings": "Ustawienia gry",
       "nextStartTrial": "Wszystkie zaplanowane Key Remnanty zostały znalezione. Rozpocznij Class Trial z konsoli trialu.",
@@ -5716,6 +5719,9 @@
       "character": "Postać",
       "freeMove": "Free Move",
       "noCharacters": "W tym świecie nie ma żywych uczniów.",
+      "moves": "Ruchy",
+      "anyRoom": "Dowolny pokój",
+      "rosterCaption": "Co każdemu uczniowi zostało o tej porze dnia",
       "installTables": "Utwórz tabele przedmiotów",
       "despairFlow": "Despair Flow",
       "sweepBullets": "Zbierz Truth Bullets",
