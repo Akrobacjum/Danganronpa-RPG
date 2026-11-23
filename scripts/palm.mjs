@@ -110,8 +110,12 @@ export function palmTitle(part, def = ACTIONS.palm) {
  * here would hand it over on a miss (trap 93). A Plant shows YOURS, because
  * they are yours - and choosing what to leave behind is the decision the
  * action is for.
+ *
+ * `clock` (E129 S0-PALM, 23.11.2026): the clock the rows are drawn for - a Class Trial greys Steal and Plant - the
+ * world's unless handed in (tier 1 R619 and R623 name theirs: 01-runtests' part A2 runs inside a Class Trial).
  */
-export async function choosePalm(actor, def, targets, mine) {
+export async function choosePalm(actor, def, targets, mine, { clock = getClock() } = {}) {
+    const inTrial = clock?.phase === "classTrial";
     /* WHO IS HERE, AS IT STANDS (the audit's REFR-52, 1.2.122, 21.11.2026; the owner's rule "Zawsze odswiezamy okna od
        razu przy zmianie"). The list was the room at the open: a student who walked in was not offered, one who had left
        still was (the GM's side then refused the attempt). Redrawn on every token and character change from the room as
@@ -131,17 +135,21 @@ export async function choosePalm(actor, def, targets, mine) {
         prompt: game.i18n.localize("DRPG.Steal.whichWay"),
         confirm: game.i18n.localize("DRPG.Action.roll"),
         options: [
+            // Shut in a Class Trial (E129 S0-PALM; the owner, 23.11.2026: "z palm w trialu ma byc dostepne tylko przeszukanie"):
+            // there Palm frisks, and its Steal and Plant wait for the trial's end.
             {
                 value: "steal", icon: "fa-hand-sparkles",
                 label: game.i18n.localize("DRPG.Steal.takeLabel"),
-                hint: game.i18n.localize("DRPG.Steal.takeHint")
+                hint: game.i18n.localize("DRPG.Steal.takeHint"),
+                disabled: inTrial,
+                why: game.i18n.localize("DRPG.Steal.notInTrial")
             },
             {
                 value: "plant", icon: "fa-hand-holding",
                 label: game.i18n.localize("DRPG.Steal.plantLabel"),
                 hint: plural("DRPG.Steal.plantHint", { n: mine.length }),
-                disabled: !mine.length,
-                why: game.i18n.localize("DRPG.Steal.nothingToPlant")
+                disabled: inTrial || !mine.length,
+                why: game.i18n.localize(inTrial ? "DRPG.Steal.notInTrial" : "DRPG.Steal.nothingToPlant")
             },
             {
                 // E80 part 2 C2: the third direction, which takes nothing and shows only the person's name here; what
@@ -155,9 +163,6 @@ export async function choosePalm(actor, def, targets, mine) {
                 // unseen Frisk opens one window" threw no dice (CI run 42850906186, shard 5). `field` stands in the
                 // form's slot under the rows, the picked row's alone shown, as the crisis menu's proposal does.
                 field: friskModes(def),
-                // Shut in a Class Trial (E129 S0-PALM): Palm's Steal and Plant are open there, its Frisk is not.
-                disabled: palmInTrial(),
-                why: game.i18n.localize("DRPG.Frisk.notInTrial"),
                 confirm: root => friskModeOf(root) === "unseen" ? game.i18n.localize("DRPG.Action.roll") : game.i18n.localize("DRPG.Action.askThem")
             }
         ],
@@ -246,7 +251,7 @@ async function resolvePlant(actor, def, { victim, planted, hand, shadow, room, s
 }
 
 /** The card's word on a trial's price (E129 S0-PALM): " Paid with 1 Hope." after a chain's receipt, else nothing. */
-function paidSaid(paid) {
+export function paidSaid(paid) {
     return paid?.key === "palm" ? ` ${paidLine(paid)}` : "";
 }
 
@@ -348,7 +353,7 @@ function palmTargets(actor) {
 }
 
 /** What Palm costs here: in a Class Trial its chain (`payPrice`, a receipt of its step), else its action as before. */
-async function payPalm(actor, cost) {
+export async function payPalm(actor, cost) {
     if (cost <= 0) return null;
     if (palmInTrial()) return payPrice(actor, "palm");
     const paid = await spendAction(actor, cost);
@@ -361,6 +366,19 @@ async function givePalmBack(actor, paid) {
     if (paid?.key === "palm") return void await refundPrice(actor, paid);
     await abort(actor, paid);
     if (paid) ui.notifications.info(game.i18n.localize("DRPG.Frisk.actionBack"));
+}
+
+/**
+ * A Palm's payment handed back with no word of the action's (frisk.mjs's own roads say theirs, E129 S0-PALM): the chain's
+ * by `refundPrice`, which says what came back, an action by `abort`. Answers whether the receipt was the chain's.
+ */
+export async function refundPalm(actor, paid) {
+    if (paid?.key === "palm") {
+        await refundPrice(actor, paid);
+        return true;
+    }
+    await abort(actor, paid);
+    return false;
 }
 
 export async function performPalm(actor, def, options) {
@@ -397,12 +415,13 @@ export async function performPalm(actor, def, options) {
     const victim = game.actors.get(picked.form?.querySelector("[name=who]")?.value ?? "");
     if (!victim) return null;
 
-    // A Frisk pays, throws and asks the GM on its own road (E80 part 2 C2, frisk.mjs) - not in a Class Trial, where
-    // Palm takes or leaves and its Frisk stays shut (E129 S0-PALM; the window greys the row, this holds a console's pick).
-    if (picked.value === "frisk" && palmInTrial()) {
-        ui.notifications.warn(game.i18n.localize("DRPG.Frisk.notInTrial"));
+    // In a Class Trial Palm only frisks (E129 S0-PALM; the owner, 23.11.2026): a Steal or a Plant waits for the trial's end
+    // (the window greys both rows, this holds a console's pick; the primary refuses it too, frisk.mjs `personActionRefusal`).
+    if (picked.value !== "frisk" && palmInTrial()) {
+        ui.notifications.warn(game.i18n.localize("DRPG.Steal.notInTrial"));
         return null;
     }
+    // A Frisk pays, throws and asks the GM on its own road (E80 part 2 C2, frisk.mjs), in a Class Trial by Palm's chain.
     if (picked.value === "frisk") {
         const { performFrisk } = await import("./frisk.mjs");
         return performFrisk(actor, def, victim, friskModeOf(picked.form), { cost, room });

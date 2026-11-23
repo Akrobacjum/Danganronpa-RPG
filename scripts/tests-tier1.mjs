@@ -25185,7 +25185,12 @@ const INVARIANTS = [
          * written). The button says 'Do it' for the ask and 'Roll' once Unseen is picked. Red at the parent (6810266): the
          * Frisk's only way is Unseen, checked, and the button says 'Roll'.
          */
+        /* EACH WINDOW NAMES ITS CLOCK (23.11.2026, CI's 01-runtests part A2, which runs tiers 0-1 inside a Class Trial and read
+           the trial's rows here since E129 S0-PALM): the three windows above are daily life's; a fourth is drawn for a Class
+           Trial and read as its own case - Steal and Plant greyed, the Frisk checked with its two ways, as Palm only frisks
+           there (the owner, 23.11.2026). Red in probes/129-hide-in-trial.mjs's state at fd77895d. */
         needs(world.atLeast("stashedItems", 1), "the target carries something, a stashed item among it");
+        const day = { phase: "dailyLife", chapter: 1, day: 1, timeOfDay: "noon", eclipse: false };
         const { choosePalm = null } = await import("./action-rolls.mjs");
         const target = game.actors.find(a => a.type === "character" && a.items.some(i => i.getFlag(MODULE_ID, "location") === "vault"));
         const actor = game.actors.find(a => a.type === "character" && a.id !== target?.id);
@@ -25197,17 +25202,19 @@ const INVARIANTS = [
         D.wait = async cfg => { drawn.push(cfg); return null; };
         const settings = game.settings, get = settings.get;
         try {
-            await choosePalm?.(actor, ACTIONS.palm, [target], mine);
-            await choosePalm?.(actor, { ...ACTIONS.palm, frisk: { ...ACTIONS.palm.frisk, threshold: 14 }, rummage: { ...ACTIONS.palm.rummage, unseen: 17, threshold: 11 } }, [target], mine);
+            await choosePalm?.(actor, ACTIONS.palm, [target], mine, { clock: day });
+            await choosePalm?.(actor, { ...ACTIONS.palm, frisk: { ...ACTIONS.palm.frisk, threshold: 14 }, rummage: { ...ACTIONS.palm.rummage, unseen: 17, threshold: 11 } }, [target], mine, { clock: day });
             settings.get = function (scope, key, ...rest) {
                 return scope === MODULE_ID && key === "friskForce" ? false : get.call(this, scope, key, ...rest);
             };
-            await choosePalm?.(actor, ACTIONS.palm, [target], mine);
+            await choosePalm?.(actor, ACTIONS.palm, [target], mine, { clock: day });
+            settings.get = get;
+            await choosePalm?.(actor, ACTIONS.palm, [target], mine, { clock: { ...day, phase: "classTrial" } });
         } finally {
             settings.get = get;
             if (own) Object.defineProperty(D, "wait", own); else delete D.wait;
         }
-        must(!choosePalm || drawn.length === 3, `choosePalm drew ${drawn.length} window(s) of 3 - this would measure nothing`);
+        must(!choosePalm || drawn.length === 4, `choosePalm drew ${drawn.length} window(s) of 4 - this would measure nothing`);
         must(get.call(settings, MODULE_ID, "friskForce") === true, "the GMs' friskForce is off in this world - Openly's force line would measure nothing");
         const read = cfg => {
             const root = document.createElement("div");
@@ -25239,11 +25246,21 @@ const INVARIANTS = [
                 modes, labels, html: root.innerHTML
             };
         };
-        const [first, moved, askOnly] = choosePalm ? drawn.map(read) : [{ html: "" }, {}, {}];
+        // The trial's window as drawn: each row's [value, disabled, checked] and the Frisk's ways, before `read` presses them.
+        const trialRows = cfg => {
+            const root = document.createElement("div");
+            root.append(cfg.content.cloneNode(true));
+            return { rows: [...root.querySelectorAll('input[name="variant"]')].map(r => [r.value, r.disabled, r.checked]),
+                modes: [...root.querySelectorAll('form [data-drpg-field="frisk"] input[name="friskMode"]')].map(r => [r.value, r.checked]) };
+        };
+        const trial = choosePalm && drawn[3] ? trialRows(drawn[3]) : null;
+        const [first, moved, askOnly] = choosePalm ? drawn.slice(0, 3).map(read) : [{ html: "" }, {}, {}];
         const hint = (unseen, hand) => game.i18n.format("DRPG.Frisk.unseenHint", { unseen, hand });
         const open = force => game.i18n.format("DRPG.Frisk.openHint", { force });
         // An open Frisk asks the person: Ask them since E100 item 6 (R4105), Do it until then.
         const roll = game.i18n.localize("DRPG.Action.roll"), proceed = game.i18n.localize("DRPG.Action.askThem");
+        equal(stableJson(trial), stableJson({ rows: [["steal", true, false], ["plant", true, false], ["frisk", false, true]], modes: [["openly", true], ["unseen", false]] }),
+            "the Palm window in a Class Trial does not grey Steal and Plant and check the Frisk with its two ways ([value, disabled, checked] each row; the Frisk's ways)");
         equal(stableJson([first.rows, first.frisk, first.modes, moved.modes, askOnly.modes, first.labels]), stableJson([
             ["steal", "plant", "frisk"],
             [game.i18n.localize("DRPG.Frisk.rowLabel"), game.i18n.localize("DRPG.Frisk.rowHint")],
@@ -25412,7 +25429,9 @@ const INVARIANTS = [
         const drawn = [];
         D.wait = async cfg => { drawn.push(cfg); return null; };
         try {
-            await choosePalm(actor, ACTIONS.palm, [target], [{ id: "R623MINE", name: "R623 own thing", getFlag: () => undefined }]);
+            // Daily life's window, named (23.11.2026: CI's part A2 runs inside a Class Trial, and the world's clock drew its rows).
+            await choosePalm(actor, ACTIONS.palm, [target], [{ id: "R623MINE", name: "R623 own thing", getFlag: () => undefined }],
+                { clock: { phase: "dailyLife", chapter: 1, day: 1, timeOfDay: "noon", eclipse: false } });
         } finally {
             if (own) Object.defineProperty(D, "wait", own); else delete D.wait;
         }
@@ -68454,22 +68473,32 @@ const INVARIANTS = [
         equal(stableJson({ read, found }), stableJson({ read: { constant: 30, debate: 30, round: 30, pick: [30, 30], closing: [60, 60], rebuttal: 120 }, found: [] }),
             "{read: [the constant, an Objection's seconds in a debate, in a round, [while its bullet is picked, the pick constant], [the Closing's exchange, its constant], the rebuttal]; found: the texts that still say a minute or 60 s}");
     }],
-    ["R8772 - Palm is open in the Class Trial and paid as Analyze is there (E129 S0-PALM; the owner's note of 23.11.2026, \"palm powinno byc dostepne w trialu za akcje, potem za hope, potem za sanity\"): allowed-now.mjs `TRIAL_OPEN_ACTIONS` holds Analyze and Palm, and in a trial the action road opens those two and shuts the rest; the person road opens Palm's key alone; config.mjs `PRICE_CHAINS.palm` is an action, then Hope, then Sanity, the later steps in the trial alone, its first step Palm's tile cost; `TRIAL.palmHallIsOneRoom` is on", async () => {
-        /* Pure over handed-in facts (allowed-now.mjs `allowedNow`'s `facts`). Red at 2e28785a: Analyze alone, no chain. */
+    ["R8772 - Palm is open in the Class Trial for its Frisk alone, paid as Analyze is there (E129 S0-PALM; the owner's notes of 23.11.2026, \"palm powinno byc dostepne w trialu za akcje, potem za hope, potem za sanity\" and \"z palm w trialu ma byc dostepne tylko przeszukanie - ukradkiem, consensual lub silowe\"): allowed-now.mjs `TRIAL_OPEN_ACTIONS` holds Analyze and Palm and in a trial the action road opens those two and shuts the rest; `TRIAL_OPEN_PERSON` holds the Frisk alone, so the person road opens it and shuts Palm's Steal and Plant (`palm`) and a nameless road; config.mjs `PRICE_CHAINS.palm` an action, Hope, Sanity, its later steps the trial's; Palm's hall one room", async () => {
+        /* Pure over handed-in facts (allowed-now.mjs `allowedNow`'s `facts`). Red at ca67d7a7: the person road opens `palm`
+           (Steal and Plant) and shuts the Frisk. Outside a trial the person road opens all three, as before. */
         const { ACTIONS, PRICE_CHAINS, TRIAL } = await import("./config.mjs");
         const A = await import("./allowed-now.mjs");
         const facts = trial => ({ trial: () => trial, eclipse: () => false, fighting: () => false, betrayal: () => false, participant: () => false });
         const open = ["search", "observe", "analyze", "listen", "palm", "project", "rest", "dynamic", "tamper"].filter(k => A.allowedNow(null, k, { facts: facts(true) }).ok);
+        const person = trial => ["frisk", "palm", null].map(k => { const r = A.allowedNow(null, k, { road: "person", facts: facts(trial) }); return r.ok ? "open" : r.why; });
         const chain = PRICE_CHAINS.palm ?? null;
+        // The Frisk pays Palm's own price on the searcher's browser (palm.mjs `payPalm`, the chain in a trial) and hands it back
+        // by its receipt (`refundPalm`), both forms - read off frisk.mjs, since the windows before them need a hand to press.
+        const frisk = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/frisk.mjs`).then(lfText));
+        const pays = ["performFrisk", "performFriskOpenly"].map(name => {
+            const body = fnSource(frisk, name) ?? "";
+            return [body.includes("payPalm("), body.includes("refundPalm("), body.includes("spendAction(")];
+        });
         equal(stableJson({
-            table: A.TRIAL_OPEN_ACTIONS ?? null, open,
-            person: [A.allowedNow(null, "palm", { road: "person", facts: facts(true) }).ok, A.allowedNow(null, null, { road: "person", facts: facts(true) }).why],
+            pays,
+            table: A.TRIAL_OPEN_ACTIONS ?? null, open, personTable: A.TRIAL_OPEN_PERSON ?? null, inTrial: person(true), outside: person(false),
             chain: chain ? [chain.steps.map(s => [s.pay, s.amount]), chain.stepsBeyondFirst, chain.steps[0].amount === ACTIONS.palm.cost] : null,
             hall: TRIAL.palmHallIsOneRoom ?? null
         }), stableJson({
-            table: ["analyze", "palm"], open: ["analyze", "palm"], person: [true, "trial"],
+            pays: [[true, true, false], [true, true, false]],
+            table: ["analyze", "palm"], open: ["analyze", "palm"], personTable: ["frisk"], inTrial: ["open", "trial", "trial"], outside: ["open", "open", "open"],
             chain: [[["action", 1], ["hope", 1], ["stress", 1]], "classTrial", true], hall: true
-        }), "{table; open: the action keys a trial leaves open; person: [Palm's road, a nameless one's reason]; chain: [steps, the phase of the later ones, its first step the tile's cost]; hall}");
+        }), "{pays: [performFrisk, performFriskOpenly] by payPalm, refunded by refundPalm, no bare spendAction; table; open: the action keys a trial leaves open; personTable; inTrial: [the Frisk's road, Palm's Steal and Plant, a nameless road]; outside: the same out of a trial; chain: [steps, the phase of the later ones, its first step the tile's cost]; hall}");
     }],
     ["R8773 - the ballot lists each Monokuma by its own name, sorted, as the GMs hold the flag (E129 S0-VOTEKUMA; the owner's note of 23.11.2026, \"w glosowaniu zamiast opcji \"monokuma\" niech bedzie mozliwosc wyboru kazdego indywidualnego monokumy z osobna\"): vote.mjs `monokumaCandidates`, config.mjs `TRIAL.eachMonokumaOnBallot`", async () => {
         /*

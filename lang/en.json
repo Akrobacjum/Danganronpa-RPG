@@ -5780,6 +5780,7 @@
         "other": "Slip one of the {n} things you carry into their pocket; both rolls need less than taking does."
       },
       "nothingToPlant": "You are carrying nothing you could leave on somebody.",
+      "notInTrial": "In the trial Palm only frisks: taking or leaving something waits until the Class Trial is over.",
       "whatToPlant": "What to leave",
       "whoPrompt": "Whose pockets?",
       "plantSent": "You brush past {name}. In a moment you learn whether the item reached their pocket and whether they felt it.",
@@ -5808,7 +5809,6 @@
     "Frisk": {
       "rowLabel": "See what they carry",
       "rowHint": "Look through their pockets and take nothing.",
-      "notInTrial": "A Frisk waits until the Class Trial is over; in the trial Palm takes or leaves something.",
       "noticeTitle": "Frisk",
       "unseenLabel": "Unseen",
       "unseenHint": "Shadow {unseen}+ so they do not notice, then Hand {hand}+ to see everything.",

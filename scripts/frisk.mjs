@@ -62,7 +62,7 @@ const FORCEABLE = Object.freeze(["refused", "noAnswer"]);
  * Whether `searcherId` may draw a Frisk's force now: the GMs' `friskForce` is on and an ask of theirs stands refused or
  * unanswered inside its window - `forceUntil`, the grace for a press in its last moment and the roll's window that press
  * opened (`forceDrawnBy`) - with the two still standing as they stood when it was asked (`standing`: in its room, neither
- * gone, no Eclipse, no Class Trial, no death or incident of either side). Asked by roll-draw.mjs `drawRefusal` before a
+ * gone, no Eclipse, no Class Trial begun or ended since, no death or incident of either side). Asked by roll-draw.mjs `drawRefusal` before a
  * `frisk` roll takes its ticket, so a gate that shut while 'Make them?' was open refuses the dice before they are thrown,
  * and the force's follow, naming no roll, ends the ask `interrupted` with the action handed back (E80 fix r1-G2, the
  * review's E80-C3-8). A GM's own force, thrown on its own browser where no draw is judged, asks it there first when that GM
@@ -115,8 +115,9 @@ const floorKey = level => level?.id ?? level ?? null;
 /**
  * PALM'S HALL (E129 S0-PALM, 23.11.2026; config.mjs `TRIAL.palmHallIsOneRoom`): while a Class Trial runs with a hall
  * linked, the hall's scene, else null. The hall holds no room (R114), so it is no place scene and `gmPlaceOf` reads a
- * student where their school token stands; Palm's Steal and Plant read the two tokens on the hall instead
- * (`palmHallToken`), the hall one room. Palm's alone: a Frisk, a give, a tail and a loot never ask it.
+ * student where their school token stands; Palm's roads read the two tokens on the hall instead (`palmHallToken`,
+ * `personPlace`), the hall one room. Palm's alone - its Frisk, and its Steal and Plant, which the trial refuses: a give, a
+ * tail and a loot never ask it.
  */
 export function palmHall() {
     if (!TRIAL.palmHallIsOneRoom || getClock()?.phase !== "classTrial") return null;
@@ -129,13 +130,28 @@ export function palmHallToken(actor, scene) {
 }
 
 /**
+ * WHERE A FRISK STANDS (E129 S0-PALM, 23.11.2026; the owner: in the trial Palm only frisks): in a Class Trial with a hall
+ * linked (`palmHall`), the hall, one room named by its scene - `{ scene, level: null, room, tokenDoc }` with the actor's
+ * token there that the GMs have not hidden, null with none; elsewhere movement.mjs `gmPlaceOf`. The Frisk's ask keeps it
+ * (`askToFrisk`: `sceneId`, `level`, `room`, and `hall`), its standing and the Reroll's replay read it again, and the
+ * room it tells is its witnesses' (`roomWitnessesOnGm`).
+ */
+export function personPlace(actor) {
+    const hall = palmHall();
+    if (!hall) return gmPlaceOf(actor);
+    const tokenDoc = palmHallToken(actor, hall);
+    return tokenDoc ? { scene: hall, level: null, room: hall.name || "-", tokenDoc } : null;
+}
+
+/**
  * Why `asker` may not act on `target` now, as an English reason of the bridge's closed list (bridge-guards.mjs
  * `REASON_PATTERNS`), or null. The primary GM's one gate of an action one living student takes on another in their
  * room (the A11 design's step 3), asked before the price; E80 asks it for a Frisk only (E14 wires it into the person
  * gate of `transferItem`). In the design's order: both characters exist and differ; neither is a Monokuma nor a
  * Monocub, read off the GMs' mark (sheet-audit.mjs `flagsHeldNow`); the asker is alive for the GMs (`isDeadForGm`);
  * both stand where the GMs read them (movement.mjs `gmPlaceOf`: scene, floor and room, so a room of the same name on
- * another scene is not this one), the target on a token the GMs have not hidden; no Eclipse; no Class Trial; the
+ * another scene is not this one), the target on a token the GMs have not hidden; no Eclipse; no Class Trial (its Frisk excepted, `frisk`, and
+ * Palm's place the trial's hall then, `palm`: E129 S0-PALM); the
  * asker is no side of the running incident (`incidentParticipants`, the GMs' cast).
  *
  * What it does not ask, on purpose: whether the target is dead, and whether the target is a side of an incident.
@@ -161,7 +177,7 @@ export function palmHallToken(actor, scene) {
  * handover.mjs `lootBody`, inventory.mjs `transferItem` and anonymity.mjs's greying - read it through this one gate
  * (tier 0 R3143). The living road keeps the token.
  */
-export function personActionRefusal(asker, target, { body = false, user = null, palm = false } = {}) {
+export function personActionRefusal(asker, target, { body = false, user = null, palm = false, frisk = false } = {}) {
     if (!asker || !target || asker.type !== "character" || target.type !== "character") return "no such character";
     if (asker.id === target.id) return "a character cannot do that to itself";
     const [mine, theirs] = [flagsHeldNow(asker), flagsHeldNow(target)];
@@ -169,8 +185,9 @@ export function personActionRefusal(asker, target, { body = false, user = null, 
     if (mine.getFlag(MODULE_ID, FLAGS.monocub) || (!body && theirs.getFlag(MODULE_ID, FLAGS.monocub))) return "a Monocub takes no part in that";
     if (isDeadForGm(asker)) return "that cannot be done now";
     if (body && !knownDeath(user ?? game.user, target)) return "that cannot be done now";
-    // Palm's Steal and Plant in the trial's hall (E129 S0-PALM): the two tokens on the hall, the hall one room.
-    const hall = palm && !body ? palmHall() : null;
+    // Palm's roads in the trial's hall (E129 S0-PALM): the two tokens on the hall, the hall one room - its Frisk (`frisk`),
+    // which the trial leaves open, and its Steal and Plant (`palm`), which it refuses below with the trial's sentence.
+    const hall = (palm || frisk) && !body ? palmHall() : null;
     const here = hall ? null : gmPlaceOf(asker);
     if (hall && !palmHallToken(asker, hall)) return "the character has no token on a scene";
     if (!hall && !here?.room) return "the character has no token on a scene";
@@ -191,8 +208,9 @@ export function personActionRefusal(asker, target, { body = false, user = null, 
     // The phase: allowed-now.mjs's "person" road (E40 item 3), in this road's order - the Eclipse, the trial, then the
     // asker's incident, which a body's loot does not ask.
     // Each sentence written out, as the bridge's census of reasons reads them (R164).
-    // Palm's key opens the trial to its Steal and Plant (allowed-now.mjs `TRIAL_OPEN_PERSON`, E129 S0-PALM); every other road names none.
-    const now = allowedNow(asker, palm ? "palm" : null, { road: "person", facts: { participant: () => !body && incidentParticipants().includes(asker.id) } });
+    // The Frisk's key opens the trial (allowed-now.mjs `TRIAL_OPEN_PERSON`, E129 S0-PALM: the owner, 23.11.2026, "z palm w
+    // trialu ma byc dostepne tylko przeszukanie"); Palm's Steal and Plant name theirs, which it shuts; every other road none.
+    const now = allowedNow(asker, frisk ? "frisk" : palm ? "palm" : null, { road: "person", facts: { participant: () => !body && incidentParticipants().includes(asker.id) } });
     if (now.why === WHY.eclipse) return "an Eclipse is running";
     if (now.why === WHY.trial) return "that waits until the Class Trial is over";
     if (now.why === WHY.incident) return "the character is a side of the running incident";
@@ -221,6 +239,12 @@ export function knownDeath(user, target) {
 export function roomWitnessesOnGm(room, scene, { except = [] } = {}) {
     if (!room || !scene) return [];
     const left = new Set(except);
+    // The trial's hall is one room for Palm (E129 S0-PALM, `personPlace`): every student whose token stands on it, shown.
+    if (scene.id && scene.id === palmHall()?.id) {
+        const held = new Set(studentActors().map(actor => actor.id));
+        return [...new Set(Array.from(scene.tokens ?? []).filter(t => !hiddenByGm(t) && held.has(t.actorId) && !left.has(t.actorId))
+            .map(t => t.actorId))].map(id => game.actors.get(id)).filter(Boolean);
+    }
     const students = new Set(studentActors().map(actor => actor.id));
     return witnessesOf({ tokens: scene.tokens ?? [], room, students, held: flagsHeldNow, roomOf: lawfulRoomOf, monocubs: true })
         .map(token => game.actors.get(token.actor?.id) ?? null).filter(actor => actor && !left.has(actor.id));
@@ -239,7 +263,7 @@ export function roomWitnessesOnGm(room, scene, { except = [] } = {}) {
  * names it. Answers the card's readers, or []; a failure is logged, never thrown. On the primary GM.
  */
 export async function tellOnlookers(actor, victim, html, { body = false } = {}) {
-    const here = gmPlaceOf(actor);
+    const here = personPlace(actor);
     const watching = roomWitnessesOnGm(here?.room ?? null, here?.scene ?? null, { except: [actor?.id, victim?.id] });
     const owners = new Set(watching.flatMap(ownerIdsOf));
     if (!owners.size) return [];
@@ -328,7 +352,7 @@ export async function friskPerson({ searcherId, targetId, total = 0, isCritical 
         log(`Refused a Frisk by ${searcher?.name ?? "?"} of ${target?.name ?? "?"}: ${why}.`);
         return { refused: why };
     };
-    const why = personActionRefusal(searcher, target);
+    const why = personActionRefusal(searcher, target, { frisk: true });
     if (why) return refuse(why);
     if (knownBody(asker, target)) return refuse("that cannot be done now");
     const body = isDeadForGm(target);
@@ -354,7 +378,7 @@ export async function friskPerson({ searcherId, targetId, total = 0, isCritical 
     // The GMs' fact on the hand's row (the design's step 11), which its Reroll replays from (`replayRummage`): written
     // for the roll the packet named and the user who sent it, never claimed by the searcher's browser (action-pipeline.mjs
     // `ROLL_CLAIMS` has no Frisk). A Frisk that names no roll leaves none, and its Reroll replays nothing.
-    const here = gmPlaceOf(searcher);
+    const here = personPlace(searcher);
     const rolls = await import("./action-rolls.mjs");
     await rolls.noteFactOn(rolls.rollOfFact({ rollId, by: asker?.id ?? null, actorId: searcher.id, actions: ["rummage"] }),
         { frisk: { victimId: target.id, sceneId: here?.scene?.id ?? null, room: here?.room ?? null, seen: noticed, shown: sees } });
@@ -391,9 +415,9 @@ export async function replayRummage(searcher, fact, { total = 0, isCritical = fa
     if (!(Boolean(isCritical) || Number(total) >= ACTIONS.palm.rummage.threshold)) {
         return { line: game.i18n.format("DRPG.Frisk.missed", { who }), patch: {} };
     }
-    const here = gmPlaceOf(searcher);
+    const here = personPlace(searcher);
     const asker = (by ? game.users?.get(by) : null) ?? null;
-    if (!target || personActionRefusal(searcher, target) || here?.scene?.id !== fact.sceneId || here?.room !== fact.room
+    if (!target || personActionRefusal(searcher, target, { frisk: true }) || here?.scene?.id !== fact.sceneId || here?.room !== fact.room
         || knownBody(asker, target)) {
         log(`A Reroll of ${searcher.name}'s Frisk of ${target?.name ?? "?"} found the moment passed.`);
         return late();
@@ -416,9 +440,10 @@ export async function replayRummage(searcher, fact, { total = 0, isCritical = fa
 export async function performFrisk(actor, def, victim, mode, { cost = def?.cost ?? 1, room = null } = {}) {
     if (mode !== "unseen") return performFriskOpenly(actor, def, victim, { cost, room });
     const A = await import("./action-rolls.mjs");
-    const { spendAction } = await import("./actions.mjs");
+    const PA = await import("./palm.mjs");
     const part = def.rummage;
-    const paid = cost > 0 ? await spendAction(actor, cost) : null;
+    // Palm's own payment (E129 S0-PALM): its action, and in a Class Trial its chain - an action, else Hope, else Sanity.
+    const paid = await PA.payPalm(actor, cost);
     if (cost > 0 && !paid) return null;
     // "Palm - Shadow, beat 15" and "Palm - Hand, beat 10" (palm.mjs `palmTitle`, E51 C1; the owner's A11). While hidden the
     // Shadow roll is not thrown and passes (S0-HIDE, hide.mjs `coverWhileHidden`), and the card says so.
@@ -426,7 +451,7 @@ export async function performFrisk(actor, def, victim, mode, { cost = def?.cost 
     const shadow = coverWhileHidden(actor) ?? await A.rollTrait(actor, def.unseen.trait, {
         remember: false, actionKey: "palm", title: A.palmTitle("rummageUnseen", def), titled: true, dc: part.unseen
     });
-    if (!shadow) return A.abort(actor, paid);
+    if (!shadow) return void await PA.refundPalm(actor, paid);
     const hand = await A.rollTrait(actor, part.trait, {
         actionKey: "rummage", dc: part.threshold, title: A.palmTitle("rummage", def), titled: true,
         context: { room, victimId: victim.id, unseenTotal: shadow.total, direction: "frisk" }
@@ -443,7 +468,7 @@ export async function performFrisk(actor, def, victim, mode, { cost = def?.cost 
     });
     /* REFUSED BEFORE ITS ROLLS WERE READ, THE ACTION BACK (the audit's CASE-34, 1.2.122, 21.11.2026; the owner's Q3 of
        18.10.2026). `friskPerson` asks the one gate first (`personActionRefusal`: the target walked out, an Eclipse or a
-       Class Trial began, the asker now knows the target dead), and an unseen Frisk so refused kept its action spent
+       Class Trial began or ended, the asker now knows the target dead), and an unseen Frisk so refused kept its action spent
        while a Steal, a Plant and an open Frisk refused the same way gave it back. As a Palm's (palm.mjs). */
     await (await import("./palm.mjs")).handBackIfRefusedBeforeRolls(actor, paid, { ok: res.ok, refused: res.refused, reason: res.reason, value: res.value }, [shadow, hand]);
     // The hand keeps the key it was thrown as (`rummage`), here and in the GMs' row: it names the Reroll's replay (the
@@ -452,7 +477,7 @@ export async function performFrisk(actor, def, victim, mode, { cost = def?.cost 
     // "Sent" only when the primary judged it (E31): a request it did not carry out has been said once already.
     const outcome = {
         success, seen, direction: "frisk", mode, target: victim.name, supportRolls: [shadow],
-        text: withCover(res.ok && res.value && !res.value.refused ? game.i18n.format("DRPG.Frisk.sent", { name: victim.name }) : "", shadow)
+        text: withCover(res.ok && res.value && !res.value.refused ? game.i18n.format("DRPG.Frisk.sent", { name: victim.name }) + PA.paidSaid(paid) : "", shadow)
     };
     await A.report(actor, def, hand, outcome);
     Hooks.callAll("drpgActionResolved", { actor, actionKey: "palm", roll: hand, outcome });
@@ -574,18 +599,22 @@ function emitTo(userIds, packet) {
 /**
  * How an ask's two people stand now against the room it was asked in: null while both stand there and either may
  * act on the other; "letGo" when the searcher has gone (the design: as 'Leave it'); "gone" when the target has walked
- * away; "interrupted" for anything else that ends it with no dice thrown - an Eclipse, the Class Trial, either side's
- * death or incident (a target the GMs kept silent when it was asked stays as it was: it is why nobody was asked).
+ * away; "interrupted" for anything else that ends it with no dice thrown - an Eclipse, the Class Trial beginning or (asked
+ * on its hall, E129 S0-PALM) ending, either side's death or incident (a target the GMs kept silent when it was asked stays as it was: it is why nobody was asked).
  */
 function standing(row) {
     const searcher = game.actors.get(row.searcherId) ?? null;
     const target = game.actors.get(row.targetId) ?? null;
     if (!searcher || !target) return "interrupted";
+    // Asked in a Class Trial and the trial over, or asked outside one and a trial begun (E129 S0-PALM: the trial lets a Frisk
+    // be asked, so its gate no longer ends one): the moment passed with no dice thrown - not the searcher walking off,
+    // though on a hall linked the place the two are read in is another one now (`personPlace`).
+    if (Boolean(row.trial) !== (getClock()?.phase === "classTrial")) return "interrupted";
     const here = p => Boolean(p?.room) && !hiddenByGm(p.tokenDoc) && p.scene?.id === row.sceneId && floorKey(p.level) === row.level && p.room === row.room;
-    if (!here(gmPlaceOf(searcher))) return "letGo";
-    if (!here(gmPlaceOf(target))) return "gone";
+    if (!here(personPlace(searcher))) return "letGo";
+    if (!here(personPlace(target))) return "gone";
     if (!row.silent && (isDeadForGm(target) || incidentParticipants().includes(target.id))) return "interrupted";
-    return personActionRefusal(searcher, target) ? "interrupted" : null;
+    return personActionRefusal(searcher, target, { frisk: true }) ? "interrupted" : null;
 }
 
 /**
@@ -803,7 +832,7 @@ export async function sweepFriskAsks(now = Date.now()) {
 export async function askToFrisk({ searcherId, targetId } = {}, { asker = null, reply = null, requestId = null } = {}) {
     const searcher = game.actors.get(searcherId) ?? null;
     const target = game.actors.get(targetId) ?? null;
-    const why = personActionRefusal(searcher, target);
+    const why = personActionRefusal(searcher, target, { frisk: true });
     if (why) {
         log(`Refused a Frisk's ask by ${searcher?.name ?? "?"} of ${target?.name ?? "?"}: ${why}.`);
         return { refused: why };
@@ -821,11 +850,11 @@ export async function askToFrisk({ searcherId, targetId } = {}, { asker = null, 
     const pair = `${searcher.id}>${target.id}`, now = timeOfDayKey();
     if (askedPairs.get(pair) === now) return early("askedAlready");
 
-    const place = gmPlaceOf(searcher);
+    const place = personPlace(searcher);
     const askId = foundry.utils.randomID(16);
     const row = { askId, asker: asker?.id ?? null, requestId: typeof requestId === "string" && requestId ? requestId : null,
         searcherId: searcher.id, targetId: target.id, state: "opening", reply, replied: false,
-        sceneId: place.scene?.id ?? null, level: floorKey(place.level), room: place.room, answerUserIds: [], byGms: false, silent: null,
+        sceneId: place.scene?.id ?? null, level: floorKey(place.level), room: place.room, trial: getClock()?.phase === "classTrial", answerUserIds: [], byGms: false, silent: null,
         at: Date.now(), expiresAt: Infinity, forceUntil: null, lines: [], claimed: false, timer: null, receiptTimer: null };
     friskAsks.set(askId, row);
     askedPairs.set(pair, now);
@@ -939,7 +968,7 @@ export async function answerFrisk({ askId, allow = false } = {}, sender = null) 
  * row; `friskForceOpen` held the draw to `forceDrawnBy` and to the gate, and bridge-runs-acts.mjs `friskForceRoll` holds a
  * player's roll to this ask's window). No `rollId` - 'Leave it', a close, the clock, or a force whose draw was refused -
  * is read where the two stand: the target 'lets it go', or walked away ('gone'), or, where the gate has shut since the
- * refusal (an Eclipse, the Class Trial, a death or an incident), `interrupted`: no dice were thrown, and the searcher's
+ * refusal (an Eclipse, the Class Trial begun or ended, a death or an incident), `interrupted`: no dice were thrown, and the searcher's
  * browser hands the action back by what it paid (`FRISK_HANDED_BACK`; E80 fix r1-G2, the review's E80-C3-8). A roll:
  * Body against `ACTIONS.palm.frisk` - the list at the ask on a success or a critical, the neutral miss else - with the
  * room told either way. The two are read where they stand first; past the dice nothing is handed back, so a gate that
@@ -1243,7 +1272,7 @@ function keptSilent(target) {
 function gmForceShut(searcher, target, silentAtAsk, heldBy = null, askedAt = 0) {
     if (isPrimaryGm()) return !friskForceOpen(searcher.id);
     if (!heldBy || primaryGmId() !== heldBy || (gmLeftAt.get(heldBy) ?? -Infinity) >= askedAt) return true;
-    if (getSetting(SETTINGS.friskForce) !== true || personActionRefusal(searcher, target)) return true;
+    if (getSetting(SETTINGS.friskForce) !== true || personActionRefusal(searcher, target, { frisk: true })) return true;
     return !silentAtAsk && keptSilent(target);
 }
 
@@ -1272,24 +1301,26 @@ function gmForceShut(searcher, target, silentAtAsk, heldBy = null, askedAt = 0) 
  */
 async function performFriskOpenly(actor, def, victim, { cost = def?.cost ?? 1, room = null } = {}) {
     const A = await import("./action-rolls.mjs");
-    const { spendAction } = await import("./actions.mjs");
-    const paid = cost > 0 ? await spendAction(actor, cost) : null;
+    const PA = await import("./palm.mjs");
+    // Palm's own payment (E129 S0-PALM): its action, and in a Class Trial its chain - an action, else Hope, else Sanity.
+    const paid = await PA.payPalm(actor, cost);
     if (cost > 0 && !paid) return null;
+    // Handed back as it was paid: a chain's receipt says what came back itself (price.mjs `refundPrice`).
     const handBack = async () => {
-        await A.abort(actor, paid);
-        if (paid) toast(game.i18n.localize("DRPG.Frisk.actionBack"));
+        const chain = await PA.refundPalm(actor, paid);
+        if (paid && !chain) toast(game.i18n.localize("DRPG.Frisk.actionBack"));
         return null;
     };
     // What the GMs hold of the target as the ask is made: a GM's own force reads a death or an incident that came after.
     const silentAtAsk = game.user?.isGM ? keptSilent(victim) : false;
     // Who holds the ask: the primary as it is asked (`gmForceShut`).
     const heldBy = primaryGmId(), askedAt = Date.now();
-    toast(game.i18n.format("DRPG.Frisk.waiting", { who: victim.name }));
+    toast(game.i18n.format("DRPG.Frisk.waiting", { who: victim.name }) + PA.paidSaid(paid));
     const { requestFriskAsk, requestFriskFollow } = await import("./gm-bridge.mjs");
     const res = await requestFriskAsk({ searcherId: actor.id, targetId: victim.id });
     const asked = res.ok ? res.value : null;
     if (asked?.outcome === "interrupted") return handBack();
-    if (!asked?.outcome || FRISK_HANDED_BACK.includes(asked.outcome)) return A.abort(actor, paid);
+    if (!asked?.outcome || FRISK_HANDED_BACK.includes(asked.outcome)) return void await PA.refundPalm(actor, paid);
     const base = { direction: "frisk", mode: "openly", target: victim.name, asked: asked.outcome };
     if (!FORCEABLE.includes(asked.outcome) || !asked.forceMs || !asked.askId) return base;
 
