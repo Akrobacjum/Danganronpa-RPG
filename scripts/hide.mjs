@@ -30,7 +30,8 @@
  *     `rollsFor`), so a packet that claims it otherwise names a roll as before.
  *   - WHEN IT ENDS. Reveal yourself, a GM's reveal (`game.drpg.unhide(actor)`, and the GM's voice list), the chapter's end
  *     (a clock whose chapter is not the row's) and the season's reset (the store's "actions" group; the flags a cut row
- *     leaves are swept, `settleHides`). Not at a new time of day, a move or another action.
+ *     leaves are swept, `settleHides`); and the character's death, at the primary's next settle (`drpgDeathsChanged`).
+ *     Not at a new time of day, a move or another action.
  *   - NOT OFFERED in a Class Trial (`hideShutWhy`), nor again while hidden. Observe and Search find nobody hidden in this
  *     release: a hidden character is left out of every picker this browser builds (`seenHere`).
  *
@@ -318,8 +319,15 @@ async function settleHidesNow() {
     await hideStore.whenHydrated();
     const chapter = getClock()?.chapter ?? null;
     const out = { ended: [], flagged: 0, swept: 0 };
+    const { isDeadForGm } = await import("./settings.mjs");
     for (const [actorId, row] of Object.entries(hideStore.entries() ?? {})) {
         if (!row?.actorId || !game.actors.get(actorId)) continue;
+        // A hidden character who dies is hidden no more (COMM's note of 23.11.2026): their player's microphone goes back to
+        // the dead's rules, and the token is drawn as any dead student's. No card: the death says it.
+        if (isDeadForGm(game.actors.get(actorId))) {
+            if ((await endHide(actorId, "reveal")).ended) out.ended.push(actorId);
+            continue;
+        }
         if (row.chapter !== null && row.chapter !== undefined && row.chapter !== chapter) {
             if ((await endHide(actorId, "chapter")).ended) out.ended.push(actorId);
             continue;
@@ -349,6 +357,7 @@ export function registerHides() {
     Hooks.on("updateSetting", setting => { if (setting?.key === `${MODULE_ID}.${SETTINGS.clock}`) settle(); });
     Hooks.on("userConnected", (user, connected) => { if (!connected && user?.isGM) settle(); });
     Hooks.on("createToken", () => settle());
+    Hooks.on("drpgDeathsChanged", () => settle());
     if (game.user?.isGM) return;
     Hooks.on("updateToken", doc => { if (doc?.isOwner) noticeOwnHide(); });
     Hooks.once("ready", noticeOwnHide);
