@@ -404,6 +404,15 @@ export const OWN_TRACK_FOLLOWS_HOLD = true;
 export const REALIZE_SCOPE = "keys";
 
 /**
+ * WHETHER A TRUTH BULLET'S HOLDER SEES ITS REMNANT WHEN A GM HAS HIDDEN IT (the owner's notes of 23.11.2026,
+ * S0-BULLETSEES: "zawsze posiadanie truth bullet = widoczny token remnanta"; the owner's answer of 23.11.2026, relayed
+ * by the coordinator: "oba tak" - holding wins over a GM's hide; line INVEST of 1.2.128). True: holding wins, and a holder's map draws the trace at `REMNANT_ALPHA.player` while
+ * Foundry's `hidden` keeps it from everyone else (visibility.mjs `remnantShownHere`). False: a GM's hide wins, for its
+ * holders too, as until 1.2.128.
+ */
+export const HOLDER_SEES_HIDDEN = true;
+
+/**
  * Every timing and size the module used to keep as a local constant in the
  * file that read it (audit, hygiene: "magic numbers outside config"). None of
  * these is a rule of the game; they are how long the module waits, how much it
@@ -5764,6 +5773,7 @@ export const DRPG = {
     SHARE_WITH_ANALYSIS,
     OWN_TRACK_FOLLOWS_HOLD,
     REALIZE_SCOPE,
+    HOLDER_SEES_HIDDEN,
     ROOMS_PER_PLAYER,
     ECLIPSE_MOVES,
     ECLIPSE_FREE_PLACEMENT,

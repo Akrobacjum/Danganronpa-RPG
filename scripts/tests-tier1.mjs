@@ -69352,6 +69352,34 @@ const INVARIANTS = [
             JSON.stringify([0.5, 1, REMNANT_ALPHA.gmHidden, true, true, true]),
             "[a player's (0.5), a GM's shown, a GM's hidden Remnant drawn at; the GM's hidden one at least 0.5 and under 1; applyToToken dresses first; placeRemnant creates whole]");
     }],
+    ["R8790 - a Truth Bullet's holder always sees its Remnant (1.2.128 line INVEST; S0-BULLETSEES): visibility.mjs `remnantShownHere` draws an un-hidden trace for whoever knows it or stands in its incident and for nobody else, and a hidden one for its holder alone while HOLDER_SEES_HIDDEN (true) holds, for nobody when it does not; `applyToRemnantToken` and `shownAsFound` ask it with `knowsRemnant`, and a hidden trace held is shown past Foundry's verdict (`showHeld`); `knowsRemnant` answers true on a GM's browser", async () => {
+        /*
+         * The owner's notes of 23.11.2026: "Upewnijmy sie tez ze zawsze posiadanie truth bullet = widoczny token
+         * remnanta, w tym po przekazaniu go na przyklad". Every road that gives a bullet of a trace sends its holder the
+         * trace's key and un-hides it (truth-bullets.mjs `createTruthBullet`); the one road that took a held trace off its
+         * holder's map was a GM's own hide: `applyToRemnantToken` left every hidden token to Foundry. The rule read as a
+         * table of its three inputs and the constant; the two readers and the reveal read in their source (the harness
+         * draws no canvas: LIVE-129-INVEST-04). Red at 9439d2e1: no remnantShownHere.
+         */
+        const V = await import("./visibility.mjs");
+        const { HOLDER_SEES_HIDDEN } = await import("./config.mjs");
+        must(typeof V.remnantShownHere === "function" && typeof V.knowsRemnant === "function", "no remnantShownHere or knowsRemnant - this would measure nothing");
+        const rows = [];
+        for (const hidden of [false, true]) for (const knows of [false, true]) for (const incident of [false, true]) {
+            rows.push([hidden, knows, incident, V.remnantShownHere({ hidden, knows, incident }), V.remnantShownHere({ hidden, knows, incident, holderSeesHidden: false })]);
+        }
+        const vis = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/visibility.mjs`).then(lfText));
+        const apply = fnSource(vis, "applyToRemnantToken");
+        equal(JSON.stringify({ rows, constant: HOLDER_SEES_HIDDEN, gmKnows: V.knowsRemnant({ flags: {} }),
+            apply: [/remnantShownHere\(/.test(apply), /knowsRemnant\(doc\)/.test(apply), /if \(doc\.hidden\) showHeld\(token\)/.test(apply)],
+            found: /remnantShownHere\(/.test(fnSource(vis, "shownAsFound")) && /knowsRemnant\(tokenDoc\)/.test(fnSource(vis, "shownAsFound")),
+            held: /token\.visible = true/.test(fnSource(vis, "showHeld")) && !/document\??\.hidden/.test(fnSource(vis, "showHeld")) }),
+        JSON.stringify({ rows: [
+            [false, false, false, false, false], [false, false, true, true, true], [false, true, false, true, true], [false, true, true, true, true],
+            [true, false, false, false, false], [true, false, true, false, false], [true, true, false, true, false], [true, true, true, true, false]],
+            constant: true, gmKnows: true, apply: [true, true, true], found: true, held: true }),
+        "{rows: [hidden, knows, incident, shown, shown with HOLDER_SEES_HIDDEN false]; the constant; a GM knows any trace; applyToRemnantToken asks the rule with knowsRemnant and shows a hidden held trace; shownAsFound asks the same; showHeld does not defer to a GM's hidden}");
+    }],
 ];
 
 /**
