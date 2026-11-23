@@ -3909,7 +3909,7 @@
       "giveIntro": "Jesteś w pokoju {room}. Komu przekazujesz przedmiot „{name}”?",
       "who": "Komu?",
       "shareKeyNote": "Odbiorca dostaje własną kopię klucza, a ty zachowujesz swoją. Nie wydajesz akcji.",
-      "shareNote": "Odbiorca dostaje własną kopię, a ty zachowujesz swoją. Kopia Truth Bulletu przychodzi z twoją analizą, jeśli się udała; nieudana analiza na nią nie przechodzi, więc odbiorca może przeanalizować kopię sam. Nie wydajesz akcji.",
+      "shareNote": "Odbiorca dostaje własną kopię, a ty zachowujesz swoją. Kopia Truth Bulletu przychodzi z twoją analizą, jeśli się udała; nieudana analiza na nią nie przechodzi, więc odbiorca może przeanalizować kopię sam. Kopia niesie słowa takie, jakie masz, nawet jeśli Remnant przerobiono po tym, jak go znalazłeś. Nie wydajesz akcji.",
       "shareWithAnalysis": "Podziel się kopią z wynikiem mojego Analyze",
       "shareWithoutNote": "Jeśli odznaczysz to pole, kopia odbiorcy pokaże ten Truth Bullet tak, jakby nikt go nie analizował: bez odczytu i bez rodzaju ustalonego przez Analyze. Odbiorca może go przeanalizować sam.",
       "giveNote": "Przedmiot przechodzi do odbiorcy i znika z twojego ekwipunku; gdy masz kilka sztuk, przechodzi jedna. Jeśli odbiorca nosi już tyle rzeczy tej kategorii, ile może, przekazanie nie dochodzi do skutku i przedmiot zostaje u ciebie. Nie wydajesz akcji.",
