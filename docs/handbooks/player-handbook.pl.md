@@ -228,14 +228,14 @@ Na kafelku są dwa przyciski. Przycisk mikrofonu wycisza i włącza tylko twój 
 |---|---|
 | przekreślony | wyciszony, przez ciebie |
 | przekreślony, z małą kłódką | wyciszony przez GM-a: **GM zablokował twój mikrofon.** |
-| szary i przekreślony | trzyma go gra - podczas Eclipse, gdy podsłuchujesz pod drzwiami, w Class Trial, gdy głos ma ktoś inny albo jesteś na liście zmarłych rozprawy, i gdy jesteś Widzem - a powód stoi pod mikrofonem; kliknięcie niczego wtedy nie zmienia i mówi ci dlaczego |
+| szary i przekreślony | trzyma go gra - podczas Eclipse, gdy podsłuchujesz pod drzwiami, gdy GM ukrywa twój token, w Class Trial, gdy głos ma ktoś inny albo jesteś na liście zmarłych rozprawy, i gdy jesteś Widzem - a powód stoi pod mikrofonem; kliknięcie niczego wtedy nie zmienia i mówi ci dlaczego |
 | z małą kropką | nie jesteś połączony z głosem albo głos działa w osobnym oknie |
 | świeci | twój mikrofon niesie twój głos |
 | z napisem **PTT** | tryb naciśnij, aby mówić: przytrzymaj klawisz, żeby mówić |
 
 Monocub zachowuje mikrofon podczas Eclipse i dostaje informację, że do powrotu światła nikt go nie słyszy. W pokoju Widzów mikrofon zostaje twój: wyciszasz go i włączasz sam, a linijka pod nim mówi, gdzie jesteś.
 
-Głośnik pokazuje, ile innych osób jest w twoim kanale, licząc każdą, która cię słyszy, mówiącą czy nie, i otwiera **Kogo słyszysz**: każdą z tych osób z suwakiem głośności i **Wycisz u siebie: *imię*** (potem **Znów słuchaj: *imię***), a na górze **Wycisz wszystkich u siebie**. Te ustawienia działają tylko u ciebie; inni przy stole niczego nie zauważą. Escape albo kliknięcie obok zamyka listę.
+Głośnik pokazuje, ile innych osób jest w twoim kanale, licząc każdą, która cię słyszy, mówiącą czy nie, i otwiera **Kogo słyszysz**: każdą z tych osób z suwakiem głośności i **Wycisz u siebie: *imię*** (potem **Znów słuchaj: *imię***), a na górze **Wycisz wszystkich u siebie**. Te ustawienia działają tylko u ciebie; inni przy stole niczego nie zauważą. Escape albo kliknięcie obok zamyka listę. Osoba wyciszona u ciebie ma przy sobie **Wyciszone przez ciebie**, dopóki nie naciśniesz **Znów słuchaj: *imię***; ta przeglądarka pamięta to także w następnej sesji. Osoba, której twoja strona nie słyszy z innego powodu, ma przy sobie ten powód i radę, żeby odświeżyć stronę (F5); strona sama raz próbuje wznowić wstrzymany dźwięk albo odebrać mikrofon, którego nie odbiera.
 
 > [!TIP]
 > Żeby dowiedzieć się, kto jest za ścianą, bez wchodzenia, użyj **Listen** (rozdział 4, Infiltrate).

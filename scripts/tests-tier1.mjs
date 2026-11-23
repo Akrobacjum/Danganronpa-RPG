@@ -31713,7 +31713,7 @@ const INVARIANTS = [
         equal(stableJson(read), stableJson(["Search - Botan Kage · Workshop a crowbar", "Is the door locked?", "Search"]),
             "[a ruling card; a chat line; a title alone]");
     }],
-    ["R8656 - the GM's messenger window opens at its own size every time, 980 x 680, and a player's at 544 x 520, each where it was last left: a saved place (left, top) is kept and no size is saved (1.2.125 HOTFIX-125, the audit's r124-C-1)", async () => {
+    ["R8656 - the GM's messenger window opens at its own size every time (980 x 680 until E129, messenger-gm.mjs `messengerSize(\"gm\")` since; R8831), and a player's at theirs, each where it was last left: a saved place (left, top) is kept and no size is saved (1.2.125 HOTFIX-125, the audit's r124-C-1)", async () => {
         /*
          * The audit of 1.2.124 (r124-C-1): the window's constructor spread the player window's default size under a saved
          * place (messenger-app.mjs `DrpgMessengerApp`), so the GM's window, built on it, opened at 544 x 520 from its second
@@ -31754,8 +31754,260 @@ const INVARIANTS = [
             await A.gmMessengerWindow()?.close();
             putPositionsBack();
         }
-        equal(stableJson(read), stableJson({ first: [980, 680, 120, 40], second: [980, 680, 120, 40], player: [544, 520, 300, 60] }),
+        /* Since E129 the sizes are messenger-gm.mjs `messengerSize`'s at this page's size (R8831 holds the numbers); the GM's
+           and a player's differ at every screen the harness or a table has, so a GM's window at a player's size still fails. */
+        const G = await import("./messenger-gm.mjs");
+        const gm = G.messengerSize("gm"), pl = G.messengerSize("player");
+        must(gm.width !== pl.width, "the GM's and a player's sizes are the same at this screen - the reading could not tell them apart");
+        equal(stableJson(read), stableJson({ first: [gm.width, gm.height, 120, 40], second: [gm.width, gm.height, 120, 40], player: [pl.width, pl.height, 300, 60] }),
             "[the GM's window at its first and its second opening, then a player's window built: width, height, left, top]");
+    }],
+    ["R8830 - the GM's messenger list puts the players it has messages from first, the newest message first, and the players with none after them in name order; the window's list is drawn in that order (E129, the owner's S0-MSGSORT of 23.11.2026)", async () => {
+        /*
+         * The owner, session 0 (23.11.2026): "w ekranie messages niech osoby od ktorych mamy wiadomosc wyswietlaja sie
+         * najwyzej (sortowanie po czasie)". messenger-gm.mjs `navOrder(users, stats)`, the list's order (MESSENGER_LIST_ORDER,
+         * the one constant): four stand-in users, two with a last message (the newer second by name), one whose last
+         * message is older, one with none. Then on a GM's page the window opened, and its rows after the Timeline, redrawn
+         * with one stand-in message from the player last in name order, read against `navOrder` of the world's thread users
+         * and counts. Red before E129: `navOrder` did not exist, and the list was in name order alone.
+         */
+        must(game.user.isGM, "the GM's window is a GM's");
+        const G = await import("./messenger-gm.mjs");
+        const A = await import("./messenger-app.mjs");
+        const M = await import("./messenger.mjs");
+        must(typeof G.navOrder === "function", "messenger-gm.mjs has no navOrder - the list has no order of its own");
+        const users = [{ id: "a", name: "Aiko" }, { id: "b", name: "Botan" }, { id: "c", name: "Chie" }, { id: "d", name: "Daichi" }];
+        const stats = new Map([["a", { last: { timestamp: 100 } }], ["c", { last: { timestamp: 300 } }], ["d", { last: { timestamp: 200 } }]]);
+        const pure = G.navOrder(users, stats).map(u => u.id);
+        must(!A.gmMessengerWindow(), "the GM's messenger window is open - close it: this test opens its own");
+        needs(world.atLeast("playerAccounts", 2));
+        const putPositionsBack = holdMessengerPositions();
+        let drawn = null, want = null;
+        const read = {};
+        try {
+            const app = A.openMessenger();
+            await until(() => app?.element?.querySelector(".drpg-messenger-gm-nav-row"), 2000);
+            /* One stand-in message, the newest, from the player last in name order, handed to the list's count alone
+               (game.messages' `values` stood in around one `refreshNav`): that player's row must come first. */
+            const last = [...M.threadUsers()].sort((a, b) => a.name.localeCompare(b.name)).at(-1);
+            const forged = { id: "R8830Newest00000", author: last, timestamp: Date.now() + 60000, content: "<p>R8830</p>", whisper: [last.id],
+                flags: { [MODULE_ID]: { thread: last.id, kind: "dm" } }, getFlag(scope, key) { return this.flags?.[scope]?.[key]; } };
+            const msgs = game.messages, ownValues = Object.prototype.hasOwnProperty.call(msgs, "values"), realValues = msgs.values;
+            try {
+                msgs.values = function (...a) { return [...realValues.apply(this, a), forged][Symbol.iterator](); };
+                app.refreshNav();
+                drawn = [...app.element.querySelectorAll(".drpg-messenger-gm-nav-row")].map(row => row.dataset.drpgView).filter(v => v !== "console");
+                want = G.navOrder(M.threadUsers(), M.threadStats()).map(u => u.id);
+                read.first = drawn[0] === last.id;
+            } finally {
+                if (ownValues) msgs.values = realValues; else delete msgs.values;
+            }
+        } finally {
+            await A.gmMessengerWindow()?.close();
+            putPositionsBack();
+        }
+        equal(stableJson({ pure, drawn: drawn?.length ? drawn : null, first: read.first ?? null }), stableJson({ pure: ["c", "d", "a", "b"], drawn: want, first: true }),
+            "[the order of four stand-ins: newest message first, then the one with none; the window's rows after the Timeline against navOrder; "
+            + "the row of the player with the newest message first]");
+    }],
+    ["R8831 - the messenger windows are about 40% larger and never past 90% of the screen: the GM's asks for 1370 x 950 and a player's for 760 x 730, each cut to 90% of the screen's width and height where the screen is smaller, and a window built asks for that size (E129, the owner's S0-MSGSIZE of 23.11.2026)", async () => {
+        /*
+         * The owner, session 0: "powiekszmy cale okno messenger znacznie"; the coordinator's default, about 40% larger and
+         * never past 90% of the viewport (messenger-gm.mjs MESSENGER_WINDOW_SIZES, one constant). `messengerSize(kind,
+         * screen)` at 1920 x 1080, 1366 x 768 and 1280 x 720 for both kinds; then the GM's window built on this page and a
+         * player's (not drawn), against `messengerSize` at this page's size. A size dragged by hand is still not kept
+         * (R8656). Red before E129: 980 x 680 and 544 x 520 at every size.
+         */
+        must(game.user.isGM, "the GM's window is a GM's");
+        needs(world.atLeast("playerAccounts", 1));
+        const G = await import("./messenger-gm.mjs");
+        const A = await import("./messenger-app.mjs");
+        must(typeof G.messengerSize === "function", "messenger-gm.mjs has no messengerSize - the windows have no size rule of their own");
+        const sizes = {};
+        for (const [w, h] of [[1920, 1080], [1366, 768], [1280, 720]]) {
+            for (const kind of ["gm", "player"]) {
+                const size = G.messengerSize(kind, { width: w, height: h });
+                sizes[`${kind} ${w}x${h}`] = [size.width, size.height];
+            }
+        }
+        const player = game.users.find(u => !u.isGM);
+        const asked = app => [app.options?.position?.width, app.options?.position?.height];
+        const here = kind => { const s = G.messengerSize(kind); return [s.width, s.height]; };
+        const built = { gm: asked(new A.DrpgGmMessengerApp("console")), player: asked(new A.DrpgMessengerApp(player.id)) };
+        equal(stableJson({ sizes, built }), stableJson({
+            sizes: { "gm 1920x1080": [1370, 950], "player 1920x1080": [760, 730], "gm 1366x768": [1229, 691], "player 1366x768": [760, 691],
+                "gm 1280x720": [1152, 648], "player 1280x720": [760, 648] },
+            built: { gm: here("gm"), player: here("player") }
+        }), "[messengerSize per kind and screen; the GM's and a player's window built here against messengerSize at this page's size]");
+    }],
+    ["R8832 - a player whose token is hidden is held: voice.mjs `hiddenVoiceIds` names each player account whose voice character's token (movement.mjs `locateActor`'s) is hidden, and no GM, no Spectator's account, no player whose token is shown or who has none; HIDDEN_TOKEN_MUTES is the one switch (E129, the owner's S0-HIDEMUTE of 23.11.2026)", async () => {
+        /*
+         * The owner, session 0: "niech chowanie tokenu automatycznie wycisza na livekit (i pokazuje rowniez te zmiane na
+         * przycisku mikrofonu)". Stand-ins only: five accounts - a player with a hidden token, one with a shown token, one
+         * with no token, a GM owning a character with a hidden token, a Spectator's account with a hidden token - each
+         * owning one character, `locate` answering the tokens, `spectator` the Spectator's account. Red before E129: no
+         * `hiddenVoiceIds`.
+         */
+        const V = await import("./voice.mjs");
+        must(typeof V.hiddenVoiceIds === "function", "voice.mjs has no hiddenVoiceIds - a hidden token holds nobody");
+        const user = (id, isGM = false) => ({ id, name: id, isGM, active: true });
+        const actor = (id, owner) => ({ id, name: id, type: "character", owner, getFlag: () => null,
+            testUserPermission: (u, level) => level === "OWNER" && u.id === owner });
+        const users = [user("hid"), user("shown"), user("none"), user("gm", true), user("spec")];
+        const actors = [actor("A-hid", "hid"), actor("A-shown", "shown"), actor("A-none", "none"), actor("A-gm", "gm"), actor("A-spec", "spec")];
+        const tokens = { "A-hid": true, "A-shown": false, "A-gm": true, "A-spec": true };
+        const locate = a => (a.id in tokens ? { tokenDoc: { hidden: tokens[a.id] } } : null);
+        const ids = [...V.hiddenVoiceIds({ users, actors, locate, spectator: u => u.id === "spec" })].sort();
+        equal(stableJson({ ids, on: V.HIDDEN_TOKEN_MUTES }), stableJson({ ids: ["hid"], on: true }),
+            "[the accounts held for a hidden token; the switch]");
+    }],
+    ["R8833 - a hidden token's hold is said on the player's own microphone and keeps the GM's block off it: `micHold` answers \"tokenHidden\", held, outside the Class Trial and nothing of it in the trial; `moduleHoldsMic` answers it on a GM's page; both languages say it (E129, S0-HIDEMUTE)", async () => {
+        /*
+         * The owner: the hide "pokazuje rowniez te zmiane na przycisku mikrofonu". `micHold` with every fact handed in,
+         * as R537 asks it: a player outside the trial with `hidden` true and false, and in a trial with `hidden` true;
+         * `moduleHoldsMic` on this GM's page for a stand-in account named in `hidden`. Red before E129: no "tokenHidden".
+         */
+        must(game.user.isGM, "moduleHoldsMic answers on a GM's page alone");
+        const V = await import("./voice.mjs");
+        const { ROOM_PREFIX } = await import("./voice-client.mjs");
+        const me = { id: "R8833PLAYER00000", name: "R8833", isGM: false, active: true };
+        const living = { id: "R8833ACTOR000000", name: "R8833", type: "character", getFlag: () => null };
+        const hold = facts => V.micHold({ user: me, room: `${ROOM_PREFIX}dorm-a`, external: false, connected: true, canBroadcastAudio: false, actors: [living], ...facts });
+        const reason = answer => (answer ? `${answer.reason}:${answer.held}` : null);
+        const trial = { clock: { phase: "classTrial" }, queue: null };
+        const read = {
+            hidden: reason(hold({ hidden: true })),
+            shown: reason(hold({ hidden: false })),
+            inTrial: reason(hold({ hidden: true, trial })),
+            gm: reason(V.moduleHoldsMic(me, { actors: [living], eclipse: false, trial: false, dead: () => false, listening: new Set(), masked: new Set(), veiled: new Set(), hidden: new Set([me.id]) })),
+            words: []
+        };
+        for (const lang of ["en", "pl"]) {
+            const file = await fetch(`/modules/${MODULE_ID}/lang/${lang}.json`).then(r => r.json());
+            read.words.push(typeof file?.DRPG?.Voice?.held?.tokenHidden === "string" && file.DRPG.Voice.held.tokenHidden.trim() !== "");
+        }
+        equal(stableJson({ ...read, inTrial: read.inTrial === "tokenHidden:true" }), stableJson({ hidden: "tokenHidden:true", shown: "gmBlock:false", inTrial: false, gm: "tokenHidden:true", words: [true, true] }),
+            "[micHold: hidden, shown (the block then reads as the GM's), hidden in the trial (not the hide's); moduleHoldsMic; the words in English and Polish]");
+    }],
+    ["R8834 - a listener's page finds who it does not hear in its own Room and why, and repairs only what no one chose: voice-tile.mjs `hearingGaps` names each participant who publishes an open microphone and is not heard here, with the first reason that holds (muted by you, volume 0, not subscribed, no element, paused, muted, no live track), and none who is heard or whose microphone is closed; `repairHearing` plays a paused element and resubscribes a microphone once each, and touches no mute or volume (E129, the owner's S0-VOICE of 23.11.2026)", async () => {
+        /*
+         * The owner, session 0: "zdarza sie ze modul gubi polaczenie w livekit i np. osoba a nie slyszy osoby b slyszac
+         * reszte"; F5 on A's browser cured it (the owner's answer), so the likely roads are a microphone not subscribed, no
+         * element or a paused one after a reconnect. On the voice tile's bench (`voiceTileRig`, a stand-in Room and dock,
+         * this world's three players as the participants, as R538 has them), in two rounds: (1) one muted by the listener
+         * ('Mute for me': volume 0 with a record), one whose element is paused, one whose microphone is not subscribed (its
+         * track ended) - the gaps, the repairs, a second repair (nothing tried twice), the gaps after; (2) one whose own
+         * microphone is closed, one with no element in the dock, one heard - the gaps. Red before E129: no `hearingGaps`.
+         */
+        const VT = await import("./voice-tile.mjs");
+        must(typeof VT.hearingGaps === "function" && typeof VT.repairHearing === "function", "voice-tile.mjs has no hearingGaps/repairHearing - nothing finds who is not heard");
+        const three = game.users.filter(user => user.id !== game.user.id && !user.isGM).slice(0, 3);
+        must(three.length === 3, "fewer than three players in the world - the bench has nobody to hear");
+        const label = id => ["B", "C", "D"][three.findIndex(u => u.id === id)] ?? "?";
+        const named = gaps => gaps.map(g => `${label(g.userId)}:${g.reason}`);
+        const bench = ({ volumes = {}, record = {}, pubs }) => {
+            const settings = { client: { muteAll: false, users: {} }, get: (scope, key) => volumes[String(key).replace(/^users\.|\.volume$/g, "")], set: async () => {}, getUser: () => ({ canBroadcastAudio: true }) };
+            const rig = voiceTileRig(VT, three, { settings: () => settings, mutes: { read: () => record, write: async () => {} }, proximity: () => false, gm: () => false, muteAll: () => false });
+            const room = rig.makeRoom(three.map(u => u.id));
+            three.forEach((u, i) => { room.remoteParticipants.get(u.id).audioTrackPublications = new Map([["mic", pubs[i]]]); });
+            return { rig, room };
+        };
+        const subs = [], plays = [];
+        const pub = (label, { isMuted = false, isSubscribed = true } = {}) => ({ source: "microphone", isMuted, isSubscribed,
+            setSubscribed(v) { subs.push([label, v]); this.isSubscribed = v; } });
+        // Round 1: B muted by the listener, C paused, D not subscribed.
+        const [B, C, D] = three;
+        const one = bench({ volumes: { [B.id]: 0 }, record: { [B.id]: 1 }, pubs: [pub("B"), pub("C"), pub("D", { isSubscribed: false })] });
+        one.rig.audio[B.id].el.volume = 0;      // as avclient-livekit's attach writes the listener's volume onto the element
+        one.rig.audio[C.id].el.paused = true;
+        one.rig.audio[C.id].el.play = () => { plays.push("C"); one.rig.audio[C.id].el.paused = false; return Promise.resolve(); };
+        one.rig.audio[D.id].track.readyState = "ended";
+        VT.attachRoom(one.rig.clientOf(one.room), one.rig.watch);
+        const read = {};
+        read.gaps = named(VT.hearingGaps(one.rig.watch));
+        read.repaired = named(VT.repairHearing(one.rig.watch, VT.hearingGaps(one.rig.watch)));
+        read.again = named(VT.repairHearing(one.rig.watch, VT.hearingGaps(one.rig.watch)));
+        await Promise.resolve();
+        read.after = named(VT.hearingGaps(one.rig.watch));
+        // Round 2: B's own microphone closed, C with no element, D heard.
+        const two = bench({ pubs: [pub("B", { isMuted: true }), pub("C"), pub("D")] });
+        two.rig.audio[B.id].track.enabled = false;   // a closed microphone carries nothing: only its publication's mute keeps B out
+        two.rig.audio[C.id].el.closest(".camera-view").remove();
+        VT.attachRoom(two.rig.clientOf(two.room), two.rig.watch);
+        read.second = named(VT.hearingGaps(two.rig.watch));
+        equal(stableJson({ ...read, plays, subs }), stableJson({
+            gaps: ["B:mutedForMe", "C:elementPaused", "D:notSubscribed"], repaired: ["C:elementPaused", "D:notSubscribed"], again: [],
+            after: ["B:mutedForMe", "D:trackNotLive"], second: ["C:noElement"], plays: ["C"], subs: [["D", true]] }),
+            "[round 1: the gaps, the repairs, a second repair, the gaps after (C plays; D subscribed, its stand-in track still ended); round 2: the gaps; the plays and subscriptions asked]");
+    }],
+    ["R8835 - the GMs hold each listener's report of who they do not hear, by Foundry's sender alone, and the voice plan says it: a report's rows are kept only for users of this world and reasons of the closed list, an empty report takes the listener's row away, and voicePlan() lists \"<listener> does not hear <speaker>: <why>\" in this page's language (E129, S0-VOICE)", async () => {
+        /*
+         * The coordinator's approval of the check (23.11.2026): to the GMs only, shown in voicePlan(), no new window, nothing
+         * changed by a GM. voice.mjs `onVoiceSocket` with a hearing report as Foundry hands it - the payload and its sender -
+         * from a player of this world: two good rows, one naming no user, one with a reason off the list; `hearingLines` then;
+         * voicePlan()'s text; then an empty report from the same sender. Red before E129: no `hearingLines`.
+         */
+        must(game.user.isGM, "the GMs hold the reports");
+        needs(world.atLeast("playerAccounts", 2));
+        const V = await import("./voice.mjs");
+        const { VOICE } = await import("./voice-client.mjs");
+        must(typeof V.hearingLines === "function" && VOICE.hearing, "voice.mjs has no hearingLines, or the wire no hearing report - the GMs hold nothing");
+        const [listener, speaker] = game.users.filter(u => !u.isGM);
+        const send = gaps => V.onVoiceSocket({ action: VOICE.hearing, listener: speaker.id, gaps }, listener.id);
+        const read = {};
+        try {
+            send([{ userId: speaker.id, reason: "elementPaused" }, { userId: game.user.id, reason: "notSubscribed" },
+                { userId: "R8835NoSuchUser0", reason: "noElement" }, { userId: speaker.id, reason: "rewritten" }]);
+            read.lines = V.hearingLines();
+            const plan = await V.voicePlan();
+            read.inPlan = read.lines.every(line => plan.includes(line)) && plan.includes(game.i18n.localize("DRPG.Voice.plan.hearing"));
+        } finally {
+            send([]);
+        }
+        read.cleared = V.hearingLines();
+        const why = key => game.i18n.localize(`DRPG.Voice.hearing.${key}`);
+        const line = (who, key) => game.i18n.format("DRPG.Voice.plan.hearingRow", { name: listener.name, speaker: who, why: why(key) });
+        equal(stableJson(read), stableJson({ lines: [line(speaker.name, "elementPaused"), line(game.user.name, "notSubscribed")], inPlan: true, cleared: [] }),
+            "[the plan's lines from one report (two kept, a stranger and an off-list reason dropped, keyed by the sender not the payload); whether voicePlan() says them under its heading; after an empty report]");
+    }],
+    ["R8836 - the listener's own list says who they muted and who they do not hear: a peer muted for them reads \"Muted by you\" beside the button that unmutes them, and a peer this page does not hear for another reason reads that reason with the advice to reload; a heard peer reads neither (E129, S0-VOICE; the coordinator's addition of 23.11.2026)", async () => {
+        /*
+         * 'Mute for me' is a client setting that lives across sessions, so a listener who forgot it has no reason to look:
+         * the row says it in words, and its button (the one that muted) is the one-press undo, its label "Hear {name}
+         * again". On the bench, this world's three players: heard, muted by the listener, no element; the list opened after
+         * one check (`checkHearing`, which paints an open list), each row's two lines and the mute button read. Red before
+         * E129: no line.
+         */
+        const VT = await import("./voice-tile.mjs");
+        must(typeof VT.checkHearing === "function", "voice-tile.mjs has no checkHearing - the list cannot say who is not heard");
+        const three = game.users.filter(user => user.id !== game.user.id && !user.isGM).slice(0, 3);
+        must(three.length === 3, "fewer than three players in the world - the bench has nobody to hear");
+        const [ok, mute, none] = three;
+        const volumes = { [mute.id]: 0 };
+        const settings = { client: { muteAll: false, users: {} }, get: (scope, key) => volumes[String(key).replace(/^users\.|\.volume$/g, "")], set: async () => {}, getUser: () => ({ canBroadcastAudio: true }) };
+        const rig = voiceTileRig(VT, three, { settings: () => settings, mutes: { read: () => ({ [mute.id]: 1 }), write: async () => {} }, proximity: () => false, gm: () => false, muteAll: () => false });
+        const room = rig.makeRoom(three.map(u => u.id));
+        for (const u of three) room.remoteParticipants.get(u.id).audioTrackPublications = new Map([["mic", { source: "microphone", isMuted: false, isSubscribed: true }]]);
+        rig.audio[none.id].el.closest(".camera-view").remove();
+        VT.attachRoom(rig.clientOf(room), rig.watch);
+        const list = VT.openVoiceList(rig.watch);
+        const read = {};
+        try {
+            VT.checkHearing(rig.watch, { report: () => {} });
+            for (const [name, u] of [["ok", ok], ["mute", mute], ["none", none]]) {
+                const row = list?.querySelector(`.drpg-voice-row[data-user-id="${u.id}"]`);
+                const text = sel => { const el = row?.querySelector(sel); return el && !el.hidden ? el.textContent : null; };
+                read[name] = [text(".drpg-voice-row-mutedme"), text(".drpg-voice-row-gap"), row?.querySelector(".drpg-voice-row-mute")?.getAttribute("aria-pressed") ?? null];
+            }
+        } finally {
+            VT.closeVoiceList(rig.watch, { focus: false });
+            list?.remove();
+        }
+        equal(stableJson(read), stableJson({
+            ok: [null, null, "false"],
+            mute: [game.i18n.localize("DRPG.Voice.list.mutedByYou"), null, "true"],
+            none: [null, game.i18n.format("DRPG.Voice.list.gap", { why: game.i18n.localize("DRPG.Voice.hearing.noElement") }), "false"] }),
+            "[per row: the 'Muted by you' line, the line of a gap, the mute button's pressed state]");
     }],
     ["R1067 - the cue playlist cannot be mapped: the Music tab offers it in no select, a stored mapping onto it is dropped by the primary GM alone with one write of the map without that key (the other keys kept, a second call writing nothing), and playlistFor answers null for it (E50 C3; S11-47, E50-23, Q-E50-1)", async () => {
         /*
@@ -44915,24 +45167,29 @@ const INVARIANTS = [
            var(--drpg-floor-scale, 1))` - the same rules and, from 80 % up, the same values, another text: Legacy 1:bb393327
            -> 1:319c66ac (curtain), 1:74d54c24 -> 1:5cbcd5a1 (desk), 1:a85b1630 -> 1:0a77909f (stacked); Stained Glass
            1:1e31f8f3 -> 1:e19ef630, 1:23e449cb -> 1:10081416, 1:897a26e1 -> 1:980bf6c6, re-measured headless; every other
-           print, `left` and the @media rules as they were. */
+           print, `left` and the @media rules as they were.
+           The list 'Who you hear' since E129 (S0-VOICE, 23.11.2026): each row holds two more lines, "Muted by you" and a gap
+           nobody chose (voice-tile.mjs `listRow`), drawn by the row's dock-hide rules in components.css, whose selectors
+           name them - the same rules and values, more elements and another text: Legacy 1:4671c967 -> 1:9be30d86, Stained
+           Glass 1:e9f9c48e -> 1:a1ff89a7 at every place, re-measured headless; every other print, `left` and the @media
+           rules as they were. */
         const C5 = {
             "curtain|monokuma-legacy|foundry-tools": "1:b845ef88", "curtain|monokuma-legacy|foundry-window": "2:b098bf53", "curtain|monokuma-legacy|gm-launcher": "1:9e537601",
             "curtain|monokuma-legacy|room-art": "1:b38f7ef7", "curtain|monokuma-legacy|room-tile": "1:319c66ac", "curtain|monokuma-legacy|voice-art": "1:811c9dc5",
-            "curtain|monokuma-legacy|voice-list": "1:4671c967", "curtain|monokuma-legacy|voice-tile": "2:af4cb5e9", "curtain|stained-glass|foundry-tools": "1:7a915054",
+            "curtain|monokuma-legacy|voice-list": "1:9be30d86", "curtain|monokuma-legacy|voice-tile": "2:af4cb5e9", "curtain|stained-glass|foundry-tools": "1:7a915054",
             "curtain|stained-glass|foundry-window": "2:6fa9ceed", "curtain|stained-glass|gm-launcher": "1:19e941be", "curtain|stained-glass|room-art": "1:b38f7ef7",
-            "curtain|stained-glass|room-tile": "1:e19ef630", "curtain|stained-glass|voice-art": "1:393b7dc4", "curtain|stained-glass|voice-list": "1:e9f9c48e",
+            "curtain|stained-glass|room-tile": "1:e19ef630", "curtain|stained-glass|voice-art": "1:393b7dc4", "curtain|stained-glass|voice-list": "1:a1ff89a7",
             "curtain|stained-glass|voice-tile": "2:4b38d8b9", "desk|monokuma-legacy|foundry-tools": "1:b845ef88", "desk|monokuma-legacy|foundry-window": "2:b098bf53",
             "desk|monokuma-legacy|gm-launcher": "1:9e537601", "desk|monokuma-legacy|room-art": "1:b38f7ef7", "desk|monokuma-legacy|room-tile": "1:5cbcd5a1",
-            "desk|monokuma-legacy|voice-art": "1:811c9dc5", "desk|monokuma-legacy|voice-list": "1:4671c967", "desk|monokuma-legacy|voice-tile": "1:ebf26e39",
+            "desk|monokuma-legacy|voice-art": "1:811c9dc5", "desk|monokuma-legacy|voice-list": "1:9be30d86", "desk|monokuma-legacy|voice-tile": "1:ebf26e39",
             "desk|stained-glass|foundry-tools": "1:7a915054", "desk|stained-glass|foundry-window": "2:6fa9ceed", "desk|stained-glass|gm-launcher": "1:19e941be",
             "desk|stained-glass|room-art": "1:b38f7ef7", "desk|stained-glass|room-tile": "1:10081416", "desk|stained-glass|voice-art": "1:393b7dc4",
-            "desk|stained-glass|voice-list": "1:e9f9c48e", "desk|stained-glass|voice-tile": "1:08875275", "stacked|monokuma-legacy|foundry-tools": "1:b845ef88",
+            "desk|stained-glass|voice-list": "1:a1ff89a7", "desk|stained-glass|voice-tile": "1:08875275", "stacked|monokuma-legacy|foundry-tools": "1:b845ef88",
             "stacked|monokuma-legacy|foundry-window": "2:3ad17c49", "stacked|monokuma-legacy|gm-launcher": "1:9e537601", "stacked|monokuma-legacy|room-art": "1:b38f7ef7",
-            "stacked|monokuma-legacy|room-tile": "1:0a77909f", "stacked|monokuma-legacy|voice-art": "1:811c9dc5", "stacked|monokuma-legacy|voice-list": "1:4671c967",
+            "stacked|monokuma-legacy|room-tile": "1:0a77909f", "stacked|monokuma-legacy|voice-art": "1:811c9dc5", "stacked|monokuma-legacy|voice-list": "1:9be30d86",
             "stacked|monokuma-legacy|voice-tile": "1:40d6d310", "stacked|stained-glass|foundry-tools": "1:7a915054", "stacked|stained-glass|foundry-window": "2:2fe7a47f",
             "stacked|stained-glass|gm-launcher": "1:19e941be", "stacked|stained-glass|room-art": "1:b38f7ef7", "stacked|stained-glass|room-tile": "1:980bf6c6",
-            "stacked|stained-glass|voice-art": "1:393b7dc4", "stacked|stained-glass|voice-list": "1:e9f9c48e", "stacked|stained-glass|voice-tile": "1:86229667"
+            "stacked|stained-glass|voice-art": "1:393b7dc4", "stacked|stained-glass|voice-list": "1:a1ff89a7", "stacked|stained-glass|voice-tile": "1:86229667"
         };
         equal(stableJson({ left: [...left].sort(), prints, sectionMedia }), stableJson({ left: [], prints: C5, sectionMedia: [] }),
             `[a rule written for these surfaces that still wins from danganronpa.css or stained-glass.css; per place, theme and surface, the number of roots and the fingerprint of its winners; the section's @media rules] (${readings} reading(s))`);

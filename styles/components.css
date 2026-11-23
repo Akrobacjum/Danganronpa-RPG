@@ -1585,7 +1585,7 @@ body.drpg-stacked #drpg-tile-row .drpg-voice-tile-face:not([hidden]) {
 
 .drpg-voice-list[hidden],
 .drpg-voice-list :is(.drpg-voice-list-alone, .drpg-voice-row-hidden, .drpg-voice-row-unhide, .drpg-voice-row-held,
-    .drpg-voice-row-volume, .drpg-voice-row-mute)[hidden] { display: none; }
+    .drpg-voice-row-volume, .drpg-voice-row-mute, .drpg-voice-row-mutedme, .drpg-voice-row-gap)[hidden] { display: none; }
 
 .drpg-voice-list-title {
     margin: 0 0 6px;
@@ -1667,7 +1667,8 @@ body.drpg-stacked #drpg-tile-row .drpg-voice-tile-face:not([hidden]) {
 
 .drpg-voice-row-block:disabled { filter: grayscale(1); opacity: 0.6; cursor: not-allowed; }
 
-.drpg-voice-row :is(.drpg-voice-row-hidden, .drpg-voice-row-held) {
+/* E129 (S0-VOICE): "Muted by you" and why a peer is not heard are lines of the row like the dock's hide, under it. */
+.drpg-voice-row :is(.drpg-voice-row-hidden, .drpg-voice-row-held, .drpg-voice-row-mutedme, .drpg-voice-row-gap) {
     flex: 1 1 100%;
     order: 2;
     font-size: var(--drpg-text-xs);

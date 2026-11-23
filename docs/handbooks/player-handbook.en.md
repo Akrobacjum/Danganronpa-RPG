@@ -228,14 +228,14 @@ Two buttons sit on the tile. **The microphone** mutes and unmutes your own micro
 |---|---|
 | struck through | muted, by you |
 | struck through, with a small lock | muted by the GM (**The GM blocked your microphone.**) |
-| gray and struck through | the game holds it - during an Eclipse, while you listen at a door, in a Class Trial while the floor is somebody else's or you are on the trial's list of the dead, and as a Spectator - with the reason under it; a click then changes nothing and tells you why |
+| gray and struck through | the game holds it - during an Eclipse, while you listen at a door, while the GM hides your token, in a Class Trial while the floor is somebody else's or you are on the trial's list of the dead, and as a Spectator - with the reason under it; a click then changes nothing and tells you why |
 | with a small dot | you are not connected to voice, or voice runs in its own window |
 | lit | your microphone carries your voice |
 | wearing **PTT** | push to talk: hold your key to speak |
 
 A Monocub keeps its microphone during an Eclipse and is told that nobody hears it until the lights come back. In the Spectators' room the microphone stays yours to mute and unmute, with a line under it saying where you are.
 
-**The speaker** shows how many others are in your channel - everyone who can hear you, speaking or not - and opens **Who you hear**: each of them with a volume slider and **Mute *name* for you** (then **Hear *name* again**), and at the top **Mute everybody for you**. All of it is yours alone: nobody else hears the difference. Escape or a click outside closes the list.
+**The speaker** shows how many others are in your channel - everyone who can hear you, speaking or not - and opens **Who you hear**: each of them with a volume slider and **Mute *name* for you** (then **Hear *name* again**), and at the top **Mute everybody for you**. All of it is yours alone: nobody else hears the difference. Escape or a click outside closes the list. A person you muted for you reads **Muted by you** until you press **Hear *name* again**; this browser keeps it for your next session too. A person your page does not hear for another reason reads why, with the advice to reload the page (F5); the page itself tries once to play a paused sound or to receive a microphone it is not receiving.
 
 > [!TIP]
 > To find out who is next door without walking in, use **Listen** (section 4, Infiltrate).
