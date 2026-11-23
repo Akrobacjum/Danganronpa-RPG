@@ -9188,6 +9188,7 @@ const REGRESSIONS = [
             ["PACKET gm-bridge.mjs#handover.bullet#fromId", "judged: knownSender + owns(fromId) (E29 handover)"],
             ["PACKET gm-bridge.mjs#handover.bullet#toId", "judged: handover's verify - a living recipient in the giver's room"],
             ["PACKET gm-bridge.mjs#handover.bullet#itemId", "judged: handover's verify - an item of the giver's; the copy is written from bulletAsHeld (shareBullet)"],
+            ["PACKET gm-bridge.mjs#handover.bullet#analysis", "judged: the giver's own choice of what their copy carries (S0-ANSHARE, 1.2.129) - false mints the copy without the reading (mintCopy analysis false), anything else with it; it gives the recipient nothing the giver's bullet does not hold"],
             ["PACKET gm-bridge.mjs#murder.cleanup#actorId", "judged: knownSender + owns(actorId); the !viaAction && !isCleaner branch (cleanup.mjs resolveCleanup, resolveStageSix: blockedOnGm) whispers blocked.* to the owner and gives the price back (C11)"],
             ["PACKET gm-bridge.mjs#murder.cleanup#tokenId", "judged: resolveCleanup finds the trace in the cleaner's room or refuses; C9 keeps the reshape off held copies, C10 keys the proposal's attempt row by it"],
             ["PACKET gm-bridge.mjs#murder.cleanup#key", "judged: resolveCleanup's road table; E09 adds no read"],
