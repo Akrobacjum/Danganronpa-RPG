@@ -31713,7 +31713,7 @@ const INVARIANTS = [
         equal(stableJson(read), stableJson(["Search - Botan Kage · Workshop a crowbar", "Is the door locked?", "Search"]),
             "[a ruling card; a chat line; a title alone]");
     }],
-    ["R8656 - the GM's messenger window opens at its own size every time, 980 x 680, and a player's at 544 x 520, each where it was last left: a saved place (left, top) is kept and no size is saved (1.2.125 HOTFIX-125, the audit's r124-C-1)", async () => {
+    ["R8656 - the GM's messenger window opens at its own size every time (980 x 680 until E129, messenger-gm.mjs `messengerSize(\"gm\")` since; R8831), and a player's at theirs, each where it was last left: a saved place (left, top) is kept and no size is saved (1.2.125 HOTFIX-125, the audit's r124-C-1)", async () => {
         /*
          * The audit of 1.2.124 (r124-C-1): the window's constructor spread the player window's default size under a saved
          * place (messenger-app.mjs `DrpgMessengerApp`), so the GM's window, built on it, opened at 544 x 520 from its second
@@ -31754,8 +31754,91 @@ const INVARIANTS = [
             await A.gmMessengerWindow()?.close();
             putPositionsBack();
         }
-        equal(stableJson(read), stableJson({ first: [980, 680, 120, 40], second: [980, 680, 120, 40], player: [544, 520, 300, 60] }),
+        /* Since E129 the sizes are messenger-gm.mjs `messengerSize`'s at this page's size (R8831 holds the numbers); the GM's
+           and a player's differ at every screen the harness or a table has, so a GM's window at a player's size still fails. */
+        const G = await import("./messenger-gm.mjs");
+        const gm = G.messengerSize("gm"), pl = G.messengerSize("player");
+        must(gm.width !== pl.width, "the GM's and a player's sizes are the same at this screen - the reading could not tell them apart");
+        equal(stableJson(read), stableJson({ first: [gm.width, gm.height, 120, 40], second: [gm.width, gm.height, 120, 40], player: [pl.width, pl.height, 300, 60] }),
             "[the GM's window at its first and its second opening, then a player's window built: width, height, left, top]");
+    }],
+    ["R8830 - the GM's messenger list puts the players it has messages from first, the newest message first, and the players with none after them in name order; the window's list is drawn in that order (E129, the owner's S0-MSGSORT of 23.11.2026)", async () => {
+        /*
+         * The owner, session 0 (23.11.2026): "w ekranie messages niech osoby od ktorych mamy wiadomosc wyswietlaja sie
+         * najwyzej (sortowanie po czasie)". messenger-gm.mjs `navOrder(users, stats)`, the list's order (MESSENGER_LIST_ORDER,
+         * the one constant): four stand-in users, two with a last message (the newer second by name), one whose last
+         * message is older, one with none. Then on a GM's page the window opened, and its rows after the Timeline, redrawn
+         * with one stand-in message from the player last in name order, read against `navOrder` of the world's thread users
+         * and counts. Red before E129: `navOrder` did not exist, and the list was in name order alone.
+         */
+        must(game.user.isGM, "the GM's window is a GM's");
+        const G = await import("./messenger-gm.mjs");
+        const A = await import("./messenger-app.mjs");
+        const M = await import("./messenger.mjs");
+        must(typeof G.navOrder === "function", "messenger-gm.mjs has no navOrder - the list has no order of its own");
+        const users = [{ id: "a", name: "Aiko" }, { id: "b", name: "Botan" }, { id: "c", name: "Chie" }, { id: "d", name: "Daichi" }];
+        const stats = new Map([["a", { last: { timestamp: 100 } }], ["c", { last: { timestamp: 300 } }], ["d", { last: { timestamp: 200 } }]]);
+        const pure = G.navOrder(users, stats).map(u => u.id);
+        must(!A.gmMessengerWindow(), "the GM's messenger window is open - close it: this test opens its own");
+        needs(world.atLeast("playerAccounts", 2));
+        const putPositionsBack = holdMessengerPositions();
+        let drawn = null, want = null;
+        const read = {};
+        try {
+            const app = A.openMessenger();
+            await until(() => app?.element?.querySelector(".drpg-messenger-gm-nav-row"), 2000);
+            /* One stand-in message, the newest, from the player last in name order, handed to the list's count alone
+               (game.messages' `values` stood in around one `refreshNav`): that player's row must come first. */
+            const last = [...M.threadUsers()].sort((a, b) => a.name.localeCompare(b.name)).at(-1);
+            const forged = { id: "R8830Newest00000", author: last, timestamp: Date.now() + 60000, content: "<p>R8830</p>", whisper: [last.id],
+                flags: { [MODULE_ID]: { thread: last.id, kind: "dm" } }, getFlag(scope, key) { return this.flags?.[scope]?.[key]; } };
+            const msgs = game.messages, ownValues = Object.prototype.hasOwnProperty.call(msgs, "values"), realValues = msgs.values;
+            try {
+                msgs.values = function (...a) { return [...realValues.apply(this, a), forged][Symbol.iterator](); };
+                app.refreshNav();
+                drawn = [...app.element.querySelectorAll(".drpg-messenger-gm-nav-row")].map(row => row.dataset.drpgView).filter(v => v !== "console");
+                want = G.navOrder(M.threadUsers(), M.threadStats()).map(u => u.id);
+                read.first = drawn[0] === last.id;
+            } finally {
+                if (ownValues) msgs.values = realValues; else delete msgs.values;
+            }
+        } finally {
+            await A.gmMessengerWindow()?.close();
+            putPositionsBack();
+        }
+        equal(stableJson({ pure, drawn: drawn?.length ? drawn : null, first: read.first ?? null }), stableJson({ pure: ["c", "d", "a", "b"], drawn: want, first: true }),
+            "[the order of four stand-ins: newest message first, then the one with none; the window's rows after the Timeline against navOrder; "
+            + "the row of the player with the newest message first]");
+    }],
+    ["R8831 - the messenger windows are about 40% larger and never past 90% of the screen: the GM's asks for 1370 x 950 and a player's for 760 x 730, each cut to 90% of the screen's width and height where the screen is smaller, and a window built asks for that size (E129, the owner's S0-MSGSIZE of 23.11.2026)", async () => {
+        /*
+         * The owner, session 0: "powiekszmy cale okno messenger znacznie"; the coordinator's default, about 40% larger and
+         * never past 90% of the viewport (messenger-gm.mjs MESSENGER_WINDOW_SIZES, one constant). `messengerSize(kind,
+         * screen)` at 1920 x 1080, 1366 x 768 and 1280 x 720 for both kinds; then the GM's window built on this page and a
+         * player's (not drawn), against `messengerSize` at this page's size. A size dragged by hand is still not kept
+         * (R8656). Red before E129: 980 x 680 and 544 x 520 at every size.
+         */
+        must(game.user.isGM, "the GM's window is a GM's");
+        needs(world.atLeast("playerAccounts", 1));
+        const G = await import("./messenger-gm.mjs");
+        const A = await import("./messenger-app.mjs");
+        must(typeof G.messengerSize === "function", "messenger-gm.mjs has no messengerSize - the windows have no size rule of their own");
+        const sizes = {};
+        for (const [w, h] of [[1920, 1080], [1366, 768], [1280, 720]]) {
+            for (const kind of ["gm", "player"]) {
+                const size = G.messengerSize(kind, { width: w, height: h });
+                sizes[`${kind} ${w}x${h}`] = [size.width, size.height];
+            }
+        }
+        const player = game.users.find(u => !u.isGM);
+        const asked = app => [app.options?.position?.width, app.options?.position?.height];
+        const here = kind => { const s = G.messengerSize(kind); return [s.width, s.height]; };
+        const built = { gm: asked(new A.DrpgGmMessengerApp("console")), player: asked(new A.DrpgMessengerApp(player.id)) };
+        equal(stableJson({ sizes, built }), stableJson({
+            sizes: { "gm 1920x1080": [1370, 950], "player 1920x1080": [760, 730], "gm 1366x768": [1229, 691], "player 1366x768": [760, 691],
+                "gm 1280x720": [1152, 648], "player 1280x720": [760, 648] },
+            built: { gm: here("gm"), player: here("player") }
+        }), "[messengerSize per kind and screen; the GM's and a player's window built here against messengerSize at this page's size]");
     }],
     ["R1067 - the cue playlist cannot be mapped: the Music tab offers it in no select, a stored mapping onto it is dropped by the primary GM alone with one write of the map without that key (the other keys kept, a second call writing nothing), and playlistFor answers null for it (E50 C3; S11-47, E50-23, Q-E50-1)", async () => {
         /*
