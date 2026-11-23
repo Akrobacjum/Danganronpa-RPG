@@ -548,7 +548,7 @@
         "gm": "A GM has ended your hiding: the other players see your token again, and your microphone is back.",
         "chapter": "The chapter is over, and so is your hiding: the other players see your token again, and your microphone is back.",
         "reroll": "After the GM's Reroll you are no longer hidden: the other players see your token again, and your microphone is back.",
-        "timeOfDay": "You are no longer hidden: the {time} is over. The other players see your token again, and your microphone is back."
+        "timeOfDay": "You are no longer hidden: {time} is over. The other players see your token again, and your microphone is back."
       }
     },
     "Listen": {
