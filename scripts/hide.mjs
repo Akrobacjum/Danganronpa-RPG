@@ -127,13 +127,6 @@ export function withCover(text, cover) {
     return cover?.hidden ? [text, game.i18n.localize("DRPG.Hide.coverSkipped")].filter(Boolean).join(" ") : text;
 }
 
-/** The users whose microphone a hide holds blocked: every hidden character's owners as its row names them. On a GM. */
-export function hideMutedIds() {
-    const ids = new Set();
-    for (const row of Object.values(hideStore.entries() ?? {})) for (const id of row?.userIds ?? []) ids.add(id);
-    return ids;
-}
-
 /** Whether the GMs hold `actorId` hidden (its row in `hides`). On a GM; what bridge-guards.mjs asks of a skipped cover. */
 export function hiddenOnGm(actorId, { clock = getClock() } = {}) {
     return Boolean(game.user?.isGM && actorId && clock?.phase !== "classTrial" && hideStore.get(actorId));
@@ -201,7 +194,7 @@ export async function flaggable(scene, isTrial = null) {
     return !trial(scene);
 }
 
-/** The microphone block settled on the primary (voice.mjs `settleTrialVoices`, which reads `hideMutedIds`). */
+/** The microphone block settled on the primary (voice.mjs `settleTrialVoices`, which reads the `hides` rows through its `hidingIds`). */
 async function settleBlock() {
     if (!isPrimaryGm()) return null;
     const { settleTrialVoices } = await import("./voice.mjs");

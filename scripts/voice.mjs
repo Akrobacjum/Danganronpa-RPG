@@ -1188,7 +1188,7 @@ function veiledIds() {
     return new Set(Object.values(veilStore.entries() ?? {}).flatMap(row => row?.userIds ?? []));
 }
 
-/** On a GM: the accounts whose character Hide hides now, from the GMs' rows (S0-HIDE, E129; hide.mjs `hideMutedIds`). */
+/** On a GM: the accounts whose character Hide hides now, every owner the GMs' `hides` rows name (S0-HIDE, E129; hide.mjs). */
 function hidingIds() {
     if (!game.user?.isGM) return new Set();
     return new Set(Object.values(hideStore.entries() ?? {}).flatMap(row => row?.userIds ?? []));
