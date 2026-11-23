@@ -25185,7 +25185,12 @@ const INVARIANTS = [
          * written). The button says 'Do it' for the ask and 'Roll' once Unseen is picked. Red at the parent (6810266): the
          * Frisk's only way is Unseen, checked, and the button says 'Roll'.
          */
+        /* EACH WINDOW NAMES ITS CLOCK (23.11.2026, CI's 01-runtests part A2, which runs tiers 0-1 inside a Class Trial and read
+           the trial's rows here since E129 S0-PALM): the three windows above are daily life's; a fourth is drawn for a Class
+           Trial and read as its own case - Steal and Plant greyed, the Frisk checked with its two ways, as Palm only frisks
+           there (the owner, 23.11.2026). Red in probes/129-hide-in-trial.mjs's state at fd77895d. */
         needs(world.atLeast("stashedItems", 1), "the target carries something, a stashed item among it");
+        const day = { phase: "dailyLife", chapter: 1, day: 1, timeOfDay: "noon", eclipse: false };
         const { choosePalm = null } = await import("./action-rolls.mjs");
         const target = game.actors.find(a => a.type === "character" && a.items.some(i => i.getFlag(MODULE_ID, "location") === "vault"));
         const actor = game.actors.find(a => a.type === "character" && a.id !== target?.id);
@@ -25197,17 +25202,19 @@ const INVARIANTS = [
         D.wait = async cfg => { drawn.push(cfg); return null; };
         const settings = game.settings, get = settings.get;
         try {
-            await choosePalm?.(actor, ACTIONS.palm, [target], mine);
-            await choosePalm?.(actor, { ...ACTIONS.palm, frisk: { ...ACTIONS.palm.frisk, threshold: 14 }, rummage: { ...ACTIONS.palm.rummage, unseen: 17, threshold: 11 } }, [target], mine);
+            await choosePalm?.(actor, ACTIONS.palm, [target], mine, { clock: day });
+            await choosePalm?.(actor, { ...ACTIONS.palm, frisk: { ...ACTIONS.palm.frisk, threshold: 14 }, rummage: { ...ACTIONS.palm.rummage, unseen: 17, threshold: 11 } }, [target], mine, { clock: day });
             settings.get = function (scope, key, ...rest) {
                 return scope === MODULE_ID && key === "friskForce" ? false : get.call(this, scope, key, ...rest);
             };
-            await choosePalm?.(actor, ACTIONS.palm, [target], mine);
+            await choosePalm?.(actor, ACTIONS.palm, [target], mine, { clock: day });
+            settings.get = get;
+            await choosePalm?.(actor, ACTIONS.palm, [target], mine, { clock: { ...day, phase: "classTrial" } });
         } finally {
             settings.get = get;
             if (own) Object.defineProperty(D, "wait", own); else delete D.wait;
         }
-        must(!choosePalm || drawn.length === 3, `choosePalm drew ${drawn.length} window(s) of 3 - this would measure nothing`);
+        must(!choosePalm || drawn.length === 4, `choosePalm drew ${drawn.length} window(s) of 4 - this would measure nothing`);
         must(get.call(settings, MODULE_ID, "friskForce") === true, "the GMs' friskForce is off in this world - Openly's force line would measure nothing");
         const read = cfg => {
             const root = document.createElement("div");
@@ -25239,11 +25246,21 @@ const INVARIANTS = [
                 modes, labels, html: root.innerHTML
             };
         };
-        const [first, moved, askOnly] = choosePalm ? drawn.map(read) : [{ html: "" }, {}, {}];
+        // The trial's window as drawn: each row's [value, disabled, checked] and the Frisk's ways, before `read` presses them.
+        const trialRows = cfg => {
+            const root = document.createElement("div");
+            root.append(cfg.content.cloneNode(true));
+            return { rows: [...root.querySelectorAll('input[name="variant"]')].map(r => [r.value, r.disabled, r.checked]),
+                modes: [...root.querySelectorAll('form [data-drpg-field="frisk"] input[name="friskMode"]')].map(r => [r.value, r.checked]) };
+        };
+        const trial = choosePalm && drawn[3] ? trialRows(drawn[3]) : null;
+        const [first, moved, askOnly] = choosePalm ? drawn.slice(0, 3).map(read) : [{ html: "" }, {}, {}];
         const hint = (unseen, hand) => game.i18n.format("DRPG.Frisk.unseenHint", { unseen, hand });
         const open = force => game.i18n.format("DRPG.Frisk.openHint", { force });
         // An open Frisk asks the person: Ask them since E100 item 6 (R4105), Do it until then.
         const roll = game.i18n.localize("DRPG.Action.roll"), proceed = game.i18n.localize("DRPG.Action.askThem");
+        equal(stableJson(trial), stableJson({ rows: [["steal", true, false], ["plant", true, false], ["frisk", false, true]], modes: [["openly", true], ["unseen", false]] }),
+            "the Palm window in a Class Trial does not grey Steal and Plant and check the Frisk with its two ways ([value, disabled, checked] each row; the Frisk's ways)");
         equal(stableJson([first.rows, first.frisk, first.modes, moved.modes, askOnly.modes, first.labels]), stableJson([
             ["steal", "plant", "frisk"],
             [game.i18n.localize("DRPG.Frisk.rowLabel"), game.i18n.localize("DRPG.Frisk.rowHint")],
@@ -25412,7 +25429,9 @@ const INVARIANTS = [
         const drawn = [];
         D.wait = async cfg => { drawn.push(cfg); return null; };
         try {
-            await choosePalm(actor, ACTIONS.palm, [target], [{ id: "R623MINE", name: "R623 own thing", getFlag: () => undefined }]);
+            // Daily life's window, named (23.11.2026: CI's part A2 runs inside a Class Trial, and the world's clock drew its rows).
+            await choosePalm(actor, ACTIONS.palm, [target], [{ id: "R623MINE", name: "R623 own thing", getFlag: () => undefined }],
+                { clock: { phase: "dailyLife", chapter: 1, day: 1, timeOfDay: "noon", eclipse: false } });
         } finally {
             if (own) Object.defineProperty(D, "wait", own); else delete D.wait;
         }

@@ -110,8 +110,12 @@ export function palmTitle(part, def = ACTIONS.palm) {
  * here would hand it over on a miss (trap 93). A Plant shows YOURS, because
  * they are yours - and choosing what to leave behind is the decision the
  * action is for.
+ *
+ * `clock` (E129 S0-PALM, 23.11.2026): the clock the rows are drawn for - a Class Trial greys Steal and Plant - the
+ * world's unless handed in (tier 1 R619 and R623 name theirs: 01-runtests' part A2 runs inside a Class Trial).
  */
-export async function choosePalm(actor, def, targets, mine) {
+export async function choosePalm(actor, def, targets, mine, { clock = getClock() } = {}) {
+    const inTrial = clock?.phase === "classTrial";
     /* WHO IS HERE, AS IT STANDS (the audit's REFR-52, 1.2.122, 21.11.2026; the owner's rule "Zawsze odswiezamy okna od
        razu przy zmianie"). The list was the room at the open: a student who walked in was not offered, one who had left
        still was (the GM's side then refused the attempt). Redrawn on every token and character change from the room as
@@ -137,15 +141,15 @@ export async function choosePalm(actor, def, targets, mine) {
                 value: "steal", icon: "fa-hand-sparkles",
                 label: game.i18n.localize("DRPG.Steal.takeLabel"),
                 hint: game.i18n.localize("DRPG.Steal.takeHint"),
-                disabled: palmInTrial(),
+                disabled: inTrial,
                 why: game.i18n.localize("DRPG.Steal.notInTrial")
             },
             {
                 value: "plant", icon: "fa-hand-holding",
                 label: game.i18n.localize("DRPG.Steal.plantLabel"),
                 hint: plural("DRPG.Steal.plantHint", { n: mine.length }),
-                disabled: palmInTrial() || !mine.length,
-                why: game.i18n.localize(palmInTrial() ? "DRPG.Steal.notInTrial" : "DRPG.Steal.nothingToPlant")
+                disabled: inTrial || !mine.length,
+                why: game.i18n.localize(inTrial ? "DRPG.Steal.notInTrial" : "DRPG.Steal.nothingToPlant")
             },
             {
                 // E80 part 2 C2: the third direction, which takes nothing and shows only the person's name here; what
