@@ -654,6 +654,8 @@ export const CAMERA_READERS = Object.freeze({
     "diagnostics.mjs#voiceDiagnosis": "diagnose",
     // The scene a change of scene drew, to file its time under the trial hall or not (E53 C1).
     "diagnostics.mjs#registerCanvasTimings": "diagnose",
+    // The scene a lost drawing context is written down with, in this browser's failure log (1.2.129, S0-WHITE).
+    "context-loss.mjs#contextReading": "diagnose",
     "fog-diagnostics.mjs#whatIsHere": "diagnose",
     "fog-diagnostics.mjs#checkRegions": "diagnose",
     "fog-diagnostics.mjs#sceneUncoveredPercent": "diagnose",
