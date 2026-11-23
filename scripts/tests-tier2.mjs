@@ -37099,10 +37099,11 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             await settle();
             await Z.countNow();
             await settle();
-            await until(() => game.messages.filter(m => !seen.has(m.id)).some(m => String(m.content).includes(game.i18n.format("DRPG.Zones.straw.finding", { answer: "Inside", a: 2, b: 0 }))));
+            // The card names the answers and their counts since E129 S0-ZONESTYLE (the owner's 23.11.2026: no "Zone A" on a card).
+            await until(() => game.messages.filter(m => !seen.has(m.id)).some(m => String(m.content).includes(game.i18n.format("DRPG.Zones.straw.finding", { answer: "Inside", na: 2, nb: 0, a: "Inside", b: "Outside" }))));
             const rec = V.trialProgress();
             read.strawEnd = [F.trialFloor(), (rec.findings ?? []).map(f => f.text), rec.strawPoll?.split ?? null, hall.tokens.get(t2.id)?.x ?? null,
-                game.messages.filter(m => !seen.has(m.id)).some(m => String(m.content).includes(game.i18n.format("DRPG.Zones.straw.finding", { answer: "Inside", a: 2, b: 0 })))];
+                game.messages.filter(m => !seen.has(m.id)).some(m => String(m.content).includes(game.i18n.format("DRPG.Zones.straw.finding", { answer: "Inside", na: 2, nb: 0, a: "Inside", b: "Outside" })))];
             // (2) The Logic Dive.
             await diveSetStore.patch(SET, { name: "SUITE set", made: Date.now(), questions: [
                 { question: "SUITE Q1", a: "One", b: "Two", truth: "a" }, { question: "SUITE Q2", a: "Night", b: MARK, truth: "b" }] });
