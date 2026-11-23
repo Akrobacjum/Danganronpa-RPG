@@ -285,7 +285,7 @@ export async function handBackIfRefusedBeforeRolls(actor, paid, res, rolls = [])
 }
 
 async function palmBack(actor, paid) {
-    // By its receipt since 1.2.129 (E129 S0-PALM): a Hope or a Sanity mark paid in the trial comes back as itself.
+    // By its receipt since 1.2.128 (E129 S0-PALM): a Hope or a Sanity mark paid in the trial comes back as itself.
     await givePalmBack(actor, paid);
 }
 

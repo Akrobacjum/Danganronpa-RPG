@@ -605,10 +605,10 @@ export function trialParticipants({ connected = true } = {}) {
     const ownersOf = actor => game.users.filter(u => !u.isGM && (u.active || !connected) && actor.testUserPermission(u, "OWNER"));
     /* A STUDENT OWNED BY TWO PLAYERS IS SEATED BY ITS LINKED ONE (E129 S0-CUT P1, 23.11.2026; config.mjs
        `TRIAL.seatByCharacter`; the coordinator's P1 after the owner's note "testimony ucielo ostatniego gracza"). Each
-       player takes one seat. Until 1.2.129 a student went to the first owner Foundry lists, and when that player was
+       player takes one seat. Until 1.2.128 a student went to the first owner Foundry lists, and when that player was
        seated already with their own the student had no seat - no turn, no ballot, nothing said. Now a player is seated
        first by `user.character` where it is a student they own, then each student left by its first owner not seated
-       yet. The order stays `actingStudents`'. Tier 2 "1.2.129 S0-CUT P1". */
+       yet. The order stays `actingStudents`'. Tier 2 "1.2.128 S0-CUT P1". */
     const linked = new Map();
     if (TRIAL.seatByCharacter) {
         for (const actor of students) {

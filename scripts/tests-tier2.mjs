@@ -9402,7 +9402,7 @@ const SCENARIOS = [
             const before = new Set(game.messages.map(m => m.id));
             await M.endMurder({ reason: "closed", followUp: false });
             await settle();
-            // The last veiled card the close posted: since 1.2.129 the close first tells a masked killer the mask ended
+            // The last veiled card the close posted: since 1.2.128 the close first tells a masked killer the mask ended
             // (mask-gm.mjs `endMasksAtClose`, a veiled whisper of its own), then posts this card (`tellIncidentClosed`).
             const closing = game.messages.filter(m => !before.has(m.id)).filter(m => m.getFlag(MODULE_ID, "veiled")).at(-1) ?? null;
             must(closing, "no veiled closing card was posted");
@@ -10096,11 +10096,11 @@ const SCENARIOS = [
             "{Silence now on the first copy, the readied tool named on the open tracker, Silence now after another GM's press}");
     }],
 
-    ["1.2.129 S0-MASKLEFT - the killer comes out from behind the \"?\" when the murder's incident ends, whoever died, and when they leave its room (scripts/murder-rules.mjs `closeIncident`; mask-gm.mjs `endMasksAtClose`, `maskLeftRoom`, `endMask`; the owner, 23.11.2026: \"Zawsze zdejmujemy maske na koniec incydentu morderstwa (po sprzataniu) lub po opuszczeniu pokoju\"): a masked fight the GM ends with the victim alive, and one closed after the kill, leave no mask, no masked token and no mute, and tell the killer's player; a masked killer whose token is carried out of the crime room is unmasked while the fight still runs", async () => {
+    ["1.2.128 S0-MASKLEFT - the killer comes out from behind the \"?\" when the murder's incident ends, whoever died, and when they leave its room (scripts/murder-rules.mjs `closeIncident`; mask-gm.mjs `endMasksAtClose`, `maskLeftRoom`, `endMask`; the owner, 23.11.2026: \"Zawsze zdejmujemy maske na koniec incydentu morderstwa (po sprzataniu) lub po opuszczeniu pokoju\"): a masked fight the GM ends with the victim alive, and one closed after the kill, leave no mask, no masked token and no mute, and tell the killer's player; a masked killer whose token is carried out of the crime room is unmasked while the fight still runs", async () => {
         /*
-         * 1.2.129 (E129), the owner's note of the table of 22.11.2026: after a murder was broken off, its killer still wore
+         * 1.2.128 (E129), the owner's note of the table of 22.11.2026: after a murder was broken off, its killer still wore
          * the "?" and the mute, and the GM revealed them by hand. The mask ended only at a reveal, a new time of day, a lost
-         * race at the opening or the season's reset (mask-gm.mjs's header until 1.2.129: "The incident's own end does not
+         * race at the opening or the season's reset (mask-gm.mjs's header until 1.2.128: "The incident's own end does not
          * end it"). A direct murder between two students with players opens on Hope, so its killer is masked (`fightOpen`):
          * (a) the GM ends it with the victim alive; (b) the same fight, the Finishing blow dealt, closed; (c) the same fight,
          * the killer's token teleported to another named room while it runs. The words this GM sends the killer's player
@@ -10172,7 +10172,7 @@ const SCENARIOS = [
             left: { row: false, masked: 0, muted: false, told: "room", running: true }
         }), "{each road: the mask's row, the killer's tokens masked, muted by the mask, the line told; the fight still running after the killer left}");
     }],
-    ["1.2.129 S0-VICTIM b - the Students window's Spectator role on a dead student gives their player the watcher and leaves the body where it fell (scripts/gm-students.mjs `changeRole`; spectator-dead.mjs `spectatorForTheDead`, `ensureDeadSpectator`; the owner, 23.11.2026: \"Po dostaniu spectatora przez gm panel zabralo token ciala\"): the student is not flagged a Spectator, the body's token stays the student's, unmoved and unflagged, and the watcher stands where the body lies - made when there was none, not doubled when there was", async () => {
+    ["1.2.128 S0-VICTIM b - the Students window's Spectator role on a dead student gives their player the watcher and leaves the body where it fell (scripts/gm-students.mjs `changeRole`; spectator-dead.mjs `spectatorForTheDead`, `ensureDeadSpectator`; the owner, 23.11.2026: \"Po dostaniu spectatora przez gm panel zabralo token ciala\"): the student is not flagged a Spectator, the body's token stays the student's, unmoved and unflagged, and the watcher stands where the body lies - made when there was none, not doubled when there was", async () => {
         /*
          * 1.2.128 (E129), the owner's note of the table of 22.11.2026: the GM gave the dead victim a Spectator through the
          * Students window, and the body's token went. The role wrote E92's Spectator flag on the student itself
@@ -14241,7 +14241,7 @@ const SCENARIOS = [
             + "unseen roll's payment, or a payment handed back still pays, or a second draw of the action is judged while the first is "
             + "under way (each draw in turn; the two at once; the tickets left)");
     }],
-    ["1.2.129 S0-PALM - Palm in the Class Trial: paid with Hope when no action is left, its rolls drawn on that payment, its card saying so, and the hall one room for its Steal and Plant (palm.mjs `payPalm`, price.mjs `PRICE_CHAINS.palm`, roll-draw.mjs `CHAIN_OF`, frisk.mjs `personActionRefusal` with `palm`, `palmHall`; the owner's note of 23.11.2026)", async () => {
+    ["1.2.128 S0-PALM - Palm in the Class Trial: paid with Hope when no action is left, its rolls drawn on that payment, its card saying so, and the hall one room for its Steal and Plant (palm.mjs `payPalm`, price.mjs `PRICE_CHAINS.palm`, roll-draw.mjs `CHAIN_OF`, frisk.mjs `personActionRefusal` with `palm`, `palmHall`; the owner's note of 23.11.2026)", async () => {
         /* On this GM, as a player's roll is drawn (`drawnForPlayer`, a payment written as the player's browser writes it,
            `PAID_AS_PLAYER`). (1) In a trial, no actions and Hope: the price quoted is Hope, the cover drawn on a Hope paid,
            the hand riding it; outside the trial the same Hope buys no cover. (2) The chain's receipt and its card's line,
@@ -20031,8 +20031,8 @@ const SCENARIOS = [
             await heldInvitations(() => M.openMurder({ killerId: killer.id, victimId: second.id, openingTrait: "body" }));
             await M.resolveKillerOpening({ total: 20, isCritical: false, withHope: true });
             await M.endMurder({ reason: "test", followUp: false });
-            // 1.2.129: a mask ends with its incident (mask-gm.mjs `endMasksAtClose`); put up again here, it stands for one a
-            // board can still meet - a close that could not reach the primary, a row from before 1.2.129.
+            // 1.2.128: a mask ends with its incident (mask-gm.mjs `endMasksAtClose`); put up again here, it stands for one a
+            // board can still meet - a close that could not reach the primary, a row from before 1.2.128.
             await (await import("./mask-gm.mjs")).maskKiller({ killerId: killer.id, victimId: second.id });
             await settle();
         };
@@ -20045,8 +20045,8 @@ const SCENARIOS = [
             await settle();
             must(K.maskStands(killer.id), "the opening on Hope put up no mask - this would measure nothing");
             await M.endMurder({ reason: "test", followUp: false });
-            // 1.2.129: a mask ends with its incident (mask-gm.mjs `endMasksAtClose`); put up again here, it stands for one a
-            // board can still meet - a close that could not reach the primary, a row from before 1.2.129.
+            // 1.2.128: a mask ends with its incident (mask-gm.mjs `endMasksAtClose`); put up again here, it stands for one a
+            // board can still meet - a close that could not reach the primary, a row from before 1.2.128.
             await (await import("./mask-gm.mjs")).maskKiller({ killerId: killer.id, victimId: victim.id });
             await D.killCharacter(victim, { secret: true, keepBullets: true });
             await settle();
@@ -20131,8 +20131,8 @@ const SCENARIOS = [
             await heldInvitations(() => M.openMurder({ killerId: killer.id, victimId: victim.id, openingTrait: "body" }));
             await M.resolveKillerOpening({ total: 20, isCritical: false, withHope: true });
             await M.endMurder({ reason: "test", followUp: false });
-            // 1.2.129: a mask ends with its incident (mask-gm.mjs `endMasksAtClose`); put up again here, it stands for one a
-            // board can still meet - a close that could not reach the primary, a row from before 1.2.129.
+            // 1.2.128: a mask ends with its incident (mask-gm.mjs `endMasksAtClose`); put up again here, it stands for one a
+            // board can still meet - a close that could not reach the primary, a row from before 1.2.128.
             await (await import("./mask-gm.mjs")).maskKiller({ killerId: killer.id, victimId: victim.id });
             await settle();
             must(K.maskStands(killer.id), `the opening on Hope put up no mask at ${timeOfDay} - this would measure nothing`);
@@ -20303,8 +20303,8 @@ const SCENARIOS = [
             await heldInvitations(() => M.openMurder({ killerId: killer.id, victimId: victim.id, openingTrait: "body" }));
             await M.resolveKillerOpening({ total: 20, isCritical: false, withHope: true });
             await M.endMurder({ reason: "test", followUp: false });
-            // 1.2.129: a mask ends with its incident (mask-gm.mjs `endMasksAtClose`); put up again here, it stands for one a
-            // board can still meet - a close that could not reach the primary, a row from before 1.2.129.
+            // 1.2.128: a mask ends with its incident (mask-gm.mjs `endMasksAtClose`); put up again here, it stands for one a
+            // board can still meet - a close that could not reach the primary, a row from before 1.2.128.
             await (await import("./mask-gm.mjs")).maskKiller({ killerId: killer.id, victimId: victim.id });
             await settle();
             must(K.maskStands(killer.id), "the opening on Hope put up no mask - this would measure nothing");
@@ -20750,8 +20750,8 @@ const SCENARIOS = [
             await heldInvitations(() => M.openMurder({ killerId: killer.id, victimId: victim.id, openingTrait: "body" }));
             await M.resolveKillerOpening({ total: 20, isCritical: false, withHope: true });
             await M.endMurder({ reason: "test", followUp: false });
-            // 1.2.129: a mask ends with its incident (mask-gm.mjs `endMasksAtClose`); put up again here, it stands for one a
-            // board can still meet - a close that could not reach the primary, a row from before 1.2.129.
+            // 1.2.128: a mask ends with its incident (mask-gm.mjs `endMasksAtClose`); put up again here, it stands for one a
+            // board can still meet - a close that could not reach the primary, a row from before 1.2.128.
             await (await import("./mask-gm.mjs")).maskKiller({ killerId: killer.id, victimId: victim.id });
             await settle();
             must(K.maskStands(killer.id), "the opening on Hope put up no mask - this would measure nothing");
@@ -31138,7 +31138,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         }
     }],
 
-    ["1.2.129 S0-VOTEKUMA - each Monokuma is a candidate of its own on a ballot, the old id \"monokuma\" is refused, and a vote on one is counted under its own id (vote.mjs `monokumaCandidates`; the owner's note of 23.11.2026)", async () => {
+    ["1.2.128 S0-VOTEKUMA - each Monokuma is a candidate of its own on a ballot, the old id \"monokuma\" is refused, and a vote on one is counted under its own id (vote.mjs `monokumaCandidates`; the owner's note of 23.11.2026)", async () => {
         /*
          * E129 S0-VOTEKUMA, 23.11.2026; config.mjs `TRIAL.eachMonokumaOnBallot`. Two Monokuma actors made here, Karimkuma and
          * Divakuma (the owner's examples), beside any the world holds; the vote opened on a blank record with the ballots
@@ -36678,10 +36678,10 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         "{drawn: the preview lists a slot to create; quiet: nothing written by the preview; placed: Run's count; linked: the slot points at the marked Remnant; undo: removed and kept; slotAfterUndo: the slot's token; markAfter: marks left}");
     }],
 
-    ["1.2.129 S0-REALIZE: the Realization asks Key Remnants only or every planned Remnant, Key Remnants by default; every planned places the planned Remnant and Final Truth in their rooms and gives the planned Truth Bullet; Undo takes back all three", async () => {
+    ["1.2.128 S0-REALIZE: the Realization asks Key Remnants only or every planned Remnant, Key Remnants by default; every planned places the planned Remnant and Final Truth in their rooms and gives the planned Truth Bullet; Undo takes back all three", async () => {
         /*
          * The owner's notes of session 0 (23.11.2026), S0-REALIZE: "realization niech zawiera opcje rozdania i ustawienia
-         * wszystkich remnantow zaplanowanych, albo samych key (jak teraz)"; line INVEST of 1.2.129. Three planned nodes are
+         * wszystkich remnantow zaplanowanych, albo samych key (jak teraz)"; line INVEST of 1.2.128. Three planned nodes are
          * written to the running chapter's case - an incident Remnant, a Final Truth, a Truth Bullet for the first student.
          * The preview is opened twice on its drawn window, every Key slot left at "leave it": first as it opens (the choice
          * read, the planned rows' hidden state) and Run pressed - nothing of the plan placed; then with "every planned"
@@ -36974,7 +36974,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         }), "{per node: the window's mode, its set, question and answers; the floor after both windows were closed; the Map's Straw Poll node: its question, shown, and the Dive's set row hidden}");
     }],
 
-    ["1.2.129 S0-ZONESTYLE - a zone mode's two zones drawn on the hall as the map's rooms are, each named at its middle by its answer alone, fitted to the zone and standing past a room name's 5.4 s, in both themes (trial-zones-ui.mjs `drawZones`; the owner's note of 23.11.2026)", async () => {
+    ["1.2.128 S0-ZONESTYLE - a zone mode's two zones drawn on the hall as the map's rooms are, each named at its middle by its answer alone, fitted to the zone and standing past a room name's 5.4 s, in both themes (trial-zones-ui.mjs `drawZones`; the owner's note of 23.11.2026)", async () => {
         /*
          * E129 S0-ZONESTYLE, 23.11.2026. A hall of the suite's own (2000 x 1000, grid 100; the left half one zone, the right
          * the other), linked with its zones, viewed on this GM's canvas for the test's length; a Straw Poll's floor handed
@@ -38799,9 +38799,9 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         }
     }],
 
-    ["1.2.129 S0-ANSHARE - a Share of a Truth Bullet that holds an Analyze result asks whether to carry it, ticked by default; unticked, the receiver's copy is born unread, its reading kept for their own Analyze; a bullet with no reading asks nothing (handover.mjs `shareBulletDialog`, `shareBullet`; config.mjs SHARE_WITH_ANALYSIS; the owner's notes of session 0, 23.11.2026)", async () => {
+    ["1.2.128 S0-ANSHARE - a Share of a Truth Bullet that holds an Analyze result asks whether to carry it, ticked by default; unticked, the receiver's copy is born unread, its reading kept for their own Analyze; a bullet with no reading asks nothing (handover.mjs `shareBulletDialog`, `shareBullet`; config.mjs SHARE_WITH_ANALYSIS; the owner's notes of session 0, 23.11.2026)", async () => {
         /*
-         * Line INVEST of 1.2.129. Two students of the cast alone in a room; on the first, a bullet analysed (its reading
+         * Line INVEST of 1.2.128. Two students of the cast alone in a room; on the first, a bullet analysed (its reading
          * written) and one not. The Share window opened for each on this GM (the giver's dialog), read, and cancelled.
          * Then the analysed one shared to the second with the box unticked and again ticked (a fresh receiver copy each
          * time). Read: the box (drawn, ticked); each copy's `analyzed` flag, its shown type against the unread one, and
@@ -48862,7 +48862,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
              * whose default was "the whole hall counts, Steal and Plant open, a forced Frisk shut"; allowed-now.mjs
              * `TRIAL_OPEN_ACTIONS`). Read: the action road's answer for Palm, and what pressing it says - not the trial's
              * lock. The student here stands on no hall, so Palm stops at its room or its targets before its window and
-             * charges nothing; what it then does in the hall is "1.2.129 S0-PALM"'s. Red with "palm" taken out of
+             * charges nothing; what it then does in the hall is "1.2.128 S0-PALM"'s. Red with "palm" taken out of
              * `TRIAL_OPEN_ACTIONS` (23.11.2026): open false, the lock said.
              */
             const { allowedNow } = await import("./allowed-now.mjs");
@@ -53422,7 +53422,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             + "(4) a Panic Round's Objection; (5) an Objection at the speaker, its rebuttal, Skip: the mode and speaker after");
     }],
 
-    ["1.2.129 S0-CUT B - a round's speaker whose player drops is passed only when they are not back within `TRIAL.modes.round.goneGraceSeconds` (scripts/trial-floor.mjs `speakerGone`; the owner's note of 23.11.2026, \"testimony ucielo ostatniego gracza\"; the coordinator's \"a reload during your own turn should never pass you\"): the speaker read as not connected and the primary told the player left - their turn stands at once and through the grace once they are back; read as not connected again and not back - their turn passes to the next speaker once the grace is over", async () => {
+    ["1.2.128 S0-CUT B - a round's speaker whose player drops is passed only when they are not back within `TRIAL.modes.round.goneGraceSeconds` (scripts/trial-floor.mjs `speakerGone`; the owner's note of 23.11.2026, \"testimony ucielo ostatniego gracza\"; the coordinator's \"a reload during your own turn should never pass you\"): the speaker read as not connected and the primary told the player left - their turn stands at once and through the grace once they are back; read as not connected again and not back - their turn passes to the next speaker once the grace is over", async () => {
         /* On this primary in a Class Trial, a Testimony of 120 s turns between the first two participants, the speaker's
            User read as not connected by its `active` (put back as it was, as E70-T11 does) and `userConnected` called as
            Foundry calls it. Red at 2e28785a: the turn passed at the first drop (E70-45). The floor, the clock and the cards
@@ -53481,7 +53481,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         equal(stableJson(read), stableJson({ grace: 15, dropped: true, backInTime: true, notBack: want }),
             "{grace: the constant; dropped: the speaker's turn 2 s after the drop; backInTime: still theirs a grace after coming back; notBack: whose turn a grace after a second drop}");
     }],
-    ["1.2.129 S0-SKIP - the objector may end their own seconds as the GM's Skip would (trial-modes.mjs `turnOnPrimary`, trial-floor.mjs `finishObjectionOnPrimary`; config.mjs `TRIAL.objectorMayFinish`; the owner's note of 23.11.2026): \"trial.turn\" kind done during an Objection - refused from the target's player, at another Objection's start and while the bullet is still being picked; from the objector's player at this Objection's start, taken: the rebuttal on the floor, the table's card that the objector finished early, and a whisper to the GMs alone", async () => {
+    ["1.2.128 S0-SKIP - the objector may end their own seconds as the GM's Skip would (trial-modes.mjs `turnOnPrimary`, trial-floor.mjs `finishObjectionOnPrimary`; config.mjs `TRIAL.objectorMayFinish`; the owner's note of 23.11.2026): \"trial.turn\" kind done during an Objection - refused from the target's player, at another Objection's start and while the bullet is still being picked; from the objector's player at this Objection's start, taken: the rebuttal on the floor, the table's card that the objector finished early, and a whisper to the GMs alone", async () => {
         /* On this primary in a Class Trial, a debate and an Objection of the first participant at the second, each packet
            judged by the bridge's runner as it arrives. Red at 2e28785a: every Done outside a round was refused. The floor,
            the clock and the cards are put back. */
@@ -53549,7 +53549,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             still: "objection", own: ["bridge.done"], after: "rebuttal", card: [true, false], told: [1, true] }),
             "{constant; pending: [mode, pending, a Done while the bullet is picked]; target: the target's Done; stale: another start's; still: the floor after them; own: the objector's; after: the floor; card: [the table's card, titled as the GM's step]; told: [the GMs' whispers, whispered to GMs alone]}");
     }],
-    ["1.2.129 S0-CUT P1 - a student owned by two players is seated by their linked player, and no player loses their turn to a loose ownership link (vote.mjs `trialParticipants`; config.mjs `TRIAL.seatByCharacter`; the coordinator's P1 of 23.11.2026): two players, each linked to their own student (`user.character`), the first given OWNER on the second's student too - both students take part, each with the player linked to it", async () => {
+    ["1.2.128 S0-CUT P1 - a student owned by two players is seated by their linked player, and no player loses their turn to a loose ownership link (vote.mjs `trialParticipants`; config.mjs `TRIAL.seatByCharacter`; the coordinator's P1 of 23.11.2026): two players, each linked to their own student (`user.character`), the first given OWNER on the second's student too - both students take part, each with the player linked to it", async () => {
         /* On this GM, the world's ownership written and put back. Red at 2e28785a: the second student went to the first
            owner Foundry lists, already seated with their own, so it had no seat and no turn - nothing said. */
         needs(world.atLeast("connectedPlayersWithCharacter", 2), "two players, each linked to a student of their own");
@@ -54965,7 +54965,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
          * it stands for - and the three must agree. Red before allowed-now.mjs existed: the import throws. Since the three
          * ask one rule, their agreement cannot see a change of the rule itself, so each state's row is also held to what
          * the module answered before the move (measured at d2c6e0e5's tile and press, which agreed in every cell): daily
-         * life locks Direct Murder alone; an Eclipse every key but Direct Murder; the trial every key but Analyze (and Palm since 1.2.129, E129 S0-PALM), Direct
+         * life locks Direct Murder alone; an Eclipse every key but Direct Murder; the trial every key but Analyze (and Palm since 1.2.128, E129 S0-PALM), Direct
          * Murder saying it waits for an Eclipse; a fight every key of the victim's but Direct Murder, which is the fight's
          * menu. And Move, which has no tile, by its press alone: open in daily life and an Eclipse, the trial's and the
          * fight's sentence in theirs.
@@ -55103,7 +55103,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         const expected = key => ({
             daily: key === "directMurder" ? "murderOnlyInEclipse" : null,
             eclipse: key === "directMurder" ? null : "eclipse",
-            // Palm open in the trial since 1.2.129 (E129 S0-PALM, allowed-now.mjs `TRIAL_OPEN_ACTIONS`; R8772), Analyze alone before.
+            // Palm open in the trial since 1.2.128 (E129 S0-PALM, allowed-now.mjs `TRIAL_OPEN_ACTIONS`; R8772), Analyze alone before.
             trial: key === "analyze" || key === "palm" ? null : key === "directMurder" ? "murderOnlyInEclipse" : "trial",
             fight: key === "directMurder" ? null : "fight"
         });
@@ -105629,7 +105629,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
     }],
     ["the GM panel opens on the roster, and each student's row reads what the sheet reads: on a day, after an action is spent, in an Eclipse and after a crossing in it (S0-GMLIST, E129; the owner after session 0, 23.11.2026)", async () => {
         /*
-         * 1.2.129, S0-GMLIST: "upewnijmy sie ze wyswietla poprawnie ile akcji i ruchow ma dany gracz, rowniez w eclipse".
+         * 1.2.128, S0-GMLIST: "upewnijmy sie ze wyswietla poprawnie ile akcji i ruchow ma dany gracz, rowniez w eclipse".
          * The panel is opened (`openGmPanel`, its window's content kept as the kit hands it to DialogV2.wait) and its
          * roster's row for one acting student read against actions.mjs and eclipse.mjs as the sheet's budget line reads
          * them: on the day; after `spendAction` took one; with an Eclipse open (`startEclipse`, which refills the
@@ -112798,7 +112798,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             debate: ["debate", false, true, 0]
         }), "[road, answered, the clock as it was, public cards] per press; [the floor's target, the card's target id and name, its who line, the receipt's target]; the last card names both and is public");
     }],
-    ["1.2.129 S0-NOMUTE - with the world's switch `trialVoicesFree` on, the Class Trial forces no microphone off (settings.mjs `trialVoicesFree`; voice.mjs `settleTrialVoices`, `micHold`, `moduleHoldsMic`; the owner's note of 23.11.2026): an Objection blocks the speaker it is aimed at and the dead student on the trial's list; the switch on - both given back at once, with no block in the store, and neither the tile's line nor the GM's block button says they are held; the switch off again - both blocked again", async () => {
+    ["1.2.128 S0-NOMUTE - with the world's switch `trialVoicesFree` on, the Class Trial forces no microphone off (settings.mjs `trialVoicesFree`; voice.mjs `settleTrialVoices`, `micHold`, `moduleHoldsMic`; the owner's note of 23.11.2026): an Objection blocks the speaker it is aimed at and the dead student on the trial's list; the switch on - both given back at once, with no block in the store, and neither the tile's line nor the GM's block button says they are held; the switch off again - both blocked again", async () => {
         /* On this primary, the clock written raw and the voices settled as the entry settles them (E110-T2's shape): O
            objects to B, D is dead and published before the trial. Each step reads each one's BROADCAST_AUDIO and the store's
            row as E110-T2 does ("blocked", "gm", "open"), and B's and D's lines. Red at 2e28785a: no switch. The switch, the

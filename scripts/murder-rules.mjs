@@ -3694,7 +3694,7 @@ async function closeIncident(state, { reason, followUp, conclude = true }) {
     } catch (err) {
         error("Could not lift the opening's veil", err);
     }
-    /* AND THE KILLER'S MASK (1.2.129, S0-MASKLEFT; the owner, 23.11.2026: "po przerwaniu morderstwa morderca dalej mial ?
+    /* AND THE KILLER'S MASK (1.2.128, S0-MASKLEFT; the owner, 23.11.2026: "po przerwaniu morderstwa morderca dalej mial ?
        i wyciszenie", then "Zawsze zdejmujemy maske na koniec incydentu morderstwa (po sprzataniu)"): every end of an
        incident comes through here - the GM's End after Stage 6 or before it, a failed or crowded-out fight, a betrayal,
        the trial's floor, the season's reset - and none of them ended the mask, which stood to its time of day. On the

@@ -727,7 +727,7 @@ function paintProjectTint(token, projectId) {
 }
 
 /**
- * The alpha a Remnant's picture is drawn at on this browser (1.2.129 line MAP; S0-REMALPHA; config.mjs `REMNANT_ALPHA`):
+ * The alpha a Remnant's picture is drawn at on this browser (1.2.128 line MAP; S0-REMALPHA; config.mjs `REMNANT_ALPHA`):
  * on a player's `player` (0.5), whatever the document says; on a GM's whole when players see the token, `gmHidden` when
  * Foundry's `hidden` keeps it from them. Pure; `gm` and `hidden` are the suite's to hand (R8870).
  */
@@ -737,7 +737,7 @@ export function remnantAlpha({ gm = game.user?.isGM === true, hidden = false } =
 }
 
 /** A Remnant's picture at `remnantAlpha` (the mesh, as `dressSpectator` sets a watcher's): what any browser draws is the
-    constant, not the document's alpha (0.5 on every trace created before 1.2.129, 1 since). Exported for R8870. */
+    constant, not the document's alpha (0.5 on every trace created before 1.2.128, 1 since). Exported for R8870. */
 export function dressRemnant(token, { gm = game.user?.isGM === true } = {}) {
     const mesh = token?.mesh;
     if (!mesh || mesh.destroyed) return null;

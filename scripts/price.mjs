@@ -2,7 +2,7 @@
  * Danganronpa RPG - the price chains, and the one place they are paid.
  * ---------------------------------------------------------------------------
  * T-1 (Dawid, 17.09) priced three things as a CHAIN rather than as one cost: an
- * Objection, Analyze inside a Class Trial, and a Tamper attempt; and Palm inside a Class Trial since 1.2.129 (E129
+ * Objection, Analyze inside a Class Trial, and a Tamper attempt; and Palm inside a Class Trial since 1.2.128 (E129
  * S0-PALM, the owner's note of 23.11.2026), as Analyze's. You pay the
  * first step you can still pay - an action, then Hope, then a Sanity mark - and
  * when you can pay none of them you cannot do it.

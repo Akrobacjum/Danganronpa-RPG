@@ -34872,7 +34872,7 @@ const INVARIANTS = [
             minusDebate: { mode: "debate", left: 0, seconds: 300, stack: [], note: "DRPG.Floor.gmNoteAdjust", cards: [] },
             minusEmpty: { refused: "DRPG.Floor.bar.noTime" },
             plusOverrun: { mode: "debate", left: 30, seconds: 300, stack: [], note: "DRPG.Floor.gmNoteAdjust", cards: [] },
-            // An Objection's own seconds are 30 since 1.2.129 (E129 S0-OBJ; R8770): 60 and 80 until then.
+            // An Objection's own seconds are 30 since 1.2.128 (E129 S0-OBJ; R8770): 60 and 80 until then.
             plusPastLimit: { mode: "objection", left: 50, seconds: 300, stack, note: "DRPG.Floor.gmNoteAdjust", cards: [] },
             objection: { mode: "objection", left: 30, seconds: 300, stack, note: null, cards: [] },
             back: { mode: "debate", left: 200, seconds: 200, stack: [], note: null, cards: [] },
@@ -35429,7 +35429,7 @@ const INVARIANTS = [
             seven: [1, B, 2],
             due: step2(B), skip: step2(B, [["DRPG.Floor.turnSkipped", A]]),
             gone: step2(B, [passes(A)]), goneOther: { refused: "DRPG.Floor.round.notSpeaker" },
-            // 30 s since 1.2.129 (E129 S0-OBJ; R8770), 60 until then.
+            // 30 s since 1.2.128 (E129 S0-OBJ; R8770), 60 until then.
             objection: { mode: "objection", holder: D, left: 30, step: 1, stack: [[CARD, "testimony", 40]], cards: [] },
             rebuttalDue: step2(B), rebuttalSkip: step2(B, [["DRPG.Floor.turnSkipped", A]]),
             overrule: step2(A, [], 40), lapse: step2(A, [], 40),
@@ -61313,7 +61313,7 @@ const INVARIANTS = [
             player: ids(K.seenHere(cast, { scenes, shown, user: player })),
             gm: ids(K.seenHere(cast, { scenes, shown, user: gm })),
             unbound: ids(K.seenHere(cast, { scenes, shown: null, user: player })),
-            // Palm's list since 1.2.129 is its place's (palm.mjs `palmPlace`: the room's `othersInRoom`, or the trial's hall; E129 S0-PALM).
+            // Palm's list since 1.2.128 is its place's (palm.mjs `palmPlace`: the room's `othersInRoom`, or the trial's hall; E129 S0-PALM).
             filtered: Object.fromEntries(Object.entries(pickers).map(([k, text]) => [k, k === "palm"
                 ? /seenHere\(palmPlace\(actor\)\?\.others\(\) \?\? \[\]\)/.test(text) && /room \? \{ room, others: \(\) => othersInRoom\(actor\) \}/.test(text)
                 : /seenHere\(othersInRoom\(actor\)\)/.test(text)]))
@@ -69447,9 +69447,9 @@ const INVARIANTS = [
             wide: { x: Math.round(500 - 750 * z), y: Math.round(300 - 150 * z), z },
             floored: { x: Math.round(500 - 750 * 0.8), y: Math.round(300 - 150 * 0.8), z: 0.8 } }), "{small, wide, floored: the camera centred on each}");
     }],
-    ["R8870 - a Remnant is drawn at REMNANT_ALPHA on each browser, whatever the document's alpha: on a player's at 0.5, on a GM's whole when players see it and at gmHidden (at least 0.5, under 1) when they do not (1.2.129 line MAP, E129; scripts/visibility.mjs `remnantAlpha`, `dressRemnant`, `applyToToken`; config.mjs `REMNANT_ALPHA`; remnants.mjs `placeRemnant`; the owner's S0-REMALPHA)", async () => {
+    ["R8870 - a Remnant is drawn at REMNANT_ALPHA on each browser, whatever the document's alpha: on a player's at 0.5, on a GM's whole when players see it and at gmHidden (at least 0.5, under 1) when they do not (1.2.128 line MAP, E129; scripts/visibility.mjs `remnantAlpha`, `dressRemnant`, `applyToToken`; config.mjs `REMNANT_ALPHA`; remnants.mjs `placeRemnant`; the owner's S0-REMALPHA)", async () => {
         /*
-         * 1.2.129 line MAP, 23.11.2026; the owner's session-0 note "niektore remnanty sa polprzezroczyste i przez to
+         * 1.2.128 line MAP, 23.11.2026; the owner's session-0 note "niektore remnanty sa polprzezroczyste i przez to
          * niewidoczne"; the owner's answer: the GM's screen, Neutral Remnants; players stay at 0.5 ("Tak", 23.11). A hidden
          * trace at document 0.5 under Foundry's own dimming was lost on the GM's map. The rule read on stand-in tokens (the
          * harness draws no canvas; the mesh starts at 0.3, so a dress that sets nothing shows): a player's browser, a GM's
@@ -69470,9 +69470,9 @@ const INVARIANTS = [
             JSON.stringify([0.5, 1, REMNANT_ALPHA.gmHidden, true, true, true]),
             "[a player's (0.5), a GM's shown, a GM's hidden Remnant drawn at; the GM's hidden one at least 0.5 and under 1; applyToToken dresses first; placeRemnant creates whole]");
     }],
-    ["R8871 - a token's name on a hover is what this viewer may know: a masked killer reads \"?\" but to its owner and the GMs, a trace's name never from its token, a project through shownName, no label where Foundry's own nameplate already shows, and nothing for a body, a token Foundry hides from a player or one this browser does not draw (1.2.129 line MAP, E129; scripts/hover-name.mjs `hoverName`; the owner's S0-HOVERNAME)", async () => {
+    ["R8871 - a token's name on a hover is what this viewer may know: a masked killer reads \"?\" but to its owner and the GMs, a trace's name never from its token, a project through shownName, no label where Foundry's own nameplate already shows, and nothing for a body, a token Foundry hides from a player or one this browser does not draw (1.2.128 line MAP, E129; scripts/hover-name.mjs `hoverName`; the owner's S0-HOVERNAME)", async () => {
         /*
-         * 1.2.129 line MAP, 23.11.2026; the owner: "Najechanie na token myszka przez chwile dluzej niech pokazuje nazwe (imie
+         * 1.2.128 line MAP, 23.11.2026; the owner: "Najechanie na token myszka przez chwile dluzej niech pokazuje nazwe (imie
          * postaci, "?" Mordercy, nazwe projektu, nazwe remnanta)". The rule read on stand-in tokens, a viewer handed in (a GM,
          * the masked character's owner, another player). What the label must never do is tell more than the map draws: the
          * masked killer's actor name to another player; a trace's token name (here a real word on it, which no placed trace
@@ -69514,9 +69514,9 @@ const INVARIANTS = [
                 null, null, null, "Aoi Kirigaya", null, "Aoi Kirigaya", "Aoi Kirigaya", MASK_NAME, "Torn page", null, "Torn page"]),
             "[character to another player; masked to another, its owner, a GM; Foundry-hidden to a player, to a GM; not drawn; a body to a player, to a GM; a trace's neutral word, never its token's name, to a player and to a GM whose ledger has no row for it; a project through shownName; an NPC's token name; an empty name; Foundry's nameplate on hover or always: HOVER, ALWAYS, OWNER_HOVER to its owner and to another, OWNER to a GM and to another, CONTROL; a masked token's NONE keeps the module's mask; a GM-hidden trace to a holder of its bullet and to anyone else; a shown trace to a holder]");
     }],
-    ["R8872 - a hover's name waits HOVER_NAME.delayMs, goes on the hover's end, a press on the page or a change to its token, and is one aria-hidden element whose words are the rule's, put up nowhere for a token this browser does not draw (1.2.129 line MAP, E129; scripts/hover-name.mjs `onHoverToken`, `showHoverName`, `dropHoverName`, `registerHoverName`; config.mjs `HOVER_NAME`)", async () => {
+    ["R8872 - a hover's name waits HOVER_NAME.delayMs, goes on the hover's end, a press on the page or a change to its token, and is one aria-hidden element whose words are the rule's, put up nowhere for a token this browser does not draw (1.2.128 line MAP, E129; scripts/hover-name.mjs `onHoverToken`, `showHoverName`, `dropHoverName`, `registerHoverName`; config.mjs `HOVER_NAME`)", async () => {
         /*
-         * 1.2.129 line MAP, 23.11.2026, the owner's S0-HOVERNAME. The element and the timer on this page, a stand-in token
+         * 1.2.128 line MAP, 23.11.2026, the owner's S0-HOVERNAME. The element and the timer on this page, a stand-in token
          * (the harness draws no board; where the label lands on v14's is LIVE-129-MAP-04). The canvas's one call the label
          * needs, `clientCoordinatesFromCanvas`, is stood in for while the test runs when the harness's canvas lacks it, and put
          * back. The delay itself is the constant's, at least 300 ms so a pointer crossing the map names nothing; the test
@@ -69570,9 +69570,9 @@ const INVARIANTS = [
             JSON.stringify(["drpg-hover-name", "Aoi Kirigaya", "true", "120px", "65px", true, true, false, null, null, 0, true, null, false, false, false, false, "Aoi Kirigaya", "1050px", "500px", null, true]),
             "[the element: class, words, aria-hidden, left, top, held, on the page; dropped; none for a token not drawn; waiting, nothing yet; a hover's end; with captions on, no wait; a press, a change to its token stop it; after the wait the rule's words at the token's top centre; a pan takes it down; the delay between 300 and 1500 ms]");
     }],
-    ["R8873 - a token's caption is the hover's name under the token while this browser's captions are on: one PIXI text child, kept while its words, size and face stand, drawn anew on a change, taken off when the rule names nothing or captions are off (1.2.129 line MAP, E129; scripts/hover-name.mjs `drawCaption`, `captionsOn`; settings.mjs `tokenCaptions`; the owner's S0-HOVERNAME B)", async () => {
+    ["R8873 - a token's caption is the hover's name under the token while this browser's captions are on: one PIXI text child, kept while its words, size and face stand, drawn anew on a change, taken off when the rule names nothing or captions are off (1.2.128 line MAP, E129; scripts/hover-name.mjs `drawCaption`, `captionsOn`; settings.mjs `tokenCaptions`; the owner's S0-HOVERNAME B)", async () => {
         /*
-         * 1.2.129 line MAP, 23.11.2026; the owner: "Dodajmy ustawienie, domyslnie wlaczone, ktore zostawia tooltipy tokenow
+         * 1.2.128 line MAP, 23.11.2026; the owner: "Dodajmy ustawienie, domyslnie wlaczone, ktore zostawia tooltipy tokenow
          * jako podpis tokenu przesuwajacy sie razem z tokenem". On a stand-in token (the harness's PIXI Container, a
          * document handed on it), the viewer handed in: the caption's words are `hoverName`'s (R8871 holds the rule), so a
          * masked killer reads "?" to another player, Foundry's own nameplate on hover leaves none, a Foundry-hidden token
@@ -69614,7 +69614,7 @@ const INVARIANTS = [
             JSON.stringify(["Aoi Kirigaya", "none", 50, 104, "VT323", 1, true, 1, MASK_NAME, false, true, 1, "Aoi Kirigaya", null, 0, null, "Aoi Kirigaya", true, null, 0, true, true]),
             "[the caption: words, no pointer, under the token's centre, the face handed, one; the same inputs keep the same object; masked to another player: the mask, a new object, the old one gone, still one; to a GM the name; Foundry's nameplate on hover: none; Foundry-hidden: none to a player, the name to a GM; a face that arrived draws anew; captions off: none; the setting on by default]");
     }],
-    ["R8874 - what captions cost: on up to 16 of the suite world's tokens, every scene's, a first pass draws one caption per token the rule names, a second pass with nothing changed draws none and keeps every one (1.2.129 line MAP, E129; scripts/hover-name.mjs `drawCaption`, perf-counters.mjs `caption.drawn`, `caption.kept`; the coordinator's cost rule for S0-HOVERNAME B)", async () => {
+    ["R8874 - what captions cost: on up to 16 of the suite world's tokens, every scene's, a first pass draws one caption per token the rule names, a second pass with nothing changed draws none and keeps every one (1.2.128 line MAP, E129; scripts/hover-name.mjs `drawCaption`, perf-counters.mjs `caption.drawn`, `caption.kept`; the coordinator's cost rule for S0-HOVERNAME B)", async () => {
         /*
          * The coordinator's rule (23.11.2026): no new work at rest or per event beyond one text child per drawn token.
          * Scenario 86 reads every counter that moves around each of its events, and no caption counter moves there: the
@@ -69642,7 +69642,7 @@ const INVARIANTS = [
             JSON.stringify([named, 0, 0, named, named, named > 0 ? 1 : 0]),
             `[on ${docs.length} token(s), ${named} named - first pass: drawn one per named token, kept none; second pass: drawn none, kept every one; captions standing; at most one per token]`);
     }],
-    ["R8875 - the names on the map follow the interface scale: a caption's size and keyline are its theme's type factor times max(18, grid * 0.25) and max(4, grid * 0.0625), read off the body as the label's rung reads it, every caption is drawn again after uiScale changes and not after an unrelated setting, and both themes' label rules stand a quarter over their scaled rung (1.2.129 line MAP, E129; scripts/hover-name.mjs `captionScale`, `drawCaption`, `registerHoverName`; danganronpa.css, stained-glass.css `.drpg-hover-name`; the owner's word on the S0-HOVERNAME shots)", async () => {
+    ["R8875 - the names on the map follow the interface scale: a caption's size and keyline are its theme's type factor times max(18, grid * 0.25) and max(4, grid * 0.0625), read off the body as the label's rung reads it, every caption is drawn again after uiScale changes and not after an unrelated setting, and both themes' label rules stand a quarter over their scaled rung (1.2.128 line MAP, E129; scripts/hover-name.mjs `captionScale`, `drawCaption`, `registerHoverName`; danganronpa.css, stained-glass.css `.drpg-hover-name`; the owner's word on the S0-HOVERNAME shots)", async () => {
         /*
          * The owner, 23.11.2026: "Zatwierdzam screeny, ale powiekszmy lekko napisy. Niech skaluja sie tez z interface scaling".
          * The caption on a stand-in token at a type factor of 1 and of 1.25; `captionScale` reading Legacy's

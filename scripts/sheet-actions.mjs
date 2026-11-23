@@ -1271,7 +1271,7 @@ export function actionButton(actor, key, def) {
     const canBetray = key === "directMurder" && Boolean(betrayalTarget(actor));
 
     /*
-     * AND IN A CLASS TRIAL, TWO TILES (T-1, Dawid 17.09; Palm since 1.2.129, E129 S0-PALM).
+     * AND IN A CLASS TRIAL, TWO TILES (T-1, Dawid 17.09; Palm since 1.2.128, E129 S0-PALM).
      *
      * Analyze, and Palm (allowed-now.mjs `TRIAL_OPEN_ACTIONS`). The others are shut, Move included, and the reason the player
      * reads is the trial rather than the Eclipse - the same rule `performAction`

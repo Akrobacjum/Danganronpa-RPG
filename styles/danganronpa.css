@@ -18492,7 +18492,7 @@ body.drpg-theme-monokuma-legacy #notifications .notification.warning { border-le
 body.drpg-theme-monokuma-legacy #notifications .notification.error { border-left-color: var(--drpg-crimson); }
 body.drpg-theme-monokuma-legacy #notifications .notification.success { border-left-color: var(--drpg-evidence); }
 
-/* A token's name on a hover (1.2.129, S0-HOVERNAME; hover-name.mjs): one line over the token's top centre, in the page's
+/* A token's name on a hover (1.2.128, S0-HOVERNAME; hover-name.mjs): one line over the token's top centre, in the page's
    pixels, never under the pointer's reach (`pointer-events: none`) and under the windows. Dressed as the tooltip in each
    theme: Legacy here, the glass in stained-glass.css. Where it lands on v14's board is LIVE-129-MAP-04. */
 .drpg-hover-name {

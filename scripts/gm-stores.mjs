@@ -1198,7 +1198,7 @@ export const eavesdropStore = defineGmStore({
  * THE MASKS (E69 C8, 13.11.2026; the owner's 10.11 (c), the plan's C8). A row per killer behind a "?", keyed by the
  * killer's actor id: `{ killerId, victimId, userIds, mark, tokens, at }` - `userIds` the killer's owners, whose
  * microphone the mask blocks, `mark` the time of day it began in (it ends with it), `tokens` each masked token's
- * `{ sceneId, tokenId, look }`, what it looked like (mask-gm.mjs `lookOf`), written back at the end; since 1.2.129 `room`
+ * `{ sceneId, tokenId, look }`, what it looked like (mask-gm.mjs `lookOf`), written back at the end; since 1.2.128 `room`
  * and `sceneId`, where the killer stood as it went up, whose leaving ends it (mask-gm.mjs `maskLeftRoom`). Written, read and
  * dropped by the primary alone (mask-gm.mjs); synced, so a new primary ends it; backed up. Cut by the reset's "actions"
  * group. No player copy - a player reads only the token's flag, which names nobody - and no old key.

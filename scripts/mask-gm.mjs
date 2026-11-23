@@ -27,7 +27,7 @@
  *     bridge road `mask.reveal`.
  *
  * WHEN IT ENDS: the reveal, or a new time of day (`drpgTimeOfDayChanged`), whichever comes first; the season's reset cuts
- * the store; and, since 1.2.129, the incident's end, whoever died, and the killer leaving the room the mask went up in
+ * the store; and, since 1.2.128, the incident's end, whoever died, and the killer leaving the room the mask went up in
  * (`endMasksAtClose`, `maskLeftRoom`). Until then the incident's own end did not end it (a default,
  * docs/dev/e69/STATUS.md); the owner, at the table of 22.11.2026: "po przerwaniu morderstwa morderca dalej mial ? i
  * wyciszenie (modul nie ujawnil go automatycznie)", and on 23.11: "Zawsze zdejmujemy maske na koniec incydentu
@@ -260,7 +260,7 @@ export async function maskKiller(state) {
         return n > 0;
     }
     const tokens = tokensOf(killer).map(({ scene, token }) => ({ sceneId: scene.id, tokenId: token.id, look: lookOf(token) }));
-    // The room the mask goes up in, the crime room: leaving it ends the mask (1.2.129, `maskLeftRoom`).
+    // The room the mask goes up in, the crime room: leaving it ends the mask (1.2.128, `maskLeftRoom`).
     const { locateActor } = await import("./movement.mjs");
     const at = locateActor(killer);
     await maskStore.patch(killer.id, { killerId: killer.id, victimId: state.victimId ?? null, userIds: ownersOf(killer),
@@ -293,13 +293,13 @@ function maskFailed(actor, err) {
 }
 
 /**
- * THE MASKS OF AN INCIDENT THAT ENDED (1.2.129, S0-MASKLEFT; the owner, 23.11.2026: "Zawsze zdejmujemy maske na koniec
+ * THE MASKS OF AN INCIDENT THAT ENDED (1.2.128, S0-MASKLEFT; the owner, 23.11.2026: "Zawsze zdejmujemy maske na koniec
  * incydentu morderstwa (po sprzataniu) lub po opuszczeniu pokoju"). On the primary, after the close's wipe
  * (murder-rules.mjs `closeIncident`): every one of `killerIds` whose mask stands is ended (`endMask`, "incidentEnd"),
  * whoever died - a dead killer's too, the owner deciding it knowing that its "?" comes off a body nobody has found (the
  * line's report says what that shows). Not a killer an incident running now names: the close of one incident does not
  * end the mask of the next. A second GM's close asks the primary (`mask.veil`, "unmask"), held there to its own rows,
- * whatever the packet names. Answers how many masks ended. Tier 2 "1.2.129 S0-MASKLEFT".
+ * whatever the packet names. Answers how many masks ended. Tier 2 "1.2.128 S0-MASKLEFT".
  *
  * QUIET WHEN THE INCIDENT IS ABANDONED (1.2.128, the coordinator's bisect of 23.11.2026: tier 2 "a reset abandons an
  * incident" red at 54769b4c, one card posted for the stab). The season reset abandons an incident (`conclude: false`),
@@ -320,10 +320,10 @@ export async function endMasksAtClose(killerIds = [], { quiet = false } = {}) {
 }
 
 /**
- * AND WHEN THE KILLER LEAVES THE ROOM (1.2.129, the owner's same answer: "lub po opuszczeniu pokoju"). The row keeps the
+ * AND WHEN THE KILLER LEAVES THE ROOM (1.2.128, the owner's same answer: "lub po opuszczeniu pokoju"). The row keeps the
  * room and scene the killer stood in as the mask went up (`maskKiller`: the crime room); on the primary, a write that
  * moves one of that killer's tokens to another room or scene ends the mask (`endMask`, "leftRoom"). A row from before
- * 1.2.129 names no room and is left to the incident's end. Answers whether it ended one.
+ * 1.2.128 names no room and is left to the incident's end. Answers whether it ended one.
  */
 export async function maskLeftRoom(tokenDoc) {
     if (!game.user?.isGM || !isPrimaryGm()) return false;
@@ -360,7 +360,7 @@ export async function endMask(killerId, why = "end") {
     // And the Monocubs' bets and the Bounty on them name them again (monocub.mjs `forgetMaskedTarget`, 1.2.121).
     if (why === "reveal") await import("./monocub.mjs").then(m => m.forgetMaskedTarget(killerId)).catch(err => error("Could not let the Monocubs' rows name a revealed killer", err));
     if (why === "timeOfDay" && killer) await whisperToOwnerOnly(killer, { glyph: "ACTIONS.listen", body: `<p>${esc(game.i18n.localize("DRPG.Mask.ended"))}</p>` }, { veiled: true });
-    // The incident ended, or the killer left its room (1.2.129, `endMasksAtClose`, `maskLeftRoom`): told, as at a time of day.
+    // The incident ended, or the killer left its room (1.2.128, `endMasksAtClose`, `maskLeftRoom`): told, as at a time of day.
     const said = { incidentEnd: "DRPG.Mask.endedIncident", leftRoom: "DRPG.Mask.endedLeftRoom" }[why];
     if (said && killer) await whisperToOwnerOnly(killer, { glyph: "ACTIONS.listen", body: `<p>${esc(game.i18n.localize(said))}</p>` }, { veiled: true });
     log(`${killer?.name ?? killerId} is no longer behind a "?" (${why}).`);
@@ -701,7 +701,7 @@ export async function veilOnPrimary({ what, killerIds = [] } = {}) {
     if (what === "lift") return { lifted: declared.length ? await liftAtTheLights(declared[0]) : false };
     if (what === "judged") return { settled: Boolean(await lightsJudged()) };
     if (what === "settle") return { settled: Boolean(await settleVeils()) };
-    // A second GM's close of an incident (1.2.129): held to the primary's own rows (`endMasksAtClose`).
+    // A second GM's close of an incident (1.2.128): held to the primary's own rows (`endMasksAtClose`).
     if (what === "unmask" || what === "unmaskQuiet") return { ended: await endMasksAtClose(killerIds, { quiet: what === "unmaskQuiet" }) };
     return null;
 }
@@ -881,7 +881,7 @@ export function registerMasks() {
     Hooks.on("updateSetting", setting => { if (setting?.key === `${MODULE_ID}.${SETTINGS.murderState}`) settle(); });
     Hooks.once("ready", settle);
     Hooks.on("userConnected", (user, connected) => { if (!connected && user?.isGM) settle(); });
-    // A killer's token moved out of the room its mask went up in ends the mask (1.2.129, `maskLeftRoom`), on the primary.
+    // A killer's token moved out of the room its mask went up in ends the mask (1.2.128, `maskLeftRoom`), on the primary.
     Hooks.on("updateToken", (tokenDoc, change) => {
         if (!isPrimaryGm() || !change || !("x" in change || "y" in change || "level" in change) || !maskStore.get(tokenDoc?.actorId ?? "")) return;
         maskLeftRoom(tokenDoc).catch(err => error("Could not end the mask of a killer who left the room", err));

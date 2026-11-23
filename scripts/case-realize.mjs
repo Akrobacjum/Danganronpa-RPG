@@ -51,7 +51,7 @@ export function realizationLines({ plan, status, limit }) {
 /*
  * EVERY PLANNED REMNANT, NOT ONLY THE KEYS (the owner's notes of session 0, 23.11.2026, S0-REALIZE: "realization niech
  * zawiera opcje rozdania i ustawienia wszystkich remnantow zaplanowanych, albo samych key (jak teraz)"; line INVEST of
- * 1.2.129). The case's planned nodes the Map's Place gives one by one (investigation.mjs `placeIncident`): an incident
+ * 1.2.128). The case's planned nodes the Map's Place gives one by one (investigation.mjs `placeIncident`): an incident
  * Remnant and a Final Truth not yet on the map (no `trace`), placed in the room picked (the plan's own first); a planned
  * Truth Bullet not yet given (no `given`), given to its planned recipient, or to Everyone. Each by the road its Place
  * takes, with no window: New Remnant's Create (`createTraceNow`), the Final Truth form's (`placeFinalRemnant`), Give's

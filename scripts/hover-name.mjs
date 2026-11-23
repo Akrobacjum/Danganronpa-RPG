@@ -1,7 +1,7 @@
 /**
  * Danganronpa RPG - a token's name, shown when the pointer rests on it.
  * ---------------------------------------------------------------------------
- * S0-HOVERNAME (1.2.129 line MAP, stage E129; released in 1.2.128; the owner after session 0, 23.11.2026: "Najechanie
+ * S0-HOVERNAME (1.2.128 line MAP, stage E129; released in 1.2.128; the owner after session 0, 23.11.2026: "Najechanie
  * na token myszka przez chwile dluzej niech pokazuje nazwe (imie postaci, "?" Mordercy, nazwe projektu, nazwe
  * remnanta)"). The coordinator's defaults of that day, put to the owner:
  *

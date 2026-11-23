@@ -218,7 +218,7 @@ export function caseMetaOf(raw) {
         // E97 C10: what a realization placed, by the Remnant's key: `{ run, slot }`
         made: Object.fromEntries(Object.entries(isPlain(row.made) ? row.made : {})
             .filter(([, v]) => isPlain(v) && typeof v.run === "string" && v.run && (Number.isInteger(v.slot) || (typeof v.node === "string" && v.node)))
-            // `node` (line INVEST of 1.2.129, S0-REALIZE): a planned node's Remnant or Truth Bullet, not a Key slot
+            // `node` (line INVEST of 1.2.128, S0-REALIZE): a planned node's Remnant or Truth Bullet, not a Key slot
             .map(([k, v]) => [k, Number.isInteger(v.slot) ? { run: v.run, slot: v.slot } : { run: v.run, node: v.node }])),
         // 13.11.2026: how many Autopsies the chapter plans (null: the preset), and when each planned one went out
         autopsies: atBodyOf(row.autopsies),

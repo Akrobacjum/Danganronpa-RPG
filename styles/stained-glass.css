@@ -2416,7 +2416,7 @@ body.drpg-theme-stained-glass :is(#tooltip, .drpg-hover-name) {
     color: var(--drpg-sg-bone);
     clip-path: polygon(5px 0, 100% 0, 100% calc(100% - 5px), calc(100% - 5px) 100%, 0 100%, 0 5px);
 }
-/* A token's name on a hover (1.2.129, S0-HOVERNAME; hover-name.mjs; its place is danganronpa.css's): the tooltip's glass,
+/* A token's name on a hover (1.2.128, S0-HOVERNAME; hover-name.mjs; its place is danganronpa.css's): the tooltip's glass,
    from the rule above, and the floor's type. */
 body.drpg-theme-stained-glass .drpg-hover-name {
     font-family: var(--drpg-font-chrome);

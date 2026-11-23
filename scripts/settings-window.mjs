@@ -94,14 +94,14 @@ import { volumeSliders, wireVolumeSliders } from "./sfx.mjs";
  */
 const section = (place, key, icon, keys) => Object.freeze({ key, icon, place, keys: Object.freeze(keys) });
 export const CLIENT_SECTIONS = Object.freeze([
-    // "tokenCaptions" (1.2.129 line MAP, S0-HOVERNAME B): the tokens' names as captions on the map, on by default.
+    // "tokenCaptions" (1.2.128 line MAP, S0-HOVERNAME B): the tokens' names as captions on the map, on by default.
     section("client", "look", "fa-image", ["language", "theme", "uiScale", "hudTicker", "wideProjectWindows", "tokenCaptions"]),
     section("client", "effects", "fa-wand-magic-sparkles", ["pixelFont", "glassPulse", "glassBlur", "reducedMotion", "highContrast"]),
     section("client", "sound", "fa-volume-high", ["messengerSound"]),
     section("client", "tech", "fa-screwdriver-wrench", ["debug"])
 ]);
 export const GAME_SECTIONS = Object.freeze([
-    // "trialVoicesFree" (E129 S0-NOMUTE, 1.2.129): the Class Trial's forced muting switched off, beside the voice rows.
+    // "trialVoicesFree" (E129 S0-NOMUTE, 1.2.128): the Class Trial's forced muting switched off, beside the voice rows.
     section("game", "audio", "fa-headset", ["voiceEnabled", "voiceTile", "trialVoicesFree"]),
     section("game", "rules", "fa-scale-balanced", ["searchTokensPerRoom", "despairFromRolls", "chargeMovement", "friskForce", "autoApproveTraits", "moveAudit", "balanceLog"]),
     section("game", "privacy", "fa-user-secret", ["forcePrivateRolls", "forceDiceLook", "lockRollDialog", "enforceAnonymity", "roomVisibility", "lockPlayerResources"]),

@@ -369,7 +369,7 @@ body .application.drpg-window-newtrace .drpg-wide-col label > :is(select, .drpg-
 .drpg-case-summary-links { margin-top: 0.5rem; font-size: var(--drpg-kit-help-size); }
 .drpg-case-summary-note { margin: 0.5rem 0 0; font-size: var(--drpg-kit-help-size); color: var(--drpg-kit-help-ink); }
 .application.drpg-window-case-realize table.drpg-case-realize select { width: 100%; min-width: 0; }
-/* The planned rows (S0-REALIZE, line INVEST of 1.2.129) carry a kind and a name the GM wrote: held on one line, under
+/* The planned rows (S0-REALIZE, line INVEST of 1.2.128) carry a kind and a name the GM wrote: held on one line, under
    Monokuma Legacy at 1366x768 they pushed the Room column out of the 720 px window (Chromium, 23.11.2026); the cells
    of the kind and the name wrap instead; the action and the room stay on one line. Through the panels' own chain: danganronpa.css `.application.dialog:is(.drpg-panel,
    .drpg-advance) .dialog-content :is(th, td)` (0,4,1) holds them on one line. */
@@ -4152,7 +4152,7 @@ body .application.drpg-window-panel .drpg-gm-panel .drpg-gmp-standing > :is(.drp
    so they take the panel's width in both themes. R5721. */
 body .application.drpg-window-panel .drpg-gm-panel :is(.drpg-gmp-standing > p, p.drpg-gmp-version) { max-width: none; }
 
-/* THE ROSTER AT THE TOP (1.2.129, S0-GMLIST; the owner after session 0: "przywrocmy liste akcji i ruchow graczy do glownej
+/* THE ROSTER AT THE TOP (1.2.128, S0-GMLIST; the owner after session 0: "przywrocmy liste akcji i ruchow graczy do glownej
    zakladki gm panel na gorze"). gm-panel.mjs `rosterTableHtml`, a kit table (`dataTable`): a row per acting student, its
    actions and its moves. A student with nothing left to spend is dimmed as the table of 1.2.104 dimmed it, at .55; the
    extras ("+N" bought or banked) in the cell's own ink. Space under it before the campaign's name. */

@@ -43,7 +43,7 @@ import { nameAsSeen, seenHere } from "./mask-gm.mjs";
  * and which lists the people in a list box (`listBox`, the mockup's choice of 14.10.2026) where a
  * handover keeps its drop-down.
  */
-/* `extra` (line INVEST of 1.2.129): more of the form under the picker, and `read(form)` what it says - the answer is then
+/* `extra` (line INVEST of 1.2.128): more of the form under the picker, and `read(form)` what it says - the answer is then
    `{ target, ...read(form) }` instead of the id, so the Share can ask whether to carry its Analyze result. */
 export async function askWhoIsHere(actor, { title, intro, note, okLabel, listBox = false, extra = "", read = null }) {
     // The phase: allowed-now.mjs's `handover` road (E40, the line claude/e40-117) - the Eclipse.
@@ -149,12 +149,12 @@ function askRecipient(actor, item, { copying, extra = "", read = null }) {
 /** Copy one of my Truth Bullets to somebody in this room. Costs nothing. */
 /*
  * WITH THE ANALYZE RESULT OR WITHOUT IT (the owner's notes of session 0, 23.11.2026, S0-ANSHARE: "wybor czy udostepniac z
- * analyze czy bez"; line INVEST of 1.2.129). A Truth Bullet that holds a reading (`hasReading`: analysed, or a Key's or a
+ * analyze czy bez"; line INVEST of 1.2.128). A Truth Bullet that holds a reading (`hasReading`: analysed, or a Key's or a
  * Final's kind with its words) asks, as a Present asks (trial.mjs, "Show it with my Analyze result"): ticked, the copy is
  * born with the giver's reading, as every Share was until now; unticked, as the bullet was before any Analyze - its
  * unanalysed type, not read - the reading left in its answer key for the receiver's own Analyze (`mintCopy`'s
  * `analysis`). The box starts as `SHARE_WITH_ANALYSIS` says (config.mjs). A bullet with no reading asks nothing.
- * Tier 2 "1.2.129 S0-ANSHARE".
+ * Tier 2 "1.2.128 S0-ANSHARE".
  */
 export async function shareBulletDialog(actor, item) {
     if (!isTruthBullet(item)) return false;

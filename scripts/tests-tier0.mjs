@@ -2859,7 +2859,7 @@ const REGRESSIONS = [
            the whole function, and the exemption read anywhere in it would hold after it
            moved below the dispatch while another "classTrial" kept `gate` above. */
         const rule = bodyOf(stripComments(await fetch(`/modules/${MODULE_ID}/scripts/allowed-now.mjs`).then(lfText)), "    action: (key, f) => {", { until: "\n    },\n" });
-        // Analyze and, since 1.2.129, Palm (E129 S0-PALM): the table allowed-now.mjs `TRIAL_OPEN_ACTIONS`, read as the press reads it.
+        // Analyze and, since 1.2.128, Palm (E129 S0-PALM): the table allowed-now.mjs `TRIAL_OPEN_ACTIONS`, read as the press reads it.
         const { TRIAL_OPEN_ACTIONS } = await import("./allowed-now.mjs");
         ok(/!TRIAL_OPEN_ACTIONS\.includes\(key\) && f\.trial\(\)/.test(rule) && TRIAL_OPEN_ACTIONS.includes("analyze"), "the trial's rule no longer keeps Analyze open, which is the one tile it must");
         ok(rule.indexOf("f.fighting()) return shut") > 0 && rule.indexOf("f.fighting()) return shut") < rule.indexOf("!TRIAL_OPEN_ACTIONS.includes(key) && f.trial()"),
@@ -9200,7 +9200,7 @@ const REGRESSIONS = [
             ["PACKET gm-bridge.mjs#handover.bullet#fromId", "judged: knownSender + owns(fromId) (E29 handover)"],
             ["PACKET gm-bridge.mjs#handover.bullet#toId", "judged: handover's verify - a living recipient in the giver's room"],
             ["PACKET gm-bridge.mjs#handover.bullet#itemId", "judged: handover's verify - an item of the giver's; the copy is written from bulletAsHeld (shareBullet)"],
-            ["PACKET gm-bridge.mjs#handover.bullet#analysis", "judged: the giver's own choice of what their copy carries (S0-ANSHARE, 1.2.129) - false mints the copy without the reading (mintCopy analysis false), anything else with it; it gives the recipient nothing the giver's bullet does not hold"],
+            ["PACKET gm-bridge.mjs#handover.bullet#analysis", "judged: the giver's own choice of what their copy carries (S0-ANSHARE, 1.2.128) - false mints the copy without the reading (mintCopy analysis false), anything else with it; it gives the recipient nothing the giver's bullet does not hold"],
             ["PACKET gm-bridge.mjs#murder.cleanup#actorId", "judged: knownSender + owns(actorId); the !viaAction && !isCleaner branch (cleanup.mjs resolveCleanup, resolveStageSix: blockedOnGm) whispers blocked.* to the owner and gives the price back (C11)"],
             ["PACKET gm-bridge.mjs#murder.cleanup#tokenId", "judged: resolveCleanup finds the trace in the cleaner's room or refuses; C9 keeps the reshape off held copies, C10 keys the proposal's attempt row by it"],
             ["PACKET gm-bridge.mjs#murder.cleanup#key", "judged: resolveCleanup's road table; E09 adds no read"],
@@ -10133,7 +10133,7 @@ const REGRESSIONS = [
             ["HOOK crossing-settle.mjs#onTokenStood#updateToken:inline", "judged on the primary GM: a character's token that moved by any road and stood `SETTLE_MS` is handed to the barricades and the passes (doors-gm.mjs `barricadesLeftBy`, lockpick-gm.mjs `passLeftBy`), which read where it stands through `locateActor` and end what its author or holder left; writes only those GM rows and the barricade's public flag; no player is told (1.2.122, STG-08 and STG-09)"],
             ["HOOK body-tile.mjs#registerBodyFollow#updateToken:inline", "judged: a GM's own write followed (E63 C1, `followBody`): on the GM browser that wrote the token's move alone, for a corpse, the body's tile on the token's own scene takes the token's corner, height, floor and hidden; a player's move of a corpse is vetoed before it writes (movement.mjs `isCorpse`)"],
             ["HOOK camera-view.mjs#registerCameraView#updateToken:inline", "out of scope as a judge: a display - the camera dock's name plates read again on this browser when a token's veil or mask flag moves (camera-view.mjs `onTokenChange`, 1.2.121 COMM-20); writes nothing, and no move is read"],
-            ["HOOK mask-gm.mjs#registerMasks#updateToken:inline", "judged on the primary GM: a masked killer's token moved out of the room its mask went up in ends the mask (mask-gm.mjs `maskLeftRoom`, 1.2.129 S0-MASKLEFT); the row and the room are the primary's own, nothing of the write is taken on its word"],
+            ["HOOK mask-gm.mjs#registerMasks#updateToken:inline", "judged on the primary GM: a masked killer's token moved out of the room its mask went up in ends the mask (mask-gm.mjs `maskLeftRoom`, 1.2.128 S0-MASKLEFT); the row and the room are the primary's own, nothing of the write is taken on its word"],
             ["HOOK anonymity.mjs#registerAnonymity#updateToken:inline", "out of scope as a judge: a display - an open body's loot window reads the one gate again on this browser when its taker's or its body's token is written (`regreyOpenLoot`, E14 fix e1-G6); writes nothing, and the GMs judge the loot again"],
             ["HOOK sheet.mjs#registerSheetTweaks#updateToken:inline", "a claim, judged again: the mover's browser reads its own move at rest (movement.mjs `tunnelStepTarget`) and asks the primary as 'Go through' does (`passage.cross`, passages-gm.mjs `crossTunnel`, H81-13); writes nothing"],
             ["HOOK sheet.mjs#registerSheetTweaks#updateRegion:inline", "out of scope as a judge: a room's region written redraws the open character sheets on its scene (the room watch, sheet-inventory.mjs `redrawRoomSheets`; 1.2.122 line UI, the audit of 1.2.118, REFR-12); vetoes nothing and writes nothing"],
@@ -10404,14 +10404,14 @@ const REGRESSIONS = [
             ["SHEET settings.mjs#isDeadForGm", "not a source: the GM's own death record (settings.mjs `isDeadForGm`), not a player's flag"],
             ["SHEET monocub.mjs#isMonocub", "out of scope as a judgement: reads the flag of the actor it is handed; since E13 C3b the gather's filter and `leftBehind` hand it the held flags on the return from the trial (`flagsHeldNow`, after `judgedFor`), and the body's gather and every other reader hand the document, as before (the owner's item 6 of 10.10). C2 reads no Monocub flag: under Q-E13-1 (a) a Monocub a player owns is shown as any student a player owns (`readCast` reads only `monokuma`, held) [1b.2]"],
             ["HOOK diagnostics.mjs#canvasReady#canvasDrawn", "out of scope: times this client's own scene change for perf() and keeps the number in memory (E53 C1, perf-timings.mjs); it writes nothing and decides no rule [1b.1 which scene a client views]"],
-            ["HOOK context-loss.mjs#canvasReady#arrow1", "out of scope: watches this client's own board canvas for a lost drawing context and writes it to this browser's failure log and a card to the GMs (1.2.129, S0-WHITE); it writes no world document and decides no rule [1b.1 which scene a client views]"],
+            ["HOOK context-loss.mjs#canvasReady#arrow1", "out of scope: watches this client's own board canvas for a lost drawing context and writes it to this browser's failure log and a card to the GMs (1.2.128, S0-WHITE); it writes no world document and decides no rule [1b.1 which scene a client views]"],
             ["HOOK despair.mjs#canvasReady#arrow1", "out of scope: draws for this client only; the scene a client views decides no rule (E12 C6 `CAMERA_READERS`) [1b.1 which scene a client views]"],
             ["HOOK fog.mjs#canvasReady#arrow1", "out of scope: draws for this client only; the scene a client views decides no rule (E12 C6 `CAMERA_READERS`) [1b.1 which scene a client views]"],
             ["HOOK sheet.mjs#preUpdateToken#noteStepStart", "out of scope: notes where this browser's own move starts (H81-13); the courtroom holds no tunnel, and the crossing is the primary's (`crossTunnel`)"],
             ["HOOK crossing-settle.mjs#updateToken#arrow1", "judged on the primary GM: a character's token that moved by any road and stood `SETTLE_MS` is handed to the barricades and the passes (doors-gm.mjs `barricadesLeftBy`, lockpick-gm.mjs `passLeftBy`), which read where it stands through `locateActor` and end what its author or holder left; writes only those GM rows and the barricade's public flag; no player is told (1.2.122, STG-08 and STG-09)"],
             ["HOOK body-tile.mjs#updateToken#arrow1", "judged: the body follows its corpse's token (E63 C1, `followBody`) on the GM browser that wrote the move alone; a token on another scene than its tile moves nothing, so a hall token in the trial moves no school body, and the trial's end takes every body tile (E63 C2)"],
             ["HOOK camera-view.mjs#updateToken#arrow1", "out of scope: a display - the camera dock's name plates read again on a token write that moves a veil or a mask flag (`onTokenChange`, 1.2.121 COMM-20); writes nothing; no trial rule reads it"],
-            ["HOOK mask-gm.mjs#updateToken#arrow1", "judged on the primary GM: a masked killer's token that left the room its mask went up in ends the mask (`maskLeftRoom`, 1.2.129 S0-MASKLEFT); it moves no token into or out of a trial room"],
+            ["HOOK mask-gm.mjs#updateToken#arrow1", "judged on the primary GM: a masked killer's token that left the room its mask went up in ends the mask (`maskLeftRoom`, 1.2.128 S0-MASKLEFT); it moves no token into or out of a trial room"],
             ["HOOK anonymity.mjs#updateToken#arrow1", "out of scope: a display - an open body's loot window reads the one gate again on a token write of its taker or its body (E14 fix e1-G6); writes nothing; in the hall the Class Trial refuses every loot (`cannotNow`)"],
             ["HOOK sheet.mjs#updateToken#arrow1", "out of scope: a move onto a tunnel's end asks the primary as 'Go through' does (H81-13); the courtroom holds no tunnel, and the Class Trial refuses one there (`trialLocked`)"],
             ["HOOK sheet.mjs#updateToken#arrow2", "out of scope: a token's move redraws the open character sheets whose room parts it moved (the room watch, sheet-inventory.mjs `redrawRoomSheets`; 1.2.122 line UI, the audit of 1.2.118, REFR-12); vetoes nothing and writes nothing"],
@@ -11603,7 +11603,7 @@ const REGRESSIONS = [
             ["HOOK fog.mjs#registerFog#createToken/inline -> judge", "this file's own: this browser's discovery mirror; E79 adds no road through it; since E51 C3 also the arrival of a token of this viewer's placed in a room (`ownArrival`), on this browser's screen alone"],
             ["HOOK crossing-settle.mjs#onTokenStood#updateToken/inline -> judge", "this file's own (1.2.122, STG-08 and STG-09): a character's token that moved by any road and stood `SETTLE_MS` is handed to the barricades and the passes (doors-gm.mjs `barricadesLeftBy`, lockpick-gm.mjs `passLeftBy`), which read where it stands through `locateActor` and end what its author or holder left; writes only those GM rows and the barricade's public flag; no player is told (1.2.122, STG-08 and STG-09); no passage road through it"],
             ["HOOK body-tile.mjs#registerBodyFollow#updateToken/inline -> judge", "this file's own (E63 C1: the body follows its corpse on the mover's GM browser); E79 adds no road through it"],
-            ["HOOK mask-gm.mjs#registerMasks#updateToken/inline -> judge", "this file's own (1.2.129 S0-MASKLEFT): a masked killer leaving the crime room ends the mask on the primary (`maskLeftRoom`); it opens or crosses no passage"],
+            ["HOOK mask-gm.mjs#registerMasks#updateToken/inline -> judge", "this file's own (1.2.128 S0-MASKLEFT): a masked killer leaving the crime room ends the mask on the primary (`maskLeftRoom`); it opens or crosses no passage"],
             ["HOOK spectator-dead.mjs#registerDeadSpectator#createToken/inline -> judge", "this file's own (E62 C3b): the curtain's hook and the Death fade on the dead student's browser; E79 adds no road through it"],
             ["HOOK hide.mjs#registerHides#createToken/inline -> judge", "this file's own (S0-HIDE, E129): a token made while its character hides is flagged on the primary; no passage road through it"],
             ["HOOK hide.mjs#registerHides#updateToken/inline -> judge", "this file's own (S0-HIDE, E129): a player's own token redrawn, its hide read for the voice tile; no passage road through it"],
@@ -18510,7 +18510,7 @@ const REGRESSIONS = [
             // A placeable's draw and refresh, as `refreshToken` is (E95 C3: body-tile.mjs draws the body's mark on its tile; since
             // 13.11.2026 the caption on the corpse's token, `drawToken`, and the tile's hooks only take an old mark off).
             "drawTile", "refreshTile", "drawToken",
-            // A token under the pointer (1.2.129, S0-HOVERNAME: hover-name.mjs puts its name up after a wait).
+            // A token under the pointer (1.2.128, S0-HOVERNAME: hover-name.mjs puts its name up after a wait).
             "hoverToken",
             "getUserContextOptions", "getChatMessageContextOptions", "getActorContextOptions",
             ...DOCS.flatMap(d => ["preCreate", "create", "preUpdate", "update", "preDelete", "delete"].map(e => `${e}${d}`)),
@@ -24447,8 +24447,8 @@ const REGRESSIONS = [
             sections: [["look", "client", 6, true], ["effects", "client", 5, true], ["sound", "client", 1, true], ["tech", "client", 1, true],
                 // The r112 merge (13.11.2026): E101's sections and 1.2.109's `sequences` in gm, where 1.2.109 put it.
                 // E53 C3: `balanceLog`, the balance log's switch, born in the rules section (no Foundry list showed it).
-                // E129 S0-NOMUTE (1.2.129): `trialVoicesFree`, the Class Trial's forced muting switched off, born in audio.
-                // E129 S0-HOVERNAME B (1.2.129 line MAP): `tokenCaptions`, the tokens' names as captions, born in look.
+                // E129 S0-NOMUTE (1.2.128): `trialVoicesFree`, the Class Trial's forced muting switched off, born in audio.
+                // E129 S0-HOVERNAME B (1.2.128 line MAP): `tokenCaptions`, the tokens' names as captions, born in look.
                 ["audio", "game", 3, true], ["rules", "game", 7, true], ["privacy", "game", 6, true], ["gm", "game", 3, true], ["foundry", "game", 7, true]],
             // E61 C1 (12.11.2026): `sequences`, the table's switch for the sequences, a world setting born in this window
             // E57 C3 (D34): `documentLanguage` in gm, beside them.

@@ -1,5 +1,5 @@
 /**
- * S0-GMLIST (1.2.129): the owner's screenshots of the GM panel's roster, from capture.mjs's captures. Each capture is
+ * S0-GMLIST (1.2.128): the owner's screenshots of the GM panel's roster, from capture.mjs's captures. Each capture is
  * drawn by audit/style-harness.html (`?w=<id>`, as the style sweep draws every captured window, under the module's
  * stylesheets), its /audit/windows/ reads routed to the captures' folder, so nothing committed is read or written; the
  * picture is the panel alone (its element's box), deviceScaleFactor 2, Stained Glass and Monokuma Legacy, at 1920x1080
