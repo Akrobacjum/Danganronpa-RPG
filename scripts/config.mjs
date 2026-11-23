@@ -3299,6 +3299,17 @@ export const REMNANT_ALPHA = Object.freeze({ player: 0.5, gmShown: 1, gmHidden: 
  */
 export const HOVER_NAME = Object.freeze({ delayMs: 600 });
 
+/*
+ * A CAPTION'S SIZE PER THEME (1.2.129 line MAP, stage E129; the owner's "powiekszmy lekko napisy", 23.11.2026, and the
+ * coordinator's default of that day: under the glass the caption at 1920x1080 and 100% reads at least as large as
+ * Legacy's). hover-name.mjs `drawCaption` multiplies its base, max(18, grid * 0.25) times the interface scale, by the
+ * theme's own. Measured in Chromium on "Aoi Kirigaya" (docs/dev/owner129/map/caption-sheet.html, 23.11.2026): Legacy's
+ * DRPG Pixel at 25 px is 300 px wide with an x-height of 19; the glass's VT323 at its 21 px (25 times the screen term
+ * 0.85) was 101 wide with an x-height of 9. VT323's x-height is about 0.42 of its size, so the glass takes 2.2: 47 px at
+ * 1080p and 100%, an x-height of 20, 226 px wide (VT323 is narrow: the width stays under Legacy's).
+ */
+export const CAPTION_FACE = Object.freeze({ legacy: 1, glass: 2.2 });
+
 export const PROJECT_GLYPHS = {
     hourglass: { label: "Hourglass", fa: "fa-hourglass" },
     checklist: { label: "Checklist", fa: "fa-list-check" },
@@ -5826,6 +5837,7 @@ export const DRPG = {
     PROJECT_GLYPHS,
     REMNANT_ALPHA,
     HOVER_NAME,
+    CAPTION_FACE,
     PROJECT_TOKEN,
     isProjectGlyph,
     PROJECT_DESCRIPTION_MAX,

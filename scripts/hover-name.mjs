@@ -35,7 +35,7 @@
  * lands on v14's board is LIVE-129-MAP-04.
  */
 
-import { MODULE_ID, HOVER_NAME } from "./config.mjs";
+import { MODULE_ID, HOVER_NAME, CAPTION_FACE } from "./config.mjs";
 import { nameAsSeen, isMaskedToken } from "./mask-gm.mjs";
 import { isCorpseToken } from "./movement.mjs";
 import { projectIdOf } from "./projects-map.mjs";
@@ -224,7 +224,8 @@ export function captionStyle({ doc = globalThis.document } = {}) {
     const scale = captionScale({ doc });
     const key = `${body?.className ?? ""}|${scale}`;
     if (styleMemo.style && styleMemo.key === key) return styleMemo.style;
-    const style = { family: "sans-serif", fill: 0xeeeeee, stroke: 0x07070a, scale };
+    const glass = Boolean(body?.classList?.contains?.("drpg-theme-stained-glass"));
+    const style = { family: "sans-serif", fill: 0xeeeeee, stroke: 0x07070a, scale, size: glass ? CAPTION_FACE.glass : CAPTION_FACE.legacy };
     try {
         const probe = doc.createElement("div");
         probe.className = HOVER_NAME_CLASS;
@@ -273,7 +274,9 @@ export function drawCaption(token, { on = captionsOn(), user = game.user, style 
     const h = Number(token.h) || (Number(doc?.height) || 1) * grid;
     const face = text ? (style ?? captionStyle()) : null;
     const scale = Number(face?.scale) > 0 ? Number(face.scale) : 1;
-    const key = text ? JSON.stringify([text, w, h, grid, face.family, face.fill, face.stroke, face.ready !== false, scale]) : null;
+    // The theme's own size (config.mjs `CAPTION_FACE`): its face's letters at the size Legacy's read.
+    const size = Number(face?.size) > 0 ? Number(face.size) : 1;
+    const key = text ? JSON.stringify([text, w, h, grid, face.family, face.fill, face.stroke, face.ready !== false, scale, size]) : null;
     const old = (token.children ?? []).filter(c => c?.name === CAPTION_NAME && !c.destroyed);
     const kept = key ? (old.find(c => c.drpgKey === key) ?? null) : null;
     for (const c of old) {
@@ -291,7 +294,7 @@ export function drawCaption(token, { on = captionsOn(), user = game.user, style 
         fontFamily: face.family,
         // A quarter larger than first drawn (the owner's "powiekszmy lekko", 23.11.2026: 14 / 0.2 / 3 / 0.05), and the
         // interface scale on both, as the label's type rides it (`captionScale`).
-        fontSize: Math.round(Math.max(18, grid * 0.25) * scale),
+        fontSize: Math.round(Math.max(18, grid * 0.25) * scale * size),
         fill: face.fill,
         stroke: face.stroke,
         strokeThickness: Math.max(1, Math.round(Math.max(4, grid * 0.0625) * scale)),

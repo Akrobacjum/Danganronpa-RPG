@@ -69541,6 +69541,11 @@ const INVARIANTS = [
         const at = scale => H.drawCaption(token, { on: true, user: { isGM: false, id: "o" }, style: { family: "VT323", fill: 0xeeeeee, stroke: 0x07070a, ready: true, scale } });
         const one = at(1), [size1, line1] = [one?.style?.fontSize, one?.style?.strokeThickness];
         const big = at(1.25), [size2, line2] = [big?.style?.fontSize, big?.style?.strokeThickness];
+        // The glass's own size (config.mjs CAPTION_FACE), at 1080p and 100%: its type factor 0.85.
+        const glassFace = size => ({ family: "VT323", fill: 0xeeeeee, stroke: 0x07070a, ready: true, scale: 0.85, size });
+        H.drawCaption(token, { on: true, user: { isGM: false, id: "o" }, style: glassFace(1) });
+        const glassAt = H.drawCaption(token, { on: true, user: { isGM: false, id: "o" }, style: glassFace(2.2) });
+        const glassSize = [glassAt?.style?.fontSize, glassAt?.style?.strokeThickness];
         const body = document.body, glass = body.classList.contains("drpg-theme-stained-glass");
         const kept = { legacy: body.style.getPropertyValue("--drpg-legacy-scale"), type: body.style.getPropertyValue("--drpg-type-scale") };
         const read = [];
@@ -69548,9 +69553,9 @@ const INVARIANTS = [
             body.classList.remove("drpg-theme-stained-glass");
             body.style.setProperty("--drpg-legacy-scale", "1.25");
             body.style.setProperty("--drpg-type-scale", "0.85");
-            read.push(H.captionScale());
+            read.push(H.captionScale(), H.captionStyle().size);
             body.classList.add("drpg-theme-stained-glass");
-            read.push(H.captionScale());
+            read.push(H.captionScale(), H.captionStyle().size);
         } finally {
             body.classList.toggle("drpg-theme-stained-glass", glass);
             for (const [name, value] of [["--drpg-legacy-scale", kept.legacy], ["--drpg-type-scale", kept.type]]) {
@@ -69569,11 +69574,11 @@ const INVARIANTS = [
         const [legacyCss, glassCss] = await Promise.all(["danganronpa.css", "stained-glass.css"].map(f => fetch(`/modules/${MODULE_ID}/styles/${f}`).then(lfText)));
         const rule = (css, head) => bodyOf(css, head, { until: "}" });
         const legacyRule = rule(legacyCss, "body.drpg-theme-monokuma-legacy .drpg-hover-name {"), glassRule = rule(glassCss, "body.drpg-theme-stained-glass .drpg-hover-name {");
-        equal(JSON.stringify([size1, line1, size2, line2, read, placeables > 0 && onScale >= placeables, onOther,
+        equal(JSON.stringify([size1, line1, size2, line2, glassSize, read, placeables > 0 && onScale >= placeables, onOther,
             /font-size:\s*calc\(var\(--drpg-text-sm\)\s*\*\s*1\.25\)/.test(legacyRule), /--drpg-text-sm:\s*calc\([^;]*--drpg-legacy-scale/.test(legacyCss),
             /font-size:\s*calc\(var\(--drpg-sg-floor\)\s*\*\s*1\.25\)/.test(glassRule), /--drpg-sg-floor:\s*calc\([^;]*--drpg-sg-scale/.test(glassCss)]),
-            JSON.stringify([25, 6, 31, 8, [1.25, 0.85], true, 0, true, true, true, true]),
-            `[the caption at 1: size, keyline; at 1.25: size, keyline; the factor read under Legacy and under the glass; every caption on this canvas (${placeables}) drawn again after uiScale (${onScale}); none after an unrelated key; Legacy's label a quarter over its rung, which rides the slider; the glass's over its floor, which rides its scale]`);
+            JSON.stringify([25, 6, 31, 8, [47, 5], [1.25, 1, 0.85, 2.2], true, 0, true, true, true, true]),
+            `[the caption at 1: size, keyline; at 1.25: size, keyline; the glass's at 0.85 and its own 2.2, drawn anew from its size at 1: size, keyline; the factor and the theme's size read under Legacy and under the glass; every caption on this canvas (${placeables}) drawn again after uiScale (${onScale}); none after an unrelated key; Legacy's label a quarter over its rung, which rides the slider; the glass's over its floor, which rides its scale]`);
     }],
     ["R8790 - a Truth Bullet's holder always sees its Remnant (1.2.128 line INVEST; S0-BULLETSEES): visibility.mjs `remnantShownHere` draws an un-hidden trace for whoever knows it or stands in its incident and for nobody else, and a hidden one for its holder alone while HOLDER_SEES_HIDDEN (true) holds, for nobody when it does not; `applyToRemnantToken` and `shownAsFound` ask it with `knowsRemnant`, and a hidden trace held is shown past Foundry's verdict (`showHeld`); `knowsRemnant` answers true on a GM's browser", async () => {
         /*

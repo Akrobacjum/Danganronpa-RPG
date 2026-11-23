@@ -44,3 +44,8 @@ v14 table was at hand. What a real table shows is the LIVE-129-MAP items in the 
   `caption-legacy-pl-1366x768-ui125.png` is the slider at 125%. Only the three caption files named below were redrawn
   at the new size: `caption-{stained,legacy}-pl-1920x1080.png` and that one; the other caption shots show the first
   size.
+- The theme's own size (config.mjs `CAPTION_FACE`, the coordinator's default of 23.11.2026: under the glass the caption
+  reads at least as large as Legacy's): Legacy 1, the glass 2.2. Measured on "Aoi Kirigaya" at 1920x1080 and 100%:
+  Legacy's DRPG Pixel at 25 px, 300 px wide, x-height 19; the glass's VT323 at 47 px, 226 px wide, x-height 19 (21 px,
+  101 wide and an x-height of 9 before). `caption-stained-pl-1920x1080.png` redrawn with it and
+  `caption-stained-pl-1366x768-ui125.png` added (42 px there: grid 72, the glass's factor 1.06 at 125%).

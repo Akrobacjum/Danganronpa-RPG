@@ -57,7 +57,9 @@ document.fonts.load(`16px ${face.family}`).then(() => toks.forEach((t, i) => {
   // The scale as hover-name.mjs `captionScale` reads it off the body.
   const glass = document.body.classList.contains("drpg-theme-stained-glass");
   const scale = parseFloat(document.body.style.getPropertyValue(glass ? "--drpg-type-scale" : "--drpg-legacy-scale")) || 1;
-  const fs = Math.round(Math.max(18, g * 0.25) * scale), sw = Math.max(1, Math.round(Math.max(4, g * 0.0625) * scale));
+  // The theme's own size, config.mjs CAPTION_FACE (Legacy 1, the glass 2.2).
+  const faceSize = glass ? 2.2 : 1;
+  const fs = Math.round(Math.max(18, g * 0.25) * scale * faceSize), sw = Math.max(1, Math.round(Math.max(4, g * 0.0625) * scale));
   const c = document.createElement("canvas"), ctx = c.getContext("2d"), dpr = devicePixelRatio || 1;
   ctx.font = `${fs}px ${face.family}`; const tw = Math.ceil(ctx.measureText(t.name).width) + sw * 2, th = Math.ceil(fs * 1.3) + sw;
   c.width = tw * dpr; c.height = th * dpr; c.style.cssText = `position:absolute;width:${tw}px;height:${th}px;left:${x - tw / 2}px;top:${y + size + Math.round(g * 0.04)}px`;
