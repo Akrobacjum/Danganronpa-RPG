@@ -1089,6 +1089,18 @@ export function verdictRunner(progress = trialProgress()) {
 }
 
 /**
+ * WHERE A FINISH OF THE VERDICT RUNS (E128, 22.11.2026; OWNER-128-SECOND-GM, line CORE's inventory row 6): "here" on the
+ * verdict's runner (`verdictRunner`) or with no runner; "primary" on a second full GM when the runner is the primary GM -
+ * the press is asked of the primary (`verdict.finish`), whose own Finish runs it, one browser and one latch as before;
+ * "refuse" otherwise (the runner another GM who is connected, or an Assistant GM), told whom to ask. The arguments are the
+ * suite's (R8732); this browser's otherwise.
+ */
+export function finishRoute({ runner, me = game.user?.id, primary = primaryGmId(), full = game.user?.role === CONST.USER_ROLES.GAMEMASTER } = {}) {
+    if (!runner || runner === me) return "here";
+    return runner === primary && full ? "primary" : "refuse";
+}
+
+/**
  * FINISH THE VERDICT (E10 C5, 1.2.71; audit S06-39): the steps a verdict that stopped had not done,
  * given by this GM - what it had done is not done again (`runVerdict`). The Blackened are the ones
  * its GM named (`keepVerdictBlackened`), and the register's, as the verdict's window reads them
@@ -1106,7 +1118,13 @@ export async function finishVerdict() {
     if (!game.user.isGM) return null;
     const progress = trialProgress();
     const runner = verdictRunner(progress);
-    if (runner && runner !== game.user.id) {
+    const route = finishRoute({ runner });
+    if (route === "primary") {
+        const { bridgeRequest } = await import("./bridge-guards.mjs");
+        const res = await bridgeRequest("verdict.finish", {}, { settle: "reply", onPrimary: true });
+        return res.ok ? res.value ?? null : null;
+    }
+    if (route === "refuse") {
         ui.notifications.warn(game.i18n.format("DRPG.Vote.finishOtherGm", { name: game.users.get(runner)?.name ?? "?" }));
         return null;
     }

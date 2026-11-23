@@ -1145,6 +1145,13 @@ export async function run({ gm, gm2, gm3, gma, gmb, gmc, p1, p2, p3, p4, check, 
         for (const m of game.messages.contents.slice(${f9from})) if ((await wordsOf(m, 500) ?? "").includes(yours)) ids.push(m.id);
         return ids;`;
     const f9cards = await gm.eval(REQUESTS);
+    /* WHOSE CARDS (E128, 22.11.2026): F9b failed once in 3 runs at 5ea9323b with three cards where one was due, and nothing
+       said who posted them (a scratch probe read a field the harness's messages do not carry, null for each). Each card's
+       author is read here, as 97 Q1 reads them, so a next failure names its writers. The cause read in the code then: the
+       card was posted on whichever GM asked, after a read of the memo the post did not hold - gm2's re-ask reads a memo
+       gm's card may not have reached. Since E128 the card is the primary's alone (murder-rules.mjs `postOpeningCard`,
+       `murder.openingCard`; 97 T drives the race), so every card here is gm's. */
+    const f9by = await gm.eval(`return ${J(f9cards)}.map(id => { const m = game.messages.get(id); return m?.author?.id ?? m?.user?.id ?? null; });`);
     const MEMO = `${CAST} return Object.keys(S.castStore.record()?.openingNotices ?? {}).length;`;
     // What the killer's player is sent (`castFor` on the primary) and what their browser holds; the incident as the GM reads it.
     const f9held = { gm: await gm.eval(MEMO), gm2: await gm2.eval(MEMO),
@@ -1159,7 +1166,8 @@ export async function run({ gm, gm2, gm3, gma, gmb, gmc, p1, p2, p3, p4, check, 
     // One card since 1.2.123: gm2's re-ask finds the primary's card to p3 standing and posts no second one (r122-lane-B-3, F9d).
     check("F9b: the close on the primary deletes the opening's request card, on every browser; both GMs hold its id until then and forget it after, and the killer's player is sent none and holds none, nor does the incident the GM reads",
         f9cards.length === 1 && f9held.gm >= 2 && f9held.gm2 === f9held.gm && f9held.sent === false && f9held.p3 === false && f9held.state === false
-        && f9left.gm === 0 && f9left.gm2 === 0 && f9left.p3 === 0 && J(f9left.memo) === "[0,0]", J({ f9cards, f9held, f9left }), { flow: "trait-ruling" });
+        && f9left.gm === 0 && f9left.gm2 === 0 && f9left.p3 === 0 && J(f9left.memo) === "[0,0]" && J(f9by) === J([IDS.gm]),
+        J({ f9cards, f9by, f9held, f9left }), { flow: "trait-ruling" });
     // F9c's held windows let go and its stubs taken off, now the incident is closed (its loops end on the closed state).
     await gm.eval(`for (const r of globalThis.__f9cHeld ?? []) r(null);
         for (const [id, fn] of Object.entries(globalThis.__f9cKept ?? {})) { const a = game.actors.get(id); if (fn) a.rollTrait = fn; else delete a.rollTrait; }

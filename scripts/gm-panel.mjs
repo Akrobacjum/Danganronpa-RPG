@@ -337,12 +337,15 @@ const PANEL_SECTIONS = [
             // DRAWN DISABLED ON A GM WHO IS NOT THE PRIMARY (1.2.122 line ITEMS; the audit's CTRL-85), with the words its
             // refusal said, as the Settings tile is drawn for a GM who may not: only the primary re-sends the rooms.
             { key: "voiceReset", icon: "fa-microphone-lines", labelKey: "DRPG.Panel.voiceReset",
-              disabled: () => !isPrimaryGm(),
+              // And live on a second full GM, whose press is sent to the primary (E128, voice.mjs `resetVoiceFromHere`).
+              disabled: () => !isPrimaryGm() && game.user?.role !== CONST.USER_ROLES.GAMEMASTER,
               disabledReason: () => game.i18n.format("DRPG.Voice.resetRefused.primary", { name: game.users.get(primaryGmId())?.name ?? "?" }),
               run: async () => {
-                  const { resetAllVoice } = await import("./voice.mjs");
+                  const { resetVoiceFromHere } = await import("./voice.mjs");
                   const { avclientActive } = await import("./voice-client.mjs");
-                  const n = await resetAllVoice();
+                  const n = await resetVoiceFromHere();
+                  // A second GM's refusal is the bridge's to say (E128); below is this browser's own.
+                  if (n === null && !isPrimaryGm()) return null;
                   if (n !== null) return ui.notifications.info(plural("DRPG.Voice.resetDone", { n }));
                   const name = game.users.get(primaryGmId())?.name ?? "";
                   ui.notifications.warn(avclientActive()
@@ -1119,7 +1122,8 @@ export function nextLineHtml(step) {
 const PRIMARY_ONLY = Object.freeze({ chapterEnd: "DRPG.Chapter.endPrimaryOnly", bodyDialog: "DRPG.Chapter.bodyPrimaryOnly" });
 function primaryOnlyAttrs(action) {
     const key = PRIMARY_ONLY[action];
-    if (!key || isPrimaryGm()) return "";
+    // A second full GM's end and body are carried out on the primary (E128; chapter.mjs, body.mjs): drawn live there.
+    if (!key || isPrimaryGm() || game.user?.role === CONST.USER_ROLES.GAMEMASTER) return "";
     return ` disabled title="${esc(game.i18n.format(key, { name: game.users.get(primaryGmId())?.name ?? "?" }))}"`;
 }
 
