@@ -431,8 +431,9 @@ export async function openChapterEndDialog() {
         ui.notifications.warn(game.i18n.localize("DRPG.Panel.gmOnly"));
         return null;
     }
-    // Before anything is asked or counted: the end is the primary GM's (`applyChapterEnd`, ONE BROWSER).
-    if (!chapterEndHere()) return null;
+    // Before anything is asked or counted: the end is the primary GM's (`applyChapterEnd`, ONE BROWSER) - a second full
+    // GM's window is drawn here and its end carried out there (E128, `endSentToPrimary`).
+    if (!endSentToPrimary() && !chapterEndHere()) return null;
 
     /* A STOPPED END IS ANSWERED FIRST (E42 C2, 1.2.97; E42-10). While an end that stopped part way stands, this window
        asks what to do with it - Finish the chapter's end, Drop the rest, or Cancel, the default - instead of drawing
@@ -893,6 +894,8 @@ export const CHAPTER_END_STEPS = [
  * first (`finishChapterEnd`); a new one is refused and the GM told which steps wait (`endStands`).
  */
 export async function applyChapterEnd(choices = {}) {
+    if (game.user.isGM && endSentToPrimary()) return endOnPrimary({ ...Object.fromEntries(END_CHOICES.map(key => [key, Boolean(choices[key])])),
+        opened: choices.opened ? endMark(choices.opened) : null });
     if (!game.user.isGM || !chapterEndHere()) return null;
     const run = chapterEnds.then(() => endChapterNow(choices));
     chapterEnds = run.catch(() => null);
@@ -915,6 +918,25 @@ export async function clearChapterEndRecord() {
     });
     chapterEnds = run.catch(() => null);
     return run;
+}
+
+/*
+ * A SECOND FULL GM'S END IS CARRIED OUT ON THE PRIMARY (E128, 22.11.2026; OWNER-128-SECOND-GM, the owner: "Drugi GM ...
+ * powinien byc na rowni z pierwszym gmem"). The end stays the primary's - one browser, one queue (`chapterEnds`), its
+ * record - and a second full GM was refused with whose it is. Its window is drawn on its own browser now, and the boxes
+ * it ticked, with the clock it was shown on, or its Finish or Drop, are run on the primary (`chapter.end`,
+ * bridge-table.mjs) by the same `applyChapterEnd` and `finishChapterEnd`, whose checks refuse there as here (an end
+ * standing, the clock moved since the window opened). An Assistant GM is told whose it is, as before.
+ */
+function endSentToPrimary() {
+    return Boolean(game.user?.isGM) && !isPrimaryGm() && game.user.role === CONST.USER_ROLES.GAMEMASTER;
+}
+
+async function endOnPrimary(payload) {
+    const { bridgeRequest } = await import("./bridge-guards.mjs");
+    // Asked of the primary alone: on the primary `endSentToPrimary` is false, and the end runs in its own queue above.
+    const res = await bridgeRequest("chapter.end", payload, { settle: "reply", onPrimary: true });
+    return res.ok ? res.value ?? null : null;
 }
 
 /** Whether this browser ends the chapter: the primary GM's does; another GM is told whose (`applyChapterEnd`, ONE BROWSER). */
@@ -1074,6 +1096,7 @@ async function runChapterEnd(record) {
  * Finish's lines (null when it said nothing), the dropped steps' keys, or null. `game.drpg.finishChapterEnd()`.
  */
 export async function finishChapterEnd({ drop = false } = {}) {
+    if (game.user.isGM && endSentToPrimary()) return endOnPrimary({ finish: !drop, drop: Boolean(drop) });
     if (!game.user.isGM || !chapterEndHere()) return null;
     const run = chapterEnds.then(() => finishEndNow({ drop }));
     chapterEnds = run.catch(() => null);

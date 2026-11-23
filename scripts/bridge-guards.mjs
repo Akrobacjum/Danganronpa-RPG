@@ -1943,9 +1943,9 @@ export function createWaiter({ emit, gmIds, me, notify, fromGm, clock = WINDOW_C
 
     function request(action, payload = {}, { settle: kind = "ack", patient = false, resend = false, ackMs = TIMING.ackMs,
         timeoutMs = TIMING.rulingMs, local = null, onPrimary = false, localRun = false, quiet = false, nothingSpent = false, late = null,
-        lateRefused = null, lateMs = 0, expired = null, received = null, untilPrimaryLeaves = false } = {}) {
+        lateRefused = null, lateMs = 0, expired = null, received = null, untilPrimaryLeaves = false, sayRefused = true } = {}) {
         return new Promise(resolve => {
-            const entry = { id: null, action, kind, patient, resend, resent: 0, quiet, nothingSpent, late, lateRefused, lateMs, timeoutMs,
+            const entry = { id: null, action, kind, patient, resend, resent: 0, quiet, sayRefused, nothingSpent, late, lateRefused, lateMs, timeoutMs,
                 expired, received, untilPrimaryLeaves, resolve, settled: false, ackTimer: null, answerTimer: null, packet: null };
             try {
                 const self = me();
@@ -2057,7 +2057,8 @@ export function createWaiter({ emit, gmIds, me, notify, fromGm, clock = WINDOW_C
             return true;
         }
         const reason = REASONS.includes(packet.reason) ? packet.reason : "refused";
-        tell(entry, reason);
+        // `sayRefused: false`: the caller says what a refusal means (E128; bridge-asks.mjs `answerHopeCall`, `answerDynamic`).
+        if (entry.sayRefused !== false) tell(entry, reason);
         // An acknowledged "ack" request has settled already: the refusal is its one message.
         settle(entry, { ok: false, refused: true, reason });
         return true;
@@ -2162,7 +2163,8 @@ const waiter = createWaiter({
  *                          lateRefused (`lateRefused(reason, requestId)`, for a refusal that does),
  *                          lateMs (how long after the wait ends `late` is still handed one;
  *                          the clock's own length when shorter), untilPrimaryLeaves (the wait
- *                          ends as noAnswer when the primary GM leaves, E36 fix e1-G4)
+ *                          ends as noAnswer when the primary GM leaves, E36 fix e1-G4), sayRefused
+ *                          (false: a refusal is the caller's to say, a missed clock or no GM still told; E128)
  * @returns {Promise<{ok: boolean, pending?: true, value?: *, refused?: true, reason?: string}>}
  */
 export function bridgeRequest(action, payload = {}, opts = {}) {

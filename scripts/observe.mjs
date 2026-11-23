@@ -1319,15 +1319,28 @@ async function alreadyHeld(actor, entry) {
 export async function describeFind(actor, entry, isCritical, fallbackName, stored = null, { waitMs = TIMING.rulingMs } = {}) {
     const data = entry.data;
     let shown = null, timer = null, timedOut = false;
+    /* ANOTHER GM MAY WRITE IT (E128, 22.11.2026; OWNER-128-SECOND-GM, line CORE's inventory row 1). The window opens on the
+       browser the find is resolved on - the primary's - and a second GM was only told the find waited there. Its whisper
+       carries "Write it here" now (`wireDescribeHere`): the same form on that GM's browser, its words sent here
+       (`observe.describe`, `answerDescribeFrom`), and the first answer of the two is the find's - this window is closed
+       when another GM's words arrive first, and this GM is told whose they are. */
+    const askId = foundry.utils.randomID();
+    let fromOther = null;
+    const otherAnswer = new Promise(resolve => { fromOther = resolve; });
+    describeAsks.set(askId, fromOther);
     /* THE OTHER GMs ARE TOLD THE FIND WAITS HERE (line INVEST of 1.2.122; audit 1.2.118 domain-case-c-investigation 6): the
        window opens on this browser alone, and a second GM never learned a player was waiting on it. */
     /* TO THE OTHER GMs ONLY (the line INVEST of 1.2.123; the auditor's r122-D-6): `whisperToGms` whispers every GM, so the
        GM whose screen it is was told the find waits on their own screen. */
     const others = activeGmIds().filter(id => id !== game.user?.id);
     if (others.length) {
+        const esc = value => foundry.utils.escapeHTML(String(value ?? ""));
         void whisperToGms({ body: `<p>${game.i18n.format("DRPG.Observe.describeWaiting", {
-            actor: foundry.utils.escapeHTML(actor?.name ?? "?"), room: foundry.utils.escapeHTML(entry.room ?? "?"),
-            gm: foundry.utils.escapeHTML(game.user.name ?? "") })}</p>` }, { whisper: others }).catch(() => {});
+            actor: esc(actor?.name ?? "?"), room: esc(entry.room ?? "?"), gm: esc(game.user.name ?? "") })}</p>`
+            + `<div class="drpg-call-actions"><button type="button" class="drpg-call-action"${tipAttr("DRPG.Observe.describeHereTooltip")} data-drpg-describe-find="${esc(askId)}"`
+            + ` data-scene="${esc(entry.sceneId)}" data-token="${esc(entry.tokenId)}" data-actor="${esc(actor?.id)}" data-room="${esc(entry.room)}"`
+            + ` data-critical="${isCritical ? "1" : "0"}" data-fallback="${esc(fallbackName)}">${esc(game.i18n.localize("DRPG.Observe.describeHere"))}</button></div>` },
+            { whisper: others }).catch(() => {});
     }
     /* THE CLOCK COUNTS FROM THE LAST KEYSTROKE, AND WHAT WAS TYPED GOES OUT (the line INVEST of 1.2.123; the auditor's
        r122-D-2): 1.2.122's clock was one `waitMs` from the window's opening, reset by nothing, and its end answered null -
@@ -1335,12 +1348,7 @@ export async function describeFind(actor, entry, isCritical, fallbackName, store
        telling them to add words already written. Every input in the window starts the clock again, and at its end the
        window's fields are read as its button reads them; the prefilled name and no words only where nothing was typed
        (tier 2 "1.2.122 CASE-37", "1.2.123 r122-D-2"). */
-    const readForm = f => ({
-        name: f.name.value.trim(),
-        playerText: f.playerText.value.trim(),
-        analyzedText: f.analyzedText.value.trim(),
-        critHint: f.critHint?.value.trim() ?? ""
-    });
+    const readForm = readDescribeForm;
     let typed = false, ring = null;
     const start = () => {
         clearTimeout(timer);
@@ -1363,82 +1371,7 @@ export async function describeFind(actor, entry, isCritical, fallbackName, store
         title: game.i18n.localize("DRPG.Observe.describeTitle"),
         classes: ["drpg-panel"],
         prompt: true,
-        body: `<form>
-            <p>${game.i18n.format("DRPG.Observe.describeIntro", {
-                actor: foundry.utils.escapeHTML(actor.name),
-                room: foundry.utils.escapeHTML(entry.room)
-            })}</p>
-            <p class="notes">${foundry.utils.escapeHTML(
-                `${data.visibilityLabel} ${data.typeLabel}${data.note ? ` - ${data.note}` : ""}`
-            )}</p>
-            ${stored
-                ? `<p class="notes">${game.i18n.localize("DRPG.Observe.alreadyDescribed")}</p>`
-                : ""}
-            ${isCritical
-                ? `<p><strong>${game.i18n.localize("DRPG.Observe.critPrompt")}</strong></p>`
-                : ""}
-            ${/*
-                * THE CRITICAL'S HINT IS THE FINDER'S (E64 C2, 12.11.2026; audit S05-59). Until 1.2.105 the hint went in
-                * the description box below, which is the trace's own (`setRemnantPublicById`): every later finder's copy
-                * read it, a hint they had not earned. Its own box, on a critical only, and `findTexts` hands it to this
-                * copy alone. ASKED FIRST, AND FOCUSED (Q-E64-11; the owner, 12.11.2026: "Zgoda, przesun"): it stood last,
-                * under the lab's reading, and the description held the focus - measured in Chromium at 1366x768 (R3960's
-                * note) the body opened scrolled to the description, the window's top out of view, and on an undescribed
-                * trace under Stained Glass the box sat below the fold. Right under the critical's line now, which says
-                * what it is for.
-                */ ""}
-            ${isCritical
-                ? `<label>${game.i18n.localize("DRPG.Observe.critHint")}
-                    <textarea name="critHint" rows="3" autofocus
-                        placeholder="${game.i18n.localize("DRPG.Observe.critHintPlaceholder")}"></textarea></label>
-                   <p class="notes">${game.i18n.localize("DRPG.Observe.critHintNote")}</p>`
-                : ""}
-            ${/*
-                * THE NAME IS NOT ASKED TWICE (Dawid, 28.08: "finding a remnant
-                * by a second player prompts the DM to name it again, though
-                * there is no need").
-                *
-                * A described trace only reaches this dialog on a CRITICAL, and a
-                * critical buys a big hint from the GM - not a new name. Two
-                * names for one object is the false contradiction this whole
-                * mechanism was built to prevent, and offering an editable box is
-                * an invitation to create one by pressing through it. So the name
-                * is shown, so the GM knows what they are adding to, and it is
-                * read-only. The hint goes in the box below.
-                */ ""}
-            ${stored
-                ? `<label>${game.i18n.localize("DRPG.TruthBullet.name")}
-                    <input type="text" name="name" readonly
-                           value="${foundry.utils.escapeHTML(stored.name ?? fallbackName)}" /></label>`
-                : `<label>${game.i18n.localize("DRPG.TruthBullet.name")}
-                    <input type="text" name="name"${isCritical ? "" : " autofocus"}${tipAttr("DRPG.Tips.Sweep.Actions.bulletNameTooltip")}
-                           value="${foundry.utils.escapeHTML(fallbackName)}" /></label>`}
-            <label>${game.i18n.localize("DRPG.TruthBullet.playerText")}
-                <textarea name="playerText" rows="3"${stored && !isCritical ? " autofocus" : ""}${tipAttr("DRPG.Tips.Sweep.Actions.bulletTextTooltip")}
-                    placeholder="${game.i18n.localize("DRPG.TruthBullet.playerTextPlaceholder")}"
-                    >${foundry.utils.escapeHTML(stored?.playerText ?? "")}</textarea></label>
-            ${/*
-                * THE SECOND BOX IS ASKED HERE AND NOT LATER, and it is optional.
-                *
-                * This is the one moment a GM is already looking at this trace
-                * and thinking about what it is - so it is the cheapest moment
-                * to also write what the lab would say about it. The alternative
-                * is being interrupted weeks later, mid-Investigation, by a
-                * player's Head roll landing on a trace nobody has written a
-                * reading for.
-                *
-                * Left empty it costs nothing: Analyze still identifies the
-                * category, which is exactly what it did before this field
-                * existed. The Remnant card and the Investigation dashboard both
-                * edit the same field afterwards, so nothing is decided here
-                * that cannot be changed at leisure.
-                */ ""}
-            <label>${game.i18n.localize("DRPG.TruthBullet.analyzedText")}
-                <textarea name="analyzedText" rows="3"
-                    placeholder="${game.i18n.localize("DRPG.TruthBullet.analyzedTextPlaceholder")}"
-                    >${foundry.utils.escapeHTML(stored?.analyzedText ?? "")}</textarea></label>
-            <p class="notes">${game.i18n.localize("DRPG.TruthBullet.analyzedTextNote")}</p>
-        </form>`,
+        body: describeFormBody({ actor, room: entry.room, data, isCritical, fallbackName, stored }),
         footer: {
             primary: {
                 action: "ok", label: game.i18n.localize("DRPG.Observe.describeConfirm"),
@@ -1451,8 +1384,18 @@ export async function describeFind(actor, entry, isCritical, fallbackName, store
     // Closing the dialog resolves to null, which `createFind` reads as "use the
     // prefilled name and no description" - the find still lands either way.
     }).catch(() => null);
-    const answer = await Promise.race([asked, clock]);
+    const remote = otherAnswer.then(given => ({ given }));
+    const raced = await Promise.race([asked, clock, remote]);
+    describeAsks.delete(askId);
     clearTimeout(timer);
+    // Another GM's words came first (E128): this window is closed, and this GM told whose words the find carries.
+    const byOther = raced && typeof raced === "object" && Object.hasOwn(raced, "given") ? raced.given : null;
+    if (byOther) {
+        Promise.resolve(shown?.close?.()).catch(() => {});
+        ui.notifications?.info?.(game.i18n.format("DRPG.Observe.describeByOther", { gm: game.users.get(byOther.by ?? "")?.name ?? "?" }));
+        return byOther.answer;
+    }
+    const answer = raced;
     if (timedOut) {
         const key = answer ? "DRPG.Observe.describeTimedOutTyped" : "DRPG.Observe.describeTimedOut";
         ui.notifications?.warn?.(game.i18n.format(key, { actor: actor?.name ?? "", name: answer?.name || fallbackName || "" }), { permanent: true });
@@ -1522,6 +1465,161 @@ export async function recoverDescribing({ gm = null, leaving = null } = {}) {
    no other GM's hydration came to finish it - the player held a spent action and no card. The primary, at a GM's
    disconnection, finishes the rows that GM's window held (`describing.gm`); a row of its own window stands. A row marked
    before 1.2.123 names no GM and waits for a hydration as before (tier 2 "1.2.123 CASE-37 rest"). */
+/** The finds waiting on this browser's window for words another GM may write (E128): ask id -> its resolver. */
+const describeAsks = new Map();
+
+/**
+ * Another GM's words for a find waiting here (E128; the run of `observe.describe`, bridge-runs-acts.mjs): handed to the
+ * window's wait (`describeFind`), which closes the window and gives the find these words. False when no find waits under
+ * `askId` - answered already, by this GM's window or its clock, or another GM's words came first.
+ */
+export function answerDescribeFrom(askId, answer, by = null) {
+    const give = describeAsks.get(askId ?? "");
+    if (!give) return false;
+    describeAsks.delete(askId);
+    give({ by, answer: { name: String(answer?.name ?? "").trim(), playerText: String(answer?.playerText ?? "").trim(),
+        analyzedText: String(answer?.analyzedText ?? "").trim(), critHint: String(answer?.critHint ?? "").trim() } });
+    return true;
+}
+
+/** The describing window's form: what the student sees, its reading and a critical's hint (`describeFind`, `wireDescribeHere`). */
+function describeFormBody({ actor, room, data, isCritical, fallbackName, stored }) {
+    return `<form>
+            <p>${game.i18n.format("DRPG.Observe.describeIntro", {
+                actor: foundry.utils.escapeHTML(actor.name),
+                room: foundry.utils.escapeHTML(room ?? "")
+            })}</p>
+            <p class="notes">${foundry.utils.escapeHTML(
+                `${data.visibilityLabel} ${data.typeLabel}${data.note ? ` - ${data.note}` : ""}`
+            )}</p>
+            ${stored
+                ? `<p class="notes">${game.i18n.localize("DRPG.Observe.alreadyDescribed")}</p>`
+                : ""}
+            ${isCritical
+                ? `<p><strong>${game.i18n.localize("DRPG.Observe.critPrompt")}</strong></p>`
+                : ""}
+            ${/*
+                * THE CRITICAL'S HINT IS THE FINDER'S (E64 C2, 12.11.2026; audit S05-59). Until 1.2.105 the hint went in
+                * the description box below, which is the trace's own (`setRemnantPublicById`): every later finder's copy
+                * read it, a hint they had not earned. Its own box, on a critical only, and `findTexts` hands it to this
+                * copy alone. ASKED FIRST, AND FOCUSED (Q-E64-11; the owner, 12.11.2026: "Zgoda, przesun"): it stood last,
+                * under the lab's reading, and the description held the focus - measured in Chromium at 1366x768 (R3960's
+                * note) the body opened scrolled to the description, the window's top out of view, and on an undescribed
+                * trace under Stained Glass the box sat below the fold. Right under the critical's line now, which says
+                * what it is for.
+                */ ""}
+            ${isCritical
+                ? `<label>${game.i18n.localize("DRPG.Observe.critHint")}
+                    <textarea name="critHint" rows="3" autofocus
+                        placeholder="${game.i18n.localize("DRPG.Observe.critHintPlaceholder")}"></textarea></label>
+                   <p class="notes">${game.i18n.localize("DRPG.Observe.critHintNote")}</p>`
+                : ""}
+            ${/*
+                * THE NAME IS NOT ASKED TWICE (Dawid, 28.08: "finding a remnant
+                * by a second player prompts the DM to name it again, though
+                * there is no need").
+                *
+                * A described trace only reaches this dialog on a CRITICAL, and a
+                * critical buys a big hint from the GM - not a new name. Two
+                * names for one object is the false contradiction this whole
+                * mechanism was built to prevent, and offering an editable box is
+                * an invitation to create one by pressing through it. So the name
+                * is shown, so the GM knows what they are adding to, and it is
+                * read-only. The hint goes in the box below.
+                */ ""}
+            ${stored
+                ? `<label>${game.i18n.localize("DRPG.TruthBullet.name")}
+                    <input type="text" name="name" readonly${tipAttr("DRPG.Observe.alreadyDescribed")}
+                           value="${foundry.utils.escapeHTML(stored.name ?? fallbackName)}" /></label>`
+                : `<label>${game.i18n.localize("DRPG.TruthBullet.name")}
+                    <input type="text" name="name"${isCritical ? "" : " autofocus"}${tipAttr("DRPG.Tips.Sweep.Actions.bulletNameTooltip")}
+                           value="${foundry.utils.escapeHTML(fallbackName)}" /></label>`}
+            <label>${game.i18n.localize("DRPG.TruthBullet.playerText")}
+                <textarea name="playerText" rows="3"${stored && !isCritical ? " autofocus" : ""}${tipAttr("DRPG.Tips.Sweep.Actions.bulletTextTooltip")}
+                    placeholder="${game.i18n.localize("DRPG.TruthBullet.playerTextPlaceholder")}"
+                    >${foundry.utils.escapeHTML(stored?.playerText ?? "")}</textarea></label>
+            ${/*
+                * THE SECOND BOX IS ASKED HERE AND NOT LATER, and it is optional.
+                *
+                * This is the one moment a GM is already looking at this trace
+                * and thinking about what it is - so it is the cheapest moment
+                * to also write what the lab would say about it. The alternative
+                * is being interrupted weeks later, mid-Investigation, by a
+                * player's Head roll landing on a trace nobody has written a
+                * reading for.
+                *
+                * Left empty it costs nothing: Analyze still identifies the
+                * category, which is exactly what it did before this field
+                * existed. The Remnant card and the Investigation dashboard both
+                * edit the same field afterwards, so nothing is decided here
+                * that cannot be changed at leisure.
+                */ ""}
+            <label>${game.i18n.localize("DRPG.TruthBullet.analyzedText")}
+                <textarea name="analyzedText" rows="3"
+                    placeholder="${game.i18n.localize("DRPG.TruthBullet.analyzedTextPlaceholder")}"
+                    >${foundry.utils.escapeHTML(stored?.analyzedText ?? "")}</textarea></label>
+            <p class="notes">${game.i18n.localize("DRPG.TruthBullet.analyzedTextNote")}</p>
+        </form>`;
+}
+
+/** What the describing window's form holds, as its button reads it. */
+function readDescribeForm(f) {
+    return {
+        name: f.name.value.trim(),
+        playerText: f.playerText.value.trim(),
+        analyzedText: f.analyzedText.value.trim(),
+        critHint: f.critHint?.value.trim() ?? ""
+    };
+}
+
+/**
+ * "Write it here" on a find's whisper (E128): the describing window on this GM's browser, built from this GM's copy of
+ * the trace, and its words sent to the browser whose window waits (`observe.describe`, the primary). The button is held
+ * while the window stands and taken off once the words are taken; a refusal (answered already) is told by the bridge.
+ */
+export function wireDescribeHere(body) {
+    if (!game.user?.isGM || !body?.querySelectorAll) return;
+    for (const button of body.querySelectorAll("[data-drpg-describe-find]")) {
+        if (button.dataset.drpgWired) continue;
+        button.dataset.drpgWired = "1";
+        button.addEventListener("click", async event => {
+            event.preventDefault();
+            if (button.disabled) return;
+            button.disabled = true;
+            try {
+                const d = button.dataset;
+                const { remnantById, remnantData, remnantPublicById } = await import("./remnants.mjs");
+                const ref = remnantById(d.scene, d.token);
+                const data = ref ? remnantData(ref) : null;
+                const actor = game.actors.get(d.actor ?? "") ?? null;
+                if (!data || !actor) { ui.notifications?.warn?.(game.i18n.localize("DRPG.Observe.describeGone")); return; }
+                const pub = remnantPublicById(d.scene, d.token);
+                const stored = pub?.name ? pub : null;
+                const isCritical = d.critical === "1";
+                const answer = await drpgWindow({
+                    title: game.i18n.localize("DRPG.Observe.describeTitle"), classes: ["drpg-panel"], prompt: true,
+                    body: describeFormBody({ actor, room: d.room, data, isCritical, fallbackName: d.fallback ?? "", stored }),
+                    footer: { primary: { action: "ok", label: game.i18n.localize("DRPG.Observe.describeConfirm"),
+                        tooltip: tipText("DRPG.Observe.describeConfirmTooltip"), callback: (e, b, dialog) => readDescribeForm(dialog.element.querySelector("form")) } },
+                    rejectClose: false
+                }).catch(() => null);
+                if (!answer || typeof answer !== "object") return;
+                const { bridgeRequest } = await import("./bridge-guards.mjs");
+                const res = await bridgeRequest("observe.describe", { askId: d.drpgDescribeFind, ...answer }, { settle: "reply", onPrimary: true,
+                    local: () => answerDescribeFrom(d.drpgDescribeFind, answer, game.user.id) });
+                if (res.ok && res.value) {
+                    button.closest(".drpg-call-actions")?.remove();
+                    ui.notifications?.info?.(game.i18n.localize("DRPG.Observe.describeSent"));
+                }
+            } catch (err) {
+                error("Could not write a find's words from another GM's browser", err);
+            } finally {
+                if (button.isConnected) button.disabled = false;
+            }
+        });
+    }
+}
+
 export function onGmLeft(user, connected) {
     if (connected || !user?.isGM || user.id === game.user?.id || gmStoresQuiet()) return null;
     return recoverDescribing({ gm: user.id, leaving: user.id });
@@ -1529,6 +1627,13 @@ export function onGmLeft(user, connected) {
 export function registerObserveRecovery() {
     onGmStoresHydrated(() => { if (!gmStoresQuiet()) void recoverDescribing(); });
     Hooks.on("userConnected", (user, connected) => { void onGmLeft(user, connected); });
+    // A find's "Write it here" on the whisper a GM is sent (E128, `wireDescribeHere`): read after the secret swap, as the
+    // ruling cards are (gm-bridge.mjs), which draws the words in this same hook's dispatch.
+    Hooks.on("renderChatMessageHTML", (message, element) => {
+        if (!game.user?.isGM) return;
+        Promise.resolve().then(() => wireDescribeHere(element?.querySelector?.(".message-content") ?? element))
+            .catch(err => debug("Could not wire a find's Write it here", err));
+    });
 }
 
 /** Forget every pending target. A console tool for a stuck declaration. */

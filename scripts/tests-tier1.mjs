@@ -48054,7 +48054,7 @@ const INVARIANTS = [
             keep: [".application.drpg-prompt", "drpg-prompt", false],
             kit: [[false, false], [true, false]],
             asking: ["action-menus.mjs chooseVariant", "action-menus.mjs promptForNote", "action-project.mjs proposeProjectTrait", "call-gm.mjs askForRequest", "frisk.mjs askToForce", "frisk.mjs openAskWindow",
-                "level-up.mjs askWhoPicks", "level-up.mjs openAdvancement", "mask-gm.mjs askReveal", "observe.mjs askWhichRemnant", "observe.mjs describeFind", "trait-ruling.mjs pickHere",
+                "level-up.mjs askWhoPicks", "level-up.mjs openAdvancement", "mask-gm.mjs askReveal", "observe.mjs askWhichRemnant", "observe.mjs describeFind", "observe.mjs wireDescribeHere", "trait-ruling.mjs pickHere",
                 "trait-ruling.mjs rollChanged", "trial-prompt.mjs promptClaim", "trial-prompt.mjs promptTurn", "vote.mjs castBallot"],
             naming: ["roll-dialog.mjs", "stacking.mjs", "ui-kit.mjs"],
             // E69 C1: the Infiltrate tile's rows (action-listen.mjs `performListen`), an action's declaration.
@@ -63363,7 +63363,8 @@ const INVARIANTS = [
         must(typeof O.findTexts === "function", "observe.mjs exports no findTexts - the critical's hint is not kept apart");
         const src = stripComments((await moduleSources()).get("observe.mjs") ?? "");
         must(src.length > 5000, "observe.mjs was not read - this would measure nothing");
-        const create = fnSource(src, "createFind"), describe = fnSource(src, "describeFind");
+        // The window's form and its read are describeFormBody's and readDescribeForm's since E128 (both GMs draw it).
+        const create = fnSource(src, "createFind"), describe = `${fnSource(src, "describeFormBody") ?? ""}\n${fnSource(src, "readDescribeForm") ?? ""}`;
         const publicWrite = /setRemnantPublicById\(entry\.sceneId, entry\.tokenId, \{([\s\S]*?)\}\)/.exec(create)?.[1] ?? null;
         must(publicWrite !== null, "createFind's write back to the trace was not found - this would measure nothing");
         const pub = { playerText: "A smear on the sill." };
@@ -63539,7 +63540,8 @@ const INVARIANTS = [
          */
         const src = stripComments((await moduleSources()).get("observe.mjs") ?? "");
         must(src.length > 5000, "observe.mjs was not read - this would measure nothing");
-        const body = fnSource(src, "describeFind");
+        // The window's form is describeFormBody's since E128 (drawn by describeFind and by another GM's Write it here).
+        const body = fnSource(src, "describeFormBody") ?? "";
         const at = needle => body.indexOf(needle);
         const [crit, hint, name, text, lab] = ['"DRPG.Observe.critPrompt"', 'name="critHint"', '"DRPG.TruthBullet.name"', 'name="playerText"', 'name="analyzedText"'].map(at);
         must([crit, hint, name, text, lab].every(i => i >= 0), `describeFind lost one of its fields - this would measure nothing: ${stableJson([crit, hint, name, text, lab])}`);
@@ -66000,7 +66002,10 @@ const INVARIANTS = [
         let answer = null;
         try {
             if (ui.notifications) ui.notifications.warn = text => { warned.push(String(text)); };
-            answer = [G.mayEndChapterHere({ primary: false }), G.mayEndChapterHere({ primary: true })];
+            // A GM who is not the primary: an Assistant GM is refused; a second full GM's end goes to the primary (E128; the owner at
+            // the table, 22.11.2026: "Drugi GM ... powinien byc na rowni z pierwszym gmem" - for full GMs; an Assistant's role kept).
+            answer = [G.mayEndChapterHere({ primary: false, full: false }), G.mayEndChapterHere({ primary: true }),
+                G.mayEndChapterHere({ primary: false, full: true })];
         } finally {
             if (ui.notifications) ui.notifications.warn = realWarn;
         }
@@ -66009,7 +66014,7 @@ const INVARIANTS = [
             word: /KEPT_FIELDS\] \?\? \[\]\)\.includes\("safeword"\)/.test(season), asks: [asksFirst(season), asksFirst(edit)],
             here: [answer, warned.length] }),
         stableJson({ kept: ["chapter", "day", "phase", "session", "timeOfDay", "safeword"], json: "typed", readNow: true, word: true, asks: [true, true],
-            here: [[false, true], 1] }),
+            here: [[false, true, true], 1] }),
             "{kept: the fields named as taken from the world; json: the answer as JSON still the GM's name; readNow: the clock read again after the questions, and again after the assembly's call-off, right before the write; word: Season setup's safeword line reads them; asks: Season setup's and Edit campaign's End the chapter ask first; here: [as a GM not the primary, as the primary], warnings}");
     }],
     ["R8101 - a settings window's row left as drawn follows its setting, and one the person changed keeps their value (1.2.122 line CORE; the audit of 1.2.118, CORE-27, REFR-28, STG-15): settings-window.mjs `followSettingRows` on a row drawn with the other value than the one stored, told the setting changed (a recorder for Hooks), sets the field to the stored value as drawn (`untouchedField` still true); a second row the person changed is left; `saveSettings` skips a field `untouchedField` reads as drawn", async () => {
@@ -66520,6 +66525,54 @@ const INVARIANTS = [
         equal(stableJson([of("K", "victim"), of("V", "victim"), of("T", "victim"), of("T", "killer"), of("X", "killer"), of(null, "killer"),
             R.incidentShowsTo("K", [], {})]), stableJson([true, true, false, true, false, false, false]),
             "[the killer, the victim, a victim-side third, a killer-side third, one outside the cast, no leaver, the killer with no cast]");
+    }],
+    ["R8733 - a second GM's own opening roll, sent to the primary, reads as made on this browser: the tracker's Ask again says the roll is thrown here, not that nothing was sent (E128; scripts/murder-rules.mjs `throwOpeningRoll`, `rollOpening`, murder-ui.mjs `reaskOpening`; OWNER-128-SECOND-GM fix 2)", async () => {
+        /* Red at ed0b1ad3's parent (9eb89710): a GM's answer was `res.value`, and a result relayed to the primary carries none,
+           so `throwOpeningRoll` (and `rollOpening` with it) answered undefined and Ask again said "openingReaskNone". Read off the source (tier 1 rolls nothing):
+           the answer a GM reads, and the tracker's three lines by what it answered. Scenario 97 O1 drives the relay itself. */
+        const src = new Map(await moduleSources());
+        // The answer is `throwOpeningRoll`'s, which `rollOpening` hands on for a roll thrown on this browser.
+        const roll = fnSource(stripComments(src.get("murder-rules.mjs") ?? ""), "throwOpeningRoll") ?? "";
+        const reask = fnSource(stripComments(src.get("murder-ui.mjs") ?? ""), "reaskOpening") ?? "";
+        must(roll && reask, "murder-rules.mjs has no throwOpeningRoll or murder-ui.mjs no reaskOpening - this would measure nothing");
+        equal(stableJson({
+            relayed: /return game\.user\.isGM && res\.value !== undefined \? res\.value : \{ pending: true \};/.test(roll),
+            lines: /if \(out\?\.asked\)[^\n]*openingReaskSent[\s\S]{0,200}else if \(out\)[^\n]*openingReaskHere[\s\S]{0,120}else[^\n]*openingReaskNone/.test(reask)
+        }), stableJson({ relayed: true, lines: true }),
+            "{relayed: a GM's answer with no value (relayed to the primary) reads as pending; lines: Ask again says Sent, Here for any answer, None for none}");
+    }],
+    ["R8732 - a Finish of a stopped verdict runs on its runner, is asked of the primary by a second full GM when the primary runs it, and is refused with whom to ask otherwise (E128; scripts/verdict.mjs `finishRoute`, `finishVerdict`; OWNER-128-SECOND-GM, line CORE's inventory row 6)", async () => {
+        /* Red at 9eb89710: no `finishRoute` - a second GM's Finish of a verdict the primary ran was refused
+           (`DRPG.Vote.finishOtherGm`). Pure on stand-in ids, and a text read of `finishVerdict`; nothing written. */
+        const V = await import("./verdict.mjs");
+        must(typeof V.finishRoute === "function", "verdict.mjs has no finishRoute: a second GM's Finish is refused whoever runs the verdict");
+        const r = (runner, me, full = true) => V.finishRoute({ runner, me, primary: "PRIMARY", full });
+        const finish = fnSource(stripComments((new Map(await moduleSources())).get("verdict.mjs") ?? ""), "finishVerdict") ?? "";
+        equal(stableJson({ routes: [r(null, "SECOND"), r("SECOND", "SECOND"), r("PRIMARY", "SECOND"), r("PRIMARY", "SECOND", false), r("THIRD", "SECOND"), r("PRIMARY", "PRIMARY")],
+            asks: /const route = finishRoute\(\{ runner \}\);\s*if \(route === "primary"\) \{[\s\S]{0,160}bridgeRequest\("verdict\.finish"/.test(finish) }),
+            stableJson({ routes: ["here", "here", "primary", "refuse", "refuse", "here"], asks: true }),
+            "{routes: no runner, the runner itself, a second full GM while the primary runs it, an Assistant GM then, another GM runs it, the primary runs it and presses; asks: finishVerdict sends a second GM's Finish to the primary}");
+    }],
+    ["R8731 - Season setup's Reset the season asks who may reset at the press, before the window closes: a GM who is not the primary is told the reset is the primary's and the window is kept (E128; scripts/gm-campaign.mjs `mayResetSeasonHere`, season-setup.mjs `openSeasonSetup`; OWNER-128-SECOND-GM, line CORE's inventory row 7)", async () => {
+        /* Red at 9eb89710: no `mayResetSeasonHere`; the press closed Season setup unsaved and season-wipe.mjs `resetSeason`
+           refused after, so a second GM's typed edits were lost. Pure (the warning caught) and a text read of the handler;
+           nothing written. */
+        const G = await import("./gm-campaign.mjs");
+        must(typeof G.mayResetSeasonHere === "function", "gm-campaign.mjs has no mayResetSeasonHere: the reset is refused only after Season setup has closed");
+        const season = fnSource(stripComments((new Map(await moduleSources())).get("season-setup.mjs") ?? ""), "openSeasonSetup") ?? "";
+        const warned = [], realWarn = ui.notifications?.warn;
+        let answer = null;
+        try {
+            if (ui.notifications) ui.notifications.warn = text => { warned.push(String(text)); };
+            answer = [G.mayResetSeasonHere({ primary: false }), G.mayResetSeasonHere({ primary: true })];
+        } finally {
+            if (ui.notifications) ui.notifications.warn = realWarn;
+        }
+        const said = game.i18n.format("DRPG.GmStore.resetPrimaryOnly", { name: "" }).split("{")[0].slice(0, 12);
+        equal(stableJson({ answer, warned: warned.length, words: warned.every(w => w.startsWith(said)),
+            asks: /\[data-drpg-reset-season\][\s\S]{0,160}if \(!mayResetSeasonHere\(\)\) return;\s*resetAsked = true;/.test(season) }),
+            stableJson({ answer: [false, true], warned: 1, words: true, asks: true }),
+            "{answer: a GM who is not the primary, the primary; warned: how often; words: the reset's own; asks: the press asks before it marks the reset and closes}");
     }],
     ["R8730 - a Spectator viewer's outline stands round the room its own Spectator token stands in, where its screen clears the room, and nowhere its fog does not; its walk still finds nothing and stands in no room of the fog's; a living player's outline is its own rooms as before (E127; scripts/fog.mjs `outlineLeadRooms`, `spectatorLeadRoom`, `leadsHere`, `myCurrentRooms`, `recordDiscovery`, `seedCells`; the owner at the table, 22.11.2026)", async () => {
         /*

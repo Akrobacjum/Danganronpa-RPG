@@ -2626,6 +2626,19 @@ export async function voicePlan({ toChat = false, targets } = {}) {
  * ========================================================================== */
 
 /**
+ * The GM panel's Fix voice, from any full GM (E128, 22.11.2026; OWNER-128-SECOND-GM, line CORE's inventory row 8): on the
+ * primary `resetAllVoice` itself; on a second full GM, asked of the primary (`voice.reset`), which holds the ledger and
+ * sends the rooms. Answers how many were sent, or null (no LiveKit, or not carried out - the bridge has said why).
+ */
+export async function resetVoiceFromHere() {
+    if (isPrimaryGm()) return resetAllVoice();
+    if (game.user?.role !== CONST.USER_ROLES.GAMEMASTER) return null;
+    const { bridgeRequest } = await import("./bridge-guards.mjs");
+    const res = await bridgeRequest("voice.reset", {}, { settle: "reply", onPrimary: true });
+    return res.ok && Number.isFinite(res.value) ? res.value : null;
+}
+
+/**
  * Re-send every connected account its voice room: the GM panel's "Re-send everybody's voice room" and the console's
  * `game.drpg.resetAllVoice()` (E19 C4, 19.10.2026; audit S11-25). Answers how many assignments it sent or applied,
  * or `null` when this browser cannot (LiveKit AVClient off, or not the primary GM).
