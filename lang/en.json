@@ -1487,22 +1487,22 @@
       "noSet": "Pick a Logic Dive set.",
       "noCount": "Nothing to count now: you can count only a running vote.",
       "noQuestionHere": "Skip question works only in a Logic Dive.",
-      "noSide": "Pick Zone A or Zone B.",
+      "noSide": "Pick one of the two answers.",
       "samePick": "You already picked that side.",
       "noThesis": "You can give a thesis only during a Scrum Debate turn, and it needs a few words.",
       "notStarted": "The mode did not start. Check that both answers are filled in and, for a Logic Dive, that a set is picked and each of its questions has words.",
       "straw": {
-        "opened": "{question} Students stand in Zone A for {a} or in Zone B for {b}. The count comes in {seconds} s.",
-        "openedBare": "Students stand in Zone A for {a} or in Zone B for {b}. The count comes in {seconds} s.",
-        "finding": "The class thinks: {answer}. The count was {a} in Zone A and {b} in Zone B.",
-        "split": "The class is split, {a} in Zone A and {b} in Zone B. A Scrum Debate can settle it."
+        "opened": "{question} Students stand in the zone for “{a}” or the zone for “{b}”. The count comes in {seconds} s.",
+        "openedBare": "Students stand in the zone for “{a}” or the zone for “{b}”. The count comes in {seconds} s.",
+        "finding": "The class thinks: {answer}. The count was {na} for “{a}” and {nb} for “{b}”.",
+        "split": "The class is split: {na} for “{a}”, {nb} for “{b}”. A Scrum Debate can settle it."
       },
       "dive": {
-        "opened": "Question {n} of {total}: {question} Students stand in Zone A for {a} or in Zone B for {b}. The class has {seconds} s to choose.",
-        "openedBare": "Question {n} of {total}. Students stand in Zone A for {a} or in Zone B for {b}. The class has {seconds} s to choose.",
-        "right": "The class is right, with {a} in Zone A and {b} in Zone B.",
-        "wrong": "The class is wrong, with {a} in Zone A and {b} in Zone B. The Logic Dive ends here.",
-        "tie": "A tie, {a} in Zone A and {b} in Zone B, counts as wrong. The Logic Dive ends here.",
+        "opened": "Question {n} of {total}: {question} Students stand in the zone for “{a}” or the zone for “{b}”. The class has {seconds} s to choose.",
+        "openedBare": "Question {n} of {total}. Students stand in the zone for “{a}” or the zone for “{b}”. The class has {seconds} s to choose.",
+        "right": "The class is right: {na} for “{a}”, {nb} for “{b}”.",
+        "wrong": "The class is wrong: {na} for “{a}”, {nb} for “{b}”. The Logic Dive ends here.",
+        "tie": "A tie, {na} for “{a}” and {nb} for “{b}”, counts as wrong. The Logic Dive ends here.",
         "solved": "The Logic Dive is solved: {finding}",
         "skipped": "The GM skips question {n}.",
         "replay": "This set was played before: it ended {when} ({outcome}). Players may remember it.",
@@ -1540,19 +1540,19 @@
         }
       },
       "scrum": {
-        "opened": "{question} Students pick a side: Zone A for {a}, Zone B for {b}. The camps confer in {seconds} s.",
-        "openedBare": "Students pick a side: Zone A for {a}, Zone B for {b}. The camps confer in {seconds} s.",
-        "confer": "The sides are set, {a} in Zone A and {b} in Zone B. Each camp confers apart for {seconds} s, then the debate begins.",
+        "opened": "{question} Students pick a side: the zone for “{a}” or the zone for “{b}”. The camps confer in {seconds} s.",
+        "openedBare": "Students pick a side: the zone for “{a}” or the zone for “{b}”. The camps confer in {seconds} s.",
+        "confer": "The sides are set: {na} for “{a}”, {nb} for “{b}”. Each camp confers apart for {seconds} s, then the debate begins.",
         "noVoice": "The camps' voices are not split: “Separate voice in each room” is off or LiveKit is not active. The camps confer the way the table already talks.",
-        "begins": "Zone {zone} speaks first. The camps take turns of {seconds} s, {turns} turns in all.",
-        "over": "The Scrum Debate is over: {a} in Zone A, {b} in Zone B.",
-        "empty": "Zone {zone} is empty. The class thinks: {answer}.",
-        "noSpeaker": "Nobody stands in Zone {zone}, so this turn runs out with no speaker.",
-        "thesis": "Zone {zone}'s thesis: {text}"
+        "begins": "The camp for “{answer}” speaks first. The camps take turns of {seconds} s, {turns} turns in all.",
+        "over": "The Scrum Debate is over: {na} for “{a}”, {nb} for “{b}”.",
+        "empty": "Nobody stands for “{empty}”. The class thinks: {answer}.",
+        "noSpeaker": "Nobody stands for “{answer}”, so this turn runs out with no speaker.",
+        "thesis": "Thesis for “{answer}”: {text}"
       },
       "panel": {
         "nobody": "nobody",
-        "counted": "Counted: Zone A {a}, Zone B {b}.",
+        "counted": "Counted: {na} for “{a}”, {nb} for “{b}”.",
         "outside": "In neither zone: {names}.",
         "thesis": "Thesis: {text}",
         "straw": {
@@ -1565,13 +1565,13 @@
         "scrum": {
           "setup": "Sides: the camps form, {seconds} s left.",
           "confer": "Camps confer: each camp talks in its own voice room, {seconds} s left.",
-          "speak": "Turn {turn} of {turns}: {who} speaks for Zone {zone}, {seconds} s left."
+          "speak": "Turn {turn} of {turns}: {who} speaks for “{answer}”, {seconds} s left."
         }
       },
       "confer": {
         "name": "Camps confer",
-        "mine": "You confer with Zone {zone}.",
-        "apart": "Zone A and Zone B confer apart.",
+        "mine": "You confer with the camp for “{answer}”.",
+        "apart": "The two camps confer apart.",
         "none": "You are in neither camp: you stay in the trial hall's voice.",
         "sidesSet": "Sides set",
         "conferOver": "End the confer"
@@ -1595,8 +1595,8 @@
       },
       "pick": {
         "body": "You have no token in the trial hall. Pick the side you stand on.",
-        "side": "{zone}: {answer}",
-        "done": "You stand in {zone}.",
+        "side": "{answer}",
+        "done": "You stand for “{answer}”.",
         "dismissed": "You stand in neither zone. This window comes back in {seconds} s."
       },
       "findings": {
@@ -1913,15 +1913,15 @@
       "trialLastTurn": "The last turn",
       "trialZone": {
         "straw": {
-          "vote": "Stand in Zone A or Zone B"
+          "vote": "Stand in the zone of your answer"
         },
         "dive": {
           "vote": "Question {n} of {total}: stand in your answer's zone",
           "pause": "Question {n} of {total} is counted"
         },
         "scrum": {
-          "setup": "The camps form in Zone A and Zone B",
-          "speak": "Turn {turn} of {turns}, for Zone {zone}"
+          "setup": "The camps form, one for each answer",
+          "speak": "Turn {turn} of {turns}, for “{answer}”"
         }
       },
       "waitingFor": "Incident: waiting for {name}",

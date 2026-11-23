@@ -4595,7 +4595,18 @@ export const TRIAL = {
             straw: { seconds: 45 },
             dive: { seconds: 60, pauseSeconds: 5, maxQuestions: 5 },
             scrum: { setupSeconds: 45, conferSeconds: 120, budgetSeconds: 300, minTurn: 20, maxTurn: 40, thesisLength: 120 },
-            questionLength: 200, answerLength: 80
+            questionLength: 200, answerLength: 80,
+            /*
+             * THE ZONES' NAMES ON THE HALL (E129 S0-ZONESTYLE, 23.11.2026; the owner's note of that day, "strefy w class
+             * trial. Niech maja ten sam styl co pokoje na mapie, a nazwa strefy (bez zone a/b - sama tresc) niech
+             * wyswietla sie na srodku strefy i nie znika. Duzy font, jak na mapie!"; the coordinator's defaults, pending
+             * the owner): each zone drawn as a room on the map is, named by its answer alone (`prefix` true puts "Zone A:"
+             * before it again), in the room name's face and size, centred on its largest piece and standing for the whole
+             * zone mode (trial-zones-ui.mjs `drawZones`). A long answer wraps to `fitWidth` of that piece's width and
+             * shrinks until it fits `fitHeight` of its height, to `minFontPx` scene pixels at the least, past which it is
+             * clipped to the zone (`fitZoneLabel`).
+             */
+            label: { prefix: false, fitWidth: 0.9, fitHeight: 0.9, minFontPx: 12 }
         }
     },
     /**

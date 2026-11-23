@@ -938,7 +938,7 @@ Jeśli kiedyś wziąłeś jako Level Up +1 Health albo +1 Sanity, GM może wyró
 
 ### Strefy sali
 
-W **Straw Poll**, **Logic Dive** albo **Scrum Debate** odpowiadasz tym, gdzie stoi twój token w sali rozpraw. Strefy to **Strefa A** i **Strefa B**, każda nazwana swoją odpowiedzią: przesuń token do wybranej. Jeśli się nie ruszysz, odpowiadasz strefą, w której leży twoje stanowisko. Token na linii między strefami albo poza obiema nie liczy się po żadnej stronie. Bez tokenu w sali dostajesz okno wyboru strony, w Logic Dive przy każdym pytaniu; zamknięte bez odpowiedzi wraca po 15 s. W żadnym z tych trzech trybów nikt nie wnosi objection. Gdy tryb się kończy, twój token wraca na stanowisko.
+W **Straw Poll**, **Logic Dive** albo **Scrum Debate** odpowiadasz tym, gdzie stoi twój token w sali rozpraw. Są dwie strefy, każda narysowana jak pokój na mapie, z odpowiedzią dużymi literami na środku: przesuń token do wybranej. Jeśli się nie ruszysz, odpowiadasz strefą, w której leży twoje stanowisko. Token na linii między strefami albo poza obiema nie liczy się po żadnej stronie. Bez tokenu w sali dostajesz okno wyboru strony, w Logic Dive przy każdym pytaniu; zamknięte bez odpowiedzi wraca po 15 s. W żadnym z tych trzech trybów nikt nie wnosi objection. Gdy tryb się kończy, twój token wraca na stanowisko.
 
 | Tryb | Jak zapada rozstrzygnięcie | Kto przedstawia dowody |
 |---|---|---|

@@ -1203,7 +1203,7 @@ function buildTimeRow(clock, isGM) {
             slot.append(line);
         }
         /* A SCRUM DEBATE'S CAMPS CONFER (the owner's 13.11.2026): the phase and which camp this player confers with -
-           "Camps confer: You confer with Zone A." - and the GM's "Zone A and Zone B confer apart.", under the mode, while
+           "Camps confer: You confer with the camp for “...”." - and the GM's "The two camps confer apart.", under the mode, while
            the camps talk in their own rooms (voice.mjs `placeVoices`). Its clock is the trial card's (events.mjs). */
         const camp = conferHudLine(isGM);
         if (camp) {

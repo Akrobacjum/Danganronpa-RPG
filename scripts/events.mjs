@@ -540,11 +540,11 @@ export function trialFloorCard(floor) {
         speaker = floor.mode === FLOOR_MODES.scrum && zone.phase === "speak" ? (floor.holderId ? (floorHolder(floor)?.name ?? unknown) : null) : (zone.question || null);
         meta = game.i18n.has(phaseKey) ? game.i18n.format(phaseKey, {
             n: (Number(zone.set?.index) || 0) + 1, total: zone.set?.total ?? 1, turn: zone.turn ?? 0, turns: zone.turns ?? 0,
-            zone: String(zone.side ?? "").toUpperCase()
+            answer: zone.answers?.[zone.side] ?? ""
         }) : null;
     }
     /* A SCRUM DEBATE'S CAMPS CONFER (the owner's 13.11.2026): "Camps confer" under the mode, and which camp this
-       player talks with, or the GM's "Zone A and Zone B confer apart."; the clock below counts the Confer down. */
+       player talks with, or the GM's "The two camps confer apart."; the clock below counts the Confer down. */
     const confer = conferLineOf(floor, { gm: game.user.isGM, owns: id => game.actors?.get?.(id ?? "")?.isOwner === true });
     if (confer) {
         speaker = game.i18n.localize("DRPG.Zones.confer.name");
