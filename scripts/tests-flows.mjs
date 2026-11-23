@@ -89,6 +89,10 @@ export const FLOWS = Object.freeze([
     // E74 C6 (12.11.2026): 30 forges the packet; the tier-2 test E74-T4 keeps a watch through an Eclipse.
     { id: "keep-watch", what: "Keep Watch: the Body roll drawn on the GM, the watch kept by the GM and its cards through the Eclipse",
         entry: { bridge: ["watch.declare"] }, scenarios: ["30-security"], status: "partial", stage: "E39" },
+    // S0-HIDE (E129, 23.11.2026): 22-hide drives the primary's run and p1's Reveal yourself; the tier-2 test "1.2.128 S0-HIDE"
+    // the primary's start, end, chapter and sweep. The Shadow roll's draw from a player's page is not driven headless.
+    { id: "hide", what: "Hide: the Shadow roll drawn on the GM, the character hidden by the primary until Reveal yourself, a GM, the chapter or the reset",
+        entry: { bridge: ["hide.start"] }, scenarios: ["22-hide"], status: "partial", stage: "E129" },
     // E74 C4 (12.11.2026): 30 forges the packet; the tier-2 test E74-T3 picks a lock and a seal.
     // E74 (DA9 as the plan has it, 12.11.2026): an open is a pass, kept by the GMs and copied to its owner (lockpick-gm.mjs's
     // socket), until the picker leaves the room; scenario 33 E74-C walks the picker in on it from the player's page.

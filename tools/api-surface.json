@@ -363,6 +363,7 @@
     "rollFlags": "function",
     "sheetWrites": "function",
     "publicRoll": "function",
+    "unhide": "function",
     "diagnoseVisibility": "function",
     "diagnoseDespair": "function",
     "diagnoseCharacters": "function",

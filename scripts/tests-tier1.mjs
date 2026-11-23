@@ -61933,7 +61933,8 @@ const INVARIANTS = [
         const pl = await fetch(`/modules/${MODULE_ID}/lang/pl.json`).then(r => r.json());
         const plRow = pl?.DRPG?.Config?.ACTIONS?.listen ?? {};
         // E69 C7 (13.11.2026) adds Echoes, an intended change of this expectation.
-        const seven = ["Listen", "Echoes", "Tail Someone", "Dash", "Shut the Door", "Force the Door", "Pick the Lock", "Keep Watch"];
+        // S0-HIDE (E129, 23.11.2026) adds Hide, an intended change of this expectation.
+        const seven = ["Listen", "Echoes", "Tail Someone", "Dash", "Shut the Door", "Force the Door", "Pick the Lock", "Keep Watch", "Hide"];
         const I = C.INFILTRATE ?? {};
         const read = {
             key: Object.hasOwn(C.ACTIONS, "listen"),
@@ -61947,9 +61948,9 @@ const INVARIANTS = [
             inAggregate: C.DRPG?.INFILTRATE === C.INFILTRATE
         };
         // E112 item 4 (15.11.2026, the owner): Keep Watch directly under Tail Someone (an intended change).
-        equal(stableJson(read), stableJson({ key: true, label: ["Infiltrate", "Infiltrate"], hint: [true, true], variants: ["listen", "echoes", "tail", "keepWatch", "dash", "shut", "force", "pick"],
+        equal(stableJson(read), stableJson({ key: true, label: ["Infiltrate", "Infiltrate"], hint: [true, true], variants: ["listen", "echoes", "tail", "keepWatch", "dash", "shut", "force", "pick", "hide"],
             // E74 C2 adds Shut the Door, C3 Force the Door, C4 Pick the Lock, C6 Keep Watch (intended changes of this expectation).
-            rows: ["listen", "echoes", "tail", "dash", "shut", "force", "pick", "keepWatch"], tail: ["shadow", 15], dash: [["leg"], [[12, 2], [18, 3]], 4], inAggregate: true }),
+            rows: ["listen", "echoes", "tail", "dash", "shut", "force", "pick", "keepWatch", "hide"], tail: ["shadow", 15], dash: [["leg"], [[12, 2], [18, 3]], 4], inAggregate: true }),
             "{key; label [EN, PL]; hint names the seven rows [EN, PL]; variants; INFILTRATE's rows; tail [traits, unseen trait, its threshold]; dash [traits, bands, critical]; inAggregate} - the Infiltrate tile");
     }],
     ["R3756 - the Infiltrate window is one list of rows, Listen first and shut with its reason where the room has no neighbour (scripts/action-listen.mjs `infiltrateRows`, `performListen`; E69 C1, DA28): one row a key of `ACTIONS.listen.variants` in its order, each with its price; Listen open where the character's room has a neighbour and greyed with the no-neighbour line where it has none; a row not built greyed with its line; and `performListen` asks the rows before Listen's own room", async () => {
@@ -61977,7 +61978,7 @@ const INVARIANTS = [
                 // E74 C2 adds Shut the Door, C3 Force the Door, C4 Pick the Lock, C6 Keep Watch (intended changes of this expectation).
                 // E69 C7 (13.11.2026) adds Echoes, second (an intended change).
                 // E112 item 4 (15.11.2026, the owner): Keep Watch directly under Tail Someone (an intended change).
-                variants: ["listen", "echoes", "tail", "keepWatch", "dash", "shut", "force", "pick"], asksFirst: true }),
+                variants: ["listen", "echoes", "tail", "keepWatch", "dash", "shut", "force", "pick", "hide"], asksFirst: true }),
             "{rows: per student [the rows' keys, Listen shut exactly when the room has no neighbour, its line, a price on every row]; variants; asksFirst: performListen asks the rows before Listen's room} - the Infiltrate window");
     }],
     ["R6020 - Listen's eavesdrop is one more rule of the voice decision (scripts/voice.mjs `listeningRow`, `placeVoices`' `listens`; E69 C6, the owner's 10.11 (a)): an account whose character stands in the room it listens from is sent into the voice channel of the room it listens at, marked listening; one in another room, in no room or with no eavesdrop is placed as before; with no eavesdrop handed in nobody moves", async () => {

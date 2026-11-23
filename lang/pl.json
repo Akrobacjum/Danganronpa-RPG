@@ -9191,6 +9191,7 @@
         "eavesdrops": "Kto podsłuchuje pod którymi drzwiami, z którego pokoju i którego pokoju może znów posłuchać za darmo",
         "masks": "Który zabójca ukrywa się za „?” po otwarciu morderstwa i jak wyglądał jego token",
         "veils": "Który zabójca jest ukryty i wyciszony do rzutu otwarcia i czy każdy jego token był ukryty już wcześniej",
+        "hides": "Które postacie ukrywają się przez Hide, czyje mikrofony są przez to wyłączone i w którym rozdziale zaczęło się każde ukrycie",
         "timedEffects": "Co akcje w pokojach dały każdej postaci na jakiś czas i kiedy to mija",
         "clockBeat": "Kiedy główny GM był ostatnio przy stole",
         "takeBack": "Co zmienił ostatni początek pory dnia, zachowane na pięć minut, by GM mógł cofnąć pomyłkę",

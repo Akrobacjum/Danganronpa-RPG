@@ -234,6 +234,7 @@ export async function startHide({ actor, total = 0, isCritical = false, userId =
 
 /** Each token of `actor` that may carry the flag and does not, flagged. Answers how many it wrote. */
 async function flagTokens(actor) {
+    if (!game.user?.isGM) return 0;
     let n = 0;
     for (const scene of game.scenes ?? []) {
         if (!(await flaggable(scene))) continue;
@@ -248,6 +249,7 @@ async function flagTokens(actor) {
 
 /** Every token of `actorId` (or, with none, every token whose character no row holds) shown again. Answers how many. */
 async function unflagTokens(actorId = null) {
+    if (!game.user?.isGM) return 0;
     let n = 0;
     for (const scene of game.scenes ?? []) for (const token of scene.tokens ?? []) {
         if (!isHidingToken(token)) continue;

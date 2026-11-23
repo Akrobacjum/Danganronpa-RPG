@@ -6791,6 +6791,9 @@ const REGRESSIONS = [
             knockDoor: "refused",
             // E74 C6: a watch declared on the primary (watch-gm.mjs), its refusals by `watchRefusal`.
             declareWatch: "refused", watchRefusal: "returns",
+            // S0-HIDE (E129): a hide begun and ended on the primary (hide.mjs), its refusals by `hideRefusal`; the runs pass
+            // their `{ refused }` on.
+            startHide: "refused", hideRefusal: "returns", endHide: "refused",
             // E80 part 2 C3: an open Frisk's ask, answer and force, judged on the primary (frisk.mjs), whose runs pass their
             // `{ refused }` on, and a force's roll held to its ask (bridge-runs-acts.mjs `friskForceRoll`, a `derive`).
             askToFrisk: "refused", answerFrisk: "refused", followFrisk: "refused", friskForceRoll: "why",
@@ -7992,7 +7995,9 @@ const REGRESSIONS = [
             "action-doors.mjs performShut": INFILTRATE.shut,
             "action-doors.mjs performForce": INFILTRATE.force,
             "action-doors.mjs performPick": INFILTRATE.pick,
-            "action-watch.mjs performWatch": INFILTRATE.keepWatch
+            "action-watch.mjs performWatch": INFILTRATE.keepWatch,
+            // S0-HIDE (E129): Hide rolls its one statistic (INFILTRATE.hide, Shadow).
+            "hide.mjs performHide": INFILTRATE.hide
         };
         const sites = [];
         for (const [file, text] of await otherSources()) for (const fn of firstsIn(text)) sites.push(`${file} ${fn}`);
@@ -8195,7 +8200,7 @@ const REGRESSIONS = [
         const WAITING = [];
         // A Facilities roll (E93 C3) is thrown from the tile whose key is still `rest` (the Facilities tile).
         // A Dash (E69 C5) and a tail's two rolls (E69 C3) are thrown from the Infiltrate tile, whose key is still `listen`.
-        const THROWN_AS = { steal: "palm", rummage: "palm", frisk: "palm", facility: "rest", dash: "listen", tail: "listen", tailUnseen: "listen", shut: "listen", force: "listen", pick: "listen", pickCover: "listen", keepWatch: "listen" };
+        const THROWN_AS = { steal: "palm", rummage: "palm", frisk: "palm", facility: "rest", dash: "listen", tail: "listen", tailUnseen: "listen", shut: "listen", force: "listen", pick: "listen", pickCover: "listen", keepWatch: "listen", hide: "listen" };
         // A Take from the Body's two rolls (E68 C10): its Hand and its cover, both of config.mjs `LOOT`.
         const { LOOT } = await import("./config.mjs");
         const TABLES = { crisis: CRISIS_ACTIONS, cleanup: CLEANUP.actions, murderOpening: MURDER_OPENING, loot: LOOT, lootCover: LOOT?.cover };
@@ -10153,6 +10158,9 @@ const REGRESSIONS = [
             ["HOOK trial-scene.mjs#registerTrialScene#createToken:watchCastCreated", "hidden and told, not deleted: every GM's client notes a cast token a non-GM makes in the hall as hidden, and the primary hides it if it was made shown and whispers the GMs (D7: since E81 DZ6 the module deletes in the hall only the tokens its record names, and a player's is not one; E13 fix r1-F2, 41 a5); its first position is `registerMovement`'s createToken row's"],
             // E62 C3b: the dead's Spectator token, read on its owner's browser.
             ["HOOK spectator-dead.mjs#registerDeadSpectator#createToken:inline", "reads, writes nothing (E62 C3b): on the dead student's own browser, a Spectator token made, moved to the Monocub or taken away with the option `drpgDeadSpectator` calls the curtain's hook and plays the Death fade; creates and deletes nothing, and judges no move"],
+            ["HOOK hide.mjs#registerHides#createToken:inline", "writes a GM's own token (S0-HIDE, E129, 23.11.2026): on the primary, a token made while its character hides is flagged by the settle (hide.mjs `settleHides`, `flagTokens`, none on a trial hall); judges no move, creates and deletes nothing"],
+            ["HOOK hide.mjs#registerHides#updateToken:inline", "writes nothing (S0-HIDE, E129): a player's own token redrawn, its hide read again for the voice tile's button (hide.mjs `noticeOwnHide`, the hook drpgHideChanged); judges no move, creates and deletes nothing"],
+            ["HOOK voice-tile.mjs#registerVoiceTile#updateToken:inline", "writes nothing (S0-HIDE, E129): on a GM, a token's Hide flag set or taken off repaints the open voice list's hidden lines (voice-tile.mjs `paintHidden`); judges no move, creates and deletes nothing"],
             ["HOOK mask-gm.mjs#registerMasks#createToken:inline", "writes a GM's own token (E112, 15.11.2026): on the primary, a token made while a mask or the opening's veil stands for its character joins the row and is masked or veiled (mask-gm.mjs `adoptToken`); judges no move, creates and deletes nothing"],
             ["HOOK spectator-dead.mjs#registerDeadSpectator#updateToken:inline", "reads, writes nothing (E62 C3b): on the dead student's own browser, a Spectator token made, moved to the Monocub or taken away with the option `drpgDeadSpectator` calls the curtain's hook and plays the Death fade; creates and deletes nothing, and judges no move"],
             ["HOOK visibility.mjs#registerVisibility#createRegion:inline", "out of scope as a judge: on a player's browser, a whole visibility pass in a microtask when the change is on the scene on screen (`roomsChangedOn` -> `wholePassSoon`), since the change can move which room a viewer's character reads as standing in with no token moving (E89 fix FG2, SEC-1; scenario 86, its fix FG2 SEC-1 check); it draws this client's tokens and decides no rule"],
@@ -10436,6 +10444,9 @@ const REGRESSIONS = [
             ["HOOK spectator-dead.mjs#deleteToken#arrow1", "reads, writes nothing (E62 C3b): on the dead student's own browser, a Spectator token made, moved to the Monocub or taken away with the option `drpgDeadSpectator` calls the curtain's hook and plays the Death fade; creates and deletes nothing, and judges no move"],
             ["HOOK spectator-dead.mjs#updateToken#arrow1", "reads, writes nothing (E62 C3b): on the dead student's own browser, a Spectator token made, moved to the Monocub or taken away with the option `drpgDeadSpectator` calls the curtain's hook and plays the Death fade; creates and deletes nothing, and judges no move"],
             ["HOOK spectator-dead.mjs#createToken#arrow2", "deleted, not judged (13.11.2026, scenario 78 part gm2): on the primary, a token made for a second Spectator of one student that this browser took away (`settleWatchers`, `lostWatchers`) is deleted when it arrives, and a token of a watcher sends its student's watchers to `settleWatchers`; neither reads nor judges a move into a room"],
+            ["HOOK hide.mjs#createToken#arrow1", "writes a GM's own token (S0-HIDE, E129, 23.11.2026): on the primary, a token made while its character hides is flagged by the settle (hide.mjs `settleHides`), none on a trial hall (`flaggable`); creates and deletes nothing"],
+            ["HOOK hide.mjs#updateToken#arrow1", "writes nothing (S0-HIDE, E129): a player's own token redrawn, its hide read again for the voice tile (hide.mjs `noticeOwnHide`); creates and deletes nothing"],
+            ["HOOK voice-tile.mjs#updateToken#arrow1", "writes nothing (S0-HIDE, E129): on a GM, a token's Hide flag repaints the voice list's hidden lines (voice-tile.mjs `paintHidden`); creates and deletes nothing"],
             ["HOOK mask-gm.mjs#createToken#arrow1", "writes a GM's own token (E112, 15.11.2026): on the primary, a token made while a mask or the opening's veil stands for its character joins the row and is masked or veiled (mask-gm.mjs `adoptToken`); judges no move, creates and deletes nothing"],
             ["HOOK visibility.mjs#canvasReady#arrow1", "out of scope: draws for this client only; the scene a client views decides no rule (E12 C6 `CAMERA_READERS`) [1b.1 which scene a client views]"],
             ["HOOK visibility.mjs#updateToken#arrow1", "out of scope: recomputes this client's draw on `hidden` or a move (visibility.mjs `registerVisibility`); C2's reveal and hide fire it on every client, expected"],
@@ -10684,6 +10695,7 @@ const REGRESSIONS = [
             ["RECORD popup.mjs#watchCard#updateNotice", "the body of a card on screen followed after a change (`watchCard`, 250 ms), into its own entry only, in try/catch; the html cleaned as at `record` and the entry weighed again against its author's bound (R293, R294, R297)"],
             ["NOTDONE action-analyze.mjs#performAnalyze", "composed on this client from closed lists (`sayNotDone`: the action one of `ANALYZE_ROW_REQUEST`'s literals, the reason checked against `REASONS`; a row the Class Trial filter shuts, E16 part 2 C3); kept as a notDone entry: read, these words and no others (R297)"],
             ["NOTDONE action-analyze.mjs#performAnalyze (2)", "composed on this client from closed lists (`sayNotDone`: the action a literal here, the reason checked against `REASONS`); kept as a notDone entry: read, these words and no others (R297)"],
+            ["NOTDONE hide.mjs#performHide", "composed on this client from closed lists (`sayNotDone`: the action the literal `hide.start`, the reason the literal noGm); Hide with no GM connected, before its price (S0-HIDE, E129); kept as a notDone entry: read, these words and no others (R297)"],
             ["NOTDONE action-watch.mjs#performWatch", "composed on this client from closed lists (`sayNotDone`: the action the literal `watch.declare`, the reason the literal noGm); Keep Watch with no GM connected, before its price (E74 C6); kept as a notDone entry: read, these words and no others (R297)"],
             ["NOTDONE action-doors.mjs#performPick", "composed on this client from closed lists (`sayNotDone`: the action the literal `door.pick`, the reason the literal noGm); Pick the Lock with no GM connected, before its price (E74 C4); kept as a notDone entry: read, these words and no others (R297)"],
             ["NOTDONE action-doors.mjs#performForce", "composed on this client from closed lists (`sayNotDone`: the action the literal `door.force`, the reason the literal noGm); Force the Door with no GM connected, before its price (E74 C3); kept as a notDone entry: read, these words and no others (R297)"],
@@ -11151,7 +11163,7 @@ const REGRESSIONS = [
         const css = await fetch(`/modules/${MODULE_ID}/styles/pixel-icons.css`).then(lfText);
         const names = [...src.matchAll(/\b(?:miniButton|rowButton)\(\s*"[^"]*",\s*"([\w-]+)"|\bglyph\(\s*"([\w-]+)"\s*\)/g)].map(m => m[1] ?? m[2]);
         const missing = list => list.filter(n => !new RegExp(`--drpg-pix-${n}:\\s*url\\(`).test(css));
-        equal(JSON.stringify([[...new Set(names)].sort(), missing(names), missing(["no-such-sprite"])]), JSON.stringify([["listen", "lock", "mic", "query", "sound", "team"], [], ["no-such-sprite"]]),
+        equal(JSON.stringify([[...new Set(names)].sort(), missing(names), missing(["no-such-sprite"])]), JSON.stringify([["averted-eyes", "listen", "lock", "mic", "query", "sound", "team"], [], ["no-such-sprite"]]),
             // E69 C8 (13.11.2026): Reveal yourself wears Legacy's query mark, `query` (an intended change).
             // E69 C6 (13.11.2026): Stop listening and a GM's eavesdroppers wear Legacy's ear, `listen` (an intended change).
             "[the glyph names voice-tile.mjs draws, those with no sprite in pixel-icons.css, the control's]");
@@ -11564,6 +11576,9 @@ const REGRESSIONS = [
             ["HOOK crossing-settle.mjs#onTokenStood#updateToken/inline -> judge", "this file's own (1.2.122, STG-08 and STG-09): a character's token that moved by any road and stood `SETTLE_MS` is handed to the barricades and the passes (doors-gm.mjs `barricadesLeftBy`, lockpick-gm.mjs `passLeftBy`), which read where it stands through `locateActor` and end what its author or holder left; writes only those GM rows and the barricade's public flag; no player is told (1.2.122, STG-08 and STG-09); no passage road through it"],
             ["HOOK body-tile.mjs#registerBodyFollow#updateToken/inline -> judge", "this file's own (E63 C1: the body follows its corpse on the mover's GM browser); E79 adds no road through it"],
             ["HOOK spectator-dead.mjs#registerDeadSpectator#createToken/inline -> judge", "this file's own (E62 C3b): the curtain's hook and the Death fade on the dead student's browser; E79 adds no road through it"],
+            ["HOOK hide.mjs#registerHides#createToken/inline -> judge", "this file's own (S0-HIDE, E129): a token made while its character hides is flagged on the primary; no passage road through it"],
+            ["HOOK hide.mjs#registerHides#updateToken/inline -> judge", "this file's own (S0-HIDE, E129): a player's own token redrawn, its hide read for the voice tile; no passage road through it"],
+            ["HOOK voice-tile.mjs#registerVoiceTile#updateToken/inline -> judge", "this file's own (S0-HIDE, E129): a GM's voice list repainted for a Hide flag; no passage road through it"],
             ["HOOK mask-gm.mjs#registerMasks#createToken/inline -> judge", "this file's own (E112): a token made while a mask or the veil stands joins it on the primary; no passage road through it"],
             ["HOOK spectator-dead.mjs#registerDeadSpectator#updateToken/inline -> judge", "this file's own (E62 C3b): the curtain's hook on the dead student's browser when its Spectator token becomes the Monocub's; E79 adds no road through it"],
             ["HOOK murder-rules.mjs#registerMurder#updateToken/inline -> judge", "this file's own; E79 adds no road through it"],
@@ -23547,7 +23562,7 @@ const REGRESSIONS = [
             "case-summary.mjs": {"message": 1},
             
             
-            "chapter.mjs": {"card": 3}, "cleanup-reshape.mjs": {"action": 2, "card": 1, "line": 1}, "cleanup.mjs": {"action": 3, "built": 1, "card": 3, "heading": 2, "line": 6, "message": 1}, "clock.mjs": {"built": 1, "line": 1, "message": 1}, "death.mjs": {"heading": 1}, "despair.mjs": {"line": 1, "message": 1},
+            "chapter.mjs": {"card": 3}, "cleanup-reshape.mjs": {"action": 2, "card": 1, "line": 1}, "cleanup.mjs": {"action": 4, "built": 1, "card": 3, "heading": 2, "line": 6, "message": 1}, "clock.mjs": {"built": 1, "line": 1, "message": 1}, "death.mjs": {"heading": 1}, "despair.mjs": {"line": 1, "message": 1},
             "diagnostics.mjs": {"card": 1}, "doors-gm.mjs": {"built": 2, "line": 3},
             // E69 C6, C7 (13.11.2026): the listener's line and Echoes' result are E49's card (action-listen.mjs); the GMs'
             // warning that voice per room is off is a warning card (eavesdrop-gm.mjs).
@@ -23559,6 +23574,10 @@ const REGRESSIONS = [
             "gm-items.mjs": {"action": 1, "heading": 2},
             // 1.2.122 line TEXT (TEXT-32): the missing answer key's one send to the owner and the GMs is two, the owner's and the GMs'
             "handover.mjs": {"built": 1, "heading": 2, "line": 14, "message": 1},
+            // S0-HIDE (E129): Hide's roll card (hide.mjs `performHide`, `rollResultCard`) and the one line a hide ended by a GM,
+            // the chapter or a Reroll tells its player (`endHide`); and cleanup.mjs's cover not thrown while hidden, one more
+            // action card (`concealFromWitnesses`).
+            "hide.mjs": {"built": 1, "card": 1},
             // 1.2.122 line MURDER (the audit's CASE-25): the GMs told a standing betrayal offer was kept (`armBetrayalWindow`).
             "incident-store.mjs": {"line": 1},
             "inventory.mjs": {"card": 3, "line": 3}, 

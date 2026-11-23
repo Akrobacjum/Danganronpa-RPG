@@ -7385,6 +7385,7 @@
         "eavesdrops": "Who listens at which door, from which room, and which room they may listen at again for free",
         "masks": "Which killer hides behind a \"?\" after a murder's opening, and what their token looked like",
         "veils": "Which killer is hidden and muted until their opening roll, and whether each of their tokens was hidden before",
+        "hides": "Which characters hide with Hide, whose microphones that holds off, and the chapter each hide began in",
         "timedEffects": "What room actions gave each character for a while, and when it ends",
         "clockBeat": "When the primary GM was last at the table",
         "takeBack": "What the last start of a time of day changed, kept for five minutes so a GM can take back a misclick",
