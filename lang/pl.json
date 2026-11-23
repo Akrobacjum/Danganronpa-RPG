@@ -539,7 +539,7 @@
       "card": "Do twojego rzutu otwarcia inni gracze nie widzą twoich tokenów, a twój mikrofon jest wyłączony; nadal słyszysz rozmowy."
     },
     "Hide": {
-      "hidden": "Jesteś w ukryciu: inni gracze nie widzą twojego tokenu, a twój mikrofon jest wyłączony; nadal słyszysz rozmowy. Żeby wyjść z ukrycia, naciśnij „Ujawnij się” na swoim kafelku głosu.",
+      "hidden": "Jesteś w ukryciu: inni gracze nie widzą twojego tokenu, a twój mikrofon jest wyłączony; nadal słyszysz rozmowy. Ukrycie trwa do końca pory dnia; żeby wyjść z niego wcześniej, naciśnij „Ujawnij się” na swoim kafelku głosu.",
       "notHidden": "Nie udaje ci się schować.",
       "already": "Już jesteś w ukryciu.",
       "notInTrial": "W czasie Class Trial nie można się schować.",
@@ -552,7 +552,8 @@
       "ended": {
         "gm": "GM kończy twoje ukrycie: inni gracze znów widzą twój token, a twój mikrofon znów działa.",
         "chapter": "Rozdział się skończył, a z nim twoje ukrycie: inni gracze znów widzą twój token, a twój mikrofon znów działa.",
-        "reroll": "Po Rerollu GM-a nie jesteś już w ukryciu: inni gracze znów widzą twój token, a twój mikrofon znów działa."
+        "reroll": "Po Rerollu GM-a nie jesteś już w ukryciu: inni gracze znów widzą twój token, a twój mikrofon znów działa.",
+        "timeOfDay": "Nie jesteś już w ukryciu: skończyła się pora dnia ({time}). Inni gracze znów widzą twój token, a twój mikrofon znów działa."
       }
     },
     "Listen": {
@@ -4313,7 +4314,7 @@
         },
         "hide": {
           "label": "Hide",
-          "hint": "Rzuć Shadow, żeby się schować: inni gracze przestają widzieć twój token, a twój mikrofon się wyłącza, dopóki nie ujawnisz się na swoim kafelku głosu. W ukryciu rzut Shadow, którym akcja sprawdza, czy zostajesz niezauważony, liczy się jako udany."
+          "hint": "Rzuć Shadow, żeby się schować: inni gracze przestają widzieć twój token, a twój mikrofon się wyłącza, dopóki nie ujawnisz się na swoim kafelku głosu albo nie skończy się pora dnia. W ukryciu rzut Shadow, którym akcja sprawdza, czy zostajesz niezauważony, liczy się jako udany."
         },
         "dash": {
           "label": "Dash",
@@ -6577,7 +6578,7 @@
         "masked": "Ukrywasz się za „?”: nie ma cię w głosie. Nikogo nie słyszysz i nikt nie słyszy ciebie, dopóki się nie ujawnisz albo nie zmieni się pora dnia.",
         "tokenHidden": "Twój token jest ukryty: mikrofon jest wyłączony, dopóki GM znów go nie pokaże.",
         "veiled": "Przed twoim rzutem otwarcia: mikrofon jest wyłączony, dopóki nie rzucisz.",
-        "hiding": "Jesteś w ukryciu: mikrofon zostaje wyłączony, dopóki się nie ujawnisz.",
+        "hiding": "Jesteś w ukryciu: mikrofon zostaje wyłączony, dopóki się nie ujawnisz albo nie skończy się pora dnia.",
         "cubSpeak": "Dyskusja: możesz mówić.",
         "cubListen": "Tryb: {mode}. Słuchasz.",
         "cubVote": "Głosowanie: słuchasz.",

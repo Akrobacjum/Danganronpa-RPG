@@ -9351,6 +9351,27 @@ const INVARIANTS = [
         stableJson({ veil: [true, false], button: [true, true, ["R8905ACTOR000000"], 0], gm: [1, 1, ["R8905ACTOR000000"], 0, true], dock: [true, false] }),
         "{veil: [hidden here, drawn here]; button: [drawn, its name, a press, gone]; gm: [lines, rows, a press, a player's list, its tooltip]; dock: [the hide's flag, another flag]}");
     }],
+    ["R8907 - a hide is held to the time of day it began, and the end of that time of day ends it, in both languages (S0-HIDE, the owner's 23.11.2026: \"ukryj sie ma dzialac do konca pory dnia\"; hide.mjs `hideMark`, `endHide` \"timeOfDay\"): the mark is the clock's chapter, day, time of day and Eclipse, so the next time of day, an Eclipse's start and a Rewind each read another mark, the same clock the same one; the hider's notice names the time of day that ended, in English and in Polish, with nothing left of a placeholder", async () => {
+        /* 1.2.128 line STG, 23.11.2026. Pure readings and the two language files; nothing written. Red at cf0a6201: no
+           `hideMark`, and no `DRPG.Hide.ended.timeOfDay`. */
+        const H = await import("./hide.mjs");
+        const files = {};
+        for (const code of ["en", "pl"]) files[code] = await fetch(`/modules/${MODULE_ID}/lang/${code}.json`).then(r => r.json());
+        const mark = typeof H.hideMark === "function" ? H.hideMark : () => "none";
+        const at = { chapter: 2, day: 3, timeOfDay: "noon", eclipse: false };
+        const words = code => {
+            const line = String(files[code]?.DRPG?.Hide?.ended?.timeOfDay ?? "");
+            const label = code === "en" ? "Noon" : String(files[code]?.DRPG?.Config?.TIME_OF_DAY_LABELS?.noon ?? "");
+            const filled = line.replace("{time}", label);
+            return { holds: line.includes("{time}"), named: Boolean(label) && filled.includes(label), left: /[{}]/.test(filled) };
+        };
+        equal(stableJson({ same: mark(at) === mark({ ...at }), next: mark(at) === mark({ ...at, timeOfDay: "afternoon" }),
+            eclipse: mark(at) === mark({ ...at, eclipse: true }), rewind: mark(at) === mark({ ...at, timeOfDay: "morning" }),
+            day: mark(at) === mark({ ...at, day: 4 }), en: words("en"), pl: words("pl") }),
+        stableJson({ same: true, next: false, eclipse: false, rewind: false, day: false,
+            en: { holds: true, named: true, left: false }, pl: { holds: true, named: true, left: false } }),
+        "{same: one clock read twice; next, eclipse, rewind, day: each another mark; en, pl: the end's notice [takes {time}, names it, no placeholder left]}");
+    }],
     ["R8906 - Hide's bridge roads are declared as the trust model asks, and every cover a GM reads off its record is marked as one the hide may stand in for (S0-HIDE, E129; bridge-table.mjs `hide.start`, `mask.reveal`; bridge-runs-acts.mjs `pickRolls`, `tailRolls`, `palmRolls`, `friskRolls`; bridge-guards.mjs `rollsFor`): `hide.start` is the owner's, not a Spectator's, a reply, its Shadow roll its own record's; `mask.reveal` takes `of` \"mask\" or \"hide\" and nothing else; the four covers carry `cover`, their hands do not; the runner stands a pass in only for a cover of a character the GMs hold hidden", async () => {
         /* 1.2.128 line STG, 23.11.2026. Read off the tables and the runner's source; nothing sent. Red at 5a583d82: no
            `hide.start`, `of` not sanitized, no `cover` mark. */
