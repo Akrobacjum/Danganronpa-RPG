@@ -107,7 +107,7 @@ W chwili twojej śmierci szkło na twoim ekranie szarzeje, z dźwiękiem Gaśni�
 
 ### Dzień, sesja, rozdział
 
-Jedna sesja to jeden dzień w fikcji, a dzień to pięć pór dnia: Rano, Południe, Popołudnie, Wieczór, Noc. Każda pora dnia uzupełnia Search Tokeny każdego pokoju, a jej Eclipse odnawia twoje dwie akcje i Free Move (gdy pora mija bez Eclipse, odnawia je GM). Gdy kończy się Noc, zaczyna się nowy dzień.
+Jedna sesja to jeden dzień w fikcji, a dzień to pięć pór dnia: Rano, Południe, Popołudnie, Wieczór, Noc. Każda pora dnia uzupełnia Search Tokeny każdego pokoju, a jej Eclipse odnawia twoje dwie akcje i Free Move (gdy pora mija bez Eclipse, odnawia je GM). Gdy kończy się Noc, zaczyna się nowy dzień. GM wybiera tempo: w tempie pełnym sesja przy stole to jeden dzień gry, około 30 minut na porę dnia; w tempie szybkim to dwa dni gry, około 15 minut na porę dnia, a zegar liczy każdy z nich jako sesję. Czas Eclipse dochodzi do tego.
 
 Kanoniczny rozdział to pięć sesji: trzy Daily Life, jedna sesja **Investigation** i jedna sesja **Class Trial**, a morderstwo przychodzi zwykle w trzeciej sesji Daily Life. GM może rozciągnąć rozdział, gdy morderstwa jeszcze nie było. Sezon to sześć rozdziałów; sezon modułowy to krótszy sezon, który GM może wybrać zamiast niego, i ma jeden rozdział.
 
