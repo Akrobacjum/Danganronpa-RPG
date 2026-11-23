@@ -382,7 +382,7 @@ export function tellGmsTold({ to = null, socket = game.socket, users = game.user
     if (!isPrimaryGm() || gmStoresQuiet()) return 0;
     const recipients = [...(users ?? [])].filter(u => u?.isGM && u.active && u.id !== game.user?.id && (!to || u.id === to)).map(u => u.id);
     if (!recipients.length) return 0;
-    socket.emit(SOCKET_EVENT, { action: "passage.toldGms", told: toldSummary() }, { recipients });
+    socket.emit(SOCKET_EVENT, { action: "passage.toldGms", told: toldSummary() }, { recipients: [...recipients] });
     return recipients.length;
 }
 
