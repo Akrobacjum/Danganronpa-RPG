@@ -386,6 +386,15 @@ export const CHAPTERS_PER_SEASON = 6;
 export const SHARE_WITH_ANALYSIS = true;
 
 /**
+ * WHETHER THIS PAGE'S OWN MICROPHONE TRACK FOLLOWS THE MICROPHONE BUTTON (E129 S0-GMMUTE and the holds; the coordinator's
+ * decision of 23.11.2026, the owner's session-0 asks behind it: Hide "wycisza go", "niech chowanie tokenu automatycznie
+ * wycisza na livekit"). On: voice-client.mjs `followHold` mutes the page's own LiveKit track while the button says held,
+ * blocked or muted, and opens it again only in "always" with nothing standing. Off: the module writes only the stored mute
+ * and the GM's BROADCAST_AUDIO, as before 1.2.128. The one place the switch lives.
+ */
+export const OWN_TRACK_FOLLOWS_HOLD = true;
+
+/**
  * WHAT THE CASE'S REALIZATION PLACES, BY DEFAULT (the owner's notes of session 0, 23.11.2026, S0-REALIZE: "realization
  * niech zawiera opcje rozdania i ustawienia wszystkich remnantow zaplanowanych, albo samych key (jak teraz)"; the
  * coordinator's default, pending the owner; line INVEST of 1.2.129): "keys", the Key Remnant plan's slots alone, as until
@@ -1501,6 +1510,9 @@ export const KEY_REMNANTS = {
  *   an Objection   1 action, else 1 Hope, else 1 Sanity
  *   Analyze        the same three - but only inside a Class Trial; anywhere
  *                  else it costs its action or nothing happens
+ *   Palm           the same three, inside a Class Trial alone (E129 S0-PALM, 23.11.2026; the owner's note of session
+ *                  0: "palm powinno byc dostepne w trialu za akcje, potem za hope, potem za sanity"), as Analyze's;
+ *                  anywhere else its action, as before
  *   Tamper         1 action, else 1 Sanity - but since E64 (12.11.2026) only the
  *                  killer's own Stage 6 reaches the Sanity step: anyone else's
  *                  Tamper costs 1 action and no Sanity, and with no action left
@@ -1540,6 +1552,14 @@ export const PRICE_CHAINS = {
         ]
     },
     analyze: {
+        steps: [
+            { pay: "action", amount: 1 },
+            { pay: "hope", amount: 1 },
+            { pay: "stress", amount: RESOLUTION_STRESS_COST }
+        ],
+        stepsBeyondFirst: "classTrial"
+    },
+    palm: {
         steps: [
             { pay: "action", amount: 1 },
             { pay: "hope", amount: 1 },
@@ -1812,9 +1832,9 @@ export const ACTIONS = {
         traits: ["shadow"],
         cost: 1,
         // Keep Watch under Tail Someone (E112 item 4, the owner 15.11.2026): the window draws its rows in this order.
-        variants: ["listen", "echoes", "tail", "keepWatch", "dash", "shut", "force", "pick"],
+        variants: ["listen", "echoes", "tail", "keepWatch", "dash", "shut", "force", "pick", "hide"],
         hint: "Listen at a wall, hear Echoes, Tail Someone, Keep Watch, Dash through the corridors, Shut the Door, Force the "
-            + "Door or Pick the Lock. Each costs an action.",
+            + "Door, Pick the Lock or Hide. Each costs an action.",
         description: "Pick a neighboring room and roll Shadow; it costs an action. A good roll counts the people "
             + "there, a better one names them, and a critical names everyone in every neighboring room. A miss tells "
             + "you nothing; with no neighboring room, you keep your action.",
@@ -2297,7 +2317,17 @@ export const INFILTRATE = Object.freeze({
     // Keep Watch (E74 C6; DA34): Body, declared before an Eclipse; a roll below `dc` keeps no watch (the owner's "Zgoda",
     // 12.11.2026). A watch of `hindranceAt` or more, or a critical, puts one hindrance die on the killer's opening roll
     // against the watcher (DA44 option A, the owner 12.11.2026: named in the killer's window, its cause not).
-    keepWatch: Object.freeze({ traits: Object.freeze(["body"]), cost: 1, dc: 12, hindranceAt: 18 })
+    keepWatch: Object.freeze({ traits: Object.freeze(["body"]), cost: 1, dc: 12, hindranceAt: 18 }),
+    /*
+     * Hide (S0-HIDE, E129, 23.11.2026; the owner: "Udany rzut na shadow chowa calkowicie token gracza i wycisza go, dopoki
+     * nie kliknie ujawnij sie na panelu livekit"). Shadow at `dc`; a hit or a critical hides the character (hide.mjs) until
+     * "Reveal yourself", a GM's reveal, the chapter's end or the season's reset. `dc` 15 is the cover the other Infiltrate
+     * rows already ask of Shadow (Tail's `unseen` 15, Palm's 15; Pick the Lock's 16) - a proposal put to the owner, not a
+     * measurement. `ownAlpha` is how the hider's own browser draws their token (the coordinator's 0.4). `coverTotal` is the
+     * total a skipped cover roll counts as while hidden: above every cover's threshold (the highest is 16), so each reads it
+     * as passed; it is never a roll and earns no Hope (the owner's answer of 23.11.2026: Hope comes from the main roll only).
+     */
+    hide: Object.freeze({ traits: Object.freeze(["shadow"]), cost: 1, dc: 15, ownAlpha: 0.4, coverTotal: 99 })
 });
 
 /* ==========================================================================
@@ -4424,9 +4454,11 @@ export const TRIAL = {
      */
     debateMinSeconds: 30,
     /**
-     * An OBJECTION buys exactly one minute of silence, then the person it was
+     * An OBJECTION buys half a minute of silence, then the person it was
      * aimed at gets two minutes to answer back, and then the floor returns to
-     * free discussion.
+     * free discussion. Thirty seconds since 1.2.129 (E129 S0-OBJ; the owner's note of session 0, 23.11.2026:
+     * "objection skrocic do 30s"); a minute until then. The Closing's exchange keeps its own seconds
+     * (`modes.closing.objectionSeconds`, below), the coordinator's default pending the owner.
      *
      * Both are fixed rather than GM-editable on purpose: they are the shape of
      * the interruption, not a budget. A GM who needs to cut a rebuttal short
@@ -4434,13 +4466,40 @@ export const TRIAL = {
      * has "+30 s". Making them configurable would turn one rule everybody at
      * the table already knows into a per-world variable nobody can predict.
      */
-    objectionSeconds: 60,
+    objectionSeconds: 30,
+    /*
+     * THE OBJECTOR MAY END THEIR OWN SECONDS (E129 S0-SKIP, 23.11.2026; the owner's note of session 0: "dodajmy opcje
+     * skipowania etapow w class trial przez graczy, jesli mowia jako jedyni (np testimony, objection). niech maja od tego
+     * pop up"; the coordinator's default). While an Objection's own seconds run, the objector alone holds the floor, and
+     * a window in the middle of their screen asks "Finish your turn now?" (trial-prompt.mjs `promptFinish`); Finish my turn
+     * ends that step as the GM's Skip would - the rebuttal starts - and the GMs are told in their corner (trial-floor.mjs
+     * `finishObjectionOnPrimary`). Testimony, a Panic Round, the Closing's speech and a Scrum turn had their speaker's Done
+     * already ("Your turn"); a rebuttal has two speakers and the debate many, so neither is offered. False takes the window
+     * and the road away.
+     */
+    objectorMayFinish: true,
+    /*
+     * PALM IN THE HALL (E129 S0-PALM, 23.11.2026; the coordinator's default, approved that day, pending the owner): the
+     * trial's hall holds no room (R114), and Palm needs its target in the thief's room. While a Class Trial runs, every
+     * student on the hall scene, on the same floor, whose token the GMs have not hidden, counts as in the thief's room for
+     * Palm's Steal and Plant (frisk.mjs `personActionRefusal` with `palm`, palm.mjs `palmPlace`). Palm's forced Frisk
+     * stays shut in the trial (a Frisk is its own action). False takes Palm's hall away again.
+     */
+    palmHallIsOneRoom: true,
+    /*
+     * WHO TAKES PART, BY THE PLAYER'S OWN LINK (E129 S0-CUT P1, 23.11.2026; the coordinator's fix after the owner's note
+     * "testimony ucielo ostatniego gracza", ownership links at that table being loose): a student owned by two players is
+     * seated by the player whose `user.character` it is, and a student left goes to its first owner not seated yet (vote.mjs
+     * `trialParticipants`). False is the rule until 1.2.129: the first owner Foundry lists, the student dropped when that
+     * player had a seat already.
+     */
+    seatByCharacter: true,
     rebuttalSeconds: 120,
     /**
      * How long an objector has to pick the Truth Bullet once their Objection is in (E79 C16, 1.2.79; the owner,
      * 17.10.2026: the bullet is chosen AFTER the objection, and the card waits "pending" for it). The floor is the
-     * objector's while they choose, and the minute above starts only when the bullet is on the card
-     * (trial-floor.mjs `fillObjectionInStep`, run by trial.mjs `evidenceOnPrimary`), so the minute is the minute they argue with it. Past these seconds the
+     * objector's while they choose, and the seconds above start only when the bullet is on the card
+     * (trial-floor.mjs `fillObjectionInStep`, run by trial.mjs `evidenceOnPrimary`), so they are the seconds they argue with it. Past these seconds the
      * Objection is withdrawn, the floor goes back to the debate and the price stays paid (trial-floor.mjs
      * `advanceIfDue`): an interruption that stopped the room and showed nothing is not free. The owner's default D4.
      */
@@ -4478,19 +4537,39 @@ export const TRIAL = {
         round: {
             testimony: { offered: 60, min: 30, max: 120 },
             panic: { offered: 15, small: 10, smallFrom: 12, min: 10, max: 15 },
-            graceSeconds: 1
+            graceSeconds: 1,
+            /*
+             * A SPEAKER WHO DROPS IS NOT PASSED AT ONCE (E129 S0-CUT B, 23.11.2026; the coordinator's "a reload during your
+             * own turn should never pass you", after the owner's note of session 0, "testimony ucielo ostatniego gracza",
+             * which this is not the cause of: the owner's answer of that day, "Nie bylo zadnego" - no Objection, no drop).
+             * `goneGraceSeconds`: a speaker whose player drops is passed only when they are not back within these seconds,
+             * counted by the primary (trial-floor.mjs `speakerGone`); back in time, the turn goes on with its own clock.
+             * Until 1.2.129 they were passed at once (E70-45). Chosen, not measured at a table: how long a v14 reload takes
+             * to reconnect is not measured (a LIVE item proposed in E129's report). An Objection's exchange in a round still
+             * goes on at the next speaker (E70-42, which stands: the coordinator's word of 23.11.2026).
+             */
+            goneGraceSeconds: 15,
+            /*
+             * DONE AND PASS ASK ONCE (E129 S0-CUT P2, 23.11.2026; the coordinator's P2: "Your turn" comes back every 20 s with
+             * Done and Pass beside Keep speaking, and a speaker who clicks one while talking ends their own turn at once -
+             * for the last speaker, the round). With more than these seconds left, Done or Pass asks "End your turn now?"
+             * (trial-prompt.mjs `confirmEnd`), Keep speaking its default; at or under them it ends at once, so a speaker at
+             * the end of their time is not slowed down. 0 takes the question away.
+             */
+            confirmEndAboveSeconds: 5
         },
         /*
          * THE CLOSING ARGUMENT (E70 C8, 28.10.2026; S18-73, S18-74; the owner's TR7 "proponuje 5 minut", TR23 = 1,
          * TR24, TR29 = 4, TR34 = 1, DA18 "Wszedzie gracz ma proponowac, a DM zatwierdzac lub zmieniac", amend 7 of 14.10:
          * no Hope for the last voice). One per trial (`perTrial`); `volunteerSeconds` of volunteering, then a draw among
          * the volunteers that the GM confirms or changes; `seconds` for a speaker; an Objection at the speaker at any
-         * second, its exchange (`objection`, the debate's 60 + 120 s with cut-ins), after which the GM decides who
+         * second, its exchange (`objection`, `objectionSeconds` + the debate's 120 s with cut-ins: 60 s since E70, kept at 60
+         * when the debate's went to 30 in 1.2.129, E129 S0-OBJ - the coordinator's default, pending the owner), after which the GM decides who
          * continues (`gmDecides`): the speaker with the time left at the Objection or an objector with a new `seconds`.
          * A drawn or picked speaker's Pass in their first `passWindowSeconds` hands the choice back to the GM; later it
          * is Done. Chosen from the owner's words, not measured at a table (LIVE-E70-09).
          */
-        closing: { volunteerSeconds: 30, seconds: 300, perTrial: 1, objection: "exchange", gmDecides: true, passWindowSeconds: 30 },
+        closing: { volunteerSeconds: 30, seconds: 300, perTrial: 1, objection: "exchange", objectionSeconds: 60, gmDecides: true, passWindowSeconds: 30 },
         /*
          * THE ZONE MODES (E73, 12.11.2026; the plan's goal and C3-C5; zone-machine.mjs). Straw Poll: `seconds` of
          * standing in a zone, then one count, a Finding at two thirds. Logic Dive: `seconds` a question, counted when
@@ -5672,6 +5751,7 @@ export const DRPG = {
     PHASES,
     CHAPTERS_PER_SEASON,
     SHARE_WITH_ANALYSIS,
+    OWN_TRACK_FOLLOWS_HOLD,
     REALIZE_SCOPE,
     ROOMS_PER_PLAYER,
     ECLIPSE_MOVES,

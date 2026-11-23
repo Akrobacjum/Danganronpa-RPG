@@ -61,7 +61,7 @@ import { MODULE_ID, TRIAL, staleStamp } from "./config.mjs";
 import { SETTINGS, getClock, getSetting, isDeceased, isMutedDead, seasonEpoch } from "./settings.mjs";
 import { isMonocub } from "./monocub.mjs";
 import { cubVoice } from "./voice.mjs";
-import { isPrimaryGm, error, serverNow, serialWrite, plural } from "./utils.mjs";
+import { isPrimaryGm, error, serverNow, serialWrite, plural, whisperToGms } from "./utils.mjs";
 import { bridgeRequest, sayNotDone } from "./bridge-guards.mjs";
 import { SEIZE_KEY, objectionRecord } from "./trial.mjs";
 // The trial's participants, asked synchronously by `targetRefusal` (E51 C6): static, and no cycle (R161).
@@ -649,7 +649,22 @@ export async function closingStepInStep(event, { why = false } = {}) {
  * A SPEAKER GONE (E70 C7; E70-45: "a disconnected speaker passes at once"): on the primary, when a user leaves and the
  * round's speaker has no player connected any more, the turn passes; the Closing's speaker hands the choice back to the
  * GM (E70 C8).
+ *
+ * NOT AT ONCE SINCE 1.2.129 (E129 S0-CUT B, 23.11.2026; the owner's note of session 0, "testimony ucielo ostatniego
+ * gracza", and the coordinator's "a reload during your own turn should never pass you"): the turn passes only when the
+ * same turn still stands and its speaker is still not connected `TRIAL.modes.round.goneGraceSeconds` later, counted on
+ * this primary (`goneWaiting`, one wait a turn). Back in time, nothing is written and the turn's clock ran on as it
+ * would. A speaker not connected when the turn comes still passes at once (floor-machine.mjs `turnAt`). Tier 2
+ * "1.2.129 S0-CUT B". How long a v14 reload takes to reconnect is not measured (a LIVE item proposed in E129's report).
  */
+const goneWaiting = new Map();
+
+/** The turn a speaker's wait is for: its speaker and the round's, the Closing's or the Scrum's opening and step. */
+function goneTurnOf(floor) {
+    const part = floor?.round ?? closingOf(floor) ?? zoneOf(floor) ?? null;
+    return floor?.holderId ? `${floor.mode}|${floor.holderId}|${part?.openedAt ?? "-"}|${part?.step ?? "-"}` : null;
+}
+
 async function speakerGone() {
     const floor = trialFloor();
     const closingSpeaker = floor?.mode === MODES.closing && closingOf(floor)?.phase === "speak";
@@ -657,12 +672,22 @@ async function speakerGone() {
     const scrumSpeaker = floor?.mode === MODES.scrum && zoneOf(floor)?.phase === "speak";
     if (!isPrimaryGm() || !floor || !(isRoundMode(floor.mode) || closingSpeaker || scrumSpeaker) || !floor.holderId) return;
     if (!absentOf([floor.holderId]).length) return;
-    try {
-        const gone = { type: "gone", actorId: floor.holderId };
-        await serialWrite(SEIZE_KEY, () => (scrumSpeaker ? zoneStepInStep(gone) : roundStepInStep(gone)));
-    } catch (err) {
-        error("Could not pass the turn of a speaker who left", err);
-    }
+    const turn = goneTurnOf(floor);
+    if (goneWaiting.has(turn)) return;
+    const pass = async () => {
+        goneWaiting.delete(turn);
+        const now = trialFloor();
+        if (!isPrimaryGm() || goneTurnOf(now) !== turn || !absentOf([now.holderId]).length) return;
+        try {
+            const gone = { type: "gone", actorId: now.holderId };
+            await serialWrite(SEIZE_KEY, () => (scrumSpeaker ? zoneStepInStep(gone) : roundStepInStep(gone)));
+        } catch (err) {
+            error("Could not pass the turn of a speaker who left", err);
+        }
+    };
+    const graceMs = Math.max(Number(TRIAL.modes?.round?.goneGraceSeconds) || 0, 0) * 1000;
+    if (!graceMs) return pass();
+    goneWaiting.set(turn, setTimeout(() => { pass().catch(err => error("Could not pass the turn of a speaker who left", err)); }, graceMs));
 }
 
 /*
@@ -1710,6 +1735,39 @@ export async function advanceFloorOnPrimary(seen) {
 }
 
 /**
+ * THE OBJECTOR ENDS THEIR OWN SECONDS (E129 S0-SKIP, 23.11.2026; config.mjs `TRIAL.objectorMayFinish`), on the primary:
+ * "trial.turn" kind "done" from the objector's player, its `step` the Objection's start (`startedAt`, which the fill
+ * writes once), judged in the floor's step under `advancing` as the GM's Skip is (`advanceFloorOnPrimary`): an Objection
+ * whose Truth Bullet is on the table, the sender's character its objector, the same Objection the press saw. The move is
+ * the machine's Skip with the speaker's card (`finished`), so the rebuttal starts as it would at the GM's press; the GMs
+ * are told in their corner. Answers `{ written }` or `{ refused }` in the machine's words (trial-modes.mjs maps them).
+ */
+export async function finishObjectionOnPrimary({ actorId, startedAt }) {
+    if (!isPrimaryGm()) return { refused: "DRPG.Floor.bar.notTrial" };
+    if (advancing) return { refused: "DRPG.Floor.round.stale" };
+    advancing = true;
+    let written = null;
+    try {
+        const out = await serialWrite(SEIZE_KEY, async () => {
+            const floor = trialFloor();
+            if (!TRIAL.objectorMayFinish || floor?.mode !== FLOOR_MODES.objection || floor.pending) return { refused: "DRPG.Floor.round.noTurn" };
+            if (floor.holderId !== actorId) return { refused: "DRPG.Floor.round.notSpeaker" };
+            if (Number(floor.startedAt) !== Number(startedAt)) return { refused: "DRPG.Floor.round.stale" };
+            const done = await commitFloor(floor, nextFloor(floor, { type: "skip", finished: true }, floorCtx(floor)), "skip");
+            return done ? { written: done } : { refused: "DRPG.Floor.round.stale" };
+        });
+        if (out?.refused) return out;
+        written = out?.written ?? null;
+    } finally {
+        advancing = false;
+    }
+    const name = game.actors.get(actorId ?? "")?.name ?? "?";
+    await whisperToGms(`<p>${game.i18n.format("DRPG.Floor.finishedGm", { name: foundry.utils.escapeHTML(name) })}</p>`)
+        .catch(err => error("Could not tell the GMs an Objection was finished early", err));
+    return { written };
+}
+
+/**
  * `advanceFloorOnPrimary`'s and the heartbeat's write, held under `advancing`: the machine's `due` row for the
  * heartbeat, its `skip` row for a GM's Now (the bar's Skip, told in chat as "Turn skipped: {name}."). Since E70 C1 the
  * rows are floor-machine.mjs `stepOn`'s: a pending Objection lapses back to the debate with the seconds it had (E79
@@ -1846,7 +1904,7 @@ export function registerTrialFloor() {
     document.addEventListener("visibilitychange", () => {
         advanceIfDue().catch(err => error("Could not advance the trial floor on the tab's return", err));
     });
-    // A round's speaker whose player leaves passes at once (E70 C7; E70-45), on the primary alone.
+    // A round's speaker whose player leaves passes, after `goneGraceSeconds` since 1.2.129 (E70 C7; E70-45; E129 S0-CUT B), on the primary alone.
     Hooks.on("userConnected", (user, connected) => {
         if (!connected && !user?.isGM) speakerGone();
     });

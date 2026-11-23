@@ -38,6 +38,9 @@ let calledOver = null;
 let promptedFor = null;
 let claimedFor = null;
 const CLAIM_CLASS = "drpg-closing-claim";
+/** The objector's "Finish your turn now?" (E129 S0-SKIP): its class, and the Objection it was offered for. */
+const FINISH_CLASS = "drpg-finish-turn";
+let finishedFor = null;
 
 /**
  * How long Keep speaking (or the X, or Escape) hides Your turn before it comes back with Done and Pass (1.2.122; CTRL-03,
@@ -92,6 +95,15 @@ function turnKey(floor) {
     if (closing) return `closing|${closing.openedAt ?? "-"}|${closing.step}`;
     const scrum = scrumTurn(floor);
     return scrum ? `scrum|${scrum.openedAt ?? "-"}|${scrum.step}` : null;
+}
+
+/**
+ * The Objection an objector may end now (E129 S0-SKIP; config.mjs `TRIAL.objectorMayFinish`): its own seconds running -
+ * the bullet on the table - keyed by its start, or null. The rebuttal (two speakers) and the bullet's pick are not.
+ */
+function finishKey(floor) {
+    if (!TRIAL.objectorMayFinish || floor?.mode !== MODES.objection || floor.pending || !floor.holderId) return null;
+    return `objection|${floor.startedAt ?? "-"}|${floor.holderId}`;
 }
 
 /** The step a turn's request names: the round's, or the Closing's. */
@@ -191,6 +203,77 @@ async function promptClaim(floor) {
     if (res.ok) ui.notifications.info(game.i18n.localize("DRPG.Trial.claim.counted"));
 }
 
+/**
+ * FINISH YOUR TURN NOW? (E129 S0-SKIP, 23.11.2026; the owner's note of session 0: "niech maja od tego pop up"). Once an
+ * Objection's own seconds, to the objector's player: a window in the middle of the screen, kept above the sheet as the
+ * trial's prompts are (`prompt`). Keep speaking, the primary, closes it and changes nothing, so Enter ends nothing (the
+ * rule "Your turn" keeps); Finish my turn asks the primary ("trial.turn" kind "done", its step the Objection's start),
+ * which moves the floor as the GM's Skip does. It closes itself when the Objection's seconds are over by any road, and is
+ * not offered again for the same Objection once answered. The words are buttons with their verbs (docs/text-style.md
+ * O11), not a bare Yes and No.
+ */
+async function promptFinish(floor) {
+    const key = finishKey(floor);
+    const actor = game.actors.get(floor?.holderId ?? "");
+    if (!key || !actor || game.user.isGM || !playerOwns(actor)) return;
+    if (finishedFor === key || alreadyOpen(FINISH_CLASS)) return;
+    finishedFor = key;
+    const { trialFloor, secondsLeft } = await import("./trial-floor.mjs");
+    const step = Number(floor.startedAt) || 0;
+    const seconds = leftNow(secondsLeft, floor);
+    const choice = await drpgWindow({
+        title: game.i18n.localize("DRPG.Trial.finish.title"),
+        classes: ["drpg-panel", FINISH_CLASS],
+        prompt: true,
+        body: `<p>${game.i18n.format("DRPG.Trial.finish.body", { seconds: `<span data-drpg-left>${seconds}</span>` })}</p>`,
+        footer: {
+            primary: { action: "keep", label: game.i18n.localize("DRPG.Trial.turn.keep"), tooltip: tipText("DRPG.Tips.Trial.finishKeepTooltip") },
+            secondary: [{ action: "done", label: game.i18n.localize("DRPG.Trial.finish.yes"), tooltip: tipText("DRPG.Tips.Trial.finishDoneTooltip") }]
+        },
+        render: (event, dialog) => {
+            const watch = setInterval(() => {
+                if (!dialog.element?.isConnected) return void clearInterval(watch);
+                if (finishKey(trialFloor()) === key) return void paintLeft(dialog, leftNow(secondsLeft, trialFloor()));
+                clearInterval(watch);
+                dialog.close();
+            }, 500);
+        },
+        rejectClose: false
+    });
+    if (choice !== "done" || finishKey(trialFloor()) !== key) return;
+    const { requestTurn } = await import("./gm-bridge.mjs");
+    await requestTurn({ actorId: actor.id, kind: "done", step });
+}
+
+/**
+ * "END YOUR TURN NOW?" (E129 S0-CUT P2; config.mjs `TRIAL.modes.round.confirmEndAboveSeconds`): asked after Done or Pass
+ * in "Your turn" while more than those seconds are left. Keep speaking, the primary, answers no and so does Enter; the
+ * window closes itself, answering no, once the turn `key` is over by any road. Answers whether to end it.
+ */
+async function confirmEnd(key, seconds) {
+    const { trialFloor, secondsLeft } = await import("./trial-floor.mjs");
+    const choice = await drpgWindow({
+        title: game.i18n.localize("DRPG.Trial.turn.confirmTitle"),
+        classes: ["drpg-panel", "drpg-end-turn"],
+        prompt: true,
+        body: `<p>${game.i18n.format("DRPG.Trial.turn.confirmBody", { seconds: `<span data-drpg-left>${seconds}</span>` })}</p>`,
+        footer: {
+            primary: { action: "keep", label: game.i18n.localize("DRPG.Trial.turn.keep"), tooltip: tipText("DRPG.Tips.Trial.confirmKeepTooltip") },
+            secondary: [{ action: "end", label: game.i18n.localize("DRPG.Trial.turn.confirmYes"), tooltip: tipText("DRPG.Tips.Trial.confirmEndTooltip") }]
+        },
+        render: (event, dialog) => {
+            const watch = setInterval(() => {
+                if (!dialog.element?.isConnected) return void clearInterval(watch);
+                if (turnKey(trialFloor()) === key) return void paintLeft(dialog, leftNow(secondsLeft, trialFloor()));
+                clearInterval(watch);
+                dialog.close();
+            }, 500);
+        },
+        rejectClose: false
+    });
+    return choice === "end" && turnKey(trialFloor()) === key;
+}
+
 /** The speaker's window, for the turn `floor` holds, when the speaker is this player's own student. */
 async function promptTurn(floor) {
     const key = turnKey(floor);
@@ -255,6 +338,17 @@ async function promptTurn(floor) {
         return;
     }
     if (turnKey(trialFloor()) !== key) return;
+    /* Asked once while the turn has more than `confirmEndAboveSeconds` left (E129 S0-CUT P2); a no is Keep speaking: the
+       window comes back `KEEP_SPEAKING_MS` later while the turn is still this speaker's. */
+    const above = Number(TRIAL.modes?.round?.confirmEndAboveSeconds) || 0;
+    const left = leftNow(secondsLeft, trialFloor());
+    if (above > 0 && left > above && !(await confirmEnd(key, left))) {
+        if (turnKey(trialFloor()) !== key) return;
+        setTimeout(() => {
+            if (turnKey(trialFloor()) === key && promptedFor === key) promptedFor = null;
+        }, KEEP_SPEAKING_MS);
+        return;
+    }
     const { requestTurn } = await import("./gm-bridge.mjs");
     await requestTurn({ actorId: actor.id, kind: choice, step });
 }
@@ -278,6 +372,8 @@ async function tick() {
             await requestTurn({ actorId: mine, kind: "over", step: volunteering.step });
             return;
         }
+        // An Objection's own seconds (E129 S0-SKIP): the objector's window; nothing is called over here, the primary's clock runs it.
+        if (finishKey(floor)) return void promptFinish(floor).catch(err => error("Could not open the objector's finish window", err));
         const key = turnKey(floor);
         if (!key) return;
         promptTurn(floor).catch(err => error("Could not open the round's turn window", err));
@@ -296,7 +392,7 @@ async function renderTrialPrompt() {
     try {
         const { trialFloor } = await import("./trial-floor.mjs");
         const floor = trialFloor();
-        const round = (Boolean(turnKey(floor)) || Boolean(closingIn(floor, "volunteer"))) && !game.user.isGM;
+        const round = (Boolean(turnKey(floor)) || Boolean(closingIn(floor, "volunteer")) || Boolean(finishKey(floor))) && !game.user.isGM;
         if (!round) {
             if (ticker) clearInterval(ticker);
             ticker = null;

@@ -144,8 +144,12 @@ export const ACTION_LISTEN_STOP = "listen.stop";
 export const ACTION_LISTEN_ECHOES = "listen.echoes";
 /** player -> primary GM: a killer behind a "?" reveals themselves (E69 C8; mask-gm.mjs `revealMask`). */
 export const ACTION_MASK_REVEAL = "mask.reveal";
+/** player -> primary GM: Hide, its Shadow roll on the GMs' record (S0-HIDE, E129; hide.mjs `startHide`). Its end is `mask.reveal` with `of: "hide"`. */
+export const ACTION_HIDE_START = "hide.start";
 /** GM -> primary GM: the opening's veil, asked by a GM who is not the primary - at the lights, after them, at an open (1.2.122, the audit's STG-31; mask-gm.mjs `veilOnPrimary`). */
 export const ACTION_MASK_VEIL = "mask.veil";
+/** GM -> primary GM: a dead student's Spectator, the watcher, asked by a GM who is not the primary - the Students window's Spectator role on a dead student (1.2.128, E129 S0-VICTIM; spectator-dead.mjs `spectatorForTheDead`). */
+export const ACTION_DEAD_SPECTATOR = "spectator.dead";
 /** player -> primary GM: a barricade put up, its Body roll on the GMs' record (E74 C2; doors-gm.mjs `shutDoor`). */
 export const ACTION_DOOR_SHUT = "door.shut";
 /** player -> primary GM: a door forced, its Body roll on the GMs' record (E74 C3; doors-gm.mjs `forceDoor`). */

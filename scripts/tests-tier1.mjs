@@ -9227,6 +9227,149 @@ const INVARIANTS = [
         equal(JSON.stringify({ view: map.view, names: missing("names"), actions: missing("actions") }), JSON.stringify({ view: "map", names: [], actions: [] }),
             "{view: the region drawn after the Map button; names: the Table's fields the Map lacks; actions: its row buttons the Map lacks}");
     }],
+    ["R8900 - Hide is a row of the Infiltrate tile, priced and numbered in config.mjs, and its skipped cover passes every cover it stands in for (S0-HIDE, E129; config.mjs `ACTIONS.listen.variants`, `INFILTRATE.hide`; action-listen.mjs `infiltrateRows`): one action, Shadow at 15, its own alpha 0.4, and `coverTotal` above each Shadow cover's threshold - Palm's, a Plant's, a Frisk's, Tail's, Pick the Lock's, a Take's, a Sabotage's, an indirect murder's and a clean-up's", async () => {
+        /* 1.2.128 line STG, 23.11.2026. Read off config.mjs and the window's rows; nothing written. Red at 5a583d82: no
+           `hide` variant and no `INFILTRATE.hide`. */
+        const C = await import("./config.mjs");
+        const { infiltrateRows } = await import("./action-listen.mjs");
+        const rule = C.INFILTRATE.hide ?? null;
+        const covers = [C.ACTIONS.palm.unseen.threshold, C.ACTIONS.palm.plant.unseen, C.ACTIONS.palm.rummage.unseen, C.INFILTRATE.tail.unseen.threshold,
+            C.INFILTRATE.pick.cover.threshold, C.LOOT.cover.threshold, C.SABOTAGE_CONCEAL.threshold, C.INDIRECT_MURDER.concealIntent.threshold, C.CLEANUP.conceal.threshold];
+        must(covers.every(Number.isFinite), "a cover's threshold did not read as a number - this would measure nothing");
+        const actor = game.actors.find(a => a.type === "character") ?? null;
+        const row = actor ? infiltrateRows(actor).find(r => r.value === "hide") ?? null : null;
+        equal(stableJson({ variant: C.ACTIONS.listen.variants.includes("hide"), rule: rule && { traits: rule.traits, cost: rule.cost, dc: rule.dc, ownAlpha: rule.ownAlpha },
+            passes: Boolean(rule) && covers.every(t => rule.coverTotal >= t), row: row && { icon: row.icon, label: row.label === game.i18n.localize("DRPG.Infiltrate.row.hide.label") } }),
+        stableJson({ variant: true, rule: { traits: ["shadow"], cost: 1, dc: 15, ownAlpha: 0.4 }, passes: true, row: actor ? { icon: "fa-user-ninja", label: true } : null }),
+        "{variant: in the tile's list; rule: Shadow, one action, 15, 0.4; passes: coverTotal at or above every cover's threshold; row: the window's row and its name}");
+    }],
+    ["R8901 - a token Hide hides is drawn only for its owner and the GMs, and the flag is all it writes (S0-HIDE, E129; visibility.mjs `tokenShownTo`, `movePass`; hide.mjs `hidePatch`): its owner \"show\", every other player \"hide\" - a stranger, the killers' side, a Spectator, the owner's neighbour in an Eclipse - a GM null; no Foundry `hidden` in the patch, and the flag's write asks a whole pass", async () => {
+        /* 1.2.128 line STG, 23.11.2026. Pure readings on stand-in documents, as R7702 reads the veil's. Red at 5a583d82: no
+           hide.mjs, and a token with the flag was left to the room rule (null). */
+        const { tokenShownTo, movePass } = await import("./visibility.mjs");
+        const H = await import("./hide.mjs");
+        const doc = { actorId: "H", actor: { type: "character" }, hidden: false, flags: { [MODULE_ID]: { hiding: true } } };
+        const viewer = (owns, side = [], extra = {}) => ({ gm: false, eclipse: false, enforcing: false, rooms: new Set(), lair: null, spectator: false,
+            killersSide: new Set(side), owns: () => owns, ...extra });
+        const gone = "-" + "=" + "hiding";
+        equal(stableJson({
+            shown: [tokenShownTo(doc, viewer(true)), tokenShownTo(doc, viewer(false)), tokenShownTo(doc, viewer(false, ["H"])), tokenShownTo(doc, viewer(false, [], { spectator: true })),
+                tokenShownTo(doc, viewer(false, [], { eclipse: true })), tokenShownTo(doc, viewer(true, [], { eclipse: true })), tokenShownTo(doc, viewer(false, [], { gm: true })),
+                tokenShownTo({ ...doc, flags: { [MODULE_ID]: { hiding: true, veiled: true } } }, viewer(false, ["H"]))],
+            patch: [H.hidePatch(), H.unhidePatch(), H.unhidePatch("GONE")],
+            pass: [movePass({ isOwner: false }, { flags: { [MODULE_ID]: { hiding: true } } }), movePass({ isOwner: false }, { flags: { [MODULE_ID]: { [gone]: null } } })]
+        }), stableJson({
+            shown: ["show", "hide", "hide", "hide", "hide", "show", null, "hide"],
+            patch: [{ [`flags.${MODULE_ID}.hiding`]: true }, { [`flags.${MODULE_ID}.hiding`]: false }, { [`flags.${MODULE_ID}.hiding`]: "GONE" }],
+            pass: ["all", "all"]
+        }), "{shown: [owner, stranger, the killers' side, a Spectator, a stranger in an Eclipse, the owner in an Eclipse, a GM, the killers' side for a veiled token that hides]; patch: hide, show, show by deletion; pass: set, deleted}");
+    }],
+    ["R8902 - a hidden token is drawn faded for its owner, as a GM's hidden token for a GM, and gets its own alpha back once it shows (S0-HIDE, E129; hide.mjs `hidingAlpha`, visibility.mjs `dressHiding`): 0.4 times the token's own alpha on its owner's browser, 0.5 on a GM's, untouched on any other, and the token's alpha again when the flag goes", async () => {
+        /* 1.2.128 line STG, 23.11.2026. Stand-in tokens with a mesh; no canvas (LIVE-129-STG-01). Red at 5a583d82: no hide.mjs. */
+        const H = await import("./hide.mjs");
+        const { dressHiding } = await import("./visibility.mjs");
+        const doc = (hiding, alpha = 1) => ({ alpha, flags: { [MODULE_ID]: hiding ? { hiding: true } : {} } });
+        const token = (hiding, owner) => ({ isOwner: owner, mesh: { alpha: 1 }, document: doc(hiding, 0.5) });
+        const mine = token(true, true), theirs = token(true, false), gmSees = token(true, true);
+        dressHiding(mine, { gm: false });
+        dressHiding(theirs, { gm: false });
+        dressHiding(gmSees, { gm: true });
+        const faded = [mine.mesh.alpha, theirs.mesh.alpha, gmSees.mesh.alpha];
+        mine.document = doc(false, 0.5);
+        dressHiding(mine, { gm: false });
+        equal(stableJson({ alpha: [H.hidingAlpha(doc(true), { owns: true }), H.hidingAlpha(doc(true), { gm: true }), H.hidingAlpha(doc(true), {}), H.hidingAlpha(doc(false), { owns: true })],
+            faded, back: mine.mesh.alpha }),
+        stableJson({ alpha: [0.4, 0.5, null, null], faded: [0.2, 1, 0.25], back: 0.5 }),
+        "{alpha: [owner, GM, another player, a token that does not hide]; faded: the meshes [owner, another player, GM] at a token alpha of 0.5; back: the owner's mesh once the flag went}");
+    }],
+    ["R8903 - while a character hides, the cover roll an action would throw stands passed and earns nothing (S0-HIDE, E129; hide.mjs `coverWhileHidden`, `HIDDEN_COVER`, `withCover`; action-tail.mjs `rollsEarnedHope`): null for a character with no hiding token, else a frozen pass at `coverTotal` - no critical, not a roll, no Hope counted by Tail's refund - and the card's sentence says so in both languages", async () => {
+        /* 1.2.128 line STG, 23.11.2026. Plain scenes of stand-in tokens; nothing written. Red at 5a583d82: no hide.mjs. */
+        const H = await import("./hide.mjs");
+        const { rollsEarnedHope } = await import("./action-tail.mjs");
+        const { INFILTRATE } = await import("./config.mjs");
+        const scenes = [{ tokens: [{ actorId: "A", flags: { [MODULE_ID]: { hiding: true } } }, { actorId: "B", flags: {} }] }];
+        const files = {};
+        for (const code of ["en", "pl"]) files[code] = await fetch(`/modules/${MODULE_ID}/lang/${code}.json`).then(r => r.json());
+        const cover = H.coverWhileHidden({ id: "A" }, { scenes });
+        equal(stableJson({ hidden: cover && { total: cover.total, isCritical: cover.isCritical, hidden: cover.hidden, messageId: cover.messageId, frozen: Object.isFrozen(cover) },
+            other: H.coverWhileHidden({ id: "B" }, { scenes }), none: H.coverWhileHidden(null, { scenes }),
+            trial: H.coverWhileHidden({ id: "A" }, { scenes, clock: { phase: "classTrial" } }),
+            earned: [rollsEarnedHope([cover]), rollsEarnedHope([{ withHope: true }])],
+            text: [H.withCover("Sent.", cover) !== "Sent.", H.withCover("Sent.", null) === "Sent.", H.withCover("", cover) === game.i18n.localize("DRPG.Hide.coverSkipped")],
+            hall: [await H.flaggable({ id: "HALL" }, () => true), await H.flaggable({ id: "SCHOOL" }, () => false)],
+            words: ["en", "pl"].map(code => typeof files[code]?.DRPG?.Hide?.coverSkipped === "string" && files[code].DRPG.Hide.coverSkipped.length > 10) }),
+        stableJson({ hidden: { total: INFILTRATE.hide.coverTotal, isCritical: false, hidden: true, messageId: null, frozen: true }, other: null, none: null, trial: null,
+            earned: [false, true], text: [true, true, true], hall: [false, true], words: [true, true] }),
+        "{hidden: the stand-in for a hiding character; other: a character that does not hide; none: no character; trial: the same character in a Class Trial (TRIAL's S0-PALM opens Palm there; the cover is thrown); earned: [the skipped cover, a roll with Hope]; text: [a sentence gains the line, none without, the line alone]; hall: [a trial hall's token flagged, another scene's]; words: en, pl}");
+    }],
+    ["R8904 - a hidden player's microphone is held by the module outside a Class Trial, on their own browser and on a GM's, and the trial's settle blocks it (S0-HIDE, E129; voice.mjs `micHold` \"hiding\", `moduleHoldsMic`, `settleTrialVoices`): held with the reason \"hiding\", not inside the trial, the GM's twin the same, the settle's condition reads the hide's rows, and its line is in both languages", async () => {
+        /* 1.2.128 line STG, 23.11.2026. As R7405 reads the veil's; nothing written. Red at 5a583d82: no reason "hiding". */
+        const V = await import("./voice.mjs");
+        const pl = await fetch(`/modules/${MODULE_ID}/lang/pl.json`).then(r => r.json());
+        const settle = stripComments(fnSource(await fetch(`/modules/${MODULE_ID}/scripts/voice.mjs`).then(lfText), "settleTrialVoices") ?? "");
+        must(settle.length > 500, "settleTrialVoices did not read - this would measure nothing");
+        const user = { id: "R8904USER0000000", name: "R8904", isGM: false, active: true };
+        const hold = (hiding, trial = null) => V.micHold({ user, room: "drpg-x", external: false, connected: true, canBroadcastAudio: false, actors: [], trial,
+            listening: null, masked: false, veiled: false, hiding });
+        const gm = (trial) => V.moduleHoldsMic(user, { actors: [], eclipse: false, trial, dead: () => false, listening: new Set(), masked: new Set(), veiled: new Set(),
+            hiding: new Set([user.id]) })?.reason ?? null;
+        equal(stableJson({ hold: [hold(true), hold(false)?.reason ?? null, hold(true, { clock: { phase: "classTrial" } })?.reason ?? null], gm: game.user.isGM ? [gm(false), gm(true)] : null,
+            settle: /const hiding = [^;]*hidingIds\(\)\.has\(user\.id\)/.test(settle) && /\|\| veiled \|\| hiding \|\|/.test(settle),
+            words: [game.i18n.has("DRPG.Voice.held.hiding"), typeof pl?.DRPG?.Voice?.held?.hiding === "string"] }),
+        stableJson({ hold: [{ reason: "hiding", held: true }, "gmBlock", "gmBlock"], gm: game.user.isGM ? ["hiding", null] : null, settle: true, words: [true, true] }),
+        "{hold: [hidden, not hidden, hidden in a trial]; gm: [the GM's twin outside, inside a trial]; settle: the block reads the hide's rows; words: en, pl}");
+    }],
+    ["R8905 - another player's voice tile, pickers and camera dock leave a hidden player out, and the hider's own tile keeps Reveal yourself (S0-HIDE, E129; mask-gm.mjs `veilHidesHere`, `userVeiledFromHere`; voice-tile.mjs `paintUnhide`, `paintHidden`; camera-view.mjs `movesAPlate`): the veil's one predicate answers for a hiding token this browser hides and not for one it draws, the button is drawn, named and pressed, gone once not hiding, a GM's list draws one line with a Reveal a press of which names the character, and the dock reads the flag's write", async () => {
+        /* 1.2.128 line STG, 23.11.2026. Detached nodes and stand-in scenes; nothing written, nothing sent. Red at 5a583d82:
+           no hide.mjs, and `veilHidesHere` read the veil's flag alone. */
+        const K = await import("./mask-gm.mjs");
+        const T = await import("./voice-tile.mjs");
+        const CV = await import("./camera-view.mjs");
+        const owner = { id: "R8905OWNER000000", isGM: false };
+        const tok = { actorId: "H", flags: { [MODULE_ID]: { hiding: true } }, actor: { testUserPermission: u => u?.id === owner.id } };
+        const scenes = [{ tokens: [tok] }];
+        const hiddenTo = shown => K.userVeiledFromHere(owner, { scenes, shown: () => shown, user: { id: "R8905VIEWER00000", isGM: false }, gm: false });
+        const tile = document.createElement("div");
+        const controls = document.createElement("div");
+        controls.className = "drpg-voice-tile-controls";
+        tile.append(controls);
+        const pressed = [];
+        const drawn = T.paintUnhide(tile, { hiding: { id: "R8905ACTOR000000" }, onUnhide: a => pressed.push(a.id) });
+        drawn?.click();
+        await new Promise(r => setTimeout(r, 0));
+        const label = drawn?.getAttribute("aria-label") ?? null;
+        T.paintUnhide(tile, { hiding: null });
+        const list = document.createElement("div");
+        const revealed = [];
+        const lines = T.paintHidden(list, { gm: true, rows: [{ actorId: "R8905ACTOR000000", name: "Hana" }], onReveal: id => revealed.push(id) });
+        list.querySelector(".drpg-voice-hidden-reveal")?.click();
+        await new Promise(r => setTimeout(r, 0));
+        const none = T.paintHidden(document.createElement("div"), { gm: false, rows: [{ actorId: "X", name: "X" }] });
+        equal(stableJson({ veil: [hiddenTo("hide"), hiddenTo("show")], button: [Boolean(drawn), label === game.i18n.localize("DRPG.Hide.reveal"), pressed, controls.querySelectorAll(".drpg-voice-unhide").length],
+            gm: [lines, list.querySelectorAll(".drpg-voice-hidden-mark").length, revealed, none, Boolean(list.querySelector(".drpg-voice-hidden-reveal")?.dataset.tooltipText)],
+            dock: [CV.movesAPlate({ flags: { [MODULE_ID]: { hiding: true } } }), CV.movesAPlate({ flags: { [MODULE_ID]: { other: true } } })] }),
+        stableJson({ veil: [true, false], button: [true, true, ["R8905ACTOR000000"], 0], gm: [1, 1, ["R8905ACTOR000000"], 0, true], dock: [true, false] }),
+        "{veil: [hidden here, drawn here]; button: [drawn, its name, a press, gone]; gm: [lines, rows, a press, a player's list, its tooltip]; dock: [the hide's flag, another flag]}");
+    }],
+    ["R8906 - Hide's bridge roads are declared as the trust model asks, and every cover a GM reads off its record is marked as one the hide may stand in for (S0-HIDE, E129; bridge-table.mjs `hide.start`, `mask.reveal`; bridge-runs-acts.mjs `pickRolls`, `tailRolls`, `palmRolls`, `friskRolls`; bridge-guards.mjs `rollsFor`): `hide.start` is the owner's, not a Spectator's, a reply, its Shadow roll its own record's; `mask.reveal` takes `of` \"mask\" or \"hide\" and nothing else; the four covers carry `cover`, their hands do not; the runner stands a pass in only for a cover of a character the GMs hold hidden", async () => {
+        /* 1.2.128 line STG, 23.11.2026. Read off the tables and the runner's source; nothing sent. Red at 5a583d82: no
+           `hide.start`, `of` not sanitized, no `cover` mark. */
+        const { BRIDGE_ACTIONS } = await import("./bridge-table.mjs");
+        const R = await import("./bridge-runs-acts.mjs");
+        const guards = stripComments(fnSource(await fetch(`/modules/${MODULE_ID}/scripts/bridge-guards.mjs`).then(lfText), "rollsFor") ?? "");
+        must(guards.length > 500, "rollsFor did not read - this would measure nothing");
+        const row = BRIDGE_ACTIONS["hide.start"] ?? null;
+        const reveal = BRIDGE_ACTIONS["mask.reveal"];
+        const of = v => reveal.sanitize({ actorId: "A".repeat(16), of: v }, game.user).of ?? null;
+        const marks = fn => fn({ id: "X" }).map(spec => Boolean(spec.cover));
+        equal(stableJson({ row: row && { answer: row.answer, rolled: row.rolled, guards: row.guards.length, read: Object.keys(row.sanitize({ actorId: "A".repeat(16), total: 3, isCritical: false, rollId: "B".repeat(16), extra: 1 }, game.user)).sort() },
+            of: [of("mask"), of("hide"), of("anything")],
+            covers: { pick: marks(R.pickRolls), tail: marks(R.tailRolls), palm: marks(R.palmRolls), frisk: marks(R.friskRolls) },
+            runner: /rolled\.cover && !id/.test(guards) && guards.includes("hiddenOnGm(") && /if \(skipped\) continue/.test(guards) }),
+        stableJson({ row: { answer: "reply", rolled: { field: "rollId", actor: "actorId", kind: "hide" }, guards: 4, read: ["actorId", "isCritical", "rollId", "total"] },
+            of: ["mask", "hide", null], covers: { pick: [false, true], tail: [false, true], palm: [false, true], frisk: [false, true] }, runner: true }),
+        "{row: hide.start's answer, roll, guards and fields; of: mask.reveal's [mask, hide, anything else]; covers: each declaration's [hand, cover]; runner: a pass only for an unnamed cover of a character held hidden}");
+    }],
     ["R8462 - the Eclipse's explanation under the Overflow's darkness gives the night its rooms, not \"anywhere\", in both languages: explain.mjs `eclipseExplanation(crossings, night)` with `night` the darkened night's crossings (overflow.mjs `overflowCrossings(null)`: null without the darkness, `freeBecomes` with it) (1.2.122; the 1.2.42 audit's 3.1-03, TEXT-04's verification)", async () => {
         /*
          * 1.2.122 line STG, 21.11.2026. 3.1-03 / TEXT-04: `DRPG.Explain.phase.eclipse` read its day's reach off
@@ -28891,7 +29034,7 @@ const INVARIANTS = [
         }).map(([k, f, unit]) => `${k} in ${f}${unit ? ` ${unit}()` : ""}`).concat(helpers);
         equal(bad.join("; "), "", "{the keys whose words are missing or too long, or whose control's function does not draw them}");
     }],
-    ["R4752 - the chapter, murder and Class Trial windows draw their tooltips (E102 C3, 13.11.2026; the owner's stage \"Tooltips across the module\", docs/dev/e102/TOOLTIPS.json and KEYS.json): each of the family's 37 keys (34 until E110 C3, 36 until E40 on 16.11.2026) under DRPG.Tips.Trial has words in English and in Polish, at most 23 words each (the guide's tooltip limit), and the function that draws its control writes it where that control draws it (tests-tips.mjs `tipPlacement`: inside the control's own tag and not as a condition, as a labelled button's or tab's `tooltip`, in a builder's `data-tooltip` attrs, by `setTip`, or through a named local helper that writes it; a count's words through `plural`, each form within the limit)", async () => {
+    ["R4752 - the chapter, murder and Class Trial windows draw their tooltips (E102 C3, 13.11.2026; the owner's stage \"Tooltips across the module\", docs/dev/e102/TOOLTIPS.json and KEYS.json): each of the family's 41 keys (34 until E110 C3, 36 until E40 on 16.11.2026, 37 until E129 on 23.11.2026) under DRPG.Tips.Trial has words in English and in Polish, at most 23 words each (the guide's tooltip limit), and the function that draws its control writes it where that control draws it (tests-tips.mjs `tipPlacement`: inside the control's own tag and not as a condition, as a labelled button's or tab's `tooltip`, in a builder's `data-tooltip` attrs, by `setTip`, or through a named local helper that writes it; a count's words through `plural`, each form within the limit)", async () => {
         /* Red at 70613472 with the keys and this test in place and the family's scripts as they were: no function read a DRPG.Tips.Trial key. Since REVIEW-E102-code C1: where the key lands, not only that it is named - red on the review's planted ternary that names the key and draws nothing (action-dynamic.mjs:336). */
         const TIPS = [
             ["DRPG.Tips.Trial.moveToChapterToTooltip","chapter.mjs","chapterEndForm"],
@@ -28932,7 +29075,13 @@ const INVARIANTS = [
             ["DRPG.Tips.Trial.thesisLineTooltip","trial-prompt.mjs","promptThesis"],
             ["DRPG.Tips.Trial.thesisPostTooltip","trial-prompt.mjs","promptThesis"],
             // E40 (16.11.2026, the line claude/e40-117): a tick per accused in the verdict window - the family grew by one.
-            ["DRPG.Tips.Trial.executedEachTooltip","verdict.mjs","openVerdictDialog"]
+            ["DRPG.Tips.Trial.executedEachTooltip","verdict.mjs","openVerdictDialog"],
+            // E129 S0-SKIP and S0-CUT P2 (23.11.2026): the objector's Finish your turn now? and Your turn's End your turn now? -
+            // the family grew by four.
+            ["DRPG.Tips.Trial.finishKeepTooltip","trial-prompt.mjs","promptFinish"],
+            ["DRPG.Tips.Trial.finishDoneTooltip","trial-prompt.mjs","promptFinish"],
+            ["DRPG.Tips.Trial.confirmKeepTooltip","trial-prompt.mjs","confirmEnd"],
+            ["DRPG.Tips.Trial.confirmEndTooltip","trial-prompt.mjs","confirmEnd"]
         ];
         const en = await fetch(`/modules/${MODULE_ID}/lang/en.json`).then(r => r.json());
         const pl = await fetch(`/modules/${MODULE_ID}/lang/pl.json`).then(r => r.json());
@@ -28940,7 +29089,7 @@ const INVARIANTS = [
         const src = new Map();
         for (const f of new Set(TIPS.map(t => t[1]))) src.set(f, stripComments(await fetch(`/modules/${MODULE_ID}/scripts/${f}`).then(r => (r.ok ? lfText(r) : ""))));
         must([...src.values()].every(s => s.length > 500), "a script of the family read as nothing - this would measure nothing");
-        must(Object.keys(words(en, "DRPG.Tips.Trial") ?? {}).length === 37, "lang/en.json has not the family's 37 keys under DRPG.Tips.Trial");
+        must(Object.keys(words(en, "DRPG.Tips.Trial") ?? {}).length === 41, "lang/en.json has not the family's 41 keys under DRPG.Tips.Trial");
         const fits = w => (w && typeof w === "object" ? Object.values(w).length > 0 && Object.values(w).every(fits) : typeof w === "string" && w.trim().length > 0 && w.trim().split(/\s+/).length <= 23);
         const P = await import("./tests-tips.mjs");
         must(P.tipPlacementSelfCheck().length === 0, `tests-tips.mjs misreads its own plants: ${P.tipPlacementSelfCheck().join("; ")}`);
@@ -31890,6 +32039,95 @@ const INVARIANTS = [
         ok(/hiddenVoiceIds\(\{ dead: isDeadForGm \}\)/.test(fnSource(src, "hiddenIds")),
             "moduleHoldsMic's hidden accounts read a death the table knows, not the GMs'");
     }],
+    ["R8838 - the page's own track follows the microphone button: voice-client.mjs `trackPlan` mutes a live track while the button says held, blocked by a GM or muted, opens a muted one only in \"always\" with nothing standing, asks for one to be built only then and connected, and leaves an offline page, push-to-talk and a track already right alone (E129, S0-GMMUTE; the coordinator's decision of 23.11.2026)", async () => {
+        /*
+         * The owner, a GM, muted with the tile and the players heard them (23.11.2026). avclient-livekit 0.6.8 builds the
+         * page's own track at every initialize (LiveKitClient.ts:557-586) and moves it after that only through
+         * `toggleAudio`, which returns early unless `audioBroadcastEnabled` is already on (LiveKitAVClient.ts:632); a
+         * permission change it does not hear at all. So the page holds its own track to what its button says. The table:
+         * each state `micState` answers, with a live track, a muted one and none, in "always" and "ptt". Red before E129:
+         * no `trackPlan`.
+         */
+        const C = await import("./voice-client.mjs");
+        must(typeof C.trackPlan === "function", "voice-client.mjs has no trackPlan - the page's own track follows nothing");
+        const live = { isMuted: false }, quiet = { isMuted: true };
+        const rows = [
+            ["held, live", { mic: { state: "held" }, track: live }, "mute"],
+            ["held, muted", { mic: { state: "held" }, track: quiet }, null],
+            ["gmBlock, live", { mic: { state: "gmBlock" }, track: live }, "mute"],
+            ["muted, live", { mic: { state: "muted" }, stored: true, track: live }, "mute"],
+            ["stored muted while on, live", { mic: { state: "on" }, stored: true, track: live }, "mute"],
+            ["on, muted, always", { mic: { state: "on" }, track: quiet }, "unmute"],
+            ["on, live, always", { mic: { state: "on" }, track: live }, null],
+            ["ptt, muted", { mic: { state: "ptt" }, mode: "ptt", track: quiet }, null],
+            ["on in ptt, muted", { mic: { state: "on" }, mode: "ptt", track: quiet }, null],
+            ["on, none, connected", { mic: { state: "on" }, track: null, connected: true }, "build"],
+            ["on, none, not connected", { mic: { state: "on" }, track: null, connected: false }, null],
+            ["held, none", { mic: { state: "held" }, track: null, connected: true }, null],
+            ["offline, live", { mic: { state: "offline" }, track: live }, null],
+            ["no state", { mic: null, track: live }, null]
+        ];
+        const got = rows.map(([name, facts]) => [name, C.trackPlan({ stored: false, mode: "always", connected: true, ...facts })]);
+        equal(stableJson(got), stableJson(rows.map(([name, , want]) => [name, want])), "[each state's plan for the page's own track]");
+    }],
+    ["R8839 - `followHold` moves only this page's own track, and only where avclient-livekit 0.6 is: it mutes, opens or has avclient build the track as `trackPlan` says, builds once per Room and never with the microphone source off, does nothing with the switch off, with LiveKit's own page, another avclient version (logged once) or no client, and never throws (E129, S0-GMMUTE)", async () => {
+        /*
+         * A stand-in of avclient-livekit's LiveKitClient on each row: its `audioTrack` (`mute`, `unmute`), its
+         * `changeAudioSource` and its `liveKitRoom`, every call recorded. Red before E129: no `followHold`.
+         */
+        const C = await import("./voice-client.mjs");
+        must(typeof C.followHold === "function", "voice-client.mjs has no followHold - nothing moves the page's own track");
+        const make = (muted, { track = true, room = { state: "connected" }, throws = false } = {}) => {
+            const calls = [];
+            const t = track ? { isMuted: muted,
+                mute: async () => { calls.push("mute"); if (throws) throw new Error("R8839 mute"); t.isMuted = true; },
+                unmute: async () => { calls.push("unmute"); t.isMuted = false; } } : null;
+            return { calls, client: { audioTrack: t, liveKitRoom: room, changeAudioSource: async () => { calls.push("build"); } } };
+        };
+        const settings = (mode = "always", src = "default") => ({ get: (scope, key) => key === "voice.mode" ? mode : key === "audioSrc" ? src : false });
+        const logs = [], log = line => logs.push(line);
+        const run = (rig, facts = {}) => C.followHold({ client: rig.client, settings: settings(facts.mode, facts.src), mic: facts.mic ?? { state: "on" },
+            version: facts.version ?? "0.6.8", on: facts.on ?? true, external: facts.external ?? false, log });
+        const out = {};
+        let r = make(false); out.held = [run(r, { mic: { state: "held" } }), r.calls];
+        r = make(true); out.free = [run(r), r.calls];
+        r = make(false, { track: false }); const room = r.client.liveKitRoom;
+        out.build = [run(r), run(r), [...r.calls]];
+        r.client.liveKitRoom = { state: "connected" }; out.newRoom = [run(r), r.calls];
+        r = make(false, { track: false }); out.noSource = [run(r, { src: "disabled" }), r.calls];
+        r = make(false); out.off = [run(r, { mic: { state: "held" }, on: false }), r.calls];
+        r = make(false); out.external = [run(r, { mic: { state: "held" }, external: true }), r.calls];
+        r = make(false); out.other = [run(r, { mic: { state: "held" }, version: "0.7.0" }), run(r, { mic: { state: "held" }, version: "0.7.0" }), r.calls, logs.length];
+        out.none = C.followHold({ client: null, mic: { state: "held" }, version: "0.6.8", on: true });
+        r = make(false, { throws: true });
+        let threw = false;
+        try { out.throws = run(r, { mic: { state: "held" } }); await new Promise(resolve => setTimeout(resolve, 0)); } catch { threw = true; }
+        out.threw = threw;
+        void room;
+        equal(stableJson(out), stableJson({
+            held: ["mute", ["mute"]], free: ["unmute", ["unmute"]], build: ["build", null, ["build"]], newRoom: ["build", ["build", "build"]],
+            noSource: [null, []], off: [null, []], external: [null, []], other: [null, null, [], 1], none: null, throws: "mute", threw: false }),
+            "[a hold; a release; a build, then the same Room again; a new Room; the source off; the switch off; LiveKit's own page; avclient 0.7 twice (one log); no client; a mute that rejects]");
+    }],
+    ["R8840 - the page's own track is asked to follow at every road the button is: voice-tile.mjs `paintControls` asks `followHold` before it looks for a tile, `toggleOwnMic` after its write, and `registerVoiceTile` on `liveKitClientInitialized`, on `rtcSettingsChanged` and on the hearing tick; `OWN_TRACK_FOLLOWS_HOLD` is on (E129, S0-GMMUTE)", async () => {
+        /*
+         * Read off the source, comments stripped, with the kit's cuts. `paintControls` runs on every road that repaints the
+         * button (an own user's update, the mask, Hide, the eavesdrop, a hidden token, the trial's settings), and asks
+         * before it returns for a page with no tile, so a page with the tile off follows too. Red before E129.
+         */
+        const { OWN_TRACK_FOLLOWS_HOLD } = await import("./config.mjs");
+        const src = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/voice-tile.mjs`).then(lfText));
+        const paint = fnSource(src, "paintControls"), toggle = fnSource(src, "toggleOwnMic"), reg = fnSource(src, "registerVoiceTile");
+        const before = /followOwnTrack\(\);\s*if \(!watch\?\.tile\) return/.test(paint);
+        const after = /settings\.set\("client"[\s\S]*followOwnTrack\(\)/.test(toggle);
+        const hook = name => new RegExp(`Hooks\\.on\\("${name}"[^;]*?followOwnTrack\\(`, "s").test(reg);
+        const tick = /setInterval\(\(\) => \{[^}]*followOwnTrack\(/.test(reg);
+        const helper = fnSource(src, "followOwnTrack");
+        equal(stableJson({ on: OWN_TRACK_FOLLOWS_HOLD, paint: before, toggle: after,
+            init: hook("liveKitClientInitialized"), rtc: hook("rtcSettingsChanged"), tick, helper: /followHold\(\{ mic: micState\(\) \}\)/.test(helper) }),
+            stableJson({ on: true, paint: true, toggle: true, init: true, rtc: true, tick: true, helper: true }),
+            "[the switch; paintControls before its tile check; toggleOwnMic after its write; the two hooks; the tick; the helper hands followHold the button's state]");
+    }],
     ["R8833 - a hidden token's hold is said on the player's own microphone and keeps the GM's block off it: `micHold` answers \"tokenHidden\", held, outside the Class Trial and nothing of it in the trial; `moduleHoldsMic` answers it on a GM's page; both languages say it (E129, S0-HIDEMUTE)", async () => {
         /*
          * The owner: the hide "pokazuje rowniez te zmiane na przycisku mikrofonu". `micHold` with every fact handed in,
@@ -33994,6 +34232,79 @@ const INVARIANTS = [
         equal(stableJson([order.again > order.ruled, order.again > 0 && order.again < order.paid]), stableJson([true, true]),
             "[the target held to the room again after the GM's card; before the action is paid]");
     }],
+    ["R8884 - a result card says what each roll did for its player (E129 S0-CARDS, 1.2.128; the owner: \"niech one rezultatu akcji jasno mowia graczowi, co jest skutkiem jego wyniku i dzialan, w tym krytyka\"): action-report.mjs `rollEffectLines` gives a main roll with Hope its 1 Hope, a critical its CRITICAL.hope and no Sanity, a roll with Despair its point to the Monokuma's pool, a supporting roll no Hope by its statistic and its Despair still counted, a roll as the GMs' record holds it the same, and a roll with no duality nothing", async () => {
+        /*
+         * 23.11.2026, E129 line DESP. Read: the lines for each shape, against the lang's own sentences with the rule's
+         * numbers (O5: `CRITICAL.hope`, 1). Red at 4e5d2e8b: no `rollEffectLines`.
+         */
+        const A = await import("./action-report.mjs");
+        const { CRITICAL, TRAITS } = await import("./config.mjs");
+        must(typeof A.rollEffectLines === "function", "action-report.mjs has no rollEffectLines - this would measure nothing");
+        const { plural } = await import("./utils.mjs");
+        const f = (key, data) => ["hope", "critical"].includes(key) ? plural(`DRPG.Result.${key}`, data) : game.i18n.format(`DRPG.Result.${key}`, data ?? {});
+        const trait = Object.keys(TRAITS)[0];
+        const read = [
+            { withHope: true, withFear: false }, { isCritical: true }, { withHope: false, withFear: true },
+            { withHope: true, supporting: true, trait }, { withFear: true, supporting: true, trait }, { isCritical: true, supporting: true, trait },
+            { isCritical: false, withHope: false }, { isCritical: false, withHope: true }, {}, null,
+            // a cover not thrown while hidden (hide.mjs `HIDDEN_COVER`, 1.2.128 line STG): no dice, nothing said
+            { total: 13, isCritical: false, withHope: true, hidden: true }
+        ].map(roll => A.rollEffectLines(roll));
+        const support = f("support", { trait: TRAITS[trait].label });
+        equal(stableJson(read), stableJson([[f("hope", { n: 1 })], [f("critical", { n: CRITICAL.hope })], [f("despair")],
+            [support], [support, f("supportDespair")], [support], [f("despair")], [f("hope", { n: 1 })], [], [], []]),
+        "[the lines of: a roll with Hope; a critical; with Despair; a supporting roll with Hope, with Despair, a critical; the GMs' record with Despair, with Hope; no duality; no roll; a cover not thrown while hidden]");
+    }],
+    ["R8885 - the action card and every roll head say it (E129 S0-CARDS, 1.2.128): action-report.mjs `reportHtml` carries the main roll's line and each of `outcome.supportRolls`, the same for a Despair with a trace and one without (R8675), and `rollHead` the line of the roll it heads", async () => {
+        /*
+         * 23.11.2026, E129 line DESP. Driven, pure: a Palm's card as palm.mjs hands it over (the hand with Hope, its cover
+         * with Despair in `supportRolls`), a Despair Search with `leftTrace` and without - R8675's two
+         * cards - and a roll head for a critical. Read: the lines present, and the two Despair cards' effect lists alike.
+         * Red at 4e5d2e8b: none of the lines.
+         */
+        const A = await import("./action-report.mjs");
+        const { TRAITS, CRITICAL } = await import("./config.mjs");
+        must(typeof A.reportHtml === "function" && typeof A.rollHead === "function", "the card builders are gone - this would measure nothing");
+        const { plural } = await import("./utils.mjs");
+        const f = (key, data) => ["hope", "critical"].includes(key) ? plural(`DRPG.Result.${key}`, data) : game.i18n.format(`DRPG.Result.${key}`, data ?? {});
+        const esc = t => foundry.utils.escapeHTML(t);
+        const trait = Object.keys(TRAITS)[0];
+        const def = { label: "SUITE R8885" };
+        const palm = A.reportHtml(def, { total: 15, withHope: true, trait }, { text: "sent", supportRolls: [{ total: 9, withFear: true, supporting: true, trait }] });
+        const despair = { total: 8, withHope: false, withFear: true, trait };
+        const effects = html => (html.match(/<ul class="drpg-roll-effects">[\s\S]*?<\/ul>/) ?? [""])[0];
+        const plain = A.reportHtml(def, despair, { text: "nothing" }), traced = A.reportHtml(def, despair, { text: "nothing", leftTrace: true });
+        const head = A.rollHead(def, { total: 20, isCritical: true, trait });
+        equal(stableJson([[f("hope", { n: 1 }), f("support", { trait: TRAITS[trait].label }), f("supportDespair")].map(line => palm.includes(esc(line))),
+            plain.includes(esc(f("despair"))), effects(plain) === effects(traced), head.includes(esc(f("critical", { n: CRITICAL.hope })))]),
+        stableJson([[true, true, true], true, true, true]),
+        "[a Palm's card: the hand's Hope, its cover's no Hope, its cover's Despair; a Despair card's line; the same lines with a trace and without; a critical's roll head]");
+    }],
+    ["R8886 - every writer of a result card whose rolls earn or withhold Hope says it (E129 S0-CARDS, 1.2.128): a Palm's and an unseen Frisk's cover ride the card (`supportRolls`), Pick the Lock's cover, the two concealments and Hide Traces of a project carry their line, the Tamper card and Stage 6's carry the roll's, and a price given back after the dice is said on a card with the roll's lines", async () => {
+        /*
+         * 23.11.2026, E129 line DESP. A census off the source, file by file; behaviour is R8884, R8885 and tier 2's
+         * "1.2.128 S0-CARDS". Red at 4e5d2e8b: none of them.
+         */
+        const S = await moduleSources();
+        const code = name => stripComments(S.get(name) ?? "");
+        const count = (name, re) => (code(name).match(re) ?? []).length;
+        must(code("palm.mjs") && code("cleanup.mjs"), "the sources were not read - this would measure nothing");
+        const read = {
+            palm: count("palm.mjs", /supportRolls: \[shadow\]/g),
+            frisk: count("frisk.mjs", /supportRolls: \[shadow\]/g),
+            pick: count("action-doors.mjs", /extra: coverLine \+ rollEffectsHtml\(\[cover\]\)/g),
+            project: count("action-project.mjs", /rollEffectsHtml\(\[(conceal|trace)\]\)/g),
+            cleanup: [count("cleanup.mjs", /await report\(actor, data, \{[^}]*\bisCritical, withHope, free \}\)/g), /\$\{effects\}/.test(fnSource(code("cleanup.mjs"), "report") ?? ""),
+                count("cleanup.mjs", /rollEffectsHtml\(\[\{ isCritical, withHope \}\]\)/g)],
+            givenBack: /DRPG\.Result\.givenBack[\s\S]{0,120}rollEffectsHtml\(rolls \?\? \[\]\)/.test(fnSource(code("action-pipeline.mjs"), "giveBackAfterRoll") ?? ""),
+            // the incident's two cards, the lines their roller's alone (`youOrThem`), and a concealment's critical Sanity said on its card
+            incident: [count("murder-rules.mjs", /await incidentRollLines\(/g),
+                /youOrThem\(ownerIdsOf\(actor\), \{ you: lines, them: "" \}\)/.test(fnSource(code("murder-rules.mjs"), "incidentRollLines") ?? "")],
+            coverCritical: count("cleanup.mjs", /plural\("DRPG\.Result\.coverCritical"/g)
+        };
+        equal(stableJson(read), stableJson({ palm: 2, frisk: 1, pick: 1, project: 3, cleanup: [2, true, 2], givenBack: true, incident: [2, true], coverCritical: 1 }),
+            "{Palm's two cards; the unseen Frisk's; Pick the Lock's cover; a project's concealments and Hide Traces; Tamper [its two reports, the card's list, the roll's lines built in `report` and in Stage 6's card]; a price given back after the dice; the incident [its two cards, the roller's alone]; the concealment's critical}");
+    }],
     ["R8880 - a price comes back after the dice as config.mjs ROLL_REFUNDS says (E129, 1.2.128; S0-REFUND, docs/dev/owner129/desp/REFUNDS.md rows 4, 12, 13; the owner's answers of 23.11.2026): the keys hold the owner's values, under \"always\" price.mjs `mayRefundAfterRoll` gives back after any roll, the GM's Refuse asks `afterRoll` while its own key is null; under \"noHope\" it refuses after a roll with Hope or a critical, a supporting roll's Hope does not count and its critical does; under \"never\" nothing comes back", async () => {
         /*
          * 23.11.2026, E129 line DESP. The owner's note of session 0: some actions gave back Hope and the action at the roll.
@@ -34494,8 +34805,9 @@ const INVARIANTS = [
             minusDebate: { mode: "debate", left: 0, seconds: 300, stack: [], note: "DRPG.Floor.gmNoteAdjust", cards: [] },
             minusEmpty: { refused: "DRPG.Floor.bar.noTime" },
             plusOverrun: { mode: "debate", left: 30, seconds: 300, stack: [], note: "DRPG.Floor.gmNoteAdjust", cards: [] },
-            plusPastLimit: { mode: "objection", left: 80, seconds: 300, stack, note: "DRPG.Floor.gmNoteAdjust", cards: [] },
-            objection: { mode: "objection", left: 60, seconds: 300, stack, note: null, cards: [] },
+            // An Objection's own seconds are 30 since 1.2.129 (E129 S0-OBJ; R8770): 60 and 80 until then.
+            plusPastLimit: { mode: "objection", left: 50, seconds: 300, stack, note: "DRPG.Floor.gmNoteAdjust", cards: [] },
+            objection: { mode: "objection", left: 30, seconds: 300, stack, note: null, cards: [] },
             back: { mode: "debate", left: 200, seconds: 200, stack: [], note: null, cards: [] },
             backOld: { mode: "debate", left: 240, seconds: 240, stack: [], note: null, cards: [] },
             backDebate: { refused: "DRPG.Floor.bar.inDebate" },
@@ -35050,7 +35362,8 @@ const INVARIANTS = [
             seven: [1, B, 2],
             due: step2(B), skip: step2(B, [["DRPG.Floor.turnSkipped", A]]),
             gone: step2(B, [passes(A)]), goneOther: { refused: "DRPG.Floor.round.notSpeaker" },
-            objection: { mode: "objection", holder: D, left: 60, step: 1, stack: [[CARD, "testimony", 40]], cards: [] },
+            // 30 s since 1.2.129 (E129 S0-OBJ; R8770), 60 until then.
+            objection: { mode: "objection", holder: D, left: 30, step: 1, stack: [[CARD, "testimony", 40]], cards: [] },
             rebuttalDue: step2(B), rebuttalSkip: step2(B, [["DRPG.Floor.turnSkipped", A]]),
             overrule: step2(A, [], 40), lapse: step2(A, [], 40),
             endExchange: step2(B, [["DRPG.Floor.modeEnded", "objection"]]),
@@ -48418,7 +48731,7 @@ const INVARIANTS = [
             kit: [[false, false], [true, false]],
             asking: ["action-menus.mjs chooseVariant", "action-menus.mjs promptForNote", "action-project.mjs proposeProjectTrait", "call-gm.mjs askForRequest", "frisk.mjs askToForce", "frisk.mjs openAskWindow",
                 "level-up.mjs askWhoPicks", "level-up.mjs openAdvancement", "mask-gm.mjs askReveal", "observe.mjs askWhichRemnant", "observe.mjs describeFind", "observe.mjs wireDescribeHere", "trait-ruling.mjs pickHere",
-                "trait-ruling.mjs rollChanged", "trial-prompt.mjs promptClaim", "trial-prompt.mjs promptTurn", "vote.mjs castBallot"],
+                "trait-ruling.mjs rollChanged", "trial-prompt.mjs confirmEnd", "trial-prompt.mjs promptClaim", "trial-prompt.mjs promptFinish", "trial-prompt.mjs promptTurn", "vote.mjs castBallot"],
             naming: ["roll-dialog.mjs", "stacking.mjs", "ui-kit.mjs"],
             // E69 C1: the Infiltrate tile's rows (action-listen.mjs `performListen`), an action's declaration.
             menus: ["action-analyze.mjs", "action-listen.mjs", "action-murder.mjs", "action-observe.mjs", "action-project.mjs", "action-rest.mjs", "action-search.mjs", "action-tamper.mjs",
@@ -60933,7 +61246,10 @@ const INVARIANTS = [
             player: ids(K.seenHere(cast, { scenes, shown, user: player })),
             gm: ids(K.seenHere(cast, { scenes, shown, user: gm })),
             unbound: ids(K.seenHere(cast, { scenes, shown: null, user: player })),
-            filtered: Object.fromEntries(Object.entries(pickers).map(([k, text]) => [k, /seenHere\(othersInRoom\(actor\)\)/.test(text)]))
+            // Palm's list since 1.2.129 is its place's (palm.mjs `palmPlace`: the room's `othersInRoom`, or the trial's hall; E129 S0-PALM).
+            filtered: Object.fromEntries(Object.entries(pickers).map(([k, text]) => [k, k === "palm"
+                ? /seenHere\(palmPlace\(actor\)\?\.others\(\) \?\? \[\]\)/.test(text) && /room \? \{ room, others: \(\) => othersInRoom\(actor\) \}/.test(text)
+                : /seenHere\(othersInRoom\(actor\)\)/.test(text)]))
         }), stableJson({
             player: ["other", "shownKiller"], gm: ["killer", "other", "shownKiller"], unbound: ["killer", "other", "shownKiller"],
             filtered: { handover: true, palm: true, tail: true, call: true, monocub: true }
@@ -62154,7 +62470,8 @@ const INVARIANTS = [
         const pl = await fetch(`/modules/${MODULE_ID}/lang/pl.json`).then(r => r.json());
         const plRow = pl?.DRPG?.Config?.ACTIONS?.listen ?? {};
         // E69 C7 (13.11.2026) adds Echoes, an intended change of this expectation.
-        const seven = ["Listen", "Echoes", "Tail Someone", "Dash", "Shut the Door", "Force the Door", "Pick the Lock", "Keep Watch"];
+        // S0-HIDE (E129, 23.11.2026) adds Hide, an intended change of this expectation.
+        const seven = ["Listen", "Echoes", "Tail Someone", "Dash", "Shut the Door", "Force the Door", "Pick the Lock", "Keep Watch", "Hide"];
         const I = C.INFILTRATE ?? {};
         const read = {
             key: Object.hasOwn(C.ACTIONS, "listen"),
@@ -62168,9 +62485,9 @@ const INVARIANTS = [
             inAggregate: C.DRPG?.INFILTRATE === C.INFILTRATE
         };
         // E112 item 4 (15.11.2026, the owner): Keep Watch directly under Tail Someone (an intended change).
-        equal(stableJson(read), stableJson({ key: true, label: ["Infiltrate", "Infiltrate"], hint: [true, true], variants: ["listen", "echoes", "tail", "keepWatch", "dash", "shut", "force", "pick"],
+        equal(stableJson(read), stableJson({ key: true, label: ["Infiltrate", "Infiltrate"], hint: [true, true], variants: ["listen", "echoes", "tail", "keepWatch", "dash", "shut", "force", "pick", "hide"],
             // E74 C2 adds Shut the Door, C3 Force the Door, C4 Pick the Lock, C6 Keep Watch (intended changes of this expectation).
-            rows: ["listen", "echoes", "tail", "dash", "shut", "force", "pick", "keepWatch"], tail: ["shadow", 15], dash: [["leg"], [[12, 2], [18, 3]], 4], inAggregate: true }),
+            rows: ["listen", "echoes", "tail", "dash", "shut", "force", "pick", "keepWatch", "hide"], tail: ["shadow", 15], dash: [["leg"], [[12, 2], [18, 3]], 4], inAggregate: true }),
             "{key; label [EN, PL]; hint names the seven rows [EN, PL]; variants; INFILTRATE's rows; tail [traits, unseen trait, its threshold]; dash [traits, bands, critical]; inAggregate} - the Infiltrate tile");
     }],
     ["R3756 - the Infiltrate window is one list of rows, Listen first and shut with its reason where the room has no neighbour (scripts/action-listen.mjs `infiltrateRows`, `performListen`; E69 C1, DA28): one row a key of `ACTIONS.listen.variants` in its order, each with its price; Listen open where the character's room has a neighbour and greyed with the no-neighbour line where it has none; a row not built greyed with its line; and `performListen` asks the rows before Listen's own room", async () => {
@@ -62198,7 +62515,7 @@ const INVARIANTS = [
                 // E74 C2 adds Shut the Door, C3 Force the Door, C4 Pick the Lock, C6 Keep Watch (intended changes of this expectation).
                 // E69 C7 (13.11.2026) adds Echoes, second (an intended change).
                 // E112 item 4 (15.11.2026, the owner): Keep Watch directly under Tail Someone (an intended change).
-                variants: ["listen", "echoes", "tail", "keepWatch", "dash", "shut", "force", "pick"], asksFirst: true }),
+                variants: ["listen", "echoes", "tail", "keepWatch", "dash", "shut", "force", "pick", "hide"], asksFirst: true }),
             "{rows: per student [the rows' keys, Listen shut exactly when the room has no neighbour, its line, a price on every row]; variants; asksFirst: performListen asks the rows before Listen's room} - the Infiltrate window");
     }],
     ["R6020 - Listen's eavesdrop is one more rule of the voice decision (scripts/voice.mjs `listeningRow`, `placeVoices`' `listens`; E69 C6, the owner's 10.11 (a)): an account whose character stands in the room it listens from is sent into the voice channel of the room it listens at, marked listening; one in another room, in no room or with no eavesdrop is placed as before; with no eavesdrop handed in nobody moves", async () => {
@@ -62505,6 +62822,30 @@ const INVARIANTS = [
             ? [K.ownMaskTurned(mine(false)), K.ownMaskTurned(mine(false)), K.ownMaskTurned(mine(true)), K.ownMaskTurned({ ...mine(true), isOwner: false, id: "SUITE8227OTHER00" })] : null;
         equal(stableJson([reads, counted, refresh !== null && refresh.includes('count("refreshToken.mask")') && refresh.includes("ownMaskTurned(token)") && refresh.indexOf("ownMaskTurned") < refresh.indexOf("noticeOwnMask"), turned]),
             stableJson([0, 1, true, [true, false, true, false]]), "[the token's actor read, the death mark counted, the mask's refresh listener counted and asking the own mask behind `ownMaskTurned`, its answers: a first redraw, the same again, the mask on, another's token]");
+    }],
+    ["R8850 - a dead student's player watches as a Spectator at once (1.2.128 E129 S0-VICTIM; scripts/spectator.mjs `spectatorViewer`, `DEAD_VIEW`; the owner, 23.11.2026: \"Nie dostala spectatora automatycznie\"): with the view \"spectator\" a player owning a dead student and its watcher watches; with \"student\" not; a player with a living student beside the watcher, or a dead student and no watcher, does not", async () => {
+        /* Pure: `spectatorViewer` handed a user, actors and the deaths. The actors carry the Spectator's flag or not and are
+           owned or not; `dead` names the dead. Red before 1.2.128: no `DEAD_VIEW`, and the dead student counted as a
+           living one, so nobody owning it watched. */
+        const S = await import("./spectator.mjs");
+        const { FLAGS } = await import("./config.mjs");
+        const user = { id: "U1", isGM: false };
+        const actor = (id, { spectator = false, mine = true } = {}) => ({ id, type: "character",
+            getFlag: (scope, key) => (scope === MODULE_ID && key === FLAGS.spectator ? spectator : undefined),
+            testUserPermission: () => mine });
+        const dead = a => a.id === "DEAD";
+        const ask = (actors, view) => S.spectatorViewer(user, actors, { dead, view });
+        const corpse = actor("DEAD"), watcher = actor("WATCH", { spectator: true }), living = actor("ALIVE");
+        const read = [
+            S.DEAD_VIEW,
+            ask([corpse, watcher], "spectator"),
+            ask([corpse, watcher], "student"),
+            ask([corpse, living, watcher], "spectator"),
+            ask([corpse], "spectator"),
+            ask([watcher], "student")
+        ];
+        equal(stableJson(read), stableJson(["spectator", true, false, false, false, true]),
+            "[the default view; a dead student and its watcher, view spectator; view student; a living one besides; no watcher; a Spectator alone]");
     }],
     ["R7400 - a Remnant and a project token are drawn under every character whatever their sort (scripts/remnant-ring.mjs `traceLayer`, `keepUnderCharacters`, `paint`; owner-115 item 2): a trace's mesh goes to the sort layer just under Foundry's tokens, above its tiles and drawings, once - the primary group told to sort again only when the layer moved; a token with no mesh is left; `paint` puts a Remnant or a project token there before it asks whether the token is seen, and never a character", async () => {
         /* owner-115 item 2, 14.11.2026; the owner at a table on 1.2.114: "Gdy token postaci jest w tym samym miejscu co remnant,
@@ -67994,6 +68335,68 @@ const INVARIANTS = [
             tamper: /popupCentre: "actionResult", \.\.\.\(success \? \{\} : \{ sfx: "cleanupFailed" \}\)/.test(src("cleanup.mjs"))
         }), stableJson({ rollCard: "actionResult", report: true, tail: true, bedroom: true, bedroomCalls: 2, body: true, infiltrate: [true, true, true], cover: true, tamper: true }),
         "{rollCard: Observe/Analyze/Listen; report: every action's result; tail: noticed or not, the Shadow roll with its number first, then the effect roll; bedroom: not a lock only mended; bedroomCalls: both of the owner's cards; body; infiltrate: the five Infiltrate cards with their roll; cover: Pick's second roll; tamper: Tamper's card}");
+    }],
+    ["R8770 - an Objection's own time is 30 s (E129 S0-OBJ; the owner's note of 23.11.2026, \"objection skrocic do 30s\"): config.mjs `TRIAL.objectionSeconds` is 30 and an Objection's floor runs 30 s in a debate and in a round; its seconds to pick a bullet stay `TRIAL.objectionPickSeconds` (30), the Closing's exchange keeps 60 (`TRIAL.modes.closing.objectionSeconds`, the coordinator's default) and the rebuttal 120; no handbook of either language and no text calls the objector's time a minute or 60 seconds", async () => {
+        /* Read off the machine (floor-machine.mjs `modeSecondsOf`) on floors its own events build, and off the six
+           handbooks and both language files as the module serves them. Red at 2e28785a: 60 s, and the minute words. */
+        const { TRIAL } = await import("./config.mjs");
+        const M = await import("./floor-machine.mjs");
+        const ctx = { now: 1_000_000, absent: [] };
+        const debate = M.nextFloor(null, { type: "start", seconds: 180 }, ctx).floor;
+        const round = M.nextFloor(null, { type: "round", mode: "testimony", seconds: 60, order: ["suite-a", "suite-b"] }, ctx).floor;
+        must(debate && round, "the machine opened no debate or no round - this would measure nothing");
+        const objecting = floor => M.nextFloor(floor, { type: "objection", holderId: "suite-b", targetId: floor.holderId ?? "suite-a", cardId: "suite-card" }, ctx).floor;
+        const picking = M.nextFloor(debate, { type: "objection", holderId: "suite-b", targetId: "suite-a", pending: true, messageId: "suite-card" }, ctx).floor;
+        const closingExchange = { mode: "objection", pending: false, holderId: "suite-b", targetId: "suite-a", startedAt: ctx.now, seconds: 0,
+            closing: { phase: "speak", step: 1, speakerId: "suite-a" }, before: [] };
+        const read = {
+            constant: TRIAL.objectionSeconds, debate: M.modeSecondsOf(objecting(debate)), round: M.modeSecondsOf(objecting(round)),
+            pick: [M.modeSecondsOf(picking), TRIAL.objectionPickSeconds], closing: [M.modeSecondsOf(closingExchange), TRIAL.modes?.closing?.objectionSeconds ?? null],
+            rebuttal: M.modeSecondsOf({ ...objecting(debate), mode: "rebuttal" })
+        };
+        const said = {
+            en: ["Objection's minute", "its minute", "Objection 60 seconds", "60 s, then 120 s", "| the objector alone | 60 seconds", "for **60 seconds", "then 60 s", "the 60 seconds", "60 + 120 s"],
+            pl: ["minuta Objection", "minucie Objection", "jego minuty", "Objection dostaje 60", "60 s, potem 120 s", "| tylko wnoszący | 60 sekund", "przez **60 sekund", "przez 60 s", "czeka; 60 sekund", "60 + 120 s"]
+        };
+        const found = [];
+        let files = 0;
+        for (const lang of ["en", "pl"]) {
+            for (const id of ["gm-handbook", "player-handbook", "player-brochure"]) {
+                const res = await fetch(`/modules/${MODULE_ID}/docs/handbooks/${id}.${lang}.md`);
+                if (!res.ok) continue;
+                files++;
+                const text = await lfText(res);
+                for (const line of text.split("\n")) {
+                    if (!/objection|wnosząc|objector/i.test(line)) continue;
+                    for (const words of said[lang]) if (line.includes(words)) found.push(`${id}.${lang}: ${words}`);
+                }
+            }
+            const keys = await (await fetch(`/modules/${MODULE_ID}/lang/${lang}.json`)).json();
+            const note = keys?.DRPG?.Floor?.gm?.objectionNote ?? keys?.DRPG?.Floor?.objectionNote ?? null;
+            files++;
+            if (typeof note !== "string") found.push(`${lang}.json: no objectionNote`);
+            else if (/minut/i.test(note)) found.push(`${lang}.json objectionNote: ${note}`);
+        }
+        must(files === 8, `read ${files} of the six handbooks and two language files - this would measure too little`);
+        equal(stableJson({ read, found }), stableJson({ read: { constant: 30, debate: 30, round: 30, pick: [30, 30], closing: [60, 60], rebuttal: 120 }, found: [] }),
+            "{read: [the constant, an Objection's seconds in a debate, in a round, [while its bullet is picked, the pick constant], [the Closing's exchange, its constant], the rebuttal]; found: the texts that still say a minute or 60 s}");
+    }],
+    ["R8772 - Palm is open in the Class Trial and paid as Analyze is there (E129 S0-PALM; the owner's note of 23.11.2026, \"palm powinno byc dostepne w trialu za akcje, potem za hope, potem za sanity\"): allowed-now.mjs `TRIAL_OPEN_ACTIONS` holds Analyze and Palm, and in a trial the action road opens those two and shuts the rest; the person road opens Palm's key alone; config.mjs `PRICE_CHAINS.palm` is an action, then Hope, then Sanity, the later steps in the trial alone, its first step Palm's tile cost; `TRIAL.palmHallIsOneRoom` is on", async () => {
+        /* Pure over handed-in facts (allowed-now.mjs `allowedNow`'s `facts`). Red at 2e28785a: Analyze alone, no chain. */
+        const { ACTIONS, PRICE_CHAINS, TRIAL } = await import("./config.mjs");
+        const A = await import("./allowed-now.mjs");
+        const facts = trial => ({ trial: () => trial, eclipse: () => false, fighting: () => false, betrayal: () => false, participant: () => false });
+        const open = ["search", "observe", "analyze", "listen", "palm", "project", "rest", "dynamic", "tamper"].filter(k => A.allowedNow(null, k, { facts: facts(true) }).ok);
+        const chain = PRICE_CHAINS.palm ?? null;
+        equal(stableJson({
+            table: A.TRIAL_OPEN_ACTIONS ?? null, open,
+            person: [A.allowedNow(null, "palm", { road: "person", facts: facts(true) }).ok, A.allowedNow(null, null, { road: "person", facts: facts(true) }).why],
+            chain: chain ? [chain.steps.map(s => [s.pay, s.amount]), chain.stepsBeyondFirst, chain.steps[0].amount === ACTIONS.palm.cost] : null,
+            hall: TRIAL.palmHallIsOneRoom ?? null
+        }), stableJson({
+            table: ["analyze", "palm"], open: ["analyze", "palm"], person: [true, "trial"],
+            chain: [[["action", 1], ["hope", 1], ["stress", 1]], "classTrial", true], hall: true
+        }), "{table; open: the action keys a trial leaves open; person: [Palm's road, a nameless one's reason]; chain: [steps, the phase of the later ones, its first step the tile's cost]; hall}");
     }],
     ["R8675 - a centred action card tells a Despair roll's trace no more than the corner did (the owner, 22.11.2026: \"by nie zdradzaly ze gracz zostawia remnant, gdy nie powinien o tym wiedziec\"; 1.2.124 line UI): action-report.mjs `reportHtml` with `leftTrace` from remnants.mjs `traceFeedback`, drawn centred by popup.mjs `showPopup`: a Despair roll with a trace placed and one with none give the same centred card, byte for byte, the number beside its dice included; a Hope roll with a trace says so and one with none does not", async () => {
         /* Red at 52057a2b: no `reportHtml` and no centred card. The mutant that answers `traceFeedback` with `placed` alone

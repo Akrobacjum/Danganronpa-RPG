@@ -89,6 +89,10 @@ export const FLOWS = Object.freeze([
     // E74 C6 (12.11.2026): 30 forges the packet; the tier-2 test E74-T4 keeps a watch through an Eclipse.
     { id: "keep-watch", what: "Keep Watch: the Body roll drawn on the GM, the watch kept by the GM and its cards through the Eclipse",
         entry: { bridge: ["watch.declare"] }, scenarios: ["30-security"], status: "partial", stage: "E39" },
+    // S0-HIDE (E129, 23.11.2026): 22-hide drives the primary's run and p1's Reveal yourself; the tier-2 test "1.2.128 S0-HIDE"
+    // the primary's start, end, chapter and sweep. The Shadow roll's draw from a player's page is not driven headless.
+    { id: "hide", what: "Hide: the Shadow roll drawn on the GM, the character hidden by the primary until Reveal yourself, a GM, the chapter or the reset",
+        entry: { bridge: ["hide.start"] }, scenarios: ["22-hide"], status: "partial", stage: "E129" },
     // E74 C4 (12.11.2026): 30 forges the packet; the tier-2 test E74-T3 picks a lock and a seal.
     // E74 (DA9 as the plan has it, 12.11.2026): an open is a pass, kept by the GMs and copied to its owner (lockpick-gm.mjs's
     // socket), until the picker leaves the room; scenario 33 E74-C walks the picker in on it from the player's page.
@@ -117,6 +121,10 @@ export const FLOWS = Object.freeze([
     // E69-T7 masks and reveals on the GMs' record. The killer's own reveal from their page is tier 2's alone.
     { id: "mask", what: "The murder's privacy: a killer behind a \"?\" after an opening on Hope or a critical, their microphone blocked, the cast's copies holding no killer, ended by the killer's reveal or the time of day",
         entry: { bridge: ["mask.reveal", "mask.veil"] }, scenarios: ["30-security", "97-two-gms"], status: "partial", stage: "E39" },
+    // 1.2.128 (E129 S0-VICTIM): 97 W gives a dead student their watcher from the second GM through the primary; 30 forges the
+    // packet from a player's console; tier 2 "1.2.129 S0-VICTIM b" reads the primary's own press.
+    { id: "dead-spectator", what: "A dead student's Spectator, the watcher: made at the death, or by the Students window's Spectator role on a dead student, on the primary, the body left where it lies",
+        entry: { bridge: ["spectator.dead"] }, scenarios: ["30-security", "97-two-gms"], status: "covered", stage: "1.2.128" },
     // E93 C3 (12.11.2026): 33 uses a GM's room action and a completed project's from p1's page (E93-A); 30 forges the packet.
     // Q-E93-3 (12.11.2026): a timed effect a room action gives is kept by the GMs and copied to its owner (timed-effects.mjs's
     // socket), which the owner's sheet reads. P2 (15.11.2026): a project's action's uses are copied to their owner (facility-uses.mjs's

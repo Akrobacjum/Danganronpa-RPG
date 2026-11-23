@@ -998,6 +998,13 @@ export async function giveBackAfterRoll(actor, receipt, rolls, { price = false }
     }
     if (price) await P.refundPrice(actor, receipt);
     else await refundAction(actor, receipt.amount, receipt);
+    /* SAID ON A CARD OF ITS OWN (E129 S0-CARDS, 1.2.128; the owner, 23.11.2026: a result card says plainly what the result
+       did, "w tym krytyka"). The price came back silently beside the bridge's refusal, while the roll's Hope stood: the
+       card says both - what came back, and what the roll still earned (action-report.mjs `rollEffectsHtml`). In the corner,
+       as every refusal is (notice-centre.mjs, 1.2.124). */
+    const what = P.priceLabel(price ? receipt : { pay: "action", amount: receipt.amount ?? 1 });
+    const { rollEffectsHtml } = await import("./action-report.mjs");
+    await whisperToOwner(actor, `<p>${foundry.utils.escapeHTML(game.i18n.format("DRPG.Result.givenBack", { what }))}</p>${rollEffectsHtml(rolls ?? [])}`);
     return true;
 }
 

@@ -3694,6 +3694,16 @@ async function closeIncident(state, { reason, followUp, conclude = true }) {
     } catch (err) {
         error("Could not lift the opening's veil", err);
     }
+    /* AND THE KILLER'S MASK (1.2.129, S0-MASKLEFT; the owner, 23.11.2026: "po przerwaniu morderstwa morderca dalej mial ?
+       i wyciszenie", then "Zawsze zdejmujemy maske na koniec incydentu morderstwa (po sprzataniu)"): every end of an
+       incident comes through here - the GM's End after Stage 6 or before it, a failed or crowded-out fight, a betrayal,
+       the trial's floor, the season's reset - and none of them ended the mask, which stood to its time of day. On the
+       primary, held there to its own rows (mask-gm.mjs `endMasksAtClose`). */
+    try {
+        await (await import("./mask-gm.mjs")).endMasksAtClose(state ? killerIds(state) : []);
+    } catch (err) {
+        error("Could not take the killer out from behind the mask at the incident's end", err);
+    }
 
     /* ONE HOOK PER INCIDENT THAT WAS RUNNING (E32 C1, 28.09.2026; audit S17-10). The
        suite's invariant grid (tests-grid.mjs, I4) counts closes with it: a betrayal that
@@ -4386,6 +4396,24 @@ async function tellGms(text, extra = {}) {
 }
 
 /**
+ * WHAT AN INCIDENT ROLL DID, FOR ITS ROLLER ALONE (E129 S0-CARDS, 1.2.128; the owner, 23.11.2026, and the coordinator's
+ * item 3: read the incident's rule to the end and say what the code does). An opening roll and a crisis action's roll are
+ * action rolls on both sides - `rollTrait` without `remember: false` for a crisis, and the opening's `murderOpening` is in
+ * `TAKES_CALLS`, so neither is supporting (action-pipeline.mjs); the GM's draw adds their Hope (roll-draw.mjs
+ * `throwDrawn`: neither key is in `SPENDS_NO_CALL`), critical.mjs its critical's 2, and despair-award.mjs a Despair
+ * result's point (neither is a reaction) - read 23.11.2026, no road of the incident's takes any of it back. The card goes
+ * to every seat of the incident with masked names, so the lines are the roller's own users' (`youOrThem`, as the
+ * crisis's reserve note), cut by secret.mjs `wordsFor`: nobody else reads "you earn". `band` is the card's own,
+ * "critical", "hope" or "despair". Answers "" with nobody to say it to.
+ */
+async function incidentRollLines(actor, band) {
+    if (!["critical", "hope", "despair"].includes(band)) return "";
+    const { rollEffectsHtml } = await import("./action-report.mjs");
+    const lines = rollEffectsHtml([{ isCritical: band === "critical", withHope: band === "hope" }]);
+    return lines ? youOrThem(ownerIdsOf(actor), { you: lines, them: "" }) : "";
+}
+
+/**
  * Tell the incident what just happened - the GMs AND the people in it.
  *
  * This used to whisper to the GMs alone. The player who had just rolled was
@@ -4470,7 +4498,8 @@ async function announceCrisis(actor, def, { key = null, success, band, total, th
         ${score}
         ${outcome ? `<p>${foundry.utils.escapeHTML(outcome)}</p>` : ""}
         ${nothing}
-        ${done.length ? `<ul>${done.map(d => `<li>${d}</li>`).join("")}</ul>` : ""}`;
+        ${done.length ? `<ul>${done.map(d => `<li>${d}</li>`).join("")}</ul>` : ""}
+        ${rolled && !def.noRoll ? await incidentRollLines(actor, band) : ""}`;
 
     const recipients = new Set([...gmIds(), ...(state ? incidentAudienceIds(state, { stage, also: [actor] }) : [])]);
 
@@ -4557,7 +4586,8 @@ async function announceOpening(state, label, { rollerId, success, band, total, t
         const roller = game.actors.get(rollerId ?? "");
         const content = `
             <h3>${foundry.utils.escapeHTML(label ?? "")}${roller ? ` - ${maskedName(roller, state)}` : ""}</h3>
-            <p>${total} ${success ? "≥" : "<"} ${threshold} · ${game.i18n.localize(`DRPG.Murder.band.${band}`)}</p>`;
+            <p>${total} ${success ? "≥" : "<"} ${threshold} · ${game.i18n.localize(`DRPG.Murder.band.${band}`)}</p>
+            ${roller ? await incidentRollLines(roller, band) : ""}`;
         const recipients = new Set([...gmIds(), ...incidentAudienceIds(state, { stage: "openingRoll" })]);
         await announce(withCentre({ content, whisper: Array.from(recipients) }));
     } catch (err) {

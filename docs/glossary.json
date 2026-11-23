@@ -874,6 +874,17 @@
         "source": ["DA28", "DX4"]
       },
       {
+        "id": "hide",
+        "en": "Hide",
+        "pl": "Hide",
+        "gender": null,
+        "inflection": null,
+        "forbidden": {"en": {"variants": [], "scope": ["ui"]}, "pl": {"variants": [], "scope": ["ui"]}},
+        "stage": "E129",
+        "source": ["DA28"],
+        "note": "An Infiltrate row, English in both languages as the other rows are (DA28; S0-HIDE, E129); the owner named it \"schowaj się\" (23.11.2026), so a Polish name waits on the owner. Its button is Reveal yourself / Ujawnij się, the mask's words."
+      },
+      {
         "id": "repair-the-lock",
         "en": "Repair the Lock",
         "pl": "Repair the Lock",
