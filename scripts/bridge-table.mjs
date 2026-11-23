@@ -36,7 +36,7 @@ import {
     ACTION_PROGRESS, ACTION_SHARE, ACTION_REMNANT, ACTION_TIE_TRACE, ACTION_REMNANT_EDIT, ACTION_SABOTAGE,
     ACTION_UNSABOTAGE, ACTION_PROJECT_CHANGE, ACTION_SENDBACK, ACTION_ECLIPSE_MOVE, ACTION_ARM, ACTION_DESPAIR,
     ACTION_OVERFLOW_ADD, ACTION_CALL_WORLD, ACTION_MUSIC_TRACK, ACTION_OVERFLOW_CLEAR, ACTION_DESPAIR_SET, ACTION_DESPAIR_ALL, ACTION_DESPAIR_ROSTER,
-    ACTION_OVERFLOW_TAKE, ACTION_OVERFLOW_CHECK, ACTION_DIFFICULTY, ACTION_AUDIT_DECIDE, ACTION_KEYS_CHARGE, ACTION_BODY_DISCOVER, ACTION_CHAPTER_END, ACTION_VOICE_RESET, ACTION_VERDICT_FINISH,
+    ACTION_OVERFLOW_TAKE, ACTION_OVERFLOW_CHECK, ACTION_DIFFICULTY, ACTION_AUDIT_DECIDE, ACTION_KEYS_CHARGE, ACTION_BODY_DISCOVER, ACTION_CHAPTER_END, ACTION_VOICE_RESET, ACTION_VERDICT_FINISH, ACTION_OPENING_CARD,
     ACTION_VOTE_RUN, ACTION_VOTE_CAST, ACTION_VOTE_ASK, ACTION_FLOOR_NOW, ACTION_TRIAL_OBJECT, ACTION_TRIAL_EVIDENCE,
     ACTION_TRIAL_WITHDRAW, ACTION_FLOOR_REPOINT, ACTION_TRIAL_GM, ACTION_TRIAL_TURN, ACTION_TRIAL_CLAIM, ACTION_TRIAL_SIDE, ACTION_TRIAL_KEYWORD,
     ACTION_TRIAL_PRESENT, ACTION_READY_OPEN, ACTION_READY_ANSWER, ACTION_READY_END, ACTION_TRIAL_ENTER,
@@ -56,7 +56,7 @@ import {
     handleAdvancementOffer, handleAdvancementAsk, handleShareBulletOrGiveItem, handlePassageShare, handlePassageCross,
     handleRefundCrossing, handlePassageFind, handlePassageLairSeal, handleLairLock, friskRolls, findPassageRoll, notFindPassageRoll, palmRolls, handlePlant,
     handleFindStash, handleSteal, handleFriskUnseen, handleFriskAsk, handleFriskAnswer, handleFriskFollow,
-    friskForceRoll, handleVaultSteal, handleOpeningResult, handleCrisis, handleParkMurder,
+    friskForceRoll, handleVaultSteal, handleOpeningResult, handleOpeningCard, handleCrisis, handleParkMurder,
     handleBetrayal, handleCleanup, handleCubAbility, handleCubAnswer, handleBribeOffer, handleBribeAnswer, handleHopeCall, handleCallYes, handleDynamicAnswer,
     handleRulingExpired, handleRulingReceived, handleDifficulty, handleTraitRuling, handleFacilityUse, handleDash,
     handleTailStart, tailRolls, handleDoorShut, handleDoorForce, handleDoorPick, pickRolls, handleWatchDeclare, handleDoorKnock,
@@ -1204,18 +1204,11 @@ export const BRIDGE_ACTIONS = table({
     },
     /* A SECOND FULL GM'S BODY AND CHAPTER'S END, ON THE PRIMARY (E128; OWNER-128-SECOND-GM): both stay the primary's (body.mjs
        `discoveryHere`, chapter.mjs `chapterEndHere`), run here by the same functions and checks; an Assistant GM is told. */
-    [ACTION_BODY_DISCOVER]: {
-        label: "DRPG.Bridge.what.body.discover",
-        guards: [gmOnly("only a GM announces a body")],
-        sanitize: pick({ room: as.text, victimId: as.id, sceneId: as.id }),
-        run: handleBodyDiscover,
-        answer: "reply",
-        claims: { victimId: "read by runDiscovery (body.mjs) against the GMs' deaths: a victim nobody holds dead is announced as no one",
+    [ACTION_BODY_DISCOVER]: { label: "DRPG.Bridge.what.body.discover", guards: [gmOnly("only a GM announces a body")],
+        sanitize: pick({ room: as.text, victimId: as.id, sceneId: as.id }), run: handleBodyDiscover, answer: "reply", claims: { victimId: "read by runDiscovery (body.mjs) against the GMs' deaths: a victim nobody holds dead is announced as no one",
             sceneId: "the scene the room is looked up on (body.mjs runDiscovery); a room the scene does not hold announces nothing" }
     },
-    [ACTION_CHAPTER_END]: {
-        label: "DRPG.Bridge.what.chapter.end",
-        guards: [gmOnly("only a GM ends the chapter")],
+    [ACTION_CHAPTER_END]: { label: "DRPG.Bridge.what.chapter.end", guards: [gmOnly("only a GM ends the chapter")],
         sanitize: pick({ reveal: as.bool, sweep: as.bool, faint: as.bool, keys: as.bool, endTrial: as.bool, nextChapter: as.bool,
             nextSession: as.bool, nextMorning: as.bool, opened: as.raw, finish: as.bool, drop: as.bool }),
         run: handleChapterEnd,
@@ -1228,6 +1221,9 @@ export const BRIDGE_ACTIONS = table({
     // A second full GM's Finish of a verdict the primary runs (E128; verdict.mjs `finishRoute`). Carries nothing.
     [ACTION_VERDICT_FINISH]: { label: "DRPG.Bridge.what.verdict.finish", guards: [gmOnly("only a GM finishes a verdict")],
         sanitize: pick({}), run: handleVerdictFinish, answer: "reply" },
+    // A GM's ask for the opening's card, the primary's to post once (E128; murder-rules.mjs `postOpeningCard`). No ids.
+    [ACTION_OPENING_CARD]: { label: "DRPG.Bridge.what.murder.openingCard", guards: [gmOnly("only a GM posts the opening's card")],
+        sanitize: pick({ side: as.oneOf("killer", "victim"), openedAt: as.num }), run: handleOpeningCard, answer: "reply" },
     /*
      * THE TRIAL'S VOICES, SETTLED ON THE PRIMARY GM (E70 C5, 28.10.2026; amend 6, answer 3 (b)). The trial opens and
      * ends on whichever GM moved the phase (clock.mjs `reconcilePhase`); its list of the dead reads the GMs' deaths

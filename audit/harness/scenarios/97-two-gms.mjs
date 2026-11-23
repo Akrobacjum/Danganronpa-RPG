@@ -775,7 +775,9 @@ export async function run(api) {
        the killer. gm2 opens Daichi's murder of Aiko - Daichi has no player, so gm2's own browser throws the opening
        (murder-rules.mjs `rollOpening`), on Hope by its dice (`__forceRoll`). Read on gm: the incident's stage before and
        after, and whether Daichi's mask stands. Red at ed0b1ad3's parent (9eb89710): the stage moved on, no mask. An
-       earlier version of this phase had p3's own Chie answer the invitation first, a race (1 in 2 runs). */
+       earlier version of this phase had p3's own Chie answer the invitation first, a race (1 in 2 runs). The wait reads both
+       facts since 22.11.2026: one run at 1c546cae read the mask up while the stage's write had not landed on gm yet (stage
+       "openingRoll", masked true), a wait that ended on the mask alone. */
     phase("O a second GM's own opening roll", { flow: "murder-incident" });
     const opened = await gm2.eval(`if (game.drpg.murderState()?.active) await game.drpg.endMurder({ reason: "suite", followUp: false });
         globalThis.__forceRoll = { hope: 11, fear: 5 };
@@ -784,7 +786,8 @@ export async function run(api) {
             return r?.stage ?? null;
         } finally { /* the throw is started by openMurder; the dice are taken off once it has landed, below */ }`, { timeout: 60000 });
     const after = await until(() => gm.eval(`const K = ${imp("mask-gm.mjs")};
-        return { stage: game.drpg.murderState()?.stage ?? null, masked: K.maskStands("${IDS.daichi}") };`), v => v.masked === true, 10000);
+        return { stage: game.drpg.murderState()?.stage ?? null, masked: K.maskStands("${IDS.daichi}") };`),
+        v => v.masked === true && v.stage !== "openingRoll", 10000);
     await gm2.eval(`delete globalThis.__forceRoll; return true;`);
     await gm.eval(`const K = ${imp("mask-gm.mjs")};
         if (game.drpg.murderState()?.active) await game.drpg.endMurder({ reason: "suite", followUp: false });
@@ -931,6 +934,87 @@ export async function run(api) {
     }
     check("S1: gm2's Fix voice is sent by the primary - a count with LiveKit active on gm, null without (E128)",
         Number.isFinite(sentOn) && refusedOn === null, J({ sentOn, refusedOn }), { flow: "voice" });
+
+    /* ------------------------------------------------------------------ T */
+    /* E128, 22.11.2026 (OWNER-128-SECOND-GM; scenario 61 F9b, at the coordinator's ask). The opening's request card to its
+       player was posted on whichever GM asked, after a read of the GMs' memo of the cards (`openingCardStandsFor`) that the
+       post did not hold: two asks on one browser both read it before either card was made, and a second GM read a memo the
+       primary's card had not reached yet. gm2 opens Aiko's murder of Botan - Aiko is p1's, so the opening goes to p1, whose
+       roll is held - and asks the opening again twice while the murder's own ask is in flight, as a tracker's re-ask and a
+       ready's do. Read on gm: the cards to p1 posted since, by their words (secret.mjs `wordsOf`), and their authors. Red at
+       1c546cae: three cards, each gm2's. The card is the primary's to post now (murder-rules.mjs `postOpeningCard`, asked
+       with `murder.openingCard`), and the primary holds it in flight from the memo's read to its write. */
+    phase("T the opening's card posted once, by the primary, whoever asks", { flow: "murder-incident" });
+    await p1.eval(`globalThis.__e128tHeld = []; const a = game.actors.get("${IDS.aiko}");
+        globalThis.__e128tKept = Object.hasOwn(a, "rollTrait") ? a.rollTrait : null;
+        a.rollTrait = function () { return new Promise(r => globalThis.__e128tHeld.push(r)); }; return true;`);
+    const tFrom = await gm.eval(`return game.messages.contents.length;`);
+    const YOURS = `const S = ${imp("secret.mjs")}; const yours = game.i18n.localize("DRPG.Murder.openingYours"), cards = [];
+        for (const m of game.messages.contents.slice(${tFrom})) if (String(await S.wordsOf(m, 500) ?? "").includes(yours)) cards.push(m.author?.id ?? m.user?.id ?? null);
+        return cards;`;
+    let tOpened = null, tCards = null;
+    try {
+        tOpened = await gm2.eval(`if (game.drpg.murderState()?.active) await game.drpg.endMurder({ reason: "suite", followUp: false });
+            const R = ${imp("murder-rules.mjs")};
+            const r = await game.drpg.openMurder({ killerId: "${IDS.aiko}", victimId: "${IDS.botan}", openingTrait: "body" });
+            const again = await Promise.all([R.rollOpening("killer", game.drpg.murderState()), R.rollOpening("killer", game.drpg.murderState())]);
+            return { stage: r?.stage ?? null, again: again.map(a => a?.asked ?? null) };`, { timeout: 60000 });
+        await until(() => gm.eval(YOURS), v => v.length > 0, 8000);
+        await settle(1500);
+        tCards = await gm.eval(YOURS);
+    } finally {
+        await gm.eval(`if (game.drpg.murderState()?.active) await game.drpg.endMurder({ reason: "suite", followUp: false }); return true;`, { timeout: 60000 });
+        await p1.eval(`const a = game.actors.get("${IDS.aiko}"); if (globalThis.__e128tKept) a.rollTrait = globalThis.__e128tKept; else delete a.rollTrait;
+            for (const r of globalThis.__e128tHeld ?? []) r(null); delete globalThis.__e128tHeld; delete globalThis.__e128tKept; return true;`);
+        await settle(900);
+    }
+    check("T1: gm2's murder and two more asks of its opening while the first is in flight post one card to the killer's player, written by the primary (E128)",
+        tOpened?.stage === "openingRoll" && J(tOpened.again) === J([true, true]) && J(tCards) === J([IDS.gm]), J({ tOpened, tCards }), { flow: "murder-incident" });
+
+    /* ------------------------------------------------------------------ U */
+    /* E128, 22.11.2026 (OWNER-128-SECOND-GM, line CORE's inventory row 6, at the coordinator's ask). A verdict stopped half
+       way whose GM has left is the primary's to finish (verdict.mjs `verdictRunner`), and a second full GM's Finish was
+       greyed on the trial console and refused in `finishVerdict`; it is asked of the primary now (`finishRoute`,
+       `verdict.finish`). R8732 reads the route alone, and could not see the greyed button (fixed in 1c546cae). gm writes
+       the stopped verdict as tier 2's E10 G2 does - every step done but the bets, its GM a user who is not there; gm2 opens
+       the trial console and presses Finish as its footer offers it (a greyed button is not pressed). Read: the button on
+       gm2, and on gm the verdict's stage, who finished it and the verdict summaries posted since. Red at 9eb89710: greyed,
+       not pressed, the verdict still applying. */
+    phase("U a second GM's Finish of a verdict the primary runs", { flow: "class-trial" });
+    const VOTE = imp("vote.mjs");
+    const uFrom = await gm.eval(`return game.messages.contents.length;`);
+    await gm.eval(`const V = ${VOTE}, C = ${imp("settings.mjs")};
+        globalThis.__e128uKept = foundry.utils.deepClone(game.settings.get("${MOD}", "trialProgress") ?? {});
+        await game.settings.set("${MOD}", "trialProgress", { ...V.trialProgress(), chapter: C.getClock().chapter, verdictApplied: false, executedAt: null, execution: null });
+        await V.setTrialProgress({ voteClosed: true, verdictApplied: true, verdict: { stage: "applying", correct: true, executedIds: [], by: "E128U a GM who left",
+            at: Date.now(), done: ["sentence", "executions", "card", "levelUps", "overflow"], failed: [] } });
+        return true;`, { timeout: 60000 });
+    let uSeen = null, uAfter = null;
+    try {
+        await until(() => gm2.eval(`return (${VOTE}).trialProgress().verdict?.stage ?? null;`), v => v === "applying", 6000);
+        uSeen = await gm2.eval(`const UI = ${imp("trial-floor-ui.mjs")}; const D = foundry.applications.api.DialogV2;
+            const kept = Object.getOwnPropertyDescriptor(D, "wait"); let seen = null, consoles = 0;
+            D.wait = async cfg => {
+                if (!(cfg?.classes ?? []).includes("drpg-window-trial") || consoles++) return null;
+                const b = (cfg?.buttons ?? []).find(x => x.action === "finishVerdict");
+                seen = { shown: Boolean(b), disabled: Boolean(b?.disabled), runner: (${VOTE}).verdictRunner() };
+                return b && !b.disabled ? "finishVerdict" : null;
+            };
+            try { await UI.manageClassTrial(); } finally { if (kept) Object.defineProperty(D, "wait", kept); else delete D.wait; }
+            return seen;`, { timeout: 60000 });
+        uAfter = await until(() => gm.eval(`const v = (${VOTE}).trialProgress().verdict ?? {}; return { stage: v.stage ?? null, by: v.by ?? null };`),
+            v => v.stage === "done", 10000);
+        await settle(900);
+        uAfter.summaries = await gm.eval(`const S = ${imp("secret.mjs")}; const title = game.i18n.localize("DRPG.Vote.verdictTitle"); let n = 0;
+            for (const m of game.messages.contents.slice(${uFrom})) if (String(await S.wordsOf(m, 1000) ?? "").includes(title)) n++;
+            return n;`);
+    } finally {
+        await gm.eval(`await game.settings.set("${MOD}", "trialProgress", globalThis.__e128uKept); delete globalThis.__e128uKept; return true;`);
+        await settle(600);
+    }
+    check("U1: gm2's console offers Finish live on a verdict the primary runs, and its press finishes it once, on gm (E128)",
+        uSeen?.shown === true && uSeen.disabled === false && uSeen.runner === IDS.gm && uAfter?.stage === "done" && uAfter.by === IDS.gm
+            && uAfter.summaries === 1, J({ uSeen, uAfter }), { flow: "class-trial" });
 
     return { primary: { before, joined, afterGmReload, moved, backAgain }, reloads: { p1: r1, gm: r2, card: r3 },
         d153: { before: gBefore, onGm: gAfter, onGm2: gAfter2, found: gFound, gave: gGave } };

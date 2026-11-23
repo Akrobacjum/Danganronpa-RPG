@@ -8620,8 +8620,9 @@ const REGRESSIONS = [
             // A GM's read of the owner's copy (the same for every owner); "a player owns it" at all; the change's author;
             // the Ask for Hope's card in one thread.
             "monocub.mjs": 5,
-            // The opening roll is asked of one player.
-            "murder-rules.mjs": 1,
+            // The opening roll is asked of one player, and its card's memo kept for that player on the primary
+            // (`postOpeningCard`, E128: the card itself is whispered to every owner, as it was).
+            "murder-rules.mjs": 2,
             // The secrets one account is in on, read for the observer's first owner.
             "observe.mjs": 1,
             // The Mastermind (actsAsMastermind, the door's row, roomNamerFor's reading of it): one player on purpose.

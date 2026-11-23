@@ -56,6 +56,17 @@ Smaller differences, which block nothing:
   in the second GM's stream (messenger-gm.mjs:319-321). Its Waiting list is every GM's, with live buttons.
 - The vote's status line reads "no ballots" on a GM that is not the primary (vote.mjs:734); Close and count works.
 
+Found after the inventory, while the fixes were driven (22.11.2026):
+
+- **Finish on the trial console**, row 6's button: drawn greyed on every GM but the verdict's runner, so the relay
+  `finishRoute` gives a second full GM could not be pressed (trial-floor-ui.mjs, fixed in 1c546cae). R8732 reads the
+  route alone; scenario 97 U presses the console's Finish on gm2.
+- **The opening's request card to its player**: posted on whichever GM asked, after a read of the GMs' memo of the cards
+  that the post did not hold, so a second GM's re-ask, or two asks on one browser, posted a card each. Scenario 61 F9b
+  read three cards where one was due, once in 3 runs at 5ea9323b; no run since reproduced it, and the cause is a reading
+  of the code, not a trace. The card is the primary's to post now (murder-rules.mjs `postOpeningCard`,
+  `murder.openingCard`), held in flight from the memo's read to its write; scenario 97 T drives the race.
+
 ## What works (read, not each driven)
 
 Every chat card's ruling (Approve or Refuse a Call, a statistic, a Dynamic action, a project, a reshape, a declared

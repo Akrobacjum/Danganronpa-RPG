@@ -161,7 +161,8 @@ export const FLOWS = Object.freeze([
             "trial.object", "trial.evidence", "trial.withdraw", "floor.repoint", "trial.gm", "trial.enter", "trial.record", "trial.turn",
             "trial.claim", "trial.present", "trial.side", "trial.keyword", "verdict.finish"],
             sockets: ["vote.mjs"] },
-        scenarios: ["10-murder", "11-killer-secrecy", "18-trial", "30-security", "33-bridge-paths", "61-gmstore-case", "63-class-trial", "67-trial-modes", "68-trial-zones", "88-flow-length"], status: "partial", stage: "E40" },
+        scenarios: ["10-murder", "11-killer-secrecy", "18-trial", "30-security", "33-bridge-paths", "61-gmstore-case", "63-class-trial", "67-trial-modes", "68-trial-zones", "88-flow-length",
+            "97-two-gms"], status: "partial", stage: "E40" },
     // E37 C3 (01.11.2026): the readiness round before a GM's press moves the clock - opened and ended by a GM
     // (`ready.open`, `ready.end`, gmOnly), answered by each player of the cast (`ready.answer`). 40-flow's part R drives it on
     // four browsers; 30-security sends a player's open and end and an answer for another round; 33-bridge-paths the
@@ -318,10 +319,11 @@ export const FLOWS = Object.freeze([
     // GM - in that run the GMs' records of the three rolls were p3's and claimed. L9's phase is this flow's since C14c;
     // it was gm-rolls-total's, which 83's other phases keep.
     // E50 fix FG2 (30.10.2026; the end review's G7): 87-messenger-sound's part D plays the murder music on four accounts.
+    // E128 (22.11.2026): a GM's ask for the opening's card, posted once by the primary (murder.openingCard), in 61 F9 and 97 T.
     { id: "murder-incident", what: "The incident: the opening roll, the crisis actions, the betrayal, the park, the clean-up",
-        entry: { bridge: ["murder.openingResult", "murder.crisis", "murder.betrayal", "murder.park", "murder.cleanup"], sockets: ["incident-store.mjs"] },
+        entry: { bridge: ["murder.openingResult", "murder.openingCard", "murder.crisis", "murder.betrayal", "murder.park", "murder.cleanup"], sockets: ["incident-store.mjs"] },
         scenarios: ["10-murder", "11-killer-secrecy", "13-murder-signals", "19-standing-cast", "30-security", "60-ledger", "61-gmstore-case", "83-roll-integrity",
-            "87-messenger-sound"],
+            "87-messenger-sound", "97-two-gms"],
         suite: ["tests-grid.mjs"], status: "covered", stage: "1.2.69" },
     { id: "pre-session-note", what: "A player's pre-session note: sent to the primary GM, or kept until one connects, and each player's copy of their own",
         entry: { bridge: ["note.save"], sockets: ["pre-session-note.mjs"] },
