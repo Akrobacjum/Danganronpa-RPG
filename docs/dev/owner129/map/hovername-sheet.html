@@ -15,7 +15,9 @@ html,body{margin:0;height:100%;overflow:hidden}
 <div id="board"></div><div id="cap"></div>
 <script>
 const q = new URLSearchParams(location.search);
+// As settings.mjs `applyTheme` sets the body: the theme's class, and under Legacy the pixel face (its setting, on by default).
 document.body.classList.add(q.get("theme") === "stained" ? "drpg-theme-stained-glass" : "drpg-theme-monokuma-legacy");
+if (q.get("theme") !== "stained") document.body.classList.add("drpg-pixel-font");
 const g = +(q.get("g") || 100); document.documentElement.style.setProperty("--g", g + "px");
 const pl = q.get("lang") === "pl";
 const T = pl

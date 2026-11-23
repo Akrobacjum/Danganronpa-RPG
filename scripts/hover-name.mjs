@@ -222,6 +222,20 @@ export function captionStyle({ doc = globalThis.document } = {}) {
     } catch {
         // A page that cannot be read keeps the plain face.
     }
+    /* A FACE NOT LOADED YET IS NOT DRAWN (read in Chromium, 23.11.2026, the caption sheet in docs/dev/owner129/map/): a
+       canvas - and PIXI.Text draws on one - uses a webfont only once the page has loaded it, and a face nothing on the
+       page has used yet (Legacy's pixel face, before the HUD draws) came out in the fallback. So the face is asked for, and
+       once it arrives the memo is dropped and every caption drawn again: `ready` is in the caption's key, so they redraw. */
+    const fonts = doc?.fonts;
+    const probeFont = `16px ${style.family}`;
+    try {
+        style.ready = typeof fonts?.check === "function" ? fonts.check(probeFont) : true;
+        if (!style.ready && typeof fonts?.load === "function") {
+            fonts.load(probeFont).then(() => { styleMemo = { key: null, style: null }; recaptionAll(); }).catch(() => {});
+        }
+    } catch {
+        style.ready = true;
+    }
     styleMemo = { key, style };
     return style;
 }
@@ -242,7 +256,7 @@ export function drawCaption(token, { on = captionsOn(), user = game.user, style 
     const w = Number(token.w) || (Number(doc?.width) || 1) * grid;
     const h = Number(token.h) || (Number(doc?.height) || 1) * grid;
     const face = text ? (style ?? captionStyle()) : null;
-    const key = text ? JSON.stringify([text, w, h, grid, face.family, face.fill, face.stroke]) : null;
+    const key = text ? JSON.stringify([text, w, h, grid, face.family, face.fill, face.stroke, face.ready !== false]) : null;
     const old = (token.children ?? []).filter(c => c?.name === CAPTION_NAME && !c.destroyed);
     const kept = key ? (old.find(c => c.drpgKey === key) ?? null) : null;
     for (const c of old) {

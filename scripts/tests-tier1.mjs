@@ -69489,10 +69489,12 @@ const INVARIANTS = [
         facts.push(draw(), draw({ user: gm })?.text);
         token.document = docOf();
         draw();
+        const unready = draw({ style: { ...face, ready: false } });
+        facts.push(draw({ style: { ...face, ready: true } }) !== unready);
         facts.push(draw({ on: false }), mine().length, getSetting(SETTINGS.tokenCaptions), H.captionsOn());
         equal(JSON.stringify(facts),
-            JSON.stringify(["Aoi Kirigaya", "none", 50, 104, "VT323", 1, true, 1, MASK_NAME, false, true, 1, "Aoi Kirigaya", null, 0, null, "Aoi Kirigaya", null, 0, true, true]),
-            "[the caption: words, no pointer, under the token's centre, the face handed, one; the same inputs keep the same object; masked to another player: the mask, a new object, the old one gone, still one; to a GM the name; Foundry's nameplate on hover: none; Foundry-hidden: none to a player, the name to a GM; captions off: none; the setting on by default]");
+            JSON.stringify(["Aoi Kirigaya", "none", 50, 104, "VT323", 1, true, 1, MASK_NAME, false, true, 1, "Aoi Kirigaya", null, 0, null, "Aoi Kirigaya", true, null, 0, true, true]),
+            "[the caption: words, no pointer, under the token's centre, the face handed, one; the same inputs keep the same object; masked to another player: the mask, a new object, the old one gone, still one; to a GM the name; Foundry's nameplate on hover: none; Foundry-hidden: none to a player, the name to a GM; a face that arrived draws anew; captions off: none; the setting on by default]");
     }],
     ["R8790 - a Truth Bullet's holder always sees its Remnant (1.2.128 line INVEST; S0-BULLETSEES): visibility.mjs `remnantShownHere` draws an un-hidden trace for whoever knows it or stands in its incident and for nobody else, and a hidden one for its holder alone while HOLDER_SEES_HIDDEN (true) holds, for nobody when it does not; `applyToRemnantToken` and `shownAsFound` ask it with `knowsRemnant`, and a hidden trace held is shown past Foundry's verdict (`showHeld`); `knowsRemnant` answers true on a GM's browser", async () => {
         /*
