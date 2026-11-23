@@ -2534,10 +2534,11 @@ async function blockedOnGm(actor, price, grant = false, by = null, rolled = null
 
 /*
  * WHETHER A CRITICAL GIVES THE PRICE BACK (E129, 1.2.128; config.mjs `ROLL_REFUNDS`; docs/dev/owner129/desp/REFUNDS.md
- * T5, T6, T12). The owner's note of session 0 - Tamper giving back Hope and its action at the roll - read with the
- * coordinator's default: a critical Tamper taken as an action keeps its 2 Hope and no longer hands its action back
- * (`tamperCritical`), whichever road it took (erase, reshape, a Misleading Trail or Move the Body through Tamper's
- * door); the free attempt a critical Finishing Blow leaves gives nothing back (`freeCritical`; it cost nothing). The
+ * T5, T6, T12). The owner's note of session 0 - Tamper giving back Hope and its action at the roll - and the owner's
+ * answer of 23.11.2026, "Zostawiamy jak jest": a critical Tamper taken as an action keeps its 2 Hope and hands its price
+ * back (`tamperCritical`, true), whichever road it took (erase, reshape, a Misleading Trail or Move the Body through
+ * Tamper's door); the free attempt a critical Finishing Blow leaves gives back on its own critical as the rules say
+ * (`freeCritical`, true). The
  * killer's own clean-up at their scene keeps the guide's give-back ("Morderca odzyskuje 1 stres"). The concealment's
  * critical is its own (`coverGiveBack`) and is not asked here. Exported for the suite (R8881).
  */
