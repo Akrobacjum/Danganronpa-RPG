@@ -27801,6 +27801,49 @@ const REGRESSIONS = [
         const wrong = ROWS.filter(([, holds]) => !holds()).map(([id]) => id);
         equal(JSON.stringify(wrong), "[]", "[a handbook sentence that does not say what the code does, or code that moved under one]");
     }],
+    ["R8621 - the handbooks' two paces of a session are the clock's numbers (1.2.128 line TEXT; E129 S0-SESSIONLEN, the owner's ask of 23.11.2026): the Quick pace's minutes are the HUD's amber mark and the Full pace's its red mark (TIMING.elapsedMarksMinutes), a day at the table is TIMES_OF_DAY's count times them, an Eclipse can stand before each time of day and the HUD counts no minutes in one; the GM handbook (section 4's table and section 21's line) and the player handbook say so in English and in Polish", async () => {
+        /*
+         * 1.2.128 line TEXT, 23.11.2026; the coordinator's S0-SESSIONLEN. The paces are a planning aid and no code holds
+         * them: what the text must not drift from is the numbers it builds on. Read on 5fa04d39: config.mjs TIMES_OF_DAY
+         * (five), TIMING.elapsedMarksMinutes ([15, 30]), settings.mjs `incomingTimeOfDay` (the next time of day, Night to
+         * Morning, so an Eclipse can open before each), hud-elapsed.mjs `elapsedOf` (null in an Eclipse). Red at 5fa04d39:
+         * the handbooks named no pace.
+         */
+        const C = await import("./config.mjs");
+        const marks = C.TIMING?.elapsedMarksMinutes, times = C.TIMES_OF_DAY;
+        must(Array.isArray(marks) && marks.length === 2 && Array.isArray(times) && times.length > 1, "the clock's numbers are gone from config.mjs - this reads nothing");
+        const [quick, full] = marks, day = n => n * times.length;
+        const text = async path => fetch(`/modules/${MODULE_ID}/${path}`, { cache: "no-cache" }).then(r => (r.ok ? lfText(r) : ""));
+        const [gmEn, gmPl, plEn, plPl, settings, elapsed] = await Promise.all(["docs/handbooks/gm-handbook.en.md", "docs/handbooks/gm-handbook.pl.md",
+            "docs/handbooks/player-handbook.en.md", "docs/handbooks/player-handbook.pl.md", "scripts/settings.mjs", "scripts/hud-elapsed.mjs"].map(text));
+        must([gmEn, gmPl, plEn, plPl].every(t => t.length > 50000) && settings.length > 1000 && elapsed.length > 1000, "a handbook or a script was not served - this reads nothing");
+        const hours = n => `${Math.floor(n / 60)} hours ${n % 60} minutes`, godziny = n => `${Math.floor(n / 60)} godzin ${n % 60} minut`;
+        const asText = (n, h) => (n < 120 ? `${n} minutes` : h(n));
+        const at = (t, start) => {
+            const i = t.indexOf(start);
+            must(i >= 0, `no handbook line starts "${start}" - this row reads nothing until it is pointed at the text again`);
+            return lineAround(t, i);
+        };
+        const ROWS = [
+            // the code half: an Eclipse can open before each time of day, and the HUD's minutes stop in one.
+            ["eclipse before each", () => /TIMES_OF_DAY\[\(index < 0 \? 0 : index \+ 1\) % TIMES_OF_DAY\.length\]/.test(stripComments(fnSource(settings, "incomingTimeOfDay")))],
+            ["no minutes in an Eclipse", () => /clock\.eclipse === true\) return null/.test(stripComments(fnSource(elapsed, "elapsedOf")))],
+            // section 4: the two marks named, each pace's row, and a day's cost from TIMES_OF_DAY.
+            ["gm en marks", () => at(gmEn, "**Two ways to pace a session.**").includes(`${quick} and ${full} minutes`)],
+            ["gm en quick", () => at(gmEn, "| **Quick pace** |").includes(`| about ${quick} |`) && at(gmEn, "| **Quick pace** |").includes(`about ${asText(day(quick), hours)}`)],
+            ["gm en full", () => at(gmEn, "| **Full pace** |").includes(`| about ${full} |`) && at(gmEn, "| **Full pace** |").includes(`about ${asText(day(full), hours)}`)],
+            ["gm en day", () => at(gmEn, "A day is five times of day").includes("there can be one before each time of day") && times.length === 5],
+            ["gm pl marks", () => at(gmPl, "**Dwa tempa sesji.**").includes(`${quick} i ${full} minutach`)],
+            ["gm pl quick", () => at(gmPl, "| **Tempo szybkie** |").includes(`| około ${quick} |`) && at(gmPl, "| **Tempo szybkie** |").includes(`około ${day(quick) < 120 ? `${day(quick)} minut` : godziny(day(quick))}`)],
+            ["gm pl full", () => at(gmPl, "| **Tempo pełne** |").includes(`| około ${full} |`) && at(gmPl, "| **Tempo pełne** |").includes(`około 2 godzin 30 minut`) && day(full) === 150],
+            ["gm pl day", () => at(gmPl, "Dzień to pięć pór dnia").includes("jedno Eclipse może być przed każdą porą dnia")],
+            // section 21's line, and the player handbook's sentence.
+            ["checklist", () => gmEn.includes("- Pace: choose the Quick pace or the Full pace (section 4)") && gmPl.includes("- Wybierz tempo sesji, szybkie albo pełne (sekcja 4)")],
+            ["player", () => plEn.includes(`about ${quick} minutes at the Quick pace, about ${full} at the Full pace`) && plPl.includes(`około ${quick} minut w tempie szybkim, około ${full} w tempie pełnym`)]
+        ];
+        const wrong = ROWS.filter(([, holds]) => !holds()).map(([id]) => id);
+        equal(JSON.stringify(wrong), "[]", "[a pace the handbooks tell that is not the clock's numbers, or a handbook that does not tell it]");
+    }],
     ["R8542 - Fit to view shows the whole case however far it must zoom out (the owner, 21.11.2026: \"niech fit to view w planerze zagadki przekracza maksymalne oddalenie (aktualnie 25%) - niech je ignoruje\"; case-view.mjs `fitCamera`, `zoomFloor`, `wireCaseCamera`): a case wider than the view at 25% fits at its own zoom, down to CAMERA_LIMITS.fitMin (5%); the zoom's floor in the window is the lower of 25% and that fit, so a step out or the wheel stops at the fit and does not pull the view back to 25%, and a step in from it zooms in; a case that fits at 25% or more keeps 25% as the floor; the toolbar's readout shows the zoom as it is", async () => {
         /*
          * 1.2.122, the assembly, 21.11.2026. Until here `fitCamera` clamped its zoom to CAMERA_LIMITS.min (0.25), and so

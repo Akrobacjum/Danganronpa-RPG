@@ -330,6 +330,15 @@ Moving the phase to Class Trial asks too (*Open the Class Trial*), because that 
 
 The HUD also shows how long the current time of day has run, amber at **15 minutes** and red at **30**: the minutes the table has played, frozen while the game is paused. A reload or the time between two sessions adds nothing, to within a minute. A GM who opens the next session on another computer, or after clearing the browser's data, counts from the clock's last change instead (a pause, its end, a new time of day), so the minutes played after that change are lost from the line, never the days between sessions. During an Eclipse the line is not shown.
 
+**Two ways to pace a session.** How long a time of day runs at the table is yours to choose: pick a pace before the session and tell the table (section 21). It is a planning aid, as the trial's budget in section 15 is, and nothing enforces it: the HUD's marks stay at 15 and 30 minutes whichever pace you pick, and the module does not know which one you chose.
+
+| Pace | Minutes per time of day | The HUD's amber mark (15 minutes) | The HUD's red mark (30 minutes) | A day at the table |
+|---|---|---|---|---|
+| **Quick pace** | about 15 | time to move on | well over: twice the pace | about 75 minutes |
+| **Full pace** | about 30 | halfway | time to move on | about 2 hours 30 minutes |
+
+A day is five times of day, Morning to Night, so a day at the table is five times the minutes of one. The Eclipses come on top: there can be one before each time of day, and the HUD counts no minutes while one runs. A Class Trial is outside both paces: the HUD's minutes step aside there, and the trial has its own budget (section 15).
+
 During a Class Trial the time row names the trial's mode instead, the chevrons and the elapsed line step aside, and the debate's countdown sits on the trial's card in the Event panel. During an Eclipse the phase line names it in place of the phase (*Night Eclipse*, for instance). While the game is paused, every clock says so: **On hold** stands in place of the campaign's name until the game runs again, and Foundry's own caption in the middle of the screen and the dimming stay as they are. Under the clock's lines a band names the track that browser plays.
 
 The GM's status strip counts who is *Still to act*, or *Still placing* during an Eclipse (in a placement that allows any room: those who have not moved yet), over the students the panel's Next line counts: the living and the Monocubs. While an incident runs nobody spends the day's actions, so *Still to act* is not shown; in a Class Trial it stays.
@@ -1974,6 +1983,7 @@ Neither the drag's lag nor the flickering edges of the Stained Glass buttons (th
 - Read the pre-session notes in the messenger, and confirm the safeword with the table.
 - If a murder is likely this session, draft the Key Remnant plan; if the chapter needs a Final Truth Remnant, place it.
 - Clock: the right chapter, day, session, time of day, and phase.
+- Pace: choose the Quick pace or the Full pace (section 4), and tell the table which.
 
 **Each time of day**
 - Watch the **Next** line and **Still to act** on your status strip for who still has actions.

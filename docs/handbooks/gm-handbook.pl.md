@@ -330,6 +330,15 @@ Przestawienie fazy na Class Trial też pyta (*Otwórz Class Trial*), bo otwiera 
 
 HUD pokazuje też, jak długo trwa bieżąca pora dnia: linia czasu robi się bursztynowa po **15 minutach** i czerwona po **30**. Pokazuje minuty, które stół zagrał, i jest zamrożona, gdy gra stoi na pauzie; przeładowanie ani przerwa między sesjami nic nie dodają, z dokładnością do minuty. GM, który otwiera następną sesję na innym komputerze albo po wyczyszczeniu danych przeglądarki, liczy zamiast tego od ostatniej zmiany zegara, czyli pauzy, jej końca albo nowej pory dnia. Z linii znikają wtedy minuty zagrane po tej zmianie, nigdy dni między sesjami. Podczas Eclipse tej linii nie ma.
 
+**Dwa tempa sesji.** To, jak długo pora dnia trwa przy stole, zależy od ciebie: wybierz tempo przed sesją i powiedz o nim stołowi (sekcja 21). To pomoc w planowaniu, tak jak budżet rozprawy w sekcji 15, i nic go nie wymusza: znaczniki HUD-a zostają na 15 i 30 minutach, jakiekolwiek tempo wybierzesz, a moduł nie wie, które tempo jest wybrane.
+
+| Tempo | Minut na porę dnia | Bursztynowy znacznik HUD-a (15 minut) | Czerwony znacznik HUD-a (30 minut) | Dzień przy stole |
+|---|---|---|---|---|
+| **Tempo szybkie** | około 15 | czas iść dalej | wyraźnie za długo: dwa razy dłużej, niż zakłada tempo | około 75 minut |
+| **Tempo pełne** | około 30 | połowa | czas iść dalej | około 2 godzin 30 minut |
+
+Dzień to pięć pór dnia, od Rana do Nocy, więc dzień przy stole to pięć razy tyle minut, ile trwa jedna pora. Czas Eclipse dochodzi do tego: jedno Eclipse może być przed każdą porą dnia, a HUD nie liczy minut, gdy Eclipse trwa. Class Trial jest poza oboma tempami: minuty HUD-a ustępują tam miejsca, a rozprawa ma własny budżet (sekcja 15).
+
 Podczas Class Trial wiersz pory dnia podaje zamiast niej tryb rozprawy, a strzałek i linii czasu wtedy nie ma; odliczanie debaty jest na karcie Class Trial w panelu zdarzeń. Podczas Eclipse linia fazy podaje zamiast fazy nazwę Eclipse (na przykład *Eclipse (Noc)*). Gdy gra stoi na pauzie, mówi to każdy zegar: w miejscu nazwy kampanii stoi **Wstrzymano**, dopóki gra nie ruszy, a własny napis Foundry na środku ekranu i przygaszenie zostają takie jak zawsze. Pod liniami zegara pasek podaje utwór, który gra ta przeglądarka.
 
 Pasek stanu GM-a pokazuje licznik *Zostały akcje*, a podczas Eclipse *Jeszcze się ustawiają*; przy ustawianiu w dowolnym pokoju ten drugi liczy tych, którzy jeszcze się nie ruszyli. Pasek liczy tych samych uczniów co linia Dalej w panelu: żywych i Monocubów. W trakcie incydentu nikt nie wydaje akcji pory dnia, więc licznika *Zostały akcje* nie ma, ale w Class Trial zostaje.
@@ -1974,6 +1983,7 @@ Nie wiadomo, czy lag przy przeciąganiu i migoczące krawędzie przycisków Stai
 - Przeczytaj notatki przed sesją w komunikatorze. Potwierdź safeword ze stołem.
 - Jeśli w tej sesji morderstwo jest prawdopodobne, naszkicuj plan Key Remnantów; jeśli rozdział potrzebuje Final Truth Remnantu, postaw go.
 - Sprawdź zegar: właściwy rozdział, dzień, sesja, pora dnia i faza.
+- Wybierz tempo sesji, szybkie albo pełne (sekcja 4), i powiedz stołowi, które to tempo.
 
 **Każda pora dnia**
 - Obserwuj linię **Dalej** i **Zostały akcje** na swoim pasku stanu: widać tam, kto ma jeszcze akcje.
