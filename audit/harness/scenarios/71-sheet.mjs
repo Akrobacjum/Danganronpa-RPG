@@ -723,6 +723,32 @@ export async function run({ gm, p1, p2, check, note, phase, settle, repoUrl, IDS
         verdict("the GM writes Hope's maximum alone (one less): the sheet on gm and p1 draws that many diamonds",
             same(j3, r => r.max === maxWas - 1 && r.slots === maxWas - 1), { maxWas, j3 });
         await on(gm, setLock, lockWasJ);
+
+        /* K (1.2.128, E129 S0-DEADMARK; the owner, 23.11.2026: "gracze nie widzieli "dead" na portrecie ciala w karcie
+           postaci" - and the GM saw no stamp either). A kept death writes no actor, only the GMs' deaths store and the dead
+           student's player's copy of it, so a sheet open at the kill drew no stamp until something else rendered it. Aiko's
+           sheet open on gm, p1 (her player) and p2; gm kills her as a murder does (`secret: true`). Read on each open sheet,
+           not reopened: the stamp (`.drpg-death-mark` on the portrait). Red at aa9c0456: none on gm and p1. Then the revive
+           takes it off the same open sheets. p2 reads no stamp throughout: the death is the GMs' until it is announced. */
+        begin("K", "a kept death stamps the sheets open for it, on the GMs and the dead student's player, and nobody else's");
+        for (const c of [gm, p1, p2]) await on(c, open, IDS.aiko, {});
+        const stamp = async (repo, actorId) => Boolean(globalThis.__s71.get(game.actors.get(actorId))?.element?.querySelector(".character-sidebar-sheet .portrait .drpg-death-mark"));
+        const k0 = await each(stamp, IDS.aiko);
+        let k1 = null, k2 = null;
+        try {
+            await gm.eval(`const C = await import("${repoUrl}/scripts/chapter.mjs"); return Boolean(await C.killCharacter(game.actors.get("${IDS.aiko}"), { secret: true, keepBullets: true, silent: true }));`, { timeout: 60000 });
+            await wait(2000);
+            k1 = await each(stamp, IDS.aiko);
+        } finally {
+            await gm.eval(`const C = await import("${repoUrl}/scripts/chapter.mjs"); const a = game.actors.get("${IDS.aiko}");
+                if (C.isDeadForGm(a)) await C.reviveCharacter(a, { quiet: true }); return true;`, { timeout: 60000 });
+            await wait(2000);
+            k2 = await each(stamp, IDS.aiko);
+        }
+        console.log(`[71 K] ${J({ k0, k1, k2 })}`);
+        verdict("Aiko's sheets open at her kept death: gm's and p1's draw the stamp without a reopen, p2's does not; the revive takes it off gm's and p1's",
+            J(k0) === J({ gm: false, p1: false, p2: false }) && J(k1) === J({ gm: true, p1: true, p2: false }) && J(k2) === J({ gm: false, p1: false, p2: false }),
+            { k0, k1, k2 });
     } finally {
         await each(closeAll).catch(() => null);
     }
