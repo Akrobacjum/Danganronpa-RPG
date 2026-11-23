@@ -10690,6 +10690,9 @@ const REGRESSIONS = [
          * E37 C3 (01.11.2026): the readiness round's two GM asks, `requestReadyOpen` and `requestReadyEnd`, say a refusal of
          * the primary's with `sayNotDone`: two NOTDONE rows more; `requestReadyAnswer` says nothing itself (the waiter tells
          * a player's refusal), so no row. Red in the first quick run of C3 ("unclassified" the two), green with the rows.
+         * S0-HIDE (1.2.128 line STG, 23.11.2026; the owner: "notice o ujawnieniu niech bedzie w lewym dolnym rogu jak reszta
+         * powiadomien"): a hide's end is told by hide.mjs `tellHideEnd` (its call in `showEndInCorner`) on the hider's browser, no longer by a whisper the
+         * catch-all raised: one SURFACE row more. Red on the tier-2 run `--only notice` ("unclassified" it), green with the row.
          */
         const NOTICE_CENSUS = [
             ["SURFACE popup.mjs#onCreateChatMessage", "the catch-all: a card is drawn where the whisper list, a veiled card's words and the GM's diet allow it (`gmPopup`, `popupForce` from a GM writer only), and kept exactly there by `showPopup`'s recorder - public from a GM's document, a player's from its document's author, never `cardWriter` (R297, 73-notice-history); the body cleaned at save (R294); the tile's corner button counts it among the unread and shows none of its words (R298); since E18 C4 also raised for a card whose words a GM gave back to a reader who was away (secret.mjs `cardOnReturn`, the newest 8 of an ask), once a card and under its messageId, so one entry however many GMs answer (R845, 73-notice-history R1)"],
@@ -10707,6 +10710,7 @@ const REGRESSIONS = [
             ["SURFACE safeword.mjs#showGmDetail", "the GM's safeword card, who and the room escaped into an i18n sentence; kept in the GM's browser like every other notice - within the history's budgets, and in memory only when the history stops saving (`crowdedOut`, a failed write) - as a safeword entry (the owner's Q7, 07.10.2026; R297, 73-notice-history S1), and cleaned at save (R294); the tile's corner button counts it among the unread and shows none of its words (R298)"],
             ["SURFACE safeword.mjs#raiseCard", "frozen i18n text set with textContent; kept as first drawn and not followed (`observe: false`), so the same safeword entry on every browser whatever the caller's card adds, kept within the history's budgets and in memory only when it stops saving; nobody else's words (R297, 73-notice-history S2)"],
             ["SURFACE trial.mjs#registerTrial", "the evidence card, drawn only when a GM authored it (E70 fix p2-G2); kept as evidence, one entry for its message, and cleaned at save (R297, R294); the tile's corner button counts it among the unread and shows none of its words (R298)"],
+            ["SURFACE hide.mjs#showEndInCorner", "this browser's own hide ended (S0-HIDE, 1.2.128; the call `tellHideEnd` makes through `showEndInCorner`, R8909's stand-in point): i18n words of the module's own (`DRPG.Hide.ended.*`) with the time of day's name, escaped, read off the token's `hideEnd` flag by its owner on a player's browser (`hideEndNotice`: no GM, no other player); kept as a notice like any other, once per end (`at`; R8908, scenario 22's phase gm)"],
             ["SURFACE voice-client.mjs#dropCard", "this browser's own dropped voice (E19 C2): frozen i18n text, nothing of anybody else's; kept as this client's own (`source` \"mine\"), and taken off the screen, not out of the history, once voice is back (R812, scenario 75's phase H)"],
             ["RECORD bridge-guards.mjs#sayNotDone", "after `notify(text)`, whoever `notify` is: kind error, source notDone, state read, the text this client composed from closed lists - a GM's reason chooses none of its words; a history error never stops the toast (R297)"],
             ["RECORD frisk.mjs#toast", "an open Frisk's line beside its toast (E80 part 2 C3): kind info, source mine, state unread, the row's label as its title and text this client composed from its language file with names as text - the ask it waits on, a withdrawn window, or for a GM the notice that nobody was asked; no markup, and a history error never stops the toast"],
@@ -23617,10 +23621,10 @@ const REGRESSIONS = [
             "gm-items.mjs": {"action": 1, "heading": 2},
             // 1.2.122 line TEXT (TEXT-32): the missing answer key's one send to the owner and the GMs is two, the owner's and the GMs'
             "handover.mjs": {"built": 1, "heading": 2, "line": 14, "message": 1},
-            // S0-HIDE (E129): Hide's roll card (hide.mjs `performHide`, `rollResultCard`) and the one line a hide ended by a GM,
-            // the chapter or a Reroll tells its player (`endHide`); and cleanup.mjs's cover not thrown while hidden, one more
-            // action card (`concealFromWitnesses`).
-            "hide.mjs": {"built": 1, "card": 1},
+            // S0-HIDE (E129): Hide's roll card (hide.mjs `performHide`, `rollResultCard`); and cleanup.mjs's cover not thrown
+            // while hidden, one more action card (`concealFromWitnesses`). Since the owner's 23.11.2026 a hide's end is told in
+            // its hider's corner of notices (`tellHideEnd`, showPopup), not by a whisper card: hide.mjs's "card" 1 went.
+            "hide.mjs": {"built": 1},
             // 1.2.122 line MURDER (the audit's CASE-25): the GMs told a standing betrayal offer was kept (`armBetrayalWindow`).
             "incident-store.mjs": {"line": 1},
             "inventory.mjs": {"card": 3, "line": 3}, 

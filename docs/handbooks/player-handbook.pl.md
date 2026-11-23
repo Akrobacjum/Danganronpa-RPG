@@ -447,7 +447,7 @@ Rzut na Shadow 15 lub więcej albo krytyk sprawia, że się chowasz. Inni gracze
 
 W ukryciu rzut Shadow na pozostanie niezauważonym przy akcji nie jest rzucany i liczy się jako udany: przy Palm i ukrytym Frisk, przy Tail Someone, Pick the Lock, braniu rzeczy z ciała przy świadkach oraz przy ukrywaniu Sabotage, pracy nad pośrednim morderstwem i sprzątaniu. Karta to mówi. Nie daje to Hope.
 
-Zostajesz w ukryciu, dopóki nie naciśniesz **Ujawnij się** na swoim kafelku głosu, nie ujawni cię GM albo nie skończy się rozdział; nowa pora dnia, ruch ani inne akcje go nie kończą. Nie w czasie Class Trial: wtedy wszyscy siedzą na sali, a o tym, kto mówi, decyduje przebieg rozprawy.
+Zostajesz w ukryciu do końca pory dnia, a powiadomienie na kafelku powiadomień, tam, gdzie pojawiają się twoje inne powiadomienia, mówi ci, kiedy się skończyło. Wcześniej wychodzisz z niego, gdy naciśniesz **Ujawnij się** na swoim kafelku głosu, ujawni cię GM albo skończy się rozdział; ruch ani inne akcje go nie kończą. Nie w czasie Class Trial: wtedy wszyscy siedzą na sali, a o tym, kto mówi, decyduje przebieg rozprawy.
 
 ### Dash - Leg, 1 akcja
 

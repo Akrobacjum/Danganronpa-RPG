@@ -116,10 +116,27 @@ export async function run({ gm, p1, p2, check, note, phase, settle, repoUrl: REP
         check("reveal: p1's Reveal yourself ends the hide on the primary - no row, no flag, no hold - and p2 draws Aiko as it did before the hide",
             pressed === true && after?.row === false && after.flag === false && after.mic !== "hiding" && seenAgain?.off === null && seenAgain.room === p2Before.room && micAgain !== "hiding",
             JSON.stringify({ pressed, after, seenAgain, micAgain }), { flow: "hide" });
+
+        phase("gm");
+        /* A GM's reveal is told in the hider's corner (the owner's 23.11.2026: "notice o ujawnieniu niech bedzie w lewym
+           dolnym rogu jak reszta powiadomien"): no chat message; p1's notice stack holds the words, p2's does not. */
+        const NOTICES = `return [...document.querySelectorAll(".drpg-popup")].map(el => el.textContent.replace(/\\s+/g, " ").trim());`;
+        await gm.eval(`const R = ${imp("bridge-runs-acts.mjs")};
+            await R.handleHideStart({ actorId: "${IDS.aiko}", total: 18, isCritical: false, rollId: null }, game.user); return true;`, { timeout: 60000 });
+        await settle(1000);
+        const messagesBefore = await gm.eval(`return game.messages.size;`);
+        const gmEnd = await gm.eval(`const H = ${imp("hide.mjs")}; return await H.gmUnhide("${IDS.aiko}");`, { timeout: 60000 });
+        await settle(1500);
+        const words = await gm.eval(`return game.i18n.localize("DRPG.Hide.ended.gm");`);
+        const told = { p1: await p1.eval(NOTICES), p2: await p2.eval(NOTICES), messages: (await gm.eval(`return game.messages.size;`)) - messagesBefore };
+        check("gm: a GM's reveal ends the hide and is told in p1's corner of notices alone, with no chat message",
+            gmEnd === true && told.p1.some(text => text.includes(words)) && !told.p2.some(text => text.includes(words)) && told.messages === 0,
+            JSON.stringify({ gmEnd, told }), { flow: "hide" });
     } finally {
         await gm.eval(`const H = ${imp("hide.mjs")}, S = ${imp("gm-stores.mjs")}, V = ${imp("voice.mjs")}, U = ${imp("utils.mjs")};
             for (const id of ["${IDS.aiko}", "${IDS.botan}"]) if (S.hideStore.get(id)) await H.endHide(id, "reveal");
             for (const t of canvas.scene.tokens) if (t.flags?.["${MOD}"]?.hiding) await t.update(H.unhidePatch(U.forcedDeletion()));
+            for (const t of canvas.scene.tokens) if (t.flags?.["${MOD}"]?.hideEnd !== undefined) await t.update({ ["flags.${MOD}.hideEnd"]: U.forcedDeletion() });
             await V.settleTrialVoices();
             return true;`, { timeout: 60000 });
         await settle(800);

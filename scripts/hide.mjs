@@ -1,5 +1,6 @@
 /**
- * Danganronpa RPG - Hide, a row of the Infiltrate tile: a character out of everyone's sight and silent until they show.
+ * Danganronpa RPG - Hide, a row of the Infiltrate tile: a character out of everyone's sight and silent until they show or the
+ * time of day ends.
  * ---------------------------------------------------------------------------
  * S0-HIDE (E129, 23.11.2026; the owner: "Dodajmy nowa akcje (w infiltrate) "schowaj sie". Udany rzut na shadow chowa
  * calkowicie token gracza i wycisza go, dopoki nie kliknie ujawnij sie na panelu livekit. Schowanie sie sprawia tez ze
@@ -30,10 +31,15 @@
  *     declaration's roll is marked `cover` and the GM takes the pass only while it holds the hider's row (bridge-guards.mjs
  *     `rollsFor`), so a packet that claims it otherwise names a roll as before. Not in a Class Trial: there the hide stands
  *     aside and the cover is thrown (`coverWhileHidden`, `hiddenOnGm`), since TRIAL's S0-PALM opens Palm in the trial.
- *   - WHEN IT ENDS. Reveal yourself, a GM's reveal (`game.drpg.unhide(actor)`, and the GM's voice list), the chapter's end
- *     (a clock whose chapter is not the row's) and the season's reset (the store's "actions" group; the flags a cut row
- *     leaves are swept, `settleHides`); and the character's death, at the primary's next settle (`drpgDeathsChanged`).
- *     Not at a new time of day, a move or another action.
+ *   - WHEN IT ENDS. At the end of the time of day it began in (the owner, 23.11.2026: "Wazne - ukryj sie ma dzialac do
+ *     konca pory dnia"): the row keeps that time of day's mark (`hideMark`: chapter, day, time of day, Eclipse), and the
+ *     primary's settle at every clock write ends a row whose mark is not the clock's - the next time of day, an Eclipse's
+ *     start or end, a Rewind (which brings no hide back) - and tells the hider which time of day is over
+ *     (`DRPG.Hide.ended.timeOfDay`). A hide begun in the last minutes of a time of day ends with it. Sooner: Reveal
+ *     yourself, a GM's reveal (`game.drpg.unhide(actor)`, and the GM's voice list), the chapter's end (a clock whose
+ *     chapter is not the row's, asked first, with its own notice), the season's reset (the store's "actions" group; the
+ *     flags a cut row leaves are swept, `settleHides`) and the character's death (`drpgDeathsChanged`, no notice). Not at
+ *     a move or another action. The coordinator's defaults of 23.11.2026, pending the owner.
  *   - NOT OFFERED in a Class Trial (`hideShutWhy`), nor again while hidden. Other players' pickers (`seenHere`) and Listen
  *     (action-listen.mjs `heardIn`, a GM's too) leave a hidden character out; Echoes still names the room they stand in
  *     (the coordinator's decision of 23.11.2026: unchanged).
@@ -50,13 +56,25 @@
  * carrying the flag and reads by its `actorId` whose it is.
  */
 
-import { INFILTRATE, MODULE_ID } from "./config.mjs";
+import { INFILTRATE, MODULE_ID, TIME_OF_DAY_LABELS } from "./config.mjs";
 import { getClock, SETTINGS } from "./settings.mjs";
-import { isPrimaryGm, log, error, whisperToOwnerOnly, esc, forcedDeletion } from "./utils.mjs";
+import { isPrimaryGm, log, error, esc, forcedDeletion } from "./utils.mjs";
 import { hideStore } from "./gm-stores.mjs";
 
 /** The token flag that marks a hidden character's token. It says the token is hidden, never whose it is. */
 export const HIDE_FLAG = "hiding";
+/** The token flag that carries a hide's end to its owner (`endPatch`, `hideEndNotice`): `{ why, time, at }`. */
+export const HIDE_END_FLAG = "hideEnd";
+
+/**
+ * THE TIME OF DAY A HIDE IS HELD TO (the owner, 23.11.2026: "Wazne - ukryj sie ma dzialac do konca pory dnia"): the clock's
+ * chapter, day, time of day and Eclipse as one string, written on the row at its start. Any other mark at the primary's
+ * settle ends the hide - the next time of day, an Eclipse's start or end, a new day, a Rewind (a hide is not brought back
+ * by setting the clock back: its row is gone). Pure (R8907).
+ */
+export function hideMark(clock = getClock()) {
+    return `${clock?.chapter ?? 0}:${clock?.day ?? 0}:${clock?.timeOfDay ?? ""}:${clock?.eclipse === true ? "eclipse" : ""}`;
+}
 
 /** Foundry's own alpha for a GM's hidden token on a GM's canvas (Token#_getTargetAlpha: `hidden` draws at 0.5). */
 export const GM_HIDDEN_ALPHA = 0.5;
@@ -224,7 +242,7 @@ export async function startHide({ actor, total = 0, isCritical = false, userId =
         log(`${actor.name} does not manage to hide (${Number(total) || 0}).`);
         return { hidden: false };
     }
-    await hideStore.patch(actor.id, { actorId: actor.id, userIds: ownersOf(actor), chapter: getClock()?.chapter ?? null,
+    await hideStore.patch(actor.id, { actorId: actor.id, userIds: ownersOf(actor), chapter: getClock()?.chapter ?? null, mark: hideMark(),
         total: Number(total) || 0, critical: Boolean(isCritical), userId, at: Date.now() });
     // The microphone first, then the token, as the veil does: nobody hears a character from a token nobody sees.
     await settleBlock();
@@ -248,37 +266,59 @@ async function flagTokens(actor) {
     return n;
 }
 
-/** Every token of `actorId` (or, with none, every token whose character no row holds) shown again. Answers how many. */
-async function unflagTokens(actorId = null) {
+/** The token write that shows a hidden token again, with the end's reason for its owner (`hideEnd`) or none. Pure. */
+export function endPatch(end = null, gone = null) {
+    return { ...unhidePatch(gone), [`flags.${MODULE_ID}.${HIDE_END_FLAG}`]: end ?? gone };
+}
+
+/**
+ * The words a hide's end tells this browser, off a token's change, or null: only the token's owner, on a player's browser,
+ * and only for a change that carries a reason (`endPatch`). Its time of day is named in this browser's language. Pure
+ * but for `game.i18n` (R8908).
+ */
+export function hideEndNotice(changes, { owns = false, gm = Boolean(game.user?.isGM) } = {}) {
+    const end = changes?.flags?.[MODULE_ID]?.[HIDE_END_FLAG];
+    if (gm || !owns || !end || typeof end !== "object" || !end.why) return null;
+    const time = end.time ? TIME_OF_DAY_LABELS[end.time] ?? end.time : "";
+    return game.i18n.format(`DRPG.Hide.ended.${end.why}`, { time });
+}
+
+/** Every token of `actorId` (or, with none, every token whose character no row holds) shown again, `end` its reason or none. Answers how many. */
+async function unflagTokens(actorId = null, end = null) {
     if (!game.user?.isGM) return 0;
     let n = 0;
     for (const scene of game.scenes ?? []) for (const token of scene.tokens ?? []) {
         if (!isHidingToken(token)) continue;
         if (actorId ? token.actorId !== actorId : hideStore.get(token.actorId ?? "")) continue;
-        await token.update(unhidePatch(forcedDeletion())).catch(err => error("Could not show a hidden token again", err));
+        await token.update(endPatch(end, forcedDeletion())).catch(err => error("Could not show a hidden token again", err));
         n += 1;
     }
     return n;
 }
 
 /**
- * End `actorId`'s hide on the primary, `why` "reveal" (their own press), "gm", "chapter" or "reset": the row dropped, the
- * flag off every token, the block lifted. A hide ended by anyone but its owner is told to them in one line. Answers
+ * End `actorId`'s hide on the primary, `why` "reveal" (their own press, and a death), "gm", "chapter", "reroll" or
+ * "timeOfDay" (`data.time` the time of day's key): the row dropped, the flag off every token, the block lifted. Answers
  * `{ ended }` or `{ refused }`.
+ *
+ * TOLD IN THE HIDER'S CORNER, NOT AS A CARD (the owner, 23.11.2026: "notice o ujawnieniu niech bedzie w lewym dolnym rogu
+ * jak reszta powiadomien"). Until then a hide ended by anyone but its owner whispered them a card, which popup.mjs
+ * `onCreateChatMessage` raised in their corner and which stood in their chat log as well (scenario 22 "gm", red at
+ * 428c5ba1: p1's corner held the words, and one chat message was posted). The module has no road for a GM's notice to
+ * one player's corner but a chat card, so the end's reason rides on the token write that shows the token again - one
+ * flag, `hideEnd` (`{ why, time, at }`, `endPatch`) - and the hider's own browser, which owns the token, raises the
+ * notice itself (`hideEndNotice`, popup.mjs `showPopup`, kept in the notice history like any corner notice), in its
+ * own language. No other browser draws it, and a GM's none. A hide its owner ended, or a death, writes no reason.
  */
-export async function endHide(actorId, why = "reveal") {
+export async function endHide(actorId, why = "reveal", data = {}) {
     if (!game.user?.isGM) return { refused: "only a GM can carry that out" };
     await hideStore.whenHydrated();
     const row = hideStore.get(actorId ?? "");
     if (!row) return { refused: "nothing was carried out: that character is not hidden" };
     await hideStore.drop(actorId);
-    await unflagTokens(actorId);
+    await unflagTokens(actorId, why === "reveal" ? null : { why, time: data?.time ?? null, at: Date.now() });
     await settleBlock();
     const actor = game.actors.get(actorId);
-    if (actor && why !== "reveal") {
-        await whisperToOwnerOnly(actor, { glyph: "ACTIONS.listen", body: `<p>${esc(game.i18n.localize(`DRPG.Hide.ended.${why}`))}</p>` },
-            { veiled: true }).catch(err => error("Could not tell a hidden character their hide ended", err));
-    }
     log(`${actor?.name ?? actorId} is no longer hidden (${why}).`);
     return { ended: true };
 }
@@ -332,11 +372,37 @@ async function settleHidesNow() {
             if ((await endHide(actorId, "chapter")).ended) out.ended.push(actorId);
             continue;
         }
+        // The time of day it began is over (`hideMark`); a row written before the mark existed takes today's.
+        if (!row.mark) await hideStore.patch(actorId, { mark: hideMark() });
+        else if (row.mark !== hideMark()) {
+            const time = String(row.mark).split(":")[2] ?? "";
+            if ((await endHide(actorId, "timeOfDay", { time })).ended) out.ended.push(actorId);
+            continue;
+        }
         out.flagged += await flagTokens(game.actors.get(actorId));
     }
     out.swept = await unflagTokens(null);
     if (out.swept) await settleBlock();
     return out;
+}
+
+/* The ends this browser has told, by their `at`: one notice for a hide whose character stands on several scenes. */
+const toldEnds = new Set();
+
+/* The corner's own road: popup.mjs `showPopup`, kept in the notice history like any corner notice. */
+const showEndInCorner = html => import("./popup.mjs").then(m => m.showPopup(html, { kind: "info" }))
+    .catch(err => error("Could not tell a hide's end", err));
+
+/**
+ * This player's own hide ended: its notice in the corner, once for each end however many of the character's tokens carry
+ * it (the updateToken hook calls this for each). `gm` and `show` are R8909's to stand in: the hook passes neither.
+ */
+export function tellHideEnd(changes, { gm = Boolean(game.user?.isGM), show = showEndInCorner } = {}) {
+    const words = hideEndNotice(changes, { owns: true, gm });
+    const at = changes?.flags?.[MODULE_ID]?.[HIDE_END_FLAG]?.at ?? null;
+    if (!words || toldEnds.has(at)) return;
+    toldEnds.add(at);
+    show(`<p>${esc(words)}</p>`);
 }
 
 /* What this browser last saw of its own hide (an actor id, or null), so a redraw that changes nothing is quiet. */
@@ -359,6 +425,10 @@ export function registerHides() {
     Hooks.on("createToken", () => settle());
     Hooks.on("drpgDeathsChanged", () => settle());
     if (game.user?.isGM) return;
-    Hooks.on("updateToken", doc => { if (doc?.isOwner) noticeOwnHide(); });
+    Hooks.on("updateToken", (doc, changes) => {
+        if (!doc?.isOwner) return;
+        noticeOwnHide();
+        tellHideEnd(changes);
+    });
     Hooks.once("ready", noticeOwnHide);
 }
