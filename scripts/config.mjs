@@ -386,6 +386,15 @@ export const CHAPTERS_PER_SEASON = 6;
 export const SHARE_WITH_ANALYSIS = true;
 
 /**
+ * WHETHER THIS PAGE'S OWN MICROPHONE TRACK FOLLOWS THE MICROPHONE BUTTON (E129 S0-GMMUTE and the holds; the coordinator's
+ * decision of 23.11.2026, the owner's session-0 asks behind it: Hide "wycisza go", "niech chowanie tokenu automatycznie
+ * wycisza na livekit"). On: voice-client.mjs `followHold` mutes the page's own LiveKit track while the button says held,
+ * blocked or muted, and opens it again only in "always" with nothing standing. Off: the module writes only the stored mute
+ * and the GM's BROADCAST_AUDIO, as before 1.2.128. The one place the switch lives.
+ */
+export const OWN_TRACK_FOLLOWS_HOLD = true;
+
+/**
  * WHAT THE CASE'S REALIZATION PLACES, BY DEFAULT (the owner's notes of session 0, 23.11.2026, S0-REALIZE: "realization
  * niech zawiera opcje rozdania i ustawienia wszystkich remnantow zaplanowanych, albo samych key (jak teraz)"; the
  * coordinator's default, pending the owner; line INVEST of 1.2.129): "keys", the Key Remnant plan's slots alone, as until
@@ -5742,6 +5751,7 @@ export const DRPG = {
     PHASES,
     CHAPTERS_PER_SEASON,
     SHARE_WITH_ANALYSIS,
+    OWN_TRACK_FOLLOWS_HOLD,
     REALIZE_SCOPE,
     ROOMS_PER_PLAYER,
     ECLIPSE_MOVES,
