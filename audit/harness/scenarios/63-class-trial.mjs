@@ -1537,7 +1537,13 @@ export async function run({ gm, gm2, gm3, p1, p2, p3, p4, check, phase, settle, 
         return { primary, back: Boolean(back), rows: Object.keys(S.trialMuteStore.entries()), perm: (() => { ${permOf} })(),
             list: Object.hasOwn(game.settings.get("${MOD}", "trialProgress") ?? {}, "mutedDead") };`, { timeout: 30000 });
     verdict("the primary mutes p1 for the trial and leaves; gm3, the new primary, ends the trial and gives p1's microphone back from the GMs' store",
-        (r3Before.blocked ?? []).includes(p1.userId) && r3Held.rows.includes(p1.userId) && J(r3Held.perm) === J([true, false]) && r3After.primary && r3After.back
+        /* The block is read where it stands - the GMs' store's row and p1's BROADCAST_AUDIO off - whichever settle wrote it:
+           the clock's write and the death each schedule a settle of their own (voice.mjs `scheduleTrialVoices`), and when
+           one of them wrote first the explicit settle found the block there and answered `blocked: []`. Measured on
+           23.11.2026 (E129): red 3 runs of 3 on the trees with the 30 s Objection (0deb1885, e5ca3727, fca36f1d), each with
+           the row written and the microphone off; green with one round trip more before the settle. Until then the check
+           also asked the explicit settle's answer, which stays in the evidence (`r3Before`). */
+        r3Held.rows.includes(p1.userId) && J(r3Held.perm) === J([true, false]) && r3After.primary && r3After.back
             && r3After.rows.length === 0 && r3After.list === false, J({ r3Before, r3Held, r3After }));
     await gm3.eval(`const C = await import("${repoUrl}/scripts/chapter.mjs");
         const aiko = game.actors.get("${IDS.aiko}"); if (C.isDeadForGm(aiko)) await C.reviveCharacter(aiko, { quiet: true });
