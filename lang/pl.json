@@ -6521,6 +6521,15 @@
         "cubVote": "Głosowanie: słuchasz.",
         "ownCase": "Słuchasz: to rozprawa w twojej sprawie."
       },
+      "hearing": {
+          "mutedForMe": "wyciszone przez słuchającego (wyciszenie u siebie)",
+          "volumeZero": "głośność 0 na stronie słuchającego",
+          "notSubscribed": "mikrofon tej osoby nie jest odbierany",
+          "noElement": "na stronie nie ma odtwarzacza dźwięku tej osoby",
+          "elementPaused": "dźwięk tej osoby jest wstrzymany na stronie",
+          "elementMuted": "dźwięk tej osoby jest wyciszony na stronie",
+          "trackNotLive": "nie dociera żaden dźwięk tej osoby"
+      },
       "list": {
         "open": "Kogo słyszysz",
         "count": {
@@ -6536,6 +6545,8 @@
         "unmuteFor": "Znów słuchaj: {name}",
         "hidden": "Ukryta wcześniej w doku kamer: nie słyszysz tej osoby.",
         "unhide": "Pokaż i słuchaj",
+        "mutedByYou": "Wyciszone przez ciebie",
+        "gap": "Nie słyszysz tej osoby: {why}. Jeśli to trwa, odśwież stronę (F5).",
         "gmBlock": "Zablokuj mikrofon: {name} (u wszystkich)",
         "gmUnblock": "Odblokuj mikrofon: {name}",
         "gmHeld": "Tego mikrofonu nie możesz teraz zablokować.",
@@ -6572,6 +6583,8 @@
           "listening": "podsłuchuje z pokoju {from} pod drzwiami pokoju {into}",
           "masked": "za „?” po otwarciu morderstwa: własny cichy pokój"
         },
+        "hearing": "Kto kogo nie słyszy (według strony każdego gracza):",
+        "hearingRow": "{name} nie słyszy osoby {speaker}: {why}",
         "setting": "Ustawienie głosu według pokoi: {state}",
         "on": "włączone",
         "settingOff": "wyłączone, więc nic nie jest stosowane",

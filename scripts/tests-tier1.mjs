@@ -31889,6 +31889,126 @@ const INVARIANTS = [
         equal(stableJson({ ...read, inTrial: read.inTrial === "tokenHidden:true" }), stableJson({ hidden: "tokenHidden:true", shown: "gmBlock:false", inTrial: false, gm: "tokenHidden:true", words: [true, true] }),
             "[micHold: hidden, shown (the block then reads as the GM's), hidden in the trial (not the hide's); moduleHoldsMic; the words in English and Polish]");
     }],
+    ["R8834 - a listener's page finds who it does not hear in its own Room and why, and repairs only what no one chose: voice-tile.mjs `hearingGaps` names each participant who publishes an open microphone and is not heard here, with the first reason that holds (muted by you, volume 0, not subscribed, no element, paused, muted, no live track), and none who is heard or whose microphone is closed; `repairHearing` plays a paused element and resubscribes a microphone once each, and touches no mute or volume (E129, the owner's S0-VOICE of 23.11.2026)", async () => {
+        /*
+         * The owner, session 0: "zdarza sie ze modul gubi polaczenie w livekit i np. osoba a nie slyszy osoby b slyszac
+         * reszte"; F5 on A's browser cured it (the owner's answer), so the likely roads are a microphone not subscribed, no
+         * element or a paused one after a reconnect. On the voice tile's bench (`voiceTileRig`, a stand-in Room and dock,
+         * this world's three players as the participants, as R538 has them), in two rounds: (1) one muted by the listener
+         * ('Mute for me': volume 0 with a record), one whose element is paused, one whose microphone is not subscribed (its
+         * track ended) - the gaps, the repairs, a second repair (nothing tried twice), the gaps after; (2) one whose own
+         * microphone is closed, one with no element in the dock, one heard - the gaps. Red before E129: no `hearingGaps`.
+         */
+        const VT = await import("./voice-tile.mjs");
+        must(typeof VT.hearingGaps === "function" && typeof VT.repairHearing === "function", "voice-tile.mjs has no hearingGaps/repairHearing - nothing finds who is not heard");
+        const three = game.users.filter(user => user.id !== game.user.id && !user.isGM).slice(0, 3);
+        must(three.length === 3, "fewer than three players in the world - the bench has nobody to hear");
+        const label = id => ["B", "C", "D"][three.findIndex(u => u.id === id)] ?? "?";
+        const named = gaps => gaps.map(g => `${label(g.userId)}:${g.reason}`);
+        const bench = ({ volumes = {}, record = {}, pubs }) => {
+            const settings = { client: { muteAll: false, users: {} }, get: (scope, key) => volumes[String(key).replace(/^users\.|\.volume$/g, "")], set: async () => {}, getUser: () => ({ canBroadcastAudio: true }) };
+            const rig = voiceTileRig(VT, three, { settings: () => settings, mutes: { read: () => record, write: async () => {} }, proximity: () => false, gm: () => false, muteAll: () => false });
+            const room = rig.makeRoom(three.map(u => u.id));
+            three.forEach((u, i) => { room.remoteParticipants.get(u.id).audioTrackPublications = new Map([["mic", pubs[i]]]); });
+            return { rig, room };
+        };
+        const subs = [], plays = [];
+        const pub = (label, { isMuted = false, isSubscribed = true } = {}) => ({ source: "microphone", isMuted, isSubscribed,
+            setSubscribed(v) { subs.push([label, v]); this.isSubscribed = v; } });
+        // Round 1: B muted by the listener, C paused, D not subscribed.
+        const [B, C, D] = three;
+        const one = bench({ volumes: { [B.id]: 0 }, record: { [B.id]: 1 }, pubs: [pub("B"), pub("C"), pub("D", { isSubscribed: false })] });
+        one.rig.audio[B.id].el.volume = 0;      // as avclient-livekit's attach writes the listener's volume onto the element
+        one.rig.audio[C.id].el.paused = true;
+        one.rig.audio[C.id].el.play = () => { plays.push("C"); one.rig.audio[C.id].el.paused = false; return Promise.resolve(); };
+        one.rig.audio[D.id].track.readyState = "ended";
+        VT.attachRoom(one.rig.clientOf(one.room), one.rig.watch);
+        const read = {};
+        read.gaps = named(VT.hearingGaps(one.rig.watch));
+        read.repaired = named(VT.repairHearing(one.rig.watch, VT.hearingGaps(one.rig.watch)));
+        read.again = named(VT.repairHearing(one.rig.watch, VT.hearingGaps(one.rig.watch)));
+        await Promise.resolve();
+        read.after = named(VT.hearingGaps(one.rig.watch));
+        // Round 2: B's own microphone closed, C with no element, D heard.
+        const two = bench({ pubs: [pub("B", { isMuted: true }), pub("C"), pub("D")] });
+        two.rig.audio[B.id].track.enabled = false;   // a closed microphone carries nothing: only its publication's mute keeps B out
+        two.rig.audio[C.id].el.closest(".camera-view").remove();
+        VT.attachRoom(two.rig.clientOf(two.room), two.rig.watch);
+        read.second = named(VT.hearingGaps(two.rig.watch));
+        equal(stableJson({ ...read, plays, subs }), stableJson({
+            gaps: ["B:mutedForMe", "C:elementPaused", "D:notSubscribed"], repaired: ["C:elementPaused", "D:notSubscribed"], again: [],
+            after: ["B:mutedForMe", "D:trackNotLive"], second: ["C:noElement"], plays: ["C"], subs: [["D", true]] }),
+            "[round 1: the gaps, the repairs, a second repair, the gaps after (C plays; D subscribed, its stand-in track still ended); round 2: the gaps; the plays and subscriptions asked]");
+    }],
+    ["R8835 - the GMs hold each listener's report of who they do not hear, by Foundry's sender alone, and the voice plan says it: a report's rows are kept only for users of this world and reasons of the closed list, an empty report takes the listener's row away, and voicePlan() lists \"<listener> does not hear <speaker>: <why>\" in this page's language (E129, S0-VOICE)", async () => {
+        /*
+         * The coordinator's approval of the check (23.11.2026): to the GMs only, shown in voicePlan(), no new window, nothing
+         * changed by a GM. voice.mjs `onVoiceSocket` with a hearing report as Foundry hands it - the payload and its sender -
+         * from a player of this world: two good rows, one naming no user, one with a reason off the list; `hearingLines` then;
+         * voicePlan()'s text; then an empty report from the same sender. Red before E129: no `hearingLines`.
+         */
+        must(game.user.isGM, "the GMs hold the reports");
+        needs(world.atLeast("playerAccounts", 2));
+        const V = await import("./voice.mjs");
+        const { VOICE } = await import("./voice-client.mjs");
+        must(typeof V.hearingLines === "function" && VOICE.hearing, "voice.mjs has no hearingLines, or the wire no hearing report - the GMs hold nothing");
+        const [listener, speaker] = game.users.filter(u => !u.isGM);
+        const send = gaps => V.onVoiceSocket({ action: VOICE.hearing, listener: speaker.id, gaps }, listener.id);
+        const read = {};
+        try {
+            send([{ userId: speaker.id, reason: "elementPaused" }, { userId: game.user.id, reason: "notSubscribed" },
+                { userId: "R8835NoSuchUser0", reason: "noElement" }, { userId: speaker.id, reason: "rewritten" }]);
+            read.lines = V.hearingLines();
+            const plan = await V.voicePlan();
+            read.inPlan = read.lines.every(line => plan.includes(line)) && plan.includes(game.i18n.localize("DRPG.Voice.plan.hearing"));
+        } finally {
+            send([]);
+        }
+        read.cleared = V.hearingLines();
+        const why = key => game.i18n.localize(`DRPG.Voice.hearing.${key}`);
+        const line = (who, key) => game.i18n.format("DRPG.Voice.plan.hearingRow", { name: listener.name, speaker: who, why: why(key) });
+        equal(stableJson(read), stableJson({ lines: [line(speaker.name, "elementPaused"), line(game.user.name, "notSubscribed")], inPlan: true, cleared: [] }),
+            "[the plan's lines from one report (two kept, a stranger and an off-list reason dropped, keyed by the sender not the payload); whether voicePlan() says them under its heading; after an empty report]");
+    }],
+    ["R8836 - the listener's own list says who they muted and who they do not hear: a peer muted for them reads \"Muted by you\" beside the button that unmutes them, and a peer this page does not hear for another reason reads that reason with the advice to reload; a heard peer reads neither (E129, S0-VOICE; the coordinator's addition of 23.11.2026)", async () => {
+        /*
+         * 'Mute for me' is a client setting that lives across sessions, so a listener who forgot it has no reason to look:
+         * the row says it in words, and its button (the one that muted) is the one-press undo, its label "Hear {name}
+         * again". On the bench, this world's three players: heard, muted by the listener, no element; the list opened after
+         * one check (`checkHearing`, which paints an open list), each row's two lines and the mute button read. Red before
+         * E129: no line.
+         */
+        const VT = await import("./voice-tile.mjs");
+        must(typeof VT.checkHearing === "function", "voice-tile.mjs has no checkHearing - the list cannot say who is not heard");
+        const three = game.users.filter(user => user.id !== game.user.id && !user.isGM).slice(0, 3);
+        must(three.length === 3, "fewer than three players in the world - the bench has nobody to hear");
+        const [ok, mute, none] = three;
+        const volumes = { [mute.id]: 0 };
+        const settings = { client: { muteAll: false, users: {} }, get: (scope, key) => volumes[String(key).replace(/^users\.|\.volume$/g, "")], set: async () => {}, getUser: () => ({ canBroadcastAudio: true }) };
+        const rig = voiceTileRig(VT, three, { settings: () => settings, mutes: { read: () => ({ [mute.id]: 1 }), write: async () => {} }, proximity: () => false, gm: () => false, muteAll: () => false });
+        const room = rig.makeRoom(three.map(u => u.id));
+        for (const u of three) room.remoteParticipants.get(u.id).audioTrackPublications = new Map([["mic", { source: "microphone", isMuted: false, isSubscribed: true }]]);
+        rig.audio[none.id].el.closest(".camera-view").remove();
+        VT.attachRoom(rig.clientOf(room), rig.watch);
+        const list = VT.openVoiceList(rig.watch);
+        const read = {};
+        try {
+            VT.checkHearing(rig.watch, { report: () => {} });
+            for (const [name, u] of [["ok", ok], ["mute", mute], ["none", none]]) {
+                const row = list?.querySelector(`.drpg-voice-row[data-user-id="${u.id}"]`);
+                const text = sel => { const el = row?.querySelector(sel); return el && !el.hidden ? el.textContent : null; };
+                read[name] = [text(".drpg-voice-row-mutedme"), text(".drpg-voice-row-gap"), row?.querySelector(".drpg-voice-row-mute")?.getAttribute("aria-pressed") ?? null];
+            }
+        } finally {
+            VT.closeVoiceList(rig.watch, { focus: false });
+            list?.remove();
+        }
+        equal(stableJson(read), stableJson({
+            ok: [null, null, "false"],
+            mute: [game.i18n.localize("DRPG.Voice.list.mutedByYou"), null, "true"],
+            none: [null, game.i18n.format("DRPG.Voice.list.gap", { why: game.i18n.localize("DRPG.Voice.hearing.noElement") }), "false"] }),
+            "[per row: the 'Muted by you' line, the line of a gap, the mute button's pressed state]");
+    }],
     ["R1067 - the cue playlist cannot be mapped: the Music tab offers it in no select, a stored mapping onto it is dropped by the primary GM alone with one write of the map without that key (the other keys kept, a second call writing nothing), and playlistFor answers null for it (E50 C3; S11-47, E50-23, Q-E50-1)", async () => {
         /*
          * E50 C3, 30.10.2026; audit S11-47 and the owner's answer on Q-E50-1 (30.10: the mapping is removed by itself).

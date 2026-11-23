@@ -51,7 +51,7 @@ import { isMonokuma, isSpectator, poolUserFor, studentActors, characterIds } fro
 import { talksWithSpectators, SPECTATOR_LISTEN_FLAG } from "./spectator.mjs";
 import { isMonocub, ownCaseOpen } from "./monocub.mjs";
 import { deathStore, trialMuteStore, eavesdropStore, eavesdropCopy, maskStore, veilStore } from "./gm-stores.mjs";
-import { VOICE, ROOM_PREFIX, isDeadRoom, SPECTATOR_ROOM, SCRUM_ROOMS, applyLocally, forgetDesiredRoom, avclientActive, desiredRoom, externalAV, silentRoomFor } from "./voice-client.mjs";
+import { VOICE, HEARING_REASONS, ROOM_PREFIX, isDeadRoom, SPECTATOR_ROOM, SCRUM_ROOMS, applyLocally, forgetDesiredRoom, avclientActive, desiredRoom, externalAV, silentRoomFor } from "./voice-client.mjs";
 import { isPrimaryGm, debug, warn, error, gmReport, serialWrite, forcedDeletion, whisperToGms, esc, trialModeLabel } from "./utils.mjs";
 // A Scrum Debate's camps while they confer (the owner's 13.11.2026): zone-machine.mjs is pure and imports config.mjs alone.
 import { conferCamps } from "./zone-machine.mjs";
@@ -754,6 +754,11 @@ const { settled, forget, assignUser, waitApplied } = voiceLedger;
 export function onVoiceSocket(payload, senderId, ledger = voiceLedger) {
     // A GM saying "I picked a room by hand" or "I have stopped".
     //
+    // A listener's report of who it does not hear (E129, S0-VOICE): kept on every GM, by Foundry's sender.
+    if (payload?.action === VOICE.hearing) {
+        if (game.user?.isGM) recordHearing(senderId, payload.gaps);
+        return;
+    }
     if (payload?.action === VOICE.whoAmI) {
         // Not returned: a socket callback's return value goes nowhere, so an
         // async handler handed back raw becomes an unhandled rejection the first
@@ -2539,6 +2544,34 @@ export function liveKitConnectionSettings() {
     }
 }
 
+/*
+ * WHO DOES NOT HEAR WHOM (E129, the owner's S0-VOICE of 23.11.2026; the coordinator's approval: to the GMs only, in
+ * voicePlan(), no new window, nothing changed by a GM). Each listener's page reports the participants of its own Room it
+ * does not hear (voice-tile.mjs `checkHearing`); every GM keeps the latest report per listener, keyed by Foundry's
+ * sender alone - a report about another listener is that sender's claim and is filed under the sender - and only rows
+ * naming a user of this world with a reason of the closed list (voice-client.mjs HEARING_REASONS). An empty report takes
+ * the row away. This browser's session only: nothing is written.
+ */
+const hearingReports = new Map();
+
+/** A listener's report kept, as `onVoiceSocket` hands it: `senderId` Foundry's, `gaps` the payload's claim. */
+export function recordHearing(senderId, gaps) {
+    if (!game.users?.get(senderId)) return;
+    const kept = (Array.isArray(gaps) ? gaps.slice(0, 50) : [])
+        .filter(gap => typeof gap?.userId === "string" && game.users.get(gap.userId) && gap.userId !== senderId && HEARING_REASONS.includes(gap.reason))
+        .map(gap => ({ userId: gap.userId, reason: gap.reason }));
+    if (kept.length) hearingReports.set(senderId, { gaps: kept, at: Date.now() });
+    else hearingReports.delete(senderId);
+}
+
+/** The plan's lines, "<listener> does not hear <speaker>: <why>", in this page's language, listeners by name. */
+export function hearingLines(reports = hearingReports) {
+    const name = id => game.users.get(id)?.name ?? id;
+    return [...reports.entries()].sort(([a], [b]) => String(name(a)).localeCompare(String(name(b))))
+        .flatMap(([listener, { gaps }]) => gaps.map(gap => voiceText("DRPG.Voice.plan.hearingRow",
+            { name: name(listener), speaker: name(gap.userId), why: voiceText(`DRPG.Voice.hearing.${gap.reason}`) })));
+}
+
 /**
  * Where everybody WOULD be sent, without sending anybody anywhere.
  *
@@ -2663,6 +2696,14 @@ export async function voicePlan({ toChat = false, targets } = {}) {
     }
 
     for (const line of sceneRoomWarnings()) lines.push(line);
+
+    // Who does not hear whom, as each listener's page reported it (E129, S0-VOICE; `recordHearing`).
+    const deaf = hearingLines();
+    if (deaf.length) {
+        lines.push("");
+        lines.push(P("hearing"));
+        for (const line of deaf) lines.push(`   ${line}`);
+    }
 
     lines.push("");
     lines.push(P("decision"));

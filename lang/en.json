@@ -6081,6 +6081,15 @@
         "cubVote": "The vote: you listen.",
         "ownCase": "You listen: this trial is about your death."
       },
+      "hearing": {
+          "mutedForMe": "muted by the listener (Mute for me)",
+          "volumeZero": "volume at 0 on the listener's page",
+          "notSubscribed": "their microphone is not received",
+          "noElement": "no sound player for them on the page",
+          "elementPaused": "their sound is paused on the page",
+          "elementMuted": "their sound is muted on the page",
+          "trackNotLive": "no sound arrives from them"
+      },
       "list": {
         "open": "Who you hear",
         "count": {
@@ -6094,6 +6103,8 @@
         "unmuteFor": "Hear {name} again",
         "hidden": "You hid them in the camera dock, so you do not hear them.",
         "unhide": "Show and listen",
+        "mutedByYou": "Muted by you",
+        "gap": "You do not hear them: {why}. If it lasts, reload the page (F5).",
         "gmBlock": "Block {name}'s microphone for everyone",
         "gmUnblock": "Unblock {name}'s microphone",
         "gmHeld": "You cannot block this microphone now.",
@@ -6130,6 +6141,8 @@
           "listening": "listening at the door of {into}, from {from}",
           "masked": "behind a \"?\" after a murder's opening: a silent room of its own"
         },
+        "hearing": "Who does not hear whom (as each player's page reports it):",
+        "hearingRow": "{name} does not hear {speaker}: {why}",
         "setting": "Regional voice setting: {state}",
         "on": "on",
         "settingOff": "off, so nothing is applied",
