@@ -5275,6 +5275,9 @@
       "searchTokensRestocked": "Every room restocked with Search Tokens",
       "woundedNote": "With no Health left, these students are down an action this time of day: {names}."
     },
+    "Context": {
+      "lost": "{name}'s browser lost its drawing context ({scene})."
+    },
     "Panel": {
       "settings": "Settings",
       "nextStartTrial": "Every planned Key Remnant has been found. Start the Class Trial from the trial console.",

@@ -5646,6 +5646,9 @@
       "rewindDuringEclipse": "Trwa Eclipse. Najpierw je zakończ.",
       "takenBack": "Początek tej pory dnia jest cofnięty: akcje, Free Move, to, co dały Sprint i Burst, Search Tokeny pokoi i pieczęcie wracają do stanu sprzed niego."
     },
+    "Context": {
+      "lost": "Przeglądarka gracza {name} utraciła kontekst rysowania ({scene})."
+    },
     "Panel": {
       "settings": "Ustawienia gry",
       "nextStartTrial": "Wszystkie zaplanowane Key Remnanty zostały znalezione. Rozpocznij Class Trial z konsoli trialu.",
