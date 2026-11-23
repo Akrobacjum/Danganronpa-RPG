@@ -18,7 +18,8 @@
  *     drawn), the bars, the name and the ruler; its owner draws it at `INFILTRATE.hide.ownAlpha`, a GM as a GM's hidden
  *     token (`hidingAlpha`). The GMs keep a row per character in the store `hides` (gm-stores.mjs `hideStore`).
  *   - THE VOICE. The microphone is held by the trial's block with one more reason (voice.mjs `micHold` "hiding",
- *     `settleTrialVoices` with `hideMutedIds`), outside a Class Trial; the room is still heard. Another player's voice
+ *     `settleTrialVoices` with its own `hidingIds`, read off the `hides` rows), outside a Class Trial; the room is still
+ *     heard. Beside it stand COMM's "tokenHidden" (a GM's Foundry `hidden`) and TRIAL's `free`; "hiding" is asked first. Another player's voice
  *     tile neither lists nor counts the hidden player: the veil's predicate (mask-gm.mjs `veilHidesHere`) answers for a
  *     hiding token as for a veiled one, and so do the pickers that read it (`seenHere`). Their own tile keeps a Reveal
  *     yourself button (voice-tile.mjs `paintUnhide`), which asks the primary (`mask.reveal` with `of: "hide"`).
@@ -27,16 +28,19 @@
  *     clean-up - is not thrown (`coverWhileHidden`): it counts as passed, at `INFILTRATE.hide.coverTotal`, and its card
  *     says so. It earns no Hope (the owner's answer of 23.11.2026). Where the GM reads that roll off its record, the
  *     declaration's roll is marked `cover` and the GM takes the pass only while it holds the hider's row (bridge-guards.mjs
- *     `rollsFor`), so a packet that claims it otherwise names a roll as before.
+ *     `rollsFor`), so a packet that claims it otherwise names a roll as before. Not in a Class Trial: there the hide stands
+ *     aside and the cover is thrown (`coverWhileHidden`, `hiddenOnGm`), since TRIAL's S0-PALM opens Palm in the trial.
  *   - WHEN IT ENDS. Reveal yourself, a GM's reveal (`game.drpg.unhide(actor)`, and the GM's voice list), the chapter's end
  *     (a clock whose chapter is not the row's) and the season's reset (the store's "actions" group; the flags a cut row
  *     leaves are swept, `settleHides`); and the character's death, at the primary's next settle (`drpgDeathsChanged`).
  *     Not at a new time of day, a move or another action.
- *   - NOT OFFERED in a Class Trial (`hideShutWhy`), nor again while hidden. Observe and Search find nobody hidden in this
- *     release: a hidden character is left out of every picker this browser builds (`seenHere`).
+ *   - NOT OFFERED in a Class Trial (`hideShutWhy`), nor again while hidden. Other players' pickers (`seenHere`) and Listen
+ *     (action-listen.mjs `heardIn`, a GM's too) leave a hidden character out; Echoes still names the room they stand in
+ *     (the coordinator's decision of 23.11.2026: unchanged).
  *
  * THE MASK AND THE HIDE ARE TWO THINGS. A killer behind a "?" (mask-gm.mjs) who hides keeps both: the mask's flag and the
- * hide's, each ended by its own road - the mask at the next time of day or its reveal, the hide by its own Reveal yourself
+ * hide's, each ended by its own road - the mask at its reveal, a new time of day, the end of its murder's incident or the
+ * killer leaving the room it went up in (mask-gm.mjs's header, S0-MASKLEFT), the hide by its own Reveal yourself
  * (a second button, beside the mask's) - and neither reads the other. While both stand the token is not drawn for other
  * players at all (the hide's branch is asked first), the mask's silent room still holds the voice, and once the mask ends
  * the hide stands on.
