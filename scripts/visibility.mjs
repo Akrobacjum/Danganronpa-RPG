@@ -25,7 +25,7 @@
  * `myIncidentTrace` reads the cast that stands. The listeners below are for what is no clock and no incident.
  */
 
-import { MODULE_ID, FLAGS, SPECTATOR_ALPHA, REMNANT_ALPHA } from "./config.mjs";
+import { MODULE_ID, FLAGS, SPECTATOR_ALPHA, REMNANT_ALPHA, HOLDER_SEES_HIDDEN } from "./config.mjs";
 import { flaggedSpectator, spectatorViewer, isMonocubCorpse } from "./spectator.mjs";
 import { SETTINGS, isEclipse, incidentParticipants, incidentCast } from "./settings.mjs";
 import { roomOfToken, roomAt, whenAtRest } from "./movement.mjs";
@@ -755,19 +755,52 @@ export function dressRemnant(token, { gm = game.user?.isGM === true } = {}) {
  */
 function applyToRemnantToken(token) {
     if (game.user.isGM) return;
-    // Still hidden: Foundry's own flag already keeps it off every screen but
-    // the GM's, and there is nothing this function needs to add.
-    if (token.document.hidden) return;
-
-    const key = remnantKeyOf(token.document);
-    if (!key || myRemnantRefs().has(key)) return;
-
-    // D11: the crime scene belongs to the people who were standing in it. An
-    // incident's traces are created un-hidden (see `placeRemnant`) precisely so
-    // this line can decide, because Foundry's own flag cannot say "these two".
-    if (myIncidentTrace(token.document)) return;
-
+    const doc = token.document;
+    if (remnantShownHere({ hidden: Boolean(doc.hidden), knows: knowsRemnant(doc), incident: !doc.hidden && myIncidentTrace(doc) })) {
+        // Hidden by a GM's hand and held here (S0-BULLETSEES): drawn for the holder, past Foundry's own verdict.
+        if (doc.hidden) showHeld(token);
+        return;
+    }
+    // Still hidden and nobody's here: Foundry's own flag already keeps it off every screen but the GM's.
+    if (doc.hidden) return;
     hide(token);
+}
+
+/**
+ * WHETHER THIS BROWSER'S USER KNOWS A REMNANT (S0-BULLETSEES and S0-HOVERNAME, line INVEST of 1.2.128; the one function
+ * both ask, the coordinator's of 23.11.2026): a GM knows every one; a player knows one a Truth Bullet of theirs was copied
+ * from (`myRemnantRefs`, from their copy of the GMs' rows - however the bullet reached them: a find, a share, a give, a
+ * grant, a reveal). An incident's cast SEES its traces (D11, `myIncidentTrace`) without knowing them: that is not asked
+ * here. Read off the document, so it answers for a token not drawn.
+ */
+export function knowsRemnant(tokenDoc) {
+    if (game.user?.isGM) return true;
+    const key = remnantKeyOf(tokenDoc);
+    return Boolean(key) && myRemnantRefs().has(key);
+}
+
+/**
+ * WHETHER A PLAYER'S BROWSER DRAWS A REMNANT (S0-BULLETSEES; the owner's notes of 23.11.2026: "zawsze posiadanie truth
+ * bullet = widoczny token remnanta, w tym po przekazaniu go na przyklad"). Pure over its arguments: `hidden` Foundry's own
+ * flag, `knows` a bullet of this user's copied from it (`knowsRemnant`), `incident` a trace of the live incident this user
+ * is in (D11: the crime scene belongs to the people who stood in it; its traces are created un-hidden so this can decide).
+ * Un-hidden, it is drawn for whoever knows it or stands in its incident, and for nobody else. Hidden - which leaves a
+ * found trace only by a GM's own hand (every road of the module that hides one spares the copied: remnants.mjs
+ * `retireIncidentTraces`, cleanup.mjs's Reroll) - it is drawn for a holder while `holderSeesHidden` (config.mjs
+ * `HOLDER_SEES_HIDDEN`, true: holding wins), and for nobody else. Until 1.2.128 a hidden trace was left to Foundry, and
+ * its holders lost it.
+ */
+export function remnantShownHere({ hidden = false, knows = false, incident = false, holderSeesHidden = HOLDER_SEES_HIDDEN } = {}) {
+    if (hidden) return Boolean(knows && holderSeesHidden);
+    return Boolean(knows || incident);
+}
+
+/* A hidden Remnant drawn for its holder (S0-BULLETSEES): the token and its picture, at `remnantAlpha` (`dressRemnant`
+   ran first). `show` keeps a GM's `hidden`, which is right for a student's token and not for a trace its viewer holds. */
+function showHeld(token) {
+    hiddenByUs.delete(token);
+    token.visible = true;
+    if (token.mesh) token.mesh.visible = true;
 }
 
 /**
@@ -1319,10 +1352,9 @@ function myRemnantRefs() {
  * placeable is gone (projects-seen.mjs `ghostOf`). False on a GM's browser: a GM leaves no ghost.
  */
 export function shownAsFound(tokenDoc) {
-    if (!tokenDoc || game.user?.isGM || tokenDoc.hidden) return false;
-    const key = remnantKeyOf(tokenDoc);
-    if (!key) return false;
-    return myRemnantRefs().has(key) || myIncidentTrace(tokenDoc);
+    if (!tokenDoc || game.user?.isGM || !remnantKeyOf(tokenDoc)) return false;
+    // The rule `applyToRemnantToken` draws by (S0-BULLETSEES): a hidden trace its viewer holds is shown as well.
+    return remnantShownHere({ hidden: Boolean(tokenDoc.hidden), knows: knowsRemnant(tokenDoc), incident: !tokenDoc.hidden && myIncidentTrace(tokenDoc) });
 }
 
 /**

@@ -10693,6 +10693,9 @@ const REGRESSIONS = [
          * E37 C3 (01.11.2026): the readiness round's two GM asks, `requestReadyOpen` and `requestReadyEnd`, say a refusal of
          * the primary's with `sayNotDone`: two NOTDONE rows more; `requestReadyAnswer` says nothing itself (the waiter tells
          * a player's refusal), so no row. Red in the first quick run of C3 ("unclassified" the two), green with the rows.
+         * S0-HIDE (1.2.128 line STG, 23.11.2026; the owner: "notice o ujawnieniu niech bedzie w lewym dolnym rogu jak reszta
+         * powiadomien"): a hide's end is told by hide.mjs `tellHideEnd` (its call in `showEndInCorner`) on the hider's browser, no longer by a whisper the
+         * catch-all raised: one SURFACE row more. Red on the tier-2 run `--only notice` ("unclassified" it), green with the row.
          */
         const NOTICE_CENSUS = [
             ["SURFACE popup.mjs#onCreateChatMessage", "the catch-all: a card is drawn where the whisper list, a veiled card's words and the GM's diet allow it (`gmPopup`, `popupForce` from a GM writer only), and kept exactly there by `showPopup`'s recorder - public from a GM's document, a player's from its document's author, never `cardWriter` (R297, 73-notice-history); the body cleaned at save (R294); the tile's corner button counts it among the unread and shows none of its words (R298); since E18 C4 also raised for a card whose words a GM gave back to a reader who was away (secret.mjs `cardOnReturn`, the newest 8 of an ask), once a card and under its messageId, so one entry however many GMs answer (R845, 73-notice-history R1)"],
@@ -10710,6 +10713,7 @@ const REGRESSIONS = [
             ["SURFACE safeword.mjs#showGmDetail", "the GM's safeword card, who and the room escaped into an i18n sentence; kept in the GM's browser like every other notice - within the history's budgets, and in memory only when the history stops saving (`crowdedOut`, a failed write) - as a safeword entry (the owner's Q7, 07.10.2026; R297, 73-notice-history S1), and cleaned at save (R294); the tile's corner button counts it among the unread and shows none of its words (R298)"],
             ["SURFACE safeword.mjs#raiseCard", "frozen i18n text set with textContent; kept as first drawn and not followed (`observe: false`), so the same safeword entry on every browser whatever the caller's card adds, kept within the history's budgets and in memory only when it stops saving; nobody else's words (R297, 73-notice-history S2)"],
             ["SURFACE trial.mjs#registerTrial", "the evidence card, drawn only when a GM authored it (E70 fix p2-G2); kept as evidence, one entry for its message, and cleaned at save (R297, R294); the tile's corner button counts it among the unread and shows none of its words (R298)"],
+            ["SURFACE hide.mjs#showEndInCorner", "this browser's own hide ended (S0-HIDE, 1.2.128; the call `tellHideEnd` makes through `showEndInCorner`, R8909's stand-in point): i18n words of the module's own (`DRPG.Hide.ended.*`) with the time of day's name, escaped, read off the token's `hideEnd` flag by its owner on a player's browser (`hideEndNotice`: no GM, no other player); kept as a notice like any other, once per end (`at`; R8908, scenario 22's phase gm)"],
             ["SURFACE voice-client.mjs#dropCard", "this browser's own dropped voice (E19 C2): frozen i18n text, nothing of anybody else's; kept as this client's own (`source` \"mine\"), and taken off the screen, not out of the history, once voice is back (R812, scenario 75's phase H)"],
             ["RECORD bridge-guards.mjs#sayNotDone", "after `notify(text)`, whoever `notify` is: kind error, source notDone, state read, the text this client composed from closed lists - a GM's reason chooses none of its words; a history error never stops the toast (R297)"],
             ["RECORD frisk.mjs#toast", "an open Frisk's line beside its toast (E80 part 2 C3): kind info, source mine, state unread, the row's label as its title and text this client composed from its language file with names as text - the ask it waits on, a withdrawn window, or for a GM the notice that nobody was asked; no markup, and a history error never stops the toast"],
@@ -23623,10 +23627,10 @@ const REGRESSIONS = [
             "gm-items.mjs": {"action": 1, "heading": 2},
             // 1.2.122 line TEXT (TEXT-32): the missing answer key's one send to the owner and the GMs is two, the owner's and the GMs'
             "handover.mjs": {"built": 1, "heading": 2, "line": 14, "message": 1},
-            // S0-HIDE (E129): Hide's roll card (hide.mjs `performHide`, `rollResultCard`) and the one line a hide ended by a GM,
-            // the chapter or a Reroll tells its player (`endHide`); and cleanup.mjs's cover not thrown while hidden, one more
-            // action card (`concealFromWitnesses`).
-            "hide.mjs": {"built": 1, "card": 1},
+            // S0-HIDE (E129): Hide's roll card (hide.mjs `performHide`, `rollResultCard`); and cleanup.mjs's cover not thrown
+            // while hidden, one more action card (`concealFromWitnesses`). Since the owner's 23.11.2026 a hide's end is told in
+            // its hider's corner of notices (`tellHideEnd`, showPopup), not by a whisper card: hide.mjs's "card" 1 went.
+            "hide.mjs": {"built": 1},
             // 1.2.122 line MURDER (the audit's CASE-25): the GMs told a standing betrayal offer was kept (`armBetrayalWindow`).
             "incident-store.mjs": {"line": 1},
             "inventory.mjs": {"card": 3, "line": 3}, 
@@ -27806,6 +27810,59 @@ const REGRESSIONS = [
         ];
         const wrong = ROWS.filter(([, holds]) => !holds()).map(([id]) => id);
         equal(JSON.stringify(wrong), "[]", "[a handbook sentence that does not say what the code does, or code that moved under one]");
+    }],
+    ["R8621 - the handbooks' two paces of a session are the clock's numbers (1.2.128 line TEXT; E129 S0-SESSIONLEN, the owner's ask and clarification of 23.11.2026): a session at the table runs as long at either pace, the Full pace one game day at the HUD's red mark per time of day and the Quick pace two game days at its amber mark (TIMING.elapsedMarksMinutes), so both are TIMES_OF_DAY's count times the red mark; an Eclipse can stand before each time of day, the HUD counts no minutes in one, and the clock's session moves with the day; the GM handbook (section 4 and section 21's line) and the player handbook say so in English and in Polish", async () => {
+        /*
+         * 1.2.128 line TEXT, 23.11.2026; the coordinator's S0-SESSIONLEN with the owner's clarification of the same day
+         * ("Sesja 15min na pore dnia mialaby wtedy 2 dni a nie 1"): both paces fill one session at the table, the Quick pace
+         * with two game days. The paces are a planning aid and no code holds them: what the text must not drift from is the
+         * numbers it builds on. Read on 5fa04d39: config.mjs TIMES_OF_DAY (five), TIMING.elapsedMarksMinutes ([15, 30]),
+         * settings.mjs `incomingTimeOfDay` (Night to Morning, so an Eclipse can open before each time of day), hud-elapsed.mjs
+         * `elapsedOf` (null in an Eclipse), clock.mjs's rollover (the session with the day: `session: rolledOver ? clock.session
+         * + 1`), which is why a Quick session moves the clock's session twice. Red at 5fa04d39: the handbooks named no pace.
+         */
+        const C = await import("./config.mjs");
+        const marks = C.TIMING?.elapsedMarksMinutes, times = C.TIMES_OF_DAY;
+        must(Array.isArray(marks) && marks.length === 2 && Array.isArray(times) && times.length > 1, "the clock's numbers are gone from config.mjs - this reads nothing");
+        const [quick, full] = marks;
+        const text = async path => fetch(`/modules/${MODULE_ID}/${path}`, { cache: "no-cache" }).then(r => (r.ok ? lfText(r) : ""));
+        const [gmEn, gmPl, plEn, plPl, settings, elapsed, clockSrc] = await Promise.all(["docs/handbooks/gm-handbook.en.md", "docs/handbooks/gm-handbook.pl.md",
+            "docs/handbooks/player-handbook.en.md", "docs/handbooks/player-handbook.pl.md", "scripts/settings.mjs", "scripts/hud-elapsed.mjs", "scripts/clock.mjs"].map(text));
+        must([gmEn, gmPl, plEn, plPl].every(t => t.length > 50000) && [settings, elapsed, clockSrc].every(s => s.length > 1000), "a handbook or a script was not served - this reads nothing");
+        const at = (t, start) => {
+            const i = t.indexOf(start);
+            must(i >= 0, `no handbook line starts "${start}" - this row reads nothing until it is pointed at the text again`);
+            return lineAround(t, i);
+        };
+        // The session both paces share: a day of TIMES_OF_DAY at the red mark, two days at the amber one.
+        const session = times.length * full, minutes = session % 60;
+        const ROWS = [
+            // the code half
+            ["same length", () => 2 * times.length * quick === session && session === 150],
+            ["eclipse before each", () => /TIMES_OF_DAY\[\(index < 0 \? 0 : index \+ 1\) % TIMES_OF_DAY\.length\]/.test(stripComments(fnSource(settings, "incomingTimeOfDay")))],
+            ["no minutes in an Eclipse", () => /clock\.eclipse === true\) return null/.test(stripComments(fnSource(elapsed, "elapsedOf")))],
+            ["session with the day", () => /session: rolledOver \? clock\.session \+ 1 : clock\.session, day: rolledOver \? day \+ 1 : day/.test(stripComments(clockSrc))],
+            // section 4: the marks, each pace's row (game days, minutes), the shared length and the clock's session
+            ["gm en marks", () => at(gmEn, "**Two ways to pace a session.**").includes(`${quick} and ${full} minutes`)],
+            ["gm en full", () => at(gmEn, "| **Full pace** |").startsWith(`| **Full pace** | 1 | about ${full} | halfway |`)],
+            ["gm en quick", () => at(gmEn, "| **Quick pace** |").startsWith(`| **Quick pace** | 2 | about ${quick} | time to move on |`)],
+            ["gm en length", () => at(gmEn, "Both come to about").includes(`about ${Math.floor(session / 60)} hours ${minutes} minutes of play`)
+                && at(gmEn, "Both come to about").includes("there can be one before each time of day")],
+            ["gm en session", () => at(gmEn, "The module counts a session by the game day").includes("moves twice in one session at the table")],
+            ["gm pl marks", () => at(gmPl, "**Dwa tempa sesji.**").includes(`${quick} i ${full} minutach`)],
+            ["gm pl full", () => at(gmPl, "| **Tempo pełne** |").startsWith(`| **Tempo pełne** | 1 | około ${full} | połowa |`)],
+            ["gm pl quick", () => at(gmPl, "| **Tempo szybkie** |").startsWith(`| **Tempo szybkie** | 2 | około ${quick} | czas iść dalej |`)],
+            ["gm pl length", () => at(gmPl, "Oba tempa dają około").includes(`około ${Math.floor(session / 60)} godzin ${minutes} minut gry`)
+                && at(gmPl, "Oba tempa dają około").includes("jedno Eclipse może być przed każdą porą dnia")],
+            ["gm pl session", () => at(gmPl, "Moduł liczy sesję po dniu gry").includes("zmienia się więc dwa razy w jednej sesji przy stole")],
+            // section 21's line, and the player handbook's sentence
+            ["checklist", () => gmEn.includes("- Pace: choose the Full pace (1 game day this session) or the Quick pace (2 game days)")
+                && gmPl.includes("- Wybierz tempo sesji, pełne (1 dzień gry w tej sesji) albo szybkie (2 dni gry)")],
+            ["player", () => plEn.includes(`one game day, about ${full} minutes per time of day; at the Quick pace it is two game days, about ${quick} minutes`)
+                && plPl.includes(`jeden dzień gry, około ${full} minut na porę dnia; w tempie szybkim to dwa dni gry, około ${quick} minut`)]
+        ];
+        const wrong = ROWS.filter(([, holds]) => !holds()).map(([id]) => id);
+        equal(JSON.stringify(wrong), "[]", "[a pace the handbooks tell that is not the clock's numbers, or a handbook that does not tell it]");
     }],
     ["R8542 - Fit to view shows the whole case however far it must zoom out (the owner, 21.11.2026: \"niech fit to view w planerze zagadki przekracza maksymalne oddalenie (aktualnie 25%) - niech je ignoruje\"; case-view.mjs `fitCamera`, `zoomFloor`, `wireCaseCamera`): a case wider than the view at 25% fits at its own zoom, down to CAMERA_LIMITS.fitMin (5%); the zoom's floor in the window is the lower of 25% and that fit, so a step out or the wheel stops at the fit and does not pull the view back to 25%, and a step in from it zooms in; a case that fits at 25% or more keeps 25% as the floor; the toolbar's readout shows the zoom as it is", async () => {
         /*

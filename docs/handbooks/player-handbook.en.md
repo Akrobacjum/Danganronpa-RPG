@@ -107,7 +107,7 @@ At your death the glass on your screen fades to gray, with the Death fade sound;
 
 ### A day, a session, a chapter
 
-One session is one in-fiction day, and a day is five **times of day**: **Morning, Noon, Afternoon, Evening, Night**. Every time of day restocks each room's Search Tokens, and its Eclipse refills your two actions and your Free Move (the GM refills them when a time of day goes by without one). When Night ends, the day turns over.
+One session is one in-fiction day, and a day is five **times of day**: **Morning, Noon, Afternoon, Evening, Night**. Every time of day restocks each room's Search Tokens, and its Eclipse refills your two actions and your Free Move (the GM refills them when a time of day goes by without one). When Night ends, the day turns over. The GM chooses the pace: at the Full pace a session at the table is one game day, about 30 minutes per time of day; at the Quick pace it is two game days, about 15 minutes per time of day, and the clock counts each of them as a session. The Eclipses come on top.
 
 A canonical chapter is five sessions: three of **Daily Life** (the third usually carries the murder), one of **Investigation**, one of **Class Trial**. The GM may stretch a chapter when no murder has happened yet. A season is six chapters; a modular season, a shorter one the GM may choose instead, runs a single chapter.
 
@@ -447,7 +447,7 @@ A Shadow roll of 15 or more, or a critical, hides you. The other players stop se
 
 While you are hidden, an action's Shadow roll for staying unseen is not rolled and counts as passed: Palm's and an unseen Frisk's, Tail Someone's, Pick the Lock's, Taking from a body in front of others, and the cover of a Sabotage, an indirect murder's work, or a clean-up. The card says so. It gives no Hope.
 
-You stay hidden until you press **Reveal yourself** on your voice tile, a GM reveals you, or the chapter ends; a new time of day, moving, and other actions do not end it. Not during a Class Trial: there, everyone sits in the hall and the trial's floor decides who speaks.
+You stay hidden until the time of day ends, and a notice on the notice tile, where your other notices appear, tells you when it does. You come out sooner when you press **Reveal yourself** on your voice tile, a GM reveals you, or the chapter ends; moving and other actions do not end it. Not during a Class Trial: there, everyone sits in the hall and the trial's floor decides who speaks.
 
 ### Dash - Leg, 1 action
 

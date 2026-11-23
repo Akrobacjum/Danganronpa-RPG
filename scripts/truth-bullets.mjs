@@ -1919,6 +1919,20 @@ function tellBulletRefs(userIds) {
     return sent;
 }
 
+/*
+ * A NEW OWNER IS TOLD AT ONCE (S0-BULLETSEES, the owner's notes of 23.11.2026: "zawsze posiadanie truth bullet =
+ * widoczny token remnanta"; line INVEST of 1.2.128). A player who becomes an owner of a student mid-session holds its
+ * bullets from then on, but their copy of which trace each came from was sent only at their own load (`askForBulletRefs`)
+ * and at a bullet's making (`createTruthBullet`): until their next reload their map showed none of those traces. The
+ * primary GM sends each owner of the student their keys when its ownership changes; addressed, as every send of them is
+ * (`sendBulletRefsTo`), so no other player learns whose bullets come from where. Answers how many were sent; exported for
+ * the suite.
+ */
+export function tellNewOwners(actor, changes) {
+    if (!isPrimaryGm() || actor?.type !== "character" || changes?.ownership === undefined) return 0;
+    return tellBulletRefs(ownerIdsOf(actor));
+}
+
 /** After a restore (gm-stores.mjs `restoreCase`): every connected player is sent their keys again, at their stamps. */
 export async function retellBulletRefs() {
     if (!game.user?.isGM || gmStoresQuiet()) return 0;
@@ -1972,7 +1986,10 @@ function onBulletRefsSocket(payload, senderId) {
  */
 function registerBulletRefsCopy() {
     game.socket.on(SOCKET_EVENT, onBulletRefsSocket);
-    if (game.user.isGM) return;
+    if (game.user.isGM) {
+        Hooks.on("updateActor", (actor, changes) => { tellNewOwners(actor, changes); });
+        return;
+    }
     Hooks.callAll("drpgBulletRefsChanged");
     askForBulletRefs();
     Hooks.on("drpgPrimaryReady", primary => askForBulletRefs(primary));

@@ -9351,6 +9351,71 @@ const INVARIANTS = [
         stableJson({ veil: [true, false], button: [true, true, ["R8905ACTOR000000"], 0], gm: [1, 1, ["R8905ACTOR000000"], 0, true], dock: [true, false] }),
         "{veil: [hidden here, drawn here]; button: [drawn, its name, a press, gone]; gm: [lines, rows, a press, a player's list, its tooltip]; dock: [the hide's flag, another flag]}");
     }],
+    ["R8907 - a hide is held to the time of day it began, and the end of that time of day ends it, in both languages (S0-HIDE, the owner's 23.11.2026: \"ukryj sie ma dzialac do konca pory dnia\"; hide.mjs `hideMark`, `endHide` \"timeOfDay\"): the mark is the clock's chapter, day, time of day and Eclipse, so the next time of day, an Eclipse's start and a Rewind each read another mark, the same clock the same one; the hider's notice names the time of day that ended, in English and in Polish, with nothing left of a placeholder", async () => {
+        /* 1.2.128 line STG, 23.11.2026. Pure readings and the two language files; nothing written. Red at cf0a6201: no
+           `hideMark`, and no `DRPG.Hide.ended.timeOfDay`. */
+        const H = await import("./hide.mjs");
+        const files = {};
+        for (const code of ["en", "pl"]) files[code] = await fetch(`/modules/${MODULE_ID}/lang/${code}.json`).then(r => r.json());
+        const mark = typeof H.hideMark === "function" ? H.hideMark : () => "none";
+        const at = { chapter: 2, day: 3, timeOfDay: "noon", eclipse: false };
+        const words = code => {
+            const line = String(files[code]?.DRPG?.Hide?.ended?.timeOfDay ?? "");
+            const label = code === "en" ? "Noon" : String(files[code]?.DRPG?.Config?.TIME_OF_DAY_LABELS?.noon ?? "");
+            const filled = line.replace("{time}", label);
+            return { holds: line.includes("{time}"), named: Boolean(label) && filled.includes(label), left: /[{}]/.test(filled) };
+        };
+        equal(stableJson({ same: mark(at) === mark({ ...at }), next: mark(at) === mark({ ...at, timeOfDay: "afternoon" }),
+            eclipse: mark(at) === mark({ ...at, eclipse: true }), rewind: mark(at) === mark({ ...at, timeOfDay: "morning" }),
+            day: mark(at) === mark({ ...at, day: 4 }), en: words("en"), pl: words("pl") }),
+        stableJson({ same: true, next: false, eclipse: false, rewind: false, day: false,
+            en: { holds: true, named: true, left: false }, pl: { holds: true, named: true, left: false } }),
+        "{same: one clock read twice; next, eclipse, rewind, day: each another mark; en, pl: the end's notice [takes {time}, names it, no placeholder left]}");
+    }],
+    ["R8908 - a hide's end is told in the hider's own corner of notices, never as a chat card (S0-HIDE, the owner's 23.11.2026: \"notice o ujawnieniu niech bedzie w lewym dolnym rogu jak reszta powiadomien\"; hide.mjs `endHide`, `hideEndNotice`): the end writes its reason on the token (`hideEnd`), and only the token's owner, on a player's browser, reads a notice off it - the time of day's, the chapter's, a GM's, a Reroll's, in both languages - while another player, a GM, a hide ended by its own Reveal yourself or a death read none; `endHide` posts no whisper", async () => {
+        /* 1.2.128 line STG, 23.11.2026. Pure readings on stand-in changes, the two language files and endHide's source;
+           nothing written. Red at 428c5ba1: no `hideEndNotice`, and endHide whispers a card. */
+        const H = await import("./hide.mjs");
+        const src = stripComments(fnSource(await fetch(`/modules/${MODULE_ID}/scripts/hide.mjs`).then(lfText), "endHide") ?? "");
+        must(src.length > 200, "endHide did not read - this would measure nothing");
+        const read = typeof H.hideEndNotice === "function" ? H.hideEndNotice : () => "none";
+        const change = end => ({ flags: { [MODULE_ID]: { hiding: null, hideEnd: end } } });
+        const files = {};
+        for (const code of ["en", "pl"]) files[code] = await fetch(`/modules/${MODULE_ID}/lang/${code}.json`).then(r => r.json());
+        const words = Object.fromEntries(["en", "pl"].map(code => [code, ["gm", "chapter", "reroll", "timeOfDay"].every(k => typeof files[code]?.DRPG?.Hide?.ended?.[k] === "string")]));
+        const told = read(change({ why: "timeOfDay", time: "Noon", at: 1 }), { owns: true, gm: false });
+        equal(stableJson({
+            own: typeof told === "string" && told.includes("Noon") && !/[{}]/.test(told),
+            gm: read(change({ why: "gm", at: 2 }), { owns: true, gm: false }) === game.i18n.localize("DRPG.Hide.ended.gm"),
+            other: read(change({ why: "timeOfDay", time: "Noon", at: 3 }), { owns: false, gm: false }),
+            onGm: read(change({ why: "gm", at: 4 }), { owns: true, gm: true }),
+            none: [read({ flags: { [MODULE_ID]: { hiding: null } } }, { owns: true, gm: false }), read(change(null), { owns: true, gm: false }), read({}, { owns: true, gm: false })],
+            words, whisper: /whisperTo|ChatMessage\.create|announce\(/.test(src)
+        }), stableJson({ own: true, gm: true, other: null, onGm: null, none: [null, null, null], words: { en: true, pl: true }, whisper: false }),
+        "{own: the hider's notice for the time of day's end; gm: a GM's; other: another player's browser; onGm: a GM's browser; none: [no reason, a cleared one, no change]; words: en, pl; whisper: endHide still posts a card}");
+    }],
+    ["R8909 - a hide's end is told once on its hider's browser however many of the character's tokens carry it (S0-HIDE, 1.2.128; the coordinator's M5 of 23.11.2026: the once-per-end guard survived every other test, the harness standing one token per actor; hide.mjs `tellHideEnd`): two token writes of one end raise one notice, a second end raises its own, a GM's browser raises none, and the words go in escaped", async () => {
+        /* 1.2.128 line STG, 23.11.2026. `tellHideEnd` is called with a stand-in `show` and `gm`, as the updateToken hook
+           would call it on a player's browser for each token of the character; nothing is shown and nothing written. The
+           ends' `at` are this run's own (negative, so no real end's), and stay in the browser's told set until a reload.
+           Red at aa755da1: `tellHideEnd` not exported, no `show` to stand in. */
+        const H = await import("./hide.mjs");
+        must(typeof H.hideEndNotice === "function", "hideEndNotice did not load - this would measure nothing");
+        const tell = typeof H.tellHideEnd === "function" ? H.tellHideEnd : () => {};
+        const shown = [];
+        const show = html => shown.push(html);
+        const end = (at, why = "gm") => ({ flags: { [MODULE_ID]: { hiding: null, hideEnd: { why, time: null, at } } } });
+        const at = -Date.now();
+        tell(end(at), { gm: false, show });
+        tell(end(at), { gm: false, show });
+        const afterTwoTokens = shown.length;
+        tell(end(at - 1, "chapter"), { gm: false, show });
+        tell(end(at - 2), { gm: true, show });
+        equal(stableJson({ afterTwoTokens, total: shown.length, paragraphs: shown.every(h => /^<p>[^<>]+<\/p>$/.test(h)),
+            first: shown[0] === `<p>${game.i18n.localize("DRPG.Hide.ended.gm")}</p>` }),
+        stableJson({ afterTwoTokens: 1, total: 2, paragraphs: true, first: true }),
+        "{afterTwoTokens: notices after one end written on two tokens; total: after a second end and a GM's browser; paragraphs: each one <p> of text; first: the GM end's words}");
+    }],
     ["R8906 - Hide's bridge roads are declared as the trust model asks, and every cover a GM reads off its record is marked as one the hide may stand in for (S0-HIDE, E129; bridge-table.mjs `hide.start`, `mask.reveal`; bridge-runs-acts.mjs `pickRolls`, `tailRolls`, `palmRolls`, `friskRolls`; bridge-guards.mjs `rollsFor`): `hide.start` is the owner's, not a Spectator's, a reply, its Shadow roll its own record's; `mask.reveal` takes `of` \"mask\" or \"hide\" and nothing else; the four covers carry `cover`, their hands do not; the runner stands a pass in only for a cover of a character the GMs hold hidden", async () => {
         /* 1.2.128 line STG, 23.11.2026. Read off the tables and the runner's source; nothing sent. Red at 5a583d82: no
            `hide.start`, `of` not sanitized, no `cover` mark. */
@@ -69379,6 +69444,34 @@ const INVARIANTS = [
         equal(JSON.stringify(facts),
             JSON.stringify(["drpg-hover-name", "Aoi Kirigaya", "true", "120px", "65px", true, true, false, null, null, 0, true, null, false, false, false, "Aoi Kirigaya", "1050px", "500px", null, true]),
             "[the element: class, words, aria-hidden, left, top, held, on the page; dropped; none for a token not drawn; waiting, nothing yet; a hover's end, a press, a change to its token stop it; after the wait the rule's words at the token's top centre; a pan takes it down; the delay between 300 and 1500 ms]");
+    }],
+    ["R8790 - a Truth Bullet's holder always sees its Remnant (1.2.128 line INVEST; S0-BULLETSEES): visibility.mjs `remnantShownHere` draws an un-hidden trace for whoever knows it or stands in its incident and for nobody else, and a hidden one for its holder alone while HOLDER_SEES_HIDDEN (true) holds, for nobody when it does not; `applyToRemnantToken` and `shownAsFound` ask it with `knowsRemnant`, and a hidden trace held is shown past Foundry's verdict (`showHeld`); `knowsRemnant` answers true on a GM's browser", async () => {
+        /*
+         * The owner's notes of 23.11.2026: "Upewnijmy sie tez ze zawsze posiadanie truth bullet = widoczny token
+         * remnanta, w tym po przekazaniu go na przyklad". Every road that gives a bullet of a trace sends its holder the
+         * trace's key and un-hides it (truth-bullets.mjs `createTruthBullet`); the one road that took a held trace off its
+         * holder's map was a GM's own hide: `applyToRemnantToken` left every hidden token to Foundry. The rule read as a
+         * table of its three inputs and the constant; the two readers and the reveal read in their source (the harness
+         * draws no canvas: LIVE-129-INVEST-04). Red at 9439d2e1: no remnantShownHere.
+         */
+        const V = await import("./visibility.mjs");
+        const { HOLDER_SEES_HIDDEN } = await import("./config.mjs");
+        must(typeof V.remnantShownHere === "function" && typeof V.knowsRemnant === "function", "no remnantShownHere or knowsRemnant - this would measure nothing");
+        const rows = [];
+        for (const hidden of [false, true]) for (const knows of [false, true]) for (const incident of [false, true]) {
+            rows.push([hidden, knows, incident, V.remnantShownHere({ hidden, knows, incident }), V.remnantShownHere({ hidden, knows, incident, holderSeesHidden: false })]);
+        }
+        const vis = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/visibility.mjs`).then(lfText));
+        const apply = fnSource(vis, "applyToRemnantToken");
+        equal(JSON.stringify({ rows, constant: HOLDER_SEES_HIDDEN, gmKnows: V.knowsRemnant({ flags: {} }),
+            apply: [/remnantShownHere\(/.test(apply), /knowsRemnant\(doc\)/.test(apply), /if \(doc\.hidden\) showHeld\(token\)/.test(apply)],
+            found: /remnantShownHere\(/.test(fnSource(vis, "shownAsFound")) && /knowsRemnant\(tokenDoc\)/.test(fnSource(vis, "shownAsFound")),
+            held: /token\.visible = true/.test(fnSource(vis, "showHeld")) && !/document\??\.hidden/.test(fnSource(vis, "showHeld")) }),
+        JSON.stringify({ rows: [
+            [false, false, false, false, false], [false, false, true, true, true], [false, true, false, true, true], [false, true, true, true, true],
+            [true, false, false, false, false], [true, false, true, false, false], [true, true, false, true, false], [true, true, true, true, false]],
+            constant: true, gmKnows: true, apply: [true, true, true], found: true, held: true }),
+        "{rows: [hidden, knows, incident, shown, shown with HOLDER_SEES_HIDDEN false]; the constant; a GM knows any trace; applyToRemnantToken asks the rule with knowsRemnant and shows a hidden held trace; shownAsFound asks the same; showHeld does not defer to a GM's hidden}");
     }],
 ];
 
