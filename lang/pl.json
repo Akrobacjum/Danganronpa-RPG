@@ -1756,6 +1756,8 @@
       },
       "gmStepTitle": "GM wkracza",
       "turnSkipped": "GM pomija turę postaci {name}.",
+      "turnFinished": "{name} kończy swoje Objection przed czasem.",
+      "finishedGm": "Gracz postaci {name} kończy jej Objection przed czasem, tak jak zrobiłby to twój Pomiń.",
       "modeEnded": "GM kończy tryb {mode}.",
       "gmNoteAdjust": "GM: {seconds} s",
       "gmNoteBack": "GM: powrót do debaty",
@@ -3873,6 +3875,11 @@
       "objectionOutside": "Objection możesz wnieść tylko podczas Class Trial.",
       "objectionNoneInMode": "W trybie {mode} nie można wnosić Objection.",
       "objectionSpeakerOnly": "W trybie {mode} Objection można zgłosić tylko wobec osoby, która mówi.",
+      "finish": {
+        "title": "Zakończyć turę teraz?",
+        "body": "W twoim Objection głos masz tylko ty. Pozostały czas: {seconds} s. Gdy zakończysz teraz, zaczyna się rebuttal.",
+        "yes": "Zakończ turę"
+      },
       "turn": {
         "title": "Twoja tura ({seconds} s)",
         "body": "{mode}: masz głos. Naciśnij Gotowe, gdy skończysz, albo Pasuję, jeśli rezygnujesz z tury.",

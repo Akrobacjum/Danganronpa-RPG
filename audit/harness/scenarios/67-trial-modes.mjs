@@ -46,6 +46,9 @@
  *     closes it, and 20 s later it stands again in the same turn with Done, which ends the turn.
  *   B (1.2.122, a ballot): p1 draws its windows; the GM sends the ballots and closes the vote with p1's unanswered: p1's
  *     ballot closes itself and p1 is told the vote has moved on.
+ *   S (E129 S0-SKIP, the owner's note of 23.11.2026): Aiko objects at Botan in a debate; p1 alone is shown "Finish your
+ *     turn now?"; Keep speaking closes it for that Objection; a second Objection's Finish my turn starts the rebuttal, the
+ *     table's card and the GMs' whisper say so.
  *   V (E110 C1, C2, the owner's 14.11.2026): Aiko objects at Chie; on the primary Botan's and Chie's players' BROADCAST_AUDIO
  *     is off, Aiko's on, and p2 and p3 read "The floor is Aiko's" (voice.mjs `trialVoiceLine`). The GM redirects the
  *     Objection at Botan: every player reads the floor aimed at Botan and the public card. The Rebuttal gives Botan's
@@ -582,6 +585,50 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, canary, repoUr
         bDrawn === true && bAfter.open === false && bAfter.told === true, J({ bDrawn, bAfter }));
     await p1.eval(`globalThis.__dialogWindows = globalThis.__s67bWas; ui.notifications.info = globalThis.__s67ownInfo; return true;`);
     await canary.scan({ phase: "B" });
+
+    /* ------------------------------ S. the objector finishes their own seconds (E129 S0-SKIP) ------------------------------ */
+    /* The owner's note of 23.11.2026 ("niech maja od tego pop up"): p1 and p2 draw their windows; the GM opens a debate and
+       Aiko objects at Botan with the bullet on the table. Read: p1, Aiko's player, is shown "Finish your turn now?" with
+       Keep speaking and Finish my turn, p2 nothing; Keep speaking closes it, and it is not offered again for that
+       Objection; a second Objection, its Finish my turn: the rebuttal on the floor, the card "Aiko Hoshino finishes their
+       Objection early." posted, and the GMs told in a whisper. Red at 2e28785a: no window, and "trial.turn" refused a Done
+       outside a round. */
+    begin("S", "the objector may finish their own seconds from a window in the middle of the screen");
+    for (const c of [p1, p2]) await c.eval(`globalThis.__s67sWas = globalThis.__dialogWindows; globalThis.__dialogWindows = true; return true;`);
+    for (const c of [gm, p1]) await mark(c);
+    const finishOn = (c, ms) => c.eval(`${until} const find = () => [...foundry.applications.instances.values()].find(a => a.rendered && a.element?.isConnected && a.options?.classes?.includes("drpg-finish-turn"));
+        const app = await until(() => find(), ${ms});
+        return app ? { title: app.options?.window?.title ?? null, want: game.i18n.localize("DRPG.Trial.finish.title"), buttons: [...app.element.querySelectorAll("footer button[data-action]")].map(b => b.dataset.action) } : null;`, { timeout: 30000 });
+    const pressFinish = action => p1.eval(`const app = [...foundry.applications.instances.values()].find(a => a.rendered && a.element?.isConnected && a.options?.classes?.includes("drpg-finish-turn"));
+        const b = app?.element?.querySelector('footer button[data-action="${action}"]'); if (!b) return false; b.click(); return true;`);
+    const object = () => gm.eval(`${F} if (F.trialFloor()) await game.drpg.endMode(); await F.startFloor({}); await F.openObjection("${IDS.aiko}", "${IDS.botan}", {});
+        return F.trialFloor()?.mode ?? null;`, { timeout: 60000 });
+    const sOpened = await object();
+    const s1 = await finishOn(p1, 6000);
+    const s1Other = await finishOn(p2, 1500);
+    verdict("only p1, the objector's player, is shown \"Finish your turn now?\" with Keep speaking and Finish my turn",
+        sOpened === "objection" && Boolean(s1) && s1.title === s1.want && ["keep", "done"].every(a => s1.buttons.includes(a)) && s1Other === null,
+        J({ sOpened, s1, s1Other }));
+    await pressFinish("keep");
+    await settle(3000);
+    const sKept = [await finishOn(p1, 300), (await floorOn(gm))?.mode ?? null];
+    verdict("Keep speaking closes it, the Objection runs on, and it is not offered again for that Objection",
+        sKept[0] === null && sKept[1] === "objection", J(sKept));
+    await object();
+    const s2 = await finishOn(p1, 6000);
+    await pressFinish("done");
+    await settle(1500);
+    const sDone = await gm.eval(`${F} const f = F.trialFloor(); const fresh = game.messages.filter(m => !globalThis.__s67m.has(m.id));
+        const name = game.actors.get("${IDS.aiko}").name;
+        const card = game.i18n.format("DRPG.Floor.turnFinished", { name }), told = game.i18n.format("DRPG.Floor.finishedGm", { name });
+        return { mode: f?.mode ?? null, card: fresh.some(m => String(m.content ?? "").includes(card)),
+            told: fresh.some(m => String(m.content ?? "").includes(told) && (m.whisper ?? []).length > 0 && (m.whisper ?? []).every(id => game.users.get(id)?.isGM)) };`);
+    verdict("its Finish my turn starts the rebuttal as the GM's Skip would; the card says Aiko finished early and the GMs are whispered",
+        Boolean(s2) && sDone.mode === "rebuttal" && sDone.card && sDone.told, J({ s2, sDone }));
+    await gm.eval(`${F} if (F.trialFloor()) await game.drpg.endMode(); return true;`, { timeout: 30000 });
+    for (const c of [p1, p2]) await c.eval(`globalThis.__dialogWindows = globalThis.__s67sWas; for (const a of [...foundry.applications.instances.values()]) if (a.options?.classes?.includes("drpg-finish-turn")) await a.close(); return true;`);
+    await settle(800);
+    await canary.scan({ phase: "S" });
 
     await gm.eval(`const C = await import("${repoUrl}/scripts/chapter.mjs"); const botan = game.actors.get("${IDS.botan}");
         if (C.isDeadForGm(botan)) await C.reviveCharacter(botan, { quiet: true });

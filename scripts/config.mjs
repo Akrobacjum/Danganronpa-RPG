@@ -4371,6 +4371,17 @@ export const TRIAL = {
      * the table already knows into a per-world variable nobody can predict.
      */
     objectionSeconds: 30,
+    /*
+     * THE OBJECTOR MAY END THEIR OWN SECONDS (E129 S0-SKIP, 23.11.2026; the owner's note of session 0: "dodajmy opcje
+     * skipowania etapow w class trial przez graczy, jesli mowia jako jedyni (np testimony, objection). niech maja od tego
+     * pop up"; the coordinator's default). While an Objection's own seconds run, the objector alone holds the floor, and
+     * a window in the middle of their screen asks "Finish your turn now?" (trial-prompt.mjs `promptFinish`); Finish my turn
+     * ends that step as the GM's Skip would - the rebuttal starts - and the GMs are told in their corner (trial-floor.mjs
+     * `finishObjectionOnPrimary`). Testimony, a Panic Round, the Closing's speech and a Scrum turn had their speaker's Done
+     * already ("Your turn"); a rebuttal has two speakers and the debate many, so neither is offered. False takes the window
+     * and the road away.
+     */
+    objectorMayFinish: true,
     rebuttalSeconds: 120,
     /**
      * How long an objector has to pick the Truth Bullet once their Objection is in (E79 C16, 1.2.79; the owner,

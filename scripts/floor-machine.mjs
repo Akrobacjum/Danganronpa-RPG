@@ -607,6 +607,9 @@ export function nextFloor(floor, event = {}, ctx = {}) {
             return stepOn(floor, now, [], ctx);
         case "skip":
             if (floor.mode === MODES.debate) return { refused: "DRPG.Floor.bar.noTurn" };
+            // `finished`: the objector's own end of their seconds (E129 S0-SKIP; trial-floor.mjs `finishObjectionOnPrimary`),
+            // the same move with the speaker's card, titled by its mode as a round's own cards are, not as the GM's step.
+            if (event.finished) return stepOn(floor, now, [{ key: "DRPG.Floor.turnFinished", actorId: turnOf(floor), title: `DRPG.Floor.mode.${floor.mode}` }], ctx);
             return stepOn(floor, now, [{ key: "DRPG.Floor.turnSkipped", actorId: turnOf(floor) }], ctx);
         case "lapse":
         case "withdraw":

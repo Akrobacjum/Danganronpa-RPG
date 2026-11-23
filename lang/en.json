@@ -1710,6 +1710,8 @@
       },
       "gmStepTitle": "The GM steps in",
       "turnSkipped": "The GM skips {name}'s turn.",
+      "turnFinished": "{name} finishes their Objection early.",
+      "finishedGm": "{name}'s player finished their Objection early, as your Skip would.",
       "modeEnded": "The GM ends the {mode}.",
       "gmNoteAdjust": "GM: {seconds} s",
       "gmNoteBack": "GM: back to the debate",
@@ -3610,6 +3612,11 @@
       "objectionFailed": "Your Objection did not go through. Press OBJECTION! again, or tell the GM.",
       "objectionNoneInMode": "Nobody can raise an Objection in {mode}.",
       "objectionSpeakerOnly": "In {mode}, an Objection can only be aimed at whoever is speaking.",
+      "finish": {
+        "title": "Finish your turn now?",
+        "body": "Only you hold the floor in your Objection. On the clock: {seconds} s. Finishing now starts the rebuttal.",
+        "yes": "Finish my turn"
+      },
       "turn": {
         "title": "Your turn ({seconds} s)",
         "body": "{mode}: you have the floor. Press Done when you finish, or Pass to give up your turn.",

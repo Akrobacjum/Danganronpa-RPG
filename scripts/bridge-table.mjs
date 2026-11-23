@@ -1458,8 +1458,8 @@ export const BRIDGE_ACTIONS = table({
         run: handleTrialTurn,
         answer: "reply",
         claims: {
-            kind: "one of done, pass, over (as.oneOf); judged by trial-modes.mjs turnOnPrimary and floor-machine.mjs nextFloor on the floor the primary holds",
-            step: "compared by floor-machine.mjs nextFloor to the round's step on the floor the primary holds; any other is refused and moves nothing"
+            kind: "one of done, pass, over (as.oneOf); judged by trial-modes.mjs turnOnPrimary and floor-machine.mjs nextFloor on the floor the primary holds; done during an Objection is its objector's end of their seconds (E129 S0-SKIP, trial-floor.mjs finishObjectionOnPrimary, the holder alone)",
+            step: "compared by floor-machine.mjs nextFloor to the round's step on the floor the primary holds, or during an Objection by trial-floor.mjs finishObjectionOnPrimary to the Objection's startedAt; any other is refused and moves nothing"
         }
     },
     /*

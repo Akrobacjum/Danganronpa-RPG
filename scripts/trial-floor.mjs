@@ -61,7 +61,7 @@ import { MODULE_ID, TRIAL, staleStamp } from "./config.mjs";
 import { SETTINGS, getClock, getSetting, isDeceased, isMutedDead, seasonEpoch } from "./settings.mjs";
 import { isMonocub } from "./monocub.mjs";
 import { cubVoice } from "./voice.mjs";
-import { isPrimaryGm, error, serverNow, serialWrite, plural } from "./utils.mjs";
+import { isPrimaryGm, error, serverNow, serialWrite, plural, whisperToGms } from "./utils.mjs";
 import { bridgeRequest, sayNotDone } from "./bridge-guards.mjs";
 import { SEIZE_KEY, objectionRecord } from "./trial.mjs";
 // The trial's participants, asked synchronously by `targetRefusal` (E51 C6): static, and no cycle (R161).
@@ -1732,6 +1732,39 @@ export async function advanceFloorOnPrimary(seen) {
     } finally {
         advancing = false;
     }
+}
+
+/**
+ * THE OBJECTOR ENDS THEIR OWN SECONDS (E129 S0-SKIP, 23.11.2026; config.mjs `TRIAL.objectorMayFinish`), on the primary:
+ * "trial.turn" kind "done" from the objector's player, its `step` the Objection's start (`startedAt`, which the fill
+ * writes once), judged in the floor's step under `advancing` as the GM's Skip is (`advanceFloorOnPrimary`): an Objection
+ * whose Truth Bullet is on the table, the sender's character its objector, the same Objection the press saw. The move is
+ * the machine's Skip with the speaker's card (`finished`), so the rebuttal starts as it would at the GM's press; the GMs
+ * are told in their corner. Answers `{ written }` or `{ refused }` in the machine's words (trial-modes.mjs maps them).
+ */
+export async function finishObjectionOnPrimary({ actorId, startedAt }) {
+    if (!isPrimaryGm()) return { refused: "DRPG.Floor.bar.notTrial" };
+    if (advancing) return { refused: "DRPG.Floor.round.stale" };
+    advancing = true;
+    let written = null;
+    try {
+        const out = await serialWrite(SEIZE_KEY, async () => {
+            const floor = trialFloor();
+            if (!TRIAL.objectorMayFinish || floor?.mode !== FLOOR_MODES.objection || floor.pending) return { refused: "DRPG.Floor.round.noTurn" };
+            if (floor.holderId !== actorId) return { refused: "DRPG.Floor.round.notSpeaker" };
+            if (Number(floor.startedAt) !== Number(startedAt)) return { refused: "DRPG.Floor.round.stale" };
+            const done = await commitFloor(floor, nextFloor(floor, { type: "skip", finished: true }, floorCtx(floor)), "skip");
+            return done ? { written: done } : { refused: "DRPG.Floor.round.stale" };
+        });
+        if (out?.refused) return out;
+        written = out?.written ?? null;
+    } finally {
+        advancing = false;
+    }
+    const name = game.actors.get(actorId ?? "")?.name ?? "?";
+    await whisperToGms(`<p>${game.i18n.format("DRPG.Floor.finishedGm", { name: foundry.utils.escapeHTML(name) })}</p>`)
+        .catch(err => error("Could not tell the GMs an Objection was finished early", err));
+    return { written };
 }
 
 /**

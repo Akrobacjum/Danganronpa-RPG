@@ -52589,6 +52589,74 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         equal(stableJson(read), stableJson({ grace: 15, dropped: true, backInTime: true, notBack: want }),
             "{grace: the constant; dropped: the speaker's turn 2 s after the drop; backInTime: still theirs a grace after coming back; notBack: whose turn a grace after a second drop}");
     }],
+    ["1.2.129 S0-SKIP - the objector may end their own seconds as the GM's Skip would (trial-modes.mjs `turnOnPrimary`, trial-floor.mjs `finishObjectionOnPrimary`; config.mjs `TRIAL.objectorMayFinish`; the owner's note of 23.11.2026): \"trial.turn\" kind done during an Objection - refused from the target's player, at another Objection's start and while the bullet is still being picked; from the objector's player at this Objection's start, taken: the rebuttal on the floor, the table's card that the objector finished early, and a whisper to the GMs alone", async () => {
+        /* On this primary in a Class Trial, a debate and an Objection of the first participant at the second, each packet
+           judged by the bridge's runner as it arrives. Red at 2e28785a: every Done outside a round was refused. The floor,
+           the clock and the cards are put back. */
+        needs(world.atLeast("connectedPlayersWithCharacter", 2), "an objector and a target whose players are here");
+        const { isPrimaryGm } = await import("./utils.mjs");
+        must(isPrimaryGm(), "this browser is not the primary GM, which writes the floor - this would measure nothing");
+        const { TRIAL } = await import("./config.mjs");
+        const F = await import("./trial-floor.mjs");
+        const B = await import("./gm-bridge.mjs");
+        const G = await import("./bridge-guards.mjs");
+        const V = await import("./vote.mjs");
+        const clock = foundry.utils.deepClone(getClock());
+        const queue = foundry.utils.deepClone(getSetting(SETTINGS.trialQueue) ?? {});
+        const progress = foundry.utils.deepClone(getSetting(SETTINGS.trialProgress) ?? {});
+        const seen = new Set(game.messages.map(m => m.id));
+        const judged = async (packet, from) => {
+            const sent = [];
+            await G.judge(B.BRIDGE_ACTIONS, packet, from, { send: (to, reply) => { if (reply?.action !== "bridge.ack") sent.push(reply?.action ?? null); } });
+            await settle();
+            return sent;
+        };
+        const read = { constant: TRIAL.objectorMayFinish };
+        try {
+            await setClock({ ...clock, phase: "classTrial" });
+            await game.settings.set(MODULE_ID, SETTINGS.trialQueue, {});
+            await settle();
+            const [one, two] = V.trialParticipants();
+            must(one && two, "two participants - this would measure nothing");
+            await F.startFloor({});
+            await F.openObjection(one.actor.id, two.actor.id, { pending: true, messageId: null });
+            await settle();
+            const pending = F.trialFloor();
+            read.pending = [pending?.mode ?? null, Boolean(pending?.pending), await judged({ action: "trial.turn", requestId: "S0SKIPP", actorId: one.actor.id, kind: "done", step: pending?.startedAt }, one.user.id)];
+            await F.endFloor();
+            await F.startFloor({});
+            await F.openObjection(one.actor.id, two.actor.id, {});
+            await settle();
+            const objection = F.trialFloor();
+            const at = Number(objection?.startedAt) || 0;
+            read.target = await judged({ action: "trial.turn", requestId: "S0SKIPT", actorId: two.actor.id, kind: "done", step: at }, two.user.id);
+            read.stale = await judged({ action: "trial.turn", requestId: "S0SKIPS", actorId: one.actor.id, kind: "done", step: at - 1000 }, one.user.id);
+            read.still = F.trialFloor()?.mode ?? null;
+            read.own = await judged({ action: "trial.turn", requestId: "S0SKIPO", actorId: one.actor.id, kind: "done", step: at }, one.user.id);
+            read.after = F.trialFloor()?.mode ?? null;
+            const fresh = game.messages.filter(m => !seen.has(m.id));
+            const name = one.actor.name;
+            const finishedCard = fresh.find(m => String(m.content ?? "").includes(game.i18n.format("DRPG.Floor.turnFinished", { name })));
+            // The speaker's own card, titled by its mode, not "The GM steps in".
+            read.card = [Boolean(finishedCard), String(finishedCard?.content ?? "").includes(game.i18n.localize("DRPG.Floor.gmStepTitle"))];
+            // A whisper's words are the secret store's on this GM (secret.mjs `contentOf`), not the message's content.
+            const { contentOf } = await import("./secret.mjs");
+            const told = fresh.filter(m => String(contentOf(m) ?? "").includes(game.i18n.format("DRPG.Floor.finishedGm", { name })));
+            read.told = [told.length, told.every(m => (m.whisper ?? []).length > 0 && m.whisper.every(id => game.users.get(id)?.isGM))];
+        } finally {
+            if (F.trialFloor()) await F.endFloor();
+            await game.settings.set(MODULE_ID, SETTINGS.trialQueue, queue);
+            await game.settings.set(MODULE_ID, SETTINGS.trialProgress, progress);
+            await setClock(clock);
+            F.renderTrialFloor();
+            const fresh = game.messages.filter(m => !seen.has(m.id)).map(m => m.id);
+            if (fresh.length) await ChatMessage.deleteDocuments(fresh);
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ constant: true, pending: ["objection", true, ["bridge.refused"]], target: ["bridge.refused"], stale: ["bridge.refused"],
+            still: "objection", own: ["bridge.done"], after: "rebuttal", card: [true, false], told: [1, true] }),
+            "{constant; pending: [mode, pending, a Done while the bullet is picked]; target: the target's Done; stale: another start's; still: the floor after them; own: the objector's; after: the floor; card: [the table's card, titled as the GM's step]; told: [the GMs' whispers, whispered to GMs alone]}");
+    }],
     ["the Closing Argument: volunteers by \"trial.claim\" kept by the GMs alone, the draw confirmed, an Objection only at the speaker, both of the GM's decisions, an Overrule in the exchange, and one Closing per trial (E70-T10)", async () => {
         /*
          * E70 C8, 28.10.2026; E70-51, E70-52, E70-54, E70-56, E70-57. Read on this primary in a Class Trial, with the
