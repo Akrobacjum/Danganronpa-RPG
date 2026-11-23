@@ -32120,6 +32120,13 @@ equal(read.added, 3, "three additions to a purse at once lost one");
          * presses at once on the primary: the verdict done, its summary whispered to the GMs once.
          * Red at efc8872 (fix r1-G1, 10.10.2026): the GM that is not the primary finished it - answer [],
          * stage "done", nobody told.
+         * SINCE E128 (22.11.2026; the owner: "Drugi GM ... powinien byc na rowni z pierwszym gmem"; verdict.mjs `finishRoute`)
+         * a full GM's press on a verdict the primary runs is not refused: it is asked of the primary (`verdict.finish`),
+         * whose own Finish runs it once. The press here is read as that: its packet to the primary, nothing run on this
+         * browser, and this GM told what became of the press. The stand-in primary has no browser to answer, so the
+         * bridge ends the wait itself and says so (`sayNotDone`, the request's label; after `TIMING.ackMs`). Until the
+         * assembly's tier 2 of 23.11.2026 this asked the refusal's warning naming the primary, and read red there:
+         * [null, "applying", false]. Scenario 97 U drives the press against a real primary.
          */
         const V = await import("./vote.mjs");
         const { wordsOf } = await import("./secret.mjs");
@@ -32129,6 +32136,8 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         const from = new Set(game.messages.map(m => m.id));
         const other = standInUser({ name: "E10 G1 primary GM", role: CONST.USER_ROLES.GAMEMASTER, active: true, sorts: "first" });
         const warned = [], warn = ui.notifications.warn;
+        const asked = [], emit = game.socket.emit;
+        const label = game.i18n.localize("DRPG.Bridge.what.verdict.finish");
         await withVerdictOpen(async () => {
             await V.setTrialProgress({ verdictApplied: true, verdict: { stage: "applying", correct: true, executedIds: [], by: "a GM who left",
                 at: Date.now(), done: ["sentence", "executions", "card", "levelUps"], failed: [] } });
@@ -32138,15 +32147,20 @@ equal(read.added, 3, "three additions to a purse at once lost one");
                 warned.push(String(message));
                 return warn.call(ui.notifications, message, ...rest);
             };
+            game.socket.emit = function (event, packet, options, ...rest) {
+                if (packet?.action === "verdict.finish") asked.push((options?.recipients ?? []).includes(other.id));
+                return emit.call(this, event, packet, options, ...rest);
+            };
             try {
                 answer = await V.finishVerdict();
             } finally {
                 game.users.delete(other.id);
                 ui.notifications.warn = warn;
+                game.socket.emit = emit;
             }
-            equal(stableJson([answer ?? null, V.trialProgress().verdict?.stage ?? null, warned.some(line => line.includes(other.name))]),
-                stableJson([null, "applying", true]),
-                "a GM who is not the primary finished the verdict, or was not told whom to ask (answer, stage, told)");
+            equal(stableJson([answer ?? null, V.trialProgress().verdict?.stage ?? null, asked, warned.some(line => line.includes(label))]),
+                stableJson([null, "applying", [true], true]),
+                "a full GM who is not the primary finished the verdict here, did not ask the primary, or was not told what became of the press (answer, stage, asked the primary, told)");
             await Promise.all([V.finishVerdict(), V.finishVerdict()]);
             await settle();
             await until(() => game.messages.some(m => !from.has(m.id)));
