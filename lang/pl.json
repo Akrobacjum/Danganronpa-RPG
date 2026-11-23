@@ -327,6 +327,10 @@
         "name": "Przejście między pokojami kosztuje Move",
         "hint": "Ruch w pokoju jest darmowy. Pierwsze przejście o danej porze dnia zużywa Free Move, kolejne kosztują akcję albo przejście kupione Callem Sprint. Wyłączone: ruch rozliczasz ręcznie."
       },
+      "trialVoicesFree": {
+        "name": "Class Trial: bez wymuszonego wyciszania",
+        "hint": "Gdy włączone, Class Trial nigdy nie wyłącza graczowi mikrofonu, niezależnie od tego, kto ma głos, także zmarłym. Wyłączone: tryby wyciszają jak zwykle."
+      },
       "despairFromRolls": {
         "name": "Rzuty dają Despair",
         "hint": "Rzut zakończony Despair zasila pulę Monokumy tego ucznia. Każdego ucznia przypisz do Monokumy w Despair Flow w panelu GM-a."

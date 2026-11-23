@@ -327,6 +327,10 @@
         "name": "Crossing rooms costs a Move",
         "hint": "Moving inside a room is free. The first crossing each time of day uses the Free Move; later ones cost an action or a Sprint crossing. Off, you handle movement yourself."
       },
+      "trialVoicesFree": {
+        "name": "Class Trial: no forced muting",
+        "hint": "When on, the Class Trial never turns a player's microphone off, whoever holds the floor and for the dead too. Off, the modes mute as usual."
+      },
       "despairFromRolls": {
         "name": "Rolls grant Despair",
         "hint": "A roll that lands with Despair feeds the pool of that student's Monokuma. Assign each student a Monokuma in the GM panel's Despair Flow."

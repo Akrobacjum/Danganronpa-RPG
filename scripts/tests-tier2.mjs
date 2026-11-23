@@ -111668,6 +111668,89 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             debate: ["debate", false, true, 0]
         }), "[road, answered, the clock as it was, public cards] per press; [the floor's target, the card's target id and name, its who line, the receipt's target]; the last card names both and is public");
     }],
+    ["1.2.129 S0-NOMUTE - with the world's switch `trialVoicesFree` on, the Class Trial forces no microphone off (settings.mjs `trialVoicesFree`; voice.mjs `settleTrialVoices`, `micHold`, `moduleHoldsMic`; the owner's note of 23.11.2026): an Objection blocks the speaker it is aimed at and the dead student on the trial's list; the switch on - both given back at once, with no block in the store, and neither the tile's line nor the GM's block button says they are held; the switch off again - both blocked again", async () => {
+        /* On this primary, the clock written raw and the voices settled as the entry settles them (E110-T2's shape): O
+           objects to B, D is dead and published before the trial. Each step reads each one's BROADCAST_AUDIO and the store's
+           row as E110-T2 does ("blocked", "gm", "open"), and B's and D's lines. Red at 2e28785a: no switch. The switch, the
+           clock, the floor, the record, D's death and the permissions are put back. */
+        needs(env.primaryGm(), "the trial's voices are settled on the primary GM");
+        needs(world.atLeast("studentsWithConnectedPlayer", 3), "three students whose players are here");
+        const voice = await import("./voice.mjs");
+        const V = await import("./vote.mjs");
+        const F = await import("./trial-floor.mjs");
+        const { SEIZE_KEY } = await import("./trial.mjs");
+        const { serialWrite } = await import("./utils.mjs");
+        const { killCharacter, reviveCharacter, isDeadForGm } = await import("./chapter.mjs");
+        const { studentActors, isMonokuma } = await import("./monokuma.mjs");
+        const stores = await import("./gm-stores.mjs");
+        const ownerOf = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER")) ?? null;
+        const voiceOf = u => game.actors.filter(a => a.type === "character" && !isMonokuma(a) && a.testUserPermission(u, "OWNER"))
+            .sort((x, y) => (x.id < y.id ? -1 : 1))[0] ?? null;
+        const picked = [];
+        for (const a of studentActors()) {
+            const u = ownerOf(a);
+            if (!isDeadForGm(a) && u && voiceOf(u)?.id === a.id && !picked.some(p => p.user.id === u.id)) picked.push({ actor: a, user: u });
+        }
+        must(picked.length >= 3, `three living students who are their players' only voice, found ${picked.length}`);
+        const [O, B, D] = picked;
+        const all = [O, B, D];
+        const perm = user => { const own = (user._source ?? user).permissions ?? {}; return [Object.hasOwn(own, "BROADCAST_AUDIO"), own.BROADCAST_AUDIO ?? null]; };
+        const before = Object.fromEntries(all.map(p => [p.user.id, perm(p.user)]));
+        const had = getSetting(SETTINGS.trialVoicesFree);
+        const clock = foundry.utils.deepClone(getClock());
+        const queue = foundry.utils.deepClone(getSetting(SETTINGS.trialQueue) ?? {});
+        const progress = foundry.utils.deepClone(getSetting(SETTINGS.trialProgress) ?? {});
+        const store = stores.trialMuteStore;
+        const rawClock = patch => game.settings.set(MODULE_ID, SETTINGS.clock, { ...getClock(), ...patch });
+        const settleNow = async () => { await voice.settleTrialVoices(); await settle(); };
+        const state = () => all.map(p => perm(p.user)[1] === false && Boolean(store.get(p.user.id)?.wrote) ? "blocked" : perm(p.user)[1] === false ? "gm" : "open");
+        const lines = () => [B, D].map(p => [voice.moduleHoldsMic(p.user)?.reason ?? null,
+            voice.micHold({ user: p.user, external: false, connected: true, canBroadcastAudio: true, room: "suite-room", listening: null, masked: false, veiled: false })?.reason ?? null]);
+        const read = { default: game.settings.settings.get(`${MODULE_ID}.${SETTINGS.trialVoicesFree}`)?.default ?? null };
+        try {
+            for (const p of all) if (perm(p.user)[0]) await p.user.update({ "permissions.BROADCAST_AUDIO": forcedDeletion() });
+            await game.settings.set(MODULE_ID, SETTINGS.trialVoicesFree, false);
+            await killCharacter(D.actor, { secret: false, keepBullets: true });
+            await settle();
+            const chapter = getClock().chapter;
+            await game.settings.set(MODULE_ID, SETTINGS.trialQueue, {});
+            await game.settings.set(MODULE_ID, SETTINGS.trialProgress, { ...V.trialProgress(chapter), chapter });
+            await rawClock({ phase: "classTrial", eclipse: false });
+            await settleNow();
+            await F.startFloor({});
+            await serialWrite(SEIZE_KEY, () => F.openObjectionInStep(O.actor.id, B.actor.id, { cardId: null }));
+            await settleNow();
+            read.forced = [state(), lines()];
+            // The switch's own onChange settles on the primary: no settle by hand here.
+            await game.settings.set(MODULE_ID, SETTINGS.trialVoicesFree, true);
+            await until(() => state().join() === "open,open,open" || null, 4000).catch(() => {});
+            read.free = [state(), lines(), Object.keys(store.entries()).length];
+            await game.settings.set(MODULE_ID, SETTINGS.trialVoicesFree, false);
+            await until(() => state()[1] === "blocked" || null, 4000).catch(() => {});
+            read.again = [state(), lines()];
+        } finally {
+            await game.settings.set(MODULE_ID, SETTINGS.trialVoicesFree, had ?? false);
+            if (F.trialFloor()) await F.endFloor();
+            await game.settings.set(MODULE_ID, SETTINGS.trialQueue, queue);
+            await game.settings.set(MODULE_ID, SETTINGS.trialProgress, progress);
+            await game.settings.set(MODULE_ID, SETTINGS.clock, clock);
+            if (isDeadForGm(D.actor)) await reviveCharacter(D.actor, { quiet: true });
+            await settleNow();
+            for (const key of Object.keys(store.entries())) await store.drop(key);
+            for (const p of all) {
+                const [was, value] = before[p.user.id];
+                if (JSON.stringify(perm(p.user)) !== JSON.stringify(before[p.user.id])) await p.user.update({ "permissions.BROADCAST_AUDIO": was ? value : forcedDeletion() });
+            }
+            await gmStoresIdle();
+            await settle();
+        }
+        equal(stableJson(read), stableJson({
+            default: false,
+            forced: [["open", "blocked", "blocked"], [["floorHeld", "floorHeld"], ["deadMuted", "deadMuted"]]],
+            free: [["open", "open", "open"], [[null, null], [null, null]], 0],
+            again: [["open", "blocked", "blocked"], [["floorHeld", "floorHeld"], ["deadMuted", "deadMuted"]]]
+        }), "{default: the switch's; forced: [O, B, D's microphones; [B's, D's] [GM's button, tile's line]] with it off; free: the same with it on, and the store's rows; again: off again}");
+    }],
     ["E110-T2 - the modes mute who may not speak and give back exactly what they took (E110 C2): an Objection blocks every player but the objector's, its Rebuttal gives the target back, a Panic Round writes only the speaker who stops and the one who starts, the floor's end gives everything back; a GM's hand block is never touched, and a Monocub is muted by a mode as a student is (D-E110-A); a block left standing after a crash is given back at the primary's next settle, and by the season reset's release (E110-05 to E110-09)", async () => {
         /*
          * E110 C2, 14.11.2026. Read on this primary, the clock written raw and the trial's voices settled by hand as the
