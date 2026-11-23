@@ -24,6 +24,32 @@ The rules text quoted: the player handbook (docs/handbooks/player-handbook.en.md
 - ROLL-05 (action-pipeline.mjs:978-990): a window closed after one of the action's rolls landed keeps the action spent,
   because "the first roll paid out its Hope ... refunding here made a free generator".
 
+## Tamper first (the owner: "Tamper chyba najbardziej")
+
+Tamper's whole road as an ordinary action (action-tamper.mjs `performTamper`, cleanup.mjs `attemptCleanup`), read on
+2e28785a. Its rules text is the player handbook section 4, lines 474-503 (and 805-816 for the killer's clean-up).
+The order, measured by the tier-2 test "Tamper takes its price after the concealment and before the dice" (E40 item
+4): with somebody watching, the concealment (Shadow 16) is rolled first; then the price, 1 action; then the main roll.
+
+| # | Tamper's step | Code | Hope earned | What comes back | Rule | Verdict |
+| --- | --- | --- | --- | --- | --- | --- |
+| T1 | Concealment roll (only with witnesses) | cleanup.mjs `concealFromWitnesses` (rolled `remember: false`, an action roll: action-pipeline.mjs:249) | +1 with Hope, +2 on a critical | a critical gives back 1 Sanity, through the GM (`coverGiveBack`, cleanup.mjs:1427-1450; `CLEANUP.conceal.refundStress`, config.mjs:4871) | handbook 503: "A critical on that roll gives you back 1 Sanity" | the Sanity ok; the Hope is row 4's question: **a watched Tamper earns Hope twice** |
+| T2 | Main roll, clean success (with Hope) | cleanup.mjs outcome `hope` (config.mjs:4638) | +1 | nothing | handbook 490-493 | ok |
+| T3 | Main roll, success with Despair | outcome `despair` | none | nothing; a Tamper Remnant is left | handbook 493 | ok |
+| T4 | Main roll, failure (Hope or Despair) | outcomes `failureHope`, `failureDespair` | +1 on a failure with Hope | nothing | handbook 494 | ok |
+| T5 | Main roll, critical | cleanup.mjs:1286-1288 (`handBack`, through `paidBack`: only as far as the GMs saw it paid) | +2 | the attempt's price: the action, a Burst as a Burst | handbook 491 ("removed, and it also gives back what the attempt cost") | ok by the text: a critical Tamper leaves the player **2 Hope and the action back**, which is what the owner describes; if that is not wanted, the rule itself changes |
+| T6 | Reshape's critical | cleanup.mjs:946 (`CLEANUP.transformAction.refundStress`) | +2 | the price | handbook 498 | ok, as T5 |
+| T7 | The GM keeps a reshape's story off | cleanup-reshape.mjs:495 ("A decline is a ruling, not a refund") | as rolled | nothing | handbook 498 ("a story kept off still costs what the attempt cost") | ok |
+| T8 | **The GM refuses after the dice**: the trace not found by this character, a Reinforced trace, the incident closed or Stage 6 over meanwhile | cleanup.mjs:810-826 (`refundRefused`), :2486 (`refundStageSix`), :2498-2503 (`blockedOnGm`) | as rolled (the roll landed) | **the price** (through `paidBack`) | no rules text; the code's own: "what the player's browser paid before the dice comes back with the refusal" | **MORE** against ROLL-05, as row 13: the price back and the roll's Hope kept |
+| T9 | Window closed before the main roll, nobody watching | cleanup.mjs:1638-1648 | none | the price | nothing was thrown | ok |
+| T10 | Window closed after the concealment landed | cleanup.mjs:1640-1646 (`spentAfterRoll`'s sentence) | the concealment's | nothing | ROLL-05; tier 2 "a Tamper window closed after a landed concealment roll keeps its price" | ok |
+| T11 | A Reroll of a Tamper | cleanup.mjs:2370-2380 (`undoLastCleanup` takes back a handed-back action, `takeBackRefund`); reroll.mjs:1721 (the replay carries the first attempt's price) | as rethrown | a critical replayed hands back once; one lost takes it back | as T5 | ok, read, not driven here |
+| T12 | The free attempt a critical Finishing Blow leaves (Stage 6) | cleanup.mjs `waivePrice`, `handBack` with no step | as rolled | a critical gives back a Sanity mark from whatever the GMs' credit still holds, though the attempt cost nothing | the code's own note: "whether the free attempt's critical should hand anything back is a question of the rules this fix does not decide" | **UNCLEAR** |
+
+So for Tamper, as written: a critical gives 2 Hope **and** the action back (T5), a watched attempt earns Hope from two
+rolls (T1), and a refusal after the dice gives the price back while the roll's Hope stays (T8). T5 is the rules
+text; T1 and T8 are the questions below.
+
 ## The table
 
 "Gives back" is what comes back. "When" is against the dice: before any roll, after a roll landed (its Hope and
