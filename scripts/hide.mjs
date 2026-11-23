@@ -186,10 +186,11 @@ export async function requestUnhide(actor = myHiding()) {
 
 const ownersOf = actor => (game.users ?? []).filter(u => !u.isGM && actor?.testUserPermission?.(u, "OWNER")).map(u => u.id);
 
-/** Whether a token of a hidden character carries the flag: every token but a trial hall's (the trial seats everyone). */
-async function flaggable(scene) {
-    const { isTrialScene } = await import("./rooms.mjs");
-    return !isTrialScene(scene);
+/** Whether a token of a hidden character on `scene` carries the flag: every token but a trial hall's (the trial seats
+ *  everyone). `isTrial` is the suite's (R8903); else rooms.mjs `isTrialScene`. */
+export async function flaggable(scene, isTrial = null) {
+    const trial = isTrial ?? (await import("./rooms.mjs")).isTrialScene;
+    return !trial(scene);
 }
 
 /** The microphone block settled on the primary (voice.mjs `settleTrialVoices`, which reads `hideMutedIds`). */

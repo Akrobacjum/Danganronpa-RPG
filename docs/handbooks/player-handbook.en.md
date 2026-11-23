@@ -394,7 +394,7 @@ A room action the GM set is rolled on the statistic and difficulty its row names
 
 ### Infiltrate: Listen - Shadow, 1 action
 
-The **Infiltrate** tile's window lists its actions one under another: Listen first, then Echoes, Tail Someone, Keep Watch, Dash, Shut the Door, Force the Door, and Pick the Lock. Each has its part of this section below.
+The **Infiltrate** tile's window lists its actions one under another: Listen first, then Echoes, Tail Someone, Keep Watch, Dash, Shut the Door, Force the Door, Pick the Lock, and Hide. Each has its part of this section below.
 
 Listen works out who is in a neighboring room, with no GM ruling. You pick the room before you roll, and the answer arrives as a card only you and the GMs can read. In a room with no neighboring room Listen is grayed with the reason.
 
@@ -440,6 +440,14 @@ If you open it below 18, or miss with Despair, the bedroom's owner learns that s
 ### Keep Watch - Body, 1 action
 
 Before an Eclipse (not during one, and not before the Night Eclipse), a Body roll of 12 or more keeps watch through the coming Eclipse over the room you stand in when it starts. You are told who is in it then, by name; through the Eclipse, who comes in and who leaves, by name, never from where or to where; and at its end, how many came and went. You stay at your post through the Eclipse. A failure with Despair costs 1 Sanity. A watch of 18 or more, or a critical, makes you harder to catch: whoever opens a murder on you rolls their opening with one hindrance die, and their window does not say why. A player who agreed that their character be a murder's victim does not use Keep Watch to avoid it.
+
+### Hide - Shadow, 1 action
+
+A Shadow roll of 15 or more, or a critical, hides you. The other players stop seeing your token, its frame and its name, and your microphone goes off; you still hear the room, and on your own screen your token is pale. The GMs see you. Other players' voice lists do not show you, their actions' lists of people in the room leave you out, and their Listen does not hear you. A miss hides nothing, and the action is spent.
+
+While you are hidden, an action's Shadow roll for staying unseen is not rolled and counts as passed: Palm's and an unseen Frisk's, Tail Someone's, Pick the Lock's, Taking from a body in front of others, and the cover of a Sabotage, an indirect murder's work, or a clean-up. The card says so. It gives no Hope.
+
+You stay hidden until you press **Reveal yourself** on your voice tile, a GM reveals you, or the chapter ends; a new time of day, moving, and other actions do not end it. Not during a Class Trial: there, everyone sits in the hall and the trial's floor decides who speaks.
 
 ### Dash - Leg, 1 action
 

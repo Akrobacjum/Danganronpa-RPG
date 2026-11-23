@@ -9295,10 +9295,11 @@ const INVARIANTS = [
             other: H.coverWhileHidden({ id: "B" }, { scenes }), none: H.coverWhileHidden(null, { scenes }),
             earned: [rollsEarnedHope([cover]), rollsEarnedHope([{ withHope: true }])],
             text: [H.withCover("Sent.", cover) !== "Sent.", H.withCover("Sent.", null) === "Sent.", H.withCover("", cover) === game.i18n.localize("DRPG.Hide.coverSkipped")],
+            hall: [await H.flaggable({ id: "HALL" }, () => true), await H.flaggable({ id: "SCHOOL" }, () => false)],
             words: ["en", "pl"].map(code => typeof files[code]?.DRPG?.Hide?.coverSkipped === "string" && files[code].DRPG.Hide.coverSkipped.length > 10) }),
         stableJson({ hidden: { total: INFILTRATE.hide.coverTotal, isCritical: false, hidden: true, messageId: null, frozen: true }, other: null, none: null,
-            earned: [false, true], text: [true, true, true], words: [true, true] }),
-        "{hidden: the stand-in for a hiding character; other: a character that does not hide; none: no character; earned: [the skipped cover, a roll with Hope]; text: [a sentence gains the line, none without, the line alone]; words: en, pl}");
+            earned: [false, true], text: [true, true, true], hall: [false, true], words: [true, true] }),
+        "{hidden: the stand-in for a hiding character; other: a character that does not hide; none: no character; earned: [the skipped cover, a roll with Hope]; text: [a sentence gains the line, none without, the line alone]; hall: [a trial hall's token flagged, another scene's]; words: en, pl}");
     }],
     ["R8904 - a hidden player's microphone is held by the module outside a Class Trial, on their own browser and on a GM's, and the trial's settle blocks it (S0-HIDE, E129; voice.mjs `micHold` \"hiding\", `moduleHoldsMic`, `settleTrialVoices`): held with the reason \"hiding\", not inside the trial, the GM's twin the same, the settle's condition reads the hide's rows, and its line is in both languages", async () => {
         /* 1.2.128 line STG, 23.11.2026. As R7405 reads the veil's; nothing written. Red at 5a583d82: no reason "hiding". */
@@ -9312,7 +9313,7 @@ const INVARIANTS = [
         const gm = (trial) => V.moduleHoldsMic(user, { actors: [], eclipse: false, trial, dead: () => false, listening: new Set(), masked: new Set(), veiled: new Set(),
             hiding: new Set([user.id]) })?.reason ?? null;
         equal(stableJson({ hold: [hold(true), hold(false)?.reason ?? null, hold(true, { clock: { phase: "classTrial" } })?.reason ?? null], gm: game.user.isGM ? [gm(false), gm(true)] : null,
-            settle: /\bhiding\b/.test(settle) && settle.includes("hidingIds()"),
+            settle: /const hiding = [^;]*hidingIds\(\)\.has\(user\.id\)/.test(settle) && /\|\| veiled \|\| hiding \|\|/.test(settle),
             words: [game.i18n.has("DRPG.Voice.held.hiding"), typeof pl?.DRPG?.Voice?.held?.hiding === "string"] }),
         stableJson({ hold: [{ reason: "hiding", held: true }, "gmBlock", "gmBlock"], gm: game.user.isGM ? ["hiding", null] : null, settle: true, words: [true, true] }),
         "{hold: [hidden, not hidden, hidden in a trial]; gm: [the GM's twin outside, inside a trial]; settle: the block reads the hide's rows; words: en, pl}");

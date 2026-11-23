@@ -394,7 +394,7 @@ Akcja pokoju ustawiona przez GM-a to rzut na statystykę i próg z jej wiersza i
 
 ### Infiltrate: Listen - Shadow, 1 akcja
 
-Okno kafelka **Infiltrate** wymienia jego akcje jedna pod drugą: najpierw Listen, potem Echoes, Tail Someone, Keep Watch, Dash, Shut the Door, Force the Door i Pick the Lock. Każdą opisuje osobna część tego rozdziału, niżej.
+Okno kafelka **Infiltrate** wymienia jego akcje jedna pod drugą: najpierw Listen, potem Echoes, Tail Someone, Keep Watch, Dash, Shut the Door, Force the Door, Pick the Lock i Hide. Każdą opisuje osobna część tego rozdziału, niżej.
 
 Listen ustala, kto jest w sąsiednim pokoju, bez decyzji GM-a. Pokój wybierasz przed rzutem, a odpowiedź przychodzi jako karta, którą czytasz tylko ty i GM-owie. Gdy twój pokój nie ma sąsiadów, Listen jest wyszarzony, a obok stoi powód.
 
@@ -440,6 +440,14 @@ Jeśli otworzysz zamek z wynikiem poniżej 18 albo spudłujesz z Despair, właś
 ### Keep Watch - Body, 1 akcja
 
 Przy rzucie na Body 12 lub więcej czuwasz przez nadchodzące Eclipse nad pokojem, w którym stoisz, gdy się ono zaczyna. Keep Watch używasz przed Eclipse, ale nie w jego trakcie i nie przed nocnym Eclipse. Gdy Eclipse się zaczyna, dowiadujesz się, kto jest w pokoju, z imienia; przez całe Eclipse dowiadujesz się, kto wchodzi i kto wychodzi, z imienia, ale nigdy skąd ani dokąd; a na koniec Eclipse, ile osób weszło i wyszło. Przez całe Eclipse zostajesz na posterunku. Porażka z Despair kosztuje 1 Sanity. Gdy czuwasz z wynikiem 18 lub więcej albo krytycznym, trudniej cię zaskoczyć: kto otwiera na tobie morderstwo, rzuca na otwarcie z jedną kością utrudnienia, a jego okno nie mówi dlaczego. Gracz, który zgodził się, by jego postać była ofiarą morderstwa, nie używa Keep Watch, żeby tego uniknąć.
+
+### Hide - Shadow, 1 akcja
+
+Rzut na Shadow 15 lub więcej albo krytyk sprawia, że się chowasz. Inni gracze przestają widzieć twój token, jego ramkę i nazwę, a twój mikrofon się wyłącza; nadal słyszysz pokój, a na twoim ekranie twój token jest blady. GM-owie cię widzą. Na liście głosu innych graczy cię nie ma, ich akcje nie wymieniają cię wśród osób w pokoju, a ich Listen cię nie słyszy. Pudło nic nie daje, a akcja przepada.
+
+W ukryciu rzut Shadow na pozostanie niezauważonym przy akcji nie jest rzucany i liczy się jako udany: przy Palm i ukrytym Frisk, przy Tail Someone, Pick the Lock, braniu rzeczy z ciała przy świadkach oraz przy ukrywaniu Sabotage, pracy nad pośrednim morderstwem i sprzątaniu. Karta to mówi. Nie daje to Hope.
+
+Zostajesz w ukryciu, dopóki nie naciśniesz **Ujawnij się** na swoim kafelku głosu, nie ujawni cię GM albo nie skończy się rozdział; nowa pora dnia, ruch ani inne akcje go nie kończą. Nie w czasie Class Trial: wtedy wszyscy siedzą na sali, a o tym, kto mówi, decyduje przebieg rozprawy.
 
 ### Dash - Leg, 1 akcja
 
