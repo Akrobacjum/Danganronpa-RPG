@@ -1061,9 +1061,62 @@ export async function run({ gm, gm2, p1, p2, check, phase, settle, connect, disc
         await observeStore.drop("${qKey}"); await E.gmStoresIdle(); return true;`, { timeout: 30000 });
     verdict("an Observe's row written on the primary GM is held by the second GM", qOnGm2 === true, J({ qOnGm2 }));
 
+    /* ------------------------------ H. a holder sees the trace ------------------------------ */
+
+    begin("H", "whoever holds a Truth Bullet sees its Remnant: a player made an owner mid-session at once, and a trace a GM hid by hand stays on its holders' maps alone", "trace-remnant");
+    /* Line INVEST of 1.2.128, S0-BULLETSEES (the owner's notes of 23.11.2026: "zawsze posiadanie truth bullet = widoczny
+       token remnanta, w tym po przekazaniu go na przyklad"). The GM places a trace and makes Chie a bullet of it; p2, who
+       does not own Chie, is made an owner, and reads on its own page whether it holds a copy of that trace (visibility.mjs
+       `myBulletForRemnant`, the read both versions have). Then the GM hides the token by hand: p2's page and p1's (who
+       holds no copy) read whether the trace is drawn there (`shownAsFound`, the rule `applyToRemnantToken` draws by; no
+       canvas here). Put back: the ownership, the bullet, the trace. Red at 9439d2e1: p2 held no copy until a reload, and a
+       hidden trace was drawn for nobody. */
+    const hStaged = await gm.eval(`const R = await import("${repoUrl}/scripts/remnants.mjs"); ${TB}
+        const scene = game.scenes.get("${IDS.scene}"), chie = game.actors.get("${IDS.chie}");
+        const token = await R.placeRemnant({ type: "prep", visibility: "evident", scene, x: 900, y: 650, sourceName: "S62 H" });
+        const item = token ? await TB.createTruthBullet(chie, { name: "S62 H bullet", realType: "neutral", visibility: "evident", playerText: "x",
+            remnantId: token.id, sceneId: scene.id }) : null;
+        return { token: token?.id ?? null, item: item?.id ?? null, owned: chie.ownership?.["${IDS.p2}"] ?? null, hidden: scene.tokens.get(token?.id)?.hidden ?? null };`, { timeout: 60000 });
+    const hKnows = client => client.eval(`${until} const V = await import("${repoUrl}/scripts/visibility.mjs");
+        const doc = game.scenes.get("${IDS.scene}")?.tokens.get("${hStaged.token}");
+        return Boolean(doc && V.myBulletForRemnant("${IDS.scene}." + doc.id));`);
+    const hShown = (client, wait) => client.eval(`${until} const V = await import("${repoUrl}/scripts/visibility.mjs");
+        const doc = () => game.scenes.get("${IDS.scene}")?.tokens.get("${hStaged.token}");
+        await until(() => doc()?.hidden === true, 5000);
+        return ${wait ? `Boolean(await until(() => V.shownAsFound(doc()) || null, 5000))` : "V.shownAsFound(doc())"};`, { timeout: 30000 });
+    let hRead = null;
+    try {
+        hRead = { before: await hKnows(p2) };
+        await gm.eval(`await game.actors.get("${IDS.chie}").update({ ownership: { "${IDS.p2}": CONST.DOCUMENT_OWNERSHIP_LEVELS.OWNER } }); return true;`);
+        hRead.after = await p2.eval(`${until} const V = await import("${repoUrl}/scripts/visibility.mjs");
+            return Boolean(await until(() => V.myBulletForRemnant("${IDS.scene}.${hStaged.token}") || null, 8000));`, { timeout: 30000 });
+        await gm.eval(`await game.scenes.get("${IDS.scene}").tokens.get("${hStaged.token}").update({ hidden: true }); return true;`);
+        hRead.hiddenHolder = await hShown(p2, true);
+        hRead.hiddenOther = await hShown(p1, false);
+    } finally {
+        await gm.eval(`const R = await import("${repoUrl}/scripts/remnants.mjs"); ${TB} const U = await import("${repoUrl}/scripts/utils.mjs");
+            const E = await import("${repoUrl}/scripts/gm-store.mjs");
+            const scene = game.scenes.get("${IDS.scene}"), chie = game.actors.get("${IDS.chie}");
+            const was = ${J(hStaged.owned)}, del = U.forcedDeletion();
+            if (was !== null) await chie.update({ ownership: { "${IDS.p2}": was } });
+            else if (del) await chie.update({ ownership: { "${IDS.p2}": del } });
+            const item = chie.items.get(${J(hStaged.item)});
+            if (item) { const uuid = item.uuid; await item.delete(); await TB.dropSecret(uuid); }
+            const token = scene.tokens.get(${J(hStaged.token)});
+            if (token) { await R.dropRemnantSecret(token); await scene.deleteEmbeddedDocuments("Token", [token.id]); }
+            await E.gmStoresIdle(); return true;`, { timeout: 60000 });
+        await settle(500);
+    }
+    verdict("the GM's bullet of a trace un-hides it, and p2, who does not own its holder, holds no copy of it",
+        Boolean(hStaged.token && hStaged.item) && hStaged.hidden === false && hRead?.before === false, J({ hStaged, hRead }));
+    verdict("p2, made an owner of the holder mid-session, holds the copy at once, with no reload",
+        hRead?.after === true, J(hRead));
+    verdict("the trace hidden by a GM's hand is drawn on its holder p2's page and not on p1's, who holds no copy",
+        hRead?.hiddenHolder === true && hRead?.hiddenOther === false, J(hRead));
+
     /* ------------------------------ every phase measured ------------------------------ */
 
-    for (const letter of ["A", "O", "N", "T", "V", "D", "K", "P", "E", "L", "S", "M", "Q"]) {
+    for (const letter of ["A", "O", "N", "T", "V", "D", "K", "P", "E", "L", "S", "M", "Q", "H"]) {
         check(`${letter}0: phase ${letter} measured something`, (counts[letter] ?? 0) > 0, J(counts));
     }
     await disconnect("gm2");
