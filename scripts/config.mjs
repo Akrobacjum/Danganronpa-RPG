@@ -4414,7 +4414,25 @@ export const TRIAL = {
         round: {
             testimony: { offered: 60, min: 30, max: 120 },
             panic: { offered: 15, small: 10, smallFrom: 12, min: 10, max: 15 },
-            graceSeconds: 1
+            graceSeconds: 1,
+            /*
+             * A ROUND'S SPEAKER IS NOT CUT SHORT (E129 S0-CUT, 23.11.2026; the owner's note of session 0: "niektore tryby
+             * w class trial konczyly sie przedwczesnie (na przyklad testimony ucielo ostatniego gracza)"; the
+             * coordinator's defaults of that day, pending the owner). Two roads ended a turn before its speaker had
+             * used it, read in the code and the first measured on `nextFloor` alone at 2e28785a:
+             *   `resumeAfterExchange`: an Objection's exchange in a round over (its rebuttal run out, skipped, or the
+             *     mode ended) gives the interrupted speaker the seconds they had at the Objection, and the queue goes
+             *     on after them (floor-machine.mjs `afterExchange`). It REVERSES E70-42, a recorded decision
+             *     (audit/findings-1.2.118 domain-case-d-trial-floor.json, by_decision: "the interrupted speaker's rest
+             *     is not given back, except by an Overrule"): the queue went on at the next speaker, so an Objection at
+             *     the last speaker ended the round. False puts E70-42 back.
+             *   `goneGraceSeconds`: a speaker whose player drops is passed only when they are not back within these
+             *     seconds, counted by the primary (trial-floor.mjs `speakerGone`); back in time, the turn goes on with
+             *     its own clock. Until 1.2.129 they were passed at once (E70-45), so a reload during one's own turn passed
+             *     it. Chosen, not measured at a table: how long a v14 reload takes to reconnect is LIVE-129-02.
+             */
+            resumeAfterExchange: true,
+            goneGraceSeconds: 15
         },
         /*
          * THE CLOSING ARGUMENT (E70 C8, 28.10.2026; S18-73, S18-74; the owner's TR7 "proponuje 5 minut", TR23 = 1,

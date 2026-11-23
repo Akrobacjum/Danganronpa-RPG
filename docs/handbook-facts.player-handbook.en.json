@@ -1956,7 +1956,7 @@
   {"id": "s12.p8.f6", "unit": "s12.p8", "place": "12. The Class Trial, line 895", "kind": "rule", "text": "The screens name who speaks and who is next.", "keywords": ["name who speaks and who is next"]},
   {"id": "s12.p8.f7", "unit": "s12.p8", "place": "12. The Class Trial, line 895", "kind": "condition", "text": "If you are not connected when your turn comes, it passes.", "keywords": ["not connected"]},
   {"id": "s12.p8.f8", "unit": "s12.p8", "place": "12. The Class Trial, line 895", "kind": "rule", "text": "While somebody else speaks, you listen.", "keywords": ["you listen"]},
-  {"id": "s12.p8.f9", "unit": "s12.p8", "place": "12. The Class Trial, line 895", "kind": "rule", "text": "After an Objection in Testimony the round goes on at the next speaker.", "keywords": ["goes on at the next speaker"]},
+  {"id": "s12.p8.f9", "unit": "s12.p8", "place": "12. The Class Trial, line 895", "kind": "rule", "text": "After an Objection in Testimony your turn goes on with the seconds you had when it came.", "keywords": ["your turn goes on with the seconds you had"]},
   {"id": "s12.p8.f10", "unit": "s12.p8", "place": "12. The Class Trial, line 895", "kind": "rule", "text": "Only the speaker presents evidence.", "keywords": ["Only the speaker presents evidence"]},
   {"id": "s12.p9.f1", "unit": "s12.p9", "place": "12. The Class Trial, line 897", "kind": "rule", "text": "In the Closing Argument you are first asked whether you will sum up the case.", "keywords": ["sum up the case"]},
   {"id": "s12.p9.f2", "unit": "s12.p9", "place": "12. The Class Trial, line 897", "kind": "rule", "text": "The answers to the question are I'll sum up or Someone else.", "keywords": ["I'll sum up", "Someone else"]},

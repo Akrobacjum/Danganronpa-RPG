@@ -52414,7 +52414,8 @@ equal(read.added, 3, "three additions to a purse at once lost one");
          * trial-prompt.mjs) move the round within four seconds, the same step over again is refused (the round moved on),
          * and so is one of the new turn before it is due; (4) a Panic Round: an Objection refused
          * (`objectOnPrimary`, "floorClosed"), End this mode; (5) a Testimony again, an Objection at the speaker
-         * (`openObjection`), its rebuttal, Skip: the round resumes at the next speaker. Red at 182cdd57: no
+         * (`openObjection`), its rebuttal, Skip: the interrupted speaker has the floor again (E129 S0-CUT A, 1.2.129,
+         * `resumeAfterExchange`; the next speaker until then, E70-42). Red at 182cdd57: no
          * `startTestimony`, no "trial.turn" (the step stood with the heartbeat held). The clock, the floor, the record and
          * the cards are put back.
          */
@@ -52501,7 +52502,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
                 const inRebuttal = F.trialFloor()?.mode ?? null;
                 await api.skipStep();
                 await settle();
-                read.resume = [Boolean(opened), inRebuttal, F.trialFloor()?.mode ?? null, F.trialFloor()?.holderId === two.actor.id];
+                read.resume = [Boolean(opened), inRebuttal, F.trialFloor()?.mode ?? null, F.trialFloor()?.holderId === one.actor.id];
             }
         } finally {
             globalThis.setInterval = realInterval;
@@ -52529,6 +52530,65 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             + "(4) a Panic Round's Objection; (5) an Objection at the speaker, its rebuttal, Skip: the mode and speaker after");
     }],
 
+    ["1.2.129 S0-CUT B - a round's speaker whose player drops is passed only when they are not back within `TRIAL.modes.round.goneGraceSeconds` (scripts/trial-floor.mjs `speakerGone`; the owner's note of 23.11.2026, \"testimony ucielo ostatniego gracza\"; the coordinator's \"a reload during your own turn should never pass you\"): the speaker read as not connected and the primary told the player left - their turn stands at once and through the grace once they are back; read as not connected again and not back - their turn passes to the next speaker once the grace is over", async () => {
+        /* On this primary in a Class Trial, a Testimony of 120 s turns between the first two participants, the speaker's
+           User read as not connected by its `active` (put back as it was, as E70-T11 does) and `userConnected` called as
+           Foundry calls it. Red at 2e28785a: the turn passed at the first drop (E70-45). The floor, the clock and the cards
+           are put back. Waits the grace twice, about 35 s. */
+        needs(world.atLeast("connectedPlayersWithCharacter", 2), "a round needs two speakers, and only a connected player's student takes part");
+        const { isPrimaryGm } = await import("./utils.mjs");
+        must(isPrimaryGm(), "this browser is not the primary GM, which writes the floor - this would measure nothing");
+        const { TRIAL } = await import("./config.mjs");
+        const F = await import("./trial-floor.mjs");
+        const V = await import("./vote.mjs");
+        const api = game.drpg ?? {};
+        const clock = foundry.utils.deepClone(getClock());
+        const queue = foundry.utils.deepClone(getSetting(SETTINGS.trialQueue) ?? {});
+        const progress = foundry.utils.deepClone(getSetting(SETTINGS.trialProgress) ?? {});
+        const seen = new Set(game.messages.map(m => m.id));
+        const graceMs = (Number(TRIAL.modes?.round?.goneGraceSeconds) || 0) * 1000;
+        const read = { grace: TRIAL.modes?.round?.goneGraceSeconds ?? null };
+        let user = null, own;
+        const away = () => { Object.defineProperty(user, "active", { get: () => false, configurable: true }); Hooks.callAll("userConnected", user, false); };
+        const back = () => { if (own) Object.defineProperty(user, "active", own); else delete user.active; Hooks.callAll("userConnected", user, true); };
+        try {
+            await setClock({ ...clock, phase: "classTrial" });
+            await game.settings.set(MODULE_ID, SETTINGS.trialQueue, {});
+            await settle();
+            const parts = V.trialParticipants();
+            must(parts.length >= 2 && typeof api.startTestimony === "function", "no round of two here - this would measure nothing");
+            const [one, two] = parts;
+            await api.startTestimony({ seconds: 120, order: [one.actor.id, two.actor.id] });
+            await settle();
+            must(F.trialFloor()?.holderId === one.actor.id, "the Testimony did not open on its first speaker - this would measure nothing");
+            user = one.user;
+            own = Object.getOwnPropertyDescriptor(user, "active");
+            away();
+            await wait(2000);
+            read.dropped = F.trialFloor()?.holderId === one.actor.id;
+            back();
+            await wait(graceMs + 1500);
+            read.backInTime = F.trialFloor()?.holderId === one.actor.id;
+            away();
+            await wait(graceMs + 1500);
+            read.notBack = F.trialFloor()?.holderId ?? null;
+            read.want = two.actor.id;
+        } finally {
+            if (user) { if (own) Object.defineProperty(user, "active", own); else delete user.active; }
+            if (F.trialFloor()) await F.endFloor();
+            await game.settings.set(MODULE_ID, SETTINGS.trialQueue, queue);
+            await game.settings.set(MODULE_ID, SETTINGS.trialProgress, progress);
+            await setClock(clock);
+            F.renderTrialFloor();
+            const fresh = game.messages.filter(m => !seen.has(m.id)).map(m => m.id);
+            if (fresh.length) await ChatMessage.deleteDocuments(fresh);
+            await settle();
+        }
+        const want = read.want;
+        delete read.want;
+        equal(stableJson(read), stableJson({ grace: 15, dropped: true, backInTime: true, notBack: want }),
+            "{grace: the constant; dropped: the speaker's turn 2 s after the drop; backInTime: still theirs a grace after coming back; notBack: whose turn a grace after a second drop}");
+    }],
     ["the Closing Argument: volunteers by \"trial.claim\" kept by the GMs alone, the draw confirmed, an Objection only at the speaker, both of the GM's decisions, an Overrule in the exchange, and one Closing per trial (E70-T10)", async () => {
         /*
          * E70 C8, 28.10.2026; E70-51, E70-52, E70-54, E70-56, E70-57. Read on this primary in a Class Trial, with the

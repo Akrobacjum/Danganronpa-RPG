@@ -111,6 +111,21 @@ function speakerAgain(floor, now, gmNote = null) {
     return { floor: back, cards: [] };
 }
 
+/**
+ * AN EXCHANGE IN A ROUND OVER (E129 S0-CUT A, 23.11.2026; config.mjs `TRIAL.modes.round.resumeAfterExchange`): the
+ * interrupted speaker again with the seconds they had at the Objection, `cards` posted, when that constant holds and they
+ * had any; else the queue goes on (E70-42, the rule until 1.2.129, which ended the round at the last speaker's
+ * Objection). The rebuttal's own end, its Skip and End this mode on the exchange all come here.
+ */
+function afterExchange(floor, now, cards, ctx) {
+    const entry = stackOf(floor).find(e => isRoundMode(e?.before?.mode)) ?? null;
+    if (TRIAL.modes?.round?.resumeAfterExchange && (Number(entry?.leftAtObjection) || 0) > 0) {
+        const back = speakerAgain(floor, now);
+        return { ...back, cards: [...cards, ...back.cards] };
+    }
+    return nextTurn(floor, now, cards, ctx);
+}
+
 /*
  * THE CLOSING ARGUMENT (E70 C8, 28.10.2026; S18-73, S18-74; the owner's TR7, TR23 = 1, TR24, TR29 = 4, TR34 = 1, DA18;
  * amend 7: no Hope for the last voice). One mode of the floor, `MODES.closing`, whose `closing` field says where it is:
@@ -438,8 +453,9 @@ function stepOn(floor, now, cards, ctx = {}) {
     const inRound = Boolean(roundOf(floor));
     if (floor.mode === MODES.objection && floor.pending) return inRound ? { ...speakerAgain(floor, now), cards } : { floor: debateAgain(floor, null, now), cards };
     if (floor.mode === MODES.objection) return { floor: { ...floor, mode: MODES.rebuttal, startedAt: now, pending: false, gmNote: null }, cards };
-    // A rebuttal in a round resumes the queue at the next speaker (E70-42), the due tick's road and Skip's alike.
-    if (floor.mode === MODES.rebuttal) return inRound ? nextTurn(floor, now, cards, ctx) : ended(cards, true);
+    // A rebuttal in a round gives the interrupted speaker their rest, then the queue goes on (E129 S0-CUT A, `afterExchange`;
+    // at the next speaker until 1.2.129, E70-42), the due tick's road and Skip's alike.
+    if (floor.mode === MODES.rebuttal) return inRound ? afterExchange(floor, now, cards, ctx) : ended(cards, true);
     if (isRoundMode(floor.mode) && inRound) return nextTurn(floor, now, cards, ctx);
     return { refused: "DRPG.Floor.bar.noTurn" };
 }
@@ -691,9 +707,10 @@ export function nextFloor(floor, event = {}, ctx = {}) {
         case "endMode":
             /* END THIS MODE (TR21; TR11 = 1): a debate's end closes it, and an Objection or a rebuttal ended by the
                GM ends the floor as a rebuttal's own end does - the exchange is over, the trial is in discussion. A round
-               ended ends it (E70 C7); an exchange in a round ended resumes the queue, as its rebuttal's end would. */
+               ended ends it (E70 C7); an exchange in a round ended goes back to the round as its rebuttal's end would
+               (`afterExchange`: the interrupted speaker's rest since 1.2.129, E129 S0-CUT A). */
             if (isRoundMode(floor.mode)) return ended([{ key: "DRPG.Floor.modeEnded", mode: floor.mode }]);
-            if (roundOf(floor)) return nextTurn(floor, now, [{ key: "DRPG.Floor.modeEnded", mode: floor.mode }], ctx);
+            if (roundOf(floor)) return afterExchange(floor, now, [{ key: "DRPG.Floor.modeEnded", mode: floor.mode }], ctx);
             return ended([{ key: "DRPG.Floor.modeEnded", mode: floor.mode }], floor.mode !== MODES.debate);
         default:
             return { refused: "DRPG.Floor.bar.noMode" };

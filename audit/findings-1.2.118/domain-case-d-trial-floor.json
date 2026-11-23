@@ -249,7 +249,8 @@
   },
   {
    "what": "After an Objection's exchange in a Testimony the round goes on at the next speaker; the interrupted speaker's rest is not given back, except by an Overrule.",
-   "source": "scripts/floor-machine.mjs:439-440 (E70-42); docs/handbooks/gm-handbook.en.md:1553"
+   "source": "scripts/floor-machine.mjs:439-440 (E70-42); docs/handbooks/gm-handbook.en.md:1553",
+   "reversed": "1.2.129 (E129 S0-CUT A, line TRIAL), on the owner's note of session 0, 23.11.2026: \"niektore tryby w class trial konczyly sie przedwczesnie (na przyklad testimony ucielo ostatniego gracza)\"; the coordinator's default of that day, pending the owner. The exchange's end gives the interrupted speaker the seconds they had at the Objection, then the queue goes on (floor-machine.mjs `afterExchange`), so an Objection at the last speaker no longer ends the round. One constant, config.mjs `TRIAL.modes.round.resumeAfterExchange`: false puts this decision back. Tier 1 R8771."
   },
   {
    "what": "A rebuttal's end closes the floor (the trial's discussion), not a debate; the console then offers the debate again with the same question and budget.",
