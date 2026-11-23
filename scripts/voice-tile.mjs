@@ -1418,7 +1418,7 @@ function audioOf(watch, userId) {
  * played, an unsubscribed microphone subscribed - once per person and reason until they are heard again; it never touches
  * a mute, a volume or the dock's hide, each a choice of the listener's. `checkHearing` runs both on the tick, tells the
  * GMs when the list changes (voice-client.mjs `reportHearing`; voice.mjs `voicePlan` lists it) and repaints an open list,
- * whose row says it (`paintList`). What a real LiveKit and Firefox do is LIVE-129-01.
+ * whose row says it (`paintList`). What a real LiveKit and Firefox do is LIVE-129-COMM-01.
  */
 
 /** How often a page asks who it does not hear: on the voice self-check's order, cheap when no Room is followed. */

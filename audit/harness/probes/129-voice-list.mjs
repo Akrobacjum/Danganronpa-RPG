@@ -10,7 +10,7 @@
  * taken out of the dock, as a page that lost it after a reconnect has none. One check (voice-tile.mjs `checkHearing`)
  * paints the list. Kept: the tile's and the list's outerHTML in docs/dev/owner129/comm/voice/capture/, for
  * voice-shots.html beside it. It checks only that the list was kept with its two lines; the shim is p1's alone and the
- * next boot starts afresh. WHAT A CAPTURE IS NOT: LiveKit, Foundry's dock or a real browser's audio (LIVE-129-01).
+ * next boot starts afresh. WHAT A CAPTURE IS NOT: LiveKit, Foundry's dock or a real browser's audio (LIVE-129-COMM-01).
  */
 import fs from "node:fs";
 import path from "node:path";

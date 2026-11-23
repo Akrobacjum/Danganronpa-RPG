@@ -45167,24 +45167,29 @@ const INVARIANTS = [
            var(--drpg-floor-scale, 1))` - the same rules and, from 80 % up, the same values, another text: Legacy 1:bb393327
            -> 1:319c66ac (curtain), 1:74d54c24 -> 1:5cbcd5a1 (desk), 1:a85b1630 -> 1:0a77909f (stacked); Stained Glass
            1:1e31f8f3 -> 1:e19ef630, 1:23e449cb -> 1:10081416, 1:897a26e1 -> 1:980bf6c6, re-measured headless; every other
-           print, `left` and the @media rules as they were. */
+           print, `left` and the @media rules as they were.
+           The list 'Who you hear' since E129 (S0-VOICE, 23.11.2026): each row holds two more lines, "Muted by you" and a gap
+           nobody chose (voice-tile.mjs `listRow`), drawn by the row's dock-hide rules in components.css, whose selectors
+           name them - the same rules and values, more elements and another text: Legacy 1:4671c967 -> 1:9be30d86, Stained
+           Glass 1:e9f9c48e -> 1:a1ff89a7 at every place, re-measured headless; every other print, `left` and the @media
+           rules as they were. */
         const C5 = {
             "curtain|monokuma-legacy|foundry-tools": "1:b845ef88", "curtain|monokuma-legacy|foundry-window": "2:b098bf53", "curtain|monokuma-legacy|gm-launcher": "1:9e537601",
             "curtain|monokuma-legacy|room-art": "1:b38f7ef7", "curtain|monokuma-legacy|room-tile": "1:319c66ac", "curtain|monokuma-legacy|voice-art": "1:811c9dc5",
-            "curtain|monokuma-legacy|voice-list": "1:4671c967", "curtain|monokuma-legacy|voice-tile": "2:af4cb5e9", "curtain|stained-glass|foundry-tools": "1:7a915054",
+            "curtain|monokuma-legacy|voice-list": "1:9be30d86", "curtain|monokuma-legacy|voice-tile": "2:af4cb5e9", "curtain|stained-glass|foundry-tools": "1:7a915054",
             "curtain|stained-glass|foundry-window": "2:6fa9ceed", "curtain|stained-glass|gm-launcher": "1:19e941be", "curtain|stained-glass|room-art": "1:b38f7ef7",
-            "curtain|stained-glass|room-tile": "1:e19ef630", "curtain|stained-glass|voice-art": "1:393b7dc4", "curtain|stained-glass|voice-list": "1:e9f9c48e",
+            "curtain|stained-glass|room-tile": "1:e19ef630", "curtain|stained-glass|voice-art": "1:393b7dc4", "curtain|stained-glass|voice-list": "1:a1ff89a7",
             "curtain|stained-glass|voice-tile": "2:4b38d8b9", "desk|monokuma-legacy|foundry-tools": "1:b845ef88", "desk|monokuma-legacy|foundry-window": "2:b098bf53",
             "desk|monokuma-legacy|gm-launcher": "1:9e537601", "desk|monokuma-legacy|room-art": "1:b38f7ef7", "desk|monokuma-legacy|room-tile": "1:5cbcd5a1",
-            "desk|monokuma-legacy|voice-art": "1:811c9dc5", "desk|monokuma-legacy|voice-list": "1:4671c967", "desk|monokuma-legacy|voice-tile": "1:ebf26e39",
+            "desk|monokuma-legacy|voice-art": "1:811c9dc5", "desk|monokuma-legacy|voice-list": "1:9be30d86", "desk|monokuma-legacy|voice-tile": "1:ebf26e39",
             "desk|stained-glass|foundry-tools": "1:7a915054", "desk|stained-glass|foundry-window": "2:6fa9ceed", "desk|stained-glass|gm-launcher": "1:19e941be",
             "desk|stained-glass|room-art": "1:b38f7ef7", "desk|stained-glass|room-tile": "1:10081416", "desk|stained-glass|voice-art": "1:393b7dc4",
-            "desk|stained-glass|voice-list": "1:e9f9c48e", "desk|stained-glass|voice-tile": "1:08875275", "stacked|monokuma-legacy|foundry-tools": "1:b845ef88",
+            "desk|stained-glass|voice-list": "1:a1ff89a7", "desk|stained-glass|voice-tile": "1:08875275", "stacked|monokuma-legacy|foundry-tools": "1:b845ef88",
             "stacked|monokuma-legacy|foundry-window": "2:3ad17c49", "stacked|monokuma-legacy|gm-launcher": "1:9e537601", "stacked|monokuma-legacy|room-art": "1:b38f7ef7",
-            "stacked|monokuma-legacy|room-tile": "1:0a77909f", "stacked|monokuma-legacy|voice-art": "1:811c9dc5", "stacked|monokuma-legacy|voice-list": "1:4671c967",
+            "stacked|monokuma-legacy|room-tile": "1:0a77909f", "stacked|monokuma-legacy|voice-art": "1:811c9dc5", "stacked|monokuma-legacy|voice-list": "1:9be30d86",
             "stacked|monokuma-legacy|voice-tile": "1:40d6d310", "stacked|stained-glass|foundry-tools": "1:7a915054", "stacked|stained-glass|foundry-window": "2:2fe7a47f",
             "stacked|stained-glass|gm-launcher": "1:19e941be", "stacked|stained-glass|room-art": "1:b38f7ef7", "stacked|stained-glass|room-tile": "1:980bf6c6",
-            "stacked|stained-glass|voice-art": "1:393b7dc4", "stacked|stained-glass|voice-list": "1:e9f9c48e", "stacked|stained-glass|voice-tile": "1:86229667"
+            "stacked|stained-glass|voice-art": "1:393b7dc4", "stacked|stained-glass|voice-list": "1:a1ff89a7", "stacked|stained-glass|voice-tile": "1:86229667"
         };
         equal(stableJson({ left: [...left].sort(), prints, sectionMedia }), stableJson({ left: [], prints: C5, sectionMedia: [] }),
             `[a rule written for these surfaces that still wins from danganronpa.css or stained-glass.css; per place, theme and surface, the number of roots and the fingerprint of its winners; the section's @media rules] (${readings} reading(s))`);
