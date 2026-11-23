@@ -10011,6 +10011,54 @@ const SCENARIOS = [
             "{Silence now on the first copy, the readied tool named on the open tracker, Silence now after another GM's press}");
     }],
 
+    ["1.2.129 S0-MASKLEFT - a murder that ends with nobody dead takes its killer out from behind the \"?\" (scripts/murder-rules.mjs `closeIncident`; mask-gm.mjs `endMask`, `MASK_ENDS_WITHOUT_BODY`; the owner's note of session 0, 23.11.2026: \"po przerwaniu morderstwa morderca dalej mial ? i wyciszenie\"): a masked fight the GM ends with the victim alive leaves no mask, no masked token, no mute, and tells the killer's player; a masked fight closed after the kill keeps the mask", async () => {
+        /*
+         * 1.2.129 (E129), the owner's note at the table of 22.11.2026: after a murder was broken off, its killer still wore
+         * the "?" and the mute, and the GM revealed them by hand. The mask ended only at a reveal, a new time of day, a lost
+         * race at the opening or the season's reset (mask-gm.mjs's header: "The incident's own end does not end it"). A
+         * direct murder between two students with players opens on Hope, so its killer is masked (`fightOpen`); the GM ends
+         * it with the victim alive (`endMurder`). Then the same fight, the Finishing blow dealt, closed. The words this GM
+         * sends the killer's player are read (`wordsSent`). Read for each: the mask's row, the killer's tokens masked, the
+         * killer muted by the mask (`maskMutedIds`), the line told. Put back: the incident, the masks, the clock.
+         * Red at 2e28785a: the mask stood after the GM's end.
+         */
+        needs(env.primaryGm(), "the mask is the primary's");
+        needs(world.atLeast("studentsWithConnectedPlayer", 2), "a killer and a victim with players");
+        const M = await import("./murder.mjs");
+        const MG = await import("./mask-gm.mjs");
+        const { livingStudents, isDeadForGm, reviveCharacter } = await import("./chapter.mjs");
+        const player = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const [killer, victim] = livingStudents().filter(player);
+        const told = game.i18n.localize("DRPG.Mask.endedNoBody");
+        const text = w => w.html.replace(/<[^>]+>/g, " ");
+        const masked = () => [...game.scenes].flatMap(s => [...s.tokens]).filter(t => t.actorId === killer.id && MG.isMaskedToken(t)).length;
+        const reading = words => ({ row: MG.maskStands(killer.id), masked: masked(), muted: MG.maskMutedIds().has(player(killer).id),
+            told: words.filter(w => w.to.includes(player(killer).id)).map(text).some(t => t.includes(told)) });
+        const clock = getClock();
+        const read = {};
+        try {
+            await fightOpen(M, killer, victim);
+            must(MG.maskStands(killer.id) && masked() > 0, "the fight opened on Hope put up no mask - this would measure nothing");
+            read.alive = reading(await wordsSent(async () => { await M.endMurder({ followUp: false }); await settle(); }));
+            await c3Incident(clock);
+            await MG.endMask(killer.id, "test");
+            await settle();
+            await fightOpen(M, killer, victim);
+            await turnFor(M, killer, "finishingBlow");
+            await M.resolveCrisisAction({ actorId: killer.id, key: "finishingBlow", total: 99, isCritical: false, withHope: true });
+            await settle();
+            must(isDeadForGm(victim) && MG.maskStands(killer.id), "the second fight did not end in a kill behind a mask - this would measure nothing");
+            read.dead = reading(await wordsSent(async () => { await M.endMurder({ followUp: false }); await settle(); }));
+        } finally {
+            if (M.murderState()) await M.endMurder({ reason: "test", followUp: false });
+            if (isDeadForGm(victim)) await reviveCharacter(victim, { quiet: true });
+            await MG.endMask(killer.id, "test");
+            await c3Incident(clock);
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ alive: { row: false, masked: 0, muted: false, told: true }, dead: { row: true, masked: 1, muted: true, told: false } }),
+            "{each close: the mask's row, the killer's tokens masked, muted by the mask, told it ended}");
+    }],
     ["the time of day in an incident is veiled and names nobody", async () => {
         /*
          * E06 C4, 27.09.2026; audit S10-04 (L12). While an incident runs the time of day is told
@@ -19735,6 +19783,8 @@ const SCENARIOS = [
             must(second, "no third living student to open the roll-over's murder on");
             await heldInvitations(() => M.openMurder({ killerId: killer.id, victimId: second.id, openingTrait: "body" }));
             await M.resolveKillerOpening({ total: 20, isCritical: false, withHope: true });
+            // A kept death before the close (1.2.129): an incident that leaves nobody dead ends its mask (mask-gm.mjs `endMasksWithoutBody`); the GM's Stage 6 question answered yes.
+            await killedIntoStageSix(second);
             await M.endMurder({ reason: "test", followUp: false });
             await settle();
         };
@@ -19746,8 +19796,9 @@ const SCENARIOS = [
             await M.resolveKillerOpening({ total: 20, isCritical: false, withHope: true });
             await settle();
             must(K.maskStands(killer.id), "the opening on Hope put up no mask - this would measure nothing");
+            // A kept death before the close (1.2.129): an incident that leaves nobody dead ends its mask (mask-gm.mjs `endMasksWithoutBody`); the GM's Stage 6 question answered yes.
+            await killedIntoStageSix(victim);
             await M.endMurder({ reason: "test", followUp: false });
-            await D.killCharacter(victim, { secret: true, keepBullets: true });
             await settle();
             must(isDeadForGm(victim) && K.maskStands(killer.id), "the victim's death was not kept, or the mask ended with the incident - this would measure something else");
             await E.startEclipse();
@@ -19772,6 +19823,7 @@ const SCENARIOS = [
                 "the start-of-day board drew the masked killer's \"?\", a victim nobody had found as dead, or left them out of the alive count, or a mask stood as the board landed "
                 + "(the reads at the Eclipse's start; in all; each read: the killer's picture, the victim dead, everyone counted alive, a mask standing; the board after the death was published: the victim dead)");
         } finally {
+            if (second && isDeadForGm(second)) await reviveCharacter(second, { quiet: true });
             Hooks.off("updateSetting", watch);
             Q.endSequence("cut");
             if (M.murderState()) await M.endMurder({ reason: "test", followUp: false });
@@ -19827,8 +19879,11 @@ const SCENARIOS = [
         const masked = async timeOfDay => {
             await setClock({ phase: "dailyLife", timeOfDay, refilledFor: null });
             await settle();
+            { const C129 = await import("./chapter.mjs"); if (C129.isDeadForGm(victim)) await C129.reviveCharacter(victim, { quiet: true }); }
             await heldInvitations(() => M.openMurder({ killerId: killer.id, victimId: victim.id, openingTrait: "body" }));
             await M.resolveKillerOpening({ total: 20, isCritical: false, withHope: true });
+            // A kept death before the close (1.2.129): an incident that leaves nobody dead ends its mask (mask-gm.mjs `endMasksWithoutBody`); the GM's Stage 6 question answered yes.
+            await killedIntoStageSix(victim);
             await M.endMurder({ reason: "test", followUp: false });
             await settle();
             must(K.maskStands(killer.id), `the opening on Hope put up no mask at ${timeOfDay} - this would measure nothing`);
@@ -19857,6 +19912,7 @@ const SCENARIOS = [
             equal(stableJson([reads, atStart]), stableJson([[["evening", real, false], ["night", real, false], ["night", real, false]], true]),
                 "a mask still stood as the clock landed, or the board drew the killer behind it (each landing: the time of day, the killer's picture on the board, a mask standing; a mask standing through the Night Eclipse's start)");
         } finally {
+            { const C129 = await import("./chapter.mjs"); if (C129.isDeadForGm(victim)) await C129.reviveCharacter(victim, { quiet: true }); }
             Hooks.off("updateSetting", watch);
             Q.endSequence("cut");
             if (M.murderState()) await M.endMurder({ reason: "test", followUp: false });
@@ -19996,8 +20052,11 @@ const SCENARIOS = [
             await killer.update({ img: real });
             await setClock({ phase: "dailyLife", timeOfDay: "evening", refilledFor: null });
             await settle();
+            { const C129 = await import("./chapter.mjs"); if (C129.isDeadForGm(victim)) await C129.reviveCharacter(victim, { quiet: true }); }
             await heldInvitations(() => M.openMurder({ killerId: killer.id, victimId: victim.id, openingTrait: "body" }));
             await M.resolveKillerOpening({ total: 20, isCritical: false, withHope: true });
+            // A kept death before the close (1.2.129): an incident that leaves nobody dead ends its mask (mask-gm.mjs `endMasksWithoutBody`); the GM's Stage 6 question answered yes.
+            await killedIntoStageSix(victim);
             await M.endMurder({ reason: "test", followUp: false });
             await settle();
             must(K.maskStands(killer.id), "the opening on Hope put up no mask - this would measure nothing");
@@ -20006,6 +20065,7 @@ const SCENARIOS = [
             await settle();
             Q.endSequence("cut");
         } finally {
+            { const C129 = await import("./chapter.mjs"); if (C129.isDeadForGm(victim)) await C129.reviveCharacter(victim, { quiet: true }); }
             Hooks.off("updateSetting", watch);
             Q.endSequence("cut");
             if (M.murderState()) await M.endMurder({ reason: "test", followUp: false });
@@ -20440,8 +20500,11 @@ const SCENARIOS = [
             phase: getClock()?.phase ?? "dailyLife" };
         const made = [];
         const masked = async () => {
+            { const C129 = await import("./chapter.mjs"); if (C129.isDeadForGm(victim)) await C129.reviveCharacter(victim, { quiet: true }); }
             await heldInvitations(() => M.openMurder({ killerId: killer.id, victimId: victim.id, openingTrait: "body" }));
             await M.resolveKillerOpening({ total: 20, isCritical: false, withHope: true });
+            // A kept death before the close (1.2.129): an incident that leaves nobody dead ends its mask (mask-gm.mjs `endMasksWithoutBody`); the GM's Stage 6 question answered yes.
+            await killedIntoStageSix(victim);
             await M.endMurder({ reason: "test", followUp: false });
             await settle();
             must(K.maskStands(killer.id), "the opening on Hope put up no mask - this would measure nothing");
@@ -20474,6 +20537,7 @@ const SCENARIOS = [
                 seats: { [killer.id]: { token: "HALLTOKEN0000000" } }, into: false });
             read.exit = plan.remove;
         } finally {
+            { const C129 = await import("./chapter.mjs"); if (C129.isDeadForGm(victim)) await C129.reviveCharacter(victim, { quiet: true }); }
             if (M.murderState()) await M.endMurder({ reason: "test", followUp: false });
             if (K.maskStands(killer.id)) await K.endMask(killer.id, "suite");
             if (getClock()?.phase !== was.phase) await setClock({ phase: was.phase });

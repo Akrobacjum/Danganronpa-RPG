@@ -27,7 +27,10 @@
  *     bridge road `mask.reveal`.
  *
  * WHEN IT ENDS: the reveal, or a new time of day (`drpgTimeOfDayChanged`), whichever comes first; the season's reset cuts
- * the store. The incident's own end does not end it (a default, docs/dev/e69/STATUS.md).
+ * the store; and, since 1.2.129, the incident's end when nobody of its cast died (`endMasksWithoutBody`,
+ * `MASK_ENDS_WITHOUT_BODY`). Until then the incident's own end did not end it (a default, docs/dev/e69/STATUS.md), and
+ * the owner, at the table of 22.11.2026: "po przerwaniu morderstwa morderca dalej mial ? i wyciszenie (modul nie
+ * ujawnil go automatycznie)". An incident that left a death keeps the mask to its time of day, as before.
  *
  * WHAT IT CANNOT HIDE (Foundry's limit, recorded by 30-security's note): a token document keeps its `actorId`, so a
  * console can still read `game.actors.get(token.actorId).name` (it needs a console, not the interface). LIVE-E69-05 reads it at a
@@ -284,6 +287,39 @@ function maskFailed(actor, err) {
     ui.notifications?.error?.(game.i18n.format("DRPG.Mask.tokenFailed", { name: actor?.name ?? "?" }));
 }
 
+/**
+ * WHETHER A MURDER THAT ENDS WITH NOBODY DEAD ENDS ITS MASK (1.2.129; the owner's note of session 0, 23.11.2026; the
+ * coordinator's default, pending the owner). True: the close takes every killer out from behind the "?", their voice
+ * back (`endMasksWithoutBody`). False: the mask stands to its time of day, as until 1.2.129.
+ */
+export const MASK_ENDS_WITHOUT_BODY = true;
+
+/**
+ * THE MASKS OF AN INCIDENT THAT LEFT NOBODY DEAD (1.2.129, S0-MASKLEFT). On the primary, after the close's wipe
+ * (murder-rules.mjs `closeIncident`): each of `killerIds` whose mask stands is ended (`endMask`, "noBody") when neither
+ * that killer nor the victim its row names is dead to the GMs, and when no incident running now names that killer.
+ * A death keeps it: a dead killer's "?" taken off would name the body before it is found (a betrayal, the victim's
+ * Self-defence), and a victim's death is the case the mask was for. A second GM's close asks the primary
+ * (`mask.veil`, "unmask"); held there to the same rule, its own rows and records, whatever the packet names. Answers
+ * how many masks ended. Tier 2 "1.2.129 S0-MASKLEFT".
+ */
+export async function endMasksWithoutBody(killerIds = []) {
+    if (!MASK_ENDS_WITHOUT_BODY || !game.user?.isGM) return 0;
+    if (!isPrimaryGm()) return (await askPrimaryVeil("unmask", killerIds))?.ended ?? 0;
+    const { isDeadForGm } = await import("./settings.mjs");
+    const { murderState, killerIds: killersOf } = await import("./incident-store.mjs");
+    const running = murderState()?.active ? killersOf(murderState()) : [];
+    let n = 0;
+    for (const id of new Set((Array.isArray(killerIds) ? killerIds : []).filter(id => typeof id === "string"))) {
+        const row = maskStore.get(id);
+        if (!row || running.includes(id)) continue;
+        const dead = actorId => Boolean(actorId) && isDeadForGm(game.actors.get(actorId));
+        if (dead(id) || dead(row.victimId)) continue;
+        if (await endMask(id, "noBody")) n++;
+    }
+    return n;
+}
+
 /** End `killerId`'s mask (`why` for the log): every token's look put back, the block lifted, the cast sent again. */
 export async function endMask(killerId, why = "end") {
     if (!game.user?.isGM) return false;
@@ -309,6 +345,8 @@ export async function endMask(killerId, why = "end") {
     // And the Monocubs' bets and the Bounty on them name them again (monocub.mjs `forgetMaskedTarget`, 1.2.121).
     if (why === "reveal") await import("./monocub.mjs").then(m => m.forgetMaskedTarget(killerId)).catch(err => error("Could not let the Monocubs' rows name a revealed killer", err));
     if (why === "timeOfDay" && killer) await whisperToOwnerOnly(killer, { glyph: "ACTIONS.listen", body: `<p>${esc(game.i18n.localize("DRPG.Mask.ended"))}</p>` }, { veiled: true });
+    // The murder ended with nobody dead (1.2.129, `endMasksWithoutBody`): the killer's player is told, as at a time of day.
+    if (why === "noBody" && killer) await whisperToOwnerOnly(killer, { glyph: "ACTIONS.listen", body: `<p>${esc(game.i18n.localize("DRPG.Mask.endedNoBody"))}</p>` }, { veiled: true });
     log(`${killer?.name ?? killerId} is no longer behind a "?" (${why}).`);
     return true;
 }
@@ -647,6 +685,8 @@ export async function veilOnPrimary({ what, killerIds = [] } = {}) {
     if (what === "lift") return { lifted: declared.length ? await liftAtTheLights(declared[0]) : false };
     if (what === "judged") return { settled: Boolean(await lightsJudged()) };
     if (what === "settle") return { settled: Boolean(await settleVeils()) };
+    // A second GM's close of an incident that left nobody dead (1.2.129): held to the primary's own rows (`endMasksWithoutBody`).
+    if (what === "unmask") return { ended: await endMasksWithoutBody(killerIds) };
     return null;
 }
 

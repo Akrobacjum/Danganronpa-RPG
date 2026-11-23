@@ -3693,6 +3693,16 @@ async function closeIncident(state, { reason, followUp, conclude = true }) {
     } catch (err) {
         error("Could not lift the opening's veil", err);
     }
+    /* AND THE MASK OF A MURDER THAT LEFT NOBODY DEAD (1.2.129, S0-MASKLEFT; the owner, 23.11.2026: "po przerwaniu
+       morderstwa morderca dalej mial ? i wyciszenie"): every end of an incident comes through here - the GM's End, a
+       failed or crowded-out fight, a betrayal, the trial's floor, the season's reset - and none of them ended the mask,
+       which stood to its time of day. On the primary, held there to its own rows (mask-gm.mjs `endMasksWithoutBody`): a
+       death in the cast keeps it. */
+    try {
+        await (await import("./mask-gm.mjs")).endMasksWithoutBody(state ? killerIds(state) : []);
+    } catch (err) {
+        error("Could not take the killer out from behind the mask after a murder that left nobody dead", err);
+    }
 
     /* ONE HOOK PER INCIDENT THAT WAS RUNNING (E32 C1, 28.09.2026; audit S17-10). The
        suite's invariant grid (tests-grid.mjs, I4) counts closes with it: a betrayal that
