@@ -178,6 +178,9 @@ export async function performPick(actor, options = {}) {
     // the roller's screen (`doorCard`, 1.2.124; 1.2.125).
     const coverLine = cover.hidden ? hiddenCoverLine(cover)
         : `<p><small>${esc(game.i18n.localize("DRPG.Infiltrate.pick.coverTitle"))} - <b>${esc(String(cover.total ?? ""))}</b>${esc(neededNote(rule.cover.threshold))}</small></p>`;
-    await whisperToOwner(actor, ...doorCard("pick", label, roll, { done: opened, held, room: shown, extra: coverLine }));
+    // The cover's line (E129 S0-CARDS): a supporting roll, it earns no Hope (action-report.mjs `rollEffectsHtml`); a cover
+    // not thrown while hidden says nothing there (`rollEffectLines`), its own line above.
+    const { rollEffectsHtml } = await import("./action-report.mjs");
+    await whisperToOwner(actor, ...doorCard("pick", label, roll, { done: opened, held, room: shown, extra: coverLine + rollEffectsHtml([cover]) }));
     return { opened, held, room, roll };
 }
