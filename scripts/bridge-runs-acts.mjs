@@ -829,9 +829,9 @@ export async function handleVaultSteal(payload, sender, ctx) {
     return { reply: { taken: Boolean(out) } };
 }
 
-/* The run of `murder.openingCard` (E128): a GM's ask for the opening's card to its player, posted by this primary
-   (murder-rules.mjs `postOpeningCard`, which posts it once) for the incident standing at its opening roll, the one the
-   asker read: answers whether it posted one. */
+/* The run of `murder.openingCard` (E128): a GM's ask for the opening's card to its player, or with `pick` the roller's
+   line while a GM picks the statistic, posted by this primary (murder-rules.mjs `postOpeningCard`, which posts each
+   once) for the incident standing at its opening roll, the one the asker read: answers whether it posted one. */
 export async function handleOpeningCard(payload) {
     const { murderState } = await import("./murder.mjs");
     const { postOpeningCard } = await import("./murder-rules.mjs");
@@ -839,7 +839,7 @@ export async function handleOpeningCard(payload) {
     if (state?.stage !== "openingRoll" || (payload.openedAt && state.openedAt !== payload.openedAt)) {
         return { refused: "nothing was carried out: the incident is no longer at that opening roll" };
     }
-    return { reply: await postOpeningCard(payload.side, state) };
+    return { reply: await postOpeningCard(payload.side, state, { pick: payload.pick, proposed: payload.proposed }) };
 }
 
 // Stage 4 thrown on the participant's own client. Same guard as a crisis

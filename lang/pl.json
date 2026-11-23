@@ -5364,7 +5364,7 @@
         "chapter.end": "Koniec rozdziału ogłoszony przez drugiego GM-a, u głównego GM-a",
         "voice.reset": "Przycisk Napraw głos drugiego GM-a, wykonany u głównego GM-a",
         "verdict.finish": "Dokończenie werdyktu przez drugiego GM-a, u głównego GM-a",
-        "murder.openingCard": "Karta rzutu otwarcia dla gracza, wysłana przez głównego GM-a",
+        "murder.openingCard": "Karta lub komunikat rzutu otwarcia dla gracza, wysłane przez głównego GM-a",
         "trial.enter": "Ustawienie mikrofonów przy otwarciu lub zakończeniu Class Trial",
         "trial.record": "Zmiana zapisu przebiegu Class Trial",
         "reroll.ask": "Reroll",

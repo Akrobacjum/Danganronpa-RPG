@@ -1223,7 +1223,7 @@ export const BRIDGE_ACTIONS = table({
         sanitize: pick({}), run: handleVerdictFinish, answer: "reply" },
     // A GM's ask for the opening's card, the primary's to post once (E128; murder-rules.mjs `postOpeningCard`). No ids.
     [ACTION_OPENING_CARD]: { label: "DRPG.Bridge.what.murder.openingCard", guards: [gmOnly("only a GM posts the opening's card")],
-        sanitize: pick({ side: as.oneOf("killer", "victim"), openedAt: as.num }), run: handleOpeningCard, answer: "reply" },
+        sanitize: pick({ side: as.oneOf("killer", "victim"), openedAt: as.num, pick: as.bool, proposed: as.bool }), run: handleOpeningCard, answer: "reply" },
     /*
      * THE TRIAL'S VOICES, SETTLED ON THE PRIMARY GM (E70 C5, 28.10.2026; amend 6, answer 3 (b)). The trial opens and
      * ends on whichever GM moved the phase (clock.mjs `reconcilePhase`); its list of the dead reads the GMs' deaths
