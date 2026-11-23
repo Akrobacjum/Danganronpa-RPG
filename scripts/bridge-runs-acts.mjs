@@ -338,6 +338,15 @@ export async function handleMaskVeil(payload) {
     return { reply: out };
 }
 
+/** A dead student's Spectator, asked by another GM (1.2.128, E129 S0-VICTIM; spectator-dead.mjs `spectatorForTheDead`). */
+export async function handleDeadSpectator(payload) {
+    const { spectatorForTheDead } = await import("./spectator-dead.mjs");
+    const student = game.actors.get(payload.actorId ?? "") ?? null;
+    const watcher = student ? await spectatorForTheDead(student) : null;
+    if (!watcher) return { refused: "nothing was carried out: no dead student's Spectator to make" };
+    return { reply: { watcherId: watcher.id } };
+}
+
 /**
  * A killer behind a "?" reveals themselves (E69 C8; mask-gm.mjs `revealMask`); with `of: "hide"`, a character Hide hides
  * shows again (S0-HIDE, E129; hide.mjs `endHide`) - their own press, or a GM's, which their player is told of. The two are

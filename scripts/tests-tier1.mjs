@@ -62661,6 +62661,30 @@ const INVARIANTS = [
         equal(stableJson([reads, counted, refresh !== null && refresh.includes('count("refreshToken.mask")') && refresh.includes("ownMaskTurned(token)") && refresh.indexOf("ownMaskTurned") < refresh.indexOf("noticeOwnMask"), turned]),
             stableJson([0, 1, true, [true, false, true, false]]), "[the token's actor read, the death mark counted, the mask's refresh listener counted and asking the own mask behind `ownMaskTurned`, its answers: a first redraw, the same again, the mask on, another's token]");
     }],
+    ["R8850 - a dead student's player watches as a Spectator at once (1.2.128 E129 S0-VICTIM; scripts/spectator.mjs `spectatorViewer`, `DEAD_VIEW`; the owner, 23.11.2026: \"Nie dostala spectatora automatycznie\"): with the view \"spectator\" a player owning a dead student and its watcher watches; with \"student\" not; a player with a living student beside the watcher, or a dead student and no watcher, does not", async () => {
+        /* Pure: `spectatorViewer` handed a user, actors and the deaths. The actors carry the Spectator's flag or not and are
+           owned or not; `dead` names the dead. Red before 1.2.128: no `DEAD_VIEW`, and the dead student counted as a
+           living one, so nobody owning it watched. */
+        const S = await import("./spectator.mjs");
+        const { FLAGS } = await import("./config.mjs");
+        const user = { id: "U1", isGM: false };
+        const actor = (id, { spectator = false, mine = true } = {}) => ({ id, type: "character",
+            getFlag: (scope, key) => (scope === MODULE_ID && key === FLAGS.spectator ? spectator : undefined),
+            testUserPermission: () => mine });
+        const dead = a => a.id === "DEAD";
+        const ask = (actors, view) => S.spectatorViewer(user, actors, { dead, view });
+        const corpse = actor("DEAD"), watcher = actor("WATCH", { spectator: true }), living = actor("ALIVE");
+        const read = [
+            S.DEAD_VIEW,
+            ask([corpse, watcher], "spectator"),
+            ask([corpse, watcher], "student"),
+            ask([corpse, living, watcher], "spectator"),
+            ask([corpse], "spectator"),
+            ask([watcher], "student")
+        ];
+        equal(stableJson(read), stableJson(["spectator", true, false, false, false, true]),
+            "[the default view; a dead student and its watcher, view spectator; view student; a living one besides; no watcher; a Spectator alone]");
+    }],
     ["R7400 - a Remnant and a project token are drawn under every character whatever their sort (scripts/remnant-ring.mjs `traceLayer`, `keepUnderCharacters`, `paint`; owner-115 item 2): a trace's mesh goes to the sort layer just under Foundry's tokens, above its tiles and drawings, once - the primary group told to sort again only when the layer moved; a token with no mesh is left; `paint` puts a Remnant or a project token there before it asks whether the token is seen, and never a character", async () => {
         /* owner-115 item 2, 14.11.2026; the owner at a table on 1.2.114: "Gdy token postaci jest w tym samym miejscu co remnant,
            postac zawsze niech bedzie na wierzchu". Foundry's primary group orders by elevation, then sortLayer, then sort

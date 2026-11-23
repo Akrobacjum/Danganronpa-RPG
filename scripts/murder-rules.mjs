@@ -3694,6 +3694,16 @@ async function closeIncident(state, { reason, followUp, conclude = true }) {
     } catch (err) {
         error("Could not lift the opening's veil", err);
     }
+    /* AND THE KILLER'S MASK (1.2.129, S0-MASKLEFT; the owner, 23.11.2026: "po przerwaniu morderstwa morderca dalej mial ?
+       i wyciszenie", then "Zawsze zdejmujemy maske na koniec incydentu morderstwa (po sprzataniu)"): every end of an
+       incident comes through here - the GM's End after Stage 6 or before it, a failed or crowded-out fight, a betrayal,
+       the trial's floor, the season's reset - and none of them ended the mask, which stood to its time of day. On the
+       primary, held there to its own rows (mask-gm.mjs `endMasksAtClose`). */
+    try {
+        await (await import("./mask-gm.mjs")).endMasksAtClose(state ? killerIds(state) : []);
+    } catch (err) {
+        error("Could not take the killer out from behind the mask at the incident's end", err);
+    }
 
     /* ONE HOOK PER INCIDENT THAT WAS RUNNING (E32 C1, 28.09.2026; audit S17-10). The
        suite's invariant grid (tests-grid.mjs, I4) counts closes with it: a betrayal that

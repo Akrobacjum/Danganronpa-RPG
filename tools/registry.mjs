@@ -181,6 +181,8 @@ const SINCE_CORRECTED = Object.freeze([
     { from: 6750, to: 6756, since: "E59" }, { from: 7160, to: 7182, since: "E59" },
     /* 1.2.122's block of line STG, which --write stamped E39 while 1.2.122 had no stage row; E122 since the release. */
     { from: 8460, to: 8499, since: "E122" },
+    /* 1.2.128's line MURDER (E129, the owner's session 0): --write stamps the first unshipped stage, E127; the coordinator's stamp is E129. */
+    { from: 8850, to: 8869, since: "E129" },
     /* 1.2.128's block of line STG (S0-HIDE), stamped by the coordinator's E129 (23.11.2026). */
     { from: 8900, to: 8929, since: "E129" }
 ]);

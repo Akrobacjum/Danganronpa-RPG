@@ -40,6 +40,10 @@
  *   N  1.2.124, the owner's OWNER-124-CONSOLE: both GMs' messenger windows open on the Timeline; p1's Search card with
  *      its answers waits on both, its buttons live (N1); gm answers it from its Timeline, and the card leaves gm2's
  *      "Waiting" too, while its line stays in both streams (N2).
+ *   Y  1.2.128 (E129 S0-VICTIM): gm2's Spectator role on a dead student makes the student's watcher on the primary, its
+ *      token where the body lies, the student unflagged (Y1; `spectator.dead`).
+ *   Z  1.2.128 (E129 S0-MASKLEFT): gm2 ends a masked fight with the victim alive; the mask, the "?" and the mute end on the
+ *      primary (`mask.veil` "unmask"), and the killer's player is told (Z1).
  *
  * What this cannot see: a real F5 (a new process with the old localStorage, no cookie, IndexedDB or cache; the
  * order of "inactive", "active" and `ready` on v14 is LIVE-E30-05 and LIVE-E04-12), and a real server's delivery
@@ -1161,6 +1165,77 @@ export async function run(api) {
     check("X2: a second GM's Passages tab names, as the primary's does, the student whose player has not been sent the passage, and nobody once they have (E128)",
         typeof xPassage === "string" && xPending?.granted === true && J(xPending.away.gm) === J([IDS.botan]) && J(xPending.away.gm2) === J([IDS.botan])
             && J(xPending.back.gm) === "[]" && J(xPending.back.gm2) === "[]", J({ xPassage, xPending }), { flow: "secret-passages" });
+
+    /* ------------------------------------------------------------------ Y */
+    /* 1.2.128 (E129 S0-VICTIM; the owner, 23.11.2026: "Po dostaniu spectatora przez gm panel zabralo token ciala"): the
+       Students window's Spectator role on a dead student makes that student's watcher, on the primary, and leaves the
+       student and the body as they are. Chie is killed on gm as the GMs keep a death (a watcher made), the watcher taken
+       away, and gm2 presses the role (gm-students.mjs `changeRole`), which asks the primary (`spectator.dead`). Read on
+       gm: Chie's watcher, its token at the body, Chie unflagged. Put back: the revive, which takes the watcher. */
+    phase("Y a second GM gives a dead student their Spectator through the primary", { flow: "dead-spectator" });
+    const Y_READ = `const SD = ${imp("spectator-dead.mjs")}, chie = game.actors.get("${IDS.chie}");
+        const w = SD.watcherActorOf(chie); const body = canvas.scene.tokens.find(t => t.actorId === chie.id);
+        const wt = w ? canvas.scene.tokens.find(t => t.actorId === w.id) : null;
+        return { watcher: Boolean(w), flagged: Boolean(chie.getFlag("${MOD}", "spectator")), atBody: Boolean(wt && body && wt.x === body.x && wt.y === body.y) };`;
+    let ySet = null, yPressed = null, yRead = null;
+    try {
+        ySet = await gm.eval(`const C = ${imp("chapter.mjs")}, SD = ${imp("spectator-dead.mjs")}, chie = game.actors.get("${IDS.chie}");
+            const kept = Boolean(await C.killCharacter(chie, { secret: true, keepBullets: true, silent: true }));
+            await SD.removeDeadSpectator(chie, { silent: true }); return { kept, watcher: Boolean(SD.watcherActorOf(chie)) };`, { timeout: 60000 });
+        await settle(900);
+        yPressed = await gm2.eval(`const GS = ${imp("gm-students.mjs")}; return await GS.changeRole(game.actors.get("${IDS.chie}"), "spectator");`, { timeout: 60000 });
+        yRead = await until(() => gm.eval(Y_READ), r => r?.watcher === true, 8000);
+    } finally {
+        await gm.eval(`const C = ${imp("chapter.mjs")}, chie = game.actors.get("${IDS.chie}");
+            if (chie.getFlag("${MOD}", "spectator")) await chie.unsetFlag("${MOD}", "spectator");
+            if (C.isDeadForGm(chie)) await C.reviveCharacter(chie, { quiet: true }); return true;`, { timeout: 60000 });
+        await settle(900);
+    }
+    check("Y1: gm2's Spectator role on a dead Chie makes her watcher on gm, its token where her body lies, and leaves Chie unflagged (1.2.128 E129 S0-VICTIM)",
+        ySet?.kept === true && ySet.watcher === false && yPressed === true && J(yRead) === J({ watcher: true, flagged: false, atBody: true }),
+        J({ ySet, yPressed, yRead }), { flow: "dead-spectator" });
+
+    /* ------------------------------------------------------------------ Z */
+    /* 1.2.128 (E129 S0-MASKLEFT; the owner, 23.11.2026: "Zawsze zdejmujemy maske na koniec incydentu morderstwa", and every GM
+       equal, at the coordinator's ask): the mask is the primary's to end, and a second GM's close asks it (murder-rules.mjs
+       `closeIncident` -> mask-gm.mjs `endMasksAtClose`, `mask.veil` "unmask"). gm opens Aiko's murder of Botan (p1's opening
+       roll held, as in T) and masks Aiko as the fight's opening on Hope does (`maskKiller`), p1 answering "stay" to the mask's question; gm2 ends the murder with Botan
+       alive. Read on gm: the mask's row, Aiko's masked tokens, p1 muted by the mask; on p1, the line told. Put back: the
+       incident, the mask, the roll. */
+    phase("Z a second GM's close of a masked fight ends the mask on the primary", { flow: "mask" });
+    await p1.eval(`globalThis.__e129zHeld = []; const a = game.actors.get("${IDS.aiko}");
+        globalThis.__e129zKept = Object.hasOwn(a, "rollTrait") ? a.rollTrait : null;
+        a.rollTrait = function () { return new Promise(r => globalThis.__e129zHeld.push(r)); };
+        globalThis.__dialogAnswers.length = 0; globalThis.__dialogAnswers.push("stay"); return true;`);
+    const zFrom = await p1.eval(`return game.messages.contents.length;`);
+    const Z_READ = `const MG = ${imp("mask-gm.mjs")}, p1 = game.users.get("${IDS.p1}");
+        const masked = [...game.scenes].flatMap(s => [...s.tokens]).filter(t => t.actorId === "${IDS.aiko}" && MG.isMaskedToken(t)).length;
+        return { row: MG.maskStands("${IDS.aiko}"), masked, muted: MG.maskMutedIds().has(p1?.id ?? "") };`;
+    let zBefore = null, zAfter = null, zTold = null;
+    try {
+        zBefore = await gm.eval(`if (game.drpg.murderState()?.active) await game.drpg.endMurder({ reason: "suite", followUp: false });
+            const opened = await game.drpg.openMurder({ killerId: "${IDS.aiko}", victimId: "${IDS.botan}", openingTrait: "body" });
+            const put = await (${imp("mask-gm.mjs")}).maskKiller({ killerId: "${IDS.aiko}", victimId: "${IDS.botan}" });
+            await new Promise(r => setTimeout(r, 600)); const read = await (async () => { ${Z_READ} })();
+            return { ...read, stage: opened?.stage ?? null, put };`, { timeout: 60000 });
+        await until(() => gm2.eval(`return game.drpg.murderState()?.active === true;`), v => v === true, 6000);
+        await gm2.eval(`await game.drpg.endMurder({ reason: "suite", followUp: false }); return true;`, { timeout: 60000 });
+        zAfter = await until(() => gm.eval(Z_READ), r => r?.row === false, 8000);
+        await settle(900);
+        zTold = await p1.eval(`const S = ${imp("secret.mjs")}; const said = game.i18n.localize("DRPG.Mask.endedIncident"); let n = 0;
+            for (const m of game.messages.contents.slice(${zFrom})) if (String(await S.wordsOf(m, 1000) ?? "").includes(said)) n++;
+            return n;`);
+    } finally {
+        await gm.eval(`if (game.drpg.murderState()?.active) await game.drpg.endMurder({ reason: "suite", followUp: false });
+            await (${imp("mask-gm.mjs")}).endMask("${IDS.aiko}", "suite"); return true;`, { timeout: 60000 });
+        await p1.eval(`const a = game.actors.get("${IDS.aiko}"); if (globalThis.__e129zKept) a.rollTrait = globalThis.__e129zKept; else delete a.rollTrait;
+            for (const r of globalThis.__e129zHeld ?? []) r(null); delete globalThis.__e129zHeld; delete globalThis.__e129zKept;
+            globalThis.__dialogAnswers.length = 0; return true;`);
+        await settle(900);
+    }
+    check("Z1: gm2 ends a masked fight with the victim alive, and on gm the mask's row, Aiko's \"?\" and p1's mute end, and p1 is told once (1.2.128 E129 S0-MASKLEFT)",
+        J(zBefore) === J({ row: true, masked: 1, muted: true, stage: "openingRoll", put: true }) && J(zAfter) === J({ row: false, masked: 0, muted: false }) && zTold === 1,
+        J({ zBefore, zAfter, zTold }), { flow: "mask" });
 
     return { primary: { before, joined, afterGmReload, moved, backAgain }, reloads: { p1: r1, gm: r2, card: r3 },
         d153: { before: gBefore, onGm: gAfter, onGm2: gAfter2, found: gFound, gave: gGave } };

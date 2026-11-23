@@ -121,6 +121,10 @@ export const FLOWS = Object.freeze([
     // E69-T7 masks and reveals on the GMs' record. The killer's own reveal from their page is tier 2's alone.
     { id: "mask", what: "The murder's privacy: a killer behind a \"?\" after an opening on Hope or a critical, their microphone blocked, the cast's copies holding no killer, ended by the killer's reveal or the time of day",
         entry: { bridge: ["mask.reveal", "mask.veil"] }, scenarios: ["30-security", "97-two-gms"], status: "partial", stage: "E39" },
+    // 1.2.128 (E129 S0-VICTIM): 97 W gives a dead student their watcher from the second GM through the primary; 30 forges the
+    // packet from a player's console; tier 2 "1.2.129 S0-VICTIM b" reads the primary's own press.
+    { id: "dead-spectator", what: "A dead student's Spectator, the watcher: made at the death, or by the Students window's Spectator role on a dead student, on the primary, the body left where it lies",
+        entry: { bridge: ["spectator.dead"] }, scenarios: ["30-security", "97-two-gms"], status: "covered", stage: "1.2.128" },
     // E93 C3 (12.11.2026): 33 uses a GM's room action and a completed project's from p1's page (E93-A); 30 forges the packet.
     // Q-E93-3 (12.11.2026): a timed effect a room action gives is kept by the GMs and copied to its owner (timed-effects.mjs's
     // socket), which the owner's sheet reads. P2 (15.11.2026): a project's action's uses are copied to their owner (facility-uses.mjs's
