@@ -767,6 +767,255 @@ export async function run(api) {
     for (const client of [gm, gm2]) await client.eval(`${APP} await A.gmMessengerWindow()?.close(); return true;`);
     await settle(400);
 
+    /* ------------------------------------------------------------------ O */
+    /* E128, 22.11.2026 (OWNER-128-SECOND-GM, the owner: "Drugi GM ... powinien byc na rowni z pierwszym gmem"; line CORE's
+       inventory row 2). The opening roll a second GM throws itself - its roller has no player at the table, the murder
+       opened by that GM - was resolved on that GM's browser, where the opening's mask and the Monocubs' witness marks are
+       the primary's alone (mask-gm.mjs `maskKiller`, monocub.mjs `markWitnessesAt`): an opening on Hope put up no "?" for
+       the killer. gm2 opens Daichi's murder of Aiko - Daichi has no player, so gm2's own browser throws the opening
+       (murder-rules.mjs `rollOpening`), on Hope by its dice (`__forceRoll`). Read on gm: the incident's stage before and
+       after, and whether Daichi's mask stands. Red at ed0b1ad3's parent (9eb89710): the stage moved on, no mask. An
+       earlier version of this phase had p3's own Chie answer the invitation first, a race (1 in 2 runs). The wait reads both
+       facts since 22.11.2026: one run at 1c546cae read the mask up while the stage's write had not landed on gm yet (stage
+       "openingRoll", masked true), a wait that ended on the mask alone. */
+    phase("O a second GM's own opening roll", { flow: "murder-incident" });
+    const opened = await gm2.eval(`if (game.drpg.murderState()?.active) await game.drpg.endMurder({ reason: "suite", followUp: false });
+        globalThis.__forceRoll = { hope: 11, fear: 5 };
+        try {
+            const r = await game.drpg.openMurder({ killerId: "${IDS.daichi}", victimId: "${IDS.aiko}", openingTrait: "body" });
+            return r?.stage ?? null;
+        } finally { /* the throw is started by openMurder; the dice are taken off once it has landed, below */ }`, { timeout: 60000 });
+    const after = await until(() => gm.eval(`const K = ${imp("mask-gm.mjs")};
+        return { stage: game.drpg.murderState()?.stage ?? null, masked: K.maskStands("${IDS.daichi}") };`),
+        v => v.masked === true && v.stage !== "openingRoll", 10000);
+    await gm2.eval(`delete globalThis.__forceRoll; return true;`);
+    await gm.eval(`const K = ${imp("mask-gm.mjs")};
+        if (game.drpg.murderState()?.active) await game.drpg.endMurder({ reason: "suite", followUp: false });
+        if (K.maskStands("${IDS.daichi}")) await K.endMask("${IDS.daichi}", "end");
+        return true;`, { timeout: 60000 });
+    await settle(900);
+    check("O1: gm2's own opening roll for a killer with no player, on Hope, is resolved on the primary: the stage moves on and the killer's mask stands (E128)",
+        opened === "openingRoll" && after.masked === true && after.stage !== opened, J({ opened, after }), { flow: "murder-incident" });
+
+    /* ------------------------------------------------------------------ P */
+    /* E128, 22.11.2026 (OWNER-128-SECOND-GM, line CORE's inventory row 5). A Call's yes and a Dynamic action's refusal on an
+       ask the primary no longer holds: on the primary the card says the player was no longer waiting and settles; on a
+       second GM the primary's refusal came back as the bridge's "not done" and the card stayed open with live buttons. p1
+       posts two cards whose answers name an ask nobody holds; gm2 presses Approve on the first and Refuse on the second, in
+       its Timeline. Read on gm: whether each card settled with the line the primary writes ("settledGone"), and on gm2 how
+       many "not done" notices it was shown. Red at ed0b1ad3: neither settled, two notices. */
+    phase("P a second GM's answer to an ask the primary no longer holds", { flow: "messenger" });
+    const NOT_DONE = `const N = ${imp("notice-history.mjs")}; return N.noticeEntries().filter(e => e.source === "notDone").length;`;
+    await gm2.eval(`${APP} const app = A.openMessenger(); const end = Date.now() + 3000;
+        while (!app?.element?.querySelector(".drpg-console") && Date.now() < end) await new Promise(r => setTimeout(r, 50)); return true;`);
+    const notDoneBefore = await gm2.eval(NOT_DONE);
+    const gone = await gm.eval(`return game.i18n.format("DRPG.Bridge.settledGone", { name: "${"Second GM"}" });`);
+    const stale = [];
+    for (const [press, label] of [["approveCall", "Approve"], ["refuseDynamic", "Refuse"]]) {
+        const words = `E128 P ${press} ${Date.now()}`;
+        await p1.eval(`const C = ${imp("call-gm.mjs")};
+            return Boolean(await C.callGm(game.actors.get("${IDS.aiko}"), { title: "E128 P", request: ${J(words)},
+                actions: [{ action: "${press}", label: "${label}", data: { rid: "E128STALE${press}", asker: "${IDS.p1}" } }] }));`, { timeout: 60000 });
+        await settle(1200);
+        const FIND = `const S = ${imp("secret.mjs")}; const M = ${imp("messenger.mjs")};
+            const card = M.threadMessages("${IDS.p1}").find(m => S.contentOf(m).includes(${J(words)}));`;
+        const pressed = await gm2.eval(`${FIND} ${APP} const el = A.gmMessengerWindow()?.element;
+            const b = card ? el?.querySelector('.drpg-console-waiting-list [data-message-id="' + card.id + '"] [data-drpg-call="${press}"]') : null;
+            b?.click(); return Boolean(b);`);
+        const read = await until(() => gm.eval(`${FIND} const text = S.contentOf(card ?? {});
+            return { buttons: (text.match(/data-drpg-call=/g) ?? []).length, gone: text.includes(${J(gone)}) };`), v => v.gone, 8000);
+        stale.push({ press, pressed, ...read });
+    }
+    const notDone = (await gm2.eval(NOT_DONE)) - notDoneBefore;
+    await gm2.eval(`${APP} await A.gmMessengerWindow()?.close(); return true;`);
+    check("P1: gm2's Approve on a Call and Refuse on a Dynamic action the primary no longer holds settle each card as the primary does - the player was no longer waiting - and no \"not done\" is shown (E128)",
+        stale.length === 2 && stale.every(r => r.pressed && r.gone && r.buttons === 0) && notDone === 0, J({ stale, notDone, gone }), { flow: "messenger" });
+
+    /* ------------------------------------------------------------------ Q */
+    /* E128, 22.11.2026 (OWNER-128-SECOND-GM, line CORE's inventory row 3). A second full GM's announcement of a body was
+       refused (`DRPG.Chapter.bodyPrimaryOnly`); it is carried out on the primary now (`body.discover`). Daichi's death kept by
+       the GMs; gm2 announces it in a room no region has (17-assistant F1's fixture, with a second full GM in place of the
+       Assistant), then gm presses too. Read on gm: the discovery cards the presses added and their authors, the stamp rows
+       added; on gm2: what its call answered, and whether it was told whose the announcement is. Put back after. Red at
+       9eb89710: gm2 told, its press announcing nothing, and the one card gm's own. */
+    phase("Q a second GM announces a body", { flow: "body-discovery" });
+    const CH = `(await import("${REPO}/scripts/chapter.mjs"))`;
+    const bodyCards = `game.messages.filter(m => m.flags?.["${MOD}"]?.sfx?.key === "bodyFound")`;
+    const stampRows = `Object.values(game.settings.get("${MOD}", "bodiesFound") ?? {}).flat().length`;
+    const q0 = await gm.eval(`const kept = Boolean(await ${CH}.killCharacter(game.actors.get("${IDS.daichi}"), { secret: true, keepBullets: true }));
+        return { kept, scene: canvas.scene.id, cards: ${bodyCards}.map(m => m.id), rows: ${stampRows},
+            stamps: foundry.utils.deepClone(game.settings.get("${MOD}", "bodiesFound") ?? {}), hold: game.settings.get("${MOD}", "bodyFound") ?? {} };`);
+    await settle(800);
+    const gm2Mark = await gm2.eval(`return globalThis.__notifications.length;`);
+    const announceOn = c => c.eval(`return Boolean(await ${CH}.discoverBody({ room: "E128 Q a room no region has",
+        victim: game.actors.get("${IDS.daichi}"), scene: game.scenes.get("${q0.scene}") }));`, { timeout: 60000 });
+    try {
+        // gm2 alone first - the one card must be its press's, made on the primary - then gm's own, which finds it announced.
+        const pressed = [await announceOn(gm2)];
+        await settle(1500);
+        pressed.push(await announceOn(gm));
+        await settle(1200);
+        const q1 = { kept: q0.kept, pressed,
+            ...await gm.eval(`const before = new Set(${J(q0.cards)});
+                return { cards: ${bodyCards}.filter(m => !before.has(m.id)).map(m => m.author?.id ?? m.user?.id ?? null), rows: ${stampRows} - ${q0.rows} };`),
+            told: await gm2.eval(`const said = game.i18n.format("DRPG.Chapter.bodyPrimaryOnly", { name: game.users.get("${IDS.gm}")?.name ?? "?" });
+                return globalThis.__notifications.slice(${gm2Mark}).some(n => n.msg === said);`) };
+        check("Q1: gm2's announcement of a body is carried out on the primary - one card, written by gm, and one stamp row - and gm2 is not told it is the primary's; gm's own press after it adds nothing (E128)",
+            q1.kept && q1.pressed[0] === true && J(q1.cards) === J([IDS.gm]) && q1.rows === 1 && q1.told === false, J(q1), { flow: "body-discovery" });
+    } finally {
+        await gm.eval(`const C = ${CH}; const a = game.actors.get("${IDS.daichi}");
+            if (C.isDeadForGm(a)) await C.reviveCharacter(a, { quiet: true });
+            await game.settings.set("${MOD}", "bodyFound", ${J(q0.hold)});
+            await game.settings.set("${MOD}", "bodiesFound", ${J(q0.stamps)}); return true;`);
+        await settle(600);
+    }
+
+    /* ------------------------------------------------------------------ R */
+    /* E128, 22.11.2026 (OWNER-128-SECOND-GM, line CORE's inventory row 1). A find's words were asked on the window of the
+       browser the find is resolved on, the primary's, and a second GM was only whispered that it waited. The whisper carries
+       "Write it here" now. gm places a trace in Dorm A and opens its describing window for Aiko's find as an Observe's
+       resolution does (observe.mjs `describeFind`), its window drawn and left unanswered; gm2 finds the whisper, wires it as
+       its log would (`wireDescribeHere`), presses the button and answers its own window. Read: what gm's wait answered (the
+       find's words), and whether gm2's button left its copy of the card. Red at 9eb89710: no button on the whisper. */
+    phase("R a second GM writes a find's words", { flow: "search-observe" });
+    const WORDS = { name: "E128 R the words gm2 wrote", playerText: "E128 R what the student sees", analyzedText: "E128 R the reading" };
+    const placed = await gm.eval(`const R = ${imp("remnants.mjs")}, OB = ${imp("observe.mjs")};
+        const scene = canvas.scene, t = await R.placeRemnant({ type: "prep", visibility: "evident", scene, x: 400, y: 400, room: "Dorm A", note: "E128 R" });
+        if (!t) return null;
+        globalThis.__e128rWas = globalThis.__dialogWindows; globalThis.__dialogWindows = true;
+        globalThis.__e128rHad = new Set(game.messages.contents.map(m => m.id));
+        const entry = { sceneId: scene.id, tokenId: t.id, room: "Dorm A", data: R.remnantData(R.remnantById(scene.id, t.id)) };
+        globalThis.__e128r = { done: false, answer: null };
+        OB.describeFind(game.actors.get("${IDS.aiko}"), entry, false, "E128 R fallback", null, { waitMs: 30000 })
+            .then(a => { globalThis.__e128r = { done: true, answer: a }; }, () => { globalThis.__e128r = { done: true, answer: "threw" }; });
+        return { scene: scene.id, token: t.id };`, { timeout: 60000 });
+    await settle(1500);
+    const pressed = placed ? await gm2.eval(`const S = ${imp("secret.mjs")}, OB = ${imp("observe.mjs")};
+        const end = Date.now() + 8000; let card = null;
+        while (!card && Date.now() < end) { card = game.messages.contents.find(m => String(S.contentOf(m) ?? "").includes("${placed.token}") && String(S.contentOf(m) ?? "").includes("data-drpg-describe-find")); if (!card) await new Promise(r => setTimeout(r, 100)); }
+        if (!card) return { card: false };
+        const body = document.createElement("div"); body.innerHTML = S.contentOf(card); document.body.append(body);
+        if (typeof OB.wireDescribeHere === "function") OB.wireDescribeHere(body);
+        globalThis.__dialogAnswers.push(() => (${J(WORDS)}));
+        const button = body.querySelector("[data-drpg-describe-find]"); button?.click();
+        const until = Date.now() + 10000;
+        while (body.querySelector("[data-drpg-describe-find]") && Date.now() < until) await new Promise(r => setTimeout(r, 100));
+        const left = Boolean(body.querySelector("[data-drpg-describe-find]")); body.remove(); globalThis.__dialogAnswers.length = 0;
+        return { card: true, clicked: Boolean(button), left };`, { timeout: 60000 }) : null;
+    const waited = await until(() => gm.eval(`return globalThis.__e128r;`), v => v?.done === true, 10000);
+    await gm.eval(`const R = ${imp("remnants.mjs")}; globalThis.__dialogWindows = globalThis.__e128rWas;
+        for (const w of Object.values(ui.windows ?? {})) if (String(w?.title ?? w?.options?.window?.title ?? "") === game.i18n.localize("DRPG.Observe.describeTitle")) await w.close?.();
+        const t = canvas.scene.tokens.get("${placed?.token ?? ""}"); if (t) { await R.dropRemnantSecret(t); await t.delete(); }
+        return true;`, { timeout: 60000 });
+    await settle(600);
+    check("R1: gm2's Write it here on a find waiting on gm's window gives the find gm2's words, and its button leaves gm2's card (E128)",
+        Boolean(placed) && pressed?.card === true && pressed.clicked === true && pressed.left === false && waited?.done === true
+            && waited.answer?.name === WORDS.name && waited.answer?.playerText === WORDS.playerText && waited.answer?.analyzedText === WORDS.analyzedText,
+        J({ placed, pressed, waited }), { flow: "search-observe" });
+
+    /* ------------------------------------------------------------------ S */
+    /* E128, 22.11.2026 (OWNER-128-SECOND-GM, line CORE's inventory row 8). Fix voice was drawn disabled on a GM that is not
+       the primary: the rooms are the primary's to send. gm2's press is asked of the primary now (voice.mjs
+       `resetVoiceFromHere`, `voice.reset`). With LiveKit's module stood in as active on gm alone (voice-client.mjs
+       `avclientActive` reads the module's `active`), gm2 presses: read what it answered - how many the primary sent, a number -
+       and, the module stood in as inactive on gm, that the primary's refusal comes back as null; gm's own entry put back. Red at 9eb89710: no
+       `resetVoiceFromHere`. */
+    phase("S a second GM's Fix voice", { flow: "voice" });
+    const AV = "avclient-livekit";
+    await gm.eval(`globalThis.__e128sHad = game.modules.get("${AV}") ?? null; game.modules.set("${AV}", { id: "${AV}", active: true }); return true;`);
+    let sentOn = null, refusedOn = null;
+    const PRESS = `const V = ${imp("voice.mjs")}; return typeof V.resetVoiceFromHere === "function" ? await V.resetVoiceFromHere() : "none";`;
+    try {
+        sentOn = await gm2.eval(PRESS, { timeout: 60000 });
+        await gm.eval(`game.modules.set("${AV}", { id: "${AV}", active: false }); return true;`);
+        refusedOn = await gm2.eval(PRESS, { timeout: 60000 });
+    } finally {
+        await gm.eval(`const had = globalThis.__e128sHad; if (had) game.modules.set("${AV}", had); else game.modules.delete("${AV}"); return true;`);
+    }
+    check("S1: gm2's Fix voice is sent by the primary - a count with LiveKit active on gm, null without (E128)",
+        Number.isFinite(sentOn) && refusedOn === null, J({ sentOn, refusedOn }), { flow: "voice" });
+
+    /* ------------------------------------------------------------------ T */
+    /* E128, 22.11.2026 (OWNER-128-SECOND-GM; scenario 61 F9b, at the coordinator's ask). The opening's request card to its
+       player was posted on whichever GM asked, after a read of the GMs' memo of the cards (`openingCardStandsFor`) that the
+       post did not hold: two asks on one browser both read it before either card was made, and a second GM read a memo the
+       primary's card had not reached yet. gm2 opens Aiko's murder of Botan - Aiko is p1's, so the opening goes to p1, whose
+       roll is held - and asks the opening again twice while the murder's own ask is in flight, as a tracker's re-ask and a
+       ready's do. Read on gm: the cards to p1 posted since, by their words (secret.mjs `wordsOf`), and their authors. Red at
+       1c546cae: three cards, each gm2's. The card is the primary's to post now (murder-rules.mjs `postOpeningCard`, asked
+       with `murder.openingCard`), and the primary holds it in flight from the memo's read to its write. */
+    phase("T the opening's card posted once, by the primary, whoever asks", { flow: "murder-incident" });
+    await p1.eval(`globalThis.__e128tHeld = []; const a = game.actors.get("${IDS.aiko}");
+        globalThis.__e128tKept = Object.hasOwn(a, "rollTrait") ? a.rollTrait : null;
+        a.rollTrait = function () { return new Promise(r => globalThis.__e128tHeld.push(r)); }; return true;`);
+    const tFrom = await gm.eval(`return game.messages.contents.length;`);
+    const YOURS = `const S = ${imp("secret.mjs")}; const yours = game.i18n.localize("DRPG.Murder.openingYours"), cards = [];
+        for (const m of game.messages.contents.slice(${tFrom})) if (String(await S.wordsOf(m, 500) ?? "").includes(yours)) cards.push(m.author?.id ?? m.user?.id ?? null);
+        return cards;`;
+    let tOpened = null, tCards = null;
+    try {
+        tOpened = await gm2.eval(`if (game.drpg.murderState()?.active) await game.drpg.endMurder({ reason: "suite", followUp: false });
+            const R = ${imp("murder-rules.mjs")};
+            const r = await game.drpg.openMurder({ killerId: "${IDS.aiko}", victimId: "${IDS.botan}", openingTrait: "body" });
+            const again = await Promise.all([R.rollOpening("killer", game.drpg.murderState()), R.rollOpening("killer", game.drpg.murderState())]);
+            return { stage: r?.stage ?? null, again: again.map(a => a?.asked ?? null) };`, { timeout: 60000 });
+        await until(() => gm.eval(YOURS), v => v.length > 0, 8000);
+        await settle(1500);
+        tCards = await gm.eval(YOURS);
+    } finally {
+        await gm.eval(`if (game.drpg.murderState()?.active) await game.drpg.endMurder({ reason: "suite", followUp: false }); return true;`, { timeout: 60000 });
+        await p1.eval(`const a = game.actors.get("${IDS.aiko}"); if (globalThis.__e128tKept) a.rollTrait = globalThis.__e128tKept; else delete a.rollTrait;
+            for (const r of globalThis.__e128tHeld ?? []) r(null); delete globalThis.__e128tHeld; delete globalThis.__e128tKept; return true;`);
+        await settle(900);
+    }
+    check("T1: gm2's murder and two more asks of its opening while the first is in flight post one card to the killer's player, written by the primary (E128)",
+        tOpened?.stage === "openingRoll" && J(tOpened.again) === J([true, true]) && J(tCards) === J([IDS.gm]), J({ tOpened, tCards }), { flow: "murder-incident" });
+
+    /* ------------------------------------------------------------------ U */
+    /* E128, 22.11.2026 (OWNER-128-SECOND-GM, line CORE's inventory row 6, at the coordinator's ask). A verdict stopped half
+       way whose GM has left is the primary's to finish (verdict.mjs `verdictRunner`), and a second full GM's Finish was
+       greyed on the trial console and refused in `finishVerdict`; it is asked of the primary now (`finishRoute`,
+       `verdict.finish`). R8732 reads the route alone, and could not see the greyed button (fixed in 1c546cae). gm writes
+       the stopped verdict as tier 2's E10 G2 does - every step done but the bets, its GM a user who is not there; gm2 opens
+       the trial console and presses Finish as its footer offers it (a greyed button is not pressed). Read: the button on
+       gm2, and on gm the verdict's stage, who finished it and the verdict summaries posted since. Red at 9eb89710: greyed,
+       not pressed, the verdict still applying. */
+    phase("U a second GM's Finish of a verdict the primary runs", { flow: "class-trial" });
+    const VOTE = imp("vote.mjs");
+    const uFrom = await gm.eval(`return game.messages.contents.length;`);
+    await gm.eval(`const V = ${VOTE}, C = ${imp("settings.mjs")};
+        globalThis.__e128uKept = foundry.utils.deepClone(game.settings.get("${MOD}", "trialProgress") ?? {});
+        await game.settings.set("${MOD}", "trialProgress", { ...V.trialProgress(), chapter: C.getClock().chapter, verdictApplied: false, executedAt: null, execution: null });
+        await V.setTrialProgress({ voteClosed: true, verdictApplied: true, verdict: { stage: "applying", correct: true, executedIds: [], by: "E128U a GM who left",
+            at: Date.now(), done: ["sentence", "executions", "card", "levelUps", "overflow"], failed: [] } });
+        return true;`, { timeout: 60000 });
+    let uSeen = null, uAfter = null;
+    try {
+        await until(() => gm2.eval(`return (${VOTE}).trialProgress().verdict?.stage ?? null;`), v => v === "applying", 6000);
+        uSeen = await gm2.eval(`const UI = ${imp("trial-floor-ui.mjs")}; const D = foundry.applications.api.DialogV2;
+            const kept = Object.getOwnPropertyDescriptor(D, "wait"); let seen = null, consoles = 0;
+            D.wait = async cfg => {
+                if (!(cfg?.classes ?? []).includes("drpg-window-trial") || consoles++) return null;
+                const b = (cfg?.buttons ?? []).find(x => x.action === "finishVerdict");
+                seen = { shown: Boolean(b), disabled: Boolean(b?.disabled), runner: (${VOTE}).verdictRunner() };
+                return b && !b.disabled ? "finishVerdict" : null;
+            };
+            try { await UI.manageClassTrial(); } finally { if (kept) Object.defineProperty(D, "wait", kept); else delete D.wait; }
+            return seen;`, { timeout: 60000 });
+        uAfter = await until(() => gm.eval(`const v = (${VOTE}).trialProgress().verdict ?? {}; return { stage: v.stage ?? null, by: v.by ?? null };`),
+            v => v.stage === "done", 10000);
+        await settle(900);
+        uAfter.summaries = await gm.eval(`const S = ${imp("secret.mjs")}; const title = game.i18n.localize("DRPG.Vote.verdictTitle"); let n = 0;
+            for (const m of game.messages.contents.slice(${uFrom})) if (String(await S.wordsOf(m, 1000) ?? "").includes(title)) n++;
+            return n;`);
+    } finally {
+        await gm.eval(`await game.settings.set("${MOD}", "trialProgress", globalThis.__e128uKept); delete globalThis.__e128uKept; return true;`);
+        await settle(600);
+    }
+    check("U1: gm2's console offers Finish live on a verdict the primary runs, and its press finishes it once, on gm (E128)",
+        uSeen?.shown === true && uSeen.disabled === false && uSeen.runner === IDS.gm && uAfter?.stage === "done" && uAfter.by === IDS.gm
+            && uAfter.summaries === 1, J({ uSeen, uAfter }), { flow: "class-trial" });
+
     return { primary: { before, joined, afterGmReload, moved, backAgain }, reloads: { p1: r1, gm: r2, card: r3 },
         d153: { before: gBefore, onGm: gAfter, onGm2: gAfter2, found: gFound, gave: gGave } };
 }

@@ -48054,7 +48054,7 @@ const INVARIANTS = [
             keep: [".application.drpg-prompt", "drpg-prompt", false],
             kit: [[false, false], [true, false]],
             asking: ["action-menus.mjs chooseVariant", "action-menus.mjs promptForNote", "action-project.mjs proposeProjectTrait", "call-gm.mjs askForRequest", "frisk.mjs askToForce", "frisk.mjs openAskWindow",
-                "level-up.mjs askWhoPicks", "level-up.mjs openAdvancement", "mask-gm.mjs askReveal", "observe.mjs askWhichRemnant", "observe.mjs describeFind", "trait-ruling.mjs pickHere",
+                "level-up.mjs askWhoPicks", "level-up.mjs openAdvancement", "mask-gm.mjs askReveal", "observe.mjs askWhichRemnant", "observe.mjs describeFind", "observe.mjs wireDescribeHere", "trait-ruling.mjs pickHere",
                 "trait-ruling.mjs rollChanged", "trial-prompt.mjs promptClaim", "trial-prompt.mjs promptTurn", "vote.mjs castBallot"],
             naming: ["roll-dialog.mjs", "stacking.mjs", "ui-kit.mjs"],
             // E69 C1: the Infiltrate tile's rows (action-listen.mjs `performListen`), an action's declaration.
@@ -63363,7 +63363,8 @@ const INVARIANTS = [
         must(typeof O.findTexts === "function", "observe.mjs exports no findTexts - the critical's hint is not kept apart");
         const src = stripComments((await moduleSources()).get("observe.mjs") ?? "");
         must(src.length > 5000, "observe.mjs was not read - this would measure nothing");
-        const create = fnSource(src, "createFind"), describe = fnSource(src, "describeFind");
+        // The window's form and its read are describeFormBody's and readDescribeForm's since E128 (both GMs draw it).
+        const create = fnSource(src, "createFind"), describe = `${fnSource(src, "describeFormBody") ?? ""}\n${fnSource(src, "readDescribeForm") ?? ""}`;
         const publicWrite = /setRemnantPublicById\(entry\.sceneId, entry\.tokenId, \{([\s\S]*?)\}\)/.exec(create)?.[1] ?? null;
         must(publicWrite !== null, "createFind's write back to the trace was not found - this would measure nothing");
         const pub = { playerText: "A smear on the sill." };
@@ -63539,7 +63540,8 @@ const INVARIANTS = [
          */
         const src = stripComments((await moduleSources()).get("observe.mjs") ?? "");
         must(src.length > 5000, "observe.mjs was not read - this would measure nothing");
-        const body = fnSource(src, "describeFind");
+        // The window's form is describeFormBody's since E128 (drawn by describeFind and by another GM's Write it here).
+        const body = fnSource(src, "describeFormBody") ?? "";
         const at = needle => body.indexOf(needle);
         const [crit, hint, name, text, lab] = ['"DRPG.Observe.critPrompt"', 'name="critHint"', '"DRPG.TruthBullet.name"', 'name="playerText"', 'name="analyzedText"'].map(at);
         must([crit, hint, name, text, lab].every(i => i >= 0), `describeFind lost one of its fields - this would measure nothing: ${stableJson([crit, hint, name, text, lab])}`);
@@ -66000,7 +66002,10 @@ const INVARIANTS = [
         let answer = null;
         try {
             if (ui.notifications) ui.notifications.warn = text => { warned.push(String(text)); };
-            answer = [G.mayEndChapterHere({ primary: false }), G.mayEndChapterHere({ primary: true })];
+            // A GM who is not the primary: an Assistant GM is refused; a second full GM's end goes to the primary (E128; the owner at
+            // the table, 22.11.2026: "Drugi GM ... powinien byc na rowni z pierwszym gmem" - for full GMs; an Assistant's role kept).
+            answer = [G.mayEndChapterHere({ primary: false, full: false }), G.mayEndChapterHere({ primary: true }),
+                G.mayEndChapterHere({ primary: false, full: true })];
         } finally {
             if (ui.notifications) ui.notifications.warn = realWarn;
         }
@@ -66009,7 +66014,7 @@ const INVARIANTS = [
             word: /KEPT_FIELDS\] \?\? \[\]\)\.includes\("safeword"\)/.test(season), asks: [asksFirst(season), asksFirst(edit)],
             here: [answer, warned.length] }),
         stableJson({ kept: ["chapter", "day", "phase", "session", "timeOfDay", "safeword"], json: "typed", readNow: true, word: true, asks: [true, true],
-            here: [[false, true], 1] }),
+            here: [[false, true, true], 1] }),
             "{kept: the fields named as taken from the world; json: the answer as JSON still the GM's name; readNow: the clock read again after the questions, and again after the assembly's call-off, right before the write; word: Season setup's safeword line reads them; asks: Season setup's and Edit campaign's End the chapter ask first; here: [as a GM not the primary, as the primary], warnings}");
     }],
     ["R8101 - a settings window's row left as drawn follows its setting, and one the person changed keeps their value (1.2.122 line CORE; the audit of 1.2.118, CORE-27, REFR-28, STG-15): settings-window.mjs `followSettingRows` on a row drawn with the other value than the one stored, told the setting changed (a recorder for Hooks), sets the field to the stored value as drawn (`untouchedField` still true); a second row the person changed is left; `saveSettings` skips a field `untouchedField` reads as drawn", async () => {
@@ -66520,6 +66525,92 @@ const INVARIANTS = [
         equal(stableJson([of("K", "victim"), of("V", "victim"), of("T", "victim"), of("T", "killer"), of("X", "killer"), of(null, "killer"),
             R.incidentShowsTo("K", [], {})]), stableJson([true, true, false, true, false, false, false]),
             "[the killer, the victim, a victim-side third, a killer-side third, one outside the cast, no leaver, the killer with no cast]");
+    }],
+    ["R8733 - a second GM's own opening roll, sent to the primary, reads as made on this browser: the tracker's Ask again says the roll is thrown here, not that nothing was sent (E128; scripts/murder-rules.mjs `throwOpeningRoll`, `rollOpening`, murder-ui.mjs `reaskOpening`; OWNER-128-SECOND-GM fix 2)", async () => {
+        /* Red at ed0b1ad3's parent (9eb89710): a GM's answer was `res.value`, and a result relayed to the primary carries none,
+           so `throwOpeningRoll` (and `rollOpening` with it) answered undefined and Ask again said "openingReaskNone". Read off the source (tier 1 rolls nothing):
+           the answer a GM reads, and the tracker's three lines by what it answered. Scenario 97 O1 drives the relay itself. */
+        const src = new Map(await moduleSources());
+        // The answer is `throwOpeningRoll`'s, which `rollOpening` hands on for a roll thrown on this browser.
+        const roll = fnSource(stripComments(src.get("murder-rules.mjs") ?? ""), "throwOpeningRoll") ?? "";
+        const reask = fnSource(stripComments(src.get("murder-ui.mjs") ?? ""), "reaskOpening") ?? "";
+        must(roll && reask, "murder-rules.mjs has no throwOpeningRoll or murder-ui.mjs no reaskOpening - this would measure nothing");
+        equal(stableJson({
+            relayed: /return game\.user\.isGM && res\.value !== undefined \? res\.value : \{ pending: true \};/.test(roll),
+            lines: /if \(out\?\.asked\)[^\n]*openingReaskSent[\s\S]{0,200}else if \(out\)[^\n]*openingReaskHere[\s\S]{0,120}else[^\n]*openingReaskNone/.test(reask)
+        }), stableJson({ relayed: true, lines: true }),
+            "{relayed: a GM's answer with no value (relayed to the primary) reads as pending; lines: Ask again says Sent, Here for any answer, None for none}");
+    }],
+    ["R8732 - a Finish of a stopped verdict runs on its runner, is asked of the primary by a second full GM when the primary runs it, and is refused with whom to ask otherwise (E128; scripts/verdict.mjs `finishRoute`, `finishVerdict`; OWNER-128-SECOND-GM, line CORE's inventory row 6)", async () => {
+        /* Red at 9eb89710: no `finishRoute` - a second GM's Finish of a verdict the primary ran was refused
+           (`DRPG.Vote.finishOtherGm`). Pure on stand-in ids, and a text read of `finishVerdict`; nothing written. */
+        const V = await import("./verdict.mjs");
+        must(typeof V.finishRoute === "function", "verdict.mjs has no finishRoute: a second GM's Finish is refused whoever runs the verdict");
+        const r = (runner, me, full = true) => V.finishRoute({ runner, me, primary: "PRIMARY", full });
+        const finish = fnSource(stripComments((new Map(await moduleSources())).get("verdict.mjs") ?? ""), "finishVerdict") ?? "";
+        equal(stableJson({ routes: [r(null, "SECOND"), r("SECOND", "SECOND"), r("PRIMARY", "SECOND"), r("PRIMARY", "SECOND", false), r("THIRD", "SECOND"), r("PRIMARY", "PRIMARY")],
+            asks: /const route = finishRoute\(\{ runner \}\);\s*if \(route === "primary"\) \{[\s\S]{0,160}bridgeRequest\("verdict\.finish"/.test(finish) }),
+            stableJson({ routes: ["here", "here", "primary", "refuse", "refuse", "here"], asks: true }),
+            "{routes: no runner, the runner itself, a second full GM while the primary runs it, an Assistant GM then, another GM runs it, the primary runs it and presses; asks: finishVerdict sends a second GM's Finish to the primary}");
+    }],
+    ["R8731 - Season setup's Reset the season asks who may reset at the press, before the window closes: a GM who is not the primary is told the reset is the primary's and the window is kept (E128; scripts/gm-campaign.mjs `mayResetSeasonHere`, season-setup.mjs `openSeasonSetup`; OWNER-128-SECOND-GM, line CORE's inventory row 7)", async () => {
+        /* Red at 9eb89710: no `mayResetSeasonHere`; the press closed Season setup unsaved and season-wipe.mjs `resetSeason`
+           refused after, so a second GM's typed edits were lost. Pure (the warning caught) and a text read of the handler;
+           nothing written. */
+        const G = await import("./gm-campaign.mjs");
+        must(typeof G.mayResetSeasonHere === "function", "gm-campaign.mjs has no mayResetSeasonHere: the reset is refused only after Season setup has closed");
+        const season = fnSource(stripComments((new Map(await moduleSources())).get("season-setup.mjs") ?? ""), "openSeasonSetup") ?? "";
+        const warned = [], realWarn = ui.notifications?.warn;
+        let answer = null;
+        try {
+            if (ui.notifications) ui.notifications.warn = text => { warned.push(String(text)); };
+            answer = [G.mayResetSeasonHere({ primary: false }), G.mayResetSeasonHere({ primary: true })];
+        } finally {
+            if (ui.notifications) ui.notifications.warn = realWarn;
+        }
+        const said = game.i18n.format("DRPG.GmStore.resetPrimaryOnly", { name: "" }).split("{")[0].slice(0, 12);
+        equal(stableJson({ answer, warned: warned.length, words: warned.every(w => w.startsWith(said)),
+            asks: /\[data-drpg-reset-season\][\s\S]{0,160}if \(!mayResetSeasonHere\(\)\) return;\s*resetAsked = true;/.test(season) }),
+            stableJson({ answer: [false, true], warned: 1, words: true, asks: true }),
+            "{answer: a GM who is not the primary, the primary; warned: how often; words: the reset's own; asks: the press asks before it marks the reset and closes}");
+    }],
+    ["R8730 - a Spectator viewer's outline stands round the room its own Spectator token stands in, where its screen clears the room, and nowhere its fog does not; its walk still finds nothing and stands in no room of the fog's; a living player's outline is its own rooms as before (E127; scripts/fog.mjs `outlineLeadRooms`, `spectatorLeadRoom`, `leadsHere`, `myCurrentRooms`, `recordDiscovery`, `seedCells`; the owner at the table, 22.11.2026)", async () => {
+        /*
+         * E127, 22.11.2026; the owner: "Spectatorzy nie widza obramowania pokoju (i dziur w scianach/drzwi) tak jak reszta
+         * graczy". On a Spectator's browser no token led the outline: `isMine` refuses a Spectator (E92 C4), so the lead
+         * rooms were `mine`, empty - no outline, no doorway gaps (drawn on the outline, fog-doorways.mjs), no name. Read on
+         * stand-in tokens with the browser's facts handed in (whether this viewer watches, a token's room, the rooms its
+         * screen clears), as R563 reads `myCurrentRooms`; and off the source, the walk's two refusals of a Spectator. Red at
+         * 2e28785a: fog.mjs had no `outlineLeadRooms`. Nothing written; no canvas drawn (LIVE-E127-01).
+         */
+        const F = await import("./fog.mjs");
+        must(typeof F.outlineLeadRooms === "function" && typeof F.myCurrentRooms === "function",
+            "fog.mjs has no outlineLeadRooms: a Spectator viewer's outline follows `mine`, which holds none of its tokens");
+        const { FLAGS } = await import("./config.mjs");
+        const scene = { id: "R8730SCENE" };
+        const token = (id, room, { spectator = false, owner = true } = {}) => ({
+            isOwner: owner,
+            actor: { id, type: "character", getFlag: (scope, key) => scope === MODULE_ID && key === FLAGS.spectator ? spectator : undefined },
+            document: { id: `${id}tok`, parent: scene, room }
+        });
+        const facts = (watching = true) => ({ watching: () => watching, roomOf: doc => doc.room ?? null, cleared: () => new Set(["R8730 Gym", "R8730 Hall"]) });
+        const lead = (mine, tokens, watching) => [...F.outlineLeadRooms(new Set(mine), { tokens, gm: false, facts: facts(watching) })].sort();
+        const watcher = token("R8730SPEC", "R8730 Gym", { spectator: true });
+        const read = {
+            spectator: lead([], [watcher], true),
+            fogged: lead([], [token("R8730SPEC", "R8730 Lab", { spectator: true })], true),
+            notWatching: lead([], [watcher], false),
+            notOwned: lead([], [token("R8730OTHER", "R8730 Gym", { spectator: true, owner: false })], true),
+            living: lead(["R8730 Hall"], [token("R8730LIVE", "R8730 Hall"), token("R8730OTHER", "R8730 Gym", { spectator: true, owner: false })], true),
+            standsInFog: [...F.myCurrentRooms({ tokens: [watcher], gm: false })]
+        };
+        const src = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/fog.mjs`).then(lfText));
+        read.walk = [/if \(isSpectator\(actor\)\) return false;/.test(fnSource(src, "recordDiscovery") ?? ""),
+            /if \(isSpectator\(actor\)\) continue;/.test(fnSource(src, "seedCells") ?? "")];
+        equal(stableJson(read), stableJson({ spectator: ["R8730 Gym"], fogged: [], notWatching: [], notOwned: [], living: ["R8730 Hall"], standsInFog: [], walk: [true, true] }),
+            "{spectator: a Spectator viewer's own Spectator token in a room its screen clears; fogged: in a room under its fog; notWatching: a viewer that also plays a living character; "
+            + "notOwned: another's Spectator; living: a living player's own rooms beside another's Spectator; standsInFog: the Spectator's token in the fog's rooms (`myCurrentRooms`); "
+            + "walk: recordDiscovery and seedCells still refuse a Spectator's walk}");
     }],
     ["R8692 - a told copy is named for the suite's take-back only while a tier-2 test's scope is open, and as it was asked for: none before the scope, none asked for outside it, each one of the scope taken once (remnants.mjs `openToldScope`, `closeToldScope`, `noteToldCopyMade`, `takeToldCopies`; 1.2.125 H1)", async () => {
         /* Red at 206148b7: no scope - every copy made since the page loaded was named, and tier 2 deleted a played world's
@@ -67435,6 +67526,8 @@ const INVARIANTS = [
             for (const m of stripComments(text).matchAll(/popupCentre(?::|\s*=)\s*([^,};\n]+)/g)) {
                 for (const name of m[1].match(/"([A-Za-z]+)"/g) ?? [m[1].trim()]) written.set(name.replace(/"/g, ""), [...(written.get(name.replace(/"/g, "")) ?? []), file]);
             }
+            // a name handed to notice-centre.mjs `withCentre` as its second argument (1.2.127)
+            for (const m of stripComments(text).matchAll(/withCentre\([^()]*(?:\([^()]*\)[^()]*)*,\s*"([A-Za-z]+)"\)/g)) written.set(m[1], [...(written.get(m[1]) ?? []), file]);
         }
         // the day summary asks by showPopup's own option on the GM's screen (day-summary.mjs), not by the flag
         const direct = [...sources].filter(([file, text]) => !/^tests/.test(file) && /centre:\s*true/.test(stripComments(text))).map(([file]) => file).sort();
@@ -67623,6 +67716,145 @@ const INVARIANTS = [
             pickBarricade: [null, true], pickLockOpens: [reached, true]
         }), "{each case: [the mark beside the dice, \"needed N\" shown] - a barricade's case says the number and no mark; a lock's says the mark its sentence says}");
     }],
+    ["R8694 - a Spectator's frame fades with its token (E127; the owner, 22.11.2026: \"Spectatorzy. Ich ramka kwadratowa renderowana przez modul niech tez ma zmniejszone opacity\", OWNER-127-SPECTATOR-FRAME): own-ring.mjs `dressFrame` sets the frame's alpha to config.mjs `SPECTATOR_ALPHA` on a GM's browser for a Spectator's token - the factor visibility.mjs `dressSpectator` sets its sprite at - and back to 1 when the actor is no Spectator; a player's browser leaves it at 1; `paint` dresses the frame on every road that shows one, and a Spectator flag written repaints the actor's frames", async () => {
+        /* Red at 2e28785a: no `dressFrame` and no `SPECTATOR_ALPHA` in config.mjs; the frame kept full alpha under a
+           sprite at 0.3. Stand-in tokens, frames and actors: nothing of the world is read or written. */
+        const R = await import("./own-ring.mjs");
+        const C = await import("./config.mjs");
+        const V = await import("./visibility.mjs");
+        must(typeof R.dressFrame === "function" && typeof C.SPECTATOR_ALPHA === "number", "own-ring.mjs has no dressFrame or config.mjs no SPECTATOR_ALPHA - a Spectator's frame keeps full alpha");
+        let watching = true;
+        const actor = { getFlag: (scope, key) => (scope === MODULE_ID && key === C.FLAGS.spectator ? watching : undefined) };
+        const frame = { alpha: 1 };
+        const token = { actor, document: { alpha: 1 }, mesh: { alpha: 1 }, drpgOwnRing: frame };
+        const gm = { isGM: true }, player = { isGM: false };
+        V.dressSpectator(token);
+        const asGm = [R.dressFrame(token, gm), frame.alpha, token.mesh.alpha];
+        const asPlayer = (() => { const f = { alpha: 1 }; return [R.dressFrame({ ...token, drpgOwnRing: f }, player), f.alpha]; })();
+        watching = false;
+        V.dressSpectator(token);
+        const back = [R.dressFrame(token, gm), frame.alpha, token.mesh.alpha];
+        const sources = await moduleSources();
+        const paint = fnSource(stripComments(sources.get("own-ring.mjs") ?? ""), "paint");
+        const reg = fnSource(stripComments(sources.get("own-ring.mjs") ?? ""), "registerOwnRing");
+        must(paint.length > 500, "own-ring.mjs `paint` was not read - this would measure nothing");
+        equal(stableJson({ asGm, asPlayer, back, paintDresses: (paint.match(/dressFrame\(token\)/g) ?? []).length >= 3,
+            flagRepaints: /FLAGS\.spectator/.test(reg), oneConstant: !/0\.3\b/.test(stripComments(sources.get("visibility.mjs") ?? "").match(/SPECTATOR_ALPHA\s*=\s*[\d.]+/)?.[0] ?? "") }),
+        stableJson({ asGm: [C.SPECTATOR_ALPHA, C.SPECTATOR_ALPHA, C.SPECTATOR_ALPHA], asPlayer: [1, 1], back: [1, 1, 1], paintDresses: true, flagRepaints: true, oneConstant: true }),
+        "{asGm: [answered, the frame, the sprite] for a Spectator on a GM's screen; asPlayer: on a player's; back: no Spectator any more; paintDresses: every road of paint that shows a frame; flagRepaints: the flag's write repaints; oneConstant: visibility.mjs states no 0.3 of its own}");
+    }],
+    ["R8695 - every action's result card its player waits on asks for the middle (E127; the owner at the table, 22.11.2026: \"nie wszystkie akcje wyswietlaja powiadomienie na srodku (np facilities)\", OWNER-127-CENTRE; docs/dev/owner127/INVENTORY.md): each road of the inventory that did not centre on v1.2.126 - a room action, Observe's and Analyze's verdicts, a Find Stash, a passage, a Steal's and a Plant's verdicts, a Frisk's, an item used, a Rest, Echoes, a crisis action, the opening, a killer's own Stage 4, Stage Six - asks notice-centre.mjs `actionResult` (`withCentre`, or the flag written) on as many of its cards as the row names", async () => {
+        /* Red at 2e28785a: every row 0 - the verdicts the GMs' runs write, and a Rest's, an item's and Echoes' cards
+           written by their players, stood in the corner (the inventory's rows 7-10, 13, 14, 17, 18, 20, 26, 27, 30, 39,
+           41, 43-45, 47-48, 52-55, 57). The middle itself is the rule's (R8671) and the stage's (R8672). */
+        const sources = await moduleSources();
+        const NC = await import("./notice-centre.mjs");
+        must(typeof NC.withCentre === "function", "notice-centre.mjs has no withCentre - the posters have no way to ask");
+        const asks = (file, fn) => {
+            const text = stripComments(sources.get(file) ?? "");
+            const body = fn ? fnSource(text, fn) : text;
+            // an action's result only: a card to someone who did not act asks "doneToYou" (R8696) and is not counted here
+            return (body.match(/withCentre\(|popupCentre: "actionResult"/g) ?? []).length - (body.match(/withCentre\([^;]*"doneToYou"\)/g) ?? []).length
+                - (fn ? 0 : (text.match(/export function withCentre\(/g) ?? []).length);
+        };
+        const ROADS = [
+            ["a room action (Rest's menu)", "facilities-gm.mjs", "tellUse", 1],
+            ["Observe - a secret project noticed", "observe.mjs", "shareFoundProject", 1],
+            ["Observe - a miss", "observe.mjs", "chargeObserveMiss", 1],
+            ["Observe - a Truth Bullet copied", "observe.mjs", "createFind", 1],
+            ["Observe - a trace already held", "observe.mjs", "alreadyHeld", 1],
+            ["Analyze - a bullet identified", "analyze.mjs", "identify", 1],
+            ["Analyze - a bullet locked", "analyze.mjs", "lockOut", 1],
+            ["Analyze - a stash found", "stash-reach.mjs", "resolveStashSearch", 1],
+            ["Analyze - a stash's nothing (STASH_MISS), a stash found, a stash rifled", "stash-reach.mjs", null, 3],
+            ["a stash rifled - what was taken", "stash-reach.mjs", "stealFromVault", 1],
+            ["Analyze - a passage found or nothing", "passages-gm.mjs", "resolvePassageSearch", 1],
+            ["Palm - a Steal's verdict", "palm.mjs", "stealFromPerson", 1],
+            ["Palm - a Plant's verdict", "palm.mjs", "plantOnPerson", 1],
+            ["Frisk unseen - what was seen", "frisk.mjs", "friskPerson", 1],
+            ["Frisk unseen - a Reroll's replay", "frisk.mjs", "replayRummage", 1],
+            ["Frisk openly - shown, forced, missed, gone, interrupted", "frisk.mjs", "endAsk", 5],
+            ["Frisk openly - refused or no answer", "frisk.mjs", "noYes", 1],
+            ["Use an Item", "use-items.mjs", "useItem", 1],
+            ["Use an Item creatively - the GM's ruling", "use-items.mjs", "grantItemEffect", 1],
+            ["Rest", "rest.mjs", "takeRest", 1],
+            ["Echoes", "action-listen.mjs", "performEchoes", 1],
+            ["a crisis action (each seat's card and its hidden copy)", "murder-rules.mjs", "announceCrisis", 3],
+            ["the opening roll", "murder-rules.mjs", "announceOpening", 1],
+            ["a killer's own Stage 4 went through", "murder-rules.mjs", "resolveKillerOpening", 1],
+            ["Stage Six - a Misleading Trail or Move the Body", "cleanup.mjs", "resolveStageSix", 1]
+        ];
+        const measured = Object.fromEntries(ROADS.map(([road, file, fn]) => [road, asks(file, fn)]));
+        // what the helper hands a poster: its ask merged into the card's own flags, the rest of the extra kept
+        measured.merge = NC.withCentre({ veiled: true, flags: { [MODULE_ID]: { sfx: "E127" }, other: { x: 1 } } });
+        must(Object.values(measured).some(n => n > 0) || ROADS.every(([, file]) => (sources.get(file) ?? "").length > 1000), "the posters' sources read as nothing - this would measure nothing");
+        equal(stableJson(measured), stableJson({ ...Object.fromEntries(ROADS.map(([road, , , n]) => [road, n])),
+            merge: { veiled: true, flags: { [MODULE_ID]: { sfx: "E127", popupCentre: "actionResult" }, other: { x: 1 } } } }),
+            "{road: how many of its cards ask for the middle; merge: withCentre on a card's extra}");
+    }],
+    ["R8696 - what is done to a player who did not act takes the middle of that player's screen (E127; the coordinator's default to the owner, OWNER-127-CENTRE, item 3; docs/dev/owner127/INVENTORY.md section 3): notice-centre.mjs lists `doneToYou`, and the primary GM's cards to a target ask it - a Tail noticed (tail-gm.mjs `startTail`), a Steal or a Plant felt (palm.mjs `tellPalmVictim`, a living victim's card alone), an unseen Frisk felt (frisk.mjs `friskPerson`) and an open Frisk's outcome (`endAsk`)", async () => {
+        /* Red at 2e28785a: no `doneToYou`, and each of these cards stood in the target's corner. A Sabotage seen is written
+           by the saboteur's browser, which the writer rule never centres on another's screen: left out, said in the
+           inventory. */
+        const NC = await import("./notice-centre.mjs");
+        const sources = await moduleSources();
+        const asks = (file, fn) => (fnSource(stripComments(sources.get(file) ?? ""), fn).match(/withCentre\([^;]*"doneToYou"\)/g) ?? []).length;
+        must((sources.get("frisk.mjs") ?? "").length > 1000, "the posters' sources read as nothing - this would measure nothing");
+        equal(stableJson({
+            listed: Object.hasOwn(NC.CENTRED_NOTICES ?? {}, "doneToYou"),
+            tail: asks("tail-gm.mjs", "startTail"), palm: asks("palm.mjs", "tellPalmVictim"),
+            friskUnseen: asks("frisk.mjs", "friskPerson"), friskOpen: asks("frisk.mjs", "endAsk"),
+            // the GMs' own copy of a body's card stays theirs: only the living victim's asks
+            palmGms: /body \? whisperToGms\(html, card\) : whisperToOwner\(victim, html, withCentre\(card, "doneToYou"\)\)/.test(stripComments(sources.get("palm.mjs") ?? ""))
+        }), stableJson({ listed: true, tail: 1, palm: 1, friskUnseen: 1, friskOpen: 1, palmGms: true }),
+        "{listed; each poster's ask of doneToYou; palmGms: a body's card to the GMs asks nothing}");
+    }],
+    ["R8697 - a picture's path with a parenthesis is kept, encoded (E127; OWNER-127-PORTRAIT-PARENS, the owner's table of 22.11.2026: the second GM's portrait on the voice tile was a Forge asset named `..._(Swimsuit)_Preview.webp` and was not drawn): safeRoomImage and safePortrait answer `(` as `%28` and `)` as `%29`, on The Forge and on this origin, so no answer can close a CSS `url()`; a path already written with `%28`/`%29` is kept as written; every answer is a fixed point and resolves to itself; every other refusal stands", async () => {
+        /* Red at 2e28785a: every parenthesised row refused (`null`), so the voice tile drew the next face or none. The
+           encoding is the rule's, not each caller's: the room tile, Room Setup, `setVaultRoom`, the voice tile and its list,
+           the trial scene and the sequence's portrait all read `safeRoomImage` or `safePortrait`. The art layer's
+           `url()` is read on the room tile (R546's `paintRoomTile` box) for the Forge row. `globalThis.ForgeVTT` is the
+           stand-in R546 uses, put back in `finally`. What The Forge's server answers to the encoded name is the owner's
+           table: the workaround there was the same `%28`/`%29`, typed by hand. */
+        const V = await import("./vault.mjs"), T = await import("./room-tile.mjs");
+        const LIB = "https://assets.forge-vtt.com/", origin = new URL(document.baseURI).origin;
+        const SPRITE = `${LIB}r8697user/assets/DRS_-_Kurokuma_Sprite_(Swimsuit)_Preview.webp`;
+        const SPRITE_ENC = `${LIB}r8697user/assets/DRS_-_Kurokuma_Sprite_%28Swimsuit%29_Preview.webp`;
+        const KEPT = [
+            [SPRITE, SPRITE_ENC], [SPRITE_ENC, SPRITE_ENC],
+            ["worlds/suite/faces/aiko_(beach).png", "worlds/suite/faces/aiko_%28beach%29.png"],
+            [`${origin}/worlds/suite/hall_(1).jpg`, "/worlds/suite/hall_%281%29.jpg"],
+            ["worlds/suite/)(.webp", "worlds/suite/%29%28.webp"]
+        ];
+        // A parenthesis never rescues another refusal: a quote, a query, a fragment, a `..`, a backslash, a bracket, a control, `%2f`, another host, a gif.
+        const REFUSED = ["worlds/x.png\")", "worlds/x(.png'", "worlds/(x).png?v=1", "worlds/(x).png#a", "worlds/(a)/../x.png", "worlds\\(x).png",
+            "worlds/(x)<.png", "worlds/(x)\u0001.png", "worlds/(a)%2fx.png", "https://evil.example/(x).png", "worlds/(x).gif", "url(worlds/x.png)"];
+        const judge = fn => path => { try { return fn(path); } catch (err) { return `throws ${err?.name}`; } };
+        const had = Object.getOwnPropertyDescriptor(globalThis, "ForgeVTT");
+        let read;
+        try {
+            Object.defineProperty(globalThis, "ForgeVTT", { configurable: true, writable: true, value: { usingTheForge: true, ASSETS_LIBRARY_URL_PREFIX: LIB } });
+            const answers = KEPT.map(([path]) => judge(V.safeRoomImage)(path));
+            const box = document.createElement("section");
+            T.paintRoomTile(box, { state: "room", room: "R8697 Hall", sceneId: "SUITER8697SCENE0", description: "R8697", image: SPRITE,
+                tokens: { max: 3, left: 2, sealed: false }, project: true });
+            const art = box.querySelector(".drpg-room-tile-art")?.style.backgroundImage ?? null;
+            read = {
+                kept: answers,
+                portrait: KEPT.map(([path]) => judge(V.safePortrait)(path)),
+                refused: REFUSED.map(judge(V.safeRoomImage)),
+                fixed: answers.filter(Boolean).filter(a => V.safeRoomImage(a) !== a),
+                raw: answers.filter(a => /[()"'\\]/.test(String(a))),
+                art: typeof art === "string" && art.includes("%28Swimsuit%29") && !/_\(Swimsuit\)_/.test(art)
+            };
+        } finally {
+            if (had) Object.defineProperty(globalThis, "ForgeVTT", had);
+            else delete globalThis.ForgeVTT;
+        }
+        equal(JSON.stringify(read), JSON.stringify({
+            kept: KEPT.map(([, kept]) => kept), portrait: KEPT.map(([, kept]) => kept), refused: REFUSED.map(() => null), fixed: [], raw: [], art: true
+        }), "{kept, portrait: each row's answer, parentheses as %28/%29; refused: each still null; fixed: answers that move when judged again; raw: answers holding ( ) \" ' or \; art: the room tile's url() holds the encoded name}");
+    }],
     ["R8431 - the token HUD's on toggles and its focus read under Stained Glass with high contrast (the audit of 1.2.120, H-1, H-7; 1.2.122 line UI): a rule under high contrast and the glass gives `.control-icon.active` the Bone ground and the Ink glyph after the high-contrast ground, and the glass draws the focus ring inside the hexagon (a negative `outline-offset`)", async () => {
         /* Red at 21bf5d18: the high-contrast rule (1,5,1) took the on toggle's ground to Ink under an Ink glyph, and the
            ring stood 2 px outside the clip. Read off the sheets' text; drawn in Chromium by docs/dev/ui122/hud-shots.mjs. */
@@ -67809,10 +68041,15 @@ const INVARIANTS = [
         const repaint = fnSource(src, "repaintFog"), lead = fnSource(src, "leadRoomsHere"), leads = fnSource(src, "leadsHere");
         must(repaint && lead && leads, "fog.mjs has no repaintFog, leadRoomsHere or leadsHere - this would measure nothing");
         const chose = repaint.match(/const leadRooms = ([^;]+);/)?.[1] ?? null;
+        /* Since E127 (22.11.2026) through `outlineLeadRooms`: on a GM `leadRoomsHere` with `leadsHere`, on a player `mine` and
+           a Spectator viewer's own Spectator token's room (R8730). */
+        const outline = fnSource(src, "outlineLeadRooms") ?? "";
         equal(JSON.stringify([chose, /^export function leadRoomsHere\(tokens = [^,]+, lead = leadsHere\)/.test(lead),
-            /if \(!gm\) return true;/.test(leads), (repaint.match(/!leadRooms\.has\(roomOutline\.room\)\) fadeRoomOutline\(\)/g) ?? []).length]),
-            JSON.stringify(["game.user.isGM ? leadRoomsHere() : mine", true, true, 2]),
-            "[what leadRooms is, leadRoomsHere's default lead leadsHere, leadsHere answering every own token on a player, the fades reading leadRooms]");
+            /if \(!gm\) return true;/.test(leads), (repaint.match(/!leadRooms\.has\(roomOutline\.room\)\) fadeRoomOutline\(\)/g) ?? []).length,
+            /if \(gm\) return leadRoomsHere\(tokens, token => leadsHere\(token, gm\)\);\s*const rooms = new Set\(mine\);/.test(outline)]),
+            JSON.stringify(["outlineLeadRooms(mine)", true, true, 2, true]),
+            "[what leadRooms is, leadRoomsHere's default lead leadsHere, leadsHere answering every own token on a player, the fades reading leadRooms, "
+            + "outlineLeadRooms: a GM's own Monokuma's rooms, a player's mine]");
     }],
     ["R8350 - a token sliding towards a room of the viewer's is held hidden until its sprite is in one of the viewer's rooms, the stretch between two rooms included (1.2.122 line MAP; scripts/visibility.mjs `slideHeld`, `applyToToken`; the audit's MAP-02)", async () => {
         /*

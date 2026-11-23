@@ -38,10 +38,12 @@ import {
     VAULT_FLAGS, stashesIn, stashIn, stashRoomsFor, stashRoomOfItem, stashItemsIn, allVaults, foundKey, hasFoundStash,
     stashesFoundBy
 } from "./vault-store.mjs";
+import { withCentre } from "./notice-centre.mjs";
 
 /* A Find Stash's sounds (E110 part 3, 14.11.2026; the coordinator's survey): a miss is heard by the searcher as a search
    that finds nothing (`searchNothing`), a find by the searcher and the GMs (`stashFound`), as Find Passage's. */
-const STASH_MISS = { flags: { [MODULE_ID]: { sfx: "searchNothing" } } };
+// a Find Stash's "nothing", in the middle of its searcher's screen as its find is (notice-centre.mjs `withCentre`, 1.2.127)
+const STASH_MISS = withCentre({ flags: { [MODULE_ID]: { sfx: "searchNothing" } } });
 
 /**
  * The stash of my own I am standing in, or `null`.
@@ -592,10 +594,11 @@ export async function stealFromVault({ thiefId, ownerId, itemId } = {}) {
     // What the thief holds of it now: the copy, or under the key rule the key they already had.
     const copy = moved.copy ?? thief.items.find(i => i.getFlag(MODULE_ID, BEDROOM_KEY_FLAG) === moved.keyHeld) ?? null;
 
+    // the thief's result, in the middle of their screen (notice-centre.mjs `withCentre`, 1.2.127)
     await whisperToOwner(thief, `<p>${game.i18n.format("DRPG.Vault.stole", {
         item: foundry.utils.escapeHTML(name),
         who: foundry.utils.escapeHTML(owner.name)
-    })}</p>`);
+    })}</p>`, withCentre());
 
     /*
      * THE OWNER HEARS OF IT ON WALKING IN (1.2.112; the owner's decision of 13.11.2026). Until then the owner was told
@@ -793,7 +796,7 @@ export async function resolveStashSearch({ actorId, total = 0, isCritical = fals
 
     await whisperToOwner(actor, `<p>${game.i18n.format("DRPG.Analyze.stashFound", {
         who: esc(target.owner.name), room: esc(where.room)
-    })}</p>`, { flags: { [MODULE_ID]: { sfx: { key: "stashFound", gm: true } } } });
+    })}</p>`, withCentre({ flags: { [MODULE_ID]: { sfx: { key: "stashFound", gm: true } } } }));
 
     /*
      * THE OWNER IS NOT TOLD, and that is the rule this action was written with
