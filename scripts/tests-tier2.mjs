@@ -31048,6 +31048,90 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         }
     }],
 
+    ["1.2.129 S0-VOTEKUMA - each Monokuma is a candidate of its own on a ballot, the old id \"monokuma\" is refused, and a vote on one is counted under its own id (vote.mjs `monokumaCandidates`; the owner's note of 23.11.2026)", async () => {
+        /*
+         * E129 S0-VOTEKUMA, 23.11.2026; config.mjs `TRIAL.eachMonokumaOnBallot`. Two Monokuma actors made here, Karimkuma and
+         * Divakuma (the owner's examples), beside any the world holds; the vote opened on a blank record with the ballots
+         * caught, as "a ballot naming one student twice ..." does, and one voter's casts handed to this GM's listeners: the
+         * old "monokuma", then Divakuma with the rest of the picks from the list's students. Read: the Monokumas the voter's
+         * list ends on (their names), whether "monokuma" is on it, the two casts' answers, and the count's row for Divakuma
+         * after the close. Red at 7451d3a9: the list ends on "monokuma", which is answered done, and Divakuma is refused.
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 1), "a voter with a connected player");
+        const { isPrimaryGm } = await import("./utils.mjs");
+        must(isPrimaryGm(), "this browser is not the primary GM, which records the ballots");
+        const V = await import("./vote.mjs");
+        const MK = await import("./monokuma.mjs");
+        const { ballotStore } = await import("./gm-stores.mjs");
+        const { sheetAuditIdle } = await import("./sheet-audit.mjs");
+        const socket = game.socket;
+        const ownEmit = Object.getOwnPropertyDescriptor(socket, "emit");
+        const progressWas = foundry.utils.deepClone(getSetting(SETTINGS.trialProgress) ?? {});
+        const lists = new Map(), told = new Map(), made = [];
+        let voter = null, read = null;
+        const hand = packet => {
+            for (const listener of [...socket.listeners(`module.${MODULE_ID}`)]) listener(packet, voter);
+        };
+        const castAs = async (requestId, round, choice) => {
+            hand({ action: "vote.cast", requestId, round, choice });
+            await until(() => told.has(requestId), 3000);
+            return told.get(requestId) ?? "unanswered";
+        };
+        try {
+            for (const name of ["SUITE S0-VOTEKUMA Karimkuma", "SUITE S0-VOTEKUMA Divakuma"]) {
+                made.push(await Actor.create({ name, type: "character", flags: { [MODULE_ID]: { [FLAGS.monokuma]: true } } }));
+            }
+            await sheetAuditIdle();
+            await settle();
+            const [karim, diva] = made;
+            await game.settings.set(MODULE_ID, SETTINGS.trialProgress, {});
+            const send = socket.emit;
+            socket.emit = function (event, packet, options, ...rest) {
+                if (packet?.action === "vote.open") {
+                    for (const userId of options?.recipients ?? []) lists.set(userId, (packet.candidates ?? []).map(c => [c.id, c.name]));
+                    return true;
+                }
+                if (String(packet?.requestId ?? "").startsWith("suite-kuma-")) {
+                    if (packet.action === "bridge.refused") told.set(packet.requestId, ["refused", packet.reason]);
+                    if (packet.action === "bridge.done") told.set(packet.requestId, ["done", packet.value ?? null]);
+                    return true;
+                }
+                return send.call(this, event, packet, options, ...rest);
+            };
+            await V.openVote();
+            const { round, picks, issued } = V.trialProgress().vote;
+            voter = issued?.[0] ?? null;
+            const list = lists.get(voter) ?? [];
+            must(voter && list.length, "no voter was handed a ballot - this would measure nothing");
+            const kumas = list.filter(([id]) => MK.isMonokuma(game.actors.get(id)));
+            const students = list.filter(([id]) => game.actors.get(id) && !MK.isMonokuma(game.actors.get(id))).map(([id]) => id);
+            const right = [diva.id, ...students.slice(0, picks - 1)];
+            const old = await castAs("suite-kuma-old", round, ["monokuma", ...students.slice(0, picks - 1)]);
+            const done = await castAs("suite-kuma-diva", round, right);
+            await settle();
+            await V.closeVote();
+            await settle();
+            const progress = V.trialProgress();
+            const sorted = [...kumas].map(([, name]) => name).sort((x, y) => x.localeCompare(y, game.i18n.lang));
+            read = {
+                kumas: kumas.map(([, name]) => name), sortedByName: stableJson(kumas.map(([, name]) => name)) === stableJson(sorted),
+                bothListed: [karim.id, diva.id].every(id => kumas.some(([k]) => k === id)), old: list.some(([id]) => id === "monokuma"),
+                casts: [old, done], diva: (progress.accused ?? []).find(r => r?.id === diva.id)?.n ?? 0, karim: (progress.accused ?? []).find(r => r?.id === karim.id)?.n ?? 0
+            };
+        } finally {
+            if (ownEmit) Object.defineProperty(socket, "emit", ownEmit); else delete socket.emit;
+            if (voter) await ballotStore?.dropMany?.([voter]);
+            if (V.trialProgress().vote?.open) await V.closeVote();
+            await game.settings.set(MODULE_ID, SETTINGS.trialProgress, progressWas);
+            for (const actor of made) if (game.actors.get(actor.id)) await actor.delete();
+            await settle();
+        }
+        equal(stableJson({ ...read, kumas: read.kumas.filter(n => n.startsWith("SUITE S0-VOTEKUMA")) }),
+            stableJson({ kumas: ["SUITE S0-VOTEKUMA Divakuma", "SUITE S0-VOTEKUMA Karimkuma"], sortedByName: true, bothListed: true, old: false,
+                casts: [["refused", "missing"], ["done", { round: read?.casts?.[1]?.[1]?.round ?? null }]], diva: 1, karim: 0 }),
+            "a ballot did not list each Monokuma by its own name, sorted, or took the old \"monokuma\", or its vote on one was not counted under that one's id (the suite's two Monokumas listed; sorted; both listed; \"monokuma\" listed; the old and the new cast's answers; the count for each)");
+    }],
+
     ["a player whose students the GMs hold dead is handed no ballot and casts none though the sheets say alive", async () => {
         /*
          * E10 C2, 1.2.71; the plan's 1b.2 (R311's row SHEET vote.mjs#eligibleVoters). Who votes was read

@@ -1,7 +1,8 @@
 /**
  * The owner's screenshots for line TRIAL's session-0 items (E129, 1.2.128 assembly, 23.11.2026): S0-SKIP's window
- * "Finish your turn now?" on the objector's screen, and S0-NOMUTE's switch "Class Trial: no forced muting" in the Game
- * settings window's Voice section. Chromium, 1920x1080 and 1366x768, Stained Glass and Monokuma Legacy, the glass harness
+ * "Finish your turn now?" on the objector's screen, S0-NOMUTE's switch "Class Trial: no forced muting" in the Game
+ * settings window's Voice section, and S0-VOTEKUMA's ballot with two Monokumas, Divakuma and Karimkuma, in English and in
+ * Polish (p1's client given lang/pl.json before its ballot was sent again). Chromium, 1920x1080 and 1366x768, Stained Glass and Monokuma Legacy, the glass harness
  * under the module's stylesheets. Run from the repository's root with a static server on it:
  *
  *     python3 -m http.server 8765 &   node docs/dev/owner129/trial/shots.mjs [--chromium <executable>] [--dsf 2]
@@ -9,7 +10,7 @@
  * WHAT IS REAL AND WHAT IS NOT. Each window's markup is the module's own, drawn by the kit (ui-kit.mjs `drpgWindow`) on
  * the headless harness's clients - p1 with a real Objection of its student on the floor (trial-prompt.mjs `promptFinish`),
  * the GM opening the Game settings window (settings-window.mjs `openGameSettingsWindow`) - and saved beside this file as
- * finish.html and settings.html. Here it is placed in the middle of the glass harness's page, as Foundry places a
+ * finish.html, settings.html, ballot.html and ballot-pl.html. Here it is placed in the middle of the glass harness's page, as Foundry places a
  * window, under the same stylesheets, the harness's own sample windows hidden. Foundry v14's own window frame and its
  * fonts are not the harness's: the title bar (its words the window's title, in English) and the icon font are stand-ins. Writes NN-<window>-<theme>-<size>.png beside this file.
  */
@@ -23,10 +24,14 @@ const base = process.env.DRPG_SHOTS_BASE ?? "http://127.0.0.1:8765/audit/glass-h
 const exe = arg("--chromium") ?? process.env.DRPG_CHROMIUM;
 const dsf = Number(arg("--dsf") ?? 2);
 const here = new URL(".", import.meta.url).pathname;
-const WINDOWS = [["finish", "player", 460, "Finish your turn now?"], ["settings", "gm", 820, "Game settings"]];
+const ALL = [["finish", "player", 460, "Finish your turn now?"], ["settings", "gm", 820, "Game settings"],
+    ["ballot", "player", 520, "Who did it?"], ["ballot-pl", "player", 520, "Kto to zrobił?"]];
+// `--only <name>` shoots one window and leaves the others' pictures as they are.
+const WINDOWS = ALL.filter(([name]) => !arg("--only") || name === arg("--only"));
 const browser = await playwright.chromium.launch(exe ? { executablePath: exe } : {});
 let bad = 0;
-for (const theme of ["stained", "legacy"]) for (const size of ["1920x1080", "1366x768"]) for (const [i, [name, role, width, title]] of WINDOWS.entries()) {
+for (const theme of ["stained", "legacy"]) for (const size of ["1920x1080", "1366x768"]) for (const [name, role, width, title] of WINDOWS) {
+    const i = ALL.findIndex(([n]) => n === name);
     const html = fs.readFileSync(`${here}${name}.html`, "utf8");
     const [W, H] = size.split("x").map(Number);
     const page = await browser.newPage({ viewport: { width: W, height: H }, deviceScaleFactor: dsf });
