@@ -56985,6 +56985,57 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             "[open: in Waiting, its answers there, its answers in the stream; settled: in Waiting, in the stream, the same Timeline node]");
     }],
 
+    ["E129 S0-HIDEMUTE - hiding a player's token blocks their microphone and showing it gives back exactly what the block found: a player's character's token hidden, the settle writes BROADCAST_AUDIO off and keeps the row; shown, the row's state is put back; a microphone a GM had blocked before stays blocked through the hide and the show (voice.mjs `settleTrialVoices`, `hiddenVoiceIds`)", async () => {
+        /*
+         * The owner, session 0 (23.11.2026): "niech chowanie tokenu automatycznie wycisza na livekit". On the primary GM, outside
+         * a Class Trial: a player's character's token (movement.mjs `locateActor`) hidden and shown, the settle asked after
+         * each (the token hook schedules one too); then the same with the player's microphone blocked by a GM first. Read:
+         * the user's own BROADCAST_AUDIO and the trial's mute row. The token's `hidden`, the user's permissions and the row are
+         * put back. Red before E129: the hide blocked nothing.
+         */
+        needs(world.atLeast("playersWithCharacter", 1), "a player's character's token is hidden");
+        must(game.user.isGM, "the settle is the primary GM's");
+        const V = await import("./voice.mjs");
+        const S = await import("./gm-stores.mjs");
+        const { locateActor } = await import("./movement.mjs");
+        const { forcedDeletion } = await import("./utils.mjs");
+        must(game.settings.get(MODULE_ID, SETTINGS.clock)?.phase !== "classTrial", "the clock stands in a Class Trial - the hide's block is outside one");
+        const player = game.users.find(u => !u.isGM && u.character && locateActor(u.character));
+        must(player, "no player's character has a token on a scene - nothing to hide");
+        const voice = V.trialVoiceActorOf(player, game.actors);
+        const place = locateActor(voice);
+        must(place?.tokenDoc, "the player's voice character has no token - nothing to hide");
+        const token = place.tokenDoc, hiddenWas = token.hidden;
+        const permsWere = foundry.utils.deepClone(game.users.get(player.id)._source?.permissions ?? {});
+        await S.trialMuteStore.whenHydrated();
+        const rowWas = S.trialMuteStore.get(player.id) ?? null;
+        must(!rowWas, "the player's microphone is held by the settle already - this test reads a block it makes itself");
+        const own = () => { const p = game.users.get(player.id)._source?.permissions ?? {}; return Object.hasOwn(p, "BROADCAST_AUDIO") ? p.BROADCAST_AUDIO : "none"; };
+        const step = async hidden => { await token.update({ hidden }); await settle(); await V.settleTrialVoices(); await settle(); };
+        const read = {};
+        try {
+            await step(true);
+            read.hidden = [own(), Boolean(S.trialMuteStore.get(player.id)?.wrote)];
+            await step(false);
+            read.shown = [own(), S.trialMuteStore.get(player.id) ?? null];
+            await game.users.get(player.id).update({ "permissions.BROADCAST_AUDIO": false });
+            await settle();
+            await step(true);
+            read.gmHidden = [own(), S.trialMuteStore.get(player.id) ?? null];
+            await step(false);
+            read.gmShown = [own(), S.trialMuteStore.get(player.id) ?? null];
+        } finally {
+            if (token.hidden !== hiddenWas) await token.update({ hidden: hiddenWas });
+            if (S.trialMuteStore.get(player.id)) await S.trialMuteStore.drop(player.id);
+            await game.users.get(player.id).update({ "permissions.BROADCAST_AUDIO": Object.hasOwn(permsWere, "BROADCAST_AUDIO") ? permsWere.BROADCAST_AUDIO : forcedDeletion() });
+            await V.settleTrialVoices();
+            await settle();
+        }
+        const before = Object.hasOwn(permsWere, "BROADCAST_AUDIO") ? permsWere.BROADCAST_AUDIO : "none";
+        equal(stableJson(read), stableJson({ hidden: [false, true], shown: [before, null], gmHidden: [false, null], gmShown: [false, null] }),
+            "[hidden: the user's own BROADCAST_AUDIO, the row the settle wrote; shown: the same; with a GM's block first, hidden and shown]");
+    }],
+
     ["the case health check names a secret project and a note this browser does not hold, and a restore's flags keep a newer note's date", async () => {
         /*
          * E05 fix r1-G4, 27.09.2026; reviews M4 = S1-m5, M6 = S1-m6. A GM browser that lost its

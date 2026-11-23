@@ -31840,6 +31840,55 @@ const INVARIANTS = [
             built: { gm: here("gm"), player: here("player") }
         }), "[messengerSize per kind and screen; the GM's and a player's window built here against messengerSize at this page's size]");
     }],
+    ["R8832 - a player whose token is hidden is held: voice.mjs `hiddenVoiceIds` names each player account whose voice character's token (movement.mjs `locateActor`'s) is hidden, and no GM, no Spectator's account, no player whose token is shown or who has none; HIDDEN_TOKEN_MUTES is the one switch (E129, the owner's S0-HIDEMUTE of 23.11.2026)", async () => {
+        /*
+         * The owner, session 0: "niech chowanie tokenu automatycznie wycisza na livekit (i pokazuje rowniez te zmiane na
+         * przycisku mikrofonu)". Stand-ins only: five accounts - a player with a hidden token, one with a shown token, one
+         * with no token, a GM owning a character with a hidden token, a Spectator's account with a hidden token - each
+         * owning one character, `locate` answering the tokens, `spectator` the Spectator's account. Red before E129: no
+         * `hiddenVoiceIds`.
+         */
+        const V = await import("./voice.mjs");
+        must(typeof V.hiddenVoiceIds === "function", "voice.mjs has no hiddenVoiceIds - a hidden token holds nobody");
+        const user = (id, isGM = false) => ({ id, name: id, isGM, active: true });
+        const actor = (id, owner) => ({ id, name: id, type: "character", owner, getFlag: () => null,
+            testUserPermission: (u, level) => level === "OWNER" && u.id === owner });
+        const users = [user("hid"), user("shown"), user("none"), user("gm", true), user("spec")];
+        const actors = [actor("A-hid", "hid"), actor("A-shown", "shown"), actor("A-none", "none"), actor("A-gm", "gm"), actor("A-spec", "spec")];
+        const tokens = { "A-hid": true, "A-shown": false, "A-gm": true, "A-spec": true };
+        const locate = a => (a.id in tokens ? { tokenDoc: { hidden: tokens[a.id] } } : null);
+        const ids = [...V.hiddenVoiceIds({ users, actors, locate, spectator: u => u.id === "spec" })].sort();
+        equal(stableJson({ ids, on: V.HIDDEN_TOKEN_MUTES }), stableJson({ ids: ["hid"], on: true }),
+            "[the accounts held for a hidden token; the switch]");
+    }],
+    ["R8833 - a hidden token's hold is said on the player's own microphone and keeps the GM's block off it: `micHold` answers \"tokenHidden\", held, outside the Class Trial and nothing of it in the trial; `moduleHoldsMic` answers it on a GM's page; both languages say it (E129, S0-HIDEMUTE)", async () => {
+        /*
+         * The owner: the hide "pokazuje rowniez te zmiane na przycisku mikrofonu". `micHold` with every fact handed in,
+         * as R537 asks it: a player outside the trial with `hidden` true and false, and in a trial with `hidden` true;
+         * `moduleHoldsMic` on this GM's page for a stand-in account named in `hidden`. Red before E129: no "tokenHidden".
+         */
+        must(game.user.isGM, "moduleHoldsMic answers on a GM's page alone");
+        const V = await import("./voice.mjs");
+        const { ROOM_PREFIX } = await import("./voice-client.mjs");
+        const me = { id: "R8833PLAYER00000", name: "R8833", isGM: false, active: true };
+        const living = { id: "R8833ACTOR000000", name: "R8833", type: "character", getFlag: () => null };
+        const hold = facts => V.micHold({ user: me, room: `${ROOM_PREFIX}dorm-a`, external: false, connected: true, canBroadcastAudio: false, actors: [living], ...facts });
+        const reason = answer => (answer ? `${answer.reason}:${answer.held}` : null);
+        const trial = { clock: { phase: "classTrial" }, queue: null };
+        const read = {
+            hidden: reason(hold({ hidden: true })),
+            shown: reason(hold({ hidden: false })),
+            inTrial: reason(hold({ hidden: true, trial })),
+            gm: reason(V.moduleHoldsMic(me, { actors: [living], eclipse: false, trial: false, dead: () => false, listening: new Set(), masked: new Set(), veiled: new Set(), hidden: new Set([me.id]) })),
+            words: []
+        };
+        for (const lang of ["en", "pl"]) {
+            const file = await fetch(`/modules/${MODULE_ID}/lang/${lang}.json`).then(r => r.json());
+            read.words.push(typeof file?.DRPG?.Voice?.held?.tokenHidden === "string" && file.DRPG.Voice.held.tokenHidden.trim() !== "");
+        }
+        equal(stableJson({ ...read, inTrial: read.inTrial === "tokenHidden:true" }), stableJson({ hidden: "tokenHidden:true", shown: "gmBlock:false", inTrial: false, gm: "tokenHidden:true", words: [true, true] }),
+            "[micHold: hidden, shown (the block then reads as the GM's), hidden in the trial (not the hide's); moduleHoldsMic; the words in English and Polish]");
+    }],
     ["R1067 - the cue playlist cannot be mapped: the Music tab offers it in no select, a stored mapping onto it is dropped by the primary GM alone with one write of the map without that key (the other keys kept, a second call writing nothing), and playlistFor answers null for it (E50 C3; S11-47, E50-23, Q-E50-1)", async () => {
         /*
          * E50 C3, 30.10.2026; audit S11-47 and the owner's answer on Q-E50-1 (30.10: the mapping is removed by itself).

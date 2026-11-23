@@ -228,7 +228,7 @@ Two buttons sit on the tile. **The microphone** mutes and unmutes your own micro
 |---|---|
 | struck through | muted, by you |
 | struck through, with a small lock | muted by the GM (**The GM blocked your microphone.**) |
-| gray and struck through | the game holds it - during an Eclipse, while you listen at a door, in a Class Trial while the floor is somebody else's or you are on the trial's list of the dead, and as a Spectator - with the reason under it; a click then changes nothing and tells you why |
+| gray and struck through | the game holds it - during an Eclipse, while you listen at a door, while the GM hides your token, in a Class Trial while the floor is somebody else's or you are on the trial's list of the dead, and as a Spectator - with the reason under it; a click then changes nothing and tells you why |
 | with a small dot | you are not connected to voice, or voice runs in its own window |
 | lit | your microphone carries your voice |
 | wearing **PTT** | push to talk: hold your key to speak |
