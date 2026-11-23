@@ -67526,6 +67526,8 @@ const INVARIANTS = [
             for (const m of stripComments(text).matchAll(/popupCentre(?::|\s*=)\s*([^,};\n]+)/g)) {
                 for (const name of m[1].match(/"([A-Za-z]+)"/g) ?? [m[1].trim()]) written.set(name.replace(/"/g, ""), [...(written.get(name.replace(/"/g, "")) ?? []), file]);
             }
+            // a name handed to notice-centre.mjs `withCentre` as its second argument (1.2.127)
+            for (const m of stripComments(text).matchAll(/withCentre\([^()]*(?:\([^()]*\)[^()]*)*,\s*"([A-Za-z]+)"\)/g)) written.set(m[1], [...(written.get(m[1]) ?? []), file]);
         }
         // the day summary asks by showPopup's own option on the GM's screen (day-summary.mjs), not by the flag
         const direct = [...sources].filter(([file, text]) => !/^tests/.test(file) && /centre:\s*true/.test(stripComments(text))).map(([file]) => file).sort();
@@ -67713,6 +67715,145 @@ const INVARIANTS = [
             forceBarricadeHolds: [null, true], forceBarricadeGives: [null, true], forceLockGives: [reached, true], forceLockHolds: [short, true],
             pickBarricade: [null, true], pickLockOpens: [reached, true]
         }), "{each case: [the mark beside the dice, \"needed N\" shown] - a barricade's case says the number and no mark; a lock's says the mark its sentence says}");
+    }],
+    ["R8694 - a Spectator's frame fades with its token (E127; the owner, 22.11.2026: \"Spectatorzy. Ich ramka kwadratowa renderowana przez modul niech tez ma zmniejszone opacity\", OWNER-127-SPECTATOR-FRAME): own-ring.mjs `dressFrame` sets the frame's alpha to config.mjs `SPECTATOR_ALPHA` on a GM's browser for a Spectator's token - the factor visibility.mjs `dressSpectator` sets its sprite at - and back to 1 when the actor is no Spectator; a player's browser leaves it at 1; `paint` dresses the frame on every road that shows one, and a Spectator flag written repaints the actor's frames", async () => {
+        /* Red at 2e28785a: no `dressFrame` and no `SPECTATOR_ALPHA` in config.mjs; the frame kept full alpha under a
+           sprite at 0.3. Stand-in tokens, frames and actors: nothing of the world is read or written. */
+        const R = await import("./own-ring.mjs");
+        const C = await import("./config.mjs");
+        const V = await import("./visibility.mjs");
+        must(typeof R.dressFrame === "function" && typeof C.SPECTATOR_ALPHA === "number", "own-ring.mjs has no dressFrame or config.mjs no SPECTATOR_ALPHA - a Spectator's frame keeps full alpha");
+        let watching = true;
+        const actor = { getFlag: (scope, key) => (scope === MODULE_ID && key === C.FLAGS.spectator ? watching : undefined) };
+        const frame = { alpha: 1 };
+        const token = { actor, document: { alpha: 1 }, mesh: { alpha: 1 }, drpgOwnRing: frame };
+        const gm = { isGM: true }, player = { isGM: false };
+        V.dressSpectator(token);
+        const asGm = [R.dressFrame(token, gm), frame.alpha, token.mesh.alpha];
+        const asPlayer = (() => { const f = { alpha: 1 }; return [R.dressFrame({ ...token, drpgOwnRing: f }, player), f.alpha]; })();
+        watching = false;
+        V.dressSpectator(token);
+        const back = [R.dressFrame(token, gm), frame.alpha, token.mesh.alpha];
+        const sources = await moduleSources();
+        const paint = fnSource(stripComments(sources.get("own-ring.mjs") ?? ""), "paint");
+        const reg = fnSource(stripComments(sources.get("own-ring.mjs") ?? ""), "registerOwnRing");
+        must(paint.length > 500, "own-ring.mjs `paint` was not read - this would measure nothing");
+        equal(stableJson({ asGm, asPlayer, back, paintDresses: (paint.match(/dressFrame\(token\)/g) ?? []).length >= 3,
+            flagRepaints: /FLAGS\.spectator/.test(reg), oneConstant: !/0\.3\b/.test(stripComments(sources.get("visibility.mjs") ?? "").match(/SPECTATOR_ALPHA\s*=\s*[\d.]+/)?.[0] ?? "") }),
+        stableJson({ asGm: [C.SPECTATOR_ALPHA, C.SPECTATOR_ALPHA, C.SPECTATOR_ALPHA], asPlayer: [1, 1], back: [1, 1, 1], paintDresses: true, flagRepaints: true, oneConstant: true }),
+        "{asGm: [answered, the frame, the sprite] for a Spectator on a GM's screen; asPlayer: on a player's; back: no Spectator any more; paintDresses: every road of paint that shows a frame; flagRepaints: the flag's write repaints; oneConstant: visibility.mjs states no 0.3 of its own}");
+    }],
+    ["R8695 - every action's result card its player waits on asks for the middle (E127; the owner at the table, 22.11.2026: \"nie wszystkie akcje wyswietlaja powiadomienie na srodku (np facilities)\", OWNER-127-CENTRE; docs/dev/owner127/INVENTORY.md): each road of the inventory that did not centre on v1.2.126 - a room action, Observe's and Analyze's verdicts, a Find Stash, a passage, a Steal's and a Plant's verdicts, a Frisk's, an item used, a Rest, Echoes, a crisis action, the opening, a killer's own Stage 4, Stage Six - asks notice-centre.mjs `actionResult` (`withCentre`, or the flag written) on as many of its cards as the row names", async () => {
+        /* Red at 2e28785a: every row 0 - the verdicts the GMs' runs write, and a Rest's, an item's and Echoes' cards
+           written by their players, stood in the corner (the inventory's rows 7-10, 13, 14, 17, 18, 20, 26, 27, 30, 39,
+           41, 43-45, 47-48, 52-55, 57). The middle itself is the rule's (R8671) and the stage's (R8672). */
+        const sources = await moduleSources();
+        const NC = await import("./notice-centre.mjs");
+        must(typeof NC.withCentre === "function", "notice-centre.mjs has no withCentre - the posters have no way to ask");
+        const asks = (file, fn) => {
+            const text = stripComments(sources.get(file) ?? "");
+            const body = fn ? fnSource(text, fn) : text;
+            // an action's result only: a card to someone who did not act asks "doneToYou" (R8696) and is not counted here
+            return (body.match(/withCentre\(|popupCentre: "actionResult"/g) ?? []).length - (body.match(/withCentre\([^;]*"doneToYou"\)/g) ?? []).length
+                - (fn ? 0 : (text.match(/export function withCentre\(/g) ?? []).length);
+        };
+        const ROADS = [
+            ["a room action (Rest's menu)", "facilities-gm.mjs", "tellUse", 1],
+            ["Observe - a secret project noticed", "observe.mjs", "shareFoundProject", 1],
+            ["Observe - a miss", "observe.mjs", "chargeObserveMiss", 1],
+            ["Observe - a Truth Bullet copied", "observe.mjs", "createFind", 1],
+            ["Observe - a trace already held", "observe.mjs", "alreadyHeld", 1],
+            ["Analyze - a bullet identified", "analyze.mjs", "identify", 1],
+            ["Analyze - a bullet locked", "analyze.mjs", "lockOut", 1],
+            ["Analyze - a stash found", "stash-reach.mjs", "resolveStashSearch", 1],
+            ["Analyze - a stash's nothing (STASH_MISS), a stash found, a stash rifled", "stash-reach.mjs", null, 3],
+            ["a stash rifled - what was taken", "stash-reach.mjs", "stealFromVault", 1],
+            ["Analyze - a passage found or nothing", "passages-gm.mjs", "resolvePassageSearch", 1],
+            ["Palm - a Steal's verdict", "palm.mjs", "stealFromPerson", 1],
+            ["Palm - a Plant's verdict", "palm.mjs", "plantOnPerson", 1],
+            ["Frisk unseen - what was seen", "frisk.mjs", "friskPerson", 1],
+            ["Frisk unseen - a Reroll's replay", "frisk.mjs", "replayRummage", 1],
+            ["Frisk openly - shown, forced, missed, gone, interrupted", "frisk.mjs", "endAsk", 5],
+            ["Frisk openly - refused or no answer", "frisk.mjs", "noYes", 1],
+            ["Use an Item", "use-items.mjs", "useItem", 1],
+            ["Use an Item creatively - the GM's ruling", "use-items.mjs", "grantItemEffect", 1],
+            ["Rest", "rest.mjs", "takeRest", 1],
+            ["Echoes", "action-listen.mjs", "performEchoes", 1],
+            ["a crisis action (each seat's card and its hidden copy)", "murder-rules.mjs", "announceCrisis", 3],
+            ["the opening roll", "murder-rules.mjs", "announceOpening", 1],
+            ["a killer's own Stage 4 went through", "murder-rules.mjs", "resolveKillerOpening", 1],
+            ["Stage Six - a Misleading Trail or Move the Body", "cleanup.mjs", "resolveStageSix", 1]
+        ];
+        const measured = Object.fromEntries(ROADS.map(([road, file, fn]) => [road, asks(file, fn)]));
+        // what the helper hands a poster: its ask merged into the card's own flags, the rest of the extra kept
+        measured.merge = NC.withCentre({ veiled: true, flags: { [MODULE_ID]: { sfx: "E127" }, other: { x: 1 } } });
+        must(Object.values(measured).some(n => n > 0) || ROADS.every(([, file]) => (sources.get(file) ?? "").length > 1000), "the posters' sources read as nothing - this would measure nothing");
+        equal(stableJson(measured), stableJson({ ...Object.fromEntries(ROADS.map(([road, , , n]) => [road, n])),
+            merge: { veiled: true, flags: { [MODULE_ID]: { sfx: "E127", popupCentre: "actionResult" }, other: { x: 1 } } } }),
+            "{road: how many of its cards ask for the middle; merge: withCentre on a card's extra}");
+    }],
+    ["R8696 - what is done to a player who did not act takes the middle of that player's screen (E127; the coordinator's default to the owner, OWNER-127-CENTRE, item 3; docs/dev/owner127/INVENTORY.md section 3): notice-centre.mjs lists `doneToYou`, and the primary GM's cards to a target ask it - a Tail noticed (tail-gm.mjs `startTail`), a Steal or a Plant felt (palm.mjs `tellPalmVictim`, a living victim's card alone), an unseen Frisk felt (frisk.mjs `friskPerson`) and an open Frisk's outcome (`endAsk`)", async () => {
+        /* Red at 2e28785a: no `doneToYou`, and each of these cards stood in the target's corner. A Sabotage seen is written
+           by the saboteur's browser, which the writer rule never centres on another's screen: left out, said in the
+           inventory. */
+        const NC = await import("./notice-centre.mjs");
+        const sources = await moduleSources();
+        const asks = (file, fn) => (fnSource(stripComments(sources.get(file) ?? ""), fn).match(/withCentre\([^;]*"doneToYou"\)/g) ?? []).length;
+        must((sources.get("frisk.mjs") ?? "").length > 1000, "the posters' sources read as nothing - this would measure nothing");
+        equal(stableJson({
+            listed: Object.hasOwn(NC.CENTRED_NOTICES ?? {}, "doneToYou"),
+            tail: asks("tail-gm.mjs", "startTail"), palm: asks("palm.mjs", "tellPalmVictim"),
+            friskUnseen: asks("frisk.mjs", "friskPerson"), friskOpen: asks("frisk.mjs", "endAsk"),
+            // the GMs' own copy of a body's card stays theirs: only the living victim's asks
+            palmGms: /body \? whisperToGms\(html, card\) : whisperToOwner\(victim, html, withCentre\(card, "doneToYou"\)\)/.test(stripComments(sources.get("palm.mjs") ?? ""))
+        }), stableJson({ listed: true, tail: 1, palm: 1, friskUnseen: 1, friskOpen: 1, palmGms: true }),
+        "{listed; each poster's ask of doneToYou; palmGms: a body's card to the GMs asks nothing}");
+    }],
+    ["R8697 - a picture's path with a parenthesis is kept, encoded (E127; OWNER-127-PORTRAIT-PARENS, the owner's table of 22.11.2026: the second GM's portrait on the voice tile was a Forge asset named `..._(Swimsuit)_Preview.webp` and was not drawn): safeRoomImage and safePortrait answer `(` as `%28` and `)` as `%29`, on The Forge and on this origin, so no answer can close a CSS `url()`; a path already written with `%28`/`%29` is kept as written; every answer is a fixed point and resolves to itself; every other refusal stands", async () => {
+        /* Red at 2e28785a: every parenthesised row refused (`null`), so the voice tile drew the next face or none. The
+           encoding is the rule's, not each caller's: the room tile, Room Setup, `setVaultRoom`, the voice tile and its list,
+           the trial scene and the sequence's portrait all read `safeRoomImage` or `safePortrait`. The art layer's
+           `url()` is read on the room tile (R546's `paintRoomTile` box) for the Forge row. `globalThis.ForgeVTT` is the
+           stand-in R546 uses, put back in `finally`. What The Forge's server answers to the encoded name is the owner's
+           table: the workaround there was the same `%28`/`%29`, typed by hand. */
+        const V = await import("./vault.mjs"), T = await import("./room-tile.mjs");
+        const LIB = "https://assets.forge-vtt.com/", origin = new URL(document.baseURI).origin;
+        const SPRITE = `${LIB}r8697user/assets/DRS_-_Kurokuma_Sprite_(Swimsuit)_Preview.webp`;
+        const SPRITE_ENC = `${LIB}r8697user/assets/DRS_-_Kurokuma_Sprite_%28Swimsuit%29_Preview.webp`;
+        const KEPT = [
+            [SPRITE, SPRITE_ENC], [SPRITE_ENC, SPRITE_ENC],
+            ["worlds/suite/faces/aiko_(beach).png", "worlds/suite/faces/aiko_%28beach%29.png"],
+            [`${origin}/worlds/suite/hall_(1).jpg`, "/worlds/suite/hall_%281%29.jpg"],
+            ["worlds/suite/)(.webp", "worlds/suite/%29%28.webp"]
+        ];
+        // A parenthesis never rescues another refusal: a quote, a query, a fragment, a `..`, a backslash, a bracket, a control, `%2f`, another host, a gif.
+        const REFUSED = ["worlds/x.png\")", "worlds/x(.png'", "worlds/(x).png?v=1", "worlds/(x).png#a", "worlds/(a)/../x.png", "worlds\\(x).png",
+            "worlds/(x)<.png", "worlds/(x)\u0001.png", "worlds/(a)%2fx.png", "https://evil.example/(x).png", "worlds/(x).gif", "url(worlds/x.png)"];
+        const judge = fn => path => { try { return fn(path); } catch (err) { return `throws ${err?.name}`; } };
+        const had = Object.getOwnPropertyDescriptor(globalThis, "ForgeVTT");
+        let read;
+        try {
+            Object.defineProperty(globalThis, "ForgeVTT", { configurable: true, writable: true, value: { usingTheForge: true, ASSETS_LIBRARY_URL_PREFIX: LIB } });
+            const answers = KEPT.map(([path]) => judge(V.safeRoomImage)(path));
+            const box = document.createElement("section");
+            T.paintRoomTile(box, { state: "room", room: "R8697 Hall", sceneId: "SUITER8697SCENE0", description: "R8697", image: SPRITE,
+                tokens: { max: 3, left: 2, sealed: false }, project: true });
+            const art = box.querySelector(".drpg-room-tile-art")?.style.backgroundImage ?? null;
+            read = {
+                kept: answers,
+                portrait: KEPT.map(([path]) => judge(V.safePortrait)(path)),
+                refused: REFUSED.map(judge(V.safeRoomImage)),
+                fixed: answers.filter(Boolean).filter(a => V.safeRoomImage(a) !== a),
+                raw: answers.filter(a => /[()"'\\]/.test(String(a))),
+                art: typeof art === "string" && art.includes("%28Swimsuit%29") && !/_\(Swimsuit\)_/.test(art)
+            };
+        } finally {
+            if (had) Object.defineProperty(globalThis, "ForgeVTT", had);
+            else delete globalThis.ForgeVTT;
+        }
+        equal(JSON.stringify(read), JSON.stringify({
+            kept: KEPT.map(([, kept]) => kept), portrait: KEPT.map(([, kept]) => kept), refused: REFUSED.map(() => null), fixed: [], raw: [], art: true
+        }), "{kept, portrait: each row's answer, parentheses as %28/%29; refused: each still null; fixed: answers that move when judged again; raw: answers holding ( ) \" ' or \; art: the room tile's url() holds the encoded name}");
     }],
     ["R8431 - the token HUD's on toggles and its focus read under Stained Glass with high contrast (the audit of 1.2.120, H-1, H-7; 1.2.122 line UI): a rule under high contrast and the glass gives `.control-icon.active` the Bone ground and the Ink glyph after the high-contrast ground, and the glass draws the focus ring inside the hexagon (a negative `outline-offset`)", async () => {
         /* Red at 21bf5d18: the high-contrast rule (1,5,1) took the on toggle's ground to Ink under an Ink glyph, and the

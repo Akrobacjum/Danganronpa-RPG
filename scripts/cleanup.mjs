@@ -91,6 +91,7 @@ import { announce as announcePlain, whisperToGms, log, error, cardHead, isPrimar
 import { drpgWindow, tipAttr, tipText } from "./ui-kit.mjs";
 
 import { findRemnantToken, askTransform, whisperToOwner, plainText, proposeReshape, keepAttempt, recreationDataFor, attemptOf, forgetAttempt, keepAttemptFact, traceLabelFor } from "./cleanup-reshape.mjs";
+import { withCentre } from "./notice-centre.mjs";
 export { askTransform, plainText, reshapeCardParts, applyReshapeRuling, declineReshapeRuling, ruleReshape, askTransformChange, attemptOf } from "./cleanup-reshape.mjs";
 
 const announce = data =>
@@ -1957,7 +1958,8 @@ export async function resolveStageSix({
     await whisperToOwner(actor, `${cardHead({
         action: def.label, total, result: `${success ? "≥" : "<"} ${threshold}`
     })}${done.length ? `<ul>${done.map(d => `<li>${d}</li>`).join("")}</ul>` : ""}`,
-    success ? {} : { flags: { [MODULE_ID]: { sfx: "cleanupFailed" } } });
+    // in the middle of its roller's screen (notice-centre.mjs `withCentre`, 1.2.127), as an Erase's card is
+    withCentre(success ? {} : { flags: { [MODULE_ID]: { sfx: "cleanupFailed" } } }));
     /* The GMs' copy gave the band alone - "despair" - and the threshold apart, so the GM compared
        the numbers by hand (E09 C14, 08.10.2026; audit S05-33): it reads as the player's does,
        "≥ 18", with the band beside it, named as the roll names it. */

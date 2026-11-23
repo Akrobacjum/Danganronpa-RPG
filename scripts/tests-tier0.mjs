@@ -23575,7 +23575,10 @@ const REGRESSIONS = [
             // defence is hidden from, a second copy, by the same `announce({ content, whisper })` form as before.
             // line INVEST of 1.2.122: murder-rules.mjs +1 card (an opening that found no copy of the incident, R8183), observe.mjs
             // +2 cards (a find left waiting, told to the GMs at recovery and while its window stands; CASE-37)
-            "murder-rules.mjs": {"action": 1, "card": 6, "heading": 3, "line": 9, "message": 8},
+            /* 1.2.127 (line UI, OWNER-127-CENTRE): four of murder-rules.mjs's `announce({ content, whisper })` - the crisis
+               card, its hidden copy and the opening's score - ask for the middle through notice-centre.mjs `withCentre`
+               (built), as they were messages before. */
+            "murder-rules.mjs": {"action": 1, "built": 4, "card": 6, "heading": 3, "line": 9, "message": 4},
             "music.mjs": {"card": 1}, "observe.mjs": {"card": 4, "heading": 1, "line": 3},
             "overflow.mjs": {"built": 1, "message": 2}, "palm.mjs": {"built": 2, "line": 2}, "passages-gm.mjs": {"line": 4},
             "price.mjs": {"line": 2}, "private-rolls.mjs": {"message": 1}, "projects-map.mjs": {"card": 1, "line": 1},
