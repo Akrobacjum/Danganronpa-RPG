@@ -21,15 +21,15 @@
  *     `voiceFieldset`: the microphone, the output, always on or push to talk, the key and Configure Controls; only where
  *     `voiceAvailable()`, saved as touched, as it was). The gear opens it (look.mjs `openLookDialog`), and so does
  *     Configure Settings' one button of the module, DRPG Settings (settings.mjs `SETTINGS_MENU`). No world row in it.
- *   - THE GAME'S SETTINGS (`GAME_SECTIONS`: audio, rules, privacy, gm, foundry; every world row of the sections, 25 on
- *     21.11.2026, and Give back Foundry's settings - Vary the sounds, a GM's switch the Look window carried, and the music's
+ *   - THE GAME'S SETTINGS (`GAME_SECTIONS`: audio, rules, privacy, gm, foundry; every world row of the sections, 26 on
+ *     23.11.2026, 25 before E129's `trialVoicesFree`, and Give back Foundry's settings - Vary the sounds, a GM's switch the Look window carried, and the music's
  *     switch are the Sound window's since E101, `SOUND_WINDOW_SETTINGS`): a window of their own in the
  *     same shape, `openGameSettingsWindow`, opened by the GM panel's Settings tile in Between sessions (the owner, the
  *     same day: "W wolne miejsce wejda nowe ustawienia gma jako "Settings"", the place Reset the season left when it
  *     moved into Season setup), for a user Foundry lets modify settings alone.
  *
  *   CLIENT_SECTIONS, GAME_SECTIONS  the sections of each place, `{ key, icon, place, keys }`, in the order drawn
- *   SETTINGS_SECTIONS        both lists, the client's first: every row in exactly one (37 on 21.11.2026: 12 and 25; R3420)
+ *   SETTINGS_SECTIONS        both lists, the client's first: every row in exactly one (38 on 23.11.2026: 12 and 26; R3420)
  *   firstSentence(text)      a hint's first sentence; `restOf(text)` the rest, the tooltip
  *   settingRowHtml(key)      one setting's row: its control by type (kit `toggle`, `stepper`, a select), its line
  *   saveSettings(form, user) every field the person changed in the window written as Foundry's own form wrote it; a reload asked once
@@ -100,7 +100,8 @@ export const CLIENT_SECTIONS = Object.freeze([
     section("client", "tech", "fa-screwdriver-wrench", ["debug"])
 ]);
 export const GAME_SECTIONS = Object.freeze([
-    section("game", "audio", "fa-headset", ["voiceEnabled", "voiceTile"]),
+    // "trialVoicesFree" (E129 S0-NOMUTE, 1.2.129): the Class Trial's forced muting switched off, beside the voice rows.
+    section("game", "audio", "fa-headset", ["voiceEnabled", "voiceTile", "trialVoicesFree"]),
     section("game", "rules", "fa-scale-balanced", ["searchTokensPerRoom", "despairFromRolls", "chargeMovement", "friskForce", "autoApproveTraits", "moveAudit", "balanceLog"]),
     section("game", "privacy", "fa-user-secret", ["forcePrivateRolls", "forceDiceLook", "lockRollDialog", "enforceAnonymity", "roomVisibility", "lockPlayerResources"]),
     /* "sequences" (1.2.109, E61-62's full-screen sequences) where 1.2.109 put it, beside the rooms' fog: kept in the r112

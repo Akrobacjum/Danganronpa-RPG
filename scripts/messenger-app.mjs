@@ -35,7 +35,7 @@ import { markOutcome, rollOutcomeOf } from "./private-rolls.mjs";
 import { playSfx } from "./sfx.mjs";
 
 import { contentOf, shownWordsOf, wordsOf, cardFlag, cardWriter, readersLines, dropOldGmLines } from "./secret.mjs";
-import { gmMessengerClass } from "./messenger-gm.mjs";
+import { gmMessengerClass, MESSENGER_WINDOW_SIZES, messengerSize } from "./messenger-gm.mjs";
 
 
 const LAUNCHER_ID = "drpg-messenger-launcher";
@@ -155,6 +155,9 @@ export class DrpgMessengerApp extends DrpgApp() {
     /** One instance per player thread, so opening twice just refocuses it. */
     static instances = new Map();
 
+    /** Which of messenger-gm.mjs MESSENGER_WINDOW_SIZES this window asks for; the GM's window says "gm". */
+    static MESSENGER_KIND = "player";
+
     static DEFAULT_OPTIONS = {
         classes: ["drpg-messenger"],
         window: {
@@ -163,14 +166,11 @@ export class DrpgMessengerApp extends DrpgApp() {
             minimizable: true
         },
         scrollRegion: ".drpg-messenger-log, .drpg-messenger-note",
-        // The module's standard popup width, in pixels because DEFAULT_OPTIONS
-        // cannot read a CSS custom property. Keep in step with `--drpg-popup`
-        // in danganronpa.css; it was 360, the narrowest of seven different
-        // window widths the module used to open.
-        position: {
-            width: 544,
-            height: 520
-        }
+        // A player's messenger size since E129 (messenger-gm.mjs MESSENGER_WINDOW_SIZES, the owner's S0-MSGSIZE of
+        // 23.11.2026: 760 x 730, about 40% over the 544 x 520 it had). Until then it was the module's standard popup
+        // width, `--drpg-popup` in danganronpa.css (544 px; 360 before that); the messenger no longer keeps in step
+        // with it. The constructor cuts it to the screen (`messengerSize`).
+        position: { ...MESSENGER_WINDOW_SIZES.player }
     };
 
     /**
@@ -204,23 +204,17 @@ export class DrpgMessengerApp extends DrpgApp() {
 
     constructor(playerUserId) {
         const options = { id: `drpg-messenger-${playerUserId}` };
-        // Only set `position` when there is a saved one - passing `undefined`
-        // through to ApplicationV2's option merge is not guaranteed to fall
-        // back to DEFAULT_OPTIONS.position the way omitting the key does.
+        // The position is always handed in whole - size and place - rather than left to ApplicationV2's option merge,
+        // which is not guaranteed to fall back to DEFAULT_OPTIONS.position in this direction.
         //
-        // The size comes from DEFAULT_OPTIONS every time and is spread in here
-        // explicitly rather than left to ApplicationV2's option merge, which the
-        // comment above already records as not reliable in this direction.
-        //
-        // The size is the class's own being built (`new.target`): the GM's window (messenger-gm.mjs) states 980 x 680,
-        // and this class's 544 x 520 was spread under its saved place, so from its second opening on - its first close
-        // saves the place - the GM's window opened at the player window's size (the audit's r124-C-1; R8656, red at
-        // 206148b7). Only the place is kept (`savePosition` writes left and top), never a size a user dragged, as
-        // before for the player's window.
+        // The size is the window's own kind (`new.target.MESSENGER_KIND`): until 1.2.125 this class's 544 x 520 was
+        // spread under a saved place whatever class was built, so the GM's window opened at the player window's size
+        // from its second opening on (the audit's r124-C-1; R8656, red at 206148b7). Since E129 it is asked for at every
+        // opening and cut to the screen (messenger-gm.mjs `messengerSize`: never past 90% of its width and height; R8831).
+        // The saved place, when there is one, stands over it. Only the place is kept (`savePosition` writes left and
+        // top), never a size a user dragged.
         const saved = readSavedPosition(playerUserId);
-        if (saved) {
-            options.position = { ...DrpgMessengerApp.DEFAULT_OPTIONS.position, ...new.target.DEFAULT_OPTIONS?.position, ...saved };
-        }
+        options.position = { ...messengerSize(new.target.MESSENGER_KIND ?? "player"), ...(saved ?? {}) };
         super(options);
         this.playerUserId = playerUserId;
     }

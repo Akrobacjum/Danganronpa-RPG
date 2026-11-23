@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Danganronpa RPG - who you hear, for the owner's approval</title>
+<!-- THE OWNER'S SCREENSHOTS OF 'WHO YOU HEAR' (E129, S0-VOICE, 23.11.2026). The voice tile and its list as
+     audit/harness/probes/129-voice-list.mjs kept them on p1 (capture/), under the module's sheets as module.json lists
+     them, on the style harness's plain ground: no Foundry stylesheet, no canvas, no LiveKit (the harness's shim). Served
+     from the repository's root, then /docs/dev/owner129/comm/voice/voice-shots.html[?theme=legacy]. -->
+<script>
+  (function () {
+    var req = new XMLHttpRequest();
+    req.open("GET", "/module.json", false);
+    req.send();
+    var styles = JSON.parse(req.responseText).styles || [];
+    for (var i = 0; i < styles.length; i++) document.write('<link rel="stylesheet" href="/' + styles[i] + '">');
+  })();
+</script>
+<link rel="stylesheet" href="/vendor-fa/css/all.min.css">
+<style>
+  @font-face { font-family: "Font Awesome 7 Pro"; font-weight: 100 900; font-display: block; src: url("/vendor-fa/webfonts/fa-solid-900.woff2") format("woff2"); }
+  html, body.drpg-owner-shot { background: #2a2430; margin: 0; height: 100vh; overflow: hidden; }
+</style>
+</head>
+<body class="drpg-theme-stained-glass drpg-owner-shot" data-drpg-time="afternoon" data-drpg-phase="dailyLife">
+<script>
+  (function () {
+    var q = new URLSearchParams(location.search);
+    if (q.get("theme") === "legacy") {
+      document.body.classList.replace("drpg-theme-stained-glass", "drpg-theme-monokuma-legacy");
+      document.body.classList.add("drpg-pixel-font");
+    }
+    var get = function (p) { var r = new XMLHttpRequest(); r.open("GET", p, false); r.send(); return r.status === 200 ? r.responseText : ""; };
+    document.write(get("capture/tile.html") + get("capture/list.html"));
+    document.body.setAttribute("data-drpg-shot-ready", "");
+  })();
+</script>
+</body>
+</html>

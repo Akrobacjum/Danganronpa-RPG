@@ -934,6 +934,7 @@ const ROLL_ACTION_NAMES = Object.freeze({
     force: () => game.i18n.localize("DRPG.Infiltrate.row.force.label"),
     pick: () => game.i18n.localize("DRPG.Infiltrate.row.pick.label"),
     keepWatch: () => game.i18n.localize("DRPG.Infiltrate.row.keepWatch.label"),
+    hide: () => game.i18n.localize("DRPG.Infiltrate.row.hide.label"),
     facility: () => ACTIONS.rest?.label,
     steal: () => ACTIONS.palm?.label,
     rummage: () => ACTIONS.palm?.rummage?.label,
@@ -1144,7 +1145,7 @@ async function replayAction(actor, bookmark, after, done, before = null) {
             case "rummage": return await settleRummage(actor, bookmark, after, done);
             case "frisk": return settleForce(done);
             // The Infiltrate tile's rolls and a Facilities roll (E69, E74 C7, E93): their replays are a file of their own.
-            case "dash": case "tail": case "shut": case "force": case "pick": case "keepWatch": case "facility":
+            case "dash": case "tail": case "shut": case "force": case "pick": case "keepWatch": case "hide": case "facility":
                 return await (await import("./infiltrate-reroll.mjs")).settleInfiltrate(actor, bookmark, after, done, before);
             default:
                 // A trait rolled straight from the sheet, or an action from

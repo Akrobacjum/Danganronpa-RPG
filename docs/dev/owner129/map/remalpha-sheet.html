@@ -1,0 +1,31 @@
+<!doctype html><html><head><meta charset="utf-8"><title>Remnant alpha</title>
+<link rel="stylesheet" href="/styles/danganronpa.css">
+<style>
+body{margin:0;padding:18px 24px;background:#141414;color:#eee;font:15px/1.35 sans-serif}
+body.light{background:#e9e4d8;color:#1d1d1d}
+h1{font-size:22px;margin:0 0 4px} p{margin:0 0 12px;max-width:1500px}
+table{border-collapse:collapse} th,td{padding:4px 5px;white-space:nowrap;text-align:center;vertical-align:middle}
+th{font-size:12px;font-weight:600;white-space:normal;max-width:170px}
+td.k{text-align:left;font-size:13px;width:130px}
+.cell{position:relative;width:var(--s);height:var(--s);display:inline-block;margin:0 2px}
+.floor-d{background:#2b2620}.floor-m{background:#6f5f4a}.floor-l{background:#cfc6b2}
+.ico{position:absolute;inset:8%;-webkit-mask:var(--u) center/contain no-repeat;mask:var(--u) center/contain no-repeat;background:var(--t)}
+.veil{position:absolute;inset:0;background:#000;opacity:.6}
+.new{outline:3px solid #4ea3dd;outline-offset:2px}
+</style></head><body>
+<h1>Remnant alpha - S0-REMALPHA (1.2.128, stage E129)</h1>
+<p id="sub"></p><table id="t"></table>
+<script>
+const q=new URLSearchParams(location.search); if(q.get("theme")==="light") document.body.classList.add("light");
+document.body.classList.add(q.get("ui")==="stained"?"drpg-theme-stained-glass":"drpg-theme-monokuma-legacy");
+const S=+(q.get("s")||64); document.documentElement.style.setProperty("--s",S+"px");
+document.getElementById("sub").textContent="Each cell: one icon on three floors (dark, mid, light). Blue frame = what 1.2.128 draws. Estimates (x) multiply alphas; v14's own canvas is LIVE-129-MAP-01. / Niebieska ramka = 1.2.128; mnozenia to szacunki, nie pomiar.";
+const kinds=[["unknown","#8a8a8a","? (neutral)"],["search","#f3c267","key"],["incident","#b3324a","incident"],["resolution","#4ea3dd","resolution"],["unknown","#6b6b6b","faint"]];
+const cols=[
+ ["player - before and 1.2.128: 0.5 (unchanged)",0.5,false,true],
+ ["player, room through fog - 0.5 x 0.4 = 0.2 (x), unchanged",0.5,true,true],
+ ["GM, shown to players - before: 0.5",0.5,false,false],["GM, shown to players - 1.2.128: 1",1,false,true],
+ ["GM, hidden - before: 0.5 x ~0.5 = ~0.25 (x)",0.25,false,false],["GM, hidden - 1.2.128: 0.6",0.6,false,true],["GM, hidden - 0.5, the floor asked",0.5,false,false]];
+const t=document.getElementById("t");
+t.innerHTML="<tr><th></th>"+cols.map(c=>`<th>${c[0]}</th>`).join("")+"</tr>"+kinds.map(([f,tint,name])=>"<tr><td class=k>"+name+"</td>"+cols.map(([_,a,veil,isNew])=>"<td>"+["d","m","l"].map(fl=>`<span class="cell floor-${fl}${isNew?" new":""}"><span class=ico style="--u:url(/icons/remnant-${f}.svg);--t:${tint};opacity:${a}"></span>${veil?"<span class=veil></span>":""}</span>`).join("")+"</td>").join("")+"</tr>").join("");
+</script></body></html>

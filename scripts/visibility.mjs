@@ -25,7 +25,7 @@
  * `myIncidentTrace` reads the cast that stands. The listeners below are for what is no clock and no incident.
  */
 
-import { MODULE_ID, FLAGS, SPECTATOR_ALPHA } from "./config.mjs";
+import { MODULE_ID, FLAGS, SPECTATOR_ALPHA, REMNANT_ALPHA } from "./config.mjs";
 import { flaggedSpectator, spectatorViewer, isMonocubCorpse } from "./spectator.mjs";
 import { SETTINGS, isEclipse, incidentParticipants, incidentCast } from "./settings.mjs";
 import { roomOfToken, roomAt, whenAtRest } from "./movement.mjs";
@@ -45,6 +45,7 @@ import { debug } from "./utils.mjs";
 // E88 C0: the counters `fps()` and scenario 86 read (perf-counters.mjs); an increment each, nothing timed.
 import { count } from "./perf-counters.mjs";
 import { userVeiledFromHere } from "./mask-gm.mjs";
+import { isHidingToken, hidingAlpha } from "./hide.mjs";
 
 export function registerVisibility() {
     // A token this browser hides gives it no sight (E112v): the token class's vision-source test asks `tokenShownTo` too.
@@ -307,6 +308,8 @@ export function movePass(doc, changes, viewer = { gm: Boolean(game.user?.isGM) }
     // The opening's veil set or lifted (E112v, road (b)): its one flag is all that changes, and every browser's verdict on
     // the token turns on it - "all", as `hidden`, since a third on the killers' side reads the cast as well (R7704).
     if (veilFlagChanged(changes)) return "all";
+    // Hide's flag set or lifted (S0-HIDE, E129): the same, for the same reason - the verdict and the owner's fade turn on it.
+    if (veilFlagChanged(changes, "hiding")) return "all";
     // E89 fix FG2 (SEC-1; R1054): which characters are the viewer's, changed on the token itself with no move - another
     // actor on it, its link to one, an unlinked token's owners (v14's delta carrying `ownership` is not read here).
     if (changes?.actorId !== undefined || changes?.actorLink !== undefined || changes?.delta?.ownership !== undefined) return "all";
@@ -319,10 +322,10 @@ export function movePass(doc, changes, viewer = { gm: Boolean(game.user?.isGM) }
     return viewer.roomsBefore != null ? "rooms" : "all";
 }
 
-/** Whether `changes` sets or removes the opening's veil flag (either spelling of a removal). Pure. */
-function veilFlagChanged(changes) {
+/** Whether `changes` sets or removes the opening's veil flag, or another one-flag hiding (`flag`; either spelling of a removal). Pure. */
+function veilFlagChanged(changes, flag = "veiled") {
     const flags = changes?.flags?.[MODULE_ID];
-    return Boolean(flags) && typeof flags === "object" && ("veiled" in flags || "-=veiled" in flags);
+    return Boolean(flags) && typeof flags === "object" && (flag in flags || `-=${flag}` in flags);
 }
 
 /**
@@ -467,6 +470,7 @@ function applyToToken(token) {
     count("visibility.applyToToken");
     try {
         if (token?.document?.getFlag?.(MODULE_ID, REMNANT_FLAGS.isRemnant)) {
+            dressRemnant(token);
             applyToRemnantToken(token);
             return;
         }
@@ -486,6 +490,7 @@ function applyToToken(token) {
 
         if (!token?.actor || token.actor.type !== "character") return;
         if (game.user?.isGM) dressSpectator(token);
+        dressHiding(token);
         // The rule is `tokenShownTo`'s (E12 C11); this only carries its answer to the sprite.
         const verdict = tokenShownTo(token.document, viewerHere(() => Boolean(token.isOwner)));
         if (verdict === "show") show(token);
@@ -566,6 +571,12 @@ export function tokenShownTo(tokenDoc, viewer) {
        hides the token, so it is asked above a Spectator's browser, which leaves every other token to Foundry: a Spectator
        does not see the killer while the veil stands (LIVE-E112-01 (g)'s default; R7702). Below the GM and a Spectator's
        own token, both of which answer for themselves. */
+    /* HIDE (S0-HIDE, E129, hide.mjs; the owner: "Gracz widzi swoj token wtedy z nizszym opacity, inni gracze wcale
+       (lacznie z ramka)"). A token Hide hides is its owners' alone, whatever the room, the Eclipse or the setting, as the
+       veil's: every other player's browser, a Spectator's and the killers' side's included, does not draw it, and so no
+       frame, bars, name or ruler. Its owner draws it faded (`dressHiding`); a GM, above, sees it as a GM's hidden token.
+       Asked before the veil's branch: a killer who hides while veiled is hidden from the killers' side too. */
+    if (isHidingToken(tokenDoc)) return viewer.owns(tokenDoc) ? "show" : "hide";
     if (veiledToken(tokenDoc)) {
         if (viewer.owns(tokenDoc)) return "show";
         if (viewer.eclipse || !viewer.killersSide?.has(tokenDoc.actorId)) return "hide";
@@ -716,6 +727,25 @@ function paintProjectTint(token, projectId) {
 }
 
 /**
+ * The alpha a Remnant's picture is drawn at on this browser (1.2.129 line MAP; S0-REMALPHA; config.mjs `REMNANT_ALPHA`):
+ * on a player's `player` (0.5), whatever the document says; on a GM's whole when players see the token, `gmHidden` when
+ * Foundry's `hidden` keeps it from them. Pure; `gm` and `hidden` are the suite's to hand (R8870).
+ */
+export function remnantAlpha({ gm = game.user?.isGM === true, hidden = false } = {}) {
+    if (!gm) return REMNANT_ALPHA.player;
+    return hidden ? REMNANT_ALPHA.gmHidden : REMNANT_ALPHA.gmShown;
+}
+
+/** A Remnant's picture at `remnantAlpha` (the mesh, as `dressSpectator` sets a watcher's): what any browser draws is the
+    constant, not the document's alpha (0.5 on every trace created before 1.2.129, 1 since). Exported for R8870. */
+export function dressRemnant(token, { gm = game.user?.isGM === true } = {}) {
+    const mesh = token?.mesh;
+    if (!mesh || mesh.destroyed) return null;
+    mesh.alpha = remnantAlpha({ gm, hidden: Boolean(token.document?.hidden) });
+    return mesh.alpha;
+}
+
+/**
  * A revealed Remnant is visible to the table by Foundry's own `hidden` flag,
  * but stays a secret from everyone except the finder - see the header note.
  * Unlike the room rule above, this does not depend on the `roomVisibility`
@@ -828,6 +858,31 @@ export function dressSpectator(token) {
     }
     dressedSpectators.add(token);
     if (mesh) mesh.alpha = SPECTATOR_ALPHA * (token.document?.alpha ?? 1);
+    return true;
+}
+
+/** The tokens `dressHiding` faded, so one that shows again is given its own alpha back. */
+const dressedHiding = new Set();
+
+/**
+ * A HIDDEN TOKEN AS ITS OWNER AND A GM SEE IT (S0-HIDE, E129; hide.mjs `hidingAlpha`): the mesh at `INFILTRATE.hide.ownAlpha`
+ * on its owner's browser and at Foundry's hidden alpha on a GM's, times the token's own; any other browser does not draw it
+ * (`tokenShownTo` "hide"). Its frame (own-ring.mjs) follows the token's `visible`, not the mesh's alpha, and is drawn whole.
+ * Asked on every redraw (`applyToToken`), as `dressSpectator` is, so Foundry's own alpha written at its refresh is
+ * overwritten after it. No canvas in the harness: read on a stand-in token (R8902); at a table, LIVE-129-STG-01.
+ */
+export function dressHiding(token, { gm = Boolean(game.user?.isGM) } = {}) {
+    const alpha = hidingAlpha(token?.document, { gm, owns: Boolean(token?.isOwner) });
+    const mesh = token?.mesh;
+    if (alpha === null) {
+        if (dressedHiding.has(token)) {
+            dressedHiding.delete(token);
+            if (mesh) mesh.alpha = token.document?.alpha ?? 1;
+        }
+        return false;
+    }
+    dressedHiding.add(token);
+    if (mesh) mesh.alpha = alpha * (token.document?.alpha ?? 1);
     return true;
 }
 

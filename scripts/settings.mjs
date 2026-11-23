@@ -70,6 +70,7 @@ export const SETTINGS = {
     despairFromRolls: "despairFromRolls",
     projectMeta: "projectMeta",
     chargeMovement: "chargeMovement",
+    trialVoicesFree: "trialVoicesFree",
     /** Whether an open Frisk may be forced after a refusal or no answer (E80 part 2; frisk.mjs `friskForceOpen`). */
     friskForce: "friskForce",
     lockPlayerResources: "lockPlayerResources",
@@ -561,6 +562,12 @@ export const SETTINGS = {
      * it was. No player copy: a player reads the one token flag. Synced; not backed up.
      */
     gmVeils: "gmVeils",
+    /**
+     * THE HIDDEN (S0-HIDE, E129, 23.11.2026): a GM store (gm-stores.mjs `hideStore`), a row per character Hide hides
+     * `{ actorId, userIds, chapter, total, critical, userId, at }`. No player copy: a player reads the one token flag.
+     * Synced and backed up.
+     */
+    gmHides: "gmHides",
     /**
      * THE TIMED EFFECTS (the owner's answer to Q-E93-3, 12.11.2026): a GM store (gm-stores.mjs `timedEffectStore`), a row
      * per effect given `{ actorId, kind, n, trait, label, state, until, mark, day, at }`, and each owner's copy of their own
@@ -1199,7 +1206,7 @@ const TABLE_SETTINGS = [
     SETTINGS.foundryBefore, SETTINGS.foundryGivenBack, SETTINGS.musicEnabled, SETTINGS.sfxVary, SETTINGS.safeword,
     SETTINGS.migratedVersion, SETTINGS.levelUpsMigrated, SETTINGS.caseMark, SETTINGS.moveAudit, SETTINGS.foundryToolWindows, SETTINGS.isoTokenShield,
     SETTINGS.regionFog, SETTINGS.despairFromRolls, SETTINGS.lockRollDialog, SETTINGS.roomVisibility, SETTINGS.lockPlayerResources,
-    SETTINGS.friskForce, SETTINGS.balanceLog, SETTINGS.autoApproveTraits, SETTINGS.chargeMovement, SETTINGS.sequences, SETTINGS.legacyKeyRemnantPlan, SETTINGS.legacyPendingMurders, SETTINGS.legacyEclipseMoves
+    SETTINGS.friskForce, SETTINGS.trialVoicesFree, SETTINGS.balanceLog, SETTINGS.autoApproveTraits, SETTINGS.chargeMovement, SETTINGS.sequences, SETTINGS.legacyKeyRemnantPlan, SETTINGS.legacyPendingMurders, SETTINGS.legacyEclipseMoves
 ];
 /** Every world setting the module registers, by its key -> "season", "campaign" or "table" (above). */
 export const WORLD_LIFETIMES = Object.freeze(Object.fromEntries([
@@ -2442,6 +2449,13 @@ export function registerSettings() {
         type: Object,
         default: {}
     });
+    // The hidden (S0-HIDE): no `onChange` - read by the primary (hide.mjs) and its voice settle.
+    game.settings.register(MODULE_ID, SETTINGS.gmHides, {
+        scope: "client",
+        config: false,
+        type: Object,
+        default: {}
+    });
     // The barricades standing (E74 C2): no `onChange` - the table reads the public flag (doors-gm.mjs).
     game.settings.register(MODULE_ID, SETTINGS.gmBarricades, {
         scope: "client",
@@ -3249,6 +3263,27 @@ export function registerSettings() {
         config: false,
         type: Boolean,
         default: true
+    });
+
+    /*
+     * NO FORCED MUTING IN THE CLASS TRIAL (E129 S0-NOMUTE, 23.11.2026; the owner's note of session 0: "dodajmy opcje w
+     * ustawieniach w gm panel, ktore sprawia ze gracze nie sa wyciszani przymusowo w class trial"; the coordinator's
+     * default: off, so today's forced muting stays the default). On, the trial writes neither of its two blocks - the
+     * floor's (E110 C2) nor the dead's list (E70 C5) - and the tile and the GM's block button say neither (voice.mjs
+     * `trialVoicesFree`, read by `settleTrialVoices`, `micHold` and `moduleHoldsMic`; line COMM's reading of 23.11). The
+     * Spectators', Listen's, the mask's and the veil's blocks are not the trial's and stand. The dead still have no
+     * ballot: `mutedDead` is the trial's list for more than the microphone. A change settles the voices at once, on the
+     * primary. The Game settings window's Voice section (settings-window.mjs `GAME_SECTIONS` "audio"), which the GM panel's Settings tile opens.
+     */
+    game.settings.register(MODULE_ID, SETTINGS.trialVoicesFree, {
+        name: "DRPG.Settings.trialVoicesFree.name",
+        hint: "DRPG.Settings.trialVoicesFree.hint",
+        scope: "world",
+        config: false,
+        type: Boolean,
+        default: false,
+        onChange: () => import("./voice.mjs").then(v => v.askTrialVoices())
+            .catch(err => console.error("Danganronpa RPG | Could not settle the trial's voices after its switch changed", err))
     });
 
     // Rooms sealed by "Behind Closed Doors". Cleared when the clock advances.

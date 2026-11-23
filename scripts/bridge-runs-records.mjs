@@ -484,11 +484,14 @@ export async function handleLoot(payload, sender, ctx) {
        this Take counted an earlier roll (a try refused kept it); the taker's page says nothing of it (anonymity.mjs `takeFromBody`). */
     const bound = sender.isGM ? null : await (await import("./handover.mjs")).lootRollsBound(payload.takerId, payload.bodyId);
     if (!sender.isGM && !bound?.loot) return { refused: "no Hand roll of that character's stands for that Take" };
+    // A taker this GM holds hidden throws no cover (S0-HIDE, E129): it stands passed (hide.mjs `HIDDEN_COVER`) unless one is bound.
+    const { hiddenOnGm, HIDDEN_COVER } = await import("./hide.mjs");
     const taken = await lootBody({
         takerId: payload.takerId, bodyId: payload.bodyId, itemId: payload.itemId, itemIds,
         hand: bound ? bound.loot : { total: payload.total, isCritical: payload.isCritical, withHope: payload.withHope },
-        cover: bound ? bound.lootCover
-            : payload.coverRollId ? { total: payload.coverTotal, isCritical: payload.coverCritical, withHope: payload.coverHope } : null,
+        cover: (bound ? bound.lootCover
+            : payload.coverRollId ? { total: payload.coverTotal, isCritical: payload.coverCritical, withHope: payload.coverHope } : null)
+            ?? (hiddenOnGm(payload.takerId) ? HIDDEN_COVER : null),
         askedBy: sender.isGM ? null : sender.id, coverRequired: !sender.isGM
     });
     if (taken?.refused) return { refused: taken.refused };

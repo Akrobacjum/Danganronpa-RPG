@@ -92,7 +92,7 @@ import { drpgWindow, drpgConfirm, tipText } from "./ui-kit.mjs";
 import {
     readCast, murderState, writeCast, incidentWrite, stillHolds, restoreState, incidentAudienceIds, writeState,
     sweepBetrayalWindows, sideOf, killerIds, participantIds, castHeldHere, registerIncidentCastSync,
-    registerDeathCopy, recordBlackened, leftABody, betrayalCandidate, keepOpeningNotice, openingCardStandsFor, retireOpeningNotices, castFor
+    registerDeathCopy, recordBlackened, leftABody, betrayalCandidate, keepOpeningNotice, openingCardStandsFor, openingPickToldStands, retireOpeningNotices, castFor
 } from "./incident-store.mjs";
 import { withCentre } from "./notice-centre.mjs";
 
@@ -3694,6 +3694,16 @@ async function closeIncident(state, { reason, followUp, conclude = true }) {
     } catch (err) {
         error("Could not lift the opening's veil", err);
     }
+    /* AND THE KILLER'S MASK (1.2.129, S0-MASKLEFT; the owner, 23.11.2026: "po przerwaniu morderstwa morderca dalej mial ?
+       i wyciszenie", then "Zawsze zdejmujemy maske na koniec incydentu morderstwa (po sprzataniu)"): every end of an
+       incident comes through here - the GM's End after Stage 6 or before it, a failed or crowded-out fight, a betrayal,
+       the trial's floor, the season's reset - and none of them ended the mask, which stood to its time of day. On the
+       primary, held there to its own rows (mask-gm.mjs `endMasksAtClose`). */
+    try {
+        await (await import("./mask-gm.mjs")).endMasksAtClose(state ? killerIds(state) : []);
+    } catch (err) {
+        error("Could not take the killer out from behind the mask at the incident's end", err);
+    }
 
     /* ONE HOOK PER INCIDENT THAT WAS RUNNING (E32 C1, 28.09.2026; audit S17-10). The
        suite's invariant grid (tests-grid.mjs, I4) counts closes with it: a betrayal that
@@ -4641,27 +4651,39 @@ export async function rollOpening(side, state, { proposal = null } = {}) {
    above, not a measured trace. A GM who is not the primary asks the primary now (`murder.openingCard`), and the primary
    holds an owner's card in flight from its memo's read to its write (`openingCardPosting`), so any number of asks, from
    any GM, post one card. With no primary connected (an Assistant GM alone) the card is posted here, as before. Answers
-   whether a card was posted. */
+   whether a card was posted.
+   `pick` (E128, 23.11.2026; S0-GMEQUAL item 2): the roller's line while a GM picks the opening's statistic
+   (`tellOpeningRoller`), by the same road. Each GM that opened the pick's window posted its own - one GM's at the
+   murder's open, another's Ask again before the pick - and the roller read it twice; the first line in the memo stands
+   for every window (`openingPickToldStands`). */
 const openingCardPosting = new Set();
 
-export async function postOpeningCard(side, state = murderState()) {
+export async function postOpeningCard(side, state = murderState(), { pick = false, proposed = false } = {}) {
     const actor = game.actors.get(side === "killer" ? state?.killerId : state?.victimId);
     const owner = actor ? ownerOf(actor) : null;
-    if (!owner?.active || openingCardPosting.has(owner.id) || openingCardStandsFor(owner.id)) return false;
+    const key = pick ? "pick" : owner?.id;
+    if (!owner?.active || openingCardPosting.has(key) || (pick ? openingPickToldStands() : openingCardStandsFor(owner.id))) return false;
     if (!isPrimaryGm() && primaryGmId()) {
         const { bridgeRequest } = await import("./bridge-guards.mjs");
-        const res = await bridgeRequest("murder.openingCard", { side, openedAt: state?.openedAt ?? 0 },
+        const res = await bridgeRequest("murder.openingCard", { side, openedAt: state?.openedAt ?? 0, pick, proposed },
             { settle: "reply", onPrimary: true, sayRefused: false });
         return res.ok && res.value === true;
     }
-    openingCardPosting.add(owner.id);
+    openingCardPosting.add(key);
     try {
-        const title = openingTitle(side, state);
-        await keepOpeningNotice(await whisperToOwner(actor,
-            `${cardHead({ action: title })}<p>${game.i18n.localize("DRPG.Murder.openingYours")}</p>`,
-            { flags: { [MODULE_ID]: { popupTitle: title } } }), owner.id);
+        if (pick) {
+            const whisper = incidentAudienceIds(state, { stage: "openingRoll" });
+            if (!whisper.length) return false;
+            const line = side === "killer" ? (proposed ? "DRPG.TraitRuling.openingKillerProposed" : "DRPG.TraitRuling.openingKiller") : "DRPG.TraitRuling.openingVictim";
+            await keepOpeningNotice(await announce({ content: `<p>${game.i18n.localize(line)}</p>`, whisper }));
+        } else {
+            const title = openingTitle(side, state);
+            await keepOpeningNotice(await whisperToOwner(actor,
+                `${cardHead({ action: title })}<p>${game.i18n.localize("DRPG.Murder.openingYours")}</p>`,
+                { flags: { [MODULE_ID]: { popupTitle: title } } }), owner.id);
+        }
     } finally {
-        openingCardPosting.delete(owner.id);
+        openingCardPosting.delete(key);
     }
     return true;
 }
@@ -4730,10 +4752,8 @@ export async function openingProposalFor(side, proposal) {
 /** The roller's line while a GM picks the opening's statistic: see `openingTraitFor`; with a proposal, that the GM rules on it. */
 async function tellOpeningRoller(side, state, { proposed = false } = {}) {
     try {
-        const whisper = incidentAudienceIds(state, { stage: "openingRoll" });
-        if (!whisper.length) return;
-        const key = side === "killer" ? (proposed ? "DRPG.TraitRuling.openingKillerProposed" : "DRPG.TraitRuling.openingKiller") : "DRPG.TraitRuling.openingVictim";
-        void keepOpeningNotice(await announce({ content: `<p>${game.i18n.localize(key)}</p>`, whisper }));
+        // Posted once, by the primary GM, for every GM's window (E128: `postOpeningCard`'s `pick`).
+        await postOpeningCard(side, state, { pick: true, proposed });
     } catch (err) {
         // The GM still picks; a line that did not go out must not hold the roll.
         error("Could not tell the opening roll's side that the GM is choosing its statistic", err);

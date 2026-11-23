@@ -1,0 +1,36 @@
+{
+  "about": "probes/124-console-shots.mjs",
+  "windows": [
+    {
+      "view": "console",
+      "file": "console.html",
+      "kind": "gm",
+      "captured": true,
+      "title": "Messenger",
+      "width": 921,
+      "height": 691,
+      "waiting": 1,
+      "stream": 7
+    },
+    {
+      "view": "PlayerOne",
+      "file": "player.html",
+      "kind": "gm",
+      "captured": true,
+      "title": "Messenger",
+      "width": 921,
+      "height": 691,
+      "waiting": 0,
+      "stream": 0
+    },
+    {
+      "view": "PlayerOne",
+      "file": "own.html",
+      "kind": "player",
+      "captured": true,
+      "title": "GM Chat",
+      "width": 760,
+      "height": 691
+    }
+  ]
+}

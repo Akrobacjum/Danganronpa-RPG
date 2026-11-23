@@ -302,7 +302,8 @@ console can still tell whose token it is; the interface does not.
 <!-- leak:foundry-masked-token-actor --> While that opening waits, the
 killer's tokens carry the veil's mark on every browser (the veil no longer
 sets Foundry's own hidden), so a console can tell which tokens they are and
-whose. <!-- leak:foundry-veiled-token-actor --> A room barricaded with Shut
+whose. <!-- leak:foundry-veiled-token-actor --> The token of a character hidden by Hide carries its mark on every
+browser, so a console can tell who is hidden and where. <!-- leak:foundry-hiding-token-actor --> A room barricaded with Shut
 the Door carries a mark every browser holds, so a console can tell which rooms
 are barricaded, though not by whom or how strongly. <!-- leak:foundry-barricade-flag --> A chat message a
 Spectator's console forces through reaches every browser for a moment before the

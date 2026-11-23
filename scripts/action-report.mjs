@@ -175,6 +175,9 @@ async function diceSettled(messageId) {
  */
 export function rollEffectLines(roll) {
     if (!roll || (roll.isCritical === undefined && roll.withHope === undefined && roll.withFear === undefined)) return [];
+    // A cover not thrown while its roller hides (hide.mjs `HIDDEN_COVER`, 1.2.128 line STG): no dice, so nothing earned or
+    // fed; its card says it was skipped (`coverLine`, `withCover`).
+    if (roll.hidden === true) return [];
     const critical = Boolean(roll.isCritical), hope = !critical && Boolean(roll.withHope);
     const despair = !critical && !hope && (roll.withFear === undefined ? roll.withHope === false : Boolean(roll.withFear));
     const L = (key, data) => game.i18n.format(`DRPG.Result.${key}`, data ?? {});

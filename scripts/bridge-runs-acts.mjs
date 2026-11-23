@@ -229,7 +229,7 @@ export async function handleDoorForce(payload, sender) {
 export function pickRolls(actor) {
     return [
         { field: "rollId", actor, kind: "pick" },
-        { field: "coverRollId", actor, kind: "pickCover", into: { total: "coverTotal", isCritical: "coverCritical" } }
+        { field: "coverRollId", actor, kind: "pickCover", cover: true, into: { total: "coverTotal", isCritical: "coverCritical" } }
     ];
 }
 
@@ -271,7 +271,7 @@ export async function handleWatchDeclare(payload, sender) {
 export function tailRolls(actor) {
     return [
         { field: "rollId", actor, kind: "tail" },
-        { field: "unseenRollId", actor, kind: "tailUnseen", into: { total: "unseenTotal", isCritical: "unseenCritical" } }
+        { field: "unseenRollId", actor, kind: "tailUnseen", cover: true, into: { total: "unseenTotal", isCritical: "unseenCritical" } }
     ];
 }
 
@@ -319,6 +319,17 @@ export async function handleEavesdropStop(payload) {
     return {};
 }
 
+/** Hide on the primary GM (S0-HIDE, E129; hide.mjs `startHide`), the Shadow roll the GMs' record of `rollId`. */
+export async function handleHideStart(payload, sender) {
+    const actor = game.actors.get(payload.actorId ?? "");
+    if (!actor) return { refused: "no such character" };
+    const { startHide } = await import("./hide.mjs");
+    const out = await startHide({ actor, total: payload.total, isCritical: payload.isCritical, userId: sender?.id ?? null });
+    if (out.refused) return { refused: out.refused };
+    await factsForReroll(payload.rollId, sender, actor.id, "hide", { hid: Boolean(out.hidden) });
+    return { reply: { hidden: out.hidden } };
+}
+
 /** The opening's veil asked of the primary by another GM (1.2.122, STG-31; mask-gm.mjs `veilOnPrimary`). */
 export async function handleMaskVeil(payload) {
     const { veilOnPrimary } = await import("./mask-gm.mjs");
@@ -327,8 +338,26 @@ export async function handleMaskVeil(payload) {
     return { reply: out };
 }
 
-/** A killer behind a "?" reveals themselves (E69 C8; mask-gm.mjs `revealMask`). */
-export async function handleMaskReveal(payload) {
+/** A dead student's Spectator, asked by another GM (1.2.128, E129 S0-VICTIM; spectator-dead.mjs `spectatorForTheDead`). */
+export async function handleDeadSpectator(payload) {
+    const { spectatorForTheDead } = await import("./spectator-dead.mjs");
+    const student = game.actors.get(payload.actorId ?? "") ?? null;
+    const watcher = student ? await spectatorForTheDead(student) : null;
+    if (!watcher) return { refused: "nothing was carried out: no dead student's Spectator to make" };
+    return { reply: { watcherId: watcher.id } };
+}
+
+/**
+ * A killer behind a "?" reveals themselves (E69 C8; mask-gm.mjs `revealMask`); with `of: "hide"`, a character Hide hides
+ * shows again (S0-HIDE, E129; hide.mjs `endHide`) - their own press, or a GM's, which their player is told of. The two are
+ * kept apart: each press ends its own (hide.mjs's header).
+ */
+export async function handleMaskReveal(payload, sender = null) {
+    if (payload.of === "hide") {
+        const { endHide } = await import("./hide.mjs");
+        const out = await endHide(payload.actorId ?? "", sender?.isGM ? "gm" : "reveal");
+        return out.refused ? { refused: out.refused } : {};
+    }
     const { revealMask } = await import("./mask-gm.mjs");
     const out = await revealMask(payload.actorId ?? "");
     if (out.refused) return { refused: out.refused };
@@ -596,6 +625,17 @@ export async function handleShareBulletOrGiveItem(payload, sender, ctx) {
     if (out?.refused) return { refused: out.refused };
 }
 
+/*
+ * A SHARE THAT SAYS WHETHER THE READING GOES WITH IT (S0-ANSHARE, line INVEST of 1.2.129): the share's own run, so that
+ * only its row lets `analysis` through (R163); a packet without the field, an older client's, carries the reading as
+ * every share did until 1.2.129. The rest is the common run's.
+ */
+export async function handleShareBullet(payload, sender, ctx) {
+    const { shareBullet } = await import("./handover.mjs");
+    const out = await shareBullet({ fromId: payload.fromId, toId: payload.toId, itemId: payload.itemId, analysis: payload.analysis !== false });
+    if (out?.refused) return { refused: out.refused };
+}
+
 // Showing a secret passage (E79 C7): the recipient learns it in the GMs' records, which only the
 // primary writes. Every check past the sender's ownership of the giver is `shareRefusal`'s, and whether
 // the sender acts as the Mastermind through the giver is asked of the sender (E79 fix r2-G2, SEC M3).
@@ -658,7 +698,7 @@ export async function handlePassageFind(payload, sender) {
 export function friskRolls(actor) {
     return [
         { field: "rollId", actor, kind: "rummage" },
-        { field: "unseenRollId", actor, kind: "palm", into: { total: "unseenTotal", isCritical: "unseenCritical" } }
+        { field: "unseenRollId", actor, kind: "palm", cover: true, into: { total: "unseenTotal", isCritical: "unseenCritical" } }
     ];
 }
 
@@ -688,7 +728,7 @@ export function notFindPassageRoll(record) {
 export function palmRolls(actor) {
     return [
         { field: "rollId", actor, kind: "steal" },
-        { field: "unseenRollId", actor, kind: "palm", into: { total: "unseenTotal", isCritical: "unseenCritical", withHope: "unseenWithHope" } }
+        { field: "unseenRollId", actor, kind: "palm", cover: true, into: { total: "unseenTotal", isCritical: "unseenCritical", withHope: "unseenWithHope" } }
     ];
 }
 
@@ -829,9 +869,9 @@ export async function handleVaultSteal(payload, sender, ctx) {
     return { reply: { taken: Boolean(out) } };
 }
 
-/* The run of `murder.openingCard` (E128): a GM's ask for the opening's card to its player, posted by this primary
-   (murder-rules.mjs `postOpeningCard`, which posts it once) for the incident standing at its opening roll, the one the
-   asker read: answers whether it posted one. */
+/* The run of `murder.openingCard` (E128): a GM's ask for the opening's card to its player, or with `pick` the roller's
+   line while a GM picks the statistic, posted by this primary (murder-rules.mjs `postOpeningCard`, which posts each
+   once) for the incident standing at its opening roll, the one the asker read: answers whether it posted one. */
 export async function handleOpeningCard(payload) {
     const { murderState } = await import("./murder.mjs");
     const { postOpeningCard } = await import("./murder-rules.mjs");
@@ -839,7 +879,7 @@ export async function handleOpeningCard(payload) {
     if (state?.stage !== "openingRoll" || (payload.openedAt && state.openedAt !== payload.openedAt)) {
         return { refused: "nothing was carried out: the incident is no longer at that opening roll" };
     }
-    return { reply: await postOpeningCard(payload.side, state) };
+    return { reply: await postOpeningCard(payload.side, state, { pick: payload.pick, proposed: payload.proposed }) };
 }
 
 // Stage 4 thrown on the participant's own client. Same guard as a crisis
