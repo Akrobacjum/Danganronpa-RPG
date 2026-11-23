@@ -68238,9 +68238,9 @@ const INVARIANTS = [
     }],
     ["R8773 - the ballot lists each Monokuma by its own name, sorted, as the GMs hold the flag (E129 S0-VOTEKUMA; the owner's note of 23.11.2026, \"w glosowaniu zamiast opcji \"monokuma\" niech bedzie mozliwosc wyboru kazdego indywidualnego monokumy z osobna\"): vote.mjs `monokumaCandidates`, config.mjs `TRIAL.eachMonokumaOnBallot`", async () => {
         /*
-         * Pure over handed-in actors and a handed-in reader of the GMs' flags. Two Monokumas named out of order, a student,
-         * an NPC flagged as a Monokuma (no character), and a student whose document alone carries the flag (the GMs hold
-         * none: a console's write before its put-back). Read: the ids and names listed. Red at 7451d3a9: no
+         * Pure over handed-in characters (the default is monokuma.mjs `characterIds`', which reads the type) and a
+         * handed-in reader of the GMs' flags. Two Monokumas named out of order, a student, and a student whose document alone
+         * carries the flag (the GMs hold none: a console's write before its put-back). Read: the ids and names listed. Red at 7451d3a9: no
          * `monokumaCandidates`, and `candidatesFor` pushes one { id: "monokuma" }.
          */
         const V = await import("./vote.mjs");
@@ -68249,7 +68249,7 @@ const INVARIANTS = [
         if (typeof V.monokumaCandidates !== "function") return;
         const actor = (id, name, type, kuma) => ({ id, name, type, getFlag: (scope, key) => scope === MODULE_ID && key === FLAGS.monokuma ? kuma : undefined });
         const actors = [actor("k2", "Karimkuma", "character", true), actor("s1", "Aoi", "character", false),
-            actor("k1", "Divakuma", "character", true), actor("n1", "Usami", "npc", true), actor("f1", "Forged", "character", true)];
+            actor("k1", "Divakuma", "character", true), actor("f1", "Forged", "character", true)];
         const held = a => (a.id === "f1" ? actor("f1", "Forged", "character", false) : a);
         equal(stableJson({ setting: [TRIAL.allowVotingForMonokuma, TRIAL.eachMonokumaOnBallot], listed: V.monokumaCandidates({ actors, held }) }),
             stableJson({ setting: [true, true], listed: [{ id: "k1", name: "Divakuma", dead: false }, { id: "k2", name: "Karimkuma", dead: false }] }),

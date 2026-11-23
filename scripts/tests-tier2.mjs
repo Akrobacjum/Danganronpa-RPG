@@ -52270,7 +52270,9 @@ equal(read.added, 3, "three additions to a purse at once lost one");
          * E70 C1, 27.10.2026; E70-08 (S18-76, D25). Each button of the bar is a `game.drpg` function a macro or another
          * GM's console can call - `skipStep`, `adjustTime`, `endMode`, `returnToDebate` - and the older names stay
          * (`advanceFloorNow`, `extendFloor`, `endFloor`, trial-floor.mjs's own functions). Read on this primary in a
-         * Class Trial, on an Objection with 50 s left and a debate under it with 200 s: +30 s leaves 80 s, -30 s 50 s,
+         * Class Trial, on an Objection 10 s old (L s left: 50 at 60 s, 20 since E129 S0-OBJ's 30 s, so L is read, not
+         * assumed - the owner's note of 23.11.2026, "objection skrocic do 30s") and a debate under it with 200 s: +30 s leaves
+         * L + 30, -30 s L,
          * Skip opens the rebuttal, Back to the debate gives the 200 s, End this mode empties the floor; then on the same
          * Objection the bridge's runner handed "trial.gm" as this GM sends it - +30 s, then End this mode - moves it
          * the same; then, the campaign back in Daily Life with the same Objection written, the same two by "trial.gm" are
@@ -52302,14 +52304,17 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             await settle();
         };
         const near = want => Math.abs(F.secondsLeft() - want) <= 3;
+        let left = null;
         try {
             if (read.fns.every(Boolean)) {
                 await setClock({ ...clock, phase: "classTrial" });
                 await fixture();
+                left = F.secondsLeft();
+                must(left > 5, `the Objection's fixture has ${left} s left - -30 s from L + 30 would measure nothing`);
                 await api.adjustTime(30);
-                read.plus = near(80);
+                read.plus = near(left + 30);
                 await api.adjustTime(-30);
-                read.minus = near(50);
+                read.minus = near(left);
                 await api.skipStep();
                 await settle();
                 read.skip = F.trialFloor()?.mode ?? null;
@@ -52322,8 +52327,9 @@ equal(read.added, 3, "three additions to a purse at once lost one");
                 await fixture();
                 const heard = [];
                 const send = (to, packet) => { if (packet?.action !== "bridge.ack") heard.push(packet?.action ?? null); };
+                const leftThen = F.secondsLeft();
                 await G.judge(B.BRIDGE_ACTIONS, { action: "trial.gm", requestId: "E70T4PLUS", op: "adjust", seconds: 30 }, game.user.id, { send });
-                const bridged = near(80);
+                const bridged = near(leftThen + 30);
                 await G.judge(B.BRIDGE_ACTIONS, { action: "trial.gm", requestId: "E70T4END", op: "endMode" }, game.user.id, { send });
                 read.bridge = [bridged, F.trialFloor(), heard];
                 await setClock({ ...getClock(), phase: "dailyLife" });
@@ -55120,6 +55126,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         const { performAction } = await import("./action-rolls.mjs");
         const { ACTIONS, ACTION_GRID } = await import("./config.mjs");
         must(!ACTION_GRID.includes("move"), "the sheet draws a Move tile again - E40-T3's note");
+        const { TRIAL_OPEN_ACTIONS } = await import("./allowed-now.mjs");
         const keys = Object.keys(ACTIONS).filter(key => key !== "move");
         const SENT = { trial: game.i18n.localize("DRPG.Trial.actionsLocked"), murderOnlyInEclipse: game.i18n.localize("DRPG.Eclipse.murderOnlyInEclipse") };
         const which = text => Object.entries(SENT).filter(([, line]) => String(text ?? "").includes(line)).map(([k]) => k).join("+") || null;
@@ -55146,7 +55153,9 @@ equal(read.added, 3, "three additions to a purse at once lost one");
                         for (const [k, d] of Object.entries(keptN)) { if (d) Object.defineProperty(notes, k, d); else delete notes[k]; }
                     }
                     const press = which(heard.join(" | "));
-                    const want = key === "analyze" ? null : key === "directMurder" ? "murderOnlyInEclipse" : "trial";
+                    // The trial's own open list (allowed-now.mjs `TRIAL_OPEN_ACTIONS`): Analyze, and Palm since E129 S0-PALM (the
+                    // owner's "9. Tak" of 23.11.2026) - no mode opens or shuts an action otherwise than the trial does.
+                    const want = TRIAL_OPEN_ACTIONS.includes(key) ? null : key === "directMurder" ? "murderOnlyInEclipse" : "trial";
                     if (tile !== want || press !== want) off.push(`${mode}/${key}: tile ${tile}, press ${press}, as the trial ${want}`);
                 }
             }
