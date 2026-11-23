@@ -2859,8 +2859,10 @@ const REGRESSIONS = [
            the whole function, and the exemption read anywhere in it would hold after it
            moved below the dispatch while another "classTrial" kept `gate` above. */
         const rule = bodyOf(stripComments(await fetch(`/modules/${MODULE_ID}/scripts/allowed-now.mjs`).then(lfText)), "    action: (key, f) => {", { until: "\n    },\n" });
-        ok(/key !== "analyze" && f\.trial\(\)/.test(rule), "the trial's rule no longer keeps Analyze open, which is the one tile it must");
-        ok(rule.indexOf("f.fighting()) return shut") > 0 && rule.indexOf("f.fighting()) return shut") < rule.indexOf('key !== "analyze" && f.trial()'),
+        // Analyze and, since 1.2.129, Palm (E129 S0-PALM): the table allowed-now.mjs `TRIAL_OPEN_ACTIONS`, read as the press reads it.
+        const { TRIAL_OPEN_ACTIONS } = await import("./allowed-now.mjs");
+        ok(/!TRIAL_OPEN_ACTIONS\.includes\(key\) && f\.trial\(\)/.test(rule) && TRIAL_OPEN_ACTIONS.includes("analyze"), "the trial's rule no longer keeps Analyze open, which is the one tile it must");
+        ok(rule.indexOf("f.fighting()) return shut") > 0 && rule.indexOf("f.fighting()) return shut") < rule.indexOf("!TRIAL_OPEN_ACTIONS.includes(key) && f.trial()"),
             "the rule asks the trial before the fight, which outranks it");
         ok(fight > 0 && dead > 0, "the fight or the death refusal moved out of performAction");
         ok(gate > fight && gate > dead,
@@ -20043,7 +20045,9 @@ const REGRESSIONS = [
                 // The Scrum's Confer (the owner's 13.11.2026): its card and its panel line, read off `conferSeconds` and the clock.
                 "Zones.scrum.confer", "Zones.panel.scrum.confer",
                 // 1.2.122 (CTRL-03, REFR-66, CTRL-07): Your turn's seconds left and Keep speaking's 20 s, the side pick's 15 s.
-                "Trial.turn.left", "Trial.turn.keepNote", "Zones.pick.dismissed"
+                "Trial.turn.left", "Trial.turn.keepNote", "Zones.pick.dismissed",
+                // E129 S0-SKIP and S0-CUT P2 (23.11.2026): the objector's and the speaker's seconds left, "On the clock: {seconds} s.".
+                "Trial.finish.body", "Trial.turn.confirmBody"
             ].map(key => [key, "S"]),
             ...[
                 "Action.searchTokensLeft", "Events.overflowMetaGm", "Explain.room.tokens",
@@ -20086,7 +20090,7 @@ const REGRESSIONS = [
         const reasons = {};
         for (const why of ALLOW.values()) reasons[why] = (reasons[why] ?? 0) + 1;
         equal(JSON.stringify({ read: found.length > 0, flat: found.filter(k => !ALLOW.has(k)), stale: [...ALLOW.keys()].filter(k => !found.includes(k)), fixture, reasons }),
-            JSON.stringify({ read: true, flat: [], stale: [], fixture: ["DRPG.Fx.a", "DRPG.Fx.d", "DRPG.Fx.e"], reasons: { U: 93, S: 42, R: 29, D: 1, P: 1, T: 1, G: 1 } }),
+            JSON.stringify({ read: true, flat: [], stale: [], fixture: ["DRPG.Fx.a", "DRPG.Fx.d", "DRPG.Fx.e"], reasons: { U: 93, S: 44, R: 29, D: 1, P: 1, T: 1, G: 1 } }),
             "[the census read something; the values it finds that are no family and not in the allow table; the allow rows it no longer finds; "
             + "what it finds on its planted case (a flat English counter, a Polish predicate before a unit and before a noun; not a family, not a name); "
             + "the allow rows by reason]");
@@ -21457,8 +21461,9 @@ const REGRESSIONS = [
             // 38 since E64: `levelUpsMigrated`, the DA39 migration's once-a-world mark (level-up.mjs `offerDa39Migration`).
             // 39 since E108: `diceLookKind`, which look the table's forced dice take, outlives a season as the switch does.
             // 40 since E53 C3: `balanceLog`, the balance log's switch, the table's as the rules of play the GM switches.
-            counts: [20, 11, 40], clock: ["chapterEnd", "clock", "readyRound"], assignments: ["gmAssignments"], record: "campaign"
-        }), "the season's settings are not the twenty the reset clears, the lifetimes do not count 20, 11 and 40, the clock's entry does not "
+            // E129 S0-NOMUTE (23.11.2026): `trialVoicesFree`, a table's switch - 40 table settings until then.
+            counts: [20, 11, 41], clock: ["chapterEnd", "clock", "readyRound"], assignments: ["gmAssignments"], record: "campaign"
+        }), "the season's settings are not the twenty the reset clears, the lifetimes do not count 20, 11 and 41, the clock's entry does not "
             + "name the readiness round and the End of chapter's record, the assignments' entry does not name gmAssignments, or the reset's own record is not kept as the campaign's");
     }],
 
@@ -23592,7 +23597,8 @@ const REGRESSIONS = [
             "search-tokens.mjs": {"heading": 1, "line": 1}, "season-wipe.mjs": {"heading": 1},
             "secret.mjs": {"message": 1}, "sheet-audit.mjs": {"built": 2, "card": 2}, "stash-reach.mjs": {"line": 11},
             "states.mjs": {"line": 1}, "tables-editor.mjs": {"card": 1}, "tail-gm.mjs": {"line": 3}, "timed-effects.mjs": {"line": 1}, "traps.mjs": {"line": 1},
-            "trial-floor-ui.mjs": {"message": 4}, "trial-floor.mjs": {"message": 1},
+            // E129 S0-SKIP (23.11.2026): trial-floor.mjs `finishObjectionOnPrimary` whispers the GMs one line, the objector's finish.
+            "trial-floor-ui.mjs": {"message": 4}, "trial-floor.mjs": {"line": 1, "message": 1},
             "trial-modes.mjs": {"heading": 1, "message": 1}, "trial-progress.mjs": {"line": 2, "message": 1},
             "trial-scene.mjs": {"built": 1, "line": 10}, "trial-zones.mjs": {"card": 1, "message": 1}, "trial.mjs": {"line": 11, "message": 4},
             "truth-bullets.mjs": {"card": 1, "heading": 2}, "use-items.mjs": {"card": 1, "line": 6},

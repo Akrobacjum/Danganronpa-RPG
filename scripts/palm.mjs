@@ -340,7 +340,10 @@ function palmTargets(actor) {
 /** What Palm costs here: in a Class Trial its chain (`payPrice`, a receipt of its step), else its action as before. */
 async function payPalm(actor, cost) {
     if (cost <= 0) return null;
-    return palmInTrial() ? payPrice(actor, "palm") : spendAction(actor, cost);
+    if (palmInTrial()) return payPrice(actor, "palm");
+    const paid = await spendAction(actor, cost);
+    if (cost > 0 && !paid) return null;
+    return paid;
 }
 
 /** A Palm's payment handed back by its receipt: the chain's by `refundPrice` (it says what came back), an action by `abort`. */

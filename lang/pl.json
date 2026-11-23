@@ -8786,6 +8786,7 @@
         "analyze": "Nie masz już akcji, Hope ani Sanity, więc nie masz czym zapłacić za Analyze.",
         "analyzeOneStep": "Nie masz już akcji, więc nie masz czym zapłacić za Analyze.",
         "palm": "Nie masz już akcji, Hope ani Sanity, więc nie masz czym zapłacić za Palm.",
+        "palmOneStep": "Nie masz już akcji, więc nie masz czym zapłacić za Palm.",
         "tamper": "Nie masz już akcji, a Tamper nie przyjmuje niczego innego.",
         "tamperSkippedAction": "Akcja nie jest tu potrzebna, ale nie masz już Sanity, by zapłacić."
       },
