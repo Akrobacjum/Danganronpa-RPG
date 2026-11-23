@@ -571,9 +571,10 @@ export async function placeRemnant(data = {}, { keepId = false, rollId = null, d
             // read without ever seeing the map. The GM still gets the colour -
             // `remnant-ring.mjs` paints it from the ledger, on their client.
             texture: { src: ICON, tint: TINTS.neutral },
-            // Half transparent, and below characters: the map must still read
-            // as "people in a room", not "a pile of clues".
-            alpha: 0.5,
+            // Below characters (`sort`), and whole: the map reads as "people in a room" by the order, and a trace a
+            // player is shown is drawn whole on their screen (1.2.129, S0-REMALPHA: at 0.5 it was half there; each browser
+            // draws a Remnant at config.mjs `REMNANT_ALPHA`, visibility.mjs `dressRemnant`, whatever this says).
+            alpha: 1,
             sort: -10,
             /*
              * HIDDEN, EXCEPT AN INCIDENT'S OWN TRACES (D11).

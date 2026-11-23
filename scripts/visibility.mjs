@@ -25,7 +25,7 @@
  * `myIncidentTrace` reads the cast that stands. The listeners below are for what is no clock and no incident.
  */
 
-import { MODULE_ID, FLAGS } from "./config.mjs";
+import { MODULE_ID, FLAGS, REMNANT_ALPHA } from "./config.mjs";
 import { flaggedSpectator, spectatorViewer, isMonocubCorpse } from "./spectator.mjs";
 import { SETTINGS, isEclipse, incidentParticipants, incidentCast } from "./settings.mjs";
 import { roomOfToken, roomAt, whenAtRest } from "./movement.mjs";
@@ -467,6 +467,7 @@ function applyToToken(token) {
     count("visibility.applyToToken");
     try {
         if (token?.document?.getFlag?.(MODULE_ID, REMNANT_FLAGS.isRemnant)) {
+            dressRemnant(token);
             applyToRemnantToken(token);
             return;
         }
@@ -713,6 +714,25 @@ function paintProjectTint(token, projectId) {
     } catch {
         // A tint the canvas cannot read leaves the sprite as Foundry drew it.
     }
+}
+
+/**
+ * The alpha a Remnant's picture is drawn at on this browser (1.2.129 line MAP; S0-REMALPHA; config.mjs `REMNANT_ALPHA`):
+ * on a player's whole, whatever the document says; on a GM's whole when players see the token, `gmHidden` when Foundry's
+ * `hidden` keeps it from them. Pure; `gm` and `hidden` are the suite's to hand (R8870).
+ */
+export function remnantAlpha({ gm = game.user?.isGM === true, hidden = false } = {}) {
+    if (!gm) return REMNANT_ALPHA.player;
+    return hidden ? REMNANT_ALPHA.gmHidden : REMNANT_ALPHA.gmShown;
+}
+
+/** A Remnant's picture at `remnantAlpha` (the mesh, as `dressSpectator` sets a watcher's): the document's 0.5 every trace
+    was created at until 1.2.129 is not what any browser draws any more. Exported for R8870. */
+export function dressRemnant(token, { gm = game.user?.isGM === true } = {}) {
+    const mesh = token?.mesh;
+    if (!mesh || mesh.destroyed) return null;
+    mesh.alpha = remnantAlpha({ gm, hidden: Boolean(token.document?.hidden) });
+    return mesh.alpha;
 }
 
 /**

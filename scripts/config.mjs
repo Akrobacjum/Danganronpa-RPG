@@ -3132,6 +3132,19 @@ export const PROJECT_SCALE = {
  * `sort` puts it above a Remnant (-10) and below the cast (0): traces are the
  * finest print on the map, projects are scenery, and people come first.
  */
+/*
+ * A REMNANT'S TOKEN, DRAWN AT ONE ALPHA PER VIEWER (1.2.129 line MAP, stage E129; the owner's session-0 note S0-REMALPHA,
+ * 23.11.2026: "niektore remnanty sa polprzezroczyste i przez to niewidoczne"). Every Remnant was created at document alpha
+ * 0.5 (remnants.mjs `placeRemnant`), which every browser draws, so a trace a player was meant to see came up half there,
+ * and under the fog's veil in a room the player is not in, about a fifth (0.5 x 0.4, read off the numbers, not a
+ * screen). Each browser now draws a Remnant's picture at its own constant (visibility.mjs `remnantAlpha`): a player sees
+ * every Remnant it is shown whole; a GM sees one the players see whole, and one hidden from them at `gmHidden` - lower,
+ * so the GM tells the two apart, never so low the GM loses it. 0.6 is the coordinator's default pending the owner, chosen
+ * on the comparison sheet docs/dev/owner129/map/ (two themes, two sizes). What v14 itself does to a hidden token's alpha
+ * on a GM's browser is not read (LIVE-129, the report).
+ */
+export const REMNANT_ALPHA = Object.freeze({ player: 1, gmShown: 1, gmHidden: 0.6 });
+
 export const PROJECT_TOKEN = {
     /** Grid squares, square. */
     size: 2,
@@ -5636,6 +5649,7 @@ export const DRPG = {
     MOTIVE,
     PROJECT_SCALE,
     PROJECT_GLYPHS,
+    REMNANT_ALPHA,
     PROJECT_TOKEN,
     isProjectGlyph,
     PROJECT_DESCRIPTION_MAX,
