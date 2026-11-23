@@ -10170,6 +10170,7 @@ const REGRESSIONS = [
             ["HOOK spectator-dead.mjs#registerDeadSpectator#createToken:inline", "reads, writes nothing (E62 C3b): on the dead student's own browser, a Spectator token made, moved to the Monocub or taken away with the option `drpgDeadSpectator` calls the curtain's hook and plays the Death fade; creates and deletes nothing, and judges no move"],
             ["HOOK hide.mjs#registerHides#createToken:inline", "writes a GM's own token (S0-HIDE, E129, 23.11.2026): on the primary, a token made while its character hides is flagged by the settle (hide.mjs `settleHides`, `flagTokens`, none on a trial hall); judges no move, creates and deletes nothing"],
             ["HOOK hide.mjs#registerHides#updateToken:inline", "writes nothing (S0-HIDE, E129): a player's own token redrawn, its hide read again for the voice tile's button (hide.mjs `noticeOwnHide`, the hook drpgHideChanged); judges no move, creates and deletes nothing"],
+            ["HOOK hover-name.mjs#registerHoverName#updateToken:inline", "writes nothing (S0-HOVERNAME, E129, 23.11.2026): a change to the token a hover's name is up for takes the label down (hover-name.mjs `onTokenChanged`); judges no move, creates and deletes nothing"],
             ["HOOK voice-tile.mjs#registerVoiceTile#updateToken:inline", "writes nothing (S0-HIDE, E129): on a GM, a token's Hide flag set or taken off repaints the open voice list's hidden lines (voice-tile.mjs `paintHidden`); judges no move, creates and deletes nothing"],
             ["HOOK mask-gm.mjs#registerMasks#createToken:inline", "writes a GM's own token (E112, 15.11.2026): on the primary, a token made while a mask or the opening's veil stands for its character joins the row and is masked or veiled (mask-gm.mjs `adoptToken`); judges no move, creates and deletes nothing"],
             ["HOOK spectator-dead.mjs#registerDeadSpectator#updateToken:inline", "reads, writes nothing (E62 C3b): on the dead student's own browser, a Spectator token made, moved to the Monocub or taken away with the option `drpgDeadSpectator` calls the curtain's hook and plays the Death fade; creates and deletes nothing, and judges no move"],
@@ -10462,6 +10463,9 @@ const REGRESSIONS = [
             ["HOOK spectator-dead.mjs#createToken#arrow2", "deleted, not judged (13.11.2026, scenario 78 part gm2): on the primary, a token made for a second Spectator of one student that this browser took away (`settleWatchers`, `lostWatchers`) is deleted when it arrives, and a token of a watcher sends its student's watchers to `settleWatchers`; neither reads nor judges a move into a room"],
             ["HOOK hide.mjs#createToken#arrow1", "writes a GM's own token (S0-HIDE, E129, 23.11.2026): on the primary, a token made while its character hides is flagged by the settle (hide.mjs `settleHides`), none on a trial hall (`flaggable`); creates and deletes nothing"],
             ["HOOK hide.mjs#updateToken#arrow1", "writes nothing (S0-HIDE, E129): a player's own token redrawn, its hide read again for the voice tile (hide.mjs `noticeOwnHide`); creates and deletes nothing"],
+            ["HOOK hover-name.mjs#updateToken#arrow1", "writes nothing (S0-HOVERNAME, E129): a change to the token a hover's name is up for takes the label down (hover-name.mjs `onTokenChanged`); creates and deletes nothing"],
+            ["HOOK hover-name.mjs#updateToken#arrow2", "writes nothing (S0-HOVERNAME B, E129): a token's caption drawn again on this browser when a field it reads changed (hover-name.mjs `drawCaption`, a child display object); creates and deletes nothing"],
+            ["HOOK hover-name.mjs#deleteToken#arrow1", "writes nothing (S0-HOVERNAME, E129): the token a hover's name is up for deleted takes the label down (hover-name.mjs `onTokenChanged`); creates and deletes nothing"],
             ["HOOK voice-tile.mjs#updateToken#arrow1", "writes nothing (S0-HIDE, E129): on a GM, a token's Hide flag repaints the voice list's hidden lines (voice-tile.mjs `paintHidden`); creates and deletes nothing"],
             ["HOOK mask-gm.mjs#createToken#arrow1", "writes a GM's own token (E112, 15.11.2026): on the primary, a token made while a mask or the opening's veil stands for its character joins the row and is masked or veiled (mask-gm.mjs `adoptToken`); judges no move, creates and deletes nothing"],
             ["HOOK visibility.mjs#canvasReady#arrow1", "out of scope: draws for this client only; the scene a client views decides no rule (E12 C6 `CAMERA_READERS`) [1b.1 which scene a client views]"],
@@ -11603,6 +11607,7 @@ const REGRESSIONS = [
             ["HOOK spectator-dead.mjs#registerDeadSpectator#createToken/inline -> judge", "this file's own (E62 C3b): the curtain's hook and the Death fade on the dead student's browser; E79 adds no road through it"],
             ["HOOK hide.mjs#registerHides#createToken/inline -> judge", "this file's own (S0-HIDE, E129): a token made while its character hides is flagged on the primary; no passage road through it"],
             ["HOOK hide.mjs#registerHides#updateToken/inline -> judge", "this file's own (S0-HIDE, E129): a player's own token redrawn, its hide read for the voice tile; no passage road through it"],
+            ["HOOK hover-name.mjs#registerHoverName#updateToken/inline -> judge", "this file's own (S0-HOVERNAME, E129): a hover's label taken down for a change to its token; no passage road through it"],
             ["HOOK voice-tile.mjs#registerVoiceTile#updateToken/inline -> judge", "this file's own (S0-HIDE, E129): a GM's voice list repainted for a Hide flag; no passage road through it"],
             ["HOOK mask-gm.mjs#registerMasks#createToken/inline -> judge", "this file's own (E112): a token made while a mask or the veil stands joins it on the primary; no passage road through it"],
             ["HOOK spectator-dead.mjs#registerDeadSpectator#updateToken/inline -> judge", "this file's own (E62 C3b): the curtain's hook on the dead student's browser when its Spectator token becomes the Monocub's; E79 adds no road through it"],
@@ -18505,6 +18510,8 @@ const REGRESSIONS = [
             // A placeable's draw and refresh, as `refreshToken` is (E95 C3: body-tile.mjs draws the body's mark on its tile; since
             // 13.11.2026 the caption on the corpse's token, `drawToken`, and the tile's hooks only take an old mark off).
             "drawTile", "refreshTile", "drawToken",
+            // A token under the pointer (1.2.129, S0-HOVERNAME: hover-name.mjs puts its name up after a wait).
+            "hoverToken",
             "getUserContextOptions", "getChatMessageContextOptions", "getActorContextOptions",
             ...DOCS.flatMap(d => ["preCreate", "create", "preUpdate", "update", "preDelete", "delete"].map(e => `${e}${d}`)),
             ...APPS.flatMap(a => ["render", "close", "getHeaderControls"].map(e => `${e}${a}`))
@@ -24437,14 +24444,15 @@ const REGRESSIONS = [
         };
         equal(JSON.stringify(read), JSON.stringify({
             loaded: true,
-            sections: [["look", "client", 5, true], ["effects", "client", 5, true], ["sound", "client", 1, true], ["tech", "client", 1, true],
+            sections: [["look", "client", 6, true], ["effects", "client", 5, true], ["sound", "client", 1, true], ["tech", "client", 1, true],
                 // The r112 merge (13.11.2026): E101's sections and 1.2.109's `sequences` in gm, where 1.2.109 put it.
                 // E53 C3: `balanceLog`, the balance log's switch, born in the rules section (no Foundry list showed it).
                 // E129 S0-NOMUTE (1.2.129): `trialVoicesFree`, the Class Trial's forced muting switched off, born in audio.
+                // E129 S0-HOVERNAME B (1.2.129 line MAP): `tokenCaptions`, the tokens' names as captions, born in look.
                 ["audio", "game", 3, true], ["rules", "game", 7, true], ["privacy", "game", 6, true], ["gm", "game", 3, true], ["foundry", "game", 7, true]],
             // E61 C1 (12.11.2026): `sequences`, the table's switch for the sequences, a world setting born in this window
             // E57 C3 (D34): `documentLanguage` in gm, beside them.
-            once: [], others: ["trialVoicesFree", "balanceLog", "sequences", "documentLanguage", "sfxVary"], mixed: [], configTrue: [], menuCalls: ["SETTINGS_MENU"], menuRestricted: true,
+            once: [], others: ["tokenCaptions", "trialVoicesFree", "balanceLog", "sequences", "documentLanguage", "sfxVary"], mixed: [], configTrue: [], menuCalls: ["SETTINGS_MENU"], menuRestricted: true,
             menus: read.menus === "not modelled" ? "not modelled" : [[`${MODULE_ID}.drpgSettings`, false]],
             words: [], sectionWords: [true, true, true, true, true, true, true, true, true]
         }), "[the module loads; its sections (key, place, size, an icon); keys not in exactly one; keys no frozen one; keys of the other scope than their place; settings still config: true; "

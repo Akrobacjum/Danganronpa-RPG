@@ -359,6 +359,10 @@
         "name": "Czcionka pikselowa",
         "hint": "Tylko Monokuma Legacy: krój pikselowy na HUD-zie, zakładkach, imionach i etykietach. Długi tekst zostaje w zwykłym kroju. Dotyczy tylko tej przeglądarki."
       },
+      "tokenCaptions": {
+        "name": "Nazwy tokenów jako podpisy",
+        "hint": "Nazwa każdego tokenu stoi pod nim, o ile możesz ją znać. Wyłączone: nazwa pokazuje się, gdy kursor zatrzyma się na tokenie. Dotyczy tylko tej przeglądarki."
+      },
       "wideProjectWindows": {
         "name": "Szerokie okna projektów",
         "hint": "Okna projektów otwierają się szerzej. Dotyczy tylko tej przeglądarki."
@@ -417,7 +421,7 @@
       },
       "uiScale": {
         "name": "Skala interfejsu",
-        "hint": "Wielkość okien i napisów modułu, a z nimi elementów Foundry i arkusza postaci, od 25% do 140%. Mapy nie skaluje. Dotyczy tylko tej przeglądarki."
+        "hint": "Wielkość okien i napisów modułu, a z nimi elementów Foundry i arkusza postaci, od 25% do 140%. Mapy nie skaluje, ale nazwy przy tokenach skalują się razem z interfejsem. Dotyczy tylko tej przeglądarki."
       },
       "debug": {
         "name": "Szczegółowe logi w konsoli",

@@ -69470,6 +69470,234 @@ const INVARIANTS = [
             JSON.stringify([0.5, 1, REMNANT_ALPHA.gmHidden, true, true, true]),
             "[a player's (0.5), a GM's shown, a GM's hidden Remnant drawn at; the GM's hidden one at least 0.5 and under 1; applyToToken dresses first; placeRemnant creates whole]");
     }],
+    ["R8871 - a token's name on a hover is what this viewer may know: a masked killer reads \"?\" but to its owner and the GMs, a trace's name never from its token, a project through shownName, no label where Foundry's own nameplate already shows, and nothing for a body, a token Foundry hides from a player or one this browser does not draw (1.2.129 line MAP, E129; scripts/hover-name.mjs `hoverName`; the owner's S0-HOVERNAME)", async () => {
+        /*
+         * 1.2.129 line MAP, 23.11.2026; the owner: "Najechanie na token myszka przez chwile dluzej niech pokazuje nazwe (imie
+         * postaci, "?" Mordercy, nazwe projektu, nazwe remnanta)". The rule read on stand-in tokens, a viewer handed in (a GM,
+         * the masked character's owner, another player). What the label must never do is tell more than the map draws: the
+         * masked killer's actor name to another player; a trace's token name (here a real word on it, which no placed trace
+         * carries: `placeRemnant` writes the neutral one) to a player; any name of a token Foundry hides or this browser does not
+         * draw. A Remnant's and a project's own names are their readers' (myBulletForRemnant, ledgerLabel, shownName): held
+         * here to be asked, not re-judged (R7541 holds shownName's rule).
+         */
+        const H = await import("./hover-name.mjs");
+        const { FLAGS } = await import("./config.mjs");
+        const { MASK_NAME } = await import("./mask-gm.mjs");
+        const { REMNANT_FLAGS, traceLabel } = await import("./remnants.mjs");
+        const { PROJECT_TOKEN_FLAG } = await import("./projects-map.mjs");
+        const { shownName } = await import("./projects-secrecy.mjs");
+        must(typeof H.hoverName === "function", "no hoverName - this would measure nothing");
+        const gm = { isGM: true, id: "g" }, owner = { isGM: false, id: "own" }, other = { isGM: false, id: "oth" };
+        const person = ({ dead = false, type = "character", name = "Aoi Kirigaya" } = {}) => ({ type, name, id: "a8871",
+            testUserPermission: u => u?.id === "own", getFlag: (scope, key) => (dead && key === FLAGS.deceased ? true : undefined) });
+        const tok = ({ name = "Aoi", hidden = false, actor = person(), flags = {}, displayName = 0 } = {}) => ({ id: "t8871", parent: { id: "s8871", tokens: [] },
+            name, hidden, actor, displayName, flags: { [MODULE_ID]: flags }, getFlag(scope, key) { return this.flags?.[scope]?.[key]; } });
+        // Foundry's nameplate modes (CONST.TOKEN_DISPLAY_MODES): NONE 0, CONTROL 10, OWNER_HOVER 20, HOVER 30, OWNER 40, ALWAYS 50.
+        const plate = mode => tok({ displayName: mode });
+        const masked = tok({ name: MASK_NAME, flags: { masked: true } });
+        const trace = tok({ name: "Bloody knife", actor: null, flags: { [REMNANT_FLAGS.isRemnant]: true } });
+        const hiddenTrace = tok({ name: "Bloody knife", actor: null, hidden: true, flags: { [REMNANT_FLAGS.isRemnant]: true } });
+        const project = tok({ name: "Project", actor: null, flags: { [PROJECT_TOKEN_FLAG]: "no-such-countdown-8871" } });
+        const at = (doc, user, extra = {}) => H.hoverName(doc, { user, ...extra });
+        equal(JSON.stringify([
+            at(tok(), other), at(masked, other), at(masked, owner), at(masked, gm),
+            at(tok({ hidden: true }), other), at(tok({ hidden: true }), gm), at(tok(), other, { drawn: false }),
+            at(tok({ actor: person({ dead: true }) }), other), at(tok({ actor: person({ dead: true }) }), gm),
+            at(trace, other) === traceLabel(null), at(trace, gm) === traceLabel(null), at(project, other) === (shownName("no-such-countdown-8871") || null),
+            at(tok({ name: "Monokuma", actor: person({ type: "npc", name: "Monokuma" }) }), other), at(tok({ name: "", actor: null }), other),
+            at(plate(30), other), at(plate(50), other), at(plate(20), owner), at(plate(20), other), at(plate(40), gm), at(plate(40), other), at(plate(10), other),
+            at(tok({ name: MASK_NAME, flags: { masked: true }, displayName: 0 }), other),
+            // S0-BULLETSEES (INVEST): a trace a GM hid is named to a holder of its bullet, as that bullet; to anyone else nothing.
+            at(hiddenTrace, other, { bulletOf: () => ({ name: "Torn page" }) }), at(hiddenTrace, other, { bulletOf: () => null }),
+            at(trace, other, { bulletOf: () => ({ name: "Torn page" }) })]),
+            JSON.stringify(["Aoi Kirigaya", MASK_NAME, "Aoi Kirigaya", "Aoi Kirigaya", null, "Aoi Kirigaya", null, null, null, true, true, true, "Monokuma", null,
+                null, null, null, "Aoi Kirigaya", null, "Aoi Kirigaya", "Aoi Kirigaya", MASK_NAME, "Torn page", null, "Torn page"]),
+            "[character to another player; masked to another, its owner, a GM; Foundry-hidden to a player, to a GM; not drawn; a body to a player, to a GM; a trace's neutral word, never its token's name, to a player and to a GM whose ledger has no row for it; a project through shownName; an NPC's token name; an empty name; Foundry's nameplate on hover or always: HOVER, ALWAYS, OWNER_HOVER to its owner and to another, OWNER to a GM and to another, CONTROL; a masked token's NONE keeps the module's mask; a GM-hidden trace to a holder of its bullet and to anyone else; a shown trace to a holder]");
+    }],
+    ["R8872 - a hover's name waits HOVER_NAME.delayMs, goes on the hover's end, a press on the page or a change to its token, and is one aria-hidden element whose words are the rule's, put up nowhere for a token this browser does not draw (1.2.129 line MAP, E129; scripts/hover-name.mjs `onHoverToken`, `showHoverName`, `dropHoverName`, `registerHoverName`; config.mjs `HOVER_NAME`)", async () => {
+        /*
+         * 1.2.129 line MAP, 23.11.2026, the owner's S0-HOVERNAME. The element and the timer on this page, a stand-in token
+         * (the harness draws no board; where the label lands on v14's is LIVE-129-MAP-04). The canvas's one call the label
+         * needs, `clientCoordinatesFromCanvas`, is stood in for while the test runs when the harness's canvas lacks it, and put
+         * back. The delay itself is the constant's, at least 300 ms so a pointer crossing the map names nothing; the test
+         * waits a short one handed in.
+         */
+        const H = await import("./hover-name.mjs");
+        const { HOVER_NAME } = await import("./config.mjs");
+        must(typeof H.onHoverToken === "function" && HOVER_NAME, "no onHoverToken or HOVER_NAME - this would measure nothing");
+        const other = { isGM: false, id: "oth" };
+        const doc = { id: "t8872", parent: { id: "s8872", tokens: [] }, name: "Aoi", hidden: false, flags: {}, getFlag: () => undefined,
+            actor: { type: "character", name: "Aoi Kirigaya", testUserPermission: () => false, getFlag: () => undefined } };
+        const placeable = visible => ({ document: doc, visible, destroyed: false, center: { x: 50, y: 50 }, y: 0 });
+        const cv = globalThis.canvas;
+        const hadCv = Boolean(cv), had = cv?.clientCoordinatesFromCanvas;
+        if (!hadCv) globalThis.canvas = {};
+        globalThis.canvas.clientCoordinatesFromCanvas = p => ({ x: p.x + 1000, y: p.y + 500 });
+        const wait = ms => new Promise(r => setTimeout(r, ms));
+        const facts = [];
+        try {
+            H.dropHoverName();
+            const el = H.showHoverName(placeable(true), { user: other, at: { x: 120.4, y: 64.6 } });
+            facts.push(el?.className, el?.textContent, el?.getAttribute("aria-hidden"), el?.style.left, el?.style.top, H.hoverNameShown() === el, el?.isConnected);
+            H.dropHoverName();
+            facts.push(el?.isConnected, H.hoverNameShown(), H.showHoverName(placeable(false), { user: other, at: { x: 1, y: 1 } }), document.querySelectorAll(".drpg-hover-name").length);
+            H.onHoverToken(placeable(true), true, { delayMs: 40, captions: false });
+            facts.push(H.hoverNameWaiting(), H.hoverNameShown());
+            H.onHoverToken(placeable(true), false, { captions: false });
+            facts.push(H.hoverNameWaiting());
+            // While captions are on (S0-HOVERNAME B, the setting's default), a hover starts nothing: the caption names it.
+            H.onHoverToken(placeable(true), true, { delayMs: 40, captions: true });
+            facts.push(H.hoverNameWaiting());
+            H.onHoverToken(placeable(true), true, { delayMs: 40, captions: false });
+            document.dispatchEvent(new Event("pointerdown"));
+            facts.push(H.hoverNameWaiting());
+            H.onHoverToken(placeable(true), true, { delayMs: 40, captions: false });
+            Hooks.callAll("updateToken", doc, {}, {}, "x");
+            facts.push(H.hoverNameWaiting());
+            H.onHoverToken(placeable(true), true, { delayMs: 40, captions: false });
+            await wait(120);
+            const shown = H.hoverNameShown();
+            facts.push(shown?.textContent ?? null, shown?.style.left ?? null, shown?.style.top ?? null);
+            Hooks.callAll("canvasPan", globalThis.canvas, {});
+            facts.push(H.hoverNameShown(), HOVER_NAME.delayMs >= 300 && HOVER_NAME.delayMs <= 1500);
+        } finally {
+            H.dropHoverName();
+            if (!hadCv) delete globalThis.canvas;
+            else if (had === undefined) delete cv.clientCoordinatesFromCanvas;
+            else cv.clientCoordinatesFromCanvas = had;
+        }
+        equal(JSON.stringify(facts),
+            JSON.stringify(["drpg-hover-name", "Aoi Kirigaya", "true", "120px", "65px", true, true, false, null, null, 0, true, null, false, false, false, false, "Aoi Kirigaya", "1050px", "500px", null, true]),
+            "[the element: class, words, aria-hidden, left, top, held, on the page; dropped; none for a token not drawn; waiting, nothing yet; a hover's end; with captions on, no wait; a press, a change to its token stop it; after the wait the rule's words at the token's top centre; a pan takes it down; the delay between 300 and 1500 ms]");
+    }],
+    ["R8873 - a token's caption is the hover's name under the token while this browser's captions are on: one PIXI text child, kept while its words, size and face stand, drawn anew on a change, taken off when the rule names nothing or captions are off (1.2.129 line MAP, E129; scripts/hover-name.mjs `drawCaption`, `captionsOn`; settings.mjs `tokenCaptions`; the owner's S0-HOVERNAME B)", async () => {
+        /*
+         * 1.2.129 line MAP, 23.11.2026; the owner: "Dodajmy ustawienie, domyslnie wlaczone, ktore zostawia tooltipy tokenow
+         * jako podpis tokenu przesuwajacy sie razem z tokenem". On a stand-in token (the harness's PIXI Container, a
+         * document handed on it), the viewer handed in: the caption's words are `hoverName`'s (R8871 holds the rule), so a
+         * masked killer reads "?" to another player, Foundry's own nameplate on hover leaves none, a Foundry-hidden token
+         * none to a player; the same inputs keep the same object (no work on a refresh or a move), a new name replaces it,
+         * captions off take it off. Where it sits under a real token is LIVE-129-MAP-06.
+         */
+        const H = await import("./hover-name.mjs");
+        const { MASK_NAME } = await import("./mask-gm.mjs");
+        const { SETTINGS, getSetting } = await import("./settings.mjs");
+        must(typeof H.drawCaption === "function" && globalThis.PIXI?.Container, "no drawCaption or no PIXI - this would measure nothing");
+        const other = { isGM: false, id: "oth" }, gm = { isGM: true, id: "g" };
+        const person = { type: "character", name: "Aoi Kirigaya", id: "a8873", testUserPermission: () => false, getFlag: () => undefined };
+        const docOf = ({ name = "Aoi", hidden = false, flags = {}, displayName = 0 } = {}) => ({ id: "t8873", parent: { id: "s8873", tokens: [], grid: { size: 100 } },
+            name, hidden, displayName, width: 1, height: 1, actor: person, flags: { [MODULE_ID]: flags }, getFlag(scope, key) { return this.flags?.[scope]?.[key]; } });
+        const token = new PIXI.Container();
+        token.w = 100; token.h = 100;
+        token.document = docOf();
+        const face = { family: "VT323", fill: 0xeeeeee, stroke: 0x07070a };
+        const draw = (extra = {}) => H.drawCaption(token, { on: true, user: other, style: face, ...extra });
+        const mine = () => token.children.filter(c => c.name === H.CAPTION_NAME);
+        const first = draw();
+        const facts = [first?.text, first?.eventMode, first?.position?.x, first?.position?.y, first?.style?.fontFamily, mine().length];
+        const again = draw();
+        facts.push(again === first, mine().length);
+        token.document = docOf({ name: MASK_NAME, flags: { masked: true } });
+        const masked = draw();
+        facts.push(masked?.text, masked === first, first.destroyed === true || !token.children.includes(first), mine().length);
+        facts.push(draw({ user: gm })?.text);
+        token.document = docOf({ displayName: 30 });
+        facts.push(draw(), mine().length);
+        token.document = docOf({ hidden: true });
+        facts.push(draw(), draw({ user: gm })?.text);
+        token.document = docOf();
+        draw();
+        const unready = draw({ style: { ...face, ready: false } });
+        facts.push(draw({ style: { ...face, ready: true } }) !== unready);
+        facts.push(draw({ on: false }), mine().length, getSetting(SETTINGS.tokenCaptions), H.captionsOn());
+        equal(JSON.stringify(facts),
+            JSON.stringify(["Aoi Kirigaya", "none", 50, 104, "VT323", 1, true, 1, MASK_NAME, false, true, 1, "Aoi Kirigaya", null, 0, null, "Aoi Kirigaya", true, null, 0, true, true]),
+            "[the caption: words, no pointer, under the token's centre, the face handed, one; the same inputs keep the same object; masked to another player: the mask, a new object, the old one gone, still one; to a GM the name; Foundry's nameplate on hover: none; Foundry-hidden: none to a player, the name to a GM; a face that arrived draws anew; captions off: none; the setting on by default]");
+    }],
+    ["R8874 - what captions cost: on up to 16 of the suite world's tokens, every scene's, a first pass draws one caption per token the rule names, a second pass with nothing changed draws none and keeps every one (1.2.129 line MAP, E129; scripts/hover-name.mjs `drawCaption`, perf-counters.mjs `caption.drawn`, `caption.kept`; the coordinator's cost rule for S0-HOVERNAME B)", async () => {
+        /*
+         * The coordinator's rule (23.11.2026): no new work at rest or per event beyond one text child per drawn token.
+         * Scenario 86 reads every counter that moves around each of its events, and no caption counter moves there: the
+         * harness's token is no display object and fires no `drawToken`, so 86 draws no caption at all. So the cost is
+         * read here, on the suite world's own token documents hung on stand-in PIXI containers, as this browser (the
+         * suite's GM): a first pass draws one caption per token `hoverName` names, a second - the same inputs, as a
+         * refresh or a move leaves them - draws none. The counters are perf-counters.mjs's, read by `game.drpg.counters()`.
+         */
+        const H = await import("./hover-name.mjs");
+        const docs = [...(game.scenes ?? [])].flatMap(scene => [...(scene.tokens ?? [])]).slice(0, 16);
+        must(docs.length > 0 && globalThis.PIXI?.Container, "no tokens or no PIXI in the suite's world - this would measure nothing");
+        const counts = async () => (await game.drpg.counters()).counts ?? {};
+        const placed = docs.map(doc => Object.assign(new PIXI.Container(), { document: doc, w: 100, h: 100 }));
+        const named = docs.filter(doc => H.hoverName(doc, { drawn: true })).length;
+        const face = { family: "VT323", fill: 0xeeeeee, stroke: 0x07070a, ready: true };
+        const c0 = await counts();
+        for (const t of placed) H.drawCaption(t, { on: true, style: face });
+        const c1 = await counts();
+        for (const t of placed) H.drawCaption(t, { on: true, style: face });
+        const c2 = await counts();
+        const d = (a, b, k) => (b[k] ?? 0) - (a[k] ?? 0);
+        const children = placed.map(t => t.children.filter(c => c.name === H.CAPTION_NAME).length);
+        equal(JSON.stringify([d(c0, c1, "caption.drawn"), d(c0, c1, "caption.kept"), d(c1, c2, "caption.drawn"), d(c1, c2, "caption.kept"),
+            children.reduce((n, k) => n + k, 0), Math.max(0, ...children)]),
+            JSON.stringify([named, 0, 0, named, named, named > 0 ? 1 : 0]),
+            `[on ${docs.length} token(s), ${named} named - first pass: drawn one per named token, kept none; second pass: drawn none, kept every one; captions standing; at most one per token]`);
+    }],
+    ["R8875 - the names on the map follow the interface scale: a caption's size and keyline are its theme's type factor times max(18, grid * 0.25) and max(4, grid * 0.0625), read off the body as the label's rung reads it, every caption is drawn again after uiScale changes and not after an unrelated setting, and both themes' label rules stand a quarter over their scaled rung (1.2.129 line MAP, E129; scripts/hover-name.mjs `captionScale`, `drawCaption`, `registerHoverName`; danganronpa.css, stained-glass.css `.drpg-hover-name`; the owner's word on the S0-HOVERNAME shots)", async () => {
+        /*
+         * The owner, 23.11.2026: "Zatwierdzam screeny, ale powiekszmy lekko napisy. Niech skaluja sie tez z interface scaling".
+         * The caption on a stand-in token at a type factor of 1 and of 1.25; `captionScale` reading Legacy's
+         * `--drpg-legacy-scale` and the glass's `--drpg-type-scale` off the body (set here and put back); every caption on
+         * this canvas drawn again on the turn after `clientSettingChanged` for uiScale (the module's counters), none for an
+         * unrelated key; the two label rules read in the stylesheets' source (no layout headless: the label's measured size
+         * at two scales is Chromium's, in the line's report).
+         */
+        const H = await import("./hover-name.mjs");
+        must(typeof H.captionScale === "function" && globalThis.PIXI?.Container, "no captionScale or no PIXI - this would measure nothing");
+        const person = { type: "character", name: "Aoi Kirigaya", id: "a8875", testUserPermission: () => false, getFlag: () => undefined };
+        const token = Object.assign(new PIXI.Container(), { w: 100, h: 100, document: { id: "t8875", parent: { id: "s8875", tokens: [], grid: { size: 100 } },
+            name: "Aoi", hidden: false, displayName: 0, width: 1, height: 1, actor: person, flags: {}, getFlag: () => undefined } });
+        const at = scale => H.drawCaption(token, { on: true, user: { isGM: false, id: "o" }, style: { family: "VT323", fill: 0xeeeeee, stroke: 0x07070a, ready: true, scale } });
+        const one = at(1), [size1, line1] = [one?.style?.fontSize, one?.style?.strokeThickness];
+        const big = at(1.25), [size2, line2] = [big?.style?.fontSize, big?.style?.strokeThickness];
+        // The glass's own size (config.mjs CAPTION_FACE), at 1080p and 100%: its type factor 0.85.
+        const glassFace = size => ({ family: "VT323", fill: 0xeeeeee, stroke: 0x07070a, ready: true, scale: 0.85, size });
+        H.drawCaption(token, { on: true, user: { isGM: false, id: "o" }, style: glassFace(1) });
+        const glassAt = H.drawCaption(token, { on: true, user: { isGM: false, id: "o" }, style: glassFace(2.2) });
+        const glassSize = [glassAt?.style?.fontSize, glassAt?.style?.strokeThickness];
+        const body = document.body, glass = body.classList.contains("drpg-theme-stained-glass");
+        const kept = { legacy: body.style.getPropertyValue("--drpg-legacy-scale"), type: body.style.getPropertyValue("--drpg-type-scale") };
+        const read = [];
+        try {
+            body.classList.remove("drpg-theme-stained-glass");
+            body.style.setProperty("--drpg-legacy-scale", "1.25");
+            body.style.setProperty("--drpg-type-scale", "0.85");
+            read.push(H.captionScale(), H.captionStyle().size);
+            body.classList.add("drpg-theme-stained-glass");
+            read.push(H.captionScale(), H.captionStyle().size);
+        } finally {
+            body.classList.toggle("drpg-theme-stained-glass", glass);
+            for (const [name, value] of [["--drpg-legacy-scale", kept.legacy], ["--drpg-type-scale", kept.type]]) {
+                if (value) body.style.setProperty(name, value); else body.style.removeProperty(name);
+            }
+        }
+        const counted = async key => {
+            const total = c => (c["caption.drawn"] ?? 0) + (c["caption.kept"] ?? 0);
+            const before = total((await game.drpg.counters()).counts ?? {});
+            Hooks.callAll("clientSettingChanged", key, null, {});
+            await new Promise(r => setTimeout(r, 60));
+            return total((await game.drpg.counters()).counts ?? {}) - before;
+        };
+        const placeables = (canvas?.tokens?.placeables ?? []).length;
+        const onScale = await counted(`${MODULE_ID}.uiScale`), onOther = await counted(`${MODULE_ID}.debug`);
+        const [legacyCss, glassCss] = await Promise.all(["danganronpa.css", "stained-glass.css"].map(f => fetch(`/modules/${MODULE_ID}/styles/${f}`).then(lfText)));
+        const rule = (css, head) => bodyOf(css, head, { until: "}" });
+        const legacyRule = rule(legacyCss, "body.drpg-theme-monokuma-legacy .drpg-hover-name {"), glassRule = rule(glassCss, "body.drpg-theme-stained-glass .drpg-hover-name {");
+        equal(JSON.stringify([size1, line1, size2, line2, glassSize, read, placeables > 0 && onScale >= placeables, onOther,
+            /font-size:\s*calc\(var\(--drpg-text-sm\)\s*\*\s*1\.25\)/.test(legacyRule), /--drpg-text-sm:\s*calc\([^;]*--drpg-legacy-scale/.test(legacyCss),
+            /font-size:\s*calc\(var\(--drpg-sg-floor\)\s*\*\s*1\.25\)/.test(glassRule), /--drpg-sg-floor:\s*calc\([^;]*--drpg-sg-scale/.test(glassCss)]),
+            JSON.stringify([25, 6, 31, 8, [47, 5], [1.25, 1, 0.85, 2.2], true, 0, true, true, true, true]),
+            `[the caption at 1: size, keyline; at 1.25: size, keyline; the glass's at 0.85 and its own 2.2, drawn anew from its size at 1: size, keyline; the factor and the theme's size read under Legacy and under the glass; every caption on this canvas (${placeables}) drawn again after uiScale (${onScale}); none after an unrelated key; Legacy's label a quarter over its rung, which rides the slider; the glass's over its floor, which rides its scale]`);
+    }],
     ["R8790 - a Truth Bullet's holder always sees its Remnant (1.2.128 line INVEST; S0-BULLETSEES): visibility.mjs `remnantShownHere` draws an un-hidden trace for whoever knows it or stands in its incident and for nobody else, and a hidden one for its holder alone while HOLDER_SEES_HIDDEN (true) holds, for nobody when it does not; `applyToRemnantToken` and `shownAsFound` ask it with `knowsRemnant`, and a hidden trace held is shown past Foundry's verdict (`showHeld`); `knowsRemnant` answers true on a GM's browser", async () => {
         /*
          * The owner's notes of 23.11.2026: "Upewnijmy sie tez ze zawsze posiadanie truth bullet = widoczny token

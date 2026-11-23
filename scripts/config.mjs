@@ -3290,6 +3290,26 @@ export const PROJECT_TOKEN = {
  */
 export const REMNANT_ALPHA = Object.freeze({ player: 0.5, gmShown: 1, gmHidden: 0.6 });
 
+/*
+ * A TOKEN'S NAME ON A HOVER (1.2.129 line MAP, stage E129; released in 1.2.128; the owner's session-0 note S0-HOVERNAME,
+ * 23.11.2026: "Najechanie na token myszka przez chwile dluzej niech pokazuje nazwe (imie postaci, "?" Mordercy, nazwe
+ * projektu, nazwe remnanta)"). hover-name.mjs shows it once the pointer has rested on a token `delayMs`, as this viewer
+ * may know it (`hoverName`), and takes it off on leaving, a press on the board, a pan or a change to the token. 600 is
+ * the coordinator's default pending the owner: long enough that a pointer crossing the map names nothing.
+ */
+export const HOVER_NAME = Object.freeze({ delayMs: 600 });
+
+/*
+ * A CAPTION'S SIZE PER THEME (1.2.129 line MAP, stage E129; the owner's "powiekszmy lekko napisy", 23.11.2026, and the
+ * coordinator's default of that day: under the glass the caption at 1920x1080 and 100% reads at least as large as
+ * Legacy's). hover-name.mjs `drawCaption` multiplies its base, max(18, grid * 0.25) times the interface scale, by the
+ * theme's own. Measured in Chromium on "Aoi Kirigaya" (docs/dev/owner129/map/caption-sheet.html, 23.11.2026): Legacy's
+ * DRPG Pixel at 25 px is 300 px wide with an x-height of 19; the glass's VT323 at its 21 px (25 times the screen term
+ * 0.85) was 101 wide with an x-height of 9. VT323's x-height is about 0.42 of its size, so the glass takes 2.2: 47 px at
+ * 1080p and 100%, an x-height of 20, 226 px wide (VT323 is narrow: the width stays under Legacy's).
+ */
+export const CAPTION_FACE = Object.freeze({ legacy: 1, glass: 2.2 });
+
 export const PROJECT_GLYPHS = {
     hourglass: { label: "Hourglass", fa: "fa-hourglass" },
     checklist: { label: "Checklist", fa: "fa-list-check" },
@@ -5827,6 +5847,8 @@ export const DRPG = {
     PROJECT_SCALE,
     PROJECT_GLYPHS,
     REMNANT_ALPHA,
+    HOVER_NAME,
+    CAPTION_FACE,
     PROJECT_TOKEN,
     isProjectGlyph,
     PROJECT_DESCRIPTION_MAX,
