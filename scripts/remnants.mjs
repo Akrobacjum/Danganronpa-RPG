@@ -1495,6 +1495,11 @@ export function traceLabel(entry = null) {
     return typeof name === "string" && name.trim() && !isNeutralName(name) ? name : game.i18n.localize("DRPG.Remnant.tokenName");
 }
 
+/** Whether a token is a trace, by its flag (hover-name.mjs asks it: the flag is read here, R1281). */
+export function isTraceToken(tokenDoc) {
+    return Boolean(tokenDoc?.getFlag?.(MODULE_ID, REMNANT_FLAGS.isRemnant));
+}
+
 /** A trace's name as the GMs' ledger has it, on a GM's browser; the neutral word anywhere else, where the ledger is `{}`
     (`readRemnantLedger`). hover-name.mjs reads it (S0-HOVERNAME, 1.2.129). */
 export function ledgerLabel(tokenDoc) {

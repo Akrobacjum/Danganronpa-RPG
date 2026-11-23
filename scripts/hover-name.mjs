@@ -17,8 +17,8 @@
  *       * a project: projects-secrecy.mjs `shownName` - a secret project's name only to a browser that sees it, the
  *         neutral "???" to any other (the tray's and the token card's reader);
  *       * a body (a corpse, a Monocub's corpse): nothing - the body tile already draws "{name}'s body" over it;
- *       * anything else (a Monocub, Monokuma, a Spectator's token to its owner): the token's own name, which every
- *         browser holds already.
+ *       * anything else (a Monocub, Monokuma, a Spectator's token to its owner): its actor's name, as its cards name
+ *         it, or with no actor the token's own name - both held by every browser already.
  *   - WHO SEES NONE. A token this browser does not draw: Foundry's `hidden` (but for a GM), and every rule of
  *     visibility.mjs - the rooms, the Eclipse, the opening's veil, Hide, a Spectator's token, an unfound trace - which
  *     all end in the placeable's `visible` false (`drawnHere`). The label never names what the map does not show.
@@ -31,12 +31,12 @@
  * lands on v14's board is LIVE-129-MAP-04.
  */
 
-import { MODULE_ID, HOVER_NAME } from "./config.mjs";
+import { HOVER_NAME } from "./config.mjs";
 import { nameAsSeen, isMaskedToken } from "./mask-gm.mjs";
 import { isCorpseToken } from "./movement.mjs";
 import { projectIdOf } from "./projects-map.mjs";
 import { shownName } from "./projects-secrecy.mjs";
-import { REMNANT_FLAGS, keyOf as remnantKeyOf, traceLabel, ledgerLabel } from "./remnants.mjs";
+import { isTraceToken, keyOf as remnantKeyOf, traceLabel, ledgerLabel } from "./remnants.mjs";
 import { myBulletForRemnant } from "./visibility.mjs";
 
 /** The label's class: the stylesheets dress it by this, and `dropHoverName` finds none other. */
@@ -52,14 +52,15 @@ export function hoverName(tokenDoc, { user = game.user, drawn = true } = {}) {
     const gm = user?.isGM === true;
     if (tokenDoc.hidden && !gm) return null;
     if (isCorpseToken(tokenDoc)) return null;
-    if (tokenDoc.getFlag?.(MODULE_ID, REMNANT_FLAGS.isRemnant)) {
+    if (isTraceToken(tokenDoc)) {
         if (gm) return ledgerLabel(tokenDoc);
         return traceLabel(myBulletForRemnant(remnantKeyOf(tokenDoc)));
     }
     const projectId = projectIdOf(tokenDoc);
     if (projectId) return shownName(projectId) || null;
+    // Any actor through the mask's reader: "?" only for a masked token, which only a character's is; any other its name.
     const actor = tokenDoc.actor ?? null;
-    if (actor?.type === "character") return nameAsSeen(actor, { user, masked: isMaskedToken(tokenDoc) }) || null;
+    if (actor) return nameAsSeen(actor, { user, masked: isMaskedToken(tokenDoc) }) || null;
     return tokenDoc.name || null;
 }
 

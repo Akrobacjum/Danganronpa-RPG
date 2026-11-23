@@ -2419,6 +2419,7 @@ body.drpg-theme-stained-glass :is(#tooltip, .drpg-hover-name) {
 /* A token's name on a hover (1.2.129, S0-HOVERNAME; hover-name.mjs; its place is danganronpa.css's): the tooltip's glass,
    from the rule above, and the floor's type. */
 body.drpg-theme-stained-glass .drpg-hover-name {
+    font-family: var(--drpg-font-chrome);
     font-size: var(--drpg-sg-floor);
     letter-spacing: 0.08em;
 }
