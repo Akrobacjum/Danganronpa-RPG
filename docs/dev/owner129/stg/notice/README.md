@@ -1,29 +1,38 @@
-# The end-of-hide notice (S0-HIDE, 1.2.128, 23.11.2026)
+# The end-of-hide notice in the corner (S0-HIDE, 1.2.128, 23.11.2026)
 
-The card a hide's end at the time of day sends its player. The owner's rule, given through the coordinator: "ukryj sie ma
-dzialac do konca pory dnia".
+The notice a hide's end shows its player, on the tile every other notice of the module stands on. The owner's rule,
+given through the coordinator: "notice o ujawnieniu niech bedzie w lewym dolnym rogu jak reszta powiadomien". Until this
+round the end was a whisper card in the chat, raised in the corner by popup.mjs `onCreateChatMessage`; it is no longer a
+chat message at all (hide.mjs `endHide`, `tellHideEnd`).
 
 `notice-<en|pl>-<glass|legacy>-<w>x<h>.png` covers both languages, both themes and two sizes (1920x1080 and 1366x768),
-at a device scale factor of 2. Eight files.
+at a device scale factor of 2, as a player's screen. Eight files.
 
 ## How they are made
 
-1. `audit/harness/probes/129-hide-notice.mjs`, run with `node cluster.mjs probes/129-hide-notice.mjs` in `audit/harness`.
-   - The primary hides p1's Aiko through the bridge's own run (`handleHideStart`).
-   - Her row is given the mark of this day's noon.
-   - The primary's settle ends the hide, and the module whispers p1 the card.
-   - p1's drawn card (`ChatMessage#renderHTML` on p1's page, the secret words in) is kept in `capture/`.
-   - It does this once with the GM's and p1's pages in English and once in Polish. The probe sets the time of day's
-     names from the same language file, because config.mjs puts them in the page's language once, at load.
-2. `shoot.mjs` (from the repository's root) draws each capture on `notice-shots.html` in Chromium, under the module's
-   stylesheets, in a chat column on the right.
+`shoot.mjs` (from the repository's root; Playwright from `audit/harness`):
 
-## What they are not
+1. It opens `audit/glass-harness.html?role=player` (`&theme=legacy` for Monokuma Legacy) - the page whose
+   `drpgNoticeCheck` glass-sweep.mjs uses to draw and measure the module's corner cards.
+2. With no card up it runs `drpgNoticeCheck` itself: green in all eight.
+3. It sets the page's `game.i18n` to `lang/<en|pl>.json` and takes the words from hide.mjs `hideEndNotice`, as the hider's
+   browser reads them (the token's owner, not a GM; the time of day noon).
+4. It posts them with popup.mjs `showPopup` as `tellHideEnd` does (`<p>words</p>`, kind "info"), with `record: false` so
+   the page's notice history is not written, and takes the shot.
 
-- **The column** is this page's, not Foundry's chat sidebar, whose own stylesheet is not here.
-- **The broken portrait** beside "GM" is Foundry's `icons/svg/mystery-man.svg`, which this page does not serve.
-- **The glyph:** under Stained Glass the card's header wears the Infiltrate tile's glyph. Under Monokuma Legacy no glyph
-  shows. Whether that is Legacy's card look or a missing drawing is not settled here: no Legacy card from another line
-  was put beside it.
-- **The language:** the card is written in the GM's language, as every card a GM's browser writes. A Polish player with
-  an English GM reads "Noon".
+It prints one line a shot: the check, the card's title, the tile it stands on and its box.
+
+## What they show, and what they do not
+
+- **Stained Glass:** the card stands in the curtain's bottom-left pane, with the history button in its corner (card box
+  19,731-371,1005 at 1920x1080; 19,407-352,698 at 1366x768, in CSS px).
+- **Monokuma Legacy:** the card stands under the clock, top centre, not bottom-left. That is where this theme puts every
+  notice on a desk: the whole tile `#drpg-popups` stands under the clock (danganronpa.css, E81 C10, the owner's Q6 of
+  07.10.2026). So under Legacy "like the rest of the notices" holds, and "bottom-left" does not. Moving the tile under
+  Legacy would move every notice; this line did not do that.
+- **The "Advance the clock" window** and the rest of the screen are the glass harness's static markup, not a live table.
+- **The language:** the notice is now written on the hider's own browser, so a Polish player reads Polish whatever the
+  GM's language (before, the whisper card was written in the GM's).
+- **Not drawn here:** the notice at a real table on v14, and its row in the Notice history window. The history row is
+  written by `showPopup`'s `recordNotice`, the road scenario 73 reads for the module's other notices; no test reads it
+  for this one. At a table it is LIVE-129-STG-09 (proposed).
