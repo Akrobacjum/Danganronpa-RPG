@@ -24740,6 +24740,81 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         equal(stableJson(read), stableJson({ burst: [false, 2, 0], free: [false, 2, 1], road: [true, true, true] }),
             "{a player's critical paid by a Burst, the claim an action: [answered, actions, Bursts] after the loss; a GM's own free Work: the same; the draw's road [the form kept on the ticket, taken at the draw, written on the record]}");
     }],
+    ["1.2.128 S0-CARDS - a critical Tamper's card tells its player the 2 Hope it earned and that it restores no Sanity, and one with Despair where its point of Despair goes (scripts/cleanup.mjs `report`; action-report.mjs `rollEffectsHtml`; E129)", async () => {
+        /*
+         * 23.11.2026, E129 line DESP. The owner: "Tamper chyba najbardziej", then "niech one rezultatu akcji jasno mowia
+         * graczowi, co jest skutkiem jego wyniku i dzialan, w tym krytyka". On `cleanupFixture`'s trace, a Tamper taken
+         * as an action is resolved as the bridge hands it over, once critical with Hope and once a success with Despair,
+         * each on a fresh trace. Read: whether the card to the owner (the clean-up's title) carries the critical's line
+         * and the Despair's. Put back: the traces, the copies, the actions, the cards. Red at 4e5d2e8b: neither line.
+         */
+        needs(world.atLeast("sceneOnScreen"), "the fixture trace is placed on the scene on screen");
+        const [who] = cast(1);
+        const { contentOf } = await import("./secret.mjs");
+        const { CRITICAL } = await import("./config.mjs");
+        const { plural } = await import("./utils.mjs");
+        const f = (key, data) => foundry.utils.escapeHTML(["hope", "critical"].includes(key) ? plural(`DRPG.Result.${key}`, data) : game.i18n.format(`DRPG.Result.${key}`, data ?? {}));
+        const title = game.i18n.localize("DRPG.Cleanup.title");
+        const actionsWas = who.system.resources.actions.value;
+        const had = new Set(game.messages.contents.map(m => m.id));
+        const read = [];
+        const fixtures = [];
+        try {
+            for (const [tag, roll] of [["critical", { isCritical: true, withHope: true }], ["despair", { isCritical: false, withHope: false }]]) {
+                const F = await cleanupFixture(who, `SUITE S0-CARDS a ${tag} Tamper`);
+                fixtures.push(F);
+                must(F.trace && F.copy, "the fixture's trace or its copy is missing - this would measure nothing");
+                const since = new Set(game.messages.contents.map(m => m.id));
+                await F.scrub(30, { ...roll, price: "action" });
+                await settle();
+                const card = game.messages.contents.filter(m => !since.has(m.id)).map(m => String(contentOf(m) ?? "")).find(text => text.includes(title));
+                must(card, `no clean-up card reached the owner for the ${tag} Tamper - this would measure nothing`);
+                read.push([card.includes(f("critical", { n: CRITICAL.hope })), card.includes(f("despair"))]);
+            }
+        } finally {
+            for (const F of fixtures) await F.putBack();
+            for (const m of game.messages.contents.filter(m => !had.has(m.id))) await m.delete().catch(() => {});
+            await who.update({ "system.resources.actions.value": actionsWas });
+            await settle();
+        }
+        equal(stableJson(read), stableJson([[true, false], [false, true]]),
+            "[a critical Tamper's card: the critical's line, the Despair's; a Tamper with Despair's card: the same two]");
+    }],
+    ["1.2.128 S0-CARDS - a price given back after the dice is said on a card of its own, with what came back and what the roll still earned (scripts/action-pipeline.mjs `giveBackAfterRoll`; E129)", async () => {
+        /*
+         * 23.11.2026, E129 line DESP. Under the owner's "always" (rows 12, 13) the price comes back after the dice while the
+         * roll's Hope stands, and nothing said so. On a student of the cast: an action paid (`spendAction`), then given
+         * back for a roll with Hope. Read: the card that came, with the action's label in the given-back line and the
+         * roll's Hope line. Put back: the actions, the card. Red at 4e5d2e8b: no card.
+         */
+        const A = await import("./action-pipeline.mjs");
+        const { spendAction } = await import("./actions.mjs");
+        const { priceLabel } = await import("./price.mjs");
+        const { contentOf } = await import("./secret.mjs");
+        const { trustedWrite } = await import("./resource-guard.mjs");
+        const [actor] = cast(1);
+        const actionsWas = foundry.utils.getProperty(actor, "system.resources.actions.value");
+        const had = new Set(game.messages.contents.map(m => m.id));
+        const { plural } = await import("./utils.mjs");
+        const f = (key, data) => foundry.utils.escapeHTML(["hope", "critical"].includes(key) ? plural(`DRPG.Result.${key}`, data) : game.i18n.format(`DRPG.Result.${key}`, data ?? {}));
+        let read = null;
+        try {
+            await trustedWrite(actor, { "system.resources.actions.value": 2 }, { reason: "gmRuling" });
+            await settle();
+            const receipt = await spendAction(actor, 1);
+            must(receipt, "no action could be paid - this would measure nothing");
+            const back = await A.giveBackAfterRoll(actor, receipt, [{ withHope: true, withFear: false }]);
+            await settle();
+            const cards = game.messages.contents.filter(m => !had.has(m.id)).map(m => String(contentOf(m) ?? ""));
+            const card = cards.find(text => text.includes(f("givenBack", { what: priceLabel({ pay: "action", amount: 1 }) })));
+            read = [back, Boolean(card), Boolean(card?.includes(f("hope", { n: 1 })))];
+        } finally {
+            for (const m of game.messages.contents.filter(m => !had.has(m.id))) await m.delete().catch(() => {});
+            await trustedWrite(actor, { "system.resources.actions.value": actionsWas }, { reason: "gmRuling" });
+            await settle();
+        }
+        equal(stableJson(read), stableJson([true, true, true]), "[given back; the card saying what came back; its line of the roll's Hope]");
+    }],
     ["1.2.128 S0-REFUND - a supporting roll earns no Hope on the GM's draw: a Palm's cover with Hope writes the roller's Hope not at all, where a Search with the same dice writes it once, up by 1 (scripts/roll-draw.mjs `throwDrawn`; config.mjs ROLL_REFUNDS.supportingHope; REFUNDS.md row 4, T1; E129)", async () => {
         /*
          * 23.11.2026, E129 line DESP. Every roll an action throws was an action roll and earned its Hope, so a two-roll
@@ -43590,9 +43665,15 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             await student.update({ [ACTS]: had });
             await stood.back();
         }
-        equal(stableJson(read), stableJson([["search", 0, 0, 0, 1], ["observe", 0, 0, 0, 1]]),
-            "per action: [the action, actions it kept spent, the room's search tokens it took, cards posted, toasts naming no GM] - "
-            + "an action whose GM left during the roll kept its price, took a search token, posted, or was not told once");
+        /* CHANGED ON PURPOSE BY E129 S0-CARDS (1.2.128): one card per action, where none was posted before - the price given
+           back after the dice, said on a card of its own (action-pipeline.mjs `giveBackAfterRoll`). It is whispered to the
+           student's player alone, the GMs gone, so this GM's browser - no reader of it - reads neither its words nor its
+           flags (secret.mjs, measured 23.11.2026: a stub and `{ drpgMessage, secret }`); its words are read where a GM reads
+           them, in "1.2.128 S0-CARDS - a price given back after the dice is said on a card of its own". No card claims the
+           action was done: the action came back (column 2) and the toast said why (column 5). */
+        equal(stableJson(read), stableJson([["search", 0, 0, 1, 1], ["observe", 0, 0, 1, 1]]),
+            "per action: [the action, actions it kept spent, the room's search tokens it took, cards posted (the given-back card), toasts naming no GM] - "
+            + "an action whose GM left during the roll kept its price, took a search token, posted other than the given-back card, or was not told once");
     }],
 
     ["a GM's own Search for something specific whose card is not posted gives back the action and the room's search token (E91 C7, D072)", async () => {

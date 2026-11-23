@@ -973,6 +973,16 @@
       "close": "Zamknij",
       "toggle": "Otwórz lub zamknij narzędzia Foundry"
     },
+    "Result": {
+      "hope": { "one": "Z Hope: dostajesz {n} Hope.", "few": "Z Hope: dostajesz {n} Hope.", "many": "Z Hope: dostajesz {n} Hope.", "other": "Z Hope: dostajesz {n} Hope." },
+      "critical": { "one": "Krytyk: dostajesz {n} Hope. Inaczej niż w czystym Daggerheart nie przywraca Sanity.", "few": "Krytyk: dostajesz {n} Hope. Inaczej niż w czystym Daggerheart nie przywraca Sanity.", "many": "Krytyk: dostajesz {n} Hope. Inaczej niż w czystym Daggerheart nie przywraca Sanity.", "other": "Krytyk: dostajesz {n} Hope. Inaczej niż w czystym Daggerheart nie przywraca Sanity." },
+      "despair": "Z Despair: nie dostajesz Hope, a punkt Despair z tego rzutu trafia do puli Monokumy, który cię pilnuje.",
+      "support": "Rzut na {trait} tylko wspiera akcję, więc nie daje Hope.",
+      "supportDespair": "Jego punkt Despair i tak trafia do puli Monokumy, który cię pilnuje.",
+      "supportBare": "Ten rzut tylko wspiera akcję, więc nie daje Hope.",
+      "coverCritical": { "one": "Krytyk w tym rzucie: jeśli próba, którą ukrywa, dojdzie do skutku, {n} Sanity wróci razem z jej wynikiem.", "few": "Krytyk w tym rzucie: jeśli próba, którą ukrywa, dojdzie do skutku, {n} Sanity wróci razem z jej wynikiem.", "many": "Krytyk w tym rzucie: jeśli próba, którą ukrywa, dojdzie do skutku, {n} Sanity wróci razem z jej wynikiem.", "other": "Krytyk w tym rzucie: jeśli próba, którą ukrywa, dojdzie do skutku, {n} Sanity wróci razem z jej wynikiem." },
+      "givenBack": "{what} wraca do ciebie, bo akcja nie doszła do skutku."
+    },
     "Action": {
       "murderConfirmEclipse": "Zgłoszenie od razu trafia do GM-ów: zatwierdzą je z wybraną statystyką albo odmówią, a o odmowie się dowiesz. Zabójstwo musisz wcześniej uzgodnić z GM-em i z graczem ofiary.",
       "beat": "przebij {n}",

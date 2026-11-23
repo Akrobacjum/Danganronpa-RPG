@@ -255,7 +255,7 @@ export const NOTICE_CLASSES = Object.freeze([
     "drpg-duality-result", "drpg-duality-stat", "drpg-duality-total", "drpg-evidence-card", "drpg-evidence-comment", "drpg-evidence-hint",
     "drpg-evidence-name", "drpg-evidence-text", "drpg-evidence-topic", "drpg-evidence-who", "drpg-frisk-mode", "drpg-frisk-modes",
     "drpg-gm-reference", "drpg-gm-route", "drpg-item-effect", "drpg-objection-banner", "drpg-objection-decision", "drpg-objection-live",
-    "drpg-objection-log", "drpg-objection-log-topic", "drpg-overruled-stamp", "drpg-row-denied", "drpg-safeword-heading", "drpg-specific-note",
+    "drpg-objection-log", "drpg-objection-log-topic", "drpg-overruled-stamp", "drpg-roll-effects", "drpg-row-denied", "drpg-safeword-heading", "drpg-specific-note",
     "drpg-sum-action", "drpg-sum-crit", "drpg-sum-found", "drpg-sum-head", "drpg-sum-lede", "drpg-sum-left", "drpg-sum-list", "drpg-sum-room",
     "drpg-sum-row", "drpg-sum-sep", "drpg-sum-tail", "drpg-sum-total", "drpg-sum-totals", "drpg-sum-who", "drpg-tamper-who", "drpg-tb-badge", "drpg-tb-badges",
     "drpg-trait-field", "drpg-trait-how", "drpg-trait-proposal", "drpg-variant-details", "drpg-warning", "drpg-wide-col", "drpg-wide-head",

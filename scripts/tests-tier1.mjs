@@ -34143,6 +34143,79 @@ const INVARIANTS = [
         equal(stableJson([order.again > order.ruled, order.again > 0 && order.again < order.paid]), stableJson([true, true]),
             "[the target held to the room again after the GM's card; before the action is paid]");
     }],
+    ["R8884 - a result card says what each roll did for its player (E129 S0-CARDS, 1.2.128; the owner: \"niech one rezultatu akcji jasno mowia graczowi, co jest skutkiem jego wyniku i dzialan, w tym krytyka\"): action-report.mjs `rollEffectLines` gives a main roll with Hope its 1 Hope, a critical its CRITICAL.hope and no Sanity, a roll with Despair its point to the Monokuma's pool, a supporting roll no Hope by its statistic and its Despair still counted, a roll as the GMs' record holds it the same, and a roll with no duality nothing", async () => {
+        /*
+         * 23.11.2026, E129 line DESP. Read: the lines for each shape, against the lang's own sentences with the rule's
+         * numbers (O5: `CRITICAL.hope`, 1). Red at 4e5d2e8b: no `rollEffectLines`.
+         */
+        const A = await import("./action-report.mjs");
+        const { CRITICAL, TRAITS } = await import("./config.mjs");
+        must(typeof A.rollEffectLines === "function", "action-report.mjs has no rollEffectLines - this would measure nothing");
+        const { plural } = await import("./utils.mjs");
+        const f = (key, data) => ["hope", "critical"].includes(key) ? plural(`DRPG.Result.${key}`, data) : game.i18n.format(`DRPG.Result.${key}`, data ?? {});
+        const trait = Object.keys(TRAITS)[0];
+        const read = [
+            { withHope: true, withFear: false }, { isCritical: true }, { withHope: false, withFear: true },
+            { withHope: true, supporting: true, trait }, { withFear: true, supporting: true, trait }, { isCritical: true, supporting: true, trait },
+            { isCritical: false, withHope: false }, { isCritical: false, withHope: true }, {}, null,
+            // a cover not thrown while hidden (hide.mjs `HIDDEN_COVER`, 1.2.128 line STG): no dice, nothing said
+            { total: 13, isCritical: false, withHope: true, hidden: true }
+        ].map(roll => A.rollEffectLines(roll));
+        const support = f("support", { trait: TRAITS[trait].label });
+        equal(stableJson(read), stableJson([[f("hope", { n: 1 })], [f("critical", { n: CRITICAL.hope })], [f("despair")],
+            [support], [support, f("supportDespair")], [support], [f("despair")], [f("hope", { n: 1 })], [], [], []]),
+        "[the lines of: a roll with Hope; a critical; with Despair; a supporting roll with Hope, with Despair, a critical; the GMs' record with Despair, with Hope; no duality; no roll; a cover not thrown while hidden]");
+    }],
+    ["R8885 - the action card and every roll head say it (E129 S0-CARDS, 1.2.128): action-report.mjs `reportHtml` carries the main roll's line and each of `outcome.supportRolls`, the same for a Despair with a trace and one without (R8675), and `rollHead` the line of the roll it heads", async () => {
+        /*
+         * 23.11.2026, E129 line DESP. Driven, pure: a Palm's card as palm.mjs hands it over (the hand with Hope, its cover
+         * with Despair in `supportRolls`), a Despair Search with `leftTrace` and without - R8675's two
+         * cards - and a roll head for a critical. Read: the lines present, and the two Despair cards' effect lists alike.
+         * Red at 4e5d2e8b: none of the lines.
+         */
+        const A = await import("./action-report.mjs");
+        const { TRAITS, CRITICAL } = await import("./config.mjs");
+        must(typeof A.reportHtml === "function" && typeof A.rollHead === "function", "the card builders are gone - this would measure nothing");
+        const { plural } = await import("./utils.mjs");
+        const f = (key, data) => ["hope", "critical"].includes(key) ? plural(`DRPG.Result.${key}`, data) : game.i18n.format(`DRPG.Result.${key}`, data ?? {});
+        const esc = t => foundry.utils.escapeHTML(t);
+        const trait = Object.keys(TRAITS)[0];
+        const def = { label: "SUITE R8885" };
+        const palm = A.reportHtml(def, { total: 15, withHope: true, trait }, { text: "sent", supportRolls: [{ total: 9, withFear: true, supporting: true, trait }] });
+        const despair = { total: 8, withHope: false, withFear: true, trait };
+        const effects = html => (html.match(/<ul class="drpg-roll-effects">[\s\S]*?<\/ul>/) ?? [""])[0];
+        const plain = A.reportHtml(def, despair, { text: "nothing" }), traced = A.reportHtml(def, despair, { text: "nothing", leftTrace: true });
+        const head = A.rollHead(def, { total: 20, isCritical: true, trait });
+        equal(stableJson([[f("hope", { n: 1 }), f("support", { trait: TRAITS[trait].label }), f("supportDespair")].map(line => palm.includes(esc(line))),
+            plain.includes(esc(f("despair"))), effects(plain) === effects(traced), head.includes(esc(f("critical", { n: CRITICAL.hope })))]),
+        stableJson([[true, true, true], true, true, true]),
+        "[a Palm's card: the hand's Hope, its cover's no Hope, its cover's Despair; a Despair card's line; the same lines with a trace and without; a critical's roll head]");
+    }],
+    ["R8886 - every writer of a result card whose rolls earn or withhold Hope says it (E129 S0-CARDS, 1.2.128): a Palm's and an unseen Frisk's cover ride the card (`supportRolls`), Pick the Lock's cover, the two concealments and Hide Traces of a project carry their line, the Tamper card and Stage 6's carry the roll's, and a price given back after the dice is said on a card with the roll's lines", async () => {
+        /*
+         * 23.11.2026, E129 line DESP. A census off the source, file by file; behaviour is R8884, R8885 and tier 2's
+         * "1.2.128 S0-CARDS". Red at 4e5d2e8b: none of them.
+         */
+        const S = await moduleSources();
+        const code = name => stripComments(S.get(name) ?? "");
+        const count = (name, re) => (code(name).match(re) ?? []).length;
+        must(code("palm.mjs") && code("cleanup.mjs"), "the sources were not read - this would measure nothing");
+        const read = {
+            palm: count("palm.mjs", /supportRolls: \[shadow\]/g),
+            frisk: count("frisk.mjs", /supportRolls: \[shadow\]/g),
+            pick: count("action-doors.mjs", /extra: coverLine \+ rollEffectsHtml\(\[cover\]\)/g),
+            project: count("action-project.mjs", /rollEffectsHtml\(\[(conceal|trace)\]\)/g),
+            cleanup: [count("cleanup.mjs", /await report\(actor, data, \{[^}]*\bisCritical, withHope, free \}\)/g), /\$\{effects\}/.test(fnSource(code("cleanup.mjs"), "report") ?? ""),
+                count("cleanup.mjs", /rollEffectsHtml\(\[\{ isCritical, withHope \}\]\)/g)],
+            givenBack: /DRPG\.Result\.givenBack[\s\S]{0,120}rollEffectsHtml\(rolls \?\? \[\]\)/.test(fnSource(code("action-pipeline.mjs"), "giveBackAfterRoll") ?? ""),
+            // the incident's two cards, the lines their roller's alone (`youOrThem`), and a concealment's critical Sanity said on its card
+            incident: [count("murder-rules.mjs", /await incidentRollLines\(/g),
+                /youOrThem\(ownerIdsOf\(actor\), \{ you: lines, them: "" \}\)/.test(fnSource(code("murder-rules.mjs"), "incidentRollLines") ?? "")],
+            coverCritical: count("cleanup.mjs", /plural\("DRPG\.Result\.coverCritical"/g)
+        };
+        equal(stableJson(read), stableJson({ palm: 2, frisk: 1, pick: 1, project: 3, cleanup: [2, true, 2], givenBack: true, incident: [2, true], coverCritical: 1 }),
+            "{Palm's two cards; the unseen Frisk's; Pick the Lock's cover; a project's concealments and Hide Traces; Tamper [its two reports, the card's list, the roll's lines built in `report` and in Stage 6's card]; a price given back after the dice; the incident [its two cards, the roller's alone]; the concealment's critical}");
+    }],
     ["R8880 - a price comes back after the dice as config.mjs ROLL_REFUNDS says (E129, 1.2.128; S0-REFUND, docs/dev/owner129/desp/REFUNDS.md rows 4, 12, 13; the owner's answers of 23.11.2026): the keys hold the owner's values, under \"always\" price.mjs `mayRefundAfterRoll` gives back after any roll, the GM's Refuse asks `afterRoll` while its own key is null; under \"noHope\" it refuses after a roll with Hope or a critical, a supporting roll's Hope does not count and its critical does; under \"never\" nothing comes back", async () => {
         /*
          * 23.11.2026, E129 line DESP. The owner's note of session 0: some actions gave back Hope and the action at the roll.

@@ -23580,7 +23580,8 @@ const REGRESSIONS = [
                action-report.mjs `rollResultCard` / action-tail.mjs `tailCard`, which build the card's spec (built). */
             "action-doors.mjs": {"built": 3}, "action-dynamic.mjs": {"line": 2}, "action-listen.mjs": {"built": 1, "card": 2, "line": 1},
             "action-murder.mjs": {"action": 2}, "action-observe.mjs": {"line": 1},
-            "action-pipeline.mjs": {"action": 1}, "action-project.mjs": {"action": 1, "line": 1, "message": 3},
+            // E129 S0-CARDS (1.2.128): `giveBackAfterRoll` tells its reader the price came back, one sentence and the roll's lines (WHY.line).
+            "action-pipeline.mjs": {"action": 1, "line": 1}, "action-project.mjs": {"action": 1, "line": 1, "message": 3},
             "action-report.mjs": {"built": 1}, "action-tail.mjs": {"built": 1}, "action-watch.mjs": {"built": 1}, "analyze.mjs": {"card": 1, "heading": 1, "line": 2},
             "anonymity.mjs": {"card": 2}, "body.mjs": {"card": 1, "message": 1}, "bridge-runs-acts.mjs": {"card": 1},
             "bridge-runs-records.mjs": {"action": 1, "message": 1},
