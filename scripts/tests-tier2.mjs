@@ -31123,6 +31123,90 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         }
     }],
 
+    ["1.2.129 S0-VOTEKUMA - each Monokuma is a candidate of its own on a ballot, the old id \"monokuma\" is refused, and a vote on one is counted under its own id (vote.mjs `monokumaCandidates`; the owner's note of 23.11.2026)", async () => {
+        /*
+         * E129 S0-VOTEKUMA, 23.11.2026; config.mjs `TRIAL.eachMonokumaOnBallot`. Two Monokuma actors made here, Karimkuma and
+         * Divakuma (the owner's examples), beside any the world holds; the vote opened on a blank record with the ballots
+         * caught, as "a ballot naming one student twice ..." does, and one voter's casts handed to this GM's listeners: the
+         * old "monokuma", then Divakuma with the rest of the picks from the list's students. Read: the Monokumas the voter's
+         * list ends on (their names), whether "monokuma" is on it, the two casts' answers, and the count's row for Divakuma
+         * after the close. Red at 7451d3a9: the list ends on "monokuma", which is answered done, and Divakuma is refused.
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 1), "a voter with a connected player");
+        const { isPrimaryGm } = await import("./utils.mjs");
+        must(isPrimaryGm(), "this browser is not the primary GM, which records the ballots");
+        const V = await import("./vote.mjs");
+        const MK = await import("./monokuma.mjs");
+        const { ballotStore } = await import("./gm-stores.mjs");
+        const { sheetAuditIdle } = await import("./sheet-audit.mjs");
+        const socket = game.socket;
+        const ownEmit = Object.getOwnPropertyDescriptor(socket, "emit");
+        const progressWas = foundry.utils.deepClone(getSetting(SETTINGS.trialProgress) ?? {});
+        const lists = new Map(), told = new Map(), made = [];
+        let voter = null, read = null;
+        const hand = packet => {
+            for (const listener of [...socket.listeners(`module.${MODULE_ID}`)]) listener(packet, voter);
+        };
+        const castAs = async (requestId, round, choice) => {
+            hand({ action: "vote.cast", requestId, round, choice });
+            await until(() => told.has(requestId), 3000);
+            return told.get(requestId) ?? "unanswered";
+        };
+        try {
+            for (const name of ["SUITE S0-VOTEKUMA Karimkuma", "SUITE S0-VOTEKUMA Divakuma"]) {
+                made.push(await Actor.create({ name, type: "character", flags: { [MODULE_ID]: { [FLAGS.monokuma]: true } } }));
+            }
+            await sheetAuditIdle();
+            await settle();
+            const [karim, diva] = made;
+            await game.settings.set(MODULE_ID, SETTINGS.trialProgress, {});
+            const send = socket.emit;
+            socket.emit = function (event, packet, options, ...rest) {
+                if (packet?.action === "vote.open") {
+                    for (const userId of options?.recipients ?? []) lists.set(userId, (packet.candidates ?? []).map(c => [c.id, c.name]));
+                    return true;
+                }
+                if (String(packet?.requestId ?? "").startsWith("suite-kuma-")) {
+                    if (packet.action === "bridge.refused") told.set(packet.requestId, ["refused", packet.reason]);
+                    if (packet.action === "bridge.done") told.set(packet.requestId, ["done", packet.value ?? null]);
+                    return true;
+                }
+                return send.call(this, event, packet, options, ...rest);
+            };
+            await V.openVote();
+            const { round, picks, issued } = V.trialProgress().vote;
+            voter = issued?.[0] ?? null;
+            const list = lists.get(voter) ?? [];
+            must(voter && list.length, "no voter was handed a ballot - this would measure nothing");
+            const kumas = list.filter(([id]) => MK.isMonokuma(game.actors.get(id)));
+            const students = list.filter(([id]) => game.actors.get(id) && !MK.isMonokuma(game.actors.get(id))).map(([id]) => id);
+            const right = [diva.id, ...students.slice(0, picks - 1)];
+            const old = await castAs("suite-kuma-old", round, ["monokuma", ...students.slice(0, picks - 1)]);
+            const done = await castAs("suite-kuma-diva", round, right);
+            await settle();
+            await V.closeVote();
+            await settle();
+            const progress = V.trialProgress();
+            const sorted = [...kumas].map(([, name]) => name).sort((x, y) => x.localeCompare(y, game.i18n.lang));
+            read = {
+                kumas: kumas.map(([, name]) => name), sortedByName: stableJson(kumas.map(([, name]) => name)) === stableJson(sorted),
+                bothListed: [karim.id, diva.id].every(id => kumas.some(([k]) => k === id)), old: list.some(([id]) => id === "monokuma"),
+                casts: [old, done], diva: (progress.accused ?? []).find(r => r?.id === diva.id)?.n ?? 0, karim: (progress.accused ?? []).find(r => r?.id === karim.id)?.n ?? 0
+            };
+        } finally {
+            if (ownEmit) Object.defineProperty(socket, "emit", ownEmit); else delete socket.emit;
+            if (voter) await ballotStore?.dropMany?.([voter]);
+            if (V.trialProgress().vote?.open) await V.closeVote();
+            await game.settings.set(MODULE_ID, SETTINGS.trialProgress, progressWas);
+            for (const actor of made) if (game.actors.get(actor.id)) await actor.delete();
+            await settle();
+        }
+        equal(stableJson({ ...read, kumas: read.kumas.filter(n => n.startsWith("SUITE S0-VOTEKUMA")) }),
+            stableJson({ kumas: ["SUITE S0-VOTEKUMA Divakuma", "SUITE S0-VOTEKUMA Karimkuma"], sortedByName: true, bothListed: true, old: false,
+                casts: [["refused", "missing"], ["done", { round: read?.casts?.[1]?.[1]?.round ?? null }]], diva: 1, karim: 0 }),
+            "a ballot did not list each Monokuma by its own name, sorted, or took the old \"monokuma\", or its vote on one was not counted under that one's id (the suite's two Monokumas listed; sorted; both listed; \"monokuma\" listed; the old and the new cast's answers; the count for each)");
+    }],
+
     ["a player whose students the GMs hold dead is handed no ballot and casts none though the sheets say alive", async () => {
         /*
          * E10 C2, 1.2.71; the plan's 1b.2 (R311's row SHEET vote.mjs#eligibleVoters). Who votes was read
@@ -48635,7 +48719,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         }
     }],
 
-    ["the trial shuts everything but Analyze and the Objection", async () => {
+    ["the trial shuts everything but Analyze, the Objection and Palm", async () => {
         /*
          * T-1, Dawid 17.09. One tile, the Objection, the Hope Calls and the items.
          * Asserted through the real entry points rather than off the sheet, because
@@ -48664,7 +48748,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             await setClock({ ...clock, phase: "classTrial" });
             await settle();
 
-            for (const key of ["search", "tamper", "palm", "observe", "rest",
+            for (const key of ["search", "tamper", "observe", "rest",
                 "listen", "project", "move", "dynamic", "sabotage"]) {
                 seen.length = 0;
                 const out = await rolls.performAction(who, key);
@@ -48673,6 +48757,21 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             }
             equal(who.system.resources.actions.value, 2,
                 "a tile the trial refused still charged for itself");
+
+            /*
+             * PALM IS OPEN IN THE TRIAL since E129 S0-PALM (the owner's "9. Tak" of 23.11.2026, to the coordinator's question
+             * whose default was "the whole hall counts, Steal and Plant open, a forced Frisk shut"; allowed-now.mjs
+             * `TRIAL_OPEN_ACTIONS`). Read: the action road's answer for Palm, and what pressing it says - not the trial's
+             * lock. The student here stands on no hall, so Palm stops at its room or its targets before its window and
+             * charges nothing; what it then does in the hall is "1.2.129 S0-PALM"'s. Red with "palm" taken out of
+             * `TRIAL_OPEN_ACTIONS` (23.11.2026): open false, the lock said.
+             */
+            const { allowedNow } = await import("./allowed-now.mjs");
+            seen.length = 0;
+            const palmOut = await rolls.performAction(who, "palm");
+            equal(stableJson({ open: allowedNow(who, "palm").ok, locked: seen.includes(locked), out: palmOut ?? null, actions: who.system.resources.actions.value }),
+                stableJson({ open: true, locked: false, out: null, actions: 2 }),
+                "Palm was not offered in a Class Trial, or it ran on past its room's check and charged (open, the lock said, what it answered, the actions left)");
 
             // A Despair Call waits for the trial. The refusal comes before the pool
             // is even looked up, so any actor proves the gate.
@@ -52252,7 +52351,9 @@ equal(read.added, 3, "three additions to a purse at once lost one");
          * E70 C1, 27.10.2026; E70-08 (S18-76, D25). Each button of the bar is a `game.drpg` function a macro or another
          * GM's console can call - `skipStep`, `adjustTime`, `endMode`, `returnToDebate` - and the older names stay
          * (`advanceFloorNow`, `extendFloor`, `endFloor`, trial-floor.mjs's own functions). Read on this primary in a
-         * Class Trial, on an Objection with 50 s left and a debate under it with 200 s: +30 s leaves 80 s, -30 s 50 s,
+         * Class Trial, on an Objection 10 s old (L s left: 50 at 60 s, 20 since E129 S0-OBJ's 30 s, so L is read, not
+         * assumed - the owner's note of 23.11.2026, "objection skrocic do 30s") and a debate under it with 200 s: +30 s leaves
+         * L + 30, -30 s L,
          * Skip opens the rebuttal, Back to the debate gives the 200 s, End this mode empties the floor; then on the same
          * Objection the bridge's runner handed "trial.gm" as this GM sends it - +30 s, then End this mode - moves it
          * the same; then, the campaign back in Daily Life with the same Objection written, the same two by "trial.gm" are
@@ -52284,14 +52385,17 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             await settle();
         };
         const near = want => Math.abs(F.secondsLeft() - want) <= 3;
+        let left = null;
         try {
             if (read.fns.every(Boolean)) {
                 await setClock({ ...clock, phase: "classTrial" });
                 await fixture();
+                left = F.secondsLeft();
+                must(left > 5, `the Objection's fixture has ${left} s left - -30 s from L + 30 would measure nothing`);
                 await api.adjustTime(30);
-                read.plus = near(80);
+                read.plus = near(left + 30);
                 await api.adjustTime(-30);
-                read.minus = near(50);
+                read.minus = near(left);
                 await api.skipStep();
                 await settle();
                 read.skip = F.trialFloor()?.mode ?? null;
@@ -52304,8 +52408,9 @@ equal(read.added, 3, "three additions to a purse at once lost one");
                 await fixture();
                 const heard = [];
                 const send = (to, packet) => { if (packet?.action !== "bridge.ack") heard.push(packet?.action ?? null); };
+                const leftThen = F.secondsLeft();
                 await G.judge(B.BRIDGE_ACTIONS, { action: "trial.gm", requestId: "E70T4PLUS", op: "adjust", seconds: 30 }, game.user.id, { send });
-                const bridged = near(80);
+                const bridged = near(leftThen + 30);
                 await G.judge(B.BRIDGE_ACTIONS, { action: "trial.gm", requestId: "E70T4END", op: "endMode" }, game.user.id, { send });
                 read.bridge = [bridged, F.trialFloor(), heard];
                 await setClock({ ...getClock(), phase: "dailyLife" });
@@ -55102,6 +55207,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         const { performAction } = await import("./action-rolls.mjs");
         const { ACTIONS, ACTION_GRID } = await import("./config.mjs");
         must(!ACTION_GRID.includes("move"), "the sheet draws a Move tile again - E40-T3's note");
+        const { TRIAL_OPEN_ACTIONS } = await import("./allowed-now.mjs");
         const keys = Object.keys(ACTIONS).filter(key => key !== "move");
         const SENT = { trial: game.i18n.localize("DRPG.Trial.actionsLocked"), murderOnlyInEclipse: game.i18n.localize("DRPG.Eclipse.murderOnlyInEclipse") };
         const which = text => Object.entries(SENT).filter(([, line]) => String(text ?? "").includes(line)).map(([k]) => k).join("+") || null;
@@ -55128,7 +55234,9 @@ equal(read.added, 3, "three additions to a purse at once lost one");
                         for (const [k, d] of Object.entries(keptN)) { if (d) Object.defineProperty(notes, k, d); else delete notes[k]; }
                     }
                     const press = which(heard.join(" | "));
-                    const want = key === "analyze" ? null : key === "directMurder" ? "murderOnlyInEclipse" : "trial";
+                    // The trial's own open list (allowed-now.mjs `TRIAL_OPEN_ACTIONS`): Analyze, and Palm since E129 S0-PALM (the
+                    // owner's "9. Tak" of 23.11.2026) - no mode opens or shuts an action otherwise than the trial does.
+                    const want = TRIAL_OPEN_ACTIONS.includes(key) ? null : key === "directMurder" ? "murderOnlyInEclipse" : "trial";
                     if (tile !== want || press !== want) off.push(`${mode}/${key}: tile ${tile}, press ${press}, as the trial ${want}`);
                 }
             }
@@ -83259,7 +83367,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             "a mode into full hands, with a stash of the taker's, did not do what TRANSFER_POLICY says of it ([the taker's copies, of them in a stash, the giver still holds it])");
     }],
 
-    ["one gate in transferItem: a give, a Palm's steal and a Plant are refused across rooms, by or to the dead, in an Eclipse and a Class Trial, and a give (since E64, D001), a steal or a Plant at a Monocub, by a Monokuma or at a hidden token, each with a code of the closed list; a body the GMs keep from a player is robbed as a living one; the roads hand the refusal on to be told (E14-T1, S08-01, S16-30, S08-20)", async () => {
+    ["one gate in transferItem: a give, a Palm's steal and a Plant are refused across rooms, by or to the dead and in an Eclipse, a give is refused in a Class Trial while a Palm's steal and Plant are open there (E129 S0-PALM), and a give (since E64, D001), a steal or a Plant at a Monocub, by a Monokuma or at a hidden token, each with a code of the closed list; a body the GMs keep from a player is robbed as a living one; the roads hand the refusal on to be told (E14-T1, S08-01, S16-30, S08-20)", async () => {
         /*
          * E14 part 1 C1, 24.10.2026; E14-01, E14-02, E14-05. The harm: inventory.mjs `transferItem`, the one road an item
          * changes owner by since E35, judged nothing of where the two stood or whether they lived - each caller kept its
@@ -83387,7 +83495,10 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         equal(stableJson(read), stableJson({
             control: all("moved"), apart: all("notThere"), roads: [...all("notThere"), "notThere"],
             takerDead: all("cannotNow"), giverDead: all("cannotNow"), keptFromPlayer: "moved",
-            eclipse: all("cannotNow"), classTrial: all("cannotNow"),
+            // In a Class Trial the give stays shut; a Palm's Steal and Plant are open (E129 S0-PALM, the owner's "9. Tak" of
+            // 23.11.2026, to the coordinator's question whose default was "the whole hall counts, Steal and Plant open, a forced
+            // Frisk shut"; allowed-now.mjs `TRIAL_OPEN_PERSON`). Red with "palm" taken out of it: all three cannotNow.
+            eclipse: all("cannotNow"), classTrial: ["cannotNow", "moved", "moved"],
             // A give through the person gate since E64 (D001): a Monocub giving, a Monokuma or a hidden token taking are refused as a Plant is.
             monocubGiver: all("cannotNow"), monokumaTaker: ["notThere", "cannotNow", "notThere"],
             hiddenTaker: ["notThere", "moved", "notThere"]

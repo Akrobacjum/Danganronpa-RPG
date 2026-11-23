@@ -68398,6 +68398,25 @@ const INVARIANTS = [
             chain: [[["action", 1], ["hope", 1], ["stress", 1]], "classTrial", true], hall: true
         }), "{table; open: the action keys a trial leaves open; person: [Palm's road, a nameless one's reason]; chain: [steps, the phase of the later ones, its first step the tile's cost]; hall}");
     }],
+    ["R8773 - the ballot lists each Monokuma by its own name, sorted, as the GMs hold the flag (E129 S0-VOTEKUMA; the owner's note of 23.11.2026, \"w glosowaniu zamiast opcji \"monokuma\" niech bedzie mozliwosc wyboru kazdego indywidualnego monokumy z osobna\"): vote.mjs `monokumaCandidates`, config.mjs `TRIAL.eachMonokumaOnBallot`", async () => {
+        /*
+         * Pure over handed-in characters (the default is monokuma.mjs `characterIds`', which reads the type) and a
+         * handed-in reader of the GMs' flags. Two Monokumas named out of order, a student, and a student whose document alone
+         * carries the flag (the GMs hold none: a console's write before its put-back). Read: the ids and names listed. Red at 7451d3a9: no
+         * `monokumaCandidates`, and `candidatesFor` pushes one { id: "monokuma" }.
+         */
+        const V = await import("./vote.mjs");
+        const { TRIAL } = await import("./config.mjs");
+        ok(typeof V.monokumaCandidates === "function", "vote.mjs exports no monokumaCandidates - the ballot still lists one Monokuma");
+        if (typeof V.monokumaCandidates !== "function") return;
+        const actor = (id, name, type, kuma) => ({ id, name, type, getFlag: (scope, key) => scope === MODULE_ID && key === FLAGS.monokuma ? kuma : undefined });
+        const actors = [actor("k2", "Karimkuma", "character", true), actor("s1", "Aoi", "character", false),
+            actor("k1", "Divakuma", "character", true), actor("f1", "Forged", "character", true)];
+        const held = a => (a.id === "f1" ? actor("f1", "Forged", "character", false) : a);
+        equal(stableJson({ setting: [TRIAL.allowVotingForMonokuma, TRIAL.eachMonokumaOnBallot], listed: V.monokumaCandidates({ actors, held }) }),
+            stableJson({ setting: [true, true], listed: [{ id: "k1", name: "Divakuma", dead: false }, { id: "k2", name: "Karimkuma", dead: false }] }),
+            "the ballot does not list each Monokuma by its own id and name, sorted, as the GMs hold the flag (the two settings; the list)");
+    }],
     ["R8675 - a centred action card tells a Despair roll's trace no more than the corner did (the owner, 22.11.2026: \"by nie zdradzaly ze gracz zostawia remnant, gdy nie powinien o tym wiedziec\"; 1.2.124 line UI): action-report.mjs `reportHtml` with `leftTrace` from remnants.mjs `traceFeedback`, drawn centred by popup.mjs `showPopup`: a Despair roll with a trace placed and one with none give the same centred card, byte for byte, the number beside its dice included; a Hope roll with a trace says so and one with none does not", async () => {
         /* Red at 52057a2b: no `reportHtml` and no centred card. The mutant that answers `traceFeedback` with `placed` alone
            (the Despair card saying its trace) turns it red. */

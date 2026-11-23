@@ -4479,7 +4479,7 @@ export const TRIAL = {
      */
     objectorMayFinish: true,
     /*
-     * PALM IN THE HALL (E129 S0-PALM, 23.11.2026; the coordinator's default, approved that day, pending the owner): the
+     * PALM IN THE HALL (E129 S0-PALM, 23.11.2026; the coordinator's default, which the owner answered "9. Tak" that day): the
      * trial's hall holds no room (R114), and Palm needs its target in the thief's room. While a Class Trial runs, every
      * student on the hall scene, on the same floor, whose token the GMs have not hidden, counts as in the thief's room for
      * Palm's Steal and Plant (frisk.mjs `personActionRefusal` with `palm`, palm.mjs `palmPlace`). Palm's forced Frisk
@@ -4608,6 +4608,17 @@ export const TRIAL = {
      */
     allowVotingForDead: true,
     allowVotingForMonokuma: true,
+    /*
+     * EACH MONOKUMA ON THE BALLOT (E129 S0-VOTEKUMA, 23.11.2026; the owner's note of that day, "w glosowaniu zamiast opcji
+     * "monokuma" niech bedzie mozliwosc wyboru kazdego indywidualnego monokumy z osobna"; the coordinator's defaults,
+     * pending the owner): with `allowVotingForMonokuma` on, the ballot lists every Monokuma actor by its own name, sorted
+     * by name, each a candidate of its own whose votes are counted apart (vote.mjs `monokumaCandidates`, the flag as the
+     * GMs hold it). A vote on any of them is read as one on "Monokuma" was - no student, so the verdict window opens on
+     * nobody (verdict.mjs `verdictCandidates`) - and its name stands on the cards. A world with no Monokuma actor lists
+     * none. False is the rule until 1.2.129: one "Monokuma" option, the id "monokuma", which a record holding it still
+     * reads either way.
+     */
+    eachMonokumaOnBallot: true,
     allowVotingForSelf: true,
     /**
      * Whether the dead CAST a ballot, which is a different question from the three

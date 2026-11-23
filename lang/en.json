@@ -2509,7 +2509,7 @@
       "notOpen": "No vote is open.",
       "nobodyVoted": "No ballot came back, so the vote closed with nobody accused.",
       "ballotTitle": "Who did it?",
-      "ballotIntro": "Vote for whoever you believe is the Blackened. You may vote for yourself, for Monokuma, and for the dead.",
+      "ballotIntro": "Vote for whoever you believe is the Blackened. You may vote for yourself, for each Monokuma by name, and for the dead.",
       "ballotNote": "Your vote goes to the GMs alone. The table sees only the totals.",
       "who": "Your vote",
       "cast": "Cast your vote",
