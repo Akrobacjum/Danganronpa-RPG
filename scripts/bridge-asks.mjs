@@ -1019,9 +1019,9 @@ export async function requestAdvancement({ actorId, picks, kind, offerId = null 
  * Writing to another player's actor is GM-only, and the answer key entry that
  * travels with the copy can only be written on a GM's client anyway.
  */
-export function requestShareBullet({ fromId, toId, itemId }) {
-    return ask(ACTION_SHARE_BULLET, { fromId, toId, itemId }, {
-        local: () => import("./handover.mjs").then(m => m.shareBullet({ fromId, toId, itemId })).then(out => {
+export function requestShareBullet({ fromId, toId, itemId, analysis = true }) {
+    return ask(ACTION_SHARE_BULLET, { fromId, toId, itemId, analysis: analysis !== false }, {
+        local: () => import("./handover.mjs").then(m => m.shareBullet({ fromId, toId, itemId, analysis: analysis !== false })).then(out => {
             // A GM's own copy refused is said as the bridge would say it to a player (E14 part 1 C1).
             if (out?.refused) sayNotDone(ACTION_SHARE_BULLET, reasonOf(out.refused));
             return out?.refused ? null : out;

@@ -48,7 +48,7 @@
  * There is no world switch: the owner's Q2 (a), 03.10.2026.
  */
 
-import { MODULE_ID, FLAGS, TIMING, ACTIONS, TRAITS, TRAIT_BY_DH, MURDER_OPENING, CRITICAL, CRISIS_ACTIONS, PRICE_CHAINS, CLEANUP, LEGAL_ROLL_MODIFIERS, LOOT, INFILTRATE } from "./config.mjs";
+import { MODULE_ID, FLAGS, TIMING, ACTIONS, TRAITS, TRAIT_BY_DH, MURDER_OPENING, CRITICAL, CRISIS_ACTIONS, PRICE_CHAINS, CLEANUP, LEGAL_ROLL_MODIFIERS, LOOT, INFILTRATE, ROLL_REFUNDS } from "./config.mjs";
 import { SETTINGS, getClock } from "./settings.mjs";
 import { primaryGmId, isPrimaryGm, announce, whisperToGms, debug, warn, error, esc, listOf } from "./utils.mjs";
 import { bridgeRequest, ownsActor } from "./bridge-guards.mjs";
@@ -1735,7 +1735,21 @@ async function throwDrawn({ actorId, actionKey, nonce, claimed, loaded, costs, r
     written?.();
     // The throw on this screen, now that it has a message: what the roll moved is drawn here when it has landed (1.2.119).
     if (shown) noteThrow(message.id, THROWN_HERE.get(roll));
+    /* A SUPPORTING ROLL EARNS NO HOPE (E129, 1.2.128; config.mjs `ROLL_REFUNDS.supportingHope`, REFUNDS.md row 4 and T1).
+       Every roll an action throws was an action roll and earned its Hope, so a Palm, a Frisk, Tail, Pick the Lock, a
+       watched Tamper and a concealed Work or Sabotage paid Hope from two rolls for one action. The GM tells a supporting
+       roll by its key, never by the packet's word: a roll of `SPENDS_NO_CALL` (the covers, staying unseen) or one that
+       names no action (a concealment, a broken item's discard) - the rolls `rollTrait` throws with `remember: false`
+       (R8381 holds the keyed ones to that list). What Daggerheart's step adds to Hope for it is taken out again, a
+       critical's 2 with it; its Despair and the rules' other effects of its critical stand. A statistic from the sheet
+       (`claimed` false) is a reaction and earned none already. */
+    const supportingDraw = !ROLL_REFUNDS.supportingHope && claimed !== false && (!key || SPENDS_NO_CALL.has(key));
+    const hopeBefore = supportingDraw ? config.resourceUpdates.get("hope") : undefined;
     await cls.dualityUpdate(config);
+    if (supportingDraw) {
+        if (hopeBefore === undefined) config.resourceUpdates.delete("hope");
+        else config.resourceUpdates.set("hope", hopeBefore);
+    }
     if (typeof cls.handleTriggers === "function") await cls.handleTriggers(roll, config);
     if (config.costs.length) config.resourceUpdates.addResources(config.costs.map(c => ({ ...c, value: -c.value })));
     /* Every write of the character's resources in the step names the roll's message (dice-hold.mjs `stampRollWrites`,

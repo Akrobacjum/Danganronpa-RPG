@@ -53,7 +53,7 @@ import {
 } from "./bridge-wire.mjs";
 import {
     handleObserveTarget, handleCleanupTraces, handleObserveResolve, handleAnalyzeResolve, handleAdvancement,
-    handleAdvancementOffer, handleAdvancementAsk, handleShareBulletOrGiveItem, handlePassageShare, handlePassageCross,
+    handleAdvancementOffer, handleAdvancementAsk, handleShareBulletOrGiveItem, handleShareBullet, handlePassageShare, handlePassageCross,
     handleRefundCrossing, handlePassageFind, handlePassageLairSeal, handleLairLock, friskRolls, findPassageRoll, notFindPassageRoll, palmRolls, handlePlant,
     handleFindStash, handleSteal, handleFriskUnseen, handleFriskAsk, handleFriskAnswer, handleFriskFollow,
     friskForceRoll, handleVaultSteal, handleOpeningResult, handleOpeningCard, handleCrisis, handleParkMurder,
@@ -108,10 +108,8 @@ export const BRIDGE_ACTIONS = table({
     [ACTION_OBSERVE_TARGET]: {
         label: "DRPG.Bridge.what.observe.target",
         guards: [knownSender, notSpectator("actorId"), owns("actorId", "sender does not own that character")],
-        /* The declaration is one of observe.mjs's DECLARATIONS or nothing (1.2.122; the audit of 1.2.118, CASE-61): until
-           1.2.122 it was taken raw, an unknown one went down the General branch and its value - any string, any object -
-           stood on the GM's pending row for an hour. The words are spelt here, not imported: this table imports no rule
-           file but the floor's (observe.mjs reaches the bridge again); R8102 holds them to DECLARATIONS. */
+        /* One of observe.mjs's DECLARATIONS or nothing (1.2.122, CASE-61): taken raw until then, any value stood on the GM's pending row for an hour.
+           Spelt here, not imported (this table imports no rule file but the floor's; observe.mjs reaches the bridge again); R8102 holds them to DECLARATIONS. */
         sanitize: pick({ actorId: as.id, declaration: as.oneOf("general", "specific", "nonObvious", "followTraces"), request: as.text }),
         run: handleObserveTarget,
         answer: "reply", patient: true, resend: true,
@@ -291,15 +289,10 @@ export const BRIDGE_ACTIONS = table({
         guards: [knownSender, notSpectator("actorId"), owns("actorId", "sender does not own that character")],
         sanitize: pick({ actorId: as.id }),
         run: handleMaskReveal,
-        // The asker's "?" goes when the token's look comes back; nothing is said.
-        answer: "ack"
+        answer: "ack" // The asker's "?" goes when the token's look comes back; nothing is said.
     },
-    /*
-     * THE OPENING'S VEIL, ASKED OF THE PRIMARY BY ANOTHER GM (1.2.122; the audit's STG-31). The veil is the primary's to
-     * write (mask-gm.mjs `settleVeilsNow`, `veilAtTheLights`), and on another GM's browser both answered nothing, so an
-     * Eclipse ended or a murder opened there put the veil up only once the primary heard the incident's write - the
-     * killer's token drawn for the victim meanwhile. That GM asks here and waits for the answer.
-     */
+    /* THE OPENING'S VEIL AND THE MASK'S END, ASKED OF THE PRIMARY BY ANOTHER GM (1.2.122, STG-31; 1.2.128, "unmask"): the primary's to write (mask-gm.mjs
+       `veilOnPrimary`); on another GM both answered nothing, the killer's token drawn for the victim until the primary heard. That GM asks here and waits. */
     [ACTION_MASK_VEIL]: {
         label: "DRPG.Bridge.what.mask.veil",
         guards: [gmOnly("only a GM asks for the opening's veil")],
@@ -342,7 +335,10 @@ export const BRIDGE_ACTIONS = table({
         answer: "none", quiet: true,
         why: "answers only about the sender's own characters, found from the id Foundry gives, and names none"
     },
-    [ACTION_SHARE_BULLET]: handover("DRPG.Bridge.what.handover.bullet"),
+    // `analysis`: whether the copy carries the giver's Analyze result (line INVEST of 1.2.129, S0-ANSHARE) - a choice,
+    // not a claim: it can only take the reading off the copy, never put one there the giver's bullet does not hold; a packet
+    // that names none (an older client) shares with it, as before (`oneOf` reads it as null)
+    [ACTION_SHARE_BULLET]: { ...handover("DRPG.Bridge.what.handover.bullet"), sanitize: pick({ fromId: as.id, toId: as.id, itemId: as.id, analysis: as.oneOf(true, false) }), run: handleShareBullet },
     [ACTION_GIVE_ITEM]: handover("DRPG.Bridge.what.handover.item"),
     [ACTION_PASSAGE_SHARE]: {
         label: "DRPG.Bridge.what.passage.share",
@@ -1226,7 +1222,7 @@ export const BRIDGE_ACTIONS = table({
         sanitize: pick({}), run: handleVerdictFinish, answer: "reply" },
     // A GM's ask for the opening's card, the primary's to post once (E128; murder-rules.mjs `postOpeningCard`). No ids.
     [ACTION_OPENING_CARD]: { label: "DRPG.Bridge.what.murder.openingCard", guards: [gmOnly("only a GM posts the opening's card")],
-        sanitize: pick({ side: as.oneOf("killer", "victim"), openedAt: as.num }), run: handleOpeningCard, answer: "reply" },
+        sanitize: pick({ side: as.oneOf("killer", "victim"), openedAt: as.num, pick: as.bool, proposed: as.bool }), run: handleOpeningCard, answer: "reply" },
     /*
      * THE TRIAL'S VOICES, SETTLED ON THE PRIMARY GM (E70 C5, 28.10.2026; amend 6, answer 3 (b)). The trial opens and
      * ends on whichever GM moved the phase (clock.mjs `reconcilePhase`); its list of the dead reads the GMs' deaths

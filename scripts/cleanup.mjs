@@ -65,11 +65,11 @@
  * here; this file imports the veiled `whisperToOwner` back from it.
  */
 
-import { PRICE_CHAINS, ACTIONS, MODULE_ID, CLEANUP, RESOLUTION_STRESS_COST, REMNANT_VISIBILITY, REMNANT_VISIBILITY_LABELS } from "./config.mjs";
+import { PRICE_CHAINS, ACTIONS, MODULE_ID, CLEANUP, RESOLUTION_STRESS_COST, REMNANT_VISIBILITY, REMNANT_VISIBILITY_LABELS, ROLL_REFUNDS } from "./config.mjs";
 
 // The chain, and the one payer (T-1). Tamper's price is an action, or a Sanity
 // mark when there is no action - never both, which is what this file used to do.
-import { quotePrice, payPrice, refundPrice, paidLine, priceLabel } from "./price.mjs";
+import { quotePrice, payPrice, refundPrice, paidLine, priceLabel, mayRefundAfterRoll } from "./price.mjs";
 import { getClock } from "./clock.mjs";
 import { bodyDiscovery, seasonEpoch } from "./settings.mjs";
 import { murderState, killerIds, participantIds, blackenedIds, refOf, swungWeaponOf, spendFreeCleanup, knowsOfDeath } from "./murder.mjs";
@@ -777,7 +777,7 @@ export async function attemptCleanup(actor, tokenId, {
  * GMs saw paid and says so (`refundRefused`). `by` is who sent the packet, null for a
  * GM's own attempt (`paidBack`).
  */
-async function cleanupRefusal(actor, token, data, viaAction, price = null, grant = false, by = null) {
+async function cleanupRefusal(actor, token, data, viaAction, price = null, grant = false, by = null, rolled = null) {
     /*
      * NOT "ONLY YOUR OWN" ANY MORE (ACT-02, 17.09).
      *
@@ -811,7 +811,7 @@ async function cleanupRefusal(actor, token, data, viaAction, price = null, grant
     if (viaAction && !watchedItHappen && !copiedRemnants(actor).has(token.id)) {
         error(`Refused a Tamper by ${actor.name}: they have not found that trace.`);
         await whisperToOwner(actor, `<p>${game.i18n.localize("DRPG.Tamper.notFound")}</p>${
-            await refundRefused(actor, price, grant, by)}`);
+            await refundRefused(actor, price, grant, by, rolled)}`);
         return { removed: false, notFound: true };
     }
 
@@ -822,7 +822,7 @@ async function cleanupRefusal(actor, token, data, viaAction, price = null, grant
     if (data.reinforced) {
         await whisperToOwner(actor, `<p>${game.i18n.format("DRPG.Cleanup.reinforced", {
             what: foundry.utils.escapeHTML(traceLabelFor(actor, token.id, data, { cleaner: isCleaner(actor) }))
-        })}</p>${await refundRefused(actor, price, grant, by)}`);
+        })}</p>${await refundRefused(actor, price, grant, by, rolled)}`);
         return { removed: false, reinforced: true };
     }
     return null;
@@ -943,9 +943,10 @@ async function resolveTransformRoad(actor, token, data, verdict, {
         }
     }
 
-    // The critical hands back the step that paid, not "a Sanity mark" (T-1), as far as the GMs saw it paid (`handBack`).
+    // The critical hands back the step that paid, not "a Sanity mark" (T-1), as far as the GMs saw it paid (`handBack`),
+    // where the rule still gives one (`criticalGivesBack`, E129).
     const back = CLEANUP.transformAction?.refundStress?.[band];
-    if (back) {
+    if (back && criticalGivesBack({ viaAction, free })) {
         const line = backLine(await handBack(actor, paidStep, back, { receipt, grant, by }));
         if (line) done.push(line);
     }
@@ -1148,7 +1149,7 @@ export async function resolveCleanup({
     const actor = game.actors.get(actorId);
     if (!actor) return null;
     // Said and paid back (`blockedOnGm`); a GM's Reroll of an attempt that stands is refused as before.
-    if (!viaAction && !isCleaner(actor)) return undo ? null : blockedOnGm(actor, price, grant, by);
+    if (!viaAction && !isCleaner(actor)) return undo ? null : blockedOnGm(actor, price, grant, by, { isCritical, withHope });
 
     // A Reroll: put the scene back the way it was before scoring the new number,
     // or the second attempt would be measured against a room the first one had
@@ -1193,7 +1194,7 @@ export async function resolveCleanup({
      * its Sanity - and scored the new number on top. With no row, the Reroll is not replayed
      * and the GMs are told (`undoLastCleanup`).
      */
-    const refused = await cleanupRefusal(actor, token, data, viaAction, price, grant, by);
+    const refused = await cleanupRefusal(actor, token, data, viaAction, price, grant, by, { isCritical, withHope });
     if (refused) {
         await forgetAttempt(actorId);
         return refused;
@@ -1284,7 +1285,7 @@ export async function resolveCleanup({
     // Handed back on both roads now, because both roads paid - and as the step
     // that paid, which is an action as often as a mark since T-1, as far as the
     // GMs saw it paid, and said only where something came back (`handBack`).
-    if (outcome.refundStress) {
+    if (outcome.refundStress && criticalGivesBack({ viaAction, free })) {
         const line = backLine(await handBack(actor, paidStep, outcome.refundStress, { receipt, grant, by }));
         if (line) done.push(line);
     }
@@ -1842,7 +1843,7 @@ export async function resolveStageSix({
     const actor = game.actors.get(actorId);
     const def = CLEANUP.actions?.[key];
     if (!actor || !def) return null;
-    if (!viaAction && !isCleaner(actor)) return blockedOnGm(actor, price, grant, by);
+    if (!viaAction && !isCleaner(actor)) return blockedOnGm(actor, price, grant, by, { isCritical, withHope });
 
     /*
      * ONE OF THE THREE IS STAGE 6 ONLY, AND IT IS THE OBVIOUS ONE.
@@ -1885,11 +1886,11 @@ export async function resolveStageSix({
      * with.
      */
     if (key === "misleadingTrail" && !(await framingCandidates(actor)).some(a => a.id === targetId)) {
-        await refundStageSix(actor, "cannotFrame", price, grant, by);
+        await refundStageSix(actor, "cannotFrame", price, grant, by, { isCritical, withHope });
         return { refused: "that student cannot be framed" };
     }
     if (key === "moveBody" && !bodyIsHere(actor)) {
-        await refundStageSix(actor, "notThere", price, grant, by);
+        await refundStageSix(actor, "notThere", price, grant, by, { isCritical, withHope });
         return { refused: "the body is not in the killer's room" };
     }
     // The tool written down and the tier of its relief, as the GMs hold them (`resolveCleanup`'s note, fix r2-H20).
@@ -1945,7 +1946,7 @@ export async function resolveStageSix({
     }
 
     const refund = success ? def.refundStress?.[band] : null;
-    if (refund) {
+    if (refund && criticalGivesBack({ viaAction, free })) {
         const line = backLine(await handBack(actor, paidStep, refund, { grant, by }));
         if (line) done.push(line);
     }
@@ -2437,9 +2438,14 @@ async function chargeUnclaimed(actor, { viaAction = false } = {}) {
  * r2-G8 holds the rest of this note and is the road of a critical's give-back and the free attempt's waiver too).
  * Quiet, because the line goes into the refusal's own whisper rather than a second card.
  */
-async function refundRefused(actor, price, grant = false, by = null) {
+async function refundRefused(actor, price, grant = false, by = null, rolled = null) {
     const step = validPrice(price);
     if (!step) return "";
+    /* AS THE ROLL LETS IT (E129, 1.2.128; config.mjs `ROLL_REFUNDS.afterRoll`, REFUNDS.md T8). Each of these refusals comes
+       after the dice (`rolled`, the roll as the GMs' record holds it: the runner's `rolled`), which had paid out their
+       Hope: the price came back and the Hope stood. Under the default it comes back only where the roll brought neither
+       Hope nor a critical (price.mjs `mayRefundAfterRoll`), and the whisper says it stays spent otherwise. */
+    if (rolled && !mayRefundAfterRoll([rolled])) return `<p>${game.i18n.localize("DRPG.Action.keptAfterRoll")}</p>`;
     const back = await paidBack(actor, step, { grant, by });
     return back.amount ? `<p>${game.i18n.format("DRPG.Price.refunded", { what: priceLabel(back) })}</p>` : "";
 }
@@ -2484,8 +2490,8 @@ async function paidBack(actor, step, { grant = false, by = null } = {}) {
 }
 
 /** Before one of Stage 6's own refusals (`resolveStageSix`): what the killer paid given back as far as the GMs saw it, said with the bridge's reason (`why`) where any came back. */
-async function refundStageSix(actor, why, price, grant, by = null) {
-    const line = await refundRefused(actor, price, grant, by);
+async function refundStageSix(actor, why, price, grant, by = null, rolled = null) {
+    const line = await refundRefused(actor, price, grant, by, rolled);
     if (line) await whisperToOwner(actor, `<p>${game.i18n.localize(`DRPG.Bridge.why.${why}`)}</p>${line}`);
 }
 
@@ -2497,12 +2503,26 @@ async function refundStageSix(actor, why, price, grant, by = null) {
  * heard nothing. The reason is `cleanupBlocker`'s, in the words the sheet uses before the dice (`refuseCleanup`).
  * Not null, so the bridge does not add a refusal of its own to the whisper.
  */
-async function blockedOnGm(actor, price, grant = false, by = null) {
+async function blockedOnGm(actor, price, grant = false, by = null, rolled = null) {
     const why = cleanupBlocker(actor) ?? "notYours";
     log(`Refused a clean-up by ${actor.name} on the GM: ${why}.`);
     await whisperToOwner(actor, `<p>${game.i18n.localize(`DRPG.Cleanup.blocked.${why}`)}</p>${
-        await refundRefused(actor, price, grant, by)}`);
+        await refundRefused(actor, price, grant, by, rolled)}`);
     return { removed: false, success: false, blocked: why };
+}
+
+/*
+ * WHETHER A CRITICAL GIVES THE PRICE BACK (E129, 1.2.128; config.mjs `ROLL_REFUNDS`; docs/dev/owner129/desp/REFUNDS.md
+ * T5, T6, T12). The owner's note of session 0 - Tamper giving back Hope and its action at the roll - read with the
+ * coordinator's default: a critical Tamper taken as an action keeps its 2 Hope and no longer hands its action back
+ * (`tamperCritical`), whichever road it took (erase, reshape, a Misleading Trail or Move the Body through Tamper's
+ * door); the free attempt a critical Finishing Blow leaves gives nothing back (`freeCritical`; it cost nothing). The
+ * killer's own clean-up at their scene keeps the guide's give-back ("Morderca odzyskuje 1 stres"). The concealment's
+ * critical is its own (`coverGiveBack`) and is not asked here. Exported for the suite (R8881).
+ */
+export function criticalGivesBack({ viaAction = false, free = false } = {}) {
+    if (free) return ROLL_REFUNDS.freeCritical;
+    return viaAction ? ROLL_REFUNDS.tamperCritical : true;
 }
 
 /**

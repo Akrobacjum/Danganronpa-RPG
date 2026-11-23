@@ -167,6 +167,9 @@ export async function rollTrait(actor, drpgTrait,
            judgement reads its own number (the GM's `applyCrisisAction`, `stealFromPerson`, the bands). */
         const outcome = await throwDice(actor, drpgTrait, { remember, actionKey, context, title, byGm });
         if (outcome && shown) outcome.dc = dc;
+        // Whether this roll supports the action's own (E129): it earns no Hope (roll-draw.mjs, `ROLL_REFUNDS.supportingHope`),
+        // and a refund after the dice reads it so (price.mjs `mayRefundAfterRoll`).
+        if (outcome) outcome.supporting = supporting;
         return outcome;
     } finally {
         if (situational) calls.clearOwnSituational();
@@ -975,6 +978,27 @@ async function commitResources(result) {
 export async function abort(actor, paid) {
     if (paid) await refundAction(actor, paid.amount, paid);
     return null;
+}
+
+/**
+ * GIVE THE PRICE BACK AFTER THE DICE, AS THE RULE SAYS (E129, 1.2.128; config.mjs `ROLL_REFUNDS.afterRoll`, price.mjs
+ * `mayRefundAfterRoll`; docs/dev/owner129/desp/REFUNDS.md row 13). An action refused or not carried out after its dice
+ * landed - no GM left, a card not posted, a refusal before the GMs read the throw - handed its price back while the
+ * roll's Hope stood: the owner's "zwracaja hope i akcje przy rzucie mimo ze nie powinny". Now the price comes back only
+ * where the rule lets it (`rolls`: the action's rolls that landed), and the player is told when it does not.
+ * `receipt` is `spendAction`'s (an action, a Burst as a Burst) or, with `price`, the chain's (price.mjs `refundPrice`).
+ * Answers whether it came back.
+ */
+export async function giveBackAfterRoll(actor, receipt, rolls, { price = false } = {}) {
+    if (!receipt) return false;
+    const P = await import("./price.mjs");
+    if (!P.mayRefundAfterRoll(rolls)) {
+        ui.notifications.info(game.i18n.localize("DRPG.Action.keptAfterRoll"));
+        return false;
+    }
+    if (price) await P.refundPrice(actor, receipt);
+    else await refundAction(actor, receipt.amount, receipt);
+    return true;
 }
 
 /**

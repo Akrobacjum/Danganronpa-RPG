@@ -177,7 +177,7 @@ export async function useFacility(actor, value) {
     }
     const receipt = await spendAction(actor, cost);
     if (!receipt) return null;
-    const { rollTrait, rollInHand } = await import("./action-pipeline.mjs");
+    const { rollTrait, rollInHand, giveBackAfterRoll } = await import("./action-pipeline.mjs");
     const roll = await rollTrait(actor, action.trait, {
         actionKey: "facility", dc: action.dc, title: action.label, context: { facilityId: action.id }
     });
@@ -189,7 +189,7 @@ export async function useFacility(actor, value) {
         actorId: actor.id, actionId: action.id, total: roll.total, isCritical: Boolean(roll.isCritical),
         rollId: rollInHand(actor)?.messageId ?? null
     });
-    if (!res.ok && res.refused && NOTHING_DONE.has(res.reason)) await refundAction(actor, cost, receipt);
+    if (!res.ok && res.refused && NOTHING_DONE.has(res.reason)) await giveBackAfterRoll(actor, receipt, [roll]);
     return res.ok ? res.value ?? null : null;
 }
 

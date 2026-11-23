@@ -21,7 +21,7 @@ import { OBSERVE_FAIL_STRESS } from "./config.mjs";
 import { spendAction } from "./actions.mjs";
 import { roomOfActor, locateActor } from "./movement.mjs";
 import { whisperToOwner, esc } from "./utils.mjs";
-import { rollTrait, rollInHand, noteRollContext, abort, canAfford, missAction } from "./action-pipeline.mjs";
+import { rollTrait, rollInHand, noteRollContext, abort, canAfford, missAction, giveBackAfterRoll } from "./action-pipeline.mjs";
 import { rollCardFlags, rollHead } from "./action-report.mjs";
 import { briefingBlock } from "./action-briefing.mjs";
 import { requestFieldHtml, readRequestField, chooseVariant } from "./action-menus.mjs";
@@ -131,7 +131,7 @@ async function observeSpecific(actor, def, cost, request = "") {
     // Not carried out - no GM listening, or refused. It has been said already,
     // and the action stays in the player's pocket: there is nobody to rule on it
     // either, so charging for it would be charging for silence.
-    if (!target) return abort(actor, paid);
+    if (!target) return void await giveBackAfterRoll(actor, paid, [roll]) ?? null;
 
     // Refused, empty room, no room at all: the GM rules on the roll that has
     // already been thrown. Opening a second declaration window would roll a second
@@ -270,7 +270,7 @@ async function ruleObserve(actor, def, roll, request, title = null, paid = null,
 
     // Not posted - the last GM left after the action started (E18 C0, S10-26): the action
     // comes back, as with a window closed before the dice, and no ruling is noted for Reroll.
-    if (!sent) return abort(actor, paid);
+    if (!sent) return void await giveBackAfterRoll(actor, paid, [roll]) ?? null;
 
     await noteRollContext(actor, {
         actionKey: "observe", gmRuled: true, request, label, room

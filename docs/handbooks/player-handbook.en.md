@@ -83,7 +83,7 @@ Every action is a Daggerheart duality roll: a Hope die and a Despair die, both d
 
 - A roll **with Hope** earns you 1 Hope.
 - A roll **with Despair** feeds the Despair pool of the Monokuma who watches you (section 6). That is where Monokuma's money comes from: your bad luck and your risks.
-- A **critical** earns 2 Hope and nothing else; unlike plain Daggerheart, it does not restore Sanity.
+- A **critical** earns 2 Hope and nothing else; unlike plain Daggerheart, it does not restore Sanity. A roll that only supports an action earns no Hope, whatever it shows: covering what you do, staying unseen, concealing your intent; Hope comes from the action's main roll. Its critical still does what its own rule says (Tamper's concealment gives back 1 Sanity).
 
 The roll window is locked for players: the dice, statistic, advantage, experiences, and bonuses come from the action, from a Call you paid for, from where you are standing, or from the GM. What you can touch is what the action lets you choose.
 
@@ -228,14 +228,14 @@ Two buttons sit on the tile. **The microphone** mutes and unmutes your own micro
 |---|---|
 | struck through | muted, by you |
 | struck through, with a small lock | muted by the GM (**The GM blocked your microphone.**) |
-| gray and struck through | the game holds it - during an Eclipse, while you listen at a door, in a Class Trial while the floor is somebody else's or you are on the trial's list of the dead, and as a Spectator - with the reason under it; a click then changes nothing and tells you why |
+| gray and struck through | the game holds it - during an Eclipse, while you listen at a door, while the GM hides your token, in a Class Trial while the floor is somebody else's or you are on the trial's list of the dead, and as a Spectator - with the reason under it; a click then changes nothing and tells you why |
 | with a small dot | you are not connected to voice, or voice runs in its own window |
 | lit | your microphone carries your voice |
 | wearing **PTT** | push to talk: hold your key to speak |
 
 A Monocub keeps its microphone during an Eclipse and is told that nobody hears it until the lights come back. In the Spectators' room the microphone stays yours to mute and unmute, with a line under it saying where you are.
 
-**The speaker** shows how many others are in your channel - everyone who can hear you, speaking or not - and opens **Who you hear**: each of them with a volume slider and **Mute *name* for you** (then **Hear *name* again**), and at the top **Mute everybody for you**. All of it is yours alone: nobody else hears the difference. Escape or a click outside closes the list.
+**The speaker** shows how many others are in your channel - everyone who can hear you, speaking or not - and opens **Who you hear**: each of them with a volume slider and **Mute *name* for you** (then **Hear *name* again**), and at the top **Mute everybody for you**. All of it is yours alone: nobody else hears the difference. Escape or a click outside closes the list. A person you muted for you reads **Muted by you** until you press **Hear *name* again**; this browser keeps it for your next session too. A person your page does not hear for another reason reads why, with the advice to reload the page (F5); the page itself tries once to play a paused sound or to receive a microphone it is not receiving.
 
 > [!TIP]
 > To find out who is next door without walking in, use **Listen** (section 4, Infiltrate).
@@ -495,7 +495,7 @@ Each is 3 lower while a killing is fresh: an incident is running, or a body of t
 
 Reinforced Remnants never come off.
 
-**Reshape a Trace.** Leave one of the same Remnants where it is and make it read as something else: you write what it is called and what it looks like, both of them (up to 60 and 400 characters). It needs 3 less than erasing it would, and whatever you write, it becomes a Tamper Remnant: it admits that somebody handled it and lies about the rest. The GM lets your story stand or keeps it off; until then the Remnant reads as it did, and a story kept off still costs what the attempt cost. A critical also makes it one band harder to spot and gives back what the attempt cost. Copies others already hold keep the words they were found with; whoever finds the Remnant afterwards reads yours.
+**Reshape a Trace.** Leave one of the same Remnants where it is and make it read as something else: you write what it is called and what it looks like, both of them (up to 60 and 400 characters). It needs 3 less than erasing it would, and whatever you write, it becomes a Tamper Remnant: it admits that somebody handled it and lies about the rest. The GM lets your story stand or keeps it off; until then the Remnant reads as it did, and a story kept off still costs what the attempt cost. A critical also makes it one band harder to spot and gives back what the attempt cost. Copies others already hold keep the words they were found with; whoever finds the Remnant afterwards reads yours. A copy somebody shares carries the giver's words: shared from a copy found before your story stood, it carries the old ones.
 
 **Misleading Trail.** Leave a Prep Remnant pointing at somebody else. Needs **15**, and a critical also gives back what the attempt cost. A failure with Hope still plants one, a Hidden, Faint one that probably nobody finds; a failure with Despair plants nothing.
 
@@ -623,7 +623,7 @@ An item can also serve as another category (a screwdriver under Tools that is al
 > [!IMPORTANT]
 > **Holding ready.** Gear must be held ready to count: only what is in your hand matters in an incident, a clean-up, or project work. At most one thing is ever in a hand, and readying one puts the others down; readying costs no action. A Tool in hand gives advantage on project work and sabotage and takes its tier off the threshold. A Cleaning Tool in hand does the same for erasing or reshaping a Remnant; on a Misleading Trail it gives advantage and takes nothing off, and on Move the Body it takes its tier off the threshold and gives no advantage. A Murder Weapon's tier sets its damage (section 10, If you are the killer).
 
-**Handing over.** You can pass a thing to anyone in your room: **Hand it over** (it leaves you for good, and their limit applies) or, for a Truth Bullet or a key, **Share a copy** (you both have it; a Truth Bullet's copy is not bound by any failed analysis of yours). Neither costs an action, and neither works during an Eclipse.
+**Handing over.** You can pass a thing to anyone in your room: **Hand it over** (it leaves you for good, and their limit applies) or, for a Truth Bullet or a key, **Share a copy** (you both have it; a Truth Bullet's copy is not bound by any failed analysis of yours). A Truth Bullet's copy carries its words as you hold them, even if the Remnant was reshaped after you found it. When you hold an Analyze result for it, the window asks whether that goes too (**Share it with my Analyze result**, ticked as it opens); unticked, their copy reads as never analyzed. Neither costs an action, and neither works during an Eclipse.
 
 ### Bedrooms, keys, stashes
 

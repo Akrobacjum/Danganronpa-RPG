@@ -83,7 +83,7 @@ Każda akcja to rzut dwoistości z Daggerheart: kość Hope i kość Despair (ob
 
 - Rzut **z Hope** daje ci 1 Hope.
 - Rzut **z Despair** zasila pulę Despair Monokumy, który cię pilnuje (rozdział 6). Stąd bierze się jego waluta: z twojego pecha i twojego ryzyka.
-- **Krytyk** daje 2 Hope i nic więcej; inaczej niż w czystym Daggerheart nie przywraca Sanity.
+- **Krytyk** daje 2 Hope i nic więcej; inaczej niż w czystym Daggerheart nie przywraca Sanity. Rzut, który tylko wspiera akcję, nie daje Hope, cokolwiek pokaże: ukrycie tego, co robisz, pozostanie niezauważonym, zatajenie zamiaru; Hope daje główny rzut akcji. Jego krytyk nadal robi to, co mówi jego własna zasada (ukrywanie przy Tamper oddaje 1 Sanity).
 
 Okno rzutu jest dla graczy zablokowane: kości, statystyka, przewaga, doświadczenia i premie biorą się z akcji, z Calla, za który zapłaciłeś, z miejsca, w którym stoisz, albo od GM-a. Zmieniasz tylko to, co akcja pozwala ci wybrać.
 
@@ -228,14 +228,14 @@ Na kafelku są dwa przyciski. Przycisk mikrofonu wycisza i włącza tylko twój 
 |---|---|
 | przekreślony | wyciszony, przez ciebie |
 | przekreślony, z małą kłódką | wyciszony przez GM-a: **GM zablokował twój mikrofon.** |
-| szary i przekreślony | trzyma go gra - podczas Eclipse, gdy podsłuchujesz pod drzwiami, w Class Trial, gdy głos ma ktoś inny albo jesteś na liście zmarłych rozprawy, i gdy jesteś Widzem - a powód stoi pod mikrofonem; kliknięcie niczego wtedy nie zmienia i mówi ci dlaczego |
+| szary i przekreślony | trzyma go gra - podczas Eclipse, gdy podsłuchujesz pod drzwiami, gdy GM ukrywa twój token, w Class Trial, gdy głos ma ktoś inny albo jesteś na liście zmarłych rozprawy, i gdy jesteś Widzem - a powód stoi pod mikrofonem; kliknięcie niczego wtedy nie zmienia i mówi ci dlaczego |
 | z małą kropką | nie jesteś połączony z głosem albo głos działa w osobnym oknie |
 | świeci | twój mikrofon niesie twój głos |
 | z napisem **PTT** | tryb naciśnij, aby mówić: przytrzymaj klawisz, żeby mówić |
 
 Monocub zachowuje mikrofon podczas Eclipse i dostaje informację, że do powrotu światła nikt go nie słyszy. W pokoju Widzów mikrofon zostaje twój: wyciszasz go i włączasz sam, a linijka pod nim mówi, gdzie jesteś.
 
-Głośnik pokazuje, ile innych osób jest w twoim kanale, licząc każdą, która cię słyszy, mówiącą czy nie, i otwiera **Kogo słyszysz**: każdą z tych osób z suwakiem głośności i **Wycisz u siebie: *imię*** (potem **Znów słuchaj: *imię***), a na górze **Wycisz wszystkich u siebie**. Te ustawienia działają tylko u ciebie; inni przy stole niczego nie zauważą. Escape albo kliknięcie obok zamyka listę.
+Głośnik pokazuje, ile innych osób jest w twoim kanale, licząc każdą, która cię słyszy, mówiącą czy nie, i otwiera **Kogo słyszysz**: każdą z tych osób z suwakiem głośności i **Wycisz u siebie: *imię*** (potem **Znów słuchaj: *imię***), a na górze **Wycisz wszystkich u siebie**. Te ustawienia działają tylko u ciebie; inni przy stole niczego nie zauważą. Escape albo kliknięcie obok zamyka listę. Osoba wyciszona u ciebie ma przy sobie **Wyciszone przez ciebie**, dopóki nie naciśniesz **Znów słuchaj: *imię***; ta przeglądarka pamięta to także w następnej sesji. Osoba, której twoja strona nie słyszy z innego powodu, ma przy sobie ten powód i radę, żeby odświeżyć stronę (F5); strona sama raz próbuje wznowić wstrzymany dźwięk albo odebrać mikrofon, którego nie odbiera.
 
 > [!TIP]
 > Żeby dowiedzieć się, kto jest za ścianą, bez wchodzenia, użyj **Listen** (rozdział 4, Infiltrate).
@@ -495,7 +495,7 @@ Każdy z tych progów jest o 3 niższy, gdy zabójstwo jest świeże: trwa incyd
 
 Remnantów Reinforced nie da się usunąć.
 
-**Reshape a Trace.** Zostawiasz jeden z tych samych Remnantów na miejscu i sprawiasz, że wygląda na coś innego: piszesz, jak się nazywa i jak wygląda, jedno i drugie (nazwa do 60 znaków, wygląd do 400 znaków). Wymaga o 3 mniej niż jego wymazanie, a cokolwiek napiszesz, Remnant staje się Tamper Remnantem: przyznaje, że ktoś przy nim majstrował, i kłamie o całej reszcie. GM pozwala twojej wersji zostać albo jej nie dopuszcza; do tego czasu Remnant wygląda tak jak przedtem, a niedopuszczona wersja i tak kosztuje to, co kosztowała próba. Krytyk dodatkowo sprawia, że Remnant jest o jedno pasmo trudniejszy do zauważenia, i oddaje to, co kosztowała próba. Kopie, które inni już mają, zachowują słowa, z jakimi je znaleziono; kto znajdzie Remnant później, czyta twoje.
+**Reshape a Trace.** Zostawiasz jeden z tych samych Remnantów na miejscu i sprawiasz, że wygląda na coś innego: piszesz, jak się nazywa i jak wygląda, jedno i drugie (nazwa do 60 znaków, wygląd do 400 znaków). Wymaga o 3 mniej niż jego wymazanie, a cokolwiek napiszesz, Remnant staje się Tamper Remnantem: przyznaje, że ktoś przy nim majstrował, i kłamie o całej reszcie. GM pozwala twojej wersji zostać albo jej nie dopuszcza; do tego czasu Remnant wygląda tak jak przedtem, a niedopuszczona wersja i tak kosztuje to, co kosztowała próba. Krytyk dodatkowo sprawia, że Remnant jest o jedno pasmo trudniejszy do zauważenia, i oddaje to, co kosztowała próba. Kopie, które inni już mają, zachowują słowa, z jakimi je znaleziono; kto znajdzie Remnant później, czyta twoje. Kopia, którą ktoś daje dalej, niesie słowa dającego: dana z kopii znalezionej, zanim twoja wersja została, niesie dawne słowa.
 
 **Misleading Trail.** Zostawiasz Prep Remnant wskazujący na kogoś innego. Wymaga 15, a krytyk dodatkowo oddaje to, co kosztowała próba. Porażka z Hope i tak go podkłada, jako Hidden, Faint Remnant, którego pewnie nikt nie znajdzie; porażka z Despair nie podkłada nic.
 
@@ -623,7 +623,7 @@ Przedmiot może służyć też jako inna kategoria (śrubokręt w narzędziach, 
 > [!IMPORTANT]
 > **W ręku.** Sprzęt liczy się tylko wzięty do ręki: w incydencie, przy sprzątaniu i przy pracy nad projektem liczy się tylko to, co trzymasz. W ręku jest zawsze najwyżej jedna rzecz, a gdy bierzesz jedną, pozostałe odkładasz; wzięcie do ręki nie kosztuje akcji. Narzędzie w ręku daje przewagę przy pracy nad projektem i sabotażu i obniża próg o swój Tier. Narzędzie do sprzątania w ręku robi to samo przy zacieraniu i przeróbce Remnantu; przy Misleading Trail daje przewagę, ale nie obniża progu, a przy Move the Body obniża próg o swój Tier, ale nie daje przewagi. Tier narzędzia zbrodni wyznacza jego obrażenia (rozdział 10, Jeśli jesteś zabójcą).
 
-**Przekazywanie.** Możesz dać coś każdemu w swoim pokoju. Przy **Przekaż** oddajesz rzecz na dobre i obowiązuje limit odbiorcy. Przy Truth Bullecie albo kluczu możesz zamiast tego wybrać **Podziel się kopią**: macie go wtedy oboje, a kopii Truth Bulletu nie wiąże żadna twoja nieudana analiza. Ani przekazanie, ani dzielenie się kopią nie kosztuje akcji i żadne z nich nie działa podczas Eclipse.
+**Przekazywanie.** Możesz dać coś każdemu w swoim pokoju. Przy **Przekaż** oddajesz rzecz na dobre i obowiązuje limit odbiorcy. Przy Truth Bullecie albo kluczu możesz zamiast tego wybrać **Podziel się kopią**: macie go wtedy oboje, a kopii Truth Bulletu nie wiąże żadna twoja nieudana analiza. Kopia Truth Bulletu niesie słowa takie, jakie masz, nawet jeśli Remnant przerobiono po tym, jak go znalazłeś. Gdy masz wynik Analyze tego Truth Bulletu, okno pyta, czy ma pójść z kopią (**Podziel się kopią z wynikiem mojego Analyze**, zaznaczone na start); bez zaznaczenia kopia odbiorcy wygląda tak, jakby nikt jej nie analizował. Ani przekazanie, ani dzielenie się kopią nie kosztuje akcji i żadne z nich nie działa podczas Eclipse.
 
 ### Sypialnie, klucze, skrytki
 

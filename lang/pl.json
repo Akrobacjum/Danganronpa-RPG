@@ -979,6 +979,7 @@
       "reliefFresh": "o {n}, bo ciała nikt jeszcze nie znalazł",
       "dcFrame": "Misleading Trail: {n}+.",
       "spentAfterRoll": "{action}: pierwszy rzut już padł, więc akcja przepada.",
+      "keptAfterRoll": "Rzut dał ci już Hope, więc zapłata za tę akcję przepada.",
       "dynamicRefused": "GM odrzuca twoją Dynamic Action. Nie tracisz akcji.",
       "panelTitle": "Akcje",
       "unknown": "Nieznana akcja: {key}.",
@@ -2410,6 +2411,8 @@
           "overviewFoldTooltip": "Rozwija Sprawdź spójność ze znalezionymi problemami i formularz Final Truth Remnantu tego rozdziału",
           "fitViewTooltip": "Wyśrodkowuje mapę i skaluje ją tak, by widać było całą sprawę. Zmienia się tylko twój widok",
           "realizeRoomTooltip": "Pokój, w którym Uruchom realizację postawi Key Remnant z tego miejsca, z trudnością i treścią z planu",
+          "realizeKeysTooltip": "Stawia tylko te sloty Key Remnantów, którym wybrano niżej pokój, jak dotąd",
+          "realizeAllTooltip": "Stawia też w wybranym pokoju każdy zaplanowany Remnant i Final Truth, którego nie ma na mapie, i daje odbiorcy każdy zaplanowany Truth Bullet, którego jeszcze nie dano",
           "tieTooltip": "Powiązany przetrwa czyszczenie Faint Remnantów. Jeśli nie zdecydujesz, trwający incydent może go powiązać po pokoju lub po tym, kto go zostawił",
           "orderTooltip": "Wg pokoju stawia na początku powiązane Remnanty, potem sortuje po pokojach; Od najnowszych idzie po rozdziale, dniu i porze dnia",
           "restsOnBoxTooltip": "Zaznaczone: Mapa rysuje połączenie z tamtego węzła do tego, a Sprawdź spójność je uwzględnia",
@@ -3909,7 +3912,9 @@
       "giveIntro": "Jesteś w pokoju {room}. Komu przekazujesz przedmiot „{name}”?",
       "who": "Komu?",
       "shareKeyNote": "Odbiorca dostaje własną kopię klucza, a ty zachowujesz swoją. Nie wydajesz akcji.",
-      "shareNote": "Odbiorca dostaje własną kopię, a ty zachowujesz swoją. Kopia Truth Bulletu przychodzi z twoją analizą, jeśli się udała; nieudana analiza na nią nie przechodzi, więc odbiorca może przeanalizować kopię sam. Nie wydajesz akcji.",
+      "shareNote": "Odbiorca dostaje własną kopię, a ty zachowujesz swoją. Kopia Truth Bulletu przychodzi z twoją analizą, jeśli się udała; nieudana analiza na nią nie przechodzi, więc odbiorca może przeanalizować kopię sam. Kopia niesie słowa takie, jakie masz, nawet jeśli Remnant przerobiono po tym, jak go znalazłeś. Nie wydajesz akcji.",
+      "shareWithAnalysis": "Podziel się kopią z wynikiem mojego Analyze",
+      "shareWithoutNote": "Jeśli odznaczysz to pole, kopia odbiorcy pokaże ten Truth Bullet tak, jakby nikt go nie analizował: bez odczytu i bez rodzaju ustalonego przez Analyze. Odbiorca może go przeanalizować sam.",
       "giveNote": "Przedmiot przechodzi do odbiorcy i znika z twojego ekwipunku; gdy masz kilka sztuk, przechodzi jedna. Jeśli odbiorca nosi już tyle rzeczy tej kategorii, ile może, przekazanie nie dochodzi do skutku i przedmiot zostaje u ciebie. Nie wydajesz akcji.",
       "pickedLeft": "Postaci {name} nie ma już w pokoju. Wybierz kogoś innego.",
       "nobodyHere": "W pokoju {room} nie ma nikogo poza tobą, więc nie masz komu niczego przekazać.",
@@ -3928,6 +3933,7 @@
       "changedMidwayKept": "Przedmiot „{name}” zmienił się na arkuszu postaci {from}, zanim trafił do postaci {to}: został zużyty, zepsuty, schowany do skrytki albo zniknął. Kopii nie dało się zabrać postaci {to}, więc przedmiotu jest o jedną sztukę za dużo. Usuń ją ręcznie z arkusza postaci {to}.",
       "alreadyHasIt": "Nic nie zmieniło właściciela; twój Truth Bullet zostaje u ciebie.",
       "shared": "{who} ma teraz kopię Truth Bulletu „{name}”.",
+      "sharedWithoutAnalysis": "{who} ma teraz kopię Truth Bulletu „{name}”, bez twojego wyniku Analyze.",
       "gave": "{who} ma teraz przedmiot „{name}”.",
       "gaveOne": {
         "one": "Dajesz postaci {who} jedną sztukę: „{name}”. Zostaje ci jeszcze jedna.",
@@ -5369,7 +5375,7 @@
         "chapter.end": "Koniec rozdziału ogłoszony przez drugiego GM-a, u głównego GM-a",
         "voice.reset": "Przycisk Napraw głos drugiego GM-a, wykonany u głównego GM-a",
         "verdict.finish": "Dokończenie werdyktu przez drugiego GM-a, u głównego GM-a",
-        "murder.openingCard": "Karta rzutu otwarcia dla gracza, wysłana przez głównego GM-a",
+        "murder.openingCard": "Karta lub komunikat rzutu otwarcia dla gracza, wysłane przez głównego GM-a",
         "trial.enter": "Ustawienie mikrofonów przy otwarciu lub zakończeniu Class Trial",
         "trial.record": "Zmiana zapisu przebiegu Class Trial",
         "reroll.ask": "Reroll",
@@ -5651,6 +5657,9 @@
       "rewindDuringEclipse": "Trwa Eclipse. Najpierw je zakończ.",
       "takenBack": "Początek tej pory dnia jest cofnięty: akcje, Free Move, to, co dały Sprint i Burst, Search Tokeny pokoi i pieczęcie wracają do stanu sprzed niego."
     },
+    "Context": {
+      "lost": "Przeglądarka gracza {name} utraciła kontekst rysowania ({scene})."
+    },
     "Panel": {
       "settings": "Ustawienia gry",
       "nextStartTrial": "Wszystkie zaplanowane Key Remnanty zostały znalezione. Rozpocznij Class Trial z konsoli trialu.",
@@ -5721,6 +5730,9 @@
       "character": "Postać",
       "freeMove": "Free Move",
       "noCharacters": "W tym świecie nie ma żywych uczniów.",
+      "moves": "Ruchy",
+      "anyRoom": "Dowolny pokój",
+      "rosterCaption": "Co każdemu uczniowi zostało o tej porze dnia",
       "installTables": "Utwórz tabele przedmiotów",
       "despairFlow": "Despair Flow",
       "sweepBullets": "Zbierz Truth Bullets",
@@ -6519,11 +6531,21 @@
         "floorHeldPair": "Głos mają {name} i {target}: twój mikrofon pozostaje wyłączony, dopóki nie dostaniesz głosu albo tryb się nie skończy.",
         "listening": "Słuchasz pod drzwiami: mikrofon jest wyłączony, dopóki nie przestaniesz.",
         "masked": "Ukrywasz się za „?”: nie ma cię w głosie. Nikogo nie słyszysz i nikt nie słyszy ciebie, dopóki się nie ujawnisz albo nie zmieni się pora dnia.",
+        "tokenHidden": "Twój token jest ukryty: mikrofon jest wyłączony, dopóki GM znów go nie pokaże.",
         "veiled": "Przed twoim rzutem otwarcia: mikrofon jest wyłączony, dopóki nie rzucisz.",
         "cubSpeak": "Dyskusja: możesz mówić.",
         "cubListen": "Tryb: {mode}. Słuchasz.",
         "cubVote": "Głosowanie: słuchasz.",
         "ownCase": "Słuchasz: to rozprawa w twojej sprawie."
+      },
+      "hearing": {
+          "mutedForMe": "wyciszone przez słuchającego (wyciszenie u siebie)",
+          "volumeZero": "głośność 0 na stronie słuchającego",
+          "notSubscribed": "mikrofon tej osoby nie jest odbierany",
+          "noElement": "na stronie nie ma odtwarzacza dźwięku tej osoby",
+          "elementPaused": "dźwięk tej osoby jest wstrzymany na stronie",
+          "elementMuted": "dźwięk tej osoby jest wyciszony na stronie",
+          "trackNotLive": "nie dociera żaden dźwięk tej osoby"
       },
       "list": {
         "open": "Kogo słyszysz",
@@ -6540,6 +6562,8 @@
         "unmuteFor": "Znów słuchaj: {name}",
         "hidden": "Ukryta wcześniej w doku kamer: nie słyszysz tej osoby.",
         "unhide": "Pokaż i słuchaj",
+        "mutedByYou": "Wyciszone przez ciebie",
+        "gap": "Nie słyszysz tej osoby: {why}. Jeśli to trwa, odśwież stronę (F5).",
         "gmBlock": "Zablokuj mikrofon: {name} (u wszystkich)",
         "gmUnblock": "Odblokuj mikrofon: {name}",
         "gmHeld": "Tego mikrofonu nie możesz teraz zablokować.",
@@ -6576,6 +6600,8 @@
           "listening": "podsłuchuje z pokoju {from} pod drzwiami pokoju {into}",
           "masked": "za „?” po otwarciu morderstwa: własny cichy pokój"
         },
+        "hearing": "Kto kogo nie słyszy (według strony każdego gracza):",
+        "hearingRow": "{name} nie słyszy osoby {speaker}: {why}",
         "setting": "Ustawienie głosu według pokoi: {state}",
         "on": "włączone",
         "settingOff": "wyłączone, więc nic nie jest stosowane",
@@ -9489,6 +9515,9 @@
       "undo": "Cofnij realizację",
       "title": "Realizacja sprawy, rozdział {chapter}",
       "intro": "Nic się nie zmieni, dopóki nie klikniesz Uruchom realizację. Każde miejsce na Key Remnant, którego nie ma jeszcze na mapie i które mieści się w limicie rozdziału, trafi do wybranego pokoju; miejsce bez pokoju zostaje bez zmian.",
+      "scope": "Co zrealizować",
+      "scopeKeys": "Tylko Key Remnanty",
+      "scopeAll": "Każdy zaplanowany Remnant i Truth Bullet",
       "colWhat": "Co",
       "colSlot": "Miejsce",
       "colName": "Nazwa",
@@ -9499,12 +9528,20 @@
       "action": {
         "create": "Postawi",
         "placed": "Na mapie",
-        "overLimit": "Ponad limit"
+        "overLimit": "Ponad limit",
+        "give": "Rozda",
+        "noRecipient": "Bez odbiorcy"
+      },
+      "kind": {
+        "incident": "Zaplanowany Remnant",
+        "final": "Final Truth",
+        "bullet": "Truth Bullet"
       },
       "ran": "Key Remnanty postawione przez realizację: {n}.",
+      "ranAll": "Realizacja postawiła Remnanty: {n} i rozdała Truth Bullety: {given}.",
       "notRun": "Nic nie postawiono.",
       "nothingMade": "Realizacja niczego w tym rozdziale nie postawiła.",
-      "undoAsk": "Cofnąć realizację? Postawione przez nią Key Remnanty: {n}; te, które ktoś znalazł albo ujawnił Monokuma, zostaną.",
+      "undoAsk": "Cofnąć realizację? Postawione albo rozdane przez nią: {n}. Remnanty, które ktoś znalazł albo ujawnił Monokuma, zostaną; rozdane przez nią Truth Bullety zostaną zabrane.",
       "undone": "Usunięte: {removed}; zostają (znalezione albo ujawnione): {kept}.",
       "askTitle": "Realizacja sprawy",
       "askBody": "Znaleziono ciało. Sprawa tego rozdziału nie została jeszcze zrealizowana. Nic się nie stanie, dopóki nie wybierzesz.",
