@@ -733,22 +733,47 @@ export async function run({ gm, p1, p2, check, note, phase, settle, repoUrl, IDS
         begin("K", "a kept death stamps the sheets open for it, on the GMs and the dead student's player, and nobody else's");
         for (const c of [gm, p1, p2]) await on(c, open, IDS.aiko, {});
         const stamp = async (repo, actorId) => Boolean(globalThis.__s71.get(game.actors.get(actorId))?.element?.querySelector(".character-sidebar-sheet .portrait .drpg-death-mark"));
+        /* The skull from the death (road B): each of Aiko's tokens' corpse mark and whether the module draws its skull
+           (body-tile.mjs `corpseSkullShown`), read on gm and p2 - before the kill, at the kept death, once the body is
+           announced (Foundry's overlay, the actor's status, stands in), once the status is taken off as Daggerheart 2.12.9's
+           automation takes it when Health leaves its maximum (the drawn skull back), and after the revive. Red at aa9c0456:
+           no mark anywhere, no `corpseSkullShown`. */
+        const skull = async (repo, actorId) => {
+            const B = await import(`${repo}/scripts/body-tile.mjs`);
+            const toks = game.scenes.contents.flatMap(sc => sc.tokens.contents).filter(t => t.actorId === actorId);
+            return toks.map(t => [t.getFlag("danganronpa-rpg", "corpse") === true, typeof B.corpseSkullShown === "function" ? B.corpseSkullShown(t) : "none"]);
+        };
+        const marks = async () => ({ gm: await on(gm, skull, IDS.aiko), p2: await on(p2, skull, IDS.aiko) });
         const k0 = await each(stamp, IDS.aiko);
-        let k1 = null, k2 = null;
+        const s0 = await marks();
+        let k1 = null, k2 = null, s1 = null, s2 = null, s3 = null, s4 = null;
         try {
             await gm.eval(`const C = await import("${repoUrl}/scripts/chapter.mjs"); return Boolean(await C.killCharacter(game.actors.get("${IDS.aiko}"), { secret: true, keepBullets: true, silent: true }));`, { timeout: 60000 });
             await wait(2000);
             k1 = await each(stamp, IDS.aiko);
+            s1 = await marks();
+            await gm.eval(`const C = await import("${repoUrl}/scripts/chapter.mjs"), M = await import("${repoUrl}/scripts/movement.mjs"); const a = game.actors.get("${IDS.aiko}");
+                return Boolean(await C.discoverBody({ room: M.roomOfActor(a), victim: a, scene: canvas.scene }));`, { timeout: 60000 });
+            await wait(2000);
+            s2 = await marks();
+            await gm.eval(`await game.actors.get("${IDS.aiko}").toggleStatusEffect("dead", { active: false }); return true;`, { timeout: 60000 });
+            await wait(1200);
+            s3 = await marks();
         } finally {
             await gm.eval(`const C = await import("${repoUrl}/scripts/chapter.mjs"); const a = game.actors.get("${IDS.aiko}");
                 if (C.isDeadForGm(a)) await C.reviveCharacter(a, { quiet: true }); return true;`, { timeout: 60000 });
             await wait(2000);
             k2 = await each(stamp, IDS.aiko);
+            s4 = await marks();
         }
-        console.log(`[71 K] ${J({ k0, k1, k2 })}`);
+        console.log(`[71 K] ${J({ k0, k1, k2, s0, s1, s2, s3, s4 })}`);
         verdict("Aiko's sheets open at her kept death: gm's and p1's draw the stamp without a reopen, p2's does not; the revive takes it off gm's and p1's",
             J(k0) === J({ gm: false, p1: false, p2: false }) && J(k1) === J({ gm: true, p1: true, p2: false }) && J(k2) === J({ gm: false, p1: false, p2: false }),
             { k0, k1, k2 });
+        const every = (read, want) => ["gm", "p2"].every(who => read?.[who]?.length > 0 && read[who].every(row => J(row) === J(want)));
+        verdict("Aiko's token is marked a corpse from her kept death, read on gm and p2, the skull drawn; the announcement hands it to the dead status, the status taken off brings the skull back, and the revive takes the mark off",
+            every(s0, [false, false]) && every(s1, [true, true]) && every(s2, [true, false]) && every(s3, [true, true]) && every(s4, [false, false]),
+            { s0, s1, s2, s3, s4 });
     } finally {
         await each(closeAll).catch(() => null);
     }
