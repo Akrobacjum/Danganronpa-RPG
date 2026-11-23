@@ -76,6 +76,7 @@ import { regionShapes, inFlatPolygons, distanceToSegment } from "./fog-geometry.
 import { overlayLayer, clearLayer, overlayColour, dashedLine, overlayDrawer, redrawGmOverlay } from "./gm-overlay.mjs";
 // A leaf (season-exceptions.mjs alone): the registry of season state the reset walks (E42 C3).
 import { registerSeasonState } from "./season-reset.mjs";
+import { withCentre } from "./notice-centre.mjs";
 
 const SOCKET_EVENT = `module.${MODULE_ID}`;
 
@@ -2555,10 +2556,10 @@ export async function resolvePassageSearch({ actorId, total = 0, isCritical = fa
         // A player's search tells that player (the asker, not another owner of the character); a GM's, every owner (E18 C5).
         const owners = asker && !asker.isGM ? [asker] : people.filter(u => !u.isGM && actor.testUserPermission?.(u, "OWNER"));
         const words = pick ? game.i18n.format("DRPG.Analyze.passageFound", { to: esc(to) }) : game.i18n.localize("DRPG.Analyze.passageNothing");
-        await whisper(actor, `<p>${words}</p>`, {
+        await whisper(actor, `<p>${words}</p>`, withCentre({
             whisper: [...new Set([...owners.map(u => u.id), ...people.filter(u => u.isGM).map(u => u.id)])],
             flags: { [MODULE_ID]: { sfx: { key: pick ? "passageFound" : "searchNothing", gm: Boolean(pick) } } }
-        });
+        }));
         if (pick) {
             const all = roomsAsKnown(rowsOf(stores).get(pick.id), facts, null);
             toast(game.i18n.format("DRPG.Passage.gm.found", { actor: actor.name, from: all.from, to: all.to }));
