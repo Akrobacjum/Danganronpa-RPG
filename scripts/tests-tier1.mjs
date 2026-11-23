@@ -69496,6 +69496,34 @@ const INVARIANTS = [
             JSON.stringify(["Aoi Kirigaya", "none", 50, 104, "VT323", 1, true, 1, MASK_NAME, false, true, 1, "Aoi Kirigaya", null, 0, null, "Aoi Kirigaya", true, null, 0, true, true]),
             "[the caption: words, no pointer, under the token's centre, the face handed, one; the same inputs keep the same object; masked to another player: the mask, a new object, the old one gone, still one; to a GM the name; Foundry's nameplate on hover: none; Foundry-hidden: none to a player, the name to a GM; a face that arrived draws anew; captions off: none; the setting on by default]");
     }],
+    ["R8874 - what captions cost: on up to 16 of the suite world's tokens, every scene's, a first pass draws one caption per token the rule names, a second pass with nothing changed draws none and keeps every one (1.2.129 line MAP, E129; scripts/hover-name.mjs `drawCaption`, perf-counters.mjs `caption.drawn`, `caption.kept`; the coordinator's cost rule for S0-HOVERNAME B)", async () => {
+        /*
+         * The coordinator's rule (23.11.2026): no new work at rest or per event beyond one text child per drawn token.
+         * Scenario 86 reads every counter that moves around each of its events, and no caption counter moves there: the
+         * harness's token is no display object and fires no `drawToken`, so 86 draws no caption at all. So the cost is
+         * read here, on the suite world's own token documents hung on stand-in PIXI containers, as this browser (the
+         * suite's GM): a first pass draws one caption per token `hoverName` names, a second - the same inputs, as a
+         * refresh or a move leaves them - draws none. The counters are perf-counters.mjs's, read by `game.drpg.counters()`.
+         */
+        const H = await import("./hover-name.mjs");
+        const docs = [...(game.scenes ?? [])].flatMap(scene => [...(scene.tokens ?? [])]).slice(0, 16);
+        must(docs.length > 0 && globalThis.PIXI?.Container, "no tokens or no PIXI in the suite's world - this would measure nothing");
+        const counts = async () => (await game.drpg.counters()).counts ?? {};
+        const placed = docs.map(doc => Object.assign(new PIXI.Container(), { document: doc, w: 100, h: 100 }));
+        const named = docs.filter(doc => H.hoverName(doc, { drawn: true })).length;
+        const face = { family: "VT323", fill: 0xeeeeee, stroke: 0x07070a, ready: true };
+        const c0 = await counts();
+        for (const t of placed) H.drawCaption(t, { on: true, style: face });
+        const c1 = await counts();
+        for (const t of placed) H.drawCaption(t, { on: true, style: face });
+        const c2 = await counts();
+        const d = (a, b, k) => (b[k] ?? 0) - (a[k] ?? 0);
+        const children = placed.map(t => t.children.filter(c => c.name === H.CAPTION_NAME).length);
+        equal(JSON.stringify([d(c0, c1, "caption.drawn"), d(c0, c1, "caption.kept"), d(c1, c2, "caption.drawn"), d(c1, c2, "caption.kept"),
+            children.reduce((n, k) => n + k, 0), Math.max(0, ...children)]),
+            JSON.stringify([named, 0, 0, named, named, named > 0 ? 1 : 0]),
+            `[on ${docs.length} token(s), ${named} named - first pass: drawn one per named token, kept none; second pass: drawn none, kept every one; captions standing; at most one per token]`);
+    }],
     ["R8790 - a Truth Bullet's holder always sees its Remnant (1.2.128 line INVEST; S0-BULLETSEES): visibility.mjs `remnantShownHere` draws an un-hidden trace for whoever knows it or stands in its incident and for nobody else, and a hidden one for its holder alone while HOLDER_SEES_HIDDEN (true) holds, for nobody when it does not; `applyToRemnantToken` and `shownAsFound` ask it with `knowsRemnant`, and a hidden trace held is shown past Foundry's verdict (`showHeld`); `knowsRemnant` answers true on a GM's browser", async () => {
         /*
          * The owner's notes of 23.11.2026: "Upewnijmy sie tez ze zawsze posiadanie truth bullet = widoczny token

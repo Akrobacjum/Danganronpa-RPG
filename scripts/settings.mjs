@@ -1715,7 +1715,8 @@ export function registerSettings() {
         name: "DRPG.Settings.tokenCaptions.name",
         hint: "DRPG.Settings.tokenCaptions.hint",
         scope: "client",
-        config: true,
+        // In the gear's window, the look section (settings-window.mjs; R3420: no setting of the module is Foundry's list's).
+        config: false,
         type: Boolean,
         default: true,
         onChange: () => import("./hover-name.mjs").then(m => m.recaptionAll()).catch(() => {})

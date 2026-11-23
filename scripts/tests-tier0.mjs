@@ -24444,14 +24444,15 @@ const REGRESSIONS = [
         };
         equal(JSON.stringify(read), JSON.stringify({
             loaded: true,
-            sections: [["look", "client", 5, true], ["effects", "client", 5, true], ["sound", "client", 1, true], ["tech", "client", 1, true],
+            sections: [["look", "client", 6, true], ["effects", "client", 5, true], ["sound", "client", 1, true], ["tech", "client", 1, true],
                 // The r112 merge (13.11.2026): E101's sections and 1.2.109's `sequences` in gm, where 1.2.109 put it.
                 // E53 C3: `balanceLog`, the balance log's switch, born in the rules section (no Foundry list showed it).
                 // E129 S0-NOMUTE (1.2.129): `trialVoicesFree`, the Class Trial's forced muting switched off, born in audio.
+                // E129 S0-HOVERNAME B (1.2.129 line MAP): `tokenCaptions`, the tokens' names as captions, born in look.
                 ["audio", "game", 3, true], ["rules", "game", 7, true], ["privacy", "game", 6, true], ["gm", "game", 3, true], ["foundry", "game", 7, true]],
             // E61 C1 (12.11.2026): `sequences`, the table's switch for the sequences, a world setting born in this window
             // E57 C3 (D34): `documentLanguage` in gm, beside them.
-            once: [], others: ["trialVoicesFree", "balanceLog", "sequences", "documentLanguage", "sfxVary"], mixed: [], configTrue: [], menuCalls: ["SETTINGS_MENU"], menuRestricted: true,
+            once: [], others: ["tokenCaptions", "trialVoicesFree", "balanceLog", "sequences", "documentLanguage", "sfxVary"], mixed: [], configTrue: [], menuCalls: ["SETTINGS_MENU"], menuRestricted: true,
             menus: read.menus === "not modelled" ? "not modelled" : [[`${MODULE_ID}.drpgSettings`, false]],
             words: [], sectionWords: [true, true, true, true, true, true, true, true, true]
         }), "[the module loads; its sections (key, place, size, an icon); keys not in exactly one; keys no frozen one; keys of the other scope than their place; settings still config: true; "
