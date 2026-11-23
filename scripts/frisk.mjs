@@ -606,9 +606,10 @@ function standing(row) {
     const searcher = game.actors.get(row.searcherId) ?? null;
     const target = game.actors.get(row.targetId) ?? null;
     if (!searcher || !target) return "interrupted";
-    // Asked on the trial's hall and the trial over, or asked in a room and a trial begun (E129 S0-PALM): the moment passed
-    // with no dice thrown - not the searcher walking off, though the place the two are read in is another one now.
-    if (Boolean(row.hall) !== Boolean(palmHall())) return "interrupted";
+    // Asked in a Class Trial and the trial over, or asked outside one and a trial begun (E129 S0-PALM: the trial lets a Frisk
+    // be asked, so its gate no longer ends one): the moment passed with no dice thrown - not the searcher walking off,
+    // though on a hall linked the place the two are read in is another one now (`personPlace`).
+    if (Boolean(row.trial) !== (getClock()?.phase === "classTrial")) return "interrupted";
     const here = p => Boolean(p?.room) && !hiddenByGm(p.tokenDoc) && p.scene?.id === row.sceneId && floorKey(p.level) === row.level && p.room === row.room;
     if (!here(personPlace(searcher))) return "letGo";
     if (!here(personPlace(target))) return "gone";
@@ -853,7 +854,7 @@ export async function askToFrisk({ searcherId, targetId } = {}, { asker = null, 
     const askId = foundry.utils.randomID(16);
     const row = { askId, asker: asker?.id ?? null, requestId: typeof requestId === "string" && requestId ? requestId : null,
         searcherId: searcher.id, targetId: target.id, state: "opening", reply, replied: false,
-        sceneId: place.scene?.id ?? null, level: floorKey(place.level), room: place.room, hall: Boolean(palmHall()), answerUserIds: [], byGms: false, silent: null,
+        sceneId: place.scene?.id ?? null, level: floorKey(place.level), room: place.room, trial: getClock()?.phase === "classTrial", answerUserIds: [], byGms: false, silent: null,
         at: Date.now(), expiresAt: Infinity, forceUntil: null, lines: [], claimed: false, timer: null, receiptTimer: null };
     friskAsks.set(askId, row);
     askedPairs.set(pair, now);

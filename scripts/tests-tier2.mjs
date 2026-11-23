@@ -14373,7 +14373,7 @@ const SCENARIOS = [
             // (4, end) the trial over: the follow names no roll and finds the moment passed.
             await setClock({ ...clock, phase: "dailyLife" });
             const after = await judged("action.friskFollow", { searcherId: theirs.id, askId: row?.askId ?? null }, player.id);
-            read.ask = { asked, hall: row?.hall ?? null, room: row?.room === hall.name, no, open, forced, after };
+            read.ask = { asked, hall: row?.trial ?? null, room: row?.room === hall.name, no, open, forced, after };
             F.forgetFriskAsks?.();
         } finally {
             F.forgetFriskAsks?.();
@@ -14401,7 +14401,7 @@ const SCENARIOS = [
             press: { rows: [[true, true, false], [true, true, false], [true, false, true]], refused: true, paid: 0 },
             unseen: ["done", true],
             hidden: "the character is not in that room", noToken: "the character has no token on a scene"
-        }), "{quote; trialDraw: [the unseen Frisk's cover on a Hope paid, its hand riding it]; dayDraw: the cover on a Hope outside the trial; receipts: [step, its card line, the next step, Hope, Sanity]; gate: [the Frisk's, a Palm's Steal-Plant key, the primary's steal and Plant, the Frisk's place the hall, the third its witness]; ask: [asked, kept as the hall's, its room, the target's no, a force open, the force drawn on the Hope, the follow after the trial's end]; unseen: [the judgement, its cards]; hidden; noToken}");
+        }), "{quote; trialDraw: [the unseen Frisk's cover on a Hope paid, its hand riding it]; dayDraw: the cover on a Hope outside the trial; receipts: [step, its card line, the next step, Hope, Sanity]; gate: [the Frisk's, a Palm's Steal-Plant key, the primary's steal and Plant, the Frisk's place the hall, the third its witness]; ask: [asked, marked as asked in the trial, its room (the hall's), the target's no, a force open, the force drawn on the Hope, the follow after the trial's end]; unseen: [the judgement, its cards]; hidden; noToken}");
     }],
     ["a Frisk's rolls ride a Palm's one payment (A11-4): the hand after the cover and never first, never beside a Take's hand; a Search and a Call's Hope keep payments of their own; an ask's ticket carries one force, only while the GMs leave that searcher a force open", async () => {
         /*
