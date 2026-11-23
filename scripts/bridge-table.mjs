@@ -296,8 +296,7 @@ export const BRIDGE_ACTIONS = table({
     [ACTION_HIDE_START]: { label: "DRPG.Bridge.what.hide.start", run: handleHideStart, answer: "reply", // the card says whether hidden
         guards: [knownSender, notSpectator("actorId"), guardUndoIsTheGms, owns("actorId", "sender does not own that character")],
         sanitize: pick({ actorId: as.id, total: as.num, isCritical: as.bool, rollId: as.id }),
-        rolled: { field: "rollId", actor: "actorId", kind: "hide" },
-        claims: { rollId: "the roll the hide is read from (bridge-guards.mjs rollRefusal): the sender's own drawn Hide roll of that character" } },
+        rolled: { field: "rollId", actor: "actorId", kind: "hide" }, claims: { rollId: "the roll the hide is read from (bridge-guards.mjs rollRefusal): the sender's own drawn Hide roll of that character" } },
     /*
      * THE OPENING'S VEIL, ASKED OF THE PRIMARY BY ANOTHER GM (1.2.122; the audit's STG-31). The veil is the primary's to
      * write (mask-gm.mjs `settleVeilsNow`, `veilAtTheLights`), and on another GM's browser both answered nothing, so an
@@ -343,9 +342,8 @@ export const BRIDGE_ACTIONS = table({
         answer: "none", quiet: true,
         why: "answers only about the sender's own characters, found from the id Foundry gives, and names none"
     },
-    // `analysis`: whether the copy carries the giver's Analyze result (line INVEST of 1.2.129, S0-ANSHARE) - a choice,
-    // not a claim: it can only take the reading off the copy, never put one there the giver's bullet does not hold; a packet
-    // that names none (an older client) shares with it, as before (`oneOf` reads it as null)
+    // `analysis`: whether the copy carries the giver's Analyze result (line INVEST of 1.2.129, S0-ANSHARE) - a choice, not a claim: it can only take the
+    // reading off the copy, never put one there the giver's bullet does not hold; a packet that names none (an older client) shares with it, as before (`oneOf` reads it as null)
     [ACTION_SHARE_BULLET]: { ...handover("DRPG.Bridge.what.handover.bullet"), sanitize: pick({ fromId: as.id, toId: as.id, itemId: as.id, analysis: as.oneOf(true, false) }), run: handleShareBullet },
     [ACTION_GIVE_ITEM]: handover("DRPG.Bridge.what.handover.item"),
     [ACTION_PASSAGE_SHARE]: {
