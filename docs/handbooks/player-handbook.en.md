@@ -83,7 +83,7 @@ Every action is a Daggerheart duality roll: a Hope die and a Despair die, both d
 
 - A roll **with Hope** earns you 1 Hope.
 - A roll **with Despair** feeds the Despair pool of the Monokuma who watches you (section 6). That is where Monokuma's money comes from: your bad luck and your risks.
-- A **critical** earns 2 Hope and nothing else; unlike plain Daggerheart, it does not restore Sanity. A roll that only supports an action earns no Hope, whatever it shows: covering what you do, staying unseen, concealing your intent; its critical still does what its own rule says (Tamper's concealment gives back 1 Sanity).
+- A **critical** earns 2 Hope and nothing else; unlike plain Daggerheart, it does not restore Sanity. A roll that only supports an action earns no Hope, whatever it shows: covering what you do, staying unseen, concealing your intent; Hope comes from the action's main roll. Its critical still does what its own rule says (Tamper's concealment gives back 1 Sanity).
 
 The roll window is locked for players: the dice, statistic, advantage, experiences, and bonuses come from the action, from a Call you paid for, from where you are standing, or from the GM. What you can touch is what the action lets you choose.
 
@@ -461,7 +461,7 @@ A hand in somebody's pocket, going either way, or a look inside. Two independent
 | It works (Hand) | 12+ | 8+ | 10+ |
 | Unseen (Shadow) | 15+ | 13+ | 15+ |
 
-Four outcomes, and the interesting ones are the mismatches: caught with nothing to show for it, or robbed by somebody you never noticed. When they notice, they learn whose hand it was and what you took or left, and everybody else in the room sees it too: whose hand it was, and with Despair on your Shadow roll what you took or left. What you take is whatever comes out; a critical lets you choose. Carry limits still apply (section 7), and one action moves one piece of a stack, several of one thing held as one row. Something you leave on somebody whose pockets are full stays with you: you are told so, and they are told nothing, whether they noticed you or not. Something you take while you have no room left to carry it goes into your stash, and with no stash it stays with them. Palm never reaches into a stash. A Palm refused before its dice are read (the target walked out, a Class Trial began) gives you its action back, unless one of its rolls brought you Hope or was a critical; leaving something in full pockets was a try, and its action is spent.
+Four outcomes, and the interesting ones are the mismatches: caught with nothing to show for it, or robbed by somebody you never noticed. When they notice, they learn whose hand it was and what you took or left, and everybody else in the room sees it too: whose hand it was, and with Despair on your Shadow roll what you took or left. What you take is whatever comes out; a critical lets you choose. Carry limits still apply (section 7), and one action moves one piece of a stack, several of one thing held as one row. Something you leave on somebody whose pockets are full stays with you: you are told so, and they are told nothing, whether they noticed you or not. Something you take while you have no room left to carry it goes into your stash, and with no stash it stays with them. Palm never reaches into a stash. A Palm refused before its dice are read (the target walked out, a Class Trial began) gives you its action back; leaving something in full pockets was a try, and its action is spent.
 
 **See what they carry** (a Frisk) takes nothing and costs **1 action**, done openly or unseen.
 
@@ -489,15 +489,15 @@ Each is 3 lower while a killing is fresh: an incident is running, or a body of t
 | Result | What happens |
 |---|---|
 | Clean success | the Remnant is removed |
-| Critical | removed; what the attempt cost stays spent, and the critical's 2 Hope are what you earn. You may then leave the Remnant in place instead, reading as something else: a reshape (below) whose band you choose; if the GM keeps your story off it, the Remnant is gone all the same |
+| Critical | removed, and it also gives back what the attempt cost. You may then leave the Remnant in place instead, reading as something else: a reshape (below) whose band you choose; if the GM keeps your story off it, the Remnant is gone all the same |
 | Success with Despair | removed, but it leaves a Tamper Remnant of its own |
 | Failure | the Remnant stays, and a Tamper Remnant is added beside it (Subtle on Hope, Evident on Despair) |
 
 Reinforced Remnants never come off.
 
-**Reshape a Trace.** Leave one of the same Remnants where it is and make it read as something else: you write what it is called and what it looks like, both of them (up to 60 and 400 characters). It needs 3 less than erasing it would, and whatever you write, it becomes a Tamper Remnant: it admits that somebody handled it and lies about the rest. The GM lets your story stand or keeps it off; until then the Remnant reads as it did, and a story kept off still costs what the attempt cost. A critical also makes it one band harder to spot; what the attempt cost stays spent. Copies others already hold keep the words they were found with; whoever finds the Remnant afterwards reads yours.
+**Reshape a Trace.** Leave one of the same Remnants where it is and make it read as something else: you write what it is called and what it looks like, both of them (up to 60 and 400 characters). It needs 3 less than erasing it would, and whatever you write, it becomes a Tamper Remnant: it admits that somebody handled it and lies about the rest. The GM lets your story stand or keeps it off; until then the Remnant reads as it did, and a story kept off still costs what the attempt cost. A critical also makes it one band harder to spot and gives back what the attempt cost. Copies others already hold keep the words they were found with; whoever finds the Remnant afterwards reads yours.
 
-**Misleading Trail.** Leave a Prep Remnant pointing at somebody else. Needs **15**; a critical gives back nothing of what the attempt cost. A failure with Hope still plants one, a Hidden, Faint one that probably nobody finds; a failure with Despair plants nothing.
+**Misleading Trail.** Leave a Prep Remnant pointing at somebody else. Needs **15**, and a critical also gives back what the attempt cost. A failure with Hope still plants one, a Hidden, Faint one that probably nobody finds; a failure with Despair plants nothing.
 
 > [!WARNING]
 > If anybody else is in the room you first roll Shadow against **16** to cover what you are doing, and being caught at it costs Sanity: 1 on a success with Despair, 1 on a failure, 2 on a failure with Despair. A critical on that roll gives you back 1 Sanity. The briefing warns you how many people are watching. Walking into an empty room first is a real alternative.
@@ -1191,7 +1191,7 @@ The opening roll's window opens at most `TIMING.openingAttempts` times (3) when 
 
 ### 17.14 The messenger and asking for rulings
 
-With no GM connected, nothing a player sends to the GMs is posted: the player is told "No GM is connected." and what the action cost comes back, unless its dice had already brought you Hope or a critical.
+With no GM connected, nothing a player sends to the GMs is posted: the player is told "No GM is connected." and what the action cost comes back.
 
 While an incident runs, a player's GM Chat message is posted by a GM's browser for them. When that browser's answer does not come in time, or an answer comes and no card, the player reads "Your message may not have been sent. ..." and the message may be in the thread all the same.
 

@@ -95,3 +95,16 @@ action can earn Hope twice.
 3. Row 4: does an action of two rolls earn Hope from each roll, or from its main roll only?
 
 The build waits for these answers. Each answer is one constant; nothing is built yet.
+
+## The owner's answers (23.11.2026, relayed by the coordinator) and what was built
+
+| Question | The owner | config.mjs `ROLL_REFUNDS` | What it does |
+| --- | --- | --- | --- |
+| 1, 2: rows 12, 13, T8, the GM's "Refuse the attempt" | "c" | `afterRoll: "always"`, `gmRefuse: null` | the price comes back as before E129. Tail keeps its own rule of 1.2.123 (row 14, action-tail.mjs `rollsEarnedHope`) |
+| T5, T6: a critical Tamper | "Zostawiamy jak jest. Moj blad - zostalo mi to zgloszone jako usterka." | `tamperCritical: true` | 2 Hope and the price back, as the handbook's line 491 says |
+| T12: the free attempt's critical | as the rules say | `freeCritical: true` | unchanged |
+| 3: row 4, T1 | "Z glownego" | `supportingHope: false` | Hope from the action's main roll only: a cover, staying unseen or a concealment earns none (roll-draw.mjs `throwDrawn`); its critical keeps its own rule's effect (T1's 1 Sanity) |
+
+Each other value is one key away: every refund after the dice already asks price.mjs `mayRefundAfterRoll` (rows 12,
+13, T8) and every critical's give-back of a clean-up asks cleanup.mjs `criticalGivesBack` (T5, T6, T12). R8880 drives
+the rule under each value of `afterRoll`; under "always" it gives back after any roll.

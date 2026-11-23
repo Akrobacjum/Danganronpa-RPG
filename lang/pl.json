@@ -2878,7 +2878,7 @@
       "reshapeNothingSaid": "Zabrakło nazwy albo opisu, więc Remnant się nie zmienia, a rzut przepada.",
       "reshapeUnnamed": "coś innego",
       "reshaped": "GM zatwierdza zmianę: {from} to teraz „{name}” ({band} {kind}). Kto go znajdzie, zobaczy twoją wersję.",
-      "transformActionNote": "Twoją wersję najpierw zatwierdza GM, a po odmowie koszt nie wraca. Po zgodzie Remnant staje się Tamper Remnant; krytyk sprawia też, że o stopień trudniej go zauważyć, a na twoim własnym miejscu zbrodni zwraca zapłaconą Sanity.",
+      "transformActionNote": "Twoją wersję najpierw zatwierdza GM, a po odmowie koszt nie wraca. Po zgodzie Remnant staje się Tamper Remnant; krytyk sprawia też, że o stopień trudniej go zauważyć, i zwraca ci koszt.",
       "transformGo": "Rzuć",
       "transformTitle": "Czysta robota",
       "transformIntro": "Krytyk daje ci wybór: wymaż Remnant albo zaproponuj jego nową wersję i wybierz, jak łatwo będzie go zauważyć.",

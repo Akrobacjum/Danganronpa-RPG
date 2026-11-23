@@ -1292,7 +1292,11 @@ export const CRITICAL = {
  * WHAT A ROLL LEAVES TO GIVE BACK (E129, 1.2.128; the owner's note of session 0, 23.11.2026: "niektore akcje zwracaja hope
  * i akcje przy rzucie mimo ze nie powinny", and "Tamper chyba najbardziej"). The inventory is docs/dev/owner129/desp/
  * REFUNDS.md; each row the coordinator set a default for is one key here, so the owner's answer changes a key and nothing
- * else (the coordinator's defaults of 23.11.2026, pending the owner).
+ * else. The owner's answers of 23.11.2026, relayed by the coordinator, set them: rows 12, 13 and T8 "c", the price always
+ * back as before (`afterRoll` "always"; Tail keeps its own rule of 1.2.123, action-tail.mjs `rollsEarnedHope`); T5
+ * "Zostawiamy jak jest" - a critical Tamper keeps its 2 Hope and gives back what paid, as the handbook says
+ * (`tamperCritical` true); T12 as the rules say, unchanged (`freeCritical` true); row 4 and T1 "Z glownego" - Hope
+ * from the action's main roll only (`supportingHope` false).
  *   afterRoll          an action refused or not carried out after its dice landed, before they are read (REFUNDS rows
  *                      13, T8): "always" gives the price back as before E129 (the owner's E14 Q3 of 18.10.2026);
  *                      "noHope" only when no roll of the action brought Hope or a critical (`mayRefundAfterRoll`,
@@ -1307,11 +1311,11 @@ export const CRITICAL = {
  *   freeCritical       whether the free attempt a critical Finishing Blow leaves gives anything back on a critical (T12).
  */
 export const ROLL_REFUNDS = Object.freeze({
-    afterRoll: "noHope",
+    afterRoll: "always",
     gmRefuse: null,
     supportingHope: false,
-    tamperCritical: false,
-    freeCritical: false
+    tamperCritical: true,
+    freeCritical: true
 });
 
 /**

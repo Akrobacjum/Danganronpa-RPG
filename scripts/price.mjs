@@ -235,10 +235,12 @@ export async function payPrice(actor, key, { skip = [], quiet = false } = {}) {
  * that landed - `rollTrait`'s outcomes, or `{ isCritical, withHope }` as the GMs' record holds them - and a supporting one
  * says so (`supporting`). Under "noHope" the price comes back only where none of them was a critical, and none that earns
  * its Hope came up with Hope: a supporting roll earns none (`supportingHope` false), so its Hope does not count, its
- * critical does. `gmRefuse`: the GM's "Refuse the attempt", which asks its own key first. Pure.
+ * critical does. `gmRefuse`: the GM's "Refuse the attempt", which asks its own key first. `mode` names a value of
+ * `afterRoll` in place of the key's: the suite's, which drives the rule under each value while the key stands frozen
+ * at the owner's "always" (R8880). Pure.
  */
-export function mayRefundAfterRoll(rolls, { gmRefuse = false } = {}) {
-    const mode = (gmRefuse ? ROLL_REFUNDS.gmRefuse : null) ?? ROLL_REFUNDS.afterRoll;
+export function mayRefundAfterRoll(rolls, { gmRefuse = false, mode: asked = null } = {}) {
+    const mode = asked ?? (gmRefuse ? ROLL_REFUNDS.gmRefuse : null) ?? ROLL_REFUNDS.afterRoll;
     if (mode === "always") return true;
     if (mode === "never") return false;
     return !(rolls ?? []).filter(Boolean).some(roll => Boolean(roll.isCritical)

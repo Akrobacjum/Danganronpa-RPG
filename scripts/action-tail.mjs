@@ -29,11 +29,7 @@ export function tailTargets(actor) {
     return seenHere(othersInRoom(actor)).filter(a => a?.type === "character" && !isMonokuma(a) && !a.getFlag(MODULE_ID, FLAGS.monocub));
 }
 
-/**
- * Whether any of `rolls` (`rollTrait`'s results) came up with Hope or a critical (`dualityOf`) (r122-F-2). Pure. Since
- * E129 Tail asks price.mjs `mayRefundAfterRoll`, the one rule every refund after the dice asks (`ROLL_REFUNDS.afterRoll`);
- * this stays for the suite's R8580, which reads the reading itself.
- */
+/** Whether any of `rolls` (`rollTrait`'s results) came up with Hope or a critical (`dualityOf`): the rolls that earn the roller Hope (r122-F-2). Pure. */
 export function rollsEarnedHope(rolls) {
     return (rolls ?? []).some(r => { const d = dualityOf(r); return Boolean(d.withHope || d.isCritical); });
 }
@@ -162,9 +158,7 @@ export async function performTail(actor, options = {}) {
        Hope or a critical (`dualityOf`), so a repeat earns the roller nothing; else it stays spent and the player is told
        why. A roll with Despair gives the GM theirs either way, as any thrown roll does. */
     if (!res.ok && res.refused && res.reason === "notThere") {
-        // E129: the one rule of a refund after the dice (price.mjs `mayRefundAfterRoll`, `ROLL_REFUNDS.afterRoll`).
-        const { mayRefundAfterRoll } = await import("./price.mjs");
-        const earned = !mayRefundAfterRoll([shadow, roll]);
+        const earned = rollsEarnedHope([shadow, roll]);
         if (!earned) await abort(actor, paid);
         if (paid) ui.notifications.info(game.i18n.format(earned ? "DRPG.Infiltrate.tail.goneKept" : "DRPG.Infiltrate.tail.actionBack", { name: nameAsSeen(target) }));
         return null;
