@@ -308,7 +308,7 @@ export const BRIDGE_ACTIONS = table({
         answer: "reply",
         claims: {
             what: "one of five, each the primary's own road (mask-gm.mjs `veilOnPrimary`); anything else does nothing",
-            killerIds: "read on the primary against its own declarations of this Eclipse (`pendingMurderStore`, eclipse.mjs): an id with none is veiled or lifted by nothing; for \"unmask\", against its own masks' rows and the GMs' deaths (`endMasksWithoutBody`): an id with no mask, a dead killer or a dead victim ends nothing"
+            killerIds: "read on the primary against its own declarations of this Eclipse (`pendingMurderStore`, eclipse.mjs): an id with none is veiled or lifted by nothing; for \"unmask\", against its own masks' rows (`endMasksAtClose`): an id with no mask, or one a running incident names, ends nothing"
         }
     },
     [ACTION_ADVANCEMENT]: {

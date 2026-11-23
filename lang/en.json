@@ -522,7 +522,8 @@
       "stay": "Stay hidden",
       "card": "You are hidden behind a \"?\" and can neither speak nor hear anyone until you reveal yourself or the time of day ends. Your voice tile has a Reveal yourself button.",
       "ended": "You are no longer hidden, and your voice is back: the time of day has ended.",
-      "endedNoBody": "You are no longer hidden, and your voice is back: the murder ended and nobody died.",
+      "endedIncident": "You are no longer hidden, and your voice is back: the murder has ended.",
+      "endedLeftRoom": "You are no longer hidden, and your voice is back: you left the room of the murder.",
       "tokenFailed": "The mask could not be put on a token of {name}: the other players may see their real picture. The console says why."
     },
     "Veil": {
