@@ -1,5 +1,5 @@
 /**
- * S0-GMLIST (1.2.129): the GM panel with its roster, captured as the harness draws it, in the states the owner asked
+ * S0-GMLIST (1.2.128): the GM panel with its roster, captured as the harness draws it, in the states the owner asked
  * about - "upewnijmy sie ze wyswietla poprawnie ile akcji i ruchow ma dany gracz, rowniez w eclipse".
  *
  *     cd audit/harness && DRPG_CAPTURE_OUT=<dir> node cluster.mjs ../../docs/dev/owner129/ui/capture.mjs

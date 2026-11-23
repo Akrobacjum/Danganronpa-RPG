@@ -80,7 +80,7 @@ export async function run({ gm, p1, p2, p3, check, settle, repoUrl: REPO }) {
         await new Promise(r => setTimeout(r, 600));
         const d = globalThis.__dialogLog.find(d => /Panel GM-a/.test(d.title ?? "")) ?? globalThis.__dialogLog[0] ?? null;
         if (!d) return null;
-        /* Its words, not the first 300 characters of its markup (1.2.129, S0-GMLIST): the roster stands first in the panel
+        /* Its words, not the first 300 characters of its markup (1.2.128, S0-GMLIST): the roster stands first in the panel
            since then, and its table's markup filled what this check read, so the clock line's Polish fell past it. The
            shim's log keeps a window's words, markup out, to 1200 characters (shim.mjs \`contentWords\`), the panel's
            roster, name and clock line among them. */

@@ -34,7 +34,7 @@ import { isEclipse, getClock, incidentParticipants } from "./settings.mjs";
 import { murderState, sideOf, betrayalTarget } from "./murder.mjs";
 
 /**
- * The action keys the Class Trial leaves open (T-1: Analyze; since 1.2.129 Palm, E129 S0-PALM, the owner's note of 23.11.2026
+ * The action keys the Class Trial leaves open (T-1: Analyze; since 1.2.128 Palm, E129 S0-PALM, the owner's note of 23.11.2026
  * "palm powinno byc dostepne w trialu"), and the person roads' keys it leaves open: Palm's Steal and Plant (its forced Frisk
  * and every other person road stay shut).
  */

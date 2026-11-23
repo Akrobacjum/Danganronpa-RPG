@@ -1,5 +1,5 @@
 /**
- * Danganronpa RPG - a lost drawing context, recorded (1.2.129 line UI; S0-WHITE, the owner after session 0, 23.11.2026:
+ * Danganronpa RPG - a lost drawing context, recorded (1.2.128 line UI; S0-WHITE, the owner after session 0, 23.11.2026:
  * "w ktoryms momencie u jednego z graczy ekran stal sie caly bialy").
  * ---------------------------------------------------------------------------
  * WHAT THIS IS FOR. Nothing in the module paints the whole screen white (read in code for S0-WHITE: the light fills are

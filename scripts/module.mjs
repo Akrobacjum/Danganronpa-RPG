@@ -136,6 +136,7 @@ import { requirementsMet, announceMissingRequirements, announceNewerSystem,
     systemCompatibility, removeModuleStyles } from "./requirements.mjs";
 import { warnAboutPageTinting, verifyStylesheet, registerCanvasTimings } from "./diagnostics.mjs";
 import { registerContextWatch } from "./context-loss.mjs";
+import { registerHoverName } from "./hover-name.mjs";
 import { log, error, injectSelectPickerSkin, registerTextGuard, isPrimaryGm, markModuleWindow } from "./utils.mjs";
 
 /**
@@ -244,8 +245,10 @@ Hooks.once("init", () => {
     safely("movement", registerMovement);
     // Each scene change timed from canvasTearDown to canvasReady, for `perf()` (E53 C1).
     safely("the canvas's timing", registerCanvasTimings);
-    // A lost drawing context on the board, recorded and told to the GMs (1.2.129, S0-WHITE; context-loss.mjs).
+    // A lost drawing context on the board, recorded and told to the GMs (1.2.128, S0-WHITE; context-loss.mjs).
     safely("the drawing context's watch", registerContextWatch);
+    // A token's name on a hover, as this viewer may know it (1.2.128, S0-HOVERNAME; hover-name.mjs).
+    safely("a token's name on a hover", registerHoverName);
     safely("a piece renamed out of a room", registerRoomPieces);
     safely("the projects tray", registerProjectsUi);
     safely("projects on the map", registerProjectsMap);

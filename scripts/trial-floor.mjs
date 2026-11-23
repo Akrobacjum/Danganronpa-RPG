@@ -650,12 +650,12 @@ export async function closingStepInStep(event, { why = false } = {}) {
  * round's speaker has no player connected any more, the turn passes; the Closing's speaker hands the choice back to the
  * GM (E70 C8).
  *
- * NOT AT ONCE SINCE 1.2.129 (E129 S0-CUT B, 23.11.2026; the owner's note of session 0, "testimony ucielo ostatniego
+ * NOT AT ONCE SINCE 1.2.128 (E129 S0-CUT B, 23.11.2026; the owner's note of session 0, "testimony ucielo ostatniego
  * gracza", and the coordinator's "a reload during your own turn should never pass you"): the turn passes only when the
  * same turn still stands and its speaker is still not connected `TRIAL.modes.round.goneGraceSeconds` later, counted on
  * this primary (`goneWaiting`, one wait a turn). Back in time, nothing is written and the turn's clock ran on as it
  * would. A speaker not connected when the turn comes still passes at once (floor-machine.mjs `turnAt`). Tier 2
- * "1.2.129 S0-CUT B". How long a v14 reload takes to reconnect is not measured (a LIVE item proposed in E129's report).
+ * "1.2.128 S0-CUT B". How long a v14 reload takes to reconnect is not measured (a LIVE item proposed in E129's report).
  */
 const goneWaiting = new Map();
 
@@ -1904,7 +1904,7 @@ export function registerTrialFloor() {
     document.addEventListener("visibilitychange", () => {
         advanceIfDue().catch(err => error("Could not advance the trial floor on the tab's return", err));
     });
-    // A round's speaker whose player leaves passes, after `goneGraceSeconds` since 1.2.129 (E70 C7; E70-45; E129 S0-CUT B), on the primary alone.
+    // A round's speaker whose player leaves passes, after `goneGraceSeconds` since 1.2.128 (E70 C7; E70-45; E129 S0-CUT B), on the primary alone.
     Hooks.on("userConnected", (user, connected) => {
         if (!connected && !user?.isGM) speakerGone();
     });

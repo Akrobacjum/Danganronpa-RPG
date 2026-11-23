@@ -1612,7 +1612,7 @@ export async function giveTruthBulletDialog(actor, { scenes: only = null, fill =
 }
 
 /**
- * A PLANNED TRUTH BULLET AS THE WRITE NEW TAB WOULD READ IT (line INVEST of 1.2.129; S0-REALIZE): the plan's row
+ * A PLANNED TRUTH BULLET AS THE WRITE NEW TAB WOULD READ IT (line INVEST of 1.2.128; S0-REALIZE): the plan's row
  * (case-schema.mjs `caseNodeOf`, a "bullet") as `readBulletFields` answers for the window opened on it (`bulletCreatePane`'s
  * `fill`), Tell the player as planned. Pure.
  */
@@ -1624,7 +1624,7 @@ export function plannedBulletResult(row = {}) {
 }
 
 /**
- * A PLANNED TRUTH BULLET GIVEN WITH NO WINDOW (line INVEST of 1.2.129; S0-REALIZE, the Realization's "every planned
+ * A PLANNED TRUTH BULLET GIVEN WITH NO WINDOW (line INVEST of 1.2.128; S0-REALIZE, the Realization's "every planned
  * Remnant"): by the window's own road (`giveBulletNow`, `giveToEveryone` for a plan to Everyone), from the plan as the
  * Write new tab reads it. A plan with no recipient or no name is not given. Answers `{ given, made }`: whether every
  * copy was made, and the bullets made, `[{ actorId, itemId }]`, read off the recipients' sheets (for the Realization's

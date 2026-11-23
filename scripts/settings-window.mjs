@@ -29,7 +29,7 @@
  *     moved into Season setup), for a user Foundry lets modify settings alone.
  *
  *   CLIENT_SECTIONS, GAME_SECTIONS  the sections of each place, `{ key, icon, place, keys }`, in the order drawn
- *   SETTINGS_SECTIONS        both lists, the client's first: every row in exactly one (38 on 23.11.2026: 12 and 26; R3420)
+ *   SETTINGS_SECTIONS        both lists, the client's first: every row in exactly one (39 on 23.11.2026: 13 and 26, since S0-HOVERNAME B; R3420)
  *   firstSentence(text)      a hint's first sentence; `restOf(text)` the rest, the tooltip
  *   settingRowHtml(key)      one setting's row: its control by type (kit `toggle`, `stepper`, a select), its line
  *   saveSettings(form, user) every field the person changed in the window written as Foundry's own form wrote it; a reload asked once
@@ -94,13 +94,14 @@ import { volumeSliders, wireVolumeSliders } from "./sfx.mjs";
  */
 const section = (place, key, icon, keys) => Object.freeze({ key, icon, place, keys: Object.freeze(keys) });
 export const CLIENT_SECTIONS = Object.freeze([
-    section("client", "look", "fa-image", ["language", "theme", "uiScale", "hudTicker", "wideProjectWindows"]),
+    // "tokenCaptions" (1.2.128 line MAP, S0-HOVERNAME B): the tokens' names as captions on the map, on by default.
+    section("client", "look", "fa-image", ["language", "theme", "uiScale", "hudTicker", "wideProjectWindows", "tokenCaptions"]),
     section("client", "effects", "fa-wand-magic-sparkles", ["pixelFont", "glassPulse", "glassBlur", "reducedMotion", "highContrast"]),
     section("client", "sound", "fa-volume-high", ["messengerSound"]),
     section("client", "tech", "fa-screwdriver-wrench", ["debug"])
 ]);
 export const GAME_SECTIONS = Object.freeze([
-    // "trialVoicesFree" (E129 S0-NOMUTE, 1.2.129): the Class Trial's forced muting switched off, beside the voice rows.
+    // "trialVoicesFree" (E129 S0-NOMUTE, 1.2.128): the Class Trial's forced muting switched off, beside the voice rows.
     section("game", "audio", "fa-headset", ["voiceEnabled", "voiceTile", "trialVoicesFree"]),
     section("game", "rules", "fa-scale-balanced", ["searchTokensPerRoom", "despairFromRolls", "chargeMovement", "friskForce", "autoApproveTraits", "moveAudit", "balanceLog"]),
     section("game", "privacy", "fa-user-secret", ["forcePrivateRolls", "forceDiceLook", "lockRollDialog", "enforceAnonymity", "roomVisibility", "lockPlayerResources"]),

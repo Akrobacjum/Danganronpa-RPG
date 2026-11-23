@@ -685,7 +685,7 @@ function keepPanelFresh(dialog) {
            audit's REFR-46): the bodies waiting for the GM's word (a GM store whose write fires only its own key) and the
            case's last health report (`drpgCaseHealthChanged`). A GM connecting or leaving changes who the primary is,
            which the Next line's two primary-only buttons read (CTRL-85). */
-        /* And the Eclipse's crossings (1.2.129, S0-GMLIST): the roster's Moves column reads the GMs' store of crossings
+        /* And the Eclipse's crossings (1.2.128, S0-GMLIST): the roster's Moves column reads the GMs' store of crossings
            made (`eclipseMoveStore`) and a room action's extra crossings (`timedEffectStore`), neither an actor's write. */
         watch: { actors: true, items: true, tokens: true, stores: [keyPlanStore, caseSchemaStore, pendingBodyStore, eclipseMoveStore, timedEffectStore],
             hooks: ["drpgCaseHealthChanged", "userConnected"] }
@@ -1244,13 +1244,13 @@ export function studentsLeftHtml(roster = actingStudents()) {
 }
 
 /**
- * WHETHER THE PANEL OPENS ON THE ROSTER (1.2.129, S0-GMLIST; the owner after session 0, 23.11.2026: "przywrocmy liste akcji
+ * WHETHER THE PANEL OPENS ON THE ROSTER (1.2.128, S0-GMLIST; the owner after session 0, 23.11.2026: "przywrocmy liste akcji
  * i ruchow graczy do glownej zakladki gm panel na gorze"). The coordinator's default, pending the owner: on. One constant.
  */
 export const PANEL_ROSTER = true;
 
 /**
- * THE ROSTER, BACK AT THE TOP OF THE PANEL (1.2.129, S0-GMLIST). Until 1.2.104 the panel's standing block drew a row per
+ * THE ROSTER, BACK AT THE TOP OF THE PANEL (1.2.128, S0-GMLIST). Until 1.2.104 the panel's standing block drew a row per
  * acting student - the actions left of the most and the Free Move (git: v1.2.104 gm-panel.mjs `buildPanelContent`); E49
  * A2 (1.2.105, 10.11.2026, the owner's "tak" to the mockup's one line) folded it into `studentsLeftHtml`'s count and the
  * Students window's two columns. The owner asks for it back, "upewnijmy sie ze wyswietla poprawnie ile akcji i ruchow ma

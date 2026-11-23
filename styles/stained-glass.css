@@ -2409,12 +2409,20 @@ body.drpg-theme-stained-glass #players :is(#performance-stats, .player-name, .pl
     text-transform: uppercase;
 }
 /* Foundry's tooltip is the one piece of its chrome that appears INSIDE our windows */
-body.drpg-theme-stained-glass #tooltip {
+body.drpg-theme-stained-glass :is(#tooltip, .drpg-hover-name) {
     border-radius: 0;
     border: 1px solid color-mix(in srgb, var(--drpg-glass-accent) 45%, transparent);
     background: rgba(7, 7, 10, 0.92);
     color: var(--drpg-sg-bone);
     clip-path: polygon(5px 0, 100% 0, 100% calc(100% - 5px), calc(100% - 5px) 100%, 0 100%, 0 5px);
+}
+/* A token's name on a hover (1.2.128, S0-HOVERNAME; hover-name.mjs; its place is danganronpa.css's): the tooltip's glass,
+   from the rule above, and the floor's type. */
+body.drpg-theme-stained-glass .drpg-hover-name {
+    font-family: var(--drpg-font-chrome);
+    /* A quarter over the floor (the owner, 23.11.2026); the floor rides `--drpg-sg-scale`, the interface scale's. */
+    font-size: calc(var(--drpg-sg-floor) * 1.25);
+    letter-spacing: 0.08em;
 }
 
 /* ==========================================================================

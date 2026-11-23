@@ -573,7 +573,7 @@ export async function placeRemnant(data = {}, { keepId = false, rollId = null, d
             texture: { src: ICON, tint: TINTS.neutral },
             // Below characters (`sort`). The document is whole: what each browser draws is config.mjs `REMNANT_ALPHA`
             // (visibility.mjs `dressRemnant`, whatever this says) - 0.5 on a player's, so the map still reads as
-            // "people in a room"; whole or `gmHidden` on a GM's (1.2.129, S0-REMALPHA: a hidden trace at 0.5 under
+            // "people in a room"; whole or `gmHidden` on a GM's (1.2.128, S0-REMALPHA: a hidden trace at 0.5 under
             // Foundry's own dimming was lost on the GM's map).
             alpha: 1,
             sort: -10,
@@ -1493,6 +1493,18 @@ export function isNeutralName(name) {
 export function traceLabel(entry = null) {
     const name = entry && typeof entry === "object" && "public" in entry ? entry.public?.name : entry?.name;
     return typeof name === "string" && name.trim() && !isNeutralName(name) ? name : game.i18n.localize("DRPG.Remnant.tokenName");
+}
+
+/** Whether a token is a trace, by its flag (hover-name.mjs asks it: the flag is read here, R1281). */
+export function isTraceToken(tokenDoc) {
+    return Boolean(tokenDoc?.getFlag?.(MODULE_ID, REMNANT_FLAGS.isRemnant));
+}
+
+/** A trace's name as the GMs' ledger has it, on a GM's browser; the neutral word anywhere else, where the ledger is `{}`
+    (`readRemnantLedger`). hover-name.mjs reads it (S0-HOVERNAME, 1.2.128). */
+export function ledgerLabel(tokenDoc) {
+    const key = keyOf(tokenDoc);
+    return traceLabel(key ? readRemnantLedger()[key] ?? null : null);
 }
 
 /**

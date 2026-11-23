@@ -1459,8 +1459,10 @@ async function ruleDecline(action, data, message = null) {
        `afterRoll` while it is null; REFUNDS.md row 12). A ruling card is posted after its dice, which had paid out their
        Hope, and "Refuse the attempt" gave the price back as well. The card holds no link to its roll (`declineAction`'s
        data), so the roll is the GMs' newest record of this character's Observe, Search or Analyze thrown before the card
-       (`rulingRollOf`); under the default the price comes back only where it brought neither Hope nor a critical
-       (price.mjs `mayRefundAfterRoll`). No record found - a card from before the GMs kept them - gives it back as before. */
+       (`rulingRollOf`), and price.mjs `mayRefundAfterRoll` rules on it: under "noHope" the price comes back only where it
+       brought neither Hope nor a critical, under the owner's "always" (config.mjs, 23.11.2026) whatever it brought, so
+       the lookup changes nothing at the table until the key changes. No record found - a card from before the GMs kept
+       them - gives it back as before. */
     const { refundPrice, mayRefundAfterRoll } = await import("./price.mjs");
     const rolled = await rulingRollOf(actor, message);
     const back = !rolled || mayRefundAfterRoll([rolled], { gmRefuse: true });

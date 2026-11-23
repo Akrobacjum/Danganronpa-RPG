@@ -1272,7 +1272,7 @@ export async function run({ gm, gm2, gm3, p1, p2, p3, p4, check, phase, settle, 
 
     /* E70 C1 (27.10.2026; E70-08, S18-76; the C0 gap "no scenario sends trial.gm from a second GM"). gm3, a GM that is
        not the primary while gm2 is connected, presses each of the bar's buttons by its game.drpg function on an
-       Objection gm2 holds with 20 s left (10 s into its 30; 50 of 60 until E129 S0-OBJ, 1.2.129) and a debate under it
+       Objection gm2 holds with 20 s left (10 s into its 30; 50 of 60 until E129 S0-OBJ, 1.2.128) and a debate under it
        with 200 s: +30 s, -30 s, Skip, Back to the debate, End this mode. After each, gm2's floor (the primary's) and gm3's
        read the same mode and the same seconds left within 2 s, and moved as the bar promises: 50 s, 20 s (80 and 50
        until then), the rebuttal, the debate with its 200 s, no floor. Red at

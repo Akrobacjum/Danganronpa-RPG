@@ -72,7 +72,7 @@ export const layers = ["ci"];
    without T, its da0f95a8 file on this code, "33/33 checks passed, 0 failed in 45615ms", 51 s by the wall clock; with
    T "37/37 checks passed, 0 failed in 55693ms", 61 s - and run-all killed it at 60 s. T's reload and the copy's Analyze
    cost about 10 s. Two minutes: a hang detector with room for a slower runner.
-   1.2.129 S0-WHITE's phase W (23.11.2026, 4 cores, alone, once): "39/39 checks passed, 0 failed in 55301ms"; at
+   1.2.128 S0-WHITE's phase W (23.11.2026, 4 cores, alone, once): "39/39 checks passed, 0 failed in 55301ms"; at
    13d6b2c4 without W, beside two other harness runs, 37/37 in 60530ms - W not timed apart, and inside the two minutes. */
 export const timeoutMs = 120000;
 
@@ -800,7 +800,7 @@ export async function run({ gm, p1, p2, p4, check, phase, settle, connect, disco
         return true;`, { timeout: 30000 });
     await settle(600);
 
-    phase("W: a lost drawing context on a player's browser - recorded there, its card read by the GMs and by no other player (1.2.129, S0-WHITE)");
+    phase("W: a lost drawing context on a player's browser - recorded there, its card read by the GMs and by no other player (1.2.128, S0-WHITE)");
     /* context-loss.mjs on the road a loss mostly takes (the coordinator, 23.11.2026: R8811 tells through a stand-in): on p1,
        `watchContext` on a stand-in canvas with its own teller, `tellGmsOfLoss` (`whisperToGms`, secret.mjs's private
        road), and a `webglcontextlost` fired on it. Read: p1's failure log holds the loss; the new card is whispered to the

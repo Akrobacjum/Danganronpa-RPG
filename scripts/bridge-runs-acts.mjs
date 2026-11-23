@@ -626,9 +626,9 @@ export async function handleShareBulletOrGiveItem(payload, sender, ctx) {
 }
 
 /*
- * A SHARE THAT SAYS WHETHER THE READING GOES WITH IT (S0-ANSHARE, line INVEST of 1.2.129): the share's own run, so that
+ * A SHARE THAT SAYS WHETHER THE READING GOES WITH IT (S0-ANSHARE, line INVEST of 1.2.128): the share's own run, so that
  * only its row lets `analysis` through (R163); a packet without the field, an older client's, carries the reading as
- * every share did until 1.2.129. The rest is the common run's.
+ * every share did until 1.2.128. The rest is the common run's.
  */
 export async function handleShareBullet(payload, sender, ctx) {
     const { shareBullet } = await import("./handover.mjs");

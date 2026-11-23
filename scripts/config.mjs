@@ -379,7 +379,7 @@ export const CHAPTERS_PER_SEASON = 6;
 
 /**
  * WHETHER A SHARE CARRIES THE GIVER'S ANALYZE RESULT, BY DEFAULT (the owner's notes of session 0, 23.11.2026, S0-ANSHARE:
- * "wybor czy udostepniac z analyze czy bez"; the coordinator's default, pending the owner; line INVEST of 1.2.129). The
+ * "wybor czy udostepniac z analyze czy bez"; the coordinator's default, pending the owner; line INVEST of 1.2.128). The
  * Share window of a Truth Bullet that holds a reading asks, its box ticked as this says (handover.mjs `askRecipient`). The
  * one place the default lives.
  */
@@ -397,7 +397,7 @@ export const OWN_TRACK_FOLLOWS_HOLD = true;
 /**
  * WHAT THE CASE'S REALIZATION PLACES, BY DEFAULT (the owner's notes of session 0, 23.11.2026, S0-REALIZE: "realization
  * niech zawiera opcje rozdania i ustawienia wszystkich remnantow zaplanowanych, albo samych key (jak teraz)"; the
- * coordinator's default, pending the owner; line INVEST of 1.2.129): "keys", the Key Remnant plan's slots alone, as until
+ * coordinator's default, pending the owner; line INVEST of 1.2.128): "keys", the Key Remnant plan's slots alone, as until
  * now, or "all", the chapter's every planned Remnant placed and every planned Truth Bullet given as well (case-realize.mjs
  * `openRealization`). The window's choice starts here.
  */
@@ -3278,7 +3278,7 @@ export const PROJECT_TOKEN = {
 };
 
 /*
- * A REMNANT'S TOKEN, DRAWN AT ONE ALPHA PER VIEWER (1.2.129 line MAP, stage E129; released in 1.2.128; the owner's
+ * A REMNANT'S TOKEN, DRAWN AT ONE ALPHA PER VIEWER (1.2.128 line MAP, stage E129; released in 1.2.128; the owner's
  * session-0 note S0-REMALPHA, 23.11.2026: "niektore remnanty sa polprzezroczyste i przez to niewidoczne"). The owner's
  * answer: on the GM's screen, Neutral Remnants. Every Remnant was created at document alpha 0.5 (remnants.mjs
  * `placeRemnant`) and a hidden one is dimmed again by Foundry on a GM's browser, about a quarter by estimate, not a
@@ -3289,6 +3289,26 @@ export const PROJECT_TOKEN = {
  * the cast) - the owner's "Tak" to that default, 23.11.2026; raising it is this one number.
  */
 export const REMNANT_ALPHA = Object.freeze({ player: 0.5, gmShown: 1, gmHidden: 0.6 });
+
+/*
+ * A TOKEN'S NAME ON A HOVER (1.2.128 line MAP, stage E129; released in 1.2.128; the owner's session-0 note S0-HOVERNAME,
+ * 23.11.2026: "Najechanie na token myszka przez chwile dluzej niech pokazuje nazwe (imie postaci, "?" Mordercy, nazwe
+ * projektu, nazwe remnanta)"). hover-name.mjs shows it once the pointer has rested on a token `delayMs`, as this viewer
+ * may know it (`hoverName`), and takes it off on leaving, a press on the board, a pan or a change to the token. 600 is
+ * the coordinator's default pending the owner: long enough that a pointer crossing the map names nothing.
+ */
+export const HOVER_NAME = Object.freeze({ delayMs: 600 });
+
+/*
+ * A CAPTION'S SIZE PER THEME (1.2.128 line MAP, stage E129; the owner's "powiekszmy lekko napisy", 23.11.2026, and the
+ * coordinator's default of that day: under the glass the caption at 1920x1080 and 100% reads at least as large as
+ * Legacy's). hover-name.mjs `drawCaption` multiplies its base, max(18, grid * 0.25) times the interface scale, by the
+ * theme's own. Measured in Chromium on "Aoi Kirigaya" (docs/dev/owner129/map/caption-sheet.html, 23.11.2026): Legacy's
+ * DRPG Pixel at 25 px is 300 px wide with an x-height of 19; the glass's VT323 at its 21 px (25 times the screen term
+ * 0.85) was 101 wide with an x-height of 9. VT323's x-height is about 0.42 of its size, so the glass takes 2.2: 47 px at
+ * 1080p and 100%, an x-height of 20, 226 px wide (VT323 is narrow: the width stays under Legacy's).
+ */
+export const CAPTION_FACE = Object.freeze({ legacy: 1, glass: 2.2 });
 
 export const PROJECT_GLYPHS = {
     hourglass: { label: "Hourglass", fa: "fa-hourglass" },
@@ -4465,7 +4485,7 @@ export const TRIAL = {
     /**
      * An OBJECTION buys half a minute of silence, then the person it was
      * aimed at gets two minutes to answer back, and then the floor returns to
-     * free discussion. Thirty seconds since 1.2.129 (E129 S0-OBJ; the owner's note of session 0, 23.11.2026:
+     * free discussion. Thirty seconds since 1.2.128 (E129 S0-OBJ; the owner's note of session 0, 23.11.2026:
      * "objection skrocic do 30s"); a minute until then. The Closing's exchange keeps its own seconds
      * (`modes.closing.objectionSeconds`, below), the coordinator's default pending the owner.
      *
@@ -4499,7 +4519,7 @@ export const TRIAL = {
      * WHO TAKES PART, BY THE PLAYER'S OWN LINK (E129 S0-CUT P1, 23.11.2026; the coordinator's fix after the owner's note
      * "testimony ucielo ostatniego gracza", ownership links at that table being loose): a student owned by two players is
      * seated by the player whose `user.character` it is, and a student left goes to its first owner not seated yet (vote.mjs
-     * `trialParticipants`). False is the rule until 1.2.129: the first owner Foundry lists, the student dropped when that
+     * `trialParticipants`). False is the rule until 1.2.128: the first owner Foundry lists, the student dropped when that
      * player had a seat already.
      */
     seatByCharacter: true,
@@ -4553,7 +4573,7 @@ export const TRIAL = {
              * which this is not the cause of: the owner's answer of that day, "Nie bylo zadnego" - no Objection, no drop).
              * `goneGraceSeconds`: a speaker whose player drops is passed only when they are not back within these seconds,
              * counted by the primary (trial-floor.mjs `speakerGone`); back in time, the turn goes on with its own clock.
-             * Until 1.2.129 they were passed at once (E70-45). Chosen, not measured at a table: how long a v14 reload takes
+             * Until 1.2.128 they were passed at once (E70-45). Chosen, not measured at a table: how long a v14 reload takes
              * to reconnect is not measured (a LIVE item proposed in E129's report). An Objection's exchange in a round still
              * goes on at the next speaker (E70-42, which stands: the coordinator's word of 23.11.2026).
              */
@@ -4573,7 +4593,7 @@ export const TRIAL = {
          * no Hope for the last voice). One per trial (`perTrial`); `volunteerSeconds` of volunteering, then a draw among
          * the volunteers that the GM confirms or changes; `seconds` for a speaker; an Objection at the speaker at any
          * second, its exchange (`objection`, `objectionSeconds` + the debate's 120 s with cut-ins: 60 s since E70, kept at 60
-         * when the debate's went to 30 in 1.2.129, E129 S0-OBJ - the coordinator's default, pending the owner), after which the GM decides who
+         * when the debate's went to 30 in 1.2.128, E129 S0-OBJ - the coordinator's default, pending the owner), after which the GM decides who
          * continues (`gmDecides`): the speaker with the time left at the Objection or an objector with a new `seconds`.
          * A drawn or picked speaker's Pass in their first `passWindowSeconds` hands the choice back to the GM; later it
          * is Done. Chosen from the owner's words, not measured at a table (LIVE-E70-09).
@@ -4635,7 +4655,7 @@ export const TRIAL = {
      * by name, each a candidate of its own whose votes are counted apart (vote.mjs `monokumaCandidates`, the flag as the
      * GMs hold it). A vote on any of them is read as one on "Monokuma" was - no student, so the verdict window opens on
      * nobody (verdict.mjs `verdictCandidates`) - and its name stands on the cards. A world with no Monokuma actor lists
-     * none. False is the rule until 1.2.129: one "Monokuma" option, the id "monokuma", which a record holding it still
+     * none. False is the rule until 1.2.128: one "Monokuma" option, the id "monokuma", which a record holding it still
      * reads either way.
      */
     eachMonokumaOnBallot: true,
@@ -5827,6 +5847,8 @@ export const DRPG = {
     PROJECT_SCALE,
     PROJECT_GLYPHS,
     REMNANT_ALPHA,
+    HOVER_NAME,
+    CAPTION_FACE,
     PROJECT_TOKEN,
     isProjectGlyph,
     PROJECT_DESCRIPTION_MAX,

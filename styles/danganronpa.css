@@ -18492,6 +18492,34 @@ body.drpg-theme-monokuma-legacy #notifications .notification.warning { border-le
 body.drpg-theme-monokuma-legacy #notifications .notification.error { border-left-color: var(--drpg-crimson); }
 body.drpg-theme-monokuma-legacy #notifications .notification.success { border-left-color: var(--drpg-evidence); }
 
+/* A token's name on a hover (1.2.128, S0-HOVERNAME; hover-name.mjs): one line over the token's top centre, in the page's
+   pixels, never under the pointer's reach (`pointer-events: none`) and under the windows. Dressed as the tooltip in each
+   theme: Legacy here, the glass in stained-glass.css. Where it lands on v14's board is LIVE-129-MAP-04. */
+.drpg-hover-name {
+    position: fixed;
+    z-index: calc(var(--z-index-app, 30) - 1);
+    transform: translate(-50%, calc(-100% - 4px));
+    max-width: 18rem;
+    padding: 2px 8px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    pointer-events: none;
+}
+body.drpg-theme-monokuma-legacy .drpg-hover-name {
+    color-scheme: dark;
+    background: var(--drpg-ink);
+    color: var(--drpg-bone);
+    border: 1px solid var(--drpg-window-edge);
+    border-radius: 2px;
+    box-shadow: var(--drpg-panel-shadow);
+    font-family: var(--drpg-font-pixel, var(--drpg-font-ui));
+    /* A quarter over the tooltip's rung (the owner, 23.11.2026: "powiekszmy lekko napisy"); the rung carries the
+       interface scale (`--drpg-legacy-scale`), so the label follows it. */
+    font-size: calc(var(--drpg-text-sm) * 1.25);
+    line-height: 1.3;
+}
+
 /* FT-30: the context menu (right-click on a directory entry, a chat message, the rail), both themes. Before: the glass
    set its font only (stained-glass.css's face list), Legacy nothing. The menu wears the tooltip's dress in each theme;
    a row under the pointer or the keyboard takes the kit's hover wash. Under the glass the edge is Bone, not the
