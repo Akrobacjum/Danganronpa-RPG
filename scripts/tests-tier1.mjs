@@ -69567,7 +69567,7 @@ const INVARIANTS = [
         const placeables = (canvas?.tokens?.placeables ?? []).length;
         const onScale = await counted(`${MODULE_ID}.uiScale`), onOther = await counted(`${MODULE_ID}.debug`);
         const [legacyCss, glassCss] = await Promise.all(["danganronpa.css", "stained-glass.css"].map(f => fetch(`/modules/${MODULE_ID}/styles/${f}`).then(lfText)));
-        const rule = (css, head) => { const i = css.indexOf(head); return i < 0 ? "" : css.slice(i, css.indexOf("}", i)); };
+        const rule = (css, head) => bodyOf(css, head, { until: "}" });
         const legacyRule = rule(legacyCss, "body.drpg-theme-monokuma-legacy .drpg-hover-name {"), glassRule = rule(glassCss, "body.drpg-theme-stained-glass .drpg-hover-name {");
         equal(JSON.stringify([size1, line1, size2, line2, read, placeables > 0 && onScale >= placeables, onOther,
             /font-size:\s*calc\(var\(--drpg-text-sm\)\s*\*\s*1\.25\)/.test(legacyRule), /--drpg-text-sm:\s*calc\([^;]*--drpg-legacy-scale/.test(legacyCss),
