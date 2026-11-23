@@ -1971,6 +1971,11 @@ export function openingCardStandsFor(userId) {
     return Object.entries(castStore.record()?.openingNotices ?? {}).some(([id, to]) => to === userId && Boolean(game.messages?.get(id)));
 }
 
+/** Whether a line telling the opening's roller that a GM picks its statistic stands in the GMs' memo and the chat (E128). */
+export function openingPickToldStands() {
+    return Object.entries(castStore.record()?.openingNotices ?? {}).some(([id, to]) => to === true && Boolean(game.messages?.get(id)));
+}
+
 export async function retireOpeningNotices() {
     const ids = Object.keys(castStore.record()?.openingNotices ?? {});
     if (!ids.length) return;

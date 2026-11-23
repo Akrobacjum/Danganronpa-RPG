@@ -58,7 +58,29 @@ export const VOICE = {
     applied: "voice.applied",
     /** user -> GM: "where do I belong?" - sent on join and on A/V startup. */
     whoAmI: "voice.whoAmI",
+    /** user -> GMs: "these people of my Room I do not hear, and why" (E129, S0-VOICE; voice-tile.mjs `checkHearing`). */
+    hearing: "voice.hearing",
 };
+
+/**
+ * Why a listener's page does not hear a participant of its own Room (E129, the owner's S0-VOICE of 23.11.2026;
+ * voice-tile.mjs `hearingGaps`), in the order they are asked: muted by the listener ('Mute for me'), a volume at 0,
+ * the microphone not subscribed, no `<audio>` for them in the dock, the element paused, the element muted, no live
+ * track. The closed list the GMs keep a report to (voice.mjs `recordHearing`); the words are DRPG.Voice.hearing.<reason>.
+ */
+export const HEARING_REASONS = Object.freeze(["mutedForMe", "volumeZero", "notSubscribed", "noElement", "elementPaused", "elementMuted", "trackNotLive"]);
+
+/**
+ * This browser's report of who it does not hear, to the GMs alone (`toGms`): a room's people are the GMs' to know, as
+ * every other voice report. `gaps` is `[{ userId, reason }]`; an empty list says this page hears everybody again.
+ */
+export function reportHearing(gaps) {
+    try {
+        toGms({ action: VOICE.hearing, gaps: (gaps ?? []).map(({ userId, reason }) => ({ userId, reason })) });
+    } catch (err) {
+        error("Could not report who this page does not hear", err);
+    }
+}
 
 /**
  * What this client has been told to be in. `undefined` means nobody has said;

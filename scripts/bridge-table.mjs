@@ -53,7 +53,7 @@ import {
 } from "./bridge-wire.mjs";
 import {
     handleObserveTarget, handleCleanupTraces, handleObserveResolve, handleAnalyzeResolve, handleAdvancement,
-    handleAdvancementOffer, handleAdvancementAsk, handleShareBulletOrGiveItem, handlePassageShare, handlePassageCross,
+    handleAdvancementOffer, handleAdvancementAsk, handleShareBulletOrGiveItem, handleShareBullet, handlePassageShare, handlePassageCross,
     handleRefundCrossing, handlePassageFind, handlePassageLairSeal, handleLairLock, friskRolls, findPassageRoll, notFindPassageRoll, palmRolls, handlePlant,
     handleFindStash, handleSteal, handleFriskUnseen, handleFriskAsk, handleFriskAnswer, handleFriskFollow,
     friskForceRoll, handleVaultSteal, handleOpeningResult, handleOpeningCard, handleCrisis, handleParkMurder,
@@ -343,7 +343,10 @@ export const BRIDGE_ACTIONS = table({
         answer: "none", quiet: true,
         why: "answers only about the sender's own characters, found from the id Foundry gives, and names none"
     },
-    [ACTION_SHARE_BULLET]: handover("DRPG.Bridge.what.handover.bullet"),
+    // `analysis`: whether the copy carries the giver's Analyze result (line INVEST of 1.2.129, S0-ANSHARE) - a choice,
+    // not a claim: it can only take the reading off the copy, never put one there the giver's bullet does not hold; a packet
+    // that names none (an older client) shares with it, as before (`oneOf` reads it as null)
+    [ACTION_SHARE_BULLET]: { ...handover("DRPG.Bridge.what.handover.bullet"), sanitize: pick({ fromId: as.id, toId: as.id, itemId: as.id, analysis: as.oneOf(true, false) }), run: handleShareBullet },
     [ACTION_GIVE_ITEM]: handover("DRPG.Bridge.what.handover.item"),
     [ACTION_PASSAGE_SHARE]: {
         label: "DRPG.Bridge.what.passage.share",
@@ -1227,7 +1230,7 @@ export const BRIDGE_ACTIONS = table({
         sanitize: pick({}), run: handleVerdictFinish, answer: "reply" },
     // A GM's ask for the opening's card, the primary's to post once (E128; murder-rules.mjs `postOpeningCard`). No ids.
     [ACTION_OPENING_CARD]: { label: "DRPG.Bridge.what.murder.openingCard", guards: [gmOnly("only a GM posts the opening's card")],
-        sanitize: pick({ side: as.oneOf("killer", "victim"), openedAt: as.num }), run: handleOpeningCard, answer: "reply" },
+        sanitize: pick({ side: as.oneOf("killer", "victim"), openedAt: as.num, pick: as.bool, proposed: as.bool }), run: handleOpeningCard, answer: "reply" },
     /*
      * THE TRIAL'S VOICES, SETTLED ON THE PRIMARY GM (E70 C5, 28.10.2026; amend 6, answer 3 (b)). The trial opens and
      * ends on whichever GM moved the phase (clock.mjs `reconcilePhase`); its list of the dead reads the GMs' deaths

@@ -35,7 +35,7 @@ import { markOutcome, rollOutcomeOf } from "./private-rolls.mjs";
 import { playSfx } from "./sfx.mjs";
 
 import { contentOf, shownWordsOf, wordsOf, cardFlag, cardWriter, readersLines, dropOldGmLines } from "./secret.mjs";
-import { gmMessengerClass } from "./messenger-gm.mjs";
+import { gmMessengerClass, MESSENGER_WINDOW_SIZES, messengerSize } from "./messenger-gm.mjs";
 
 
 const LAUNCHER_ID = "drpg-messenger-launcher";
@@ -155,6 +155,9 @@ export class DrpgMessengerApp extends DrpgApp() {
     /** One instance per player thread, so opening twice just refocuses it. */
     static instances = new Map();
 
+    /** Which of messenger-gm.mjs MESSENGER_WINDOW_SIZES this window asks for; the GM's window says "gm". */
+    static MESSENGER_KIND = "player";
+
     static DEFAULT_OPTIONS = {
         classes: ["drpg-messenger"],
         window: {
@@ -163,14 +166,11 @@ export class DrpgMessengerApp extends DrpgApp() {
             minimizable: true
         },
         scrollRegion: ".drpg-messenger-log, .drpg-messenger-note",
-        // The module's standard popup width, in pixels because DEFAULT_OPTIONS
-        // cannot read a CSS custom property. Keep in step with `--drpg-popup`
-        // in danganronpa.css; it was 360, the narrowest of seven different
-        // window widths the module used to open.
-        position: {
-            width: 544,
-            height: 520
-        }
+        // A player's messenger size since E129 (messenger-gm.mjs MESSENGER_WINDOW_SIZES, the owner's S0-MSGSIZE of
+        // 23.11.2026: 760 x 730, about 40% over the 544 x 520 it had). Until then it was the module's standard popup
+        // width, `--drpg-popup` in danganronpa.css (544 px; 360 before that); the messenger no longer keeps in step
+        // with it. The constructor cuts it to the screen (`messengerSize`).
+        position: { ...MESSENGER_WINDOW_SIZES.player }
     };
 
     /**
@@ -204,23 +204,17 @@ export class DrpgMessengerApp extends DrpgApp() {
 
     constructor(playerUserId) {
         const options = { id: `drpg-messenger-${playerUserId}` };
-        // Only set `position` when there is a saved one - passing `undefined`
-        // through to ApplicationV2's option merge is not guaranteed to fall
-        // back to DEFAULT_OPTIONS.position the way omitting the key does.
+        // The position is always handed in whole - size and place - rather than left to ApplicationV2's option merge,
+        // which is not guaranteed to fall back to DEFAULT_OPTIONS.position in this direction.
         //
-        // The size comes from DEFAULT_OPTIONS every time and is spread in here
-        // explicitly rather than left to ApplicationV2's option merge, which the
-        // comment above already records as not reliable in this direction.
-        //
-        // The size is the class's own being built (`new.target`): the GM's window (messenger-gm.mjs) states 980 x 680,
-        // and this class's 544 x 520 was spread under its saved place, so from its second opening on - its first close
-        // saves the place - the GM's window opened at the player window's size (the audit's r124-C-1; R8656, red at
-        // 206148b7). Only the place is kept (`savePosition` writes left and top), never a size a user dragged, as
-        // before for the player's window.
+        // The size is the window's own kind (`new.target.MESSENGER_KIND`): until 1.2.125 this class's 544 x 520 was
+        // spread under a saved place whatever class was built, so the GM's window opened at the player window's size
+        // from its second opening on (the audit's r124-C-1; R8656, red at 206148b7). Since E129 it is asked for at every
+        // opening and cut to the screen (messenger-gm.mjs `messengerSize`: never past 90% of its width and height; R8831).
+        // The saved place, when there is one, stands over it. Only the place is kept (`savePosition` writes left and
+        // top), never a size a user dragged.
         const saved = readSavedPosition(playerUserId);
-        if (saved) {
-            options.position = { ...DrpgMessengerApp.DEFAULT_OPTIONS.position, ...new.target.DEFAULT_OPTIONS?.position, ...saved };
-        }
+        options.position = { ...messengerSize(new.target.MESSENGER_KIND ?? "player"), ...(saved ?? {}) };
         super(options);
         this.playerUserId = playerUserId;
     }
@@ -1461,14 +1455,37 @@ async function ruleDecline(action, data, message = null) {
         }
         return settled("DRPG.Bridge.settledAnswered");
     }
-    const { refundPrice } = await import("./price.mjs");
-    await refundPrice(actor, receipt);
+    /* THE ROLL THE CARD RULES ON, AND WHAT IT BROUGHT (E129, 1.2.128; config.mjs `ROLL_REFUNDS.gmRefuse`, which asks
+       `afterRoll` while it is null; REFUNDS.md row 12). A ruling card is posted after its dice, which had paid out their
+       Hope, and "Refuse the attempt" gave the price back as well. The card holds no link to its roll (`declineAction`'s
+       data), so the roll is the GMs' newest record of this character's Observe, Search or Analyze thrown before the card
+       (`rulingRollOf`); under the default the price comes back only where it brought neither Hope nor a critical
+       (price.mjs `mayRefundAfterRoll`). No record found - a card from before the GMs kept them - gives it back as before. */
+    const { refundPrice, mayRefundAfterRoll } = await import("./price.mjs");
+    const rolled = await rulingRollOf(actor, message);
+    const back = !rolled || mayRefundAfterRoll([rolled], { gmRefuse: true });
+    if (back) await refundPrice(actor, receipt);
 
     const note = `<p><em>${foundry.utils.escapeHTML(
-        game.i18n.format("DRPG.Bridge.declined", { name: game.user.name }))}</em></p>`;
+        game.i18n.format("DRPG.Bridge.declined", { name: game.user.name }))}</em></p>${back ? ""
+        : `<p>${foundry.utils.escapeHTML(game.i18n.localize("DRPG.Action.keptAfterRoll"))}</p>`}`;
     if (owner) await postToThread(owner.id, note);
     ui.notifications.info(game.i18n.format("DRPG.Bridge.declinedGm", { name: actor.name }));
     return settled("DRPG.Bridge.settledDeclined");
+}
+
+/** The kinds of roll a ruling card with "Refuse the attempt" is posted for (action-pipeline.mjs `declineAction`'s callers). */
+const RULED_ROLLS = Object.freeze(["observe", "search", "analyze"]);
+
+/** The GMs' newest record of `actor`'s ruled roll thrown before `message` (the card), `{ isCritical, withHope }`, or null. */
+async function rulingRollOf(actor, message) {
+    const { rollStore } = await import("./gm-stores.mjs");
+    await rollStore.whenHydrated();
+    const before = Number(message?.timestamp) || Date.now();
+    const row = Object.values(rollStore.entries() ?? {})
+        .filter(r => r?.actorId === actor.id && RULED_ROLLS.includes(r.actionKey) && Number(r.at) <= before)
+        .sort((a, b) => Number(b.at) - Number(a.at))[0];
+    return row ? { isCritical: Boolean(row.isCritical), withHope: Boolean(row.withHope) } : null;
 }
 
 async function ruleCreateItem(action, data) {

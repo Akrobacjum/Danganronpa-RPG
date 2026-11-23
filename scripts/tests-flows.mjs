@@ -264,7 +264,7 @@ export const FLOWS = Object.freeze([
     { id: "levels-floor", what: "Levels and floors: a move between floors judged on the GM",
         entry: {}, scenarios: ["66-rooms"], status: "partial", stage: "E39" },
     { id: "mastermind", what: "The Mastermind's doors: asked for and granted across clients",
-        entry: { sockets: ["mastermind.mjs"] }, scenarios: ["61-gmstore-case"], status: "partial", stage: "E40" },
+        entry: { sockets: ["mastermind.mjs"] }, scenarios: ["61-gmstore-case", "97-two-gms"], status: "partial", stage: "E40" },
     // E08+E28 fix r2-H5 (05.10.2026): while an incident runs a player's private card is asked of the primary GM, who posts
     // it (`card.post`, secret.mjs `askGm`): 13-murder-signals' fight sends the players' cards and a word in the messenger.
     // E50 fix FG2 (30.10.2026; the end review's G7): 87-messenger-sound reads the read state, the counts and a failed send.
@@ -407,10 +407,10 @@ export const FLOWS = Object.freeze([
     // E80 fix r1-G1 (18.10.2026): a secret door a player changed while no GM was connected is put back when a GM comes: 15's
     // away-and-back.
     { id: "secret-passages", what: "A secret passage: the GMs' records, and each player's copy of the ones their own characters know, sent to them alone",
-        entry: { sockets: ["passages.mjs", "passages-gm.mjs", "movement-audit.mjs"], bridge: ["passage.share", "passage.cross", "passage.find"] }, scenarios: ["76-passages", "33-bridge-paths", "30-security", "15-held"], status: "covered", stage: "1.2.79" },
+        entry: { sockets: ["passages.mjs", "passages-gm.mjs", "movement-audit.mjs"], bridge: ["passage.share", "passage.cross", "passage.find"] }, scenarios: ["76-passages", "33-bridge-paths", "30-security", "15-held", "97-two-gms"], status: "covered", stage: "1.2.79" },
     { id: "sheet-audit", what: "A player's own write on their student: judged on the primary GM, put back, flagged or listed - at the write, or at the primary's ready for one made with no GM watching",
         entry: { calls: ["sheet-audit.mjs#judgeWrite", "sheet-audit.mjs#compareAtReady"], bridge: ["audit.decide"] },
-        scenarios: ["30-security", "40-flow", "61-gmstore-case", "20-crit-hope", "10-murder", "15-held", "83-roll-integrity"], status: "covered", stage: "1.2.68" },
+        scenarios: ["30-security", "40-flow", "61-gmstore-case", "20-crit-hope", "10-murder", "15-held", "83-roll-integrity", "97-two-gms"], status: "covered", stage: "1.2.68" },
     // E11 C13 (11.10.2026): covered. 65-season drives `resetSeason` through its window on a world holding a season (E11 C0-C12:
     // phases A, D, R, F, G, P and S, whose 28 checks carry this flow) and reads the world after it. 61-gmstore-case resets
     // too (three `resetSeason` calls), but tags those checks gm-store, the flow it is about, so it is no longer named here:

@@ -43,6 +43,55 @@ import { setTip } from "./ui-kit.mjs";
 /** The most items the stream draws when the window opens: the newest, so an evening's chat does not draw at once. */
 export const CONSOLE_STREAM_LIMIT = 300;
 
+/**
+ * The messenger windows' sizes (E129, the owner's S0-MSGSIZE of 23.11.2026: "powiekszmy cale okno messenger znacznie"):
+ * about 40% larger than 1.2.124's 980 x 680 (the GM's) and 544 x 520 (a player's), and never past `viewport` of the
+ * screen's width and height. The coordinator's default, pending the owner's word: one constant. Here and not in
+ * messenger-app.mjs, which imports this file (R161), so both windows read it. A size dragged by hand is not kept (R8656).
+ */
+export const MESSENGER_WINDOW_SIZES = Object.freeze({
+    gm: Object.freeze({ width: 1370, height: 950 }),
+    player: Object.freeze({ width: 760, height: 730 }),
+    viewport: 0.9
+});
+
+/**
+ * The size a messenger window asks for: `kind`'s ("gm" or "player"), each side cut to `viewport` of `screen`'s (this
+ * page's by default), in whole pixels. Pure but for the default screen.
+ */
+export function messengerSize(kind, screen = { width: globalThis.innerWidth, height: globalThis.innerHeight }) {
+    const want = MESSENGER_WINDOW_SIZES[kind] ?? MESSENGER_WINDOW_SIZES.player;
+    const cap = (side, room) => (Number.isFinite(room) && room > 0 ? Math.min(side, Math.floor(room * MESSENGER_WINDOW_SIZES.viewport)) : side);
+    return { width: cap(want.width, screen?.width), height: cap(want.height, screen?.height) };
+}
+
+/**
+ * The order of the players in the window's list (E129, the owner's S0-MSGSORT of 23.11.2026: "niech osoby od ktorych mamy
+ * wiadomosc wyswietlaja sie najwyzej (sortowanie po czasie)"): "recent" - the players with a message first, the newest
+ * last message first, then those with none in name order - or "name", the order before E129. The coordinator's default,
+ * pending the owner's word: one constant.
+ */
+export const MESSENGER_LIST_ORDER = "recent";
+
+/**
+ * `users` in the list's order, by `stats` (messenger.mjs `threadStats`: a row per thread with its `last` message). Pure.
+ * Two last messages at one stamp, and the players with none, stand in name order.
+ */
+export function navOrder(users, stats, order = MESSENGER_LIST_ORDER) {
+    const byName = (a, b) => String(a.name ?? "").localeCompare(String(b.name ?? ""));
+    if (order !== "recent") return [...users].sort(byName);
+    const at = user => {
+        const stamp = stats?.get?.(user.id)?.last?.timestamp;
+        return Number.isFinite(stamp) ? stamp : null;
+    };
+    return [...users].sort((a, b) => {
+        const ta = at(a), tb = at(b);
+        if (ta !== null && tb !== null && ta !== tb) return tb - ta;
+        if ((ta === null) !== (tb === null)) return ta === null ? 1 : -1;
+        return byName(a, b);
+    });
+}
+
 /** The filter's values: everything, the actions only, or one player's (`player:<id>`). */
 const FILTER_ALL = "all", FILTER_ACTIONS = "actions";
 
@@ -58,11 +107,13 @@ export function gmMessengerClass(Base, { buildBubble, previewOf, savePosition })
         /** This browser's one GM window, or null. */
         static current = null;
 
+        static MESSENGER_KIND = "gm";
+
         static DEFAULT_OPTIONS = {
             classes: ["drpg-messenger", "drpg-messenger-gm"],
             window: { icon: "fa-solid fa-comments", resizable: true, minimizable: true },
             scrollRegion: ".drpg-messenger-log, .drpg-messenger-note, .drpg-console-stream",
-            position: { width: 980, height: 680 }
+            position: { ...MESSENGER_WINDOW_SIZES.gm }
         };
 
         /** "console", or the player whose conversation is shown. */
@@ -170,7 +221,7 @@ export function gmMessengerClass(Base, { buildBubble, previewOf, savePosition })
                 game.i18n.localize("DRPG.Messenger.gm.consoleHint"), this.waitingCount());
             consoleRow.classList.add("drpg-messenger-gm-console-row");
             rows.push(consoleRow);
-            const players = threadUsers().sort((a, b) => a.name.localeCompare(b.name));
+            const players = navOrder(threadUsers(), stats);
             if (!players.length) {
                 const none = document.createElement("p");
                 none.className = "drpg-messenger-empty";

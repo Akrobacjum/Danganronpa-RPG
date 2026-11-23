@@ -131,7 +131,7 @@
 import { MODULE_ID } from "./config.mjs";
 import { micHold, moduleHoldsMic, broadcastAudioKnown } from "./voice.mjs";
 import { SETTINGS, getSetting, setSetting, getClock } from "./settings.mjs";
-import { avclientActive, voiceApplying } from "./voice-client.mjs";
+import { avclientActive, voiceApplying, HEARING_REASONS, reportHearing } from "./voice-client.mjs";
 import { voiceIdentity, voiceActorFor, measureCameraDock } from "./camera-view.mjs";
 import { safePortrait } from "./vault.mjs";
 import { cssString } from "./room-tile.mjs";
@@ -148,6 +148,7 @@ import { myEavesdrop, eavesdropsUnderWay } from "./eavesdrop-gm.mjs";
 import { myMask, requestReveal } from "./mask-gm.mjs";
 import { myHiding, requestUnhide, hiddenUnderWay, gmUnhide } from "./hide.mjs";
 import { voiceVeiledHere } from "./visibility.mjs";
+import { count } from "./perf-counters.mjs";
 
 
 const TILE_ID = "drpg-voice-tile";
@@ -1497,6 +1498,125 @@ function audioOf(watch, userId) {
     return [...(watch.dock()?.querySelectorAll?.(AUDIO) ?? [])].filter(el => el.closest(".camera-view")?.dataset.user === userId);
 }
 
+/*
+ * WHO THIS PAGE DOES NOT HEAR (E129, the owner's S0-VOICE of 23.11.2026: "osoba a nie slyszy osoby b slyszac reszte. Reszta
+ * slyszy osobe b normalnie"; an F5 on A's browser cured it). A and B share a Room - A hears the rest and the rest hear B -
+ * so the gap is on A's page: the module's own per-listener roads ('Mute for me', the volume) or LiveKit's and the
+ * browser's (a microphone not subscribed after a reconnect, no `<audio>` for B, one paused by the browser's autoplay
+ * rule). `hearingGaps` names each participant of the watch's Room who publishes an open microphone and is not `audible`,
+ * with the first reason of HEARING_REASONS that holds. `repairHearing` mends only what nobody chose - a paused element is
+ * played, an unsubscribed microphone subscribed - once per person and reason until they are heard again; it never touches
+ * a mute, a volume or the dock's hide, each a choice of the listener's. `checkHearing` runs both on the tick, tells the
+ * GMs when the list changes (voice-client.mjs `reportHearing`; voice.mjs `voicePlan` lists it) and repaints an open list,
+ * whose row says it (`paintList`). What a real LiveKit and Firefox do is not measured headless: a live check proposed with E129, for the coordinator to write in AUDIT 9.2.
+ */
+
+/** How often a page asks who it does not hear: on the voice self-check's order, cheap when no Room is followed. */
+const HEARING_CHECK_MS = 10000;
+
+/** The open microphones a participant publishes: its audio publications not marked another source, not muted by them. */
+function openMicrophones(participant) {
+    return [...(participant?.audioTrackPublications?.values?.() ?? [])].filter(pub => pub && (!pub.source || pub.source === "microphone") && pub.isMuted !== true);
+}
+
+/** The first reason `userId` is not heard here (HEARING_REASONS' order), for a participant whose microphone is open. */
+function gapReason(watch, userId, publication, mutes, settings) {
+    if (mutedFor(mutes, settings, userId)) return "mutedForMe";
+    const elements = audioOf(watch, userId);
+    if (peerVolume(settings, userId) === 0 || (elements.length && elements.every(el => !(Number(el.volume) > 0)))) return "volumeZero";
+    if (publication?.isSubscribed === false) return "notSubscribed";
+    if (!elements.length) return "noElement";
+    if (elements.every(el => el.paused)) return "elementPaused";
+    if (elements.every(el => el.muted)) return "elementMuted";
+    return "trackNotLive";
+}
+
+/**
+ * The participants of the watch's Room this page does not hear, `[{ userId, reason }]` in the Room's order: each who
+ * publishes an open microphone and is not `audible`. Nobody while the Room is not connected or the listener muted
+ * everybody (Foundry's mute-all, their own choice). `isUser` is the record's test of an id (`peerMutes`).
+ *
+ * @param {object} [watch]
+ * @param {object} [options]
+ * @param {(id: string) => boolean} [options.isUser]
+ * @returns {{userId: string, reason: string}[]}
+ */
+export function hearingGaps(watch = live, { isUser } = {}) {
+    const room = watch?.room;
+    if (!room || room.state !== "connected" || watch.muteAll?.()) return [];
+    const settings = watch.settings?.(), mutes = isUser ? peerMutes(watch.mutes?.read?.(), isUser) : peerMutes(watch.mutes?.read?.());
+    const out = [];
+    for (const participant of room.remoteParticipants?.values?.() ?? []) {
+        const user = personOf(watch, participant, room);
+        if (!user) continue;
+        const open = openMicrophones(participant);
+        if (!open.length || audible(watch, user.id)) continue;
+        const reason = gapReason(watch, user.id, open.find(pub => pub.isSubscribed === false) ?? open[0], mutes, settings);
+        if (HEARING_REASONS.includes(reason)) out.push({ userId: user.id, reason });
+    }
+    return out;
+}
+
+/**
+ * Mend what nobody chose, once per person and reason (`watch.hearingTried`, emptied for whoever is heard again): an
+ * unsubscribed microphone subscribed (`setSubscribed(true)`, LiveKit's), a paused element played (its rejection, an
+ * autoplay block, is kept as the gap it was). Answers the gaps it tried.
+ *
+ * @param {object} [watch]
+ * @param {{userId: string, reason: string}[]} [gaps]
+ * @returns {{userId: string, reason: string}[]}
+ */
+export function repairHearing(watch = live, gaps = hearingGaps(watch)) {
+    if (!watch) return [];
+    const tried = watch.hearingTried ??= new Set();
+    const open = new Set(gaps.map(gap => gap.userId));
+    for (const key of [...tried]) if (!open.has(key.split(":")[0])) tried.delete(key);
+    const done = [];
+    for (const gap of gaps) {
+        if (gap.reason !== "notSubscribed" && gap.reason !== "elementPaused") continue;
+        const key = `${gap.userId}:${gap.reason}`;
+        if (tried.has(key)) continue;
+        tried.add(key);
+        try {
+            if (gap.reason === "elementPaused") {
+                for (const el of audioOf(watch, gap.userId)) if (el.paused) Promise.resolve(el.play?.()).catch(() => {});
+            } else {
+                const participant = [...(watch.room?.remoteParticipants?.values?.() ?? [])].find(p => personOf(watch, p)?.id === gap.userId);
+                for (const pub of openMicrophones(participant)) if (pub.isSubscribed === false) pub.setSubscribed?.(true);
+            }
+            done.push(gap);
+        } catch (err) {
+            error("Could not mend a voice this page does not hear", err);
+        }
+    }
+    if (done.length) count("voice.hearing.repair", done.length);
+    return done;
+}
+
+/**
+ * One check of the tick: the gaps found, mended where nobody chose them, told to the GMs when the list changed since
+ * the last report (`report`, voice-client.mjs `reportHearing`), and an open list repainted. Answers the gaps.
+ *
+ * @param {object} [watch]
+ * @param {object} [options]
+ * @param {(gaps: object[]) => void} [options.report]
+ * @param {(id: string) => boolean} [options.isUser]
+ */
+export function checkHearing(watch = live, { report = reportHearing, isUser } = {}) {
+    if (!watch) return [];
+    const gaps = hearingGaps(watch, { isUser });
+    repairHearing(watch, gaps);
+    watch.hearing = new Map(gaps.map(gap => [gap.userId, gap.reason]));
+    const said = JSON.stringify(gaps);
+    if (said !== (watch.hearingSaid ?? "[]")) {
+        watch.hearingSaid = said;
+        count("voice.hearing.report");
+        report(gaps);
+    }
+    if (watch.list && !watch.list.hidden) paintList(watch, isUser ? { isUser } : {});
+    return gaps;
+}
+
 /**
  * The one writer of a remote user's volume in this browser: only for a participant of the watch's own Room, clamped
  * to 0..1, into their `<audio>` element at once (unless proximity-voice-chat sets it) and, with `save`, into this
@@ -1671,7 +1791,11 @@ function listRow(watch, userId) {
     unhide.type = "button";
     unhide.addEventListener("click", () => listAct(watch, () => unhidePeer(watch, userId)));
     hidden.hidden = unhide.hidden = true;
-    row.append(art, textNode("span", "drpg-voice-row-name", ""), dot, slider, mute, hidden, unhide);
+    // E129 (S0-VOICE): 'Mute for me' said in words beside the button that undoes it, and why this page does not hear them.
+    const mutedMe = textNode("span", "drpg-voice-row-mutedme", game.i18n.localize("DRPG.Voice.list.mutedByYou"));
+    const gap = textNode("span", "drpg-voice-row-gap", "");
+    mutedMe.hidden = gap.hidden = true;
+    row.append(art, textNode("span", "drpg-voice-row-name", ""), dot, slider, mute, mutedMe, hidden, unhide, gap);
     return row;
 }
 
@@ -1710,10 +1834,10 @@ function putHidden(el, hidden) {
  * @param {(user: User) => object|null} [options.holds]  `moduleHoldsMic`; R539 hands in its own
  * @returns {number} the rows drawn
  */
-export function paintList(watch = live, { holds = user => moduleHoldsMic(user) } = {}) {
+export function paintList(watch = live, { holds = user => moduleHoldsMic(user), isUser } = {}) {
     const list = watch?.list, body = list?.querySelector(".drpg-voice-list-rows");
     if (!body) return 0;
-    const settings = watch.settings(), mutes = peerMutes(watch.mutes.read()), gm = watch.gm() === true, room = watch.room;
+    const settings = watch.settings(), mutes = isUser ? peerMutes(watch.mutes.read(), isUser) : peerMutes(watch.mutes.read()), gm = watch.gm() === true, room = watch.room;
     const ids = room?.state === "connected"
         ? [...new Set([...(room.remoteParticipants?.values?.() ?? [])].map(p => personOf(watch, p, room)?.id).filter(Boolean))] : [];
     const people = ids.map(id => ({ id, user: watch.userOf(id) })).filter(p => p.user)
@@ -1758,6 +1882,15 @@ export function paintList(watch = live, { holds = user => moduleHoldsMic(user) }
         mute.classList.toggle("is-muted", muted);
         for (const el of [slider, mute]) putHidden(el, hidden);
         for (const el of row.querySelectorAll(".drpg-voice-row-hidden, .drpg-voice-row-unhide")) putHidden(el, !hidden);
+        // Muted by you, in words; and a gap the last check found that nobody here chose (`checkHearing`).
+        const mutedMe = row.querySelector(".drpg-voice-row-mutedme");
+        if (mutedMe) putHidden(mutedMe, hidden || !muted);
+        const gapLine = row.querySelector(".drpg-voice-row-gap"), gapWhy = watch.hearing?.get?.(id);
+        if (gapLine) {
+            const shown = Boolean(gapWhy && gapWhy !== "mutedForMe" && gapWhy !== "volumeZero" && !hidden);
+            putText(gapLine, shown ? game.i18n.format("DRPG.Voice.list.gap", { why: game.i18n.localize(`DRPG.Voice.hearing.${gapWhy}`) }) : "");
+            putHidden(gapLine, !shown);
+        }
 
         let block = row.querySelector(".drpg-voice-row-block"), why = row.querySelector(".drpg-voice-row-held");
         if (!gm) {
@@ -1996,6 +2129,10 @@ export function registerVoiceTile() {
             && live?.list && !live.list.hidden) paintList(live);
     });
     Hooks.on("drpgEavesdropChanged", () => { if (live?.list && !live.list.hidden) paintList(live); });
+    // A hidden token holds its player's microphone (E129, S0-HIDEMUTE; voice.mjs `micHold` "tokenHidden"): said at once.
+    Hooks.on("updateToken", (_doc, changes) => { if ("hidden" in (changes ?? {})) paintControls(); });
+    // Who this page does not hear (E129, S0-VOICE; `checkHearing`), on its own tick.
+    setInterval(() => { try { checkHearing(live); } catch (err) { error("Could not check who this page hears", err); } }, HEARING_CHECK_MS);
     /* THE TRIAL'S LINES FOLLOW THE TRIAL (E70 fix p1-G1, 28.10.2026; the review's E70P1-R03). A Monocub's line and the
        dead's (voice.mjs `micHold`: "cubSpeak", "cubListen", "cubVote", "ownCase", "deadMuted") are read off the clock,
        the floor and the trial's record, and nothing here repainted on those: a debate opened, or the vote, and the

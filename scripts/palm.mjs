@@ -222,7 +222,7 @@ async function resolvePlant(actor, def, { victim, planted, hand, shadow, room, s
     // Refused by the one gate before the rolls were read: the action back (`palmBack`; Q3). A Plant into full pockets
     // was tried, and is no refusal (D42): it stays paid; so does one the gate refused on its second asking, after the
     // rolls (told as nothing carried out, palm.mjs `plantOnPerson`; fix e1-G4).
-    await handBackIfRefusedBeforeRolls(actor, paid, { ok: res.ok, refused: res.refused, reason: res.reason, value: res.value });
+    await handBackIfRefusedBeforeRolls(actor, paid, { ok: res.ok, refused: res.refused, reason: res.reason, value: res.value }, [shadow, hand]);
 
     await noteRollContext(actor, {
         actionKey: "palm", planting: true, room, victimId: victim.id,
@@ -257,10 +257,19 @@ function nobodyTook(ok, reason) {
  * the bridge's answer as the asker holds it, its four fields read where it was asked (`drpg/bridge-result`). Answers whether it handed the action back. A Steal's, a Plant's and,
  * since 1.2.122, an unseen Frisk's (frisk.mjs `performFrisk`; the audit's CASE-34).
  */
-export async function handBackIfRefusedBeforeRolls(actor, paid, res) {
+export async function handBackIfRefusedBeforeRolls(actor, paid, res, rolls = []) {
     const code = res?.ok ? (res.value?.refused ? (await import("./bridge-guards.mjs")).reasonOf(res.value.refused) : null)
         : (res?.refused ? res.reason : null);
     if (!nobodyTook(res?.ok, res?.reason) && !TRANSFER_REFUSED.includes(code)) return false;
+    /* AS THE ROLLS LET IT (E129, 1.2.128; config.mjs `ROLL_REFUNDS.afterRoll`): the dice of a refused Palm had paid out
+       their Hope, and the owner's Q3 handed the action back all the same. Now `rolls` - the cover and the hand - are held to
+       price.mjs `mayRefundAfterRoll`: under its default the action comes back only where neither brought Hope or a
+       critical, and the player is told when it does not. */
+    const { mayRefundAfterRoll } = await import("./price.mjs");
+    if (!mayRefundAfterRoll(rolls)) {
+        if (paid) ui.notifications.info(game.i18n.localize("DRPG.Action.keptAfterRoll"));
+        return false;
+    }
     await palmBack(actor, paid);
     return true;
 }
@@ -419,7 +428,7 @@ export async function performPalm(actor, def, options) {
      * One the gate refused on its second asking, inside the move after the rolls were read, comes back as nothing carried
      * out (`refused`, palm.mjs `stealFromPerson`) and stays paid, as Q3 reads (E14 fix e1-G4; the review's E14R-07).
      */
-    await handBackIfRefusedBeforeRolls(actor, paid, { ok: res.ok, refused: res.refused, reason: res.reason, value: res.value });
+    await handBackIfRefusedBeforeRolls(actor, paid, { ok: res.ok, refused: res.refused, reason: res.reason, value: res.value }, [shadow, hand]);
 
     // What Reroll would have to unpick, and the honest answer is that it cannot
     // - see `case "steal"` in reroll.mjs. Recorded anyway so the branch there

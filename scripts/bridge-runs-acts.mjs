@@ -616,6 +616,17 @@ export async function handleShareBulletOrGiveItem(payload, sender, ctx) {
     if (out?.refused) return { refused: out.refused };
 }
 
+/*
+ * A SHARE THAT SAYS WHETHER THE READING GOES WITH IT (S0-ANSHARE, line INVEST of 1.2.129): the share's own run, so that
+ * only its row lets `analysis` through (R163); a packet without the field, an older client's, carries the reading as
+ * every share did until 1.2.129. The rest is the common run's.
+ */
+export async function handleShareBullet(payload, sender, ctx) {
+    const { shareBullet } = await import("./handover.mjs");
+    const out = await shareBullet({ fromId: payload.fromId, toId: payload.toId, itemId: payload.itemId, analysis: payload.analysis !== false });
+    if (out?.refused) return { refused: out.refused };
+}
+
 // Showing a secret passage (E79 C7): the recipient learns it in the GMs' records, which only the
 // primary writes. Every check past the sender's ownership of the giver is `shareRefusal`'s, and whether
 // the sender acts as the Mastermind through the giver is asked of the sender (E79 fix r2-G2, SEC M3).
@@ -849,9 +860,9 @@ export async function handleVaultSteal(payload, sender, ctx) {
     return { reply: { taken: Boolean(out) } };
 }
 
-/* The run of `murder.openingCard` (E128): a GM's ask for the opening's card to its player, posted by this primary
-   (murder-rules.mjs `postOpeningCard`, which posts it once) for the incident standing at its opening roll, the one the
-   asker read: answers whether it posted one. */
+/* The run of `murder.openingCard` (E128): a GM's ask for the opening's card to its player, or with `pick` the roller's
+   line while a GM picks the statistic, posted by this primary (murder-rules.mjs `postOpeningCard`, which posts each
+   once) for the incident standing at its opening roll, the one the asker read: answers whether it posted one. */
 export async function handleOpeningCard(payload) {
     const { murderState } = await import("./murder.mjs");
     const { postOpeningCard } = await import("./murder-rules.mjs");
@@ -859,7 +870,7 @@ export async function handleOpeningCard(payload) {
     if (state?.stage !== "openingRoll" || (payload.openedAt && state.openedAt !== payload.openedAt)) {
         return { refused: "nothing was carried out: the incident is no longer at that opening roll" };
     }
-    return { reply: await postOpeningCard(payload.side, state) };
+    return { reply: await postOpeningCard(payload.side, state, { pick: payload.pick, proposed: payload.proposed }) };
 }
 
 // Stage 4 thrown on the participant's own client. Same guard as a crisis
