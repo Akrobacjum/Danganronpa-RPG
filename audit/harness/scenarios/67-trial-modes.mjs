@@ -6,9 +6,8 @@
  *     the same floor - Aiko's turn - and only p1, Aiko's player, is shown "Your turn - 60 s"; p2's Event panel says who
  *     is next and p3's HUD who speaks. p2 calls Botan's turn done while it is Aiko's (refused, the floor stays), p1
  *     calls Aiko's done from its own page (Botan's turn). Chie objects at Botan, the speaker, and the rebuttal is
- *     skipped: Botan has the floor again with the rest of the turn (E129 S0-CUT A, 1.2.129; the queue went on at Chie
- *     until then, E70-42), p2 calls Botan's done, and the queue goes on at Chie, whom p3 passes - "Chie Mori passes." and
- *     "The Testimony is over." reach every player and the floor closes.
+ *     skipped: the queue resumes at Chie, whom p3 passes - "Chie Mori passes." and "The Testimony is over." reach every
+ *     player and the floor closes.
  *   P (E70 C7, Panic Round, the GM's heartbeat held): the GM's trial ticker held from the round's start (a tab in the
  *     background: trial-floor.mjs's own `setInterval` answers nothing, every other timer runs), a Panic Round at 15 s;
  *     p2's OBJECTION! is refused; Aiko's 15 s run out and the players' browsers move the round to Botan by themselves
@@ -141,15 +140,10 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, canary, repoUr
         await new Promise(r => setTimeout(r, 500));
         const f = F.trialFloor();
         return { wrong: wrong ?? null, opened: Boolean(opened), atObjection, atRebuttal, mode: f?.mode ?? null, holder: f?.holderId ?? null };`, { timeout: 60000 });
-    verdict("an Objection is aimed only at the speaker; its rebuttal skipped, Botan has the rest of the turn back (E129 S0-CUT A)",
+    verdict("an Objection is aimed only at the speaker; its rebuttal skipped, the queue resumes at Chie",
         exchange.wrong === null && exchange.opened && exchange.atObjection === "objection" && exchange.atRebuttal === "rebuttal"
-            && exchange.mode === "testimony" && exchange.holder === IDS.botan, J(exchange));
+            && exchange.mode === "testimony" && exchange.holder === IDS.chie, J(exchange));
     await canary.scan({ phase: "T-exchange" });
-    const botanDone = await turnFrom(p2, IDS.botan, "done");
-    await settle(800);
-    const atChie = await floorOn(gm);
-    verdict("p2 calls Botan's resumed turn done: the queue goes on at Chie",
-        botanDone.ok === true && atChie?.mode === "testimony" && atChie.holder === IDS.chie, J({ botanDone, atChie }));
 
     const passed = await turnFrom(p3, IDS.chie, "pass");
     await settle(1200);

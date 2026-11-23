@@ -4446,22 +4446,15 @@ export const TRIAL = {
             panic: { offered: 15, small: 10, smallFrom: 12, min: 10, max: 15 },
             graceSeconds: 1,
             /*
-             * A ROUND'S SPEAKER IS NOT CUT SHORT (E129 S0-CUT, 23.11.2026; the owner's note of session 0: "niektore tryby
-             * w class trial konczyly sie przedwczesnie (na przyklad testimony ucielo ostatniego gracza)"; the
-             * coordinator's defaults of that day, pending the owner). Two roads ended a turn before its speaker had
-             * used it, read in the code and the first measured on `nextFloor` alone at 2e28785a:
-             *   `resumeAfterExchange`: an Objection's exchange in a round over (its rebuttal run out, skipped, or the
-             *     mode ended) gives the interrupted speaker the seconds they had at the Objection, and the queue goes
-             *     on after them (floor-machine.mjs `afterExchange`). It REVERSES E70-42, a recorded decision
-             *     (audit/findings-1.2.118 domain-case-d-trial-floor.json, by_decision: "the interrupted speaker's rest
-             *     is not given back, except by an Overrule"): the queue went on at the next speaker, so an Objection at
-             *     the last speaker ended the round. False puts E70-42 back.
-             *   `goneGraceSeconds`: a speaker whose player drops is passed only when they are not back within these
-             *     seconds, counted by the primary (trial-floor.mjs `speakerGone`); back in time, the turn goes on with
-             *     its own clock. Until 1.2.129 they were passed at once (E70-45), so a reload during one's own turn passed
-             *     it. Chosen, not measured at a table: how long a v14 reload takes to reconnect is not measured (a LIVE item proposed in E129's report).
+             * A SPEAKER WHO DROPS IS NOT PASSED AT ONCE (E129 S0-CUT B, 23.11.2026; the coordinator's "a reload during your
+             * own turn should never pass you", after the owner's note of session 0, "testimony ucielo ostatniego gracza",
+             * which this is not the cause of: the owner's answer of that day, "Nie bylo zadnego" - no Objection, no drop).
+             * `goneGraceSeconds`: a speaker whose player drops is passed only when they are not back within these seconds,
+             * counted by the primary (trial-floor.mjs `speakerGone`); back in time, the turn goes on with its own clock.
+             * Until 1.2.129 they were passed at once (E70-45). Chosen, not measured at a table: how long a v14 reload takes
+             * to reconnect is not measured (a LIVE item proposed in E129's report). An Objection's exchange in a round still
+             * goes on at the next speaker (E70-42, which stands: the coordinator's word of 23.11.2026).
              */
-            resumeAfterExchange: true,
             goneGraceSeconds: 15
         },
         /*

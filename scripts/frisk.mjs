@@ -113,6 +113,22 @@ function knownBody(asker, target) {
 const floorKey = level => level?.id ?? level ?? null;
 
 /**
+ * PALM'S HALL (E129 S0-PALM, 23.11.2026; config.mjs `TRIAL.palmHallIsOneRoom`): while a Class Trial runs with a hall
+ * linked, the hall's scene, else null. The hall holds no room (R114), so it is no place scene and `gmPlaceOf` reads a
+ * student where their school token stands; Palm's Steal and Plant read the two tokens on the hall instead
+ * (`palmHallToken`), the hall one room. Palm's alone: a Frisk, a give, a tail and a loot never ask it.
+ */
+export function palmHall() {
+    if (!TRIAL.palmHallIsOneRoom || getClock()?.phase !== "classTrial") return null;
+    return trialScene() ?? null;
+}
+
+/** `actor`'s token on the hall `scene` that the GMs have not hidden, or null (Palm's, E129 S0-PALM). */
+export function palmHallToken(actor, scene) {
+    return Array.from(scene?.tokens ?? []).find(t => t.actorId === actor?.id && !hiddenByGm(t)) ?? null;
+}
+
+/**
  * Why `asker` may not act on `target` now, as an English reason of the bridge's closed list (bridge-guards.mjs
  * `REASON_PATTERNS`), or null. The primary GM's one gate of an action one living student takes on another in their
  * room (the A11 design's step 3), asked before the price; E80 asks it for a Frisk only (E14 wires it into the person
@@ -145,22 +161,6 @@ const floorKey = level => level?.id ?? level ?? null;
  * handover.mjs `lootBody`, inventory.mjs `transferItem` and anonymity.mjs's greying - read it through this one gate
  * (tier 0 R3143). The living road keeps the token.
  */
-/**
- * PALM'S HALL (E129 S0-PALM, 23.11.2026; config.mjs `TRIAL.palmHallIsOneRoom`): while a Class Trial runs with a hall
- * linked, the hall's scene, else null. The hall holds no room (R114), so it is no place scene and `gmPlaceOf` reads a
- * student where their school token stands; Palm's Steal and Plant read the two tokens on the hall instead
- * (`palmHallToken`), the hall one room. Palm's alone: a Frisk, a give, a tail and a loot never ask it.
- */
-export function palmHall() {
-    if (!TRIAL.palmHallIsOneRoom || getClock()?.phase !== "classTrial") return null;
-    return trialScene() ?? null;
-}
-
-/** `actor`'s token on the hall `scene` that the GMs have not hidden, or null (Palm's, E129 S0-PALM). */
-export function palmHallToken(actor, scene) {
-    return Array.from(scene?.tokens ?? []).find(t => t.actorId === actor?.id && !hiddenByGm(t)) ?? null;
-}
-
 export function personActionRefusal(asker, target, { body = false, user = null, palm = false } = {}) {
     if (!asker || !target || asker.type !== "character" || target.type !== "character") return "no such character";
     if (asker.id === target.id) return "a character cannot do that to itself";

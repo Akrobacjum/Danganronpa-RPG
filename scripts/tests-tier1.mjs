@@ -34604,7 +34604,7 @@ const INVARIANTS = [
             own: [true, false, "ownCase"]
         }), "who may speak without the tile, or a second trial's own case, is not the owner's rule (lines: a listed dead, a Monocub in the discussion and in a debate, the living, a GM, outside the trial; own: the case open before its verdict, closed after, the line)");
     }],
-    ["R1042 - Testimony and Panic Round on the floor's one engine (E70 C7, S18-72; TR6, TR14, TR26): floor-machine.mjs `nextFloor`'s round rows - the order frozen at the start, a speaker with no owner connected passing at once, Done and Pass by the speaker of this step alone, a step over only when due (a second's grace) and seven of them moving once, the clock and Skip, an Objection at the speaker whose exchange gives them the turn's rest back on every road that ends it (since 1.2.129, E129 S0-CUT A, R8771; the queue until then, E70-42), an Overrule giving the speaker the turn's rest - and the start's guards (30-120 s, Panic 10-15 s, 10 offered from 12)", async () => {
+    ["R1042 - Testimony and Panic Round on the floor's one engine (E70 C7, S18-72; TR6, TR14, TR26): floor-machine.mjs `nextFloor`'s round rows - the order frozen at the start, a speaker with no owner connected passing at once, Done and Pass by the speaker of this step alone, a step over only when due (a second's grace) and seven of them moving once, the clock and Skip, an Objection at the speaker whose exchange resumes the queue on both roads that end it, an Overrule giving the speaker the turn's rest - and the start's guards (30-120 s, Panic 10-15 s, 10 offered from 12)", async () => {
         /*
          * E70 C7, 28.10.2026; E70-40 to E70-46. A round is a mode of the floor like the debate (`MODES.testimony`,
          * `MODES.panic`), so every road that moves it - the heartbeat, the GM's bar, a participant's "trial.turn", the API -
@@ -34615,8 +34615,7 @@ const INVARIANTS = [
          * the last one's ending the round with its card; (3) a step over: refused two seconds early, taken at one, and seven
          * of them on one step move it once (the first; the rest find the next step); (4) the clock run out and Skip move
          * on; a speaker gone passes; (5) an Objection at the speaker keeps the round under the exchange, and a rebuttal
-         * run out or skipped gives the speaker the seconds left at the Objection (since 1.2.129, E129 S0-CUT A; the next
-         * speaker until then, E70-42), as an Overrule and a lapse give the speaker the seconds
+         * run out or skipped resumes the queue at the next speaker, an Overrule and a lapse give the speaker the seconds
          * left at the Objection, End this mode in the exchange resumes it and on the round ends it; (6) the mode's row:
          * in Testimony only the speaker speaks, presents and is aimed at, in Panic nobody objects; (7) trial-modes.mjs's
          * guards and the offer. Red at 182cdd57: no round rows (no trial-modes.mjs).
@@ -34696,11 +34695,9 @@ const INVARIANTS = [
             gone: step2(B, [passes(A)]), goneOther: { refused: "DRPG.Floor.round.notSpeaker" },
             // 30 s since 1.2.129 (E129 S0-OBJ; R8770), 60 until then.
             objection: { mode: "objection", holder: D, left: 30, step: 1, stack: [[CARD, "testimony", 40]], cards: [] },
-            /* The exchange's end gives the interrupted speaker A the 40 s they had (E129 S0-CUT A, `resumeAfterExchange`,
-               R8771); until 1.2.129 the queue went on at B with a whole turn (E70-42). */
-            rebuttalDue: step2(A, [], 40), rebuttalSkip: step2(A, [["DRPG.Floor.turnSkipped", A]], 40),
+            rebuttalDue: step2(B), rebuttalSkip: step2(B, [["DRPG.Floor.turnSkipped", A]]),
             overrule: step2(A, [], 40), lapse: step2(A, [], 40),
-            endExchange: step2(A, [["DRPG.Floor.modeEnded", "objection"]], 40),
+            endExchange: step2(B, [["DRPG.Floor.modeEnded", "objection"]]),
             endRound: { mode: null, holder: null, left: null, step: null, stack: [], cards: [["DRPG.Floor.modeEnded", "testimony"]] },
             back: { refused: "DRPG.Floor.bar.inRound" },
             rows: [true, true, false, true, false, true, false, false, true],
@@ -67662,62 +67659,6 @@ const INVARIANTS = [
         must(files === 8, `read ${files} of the six handbooks and two language files - this would measure too little`);
         equal(stableJson({ read, found }), stableJson({ read: { constant: 30, debate: 30, round: 30, pick: [30, 30], closing: [60, 60], rebuttal: 120 }, found: [] }),
             "{read: [the constant, an Objection's seconds in a debate, in a round, [while its bullet is picked, the pick constant], [the Closing's exchange, its constant], the rebuttal]; found: the texts that still say a minute or 60 s}");
-    }],
-    ["R8771 - a round's speaker interrupted by an Objection gets the rest of their turn back (E129 S0-CUT A; the owner's note of 23.11.2026, \"testimony ucielo ostatniego gracza\"; `TRIAL.modes.round.resumeAfterExchange`, reversing E70-42): floor-machine.mjs `nextFloor` on a Testimony of three - an Objection at the second speaker 10 s into a 60 s turn, its rebuttal run out: the second speaker again with 50 s, then the third; at the last speaker the same, and the round ends only after them; the rebuttal skipped and the exchange ended by the GM resume the speaker too; an Objection with nothing left on the turn goes on to the next speaker", async () => {
-        /* Floors built by the machine's own events on one clock. Red at 2e28785a: the queue went on at the next speaker
-           (E70-42), so the last speaker's Objection ended the round with 50 s unspoken. */
-        const { TRIAL } = await import("./config.mjs");
-        const M = await import("./floor-machine.mjs");
-        let now = 1_000_000;
-        const at = () => ({ now, absent: [] });
-        const go = (floor, event) => M.nextFloor(floor, event, at());
-        const turn = TRIAL.modes.round.testimony.offered;
-        const read = r => (r.refused ? { refused: r.refused } : r.floor ? { mode: r.floor.mode, holder: r.floor.holderId, left: M.leftAt(r.floor, now) } : { over: true });
-        const exchange = (floor, into, holder, target) => {
-            now += into * 1000;
-            let r = go(floor, { type: "objection", holderId: holder, targetId: target, cardId: "suiteCard" });
-            now += TRIAL.objectionSeconds * 1000;
-            r = go(r.floor, { type: "due" });
-            return r;
-        };
-        const start = go(null, { type: "round", mode: "testimony", seconds: turn, order: ["suiteA", "suiteB", "suiteC"] });
-        must(start.floor?.holderId === "suiteA", "the round did not open on its first speaker - this would measure nothing");
-        const seen = {};
-        now += turn * 1000;
-        const second = go(start.floor, { type: "due" });
-        // The second speaker objected at 10 s in, the rebuttal run out.
-        let r = exchange(second.floor, 10, "suiteC", "suiteB");
-        now += TRIAL.rebuttalSeconds * 1000;
-        const middle = go(r.floor, { type: "due" });
-        seen.middle = read(middle);
-        now += 50 * 1000;
-        const third = go(middle.floor, { type: "due" });
-        seen.third = read(third);
-        const thirdAt = now;
-        // The last speaker: the same, then the round ends after them.
-        r = exchange(third.floor, 10, "suiteA", "suiteC");
-        now += TRIAL.rebuttalSeconds * 1000;
-        const last = go(r.floor, { type: "due" });
-        seen.last = read(last);
-        now += 50 * 1000;
-        seen.after = read(go(last.floor, { type: "due" }));
-        // The rebuttal skipped by the GM, and the exchange ended by the GM, each from the third turn's start: the speaker resumes too.
-        now = thirdAt;
-        r = exchange(third.floor, 10, "suiteA", "suiteC");
-        seen.skipped = read(go(r.floor, { type: "skip" }));
-        now = thirdAt;
-        r = exchange(third.floor, 10, "suiteA", "suiteC");
-        seen.ended = read(go(r.floor, { type: "endMode" }));
-        // An Objection at a turn with nothing left: the queue goes on.
-        now = thirdAt;
-        r = exchange(third.floor, turn, "suiteA", "suiteC");
-        now += TRIAL.rebuttalSeconds * 1000;
-        seen.spent = read(go(r.floor, { type: "due" }));
-        equal(stableJson({ resume: TRIAL.modes.round.resumeAfterExchange, ...seen }),
-            stableJson({ resume: true, middle: { mode: "testimony", holder: "suiteB", left: 50 }, third: { mode: "testimony", holder: "suiteC", left: turn },
-                last: { mode: "testimony", holder: "suiteC", left: 50 }, after: { over: true }, skipped: { mode: "testimony", holder: "suiteC", left: 50 },
-                ended: { mode: "testimony", holder: "suiteC", left: 50 }, spent: { over: true } }),
-            "{resume: the constant; middle: after the second speaker's exchange; third: their turn's end; last: after the last speaker's exchange; after: their rest run out; skipped: the rebuttal skipped; ended: the exchange ended by the GM; spent: an Objection with nothing left}");
     }],
     ["R8772 - Palm is open in the Class Trial and paid as Analyze is there (E129 S0-PALM; the owner's note of 23.11.2026, \"palm powinno byc dostepne w trialu za akcje, potem za hope, potem za sanity\"): allowed-now.mjs `TRIAL_OPEN_ACTIONS` holds Analyze and Palm, and in a trial the action road opens those two and shuts the rest; the person road opens Palm's key alone; config.mjs `PRICE_CHAINS.palm` is an action, then Hope, then Sanity, the later steps in the trial alone, its first step Palm's tile cost; `TRIAL.palmHallIsOneRoom` is on", async () => {
         /* Pure over handed-in facts (allowed-now.mjs `allowedNow`'s `facts`). Red at 2e28785a: Analyze alone, no chain. */

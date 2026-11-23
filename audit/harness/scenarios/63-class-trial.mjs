@@ -1272,9 +1272,10 @@ export async function run({ gm, gm2, gm3, p1, p2, p3, p4, check, phase, settle, 
 
     /* E70 C1 (27.10.2026; E70-08, S18-76; the C0 gap "no scenario sends trial.gm from a second GM"). gm3, a GM that is
        not the primary while gm2 is connected, presses each of the bar's buttons by its game.drpg function on an
-       Objection gm2 holds with 50 s left and a debate under it with 200 s: +30 s, -30 s, Skip, Back to the debate, End
-       this mode. After each, gm2's floor (the primary's) and gm3's read the same mode and the same seconds left within
-       2 s, and moved as the bar promises: 80 s, 50 s, the rebuttal, the debate with its 200 s, no floor. Red at
+       Objection gm2 holds with 20 s left (10 s into its 30; 50 of 60 until E129 S0-OBJ, 1.2.129) and a debate under it
+       with 200 s: +30 s, -30 s, Skip, Back to the debate, End this mode. After each, gm2's floor (the primary's) and gm3's
+       read the same mode and the same seconds left within 2 s, and moved as the bar promises: 50 s, 20 s (80 and 50
+       until then), the rebuttal, the debate with its 200 s, no floor. Red at
        f388d722: no such functions on game.drpg. */
     begin("Z", "the GM's bar on a GM that is not the primary: each button by its game.drpg function, the same floor on both");
     const Fz = `const F = await import("${repoUrl}/scripts/trial-floor.mjs"); const U = await import("${repoUrl}/scripts/utils.mjs");`;
@@ -1300,7 +1301,7 @@ export async function run({ gm, gm2, gm3, p1, p2, p3, p4, check, phase, settle, 
     const zAt = ([a], mode, left) => (mode === null ? a === null : Boolean(a) && a[0] === mode && Math.abs(a[1] - left) <= 3);
     verdict("gm3, not the primary, presses +30 s, -30 s, Skip, Back to the debate and End this mode by game.drpg: gm2 and gm3 read one floor after each, moved as the bar promises",
         zRead.primary === false && zPresses.every(([op]) => zSame(zRead[op]))
-            && zAt(zRead.plus, "objection", 80) && zAt(zRead.minus, "objection", 50) && zAt(zRead.skip, "rebuttal", 120)
+            && zAt(zRead.plus, "objection", 50) && zAt(zRead.minus, "objection", 20) && zAt(zRead.skip, "rebuttal", 120)
             && zAt(zRead.back, "debate", 200) && zAt(zRead.endMode, null), J(zRead));
 
     /* ------------------------------ O. Overrule from another GM ------------------------------ */

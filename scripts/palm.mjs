@@ -308,7 +308,6 @@ async function chooseStolen(victim, hand, success) {
     return chosenId;
 }
 
-/** Who `actor` could reach: the characters standing here that this browser draws (`othersInRoom`, mask-gm.mjs `seenHere`). */
 /** Whether a Class Trial runs: Palm pays its chain then (config.mjs `PRICE_CHAINS.palm`) and has the hall (E129 S0-PALM). */
 function palmInTrial() {
     return getClock()?.phase === "classTrial";
@@ -333,6 +332,7 @@ function palmPlace(actor) {
     return { room: hall.name ?? "-", others };
 }
 
+/** Who `actor` could reach: the characters standing here that this browser draws (`othersInRoom`, mask-gm.mjs `seenHere`). */
 function palmTargets(actor) {
     return seenHere(palmPlace(actor)?.others() ?? []).filter(a => a?.type === "character");
 }

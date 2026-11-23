@@ -52492,8 +52492,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
          * trial-prompt.mjs) move the round within four seconds, the same step over again is refused (the round moved on),
          * and so is one of the new turn before it is due; (4) a Panic Round: an Objection refused
          * (`objectOnPrimary`, "floorClosed"), End this mode; (5) a Testimony again, an Objection at the speaker
-         * (`openObjection`), its rebuttal, Skip: the interrupted speaker has the floor again (E129 S0-CUT A, 1.2.129,
-         * `resumeAfterExchange`; the next speaker until then, E70-42). Red at 182cdd57: no
+         * (`openObjection`), its rebuttal, Skip: the round resumes at the next speaker. Red at 182cdd57: no
          * `startTestimony`, no "trial.turn" (the step stood with the heartbeat held). The clock, the floor, the record and
          * the cards are put back.
          */
@@ -52580,7 +52579,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
                 const inRebuttal = F.trialFloor()?.mode ?? null;
                 await api.skipStep();
                 await settle();
-                read.resume = [Boolean(opened), inRebuttal, F.trialFloor()?.mode ?? null, F.trialFloor()?.holderId === one.actor.id];
+                read.resume = [Boolean(opened), inRebuttal, F.trialFloor()?.mode ?? null, F.trialFloor()?.holderId === two.actor.id];
             }
         } finally {
             globalThis.setInterval = realInterval;
