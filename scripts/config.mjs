@@ -364,12 +364,6 @@ export const PHASES = {
 export const CHAPTERS_PER_SEASON = 6;
 
 /**
- * Every timing and size the module used to keep as a local constant in the
- * file that read it (audit, hygiene: "magic numbers outside config"). None of
- * these is a rule of the game; they are how long the module waits, how much it
- * keeps, and how often it looks. Named here so the next tuning is one edit.
- */
-/**
  * WHETHER A SHARE CARRIES THE GIVER'S ANALYZE RESULT, BY DEFAULT (the owner's notes of session 0, 23.11.2026, S0-ANSHARE:
  * "wybor czy udostepniac z analyze czy bez"; the coordinator's default, pending the owner; line INVEST of 1.2.129). The
  * Share window of a Truth Bullet that holds a reading asks, its box ticked as this says (handover.mjs `askRecipient`). The
@@ -377,6 +371,21 @@ export const CHAPTERS_PER_SEASON = 6;
  */
 export const SHARE_WITH_ANALYSIS = true;
 
+/**
+ * WHAT THE CASE'S REALIZATION PLACES, BY DEFAULT (the owner's notes of session 0, 23.11.2026, S0-REALIZE: "realization
+ * niech zawiera opcje rozdania i ustawienia wszystkich remnantow zaplanowanych, albo samych key (jak teraz)"; the
+ * coordinator's default, pending the owner; line INVEST of 1.2.129): "keys", the Key Remnant plan's slots alone, as until
+ * now, or "all", the chapter's every planned Remnant placed and every planned Truth Bullet given as well (case-realize.mjs
+ * `openRealization`). The window's choice starts here.
+ */
+export const REALIZE_SCOPE = "keys";
+
+/**
+ * Every timing and size the module used to keep as a local constant in the
+ * file that read it (audit, hygiene: "magic numbers outside config"). None of
+ * these is a rule of the game; they are how long the module waits, how much it
+ * keeps, and how often it looks. Named here so the next tuning is one edit.
+ */
 export const TIMING = {
     /** A GM's "got it" for a bridge request; past this, no GM is listening. */
     ackMs: 8000,
@@ -5604,6 +5613,8 @@ export const DRPG = {
     TIME_OF_DAY_LABELS,
     PHASES,
     CHAPTERS_PER_SEASON,
+    SHARE_WITH_ANALYSIS,
+    REALIZE_SCOPE,
     ROOMS_PER_PLAYER,
     ECLIPSE_MOVES,
     ECLIPSE_FREE_PLACEMENT,

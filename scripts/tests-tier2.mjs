@@ -36053,6 +36053,103 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         "{drawn: the preview lists a slot to create; quiet: nothing written by the preview; placed: Run's count; linked: the slot points at the marked Remnant; undo: removed and kept; slotAfterUndo: the slot's token; markAfter: marks left}");
     }],
 
+    ["1.2.129 S0-REALIZE: the Realization asks Key Remnants only or every planned Remnant, Key Remnants by default; every planned places the planned Remnant and Final Truth in their rooms and gives the planned Truth Bullet; Undo takes back all three", async () => {
+        /*
+         * The owner's notes of session 0 (23.11.2026), S0-REALIZE: "realization niech zawiera opcje rozdania i ustawienia
+         * wszystkich remnantow zaplanowanych, albo samych key (jak teraz)"; line INVEST of 1.2.129. Three planned nodes are
+         * written to the running chapter's case - an incident Remnant, a Final Truth, a Truth Bullet for the first student.
+         * The preview is opened twice on its drawn window, every Key slot left at "leave it": first as it opens (the choice
+         * read, the planned rows' hidden state) and Run pressed - nothing of the plan placed; then with "every planned"
+         * picked, the two Remnants' rooms set to the first room of the place scenes, and Run pressed: both on the map, each
+         * node pointing at its token, the bullet on the student's sheet, the node marked given. Then `undoRealization`: all
+         * three taken back, the nodes cleared, no mark. Red at 2e28785a: no choice in the window.
+         */
+        const R = await import("./case-realize.mjs");
+        const S = await import("./case-schema.mjs");
+        const TB = await import("./truth-bullets.mjs");
+        const { remnantById } = await import("./remnants.mjs");
+        const { placeRoomOptions } = await import("./utils.mjs");
+        const { studentActors } = await import("./monokuma.mjs");
+        needs(env.dialogs(), "the preview is read and pressed on its drawn window");
+        needs(world.atLeast("sceneOnScreen"), "the planned Remnants are placed on a scene with rooms");
+        const student = studentActors()[0] ?? null;
+        must(student, "no student to give the planned Truth Bullet to");
+        const holder = document.createElement("select");
+        holder.innerHTML = placeRoomOptions();
+        const opt = holder.querySelector("option");
+        must(opt, "no room on any place scene");
+        const chapter = getClock().chapter;
+        const metaBefore = S.caseMetaOf(S.caseRows(chapter).meta);
+        const ids = { inc: "incident-suiter129", fin: "final-suiter129", bul: "bullet-suiter129" };
+        const open = () => [...foundry.applications.instances.values()].filter(a => a.rendered && a.options?.classes?.includes("drpg-window-case-realize"));
+        const press = async ({ all }) => {
+            const preview = R.openRealization({ chapter }).catch(() => null);
+            await until(() => open().some(a => a.element), 6000).catch(() => {});
+            const root = open()[0]?.element;
+            const read = { choice: root?.querySelector('[name="scope"]:checked')?.value ?? null,
+                hidden: [...root?.querySelectorAll('[data-drpg-realize-scope="all"]') ?? []].map(tr => tr.hidden) };
+            for (const select of root?.querySelectorAll('select[name^="room:"]') ?? []) select.value = "";
+            if (all) {
+                const radio = root?.querySelector('[name="scope"][value="all"]');
+                if (radio) { radio.checked = true; radio.dispatchEvent(new Event("change", { bubbles: true })); }
+                read.shown = [...root?.querySelectorAll('[data-drpg-realize-scope="all"]') ?? []].map(tr => tr.hidden);
+                for (const id of [ids.inc, ids.fin]) {
+                    const select = root?.querySelector(`select[name="room:${id}"]`);
+                    const pick = [...select?.options ?? []].find(o => o.value === opt.value && o.dataset.scene === opt.dataset.scene);
+                    if (pick) pick.selected = true;
+                }
+            }
+            root?.querySelector('footer button[data-action="run"]')?.click();
+            read.said = await Promise.race([preview, wait(8000).then(() => "timeout")]);
+            await gmStoresIdle();
+            return read;
+        };
+        const node = id => S.caseNodeOf(S.caseRows(chapter).rows[id]) ?? {};
+        const tokenOf = id => { const [sc, tk] = String(node(id).trace ?? "").split("."); return tk ? remnantById(sc, tk) : null; };
+        const before = new Set(TB.bulletsOf(student).map(i => i.id));
+        let keys = null, all = null, ran = null, undo = null, after = null;
+        try {
+            await S.setCaseNode(chapter, ids.inc, { kind: "incident", label: "SUITE R129 incident", text: "SUITE words", vis: "evident" });
+            await S.setCaseNode(chapter, ids.fin, { kind: "final", label: "SUITE R129 final", text: "SUITE final words", vis: "evident" });
+            await S.setCaseNode(chapter, ids.bul, { kind: "bullet", label: "SUITE R129 bullet", text: "SUITE bullet words", recipient: student.id, tell: false });
+            await S.setCaseMeta(chapter, { made: {}, run: null });
+            await gmStoresIdle();
+            const lines = R.plannedLines(S.caseRows(chapter).rows).filter(l => Object.values(ids).includes(l.node)).map(l => `${l.kind}:${l.action}`).sort();
+            const first = await press({ all: false });
+            keys = { lines, choice: first.choice, hidden: first.hidden.every(Boolean) && first.hidden.length >= 3, said: first.said,
+                untouched: !node(ids.inc).trace && !node(ids.fin).trace && !node(ids.bul).given };
+            const second = await press({ all: true });
+            const given = TB.bulletsOf(student).filter(i => !before.has(i.id));
+            all = { shown: (second.shown ?? []).length >= 3 && second.shown.every(h => !h), incident: Boolean(tokenOf(ids.inc)), final: Boolean(tokenOf(ids.fin)),
+                given: given.map(i => i.name), marked: Boolean(node(ids.bul).given), marks: Object.keys(R.madeOf(chapter)).length };
+            ran = second.said;
+            undo = await R.undoRealization(chapter);
+            await gmStoresIdle();
+            after = { incident: node(ids.inc).trace ?? null, final: node(ids.fin).trace ?? null, given: node(ids.bul).given ?? null,
+                bullets: TB.bulletsOf(student).filter(i => !before.has(i.id)).length, marks: Object.keys(R.madeOf(chapter)).length };
+        } finally {
+            for (const a of open()) await a.close().catch(() => {});
+            for (const id of [ids.inc, ids.fin]) {
+                const token = tokenOf(id);
+                if (token) await token.parent.deleteEmbeddedDocuments("Token", [token.id]).catch(() => {});
+            }
+            for (const item of TB.bulletsOf(student)) {
+                if (before.has(item.id)) continue;
+                await TB.dropSecret(item.uuid).catch(() => {});
+                await item.delete().catch(() => {});
+            }
+            for (const id of Object.values(ids)) await S.dropCaseNode(chapter, id).catch(() => {});
+            await S.setCaseMeta(chapter, { made: metaBefore.made, run: metaBefore.run }).catch(() => {});
+            await gmStoresIdle();
+        }
+        equal(stableJson({ keys, all, ran: typeof ran === "string" && ran.includes("2") && ran.includes("1"), undo, after }), stableJson({
+            keys: { lines: ["bullet:give", "final:create", "incident:create"], choice: "keys", hidden: true, said: game.i18n.localize("DRPG.CaseRealize.notRun"), untouched: true },
+            all: { shown: true, incident: true, final: true, given: ["SUITE R129 bullet"], marked: true, marks: 3 },
+            ran: true, undo: { removed: 3, kept: 0 },
+            after: { incident: null, final: null, given: null, bullets: 0, marks: 0 } }),
+        "{keys: the planned lines, the choice as the window opens, its planned rows hidden, Run's line with no Key room, the plan untouched; all: the planned rows shown, both Remnants placed, the bullet given and marked, three marks; ran: the line names 2 and 1; undo; after: the nodes cleared, the bullet gone, no mark}");
+    }],
+
     ["E97 C11: a body found asks the primary GM about the realization once, and a rehearsal or a second body asks nothing", async () => {
         /*
          * E97 C11, 12.11.2026; Q4. The hook is called as the writer of a discovery calls it (`writer: true`), with a

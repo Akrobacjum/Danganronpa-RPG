@@ -8970,7 +8970,7 @@ const INVARIANTS = [
         const wire = fnSource(ring, "wireCardEditing");
         equal(JSON.stringify({
             first: none[0], firstChosen: chosen[0][2], rest: none.slice(1).map(([id, name, sel]) => [id, name, sel]), chosen: chosen.filter(o => o[2]).map(o => o[0]),
-            newTrace: [/authorOptions\(/.test(fnSource(inv, "openNewTrace")), /sourceActor:\s*author\b/.test(fnSource(inv, "openNewTrace"))],
+            newTrace: [/authorOptions\(/.test(fnSource(inv, "openNewTrace")), /sourceActor:\s*author\b/.test(fnSource(inv, "createTraceNow"))],
             keyHere: [/authorOptions\(/.test(fnSource(inv, "openKeyRemnantHere")), /sourceActor:\s*row\.author\b/.test(fnSource(inv, "createKeyRemnant"))],
             final: [/name="finalAuthor"/.test(final), /author:\s*action\.finalAuthor\b/.test(fnSource(inv, "placeFinalFromDashboard")), /sourceActor:\s*author\b/.test(fnSource(mm, "placeFinalRemnant"))],
             card: [/data-drpg-author/.test(fnSource(ring, "gmRemnantCard")) && /authorOptions\(/.test(fnSource(ring, "gmRemnantCard")),

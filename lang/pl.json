@@ -2408,6 +2408,8 @@
           "overviewFoldTooltip": "Rozwija Sprawdź spójność ze znalezionymi problemami i formularz Final Truth Remnantu tego rozdziału",
           "fitViewTooltip": "Wyśrodkowuje mapę i skaluje ją tak, by widać było całą sprawę. Zmienia się tylko twój widok",
           "realizeRoomTooltip": "Pokój, w którym Uruchom realizację postawi Key Remnant z tego miejsca, z trudnością i treścią z planu",
+          "realizeKeysTooltip": "Stawia tylko te sloty Key Remnantów, którym wybrano niżej pokój, jak dotąd",
+          "realizeAllTooltip": "Stawia też w wybranym pokoju każdy zaplanowany Remnant i Final Truth, którego nie ma na mapie, i daje odbiorcy każdy zaplanowany Truth Bullet, którego jeszcze nie dano",
           "tieTooltip": "Powiązany przetrwa czyszczenie Faint Remnantów. Jeśli nie zdecydujesz, trwający incydent może go powiązać po pokoju lub po tym, kto go zostawił",
           "orderTooltip": "Wg pokoju stawia na początku powiązane Remnanty, potem sortuje po pokojach; Od najnowszych idzie po rozdziale, dniu i porze dnia",
           "restsOnBoxTooltip": "Zaznaczone: Mapa rysuje połączenie z tamtego węzła do tego, a Sprawdź spójność je uwzględnia",
@@ -9475,6 +9477,9 @@
       "undo": "Cofnij realizację",
       "title": "Realizacja sprawy, rozdział {chapter}",
       "intro": "Nic się nie zmieni, dopóki nie klikniesz Uruchom realizację. Każde miejsce na Key Remnant, którego nie ma jeszcze na mapie i które mieści się w limicie rozdziału, trafi do wybranego pokoju; miejsce bez pokoju zostaje bez zmian.",
+      "scope": "Co zrealizować",
+      "scopeKeys": "Tylko Key Remnanty",
+      "scopeAll": "Każdy zaplanowany Remnant i Truth Bullet",
       "colWhat": "Co",
       "colSlot": "Miejsce",
       "colName": "Nazwa",
@@ -9485,12 +9490,20 @@
       "action": {
         "create": "Postawi",
         "placed": "Na mapie",
-        "overLimit": "Ponad limit"
+        "overLimit": "Ponad limit",
+        "give": "Rozda",
+        "noRecipient": "Bez odbiorcy"
+      },
+      "kind": {
+        "incident": "Zaplanowany Remnant",
+        "final": "Final Truth",
+        "bullet": "Truth Bullet"
       },
       "ran": "Key Remnanty postawione przez realizację: {n}.",
+      "ranAll": "Realizacja postawiła Remnanty: {n} i rozdała Truth Bullety: {given}.",
       "notRun": "Nic nie postawiono.",
       "nothingMade": "Realizacja niczego w tym rozdziale nie postawiła.",
-      "undoAsk": "Cofnąć realizację? Postawione przez nią Key Remnanty: {n}; te, które ktoś znalazł albo ujawnił Monokuma, zostaną.",
+      "undoAsk": "Cofnąć realizację? Postawione albo rozdane przez nią: {n}. Remnanty, które ktoś znalazł albo ujawnił Monokuma, zostaną; rozdane przez nią Truth Bullety zostaną zabrane.",
       "undone": "Usunięte: {removed}; zostają (znalezione albo ujawnione): {kept}.",
       "askTitle": "Realizacja sprawy",
       "askBody": "Znaleziono ciało. Sprawa tego rozdziału nie została jeszcze zrealizowana. Nic się nie stanie, dopóki nie wybierzesz.",

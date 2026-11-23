@@ -592,7 +592,18 @@ export async function handleShareBulletOrGiveItem(payload, sender, ctx) {
     // cannotNow, missing; E14 part 1 C1) and an item no GM has decided on come back with their
     // reason and are told by its code; a hand-over into full hands with no stash is the
     // giver's whisper (handover.mjs `giveItem`).
-    const out = ctx.action === ACTION_SHARE_BULLET ? await shareBullet({ ...args, analysis: payload.analysis !== false }) : await giveItem(args);
+    const out = ctx.action === ACTION_SHARE_BULLET ? await shareBullet(args) : await giveItem(args);
+    if (out?.refused) return { refused: out.refused };
+}
+
+/*
+ * A SHARE THAT SAYS WHETHER THE READING GOES WITH IT (S0-ANSHARE, line INVEST of 1.2.129): the share's own run, so that
+ * only its row lets `analysis` through (R163); a packet without the field, an older client's, carries the reading as
+ * every share did until 1.2.129. The rest is the common run's.
+ */
+export async function handleShareBullet(payload, sender, ctx) {
+    const { shareBullet } = await import("./handover.mjs");
+    const out = await shareBullet({ fromId: payload.fromId, toId: payload.toId, itemId: payload.itemId, analysis: payload.analysis !== false });
     if (out?.refused) return { refused: out.refused };
 }
 

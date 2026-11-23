@@ -2318,6 +2318,8 @@
           "overviewFoldTooltip": "Unfolds Check consistency with the problems it found, and the chapter's Final Truth Remnant form",
           "fitViewTooltip": "Centers the map and zooms so the whole case shows. Only your view changes",
           "realizeRoomTooltip": "Where Run realization places this slot's Key Remnant, with the difficulty and words its plan holds",
+          "realizeKeysTooltip": "Places only the Key Remnant slots picked a room below, as until now",
+          "realizeAllTooltip": "Also places every planned Remnant and Final Truth not on the map in the room picked, and gives every planned Truth Bullet not given yet to its recipient",
           "tieTooltip": "Tied, it survives clearing Faint Remnants. Undecided, an incident under way may tie it by its room or who left it",
           "orderTooltip": "By room puts tied Remnants first, then sorts by room; Newest first goes by chapter, day, and time of day",
           "restsOnBoxTooltip": "Ticked, the Map draws a link from that node into this one, and Check consistency follows it",
@@ -7645,6 +7647,9 @@
       "undo": "Undo realization",
       "title": "Case realization, chapter {chapter}",
       "intro": "Nothing changes until you press Run realization. Each Key Remnant slot not on the map yet, within the chapter's limit, is placed in the room you pick; a slot with no room stays as it is.",
+      "scope": "What to realize",
+      "scopeKeys": "Key Remnants only",
+      "scopeAll": "Every planned Remnant and Truth Bullet",
       "colWhat": "What",
       "colSlot": "Slot",
       "colName": "Name",
@@ -7655,12 +7660,20 @@
       "action": {
         "create": "Will place",
         "placed": "On the map",
-        "overLimit": "Past the limit"
+        "overLimit": "Past the limit",
+        "give": "Will give",
+        "noRecipient": "No recipient"
+      },
+      "kind": {
+        "incident": "Planned Remnant",
+        "final": "Final Truth",
+        "bullet": "Truth Bullet"
       },
       "ran": "Key Remnants the realization placed: {n}.",
+      "ranAll": "Remnants the realization placed: {n}. Truth Bullets it gave: {given}.",
       "notRun": "Nothing was placed.",
       "nothingMade": "The realization placed nothing this chapter.",
-      "undoAsk": "Undo the realization? Key Remnants it placed: {n}. Those a student has found or Monokuma has revealed stay.",
+      "undoAsk": "Undo the realization? What it placed or gave: {n}. Remnants a student has found or Monokuma has revealed stay; the Truth Bullets it gave are taken back.",
       "undone": "Removed {removed}; {kept} stay because they were found or revealed.",
       "askTitle": "The case's realization",
       "askBody": "A body was found. The case for this chapter has not been realized yet. Nothing happens until you choose.",
