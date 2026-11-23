@@ -33160,7 +33160,8 @@ const INVARIANTS = [
         const locate = fnSource(src, "locateStash");
         must(locate.length > 200, "locateStash is gone - the reads below would measure nothing");
         const at = (body, re) => body.search(re);
-        const refund = at(locate, /if \(res\.ok \? Boolean\(res\.value\?\.refused\) : Boolean\(res\.refused\)\) \{\s*if \(charge\) await refundPrice\(actor, charge\);\s*return null;/);
+        // CHANGED ON PURPOSE BY E129 (1.2.128): the refund after the dice asks the rule (action-pipeline.mjs `giveBackAfterRoll`).
+        const refund = at(locate, /if \(res\.ok \? Boolean\(res\.value\?\.refused\) : Boolean\(res\.refused\)\) \{\s*await giveBackAfterRoll\(actor, charge, \[roll\], \{ price: true \}\);\s*return null;/);
         const card = at(locate, /DRPG\.Analyze\.stashSent/), asked = at(locate, /await requestStashSearch\(/), noted = at(locate, /noteRollContext\(/);
         equal(stableJson([BRIDGE_ACTIONS["vault.findStash"]?.answer ?? null, BRIDGE_ACTIONS["vault.steal"]?.answer ?? null,
             card >= 0 && card < asked, asked >= 0 && asked < refund, refund >= 0 && refund < noted]),
@@ -33992,6 +33993,82 @@ const INVARIANTS = [
         must(order.ruled > 0 && order.paid > 0, `performTail's card or price was not read - this would measure nothing: ${stableJson(order)}`);
         equal(stableJson([order.again > order.ruled, order.again > 0 && order.again < order.paid]), stableJson([true, true]),
             "[the target held to the room again after the GM's card; before the action is paid]");
+    }],
+    ["R8880 - a price comes back after the dice as config.mjs ROLL_REFUNDS says (E129, 1.2.128; S0-REFUND, docs/dev/owner129/desp/REFUNDS.md rows 4, 12, 13; the owner's answers of 23.11.2026): the keys hold the owner's values, under \"always\" price.mjs `mayRefundAfterRoll` gives back after any roll, the GM's Refuse asks `afterRoll` while its own key is null; under \"noHope\" it refuses after a roll with Hope or a critical, a supporting roll's Hope does not count and its critical does; under \"never\" nothing comes back", async () => {
+        /*
+         * 23.11.2026, E129 line DESP. The owner's note of session 0: some actions gave back Hope and the action at the roll.
+         * The owner's answers that day: rows 12, 13, T8 "c" (`afterRoll` "always"), T5 "Zostawiamy jak jest"
+         * (`tamperCritical` true), T12 unchanged (`freeCritical` true), row 4 and T1 "Z glownego" (`supportingHope`
+         * false); `gmRefuse` null. Read: the keys, and the rule on rollTrait's shape (`withHope`, `isCritical`,
+         * `supporting`) under the keys and under each other value of `afterRoll` (`mode`). Red at fa20c0cf: no
+         * `ROLL_REFUNDS`, no `mayRefundAfterRoll`.
+         */
+        const C = await import("./config.mjs");
+        const P = await import("./price.mjs");
+        must(C.ROLL_REFUNDS && typeof P.mayRefundAfterRoll === "function", "no ROLL_REFUNDS or no mayRefundAfterRoll - this would measure nothing");
+        const hope = { withHope: true }, fear = { withHope: false }, crit = { isCritical: true };
+        const shapes = [[hope], [fear], [crit], [], [fear, { ...hope, supporting: true }], [fear, { ...crit, supporting: true }]];
+        const under = mode => shapes.map(rolls => P.mayRefundAfterRoll(rolls, { mode }));
+        equal(stableJson([C.ROLL_REFUNDS, under(null), [P.mayRefundAfterRoll([hope], { gmRefuse: true }), P.mayRefundAfterRoll([fear], { gmRefuse: true })],
+            under("noHope"), under("never")]),
+        stableJson([{ afterRoll: "always", gmRefuse: null, supportingHope: false, tamperCritical: true, freeCritical: true },
+            [true, true, true, true, true, true], [true, true],
+            [false, true, false, true, true, false], [false, false, false, false, false, false]]),
+        "[the keys; may the price come back, under the keys, after: a roll with Hope, with Despair, a critical, none, Despair beside a supporting roll with Hope, beside a supporting critical; the GM's Refuse after Hope, after Despair; the same six under \"noHope\"; under \"never\"]");
+    }],
+    ["R8881 - a critical Tamper gives back what paid, through Tamper's door as at the killer's own scene, and the free attempt's critical too, as config.mjs ROLL_REFUNDS says (E129, 1.2.128; S0-REFUND T5, T6, T12; the owner: \"Zostawiamy jak jest\"): cleanup.mjs `criticalGivesBack`, asked at the erase's, the reshape's and Stage 6's give-back", async () => {
+        /*
+         * 23.11.2026, E129 line DESP. The owner on T5: "Zostawiamy jak jest. Moj blad - zostalo mi to zgloszone jako
+         * usterka" - a critical Tamper keeps its 2 Hope and the action back, as the handbook's line 491 says. Read: the
+         * rule for the three roads, and off the source that each `handBack` of a critical asks it, so a key turned to
+         * false takes effect at all three. Red at fa20c0cf: no `criticalGivesBack`.
+         */
+        const K = await import("./cleanup.mjs");
+        must(typeof K.criticalGivesBack === "function", "cleanup.mjs has no criticalGivesBack - this would measure nothing");
+        const src = stripComments((await moduleSources()).get("cleanup.mjs") ?? "");
+        const asked = [/if \(back && criticalGivesBack\(\{ viaAction, free \}\)\) \{\s*const line = backLine\(await handBack\(/,
+            /if \(outcome\.refundStress && criticalGivesBack\(\{ viaAction, free \}\)\) \{\s*const line = backLine\(await handBack\(/,
+            /if \(refund && criticalGivesBack\(\{ viaAction, free \}\)\) \{\s*const line = backLine\(await handBack\(/].map(re => re.test(src));
+        equal(stableJson([K.criticalGivesBack({ viaAction: true }), K.criticalGivesBack({ viaAction: false }), K.criticalGivesBack({ free: true }),
+            K.criticalGivesBack({ viaAction: true, free: true }), asked]),
+        stableJson([true, true, true, true, [true, true, true]]),
+        "[a critical gives back: through Tamper's door; at the killer's own scene; the free attempt; the free attempt through the door; the reshape's, the erase's and Stage 6's give-back ask it]");
+    }],
+    ["R8882 - the GM's refusals of a clean-up after its dice give the price back only as the roll lets it (E129, 1.2.128; S0-REFUND T8): cleanup.mjs `refundRefused` asks price.mjs `mayRefundAfterRoll` on the roll it is handed, and every refusal hands it the roll as the GMs' record holds it", async () => {
+        /*
+         * 23.11.2026, E129 line DESP. A trace not found by the character, a Reinforced one, a clean-up blocked on the GM and
+         * Stage 6's own refusals came after the dice and gave the price back, the roll's Hope kept. Read off the source:
+         * the rule asked first in `refundRefused`, and the five callers that pass the roll. Not driven here: the refusals
+         * themselves are tier 2's ("a clean-up the GM refuses ..."). Red at fa20c0cf: no rule asked, no roll passed.
+         */
+        const src = stripComments((await moduleSources()).get("cleanup.mjs") ?? "");
+        const body = fnSource(src, "refundRefused") ?? "";
+        must(body, "cleanup.mjs has no refundRefused - this would measure nothing");
+        const rule = /if \(rolled && !mayRefundAfterRoll\(\[rolled\]\)\) return/.test(body);
+        const passed = (src.match(/\{ isCritical, withHope \}\)/g) ?? []).length;
+        equal(stableJson([rule, passed]), stableJson([true, 5]),
+            "[refundRefused asks the rule on the roll; the refusals that hand it the roll (two blocked, the trace's check, two of Stage 6)]");
+    }],
+    ["R8883 - every refund after an action's dice asks one rule (E129, 1.2.128; S0-REFUND row 13): Analyze's, Observe's, Search's and a room action's go through action-pipeline.mjs `giveBackAfterRoll` with the roll, a Palm's and an unseen Frisk's hand their two rolls to palm.mjs `handBackIfRefusedBeforeRolls`, and only a window closed before the dice gives a price back without it", async () => {
+        /*
+         * 23.11.2026, E129 line DESP. Read off the source, file by file: the after-the-dice refunds that ask the rule, and
+         * the ones left that give back without it. Behaviour is tier 2's "1.2.128 S0-REFUND - giveBackAfterRoll". Red at
+         * fa20c0cf: none asked it.
+         */
+        const S = await moduleSources();
+        const code = name => stripComments(S.get(name) ?? "");
+        const count = (name, re) => (code(name).match(re) ?? []).length;
+        const read = {
+            analyze: [count("action-analyze.mjs", /giveBackAfterRoll\(actor, charge, \[roll\], \{ price: true \}\)/g), count("action-analyze.mjs", /await refundPrice\(actor, charge\)/g)],
+            observe: count("action-observe.mjs", /giveBackAfterRoll\(actor, paid, \[roll\]\)/g),
+            search: count("action-search.mjs", /giveBackAfterRoll\(actor, paid, \[roll\]\)/g),
+            facilities: count("action-facilities.mjs", /giveBackAfterRoll\(actor, receipt, \[roll\]\)/g),
+            palm: [count("palm.mjs", /handBackIfRefusedBeforeRolls\(actor, paid, \{[^}]*\}, \[shadow, hand\]\)/g), count("frisk.mjs", /handBackIfRefusedBeforeRolls\(actor, paid, \{[^}]*\}, \[shadow, hand\]\)/g),
+                /if \(!mayRefundAfterRoll\(rolls\)\)/.test(fnSource(code("palm.mjs"), "handBackIfRefusedBeforeRolls") ?? "")]
+        };
+        must(code("action-analyze.mjs") && code("palm.mjs"), "the sources were not read - this would measure nothing");
+        equal(stableJson(read), stableJson({ analyze: [8, 1], observe: 2, search: 3, facilities: 1, palm: [2, 1, true] }),
+            "{Analyze [refunds asking the rule, the closed window's own]; Observe; Search; a room action; Palm [its two calls, the unseen Frisk's, the rule asked]}");
     }],
     ["R8384 - Tail Someone gives the action back when the primary refuses it because the target left the room, and on no other refusal (1.2.122 line DESP; the audit's REFR-20): action-tail.mjs `performTail` hands the receipt of `spendAction` to `abort` on the bridge's code notThere alone, after the ask", async () => {
         /*

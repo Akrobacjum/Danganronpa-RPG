@@ -962,6 +962,7 @@
       "reliefFresh": "-{n} for a body nobody has found yet",
       "dcFrame": "A Misleading Trail: {n}+.",
       "spentAfterRoll": "{action}: your first roll already counts, so the action stays spent.",
+      "keptAfterRoll": "Your roll already brought you Hope, so what you paid for this does not come back.",
       "dynamicRefused": "The GM turned your Dynamic Action down. You keep your action.",
       "panelTitle": "Actions",
       "unknown": "Unknown action: {key}.",

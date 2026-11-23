@@ -83,7 +83,7 @@ Każda akcja to rzut dwoistości z Daggerheart: kość Hope i kość Despair (ob
 
 - Rzut **z Hope** daje ci 1 Hope.
 - Rzut **z Despair** zasila pulę Despair Monokumy, który cię pilnuje (rozdział 6). Stąd bierze się jego waluta: z twojego pecha i twojego ryzyka.
-- **Krytyk** daje 2 Hope i nic więcej; inaczej niż w czystym Daggerheart nie przywraca Sanity.
+- **Krytyk** daje 2 Hope i nic więcej; inaczej niż w czystym Daggerheart nie przywraca Sanity. Rzut, który tylko wspiera akcję, nie daje Hope, cokolwiek pokaże: ukrycie tego, co robisz, pozostanie niezauważonym, zatajenie zamiaru; Hope daje główny rzut akcji. Jego krytyk nadal robi to, co mówi jego własna zasada (ukrywanie przy Tamper oddaje 1 Sanity).
 
 Okno rzutu jest dla graczy zablokowane: kości, statystyka, przewaga, doświadczenia i premie biorą się z akcji, z Calla, za który zapłaciłeś, z miejsca, w którym stoisz, albo od GM-a. Zmieniasz tylko to, co akcja pozwala ci wybrać.
 

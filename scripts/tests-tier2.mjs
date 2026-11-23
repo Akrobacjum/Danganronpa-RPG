@@ -24443,6 +24443,146 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         equal(stableJson(read), stableJson({ burst: [false, 2, 0], free: [false, 2, 1], road: [true, true, true] }),
             "{a player's critical paid by a Burst, the claim an action: [answered, actions, Bursts] after the loss; a GM's own free Work: the same; the draw's road [the form kept on the ticket, taken at the draw, written on the record]}");
     }],
+    ["1.2.128 S0-REFUND - a supporting roll earns no Hope on the GM's draw: a Palm's cover with Hope writes the roller's Hope not at all, where a Search with the same dice writes it once, up by 1 (scripts/roll-draw.mjs `throwDrawn`; config.mjs ROLL_REFUNDS.supportingHope; REFUNDS.md row 4, T1; E129)", async () => {
+        /*
+         * 23.11.2026, E129 line DESP. Every roll an action throws was an action roll and earned its Hope, so a two-roll
+         * action paid Hope twice. A player's roll drawn by this GM as the primary draws it (`drawnForPlayer`, the GM's
+         * faces Hope 9, Fear 4: with Hope), once as a Search's and once as a Palm's cover (`palm`, of SPENDS_NO_CALL),
+         * the character's Hope at 0 first, as "the roll's Hope and Fear are written by the GM's user, once" sets it.
+         * Read: the character's Hope writes during each draw (`watch`, Foundry's updateActor) and what each wrote against
+         * the value before it. The value after the draw is not read: a first try read it and came out 2 for a Search on
+         * one run and 2 for the cover on another (23.11.2026), a write of the fixture or the put-back landing late.
+         * Put back: the messages, the record, the payment, the Hope. Red at fa20c0cf: the cover wrote 1 too.
+         */
+        needs(world.atLeast("connectedPlayersWithCharacter", 1), "the draw is asked by a player, and Foundry names only a connected one");
+        const { player, theirs } = playerAndCharacters();
+        const HOPE = "system.resources.hope.value";
+        const hopeWas = foundry.utils.getProperty(theirs, HOPE);
+        const read = {};
+        try {
+            for (const key of ["search", "palm"]) {
+                await theirs.update({ [HOPE]: 0 });
+                await settle();
+                const wrote = [];
+                const watch = () => {
+                    const on = Hooks.on("preUpdateActor", (a, changes) => {
+                        const to = foundry.utils.getProperty(changes, HOPE);
+                        if (a.id === theirs.id && to !== undefined) wrote.push(Number(to) - (Number(foundry.utils.getProperty(a, HOPE)) || 0));
+                    });
+                    return () => Hooks.off("preUpdateActor", on);
+                };
+                const F = await drawnForPlayer(player, theirs, { actionKey: key, faces: { hope: 9, fear: 4 }, watch });
+                try {
+                    must(F.record?.withHope, `the ${key} roll was not drawn with Hope (${stableJson(F.sent)}) - this would measure nothing`);
+                    read[key] = wrote;
+                } finally {
+                    await F.putBack();
+                }
+            }
+        } finally {
+            await theirs.update({ [HOPE]: hopeWas });
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ search: [1], palm: [] }), "{the Hope writes a drawn roll with Hope makes, each as a change: a Search's; a Palm's cover}");
+    }],
+    ["1.2.128 S0-REFUND - the GM's Refuse the attempt gives the price back as ROLL_REFUNDS says: under the owner's \"always\" the action comes back after an Observe with Hope as after one with Despair, and no kept line is said (scripts/messenger-app.mjs `ruleDecline`, `rulingRollOf`; config.mjs ROLL_REFUNDS.gmRefuse, afterRoll; REFUNDS.md row 12; E129)", async () => {
+        /*
+         * 23.11.2026, E129 line DESP. A ruling card is posted after its dice, and its "Refuse the attempt" handed the price
+         * back while the roll's Hope stood. Twice, for a student with a player: the GMs' record of an Observe of theirs
+         * (`recordFor`, with Hope, then with Despair), then a call card with the ruling's buttons (`gmRulingActions`, an
+         * action paid), its Refuse pressed as a GM presses it (`wireCallActions`). Read: the student's actions moved by the
+         * press, and the kept line in the thread. Put back: the cards, the records, the actions. The owner's answer of
+         * 23.11.2026 on row 12 is "c", always back as before, so this reads that the roll found (`rulingRollOf`) changes
+         * nothing under it; the rule's other values are R8880's. Not red at fa20c0cf: before E129 the action came back too.
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 1), "the card goes to a player's thread");
+        const { callGm } = await import("./gm-bridge.mjs");
+        const { gmRulingActions } = await import("./action-pipeline.mjs");
+        const { wireCallActions } = await import("./messenger-app.mjs");
+        const { contentOf, cardFlag } = await import("./secret.mjs");
+        const { actionsLeft } = await import("./actions.mjs");
+        const { trustedWrite } = await import("./resource-guard.mjs");
+        const player = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const student = game.actors.find(a => a.type === "character" && player(a));
+        must(student, "no student with a connected player - this would measure nothing");
+        const actionsWas = foundry.utils.getProperty(student, "system.resources.actions.value");
+        const kept = game.i18n.localize("DRPG.Action.keptAfterRoll");
+        const had = new Set(game.messages.contents.map(m => m.id));
+        const backs = [];
+        const read = {};
+        try {
+            for (const [tag, withHope] of [["hope", true], ["despair", false]]) {
+                await trustedWrite(student, { "system.resources.actions.value": 1 }, { reason: "gmRuling" });
+                await settle();
+                const roll = await ChatMessage.create({ content: `<p>SUITE S0-REFUND roll ${tag}</p>` });
+                const rec = await recordFor(roll, player(student), student, "observe", { total: 14, isCritical: false, withHope });
+                backs.push(rec.putBack);
+                await wait(5);
+                const before = new Set(game.messages.contents.map(m => m.id));
+                must(await callGm(student, { title: `SUITE S0-REFUND ${tag}`, actions: gmRulingActions(student, { pay: "action", amount: 1 }) }),
+                    "the ruling card was not posted - this would measure nothing");
+                await settle();
+                const card = game.messages.contents.find(m => !before.has(m.id) && String(contentOf(m) ?? "").includes('data-drpg-call="decline"'));
+                must(card, "the ruling card is not in the log - this would measure nothing");
+                const since = new Set(game.messages.contents.map(m => m.id));
+                const at = actionsLeft(student);
+                const body = document.createElement("div");
+                body.innerHTML = contentOf(card);
+                wireCallActions(body, card);
+                body.querySelector('[data-drpg-call="decline"]')?.click();
+                await until(() => cardFlag(game.messages.get(card.id), "settled"), 8000);
+                await settle();
+                const said = game.messages.contents.filter(m => !since.has(m.id)).some(m => String(contentOf(m) ?? "").includes(kept));
+                read[tag] = [actionsLeft(student) - at, said];
+            }
+        } finally {
+            for (const back of backs) await back();
+            for (const m of game.messages.contents.filter(m => !had.has(m.id))) await m.delete().catch(() => {});
+            await trustedWrite(student, { "system.resources.actions.value": actionsWas }, { reason: "gmRuling" });
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ hope: [1, false], despair: [1, false] }),
+            "{after an Observe with Hope: [actions moved by Refuse, the kept line said]; after one with Despair}");
+    }],
+    ["1.2.128 S0-REFUND - giveBackAfterRoll gives the price back as ROLL_REFUNDS says: under the owner's \"always\" after a roll with Despair, with Hope, a critical and beside a supporting roll alike, with no kept line (scripts/action-pipeline.mjs `giveBackAfterRoll`; REFUNDS.md row 13; E129)", async () => {
+        /*
+         * 23.11.2026, E129 line DESP. The road every after-the-dice refund of Analyze, Observe, Search and a room action takes
+         * now. On a student of the cast: an action paid (`spendAction`, its receipt), then given back for rolls of each
+         * shape. Read: the actions moved and whether the kept line was said. Put back: the actions. The owner's answer of
+         * 23.11.2026 on rows 13 and T8 is "c", always back; the rule's other values are R8880's. Red at fa20c0cf: no
+         * `giveBackAfterRoll`.
+         */
+        const A = await import("./action-pipeline.mjs");
+        const { spendAction, actionsLeft } = await import("./actions.mjs");
+        const { trustedWrite } = await import("./resource-guard.mjs");
+        must(typeof A.giveBackAfterRoll === "function", "action-pipeline.mjs has no giveBackAfterRoll - this would measure nothing");
+        const [actor] = cast(1);
+        const actionsWas = foundry.utils.getProperty(actor, "system.resources.actions.value");
+        const kept = game.i18n.localize("DRPG.Action.keptAfterRoll");
+        const said = [];
+        const infoWas = ui.notifications.info;
+        ui.notifications.info = (text, ...rest) => { said.push(String(text)); return infoWas.call(ui.notifications, text, ...rest); };
+        const read = [];
+        try {
+            for (const rolls of [[{ withHope: false }], [{ withHope: true }], [{ isCritical: true }], [{ withHope: false }, { withHope: true, supporting: true }],
+                [{ withHope: false }, { isCritical: true, supporting: true }]]) {
+                await trustedWrite(actor, { "system.resources.actions.value": 2 }, { reason: "gmRuling" });
+                await settle();
+                const receipt = await spendAction(actor, 1);
+                must(receipt, "no action could be paid - this would measure nothing");
+                const from = said.length, at = actionsLeft(actor);
+                const back = await A.giveBackAfterRoll(actor, receipt, rolls);
+                await settle();
+                read.push([back, actionsLeft(actor) - at, said.slice(from).includes(kept)]);
+            }
+        } finally {
+            ui.notifications.info = infoWas;
+            await trustedWrite(actor, { "system.resources.actions.value": actionsWas }, { reason: "gmRuling" });
+            await settle();
+        }
+        equal(stableJson(read), stableJson([[true, 1, false], [true, 1, false], [true, 1, false], [true, 1, false], [true, 1, false]]),
+            "[for rolls: Despair; Hope; a critical; Despair beside a supporting roll with Hope; beside a supporting critical - [given back, actions moved, the kept line said]]");
+    }],
     ["1.2.122 CTRL-26 - a Reroll of an action a GM rules on ends the first card it replaced: the open call card of that character posted since the replaced roll loses its buttons and says a Reroll replaced it, while another character's open card and a card from before the roll stand (scripts/reroll.mjs `endReplacedRuling`, `settleGmRuling`; call-gm.mjs `settleCall`; the audit's CTRL-26, 1.2.122 line DESP)", async () => {
         /*
          * 21.11.2026, 1.2.122 line DESP. The audit's CTRL-26: the Reroll posted a second card for the ruling and left the
@@ -89401,7 +89541,8 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         // Since 1.2.122 (the audit's CASE-34) both refund through one helper, which an unseen Frisk shares (palm.mjs
         // `handBackIfRefusedBeforeRolls`): read in each road, and the helper's own noGm and refund.
         const handBack = fnSource(src, "handBackIfRefusedBeforeRolls").replace(/\s+/g, " ");
-        const refunds = ["performPalm", "resolvePlant"].map(name => /await handBackIfRefusedBeforeRolls\(actor, paid, \{ ok: res\.ok, refused: res\.refused, reason: res\.reason, value: res\.value \}\)/.test(fnSource(src, name))
+        // CHANGED ON PURPOSE BY E129 (1.2.128): the call hands its two rolls to the rule (palm.mjs `handBackIfRefusedBeforeRolls`).
+        const refunds = ["performPalm", "resolvePlant"].map(name => /await handBackIfRefusedBeforeRolls\(actor, paid, \{ ok: res\.ok, refused: res\.refused, reason: res\.reason, value: res\.value \}(?:, \[shadow, hand\])?\)/.test(fnSource(src, name))
             && /nobodyTook\(res\?\.ok, res\?\.reason\)[^;]*;[^]*?await palmBack\(actor, paid\)/.test(handBack));
         const nobody = fnSource(src, "nobodyTook");
         equal(stableJson({ before: refusal >= 0 && firstPrice > refusal, exempt, held: callsGm.filter(key => exempt.includes(key) && key !== "directMurder"),

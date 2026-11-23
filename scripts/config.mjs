@@ -1305,6 +1305,36 @@ export const CRITICAL = {
     clearsStress: false
 };
 
+/*
+ * WHAT A ROLL LEAVES TO GIVE BACK (E129, 1.2.128; the owner's note of session 0, 23.11.2026: "niektore akcje zwracaja hope
+ * i akcje przy rzucie mimo ze nie powinny", and "Tamper chyba najbardziej"). The inventory is docs/dev/owner129/desp/
+ * REFUNDS.md; each row the coordinator set a default for is one key here, so the owner's answer changes a key and nothing
+ * else. The owner's answers of 23.11.2026, relayed by the coordinator, set them: rows 12, 13 and T8 "c", the price always
+ * back as before (`afterRoll` "always"; Tail keeps its own rule of 1.2.123, action-tail.mjs `rollsEarnedHope`); T5
+ * "Zostawiamy jak jest" - a critical Tamper keeps its 2 Hope and gives back what paid, as the handbook says
+ * (`tamperCritical` true); T12 as the rules say, unchanged (`freeCritical` true); row 4 and T1 "Z glownego" - Hope
+ * from the action's main roll only (`supportingHope` false).
+ *   afterRoll          an action refused or not carried out after its dice landed, before they are read (REFUNDS rows
+ *                      13, T8): "always" gives the price back as before E129 (the owner's E14 Q3 of 18.10.2026);
+ *                      "noHope" only when no roll of the action brought Hope or a critical (`mayRefundAfterRoll`,
+ *                      price.mjs; Tail's road since 1.2.123); "never" as ROLL-05 keeps a window closed after a roll.
+ *   gmRefuse           the GM's "Refuse the attempt" on a ruling card (row 12); null asks `afterRoll`.
+ *   supportingHope     whether a supporting roll - a cover or a concealment, `rollTrait`'s `remember: false` - earns
+ *                      its Hope (row 4, T1). Its critical keeps what the rules text gives it beside Hope (Tamper's
+ *                      concealment gives back 1 Sanity).
+ *   tamperCritical     whether a critical Tamper taken as an action gives back what the attempt cost (T5, T6, and the
+ *                      Misleading Trail and Move the Body through Tamper's door); its 2 Hope stand either way. The
+ *                      killer's own clean-up keeps the guide's give-back ("Morderca odzyskuje 1 stres").
+ *   freeCritical       whether the free attempt a critical Finishing Blow leaves gives anything back on a critical (T12).
+ */
+export const ROLL_REFUNDS = Object.freeze({
+    afterRoll: "always",
+    gmRefuse: null,
+    supportingHope: false,
+    tamperCritical: true,
+    freeCritical: true
+});
+
 /**
  * Analyze action DCs. Turns a Neutral Truth Bullet into an identified category.
  * A failed analysis locks that Truth Bullet for that player until the chapter
@@ -5658,6 +5688,7 @@ export const DRPG = {
     OBSERVE_TYPE_ALIAS,
     OBSERVE_FAIL_STRESS,
     CRITICAL,
+    ROLL_REFUNDS,
     ANALYZE_DC,
     analyzeDc,
     observeDc,

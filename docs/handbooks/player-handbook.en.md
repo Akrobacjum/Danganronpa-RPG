@@ -83,7 +83,7 @@ Every action is a Daggerheart duality roll: a Hope die and a Despair die, both d
 
 - A roll **with Hope** earns you 1 Hope.
 - A roll **with Despair** feeds the Despair pool of the Monokuma who watches you (section 6). That is where Monokuma's money comes from: your bad luck and your risks.
-- A **critical** earns 2 Hope and nothing else; unlike plain Daggerheart, it does not restore Sanity.
+- A **critical** earns 2 Hope and nothing else; unlike plain Daggerheart, it does not restore Sanity. A roll that only supports an action earns no Hope, whatever it shows: covering what you do, staying unseen, concealing your intent; Hope comes from the action's main roll. Its critical still does what its own rule says (Tamper's concealment gives back 1 Sanity).
 
 The roll window is locked for players: the dice, statistic, advantage, experiences, and bonuses come from the action, from a Call you paid for, from where you are standing, or from the GM. What you can touch is what the action lets you choose.
 
