@@ -169,7 +169,7 @@
     },
     {
       "id": "foundry-hiding-token-actor",
-      "findings": ["S0-HIDE", "LIVE-129-04"],
+      "findings": ["S0-HIDE", "LIVE-129-STG-04"],
       "class": "metadata",
       "severity": "low",
       "classNote": "Who hides and where their token stands, not who did anything: the hide is a player's own choice and names no crime. Low rather than info because it is the one thing the action promises to keep from the other players; put to the owner through the coordinator, 1.2.128.",

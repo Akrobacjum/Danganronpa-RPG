@@ -849,7 +849,7 @@ const dressedHiding = new Set();
  * on its owner's browser and at Foundry's hidden alpha on a GM's, times the token's own; any other browser does not draw it
  * (`tokenShownTo` "hide"). Its frame (own-ring.mjs) follows the token's `visible`, not the mesh's alpha, and is drawn whole.
  * Asked on every redraw (`applyToToken`), as `dressSpectator` is, so Foundry's own alpha written at its refresh is
- * overwritten after it. No canvas in the harness: read on a stand-in token (R8902); at a table, LIVE-129-01.
+ * overwritten after it. No canvas in the harness: read on a stand-in token (R8902); at a table, LIVE-129-STG-01.
  */
 export function dressHiding(token, { gm = Boolean(game.user?.isGM) } = {}) {
     const alpha = hidingAlpha(token?.document, { gm, owns: Boolean(token?.isOwner) });

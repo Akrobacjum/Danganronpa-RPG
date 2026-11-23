@@ -15,7 +15,7 @@ eight files: `stained-glass` and `legacy`, each at `1920x1080` and `1366x768`.
     glyph, after the speaker button, named "Ujawnij się";
   - `is-held` on the microphone, the state `micHold` "hiding" draws.
 - This is not the module drawing a live tile. In the headless cluster no voice tile stands without the LiveKit shim
-  (scenario 22's note). The live button is read by R8905. A tile at a table is LIVE-129-03.
+  (scenario 22's note). The live button is read by R8905. A tile at a table is LIVE-129-STG-03.
 - The tile's words are the harness's own, in English ("Speaking", "Aiko Hoshino"). The button's name shows only as a
   tooltip at a table.
 
@@ -35,4 +35,4 @@ same room (no token, no frame).
   - R8901: the verdicts ("show" for the owner, "hide" for every other player, null for a GM);
   - R8902: the alpha on a stand-in mesh (0.4 for the owner, 0.5 for a GM);
   - scenario 22-hide: both verdicts on the real browsers p1 and p2.
-- The pictures are LIVE-129-01 (AUDIT 9.2, item 900), for a v14 table in both themes.
+- The pictures are LIVE-129-STG-01 (proposed to the coordinator for AUDIT 9.2), for a v14 table in both themes.

@@ -19,8 +19,8 @@
  *            the flag and the hold gone, p2 drawing Aiko by the room rule again.
  * Everything is put back: the row, the flag, the microphone's block.
  *
- * What this cannot see: a canvas (the fade and the frame on a real map, LIVE-129-01), a real LiveKit (LIVE-129-03, -04),
- * the hider's own vision on v14 (LIVE-129-02).
+ * What this cannot see: a canvas (the fade and the frame on a real map, LIVE-129-STG-01), a real LiveKit (LIVE-129-STG-03, -04),
+ * the hider's own vision on v14 (LIVE-129-STG-02).
  */
 export const layers = ["ci"];
 

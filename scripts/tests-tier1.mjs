@@ -9265,7 +9265,7 @@ const INVARIANTS = [
         }), "{shown: [owner, stranger, the killers' side, a Spectator, a stranger in an Eclipse, the owner in an Eclipse, a GM, the killers' side for a veiled token that hides]; patch: hide, show, show by deletion; pass: set, deleted}");
     }],
     ["R8902 - a hidden token is drawn faded for its owner, as a GM's hidden token for a GM, and gets its own alpha back once it shows (S0-HIDE, E129; hide.mjs `hidingAlpha`, visibility.mjs `dressHiding`): 0.4 times the token's own alpha on its owner's browser, 0.5 on a GM's, untouched on any other, and the token's alpha again when the flag goes", async () => {
-        /* 1.2.128 line STG, 23.11.2026. Stand-in tokens with a mesh; no canvas (LIVE-129-01). Red at 5a583d82: no hide.mjs. */
+        /* 1.2.128 line STG, 23.11.2026. Stand-in tokens with a mesh; no canvas (LIVE-129-STG-01). Red at 5a583d82: no hide.mjs. */
         const H = await import("./hide.mjs");
         const { dressHiding } = await import("./visibility.mjs");
         const doc = (hiding, alpha = 1) => ({ alpha, flags: { [MODULE_ID]: hiding ? { hiding: true } : {} } });
