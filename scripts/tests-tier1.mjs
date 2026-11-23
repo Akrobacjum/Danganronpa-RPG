@@ -69287,6 +69287,94 @@ const INVARIANTS = [
             JSON.stringify([0.5, 1, REMNANT_ALPHA.gmHidden, true, true, true]),
             "[a player's (0.5), a GM's shown, a GM's hidden Remnant drawn at; the GM's hidden one at least 0.5 and under 1; applyToToken dresses first; placeRemnant creates whole]");
     }],
+    ["R8871 - a token's name on a hover is what this viewer may know: a masked killer reads \"?\" but to its owner and the GMs, a trace's name never from its token, a project through shownName, and nothing for a body, a token Foundry hides from a player or one this browser does not draw (1.2.129 line MAP, E129; scripts/hover-name.mjs `hoverName`; the owner's S0-HOVERNAME)", async () => {
+        /*
+         * 1.2.129 line MAP, 23.11.2026; the owner: "Najechanie na token myszka przez chwile dluzej niech pokazuje nazwe (imie
+         * postaci, "?" Mordercy, nazwe projektu, nazwe remnanta)". The rule read on stand-in tokens, a viewer handed in (a GM,
+         * the masked character's owner, another player). What the label must never do is tell more than the map draws: the
+         * masked killer's actor name to another player; a trace's token name (here a real word on it, which no placed trace
+         * carries: `placeRemnant` writes the neutral one) to a player; any name of a token Foundry hides or this browser does not
+         * draw. A Remnant's and a project's own names are their readers' (myBulletForRemnant, ledgerLabel, shownName): held
+         * here to be asked, not re-judged (R7541 holds shownName's rule).
+         */
+        const H = await import("./hover-name.mjs");
+        const { FLAGS } = await import("./config.mjs");
+        const { MASK_NAME } = await import("./mask-gm.mjs");
+        const { REMNANT_FLAGS, traceLabel } = await import("./remnants.mjs");
+        const { PROJECT_TOKEN_FLAG } = await import("./projects-map.mjs");
+        const { shownName } = await import("./projects-secrecy.mjs");
+        must(typeof H.hoverName === "function", "no hoverName - this would measure nothing");
+        const gm = { isGM: true, id: "g" }, owner = { isGM: false, id: "own" }, other = { isGM: false, id: "oth" };
+        const person = ({ dead = false, type = "character", name = "Aoi Kirigaya" } = {}) => ({ type, name, id: "a8871",
+            testUserPermission: u => u?.id === "own", getFlag: (scope, key) => (dead && key === FLAGS.deceased ? true : undefined) });
+        const tok = ({ name = "Aoi", hidden = false, actor = person(), flags = {} } = {}) => ({ id: "t8871", parent: { id: "s8871", tokens: [] },
+            name, hidden, actor, flags: { [MODULE_ID]: flags }, getFlag(scope, key) { return this.flags?.[scope]?.[key]; } });
+        const masked = tok({ name: MASK_NAME, flags: { masked: true } });
+        const trace = tok({ name: "Bloody knife", actor: null, flags: { [REMNANT_FLAGS.isRemnant]: true } });
+        const project = tok({ name: "Project", actor: null, flags: { [PROJECT_TOKEN_FLAG]: "no-such-countdown-8871" } });
+        const at = (doc, user, extra = {}) => H.hoverName(doc, { user, ...extra });
+        equal(JSON.stringify([
+            at(tok(), other), at(masked, other), at(masked, owner), at(masked, gm),
+            at(tok({ hidden: true }), other), at(tok({ hidden: true }), gm), at(tok(), other, { drawn: false }),
+            at(tok({ actor: person({ dead: true }) }), other), at(tok({ actor: person({ dead: true }) }), gm),
+            at(trace, other) === traceLabel(null), at(trace, gm) === traceLabel(null), at(project, other) === (shownName("no-such-countdown-8871") || null),
+            at(tok({ name: "Monokuma", actor: person({ type: "npc", name: "Monokuma" }) }), other), at(tok({ name: "", actor: null }), other)]),
+            JSON.stringify(["Aoi Kirigaya", MASK_NAME, "Aoi Kirigaya", "Aoi Kirigaya", null, "Aoi Kirigaya", null, null, null, true, true, true, "Monokuma", null]),
+            "[character to another player; masked to another, its owner, a GM; Foundry-hidden to a player, to a GM; not drawn; a body to a player, to a GM; a trace's neutral word, never its token's name, to a player and to a GM whose ledger has no row for it; a project through shownName; an NPC's token name; an empty name]");
+    }],
+    ["R8872 - a hover's name waits HOVER_NAME.delayMs, goes on the hover's end, a press on the page or a change to its token, and is one aria-hidden element whose words are the rule's, put up nowhere for a token this browser does not draw (1.2.129 line MAP, E129; scripts/hover-name.mjs `onHoverToken`, `showHoverName`, `dropHoverName`, `registerHoverName`; config.mjs `HOVER_NAME`)", async () => {
+        /*
+         * 1.2.129 line MAP, 23.11.2026, the owner's S0-HOVERNAME. The element and the timer on this page, a stand-in token
+         * (the harness draws no board; where the label lands on v14's is LIVE-129-MAP-04). The canvas's one call the label
+         * needs, `clientCoordinatesFromCanvas`, is stood in for while the test runs when the harness's canvas lacks it, and put
+         * back. The delay itself is the constant's, at least 300 ms so a pointer crossing the map names nothing; the test
+         * waits a short one handed in.
+         */
+        const H = await import("./hover-name.mjs");
+        const { HOVER_NAME } = await import("./config.mjs");
+        must(typeof H.onHoverToken === "function" && HOVER_NAME, "no onHoverToken or HOVER_NAME - this would measure nothing");
+        const other = { isGM: false, id: "oth" };
+        const doc = { id: "t8872", parent: { id: "s8872", tokens: [] }, name: "Aoi", hidden: false, flags: {}, getFlag: () => undefined,
+            actor: { type: "character", name: "Aoi Kirigaya", testUserPermission: () => false, getFlag: () => undefined } };
+        const placeable = visible => ({ document: doc, visible, destroyed: false, center: { x: 50, y: 50 }, y: 0 });
+        const cv = globalThis.canvas;
+        const hadCv = Boolean(cv), had = cv?.clientCoordinatesFromCanvas;
+        if (!hadCv) globalThis.canvas = {};
+        globalThis.canvas.clientCoordinatesFromCanvas = p => ({ x: p.x + 1000, y: p.y + 500 });
+        const wait = ms => new Promise(r => setTimeout(r, ms));
+        const facts = [];
+        try {
+            H.dropHoverName();
+            const el = H.showHoverName(placeable(true), { user: other, at: { x: 120.4, y: 64.6 } });
+            facts.push(el?.className, el?.textContent, el?.getAttribute("aria-hidden"), el?.style.left, el?.style.top, H.hoverNameShown() === el, el?.isConnected);
+            H.dropHoverName();
+            facts.push(el?.isConnected, H.hoverNameShown(), H.showHoverName(placeable(false), { user: other, at: { x: 1, y: 1 } }), document.querySelectorAll(".drpg-hover-name").length);
+            H.onHoverToken(placeable(true), true, { delayMs: 40 });
+            facts.push(H.hoverNameWaiting(), H.hoverNameShown());
+            H.onHoverToken(placeable(true), false);
+            facts.push(H.hoverNameWaiting());
+            H.onHoverToken(placeable(true), true, { delayMs: 40 });
+            document.dispatchEvent(new Event("pointerdown"));
+            facts.push(H.hoverNameWaiting());
+            H.onHoverToken(placeable(true), true, { delayMs: 40 });
+            Hooks.callAll("updateToken", doc, {}, {}, "x");
+            facts.push(H.hoverNameWaiting());
+            H.onHoverToken(placeable(true), true, { delayMs: 40 });
+            await wait(120);
+            const shown = H.hoverNameShown();
+            facts.push(shown?.textContent ?? null, shown?.style.left ?? null, shown?.style.top ?? null);
+            Hooks.callAll("canvasPan", globalThis.canvas, {});
+            facts.push(H.hoverNameShown(), HOVER_NAME.delayMs >= 300 && HOVER_NAME.delayMs <= 1500);
+        } finally {
+            H.dropHoverName();
+            if (!hadCv) delete globalThis.canvas;
+            else if (had === undefined) delete cv.clientCoordinatesFromCanvas;
+            else cv.clientCoordinatesFromCanvas = had;
+        }
+        equal(JSON.stringify(facts),
+            JSON.stringify(["drpg-hover-name", "Aoi Kirigaya", "true", "120px", "65px", true, true, false, null, null, 0, true, null, false, false, false, "Aoi Kirigaya", "1050px", "500px", null, true]),
+            "[the element: class, words, aria-hidden, left, top, held, on the page; dropped; none for a token not drawn; waiting, nothing yet; a hover's end, a press, a change to its token stop it; after the wait the rule's words at the token's top centre; a pan takes it down; the delay between 300 and 1500 ms]");
+    }],
 ];
 
 /**

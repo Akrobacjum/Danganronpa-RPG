@@ -3281,6 +3281,15 @@ export const PROJECT_TOKEN = {
  */
 export const REMNANT_ALPHA = Object.freeze({ player: 0.5, gmShown: 1, gmHidden: 0.6 });
 
+/*
+ * A TOKEN'S NAME ON A HOVER (1.2.129 line MAP, stage E129; released in 1.2.128; the owner's session-0 note S0-HOVERNAME,
+ * 23.11.2026: "Najechanie na token myszka przez chwile dluzej niech pokazuje nazwe (imie postaci, "?" Mordercy, nazwe
+ * projektu, nazwe remnanta)"). hover-name.mjs shows it once the pointer has rested on a token `delayMs`, as this viewer
+ * may know it (`hoverName`), and takes it off on leaving, a press on the board, a pan or a change to the token. 600 is
+ * the coordinator's default pending the owner: long enough that a pointer crossing the map names nothing.
+ */
+export const HOVER_NAME = Object.freeze({ delayMs: 600 });
+
 export const PROJECT_GLYPHS = {
     hourglass: { label: "Hourglass", fa: "fa-hourglass" },
     checklist: { label: "Checklist", fa: "fa-list-check" },
@@ -5806,6 +5815,7 @@ export const DRPG = {
     PROJECT_SCALE,
     PROJECT_GLYPHS,
     REMNANT_ALPHA,
+    HOVER_NAME,
     PROJECT_TOKEN,
     isProjectGlyph,
     PROJECT_DESCRIPTION_MAX,
