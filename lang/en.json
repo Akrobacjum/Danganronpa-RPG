@@ -2000,6 +2000,8 @@
         "thesisPostTooltip": "Puts your thesis on the table as a card; your turn goes on",
         "finishKeepTooltip": "Closes this window; your Objection runs on its clock",
         "finishDoneTooltip": "Ends your Objection's seconds now; the rebuttal starts",
+        "confirmEndTooltip": "Ends your turn now; the floor goes on",
+        "confirmKeepTooltip": "Closes this window; your turn runs on its clock",
         "setTooltip": "The Logic Dive set to play. The number is how many questions it holds.",
         "editTooltip": "Changes the words. The table is told what it was and what it is now.",
         "deleteTooltip": "Takes the Finding off the list at once and tells the table",
@@ -3633,7 +3635,10 @@
         "closingPassEarly": "Pass in your first {seconds} s hands the choice back to the GM; after that it ends the Closing Argument.",
         "closingPass": "Pass ends the Closing Argument, as Done does.",
         "left": "On the clock: {seconds} s.",
-        "keepNote": "Keep speaking hides this window. It comes back in {seconds} s, with Done and Pass."
+        "keepNote": "Keep speaking hides this window. It comes back in {seconds} s, with Done and Pass.",
+        "confirmTitle": "End your turn now?",
+        "confirmBody": "On the clock: {seconds} s. Ending now gives the floor on.",
+        "confirmYes": "End my turn"
       },
       "claim": {
         "body": "Will you sum up the case in the Closing Argument? You have {seconds} s to volunteer. One volunteer is drawn, and the GM confirms them or picks someone else.",

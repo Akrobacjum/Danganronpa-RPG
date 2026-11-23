@@ -42,7 +42,8 @@
  *     two counts - the HUD drawn once on each browser, no sheet rendered through the clock's pass - are 81-render-budget
  *     part F's since E37 C5 (E37-23), on sheets that register where the pass looks; M still records them in its log.
  *   K (1.2.122, Keep speaking): p1 draws its windows; in a Testimony Your turn shows the seconds left, Keep speaking
- *     closes it, and 20 s later it stands again in the same turn with Done, which ends the turn.
+ *     closes it, and 20 s later it stands again in the same turn with Done, which asks "End your turn now?" first
+ *     (E129 S0-CUT P2: more than 5 s left); its Keep speaking keeps the turn, its End my turn ends it.
  *   B (1.2.122, a ballot): p1 draws its windows; the GM sends the ballots and closes the vote with p1's unanswered: p1's
  *     ballot closes itself and p1 is told the vote has moved on.
  *   S (E129 S0-SKIP, the owner's note of 23.11.2026): Aiko objects at Botan in a debate; p1 alone is shown "Finish your
@@ -551,12 +552,29 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, canary, repoUr
     verdict("Keep speaking closes it, and 20 s later it stands again in the same turn with Done, its seconds those left",
         hidden === null && Boolean(k2) && k2.buttons.includes("done") && k2.left > 0 && k2.left <= 45 && k2Floor?.holder === IDS.aiko && k2Title <= 45,
         J({ hidden, k2, k2Floor }));
+    /* E129 S0-CUT P2 (the coordinator's, 23.11.2026): with more than 5 s left Done asks "End your turn now?" first; its
+       Keep speaking leaves the turn running, and Your turn comes back; Done again and End my turn end it. Red at 2e28785a:
+       Done ended the turn at once. */
+    const endAsk = ms => p1.eval(`${until} const app = await until(() => [...foundry.applications.instances.values()].find(a => a.rendered && a.element?.isConnected && a.options?.classes?.includes("drpg-end-turn")), ${ms});
+        return app ? { title: app.options?.window?.title ?? null, want: game.i18n.localize("DRPG.Trial.turn.confirmTitle"), buttons: [...app.element.querySelectorAll("footer button[data-action]")].map(b => b.dataset.action) } : null;`, { timeout: 30000 });
+    const pressEnd = action => p1.eval(`const app = [...foundry.applications.instances.values()].find(a => a.rendered && a.element?.isConnected && a.options?.classes?.includes("drpg-end-turn"));
+        const b = app?.element?.querySelector('footer button[data-action="${action}"]'); if (!b) return false; b.click(); return true;`);
     await pressTurn("done");
+    const ask1 = await endAsk(4000);
+    await pressEnd("keep");
+    await settle(1500);
+    const kKept = await floorOn(gm);
+    verdict("with more than 5 s left Done asks \"End your turn now?\" (Keep speaking, End my turn), and Keep speaking leaves Aiko's turn running",
+        Boolean(ask1) && ask1.title === ask1.want && ["keep", "end"].every(a => ask1.buttons.includes(a)) && kKept?.holder === IDS.aiko, J({ ask1, kKept }));
+    await turnWindow(25000);
+    await pressTurn("done");
+    await endAsk(4000);
+    await pressEnd("end");
     await settle(1500);
     const kAfter = await floorOn(gm);
-    verdict("its Done ends Aiko's turn: Botan's on the floor", kAfter?.holder === IDS.botan, J(kAfter));
+    verdict("Done and End my turn end Aiko's turn: Botan's on the floor", kAfter?.holder === IDS.botan, J(kAfter));
     await gm.eval(`${F} if (F.trialFloor()) await game.drpg.endMode(); return true;`, { timeout: 30000 });
-    await p1.eval(`globalThis.__dialogWindows = globalThis.__s67kWas; for (const a of [...foundry.applications.instances.values()]) if (a.options?.classes?.includes("drpg-your-turn")) await a.close(); return true;`);
+    await p1.eval(`globalThis.__dialogWindows = globalThis.__s67kWas; for (const a of [...foundry.applications.instances.values()]) if (a.options?.classes?.some(c => c === "drpg-your-turn" || c === "drpg-end-turn")) await a.close(); return true;`);
     await settle(800);
     await canary.scan({ phase: "K" });
 

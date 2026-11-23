@@ -2089,6 +2089,8 @@
         "thesisPostTooltip": "Kładzie twoją tezę na stół jako kartę; twoja tura trwa dalej",
         "finishKeepTooltip": "Zamyka to okno; twoje Objection trwa według zegara",
         "finishDoneTooltip": "Kończy teraz czas twojego Objection; zaczyna się rebuttal",
+        "confirmEndTooltip": "Kończy teraz twoją turę; głos przechodzi dalej",
+        "confirmKeepTooltip": "Zamyka to okno; twoja tura trwa według zegara",
         "setTooltip": "Zestaw Logic Dive do zagrania. Liczba to liczba jego pytań.",
         "editTooltip": "Zmienia treść. Stół dostaje wiadomość, co było i co jest teraz.",
         "deleteTooltip": "Od razu usuwa Finding z listy i mówi o tym stołowi",
@@ -3895,7 +3897,10 @@
         "closingPassEarly": "Pasuję w pierwszych {seconds} s oddaje wybór GM-owi; potem kończy Closing Argument.",
         "closingPass": "Pasuję kończy Closing Argument, tak jak Gotowe.",
         "left": "Pozostały czas: {seconds} s.",
-        "keepNote": "Mówię dalej chowa to okno. Wróci za {seconds} s, z Gotowe i Pasuję."
+        "keepNote": "Mówię dalej chowa to okno. Wróci za {seconds} s, z Gotowe i Pasuję.",
+        "confirmTitle": "Zakończyć turę teraz?",
+        "confirmBody": "Pozostały czas: {seconds} s. Gdy zakończysz teraz, głos przechodzi dalej.",
+        "confirmYes": "Zakończ moją turę"
       },
       "claim": {
         "body": "Podsumujesz sprawę w Closing Argument? Na zgłoszenie masz {seconds} s. Potem jedna zgłoszona osoba zostaje wylosowana, a GM ją zatwierdza albo wybiera kogoś innego.",

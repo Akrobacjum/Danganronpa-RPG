@@ -245,6 +245,35 @@ async function promptFinish(floor) {
     await requestTurn({ actorId: actor.id, kind: "done", step });
 }
 
+/**
+ * "END YOUR TURN NOW?" (E129 S0-CUT P2; config.mjs `TRIAL.modes.round.confirmEndAboveSeconds`): asked after Done or Pass
+ * in "Your turn" while more than those seconds are left. Keep speaking, the primary, answers no and so does Enter; the
+ * window closes itself, answering no, once the turn `key` is over by any road. Answers whether to end it.
+ */
+async function confirmEnd(key, seconds) {
+    const { trialFloor, secondsLeft } = await import("./trial-floor.mjs");
+    const choice = await drpgWindow({
+        title: game.i18n.localize("DRPG.Trial.turn.confirmTitle"),
+        classes: ["drpg-panel", "drpg-end-turn"],
+        prompt: true,
+        body: `<p>${game.i18n.format("DRPG.Trial.turn.confirmBody", { seconds: `<span data-drpg-left>${seconds}</span>` })}</p>`,
+        footer: {
+            primary: { action: "keep", label: game.i18n.localize("DRPG.Trial.turn.keep"), tooltip: tipText("DRPG.Tips.Trial.confirmKeepTooltip") },
+            secondary: [{ action: "end", label: game.i18n.localize("DRPG.Trial.turn.confirmYes"), tooltip: tipText("DRPG.Tips.Trial.confirmEndTooltip") }]
+        },
+        render: (event, dialog) => {
+            const watch = setInterval(() => {
+                if (!dialog.element?.isConnected) return void clearInterval(watch);
+                if (turnKey(trialFloor()) === key) return void paintLeft(dialog, leftNow(secondsLeft, trialFloor()));
+                clearInterval(watch);
+                dialog.close();
+            }, 500);
+        },
+        rejectClose: false
+    });
+    return choice === "end" && turnKey(trialFloor()) === key;
+}
+
 /** The speaker's window, for the turn `floor` holds, when the speaker is this player's own student. */
 async function promptTurn(floor) {
     const key = turnKey(floor);
@@ -309,6 +338,17 @@ async function promptTurn(floor) {
         return;
     }
     if (turnKey(trialFloor()) !== key) return;
+    /* Asked once while the turn has more than `confirmEndAboveSeconds` left (E129 S0-CUT P2); a no is Keep speaking: the
+       window comes back `KEEP_SPEAKING_MS` later while the turn is still this speaker's. */
+    const above = Number(TRIAL.modes?.round?.confirmEndAboveSeconds) || 0;
+    const left = leftNow(secondsLeft, trialFloor());
+    if (above > 0 && left > above && !(await confirmEnd(key, left))) {
+        if (turnKey(trialFloor()) !== key) return;
+        setTimeout(() => {
+            if (turnKey(trialFloor()) === key && promptedFor === key) promptedFor = null;
+        }, KEEP_SPEAKING_MS);
+        return;
+    }
     const { requestTurn } = await import("./gm-bridge.mjs");
     await requestTurn({ actorId: actor.id, kind: choice, step });
 }

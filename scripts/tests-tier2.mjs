@@ -52734,6 +52734,33 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             still: "objection", own: ["bridge.done"], after: "rebuttal", card: [true, false], told: [1, true] }),
             "{constant; pending: [mode, pending, a Done while the bullet is picked]; target: the target's Done; stale: another start's; still: the floor after them; own: the objector's; after: the floor; card: [the table's card, titled as the GM's step]; told: [the GMs' whispers, whispered to GMs alone]}");
     }],
+    ["1.2.129 S0-CUT P1 - a student owned by two players is seated by their linked player, and no player loses their turn to a loose ownership link (vote.mjs `trialParticipants`; config.mjs `TRIAL.seatByCharacter`; the coordinator's P1 of 23.11.2026): two players, each linked to their own student (`user.character`), the first given OWNER on the second's student too - both students take part, each with the player linked to it", async () => {
+        /* On this GM, the world's ownership written and put back. Red at 2e28785a: the second student went to the first
+           owner Foundry lists, already seated with their own, so it had no seat and no turn - nothing said. */
+        needs(world.atLeast("connectedPlayersWithCharacter", 2), "two players, each linked to a student of their own");
+        const V = await import("./vote.mjs");
+        const L = CONST.DOCUMENT_OWNERSHIP_LEVELS;
+        const linked = game.users.filter(u => !u.isGM && u.active && u.character && u.character.testUserPermission(u, "OWNER"));
+        must(linked.length >= 2, "two linked players - this would measure nothing");
+        const [a, b] = linked;
+        const theirs = b.character;
+        const before = foundry.utils.deepClone(theirs._source.ownership ?? {});
+        const seat = () => V.trialParticipants().filter(p => [a.character.id, theirs.id].includes(p.actor.id)).map(p => [p.actor.id, p.user.id]).sort();
+        const read = {};
+        try {
+            read.alone = seat();
+            await theirs.update({ ownership: { ...before, [a.id]: L.OWNER } });
+            await settle();
+            must(theirs.testUserPermission(a, "OWNER"), "the first player was not given the second's student - this would measure nothing");
+            read.coOwned = seat();
+        } finally {
+            // Written whole (`replaced`): a deletion under `ownership` removes nothing on v14 (E58 L1, 17.11.2026).
+            await theirs.update({ ownership: replaced(before) }).catch(() => {});
+            await settle();
+        }
+        const want = [[a.character.id, a.id], [theirs.id, b.id]].sort();
+        equal(stableJson(read), stableJson({ alone: want, coOwned: want }), "{alone: [student, player] seated; coOwned: the same with the first player owning both}");
+    }],
     ["the Closing Argument: volunteers by \"trial.claim\" kept by the GMs alone, the draw confirmed, an Objection only at the speaker, both of the GM's decisions, an Overrule in the exchange, and one Closing per trial (E70-T10)", async () => {
         /*
          * E70 C8, 28.10.2026; E70-51, E70-52, E70-54, E70-56, E70-57. Read on this primary in a Class Trial, with the

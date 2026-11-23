@@ -4401,6 +4401,14 @@ export const TRIAL = {
      * stays shut in the trial (a Frisk is its own action). False takes Palm's hall away again.
      */
     palmHallIsOneRoom: true,
+    /*
+     * WHO TAKES PART, BY THE PLAYER'S OWN LINK (E129 S0-CUT P1, 23.11.2026; the coordinator's fix after the owner's note
+     * "testimony ucielo ostatniego gracza", ownership links at that table being loose): a student owned by two players is
+     * seated by the player whose `user.character` it is, and a student left goes to its first owner not seated yet (vote.mjs
+     * `trialParticipants`). False is the rule until 1.2.129: the first owner Foundry lists, the student dropped when that
+     * player had a seat already.
+     */
+    seatByCharacter: true,
     rebuttalSeconds: 120,
     /**
      * How long an objector has to pick the Truth Bullet once their Objection is in (E79 C16, 1.2.79; the owner,
@@ -4455,7 +4463,15 @@ export const TRIAL = {
              * to reconnect is not measured (a LIVE item proposed in E129's report). An Objection's exchange in a round still
              * goes on at the next speaker (E70-42, which stands: the coordinator's word of 23.11.2026).
              */
-            goneGraceSeconds: 15
+            goneGraceSeconds: 15,
+            /*
+             * DONE AND PASS ASK ONCE (E129 S0-CUT P2, 23.11.2026; the coordinator's P2: "Your turn" comes back every 20 s with
+             * Done and Pass beside Keep speaking, and a speaker who clicks one while talking ends their own turn at once -
+             * for the last speaker, the round). With more than these seconds left, Done or Pass asks "End your turn now?"
+             * (trial-prompt.mjs `confirmEnd`), Keep speaking its default; at or under them it ends at once, so a speaker at
+             * the end of their time is not slowed down. 0 takes the question away.
+             */
+            confirmEndAboveSeconds: 5
         },
         /*
          * THE CLOSING ARGUMENT (E70 C8, 28.10.2026; S18-73, S18-74; the owner's TR7 "proponuje 5 minut", TR23 = 1,
