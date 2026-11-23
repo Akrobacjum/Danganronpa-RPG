@@ -1281,7 +1281,8 @@ const revealToggles = new WeakMap();
  * mini button after the speaker's while this browser's own character hides (`myHiding`, off its own token's flag): a press
  * asks the primary GM to end the hide (`mask.reveal` with `of: "hide"`), which unmutes the player and draws the token for
  * everyone again. Its own button, beside the mask's: a masked killer who hides ends each by its own (hide.mjs's header).
- * The glyph is Legacy's `unseen` mark.
+ * The glyph is `averted-eyes`, declared for both themes (`unseen` is Stained Glass's alone and drew a blank square under
+ * Legacy: the screenshot of 23.11.2026).
  *
  * @param {HTMLElement} tile
  * @param {object} [given]  the suite's: `hiding` (an actor or null) and the click's `onUnhide`
@@ -1296,7 +1297,7 @@ export function paintUnhide(tile, { hiding = myHiding(), onUnhide = requestUnhid
         return null;
     }
     if (!button) {
-        button = miniButton("drpg-voice-unhide", "unseen", "");
+        button = miniButton("drpg-voice-unhide", "averted-eyes", "");
         button.addEventListener("click", event => {
             event.preventDefault();
             event.stopPropagation();
@@ -1357,7 +1358,7 @@ export function paintHidden(list, { gm = game.user?.isGM === true, rows = gm ? h
             event.stopPropagation();
             Promise.resolve().then(() => onReveal(row.actorId)).catch(err => error("Could not reveal a hidden character", err));
         });
-        li.append(pixelGlyph("unseen"), textNode("span", "", game.i18n.format("DRPG.Hide.gmLine", { name: row.name })), button);
+        li.append(pixelGlyph("averted-eyes"), textNode("span", "", game.i18n.format("DRPG.Hide.gmLine", { name: row.name })), button);
         return li;
     }));
     return rows.length;
