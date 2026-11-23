@@ -68338,6 +68338,29 @@ const INVARIANTS = [
             wide: { x: Math.round(500 - 750 * z), y: Math.round(300 - 150 * z), z },
             floored: { x: Math.round(500 - 750 * 0.8), y: Math.round(300 - 150 * 0.8), z: 0.8 } }), "{small, wide, floored: the camera centred on each}");
     }],
+    ["R8870 - a Remnant is drawn at REMNANT_ALPHA on each browser, whatever the document's alpha: on a player's at 0.5, on a GM's whole when players see it and at gmHidden (at least 0.5, under 1) when they do not (1.2.129 line MAP, E129; scripts/visibility.mjs `remnantAlpha`, `dressRemnant`, `applyToToken`; config.mjs `REMNANT_ALPHA`; remnants.mjs `placeRemnant`; the owner's S0-REMALPHA)", async () => {
+        /*
+         * 1.2.129 line MAP, 23.11.2026; the owner's session-0 note "niektore remnanty sa polprzezroczyste i przez to
+         * niewidoczne"; the owner's answer: the GM's screen, Neutral Remnants; players stay at 0.5 ("Tak", 23.11). A hidden
+         * trace at document 0.5 under Foundry's own dimming was lost on the GM's map. The rule read on stand-in tokens (the
+         * harness draws no canvas; the mesh starts at 0.3, so a dress that sets nothing shows): a player's browser, a GM's
+         * shown and hidden; `applyToToken`'s Remnant branch held to dress before it
+         * decides visibility, and `placeRemnant` to create at 1 (their source). How it looks: the comparison sheet in
+         * docs/dev/owner129/map/; on v14's own canvas, LIVE-129-MAP-01 and -02 (the report).
+         */
+        const V = await import("./visibility.mjs");
+        const { REMNANT_ALPHA } = await import("./config.mjs");
+        must(typeof V.dressRemnant === "function" && typeof V.remnantAlpha === "function" && REMNANT_ALPHA, "no dressRemnant, remnantAlpha or REMNANT_ALPHA - this would measure nothing");
+        const tok = hidden => ({ mesh: { alpha: 0.3, destroyed: false }, document: { alpha: 0.5, hidden } });
+        const [vis, rem] = await Promise.all(["visibility.mjs", "remnants.mjs"].map(f => fetch(`/modules/${MODULE_ID}/scripts/${f}`).then(lfText).then(stripComments)));
+        const apply = fnSource(vis, "applyToToken");
+        equal(JSON.stringify([V.dressRemnant(tok(false), { gm: false }), V.dressRemnant(tok(false), { gm: true }), V.dressRemnant(tok(true), { gm: true }),
+            REMNANT_ALPHA.gmHidden >= 0.5 && REMNANT_ALPHA.gmHidden < 1,
+            apply.indexOf("dressRemnant(token);") >= 0 && apply.indexOf("dressRemnant(token);") < apply.indexOf("applyToRemnantToken(token);"),
+            /alpha: 1,\s*sort: -10,/.test(fnSource(rem, "placeRemnant"))]),
+            JSON.stringify([0.5, 1, REMNANT_ALPHA.gmHidden, true, true, true]),
+            "[a player's (0.5), a GM's shown, a GM's hidden Remnant drawn at; the GM's hidden one at least 0.5 and under 1; applyToToken dresses first; placeRemnant creates whole]");
+    }],
 ];
 
 /**
