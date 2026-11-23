@@ -31861,6 +31861,35 @@ const INVARIANTS = [
         equal(stableJson({ ids, on: V.HIDDEN_TOKEN_MUTES }), stableJson({ ids: ["hid"], on: true }),
             "[the accounts held for a hidden token; the switch]");
     }],
+    ["R8837 - a dead student's hidden body holds nobody: voice.mjs `hiddenVoiceIds` leaves out an account whose voice character is dead for the GMs (`isDeadForGm`), whose token a GM hides as the body it is (body.mjs `hiddenByGm`), and still names a living player's hidden token (E129, the coordinator's question of 23.11.2026)", async () => {
+        /*
+         * The roads read for the coordinator's question, 23.11.2026, on e0114ef3: the module writes a character token's
+         * `hidden` on a place scene nowhere but mask-gm.mjs's legacy veil, which gives the GM's own earlier `hidden` back;
+         * the trial hall's writes (trial-scene.mjs) stand on a scene `locateActor` does not walk; Room Setup and the
+         * season's reset write none. One GM road hides a token for another reason than quiet: the victim's body, which
+         * stays on the map as its token (body-tile.mjs follows its `hidden`) and which a GM hides until it is found
+         * (body.mjs `hiddenByGm`). The dead player's voice is in the Spectators' room then (`placeVoices`, E62 C3b), and
+         * a Monocub's account's voice character is its dead student too (`trialVoiceActorOf` passes its Spectator over):
+         * held for the hidden body, both lost the Spectators' room. Stand-ins: two players with hidden tokens, one dead.
+         * Red before the fix: both named.
+         */
+        const V = await import("./voice.mjs");
+        const user = id => ({ id, name: id, isGM: false, active: true });
+        const actor = (id, owner) => ({ id, name: id, type: "character", owner, getFlag: () => null,
+            testUserPermission: (u, level) => level === "OWNER" && u.id === owner });
+        const users = [user("living"), user("victim")];
+        const actors = [actor("A-living", "living"), actor("A-victim", "victim")];
+        const ids = [...V.hiddenVoiceIds({ users, actors, locate: () => ({ tokenDoc: { hidden: true } }),
+            spectator: () => false, dead: a => a.id === "A-victim" })].sort();
+        equal(stableJson(ids), stableJson(["living"]), "[the accounts held: the living player's alone, not the dead one's]");
+        // Which death: the GMs' block and the GM's disabled button ask `isDeadForGm`, so the body of a death kept secret
+        // holds nobody either; the default is the table's `isDeceased`, for `micHold`, which reaches no GM store (R537).
+        const src = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/voice.mjs`).then(lfText));
+        ok(/hiddenVoiceIds\(\{[^;]*dead: isDeadForGm \}\)/.test(fnSource(src, "settleTrialVoices")),
+            "settleTrialVoices holds a hidden token by a death the table knows, not the GMs' - a secret death's hidden body blocks its player");
+        ok(/hiddenVoiceIds\(\{ dead: isDeadForGm \}\)/.test(fnSource(src, "hiddenIds")),
+            "moduleHoldsMic's hidden accounts read a death the table knows, not the GMs'");
+    }],
     ["R8833 - a hidden token's hold is said on the player's own microphone and keeps the GM's block off it: `micHold` answers \"tokenHidden\", held, outside the Class Trial and nothing of it in the trial; `moduleHoldsMic` answers it on a GM's page; both languages say it (E129, S0-HIDEMUTE)", async () => {
         /*
          * The owner: the hide "pokazuje rowniez te zmiane na przycisku mikrofonu". `micHold` with every fact handed in,
