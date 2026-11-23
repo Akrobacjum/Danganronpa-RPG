@@ -107,7 +107,7 @@ At your death the glass on your screen fades to gray, with the Death fade sound;
 
 ### A day, a session, a chapter
 
-One session is one in-fiction day, and a day is five **times of day**: **Morning, Noon, Afternoon, Evening, Night**. Every time of day restocks each room's Search Tokens, and its Eclipse refills your two actions and your Free Move (the GM refills them when a time of day goes by without one). When Night ends, the day turns over. The GM chooses how long a time of day runs at the table: about 15 minutes at the Quick pace, about 30 at the Full pace, the Eclipses on top.
+One session is one in-fiction day, and a day is five **times of day**: **Morning, Noon, Afternoon, Evening, Night**. Every time of day restocks each room's Search Tokens, and its Eclipse refills your two actions and your Free Move (the GM refills them when a time of day goes by without one). When Night ends, the day turns over. The GM chooses the pace: at the Full pace a session at the table is one game day, about 30 minutes per time of day; at the Quick pace it is two game days, about 15 minutes per time of day, and the clock counts each of them as a session. The Eclipses come on top.
 
 A canonical chapter is five sessions: three of **Daily Life** (the third usually carries the murder), one of **Investigation**, one of **Class Trial**. The GM may stretch a chapter when no murder has happened yet. A season is six chapters; a modular season, a shorter one the GM may choose instead, runs a single chapter.
 

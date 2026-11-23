@@ -330,14 +330,16 @@ Przestawienie fazy na Class Trial też pyta (*Otwórz Class Trial*), bo otwiera 
 
 HUD pokazuje też, jak długo trwa bieżąca pora dnia: linia czasu robi się bursztynowa po **15 minutach** i czerwona po **30**. Pokazuje minuty, które stół zagrał, i jest zamrożona, gdy gra stoi na pauzie; przeładowanie ani przerwa między sesjami nic nie dodają, z dokładnością do minuty. GM, który otwiera następną sesję na innym komputerze albo po wyczyszczeniu danych przeglądarki, liczy zamiast tego od ostatniej zmiany zegara, czyli pauzy, jej końca albo nowej pory dnia. Z linii znikają wtedy minuty zagrane po tej zmianie, nigdy dni między sesjami. Podczas Eclipse tej linii nie ma.
 
-**Dwa tempa sesji.** To, jak długo pora dnia trwa przy stole, zależy od ciebie: wybierz tempo przed sesją i powiedz o nim stołowi (sekcja 21). To pomoc w planowaniu, tak jak budżet rozprawy w sekcji 15, i nic go nie wymusza: znaczniki HUD-a zostają na 15 i 30 minutach, jakiekolwiek tempo wybierzesz, a moduł nie wie, które tempo jest wybrane.
+**Dwa tempa sesji.** Sesja przy stole trwa mniej więcej tyle samo w obu tempach; zmienia się to, ile dni gry się w niej mieści. Wybierz tempo przed sesją i powiedz o nim stołowi (sekcja 21). To pomoc w planowaniu, tak jak budżet rozprawy w sekcji 15, i nic go nie wymusza: znaczniki HUD-a zostają na 15 i 30 minutach w obu tempach, a moduł nie wie, które tempo jest wybrane.
 
-| Tempo | Minut na porę dnia | Bursztynowy znacznik HUD-a (15 minut) | Czerwony znacznik HUD-a (30 minut) | Dzień przy stole |
+| Tempo | Dni gry w sesji przy stole | Minut na porę dnia | Bursztynowy znacznik HUD-a (15 minut) | Czerwony znacznik HUD-a (30 minut) |
 |---|---|---|---|---|
-| **Tempo szybkie** | około 15 | czas iść dalej | wyraźnie za długo: dwa razy dłużej, niż zakłada tempo | około 75 minut |
-| **Tempo pełne** | około 30 | połowa | czas iść dalej | około 2 godzin 30 minut |
+| **Tempo pełne** | 1 | około 30 | połowa | czas iść dalej |
+| **Tempo szybkie** | 2 | około 15 | czas iść dalej | dwa razy dłużej, niż zakłada tempo |
 
-Dzień to pięć pór dnia, od Rana do Nocy, więc dzień przy stole to pięć razy tyle minut, ile trwa jedna pora. Czas Eclipse dochodzi do tego: jedno Eclipse może być przed każdą porą dnia, a HUD nie liczy minut, gdy Eclipse trwa. Class Trial jest poza oboma tempami: minuty HUD-a ustępują tam miejsca, a rozprawa ma własny budżet (sekcja 15).
+Oba tempa dają około 2 godzin 30 minut gry: dzień gry to pięć pór dnia, od Rana do Nocy, więc w tempie pełnym to pięć razy 30 minut, a w tempie szybkim dwa razy pięć razy 15. Czas Eclipse dochodzi do tego, a HUD nie liczy minut, gdy Eclipse trwa; jedno Eclipse może być przed każdą porą dnia, więc w sesji w tempie szybkim może ich być do dwóch razy więcej. Class Trial jest poza oboma tempami: minuty HUD-a ustępują tam miejsca, a rozprawa ma własny budżet (sekcja 15).
+
+Moduł liczy sesję po dniu gry: sesja zegara przechodzi dalej razem z dniem (pierwszy akapit tej sekcji). W tempie szybkim numer sesji na zegarze zmienia się więc dwa razy w jednej sesji przy stole, to, na co moduł pozwala raz na sesję (Long Rest, sekcja 5), przychodzi raz na dzień gry, a każdy dzień gry ma własne plansze (niżej).
 
 Podczas Class Trial wiersz pory dnia podaje zamiast niej tryb rozprawy, a strzałek i linii czasu wtedy nie ma; odliczanie debaty jest na karcie Class Trial w panelu zdarzeń. Podczas Eclipse linia fazy podaje zamiast fazy nazwę Eclipse (na przykład *Eclipse (Noc)*). Gdy gra stoi na pauzie, mówi to każdy zegar: w miejscu nazwy kampanii stoi **Wstrzymano**, dopóki gra nie ruszy, a własny napis Foundry na środku ekranu i przygaszenie zostają takie jak zawsze. Pod liniami zegara pasek podaje utwór, który gra ta przeglądarka.
 
@@ -1983,7 +1985,7 @@ Nie wiadomo, czy lag przy przeciąganiu i migoczące krawędzie przycisków Stai
 - Przeczytaj notatki przed sesją w komunikatorze. Potwierdź safeword ze stołem.
 - Jeśli w tej sesji morderstwo jest prawdopodobne, naszkicuj plan Key Remnantów; jeśli rozdział potrzebuje Final Truth Remnantu, postaw go.
 - Sprawdź zegar: właściwy rozdział, dzień, sesja, pora dnia i faza.
-- Wybierz tempo sesji, szybkie albo pełne (sekcja 4), i powiedz stołowi, które to tempo.
+- Wybierz tempo sesji, pełne (1 dzień gry w tej sesji) albo szybkie (2 dni gry), sekcja 4, i powiedz o nim stołowi.
 
 **Każda pora dnia**
 - Obserwuj linię **Dalej** i **Zostały akcje** na swoim pasku stanu: widać tam, kto ma jeszcze akcje.
