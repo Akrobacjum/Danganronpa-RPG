@@ -1016,6 +1016,81 @@ export async function run(api) {
         uSeen?.shown === true && uSeen.disabled === false && uSeen.runner === IDS.gm && uAfter?.stage === "done" && uAfter.by === IDS.gm
             && uAfter.summaries === 1, J({ uSeen, uAfter }), { flow: "class-trial" });
 
+    /* ------------------------------------------------------------------ W */
+    /* E128, 23.11.2026 (the owner's session-0 notes: "kazdy gm ma byc rowny - moc zrobic tyle samo, ile pierwszy/glowny gm.
+       upewnijmy sie ze tak jest"; the inventory's "Not covered yet"). The windows the inventory had not read, each pressed
+       once on gm2 and read where it lands: the item hub's give (inventory.mjs `grantItem`) on p1's sheet and in the primary's
+       sheet audit; the Rules window's rule (rules.mjs `addRule`) on gm; the Mastermind window's pick and lair
+       (mastermind.mjs `setMastermind`) on the pick's player, p2 (`myLairRoom`); and the Passages tab's grant and revoke
+       (passages-gm.mjs `grantPassage`, `revokePassage`) on p1's copy (passages.mjs `knownPassages`), on a passage gm makes
+       as scenario 76 A does. Each is put back after. */
+    phase("W a second GM in the item hub, the Rules and Mastermind windows and the Passages tab", { flow: "secret-passages" });
+    const WIN = { item: null, rule: null, door: null, passage: null };
+    const itemName = `E128 WIN given by gm2 ${Date.now()}`;
+    try {
+        const given = await gm2.eval(`const INV = ${imp("inventory.mjs")};
+            const item = await INV.grantItem(game.actors.get("${IDS.aiko}"), { name: ${J(itemName)}, category: "tool", tier: 1 });
+            return Boolean(item);`, { timeout: 60000 });
+        await settle(1500);
+        WIN.item = { given,
+            p1: await p1.eval(`return game.actors.get("${IDS.aiko}").items.some(i => i.name === ${J(itemName)});`),
+            audit: await gm.eval(`const A = ${imp("sheet-audit.mjs")}; return JSON.stringify(A.sheetWrites({ quiet: true }) ?? null).includes(${J(itemName)});`) };
+    } finally {
+        await gm.eval(`const a = game.actors.get("${IDS.aiko}"); const ids = a.items.filter(i => i.name === ${J(itemName)}).map(i => i.id);
+            if (ids.length) await a.deleteEmbeddedDocuments("Item", ids); return true;`, { timeout: 60000 });
+    }
+    const ruleText = `E128 WIN a rule gm2 wrote ${Date.now()}`;
+    try {
+        await gm2.eval(`const R = ${imp("rules.mjs")}; await R.addRule(${J(ruleText)}); return true;`, { timeout: 60000 });
+        WIN.rule = await until(() => gm.eval(`const R = ${imp("rules.mjs")}; return R.rules().some(r => String(r?.text ?? r) === ${J(ruleText)});`), v => v === true, 6000);
+    } finally {
+        await gm.eval(`const R = ${imp("rules.mjs")}; for (const r of R.rules().filter(r => String(r?.text ?? r) === ${J(ruleText)})) await R.removeRule(r.id); return true;`, { timeout: 60000 });
+    }
+    const mmWas = await gm.eval(`const S = ${imp("gm-stores.mjs")}; await S.mastermindStore.whenHydrated(); const r = S.mastermindStore.get("record") ?? {};
+        return { actorId: r.actorId ?? null, room: r.room ?? null };`);
+    try {
+        await gm2.eval(`const MM = ${imp("mastermind.mjs")}; await MM.setMastermind(game.actors.get("${IDS.botan}"), { room: "Kitchen" }); return true;`, { timeout: 60000 });
+        WIN.door = { was: mmWas, p2: await until(() => p2.eval(`return (${imp("mastermind.mjs")}).myLairRoom() ?? null;`), v => v === "Kitchen", 8000),
+            gm: await gm.eval(`const S = ${imp("gm-stores.mjs")}; return S.mastermindStore.get("record")?.actorId ?? null;`) };
+    } finally {
+        await gm.eval(`const MM = ${imp("mastermind.mjs")}; const was = ${J(mmWas)};
+            if (was.actorId) await MM.setMastermind(game.actors.get(was.actorId), { room: was.room }); else await MM.clearMastermind(); return true;`, { timeout: 60000 });
+        await settle(900);
+    }
+    const wallId = await gm.eval(`const scene = game.scenes.get("${IDS.scene}");
+        const [wall] = await scene.createEmbeddedDocuments("Wall", [{ c: [1100, 400, 1400, 400] }]); return wall?.id ?? null;`);
+    let passageId = null;
+    try {
+        passageId = wallId ? await gm.eval(`const scene = game.scenes.get("${IDS.scene}");
+            const cafe = scene.regions.find(r => r.name === "Cafeteria"), shapes = foundry.utils.deepClone(cafe._source.shapes), [box] = shapes;
+            await cafe.update({ shapes: [{ ...box, height: 400 - box.y }] });
+            const [pantry] = await scene.createEmbeddedDocuments("Region", [{ name: "Pantry", behaviors: [],
+                shapes: [{ ...box, y: 400, height: box.y + box.height - 400 }], flags: { "${MOD}": { room: true } } }]);
+            let id = null;
+            try { id = await game.drpg.passages.create({ sceneId: scene.id, wallId: "${wallId}", seg: { x1: 1200, y1: 400, x2: 1300.5, y2: 400 } }); }
+            finally { await scene.deleteEmbeddedDocuments("Region", [pantry.id]); await cafe.update({ shapes }); }
+            return id;`, { timeout: 60000 }) : null;
+        await settle(900);
+        const KNOWN = `const P = ${imp("passages.mjs")}; return Object.keys(P.knownPassages() ?? {}).includes("${passageId}");`;
+        const granted = passageId ? await gm2.eval(`return await game.drpg.passages.grant("${passageId}", "${IDS.aiko}");`, { timeout: 60000 }) : null;
+        const known = await until(() => p1.eval(KNOWN), v => v === true, 8000);
+        const revoked = passageId ? await gm2.eval(`return await game.drpg.passages.revoke("${passageId}", "${IDS.aiko}");`, { timeout: 60000 }) : null;
+        const gone = await until(() => p1.eval(KNOWN), v => v === false, 8000);
+        WIN.passage = { passageId, granted, known, revoked, gone };
+    } finally {
+        await gm.eval(`if (${J(passageId)}) await game.drpg.passages.delete(${J(passageId)});
+            const wall = game.scenes.get("${IDS.scene}").walls.get(${J(wallId)}); if (wall) await wall.delete(); return true;`, { timeout: 60000 });
+        await settle(900);
+    }
+    check("W1: gm2's item from the item hub lands on p1's sheet and is no write the primary's sheet audit lists (E128)",
+        WIN.item?.given === true && WIN.item.p1 === true && WIN.item.audit === false, J(WIN.item), { flow: "sheet-audit" });
+    check("W2: gm2's rule from the Rules window stands on gm (E128)", WIN.rule === true, J(WIN.rule));
+    check("W3: gm2's Mastermind and lair from the Mastermind window reach the pick's player, p2, and stand in gm's record (E128)",
+        WIN.door?.p2 === "Kitchen" && WIN.door.gm === IDS.botan, J(WIN.door), { flow: "mastermind" });
+    check("W4: gm2's grant and revoke of a passage from the Passages tab reach p1's copy, each way (E128)",
+        typeof WIN.passage?.passageId === "string" && WIN.passage.granted === true && WIN.passage.known === true && WIN.passage.revoked === true && WIN.passage.gone === false,
+        J(WIN.passage), { flow: "secret-passages" });
+
     return { primary: { before, joined, afterGmReload, moved, backAgain }, reloads: { p1: r1, gm: r2, card: r3 },
         d153: { before: gBefore, onGm: gAfter, onGm2: gAfter2, found: gFound, gave: gGave } };
 }
