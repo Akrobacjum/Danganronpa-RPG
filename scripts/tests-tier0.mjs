@@ -3077,9 +3077,11 @@ const REGRESSIONS = [
         ok(analyze.indexOf("gmOnline()") < analyze.indexOf("payPrice("),
             "a road with no GM on it is paid for before anybody notices");
 
+        // CHANGED ON PURPOSE BY E129 (1.2.128): after the dice each road gives the price back through action-pipeline.mjs
+        // `giveBackAfterRoll`, which asks the one rule of a refund after a roll and calls `refundPrice` itself.
         for (const road of ["analyseBullet", "askForHint", "locateStash"]) {
             const body = fnSource(src, road);
-            ok(body.includes("refundPrice("),
+            ok(body.includes("refundPrice(") || body.includes("giveBackAfterRoll(actor, charge, [roll], { price: true })"),
                 `${road} cannot hand the price back when the road turns out to be empty`);
         }
 
@@ -16718,10 +16720,11 @@ const REGRESSIONS = [
          * one. Read on every module file with comments and literals blanked; a planted source is read first.
          */
         const CALL_CENSUS = [
-            ["action-search.mjs#searchSpecific", "player", "abort(", "a Search for something specific, after the dice: the action's price comes back (`abort`), and the roll is noted as no search made"],
+            // CHANGED ON PURPOSE BY E129 (1.2.128): the three refunds after the dice go through `giveBackAfterRoll`, which asks the rule.
+            ["action-search.mjs#searchSpecific", "player", "giveBackAfterRoll(", "a Search for something specific, after the dice: the action's price comes back as the roll lets it (`giveBackAfterRoll`, E129), and the roll is noted as no search made"],
             ["action-project.mjs#startProject", "player", null, "a project proposal, its sentence typed in its one window (E22 C5c): nothing is spent before it, and false is no proposal - no 'sent' line follows"],
-            ["action-observe.mjs#ruleObserve", "player", "abort(", "an Observe the GM rules, after the dice: the action's price comes back (`abort`)"],
-            ["action-analyze.mjs#askForHint", "player", "refundPrice(", "an Analyze hint, after the dice: the step that paid comes back (`refundPrice`)"],
+            ["action-observe.mjs#ruleObserve", "player", "giveBackAfterRoll(", "an Observe the GM rules, after the dice: the action's price comes back as the roll lets it (`giveBackAfterRoll`, E129)"],
+            ["action-analyze.mjs#askForHint", "player", "giveBackAfterRoll(", "an Analyze hint, after the dice: the step that paid comes back as the roll lets it (`giveBackAfterRoll`, E129)"],
             ["action-dynamic.mjs#offerDynamicFind", "player", null, "a Dynamic success's card for the GMs, after the dice (E16 C2), and a miss's since E51 C1: the result is the roll's and stands, so nothing is handed back; with no GM the refusal is said once (`callGm`)"],
             ["use-items.mjs#useCreatively", "player", null, "a Tier 0 item's creative use: the item is spent only on the GM's ruling, and null ends the use"],
             ["gm-bridge.mjs#promptAndCallGm", "player", null, "the window's words handed to `callGm`: its false is answered as null, which each caller above reads"],

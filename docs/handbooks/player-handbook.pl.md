@@ -83,7 +83,7 @@ Każda akcja to rzut dwoistości z Daggerheart: kość Hope i kość Despair (ob
 
 - Rzut **z Hope** daje ci 1 Hope.
 - Rzut **z Despair** zasila pulę Despair Monokumy, który cię pilnuje (rozdział 6). Stąd bierze się jego waluta: z twojego pecha i twojego ryzyka.
-- **Krytyk** daje 2 Hope i nic więcej; inaczej niż w czystym Daggerheart nie przywraca Sanity.
+- **Krytyk** daje 2 Hope i nic więcej; inaczej niż w czystym Daggerheart nie przywraca Sanity. Rzut, który tylko wspiera akcję, nie daje Hope, cokolwiek pokaże: ukrycie tego, co robisz, pozostanie niezauważonym, zatajenie zamiaru; jego krytyk nadal robi to, co mówi jego własna zasada (ukrywanie przy Tamper oddaje 1 Sanity).
 
 Okno rzutu jest dla graczy zablokowane: kości, statystyka, przewaga, doświadczenia i premie biorą się z akcji, z Calla, za który zapłaciłeś, z miejsca, w którym stoisz, albo od GM-a. Zmieniasz tylko to, co akcja pozwala ci wybrać.
 
@@ -461,7 +461,7 @@ Palm to ręka w czyjejś kieszeni, w jedną albo w drugą stronę, albo tylko sp
 | Udaje się (Hand) | 12+ | 8+ | 10+ |
 | Niezauważony (Shadow) | 15+ | 13+ | 15+ |
 
-Cztery wyniki, a ciekawe są te niedopasowane: przyłapany z niczym albo okradziony przez kogoś, kogo nie zauważyłeś. Gdy cię zauważą, dowiadują się, czyja to była ręka i co wziąłeś albo zostawiłeś, a wszyscy inni w pokoju widzą, czyja to była ręka; przy Despair na twoim rzucie Shadow widzą też, co wziąłeś albo zostawiłeś. Bierzesz to, co wyjdzie, a krytyk pozwala ci wybrać. Limity noszenia wciąż obowiązują (rozdział 7), a jedna akcja Palm przenosi jedną sztukę ze stosu, czyli z kilku takich samych rzeczy trzymanych w jednym wierszu. Coś, co zostawiasz komuś z pełnymi kieszeniami, zostaje u ciebie: dostajesz o tym wiadomość, a oni nie dowiadują się niczego, czy cię zauważyli, czy nie. Coś, co bierzesz, gdy nie masz już miejsca, żeby to nieść, trafia do twojej skrytki, a gdy nie masz skrytki, zostaje u nich. Palm nigdy nie sięga do skrytki. Palm odrzucony, zanim kości zostaną odczytane (cel wyszedł, zaczął się Class Trial), oddaje ci akcję; zostawienie czegoś w pełnych kieszeniach było próbą i ta akcja przepada.
+Cztery wyniki, a ciekawe są te niedopasowane: przyłapany z niczym albo okradziony przez kogoś, kogo nie zauważyłeś. Gdy cię zauważą, dowiadują się, czyja to była ręka i co wziąłeś albo zostawiłeś, a wszyscy inni w pokoju widzą, czyja to była ręka; przy Despair na twoim rzucie Shadow widzą też, co wziąłeś albo zostawiłeś. Bierzesz to, co wyjdzie, a krytyk pozwala ci wybrać. Limity noszenia wciąż obowiązują (rozdział 7), a jedna akcja Palm przenosi jedną sztukę ze stosu, czyli z kilku takich samych rzeczy trzymanych w jednym wierszu. Coś, co zostawiasz komuś z pełnymi kieszeniami, zostaje u ciebie: dostajesz o tym wiadomość, a oni nie dowiadują się niczego, czy cię zauważyli, czy nie. Coś, co bierzesz, gdy nie masz już miejsca, żeby to nieść, trafia do twojej skrytki, a gdy nie masz skrytki, zostaje u nich. Palm nigdy nie sięga do skrytki. Palm odrzucony, zanim kości zostaną odczytane (cel wyszedł, zaczął się Class Trial), oddaje ci akcję, chyba że któryś z jego rzutów dał ci Hope albo był krytykiem; zostawienie czegoś w pełnych kieszeniach było próbą i ta akcja przepada.
 
 **Zobacz, co ktoś nosi** (Frisk) niczego nie zabiera. Kosztuje 1 akcję i robisz go jawnie albo ukradkiem.
 
@@ -489,15 +489,15 @@ Każdy z tych progów jest o 3 niższy, gdy zabójstwo jest świeże: trwa incyd
 | Wynik | Co się dzieje |
 |---|---|
 | Czysty sukces | Remnant znika |
-| Krytyk | Remnant znika, a koszt próby wraca. Możesz też zamiast tego zostawić Remnant na miejscu tak, żeby wyglądał na coś innego: przeróbkę, której pasmo wybierasz; jeśli GM nie dopuści twojej wersji, Remnant i tak znika |
+| Krytyk | Remnant znika; koszt próby nie wraca, a 2 Hope z krytyka są tym, co zyskujesz. Możesz też zamiast tego zostawić Remnant na miejscu tak, żeby wyglądał na coś innego: przeróbkę, której pasmo wybierasz; jeśli GM nie dopuści twojej wersji, Remnant i tak znika |
 | Sukces z Despair | Remnant znika, ale zostawiasz własny Tamper Remnant |
 | Porażka | Remnant zostaje, a obok przybywa Tamper Remnant (Subtle przy Hope, Evident przy Despair) |
 
 Remnantów Reinforced nie da się usunąć.
 
-**Reshape a Trace.** Zostawiasz jeden z tych samych Remnantów na miejscu i sprawiasz, że wygląda na coś innego: piszesz, jak się nazywa i jak wygląda, jedno i drugie (nazwa do 60 znaków, wygląd do 400 znaków). Wymaga o 3 mniej niż jego wymazanie, a cokolwiek napiszesz, Remnant staje się Tamper Remnantem: przyznaje, że ktoś przy nim majstrował, i kłamie o całej reszcie. GM pozwala twojej wersji zostać albo jej nie dopuszcza; do tego czasu Remnant wygląda tak jak przedtem, a niedopuszczona wersja i tak kosztuje to, co kosztowała próba. Krytyk dodatkowo sprawia, że Remnant jest o jedno pasmo trudniejszy do zauważenia, i oddaje to, co kosztowała próba. Kopie, które inni już mają, zachowują słowa, z jakimi je znaleziono; kto znajdzie Remnant później, czyta twoje.
+**Reshape a Trace.** Zostawiasz jeden z tych samych Remnantów na miejscu i sprawiasz, że wygląda na coś innego: piszesz, jak się nazywa i jak wygląda, jedno i drugie (nazwa do 60 znaków, wygląd do 400 znaków). Wymaga o 3 mniej niż jego wymazanie, a cokolwiek napiszesz, Remnant staje się Tamper Remnantem: przyznaje, że ktoś przy nim majstrował, i kłamie o całej reszcie. GM pozwala twojej wersji zostać albo jej nie dopuszcza; do tego czasu Remnant wygląda tak jak przedtem, a niedopuszczona wersja i tak kosztuje to, co kosztowała próba. Krytyk dodatkowo sprawia, że Remnant jest o jedno pasmo trudniejszy do zauważenia; to, co kosztowała próba, nie wraca. Kopie, które inni już mają, zachowują słowa, z jakimi je znaleziono; kto znajdzie Remnant później, czyta twoje.
 
-**Misleading Trail.** Zostawiasz Prep Remnant wskazujący na kogoś innego. Wymaga 15, a krytyk dodatkowo oddaje to, co kosztowała próba. Porażka z Hope i tak go podkłada, jako Hidden, Faint Remnant, którego pewnie nikt nie znajdzie; porażka z Despair nie podkłada nic.
+**Misleading Trail.** Zostawiasz Prep Remnant wskazujący na kogoś innego. Wymaga 15; krytyk nie oddaje niczego z tego, co kosztowała próba. Porażka z Hope i tak go podkłada, jako Hidden, Faint Remnant, którego pewnie nikt nie znajdzie; porażka z Despair nie podkłada nic.
 
 > [!WARNING]
 > Jeśli ktoś inny jest w pokoju, najpierw rzucasz Shadow przeciw **16**, by zamaskować, co robisz, a przyłapanie kosztuje Sanity: 1 przy sukcesie z Despair, 1 przy porażce, 2 przy porażce z Despair. Krytyk w tym rzucie oddaje ci 1 Sanity. Briefing ostrzega, ile osób patrzy. Możesz też najpierw przejść do pustego pokoju.
@@ -1191,7 +1191,7 @@ Okno rzutu otwarcia zamknięte bez rzutu otwiera się znowu najwyżej `TIMING.op
 
 ### 17.14 Komunikator i prośby o decyzję
 
-Gdy nie jest połączony żaden GM, nic, co wysyłasz do GM-ów, nie zostaje opublikowane: czytasz "Żaden GM nie jest połączony.", a to, co akcja kosztowała, wraca do ciebie.
+Gdy nie jest połączony żaden GM, nic, co wysyłasz do GM-ów, nie zostaje opublikowane: czytasz "Żaden GM nie jest połączony.", a to, co akcja kosztowała, wraca do ciebie, chyba że jej kości dały ci już Hope albo krytyka.
 
 W trakcie incydentu twoją wiadomość w Czacie z GM-em publikuje za ciebie przeglądarka GM-a. Gdy jej odpowiedź nie przyjdzie na czas albo przyjdzie bez karty, czytasz "Wiadomość mogła już trafić do rozmowy. Sprawdź to, zanim wyślesz ją jeszcze raz; tekst nadal jest w polu.", a wiadomość może mimo to być w wątku.
 

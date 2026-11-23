@@ -25,7 +25,7 @@ import { quotePrice, payPrice, refundPrice } from "./price.mjs";
 import { roomOfActor } from "./movement.mjs";
 import { callGm } from "./gm-bridge.mjs";
 import { whisperToOwner, plural } from "./utils.mjs";
-import { rollTrait, rollInHand, noteRollContext, gmRulingActions } from "./action-pipeline.mjs";
+import { rollTrait, rollInHand, noteRollContext, gmRulingActions, giveBackAfterRoll } from "./action-pipeline.mjs";
 import { rollCardFlags, rollHead } from "./action-report.mjs";
 import { briefingBlock } from "./action-briefing.mjs";
 import { requestFieldHtml, readRequestField, chooseVariant } from "./action-menus.mjs";
@@ -192,7 +192,7 @@ async function analyseBullet(actor, def, roll, subject, charge = null) {
      * would hand the price back for a resolution that happened (T-1).
      */
     if (!gmOnline()) {
-        if (charge) await refundPrice(actor, charge);
+        await giveBackAfterRoll(actor, charge, [roll], { price: true });
         sayNotDone("analyze.resolve", "noGm", { nothingSpent: true });
         return null;
     }
@@ -238,7 +238,7 @@ async function analyseBullet(actor, def, roll, subject, charge = null) {
      * part-way. On a GM's own client the refusal is the resolver's value, read alike.
      */
     const refusedFor = res.ok ? (res.value?.refused ? reasonOf(res.value.refused) : null) : (res.refused ? res.reason : null);
-    if (charge && KEY_REFUSALS.has(refusedFor)) await refundPrice(actor, charge);
+    if (charge && KEY_REFUSALS.has(refusedFor)) await giveBackAfterRoll(actor, charge, [roll], { price: true });
 
     // The card above is silent on the outcome on purpose: this client does not know the number it was measured
     // against, and must not be told. Until 1.2.115 its "sent" line waited for the GM's client to have scored it (E31
@@ -280,7 +280,7 @@ async function askForHint(actor, def, roll, request = "", charge = null) {
     // Nobody to ask. `callGm` answers false for that, which is a real refusal
     // rather than a ruling, so the price comes back (T-1).
     if (!sent) {
-        if (charge) await refundPrice(actor, charge);
+        await giveBackAfterRoll(actor, charge, [roll], { price: true });
         return null;
     }
 
@@ -335,7 +335,7 @@ async function locateStash(actor, def, roll, request = "", charge = null) {
     // The same rule as `analyseBullet`: only a road with nobody left on it hands
     // the price back (T-1).
     if (!gmOnline()) {
-        if (charge) await refundPrice(actor, charge);
+        await giveBackAfterRoll(actor, charge, [roll], { price: true });
         sayNotDone("vault.findStash", "noGm", { nothingSpent: true });
         return null;
     }
@@ -344,7 +344,7 @@ async function locateStash(actor, def, roll, request = "", charge = null) {
        the rolls are read refunds", 18.10). Asked here first, where the price is known, and again on the GMs' answer
        below: a trial opened while the packet was in flight is refused there (E16 fix e1-G2). */
     if (analyzeRowShut("stash")) {
-        if (charge) await refundPrice(actor, charge);
+        await giveBackAfterRoll(actor, charge, [roll], { price: true });
         sayNotDone("vault.findStash", "trialLocked", { nothingSpent: true });
         return null;
     }
@@ -368,7 +368,7 @@ async function locateStash(actor, def, roll, request = "", charge = null) {
        player's is the bridge's refusal, said already in both. No fact of a search on the roll. A wait that ends with no
        answer is no refusal: what the GMs did is not known here, and the price stays. */
     if (res.ok ? Boolean(res.value?.refused) : Boolean(res.refused)) {
-        if (charge) await refundPrice(actor, charge);
+        await giveBackAfterRoll(actor, charge, [roll], { price: true });
         return null;
     }
 
@@ -402,7 +402,7 @@ async function locatePassage(actor, def, roll, request = "", charge = null) {
     const { requestPassageFind } = await import("./gm-bridge.mjs");
     const { gmOnline, sayNotDone } = await import("./bridge-guards.mjs");
     if (!gmOnline()) {
-        if (charge) await refundPrice(actor, charge);
+        await giveBackAfterRoll(actor, charge, [roll], { price: true });
         sayNotDone("passage.find", "noGm", { nothingSpent: true });
         return null;
     }
@@ -425,7 +425,7 @@ async function locatePassage(actor, def, roll, request = "", charge = null) {
        own answers false (bridge-asks.mjs `requestPassageFind`), said already in both. A wait that ends with no answer is
        no refusal: what the GMs did is not known here, and the price stays. No fact of a search on the roll. */
     if (res.ok ? res.value === false : Boolean(res.refused)) {
-        if (charge) await refundPrice(actor, charge);
+        await giveBackAfterRoll(actor, charge, [roll], { price: true });
         return null;
     }
 

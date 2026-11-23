@@ -32879,7 +32879,8 @@ const INVARIANTS = [
         const locate = fnSource(src, "locateStash");
         must(locate.length > 200, "locateStash is gone - the reads below would measure nothing");
         const at = (body, re) => body.search(re);
-        const refund = at(locate, /if \(res\.ok \? Boolean\(res\.value\?\.refused\) : Boolean\(res\.refused\)\) \{\s*if \(charge\) await refundPrice\(actor, charge\);\s*return null;/);
+        // CHANGED ON PURPOSE BY E129 (1.2.128): the refund after the dice asks the rule (action-pipeline.mjs `giveBackAfterRoll`).
+        const refund = at(locate, /if \(res\.ok \? Boolean\(res\.value\?\.refused\) : Boolean\(res\.refused\)\) \{\s*await giveBackAfterRoll\(actor, charge, \[roll\], \{ price: true \}\);\s*return null;/);
         const card = at(locate, /DRPG\.Analyze\.stashSent/), asked = at(locate, /await requestStashSearch\(/), noted = at(locate, /noteRollContext\(/);
         equal(stableJson([BRIDGE_ACTIONS["vault.findStash"]?.answer ?? null, BRIDGE_ACTIONS["vault.steal"]?.answer ?? null,
             card >= 0 && card < asked, asked >= 0 && asked < refund, refund >= 0 && refund < noted]),
@@ -33712,6 +33713,78 @@ const INVARIANTS = [
         equal(stableJson([order.again > order.ruled, order.again > 0 && order.again < order.paid]), stableJson([true, true]),
             "[the target held to the room again after the GM's card; before the action is paid]");
     }],
+    ["R8880 - a price comes back after the dice only as config.mjs ROLL_REFUNDS lets it (E129, 1.2.128; S0-REFUND, docs/dev/owner129/desp/REFUNDS.md rows 4, 12, 13): under the defaults price.mjs `mayRefundAfterRoll` refuses after a roll with Hope or a critical, a supporting roll's Hope does not count and its critical does, a roll with Despair alone or no roll gives it back, and the GM's Refuse asks `afterRoll` while its own key is null", async () => {
+        /*
+         * 23.11.2026, E129 line DESP. The owner's note of session 0: some actions gave back Hope and the action at the roll.
+         * The coordinator's defaults, each one key: `afterRoll` "noHope", `gmRefuse` null, `supportingHope` false,
+         * `tamperCritical` false, `freeCritical` false. Read: the keys, and the rule on rollTrait's shape (`withHope`,
+         * `isCritical`, `supporting`). Red at fa20c0cf: no `ROLL_REFUNDS`, no `mayRefundAfterRoll`.
+         */
+        const C = await import("./config.mjs");
+        const P = await import("./price.mjs");
+        must(C.ROLL_REFUNDS && typeof P.mayRefundAfterRoll === "function", "no ROLL_REFUNDS or no mayRefundAfterRoll - this would measure nothing");
+        const hope = { withHope: true }, fear = { withHope: false }, crit = { isCritical: true };
+        const may = (rolls, o) => P.mayRefundAfterRoll(rolls, o);
+        equal(stableJson([C.ROLL_REFUNDS,
+            [may([hope]), may([fear]), may([crit]), may([]), may([fear, { ...hope, supporting: true }]), may([fear, { ...crit, supporting: true }]),
+                may([hope], { gmRefuse: true }), may([fear], { gmRefuse: true })]]),
+        stableJson([{ afterRoll: "noHope", gmRefuse: null, supportingHope: false, tamperCritical: false, freeCritical: false },
+            [false, true, false, true, true, false, false, true]]),
+        "[the keys; may the price come back after: a roll with Hope, with Despair, a critical, none, Despair beside a supporting roll with Hope, beside a supporting critical, the GM's Refuse after Hope, after Despair]");
+    }],
+    ["R8881 - a critical Tamper taken as an action gives nothing of its price back, the free attempt's critical nothing, the killer's own clean-up the guide's Sanity (E129, 1.2.128; S0-REFUND T5, T6, T12): cleanup.mjs `criticalGivesBack`, asked at the erase's, the reshape's and Stage 6's give-back", async () => {
+        /*
+         * 23.11.2026, E129 line DESP. The owner: "Tamper chyba najbardziej" - a critical Tamper left the player 2 Hope and
+         * the action back, as the handbook's line 491 then said. Read: the rule for the three roads, and off the source
+         * that each `handBack` of a critical asks it. Red at fa20c0cf: no `criticalGivesBack`.
+         */
+        const K = await import("./cleanup.mjs");
+        must(typeof K.criticalGivesBack === "function", "cleanup.mjs has no criticalGivesBack - this would measure nothing");
+        const src = stripComments((await moduleSources()).get("cleanup.mjs") ?? "");
+        const asked = [/if \(back && criticalGivesBack\(\{ viaAction, free \}\)\) \{\s*const line = backLine\(await handBack\(/,
+            /if \(outcome\.refundStress && criticalGivesBack\(\{ viaAction, free \}\)\) \{\s*const line = backLine\(await handBack\(/,
+            /if \(refund && criticalGivesBack\(\{ viaAction, free \}\)\) \{\s*const line = backLine\(await handBack\(/].map(re => re.test(src));
+        equal(stableJson([K.criticalGivesBack({ viaAction: true }), K.criticalGivesBack({ viaAction: false }), K.criticalGivesBack({ free: true }),
+            K.criticalGivesBack({ viaAction: true, free: true }), asked]),
+        stableJson([false, true, false, false, [true, true, true]]),
+        "[a critical gives back: through Tamper's door; at the killer's own scene; the free attempt; the free attempt through the door; the reshape's, the erase's and Stage 6's give-back ask it]");
+    }],
+    ["R8882 - the GM's refusals of a clean-up after its dice give the price back only as the roll lets it (E129, 1.2.128; S0-REFUND T8): cleanup.mjs `refundRefused` asks price.mjs `mayRefundAfterRoll` on the roll it is handed, and every refusal hands it the roll as the GMs' record holds it", async () => {
+        /*
+         * 23.11.2026, E129 line DESP. A trace not found by the character, a Reinforced one, a clean-up blocked on the GM and
+         * Stage 6's own refusals came after the dice and gave the price back, the roll's Hope kept. Read off the source:
+         * the rule asked first in `refundRefused`, and the five callers that pass the roll. Not driven here: the refusals
+         * themselves are tier 2's ("a clean-up the GM refuses ..."). Red at fa20c0cf: no rule asked, no roll passed.
+         */
+        const src = stripComments((await moduleSources()).get("cleanup.mjs") ?? "");
+        const body = fnSource(src, "refundRefused") ?? "";
+        must(body, "cleanup.mjs has no refundRefused - this would measure nothing");
+        const rule = /if \(rolled && !mayRefundAfterRoll\(\[rolled\]\)\) return/.test(body);
+        const passed = (src.match(/\{ isCritical, withHope \}\)/g) ?? []).length;
+        equal(stableJson([rule, passed]), stableJson([true, 5]),
+            "[refundRefused asks the rule on the roll; the refusals that hand it the roll (two blocked, the trace's check, two of Stage 6)]");
+    }],
+    ["R8883 - every refund after an action's dice asks one rule (E129, 1.2.128; S0-REFUND row 13): Analyze's, Observe's, Search's and a room action's go through action-pipeline.mjs `giveBackAfterRoll` with the roll, a Palm's and an unseen Frisk's hand their two rolls to palm.mjs `handBackIfRefusedBeforeRolls`, and only a window closed before the dice gives a price back without it", async () => {
+        /*
+         * 23.11.2026, E129 line DESP. Read off the source, file by file: the after-the-dice refunds that ask the rule, and
+         * the ones left that give back without it. Behaviour is tier 2's "1.2.128 S0-REFUND - giveBackAfterRoll". Red at
+         * fa20c0cf: none asked it.
+         */
+        const S = await moduleSources();
+        const code = name => stripComments(S.get(name) ?? "");
+        const count = (name, re) => (code(name).match(re) ?? []).length;
+        const read = {
+            analyze: [count("action-analyze.mjs", /giveBackAfterRoll\(actor, charge, \[roll\], \{ price: true \}\)/g), count("action-analyze.mjs", /await refundPrice\(actor, charge\)/g)],
+            observe: count("action-observe.mjs", /giveBackAfterRoll\(actor, paid, \[roll\]\)/g),
+            search: count("action-search.mjs", /giveBackAfterRoll\(actor, paid, \[roll\]\)/g),
+            facilities: count("action-facilities.mjs", /giveBackAfterRoll\(actor, receipt, \[roll\]\)/g),
+            palm: [count("palm.mjs", /handBackIfRefusedBeforeRolls\(actor, paid, \{[^}]*\}, \[shadow, hand\]\)/g), count("frisk.mjs", /handBackIfRefusedBeforeRolls\(actor, paid, \{[^}]*\}, \[shadow, hand\]\)/g),
+                /if \(!mayRefundAfterRoll\(rolls\)\)/.test(fnSource(code("palm.mjs"), "handBackIfRefusedBeforeRolls") ?? "")]
+        };
+        must(code("action-analyze.mjs") && code("palm.mjs"), "the sources were not read - this would measure nothing");
+        equal(stableJson(read), stableJson({ analyze: [8, 1], observe: 2, search: 3, facilities: 1, palm: [2, 1, true] }),
+            "{Analyze [refunds asking the rule, the closed window's own]; Observe; Search; a room action; Palm [its two calls, the unseen Frisk's, the rule asked]}");
+    }],
     ["R8384 - Tail Someone gives the action back when the primary refuses it because the target left the room, and on no other refusal (1.2.122 line DESP; the audit's REFR-20): action-tail.mjs `performTail` hands the receipt of `spendAction` to `abort` on the bridge's code notThere alone, after the ask", async () => {
         /*
          * 21.11.2026, 1.2.122 line DESP. R8382's second look stands before the price; two drawn rolls then pass before the
@@ -33725,7 +33798,8 @@ const INVARIANTS = [
         const asked = src.search(/await requestTailStart\(/);
         must(asked > 0, "performTail asks no tail.start - this would measure nothing");
         // CHANGED ON PURPOSE BY 1.2.123 (the audit's r122-F-2): the receipt comes back only where neither roll earned Hope.
-        const back = src.search(/if \(!res\.ok && res\.refused && res\.reason === "notThere"\) \{\s*const earned = rollsEarnedHope\(\[shadow, roll\]\);\s*if \(!earned\) await abort\(actor, paid\);/);
+        // CHANGED ON PURPOSE BY E129 (1.2.128): Tail asks price.mjs `mayRefundAfterRoll`, the one rule of a refund after the dice.
+        const back = src.search(/if \(!res\.ok && res\.refused && res\.reason === "notThere"\) \{[\s\S]{0,260}?const earned = !mayRefundAfterRoll\(\[shadow, roll\]\);\s*if \(!earned\) await abort\(actor, paid\);/);
         const plain = src.search(/if \(!res\.ok \|\| res\.value\?\.refused\) return null;/);
         const aborts = [...src.matchAll(/\babort\(/g)].filter(m => m.index > asked).length;
         equal(stableJson([back > asked, back > 0 && plain > back, aborts]), stableJson([true, true, 1]),

@@ -1461,14 +1461,37 @@ async function ruleDecline(action, data, message = null) {
         }
         return settled("DRPG.Bridge.settledAnswered");
     }
-    const { refundPrice } = await import("./price.mjs");
-    await refundPrice(actor, receipt);
+    /* THE ROLL THE CARD RULES ON, AND WHAT IT BROUGHT (E129, 1.2.128; config.mjs `ROLL_REFUNDS.gmRefuse`, which asks
+       `afterRoll` while it is null; REFUNDS.md row 12). A ruling card is posted after its dice, which had paid out their
+       Hope, and "Refuse the attempt" gave the price back as well. The card holds no link to its roll (`declineAction`'s
+       data), so the roll is the GMs' newest record of this character's Observe, Search or Analyze thrown before the card
+       (`rulingRollOf`); under the default the price comes back only where it brought neither Hope nor a critical
+       (price.mjs `mayRefundAfterRoll`). No record found - a card from before the GMs kept them - gives it back as before. */
+    const { refundPrice, mayRefundAfterRoll } = await import("./price.mjs");
+    const rolled = await rulingRollOf(actor, message);
+    const back = !rolled || mayRefundAfterRoll([rolled], { gmRefuse: true });
+    if (back) await refundPrice(actor, receipt);
 
     const note = `<p><em>${foundry.utils.escapeHTML(
-        game.i18n.format("DRPG.Bridge.declined", { name: game.user.name }))}</em></p>`;
+        game.i18n.format("DRPG.Bridge.declined", { name: game.user.name }))}</em></p>${back ? ""
+        : `<p>${foundry.utils.escapeHTML(game.i18n.localize("DRPG.Action.keptAfterRoll"))}</p>`}`;
     if (owner) await postToThread(owner.id, note);
     ui.notifications.info(game.i18n.format("DRPG.Bridge.declinedGm", { name: actor.name }));
     return settled("DRPG.Bridge.settledDeclined");
+}
+
+/** The kinds of roll a ruling card with "Refuse the attempt" is posted for (action-pipeline.mjs `declineAction`'s callers). */
+const RULED_ROLLS = Object.freeze(["observe", "search", "analyze"]);
+
+/** The GMs' newest record of `actor`'s ruled roll thrown before `message` (the card), `{ isCritical, withHope }`, or null. */
+async function rulingRollOf(actor, message) {
+    const { rollStore } = await import("./gm-stores.mjs");
+    await rollStore.whenHydrated();
+    const before = Number(message?.timestamp) || Date.now();
+    const row = Object.values(rollStore.entries() ?? {})
+        .filter(r => r?.actorId === actor.id && RULED_ROLLS.includes(r.actionKey) && Number(r.at) <= before)
+        .sort((a, b) => Number(b.at) - Number(a.at))[0];
+    return row ? { isCritical: Boolean(row.isCritical), withHope: Boolean(row.withHope) } : null;
 }
 
 async function ruleCreateItem(action, data) {

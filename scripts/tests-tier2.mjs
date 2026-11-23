@@ -24443,6 +24443,144 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         equal(stableJson(read), stableJson({ burst: [false, 2, 0], free: [false, 2, 1], road: [true, true, true] }),
             "{a player's critical paid by a Burst, the claim an action: [answered, actions, Bursts] after the loss; a GM's own free Work: the same; the draw's road [the form kept on the ticket, taken at the draw, written on the record]}");
     }],
+    ["1.2.128 S0-REFUND - a supporting roll earns no Hope on the GM's draw: a Palm's cover with Hope writes the roller's Hope not at all, where a Search with the same dice writes it once, up by 1 (scripts/roll-draw.mjs `throwDrawn`; config.mjs ROLL_REFUNDS.supportingHope; REFUNDS.md row 4, T1; E129)", async () => {
+        /*
+         * 23.11.2026, E129 line DESP. Every roll an action throws was an action roll and earned its Hope, so a two-roll
+         * action paid Hope twice. A player's roll drawn by this GM as the primary draws it (`drawnForPlayer`, the GM's
+         * faces Hope 9, Fear 4: with Hope), once as a Search's and once as a Palm's cover (`palm`, of SPENDS_NO_CALL),
+         * the character's Hope at 0 first, as "the roll's Hope and Fear are written by the GM's user, once" sets it.
+         * Read: the character's Hope writes during each draw (`watch`, Foundry's updateActor) and what each wrote against
+         * the value before it. The value after the draw is not read: a first try read it and came out 2 for a Search on
+         * one run and 2 for the cover on another (23.11.2026), a write of the fixture or the put-back landing late.
+         * Put back: the messages, the record, the payment, the Hope. Red at fa20c0cf: the cover wrote 1 too.
+         */
+        needs(world.atLeast("connectedPlayersWithCharacter", 1), "the draw is asked by a player, and Foundry names only a connected one");
+        const { player, theirs } = playerAndCharacters();
+        const HOPE = "system.resources.hope.value";
+        const hopeWas = foundry.utils.getProperty(theirs, HOPE);
+        const read = {};
+        try {
+            for (const key of ["search", "palm"]) {
+                await theirs.update({ [HOPE]: 0 });
+                await settle();
+                const wrote = [];
+                const watch = () => {
+                    const on = Hooks.on("preUpdateActor", (a, changes) => {
+                        const to = foundry.utils.getProperty(changes, HOPE);
+                        if (a.id === theirs.id && to !== undefined) wrote.push(Number(to) - (Number(foundry.utils.getProperty(a, HOPE)) || 0));
+                    });
+                    return () => Hooks.off("preUpdateActor", on);
+                };
+                const F = await drawnForPlayer(player, theirs, { actionKey: key, faces: { hope: 9, fear: 4 }, watch });
+                try {
+                    must(F.record?.withHope, `the ${key} roll was not drawn with Hope (${stableJson(F.sent)}) - this would measure nothing`);
+                    read[key] = wrote;
+                } finally {
+                    await F.putBack();
+                }
+            }
+        } finally {
+            await theirs.update({ [HOPE]: hopeWas });
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ search: [1], palm: [] }), "{the Hope writes a drawn roll with Hope makes, each as a change: a Search's; a Palm's cover}");
+    }],
+    ["1.2.128 S0-REFUND - the GM's Refuse the attempt gives the price back only as the roll lets it: after a roll with Hope the action stays spent and the thread says so, after one with Despair it comes back (scripts/messenger-app.mjs `ruleDecline`, `rulingRollOf`; config.mjs ROLL_REFUNDS.gmRefuse; REFUNDS.md row 12; E129)", async () => {
+        /*
+         * 23.11.2026, E129 line DESP. A ruling card is posted after its dice, and its "Refuse the attempt" handed the price
+         * back while the roll's Hope stood. Twice, for a student with a player: the GMs' record of an Observe of theirs
+         * (`recordFor`, with Hope, then with Despair), then a call card with the ruling's buttons (`gmRulingActions`, an
+         * action paid), its Refuse pressed as a GM presses it (`wireCallActions`). Read: the student's actions moved by the
+         * press, and the kept line in the thread. Put back: the cards, the records, the actions. Red at fa20c0cf: the
+         * action came back after the roll with Hope.
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 1), "the card goes to a player's thread");
+        const { callGm } = await import("./gm-bridge.mjs");
+        const { gmRulingActions } = await import("./action-pipeline.mjs");
+        const { wireCallActions } = await import("./messenger-app.mjs");
+        const { contentOf, cardFlag } = await import("./secret.mjs");
+        const { actionsLeft } = await import("./actions.mjs");
+        const { trustedWrite } = await import("./resource-guard.mjs");
+        const player = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const student = game.actors.find(a => a.type === "character" && player(a));
+        must(student, "no student with a connected player - this would measure nothing");
+        const actionsWas = foundry.utils.getProperty(student, "system.resources.actions.value");
+        const kept = game.i18n.localize("DRPG.Action.keptAfterRoll");
+        const had = new Set(game.messages.contents.map(m => m.id));
+        const backs = [];
+        const read = {};
+        try {
+            for (const [tag, withHope] of [["hope", true], ["despair", false]]) {
+                await trustedWrite(student, { "system.resources.actions.value": 1 }, { reason: "gmRuling" });
+                await settle();
+                const roll = await ChatMessage.create({ content: `<p>SUITE S0-REFUND roll ${tag}</p>` });
+                const rec = await recordFor(roll, player(student), student, "observe", { total: 14, isCritical: false, withHope });
+                backs.push(rec.putBack);
+                await wait(5);
+                const before = new Set(game.messages.contents.map(m => m.id));
+                must(await callGm(student, { title: `SUITE S0-REFUND ${tag}`, actions: gmRulingActions(student, { pay: "action", amount: 1 }) }),
+                    "the ruling card was not posted - this would measure nothing");
+                await settle();
+                const card = game.messages.contents.find(m => !before.has(m.id) && String(contentOf(m) ?? "").includes('data-drpg-call="decline"'));
+                must(card, "the ruling card is not in the log - this would measure nothing");
+                const since = new Set(game.messages.contents.map(m => m.id));
+                const at = actionsLeft(student);
+                const body = document.createElement("div");
+                body.innerHTML = contentOf(card);
+                wireCallActions(body, card);
+                body.querySelector('[data-drpg-call="decline"]')?.click();
+                await until(() => cardFlag(game.messages.get(card.id), "settled"), 8000);
+                await settle();
+                const said = game.messages.contents.filter(m => !since.has(m.id)).some(m => String(contentOf(m) ?? "").includes(kept));
+                read[tag] = [actionsLeft(student) - at, said];
+            }
+        } finally {
+            for (const back of backs) await back();
+            for (const m of game.messages.contents.filter(m => !had.has(m.id))) await m.delete().catch(() => {});
+            await trustedWrite(student, { "system.resources.actions.value": actionsWas }, { reason: "gmRuling" });
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ hope: [0, true], despair: [1, false] }),
+            "{after an Observe with Hope: [actions moved by Refuse, the kept line said]; after one with Despair}");
+    }],
+    ["1.2.128 S0-REFUND - giveBackAfterRoll gives the price back after a roll with Despair, keeps it after one with Hope or a critical and says so, and counts a supporting roll's critical but not its Hope (scripts/action-pipeline.mjs `giveBackAfterRoll`; REFUNDS.md row 13; E129)", async () => {
+        /*
+         * 23.11.2026, E129 line DESP. The road every after-the-dice refund of Analyze, Observe, Search and a room action takes
+         * now. On a student of the cast: an action paid (`spendAction`, its receipt), then given back for rolls of each
+         * shape. Read: the actions moved and whether the kept line was said. Put back: the actions.
+         * Red at fa20c0cf: no `giveBackAfterRoll`.
+         */
+        const A = await import("./action-pipeline.mjs");
+        const { spendAction, actionsLeft } = await import("./actions.mjs");
+        const { trustedWrite } = await import("./resource-guard.mjs");
+        must(typeof A.giveBackAfterRoll === "function", "action-pipeline.mjs has no giveBackAfterRoll - this would measure nothing");
+        const [actor] = cast(1);
+        const actionsWas = foundry.utils.getProperty(actor, "system.resources.actions.value");
+        const kept = game.i18n.localize("DRPG.Action.keptAfterRoll");
+        const said = [];
+        const infoWas = ui.notifications.info;
+        ui.notifications.info = (text, ...rest) => { said.push(String(text)); return infoWas.call(ui.notifications, text, ...rest); };
+        const read = [];
+        try {
+            for (const rolls of [[{ withHope: false }], [{ withHope: true }], [{ isCritical: true }], [{ withHope: false }, { withHope: true, supporting: true }],
+                [{ withHope: false }, { isCritical: true, supporting: true }]]) {
+                await trustedWrite(actor, { "system.resources.actions.value": 2 }, { reason: "gmRuling" });
+                await settle();
+                const receipt = await spendAction(actor, 1);
+                must(receipt, "no action could be paid - this would measure nothing");
+                const from = said.length, at = actionsLeft(actor);
+                const back = await A.giveBackAfterRoll(actor, receipt, rolls);
+                await settle();
+                read.push([back, actionsLeft(actor) - at, said.slice(from).includes(kept)]);
+            }
+        } finally {
+            ui.notifications.info = infoWas;
+            await trustedWrite(actor, { "system.resources.actions.value": actionsWas }, { reason: "gmRuling" });
+            await settle();
+        }
+        equal(stableJson(read), stableJson([[true, 1, false], [false, 0, true], [false, 0, true], [true, 1, false], [false, 0, true]]),
+            "[for rolls: Despair; Hope; a critical; Despair beside a supporting roll with Hope; beside a supporting critical - [given back, actions moved, the kept line said]]");
+    }],
     ["1.2.122 CTRL-26 - a Reroll of an action a GM rules on ends the first card it replaced: the open call card of that character posted since the replaced roll loses its buttons and says a Reroll replaced it, while another character's open card and a card from before the roll stand (scripts/reroll.mjs `endReplacedRuling`, `settleGmRuling`; call-gm.mjs `settleCall`; the audit's CTRL-26, 1.2.122 line DESP)", async () => {
         /*
          * 21.11.2026, 1.2.122 line DESP. The audit's CTRL-26: the Reroll posted a second card for the ruling and left the
@@ -26487,6 +26625,11 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         const step = pay => PRICE_CHAINS.tamper.steps.find(s => s.pay === pay);
         const said = (since, pay) => [...game.messages].slice(since).some(m => contentOf(m).includes(
             game.i18n.format("DRPG.Price.refunded", { what: priceLabel(step(pay)) })));
+        // CHANGED ON PURPOSE BY E129 (1.2.128; S0-REFUND T8): a refusal after the dice gives the price back only when the roll
+        // brought no Hope and no critical (cleanup.mjs `refundRefused`, price.mjs `mayRefundAfterRoll`), so the three refusals
+        // are thrown with Despair, and a fourth - the unfound trace again, with Hope - keeps its action and says so.
+        const despair = { withHope: false };
+        const kept = game.i18n.localize("DRPG.Action.keptAfterRoll");
         const F = await cleanupFixture(who, "SUITE E09 C11 a trace reinforced while the dice were in the air");
         const hadActions = who.system.resources.actions.value;
         try {
@@ -26496,25 +26639,32 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             must(top >= step("action").amount, `${who.name} has no action to have paid with - this would measure nothing`);
             await who.update({ "system.resources.actions.value": top - step("action").amount });
             let since = game.messages.size;
-            const byAction = await F.scrub(30, { price: "action" });
+            const byAction = await F.scrub(30, { price: "action", ...despair });
             await settle();
             const actionsBack = actionsLeft(who) - (top - step("action").amount);
             const actionSaid = said(since, "action");
             await who.update({ "system.resources.stress.value": step("stress").amount });
             since = game.messages.size;
-            const byMark = await F.scrub(30, { price: "stress" });
+            const byMark = await F.scrub(30, { price: "stress", ...despair });
             await settle();
             const markBack = step("stress").amount - who.system.resources.stress.value, markSaid = said(since, "stress");
             await F.copy.delete();
             await who.update({ "system.resources.actions.value": top - step("action").amount });
             since = game.messages.size;
-            const unfound = await F.scrub(30, { price: "action" });
+            const unfound = await F.scrub(30, { price: "action", ...despair });
             await settle();
+            const unfoundBack = actionsLeft(who) - (top - step("action").amount), unfoundSaid = said(since, "action");
+            await who.update({ "system.resources.actions.value": top - step("action").amount });
+            since = game.messages.size;
+            const hoped = await F.scrub(30, { price: "action", withHope: true });
+            await settle();
+            const keptSaid = [...game.messages].slice(since).some(m => contentOf(m).includes(kept));
             equal(stableJson([byAction?.reinforced ?? null, byMark?.reinforced ?? null, unfound?.notFound ?? null, actionsBack, markBack,
-                actionsLeft(who) - (top - step("action").amount), actionSaid, markSaid, said(since, "action")]),
-            stableJson([true, true, true, step("action").amount, step("stress").amount, step("action").amount, true, true, true]),
-            "a clean-up the GM refused kept the price its player had paid, or did not say it came back (refused on the action, "
-                + "on the mark, as not found; actions given back, marks given back, actions given back on the third; each said)");
+                unfoundBack, actionSaid, markSaid, unfoundSaid, hoped?.notFound ?? null, actionsLeft(who) - (top - step("action").amount), keptSaid]),
+            stableJson([true, true, true, step("action").amount, step("stress").amount, step("action").amount, true, true, true, true, 0, true]),
+            "a clean-up the GM refused after a roll with Despair kept the price its player had paid, or did not say it came back, or one "
+                + "after a roll with Hope gave it back (refused on the action, on the mark, as not found; actions given back, marks given back, "
+                + "actions given back on the third; each said; the fourth, with Hope: refused as not found, actions given back, the kept line said)");
         } finally {
             await who.update({ "system.resources.actions.value": hadActions });
             await F.putBack();
@@ -26555,12 +26705,14 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         let read = null;
         try {
             const since = game.messages.size;
-            const erase = await CL.resolveCleanup({ actorId: who.id, tokenId: "SUITEC11NOTRACE0", total: 30, withHope: true, price: "action" });
-            const trail = await CL.resolveStageSix({ actorId: who.id, key: "misleadingTrail", targetId: null, total: 30, withHope: true, price: "stress" });
+            // CHANGED ON PURPOSE BY E129 (1.2.128; S0-REFUND T8): thrown with Despair - a refusal after a roll with Hope keeps the
+            // price now (cleanup.mjs `refundRefused`), which "a clean-up the GM refuses gives back the price its player paid" reads.
+            const erase = await CL.resolveCleanup({ actorId: who.id, tokenId: "SUITEC11NOTRACE0", total: 30, withHope: false, price: "action" });
+            const trail = await CL.resolveStageSix({ actorId: who.id, key: "misleadingTrail", targetId: null, total: 30, withHope: false, price: "stress" });
             await settle();
             const moved = [actionsLeft(who) - (top - step("action").amount), step("stress").amount - who.system.resources.stress.value];
             const told = said(since);
-            const replay = await CL.resolveCleanup({ actorId: who.id, tokenId: "SUITEC11NOTRACE0", total: 30, withHope: true, price: "action", undo: true });
+            const replay = await CL.resolveCleanup({ actorId: who.id, tokenId: "SUITEC11NOTRACE0", total: 30, withHope: false, price: "action", undo: true });
             await settle();
             read = [erase?.blocked ?? null, trail?.blocked ?? null, ...moved, ...told, replay ?? null, actionsLeft(who) - (top - step("action").amount)];
         } finally {
@@ -42953,7 +43105,10 @@ equal(read.added, 3, "three additions to a purse at once lost one");
                 users.filter = function (fn, ...rest) {
                     return realFilter.call(this, (u, ...more) => !u.isGM && fn(u, ...more), ...rest);
                 };
-                return { roll: { total, isCritical: false, result: { duality: 1, total }, options: { roll: { trait: "eye" } } } };
+                // CHANGED ON PURPOSE BY E129 (1.2.128; S0-REFUND row 13): a roll with Fear (`duality` -1, was 1) - after a roll
+                // with Hope the price stays spent now (action-pipeline.mjs `giveBackAfterRoll`), which tier 2's "1.2.128 S0-REFUND -
+                // giveBackAfterRoll" reads.
+                return { roll: { total, isCritical: false, result: { duality: -1, total }, options: { roll: { trait: "eye" } } } };
             };
             for (const [action, choice] of [["search", "specific"], ["observe", "anything"]]) {
                 variant = choice;
@@ -43030,7 +43185,8 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             console.error = () => {};
             await student.update({ [ACTS]: Math.max(Number(had) || 0, 1) });
             const total = Math.min(...ACTIONS.search.thresholds.map(t => t.min)) + 1;
-            student.rollTrait = async () => ({ roll: { total, isCritical: false, result: { duality: 1, total }, options: { roll: { trait: "eye" } } } });
+            // CHANGED ON PURPOSE BY E129 (1.2.128; S0-REFUND row 13): a roll with Fear (`duality` -1, was 1), as above.
+            student.rollTrait = async () => ({ roll: { total, isCritical: false, result: { duality: -1, total }, options: { roll: { trait: "eye" } } } });
             const where = locateActor(student);
             const left = SearchTokens.left(where?.room ?? null, where?.scene ?? null);
             const before = actionsLeft(student);
@@ -49648,8 +49804,13 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         }
     }],
 
-    ["a critical Tamper hands back the step that paid, and a forged packet still pays", async () => {
+    ["a critical Tamper taken as an action gives back nothing of what paid (E129, 1.2.128; S0-REFUND T5), and a forged packet still pays", async () => {
         /*
+         * CHANGED ON PURPOSE BY E129 (1.2.128; S0-REFUND T5, the owner's "Tamper chyba najbardziej"): a critical Tamper
+         * taken through the door keeps its 2 Hope and gives back nothing of its price (cleanup.mjs `criticalGivesBack`,
+         * config.mjs ROLL_REFUNDS.tamperCritical). The name was "a critical Tamper hands back the step that paid, and a
+         * forged packet still pays"; each claim below now reads its price still spent, and the forged claims still pay.
+         *
          * T-1's refund, driven through the resolver the way the socket drives it -
          * which is also the only way to test the bound on a claim that crossed it.
          *
@@ -49723,7 +49884,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             await settle();
             equal(who.system.resources.stress.value, 2,
                 "a critical paid with an action healed a Sanity mark nobody spent");
-            equal(who.system.resources.actions.value, 2, "the action was not handed back");
+            equal(who.system.resources.actions.value, 1, "the action a critical Tamper paid was handed back");
 
             // ---- a Sanity claim, which an ordinary Tamper cannot pay (E64) -
             // Since the owner's answer of 12.11.2026 an ordinary Tamper costs no Sanity (cleanup.mjs `tamperPriceSkip`):
@@ -49740,8 +49901,8 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             });
             await settle();
             equal(who.system.resources.stress.value, 2, "an ordinary Tamper's Sanity claim moved the Sanity track");
-            equal(who.system.resources.actions.value, 1,
-                "the action charged for a Sanity claim was not handed back by the critical, or another came with it");
+            equal(who.system.resources.actions.value, 0,
+                "the action charged for a Sanity claim was not charged, or the critical handed it back");
 
             // ---- a claim the table does not know --------------------------
             await who.update({
@@ -49755,13 +49916,10 @@ equal(read.added, 3, "three additions to a purse at once lost one");
                 isCritical: true, withHope: true, viaAction: true, price: "health"
             });
             await settle();
-            // Charged one mark as the fallback, then handed one back for the
-            // critical: the net is where it started, and the point is that the
-            // forged claim bought no free attempt and no free action.
-            equal(who.system.resources.actions.value, 1,
-                "a forged price claim bought an action");
-            equal(who.system.resources.stress.value, 2,
-                "a forged price claim did not pay the GM-side Sanity");
+            // Charged as an unclaimed packet is (`chargeUnclaimed`, the action since E64), and since E129 nothing handed back
+            // for the critical: the forged claim bought no free attempt and no free action.
+            equal(stableJson([who.system.resources.actions.value, who.system.resources.stress.value]), "[0,2]",
+                "a forged price claim bought an action, or was not charged the action an unclaimed packet pays, or moved Sanity [actions, marks]");
 
             // ---- and a packet with no claim at all pays it: an action (E64) -
             await who.update({ "system.resources.stress.value": 0, "system.resources.actions.value": 1 });
@@ -82731,8 +82889,12 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             return [before, actionsLeft(actor), Boolean(said)];
         };
         const stowed = [], read = {};
+        const fearWas = game.settings.get(CONFIG.DH.id, CONFIG.DH.SETTINGS.gameSettings.Resources.Fear);
         try {
-            globalThis.__forceRoll = { hope: 12, fear: 11 };
+            // CHANGED ON PURPOSE BY E129 (1.2.128; S0-REFUND row 13): the same total with Fear (was Hope 12, Fear 11) - a
+            // refusal before the rolls are read gives the action back only when no roll brought Hope or a critical now
+            // (palm.mjs `handBackIfRefusedBeforeRolls`). Daggerheart's Fear the rolls add is put back.
+            globalThis.__forceRoll = { hope: 11, fear: 12 };
             const spare = await INV.grantItem(actor, { name: KNIFE, category: "tool", tier: 1, override: true, quiet: true });
             must(spare, "the knife to Plant at a Monocub was not made - this would measure nothing");
             await target.setFlag(MODULE_ID, FLAGS.monocub, true);
@@ -82757,6 +82919,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         } finally {
             Hooks.off("drpgActionResolved", heard);
             if (hadForce) globalThis.__forceRoll = force; else delete globalThis.__forceRoll;
+            if (game.settings.get(CONFIG.DH.id, CONFIG.DH.SETTINGS.gameSettings.Resources.Fear) !== fearWas) await game.settings.set(CONFIG.DH.id, CONFIG.DH.SETTINGS.gameSettings.Resources.Fear, fearWas);
             if (target.getFlag(MODULE_ID, FLAGS.monocub) !== monocubWas) {
                 if (monocubWas === undefined) await target.unsetFlag(MODULE_ID, FLAGS.monocub); else await target.setFlag(MODULE_ID, FLAGS.monocub, monocubWas);
             }
@@ -89179,7 +89342,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         // Since 1.2.122 (the audit's CASE-34) both refund through one helper, which an unseen Frisk shares (palm.mjs
         // `handBackIfRefusedBeforeRolls`): read in each road, and the helper's own noGm and refund.
         const handBack = fnSource(src, "handBackIfRefusedBeforeRolls").replace(/\s+/g, " ");
-        const refunds = ["performPalm", "resolvePlant"].map(name => /await handBackIfRefusedBeforeRolls\(actor, paid, \{ ok: res\.ok, refused: res\.refused, reason: res\.reason, value: res\.value \}\)/.test(fnSource(src, name))
+        const refunds = ["performPalm", "resolvePlant"].map(name => /await handBackIfRefusedBeforeRolls\(actor, paid, \{ ok: res\.ok, refused: res\.refused, reason: res\.reason, value: res\.value \}(?:, \[shadow, hand\])?\)/.test(fnSource(src, name))
             && /nobodyTook\(res\?\.ok, res\?\.reason\)[^;]*;[^]*?await palmBack\(actor, paid\)/.test(handBack));
         const nobody = fnSource(src, "nobodyTook");
         equal(stableJson({ before: refusal >= 0 && firstPrice > refusal, exempt, held: callsGm.filter(key => exempt.includes(key) && key !== "directMurder"),
@@ -108448,14 +108611,20 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         const putBack = sheetAsFound(theirs, [ACT]);
         const seen = new Set(game.messages.map(m => m.id));
         const read = {}, made = [];
+        const hadForce = Object.hasOwn(globalThis, "__forceRoll"), force = globalThis.__forceRoll;
+        const fearWas = game.settings.get(CONFIG.DH.id, CONFIG.DH.SETTINGS.gameSettings.Resources.Fear);
         try {
             await there.tokenDoc.update(M.positionIn(away, there.tokenDoc), { ...PLACE });
             await settle();
             const top = Math.max(2, actionsLeft(theirs));
             await trustedWrite(theirs, { [ACT]: top }, { reason: "gmRuling" });
             await settle();
+            // CHANGED ON PURPOSE BY E129 (1.2.128; S0-REFUND row 13): both rolls with Fear - a refusal before the rolls are read
+            // gives the action back only when no roll brought Hope or a critical now. Daggerheart's Fear is put back.
+            globalThis.__forceRoll = { hope: 3, fear: 10 };
             const run = F.performFrisk(theirs, ACTIONS.palm, other, "unseen", { cost: 1, room: here.room });
             const out = await Promise.race([run, wait(15000).then(() => "timeout")]);
+            delete globalThis.__forceRoll;
             await settle();
             read.frisk = [out === "timeout" ? "timeout" : "ran", top - actionsLeft(theirs)];
             // The Plants with both in the planter's room, so the one gate lets them through to the pockets.
@@ -108472,6 +108641,8 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         } finally {
             if (there.scene.tokens.has(there.tokenDoc.id)) await there.tokenDoc.update(tokenWas, { ...PLACE });
             for (const item of made) if (theirs.items.get(item.id)) await item.delete();
+            if (hadForce) globalThis.__forceRoll = force; else delete globalThis.__forceRoll;
+            if (game.settings.get(CONFIG.DH.id, CONFIG.DH.SETTINGS.gameSettings.Resources.Fear) !== fearWas) await game.settings.set(CONFIG.DH.id, CONFIG.DH.SETTINGS.gameSettings.Resources.Fear, fearWas);
             await putBack();
             for (const m of game.messages.filter(m => !seen.has(m.id))) await m.delete();
             await settle();
