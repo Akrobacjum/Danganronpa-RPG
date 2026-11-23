@@ -19,6 +19,9 @@
  *       * a body (a corpse, a Monocub's corpse): nothing - the body tile already draws "{name}'s body" over it;
  *       * anything else (a Monocub, Monokuma, a Spectator's token to its owner): its actor's name, as its cards name
  *         it, or with no actor the token's own name - both held by every browser already.
+ *   - NO DOUBLE NAME. No label where Foundry's own nameplate already shows the name to this viewer on a hover or always
+ *     (`nameplateShows`: the token's `displayName`, which the world's default token setting gives a character, a trace and
+ *     a project alike).
  *   - WHO SEES NONE. A token this browser does not draw: Foundry's `hidden` (but for a GM), and every rule of
  *     visibility.mjs - the rooms, the Eclipse, the opening's veil, Hide, a Spectator's token, an unfound trace - which
  *     all end in the placeable's `visible` false (`drawnHere`). The label never names what the map does not show.
@@ -51,6 +54,7 @@ export function hoverName(tokenDoc, { user = game.user, drawn = true } = {}) {
     if (!tokenDoc || !drawn) return null;
     const gm = user?.isGM === true;
     if (tokenDoc.hidden && !gm) return null;
+    if (nameplateShows(tokenDoc, user)) return null;
     if (isCorpseToken(tokenDoc)) return null;
     if (isTraceToken(tokenDoc)) {
         if (gm) return ledgerLabel(tokenDoc);
@@ -62,6 +66,24 @@ export function hoverName(tokenDoc, { user = game.user, drawn = true } = {}) {
     const actor = tokenDoc.actor ?? null;
     if (actor) return nameAsSeen(actor, { user, masked: isMaskedToken(tokenDoc) }) || null;
     return tokenDoc.name || null;
+}
+
+/* Foundry's `CONST.TOKEN_DISPLAY_MODES`, the four that draw the nameplate on a hover or always (v14's own numbers where
+   CONST is absent, as in Node). */
+const DISPLAY = () => globalThis.CONST?.TOKEN_DISPLAY_MODES ?? { OWNER_HOVER: 20, HOVER: 30, OWNER: 40, ALWAYS: 50 };
+
+/**
+ * NO DOUBLE NAME (the coordinator's addition, 23.11.2026): whether Foundry's own nameplate already shows this token's name to
+ * `user` on a hover or always - HOVER and ALWAYS to anyone, OWNER_HOVER and OWNER to its owners (a GM owns every token).
+ * Then the module draws nothing: two names, or a real name beside a "?", would read wrong. A masked token's mode is NONE
+ * (mask-gm.mjs `maskPatch`), so its "?" is the module's. CONTROL (a controlled token's) is not counted: a hover draws none.
+ */
+export function nameplateShows(tokenDoc, user = game.user) {
+    const mode = tokenDoc?.displayName;
+    const M = DISPLAY();
+    if (mode === M.HOVER || mode === M.ALWAYS) return true;
+    if (mode !== M.OWNER_HOVER && mode !== M.OWNER) return false;
+    return Boolean(user?.isGM || tokenDoc.testUserPermission?.(user, "OWNER") || tokenDoc.actor?.testUserPermission?.(user, "OWNER"));
 }
 
 /** Whether this browser draws the token: what visibility.mjs and Foundry leave of it on this canvas. */

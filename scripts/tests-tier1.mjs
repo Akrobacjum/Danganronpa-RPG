@@ -69287,7 +69287,7 @@ const INVARIANTS = [
             JSON.stringify([0.5, 1, REMNANT_ALPHA.gmHidden, true, true, true]),
             "[a player's (0.5), a GM's shown, a GM's hidden Remnant drawn at; the GM's hidden one at least 0.5 and under 1; applyToToken dresses first; placeRemnant creates whole]");
     }],
-    ["R8871 - a token's name on a hover is what this viewer may know: a masked killer reads \"?\" but to its owner and the GMs, a trace's name never from its token, a project through shownName, and nothing for a body, a token Foundry hides from a player or one this browser does not draw (1.2.129 line MAP, E129; scripts/hover-name.mjs `hoverName`; the owner's S0-HOVERNAME)", async () => {
+    ["R8871 - a token's name on a hover is what this viewer may know: a masked killer reads \"?\" but to its owner and the GMs, a trace's name never from its token, a project through shownName, no label where Foundry's own nameplate already shows, and nothing for a body, a token Foundry hides from a player or one this browser does not draw (1.2.129 line MAP, E129; scripts/hover-name.mjs `hoverName`; the owner's S0-HOVERNAME)", async () => {
         /*
          * 1.2.129 line MAP, 23.11.2026; the owner: "Najechanie na token myszka przez chwile dluzej niech pokazuje nazwe (imie
          * postaci, "?" Mordercy, nazwe projektu, nazwe remnanta)". The rule read on stand-in tokens, a viewer handed in (a GM,
@@ -69307,8 +69307,10 @@ const INVARIANTS = [
         const gm = { isGM: true, id: "g" }, owner = { isGM: false, id: "own" }, other = { isGM: false, id: "oth" };
         const person = ({ dead = false, type = "character", name = "Aoi Kirigaya" } = {}) => ({ type, name, id: "a8871",
             testUserPermission: u => u?.id === "own", getFlag: (scope, key) => (dead && key === FLAGS.deceased ? true : undefined) });
-        const tok = ({ name = "Aoi", hidden = false, actor = person(), flags = {} } = {}) => ({ id: "t8871", parent: { id: "s8871", tokens: [] },
-            name, hidden, actor, flags: { [MODULE_ID]: flags }, getFlag(scope, key) { return this.flags?.[scope]?.[key]; } });
+        const tok = ({ name = "Aoi", hidden = false, actor = person(), flags = {}, displayName = 0 } = {}) => ({ id: "t8871", parent: { id: "s8871", tokens: [] },
+            name, hidden, actor, displayName, flags: { [MODULE_ID]: flags }, getFlag(scope, key) { return this.flags?.[scope]?.[key]; } });
+        // Foundry's nameplate modes (CONST.TOKEN_DISPLAY_MODES): NONE 0, CONTROL 10, OWNER_HOVER 20, HOVER 30, OWNER 40, ALWAYS 50.
+        const plate = mode => tok({ displayName: mode });
         const masked = tok({ name: MASK_NAME, flags: { masked: true } });
         const trace = tok({ name: "Bloody knife", actor: null, flags: { [REMNANT_FLAGS.isRemnant]: true } });
         const project = tok({ name: "Project", actor: null, flags: { [PROJECT_TOKEN_FLAG]: "no-such-countdown-8871" } });
@@ -69318,9 +69320,12 @@ const INVARIANTS = [
             at(tok({ hidden: true }), other), at(tok({ hidden: true }), gm), at(tok(), other, { drawn: false }),
             at(tok({ actor: person({ dead: true }) }), other), at(tok({ actor: person({ dead: true }) }), gm),
             at(trace, other) === traceLabel(null), at(trace, gm) === traceLabel(null), at(project, other) === (shownName("no-such-countdown-8871") || null),
-            at(tok({ name: "Monokuma", actor: person({ type: "npc", name: "Monokuma" }) }), other), at(tok({ name: "", actor: null }), other)]),
-            JSON.stringify(["Aoi Kirigaya", MASK_NAME, "Aoi Kirigaya", "Aoi Kirigaya", null, "Aoi Kirigaya", null, null, null, true, true, true, "Monokuma", null]),
-            "[character to another player; masked to another, its owner, a GM; Foundry-hidden to a player, to a GM; not drawn; a body to a player, to a GM; a trace's neutral word, never its token's name, to a player and to a GM whose ledger has no row for it; a project through shownName; an NPC's token name; an empty name]");
+            at(tok({ name: "Monokuma", actor: person({ type: "npc", name: "Monokuma" }) }), other), at(tok({ name: "", actor: null }), other),
+            at(plate(30), other), at(plate(50), other), at(plate(20), owner), at(plate(20), other), at(plate(40), gm), at(plate(40), other), at(plate(10), other),
+            at(tok({ name: MASK_NAME, flags: { masked: true }, displayName: 0 }), other)]),
+            JSON.stringify(["Aoi Kirigaya", MASK_NAME, "Aoi Kirigaya", "Aoi Kirigaya", null, "Aoi Kirigaya", null, null, null, true, true, true, "Monokuma", null,
+                null, null, null, "Aoi Kirigaya", null, "Aoi Kirigaya", "Aoi Kirigaya", MASK_NAME]),
+            "[character to another player; masked to another, its owner, a GM; Foundry-hidden to a player, to a GM; not drawn; a body to a player, to a GM; a trace's neutral word, never its token's name, to a player and to a GM whose ledger has no row for it; a project through shownName; an NPC's token name; an empty name; Foundry's nameplate on hover or always: HOVER, ALWAYS, OWNER_HOVER to its owner and to another, OWNER to a GM and to another, CONTROL; a masked token's NONE keeps the module's mask]");
     }],
     ["R8872 - a hover's name waits HOVER_NAME.delayMs, goes on the hover's end, a press on the page or a change to its token, and is one aria-hidden element whose words are the rule's, put up nowhere for a token this browser does not draw (1.2.129 line MAP, E129; scripts/hover-name.mjs `onHoverToken`, `showHoverName`, `dropHoverName`, `registerHoverName`; config.mjs `HOVER_NAME`)", async () => {
         /*
