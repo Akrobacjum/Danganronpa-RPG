@@ -233,9 +233,7 @@ Two buttons sit on the tile. **The microphone** mutes and unmutes your own micro
 | lit | your microphone carries your voice |
 | wearing **PTT** | push to talk: hold your key to speak |
 
-While the microphone is struck through, gray or not, your own browser also turns your microphone off itself, so nobody hears you until it is lit again; in push to talk your key opens it.
-
-A Monocub keeps its microphone during an Eclipse and is told that nobody hears it until the lights come back. In the Spectators' room the microphone stays yours to mute and unmute, with a line under it saying where you are.
+A Monocub keeps its microphone during an Eclipse and is told that nobody hears it until the lights come back. In the Spectators' room the microphone stays yours to mute and unmute, with a line under it saying where you are. While the microphone is struck through, gray or not, your own browser also turns your microphone off itself, so nobody hears you until it is lit again; in push to talk your key opens it.
 
 **The speaker** shows how many others are in your channel - everyone who can hear you, speaking or not - and opens **Who you hear**: each of them with a volume slider and **Mute *name* for you** (then **Hear *name* again**), and at the top **Mute everybody for you**. All of it is yours alone: nobody else hears the difference. Escape or a click outside closes the list. A person you muted for you reads **Muted by you** until you press **Hear *name* again**; this browser keeps it for your next session too. A person your page does not hear for another reason reads why, with the advice to reload the page (F5); the page itself tries once to play a paused sound or to receive a microphone it is not receiving.
 

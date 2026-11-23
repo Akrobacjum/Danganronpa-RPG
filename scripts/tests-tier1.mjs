@@ -32118,12 +32118,12 @@ const INVARIANTS = [
         const { OWN_TRACK_FOLLOWS_HOLD } = await import("./config.mjs");
         const src = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/voice-tile.mjs`).then(lfText));
         const paint = fnSource(src, "paintControls"), toggle = fnSource(src, "toggleOwnMic"), reg = fnSource(src, "registerVoiceTile");
-        const followAt = paint.search(/followOwnTrack\(/), tileAt = paint.search(/if \(!watch\?\.tile\) return/);
-        const writeAt = toggle.search(/settings\.set\("client"/), afterWrite = toggle.slice(Math.max(0, writeAt)).search(/followOwnTrack\(/);
+        const before = /followOwnTrack\(\);\s*if \(!watch\?\.tile\) return/.test(paint);
+        const after = /settings\.set\("client"[\s\S]*followOwnTrack\(\)/.test(toggle);
         const hook = name => new RegExp(`Hooks\\.on\\("${name}"[^;]*?followOwnTrack\\(`, "s").test(reg);
         const tick = /setInterval\(\(\) => \{[^}]*followOwnTrack\(/.test(reg);
         const helper = fnSource(src, "followOwnTrack");
-        equal(stableJson({ on: OWN_TRACK_FOLLOWS_HOLD, paint: followAt >= 0 && tileAt >= 0 && followAt < tileAt, toggle: writeAt >= 0 && afterWrite >= 0,
+        equal(stableJson({ on: OWN_TRACK_FOLLOWS_HOLD, paint: before, toggle: after,
             init: hook("liveKitClientInitialized"), rtc: hook("rtcSettingsChanged"), tick, helper: /followHold\(\{ mic: micState\(\) \}\)/.test(helper) }),
             stableJson({ on: true, paint: true, toggle: true, init: true, rtc: true, tick: true, helper: true }),
             "[the switch; paintControls before its tile check; toggleOwnMic after its write; the two hooks; the tick; the helper hands followHold the button's state]");

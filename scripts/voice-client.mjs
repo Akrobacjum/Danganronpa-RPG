@@ -873,10 +873,10 @@ export function forgetDesiredRoom() {
  * chowanie tokenu automatycznie wycisza na livekit"; config.mjs `OWN_TRACK_FOLLOWS_HOLD`). Until 1.2.128 the module moved
  * no microphone: the tile wrote the stored `users.<self>.muted` and the GMs wrote BROADCAST_AUDIO, and the rest was
  * avclient-livekit's. Read in 0.6.8 (258d14a): it builds the page's own track at every initialize and mutes it there only
- * when core's `canUserShareAudio` says so (LiveKitClient.ts:557-586); after that a stored mute reaches the track only
- * through `toggleAudio`, which returns early unless `audioBroadcastEnabled` is already on (LiveKitAVClient.ts:632), and a
+ * when core's canUserShareAudio says so (LiveKitClient.ts:557-586); after that a stored mute reaches the track only
+ * through toggleAudio, which returns early unless audioBroadcastEnabled is already on (LiveKitAVClient.ts:632), and a
  * permission change through nothing of its own (no hook; the track is built again only at a connect or a change of
- * source, `getAudioParams`, LiveKitClient.ts:386-398). What Foundry core adds is not read (foundryvtt.com refused;
+ * source, getAudioParams, LiveKitClient.ts:386-398). What Foundry core adds is not read (foundryvtt.com refused;
  * LIVE-129-COMM-06, -07). So the page holds the track itself: muted while the button says held, a GM's block or muted;
  * opened again only in "always" with nothing standing - push-to-talk is the key's - and built again, once a Room, where a
  * connect while blocked left none (Listen's end). Only avclient-livekit 0.6's private names are touched, guarded, and
