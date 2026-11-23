@@ -1324,15 +1324,19 @@ export const HIDDEN_TOKEN_MUTES = true;
 /**
  * The player accounts held for a hidden token: each whose voice character (`trialVoiceActorOf`, the account's character
  * as the voice ranks it) has a token, `locate`'s (movement.mjs `locateActor`), that is hidden. Never a GM, nor a
- * Spectator's account (`spectator`; its own block and talk switch decide). Pure but for its defaults.
+ * Spectator's account (`spectator`; its own block and talk switch decide), nor one whose voice character is dead
+ * (`dead`): its token is the body, which a GM hides until it is found (body.mjs `hiddenByGm`) and not to quiet anybody,
+ * and its voice is in the Spectators' room by then (`placeVoices`); held, the dead player and a Monocub's account lost
+ * that room for the body's hiding (R8837, 23.11.2026). The GMs' block asks `isDeadForGm`; the player's own label the
+ * table's `isDeceased`, since `micHold` reaches no GM store (R537). Pure but for its defaults.
  */
 export function hiddenVoiceIds({ users = game.users, actors = game.actors, locate = actor => locateActor(actor),
-    spectator = user => spectatorAccount(user, { actors }) } = {}) {
+    spectator = user => spectatorAccount(user, { actors }), dead = isDeceased } = {}) {
     const out = new Set();
     for (const user of users ?? []) {
         if (!user || user.isGM || spectator(user)) continue;
         const voice = trialVoiceActorOf(user, actors);
-        if (voice && locate(voice)?.tokenDoc?.hidden === true) out.add(user.id);
+        if (voice && !dead(voice) && locate(voice)?.tokenDoc?.hidden === true) out.add(user.id);
     }
     return out;
 }
@@ -1351,7 +1355,7 @@ function ownHidden(user = game.user) {
 function hiddenIds() {
     if (!HIDDEN_TOKEN_MUTES) return new Set();
     try {
-        return hiddenVoiceIds();
+        return hiddenVoiceIds({ dead: isDeadForGm });
     } catch {
         return new Set();
     }
@@ -1844,7 +1848,8 @@ export async function settleTrialVoices({ release = false } = {}) {
         const speakers = inTrial ? floorSpeakers(queue.active ? queue : null) : null;
         const out = { list, blocked: [], restored: [] };
         // The accounts whose token is hidden (E129, S0-HIDEMUTE; `hiddenVoiceIds`), as the GMs hold the flags.
-        const hiddenNow = HIDDEN_TOKEN_MUTES && !release && !inTrial ? hiddenVoiceIds({ spectator: u => spectatorAccount(u, { held: flagsHeldNow }) }) : new Set();
+        const hiddenNow = HIDDEN_TOKEN_MUTES && !release && !inTrial ? hiddenVoiceIds({
+            spectator: u => spectatorAccount(u, { held: flagsHeldNow }), dead: isDeadForGm }) : new Set();
         for (const user of game.users) {
             if (user.isGM) continue;
             const voice = listed.size || speakers ? trialVoiceActorOf(user, game.actors, list ?? []) : null;
