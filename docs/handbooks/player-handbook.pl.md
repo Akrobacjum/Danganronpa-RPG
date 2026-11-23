@@ -228,7 +228,7 @@ Na kafelku są dwa przyciski. Przycisk mikrofonu wycisza i włącza tylko twój 
 |---|---|
 | przekreślony | wyciszony, przez ciebie |
 | przekreślony, z małą kłódką | wyciszony przez GM-a: **GM zablokował twój mikrofon.** |
-| szary i przekreślony | trzyma go gra - podczas Eclipse, gdy podsłuchujesz pod drzwiami, gdy GM ukrywa twój token, w Class Trial, gdy głos ma ktoś inny albo jesteś na liście zmarłych rozprawy, i gdy jesteś Widzem - a powód stoi pod mikrofonem; kliknięcie niczego wtedy nie zmienia i mówi ci dlaczego |
+| szary i przekreślony | trzyma go gra - podczas Eclipse, gdy podsłuchujesz pod drzwiami, gdy GM ukrywa twój token, gdy się chowasz (Hide), w Class Trial, gdy głos ma ktoś inny albo jesteś na liście zmarłych rozprawy, i gdy jesteś Widzem - a powód stoi pod mikrofonem; kliknięcie niczego wtedy nie zmienia i mówi ci dlaczego |
 | z małą kropką | nie jesteś połączony z głosem albo głos działa w osobnym oknie |
 | świeci | twój mikrofon niesie twój głos |
 | z napisem **PTT** | tryb naciśnij, aby mówić: przytrzymaj klawisz, żeby mówić |
