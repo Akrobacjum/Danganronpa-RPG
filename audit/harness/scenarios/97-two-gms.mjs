@@ -66,7 +66,7 @@ async function until(read, done, ms = 6000, step = 150) {
 }
 
 export async function run(api) {
-    const { gm, gm2, p1, p2, check, note, phase, settle, connect, reload, makePrimary, primaryOn, repoUrl: REPO, IDS } = api;
+    const { gm, gm2, p1, p2, check, note, phase, settle, connect, disconnect, storageOf, reload, makePrimary, primaryOn, repoUrl: REPO, IDS } = api;
     const MOD = "danganronpa-rpg";
     const imp = file => `await import("${REPO}/scripts/${file}")`;
     const GM2 = accounts[0].id;
@@ -1090,6 +1090,77 @@ export async function run(api) {
     check("W4: gm2's grant and revoke of a passage from the Passages tab reach p1's copy, each way (E128)",
         typeof WIN.passage?.passageId === "string" && WIN.passage.granted === true && WIN.passage.known === true && WIN.passage.revoked === true && WIN.passage.gone === false,
         J(WIN.passage), { flow: "secret-passages" });
+
+    /* ------------------------------------------------------------------ X */
+    /* E128, 23.11.2026 (S0-GMEQUAL, the two smaller differences W's reading found; the coordinator: "fix both"). X1: the
+       roller's "the GM is choosing" line, posted by each GM that opened the opening's pick window (murder-rules.mjs
+       `tellOpeningRoller`). gm2 opens Aiko's murder of Botan with no statistic picked - its window opens, and is closed -
+       then gm asks the opening again as its tracker does, and its window is closed too. Read on gm: the lines to the
+       roller posted since, by their words, and their authors. Red at 01c4c2e3: two lines, gm2's and gm's. The line is
+       the primary's to post once now (`postOpeningCard`'s `pick`, through `murder.openingCard`).
+       X2: the Passages tab's "not yet sent to" line, drawn on the primary alone (passages-gm.mjs `undeliveredOf`
+       answered null elsewhere). p2 leaves; gm makes a passage as W does and grants it to Botan, whose only player is
+       away; then p2 comes back. Read on both GMs while p2 is away and after it is back: the students the line names.
+       Red at 01c4c2e3: gm2's null both times. The primary sends the other GMs what the players were sent
+       (`tellGmsTold`), and another GM reads that. */
+    phase("X a second GM's opening line and Passages tab, as the primary's", { flow: "murder-incident" });
+    const PICK_NULL = `const T = game.i18n.localize("DRPG.TraitRuling.title");
+        globalThis.__dialogAnswers.push(cfg => (cfg?.window?.title === T ? null : ((cfg?.buttons ?? []).find(b => b.default) ?? cfg?.buttons?.[0])?.action ?? null));`;
+    /* The lines are read in the GMs' memo of the opening's notices, where each is kept as `true` (incident-store.mjs
+       `keepOpeningNotice`), and their authors off the chat; a read of their words found none (`wordsOf` on the veiled
+       announcement, measured 23.11.2026: [] on both trees while the memo held one line and two). */
+    const CHOOSING = `const S = ${imp("gm-stores.mjs")};
+        return Object.entries(S.castStore.record()?.openingNotices ?? {}).filter(([, to]) => to === true)
+            .map(([id]) => { const m = game.messages.get(id); return m ? m.author?.id ?? m.user?.id ?? null : "gone"; });`;
+    let xLines = null, xOpened = null;
+    try {
+        xOpened = await gm2.eval(`if (game.drpg.murderState()?.active) await game.drpg.endMurder({ reason: "suite", followUp: false });
+            ${PICK_NULL} const r = await game.drpg.openMurder({ killerId: "${IDS.aiko}", victimId: "${IDS.botan}" });
+            return { stage: r?.stage ?? null, trait: r?.openingTrait ?? null };`, { timeout: 60000 });
+        await until(() => gm.eval(CHOOSING), v => v.length > 0, 8000);
+        await settle(1200);
+        await gm.eval(`const R = ${imp("murder-rules.mjs")}; ${PICK_NULL} await R.rollOpening("killer", game.drpg.murderState()); return true;`, { timeout: 60000 });
+        await settle(1500);
+        xLines = await gm.eval(CHOOSING);
+    } finally {
+        await gm.eval(`if (game.drpg.murderState()?.active) await game.drpg.endMurder({ reason: "suite", followUp: false }); return true;`, { timeout: 60000 });
+        await settle(900);
+    }
+    check("X1: the roller's \"the GM is choosing\" line is posted once, by the primary, though two GMs each opened the pick's window (E128)",
+        xOpened?.stage === "openingRoll" && J(xLines) === J([IDS.gm]), J({ xOpened, xLines }), { flow: "murder-incident" });
+
+    const xWall = await gm.eval(`const scene = game.scenes.get("${IDS.scene}");
+        const [wall] = await scene.createEmbeddedDocuments("Wall", [{ c: [1100, 400, 1400, 400] }]); return wall?.id ?? null;`);
+    let xPassage = null, xPending = null;
+    const PENDING = id => `const G = ${imp("passages-gm.mjs")}; return G.undeliveredOf(${J(id)});`;
+    try {
+        xPassage = xWall ? await gm.eval(`const scene = game.scenes.get("${IDS.scene}");
+            const cafe = scene.regions.find(r => r.name === "Cafeteria"), shapes = foundry.utils.deepClone(cafe._source.shapes), [box] = shapes;
+            await cafe.update({ shapes: [{ ...box, height: 400 - box.y }] });
+            const [pantry] = await scene.createEmbeddedDocuments("Region", [{ name: "Pantry", behaviors: [],
+                shapes: [{ ...box, y: 400, height: box.y + box.height - 400 }], flags: { "${MOD}": { room: true } } }]);
+            let id = null;
+            try { id = await game.drpg.passages.create({ sceneId: scene.id, wallId: "${xWall}", seg: { x1: 1200, y1: 400, x2: 1300.5, y2: 400 } }); }
+            finally { await scene.deleteEmbeddedDocuments("Region", [pantry.id]); await cafe.update({ shapes }); }
+            return id;`, { timeout: 60000 }) : null;
+        await disconnect("p2");
+        await settle(900);
+        const granted = xPassage ? await gm.eval(`return await game.drpg.passages.grant("${xPassage}", "${IDS.botan}");`, { timeout: 60000 }) : null;
+        const away = await until(async () => ({ gm: await gm.eval(PENDING(xPassage)), gm2: await gm2.eval(PENDING(xPassage)) }),
+            v => J(v.gm2) === J([IDS.botan]), 6000);
+        await connect("p2", { storage: storageOf("p2") });
+        await settle(1500);
+        const back = await until(async () => ({ gm: await gm.eval(PENDING(xPassage)), gm2: await gm2.eval(PENDING(xPassage)) }),
+            v => J(v.gm) === "[]" && J(v.gm2) === "[]", 8000);
+        xPending = { granted, away, back };
+    } finally {
+        await gm.eval(`if (${J(xPassage)}) await game.drpg.passages.delete(${J(xPassage)});
+            const wall = game.scenes.get("${IDS.scene}").walls.get(${J(xWall)}); if (wall) await wall.delete(); return true;`, { timeout: 60000 });
+        await settle(900);
+    }
+    check("X2: a second GM's Passages tab names, as the primary's does, the student whose player has not been sent the passage, and nobody once they have (E128)",
+        typeof xPassage === "string" && xPending?.granted === true && J(xPending.away.gm) === J([IDS.botan]) && J(xPending.away.gm2) === J([IDS.botan])
+            && J(xPending.back.gm) === "[]" && J(xPending.back.gm2) === "[]", J({ xPassage, xPending }), { flow: "secret-passages" });
 
     return { primary: { before, joined, afterGmReload, moved, backAgain }, reloads: { p1: r1, gm: r2, card: r3 },
         d153: { before: gBefore, onGm: gAfter, onGm2: gAfter2, found: gFound, gave: gGave } };

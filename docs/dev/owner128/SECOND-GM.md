@@ -93,13 +93,17 @@ not reach, then one press of each window driven on gm2 (scenario 97 W):
 | Every cell of the Passages tab (passages-tab.mjs) | Every cell writes the passages' stores; the primary tells the players' copies of another GM's write as it merges (`retellSoon`); a student's step through one and the Mastermind's seal are the primary's (`passage.cross`, `passage.lairSeal`) | W4: a grant and a revoke each reach p1's copy. Mutant: the primary's retell taken out, the grant never reaches p1 (known false) |
 | The far callees of `rollOpening` | The statistic's pick: a window on the GM that asks, written with `expect: { openingTrait: null }`, so the first pick stands and a second GM's is dropped; the invitation is a GM's packet to the player; the watch's hindrance a GM store; the throw and the card the primary's since E128 (fix 2, `postOpeningCard`) | 97 O, T |
 
-Two smaller differences found, neither fixed (each is something shown, not something refused):
+Two smaller differences found, each something shown rather than refused, both fixed on 23.11.2026 at the coordinator's
+"fix both" (scenario 97 X):
 
-- The Passages tab's "not yet sent to" line is drawn on the primary alone: the record of what each player was last sent
-  is the primary's (passages-gm.mjs `undeliveredOf` answers null elsewhere). A second GM's tab says nothing of delivery.
-- Two GMs who each open the opening's pick window (one opened the murder, the other presses Ask again before it is
-  picked) each post the roller's "the GM is choosing" line (murder-rules.mjs `tellOpeningRoller`), so the roller reads it
-  twice; the first pick stands. Read in the code, not driven.
+- The Passages tab's "not yet sent to" line was drawn on the primary alone: the record of what each player was last sent
+  is the primary's (passages-gm.mjs `undeliveredOf` answered null elsewhere). The primary now sends the other GMs what
+  each player's copy names, after a push and to a GM who connects (`tellGmsTold`), and another GM reads that. X2: red at
+  4cc4bf60 (gm2 null while p2 was away and after), green; mutant without the send after a push, red.
+- Two GMs who each opened the opening's pick window (one opened the murder, the other pressed Ask again before it was
+  picked) each posted the roller's "the GM is choosing" line (murder-rules.mjs `tellOpeningRoller`). The line is the
+  primary's to post once now, by the opening card's road (`postOpeningCard`'s `pick`, `murder.openingCard`). X1: red at
+  4cc4bf60 (two lines, gm2's and gm's), green (one, gm's); mutant without the memo's read, red (two, both gm's).
 
 One assumption not read on v14: `primaryGmId` sorts the full GMs' ids by code unit (`.sort()`), and Foundry's own active
 GM may sort them otherwise (ids differing in a letter's case); for the owner's two ids (`9KWZ...`, `atHQ...`) both orders

@@ -5008,7 +5008,7 @@
         "chapter.end": "The chapter ended by a second GM, on the primary GM",
         "voice.reset": "Fix voice pressed by a second GM, on the primary GM",
         "verdict.finish": "A second GM's Finish of the verdict, on the primary GM",
-        "murder.openingCard": "The opening roll's card to its player, posted by the primary GM",
+        "murder.openingCard": "The opening roll's card or line to its roller, posted by the primary GM",
         "trial.enter": "Setting the microphones as the Class Trial opens or ends",
         "trial.record": "A change to the Class Trial's record",
         "reroll.ask": "Reroll",

@@ -64,7 +64,7 @@
 
 import { MODULE_ID, ACTIONS } from "./config.mjs";
 import { SETTINGS } from "./settings.mjs";
-import { isPrimaryGm, serverNow, whisperToOwner, whisperToGms, ownerOf, warn, error, debug, serialWrite, plural, forcedDeletion, esc } from "./utils.mjs";
+import { isPrimaryGm, primaryGmId, serverNow, whisperToOwner, whisperToGms, ownerOf, warn, error, debug, serialWrite, plural, forcedDeletion, esc } from "./utils.mjs";
 import { drpgWindow } from "./ui-kit.mjs";
 import { passageMapStore, passageSeasonStore, passageAccessStore, passageLogStore, mastermindStore, mastermindUndecided } from "./gm-stores.mjs";
 import { RECORD, gmStoresQuiet, whenGmStoresAudible, onGmStoresAudible } from "./gm-store.mjs";
@@ -345,7 +345,57 @@ export function pushPassageCopies(userIds = null, { force = false, stores = PASS
        (cor F2, 15.10.2026) nothing redrew it after such a push, and the line stayed on a student whose player held
        the passage; the tab now watches this as well (passages-tab.mjs `wirePassagesTab`, R561). */
     if (sent) Hooks.callAll("drpgPassagesTold", { sent });
+    if (sent && told === TOLD) tellGmsTold();
     return sent;
+}
+
+/*
+ * WHAT THE PLAYERS WERE SENT, ON EVERY GM (E128, 23.11.2026; the owner's "kazdy gm ma byc rowny", the coordinator's
+ * S0-GMEQUAL item 1). `TOLD` is the sending GM's alone, and the Passages tab's "not yet sent to" line reads it
+ * (`undeliveredOf`), so a second GM's tab said nothing of delivery: null there. The primary now sends the other connected
+ * GMs what each player's last copy names - each passage's students, no row of the map - after a push that sent a copy
+ * and to a GM that connects (`tellGmsTold`), and a GM that is not the primary reads that (`toldByPrimary`, null until the
+ * primary's first, so a tab draws no line rather than a wrong one). Addressed to the GMs alone; taken only from the
+ * primary (`onToldGms`).
+ */
+let toldByPrimary = null;
+const isPlain = o => o !== null && typeof o === "object" && !Array.isArray(o);
+
+/** `told` as each player's last copy names it: `{ userId: { passageId: [actorId] } }`. */
+function toldSummary(told = TOLD) {
+    const out = {};
+    for (const [userId, text] of told) {
+        let value = {};
+        try {
+            value = JSON.parse(text ?? "null")?.value ?? {};
+        } catch {
+            value = {};
+        }
+        out[userId] = Object.fromEntries(Object.entries(isPlain(value) ? value : {})
+            .map(([id, row]) => [id, Array.isArray(row?.actorIds) ? row.actorIds : []]));
+    }
+    return out;
+}
+
+/** The primary: send the other connected GMs (or `to` alone) what each player was sent. Answers how many GMs it sent. */
+export function tellGmsTold({ to = null, socket = game.socket, users = game.users } = {}) {
+    if (!isPrimaryGm() || gmStoresQuiet()) return 0;
+    const recipients = [...(users ?? [])].filter(u => u?.isGM && u.active && u.id !== game.user?.id && (!to || u.id === to)).map(u => u.id);
+    if (!recipients.length) return 0;
+    socket.emit(SOCKET_EVENT, { action: "passage.toldGms", told: toldSummary() }, { recipients });
+    return recipients.length;
+}
+
+/** A GM that is not the primary: the primary's `passage.toldGms` kept, in `TOLD`'s shape, and the tab told. Answers whether it was kept. */
+export function onToldGms(payload, senderId) {
+    if (payload?.action !== "passage.toldGms" || !game.user?.isGM || isPrimaryGm()) return false;
+    const sender = senderOf(senderId);
+    if (!sender?.isGM || sender.id !== primaryGmId() || !isPlain(payload.told)) return false;
+    toldByPrimary = new Map(Object.entries(payload.told).filter(([, rows]) => isPlain(rows)).map(([userId, rows]) => [userId,
+        JSON.stringify({ value: Object.fromEntries(Object.entries(rows).map(([id, ids]) =>
+            [id, { actorIds: Array.isArray(ids) ? ids.filter(x => typeof x === "string") : [] }])) })]));
+    Hooks.callAll("drpgPassagesTold", { sent: 0, from: sender.id });
+    return true;
 }
 
 /**
@@ -2083,7 +2133,9 @@ export function passageMiddle(passageId, { stores = PASSAGE_STORES, level = null
  */
 export function undeliveredOf(passageId, { stores = PASSAGE_STORES, actors = game.actors, users = game.users, told = TOLD,
     primary = isPrimaryGm() } = {}) {
-    if (!primary) return null;
+    // Another GM reads what the primary says it sent (`toldByPrimary`, E128); the suite's own `told` keeps its null.
+    if (!primary && (told !== TOLD || !toldByPrimary)) return null;
+    if (!primary) told = toldByPrimary;
     if (rowsOf(stores).get(passageId)?.state !== "secret") return [];
     const sent = user => {
         try {
@@ -3232,6 +3284,8 @@ function retellSoon() {
  */
 export function onUserConnected(user, connected, { retell = retellSoon, told = TOLD } = {}) {
     if (user?.id) told.delete(user.id);
+    // A GM who comes is sent what the players were sent (E128, `tellGmsTold`).
+    if (user?.isGM && connected) tellGmsTold({ to: user.id });
     return retell();
 }
 
@@ -3304,6 +3358,7 @@ export function registerPassagesGm() {
     Hooks.once("ready", () => {
         if (!game.user.isGM) return;
         game.socket.on(SOCKET_EVENT, (payload, senderId) => {
+            if (onToldGms(payload, senderId)) return;
             onPassageRequest(payload, senderId).catch(err => error("Could not answer a player's secret passages", err));
         });
         // The season's passages (E15 part 2 C1) as the map's: the overlay drawn again, the copies told again.
