@@ -1104,7 +1104,9 @@ export async function transferRefusal(from, to, { mode, asker = null } = {}) {
     const { personActionRefusal, knownDeath } = await import("./frisk.mjs");
     if (mode === "loot") return personActionRefusal(actor, other, { body: true, user });
     if (mode === "steal" || mode === "plant") {
-        const why = personActionRefusal(actor, other);
+        // Palm's two modes, the only roads that write them (palm.mjs `stealFromPerson`, `plantOnPerson`): open in the
+        // Class Trial's hall since 1.2.129 (E129 S0-PALM, frisk.mjs `personActionRefusal`'s `palm`).
+        const why = personActionRefusal(actor, other, { palm: true });
         if (why) return why;
         return knownDeath(user, other) ? "that cannot be done now" : null;
     }

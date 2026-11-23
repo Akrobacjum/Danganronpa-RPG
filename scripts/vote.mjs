@@ -568,6 +568,7 @@ function sendBallots(voters, picks, round) {
 export function trialParticipants({ connected = true } = {}) {
     const out = [];
     const seated = new Set();
+    const students = [];
     // THE ONE CAST (E37 C2, 01.11.2026; S10-45, E37-08, the plan's amend of 27.10: "not a second list"): monokuma.mjs
     // `actingStudents`, handed the trial's rule of the dead, and filtered again below by the flags as the GMs hold them,
     // so the ballots go where they went when this walked `studentActors()` (R1193).
@@ -582,11 +583,31 @@ export function trialParticipants({ connected = true } = {}) {
         const held = flagsHeldNow(actor);
         if (held.getFlag(MODULE_ID, FLAGS.monocub)) continue;
         if (!TRIAL.deadCastBallots && (isDeceased(held) || isMutedDead(actor))) continue;
-        // `connected` false (E70 fix p2-G4): the student's player whether or not they are connected now - the copies a
-        // Reveal or a Present hands out, which a player reloading at that moment must still get.
-        const user = game.users.find(u => !u.isGM && (u.active || !connected) && actor.testUserPermission(u, "OWNER"));
-        if (!user || seated.has(user.id)) continue;
-        seated.add(user.id);
+        students.push(actor);
+    }
+    // `connected` false (E70 fix p2-G4): the student's player whether or not they are connected now - the copies a
+    // Reveal or a Present hands out, which a player reloading at that moment must still get.
+    const ownersOf = actor => game.users.filter(u => !u.isGM && (u.active || !connected) && actor.testUserPermission(u, "OWNER"));
+    /* A STUDENT OWNED BY TWO PLAYERS IS SEATED BY ITS LINKED ONE (E129 S0-CUT P1, 23.11.2026; config.mjs
+       `TRIAL.seatByCharacter`; the coordinator's P1 after the owner's note "testimony ucielo ostatniego gracza"). Each
+       player takes one seat. Until 1.2.129 a student went to the first owner Foundry lists, and when that player was
+       seated already with their own the student had no seat - no turn, no ballot, nothing said. Now a player is seated
+       first by `user.character` where it is a student they own, then each student left by its first owner not seated
+       yet. The order stays `actingStudents`'. Tier 2 "1.2.129 S0-CUT P1". */
+    const linked = new Map();
+    if (TRIAL.seatByCharacter) {
+        for (const actor of students) {
+            const user = ownersOf(actor).find(u => u.character?.id === actor.id && !seated.has(u.id));
+            if (user) { linked.set(actor.id, user); seated.add(user.id); }
+        }
+    }
+    for (const actor of students) {
+        let user = linked.get(actor.id) ?? null;
+        if (!user) {
+            user = (TRIAL.seatByCharacter ? ownersOf(actor).find(u => !seated.has(u.id)) : ownersOf(actor)[0]) ?? null;
+            if (!user || seated.has(user.id)) continue;
+            seated.add(user.id);
+        }
         out.push({ user, actor });
     }
     return out;

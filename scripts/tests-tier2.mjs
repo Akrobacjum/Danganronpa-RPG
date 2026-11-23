@@ -14158,6 +14158,84 @@ const SCENARIOS = [
             + "unseen roll's payment, or a payment handed back still pays, or a second draw of the action is judged while the first is "
             + "under way (each draw in turn; the two at once; the tickets left)");
     }],
+    ["1.2.129 S0-PALM - Palm in the Class Trial: paid with Hope when no action is left, its rolls drawn on that payment, its card saying so, and the hall one room for its Steal and Plant (palm.mjs `payPalm`, price.mjs `PRICE_CHAINS.palm`, roll-draw.mjs `CHAIN_OF`, frisk.mjs `personActionRefusal` with `palm`, `palmHall`; the owner's note of 23.11.2026)", async () => {
+        /* On this GM, as a player's roll is drawn (`drawnForPlayer`, a payment written as the player's browser writes it,
+           `PAID_AS_PLAYER`). (1) In a trial, no actions and Hope: the price quoted is Hope, the cover drawn on a Hope paid,
+           the hand riding it; outside the trial the same Hope buys no cover. (2) The chain's receipt and its card's line,
+           and Sanity once Hope is gone. (3) A hall of the suite's own linked, both students' tokens on it: Palm's gate lets
+           them through, a Frisk's says the trial; the target's token hidden, not in that room; the thief with no token on
+           the hall, no token. Red at 2e28785a: Palm shut in the trial, no chain, no hall. The clock, the links, the
+           resources, the tickets and the scene are put back. */
+        needs(world.atLeast("connectedPlayersWithCharacter"), "the rolls are a connected player's, as Foundry names only those");
+        const { trustedWrite } = await import("./resource-guard.mjs");
+        const D = await import("./roll-draw.mjs");
+        const P = await import("./price.mjs");
+        const F = await import("./frisk.mjs");
+        const R = await import("./rooms.mjs");
+        const { player, theirs, other } = playerAndCharacters();
+        must(other, "the world has no character this player does not play");
+        const ACT = "system.resources.actions.value", HOPE = "system.resources.hope.value", SAN = "system.resources.stress.value";
+        const res = a => ({ act: Number(a.system.resources.actions?.value) || 0, hope: Number(a.system.resources.hope?.value) || 0, san: Number(a.system.resources.stress?.value) || 0 });
+        const was = res(theirs);
+        const clock = foundry.utils.deepClone(getClock());
+        const roles = foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS.sceneRoles) ?? {});
+        const asPlayer = { [D.PAID_AS_PLAYER]: true };
+        const draw = async actionKey => {
+            const out = await drawnForPlayer(player, theirs, { actionKey, pay: false });
+            try { return out.sent.find(r => r.action === "bridge.refused")?.reason ?? Boolean(out.record); } finally { await out.putBack(); }
+        };
+        const read = {};
+        let hall = null;
+        try {
+            await setClock({ ...clock, phase: "classTrial" });
+            await trustedWrite(theirs, { [ACT]: 0, [HOPE]: 2, [SAN]: 0 }, { reason: "gmRuling" });
+            D.forgetPayments?.(theirs.id);
+            read.quote = P.quotePrice(theirs, "palm").pay;
+            await trustedWrite(theirs, { [HOPE]: 1 }, { reason: "gmRuling", ...asPlayer });
+            read.trialDraw = [await draw("palm"), await draw("steal")];
+            await setClock({ ...clock, phase: "dailyLife" });
+            D.forgetPayments?.(theirs.id);
+            await trustedWrite(theirs, { [HOPE]: 2 }, { reason: "gmRuling" });
+            await trustedWrite(theirs, { [HOPE]: 1 }, { reason: "gmRuling", ...asPlayer });
+            read.dayDraw = await draw("palm");
+            await setClock({ ...clock, phase: "classTrial" });
+            D.forgetPayments?.(theirs.id);
+            await trustedWrite(theirs, { [ACT]: 0, [HOPE]: 1, [SAN]: 0 }, { reason: "gmRuling" });
+            const hopeReceipt = await P.payPrice(theirs, "palm", { quiet: true });
+            const stressReceipt = await P.payPrice(theirs, "palm", { quiet: true });
+            read.receipts = [hopeReceipt?.pay ?? null, P.paidLine(hopeReceipt) === game.i18n.format("DRPG.Price.paid.hope.one", { n: 1 }), stressReceipt?.pay ?? null, res(theirs).hope, res(theirs).san];
+            // (3) the hall.
+            hall = await Scene.create({ name: "SUITE S0-PALM hall", width: 1000, height: 1000, grid: { size: 100 }, active: false, navigation: false });
+            const [mine, theirsTok] = await hall.createEmbeddedDocuments("Token", [
+                { name: theirs.name, actorId: theirs.id, x: 100, y: 100, actorLink: true }, { name: other.name, actorId: other.id, x: 300, y: 100, actorLink: true }]);
+            await game.settings.set(MODULE_ID, SETTINGS.sceneRoles, { ...roles, trial: hall.id });
+            R.forgetSceneRoles?.();
+            await settle();
+            // A Frisk is refused here whatever the reason the world gives first (its room is the school's, its phase the trial's).
+            read.gate = [F.personActionRefusal(theirs, other, { palm: true }), typeof F.personActionRefusal(theirs, other) === "string"];
+            // The steal's own gate, which the primary asks before reading the rolls (inventory.mjs `transferRefusal`).
+            const { transferRefusal } = await import("./inventory.mjs");
+            read.transfer = await transferRefusal(other, theirs, { mode: "steal" });
+            await theirsTok.update({ hidden: true });
+            read.hidden = F.personActionRefusal(theirs, other, { palm: true });
+            await theirsTok.update({ hidden: false });
+            await mine.delete();
+            read.noToken = F.personActionRefusal(theirs, other, { palm: true });
+        } finally {
+            await game.settings.set(MODULE_ID, SETTINGS.sceneRoles, roles).catch(() => {});
+            R.forgetSceneRoles?.();
+            if (hall) await hall.delete().catch(() => {});
+            await setClock(clock);
+            await trustedWrite(theirs, { [ACT]: was.act, [HOPE]: was.hope, [SAN]: was.san }, { reason: "gmRuling" });
+            D.forgetPayments?.(theirs.id);
+            await settle();
+        }
+        equal(stableJson(read), stableJson({
+            quote: "hope", trialDraw: [true, true], dayDraw: "notPaid",
+            receipts: ["hope", true, "stress", 0, 1],
+            gate: [null, true], transfer: null, hidden: "the character is not in that room", noToken: "the character has no token on a scene"
+        }), "{quote: the step a trial quotes with no action; trialDraw: [the cover on a Hope paid, the hand riding it]; dayDraw: the cover on a Hope outside the trial (refused); receipts: [step, its card line, the next step, Hope, Sanity]; gate: [Palm's, a Frisk's refused]; hidden; noToken}");
+    }],
     ["a Frisk's rolls ride a Palm's one payment (A11-4): the hand after the cover and never first, never beside a Take's hand; a Search and a Call's Hope keep payments of their own; an ask's ticket carries one force, only while the GMs leave that searcher a force open", async () => {
         /*
          * E80 part 2 C0, 19.10.2026; the A11 design's step 10 and its A11-4. A Frisk unseen is two rolls on the one action a
@@ -52991,6 +53069,160 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             + "(4) a Panic Round's Objection; (5) an Objection at the speaker, its rebuttal, Skip: the mode and speaker after");
     }],
 
+    ["1.2.129 S0-CUT B - a round's speaker whose player drops is passed only when they are not back within `TRIAL.modes.round.goneGraceSeconds` (scripts/trial-floor.mjs `speakerGone`; the owner's note of 23.11.2026, \"testimony ucielo ostatniego gracza\"; the coordinator's \"a reload during your own turn should never pass you\"): the speaker read as not connected and the primary told the player left - their turn stands at once and through the grace once they are back; read as not connected again and not back - their turn passes to the next speaker once the grace is over", async () => {
+        /* On this primary in a Class Trial, a Testimony of 120 s turns between the first two participants, the speaker's
+           User read as not connected by its `active` (put back as it was, as E70-T11 does) and `userConnected` called as
+           Foundry calls it. Red at 2e28785a: the turn passed at the first drop (E70-45). The floor, the clock and the cards
+           are put back. Waits the grace twice, about 35 s. */
+        needs(world.atLeast("connectedPlayersWithCharacter", 2), "a round needs two speakers, and only a connected player's student takes part");
+        const { isPrimaryGm } = await import("./utils.mjs");
+        must(isPrimaryGm(), "this browser is not the primary GM, which writes the floor - this would measure nothing");
+        const { TRIAL } = await import("./config.mjs");
+        const F = await import("./trial-floor.mjs");
+        const V = await import("./vote.mjs");
+        const api = game.drpg ?? {};
+        const clock = foundry.utils.deepClone(getClock());
+        const queue = foundry.utils.deepClone(getSetting(SETTINGS.trialQueue) ?? {});
+        const progress = foundry.utils.deepClone(getSetting(SETTINGS.trialProgress) ?? {});
+        const seen = new Set(game.messages.map(m => m.id));
+        const graceMs = (Number(TRIAL.modes?.round?.goneGraceSeconds) || 0) * 1000;
+        const read = { grace: TRIAL.modes?.round?.goneGraceSeconds ?? null };
+        let user = null, own;
+        const away = () => { Object.defineProperty(user, "active", { get: () => false, configurable: true }); Hooks.callAll("userConnected", user, false); };
+        const back = () => { if (own) Object.defineProperty(user, "active", own); else delete user.active; Hooks.callAll("userConnected", user, true); };
+        try {
+            await setClock({ ...clock, phase: "classTrial" });
+            await game.settings.set(MODULE_ID, SETTINGS.trialQueue, {});
+            await settle();
+            const parts = V.trialParticipants();
+            must(parts.length >= 2 && typeof api.startTestimony === "function", "no round of two here - this would measure nothing");
+            const [one, two] = parts;
+            await api.startTestimony({ seconds: 120, order: [one.actor.id, two.actor.id] });
+            await settle();
+            must(F.trialFloor()?.holderId === one.actor.id, "the Testimony did not open on its first speaker - this would measure nothing");
+            user = one.user;
+            own = Object.getOwnPropertyDescriptor(user, "active");
+            away();
+            await wait(2000);
+            read.dropped = F.trialFloor()?.holderId === one.actor.id;
+            back();
+            await wait(graceMs + 1500);
+            read.backInTime = F.trialFloor()?.holderId === one.actor.id;
+            away();
+            await wait(graceMs + 1500);
+            read.notBack = F.trialFloor()?.holderId ?? null;
+            read.want = two.actor.id;
+        } finally {
+            if (user) { if (own) Object.defineProperty(user, "active", own); else delete user.active; }
+            if (F.trialFloor()) await F.endFloor();
+            await game.settings.set(MODULE_ID, SETTINGS.trialQueue, queue);
+            await game.settings.set(MODULE_ID, SETTINGS.trialProgress, progress);
+            await setClock(clock);
+            F.renderTrialFloor();
+            const fresh = game.messages.filter(m => !seen.has(m.id)).map(m => m.id);
+            if (fresh.length) await ChatMessage.deleteDocuments(fresh);
+            await settle();
+        }
+        const want = read.want;
+        delete read.want;
+        equal(stableJson(read), stableJson({ grace: 15, dropped: true, backInTime: true, notBack: want }),
+            "{grace: the constant; dropped: the speaker's turn 2 s after the drop; backInTime: still theirs a grace after coming back; notBack: whose turn a grace after a second drop}");
+    }],
+    ["1.2.129 S0-SKIP - the objector may end their own seconds as the GM's Skip would (trial-modes.mjs `turnOnPrimary`, trial-floor.mjs `finishObjectionOnPrimary`; config.mjs `TRIAL.objectorMayFinish`; the owner's note of 23.11.2026): \"trial.turn\" kind done during an Objection - refused from the target's player, at another Objection's start and while the bullet is still being picked; from the objector's player at this Objection's start, taken: the rebuttal on the floor, the table's card that the objector finished early, and a whisper to the GMs alone", async () => {
+        /* On this primary in a Class Trial, a debate and an Objection of the first participant at the second, each packet
+           judged by the bridge's runner as it arrives. Red at 2e28785a: every Done outside a round was refused. The floor,
+           the clock and the cards are put back. */
+        needs(world.atLeast("connectedPlayersWithCharacter", 2), "an objector and a target whose players are here");
+        const { isPrimaryGm } = await import("./utils.mjs");
+        must(isPrimaryGm(), "this browser is not the primary GM, which writes the floor - this would measure nothing");
+        const { TRIAL } = await import("./config.mjs");
+        const F = await import("./trial-floor.mjs");
+        const B = await import("./gm-bridge.mjs");
+        const G = await import("./bridge-guards.mjs");
+        const V = await import("./vote.mjs");
+        const clock = foundry.utils.deepClone(getClock());
+        const queue = foundry.utils.deepClone(getSetting(SETTINGS.trialQueue) ?? {});
+        const progress = foundry.utils.deepClone(getSetting(SETTINGS.trialProgress) ?? {});
+        const seen = new Set(game.messages.map(m => m.id));
+        const judged = async (packet, from) => {
+            const sent = [];
+            await G.judge(B.BRIDGE_ACTIONS, packet, from, { send: (to, reply) => { if (reply?.action !== "bridge.ack") sent.push(reply?.action ?? null); } });
+            await settle();
+            return sent;
+        };
+        const read = { constant: TRIAL.objectorMayFinish };
+        try {
+            await setClock({ ...clock, phase: "classTrial" });
+            await game.settings.set(MODULE_ID, SETTINGS.trialQueue, {});
+            await settle();
+            const [one, two] = V.trialParticipants();
+            must(one && two, "two participants - this would measure nothing");
+            await F.startFloor({});
+            await F.openObjection(one.actor.id, two.actor.id, { pending: true, messageId: null });
+            await settle();
+            const pending = F.trialFloor();
+            read.pending = [pending?.mode ?? null, Boolean(pending?.pending), await judged({ action: "trial.turn", requestId: "S0SKIPP", actorId: one.actor.id, kind: "done", step: pending?.startedAt }, one.user.id)];
+            await F.endFloor();
+            await F.startFloor({});
+            await F.openObjection(one.actor.id, two.actor.id, {});
+            await settle();
+            const objection = F.trialFloor();
+            const at = Number(objection?.startedAt) || 0;
+            read.target = await judged({ action: "trial.turn", requestId: "S0SKIPT", actorId: two.actor.id, kind: "done", step: at }, two.user.id);
+            read.stale = await judged({ action: "trial.turn", requestId: "S0SKIPS", actorId: one.actor.id, kind: "done", step: at - 1000 }, one.user.id);
+            read.still = F.trialFloor()?.mode ?? null;
+            read.own = await judged({ action: "trial.turn", requestId: "S0SKIPO", actorId: one.actor.id, kind: "done", step: at }, one.user.id);
+            read.after = F.trialFloor()?.mode ?? null;
+            const fresh = game.messages.filter(m => !seen.has(m.id));
+            const name = one.actor.name;
+            const finishedCard = fresh.find(m => String(m.content ?? "").includes(game.i18n.format("DRPG.Floor.turnFinished", { name })));
+            // The speaker's own card, titled by its mode, not "The GM steps in".
+            read.card = [Boolean(finishedCard), String(finishedCard?.content ?? "").includes(game.i18n.localize("DRPG.Floor.gmStepTitle"))];
+            // A whisper's words are the secret store's on this GM (secret.mjs `contentOf`), not the message's content.
+            const { contentOf } = await import("./secret.mjs");
+            const told = fresh.filter(m => String(contentOf(m) ?? "").includes(game.i18n.format("DRPG.Floor.finishedGm", { name })));
+            read.told = [told.length, told.every(m => (m.whisper ?? []).length > 0 && m.whisper.every(id => game.users.get(id)?.isGM))];
+        } finally {
+            if (F.trialFloor()) await F.endFloor();
+            await game.settings.set(MODULE_ID, SETTINGS.trialQueue, queue);
+            await game.settings.set(MODULE_ID, SETTINGS.trialProgress, progress);
+            await setClock(clock);
+            F.renderTrialFloor();
+            const fresh = game.messages.filter(m => !seen.has(m.id)).map(m => m.id);
+            if (fresh.length) await ChatMessage.deleteDocuments(fresh);
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ constant: true, pending: ["objection", true, ["bridge.refused"]], target: ["bridge.refused"], stale: ["bridge.refused"],
+            still: "objection", own: ["bridge.done"], after: "rebuttal", card: [true, false], told: [1, true] }),
+            "{constant; pending: [mode, pending, a Done while the bullet is picked]; target: the target's Done; stale: another start's; still: the floor after them; own: the objector's; after: the floor; card: [the table's card, titled as the GM's step]; told: [the GMs' whispers, whispered to GMs alone]}");
+    }],
+    ["1.2.129 S0-CUT P1 - a student owned by two players is seated by their linked player, and no player loses their turn to a loose ownership link (vote.mjs `trialParticipants`; config.mjs `TRIAL.seatByCharacter`; the coordinator's P1 of 23.11.2026): two players, each linked to their own student (`user.character`), the first given OWNER on the second's student too - both students take part, each with the player linked to it", async () => {
+        /* On this GM, the world's ownership written and put back. Red at 2e28785a: the second student went to the first
+           owner Foundry lists, already seated with their own, so it had no seat and no turn - nothing said. */
+        needs(world.atLeast("connectedPlayersWithCharacter", 2), "two players, each linked to a student of their own");
+        const V = await import("./vote.mjs");
+        const L = CONST.DOCUMENT_OWNERSHIP_LEVELS;
+        const linked = game.users.filter(u => !u.isGM && u.active && u.character && u.character.testUserPermission(u, "OWNER"));
+        must(linked.length >= 2, "two linked players - this would measure nothing");
+        const [a, b] = linked;
+        const theirs = b.character;
+        const before = foundry.utils.deepClone(theirs._source.ownership ?? {});
+        const seat = () => V.trialParticipants().filter(p => [a.character.id, theirs.id].includes(p.actor.id)).map(p => [p.actor.id, p.user.id]).sort();
+        const read = {};
+        try {
+            read.alone = seat();
+            await theirs.update({ ownership: { ...before, [a.id]: L.OWNER } });
+            await settle();
+            must(theirs.testUserPermission(a, "OWNER"), "the first player was not given the second's student - this would measure nothing");
+            read.coOwned = seat();
+        } finally {
+            // Written whole (`replaced`): a deletion under `ownership` removes nothing on v14 (E58 L1, 17.11.2026).
+            await theirs.update({ ownership: replaced(before) }).catch(() => {});
+            await settle();
+        }
+        const want = [[a.character.id, a.id], [theirs.id, b.id]].sort();
+        equal(stableJson(read), stableJson({ alone: want, coOwned: want }), "{alone: [student, player] seated; coOwned: the same with the first player owning both}");
+    }],
     ["the Closing Argument: volunteers by \"trial.claim\" kept by the GMs alone, the draw confirmed, an Objection only at the speaker, both of the GM's decisions, an Overrule in the exchange, and one Closing per trial (E70-T10)", async () => {
         /*
          * E70 C8, 28.10.2026; E70-51, E70-52, E70-54, E70-56, E70-57. Read on this primary in a Class Trial, with the
@@ -54380,7 +54612,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
          * it stands for - and the three must agree. Red before allowed-now.mjs existed: the import throws. Since the three
          * ask one rule, their agreement cannot see a change of the rule itself, so each state's row is also held to what
          * the module answered before the move (measured at d2c6e0e5's tile and press, which agreed in every cell): daily
-         * life locks Direct Murder alone; an Eclipse every key but Direct Murder; the trial every key but Analyze, Direct
+         * life locks Direct Murder alone; an Eclipse every key but Direct Murder; the trial every key but Analyze (and Palm since 1.2.129, E129 S0-PALM), Direct
          * Murder saying it waits for an Eclipse; a fight every key of the victim's but Direct Murder, which is the fight's
          * menu. And Move, which has no tile, by its press alone: open in daily life and an Eclipse, the trial's and the
          * fight's sentence in theirs.
@@ -54518,7 +54750,8 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         const expected = key => ({
             daily: key === "directMurder" ? "murderOnlyInEclipse" : null,
             eclipse: key === "directMurder" ? null : "eclipse",
-            trial: key === "analyze" ? null : key === "directMurder" ? "murderOnlyInEclipse" : "trial",
+            // Palm open in the trial since 1.2.129 (E129 S0-PALM, allowed-now.mjs `TRIAL_OPEN_ACTIONS`; R8772), Analyze alone before.
+            trial: key === "analyze" || key === "palm" ? null : key === "directMurder" ? "murderOnlyInEclipse" : "trial",
             fight: key === "directMurder" ? null : "fight"
         });
         const offRule = Object.entries(matrix).flatMap(([state, row]) => Object.entries(row)
@@ -112205,6 +112438,89 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             words: true,
             debate: ["debate", false, true, 0]
         }), "[road, answered, the clock as it was, public cards] per press; [the floor's target, the card's target id and name, its who line, the receipt's target]; the last card names both and is public");
+    }],
+    ["1.2.129 S0-NOMUTE - with the world's switch `trialVoicesFree` on, the Class Trial forces no microphone off (settings.mjs `trialVoicesFree`; voice.mjs `settleTrialVoices`, `micHold`, `moduleHoldsMic`; the owner's note of 23.11.2026): an Objection blocks the speaker it is aimed at and the dead student on the trial's list; the switch on - both given back at once, with no block in the store, and neither the tile's line nor the GM's block button says they are held; the switch off again - both blocked again", async () => {
+        /* On this primary, the clock written raw and the voices settled as the entry settles them (E110-T2's shape): O
+           objects to B, D is dead and published before the trial. Each step reads each one's BROADCAST_AUDIO and the store's
+           row as E110-T2 does ("blocked", "gm", "open"), and B's and D's lines. Red at 2e28785a: no switch. The switch, the
+           clock, the floor, the record, D's death and the permissions are put back. */
+        needs(env.primaryGm(), "the trial's voices are settled on the primary GM");
+        needs(world.atLeast("studentsWithConnectedPlayer", 3), "three students whose players are here");
+        const voice = await import("./voice.mjs");
+        const V = await import("./vote.mjs");
+        const F = await import("./trial-floor.mjs");
+        const { SEIZE_KEY } = await import("./trial.mjs");
+        const { serialWrite } = await import("./utils.mjs");
+        const { killCharacter, reviveCharacter, isDeadForGm } = await import("./chapter.mjs");
+        const { studentActors, isMonokuma } = await import("./monokuma.mjs");
+        const stores = await import("./gm-stores.mjs");
+        const ownerOf = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER")) ?? null;
+        const voiceOf = u => game.actors.filter(a => a.type === "character" && !isMonokuma(a) && a.testUserPermission(u, "OWNER"))
+            .sort((x, y) => (x.id < y.id ? -1 : 1))[0] ?? null;
+        const picked = [];
+        for (const a of studentActors()) {
+            const u = ownerOf(a);
+            if (!isDeadForGm(a) && u && voiceOf(u)?.id === a.id && !picked.some(p => p.user.id === u.id)) picked.push({ actor: a, user: u });
+        }
+        must(picked.length >= 3, `three living students who are their players' only voice, found ${picked.length}`);
+        const [O, B, D] = picked;
+        const all = [O, B, D];
+        const perm = user => { const own = (user._source ?? user).permissions ?? {}; return [Object.hasOwn(own, "BROADCAST_AUDIO"), own.BROADCAST_AUDIO ?? null]; };
+        const before = Object.fromEntries(all.map(p => [p.user.id, perm(p.user)]));
+        const had = getSetting(SETTINGS.trialVoicesFree);
+        const clock = foundry.utils.deepClone(getClock());
+        const queue = foundry.utils.deepClone(getSetting(SETTINGS.trialQueue) ?? {});
+        const progress = foundry.utils.deepClone(getSetting(SETTINGS.trialProgress) ?? {});
+        const store = stores.trialMuteStore;
+        const rawClock = patch => game.settings.set(MODULE_ID, SETTINGS.clock, { ...getClock(), ...patch });
+        const settleNow = async () => { await voice.settleTrialVoices(); await settle(); };
+        const state = () => all.map(p => perm(p.user)[1] === false && Boolean(store.get(p.user.id)?.wrote) ? "blocked" : perm(p.user)[1] === false ? "gm" : "open");
+        const lines = () => [B, D].map(p => [voice.moduleHoldsMic(p.user)?.reason ?? null,
+            voice.micHold({ user: p.user, external: false, connected: true, canBroadcastAudio: true, room: "suite-room", listening: null, masked: false, veiled: false })?.reason ?? null]);
+        const read = { default: game.settings.settings.get(`${MODULE_ID}.${SETTINGS.trialVoicesFree}`)?.default ?? null };
+        try {
+            for (const p of all) if (perm(p.user)[0]) await p.user.update({ "permissions.BROADCAST_AUDIO": forcedDeletion() });
+            await game.settings.set(MODULE_ID, SETTINGS.trialVoicesFree, false);
+            await killCharacter(D.actor, { secret: false, keepBullets: true });
+            await settle();
+            const chapter = getClock().chapter;
+            await game.settings.set(MODULE_ID, SETTINGS.trialQueue, {});
+            await game.settings.set(MODULE_ID, SETTINGS.trialProgress, { ...V.trialProgress(chapter), chapter });
+            await rawClock({ phase: "classTrial", eclipse: false });
+            await settleNow();
+            await F.startFloor({});
+            await serialWrite(SEIZE_KEY, () => F.openObjectionInStep(O.actor.id, B.actor.id, { cardId: null }));
+            await settleNow();
+            read.forced = [state(), lines()];
+            // The switch's own onChange settles on the primary: no settle by hand here.
+            await game.settings.set(MODULE_ID, SETTINGS.trialVoicesFree, true);
+            await until(() => state().join() === "open,open,open" || null, 4000).catch(() => {});
+            read.free = [state(), lines(), Object.keys(store.entries()).length];
+            await game.settings.set(MODULE_ID, SETTINGS.trialVoicesFree, false);
+            await until(() => state()[1] === "blocked" || null, 4000).catch(() => {});
+            read.again = [state(), lines()];
+        } finally {
+            await game.settings.set(MODULE_ID, SETTINGS.trialVoicesFree, had ?? false);
+            if (F.trialFloor()) await F.endFloor();
+            await game.settings.set(MODULE_ID, SETTINGS.trialQueue, queue);
+            await game.settings.set(MODULE_ID, SETTINGS.trialProgress, progress);
+            await game.settings.set(MODULE_ID, SETTINGS.clock, clock);
+            if (isDeadForGm(D.actor)) await reviveCharacter(D.actor, { quiet: true });
+            await settleNow();
+            for (const key of Object.keys(store.entries())) await store.drop(key);
+            for (const p of all) {
+                const [was, value] = before[p.user.id];
+                if (JSON.stringify(perm(p.user)) !== JSON.stringify(before[p.user.id])) await p.user.update({ "permissions.BROADCAST_AUDIO": was ? value : forcedDeletion() });
+            }
+            await gmStoresIdle();
+            await settle();
+        }
+        equal(stableJson(read), stableJson({
+            default: false,
+            forced: [["open", "blocked", "blocked"], [["floorHeld", "floorHeld"], ["deadMuted", "deadMuted"]]],
+            free: [["open", "open", "open"], [[null, null], [null, null]], 0],
+            again: [["open", "blocked", "blocked"], [["floorHeld", "floorHeld"], ["deadMuted", "deadMuted"]]]
+        }), "{default: the switch's; forced: [O, B, D's microphones; [B's, D's] [GM's button, tile's line]] with it off; free: the same with it on, and the store's rows; again: off again}");
     }],
     ["E110-T2 - the modes mute who may not speak and give back exactly what they took (E110 C2): an Objection blocks every player but the objector's, its Rebuttal gives the target back, a Panic Round writes only the speaker who stops and the one who starts, the floor's end gives everything back; a GM's hand block is never touched, and a Monocub is muted by a mode as a student is (D-E110-A); a block left standing after a crash is given back at the primary's next settle, and by the season reset's release (E110-05 to E110-09)", async () => {
         /*
