@@ -236,7 +236,7 @@ async function resolvePlant(actor, def, { victim, planted, hand, shadow, room, s
 
     // "Sent" only when it was (E31): a request not carried out has been said once already.
     const plantOutcome = {
-        success, seen, target: victim.name,
+        success, seen, target: victim.name, supportRolls: [shadow],
         // On a GM's own Palm a refusal settles as done with `{ refused }` as its value, told already (fix e1-G4).
         text: withCover(res.ok && !res.value?.refused ? game.i18n.format("DRPG.Steal.plantSent", { name: victim.name }) + paidSaid(paid) : "", shadow)
     };
@@ -519,6 +519,8 @@ export async function performPalm(actor, def, options) {
         success,
         seen,
         target: victim.name,
+        // The cover's line on the card (E129 S0-CARDS): it earns no Hope (action-report.mjs `rollEffectLines`).
+        supportRolls: [shadow],
         // "Sent" only when it was (E31), as for a plant - and a GM's own refused Palm settles as done with `{ refused }` (fix e1-G4).
         text: withCover(res.ok && !res.value?.refused ? game.i18n.format("DRPG.Steal.sent", { name: victim.name }) + paidSaid(paid) : "", shadow)
     };

@@ -896,7 +896,7 @@ function cleanupVerdict(held, data, { total, isCritical, withHope, mode }) {
      * and left signs of the disturbing (D8).
      */
 async function resolveTransformRoad(actor, token, data, verdict, {
-    change, isCritical, total, viaAction, receipt, done, paidStep = null, charged = null, grant = false, by = null, free = false
+    change, isCritical, withHope = false, total, viaAction, receipt, done, paidStep = null, charged = null, grant = false, by = null, free = false
 }) {
     const { band, success, dc } = verdict;
     const byTheKiller = isCleaner(actor);
@@ -951,7 +951,7 @@ async function resolveTransformRoad(actor, token, data, verdict, {
         if (line) done.push(line);
     }
 
-    await report(actor, data, { band, success, total, dc, done, viaAction, charged, free });
+    await report(actor, data, { band, success, total, dc, done, viaAction, charged, isCritical, withHope, free });
     await keepAttempt(receipt);
     log(`Transform: ${actor.name} rolled ${total} against DC ${dc} on a ${
         data.visibility} ${data.type} - ${band}.`);
@@ -1269,7 +1269,7 @@ export async function resolveCleanup({
 
     if (transforming && success) {
         const road = await resolveTransformRoad(actor, token, data, verdict,
-            { change, isCritical, total, viaAction, receipt, done, paidStep, charged, grant, by, free });
+            { change, isCritical, withHope, total, viaAction, receipt, done, paidStep, charged, grant, by, free });
         await keepAttemptFact(rolls, roll, actorId, receipt);
         return road;
     }
@@ -1290,7 +1290,7 @@ export async function resolveCleanup({
         if (line) done.push(line);
     }
 
-    await report(actor, data, { band, success, total, dc, done, viaAction, charged, free });
+    await report(actor, data, { band, success, total, dc, done, viaAction, charged, isCritical, withHope, free });
     await keepAttempt(receipt);
     await keepAttemptFact(rolls, roll, actorId, receipt);
 
@@ -1532,8 +1532,15 @@ async function concealFromWitnesses(actor) {
         ? (band === "despair" ? def.successWithDespair : def.success)
         : def.failure;
 
+    /* What the roll did (E129 S0-CARDS; action-report.mjs `rollEffectsHtml`): a supporting roll, so no Hope. Its critical
+       gives Sanity back (`CLEANUP.conceal.refundStress.critical`), on the GM, with the attempt it covered (`coverGiveBack`,
+       whose line that attempt's card carries): said here as what will come, since a window closed before the attempt
+       gives nothing back. */
+    const { rollEffectsHtml } = await import("./action-report.mjs");
+    const coverBack = roll.isCritical ? Number(CLEANUP.conceal?.refundStress?.critical) || 0 : 0;
     await whisperToOwner(actor, `${cardHead({ action: def.label, total: roll.total })}<p>${
-        foundry.utils.escapeHTML(line)}</p>`);
+        foundry.utils.escapeHTML(line)}</p>${rollEffectsHtml([roll])}${coverBack
+        ? `<p>${foundry.utils.escapeHTML(plural("DRPG.Result.coverCritical", { n: coverBack }))}</p>` : ""}`);
 
     /*
      * A failure is public TO THE ROOM, and to nowhere else.
@@ -1970,7 +1977,9 @@ export async function resolveStageSix({
     // A miss sounds as an Erase's or a Reshape's does (E59 on the 1.2.115 line, CHAINS.md B-M5; R7165).
     await whisperToOwner(actor, `${cardHead({
         action: def.label, total, result: `${success ? "≥" : "<"} ${threshold}`
-    })}${done.length ? `<ul>${done.map(d => `<li>${d}</li>`).join("")}</ul>` : ""}`,
+    })}${done.length ? `<ul>${done.map(d => `<li>${d}</li>`).join("")}</ul>` : ""}${
+        // What the roll did (E129 S0-CARDS; action-report.mjs `rollEffectsHtml`), off the roll alone.
+        (await import("./action-report.mjs")).rollEffectsHtml([{ isCritical, withHope }])}`,
     // in the middle of its roller's screen (notice-centre.mjs `withCentre`, 1.2.127), as an Erase's card is
     withCentre(success ? {} : { flags: { [MODULE_ID]: { sfx: "cleanupFailed" } } }));
     /* The GMs' copy gave the band alone - "despair" - and the threshold apart, so the GM compared
@@ -2712,10 +2721,15 @@ async function report(actor, data, {
     band, success, total, dc, done, viaAction = false,
     /** What the attempt paid, as a price receipt, or null when nothing said. */
     charged = null,
+    /** The roll as the GMs' record holds it: its Hope said on the card (E129 S0-CARDS); null where no roll is known. */
+    isCritical = null, withHope = false,
     /** The free attempt after a critical Finishing Blow (D13): `done` already says it cost nothing, so no price line. */
     free = false
 }) {
     const summary = done.map(line => `<li>${line}</li>`).join("");
+    // What the roll did for the player (E129 S0-CARDS; action-report.mjs `rollEffectsHtml`): its Hope, a critical's 2 and
+    // no Sanity, or its Despair. Read off the roll alone, so it says the same whatever trace a Despair left.
+    const effects = isCritical === null ? "" : (await import("./action-report.mjs")).rollEffectsHtml([{ isCritical, withHope }]);
 
     /*
      * The killer's card, and on a miss it carries a sound.
@@ -2731,6 +2745,7 @@ async function report(actor, data, {
         <h3>${game.i18n.localize("DRPG.Cleanup.title")}</h3>
         <p><strong>${game.i18n.localize(`DRPG.Cleanup.band.${band}`)}</strong></p>
         ${summary ? `<ul>${summary}</ul>` : ""}
+        ${effects}
         ${charged
             // What was really taken, rather than which door the attempt came
             // through: since T-1 the two no longer decide each other (the killer

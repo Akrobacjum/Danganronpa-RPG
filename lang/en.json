@@ -961,6 +961,16 @@
       "close": "Close",
       "toggle": "Open or close Foundry tools"
     },
+    "Result": {
+      "hope": { "one": "With Hope: you earn {n} Hope.", "other": "With Hope: you earn {n} Hope." },
+      "critical": { "one": "A critical: you earn {n} Hope. Unlike plain Daggerheart, it restores no Sanity.", "other": "A critical: you earn {n} Hope. Unlike plain Daggerheart, it restores no Sanity." },
+      "despair": "With Despair: you earn no Hope, and its point of Despair goes to the pool of the Monokuma who watches you.",
+      "support": "Your roll of {trait} only supports the action, so it earns no Hope.",
+      "supportDespair": "Its point of Despair still goes to the pool of the Monokuma who watches you.",
+      "supportBare": "This roll only supports the action, so it earns no Hope.",
+      "coverCritical": { "one": "A critical on this roll: if the attempt it covers goes ahead, {n} Sanity comes back with its result.", "other": "A critical on this roll: if the attempt it covers goes ahead, {n} Sanity comes back with its result." },
+      "givenBack": "{what} comes back to you, as the action did not go ahead."
+    },
     "Action": {
       "murderConfirmEclipse": "It goes to the GMs at once: a GM allows it on a statistic or refuses it, and you hear of a refusal. Declare it only if you agreed on it with the GM beforehand and the victim's player consents.",
       "beat": "beat {n}",
@@ -2500,7 +2510,7 @@
       "notOpen": "No vote is open.",
       "nobodyVoted": "No ballot came back, so the vote closed with nobody accused.",
       "ballotTitle": "Who did it?",
-      "ballotIntro": "Vote for whoever you believe is the Blackened. You may vote for yourself, for Monokuma, and for the dead.",
+      "ballotIntro": "Vote for whoever you believe is the Blackened. You may vote for yourself, for each Monokuma by name, and for the dead.",
       "ballotNote": "Your vote goes to the GMs alone. The table sees only the totals.",
       "who": "Your vote",
       "cast": "Cast your vote",

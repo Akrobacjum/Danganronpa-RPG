@@ -41,7 +41,7 @@
 
 import { MODULE_ID, TRIAL, FLAGS } from "./config.mjs";
 import { isEclipse, isMutedDead } from "./settings.mjs";
-import { studentActors, actingStudents, characterIds } from "./monokuma.mjs";
+import { studentActors, actingStudents, characterIds, isMonokuma } from "./monokuma.mjs";
 import { isDeceased } from "./chapter.mjs";
 import { trialBlackenedIds, whenTrialReadable } from "./murder.mjs";
 import { ballotStore, verdictStore } from "./gm-stores.mjs";
@@ -279,10 +279,25 @@ export function candidatesFor(voterActorId) {
             dead: isDeceased(a)
         }));
 
-    if (TRIAL.allowVotingForMonokuma) {
-        out.push({ id: "monokuma", name: game.i18n.localize("DRPG.Vote.monokuma"), dead: false });
-    }
-    return out;
+    return [...out, ...monokumaCandidates()];
+}
+
+/**
+ * The Monokumas a ballot lists (E129 S0-VOTEKUMA; config.mjs `TRIAL.eachMonokumaOnBallot`): none while
+ * `allowVotingForMonokuma` is off; with each on the ballot, every Monokuma actor by its own id and name, sorted by name,
+ * the flag read as the GMs hold it (`held`, sheet-audit.mjs `flagsHeldNow`, as `studentActors` reads the students), so a
+ * console's Monokuma flag on its own student lists nobody; otherwise the one option "monokuma" of 1.2.128 and before.
+ * The characters are monokuma.mjs `characterIds`' (the type read there, docs/dev/e92/CENSUS.md, R3858).
+ * An actor's id and name are no secret: Foundry sends every actor to every browser (code.md's "A new world setting or
+ * flag is checked"), and a ballot names only what this list holds (`ballotRefusal`). `actors` and `held` are the
+ * suite's to hand (R8773).
+ */
+export function monokumaCandidates({ actors = characterIds().map(id => game.actors.get(id)), held = flagsHeldNow } = {}) {
+    if (!TRIAL.allowVotingForMonokuma) return [];
+    if (!TRIAL.eachMonokumaOnBallot) return [{ id: "monokuma", name: game.i18n.localize("DRPG.Vote.monokuma"), dead: false }];
+    return [...(actors ?? [])].filter(a => a && isMonokuma(held ? held(a) : a))
+        .map(a => ({ id: a.id, name: a.name, dead: false }))
+        .sort((x, y) => String(x.name).localeCompare(String(y.name), game.i18n.lang));
 }
 
 /**
