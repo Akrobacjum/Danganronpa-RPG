@@ -327,6 +327,10 @@
         "name": "Przejście między pokojami kosztuje Move",
         "hint": "Ruch w pokoju jest darmowy. Pierwsze przejście o danej porze dnia zużywa Free Move, kolejne kosztują akcję albo przejście kupione Callem Sprint. Wyłączone: ruch rozliczasz ręcznie."
       },
+      "trialVoicesFree": {
+        "name": "Class Trial: bez wymuszonego wyciszania",
+        "hint": "Gdy włączone, Class Trial nigdy nie wyłącza graczowi mikrofonu, niezależnie od tego, kto ma głos, także zmarłym. Wyłączone: tryby wyciszają jak zwykle."
+      },
       "despairFromRolls": {
         "name": "Rzuty dają Despair",
         "hint": "Rzut zakończony Despair zasila pulę Monokumy tego ucznia. Każdego ucznia przypisz do Monokumy w Despair Flow w panelu GM-a."
@@ -1710,7 +1714,7 @@
         "zones": "Głos ma tryb stref: każdy odpowiada tym, gdzie stoi jego token. Policz teraz i Pomiń na pasku przyspieszają liczenie; Zakończ ten tryb go kończy.",
         "scrum": "Straw Poll podzieliła klasę. Scrum Debate ze Stref sali pozwoli obu obozom to rozstrzygnąć; debata i głosowanie nadal są dostępne."
       },
-      "objectionNote": "Objection nie uruchamiasz z konsoli: zgłasza je gracz przyciskiem OBJECTION!, a minuta rusza, gdy jego Truth Bullet trafi na stół.",
+      "objectionNote": "Objection nie uruchamiasz z konsoli: zgłasza je gracz przyciskiem OBJECTION!, a jego czas rusza, gdy jego Truth Bullet trafi na stół.",
       "manageTrial": "Class Trial",
       "mode": {
         "debate": "Nonstop Debate",
@@ -1753,6 +1757,8 @@
       },
       "gmStepTitle": "GM wkracza",
       "turnSkipped": "GM pomija turę postaci {name}.",
+      "turnFinished": "{name} kończy swoje Objection przed czasem.",
+      "finishedGm": "Gracz postaci {name} kończy jej Objection przed czasem, tak jak zrobiłby to twój Pomiń.",
       "modeEnded": "GM kończy tryb {mode}.",
       "gmNoteAdjust": "GM: {seconds} s",
       "gmNoteBack": "GM: powrót do debaty",
@@ -2082,6 +2088,10 @@
         "thesisTooltip": "Widoczna pod pytaniem, gdy obozy się spierają",
         "thesisLineTooltip": "Jedno krótkie zdanie za twoją strefą, widoczne dla całego stołu",
         "thesisPostTooltip": "Kładzie twoją tezę na stół jako kartę; twoja tura trwa dalej",
+        "finishKeepTooltip": "Zamyka to okno; twoje Objection trwa według zegara",
+        "finishDoneTooltip": "Kończy teraz czas twojego Objection; zaczyna się rebuttal",
+        "confirmEndTooltip": "Kończy teraz twoją turę; głos przechodzi dalej",
+        "confirmKeepTooltip": "Zamyka to okno; twoja tura trwa według zegara",
         "setTooltip": "Zestaw Logic Dive do zagrania. Liczba to liczba jego pytań.",
         "editTooltip": "Zmienia treść. Stół dostaje wiadomość, co było i co jest teraz.",
         "deleteTooltip": "Od razu usuwa Finding z listy i mówi o tym stołowi",
@@ -3872,6 +3882,11 @@
       "objectionOutside": "Objection możesz wnieść tylko podczas Class Trial.",
       "objectionNoneInMode": "W trybie {mode} nie można wnosić Objection.",
       "objectionSpeakerOnly": "W trybie {mode} Objection można zgłosić tylko wobec osoby, która mówi.",
+      "finish": {
+        "title": "Zakończyć turę teraz?",
+        "body": "W twoim Objection głos masz tylko ty. Pozostały czas: {seconds} s. Gdy zakończysz teraz, zaczyna się rebuttal.",
+        "yes": "Zakończ turę"
+      },
       "turn": {
         "title": "Twoja tura ({seconds} s)",
         "body": "{mode}: masz głos. Naciśnij Gotowe, gdy skończysz, albo Pasuję, jeśli rezygnujesz z tury.",
@@ -3885,7 +3900,10 @@
         "closingPassEarly": "Pasuję w pierwszych {seconds} s oddaje wybór GM-owi; potem kończy Closing Argument.",
         "closingPass": "Pasuję kończy Closing Argument, tak jak Gotowe.",
         "left": "Pozostały czas: {seconds} s.",
-        "keepNote": "Mówię dalej chowa to okno. Wróci za {seconds} s, z Gotowe i Pasuję."
+        "keepNote": "Mówię dalej chowa to okno. Wróci za {seconds} s, z Gotowe i Pasuję.",
+        "confirmTitle": "Zakończyć turę teraz?",
+        "confirmBody": "Pozostały czas: {seconds} s. Gdy zakończysz teraz, głos przechodzi dalej.",
+        "confirmYes": "Zakończ moją turę"
       },
       "claim": {
         "body": "Podsumujesz sprawę w Closing Argument? Na zgłoszenie masz {seconds} s. Potem jedna zgłoszona osoba zostaje wylosowana, a GM ją zatwierdza albo wybiera kogoś innego.",
@@ -6162,6 +6180,7 @@
     "Frisk": {
       "rowLabel": "Zobacz, co ktoś nosi",
       "rowHint": "Przejrzyj czyjeś kieszenie i niczego nie bierz.",
+      "notInTrial": "Frisk czeka, aż skończy się Class Trial; w rozprawie Palm tylko coś zabiera albo podrzuca.",
       "noticeTitle": "Frisk",
       "unseenLabel": "Ukradkiem",
       "unseenHint": "Shadow {unseen}+, żeby nikt nie zauważył, potem Hand {hand}+, żeby zobaczyć wszystko.",
@@ -8792,6 +8811,8 @@
         "objection": "Nie masz już akcji, Hope ani Sanity, więc nie możesz wnieść objection.",
         "analyze": "Nie masz już akcji, Hope ani Sanity, więc nie masz czym zapłacić za Analyze.",
         "analyzeOneStep": "Nie masz już akcji, więc nie masz czym zapłacić za Analyze.",
+        "palm": "Nie masz już akcji, Hope ani Sanity, więc nie masz czym zapłacić za Palm.",
+        "palmOneStep": "Nie masz już akcji, więc nie masz czym zapłacić za Palm.",
         "tamper": "Nie masz już akcji, a Tamper nie przyjmuje niczego innego.",
         "tamperSkippedAction": "Akcja nie jest tu potrzebna, ale nie masz już Sanity, by zapłacić."
       },

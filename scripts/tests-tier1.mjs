@@ -28891,7 +28891,7 @@ const INVARIANTS = [
         }).map(([k, f, unit]) => `${k} in ${f}${unit ? ` ${unit}()` : ""}`).concat(helpers);
         equal(bad.join("; "), "", "{the keys whose words are missing or too long, or whose control's function does not draw them}");
     }],
-    ["R4752 - the chapter, murder and Class Trial windows draw their tooltips (E102 C3, 13.11.2026; the owner's stage \"Tooltips across the module\", docs/dev/e102/TOOLTIPS.json and KEYS.json): each of the family's 37 keys (34 until E110 C3, 36 until E40 on 16.11.2026) under DRPG.Tips.Trial has words in English and in Polish, at most 23 words each (the guide's tooltip limit), and the function that draws its control writes it where that control draws it (tests-tips.mjs `tipPlacement`: inside the control's own tag and not as a condition, as a labelled button's or tab's `tooltip`, in a builder's `data-tooltip` attrs, by `setTip`, or through a named local helper that writes it; a count's words through `plural`, each form within the limit)", async () => {
+    ["R4752 - the chapter, murder and Class Trial windows draw their tooltips (E102 C3, 13.11.2026; the owner's stage \"Tooltips across the module\", docs/dev/e102/TOOLTIPS.json and KEYS.json): each of the family's 41 keys (34 until E110 C3, 36 until E40 on 16.11.2026, 37 until E129 on 23.11.2026) under DRPG.Tips.Trial has words in English and in Polish, at most 23 words each (the guide's tooltip limit), and the function that draws its control writes it where that control draws it (tests-tips.mjs `tipPlacement`: inside the control's own tag and not as a condition, as a labelled button's or tab's `tooltip`, in a builder's `data-tooltip` attrs, by `setTip`, or through a named local helper that writes it; a count's words through `plural`, each form within the limit)", async () => {
         /* Red at 70613472 with the keys and this test in place and the family's scripts as they were: no function read a DRPG.Tips.Trial key. Since REVIEW-E102-code C1: where the key lands, not only that it is named - red on the review's planted ternary that names the key and draws nothing (action-dynamic.mjs:336). */
         const TIPS = [
             ["DRPG.Tips.Trial.moveToChapterToTooltip","chapter.mjs","chapterEndForm"],
@@ -28932,7 +28932,13 @@ const INVARIANTS = [
             ["DRPG.Tips.Trial.thesisLineTooltip","trial-prompt.mjs","promptThesis"],
             ["DRPG.Tips.Trial.thesisPostTooltip","trial-prompt.mjs","promptThesis"],
             // E40 (16.11.2026, the line claude/e40-117): a tick per accused in the verdict window - the family grew by one.
-            ["DRPG.Tips.Trial.executedEachTooltip","verdict.mjs","openVerdictDialog"]
+            ["DRPG.Tips.Trial.executedEachTooltip","verdict.mjs","openVerdictDialog"],
+            // E129 S0-SKIP and S0-CUT P2 (23.11.2026): the objector's Finish your turn now? and Your turn's End your turn now? -
+            // the family grew by four.
+            ["DRPG.Tips.Trial.finishKeepTooltip","trial-prompt.mjs","promptFinish"],
+            ["DRPG.Tips.Trial.finishDoneTooltip","trial-prompt.mjs","promptFinish"],
+            ["DRPG.Tips.Trial.confirmKeepTooltip","trial-prompt.mjs","confirmEnd"],
+            ["DRPG.Tips.Trial.confirmEndTooltip","trial-prompt.mjs","confirmEnd"]
         ];
         const en = await fetch(`/modules/${MODULE_ID}/lang/en.json`).then(r => r.json());
         const pl = await fetch(`/modules/${MODULE_ID}/lang/pl.json`).then(r => r.json());
@@ -28940,7 +28946,7 @@ const INVARIANTS = [
         const src = new Map();
         for (const f of new Set(TIPS.map(t => t[1]))) src.set(f, stripComments(await fetch(`/modules/${MODULE_ID}/scripts/${f}`).then(r => (r.ok ? lfText(r) : ""))));
         must([...src.values()].every(s => s.length > 500), "a script of the family read as nothing - this would measure nothing");
-        must(Object.keys(words(en, "DRPG.Tips.Trial") ?? {}).length === 37, "lang/en.json has not the family's 37 keys under DRPG.Tips.Trial");
+        must(Object.keys(words(en, "DRPG.Tips.Trial") ?? {}).length === 41, "lang/en.json has not the family's 41 keys under DRPG.Tips.Trial");
         const fits = w => (w && typeof w === "object" ? Object.values(w).length > 0 && Object.values(w).every(fits) : typeof w === "string" && w.trim().length > 0 && w.trim().split(/\s+/).length <= 23);
         const P = await import("./tests-tips.mjs");
         must(P.tipPlacementSelfCheck().length === 0, `tests-tips.mjs misreads its own plants: ${P.tipPlacementSelfCheck().join("; ")}`);
@@ -34494,8 +34500,9 @@ const INVARIANTS = [
             minusDebate: { mode: "debate", left: 0, seconds: 300, stack: [], note: "DRPG.Floor.gmNoteAdjust", cards: [] },
             minusEmpty: { refused: "DRPG.Floor.bar.noTime" },
             plusOverrun: { mode: "debate", left: 30, seconds: 300, stack: [], note: "DRPG.Floor.gmNoteAdjust", cards: [] },
-            plusPastLimit: { mode: "objection", left: 80, seconds: 300, stack, note: "DRPG.Floor.gmNoteAdjust", cards: [] },
-            objection: { mode: "objection", left: 60, seconds: 300, stack, note: null, cards: [] },
+            // An Objection's own seconds are 30 since 1.2.129 (E129 S0-OBJ; R8770): 60 and 80 until then.
+            plusPastLimit: { mode: "objection", left: 50, seconds: 300, stack, note: "DRPG.Floor.gmNoteAdjust", cards: [] },
+            objection: { mode: "objection", left: 30, seconds: 300, stack, note: null, cards: [] },
             back: { mode: "debate", left: 200, seconds: 200, stack: [], note: null, cards: [] },
             backOld: { mode: "debate", left: 240, seconds: 240, stack: [], note: null, cards: [] },
             backDebate: { refused: "DRPG.Floor.bar.inDebate" },
@@ -35050,7 +35057,8 @@ const INVARIANTS = [
             seven: [1, B, 2],
             due: step2(B), skip: step2(B, [["DRPG.Floor.turnSkipped", A]]),
             gone: step2(B, [passes(A)]), goneOther: { refused: "DRPG.Floor.round.notSpeaker" },
-            objection: { mode: "objection", holder: D, left: 60, step: 1, stack: [[CARD, "testimony", 40]], cards: [] },
+            // 30 s since 1.2.129 (E129 S0-OBJ; R8770), 60 until then.
+            objection: { mode: "objection", holder: D, left: 30, step: 1, stack: [[CARD, "testimony", 40]], cards: [] },
             rebuttalDue: step2(B), rebuttalSkip: step2(B, [["DRPG.Floor.turnSkipped", A]]),
             overrule: step2(A, [], 40), lapse: step2(A, [], 40),
             endExchange: step2(B, [["DRPG.Floor.modeEnded", "objection"]]),
@@ -48418,7 +48426,7 @@ const INVARIANTS = [
             kit: [[false, false], [true, false]],
             asking: ["action-menus.mjs chooseVariant", "action-menus.mjs promptForNote", "action-project.mjs proposeProjectTrait", "call-gm.mjs askForRequest", "frisk.mjs askToForce", "frisk.mjs openAskWindow",
                 "level-up.mjs askWhoPicks", "level-up.mjs openAdvancement", "mask-gm.mjs askReveal", "observe.mjs askWhichRemnant", "observe.mjs describeFind", "observe.mjs wireDescribeHere", "trait-ruling.mjs pickHere",
-                "trait-ruling.mjs rollChanged", "trial-prompt.mjs promptClaim", "trial-prompt.mjs promptTurn", "vote.mjs castBallot"],
+                "trait-ruling.mjs rollChanged", "trial-prompt.mjs confirmEnd", "trial-prompt.mjs promptClaim", "trial-prompt.mjs promptFinish", "trial-prompt.mjs promptTurn", "vote.mjs castBallot"],
             naming: ["roll-dialog.mjs", "stacking.mjs", "ui-kit.mjs"],
             // E69 C1: the Infiltrate tile's rows (action-listen.mjs `performListen`), an action's declaration.
             menus: ["action-analyze.mjs", "action-listen.mjs", "action-murder.mjs", "action-observe.mjs", "action-project.mjs", "action-rest.mjs", "action-search.mjs", "action-tamper.mjs",
@@ -60933,7 +60941,10 @@ const INVARIANTS = [
             player: ids(K.seenHere(cast, { scenes, shown, user: player })),
             gm: ids(K.seenHere(cast, { scenes, shown, user: gm })),
             unbound: ids(K.seenHere(cast, { scenes, shown: null, user: player })),
-            filtered: Object.fromEntries(Object.entries(pickers).map(([k, text]) => [k, /seenHere\(othersInRoom\(actor\)\)/.test(text)]))
+            // Palm's list since 1.2.129 is its place's (palm.mjs `palmPlace`: the room's `othersInRoom`, or the trial's hall; E129 S0-PALM).
+            filtered: Object.fromEntries(Object.entries(pickers).map(([k, text]) => [k, k === "palm"
+                ? /seenHere\(palmPlace\(actor\)\?\.others\(\) \?\? \[\]\)/.test(text) && /room \? \{ room, others: \(\) => othersInRoom\(actor\) \}/.test(text)
+                : /seenHere\(othersInRoom\(actor\)\)/.test(text)]))
         }), stableJson({
             player: ["other", "shownKiller"], gm: ["killer", "other", "shownKiller"], unbound: ["killer", "other", "shownKiller"],
             filtered: { handover: true, palm: true, tail: true, call: true, monocub: true }
@@ -67975,6 +67986,68 @@ const INVARIANTS = [
             tamper: /popupCentre: "actionResult", \.\.\.\(success \? \{\} : \{ sfx: "cleanupFailed" \}\)/.test(src("cleanup.mjs"))
         }), stableJson({ rollCard: "actionResult", report: true, tail: true, bedroom: true, bedroomCalls: 2, body: true, infiltrate: [true, true, true], cover: true, tamper: true }),
         "{rollCard: Observe/Analyze/Listen; report: every action's result; tail: noticed or not, the Shadow roll with its number first, then the effect roll; bedroom: not a lock only mended; bedroomCalls: both of the owner's cards; body; infiltrate: the five Infiltrate cards with their roll; cover: Pick's second roll; tamper: Tamper's card}");
+    }],
+    ["R8770 - an Objection's own time is 30 s (E129 S0-OBJ; the owner's note of 23.11.2026, \"objection skrocic do 30s\"): config.mjs `TRIAL.objectionSeconds` is 30 and an Objection's floor runs 30 s in a debate and in a round; its seconds to pick a bullet stay `TRIAL.objectionPickSeconds` (30), the Closing's exchange keeps 60 (`TRIAL.modes.closing.objectionSeconds`, the coordinator's default) and the rebuttal 120; no handbook of either language and no text calls the objector's time a minute or 60 seconds", async () => {
+        /* Read off the machine (floor-machine.mjs `modeSecondsOf`) on floors its own events build, and off the six
+           handbooks and both language files as the module serves them. Red at 2e28785a: 60 s, and the minute words. */
+        const { TRIAL } = await import("./config.mjs");
+        const M = await import("./floor-machine.mjs");
+        const ctx = { now: 1_000_000, absent: [] };
+        const debate = M.nextFloor(null, { type: "start", seconds: 180 }, ctx).floor;
+        const round = M.nextFloor(null, { type: "round", mode: "testimony", seconds: 60, order: ["suite-a", "suite-b"] }, ctx).floor;
+        must(debate && round, "the machine opened no debate or no round - this would measure nothing");
+        const objecting = floor => M.nextFloor(floor, { type: "objection", holderId: "suite-b", targetId: floor.holderId ?? "suite-a", cardId: "suite-card" }, ctx).floor;
+        const picking = M.nextFloor(debate, { type: "objection", holderId: "suite-b", targetId: "suite-a", pending: true, messageId: "suite-card" }, ctx).floor;
+        const closingExchange = { mode: "objection", pending: false, holderId: "suite-b", targetId: "suite-a", startedAt: ctx.now, seconds: 0,
+            closing: { phase: "speak", step: 1, speakerId: "suite-a" }, before: [] };
+        const read = {
+            constant: TRIAL.objectionSeconds, debate: M.modeSecondsOf(objecting(debate)), round: M.modeSecondsOf(objecting(round)),
+            pick: [M.modeSecondsOf(picking), TRIAL.objectionPickSeconds], closing: [M.modeSecondsOf(closingExchange), TRIAL.modes?.closing?.objectionSeconds ?? null],
+            rebuttal: M.modeSecondsOf({ ...objecting(debate), mode: "rebuttal" })
+        };
+        const said = {
+            en: ["Objection's minute", "its minute", "Objection 60 seconds", "60 s, then 120 s", "| the objector alone | 60 seconds", "for **60 seconds", "then 60 s", "the 60 seconds", "60 + 120 s"],
+            pl: ["minuta Objection", "minucie Objection", "jego minuty", "Objection dostaje 60", "60 s, potem 120 s", "| tylko wnoszący | 60 sekund", "przez **60 sekund", "przez 60 s", "czeka; 60 sekund", "60 + 120 s"]
+        };
+        const found = [];
+        let files = 0;
+        for (const lang of ["en", "pl"]) {
+            for (const id of ["gm-handbook", "player-handbook", "player-brochure"]) {
+                const res = await fetch(`/modules/${MODULE_ID}/docs/handbooks/${id}.${lang}.md`);
+                if (!res.ok) continue;
+                files++;
+                const text = await lfText(res);
+                for (const line of text.split("\n")) {
+                    if (!/objection|wnosząc|objector/i.test(line)) continue;
+                    for (const words of said[lang]) if (line.includes(words)) found.push(`${id}.${lang}: ${words}`);
+                }
+            }
+            const keys = await (await fetch(`/modules/${MODULE_ID}/lang/${lang}.json`)).json();
+            const note = keys?.DRPG?.Floor?.gm?.objectionNote ?? keys?.DRPG?.Floor?.objectionNote ?? null;
+            files++;
+            if (typeof note !== "string") found.push(`${lang}.json: no objectionNote`);
+            else if (/minut/i.test(note)) found.push(`${lang}.json objectionNote: ${note}`);
+        }
+        must(files === 8, `read ${files} of the six handbooks and two language files - this would measure too little`);
+        equal(stableJson({ read, found }), stableJson({ read: { constant: 30, debate: 30, round: 30, pick: [30, 30], closing: [60, 60], rebuttal: 120 }, found: [] }),
+            "{read: [the constant, an Objection's seconds in a debate, in a round, [while its bullet is picked, the pick constant], [the Closing's exchange, its constant], the rebuttal]; found: the texts that still say a minute or 60 s}");
+    }],
+    ["R8772 - Palm is open in the Class Trial and paid as Analyze is there (E129 S0-PALM; the owner's note of 23.11.2026, \"palm powinno byc dostepne w trialu za akcje, potem za hope, potem za sanity\"): allowed-now.mjs `TRIAL_OPEN_ACTIONS` holds Analyze and Palm, and in a trial the action road opens those two and shuts the rest; the person road opens Palm's key alone; config.mjs `PRICE_CHAINS.palm` is an action, then Hope, then Sanity, the later steps in the trial alone, its first step Palm's tile cost; `TRIAL.palmHallIsOneRoom` is on", async () => {
+        /* Pure over handed-in facts (allowed-now.mjs `allowedNow`'s `facts`). Red at 2e28785a: Analyze alone, no chain. */
+        const { ACTIONS, PRICE_CHAINS, TRIAL } = await import("./config.mjs");
+        const A = await import("./allowed-now.mjs");
+        const facts = trial => ({ trial: () => trial, eclipse: () => false, fighting: () => false, betrayal: () => false, participant: () => false });
+        const open = ["search", "observe", "analyze", "listen", "palm", "project", "rest", "dynamic", "tamper"].filter(k => A.allowedNow(null, k, { facts: facts(true) }).ok);
+        const chain = PRICE_CHAINS.palm ?? null;
+        equal(stableJson({
+            table: A.TRIAL_OPEN_ACTIONS ?? null, open,
+            person: [A.allowedNow(null, "palm", { road: "person", facts: facts(true) }).ok, A.allowedNow(null, null, { road: "person", facts: facts(true) }).why],
+            chain: chain ? [chain.steps.map(s => [s.pay, s.amount]), chain.stepsBeyondFirst, chain.steps[0].amount === ACTIONS.palm.cost] : null,
+            hall: TRIAL.palmHallIsOneRoom ?? null
+        }), stableJson({
+            table: ["analyze", "palm"], open: ["analyze", "palm"], person: [true, "trial"],
+            chain: [[["action", 1], ["hope", 1], ["stress", 1]], "classTrial", true], hall: true
+        }), "{table; open: the action keys a trial leaves open; person: [Palm's road, a nameless one's reason]; chain: [steps, the phase of the later ones, its first step the tile's cost]; hall}");
     }],
     ["R8675 - a centred action card tells a Despair roll's trace no more than the corner did (the owner, 22.11.2026: \"by nie zdradzaly ze gracz zostawia remnant, gdy nie powinien o tym wiedziec\"; 1.2.124 line UI): action-report.mjs `reportHtml` with `leftTrace` from remnants.mjs `traceFeedback`, drawn centred by popup.mjs `showPopup`: a Despair roll with a trace placed and one with none give the same centred card, byte for byte, the number beside its dice included; a Hope roll with a trace says so and one with none does not", async () => {
         /* Red at 52057a2b: no `reportHtml` and no centred card. The mutant that answers `traceFeedback` with `placed` alone

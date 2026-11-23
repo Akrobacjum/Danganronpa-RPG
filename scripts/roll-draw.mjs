@@ -941,7 +941,8 @@ const CLAIMED_ONLY = Object.freeze(["friskAsk", "echoes", "park", "betrayal"]);
 /** The rolls of an act that costs no action, drawn on no ticket (`drawRefusal`): a Take's Hand and its cover's Shadow (E68 C10). */
 const PAID_BY_NOTHING = Object.freeze(["loot", "lootCover"]);
 /** The price chain an action's roll is paid by, where it has one (PRICE_CHAINS; cleanup.mjs `chargeTamper`). */
-const CHAIN_OF = Object.freeze({ analyze: "analyze", cleanup: "tamper" });
+// Palm since 1.2.129 (E129 S0-PALM): its Shadow roll is paid by Palm's chain, a Hope or a Sanity mark inside a Class Trial.
+const CHAIN_OF = Object.freeze({ analyze: "analyze", cleanup: "tamper", palm: "palm" });
 /** Each character's tickets on this GM: `{ at, pay, kinds, size }`, `kinds` the rolls drawn on it (or `call`, a Hope Call's progress: `takeCallPayment`), `size` how much it paid. */
 const payments = new Map();
 /**

@@ -1271,9 +1271,9 @@ export function actionButton(actor, key, def) {
     const canBetray = key === "directMurder" && Boolean(betrayalTarget(actor));
 
     /*
-     * AND IN A CLASS TRIAL, ONE TILE (T-1, Dawid 17.09).
+     * AND IN A CLASS TRIAL, TWO TILES (T-1, Dawid 17.09; Palm since 1.2.129, E129 S0-PALM).
      *
-     * Analyze. The other nine are shut, Move included, and the reason the player
+     * Analyze, and Palm (allowed-now.mjs `TRIAL_OPEN_ACTIONS`). The others are shut, Move included, and the reason the player
      * reads is the trial rather than the Eclipse - the same rule `performAction`
      * enforces, said here in advance so nobody presses a tile to be told no.
      * Direct Murder keeps its inverted rule and needs no branch: it is open only
