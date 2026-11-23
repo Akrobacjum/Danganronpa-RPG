@@ -50,7 +50,7 @@ export async function run({ gm, p1, p2, check, note, phase, settle, repoUrl: REP
         await settle(600);
         const botanRow = await gm.eval(`const S = ${imp("gm-stores.mjs")}; return Boolean(S.hideStore.get("${IDS.botan}"));`);
         check("refuse: p1's hide.start for Botan, whom it does not own, is refused and hides nobody",
-            refused?.ok === false && refused.refused === true && botanRow === false, JSON.stringify({ refused, botanRow }));
+            refused?.ok === false && refused.refused === true && botanRow === false, JSON.stringify({ refused, botanRow }), { flow: "hide" });
 
         phase("hide");
         const hid = await gm.eval(`const R = ${imp("bridge-runs-acts.mjs")}, S = ${imp("gm-stores.mjs")}, V = ${imp("voice.mjs")};
@@ -62,7 +62,7 @@ export async function run({ gm, p1, p2, check, note, phase, settle, repoUrl: REP
         await settle(1200);
         check("hide: the primary hides Aiko on 18 - the GMs' row naming p1, the flag on her token and no Foundry hidden, p1's microphone held",
             hid?.out?.reply?.hidden === true && hid.row === true && hid.owners.includes(p1User) && hid.flag === true && hid.hidden === false && hid.mic === "hiding",
-            JSON.stringify(hid));
+            JSON.stringify(hid), { flow: "hide" });
 
         phase("own");
         const own = await p1.eval(`const V = ${imp("visibility.mjs")}, H = ${imp("hide.mjs")}, VO = ${imp("voice.mjs")}, T = ${imp("voice-tile.mjs")};
@@ -73,7 +73,7 @@ export async function run({ gm, p1, p2, check, note, phase, settle, repoUrl: REP
                 mine: H.myHiding()?.id ?? null, shut: H.hideShutWhy(aiko) === game.i18n.localize("DRPG.Hide.already"),
                 tile: Boolean(tile), button: tile ? Boolean(tile.querySelector(".drpg-voice-unhide")) : null };`);
         check("own: p1 draws its own Aiko, faded to 0.4, its microphone held as hiding, its own hide read off the token, and Hide's row shut as already hidden",
-            own?.shown === "show" && own.alpha === 0.4 && own.mic === "hiding" && own.mine === IDS.aiko && own.shut === true, JSON.stringify(own));
+            own?.shown === "show" && own.alpha === 0.4 && own.mic === "hiding" && own.mine === IDS.aiko && own.shut === true, JSON.stringify(own), { flow: "hide" });
         if (own?.tile) check("own: p1's voice tile carries Reveal yourself while Aiko hides", own.button === true, JSON.stringify(own));
         else note("own: no voice tile stands on p1 in this run, so its Reveal yourself is read by R8905 alone", JSON.stringify(own));
 
@@ -87,7 +87,7 @@ export async function run({ gm, p1, p2, check, note, phase, settle, repoUrl: REP
                 seen: K.seenHere([aiko, botan]).map(a => a.id), heard, store: Object.keys(S.hideStore.entries() ?? {}).length };`);
         check("others: with the room rule off, p2 does not draw Aiko, its voice tile hides her player, its room's people and Listen leave her out, and the GMs' store is not on p2",
             others?.shown === "hide" && others.voice === true && !others.seen.includes(IDS.aiko) && others.seen.includes(IDS.botan)
-                && (others.heard === null || !others.heard.includes(IDS.aiko)) && others.store === 0, JSON.stringify(others));
+                && (others.heard === null || !others.heard.includes(IDS.aiko)) && others.store === 0, JSON.stringify(others), { flow: "hide" });
 
         phase("console");
         const consoleRead = await p2.eval(`const tokens = game.scenes.contents.flatMap(s => [...s.tokens]);
@@ -103,7 +103,7 @@ export async function run({ gm, p1, p2, check, note, phase, settle, repoUrl: REP
         const notCover = await p2.eval(`const H = ${imp("hide.mjs")}; return H.coverWhileHidden(game.actors.get("${IDS.botan}"));`);
         const coverTotal = await gm.eval(`const C = ${imp("config.mjs")}; return C.INFILTRATE.hide.coverTotal;`);
         check("cover: while Aiko hides her Shadow cover stands passed on p1, and Botan, who does not hide, throws his on p2",
-            cover?.hidden === true && cover.total === coverTotal && cover.isCritical === false && notCover === null, JSON.stringify({ cover, notCover }));
+            cover?.hidden === true && cover.total === coverTotal && cover.isCritical === false && notCover === null, JSON.stringify({ cover, notCover }), { flow: "hide" });
 
         phase("reveal");
         const pressed = await p1.eval(`const H = ${imp("hide.mjs")}; return await H.requestUnhide();`, { timeout: 30000 });
@@ -115,7 +115,7 @@ export async function run({ gm, p1, p2, check, note, phase, settle, repoUrl: REP
         const micAgain = await p1.eval(`const VO = ${imp("voice.mjs")}; return VO.micHold()?.reason ?? null;`);
         check("reveal: p1's Reveal yourself ends the hide on the primary - no row, no flag, no hold - and p2 draws Aiko as it did before the hide",
             pressed === true && after?.row === false && after.flag === false && after.mic !== "hiding" && seenAgain?.off === null && seenAgain.room === p2Before.room && micAgain !== "hiding",
-            JSON.stringify({ pressed, after, seenAgain, micAgain }));
+            JSON.stringify({ pressed, after, seenAgain, micAgain }), { flow: "hide" });
     } finally {
         await gm.eval(`const H = ${imp("hide.mjs")}, S = ${imp("gm-stores.mjs")}, V = ${imp("voice.mjs")}, U = ${imp("utils.mjs")};
             for (const id of ["${IDS.aiko}", "${IDS.botan}"]) if (S.hideStore.get(id)) await H.endHide(id, "reveal");

@@ -9467,7 +9467,7 @@ const SCENARIOS = [
             await H.startHide({ actor: who, total: 20 });
             const clockNow = (await import("./settings.mjs")).getClock();
             await deathStore.patch(who.id, { chapter: clockNow.chapter, day: clockNow.day, timeOfDay: clockNow.timeOfDay, at: Date.now() });
-            read.death = (await H.settleHides())?.ended ?? null;
+            // The primary's own hook ends it (drpgDeathsChanged -> settleHides), with no settle asked here: read after it.
             await settle();
             read.deathAfter = [Boolean(hideStore.get(who.id)), flagged(), mic()];
         } finally {
@@ -9481,8 +9481,8 @@ const SCENARIOS = [
         equal(stableJson(read), stableJson({ miss: { hidden: false }, missed: [false, 0, null], hit: { hidden: true }, hidden: [true, true, "hiding", true],
             again: { refused: "that cannot be done now" }, end: { ended: true }, shown: [false, 0, null],
             chapter: { ended: [who.id], flagged: 0, swept: 0 }, chapterAfter: [false, 0, null], swept: 1, sweptAfter: 0,
-            death: [who.id], deathAfter: [false, 0, null] }),
-        "{a miss's answer, [row, flagged tokens, the microphone's hold]; a hit's, [row, every token off the hall flagged, hold, the owner on the row]; a second hide; Reveal yourself's, [row, flags, hold]; the settle at another chapter, after; a flag with no row swept, after; the settle after a death, [row, flags, hold]}");
+            deathAfter: [false, 0, "secretDead"] }),
+        "{a miss's answer, [row, flagged tokens, the microphone's hold]; a hit's, [row, every token off the hall flagged, hold, the owner on the row]; a second hide; Reveal yourself's, [row, flags, hold]; the settle at another chapter, after; a flag with no row swept, after; after a death the GMs keep, [row, flags, the hold: the secret death's, not the hide's]}");
     }],
     ["1.2.122 STG-31 - the primary runs the opening's veil another GM asks for, held to its own declarations (scripts/bridge-runs-acts.mjs `handleMaskVeil`; mask-gm.mjs `veilOnPrimary`; the audit's STG-31, 1.2.122 line MURDER): the lights' veil for a killer with a declaration of this Eclipse and one with none veils the first alone, the lights' end lifts it, and a request of no road is refused", async () => {
         /*
