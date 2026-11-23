@@ -279,7 +279,13 @@ export const FLAGS = {
      * Token: a dead student's Spectator token the student walks as a Monocub (E62 C3b; Q-C3b-7's default), so that a
      * Monocub no more gets that token back as its Spectator's (spectator-dead.mjs `monocubBecomesWatcher`). A GM's write.
      */
-    cubToken: "cubToken"
+    cubToken: "cubToken",
+    /**
+     * Token: a dead student's corpse, from the death on - a kept death's too - so every browser that draws the token
+     * draws the skull over it (1.2.128, E129 S0-DEADMARK; body-tile.mjs `markCorpse`, `drawCorpseSkull`). `true` alone,
+     * nothing of the death. A GM's write; world-secrets.mjs says why it may stand.
+     */
+    corpse: "corpse"
 };
 
 /**

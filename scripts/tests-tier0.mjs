@@ -7624,7 +7624,10 @@ const REGRESSIONS = [
             "states.mjs touchesTracks flag": "the updateActor hook's trigger reads the change's key, not the actor",
             // E29 C3: the GMs' audit holds the GM-only flags in a student's mark and puts a player's write of one back;
             // it names the flag among the others and never asks whether a student is dead.
-            "sheet-audit.mjs GM_FLAGS flag": "a GM-only flag, held in the GMs' mark and put back"
+            "sheet-audit.mjs GM_FLAGS flag": "a GM-only flag, held in the GMs' mark and put back",
+            // 1.2.128 (E129 S0-DEADMARK): the corpse's drawn skull stands down while the actor wears Foundry's own dead
+            // overlay; a display's read of the status, never whether a student is dead (the token's corpse mark says that).
+            "body-tile.mjs corpseSkullShown status": "the drawn skull stands down while Foundry's overlay is on"
         };
         const census = files => {
             const out = [];

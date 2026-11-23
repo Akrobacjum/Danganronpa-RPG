@@ -67068,6 +67068,25 @@ const INVARIANTS = [
             R.incidentShowsTo("K", [], {})]), stableJson([true, true, false, true, false, false, false]),
             "[the killer, the victim, a victim-side third, a killer-side third, one outside the cast, no leaver, the killer with no cast]");
     }],
+    ["R8734 - a corpse's skull is drawn from its token's mark: over a marked corpse whose actor wears no dead status, on a GM's browser over a hidden one too, and nowhere else (E129 S0-DEADMARK)", async () => {
+        /* 1.2.128, E129 S0-DEADMARK (the owner, 23.11.2026: "czaszka powinna byc od smierci, nie od ogloszenia"). The skull
+           stood on the actor's dead status alone, put on at the publication, so a death the GMs keep wore none; the corpse's
+           token carries `FLAGS.corpse` from the death now (body-tile.mjs `markCorpse`), and `corpseSkullShown` says where
+           the module draws the skull: a marked token, its actor not wearing the status (its own overlay stands in, and
+           Daggerheart takes the status off when Health leaves its maximum, after which the drawn skull is back), and not
+           hidden from this browser. Red at aa9c0456: no `corpseSkullShown`. Pure, on stand-in tokens; nothing written.
+           Scenario 71 K writes the mark at a kill and takes it off at the revive. */
+        const B = await import("./body-tile.mjs");
+        must(typeof B.corpseSkullShown === "function", "body-tile.mjs has no corpseSkullShown: a death the GMs keep draws no skull anywhere");
+        const token = ({ mark = true, hidden = false, dead = false } = {}) => ({ hidden, actorId: "R8734ACTOR",
+            getFlag: (scope, key) => (scope === MODULE_ID && key === FLAGS.corpse && mark ? true : undefined),
+            actor: { statuses: new Set(dead ? ["dead"] : []) } });
+        const shown = (opts, gm) => B.corpseSkullShown(token(opts), { gm });
+        equal(stableJson([shown({}, false), shown({ dead: true }, false), shown({ hidden: true }, false), shown({ hidden: true }, true),
+            shown({ mark: false }, true), shown({ mark: false, dead: true }, false)]),
+            stableJson([true, false, false, true, false, false]),
+            "[a marked corpse; its actor wearing the dead status; hidden, on a player's browser; hidden, on a GM's; no mark; no mark, the status on]");
+    }],
     ["R8733 - a second GM's own opening roll, sent to the primary, reads as made on this browser: the tracker's Ask again says the roll is thrown here, not that nothing was sent (E128; scripts/murder-rules.mjs `throwOpeningRoll`, `rollOpening`, murder-ui.mjs `reaskOpening`; OWNER-128-SECOND-GM fix 2)", async () => {
         /* Red at ed0b1ad3's parent (9eb89710): a GM's answer was `res.value`, and a result relayed to the primary carries none,
            so `throwOpeningRoll` (and `rollOpening` with it) answered undefined and Ask again said "openingReaskNone". Read off the source (tier 1 rolls nothing):

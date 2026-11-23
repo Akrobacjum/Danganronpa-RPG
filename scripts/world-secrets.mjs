@@ -206,6 +206,13 @@ export const WORLD_SECRET_RULES = Object.freeze({
            `isRemnant` and, while its incident runs, `fromIncident`. What an older world still carried
            there, a trace's from before the ledger and a Faint Prep promotion written until E04,
            comes off at the first load of 1.2.64 (`migrateRemnantsOnce`; S05-06, S06-02). */
+        /* NO RULE FOR THE CORPSE'S MARK, BY THE OWNER'S WORDS OF 23.11.2026 ("czaszka powinna byc od smierci, nie od
+           ogloszenia"; the coordinator's road B, its tells accepted by default). A dead student's token carries
+           `corpse: true` from the death, a death the GMs keep included (body-tile.mjs `markCorpse`), so every browser draws
+           the skull over it: a console reads on the token that this student is dead before anybody announced it, and a
+           student alone in the room sees a body. That is the mark's purpose. It holds `true` alone - nothing of when, how
+           or by whom - and the death's record stays the GMs' row until the publication. Named here so that nobody adds a
+           rule for it, or lifts it into a store, believing it an oversight. */
         Token: Object.freeze(["remnantType", "visibility", "reinforced", "faint", "tiedToCrime", "note", "action", "subject",
             "sourceActor", "sourceName", "room", "chapter", "day", "timeOfDay", "pointsAt"]),
         // E05 C7: a card's facts - a Search's find, the actor it was about - are its recipients'
