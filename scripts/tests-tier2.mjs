@@ -48583,7 +48583,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             await setClock({ ...clock, phase: "classTrial" });
             await settle();
 
-            for (const key of ["search", "tamper", "palm", "observe", "rest",
+            for (const key of ["search", "tamper", "observe", "rest",
                 "listen", "project", "move", "dynamic", "sabotage"]) {
                 seen.length = 0;
                 const out = await rolls.performAction(who, key);
@@ -48592,6 +48592,21 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             }
             equal(who.system.resources.actions.value, 2,
                 "a tile the trial refused still charged for itself");
+
+            /*
+             * PALM IS OPEN IN THE TRIAL since E129 S0-PALM (the owner's answer 9, relayed by the coordinator on
+             * 23.11.2026: "Palm in trial: the whole hall counts, Steal and Plant open, a forced Frisk shut"; allowed-now.mjs
+             * `TRIAL_OPEN_ACTIONS`). Read: the action road's answer for Palm, and what pressing it says - not the trial's
+             * lock. The student here stands on no hall, so Palm stops at its room or its targets before its window and
+             * charges nothing; what it then does in the hall is "1.2.129 S0-PALM"'s. Red with "palm" taken out of
+             * `TRIAL_OPEN_ACTIONS` (23.11.2026): open false, the lock said.
+             */
+            const { allowedNow } = await import("./allowed-now.mjs");
+            seen.length = 0;
+            const palmOut = await rolls.performAction(who, "palm");
+            equal(stableJson({ open: allowedNow(who, "palm").ok, locked: seen.includes(locked), out: palmOut ?? null, actions: who.system.resources.actions.value }),
+                stableJson({ open: true, locked: false, out: null, actions: 2 }),
+                "Palm was not offered in a Class Trial, or it ran on past its room's check and charged (open, the lock said, what it answered, the actions left)");
 
             // A Despair Call waits for the trial. The refusal comes before the pool
             // is even looked up, so any actor proves the gate.
@@ -83306,7 +83321,10 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         equal(stableJson(read), stableJson({
             control: all("moved"), apart: all("notThere"), roads: [...all("notThere"), "notThere"],
             takerDead: all("cannotNow"), giverDead: all("cannotNow"), keptFromPlayer: "moved",
-            eclipse: all("cannotNow"), classTrial: all("cannotNow"),
+            // In a Class Trial the give stays shut; a Palm's Steal and Plant are open (E129 S0-PALM, the owner's answer 9,
+            // relayed by the coordinator on 23.11.2026: "Palm in trial: the whole hall counts, Steal and Plant open, a forced
+            // Frisk shut"; allowed-now.mjs `TRIAL_OPEN_PERSON`). Red with "palm" taken out of it: all three cannotNow.
+            eclipse: all("cannotNow"), classTrial: ["cannotNow", "moved", "moved"],
             // A give through the person gate since E64 (D001): a Monocub giving, a Monokuma or a hidden token taking are refused as a Plant is.
             monocubGiver: all("cannotNow"), monokumaTaker: ["notThere", "cannotNow", "notThere"],
             hiddenTaker: ["notThere", "moved", "notThere"]
