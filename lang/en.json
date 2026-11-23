@@ -425,7 +425,7 @@
       },
       "uiScale": {
         "name": "Interface scale",
-        "hint": "Sets the size of the module's windows and text, and with them Foundry's windows and the sheet, from 25% to 140%. The map keeps its size. Only affects this browser."
+        "hint": "Sets the size of the module's windows and text, and with them Foundry's windows and the sheet, from 25% to 140%. The map keeps its size; the names on its tokens follow the scale. Only affects this browser."
       },
       "debug": {
         "name": "Verbose console logging",

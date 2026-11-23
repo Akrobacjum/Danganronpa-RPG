@@ -421,7 +421,7 @@
       },
       "uiScale": {
         "name": "Skala interfejsu",
-        "hint": "Wielkość okien i napisów modułu, a z nimi elementów Foundry i arkusza postaci, od 25% do 140%. Mapy nie skaluje. Dotyczy tylko tej przeglądarki."
+        "hint": "Wielkość okien i napisów modułu, a z nimi elementów Foundry i arkusza postaci, od 25% do 140%. Mapy nie skaluje, ale nazwy przy tokenach skalują się razem z interfejsem. Dotyczy tylko tej przeglądarki."
       },
       "debug": {
         "name": "Szczegółowe logi w konsoli",

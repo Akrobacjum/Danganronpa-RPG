@@ -69524,6 +69524,57 @@ const INVARIANTS = [
             JSON.stringify([named, 0, 0, named, named, named > 0 ? 1 : 0]),
             `[on ${docs.length} token(s), ${named} named - first pass: drawn one per named token, kept none; second pass: drawn none, kept every one; captions standing; at most one per token]`);
     }],
+    ["R8875 - the names on the map follow the interface scale: a caption's size and keyline are its theme's type factor times max(18, grid * 0.25) and max(4, grid * 0.0625), read off the body as the label's rung reads it, every caption is drawn again after uiScale changes and not after an unrelated setting, and both themes' label rules stand a quarter over their scaled rung (1.2.129 line MAP, E129; scripts/hover-name.mjs `captionScale`, `drawCaption`, `registerHoverName`; danganronpa.css, stained-glass.css `.drpg-hover-name`; the owner's word on the S0-HOVERNAME shots)", async () => {
+        /*
+         * The owner, 23.11.2026: "Zatwierdzam screeny, ale powiekszmy lekko napisy. Niech skaluja sie tez z interface scaling".
+         * The caption on a stand-in token at a type factor of 1 and of 1.25; `captionScale` reading Legacy's
+         * `--drpg-legacy-scale` and the glass's `--drpg-type-scale` off the body (set here and put back); every caption on
+         * this canvas drawn again on the turn after `clientSettingChanged` for uiScale (the module's counters), none for an
+         * unrelated key; the two label rules read in the stylesheets' source (no layout headless: the label's measured size
+         * at two scales is Chromium's, in the line's report).
+         */
+        const H = await import("./hover-name.mjs");
+        must(typeof H.captionScale === "function" && globalThis.PIXI?.Container, "no captionScale or no PIXI - this would measure nothing");
+        const person = { type: "character", name: "Aoi Kirigaya", id: "a8875", testUserPermission: () => false, getFlag: () => undefined };
+        const token = Object.assign(new PIXI.Container(), { w: 100, h: 100, document: { id: "t8875", parent: { id: "s8875", tokens: [], grid: { size: 100 } },
+            name: "Aoi", hidden: false, displayName: 0, width: 1, height: 1, actor: person, flags: {}, getFlag: () => undefined } });
+        const at = scale => H.drawCaption(token, { on: true, user: { isGM: false, id: "o" }, style: { family: "VT323", fill: 0xeeeeee, stroke: 0x07070a, ready: true, scale } });
+        const one = at(1), [size1, line1] = [one?.style?.fontSize, one?.style?.strokeThickness];
+        const big = at(1.25), [size2, line2] = [big?.style?.fontSize, big?.style?.strokeThickness];
+        const body = document.body, glass = body.classList.contains("drpg-theme-stained-glass");
+        const kept = { legacy: body.style.getPropertyValue("--drpg-legacy-scale"), type: body.style.getPropertyValue("--drpg-type-scale") };
+        const read = [];
+        try {
+            body.classList.remove("drpg-theme-stained-glass");
+            body.style.setProperty("--drpg-legacy-scale", "1.25");
+            body.style.setProperty("--drpg-type-scale", "0.85");
+            read.push(H.captionScale());
+            body.classList.add("drpg-theme-stained-glass");
+            read.push(H.captionScale());
+        } finally {
+            body.classList.toggle("drpg-theme-stained-glass", glass);
+            for (const [name, value] of [["--drpg-legacy-scale", kept.legacy], ["--drpg-type-scale", kept.type]]) {
+                if (value) body.style.setProperty(name, value); else body.style.removeProperty(name);
+            }
+        }
+        const counted = async key => {
+            const total = c => (c["caption.drawn"] ?? 0) + (c["caption.kept"] ?? 0);
+            const before = total((await game.drpg.counters()).counts ?? {});
+            Hooks.callAll("clientSettingChanged", key, null, {});
+            await new Promise(r => setTimeout(r, 60));
+            return total((await game.drpg.counters()).counts ?? {}) - before;
+        };
+        const placeables = (canvas?.tokens?.placeables ?? []).length;
+        const onScale = await counted(`${MODULE_ID}.uiScale`), onOther = await counted(`${MODULE_ID}.debug`);
+        const [legacyCss, glassCss] = await Promise.all(["danganronpa.css", "stained-glass.css"].map(f => fetch(`/modules/${MODULE_ID}/styles/${f}`).then(lfText)));
+        const rule = (css, head) => { const i = css.indexOf(head); return i < 0 ? "" : css.slice(i, css.indexOf("}", i)); };
+        const legacyRule = rule(legacyCss, "body.drpg-theme-monokuma-legacy .drpg-hover-name {"), glassRule = rule(glassCss, "body.drpg-theme-stained-glass .drpg-hover-name {");
+        equal(JSON.stringify([size1, line1, size2, line2, read, placeables > 0 && onScale >= placeables, onOther,
+            /font-size:\s*calc\(var\(--drpg-text-sm\)\s*\*\s*1\.25\)/.test(legacyRule), /--drpg-text-sm:\s*calc\([^;]*--drpg-legacy-scale/.test(legacyCss),
+            /font-size:\s*calc\(var\(--drpg-sg-floor\)\s*\*\s*1\.25\)/.test(glassRule), /--drpg-sg-floor:\s*calc\([^;]*--drpg-sg-scale/.test(glassCss)]),
+            JSON.stringify([25, 6, 31, 8, [1.25, 0.85], true, 0, true, true, true, true]),
+            `[the caption at 1: size, keyline; at 1.25: size, keyline; the factor read under Legacy and under the glass; every caption on this canvas (${placeables}) drawn again after uiScale (${onScale}); none after an unrelated key; Legacy's label a quarter over its rung, which rides the slider; the glass's over its floor, which rides its scale]`);
+    }],
     ["R8790 - a Truth Bullet's holder always sees its Remnant (1.2.128 line INVEST; S0-BULLETSEES): visibility.mjs `remnantShownHere` draws an un-hidden trace for whoever knows it or stands in its incident and for nobody else, and a hidden one for its holder alone while HOLDER_SEES_HIDDEN (true) holds, for nobody when it does not; `applyToRemnantToken` and `shownAsFound` ask it with `knowsRemnant`, and a hidden trace held is shown past Foundry's verdict (`showHeld`); `knowsRemnant` answers true on a GM's browser", async () => {
         /*
          * The owner's notes of 23.11.2026: "Upewnijmy sie tez ze zawsze posiadanie truth bullet = widoczny token

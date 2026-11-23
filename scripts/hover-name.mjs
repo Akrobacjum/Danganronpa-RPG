@@ -204,12 +204,27 @@ function rgbNumber(css) {
 
 let styleMemo = { key: null, style: null };
 
+/**
+ * THE INTERFACE SCALE, AS THE LABEL GETS IT (the owner, 23.11.2026: "powiekszmy lekko napisy. Niech skaluja sie tez z
+ * interface scaling"). The hover label's size is a type rung of its theme's sheet, and each sheet multiplies its own:
+ * Monokuma Legacy's `--drpg-text-sm` by `--drpg-legacy-scale` (the slider, settings.mjs `sliderScale`), Stained Glass's
+ * `--drpg-sg-floor` by `--drpg-sg-scale`, which is `--drpg-type-scale` (the slider on a screen term, `typeScale`). Both
+ * are written on the body by `applyTheme`; the caption takes the same one, so it grows and shrinks as the label does.
+ */
+export function captionScale({ doc = globalThis.document } = {}) {
+    const body = doc?.body;
+    const glass = Boolean(body?.classList?.contains?.("drpg-theme-stained-glass"));
+    const value = Number.parseFloat(body?.style?.getPropertyValue?.(glass ? "--drpg-type-scale" : "--drpg-legacy-scale"));
+    return Number.isFinite(value) && value > 0 ? value : 1;
+}
+
 /** The caption's face, read off the hover label's computed style under this page's theme; kept until the body changes. */
 export function captionStyle({ doc = globalThis.document } = {}) {
     const body = doc?.body;
-    const key = body?.className ?? "";
+    const scale = captionScale({ doc });
+    const key = `${body?.className ?? ""}|${scale}`;
     if (styleMemo.style && styleMemo.key === key) return styleMemo.style;
-    const style = { family: "sans-serif", fill: 0xeeeeee, stroke: 0x07070a };
+    const style = { family: "sans-serif", fill: 0xeeeeee, stroke: 0x07070a, scale };
     try {
         const probe = doc.createElement("div");
         probe.className = HOVER_NAME_CLASS;
@@ -257,7 +272,8 @@ export function drawCaption(token, { on = captionsOn(), user = game.user, style 
     const w = Number(token.w) || (Number(doc?.width) || 1) * grid;
     const h = Number(token.h) || (Number(doc?.height) || 1) * grid;
     const face = text ? (style ?? captionStyle()) : null;
-    const key = text ? JSON.stringify([text, w, h, grid, face.family, face.fill, face.stroke, face.ready !== false]) : null;
+    const scale = Number(face?.scale) > 0 ? Number(face.scale) : 1;
+    const key = text ? JSON.stringify([text, w, h, grid, face.family, face.fill, face.stroke, face.ready !== false, scale]) : null;
     const old = (token.children ?? []).filter(c => c?.name === CAPTION_NAME && !c.destroyed);
     const kept = key ? (old.find(c => c.drpgKey === key) ?? null) : null;
     for (const c of old) {
@@ -273,10 +289,12 @@ export function drawCaption(token, { on = captionsOn(), user = game.user, style 
     count("caption.drawn");
     const label = new PIXI.Text(text, {
         fontFamily: face.family,
-        fontSize: Math.max(14, Math.round(grid * 0.2)),
+        // A quarter larger than first drawn (the owner's "powiekszmy lekko", 23.11.2026: 14 / 0.2 / 3 / 0.05), and the
+        // interface scale on both, as the label's type rides it (`captionScale`).
+        fontSize: Math.round(Math.max(18, grid * 0.25) * scale),
         fill: face.fill,
         stroke: face.stroke,
-        strokeThickness: Math.max(3, Math.round(grid * 0.05)),
+        strokeThickness: Math.max(1, Math.round(Math.max(4, grid * 0.0625) * scale)),
         align: "center"
     });
     label.name = CAPTION_NAME;
@@ -295,6 +313,9 @@ export function recaptionAll(which = null) {
         if (!which || which(token.document)) drawCaption(token);
     }
 }
+
+/* The settings whose change restyles every caption (`captionStyle` reads them off the body). */
+const RESTYLE_KEYS = Object.freeze([SETTINGS.uiScale, SETTINGS.theme, SETTINGS.pixelFont].map(k => `${MODULE_ID}.${k}`));
 
 /* The fields of a token that its caption reads: a move (x, y, elevation, rotation) changes none of them. */
 const TOKEN_FIELDS = ["name", "displayName", "hidden", "flags", "width", "height", "actorId"];
@@ -332,6 +353,12 @@ export function registerHoverName() {
         }
     });
     Hooks.on("drpgProjectSightChanged", () => recaptionAll(projectIdOf));
+    /* The face and its size follow the theme, the pixel face and the interface scale: every caption drawn again after a
+       change to one of them, once `applyTheme` (their onChange) has written the body - hence the next turn. */
+    Hooks.on("clientSettingChanged", key => {
+        if (!RESTYLE_KEYS.includes(key)) return;
+        setTimeout(() => recaptionAll(), 0);
+    });
     // A press anywhere: a click on the token, the start of its drag, a press on a window above it.
     globalThis.document?.addEventListener("pointerdown", () => { if (state.timer !== null || state.el) dropHoverName(); }, { capture: true, passive: true });
 }

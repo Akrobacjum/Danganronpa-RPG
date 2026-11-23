@@ -18,6 +18,14 @@ const q = new URLSearchParams(location.search);
 // As settings.mjs `applyTheme` sets the body: the theme's class, and under Legacy the pixel face (its setting, on by default).
 document.body.classList.add(q.get("theme") === "stained" ? "drpg-theme-stained-glass" : "drpg-theme-monokuma-legacy");
 if (q.get("theme") !== "stained") document.body.classList.add("drpg-pixel-font");
+// The interface scale as applyTheme writes it (settings.mjs: `sliderScale`, `autoScale`, `typeScale`): Legacy's rungs ride
+// the slider, the glass's the slider on a screen term (0.85 at 1080p). `ui` is the slider, 1 by default.
+const slider = +(q.get("ui") || 1);
+const auto = Math.round(Math.min(1, Math.max(0.7, Math.min(Math.max(320, innerWidth) / 2560, Math.max(240, innerHeight) / 1440))) * 100) / 100;
+document.body.style.setProperty("--drpg-legacy-scale", String(q.get("theme") === "stained" ? 1 : slider));
+document.body.style.setProperty("--drpg-type-scale", String(Math.round(slider * Math.max(0.85, auto) * 100) / 100));
+document.documentElement.style.setProperty("--drpg-legacy-scale", document.body.style.getPropertyValue("--drpg-legacy-scale"));
+document.documentElement.style.setProperty("--drpg-type-scale", document.body.style.getPropertyValue("--drpg-type-scale"));
 const g = +(q.get("g") || 100); document.documentElement.style.setProperty("--g", g + "px");
 const pl = q.get("lang") === "pl";
 const T = pl

@@ -37,3 +37,10 @@ v14 table was at hand. What a real table shows is the LIVE-129-MAP items in the 
   keyline stroked then the words filled, `max(14, grid * 0.2)` px over a keyline of `max(3, grid * 0.05)`, its top
   centre `grid * 0.04` under the token. Not PIXI itself: no Foundry here.
 - The caption is a child of the token, not of its picture, so a Remnant's 0.5 on a player's screen does not fade it.
+- Since the owner's word of 23.11.2026 ("powiekszmy lekko napisy. Niech skaluja sie tez z interface scaling"): the
+  caption is `max(18, grid * 0.25)` px over `max(4, grid * 0.0625)` (a quarter over the first draw), times the
+  interface scale as each theme's type rides it (`captionScale`: Legacy `--drpg-legacy-scale`, Stained Glass
+  `--drpg-type-scale`); the page sets both as `applyTheme` does, from `?ui=` (the slider) and the window's size.
+  `caption-legacy-pl-1366x768-ui125.png` is the slider at 125%. Only the three caption files named below were redrawn
+  at the new size: `caption-{stained,legacy}-pl-1920x1080.png` and that one; the other caption shots show the first
+  size.

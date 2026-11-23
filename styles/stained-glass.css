@@ -2420,7 +2420,8 @@ body.drpg-theme-stained-glass :is(#tooltip, .drpg-hover-name) {
    from the rule above, and the floor's type. */
 body.drpg-theme-stained-glass .drpg-hover-name {
     font-family: var(--drpg-font-chrome);
-    font-size: var(--drpg-sg-floor);
+    /* A quarter over the floor (the owner, 23.11.2026); the floor rides `--drpg-sg-scale`, the interface scale's. */
+    font-size: calc(var(--drpg-sg-floor) * 1.25);
     letter-spacing: 0.08em;
 }
 

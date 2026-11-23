@@ -18514,7 +18514,9 @@ body.drpg-theme-monokuma-legacy .drpg-hover-name {
     border-radius: 2px;
     box-shadow: var(--drpg-panel-shadow);
     font-family: var(--drpg-font-pixel, var(--drpg-font-ui));
-    font-size: var(--drpg-text-sm);
+    /* A quarter over the tooltip's rung (the owner, 23.11.2026: "powiekszmy lekko napisy"); the rung carries the
+       interface scale (`--drpg-legacy-scale`), so the label follows it. */
+    font-size: calc(var(--drpg-text-sm) * 1.25);
     line-height: 1.3;
 }
 
