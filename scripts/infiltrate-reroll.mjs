@@ -2,11 +2,11 @@
  * Danganronpa RPG - the Reroll's replays of the Infiltrate tile's rolls and a Facilities roll.
  * ---------------------------------------------------------------------------
  * E69 and E74 C7, E93 (12.11.2026; the coordinator's item 2 of that day). reroll.mjs `replayAction` hands these keys here:
- * a Dash, Tail Someone, Shut the Door, Force the Door, Pick the Lock, Keep Watch and a GM's room action of the Facilities
+ * a Dash, Tail Someone, Shut the Door, Force the Door, Pick the Lock, Keep Watch, Hide and a GM's room action of the Facilities
  * tile. Until this file each fell to `default`, which tells the GMs "this roll left no lasting effect" and leaves what the
  * first roll did standing. Each replay runs on the primary GM, where the Reroll is made, from the GMs' row of the roll and the
  * facts the GMs' run of the action wrote on it (`noteFactOfRoll`: `dashMoves`, `tailTargetId`, `barricadeKey`, `forceRoom`
- * and `forced`, `pickRoom`, `opened` and the cover's, `watchKept`, `facilityKey` and `facilitySuccess`), and answers the
+ * and `forced`, `pickRoom`, `opened` and the cover's, `watchKept`, `hid`, `facilityKey` and `facilitySuccess`), and answers the
  * facts it changed, which reroll.mjs writes on the row once.
  *
  * WHAT A REPLAY CANNOT TAKE BACK, AND SAYS SO. A door forced, a lock picked whose pass the picker has used (they walked
@@ -32,6 +32,7 @@ export async function settleInfiltrate(actor, bookmark, after, done, before = nu
         case "force": return settleForce(actor, bookmark, total, isCritical, withHope, done);
         case "pick": return settlePick(actor, bookmark, total, isCritical, withHope, done);
         case "keepWatch": return settleWatch(actor, bookmark, { total, isCritical, withHope }, before, done);
+        case "hide": return settleHide(actor, bookmark, total, isCritical, done);
         case "facility": return settleFacility(actor, bookmark, total, isCritical, done);
         default: return {};
     }
@@ -155,6 +156,31 @@ async function settleWatch(actor, bookmark, { total, isCritical, withHope }, bef
     }
     done.push(line(out.kept ? "watchKept" : "watchNone"));
     return { watchKept: Boolean(out.kept), watchMarked: missWithDespair };
+}
+
+/**
+ * Hide (S0-HIDE, E129; hide.mjs): the new total decides, as the first did. A hide that stands and the new roll misses is
+ * ended (its player told, `DRPG.Hide.ended.reroll`); a miss rerolled into a hit hides now; the same answer twice changes
+ * nothing. A hide its player ended meanwhile is not put back up by a hit: only a hide still standing, or none at all with
+ * a first miss, is replayed.
+ */
+async function settleHide(actor, bookmark, total, isCritical, done) {
+    const { hideStore } = await import("./gm-stores.mjs");
+    const { startHide, endHide } = await import("./hide.mjs");
+    const hits = isCritical || total >= INFILTRATE.hide.dc;
+    const stands = Boolean(hideStore.get(actor.id));
+    if (bookmark?.hid === true && stands && !hits) {
+        await endHide(actor.id, "reroll");
+        done.push(line("hideEnded"));
+        return { hid: false };
+    }
+    if (bookmark?.hid === false && !stands && hits) {
+        const out = await startHide({ actor, total, isCritical });
+        done.push(line(out.hidden ? "hideNow" : "hideStands"));
+        return { hid: Boolean(out.hidden) };
+    }
+    done.push(line("hideStands"));
+    return {};
 }
 
 /** A GM's room action: a failure rerolled into a success applies its effects; a success stands (its effects are given). */

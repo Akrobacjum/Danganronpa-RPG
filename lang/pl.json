@@ -327,6 +327,10 @@
         "name": "Przejście między pokojami kosztuje Move",
         "hint": "Ruch w pokoju jest darmowy. Pierwsze przejście o danej porze dnia zużywa Free Move, kolejne kosztują akcję albo przejście kupione Callem Sprint. Wyłączone: ruch rozliczasz ręcznie."
       },
+      "trialVoicesFree": {
+        "name": "Class Trial: bez wymuszonego wyciszania",
+        "hint": "Gdy włączone, Class Trial nigdy nie wyłącza graczowi mikrofonu, niezależnie od tego, kto ma głos, także zmarłym. Wyłączone: tryby wyciszają jak zwykle."
+      },
       "despairFromRolls": {
         "name": "Rzuty dają Despair",
         "hint": "Rzut zakończony Despair zasila pulę Monokumy tego ucznia. Każdego ucznia przypisz do Monokumy w Despair Flow w panelu GM-a."
@@ -527,10 +531,29 @@
       "stay": "Zostań w ukryciu",
       "card": "Jesteś w ukryciu: inni gracze widzą twoje tokeny jako „?”, twój mikrofon jest wyłączony i nie słyszysz rozmów. Ukrycie trwa do następnej pory dnia, także po końcu incydentu. Wcześniej możesz się ujawnić przyciskiem „Ujawnij się” na swoim kafelku głosu.",
       "ended": "Zaczęła się nowa pora dnia i nie jesteś już w ukryciu: twoje tokeny wyglądają jak wcześniej, a ty znowu mówisz i słyszysz rozmowy.",
+      "endedIncident": "Morderstwo się skończyło, więc nie jesteś już w ukryciu: twoje tokeny wyglądają jak wcześniej, a ty znowu mówisz i słyszysz rozmowy.",
+      "endedLeftRoom": "Po wyjściu z pokoju morderstwa nie jesteś już w ukryciu: twoje tokeny wyglądają jak wcześniej, a ty znowu mówisz i słyszysz rozmowy.",
       "tokenFailed": "Nie udało się nałożyć maski na token postaci {name}: inni gracze mogą widzieć jej prawdziwy obrazek. Konsola mówi dlaczego."
     },
     "Veil": {
       "card": "Do twojego rzutu otwarcia inni gracze nie widzą twoich tokenów, a twój mikrofon jest wyłączony; nadal słyszysz rozmowy."
+    },
+    "Hide": {
+      "hidden": "Jesteś w ukryciu: inni gracze nie widzą twojego tokenu, a twój mikrofon jest wyłączony; nadal słyszysz rozmowy. Żeby wyjść z ukrycia, naciśnij „Ujawnij się” na swoim kafelku głosu.",
+      "notHidden": "Nie udaje ci się schować.",
+      "already": "Już jesteś w ukryciu.",
+      "notInTrial": "W czasie Class Trial nie można się schować.",
+      "coverSkipped": "Jesteś w ukryciu, więc rzut Shadow na pozostanie niezauważonym liczy się jako udany.",
+      "reveal": "Ujawnij się",
+      "gmTitle": "W ukryciu",
+      "gmLine": "{name}: w ukryciu.",
+      "gmReveal": "Ujawnij",
+      "gmRevealTooltip": "Zakończ ukrycie postaci {name}: wszyscy znów widzą jej token, a mikrofon znów działa.",
+      "ended": {
+        "gm": "GM kończy twoje ukrycie: inni gracze znów widzą twój token, a twój mikrofon znów działa.",
+        "chapter": "Rozdział się skończył, a z nim twoje ukrycie: inni gracze znów widzą twój token, a twój mikrofon znów działa.",
+        "reroll": "Po Rerollu GM-a nie jesteś już w ukryciu: inni gracze znów widzą twój token, a twój mikrofon znów działa."
+      }
     },
     "Listen": {
       "prompt": "Jesteś w pokoju {room}. Który sąsiedni pokój chcesz podsłuchać?",
@@ -950,6 +973,16 @@
       "close": "Zamknij",
       "toggle": "Otwórz lub zamknij narzędzia Foundry"
     },
+    "Result": {
+      "hope": { "one": "Z Hope: dostajesz {n} Hope.", "few": "Z Hope: dostajesz {n} Hope.", "many": "Z Hope: dostajesz {n} Hope.", "other": "Z Hope: dostajesz {n} Hope." },
+      "critical": { "one": "Krytyk: dostajesz {n} Hope. Inaczej niż w czystym Daggerheart nie przywraca Sanity.", "few": "Krytyk: dostajesz {n} Hope. Inaczej niż w czystym Daggerheart nie przywraca Sanity.", "many": "Krytyk: dostajesz {n} Hope. Inaczej niż w czystym Daggerheart nie przywraca Sanity.", "other": "Krytyk: dostajesz {n} Hope. Inaczej niż w czystym Daggerheart nie przywraca Sanity." },
+      "despair": "Z Despair: nie dostajesz Hope, a punkt Despair z tego rzutu trafia do puli Monokumy, który cię pilnuje.",
+      "support": "Rzut na {trait} tylko wspiera akcję, więc nie daje Hope.",
+      "supportDespair": "Jego punkt Despair i tak trafia do puli Monokumy, który cię pilnuje.",
+      "supportBare": "Ten rzut tylko wspiera akcję, więc nie daje Hope.",
+      "coverCritical": { "one": "Krytyk w tym rzucie: jeśli próba, którą ukrywa, dojdzie do skutku, {n} Sanity wróci razem z jej wynikiem.", "few": "Krytyk w tym rzucie: jeśli próba, którą ukrywa, dojdzie do skutku, {n} Sanity wróci razem z jej wynikiem.", "many": "Krytyk w tym rzucie: jeśli próba, którą ukrywa, dojdzie do skutku, {n} Sanity wróci razem z jej wynikiem.", "other": "Krytyk w tym rzucie: jeśli próba, którą ukrywa, dojdzie do skutku, {n} Sanity wróci razem z jej wynikiem." },
+      "givenBack": "{what} wraca do ciebie, bo akcja nie doszła do skutku."
+    },
     "Action": {
       "murderConfirmEclipse": "Zgłoszenie od razu trafia do GM-ów: zatwierdzą je z wybraną statystyką albo odmówią, a o odmowie się dowiesz. Zabójstwo musisz wcześniej uzgodnić z GM-em i z graczem ofiary.",
       "beat": "przebij {n}",
@@ -977,6 +1010,7 @@
       "reliefFresh": "o {n}, bo ciała nikt jeszcze nie znalazł",
       "dcFrame": "Misleading Trail: {n}+.",
       "spentAfterRoll": "{action}: pierwszy rzut już padł, więc akcja przepada.",
+      "keptAfterRoll": "Rzut dał ci już Hope, więc zapłata za tę akcję przepada.",
       "dynamicRefused": "GM odrzuca twoją Dynamic Action. Nie tracisz akcji.",
       "panelTitle": "Akcje",
       "unknown": "Nieznana akcja: {key}.",
@@ -1709,7 +1743,7 @@
         "zones": "Głos ma tryb stref: każdy odpowiada tym, gdzie stoi jego token. Policz teraz i Pomiń na pasku przyspieszają liczenie; Zakończ ten tryb go kończy.",
         "scrum": "Straw Poll podzieliła klasę. Scrum Debate ze Stref sali pozwoli obu obozom to rozstrzygnąć; debata i głosowanie nadal są dostępne."
       },
-      "objectionNote": "Objection nie uruchamiasz z konsoli: zgłasza je gracz przyciskiem OBJECTION!, a minuta rusza, gdy jego Truth Bullet trafi na stół.",
+      "objectionNote": "Objection nie uruchamiasz z konsoli: zgłasza je gracz przyciskiem OBJECTION!, a jego czas rusza, gdy jego Truth Bullet trafi na stół.",
       "manageTrial": "Class Trial",
       "mode": {
         "debate": "Nonstop Debate",
@@ -1752,6 +1786,8 @@
       },
       "gmStepTitle": "GM wkracza",
       "turnSkipped": "GM pomija turę postaci {name}.",
+      "turnFinished": "{name} kończy swoje Objection przed czasem.",
+      "finishedGm": "Gracz postaci {name} kończy jej Objection przed czasem, tak jak zrobiłby to twój Pomiń.",
       "modeEnded": "GM kończy tryb {mode}.",
       "gmNoteAdjust": "GM: {seconds} s",
       "gmNoteBack": "GM: powrót do debaty",
@@ -2081,6 +2117,10 @@
         "thesisTooltip": "Widoczna pod pytaniem, gdy obozy się spierają",
         "thesisLineTooltip": "Jedno krótkie zdanie za twoją strefą, widoczne dla całego stołu",
         "thesisPostTooltip": "Kładzie twoją tezę na stół jako kartę; twoja tura trwa dalej",
+        "finishKeepTooltip": "Zamyka to okno; twoje Objection trwa według zegara",
+        "finishDoneTooltip": "Kończy teraz czas twojego Objection; zaczyna się rebuttal",
+        "confirmEndTooltip": "Kończy teraz twoją turę; głos przechodzi dalej",
+        "confirmKeepTooltip": "Zamyka to okno; twoja tura trwa według zegara",
         "setTooltip": "Zestaw Logic Dive do zagrania. Liczba to liczba jego pytań.",
         "editTooltip": "Zmienia treść. Stół dostaje wiadomość, co było i co jest teraz.",
         "deleteTooltip": "Od razu usuwa Finding z listy i mówi o tym stołowi",
@@ -2573,7 +2613,7 @@
       "notOpen": "Żadne głosowanie nie jest otwarte.",
       "nobodyVoted": "Żadna karta nie wróciła, więc głosowanie kończy się bez oskarżenia.",
       "ballotTitle": "Kto to zrobił?",
-      "ballotIntro": "Zagłosuj na tego, kto twoim zdaniem jest Blackened. Możesz głosować na siebie, na Monokumę i na zmarłych.",
+      "ballotIntro": "Zagłosuj na tego, kto twoim zdaniem jest Blackened. Możesz głosować na siebie, na każdego Monokumę z osobna i na zmarłych.",
       "ballotNote": "Twój głos trafia tylko do GM-ów. Stół widzi wyłącznie sumy.",
       "who": "Twój głos",
       "cast": "Oddaj głos",
@@ -3871,6 +3911,11 @@
       "objectionOutside": "Objection możesz wnieść tylko podczas Class Trial.",
       "objectionNoneInMode": "W trybie {mode} nie można wnosić Objection.",
       "objectionSpeakerOnly": "W trybie {mode} Objection można zgłosić tylko wobec osoby, która mówi.",
+      "finish": {
+        "title": "Zakończyć turę teraz?",
+        "body": "W twoim Objection głos masz tylko ty. Pozostały czas: {seconds} s. Gdy zakończysz teraz, zaczyna się rebuttal.",
+        "yes": "Zakończ turę"
+      },
       "turn": {
         "title": "Twoja tura ({seconds} s)",
         "body": "{mode}: masz głos. Naciśnij Gotowe, gdy skończysz, albo Pasuję, jeśli rezygnujesz z tury.",
@@ -3884,7 +3929,10 @@
         "closingPassEarly": "Pasuję w pierwszych {seconds} s oddaje wybór GM-owi; potem kończy Closing Argument.",
         "closingPass": "Pasuję kończy Closing Argument, tak jak Gotowe.",
         "left": "Pozostały czas: {seconds} s.",
-        "keepNote": "Mówię dalej chowa to okno. Wróci za {seconds} s, z Gotowe i Pasuję."
+        "keepNote": "Mówię dalej chowa to okno. Wróci za {seconds} s, z Gotowe i Pasuję.",
+        "confirmTitle": "Zakończyć turę teraz?",
+        "confirmBody": "Pozostały czas: {seconds} s. Gdy zakończysz teraz, głos przechodzi dalej.",
+        "confirmYes": "Zakończ moją turę"
       },
       "claim": {
         "body": "Podsumujesz sprawę w Closing Argument? Na zgłoszenie masz {seconds} s. Potem jedna zgłoszona osoba zostaje wylosowana, a GM ją zatwierdza albo wybiera kogoś innego.",
@@ -4272,6 +4320,10 @@
         "keepWatch": {
           "label": "Keep Watch",
           "hint": "Rzuć Body przed Eclipse. Gdy Eclipse się zacznie, dowiesz się, kto jest w pokoju, w którym stoisz, potem kto wchodzi i kto wychodzi, a na koniec ile było wejść i wyjść."
+        },
+        "hide": {
+          "label": "Hide",
+          "hint": "Rzuć Shadow, żeby się schować: inni gracze przestają widzieć twój token, a twój mikrofon się wyłącza, dopóki nie ujawnisz się na swoim kafelku głosu. W ukryciu rzut Shadow, którym akcja sprawdza, czy zostajesz niezauważony, liczy się jako udany."
         },
         "dash": {
           "label": "Dash",
@@ -4667,6 +4719,8 @@
       "role": "Widz",
       "deadWatcher": "Widz zmarłego ucznia",
       "deadWatcherRole": "{name} to Widz zmarłego ucznia. Znika, gdy uczeń zostanie wskrzeszony albo zostanie Monocubem.",
+      "deadGivenWatcher": "{name} nie żyje, więc gracz ogląda grę przez własnego Widza. Ciało zostaje tam, gdzie leży.",
+      "deadNoWatcher": "{name} nie żyje, ale Widz nie powstał: nikt nie gra tym uczniem.",
       "marked": "{name} jest teraz Widzem.",
       "unmarked": "{name} nie jest już Widzem.",
       "talk": "Porozmawiaj z Widzami",
@@ -5306,10 +5360,12 @@
         "listen.echoes": "Echoes",
         "mask.reveal": "Ujawnij się",
         "mask.veil": "Zasłona otwarcia, o którą GM prosi głównego GM-a",
+        "spectator.dead": "Widz zmarłego ucznia, o którego GM prosi głównego GM-a",
         "door.shut": "Shut the Door",
         "door.force": "Force the Door",
         "door.pick": "Pick the Lock",
         "watch.declare": "Keep Watch",
+        "hide.start": "Hide",
         "door.knock": "Ktoś przy drzwiach",
         "handover.bullet": "Udostępnienie Truth Bulletu",
         "handover.item": "Przekazanie przedmiotu",
@@ -5369,7 +5425,7 @@
         "chapter.end": "Koniec rozdziału ogłoszony przez drugiego GM-a, u głównego GM-a",
         "voice.reset": "Przycisk Napraw głos drugiego GM-a, wykonany u głównego GM-a",
         "verdict.finish": "Dokończenie werdyktu przez drugiego GM-a, u głównego GM-a",
-        "murder.openingCard": "Karta rzutu otwarcia dla gracza, wysłana przez głównego GM-a",
+        "murder.openingCard": "Karta lub komunikat rzutu otwarcia dla gracza, wysłane przez głównego GM-a",
         "trial.enter": "Ustawienie mikrofonów przy otwarciu lub zakończeniu Class Trial",
         "trial.record": "Zmiana zapisu przebiegu Class Trial",
         "reroll.ask": "Reroll",
@@ -5651,6 +5707,9 @@
       "rewindDuringEclipse": "Trwa Eclipse. Najpierw je zakończ.",
       "takenBack": "Początek tej pory dnia jest cofnięty: akcje, Free Move, to, co dały Sprint i Burst, Search Tokeny pokoi i pieczęcie wracają do stanu sprzed niego."
     },
+    "Context": {
+      "lost": "Przeglądarka gracza {name} utraciła kontekst rysowania ({scene})."
+    },
     "Panel": {
       "settings": "Ustawienia gry",
       "nextStartTrial": "Wszystkie zaplanowane Key Remnanty zostały znalezione. Rozpocznij Class Trial z konsoli trialu.",
@@ -5721,6 +5780,9 @@
       "character": "Postać",
       "freeMove": "Free Move",
       "noCharacters": "W tym świecie nie ma żywych uczniów.",
+      "moves": "Ruchy",
+      "anyRoom": "Dowolny pokój",
+      "rosterCaption": "Co każdemu uczniowi zostało o tej porze dnia",
       "installTables": "Utwórz tabele przedmiotów",
       "despairFlow": "Despair Flow",
       "sweepBullets": "Zbierz Truth Bullets",
@@ -6155,6 +6217,7 @@
     "Frisk": {
       "rowLabel": "Zobacz, co ktoś nosi",
       "rowHint": "Przejrzyj czyjeś kieszenie i niczego nie bierz.",
+      "notInTrial": "Frisk czeka, aż skończy się Class Trial; w rozprawie Palm tylko coś zabiera albo podrzuca.",
       "noticeTitle": "Frisk",
       "unseenLabel": "Ukradkiem",
       "unseenHint": "Shadow {unseen}+, żeby nikt nie zauważył, potem Hand {hand}+, żeby zobaczyć wszystko.",
@@ -6267,6 +6330,9 @@
         "watchStands": "Po Rerollu: czuwania nie da się już ustalić, więc zostaje wynik pierwszego rzutu.",
         "watchKept": "Po Rerollu: czuwanie zostaje.",
         "watchNone": "Po Rerollu: bez czuwania.",
+        "hideEnded": "Po Rerollu: ukrycie się kończy.",
+        "hideNow": "Po Rerollu: postać jest teraz w ukryciu.",
+        "hideStands": "Po Rerollu: ukrycie zostaje bez zmian.",
         "facilityStands": "Po Rerollu: akcja w pokoju udała się za pierwszym razem i jej efekty zostają.",
         "facilityGone": "Po Rerollu: tej akcji w pokoju już tu nie ma, więc nic się nie zmienia.",
         "facilityMissed": "Po Rerollu: akcja w pokoju dalej się nie udaje.",
@@ -6519,11 +6585,22 @@
         "floorHeldPair": "Głos mają {name} i {target}: twój mikrofon pozostaje wyłączony, dopóki nie dostaniesz głosu albo tryb się nie skończy.",
         "listening": "Słuchasz pod drzwiami: mikrofon jest wyłączony, dopóki nie przestaniesz.",
         "masked": "Ukrywasz się za „?”: nie ma cię w głosie. Nikogo nie słyszysz i nikt nie słyszy ciebie, dopóki się nie ujawnisz albo nie zmieni się pora dnia.",
+        "tokenHidden": "Twój token jest ukryty: mikrofon jest wyłączony, dopóki GM znów go nie pokaże.",
         "veiled": "Przed twoim rzutem otwarcia: mikrofon jest wyłączony, dopóki nie rzucisz.",
+        "hiding": "Jesteś w ukryciu: mikrofon zostaje wyłączony, dopóki się nie ujawnisz.",
         "cubSpeak": "Dyskusja: możesz mówić.",
         "cubListen": "Tryb: {mode}. Słuchasz.",
         "cubVote": "Głosowanie: słuchasz.",
         "ownCase": "Słuchasz: to rozprawa w twojej sprawie."
+      },
+      "hearing": {
+          "mutedForMe": "wyciszone przez słuchającego (wyciszenie u siebie)",
+          "volumeZero": "głośność 0 na stronie słuchającego",
+          "notSubscribed": "mikrofon tej osoby nie jest odbierany",
+          "noElement": "na stronie nie ma odtwarzacza dźwięku tej osoby",
+          "elementPaused": "dźwięk tej osoby jest wstrzymany na stronie",
+          "elementMuted": "dźwięk tej osoby jest wyciszony na stronie",
+          "trackNotLive": "nie dociera żaden dźwięk tej osoby"
       },
       "list": {
         "open": "Kogo słyszysz",
@@ -6540,6 +6617,8 @@
         "unmuteFor": "Znów słuchaj: {name}",
         "hidden": "Ukryta wcześniej w doku kamer: nie słyszysz tej osoby.",
         "unhide": "Pokaż i słuchaj",
+        "mutedByYou": "Wyciszone przez ciebie",
+        "gap": "Nie słyszysz tej osoby: {why}. Jeśli to trwa, odśwież stronę (F5).",
         "gmBlock": "Zablokuj mikrofon: {name} (u wszystkich)",
         "gmUnblock": "Odblokuj mikrofon: {name}",
         "gmHeld": "Tego mikrofonu nie możesz teraz zablokować.",
@@ -6576,6 +6655,8 @@
           "listening": "podsłuchuje z pokoju {from} pod drzwiami pokoju {into}",
           "masked": "za „?” po otwarciu morderstwa: własny cichy pokój"
         },
+        "hearing": "Kto kogo nie słyszy (według strony każdego gracza):",
+        "hearingRow": "{name} nie słyszy osoby {speaker}: {why}",
         "setting": "Ustawienie głosu według pokoi: {state}",
         "on": "włączone",
         "settingOff": "wyłączone, więc nic nie jest stosowane",
@@ -7818,7 +7899,7 @@
         },
         "listen": {
           "label": "Infiltrate",
-          "hint": "Listen przy ścianie, Echoes, Tail Someone, Keep Watch, Dash przez korytarze, Shut the Door, Force the Door albo Pick the Lock. Każde kosztuje akcję.",
+          "hint": "Listen przy ścianie, Echoes, Tail Someone, Keep Watch, Dash przez korytarze, Shut the Door, Force the Door, Pick the Lock albo Hide. Każde kosztuje akcję.",
           "description": "Wybierasz sąsiedni pokój, wydajesz akcję i rzucasz Shadow. Niezły wynik mówi, ile osób tam jest, wyższy zdradza, kto to jest, a krytyk pokazuje, kto jest w każdym sąsiednim pokoju. Przy pudle nic nie słyszysz. Gdy obok nie ma żadnego pokoju, nie tracisz akcji.",
           "failure": "Niczego się nie dowiadujesz."
         },
@@ -8771,6 +8852,8 @@
         "objection": "Nie masz już akcji, Hope ani Sanity, więc nie możesz wnieść objection.",
         "analyze": "Nie masz już akcji, Hope ani Sanity, więc nie masz czym zapłacić za Analyze.",
         "analyzeOneStep": "Nie masz już akcji, więc nie masz czym zapłacić za Analyze.",
+        "palm": "Nie masz już akcji, Hope ani Sanity, więc nie masz czym zapłacić za Palm.",
+        "palmOneStep": "Nie masz już akcji, więc nie masz czym zapłacić za Palm.",
         "tamper": "Nie masz już akcji, a Tamper nie przyjmuje niczego innego.",
         "tamperSkippedAction": "Akcja nie jest tu potrzebna, ale nie masz już Sanity, by zapłacić."
       },
@@ -9170,6 +9253,7 @@
         "eavesdrops": "Kto podsłuchuje pod którymi drzwiami, z którego pokoju i którego pokoju może znów posłuchać za darmo",
         "masks": "Który zabójca ukrywa się za „?” po otwarciu morderstwa i jak wyglądał jego token",
         "veils": "Który zabójca jest ukryty i wyciszony do rzutu otwarcia i czy każdy jego token był ukryty już wcześniej",
+        "hides": "Które postacie ukrywają się przez Hide, czyje mikrofony są przez to wyłączone i w którym rozdziale zaczęło się każde ukrycie",
         "timedEffects": "Co akcje w pokojach dały każdej postaci na jakiś czas i kiedy to mija",
         "clockBeat": "Kiedy główny GM był ostatnio przy stole",
         "takeBack": "Co zmienił ostatni początek pory dnia, zachowane na pięć minut, by GM mógł cofnąć pomyłkę",

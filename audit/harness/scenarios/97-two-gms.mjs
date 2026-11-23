@@ -40,6 +40,10 @@
  *   N  1.2.124, the owner's OWNER-124-CONSOLE: both GMs' messenger windows open on the Timeline; p1's Search card with
  *      its answers waits on both, its buttons live (N1); gm answers it from its Timeline, and the card leaves gm2's
  *      "Waiting" too, while its line stays in both streams (N2).
+ *   Y  1.2.128 (E129 S0-VICTIM): gm2's Spectator role on a dead student makes the student's watcher on the primary, its
+ *      token where the body lies, the student unflagged (Y1; `spectator.dead`).
+ *   Z  1.2.128 (E129 S0-MASKLEFT): gm2 ends a masked fight with the victim alive; the mask, the "?" and the mute end on the
+ *      primary (`mask.veil` "unmask"), and the killer's player is told (Z1).
  *
  * What this cannot see: a real F5 (a new process with the old localStorage, no cookie, IndexedDB or cache; the
  * order of "inactive", "active" and `ready` on v14 is LIVE-E30-05 and LIVE-E04-12), and a real server's delivery
@@ -66,7 +70,7 @@ async function until(read, done, ms = 6000, step = 150) {
 }
 
 export async function run(api) {
-    const { gm, gm2, p1, p2, check, note, phase, settle, connect, reload, makePrimary, primaryOn, repoUrl: REPO, IDS } = api;
+    const { gm, gm2, p1, p2, check, note, phase, settle, connect, disconnect, storageOf, reload, makePrimary, primaryOn, repoUrl: REPO, IDS } = api;
     const MOD = "danganronpa-rpg";
     const imp = file => `await import("${REPO}/scripts/${file}")`;
     const GM2 = accounts[0].id;
@@ -1015,6 +1019,223 @@ export async function run(api) {
     check("U1: gm2's console offers Finish live on a verdict the primary runs, and its press finishes it once, on gm (E128)",
         uSeen?.shown === true && uSeen.disabled === false && uSeen.runner === IDS.gm && uAfter?.stage === "done" && uAfter.by === IDS.gm
             && uAfter.summaries === 1, J({ uSeen, uAfter }), { flow: "class-trial" });
+
+    /* ------------------------------------------------------------------ W */
+    /* E128, 23.11.2026 (the owner's session-0 notes: "kazdy gm ma byc rowny - moc zrobic tyle samo, ile pierwszy/glowny gm.
+       upewnijmy sie ze tak jest"; the inventory's "Not covered yet"). The windows the inventory had not read, each pressed
+       once on gm2 and read where it lands: the item hub's give (inventory.mjs `grantItem`) on p1's sheet and in the primary's
+       sheet audit; the Rules window's rule (rules.mjs `addRule`) on gm; the Mastermind window's pick and lair
+       (mastermind.mjs `setMastermind`) on the pick's player, p2 (`myLairRoom`); and the Passages tab's grant and revoke
+       (passages-gm.mjs `grantPassage`, `revokePassage`) on p1's copy (passages.mjs `knownPassages`), on a passage gm makes
+       as scenario 76 A does. Each is put back after. */
+    phase("W a second GM in the item hub, the Rules and Mastermind windows and the Passages tab", { flow: "secret-passages" });
+    const WIN = { item: null, rule: null, door: null, passage: null };
+    const itemName = `E128 WIN given by gm2 ${Date.now()}`;
+    try {
+        const given = await gm2.eval(`const INV = ${imp("inventory.mjs")};
+            const item = await INV.grantItem(game.actors.get("${IDS.aiko}"), { name: ${J(itemName)}, category: "tool", tier: 1 });
+            return Boolean(item);`, { timeout: 60000 });
+        await settle(1500);
+        WIN.item = { given,
+            p1: await p1.eval(`return game.actors.get("${IDS.aiko}").items.some(i => i.name === ${J(itemName)});`),
+            audit: await gm.eval(`const A = ${imp("sheet-audit.mjs")}; return JSON.stringify(A.sheetWrites({ quiet: true }) ?? null).includes(${J(itemName)});`) };
+    } finally {
+        await gm.eval(`const a = game.actors.get("${IDS.aiko}"); const ids = a.items.filter(i => i.name === ${J(itemName)}).map(i => i.id);
+            if (ids.length) await a.deleteEmbeddedDocuments("Item", ids); return true;`, { timeout: 60000 });
+    }
+    const ruleText = `E128 WIN a rule gm2 wrote ${Date.now()}`;
+    try {
+        await gm2.eval(`const R = ${imp("rules.mjs")}; await R.addRule(${J(ruleText)}); return true;`, { timeout: 60000 });
+        WIN.rule = await until(() => gm.eval(`const R = ${imp("rules.mjs")}; return R.rules().some(r => String(r?.text ?? r) === ${J(ruleText)});`), v => v === true, 6000);
+    } finally {
+        await gm.eval(`const R = ${imp("rules.mjs")}; for (const r of R.rules().filter(r => String(r?.text ?? r) === ${J(ruleText)})) await R.removeRule(r.id); return true;`, { timeout: 60000 });
+    }
+    const mmWas = await gm.eval(`const S = ${imp("gm-stores.mjs")}; await S.mastermindStore.whenHydrated(); const r = S.mastermindStore.get("record") ?? {};
+        return { actorId: r.actorId ?? null, room: r.room ?? null };`);
+    try {
+        await gm2.eval(`const MM = ${imp("mastermind.mjs")}; await MM.setMastermind(game.actors.get("${IDS.botan}"), { room: "Kitchen" }); return true;`, { timeout: 60000 });
+        WIN.door = { was: mmWas, p2: await until(() => p2.eval(`return (${imp("mastermind.mjs")}).myLairRoom() ?? null;`), v => v === "Kitchen", 8000),
+            gm: await gm.eval(`const S = ${imp("gm-stores.mjs")}; return S.mastermindStore.get("record")?.actorId ?? null;`) };
+    } finally {
+        await gm.eval(`const MM = ${imp("mastermind.mjs")}; const was = ${J(mmWas)};
+            if (was.actorId) await MM.setMastermind(game.actors.get(was.actorId), { room: was.room }); else await MM.clearMastermind(); return true;`, { timeout: 60000 });
+        await settle(900);
+    }
+    const wallId = await gm.eval(`const scene = game.scenes.get("${IDS.scene}");
+        const [wall] = await scene.createEmbeddedDocuments("Wall", [{ c: [1100, 400, 1400, 400] }]); return wall?.id ?? null;`);
+    let passageId = null;
+    try {
+        passageId = wallId ? await gm.eval(`const scene = game.scenes.get("${IDS.scene}");
+            const cafe = scene.regions.find(r => r.name === "Cafeteria"), shapes = foundry.utils.deepClone(cafe._source.shapes), [box] = shapes;
+            await cafe.update({ shapes: [{ ...box, height: 400 - box.y }] });
+            const [pantry] = await scene.createEmbeddedDocuments("Region", [{ name: "Pantry", behaviors: [],
+                shapes: [{ ...box, y: 400, height: box.y + box.height - 400 }], flags: { "${MOD}": { room: true } } }]);
+            let id = null;
+            try { id = await game.drpg.passages.create({ sceneId: scene.id, wallId: "${wallId}", seg: { x1: 1200, y1: 400, x2: 1300.5, y2: 400 } }); }
+            finally { await scene.deleteEmbeddedDocuments("Region", [pantry.id]); await cafe.update({ shapes }); }
+            return id;`, { timeout: 60000 }) : null;
+        await settle(900);
+        const KNOWN = `const P = ${imp("passages.mjs")}; return Object.keys(P.knownPassages() ?? {}).includes("${passageId}");`;
+        const granted = passageId ? await gm2.eval(`return await game.drpg.passages.grant("${passageId}", "${IDS.aiko}");`, { timeout: 60000 }) : null;
+        const known = await until(() => p1.eval(KNOWN), v => v === true, 8000);
+        const revoked = passageId ? await gm2.eval(`return await game.drpg.passages.revoke("${passageId}", "${IDS.aiko}");`, { timeout: 60000 }) : null;
+        const gone = await until(() => p1.eval(KNOWN), v => v === false, 8000);
+        WIN.passage = { passageId, granted, known, revoked, gone };
+    } finally {
+        await gm.eval(`if (${J(passageId)}) await game.drpg.passages.delete(${J(passageId)});
+            const wall = game.scenes.get("${IDS.scene}").walls.get(${J(wallId)}); if (wall) await wall.delete(); return true;`, { timeout: 60000 });
+        await settle(900);
+    }
+    check("W1: gm2's item from the item hub lands on p1's sheet and is no write the primary's sheet audit lists (E128)",
+        WIN.item?.given === true && WIN.item.p1 === true && WIN.item.audit === false, J(WIN.item), { flow: "sheet-audit" });
+    check("W2: gm2's rule from the Rules window stands on gm (E128)", WIN.rule === true, J(WIN.rule));
+    check("W3: gm2's Mastermind and lair from the Mastermind window reach the pick's player, p2, and stand in gm's record (E128)",
+        WIN.door?.p2 === "Kitchen" && WIN.door.gm === IDS.botan, J(WIN.door), { flow: "mastermind" });
+    check("W4: gm2's grant and revoke of a passage from the Passages tab reach p1's copy, each way (E128)",
+        typeof WIN.passage?.passageId === "string" && WIN.passage.granted === true && WIN.passage.known === true && WIN.passage.revoked === true && WIN.passage.gone === false,
+        J(WIN.passage), { flow: "secret-passages" });
+
+    /* ------------------------------------------------------------------ X */
+    /* E128, 23.11.2026 (S0-GMEQUAL, the two smaller differences W's reading found; the coordinator: "fix both"). X1: the
+       roller's "the GM is choosing" line, posted by each GM that opened the opening's pick window (murder-rules.mjs
+       `tellOpeningRoller`). gm2 opens Aiko's murder of Botan with no statistic picked - its window opens, and is closed -
+       then gm asks the opening again as its tracker does, and its window is closed too. Read on gm: the lines to the
+       roller posted since, by their words, and their authors. Red at 01c4c2e3: two lines, gm2's and gm's. The line is
+       the primary's to post once now (`postOpeningCard`'s `pick`, through `murder.openingCard`).
+       X2: the Passages tab's "not yet sent to" line, drawn on the primary alone (passages-gm.mjs `undeliveredOf`
+       answered null elsewhere). p2 leaves; gm makes a passage as W does and grants it to Botan, whose only player is
+       away; then p2 comes back. Read on both GMs while p2 is away and after it is back: the students the line names.
+       Red at 01c4c2e3: gm2's null both times. The primary sends the other GMs what the players were sent
+       (`tellGmsTold`), and another GM reads that. */
+    phase("X a second GM's opening line and Passages tab, as the primary's", { flow: "murder-incident" });
+    const PICK_NULL = `const T = game.i18n.localize("DRPG.TraitRuling.title");
+        globalThis.__dialogAnswers.push(cfg => (cfg?.window?.title === T ? null : ((cfg?.buttons ?? []).find(b => b.default) ?? cfg?.buttons?.[0])?.action ?? null));`;
+    /* The lines are read in the GMs' memo of the opening's notices, where each is kept as `true` (incident-store.mjs
+       `keepOpeningNotice`), and their authors off the chat; a read of their words found none (`wordsOf` on the veiled
+       announcement, measured 23.11.2026: [] on both trees while the memo held one line and two). */
+    const CHOOSING = `const S = ${imp("gm-stores.mjs")};
+        return Object.entries(S.castStore.record()?.openingNotices ?? {}).filter(([, to]) => to === true)
+            .map(([id]) => { const m = game.messages.get(id); return m ? m.author?.id ?? m.user?.id ?? null : "gone"; });`;
+    let xLines = null, xOpened = null;
+    try {
+        xOpened = await gm2.eval(`if (game.drpg.murderState()?.active) await game.drpg.endMurder({ reason: "suite", followUp: false });
+            ${PICK_NULL} const r = await game.drpg.openMurder({ killerId: "${IDS.aiko}", victimId: "${IDS.botan}" });
+            return { stage: r?.stage ?? null, trait: r?.openingTrait ?? null };`, { timeout: 60000 });
+        await until(() => gm.eval(CHOOSING), v => v.length > 0, 8000);
+        await settle(1200);
+        await gm.eval(`const R = ${imp("murder-rules.mjs")}; ${PICK_NULL} await R.rollOpening("killer", game.drpg.murderState()); return true;`, { timeout: 60000 });
+        await settle(1500);
+        xLines = await gm.eval(CHOOSING);
+    } finally {
+        await gm.eval(`if (game.drpg.murderState()?.active) await game.drpg.endMurder({ reason: "suite", followUp: false }); return true;`, { timeout: 60000 });
+        await settle(900);
+    }
+    check("X1: the roller's \"the GM is choosing\" line is posted once, by the primary, though two GMs each opened the pick's window (E128)",
+        xOpened?.stage === "openingRoll" && J(xLines) === J([IDS.gm]), J({ xOpened, xLines }), { flow: "murder-incident" });
+
+    const xWall = await gm.eval(`const scene = game.scenes.get("${IDS.scene}");
+        const [wall] = await scene.createEmbeddedDocuments("Wall", [{ c: [1100, 400, 1400, 400] }]); return wall?.id ?? null;`);
+    let xPassage = null, xPending = null;
+    const PENDING = id => `const G = ${imp("passages-gm.mjs")}; return G.undeliveredOf(${J(id)});`;
+    try {
+        xPassage = xWall ? await gm.eval(`const scene = game.scenes.get("${IDS.scene}");
+            const cafe = scene.regions.find(r => r.name === "Cafeteria"), shapes = foundry.utils.deepClone(cafe._source.shapes), [box] = shapes;
+            await cafe.update({ shapes: [{ ...box, height: 400 - box.y }] });
+            const [pantry] = await scene.createEmbeddedDocuments("Region", [{ name: "Pantry", behaviors: [],
+                shapes: [{ ...box, y: 400, height: box.y + box.height - 400 }], flags: { "${MOD}": { room: true } } }]);
+            let id = null;
+            try { id = await game.drpg.passages.create({ sceneId: scene.id, wallId: "${xWall}", seg: { x1: 1200, y1: 400, x2: 1300.5, y2: 400 } }); }
+            finally { await scene.deleteEmbeddedDocuments("Region", [pantry.id]); await cafe.update({ shapes }); }
+            return id;`, { timeout: 60000 }) : null;
+        await disconnect("p2");
+        await settle(900);
+        const granted = xPassage ? await gm.eval(`return await game.drpg.passages.grant("${xPassage}", "${IDS.botan}");`, { timeout: 60000 }) : null;
+        const away = await until(async () => ({ gm: await gm.eval(PENDING(xPassage)), gm2: await gm2.eval(PENDING(xPassage)) }),
+            v => J(v.gm2) === J([IDS.botan]), 6000);
+        await connect("p2", { storage: storageOf("p2") });
+        await settle(1500);
+        const back = await until(async () => ({ gm: await gm.eval(PENDING(xPassage)), gm2: await gm2.eval(PENDING(xPassage)) }),
+            v => J(v.gm) === "[]" && J(v.gm2) === "[]", 8000);
+        xPending = { granted, away, back };
+    } finally {
+        await gm.eval(`if (${J(xPassage)}) await game.drpg.passages.delete(${J(xPassage)});
+            const wall = game.scenes.get("${IDS.scene}").walls.get(${J(xWall)}); if (wall) await wall.delete(); return true;`, { timeout: 60000 });
+        await settle(900);
+    }
+    check("X2: a second GM's Passages tab names, as the primary's does, the student whose player has not been sent the passage, and nobody once they have (E128)",
+        typeof xPassage === "string" && xPending?.granted === true && J(xPending.away.gm) === J([IDS.botan]) && J(xPending.away.gm2) === J([IDS.botan])
+            && J(xPending.back.gm) === "[]" && J(xPending.back.gm2) === "[]", J({ xPassage, xPending }), { flow: "secret-passages" });
+
+    /* ------------------------------------------------------------------ Y */
+    /* 1.2.128 (E129 S0-VICTIM; the owner, 23.11.2026: "Po dostaniu spectatora przez gm panel zabralo token ciala"): the
+       Students window's Spectator role on a dead student makes that student's watcher, on the primary, and leaves the
+       student and the body as they are. Chie is killed on gm as the GMs keep a death (a watcher made), the watcher taken
+       away, and gm2 presses the role (gm-students.mjs `changeRole`), which asks the primary (`spectator.dead`). Read on
+       gm: Chie's watcher, its token at the body, Chie unflagged. Put back: the revive, which takes the watcher. */
+    phase("Y a second GM gives a dead student their Spectator through the primary", { flow: "dead-spectator" });
+    const Y_READ = `const SD = ${imp("spectator-dead.mjs")}, chie = game.actors.get("${IDS.chie}");
+        const w = SD.watcherActorOf(chie); const body = canvas.scene.tokens.find(t => t.actorId === chie.id);
+        const wt = w ? canvas.scene.tokens.find(t => t.actorId === w.id) : null;
+        return { watcher: Boolean(w), flagged: Boolean(chie.getFlag("${MOD}", "spectator")), atBody: Boolean(wt && body && wt.x === body.x && wt.y === body.y) };`;
+    let ySet = null, yPressed = null, yRead = null;
+    try {
+        ySet = await gm.eval(`const C = ${imp("chapter.mjs")}, SD = ${imp("spectator-dead.mjs")}, chie = game.actors.get("${IDS.chie}");
+            const kept = Boolean(await C.killCharacter(chie, { secret: true, keepBullets: true, silent: true }));
+            await SD.removeDeadSpectator(chie, { silent: true }); return { kept, watcher: Boolean(SD.watcherActorOf(chie)) };`, { timeout: 60000 });
+        await settle(900);
+        yPressed = await gm2.eval(`const GS = ${imp("gm-students.mjs")}; return await GS.changeRole(game.actors.get("${IDS.chie}"), "spectator");`, { timeout: 60000 });
+        yRead = await until(() => gm.eval(Y_READ), r => r?.watcher === true, 8000);
+    } finally {
+        await gm.eval(`const C = ${imp("chapter.mjs")}, chie = game.actors.get("${IDS.chie}");
+            if (chie.getFlag("${MOD}", "spectator")) await chie.unsetFlag("${MOD}", "spectator");
+            if (C.isDeadForGm(chie)) await C.reviveCharacter(chie, { quiet: true }); return true;`, { timeout: 60000 });
+        await settle(900);
+    }
+    check("Y1: gm2's Spectator role on a dead Chie makes her watcher on gm, its token where her body lies, and leaves Chie unflagged (1.2.128 E129 S0-VICTIM)",
+        ySet?.kept === true && ySet.watcher === false && yPressed === true && J(yRead) === J({ watcher: true, flagged: false, atBody: true }),
+        J({ ySet, yPressed, yRead }), { flow: "dead-spectator" });
+
+    /* ------------------------------------------------------------------ Z */
+    /* 1.2.128 (E129 S0-MASKLEFT; the owner, 23.11.2026: "Zawsze zdejmujemy maske na koniec incydentu morderstwa", and every GM
+       equal, at the coordinator's ask): the mask is the primary's to end, and a second GM's close asks it (murder-rules.mjs
+       `closeIncident` -> mask-gm.mjs `endMasksAtClose`, `mask.veil` "unmask"). gm opens Aiko's murder of Botan (p1's opening
+       roll held, as in T) and masks Aiko as the fight's opening on Hope does (`maskKiller`), p1 answering "stay" to the mask's question; gm2 ends the murder with Botan
+       alive. Read on gm: the mask's row, Aiko's masked tokens, p1 muted by the mask; on p1, the line told. Put back: the
+       incident, the mask, the roll. */
+    phase("Z a second GM's close of a masked fight ends the mask on the primary", { flow: "mask" });
+    await p1.eval(`globalThis.__e129zHeld = []; const a = game.actors.get("${IDS.aiko}");
+        globalThis.__e129zKept = Object.hasOwn(a, "rollTrait") ? a.rollTrait : null;
+        a.rollTrait = function () { return new Promise(r => globalThis.__e129zHeld.push(r)); };
+        globalThis.__dialogAnswers.length = 0; globalThis.__dialogAnswers.push("stay"); return true;`);
+    const zFrom = await p1.eval(`return game.messages.contents.length;`);
+    const Z_READ = `const MG = ${imp("mask-gm.mjs")}, p1 = game.users.get("${IDS.p1}");
+        const masked = [...game.scenes].flatMap(s => [...s.tokens]).filter(t => t.actorId === "${IDS.aiko}" && MG.isMaskedToken(t)).length;
+        return { row: MG.maskStands("${IDS.aiko}"), masked, muted: MG.maskMutedIds().has(p1?.id ?? "") };`;
+    let zBefore = null, zAfter = null, zTold = null;
+    try {
+        zBefore = await gm.eval(`if (game.drpg.murderState()?.active) await game.drpg.endMurder({ reason: "suite", followUp: false });
+            const opened = await game.drpg.openMurder({ killerId: "${IDS.aiko}", victimId: "${IDS.botan}", openingTrait: "body" });
+            const put = await (${imp("mask-gm.mjs")}).maskKiller({ killerId: "${IDS.aiko}", victimId: "${IDS.botan}" });
+            await new Promise(r => setTimeout(r, 600)); const read = await (async () => { ${Z_READ} })();
+            return { ...read, stage: opened?.stage ?? null, put };`, { timeout: 60000 });
+        await until(() => gm2.eval(`return game.drpg.murderState()?.active === true;`), v => v === true, 6000);
+        await gm2.eval(`await game.drpg.endMurder({ reason: "suite", followUp: false }); return true;`, { timeout: 60000 });
+        zAfter = await until(() => gm.eval(Z_READ), r => r?.row === false, 8000);
+        await settle(900);
+        zTold = await p1.eval(`const S = ${imp("secret.mjs")}; const said = game.i18n.localize("DRPG.Mask.endedIncident"); let n = 0;
+            for (const m of game.messages.contents.slice(${zFrom})) if (String(await S.wordsOf(m, 1000) ?? "").includes(said)) n++;
+            return n;`);
+    } finally {
+        await gm.eval(`if (game.drpg.murderState()?.active) await game.drpg.endMurder({ reason: "suite", followUp: false });
+            await (${imp("mask-gm.mjs")}).endMask("${IDS.aiko}", "suite"); return true;`, { timeout: 60000 });
+        await p1.eval(`const a = game.actors.get("${IDS.aiko}"); if (globalThis.__e129zKept) a.rollTrait = globalThis.__e129zKept; else delete a.rollTrait;
+            for (const r of globalThis.__e129zHeld ?? []) r(null); delete globalThis.__e129zHeld; delete globalThis.__e129zKept;
+            globalThis.__dialogAnswers.length = 0; return true;`);
+        await settle(900);
+    }
+    check("Z1: gm2 ends a masked fight with the victim alive, and on gm the mask's row, Aiko's \"?\" and p1's mute end, and p1 is told once (1.2.128 E129 S0-MASKLEFT)",
+        J(zBefore) === J({ row: true, masked: 1, muted: true, stage: "openingRoll", put: true }) && J(zAfter) === J({ row: false, masked: 0, muted: false }) && zTold === 1,
+        J({ zBefore, zAfter, zTold }), { flow: "mask" });
 
     return { primary: { before, joined, afterGmReload, moved, backAgain }, reloads: { p1: r1, gm: r2, card: r3 },
         d153: { before: gBefore, onGm: gAfter, onGm2: gAfter2, found: gFound, gave: gGave } };

@@ -131,7 +131,7 @@
 import { MODULE_ID } from "./config.mjs";
 import { micHold, moduleHoldsMic, broadcastAudioKnown } from "./voice.mjs";
 import { SETTINGS, getSetting, setSetting, getClock } from "./settings.mjs";
-import { avclientActive, voiceApplying } from "./voice-client.mjs";
+import { avclientActive, voiceApplying, HEARING_REASONS, reportHearing, followHold } from "./voice-client.mjs";
 import { voiceIdentity, voiceActorFor, measureCameraDock } from "./camera-view.mjs";
 import { safePortrait } from "./vault.mjs";
 import { cssString } from "./room-tile.mjs";
@@ -146,7 +146,9 @@ import { objectionControl, renderHud } from "./hud.mjs";
 import { trialFloor } from "./trial-floor.mjs";
 import { myEavesdrop, eavesdropsUnderWay } from "./eavesdrop-gm.mjs";
 import { myMask, requestReveal } from "./mask-gm.mjs";
+import { myHiding, requestUnhide, hiddenUnderWay, gmUnhide } from "./hide.mjs";
 import { voiceVeiledHere } from "./visibility.mjs";
+import { count } from "./perf-counters.mjs";
 
 
 const TILE_ID = "drpg-voice-tile";
@@ -984,9 +986,11 @@ export function micState({ hold, settings = game.webrtc?.settings } = {}) {
 
 /**
  * The viewer's own microphone, on the viewer's own click or key: in "on", "ptt" and "muted" the one write Foundry's
- * dock makes for its own user, `users.<self>.muted` in this browser's client settings, flipped - and nothing else, no
- * `toggleAudio` (the design reads avclient-livekit as acting on the write itself; external). In "held", "gmBlock" and
- * "offline" it writes nothing and says why. The state is asked at the moment of the click, not read off the button.
+ * dock makes for its own user, `users.<self>.muted` in this browser's client settings, flipped - and no other setting,
+ * no `toggleAudio`. Until E129 the design read avclient-livekit as acting on the write itself; 0.6.8 may not
+ * (`toggleAudio`'s early return, LiveKitAVClient.ts:632, S0-GMMUTE), so the page's own track is then held to the new
+ * state (`followOwnTrack`). In "held", "gmBlock" and "offline" it writes nothing and says why. The state is asked at
+ * the moment of the click, not read off the button.
  *
  * @param {object} [options]  handed in by R537
  * @param {object} [options.mic]       `micState()`
@@ -1002,7 +1006,23 @@ export async function toggleOwnMic({ mic = micState(), settings = game.webrtc?.s
     }
     if (typeof settings?.set !== "function") return false;
     await settings.set("client", `users.${game.user.id}.muted`, mic.state !== "muted");
+    // The page's own track with it (E129, S0-GMMUTE): avclient-livekit 0.6.8 may leave it live after this write.
+    followOwnTrack();
     return true;
+}
+
+/**
+ * This page's own microphone track held to the button (E129; voice-client.mjs `followHold`, which explains why), the
+ * button's state asked now. Never throws: every road that repaints the button asks it (`paintControls`), and the hooks
+ * and the tick below ask it too, so a page with the tile off follows as well.
+ */
+function followOwnTrack() {
+    try {
+        return followHold({ mic: micState() });
+    } catch (err) {
+        error("Could not hold this page's microphone track to its button", err);
+        return null;
+    }
 }
 
 /** The core push-to-talk key as Foundry's controls name it, or `null` when none is bound (external; guarded). */
@@ -1100,6 +1120,7 @@ export function paintSpeakerButton(tile, { count, muteAll }) {
  * @param {object} [gone]  a participant the Room has just said left (`voiceStep`), not counted
  */
 export function paintControls(watch = live, gone = null) {
+    followOwnTrack();
     if (!watch?.tile) return;
     try {
         paintMic(watch.tile, typeof watch.mic === "function" ? watch.mic() : micState());
@@ -1109,6 +1130,7 @@ export function paintControls(watch = live, gone = null) {
         paintSpectatorTalk(watch.tile);
         paintStopListening(watch.tile);
         paintReveal(watch.tile);
+        paintUnhide(watch.tile);
         paintFloorMark(watch.tile, watch.shown ? watch.userOf(watch.shown) : null);
         if (watch.list && !watch.list.hidden) paintList(watch);
     } catch (err) {
@@ -1274,6 +1296,94 @@ export function paintReveal(tile, { masked = myMask(), onReveal = requestReveal 
 /* What a press of a tile's Reveal yourself calls, kept per button. */
 const revealToggles = new WeakMap();
 
+/**
+ * REVEAL YOURSELF, FROM HIDE (S0-HIDE, E129; the owner: "dopoki nie kliknie ujawnij sie na panelu livekit"; hide.mjs). A
+ * mini button after the speaker's while this browser's own character hides (`myHiding`, off its own token's flag): a press
+ * asks the primary GM to end the hide (`mask.reveal` with `of: "hide"`), which unmutes the player and draws the token for
+ * everyone again. Its own button, beside the mask's: a masked killer who hides ends each by its own (hide.mjs's header).
+ * The glyph is `averted-eyes`, declared for both themes (`unseen` is Stained Glass's alone and drew a blank square under
+ * Legacy: the screenshot of 23.11.2026).
+ *
+ * @param {HTMLElement} tile
+ * @param {object} [given]  the suite's: `hiding` (an actor or null) and the click's `onUnhide`
+ * @returns {HTMLElement|null}
+ */
+export function paintUnhide(tile, { hiding = myHiding(), onUnhide = requestUnhide } = {}) {
+    const controls = tile?.querySelector(".drpg-voice-tile-controls");
+    if (!controls) return null;
+    let button = controls.querySelector(".drpg-voice-unhide");
+    if (!hiding) {
+        button?.remove();
+        return null;
+    }
+    if (!button) {
+        button = miniButton("drpg-voice-unhide", "averted-eyes", "");
+        button.addEventListener("click", event => {
+            event.preventDefault();
+            event.stopPropagation();
+            Promise.resolve().then(() => unhideToggles.get(button)?.()).catch(err => error("Could not reveal from hiding", err));
+        });
+        const after = controls.querySelector(".drpg-voice-reveal") ?? controls.querySelector(".drpg-voice-speaker");
+        if (after) after.after(button);
+        else controls.append(button);
+    }
+    unhideToggles.set(button, () => onUnhide(hiding));
+    const label = game.i18n.localize("DRPG.Hide.reveal");
+    if (button.getAttribute("aria-label") !== label) {
+        button.setAttribute("aria-label", label);
+        button.dataset.tooltipText = label;
+    }
+    return button;
+}
+
+/* What a press of a tile's Reveal yourself from Hide calls, kept per button. */
+const unhideToggles = new WeakMap();
+
+/**
+ * THE HIDDEN, FOR A GM (S0-HIDE, E129; the coordinator's "The GM can reveal them"). At the top of a GM's list 'Who you
+ * hear', one line per character Hide hides (hide.mjs `hiddenUnderWay`), with a Reveal button that ends the hide
+ * (`gmUnhide`); none on a player's list. Answers how many lines it drew.
+ *
+ * @param {HTMLElement} list
+ * @param {object} [given]  the suite's: `gm`, `rows` and the press's `onReveal`
+ */
+export function paintHidden(list, { gm = game.user?.isGM === true, rows = gm ? hiddenUnderWay() : [], onReveal = gmUnhide } = {}) {
+    if (!list) return 0;
+    let box = list.querySelector(".drpg-voice-hidden");
+    if (!gm || !rows.length) {
+        box?.remove();
+        return 0;
+    }
+    if (!box) {
+        box = document.createElement("ul");
+        box.className = "drpg-voice-hidden";
+        box.setAttribute("aria-label", game.i18n.localize("DRPG.Hide.gmTitle"));
+        const rowsBox = list.querySelector(".drpg-voice-list-rows");
+        if (rowsBox) rowsBox.before(box);
+        else list.append(box);
+    }
+    const key = rows.map(row => `${row.actorId}:${row.name}`).join("|");
+    if (box.dataset.rows === key) return rows.length;
+    box.dataset.rows = key;
+    box.replaceChildren(...rows.map(row => {
+        const li = document.createElement("li");
+        li.className = "drpg-voice-hidden-mark";
+        const button = document.createElement("button");
+        button.type = "button";
+        button.className = "drpg-voice-hidden-reveal";
+        button.textContent = game.i18n.localize("DRPG.Hide.gmReveal");
+        setTip(button, "DRPG.Hide.gmRevealTooltip", { name: row.name }, { text: true });
+        button.addEventListener("click", event => {
+            event.preventDefault();
+            event.stopPropagation();
+            Promise.resolve().then(() => onReveal(row.actorId)).catch(err => error("Could not reveal a hidden character", err));
+        });
+        li.append(pixelGlyph("averted-eyes"), textNode("span", "", game.i18n.format("DRPG.Hide.gmLine", { name: row.name })), button);
+        return li;
+    }));
+    return rows.length;
+}
+
 /* What a press of a tile's Stop listening calls, kept per button. */
 const stopToggles = new WeakMap();
 
@@ -1405,6 +1515,125 @@ export function volumeOfSlider(input) {
 /** `userId`'s `<audio>` elements in the watch's dock. */
 function audioOf(watch, userId) {
     return [...(watch.dock()?.querySelectorAll?.(AUDIO) ?? [])].filter(el => el.closest(".camera-view")?.dataset.user === userId);
+}
+
+/*
+ * WHO THIS PAGE DOES NOT HEAR (E129, the owner's S0-VOICE of 23.11.2026: "osoba a nie slyszy osoby b slyszac reszte. Reszta
+ * slyszy osobe b normalnie"; an F5 on A's browser cured it). A and B share a Room - A hears the rest and the rest hear B -
+ * so the gap is on A's page: the module's own per-listener roads ('Mute for me', the volume) or LiveKit's and the
+ * browser's (a microphone not subscribed after a reconnect, no `<audio>` for B, one paused by the browser's autoplay
+ * rule). `hearingGaps` names each participant of the watch's Room who publishes an open microphone and is not `audible`,
+ * with the first reason of HEARING_REASONS that holds. `repairHearing` mends only what nobody chose - a paused element is
+ * played, an unsubscribed microphone subscribed - once per person and reason until they are heard again; it never touches
+ * a mute, a volume or the dock's hide, each a choice of the listener's. `checkHearing` runs both on the tick, tells the
+ * GMs when the list changes (voice-client.mjs `reportHearing`; voice.mjs `voicePlan` lists it) and repaints an open list,
+ * whose row says it (`paintList`). What a real LiveKit and Firefox do is not measured headless: a live check proposed with E129, for the coordinator to write in AUDIT 9.2.
+ */
+
+/** How often a page asks who it does not hear: on the voice self-check's order, cheap when no Room is followed. */
+const HEARING_CHECK_MS = 10000;
+
+/** The open microphones a participant publishes: its audio publications not marked another source, not muted by them. */
+function openMicrophones(participant) {
+    return [...(participant?.audioTrackPublications?.values?.() ?? [])].filter(pub => pub && (!pub.source || pub.source === "microphone") && pub.isMuted !== true);
+}
+
+/** The first reason `userId` is not heard here (HEARING_REASONS' order), for a participant whose microphone is open. */
+function gapReason(watch, userId, publication, mutes, settings) {
+    if (mutedFor(mutes, settings, userId)) return "mutedForMe";
+    const elements = audioOf(watch, userId);
+    if (peerVolume(settings, userId) === 0 || (elements.length && elements.every(el => !(Number(el.volume) > 0)))) return "volumeZero";
+    if (publication?.isSubscribed === false) return "notSubscribed";
+    if (!elements.length) return "noElement";
+    if (elements.every(el => el.paused)) return "elementPaused";
+    if (elements.every(el => el.muted)) return "elementMuted";
+    return "trackNotLive";
+}
+
+/**
+ * The participants of the watch's Room this page does not hear, `[{ userId, reason }]` in the Room's order: each who
+ * publishes an open microphone and is not `audible`. Nobody while the Room is not connected or the listener muted
+ * everybody (Foundry's mute-all, their own choice). `isUser` is the record's test of an id (`peerMutes`).
+ *
+ * @param {object} [watch]
+ * @param {object} [options]
+ * @param {(id: string) => boolean} [options.isUser]
+ * @returns {{userId: string, reason: string}[]}
+ */
+export function hearingGaps(watch = live, { isUser } = {}) {
+    const room = watch?.room;
+    if (!room || room.state !== "connected" || watch.muteAll?.()) return [];
+    const settings = watch.settings?.(), mutes = isUser ? peerMutes(watch.mutes?.read?.(), isUser) : peerMutes(watch.mutes?.read?.());
+    const out = [];
+    for (const participant of room.remoteParticipants?.values?.() ?? []) {
+        const user = personOf(watch, participant, room);
+        if (!user) continue;
+        const open = openMicrophones(participant);
+        if (!open.length || audible(watch, user.id)) continue;
+        const reason = gapReason(watch, user.id, open.find(pub => pub.isSubscribed === false) ?? open[0], mutes, settings);
+        if (HEARING_REASONS.includes(reason)) out.push({ userId: user.id, reason });
+    }
+    return out;
+}
+
+/**
+ * Mend what nobody chose, once per person and reason (`watch.hearingTried`, emptied for whoever is heard again): an
+ * unsubscribed microphone subscribed (`setSubscribed(true)`, LiveKit's), a paused element played (its rejection, an
+ * autoplay block, is kept as the gap it was). Answers the gaps it tried.
+ *
+ * @param {object} [watch]
+ * @param {{userId: string, reason: string}[]} [gaps]
+ * @returns {{userId: string, reason: string}[]}
+ */
+export function repairHearing(watch = live, gaps = hearingGaps(watch)) {
+    if (!watch) return [];
+    const tried = watch.hearingTried ??= new Set();
+    const open = new Set(gaps.map(gap => gap.userId));
+    for (const key of [...tried]) if (!open.has(key.split(":")[0])) tried.delete(key);
+    const done = [];
+    for (const gap of gaps) {
+        if (gap.reason !== "notSubscribed" && gap.reason !== "elementPaused") continue;
+        const key = `${gap.userId}:${gap.reason}`;
+        if (tried.has(key)) continue;
+        tried.add(key);
+        try {
+            if (gap.reason === "elementPaused") {
+                for (const el of audioOf(watch, gap.userId)) if (el.paused) Promise.resolve(el.play?.()).catch(() => {});
+            } else {
+                const participant = [...(watch.room?.remoteParticipants?.values?.() ?? [])].find(p => personOf(watch, p)?.id === gap.userId);
+                for (const pub of openMicrophones(participant)) if (pub.isSubscribed === false) pub.setSubscribed?.(true);
+            }
+            done.push(gap);
+        } catch (err) {
+            error("Could not mend a voice this page does not hear", err);
+        }
+    }
+    if (done.length) count("voice.hearing.repair", done.length);
+    return done;
+}
+
+/**
+ * One check of the tick: the gaps found, mended where nobody chose them, told to the GMs when the list changed since
+ * the last report (`report`, voice-client.mjs `reportHearing`), and an open list repainted. Answers the gaps.
+ *
+ * @param {object} [watch]
+ * @param {object} [options]
+ * @param {(gaps: object[]) => void} [options.report]
+ * @param {(id: string) => boolean} [options.isUser]
+ */
+export function checkHearing(watch = live, { report = reportHearing, isUser } = {}) {
+    if (!watch) return [];
+    const gaps = hearingGaps(watch, { isUser });
+    repairHearing(watch, gaps);
+    watch.hearing = new Map(gaps.map(gap => [gap.userId, gap.reason]));
+    const said = JSON.stringify(gaps);
+    if (said !== (watch.hearingSaid ?? "[]")) {
+        watch.hearingSaid = said;
+        count("voice.hearing.report");
+        report(gaps);
+    }
+    if (watch.list && !watch.list.hidden) paintList(watch, isUser ? { isUser } : {});
+    return gaps;
 }
 
 /**
@@ -1581,7 +1810,11 @@ function listRow(watch, userId) {
     unhide.type = "button";
     unhide.addEventListener("click", () => listAct(watch, () => unhidePeer(watch, userId)));
     hidden.hidden = unhide.hidden = true;
-    row.append(art, textNode("span", "drpg-voice-row-name", ""), dot, slider, mute, hidden, unhide);
+    // E129 (S0-VOICE): 'Mute for me' said in words beside the button that undoes it, and why this page does not hear them.
+    const mutedMe = textNode("span", "drpg-voice-row-mutedme", game.i18n.localize("DRPG.Voice.list.mutedByYou"));
+    const gap = textNode("span", "drpg-voice-row-gap", "");
+    mutedMe.hidden = gap.hidden = true;
+    row.append(art, textNode("span", "drpg-voice-row-name", ""), dot, slider, mute, mutedMe, hidden, unhide, gap);
     return row;
 }
 
@@ -1620,10 +1853,10 @@ function putHidden(el, hidden) {
  * @param {(user: User) => object|null} [options.holds]  `moduleHoldsMic`; R539 hands in its own
  * @returns {number} the rows drawn
  */
-export function paintList(watch = live, { holds = user => moduleHoldsMic(user) } = {}) {
+export function paintList(watch = live, { holds = user => moduleHoldsMic(user), isUser } = {}) {
     const list = watch?.list, body = list?.querySelector(".drpg-voice-list-rows");
     if (!body) return 0;
-    const settings = watch.settings(), mutes = peerMutes(watch.mutes.read()), gm = watch.gm() === true, room = watch.room;
+    const settings = watch.settings(), mutes = isUser ? peerMutes(watch.mutes.read(), isUser) : peerMutes(watch.mutes.read()), gm = watch.gm() === true, room = watch.room;
     const ids = room?.state === "connected"
         ? [...new Set([...(room.remoteParticipants?.values?.() ?? [])].map(p => personOf(watch, p, room)?.id).filter(Boolean))] : [];
     const people = ids.map(id => ({ id, user: watch.userOf(id) })).filter(p => p.user)
@@ -1633,6 +1866,8 @@ export function paintList(watch = live, { holds = user => moduleHoldsMic(user) }
     putAttr(list.querySelector(".drpg-voice-list-muteall"), "aria-pressed", String(watch.muteAll() === true));
     // Every eavesdrop under way, on a GM's list (E69 C6).
     paintEavesdroppers(list, { gm });
+    // Every character Hide hides, with its Reveal, on a GM's list (S0-HIDE).
+    paintHidden(list, { gm });
     // "Nobody else is in your channel" only when nobody is: a participant mapped to no user has no row, and is still
     // there (E78 fix r1-G1).
     putHidden(list.querySelector(".drpg-voice-list-alone"), people.length > 0 || channelCount(watch) > 0);
@@ -1666,6 +1901,15 @@ export function paintList(watch = live, { holds = user => moduleHoldsMic(user) }
         mute.classList.toggle("is-muted", muted);
         for (const el of [slider, mute]) putHidden(el, hidden);
         for (const el of row.querySelectorAll(".drpg-voice-row-hidden, .drpg-voice-row-unhide")) putHidden(el, !hidden);
+        // Muted by you, in words; and a gap the last check found that nobody here chose (`checkHearing`).
+        const mutedMe = row.querySelector(".drpg-voice-row-mutedme");
+        if (mutedMe) putHidden(mutedMe, hidden || !muted);
+        const gapLine = row.querySelector(".drpg-voice-row-gap"), gapWhy = watch.hearing?.get?.(id);
+        if (gapLine) {
+            const shown = Boolean(gapWhy && gapWhy !== "mutedForMe" && gapWhy !== "volumeZero" && !hidden);
+            putText(gapLine, shown ? game.i18n.format("DRPG.Voice.list.gap", { why: game.i18n.localize(`DRPG.Voice.hearing.${gapWhy}`) }) : "");
+            putHidden(gapLine, !shown);
+        }
 
         let block = row.querySelector(".drpg-voice-row-block"), why = row.querySelector(".drpg-voice-row-held");
         if (!gm) {
@@ -1883,8 +2127,10 @@ function dropVoiceTile() {
  * `rtcSettingsChanged`, which also tells the sound launcher about "mute all" (sfx.mjs, the design's F5).
  */
 export function registerVoiceTile() {
-    Hooks.on("liveKitClientInitialized", client => refreshVoiceTile(liveKitClient() ?? client ?? null));
+    // Every initialize builds a new track, live whatever the button says (avclient-livekit 0.6.8): held to it at once.
+    Hooks.on("liveKitClientInitialized", client => { followOwnTrack(); refreshVoiceTile(liveKitClient() ?? client ?? null); });
     Hooks.on("rtcSettingsChanged", () => {
+        followOwnTrack();
         refreshVoiceTile();
         import("./sfx.mjs").then(m => m.refreshSoundLauncher()).catch(err => error("Could not draw the sound launcher", err));
     });
@@ -1897,7 +2143,18 @@ export function registerVoiceTile() {
     Hooks.on("drpgEavesdropCopy", () => paintControls());
     // The murder's privacy (E69 C8): this browser's character went behind a "?" or came out.
     Hooks.on("drpgMaskChanged", () => paintControls());
+    // Hide (S0-HIDE): this browser's character hid or showed again; a GM's list follows the GMs' rows.
+    Hooks.on("drpgHideChanged", () => paintControls());
+    Hooks.on("updateToken", (doc, changes) => {
+        if (game.user?.isGM && changes?.flags?.[MODULE_ID] && ("hiding" in changes.flags[MODULE_ID] || "-=hiding" in changes.flags[MODULE_ID])
+            && live?.list && !live.list.hidden) paintList(live);
+    });
     Hooks.on("drpgEavesdropChanged", () => { if (live?.list && !live.list.hidden) paintList(live); });
+    // A hidden token holds its player's microphone (E129, S0-HIDEMUTE; voice.mjs `micHold` "tokenHidden"): said at once.
+    Hooks.on("updateToken", (_doc, changes) => { if ("hidden" in (changes ?? {})) paintControls(); });
+    // Who this page does not hear (E129, S0-VOICE; `checkHearing`), on its own tick.
+    // The same tick holds the page's own track to the button, should a road above have been missed (E129, `followOwnTrack`).
+    setInterval(() => { followOwnTrack(); try { checkHearing(live); } catch (err) { error("Could not check who this page hears", err); } }, HEARING_CHECK_MS);
     /* THE TRIAL'S LINES FOLLOW THE TRIAL (E70 fix p1-G1, 28.10.2026; the review's E70P1-R03). A Monocub's line and the
        dead's (voice.mjs `micHold`: "cubSpeak", "cubListen", "cubVote", "ownCase", "deadMuted") are read off the clock,
        the floor and the trial's record, and nothing here repainted on those: a debate opened, or the vote, and the

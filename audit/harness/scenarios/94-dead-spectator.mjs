@@ -83,6 +83,12 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, canary, repoUr
     try {
         phase("secret");
         const before = await p1.eval(WORLD);
+        /* P1'S SCREEN AT THE KILL (1.2.128, E129; the coordinator's condition on the owner's S0-VICTIM): what p1's browser
+           shows of every token (visibility.mjs `tokenShownTo`), and whether it watches, read before the kill and after it;
+           a token the kill made (the watcher's) is read apart. */
+        const SCREEN = `const V = ${imp("visibility.mjs")}, S = ${imp("spectator.mjs")};
+            return { watching: S.spectatorViewer(), tokens: Object.fromEntries([...canvas.scene.tokens].map(t => [t.id, String(V.tokenShownTo(t, V.viewerHere()))])) };`;
+        const screenBefore = await p1.eval(SCREEN);
         const playedBefore = { p1: await p1.eval(PLAYED), p3: await p3.eval(PLAYED) };
         const killed = await gm.eval(`const C = ${imp("chapter.mjs")}, D = ${imp("spectator-dead.mjs")};
             const chie = game.actors.get("${IDS.chie}");
@@ -103,6 +109,12 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, canary, repoUr
             && newTokens.length === 1 && newTokens[0][1] === watcherId && changedSettings.length === 0,
             JSON.stringify({ killed, newActors, changedActors, newTokens, changedSettings }));
         await canary.worldScan({ who: ["p1"], ids: [IDS.chie] });
+        const screenAfter = await p1.eval(SCREEN);
+        const changedOnP1 = Object.keys(screenBefore?.tokens ?? {}).filter(id => screenBefore.tokens[id] !== screenAfter?.tokens?.[id]);
+        const madeOnP1 = Object.keys(screenAfter?.tokens ?? {}).filter(id => !(id in (screenBefore?.tokens ?? {}))).map(id => screenAfter.tokens[id]);
+        check("secret: p1's screen does not change at the kill - every token shown or hidden as before, the token made hidden, p1 not watching (1.2.128 S0-VICTIM)",
+            changedOnP1.length === 0 && madeOnP1.length === 1 && madeOnP1[0] === "hide" && screenBefore?.watching === false && screenAfter?.watching === false,
+            JSON.stringify({ changedOnP1, madeOnP1, watching: [screenBefore?.watching, screenAfter?.watching] }));
 
         phase("moment");
         const moments = { p1: await p1.eval(`return globalThis.__drpg94;`), p3: await p3.eval(`return globalThis.__drpg94;`) };
@@ -131,11 +143,21 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, canary, repoUr
         const drag = await p3.eval(`try { const t = [...canvas.scene.tokens].find(t => t.actorId === "${watcherId}");
             await t.update({ x: 400, y: 400 }); return { ok: true }; } catch (err) { return { ok: false, err: String(err?.message ?? err) }; }`);
         await settle(1500);
-        const view = await p3.eval(`const V = ${imp("visibility.mjs")}, M = ${imp("movement.mjs")};
+        const view = await p3.eval(`const V = ${imp("visibility.mjs")}, M = ${imp("movement.mjs")}, S = ${imp("spectator.mjs")};
             const t = [...canvas.scene.tokens].find(t => t.actorId === "${watcherId}");
-            return { room: t ? M.roomOfToken(t) : null, aiko: V.tokenShownTo(canvas.scene.tokens.get("TOKAIKO000000000"), V.viewerHere()) };`);
-        check("view: p3 walks the watcher into Aiko's room, and Aiko's token stays hidden on p3's browser",
-            drag?.ok === true && view?.room === "Dorm A" && view.aiko === "hide", JSON.stringify({ drag, view }));
+            return { room: t ? M.roomOfToken(t) : null, aiko: String(V.tokenShownTo(canvas.scene.tokens.get("TOKAIKO000000000"), V.viewerHere())),
+                watching: S.spectatorViewer(), watcher: S.watcherOf()?.id ?? null, view: S.DEAD_VIEW };`);
+        /* THE SPECTATOR'S VIEW AT ONCE (1.2.128, E129; the owner, 23.11.2026: "Nie dostala spectatora automatycznie"): with
+           spectator.mjs `DEAD_VIEW` "spectator" the dead player watches through the watcher - Aiko's token is no longer the
+           room rule's to hide (`tokenShownTo` answers null for a Spectator: Foundry's own) - and with "student" the dead
+           keep the dead student's view (B), Aiko hidden, as from E62 C3b until 1.2.128. */
+        const spectatorView = view?.view !== "student";
+        check(spectatorView
+            ? "view: p3, dead, watches as a Spectator at once (spectator.mjs DEAD_VIEW), walks the watcher into Aiko's room, and Aiko's token is not hidden from them"
+            : "view: p3 walks the watcher into Aiko's room, and Aiko's token stays hidden on p3's browser (DEAD_VIEW \"student\")",
+            drag?.ok === true && view?.room === "Dorm A"
+            && (spectatorView ? view.watching === true && view.watcher === watcherId && view.aiko !== "hide" : view.aiko === "hide"),
+            JSON.stringify({ drag, view }));
 
         phase("voice");
         const voice = await gm.eval(`const V = ${imp("voice.mjs")}, VC = ${imp("voice-client.mjs")};

@@ -27,7 +27,7 @@ import { SETTINGS } from "./settings.mjs";
 import { error, markLanguage, markFired } from "./utils.mjs";
 
 import { announceSheetSteps } from "./requirements.mjs";
-import { sheetMode, RENDER_MODES } from "./sheet-mode.mjs";
+import { sheetMode, RENDER_MODES, sheetsFor } from "./sheet-mode.mjs";
 import { trimItemSheet } from "./sheet-item.mjs";
 import { installRenderPlan, settle } from "./sheet-repaint.mjs";
 import { leaveLoadoutTab, keepTabScroll, removeSystemCreators, fitActionTiles, watchTileFit, holdActionsTab, growForCalls } from "./sheet-fit.mjs";
@@ -48,6 +48,21 @@ export { monocubMoveNote, moveDragSaid, budgetLine, roomBlockFor, actionButton, 
 /* The room watch's trailing wait, in ms: a token's drag lands as one update, a reshape's delete and create inside it. */
 const ROOM_WATCH_MS = 60;
 
+/**
+ * Every open character sheet whose death's stamp, as this browser reads the death, is not the one it shows: rendered.
+ * What it shows is its root's `drpg-dead-sheet` (`markSheetState`): the render's mode is dropped once it is drawn.
+ */
+function redrawDeathMarks(actors = game.actors) {
+    for (const actor of actors ?? []) {
+        if (actor?.type !== "character") continue;
+        for (const app of sheetsFor(actor)) {
+            const root = app.element instanceof HTMLElement ? app.element : app.element?.[0];
+            const shown = Boolean(root?.classList?.contains("drpg-dead-sheet"));
+            if (root && shown !== sheetMode(actor, game.user, { app }).header.mark) app.render(false);
+        }
+    }
+}
+
 export function registerSheetTweaks() {
     // ApplicationV2 fires a render hook per class in the inheritance chain,
     // so the concrete Daggerheart sheet class name is the precise target.
@@ -62,6 +77,16 @@ export function registerSheetTweaks() {
     });
     // The sheet's 'Known passages' follows this browser's copy of the passages (E79 C7).
     Hooks.on("drpgPassagesChanged", redrawPassageSheets);
+    /* A DEATH THE GMS KEEP, ON THE SHEETS OPEN FOR IT (1.2.128, E129 S0-DEADMARK; the owner, 23.11.2026: "gracze nie
+       widzieli "dead" na portrecie ciala w karcie postaci", and the GM saw no stamp either). The stamp is drawn at a
+       render (`markSheetState`), and a kept death writes no actor: the GMs' deaths store, and the copy of it the dead
+       student's player holds (`mineDeaths`), so a sheet open at the kill drew no "dead" until something else rendered it.
+       Each change of either now renders the open sheets whose death it changes (`redrawDeathMarks`); read on the
+       harness's sheet in scenario 71 K. Daggerheart 2.12.9's sidebar keeps `.character-sidebar-sheet .portrait`, the
+       stamp's place (its public source, templates/sheets/actors/character/sidebar.hbs, read 23.11.2026). */
+    Hooks.on("clientSettingChanged", key => {
+        if (key === `${MODULE_ID}.${SETTINGS.gmDeaths}` || key === `${MODULE_ID}.${SETTINGS.mineDeaths}`) redrawDeathMarks();
+    });
     // The row's Present follows the floor (E70 C10): painted in place, no sheet rendered.
     Hooks.on("updateSetting", setting => {
         if (setting?.key === `${MODULE_ID}.${SETTINGS.trialQueue}`) repaintPresentButtons();

@@ -158,6 +158,19 @@ export async function turnOnPrimary({ actorId, kind, step }, senderId = null) {
     /* A SCRUM DEBATE'S TURN (E110 C3): its speaker's Done and Pass, and a participant's step over once the turn ran out
        (the heartbeat's `due`, which refuses a turn not run out), judged by zone-machine.mjs in the floor's step. */
     if (floor?.mode === MODES.scrum && floor.zone?.phase === "speak") return scrumTurnOnPrimary(floorMod, floor, { actorId, kind, step }, senderId);
+    /* THE OBJECTOR'S OWN END OF THEIR SECONDS (E129 S0-SKIP; config.mjs `TRIAL.objectorMayFinish`): Done during an
+       Objection whose bullet is on the table, its step the Objection's start; the GM's Skip's move (trial-floor.mjs
+       `finishObjectionOnPrimary`). */
+    if (floor?.mode === MODES.objection && kind === "done") {
+        const out = await floorMod.finishObjectionOnPrimary({ actorId, startedAt: step });
+        switch (out?.refused ?? null) {
+            case null: return { reply: { step: out?.written?.startedAt ?? null } };
+            case "DRPG.Floor.round.notSpeaker": return { refused: "it is not that character's turn" };
+            case "DRPG.Floor.round.noTurn": return { refused: "no round holds the floor now" };
+            case "DRPG.Floor.bar.notTrial": return { refused: "nothing was carried out: this GM's browser is not the primary" };
+            default: return { refused: "the round has moved on since that turn" };
+        }
+    }
     if (!closing && (!floor?.round || !isRoundMode(floor.round.mode))) return { refused: "no round holds the floor now" };
     if (closing) {
         const { trialParticipants } = await import("./vote.mjs");

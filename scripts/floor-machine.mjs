@@ -357,8 +357,10 @@ const TIMED = { [MODES.objection]: TRIAL.objectionSeconds, [MODES.rebuttal]: TRI
 /** How long `floor`'s current mode is meant to run (trial-floor.mjs `modeSeconds` asks this). */
 export function modeSecondsOf(floor) {
     if (!floor) return 0;
-    // The objector's seconds to choose the bullet (E79 C16): the minute itself starts at the fill.
+    // The objector's seconds to choose the bullet (E79 C16): the Objection's own seconds start at the fill.
     if (floor.mode === MODES.objection && floor.pending) return TRIAL.objectionPickSeconds;
+    // The Closing's exchange keeps its own seconds (E129 S0-OBJ, 1.2.129: the debate's and the rounds' went to 30).
+    if (floor.mode === MODES.objection && closingOf(floor)) return Number(TRIAL.modes?.closing?.objectionSeconds) || TRIAL.objectionSeconds;
     return TIMED[floor.mode] ?? floor.seconds ?? TRIAL.speakSeconds;
 }
 
@@ -589,6 +591,9 @@ export function nextFloor(floor, event = {}, ctx = {}) {
             return stepOn(floor, now, [], ctx);
         case "skip":
             if (floor.mode === MODES.debate) return { refused: "DRPG.Floor.bar.noTurn" };
+            // `finished`: the objector's own end of their seconds (E129 S0-SKIP; trial-floor.mjs `finishObjectionOnPrimary`),
+            // the same move with the speaker's card, titled by its mode as a round's own cards are, not as the GM's step.
+            if (event.finished) return stepOn(floor, now, [{ key: "DRPG.Floor.turnFinished", actorId: turnOf(floor), title: `DRPG.Floor.mode.${floor.mode}` }], ctx);
             return stepOn(floor, now, [{ key: "DRPG.Floor.turnSkipped", actorId: turnOf(floor) }], ctx);
         case "lapse":
         case "withdraw":

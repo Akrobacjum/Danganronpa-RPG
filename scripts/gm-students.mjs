@@ -31,7 +31,8 @@ import { stepper, drpgWindow, dataTable, iconButton, roleButton, tipAttr, tipTex
 import { keepLive, alreadyOpen, handOff, RAISED } from "./live.mjs";
 import { crossingStore, offerStore } from "./gm-stores.mjs";
 import { roomPhrase } from "./rooms.mjs";
-import { isDeadWatcher } from "./spectator-dead.mjs";
+import { isDeadWatcher, spectatorForTheDead } from "./spectator-dead.mjs";
+import { isDeadForGm } from "./settings.mjs";
 import { actionsLeft, actionsMax, hasFreeMove } from "./actions.mjs";
 
 
@@ -259,7 +260,7 @@ function aliveTableHtml({ roster, others, stateOf, donors, isCrimeSilenced, invi
 const ROLES = Object.freeze(["student", "monokuma", "spectator", "npc"]);
 const ROLE_WORDS = Object.freeze({ student: "DRPG.Panel.role.student", monokuma: "DRPG.Monokuma.isMonokuma", spectator: "DRPG.Spectator.role",
     npc: "DRPG.Class.notInClass" });
-const ROLE_ROADS = Object.freeze({ markFromSheet, setMonokuma, setNotInClass, setSpectator });
+const ROLE_ROADS = Object.freeze({ markFromSheet, setMonokuma, setNotInClass, setSpectator, spectatorForTheDead });
 
 /** The role a character holds by its flags, as the window's select names it. */
 function roleOf(actor) {
@@ -279,6 +280,15 @@ export async function changeRole(actor, to, roads = {}) {
     const from = roleOf(actor);
     if (from === to) return false;
     const road = { ...ROLE_ROADS, ...roads };
+    /* A DEAD STUDENT IS GIVEN THEIR WATCHER, NOT THE FLAG (1.2.128, E129 S0-VICTIM; the owner, 23.11.2026: "Po dostaniu
+       spectatora przez gm panel zabralo token ciala"). The flag on the student made the body's own token the Spectator's
+       walking token, hidden from every other player: the body went. The role makes the watcher instead, its own token
+       where the body lies (spectator-dead.mjs `spectatorForTheDead`, on the primary), and the GM is told so. */
+    if (to === "spectator" && isDeadForGm(actor) && !isMonokuma(actor)) {
+        const watcher = await road.spectatorForTheDead(actor);
+        ui.notifications[watcher ? "info" : "warn"](game.i18n.format(watcher ? "DRPG.Spectator.deadGivenWatcher" : "DRPG.Spectator.deadNoWatcher", { name: actor.name }));
+        return Boolean(watcher);
+    }
     if (to === "monokuma") {
         if (!(await road.markFromSheet(actor))) return false;
         if (from === "spectator") return Boolean(await road.setSpectator(actor, false));

@@ -83,7 +83,7 @@ Every action is a Daggerheart duality roll: a Hope die and a Despair die, both d
 
 - A roll **with Hope** earns you 1 Hope.
 - A roll **with Despair** feeds the Despair pool of the Monokuma who watches you (section 6). That is where Monokuma's money comes from: your bad luck and your risks.
-- A **critical** earns 2 Hope and nothing else; unlike plain Daggerheart, it does not restore Sanity.
+- A **critical** earns 2 Hope and nothing else; unlike plain Daggerheart, it does not restore Sanity. A roll that only supports an action earns no Hope, whatever it shows: covering what you do, staying unseen, concealing your intent; Hope comes from the action's main roll. Its critical still does what its own rule says (Tamper's concealment gives back 1 Sanity).
 
 The roll window is locked for players: the dice, statistic, advantage, experiences, and bonuses come from the action, from a Call you paid for, from where you are standing, or from the GM. What you can touch is what the action lets you choose.
 
@@ -228,14 +228,14 @@ Two buttons sit on the tile. **The microphone** mutes and unmutes your own micro
 |---|---|
 | struck through | muted, by you |
 | struck through, with a small lock | muted by the GM (**The GM blocked your microphone.**) |
-| gray and struck through | the game holds it - during an Eclipse, while you listen at a door, in a Class Trial while the floor is somebody else's or you are on the trial's list of the dead, and as a Spectator - with the reason under it; a click then changes nothing and tells you why |
+| gray and struck through | the game holds it - during an Eclipse, while you listen at a door, while the GM hides your token, while you hide (Hide), in a Class Trial while the floor is somebody else's or you are on the trial's list of the dead, and as a Spectator - with the reason under it; a click then changes nothing and tells you why |
 | with a small dot | you are not connected to voice, or voice runs in its own window |
 | lit | your microphone carries your voice |
 | wearing **PTT** | push to talk: hold your key to speak |
 
-A Monocub keeps its microphone during an Eclipse and is told that nobody hears it until the lights come back. In the Spectators' room the microphone stays yours to mute and unmute, with a line under it saying where you are.
+A Monocub keeps its microphone during an Eclipse and is told that nobody hears it until the lights come back. In the Spectators' room the microphone stays yours to mute and unmute, with a line under it saying where you are. While the microphone is struck through, gray or not, your own browser also turns your microphone off itself, so nobody hears you until it is lit again; in push to talk your key opens it.
 
-**The speaker** shows how many others are in your channel - everyone who can hear you, speaking or not - and opens **Who you hear**: each of them with a volume slider and **Mute *name* for you** (then **Hear *name* again**), and at the top **Mute everybody for you**. All of it is yours alone: nobody else hears the difference. Escape or a click outside closes the list.
+**The speaker** shows how many others are in your channel - everyone who can hear you, speaking or not - and opens **Who you hear**: each of them with a volume slider and **Mute *name* for you** (then **Hear *name* again**), and at the top **Mute everybody for you**. All of it is yours alone: nobody else hears the difference. Escape or a click outside closes the list. A person you muted for you reads **Muted by you** until you press **Hear *name* again**; this browser keeps it for your next session too. A person your page does not hear for another reason reads why, with the advice to reload the page (F5); the page itself tries once to play a paused sound or to receive a microphone it is not receiving.
 
 > [!TIP]
 > To find out who is next door without walking in, use **Listen** (section 4, Infiltrate).
@@ -394,7 +394,7 @@ A room action the GM set is rolled on the statistic and difficulty its row names
 
 ### Infiltrate: Listen - Shadow, 1 action
 
-The **Infiltrate** tile's window lists its actions one under another: Listen first, then Echoes, Tail Someone, Keep Watch, Dash, Shut the Door, Force the Door, and Pick the Lock. Each has its part of this section below.
+The **Infiltrate** tile's window lists its actions one under another: Listen first, then Echoes, Tail Someone, Keep Watch, Dash, Shut the Door, Force the Door, Pick the Lock, and Hide. Each has its part of this section below.
 
 Listen works out who is in a neighboring room, with no GM ruling. You pick the room before you roll, and the answer arrives as a card only you and the GMs can read. In a room with no neighboring room Listen is grayed with the reason.
 
@@ -440,6 +440,14 @@ If you open it below 18, or miss with Despair, the bedroom's owner learns that s
 ### Keep Watch - Body, 1 action
 
 Before an Eclipse (not during one, and not before the Night Eclipse), a Body roll of 12 or more keeps watch through the coming Eclipse over the room you stand in when it starts. You are told who is in it then, by name; through the Eclipse, who comes in and who leaves, by name, never from where or to where; and at its end, how many came and went. You stay at your post through the Eclipse. A failure with Despair costs 1 Sanity. A watch of 18 or more, or a critical, makes you harder to catch: whoever opens a murder on you rolls their opening with one hindrance die, and their window does not say why. A player who agreed that their character be a murder's victim does not use Keep Watch to avoid it.
+
+### Hide - Shadow, 1 action
+
+A Shadow roll of 15 or more, or a critical, hides you. The other players stop seeing your token, its frame and its name, and your microphone goes off; you still hear the room, and on your own screen your token is pale. The GMs see you. Other players' voice lists do not show you, their actions' lists of people in the room leave you out, and their Listen does not hear you. A miss hides nothing, and the action is spent.
+
+While you are hidden, an action's Shadow roll for staying unseen is not rolled and counts as passed: Palm's and an unseen Frisk's, Tail Someone's, Pick the Lock's, Taking from a body in front of others, and the cover of a Sabotage, an indirect murder's work, or a clean-up. The card says so. It gives no Hope.
+
+You stay hidden until you press **Reveal yourself** on your voice tile, a GM reveals you, or the chapter ends; a new time of day, moving, and other actions do not end it. Not during a Class Trial: there, everyone sits in the hall and the trial's floor decides who speaks.
 
 ### Dash - Leg, 1 action
 
@@ -869,7 +877,7 @@ Whenever your character walks into a room where a body lies, you hear the discov
 
 ## 12. The Class Trial
 
-Everyone is in one room, and nobody leaves it. You start the trial with your actions refilled, as at the start of a time of day: Wounded takes no action from you here, and the Panic darkening still takes its one (section 6). The trial does not end the time of day, so a banked Sprint or Burst stays banked. Only Analyze is open on your sheet, with the Hope Calls and your items. In a trial Analyze only identifies Truth Bullets, with no hint, no hidden stash, and no passage, and it costs **1 action**, or **1 Hope** when your actions are gone, or **1 Sanity** when both are.
+Everyone is in one room, and nobody leaves it. You start the trial with your actions refilled, as at the start of a time of day: Wounded takes no action from you here, and the Panic darkening still takes its one (section 6). The trial does not end the time of day, so a banked Sprint or Burst stays banked. Only Analyze and Palm (since 1.2.129) are open on your sheet, with the Hope Calls and your items. In the trial Palm reaches anybody standing in the hall, takes or leaves something (its Frisk waits for the trial's end), and costs **1 action**, or **1 Hope** when your actions are gone, or **1 Sanity** when both are; its card says which you paid. In a trial Analyze only identifies Truth Bullets, with no hint, no hidden stash, and no passage, and it costs **1 action**, or **1 Hope** when your actions are gone, or **1 Sanity** when both are.
 
 When the GM has set up a trial hall, opening the trial takes your screen to it, and ending it takes you back to the school: the living who took part go to a room the GM picks. The GM chooses who takes part, and your character's token is placed in the hall for the trial and removed afterwards.
 
@@ -882,17 +890,17 @@ When the room is ready to argue, the GM opens the **Nonstop Debate**, with a que
 | Mode | Who may speak | How long | Who may object | Who presents evidence |
 |---|---|---|---|---|
 | Nonstop Debate | everyone | the GM's budget | anyone, at whoever speaks | everyone |
-| OBJECTION | the objector alone | 60 seconds | nobody | everyone |
+| OBJECTION | the objector alone | 30 seconds | nobody | everyone |
 | Rebuttal | the objector and the person the Objection is aimed at | 120 seconds, then the floor closes and the trial is back to open discussion | anyone, but only against one of the two on the floor | everyone |
 | Testimony | one participant at a time, in the order the GM set | 60 seconds a turn as offered; the GM may set 30 to 120 | anyone else, at the speaker alone | the speaker |
 | Panic Round | one participant at a time, in order | 15 seconds a turn (10 from 12 participants on) | nobody | the speaker |
 | Closing Argument | the speaker the GM confirms or picks | 300 seconds | anyone else, at the speaker alone | the speaker, or the two of an Objection at them |
 
-You do not choose whom you contradict: an Objection is aimed at whoever is speaking now (about a second of speech counts), or, when nobody is, at the last player who spoke in this trial. It is never aimed at a GM, a Monocub, a student whose death has been announced, yourself, or another student of yours. The button names that person before you press it; if nobody has spoken yet, it says so and nothing is paid. When the module cannot hear who is speaking, the press asks you whom you contradict instead. Then you choose the Truth Bullet: **30 seconds**, counted down in the window. Until it is on the table, the Objection's card says it is pending; the 60 seconds start when it is. Close the window or let the time run out, and the Objection is withdrawn, its card says so, and what you paid is not given back. When your Objection takes the floor, you are told what it cost. An Objection's card stays above every window until you click it.
+You do not choose whom you contradict: an Objection is aimed at whoever is speaking now (about a second of speech counts), or, when nobody is, at the last player who spoke in this trial. It is never aimed at a GM, a Monocub, a student whose death has been announced, yourself, or another student of yours. The button names that person before you press it; if nobody has spoken yet, it says so and nothing is paid. When the module cannot hear who is speaking, the press asks you whom you contradict instead. Then you choose the Truth Bullet: **30 seconds**, counted down in the window. Until it is on the table, the Objection's card says it is pending; its 30 seconds start when it is. Close the window or let the time run out, and the Objection is withdrawn, its card says so, and what you paid is not given back. When your Objection takes the floor, you are told what it cost. While its 30 seconds run, a window in the middle of your screen asks *Finish your turn now?* (since 1.2.129): **Finish my turn** ends them and the rebuttal starts, as the GM's Skip would; **Keep speaking** closes the window, and it is not offered again for that Objection. An Objection's card stays above every window until you click it.
 
 The GM can re-point a running Objection at somebody else. The GM can also **Overrule** the newest Objection, one pressed by mistake or one that has nothing to do with what the speaker said: its card is stamped **Overruled by the GM**, what you paid stays paid, and the trial goes back to where it was, with the time it had then. The GM's bar can also skip a turn, take or give half a minute (5 seconds in a Panic Round), end a mode, or go back to the debate, and each of these is shown on screen (a card, or *GM: +30 s* on the trial's card). On every screen the clock names the mode, and the Event panel's trial card shows the mode, who has the floor (in a rebuttal, also whom they answer), and the time left.
 
-The GM can also open three modes in which one person speaks at a time. In **Testimony** and a **Panic Round** everyone taking part speaks in turn: on your turn a window says *Your turn (n s)* with the seconds you have left, with **Done** to end your turn and **Pass** to give it to the next speaker (**Keep speaking** hides it for 20 s, and it comes back while your turn lasts), and the screens name who speaks and who is next. If you are not connected when your turn comes, it passes. While somebody else speaks, you listen. After an Objection in Testimony the round goes on at the next speaker. Only the speaker presents evidence (*Only name can present right now.*).
+The GM can also open three modes in which one person speaks at a time. In **Testimony** and a **Panic Round** everyone taking part speaks in turn: on your turn a window says *Your turn (n s)* with the seconds you have left, with **Done** to end your turn and **Pass** to give it to the next speaker (**Keep speaking** hides it for 20 s, and it comes back while your turn lasts; with more than 5 seconds left, Done and Pass ask *End your turn now?* first, since 1.2.129), and the screens name who speaks and who is next. If you are not connected when your turn comes, it passes; if you drop during your turn, it waits 15 seconds for you to come back. While somebody else speaks, you listen. After an Objection in Testimony the round goes on at the next speaker. Only the speaker presents evidence (*Only name can present right now.*).
 
 In the **Closing Argument** you are first asked whether you will sum up the case: **I'll sum up** or **Someone else**, with 30 seconds to say so. One of the volunteers is drawn, and the GM confirms them or picks someone else; the speaker has 300 seconds. If you are the speaker, **Pass** in your first 30 seconds hands the choice back to the GM, and after that it ends the Closing Argument, as **Done** does. When somebody objects at the speaker, only the two of that exchange present evidence until it is over (*Only name and name can present right now.*). After the exchange the GM decides who continues: the speaker, with the time they had left, or one who objected, with a new 300 seconds. A Closing comes once a trial and ends before the vote, and speaking last in it earns no Hope.
 
@@ -900,7 +908,7 @@ In the **Closing Argument** you are first asked whether you will sum up the case
 
 ### The vote
 
-Each living player receives a **ballot**, one per person, however many students you play; a student only a GM plays gets none. A Monocub and the dead get no ballot, a dead student nobody has found yet included. If you connect while a vote is open, your ballot comes as the game loads. Vote for whoever you believe is the **Blackened**, the student who killed: you may vote for yourself, for Monokuma, and for the dead. Nobody sees your vote: it goes to the GMs alone, and only the totals are published. **Your vote is in.** means a GM has recorded it; *No GM has your vote yet* means it goes out as soon as a GM connects. Close the ballot without voting and nothing is counted for you; ask the GM to send it again.
+Each living player receives a **ballot**, one per person, however many students you play; a student only a GM plays gets none. A Monocub and the dead get no ballot, a dead student nobody has found yet included. If you connect while a vote is open, your ballot comes as the game loads. Vote for whoever you believe is the **Blackened**, the student who killed: you may vote for yourself, for each Monokuma by name, and for the dead; a vote on one Monokuma is counted for that one alone. Nobody sees your vote: it goes to the GMs alone, and only the totals are published. **Your vote is in.** means a GM has recorded it; *No GM has your vote yet* means it goes out as soon as a GM connects. Close the ballot without voting and nothing is counted for you; ask the GM to send it again.
 
 > [!IMPORTANT]
 > A conviction needs **more than half** of the ballots issued - for each name, when the vote asks for more than one. **A tie counts as a wrong vote** unless the table settles it.
@@ -1171,7 +1179,7 @@ The opening roll's window opens at most `TIMING.openingAttempts` times (3) when 
 
 **Whom an Objection is aimed at.** The speaker is read from the voice room of the primary GM's browser: somebody counts as speaking after staying in LiveKit's list of active speakers for 1 second. When the GM's browser has no voice room, the press asks the objector whom they contradict, whatever the objector's own voice room is doing. The primary GM's browser decides whether an Objection takes the floor, and the objector is told the price when it does. How fast this follows real speech is not yet checked at a table.
 
-**The trial's numbers.** The debate's default budget is 180 seconds, never under 30; an Objection 60 seconds; a rebuttal 120; choosing an Objection's Truth Bullet 30; the GM's bar moves a clock by 30 seconds (a Panic Round's by 5) and shows *GM: ...* for 10 seconds; Testimony 60 seconds a turn offered, 30 to 120; a Panic Round 15 seconds a turn, 10 from 12 participants on; the Closing Argument 30 seconds to volunteer, 300 seconds a speaker, once a trial, a Pass in the first 30 seconds handing the choice back; the zone modes: a Straw Poll 45 seconds, a Logic Dive 60 seconds a question, however the tokens stand (then 5 seconds with the count shown; 1 to 5 questions a set), a Scrum Debate 45 seconds for Sides, 120 seconds to confer, and a 300-second budget shared in turns of 20 to 40 seconds. Text limits: a debate question 200 characters, a zone question 200, an answer 80, a Scrum Debate's thesis 120. The Closing Argument pays no Hope to the last voice.
+**The trial's numbers.** The debate's default budget is 180 seconds, never under 30; an Objection 30 seconds (60 in the Closing Argument); a rebuttal 120; choosing an Objection's Truth Bullet 30; the GM's bar moves a clock by 30 seconds (a Panic Round's by 5) and shows *GM: ...* for 10 seconds; Testimony 60 seconds a turn offered, 30 to 120; a Panic Round 15 seconds a turn, 10 from 12 participants on; the Closing Argument 30 seconds to volunteer, 300 seconds a speaker, once a trial, a Pass in the first 30 seconds handing the choice back; the zone modes: a Straw Poll 45 seconds, a Logic Dive 60 seconds a question, however the tokens stand (then 5 seconds with the count shown; 1 to 5 questions a set), a Scrum Debate 45 seconds for Sides, 120 seconds to confer, and a 300-second budget shared in turns of 20 to 40 seconds. Text limits: a debate question 200 characters, a zone question 200, an answer 80, a Scrum Debate's thesis 120. The Closing Argument pays no Hope to the last voice.
 
 **Actions in the trial.** The trial refills everyone's actions without ending the time of day, so banked Sprints and Bursts stay. Wounded takes its action in Daily Life and the Investigation only (since 1.2.110), so the trial's actions are the full budget for a Wounded student too; the Panic darkening still takes one.
 

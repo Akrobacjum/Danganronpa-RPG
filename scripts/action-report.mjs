@@ -18,7 +18,7 @@
  * alone (`rollInHand`, `noteRollContext`).
  */
 
-import { MODULE_ID, TRAITS, TIMING } from "./config.mjs";
+import { MODULE_ID, TRAITS, TIMING, CRITICAL, ROLL_REFUNDS } from "./config.mjs";
 import { roomOfActor } from "./movement.mjs";
 import { whisperToOwner, log, plural, cardHead, esc } from "./utils.mjs";
 import { playSfx } from "./sfx.mjs";
@@ -162,6 +162,42 @@ async function diceSettled(messageId) {
  * ========================================================================== */
 
 /**
+ * WHAT A ROLL DID FOR ITS PLAYER (E129 S0-CARDS, 1.2.128; the owner, 23.11.2026: "Zamiast tego niech one rezultatu akcji
+ * jasno mowia graczowi, co jest skutkiem jego wyniku i dzialan, w tym krytyka"). The lines a result card says under the
+ * dice of each roll it shows: the Hope a main roll earns (1 with Hope, `CRITICAL.hope` on a critical, which restores no
+ * Sanity - the handbook's "unlike plain Daggerheart"), the Despair a roll with Despair feeds, and that a supporting roll
+ * (`rollTrait`'s `supporting`: a cover, staying unseen, a concealment) earns none while its Despair still counts
+ * (roll-draw.mjs `throwDrawn`, `ROLL_REFUNDS.supportingHope`; despair-award.mjs pays an action roll's Despair whatever it
+ * supported). A roll with no duality (a GM's ruling, a Search unanswered) says nothing. `roll` is `rollTrait`'s outcome,
+ * or `{ isCritical, withHope }` as the GMs' record holds a roll (a clean-up's, read on the GM). The words name a rule and
+ * what this roll fell into, never a resource's new value: the GM's Hope write and this card are not ordered (dice-hold.mjs
+ * draws the write when the dice land), so "your Hope is now N" could be read before it is true. Pure but for `game.i18n`.
+ */
+export function rollEffectLines(roll) {
+    if (!roll || (roll.isCritical === undefined && roll.withHope === undefined && roll.withFear === undefined)) return [];
+    // A cover not thrown while its roller hides (hide.mjs `HIDDEN_COVER`, 1.2.128 line STG): no dice, so nothing earned or
+    // fed; its card says it was skipped (`coverLine`, `withCover`).
+    if (roll.hidden === true) return [];
+    const critical = Boolean(roll.isCritical), hope = !critical && Boolean(roll.withHope);
+    const despair = !critical && !hope && (roll.withFear === undefined ? roll.withHope === false : Boolean(roll.withFear));
+    const L = (key, data) => game.i18n.format(`DRPG.Result.${key}`, data ?? {});
+    if (roll.supporting === true && !ROLL_REFUNDS.supportingHope) {
+        const trait = TRAITS[roll.trait]?.label;
+        return [trait ? L("support", { trait }) : L("supportBare"), ...(despair ? [L("supportDespair")] : [])];
+    }
+    // Counted lines are plural families (R1157): a critical's Hope is `CRITICAL.hope`, a roll with Hope's Daggerheart's 1.
+    if (critical) return [plural("DRPG.Result.critical", { n: CRITICAL.hope })];
+    if (hope) return [plural("DRPG.Result.hope", { n: 1 })];
+    return despair ? [L("despair")] : [];
+}
+
+/** `rollEffectLines` of each roll, as the card's list (`drpg-roll-effects`), or "" when none says anything. */
+export function rollEffectsHtml(rolls = []) {
+    const lines = rolls.flatMap(roll => rollEffectLines(roll));
+    return lines.length ? `<ul class="drpg-roll-effects">${lines.map(line => `<li>${esc(line)}</li>`).join("")}</ul>` : "";
+}
+
+/**
  * WHAT THE DICE DID, AS A COLOUR.
  *
  * The card prints the total; what it cannot say at a glance is which way the
@@ -232,7 +268,7 @@ export function rollHead(def, roll, { decides = true } = {}) {
         trait: TRAITS[roll?.trait]?.label,
         // The number its window said (`rollTrait`'s `dc`), "needed N" on the card (E51 C1).
         dc: roll?.dc ?? null
-    }) + dualityBar(roll);
+    }) + dualityBar(roll) + rollEffectsHtml([roll]);
 }
 
 /**
@@ -283,6 +319,10 @@ export function reportHtml(def, roll, outcome, room = null) {
     // behind it - an unanswered Search, a GM's ruling - and an empty string
     // joins into nothing.
     lines.push(dualityBar(roll));
+    // What the roll did (E129 S0-CARDS): its Hope, its Despair, and each supporting roll's line (`supportRolls`: a Palm's
+    // or a Frisk's cover, whose dice this card does not show). Read off the rolls alone, so a Despair with a trace placed
+    // and one without say the same here (R8675).
+    lines.push(rollEffectsHtml([roll, ...(outcome.supportRolls ?? [])]));
 
     if (outcome.extra) lines.push(outcome.extra);
 
