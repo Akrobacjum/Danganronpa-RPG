@@ -369,6 +369,14 @@ export const CHAPTERS_PER_SEASON = 6;
  * these is a rule of the game; they are how long the module waits, how much it
  * keeps, and how often it looks. Named here so the next tuning is one edit.
  */
+/**
+ * WHETHER A SHARE CARRIES THE GIVER'S ANALYZE RESULT, BY DEFAULT (the owner's notes of session 0, 23.11.2026, S0-ANSHARE:
+ * "wybor czy udostepniac z analyze czy bez"; the coordinator's default, pending the owner; line INVEST of 1.2.129). The
+ * Share window of a Truth Bullet that holds a reading asks, its box ticked as this says (handover.mjs `askRecipient`). The
+ * one place the default lives.
+ */
+export const SHARE_WITH_ANALYSIS = true;
+
 export const TIMING = {
     /** A GM's "got it" for a bridge request; past this, no GM is listening. */
     ackMs: 8000,

@@ -38007,6 +38007,80 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         }
     }],
 
+    ["1.2.129 S0-ANSHARE - a Share of a Truth Bullet that holds an Analyze result asks whether to carry it, ticked by default; unticked, the receiver's copy is born unread, its reading kept for their own Analyze; a bullet with no reading asks nothing (handover.mjs `shareBulletDialog`, `shareBullet`; config.mjs SHARE_WITH_ANALYSIS; the owner's notes of session 0, 23.11.2026)", async () => {
+        /*
+         * Line INVEST of 1.2.129. Two students of the cast alone in a room; on the first, a bullet analysed (its reading
+         * written) and one not. The Share window opened for each on this GM (the giver's dialog), read, and cancelled.
+         * Then the analysed one shared to the second with the box unticked and again ticked (a fresh receiver copy each
+         * time). Read: the box (drawn, ticked); each copy's `analyzed` flag, its shown type against the unread one, and
+         * whether the reading is on the copy's item. Then the same Share as the giver's player's packet reaches the
+         * primary's runner, unticked and naming no choice. Bullets, secrets and the fixture go after.
+         * Red at 2e28785a: no box, and a Share always carried the reading.
+         */
+        needs(env.dialogs(), "the Share window is drawn");
+        const T = await import("./truth-bullets.mjs");
+        const H = await import("./handover.mjs");
+        const C = await import("./config.mjs");
+        const F = T.TRUTH_BULLET_FLAGS;
+        const [giver, receiver] = cast(2);
+        const fixture = await aloneTogether(giver, receiver);
+        const READING = "SUITE 129a the reading";
+        const made = [];
+        const seen = {};
+        const drawn = () => [...foundry.applications.instances.values()].find(a => a.rendered && a.options?.classes?.includes("drpg-window-handover"));
+        try {
+            const read = await T.createTruthBullet(giver, { name: "SUITE 129a read", realType: "neutral", shownType: "neutral", analyzed: true, visibility: "obvious", playerText: "SUITE 129a words", analyzedText: READING });
+            const unread = await T.createTruthBullet(giver, { name: "SUITE 129a unread", realType: "neutral", visibility: "obvious", playerText: "SUITE 129a words" });
+            must(read && unread, "the bullets were not made - this would measure nothing");
+            made.push(read, unread);
+            await settle();
+            must(T.hasReading(giver.items.get(read.id)) && !T.hasReading(giver.items.get(unread.id)), "the read bullet holds no reading, or the unread one does - this would measure nothing");
+            for (const [key, b] of [["read", read], ["unread", unread]]) {
+                const asked = H.shareBulletDialog(giver, giver.items.get(b.id)).catch(() => null);
+                await until(() => drawn()?.element || null, 4000).catch(() => {});
+                const box = drawn()?.element?.querySelector('input[name="analysis"]') ?? null;
+                seen[key] = box ? (box.checked ? "ticked" : "unticked") : "none";
+                await drawn()?.close();
+                await Promise.race([asked, wait(3000)]);
+            }
+            for (const analysis of [false, true]) {
+                const copy = await H.shareBullet({ fromId: giver.id, toId: receiver.id, itemId: read.id, analysis });
+                must(copy, `no copy was made (analysis ${analysis}) - this would measure nothing`);
+                await settle();
+                const live = receiver.items.get(copy.id);
+                seen[analysis ? "with" : "without"] = { analyzed: Boolean(live?.getFlag(MODULE_ID, F.analyzed)), reading: String(live?.getFlag(MODULE_ID, F.analyzedText) ?? "").includes(READING),
+                    keyKeeps: String(T.secretOf(live?.uuid)?.analyzedText ?? "").includes(READING) };
+                await live?.delete(); await T.dropSecret(copy.uuid);
+                await settle();
+            }
+            /* And through the bridge, as the giver's player's packet reaches the primary (bridge-guards.mjs `judge`): unticked,
+               and from a packet that names no choice (an older client), which shares with it. */
+            const G = await import("./bridge-guards.mjs");
+            const { BRIDGE_ACTIONS } = await import("./bridge-table.mjs");
+            const { ACTION_SHARE_BULLET } = await import("./bridge-wire.mjs");
+            const { ownerOf } = await import("./utils.mjs");
+            const player = ownerOf(giver);
+            must(player, "the giver has no player - this would measure nothing");
+            for (const [key, fields] of [["packetWithout", { analysis: false }], ["packetOld", {}]]) {
+                const before = new Set(receiver.items.map(i => i.id));
+                await G.judge(BRIDGE_ACTIONS, { action: ACTION_SHARE_BULLET, requestId: `S129a${foundry.utils.randomID(8)}`, fromId: giver.id, toId: receiver.id, itemId: read.id, ...fields },
+                    player.id, { send: () => {} });
+                await settle();
+                const live = receiver.items.find(i => !before.has(i.id) && T.isTruthBullet(i));
+                seen[key] = live ? Boolean(live.getFlag(MODULE_ID, F.analyzed)) : "no copy";
+                if (live) { const uuid = live.uuid; await live.delete(); await T.dropSecret(uuid); }
+                await settle();
+            }
+            seen.default = C.SHARE_WITH_ANALYSIS;
+        } finally {
+            await drawn()?.close().catch(() => {});
+            for (const b of made) { const live = giver.items.get(b.id); if (live) await live.delete(); await T.dropSecret(b.uuid); }
+            await fixture.back();
+        }
+        equal(stableJson(seen), stableJson({ default: true, packetOld: true, packetWithout: false, read: "ticked", unread: "none",
+            with: { analyzed: true, keyKeeps: true, reading: true }, without: { analyzed: false, keyKeeps: true, reading: false } }),
+            "{packetWithout, packetOld: the copy analysed, from a player's packet unticked and from one naming no choice; read, unread: the Share window's box for each; with, without: the receiver's copy - analysed, the reading on its item, and kept in its answer key; default: the constant}");
+    }],
     ["a bullet analysed or handed over is read as the GMs hold it, not as a write of the player's their put-back has not undone", async () => {
         /*
          * E29 fix r2-H17, 06.10.2026; found by fix r2-H16. An Analyze asked whether a bullet could be analysed and

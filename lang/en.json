@@ -3645,6 +3645,8 @@
       "who": "Who?",
       "shareKeyNote": "They get their own copy of the key, and you keep yours. It costs no action.",
       "shareNote": "They get their own copy with what you know of it, and you keep yours. If your Analyze of it failed, they can still Analyze theirs. It costs no action.",
+      "shareWithAnalysis": "Share it with my Analyze result",
+      "shareWithoutNote": "If you untick it, their copy shows this Truth Bullet as if nobody had analyzed it, without its reading or the type Analyze found. They can Analyze it themselves.",
       "giveNote": "One piece goes from your inventory to theirs for good. If their hands are full, it stays with you. It costs no action.",
       "pickedLeft": "{name} has left the room. Pick someone else.",
       "nobodyHere": "There is nobody else in {room} to hand anything to.",
@@ -3663,6 +3665,7 @@
       "changedMidwayKept": "“{name}” changed on {from}'s sheet (used, broken, stashed, or gone) before it reached {to}, and its copy could not be taken back. Take the copy off {to}'s sheet.",
       "alreadyHasIt": "Nothing changed hands; your Truth Bullet stays yours.",
       "shared": "{who} now has a copy of “{name}”.",
+      "sharedWithoutAnalysis": "{who} now has a copy of “{name}”, without your Analyze result.",
       "gave": "“{name}” is now {who}'s.",
       "gaveOne": {
         "one": "You hand {who} one “{name}”. You still have one.",

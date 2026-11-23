@@ -592,7 +592,7 @@ export async function handleShareBulletOrGiveItem(payload, sender, ctx) {
     // cannotNow, missing; E14 part 1 C1) and an item no GM has decided on come back with their
     // reason and are told by its code; a hand-over into full hands with no stash is the
     // giver's whisper (handover.mjs `giveItem`).
-    const out = ctx.action === ACTION_SHARE_BULLET ? await shareBullet(args) : await giveItem(args);
+    const out = ctx.action === ACTION_SHARE_BULLET ? await shareBullet({ ...args, analysis: payload.analysis !== false }) : await giveItem(args);
     if (out?.refused) return { refused: out.refused };
 }
 

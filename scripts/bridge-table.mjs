@@ -339,7 +339,10 @@ export const BRIDGE_ACTIONS = table({
         answer: "none", quiet: true,
         why: "answers only about the sender's own characters, found from the id Foundry gives, and names none"
     },
-    [ACTION_SHARE_BULLET]: handover("DRPG.Bridge.what.handover.bullet"),
+    // `analysis`: whether the copy carries the giver's Analyze result (line INVEST of 1.2.129, S0-ANSHARE) - a choice,
+    // not a claim: it can only take the reading off the copy, never put one there the giver's bullet does not hold; a packet
+    // that names none (an older client) shares with it, as before (`oneOf` reads it as null)
+    [ACTION_SHARE_BULLET]: { ...handover("DRPG.Bridge.what.handover.bullet"), sanitize: pick({ fromId: as.id, toId: as.id, itemId: as.id, analysis: as.oneOf(true, false) }) },
     [ACTION_GIVE_ITEM]: handover("DRPG.Bridge.what.handover.item"),
     [ACTION_PASSAGE_SHARE]: {
         label: "DRPG.Bridge.what.passage.share",

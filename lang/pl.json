@@ -3908,6 +3908,8 @@
       "who": "Komu?",
       "shareKeyNote": "Odbiorca dostaje własną kopię klucza, a ty zachowujesz swoją. Nie wydajesz akcji.",
       "shareNote": "Odbiorca dostaje własną kopię, a ty zachowujesz swoją. Kopia Truth Bulletu przychodzi z twoją analizą, jeśli się udała; nieudana analiza na nią nie przechodzi, więc odbiorca może przeanalizować kopię sam. Nie wydajesz akcji.",
+      "shareWithAnalysis": "Podziel się kopią z wynikiem mojego Analyze",
+      "shareWithoutNote": "Jeśli odznaczysz to pole, kopia odbiorcy pokaże ten Truth Bullet tak, jakby nikt go nie analizował: bez odczytu i bez rodzaju ustalonego przez Analyze. Odbiorca może go przeanalizować sam.",
       "giveNote": "Przedmiot przechodzi do odbiorcy i znika z twojego ekwipunku; gdy masz kilka sztuk, przechodzi jedna. Jeśli odbiorca nosi już tyle rzeczy tej kategorii, ile może, przekazanie nie dochodzi do skutku i przedmiot zostaje u ciebie. Nie wydajesz akcji.",
       "pickedLeft": "Postaci {name} nie ma już w pokoju. Wybierz kogoś innego.",
       "nobodyHere": "W pokoju {room} nie ma nikogo poza tobą, więc nie masz komu niczego przekazać.",
@@ -3926,6 +3928,7 @@
       "changedMidwayKept": "Przedmiot „{name}” zmienił się na arkuszu postaci {from}, zanim trafił do postaci {to}: został zużyty, zepsuty, schowany do skrytki albo zniknął. Kopii nie dało się zabrać postaci {to}, więc przedmiotu jest o jedną sztukę za dużo. Usuń ją ręcznie z arkusza postaci {to}.",
       "alreadyHasIt": "Nic nie zmieniło właściciela; twój Truth Bullet zostaje u ciebie.",
       "shared": "{who} ma teraz kopię Truth Bulletu „{name}”.",
+      "sharedWithoutAnalysis": "{who} ma teraz kopię Truth Bulletu „{name}”, bez twojego wyniku Analyze.",
       "gave": "{who} ma teraz przedmiot „{name}”.",
       "gaveOne": {
         "one": "Dajesz postaci {who} jedną sztukę: „{name}”. Zostaje ci jeszcze jedna.",
