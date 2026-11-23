@@ -405,8 +405,8 @@ export const REALIZE_SCOPE = "keys";
 
 /**
  * WHETHER A TRUTH BULLET'S HOLDER SEES ITS REMNANT WHEN A GM HAS HIDDEN IT (the owner's notes of 23.11.2026,
- * S0-BULLETSEES: "zawsze posiadanie truth bullet = widoczny token remnanta"; the coordinator's default, pending the
- * owner; line INVEST of 1.2.128). True: holding wins, and a holder's map draws the trace at `REMNANT_ALPHA.player` while
+ * S0-BULLETSEES: "zawsze posiadanie truth bullet = widoczny token remnanta"; the owner's answer of 23.11.2026, relayed
+ * by the coordinator: "oba tak" - holding wins over a GM's hide; line INVEST of 1.2.128). True: holding wins, and a holder's map draws the trace at `REMNANT_ALPHA.player` while
  * Foundry's `hidden` keeps it from everyone else (visibility.mjs `remnantShownHere`). False: a GM's hide wins, for its
  * holders too, as until 1.2.128.
  */
