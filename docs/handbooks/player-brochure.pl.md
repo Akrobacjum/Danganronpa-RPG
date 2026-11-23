@@ -19,7 +19,7 @@ Rzut z Hope daje ci 1 Hope, a krytyk (obie kości z tym samym wynikiem) 2 Hope. 
 - Ruch wewnątrz pokoju jest darmowy; żeby się ruszyć, przeciągnij token. Pierwsze przejście do połączonego pokoju to twój Free Move, każde kolejne kosztuje 1 akcję, a płacisz, gdy dotrzesz na miejsce.
 - Zawracają cię zamknięte drzwi, zapieczętowane pokoje, cudze sypialnie, do których nie masz klucza, i Chained, czyli Despair Call, który trzyma cię w pokoju do końca pory dnia.
 - W Eclipse gasną światła i nikt nikogo nie widzi ani nie słyszy. Ustawiasz wtedy swój token do 2 połączonych pokoi dalej, a w nocnym Eclipse w dowolnym pokoju.
-- Widzisz tylko swój pokój i ludzi w nim; odwiedzone pokoje są za zasłoną, a reszta tonie we mgle. Jeśli twój stół używa ustawienia **Głos osobno w każdym pokoju**, twój głos idzie za tokenem i słyszysz tylko swój pokój.
+- Widzisz tylko swój pokój i ludzi w nim; odwiedzone pokoje są za zasłoną, a reszta tonie we mgle. Jeśli twój stół używa ustawienia **Głos osobno w każdym pokoju**, twój głos idzie za tokenem i słyszysz tylko swój pokój. Każdy token, który widzisz, nosi pod sobą swoją nazwę, o ile możesz ją znać („?” dla ukrytego zabójcy); gdy wyłączysz **Nazwy tokenów jako podpisy** w oknie zębatki, nazwa pokaże się tylko wtedy, gdy kursor zatrzyma się na tokenie.
 - Każdy pokój ma **Search Tokeny**, zwykle 3, wspólne dla wszystkich.
 
 > [!IMPORTANT]

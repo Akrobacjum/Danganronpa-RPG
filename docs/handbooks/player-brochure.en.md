@@ -19,7 +19,7 @@ A roll with Hope gives you 1 Hope, a critical (both dice the same) 2; a roll wit
 - Moving inside your room is free. Drag your token: your first crossing into a connected room is your Free Move, every further crossing costs 1 action, and the cost lands when you arrive.
 - Locked doors, sealed rooms, other students' bedrooms (without a key), and Chained turn you back. Chained is a Despair Call that keeps you in your room until the time of day ends.
 - In the Eclipse the lights are out, and nobody sees or hears anybody. You place your token up to 2 connected rooms away, or in any room in the Night Eclipse.
-- You see only your room and the people in it; visited rooms are veiled, the rest is fog. If your table uses **Separate voice in each room**, your voice follows your token and you hear only your room.
+- You see only your room and the people in it; visited rooms are veiled, the rest is fog. If your table uses **Separate voice in each room**, your voice follows your token and you hear only your room. Each token you see carries its name under it, as far as you may know it (a "?" for a hidden killer); with **Token names as captions** off in the gear, a name shows only when the pointer rests on a token.
 - Every room has **Search Tokens**, usually 3, shared by everybody.
 
 > [!IMPORTANT]
