@@ -369,6 +369,12 @@ body .application.drpg-window-newtrace .drpg-wide-col label > :is(select, .drpg-
 .drpg-case-summary-links { margin-top: 0.5rem; font-size: var(--drpg-kit-help-size); }
 .drpg-case-summary-note { margin: 0.5rem 0 0; font-size: var(--drpg-kit-help-size); color: var(--drpg-kit-help-ink); }
 .application.drpg-window-case-realize table.drpg-case-realize select { width: 100%; min-width: 0; }
+/* The planned rows (S0-REALIZE, line INVEST of 1.2.129) carry a kind and a name the GM wrote: held on one line, under
+   Monokuma Legacy at 1366x768 they pushed the Room column out of the 720 px window (Chromium, 23.11.2026); the cells
+   of the kind and the name wrap instead; the action and the room stay on one line. Through the panels' own chain: danganronpa.css `.application.dialog:is(.drpg-panel,
+   .drpg-advance) .dialog-content :is(th, td)` (0,4,1) holds them on one line. */
+body .application.dialog.drpg-window-case-realize .dialog-content table.drpg-case-realize :is(th, td):is(:nth-child(2), :nth-child(3)) { white-space: normal; }
+body .application.dialog.drpg-window-case-realize .dialog-content table.drpg-case-realize td:nth-child(3) { overflow-wrap: anywhere; }
 /* `[data-drpg-role]`, which every kit footer button carries: the glass's button rule (stained-glass.css, `.drpg-panel
    button:not(...)` x5, 0,7,2) holds a button's words on one line, and they were cut in a cell of a fifth of the footer */
 body .application.dialog.drpg-ui footer.form-footer.drpg-kit-footer.drpg-kit-footer-rows button[data-drpg-role] {
