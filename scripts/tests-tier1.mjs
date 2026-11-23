@@ -32231,7 +32231,9 @@ const INVARIANTS = [
         const { ROOM_PREFIX } = await import("./voice-client.mjs");
         const me = { id: "R8833PLAYER00000", name: "R8833", isGM: false, active: true };
         const living = { id: "R8833ACTOR000000", name: "R8833", type: "character", getFlag: () => null };
-        const hold = facts => V.micHold({ user: me, room: `${ROOM_PREFIX}dorm-a`, external: false, connected: true, canBroadcastAudio: false, actors: [living], ...facts });
+        // `trial: null` outside the trial, named (1.2.128, CI run 45257926108: in 01's part A2 the default read the world's
+        // Class Trial, and "hidden" answered as in the trial).
+        const hold = facts => V.micHold({ user: me, room: `${ROOM_PREFIX}dorm-a`, external: false, connected: true, canBroadcastAudio: false, actors: [living], trial: null, ...facts });
         const reason = answer => (answer ? `${answer.reason}:${answer.held}` : null);
         const trial = { clock: { phase: "classTrial" }, queue: null };
         const read = {
