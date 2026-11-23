@@ -119,7 +119,9 @@ export async function run({ gm, gm2, gm3, p1, p2, p3, check, phase, settle, cana
     await settle(800);
     await gm.eval(`await game.drpg.countNow(); return true;`, { timeout: 30000 });
     await settle(1200);
-    const finding = await gm.eval(`return game.i18n.format("DRPG.Zones.straw.finding", { answer: "Inside", a: 2, b: 1 });`);
+    // The cards name the answers, never "Zone A" or "Zone B", since E129 S0-ZONESTYLE (the owner's 23.11.2026): their words
+    // here are the answers and the counts (`na`, `nb`); a Logic Dive's tie names no answer (TR3).
+    const finding = await gm.eval(`return game.i18n.format("DRPG.Zones.straw.finding", { answer: "Inside", na: 2, nb: 1, a: "Inside", b: "Outside" });`);
     const seenFinding = [];
     for (const c of [p1, p2, p3]) seenFinding.push(await chatHas(c, finding));
     const stand = await gm.eval(`const t = game.scenes.get("${hallId}").tokens.find(t => t.actorId === "${IDS.botan}"); ${F}
@@ -134,7 +136,7 @@ export async function run({ gm, gm2, gm3, p1, p2, p3, check, phase, settle, cana
     await settle(800);
     await gm.eval(`await game.drpg.countNow(); return true;`, { timeout: 30000 });
     await settle(1200);
-    const split = await gm.eval(`return game.i18n.format("DRPG.Zones.straw.split", { a: 1, b: 1 });`);
+    const split = await gm.eval(`return game.i18n.format("DRPG.Zones.straw.split", { na: 1, nb: 1, a: "Inside", b: "Outside" });`);
     const next = await gm.eval(`${F} return F.trialNextStep(F.trialStepView());`);
     const seenSplit = [];
     for (const c of [p1, p2, p3]) seenSplit.push(await chatHas(c, split));
@@ -195,7 +197,7 @@ export async function run({ gm, gm2, gm3, p1, p2, p3, check, phase, settle, cana
     const ended = await gm.eval(`${F} const { diveSetStore } = await import("${repoUrl}/scripts/gm-stores.mjs"); const U = await import("${repoUrl}/scripts/trial-zones-ui.mjs");
         const { trialProgress } = await import("${repoUrl}/scripts/vote.mjs"); const row = diveSetStore.get("s68set");
         return { floor: F.trialFloor(), outcome: row?.outcome ?? null, findings: (trialProgress().findings ?? []).length, warning: U.replayWarning({ id: "s68set", ...row }) };`);
-    const tieCard = await gm.eval(`return game.i18n.format("DRPG.Zones.dive.tie", { a: 1, b: 1 });`);
+    const tieCard = await gm.eval(`return game.i18n.format("DRPG.Zones.dive.tie", { na: 1, nb: 1 });`);
     const seenTie = [];
     for (const c of [p1, p2, p3]) seenTie.push(await chatHas(c, tieCard));
     verdict("a tie (1:1): the set ended unrevealed on every player - no floor, no new Finding, its outcome in the GMs' store",
@@ -235,7 +237,7 @@ export async function run({ gm, gm2, gm3, p1, p2, p3, check, phase, settle, cana
     const thesis = await p3.eval(`const B = await import("${repoUrl}/scripts/gm-bridge.mjs"); const res = await B.requestTrialKeyword({ actorId: "${IDS.chie}", text: "S68 nobody went in" });
         return { ok: res.ok === true, reason: res.reason ?? null };`, { timeout: 30000 });
     await settle(800);
-    const thesisCard = await gm.eval(`return game.i18n.format("DRPG.Zones.scrum.thesis", { zone: "B", text: "S68 nobody went in" });`);
+    const thesisCard = await gm.eval(`return game.i18n.format("DRPG.Zones.scrum.thesis", { answer: "Outside", text: "S68 nobody went in" });`);
     verdict("p3's thesis for Chie reaches p1's chat", thesis.ok && await chatHas(p1, thesisCard), J({ thesis }));
     // Since 1.2.119 (the owner's #5, R7841) a camp emptied in the turns ends nothing: the turn runs on, a turn that falls to
     // the empty camp runs with no speaker, and the Finding waits for the last turn's end. Until then the heartbeat ended
@@ -251,7 +253,7 @@ export async function run({ gm, gm2, gm3, p1, p2, p3, check, phase, settle, cana
     await skipTurn();
     const turn3 = [];
     for (const c of [p1, p2, p3]) turn3.push(await floorOn(c));
-    const noSpeakerCard = await gm.eval(`return game.i18n.format("DRPG.Zones.scrum.noSpeaker", { zone: "B" });`);
+    const noSpeakerCard = await gm.eval(`return game.i18n.format("DRPG.Zones.scrum.noSpeaker", { answer: "Outside" });`);
     const seenNoSpeaker = [];
     for (const c of [p1, p2, p3]) seenNoSpeaker.push(await chatHas(c, noSpeakerCard));
     verdict("Skip twice: Aiko speaks for Zone A, then Zone B's turn runs with no speaker on every player, and every player's chat says so",
@@ -262,7 +264,7 @@ export async function run({ gm, gm2, gm3, p1, p2, p3, check, phase, settle, cana
     await skipTurn();
     const over = await gm.eval(`${F} const end = Date.now() + 6000; while (F.trialFloor() && Date.now() < end) await new Promise(r => setTimeout(r, 200));
         const { trialProgress } = await import("${repoUrl}/scripts/vote.mjs"); return { floor: F.trialFloor(), findings: (trialProgress().findings ?? []).map(f => f.text) };`, { timeout: 30000 });
-    const emptyCard = await gm.eval(`return game.i18n.format("DRPG.Zones.scrum.empty", { zone: "B", answer: "Inside" });`);
+    const emptyCard = await gm.eval(`return game.i18n.format("DRPG.Zones.scrum.empty", { empty: "Outside", answer: "Inside" });`);
     const seenEmpty = [];
     for (const c of [p1, p2, p3]) seenEmpty.push(await chatHas(c, emptyCard));
     verdict("Botan's turn, then the last turn's end with Zone B still empty: the Scrum ends with Zone A's answer as a Finding, on every player",
