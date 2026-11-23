@@ -279,7 +279,7 @@ The **Do** column does the real thing: **A character dies** on a living student 
 A death the GMs keep until the body is found (section 13.4) shows in the dropdown as **Dead, body not found**; setting it to *Dead* (or *Monocub*) makes it known to the table, the same publication a discovery makes, and setting it to *Alive* takes the death back.
 
 > [!CAUTION]
-> **A character dies** destroys the character's Truth Bullets (unless you tick *Keep their Truth Bullets, for a death outside the killing game*) and leaves everything else on the body. Its second box, *Keep the death known only to the GMs until the body is found: the student is not marked dead, and their Truth Bullets stay until then*, is ticked for the running incident's victim, and follows the student you choose - ticked for the victim, unticked for anyone else - until you tick or untick it yourself: then nothing reaches the table yet (no flag, no marker), and the Truth Bullets are destroyed only when the death becomes known (section 13.4).
+> **A character dies** destroys the character's Truth Bullets (unless you tick *Keep their Truth Bullets, for a death outside the killing game*) and leaves everything else on the body. Its second box, *Keep the death known only to the GMs until the body is found: the student is not marked dead, and their Truth Bullets stay until then*, is ticked for the running incident's victim, and follows the student you choose - ticked for the victim, unticked for anyone else - until you tick or untick it yourself: then nothing reaches the table yet but the corpse token's skull (no flag on the student, section 13.4), and the Truth Bullets are destroyed only when the death becomes known (section 13.4).
 
 ---
 

@@ -279,7 +279,7 @@ Kolumna **Zrób** zmienia stan w grze, ze wszystkimi skutkami. Przy żywym uczni
 Śmierć, którą GM-owie ukrywają do znalezienia ciała (sekcja 13.4), stoi na liście jako **Nie żyje, ciała nie znaleziono**. Ustawienie *Nie żyje* (albo *Monocub*) ujawnia ją stołowi, tak samo jak robi to odkrycie ciała, a ustawienie *Żyje* cofa śmierć.
 
 > [!CAUTION]
-> **Postać umiera** niszczy Truth Bullety postaci, chyba że zaznaczysz *Zachowaj Truth Bullets tej postaci (śmierć poza killing game)*, i zostawia resztę przy ciele. Drugie pole, *Zachowaj to dla GM-ów, dopóki ciało nie zostanie znalezione*, jest zaznaczone dla ofiary trwającego incydentu i idzie za wybranym uczniem - zaznaczone dla ofiary, odznaczone dla każdego innego - dopóki sam go nie zaznaczysz albo nie odznaczysz: wtedy do stołu jeszcze nic nie dociera (bez flagi, bez znacznika), a Truth Bullety giną dopiero, gdy śmierć wyjdzie na jaw (sekcja 13.4).
+> **Postać umiera** niszczy Truth Bullety postaci, chyba że zaznaczysz *Zachowaj Truth Bullets tej postaci (śmierć poza killing game)*, i zostawia resztę przy ciele. Drugie pole, *Zachowaj to dla GM-ów, dopóki ciało nie zostanie znalezione*, jest zaznaczone dla ofiary trwającego incydentu i idzie za wybranym uczniem - zaznaczone dla ofiary, odznaczone dla każdego innego - dopóki sam go nie zaznaczysz albo nie odznaczysz: wtedy do stołu jeszcze nic nie dociera poza czaszką na tokenie ciała (bez flagi na uczniu, sekcja 13.4), a Truth Bullety giną dopiero, gdy śmierć wyjdzie na jaw (sekcja 13.4).
 
 ---
 
