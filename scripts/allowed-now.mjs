@@ -33,6 +33,15 @@
 import { isEclipse, getClock, incidentParticipants } from "./settings.mjs";
 import { murderState, sideOf, betrayalTarget } from "./murder.mjs";
 
+/**
+ * The action keys the Class Trial leaves open (T-1: Analyze; since 1.2.128 Palm, E129 S0-PALM, the owner's note of 23.11.2026
+ * "palm powinno byc dostepne w trialu"), and the person roads' keys it leaves open: Palm's Frisk alone, in its three forms -
+ * unseen, the open ask and the force after it (the owner, 23.11.2026: "z palm w trialu ma byc dostepne tylko przeszukanie -
+ * ukradkiem, consensual lub silowe"). Palm's Steal and Plant (`palm`) and every other person road stay shut.
+ */
+export const TRIAL_OPEN_ACTIONS = Object.freeze(["analyze", "palm"]);
+export const TRIAL_OPEN_PERSON = Object.freeze(["frisk"]);
+
 /** Why a road is shut. */
 export const WHY = Object.freeze({
     eclipse: "eclipse", trial: "trial", incident: "incident", murderOnlyInEclipse: "murderOnlyInEclipse"
@@ -59,13 +68,13 @@ export const ROADS = Object.freeze({
         }
         if (key !== "move" && f.eclipse()) return shut(WHY.eclipse);
         if (f.fighting()) return shut(WHY.incident);
-        if (key !== "analyze" && f.trial()) return shut(WHY.trial);
+        if (!TRIAL_OPEN_ACTIONS.includes(key) && f.trial()) return shut(WHY.trial);
         return open();
     },
     /* frisk.mjs `personActionRefusal`'s order: a Frisk, a steal, a Plant, a give, a tail, a loot (A11; E64). */
     person: (key, f) => {
         if (f.eclipse()) return shut(WHY.eclipse);
-        if (f.trial()) return shut(WHY.trial);
+        if (f.trial() && !TRIAL_OPEN_PERSON.includes(key)) return shut(WHY.trial);
         if (f.participant()) return shut(WHY.incident);
         return open();
     },

@@ -60,6 +60,16 @@ export const ACTION_DIFFICULTY = "dynamic.difficulty";
 export const ACTION_AUDIT_DECIDE = "audit.decide";
 /** GM -> primary GM: charge the Key fee as a Class Trial opens (E09 fix r1-G3; key-remnants.mjs `askToChargeForUnfoundKeys`). */
 export const ACTION_KEYS_CHARGE = "keys.charge";
+/** GM -> primary GM: a full GM's body announced (E128; body.mjs `discoverBody`, the discovery the primary's alone). */
+export const ACTION_BODY_DISCOVER = "body.discover";
+/** GM -> primary GM: a full GM's end of the chapter, or its Finish or Drop (E128; chapter.mjs `applyChapterEnd`, `finishChapterEnd`). */
+export const ACTION_CHAPTER_END = "chapter.end";
+/** GM -> primary GM: a full GM's Fix voice, every voice room sent again by the primary (E128; voice.mjs `resetAllVoice`). */
+export const ACTION_VOICE_RESET = "voice.reset";
+/** GM -> primary GM: a second full GM's Finish of a verdict the primary runs (E128; verdict.mjs `finishVerdict`). */
+export const ACTION_VERDICT_FINISH = "verdict.finish";
+/** GM -> primary GM: post the opening's request card, or the roller's line while a GM picks, the primary's to post once (E128; murder-rules.mjs `postOpeningCard`). */
+export const ACTION_OPENING_CARD = "murder.openingCard";
 /** GM -> primary GM: a step of the vote - open, close, restart, resend or remind (E10 C1; vote.mjs `runVoteOp`). */
 export const ACTION_VOTE_RUN = "vote.run";
 /** player -> primary GM: a ballot (E10 C2; vote.mjs `sendBallot`, `recordBallot`). */
@@ -116,6 +126,8 @@ export const ACTION_OBSERVE_TARGET = "observe.target";
 export const ACTION_OBSERVE_RESOLVE = "observe.resolve";
 /** GM -> primary GM: a GM's pick or refusal on an Observe card (E09 C12; observe.mjs `pickFromCard`, `askObservePick`). */
 export const ACTION_OBSERVE_PICK = "observe.pick";
+/** GM -> primary GM: a find's words written by another GM, for the window that waits on the primary (E128; observe.mjs `answerDescribeFrom`). */
+export const ACTION_OBSERVE_DESCRIBE = "observe.describe";
 export const ACTION_CLEANUP_TRACES = "cleanup.traces";
 export const ACTION_ANALYZE_RESOLVE = "analyze.resolve";
 /** player -> primary GM: a room action of the Facilities tile used (E93 C3; facilities-gm.mjs `handleFacilityUse`). */
@@ -132,8 +144,12 @@ export const ACTION_LISTEN_STOP = "listen.stop";
 export const ACTION_LISTEN_ECHOES = "listen.echoes";
 /** player -> primary GM: a killer behind a "?" reveals themselves (E69 C8; mask-gm.mjs `revealMask`). */
 export const ACTION_MASK_REVEAL = "mask.reveal";
+/** player -> primary GM: Hide, its Shadow roll on the GMs' record (S0-HIDE, E129; hide.mjs `startHide`). Its end is `mask.reveal` with `of: "hide"`. */
+export const ACTION_HIDE_START = "hide.start";
 /** GM -> primary GM: the opening's veil, asked by a GM who is not the primary - at the lights, after them, at an open (1.2.122, the audit's STG-31; mask-gm.mjs `veilOnPrimary`). */
 export const ACTION_MASK_VEIL = "mask.veil";
+/** GM -> primary GM: a dead student's Spectator, the watcher, asked by a GM who is not the primary - the Students window's Spectator role on a dead student (1.2.128, E129 S0-VICTIM; spectator-dead.mjs `spectatorForTheDead`). */
+export const ACTION_DEAD_SPECTATOR = "spectator.dead";
 /** player -> primary GM: a barricade put up, its Body roll on the GMs' record (E74 C2; doors-gm.mjs `shutDoor`). */
 export const ACTION_DOOR_SHUT = "door.shut";
 /** player -> primary GM: a door forced, its Body roll on the GMs' record (E74 C3; doors-gm.mjs `forceDoor`). */

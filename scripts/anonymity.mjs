@@ -568,7 +568,11 @@ async function takeFromBody(body, items) {
     const hand = { rollId: idOf(roll), total: roll.total, isCritical: roll.isCritical, withHope: roll.withHope };
     let cover = null;
     const { othersInRoom } = await import("./movement.mjs");
-    if (othersInRoom(taker).some(other => other?.id !== body.id)) {
+    // While hidden the cover is not thrown (S0-HIDE, hide.mjs `coverWhileHidden`): the GM holds it passed, and the toast says so.
+    const { coverWhileHidden, withCover } = await import("./hide.mjs");
+    const hiddenCover = coverWhileHidden(taker);
+    const watched = othersInRoom(taker).some(other => other?.id !== body.id);
+    if (watched && !hiddenCover) {
         const shadow = await rollTrait(taker, LOOT.cover.trait, {
             remember: false, actionKey: "lootCover", context, title: game.i18n.format("DRPG.Loot.coverTitle", { n: LOOT.cover.threshold }), dc: LOOT.cover.threshold
         });
@@ -595,7 +599,8 @@ async function takeFromBody(body, items) {
     const took = Boolean(res.ok && !res.value?.refused && !res.value?.coverNeeded);
     // Each name in its own quotes, the list joined in the page's language (EN17, EN2; the needsCode line, R6900).
     const names = listOf(list.map(item => game.i18n.format("DRPG.Loot.itemQuoted", { item: item.name })));
-    if (took) ui.notifications.info(game.i18n.format(isDeceased(body) ? "DRPG.Loot.took" : "DRPG.Loot.tookUnfound", { item: names }));
+    if (took) ui.notifications.info(withCover(game.i18n.format(isDeceased(body) ? "DRPG.Loot.took" : "DRPG.Loot.tookUnfound", { item: names }),
+        watched ? hiddenCover : null));
     return took;
 }
 

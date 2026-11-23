@@ -2,7 +2,8 @@
  * Danganronpa RPG - the price chains, and the one place they are paid.
  * ---------------------------------------------------------------------------
  * T-1 (Dawid, 17.09) priced three things as a CHAIN rather than as one cost: an
- * Objection, Analyze inside a Class Trial, and a Tamper attempt. You pay the
+ * Objection, Analyze inside a Class Trial, and a Tamper attempt; and Palm inside a Class Trial since 1.2.128 (E129
+ * S0-PALM, the owner's note of 23.11.2026), as Analyze's. You pay the
  * first step you can still pay - an action, then Hope, then a Sanity mark - and
  * when you can pay none of them you cannot do it.
  *
@@ -31,7 +32,7 @@
  * Objection answers with the free Present that does not take the floor.
  */
 
-import { MODULE_ID, FLAGS, PRICE_CHAINS, STARTING } from "./config.mjs";
+import { MODULE_ID, FLAGS, PRICE_CHAINS, STARTING, ROLL_REFUNDS } from "./config.mjs";
 import { getClock, isDeadForGm } from "./settings.mjs";
 import { canPayFor, freeActionsLeft, actionsLeft, spendAction, refundAction } from "./actions.mjs";
 import { resourceValue, resourceMax } from "./character.mjs";
@@ -228,6 +229,23 @@ export async function payPrice(actor, key, { skip = [], quiet = false } = {}) {
         return true;
     });
     return paid ? { key, pay, amount: quote.amount, grant: false } : null;
+}
+
+/**
+ * WHETHER A PRICE COMES BACK AFTER THE DICE (E129, 1.2.128; config.mjs `ROLL_REFUNDS`). `rolls` are the action's rolls
+ * that landed - `rollTrait`'s outcomes, or `{ isCritical, withHope }` as the GMs' record holds them - and a supporting one
+ * says so (`supporting`). Under "noHope" the price comes back only where none of them was a critical, and none that earns
+ * its Hope came up with Hope: a supporting roll earns none (`supportingHope` false), so its Hope does not count, its
+ * critical does. `gmRefuse`: the GM's "Refuse the attempt", which asks its own key first. `mode` names a value of
+ * `afterRoll` in place of the key's: the suite's, which drives the rule under each value while the key stands frozen
+ * at the owner's "always" (R8880). Pure.
+ */
+export function mayRefundAfterRoll(rolls, { gmRefuse = false, mode: asked = null } = {}) {
+    const mode = asked ?? (gmRefuse ? ROLL_REFUNDS.gmRefuse : null) ?? ROLL_REFUNDS.afterRoll;
+    if (mode === "always") return true;
+    if (mode === "never") return false;
+    return !(rolls ?? []).filter(Boolean).some(roll => Boolean(roll.isCritical)
+        || (Boolean(roll.withHope) && !(roll.supporting === true && !ROLL_REFUNDS.supportingHope)));
 }
 
 /**

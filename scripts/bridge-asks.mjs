@@ -35,16 +35,23 @@ import {
     ACTION_FRISK_ASK, ACTION_FRISK_ANSWER, ACTION_FRISK_FOLLOW, ACTION_CRISIS, ACTION_OPENING_RESULT, ACTION_CLEANUP,
     ACTION_BETRAYAL, ACTION_PARK_MURDER, ACTION_CUB_ABILITY, ACTION_CUB_ANSWER, ACTION_BRIBE_OFFER, ACTION_BRIBE_ANSWER, ACTION_DONE, ACTION_LOOT, ACTION_NOTE_SAVE,
     ACTION_ROLL_BOOKMARK, ACTION_REROLL, ACTION_CARD, ACTION_CARD_CLAIM, ACTION_BULLET_GIVE, ACTION_FACILITY_USE, ACTION_DASH, ACTION_TAIL_START, ACTION_DOOR_SHUT, ACTION_DOOR_FORCE, ACTION_DOOR_PICK, ACTION_WATCH_DECLARE, ACTION_DOOR_KNOCK,
-    ACTION_LISTEN_EAVESDROP, ACTION_LISTEN_STOP, ACTION_LISTEN_ECHOES, ACTION_MASK_REVEAL, ACTION_MASK_VEIL
+    ACTION_LISTEN_EAVESDROP, ACTION_LISTEN_STOP, ACTION_LISTEN_ECHOES, ACTION_MASK_REVEAL, ACTION_MASK_VEIL, ACTION_HIDE_START, ACTION_DEAD_SPECTATOR
 } from "./bridge-wire.mjs";
 import { ask } from "./bridge-table.mjs";
 
 /**
  * Send a thrown opening roll to the GM, who owns Stage 4's state. A player's names its roll
  * (`rollId`, the message the GM wrote for it), whose record the GM scores it on (E08+E28 C17).
+ *
+ * ON THE PRIMARY, WHOEVER THREW IT (E128, 22.11.2026; OWNER-128-SECOND-GM, line CORE's inventory row 2). A GM's own
+ * throw - a roller whose player is away, the murder opened or asked again by that GM - resolved on that GM's browser,
+ * and on a GM that is not the primary the opening's mask (mask-gm.mjs `maskKiller`) and the Monocubs' witness marks
+ * (monocub.mjs `markWitnessesAt`) return at once: an opening on Hope put up no "?" for the killer, and nobody was told.
+ * `onPrimary` sends a second GM's result to the primary, which resolves it as it resolves a player's (scenario 97 O).
  */
 export function requestOpeningResult({ actorId, side, total, isCritical, withHope, rollId = null }) {
     return ask(ACTION_OPENING_RESULT, { actorId, side, total, isCritical, withHope, rollId }, {
+        onPrimary: true,
         local: () => import("./murder.mjs").then(m => m.resolveOpening({ actorId, side, total, isCritical, withHope }))
     });
 }
@@ -172,12 +179,30 @@ export function requestMaskVeil({ what, killerIds = [] }) {
     });
 }
 
-/** A killer behind a "?" reveals themselves (E69 C8). */
-export function requestMaskReveal({ actorId }) {
-    return ask(ACTION_MASK_REVEAL, { actorId }, {
+/** A dead student's Spectator, asked of the primary by another GM (1.2.128, E129 S0-VICTIM; spectator-dead.mjs). */
+export function requestDeadSpectator({ actorId }) {
+    return ask(ACTION_DEAD_SPECTATOR, { actorId }, {
+        onPrimary: true,
+        local: () => import("./bridge-runs-acts.mjs").then(m => m.handleDeadSpectator({ actorId }, game.user))
+    });
+}
+
+/** A killer behind a "?" reveals themselves (E69 C8); with `of: "hide"`, a character Hide hides shows (S0-HIDE, E129). */
+export function requestMaskReveal({ actorId, of = "mask" }) {
+    return ask(ACTION_MASK_REVEAL, { actorId, of }, {
         localRun: true,
         onPrimary: true,
-        local: () => import("./bridge-runs-acts.mjs").then(m => m.handleMaskReveal({ actorId }, game.user))
+        local: () => import("./bridge-runs-acts.mjs").then(m => m.handleMaskReveal({ actorId, of }, game.user))
+    });
+}
+
+/** Hide (S0-HIDE, E129): the Shadow roll named by its message; answers `{ hidden }` as `.value`. */
+export function requestHideStart({ actorId, total = 0, isCritical = false, rollId = null }) {
+    const packet = { actorId, total, isCritical, rollId };
+    return ask(ACTION_HIDE_START, packet, {
+        localRun: true,
+        onPrimary: true,
+        local: () => import("./bridge-runs-acts.mjs").then(m => m.handleHideStart(packet, game.user))
     });
 }
 
@@ -779,10 +804,15 @@ export async function answerHopeCall(requestId, asker, verdict, messageId = null
     if (!game.user.isGM || !requestId || !asker) return false;
     if (verdict) {
         const res = await ask(ACTION_CALL_YES, { rid: requestId, asker, messageId }, {
-            onPrimary: true, local: () => yesOnPrimary(requestId, asker, game.user.id, messageId) });
+            onPrimary: true, sayRefused: false, local: () => yesOnPrimary(requestId, asker, game.user.id, messageId) });
         // `out.told` (1.2.122, the audit's CTRL-23): the bridge said why it was not carried out; a false with none is the
         // primary holding no such ask, which the card's ruling says (messenger-app.mjs).
-        if (out) out.told = !res.ok;
+        /* A REFUSAL IS THAT FALSE, ON A SECOND GM (E128; OWNER-128-SECOND-GM, line CORE's inventory row 5). On the primary
+           `yesOnPrimary` answers false; another GM's yes is asked of the primary, whose run refuses ("nothing was carried
+           out", bridge-runs-acts.mjs `handleCallYes`) - its row's one refusal a GM can meet (`gmOnly` passes a GM) - and the
+           second GM was shown the bridge's "not done" while the card stayed open with live buttons. Not said by the bridge
+           now (`sayRefused`), and ruled as the primary rules it: the card says the player was no longer waiting. */
+        if (out) out.told = !res.ok && !res.refused;
         return res.ok && res.value === true;
     }
     game.socket.emit(SOCKET_EVENT, {
@@ -822,8 +852,8 @@ export async function answerDynamic(requestId, asker, ruling, messageId = null, 
     const refuse = !ruling;
     const res = await ask(ACTION_DYNAMIC_ANSWER, {
         rid: requestId, asker, tier: refuse ? 0 : Number(ruling.tier), trait: refuse ? null : ruling.trait ?? null, refuse, messageId
-    }, { onPrimary: true, local: () => dynamicOnPrimary(requestId, asker, refuse ? false : ruling, game.user.id, messageId) });
-    if (out) out.told = !res.ok;   // As answerHopeCall's (CTRL-23).
+    }, { onPrimary: true, sayRefused: false, local: () => dynamicOnPrimary(requestId, asker, refuse ? false : ruling, game.user.id, messageId) });
+    if (out) out.told = !res.ok && !res.refused;   // As answerHopeCall's (CTRL-23; a second GM's refusal, E128).
     return res.ok && res.value === true;
 }
 
@@ -999,9 +1029,9 @@ export async function requestAdvancement({ actorId, picks, kind, offerId = null 
  * Writing to another player's actor is GM-only, and the answer key entry that
  * travels with the copy can only be written on a GM's client anyway.
  */
-export function requestShareBullet({ fromId, toId, itemId }) {
-    return ask(ACTION_SHARE_BULLET, { fromId, toId, itemId }, {
-        local: () => import("./handover.mjs").then(m => m.shareBullet({ fromId, toId, itemId })).then(out => {
+export function requestShareBullet({ fromId, toId, itemId, analysis = true }) {
+    return ask(ACTION_SHARE_BULLET, { fromId, toId, itemId, analysis: analysis !== false }, {
+        local: () => import("./handover.mjs").then(m => m.shareBullet({ fromId, toId, itemId, analysis: analysis !== false })).then(out => {
             // A GM's own copy refused is said as the bridge would say it to a player (E14 part 1 C1).
             if (out?.refused) sayNotDone(ACTION_SHARE_BULLET, reasonOf(out.refused));
             return out?.refused ? null : out;

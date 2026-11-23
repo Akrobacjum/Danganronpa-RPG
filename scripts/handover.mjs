@@ -20,9 +20,9 @@
  * player's sheet in the first place.
  */
 
-import { MODULE_ID, FLAGS, BEDROOM_KEY_FLAG, LOOT, REMNANT_VISIBILITY } from "./config.mjs";
+import { MODULE_ID, FLAGS, BEDROOM_KEY_FLAG, LOOT, REMNANT_VISIBILITY, SHARE_WITH_ANALYSIS } from "./config.mjs";
 import { capacityLabel, isStashed, transferItem, transferRefusal } from "./inventory.mjs";
-import { createTruthBullet, truthBulletData, secretOf, isTruthBullet, bulletAsHeld, unanalysedType } from "./truth-bullets.mjs";
+import { createTruthBullet, truthBulletData, secretOf, isTruthBullet, bulletAsHeld, unanalysedType, hasReading } from "./truth-bullets.mjs";
 import { whisperToOwner, whisperToOwnerOnly, log, warn, error, isPrimaryGm, forcedDeletion, plural, serialWrite, ownerIdsOf, gmIds, announce, whisperToGms, listOf, worldLocalize, esc } from "./utils.mjs";
 import { drpgWindow } from "./ui-kit.mjs";
 import { answerKeysRefusal, lootTraceStore, deathStore, lootRollStore } from "./gm-stores.mjs";
@@ -43,7 +43,9 @@ import { nameAsSeen, seenHere } from "./mask-gm.mjs";
  * and which lists the people in a list box (`listBox`, the mockup's choice of 14.10.2026) where a
  * handover keeps its drop-down.
  */
-export async function askWhoIsHere(actor, { title, intro, note, okLabel, listBox = false }) {
+/* `extra` (line INVEST of 1.2.128): more of the form under the picker, and `read(form)` what it says - the answer is then
+   `{ target, ...read(form) }` instead of the id, so the Share can ask whether to carry its Analyze result. */
+export async function askWhoIsHere(actor, { title, intro, note, okLabel, listBox = false, extra = "", read = null }) {
     // The phase: allowed-now.mjs's `handover` road (E40, the line claude/e40-117) - the Eclipse.
     const { allowedNow } = await import("./allowed-now.mjs");
     if (!allowedNow(actor, null, { road: "handover" }).ok) {
@@ -79,9 +81,14 @@ export async function askWhoIsHere(actor, { title, intro, note, okLabel, listBox
             <label>${game.i18n.localize("DRPG.Handover.who")}
                 <select name="target"${size}>${options}</select></label>
             <p class="notes">${note}</p>
+            ${extra}
         </form>`,
         footer: {
-            primary: { action: "ok", label: okLabel, callback: (e, b, d) => d.element.querySelector("[name=target]").value || "cancel" },
+            primary: { action: "ok", label: okLabel, callback: (e, b, d) => {
+                const target = d.element.querySelector("[name=target]").value || "";
+                if (!target) return "cancel";
+                return read ? { target, ...read(d.element.querySelector("form")) } : target;
+            } },
             close: { role: "cancel", action: "cancel" }
         },
         /* WHO IS HERE, AS IT STANDS (the audit's REFR-31, 1.2.122, 21.11.2026). The list was the room at the open: a
@@ -122,8 +129,9 @@ export async function askWhoIsHere(actor, { title, intro, note, okLabel, listBox
 }
 
 /** Ask who to hand this to. `null` when there is nobody, or the player backs out. */
-function askRecipient(actor, item, { copying }) {
+function askRecipient(actor, item, { copying, extra = "", read = null }) {
     return askWhoIsHere(actor, {
+        extra, read,
         title: copying
             ? game.i18n.format("DRPG.Handover.shareTitle", { name: item.name })
             : game.i18n.format("DRPG.Handover.giveTitle", { name: item.name }),
@@ -139,14 +147,29 @@ function askRecipient(actor, item, { copying }) {
 }
 
 /** Copy one of my Truth Bullets to somebody in this room. Costs nothing. */
+/*
+ * WITH THE ANALYZE RESULT OR WITHOUT IT (the owner's notes of session 0, 23.11.2026, S0-ANSHARE: "wybor czy udostepniac z
+ * analyze czy bez"; line INVEST of 1.2.128). A Truth Bullet that holds a reading (`hasReading`: analysed, or a Key's or a
+ * Final's kind with its words) asks, as a Present asks (trial.mjs, "Show it with my Analyze result"): ticked, the copy is
+ * born with the giver's reading, as every Share was until now; unticked, as the bullet was before any Analyze - its
+ * unanalysed type, not read - the reading left in its answer key for the receiver's own Analyze (`mintCopy`'s
+ * `analysis`). The box starts as `SHARE_WITH_ANALYSIS` says (config.mjs). A bullet with no reading asks nothing.
+ * Tier 2 "1.2.128 S0-ANSHARE".
+ */
 export async function shareBulletDialog(actor, item) {
     if (!isTruthBullet(item)) return false;
 
-    const targetId = await askRecipient(actor, item, { copying: true });
-    if (!targetId) return false;
+    const asks = hasReading(item);
+    const extra = asks ? `<label class="drpg-share-analysis"><input type="checkbox" name="analysis"${SHARE_WITH_ANALYSIS ? " checked" : ""} />
+            ${esc(game.i18n.localize("DRPG.Handover.shareWithAnalysis"))}</label>
+            <p class="notes">${esc(game.i18n.localize("DRPG.Handover.shareWithoutNote"))}</p>` : "";
+    const picked = await askRecipient(actor, item, { copying: true, extra, read: asks ? form => ({ analysis: Boolean(form?.analysis?.checked) }) : null });
+    if (!picked) return false;
+    const targetId = typeof picked === "object" ? picked.target : picked;
+    const analysis = typeof picked === "object" ? picked.analysis !== false : true;
 
     const { requestShareBullet } = await import("./gm-bridge.mjs");
-    const res = await requestShareBullet({ fromId: actor.id, toId: targetId, itemId: item.id });
+    const res = await requestShareBullet({ fromId: actor.id, toId: targetId, itemId: item.id, analysis });
     return res.ok;
 }
 
@@ -244,7 +267,7 @@ async function verify(fromId, toId, itemId) {
  * null lock, which is the whole reason handing a bullet to somebody else is
  * worth doing after you have burned your own analysis on it.
  */
-export async function shareBullet({ fromId, toId, itemId } = {}) {
+export async function shareBullet({ fromId, toId, itemId, analysis = true } = {}) {
     if (!game.user.isGM) return null;
 
     const checked = await verify(fromId, toId, itemId);
@@ -254,7 +277,8 @@ export async function shareBullet({ fromId, toId, itemId } = {}) {
 
     if (!isTruthBullet(item)) return null;
 
-    const minted = await mintCopy(from, to, item);
+    // `analysis` false: the copy as the bullet was before any Analyze (the Share's box unticked, S0-ANSHARE)
+    const minted = await mintCopy(from, to, item, { analysis: analysis !== false });
     if (minted.refused) return { refused: minted.refused };
     const { copy, data } = minted;
     if (!copy) return null;
@@ -267,7 +291,7 @@ export async function shareBullet({ fromId, toId, itemId } = {}) {
         })}</p>
         ${data.playerText ? `<p>${foundry.utils.escapeHTML(data.playerText)}</p>` : ""}`);
 
-    await whisperToOwner(from, `<p>${game.i18n.format("DRPG.Handover.shared", {
+    await whisperToOwner(from, `<p>${game.i18n.format(analysis === false && hasReading(item) ? "DRPG.Handover.sharedWithoutAnalysis" : "DRPG.Handover.shared", {
         name: foundry.utils.escapeHTML(data.name),
         who: foundry.utils.escapeHTML(to.name)
     })}</p>`);

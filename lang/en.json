@@ -327,6 +327,10 @@
         "name": "Crossing rooms costs a Move",
         "hint": "Moving inside a room is free. The first crossing each time of day uses the Free Move; later ones cost an action or a Sprint crossing. Off, you handle movement yourself."
       },
+      "trialVoicesFree": {
+        "name": "Class Trial: no forced muting",
+        "hint": "When on, the Class Trial never turns a player's microphone off, whoever holds the floor and for the dead too. Off, the modes mute as usual."
+      },
       "despairFromRolls": {
         "name": "Rolls grant Despair",
         "hint": "A roll that lands with Despair feeds the pool of that student's Monokuma. Assign each student a Monokuma in the GM panel's Despair Flow."
@@ -354,6 +358,10 @@
       "pixelFont": {
         "name": "Pixel font",
         "hint": "Monokuma Legacy only: a pixel face on the HUD, tabs, names, and labels. Long text keeps the normal face. Only affects this browser."
+      },
+      "tokenCaptions": {
+        "name": "Token names as captions",
+        "hint": "Each token's name stands under it, as far as you may know it. Off: the name shows when the pointer rests on a token. Only affects this browser."
       },
       "wideProjectWindows": {
         "name": "Wide project windows",
@@ -417,7 +425,7 @@
       },
       "uiScale": {
         "name": "Interface scale",
-        "hint": "Sets the size of the module's windows and text, and with them Foundry's windows and the sheet, from 25% to 140%. The map keeps its size. Only affects this browser."
+        "hint": "Sets the size of the module's windows and text, and with them Foundry's windows and the sheet, from 25% to 140%. The map keeps its size; the names on its tokens follow the scale. Only affects this browser."
       },
       "debug": {
         "name": "Verbose console logging",
@@ -517,15 +525,35 @@
     },
     "Mask": {
       "askTitle": "Stay hidden?",
-      "ask": "Your opening went well: the other players see you only as \"?\", and you can neither speak nor hear anyone. Reveal yourself now, or stay hidden until the time of day ends.",
+      "ask": "Your opening went well: the other players see you only as \"?\", and you can neither speak nor hear anyone. Reveal yourself now, or stay hidden until the murder ends, you leave its room or the time of day ends.",
       "reveal": "Reveal yourself",
       "stay": "Stay hidden",
       "card": "You are hidden behind a \"?\" and can neither speak nor hear anyone until you reveal yourself or the time of day ends. Your voice tile has a Reveal yourself button.",
       "ended": "You are no longer hidden, and your voice is back: the time of day has ended.",
+      "endedIncident": "You are no longer hidden, and your voice is back: the murder has ended.",
+      "endedLeftRoom": "You are no longer hidden, and your voice is back: you left the room of the murder.",
       "tokenFailed": "The mask could not be put on a token of {name}: the other players may see their real picture. The console says why."
     },
     "Veil": {
       "card": "Until your opening roll the other players do not see your tokens, and your microphone is off; you still hear everyone."
+    },
+    "Hide": {
+      "hidden": "You are hidden: the other players do not see your token, and your microphone is off; you still hear everyone. It lasts until the time of day ends; to come out sooner, press Reveal yourself on your voice tile.",
+      "notHidden": "You do not manage to hide.",
+      "already": "You are already hidden.",
+      "notInTrial": "You cannot hide during a Class Trial.",
+      "coverSkipped": "You are hidden, so the Shadow roll to stay unseen counts as passed.",
+      "reveal": "Reveal yourself",
+      "gmTitle": "Hidden",
+      "gmLine": "{name} is hidden.",
+      "gmReveal": "Reveal",
+      "gmRevealTooltip": "End the hiding of {name}: everyone sees their token again, and the microphone comes back.",
+      "ended": {
+        "gm": "A GM has ended your hiding: the other players see your token again, and your microphone is back.",
+        "chapter": "The chapter is over, and so is your hiding: the other players see your token again, and your microphone is back.",
+        "reroll": "After the GM's Reroll you are no longer hidden: the other players see your token again, and your microphone is back.",
+        "timeOfDay": "You are no longer hidden: {time} is over. The other players see your token again, and your microphone is back."
+      }
     },
     "Listen": {
       "prompt": "You are in {room}. Which neighboring room?",
@@ -602,6 +630,8 @@
         "objection": "No action, no Hope, and no Sanity left, so you cannot object.",
         "analyze": "No action, no Hope, and no Sanity left, so there is nothing to pay for Analyze with.",
         "analyzeOneStep": "No action left, so there is nothing to pay for Analyze with.",
+        "palm": "No action, no Hope, and no Sanity left, so there is nothing to pay for Palm with.",
+        "palmOneStep": "No action left, so there is nothing to pay for Palm with.",
         "tamper": "No action left, and Tamper takes nothing else.",
         "tamperSkippedAction": "No action is needed here, but you have no Sanity left to pay with."
       },
@@ -935,6 +965,16 @@
       "close": "Close",
       "toggle": "Open or close Foundry tools"
     },
+    "Result": {
+      "hope": { "one": "With Hope: you earn {n} Hope.", "other": "With Hope: you earn {n} Hope." },
+      "critical": { "one": "A critical: you earn {n} Hope. Unlike plain Daggerheart, it restores no Sanity.", "other": "A critical: you earn {n} Hope. Unlike plain Daggerheart, it restores no Sanity." },
+      "despair": "With Despair: you earn no Hope, and its point of Despair goes to the pool of the Monokuma who watches you.",
+      "support": "Your roll of {trait} only supports the action, so it earns no Hope.",
+      "supportDespair": "Its point of Despair still goes to the pool of the Monokuma who watches you.",
+      "supportBare": "This roll only supports the action, so it earns no Hope.",
+      "coverCritical": { "one": "A critical on this roll: if the attempt it covers goes ahead, {n} Sanity comes back with its result.", "other": "A critical on this roll: if the attempt it covers goes ahead, {n} Sanity comes back with its result." },
+      "givenBack": "{what} comes back to you, as the action did not go ahead."
+    },
     "Action": {
       "murderConfirmEclipse": "It goes to the GMs at once: a GM allows it on a statistic or refuses it, and you hear of a refusal. Declare it only if you agreed on it with the GM beforehand and the victim's player consents.",
       "beat": "beat {n}",
@@ -962,6 +1002,7 @@
       "reliefFresh": "-{n} for a body nobody has found yet",
       "dcFrame": "A Misleading Trail: {n}+.",
       "spentAfterRoll": "{action}: your first roll already counts, so the action stays spent.",
+      "keptAfterRoll": "Your roll already brought you Hope, so what you paid for this does not come back.",
       "dynamicRefused": "The GM turned your Dynamic Action down. You keep your action.",
       "panelTitle": "Actions",
       "unknown": "Unknown action: {key}.",
@@ -1450,22 +1491,22 @@
       "noSet": "Pick a Logic Dive set.",
       "noCount": "Nothing to count now: you can count only a running vote.",
       "noQuestionHere": "Skip question works only in a Logic Dive.",
-      "noSide": "Pick Zone A or Zone B.",
+      "noSide": "Pick one of the two answers.",
       "samePick": "You already picked that side.",
       "noThesis": "You can give a thesis only during a Scrum Debate turn, and it needs a few words.",
       "notStarted": "The mode did not start. Check that both answers are filled in and, for a Logic Dive, that a set is picked and each of its questions has words.",
       "straw": {
-        "opened": "{question} Students stand in Zone A for {a} or in Zone B for {b}. The count comes in {seconds} s.",
-        "openedBare": "Students stand in Zone A for {a} or in Zone B for {b}. The count comes in {seconds} s.",
-        "finding": "The class thinks: {answer}. The count was {a} in Zone A and {b} in Zone B.",
-        "split": "The class is split, {a} in Zone A and {b} in Zone B. A Scrum Debate can settle it."
+        "opened": "{question} Students stand in the zone for “{a}” or the zone for “{b}”. The count comes in {seconds} s.",
+        "openedBare": "Students stand in the zone for “{a}” or the zone for “{b}”. The count comes in {seconds} s.",
+        "finding": "The class thinks: {answer}. The count was {na} for “{a}” and {nb} for “{b}”.",
+        "split": "The class is split: {na} for “{a}”, {nb} for “{b}”. A Scrum Debate can settle it."
       },
       "dive": {
-        "opened": "Question {n} of {total}: {question} Students stand in Zone A for {a} or in Zone B for {b}. The class has {seconds} s to choose.",
-        "openedBare": "Question {n} of {total}. Students stand in Zone A for {a} or in Zone B for {b}. The class has {seconds} s to choose.",
-        "right": "The class is right, with {a} in Zone A and {b} in Zone B.",
-        "wrong": "The class is wrong, with {a} in Zone A and {b} in Zone B. The Logic Dive ends here.",
-        "tie": "A tie, {a} in Zone A and {b} in Zone B, counts as wrong. The Logic Dive ends here.",
+        "opened": "Question {n} of {total}: {question} Students stand in the zone for “{a}” or the zone for “{b}”. The class has {seconds} s to choose.",
+        "openedBare": "Question {n} of {total}. Students stand in the zone for “{a}” or the zone for “{b}”. The class has {seconds} s to choose.",
+        "right": "The class is right: {na} for “{a}”, {nb} for “{b}”.",
+        "wrong": "The class is wrong: {na} for “{a}”, {nb} for “{b}”. The Logic Dive ends here.",
+        "tie": "A tie, {na} to {nb}, counts as wrong. The Logic Dive ends here.",
         "solved": "The Logic Dive is solved: {finding}",
         "skipped": "The GM skips question {n}.",
         "replay": "This set was played before: it ended {when} ({outcome}). Players may remember it.",
@@ -1503,19 +1544,19 @@
         }
       },
       "scrum": {
-        "opened": "{question} Students pick a side: Zone A for {a}, Zone B for {b}. The camps confer in {seconds} s.",
-        "openedBare": "Students pick a side: Zone A for {a}, Zone B for {b}. The camps confer in {seconds} s.",
-        "confer": "The sides are set, {a} in Zone A and {b} in Zone B. Each camp confers apart for {seconds} s, then the debate begins.",
+        "opened": "{question} Students pick a side: the zone for “{a}” or the zone for “{b}”. The camps confer in {seconds} s.",
+        "openedBare": "Students pick a side: the zone for “{a}” or the zone for “{b}”. The camps confer in {seconds} s.",
+        "confer": "The sides are set: {na} for “{a}”, {nb} for “{b}”. Each camp confers apart for {seconds} s, then the debate begins.",
         "noVoice": "The camps' voices are not split: “Separate voice in each room” is off or LiveKit is not active. The camps confer the way the table already talks.",
-        "begins": "Zone {zone} speaks first. The camps take turns of {seconds} s, {turns} turns in all.",
-        "over": "The Scrum Debate is over: {a} in Zone A, {b} in Zone B.",
-        "empty": "Zone {zone} is empty. The class thinks: {answer}.",
-        "noSpeaker": "Nobody stands in Zone {zone}, so this turn runs out with no speaker.",
-        "thesis": "Zone {zone}'s thesis: {text}"
+        "begins": "The camp for “{answer}” speaks first. The camps take turns of {seconds} s, {turns} turns in all.",
+        "over": "The Scrum Debate is over: {na} for “{a}”, {nb} for “{b}”.",
+        "empty": "Nobody stands for “{empty}”. The class thinks: {answer}.",
+        "noSpeaker": "Nobody stands for “{answer}”, so this turn runs out with no speaker.",
+        "thesis": "Thesis for “{answer}”: {text}"
       },
       "panel": {
         "nobody": "nobody",
-        "counted": "Counted: Zone A {a}, Zone B {b}.",
+        "counted": "Counted: {na} for “{a}”, {nb} for “{b}”.",
         "outside": "In neither zone: {names}.",
         "thesis": "Thesis: {text}",
         "straw": {
@@ -1528,13 +1569,13 @@
         "scrum": {
           "setup": "Sides: the camps form, {seconds} s left.",
           "confer": "Camps confer: each camp talks in its own voice room, {seconds} s left.",
-          "speak": "Turn {turn} of {turns}: {who} speaks for Zone {zone}, {seconds} s left."
+          "speak": "Turn {turn} of {turns}: {who} speaks for “{answer}”, {seconds} s left."
         }
       },
       "confer": {
         "name": "Camps confer",
-        "mine": "You confer with Zone {zone}.",
-        "apart": "Zone A and Zone B confer apart.",
+        "mine": "You confer with the camp for “{answer}”.",
+        "apart": "The two camps confer apart.",
         "none": "You are in neither camp: you stay in the trial hall's voice.",
         "sidesSet": "Sides set",
         "conferOver": "End the confer"
@@ -1558,8 +1599,8 @@
       },
       "pick": {
         "body": "You have no token in the trial hall. Pick the side you stand on.",
-        "side": "{zone}: {answer}",
-        "done": "You stand in {zone}.",
+        "side": "{answer}",
+        "done": "You stand for “{answer}”.",
         "dismissed": "You stand in neither zone. This window comes back in {seconds} s."
       },
       "findings": {
@@ -1662,7 +1703,7 @@
         "zones": "A zone mode holds the floor: everyone answers by where their token stands. Count now and Skip on the bar bring the count forward; End this mode ends it.",
         "scrum": "The Straw Poll split the class. A Scrum Debate from Hall zones lets the two camps argue it out; the debate and the vote are still open to you."
       },
-      "objectionNote": "You do not start an Objection: a player's OBJECTION! does, and its minute starts once their Truth Bullet is on the table.",
+      "objectionNote": "You do not start an Objection: a player's OBJECTION! does, and its clock starts once their Truth Bullet is on the table.",
       "manageTrial": "Class Trial",
       "mode": {
         "debate": "Nonstop Debate",
@@ -1706,6 +1747,8 @@
       },
       "gmStepTitle": "The GM steps in",
       "turnSkipped": "The GM skips {name}'s turn.",
+      "turnFinished": "{name} finishes their Objection early.",
+      "finishedGm": "{name}'s player finished their Objection early, as your Skip would.",
       "modeEnded": "The GM ends the {mode}.",
       "gmNoteAdjust": "GM: {seconds} s",
       "gmNoteBack": "GM: back to the debate",
@@ -1874,15 +1917,15 @@
       "trialLastTurn": "The last turn",
       "trialZone": {
         "straw": {
-          "vote": "Stand in Zone A or Zone B"
+          "vote": "Stand in the zone of your answer"
         },
         "dive": {
           "vote": "Question {n} of {total}: stand in your answer's zone",
           "pause": "Question {n} of {total} is counted"
         },
         "scrum": {
-          "setup": "The camps form in Zone A and Zone B",
-          "speak": "Turn {turn} of {turns}, for Zone {zone}"
+          "setup": "The camps form, one for each answer",
+          "speak": "Turn {turn} of {turns}, for “{answer}”"
         }
       },
       "waitingFor": "Incident: waiting for {name}",
@@ -1991,6 +2034,10 @@
         "thesisTooltip": "Shown under the question while the camps argue",
         "thesisLineTooltip": "One short line for your zone, shown to the whole table",
         "thesisPostTooltip": "Puts your thesis on the table as a card; your turn goes on",
+        "finishKeepTooltip": "Closes this window; your Objection runs on its clock",
+        "finishDoneTooltip": "Ends your Objection's seconds now; the rebuttal starts",
+        "confirmEndTooltip": "Ends your turn now; the floor goes on",
+        "confirmKeepTooltip": "Closes this window; your turn runs on its clock",
         "setTooltip": "The Logic Dive set to play. The number is how many questions it holds.",
         "editTooltip": "Changes the words. The table is told what it was and what it is now.",
         "deleteTooltip": "Takes the Finding off the list at once and tells the table",
@@ -2318,6 +2365,8 @@
           "overviewFoldTooltip": "Unfolds Check consistency with the problems it found, and the chapter's Final Truth Remnant form",
           "fitViewTooltip": "Centers the map and zooms so the whole case shows. Only your view changes",
           "realizeRoomTooltip": "Where Run realization places this slot's Key Remnant, with the difficulty and words its plan holds",
+          "realizeKeysTooltip": "Places only the Key Remnant slots picked a room below, as until now",
+          "realizeAllTooltip": "Also places every planned Remnant and Final Truth not on the map in the room picked, and gives every planned Truth Bullet not given yet to its recipient",
           "tieTooltip": "Tied, it survives clearing Faint Remnants. Undecided, an incident under way may tie it by its room or who left it",
           "orderTooltip": "By room puts tied Remnants first, then sorts by room; Newest first goes by chapter, day, and time of day",
           "restsOnBoxTooltip": "Ticked, the Map draws a link from that node into this one, and Check consistency follows it",
@@ -2465,7 +2514,7 @@
       "notOpen": "No vote is open.",
       "nobodyVoted": "No ballot came back, so the vote closed with nobody accused.",
       "ballotTitle": "Who did it?",
-      "ballotIntro": "Vote for whoever you believe is the Blackened. You may vote for yourself, for Monokuma, and for the dead.",
+      "ballotIntro": "Vote for whoever you believe is the Blackened. You may vote for yourself, for each Monokuma by name, and for the dead.",
       "ballotNote": "Your vote goes to the GMs alone. The table sees only the totals.",
       "who": "Your vote",
       "cast": "Cast your vote",
@@ -3355,7 +3404,7 @@
       "deadPanelNote": "The dead take no actions and spend no Hope. Brought back as a Monocub, this panel holds Confusion and the Monocub's other tiles.",
       "deadCannotAct": "{name} is dead and cannot take actions.",
       "deadUnfound": "Dead, body not found",
-      "keepSecretUntilFound": "Keep the death known only to the GMs until the body is found: no flag, no marker, and their Truth Bullets stay until then",
+      "keepSecretUntilFound": "Keep the death known only to the GMs until the body is found: the student is not marked dead, and their Truth Bullets stay until then",
       "keptUntilFound": "Only the GMs know of this death until the body is found or a GM makes it known in the Students window. The table sees nothing yet: no marker, and the student's Truth Bullets are still on the sheet.",
       "nobodyFoundYou": "Nobody has found your body yet.",
       "youFoundBody": "In {room} you find the body of {name}. Nobody else has seen it yet, and nothing is announced.",
@@ -3606,6 +3655,11 @@
       "objectionFailed": "Your Objection did not go through. Press OBJECTION! again, or tell the GM.",
       "objectionNoneInMode": "Nobody can raise an Objection in {mode}.",
       "objectionSpeakerOnly": "In {mode}, an Objection can only be aimed at whoever is speaking.",
+      "finish": {
+        "title": "Finish your turn now?",
+        "body": "Only you hold the floor in your Objection. On the clock: {seconds} s. Finishing now starts the rebuttal.",
+        "yes": "Finish my turn"
+      },
       "turn": {
         "title": "Your turn ({seconds} s)",
         "body": "{mode}: you have the floor. Press Done when you finish, or Pass to give up your turn.",
@@ -3619,7 +3673,10 @@
         "closingPassEarly": "Pass in your first {seconds} s hands the choice back to the GM; after that it ends the Closing Argument.",
         "closingPass": "Pass ends the Closing Argument, as Done does.",
         "left": "On the clock: {seconds} s.",
-        "keepNote": "Keep speaking hides this window. It comes back in {seconds} s, with Done and Pass."
+        "keepNote": "Keep speaking hides this window. It comes back in {seconds} s, with Done and Pass.",
+        "confirmTitle": "End your turn now?",
+        "confirmBody": "On the clock: {seconds} s. Ending now gives the floor on.",
+        "confirmYes": "End my turn"
       },
       "claim": {
         "body": "Will you sum up the case in the Closing Argument? You have {seconds} s to volunteer. One volunteer is drawn, and the GM confirms them or picks someone else.",
@@ -3644,7 +3701,9 @@
       "giveIntro": "Who do you hand “{name}” to? You are in {room}.",
       "who": "Who?",
       "shareKeyNote": "They get their own copy of the key, and you keep yours. It costs no action.",
-      "shareNote": "They get their own copy with what you know of it, and you keep yours. If your Analyze of it failed, they can still Analyze theirs. It costs no action.",
+      "shareNote": "They get their own copy with what you know of it, and you keep yours. If your Analyze of it failed, they can still Analyze theirs. Its words are yours as you hold them, even if the Remnant was reshaped after you found it. It costs no action.",
+      "shareWithAnalysis": "Share it with my Analyze result",
+      "shareWithoutNote": "If you untick it, their copy shows this Truth Bullet as if nobody had analyzed it, without its reading or the type Analyze found. They can Analyze it themselves.",
       "giveNote": "One piece goes from your inventory to theirs for good. If their hands are full, it stays with you. It costs no action.",
       "pickedLeft": "{name} has left the room. Pick someone else.",
       "nobodyHere": "There is nobody else in {room} to hand anything to.",
@@ -3663,6 +3722,7 @@
       "changedMidwayKept": "“{name}” changed on {from}'s sheet (used, broken, stashed, or gone) before it reached {to}, and its copy could not be taken back. Take the copy off {to}'s sheet.",
       "alreadyHasIt": "Nothing changed hands; your Truth Bullet stays yours.",
       "shared": "{who} now has a copy of “{name}”.",
+      "sharedWithoutAnalysis": "{who} now has a copy of “{name}”, without your Analyze result.",
       "gave": "“{name}” is now {who}'s.",
       "gaveOne": {
         "one": "You hand {who} one “{name}”. You still have one.",
@@ -3712,6 +3772,12 @@
       "describeTitle": "Observe: what the student sees",
       "describeRecovered": "{actor}'s find in {room} waited on a describe window that a reload closed. It went out under its prefilled name, with no words: add them in the Investigation window.",
       "describeWaiting": "{actor}'s find in {room} waits for its words on {gm}'s screen.",
+      "describeHere": "Write it here",
+      "describeHereTooltip": "Opens this find's window here. The find carries the first words written, here or on the other GM's screen.",
+      "describeConfirmTooltip": "Sends these words to the find. It carries the first words written.",
+      "describeSent": "Your words went to the find; it goes out with them.",
+      "describeByOther": "{gm} wrote this find's words first; your window closed.",
+      "describeGone": "This find's Remnant or its student is gone; there is nothing to write.",
       "describeTimedOut": "Nobody answered the window in time, so {actor}'s find went out under the name “{name}”, with no words. Add its words in the Investigation window.",
       "describeTimedOutTyped": "Nobody pressed the window's button in time, so {actor}'s find went out as it was typed, under the name “{name}”. You can change its words in the Investigation window.",
       "describeIntro": "{actor} found something in {room}. Name it as they would, and say what they see.",
@@ -3988,6 +4054,10 @@
         "keepWatch": {
           "label": "Keep Watch",
           "hint": "Before an Eclipse, roll Body to keep watch over your room through it: you learn who is there, who comes in, and who leaves, and at its end how many came and went."
+        },
+        "hide": {
+          "label": "Hide",
+          "hint": "Roll Shadow to hide: the other players stop seeing your token and your microphone goes off until you reveal yourself on your voice tile or the time of day ends. While you are hidden, the Shadow roll an action makes to keep you unseen counts as passed."
         },
         "dash": {
           "label": "Dash",
@@ -4365,6 +4435,8 @@
       "role": "Spectator",
       "deadWatcher": "Dead student's Spectator",
       "deadWatcherRole": "{name} is a dead student's Spectator. It goes when the student is revived or becomes a Monocub.",
+      "deadGivenWatcher": "{name} is dead, so their player watches through a Spectator of their own. The body stays where it lies.",
+      "deadNoWatcher": "{name} is dead, but no Spectator was made: nobody plays this student.",
       "marked": "{name} is now a Spectator.",
       "unmarked": "{name} is no longer a Spectator.",
       "talk": "Talk with the Spectators",
@@ -4942,10 +5014,12 @@
         "listen.echoes": "Echoes",
         "mask.reveal": "Reveal yourself",
         "mask.veil": "The opening's veil, asked of the primary GM",
+        "spectator.dead": "A dead student's Spectator, asked of the primary GM",
         "door.shut": "Shut the Door",
         "door.force": "Force the Door",
         "door.pick": "Pick the Lock",
         "watch.declare": "Keep Watch",
+        "hide.start": "Hide",
         "door.knock": "Someone at the door",
         "handover.bullet": "Share a Truth Bullet",
         "handover.item": "Hand over an item",
@@ -4979,6 +5053,7 @@
         "remnant.tieForItem": "Tie a Remnant to the crime",
         "observe.target": "Choose what to Observe",
         "observe.pick": "Pick the Remnant for an Observe",
+        "observe.describe": "A find's words written by another GM, for the primary GM's window",
         "cleanup.traces": "Remnants within reach",
         "cleanup.ruling": "Ruling on a reshaped Remnant",
         "advancement.offer": "Level Up offer",
@@ -4997,6 +5072,11 @@
         "roll.grant": "Ruling on rolls thrown with no GM connected",
         "audit.decide": "Ruling on a sheet change flagged to the GMs",
         "keys.charge": "The Key fee charged as a Class Trial opens",
+        "body.discover": "A body announced by a second GM, on the primary GM",
+        "chapter.end": "The chapter ended by a second GM, on the primary GM",
+        "voice.reset": "Fix voice pressed by a second GM, on the primary GM",
+        "verdict.finish": "A second GM's Finish of the verdict, on the primary GM",
+        "murder.openingCard": "The opening roll's card or line to its roller, posted by the primary GM",
         "trial.enter": "Setting the microphones as the Class Trial opens or ends",
         "trial.record": "A change to the Class Trial's record",
         "reroll.ask": "Reroll",
@@ -5263,6 +5343,9 @@
       "searchTokensRestocked": "Every room restocked with Search Tokens",
       "woundedNote": "With no Health left, these students are down an action this time of day: {names}."
     },
+    "Context": {
+      "lost": "{name}'s browser lost its drawing context ({scene})."
+    },
     "Panel": {
       "settings": "Settings",
       "nextStartTrial": "Every planned Key Remnant has been found. Start the Class Trial from the trial console.",
@@ -5328,6 +5411,9 @@
       "character": "Character",
       "freeMove": "Free Move",
       "noCharacters": "No living students in this world.",
+      "moves": "Moves",
+      "anyRoom": "Any room",
+      "rosterCaption": "What each student has left this time of day",
       "installTables": "Create item tables",
       "despairFlow": "Despair Flow",
       "sweepBullets": "Sweep Truth Bullets",
@@ -5694,6 +5780,7 @@
         "other": "Slip one of the {n} things you carry into their pocket; both rolls need less than taking does."
       },
       "nothingToPlant": "You are carrying nothing you could leave on somebody.",
+      "notInTrial": "In the trial Palm only frisks: taking or leaving something waits until the Class Trial is over.",
       "whatToPlant": "What to leave",
       "whoPrompt": "Whose pockets?",
       "plantSent": "You brush past {name}. In a moment you learn whether the item reached their pocket and whether they felt it.",
@@ -5814,6 +5901,9 @@
         "watchStands": "Rerolled: a watch can no longer be set, so the first roll's stands.",
         "watchKept": "Rerolled: the watch is kept.",
         "watchNone": "Rerolled: no watch is kept.",
+        "hideEnded": "Rerolled: the hiding ends.",
+        "hideNow": "Rerolled: the character is hidden now.",
+        "hideStands": "Rerolled: nothing changes for the hiding.",
         "facilityStands": "Rerolled: the room action succeeded the first time and its effects stand.",
         "facilityGone": "Rerolled: the room action is no longer here, so nothing changes.",
         "facilityMissed": "Rerolled: the room action still fails.",
@@ -6061,12 +6151,23 @@
         "floorHeld": "The floor is {name}'s: your microphone stays off until you get the floor or the mode ends.",
         "floorHeldPair": "The floor is {name}'s and {target}'s: your microphone stays off until you get the floor or the mode ends.",
         "listening": "Listening at a door: your microphone stays off until you stop.",
-        "masked": "Hidden behind a \"?\": you are out of voice. You hear nobody and nobody hears you until you reveal yourself or the time of day changes.",
+        "masked": "Hidden behind a \"?\": you are out of voice. You hear nobody and nobody hears you until you reveal yourself, the murder ends, you leave its room or the time of day changes.",
+        "tokenHidden": "Your token is hidden: your microphone stays off until the GM shows it again.",
         "veiled": "Before your opening roll: your microphone stays off until you throw it.",
+        "hiding": "You are hidden: your microphone stays off until you reveal yourself or the time of day ends.",
         "cubSpeak": "Discussion: you may speak.",
         "cubListen": "{mode}: you listen.",
         "cubVote": "The vote: you listen.",
         "ownCase": "You listen: this trial is about your death."
+      },
+      "hearing": {
+          "mutedForMe": "muted by the listener (Mute for me)",
+          "volumeZero": "volume at 0 on the listener's page",
+          "notSubscribed": "their microphone is not received",
+          "noElement": "no sound player for them on the page",
+          "elementPaused": "their sound is paused on the page",
+          "elementMuted": "their sound is muted on the page",
+          "trackNotLive": "no sound arrives from them"
       },
       "list": {
         "open": "Who you hear",
@@ -6081,6 +6182,8 @@
         "unmuteFor": "Hear {name} again",
         "hidden": "You hid them in the camera dock, so you do not hear them.",
         "unhide": "Show and listen",
+        "mutedByYou": "Muted by you",
+        "gap": "You do not hear them: {why}. If it lasts, reload the page (F5).",
         "gmBlock": "Block {name}'s microphone for everyone",
         "gmUnblock": "Unblock {name}'s microphone",
         "gmHeld": "You cannot block this microphone now.",
@@ -6117,6 +6220,8 @@
           "listening": "listening at the door of {into}, from {from}",
           "masked": "behind a \"?\" after a murder's opening: a silent room of its own"
         },
+        "hearing": "Who does not hear whom (as each player's page reports it):",
+        "hearingRow": "{name} does not hear {speaker}: {why}",
         "setting": "Regional voice setting: {state}",
         "on": "on",
         "settingOff": "off, so nothing is applied",
@@ -7347,6 +7452,7 @@
         "eavesdrops": "Who listens at which door, from which room, and which room they may listen at again for free",
         "masks": "Which killer hides behind a \"?\" after a murder's opening, and what their token looked like",
         "veils": "Which killer is hidden and muted until their opening roll, and whether each of their tokens was hidden before",
+        "hides": "Which characters hide with Hide, whose microphones that holds off, and the chapter each hide began in",
         "timedEffects": "What room actions gave each character for a while, and when it ends",
         "clockBeat": "When the primary GM was last at the table",
         "takeBack": "What the last start of a time of day changed, kept for five minutes so a GM can take back a misclick",
@@ -7642,6 +7748,9 @@
       "undo": "Undo realization",
       "title": "Case realization, chapter {chapter}",
       "intro": "Nothing changes until you press Run realization. Each Key Remnant slot not on the map yet, within the chapter's limit, is placed in the room you pick; a slot with no room stays as it is.",
+      "scope": "What to realize",
+      "scopeKeys": "Key Remnants only",
+      "scopeAll": "Every planned Remnant and Truth Bullet",
       "colWhat": "What",
       "colSlot": "Slot",
       "colName": "Name",
@@ -7652,12 +7761,20 @@
       "action": {
         "create": "Will place",
         "placed": "On the map",
-        "overLimit": "Past the limit"
+        "overLimit": "Past the limit",
+        "give": "Will give",
+        "noRecipient": "No recipient"
+      },
+      "kind": {
+        "incident": "Planned Remnant",
+        "final": "Final Truth",
+        "bullet": "Truth Bullet"
       },
       "ran": "Key Remnants the realization placed: {n}.",
+      "ranAll": "Remnants the realization placed: {n}. Truth Bullets it gave: {given}.",
       "notRun": "Nothing was placed.",
       "nothingMade": "The realization placed nothing this chapter.",
-      "undoAsk": "Undo the realization? Key Remnants it placed: {n}. Those a student has found or Monokuma has revealed stay.",
+      "undoAsk": "Undo the realization? What it placed or gave: {n}. Remnants a student has found or Monokuma has revealed stay; the Truth Bullets it gave are taken back.",
       "undone": "Removed {removed}; {kept} stay because they were found or revealed.",
       "askTitle": "The case's realization",
       "askBody": "A body was found. The case for this chapter has not been realized yet. Nothing happens until you choose.",

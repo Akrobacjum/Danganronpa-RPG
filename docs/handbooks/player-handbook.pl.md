@@ -1,6 +1,6 @@
 # Danganronpa RPG - Podręcznik gracza
 
-*Dla uczniów killing game. Moduł w wersji 1.2.126, zbudowany na Daggerheart dla Foundry VTT v14.*
+*Dla uczniów killing game. Moduł w wersji 1.2.128, zbudowany na Daggerheart dla Foundry VTT v14.*
 
 To cała gra widziana z miejsca gracza: co znaczą liczby na arkuszu, ile kosztuje akcja, co kupuje Hope, co się dzieje, gdy ktoś ginie, i co nacisnąć. Każda liczba tutaj jest liczbą modułu; tam, gdzie decyzja należy do człowieka, napisano "GM decyduje". Jak moduł działa od środka, opisuje rozdział 17.
 
@@ -83,7 +83,7 @@ Każda akcja to rzut dwoistości z Daggerheart: kość Hope i kość Despair (ob
 
 - Rzut **z Hope** daje ci 1 Hope.
 - Rzut **z Despair** zasila pulę Despair Monokumy, który cię pilnuje (rozdział 6). Stąd bierze się jego waluta: z twojego pecha i twojego ryzyka.
-- **Krytyk** daje 2 Hope i nic więcej; inaczej niż w czystym Daggerheart nie przywraca Sanity.
+- **Krytyk** daje 2 Hope i nic więcej; inaczej niż w czystym Daggerheart nie przywraca Sanity. Rzut, który tylko wspiera akcję, nie daje Hope, cokolwiek pokaże: ukrycie tego, co robisz, pozostanie niezauważonym, zatajenie zamiaru; Hope daje główny rzut akcji. Jego krytyk nadal robi to, co mówi jego własna zasada (ukrywanie przy Tamper oddaje 1 Sanity). Od 1.2.128 karta akcji mówi to pod kośćmi: co dał rzut albo że tylko wspierał akcję. Akcja odrzucona albo niewykonana po tym, jak padły jej kości, oddaje ci swoją cenę, a karta mówi *(cena) wraca do ciebie, bo akcja nie doszła do skutku.*; Hope z rzutu zostaje twoje.
 
 Okno rzutu jest dla graczy zablokowane: kości, statystyka, przewaga, doświadczenia i premie biorą się z akcji, z Calla, za który zapłaciłeś, z miejsca, w którym stoisz, albo od GM-a. Zmieniasz tylko to, co akcja pozwala ci wybrać.
 
@@ -97,7 +97,7 @@ Kliknij statystykę na arkuszu, gdy GM poprosi cię o rzut poza akcją. To rzut 
 
 GM może zrobić z twojej postaci **Widza**: oglądasz i nie grasz. Nie masz akcji, Hope, Calli ani Level Upów, a gra nigdzie cię nie wlicza. Inni gracze nie widzą twojego tokenu. Rozmawiasz z innymi Widzami, gdziekolwiek stoi twój token. **Słuchaj w swoim pokoju** na twoim kafelku głosu pozwala ci zamiast tego słyszeć pokój, w którym stoi twój token, z wyłączonym mikrofonem, a ten sam przycisk, teraz **Porozmawiaj z Widzami**, cię cofa; podczas Eclipse nikt nie jest na głosie, dopóki nie wróci światło. Jeśli GM wyłączył kafelek głosu, tego przycisku nie ma i zostajesz z Widzami. Ruszasz się, przeciągając token, bez kosztu. Widzisz każdy pokój, który klasa odkryła, tokeny wszystkich i każdy projekt, także tajny, z jego opisem, w każdym pokoju. Na koniec dnia plansza końca dnia pokazuje ci tylko swój nagłówek i nastrój szkoły. Nie masz czatu; komunikator nadal przynosi ci wiadomości od GM-a, ale nie możesz na nie odpowiedzieć.
 
-Gdy twoja postać zginie, oglądasz tak samo, z własnym Widzem: ma imię i obrazy twojej postaci i stoi tam, gdzie leży twoje ciało. Możesz go przeciągnąć dokądkolwiek, bez kosztu, a inni gracze go nie widzą. Nadal widzisz tylko to, co widzi zmarły uczeń. Jeśli zostaniesz Monocubem, jego token stanie się twoim Monocubem.
+Gdy twoja postać zginie, oglądasz tak samo, z własnym Widzem: ma imię i obrazy twojej postaci i stoi tam, gdzie leży twoje ciało. Możesz go przeciągnąć dokądkolwiek, bez kosztu, a inni gracze go nie widzą. Od 1.2.128 widzisz mapę tak jak Widz, od razu: każdy pokój, który klasa odkryła, i każdego, kto w nim jest. Jeśli zostaniesz Monocubem, jego token stanie się twoim Monocubem.
 
 W chwili twojej śmierci szkło na twoim ekranie szarzeje, z dźwiękiem Gaśnięcia; przy egzekucji szarzeje od razu, a dźwięk egzekucji słyszysz razem ze wszystkimi. Szkło zostaje szare, dopóki nie żyjesz, i rozświetla się znowu, gdy zostaniesz Monocubem albo wrócisz do życia. Szare szkło widać tylko na twoim ekranie.
 
@@ -107,7 +107,7 @@ W chwili twojej śmierci szkło na twoim ekranie szarzeje, z dźwiękiem Gaśni�
 
 ### Dzień, sesja, rozdział
 
-Jedna sesja to jeden dzień w fikcji, a dzień to pięć pór dnia: Rano, Południe, Popołudnie, Wieczór, Noc. Każda pora dnia uzupełnia Search Tokeny każdego pokoju, a jej Eclipse odnawia twoje dwie akcje i Free Move (gdy pora mija bez Eclipse, odnawia je GM). Gdy kończy się Noc, zaczyna się nowy dzień.
+Jedna sesja to jeden dzień w fikcji, a dzień to pięć pór dnia: Rano, Południe, Popołudnie, Wieczór, Noc. Każda pora dnia uzupełnia Search Tokeny każdego pokoju, a jej Eclipse odnawia twoje dwie akcje i Free Move (gdy pora mija bez Eclipse, odnawia je GM). Gdy kończy się Noc, zaczyna się nowy dzień. GM wybiera tempo: w tempie pełnym sesja przy stole to jeden dzień gry, około 30 minut na porę dnia; w tempie szybkim to dwa dni gry, około 15 minut na porę dnia, a zegar liczy każdy z nich jako sesję. Czas Eclipse dochodzi do tego.
 
 Kanoniczny rozdział to pięć sesji: trzy Daily Life, jedna sesja **Investigation** i jedna sesja **Class Trial**, a morderstwo przychodzi zwykle w trzeciej sesji Daily Life. GM może rozciągnąć rozdział, gdy morderstwa jeszcze nie było. Sezon to sześć rozdziałów; sezon modułowy to krótszy sezon, który GM może wybrać zamiast niego, i ma jeden rozdział.
 
@@ -197,7 +197,7 @@ Gdy GM ustawił tunel w jedną stronę, pisze o tym pod jego nazwą: drugim koń
 - Pokój, w którym jesteś, jest w pełnym kolorze. Pokoje, w których już byłeś, prześwitują zza zasłony. Reszta szkoły tonie we mgle, dopóki do niej nie wejdziesz: każda postać odkrywa pokój raz, wchodząc do niego. Podczas Eclipse nawet pokój, w którym stoisz, jest tylko za zasłoną.
 - Na mapie o kilku piętrach widzisz jedno piętro naraz. Przyciski **Piętra** obok HUD proponują piętra, na których stoi twoja postać, i każde piętro z pokojem, który odkryłeś, od najniższego. Odkryty pokój wygląda tak samo na każdym piętrze - za zasłoną, bez nikogo, kogo widzisz - a pokój, w którym nigdy nie byłeś, na każdym piętrze zostaje we mgle.
 - Widzisz ikony drzwi tych pokoi, które widzisz: tego, w którym stoisz, i tych, w których już byłeś. Innych ikon drzwi nie widzisz.
-- Widzisz tylko osoby stojące w twoim pokoju. Nikogo innego dla ciebie na mapie nie ma.
+- Widzisz tylko osoby stojące w twoim pokoju. Nikogo innego dla ciebie na mapie nie ma. Każdy token, który widzisz, nosi pod sobą podpis ze swoją nazwą, który przesuwa się razem z nim, o ile możesz ją znać (od 1.2.128): imię postaci, „?” dla zabójcy za maską, nazwę projektu („???” dla tajnego, o którym nie wiesz) i nazwę Remnantu taką, jaką nadaje mu twój własny Truth Bullet, a bez niego *Remnant*; ciało ma zamiast tego własny kafelek. Gdy wyłączysz **Nazwy tokenów jako podpisy** (okno zębatki, Wygląd; domyślnie włączone i tylko w tej przeglądarce), nazwa pokaże się zamiast tego, gdy kursor zatrzyma się na chwilę na tokenie. Oba sposoby idą za **Skalą interfejsu**. Gdy GM pozwala Foundry pokazywać nad tokenem jego własną nazwę, moduł nie dodaje swojej.
 - **Kafelek pokoju** stoi pod zegarem, a gdy ekran nie zostawia tam miejsca, na prawo od powiadomień. Pokazuje pokój, w którym stoi twoja własna postać, nigdy inny: jego nazwę, jego Search Tokeny z liczbą przeszukań, które zostały (**2/3 przeszukań**), **Możesz tu pracować nad projektem**, gdy jest w nim projekt, nad którym możesz pracować, oraz zdjęcie i opis pokoju od GM-a.
 - Opis pokoju jest schowany za małą strzałką w prawym górnym rogu kafelka: **Czytaj dalej** rozwija go nad zdjęciem, a **Zwiń opis** zwija z powrotem. Kliknij zdjęcie, żeby zobaczyć je w dużym rozmiarze, tylko na swoim ekranie.
 - Podczas Class Trial kafelek pokazuje salę rozpraw: nazwę, zdjęcie i opis od GM-a albo "Class Trial". Na wąskim ekranie kafelek jest jednym wierszem stosu: małe zdjęcie (kliknij je, żeby zobaczyć duże), nazwa, Search Tokeny i przycisk **Opis**, który otwiera opis w oknie.
@@ -218,7 +218,7 @@ Gdy nikt nie mówi, kafelek mówi jednym słowem, w jakim stanie jest twój gło
 | **Łączenie** | dołączasz, przechodzisz do innego kanału albo połączenie wraca |
 | **Rozłączono** | głos się zerwał; karta **Głos rozłączony** mówi wtedy, że trwa ponowne łączenie, a gdy pomoże tylko przeładowanie, każe nacisnąć F5 |
 | **Eclipse** | trwa Eclipse |
-| **Ukrycie** | stoisz za „?” po otwarciu morderstwa: nie ma cię w głosie, dopóki się nie ujawnisz albo nie zmieni się pora dnia (nie w Class Trial) |
+| **Ukrycie** | stoisz za „?” po otwarciu morderstwa: nie ma cię w głosie, dopóki się nie ujawnisz, morderstwo się nie skończy, nie wyjdziesz z jego pokoju albo nie zmieni się pora dnia (nie w Class Trial) |
 | **Zablokowano** | GM zablokował twój mikrofon |
 | **Osobne okno** | głos działa w osobnym oknie |
 
@@ -228,14 +228,14 @@ Na kafelku są dwa przyciski. Przycisk mikrofonu wycisza i włącza tylko twój 
 |---|---|
 | przekreślony | wyciszony, przez ciebie |
 | przekreślony, z małą kłódką | wyciszony przez GM-a: **GM zablokował twój mikrofon.** |
-| szary i przekreślony | trzyma go gra - podczas Eclipse, gdy podsłuchujesz pod drzwiami, w Class Trial, gdy głos ma ktoś inny albo jesteś na liście zmarłych rozprawy, i gdy jesteś Widzem - a powód stoi pod mikrofonem; kliknięcie niczego wtedy nie zmienia i mówi ci dlaczego |
+| szary i przekreślony | trzyma go gra - podczas Eclipse, gdy podsłuchujesz pod drzwiami, gdy GM ukrywa twój token, gdy się chowasz (Hide), w Class Trial, gdy głos ma ktoś inny albo jesteś na liście zmarłych rozprawy, i gdy jesteś Widzem - a powód stoi pod mikrofonem; kliknięcie niczego wtedy nie zmienia i mówi ci dlaczego |
 | z małą kropką | nie jesteś połączony z głosem albo głos działa w osobnym oknie |
 | świeci | twój mikrofon niesie twój głos |
 | z napisem **PTT** | tryb naciśnij, aby mówić: przytrzymaj klawisz, żeby mówić |
 
-Monocub zachowuje mikrofon podczas Eclipse i dostaje informację, że do powrotu światła nikt go nie słyszy. W pokoju Widzów mikrofon zostaje twój: wyciszasz go i włączasz sam, a linijka pod nim mówi, gdzie jesteś.
+Monocub zachowuje mikrofon podczas Eclipse i dostaje informację, że do powrotu światła nikt go nie słyszy. W pokoju Widzów mikrofon zostaje twój: wyciszasz go i włączasz sam, a linijka pod nim mówi, gdzie jesteś. Gdy mikrofon jest przekreślony, szary czy nie, twoja przeglądarka sama też wyłącza twój mikrofon, więc nikt cię nie słyszy, dopóki znów nie zaświeci; w trybie naciśnij, aby mówić otwiera go twój klawisz.
 
-Głośnik pokazuje, ile innych osób jest w twoim kanale, licząc każdą, która cię słyszy, mówiącą czy nie, i otwiera **Kogo słyszysz**: każdą z tych osób z suwakiem głośności i **Wycisz u siebie: *imię*** (potem **Znów słuchaj: *imię***), a na górze **Wycisz wszystkich u siebie**. Te ustawienia działają tylko u ciebie; inni przy stole niczego nie zauważą. Escape albo kliknięcie obok zamyka listę.
+Głośnik pokazuje, ile innych osób jest w twoim kanale, licząc każdą, która cię słyszy, mówiącą czy nie, i otwiera **Kogo słyszysz**: każdą z tych osób z suwakiem głośności i **Wycisz u siebie: *imię*** (potem **Znów słuchaj: *imię***), a na górze **Wycisz wszystkich u siebie**. Te ustawienia działają tylko u ciebie; inni przy stole niczego nie zauważą. Escape albo kliknięcie obok zamyka listę. Osoba wyciszona u ciebie ma przy sobie **Wyciszone przez ciebie**, dopóki nie naciśniesz **Znów słuchaj: *imię***; ta przeglądarka pamięta to także w następnej sesji. Osoba, której twoja strona nie słyszy z innego powodu, ma przy sobie ten powód i radę, żeby odświeżyć stronę (F5); strona sama raz próbuje wznowić wstrzymany dźwięk albo odebrać mikrofon, którego nie odbiera.
 
 > [!TIP]
 > Żeby dowiedzieć się, kto jest za ścianą, bez wchodzenia, użyj **Listen** (rozdział 4, Infiltrate).
@@ -394,7 +394,7 @@ Akcja pokoju ustawiona przez GM-a to rzut na statystykę i próg z jej wiersza i
 
 ### Infiltrate: Listen - Shadow, 1 akcja
 
-Okno kafelka **Infiltrate** wymienia jego akcje jedna pod drugą: najpierw Listen, potem Echoes, Tail Someone, Keep Watch, Dash, Shut the Door, Force the Door i Pick the Lock. Każdą opisuje osobna część tego rozdziału, niżej.
+Okno kafelka **Infiltrate** wymienia jego akcje jedna pod drugą: najpierw Listen, potem Echoes, Tail Someone, Keep Watch, Dash, Shut the Door, Force the Door, Pick the Lock i Hide. Każdą opisuje osobna część tego rozdziału, niżej.
 
 Listen ustala, kto jest w sąsiednim pokoju, bez decyzji GM-a. Pokój wybierasz przed rzutem, a odpowiedź przychodzi jako karta, którą czytasz tylko ty i GM-owie. Gdy twój pokój nie ma sąsiadów, Listen jest wyszarzony, a obok stoi powód.
 
@@ -440,6 +440,14 @@ Jeśli otworzysz zamek z wynikiem poniżej 18 albo spudłujesz z Despair, właś
 ### Keep Watch - Body, 1 akcja
 
 Przy rzucie na Body 12 lub więcej czuwasz przez nadchodzące Eclipse nad pokojem, w którym stoisz, gdy się ono zaczyna. Keep Watch używasz przed Eclipse, ale nie w jego trakcie i nie przed nocnym Eclipse. Gdy Eclipse się zaczyna, dowiadujesz się, kto jest w pokoju, z imienia; przez całe Eclipse dowiadujesz się, kto wchodzi i kto wychodzi, z imienia, ale nigdy skąd ani dokąd; a na koniec Eclipse, ile osób weszło i wyszło. Przez całe Eclipse zostajesz na posterunku. Porażka z Despair kosztuje 1 Sanity. Gdy czuwasz z wynikiem 18 lub więcej albo krytycznym, trudniej cię zaskoczyć: kto otwiera na tobie morderstwo, rzuca na otwarcie z jedną kością utrudnienia, a jego okno nie mówi dlaczego. Gracz, który zgodził się, by jego postać była ofiarą morderstwa, nie używa Keep Watch, żeby tego uniknąć.
+
+### Hide - Shadow, 1 akcja
+
+Rzut na Shadow 15 lub więcej albo krytyk sprawia, że się chowasz. Inni gracze przestają widzieć twój token, jego ramkę i nazwę, a twój mikrofon się wyłącza; nadal słyszysz pokój, a na twoim ekranie twój token jest blady. GM-owie cię widzą. Na liście głosu innych graczy cię nie ma, ich akcje nie wymieniają cię wśród osób w pokoju, a ich Listen cię nie słyszy. Pudło nic nie daje, a akcja przepada.
+
+W ukryciu rzut Shadow na pozostanie niezauważonym przy akcji nie jest rzucany i liczy się jako udany: przy Palm i ukrytym Frisk, przy Tail Someone, Pick the Lock, braniu rzeczy z ciała przy świadkach oraz przy ukrywaniu Sabotage, pracy nad pośrednim morderstwem i sprzątaniu. Karta to mówi. Nie daje to Hope.
+
+Zostajesz w ukryciu do końca pory dnia, a powiadomienie na kafelku powiadomień, tam, gdzie pojawiają się twoje inne powiadomienia, mówi ci, kiedy się skończyło. Wcześniej wychodzisz z niego, gdy naciśniesz **Ujawnij się** na swoim kafelku głosu, ujawni cię GM albo skończy się rozdział; ruch ani inne akcje go nie kończą. Nie w czasie Class Trial: wtedy wszyscy siedzą na sali, a o tym, kto mówi, decyduje przebieg rozprawy.
 
 ### Dash - Leg, 1 akcja
 
@@ -495,7 +503,7 @@ Każdy z tych progów jest o 3 niższy, gdy zabójstwo jest świeże: trwa incyd
 
 Remnantów Reinforced nie da się usunąć.
 
-**Reshape a Trace.** Zostawiasz jeden z tych samych Remnantów na miejscu i sprawiasz, że wygląda na coś innego: piszesz, jak się nazywa i jak wygląda, jedno i drugie (nazwa do 60 znaków, wygląd do 400 znaków). Wymaga o 3 mniej niż jego wymazanie, a cokolwiek napiszesz, Remnant staje się Tamper Remnantem: przyznaje, że ktoś przy nim majstrował, i kłamie o całej reszcie. GM pozwala twojej wersji zostać albo jej nie dopuszcza; do tego czasu Remnant wygląda tak jak przedtem, a niedopuszczona wersja i tak kosztuje to, co kosztowała próba. Krytyk dodatkowo sprawia, że Remnant jest o jedno pasmo trudniejszy do zauważenia, i oddaje to, co kosztowała próba. Kopie, które inni już mają, zachowują słowa, z jakimi je znaleziono; kto znajdzie Remnant później, czyta twoje.
+**Reshape a Trace.** Zostawiasz jeden z tych samych Remnantów na miejscu i sprawiasz, że wygląda na coś innego: piszesz, jak się nazywa i jak wygląda, jedno i drugie (nazwa do 60 znaków, wygląd do 400 znaków). Wymaga o 3 mniej niż jego wymazanie, a cokolwiek napiszesz, Remnant staje się Tamper Remnantem: przyznaje, że ktoś przy nim majstrował, i kłamie o całej reszcie. GM pozwala twojej wersji zostać albo jej nie dopuszcza; do tego czasu Remnant wygląda tak jak przedtem, a niedopuszczona wersja i tak kosztuje to, co kosztowała próba. Krytyk dodatkowo sprawia, że Remnant jest o jedno pasmo trudniejszy do zauważenia, i oddaje to, co kosztowała próba. Kopie, które inni już mają, zachowują słowa, z jakimi je znaleziono; kto znajdzie Remnant później, czyta twoje. Kopia, którą ktoś daje dalej, niesie słowa dającego: dana z kopii znalezionej, zanim twoja wersja została, niesie dawne słowa.
 
 **Misleading Trail.** Zostawiasz Prep Remnant wskazujący na kogoś innego. Wymaga 15, a krytyk dodatkowo oddaje to, co kosztowała próba. Porażka z Hope i tak go podkłada, jako Hidden, Faint Remnant, którego pewnie nikt nie znajdzie; porażka z Despair nie podkłada nic.
 
@@ -623,7 +631,7 @@ Przedmiot może służyć też jako inna kategoria (śrubokręt w narzędziach, 
 > [!IMPORTANT]
 > **W ręku.** Sprzęt liczy się tylko wzięty do ręki: w incydencie, przy sprzątaniu i przy pracy nad projektem liczy się tylko to, co trzymasz. W ręku jest zawsze najwyżej jedna rzecz, a gdy bierzesz jedną, pozostałe odkładasz; wzięcie do ręki nie kosztuje akcji. Narzędzie w ręku daje przewagę przy pracy nad projektem i sabotażu i obniża próg o swój Tier. Narzędzie do sprzątania w ręku robi to samo przy zacieraniu i przeróbce Remnantu; przy Misleading Trail daje przewagę, ale nie obniża progu, a przy Move the Body obniża próg o swój Tier, ale nie daje przewagi. Tier narzędzia zbrodni wyznacza jego obrażenia (rozdział 10, Jeśli jesteś zabójcą).
 
-**Przekazywanie.** Możesz dać coś każdemu w swoim pokoju. Przy **Przekaż** oddajesz rzecz na dobre i obowiązuje limit odbiorcy. Przy Truth Bullecie albo kluczu możesz zamiast tego wybrać **Podziel się kopią**: macie go wtedy oboje, a kopii Truth Bulletu nie wiąże żadna twoja nieudana analiza. Ani przekazanie, ani dzielenie się kopią nie kosztuje akcji i żadne z nich nie działa podczas Eclipse.
+**Przekazywanie.** Możesz dać coś każdemu w swoim pokoju. Przy **Przekaż** oddajesz rzecz na dobre i obowiązuje limit odbiorcy. Przy Truth Bullecie albo kluczu możesz zamiast tego wybrać **Podziel się kopią**: macie go wtedy oboje, a kopii Truth Bulletu nie wiąże żadna twoja nieudana analiza. Kopia Truth Bulletu niesie słowa takie, jakie masz, nawet jeśli Remnant przerobiono po tym, jak go znalazłeś. Gdy masz wynik Analyze tego Truth Bulletu, okno pyta, czy ma pójść z kopią (**Podziel się kopią z wynikiem mojego Analyze**, zaznaczone na start); bez zaznaczenia kopia odbiorcy wygląda tak, jakby nikt jej nie analizował. Ani przekazanie, ani dzielenie się kopią nie kosztuje akcji i żadne z nich nie działa podczas Eclipse.
 
 ### Sypialnie, klucze, skrytki
 
@@ -645,7 +653,7 @@ Przedmiot może służyć też jako inna kategoria (śrubokręt w narzędziach, 
 
 **Remnant** to to, co czyn zostawia na mapie. Zostawia go większość tego, co robisz w pokoju: Search, który znajduje narzędzie zbrodni albo narzędzie do sprzątania, Dynamic Action, sabotaż, praca nad projektem morderstwa, wyrzucenie czegoś, przeszukanie kieszeni ciała, walka i sprzątanie. To, jak trudno go zobaczyć, to jego **widoczność**: Obvious, Evident, Subtle albo Hidden. Niektóre Remnanty są **Reinforced** i nikt nie może ich usunąć.
 
-Remnant pojawia się na twojej mapie <ins>dopiero wtedy, gdy masz skopiowany z niego Truth Bullet</ins>; Remnanty walki, w której bierzesz udział, widać od chwili, gdy powstają. Tylko na twoim ekranie nosi nazwę i obrazek twojej kopii, a sam Remnant ma jedną neutralną nazwę. Nosi znak zapytania, dopóki twoja kopia nie zostanie przeanalizowana, a potem ikonę tego, co go zostawiło: Search, Dynamic Action, projektu, sabotażu, samej walki, sprzątania, wyrzuconej rzeczy, przeszukanego ciała albo ręki samego GM-a. Jego ramka przybiera kolor tego, czym według twojej kopii jest.
+Remnant pojawia się na twojej mapie <ins>dopiero wtedy, gdy masz skopiowany z niego Truth Bullet</ins>; Remnanty walki, w której bierzesz udział, widać od chwili, gdy powstają. Od 1.2.128 tak jest bez względu na to, jak ten Truth Bullet do ciebie trafił: znaleziony, udostępniony, przekazany albo przyznany, i nawet gdy GM ukrył Remnant. Tylko na twoim ekranie nosi nazwę i obrazek twojej kopii, a sam Remnant ma jedną neutralną nazwę. Nosi znak zapytania, dopóki twoja kopia nie zostanie przeanalizowana, a potem ikonę tego, co go zostawiło: Search, Dynamic Action, projektu, sabotażu, samej walki, sprzątania, wyrzuconej rzeczy, przeszukanego ciała albo ręki samego GM-a. Jego ramka przybiera kolor tego, czym według twojej kopii jest.
 
 | Remnant | Co znaczy |
 |---|---|
@@ -734,7 +742,7 @@ Każde morderstwo ma dokładnie jeden rzut otwarcia, a jego rodzaj decyduje, kto
 
 **Za „?”.** Direct Murder, którego otwarcie udaje się z Hope albo jest krytykiem, ukrywa zabójcę. Ofiara i wszyscy inni widzą token zabójcy jako „?” bez imienia, a ofiara dowiaduje się tylko, że ktoś na nią rusza. Okno arkusza zabójcy otwarte u innego gracza się zamyka. Zabójca opuszcza kanał głosowy pokoju i trafia do cichego kanału tylko dla siebie: niczego nie słyszy i nikt go nie słyszy. GM i Widz widzą, kto to jest.
 
-Jako zabójca dostajesz pytanie **Zostać w ukryciu?** Po **Ujawnij się** wszyscy znów widzą twój token i imię, a twój głos wraca do pokoju. **Zostań w ukryciu** trzyma „?” do końca pory dnia, a **Ujawnij się** zostaje do tego czasu na twoim kafelku głosu.
+Jako zabójca dostajesz pytanie **Zostać w ukryciu?** Po **Ujawnij się** wszyscy znów widzą twój token i imię, a twój głos wraca do pokoju. **Zostań w ukryciu** trzyma „?” do pierwszego z trzech zdarzeń: końca morderstwa, twojego wyjścia z pokoju morderstwa albo końca pory dnia (pierwsze dwa od 1.2.128); **Ujawnij się** zostaje do tego czasu na twoim kafelku głosu.
 
 | Rzut zabójcy | Co się dzieje |
 |---|---|
@@ -869,7 +877,7 @@ Za każdym razem, gdy twoja postać wchodzi do pokoju, w którym leży ciało, s
 
 ## 12. Class Trial
 
-Wszyscy są w jednej sali i nikt jej nie opuszcza. Class Trial zaczynasz z odnowionymi akcjami, jak na początku pory dnia: Wounded nie odbiera ci w nim żadnej akcji, ale zaciemnienie Panic wciąż zabiera swoją jedną (rozdział 6). Rozprawa nie kończy pory dnia, a Sprint albo Burst w zapasie zostaje w zapasie. Na arkuszu otwarte jest tylko Analyze, do tego Hope Calle i twoje przedmioty. W Class Trial Analyze tylko identyfikuje Truth Bullety, bez wskazówki, bez ukrytej skrytki i bez przejścia, i kosztuje **1 akcję**, a gdy akcji zabraknie, **1 Hope**, a gdy nie ma i tego, **1 Sanity**.
+Wszyscy są w jednej sali i nikt jej nie opuszcza. Class Trial zaczynasz z odnowionymi akcjami, jak na początku pory dnia: Wounded nie odbiera ci w nim żadnej akcji, ale zaciemnienie Panic wciąż zabiera swoją jedną (rozdział 6). Rozprawa nie kończy pory dnia, a Sprint albo Burst w zapasie zostaje w zapasie. Na arkuszu otwarte są tylko Analyze i Palm (od 1.2.128), do tego Hope Calle i twoje przedmioty. W rozprawie Palm sięga każdego, kto stoi w sali, i tylko przeszukuje - ukradkiem, prosząc albo siłą po odmowie lub braku odpowiedzi; zabrać albo podrzucić coś możesz dopiero po rozprawie - i kosztuje **1 akcję**, a gdy akcji zabraknie, **1 Hope**, a gdy nie ma i tego, **1 Sanity**; jego karta mówi, czym za niego zapłacono. W Class Trial Analyze tylko identyfikuje Truth Bullety, bez wskazówki, bez ukrytej skrytki i bez przejścia, i kosztuje **1 akcję**, a gdy akcji zabraknie, **1 Hope**, a gdy nie ma i tego, **1 Sanity**.
 
 Gdy GM przygotował salę rozpraw, początek rozprawy przenosi tam twój ekran, a jej koniec zabiera cię z powrotem do szkoły: żyjących, którzy brali udział, do pokoju, który wybierze GM. GM wybiera, kto bierze udział. Na czas rozprawy token twojej postaci staje w sali, a potem zostaje z niej usunięty.
 
@@ -882,17 +890,17 @@ Gdy sala jest gotowa się spierać, GM otwiera **Nonstop Debate**, z pytaniem, j
 | Tryb | Kto mówi | Jak długo | Kto wnosi objection | Kto przedstawia dowody |
 |---|---|---|---|---|
 | Nonstop Debate | wszyscy | budżet GM-a | każdy, w tego, kto mówi | wszyscy |
-| OBJECTION | tylko wnoszący | 60 sekund | nikt | wszyscy |
+| OBJECTION | tylko wnoszący | 30 sekund | nikt | wszyscy |
 | Rebuttal | wnoszący i osoba, w którą wymierzono Objection | 120 sekund, potem głos się zamyka i Class Trial wraca do otwartej dyskusji | każdy, ale tylko wobec jednej z dwóch osób, które mają głos | wszyscy |
 | Testimony | po jednym uczestniku, w kolejności ustalonej przez GM-a | proponowane 60 sekund na turę; GM może ustawić od 30 do 120 | każdy inny, tylko w mówcę | tylko mówca |
 | Panic Round | po jednym uczestniku, po kolei | 15 sekund na turę (10 od 12 uczestników) | nikt | tylko mówca |
 | Closing Argument | mówca, którego GM zatwierdzi albo wybierze | 300 sekund | każdy inny, tylko w mówcę | mówca, a gdy ktoś wniesie w niego Objection, dwie osoby tej wymiany |
 
-Nie wybierasz, komu zaprzeczasz: Objection trafia w tego, kto mówi teraz (liczy się mniej więcej sekunda mowy), a gdy nikt nie mówi, w ostatniego gracza, który mówił w tej rozprawie; nigdy w GM-a, Monocuba, ucznia, którego śmierć ogłoszono, ani w ciebie czy innego twojego ucznia. Przycisk podaje tę osobę, zanim go naciśniesz; jeśli nikt jeszcze nie mówił, mówi to i nic nie jest pobierane. Gdy moduł nie słyszy, kto mówi, po naciśnięciu sam wybierasz, komu zaprzeczasz. Potem wybierasz Truth Bullet: masz na to **30 sekund**, odliczanych w oknie. Dopóki Truth Bullet nie trafi na stół, karta Objection mówi, że czeka; 60 sekund zaczyna się, gdy trafi. Jeśli zamkniesz okno albo czas minie, Objection przepada, jego karta o tym mówi, a koszt nie wraca. Gdy twoje Objection przejmuje głos, dowiadujesz się, ile kosztowało. Karta Objection stoi nad każdym oknem, dopóki jej nie klikniesz.
+Nie wybierasz, komu zaprzeczasz: Objection trafia w tego, kto mówi teraz (liczy się mniej więcej sekunda mowy), a gdy nikt nie mówi, w ostatniego gracza, który mówił w tej rozprawie; nigdy w GM-a, Monocuba, ucznia, którego śmierć ogłoszono, ani w ciebie czy innego twojego ucznia. Przycisk podaje tę osobę, zanim go naciśniesz; jeśli nikt jeszcze nie mówił, mówi to i nic nie jest pobierane. Gdy moduł nie słyszy, kto mówi, po naciśnięciu sam wybierasz, komu zaprzeczasz. Potem wybierasz Truth Bullet: masz na to **30 sekund**, odliczanych w oknie. Dopóki Truth Bullet nie trafi na stół, karta Objection mówi, że czeka; jego 30 sekund zaczyna się, gdy trafi. Jeśli zamkniesz okno albo czas minie, Objection przepada, jego karta o tym mówi, a koszt nie wraca. Gdy twoje Objection przejmuje głos, dowiadujesz się, ile kosztowało. Póki trwa jego 30 sekund, okno na środku ekranu pyta *Zakończyć turę teraz?* (od 1.2.128): **Zakończ turę** kończy ten czas i zaczyna się rebuttal, tak jak po Pomiń GM-a; **Mówię dalej** zamyka okno, które dla tego Objection nie wraca. Karta Objection stoi nad każdym oknem, dopóki jej nie klikniesz.
 
 GM może przekierować trwające Objection na kogoś innego. GM może też użyć przycisku **Oddalenie** wobec najnowszego Objection, na przykład naciśniętego przez pomyłkę albo niezwiązanego z tym, co mówi mówca: jego karta dostaje pieczątkę **Objection oddalone przez GM-a**, to, co zapłaciłeś, zostaje zapłacone, a rozprawa wraca tam, gdzie była, z czasem, jaki wtedy miała. Pasek GM-a może też pominąć turę, odjąć albo dodać pół minuty (w Panic Round 5 sekund), zakończyć tryb albo wrócić do debaty, a każdą z tych rzeczy widać na ekranie (karta albo *GM: +30 s* na karcie Class Trial). Na każdym ekranie zegar podaje tryb, a karta Class Trial na panelu zdarzeń pokazuje tryb, kto ma głos (w rebuttalu także, komu odpowiada) i ile zostało czasu.
 
-GM może też otworzyć trzy tryby, w których mówi jedna osoba naraz. W **Testimony** i **Panic Round** każdy uczestnik mówi po kolei: w twojej turze okno mówi *Twoja tura (n s)* z sekundami, które ci zostały; **Gotowe** kończy twoją turę, a **Pasuję** oddaje ją następnemu mówcy (**Mówię dalej** chowa okno na 20 s, a ono wraca, póki trwa twoja tura). Ekrany podają, kto mówi i kto następny; jeśli w swojej turze nie jesteś połączony, tura przechodzi dalej. Gdy mówi ktoś inny, słuchasz. Po Objection w Testimony runda idzie dalej od następnego mówcy. Dowody przedstawia tylko mówca (*Teraz dowody może przedstawiać tylko name.*).
+GM może też otworzyć trzy tryby, w których mówi jedna osoba naraz. W **Testimony** i **Panic Round** każdy uczestnik mówi po kolei: w twojej turze okno mówi *Twoja tura (n s)* z sekundami, które ci zostały; **Gotowe** kończy twoją turę, a **Pasuję** oddaje ją następnemu mówcy (**Mówię dalej** chowa okno na 20 s, a ono wraca, póki trwa twoja tura; gdy zostało więcej niż 5 sekund, Gotowe i Pasuję najpierw pytają *Zakończyć turę teraz?*, od 1.2.128). Ekrany podają, kto mówi i kto następny; jeśli nie jesteś połączony, gdy przychodzi twoja tura, tura przechodzi dalej, a jeśli rozłączysz się w trakcie tury, czeka 15 sekund, aż wrócisz. Gdy mówi ktoś inny, słuchasz. Po Objection w Testimony runda idzie dalej od następnego mówcy. Dowody przedstawia tylko mówca (*Teraz dowody może przedstawiać tylko name.*).
 
 W **Closing Argument** najpierw gra pyta cię, czy podsumujesz sprawę: odpowiadasz **Podsumuję** albo **Ktoś inny** i masz na to 30 sekund. Spośród zgłoszonych losowany jest jeden, a GM go zatwierdza albo wybiera kogoś innego. Mówca ma 300 sekund. Jeśli to ty jesteś mówcą, **Pasuję** w pierwszych 30 sekundach oddaje wybór GM-owi, a później kończy Closing Argument; **Gotowe** też go kończy. Gdy ktoś wniesie Objection wobec mówcy, do końca tej wymiany dowody przedstawiają tylko jej dwie osoby, a ekran mówi *Teraz dowody mogą przedstawiać tylko name i name.* Po wymianie GM decyduje, kto mówi dalej: mówca, z czasem, który mu został, albo ktoś, kto wniósł Objection, z nowymi 300 sekundami. Closing Argument odbywa się raz na rozprawę i kończy się przed głosowaniem, a ostatnie słowo w nim nie daje Hope.
 
@@ -900,7 +908,7 @@ W **Closing Argument** najpierw gra pyta cię, czy podsumujesz sprawę: odpowiad
 
 ### Głosowanie
 
-Każdy żyjący gracz dostaje **kartę do głosowania**, jedną na osobę, niezależnie od tego, ilu uczniów grasz; uczeń, którego gra tylko GM, nie dostaje żadnej. Nie dostają jej Monocub ani zmarli, także ci, których śmierci nikt jeszcze nie znalazł. Jeśli połączysz się w trakcie głosowania, twoja karta przychodzi, gdy wczytuje się gra. Głosuj na tego, kto twoim zdaniem jest **Blackened**, czyli uczniem, który zabił; możesz głosować na siebie, na Monokumę i na zmarłych. Nikt nie widzi twojego głosu: trafia tylko do GM-ów, a publikowane są tylko sumy. **Twój głos oddany.** znaczy, że GM go zapisał, a gdy widzisz *Żaden GM nie ma jeszcze twojego głosu. Trafi do GM-a, gdy tylko się połączy.*, głos wyjdzie, gdy tylko połączy się GM. Jeśli zamkniesz kartę bez głosu, twój głos się nie liczy; jeśli chcesz zagłosować, poproś GM-a, żeby wysłał kartę jeszcze raz.
+Każdy żyjący gracz dostaje **kartę do głosowania**, jedną na osobę, niezależnie od tego, ilu uczniów grasz; uczeń, którego gra tylko GM, nie dostaje żadnej. Nie dostają jej Monocub ani zmarli, także ci, których śmierci nikt jeszcze nie znalazł. Jeśli połączysz się w trakcie głosowania, twoja karta przychodzi, gdy wczytuje się gra. Głosuj na tego, kto twoim zdaniem jest **Blackened**, czyli uczniem, który zabił; możesz głosować na siebie, na każdego Monokumę z osobna i na zmarłych; głos na jednego Monokumę liczy się tylko jemu. Nikt nie widzi twojego głosu: trafia tylko do GM-ów, a publikowane są tylko sumy. **Twój głos oddany.** znaczy, że GM go zapisał, a gdy widzisz *Żaden GM nie ma jeszcze twojego głosu. Trafi do GM-a, gdy tylko się połączy.*, głos wyjdzie, gdy tylko połączy się GM. Jeśli zamkniesz kartę bez głosu, twój głos się nie liczy; jeśli chcesz zagłosować, poproś GM-a, żeby wysłał kartę jeszcze raz.
 
 > [!IMPORTANT]
 > Skazanie wymaga **więcej niż połowy** wydanych kart - dla każdego nazwiska, gdy głosowanie pyta o więcej niż jedno. **Remis liczy się jak błędny głos**, chyba że stół to rozstrzygnie.
@@ -930,7 +938,7 @@ Jeśli kiedyś wziąłeś jako Level Up +1 Health albo +1 Sanity, GM może wyró
 
 ### Strefy sali
 
-W **Straw Poll**, **Logic Dive** albo **Scrum Debate** odpowiadasz tym, gdzie stoi twój token w sali rozpraw. Strefy to **Strefa A** i **Strefa B**, każda nazwana swoją odpowiedzią: przesuń token do wybranej. Jeśli się nie ruszysz, odpowiadasz strefą, w której leży twoje stanowisko. Token na linii między strefami albo poza obiema nie liczy się po żadnej stronie. Bez tokenu w sali dostajesz okno wyboru strony, w Logic Dive przy każdym pytaniu; zamknięte bez odpowiedzi wraca po 15 s. W żadnym z tych trzech trybów nikt nie wnosi objection. Gdy tryb się kończy, twój token wraca na stanowisko.
+W **Straw Poll**, **Logic Dive** albo **Scrum Debate** odpowiadasz tym, gdzie stoi twój token w sali rozpraw. Są dwie strefy, każda narysowana jak pokój na mapie, z odpowiedzią dużymi literami na środku: przesuń token do wybranej. Jeśli się nie ruszysz, odpowiadasz strefą, w której leży twoje stanowisko. Token na linii między strefami albo poza obiema nie liczy się po żadnej stronie. Bez tokenu w sali dostajesz okno wyboru strony, w Logic Dive przy każdym pytaniu; zamknięte bez odpowiedzi wraca po 15 s. W żadnym z tych trzech trybów nikt nie wnosi objection. Gdy tryb się kończy, twój token wraca na stanowisko.
 
 | Tryb | Jak zapada rozstrzygnięcie | Kto przedstawia dowody |
 |---|---|---|
@@ -1059,7 +1067,7 @@ Podczas Eclipse linia fazy podaje jego nazwę, na przykład *Eclipse (Noc)*. Pod
 - *Zasady* - stałe zasady Monokumy, dla wszystkich, cały czas.
 - Safeword w lewym dolnym rogu (rozdział 15) i Level Up, gdy ci przysługuje.
 
-**Komunikator** (rozdział 14) stoi nad dwoma pozostałymi przyciskami w rogu i ma dwie zakładki: **Czat**, twój wątek Czatu z GM-em, i **Notatka**, czyli twoja notatka przed sesją.
+**Komunikator** (rozdział 14) stoi nad dwoma pozostałymi przyciskami w rogu i ma dwie zakładki: **Czat**, twój wątek Czatu z GM-em, i **Notatka**, czyli twoja notatka przed sesją. Od 1.2.128 jego okno otwiera się w rozmiarze 760 na 730 pikseli, nigdy ponad 90% ekranu, i zapamiętuje miejsce, w które zostało przesunięte, ale nie rozmiar zmieniony przeciągnięciem.
 
 **Książka**, pod komunikatorem w prawym dolnym rogu, otwiera podręczniki w grze, czyli ten **Podręcznik gracza** i **Ulotkę ucznia**, w języku wybranym dla modułu. Książka otwiera się na podręczniku czytanym ostatnio, a spis treści po lewej przenosi do dowolnego rozdziału.
 
@@ -1070,7 +1078,7 @@ Podczas Eclipse linia fazy podaje jego nazwę, na przykład *Eclipse (Noc)*. Pod
 Okno historii pokazuje jako przyciski **Wszystkie**, **Dla ciebie** i **Niewykonane**, a pozostałe filtry (**Ogłoszenia**, **Od graczy**, **Dowody** i **Komunikator**) są pod **Więcej filtrów**. Każdy filtr pokazuje, ile powiadomień trzyma, a pole wyszukiwania znajduje powiadomienie po tytule i treści. **Wyczyść** w tym oknie opróżnia historię: zrób to, zanim udostępnisz ekran. Inne konto zalogowane w tej przeglądarce może przeczytać twoją historię, więc na wspólnym komputerze wyczyść ją, zanim oddasz komputer.
 
 **Okno ustawień:** zębatka w prawym dolnym rogu otwiera **Ustawienia Danganronpa RPG**, twoje własne ustawienia; inni przy stole niczego nie zauważą. GM ma to samo okno, a otwiera je też przycisk **Otwórz ustawienia Danganronpa RPG** w Configure Settings Foundry. Wybierz sekcję po lewej; linia pod każdym ustawieniem mówi, co ono zmienia, a **Zapisz zmiany** zapisuje ustawienia. Głośność i głos działają od razu, gdy je przesuwasz, a nie dopiero po **Zapisz zmiany**.
-- **Wygląd**: **Język** to English albo Polski dla okien, kart i arkusza modułu, osobno od języka Foundry; działa po przeładowaniu, a nazwy gry zostają po angielsku w obu językach. **Motyw** to **Stained Glass** albo **Monokuma Legacy**; pod Stained Glass szkło zmienia kolor z każdą nową fazą albo porą dnia, a z włączonym ustawieniem **Ograniczone animacje** od razu przyjmuje nowy stan. **Skala interfejsu** ma zakres od 25% do 140% (poniżej 80% tekst jest mniejszy niż czytelny rozmiar modułu), **Pora dnia za zegarem** jest tylko pod Stained Glass, a **Szerokie okna projektów** otwiera okna projektów szerzej.
+- **Wygląd**: **Język** to English albo Polski dla okien, kart i arkusza modułu, osobno od języka Foundry; działa po przeładowaniu, a nazwy gry zostają po angielsku w obu językach. **Motyw** to **Stained Glass** albo **Monokuma Legacy**; pod Stained Glass szkło zmienia kolor z każdą nową fazą albo porą dnia, a z włączonym ustawieniem **Ograniczone animacje** od razu przyjmuje nowy stan. **Skala interfejsu** ma zakres od 25% do 140% (poniżej 80% tekst jest mniejszy niż czytelny rozmiar modułu), **Pora dnia za zegarem** jest tylko pod Stained Glass, a **Szerokie okna projektów** otwiera okna projektów szerzej. **Nazwy tokenów jako podpisy**, domyślnie włączone, stawiają nazwę każdego tokenu pod nim; wyłączone sprawiają, że nazwa pokazuje się, gdy kursor zatrzyma się na tokenie (sekcja 3, Co widzisz).
 - **Efekty i dostępność**: **Czcionka pikselowa**, **Puls szkła**, **Szkło rozmywa mapę**, **Ograniczone animacje** i **Wysoki kontrast**. Czcionka pikselowa jest tylko pod Monokuma Legacy, puls szkła i rozmycie mapy tylko pod Stained Glass, a ograniczone animacje i wysoki kontrast są pod oboma motywami i każde z nich włącza się też samo, gdy prosi o to system operacyjny.
 - **Dźwięk i głos**: **Dźwięki komunikatora**, głośność **Dźwięk** i **Muzyka** oraz ustawienia głosu. Gdy jesteś w głosie, są tu twój **Mikrofon**, twoje **Wyjście dźwięku**, **Tryb mikrofonu** (**Zawsze włączony** albo **Naciśnij, aby mówić**) i klawisz mówienia (**Zmień klawisz**). Jeśli lista nie ma mikrofonu, pozwól przeglądarce go używać i otwórz okno ponownie.
 
@@ -1171,7 +1179,7 @@ Okno rzutu otwarcia zamknięte bez rzutu otwiera się znowu najwyżej `TIMING.op
 
 **W kogo trafia Objection.** Mówcę odczytuje się z pokoju głosowego przeglądarki głównego GM-a: ktoś liczy się jako mówiący, gdy przez 1 sekundę zostaje na liście aktywnych mówców LiveKit. Gdy przeglądarka GM-a nie ma pokoju głosowego, naciśnięcie pyta wnoszącego, komu zaprzecza, cokolwiek robi jego własny pokój głosowy. To przeglądarka głównego GM-a rozstrzyga, czy Objection dostaje głos, a gdy go dostaje, wnoszący dowiaduje się o cenie. Jak szybko to nadąża za prawdziwą mową, jeszcze nie sprawdzono przy stole.
 
-**Liczby rozprawy.** Domyślny budżet debaty to 180 sekund i nigdy nie jest krótszy niż 30. Objection dostaje 60 sekund, Rebuttal 120, a wybór Truth Bulletu do Objection 30. Pasek GM-a przesuwa zegar o 30 sekund, zegar Panic Round o 5, a napis GM: ... pokazuje przez 10 sekund. Testimony proponuje 60 sekund na turę, a tura może mieć od 30 do 120 sekund; Panic Round daje 15 sekund na turę, a od 12 uczestników 10. Closing Argument daje 30 sekund na zgłoszenie się i 300 sekund na mówcę, odbywa się raz na rozprawę, a Pasuję w pierwszych 30 sekundach oddaje wybór z powrotem. Straw Poll ma 45 sekund. Logic Dive daje 60 sekund na pytanie, niezależnie od tego, gdzie stoją tokeny, a potem przez 5 sekund pokazuje, ilu stoi po każdej stronie; zestaw ma od 1 do 5 pytań. Scrum Debate daje 45 sekund na Strony, 120 sekund na naradę i budżet 300 sekund dzielony na tury od 20 do 40 sekund. Pytanie debaty i pytanie strefy mają najwyżej 200 znaków, odpowiedź 80, a teza Scrum Debate 120. Closing Argument nie płaci Hope ostatniemu głosowi.
+**Liczby rozprawy.** Domyślny budżet debaty to 180 sekund i nigdy nie jest krótszy niż 30. Objection dostaje 30 sekund (w Closing Argument 60), Rebuttal 120, a wybór Truth Bulletu do Objection 30. Pasek GM-a przesuwa zegar o 30 sekund, zegar Panic Round o 5, a napis GM: ... pokazuje przez 10 sekund. Testimony proponuje 60 sekund na turę, a tura może mieć od 30 do 120 sekund; Panic Round daje 15 sekund na turę, a od 12 uczestników 10. Closing Argument daje 30 sekund na zgłoszenie się i 300 sekund na mówcę, odbywa się raz na rozprawę, a Pasuję w pierwszych 30 sekundach oddaje wybór z powrotem. Straw Poll ma 45 sekund. Logic Dive daje 60 sekund na pytanie, niezależnie od tego, gdzie stoją tokeny, a potem przez 5 sekund pokazuje, ilu stoi po każdej stronie; zestaw ma od 1 do 5 pytań. Scrum Debate daje 45 sekund na Strony, 120 sekund na naradę i budżet 300 sekund dzielony na tury od 20 do 40 sekund. Pytanie debaty i pytanie strefy mają najwyżej 200 znaków, odpowiedź 80, a teza Scrum Debate 120. Closing Argument nie płaci Hope ostatniemu głosowi.
 
 **Akcje w rozprawie.** Rozprawa odnawia każdemu akcje, nie kończąc pory dnia, a Sprint i Burst w zapasie zostają w nim przez całą rozprawę. Od 1.2.110 Wounded zabiera akcję tylko w Daily Life i w Investigation, więc akcje rozprawy są pełnym budżetem także dla ucznia w stanie Wounded; zaciemnienie Panic nadal zabiera jedną akcję.
 

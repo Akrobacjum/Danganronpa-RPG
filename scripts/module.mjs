@@ -35,6 +35,7 @@ import { registerFacilityUses } from "./facility-uses.mjs";
 import { registerFacilityClock } from "./facilities-gm.mjs";
 import { registerEavesdrops } from "./eavesdrop-gm.mjs";
 import { registerMasks } from "./mask-gm.mjs";
+import { registerHides } from "./hide.mjs";
 import { registerArrivalNotices } from "./arrival-notices.mjs";
 import { registerTimedEffects } from "./timed-effects.mjs";
 import { registerCaseAsk } from "./case-realize.mjs";
@@ -134,6 +135,8 @@ import { registerUserMatch } from "./user-match.mjs";
 import { requirementsMet, announceMissingRequirements, announceNewerSystem,
     systemCompatibility, removeModuleStyles } from "./requirements.mjs";
 import { warnAboutPageTinting, verifyStylesheet, registerCanvasTimings } from "./diagnostics.mjs";
+import { registerContextWatch } from "./context-loss.mjs";
+import { registerHoverName } from "./hover-name.mjs";
 import { log, error, injectSelectPickerSkin, registerTextGuard, isPrimaryGm, markModuleWindow } from "./utils.mjs";
 
 /**
@@ -242,6 +245,10 @@ Hooks.once("init", () => {
     safely("movement", registerMovement);
     // Each scene change timed from canvasTearDown to canvasReady, for `perf()` (E53 C1).
     safely("the canvas's timing", registerCanvasTimings);
+    // A lost drawing context on the board, recorded and told to the GMs (1.2.128, S0-WHITE; context-loss.mjs).
+    safely("the drawing context's watch", registerContextWatch);
+    // A token's name on a hover, as this viewer may know it (1.2.128, S0-HOVERNAME; hover-name.mjs).
+    safely("a token's name on a hover", registerHoverName);
     safely("a piece renamed out of a room", registerRoomPieces);
     safely("the projects tray", registerProjectsUi);
     safely("projects on the map", registerProjectsMap);
@@ -283,6 +290,8 @@ Hooks.once("init", () => {
     safely("the eavesdrops", registerEavesdrops);
     // The murder's privacy (E69 C8): the killer behind a "?", its end at a new time of day, the killer's question.
     safely("the masks", registerMasks);
+    // Hide (S0-HIDE, E129): the primary's settle of the hidden, a player's own hide on their voice tile.
+    safely("the hidden", registerHides);
     // The owner's notices on walking in - a stash gone through, a bedroom's note - on the primary GM, from a settled crossing
     // (and from a GM's move of the token, movement.mjs `noteGmPosition`; the audit of 1.2.113, A113-C4-3).
     safely("the notices on walking in", registerArrivalNotices);

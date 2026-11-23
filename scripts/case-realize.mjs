@@ -22,11 +22,12 @@
  * one of two runs stops before it places anything. Not a lock across a slow network: LIVE-E97-04.
  */
 import { esc, error, placeRoomOptions, primaryGmId, plural } from "./utils.mjs";
+import { REALIZE_SCOPE, RECIPIENT_EVERYONE } from "./config.mjs";
 import { bodiesFoundIn } from "./settings.mjs";
 import { drpgWindow, tipAttr, tipText } from "./ui-kit.mjs";
-import { caseRows, caseMetaOf, setCaseMeta, caseNodeOf, autopsiesDue, bodiesInOrder } from "./case-schema.mjs";
+import { caseRows, caseMetaOf, setCaseMeta, setCaseNode, caseNodeOf, autopsiesDue, bodiesInOrder } from "./case-schema.mjs";
 import { keyPlan, keyPlanStatus, caseKeyCount, placeInSlot, setKeyPlan, findersByAnyRemnant, keyRevealRecord, autopsyCount } from "./investigation.mjs";
-import { remnantById, dropRemnantSecret } from "./remnants.mjs";
+import { remnantById, dropRemnantSecret, setRemnantPublic } from "./remnants.mjs";
 import { BODY_ANNOUNCED_HOOK } from "./chapter.mjs";
 import { placeScenes, roomNames } from "./rooms.mjs";
 
@@ -47,22 +48,55 @@ export function realizationLines({ plan, status, limit }) {
     });
 }
 
+/*
+ * EVERY PLANNED REMNANT, NOT ONLY THE KEYS (the owner's notes of session 0, 23.11.2026, S0-REALIZE: "realization niech
+ * zawiera opcje rozdania i ustawienia wszystkich remnantow zaplanowanych, albo samych key (jak teraz)"; line INVEST of
+ * 1.2.128). The case's planned nodes the Map's Place gives one by one (investigation.mjs `placeIncident`): an incident
+ * Remnant and a Final Truth not yet on the map (no `trace`), placed in the room picked (the plan's own first); a planned
+ * Truth Bullet not yet given (no `given`), given to its planned recipient, or to Everyone. Each by the road its Place
+ * takes, with no window: New Remnant's Create (`createTraceNow`), the Final Truth form's (`placeFinalRemnant`), Give's
+ * (gm-items.mjs `givePlannedBulletNow`). One with no room picked, or a Truth Bullet with no recipient or no name, is left.
+ * Shown and run only when the window's choice is "every planned Remnant" (config.mjs REALIZE_SCOPE, "keys" by default).
+ */
+export function plannedLines(rows = {}) {
+    const out = [];
+    for (const [id, raw] of Object.entries(rows ?? {})) {
+        const node = caseNodeOf(raw);
+        if (!node) continue;
+        if ((node.kind === "incident" || node.kind === "final") && !node.trace) out.push({ action: "create", node: id, kind: node.kind, name: node.label || "" });
+        else if (node.kind === "bullet" && !node.given) out.push({ action: node.recipient && node.label ? "give" : "noRecipient", node: id, kind: node.kind, name: node.label || "", recipient: node.recipient || "" });
+    }
+    return out;
+}
+
 /** The chapter's marks: `{ key: { run, slot } }` of what a run placed, read off its meta row. */
 export function madeOf(chapter) {
     return caseMetaOf(caseRows(chapter).meta).made;
 }
 
 /** The preview's body: a table of the lines, a room picker on each line a run would create. */
-function previewHtml(lines, plan = null) {
+function previewHtml(lines, plan = null, planned = [], schema = {}, scope = REALIZE_SCOPE) {
     /* Named by its column and its slot (E97 fix, 12.11.2026): a select in a table cell has no label of its own, and
        tier 2's "every control ... has a name to be read out" read it nameless once the preview had been opened. */
     const room = slot => `<select name="room:${slot}"${tipAttr("DRPG.Tips.Sweep.Case.realizeRoomTooltip")} aria-label="${esc(`${L("DRPG.CaseRealize.colRoom")}, ${F("DRPG.CaseMap.slotNumber", { n: slot + 1 })}`)}"><option value="">${esc(L("DRPG.CaseRealize.noRoom"))}</option>${placeRoomOptions({ room: plan?.entries?.[slot]?.room || null, sceneId: plan?.entries?.[slot]?.scene || null })}</select>`;
     const rows = lines.map(l => `<tr data-drpg-line="${l.action}"><td>${esc(L(`DRPG.CaseRealize.action.${l.action}`))}</td>`
         + `<td>${esc(F("DRPG.CaseMap.slotNumber", { n: l.slot + 1 }))}</td><td>${esc(l.name || L("DRPG.CaseMap.noName"))}</td>`
         + `<td>${l.action === "create" ? room(l.slot) : ""}</td></tr>`).join("");
+    // the planned nodes' rows (S0-REALIZE), hidden while the choice is "Key Remnants only"
+    const nodeRoom = l => { const row = caseNodeOf(schema[l.node]) ?? {};
+        return `<select name="room:${esc(l.node)}"${tipAttr("DRPG.Tips.Sweep.Case.realizeRoomTooltip")} aria-label="${esc(`${L("DRPG.CaseRealize.colRoom")}, ${l.name || L("DRPG.CaseMap.noName")}`)}"><option value="">${esc(L("DRPG.CaseRealize.noRoom"))}</option>${placeRoomOptions({ room: row.room || null, sceneId: row.scene || null })}</select>`; };
+    const who = l => (l.recipient === RECIPIENT_EVERYONE ? L("DRPG.Items.everyone") : game.actors.get(l.recipient)?.name ?? "");
+    const hide = scope === "all" ? "" : " hidden";
+    const more = planned.map(l => `<tr data-drpg-line="${l.action}" data-drpg-realize-scope="all"${hide}><td>${esc(L(`DRPG.CaseRealize.action.${l.action}`))}</td>`
+        + `<td>${esc(L(`DRPG.CaseRealize.kind.${l.kind}`))}</td><td>${esc(l.name || L("DRPG.CaseMap.noName"))}</td>`
+        + `<td>${l.action === "create" ? nodeRoom(l) : l.action === "give" ? esc(who(l)) : ""}</td></tr>`).join("");
+    const on = value => (scope === value ? " checked" : "");
+    const keysChoice = `<label class="drpg-checkbox"><input type="radio" name="scope" value="keys"${on("keys")}${tipAttr("DRPG.Tips.Sweep.Case.realizeKeysTooltip")} /> ${esc(L("DRPG.CaseRealize.scopeKeys"))}</label>`;
+    const allChoice = `<label class="drpg-checkbox"><input type="radio" name="scope" value="all"${on("all")}${tipAttr("DRPG.Tips.Sweep.Case.realizeAllTooltip")} /> ${esc(L("DRPG.CaseRealize.scopeAll"))}</label>`;
     return `<p>${esc(L("DRPG.CaseRealize.intro"))}</p>`
+        + `<fieldset class="drpg-realize-scope"><legend>${esc(L("DRPG.CaseRealize.scope"))}</legend>${keysChoice}${allChoice}</fieldset>`
         + `<table class="drpg-case-realize"><thead><tr><th>${esc(L("DRPG.CaseRealize.colWhat"))}</th><th>${esc(L("DRPG.CaseRealize.colSlot"))}</th>`
-        + `<th>${esc(L("DRPG.CaseRealize.colName"))}</th><th>${esc(L("DRPG.CaseRealize.colRoom"))}</th></tr></thead><tbody>${rows}</tbody></table>`
+        + `<th>${esc(L("DRPG.CaseRealize.colName"))}</th><th>${esc(L("DRPG.CaseRealize.colRoom"))}</th></tr></thead><tbody>${rows}${more}</tbody></table>`
         + `<p class="notes">${esc(L("DRPG.CaseRealize.undoNote"))}</p>`;
 }
 
@@ -100,6 +134,8 @@ export async function openRealization({ chapter = keyPlan().chapter } = {}) {
         const room = l.action === "create" ? plan.entries[l.slot]?.room : "";
         if (room && !known.has(room)) ui.notifications.warn(F("DRPG.Investigation.plannedRoomGone", { room }));
     }
+    const schema = caseRows(chapter).rows;
+    const planned = plannedLines(schema);
     const picks = await drpgWindow({
         title: F("DRPG.CaseRealize.title", { chapter }),
         classes: ["drpg-panel", "drpg-window-case-realize"],
@@ -107,20 +143,39 @@ export async function openRealization({ chapter = keyPlan().chapter } = {}) {
            Monokuma Legacy, and with Undo its footer went to two rows and its body scrolled 12 px in Polish under Stained
            Glass at 1366x768 (audit/style-sweep.mjs `--fit`, STILL `case-realize--made`). */
         width: REALIZE_WIDTH,
-        body: previewHtml(lines, plan),
+        body: previewHtml(lines, plan, planned, schema),
+        // the choice shows or hides the planned nodes' rows; the run reads it again (S0-REALIZE)
+        render: (event, dialog) => {
+            const root = dialog?.element;
+            const show = () => { const all = root?.querySelector('[name="scope"]:checked')?.value === "all";
+                for (const tr of root?.querySelectorAll?.('[data-drpg-realize-scope="all"]') ?? []) tr.hidden = !all; };
+            root?.addEventListener?.("change", event2 => { if (event2.target?.name === "scope") show(); });
+            show();
+        },
         footer: realizationFooter({
             made: Object.keys(madeOf(chapter)).length,
-            run: (event, button, dialog) => lines.filter(l => l.action === "create").map(l => {
-                const select = dialog.element.querySelector(`[name="room:${l.slot}"]`);
-                return { slot: l.slot, room: select?.value ?? "", sceneId: select?.selectedOptions?.[0]?.dataset.scene ?? "" };
-            }).filter(p => p.room)
+            run: (event, button, dialog) => {
+                const keys = lines.filter(l => l.action === "create").map(l => {
+                    const select = dialog.element.querySelector(`[name="room:${l.slot}"]`);
+                    return { slot: l.slot, room: select?.value ?? "", sceneId: select?.selectedOptions?.[0]?.dataset.scene ?? "" };
+                }).filter(p => p.room);
+                if (dialog.element.querySelector('[name="scope"]:checked')?.value !== "all") return keys;
+                const nodes = planned.map(l => {
+                    if (l.action === "give") return { node: l.node, give: true };
+                    if (l.action !== "create") return null;
+                    const select = dialog.element.querySelector(`[name="room:${CSS.escape(l.node)}"]`);
+                    return { node: l.node, room: select?.value ?? "", sceneId: select?.selectedOptions?.[0]?.dataset.scene ?? "" };
+                }).filter(p => p && (p.give || p.room));
+                return [...keys, ...nodes];
+            }
         }),
         rejectClose: false
     });
     if (picks === "undo") return confirmUndoRealization({ chapter });
     if (!Array.isArray(picks)) return null;
     const ran = await runRealization(chapter, picks);
-    return ran ? F("DRPG.CaseRealize.ran", { n: ran.placed }) : L("DRPG.CaseRealize.notRun");
+    if (!ran) return L("DRPG.CaseRealize.notRun");
+    return ran.given || ran.nodes ? F("DRPG.CaseRealize.ranAll", { n: ran.placed, given: ran.given }) : F("DRPG.CaseRealize.ran", { n: ran.placed });
 }
 
 /** The run (C10): places each picked slot by the planner's road and marks it; answers `{ run, placed }` or null. */
@@ -131,8 +186,19 @@ export async function runRealization(chapter, picks = []) {
     await new Promise(r => setTimeout(r, 300));
     if (caseMetaOf(caseRows(chapter).meta).run !== run) return null;
     const made = { ...madeOf(chapter) };
-    let placed = 0;
+    let placed = 0, given = 0, nodes = 0;
     for (const pick of picks) {
+        if (pick.node) {
+            // a planned node's Remnant placed, or its Truth Bullet given (S0-REALIZE)
+            nodes++;
+            try {
+                const done = await realizeNode(chapter, pick, run);
+                for (const [key, mark] of done.marks) made[key] = mark;
+                placed += done.placed;
+                given += done.given;
+            } catch (err) { error("The realization could not place or give a planned node", err); }
+            continue;
+        }
         const plan = keyPlan();
         const entry = plan.entries[pick.slot];
         if (!entry || entry.tokenId) continue;
@@ -147,7 +213,46 @@ export async function runRealization(chapter, picks = []) {
         } catch (err) { error("The realization could not place a Key Remnant", err); }
     }
     await setCaseMeta(chapter, { made });
-    return { run, placed };
+    return { run, placed, given, nodes };
+}
+
+/**
+ * ONE PLANNED NODE REALIZED (S0-REALIZE): an incident Remnant or a Final Truth placed in `pick.room` of its scene by its
+ * Place's road with no window, the plan's row then pointing at it (`trace`); a Truth Bullet given to its planned recipient
+ * (`given`). Answers `{ marks: [[key, { run, node }]], placed, given }` - each Remnant under its token's key, each bullet
+ * under `bullet:<actor>.<item>`, for Undo.
+ */
+async function realizeNode(chapter, pick, run) {
+    const row = caseNodeOf(caseRows(chapter).rows[pick.node]);
+    const out = { marks: [], placed: 0, given: 0 };
+    if (!row) return out;
+    if (row.kind === "bullet" && !row.given && pick.give) {
+        const { givePlannedBulletNow } = await import("./gm-items.mjs");
+        const done = await givePlannedBulletNow(row);
+        for (const m of done.made) out.marks.push([`bullet:${m.actorId}.${m.itemId}`, { run, node: pick.node }]);
+        out.given = done.made.length;
+        if (done.given) await setCaseNode(chapter, pick.node, { given: Date.now() });
+        return out;
+    }
+    if (row.trace || !pick.room) return out;
+    const scene = game.scenes.get(pick.sceneId) ?? null;
+    let token = null;
+    if (row.kind === "incident") {
+        const { createTraceNow } = await import("./investigation.mjs");
+        token = await createTraceNow({ room: pick.room, type: row.type ?? "incident", visibility: row.vis ?? "evident", name: row.label ?? "",
+            text: row.text ?? "", analysis: row.analysis ?? "", note: row.note ?? "", tied: row.tie ?? "", reinforced: row.reinforced === true,
+            author: row.author ?? "" }, scene ?? game.scenes.get(row.scene) ?? null, row.img || "");
+    } else if (row.kind === "final") {
+        const { placeFinalRemnant } = await import("./mastermind.mjs");
+        token = await placeFinalRemnant({ room: pick.room, scene, visibility: row.vis ?? "evident", note: row.note ?? "", name: row.label ?? "",
+            text: row.text ?? "", analysis: row.analysis ?? "", author: row.author ?? "" });
+        if (token && row.img) await setRemnantPublic(token, { img: row.img });
+    }
+    if (!token) return out;
+    await setCaseNode(chapter, pick.node, { trace: `${token.parent?.id}.${token.id}` });
+    out.marks.push([`${token.parent?.id ?? scene?.id}.${token.id}`, { run, node: pick.node }]);
+    out.placed = 1;
+    return out;
 }
 
 /**
@@ -161,18 +266,37 @@ export async function undoRealization(chapter = keyPlan().chapter) {
     const revealed = new Set(keyRevealRecord(chapter).revealed);
     const left = {};
     let removed = 0, kept = 0;
+    const ungiven = new Set();
     for (const [key, mark] of Object.entries(made)) {
+        /* A TRUTH BULLET THE RUN GAVE (S0-REALIZE) is taken off its holder's sheet with its answer key, and its plan is
+           given again (`given` cleared): a handout of the GMs', nobody's find. Its holder was told of it as it came. */
+        if (key.startsWith("bullet:")) {
+            const [actorId, itemId] = key.slice("bullet:".length).split(".");
+            const item = game.actors.get(actorId)?.items.get(itemId);
+            if (item) {
+                const { dropSecret } = await import("./truth-bullets.mjs");
+                const uuid = item.uuid;
+                await item.delete();
+                await dropSecret(uuid);
+                removed++;
+            }
+            if (mark.node) ungiven.add(mark.node);
+            continue;
+        }
         const [sceneId, tokenId] = key.split(".");
         const token = remnantById(sceneId, tokenId);
         if (!token) continue;
-        if ((finders.get(tokenId)?.size ?? 0) > 0 || revealed.has(tokenId) || revealed.has(String(mark.slot))) { left[key] = mark; kept++; continue; }
+        if ((finders.get(tokenId)?.size ?? 0) > 0 || revealed.has(tokenId) || (Number.isInteger(mark.slot) && revealed.has(String(mark.slot)))) { left[key] = mark; kept++; continue; }
         await dropRemnantSecret(token);
         await token.parent.deleteEmbeddedDocuments("Token", [token.id]);
-        const entries = [];
-        entries[mark.slot] = { tokenId: null, sceneId: null };
-        await setKeyPlan({ chapter, entries });
+        if (Number.isInteger(mark.slot)) {
+            const entries = [];
+            entries[mark.slot] = { tokenId: null, sceneId: null };
+            await setKeyPlan({ chapter, entries });
+        } else if (mark.node) await setCaseNode(chapter, mark.node, { trace: null });
         removed++;
     }
+    for (const node of ungiven) await setCaseNode(chapter, node, { given: null });
     await setCaseMeta(chapter, { made: left, ...(Object.keys(left).length ? {} : { run: null }) });
     return { removed, kept };
 }

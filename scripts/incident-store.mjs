@@ -1961,13 +1961,19 @@ function rememberOpeningNotices(notices) {
    finds that player's card still standing posts no second one (`openingCardStandsFor`). The card's own document cannot
    say it: while an incident runs it is veiled, addressed to every browser (above). */
 export function keepOpeningNotice(message, userId = null) {
-    if (message?.id) void rememberOpeningNotices({ [message.id]: userId || true });
+    // The write is answered (E128): the primary's `postOpeningCard` holds its card in flight until the memo holds it.
+    return message?.id ? rememberOpeningNotices({ [message.id]: userId || true }) : Promise.resolve();
 }
 
 /** Whether an opening's request card to `userId` stands in the GMs' memo and in the chat (r122-lane-B-3). */
 export function openingCardStandsFor(userId) {
     if (!userId) return false;
     return Object.entries(castStore.record()?.openingNotices ?? {}).some(([id, to]) => to === userId && Boolean(game.messages?.get(id)));
+}
+
+/** Whether a line telling the opening's roller that a GM picks its statistic stands in the GMs' memo and the chat (E128). */
+export function openingPickToldStands() {
+    return Object.entries(castStore.record()?.openingNotices ?? {}).some(([id, to]) => to === true && Boolean(game.messages?.get(id)));
 }
 
 export async function retireOpeningNotices() {

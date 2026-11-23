@@ -24,9 +24,11 @@ import { rollCardFlags, rollHead, rollResultCard } from "./action-report.mjs";
 import { briefingBlock } from "./action-briefing.mjs";
 import { actionWindow, chooseVariant } from "./action-menus.mjs";
 import { watchShutWhy } from "./action-watch.mjs";
+import { hideShutWhy, isHidingActor } from "./hide.mjs";
 import { isEclipse } from "./settings.mjs";
 import { tipAttr, tipText } from "./ui-kit.mjs";
 import { isMaskedActor, isVeiledToken, MASK_NAME, seenHere } from "./mask-gm.mjs";
+import { withCentre } from "./notice-centre.mjs";
 
 /**
  * THE DOORS, NOT THE ROOMS BEHIND THEM (22.09). The picker named every neighbouring room,
@@ -47,12 +49,12 @@ export function listenLabels(neighbours, known) {
 }
 
 /** Each row's icon in the Infiltrate window. */
-const ROW_ICONS = Object.freeze({ listen: "fa-ear-listen", echoes: "fa-tower-broadcast", tail: "fa-shoe-prints", dash: "fa-person-running", shut: "fa-road-barrier", force: "fa-hand-fist", pick: "fa-key", keepWatch: "fa-eye" });
+const ROW_ICONS = Object.freeze({ listen: "fa-ear-listen", echoes: "fa-tower-broadcast", tail: "fa-shoe-prints", dash: "fa-person-running", shut: "fa-road-barrier", force: "fa-hand-fist", pick: "fa-key", keepWatch: "fa-eye", hide: "fa-user-ninja" });
 /**
- * The rows whose action is built. Every key of `ACTIONS.listen.variants` is here since E74 (eight of eight, config.mjs), so
+ * The rows whose action is built. Every key of `ACTIONS.listen.variants` is here since E74 (nine of nine since S0-HIDE, config.mjs), so
  * no row is greyed "Not built yet" today; the branch stays for a row a later stage adds before its action (docs/dev/e69/SPEC.md).
  */
-const BUILT = new Set(["listen", "echoes", "tail", "dash", "shut", "force", "pick", "keepWatch"]);
+const BUILT = new Set(["listen", "echoes", "tail", "dash", "shut", "force", "pick", "keepWatch", "hide"]);
 
 /**
  * THE INFILTRATE WINDOW'S ROWS (E69 C1, 12.11.2026; DA28: one list, no groups). One row a key of `ACTIONS.listen.variants`
@@ -69,7 +71,8 @@ export function infiltrateRows(actor) {
             : key === "listen" && !neighbours.length ? game.i18n.localize("DRPG.Listen.noNeighbours")
                 : key === "keepWatch" ? watchShutWhy()
                     : key === "echoes" ? echoesShutWhy()
-                        : key === "shut" ? shutShutWhy(actor) : null;
+                        : key === "shut" ? shutShutWhy(actor)
+                            : key === "hide" ? hideShutWhy(actor) : null;
         return {
             value: key, icon: ROW_ICONS[key] ?? "fa-circle",
             label: game.i18n.localize(`DRPG.Infiltrate.row.${key}.label`),
@@ -88,7 +91,7 @@ export function infiltrateRows(actor) {
 
 /** Infiltrate's rows that roll from the window's own press: no window of their own follows (R4105). Echoes is no longer
  *  one (it said Roll with them since E69 C7): it rolls nothing, and says the word for that (1.2.122, CTRL-67). */
-const ROLLS_FROM_THE_ROW = new Set(["dash", "shut", "keepWatch"]);
+const ROLLS_FROM_THE_ROW = new Set(["dash", "shut", "keepWatch", "hide"]);
 
 /**
  * Why Echoes' row is shut now, or null (E69 C7; Q-E69-3's default): struck through with its reason in an Eclipse, as the
@@ -147,7 +150,9 @@ export function heardIn(room, actor, scene, occupantsOf) {
     const heard = seenHere(occupantsOf(room, actor, scene));
     if (!game.user?.isGM) return heard;
     const veiled = who => (game.scenes ?? []).some(s => (s?.tokens ?? []).some(t => t.actorId === who?.id && isVeiledToken(t)));
-    return veiled(actor) ? heard : heard.filter(a => !veiled(a));
+    // A character Hide hides (S0-HIDE, E129) is heard by nobody else, as a player's browser leaves them out (`seenHere`).
+    const hidden = who => who?.id !== actor?.id && isHidingActor(who);
+    return (veiled(actor) ? heard : heard.filter(a => !veiled(a))).filter(a => !hidden(a));
 }
 
 /**
@@ -174,6 +179,7 @@ export async function performListen(actor, def, options) {
     if (variant === "force") return (await import("./action-doors.mjs")).performForce(actor, options);
     if (variant === "pick") return (await import("./action-doors.mjs")).performPick(actor, options);
     if (variant === "keepWatch") return (await import("./action-watch.mjs")).performWatch(actor, options);
+    if (variant === "hide") return (await import("./hide.mjs")).performHide(actor, options);
     if (variant !== "listen") return null;
     const cost = options.free ? 0 : def.cost;
     // A free repeat of this time of day's eavesdrop (E69 C6) needs no action: the price is asked once the room is picked.
@@ -352,7 +358,7 @@ export async function performEchoes(actor, options = {}) {
     if (!res.ok) return abort(actor, paid);
     const room = typeof res.value?.room === "string" ? res.value.room : null;
     const text = room ? game.i18n.format("DRPG.Infiltrate.echoes.found", { room }) : game.i18n.localize("DRPG.Infiltrate.echoes.nobody");
-    await whisperToOwner(actor, { glyph: "ACTIONS.listen", body: `<p>${foundry.utils.escapeHTML(text)}</p>` });
+    await whisperToOwner(actor, { glyph: "ACTIONS.listen", body: `<p>${foundry.utils.escapeHTML(text)}</p>` }, withCentre());
     return { room };
 }
 

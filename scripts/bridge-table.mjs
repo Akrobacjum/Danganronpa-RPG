@@ -36,41 +36,41 @@ import {
     ACTION_PROGRESS, ACTION_SHARE, ACTION_REMNANT, ACTION_TIE_TRACE, ACTION_REMNANT_EDIT, ACTION_SABOTAGE,
     ACTION_UNSABOTAGE, ACTION_PROJECT_CHANGE, ACTION_SENDBACK, ACTION_ECLIPSE_MOVE, ACTION_ARM, ACTION_DESPAIR,
     ACTION_OVERFLOW_ADD, ACTION_CALL_WORLD, ACTION_MUSIC_TRACK, ACTION_OVERFLOW_CLEAR, ACTION_DESPAIR_SET, ACTION_DESPAIR_ALL, ACTION_DESPAIR_ROSTER,
-    ACTION_OVERFLOW_TAKE, ACTION_OVERFLOW_CHECK, ACTION_DIFFICULTY, ACTION_AUDIT_DECIDE, ACTION_KEYS_CHARGE,
+    ACTION_OVERFLOW_TAKE, ACTION_OVERFLOW_CHECK, ACTION_DIFFICULTY, ACTION_AUDIT_DECIDE, ACTION_KEYS_CHARGE, ACTION_BODY_DISCOVER, ACTION_CHAPTER_END, ACTION_VOICE_RESET, ACTION_VERDICT_FINISH, ACTION_OPENING_CARD,
     ACTION_VOTE_RUN, ACTION_VOTE_CAST, ACTION_VOTE_ASK, ACTION_FLOOR_NOW, ACTION_TRIAL_OBJECT, ACTION_TRIAL_EVIDENCE,
     ACTION_TRIAL_WITHDRAW, ACTION_FLOOR_REPOINT, ACTION_TRIAL_GM, ACTION_TRIAL_TURN, ACTION_TRIAL_CLAIM, ACTION_TRIAL_SIDE, ACTION_TRIAL_KEYWORD,
     ACTION_TRIAL_PRESENT, ACTION_READY_OPEN, ACTION_READY_ANSWER, ACTION_READY_END, ACTION_TRIAL_ENTER,
     ACTION_TRIAL_RECORD, ACTION_RESHAPE_RULING, ACTION_TRAIT_RULING, ACTION_HOPE_CALL, ACTION_CALL_YES,
     ACTION_RULING_EXPIRED, ACTION_RULING_RECEIVED, ACTION_DYNAMIC_ANSWER, ACTION_OBSERVE_TARGET, ACTION_OBSERVE_RESOLVE,
-    ACTION_OBSERVE_PICK, ACTION_CLEANUP_TRACES, ACTION_ANALYZE_RESOLVE, ACTION_ADVANCEMENT, ACTION_ADVANCEMENT_OFFER,
+    ACTION_OBSERVE_PICK, ACTION_OBSERVE_DESCRIBE, ACTION_CLEANUP_TRACES, ACTION_ANALYZE_RESOLVE, ACTION_ADVANCEMENT, ACTION_ADVANCEMENT_OFFER,
     ACTION_ADVANCEMENT_ASK, ACTION_SHARE_BULLET, ACTION_GIVE_ITEM, ACTION_PASSAGE_SHARE, ACTION_PASSAGE_CROSS,
     ACTION_PASSAGE_FIND, ACTION_PASSAGE_LAIR_SEAL, ACTION_LAIR_LOCK, ACTION_REFUND_CROSSING, ACTION_VAULT_STEAL, ACTION_STEAL, ACTION_FIND_STASH, ACTION_PLANT,
     ACTION_FRISK_UNSEEN, ACTION_FRISK_ASK, ACTION_FRISK_ANSWER, ACTION_FRISK_FOLLOW, ACTION_CRISIS,
     ACTION_OPENING_RESULT, ACTION_CLEANUP, ACTION_BETRAYAL, ACTION_PARK_MURDER, ACTION_CUB_ABILITY, ACTION_CUB_ANSWER, ACTION_BRIBE_OFFER, ACTION_BRIBE_ANSWER, ACTION_LOOT,
     ACTION_NOTE_SAVE, ACTION_ROLL_BOOKMARK, ACTION_REROLL, ACTION_CARD, ACTION_CARD_CLAIM, ACTION_BULLET_GIVE, ACTION_FACILITY_USE, ACTION_DASH,
     ACTION_TAIL_START, ACTION_DOOR_SHUT, ACTION_DOOR_FORCE, ACTION_DOOR_PICK, ACTION_WATCH_DECLARE, ACTION_DOOR_KNOCK,
-    ACTION_LISTEN_EAVESDROP, ACTION_LISTEN_STOP, ACTION_LISTEN_ECHOES, ACTION_MASK_REVEAL, ACTION_MASK_VEIL
+    ACTION_LISTEN_EAVESDROP, ACTION_LISTEN_STOP, ACTION_LISTEN_ECHOES, ACTION_MASK_REVEAL, ACTION_MASK_VEIL, ACTION_HIDE_START, ACTION_DEAD_SPECTATOR
 } from "./bridge-wire.mjs";
 import {
     handleObserveTarget, handleCleanupTraces, handleObserveResolve, handleAnalyzeResolve, handleAdvancement,
-    handleAdvancementOffer, handleAdvancementAsk, handleShareBulletOrGiveItem, handlePassageShare, handlePassageCross,
+    handleAdvancementOffer, handleAdvancementAsk, handleShareBulletOrGiveItem, handleShareBullet, handlePassageShare, handlePassageCross,
     handleRefundCrossing, handlePassageFind, handlePassageLairSeal, handleLairLock, friskRolls, findPassageRoll, notFindPassageRoll, palmRolls, handlePlant,
     handleFindStash, handleSteal, handleFriskUnseen, handleFriskAsk, handleFriskAnswer, handleFriskFollow,
-    friskForceRoll, handleVaultSteal, handleOpeningResult, handleCrisis, handleParkMurder,
+    friskForceRoll, handleVaultSteal, handleOpeningResult, handleOpeningCard, handleCrisis, handleParkMurder,
     handleBetrayal, handleCleanup, handleCubAbility, handleCubAnswer, handleBribeOffer, handleBribeAnswer, handleHopeCall, handleCallYes, handleDynamicAnswer,
     handleRulingExpired, handleRulingReceived, handleDifficulty, handleTraitRuling, handleFacilityUse, handleDash,
     handleTailStart, tailRolls, handleDoorShut, handleDoorForce, handleDoorPick, pickRolls, handleWatchDeclare, handleDoorKnock,
-    handleEavesdrop, handleEavesdropStop, handleEchoes, handleMaskReveal, handleMaskVeil
+    handleEavesdrop, handleEavesdropStop, handleEchoes, handleMaskReveal, handleMaskVeil, handleHideStart, handleDeadSpectator
 } from "./bridge-runs-acts.mjs";
 import {
     handleProgress, handleShare, TRACE_OF_ROLL, handleRemnant, traceBandOf, progressOf, repairOf, handleTieTrace,
     handleRemnantEdit, sabotageAgain, handleSabotage, handleProjectChange, handleUnsabotage, handleSendback, handleLoot,
     handleArm, handleOverflowAdd, handleCallWorld, handleMusicTrack, handleOverflowClear, handleDespairSet, handleDespairAll, handleDespairRoster,
     handleOverflowTake, handleOverflowCheck, handleDespair, handleEclipseMove, handleNoteSave, handleRollBookmark,
-    handleReroll, handleAuditDecide, handleKeysCharge, handleTrialRecord, handleTrialEnter, handleVoteRun, handleBallot,
+    handleReroll, handleAuditDecide, handleKeysCharge, handleBodyDiscover, handleChapterEnd, handleVoiceReset, handleVerdictFinish, handleTrialRecord, handleTrialEnter, handleVoteRun, handleBallot,
     handleBallotAsk, handleFloorNow, handleTrialObject, handleTrialEvidence, handleTrialWithdraw, handleFloorRepoint,
     handleTrialGm, handleTrialTurn, handleTrialClaim, handleTrialSide, handleTrialKeyword, handleReadyOpen, handleReadyAnswer, handleReadyEnd,
-    handleTrialPresent, handleReshapeRuling, handleObservePick, handleCardClaim, handleCardPost, handleGiveBullet
+    handleTrialPresent, handleReshapeRuling, handleObservePick, handleObserveDescribe, handleCardClaim, handleCardPost, handleGiveBullet
 } from "./bridge-runs-records.mjs";
 
 /**
@@ -94,7 +94,6 @@ import {
  * table, R163 the fields each run reads, and 33-bridge-paths drives the legal
  * roads through it.
  *
- *
  * `project.create` USED TO BE IN THE TABLE, and it is gone rather than mended.
  * Nothing sent it: a project is created by the GM, from the panel or from an
  * Approve button on a proposal card, and a player's proposal reaches them as a
@@ -108,10 +107,8 @@ export const BRIDGE_ACTIONS = table({
     [ACTION_OBSERVE_TARGET]: {
         label: "DRPG.Bridge.what.observe.target",
         guards: [knownSender, notSpectator("actorId"), owns("actorId", "sender does not own that character")],
-        /* The declaration is one of observe.mjs's DECLARATIONS or nothing (1.2.122; the audit of 1.2.118, CASE-61): until
-           1.2.122 it was taken raw, an unknown one went down the General branch and its value - any string, any object -
-           stood on the GM's pending row for an hour. The words are spelt here, not imported: this table imports no rule
-           file but the floor's (observe.mjs reaches the bridge again); R8102 holds them to DECLARATIONS. */
+        /* One of observe.mjs's DECLARATIONS or nothing (1.2.122, CASE-61): taken raw until then, any value stood on the GM's pending row for an hour.
+           Spelt here, not imported (this table imports no rule file but the floor's; observe.mjs reaches the bridge again); R8102 holds them to DECLARATIONS. */
         sanitize: pick({ actorId: as.id, declaration: as.oneOf("general", "specific", "nonObvious", "followTraces"), request: as.text }),
         run: handleObserveTarget,
         answer: "reply", patient: true, resend: true,
@@ -289,28 +286,30 @@ export const BRIDGE_ACTIONS = table({
     [ACTION_MASK_REVEAL]: {
         label: "DRPG.Bridge.what.mask.reveal",
         guards: [knownSender, notSpectator("actorId"), owns("actorId", "sender does not own that character")],
-        sanitize: pick({ actorId: as.id }),
+        sanitize: pick({ actorId: as.id, of: as.oneOf("mask", "hide") }),
         run: handleMaskReveal,
-        // The asker's "?" goes when the token's look comes back; nothing is said.
-        answer: "ack"
+        answer: "ack" // The asker's "?" goes when the token's look comes back, a hide's fade when its flag goes (`of`).
     },
-    /*
-     * THE OPENING'S VEIL, ASKED OF THE PRIMARY BY ANOTHER GM (1.2.122; the audit's STG-31). The veil is the primary's to
-     * write (mask-gm.mjs `settleVeilsNow`, `veilAtTheLights`), and on another GM's browser both answered nothing, so an
-     * Eclipse ended or a murder opened there put the veil up only once the primary heard the incident's write - the
-     * killer's token drawn for the victim meanwhile. That GM asks here and waits for the answer.
-     */
+    [ACTION_HIDE_START]: { label: "DRPG.Bridge.what.hide.start", run: handleHideStart, answer: "reply", // the card says whether hidden
+        guards: [knownSender, notSpectator("actorId"), guardUndoIsTheGms, owns("actorId", "sender does not own that character")],
+        sanitize: pick({ actorId: as.id, total: as.num, isCritical: as.bool, rollId: as.id }),
+        rolled: { field: "rollId", actor: "actorId", kind: "hide" }, claims: { rollId: "the roll the hide is read from (bridge-guards.mjs rollRefusal): the sender's own drawn Hide roll of that character" } },
+    /* THE OPENING'S VEIL AND THE MASK'S END, ASKED OF THE PRIMARY BY ANOTHER GM (1.2.122, STG-31; 1.2.128, "unmask"): the primary's to write (mask-gm.mjs
+       `veilOnPrimary`); on another GM both answered nothing, the killer's token drawn for the victim until the primary heard. That GM asks here and waits. */
     [ACTION_MASK_VEIL]: {
         label: "DRPG.Bridge.what.mask.veil",
         guards: [gmOnly("only a GM asks for the opening's veil")],
-        sanitize: pick({ what: as.oneOf("lights", "lift", "judged", "settle"), killerIds: as.raw }),
+        sanitize: pick({ what: as.oneOf("lights", "lift", "judged", "settle", "unmask", "unmaskQuiet"), killerIds: as.raw }),
         run: handleMaskVeil,
         answer: "reply",
         claims: {
-            what: "one of four, each the primary's own road (mask-gm.mjs `veilOnPrimary`); anything else does nothing",
-            killerIds: "read on the primary against its own declarations of this Eclipse (`pendingMurderStore`, eclipse.mjs): an id with none is veiled or lifted by nothing"
+            what: "one of six, each the primary's own road (mask-gm.mjs `veilOnPrimary`); anything else does nothing",
+            killerIds: "read on the primary against its own declarations of this Eclipse (`pendingMurderStore`, eclipse.mjs): an id with none is veiled or lifted by nothing; for \"unmask\" and \"unmaskQuiet\", against its own masks' rows (`endMasksAtClose`): an id with no mask, or one a running incident names, ends nothing"
         }
     },
+    /* A dead student's Spectator, asked of the primary by another GM (1.2.128 E129 S0-VICTIM): one watcher, the body left as it lies. */
+    [ACTION_DEAD_SPECTATOR]: { label: "DRPG.Bridge.what.spectator.dead", guards: [gmOnly("only a GM makes a dead student's Spectator")],
+        sanitize: pick({ actorId: as.id }), run: handleDeadSpectator, answer: "reply", claims: { actorId: "read on the primary (spectator-dead.mjs `spectatorForTheDead`): a student dead to the GMs, no Monocub and some player's, else nothing is made" } },
     [ACTION_ADVANCEMENT]: {
         label: "DRPG.Bridge.what.advancement.apply",
         guards: [knownSender, notSpectator("actorId"), owns("actorId", "sender does not own that character")],
@@ -339,7 +338,9 @@ export const BRIDGE_ACTIONS = table({
         answer: "none", quiet: true,
         why: "answers only about the sender's own characters, found from the id Foundry gives, and names none"
     },
-    [ACTION_SHARE_BULLET]: handover("DRPG.Bridge.what.handover.bullet"),
+    // `analysis`: whether the copy carries the giver's Analyze result (line INVEST of 1.2.128, S0-ANSHARE) - a choice, not a claim: it can only take the
+    // reading off the copy, never put one there the giver's bullet does not hold; a packet that names none (an older client) shares with it, as before (`oneOf` reads it as null)
+    [ACTION_SHARE_BULLET]: { ...handover("DRPG.Bridge.what.handover.bullet"), sanitize: pick({ fromId: as.id, toId: as.id, itemId: as.id, analysis: as.oneOf(true, false) }), run: handleShareBullet },
     [ACTION_GIVE_ITEM]: handover("DRPG.Bridge.what.handover.item"),
     [ACTION_PASSAGE_SHARE]: {
         label: "DRPG.Bridge.what.passage.share",
@@ -1202,6 +1203,28 @@ export const BRIDGE_ACTIONS = table({
         run: handleKeysCharge,
         answer: "reply"
     },
+    /* A SECOND FULL GM'S BODY AND CHAPTER'S END, ON THE PRIMARY (E128; OWNER-128-SECOND-GM): both stay the primary's (body.mjs
+       `discoveryHere`, chapter.mjs `chapterEndHere`), run here by the same functions and checks; an Assistant GM is told. */
+    [ACTION_BODY_DISCOVER]: { label: "DRPG.Bridge.what.body.discover", guards: [gmOnly("only a GM announces a body")],
+        sanitize: pick({ room: as.text, victimId: as.id, sceneId: as.id }), run: handleBodyDiscover, answer: "reply", claims: { victimId: "read by runDiscovery (body.mjs) against the GMs' deaths: a victim nobody holds dead is announced as no one",
+            sceneId: "the scene the room is looked up on (body.mjs runDiscovery); a room the scene does not hold announces nothing" }
+    },
+    [ACTION_CHAPTER_END]: { label: "DRPG.Bridge.what.chapter.end", guards: [gmOnly("only a GM ends the chapter")],
+        sanitize: pick({ reveal: as.bool, sweep: as.bool, faint: as.bool, keys: as.bool, endTrial: as.bool, nextChapter: as.bool,
+            nextSession: as.bool, nextMorning: as.bool, opened: as.raw, finish: as.bool, drop: as.bool }),
+        run: handleChapterEnd,
+        answer: "reply",
+        claims: { opened: "kept to its four fields by handleChapterEnd and compared by applyChapterEnd (chapter.mjs) with this clock: a window opened on another clock ends nothing" }
+    },
+    // A second full GM's Fix voice (E128): the rooms are the primary's to send (voice.mjs `resetAllVoice`). Carries nothing.
+    [ACTION_VOICE_RESET]: { label: "DRPG.Bridge.what.voice.reset", guards: [gmOnly("only a GM sends the voice rooms again")],
+        sanitize: pick({}), run: handleVoiceReset, answer: "reply" },
+    // A second full GM's Finish of a verdict the primary runs (E128; verdict.mjs `finishRoute`). Carries nothing.
+    [ACTION_VERDICT_FINISH]: { label: "DRPG.Bridge.what.verdict.finish", guards: [gmOnly("only a GM finishes a verdict")],
+        sanitize: pick({}), run: handleVerdictFinish, answer: "reply" },
+    // A GM's ask for the opening's card, the primary's to post once (E128; murder-rules.mjs `postOpeningCard`). No ids.
+    [ACTION_OPENING_CARD]: { label: "DRPG.Bridge.what.murder.openingCard", guards: [gmOnly("only a GM posts the opening's card")],
+        sanitize: pick({ side: as.oneOf("killer", "victim"), openedAt: as.num, pick: as.bool, proposed: as.bool }), run: handleOpeningCard, answer: "reply" },
     /*
      * THE TRIAL'S VOICES, SETTLED ON THE PRIMARY GM (E70 C5, 28.10.2026; amend 6, answer 3 (b)). The trial opens and
      * ends on whichever GM moved the phase (clock.mjs `reconcilePhase`); its list of the dead reads the GMs' deaths
@@ -1436,8 +1459,8 @@ export const BRIDGE_ACTIONS = table({
         run: handleTrialTurn,
         answer: "reply",
         claims: {
-            kind: "one of done, pass, over (as.oneOf); judged by trial-modes.mjs turnOnPrimary and floor-machine.mjs nextFloor on the floor the primary holds",
-            step: "compared by floor-machine.mjs nextFloor to the round's step on the floor the primary holds; any other is refused and moves nothing"
+            kind: "one of done, pass, over (as.oneOf); judged by trial-modes.mjs turnOnPrimary and floor-machine.mjs nextFloor on the floor the primary holds; done during an Objection is its objector's end of their seconds (E129 S0-SKIP, trial-floor.mjs finishObjectionOnPrimary, the holder alone)",
+            step: "compared by floor-machine.mjs nextFloor to the round's step on the floor the primary holds, or during an Objection by trial-floor.mjs finishObjectionOnPrimary to the Objection's startedAt; any other is refused and moves nothing"
         }
     },
     /*
@@ -1578,6 +1601,16 @@ export const BRIDGE_ACTIONS = table({
      * traces again, and writes the Observe's row only for a trace on it. A GM's alone: the
      * card's buttons are drawn for GMs.
      */
+    /* A FIND'S WORDS FROM ANOTHER GM (E128): the window waits on the primary (observe.mjs `describeFind`), and "Write it here"
+       on a GM's whisper sends that GM's words; the first answer is the find's (`answerDescribeFrom`). */
+    [ACTION_OBSERVE_DESCRIBE]: {
+        label: "DRPG.Bridge.what.observe.describe",
+        guards: [gmOnly("only a GM writes a find's words")],
+        sanitize: pick({ askId: as.id, name: as.text, playerText: as.text, analyzedText: as.text, critHint: as.text }),
+        run: handleObserveDescribe,
+        answer: "reply",
+        claims: { askId: "answerDescribeFrom (observe.mjs) hands the words only to a find this primary's window waits on under that id, once" }
+    },
     [ACTION_OBSERVE_PICK]: {
         label: "DRPG.Bridge.what.observe.pick",
         guards: [gmOnly("only a GM picks what an Observe is aimed at")],

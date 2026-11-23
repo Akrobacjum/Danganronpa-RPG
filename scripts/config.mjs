@@ -54,6 +54,14 @@ export function moduleVersion() {
 export const SOCKET = `module.${MODULE_ID}`;
 
 /**
+ * A Spectator's token on a GM's canvas: its sprite at this share of the token's own alpha (visibility.mjs
+ * `dressSpectator`; E92 C3, the owner's DRPG-D1 "transparentny/ledwie widoczny", 0.3 the coordinator's pick in the owner's
+ * 25-30 %), and its square frame at the same share (own-ring.mjs `dressFrame`; 1.2.127, the owner's "Ich ramka kwadratowa
+ * renderowana przez modul niech tez ma zmniejszone opacity"). One number for both, here.
+ */
+export const SPECTATOR_ALPHA = 0.3;
+
+/**
  * Document flag keys, all stored under `flags["danganronpa-rpg"]`.
  * Never spell these out inline - a typo in a flag name fails silently.
  */
@@ -271,7 +279,13 @@ export const FLAGS = {
      * Token: a dead student's Spectator token the student walks as a Monocub (E62 C3b; Q-C3b-7's default), so that a
      * Monocub no more gets that token back as its Spectator's (spectator-dead.mjs `monocubBecomesWatcher`). A GM's write.
      */
-    cubToken: "cubToken"
+    cubToken: "cubToken",
+    /**
+     * Token: a dead student's corpse, from the death on - a kept death's too - so every browser that draws the token
+     * draws the skull over it (1.2.128, E129 S0-DEADMARK; body-tile.mjs `markCorpse`, `drawCorpseSkull`). `true` alone,
+     * nothing of the death. A GM's write; world-secrets.mjs says why it may stand.
+     */
+    corpse: "corpse"
 };
 
 /**
@@ -362,6 +376,41 @@ export const PHASES = {
 
 /** Chapters in a canonical season. The modular variant runs a single chapter. */
 export const CHAPTERS_PER_SEASON = 6;
+
+/**
+ * WHETHER A SHARE CARRIES THE GIVER'S ANALYZE RESULT, BY DEFAULT (the owner's notes of session 0, 23.11.2026, S0-ANSHARE:
+ * "wybor czy udostepniac z analyze czy bez"; the coordinator's default, pending the owner; line INVEST of 1.2.128). The
+ * Share window of a Truth Bullet that holds a reading asks, its box ticked as this says (handover.mjs `askRecipient`). The
+ * one place the default lives.
+ */
+export const SHARE_WITH_ANALYSIS = true;
+
+/**
+ * WHETHER THIS PAGE'S OWN MICROPHONE TRACK FOLLOWS THE MICROPHONE BUTTON (E129 S0-GMMUTE and the holds; the coordinator's
+ * decision of 23.11.2026, the owner's session-0 asks behind it: Hide "wycisza go", "niech chowanie tokenu automatycznie
+ * wycisza na livekit"). On: voice-client.mjs `followHold` mutes the page's own LiveKit track while the button says held,
+ * blocked or muted, and opens it again only in "always" with nothing standing. Off: the module writes only the stored mute
+ * and the GM's BROADCAST_AUDIO, as before 1.2.128. The one place the switch lives.
+ */
+export const OWN_TRACK_FOLLOWS_HOLD = true;
+
+/**
+ * WHAT THE CASE'S REALIZATION PLACES, BY DEFAULT (the owner's notes of session 0, 23.11.2026, S0-REALIZE: "realization
+ * niech zawiera opcje rozdania i ustawienia wszystkich remnantow zaplanowanych, albo samych key (jak teraz)"; the
+ * coordinator's default, pending the owner; line INVEST of 1.2.128): "keys", the Key Remnant plan's slots alone, as until
+ * now, or "all", the chapter's every planned Remnant placed and every planned Truth Bullet given as well (case-realize.mjs
+ * `openRealization`). The window's choice starts here.
+ */
+export const REALIZE_SCOPE = "keys";
+
+/**
+ * WHETHER A TRUTH BULLET'S HOLDER SEES ITS REMNANT WHEN A GM HAS HIDDEN IT (the owner's notes of 23.11.2026,
+ * S0-BULLETSEES: "zawsze posiadanie truth bullet = widoczny token remnanta"; the owner's answer of 23.11.2026, relayed
+ * by the coordinator: "oba tak" - holding wins over a GM's hide; line INVEST of 1.2.128). True: holding wins, and a holder's map draws the trace at `REMNANT_ALPHA.player` while
+ * Foundry's `hidden` keeps it from everyone else (visibility.mjs `remnantShownHere`). False: a GM's hide wins, for its
+ * holders too, as until 1.2.128.
+ */
+export const HOLDER_SEES_HIDDEN = true;
 
 /**
  * Every timing and size the module used to keep as a local constant in the
@@ -1280,6 +1329,36 @@ export const CRITICAL = {
     clearsStress: false
 };
 
+/*
+ * WHAT A ROLL LEAVES TO GIVE BACK (E129, 1.2.128; the owner's note of session 0, 23.11.2026: "niektore akcje zwracaja hope
+ * i akcje przy rzucie mimo ze nie powinny", and "Tamper chyba najbardziej"). The inventory is docs/dev/owner129/desp/
+ * REFUNDS.md; each row the coordinator set a default for is one key here, so the owner's answer changes a key and nothing
+ * else. The owner's answers of 23.11.2026, relayed by the coordinator, set them: rows 12, 13 and T8 "c", the price always
+ * back as before (`afterRoll` "always"; Tail keeps its own rule of 1.2.123, action-tail.mjs `rollsEarnedHope`); T5
+ * "Zostawiamy jak jest" - a critical Tamper keeps its 2 Hope and gives back what paid, as the handbook says
+ * (`tamperCritical` true); T12 as the rules say, unchanged (`freeCritical` true); row 4 and T1 "Z glownego" - Hope
+ * from the action's main roll only (`supportingHope` false).
+ *   afterRoll          an action refused or not carried out after its dice landed, before they are read (REFUNDS rows
+ *                      13, T8): "always" gives the price back as before E129 (the owner's E14 Q3 of 18.10.2026);
+ *                      "noHope" only when no roll of the action brought Hope or a critical (`mayRefundAfterRoll`,
+ *                      price.mjs; Tail's road since 1.2.123); "never" as ROLL-05 keeps a window closed after a roll.
+ *   gmRefuse           the GM's "Refuse the attempt" on a ruling card (row 12); null asks `afterRoll`.
+ *   supportingHope     whether a supporting roll - a cover or a concealment, `rollTrait`'s `remember: false` - earns
+ *                      its Hope (row 4, T1). Its critical keeps what the rules text gives it beside Hope (Tamper's
+ *                      concealment gives back 1 Sanity).
+ *   tamperCritical     whether a critical Tamper taken as an action gives back what the attempt cost (T5, T6, and the
+ *                      Misleading Trail and Move the Body through Tamper's door); its 2 Hope stand either way. The
+ *                      killer's own clean-up keeps the guide's give-back ("Morderca odzyskuje 1 stres").
+ *   freeCritical       whether the free attempt a critical Finishing Blow leaves gives anything back on a critical (T12).
+ */
+export const ROLL_REFUNDS = Object.freeze({
+    afterRoll: "always",
+    gmRefuse: null,
+    supportingHope: false,
+    tamperCritical: true,
+    freeCritical: true
+});
+
 /**
  * Analyze action DCs. Turns a Neutral Truth Bullet into an identified category.
  * A failed analysis locks that Truth Bullet for that player until the chapter
@@ -1440,6 +1519,9 @@ export const KEY_REMNANTS = {
  *   an Objection   1 action, else 1 Hope, else 1 Sanity
  *   Analyze        the same three - but only inside a Class Trial; anywhere
  *                  else it costs its action or nothing happens
+ *   Palm           the same three, inside a Class Trial alone (E129 S0-PALM, 23.11.2026; the owner's note of session
+ *                  0: "palm powinno byc dostepne w trialu za akcje, potem za hope, potem za sanity"), as Analyze's;
+ *                  anywhere else its action, as before
  *   Tamper         1 action, else 1 Sanity - but since E64 (12.11.2026) only the
  *                  killer's own Stage 6 reaches the Sanity step: anyone else's
  *                  Tamper costs 1 action and no Sanity, and with no action left
@@ -1479,6 +1561,14 @@ export const PRICE_CHAINS = {
         ]
     },
     analyze: {
+        steps: [
+            { pay: "action", amount: 1 },
+            { pay: "hope", amount: 1 },
+            { pay: "stress", amount: RESOLUTION_STRESS_COST }
+        ],
+        stepsBeyondFirst: "classTrial"
+    },
+    palm: {
         steps: [
             { pay: "action", amount: 1 },
             { pay: "hope", amount: 1 },
@@ -1751,9 +1841,9 @@ export const ACTIONS = {
         traits: ["shadow"],
         cost: 1,
         // Keep Watch under Tail Someone (E112 item 4, the owner 15.11.2026): the window draws its rows in this order.
-        variants: ["listen", "echoes", "tail", "keepWatch", "dash", "shut", "force", "pick"],
+        variants: ["listen", "echoes", "tail", "keepWatch", "dash", "shut", "force", "pick", "hide"],
         hint: "Listen at a wall, hear Echoes, Tail Someone, Keep Watch, Dash through the corridors, Shut the Door, Force the "
-            + "Door or Pick the Lock. Each costs an action.",
+            + "Door, Pick the Lock or Hide. Each costs an action.",
         description: "Pick a neighboring room and roll Shadow; it costs an action. A good roll counts the people "
             + "there, a better one names them, and a critical names everyone in every neighboring room. A miss tells "
             + "you nothing; with no neighboring room, you keep your action.",
@@ -2236,7 +2326,17 @@ export const INFILTRATE = Object.freeze({
     // Keep Watch (E74 C6; DA34): Body, declared before an Eclipse; a roll below `dc` keeps no watch (the owner's "Zgoda",
     // 12.11.2026). A watch of `hindranceAt` or more, or a critical, puts one hindrance die on the killer's opening roll
     // against the watcher (DA44 option A, the owner 12.11.2026: named in the killer's window, its cause not).
-    keepWatch: Object.freeze({ traits: Object.freeze(["body"]), cost: 1, dc: 12, hindranceAt: 18 })
+    keepWatch: Object.freeze({ traits: Object.freeze(["body"]), cost: 1, dc: 12, hindranceAt: 18 }),
+    /*
+     * Hide (S0-HIDE, E129, 23.11.2026; the owner: "Udany rzut na shadow chowa calkowicie token gracza i wycisza go, dopoki
+     * nie kliknie ujawnij sie na panelu livekit"). Shadow at `dc`; a hit or a critical hides the character (hide.mjs) until
+     * "Reveal yourself", a GM's reveal, the chapter's end or the season's reset. `dc` 15 is the cover the other Infiltrate
+     * rows already ask of Shadow (Tail's `unseen` 15, Palm's 15; Pick the Lock's 16) - a proposal put to the owner, not a
+     * measurement. `ownAlpha` is how the hider's own browser draws their token (the coordinator's 0.4). `coverTotal` is the
+     * total a skipped cover roll counts as while hidden: above every cover's threshold (the highest is 16), so each reads it
+     * as passed; it is never a roll and earns no Hope (the owner's answer of 23.11.2026: Hope comes from the main roll only).
+     */
+    hide: Object.freeze({ traits: Object.freeze(["shadow"]), cost: 1, dc: 15, ownAlpha: 0.4, coverTotal: 99 })
 });
 
 /* ==========================================================================
@@ -3176,6 +3276,39 @@ export const PROJECT_TOKEN = {
      */
     isoScale: 0.72
 };
+
+/*
+ * A REMNANT'S TOKEN, DRAWN AT ONE ALPHA PER VIEWER (1.2.128 line MAP, stage E129; released in 1.2.128; the owner's
+ * session-0 note S0-REMALPHA, 23.11.2026: "niektore remnanty sa polprzezroczyste i przez to niewidoczne"). The owner's
+ * answer: on the GM's screen, Neutral Remnants. Every Remnant was created at document alpha 0.5 (remnants.mjs
+ * `placeRemnant`) and a hidden one is dimmed again by Foundry on a GM's browser, about a quarter by estimate, not a
+ * reading (LIVE-129-MAP-01). Each browser now draws a Remnant's picture at its own constant (visibility.mjs
+ * `remnantAlpha`): a GM sees one the players see whole, and one hidden from them at `gmHidden` - lower, so the GM tells
+ * the two apart, never so low the GM loses it (0.6, the coordinator's default, chosen on the comparison sheet in
+ * docs/dev/owner129/map/). A player keeps 0.5, the design the map had ("people in a room": a trace is finer print than
+ * the cast) - the owner's "Tak" to that default, 23.11.2026; raising it is this one number.
+ */
+export const REMNANT_ALPHA = Object.freeze({ player: 0.5, gmShown: 1, gmHidden: 0.6 });
+
+/*
+ * A TOKEN'S NAME ON A HOVER (1.2.128 line MAP, stage E129; released in 1.2.128; the owner's session-0 note S0-HOVERNAME,
+ * 23.11.2026: "Najechanie na token myszka przez chwile dluzej niech pokazuje nazwe (imie postaci, "?" Mordercy, nazwe
+ * projektu, nazwe remnanta)"). hover-name.mjs shows it once the pointer has rested on a token `delayMs`, as this viewer
+ * may know it (`hoverName`), and takes it off on leaving, a press on the board, a pan or a change to the token. 600 is
+ * the coordinator's default pending the owner: long enough that a pointer crossing the map names nothing.
+ */
+export const HOVER_NAME = Object.freeze({ delayMs: 600 });
+
+/*
+ * A CAPTION'S SIZE PER THEME (1.2.128 line MAP, stage E129; the owner's "powiekszmy lekko napisy", 23.11.2026, and the
+ * coordinator's default of that day: under the glass the caption at 1920x1080 and 100% reads at least as large as
+ * Legacy's). hover-name.mjs `drawCaption` multiplies its base, max(18, grid * 0.25) times the interface scale, by the
+ * theme's own. Measured in Chromium on "Aoi Kirigaya" (docs/dev/owner129/map/caption-sheet.html, 23.11.2026): Legacy's
+ * DRPG Pixel at 25 px is 300 px wide with an x-height of 19; the glass's VT323 at its 21 px (25 times the screen term
+ * 0.85) was 101 wide with an x-height of 9. VT323's x-height is about 0.42 of its size, so the glass takes 2.2: 47 px at
+ * 1080p and 100%, an x-height of 20, 226 px wide (VT323 is narrow: the width stays under Legacy's).
+ */
+export const CAPTION_FACE = Object.freeze({ legacy: 1, glass: 2.2 });
 
 export const PROJECT_GLYPHS = {
     hourglass: { label: "Hourglass", fa: "fa-hourglass" },
@@ -4350,9 +4483,11 @@ export const TRIAL = {
      */
     debateMinSeconds: 30,
     /**
-     * An OBJECTION buys exactly one minute of silence, then the person it was
+     * An OBJECTION buys half a minute of silence, then the person it was
      * aimed at gets two minutes to answer back, and then the floor returns to
-     * free discussion.
+     * free discussion. Thirty seconds since 1.2.128 (E129 S0-OBJ; the owner's note of session 0, 23.11.2026:
+     * "objection skrocic do 30s"); a minute until then. The Closing's exchange keeps its own seconds
+     * (`modes.closing.objectionSeconds`, below), the coordinator's default pending the owner.
      *
      * Both are fixed rather than GM-editable on purpose: they are the shape of
      * the interruption, not a budget. A GM who needs to cut a rebuttal short
@@ -4360,13 +4495,42 @@ export const TRIAL = {
      * has "+30 s". Making them configurable would turn one rule everybody at
      * the table already knows into a per-world variable nobody can predict.
      */
-    objectionSeconds: 60,
+    objectionSeconds: 30,
+    /*
+     * THE OBJECTOR MAY END THEIR OWN SECONDS (E129 S0-SKIP, 23.11.2026; the owner's note of session 0: "dodajmy opcje
+     * skipowania etapow w class trial przez graczy, jesli mowia jako jedyni (np testimony, objection). niech maja od tego
+     * pop up"; the coordinator's default). While an Objection's own seconds run, the objector alone holds the floor, and
+     * a window in the middle of their screen asks "Finish your turn now?" (trial-prompt.mjs `promptFinish`); Finish my turn
+     * ends that step as the GM's Skip would - the rebuttal starts - and the GMs are told in their corner (trial-floor.mjs
+     * `finishObjectionOnPrimary`). Testimony, a Panic Round, the Closing's speech and a Scrum turn had their speaker's Done
+     * already ("Your turn"); a rebuttal has two speakers and the debate many, so neither is offered. False takes the window
+     * and the road away.
+     */
+    objectorMayFinish: true,
+    /*
+     * PALM IN THE HALL (E129 S0-PALM, 23.11.2026; the coordinator's default, which the owner answered "9. Tak" that day): the
+     * trial's hall holds no room (R114), and Palm needs its target in the thief's room. While a Class Trial runs, every
+     * student on the hall scene, on the same floor, whose token the GMs have not hidden, counts as in the searcher's room for
+     * Palm's Frisk, the one thing Palm does in the trial since that evening (the owner, 23.11.2026: "z palm w trialu ma byc
+     * dostepne tylko przeszukanie - ukradkiem, consensual lub silowe"; frisk.mjs `personActionRefusal` with `frisk`,
+     * `personPlace`, palm.mjs `palmPlace`); its Steal and Plant are refused there (allowed-now.mjs `TRIAL_OPEN_PERSON`).
+     * False takes Palm's hall away again.
+     */
+    palmHallIsOneRoom: true,
+    /*
+     * WHO TAKES PART, BY THE PLAYER'S OWN LINK (E129 S0-CUT P1, 23.11.2026; the coordinator's fix after the owner's note
+     * "testimony ucielo ostatniego gracza", ownership links at that table being loose): a student owned by two players is
+     * seated by the player whose `user.character` it is, and a student left goes to its first owner not seated yet (vote.mjs
+     * `trialParticipants`). False is the rule until 1.2.128: the first owner Foundry lists, the student dropped when that
+     * player had a seat already.
+     */
+    seatByCharacter: true,
     rebuttalSeconds: 120,
     /**
      * How long an objector has to pick the Truth Bullet once their Objection is in (E79 C16, 1.2.79; the owner,
      * 17.10.2026: the bullet is chosen AFTER the objection, and the card waits "pending" for it). The floor is the
-     * objector's while they choose, and the minute above starts only when the bullet is on the card
-     * (trial-floor.mjs `fillObjectionInStep`, run by trial.mjs `evidenceOnPrimary`), so the minute is the minute they argue with it. Past these seconds the
+     * objector's while they choose, and the seconds above start only when the bullet is on the card
+     * (trial-floor.mjs `fillObjectionInStep`, run by trial.mjs `evidenceOnPrimary`), so they are the seconds they argue with it. Past these seconds the
      * Objection is withdrawn, the floor goes back to the debate and the price stays paid (trial-floor.mjs
      * `advanceIfDue`): an interruption that stopped the room and showed nothing is not free. The owner's default D4.
      */
@@ -4404,19 +4568,39 @@ export const TRIAL = {
         round: {
             testimony: { offered: 60, min: 30, max: 120 },
             panic: { offered: 15, small: 10, smallFrom: 12, min: 10, max: 15 },
-            graceSeconds: 1
+            graceSeconds: 1,
+            /*
+             * A SPEAKER WHO DROPS IS NOT PASSED AT ONCE (E129 S0-CUT B, 23.11.2026; the coordinator's "a reload during your
+             * own turn should never pass you", after the owner's note of session 0, "testimony ucielo ostatniego gracza",
+             * which this is not the cause of: the owner's answer of that day, "Nie bylo zadnego" - no Objection, no drop).
+             * `goneGraceSeconds`: a speaker whose player drops is passed only when they are not back within these seconds,
+             * counted by the primary (trial-floor.mjs `speakerGone`); back in time, the turn goes on with its own clock.
+             * Until 1.2.128 they were passed at once (E70-45). Chosen, not measured at a table: how long a v14 reload takes
+             * to reconnect is not measured (a LIVE item proposed in E129's report). An Objection's exchange in a round still
+             * goes on at the next speaker (E70-42, which stands: the coordinator's word of 23.11.2026).
+             */
+            goneGraceSeconds: 15,
+            /*
+             * DONE AND PASS ASK ONCE (E129 S0-CUT P2, 23.11.2026; the coordinator's P2: "Your turn" comes back every 20 s with
+             * Done and Pass beside Keep speaking, and a speaker who clicks one while talking ends their own turn at once -
+             * for the last speaker, the round). With more than these seconds left, Done or Pass asks "End your turn now?"
+             * (trial-prompt.mjs `confirmEnd`), Keep speaking its default; at or under them it ends at once, so a speaker at
+             * the end of their time is not slowed down. 0 takes the question away.
+             */
+            confirmEndAboveSeconds: 5
         },
         /*
          * THE CLOSING ARGUMENT (E70 C8, 28.10.2026; S18-73, S18-74; the owner's TR7 "proponuje 5 minut", TR23 = 1,
          * TR24, TR29 = 4, TR34 = 1, DA18 "Wszedzie gracz ma proponowac, a DM zatwierdzac lub zmieniac", amend 7 of 14.10:
          * no Hope for the last voice). One per trial (`perTrial`); `volunteerSeconds` of volunteering, then a draw among
          * the volunteers that the GM confirms or changes; `seconds` for a speaker; an Objection at the speaker at any
-         * second, its exchange (`objection`, the debate's 60 + 120 s with cut-ins), after which the GM decides who
+         * second, its exchange (`objection`, `objectionSeconds` + the debate's 120 s with cut-ins: 60 s since E70, kept at 60
+         * when the debate's went to 30 in 1.2.128, E129 S0-OBJ - the coordinator's default, pending the owner), after which the GM decides who
          * continues (`gmDecides`): the speaker with the time left at the Objection or an objector with a new `seconds`.
          * A drawn or picked speaker's Pass in their first `passWindowSeconds` hands the choice back to the GM; later it
          * is Done. Chosen from the owner's words, not measured at a table (LIVE-E70-09).
          */
-        closing: { volunteerSeconds: 30, seconds: 300, perTrial: 1, objection: "exchange", gmDecides: true, passWindowSeconds: 30 },
+        closing: { volunteerSeconds: 30, seconds: 300, perTrial: 1, objection: "exchange", objectionSeconds: 60, gmDecides: true, passWindowSeconds: 30 },
         /*
          * THE ZONE MODES (E73, 12.11.2026; the plan's goal and C3-C5; zone-machine.mjs). Straw Poll: `seconds` of
          * standing in a zone, then one count, a Finding at two thirds. Logic Dive: `seconds` a question, counted when
@@ -4433,7 +4617,18 @@ export const TRIAL = {
             straw: { seconds: 45 },
             dive: { seconds: 60, pauseSeconds: 5, maxQuestions: 5 },
             scrum: { setupSeconds: 45, conferSeconds: 120, budgetSeconds: 300, minTurn: 20, maxTurn: 40, thesisLength: 120 },
-            questionLength: 200, answerLength: 80
+            questionLength: 200, answerLength: 80,
+            /*
+             * THE ZONES' NAMES ON THE HALL (E129 S0-ZONESTYLE, 23.11.2026; the owner's note of that day, "strefy w class
+             * trial. Niech maja ten sam styl co pokoje na mapie, a nazwa strefy (bez zone a/b - sama tresc) niech
+             * wyswietla sie na srodku strefy i nie znika. Duzy font, jak na mapie!"; the coordinator's defaults, pending
+             * the owner): each zone drawn as a room on the map is, named by its answer alone (`prefix` true puts "Zone A:"
+             * before it again), in the room name's face and size, centred on its largest piece and standing for the whole
+             * zone mode (trial-zones-ui.mjs `drawZones`). A long answer wraps to `fitWidth` of that piece's width and
+             * shrinks until it fits `fitHeight` of its height, to `minFontPx` scene pixels at the least, past which it is
+             * clipped to the zone (`fitZoneLabel`).
+             */
+            label: { prefix: false, fitWidth: 0.9, fitHeight: 0.9, minFontPx: 12 }
         }
     },
     /**
@@ -4455,6 +4650,17 @@ export const TRIAL = {
      */
     allowVotingForDead: true,
     allowVotingForMonokuma: true,
+    /*
+     * EACH MONOKUMA ON THE BALLOT (E129 S0-VOTEKUMA, 23.11.2026; the owner's note of that day, "w glosowaniu zamiast opcji
+     * "monokuma" niech bedzie mozliwosc wyboru kazdego indywidualnego monokumy z osobna"; the coordinator's defaults,
+     * pending the owner): with `allowVotingForMonokuma` on, the ballot lists every Monokuma actor by its own name, sorted
+     * by name, each a candidate of its own whose votes are counted apart (vote.mjs `monokumaCandidates`, the flag as the
+     * GMs hold it). A vote on any of them is read as one on "Monokuma" was - no student, so the verdict window opens on
+     * nobody (verdict.mjs `verdictCandidates`) - and its name stands on the cards. A world with no Monokuma actor lists
+     * none. False is the rule until 1.2.128: one "Monokuma" option, the id "monokuma", which a record holding it still
+     * reads either way.
+     */
+    eachMonokumaOnBallot: true,
     allowVotingForSelf: true,
     /**
      * Whether the dead CAST a ballot, which is a different question from the three
@@ -5586,6 +5792,7 @@ export const SFX_EVENTS = {
 export const DRPG = {
     MODULE_ID,
     SOCKET,
+    SPECTATOR_ALPHA,
     FLAGS,
     ACTIONS_RESOURCE,
     TRAITS,
@@ -5596,6 +5803,10 @@ export const DRPG = {
     TIME_OF_DAY_LABELS,
     PHASES,
     CHAPTERS_PER_SEASON,
+    SHARE_WITH_ANALYSIS,
+    OWN_TRACK_FOLLOWS_HOLD,
+    REALIZE_SCOPE,
+    HOLDER_SEES_HIDDEN,
     ROOMS_PER_PLAYER,
     ECLIPSE_MOVES,
     ECLIPSE_FREE_PLACEMENT,
@@ -5617,6 +5828,7 @@ export const DRPG = {
     OBSERVE_TYPE_ALIAS,
     OBSERVE_FAIL_STRESS,
     CRITICAL,
+    ROLL_REFUNDS,
     ANALYZE_DC,
     analyzeDc,
     observeDc,
@@ -5636,6 +5848,9 @@ export const DRPG = {
     MOTIVE,
     PROJECT_SCALE,
     PROJECT_GLYPHS,
+    REMNANT_ALPHA,
+    HOVER_NAME,
+    CAPTION_FACE,
     PROJECT_TOKEN,
     isProjectGlyph,
     PROJECT_DESCRIPTION_MAX,

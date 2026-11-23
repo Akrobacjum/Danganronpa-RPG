@@ -29,6 +29,7 @@ import { flagOver, piecesByName, roomFlag, writablePieces } from "./rooms.mjs";
 
 import { drpgWindow, tipText } from "./ui-kit.mjs";
 import { overflowBlocksShortRest } from "./overflow.mjs";
+import { withCentre } from "./notice-centre.mjs";
 
 
 /** Flags set on a Scene Region. */
@@ -362,7 +363,7 @@ export async function takeRest(actor, kind = "short", {
 
         if (!quiet) {
             await whisperToOwner(actor, `${cardHead({ action: kindLabel(kind), room })}
-                <ul>${applied.map(a => `<li>${foundry.utils.escapeHTML(a)}</li>`).join("")}</ul>`);
+                <ul>${applied.map(a => `<li>${foundry.utils.escapeHTML(a)}</li>`).join("")}</ul>`, withCentre());
         }
 
         log(`${actor.name} took a ${kind} rest in ${room}: ${picks.join(", ")}`);

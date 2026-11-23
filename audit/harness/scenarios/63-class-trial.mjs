@@ -1272,9 +1272,10 @@ export async function run({ gm, gm2, gm3, p1, p2, p3, p4, check, phase, settle, 
 
     /* E70 C1 (27.10.2026; E70-08, S18-76; the C0 gap "no scenario sends trial.gm from a second GM"). gm3, a GM that is
        not the primary while gm2 is connected, presses each of the bar's buttons by its game.drpg function on an
-       Objection gm2 holds with 50 s left and a debate under it with 200 s: +30 s, -30 s, Skip, Back to the debate, End
-       this mode. After each, gm2's floor (the primary's) and gm3's read the same mode and the same seconds left within
-       2 s, and moved as the bar promises: 80 s, 50 s, the rebuttal, the debate with its 200 s, no floor. Red at
+       Objection gm2 holds with 20 s left (10 s into its 30; 50 of 60 until E129 S0-OBJ, 1.2.128) and a debate under it
+       with 200 s: +30 s, -30 s, Skip, Back to the debate, End this mode. After each, gm2's floor (the primary's) and gm3's
+       read the same mode and the same seconds left within 2 s, and moved as the bar promises: 50 s, 20 s (80 and 50
+       until then), the rebuttal, the debate with its 200 s, no floor. Red at
        f388d722: no such functions on game.drpg. */
     begin("Z", "the GM's bar on a GM that is not the primary: each button by its game.drpg function, the same floor on both");
     const Fz = `const F = await import("${repoUrl}/scripts/trial-floor.mjs"); const U = await import("${repoUrl}/scripts/utils.mjs");`;
@@ -1300,7 +1301,7 @@ export async function run({ gm, gm2, gm3, p1, p2, p3, p4, check, phase, settle, 
     const zAt = ([a], mode, left) => (mode === null ? a === null : Boolean(a) && a[0] === mode && Math.abs(a[1] - left) <= 3);
     verdict("gm3, not the primary, presses +30 s, -30 s, Skip, Back to the debate and End this mode by game.drpg: gm2 and gm3 read one floor after each, moved as the bar promises",
         zRead.primary === false && zPresses.every(([op]) => zSame(zRead[op]))
-            && zAt(zRead.plus, "objection", 80) && zAt(zRead.minus, "objection", 50) && zAt(zRead.skip, "rebuttal", 120)
+            && zAt(zRead.plus, "objection", 50) && zAt(zRead.minus, "objection", 20) && zAt(zRead.skip, "rebuttal", 120)
             && zAt(zRead.back, "debate", 200) && zAt(zRead.endMode, null), J(zRead));
 
     /* ------------------------------ O. Overrule from another GM ------------------------------ */
@@ -1536,7 +1537,13 @@ export async function run({ gm, gm2, gm3, p1, p2, p3, p4, check, phase, settle, 
         return { primary, back: Boolean(back), rows: Object.keys(S.trialMuteStore.entries()), perm: (() => { ${permOf} })(),
             list: Object.hasOwn(game.settings.get("${MOD}", "trialProgress") ?? {}, "mutedDead") };`, { timeout: 30000 });
     verdict("the primary mutes p1 for the trial and leaves; gm3, the new primary, ends the trial and gives p1's microphone back from the GMs' store",
-        (r3Before.blocked ?? []).includes(p1.userId) && r3Held.rows.includes(p1.userId) && J(r3Held.perm) === J([true, false]) && r3After.primary && r3After.back
+        /* The block is read where it stands - the GMs' store's row and p1's BROADCAST_AUDIO off - whichever settle wrote it:
+           the clock's write and the death each schedule a settle of their own (voice.mjs `scheduleTrialVoices`), and when
+           one of them wrote first the explicit settle found the block there and answered `blocked: []`. Measured on
+           23.11.2026 (E129): red 3 runs of 3 on the trees with the 30 s Objection (0deb1885, e5ca3727, fca36f1d), each with
+           the row written and the microphone off; green with one round trip more before the settle. Until then the check
+           also asked the explicit settle's answer, which stays in the evidence (`r3Before`). */
+        r3Held.rows.includes(p1.userId) && J(r3Held.perm) === J([true, false]) && r3After.primary && r3After.back
             && r3After.rows.length === 0 && r3After.list === false, J({ r3Before, r3Held, r3After }));
     await gm3.eval(`const C = await import("${repoUrl}/scripts/chapter.mjs");
         const aiko = game.actors.get("${IDS.aiko}"); if (C.isDeadForGm(aiko)) await C.reviveCharacter(aiko, { quiet: true });

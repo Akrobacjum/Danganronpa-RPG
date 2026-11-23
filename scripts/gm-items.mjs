@@ -22,7 +22,7 @@ import { grantItem, itemsInCategory, countInCategory, countInGroup, inventorySum
     from "./inventory.mjs";
 // `BULLET_CATEGORY` went with the hand-rolled category list: excluding Truth
 // Bullets is `pickableCategories`'s job now, not this file's.
-import { createTruthBullet, issueAutopsy, copiedRemnants }
+import { createTruthBullet, issueAutopsy, copiedRemnants, isTruthBullet }
     from "./truth-bullets.mjs";
 import { ITEM_POOLS, USABLE_GOALS, moduleTables, rolesOfResult, MULTI_ROLE_TIER, usableKindFor, entryAs }
     from "./tables.mjs";
@@ -1609,6 +1609,37 @@ export async function giveTruthBulletDialog(actor, { scenes: only = null, fill =
     if (!result || result === "cancel") return false;
     if (result.recipient === RECIPIENT_EVERYONE) return giveToEveryone(result, traces, writers);
     return giveBulletNow(result, game.actors.get(result.recipient) ?? initial, traces, writers);
+}
+
+/**
+ * A PLANNED TRUTH BULLET AS THE WRITE NEW TAB WOULD READ IT (line INVEST of 1.2.128; S0-REALIZE): the plan's row
+ * (case-schema.mjs `caseNodeOf`, a "bullet") as `readBulletFields` answers for the window opened on it (`bulletCreatePane`'s
+ * `fill`), Tell the player as planned. Pure.
+ */
+export function plannedBulletResult(row = {}) {
+    return { recipient: row.recipient || null, tell: row.tell ?? true, mode: "create", name: String(row.label ?? "").trim(),
+        realType: row.realType ?? "neutral", shown: row.shown ?? "auto", visibility: row.vis ?? "evident", faint: row.faint === true,
+        tied: row.tied === true, playerText: String(row.text ?? "").trim(), analyzedText: String(row.analysis ?? "").trim(),
+        gmNote: String(row.note ?? "").trim(), img: row.img || null };
+}
+
+/**
+ * A PLANNED TRUTH BULLET GIVEN WITH NO WINDOW (line INVEST of 1.2.128; S0-REALIZE, the Realization's "every planned
+ * Remnant"): by the window's own road (`giveBulletNow`, `giveToEveryone` for a plan to Everyone), from the plan as the
+ * Write new tab reads it. A plan with no recipient or no name is not given. Answers `{ given, made }`: whether every
+ * copy was made, and the bullets made, `[{ actorId, itemId }]`, read off the recipients' sheets (for the Realization's
+ * Undo).
+ */
+export async function givePlannedBulletNow(row = {}) {
+    const result = plannedBulletResult(row);
+    if (!result.name || !result.recipient) return { given: false, made: [] };
+    const { livingStudentsForGm } = await import("./chapter.mjs");
+    const who = result.recipient === RECIPIENT_EVERYONE ? livingStudentsForGm() : [game.actors.get(result.recipient)].filter(Boolean);
+    const before = new Map(who.map(a => [a.id, new Set(a.items.map(i => i.id))]));
+    const given = result.recipient === RECIPIENT_EVERYONE ? await giveToEveryone(result, [], {})
+        : who.length ? await giveBulletNow(result, who[0], [], {}) : false;
+    const made = who.flatMap(a => a.items.filter(i => !before.get(a.id)?.has(i.id) && isTruthBullet(i)).map(i => ({ actorId: a.id, itemId: i.id })));
+    return { given: given === true, made };
 }
 
 /**

@@ -180,7 +180,21 @@ const SINCE_CORRECTED = Object.freeze([
     { from: 4800, to: 4805, since: "E54" }, { from: 5000, to: 5001, since: "E38" }, { from: 5460, to: 5467, since: "E108" },
     { from: 6750, to: 6756, since: "E59" }, { from: 7160, to: 7182, since: "E59" },
     /* 1.2.122's block of line STG, which --write stamped E39 while 1.2.122 had no stage row; E122 since the release. */
-    { from: 8460, to: 8499, since: "E122" }
+    { from: 8460, to: 8499, since: "E122" },
+    /* 1.2.128's line MURDER (E129, the owner's session 0): --write stamps the first unshipped stage, E127; the coordinator's stamp is E129. */
+    { from: 8850, to: 8869, since: "E129" },
+    /* 1.2.128's block of line STG (S0-HIDE), stamped by the coordinator's E129 (23.11.2026). */
+    { from: 8900, to: 8929, since: "E129" },
+    /* 1.2.128's other lines, which --write stamped E127 while E127 stood first unshipped: each range's titles name the
+       stage (read 23.11.2026 on 2b197e69) - CORE's R8731-R8733 "(E128 ...", CORE's R8734 and the blocks of TRIAL
+       (R8770-), INVEST (R8790), UI (R8810-), COMM (R8830-), MAP (R8870-) and DESP (R8880-) "(E129 ..." or an S0 item
+       of the owner's session 0, which is E129's, as is TEXT's R8621 (S0-SESSIONLEN). R8694-R8697 and R8730 are E127's
+       and keep it. */
+    { from: 8621, to: 8621, since: "E129" },
+    { from: 8731, to: 8733, since: "E128" },
+    { from: 8734, to: 8749, since: "E129" },
+    { from: 8770, to: 8849, since: "E129" },
+    { from: 8870, to: 8899, since: "E129" }
 ]);
 /* A removed test's row names what removed it where the working stage at --write did not: R214 went in feba55c3 (13.11.2026,
    the 1.2.112 stash change), and the row read "(removed in E54)" (STG-47). */

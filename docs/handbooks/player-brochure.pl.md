@@ -1,6 +1,6 @@
 # Danganronpa RPG - Ulotka ucznia
 
-*Krótka lektura przed pierwszą sesją, około sześciu wydrukowanych stron. Moduł 1.2.126 na Daggerheart.*
+*Krótka lektura przed pierwszą sesją, około sześciu wydrukowanych stron. Moduł 1.2.128 na Daggerheart.*
 
 **Jesteś** Ultimate: to ta jedna rzecz, którą twoja postać robi najlepiej, wpisana na arkuszu pod jej imieniem. Twoje sześć statystyk to Leg, Body, Hand, Eye, Shadow i Head.
 
@@ -19,7 +19,7 @@ Rzut z Hope daje ci 1 Hope, a krytyk (obie kości z tym samym wynikiem) 2 Hope. 
 - Ruch wewnątrz pokoju jest darmowy; żeby się ruszyć, przeciągnij token. Pierwsze przejście do połączonego pokoju to twój Free Move, każde kolejne kosztuje 1 akcję, a płacisz, gdy dotrzesz na miejsce.
 - Zawracają cię zamknięte drzwi, zapieczętowane pokoje, cudze sypialnie, do których nie masz klucza, i Chained, czyli Despair Call, który trzyma cię w pokoju do końca pory dnia.
 - W Eclipse gasną światła i nikt nikogo nie widzi ani nie słyszy. Ustawiasz wtedy swój token do 2 połączonych pokoi dalej, a w nocnym Eclipse w dowolnym pokoju.
-- Widzisz tylko swój pokój i ludzi w nim; odwiedzone pokoje są za zasłoną, a reszta tonie we mgle. Jeśli twój stół używa ustawienia **Głos osobno w każdym pokoju**, twój głos idzie za tokenem i słyszysz tylko swój pokój.
+- Widzisz tylko swój pokój i ludzi w nim; odwiedzone pokoje są za zasłoną, a reszta tonie we mgle. Jeśli twój stół używa ustawienia **Głos osobno w każdym pokoju**, twój głos idzie za tokenem i słyszysz tylko swój pokój. Każdy token, który widzisz, nosi pod sobą swoją nazwę, o ile możesz ją znać („?” dla ukrytego zabójcy); gdy wyłączysz **Nazwy tokenów jako podpisy** w oknie zębatki, nazwa pokaże się tylko wtedy, gdy kursor zatrzyma się na tokenie.
 - Każdy pokój ma **Search Tokeny**, zwykle 3, wspólne dla wszystkich.
 
 > [!IMPORTANT]
@@ -34,7 +34,7 @@ Każda akcja kosztuje 1 akcję, chyba że jej wiersz mówi inaczej. **Remnant** 
 | **Search** | Eye albo inna, którą zatwierdzi GM | Nazwij, czego chcesz. 8+ daje Tier 0, 12+ Tier 1, 18+ Tier 2, a krytyk o 1 Tier więcej. Zużywa jeden Search Token. Jeśli weźmiesz narzędzie zbrodni albo narzędzie do sprzątania, zostawiasz Remnant. |
 | **Observe** | Eye | Kopiuje Remnant do ekwipunku jako Neutral Truth Bullet, czyli taki, którego rodzaju nie znasz, dopóki nie zostanie przeanalizowany. Porażka kosztuje 1 Sanity. |
 | **Analyze** | Head | Zidentyfikuj Truth Bullet (porażka blokuje go do końca rozdziału), poproś GM-a o podpowiedź (14+ / 18+), Find Stash (16+) albo Find Passage (16+). |
-| **Infiltrate** | Shadow, Leg, Body albo Hand | Listen (14+ ile osób jest za ścianą, 18+ kto, krytyk każdy sąsiedni pokój; pokoje, w których nie byłeś, zostają bez nazwy: *Nieodkryty pokój 1*, 2...), Echoes, Tail Someone, Keep Watch, Dash (12+ 2 darmowe przejścia, 18+ 3, krytyk 4), Shut the Door, Force the Door, Pick the Lock. |
+| **Infiltrate** | Shadow, Leg, Body albo Hand | Listen (14+ ile osób jest za ścianą, 18+ kto, krytyk każdy sąsiedni pokój; pokoje, w których nie byłeś, zostają bez nazwy: *Nieodkryty pokój 1*, 2...), Echoes, Tail Someone, Keep Watch, Dash (12+ 2 darmowe przejścia, 18+ 3, krytyk 4), Shut the Door, Force the Door, Pick the Lock, Hide (Shadow 15+: inni gracze nie widzą twojego tokenu, a mikrofon jest wyłączony do końca pory dnia albo do „Ujawnij się” na kafelku głosu). |
 | **Palm** | Hand, a Shadow, żeby nikt cię nie zauważył | Weź (12+, niezauważony 15+) coś z czyichś kieszeni albo podłóż (8+, niezauważony 13+) w nie coś swojego. Albo niczego nie bierz i tylko zobacz, co ktoś nosi: najpierw poproś, Body 12+ po odmowie; ukradkiem Shadow 15+, potem Hand 10+. |
 | **Projects** | rzut projektu | 12+ daje +1 postępu, 18+ daje +2, a krytyk +2 i oddaje ci akcję. Nowe projekty proponujesz GM-owi. Jest wśród nich Sabotage, który zawsze zostawia Remnant. |
 | **Facilities** | bez rzutu albo rzut z wiersza | Short Rest: 1 akcja, wybierasz 1, raz na porę dnia. Long Rest: 2 akcje, wybierasz 2, raz na sesję. Sleep przywraca Health, Meal Sanity, Breath Hope; odpoczynki działają tylko w pokojach dla nich oznaczonych. Niżej w oknie jest to, co oferuje twój pokój. |
@@ -98,9 +98,9 @@ Gdy wejdziesz w trakcie Direct Murder, masz jeden wybór: Escape Together, Doubl
 
 **Investigation.** Każdy dostaje Autopsy Truth Bullet, a potem robicie Observe i Analyze i dzielicie się tym, co macie. Key Remnantów jest od trzech do pięciu; razem zawężają podejrzanych do 2-4 osób. To, co ciało ma przy sobie, zabierasz z jego arkusza bez akcji, jednym rzutem na Hand na całość: dostajesz też Truth Bullet o tym, co wziąłeś, a na ciele zostaje jeden Remnant przeszukania, tym łatwiejszy do znalezienia, im niższy był rzut. To, czego nikt nie znajdzie, kosztuje Despair, a Monokuma może to ujawnić w Class Trial.
 
-**Class Trial** zaczyna się ze świeżym kompletem akcji i nikt nie wychodzi z pokoju. Z akcji zostaje tylko Analyze, do tego Hope Calle i przedmioty, a dyskusja jest otwarta. **Przedstaw** pokazuje za darmo Truth Bullet z twojego ekwipunku, z wynikiem twojego Analyze albo bez niego, a każdy inny dostaje kopię tak, jak ją pokazano; na rozprawie nie można dzielić się kopiami.
+**Class Trial** zaczyna się ze świeżym kompletem akcji i nikt nie wychodzi z pokoju. Z akcji zostają tylko Analyze i Palm (Palm od 1.2.128, tylko przeszukanie, za akcję, a bez niej za 1 Hope, a bez niego za 1 Sanity), do tego Hope Calle i przedmioty, a dyskusja jest otwarta. **Przedstaw** pokazuje za darmo Truth Bullet z twojego ekwipunku, z wynikiem twojego Analyze albo bez niego, a każdy inny dostaje kopię tak, jak ją pokazano; na rozprawie nie można dzielić się kopiami.
 
-- Gdy GM otworzy Nonstop Debate, **OBJECTION!** na twoim kafelku głosu przerywa temu, kto mówi (albo mówił ostatni). Masz wtedy 30 s na wybór Truth Bulletu; po tym czasie Objection przepada, a jego koszt nie wraca. Następnie przez 60 s mówisz tylko ty, a potem przez 120 s trwa Rebuttal z osobą, w którą trafiło. Objection, tak jak Analyze na rozprawie, kosztuje 1 akcję, a gdy jej nie masz, 1 Hope, a gdy nie masz i tego, 1 Sanity.
+- Gdy GM otworzy Nonstop Debate, **OBJECTION!** na twoim kafelku głosu przerywa temu, kto mówi (albo mówił ostatni). Masz wtedy 30 s na wybór Truth Bulletu; po tym czasie Objection przepada, a jego koszt nie wraca. Następnie przez 30 s mówisz tylko ty, a potem przez 120 s trwa Rebuttal z osobą, w którą trafiło. Objection, tak jak Analyze na rozprawie, kosztuje 1 akcję, a gdy jej nie masz, 1 Hope, a gdy nie masz i tego, 1 Sanity.
 - W Testimony i Panic Round każdy mówi po kolei, a mówca naciska **Gotowe** albo **Pasuję**. W Closing Argument GM zatwierdza jedną zgłoszoną osobę, która mówi przez 300 s. W tych trzech trybach dowody przedstawia tylko mówca, a Panic Round nie ma Objection.
 - Potem tajne głosowanie: <ins>więcej niż połowa kart</ins> skazuje, a remis liczy się jak pomyłka, chyba że stół rozstrzygnie go inaczej. Gdy klasa trafi: Blackened zostaje stracony, gdy rozprawa się kończy, a każdy ocalały dostaje Level Up, czyli wybór, który wzmacnia postać. Gdy klasa się pomyli: oskarżony ginie, gdy rozprawa się kończy, a Blackened zostaje z Reinforced Level Upem (3 wybory), który czeka na następny Level Up klasy.
 

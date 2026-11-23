@@ -39,6 +39,9 @@
  *   visibility.myIncidentTrace, visibility.sightRefresh                 the D11 ask; Foundry's sight refresh heard
  *   visibility.incidentCast                                             the D11 cast read, once a frame or pass (E88 C2)
  *   remnantIcons.apply                                                  a trace dressed on a refresh
+ *   caption.drawn, caption.kept                                         a token's caption drawn anew, or kept standing because
+ *                                                                       its words, size and face are the same (hover-name.mjs
+ *                                                                       `drawCaption`, 1.2.128 S0-HOVERNAME B)
  *   utils.cssColour, utils.cssColour.read                               a canvas colour asked; read off the stylesheet
  *                                                                       (kept until the body changes since E88 C2)
  *   fog.repaintFog, fog.buildFogTexture, fog.driftTick                  a repaint asked, a texture built, a drift frame

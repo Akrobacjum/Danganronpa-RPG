@@ -26,12 +26,14 @@
  * shared layer alone.
  */
 
-import { MODULE_ID, ACTIONS, TRAITS, ITEM_CATEGORIES } from "./config.mjs";
+import { MODULE_ID, ACTIONS, TRAITS, ITEM_CATEGORIES, TRIAL } from "./config.mjs";
 import { spendAction } from "./actions.mjs";
 import { TRANSFER_REFUSED, ITEM_FLAGS, isStashed, carriedInCategory } from "./inventory.mjs";
-import { getSetting, SETTINGS } from "./settings.mjs";
+import { getSetting, SETTINGS, getClock } from "./settings.mjs";
 import { roomOfActor, othersInRoom } from "./movement.mjs";
-import { plural, esc, whisperToOwner, whisperToGms, log, error } from "./utils.mjs";
+import { trialScene } from "./rooms.mjs";
+import { quotePrice, payPrice, refundPrice, paidLine } from "./price.mjs";
+import { plural, esc, whisperToOwner, whisperToGms, log, error, hiddenByGm } from "./utils.mjs";
 import { rollTrait, rollInHand, noteRollContext, abort, spentAfterRoll, canAfford } from "./action-pipeline.mjs";
 import { report } from "./action-report.mjs";
 import { briefingBlock } from "./action-briefing.mjs";
@@ -40,6 +42,8 @@ import { judgedFor } from "./sheet-audit.mjs";
 import { drpgWindow, tipAttr, tipText } from "./ui-kit.mjs";
 import { keepLive } from "./live.mjs";
 import { nameAsSeen, seenHere } from "./mask-gm.mjs";
+import { withCentre } from "./notice-centre.mjs";
+import { coverWhileHidden, withCover } from "./hide.mjs";
 
 /**
  * A Palm's or a Frisk's roll window, named by the part it throws (E51 C1; the owner's A11 of 13.10: "Palm - Hand, beat
@@ -106,8 +110,12 @@ export function palmTitle(part, def = ACTIONS.palm) {
  * here would hand it over on a miss (trap 93). A Plant shows YOURS, because
  * they are yours - and choosing what to leave behind is the decision the
  * action is for.
+ *
+ * `clock` (E129 S0-PALM, 23.11.2026): the clock the rows are drawn for - a Class Trial greys Steal and Plant - the
+ * world's unless handed in (tier 1 R619 and R623 name theirs: 01-runtests' part A2 runs inside a Class Trial).
  */
-export async function choosePalm(actor, def, targets, mine) {
+export async function choosePalm(actor, def, targets, mine, { clock = getClock() } = {}) {
+    const inTrial = clock?.phase === "classTrial";
     /* WHO IS HERE, AS IT STANDS (the audit's REFR-52, 1.2.122, 21.11.2026; the owner's rule "Zawsze odswiezamy okna od
        razu przy zmianie"). The list was the room at the open: a student who walked in was not offered, one who had left
        still was (the GM's side then refused the attempt). Redrawn on every token and character change from the room as
@@ -127,17 +135,21 @@ export async function choosePalm(actor, def, targets, mine) {
         prompt: game.i18n.localize("DRPG.Steal.whichWay"),
         confirm: game.i18n.localize("DRPG.Action.roll"),
         options: [
+            // Shut in a Class Trial (E129 S0-PALM; the owner, 23.11.2026: "z palm w trialu ma byc dostepne tylko przeszukanie"):
+            // there Palm frisks, and its Steal and Plant wait for the trial's end.
             {
                 value: "steal", icon: "fa-hand-sparkles",
                 label: game.i18n.localize("DRPG.Steal.takeLabel"),
-                hint: game.i18n.localize("DRPG.Steal.takeHint")
+                hint: game.i18n.localize("DRPG.Steal.takeHint"),
+                disabled: inTrial,
+                why: game.i18n.localize("DRPG.Steal.notInTrial")
             },
             {
                 value: "plant", icon: "fa-hand-holding",
                 label: game.i18n.localize("DRPG.Steal.plantLabel"),
                 hint: plural("DRPG.Steal.plantHint", { n: mine.length }),
-                disabled: !mine.length,
-                why: game.i18n.localize("DRPG.Steal.nothingToPlant")
+                disabled: inTrial || !mine.length,
+                why: game.i18n.localize(inTrial ? "DRPG.Steal.notInTrial" : "DRPG.Steal.nothingToPlant")
             },
             {
                 // E80 part 2 C2: the third direction, which takes nothing and shows only the person's name here; what
@@ -220,7 +232,7 @@ async function resolvePlant(actor, def, { victim, planted, hand, shadow, room, s
     // Refused by the one gate before the rolls were read: the action back (`palmBack`; Q3). A Plant into full pockets
     // was tried, and is no refusal (D42): it stays paid; so does one the gate refused on its second asking, after the
     // rolls (told as nothing carried out, palm.mjs `plantOnPerson`; fix e1-G4).
-    await handBackIfRefusedBeforeRolls(actor, paid, { ok: res.ok, refused: res.refused, reason: res.reason, value: res.value });
+    await handBackIfRefusedBeforeRolls(actor, paid, { ok: res.ok, refused: res.refused, reason: res.reason, value: res.value }, [shadow, hand]);
 
     await noteRollContext(actor, {
         actionKey: "palm", planting: true, room, victimId: victim.id,
@@ -229,13 +241,18 @@ async function resolvePlant(actor, def, { victim, planted, hand, shadow, room, s
 
     // "Sent" only when it was (E31): a request not carried out has been said once already.
     const plantOutcome = {
-        success, seen, target: victim.name,
+        success, seen, target: victim.name, supportRolls: [shadow],
         // On a GM's own Palm a refusal settles as done with `{ refused }` as its value, told already (fix e1-G4).
-        text: res.ok && !res.value?.refused ? game.i18n.format("DRPG.Steal.plantSent", { name: victim.name }) : ""
+        text: withCover(res.ok && !res.value?.refused ? game.i18n.format("DRPG.Steal.plantSent", { name: victim.name }) + paidSaid(paid) : "", shadow)
     };
     await report(actor, def, hand, plantOutcome);
     Hooks.callAll("drpgActionResolved", { actor, actionKey: "palm", roll: hand, outcome: plantOutcome });
     return plantOutcome;
+}
+
+/** The card's word on a trial's price (E129 S0-PALM): " Paid with 1 Hope." after a chain's receipt, else nothing. */
+export function paidSaid(paid) {
+    return paid?.key === "palm" ? ` ${paidLine(paid)}` : "";
 }
 
 /** The action a Palm paid, handed back by its receipt, and said where something was paid (E14 part 1 C1, Q3). */
@@ -255,17 +272,26 @@ function nobodyTook(ok, reason) {
  * the bridge's answer as the asker holds it, its four fields read where it was asked (`drpg/bridge-result`). Answers whether it handed the action back. A Steal's, a Plant's and,
  * since 1.2.122, an unseen Frisk's (frisk.mjs `performFrisk`; the audit's CASE-34).
  */
-export async function handBackIfRefusedBeforeRolls(actor, paid, res) {
+export async function handBackIfRefusedBeforeRolls(actor, paid, res, rolls = []) {
     const code = res?.ok ? (res.value?.refused ? (await import("./bridge-guards.mjs")).reasonOf(res.value.refused) : null)
         : (res?.refused ? res.reason : null);
     if (!nobodyTook(res?.ok, res?.reason) && !TRANSFER_REFUSED.includes(code)) return false;
+    /* AS THE ROLLS LET IT (E129, 1.2.128; config.mjs `ROLL_REFUNDS.afterRoll`): the dice of a refused Palm had paid out
+       their Hope, and the owner's Q3 handed the action back all the same. Now `rolls` - the cover and the hand - are held to
+       price.mjs `mayRefundAfterRoll`: under its default the action comes back only where neither brought Hope or a
+       critical, and the player is told when it does not. */
+    const { mayRefundAfterRoll } = await import("./price.mjs");
+    if (!mayRefundAfterRoll(rolls)) {
+        if (paid) ui.notifications.info(game.i18n.localize("DRPG.Action.keptAfterRoll"));
+        return false;
+    }
     await palmBack(actor, paid);
     return true;
 }
 
 async function palmBack(actor, paid) {
-    await abort(actor, paid);
-    if (paid) ui.notifications.info(game.i18n.localize("DRPG.Frisk.actionBack"));
+    // By its receipt since 1.2.128 (E129 S0-PALM): a Hope or a Sanity mark paid in the trial comes back as itself.
+    await givePalmBack(actor, paid);
 }
 
 /*
@@ -297,16 +323,76 @@ async function chooseStolen(victim, hand, success) {
     return chosenId;
 }
 
+/** Whether a Class Trial runs: Palm pays its chain then (config.mjs `PRICE_CHAINS.palm`) and has the hall (E129 S0-PALM). */
+function palmInTrial() {
+    return getClock()?.phase === "classTrial";
+}
+
+/**
+ * WHERE PALM STANDS (E129 S0-PALM, 23.11.2026): the thief's room; in a Class Trial with a hall linked, the hall instead
+ * (config.mjs `TRIAL.palmHallIsOneRoom`), named by its scene, its people every other character with a token on it that
+ * the GMs have not hidden. The hall holds no room (R114) and is no place scene, so the rooms' readers find a student where
+ * their school token stands; the hall is read here, as the primary reads it (frisk.mjs `palmHall`, `palmHallToken`).
+ * `{ room, others }` or null.
+ */
+function palmPlace(actor) {
+    const hall = TRIAL.palmHallIsOneRoom && palmInTrial() ? trialScene() : null;
+    if (!hall) {
+        const room = roomOfActor(actor);
+        return room ? { room, others: () => othersInRoom(actor) } : null;
+    }
+    const shown = Array.from(hall.tokens ?? []).filter(t => !hiddenByGm(t));
+    if (!shown.some(t => t.actorId === actor.id)) return null;
+    const others = () => [...new Set(shown.filter(t => t.actorId && t.actorId !== actor.id).map(t => t.actor).filter(Boolean))];
+    return { room: hall.name ?? "-", others };
+}
+
 /** Who `actor` could reach: the characters standing here that this browser draws (`othersInRoom`, mask-gm.mjs `seenHere`). */
 function palmTargets(actor) {
-    return seenHere(othersInRoom(actor)).filter(a => a?.type === "character");
+    return seenHere(palmPlace(actor)?.others() ?? []).filter(a => a?.type === "character");
+}
+
+/** What Palm costs here: in a Class Trial its chain (`payPrice`, a receipt of its step), else its action as before. */
+export async function payPalm(actor, cost) {
+    if (cost <= 0) return null;
+    if (palmInTrial()) return payPrice(actor, "palm");
+    const paid = await spendAction(actor, cost);
+    if (cost > 0 && !paid) return null;
+    return paid;
+}
+
+/** A Palm's payment handed back by its receipt: the chain's by `refundPrice` (it says what came back), an action by `abort`. */
+async function givePalmBack(actor, paid) {
+    if (paid?.key === "palm") return void await refundPrice(actor, paid);
+    await abort(actor, paid);
+    if (paid) ui.notifications.info(game.i18n.localize("DRPG.Frisk.actionBack"));
+}
+
+/**
+ * A Palm's payment handed back with no word of the action's (frisk.mjs's own roads say theirs, E129 S0-PALM): the chain's
+ * by `refundPrice`, which says what came back, an action by `abort`. Answers whether the receipt was the chain's.
+ */
+export async function refundPalm(actor, paid) {
+    if (paid?.key === "palm") {
+        await refundPrice(actor, paid);
+        return true;
+    }
+    await abort(actor, paid);
+    return false;
 }
 
 export async function performPalm(actor, def, options) {
     const cost = options.free ? 0 : def.cost;
-    if (!canAfford(actor, cost)) return null;
+    // In a Class Trial the chain's quote: an action, else Hope, else Sanity (E129 S0-PALM); elsewhere the action alone.
+    if (cost > 0 && palmInTrial()) {
+        const quote = quotePrice(actor, "palm");
+        if (quote.blocked) {
+            ui.notifications.warn(quote.blocked);
+            return null;
+        }
+    } else if (!canAfford(actor, cost)) return null;
 
-    const room = roomOfActor(actor);
+    const room = palmPlace(actor)?.room ?? null;
     if (!room) {
         ui.notifications.warn(game.i18n.localize("DRPG.Action.noRoom"));
         return null;
@@ -329,7 +415,13 @@ export async function performPalm(actor, def, options) {
     const victim = game.actors.get(picked.form?.querySelector("[name=who]")?.value ?? "");
     if (!victim) return null;
 
-    // A Frisk pays, throws and asks the GM on its own road (E80 part 2 C2, frisk.mjs).
+    // In a Class Trial Palm only frisks (E129 S0-PALM; the owner, 23.11.2026): a Steal or a Plant waits for the trial's end
+    // (the window greys both rows, this holds a console's pick; the primary refuses it too, frisk.mjs `personActionRefusal`).
+    if (picked.value !== "frisk" && palmInTrial()) {
+        ui.notifications.warn(game.i18n.localize("DRPG.Steal.notInTrial"));
+        return null;
+    }
+    // A Frisk pays, throws and asks the GM on its own road (E80 part 2 C2, frisk.mjs), in a Class Trial by Palm's chain.
     if (picked.value === "frisk") {
         const { performFrisk } = await import("./frisk.mjs");
         return performFrisk(actor, def, victim, friskModeOf(picked.form), { cost, room });
@@ -344,7 +436,7 @@ export async function performPalm(actor, def, options) {
     // Paid before the first roll, like Sabotage and for the same reason: these
     // rolls grant Hope and feed the Despair pool, and a cancel afterwards with
     // nothing charged is a resource generator.
-    const paid = cost > 0 ? await spendAction(actor, cost) : null;
+    const paid = await payPalm(actor, cost);
     if (cost > 0 && !paid) return null;
 
     const unseen = def.unseen;
@@ -356,11 +448,12 @@ export async function performPalm(actor, def, options) {
      * is told as the action's own key. A supporting roll all the same: nothing remembers it (`remember: false`).
      */
     // Each window named "Palm - Shadow, beat 15" by its part (`palmTitle`, E51 C1), its number the one judged below.
-    const shadow = await rollTrait(actor, unseen.trait, {
+    // While hidden it is not thrown and passes (S0-HIDE, hide.mjs `coverWhileHidden`); the card says so (`withCover`).
+    const shadow = coverWhileHidden(actor) ?? await rollTrait(actor, unseen.trait, {
         remember: false, actionKey: "palm", title: palmTitle(planting ? "plantUnseen" : "unseen", def), titled: true,
         dc: planting ? (def.plant?.unseen ?? unseen.threshold) : unseen.threshold
     });
-    if (!shadow) return abort(actor, paid);
+    if (!shadow) return void await givePalmBack(actor, paid);
 
     const hand = await rollTrait(actor, def.traits[0], {
         actionKey: "steal", title: palmTitle(planting ? "plant" : "hand", def), titled: true,
@@ -416,7 +509,7 @@ export async function performPalm(actor, def, options) {
      * One the gate refused on its second asking, inside the move after the rolls were read, comes back as nothing carried
      * out (`refused`, palm.mjs `stealFromPerson`) and stays paid, as Q3 reads (E14 fix e1-G4; the review's E14R-07).
      */
-    await handBackIfRefusedBeforeRolls(actor, paid, { ok: res.ok, refused: res.refused, reason: res.reason, value: res.value });
+    await handBackIfRefusedBeforeRolls(actor, paid, { ok: res.ok, refused: res.refused, reason: res.reason, value: res.value }, [shadow, hand]);
 
     // What Reroll would have to unpick, and the honest answer is that it cannot
     // - see `case "steal"` in reroll.mjs. Recorded anyway so the branch there
@@ -445,8 +538,10 @@ export async function performPalm(actor, def, options) {
         success,
         seen,
         target: victim.name,
+        // The cover's line on the card (E129 S0-CARDS): it earns no Hope (action-report.mjs `rollEffectLines`).
+        supportRolls: [shadow],
         // "Sent" only when it was (E31), as for a plant - and a GM's own refused Palm settles as done with `{ refused }` (fix e1-G4).
-        text: res.ok && !res.value?.refused ? game.i18n.format("DRPG.Steal.sent", { name: victim.name }) : ""
+        text: withCover(res.ok && !res.value?.refused ? game.i18n.format("DRPG.Steal.sent", { name: victim.name }) + paidSaid(paid) : "", shadow)
     };
 
     await report(actor, def, hand, outcome);
@@ -598,7 +693,8 @@ export function pocketsFrom(items, { undecided = null } = {}) {
  */
 async function tellPalmVictim(victim, html, { body = false } = {}) {
     const card = { veiled: true, flags: { [MODULE_ID]: { sfx: "stolen" } } };
-    return body ? whisperToGms(html, card) : whisperToOwner(victim, html, card);
+    // a living victim's card in the middle of their screen (notice-centre.mjs "doneToYou", 1.2.127); a body's stays the GMs'
+    return body ? whisperToGms(html, card) : whisperToOwner(victim, html, withCentre(card, "doneToYou"));
 }
 
 /**
@@ -761,7 +857,7 @@ export async function stealFromPerson({
             : "DRPG.Steal.cardMissed",
         { item: esc(item?.name ?? ""), who: esc(victim.name) }
     )}</p><p><small>${game.i18n.localize(seen
-        ? "DRPG.Steal.cardSeen" : "DRPG.Steal.cardUnseen")}</small></p>`);
+        ? "DRPG.Steal.cardSeen" : "DRPG.Steal.cardUnseen")}</small></p>`, withCentre());
 
     /*
      * THE VICTIM, AND ONLY WHEN THEY NOTICED - and, since privacy line 2 (#7), the room with them (below).
@@ -937,7 +1033,7 @@ export async function plantOnPerson({
             : "DRPG.Steal.cardPlantMissed",
         { item: esc(item.name), who: esc(victim.name) }
     )}</p><p><small>${game.i18n.localize(handsFull ? "DRPG.Steal.cardUnfelt"
-        : seen ? "DRPG.Steal.cardSeen" : "DRPG.Steal.cardUnseen")}</small></p>`);
+        : seen ? "DRPG.Steal.cardSeen" : "DRPG.Steal.cardUnseen")}</small></p>`, withCentre());
     // FULL POCKETS: NO "THEY NOTICED" (E35 fix e1-G3; the review's E35-R1). A missed Shadow roll into full pockets told
     // the planter "They noticed." while D42 tells the victim nothing - the planter played a scene of being caught that
     // the victim's player knew nothing of (E35-T6's seen rows, at 78457d7: the card read "... It stays with you.They

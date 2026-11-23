@@ -327,6 +327,10 @@
         "name": "Przejście między pokojami kosztuje Move",
         "hint": "Ruch w pokoju jest darmowy. Pierwsze przejście o danej porze dnia zużywa Free Move, kolejne kosztują akcję albo przejście kupione Callem Sprint. Wyłączone: ruch rozliczasz ręcznie."
       },
+      "trialVoicesFree": {
+        "name": "Class Trial: bez wymuszonego wyciszania",
+        "hint": "Gdy włączone, Class Trial nigdy nie wyłącza graczowi mikrofonu, niezależnie od tego, kto ma głos, także zmarłym. Wyłączone: tryby wyciszają jak zwykle."
+      },
       "despairFromRolls": {
         "name": "Rzuty dają Despair",
         "hint": "Rzut zakończony Despair zasila pulę Monokumy tego ucznia. Każdego ucznia przypisz do Monokumy w Despair Flow w panelu GM-a."
@@ -354,6 +358,10 @@
       "pixelFont": {
         "name": "Czcionka pikselowa",
         "hint": "Tylko Monokuma Legacy: krój pikselowy na HUD-zie, zakładkach, imionach i etykietach. Długi tekst zostaje w zwykłym kroju. Dotyczy tylko tej przeglądarki."
+      },
+      "tokenCaptions": {
+        "name": "Nazwy tokenów jako podpisy",
+        "hint": "Nazwa każdego tokenu stoi pod nim, o ile możesz ją znać. Wyłączone: nazwa pokazuje się, gdy kursor zatrzyma się na tokenie. Dotyczy tylko tej przeglądarki."
       },
       "wideProjectWindows": {
         "name": "Szerokie okna projektów",
@@ -413,7 +421,7 @@
       },
       "uiScale": {
         "name": "Skala interfejsu",
-        "hint": "Wielkość okien i napisów modułu, a z nimi elementów Foundry i arkusza postaci, od 25% do 140%. Mapy nie skaluje. Dotyczy tylko tej przeglądarki."
+        "hint": "Wielkość okien i napisów modułu, a z nimi elementów Foundry i arkusza postaci, od 25% do 140%. Mapy nie skaluje, ale nazwy przy tokenach skalują się razem z interfejsem. Dotyczy tylko tej przeglądarki."
       },
       "debug": {
         "name": "Szczegółowe logi w konsoli",
@@ -522,15 +530,35 @@
     },
     "Mask": {
       "askTitle": "Zostać w ukryciu?",
-      "ask": "Otwarcie udało się z Hope albo przy krytyku, więc jesteś w ukryciu: inni gracze widzą twoje tokeny jako „?”, twój mikrofon jest wyłączony i nie słyszysz rozmów. Ukrycie trwa do następnej pory dnia, chyba że wcześniej się ujawnisz; nie przerywa go też koniec incydentu.",
+      "ask": "Otwarcie udało się z Hope albo przy krytyku, więc jesteś w ukryciu: inni gracze widzą twoje tokeny jako „?”, twój mikrofon jest wyłączony i nie słyszysz rozmów. Ukrycie trwa do końca morderstwa, do twojego wyjścia z pokoju morderstwa albo do następnej pory dnia, chyba że wcześniej się ujawnisz.",
       "reveal": "Ujawnij się",
       "stay": "Zostań w ukryciu",
       "card": "Jesteś w ukryciu: inni gracze widzą twoje tokeny jako „?”, twój mikrofon jest wyłączony i nie słyszysz rozmów. Ukrycie trwa do następnej pory dnia, także po końcu incydentu. Wcześniej możesz się ujawnić przyciskiem „Ujawnij się” na swoim kafelku głosu.",
       "ended": "Zaczęła się nowa pora dnia i nie jesteś już w ukryciu: twoje tokeny wyglądają jak wcześniej, a ty znowu mówisz i słyszysz rozmowy.",
+      "endedIncident": "Morderstwo się skończyło, więc nie jesteś już w ukryciu: twoje tokeny wyglądają jak wcześniej, a ty znowu mówisz i słyszysz rozmowy.",
+      "endedLeftRoom": "Po wyjściu z pokoju morderstwa nie jesteś już w ukryciu: twoje tokeny wyglądają jak wcześniej, a ty znowu mówisz i słyszysz rozmowy.",
       "tokenFailed": "Nie udało się nałożyć maski na token postaci {name}: inni gracze mogą widzieć jej prawdziwy obrazek. Konsola mówi dlaczego."
     },
     "Veil": {
       "card": "Do twojego rzutu otwarcia inni gracze nie widzą twoich tokenów, a twój mikrofon jest wyłączony; nadal słyszysz rozmowy."
+    },
+    "Hide": {
+      "hidden": "Jesteś w ukryciu: inni gracze nie widzą twojego tokenu, a twój mikrofon jest wyłączony; nadal słyszysz rozmowy. Ukrycie trwa do końca pory dnia; żeby wyjść z niego wcześniej, naciśnij „Ujawnij się” na swoim kafelku głosu.",
+      "notHidden": "Nie udaje ci się schować.",
+      "already": "Już jesteś w ukryciu.",
+      "notInTrial": "W czasie Class Trial nie można się schować.",
+      "coverSkipped": "Jesteś w ukryciu, więc rzut Shadow na pozostanie niezauważonym liczy się jako udany.",
+      "reveal": "Ujawnij się",
+      "gmTitle": "W ukryciu",
+      "gmLine": "{name}: w ukryciu.",
+      "gmReveal": "Ujawnij",
+      "gmRevealTooltip": "Zakończ ukrycie postaci {name}: wszyscy znów widzą jej token, a mikrofon znów działa.",
+      "ended": {
+        "gm": "GM kończy twoje ukrycie: inni gracze znów widzą twój token, a twój mikrofon znów działa.",
+        "chapter": "Rozdział się skończył, a z nim twoje ukrycie: inni gracze znów widzą twój token, a twój mikrofon znów działa.",
+        "reroll": "Po Rerollu GM-a nie jesteś już w ukryciu: inni gracze znów widzą twój token, a twój mikrofon znów działa.",
+        "timeOfDay": "Nie jesteś już w ukryciu: skończyła się pora dnia ({time}). Inni gracze znów widzą twój token, a twój mikrofon znów działa."
+      }
     },
     "Listen": {
       "prompt": "Jesteś w pokoju {room}. Który sąsiedni pokój chcesz podsłuchać?",
@@ -950,6 +978,16 @@
       "close": "Zamknij",
       "toggle": "Otwórz lub zamknij narzędzia Foundry"
     },
+    "Result": {
+      "hope": { "one": "Z Hope: dostajesz {n} Hope.", "few": "Z Hope: dostajesz {n} Hope.", "many": "Z Hope: dostajesz {n} Hope.", "other": "Z Hope: dostajesz {n} Hope." },
+      "critical": { "one": "Krytyk: dostajesz {n} Hope. Inaczej niż w czystym Daggerheart nie przywraca Sanity.", "few": "Krytyk: dostajesz {n} Hope. Inaczej niż w czystym Daggerheart nie przywraca Sanity.", "many": "Krytyk: dostajesz {n} Hope. Inaczej niż w czystym Daggerheart nie przywraca Sanity.", "other": "Krytyk: dostajesz {n} Hope. Inaczej niż w czystym Daggerheart nie przywraca Sanity." },
+      "despair": "Z Despair: nie dostajesz Hope, a punkt Despair z tego rzutu trafia do puli Monokumy, który cię pilnuje.",
+      "support": "Rzut na {trait} tylko wspiera akcję, więc nie daje Hope.",
+      "supportDespair": "Jego punkt Despair i tak trafia do puli Monokumy, który cię pilnuje.",
+      "supportBare": "Ten rzut tylko wspiera akcję, więc nie daje Hope.",
+      "coverCritical": { "one": "Krytyk w tym rzucie: jeśli próba, którą ukrywa, dojdzie do skutku, {n} Sanity wróci razem z jej wynikiem.", "few": "Krytyk w tym rzucie: jeśli próba, którą ukrywa, dojdzie do skutku, {n} Sanity wróci razem z jej wynikiem.", "many": "Krytyk w tym rzucie: jeśli próba, którą ukrywa, dojdzie do skutku, {n} Sanity wróci razem z jej wynikiem.", "other": "Krytyk w tym rzucie: jeśli próba, którą ukrywa, dojdzie do skutku, {n} Sanity wróci razem z jej wynikiem." },
+      "givenBack": "{what} wraca do ciebie, bo akcja nie doszła do skutku."
+    },
     "Action": {
       "murderConfirmEclipse": "Zgłoszenie od razu trafia do GM-ów: zatwierdzą je z wybraną statystyką albo odmówią, a o odmowie się dowiesz. Zabójstwo musisz wcześniej uzgodnić z GM-em i z graczem ofiary.",
       "beat": "przebij {n}",
@@ -977,6 +1015,7 @@
       "reliefFresh": "o {n}, bo ciała nikt jeszcze nie znalazł",
       "dcFrame": "Misleading Trail: {n}+.",
       "spentAfterRoll": "{action}: pierwszy rzut już padł, więc akcja przepada.",
+      "keptAfterRoll": "Rzut dał ci już Hope, więc zapłata za tę akcję przepada.",
       "dynamicRefused": "GM odrzuca twoją Dynamic Action. Nie tracisz akcji.",
       "panelTitle": "Akcje",
       "unknown": "Nieznana akcja: {key}.",
@@ -1497,22 +1536,22 @@
       "noSet": "Wybierz zestaw Logic Dive.",
       "noCount": "Nie ma czego liczyć: „Policz teraz” działa tylko podczas głosowania.",
       "noQuestionHere": "„Pomiń pytanie” działa tylko w Logic Dive.",
-      "noSide": "Wybierz Strefę A albo Strefę B.",
+      "noSide": "Wybierz jedną z dwóch odpowiedzi.",
       "samePick": "Ta strona jest już wybrana.",
       "noThesis": "Tezę można podać tylko w turze Scrum Debate i musi mieć kilka słów.",
       "notStarted": "Tryb się nie zaczął. Sprawdź, czy obie odpowiedzi są wpisane, a w Logic Dive, czy wybrano zestaw i czy pytanie ma treść.",
       "straw": {
-        "opened": "{question} Kto wybiera „{a}”, staje w Strefie A, a kto „{b}”, w Strefie B. Liczenie za {seconds} s.",
-        "openedBare": "Kto wybiera „{a}”, staje w Strefie A, a kto „{b}”, w Strefie B. Liczenie za {seconds} s.",
-        "finding": "Klasa uważa: {answer}. W Strefie A policzono {a}, w Strefie B {b}.",
-        "split": "Klasa jest podzielona. W Strefie A policzono {a}, w Strefie B {b}. Scrum Debate może to rozstrzygnąć."
+        "opened": "{question} Uczniowie stają w strefie „{a}” albo w strefie „{b}”. Liczenie za {seconds} s.",
+        "openedBare": "Uczniowie stają w strefie „{a}” albo w strefie „{b}”. Liczenie za {seconds} s.",
+        "finding": "Klasa uważa: {answer}. Policzono {na} za „{a}” i {nb} za „{b}”.",
+        "split": "Klasa jest podzielona: {na} za „{a}”, {nb} za „{b}”. Scrum Debate może to rozstrzygnąć."
       },
       "dive": {
-        "opened": "Pytanie {n} z {total}: {question} Kto wybiera „{a}”, staje w Strefie A, a kto „{b}”, w Strefie B. Na wybór jest {seconds} s.",
-        "openedBare": "Pytanie {n} z {total}. Kto wybiera „{a}”, staje w Strefie A, a kto „{b}”, w Strefie B. Na wybór jest {seconds} s.",
-        "right": "Dobra odpowiedź. W Strefie A policzono {a}, w Strefie B {b}.",
-        "wrong": "Zła odpowiedź. W Strefie A policzono {a}, w Strefie B {b}. Logic Dive kończy się tutaj.",
-        "tie": "Remis. W Strefie A policzono {a}, w Strefie B {b}. Remis liczy się jako zła odpowiedź, więc Logic Dive kończy się tutaj.",
+        "opened": "Pytanie {n} z {total}: {question} Uczniowie stają w strefie „{a}” albo w strefie „{b}”. Na wybór jest {seconds} s.",
+        "openedBare": "Pytanie {n} z {total}. Uczniowie stają w strefie „{a}” albo w strefie „{b}”. Na wybór jest {seconds} s.",
+        "right": "Dobra odpowiedź. Za „{a}” policzono {na}, za „{b}” {nb}.",
+        "wrong": "Zła odpowiedź. Za „{a}” policzono {na}, za „{b}” {nb}. Logic Dive kończy się tutaj.",
+        "tie": "Remis, {na} do {nb}. Remis liczy się jako zła odpowiedź, więc Logic Dive kończy się tutaj.",
         "solved": "Logic Dive rozwiązany: {finding}",
         "skipped": "GM pomija pytanie {n}.",
         "replay": "Ten zestaw już był grany: skończył się {when} ({outcome}). Gracze mogą go pamiętać.",
@@ -1550,19 +1589,19 @@
         }
       },
       "scrum": {
-        "opened": "{question} Uczniowie wybierają stronę: kto jest za „{a}”, staje w Strefie A, a kto za „{b}”, w Strefie B. Obozy naradzą się za {seconds} s.",
-        "openedBare": "Uczniowie wybierają stronę: kto jest za „{a}”, staje w Strefie A, a kto za „{b}”, w Strefie B. Obozy naradzą się za {seconds} s.",
-        "confer": "Strony wybrane. W Strefie A policzono {a}, w Strefie B {b}. Każdy obóz naradza się teraz osobno przez {seconds} s, a potem zaczyna się debata.",
+        "opened": "{question} Uczniowie wybierają stronę: strefę „{a}” albo strefę „{b}”. Obozy naradzą się za {seconds} s.",
+        "openedBare": "Uczniowie wybierają stronę: strefę „{a}” albo strefę „{b}”. Obozy naradzą się za {seconds} s.",
+        "confer": "Strony wybrane: {na} za „{a}”, {nb} za „{b}”. Każdy obóz naradza się teraz osobno przez {seconds} s, a potem zaczyna się debata.",
         "noVoice": "Głosy obozów nie są rozdzielone: ustawienie „Głos osobno w każdym pokoju” jest wyłączone albo LiveKit nie działa. Obozy naradzają się tak, jak pozwala stół.",
-        "begins": "Pierwsza mówi Strefa {zone}. Obozy mówią na zmianę po {seconds} s, a tura {turns} jest ostatnia.",
-        "over": "Scrum Debate dobiegła końca. W Strefie A policzono {a}, w Strefie B {b}.",
-        "empty": "Strefa {zone} jest pusta. Klasa uważa: {answer}.",
-        "noSpeaker": "W Strefie {zone} nikt nie stoi, więc ta tura mija bez mówcy.",
-        "thesis": "Teza Strefy {zone}: {text}"
+        "begins": "Pierwszy mówi obóz za „{answer}”. Obozy mówią na zmianę po {seconds} s, a tura {turns} jest ostatnia.",
+        "over": "Scrum Debate dobiegła końca: {na} za „{a}”, {nb} za „{b}”.",
+        "empty": "Nikt nie stoi za „{empty}”. Klasa uważa: {answer}.",
+        "noSpeaker": "Nikt nie stoi za „{answer}”, więc ta tura mija bez mówcy.",
+        "thesis": "Teza za „{answer}”: {text}"
       },
       "panel": {
         "nobody": "nikt",
-        "counted": "Policzono: Strefa A {a}, Strefa B {b}.",
+        "counted": "Policzono: {na} za „{a}”, {nb} za „{b}”.",
         "outside": "Poza strefami: {names}.",
         "thesis": "Teza: {text}",
         "straw": {
@@ -1575,13 +1614,13 @@
         "scrum": {
           "setup": "Strony: obozy się ustawiają jeszcze przez {seconds} s.",
           "confer": "Narada obozów: każdy obóz naradza się w swoim pokoju głosowym jeszcze przez {seconds} s.",
-          "speak": "Tura {turn} z {turns}: {who} mówi za Strefę {zone} jeszcze przez {seconds} s."
+          "speak": "Tura {turn} z {turns}: {who} mówi za „{answer}” jeszcze przez {seconds} s."
         }
       },
       "confer": {
         "name": "Narada obozów",
-        "mine": "Naradzasz się ze Strefą {zone}.",
-        "apart": "Strefa A i Strefa B naradzają się osobno.",
+        "mine": "Naradzasz się z obozem za „{answer}”.",
+        "apart": "Oba obozy naradzają się osobno.",
         "none": "Nie jesteś w żadnym obozie: zostajesz w głosie sali rozpraw.",
         "sidesSet": "Strony wybrane",
         "conferOver": "Zakończ naradę"
@@ -1605,8 +1644,8 @@
       },
       "pick": {
         "body": "Nie masz tokenu w sali rozpraw. Wybierz stronę, po której stoisz.",
-        "side": "{zone}: {answer}",
-        "done": "Twoja strona to {zone}.",
+        "side": "{answer}",
+        "done": "Twoja strona to „{answer}”.",
         "dismissed": "Nie stoisz w żadnej strefie. To okno wróci za {seconds} s."
       },
       "findings": {
@@ -1709,7 +1748,7 @@
         "zones": "Głos ma tryb stref: każdy odpowiada tym, gdzie stoi jego token. Policz teraz i Pomiń na pasku przyspieszają liczenie; Zakończ ten tryb go kończy.",
         "scrum": "Straw Poll podzieliła klasę. Scrum Debate ze Stref sali pozwoli obu obozom to rozstrzygnąć; debata i głosowanie nadal są dostępne."
       },
-      "objectionNote": "Objection nie uruchamiasz z konsoli: zgłasza je gracz przyciskiem OBJECTION!, a minuta rusza, gdy jego Truth Bullet trafi na stół.",
+      "objectionNote": "Objection nie uruchamiasz z konsoli: zgłasza je gracz przyciskiem OBJECTION!, a jego czas rusza, gdy jego Truth Bullet trafi na stół.",
       "manageTrial": "Class Trial",
       "mode": {
         "debate": "Nonstop Debate",
@@ -1752,6 +1791,8 @@
       },
       "gmStepTitle": "GM wkracza",
       "turnSkipped": "GM pomija turę postaci {name}.",
+      "turnFinished": "{name} kończy swoje Objection przed czasem.",
+      "finishedGm": "Gracz postaci {name} kończy jej Objection przed czasem, tak jak zrobiłby to twój Pomiń.",
       "modeEnded": "GM kończy tryb {mode}.",
       "gmNoteAdjust": "GM: {seconds} s",
       "gmNoteBack": "GM: powrót do debaty",
@@ -1962,15 +2003,15 @@
       "trialLastTurn": "Ostatnia tura",
       "trialZone": {
         "straw": {
-          "vote": "Stań w Strefie A albo w Strefie B"
+          "vote": "Stań w strefie swojej odpowiedzi"
         },
         "dive": {
           "vote": "Pytanie {n} z {total}: stań w strefie swojej odpowiedzi",
           "pause": "Pytanie {n} z {total} policzone"
         },
         "scrum": {
-          "setup": "Obozy ustawiają się w Strefie A i w Strefie B",
-          "speak": "Tura {turn} z {turns}, za Strefę {zone}"
+          "setup": "Obozy ustawiają się, każdy przy swojej odpowiedzi",
+          "speak": "Tura {turn} z {turns}, za „{answer}”"
         }
       },
       "waitingFor": "W incydencie ruch ma teraz {name}",
@@ -2081,6 +2122,10 @@
         "thesisTooltip": "Widoczna pod pytaniem, gdy obozy się spierają",
         "thesisLineTooltip": "Jedno krótkie zdanie za twoją strefą, widoczne dla całego stołu",
         "thesisPostTooltip": "Kładzie twoją tezę na stół jako kartę; twoja tura trwa dalej",
+        "finishKeepTooltip": "Zamyka to okno; twoje Objection trwa według zegara",
+        "finishDoneTooltip": "Kończy teraz czas twojego Objection; zaczyna się rebuttal",
+        "confirmEndTooltip": "Kończy teraz twoją turę; głos przechodzi dalej",
+        "confirmKeepTooltip": "Zamyka to okno; twoja tura trwa według zegara",
         "setTooltip": "Zestaw Logic Dive do zagrania. Liczba to liczba jego pytań.",
         "editTooltip": "Zmienia treść. Stół dostaje wiadomość, co było i co jest teraz.",
         "deleteTooltip": "Od razu usuwa Finding z listy i mówi o tym stołowi",
@@ -2408,6 +2453,8 @@
           "overviewFoldTooltip": "Rozwija Sprawdź spójność ze znalezionymi problemami i formularz Final Truth Remnantu tego rozdziału",
           "fitViewTooltip": "Wyśrodkowuje mapę i skaluje ją tak, by widać było całą sprawę. Zmienia się tylko twój widok",
           "realizeRoomTooltip": "Pokój, w którym Uruchom realizację postawi Key Remnant z tego miejsca, z trudnością i treścią z planu",
+          "realizeKeysTooltip": "Stawia tylko te sloty Key Remnantów, którym wybrano niżej pokój, jak dotąd",
+          "realizeAllTooltip": "Stawia też w wybranym pokoju każdy zaplanowany Remnant i Final Truth, którego nie ma na mapie, i daje odbiorcy każdy zaplanowany Truth Bullet, którego jeszcze nie dano",
           "tieTooltip": "Powiązany przetrwa czyszczenie Faint Remnantów. Jeśli nie zdecydujesz, trwający incydent może go powiązać po pokoju lub po tym, kto go zostawił",
           "orderTooltip": "Wg pokoju stawia na początku powiązane Remnanty, potem sortuje po pokojach; Od najnowszych idzie po rozdziale, dniu i porze dnia",
           "restsOnBoxTooltip": "Zaznaczone: Mapa rysuje połączenie z tamtego węzła do tego, a Sprawdź spójność je uwzględnia",
@@ -2571,7 +2618,7 @@
       "notOpen": "Żadne głosowanie nie jest otwarte.",
       "nobodyVoted": "Żadna karta nie wróciła, więc głosowanie kończy się bez oskarżenia.",
       "ballotTitle": "Kto to zrobił?",
-      "ballotIntro": "Zagłosuj na tego, kto twoim zdaniem jest Blackened. Możesz głosować na siebie, na Monokumę i na zmarłych.",
+      "ballotIntro": "Zagłosuj na tego, kto twoim zdaniem jest Blackened. Możesz głosować na siebie, na każdego Monokumę z osobna i na zmarłych.",
       "ballotNote": "Twój głos trafia tylko do GM-ów. Stół widzi wyłącznie sumy.",
       "who": "Twój głos",
       "cast": "Oddaj głos",
@@ -3565,7 +3612,7 @@
       "deadPanelNote": "Zmarli nie wykonują akcji i nie wydają Hope. Przywrócony jako Monocub, ten panel pokazuje Confusion i pozostałe kafelki Monocuba.",
       "deadCannotAct": "{name} nie żyje i nie może wykonywać akcji.",
       "deadUnfound": "Nie żyje, ciała nie znaleziono",
-      "keepSecretUntilFound": "Zachowaj śmierć dla GM-ów, dopóki ktoś nie znajdzie ciała: bez flagi, bez znacznika, a Truth Bullets tej postaci zostają do tego czasu",
+      "keepSecretUntilFound": "Zachowaj śmierć dla GM-ów, dopóki ktoś nie znajdzie ciała: uczeń nie zostaje oznaczony jako zmarły, a Truth Bullets tej postaci zostają do tego czasu",
       "keptUntilFound": "GM-owie zachowują tę śmierć dla siebie, dopóki ktoś nie znajdzie ciała albo GM nie ujawni jej w oknie Uczniowie. Stół jeszcze nic nie widzi: nie ma znacznika, a Truth Bullets tej postaci są wciąż na arkuszu.",
       "nobodyFoundYou": "Nikt jeszcze nie znalazł twojego ciała.",
       "youFoundBody": "W pokoju {room} znajdujesz ciało postaci {name}. Nikt inny go jeszcze nie widział i na razie nic nie jest ogłaszane.",
@@ -3869,6 +3916,11 @@
       "objectionOutside": "Objection możesz wnieść tylko podczas Class Trial.",
       "objectionNoneInMode": "W trybie {mode} nie można wnosić Objection.",
       "objectionSpeakerOnly": "W trybie {mode} Objection można zgłosić tylko wobec osoby, która mówi.",
+      "finish": {
+        "title": "Zakończyć turę teraz?",
+        "body": "W twoim Objection głos masz tylko ty. Pozostały czas: {seconds} s. Gdy zakończysz teraz, zaczyna się rebuttal.",
+        "yes": "Zakończ turę"
+      },
       "turn": {
         "title": "Twoja tura ({seconds} s)",
         "body": "{mode}: masz głos. Naciśnij Gotowe, gdy skończysz, albo Pasuję, jeśli rezygnujesz z tury.",
@@ -3882,7 +3934,10 @@
         "closingPassEarly": "Pasuję w pierwszych {seconds} s oddaje wybór GM-owi; potem kończy Closing Argument.",
         "closingPass": "Pasuję kończy Closing Argument, tak jak Gotowe.",
         "left": "Pozostały czas: {seconds} s.",
-        "keepNote": "Mówię dalej chowa to okno. Wróci za {seconds} s, z Gotowe i Pasuję."
+        "keepNote": "Mówię dalej chowa to okno. Wróci za {seconds} s, z Gotowe i Pasuję.",
+        "confirmTitle": "Zakończyć turę teraz?",
+        "confirmBody": "Pozostały czas: {seconds} s. Gdy zakończysz teraz, głos przechodzi dalej.",
+        "confirmYes": "Zakończ moją turę"
       },
       "claim": {
         "body": "Podsumujesz sprawę w Closing Argument? Na zgłoszenie masz {seconds} s. Potem jedna zgłoszona osoba zostaje wylosowana, a GM ją zatwierdza albo wybiera kogoś innego.",
@@ -3907,7 +3962,9 @@
       "giveIntro": "Jesteś w pokoju {room}. Komu przekazujesz przedmiot „{name}”?",
       "who": "Komu?",
       "shareKeyNote": "Odbiorca dostaje własną kopię klucza, a ty zachowujesz swoją. Nie wydajesz akcji.",
-      "shareNote": "Odbiorca dostaje własną kopię, a ty zachowujesz swoją. Kopia Truth Bulletu przychodzi z twoją analizą, jeśli się udała; nieudana analiza na nią nie przechodzi, więc odbiorca może przeanalizować kopię sam. Nie wydajesz akcji.",
+      "shareNote": "Odbiorca dostaje własną kopię, a ty zachowujesz swoją. Kopia Truth Bulletu przychodzi z twoją analizą, jeśli się udała; nieudana analiza na nią nie przechodzi, więc odbiorca może przeanalizować kopię sam. Kopia niesie słowa takie, jakie masz, nawet jeśli Remnant przerobiono po tym, jak go znalazłeś. Nie wydajesz akcji.",
+      "shareWithAnalysis": "Podziel się kopią z wynikiem mojego Analyze",
+      "shareWithoutNote": "Jeśli odznaczysz to pole, kopia odbiorcy pokaże ten Truth Bullet tak, jakby nikt go nie analizował: bez odczytu i bez rodzaju ustalonego przez Analyze. Odbiorca może go przeanalizować sam.",
       "giveNote": "Przedmiot przechodzi do odbiorcy i znika z twojego ekwipunku; gdy masz kilka sztuk, przechodzi jedna. Jeśli odbiorca nosi już tyle rzeczy tej kategorii, ile może, przekazanie nie dochodzi do skutku i przedmiot zostaje u ciebie. Nie wydajesz akcji.",
       "pickedLeft": "Postaci {name} nie ma już w pokoju. Wybierz kogoś innego.",
       "nobodyHere": "W pokoju {room} nie ma nikogo poza tobą, więc nie masz komu niczego przekazać.",
@@ -3926,6 +3983,7 @@
       "changedMidwayKept": "Przedmiot „{name}” zmienił się na arkuszu postaci {from}, zanim trafił do postaci {to}: został zużyty, zepsuty, schowany do skrytki albo zniknął. Kopii nie dało się zabrać postaci {to}, więc przedmiotu jest o jedną sztukę za dużo. Usuń ją ręcznie z arkusza postaci {to}.",
       "alreadyHasIt": "Nic nie zmieniło właściciela; twój Truth Bullet zostaje u ciebie.",
       "shared": "{who} ma teraz kopię Truth Bulletu „{name}”.",
+      "sharedWithoutAnalysis": "{who} ma teraz kopię Truth Bulletu „{name}”, bez twojego wyniku Analyze.",
       "gave": "{who} ma teraz przedmiot „{name}”.",
       "gaveOne": {
         "one": "Dajesz postaci {who} jedną sztukę: „{name}”. Zostaje ci jeszcze jedna.",
@@ -3977,6 +4035,12 @@
       "describeTitle": "Znalezisko z Observe",
       "describeRecovered": "Znalezisko ucznia {actor} w pokoju {room} czekało na okno opisu, które zamknęło odświeżenie strony. Trafiło do niego pod nazwą domyślną, bez opisu: dopisz go w oknie Investigation.",
       "describeWaiting": "Znalezisko ucznia {actor} w pokoju {room} czeka na opis na ekranie GM-a {gm}.",
+      "describeHere": "Opisz tutaj",
+      "describeHereTooltip": "Otwiera tutaj okno tego znaleziska. Znalezisko dostaje opis napisany pierwszy, tutaj albo na ekranie drugiego GM-a.",
+      "describeConfirmTooltip": "Wysyła ten opis do znaleziska. Dostaje ono opis napisany pierwszy.",
+      "describeSent": "Twój opis trafił do znaleziska; wychodzi z nim.",
+      "describeByOther": "GM {gm} pierwszy opisał to znalezisko; twoje okno się zamknęło.",
+      "describeGone": "Remnant tego znaleziska albo jego uczeń już nie istnieje; nie ma czego opisać.",
       "describeTimedOut": "Nikt nie odpowiedział w porę na okno, więc znalezisko ucznia {actor} trafiło do niego pod nazwą „{name}”, bez opisu. Opis dopiszesz w oknie Investigation.",
       "describeTimedOutTyped": "Nikt nie nacisnął w porę przycisku okna, więc znalezisko ucznia {actor} trafiło do niego tak, jak je wpisano, pod nazwą „{name}”. Opis zmienisz w oknie Investigation.",
       "describeIntro": "{actor} coś znajduje w pokoju {room}. Nazwij to tak, jak nazwałaby to ta osoba, i powiedz, co widzi.",
@@ -4261,6 +4325,10 @@
         "keepWatch": {
           "label": "Keep Watch",
           "hint": "Rzuć Body przed Eclipse. Gdy Eclipse się zacznie, dowiesz się, kto jest w pokoju, w którym stoisz, potem kto wchodzi i kto wychodzi, a na koniec ile było wejść i wyjść."
+        },
+        "hide": {
+          "label": "Hide",
+          "hint": "Rzuć Shadow, żeby się schować: inni gracze przestają widzieć twój token, a twój mikrofon się wyłącza, dopóki nie ujawnisz się na swoim kafelku głosu albo nie skończy się pora dnia. W ukryciu rzut Shadow, którym akcja sprawdza, czy zostajesz niezauważony, liczy się jako udany."
         },
         "dash": {
           "label": "Dash",
@@ -4656,6 +4724,8 @@
       "role": "Widz",
       "deadWatcher": "Widz zmarłego ucznia",
       "deadWatcherRole": "{name} to Widz zmarłego ucznia. Znika, gdy uczeń zostanie wskrzeszony albo zostanie Monocubem.",
+      "deadGivenWatcher": "{name} nie żyje, więc gracz ogląda grę przez własnego Widza. Ciało zostaje tam, gdzie leży.",
+      "deadNoWatcher": "{name} nie żyje, ale Widz nie powstał: nikt nie gra tym uczniem.",
       "marked": "{name} jest teraz Widzem.",
       "unmarked": "{name} nie jest już Widzem.",
       "talk": "Porozmawiaj z Widzami",
@@ -5295,10 +5365,12 @@
         "listen.echoes": "Echoes",
         "mask.reveal": "Ujawnij się",
         "mask.veil": "Zasłona otwarcia, o którą GM prosi głównego GM-a",
+        "spectator.dead": "Widz zmarłego ucznia, o którego GM prosi głównego GM-a",
         "door.shut": "Shut the Door",
         "door.force": "Force the Door",
         "door.pick": "Pick the Lock",
         "watch.declare": "Keep Watch",
+        "hide.start": "Hide",
         "door.knock": "Ktoś przy drzwiach",
         "handover.bullet": "Udostępnienie Truth Bulletu",
         "handover.item": "Przekazanie przedmiotu",
@@ -5337,6 +5409,7 @@
         "remnant.tieForItem": "Powiązanie Remnantu ze zbrodnią",
         "observe.target": "Wybór celu Observe",
         "observe.pick": "Wybór Remnantu do Observe",
+        "observe.describe": "Opis znaleziska napisany przez innego GM-a, do okna głównego GM-a",
         "cleanup.traces": "Remnanty w zasięgu",
         "cleanup.ruling": "Decyzja GM-a o przekształconym Remnancie",
         "call.approve": "Zgoda na Hope Call",
@@ -5353,6 +5426,11 @@
         "roll.grant": "Decyzja o rzutach wykonanych bez GM-a",
         "audit.decide": "Decyzja GM-a o zgłoszonej zmianie na arkuszu",
         "keys.charge": "Opłata za Key Remnanty pobierana przy otwarciu Class Trial",
+        "body.discover": "Ogłoszenie ciała przez drugiego GM-a, u głównego GM-a",
+        "chapter.end": "Koniec rozdziału ogłoszony przez drugiego GM-a, u głównego GM-a",
+        "voice.reset": "Przycisk Napraw głos drugiego GM-a, wykonany u głównego GM-a",
+        "verdict.finish": "Dokończenie werdyktu przez drugiego GM-a, u głównego GM-a",
+        "murder.openingCard": "Karta lub komunikat rzutu otwarcia dla gracza, wysłane przez głównego GM-a",
         "trial.enter": "Ustawienie mikrofonów przy otwarciu lub zakończeniu Class Trial",
         "trial.record": "Zmiana zapisu przebiegu Class Trial",
         "reroll.ask": "Reroll",
@@ -5634,6 +5712,9 @@
       "rewindDuringEclipse": "Trwa Eclipse. Najpierw je zakończ.",
       "takenBack": "Początek tej pory dnia jest cofnięty: akcje, Free Move, to, co dały Sprint i Burst, Search Tokeny pokoi i pieczęcie wracają do stanu sprzed niego."
     },
+    "Context": {
+      "lost": "Przeglądarka gracza {name} utraciła kontekst rysowania ({scene})."
+    },
     "Panel": {
       "settings": "Ustawienia gry",
       "nextStartTrial": "Wszystkie zaplanowane Key Remnanty zostały znalezione. Rozpocznij Class Trial z konsoli trialu.",
@@ -5704,6 +5785,9 @@
       "character": "Postać",
       "freeMove": "Free Move",
       "noCharacters": "W tym świecie nie ma żywych uczniów.",
+      "moves": "Ruchy",
+      "anyRoom": "Dowolny pokój",
+      "rosterCaption": "Co każdemu uczniowi zostało o tej porze dnia",
       "installTables": "Utwórz tabele przedmiotów",
       "despairFlow": "Despair Flow",
       "sweepBullets": "Zbierz Truth Bullets",
@@ -6110,6 +6194,7 @@
         "other": "Podrzuć komuś do kieszeni jedną z {n} rzeczy, które nosisz; oba progi są niższe niż przy wyjmowaniu."
       },
       "nothingToPlant": "Nie nosisz niczego, co dałoby się komuś podrzucić.",
+      "notInTrial": "W rozprawie Palm tylko przeszukuje: wziąć albo zostawić coś można dopiero po Class Trial.",
       "whatToPlant": "Co zostawić",
       "whoPrompt": "Czyje kieszenie?",
       "plantSent": "Ocierasz się o postać {name}. Czy rzecz trafi do kieszeni i czy ta osoba coś poczuje, okaże się za chwilę.",
@@ -6250,6 +6335,9 @@
         "watchStands": "Po Rerollu: czuwania nie da się już ustalić, więc zostaje wynik pierwszego rzutu.",
         "watchKept": "Po Rerollu: czuwanie zostaje.",
         "watchNone": "Po Rerollu: bez czuwania.",
+        "hideEnded": "Po Rerollu: ukrycie się kończy.",
+        "hideNow": "Po Rerollu: postać jest teraz w ukryciu.",
+        "hideStands": "Po Rerollu: ukrycie zostaje bez zmian.",
         "facilityStands": "Po Rerollu: akcja w pokoju udała się za pierwszym razem i jej efekty zostają.",
         "facilityGone": "Po Rerollu: tej akcji w pokoju już tu nie ma, więc nic się nie zmienia.",
         "facilityMissed": "Po Rerollu: akcja w pokoju dalej się nie udaje.",
@@ -6501,12 +6589,23 @@
         "floorHeld": "Głos ma {name}: twój mikrofon pozostaje wyłączony, dopóki nie dostaniesz głosu albo tryb się nie skończy.",
         "floorHeldPair": "Głos mają {name} i {target}: twój mikrofon pozostaje wyłączony, dopóki nie dostaniesz głosu albo tryb się nie skończy.",
         "listening": "Słuchasz pod drzwiami: mikrofon jest wyłączony, dopóki nie przestaniesz.",
-        "masked": "Ukrywasz się za „?”: nie ma cię w głosie. Nikogo nie słyszysz i nikt nie słyszy ciebie, dopóki się nie ujawnisz albo nie zmieni się pora dnia.",
+        "masked": "Ukrywasz się za „?”: nie ma cię w głosie. Nikogo nie słyszysz i nikt nie słyszy ciebie, dopóki się nie ujawnisz, morderstwo się nie skończy, nie wyjdziesz z jego pokoju albo nie zmieni się pora dnia.",
+        "tokenHidden": "Twój token jest ukryty: mikrofon jest wyłączony, dopóki GM znów go nie pokaże.",
         "veiled": "Przed twoim rzutem otwarcia: mikrofon jest wyłączony, dopóki nie rzucisz.",
+        "hiding": "Jesteś w ukryciu: mikrofon zostaje wyłączony, dopóki się nie ujawnisz albo nie skończy się pora dnia.",
         "cubSpeak": "Dyskusja: możesz mówić.",
         "cubListen": "Tryb: {mode}. Słuchasz.",
         "cubVote": "Głosowanie: słuchasz.",
         "ownCase": "Słuchasz: to rozprawa w twojej sprawie."
+      },
+      "hearing": {
+          "mutedForMe": "wyciszone przez słuchającego (wyciszenie u siebie)",
+          "volumeZero": "głośność 0 na stronie słuchającego",
+          "notSubscribed": "mikrofon tej osoby nie jest odbierany",
+          "noElement": "na stronie nie ma odtwarzacza dźwięku tej osoby",
+          "elementPaused": "dźwięk tej osoby jest wstrzymany na stronie",
+          "elementMuted": "dźwięk tej osoby jest wyciszony na stronie",
+          "trackNotLive": "nie dociera żaden dźwięk tej osoby"
       },
       "list": {
         "open": "Kogo słyszysz",
@@ -6523,6 +6622,8 @@
         "unmuteFor": "Znów słuchaj: {name}",
         "hidden": "Ukryta wcześniej w doku kamer: nie słyszysz tej osoby.",
         "unhide": "Pokaż i słuchaj",
+        "mutedByYou": "Wyciszone przez ciebie",
+        "gap": "Nie słyszysz tej osoby: {why}. Jeśli to trwa, odśwież stronę (F5).",
         "gmBlock": "Zablokuj mikrofon: {name} (u wszystkich)",
         "gmUnblock": "Odblokuj mikrofon: {name}",
         "gmHeld": "Tego mikrofonu nie możesz teraz zablokować.",
@@ -6559,6 +6660,8 @@
           "listening": "podsłuchuje z pokoju {from} pod drzwiami pokoju {into}",
           "masked": "za „?” po otwarciu morderstwa: własny cichy pokój"
         },
+        "hearing": "Kto kogo nie słyszy (według strony każdego gracza):",
+        "hearingRow": "{name} nie słyszy osoby {speaker}: {why}",
         "setting": "Ustawienie głosu według pokoi: {state}",
         "on": "włączone",
         "settingOff": "wyłączone, więc nic nie jest stosowane",
@@ -7801,7 +7904,7 @@
         },
         "listen": {
           "label": "Infiltrate",
-          "hint": "Listen przy ścianie, Echoes, Tail Someone, Keep Watch, Dash przez korytarze, Shut the Door, Force the Door albo Pick the Lock. Każde kosztuje akcję.",
+          "hint": "Listen przy ścianie, Echoes, Tail Someone, Keep Watch, Dash przez korytarze, Shut the Door, Force the Door, Pick the Lock albo Hide. Każde kosztuje akcję.",
           "description": "Wybierasz sąsiedni pokój, wydajesz akcję i rzucasz Shadow. Niezły wynik mówi, ile osób tam jest, wyższy zdradza, kto to jest, a krytyk pokazuje, kto jest w każdym sąsiednim pokoju. Przy pudle nic nie słyszysz. Gdy obok nie ma żadnego pokoju, nie tracisz akcji.",
           "failure": "Niczego się nie dowiadujesz."
         },
@@ -8672,7 +8775,7 @@
         },
         "zoneEntered": {
           "label": "Wejście do strefy",
-          "hint": "Uczeń wchodzi do Strefy A albo Strefy B w czasie Straw Poll, Logic Dive albo Scrum Debate. Słyszy jego gracz, nigdy GM. Bez własnego pliku gra dźwięk „Wejście do pokoju”."
+          "hint": "Uczeń wchodzi do jednej ze stref w czasie Straw Poll, Logic Dive albo Scrum Debate. Słyszy jego gracz, nigdy GM. Bez własnego pliku gra dźwięk „Wejście do pokoju”."
         }
       }
     },
@@ -8754,6 +8857,8 @@
         "objection": "Nie masz już akcji, Hope ani Sanity, więc nie możesz wnieść objection.",
         "analyze": "Nie masz już akcji, Hope ani Sanity, więc nie masz czym zapłacić za Analyze.",
         "analyzeOneStep": "Nie masz już akcji, więc nie masz czym zapłacić za Analyze.",
+        "palm": "Nie masz już akcji, Hope ani Sanity, więc nie masz czym zapłacić za Palm.",
+        "palmOneStep": "Nie masz już akcji, więc nie masz czym zapłacić za Palm.",
         "tamper": "Nie masz już akcji, a Tamper nie przyjmuje niczego innego.",
         "tamperSkippedAction": "Akcja nie jest tu potrzebna, ale nie masz już Sanity, by zapłacić."
       },
@@ -9153,6 +9258,7 @@
         "eavesdrops": "Kto podsłuchuje pod którymi drzwiami, z którego pokoju i którego pokoju może znów posłuchać za darmo",
         "masks": "Który zabójca ukrywa się za „?” po otwarciu morderstwa i jak wyglądał jego token",
         "veils": "Który zabójca jest ukryty i wyciszony do rzutu otwarcia i czy każdy jego token był ukryty już wcześniej",
+        "hides": "Które postacie ukrywają się przez Hide, czyje mikrofony są przez to wyłączone i w którym rozdziale zaczęło się każde ukrycie",
         "timedEffects": "Co akcje w pokojach dały każdej postaci na jakiś czas i kiedy to mija",
         "clockBeat": "Kiedy główny GM był ostatnio przy stole",
         "takeBack": "Co zmienił ostatni początek pory dnia, zachowane na pięć minut, by GM mógł cofnąć pomyłkę",
@@ -9472,6 +9578,9 @@
       "undo": "Cofnij realizację",
       "title": "Realizacja sprawy, rozdział {chapter}",
       "intro": "Nic się nie zmieni, dopóki nie klikniesz Uruchom realizację. Każde miejsce na Key Remnant, którego nie ma jeszcze na mapie i które mieści się w limicie rozdziału, trafi do wybranego pokoju; miejsce bez pokoju zostaje bez zmian.",
+      "scope": "Co zrealizować",
+      "scopeKeys": "Tylko Key Remnanty",
+      "scopeAll": "Każdy zaplanowany Remnant i Truth Bullet",
       "colWhat": "Co",
       "colSlot": "Miejsce",
       "colName": "Nazwa",
@@ -9482,12 +9591,20 @@
       "action": {
         "create": "Postawi",
         "placed": "Na mapie",
-        "overLimit": "Ponad limit"
+        "overLimit": "Ponad limit",
+        "give": "Rozda",
+        "noRecipient": "Bez odbiorcy"
+      },
+      "kind": {
+        "incident": "Zaplanowany Remnant",
+        "final": "Final Truth",
+        "bullet": "Truth Bullet"
       },
       "ran": "Key Remnanty postawione przez realizację: {n}.",
+      "ranAll": "Realizacja postawiła Remnanty: {n} i rozdała Truth Bullety: {given}.",
       "notRun": "Nic nie postawiono.",
       "nothingMade": "Realizacja niczego w tym rozdziale nie postawiła.",
-      "undoAsk": "Cofnąć realizację? Postawione przez nią Key Remnanty: {n}; te, które ktoś znalazł albo ujawnił Monokuma, zostaną.",
+      "undoAsk": "Cofnąć realizację? Postawione albo rozdane przez nią: {n}. Remnanty, które ktoś znalazł albo ujawnił Monokuma, zostaną; rozdane przez nią Truth Bullety zostaną zabrane.",
       "undone": "Usunięte: {removed}; zostają (znalezione albo ujawnione): {kept}.",
       "askTitle": "Realizacja sprawy",
       "askBody": "Znaleziono ciało. Sprawa tego rozdziału nie została jeszcze zrealizowana. Nic się nie stanie, dopóki nie wybierzesz.",

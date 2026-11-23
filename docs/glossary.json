@@ -874,6 +874,17 @@
         "source": ["DA28", "DX4"]
       },
       {
+        "id": "hide",
+        "en": "Hide",
+        "pl": "Hide",
+        "gender": null,
+        "inflection": null,
+        "forbidden": {"en": {"variants": [], "scope": ["ui"]}, "pl": {"variants": [], "scope": ["ui"]}},
+        "stage": "E129",
+        "source": ["DA28"],
+        "note": "An Infiltrate row, English in both languages as the other rows are (DA28; S0-HIDE, E129); the owner named it \"schowaj się\" (23.11.2026), so a Polish name waits on the owner. Its button is Reveal yourself / Ujawnij się, the mask's words."
+      },
+      {
         "id": "repair-the-lock",
         "en": "Repair the Lock",
         "pl": "Repair the Lock",
@@ -1648,6 +1659,30 @@
         "source": ["E109 plan"],
         "open": true,
         "note": "The incident's stage after the fight (the murder state's `stage` \"resolution\"), until 1.2.115 \"Resolution\" / \"Rozstrzygnięcie\" on the tracker and \"the clean-up\" / \"sprzątanie\" on the cards. The owner's note on Q-A6, 14.11.2026: \"Nazwijmy to tamper po prostu\". The attempts inside the stage keep their words (a clean-up roll, Cleaning Tool, the Clean-up window); the daily-life action Tamper (ACTIONS.tamper) is the same activity. Open: forbids nothing yet."
+      },
+      {
+        "id": "pace-quick",
+        "en": "Quick pace",
+        "pl": "tempo szybkie",
+        "gender": "n",
+        "inflection": "\"tempo\" is neuter: w tempie szybkim, tempa szybkiego; in English \"at the Quick pace\".",
+        "forbidden": {"en": {"variants": [], "scope": ["handbooks"]}, "pl": {"variants": [], "scope": ["handbooks"]}},
+        "stage": "E129",
+        "source": ["E129 plan"],
+        "open": true,
+        "note": "A session's pace, a planning aid for the GM (E129 S0-SESSIONLEN; the owner's ask of 23.11.2026, through the coordinator: \"dwa warianty czasu sesji. Wariant sesji z 15min na porę dnia (nie licząc eclipse) i wariant sesji z 30min na porę dnia\"). Two game days in one session at the table, about 15 minutes of play per time of day, the Eclipses not counted (the owner's clarification of the same day: \"Sesja 15min na pore dnia mialaby wtedy 2 dni a nie 1\"); the HUD's amber mark is where a time of day ends, its red mark twice over; the clock counts each game day as a session. Nothing in the module holds a pace: no setting names it, and the HUD's marks stay at TIMING.elapsedMarksMinutes (15 and 30) whichever the GM picks. Said in the GM handbook's section 4 and 21 and the player handbook's section 2. The Polish is the coordinator's proposal; open: forbids nothing yet."
+      },
+      {
+        "id": "pace-full",
+        "en": "Full pace",
+        "pl": "tempo pełne",
+        "gender": "n",
+        "inflection": "\"tempo\" is neuter: w tempie pełnym, tempa pełnego; in English \"at the Full pace\".",
+        "forbidden": {"en": {"variants": [], "scope": ["handbooks"]}, "pl": {"variants": [], "scope": ["handbooks"]}},
+        "stage": "E129",
+        "source": ["E129 plan"],
+        "open": true,
+        "note": "A session's pace, a planning aid for the GM (E129 S0-SESSIONLEN; the owner's ask of 23.11.2026, through the coordinator: \"dwa warianty czasu sesji. Wariant sesji z 15min na porę dnia (nie licząc eclipse) i wariant sesji z 30min na porę dnia\"). One game day in one session at the table, about 30 minutes of play per time of day, the Eclipses not counted; the HUD's amber mark is halfway, its red mark where a time of day ends. Nothing in the module holds a pace: no setting names it, and the HUD's marks stay at TIMING.elapsedMarksMinutes (15 and 30) whichever the GM picks. Said in the GM handbook's section 4 and 21 and the player handbook's section 2. The Polish is the coordinator's proposal; open: forbids nothing yet."
       }
     ],
     "retired": [

@@ -71,7 +71,9 @@ export const layers = ["ci"];
    1.2.124 OWNER-124-TRACE's phase T (22.11.2026, 4 cores, beside two other harness runs, once each): the scenario
    without T, its da0f95a8 file on this code, "33/33 checks passed, 0 failed in 45615ms", 51 s by the wall clock; with
    T "37/37 checks passed, 0 failed in 55693ms", 61 s - and run-all killed it at 60 s. T's reload and the copy's Analyze
-   cost about 10 s. Two minutes: a hang detector with room for a slower runner. */
+   cost about 10 s. Two minutes: a hang detector with room for a slower runner.
+   1.2.128 S0-WHITE's phase W (23.11.2026, 4 cores, alone, once): "39/39 checks passed, 0 failed in 55301ms"; at
+   13d6b2c4 without W, beside two other harness runs, 37/37 in 60530ms - W not timed apart, and inside the two minutes. */
 export const timeoutMs = 120000;
 
 export const accounts = [{ who: "p4", id: "USERP4000000000A", name: "Player Four", role: 1, character: null, color: "#2a7f62", late: true }];
@@ -797,6 +799,39 @@ export async function run({ gm, p1, p2, p4, check, phase, settle, connect, disco
         }
         return true;`, { timeout: 30000 });
     await settle(600);
+
+    phase("W: a lost drawing context on a player's browser - recorded there, its card read by the GMs and by no other player (1.2.128, S0-WHITE)");
+    /* context-loss.mjs on the road a loss mostly takes (the coordinator, 23.11.2026: R8811 tells through a stand-in): on p1,
+       `watchContext` on a stand-in canvas with its own teller, `tellGmsOfLoss` (`whisperToGms`, secret.mjs's private
+       road), and a `webglcontextlost` fired on it. Read: p1's failure log holds the loss; the new card is whispered to the
+       GMs alone; the GM's browser holds its words, p1's name among them, and p2's holds the message without them. The card
+       is deleted after. This scenario has one GM; a second GM's copy is the same road (17-assistant's A5 reads it for an
+       Assistant). */
+    {
+        const card = await p1.eval(`
+            const C = await import("${repoUrl}/scripts/context-loss.mjs");
+            const before = new Set(game.messages.map(m => m.id));
+            const el = document.createElement("canvas");
+            C.watchContext(el, { label: "73 W stand-in" });
+            el.dispatchEvent(new Event(C.CONTEXT_EVENTS.lost));
+            let id = null;
+            for (let i = 0; i < 50 && !id; i++) { await new Promise(r => setTimeout(r, 100)); id = game.messages.find(m => !before.has(m.id))?.id ?? null; }
+            const { sessionFailures } = await import("${repoUrl}/scripts/utils.mjs");
+            return { id, logged: sessionFailures().some(r => r.level === "error" && r.message.includes("73 W stand-in")), name: game.user.name };`, { timeout: 30000 });
+        await settle(800);
+        const lost = await gm.eval(`return game.i18n.format("DRPG.Context.lost", { name: ${JSON.stringify(card.name)}, scene: "" }).split(" (")[0];`);
+        const read = c => c.eval(`const S = await import("${repoUrl}/scripts/secret.mjs");
+            const m = game.messages.get(${JSON.stringify(card.id)});
+            return m ? { held: true, words: String(S.contentOf(m) ?? ""), whisper: [...(m.whisper ?? [])].sort() } : { held: false };`);
+        const gmIds = await gm.eval("return game.users.filter(u => u.isGM).map(u => u.id).sort();");
+        const on = { gm: await read(gm), p2: await read(p2) };
+        check("W1: a lost drawing context on a player's browser is in that browser's failure log, and its card is whispered to the GMs alone",
+            Boolean(card.id) && card.logged && on.gm.held && JSON.stringify(on.gm.whisper) === JSON.stringify(gmIds), JSON.stringify({ card, gmIds, gm: on.gm.whisper }));
+        check("W2: the GM's browser holds the card's words with the player's name, and another player's holds the message without them",
+            on.gm.words.includes(lost) && on.p2.held && !on.p2.words.includes(lost), JSON.stringify({ lost, gm: on.gm.words.slice(0, 200), p2: on.p2 }));
+        if (card.id) await gm.eval(`await game.messages.get(${JSON.stringify(card.id)})?.delete(); return true;`);
+        await settle(400);
+    }
 
     phase("S3: the safeword with no GM connected - the caller's own card names nobody in another player's history window");
     /* E81 fix r2-H1 (13.10.2026; review round 2's C2-1, which the correctness review measured in the harness at eefa79f:

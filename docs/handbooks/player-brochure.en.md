@@ -1,6 +1,6 @@
 # Danganronpa RPG - Student Brochure
 
-*A short read before the first session, about six printed pages. Module 1.2.126 on Daggerheart.*
+*A short read before the first session, about six printed pages. Module 1.2.128 on Daggerheart.*
 
 **You are** an Ultimate: the one thing your character does best, written under their name on the sheet. Your six statistics are Leg, Body, Hand, Eye, Shadow, and Head.
 
@@ -19,7 +19,7 @@ A roll with Hope gives you 1 Hope, a critical (both dice the same) 2; a roll wit
 - Moving inside your room is free. Drag your token: your first crossing into a connected room is your Free Move, every further crossing costs 1 action, and the cost lands when you arrive.
 - Locked doors, sealed rooms, other students' bedrooms (without a key), and Chained turn you back. Chained is a Despair Call that keeps you in your room until the time of day ends.
 - In the Eclipse the lights are out, and nobody sees or hears anybody. You place your token up to 2 connected rooms away, or in any room in the Night Eclipse.
-- You see only your room and the people in it; visited rooms are veiled, the rest is fog. If your table uses **Separate voice in each room**, your voice follows your token and you hear only your room.
+- You see only your room and the people in it; visited rooms are veiled, the rest is fog. If your table uses **Separate voice in each room**, your voice follows your token and you hear only your room. Each token you see carries its name under it, as far as you may know it (a "?" for a hidden killer); with **Token names as captions** off in the gear, a name shows only when the pointer rests on a token.
 - Every room has **Search Tokens**, usually 3, shared by everybody.
 
 > [!IMPORTANT]
@@ -34,7 +34,7 @@ Each action costs 1 action, except where its row says otherwise. A **Remnant** i
 | **Search** | Eye, or another the GM approves | Name what you want: 8+ Tier 0, 12+ Tier 1, 18+ Tier 2, a critical 1 tier more. It spends a Search Token. Taking a Murder Weapon or a Cleaning Tool leaves a Remnant. |
 | **Observe** | Eye | Copies a Remnant into your inventory as a Neutral Truth Bullet: one whose kind you do not know until it is analyzed. A miss costs 1 Sanity. |
 | **Analyze** | Head | Identify a Truth Bullet (a miss locks it until the chapter ends), ask the GM for a hint (14+ / 18+), Find Stash (16+) or Find Passage (16+). |
-| **Infiltrate** | Shadow, Leg, Body, or Hand | Listen (14+ how many are next door, 18+ who, a critical every neighboring room; rooms you have not been in stay unnamed: Unexplored room 1, 2...), Echoes, Tail Someone, Keep Watch, Dash (12+ 2 free crossings, 18+ 3, a critical 4), Shut the Door, Force the Door, or Pick the Lock. |
+| **Infiltrate** | Shadow, Leg, Body, or Hand | Listen (14+ how many are next door, 18+ who, a critical every neighboring room; rooms you have not been in stay unnamed: Unexplored room 1, 2...), Echoes, Tail Someone, Keep Watch, Dash (12+ 2 free crossings, 18+ 3, a critical 4), Shut the Door, Force the Door, Pick the Lock, or Hide (Shadow 15+: other players stop seeing your token and your microphone is off until the time of day ends or you press Reveal yourself on your voice tile). |
 | **Palm** | Hand; Shadow to stay unseen | Take (12+, unseen 15+) something from somebody's pockets, or plant (8+, unseen 13+) one of your things there. Or see what they carry, which takes nothing: ask first, Body 12+ after a refusal; unseen Shadow 15+ then Hand 10+. |
 | **Projects** | The project's | 12+ gives +1 progress, 18+ +2, a critical +2 and your action back. Propose new ones to the GM. Sabotage is here too and always leaves a Remnant. |
 | **Facilities** | None, or the row's | Short Rest: 1 action, pick 1, once per time of day. Long Rest: 2 actions, pick 2, once per session. Sleep restores Health, Meal Sanity, Breath Hope; the rests work only in rooms marked for them. Below them is what your room offers. |
@@ -98,9 +98,9 @@ Walking in on a Direct Murder gives you one choice: Escape Together (Leg 15, cos
 
 **Investigation.** Everyone gets the Autopsy Truth Bullet; Observe, Analyze, share. Three to five Key Remnants exist; together they narrow the suspects to 2-4. You take what the body carries from its sheet with no action and one Hand roll for the lot: you also get a Truth Bullet of what you took, and the body keeps one Remnant of the looting, easier to find the lower you rolled. What nobody finds costs Despair, and Monokuma may reveal it at the trial.
 
-**Class Trial.** It opens with a fresh set of actions, and nobody leaves the room; only Analyze stays open, plus Hope Calls and items. Discussion is open. **Present** shows a Truth Bullet from your inventory, free, with your Analyze result or without it, and everyone else gets a copy as shown; there is no Share in a trial.
+**Class Trial.** It opens with a fresh set of actions, and nobody leaves the room; only Analyze and Palm stay open (Palm since 1.2.128, its Frisk alone, an action, else 1 Hope, else 1 Sanity), plus Hope Calls and items. Discussion is open. **Present** shows a Truth Bullet from your inventory, free, with your Analyze result or without it, and everyone else gets a copy as shown; there is no Share in a trial.
 
-- When the GM opens the Nonstop Debate, **OBJECTION!** on your voice tile interrupts whoever is speaking (or spoke last). You then have 30 s to choose your Truth Bullet, or the Objection is withdrawn and its price is not given back; then 60 s of you alone and a 120 s rebuttal with the person it was aimed at. An Objection, like Analyze in a trial, costs 1 action, else 1 Hope, else 1 Sanity.
+- When the GM opens the Nonstop Debate, **OBJECTION!** on your voice tile interrupts whoever is speaking (or spoke last). You then have 30 s to choose your Truth Bullet, or the Objection is withdrawn and its price is not given back; then 30 s of you alone and a 120 s rebuttal with the person it was aimed at. An Objection, like Analyze in a trial, costs 1 action, else 1 Hope, else 1 Sanity.
 - In Testimony and a Panic Round everyone speaks in turn (**Done**, **Pass**); in the Closing Argument the GM confirms one volunteer for 300 s. In these three only the speaker presents, and a Panic Round has no Objection.
 - Then comes the secret vote: <ins>more than half of the ballots</ins> convicts, and a tie counts as wrong unless the table settles it. Right: the Blackened is executed when the trial ends, and every survivor takes a Level Up, a pick that makes the character stronger. Wrong: the accused is executed when the trial ends, and the Blackened stays with a Reinforced Level Up (3 picks), which waits for the class's next Level Up.
 

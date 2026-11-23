@@ -484,11 +484,14 @@ export async function handleLoot(payload, sender, ctx) {
        this Take counted an earlier roll (a try refused kept it); the taker's page says nothing of it (anonymity.mjs `takeFromBody`). */
     const bound = sender.isGM ? null : await (await import("./handover.mjs")).lootRollsBound(payload.takerId, payload.bodyId);
     if (!sender.isGM && !bound?.loot) return { refused: "no Hand roll of that character's stands for that Take" };
+    // A taker this GM holds hidden throws no cover (S0-HIDE, E129): it stands passed (hide.mjs `HIDDEN_COVER`) unless one is bound.
+    const { hiddenOnGm, HIDDEN_COVER } = await import("./hide.mjs");
     const taken = await lootBody({
         takerId: payload.takerId, bodyId: payload.bodyId, itemId: payload.itemId, itemIds,
         hand: bound ? bound.loot : { total: payload.total, isCritical: payload.isCritical, withHope: payload.withHope },
-        cover: bound ? bound.lootCover
-            : payload.coverRollId ? { total: payload.coverTotal, isCritical: payload.coverCritical, withHope: payload.coverHope } : null,
+        cover: (bound ? bound.lootCover
+            : payload.coverRollId ? { total: payload.coverTotal, isCritical: payload.coverCritical, withHope: payload.coverHope } : null)
+            ?? (hiddenOnGm(payload.takerId) ? HIDDEN_COVER : null),
         askedBy: sender.isGM ? null : sender.id, coverRequired: !sender.isGM
     });
     if (taken?.refused) return { refused: taken.refused };
@@ -788,6 +791,45 @@ export async function handleKeysCharge() {
     return { reply: await chargeForUnfoundKeys() };
 }
 
+/** The run of `body.discover` (E128): a second full GM's announcement, run here as the primary's own press runs it. */
+export async function handleBodyDiscover(payload) {
+    const { discoverBody } = await import("./chapter.mjs");
+    const done = await discoverBody({ room: payload.room, victim: game.actors.get(payload.victimId ?? "") ?? null,
+        scene: game.scenes.get(payload.sceneId ?? "") ?? null });
+    return done ? { reply: true } : { refused: "nothing was carried out: the primary GM announced no body (its own checks refused it)" };
+}
+
+/**
+ * The run of `chapter.end` (E128): a second full GM's end of the chapter, or its Finish or Drop, run in this primary's
+ * one queue (chapter.mjs `applyChapterEnd`, `finishChapterEnd`). `opened` is the clock the asker's window was shown on,
+ * kept to its four fields; an end whose clock has moved since is refused there, as the primary's own is.
+ */
+export async function handleChapterEnd(payload) {
+    const C = await import("./chapter.mjs");
+    const o = payload.opened && typeof payload.opened === "object" ? payload.opened : null;
+    const opened = o ? { chapter: Number(o.chapter) || 0, session: Number(o.session) || 0, day: Number(o.day) || 1,
+        phase: typeof o.phase === "string" ? o.phase : null } : null;
+    const lines = payload.finish || payload.drop ? await C.finishChapterEnd({ drop: Boolean(payload.drop) })
+        : await C.applyChapterEnd({ reveal: payload.reveal, sweep: payload.sweep, faint: payload.faint, keys: payload.keys,
+            endTrial: payload.endTrial, nextChapter: payload.nextChapter, nextSession: payload.nextSession,
+            nextMorning: payload.nextMorning, opened });
+    return lines ? { reply: Array.isArray(lines) ? lines.map(String) : true }
+        : { refused: "nothing was carried out: the primary GM's end of the chapter refused it (its own checks)" };
+}
+
+/** The run of `voice.reset` (E128): a second full GM's Fix voice, sent by this primary (voice.mjs `resetAllVoice`): how many. */
+export async function handleVoiceReset() {
+    const { resetAllVoice } = await import("./voice.mjs");
+    const n = await resetAllVoice();
+    return n === null ? { refused: "nothing was carried out: the primary GM has no LiveKit AVClient active" } : { reply: n };
+}
+
+/** The run of `verdict.finish` (E128): a second full GM's Finish, run by this primary's own (verdict.mjs `finishVerdict`). */
+export async function handleVerdictFinish() {
+    const { finishVerdict } = await import("./vote.mjs");
+    return (await finishVerdict()) ? { reply: true } : { refused: "nothing was carried out: the primary GM's Finish of the verdict did nothing (its reason is on its screen)" };
+}
+
 /** The run of `trial.record` (E70 fix p1-G2): the record's write on this primary (trial-progress.mjs `recordOnPrimary`), its answer or null. */
 export async function handleTrialRecord(payload) {
     const { recordOnPrimary } = await import("./vote.mjs");
@@ -950,6 +992,14 @@ export async function handleReshapeRuling(payload, sender) {
     const { ruleReshape } = await import("./cleanup.mjs");
     return { reply: await ruleReshape({ actorId: payload.actorId, tokenId: payload.tokenId, attempt: payload.attempt,
         verdict: payload.verdict }, sender.id) };
+}
+
+/** The run of `observe.describe` (E128): another GM's words for a find this primary's window waits on (observe.mjs `answerDescribeFrom`). */
+export async function handleObserveDescribe(payload, sender) {
+    const { answerDescribeFrom } = await import("./observe.mjs");
+    const answer = { name: payload.name, playerText: payload.playerText, analyzedText: payload.analyzedText, critHint: payload.critHint };
+    return answerDescribeFrom(payload.askId, answer, sender?.id ?? null)
+        ? { reply: true } : { refused: "nothing was carried out: no find waits for a GM's words under that request" };
 }
 
 /** The run of `observe.pick` (E09 C12): a GM's pick or refusal on an Observe card, held to the ask this primary keeps (`observePickOnPrimary`). */

@@ -79,9 +79,16 @@ export async function run({ gm, p1, p2, p3, check, settle, repoUrl: REPO }) {
         P.openGmPanel?.();
         await new Promise(r => setTimeout(r, 600));
         const d = globalThis.__dialogLog.find(d => /Panel GM-a/.test(d.title ?? "")) ?? globalThis.__dialogLog[0] ?? null;
-        return d ? { title: d.title, content: (d.content ?? "").replace(/\\s+/g, " ").slice(0, 300) } : null;`, { timeout: 30000 });
+        if (!d) return null;
+        /* Its words, not the first 300 characters of its markup (1.2.128, S0-GMLIST): the roster stands first in the panel
+           since then, and its table's markup filled what this check read, so the clock line's Polish fell past it. The
+           shim's log keeps a window's words, markup out, to 1200 characters (shim.mjs \`contentWords\`), the panel's
+           roster, name and clock line among them. */
+        return { title: d.title, words: d.text ?? "", caption: game.i18n.localize("DRPG.Panel.rosterCaption") };`, { timeout: 30000 });
     check("gm: the panel opens with a Polish title", panel?.title === "Panel GM-a", JSON.stringify(panel));
-    check("gm: the panel's body is Polish", !!panel && /Rozdzia|Dzie|pora|Nast/i.test(panel.content), JSON.stringify(panel));
+    // The clock line's chapter and day (Rozdział, Dzień) and the roster's caption, each in Polish, read in the panel's words.
+    check("gm: the panel's body is Polish", !!panel && /Rozdział \d+ · Dzień \d+/.test(panel.words)
+        && panel.caption === "Co każdemu uczniowi zostało o tej porze dnia" && panel.words.includes(panel.caption), JSON.stringify(panel));
 
     // ---- 5. back to English on one client: the setting is per browser ----------------------
     const back = await p3.eval(`await game.settings.set("${MOD}", "language", "en"); const I = await import("${REPO}/scripts/i18n.mjs"); return { lang: I.moduleLanguage(), applied: await I.applyModuleLanguage() };`);

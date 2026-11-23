@@ -369,6 +369,12 @@ body .application.drpg-window-newtrace .drpg-wide-col label > :is(select, .drpg-
 .drpg-case-summary-links { margin-top: 0.5rem; font-size: var(--drpg-kit-help-size); }
 .drpg-case-summary-note { margin: 0.5rem 0 0; font-size: var(--drpg-kit-help-size); color: var(--drpg-kit-help-ink); }
 .application.drpg-window-case-realize table.drpg-case-realize select { width: 100%; min-width: 0; }
+/* The planned rows (S0-REALIZE, line INVEST of 1.2.128) carry a kind and a name the GM wrote: held on one line, under
+   Monokuma Legacy at 1366x768 they pushed the Room column out of the 720 px window (Chromium, 23.11.2026); the cells
+   of the kind and the name wrap instead; the action and the room stay on one line. Through the panels' own chain: danganronpa.css `.application.dialog:is(.drpg-panel,
+   .drpg-advance) .dialog-content :is(th, td)` (0,4,1) holds them on one line. */
+body .application.dialog.drpg-window-case-realize .dialog-content table.drpg-case-realize :is(th, td):is(:nth-child(2), :nth-child(3)) { white-space: normal; }
+body .application.dialog.drpg-window-case-realize .dialog-content table.drpg-case-realize td:nth-child(3) { overflow-wrap: anywhere; }
 /* `[data-drpg-role]`, which every kit footer button carries: the glass's button rule (stained-glass.css, `.drpg-panel
    button:not(...)` x5, 0,7,2) holds a button's words on one line, and they were cut in a cell of a fifth of the footer */
 body .application.dialog.drpg-ui footer.form-footer.drpg-kit-footer.drpg-kit-footer-rows button[data-drpg-role] {
@@ -1585,7 +1591,7 @@ body.drpg-stacked #drpg-tile-row .drpg-voice-tile-face:not([hidden]) {
 
 .drpg-voice-list[hidden],
 .drpg-voice-list :is(.drpg-voice-list-alone, .drpg-voice-row-hidden, .drpg-voice-row-unhide, .drpg-voice-row-held,
-    .drpg-voice-row-volume, .drpg-voice-row-mute)[hidden] { display: none; }
+    .drpg-voice-row-volume, .drpg-voice-row-mute, .drpg-voice-row-mutedme, .drpg-voice-row-gap)[hidden] { display: none; }
 
 .drpg-voice-list-title {
     margin: 0 0 6px;
@@ -1667,7 +1673,8 @@ body.drpg-stacked #drpg-tile-row .drpg-voice-tile-face:not([hidden]) {
 
 .drpg-voice-row-block:disabled { filter: grayscale(1); opacity: 0.6; cursor: not-allowed; }
 
-.drpg-voice-row :is(.drpg-voice-row-hidden, .drpg-voice-row-held) {
+/* E129 (S0-VOICE): "Muted by you" and why a peer is not heard are lines of the row like the dock's hide, under it. */
+.drpg-voice-row :is(.drpg-voice-row-hidden, .drpg-voice-row-held, .drpg-voice-row-mutedme, .drpg-voice-row-gap) {
     flex: 1 1 100%;
     order: 2;
     font-size: var(--drpg-text-xs);
@@ -4144,6 +4151,16 @@ body .application.drpg-window-panel .drpg-gm-panel .drpg-gmp-standing > :is(.drp
    px); Monokuma Legacy caps nothing and stood at 346. A measure is for running text; these are single centred lines,
    so they take the panel's width in both themes. R5721. */
 body .application.drpg-window-panel .drpg-gm-panel :is(.drpg-gmp-standing > p, p.drpg-gmp-version) { max-width: none; }
+
+/* THE ROSTER AT THE TOP (1.2.128, S0-GMLIST; the owner after session 0: "przywrocmy liste akcji i ruchow graczy do glownej
+   zakladki gm panel na gorze"). gm-panel.mjs `rosterTableHtml`, a kit table (`dataTable`): a row per acting student, its
+   actions and its moves. A student with nothing left to spend is dimmed as the table of 1.2.104 dimmed it, at .55; the
+   extras ("+N" bought or banked) in the cell's own ink. Space under it before the campaign's name. */
+body .application.drpg-window-panel .drpg-gm-panel .drpg-gmp-roster { margin-block-end: 0.5em; }
+/* Its cells padded and its rows ruled as the Students window's (`.drpg-window-alive`): the kit table leaves both to its
+   window, and under Monokuma Legacy the rows stood touching with no line (Chromium, the style harness, 23.11.2026). */
+body .application.drpg-window-panel .drpg-gm-panel .drpg-gmp-roster :is(th, td) { padding: 3px 6px; border-bottom: 1px solid var(--drpg-line); vertical-align: middle; }
+body .application.drpg-window-panel .drpg-gm-panel .drpg-gmp-roster tr[data-drpg-spent] > td { opacity: 0.55; }
 
 /* DIAGNOSTICS LIKE THE OTHER SECTIONS (S10-64): its summary the others' plate and face; only its words dimmed (the
    section was faded whole under Legacy, and its plate the dim bone under the glass). An `em`, not a `span`: the glass

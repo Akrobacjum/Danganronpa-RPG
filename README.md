@@ -205,7 +205,7 @@ Player Handbook and a one-page Student Brochure for the table. They ship with
 the module. The small book button in the bottom-right corner opens them in the
 game, in the language you picked for the module, and only GMs see the GM
 Handbook. You can also read them here, in [docs/handbooks](docs/handbooks).
-They describe version 1.2.126. If a later version and a handbook ever disagree,
+They describe version 1.2.128. If a later version and a handbook ever disagree,
 trust the module.
 
 ## Installation
@@ -302,7 +302,8 @@ console can still tell whose token it is; the interface does not.
 <!-- leak:foundry-masked-token-actor --> While that opening waits, the
 killer's tokens carry the veil's mark on every browser (the veil no longer
 sets Foundry's own hidden), so a console can tell which tokens they are and
-whose. <!-- leak:foundry-veiled-token-actor --> A room barricaded with Shut
+whose. <!-- leak:foundry-veiled-token-actor --> The token of a character hidden by Hide carries its mark on every
+browser, so a console can tell who is hidden and where. <!-- leak:foundry-hiding-token-actor --> A room barricaded with Shut
 the Door carries a mark every browser holds, so a console can tell which rooms
 are barricaded, though not by whom or how strongly. <!-- leak:foundry-barricade-flag --> A chat message a
 Spectator's console forces through reaches every browser for a moment before the

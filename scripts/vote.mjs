@@ -41,7 +41,7 @@
 
 import { MODULE_ID, TRIAL, FLAGS } from "./config.mjs";
 import { isEclipse, isMutedDead } from "./settings.mjs";
-import { studentActors, actingStudents, characterIds } from "./monokuma.mjs";
+import { studentActors, actingStudents, characterIds, isMonokuma } from "./monokuma.mjs";
 import { isDeceased } from "./chapter.mjs";
 import { trialBlackenedIds, whenTrialReadable } from "./murder.mjs";
 import { ballotStore, verdictStore } from "./gm-stores.mjs";
@@ -279,10 +279,25 @@ export function candidatesFor(voterActorId) {
             dead: isDeceased(a)
         }));
 
-    if (TRIAL.allowVotingForMonokuma) {
-        out.push({ id: "monokuma", name: game.i18n.localize("DRPG.Vote.monokuma"), dead: false });
-    }
-    return out;
+    return [...out, ...monokumaCandidates()];
+}
+
+/**
+ * The Monokumas a ballot lists (E129 S0-VOTEKUMA; config.mjs `TRIAL.eachMonokumaOnBallot`): none while
+ * `allowVotingForMonokuma` is off; with each on the ballot, every Monokuma actor by its own id and name, sorted by name,
+ * the flag read as the GMs hold it (`held`, sheet-audit.mjs `flagsHeldNow`, as `studentActors` reads the students), so a
+ * console's Monokuma flag on its own student lists nobody; otherwise the one option "monokuma" of 1.2.128 and before.
+ * The characters are monokuma.mjs `characterIds`' (the type read there, docs/dev/e92/CENSUS.md, R3858).
+ * An actor's id and name are no secret: Foundry sends every actor to every browser (code.md's "A new world setting or
+ * flag is checked"), and a ballot names only what this list holds (`ballotRefusal`). `actors` and `held` are the
+ * suite's to hand (R8773).
+ */
+export function monokumaCandidates({ actors = characterIds().map(id => game.actors.get(id)), held = flagsHeldNow } = {}) {
+    if (!TRIAL.allowVotingForMonokuma) return [];
+    if (!TRIAL.eachMonokumaOnBallot) return [{ id: "monokuma", name: game.i18n.localize("DRPG.Vote.monokuma"), dead: false }];
+    return [...(actors ?? [])].filter(a => a && isMonokuma(held ? held(a) : a))
+        .map(a => ({ id: a.id, name: a.name, dead: false }))
+        .sort((x, y) => String(x.name).localeCompare(String(y.name), game.i18n.lang));
 }
 
 /**
@@ -568,6 +583,7 @@ function sendBallots(voters, picks, round) {
 export function trialParticipants({ connected = true } = {}) {
     const out = [];
     const seated = new Set();
+    const students = [];
     // THE ONE CAST (E37 C2, 01.11.2026; S10-45, E37-08, the plan's amend of 27.10: "not a second list"): monokuma.mjs
     // `actingStudents`, handed the trial's rule of the dead, and filtered again below by the flags as the GMs hold them,
     // so the ballots go where they went when this walked `studentActors()` (R1193).
@@ -582,11 +598,31 @@ export function trialParticipants({ connected = true } = {}) {
         const held = flagsHeldNow(actor);
         if (held.getFlag(MODULE_ID, FLAGS.monocub)) continue;
         if (!TRIAL.deadCastBallots && (isDeceased(held) || isMutedDead(actor))) continue;
-        // `connected` false (E70 fix p2-G4): the student's player whether or not they are connected now - the copies a
-        // Reveal or a Present hands out, which a player reloading at that moment must still get.
-        const user = game.users.find(u => !u.isGM && (u.active || !connected) && actor.testUserPermission(u, "OWNER"));
-        if (!user || seated.has(user.id)) continue;
-        seated.add(user.id);
+        students.push(actor);
+    }
+    // `connected` false (E70 fix p2-G4): the student's player whether or not they are connected now - the copies a
+    // Reveal or a Present hands out, which a player reloading at that moment must still get.
+    const ownersOf = actor => game.users.filter(u => !u.isGM && (u.active || !connected) && actor.testUserPermission(u, "OWNER"));
+    /* A STUDENT OWNED BY TWO PLAYERS IS SEATED BY ITS LINKED ONE (E129 S0-CUT P1, 23.11.2026; config.mjs
+       `TRIAL.seatByCharacter`; the coordinator's P1 after the owner's note "testimony ucielo ostatniego gracza"). Each
+       player takes one seat. Until 1.2.128 a student went to the first owner Foundry lists, and when that player was
+       seated already with their own the student had no seat - no turn, no ballot, nothing said. Now a player is seated
+       first by `user.character` where it is a student they own, then each student left by its first owner not seated
+       yet. The order stays `actingStudents`'. Tier 2 "1.2.128 S0-CUT P1". */
+    const linked = new Map();
+    if (TRIAL.seatByCharacter) {
+        for (const actor of students) {
+            const user = ownersOf(actor).find(u => u.character?.id === actor.id && !seated.has(u.id));
+            if (user) { linked.set(actor.id, user); seated.add(user.id); }
+        }
+    }
+    for (const actor of students) {
+        let user = linked.get(actor.id) ?? null;
+        if (!user) {
+            user = (TRIAL.seatByCharacter ? ownersOf(actor).find(u => !seated.has(u.id)) : ownersOf(actor)[0]) ?? null;
+            if (!user || seated.has(user.id)) continue;
+            seated.add(user.id);
+        }
         out.push({ user, actor });
     }
     return out;

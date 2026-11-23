@@ -262,6 +262,10 @@ export async function tellUse(actor, offer, success, lines) {
     const head = game.i18n.format(success ? "DRPG.Facility.usedOk" : "DRPG.Facility.usedFailed", { action: offer.label });
     // E49's card (the coordinator's word of 12.11.2026, "the facilities' whispered cards take E49's chatCard look"): the head
     // its title, under the Facilities tile's glyph, and what it did its body. The words are the ones the card said before.
+    /* In the middle of its user's screen (notice-centre.mjs "actionResult"; the owner at the table, 22.11.2026: "nie wszystkie
+       akcje wyswietlaja powiadomienie na srodku (np facilities)", OWNER-127-CENTRE): written by the primary GM, whose card the
+       rule centres for everyone it reaches - its user and that user's co-owners. Its words are as before. */
     await whisperToOwner(actor, { glyph: "ACTIONS.rest", title: head,
-        body: lines.length ? `<ul>${lines.map(line => `<li>${esc(line)}</li>`).join("")}</ul>` : "" });
+        body: lines.length ? `<ul>${lines.map(line => `<li>${esc(line)}</li>`).join("")}</ul>` : "" },
+    { flags: { [MODULE_ID]: { popupCentre: "actionResult" } } });
 }

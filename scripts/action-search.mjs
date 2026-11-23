@@ -24,7 +24,7 @@
  */
 
 import { MODULE_ID, ACTIONS, ITEM_CATEGORIES } from "./config.mjs";
-import { spendAction, refundAction } from "./actions.mjs";
+import { spendAction } from "./actions.mjs";
 import { leavesTraceFor } from "./inventory.mjs";
 import { SearchTokens } from "./search-tokens.mjs";
 import { drawItem, foundAs, ITEM_POOLS } from "./tables.mjs";
@@ -33,7 +33,7 @@ import { callGm } from "./gm-bridge.mjs";
 import { resolveThreshold } from "./utils.mjs";
 import { playSfx } from "./sfx.mjs";
 import {
-    DRAWN_ROLL, rollTrait, rollInHand, remnantRef, noteRollContext, abort, canAfford, declineAction, ruledMissAction
+    DRAWN_ROLL, rollTrait, rollInHand, remnantRef, noteRollContext, abort, canAfford, declineAction, ruledMissAction, giveBackAfterRoll
 } from "./action-pipeline.mjs";
 import { report } from "./action-report.mjs";
 import { briefingBlock } from "./action-briefing.mjs";
@@ -128,7 +128,7 @@ async function searchUnclaimed(actor, def, roll, { room, scene, category, goalKe
     // reply names (`why`) - said as the seal, the action back (`unclaimedOutcome`).
     const outcome = unclaimedOutcome(why, SearchTokens.left(room, scene));
     // With the receipt the spend handed back, so a Burst returns as a Burst.
-    if (outcome.refund && paid) await refundAction(actor, paid.amount, paid);
+    if (outcome.refund && paid) await giveBackAfterRoll(actor, paid, [roll]);
 
     // `claimed: false` is what a Reroll reads: a room that was never
     // searched is not searched by rerolling the dice (ROLL-02).
@@ -205,7 +205,7 @@ async function searchSpecific(actor, def, roll, { room, scene, category, request
     if (!sent) {
         if (game.user.isGM) await SearchTokens.giveBack(room, scene?.id ?? null);
         await noteRollContext(actor, { actionKey: "search", room, category, goal: "specific", tier: null, claimed: false });
-        return abort(actor, paid);
+        return void await giveBackAfterRoll(actor, paid, [roll]) ?? null;
     }
 
     // Ruled by a human, so Reroll can only re-ask - see reroll.mjs.
@@ -556,7 +556,7 @@ export async function performSearch(actor, def, options) {
     if (goalKey === "specific" && !gmOnline()) {
         sayNotDone("gm.call", "noGm", { nothingSpent: true });
         await noteRollContext(actor, { actionKey: "search", room, category, goal: "specific", tier: null, claimed: false });
-        return abort(actor, paid);
+        return void await giveBackAfterRoll(actor, paid, [roll]) ?? null;
     }
 
     // The token is claimed only once the dice are actually on the table.

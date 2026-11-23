@@ -70,6 +70,7 @@ export const SETTINGS = {
     despairFromRolls: "despairFromRolls",
     projectMeta: "projectMeta",
     chargeMovement: "chargeMovement",
+    trialVoicesFree: "trialVoicesFree",
     /** Whether an open Frisk may be forced after a refusal or no answer (E80 part 2; frisk.mjs `friskForceOpen`). */
     friskForce: "friskForce",
     lockPlayerResources: "lockPlayerResources",
@@ -175,6 +176,8 @@ export const SETTINGS = {
     restrictions: "restrictions",
     hideSystemFear: "hideSystemFear",
     pixelFont: "pixelFont",
+    /** Every token's name, as this viewer may know it, drawn under it (1.2.128 line MAP, S0-HOVERNAME B; hover-name.mjs). */
+    tokenCaptions: "tokenCaptions",
     /** The create, edit and propose project windows at the kit's `wide` width on this browser (E47-C6; the owner's O4, 09.11.2026). */
     wideProjectWindows: "wideProjectWindows",
     /** Whether an action window's Details stand open on this browser (E49 A8.1; the owner's answer 2 of 11.11.2026). */
@@ -561,6 +564,12 @@ export const SETTINGS = {
      * it was. No player copy: a player reads the one token flag. Synced; not backed up.
      */
     gmVeils: "gmVeils",
+    /**
+     * THE HIDDEN (S0-HIDE, E129, 23.11.2026): a GM store (gm-stores.mjs `hideStore`), a row per character Hide hides
+     * `{ actorId, userIds, chapter, total, critical, userId, at }`. No player copy: a player reads the one token flag.
+     * Synced and backed up.
+     */
+    gmHides: "gmHides",
     /**
      * THE TIMED EFFECTS (the owner's answer to Q-E93-3, 12.11.2026): a GM store (gm-stores.mjs `timedEffectStore`), a row
      * per effect given `{ actorId, kind, n, trait, label, state, until, mark, day, at }`, and each owner's copy of their own
@@ -1199,7 +1208,7 @@ const TABLE_SETTINGS = [
     SETTINGS.foundryBefore, SETTINGS.foundryGivenBack, SETTINGS.musicEnabled, SETTINGS.sfxVary, SETTINGS.safeword,
     SETTINGS.migratedVersion, SETTINGS.levelUpsMigrated, SETTINGS.caseMark, SETTINGS.moveAudit, SETTINGS.foundryToolWindows, SETTINGS.isoTokenShield,
     SETTINGS.regionFog, SETTINGS.despairFromRolls, SETTINGS.lockRollDialog, SETTINGS.roomVisibility, SETTINGS.lockPlayerResources,
-    SETTINGS.friskForce, SETTINGS.balanceLog, SETTINGS.autoApproveTraits, SETTINGS.chargeMovement, SETTINGS.sequences, SETTINGS.legacyKeyRemnantPlan, SETTINGS.legacyPendingMurders, SETTINGS.legacyEclipseMoves
+    SETTINGS.friskForce, SETTINGS.trialVoicesFree, SETTINGS.balanceLog, SETTINGS.autoApproveTraits, SETTINGS.chargeMovement, SETTINGS.sequences, SETTINGS.legacyKeyRemnantPlan, SETTINGS.legacyPendingMurders, SETTINGS.legacyEclipseMoves
 ];
 /** Every world setting the module registers, by its key -> "season", "campaign" or "table" (above). */
 export const WORLD_LIFETIMES = Object.freeze(Object.fromEntries([
@@ -1696,6 +1705,21 @@ export function registerSettings() {
         type: Boolean,
         default: true,
         onChange: () => applyTheme()
+    });
+
+    /* TOKEN NAMES AS CAPTIONS (1.2.128 line MAP, stage E129, S0-HOVERNAME B; the owner, 23.11.2026: "Dodajmy ustawienie,
+       domyslnie wlaczone, ktore zostawia tooltipy tokenow jako podpis tokenu przesuwajacy sie razem z tokenem"). Per
+       browser, on by default: each token's name, by the hover's rule (hover-name.mjs `hoverName`), stands under it as a
+       caption that moves with it; off, the name shows on a hover. A change redraws the captions here (`recaptionAll`). */
+    game.settings.register(MODULE_ID, SETTINGS.tokenCaptions, {
+        name: "DRPG.Settings.tokenCaptions.name",
+        hint: "DRPG.Settings.tokenCaptions.hint",
+        scope: "client",
+        // In the gear's window, the look section (settings-window.mjs; R3420: no setting of the module is Foundry's list's).
+        config: false,
+        type: Boolean,
+        default: true,
+        onChange: () => import("./hover-name.mjs").then(m => m.recaptionAll()).catch(() => {})
     });
 
     /* DETAILS, OPEN OR SHUT (E49 A8.1, 11.11.2026; the owner's answer 2: "tak, jedno ustawienie dla gracza na tym
@@ -2437,6 +2461,13 @@ export function registerSettings() {
     });
     // The opening's veil (E112): no `onChange` - read by the primary (mask-gm.mjs) and its voice settle.
     game.settings.register(MODULE_ID, SETTINGS.gmVeils, {
+        scope: "client",
+        config: false,
+        type: Object,
+        default: {}
+    });
+    // The hidden (S0-HIDE): no `onChange` - read by the primary (hide.mjs) and its voice settle.
+    game.settings.register(MODULE_ID, SETTINGS.gmHides, {
         scope: "client",
         config: false,
         type: Object,
@@ -3249,6 +3280,27 @@ export function registerSettings() {
         config: false,
         type: Boolean,
         default: true
+    });
+
+    /*
+     * NO FORCED MUTING IN THE CLASS TRIAL (E129 S0-NOMUTE, 23.11.2026; the owner's note of session 0: "dodajmy opcje w
+     * ustawieniach w gm panel, ktore sprawia ze gracze nie sa wyciszani przymusowo w class trial"; the coordinator's
+     * default: off, so today's forced muting stays the default). On, the trial writes neither of its two blocks - the
+     * floor's (E110 C2) nor the dead's list (E70 C5) - and the tile and the GM's block button say neither (voice.mjs
+     * `trialVoicesFree`, read by `settleTrialVoices`, `micHold` and `moduleHoldsMic`; line COMM's reading of 23.11). The
+     * Spectators', Listen's, the mask's and the veil's blocks are not the trial's and stand. The dead still have no
+     * ballot: `mutedDead` is the trial's list for more than the microphone. A change settles the voices at once, on the
+     * primary. The Game settings window's Voice section (settings-window.mjs `GAME_SECTIONS` "audio"), which the GM panel's Settings tile opens.
+     */
+    game.settings.register(MODULE_ID, SETTINGS.trialVoicesFree, {
+        name: "DRPG.Settings.trialVoicesFree.name",
+        hint: "DRPG.Settings.trialVoicesFree.hint",
+        scope: "world",
+        config: false,
+        type: Boolean,
+        default: false,
+        onChange: () => import("./voice.mjs").then(v => v.askTrialVoices())
+            .catch(err => console.error("Danganronpa RPG | Could not settle the trial's voices after its switch changed", err))
     });
 
     // Rooms sealed by "Behind Closed Doors". Cleared when the clock advances.
