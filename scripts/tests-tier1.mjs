@@ -32220,6 +32220,37 @@ const INVARIANTS = [
             stableJson({ on: true, paint: true, toggle: true, init: true, rtc: true, tick: true, helper: true }),
             "[the switch; paintControls before its tile check; toggleOwnMic after its write; the two hooks; the tick; the helper hands followHold the button's state]");
     }],
+    ["R8910 - a player's messenger window keeps the height it was given under both themes: no stylesheet rule's `height` wins on `.application.drpg-panel.drpg-messenger` (the player's) or with `.drpg-messenger-gm` (the GM's), so Foundry's inline height of messenger-gm.mjs `messengerSize` stands, while Stained Glass still sizes any other panel to its content (1.2.129, OWNER-129-CHATRECT)", async () => {
+        /*
+         * The owner, 23.11.2026, after 1.2.128: "Mala poprawka czatu - niech trzyma u graczy ksztalt prostokata, bez
+         * rozszerzania jak teraz". Measured in Chromium on 8f059800 (docs/dev/owner129/chatrect/heights-before.json): under
+         * Stained Glass a player's window asked 730 px at 1920 x 1080 was drawn 284 px with no message, 565 with three and
+         * 1064 with forty - stained-glass.css's "Windows the size of what is in them" (`height: auto !important`) left out
+         * only the GM's window (1.2.124); under Monokuma Legacy it held 730 at every filling. Read here with the suite's
+         * cascade (`styleCascade().winner`), which reads the sheets' rules, not the inline style a window is given: a
+         * winner for `height` on a messenger window is a rule that overrides Foundry's size. The control: a plain panel
+         * under Stained Glass still takes the rule's `auto` (the reading sees the rule). Red on 8f059800: the player's
+         * window took it.
+         */
+        const C = await styleCascade();
+        const heightOf = (theme, classes) => {
+            const body = document.createElement("body");
+            body.className = theme;
+            const el = body.appendChild(document.createElement("div"));
+            el.className = `application drpg-panel ${classes}`.trim();
+            el.style.height = "730px";
+            const won = C.winner(el, ["height"]);
+            return won ? `${won.value}${won.important ? " !important" : ""}` : null;
+        };
+        const got = {};
+        for (const [theme, key] of [["drpg-theme-stained-glass", "glass"], ["drpg-theme-monokuma-legacy", "legacy"]]) {
+            got[key] = { player: heightOf(theme, "drpg-messenger"), gm: heightOf(theme, "drpg-messenger drpg-messenger-gm"), panel: heightOf(theme, "") };
+        }
+        equal(stableJson({ glassPlayer: got.glass.player, glassGm: got.glass.gm, glassPanel: /^auto\b/.test(got.glass.panel ?? ""),
+            legacyPlayer: got.legacy.player, legacyGm: got.legacy.gm }),
+            stableJson({ glassPlayer: null, glassGm: null, glassPanel: true, legacyPlayer: null, legacyGm: null }),
+            `[the rule winning \`height\` on the player's and the GM's window under each theme, and the control: a plain panel's auto under Stained Glass] - read: ${stableJson(got)}`);
+    }],
     ["R8833 - a hidden token's hold is said on the player's own microphone and keeps the GM's block off it: `micHold` answers \"tokenHidden\", held, outside the Class Trial and nothing of it in the trial; `moduleHoldsMic` answers it on a GM's page; both languages say it (E129, S0-HIDEMUTE)", async () => {
         /*
          * The owner: the hide "pokazuje rowniez te zmiane na przycisku mikrofonu". `micHold` with every fact handed in,
