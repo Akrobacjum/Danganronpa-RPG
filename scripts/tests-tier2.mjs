@@ -104515,6 +104515,90 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             line: [String(made.filter(a => ACT.actionsLeft(a) > 0).length), false] }),
         "{rows: each seeded student's [Actions cell, Free Move's state]; kinds: the distinct readings; line: [the panel's count over the sixteen, its door to Students]}");
     }],
+    ["the GM panel opens on the roster, and each student's row reads what the sheet reads: on a day, after an action is spent, in an Eclipse and after a crossing in it (S0-GMLIST, E129; the owner after session 0, 23.11.2026)", async () => {
+        /*
+         * 1.2.129, S0-GMLIST: "upewnijmy sie ze wyswietla poprawnie ile akcji i ruchow ma dany gracz, rowniez w eclipse".
+         * The panel is opened (`openGmPanel`, its window's content kept as the kit hands it to DialogV2.wait) and its
+         * roster's row for one acting student read against actions.mjs and eclipse.mjs as the sheet's budget line reads
+         * them: on the day; after `spendAction` took one; with an Eclipse open (`startEclipse`, which refills the
+         * actions); and after one crossing is counted in it (`applyRecordedMove`, no card) - where the Eclipse places
+         * freely the row says any room and nothing is counted. Every budget is put back (`budgetsOf` / `putBackBudgets`),
+         * the Eclipse ended without advancing, the student's crossing row dropped if this test made it.
+         * Red at 2e28785a: no roster in the panel (each reading null).
+         */
+        needs(env.primaryGm(), "an Eclipse's crossing is counted on the primary GM alone (`applyRecordedMove`)");
+        const { openGmPanel } = await import("./gm-panel.mjs");
+        const { actingStudents } = await import("./monokuma.mjs");
+        const A = await import("./actions.mjs");
+        const E = await import("./eclipse.mjs");
+        const { eclipseMoveStore } = await import("./gm-stores.mjs");
+        needs(world.atLeast("livingStudents", 1), "a living student to read the row of");
+        const [student] = actingStudents().filter(a => !a.getFlag(MODULE_ID, FLAGS.monocub));
+        must(student, "no acting student who is no Monocub - this would measure nothing");
+        must(!E.isEclipse(), "an Eclipse is open already - this would read its crossings, not a day's");
+        for (const app of [...foundry.applications.instances.values()]) {
+            if (app?.options?.classes?.includes("drpg-window-panel")) await app.close();
+        }
+        let panel = null;
+        const row = async () => {
+            panel = null;
+            await openGmPanel();
+            // The kit hands DialogV2 its content as an element (ui-kit.mjs `dialogContent`), or as markup.
+            const box = document.createElement("div");
+            if (panel instanceof Element) box.append(panel);
+            else box.innerHTML = panel ?? "";
+            const standing = box.querySelector(".drpg-gmp-standing");
+            const tr = box.querySelector(`.drpg-gmp-roster tr[data-drpg-actor="${student.id}"]`);
+            if (!tr) return null;
+            return { first: standing?.querySelector(".drpg-gmp-roster") === standing?.querySelector(":scope > :not(.drpg-box)"),
+                actions: tr.querySelector("[data-drpg-actions]")?.dataset.drpgActions ?? null,
+                free: tr.querySelector("[data-drpg-free-move]")?.dataset.drpgFreeMove ?? null,
+                eclipse: tr.querySelector("[data-drpg-eclipse-moves]")?.dataset.drpgEclipseMoves ?? null };
+        };
+        const sheet = (inEclipse = false) => {
+            const left = E.movesLeft(student), most = E.eclipseAllowanceFor(student);
+            return { first: true, actions: `${A.actionsLeft(student)}/${A.actionsMax(student)}`,
+                free: inEclipse ? null : A.hasFreeMove(student) ? "yes" : "no",
+                eclipse: !inEclipse ? null : left === null || most === null ? "any" : `${left}/${most}` };
+        };
+        const budgets = A.budgetsOf();
+        const hadRow = eclipseMoveStore.has(student.id);
+        const D = foundry.applications.api.DialogV2;
+        const own = Object.getOwnPropertyDescriptor(D, "wait");
+        let read;
+        try {
+            D.wait = async config => {
+                if (config?.classes?.includes?.("drpg-gm-panel-window")) panel = config.content;
+                return null;
+            };
+            if (A.actionsLeft(student) < 1) await A.setActions(student, A.actionsMax(student));
+            const day = [await row(), sheet()];
+            const before = A.actionsLeft(student);
+            await A.spendAction(student, 1, { quiet: true });
+            await settle();
+            const spent = [await row(), sheet(), before - A.actionsLeft(student)];
+            await E.startEclipse();
+            await settle();
+            must(E.isEclipse(), "the Eclipse did not start");
+            const dark = [await row(), sheet(true)];
+            const free = E.eclipseAllowanceFor(student) === null;
+            const was = E.movesLeft(student);
+            if (!free) await E.applyRecordedMove(student.id, { card: false });
+            await settle();
+            const crossed = [await row(), sheet(true), free ? null : was - E.movesLeft(student)];
+            read = { day, spent, dark, crossed };
+        } finally {
+            if (own) Object.defineProperty(D, "wait", own);
+            if (E.isEclipse()) await E.endEclipse({ advance: false }).catch(() => {});
+            if (!hadRow && eclipseMoveStore.has(student.id)) await eclipseMoveStore.drop(student.id).catch(() => {});
+            await A.putBackBudgets(budgets);
+        }
+        const free = read.crossed[2] === null;
+        equal(stableJson({ day: read.day[0], spent: [read.spent[0], read.spent[2]], dark: read.dark[0], crossed: [read.crossed[0], read.crossed[2]] }),
+            stableJson({ day: read.day[1], spent: [read.spent[1], 1], dark: read.dark[1], crossed: [read.crossed[1], free ? null : 1] }),
+            "{day, spent, dark, crossed: the panel's row (first in the block; actions left/most; Free Move; the Eclipse's crossings left/allowance or any) "
+            + "against the sheet's functions, and the action and the crossing each took one}");
+    }],
     ["End the chapter from Edit campaign runs the chapter's end once after its confirm, and Cancel at the question writes nothing (scripts/gm-campaign.mjs `openClockDialog`, `endTheChapter`; E49 A2; the owner's 10.11 [12] and [16])", async () => {
         /*
          * E49 A2, 10.11.2026. End the chapter left the panel for the foot of Edit campaign: a warning box apart from the

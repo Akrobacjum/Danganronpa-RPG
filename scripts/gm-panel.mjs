@@ -14,20 +14,21 @@
  * audit's D 158, 1.2.122.
  */
 
-import { MODULE_ID, moduleVersion, TIMES_OF_DAY } from "./config.mjs";
+import { MODULE_ID, FLAGS, moduleVersion, TIMES_OF_DAY } from "./config.mjs";
 import { getClock, clockSummary, phaseLabel, campaignName } from "./clock.mjs";
-import { actionsLeft } from "./actions.mjs";
-import { isEclipse } from "./eclipse.mjs";
+import { actionsLeft, actionsMax, hasFreeMove, freeActionsLeft, freeMovesLeft } from "./actions.mjs";
+import { isEclipse, movesLeft as eclipseMovesLeft, eclipseAllowanceFor } from "./eclipse.mjs";
+import { overflowBlocksFreeMove } from "./overflow.mjs";
 import { studentActors, actingStudents } from "./monokuma.mjs";
 import { error, plural, esc, primaryGmId, isPrimaryGm, hiddenByGm } from "./utils.mjs";
 import { keepLive, alreadyOpen, RAISED } from "./live.mjs";
-import { launcher, drpgWindow, box, tipAttr, tipText, WINDOW_HELP } from "./ui-kit.mjs";
+import { launcher, drpgWindow, box, dataTable, tipAttr, tipText, WINDOW_HELP } from "./ui-kit.mjs";
 import { SETTINGS, bodyDiscovery, bodyFoundSinceTrial, seasonEpoch } from "./settings.mjs";
 import { bodiesToDiscover, announcedIn, chapterEndStopped, pendingBodyDiscoveries } from "./chapter.mjs";
 import { flagsHeldNow } from "./sheet-audit.mjs";
 import { roomOfToken } from "./movement.mjs";
 import { keyPlanStatus, keysToPlace, autopsyIssued, caseKeyCount } from "./investigation.mjs";
-import { caseMark, caseWarning, healthLine, keyPlanStore, caseSchemaStore, pendingBodyStore } from "./gm-stores.mjs";
+import { caseMark, caseWarning, healthLine, keyPlanStore, caseSchemaStore, pendingBodyStore, eclipseMoveStore, timedEffectStore } from "./gm-stores.mjs";
 import { firstOutstandingStep } from "./season-setup.mjs";
 import { roundOf, readyRecord } from "./boundary.mjs";
 import { trialNextStep, trialStepView, trialStepText } from "./trial-floor.mjs";
@@ -681,7 +682,9 @@ function keepPanelFresh(dialog) {
            audit's REFR-46): the bodies waiting for the GM's word (a GM store whose write fires only its own key) and the
            case's last health report (`drpgCaseHealthChanged`). A GM connecting or leaving changes who the primary is,
            which the Next line's two primary-only buttons read (CTRL-85). */
-        watch: { actors: true, items: true, tokens: true, stores: [keyPlanStore, caseSchemaStore, pendingBodyStore],
+        /* And the Eclipse's crossings (1.2.129, S0-GMLIST): the roster's Moves column reads the GMs' store of crossings
+           made (`eclipseMoveStore`) and a room action's extra crossings (`timedEffectStore`), neither an actor's write. */
+        watch: { actors: true, items: true, tokens: true, stores: [keyPlanStore, caseSchemaStore, pendingBodyStore, eclipseMoveStore, timedEffectStore],
             hooks: ["drpgCaseHealthChanged", "userConnected"] }
     });
 
@@ -1175,6 +1178,7 @@ function buildPanelContent() {
 
     return `<div class="drpg-gmp-standing">
                 ${caseLine}
+                ${PANEL_ROSTER ? rosterTableHtml() : ""}
                 <h3>${foundry.utils.escapeHTML(campaignName(clock))}</h3>
                 <p class="drpg-gmp-clockline"><strong>${clockSummary(clock)}</strong>
                    <span class="drpg-gmp-phase">${phaseLabel(clock.phase)}</span></p>
@@ -1233,6 +1237,69 @@ export function studentsLeftHtml(roster = actingStudents()) {
     // The count alone since E101 (the owner's yes of 12.11.2026 to the GM screens' review): its Students button was the
     // Now section's Students tile again, two rows below, and that tile stays the door (R4054).
     return `<p class="drpg-gmp-students" data-drpg-students-left="${n}">${esc(plural("DRPG.Panel.studentsLeft", { n }))}</p>`;
+}
+
+/**
+ * WHETHER THE PANEL OPENS ON THE ROSTER (1.2.129, S0-GMLIST; the owner after session 0, 23.11.2026: "przywrocmy liste akcji
+ * i ruchow graczy do glownej zakladki gm panel na gorze"). The coordinator's default, pending the owner: on. One constant.
+ */
+export const PANEL_ROSTER = true;
+
+/**
+ * THE ROSTER, BACK AT THE TOP OF THE PANEL (1.2.129, S0-GMLIST). Until 1.2.104 the panel's standing block drew a row per
+ * acting student - the actions left of the most and the Free Move (git: v1.2.104 gm-panel.mjs `buildPanelContent`); E49
+ * A2 (1.2.105, 10.11.2026, the owner's "tak" to the mockup's one line) folded it into `studentsLeftHtml`'s count and the
+ * Students window's two columns. The owner asks for it back, "upewnijmy sie ze wyswietla poprawnie ile akcji i ruchow ma
+ * dany gracz, rowniez w eclipse", so each cell reads what the sheet's budget line reads (sheet-actions.mjs `budgetLine`),
+ * the same functions:
+ *   - Actions: `actionsLeft` of `actionsMax`, and "+N" for the actions bought with Hope (`freeActionsLeft`, a Burst),
+ *     which a crossing or an action takes before the budget.
+ *   - Moves, outside an Eclipse: the Free Move as "1 / 1" or "0 / 1" (`hasFreeMove`, one a time of day, which Fog takes:
+ *     `overflowBlocksFreeMove`, said in its tooltip) and "+N" for the free crossings banked (`freeMovesLeft`: a Sprint,
+ *     a Dash, Facilities, Infiltrate).
+ *   - Moves, in an Eclipse: the crossings left of the Eclipse's allowance for that student (eclipse.mjs `movesLeft`,
+ *     `eclipseAllowanceFor`: 2, fewer under a darkening, plus a room action's extra crossings), or "Any room" where the
+ *     Eclipse places freely (the Night Eclipse: `null`). The actions are the coming time of day's, refilled as the
+ *     Eclipse opened (eclipse.mjs `startEclipse`), and the Free Move is not spent in the dark.
+ * The same three columns in every state (the owner's rule of 10.11: a state changes look, never layout); a student with
+ * nothing left is dimmed (`data-drpg-spent`). The roster is `actingStudents`' (the living cast and a Monocub), as before.
+ * `crossings` is the Eclipse's reading, a parameter for R8810's stand-ins. Exported for R8810 and the tier-2 reading.
+ */
+export function rosterTableHtml(roster = actingStudents(), { eclipse = isEclipse(), crossings = a => [eclipseMovesLeft(a), eclipseAllowanceFor(a)] } = {}) {
+    const L = key => game.i18n.localize(key);
+    const tip = text => `data-tooltip="${esc(text)}" aria-label="${esc(text)}"`;
+    const rows = roster.map(a => {
+        const left = actionsLeft(a), max = actionsMax(a), burst = freeActionsLeft(a);
+        const cub = a.getFlag?.(MODULE_ID, FLAGS.monocub) ? ` <span class="notes">(${esc(L("DRPG.Monocub.panelTitle"))})</span>` : "";
+        const actions = `<span data-drpg-actions="${left}/${max}">${left} / ${max}</span>`
+            + (burst ? ` <span class="drpg-gmp-roster-extra" data-drpg-burst="${burst}" ${tip(plural("DRPG.Actions.burstBanked", { n: burst }))}>+${burst}</span>` : "");
+        let moves;
+        if (eclipse) {
+            const [movesLeft, allowance] = crossings(a);
+            moves = movesLeft === null || allowance === null
+                ? `<span data-drpg-eclipse-moves="any">${esc(L("DRPG.Panel.anyRoom"))}</span>`
+                : `<span data-drpg-eclipse-moves="${movesLeft}/${allowance}" ${tip(plural("DRPG.Actions.eclipseMovesLeft", { n: movesLeft }))}>${movesLeft} / ${allowance}</span>`;
+        } else {
+            const free = hasFreeMove(a), sprint = freeMovesLeft(a);
+            const said = free ? L("DRPG.Actions.freeMoveAvailable") : overflowBlocksFreeMove() ? L("DRPG.SheetNotes.fogBudget") : L("DRPG.Actions.freeMoveSpent");
+            // In words, as the actions are: under Stained Glass the footprint is one pixel glyph whether the Free Move is
+            // there or not (the old table's solid and outline, read in Chromium on 23.11.2026), so a count says it.
+            moves = `<span data-drpg-free-move="${free ? "yes" : "no"}" ${tip(said)}>${free ? 1 : 0} / 1</span>`
+                + (sprint ? ` <span class="drpg-gmp-roster-extra" data-drpg-sprint="${sprint}" ${tip(plural("DRPG.Actions.sprintBanked", { n: sprint }))}>+${sprint}</span>` : "");
+        }
+        return { name: `${esc(a.name)}${cub}`, actions, moves, id: a.id, spent: left === 0 && !burst };
+    });
+    return `<div class="drpg-gmp-roster" data-drpg-eclipse="${eclipse ? "yes" : "no"}">${dataTable({
+        columns: [
+            { key: "name", label: L("DRPG.Panel.character") },
+            { key: "actions", label: L("DRPG.Actions.label"), num: true },
+            { key: "moves", label: L("DRPG.Panel.moves"), num: true }
+        ],
+        rows,
+        empty: "DRPG.Panel.noCharacters",
+        caption: L("DRPG.Panel.rosterCaption"),
+        rowAttrs: r => ({ "data-drpg-actor": r.id, "data-drpg-spent": r.spent })
+    })}</div>`;
 }
 
 /** The case tile's second line (E47-C3; the Back up tile's before it): when the case was last backed up, from the world's case mark (E04). */
