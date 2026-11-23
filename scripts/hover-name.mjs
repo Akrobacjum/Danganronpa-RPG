@@ -44,6 +44,7 @@ import { isTraceToken, keyOf as remnantKeyOf, traceLabel, ledgerLabel } from "./
 import { myBulletForRemnant, remnantShownHere } from "./visibility.mjs";
 import { getSetting, SETTINGS } from "./settings.mjs";
 import { count } from "./perf-counters.mjs";
+import { projectSecretStore } from "./gm-stores.mjs";
 
 /** The label's class: the stylesheets dress it by this, and `dropHoverName` finds none other. */
 export const HOVER_NAME_CLASS = "drpg-hover-name";
@@ -173,9 +174,9 @@ function onTokenChanged(tokenDoc) {
  * Foundry's `drawToken`, and again only when what it reads may have changed: the token's name, flags, nameplate mode,
  * size or `hidden` (`updateToken`), its actor's name or flags (`updateActor`), a Truth Bullet of this player's made,
  * renamed or gone (`createItem`, `updateItem`, `deleteItem`, a player's browser), the GMs' ledger, a project's meta, the
- * countdowns, a project's sight, and the setting itself. Each rebuild is keyed by its inputs: the same words, size and
- * face keep the text standing (`caption.kept`); only a change draws a new one (`caption.drawn`). A move changes none of
- * them. While captions are on the hover draws no label, and where Foundry's own nameplate already shows for this viewer
+ * countdowns, the GMs' store of secret project names, a project's sight, and the setting itself. Each rebuild is keyed
+ * by its inputs: the same words, size and face keep the text standing (`caption.kept`); only a change draws a new one
+ * (`caption.drawn`). A move changes none of them. While captions are on the hover draws no label, and where Foundry's own nameplate already shows for this viewer
  * no caption is drawn (`nameplateShows`, through `hoverName`).
  * THE FACE: the hover label's own, read off the stylesheet once per theme - a probe `.drpg-hover-name` on the page, its
  * computed font, colour and background (`captionStyle`, kept until the body's classes change) - the words in the label's
@@ -311,7 +312,10 @@ export function registerHoverName() {
     });
     Hooks.on("updateActor", (actor, changes) => {
         if (!("name" in (changes ?? {})) && !("flags" in (changes ?? {}))) return;
-        recaptionAll(doc => doc?.actorId === actor?.id);
+        /* A project's and a trace's name never come from their actor (every project token shares one, remnants.mjs's
+           traces one): a write on it leaves them as they are. Read in 30-security on 51fd90d3: recaptioning them there read
+           the countdowns seven times (`shownName`) inside a window the scenario holds to no reads. */
+        recaptionAll(doc => doc?.actorId === actor?.id && !projectIdOf(doc) && !isTraceToken(doc));
     });
     const bulletChanged = item => { if (!game.user?.isGM && item?.parent?.isOwner) recaptionAll(isTraceToken); };
     Hooks.on("createItem", bulletChanged);
@@ -319,10 +323,15 @@ export function registerHoverName() {
     Hooks.on("deleteItem", bulletChanged);
     Hooks.on("clientSettingChanged", key => {
         if (key === `${MODULE_ID}.${SETTINGS.remnantSecrets}`) recaptionAll(isTraceToken);
-        else if (key === `${MODULE_ID}.projectMeta` || key === COUNTDOWNS_KEY) recaptionAll(projectIdOf);
+        /* A project's name: the countdowns, its meta, the GMs' store of secret names (`projectSecretStore`, a GM's), and a
+           player's sight of it (`drpgProjectSightChanged`). Not secret.mjs's `drpgSecretStored`, a private card's words:
+           read in 30-security on 51fd90d3, it recaptioned every project token, each reading the countdowns, on every
+           private card stored. */
+        else if (key === `${MODULE_ID}.projectMeta` || key === COUNTDOWNS_KEY || key === `${MODULE_ID}.${projectSecretStore.spec.key}`) {
+            recaptionAll(projectIdOf);
+        }
     });
     Hooks.on("drpgProjectSightChanged", () => recaptionAll(projectIdOf));
-    Hooks.on("drpgSecretStored", () => recaptionAll(projectIdOf));
     // A press anywhere: a click on the token, the start of its drag, a press on a window above it.
     globalThis.document?.addEventListener("pointerdown", () => { if (state.timer !== null || state.el) dropHoverName(); }, { capture: true, passive: true });
 }
