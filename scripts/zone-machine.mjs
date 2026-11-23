@@ -121,6 +121,14 @@ export function zoneText(value, length) {
     return text || null;
 }
 
+/**
+ * A count's words on a card (E129 S0-ZONESTYLE, 23.11.2026; the owner's "Na karcie eventu tez nie wyswietlamy zone a vs
+ * zone b"): `na` and `nb` the students counted, `a` and `b` the answers they stood for - no side is named by its letter.
+ */
+function countWords(zone, counts) {
+    return { na: String(counts?.a ?? 0), nb: String(counts?.b ?? 0), a: zone?.answers?.a ?? "", b: zone?.answers?.b ?? "" };
+}
+
 /** A card of the step, titled by its mode. */
 function card(mode, key, words = {}, extra = {}) {
     return { key, title: `DRPG.Floor.mode.${mode}`, mode, words, ...extra };
@@ -180,7 +188,7 @@ function strawCount(floor, ctx) {
     const zone = zoneOf(floor);
     const counts = countsOf(ctx.sides);
     const verdict = strawVerdict(counts);
-    const words = { a: String(counts.a), b: String(counts.b), answer: verdict.answer ? zone.answers[verdict.answer] : "" };
+    const words = { ...countWords(zone, counts), answer: verdict.answer ? zone.answers[verdict.answer] : "" };
     if (verdict.split) {
         return over([card(floor.mode, "DRPG.Zones.straw.split", words, { sfx: "strawPollResult" })],
             { zoneRecord: { strawPoll: { split: true, ...counts, question: zone.question } } });
@@ -204,10 +212,12 @@ function diveJudge(floor, ctx, now) {
     const zone = zoneOf(floor);
     const counts = zone.counts ?? { a: 0, b: 0 };
     const verdict = diveVerdict(counts, ctx.truth);
-    const words = { a: String(counts.a), b: String(counts.b), n: String((zone.set?.index ?? 0) + 1), total: String(zone.set?.total ?? 1) };
+    const words = { ...countWords(zone, counts), n: String((zone.set?.index ?? 0) + 1), total: String(zone.set?.total ?? 1) };
     const at = { setId: zone.set?.id ?? null, index: zone.set?.index ?? 0 };
     if (verdict !== "right") {
-        return over([card(floor.mode, verdict === "tie" ? "DRPG.Zones.dive.tie" : "DRPG.Zones.dive.wrong", words, { sfx: "answerWrong" })],
+        // A tie names no answer, only its count (TR3: a tie shows no truth; R3904); a wrong answer names both, as STG-74 keeps it.
+        const told = verdict === "tie" ? { na: words.na, nb: words.nb, n: words.n, total: words.total } : words;
+        return over([card(floor.mode, verdict === "tie" ? "DRPG.Zones.dive.tie" : "DRPG.Zones.dive.wrong", told, { sfx: "answerWrong" })],
             { dive: { ...at, outcome: verdict } });
     }
     const right = card(floor.mode, "DRPG.Zones.dive.right", words, { sfx: "answerRight" });
@@ -248,12 +258,12 @@ function scrumTurn(floor, ctx, now, cards = []) {
     if (turn >= (Number(zone.turns) || 0)) {
         const empty = ["a", "b"].filter(side => counts[side] === 0);
         if (empty.length === 1) return scrumEmpty(floor, empty[0], counts, cards);
-        return over([...cards, card(floor.mode, "DRPG.Zones.scrum.over", { a: String(counts.a), b: String(counts.b) })]);
+        return over([...cards, card(floor.mode, "DRPG.Zones.scrum.over", countWords(zone, counts))]);
     }
     const side = turn % 2 === 0 ? zone.first : other(zone.first);
     const members = ctx.sides[side];
     if (!members.length) {
-        const told = card(floor.mode, "DRPG.Zones.scrum.noSpeaker", { zone: side.toUpperCase() });
+        const told = card(floor.mode, "DRPG.Zones.scrum.noSpeaker", { answer: zone.answers?.[side] ?? "" });
         return { floor: phase(floor, "speak", zone.turnSeconds, now, { turn: turn + 1, side }, { holderId: null }), cards: [...cards, told] };
     }
     const spoke = Number(zone.spoke?.[side]) || 0;
@@ -267,7 +277,7 @@ function scrumEmpty(floor, empty, counts, cards = []) {
     const zone = zoneOf(floor);
     const won = other(empty);
     const text = zone.answers[won];
-    return over([...cards, card(floor.mode, "DRPG.Zones.scrum.empty", { zone: empty.toUpperCase(), answer: text })],
+    return over([...cards, card(floor.mode, "DRPG.Zones.scrum.empty", { empty: zone.answers?.[empty] ?? "", answer: text })],
         { zoneRecord: { finding: { text, question: zone.question, mode: floor.mode, side: won, ...counts } } });
 }
 
@@ -296,14 +306,14 @@ export function conferCampOf(floor, owns = () => false) {
 
 /**
  * The line a viewer's HUD and trial card say under the mode while the camps confer, as an i18n key and its words, or
- * null outside Confer: "You confer with Zone {zone}." for a player in a camp, "Zone A and Zone B confer apart." for a
+ * null outside Confer: "You confer with the camp for “{answer}”." for a player in a camp, "The two camps confer apart." for a
  * GM, "You are in neither camp..." for a player outside both.
  */
 export function conferLineOf(floor, { owns = () => false, gm = false } = {}) {
     if (!conferCamps(floor)) return null;
     if (gm) return { key: "DRPG.Zones.confer.apart", words: {} };
     const camp = conferCampOf(floor, owns);
-    return camp ? { key: "DRPG.Zones.confer.mine", words: { zone: camp.toUpperCase() } } : { key: "DRPG.Zones.confer.none", words: {} };
+    return camp ? { key: "DRPG.Zones.confer.mine", words: { answer: zoneOf(floor)?.answers?.[camp] ?? "" } } : { key: "DRPG.Zones.confer.none", words: {} };
 }
 
 /**
@@ -317,7 +327,7 @@ function scrumConfer(floor, ctx, now) {
     if (empty) return scrumEmpty(floor, empty, counts);
     const seconds = Number(cfg().scrum?.conferSeconds) || 120;
     const camps = { a: [...ctx.sides.a], b: [...ctx.sides.b] };
-    const told = card(floor.mode, "DRPG.Zones.scrum.confer", { a: String(counts.a), b: String(counts.b), seconds: String(seconds) });
+    const told = card(floor.mode, "DRPG.Zones.scrum.confer", { ...countWords(zoneOf(floor), counts), seconds: String(seconds) });
     return { floor: phase(floor, "confer", seconds, now, { camps }), cards: [told], conferBegun: true };
 }
 
@@ -329,7 +339,7 @@ function scrumBegin(floor, ctx, now) {
     const first = counts.b < counts.a ? "b" : "a";
     const zone = zoneOf(floor);
     const begun = { ...floor, zone: { ...zone, turns: scrumTurns(counts.a, counts.b), turnSeconds: scrumTurnSeconds(counts.a, counts.b), first, turn: 0 } };
-    const told = card(floor.mode, "DRPG.Zones.scrum.begins", { zone: first.toUpperCase(), turns: String(begun.zone.turns),
+    const told = card(floor.mode, "DRPG.Zones.scrum.begins", { answer: zone.answers?.[first] ?? "", turns: String(begun.zone.turns),
         seconds: String(Math.round(begun.zone.turnSeconds * 10) / 10) });
     return scrumTurn(begun, ctx, now, [told]);
 }
@@ -413,7 +423,7 @@ export function zoneStep(floor, event = {}, ctx = {}) {
             if (!text) return { refused: "DRPG.Zones.noThesis" };
             const theses = [...(Array.isArray(zone.theses) ? zone.theses : []), { actorId: event.actorId, side: zone.side ?? null, text, turn: zone.turn }];
             return { floor: { ...floor, zone: { ...zone, theses } },
-                cards: [card(floor.mode, "DRPG.Zones.scrum.thesis", { text, zone: String(zone.side ?? "").toUpperCase() }, { actorId: event.actorId })] };
+                cards: [card(floor.mode, "DRPG.Zones.scrum.thesis", { text, answer: zone.answers?.[zone.side] ?? "" }, { actorId: event.actorId })] };
         }
         case "endMode":
         case "end":

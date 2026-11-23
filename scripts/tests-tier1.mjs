@@ -10549,7 +10549,8 @@ const INVARIANTS = [
         const confer = M.zoneStep(start, { type: "due" }, { now: 46_000, sides: camps }).floor;
         const turn1 = M.zoneStep(confer, { type: "due" }, { now: 167_000, sides: camps }).floor;
         const read = r => (r?.floor ? { phase: r.floor.zone.phase, turn: r.floor.zone.turn, side: r.floor.zone.side, holder: r.floor.holderId ?? null, seconds: r.floor.seconds,
-            cards: (r.cards ?? []).map(c => [c.key, c.words?.zone ?? null]) }
+            // The camp by its answer since E129 S0-ZONESTYLE (the owner's 23.11.2026: no "Zone A/B" on a card): `answer`, not `zone`.
+            cards: (r.cards ?? []).map(c => [c.key, c.words?.answer ?? c.words?.zone ?? null]) }
             : { floor: r && "floor" in r ? r.floor : "refused", refused: r?.refused ?? null, finding: r?.zoneRecord?.finding?.text ?? null, cards: (r?.cards ?? []).map(c => c.key) });
         const step = (floor, type, at, sides) => M.zoneStep(floor, { type }, { now: at, sides });
         const out = { early: [step(turn1, "due", 177_000, crossed), step(turn1, "due", 206_000, crossed)].map(read) };
@@ -10574,10 +10575,10 @@ const INVARIANTS = [
         equal(stableJson(out), stableJson({
             early: [{ floor: "refused", refused: "DRPG.Floor.round.notDue", finding: null, cards: [] }, { floor: "refused", refused: "DRPG.Floor.round.notDue", finding: null, cards: [] }],
             turn2: { phase: "speak", turn: 2, side: "a", holder: "x1", seconds: 40, cards: [] },
-            turn3: { phase: "speak", turn: 3, side: "b", holder: null, seconds: 40, cards: [["DRPG.Zones.scrum.noSpeaker", "B"]] },
+            turn3: { phase: "speak", turn: 3, side: "b", holder: null, seconds: 40, cards: [["DRPG.Zones.scrum.noSpeaker", "Out"]] },
             turn3early: { floor: "refused", refused: "DRPG.Floor.round.notDue", finding: null, cards: [] },
             skipped: { phase: "speak", turn: 4, side: "a", holder: "x2", seconds: 40, cards: [] },
-            turn5: { phase: "speak", turn: 5, side: "b", holder: null, seconds: 40, cards: [["DRPG.Zones.scrum.noSpeaker", "B"]] },
+            turn5: { phase: "speak", turn: 5, side: "b", holder: null, seconds: 40, cards: [["DRPG.Zones.scrum.noSpeaker", "Out"]] },
             end: { empty: { floor: null, refused: null, finding: "In", cards: ["DRPG.Zones.scrum.empty"] },
                 both: { floor: null, refused: null, finding: null, cards: ["DRPG.Zones.scrum.over"] },
                 standing: { floor: null, refused: null, finding: null, cards: ["DRPG.Zones.scrum.over"] } },
@@ -10671,7 +10672,7 @@ const INVARIANTS = [
         }), stableJson({ split: [false, false, true], quiet: false, begun: [true, false, false], asked: true }),
         "{split: [voice off, no LiveKit, both]; quiet: the notice where voices split; begun: [into Confer, +30 s in it, out of it]; asked: commitFloor asks the notice}");
     }],
-    ["R5915 - Camps confer on screen (the owner's 13.11.2026): zone-machine.mjs `conferLineOf` says \"You confer with Zone {zone}.\" to a player in a camp, \"Zone A and Zone B confer apart.\" to a GM and \"You are in neither camp...\" to a player outside both, nothing outside Confer; the console's panel names the phase and the camps as kept; the bar's Skip reads \"Sides set\" in Sides and \"End the confer\" in Confer, and Skip elsewhere; each key in English and Polish", async () => {
+    ["R5915 - Camps confer on screen (the owner's 13.11.2026): zone-machine.mjs `conferLineOf` says \"You confer with the camp for “{answer}”.\" to a player in a camp (\"Zone {zone}\" until E129 S0-ZONESTYLE), \"The two camps confer apart.\" to a GM and \"You are in neither camp...\" to a player outside both, nothing outside Confer; the console's panel names the phase and the camps as kept; the bar's Skip reads \"Sides set\" in Sides and \"End the confer\" in Confer, and Skip elsewhere; each key in English and Polish", async () => {
         /* Pure lines and markup, nothing drawn on the page. Red at ceb9e9c8: no Confer, no lines, no labels. */
         const M = await import("./zone-machine.mjs");
         const UI = await import("./trial-floor-ui.mjs");
@@ -10695,7 +10696,8 @@ const INVARIANTS = [
             skip: [UI.barLabel("skip", 30, start), UI.barLabel("skip", 30, confer), UI.barLabel("skip", 30, speak)],
             missing: keys.filter(k => !has(en, k) || !has(pl, k))
         }), stableJson({
-            lines: [game.i18n.format("DRPG.Zones.confer.mine", { zone: "A" }), game.i18n.format("DRPG.Zones.confer.mine", { zone: "B" }), L("DRPG.Zones.confer.apart"), L("DRPG.Zones.confer.none"), null],
+            // The camp named by its answer since E129 S0-ZONESTYLE (the owner's 23.11.2026; here the answers are "A" and "B").
+            lines: [game.i18n.format("DRPG.Zones.confer.mine", { answer: "A" }), game.i18n.format("DRPG.Zones.confer.mine", { answer: "B" }), L("DRPG.Zones.confer.apart"), L("DRPG.Zones.confer.none"), null],
             panel: [true, ["(2)", "(1)"]],
             skip: [L("DRPG.Zones.confer.sidesSet"), L("DRPG.Zones.confer.conferOver"), L("DRPG.Floor.bar.skip")],
             missing: []
@@ -68481,6 +68483,122 @@ const INVARIANTS = [
         equal(stableJson({ setting: [TRIAL.allowVotingForMonokuma, TRIAL.eachMonokumaOnBallot], listed: V.monokumaCandidates({ actors, held }) }),
             stableJson({ setting: [true, true], listed: [{ id: "k1", name: "Divakuma", dead: false }, { id: "k2", name: "Karimkuma", dead: false }] }),
             "the ballot does not list each Monokuma by its own id and name, sorted, as the GMs hold the flag (the two settings; the list)");
+    }],
+    ["R8774 - the trial's zones in the map rooms' style, named by their answers (E129 S0-ZONESTYLE; the owner's note of 23.11.2026, \"strefy w class trial. Niech maja ten sam styl co pokoje na mapie, a nazwa strefy (bez zone a/b - sama tresc) niech wyswietla sie na srodku strefy i nie znika\"): fog-reveal.mjs `roomNameText` and `outlineWidths` give a room what they gave it before, and trial-zones-ui.mjs `zoneLabelText` and `fitZoneLabel`", async () => {
+        /*
+         * Pure but for PIXI's Text (the harness's stand-in keeps the style it is handed). (1) A room's name and lines, on the
+         * same inputs, as they were before E129 split `roomLabel` (fog-reveal.mjs at f861d876: the face by theme, the size
+         * max(28, grid * 1.1), the bone fill, the stroke max(4, grid * 0.11), centred; Legacy's bone max(7, grid * 0.11) over
+         * ink + max(4, grid * 0.05); Glass's seam with no ink) at grids 50, 100 and 150. (2) A zone's words: the answer alone,
+         * "Zone A: " before it with the prefix on. (3) The fit over a measure of 0.6 em a character and 1.2 a line: a short
+         * answer at the base size in 90 % of the box's width, a long one wrapped and shrunk, one that cannot fit at the floor
+         * of 12 marked as not fitting. Red at f861d876: neither function exported.
+         */
+        const R = await import("./fog-reveal.mjs");
+        const Z = await import("./trial-zones-ui.mjs");
+        const { TRIAL } = await import("./config.mjs");
+        ok(["roomNameText", "outlineWidths", "seamHalo"].every(n => typeof R[n] === "function"), "fog-reveal.mjs does not export roomNameText, outlineWidths and seamHalo");
+        ok(["zoneLabelText", "fitZoneLabel"].every(n => typeof Z[n] === "function"), "trial-zones-ui.mjs exports no zoneLabelText and fitZoneLabel");
+        if (typeof R.roomNameText !== "function" || typeof Z.fitZoneLabel !== "function") return;
+        const rooms = [];
+        for (const grid of [50, 100, 150]) for (const glass of [false, true]) {
+            const label = R.roomNameText("Kitchen", { glass, grid, bone: 0xabcdef });
+            const s = label.style ?? {};
+            rooms.push([grid, glass, label.text, s.fontFamily, s.fontSize, s.fill, s.strokeThickness, s.align, label.resolution,
+                R.outlineWidths(glass, grid).inkWidth, glass ? null : R.outlineWidths(glass, grid).boneWidth]);
+            label.destroy?.();
+        }
+        const want = [];
+        for (const grid of [50, 100, 150]) for (const glass of [false, true]) {
+            want.push([grid, glass, "Kitchen", glass ? '"Special Elite", "Courier New", monospace' : "DRPG Pixel, monospace", Math.max(28, Math.round(grid * 1.1)),
+                0xabcdef, Math.max(4, Math.round(grid * 0.11)), "center", 2,
+                glass ? 0 : Math.max(7, Math.round(grid * 0.11)) + Math.max(4, Math.round(grid * 0.05)), glass ? null : Math.max(7, Math.round(grid * 0.11))]);
+        }
+        equal(stableJson(rooms), stableJson(want), "a room's name or lines are not what they were on the same inputs (grid, Glass; the words, face, size, fill, stroke, align, resolution; ink, bone)");
+        const zone = { answers: { a: "Inside the library", b: "Outside" } };
+        const measure = text => (size, wrap) => {
+            const per = size * 0.6;
+            let lines = 1, run = 0, widest = 0;
+            for (const w of text.split(/\s+/)) { const ww = w.length * per; const next = run ? run + per + ww : ww; if (run && next > wrap) { widest = Math.max(widest, run); lines += 1; run = ww; } else run = next; }
+            return { width: Math.max(widest, run), height: lines * size * 1.2 };
+        };
+        const box = { w: 1000, h: 1000 };
+        const long = "word ".repeat(40).trim();
+        const short = Z.fitZoneLabel({ box, base: 110, measure: measure("Outside"), fitWidth: 0.9, fitHeight: 0.9, minFontPx: 12 });
+        const wrapped = Z.fitZoneLabel({ box, base: 110, measure: measure(long), fitWidth: 0.9, fitHeight: 0.9, minFontPx: 12 });
+        const never = Z.fitZoneLabel({ box: { w: 100, h: 20 }, base: 110, measure: measure(long), fitWidth: 0.9, fitHeight: 0.9, minFontPx: 12 });
+        const fitsIn = (r, text, b) => { const m = measure(text)(r.fontSize, r.wrapWidth); return m.width <= b.w * 0.9 && m.height <= b.h * 0.9; };
+        equal(stableJson({
+            label: TRIAL.modes?.zones?.label ?? null, words: [Z.zoneLabelText(zone, "a"), Z.zoneLabelText(zone, "b"), Z.zoneLabelText(zone, "a", { prefix: true })],
+            short: [short.fontSize, short.wrapWidth, short.fits], wrapped: [wrapped.fontSize < 110, wrapped.fits, fitsIn(wrapped, long, box)], never: [never.fontSize, never.fits]
+        }), stableJson({
+            label: { prefix: false, fitWidth: 0.9, fitHeight: 0.9, minFontPx: 12 }, words: ["Inside the library", "Outside", `${game.i18n.localize("DRPG.TrialScene.zoneA")}: Inside the library`],
+            short: [110, 900, true], wrapped: [true, true, true], never: [12, false]
+        }), "a zone's words or their fit are not the answer alone at the room name's size, shrunk to fit (the constants; the words; a short answer; a long one; one that cannot fit)");
+    }],
+    ["R8775 - no card, line or button a player reads in a zone mode names \"Zone A\" or \"Zone B\" (E129 S0-ZONESTYLE; the owner's note of 23.11.2026, \"Na karcie eventu tez nie wyswietlamy zone a vs zone b ani nic takiego\"): the cards zone-machine.mjs writes name the answers, and the player-facing keys say no letter, in English and Polish", async () => {
+        /*
+         * Pure: a Straw Poll counted (a Finding, then a split), a Logic Dive judged right and then wrong, and a Scrum Debate
+         * from its Sides to its end - one camp emptied after Confer for a turn with no speaker, a thesis - run through
+         * zone-machine.mjs, each card formatted with its words in English (`game.i18n.format`) and in Polish (lang/pl.json,
+         * read here), and the Confer line; then the player-facing keys of the zones (Events.trialZone, Zones.confer, pick,
+         * panel's count and speaker, the openings) read in both files. Read: every text naming a side by its letter, and the
+         * count cards not naming both answers. The GM's setup keys (TrialScene.zones.*, Zones.picker.a/b, noZones,
+         * noAnswers, TrialScene.zoneA/B) are not read: the GM tells the two regions apart before any answer exists.
+         * Red at f861d876: every count card says "Zone A n".
+         */
+        const M = await import("./zone-machine.mjs");
+        const U = foundry.utils;
+        const pl = U.expandObject(await (await fetch(`modules/${MODULE_ID}/lang/pl.json`)).json());
+        const plFormat = (key, words) => {
+            let s = U.getProperty(pl, key);
+            if (typeof s !== "string") return `MISSING ${key}`;
+            for (const [k, v] of Object.entries(words ?? {})) s = s.replaceAll(`{${k}}`, String(v));
+            return s;
+        };
+        const LETTER = /\bZones? [AB]\b|\bStref[aeyęi]+ [AB]\b|\bzone [ab]\b/;
+        const A = "ANSWER-ONE", B = "ANSWER-TWO";
+        const sides = (a, b) => ({ a: Array.from({ length: a }, (_, i) => `a${i}`), b: Array.from({ length: b }, (_, i) => `b${i}`) });
+        const cards = [];
+        const take = r => { cards.push(...(r?.cards ?? [])); return r; };
+        let now = 1_000_000;
+        // A Straw Poll: a Finding (3:0), then a split (1:1).
+        for (const s of [sides(3, 0), sides(1, 1)]) {
+            const r = M.zoneStart(null, { type: "zone", mode: "straw", question: "Q", answers: { a: A, b: B } }, { now, stands: {} });
+            take(M.zoneStep(r.floor, { type: "count" }, { now: now += 1000, sides: s }));
+        }
+        // A Logic Dive: right (truth a, 3:1), then wrong (truth b, 3:1).
+        for (const truth of ["a", "b"]) {
+            let r = M.zoneStart(null, { type: "zone", mode: "dive", question: "Q", answers: { a: A, b: B }, set: { id: "S", index: 0, total: 1 } }, { now, stands: {} });
+            r = take(M.zoneStep(r.floor, { type: "count" }, { now: now += 1000, sides: sides(3, 1) }));
+            take(M.zoneStep(r.floor, { type: "due" }, { now: now += 60_000, sides: sides(3, 1), truth, next: null }));
+        }
+        // A Scrum Debate: Sides (2:1), Confer, the turns, camp b emptied, a thesis, to its end.
+        let r = M.zoneStart(null, { type: "zone", mode: "scrum", question: "Q", answers: { a: A, b: B } }, { now, stands: {} });
+        r = take(M.zoneStep(r.floor, { type: "due" }, { now: now += 600_000, sides: sides(2, 1) }));
+        const confer = M.conferLineOf(r.floor, { owns: id => id === "a0" });
+        r = take(M.zoneStep(r.floor, { type: "due" }, { now: now += 600_000, sides: sides(2, 1) }));
+        const holder = r.floor?.holderId;
+        if (holder) take(M.zoneStep(r.floor, { type: "thesis", actorId: holder, text: "a thesis" }, { now: now += 1000, sides: sides(2, 1) }));
+        for (let k = 0; k < 20 && M.zoneOf(r.floor); k++) r = take(M.zoneStep(r.floor, { type: "due" }, { now: now += 600_000, sides: sides(2, k >= 1 ? 0 : 1) }));
+        const keys = new Set(cards.map(c => c.key));
+        must(["DRPG.Zones.straw.finding", "DRPG.Zones.straw.split", "DRPG.Zones.dive.right", "DRPG.Zones.dive.wrong", "DRPG.Zones.scrum.confer",
+            "DRPG.Zones.scrum.begins", "DRPG.Zones.scrum.thesis"].every(k => keys.has(k)), `the walk wrote only ${[...keys].join(", ")} - this would measure little`);
+        const lettered = [], unnamed = [];
+        for (const c of cards.filter(c => String(c.key).startsWith("DRPG.Zones."))) {
+            const en = game.i18n.format(c.key, c.words ?? {}), plText = plFormat(c.key, c.words ?? {});
+            for (const text of [en, plText]) if (LETTER.test(text)) lettered.push(`${c.key}: ${text}`);
+            if ("na" in (c.words ?? {}) && ![en, plText].every(t => t.includes(A) && t.includes(B))) unnamed.push(c.key);
+        }
+        const conferText = [game.i18n.format(confer?.key ?? "", confer?.words ?? {}), plFormat(confer?.key ?? "", confer?.words ?? {})];
+        const facing = ["DRPG.Events.trialZone.straw.vote", "DRPG.Events.trialZone.scrum.setup", "DRPG.Events.trialZone.scrum.speak", "DRPG.Zones.confer.apart",
+            "DRPG.Zones.confer.mine", "DRPG.Zones.pick.side", "DRPG.Zones.pick.done", "DRPG.Zones.panel.counted", "DRPG.Zones.panel.scrum.speak", "DRPG.Zones.noSide",
+            "DRPG.Zones.straw.opened", "DRPG.Zones.straw.openedBare", "DRPG.Zones.dive.opened", "DRPG.Zones.dive.openedBare", "DRPG.Zones.scrum.opened",
+            "DRPG.Zones.scrum.openedBare", "DRPG.Zones.dive.tie", "DRPG.Zones.scrum.empty", "DRPG.Zones.scrum.noSpeaker", "DRPG.Zones.scrum.over"];
+        const keyLetters = facing.filter(k => LETTER.test(game.i18n.localize(k)) || LETTER.test(String(U.getProperty(pl, k) ?? "")) || /\{zone\}/.test(game.i18n.localize(k)));
+        equal(stableJson({ lettered, unnamed, confer: conferText.map(t => LETTER.test(t) || !t.includes(A)), keyLetters }),
+            stableJson({ lettered: [], unnamed: [], confer: [false, false], keyLetters: [] }),
+            "a zone mode's card or line names a side by its letter, or a count card does not name both answers (the cards with a letter; the count cards without both answers; the Confer line, EN and PL; the player-facing keys with a letter or {zone})");
     }],
     ["R8675 - a centred action card tells a Despair roll's trace no more than the corner did (the owner, 22.11.2026: \"by nie zdradzaly ze gracz zostawia remnant, gdy nie powinien o tym wiedziec\"; 1.2.124 line UI): action-report.mjs `reportHtml` with `leftTrace` from remnants.mjs `traceFeedback`, drawn centred by popup.mjs `showPopup`: a Despair roll with a trace placed and one with none give the same centred card, byte for byte, the number beside its dice included; a Hope roll with a trace says so and one with none does not", async () => {
         /* Red at 52057a2b: no `reportHtml` and no centred card. The mutant that answers `traceFeedback` with `placed` alone

@@ -680,7 +680,7 @@ export function drawRevealFrame(L, plan, { at, top, bottom, opening }, { glass, 
  * the whole reveal speaks in one colour instead of three.
  */
 /** The four widths an outline is drawn with: the line, its keyline, the stub floor and the doorway margin. */
-function outlineWidths(glass, grid) {
+export function outlineWidths(glass, grid) {
     // Chunky and angular, in the pixel-art register the reveal raster set
     // (Dawid, 2026-08-26 - the old 4px stroke read thin and soft at play
     // zoom). Square caps are what close the corners: the gapped tracing draws
@@ -781,8 +781,10 @@ export function ghostStyle(glass, grid) {
    Glass a room's name is exactly what the audit page reserves the title face for - "tam,
    gdzie jest nazwa rzeczy" - so it takes Special Elite, with the same fallbacks the CSS
    has. Legacy keeps the pixel face to the letter. */
-function roomLabel(region, { glass, grid, bone, rect }) {
-    const label = new PIXI.Text(region.name, {
+/* ITS TEXT HANDED IN (E129 S0-ZONESTYLE, 23.11.2026): the trial's zones name their answers in this face, so the name is
+   `roomNameText`'s and a room's `roomLabel` its caller (trial-zones-ui.mjs `drawZones`). */
+export function roomNameText(text, { glass, grid, bone }) {
+    const label = new PIXI.Text(text, {
         fontFamily: glass ? '"Special Elite", "Courier New", monospace' : "DRPG Pixel, monospace",
         fontSize: Math.max(28, Math.round(grid * 1.1)),
         fill: bone,
@@ -799,6 +801,11 @@ function roomLabel(region, { glass, grid, bone, rect }) {
     ensurePixelFont().then(() => {
         if (!label.destroyed) label.dirty = true;
     }).catch(() => { /* the fallback stands */ });
+    return label;
+}
+
+function roomLabel(region, { glass, grid, bone, rect }) {
+    const label = roomNameText(region.name, { glass, grid, bone });
     const at = labelPoint(region, rect);
     if (at) label.position.set(at.x, at.y);
     return label;
@@ -832,7 +839,7 @@ export function labelPoint(region, rect = { x: 0, y: 0 }) {
  * Drawn on the SAME gapped path, so a doorway stays dark in the glow too. Anything
  * else would paint a lid of light across the opening.
  */
-function seamHalo({ bone, boneWidth, edges, rect, gapPad, stubFloor, region }) {
+export function seamHalo({ bone, boneWidth, edges, rect, gapPad, stubFloor, region }) {
     const halo = new PIXI.Graphics();
     /* NAMED, because it has to be told apart from the outline itself. The glow strokes the
        same path four to seven times wider, so anything that measures "the outline" by

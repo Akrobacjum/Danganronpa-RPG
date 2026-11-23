@@ -86,7 +86,9 @@ export const PLACEHOLDERS = Object.freeze({
         // 1.2.122 line MAP: the fog's paint counted (`DRPG.Fog.reason.painted`) and a rename's passage records (`DRPG.Rooms.renamed`).
         "fogged", "veiled", "clear", "passages",
         // 1.2.122 line TEXT (TEXT-26): PROSE_NUMBERS' rows for four numbers config prose typed.
-        "despairBonus", "breathHope", "amount", "restores"],
+        "despairBonus", "breathHope", "amount", "restores",
+        // E129 S0-ZONESTYLE (23.11.2026): a zone mode's count for each answer, the answers named in {a} and {b}.
+        "na", "nb"],
         // The needsCode line (14.11.2026; NEEDSCODE.md #56, #57, S7): the sequences' living count (`Sequence.daySub`), "alive" above.
         values: both(RENDER_NS) },
     action: { names: ["action", "stat"], from: "action" },
@@ -110,7 +112,9 @@ export const PLACEHOLDERS = Object.freeze({
         "answer", "question", "finding", "counts", "life", "until", "warning", "node", "ref", "zone", "module",
         // The needsCode line (14.11.2026; NEEDSCODE.md #56, #57, S7): a timed effect's end and a trace's life, phrases the
         // code builds; and rooms.mjs `roomPhrase`'s phrases, a room with its preposition (R6912).
-        "at", "into", "leaving", "returning"], values: Object.freeze({ en: ["something the code puts here"], pl: ["coś, co wstawia kod"] }),
+        "at", "into", "leaving", "returning",
+        // E129 S0-ZONESTYLE: a Scrum Debate's empty camp, named by its answer.
+        "empty"], values: Object.freeze({ en: ["something the code puts here"], pl: ["coś, co wstawia kod"] }),
         note: "a word or a sentence the code builds: its sense is in the key's own sentence" },
     version: { names: ["version", "required", "verified"], values: both(["1.2.95"]) },
     date: { names: ["date", "cleared", "picked"], values: both(["31.10.2026"]) },

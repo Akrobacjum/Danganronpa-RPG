@@ -36974,6 +36974,75 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         }), "{per node: the window's mode, its set, question and answers; the floor after both windows were closed; the Map's Straw Poll node: its question, shown, and the Dive's set row hidden}");
     }],
 
+    ["1.2.129 S0-ZONESTYLE - a zone mode's two zones drawn on the hall as the map's rooms are, each named at its middle by its answer alone, fitted to the zone and standing past a room name's 5.4 s, in both themes (trial-zones-ui.mjs `drawZones`; the owner's note of 23.11.2026)", async () => {
+        /*
+         * E129 S0-ZONESTYLE, 23.11.2026. A hall of the suite's own (2000 x 1000, grid 100; the left half one zone, the right
+         * the other), linked with its zones, viewed on this GM's canvas for the test's length; a Straw Poll's floor handed
+         * to `drawZones` - one short answer and one long (80 characters, the answer's limit) - under Monokuma Legacy and
+         * under Stained Glass. Read, on the harness's stand-in PIXI: each zone's label (its words, its centre, whether its
+         * size is the room name's or smaller), the outline's strokes (widths, in order) and whether the Glass light is
+         * there; then, 6 s later, whether the labels still stand at full alpha. Red at f861d876: "Zone A: ..." at the
+         * first corner + 12 in Signika, one 5 px stroke, no light. The theme, the roles, the canvas's scene and the hall
+         * are put back.
+         */
+        const { isPrimaryGm } = await import("./utils.mjs");
+        must(isPrimaryGm(), "this browser is not the primary GM - this would measure nothing");
+        const Z = await import("./trial-zones-ui.mjs");
+        const R = await import("./rooms.mjs");
+        const roles = foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS.sceneRoles) ?? {});
+        const theme = game.settings.get(MODULE_ID, SETTINGS.theme);
+        const sceneWas = canvas.scene;
+        const LONG = "the one who locked the library door from the inside before the lights went out";
+        const read = {};
+        let hall = null;
+        const labelOf = (group, side) => group?.getChildByName?.(`drpgZoneOutlines-${side}-piece`)?.getChildByName?.(`drpgZoneOutlines-${side}-label`) ?? null;
+        const strokesOf = (group, side) => (group?.getChildByName?.(`drpgZoneOutlines-${side}-piece`)?.getChildByName?.(`drpgZoneOutlines-${side}`)?._calls ?? [])
+            .filter(([k]) => k === "lineStyle").map(([, a]) => Math.round((a[0]?.width ?? 0) * 100) / 100);
+        const lightOf = (group, side) => (group?.getChildByName?.(`drpgZoneOutlines-${side}-piece`)?.children ?? []).some(c => /Glow/.test(String(c?.name ?? "")));
+        try {
+            hall = await Scene.create({ name: "SUITE S0-ZONESTYLE the trial hall", width: 2000, height: 1000, grid: { size: 100 }, active: false, navigation: false });
+            const [za, zb] = await hall.createEmbeddedDocuments("Region", [
+                { name: "SUITE ZS left", shapes: [{ type: "rectangle", x: 0, y: 0, width: 1000, height: 1000 }], behaviors: [] },
+                { name: "SUITE ZS right", shapes: [{ type: "rectangle", x: 1000, y: 0, width: 1000, height: 1000 }], behaviors: [] }]);
+            await game.settings.set(MODULE_ID, SETTINGS.sceneRoles, { ...roles, trial: hall.id, zones: { a: za.id, b: zb.id } });
+            R.forgetSceneRoles();
+            await settle();
+            canvas.scene = hall;
+            const floor = { active: true, mode: "straw", seconds: 45, startedAt: Date.now(), holderId: null,
+                zone: { phase: "vote", question: "Who locked it?", answers: { a: "Aiko", b: LONG }, picks: {}, stands: {}, openedAt: Date.now(), step: 1 } };
+            for (const [name, value] of [["legacy", "monokumaLegacy"], ["glass", "stainedGlass"]]) {
+                await game.settings.set(MODULE_ID, SETTINGS.theme, value);
+                await settle();
+                const group = await Z.drawZones(floor);
+                must(group, `nothing was drawn under ${name} - this would measure nothing`);
+                const [a, b] = ["a", "b"].map(side => labelOf(group, side));
+                read[name] = {
+                    words: [a?.text ?? null, b?.text ?? null], at: [[a?.position?.x, a?.position?.y], [b?.position?.x, b?.position?.y]],
+                    size: [a?.style?.fontSize === Math.max(28, Math.round(100 * 1.1)), (b?.style?.fontSize ?? 999) < Math.max(28, Math.round(100 * 1.1)), b?.style?.wordWrapWidth ?? null],
+                    strokes: strokesOf(group, "a"), light: [lightOf(group, "a"), lightOf(group, "b")]
+                };
+                if (name === "glass") {
+                    await new Promise(r => setTimeout(r, 6000));
+                    read.after = [a, b].map(l => Boolean(l && !l.destroyed && l.alpha === 1 && l.parent));
+                }
+            }
+        } finally {
+            canvas.scene = sceneWas;
+            await import("./trial-zones-ui.mjs").then(m => m.onZoneFloor(null));
+            await game.settings.set(MODULE_ID, SETTINGS.theme, theme);
+            await game.settings.set(MODULE_ID, SETTINGS.sceneRoles, roles);
+            R.forgetSceneRoles();
+            await hall?.delete();
+            await settle();
+        }
+        const seam = Math.round(100 / (canvas.stage?.scale?.x || 1)) / 100;
+        equal(stableJson(read), stableJson({
+            legacy: { words: ["Aiko", LONG], at: [[500, 500], [1500, 500]], size: [true, true, 900], strokes: [16, 11], light: [false, false] },
+            glass: { words: ["Aiko", LONG], at: [[500, 500], [1500, 500]], size: [true, true, 900], strokes: [seam], light: [true, true] },
+            after: [true, true]
+        }), "the zones were not drawn as the map's rooms with their answers alone at their middles, fitted and standing (per theme: the two labels' words, their centres, the short one at the room name's size and the long one smaller within 90 % of the zone's width, zone a's strokes, the light; after 6 s: both labels standing at full alpha)");
+    }],
+
     ["E73 C3, C4: a Straw Poll and a Logic Dive in the trial hall on the primary - the sides counted off the tokens, a Finding at two thirds, the stands given back, a right answer going on, a tie ending the set unrevealed, and no truth in the world's floor", async () => {
         /*
          * E73 C3, C4; 12.11.2026. On this primary in a Class Trial with a hall of the suite's own, linked with its two
@@ -37030,10 +37099,11 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             await settle();
             await Z.countNow();
             await settle();
-            await until(() => game.messages.filter(m => !seen.has(m.id)).some(m => String(m.content).includes(game.i18n.format("DRPG.Zones.straw.finding", { answer: "Inside", a: 2, b: 0 }))));
+            // The card names the answers and their counts since E129 S0-ZONESTYLE (the owner's 23.11.2026: no "Zone A" on a card).
+            await until(() => game.messages.filter(m => !seen.has(m.id)).some(m => String(m.content).includes(game.i18n.format("DRPG.Zones.straw.finding", { answer: "Inside", na: 2, nb: 0, a: "Inside", b: "Outside" }))));
             const rec = V.trialProgress();
             read.strawEnd = [F.trialFloor(), (rec.findings ?? []).map(f => f.text), rec.strawPoll?.split ?? null, hall.tokens.get(t2.id)?.x ?? null,
-                game.messages.filter(m => !seen.has(m.id)).some(m => String(m.content).includes(game.i18n.format("DRPG.Zones.straw.finding", { answer: "Inside", a: 2, b: 0 })))];
+                game.messages.filter(m => !seen.has(m.id)).some(m => String(m.content).includes(game.i18n.format("DRPG.Zones.straw.finding", { answer: "Inside", na: 2, nb: 0, a: "Inside", b: "Outside" })))];
             // (2) The Logic Dive.
             await diveSetStore.patch(SET, { name: "SUITE set", made: Date.now(), questions: [
                 { question: "SUITE Q1", a: "One", b: "Two", truth: "a" }, { question: "SUITE Q2", a: "Night", b: MARK, truth: "b" }] });

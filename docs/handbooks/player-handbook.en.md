@@ -938,7 +938,7 @@ If you once took +1 Health or +1 Sanity as a Level Up, the GM may bring your she
 
 ### The hall's zones
 
-In a **Straw Poll**, a **Logic Dive**, or a **Scrum Debate** you answer by where your token stands in the trial hall: in **Zone A** or in **Zone B**, each named with its answer. Move your token into the zone you choose; if you do not move, you answer with the zone your stand lies in. A token on the line between the zones, or outside both, counts for neither side. With no token in the hall you get a window to pick a side, once for each Logic Dive question; close it without an answer and it comes back 15 s later. Nobody objects in any of the three, and when the mode ends, your token goes back to its stand.
+In a **Straw Poll**, a **Logic Dive**, or a **Scrum Debate** you answer by where your token stands in the trial hall: in one of two zones, each drawn like a room on the map with its answer in large letters at its middle. Move your token into the zone you choose; if you do not move, you answer with the zone your stand lies in. A token on the line between the zones, or outside both, counts for neither side. With no token in the hall you get a window to pick a side, once for each Logic Dive question; close it without an answer and it comes back 15 s later. Nobody objects in any of the three, and when the mode ends, your token goes back to its stand.
 
 | Mode | How it is decided | Who presents evidence |
 |---|---|---|

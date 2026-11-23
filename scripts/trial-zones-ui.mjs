@@ -37,11 +37,10 @@ function leftOn(floor) {
     return Math.max(Math.round((Number(floor?.seconds) || 0) - (serverNow() - (Number(floor?.startedAt) || 0)) / 1000), 0);
 }
 
-/** One zone's line on the panel: its name, its answer and who stands there. */
+/** One zone's line on the panel: its answer, named as on the hall (E129 S0-ZONESTYLE, no "Zone A"), and who stands there. */
 function zoneLine(side, zone, sides) {
-    const label = game.i18n.localize(side === "a" ? "DRPG.TrialScene.zoneA" : "DRPG.TrialScene.zoneB");
     const who = sides[side].map(nameOf).join(", ") || esc(game.i18n.localize("DRPG.Zones.panel.nobody"));
-    return `<li data-drpg-zone-side="${side}"><strong>${esc(label)}</strong>: ${esc(zone.answers?.[side] ?? "-")}
+    return `<li data-drpg-zone-side="${side}"><strong>${esc(zone.answers?.[side] ?? "-")}</strong>
         <span class="drpg-zone-count">(${sides[side].length})</span><br><small>${who}</small></li>`;
 }
 
@@ -60,13 +59,13 @@ export function zonePanelHtml({ floor, sides = null } = {}) {
     const mode = L(`DRPG.Floor.mode.${floor.mode}`);
     const phase = game.i18n.format(`DRPG.Zones.panel.${floor.mode}.${zone.phase}`, {
         seconds: leftOn(floor), n: (zone.set?.index ?? 0) + 1, total: zone.set?.total ?? 1, turn: zone.turn ?? 0, turns: zone.turns ?? 0,
-        who: nameOf(floor.holderId), zone: String(zone.side ?? "").toUpperCase()
+        who: nameOf(floor.holderId), answer: esc(zone.answers?.[zone.side] ?? "")
     });
     const counted = zone.phase === "pause" && zone.counts
-        ? `<p class="drpg-zone-counted">${game.i18n.format("DRPG.Zones.panel.counted", { a: zone.counts.a, b: zone.counts.b })}</p>` : "";
+        ? `<p class="drpg-zone-counted">${game.i18n.format("DRPG.Zones.panel.counted", { na: zone.counts.a, nb: zone.counts.b, a: esc(zone.answers?.a ?? ""), b: esc(zone.answers?.b ?? "") })}</p>` : "";
     const outside = [...s.none, ...s.line];
     const left = outside.length ? `<p class="notes">${game.i18n.format("DRPG.Zones.panel.outside", { names: outside.map(nameOf).join(", ") })}</p>` : "";
-    const theses = (zone.theses ?? []).map(t => `<li>${nameOf(t.actorId)} (${esc(String(t.side ?? "").toUpperCase())}): ${esc(t.text)}</li>`).join("");
+    const theses = (zone.theses ?? []).map(t => `<li>${nameOf(t.actorId)} (${esc(zone.answers?.[t.side] ?? "")}): ${esc(t.text)}</li>`).join("");
     const thesis = zone.thesis ? `<p>${game.i18n.format("DRPG.Zones.panel.thesis", { text: esc(zone.thesis) })}</p>` : "";
     return `<div class="drpg-zone-panel" data-drpg-zone-panel="${esc(floor.mode)}">
             <p><strong>${esc(mode)}</strong>${zone.question ? ` - ${esc(zone.question)}` : ""}</p>
@@ -534,8 +533,8 @@ function sidePickSpec(floor) {
         title: L(`DRPG.Floor.mode.${floor.mode}`),
         body: `<p>${esc(L("DRPG.Zones.pick.body"))}</p>${zone.question ? `<p><strong>${esc(zone.question)}</strong></p>` : ""}`,
         footer: {
-            primary: { action: "a", label: game.i18n.format("DRPG.Zones.pick.side", { zone: L("DRPG.TrialScene.zoneA"), answer: zone.answers?.a ?? "" }) },
-            secondary: [{ action: "b", label: game.i18n.format("DRPG.Zones.pick.side", { zone: L("DRPG.TrialScene.zoneB"), answer: zone.answers?.b ?? "" }) }],
+            primary: { action: "a", label: game.i18n.format("DRPG.Zones.pick.side", { answer: zone.answers?.a ?? "" }) },
+            secondary: [{ action: "b", label: game.i18n.format("DRPG.Zones.pick.side", { answer: zone.answers?.b ?? "" }) }],
             close: "cancel"
         }
     };
@@ -567,7 +566,6 @@ async function offerSidePick(floor) {
     pickOpenFor = key;
     if (pickAgain) clearTimeout(pickAgain);
     pickAgain = null;
-    const L = k => game.i18n.localize(k);
     const spec = sidePickSpec(floor);
     const own = { key, app: null, superseded: false };
     pickWindow = own;
@@ -598,7 +596,7 @@ async function offerSidePick(floor) {
         if (pickRoundOf(storedFloorNow()) !== key) return;
         const { requestTrialSide } = await import("./gm-bridge.mjs");
         const res = await requestTrialSide({ actorId: mine.actor.id, side: asked });
-        if (res.ok) ui.notifications.info(game.i18n.format("DRPG.Zones.pick.done", { zone: L(asked === "a" ? "DRPG.TrialScene.zoneA" : "DRPG.TrialScene.zoneB") }));
+        if (res.ok) ui.notifications.info(game.i18n.format("DRPG.Zones.pick.done", { answer: zone.answers?.[asked] ?? "" }));
         return;
     }
     if (own.superseded || pickRoundOf(storedFloorNow()) !== key) return;
@@ -627,66 +625,184 @@ function storedFloorNow() {
 const DRAWN = "drpgZoneOutlines";
 let drawn = null;
 let lastSide = null;
+/* Which draw is the newest: the rooms' pieces come by `import()`, so two floors rendered in a row could otherwise finish
+   in the other order and leave the older answers standing. */
+let drawSeq = 0;
+/* The floor drawn and the zoom its seam was struck at, for the Stained Glass seam held at one weight (`rezoomZones`). */
+let drawnFloor = null;
+let drawnZoom = 0;
+let panHooked = false;
 
-/** The theme's line colour, read off the page (the fog's own `--drpg-bone`), as a number. */
-function lineColour() {
-    const raw = getComputedStyle(document.body).getPropertyValue("--drpg-bone").trim() || "#e8e1d0";
-    const hex = raw.startsWith("#") ? raw.slice(1) : "e8e1d0";
-    return Number.parseInt(hex.length === 3 ? hex.split("").map(c => c + c).join("") : hex.slice(0, 6), 16) || 0xe8e1d0;
-}
-
-/** Take the drawing down. */
+/** Take the drawing down, and any light it baked into a texture of its own (fog-reveal.mjs `freeOwned`). */
 function clearZoneDrawing() {
     try {
+        if (drawn) drawn.drpgFree?.(drawn);
         drawn?.destroy?.({ children: true });
     } catch (err) {
         error("Could not take the zones' drawing down", err);
     }
     drawn = null;
-}
-
-/** A region's shapes as polygons' points, for the outline. */
-function shapePoints(region) {
-    return Array.from(region?.shapes ?? []).map(s => (Array.isArray(s.points) && s.points.length >= 6 ? s.points
-        : Number.isFinite(s.width) ? [s.x, s.y, s.x + s.width, s.y, s.x + s.width, s.y + s.height, s.x, s.y + s.height] : null)).filter(Boolean);
+    drawnFloor = null;
 }
 
 /**
- * The zones drawn on the hall while a zone mode holds the floor and this browser views the hall: an outline each and
- * its name with the mode's answer, above the tokens' layer's background and under nobody (`eventMode` none, no fill).
- * Nothing without a canvas (the harness) - LIVE-E73-03.
+ * The words a zone shows on the hall (E129 S0-ZONESTYLE): its answer in the mode open now, alone - "bez zone a/b - sama
+ * tresc", the owner's note of 23.11.2026 - or after "Zone A:" while `TRIAL.modes.zones.label.prefix` is on. Exported for
+ * R8774.
  */
-export function drawZones(floor) {
+export function zoneLabelText(zone, side, { prefix = TRIAL.modes?.zones?.label?.prefix ?? false } = {}) {
+    const answer = String(zone?.answers?.[side] ?? "").trim();
+    if (!prefix) return answer;
+    return `${game.i18n.localize(side === "a" ? "DRPG.TrialScene.zoneA" : "DRPG.TrialScene.zoneB")}: ${answer}`;
+}
+
+/**
+ * The size a zone's name is drawn at (E129 S0-ZONESTYLE): from `base` (the room name's) down by a tenth at a time until
+ * `measure(fontSize, wrapWidth)` - `{ width, height }` of the words wrapped at `wrapWidth` - fits `fitWidth` of the box's
+ * width and `fitHeight` of its height, and never under `minFontPx`. `{ fontSize, wrapWidth, fits }`: `fits` false at the
+ * floor means the words are clipped to the zone. Pure; exported for R8774.
+ */
+export function fitZoneLabel({ box, base, measure, fitWidth = 0.9, fitHeight = 0.9, minFontPx = 12 }) {
+    const wrapWidth = Math.max(1, (Number(box?.w) || 0) * fitWidth);
+    const maxHeight = Math.max(1, (Number(box?.h) || 0) * fitHeight);
+    const fitsAt = size => {
+        const m = measure(size, wrapWidth) ?? {};
+        return Number(m.width) <= wrapWidth && Number(m.height) <= maxHeight;
+    };
+    for (let size = Math.max(minFontPx, Math.round(base)); size > minFontPx; size = Math.max(minFontPx, Math.floor(size * 0.9))) {
+        if (fitsAt(size)) return { fontSize: size, wrapWidth, fits: true };
+    }
+    return { fontSize: minFontPx, wrapWidth, fits: fitsAt(minFontPx) };
+}
+
+/*
+ * How wide and tall words wrapped at `wrapWidth` stand at `fontSize`: PIXI's own `TextMetrics` on the label's style where
+ * PIXI has it (a table), else 0.6 of the size a character and 1.2 a line, a greedy wrap by words (the harness's stand-in
+ * PIXI measures no text; the fit there is this estimate's, not a font's).
+ */
+function measureLabel(label) {
+    const Metrics = PIXI.TextMetrics;
+    return (fontSize, wrapWidth) => {
+        if (Metrics?.measureText && PIXI.TextStyle) {
+            // Words whole (`breakWords` off): a word wider than the zone shrinks the size rather than losing its last letters
+            // or a comma to a line of their own - measured 23.11.2026 in Chromium under DRPG Pixel, "zewnątrz," at 110 px.
+            const style = new PIXI.TextStyle({ ...(label.style ?? {}), fontSize, wordWrap: true, wordWrapWidth: wrapWidth, breakWords: false });
+            const m = Metrics.measureText(String(label.text ?? ""), style);
+            return { width: m.width, height: m.height };
+        }
+        const per = fontSize * 0.6;
+        let lines = 1, run = 0, widest = 0;
+        for (const word of String(label.text ?? "").split(/\s+/).filter(Boolean)) {
+            const w = word.length * per;
+            const next = run ? run + per + w : w;
+            if (run && next > wrapWidth) { widest = Math.max(widest, run); lines += 1; run = w; } else run = next;
+        }
+        widest = Math.max(widest, run);
+        return { width: widest, height: lines * fontSize * 1.2 };
+    };
+}
+
+/** The stage's zoom, for the seam's weight (fog-reveal.mjs `seamWidth` divides by it). */
+function stageZoom() {
+    const zoom = globalThis.canvas?.stage?.scale?.x;
+    return Number.isFinite(zoom) && zoom > 0 ? zoom : 1;
+}
+
+/*
+ * THE SEAM HELD AT ONE WEIGHT UNDER STAINED GLASS, as a room's is (fog-reveal.mjs `rezoomRoomOutline`): the zones are
+ * drawn again when the zoom has moved by a fifth since they were struck, never on a pan, and only while they stand. The
+ * hook is put on once, by the first draw - nothing is read on a canvas with no zones drawn.
+ */
+function rezoomZones() {
+    if (!drawn || !drawnFloor || !document.body.classList.contains("drpg-theme-stained-glass")) return;
+    if (Math.abs(Math.log(stageZoom() / (drawnZoom || 1))) < 0.18) return;
+    drawZones(drawnFloor).catch(err => error("Could not draw the trial hall's zones again for the zoom", err));
+}
+
+/**
+ * The zones drawn on the hall while a zone mode holds the floor and this browser views the hall (E73 C2; E129
+ * S0-ZONESTYLE, 23.11.2026: as a room is on the map, the owner's note of that day). Each zone is outlined with the rooms'
+ * own widths and colours (fog-reveal.mjs `outlineWidths`; fog-doorways.mjs `outlineColour`): an ink keyline under a bone
+ * line under Monokuma Legacy, the seam's hairline and its light (`seamHalo`, baked once by `bakeOutlineHalo`) under
+ * Stained Glass; closed, since a zone has no walls to open; no fill, as a room has none. Its answer (`zoneLabelText`)
+ * stands at the middle of its largest piece (`labelPoint`) in the room name's face and size (`roomNameText`), fitted to
+ * the zone (`fitZoneLabel`), and does not fade: it stands until the floor leaves the zone modes (DZ7) - a room's name
+ * fades after 5.4 s (`fadeLabel`), and the owner asked that this one stay. Nothing is drawn without a canvas, and the
+ * harness draws through a stand-in PIXI (LIVE-E73-03; the look at a table, a LIVE item proposed in E129's report).
+ */
+export async function drawZones(floor) {
+    const seq = ++drawSeq;
     const zone = zoneOf(floor);
     const hall = trialScene();
     const stage = globalThis.canvas?.interface ?? globalThis.canvas?.controls ?? null;
     if (!zone || !hall || globalThis.canvas?.scene?.id !== hall.id || !stage || typeof PIXI === "undefined") return clearZoneDrawing();
     const regions = zoneRegions(hall);
     if (!zonesReady(regions)) return clearZoneDrawing();
+    const [R, D, G, { boundsOf }, { glassOn }] = await Promise.all([import("./fog-reveal.mjs"), import("./fog-doorways.mjs"),
+        import("./fog-geometry.mjs"), import("./movement.mjs"), import("./motion.mjs")]);
+    if (seq !== drawSeq) return null;
     clearZoneDrawing();
     try {
         const group = new PIXI.Container();
         group.name = DRAWN;
         group.eventMode = "none";
-        const colour = lineColour();
+        group.drpgFree = R.freeOwned;
+        const glass = glassOn();
+        const grid = hall.grid?.size ?? 100;
+        const bone = D.outlineColour();
+        const ink = D.colourOf("--drpg-ink", 0x1a1620);
+        const { boneWidth, inkWidth } = R.outlineWidths(glass, grid);
+        const fit = TRIAL.modes?.zones?.label ?? {};
+        const origin = { x: 0, y: 0 };
         for (const side of ["a", "b"]) {
+            const region = regions[side];
+            const piece = new PIXI.Container();
+            piece.name = `${DRAWN}-${side}-piece`;
+            if (glass) {
+                const light = piece.addChild(R.seamHalo({ bone, boneWidth, edges: [], rect: origin, gapPad: 0, stubFloor: 0, region }));
+                R.bakeOutlineHalo(piece, light, stage);
+            }
+            // The room outline's own stroke (fog-reveal.mjs `flashOutline`'s `stroke`): square caps, miter joins at 2.
             const g = new PIXI.Graphics();
             g.name = `${DRAWN}-${side}`;
-            g.lineStyle({ width: Math.max((hall.grid?.size ?? 100) / 20, 3), color: colour, alpha: 0.9 });
-            for (const pts of shapePoints(regions[side])) g.drawPolygon(pts);
-            group.addChild(g);
-            const words = `${game.i18n.localize(side === "a" ? "DRPG.TrialScene.zoneA" : "DRPG.TrialScene.zoneB")}: ${zone.answers?.[side] ?? ""}`;
-            const label = new PIXI.Text(words, { fontFamily: "Signika, sans-serif", fontSize: Math.max((hall.grid?.size ?? 100) / 3, 18), fill: colour,
-                stroke: 0x1a1620, strokeThickness: 4 });
-            const first = shapePoints(regions[side])[0] ?? [0, 0];
-            label.position.set(first[0] + 12, first[1] + 12);
-            group.addChild(label);
+            const stroke = (width, color) => g.lineStyle({ width, color, alpha: 1, cap: "square", join: "miter", miterLimit: 2 });
+            if (inkWidth) { stroke(inkWidth, ink); G.traceRegionPathsAt(g, region, origin); }
+            stroke(boneWidth, bone);
+            G.traceRegionPathsAt(g, region, origin);
+            piece.addChild(g);
+            const words = zoneLabelText(zone, side);
+            const at = R.labelPoint(region, origin);
+            const box = boundsOf(G.largestPiece(region));
+            if (words && at && box) {
+                const label = R.roomNameText(words, { glass, grid, bone });
+                label.name = `${DRAWN}-${side}-label`;
+                const sized = fitZoneLabel({ box, base: label.style?.fontSize ?? 28, measure: measureLabel(label),
+                    fitWidth: fit.fitWidth, fitHeight: fit.fitHeight, minFontPx: fit.minFontPx });
+                // A word is broken only where nothing whole fits at the floor's size, before the clip.
+                Object.assign(label.style, { fontSize: sized.fontSize, wordWrap: true, wordWrapWidth: sized.wrapWidth, breakWords: !sized.fits });
+                label.position.set(at.x, at.y);
+                if (!sized.fits) {
+                    const mask = new PIXI.Graphics();
+                    mask.beginFill(0xffffff);
+                    G.traceRegionPathsAt(mask, region, origin);
+                    mask.endFill();
+                    piece.addChild(mask);
+                    label.mask = mask;
+                }
+                piece.addChild(label);
+            }
+            group.addChild(piece);
         }
         stage.addChild(group);
         drawn = group;
+        drawnFloor = floor;
+        drawnZoom = stageZoom();
+        if (!panHooked) { panHooked = true; Hooks.on("canvasPan", rezoomZones); }
+        return group;
     } catch (err) {
         error("Could not draw the trial hall's zones", err);
         clearZoneDrawing();
+        return null;
     }
 }
 
@@ -702,7 +818,8 @@ export async function onZoneEntered(tokenDoc) {
     if (side !== "a" && side !== "b") { lastSide = null; return; }
     if (side === lastSide) return;
     lastSide = side;
-    const g = drawn?.getChildByName?.(`${DRAWN}-${side}`);
+    // The outline alone pulses, inside its zone's piece; the name stands as it is.
+    const g = drawn?.getChildByName?.(`${DRAWN}-${side}-piece`)?.getChildByName?.(`${DRAWN}-${side}`);
     if (g) {
         g.alpha = 0.3;
         setTimeout(() => { if (!g.destroyed) g.alpha = 1; }, 260);
@@ -721,6 +838,6 @@ export function onZoneFloor(floor) {
         lastSide = null;
         return clearZoneDrawing();
     }
-    drawZones(floor);
+    drawZones(floor).catch(err => error("Could not draw the trial hall's zones", err));
     offerSidePick(floor).catch(err => error("The side-pick window did not open", err));
 }

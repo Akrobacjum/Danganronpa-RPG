@@ -1532,22 +1532,22 @@
       "noSet": "Wybierz zestaw Logic Dive.",
       "noCount": "Nie ma czego liczyć: „Policz teraz” działa tylko podczas głosowania.",
       "noQuestionHere": "„Pomiń pytanie” działa tylko w Logic Dive.",
-      "noSide": "Wybierz Strefę A albo Strefę B.",
+      "noSide": "Wybierz jedną z dwóch odpowiedzi.",
       "samePick": "Ta strona jest już wybrana.",
       "noThesis": "Tezę można podać tylko w turze Scrum Debate i musi mieć kilka słów.",
       "notStarted": "Tryb się nie zaczął. Sprawdź, czy obie odpowiedzi są wpisane, a w Logic Dive, czy wybrano zestaw i czy pytanie ma treść.",
       "straw": {
-        "opened": "{question} Kto wybiera „{a}”, staje w Strefie A, a kto „{b}”, w Strefie B. Liczenie za {seconds} s.",
-        "openedBare": "Kto wybiera „{a}”, staje w Strefie A, a kto „{b}”, w Strefie B. Liczenie za {seconds} s.",
-        "finding": "Klasa uważa: {answer}. W Strefie A policzono {a}, w Strefie B {b}.",
-        "split": "Klasa jest podzielona. W Strefie A policzono {a}, w Strefie B {b}. Scrum Debate może to rozstrzygnąć."
+        "opened": "{question} Uczniowie stają w strefie „{a}” albo w strefie „{b}”. Liczenie za {seconds} s.",
+        "openedBare": "Uczniowie stają w strefie „{a}” albo w strefie „{b}”. Liczenie za {seconds} s.",
+        "finding": "Klasa uważa: {answer}. Policzono {na} za „{a}” i {nb} za „{b}”.",
+        "split": "Klasa jest podzielona: {na} za „{a}”, {nb} za „{b}”. Scrum Debate może to rozstrzygnąć."
       },
       "dive": {
-        "opened": "Pytanie {n} z {total}: {question} Kto wybiera „{a}”, staje w Strefie A, a kto „{b}”, w Strefie B. Na wybór jest {seconds} s.",
-        "openedBare": "Pytanie {n} z {total}. Kto wybiera „{a}”, staje w Strefie A, a kto „{b}”, w Strefie B. Na wybór jest {seconds} s.",
-        "right": "Dobra odpowiedź. W Strefie A policzono {a}, w Strefie B {b}.",
-        "wrong": "Zła odpowiedź. W Strefie A policzono {a}, w Strefie B {b}. Logic Dive kończy się tutaj.",
-        "tie": "Remis. W Strefie A policzono {a}, w Strefie B {b}. Remis liczy się jako zła odpowiedź, więc Logic Dive kończy się tutaj.",
+        "opened": "Pytanie {n} z {total}: {question} Uczniowie stają w strefie „{a}” albo w strefie „{b}”. Na wybór jest {seconds} s.",
+        "openedBare": "Pytanie {n} z {total}. Uczniowie stają w strefie „{a}” albo w strefie „{b}”. Na wybór jest {seconds} s.",
+        "right": "Dobra odpowiedź. Za „{a}” policzono {na}, za „{b}” {nb}.",
+        "wrong": "Zła odpowiedź. Za „{a}” policzono {na}, za „{b}” {nb}. Logic Dive kończy się tutaj.",
+        "tie": "Remis, {na} do {nb}. Remis liczy się jako zła odpowiedź, więc Logic Dive kończy się tutaj.",
         "solved": "Logic Dive rozwiązany: {finding}",
         "skipped": "GM pomija pytanie {n}.",
         "replay": "Ten zestaw już był grany: skończył się {when} ({outcome}). Gracze mogą go pamiętać.",
@@ -1585,19 +1585,19 @@
         }
       },
       "scrum": {
-        "opened": "{question} Uczniowie wybierają stronę: kto jest za „{a}”, staje w Strefie A, a kto za „{b}”, w Strefie B. Obozy naradzą się za {seconds} s.",
-        "openedBare": "Uczniowie wybierają stronę: kto jest za „{a}”, staje w Strefie A, a kto za „{b}”, w Strefie B. Obozy naradzą się za {seconds} s.",
-        "confer": "Strony wybrane. W Strefie A policzono {a}, w Strefie B {b}. Każdy obóz naradza się teraz osobno przez {seconds} s, a potem zaczyna się debata.",
+        "opened": "{question} Uczniowie wybierają stronę: strefę „{a}” albo strefę „{b}”. Obozy naradzą się za {seconds} s.",
+        "openedBare": "Uczniowie wybierają stronę: strefę „{a}” albo strefę „{b}”. Obozy naradzą się za {seconds} s.",
+        "confer": "Strony wybrane: {na} za „{a}”, {nb} za „{b}”. Każdy obóz naradza się teraz osobno przez {seconds} s, a potem zaczyna się debata.",
         "noVoice": "Głosy obozów nie są rozdzielone: ustawienie „Głos osobno w każdym pokoju” jest wyłączone albo LiveKit nie działa. Obozy naradzają się tak, jak pozwala stół.",
-        "begins": "Pierwsza mówi Strefa {zone}. Obozy mówią na zmianę po {seconds} s, a tura {turns} jest ostatnia.",
-        "over": "Scrum Debate dobiegła końca. W Strefie A policzono {a}, w Strefie B {b}.",
-        "empty": "Strefa {zone} jest pusta. Klasa uważa: {answer}.",
-        "noSpeaker": "W Strefie {zone} nikt nie stoi, więc ta tura mija bez mówcy.",
-        "thesis": "Teza Strefy {zone}: {text}"
+        "begins": "Pierwszy mówi obóz za „{answer}”. Obozy mówią na zmianę po {seconds} s, a tura {turns} jest ostatnia.",
+        "over": "Scrum Debate dobiegła końca: {na} za „{a}”, {nb} za „{b}”.",
+        "empty": "Nikt nie stoi za „{empty}”. Klasa uważa: {answer}.",
+        "noSpeaker": "Nikt nie stoi za „{answer}”, więc ta tura mija bez mówcy.",
+        "thesis": "Teza za „{answer}”: {text}"
       },
       "panel": {
         "nobody": "nikt",
-        "counted": "Policzono: Strefa A {a}, Strefa B {b}.",
+        "counted": "Policzono: {na} za „{a}”, {nb} za „{b}”.",
         "outside": "Poza strefami: {names}.",
         "thesis": "Teza: {text}",
         "straw": {
@@ -1610,13 +1610,13 @@
         "scrum": {
           "setup": "Strony: obozy się ustawiają jeszcze przez {seconds} s.",
           "confer": "Narada obozów: każdy obóz naradza się w swoim pokoju głosowym jeszcze przez {seconds} s.",
-          "speak": "Tura {turn} z {turns}: {who} mówi za Strefę {zone} jeszcze przez {seconds} s."
+          "speak": "Tura {turn} z {turns}: {who} mówi za „{answer}” jeszcze przez {seconds} s."
         }
       },
       "confer": {
         "name": "Narada obozów",
-        "mine": "Naradzasz się ze Strefą {zone}.",
-        "apart": "Strefa A i Strefa B naradzają się osobno.",
+        "mine": "Naradzasz się z obozem za „{answer}”.",
+        "apart": "Oba obozy naradzają się osobno.",
         "none": "Nie jesteś w żadnym obozie: zostajesz w głosie sali rozpraw.",
         "sidesSet": "Strony wybrane",
         "conferOver": "Zakończ naradę"
@@ -1640,8 +1640,8 @@
       },
       "pick": {
         "body": "Nie masz tokenu w sali rozpraw. Wybierz stronę, po której stoisz.",
-        "side": "{zone}: {answer}",
-        "done": "Twoja strona to {zone}.",
+        "side": "{answer}",
+        "done": "Twoja strona to „{answer}”.",
         "dismissed": "Nie stoisz w żadnej strefie. To okno wróci za {seconds} s."
       },
       "findings": {
@@ -1999,15 +1999,15 @@
       "trialLastTurn": "Ostatnia tura",
       "trialZone": {
         "straw": {
-          "vote": "Stań w Strefie A albo w Strefie B"
+          "vote": "Stań w strefie swojej odpowiedzi"
         },
         "dive": {
           "vote": "Pytanie {n} z {total}: stań w strefie swojej odpowiedzi",
           "pause": "Pytanie {n} z {total} policzone"
         },
         "scrum": {
-          "setup": "Obozy ustawiają się w Strefie A i w Strefie B",
-          "speak": "Tura {turn} z {turns}, za Strefę {zone}"
+          "setup": "Obozy ustawiają się, każdy przy swojej odpowiedzi",
+          "speak": "Tura {turn} z {turns}, za „{answer}”"
         }
       },
       "waitingFor": "W incydencie ruch ma teraz {name}",
@@ -8771,7 +8771,7 @@
         },
         "zoneEntered": {
           "label": "Wejście do strefy",
-          "hint": "Uczeń wchodzi do Strefy A albo Strefy B w czasie Straw Poll, Logic Dive albo Scrum Debate. Słyszy jego gracz, nigdy GM. Bez własnego pliku gra dźwięk „Wejście do pokoju”."
+          "hint": "Uczeń wchodzi do jednej ze stref w czasie Straw Poll, Logic Dive albo Scrum Debate. Słyszy jego gracz, nigdy GM. Bez własnego pliku gra dźwięk „Wejście do pokoju”."
         }
       }
     },
