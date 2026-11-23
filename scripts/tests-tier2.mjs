@@ -20710,7 +20710,9 @@ const SCENARIOS = [
             read.failVeiled = [tokens().every(t => flagOf(t).veiled === true), ownHidden(hiddenLooks), hiddenBefore._source.hidden === true];
             await M.resolveKillerOpening({ total: 1, isCritical: false, withHope: false });
             await settle();
-            read.failed = [M.murderState()?.active ?? null, ...cleared(hiddenLooks), Boolean(S.trialMuteStore.get(kp.id)?.wrote)];
+            /* The block that stands after it is the hide's, not the veil's (1.2.128 E129, line COMM's S0-HIDEMUTE: a hidden token holds
+               its player's microphone, and the killer's token here stays hidden): read by its reason (voice.mjs `moduleHoldsMic`). */
+            read.failed = [M.murderState()?.active ?? null, ...cleared(hiddenLooks), (await import("./voice.mjs")).moduleHoldsMic(kp)?.reason ?? null];
             await hiddenBefore.update({ hidden: before[0][1] });
             // (C) A trap and (D) a self-inflicted death: no veil.
             await open({ indirect: true, openingTrait: "eye" });
@@ -20763,13 +20765,13 @@ const SCENARIOS = [
         equal(stableJson(read), stableJson({
             veiled: [true, true, true, true],
             hope: [true, true, false, true], afterHope: [true, false, false],
-            failVeiled: [true, true, true], failed: [null, true, false, false, false],
+            failVeiled: [true, true, true], failed: [null, true, false, false, "tokenHidden"],
             trap: false, self: false,
             swept: [[killer.id], true, false, false],
             lights: ["lights", [], "opening", true], lightsHides: tokens().flatMap(() => ["veiled"]).concat(tokens().flatMap(() => ["lifted"])), unjudged: [true, false, false]
         }), "the opening's veil did not hide the killer, did not lift on a road out, lifted before the mask, did not put back the token's own hidden, veiled a trap or a self-inflicted death, left a row no opening held, or wrote the lights' tokens twice "
             + "(veiled: flagged with each own hidden untouched, the row's tokens with no hidden and hides module, the player blocked, the mute row; hope: shown after the mask, the mask stands, a row left, hidden as before; after: looks as before, a row, blocked; "
-            + "failVeiled: all flagged, each own hidden untouched, the GM's hidden token still hidden; failed: the incident, looks, row, blocked, the mute row; trap; self; swept: lifted, looks, row, blocked; lights: why, lifted while judging, why after the open, its openedAt; the veil's writes to the tokens, in order (no hidden); unjudged: looks, row, blocked)");
+            + "failVeiled: all flagged, each own hidden untouched, the GM's hidden token still hidden; failed: the incident, looks, row, blocked, the block that stands (the hide's); trap; self; swept: lifted, looks, row, blocked; lights: why, lifted while judging, why after the open, its openedAt; the veil's writes to the tokens, in order (no hidden); unjudged: looks, row, blocked)");
     }],
 
     ["E112v - a veil written by 1.2.116 or 1.2.117 loses its hidden at the primary's settle: a row the opening still holds is converted (each token's own hidden back, the flag kept, the row hiding by the module), and one no opening holds is lifted with each token's own hidden back", async () => {
