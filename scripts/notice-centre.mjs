@@ -21,6 +21,7 @@
  * Call or a payment, the GMs' records, a Tail's later steps. The middle is for a result a player waits on or a thing that
  * happened to them.
  */
+import { MODULE_ID } from "./config.mjs";
 import { cardFlag, cardWriter } from "./secret.mjs";
 
 /** The flag a card asks by: a name of `CENTRED_NOTICES`. */
@@ -46,10 +47,28 @@ export const CENTRED_NOTICES = Object.freeze({
     lockBroken: "a bedroom's lock found picked, forced or breached (doors-gm.mjs `noteBedroom`, `tellBedroomNotes`)",
     /* The body's discovery (body.mjs `runDiscovery`), centred since E62 C5. Written by a GM. */
     bodyFound: "a body found (body.mjs `runDiscovery`)",
+    /* Something done to a player who did not act (1.2.127; OWNER-127-CENTRE item 3, the coordinator's default to the
+       owner, in a commit of its own): a Tail noticed (tail-gm.mjs `startTail`), a Steal or a Plant felt (palm.mjs
+       `tellPalmVictim`), an unseen Frisk felt (frisk.mjs `friskPerson`), an open Frisk's outcome (`endAsk`). Written
+       by the primary GM, centred on the target's screen. A Sabotage seen is written by the saboteur's browser and stays
+       in the corner (docs/dev/owner127/INVENTORY.md section 3). */
+    doneToYou: "something done to a player who did not act (tail-gm.mjs, palm.mjs, frisk.mjs)",
     /* The time of day's summary on the GM's screen (day-summary.mjs), centred since E62 C5: drawn by its own
        `showPopup(..., { centre: true })` on that screen alone, not through the catch-all. */
     daySummary: "the time of day's summary on the GM's screen (day-summary.mjs)"
 });
+
+/**
+ * A poster's extra (utils.mjs `whisperToOwner`'s third argument, `announce`'s data) with `popupCentre: name` merged into
+ * its module flags, the rest kept as it was. For the action results a poster writes deep in a GM's run (1.2.127, the
+ * owner's OWNER-127-CENTRE: "nie wszystkie akcje wyswietlaja powiadomienie na srodku (np facilities)"), where the card's
+ * other flags - its sound, an item's stamp - are already built.
+ */
+export function withCentre(extra = {}, name = "actionResult") {
+    if (!Object.hasOwn(CENTRED_NOTICES, name)) throw new Error(`notice-centre: "${name}" is not a centred notice`);
+    const own = extra?.flags?.[MODULE_ID] ?? {};
+    return { ...(extra ?? {}), flags: { ...(extra?.flags ?? {}), [MODULE_ID]: { ...own, [CENTRE_FLAG]: name } } };
+}
 
 /** The flags that ask for the middle by `name`, to spread into a card's module flags. Throws on a name not on the list. */
 export function centreFlag(name) {

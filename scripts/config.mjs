@@ -54,6 +54,14 @@ export function moduleVersion() {
 export const SOCKET = `module.${MODULE_ID}`;
 
 /**
+ * A Spectator's token on a GM's canvas: its sprite at this share of the token's own alpha (visibility.mjs
+ * `dressSpectator`; E92 C3, the owner's DRPG-D1 "transparentny/ledwie widoczny", 0.3 the coordinator's pick in the owner's
+ * 25-30 %), and its square frame at the same share (own-ring.mjs `dressFrame`; 1.2.127, the owner's "Ich ramka kwadratowa
+ * renderowana przez modul niech tez ma zmniejszone opacity"). One number for both, here.
+ */
+export const SPECTATOR_ALPHA = 0.3;
+
+/**
  * Document flag keys, all stored under `flags["danganronpa-rpg"]`.
  * Never spell these out inline - a typo in a flag name fails silently.
  */
@@ -5599,6 +5607,7 @@ export const SFX_EVENTS = {
 export const DRPG = {
     MODULE_ID,
     SOCKET,
+    SPECTATOR_ALPHA,
     FLAGS,
     ACTIONS_RESOURCE,
     TRAITS,

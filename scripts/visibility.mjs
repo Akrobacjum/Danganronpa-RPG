@@ -25,7 +25,7 @@
  * `myIncidentTrace` reads the cast that stands. The listeners below are for what is no clock and no incident.
  */
 
-import { MODULE_ID, FLAGS, REMNANT_ALPHA } from "./config.mjs";
+import { MODULE_ID, FLAGS, SPECTATOR_ALPHA, REMNANT_ALPHA } from "./config.mjs";
 import { flaggedSpectator, spectatorViewer, isMonocubCorpse } from "./spectator.mjs";
 import { SETTINGS, isEclipse, incidentParticipants, incidentCast } from "./settings.mjs";
 import { roomOfToken, roomAt, whenAtRest } from "./movement.mjs";
@@ -832,9 +832,9 @@ function inTheIncident() {
  * coordinator's pick in the owner's 25-30 % - and nothing else: the grey tint and the dark outline of C3 are gone. A
  * token whose actor is no Spectator any more gets its own alpha back. On a GM's browser only (`applyToToken`): every other
  * player's is hidden (`tokenShownTo`), and its owner sees it as Foundry draws it. Display only; how it reads on a real
- * map is LIVE-E92-04.
+ * map is LIVE-E92-04. The share is config.mjs `SPECTATOR_ALPHA` since 1.2.127, which the token's frame reads too
+ * (own-ring.mjs `dressFrame`).
  */
-const SPECTATOR_ALPHA = 0.3;
 const dressedSpectators = new WeakSet();
 export function dressSpectator(token) {
     const watching = Boolean(token?.actor?.getFlag?.(MODULE_ID, FLAGS.spectator));
