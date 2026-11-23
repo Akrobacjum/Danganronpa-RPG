@@ -85,6 +85,7 @@
  */
 
 import { debug, cssColour, forgetCssColours } from "./utils.mjs";
+import { MODULE_ID, FLAGS, SPECTATOR_ALPHA } from "./config.mjs";
 /* Monokuma is told apart by its flag (monokuma.mjs `isMonokuma`), as every other reader of it does: a GM may have it as
    their character, and it stays bare on every other screen all the same (F118). */
 import { isMonokuma } from "./monokuma.mjs";
@@ -175,7 +176,9 @@ export function registerOwnRing() {
        every token on the scene for a Hope going up and down is exactly the kind of
        thing the perf pass of this stage is removing elsewhere. */
     Hooks.on("updateActor", (actor, changes) => {
-        if (!("ownership" in changes)) return;
+        // and a Spectator's flag written or taken off, whose frame fades or comes back with its sprite (`dressFrame`)
+        if (!("ownership" in changes) && !(FLAGS.spectator in (changes?.flags?.[MODULE_ID] ?? {}))
+            && !(`-=${FLAGS.spectator}` in (changes?.flags?.[MODULE_ID] ?? {}))) return;
         for (const token of canvas?.tokens?.placeables ?? []) {
             if (token.actor?.id === actor.id) paint(token);
         }
@@ -189,6 +192,22 @@ export function registerOwnRing() {
     });
     Hooks.on("createUser", () => repaintAll());
     Hooks.on("deleteUser", () => repaintAll());
+}
+
+/**
+ * A SPECTATOR'S FRAME FADES WITH ITS TOKEN (1.2.127; the owner, 22.11.2026: "Spectatorzy. Ich ramka kwadratowa renderowana
+ * przez modul niech tez ma zmniejszone opacity", OWNER-127-SPECTATOR-FRAME). On a GM's browser a Spectator's sprite stands
+ * at config.mjs `SPECTATOR_ALPHA` (visibility.mjs `dressSpectator`), and its frame stood at full alpha under it. The frame
+ * takes the same share where the sprite does - a GM's browser, an actor with the Spectator flag - and 1 elsewhere, so a
+ * student made a Spectator fades and one let out comes back; its colour, its bone and Monokuma's bare token are as they
+ * were. On every road of `paint` that shows a frame, and on the flag's write (`registerOwnRing`). How it reads on a real
+ * map, with the light around it, is LIVE (no canvas headless). Answers the alpha set (R8694).
+ */
+export function dressFrame(token, user = game.user) {
+    const alpha = user?.isGM && token?.actor?.getFlag?.(MODULE_ID, FLAGS.spectator) ? SPECTATOR_ALPHA : 1;
+    const frame = token?.[RING_NAME];
+    if (frame && frame.alpha !== alpha) frame.alpha = alpha;
+    return alpha;
 }
 
 /** Every token on the scene, repainted. */
@@ -346,6 +365,7 @@ function paint(token, flags) {
         if (flags && positionOnly(flags) && ringKept(existing)) {
             count("ownRing.kept");
             existing.visible = true;
+            dressFrame(token);
             return;
         }
 
@@ -357,6 +377,7 @@ function paint(token, flags) {
         if (flags && ringKept(existing, key)) {
             count("ownRing.kept");
             existing.visible = true;
+            dressFrame(token);
             return;
         }
 
@@ -364,6 +385,7 @@ function paint(token, flags) {
         count("ownRing.rebuilt");
         rebuiltAt = now();
         group.visible = true;
+        dressFrame(token);
         group.drpgRingKey = key;
         group.drpgRingLight = glass ? null : "";
         core.clear();

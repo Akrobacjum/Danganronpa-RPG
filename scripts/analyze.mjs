@@ -26,6 +26,7 @@ import {
 } from "./truth-bullets.mjs";
 import { whisperToOwner, whisperToGms, log, warn, error, article, esc } from "./utils.mjs";
 import { answerKeysRefusal } from "./gm-stores.mjs";
+import { withCentre } from "./notice-centre.mjs";
 
 /* The bullets the GMs have been told about this session: one whisper each, not one per roll. */
 const keyMissingTold = new Set();
@@ -236,7 +237,7 @@ async function lockOut(item, actor, chapter, total, shown = "neutral") {
         <p><strong>${game.i18n.localize("DRPG.Analyze.failedTitle")}</strong></p>
         <p>${game.i18n.format(shown === "neutral" ? "DRPG.Analyze.failed" : "DRPG.Analyze.failedShown", {
             name: foundry.utils.escapeHTML(item.name)
-        })}</p>`, { flags: { [MODULE_ID]: { sfx: "analyzeMiss" } } });
+        })}</p>`, withCentre({ flags: { [MODULE_ID]: { sfx: "analyzeMiss" } } }));
 
     log(`Analyze: ${actor.name} rolled ${total} on "${item.name}" and locked it for chapter ${chapter}.`);
 }
@@ -315,7 +316,7 @@ async function identify(item, actor, realType, isCritical, dc, total) {
             game.i18n.localize("DRPG.TruthBullet.analysisHeading")
         }</strong> ${foundry.utils.escapeHTML(analyzedText)}</p>` : ""}
         ${hint ? `<p><em>${foundry.utils.escapeHTML(hint)}</em></p>` : ""}`,
-        { flags: { [MODULE_ID]: { sfx: "analyzeHit" } } });
+        withCentre({ flags: { [MODULE_ID]: { sfx: "analyzeHit" } } }));
 
     // The critical's second half is a human's to give, so the GMs are told to
     // give it rather than the module inventing one. Through the messenger, not
