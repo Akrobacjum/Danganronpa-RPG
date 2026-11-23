@@ -1532,8 +1532,15 @@ async function concealFromWitnesses(actor) {
         ? (band === "despair" ? def.successWithDespair : def.success)
         : def.failure;
 
+    /* What the roll did (E129 S0-CARDS; action-report.mjs `rollEffectsHtml`): a supporting roll, so no Hope. Its critical
+       gives Sanity back (`CLEANUP.conceal.refundStress.critical`), on the GM, with the attempt it covered (`coverGiveBack`,
+       whose line that attempt's card carries): said here as what will come, since a window closed before the attempt
+       gives nothing back. */
+    const { rollEffectsHtml } = await import("./action-report.mjs");
+    const coverBack = roll.isCritical ? Number(CLEANUP.conceal?.refundStress?.critical) || 0 : 0;
     await whisperToOwner(actor, `${cardHead({ action: def.label, total: roll.total })}<p>${
-        foundry.utils.escapeHTML(line)}</p>`);
+        foundry.utils.escapeHTML(line)}</p>${rollEffectsHtml([roll])}${coverBack
+        ? `<p>${foundry.utils.escapeHTML(plural("DRPG.Result.coverCritical", { n: coverBack }))}</p>` : ""}`);
 
     /*
      * A failure is public TO THE ROOM, and to nowhere else.

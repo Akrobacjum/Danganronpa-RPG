@@ -967,6 +967,7 @@
       "support": "Your roll of {trait} only supports the action, so it earns no Hope.",
       "supportDespair": "Its point of Despair still goes to the pool of the Monokuma who watches you.",
       "supportBare": "This roll only supports the action, so it earns no Hope.",
+      "coverCritical": { "one": "A critical on this roll: if the attempt it covers goes ahead, {n} Sanity comes back with its result.", "other": "A critical on this roll: if the attempt it covers goes ahead, {n} Sanity comes back with its result." },
       "givenBack": "{what} comes back to you, as the action did not go ahead."
     },
     "Action": {

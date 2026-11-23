@@ -38,15 +38,29 @@ alone, so a Despair with a trace placed and one without say the same (R8885).
 | 39, 40 | Tamper's card, Stage 6's (cleanup.mjs, on the GM) | the roll's line, read off the roll as the GMs' record holds it |
 | 6-9, 11-15, 30, 32, 34-37, 46 | the GM's verdicts that follow an attempt (a bullet copied, a stash found, a steal's take, what a Frisk saw) | unchanged: no roll of their own; the attempt's card before them says its roll's lines |
 | 19, 20, 22, 44, 45 | Rest, a room action, Echoes, Use an Item and a creative use's ruling | unchanged: Rest and Echoes throw no dice; the room action's and an item's cards already list what they gave (Hope, a move, Health) |
-| 41-43 | the opening roll, a killer's Stage 4, every crisis action | unchanged: open, a question below |
+| 41, 43 | the opening roll's card (`announceOpening`), every crisis action's (`announceCrisis`) | the roll's lines, for the roller's own users alone (secret.mjs `youOrThem`): the card goes to every seat of the incident with masked names, and nobody else reads "you earn" |
+| 42 | a killer's own Stage 4 went through | unchanged: a sentence of its own after the opening's card, which carries the roll's lines |
 
 ## Not done, and why
 
-- **Crisis and opening rolls (rows 41-43).** Whether an incident's rolls earn Hope as an action's do is the incident's
-  own rule, and this line did not read it to the end. A line there could state a rule the code does not run (M2). Asked
-  in the report.
-- **A concealment's critical Sanity (T1).** Tamper's concealment critical gives 1 Sanity back through the GM
-  (`coverGiveBack`); whether its card says so was not read.
+- **Hope at its maximum** stays as built (the coordinator, 23.11.2026).
+
+## Read to the end (the coordinator's items 3 and 4, 23.11.2026)
+
+- **Incident rolls (rows 41-43).** Read 23.11.2026 on the merge with the assembly (d9135561): a crisis action's roll is
+  `rollTrait` without `remember: false` (murder-rules.mjs, `actionKey: "crisis"`) and the opening's is `remember: false`
+  with `murderOpening`, which is in call-effects.mjs `TAKES_CALLS`; so neither is supporting on the roller
+  (action-pipeline.mjs `rollTrait`) nor on the GM's draw (roll-draw.mjs `throwDrawn`: neither key is in `SPENDS_NO_CALL`).
+  The draw adds their Hope, critical.mjs a critical's 2, despair-award.mjs a Despair result's point (neither is a
+  reaction). No road of the incident's takes any of it back. The two roads agree; the cards say it
+  (murder-rules.mjs `incidentRollLines`).
+- **A concealment's critical (T1).** The code gives it back: cleanup.mjs `coverGiveBack`, on the GM, after the attempt's
+  refusals, with a witness still in the room and the GMs' record of a critical cover roll, `CLEANUP.conceal.refundStress.critical`
+  (1). Its line ("You get 1 Sanity back.", `backLine`) was already on the attempt's card, the Tamper card's and Stage 6's.
+  The concealment's own card now says what the roll did (a supporting roll, no Hope) and, on a critical, that the Sanity
+  comes back if the attempt goes ahead (`DRPG.Result.coverCritical`).
+- **A cover not thrown while hidden** (1.2.128 line STG, hide.mjs `HIDDEN_COVER`): no dice, so no line
+  (`rollEffectLines` answers none for `hidden`); its card's own "skipped" line stands.
 - **Hope at its maximum.** The rule's line says "you earn 1 Hope" even when Hope is full and Daggerheart does not raise
   it. A line read off the sheet at the card's time would race the GM's write (above); not built.
 - **Two readings of "supporting".** The card reads the roller's `rollTrait` (`remember: false`, not the opening); the GM's

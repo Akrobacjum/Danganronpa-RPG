@@ -34157,12 +34157,14 @@ const INVARIANTS = [
         const read = [
             { withHope: true, withFear: false }, { isCritical: true }, { withHope: false, withFear: true },
             { withHope: true, supporting: true, trait }, { withFear: true, supporting: true, trait }, { isCritical: true, supporting: true, trait },
-            { isCritical: false, withHope: false }, { isCritical: false, withHope: true }, {}, null
+            { isCritical: false, withHope: false }, { isCritical: false, withHope: true }, {}, null,
+            // a cover not thrown while hidden (hide.mjs `HIDDEN_COVER`, 1.2.128 line STG): no dice, nothing said
+            { total: 13, isCritical: false, withHope: true, hidden: true }
         ].map(roll => A.rollEffectLines(roll));
         const support = f("support", { trait: TRAITS[trait].label });
         equal(stableJson(read), stableJson([[f("hope", { n: 1 })], [f("critical", { n: CRITICAL.hope })], [f("despair")],
-            [support], [support, f("supportDespair")], [support], [f("despair")], [f("hope", { n: 1 })], [], []]),
-        "[the lines of: a roll with Hope; a critical; with Despair; a supporting roll with Hope, with Despair, a critical; the GMs' record with Despair, with Hope; no duality; no roll]");
+            [support], [support, f("supportDespair")], [support], [f("despair")], [f("hope", { n: 1 })], [], [], []]),
+        "[the lines of: a roll with Hope; a critical; with Despair; a supporting roll with Hope, with Despair, a critical; the GMs' record with Despair, with Hope; no duality; no roll; a cover not thrown while hidden]");
     }],
     ["R8885 - the action card and every roll head say it (E129 S0-CARDS, 1.2.128): action-report.mjs `reportHtml` carries the main roll's line and each of `outcome.supportRolls`, the same for a Despair with a trace and one without (R8675), and `rollHead` the line of the roll it heads", async () => {
         /*
@@ -34205,10 +34207,14 @@ const INVARIANTS = [
             project: count("action-project.mjs", /rollEffectsHtml\(\[(conceal|trace)\]\)/g),
             cleanup: [count("cleanup.mjs", /await report\(actor, data, \{[^}]*\bisCritical, withHope, free \}\)/g), /\$\{effects\}/.test(fnSource(code("cleanup.mjs"), "report") ?? ""),
                 count("cleanup.mjs", /rollEffectsHtml\(\[\{ isCritical, withHope \}\]\)/g)],
-            givenBack: /DRPG\.Result\.givenBack[\s\S]{0,120}rollEffectsHtml\(rolls \?\? \[\]\)/.test(fnSource(code("action-pipeline.mjs"), "giveBackAfterRoll") ?? "")
+            givenBack: /DRPG\.Result\.givenBack[\s\S]{0,120}rollEffectsHtml\(rolls \?\? \[\]\)/.test(fnSource(code("action-pipeline.mjs"), "giveBackAfterRoll") ?? ""),
+            // the incident's two cards, the lines their roller's alone (`youOrThem`), and a concealment's critical Sanity said on its card
+            incident: [count("murder-rules.mjs", /await incidentRollLines\(/g),
+                /youOrThem\(ownerIdsOf\(actor\), \{ you: lines, them: "" \}\)/.test(fnSource(code("murder-rules.mjs"), "incidentRollLines") ?? "")],
+            coverCritical: count("cleanup.mjs", /plural\("DRPG\.Result\.coverCritical"/g)
         };
-        equal(stableJson(read), stableJson({ palm: 2, frisk: 1, pick: 1, project: 3, cleanup: [2, true, 2], givenBack: true }),
-            "{Palm's two cards; the unseen Frisk's; Pick the Lock's cover; a project's concealments and Hide Traces; Tamper [its two reports, the card's list, the roll's lines built in `report` and in Stage 6's card]; a price given back after the dice}");
+        equal(stableJson(read), stableJson({ palm: 2, frisk: 1, pick: 1, project: 3, cleanup: [2, true, 2], givenBack: true, incident: [2, true], coverCritical: 1 }),
+            "{Palm's two cards; the unseen Frisk's; Pick the Lock's cover; a project's concealments and Hide Traces; Tamper [its two reports, the card's list, the roll's lines built in `report` and in Stage 6's card]; a price given back after the dice; the incident [its two cards, the roller's alone]; the concealment's critical}");
     }],
     ["R8880 - a price comes back after the dice as config.mjs ROLL_REFUNDS says (E129, 1.2.128; S0-REFUND, docs/dev/owner129/desp/REFUNDS.md rows 4, 12, 13; the owner's answers of 23.11.2026): the keys hold the owner's values, under \"always\" price.mjs `mayRefundAfterRoll` gives back after any roll, the GM's Refuse asks `afterRoll` while its own key is null; under \"noHope\" it refuses after a roll with Hope or a critical, a supporting roll's Hope does not count and its critical does; under \"never\" nothing comes back", async () => {
         /*

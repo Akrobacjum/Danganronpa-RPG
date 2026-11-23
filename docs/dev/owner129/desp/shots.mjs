@@ -4,7 +4,7 @@
  * back after the dice. Chromium, 1920x1080 and 1366x768, Stained Glass and Monokuma Legacy, the glass harness as a player.
  * Run from the repository's root with a static server on it:
  *
- *     python3 -m http.server 8765 &   node docs/dev/owner129/desp/shots.mjs [--chromium <executable>] [--dsf 2] [--lang pl]
+ *     python3 -m http.server 8765 &   node docs/dev/owner129/desp/shots.mjs [--chromium <executable>] [--dsf 1] [--lang pl]
  *
  * Built on docs/dev/owner127/shots.mjs (line UI, 22.11.2026), which says what the harness lacks.
  *
@@ -28,7 +28,8 @@ const lang = arg("--lang") ?? "en";
 const browser = await playwright.chromium.launch(exe ? { executablePath: exe } : {});
 const out = new URL(".", import.meta.url).pathname;
 const CARDS = ["tamper-critical", "work-critical", "palm-cover", "analyze", "given-back"];
-const dsf = Number(arg("--dsf") ?? 1);
+// deviceScaleFactor 2 by default (the common brief); `--dsf 1` for a lighter set.
+const dsf = Number(arg("--dsf") ?? 2);
 let bad = 0;
 for (const theme of ["stained", "legacy"]) for (const size of ["1920x1080", "1366x768"]) for (const [i, card] of CARDS.entries()) {
     const [W, H] = size.split("x").map(Number);
@@ -73,10 +74,11 @@ for (const theme of ["stained", "legacy"]) for (const size of ["1920x1080", "136
                 ${A.rollEffectsHtml([{ isCritical: true, withHope: true }])}`;
             title = ACTIONS.tamper?.label ?? "Tamper";
         } else if (card === "work-critical") {
-            // action-project.mjs `workOnProject` -> `report`: a critical, its progress and the action it gives back
+            // action-project.mjs `workOnProject` -> `report`: its outcome's `text` ("DRPG.Action.progressOn", the progress
+            // and the project) and `refundAction` on a critical, as it hands them over; `applied` is a GM's own write only
             const r = roll({ hope: 8, fear: 8, mod: 3, trait: "head" });
             html = A.reportHtml({ label: ACTIONS.project?.label ?? "Work on Project" }, r,
-                { text: t("DRPG.Project.progressSent", { name: "Radio repair", n: 3 }), refundAction: true }, "Workshop");
+                { text: t("DRPG.Action.progressOn", { n: 3, project: "Radio repair" }), refundAction: true }, "Workshop");
             title = ACTIONS.project?.label ?? "Work on Project";
         } else if (card === "palm-cover") {
             // palm.mjs `performPalm` -> `report`: the hand with Hope, its cover with Despair riding the card (`supportRolls`)
@@ -102,12 +104,15 @@ for (const theme of ["stained", "legacy"]) for (const size of ["1920x1080", "136
         const b = front?.getBoundingClientRect();
         return { shown: Boolean(front), inside: b ? b.left >= 0 && b.top >= 0 && b.right <= innerWidth && b.bottom <= innerHeight : false,
             raised: centre ? (stage?.classList.contains("is-raised") ?? false) : null,
-            lines: [...(front?.querySelectorAll(".drpg-roll-effects li") ?? [])].map(li => li.textContent) };
+            lines: [...(front?.querySelectorAll(".drpg-roll-effects li") ?? [])].map(li => li.textContent),
+            // A lang key shown raw - a key that is not in the file, as shot 02's "DRPG.Project.progressSent" was (the
+            // coordinator, 23.11.2026) - fails the shot.
+            rawKeys: (front?.innerText ?? "").match(/\bDRPG\.[A-Za-z][\w.]*/g) ?? [] };
     }, { card, lang });
     const file = `${out}${String(i + 1).padStart(2, "0")}-${card}-${theme}-${size}${lang === "en" ? "" : `-${lang}`}.png`;
     await page.screenshot({ path: file });
     await page.close();
-    const ok = read.shown && read.inside && read.raised !== false && read.lines.length > 0 && !errors.length;
+    const ok = read.shown && read.inside && read.raised !== false && read.lines.length > 0 && !read.rawKeys.length && !errors.length;
     if (!ok) bad++;
     console.log(`${card} ${theme} ${size}: ${JSON.stringify(read)}${errors.length ? ` errors ${JSON.stringify(errors)}` : ""}${ok ? "" : "  - FAIL"} -> ${file.slice(out.length)}`);
 }
