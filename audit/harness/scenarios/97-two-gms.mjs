@@ -42,6 +42,8 @@
  *      "Waiting" too, while its line stays in both streams (N2).
  *   W  1.2.128 (E129 S0-VICTIM): gm2's Spectator role on a dead student makes the student's watcher on the primary, its
  *      token where the body lies, the student unflagged (W1; `spectator.dead`).
+ *   X  1.2.128 (E129 S0-MASKLEFT): gm2 ends a masked fight with the victim alive; the mask, the "?" and the mute end on the
+ *      primary (`mask.veil` "unmask"), and the killer's player is told (X1).
  *
  * What this cannot see: a real F5 (a new process with the old localStorage, no cookie, IndexedDB or cache; the
  * order of "inactive", "active" and `ready` on v14 is LIVE-E30-05 and LIVE-E04-12), and a real server's delivery
@@ -1046,6 +1048,45 @@ export async function run(api) {
     check("W1: gm2's Spectator role on a dead Chie makes her watcher on gm, its token where her body lies, and leaves Chie unflagged (1.2.128 E129 S0-VICTIM)",
         wSet?.kept === true && wSet.watcher === false && wPressed === true && J(wRead) === J({ watcher: true, flagged: false, atBody: true }),
         J({ wSet, wPressed, wRead }), { flow: "dead-spectator" });
+
+    /* ------------------------------------------------------------------ X */
+    /* 1.2.128 (E129 S0-MASKLEFT; the owner, 23.11.2026: "Zawsze zdejmujemy maske na koniec incydentu morderstwa", and every GM
+       equal, at the coordinator's ask): the mask is the primary's to end, and a second GM's close asks it (murder-rules.mjs
+       `closeIncident` -> mask-gm.mjs `endMasksAtClose`, `mask.veil` "unmask"). gm opens Aiko's murder of Botan (p1's opening
+       roll held, as in T) and masks Aiko as the fight's opening on Hope does (`maskKiller`); gm2 ends the murder with Botan
+       alive. Read on gm: the mask's row, Aiko's masked tokens, p1 muted by the mask; on p1, the line told. Put back: the
+       incident, the mask, the roll. */
+    phase("X a second GM's close of a masked fight ends the mask on the primary", { flow: "mask" });
+    await p1.eval(`globalThis.__e129xHeld = []; const a = game.actors.get("${IDS.aiko}");
+        globalThis.__e129xKept = Object.hasOwn(a, "rollTrait") ? a.rollTrait : null;
+        a.rollTrait = function () { return new Promise(r => globalThis.__e129xHeld.push(r)); }; return true;`);
+    const xFrom = await p1.eval(`return game.messages.contents.length;`);
+    const X_READ = `const MG = ${imp("mask-gm.mjs")}, p1 = game.users.get("${IDS.p1}");
+        const masked = [...game.scenes].flatMap(s => [...s.tokens]).filter(t => t.actorId === "${IDS.aiko}" && MG.isMaskedToken(t)).length;
+        return { row: MG.maskStands("${IDS.aiko}"), masked, muted: MG.maskMutedIds().has(p1?.id ?? "") };`;
+    let xBefore = null, xAfter = null, xTold = null;
+    try {
+        xBefore = await gm.eval(`if (game.drpg.murderState()?.active) await game.drpg.endMurder({ reason: "suite", followUp: false });
+            await game.drpg.openMurder({ killerId: "${IDS.aiko}", victimId: "${IDS.botan}", openingTrait: "body" });
+            await (${imp("mask-gm.mjs")}).maskKiller(game.drpg.murderState());
+            await new Promise(r => setTimeout(r, 600)); ${X_READ}`, { timeout: 60000 });
+        await until(() => gm2.eval(`return game.drpg.murderState()?.active === true;`), v => v === true, 6000);
+        await gm2.eval(`await game.drpg.endMurder({ reason: "suite", followUp: false }); return true;`, { timeout: 60000 });
+        xAfter = await until(() => gm.eval(X_READ), r => r?.row === false, 8000);
+        await settle(900);
+        xTold = await p1.eval(`const S = ${imp("secret.mjs")}; const said = game.i18n.localize("DRPG.Mask.endedIncident"); let n = 0;
+            for (const m of game.messages.contents.slice(${xFrom})) if (String(await S.wordsOf(m, 1000) ?? "").includes(said)) n++;
+            return n;`);
+    } finally {
+        await gm.eval(`if (game.drpg.murderState()?.active) await game.drpg.endMurder({ reason: "suite", followUp: false });
+            await (${imp("mask-gm.mjs")}).endMask("${IDS.aiko}", "suite"); return true;`, { timeout: 60000 });
+        await p1.eval(`const a = game.actors.get("${IDS.aiko}"); if (globalThis.__e129xKept) a.rollTrait = globalThis.__e129xKept; else delete a.rollTrait;
+            for (const r of globalThis.__e129xHeld ?? []) r(null); delete globalThis.__e129xHeld; delete globalThis.__e129xKept; return true;`);
+        await settle(900);
+    }
+    check("X1: gm2 ends a masked fight with the victim alive, and on gm the mask's row, Aiko's \"?\" and p1's mute end, and p1 is told once (1.2.128 E129 S0-MASKLEFT)",
+        J(xBefore) === J({ row: true, masked: 1, muted: true }) && J(xAfter) === J({ row: false, masked: 0, muted: false }) && xTold === 1,
+        J({ xBefore, xAfter, xTold }), { flow: "mask" });
 
     return { primary: { before, joined, afterGmReload, moved, backAgain }, reloads: { p1: r1, gm: r2, card: r3 },
         d153: { before: gBefore, onGm: gAfter, onGm2: gAfter2, found: gFound, gave: gGave } };

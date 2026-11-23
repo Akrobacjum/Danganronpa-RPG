@@ -311,22 +311,9 @@ export const BRIDGE_ACTIONS = table({
             killerIds: "read on the primary against its own declarations of this Eclipse (`pendingMurderStore`, eclipse.mjs): an id with none is veiled or lifted by nothing; for \"unmask\", against its own masks' rows (`endMasksAtClose`): an id with no mask, or one a running incident names, ends nothing"
         }
     },
-    /*
-     * A DEAD STUDENT'S SPECTATOR, ASKED OF THE PRIMARY BY ANOTHER GM (1.2.128, E129 S0-VICTIM; the owner, 23.11.2026: "Po
-     * dostaniu spectatora przez gm panel zabralo token ciala"). The Students window's Spectator role on a dead student makes
-     * that student's watcher (spectator-dead.mjs `ensureDeadSpectator`), the body left as it lies; on the primary, as the
-     * watcher's link is the GMs' and two GMs' makes would be two watchers. A second GM asks here and waits.
-     */
-    [ACTION_DEAD_SPECTATOR]: {
-        label: "DRPG.Bridge.what.spectator.dead",
-        guards: [gmOnly("only a GM makes a dead student's Spectator")],
-        sanitize: pick({ actorId: as.id }),
-        run: handleDeadSpectator,
-        answer: "reply",
-        claims: {
-            actorId: "read on the primary (spectator-dead.mjs `spectatorForTheDead`): a student dead to the GMs, no Monocub and some player's, else nothing is made"
-        }
-    },
+    /* A dead student's Spectator, asked of the primary by another GM (1.2.128 E129 S0-VICTIM): one watcher, the body left as it lies. */
+    [ACTION_DEAD_SPECTATOR]: { label: "DRPG.Bridge.what.spectator.dead", guards: [gmOnly("only a GM makes a dead student's Spectator")],
+        sanitize: pick({ actorId: as.id }), run: handleDeadSpectator, answer: "reply", claims: { actorId: "read on the primary (spectator-dead.mjs `spectatorForTheDead`): a student dead to the GMs, no Monocub and some player's, else nothing is made" } },
     [ACTION_ADVANCEMENT]: {
         label: "DRPG.Bridge.what.advancement.apply",
         guards: [knownSender, notSpectator("actorId"), owns("actorId", "sender does not own that character")],
