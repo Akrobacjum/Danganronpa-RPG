@@ -3698,9 +3698,9 @@ async function closeIncident(state, { reason, followUp, conclude = true }) {
        i wyciszenie", then "Zawsze zdejmujemy maske na koniec incydentu morderstwa (po sprzataniu)"): every end of an
        incident comes through here - the GM's End after Stage 6 or before it, a failed or crowded-out fight, a betrayal,
        the trial's floor, the season's reset - and none of them ended the mask, which stood to its time of day. On the
-       primary, held there to its own rows (mask-gm.mjs `endMasksAtClose`). */
+       primary, held there to its own rows (mask-gm.mjs `endMasksAtClose`); an abandon (the reset's) quietly, as it posts nothing. */
     try {
-        await (await import("./mask-gm.mjs")).endMasksAtClose(state ? killerIds(state) : []);
+        await (await import("./mask-gm.mjs")).endMasksAtClose(state ? killerIds(state) : [], { quiet: !conclude });
     } catch (err) {
         error("Could not take the killer out from behind the mask at the incident's end", err);
     }

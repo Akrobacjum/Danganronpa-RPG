@@ -299,12 +299,12 @@ export const BRIDGE_ACTIONS = table({
     [ACTION_MASK_VEIL]: {
         label: "DRPG.Bridge.what.mask.veil",
         guards: [gmOnly("only a GM asks for the opening's veil")],
-        sanitize: pick({ what: as.oneOf("lights", "lift", "judged", "settle", "unmask"), killerIds: as.raw }),
+        sanitize: pick({ what: as.oneOf("lights", "lift", "judged", "settle", "unmask", "unmaskQuiet"), killerIds: as.raw }),
         run: handleMaskVeil,
         answer: "reply",
         claims: {
-            what: "one of five, each the primary's own road (mask-gm.mjs `veilOnPrimary`); anything else does nothing",
-            killerIds: "read on the primary against its own declarations of this Eclipse (`pendingMurderStore`, eclipse.mjs): an id with none is veiled or lifted by nothing; for \"unmask\", against its own masks' rows (`endMasksAtClose`): an id with no mask, or one a running incident names, ends nothing"
+            what: "one of six, each the primary's own road (mask-gm.mjs `veilOnPrimary`); anything else does nothing",
+            killerIds: "read on the primary against its own declarations of this Eclipse (`pendingMurderStore`, eclipse.mjs): an id with none is veiled or lifted by nothing; for \"unmask\" and \"unmaskQuiet\", against its own masks' rows (`endMasksAtClose`): an id with no mask, or one a running incident names, ends nothing"
         }
     },
     /* A dead student's Spectator, asked of the primary by another GM (1.2.128 E129 S0-VICTIM): one watcher, the body left as it lies. */
