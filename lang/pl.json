@@ -6194,6 +6194,7 @@
         "other": "Podrzuć komuś do kieszeni jedną z {n} rzeczy, które nosisz; oba progi są niższe niż przy wyjmowaniu."
       },
       "nothingToPlant": "Nie nosisz niczego, co dałoby się komuś podrzucić.",
+      "notInTrial": "W rozprawie Palm tylko przeszukuje: wziąć albo zostawić coś można dopiero po Class Trial.",
       "whatToPlant": "Co zostawić",
       "whoPrompt": "Czyje kieszenie?",
       "plantSent": "Ocierasz się o postać {name}. Czy rzecz trafi do kieszeni i czy ta osoba coś poczuje, okaże się za chwilę.",
@@ -6222,7 +6223,6 @@
     "Frisk": {
       "rowLabel": "Zobacz, co ktoś nosi",
       "rowHint": "Przejrzyj czyjeś kieszenie i niczego nie bierz.",
-      "notInTrial": "Frisk czeka, aż skończy się Class Trial; w rozprawie Palm tylko coś zabiera albo podrzuca.",
       "noticeTitle": "Frisk",
       "unseenLabel": "Ukradkiem",
       "unseenHint": "Shadow {unseen}+, żeby nikt nie zauważył, potem Hand {hand}+, żeby zobaczyć wszystko.",

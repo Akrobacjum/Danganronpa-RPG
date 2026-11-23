@@ -68448,22 +68448,32 @@ const INVARIANTS = [
         equal(stableJson({ read, found }), stableJson({ read: { constant: 30, debate: 30, round: 30, pick: [30, 30], closing: [60, 60], rebuttal: 120 }, found: [] }),
             "{read: [the constant, an Objection's seconds in a debate, in a round, [while its bullet is picked, the pick constant], [the Closing's exchange, its constant], the rebuttal]; found: the texts that still say a minute or 60 s}");
     }],
-    ["R8772 - Palm is open in the Class Trial and paid as Analyze is there (E129 S0-PALM; the owner's note of 23.11.2026, \"palm powinno byc dostepne w trialu za akcje, potem za hope, potem za sanity\"): allowed-now.mjs `TRIAL_OPEN_ACTIONS` holds Analyze and Palm, and in a trial the action road opens those two and shuts the rest; the person road opens Palm's key alone; config.mjs `PRICE_CHAINS.palm` is an action, then Hope, then Sanity, the later steps in the trial alone, its first step Palm's tile cost; `TRIAL.palmHallIsOneRoom` is on", async () => {
-        /* Pure over handed-in facts (allowed-now.mjs `allowedNow`'s `facts`). Red at 2e28785a: Analyze alone, no chain. */
+    ["R8772 - Palm is open in the Class Trial for its Frisk alone, paid as Analyze is there (E129 S0-PALM; the owner's notes of 23.11.2026, \"palm powinno byc dostepne w trialu za akcje, potem za hope, potem za sanity\" and \"z palm w trialu ma byc dostepne tylko przeszukanie - ukradkiem, consensual lub silowe\"): allowed-now.mjs `TRIAL_OPEN_ACTIONS` holds Analyze and Palm and in a trial the action road opens those two and shuts the rest; `TRIAL_OPEN_PERSON` holds the Frisk alone, so the person road opens it and shuts Palm's Steal and Plant (`palm`) and a nameless road; config.mjs `PRICE_CHAINS.palm` an action, Hope, Sanity, its later steps the trial's; Palm's hall one room", async () => {
+        /* Pure over handed-in facts (allowed-now.mjs `allowedNow`'s `facts`). Red at ca67d7a7: the person road opens `palm`
+           (Steal and Plant) and shuts the Frisk. Outside a trial the person road opens all three, as before. */
         const { ACTIONS, PRICE_CHAINS, TRIAL } = await import("./config.mjs");
         const A = await import("./allowed-now.mjs");
         const facts = trial => ({ trial: () => trial, eclipse: () => false, fighting: () => false, betrayal: () => false, participant: () => false });
         const open = ["search", "observe", "analyze", "listen", "palm", "project", "rest", "dynamic", "tamper"].filter(k => A.allowedNow(null, k, { facts: facts(true) }).ok);
+        const person = trial => ["frisk", "palm", null].map(k => { const r = A.allowedNow(null, k, { road: "person", facts: facts(trial) }); return r.ok ? "open" : r.why; });
         const chain = PRICE_CHAINS.palm ?? null;
+        // The Frisk pays Palm's own price on the searcher's browser (palm.mjs `payPalm`, the chain in a trial) and hands it back
+        // by its receipt (`refundPalm`), both forms - read off frisk.mjs, since the windows before them need a hand to press.
+        const frisk = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/frisk.mjs`).then(lfText));
+        const pays = ["performFrisk", "performFriskOpenly"].map(name => {
+            const body = fnSource(frisk, name) ?? "";
+            return [body.includes("payPalm("), body.includes("refundPalm("), body.includes("spendAction(")];
+        });
         equal(stableJson({
-            table: A.TRIAL_OPEN_ACTIONS ?? null, open,
-            person: [A.allowedNow(null, "palm", { road: "person", facts: facts(true) }).ok, A.allowedNow(null, null, { road: "person", facts: facts(true) }).why],
+            pays,
+            table: A.TRIAL_OPEN_ACTIONS ?? null, open, personTable: A.TRIAL_OPEN_PERSON ?? null, inTrial: person(true), outside: person(false),
             chain: chain ? [chain.steps.map(s => [s.pay, s.amount]), chain.stepsBeyondFirst, chain.steps[0].amount === ACTIONS.palm.cost] : null,
             hall: TRIAL.palmHallIsOneRoom ?? null
         }), stableJson({
-            table: ["analyze", "palm"], open: ["analyze", "palm"], person: [true, "trial"],
+            pays: [[true, true, false], [true, true, false]],
+            table: ["analyze", "palm"], open: ["analyze", "palm"], personTable: ["frisk"], inTrial: ["open", "trial", "trial"], outside: ["open", "open", "open"],
             chain: [[["action", 1], ["hope", 1], ["stress", 1]], "classTrial", true], hall: true
-        }), "{table; open: the action keys a trial leaves open; person: [Palm's road, a nameless one's reason]; chain: [steps, the phase of the later ones, its first step the tile's cost]; hall}");
+        }), "{pays: [performFrisk, performFriskOpenly] by payPalm, refunded by refundPalm, no bare spendAction; table; open: the action keys a trial leaves open; personTable; inTrial: [the Frisk's road, Palm's Steal and Plant, a nameless road]; outside: the same out of a trial; chain: [steps, the phase of the later ones, its first step the tile's cost]; hall}");
     }],
     ["R8773 - the ballot lists each Monokuma by its own name, sorted, as the GMs hold the flag (E129 S0-VOTEKUMA; the owner's note of 23.11.2026, \"w glosowaniu zamiast opcji \"monokuma\" niech bedzie mozliwosc wyboru kazdego indywidualnego monokumy z osobna\"): vote.mjs `monokumaCandidates`, config.mjs `TRIAL.eachMonokumaOnBallot`", async () => {
         /*
