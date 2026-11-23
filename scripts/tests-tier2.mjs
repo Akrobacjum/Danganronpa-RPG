@@ -61724,6 +61724,21 @@ equal(read.added, 3, "three additions to a purse at once lost one");
                 gone: (report, key) => !S.maskStore.has(key),
                 back: key => stableJson([S.maskStore.get(key)?.killerId, S.maskStore.get(key)?.mark]) === stableJson([key, "SUITE backed-up mark"])
             },
+            // A hide, through its store (S0-HIDE, 1.2.128; `backup: true`). Backed up with no fixture here from line STG's merge,
+            // and this test failed naming it (CI run 45196903979, shard 4, 23.11.2026). Keyed by the holder, as the store's
+            // `exists` asks, with no `actorId` and no `userIds`: the primary's settle skips a row with no `actorId`
+            // (hide.mjs `settleHidesNow`), so no token of the holder is flagged and no time of day ends it while this test
+            // makes its traces' tokens (a `createToken` settles); the GMs' voice list leaves it out (`hiddenUnderWay`) and no
+            // microphone is held by it (voice.mjs reads `userIds`). Dropped in this test's `finally`, so no later test reads
+            // the holder as hidden (`hiddenOnGm`, the runner's cover).
+            hides: {
+                seed: async () => {
+                    await S.hideStore.patch(holder.id, { actorId: null, userIds: [], chapter: null, mark: "SUITE backed-up mark", at: 1 });
+                    return holder.id;
+                },
+                gone: (report, key) => !S.hideStore.has(key),
+                back: key => stableJson([S.hideStore.get(key)?.actorId, S.hideStore.get(key)?.mark]) === stableJson([null, "SUITE backed-up mark"])
+            },
             bullets: {
                 seed: async () => {
                     const item = await bullets.createTruthBullet(holder, { name: "Suite fixture: a backed-up answer", realType: "final",
@@ -61778,6 +61793,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         } finally {
             foundry.utils.saveDataToFile = saveDataToFile;
             await putNoteFlagsBack(noteFlags);
+            if (S.hideStore.get(holder.id)?.mark === "SUITE backed-up mark") await S.hideStore.drop(holder.id);
             for (const item of made) {
                 await bullets.dropSecret(item.uuid);
                 await item.actor?.items?.get(item.id)?.delete();

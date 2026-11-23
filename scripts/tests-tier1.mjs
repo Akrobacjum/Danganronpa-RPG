@@ -9283,16 +9283,20 @@ const INVARIANTS = [
         "{alpha: [owner, GM, another player, a token that does not hide]; faded: the meshes [owner, another player, GM] at a token alpha of 0.5; back: the owner's mesh once the flag went}");
     }],
     ["R8903 - while a character hides, the cover roll an action would throw stands passed and earns nothing (S0-HIDE, E129; hide.mjs `coverWhileHidden`, `HIDDEN_COVER`, `withCover`; action-tail.mjs `rollsEarnedHope`): null for a character with no hiding token, else a frozen pass at `coverTotal` - no critical, not a roll, no Hope counted by Tail's refund - and the card's sentence says so in both languages", async () => {
-        /* 1.2.128 line STG, 23.11.2026. Plain scenes of stand-in tokens; nothing written. Red at 5a583d82: no hide.mjs. */
+        /* 1.2.128 line STG, 23.11.2026. Plain scenes of stand-in tokens; nothing written. Red at 5a583d82: no hide.mjs.
+           EVERY CASE NAMES ITS CLOCK (CI run 45196903979, shard 1, 23.11.2026): without one `coverWhileHidden` reads the
+           world's, and 01-runtests' part A2 runs tiers 0-1 inside a Class Trial, where `hidden` read null. Red so in
+           probes/129-hide-in-trial.mjs at 2b197e69, green with the daily-life clock below. */
         const H = await import("./hide.mjs");
         const { rollsEarnedHope } = await import("./action-tail.mjs");
+        const day = { phase: "dailyLife", chapter: 1, day: 1, timeOfDay: "noon", eclipse: false };
         const { INFILTRATE } = await import("./config.mjs");
         const scenes = [{ tokens: [{ actorId: "A", flags: { [MODULE_ID]: { hiding: true } } }, { actorId: "B", flags: {} }] }];
         const files = {};
         for (const code of ["en", "pl"]) files[code] = await fetch(`/modules/${MODULE_ID}/lang/${code}.json`).then(r => r.json());
-        const cover = H.coverWhileHidden({ id: "A" }, { scenes });
+        const cover = H.coverWhileHidden({ id: "A" }, { scenes, clock: day });
         equal(stableJson({ hidden: cover && { total: cover.total, isCritical: cover.isCritical, hidden: cover.hidden, messageId: cover.messageId, frozen: Object.isFrozen(cover) },
-            other: H.coverWhileHidden({ id: "B" }, { scenes }), none: H.coverWhileHidden(null, { scenes }),
+            other: H.coverWhileHidden({ id: "B" }, { scenes, clock: day }), none: H.coverWhileHidden(null, { scenes, clock: day }),
             trial: H.coverWhileHidden({ id: "A" }, { scenes, clock: { phase: "classTrial" } }),
             earned: [rollsEarnedHope([cover]), rollsEarnedHope([{ withHope: true }])],
             text: [H.withCover("Sent.", cover) !== "Sent.", H.withCover("Sent.", null) === "Sent.", H.withCover("", cover) === game.i18n.localize("DRPG.Hide.coverSkipped")],
@@ -9309,10 +9313,12 @@ const INVARIANTS = [
         const settle = stripComments(fnSource(await fetch(`/modules/${MODULE_ID}/scripts/voice.mjs`).then(lfText), "settleTrialVoices") ?? "");
         must(settle.length > 500, "settleTrialVoices did not read - this would measure nothing");
         const user = { id: "R8904USER0000000", name: "R8904", isGM: false, active: true };
+        /* Every input named (23.11.2026, after R8903's live clock in CI's part A2): `hidden` and `free` too, which the two
+           read off the world's tokens and settings when left out; `trial` is each case's own. */
         const hold = (hiding, trial = null) => V.micHold({ user, room: "drpg-x", external: false, connected: true, canBroadcastAudio: false, actors: [], trial,
-            listening: null, masked: false, veiled: false, hiding });
+            listening: null, masked: false, veiled: false, hiding, hidden: false, free: false });
         const gm = (trial) => V.moduleHoldsMic(user, { actors: [], eclipse: false, trial, dead: () => false, listening: new Set(), masked: new Set(), veiled: new Set(),
-            hiding: new Set([user.id]) })?.reason ?? null;
+            hiding: new Set([user.id]), hidden: new Set(), free: false })?.reason ?? null;
         equal(stableJson({ hold: [hold(true), hold(false)?.reason ?? null, hold(true, { clock: { phase: "classTrial" } })?.reason ?? null], gm: game.user.isGM ? [gm(false), gm(true)] : null,
             settle: /const hiding = [^;]*hidingIds\(\)\.has\(user\.id\)/.test(settle) && /\|\| veiled \|\| hiding \|\|/.test(settle),
             words: [game.i18n.has("DRPG.Voice.held.hiding"), typeof pl?.DRPG?.Voice?.held?.hiding === "string"] }),
