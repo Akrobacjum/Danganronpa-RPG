@@ -1,0 +1,72 @@
+# audit/forge - testy na Forge (droga do 2.0, F3)
+
+Napisane 24.11.2026. Narzędzia, które logują testowe konta do gry testowej na Forge, czytają, co widzi każda
+przeglądarka, i uruchamiają scenariusze. Wyniki trafiają do `audit/forge/out/` (poza repozytorium). Plan i decyzje:
+`docs/dev/v2/`.
+
+**Adresu gry nie wpisujemy do repozytorium.** Repozytorium jest publiczne, a gra testowa ma konta GM-ów bez haseł.
+Adres podaje się tylko w zmiennej środowiskowej przy uruchomieniu.
+
+| Narzędzie | Co robi | Pisze do świata? |
+| --- | --- | --- |
+| `doctor.mjs` (S0) | loguje 6 kont, odczytuje wersje, głównego GM-a, kontrakt modułu, błędy, brakujące tłumaczenia, stan głosu; zrzuty ekranu 1366x768 i 1920x1080 | nie |
+| `suite.mjs` | wbudowany zestaw testów modułu, poziomy 0-1 (`game.drpg.runTests({ tier: 1 })`), diagnostyka i spis świata | nie |
+| `lib.mjs` | wspólne: zmienne, przeglądarka, logowanie, blokada cudzego świata | - |
+
+Każde narzędzie odmawia pracy (kod 2), gdy aktywny świat nie jest tym z `DRPG_FORGE_WORLD` albo jego nazwa nie zawiera
+`qa`, `copy` ani `gate`. Świat kampanii jest na tym samym koncie Forge (D2-05).
+
+## Zmienne
+
+| Zmienna | Znaczenie |
+| --- | --- |
+| `DRPG_FORGE_URL` | adres gry, np. `https://<nazwa>.forge-vtt.com` (wymagane) |
+| `DRPG_FORGE_WORLD` | nazwa świata testowego, np. `DRPG-QA-Forge` (wymagane) |
+| `DRPG_FORGE_USERS` | JSON z nazwami kont, domyślnie `{"gm1":"GM1","gm2":"GM2","p1":"P1","p2":"P2","p3":"P3","p4":"P4"}` |
+| `DRPG_ROLES` | które konta loguje `suite.mjs`, domyślnie `gm1,p1,p2,p3` |
+| `DRPG_BROWSER` | `chromium` (domyślnie) albo `firefox` |
+| `DRPG_FULL_RENDER=1` | przeglądarki testowe rysują w pełnej jakości (na komputerze z kartą graficzną); bez tego najniższy tryb wydajności Foundry i 10 kl./s |
+| `DRPG_FAKE_MEDIA=1` | sztuczny mikrofon i kamera, żeby głos mógł się połączyć (S5) |
+| `DRPG_CHROMIUM` | inny Chromium niż pobrany przez Playwright |
+
+## Na komputerze właściciela
+
+Dlaczego tam: w chmurze nie ma karty graficznej (sześć przeglądarek z Foundry nie mieści się w czasie), a ruch głosu
+LiveKit nie przejdzie przez proxy sesji w chmurze. Na komputerze jest prawdziwa sieć i GPU.
+
+1. Zainstaluj Node.js 22 LTS (nodejs.org) i git.
+2. Pobierz repozytorium i przejdź na gałąź pracy:
+   ```
+   git clone https://github.com/Akrobacjum/Danganronpa-RPG.git
+   cd Danganronpa-RPG
+   git checkout claude/dazzling-bohr-juuh4g
+   ```
+3. Zainstaluj zależności narzędzi i przeglądarki Playwright (z folderu `audit/harness`, żeby wersje się zgadzały):
+   ```
+   cd audit/harness
+   npm ci
+   npx playwright install chromium firefox
+   cd ../..
+   ```
+4. Uruchom świat testowy na Forge, a świat kampanii zostaw nieuruchomiony.
+5. Uruchom kontrolę stołu. W PowerShell (Windows):
+   ```
+   $env:DRPG_FORGE_URL="https://<nazwa>.forge-vtt.com"
+   $env:DRPG_FORGE_WORLD="DRPG-QA-Forge"
+   $env:DRPG_FULL_RENDER="1"
+   node audit/forge/doctor.mjs
+   ```
+   W bash (macOS, Linux):
+   ```
+   DRPG_FORGE_URL=https://<nazwa>.forge-vtt.com DRPG_FORGE_WORLD=DRPG-QA-Forge DRPG_FULL_RENDER=1 node audit/forge/doctor.mjs
+   ```
+6. Test głosu: to samo z `DRPG_FAKE_MEDIA=1`.
+7. Firefox: to samo z `DRPG_BROWSER=firefox`.
+
+Z Claude Code: otwórz folder repozytorium w Claude Code na komputerze i poproś o uruchomienie testów według tego pliku.
+Albo włącz Remote Control dla tego folderu w aplikacji Claude (ustawienia Claude Code), wtedy sesja w chmurze może
+uruchamiać te polecenia na komputerze; to wymaga zgody przy każdym podłączeniu.
+
+## Co zmierzono do tej pory
+
+`docs/dev/v2/F3-forge-S0.md`.

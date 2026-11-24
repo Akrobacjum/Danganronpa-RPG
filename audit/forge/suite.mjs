@@ -3,7 +3,7 @@
  * ---------------------------------------------------------------------------
  *     DRPG_FORGE_URL=... DRPG_FORGE_WORLD=... node audit/forge/suite.mjs
  *
- * GM1 and three players log in (the local gate's shape, audit/live/suite.mjs); on GM1 it runs
+ * GM1 and three players log in (the local gate's shape, audit/live/suite.mjs; DRPG_ROLES=gm1 for GM1 alone); on GM1 it runs
  * `game.drpg.runTests({ tier: 1 })` - tiers 0 and 1, which read and never write (scripts/tests.mjs: the default since
  * tier 2 opened incidents in a table's world) - then `game.drpg.diagnose({ show: false })` and a read of the world: its
  * scenes, rooms and tokens, the actors and their roles, the clock, the incident, and the settings scenarios lean on.
@@ -20,7 +20,7 @@ const dir = outDir("suite");
 const browser = await launch();
 const report = { startedAt: new Date().toISOString(), failures: [] };
 try {
-    const { pages, failures } = await openTable(browser, ["gm1", "p1", "p2", "p3"], { name: "forge suite" });
+    const { pages, failures } = await openTable(browser, (process.env.DRPG_ROLES || "gm1,p1,p2,p3").split(","), { name: "forge suite" });
     report.failures.push(...failures);
     const gm = pages.gm1;
     if (!gm) throw new Error("GM1 did not log in");
