@@ -40,7 +40,7 @@
  *               action as a bystander (ruled by GM2), then P2's crisis action from P2's page (Survive where it is
  *               listed). Then D2-06: the incident ends - by the crisis, or GM1's End the murder - and P1 is moved
  *               into P4's room.
- *   incident-B  P1, P3 and P2 in M; GM1 opens P1 -> P3, up to 3 openings until one succeeds; GM1 marks P3 dead (the
+ *   incident-B  P1 and P3 in M, P2 moved to A (so that s1b's finders were at no death); GM1 opens P1 -> P3, up to 3 openings until one succeeds; GM1 marks P3 dead (the
  *               Students window's Kill, `killCharacter`) and answers "Stage 6" in the window it raises; MURDER-03 read
  *               on P3's page.
  *   end         the kit's standing answers stopped; GM1's and GM2's morning drafts put back.
@@ -51,7 +51,7 @@
  * one run in seven or eight (2d12 + the statistic under 8; not measured); a run that never fails measures neither.
  *
  * WHAT IT LEAVES (s1b-case-trial's starting state): Morning of the next day, Daily Life, an incident P1 -> P3 at Stage 6
- * with P3's body not found, P1, P2 and P3 in room M, P4 in the room it crossed to, the game unpaused. Each run moves
+ * with P3's body not found, P1 and P3 in room M, P2 in room A, P4 in the room it crossed to, the game unpaused. Each run moves
  * the clock to the next morning and on; the scenario sets up from whatever time it finds.
  *
  * WHAT IT WRITES (all in the test world; the note "what this run wrote" lists it): tokens created and moved; the pause;
@@ -296,15 +296,16 @@ export async function run(ctx) {
 
         // ---------------------------------------------------------------- incident B
         phase("incident-B");
-        wrote.push(...(await placeTokens(K, { [A.P1.id]: M, [A.P3.id]: M, [A.P2.id]: M })).wrote);
+        // P2 out of the room, so that s1b's two finders (P2 and P4) were "there" at no death (body.mjs `inThatDeath`).
+        wrote.push(...(await placeTokens(K, { [A.P1.id]: M, [A.P3.id]: M, [A.P2.id]: RA })).wrote);
         await settle(2000);
         let killed = false;
         for (let i = 1; i <= OPENINGS && !killed; i++) {
             const tag = `B${i}`;
-            const o = await runOpening(ctx, K, { killerId: A.P1.id, killerToken: T.P1, killerRole: "p1", victimId: A.P3.id, victimRole: "p3", watchers: ["p3", "p2"] });
+            const o = await runOpening(ctx, K, { killerId: A.P1.id, killerToken: T.P1, killerRole: "p1", victimId: A.P3.id, victimRole: "p3", watchers: ["p3"] });
             wrote.push(`incident ${tag} opened (P1 -> P3): ${o.ok ? o.band : o.why}`);
             if (!o.ok) { note(`incident ${tag}: the opening did not run`, J(o)); await closeIncident(K); break; }
-            readOpening(ctx, o, { tag, killerName: A.P1.name, victimRole: "p3", watchers: ["p3", "p2"] });
+            readOpening(ctx, o, { tag, killerName: A.P1.name, victimRole: "p3", watchers: ["p3"] });
             if (!o.success || o.result.stage !== "incident") { if (o.success) await closeIncident(K); continue; }
             await K.on("gm1", `F.start("kill", () => game.drpg.killCharacter(game.actors.get(${J(A.P3.id)}))); return true;`);
             const six = await K.on("gm1", `return await F.answerSoon({ title: ${J(L["DRPG.Chapter.stageSixTitle"])}, press: "yes" }, 20000);`, { timeout: 30_000 });

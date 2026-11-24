@@ -59,7 +59,7 @@
  *   - a body announced with no victim is a legal announcement (body.mjs `runDiscovery` names none and stamps the room).
  */
 
-import { call, run as inPage, J, wait, poll, step, readTable, prepare, restore, words, noticeWith, runTag } from "../page-kit.mjs";
+import { call, run as inPage, J, wait, poll, step, readTable, prepare, restore, words, noticeWith, runTag, uiProbe, connectionShown } from "../page-kit.mjs";
 
 export const meta = {
     id: "s2-second-gm",
@@ -419,27 +419,8 @@ export async function run(ctx) {
         const playerNames = players.map(nameOf);
         const primName = nameOf(prim);
         for (const gm of [prim, sec]) {
-            const ui1 = await inPage(ctx, gm, `
-                const had = new Set([...foundry.applications.instances.keys()]);
-                try { await Promise.race([Promise.resolve(game.drpg.gmPanel()), new Promise(r => setTimeout(r, 5000))]); } catch { /* read what opened */ }
-                try { const G = await fk.imp("gm-students.mjs"); void G.openWhoIsAliveDialog(); } catch { /* read what opened */ }
-                await new Promise(r => setTimeout(r, 3000));
-                const opened = [...foundry.applications.instances.values()].filter(a => a.rendered && !had.has(a.id));
-                const mine = [...foundry.applications.instances.values()].filter(a => a.rendered && /drpg/.test(String(a.id) + " " + String(a.element?.className ?? "")));
-                const els = [...new Set([...opened, ...mine])].map(a => a.element).filter(Boolean);
-                const list = document.getElementById("players");
-                const listText = fk.squash(list);
-                const listShown = Boolean(list) && getComputedStyle(list).display !== "none" && list.getClientRects().length > 0;
-                const CONN = /\\b(connected|disconnected|offline|online)\\b|po\\u0142\\u0105czon|roz\\u0142\\u0105czon|niepo\\u0142\\u0105czon/i;
-                const marker = els.some(el => el.querySelector("[data-online], [data-connected], [data-drpg-online], [data-drpg-connected], .online, .offline, .connected, .disconnected"));
-                const words = els.some(el => CONN.test(fk.squash(el)));
-                const PRIM = /primary|g\\u0142\\u00f3wn/i, name = ${J(primName)};
-                const primShown = [...els, document.getElementById("ui-right"), document.getElementById("ui-left")].filter(Boolean).some(root =>
-                    [...root.querySelectorAll("*")].some(el => { const own = fk.squash(el); return own.length < 160 && own.includes(name) && PRIM.test(own); }));
-                for (const a of opened) { try { await a.close(); } catch { /* left open */ } }
-                return { listShown, listNames: ${J(playerNames)}.filter(n => listText.includes(n)), marker, words, primShown, windows: els.length };`, { timeout: 60_000 });
-            check(`J1 (${gm}): a GM sees in the interface which players are connected`,
-                (ui1.listShown && ui1.listNames.length === playerNames.length) || ui1.marker || ui1.words, J(ui1), { ids: ["EXP-GM-01"] });
+            const ui1 = await uiProbe(ctx, gm, { primName, playerNames });
+            check(`J1 (${gm}): a GM sees in the interface which players are connected`, connectionShown(ui1, playerNames), J(ui1), { ids: ["EXP-GM-01"] });
             check(`J2 (${gm}): a GM sees in the interface who the primary GM is`, ui1.primShown, J(ui1), { ids: ["PRIM-01"] });
         }
     });
