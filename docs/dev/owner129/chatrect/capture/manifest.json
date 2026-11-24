@@ -1,0 +1,63 @@
+{
+  "about": "probes/129-chatrect.mjs",
+  "windows": [
+    {
+      "view": "no message",
+      "file": "empty.html",
+      "kind": "player",
+      "captured": true,
+      "title": "GM Chat",
+      "width": 760,
+      "height": 691,
+      "items": 0
+    },
+    {
+      "view": "three messages",
+      "file": "few.html",
+      "kind": "player",
+      "captured": true,
+      "title": "GM Chat",
+      "width": 760,
+      "height": 691,
+      "items": 0
+    },
+    {
+      "view": "forty messages",
+      "file": "many.html",
+      "kind": "player",
+      "captured": true,
+      "title": "GM Chat",
+      "width": 760,
+      "height": 691,
+      "items": 0
+    },
+    {
+      "view": "the Note tab",
+      "file": "note.html",
+      "kind": "player",
+      "captured": true,
+      "title": "GM Chat",
+      "width": 760,
+      "height": 691,
+      "items": 0
+    },
+    {
+      "view": "the GM's Timeline",
+      "file": "gm-console.html",
+      "kind": "gm",
+      "captured": true,
+      "title": "Messenger",
+      "width": 921,
+      "height": 691
+    },
+    {
+      "view": "the GM on p1's thread",
+      "file": "gm-thread.html",
+      "kind": "gm",
+      "captured": true,
+      "title": "Messenger",
+      "width": 921,
+      "height": 691
+    }
+  ]
+}
