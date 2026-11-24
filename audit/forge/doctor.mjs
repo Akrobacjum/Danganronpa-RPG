@@ -129,19 +129,28 @@ try {
         pages[role] = { page, consoleLines };
     }
     await new Promise(r => setTimeout(r, settleMs));
+    /* Read every browser first and write the report, then photograph (the second Forge run, 24.11.2026: six Chromiums
+       with WebGL in a 4-core container, a screenshot timed out after 30 s and the report, written only at the end, was
+       lost). A failed screenshot is noted, not thrown. */
     for (const [role, { page, consoleLines }] of Object.entries(pages)) {
         const read = await page.evaluate(READ);
-        const shots = [];
-        for (const [w, h] of [[1366, 768], [1920, 1080]]) {
-            await page.setViewportSize({ width: w, height: h });
-            await new Promise(r => setTimeout(r, 1500));
-            const file = `${role}-${w}x${h}.png`;
-            await page.screenshot({ path: path.join(outDir, file) });
-            shots.push(file);
-        }
         const moduleErrors = read.errors.filter(e => /danganronpa-rpg/.test(e));
         if (moduleErrors.length) report.failures.push(`${role}: ${moduleErrors.length} error(s) from the module`);
-        report.clients[role] = { ...read, moduleErrors, console: consoleLines, shots };
+        report.clients[role] = { ...read, moduleErrors, console: consoleLines, shots: [] };
+    }
+    fs.writeFileSync(path.join(outDir, "report.json"), JSON.stringify(report, null, 2));
+    for (const [role, { page }] of Object.entries(pages)) {
+        for (const [w, h] of [[1366, 768], [1920, 1080]]) {
+            const file = `${role}-${w}x${h}.png`;
+            try {
+                await page.setViewportSize({ width: w, height: h });
+                await new Promise(r => setTimeout(r, 1500));
+                await page.screenshot({ path: path.join(outDir, file), timeout: 120_000 });
+                report.clients[role].shots.push(file);
+            } catch (err) {
+                report.clients[role].shots.push(`${file}: not taken - ${String(err.message).split("\n")[0]}`);
+            }
+        }
     }
 } finally {
     await browser.close().catch(() => {});
