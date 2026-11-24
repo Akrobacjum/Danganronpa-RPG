@@ -29,6 +29,11 @@ try {
        runTests ran. The suite now starts in the page and keeps its result on `window`, the runner polls for it, and every
        navigation of every page is recorded with its time and address, so the next run says what reloaded and when. */
     report.navigations = [];
+    /* The third run (24.11.2026, GM1 alone) had no result after 40 minutes and no navigation: the suite hung or crawled.
+       The page's console (its last 400 lines) and, at the end, the windows open on GM1 say where. */
+    const consoleTail = [];
+    gm.on("console", m => { consoleTail.push(`${new Date().toISOString().slice(11, 19)} ${m.type()}: ${m.text()}`.slice(0, 400)); if (consoleTail.length > 400) consoleTail.shift(); });
+    report.console = consoleTail;
     for (const [role, page] of Object.entries(pages)) {
         page.on("framenavigated", f => { if (f === page.mainFrame()) report.navigations.push({ role, at: new Date().toISOString(), url: f.url() }); });
     }
@@ -50,6 +55,8 @@ try {
         if (!got.running) { suite = got; break; }
     }
     report.suite = suite && { ...suite, ms: Date.now() - t0 };
+    if (!suite) report.openWindows = await gm.evaluate(() => [...(foundry.applications?.instances?.values?.() ?? [])]
+        .map(a => ({ id: a.id, title: a.title ?? a.options?.window?.title ?? null, cls: a.constructor?.name }))).catch(e => `threw: ${e.message}`);
     if (!suite || suite.failed || suite.refused || suite.threw) report.failures.push(`suite: ${!suite ? "no result" : suite.threw ? `threw ${suite.threw.slice(0, 200)}` : `${suite.failed} failed${suite.refused ? `, refused ${suite.refused}` : ""}`}`);
     report.diagnose = await gm.evaluate(async () => { try { return await game.drpg.diagnose({ show: false }); } catch (e) { return `diagnose threw: ${e.message}`; } });
     /* UNMEASURED on v14: `scene.regions`, a token's `actor`, the module's role flags; read defensively. */
