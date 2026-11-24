@@ -7,7 +7,8 @@
  * Each player's own window, opened by the launcher's road (messenger-app.mjs `openMessenger()`) on that player's page:
  * p2's with no message (`empty.html`), p1's with three (`few.html`), p3's with forty (`many.html`: each player message
  * written on p3's page, the GM's answers on the GM's, through messenger.mjs `sendMessage`), and p1's on its Note tab
- * (`note.html`). Each is kept as its element's outerHTML in <DRPG_SHOTS_DIR>/capture/ with a manifest whose rows say
+ * (`note.html`); since OWNER-129-WRITEBOX the GM's window on the Timeline and on p1's thread (`gm-console.html`,
+ * `gm-thread.html`). Each is kept as its element's outerHTML in <DRPG_SHOTS_DIR>/capture/ with a manifest whose rows say
  * `kind: "player"`, so docs/dev/owner124/console/shots.html stands each at the size messenger-gm.mjs `messengerSize` gives
  * a player at the screen it is drawn on, and docs/dev/owner129/chatrect/measure.mjs reads its height in Chromium.
  *
@@ -66,7 +67,22 @@ export async function run({ gm, p1, p2, p3, check, note, settle, repoUrl, IDS })
         } else manifest.push({ view, file, kind: "player", captured: false });
         note(`kept ${file}`, JSON.stringify(manifest.at(-1)));
     }
-    check("each player's window was kept", manifest.every(row => row.captured), JSON.stringify(manifest));
+    // The GM's window too (1.2.129, OWNER-129-WRITEBOX: the box is the same form there), on the Timeline and on p1's thread.
+    for (const [file, view] of [["gm-console.html", null], ["gm-thread.html", IDS.p1]]) {
+        const got = await gm.eval(`const A = ${imp("messenger-app.mjs")};
+            const app = A.openMessenger(${view ? JSON.stringify(view) : ""});
+            await new Promise(r => setTimeout(r, 1200));
+            const el = app?.element;
+            const out = el ? { html: el.outerHTML, width: app.position?.width ?? null, height: app.position?.height ?? null, title: app.title } : null;
+            await app?.close?.();
+            return out;`, { timeout: 60000 });
+        if (got) {
+            fs.writeFileSync(path.join(OUT, file), got.html);
+            manifest.push({ view: view ? "the GM on p1's thread" : "the GM's Timeline", file, kind: "gm", captured: true, title: got.title, width: got.width, height: got.height });
+        } else manifest.push({ view: file, file, kind: "gm", captured: false });
+        note(`kept ${file}`, JSON.stringify(manifest.at(-1)));
+    }
+    check("each window was kept", manifest.every(row => row.captured), JSON.stringify(manifest));
     check("the messages were sent", sent.few === 3 && sent.many === 40, JSON.stringify(sent));
     fs.writeFileSync(path.join(OUT, "manifest.json"), JSON.stringify({ about: "probes/129-chatrect.mjs", windows: manifest }, null, 2) + "\n");
     return { manifest, sent };

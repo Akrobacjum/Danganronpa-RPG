@@ -32251,6 +32251,38 @@ const INVARIANTS = [
             stableJson({ glassPlayer: null, glassGm: null, glassPanel: true, legacyPlayer: null, legacyGm: null }),
             `[the rule winning \`height\` on the player's and the GM's window under each theme, and the control: a plain panel's auto under Stained Glass] - read: ${stableJson(got)}`);
     }],
+    ["R8911 - the messenger's \"Write a message\" box writes at the bubbles' size and opens three lines tall: under each theme the box's winning `font-size` is the one the bubble wins (`--drpg-text-sm` under Monokuma Legacy, `--drpg-sg-floor` under Stained Glass), its `min-height` is three lines and its `max-height` six, and it grows with what is typed (`field-sizing: content`) - in the player's window and the GM's (1.2.129, OWNER-129-WRITEBOX)", async () => {
+        /*
+         * The owner, 24.11.2026: "Poprawmy write a message (powiekszmy)". Measured in Chromium on 622cf16d
+         * (docs/dev/owner129/writebox/heights-before.json): the box was one line, 19-20 px tall, at the browser's 13.3 px,
+         * under the bubbles' 21 px (Stained Glass) and 13 px (Legacy); three typed lines scrolled inside it. Read here with
+         * the suite's cascade (`styleCascade().winner`), the declarations as written: a line is the box's own line height,
+         * so the heights are read as "3 * " and "6 * " of it. Red on 622cf16d: no font size, `max-height: 6rem`, no minimum.
+         */
+        const C = await styleCascade();
+        const read = (theme, gm) => {
+            const body = document.createElement("body");
+            body.className = theme;
+            const app = body.appendChild(document.createElement("div"));
+            app.className = `application drpg-panel drpg-messenger${gm ? " drpg-messenger-gm" : ""}`;
+            const bubble = app.appendChild(document.createElement("div"));
+            bubble.className = "drpg-messenger-bubble mine";
+            const form = app.appendChild(document.createElement("form"));
+            form.className = "drpg-messenger-input";
+            const box = form.appendChild(document.createElement("textarea"));
+            const v = (el, prop) => C.winner(el, [prop])?.value ?? null;
+            return { font: v(box, "font-size") === v(bubble, "font-size") && v(box, "font-size") !== null, min: v(box, "min-height"), max: v(box, "max-height"),
+                grows: v(box, "field-sizing") };
+        };
+        const got = {};
+        for (const [theme, key] of [["drpg-theme-stained-glass", "glass"], ["drpg-theme-monokuma-legacy", "legacy"]]) {
+            for (const gm of [false, true]) got[`${key}${gm ? "Gm" : "Player"}`] = read(theme, gm);
+        }
+        const ok = row => row.font && /\b3 \* /.test(row.min ?? "") && /\b6 \* /.test(row.max ?? "") && row.grows === "content";
+        equal(stableJson(Object.fromEntries(Object.entries(got).map(([k, row]) => [k, ok(row)]))),
+            stableJson({ glassGm: true, glassPlayer: true, legacyGm: true, legacyPlayer: true }),
+            `[the box's font size as the bubble's, three lines at least, six at most, growing with what is typed - under each theme, in each window] - read: ${stableJson(got)}`);
+    }],
     ["R8833 - a hidden token's hold is said on the player's own microphone and keeps the GM's block off it: `micHold` answers \"tokenHidden\", held, outside the Class Trial and nothing of it in the trial; `moduleHoldsMic` answers it on a GM's page; both languages say it (E129, S0-HIDEMUTE)", async () => {
         /*
          * The owner: the hide "pokazuje rowniez te zmiane na przycisku mikrofonu". `micHold` with every fact handed in,

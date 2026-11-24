@@ -1758,6 +1758,8 @@ body.drpg-theme-stained-glass .drpg-messenger-bubble.mine { border-color: color-
 body.drpg-theme-stained-glass .drpg-messenger-author { font-family: var(--drpg-font-title); text-transform: none; letter-spacing: 0; font-size: max(var(--drpg-sg-floor), calc(15px * var(--drpg-sg-scale))); }
 body.drpg-theme-stained-glass .drpg-messenger-input textarea {
     font-family: var(--drpg-font-prose);
+    /* The bubble's floor (the rule above), so what is typed reads at the size it is sent at (OWNER-129-WRITEBOX). */
+    font-size: var(--drpg-sg-floor);
     background: var(--drpg-sg-ink-55);
     border: 1px solid color-mix(in srgb, var(--drpg-glass-accent) 40%, transparent);
     border-bottom-width: 2px;

@@ -40,6 +40,24 @@
       "width": 760,
       "height": 691,
       "items": 0
+    },
+    {
+      "view": "the GM's Timeline",
+      "file": "gm-console.html",
+      "kind": "gm",
+      "captured": true,
+      "title": "Messenger",
+      "width": 921,
+      "height": 691
+    },
+    {
+      "view": "the GM on p1's thread",
+      "file": "gm-thread.html",
+      "kind": "gm",
+      "captured": true,
+      "title": "Messenger",
+      "width": 921,
+      "height": 691
     }
   ]
 }
