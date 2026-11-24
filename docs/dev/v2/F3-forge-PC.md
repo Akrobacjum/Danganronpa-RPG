@@ -159,5 +159,7 @@ rozmiary).
 - `doctor.mjs`: uruchamiać przeglądarkę przez `lib.mjs` `launch()`, żeby `DRPG_BROWSER` działał tak, jak opisuje
   README; dla Firefoksa w maszynie bez GPU tryb z oknem (Xvfb) albo informacja w README.
 - `suite.mjs`: zbierać konsolę strony GM1 do raportu, żeby przy braku wyniku było wiadomo, na którym teście stanął.
+  Zrobione równolegle w chmurze (9baede57: ostatnie 400 linii konsoli i otwarte okna GM1); moje przebiegi szły na
+  wersji sprzed tej zmiany (2ff1f9e1), więc tych danych w nich nie ma.
 - `audit/live/foundry.mjs` `login`: dłuższy limit niż 30 s na pojawienie się listy kont na /join przy pierwszym
   ładowaniu (zmierzone w S0 i tu: jedno konto na przebieg).
