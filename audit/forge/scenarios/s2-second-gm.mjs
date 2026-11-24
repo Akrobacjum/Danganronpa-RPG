@@ -421,7 +421,7 @@ export async function run(ctx) {
         for (const gm of [prim, sec]) {
             const ui1 = await uiProbe(ctx, gm, { primName, playerNames });
             check(`J1 (${gm}): a GM sees in the interface which players are connected`, connectionShown(ui1, playerNames), J(ui1), { ids: ["EXP-GM-01"] });
-            check(`J2 (${gm}): a GM sees in the interface who the primary GM is`, ui1.primShown, J(ui1), { ids: ["PRIM-01"] });
+            check(`J2 (${gm}): a GM sees in the interface who the primary GM is`, Boolean(ui1?.primShown), J(ui1), { ids: ["PRIM-01"] });
         }
     });
 

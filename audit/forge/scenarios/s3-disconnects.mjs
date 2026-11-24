@@ -125,7 +125,7 @@ export async function run(ctx) {
         await call(ctx, prim, "setRules", []);
         check("A1: a request open while its player was offline for 20 s is still ruled once they are back: the ruling reaches the player",
             got?.value?.ok === true && got.value.value?.tier === 1,
-            J({ road, got, wentInactive: seenByGm.some(s => s.active === false), waitingAfter: waiting }), { ids: ["CF-02", "DAY-F01"] });
+            J({ road, got, wentInactive: seenByGm.some(s => s?.active === false), waitingAfter: waiting }), { ids: ["CF-02", "DAY-F01"] });
         check("A2: nothing stays stuck: the card reads answered on both GMs and holds no pending claim",
             ended?.settled && endedPrim?.settled && endedPrim.row?.pending !== true, J({ ended, endedPrim }), { ids: ["CF-02"] });
     });
@@ -145,7 +145,9 @@ export async function run(ctx) {
             return c?.settled || (c && !c.actions?.includes("approveCall")) ? c : null;
         }, Boolean, { timeout: 20_000 });
         const p3Corner = await call(ctx, "p3", "popupsNow");
-        const waitingWords = [await words(ctx, "p3", "DRPG.Calls.waitingGm"), await words(ctx, "p3", "DRPG.Action.dynamicWaiting")].filter(w => w && !w.startsWith("DRPG."));
+        /* The words before a placeholder (`waitingGm` names its Call), long enough to mean the waiting card. */
+        const waitingWords = [await words(ctx, "p3", "DRPG.Calls.waitingGm"), await words(ctx, "p3", "DRPG.Action.dynamicWaiting")]
+            .map(w => String(w ?? "").split("{")[0].replace(/[:\s]+$/, "").trim()).filter(w => w.length > 5 && !w.startsWith("DRPG."));
         check("B1: once the player has reloaded, the GMs' card says the player no longer waits (within 20 s), instead of standing live",
             Boolean(marked), J({ reloadMs: tBack - tR, marked, card: await call(ctx, prim, "card", card.id) }), { ids: ["CALLS-04"] });
 
@@ -226,6 +228,16 @@ export async function run(ctx) {
 
     /* ------------------------------------------------------------------ E */
     await step(ctx, "E a GM leaving mid-Eclipse with the players asked", ["DAY-F08", "DAY-F11", "C7"], async () => {
+        try { await leavingMidEclipse(); }
+        finally {
+            /* D needs both GMs: the second GM logs in again whatever E came to. */
+            if (!ctx.c[sec]) await ctx.rejoin(sec);
+            await settle(5000);
+            tab = await readTable(ctx, meta.roles);
+            note("E the second GM logged in again; the table as read", J({ prim: tab.prim, sec: tab.sec, agree: tab.agree }));
+        }
+    });
+    async function leavingMidEclipse() {
         const started = await inPage(ctx, prim, `return Boolean(await game.drpg.startEclipse());`);
         const on = await poll(() => clockOn("p1"), v => v?.eclipse === true, { timeout: 30_000 });
         if (!on?.eclipse) throw new Error(`no Eclipse started (startEclipse answered ${started})`);
@@ -253,11 +265,7 @@ export async function run(ctx) {
             Object.values(off).every(v => v?.eclipse === false),
             J({ off, primNotices: primSaw.seen.map(n => n.text), primWindows: primSaw.dialogs.map(d => `${d.title} -> ${d.acted}`), job: await call(ctx, prim, "job", "end") }), { ids: ["DAY-F08", "DAY-F11", "C7"] });
         for (const role of here()) await call(ctx, role, "setRules", []);
-        await ctx.rejoin(sec);
-        await settle(5000);
-        tab = await readTable(ctx, meta.roles);
-        note("E the second GM logged in again; the table as read", J({ prim: tab.prim, sec: tab.sec, agree: tab.agree }));
-    });
+    }
 
     /* ------------------------------------------------------------------ D */
     let taker = sec, leaver = prim;
@@ -278,7 +286,7 @@ export async function run(ctx) {
         check("D1: the GM who takes over the table is told it now runs it, within 20 s of the primary's leaving",
             took?.primary === idOf(taker) && told.seen.length > 0, J({ tookAfterMs: tTake - t0, notices: told.seen }), { ids: ["PRIM-02"] });
         const probe = await uiProbe(ctx, taker, { primName: nameOf(taker), playerNames: ["p1", "p2", "p3"].map(nameOf) });
-        check("D2: the GM who took over sees in its interface that it is now the primary GM", probe.primShown, J(probe), { ids: ["PRIM-01"] });
+        check("D2: the GM who took over sees in its interface that it is now the primary GM", Boolean(probe?.primShown), J(probe), { ids: ["PRIM-01"] });
         try { note("D VOICE-05: the voice plan on the GM who took over, 5 s after", J(await inPage(ctx, taker, `try { return await game.drpg.voicePlan(); } catch (e) { return "voicePlan threw: " + e.message; }`))); }
         catch (err) { note("D VOICE-05: the voice plan could not be read", String(err.message)); }
 
