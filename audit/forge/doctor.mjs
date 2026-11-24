@@ -50,7 +50,7 @@ const { login } = await import(url.pathToFileURL(path.join(REPO, "audit", "live"
 
 /* Read in the page. UNMEASURED: the A/V client's fields (avclient-livekit's `liveKitRoom`, its `state` and `name`) are
    read defensively and recorded raw; the first run says which of them exist on Forge's build. */
-const READ = () => {
+const READ = async () => {
     const mod = id => game.modules.get(id);
     const av = game.webrtc?.client;
     const room = av?._liveKitClient?.liveKitRoom ?? av?.liveKitRoom ?? null;
@@ -68,6 +68,9 @@ const READ = () => {
         thisIsPrimary: (() => { try { return game.drpg?.isPrimaryGm?.() ?? null; } catch { return null; } })(),
         theme: [...document.body.classList].filter(c => c.startsWith("drpg-theme")),
         av: { mode: game.webrtc?.mode ?? null, client: av?.constructor?.name ?? null, roomState: room?.state ?? null, roomName: room?.name ?? null },
+        /* The module's contract with Foundry, Daggerheart and the other modules (patches.mjs), whole: the console's warning
+           is cut at 500 characters below, and the first Forge run (24.11.2026) had 14 rows failed on GM1. */
+        contract: await (async () => { try { const c = await game.drpg?.diagnosePatches?.(); return typeof c === "string" ? c : JSON.parse(JSON.stringify(c ?? null)); } catch (e) { return `diagnosePatches threw: ${e.message}`; } })(),
         errors: [...(window.__errors ?? [])],
         missingI18n: [...new Set(window.__missingI18n ?? [])],
         notifications: [...(window.__notifications ?? [])]
@@ -98,10 +101,19 @@ try {
             await probe.close();
             if (idle) refuse("no world is launched on this Forge game (\"There is currently no active game session\"): launch the test world first");
         }
-        try {
-            page = await login(browser, base, name);
-        } catch (err) {
-            report.failures.push(`${role} (${name}): ${err.reason ?? "error"} - ${String(err.message).split("\n")[0]}`);
+        /* Three tries, 10 s apart (the first Forge run, 24.11.2026: P3 and P4, the fifth and sixth login in a row, timed
+           out on /join after 30 s while the first four went through). A password prompt is not retried. */
+        let lastErr = null;
+        for (let attempt = 1; attempt <= 3 && !page; attempt++) {
+            try { page = await login(browser, base, name); }
+            catch (err) {
+                lastErr = err;
+                if (err.reason === "password-required") break;
+                await new Promise(r => setTimeout(r, 10_000));
+            }
+        }
+        if (!page) {
+            report.failures.push(`${role} (${name}): ${lastErr?.reason ?? "error"} - ${String(lastErr?.message).split("\n")[0]}`);
             continue;
         }
         page.on("console", m => { if (["error", "warning"].includes(m.type())) consoleLines.push(`${m.type()}: ${m.text()}`.slice(0, 500)); });
