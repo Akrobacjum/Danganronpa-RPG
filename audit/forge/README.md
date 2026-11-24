@@ -12,6 +12,30 @@ Adres podaje się tylko w zmiennej środowiskowej przy uruchomieniu.
 | `doctor.mjs` (S0) | loguje 6 kont, odczytuje wersje, głównego GM-a, kontrakt modułu, błędy, brakujące tłumaczenia, stan głosu; zrzuty ekranu 1366x768 i 1920x1080 | nie |
 | `suite.mjs` | wbudowany zestaw testów modułu, poziomy 0-1 (`game.drpg.runTests({ tier: 1 })`), diagnostyka i spis świata | nie |
 | `lib.mjs` | wspólne: zmienne, przeglądarka, logowanie, blokada cudzego świata | - |
+| `run.mjs` | uruchamia scenariusze z `scenarios/`: `node audit/forge/run.mjs s2-second-gm [s3-disconnects ...]` | zależy od scenariusza |
+| `table.mjs`, `page-kit.mjs`, `scenarios/lib/` | narzędzia scenariuszy w stronach przeglądarek | - |
+
+## Scenariusze (napisane 24.11.2026, przed pierwszym uruchomieniem)
+
+Każda kontrola opisuje zachowanie 2.0 z triage i rejestru decyzji (`docs/dev/v2/`). Na 1.2.129 kontrole znanych
+błędów mają nie przechodzić; po poprawkach ta sama kontrola ma przejść. Kontrole oznaczone `FLOW` sprawdzają tylko,
+czy scenariusz sam przeszedł swoje kroki. Każdy scenariusz poza S7 pisze do świata testowego: szczegóły w nagłówku
+pliku. **Przed pierwszym uruchomieniem kopia zapasowa świata testowego** - końcowe sprawdzenie (D2-15) startuje z
+tego samego stanu.
+
+| Scenariusz | Konta | Co mierzy | Uwagi |
+| --- | --- | --- | --- |
+| `s1a-day-murder` | 6 | Daily Life z decyzjami obu GM-ów, Eclipse, Direct Murder i decyzje D2-06, D2-08..D2-12, MURDER-01..03, EXP-PL-02, DAY-01 | część kontroli zależy od kości (nieudane otwarcie: rzadko) |
+| `s1b-case-trial` | 6 | odkrycie ciała, Investigation, Class Trial, głosowanie, werdykt, koniec rozdziału (MURDER-05, EXP-GM-02..04, INV-01/02, TRIAL-01/03/06/07) | startuje ze stanu po s1a albo zakłada własny incydent; kończy w następnym rozdziale |
+| `s2-second-gm` | 4 | drugi GM robi każdą pracę GM-a (CALLS-01/03, INV-01/02, TRIAL-02/04, DAY-01, EXP-GM-01, PRIM-01) | reset sezonu tylko do pytania, bez wykonania |
+| `s3-disconnects` | 5 | gracz offline, odświeżenie w trakcie prośby, odświeżenie i odejście głównego GM-a, GM wychodzi w Eclipse | |
+| `s4-two-gms-at-once` | 3 | dwaj GM-owie naciskają to samo naraz | |
+| `s5-voice` | 6 | pokój LiveKit każdego klienta wobec planu modułu, czasy przełączenia, ponowne połączenia | wymaga `DRPG_FAKE_MEDIA=1` |
+| `s6-soak` | 6 | 2 h zwykłej gry: pamięć, błędy, przeładowania | `DRPG_SOAK_MINUTES` |
+| `s7-look` | 2 | zrzuty najważniejszych okien w 1366x768 i 1920x1080, mieszczenie się, pole komunikatora | nie pisze do świata; także `DRPG_BROWSER=firefox` |
+| `s8-load` | 3 | krzywa wydajności przy rosnącej liczbie Remnantów, tokenów, projektów, wiadomości i okien | sprząta po sobie; bez progów |
+
+Proponowana kolejność pierwszego przebiegu: S7 (nie pisze), S4, S2, S3, S5, S1a, S1b, S8, S6 (najdłuższy).
 
 Każde narzędzie odmawia pracy (kod 2), gdy aktywny świat nie jest tym z `DRPG_FORGE_WORLD` albo jego nazwa nie zawiera
 `qa`, `copy` ani `gate`. Świat kampanii jest na tym samym koncie Forge (D2-05).
