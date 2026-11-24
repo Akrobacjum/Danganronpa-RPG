@@ -414,10 +414,26 @@
    module's settled red for "this goes to a GM" - it is what `.drpg-gm-route`
    wears on every button that hands the turn to a person. A message to a GM is
    exactly that thought, so the colour carries meaning instead of diluting it. */
+/* THE BOX WRITES AT THE BUBBLES' SIZE AND OPENS THREE LINES TALL (1.2.129, OWNER-129-WRITEBOX; the owner, 24.11.2026:
+   "Poprawmy write a message (powiekszmy)"). Until then it was one line at the browser's 13.3 px under bubbles of 21 px
+   (Stained Glass) and 13 px (Legacy), and three typed lines scrolled inside it (Chromium, docs/dev/owner129/writebox/
+   heights-before.json). Now its text is the bubble's size - the same variable, so the interface scale reaches it
+   (stained-glass.css gives it the theme's floor, as the bubble) - it opens three lines tall and grows with what is
+   typed to six, then scrolls. `field-sizing: content` is the growth, the stylesheet's alone: a browser without it keeps
+   the three lines. The log above gives up the height; the window keeps its size (R8910, R8911). On a short screen the
+   opening height gives way before the log does: two long Stained Glass bubbles take 270 px (131 px each and the gap),
+   and three lines left the log 237 px at 1024 x 600, one message whole; so the box opens at the screen's height less
+   560 px, between one line and three - three from 665 px of screen up, so at 1366 x 768 and 1920 x 1080. */
 .drpg-messenger-input textarea {
     flex: 1 1 auto;
     resize: none;
-    max-height: 6rem;
+    box-sizing: border-box;
+    font-size: var(--drpg-text-sm);
+    line-height: 1.4;
+    padding: 0.35em 0.5em;
+    min-height: clamp(calc(1 * 1.4em + 0.7em + 2px), calc(100vh - 560px), calc(3 * 1.4em + 0.7em + 2px));
+    max-height: calc(6 * 1.4em + 0.7em + 2px);
+    field-sizing: content;
     border: 1px solid var(--drpg-crimson) !important;
     border-radius: 6px;
 }

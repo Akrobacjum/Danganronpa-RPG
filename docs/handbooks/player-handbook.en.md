@@ -1,6 +1,6 @@
 # Danganronpa RPG - Player Handbook
 
-*For students of the killing game. Module version 1.2.128, built on Daggerheart for Foundry VTT v14.*
+*For students of the killing game. Module version 1.2.129, built on Daggerheart for Foundry VTT v14.*
 
 This is the whole game from your chair: what the numbers on your sheet mean, what an action costs, what Hope buys, what happens when somebody dies, and what to press. Every number in here is the module's own; where a decision belongs to a human, it says "the GM decides". How the module does what it does, for the curious, is in section 17.
 
@@ -1067,7 +1067,7 @@ During an Eclipse the phase line names it, *Night Eclipse* for instance. During 
 - *Rules* - Monokuma's standing rules, everyone's, all the time.
 - The safeword, bottom-left (section 15), and Level Up when you have earned one.
 
-**The messenger** (section 14) stands over the other two corner buttons and has two tabs: **Chat**, your GM Chat thread, and **Note**, the pre-session note. Since 1.2.128 its window opens at 760 by 730 pixels, never past 90% of your screen, and keeps the place you moved it to, not a size you dragged.
+**The messenger** (section 14) stands over the other two corner buttons and has two tabs: **Chat**, your GM Chat thread, and **Note**, the pre-session note. Since 1.2.128 its window opens at 760 by 730 pixels, never past 90% of your screen, and keeps the place you moved it to, not a size you dragged. Since 1.2.129 it keeps that size under both themes, its messages scrolling inside it, and the box you write in opens three lines tall, at the size of the messages, and grows to six lines as you type.
 
 **The book**, under the messenger at the bottom right, opens the handbooks in the game: this **Player Handbook** and the **Student Brochure**, in the language you picked for the module. It opens on the one you read last, and the contents list on the left jumps to any section.
 
