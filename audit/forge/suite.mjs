@@ -25,14 +25,32 @@ try {
     const gm = pages.gm1;
     if (!gm) throw new Error("GM1 did not log in");
     await new Promise(r => setTimeout(r, 20_000));
+    /* The first Forge run (24.11.2026) lost the suite to "Execution context was destroyed": GM1's page navigated while
+       runTests ran. The suite now starts in the page and keeps its result on `window`, the runner polls for it, and every
+       navigation of every page is recorded with its time and address, so the next run says what reloaded and when. */
+    report.navigations = [];
+    for (const [role, page] of Object.entries(pages)) {
+        page.on("framenavigated", f => { if (f === page.mainFrame()) report.navigations.push({ role, at: new Date().toISOString(), url: f.url() }); });
+    }
     const t0 = Date.now();
-    const suite = await gm.evaluate(async () => {
-        const r = await game.drpg.runTests({ tier: 1 });
-        return r && { passed: r.passed, failed: r.failed, skipped: r.skipped, red: r.red, refused: r.refused ?? null, text: r.text ?? null,
-            notPassed: (r.results ?? []).filter(x => x.outcome !== "pass").map(x => ({ tier: x.tier, name: x.name, outcome: x.outcome, message: String(x.message ?? "").slice(0, 600) })) };
+    await gm.evaluate(() => {
+        window.__forgeSuite = { running: true };
+        game.drpg.runTests({ tier: 1 }).then(r => {
+            window.__forgeSuite = r && { passed: r.passed, failed: r.failed, skipped: r.skipped, red: r.red, refused: r.refused ?? null, text: r.text ?? null,
+                notPassed: (r.results ?? []).filter(x => x.outcome !== "pass").map(x => ({ tier: x.tier, name: x.name, outcome: x.outcome, message: String(x.message ?? "").slice(0, 600) })) };
+        }, e => { window.__forgeSuite = { threw: String(e?.stack ?? e) }; });
     });
-    report.suite = { ...suite, ms: Date.now() - t0 };
-    if (!suite || suite.failed || suite.refused) report.failures.push(`suite: ${suite ? `${suite.failed} failed${suite.refused ? `, refused ${suite.refused}` : ""}` : "no result"}`);
+    let suite = null;
+    while (Date.now() - t0 < 40 * 60_000) {
+        await new Promise(r => setTimeout(r, 5000));
+        let got;
+        try { got = await gm.evaluate(() => window.__forgeSuite ?? { lost: true }); }
+        catch { continue; }
+        if (got.lost) { report.failures.push("suite: GM1's page reloaded before the suite finished (navigations below)"); break; }
+        if (!got.running) { suite = got; break; }
+    }
+    report.suite = suite && { ...suite, ms: Date.now() - t0 };
+    if (!suite || suite.failed || suite.refused || suite.threw) report.failures.push(`suite: ${!suite ? "no result" : suite.threw ? `threw ${suite.threw.slice(0, 200)}` : `${suite.failed} failed${suite.refused ? `, refused ${suite.refused}` : ""}`}`);
     report.diagnose = await gm.evaluate(async () => { try { return await game.drpg.diagnose({ show: false }); } catch (e) { return `diagnose threw: ${e.message}`; } });
     /* UNMEASURED on v14: `scene.regions`, a token's `actor`, the module's role flags; read defensively. */
     report.inventory = await gm.evaluate(() => {
