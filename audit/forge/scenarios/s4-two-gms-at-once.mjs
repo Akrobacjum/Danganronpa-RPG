@@ -39,14 +39,14 @@
  *   - the readiness round's buttons by `data-action` (boundary.mjs `goButtons`, `confirmGo`, the player's "done").
  */
 
-import { call, run as inPage, J, poll, step, readTable, prepare, restore, words, noticeWith, runTag } from "../page-kit.mjs";
+import { call, run as inPage, J, poll, step, readTable, prepare, restore, words, runTag } from "../page-kit.mjs";
 
 export const meta = {
     id: "s4-two-gms-at-once",
     title: "Both GMs press the same thing at the same moment",
     roles: ["gm1", "gm2", "p1"],
     writes: true,
-    triage: ["E-GM-01", "DAY-03", "DAY-06", "CALLS-12"]
+    triage: ["E-GM-01", "DAY-03", "DAY-06"]
 };
 
 const DIFFICULTY = { titleKey: "DRPG.Action.dynamicTitle" };
@@ -108,7 +108,7 @@ export async function run(ctx) {
     };
 
     /* ------------------------------------------------------------------ A */
-    await step(ctx, "A one card ruled by both GMs at once", ["E-GM-01", "CALLS-12"], async () => {
+    await step(ctx, "A one card ruled by both GMs at once", ["E-GM-01"], async () => {
         for (const [kind, press, fills] of [["dynamic", "refuseDynamic", null], ["dynamic", "setDifficulty", { [prim]: "0", [sec]: "2" }], ["hope", "approveCall", null]]) {
             const tag = runTag(`S4A-${press}`);
             for (const gm of gms) await call(ctx, gm, "setRules", fills ? [{ ...DIFFICULTY, fill: { 'select[name="tier"]': fills[gm] }, press: ["ok"] }] : []);
@@ -279,7 +279,6 @@ export async function run(ctx) {
             meta.roles.every(r => J(read[r].clock) === J(read[prim].clock) && read[r].eclipse === false && read[r].incident === false && read[r].round === null)
                 && gms.every(gm => settledCards[gm].every(Boolean)),
             J({ read, settledCards }), { ids: ["E-GM-01"] });
-        void noticeWith;
     });
 
     /* ------------------------------------------------------------------ Z */
