@@ -96,7 +96,7 @@ export function pageKit() {
         .map(a => ({ id: a.id, title: String(a.title ?? ""), cls: [...(a.options?.classes ?? [])], text: F.text(a.element).slice(0, 600),
             buttons: [...a.element.querySelectorAll("button[data-action]")].map(b => b.dataset.action) }));
     const NOT_YES = new Set(["cancel", "close", "no", "stay", "refuse", "refuseDynamic", "minimize", "toggleControls", "configure"]);
-    const appMatches = (a, spec) => (!spec.title || String(a.title ?? "").includes(spec.title))
+    const appMatches = (a, spec) => (!spec.id || a.id === spec.id) && (!spec.title || String(a.title ?? "").includes(spec.title))
         && (!spec.has || a.element.querySelector(spec.has)) && (!spec.text || F.text(a.element).includes(spec.text))
         && (!spec.cls || (a.options?.classes ?? []).includes(spec.cls))
         && (!spec.press || spec.press === "yes!" || a.element.querySelector(`button[data-action="${spec.press}"]`));

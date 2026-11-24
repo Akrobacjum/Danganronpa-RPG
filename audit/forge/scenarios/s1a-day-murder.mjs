@@ -40,9 +40,9 @@
  *               action as a bystander (ruled by GM2), then P2's crisis action from P2's page (Survive where it is
  *               listed). Then D2-06: the incident ends - by the crisis, or GM1's End the murder - and P1 is moved
  *               into P4's room.
- *   incident-B  P1 and P3 in M, P2 moved to A (so that s1b's finders were at no death); GM1 opens P1 -> P3, up to 3 openings until one succeeds; GM1 marks P3 dead (the
- *               Students window's Kill, `killCharacter`) and answers "Stage 6" in the window it raises; MURDER-03 read
- *               on P3's page.
+ *   incident-B  P1 and P3 in M, P2 moved to A (so that s1b's finders were at no death); GM1 opens P1 -> P3, up to
+ *               3 openings until one succeeds; GM1 marks P3 dead (the Students window's Kill, `killCharacter`) and
+ *               answers "Stage 6" in the window it raises; MURDER-03 read on P3's page.
  *   end         the kit's standing answers stopped; GM1's and GM2's morning drafts put back.
  *
  * DICE. Nothing is forced. The opening's band is read off the roll (despair-award.mjs `readDuality`) and the stage
@@ -274,7 +274,11 @@ export async function run(ctx) {
         if (masked) {
             const still = await K.on("gm1", "const s = game.drpg.murderState(); return { active: Boolean(s?.active), stage: s?.stage ?? null, endedBy: s?.endedBy ?? null };");
             let road = masked.cr?.state?.endedBy ?? (masked.cr?.state?.active === false ? "the crisis ended it" : null);
-            if (still.active) { const closed = await closeIncident(K); road = "GM1's End the murder after the crisis roll"; wrote.push(`incident closed by GM1: ${J(closed)}`); }
+            if (still.active) {
+                const closed = await closeIncident(K);
+                road = masked.cr ? "GM1's End the murder after the crisis roll" : "GM1's End the murder (no crisis roll in this incident)";
+                wrote.push(`incident closed by GM1: ${J(closed)}`);
+            }
             const p2alive = await K.on("gm1", `return !game.drpg.isDeadForGm(game.actors.get(${J(A.P2.id)}));`);
             for (const role of ["p2", "p3"]) await K.on(role, `F.sample("d206", ${J(T.P1)}, 150); return true;`);
             await settle(6000);

@@ -500,3 +500,12 @@ export async function moduleErrors(ctx, role) {
             samples: [...mine.slice(0, 3), ...window.__qa.consoleErrors.slice(0, 3).map(e => e.line)].map(s => String(s).slice(0, 400)) };
     }, null, { timeout: 15_000 });
 }
+
+/**
+ * `game.drpg.fps()`'s window line as numbers (diagnostics.mjs `frameCostRun`: "Watched S s: N frames, F fps; median M
+ * ms, p95 P ms; A over 33 ms, B over 50 ms"), or null when the text holds no such line.
+ */
+export function parseFps(text) {
+    const m = /Watched ([\d.]+) s: (\d+) frames, (\d+) fps; median ([\d.]+) ms, p95 ([\d.]+) ms; (\d+) over 33 ms, (\d+) over 50 ms/.exec(String(text ?? ""));
+    return m ? { seconds: Number(m[1]), frames: Number(m[2]), fps: Number(m[3]), medianMs: Number(m[4]), p95Ms: Number(m[5]), over33: Number(m[6]), over50: Number(m[7]) } : null;
+}

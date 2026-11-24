@@ -57,7 +57,7 @@
  */
 
 import { config } from "../lib.mjs";
-import { J, sleep, inPage, ensureKit, present, readTable, placeTokens, unpause, liveKitToasts, moduleErrors } from "../table.mjs";
+import { J, sleep, inPage, ensureKit, present, readTable, placeTokens, unpause, liveKitToasts, moduleErrors, parseFps } from "../table.mjs";
 
 export const meta = {
     id: "s6-soak",
@@ -115,12 +115,6 @@ function slope(points) {
     const sxx = points.reduce((s, p) => s + (p.x - mx) ** 2, 0);
     if (!sxx) return null;
     return points.reduce((s, p) => s + (p.x - mx) * (p.y - my), 0) / sxx;
-}
-
-/* fps()'s window line, as numbers. */
-function parseFps(text) {
-    const m = /Watched ([\d.]+) s: (\d+) frames, (\d+) fps; median ([\d.]+) ms, p95 ([\d.]+) ms; (\d+) over 33 ms, (\d+) over 50 ms/.exec(String(text ?? ""));
-    return m ? { seconds: Number(m[1]), frames: Number(m[2]), fps: Number(m[3]), medianMs: Number(m[4]), p95Ms: Number(m[5]), over33: Number(m[6]), over50: Number(m[7]) } : null;
 }
 
 export async function run(ctx) {
