@@ -224,7 +224,7 @@ export function pageKit() {
     F.cards = async (call, { since = 0 } = {}) => {
         const out = [];
         for (const m of [...game.messages].reverse()) {
-            if ((m.timestamp ?? 0) < since - 2000) continue;
+            if ((m.timestamp ?? 0) < since - 15000) continue;
             const box = document.createElement("template");
             box.innerHTML = String(secret ? secret.contentOf(m) : m.content ?? "");
             for (const b of box.content.querySelectorAll(`[data-drpg-call="${call}"]`)) out.push({ id: m.id, at: m.timestamp, data: { ...b.dataset } });
