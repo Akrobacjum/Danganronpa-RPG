@@ -3,16 +3,16 @@
   "writtenBy": "audit/gate/local-gate.mjs",
   "module": {
     "id": "danganronpa-rpg",
-    "version": "1.2.128"
+    "version": "1.2.129"
   },
-  "commit": "12ae8dbd386dfab73227d37b7551e57eefcdbb90",
+  "commit": "21c794ef59d015ed1c3bd2312d4cbed4c8d2ff4d",
   "bound": {
-    "scripts": "4975c5bedcdc105eaa1b1e05e5e98f4606ec66d8",
-    "styles": "5a8968821b338a304b3db8afaa984aab9bcc74f9",
+    "scripts": "4e01efd26d39b743732b52847f600912faa94ceb",
+    "styles": "16ecc4c7928a08a6023f3d18bd39dcacc16d9c4f",
     "lang": "5fd0d113f4f51602cb42ccd0e6620848be9280a4",
     "fonts": "67a9597cecb677fad7cc6fa7a0fad2608f59299f",
     "icons": "4e0ca61cd4e76b235ce63268f62ed0907293148a",
-    "module.json": "b3e127596760287f18458f4e83687e6742742322",
+    "module.json": "8eb8141e70427e5ec5c4b67cb21e10444dacb6ee",
     "audit/gate/local-gate.mjs": "d98d6271b80ec1afae5e7c680b55e8d799899197",
     "audit/gate/gate-lib.mjs": "dc72798601b4f192d6b89403bc6298ff25b8bf67",
     "audit/live": "b2efd94136a6dbcaac935ab45c1a3490b8004fa8",
@@ -25,8 +25,8 @@
     "audit/harness/scenarios/83-roll-integrity.mjs": "34abed6aeb225c69f7d9805b512539334066368b",
     "audit/harness/scenarios/84-viewports.mjs": "728b2c2ae9533e178568cb1acaaf8fe11817e083"
   },
-  "startedAt": "2026-11-23T22:10:07.668Z",
-  "finishedAt": "2026-11-23T22:10:17.173Z",
+  "startedAt": "2026-11-24T03:10:38.705Z",
+  "finishedAt": "2026-11-24T03:10:55.072Z",
   "host": {
     "node": "v22.23.5",
     "platform": "linux-x64",
@@ -123,7 +123,7 @@
       "id": "press-live-region",
       "layer": "press",
       "status": "passed",
-      "ranAt": "2026-11-23T22:10:17.113Z",
+      "ranAt": "2026-11-24T03:10:55.007Z",
       "evidence": [
         {
           "path": "audit/gate/evidence/press-live-region.json",
@@ -140,6 +140,6 @@
     "notRun": 8
   },
   "verdict": "incomplete",
-  "digest": "sha256:6fc89e235379a8e609853103b41565dd7bda517cfb1166e9362ea8168d5cadea",
+  "digest": "sha256:14735359f6bf5e71c0f8403c95a770e8f9e24785e0f509dbd4eca6b33fa5f7fc",
   "hmac": null
 }

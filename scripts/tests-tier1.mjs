@@ -32220,6 +32220,69 @@ const INVARIANTS = [
             stableJson({ on: true, paint: true, toggle: true, init: true, rtc: true, tick: true, helper: true }),
             "[the switch; paintControls before its tile check; toggleOwnMic after its write; the two hooks; the tick; the helper hands followHold the button's state]");
     }],
+    ["R8910 - a player's messenger window keeps the height it was given under both themes: no stylesheet rule's `height` wins on `.application.drpg-panel.drpg-messenger` (the player's) or with `.drpg-messenger-gm` (the GM's), so Foundry's inline height of messenger-gm.mjs `messengerSize` stands, while Stained Glass still sizes any other panel to its content (1.2.129, OWNER-129-CHATRECT)", async () => {
+        /*
+         * The owner, 23.11.2026, after 1.2.128: "Mala poprawka czatu - niech trzyma u graczy ksztalt prostokata, bez
+         * rozszerzania jak teraz". Measured in Chromium on 8f059800 (docs/dev/owner129/chatrect/heights-before.json): under
+         * Stained Glass a player's window asked 730 px at 1920 x 1080 was drawn 284 px with no message, 565 with three and
+         * 1064 with forty - stained-glass.css's "Windows the size of what is in them" (`height: auto !important`) left out
+         * only the GM's window (1.2.124); under Monokuma Legacy it held 730 at every filling. Read here with the suite's
+         * cascade (`styleCascade().winner`), which reads the sheets' rules, not the inline style a window is given: a
+         * winner for `height` on a messenger window is a rule that overrides Foundry's size. The control: a plain panel
+         * under Stained Glass still takes the rule's `auto` (the reading sees the rule). Red on 8f059800: the player's
+         * window took it.
+         */
+        const C = await styleCascade();
+        const heightOf = (theme, classes) => {
+            const body = document.createElement("body");
+            body.className = theme;
+            const el = body.appendChild(document.createElement("div"));
+            el.className = `application drpg-panel ${classes}`.trim();
+            el.style.height = "730px";
+            const won = C.winner(el, ["height"]);
+            return won ? `${won.value}${won.important ? " !important" : ""}` : null;
+        };
+        const got = {};
+        for (const [theme, key] of [["drpg-theme-stained-glass", "glass"], ["drpg-theme-monokuma-legacy", "legacy"]]) {
+            got[key] = { player: heightOf(theme, "drpg-messenger"), gm: heightOf(theme, "drpg-messenger drpg-messenger-gm"), panel: heightOf(theme, "") };
+        }
+        equal(stableJson({ glassPlayer: got.glass.player, glassGm: got.glass.gm, glassPanel: /^auto\b/.test(got.glass.panel ?? ""),
+            legacyPlayer: got.legacy.player, legacyGm: got.legacy.gm }),
+            stableJson({ glassPlayer: null, glassGm: null, glassPanel: true, legacyPlayer: null, legacyGm: null }),
+            `[the rule winning \`height\` on the player's and the GM's window under each theme, and the control: a plain panel's auto under Stained Glass] - read: ${stableJson(got)}`);
+    }],
+    ["R8911 - the messenger's \"Write a message\" box writes at the bubbles' size and opens three lines tall: under each theme the box's winning `font-size` is the one the bubble wins (`--drpg-text-sm` under Monokuma Legacy, `--drpg-sg-floor` under Stained Glass), its `min-height` is three lines and its `max-height` six, and it grows with what is typed (`field-sizing: content`) - in the player's window and the GM's (1.2.129, OWNER-129-WRITEBOX)", async () => {
+        /*
+         * The owner, 24.11.2026: "Poprawmy write a message (powiekszmy)". Measured in Chromium on 622cf16d
+         * (docs/dev/owner129/writebox/heights-before.json): the box was one line, 19-20 px tall, at the browser's 13.3 px,
+         * under the bubbles' 21 px (Stained Glass) and 13 px (Legacy); three typed lines scrolled inside it. Read here with
+         * the suite's cascade (`styleCascade().winner`), the declarations as written: a line is the box's own line height,
+         * so the heights are read as "3 * " and "6 * " of it. Red on 622cf16d: no font size, `max-height: 6rem`, no minimum.
+         */
+        const C = await styleCascade();
+        const read = (theme, gm) => {
+            const body = document.createElement("body");
+            body.className = theme;
+            const app = body.appendChild(document.createElement("div"));
+            app.className = `application drpg-panel drpg-messenger${gm ? " drpg-messenger-gm" : ""}`;
+            const bubble = app.appendChild(document.createElement("div"));
+            bubble.className = "drpg-messenger-bubble mine";
+            const form = app.appendChild(document.createElement("form"));
+            form.className = "drpg-messenger-input";
+            const box = form.appendChild(document.createElement("textarea"));
+            const v = (el, prop) => C.winner(el, [prop])?.value ?? null;
+            return { font: v(box, "font-size") === v(bubble, "font-size") && v(box, "font-size") !== null, min: v(box, "min-height"), max: v(box, "max-height"),
+                grows: v(box, "field-sizing") };
+        };
+        const got = {};
+        for (const [theme, key] of [["drpg-theme-stained-glass", "glass"], ["drpg-theme-monokuma-legacy", "legacy"]]) {
+            for (const gm of [false, true]) got[`${key}${gm ? "Gm" : "Player"}`] = read(theme, gm);
+        }
+        const ok = row => row.font && /\b3 \* /.test(row.min ?? "") && /\b6 \* /.test(row.max ?? "") && row.grows === "content";
+        equal(stableJson(Object.fromEntries(Object.entries(got).map(([k, row]) => [k, ok(row)]))),
+            stableJson({ glassGm: true, glassPlayer: true, legacyGm: true, legacyPlayer: true }),
+            `[the box's font size as the bubble's, three lines at least, six at most, growing with what is typed - under each theme, in each window] - read: ${stableJson(got)}`);
+    }],
     ["R8833 - a hidden token's hold is said on the player's own microphone and keeps the GM's block off it: `micHold` answers \"tokenHidden\", held, outside the Class Trial and nothing of it in the trial; `moduleHoldsMic` answers it on a GM's page; both languages say it (E129, S0-HIDEMUTE)", async () => {
         /*
          * The owner: the hide "pokazuje rowniez te zmiane na przycisku mikrofonu". `micHold` with every fact handed in,

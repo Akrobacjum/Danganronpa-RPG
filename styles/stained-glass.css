@@ -1758,6 +1758,8 @@ body.drpg-theme-stained-glass .drpg-messenger-bubble.mine { border-color: color-
 body.drpg-theme-stained-glass .drpg-messenger-author { font-family: var(--drpg-font-title); text-transform: none; letter-spacing: 0; font-size: max(var(--drpg-sg-floor), calc(15px * var(--drpg-sg-scale))); }
 body.drpg-theme-stained-glass .drpg-messenger-input textarea {
     font-family: var(--drpg-font-prose);
+    /* The bubble's floor (the rule above), so what is typed reads at the size it is sent at (OWNER-129-WRITEBOX). */
+    font-size: var(--drpg-sg-floor);
     background: var(--drpg-sg-ink-55);
     border: 1px solid color-mix(in srgb, var(--drpg-glass-accent) 40%, transparent);
     border-bottom-width: 2px;
@@ -3698,11 +3700,14 @@ body.drpg-theme-stained-glass .drpg-panel .window-header .header-control {
 /* ---- 7. Windows the size of what is in them ------------------------------------------------
    A dialog keeps the height it was opened at (Foundry writes it inline), which under a face of
    another width is too tall or too short. The height follows the content, to the screen; what is
-   taller than the screen scrolls inside the window instead of being cut. The GM's messenger window keeps the height it
-   was given (1.2.124, messenger-gm.mjs): its two parts and its list scroll each inside it, which a height that follows
-   the content would undo - the window ran past the screen's foot at 1920 x 1080 (the owner's shots, 22.11.2026). Left
-   out in `:where()`, so the rule keeps the weight it had and wins what it won (R1323, R1331, R1333 read that). */
-body.drpg-theme-stained-glass .application.drpg-panel:not(.minimized):where(:not(.drpg-messenger-gm)) {
+   taller than the screen scrolls inside the window instead of being cut. The messenger windows keep the height they
+   were given (messenger-gm.mjs `messengerSize`): the GM's since 1.2.124, whose two parts and list scroll each inside it,
+   which a height that follows the content would undo - it ran past the screen's foot at 1920 x 1080 (the owner's shots,
+   22.11.2026); a player's since 1.2.129 (OWNER-129-CHATRECT, the owner: "niech trzyma u graczy ksztalt prostokata"),
+   which was drawn 284 px tall with no message and 1064 with forty where 730 was asked, its log scrolling inside it as
+   under Monokuma Legacy (docs/dev/owner129/chatrect/heights-*.json; R8910). Left out in `:where()`, so the rule keeps
+   the weight it had and wins what it won (R1323, R1331, R1333 read that). */
+body.drpg-theme-stained-glass .application.drpg-panel:not(.minimized):where(:not(.drpg-messenger)) {
     height: auto !important;
     max-height: calc(100vh - 24px);
 }
