@@ -19,6 +19,7 @@
  *   DRPG_FORGE_OUT     where the report goes; default audit/forge/out/<timestamp>
  *   DRPG_FAKE_MEDIA=1  Chromium with a fake camera and microphone, so A/V can connect (voice tests, S5)
  *   DRPG_SETTLE_MS     how long each browser idles after ready before it is read; default 15000
+ *   DRPG_CHROMIUM      a Chromium executable other than the one this Playwright downloaded
  *
  * Exit: 0 when every account logged in and no browser recorded an error from the module; 1 otherwise; 2 on a refusal.
  */
@@ -76,13 +77,27 @@ const READ = () => {
 fs.mkdirSync(outDir, { recursive: true });
 const args = ["--use-gl=angle", "--ignore-gpu-blocklist"];
 if (fakeMedia) args.push("--use-fake-ui-for-media-stream", "--use-fake-device-for-media-stream");
-const browser = await chromium.launch({ args });
+/* A machine behind an HTTPS proxy (a cloud session) hands it to Chromium, which does not read HTTPS_PROXY by itself; and
+   DRPG_CHROMIUM names a Chromium other than the one this Playwright downloaded, as audit/gate/local-gate.mjs reads it. */
+const proxy = process.env.HTTPS_PROXY || process.env.https_proxy;
+const browser = await chromium.launch({ args, ...(proxy ? { proxy: { server: proxy } } : {}),
+    ...(process.env.DRPG_CHROMIUM ? { executablePath: process.env.DRPG_CHROMIUM } : {}) });
 const report = { startedAt: new Date().toISOString(), base, worldId, fakeMedia, settleMs, clients: {}, failures: [] };
 const pages = {};
 try {
     for (const [role, name] of Object.entries(users)) {
         const consoleLines = [];
         let page;
+        /* Measured on Forge 24.11.2026: with no world launched, /join answers 200 with Foundry's "Critical Failure!" page,
+           "There is currently no active game session", and no join form - read here first, so it is not reported as six
+           login timeouts. */
+        if (role === Object.keys(users)[0]) {
+            const probe = await browser.newPage();
+            await probe.goto(new URL("/join", base).href, { waitUntil: "domcontentloaded", timeout: 60_000 });
+            const idle = await probe.evaluate(() => /no active game session/i.test(document.body.innerText));
+            await probe.close();
+            if (idle) refuse("no world is launched on this Forge game (\"There is currently no active game session\"): launch the test world first");
+        }
         try {
             page = await login(browser, base, name);
         } catch (err) {
@@ -90,11 +105,15 @@ try {
             continue;
         }
         page.on("console", m => { if (["error", "warning"].includes(m.type())) consoleLines.push(`${m.type()}: ${m.text()}`.slice(0, 500)); });
-        const active = await page.evaluate(() => game.world.id);
-        if (active !== worldId) {
+        /* The owner names a world by what Forge shows, which may be its title ("DRPG-QA-Forge") rather than its id: either
+           is accepted, without regard to case, and both must still match COPY_RE. */
+        const active = await page.evaluate(() => ({ id: game.world.id, title: game.world.title }));
+        const named = [active.id, active.title].map(v => String(v ?? "").toLowerCase());
+        if (!named.includes(worldId.toLowerCase()) || (!COPY_RE.test(active.id ?? "") && !COPY_RE.test(active.title ?? ""))) {
             await page.context().close();
-            refuse(`the active world is "${active}", not "${worldId}"`);
+            refuse(`the active world is "${active.id}" ("${active.title}"), not "${worldId}"`);
         }
+        report.world = active;
         pages[role] = { page, consoleLines };
     }
     await new Promise(r => setTimeout(r, settleMs));
