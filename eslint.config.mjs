@@ -176,6 +176,8 @@ export default [
     { files: ["audit/harness/lib/livekit.mjs"], languageOptions: { globals: { ...NODE, ...BROWSER, ...FOUNDRY } } },
     // The live runner's page.evaluate functions run inside Foundry's page.
     { files: ["audit/live/**/*.mjs"], languageOptions: { globals: { ...NODE, ...BROWSER, ...FOUNDRY } } },
+    // The road to 2.0, F3 (24.11.2026): the Forge runner reads the page as audit/live does.
+    { files: ["audit/forge/**/*.mjs"], languageOptions: { globals: { ...NODE, ...BROWSER, ...FOUNDRY } } },
     // The glass sweep's page.evaluate functions run inside audit/glass-harness.html.
     { files: ["audit/glass-sweep.mjs"], languageOptions: { globals: { ...NODE, ...BROWSER } } },
     // The float sweep (float-text line): its page.evaluate bodies run in audit/style-harness.html.
