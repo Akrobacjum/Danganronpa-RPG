@@ -20,6 +20,7 @@
  *   DRPG_FAKE_MEDIA=1  Chromium with a fake camera and microphone, so A/V can connect (voice tests, S5)
  *   DRPG_SETTLE_MS     how long each browser idles after ready before it is read; default 15000
  *   DRPG_CHROMIUM      a Chromium executable other than the one this Playwright downloaded
+ *   DRPG_FULL_RENDER=1 the test browsers keep Foundry's own performance mode and frame rate
  *
  * Exit: 0 when every account logged in and no browser recorded an error from the module; 1 otherwise; 2 on a refusal.
  */
@@ -77,6 +78,12 @@ const READ = async () => {
     };
 };
 
+/* Each test browser's own Foundry client settings, written to its localStorage before Foundry loads (audit/live login's
+   `storage`, which leaves a value already there): the lowest performance mode and 10 frames a second. The third Forge
+   run (24.11.2026) had six Chromiums drawing the canvas without a GPU on 4 cores; two logins and most screenshots timed
+   out. DRPG_FULL_RENDER=1 leaves Foundry's defaults. Never a world setting: nothing here changes what players see. */
+const LIGHT = process.env.DRPG_FULL_RENDER === "1" ? null : { "core.performanceMode": "0", "core.maxFPS": "10" };
+
 fs.mkdirSync(outDir, { recursive: true });
 const args = ["--use-gl=angle", "--ignore-gpu-blocklist"];
 if (fakeMedia) args.push("--use-fake-ui-for-media-stream", "--use-fake-device-for-media-stream");
@@ -105,7 +112,7 @@ try {
            out on /join after 30 s while the first four went through). A password prompt is not retried. */
         let lastErr = null;
         for (let attempt = 1; attempt <= 3 && !page; attempt++) {
-            try { page = await login(browser, base, name); }
+            try { page = await login(browser, base, name, { storage: LIGHT }); }
             catch (err) {
                 lastErr = err;
                 if (err.reason === "password-required") break;
