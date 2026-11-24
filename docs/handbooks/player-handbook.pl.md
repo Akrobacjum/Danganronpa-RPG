@@ -1,6 +1,6 @@
 # Danganronpa RPG - Podręcznik gracza
 
-*Dla uczniów killing game. Moduł w wersji 1.2.128, zbudowany na Daggerheart dla Foundry VTT v14.*
+*Dla uczniów killing game. Moduł w wersji 1.2.129, zbudowany na Daggerheart dla Foundry VTT v14.*
 
 To cała gra widziana z miejsca gracza: co znaczą liczby na arkuszu, ile kosztuje akcja, co kupuje Hope, co się dzieje, gdy ktoś ginie, i co nacisnąć. Każda liczba tutaj jest liczbą modułu; tam, gdzie decyzja należy do człowieka, napisano "GM decyduje". Jak moduł działa od środka, opisuje rozdział 17.
 
@@ -1067,7 +1067,7 @@ Podczas Eclipse linia fazy podaje jego nazwę, na przykład *Eclipse (Noc)*. Pod
 - *Zasady* - stałe zasady Monokumy, dla wszystkich, cały czas.
 - Safeword w lewym dolnym rogu (rozdział 15) i Level Up, gdy ci przysługuje.
 
-**Komunikator** (rozdział 14) stoi nad dwoma pozostałymi przyciskami w rogu i ma dwie zakładki: **Czat**, twój wątek Czatu z GM-em, i **Notatka**, czyli twoja notatka przed sesją. Od 1.2.128 jego okno otwiera się w rozmiarze 760 na 730 pikseli, nigdy ponad 90% ekranu, i zapamiętuje miejsce, w które zostało przesunięte, ale nie rozmiar zmieniony przeciągnięciem.
+**Komunikator** (rozdział 14) stoi nad dwoma pozostałymi przyciskami w rogu i ma dwie zakładki: **Czat**, twój wątek Czatu z GM-em, i **Notatka**, czyli twoja notatka przed sesją. Od 1.2.128 jego okno otwiera się w rozmiarze 760 na 730 pikseli, nigdy ponad 90% ekranu, i zapamiętuje miejsce, w które zostało przesunięte, ale nie rozmiar zmieniony przeciągnięciem. Od 1.2.129 trzyma ten rozmiar w obu motywach, a wiadomości przewijają się w środku; pole, w którym piszesz, otwiera się na trzy linie, w wielkości wiadomości, i rośnie do sześciu linii, gdy piszesz.
 
 **Książka**, pod komunikatorem w prawym dolnym rogu, otwiera podręczniki w grze, czyli ten **Podręcznik gracza** i **Ulotkę ucznia**, w języku wybranym dla modułu. Książka otwiera się na podręczniku czytanym ostatnio, a spis treści po lewej przenosi do dowolnego rozdziału.
 

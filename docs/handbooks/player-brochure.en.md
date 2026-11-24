@@ -1,6 +1,6 @@
 # Danganronpa RPG - Student Brochure
 
-*A short read before the first session, about six printed pages. Module 1.2.128 on Daggerheart.*
+*A short read before the first session, about six printed pages. Module 1.2.129 on Daggerheart.*
 
 **You are** an Ultimate: the one thing your character does best, written under their name on the sheet. Your six statistics are Leg, Body, Hand, Eye, Shadow, and Head.
 
