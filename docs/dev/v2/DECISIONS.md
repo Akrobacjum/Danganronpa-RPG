@@ -19,3 +19,4 @@ tu nie ma, jest do sprawdzenia w triage (docs/dev/v2/BRIEF.md). Wiersz zmienia t
 | D2-12 | 24.11.2026 | MURDER-01: przy udanym otwarciu (Hope albo krytyk) poza Eclipse maska "?" zakładana od razu, choć stół widzi zamianę | odpowiedź na pytanie Claude | - |
 | D2-13 | 24.11.2026 | Wydania 1.9.x pomijają migracje i ostrzegają w świecie, którego nazwa nie zawiera "qa" | odpowiedź na pytanie Claude | nowe zabezpieczenie w migrate.mjs |
 | D2-14 | 24.11.2026 | Kolejność: najpierw testy na Forge na obecnej wersji, potem wszystkie poprawki (triage i wyniki z Forge) naraz. Sesje z ludźmi nie są etapem przed 2.0 | rozmowa z właścicielem | F4 przeniesione na czas po 2.0; kryterium "2 czyste sesje" usunięte |
+| D2-15 | 24.11.2026 | Przed 2.0 końcowe sprawdzenie: te same scenariusze Forge na kandydacie 2.0.0, niezależny przegląd całej różnicy, lista kontrolna triage | rozmowa z właścicielem | diagram w dokumencie planu; porównanie "przed i po" z wynikiem na 1.2.129 |
