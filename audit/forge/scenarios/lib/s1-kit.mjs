@@ -213,9 +213,16 @@ export function pageKit() {
     };
     F.duality = async (actorId, since = 0) => {
         const D = await F.imp("despair-award");
+        /* A roll the primary GM drew (E28, roll-draw.mjs) is written by that GM, emptied of its character (speaker
+           "Monokuma", actor null) and flagged `supersededRoll` with its `rollId`; the character is on the GMs' record
+           of the draw. The first S1a run on the owner's PC (25.11.2026) read every such roll as nobody's and found
+           none: the actor is now the speaker's, else the record's (`drawnRecordOf`, read on a GM). */
+        const R = await F.imp("roll-draw").catch(() => null);
         const all = [...game.messages].filter(m => (m.timestamp ?? 0) >= since - 2000).reverse();
         for (const m of all) {
-            if ((m.speaker?.actor ?? null) !== actorId) continue;
+            let of = m.speaker?.actor ?? null;
+            if (!of) { try { of = R?.drawnRecordOf?.(m)?.actorId ?? null; } catch { of = null; } }
+            if (of !== actorId) continue;
             const d = D.readDuality(m);
             if (d) return { id: m.id, at: m.timestamp, ...F.safe(d) };
         }
