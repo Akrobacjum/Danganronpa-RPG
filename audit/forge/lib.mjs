@@ -111,7 +111,9 @@ export async function openTable(browser, roles, { name = "forge" } = {}) {
     const probe = await browser.newPage();
     await probe.goto(new URL("/join", base).href, { waitUntil: "domcontentloaded", timeout: 60_000 });
     const idle = await probe.evaluate(() => /no active game session/i.test(document.body.innerText));
-    await probe.close();
+    /* Firefox on Windows (25.11.2026, owner's PC) once threw here - "Browser.removeBrowserContext: can't access property
+       _maybeDontRestoreTabs" - and the run broke before its first login; the probe has done its work by now. */
+    await probe.close().catch(err => console.log(`${name}: the /join probe did not close cleanly (${String(err.message).split("\n")[0]}); carrying on`));
     if (idle) refuse(name, "no world is launched on this Forge game: launch the test world first");
     const pages = {}, failures = [];
     for (const role of roles) {
