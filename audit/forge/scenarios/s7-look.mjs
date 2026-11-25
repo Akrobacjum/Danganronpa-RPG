@@ -5,7 +5,7 @@
  *     DRPG_FORGE_URL=... DRPG_FORGE_WORLD=DRPG-QA-Forge DRPG_FULL_RENDER=1 node audit/forge/run.mjs s7-look
  *     (and again with DRPG_BROWSER=firefox: the messenger's write box grows by CSS `field-sizing`, which Firefox may lack)
  *
- * GM1 and P1, Stained Glass (D2-03), at 1366x768 and 1920x1080 (`page.setViewportSize`). At each size, on the page that
+ * GM1 and P1, Stained Glass (D2-03), at each of DRPG_SIZES - 1920x1080 and 2560x1440 by default, the owner's targets (D2-20) - (`page.setViewportSize`). At each size, on the page that
  * uses it, each window is opened as the table opens it (the module's API: the launcher's own road), given 1.5 s to
  * settle, measured, photographed (`ctx.shot`, `<role>-<w>x<h>-<window>.png`) and closed:
  *   GM1   the HUD, the GM panel, the messenger on P1's thread, P1's character sheet, the Students window, Investigation,
@@ -45,13 +45,13 @@ import { J, sleep, inPage, ensureKit, present, liveKitToasts } from "../table.mj
 
 export const meta = {
     id: "s7-look",
-    title: "The windows a table uses most, at 1366x768 and 1920x1080 in Stained Glass: fit, overflow, the write box",
+    title: "The windows a table uses most, at 1920x1080 and 2560x1440 in Stained Glass: fit, overflow, the write box",
     roles: ["gm1", "p1"],
     writes: false,
     triage: ["EXP-PL-01", "FORGE-03", "OWNER-129-WRITEBOX"]
 };
 
-const SIZES = [[1366, 768], [1920, 1080]];
+const SIZES = (await import("../lib.mjs")).config.sizes;
 const WINDOWS = {
     gm1: [["hud", "#drpg-hud"], ["gmPanel", null], ["messengerGm", ".drpg-messenger"], ["sheetGm", null], ["students", null], ["investigation", null], ["trial", null]],
     p1: [["hud", "#drpg-hud"], ["messenger", ".drpg-messenger"], ["sheet", null], ["notices", "#notifications"]]
@@ -239,7 +239,7 @@ export async function run(ctx) {
         });
         note("EXP-PL-01: Foundry's cursor, ruler and ping permissions (roles allowed; whether the Player and Trusted Player roles hold each)", J(perms));
         const p1Page = ctx.c.p1.page;
-        const vp = p1Page.viewportSize() ?? { width: 1366, height: 768 };
+        const vp = p1Page.viewportSize() ?? { width: 1920, height: 1080 };
         for (let i = 0; i <= 10; i++) { await p1Page.mouse.move(vp.width * (0.35 + i * 0.02), vp.height * (0.45 + (i % 3) * 0.02)); await sleep(150); }
         await sleep(1500);
         const cursor = await inPage(ctx, "gm1", id => {

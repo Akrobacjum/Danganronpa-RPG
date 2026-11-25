@@ -9,7 +9,7 @@ Adres podaje się tylko w zmiennej środowiskowej przy uruchomieniu.
 
 | Narzędzie | Co robi | Pisze do świata? |
 | --- | --- | --- |
-| `doctor.mjs` (S0) | loguje 6 kont, odczytuje wersje, głównego GM-a, kontrakt modułu, błędy, brakujące tłumaczenia, stan głosu; zrzuty ekranu 1366x768 i 1920x1080 | nie |
+| `doctor.mjs` (S0) | loguje 6 kont, odczytuje wersje, głównego GM-a, kontrakt modułu, błędy, brakujące tłumaczenia, stan głosu; zrzuty ekranu w rozmiarach z `DRPG_SIZES` | nie |
 | `suite.mjs` | wbudowany zestaw testów modułu, poziomy 0-1 (`game.drpg.runTests({ tier: 1 })`), diagnostyka i spis świata | nie |
 | `lib.mjs` | wspólne: zmienne, przeglądarka, logowanie, blokada cudzego świata | - |
 | `run.mjs` | uruchamia scenariusze z `scenarios/`: `node audit/forge/run.mjs s2-second-gm [s3-disconnects ...]` | zależy od scenariusza |
@@ -32,10 +32,12 @@ tego samego stanu.
 | `s4-two-gms-at-once` | 3 | dwaj GM-owie naciskają to samo naraz | |
 | `s5-voice` | 6 | pokój LiveKit każdego klienta wobec planu modułu, czasy przełączenia, ponowne połączenia | wymaga `DRPG_FAKE_MEDIA=1` |
 | `s6-soak` | 6 | 2 h zwykłej gry: pamięć, błędy, przeładowania | `DRPG_SOAK_MINUTES` |
-| `s7-look` | 2 | zrzuty najważniejszych okien w 1366x768 i 1920x1080, mieszczenie się, pole komunikatora | nie pisze do świata; także `DRPG_BROWSER=firefox` |
+| `s7-look` | 2 | zrzuty najważniejszych okien w rozmiarach z `DRPG_SIZES`, mieszczenie się, pole komunikatora | nie pisze do świata; także `DRPG_BROWSER=firefox` |
 | `s8-load` | 3 | krzywa wydajności przy rosnącej liczbie Remnantów, tokenów, projektów, wiadomości i okien | sprząta po sobie; bez progów |
 
 Proponowana kolejność pierwszego przebiegu: S7 (nie pisze), S4, S2, S3, S5, S1a, S1b, S8, S6 (najdłuższy).
+
+Logowanie (`lib.mjs` `login`) nigdy nie wpisuje hasła; wszystkie narzędzia, także `doctor.mjs`, uruchamiają przeglądarkę przez `lib.mjs` (od 25.11.2026 `doctor.mjs` czyta `DRPG_BROWSER`).
 
 Każde narzędzie odmawia pracy (kod 2), gdy aktywny świat nie jest tym z `DRPG_FORGE_WORLD` albo jego nazwa nie zawiera
 `qa`, `copy` ani `gate`. Świat kampanii jest na tym samym koncie Forge (D2-05).
@@ -52,6 +54,9 @@ Każde narzędzie odmawia pracy (kod 2), gdy aktywny świat nie jest tym z `DRPG
 | `DRPG_FULL_RENDER=1` | przeglądarki testowe rysują w pełnej jakości (na komputerze z kartą graficzną); bez tego najniższy tryb wydajności Foundry i 10 kl./s |
 | `DRPG_FAKE_MEDIA=1` | sztuczny mikrofon i kamera, żeby głos mógł się połączyć (S5) |
 | `DRPG_CHROMIUM` | inny Chromium niż pobrany przez Playwright |
+| `DRPG_HEADFUL=1` | przeglądarki z oknem. Firefox bez okna na maszynie bez GPU nie dostaje WebGL i Foundry nie rysuje /join (w chmurze: Firefox z oknem pod `xvfb-run`). Na komputerze z ekranem okna pojawią się na pulpicie |
+| `DRPG_SIZES` | rozmiary ekranu do zrzutów i sprawdzeń, domyślnie `1920x1080,2560x1440` (docelowe rozdzielczości stołu, D2-20); pierwszy z nich to rozmiar, w którym strona się otwiera |
+| `DRPG_JOIN_MS` | ile strona /join może się ładować przy logowaniu, domyślnie 120000 ms |
 
 ## Na komputerze właściciela
 

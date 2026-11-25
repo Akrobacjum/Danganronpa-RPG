@@ -6,11 +6,11 @@
  * NEVER RUN against Forge yet: written in a container with no access to it. Its first run is its test; what it assumes
  * about Forge is marked UNMEASURED. It reads and photographs, and writes nothing to the world.
  *
- * What it does: logs the six accounts of the test world in through /join (audit/live/foundry.mjs `login`, which never
- * types a password), refuses to go past the first login when the active world is not the one named or its id does not
+ * What it does: logs the six accounts of the test world in through /join (lib.mjs `login`, which never types a
+ * password), refuses to go past the first login when the active world is not the one named or its id does not
  * match /(gate|copy|qa)/i (the campaign world shares this Forge account: D2-05), then reads on every browser the
  * versions (Foundry, Daggerheart, every active module), the users and who is connected, the module's own errors, missing
- * Polish or English keys and notifications, and the A/V client's state, and takes a screenshot at 1366x768 and 1920x1080.
+ * Polish or English keys and notifications, and the A/V client's state, and takes a screenshot at each of DRPG_SIZES (1920x1080 and 2560x1440 by default, D2-20).
  *
  * Environment:
  *   DRPG_FORGE_URL     the game's address (required)
@@ -28,7 +28,6 @@
 import fs from "node:fs";
 import path from "node:path";
 import url from "node:url";
-import { createRequire } from "node:module";
 
 const HERE = path.dirname(url.fileURLToPath(import.meta.url));
 const REPO = path.resolve(HERE, "../..");
@@ -46,8 +45,9 @@ function refuse(why) { console.log(`forge doctor: refused - ${why}`); process.ex
 if (!/^https?:\/\//.test(base)) refuse("DRPG_FORGE_URL is not set (https://<game>.forge-vtt.com)");
 if (!COPY_RE.test(worldId)) refuse(`DRPG_FORGE_WORLD "${worldId}" does not match ${COPY_RE}: the campaign world shares this account`);
 
-const { chromium } = createRequire(path.join(REPO, "audit", "harness", "package.json"))("playwright");
-const { login } = await import(url.pathToFileURL(path.join(REPO, "audit", "live", "foundry.mjs")).href);
+/* The browser and the login are lib.mjs's since 25.11.2026 (F3-forge-PC.md: DRPG_BROWSER was ignored here, and the 30 s
+   limit on /join lost one account a run): DRPG_BROWSER, DRPG_HEADFUL, DRPG_CHROMIUM, the proxy, DRPG_JOIN_MS, DRPG_SIZES. */
+const { launch, login, config } = await import(url.pathToFileURL(path.join(HERE, "lib.mjs")).href);
 
 /* Read in the page. UNMEASURED: the A/V client's fields (avclient-livekit's `liveKitRoom`, its `state` and `name`) are
    read defensively and recorded raw; the first run says which of them exist on Forge's build. */
@@ -78,20 +78,11 @@ const READ = async () => {
     };
 };
 
-/* Each test browser's own Foundry client settings, written to its localStorage before Foundry loads (audit/live login's
-   `storage`, which leaves a value already there): the lowest performance mode and 10 frames a second. The third Forge
-   run (24.11.2026) had six Chromiums drawing the canvas without a GPU on 4 cores; two logins and most screenshots timed
-   out. DRPG_FULL_RENDER=1 leaves Foundry's defaults. Never a world setting: nothing here changes what players see. */
-const LIGHT = process.env.DRPG_FULL_RENDER === "1" ? null : { "core.performanceMode": "0", "core.maxFPS": "10" };
+/* The test browsers' own Foundry client settings (lowest performance mode, 10 fps) unless DRPG_FULL_RENDER=1: lib.mjs `config.light`. */
+const LIGHT = config.light;
 
 fs.mkdirSync(outDir, { recursive: true });
-const args = ["--use-gl=angle", "--ignore-gpu-blocklist"];
-if (fakeMedia) args.push("--use-fake-ui-for-media-stream", "--use-fake-device-for-media-stream");
-/* A machine behind an HTTPS proxy (a cloud session) hands it to Chromium, which does not read HTTPS_PROXY by itself; and
-   DRPG_CHROMIUM names a Chromium other than the one this Playwright downloaded, as audit/gate/local-gate.mjs reads it. */
-const proxy = process.env.HTTPS_PROXY || process.env.https_proxy;
-const browser = await chromium.launch({ args, ...(proxy ? { proxy: { server: proxy } } : {}),
-    ...(process.env.DRPG_CHROMIUM ? { executablePath: process.env.DRPG_CHROMIUM } : {}) });
+const browser = await launch();
 const report = { startedAt: new Date().toISOString(), base, worldId, fakeMedia, settleMs, clients: {}, failures: [] };
 const pages = {};
 try {
@@ -147,7 +138,7 @@ try {
     }
     fs.writeFileSync(path.join(outDir, "report.json"), JSON.stringify(report, null, 2));
     for (const [role, { page }] of Object.entries(pages)) {
-        for (const [w, h] of [[1366, 768], [1920, 1080]]) {
+        for (const [w, h] of config.sizes) {
             const file = `${role}-${w}x${h}.png`;
             try {
                 await page.setViewportSize({ width: w, height: h });

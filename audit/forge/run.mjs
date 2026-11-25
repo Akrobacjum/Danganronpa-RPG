@@ -33,7 +33,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import url from "node:url";
-import { launch, openTable, outDir, config, REPO } from "./lib.mjs";
+import { launch, openTable, outDir, config, login } from "./lib.mjs";
 
 const HERE = path.dirname(url.fileURLToPath(import.meta.url));
 
@@ -58,7 +58,6 @@ async function runOne(file) {
     const report = { id, title: meta.title ?? null, triage: meta.triage ?? [], startedAt: new Date().toISOString(),
         checks: [], notes: [], failures: [], shots: [], phases: [] };
     const browser = await launch();
-    const { login } = await import(url.pathToFileURL(path.join(REPO, "audit", "live", "foundry.mjs")).href);
     let phaseName = "start";
     try {
         const roles = meta.roles ?? ["gm1"];
