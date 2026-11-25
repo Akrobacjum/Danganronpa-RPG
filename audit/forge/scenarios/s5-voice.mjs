@@ -180,6 +180,19 @@ export async function run(ctx) {
         for (const role of ALL) users[role] = table.who[role]?.userId;
         const missing = PLAYERS.filter(r => !table.who[r]?.actorId);
         if (missing.length) { check("setup: P1-P4 each have a character", false, J(missing.map(r => [r, table.who[r]]))); return; }
+        /* A dead student is a Spectator, whom the plan sends to the spectators' room wherever their token stands. The
+           first S5 run on the owner's PC (25.11.2026) came after S1a and S1b (PROMPT-PC.md's order), which left P1
+           executed and P3 killed: every "the plan sends p1 to ..." read drpg-spectators. A dead P1-P4 is revived here,
+           quietly, by S1a's road (game.drpg.reviveCharacter), and the note says whom. */
+        const revived = await inPage(ctx, "gm1", async ids => {
+            const out = [];
+            for (const id of ids) {
+                const a = game.actors.get(id);
+                if (a && game.drpg.isDeadForGm(a)) { await game.drpg.reviveCharacter(a, { quiet: true }); out.push(a.name); }
+            }
+            return out;
+        }, PLAYERS.map(r => table.who[r].actorId), { timeout: 120_000 });
+        note("setup: dead students revived before the run (a Spectator's voice room is not a room's)", J(revived));
         const spot = name => table.rooms[name];
         const start = { p1: A, p2: D, p3: E, p4: F };
         const placed = await placeTokens(ctx, "gm1", table.sceneId, PLAYERS.map(role => ({ role, actorId: table.who[role].actorId, tokenId: table.who[role].tokenId, ...spot(start[role]) })));
@@ -219,8 +232,15 @@ export async function run(ctx) {
             /* The plan itself, where the phase knows the answer: the room's LiveKit name for the token's room. */
             for (const [r, room] of Object.entries(expect)) {
                 if (!liveKitNames[room]) { note(`${label}: ${r}'s expected room has no LiveKit name to compare`, J(liveKitNames)); continue; }
+                /* Where the token stands now by the module's own reading, and what the write answered: the first run on
+                   the owner's PC (25.11.2026) found P2's and P4's plans on their old rooms and could not say whether the
+                   token moved. Read for the details only; the check is unchanged. */
+                const tokenNow = await inPage(ctx, plan, ({ sceneId, tokenId }) => {
+                    const t = game.scenes.get(sceneId)?.tokens.get(tokenId);
+                    return t ? { room: game.drpg.roomOfToken(t) ?? null, x: t.x, y: t.y } : null;
+                }, { sceneId: table.sceneId, tokenId: token[r] }).catch(err => ({ threw: err.message }));
                 check(`${label}: the plan sends ${r} to ${room}`, res.plan?.targets?.[users[r]] === liveKitNames[room],
-                    J({ want: liveKitNames[room], plan: res.plan?.targets?.[users[r]] }), { ids });
+                    J({ want: liveKitNames[room], plan: res.plan?.targets?.[users[r]], tokenNow, wrote: acted }), { ids });
             }
             note(`${label}: timings (ms from the write)`, [`converged in ${res.ms} ms`, ...Object.entries(res.per).map(([r, a]) =>
                 `${r}: ${line(a)}; module connects ${counted[r]?.connects ?? "?"} (${counted[r]?.connectMs ?? "?"} ms)`)].join("\n"));
