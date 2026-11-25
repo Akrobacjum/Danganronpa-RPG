@@ -452,7 +452,7 @@ export async function run(ctx) {
                 `heap ${c.gm1HeapMB ?? "-"}/${c.p1HeapMB ?? "-"} MB`, `nodes ${c.gm1Nodes ?? "-"}/${c.p1Nodes ?? "-"}`, `move ${c.moveDocMs ?? "-"}/${c.moveDrawnMs ?? "-"} ms`,
                 c.extra ? `open messenger ${c.extra.messenger?.ms ?? "-"} ms, notices ${c.extra.notices?.ms ?? "-"} ms` : ""].join(" | ")).join("\n"));
         if (ctx.c.gm1 && table) {
-            const result = await inPage(ctx, "gm1", async ({ sceneId, made, wasAt }) => {
+            const cleanOnce = () => inPage(ctx, "gm1", async ({ sceneId, made, wasAt }) => {
                 const scene = game.scenes.get(sceneId);
                 const out = { projects: 0, remnants: 0, tokens: 0, messages: 0, items: 0, journals: 0, actors: 0, failed: [] };
                 const tracked = window.__s8?.created ?? { Token: [], ChatMessage: [], Actor: [], Item: [], JournalEntry: [] };
@@ -504,6 +504,19 @@ export async function run(ctx) {
             }, { sceneId: table.sceneId, made, wasAt: {
                 p1: table.who.p1.tokenId ? { tokenId: token.p1, ...wasAt.p1 } : null, p2: table.who.p2.tokenId ? { tokenId: token.p2, ...wasAt.p2 } : null } }, { timeout: 600_000 })
                 .catch(err => ({ threw: String(err?.stack ?? err).slice(0, 800) }));
+            /* The first S8 run on the owner's PC (25.11.2026): GM1's page navigated in the middle of the cleanup
+               ("Execution context was destroyed"), and the world kept 220 tokens, 188 Remnants and 601 messages. The ids
+               s8 wrote (`made`) are on this side, so the cleanup is run again, three times at most, once GM1's page is
+               back (or GM1 logged in again); the hooks' record of other documents lived in the old page and is gone. */
+            let result = null;
+            for (let attempt = 1; attempt <= 3; attempt++) {
+                result = await cleanOnce();
+                if (!result?.threw) break;
+                note(`cleanup: attempt ${attempt} broke; GM1's page waited for and the cleanup run again`, J({ threw: result.threw, url: ctx.c.gm1?.page.url() ?? null }));
+                const back = ctx.c.gm1 && /^https?:/.test(ctx.c.gm1.page.url()) ? await ctx.until("gm1", "return game.ready === true", { timeout: 180_000 }) : null;
+                if (!back) { await ctx.leave("gm1"); await ctx.rejoin("gm1"); }
+                await settle(5000);
+            }
             note("cleanup: what was removed", J(result));
             const after = await inPage(ctx, "gm1", census, { sceneId: table.sceneId }).catch(err => ({ threw: err.message }));
             const keys = ["tokens", "remnants", "messages", "actors", "items", "journals", "projects"];
