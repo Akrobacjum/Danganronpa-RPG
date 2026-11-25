@@ -206,8 +206,13 @@ export async function run(ctx) {
                 const to = near[Math.floor(draw * near.length)];
                 const n = (window.__notifications ?? []).length;
                 try { await t.update({ x: rooms[to].x, y: rooms[to].y }); } catch (err) { return { from, to, threw: String(err?.message ?? err) }; }
+                /* On Foundry 14 the write is a movement along a path that can take several seconds (S5 on the owner's PC,
+                   25.11.2026): a fixed 3 s counted a token still on its way as refused. 3 s at least, as before, then
+                   up to 15 s for the token to stand in the room asked. */
+                const t0 = Date.now();
                 await new Promise(r => setTimeout(r, 3000));
-                return { from, to, now: game.drpg.roomOfToken(scene.tokens.get(tokenId)), said: (window.__notifications ?? []).slice(n).map(x => `${x.type}: ${x.message}`.slice(0, 160)) };
+                while (Date.now() - t0 < 15_000 && game.drpg.roomOfToken(scene.tokens.get(tokenId)) !== to) await new Promise(r => setTimeout(r, 250));
+                return { from, to, now: game.drpg.roomOfToken(scene.tokens.get(tokenId)), ms: Date.now() - t0, said: (window.__notifications ?? []).slice(n).map(x => `${x.type}: ${x.message}`.slice(0, 160)) };
             }, { tokenId: token[role], sceneId: table.sceneId, rooms: table.rooms, draw: random() });
             if (r.none) tally.moves.noNeighbour++;
             else if (r.now === r.to) tally.moves.landed++;
