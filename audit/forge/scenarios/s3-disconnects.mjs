@@ -114,6 +114,18 @@ export async function run(ctx) {
         }
         await off;
         await settle(5000);
+        /* The first run on the owner's PC (25.11.2026): about 6.5 s into the cut Foundry said "Server connection lost"
+           and reloaded the page, which, offline, landed on chrome-error:// and stayed there when the network came back;
+           every later phase then called a page with no game. P1's page is read raw here (the kit needs `ui`), and when
+           it has left the game it is logged in again: A1 reads what reached P1 either way. */
+        const p1Url = ctx.c.p1.page.url();
+        const p1InGame = await ctx.c.p1.eval("return typeof game !== 'undefined' && game.ready === true;", { timeout: 10_000 }).catch(() => false);
+        if (!p1InGame) {
+            note("A P1's page left the game while offline (Foundry's reload after the lost connection); P1 logged in again", J({ url: p1Url }));
+            await ctx.leave("p1");
+            await ctx.rejoin("p1");
+            await settle(5000);
+        }
         const waiting = await call(ctx, "p1", "job", tag);
         const p1Saw = await call(ctx, "p1", "since", t0);
         note("A while P1 was offline: what the primary read of P1, and what P1's page showed", J({ seenByGm, p1Notices: p1Saw.seen.map(n => n.text), waiting }));
@@ -125,7 +137,7 @@ export async function run(ctx) {
         await call(ctx, prim, "setRules", []);
         check("A1: a request open while its player was offline for 20 s is still ruled once they are back: the ruling reaches the player",
             got?.value?.ok === true && got.value.value?.tier === 1,
-            J({ road, got, wentInactive: seenByGm.some(s => s?.active === false), waitingAfter: waiting }), { ids: ["CF-02", "DAY-F01"] });
+            J({ road, got, wentInactive: seenByGm.some(s => s?.active === false), p1PageLeftGame: !p1InGame, waitingAfter: waiting }), { ids: ["CF-02", "DAY-F01"] });
         check("A2: nothing stays stuck: the card reads answered on both GMs and holds no pending claim",
             ended?.settled && endedPrim?.settled && endedPrim.row?.pending !== true, J({ ended, endedPrim }), { ids: ["CF-02"] });
     });
