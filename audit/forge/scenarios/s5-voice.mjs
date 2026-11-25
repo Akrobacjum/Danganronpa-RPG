@@ -271,13 +271,26 @@ export async function run(ctx) {
         const offline = await measured("offline: p4 offline for 15 s, then back", async () => {
             await ctx.offline("p4", 15_000);
             const back = Date.now();
+            /* S3's runs on the owner's PC (25.11.2026): about 6.5 s into a cut Foundry says "Server connection lost"
+               and reloads, which, offline, lands on chrome-error:// and stays there when the network is back. Such a
+               page is logged in again (as a player would press F5), with the debug setting turned on as at setup;
+               without it every later phase would call a page with no game. */
+            await new Promise(r => setTimeout(r, 3000));
+            const url = ctx.c.p4.page.url();
+            let leftGame = null;
+            if (!/^https?:/.test(url)) {
+                leftGame = url;
+                await ctx.leave("p4");
+                await ctx.rejoin("p4");
+                await inPage(ctx, "p4", async () => { if (!game.settings.get("danganronpa-rpg", "debug")) await game.settings.set("danganronpa-rpg", "debug", true); });
+            }
             await ctx.until("p4", "return game.ready === true", { timeout: 120_000 });
             const reloaded = await ensureKit(ctx, "p4");
             if (reloaded) await inPage(ctx, "p4", () => window.__qa.startSampler(100));
-            return { back, reloaded };
+            return { back, reloaded, leftGame, loggedInAgainAfterMs: leftGame ? Date.now() - back : null };
         }, { timeout: 120_000, ids: ["VOICE-01"] });
         const p4 = offline.per.p4;
-        note("offline: p4 after 15 s offline", J({ pageReloaded: offline.acted?.reloaded, matchedAfterBackMs: p4?.matched ? p4.matchedAfterMs - ((offline.acted?.back ?? offline.since) - offline.since) : null,
+        note("offline: p4 after 15 s offline", J({ pageReloaded: offline.acted?.reloaded, pageLeftGame: offline.acted?.leftGame ?? null, loggedInAgainAfterMs: offline.acted?.loggedInAgainAfterMs ?? null, matchedAfterBackMs: p4?.matched ? p4.matchedAfterMs - ((offline.acted?.back ?? offline.since) - offline.since) : null,
             silentMs: p4?.silentMs, reconnects: p4?.reconnects, othersReconnected: Object.entries(offline.per).filter(([r, a]) => r !== "p4" && a.reconnects > 0).map(([r]) => r) }));
 
         phase("eclipse");
