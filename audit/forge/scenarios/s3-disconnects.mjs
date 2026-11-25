@@ -295,8 +295,14 @@ export async function run(ctx) {
         const tTake = Date.now();
         await settle(Math.max(0, 20_000 - (Date.now() - t0)));
         const told = await call(ctx, taker, "since", t0);
+        /* Notices that say nothing of the take-over do not count. The second S3 run on the owner's PC (25.11.2026)
+           passed D1 on Forge's "Access Unauthorized. Please enter your API key or sign in to The Forge." alone: the
+           taker writing the case's server copy (FORGE-01), not a word about running the table. Also left out: the case
+           planner's empty-copy line (FORGE-01) and avclient-livekit's toasts (FORGE-03). */
+        const unrelated = /access unauthorized|sign in to the forge|case planner is empty|livekit/i;
+        const aboutTakeOver = told.seen.filter(n => !unrelated.test(n.text ?? ""));
         check("D1: the GM who takes over the table is told it now runs it, within 20 s of the primary's leaving",
-            took?.primary === idOf(taker) && told.seen.length > 0, J({ tookAfterMs: tTake - t0, notices: told.seen }), { ids: ["PRIM-02"] });
+            took?.primary === idOf(taker) && aboutTakeOver.length > 0, J({ tookAfterMs: tTake - t0, notices: aboutTakeOver, leftOut: told.seen.length - aboutTakeOver.length, all: told.seen }), { ids: ["PRIM-02"] });
         const probe = await uiProbe(ctx, taker, { primName: nameOf(taker), playerNames: ["p1", "p2", "p3"].map(nameOf) });
         check("D2: the GM who took over sees in its interface that it is now the primary GM", Boolean(probe?.primShown), J(probe), { ids: ["PRIM-01"] });
         try { note("D VOICE-05: the voice plan on the GM who took over, 5 s after", J(await inPage(ctx, taker, `try { return await game.drpg.voicePlan(); } catch (e) { return "voicePlan threw: " + e.message; }`))); }
