@@ -221,6 +221,26 @@ export async function run(ctx) {
             const since = Date.now();
             const acted = await act();
             const plan = planRole ?? (await primaryRole(ctx, GMS)) ?? present(ctx, GMS)[0];
+            /* On Foundry 14 a write of x and y is a movement along a path that takes seconds (the second S5 run on the
+               owner's PC, 25.11.2026: a token passed Yelena's Room on its way, at fractional x and y), and the
+               convergence below, read at once, matched the plan of the room the token had not yet left - each phase
+               then read the previous phase's move. The moved tokens are waited for (30 s at most) until the module
+               reads each in its expected room; the times stay counted from the write. */
+            let arrived = null;
+            if (Object.keys(expect).length) {
+                const want = Object.entries(expect).map(([r, room]) => ({ r, tokenId: token[r], room }));
+                const t0 = Date.now();
+                let where = null;
+                while (Date.now() - t0 < 30_000) {
+                    where = await inPage(ctx, plan, ({ sceneId, want }) => Object.fromEntries(want.map(w => {
+                        const t = game.scenes.get(sceneId)?.tokens.get(w.tokenId);
+                        return [w.r, t ? game.drpg.roomOfToken(t) ?? null : null];
+                    })), { sceneId: table.sceneId, want }).catch(() => null);
+                    if (where && want.every(w => where[w.r] === w.room)) break;
+                    await sleep(250);
+                }
+                arrived = { afterMs: Date.now() - since, where, all: Boolean(where && want.every(w => where[w.r] === w.room)) };
+            }
             const res = await converge(ctx, { roles, planRole: plan, users, since, timeout });
             const counted = {};
             for (const r of roles) {
@@ -240,9 +260,9 @@ export async function run(ctx) {
                     return t ? { room: game.drpg.roomOfToken(t) ?? null, x: t.x, y: t.y } : null;
                 }, { sceneId: table.sceneId, tokenId: token[r] }).catch(err => ({ threw: err.message }));
                 check(`${label}: the plan sends ${r} to ${room}`, res.plan?.targets?.[users[r]] === liveKitNames[room],
-                    J({ want: liveKitNames[room], plan: res.plan?.targets?.[users[r]], tokenNow, wrote: acted }), { ids });
+                    J({ want: liveKitNames[room], plan: res.plan?.targets?.[users[r]], tokenNow, arrived, wrote: acted }), { ids });
             }
-            note(`${label}: timings (ms from the write)`, [`converged in ${res.ms} ms`, ...Object.entries(res.per).map(([r, a]) =>
+            note(`${label}: timings (ms from the write)`, [`converged in ${res.ms} ms${arrived ? `; the moved tokens in their rooms ${arrived.all ? `after ${arrived.afterMs} ms` : `not within 30 s (${J(arrived.where)})`}` : ""}`, ...Object.entries(res.per).map(([r, a]) =>
                 `${r}: ${line(a)}; module connects ${counted[r]?.connects ?? "?"} (${counted[r]?.connectMs ?? "?"} ms)`)].join("\n"));
             return { ...res, acted, counted, since };
         };
