@@ -361,12 +361,26 @@ export async function run(ctx) {
         await settle(1000);
         await K.on("gm2", `F.start("closeTrial", () => game.drpg.closeTrial()); return true;`);
         await cut;
+        /* The first S1b run on the owner's PC (25.11.2026): about 6.5 s into the cut Foundry said "Server connection
+           lost" and reloaded GM1's page, which, offline, landed on chrome-error:// and stayed there; the chapter phase's
+           reload of GM1 then waited 180 s for a game that never came. Such a page is logged in again here, and
+           TRIAL-07's details say so: GM1 then left the game (the primary passed to GM2) rather than only missing
+           GM2's record, which the UNMEASURED line above assumed. */
+        await settle(3000);
+        const gm1Url = ctx.c.gm1.page.url();
+        let gm1LeftGame = null;
+        if (!/^https?:/.test(gm1Url)) {
+            gm1LeftGame = gm1Url;
+            await ctx.leave("gm1");
+            await ctx.rejoin("gm1");
+            await K.reinstall("gm1");
+        }
         await settle(30_000);
         const executed = await K.on("p2", `return { dead: game.drpg.isDeceased(game.actors.get(${J(A[killer].id)})), phase: game.drpg.getClock().phase };`);
         const closeJob = await K.on("gm2", `return { job: F.job("closeTrial"), primary: game.users.get((await F.imp("utils")).primaryGmId?.() ?? "")?.name ?? null };`);
-        wrote.push("GM2 ended the trial while GM1's network was cut for 15 s");
+        wrote.push(`GM2 ended the trial while GM1's network was cut for 15 s${gm1LeftGame ? " (GM1's page left the game and GM1 logged in again)" : ""}`);
         check(`TRIAL-07: GM2 ends the trial while GM1 is unreachable - ${killer}'s sentence is carried out (P2's page holds ${killer} dead 30 s after GM1 is back)`,
-            executed.dead, J({ executed, closeJob }), { ids: ["TRIAL-07"] });
+            executed.dead, J({ executed, closeJob, gm1LeftGame }), { ids: ["TRIAL-07"] });
 
         // ---------------------------------------------------------------- chapter
         phase("chapter");
