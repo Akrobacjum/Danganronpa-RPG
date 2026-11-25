@@ -17,8 +17,9 @@
  *   - it is on screen (the Class Trial console is noted instead when it is not: outside a trial it may decline to open)
  *   - no part of it lies past the viewport (its root's box, 1 px of slack)
  *   - no text overflows: every visible element of it holding text of its own (buttons, labels, headings, cells) whose
- *     text (a Range over its contents) reaches more than 1 px past its content box, scrolling boxes and form fields left
- *     out; the first 15 are listed (not `scrollWidth`, which counts a pseudo-element's frame: 25.11.2026)
+ *     `scrollWidth` exceeds its `clientWidth` by more than 1 px and whose text (a Range over its contents) reaches more
+ *     than 1 px past its content box, scrolling boxes and form fields left out; the first 15 are listed (both readings:
+ *     `scrollWidth` alone counts a pseudo-element's frame, the Range alone a turned element's box; 25.11.2026)
  *   - the messenger's write box (P1's and the GM's; 1.2.129, OWNER-129-WRITEBOX) opens at least three lines tall where
  *     the browser supports `field-sizing: content` (`CSS.supports`); its heights - empty, five lines, ten lines - are
  *     noted on every browser, as is whether it grew
@@ -111,10 +112,12 @@ function measure({ ids, selector }) {
             if (!ownText(el) || !el.getClientRects().length || /^(INPUT|TEXTAREA|SELECT|OPTION|SCRIPT|STYLE)$/.test(el.tagName)) continue;
             const cs = getComputedStyle(el);
             if (cs.visibility === "hidden" || cs.display === "none" || /auto|scroll/.test(cs.overflowX)) continue;
-            /* The text's own extent (a Range over the element's contents) against its content box. Not `scrollWidth`:
-               the first run (25.11.2026, owner's PC) found every Stained Glass button 5 px over by a `::before` frame
-               drawn at `inset: -4px -5px` while its text fitted; a pseudo-element is no text. Text clipped by an
-               ellipsis still lays out past the box, so it still counts. */
+            /* Text overflows when both readings say so: `scrollWidth` over `clientWidth`, and the text's own extent (a
+               Range over the element's contents) past its content box. The first run (25.11.2026, owner's PC) found
+               `scrollWidth` alone 5 px over on every Stained Glass button by a `::before` frame drawn at
+               `inset: -4px -5px` while the text fitted (a pseudo-element is no text), and the Range alone 1-3 px over
+               on the tilted HUD (a turned element's bounding box is wider than its text). Text that really spills
+               raises both; text clipped by an ellipsis still lays out past the box, so it still counts. */
             if (el.clientWidth <= 0) continue;
             const range = document.createRange();
             range.selectNodeContents(el);
@@ -123,7 +126,7 @@ function measure({ ids, selector }) {
             const left = b.left + parseFloat(cs.borderLeftWidth) + parseFloat(cs.paddingLeft);
             const right = b.left + parseFloat(cs.borderLeftWidth) + el.clientWidth - parseFloat(cs.paddingRight);
             const spill = Math.max(left - t.left, t.right - right);
-            if (t.width > 0 && spill > 1) {
+            if (el.scrollWidth > el.clientWidth + 1 && t.width > 0 && spill > 1) {
                 overflow.push({ at: path(el), text: el.textContent.trim().slice(0, 60), textWidth: Math.round(t.width), contentWidth: Math.round(right - left), spill: Math.round(spill),
                     scrollWidth: el.scrollWidth, clientWidth: el.clientWidth, overflowX: cs.overflowX, ellipsis: cs.textOverflow === "ellipsis" });
             }
