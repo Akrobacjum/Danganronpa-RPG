@@ -85,7 +85,7 @@ import { closeOpen } from "./live.mjs";
 import {
     announce as announcePlain, whisperToGms, whisperToOwner as whisperToOwnerPlain, ownerOf,
     ownerIdsOf, gmIds, isPrimaryGm, primaryGmId, hiddenByGm, worldLocalize, log, warn, error, plural, listOf, proseOf, debug, esc, cardHead, markFired,
-    playerOwns
+    playerOwns, activeGmIds
 } from "./utils.mjs";
 // The kit's frame (E21 C3a): the fight's questions and the checklists after it, answering as before.
 import { drpgWindow, drpgConfirm, tipText } from "./ui-kit.mjs";
@@ -432,6 +432,8 @@ export function freshIncidentState({ killerId, victimId, indirect = false, selfI
         // Opened by the Eclipse's lights (2.0 line T1 MURDER-01; D2-07): the opening's veil stands for this one alone
         // (mask-gm.mjs `veilWanted`). False for an incident opened anywhere else.
         atLights: Boolean(atLights),
+        // No GM throws the opening for its player yet (2.0 line T1 MURDER-04, MURDER-11; `throwStanding`).
+        openingThrower: null,
         turn: 0,
         turnSide: "victim",
         // Whose turn it is on the killers' side. One name until somebody joins
@@ -836,8 +838,9 @@ export async function resolveKillerOpening({ total, isCritical, withHope }) {
         try {
             const actor = game.actors.get(state.victimId);
             if (actor) {
+                // And that the GM ends it (2.0 line T1 MURDER-14), in the same card.
                 await whisperToOwner(actor,
-                    `<p>${game.i18n.localize("DRPG.Murder.selfWentThrough")}</p>`, withCentre());
+                    `<p>${game.i18n.localize("DRPG.Murder.selfWentThrough")}</p><p>${esc(game.i18n.localize("DRPG.Murder.stageSixEndsByGm"))}</p>`, withCentre());
             }
         } catch (err) {
             error("Could not tell the player their Stage 4 roll had landed", err);
@@ -3027,6 +3030,7 @@ async function finishIncident(state, key, band, done, killed = null, actorId = n
         { expect: { stage: "incident", openedAt: state.openedAt } })) return false;
     done.push(game.i18n.localize(
         key === "finishingBlow" ? "DRPG.Murder.victimDead" : "DRPG.Murder.incidentEnded"));
+    await tellKillersStageSix(state);
 
     // The killer can see their own traces from Stage 6 onwards - guide p. 26.
     if (key === "finishingBlow") {
@@ -3055,6 +3059,24 @@ async function finishIncident(state, key, band, done, killed = null, actorId = n
 }
 
 /**
+ * STAGE 6 ENDS ON THE GM'S WORD (2.0 line T1 MURDER-14; the recommendation the owner took: "zabojca w Stage 6 wie, ze
+ * koniec oglasza GM, i moze mu to zglosic"; P7's default, no bridge action): each killer of the incident is told, veiled,
+ * as Stage 6 opens, that the GM ends it and that they say so in their messenger thread when they are done
+ * (`DRPG.Murder.stageSixEndsByGm`). A death by the student's own hand says it on its own card (`selfWentThrough`'s).
+ * In its own try: a line that fails must not hold Stage 6 up.
+ */
+async function tellKillersStageSix(state) {
+    try {
+        for (const id of killerIds(state)) {
+            const killer = game.actors.get(id);
+            if (killer) await whisperToOwner(killer, `<p>${esc(game.i18n.localize("DRPG.Murder.stageSixEndsByGm"))}</p>`);
+        }
+    } catch (err) {
+        error("Could not tell the killers that the GM ends Stage 6", err);
+    }
+}
+
+/**
  * Move a running incident to Stage 6 without a Finishing Blow.
  *
  * A victim can stop being alive by routes this engine does not own: the GM's
@@ -3076,6 +3098,7 @@ export async function beginResolution(reason = "victimKilled") {
     if (!await writeState({ stage: "resolution", endedBy: reason },
         { expect: { stage: "incident", openedAt: state.openedAt } })) return null;
     await whisperToGms(`<p>${game.i18n.localize("DRPG.Murder.resolutionNote")}</p>`);
+    await tellKillersStageSix(state);
     log(`Incident moved to Stage 6 (${reason}).`);
     return murderState();
 }
@@ -4672,6 +4695,15 @@ export async function rollOpening(side, state, { proposal = null } = {}) {
     if (!actor) return null;
 
     const owner = ownerOf(actor);
+    /* NOT WHILE A GM THROWS IT FOR THEM (2.0 line T1 MURDER-11; the line the owner's recommendation chose: "brak
+       zaproszenia, gdy rzut za gracza jest w toku"). A GM who throws for the player - its owner away, or Throw for the
+       player (MURDER-04) - stands in the incident (`openingThrower`) while connected; the owner who asks meanwhile, at their
+       return or by a re-ask, is not invited and is told which GM throws (`DRPG.Murder.openingThrownByGm`). */
+    const thrower = openingThrowerStands(state);
+    if (thrower && thrower.id !== game.user?.id) {
+        if (owner?.active) await tellOwnersGmThrows(actor, thrower);
+        return null;
+    }
     const trait = await openingTraitFor(side, actor, state, { tell: Boolean(owner?.active), proposal });
     if (!trait) return null;
     // A victim's watch of 18 or more: one hindrance die on the killer's roll (E74, DA44 option A). The invitation says
@@ -4692,7 +4724,68 @@ export async function rollOpening(side, state, { proposal = null } = {}) {
         }
     }
 
-    return throwOpeningRoll(side, actor.id, trait, { hindrance });
+    // Thrown here for an owner away: this GM stands as the thrower until the window ends (MURDER-11).
+    return throwStanding(state, () => throwOpeningRoll(side, actor.id, trait, { hindrance }));
+}
+
+/**
+ * WHO THROWS THE OPENING FOR ITS PLAYER (2.0 line T1 MURDER-04, MURDER-11): the GM the incident names (`openingThrower`,
+ * a cast field: `{ userId, at, openedAt }`) while the opening waits, for this incident (`openedAt`), and that GM connected;
+ * else null. Pure but for the users it is handed (R8933).
+ */
+export function openingThrowerStands(state, { users = game.users } = {}) {
+    const t = state?.openingThrower;
+    if (!t || state?.stage !== "openingRoll" || state.endedBy === "noticed" || t.openedAt !== (state.openedAt ?? null)) return null;
+    const user = users?.get?.(t.userId);
+    return user && activeGmIds([user]).length ? user : null;
+}
+
+/** `throw` with this GM written as the opening's thrower (MURDER-11), cleared after unless another GM took it meanwhile. */
+async function throwStanding(state, toss) {
+    const expect = { stage: "openingRoll", openedAt: state?.openedAt ?? null };
+    await writeState({ openingThrower: { userId: game.user.id, at: Date.now(), openedAt: state?.openedAt ?? null } }, { expect })
+        .catch(err => error("Could not write who throws the opening", err));
+    try {
+        return await toss();
+    } finally {
+        if (murderState()?.openingThrower?.userId === game.user.id) {
+            await writeState({ openingThrower: null }, { expect }).catch(err => error("Could not clear who throws the opening", err));
+        }
+    }
+}
+
+/** The roller's owners told that a GM throws their opening (MURDER-04, MURDER-11); veiled, in its own try. */
+async function tellOwnersGmThrows(actor, gm) {
+    try {
+        await whisperToOwner(actor, `<p>${esc(game.i18n.format("DRPG.Murder.openingThrownByGm", { gm: gm?.name ?? "?" }))}</p>`);
+    } catch (err) {
+        error("Could not tell the player that a GM throws their opening", err);
+    }
+}
+
+/**
+ * THROW FOR THE PLAYER (2.0 line T1 MURDER-04; the recommendation the owner took: "Przycisk Rzuc za gracza w trackerze
+ * incydentu dla GM-a, takze przy polaczonym wlascicielu postaci"). On this GM's browser, whoever owns the roller: the
+ * GM's pick of the statistic as for any opening (`openingTraitFor`, no line to the roller), the owners' invitation taken
+ * back (`cancelOpeningRoll`, their window closes) and the owners told which GM throws, then the roll thrown here
+ * (`throwOpeningRoll`) with this GM as its thrower (`throwStanding`); a second GM's result goes to the primary as any
+ * (`requestOpeningResult`). Null when the opening does not wait any more, or the pick was closed.
+ */
+export async function throwForPlayer(state = murderState()) {
+    if (!game.user?.isGM || state?.stage !== "openingRoll" || state.endedBy === "noticed") return null;
+    const side = state.indirect ? "victim" : "killer";
+    const actor = game.actors.get((side === "killer" ? state.killerId : state.victimId) ?? "");
+    if (!actor) return null;
+    const trait = await openingTraitFor(side, actor, state, { tell: false });
+    if (!trait || !openingStillWanted(side, actor.id)) return null;
+    const { openingHindrance } = await import("./watch-gm.mjs");
+    const hindrance = openingHindrance(side, state);
+    return throwStanding(murderState() ?? state, async () => {
+        const { cancelOpeningRoll } = await import("./gm-bridge.mjs");
+        for (const userId of incidentAudienceIds(state, { stage: "openingRoll" })) cancelOpeningRoll({ userId });
+        if (ownerIdsOf(actor).some(id => game.users.get(id)?.active)) await tellOwnersGmThrows(actor, game.user);
+        return throwOpeningRoll(side, actor.id, trait, { hindrance });
+    });
 }
 
 /* THE OPENING'S CARD HAS ONE WRITER, THE PRIMARY GM (E128, 22.11.2026; scenario 61 F9b, OWNER-128-SECOND-GM). The memo

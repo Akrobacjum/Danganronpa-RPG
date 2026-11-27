@@ -122,6 +122,8 @@ export function registerGmBridge() {
         Hooks.on("userConnected", (user, connected) => {
             // A GM who left in the middle of a ruling holds no card any more (E18 C3).
             if (!connected && user?.id) releaseClaimsOf(user.id);
+            // A participant of a running incident who left (2.0 line T1 MURDER-06): the GMs told, the tracker marks it.
+            import("./murder-ui.mjs").then(m => m.noteParticipantLeft(user, connected)).catch(err => debug("Could not note a participant who left", err));
             if (connected || !user?.isGM || !isPrimaryGm({ leaving: user.id })) return;
             sweepAskCards({ leaving: user.id }).catch(err => debug("Could not sweep the asks' cards", err));
         });

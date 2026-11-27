@@ -3102,7 +3102,21 @@
       "deniedByIncident": "The incident has taken this one away from you.",
       "trackerScore": "{total} against {n}",
       "victimAttemptFailed": "Someone tried to kill you, and failed.",
-      "incidentRollFree": "This roll earns you no Hope and feeds no Despair."
+      "incidentRollFree": "This roll earns you no Hope and feeds no Despair.",
+      "openingWaitsOnPick": "The opening waits on a GM's pick of its statistic. If that window was closed, Ask for the opening roll again opens it once more.",
+      "trackerStageSixWaits": "Stage 6 lasts until you press End the murder.",
+      "stageSixEndsByGm": "The GM ends the Tamper stage. When you have finished cleaning up, tell the GM in your messenger thread.",
+      "throwForPlayer": "Throw for the player",
+      "throwForPlayerConfirm": "The roll is thrown here, on your screen. The player's roll window closes, and they are told that you throw for them.",
+      "openingThrownByGm": "The GM {gm} throws your opening roll for you.",
+      "awayTitle": "A participant left",
+      "awayGm": "{user} has left, and nobody plays {name} now.",
+      "awayTracker": "Nobody playing {name} is connected.",
+      "awayHint": {
+        "openingRoll": "You can press Throw for the player.",
+        "incident": "You can press Pass the turn.",
+        "resolution": "You can press End the murder."
+      }
     },
     "Investigation": {
       "clearPlan": {

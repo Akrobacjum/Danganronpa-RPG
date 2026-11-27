@@ -23526,7 +23526,7 @@ const REGRESSIONS = [
             ["gm-team-dialog.mjs", "wireMonokumaLive", "E46", 1, 0, 0], ["room-setup.mjs", "roomSetupContent", "E46", 2, 2, 0],
             ["season-wipe.mjs", "resetSeason", "E46", 2, 0, 0], ["tables-editor.mjs", "wireNewItemForm", "E46", 2, 0, 0],
             ["gm-panel.mjs", "buildPanelContent", "E47", 1, 0, 0], ["gm-stores.mjs", "backupCase", "E47", 1, 0, 0], ["gm-stores.mjs", "runHealthCheck", "E47", 0, 0, 0],
-            ["investigation.mjs", "caseKeyPanel", "E47", 2, 0, 0], ["murder-ui.mjs", "openMurderDialog", "E47", 2, 1, 0], ["murder-ui.mjs", "incidentTrackerHtml", "E47", 1, 0, 0],
+            ["investigation.mjs", "caseKeyPanel", "E47", 2, 0, 0], ["murder-ui.mjs", "openMurderDialog", "E47", 2, 1, 0], ["murder-ui.mjs", "incidentTrackerHtml", "E47", 2, 0, 0],
             ["projects-ui.mjs", "guardDescription", "E47", 1, 0, 0], ["projects-ui.mjs", "ownedFieldset", "E47", 1, 0, 0], ["projects-ui.mjs", "passageFieldset", "E47", 1, 0, 0],
             ["trial-floor-ui.mjs", "endClassTrial", "E47", 1, 1, 0], ["trial-floor-ui.mjs", "confirmReveal", "E47", 1, 0, 0],
             ["trial-floor-ui.mjs", "trialConsoleHtml", "E47", 2, 3, 0], ["trial-floor-ui.mjs", "openVoteDialog", "E47", 2, 2, 0],
@@ -23653,8 +23653,9 @@ const REGRESSIONS = [
                card, its hidden copy and the opening's score - ask for the middle through notice-centre.mjs `withCentre`
                (built), as they were messages before. */
             // 2.0 line T1 D2-08: murder-rules.mjs +1 line (a failed opening's one sentence to its victim, `tellVictimTheAttemptFailed`);
-            // body.mjs +1 line (EXP-GM-02, `tellGmsLoneFinder`).
-            "murder-rules.mjs": {"action": 1, "built": 4, "card": 6, "heading": 3, "line": 10, "message": 4},
+            // body.mjs +1 line (EXP-GM-02, `tellGmsLoneFinder`); murder-rules.mjs +1 line (MURDER-14, `tellKillersStageSix`) and +1
+            // (MURDER-04, `tellOwnersGmThrows`); murder-ui.mjs +1 line (MURDER-06, `noteParticipantLeft`).
+            "murder-rules.mjs": {"action": 1, "built": 4, "card": 6, "heading": 3, "line": 12, "message": 4}, "murder-ui.mjs": {"line": 1},
             "music.mjs": {"card": 1}, "observe.mjs": {"card": 4, "heading": 1, "line": 3},
             "overflow.mjs": {"built": 1, "message": 2}, "palm.mjs": {"built": 2, "line": 2}, "passages-gm.mjs": {"line": 4},
             "price.mjs": {"line": 2}, "private-rolls.mjs": {"message": 1}, "projects-map.mjs": {"card": 1, "line": 1},

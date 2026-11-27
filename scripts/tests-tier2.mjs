@@ -118775,6 +118775,166 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             "{told: after the leaver's own copy alone; revealed: after the GM's Reveal} x [the row's first find, its road, the ref's found]");
     }],
     // T1 murder-death-eclipse
+    ["T1 MURDER-06 - a participant's disconnect raises one GM card and marks the tracker (2.0 line T1; scripts/murder-ui.mjs `noteParticipantLeft`, `awayLines`; gm-bridge.mjs the `userConnected` hook)", async () => {
+        /*
+         * 2.0 line T1, 27.11.2026 (MURDER-06, the recommendation the owner took: "Powiadomienie GM-ow i znak w trackerze, ze
+         * uczestnik jest rozlaczony, z podpowiedzia drogi"). A direct murder at its opening, its invitation held; the killer's
+         * player is read as gone (its `active` answered false while the test runs, as Foundry's user reads after the socket
+         * goes) and the hook's call made as gm-bridge.mjs makes it. Read: the GMs' notice cards (`gmPopup`) and whether the
+         * first names the killer and the way on, and the tracker's warning. Red at 658302a: no `noteParticipantLeft`.
+         */
+        needs(env.primaryGm(), "the card has one writer, the primary");
+        needs(world.atLeast("studentsWithConnectedPlayer", 2), "a killer whose player is connected, and a victim");
+        const M = await import("./murder.mjs");
+        const U = await import("./murder-ui.mjs");
+        const { cardFlag, wordsOf } = await import("./secret.mjs");
+        const cleanup = await import("./cleanup.mjs");
+        const { livingStudents } = await import("./chapter.mjs");
+        must(typeof U.noteParticipantLeft === "function", "murder-ui.mjs has no noteParticipantLeft - nobody is told a participant left");
+        const player = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const [killer, victim] = livingStudents().filter(player);
+        const owner = player(killer);
+        must(game.users.filter(u => !u.isGM && killer.testUserPermission(u, "OWNER")).length === 1, "the killer has a co-owner - this would measure something else");
+        const made = [];
+        const hook = Hooks.on("createChatMessage", m => made.push(m.id));
+        const read = {};
+        try {
+            await heldInvitations(async () => {
+                await M.openMurder({ killerId: killer.id, victimId: victim.id, openingTrait: "body" });
+                await settle();
+                const had = Object.getOwnPropertyDescriptor(owner, "active");
+                Object.defineProperty(owner, "active", { value: false, configurable: true });
+                try {
+                    await U.noteParticipantLeft(owner, false);
+                    await settle();
+                    const cards = game.messages.filter(m => made.includes(m.id) && cardFlag(m, "gmPopup") === true);
+                    read.cards = cards.length;
+                    const text = cards[0] ? String(await wordsOf(cards[0], 2000)) : "";
+                    read.names = [text.includes(killer.name), text.includes(game.i18n.localize("DRPG.Murder.awayHint.openingRoll"))];
+                    read.tracker = U.incidentTrackerHtml(M.murderState(), cleanup).includes(`${game.i18n.format("DRPG.Murder.awayTracker", {
+                        name: foundry.utils.escapeHTML(killer.name) })} ${game.i18n.localize("DRPG.Murder.awayHint.openingRoll")}`);
+                } finally {
+                    if (had) Object.defineProperty(owner, "active", had); else delete owner.active;
+                }
+                read.back = U.incidentTrackerHtml(M.murderState(), cleanup).includes(game.i18n.localize("DRPG.Murder.awayHint.openingRoll"));
+            });
+        } finally {
+            Hooks.off("createChatMessage", hook);
+            if (M.murderState()) await M.endMurder({ reason: "test", followUp: false });
+            for (const id of made) await game.messages.get(id)?.delete().catch(() => {});
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ cards: 1, names: [true, true], tracker: true, back: false }),
+            "{cards: the GMs' notice cards; names: [the killer, the way on] on it; tracker: the tracker's warning while gone; back: the warning once the player is back}");
+    }],
+    ["T1 MURDER-04 - Throw for the player throws on the GM with the owner connected, and the owner's invitation is taken back (2.0 line T1; scripts/murder-rules.mjs `throwForPlayer`, `throwStanding`; murder-ui.mjs `incidentButtons`)", async () => {
+        /*
+         * 2.0 line T1, 27.11.2026 (MURDER-04, the recommendation the owner took: "Przycisk Rzuc za gracza w trackerze incydentu
+         * dla GM-a, takze przy polaczonym wlascicielu postaci"). A direct murder opened with its statistic picked, the killer's
+         * player connected and the invitation held (no player's browser throws); then Throw for the player on this GM, the
+         * killer's `rollTrait` replaced by one that notes the statistic and who the incident names as the thrower, and fails
+         * the opening. Read: the invitations and their withdrawals to the owner during the throw, the words to the owner, what
+         * was thrown here and who stood as the thrower, and the thrower after. Red at 658302a: no `throwForPlayer`.
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 2), "a killer whose player is connected, and a victim");
+        const M = await import("./murder.mjs");
+        const R = await import("./murder-rules.mjs");
+        const { livingStudents } = await import("./chapter.mjs");
+        must(typeof R.throwForPlayer === "function", "murder-rules.mjs has no throwForPlayer - a GM cannot throw for a connected player");
+        const player = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const [killer, victim] = livingStudents().filter(player);
+        const owner = player(killer);
+        const socket = game.socket, own = Object.getOwnPropertyDescriptor(socket, "emit"), send = socket.emit;
+        const packets = [];
+        let during = false;
+        socket.emit = function (event, packet, options, ...rest) {
+            const to = options?.recipients ?? [];
+            if (packet?.action === "murder.openingAsk") { if (during) packets.push("ask"); return true; }
+            if (during && to.includes(owner.id) && packet?.action === "murder.openingCancel") packets.push("cancel");
+            if (during && to.includes(owner.id) && typeof packet?.html === "string" && packet.html.includes(game.i18n.format("DRPG.Murder.openingThrownByGm", { gm: game.user.name }))) packets.push("told");
+            return send.call(this, event, packet, options, ...rest);
+        };
+        const made = [];
+        const hook = Hooks.on("createChatMessage", m => made.push(m.id));
+        const thrown = [];
+        let after = "unread";
+        try {
+            await M.openMurder({ killerId: killer.id, victimId: victim.id, openingTrait: "body" });
+            await settle();
+            killer.rollTrait = async (dh) => {
+                thrown.push([dh, M.murderState()?.openingThrower?.userId === game.user.id]);
+                if (M.murderState()?.stage === "openingRoll") await M.resolveKillerOpening({ total: 1, isCritical: false, withHope: false });
+                return null;
+            };
+            during = true;
+            await R.throwForPlayer();
+            during = false;
+            await settle();
+            after = M.murderState()?.openingThrower ?? null;
+        } finally {
+            during = false;
+            if (own) Object.defineProperty(socket, "emit", own); else delete socket.emit;
+            Hooks.off("createChatMessage", hook);
+            delete killer.rollTrait;
+            if (M.murderState()) await M.endMurder({ reason: "test", followUp: false });
+            for (const id of made) await game.messages.get(id)?.delete().catch(() => {});
+            await settle();
+        }
+        equal(stableJson({ packets: [...new Set(packets)].sort(), asks: packets.filter(p => p === "ask").length, thrown, after }),
+            stableJson({ packets: ["cancel", "told"], asks: 0, thrown: [["strength", true]], after: null }),
+            "{packets: what reached the owner during the throw; asks: invitations among them; thrown: [the statistic, this GM named the thrower] thrown here; after: the thrower once the opening failed}");
+    }],
+    ["T1 MURDER-11 - a returning owner is not invited while another GM throws (2.0 line T1; scripts/murder-rules.mjs `rollOpening`, `openingThrowerStands`; bridge-runs-acts.mjs `reaskOwedOpening`)", async () => {
+        /*
+         * 2.0 line T1, 27.11.2026 (MURDER-11; the line chosen: "brak zaproszenia, gdy rzut za gracza jest w toku"). A direct
+         * murder opened with its statistic picked, its invitation held; the incident then names another connected GM as the
+         * opening's thrower (a stand-in user answers for it while the test runs), and the opening is asked again as the
+         * owner's return asks it (`rollOpening`, which `reaskOwedOpening` calls). Read: the invitations sent, the lines to the
+         * owner naming that GM, and what the ask answered. Red at 658302a: the owner invited.
+         */
+        needs(env.primaryGm(), "the re-ask at a player's return is the primary's");
+        needs(world.atLeast("studentsWithConnectedPlayer", 2), "a killer whose player is connected, and a victim");
+        const M = await import("./murder.mjs");
+        const { writeState } = await import("./incident-store.mjs");
+        const { livingStudents } = await import("./chapter.mjs");
+        const player = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const [killer, victim] = livingStudents().filter(player);
+        const owner = player(killer);
+        const ID = "T1MURDER11GM0000";
+        const stand = { id: ID, name: "T1 MURDER-11 GM", active: true, isGM: true, role: CONST.USER_ROLES.GAMEMASTER };
+        const users = game.users, ownGet = Object.getOwnPropertyDescriptor(users, "get"), get = users.get;
+        const socket = game.socket, own = Object.getOwnPropertyDescriptor(socket, "emit"), send = socket.emit;
+        let asks = 0, told = 0, during = false, answer = "unread";
+        socket.emit = function (event, packet, options, ...rest) {
+            if (packet?.action === "murder.openingAsk") { if (during) asks += 1; return true; }
+            if (during && (options?.recipients ?? []).includes(owner.id) && typeof packet?.html === "string"
+                && packet.html.includes(game.i18n.format("DRPG.Murder.openingThrownByGm", { gm: stand.name }))) told += 1;
+            return send.call(this, event, packet, options, ...rest);
+        };
+        const made = [];
+        const hook = Hooks.on("createChatMessage", m => made.push(m.id));
+        try {
+            await M.openMurder({ killerId: killer.id, victimId: victim.id, openingTrait: "body" });
+            await settle();
+            users.get = function (id, ...rest) { return id === ID ? stand : get.call(this, id, ...rest); };
+            must(await writeState({ openingThrower: { userId: ID, at: Date.now(), openedAt: M.murderState()?.openedAt ?? null } },
+                { expect: { stage: "openingRoll" } }), "the thrower could not be written - this would measure nothing");
+            during = true;
+            answer = await M.rollOpening("killer", M.murderState());
+            during = false;
+            await settle();
+        } finally {
+            during = false;
+            if (ownGet) Object.defineProperty(users, "get", ownGet); else delete users.get;
+            if (own) Object.defineProperty(socket, "emit", own); else delete socket.emit;
+            Hooks.off("createChatMessage", hook);
+            if (M.murderState()) await M.endMurder({ reason: "test", followUp: false });
+            for (const id of made) await game.messages.get(id)?.delete().catch(() => {});
+            await settle();
+        }
+        equal(stableJson({ asks, told, answer }), stableJson({ asks: 0, told: 1, answer: null }),
+            "{asks: invitations sent while another GM throws; told: the owner's lines naming that GM; answer: what the ask answered}");
+    }],
     ["T1 MURDER-05 - an answer written on the row closes the other GM's window (2.0 line T1; scripts/body.mjs `promptPendingBodies`, `bodyPromptAnsweredElsewhere`)", async () => {
         /*
          * 2.0 line T1, 27.11.2026 (MURDER-05, the recommendation the owner took: "Okno "Uczniowie znalezli cialo" u wszystkich

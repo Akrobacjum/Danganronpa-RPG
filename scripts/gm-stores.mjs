@@ -374,6 +374,9 @@ export const INCIDENT_FIGHT = Object.freeze([
  * `atLights` (2.0 line T1 MURDER-01, 27.11.2026; the owner's D2-07): true for an incident the Eclipse's lights opened
  * (eclipse.mjs `judgePendingMurders`), false for one opened anywhere else. The opening's veil stands only for the first
  * (mask-gm.mjs `veilWanted`). The GMs' alone: every player's copy holds it null, as `watchDie`.
+ * `openingThrower` (2.0 line T1 MURDER-04, MURDER-11): `{ userId, at, openedAt }`, the GM throwing the opening for its
+ * player while that window stands (murder-rules.mjs `throwStanding`), null otherwise; a player is not invited while it
+ * stands and its GM is connected (`openingThrowerStands`). The GMs' alone, null in every player's copy.
  *
  * `freeCleanup` (E32+E07 C13, 03.10.2026; audit S04-07, the owner's D13): the actor id of
  * whoever struck a critical Finishing blow, until their first clean-up attempt in Stage 6
@@ -399,7 +402,7 @@ export const INCIDENT_FIGHT = Object.freeze([
  * read out of the incident by `readCast` and `castCopyFor`.
  */
 export const CAST_FIELDS = Object.freeze([
-    "killerId", "killerTurnId", "victimId", "thirdId", "thirdSide", "departed", "openingTrait", "watchDie", "atLights", "freeCleanup", "recent", "lastCrisis", "betrayal", "swung", ...INCIDENT_METHOD,
+    "killerId", "killerTurnId", "victimId", "thirdId", "thirdSide", "departed", "openingTrait", "watchDie", "atLights", "openingThrower", "freeCleanup", "recent", "lastCrisis", "betrayal", "swung", ...INCIDENT_METHOD,
     ...INCIDENT_FIGHT,
     /* A GM's "Silence now" (E72 C8; the plan's A9 of 11.10): `{ [actorId]: true }` for a dead student whose voice leaves
        the room before the body is found (voice.mjs `deathVoiceGone`). Split, so two GMs silencing two students both stay;

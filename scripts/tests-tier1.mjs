@@ -69836,6 +69836,54 @@ const INVARIANTS = [
         "{rows: [hidden, knows, incident, shown, shown with HOLDER_SEES_HIDDEN false]; the constant; a GM knows any trace; applyToRemnantToken asks the rule with knowsRemnant and shows a hidden held trace; shownAsFound asks the same; showHeld does not defer to a GM's hidden}");
     }],
     // T1 murder-death-eclipse
+    ["R8934 - who of the cast an incident waits on now, and whether nobody playing them is connected: the opening's roller, the side to act in the fight, every killer at Stage 6 (2.0 line T1 MURDER-06; scripts/murder-ui.mjs `expectedParticipants`, `participantAway`)", async () => {
+        /* 2.0 line T1, 27.11.2026. Pure over stand-in states, actors and users; nothing written. Red at 658302a: neither
+           function existed - a failed import is this test's red. */
+        const U = await import("./murder-ui.mjs");
+        must(typeof U.expectedParticipants === "function" && typeof U.participantAway === "function", "murder-ui.mjs has no expectedParticipants or participantAway");
+        const base = { active: true, killerId: "K", victimId: "V", thirdId: "T", killerTurnId: "K" };
+        const at = extra => { const r = U.expectedParticipants({ ...base, ...extra }); return [r.ids, r.hint]; };
+        const waits = [at({ stage: "openingRoll" }), at({ stage: "openingRoll", indirect: true }), at({ stage: "openingRoll", endedBy: "noticed" }),
+            at({ stage: "incident", turnSide: "victim" }), at({ stage: "incident", turnSide: "killer" }), at({ stage: "incident", turnSide: "third" }),
+            at({ stage: "incident", selfInflicted: true }), U.expectedParticipants(null).ids];
+        const actor = owners => ({ testUserPermission: u => owners.includes(u.id) });
+        const users = [{ id: "P1", isGM: false, active: false }, { id: "P2", isGM: false, active: true }, { id: "GM", isGM: true, active: true }];
+        const away = [U.participantAway(actor(["P1"]), users), U.participantAway(actor(["P1", "P2"]), users), U.participantAway(actor([]), users)];
+        equal(JSON.stringify({ waits, away }), JSON.stringify({ waits: [[["K"], "openingRoll"], [["V"], "openingRoll"], [[], null], [["V"], "incident"], [["K"], "incident"],
+            [["T"], "incident"], [[], null], []], away: [true, false, false] }),
+            "{waits: [the opening, a trap's, noticed, the victim's turn, the killer's, the third's, by their own hand, none]; away: [its one owner gone, a co-owner here, nobody owns it]}");
+    }],
+    ["R8933 - the tracker offers Throw for the player while the opening waits on a roll, not once a trap's victim noticed it; and the GM who throws stands only for this incident's opening while connected (2.0 line T1 MURDER-04, MURDER-11; scripts/murder-ui.mjs `incidentButtons`, murder-rules.mjs `openingThrowerStands`)", async () => {
+        /* 2.0 line T1, 27.11.2026. Pure over stand-in states and users; nothing written. Red at 658302a: no Throw for the
+           player, and no `openingThrowerStands`. */
+        const U = await import("./murder-ui.mjs");
+        const R = await import("./murder-rules.mjs");
+        must(typeof R.openingThrowerStands === "function", "murder-rules.mjs has no openingThrowerStands - nothing says a GM throws for the player");
+        const has = state => (U.incidentButtons(state).secondary ?? []).some(b => b.action === "throwFor");
+        const buttons = [has({ stage: "openingRoll" }), has({ stage: "openingRoll", endedBy: "noticed" }), has({ stage: "incident" }), has({ stage: "resolution" })];
+        const users = new Map([["GM2", { id: "GM2", active: true, isGM: true }], ["GONE", { id: "GONE", active: false, isGM: true }], ["P1", { id: "P1", active: true, isGM: false }]]);
+        const at = (userId, extra = {}) => R.openingThrowerStands({ stage: "openingRoll", openedAt: 5, openingThrower: { userId, at: 1, openedAt: 5 }, ...extra }, { users })?.id ?? null;
+        const stands = [at("GM2"), at("GONE"), at("P1"), at("GM2", { stage: "incident" }), at("GM2", { openedAt: 6 }), at("GM2", { endedBy: "noticed" }),
+            R.openingThrowerStands({ stage: "openingRoll", openedAt: 5, openingThrower: null }, { users })];
+        equal(JSON.stringify({ buttons, stands }), JSON.stringify({ buttons: [true, false, false, false], stands: ["GM2", null, null, null, null, null, null] }),
+            "{buttons: Throw for the player at [the opening, a trap's victim who noticed, the fight, Stage 6]; stands: [a connected GM, one gone, a player, the fight, another incident, noticed, nobody]}");
+    }],
+    ["R8932 - the tracker says what the incident waits on: the GM's pick of the opening's statistic while none is picked, and End the murder at Stage 6; and every killer is told as Stage 6 opens that the GM ends it (2.0 line T1 MURDER-12, MURDER-14; scripts/murder-ui.mjs `trackerWaitLines`, murder-rules.mjs `tellKillersStageSix`)", async () => {
+        /* 2.0 line T1, 27.11.2026. Pure over stand-in states; the two murder-rules.mjs roads to Stage 6 and the line read in
+           their source; nothing written. Red at 658302a: no `trackerWaitLines`, and no killer's line at Stage 6. */
+        const U = await import("./murder-ui.mjs");
+        must(typeof U.trackerWaitLines === "function", "murder-ui.mjs exports no trackerWaitLines - the tracker says nothing of what the incident waits on");
+        const pick = game.i18n.localize("DRPG.Murder.openingWaitsOnPick"), six = game.i18n.localize("DRPG.Murder.trackerStageSixWaits");
+        const said = now => U.trackerWaitLines(now).map(l => l === pick ? "pick" : l === six ? "six" : "?");
+        const lines = [said({ stage: "openingRoll", openingTrait: null }), said({ stage: "openingRoll", openingTrait: "body" }),
+            said({ stage: "openingRoll", openingTrait: null, endedBy: "noticed" }), said({ stage: "incident", openingTrait: "body" }), said({ stage: "resolution" }), said(null)];
+        const src = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/murder-rules.mjs`).then(lfText));
+        const calls = ["finishIncident", "beginResolution"].map(fn => /tellKillersStageSix\(state\)/.test(fnSource(src, fn) ?? ""));
+        const line = /DRPG\.Murder\.stageSixEndsByGm/.test(fnSource(src, "tellKillersStageSix") ?? "") && /killerIds\(state\)/.test(fnSource(src, "tellKillersStageSix") ?? "");
+        const keys = [game.i18n.has("DRPG.Murder.stageSixEndsByGm"), pick !== "DRPG.Murder.openingWaitsOnPick", six !== "DRPG.Murder.trackerStageSixWaits"];
+        equal(JSON.stringify({ lines, calls, line, keys }), JSON.stringify({ lines: [["pick"], [], [], [], ["six"], []], calls: [true, true], line: true, keys: [true, true, true] }),
+            "{lines: [opening, no pick; picked; a trap's victim noticed; the fight; Stage 6; no incident]; calls: finishIncident, beginResolution tell the killers; line: the killers' line is the key, to every killer; keys: the three keys}");
+    }],
     ["R8930 - every full Gamemaster answers the 'Students found a body' window, an Assistant GM none, and a window closes on another GM's answer younger than itself or on its row gone (2.0 line T1 MURDER-05; scripts/body.mjs `answersBodyPrompt`, `bodyPromptAnsweredElsewhere`)", async () => {
         /* 2.0 line T1, 27.11.2026. Pure over stand-in users and rows; nothing written. Red at 658302a: a second full GM
            answered false (`user.id === primaryId`), and `bodyPromptAnsweredElsewhere` did not exist. */

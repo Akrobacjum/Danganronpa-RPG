@@ -3264,7 +3264,21 @@
       "deniedByIncident": "Incydent odebrał ci tę akcję.",
       "trackerScore": "{total} wobec {n}",
       "victimAttemptFailed": "Ktoś próbował cię zabić, ale mu się nie udało.",
-      "incidentRollFree": "Ten rzut nie daje ci Hope i nie zasila Despair."
+      "incidentRollFree": "Ten rzut nie daje ci Hope i nie zasila Despair.",
+      "openingWaitsOnPick": "Otwarcie czeka, aż GM wybierze statystykę. Jeśli to okno zostało zamknięte, Poproś o rzut otwarcia ponownie otworzy je jeszcze raz.",
+      "trackerStageSixWaits": "Stage 6 trwa, dopóki nie naciśniesz Zakończ morderstwo.",
+      "stageSixEndsByGm": "Etap Tamper kończy GM. Gdy skończysz sprzątać, napisz do GM-a w swoim wątku komunikatora.",
+      "throwForPlayer": "Rzuć za gracza",
+      "throwForPlayerConfirm": "Rzut pada tutaj, na twoim ekranie. Okno rzutu gracza się zamyka, a gracz dowiaduje się, że rzucasz za niego.",
+      "openingThrownByGm": "GM {gm} rzuca za ciebie rzut otwarcia.",
+      "awayTitle": "Uczestnik wyszedł",
+      "awayGm": "{user} wychodzi i nikt teraz nie gra postacią {name}.",
+      "awayTracker": "Nikt, kto gra postacią {name}, nie jest połączony.",
+      "awayHint": {
+        "openingRoll": "Możesz nacisnąć Rzuć za gracza.",
+        "incident": "Możesz nacisnąć Oddaj turę.",
+        "resolution": "Możesz nacisnąć Zakończ morderstwo."
+      }
     },
     "Investigation": {
       "clearPlan": {

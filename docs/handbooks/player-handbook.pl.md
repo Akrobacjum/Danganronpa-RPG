@@ -810,7 +810,7 @@ Finishing Blow to też akcja rozstrzygnięcia: kosztuje 1 Sanity, a gdy Sanity s
 
 Akcja wymierzona w drugą stronę wymaga o 1 więcej, gdy ta strona jest silna: Strike, Attack with a Weapon i Pin Them Down, gdy Body ofiary to +1 lub więcej; Keep Your Distance, gdy Leg ofiary to +1 lub więcej; Self-Defense i Role Reversal, gdy Body zabójcy to +1 lub więcej; Survive i Escape Together, gdy Leg zabójcy to +1 lub więcej. Kafelek to mówi, na przykład "Przebij 16 (+1 za Body ofiary)". Gdy nie możesz wiedzieć, kto jest zabójcą (zabójca za "?" albo pułapka), kafelek i okno rzutu mówią "Przebij 18 + ukryta obrona": GM ocenia rzut ze statystyką zabójcy, a twoja karta wyniku podaje tylko twój wynik wobec tej liczby i czy to trafienie. Rzuty otwarcia nigdy się tak nie zmieniają.
 
-Po incydencie przychodzi sprzątanie. Twój kafelek Tamper wymienia teraz każdy Remnant w pokoju, w którym stoisz, twój i każdego innego. Na własnej scenie próba nie kosztuje akcji, tylko **1 Sanity**. Usuwanie, przerabianie i Misleading Trail rzucają Shadow i nikogo nie pytasz.
+Po incydencie przychodzi sprzątanie. Twój kafelek Tamper wymienia teraz każdy Remnant w pokoju, w którym stoisz, twój i każdego innego. Na własnej scenie próba nie kosztuje akcji, tylko **1 Sanity**. Usuwanie, przerabianie i Misleading Trail rzucają Shadow i nikogo nie pytasz. Sprzątanie trwa, dopóki nie zakończy go GM: dowiadujesz się o tym na jego początku, a gdy skończysz, napisz do GM-a w swoim wątku komunikatora.
 
 | Opcja | Rzut i co robi |
 |---|---|
