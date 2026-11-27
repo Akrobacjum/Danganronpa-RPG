@@ -15,8 +15,9 @@
  * count of connects (`game.drpg.counters()` "voice.connect", "voice.connect.ms") and its Debug lines "the connect for X
  * took N ms" (the client setting `debug` is turned on in each test browser for the run and put back).
  *
- * THE CHECK in every phase is one: every page ends in the room the plan names, within the phase's time. Everything
- * else is a measurement, in the notes as numbers, never a verdict: VOICE-01 (a crossing is a reconnect; how long),
+ * THE CHECK in every phase is one: every page ends in the room the plan names, within the phase's time - with, where
+ * the phase knows the answer, "the plan sends <role> to <room>" per moved token, and in the offline phase FORGE-04's
+ * (the voice tile's word before the page leaves the game; 2.0 line T4, 27.11.2026). Everything else is a measurement, in the notes as numbers, never a verdict: VOICE-01 (a crossing is a reconnect; how long),
  * VOICE-02 (a quick A->B->C walk: how many connects, and was B joined), VOICE-07 (the Eclipse's start and end: how
  * many pages reconnect within one second of each other), VOICE-05 (the primary GM leaving: how long until the second GM
  * runs a pass, and where a token outside every room goes), VOICE-06 (a reload: how many connects), PRIM-02 (the first GM
@@ -34,7 +35,8 @@
  *   back            p1 B -> A
  *   walk            p1 A -> B -> C, DRPG_S5_STEP_MS (400) between the two writes; then C -> B -> A at 2500 ms
  *   all at once     p1-p4 each to another room in one write
- *   offline         p4's browser offline for 15 s (context.setOffline), then back
+ *   offline         p4's browser offline for 15 s (context.setOffline), then back; in its first 6 s the voice tile's
+ *                   word that the server is lost read on p4's page (FORGE-04, a check of its own)
  *   eclipse         the primary GM's startEclipse, then endEclipse({ advance: false }) (VOICE-07)
  *   reload          p3's F5 (VOICE-06)
  *   primary leaves  p4 stood outside every room beside two (a doorway or corridor the scan found), then GM1's browser
@@ -59,6 +61,7 @@
 import { config } from "../lib.mjs";
 import { J, sleep, inPage, ensureKit, present, readTable, placeTokens, moveTokens, unpause, chooseRooms, converge,
     planOf, primaryRole, voiceCounters, liveKitToasts, moduleErrors } from "../table.mjs";
+import { watchServerLost, serverLostShown } from "../page-kit.mjs";
 
 export const meta = {
     id: "s5-voice",
@@ -317,7 +320,11 @@ export async function run(ctx) {
 
         phase("offline");
         const offline = await measured("offline: p4 offline for 15 s, then back", async () => {
+            /* FORGE-04 (2.0 line T4, 27.11.2026): P4's page read raw from the cut on, before Foundry's reload at about
+               6.5 s, beside the cut itself (page-kit.mjs `watchServerLost`, as s3-disconnects.mjs phase A reads P1). */
+            const lostWatch = watchServerLost(ctx.c.p4.page, { ms: 6000, every: 250 });
             await ctx.offline("p4", 15_000);
+            const lost = await lostWatch;
             const back = Date.now();
             /* S3's runs on the owner's PC (25.11.2026): about 6.5 s into a cut Foundry says "Server connection lost"
                and reloads, which, offline, lands on chrome-error:// and stays there when the network is back. Such a
@@ -335,8 +342,10 @@ export async function run(ctx) {
             await ctx.until("p4", "return game.ready === true", { timeout: 120_000 });
             const reloaded = await ensureKit(ctx, "p4");
             if (reloaded) await inPage(ctx, "p4", () => window.__qa.startSampler(100));
-            return { back, reloaded, leftGame, loggedInAgainAfterMs: leftGame ? Date.now() - back : null };
+            return { back, reloaded, leftGame, loggedInAgainAfterMs: leftGame ? Date.now() - back : null, lost };
         }, { timeout: 120_000, ids: ["VOICE-01"] });
+        check("offline: FORGE-04: P4's voice tile says the server is lost before the page leaves the game",
+            serverLostShown(offline.acted?.lost), J({ road: offline.acted?.lost?.seen?.road ?? null, ...offline.acted?.lost }), { ids: ["FORGE-04"] });
         const p4 = offline.per.p4;
         note("offline: p4 after 15 s offline", J({ pageReloaded: offline.acted?.reloaded, pageLeftGame: offline.acted?.leftGame ?? null, loggedInAgainAfterMs: offline.acted?.loggedInAgainAfterMs ?? null, matchedAfterBackMs: p4?.matched ? p4.matchedAfterMs - ((offline.acted?.back ?? offline.since) - offline.since) : null,
             silentMs: p4?.silentMs, reconnects: p4?.reconnects, othersReconnected: Object.entries(offline.per).filter(([r, a]) => r !== "p4" && a.reconnects > 0).map(([r]) => r) }));

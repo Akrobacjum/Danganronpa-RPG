@@ -405,6 +405,61 @@ export function noticeWith(seen, piece) {
     return (seen ?? []).find(n => String(n.text ?? "").includes(piece)) ?? null;
 }
 
+/*
+ * FORGE-04 (2.0 line T4, 27.11.2026): about 6.5 s into a cut Foundry says "Server connection lost" and reloads the page,
+ * which, offline, lands on chrome-error:// (F3-forge-PC-2.md, the probe of 25.11.2026 02:17). 2.0's voice tile says so
+ * first: `#drpg-voice-tile` with `data-drpg-server-lost="true"` and a `.drpg-voice-server-lost` element holding the
+ * words, EN "No connection to the game server. ..." / PL "Brak połączenia z serwerem gry. ..."; with the world's
+ * `voiceTile` off, one `ui.notifications.warn` with the same words instead. `watchServerLost` reads the page raw (no kit:
+ * a kit's call would not survive the page leaving) every `every` ms from the moment it is called - right after the
+ * network is cut - for `ms` or until the page navigates away or a road is seen. The toast road is read off the page
+ * hooks' record of every notification (`window.__notifications`, audit/live/page-hooks.js), which the module's toast
+ * passes through like any other. Answers `{ seen: { road: "tile" | "toast", atMs } | null, left: { atMs, url, why } |
+ * null, reads, last, tileSetting }`; the scenario's check decides what counts.
+ */
+const LOST_WORDS = /no connection to the game server|brak po\u0142\u0105czenia z serwerem gry/i;
+export async function watchServerLost(page, { ms = 6000, every = 250 } = {}) {
+    const t0 = Date.now();
+    let seen = null, left = null, last = null, reads = 0, tileSetting;
+    while (Date.now() - t0 < ms) {
+        let r;
+        try {
+            r = await page.evaluate(source => {
+                const words = new RegExp(source, "i");
+                const tile = document.getElementById("drpg-voice-tile");
+                const lostEl = tile?.querySelector(".drpg-voice-server-lost") ?? null;
+                let setting = null;
+                try { setting = globalThis.game?.settings?.get?.("danganronpa-rpg", "voiceTile") ?? null; } catch { setting = "unread"; }
+                const toasts = (window.__notifications ?? []).filter(n => words.test(String(n?.message ?? "")));
+                return { url: location.href, tile: Boolean(tile), lost: tile?.getAttribute("data-drpg-server-lost") ?? null,
+                    text: String(lostEl?.textContent ?? "").replace(/\s+/g, " ").trim().slice(0, 200), setting,
+                    toasts: toasts.map(n => ({ type: String(n.type ?? ""), message: String(n.message ?? "").slice(0, 200) })),
+                    socket: globalThis.game?.socket ? Boolean(globalThis.game.socket.connected) : null };
+            }, LOST_WORDS.source);
+        } catch (err) {
+            left = { atMs: Date.now() - t0, url: (() => { try { return page.url(); } catch { return null; } })(), why: String(err?.message ?? err).split("\n")[0].slice(0, 200) };
+            break;
+        }
+        reads++;
+        last = { ...r, atMs: Date.now() - t0 };
+        if (tileSetting === undefined) tileSetting = r.setting;
+        if (!/^https?:/.test(r.url)) { left = { atMs: last.atMs, url: r.url, why: "navigated away" }; break; }
+        if (r.lost === "true" && r.text) { seen = { road: "tile", atMs: last.atMs, text: r.text }; break; }
+        /* The toast is the road only where the tile is off or absent; with the tile on, a toast alone is read on. */
+        const warn = r.toasts.find(n => /warn/i.test(n.type));
+        if (warn && (r.setting === false || !r.tile)) { seen = { road: "toast", atMs: last.atMs, text: warn.message, type: warn.type }; break; }
+        await new Promise(res => setTimeout(res, every));
+    }
+    return { seen, left, reads, last, tileSetting: tileSetting ?? null, ms, every };
+}
+
+/** FORGE-04's reading of `watchServerLost`: the tile's road, or the toast's where the world's tile is off (or absent). */
+export function serverLostShown(w) {
+    if (!w?.seen) return false;
+    if (w.seen.road === "tile") return true;
+    return w.tileSetting === false || w.last?.tile === false;
+}
+
 /** A unique tag for this run, so a re-run never finds the last run's cards. */
 export function runTag(prefix) {
     return `${prefix}-${Date.now().toString(36)}`;

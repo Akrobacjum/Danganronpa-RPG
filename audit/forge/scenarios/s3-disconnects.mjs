@@ -13,6 +13,7 @@
  *   0  the table: roles, the primary on every page, tokens for P1-P4's characters (made where absent), the game unpaused.
  *   A  P1 asks a Dynamic action's difficulty (bridge-asks.mjs `requestDynamicDifficulty`), and P1's browser goes offline
  *      for 20 s (ctx.offline); back, the primary rules the card: the ruling reaches P1 and the card ends (CF-02, DAY-F01).
+ *      In the first 6 s offline P1's page is read for the voice tile's word that the server is lost (FORGE-04).
  *   B  P3 asks a Hope Call's yes (`requestHopeCallApproval`) and reloads: the GMs' card says P3 no longer waits; the second
  *      GM's yes on the old card is told so; P3 asks again and is ruled; no stale waiting card on P3 (CALLS-04, CF-01).
  *   C  P1 asks a difficulty; the primary presses Set difficulty and leaves its window open, then reloads (ctx.reload): the
@@ -48,7 +49,7 @@
  *     (boundary.mjs `goButtons`: "end", "endOnly", "go"; the player's "done"; `confirmGo`'s "yes").
  */
 
-import { call, run as inPage, J, wait, poll, step, readTable, prepare, restore, words, runTag, uiProbe } from "../page-kit.mjs";
+import { call, run as inPage, J, wait, poll, step, readTable, prepare, restore, words, runTag, uiProbe, watchServerLost, serverLostShown } from "../page-kit.mjs";
 
 export const meta = {
     id: "s3-disconnects",
@@ -107,12 +108,16 @@ export async function run(ctx) {
         if (!card?.id) throw new Error("P1's request posted no card");
         const t0 = Date.now();
         const off = ctx.offline("p1", 20_000);
+        /* FORGE-04 (2.0 line T4, 27.11.2026): P1's page read raw from the cut on, before Foundry's reload at about 6.5 s
+           (page-kit.mjs `watchServerLost`), while the primary is polled below. */
+        const lostWatch = watchServerLost(ctx.c.p1.page, { ms: 6000, every: 250 });
         const seenByGm = [];
         while (Date.now() - t0 < 21_000) {
             seenByGm.push(await inPage(ctx, prim, `return { at: Date.now(), active: Boolean(game.users.get(${J(idOf("p1"))})?.active) };`).catch(e => ({ err: e.message })));
             await wait(2000);
         }
         await off;
+        const lost = await lostWatch;
         await settle(5000);
         /* The first run on the owner's PC (25.11.2026): about 6.5 s into the cut Foundry said "Server connection lost"
            and reloaded the page, which, offline, landed on chrome-error:// and stayed there when the network came back;
@@ -140,6 +145,10 @@ export async function run(ctx) {
             J({ road, got, wentInactive: seenByGm.some(s => s?.active === false), p1PageLeftGame: !p1InGame, waitingAfter: waiting }), { ids: ["CF-02", "DAY-F01"] });
         check("A2: nothing stays stuck: the card reads answered on both GMs and holds no pending claim",
             ended?.settled && endedPrim?.settled && endedPrim.row?.pending !== true, J({ ended, endedPrim }), { ids: ["CF-02"] });
+        /* The tile's attribute and words, or - with the world's voice tile off - one warning toast with those words
+           (`serverLostShown`); `road` says which was seen, `left` when and where the page went. */
+        check("FORGE-04: P1's voice tile says the server is lost before the page leaves the game",
+            serverLostShown(lost), J({ road: lost.seen?.road ?? null, ...lost }), { ids: ["FORGE-04"] });
     });
 
     /* ------------------------------------------------------------------ B */
@@ -298,8 +307,13 @@ export async function run(ctx) {
         /* Notices that say nothing of the take-over do not count. The second S3 run on the owner's PC (25.11.2026)
            passed D1 on Forge's "Access Unauthorized. Please enter your API key or sign in to The Forge." alone: the
            taker writing the case's server copy (FORGE-01), not a word about running the table. Also left out: the case
-           planner's empty-copy line (FORGE-01) and avclient-livekit's toasts (FORGE-03). */
-        const unrelated = /access unauthorized|sign in to the forge|case planner is empty|livekit/i;
+           planner's empty-copy line (FORGE-01) and avclient-livekit's toasts (FORGE-03); and since 2.0 line T4
+           (27.11.2026) FORGE-01's own words, by stable pieces in both languages: the warning that this host refuses the
+           case's copy (`DRPG.Case.copy.refused.host`: "does not let this browser save the case" / "nie pozwala tej
+           przeglądarce zapisać kopii sprawy"), the empty planner's corner card ("The case planner is empty on this
+           browser" / "Planer sprawy jest pusty w tej przeglądarce") and the card "Save the case to a file" / "Zapisz
+           sprawę do pliku" - a GM who becomes the primary may be shown any of them, and none says it runs the table. */
+        const unrelated = /access unauthorized|sign in to the forge|case planner is empty|livekit|does not let this browser save the case|nie pozwala tej przeglądarce zapisać kopii sprawy|planer sprawy jest pusty|save the case to a file|zapisz sprawę do pliku/i;
         const aboutTakeOver = told.seen.filter(n => !unrelated.test(n.text ?? ""));
         check("D1: the GM who takes over the table is told it now runs it, within 20 s of the primary's leaving",
             took?.primary === idOf(taker) && aboutTakeOver.length > 0, J({ tookAfterMs: tTake - t0, notices: aboutTakeOver, leftOut: told.seen.length - aboutTakeOver.length, all: told.seen }), { ids: ["PRIM-02"] });
