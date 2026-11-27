@@ -1219,7 +1219,7 @@ export const BRIDGE_ACTIONS = table({
     // A second full GM's Fix voice (E128): the rooms are the primary's to send (voice.mjs `resetAllVoice`). Carries nothing.
     [ACTION_VOICE_RESET]: { label: "DRPG.Bridge.what.voice.reset", guards: [gmOnly("only a GM sends the voice rooms again")],
         sanitize: pick({}), run: handleVoiceReset, answer: "reply" },
-    // A second full GM's Finish of a verdict the primary runs (E128; verdict.mjs `finishRoute`). Carries nothing.
+    // A full GM's claim of a stopped verdict, its steps then run on the asker (E128; T3 TRIAL-03, verdict-claim.mjs). Carries nothing.
     [ACTION_VERDICT_FINISH]: { label: "DRPG.Bridge.what.verdict.finish", guards: [gmOnly("only a GM finishes a verdict")],
         sanitize: pick({}), run: handleVerdictFinish, answer: "reply" },
     // A GM's ask for the opening's card, the primary's to post once (E128; murder-rules.mjs `postOpeningCard`). No ids.

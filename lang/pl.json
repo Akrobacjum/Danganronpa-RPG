@@ -1681,7 +1681,7 @@
         "vote": "Karty są rozesłane. Gdy wrócą, użyj Zamknij i policz w oknie Głosowanie.",
         "verdict": "Głosy policzone. Ogłoś werdykt.",
         "finishVerdict": "Werdykt zatrzymał się, zanim wykonał wszystkie kroki. Dokończ werdykt.",
-        "finishElsewhere": "Werdykt zatrzymał się, zanim wykonał wszystkie kroki. Dokończyć go może tylko {name}.",
+        "finishElsewhere": "Werdykt zatrzymał się, zanim wykonał wszystkie kroki. Dokończyć go może pełny GM, na przykład {name}.",
         "verdictElsewhere": "Werdykt wydaje {name}. Zakończ rozdział, gdy werdykt będzie wydany.",
         "chapterEnd": "Werdykt zapadł. Zakończ rozdział.",
         "caseSummary": "Werdykt zapadł. Pokaż podsumowanie sprawy.",
@@ -1737,7 +1737,7 @@
         "vote": "Karty są rozesłane. Gdy wrócą, użyj Zamknij i policz w oknie Głosowanie.",
         "verdict": "Głosy są policzone. Teraz ogłoś werdykt.",
         "finishVerdict": "Werdykt zatrzymał się, zanim wykonał wszystkie kroki. Przycisk Dokończ werdykt wykona pozostałe.",
-        "finishElsewhere": "Werdykt zatrzymał się, zanim wykonał wszystkie kroki, a dokończyć go może tylko {name}. Poproś o to tę osobę przed zakończeniem rozdziału.",
+        "finishElsewhere": "Werdykt zatrzymał się, zanim wykonał wszystkie kroki, a Asystent GM-a nie może go dokończyć. Poproś pełnego GM-a, na przykład {name}, żeby zrobił to przed zakończeniem rozdziału.",
         "verdictElsewhere": "Werdykt wydaje {name}. Jeśli temu GM-owi przeładowała się strona w trakcie, Dokończ werdykt jest w jego konsoli. Nie kończ rozdziału, dopóki werdykt nie będzie wydany.",
         "chapterEnd": "Werdykt zapadł. Użyj Zakończ rozdział, by przejść do ujawnienia i następnego rozdziału.",
         "caseSummary": "Werdykt zapadł. Pokaż graczom podsumowanie sprawy, potem zakończ rozdział.",
@@ -2747,7 +2747,8 @@
         "finalLevelUps": "Level Upy, które czekały",
         "finalBets": "Ghost Bet",
         "mastermind": "czyszczenie wyboru Masterminda"
-      }
+      },
+      "finishTaken": "{name} już dokańcza ten werdykt."
     },
     "Music": {
       "notSet": "- nie ustawiono -",

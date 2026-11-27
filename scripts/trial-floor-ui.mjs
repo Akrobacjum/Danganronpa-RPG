@@ -34,7 +34,7 @@ export const PARTICIPANT_WRITES = Object.freeze([
     ["deleteActor", () => true]
 ]);
 import { RECORD } from "./gm-store.mjs";
-import { placeRoomOptions, plural, error, esc, serverNow, listOf, wholeNumber, primaryGmId } from "./utils.mjs";
+import { placeRoomOptions, plural, error, esc, serverNow, listOf, wholeNumber } from "./utils.mjs";
 import { stepper, stepperId, drpgWindow, drpgConfirm, liveFooter, box, tipAttr, tipText, WINDOW_HELP } from "./ui-kit.mjs";
 import { getClock, setClock } from "./clock.mjs";
 import { alreadyOpen, keepLive, RAISED } from "./live.mjs";
@@ -770,6 +770,8 @@ function readTrial({ inFinalTrial, mastermindActor, pendingVoters, voteBar, tria
             stopped: verdictStopped(progress),
             // The GM who may finish a verdict not yet done (E10 fix r2-G2) - see `verdictRunner` in verdict.mjs.
             runner: verdictRunner(progress),
+            // Whether this GM may finish a stopped verdict itself: a full GM may (2.0 line T3 TRIAL-05; verdict.mjs `finishRoute`).
+            mayFinish: game.user?.role === CONST.USER_ROLES.GAMEMASTER,
             /* THE BLACKENED REGISTER, COUNTED (E10 C12, 1.2.71; audit S06-18). The register takes a
                killer when their incident is closed, and the vote asks as many names as it holds, so
                an empty one in a chapter where somebody died is an incident nobody closed - or a GM
@@ -1478,8 +1480,9 @@ function trialButtons({ floor, running, finalNow, progress, afterwards, stopped,
                 ...(stopped
                     ? [{ action: "finishVerdict", label: game.i18n.localize("DRPG.Vote.finishVerdict"),
                         default: isDefault("finishVerdict"),
-                        // Live on a second full GM while the primary runs it: the press is the primary's (E128, verdict.mjs `finishRoute`).
-                        ...(runner && runner !== game.user.id && !(runner === primaryGmId() && game.user?.role === CONST.USER_ROLES.GAMEMASTER) ? { disabled: true,
+                        // Live on every full GM: the press takes the verdict on the primary and runs here (2.0 line T3 TRIAL-03,
+                        // verdict.mjs `finishRoute`); greyed on an Assistant GM that did not give it.
+                        ...(runner && runner !== game.user.id && game.user?.role !== CONST.USER_ROLES.GAMEMASTER ? { disabled: true,
                             tooltip: game.i18n.format("DRPG.Vote.finishOtherGm", { name: game.users.get(runner)?.name ?? "?" }) } : {}) }]
                     : []),
                 // The case's summary for the players (E99 C7): after the verdict, not in a Final Trial (Q-E99-5)

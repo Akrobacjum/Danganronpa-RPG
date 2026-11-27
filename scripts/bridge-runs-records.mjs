@@ -843,13 +843,19 @@ export async function handleVoiceReset() {
     return n === null ? relayed(taken()) ?? { refused: "nothing was carried out: the primary GM has no LiveKit AVClient active" } : { reply: n };
 }
 
-/** The run of `verdict.finish` (E128): a second full GM's Finish, run by this primary's own (verdict.mjs `finishVerdict`). */
-export async function handleVerdictFinish() {
-    const { finishVerdict } = await import("./vote.mjs");
+/**
+ * The run of `verdict.finish` (E128; 2.0 line T3 TRIAL-03, PRIM-06): a full GM's claim of a stopped verdict, taken in this
+ * primary's one queue (verdict.mjs `claimVerdict`) and answered `{ granted: true }`; the asker then runs the steps on its
+ * own browser, so its windows are its own and the answer comes in seconds. Until 1.2.130 this ran the primary's own
+ * Finish, its windows here, while the asker's wait ran out. A refusal answers its reason (`relayed`).
+ */
+export async function handleVerdictFinish(payload, sender) {
+    const { claimVerdict } = await import("./verdict-claim.mjs");
     const { relayRefusal } = await import("./bridge-guards.mjs");
     const { say, taken } = relayRefusal();
-    return (await finishVerdict({ say })) ? { reply: true }
-        : relayed(taken()) ?? { refused: "nothing was carried out: the primary GM's Finish of the verdict did nothing" };
+    const granted = await claimVerdict(sender, { say });
+    return granted ? { reply: granted }
+        : relayed(taken()) ?? { refused: "nothing was carried out: the primary GM gave the verdict to nobody" };
 }
 
 /** The run of `trial.record` (E70 fix p1-G2): the record's write on this primary (trial-progress.mjs `recordOnPrimary`), its answer or null. */

@@ -1636,7 +1636,7 @@
         "vote": "The ballots are out. When they are back, Close and count in The vote.",
         "verdict": "The vote is counted. Deliver the verdict.",
         "finishVerdict": "The verdict stopped before every step was done. Finish the verdict.",
-        "finishElsewhere": "The verdict stopped before every step was done. Only {name} can finish it.",
+        "finishElsewhere": "The verdict stopped before every step was done. A full GM can finish it, {name} for one.",
         "verdictElsewhere": "{name} is giving the verdict. End the chapter once it is done.",
         "chapterEnd": "The verdict is in. End the chapter.",
         "caseSummary": "The verdict is in. Show the case summary.",
@@ -1692,7 +1692,7 @@
         "vote": "The ballots are out. When they are back, press Close and count in The vote.",
         "verdict": "The vote is counted. Deliver the verdict next.",
         "finishVerdict": "The verdict stopped before every step was done. Press Finish the verdict to run the rest.",
-        "finishElsewhere": "The verdict stopped before every step was done, and only {name} can finish it. Ask {name} to do so before the chapter ends.",
+        "finishElsewhere": "The verdict stopped before every step was done, and an Assistant GM cannot finish it. Ask a full GM, {name} for one, to do so before the chapter ends.",
         "verdictElsewhere": "{name} is giving the verdict. If their page reloaded during it, Finish the verdict is on their console. Do not end the chapter until the verdict is done.",
         "chapterEnd": "The verdict is in. End the chapter for the reveal and the next chapter.",
         "caseSummary": "The verdict is in. Show the players the case summary, then end the chapter.",
@@ -2621,7 +2621,8 @@
         "finalLevelUps": "the Level Ups that waited",
         "finalBets": "Ghost Bets",
         "mastermind": "clearing the Mastermind's pick"
-      }
+      },
+      "finishTaken": "{name} is finishing this verdict already."
     },
     "Music": {
       "notSet": "- not set -",

@@ -15,6 +15,12 @@
  *             it reloads inside the end (written by the scenario: a reload timed inside a step is not something this
  *             harness can aim), then gm reloads; at its ready gm marks it halted, gm2 reads it stopped, its End of
  *             chapter window asks Finish the chapter's end or Drop the rest, and gm2's Finish is carried out on gm.
+ *   TRIAL-03  a verdict gm gave, stopped (its overflow step left, its GM marked failed there): gm2's Finish the verdict
+ *             is granted by gm in seconds, with no "no answer", and the steps run on gm2 - the verdict's summary to the
+ *             GMs is posted by gm2's browser, the record's `by` gm2. The step left is the Overflow's alone: a Level Up
+ *             step would hand out Level Ups this scenario could not put back, so where the Level Ups' window opens is
+ *             read as where the steps run (the window opens in `runVerdict`'s step, verdict.mjs `verdictLevelUps`).
+ *   PRIM-06   the same verdict given by gm2, a step failed, gm2 connected: gm's Finish takes it and the steps run on gm.
  *
  * What this cannot see: a real server's delivery times and a real F5 (97-two-gms's header says what its `reload` is).
  */
@@ -98,4 +104,49 @@ export async function run(api) {
         J({ seenBefore, runningOnGm2, r1, halted, asked, after, cut }));
     await gm.eval(`const K = ${imp("clock.mjs")}; await K.setClock(${J(clockWas)}); await game.settings.set("${MOD}", "chapterEnd", {}); return true;`, { timeout: 60000 });
     await settle(1000);
+
+    /* ------------------------------------------------------- TRIAL-03, PRIM-06 */
+    phase("TRIAL-03 and PRIM-06 a stopped verdict taken on the primary, its steps where Finish was pressed");
+    const trialWas = await gm.eval(`return foundry.utils.deepClone(game.settings.get("${MOD}", "trialProgress") ?? {});`);
+    const verdictTitle = await gm.eval(`return game.i18n.localize("DRPG.Vote.verdictTitle");`);
+    const stopAt = (by, failed) => gm.eval(`const V = ${imp("vote.mjs")}, K = ${imp("clock.mjs")};
+        await game.settings.set("${MOD}", "trialProgress", { ...V.trialProgress(), chapter: K.getClock().chapter, verdictApplied: true, voteClosed: true,
+            executedAt: null, execution: null, verdict: { stage: "applying", correct: true, executedIds: [], by: ${J(by)}, at: Date.now(),
+            done: ["sentence", "executions", "card", "levelUps", "offers", "despair", "rule", "remind"], failed: ${J(failed)} } });
+        return V.trialProgress().verdict?.by ?? null;`, { timeout: 60000 });
+    const SUMMARY = mark => `const S = ${imp("secret.mjs")};
+        const out = [];
+        for (const m of game.messages.contents.slice(${mark})) {
+            const w = await S.wordsOf(m, 1000);
+            if (String(w ?? "").includes(${J(verdictTitle)})) out.push(m.author?.id ?? m.user?.id ?? null);
+        }
+        return out;`;
+    const msgMark = await gm.eval(`return game.messages.contents.length;`);
+    await stopAt(IDS.gm, ["overflow"]);
+    await until(() => gm2.eval(`const V = ${imp("vote.mjs")}; return V.verdictStopped() ? true : false;`), v => v === true);
+    const t2Mark = await toastMark(gm2);
+    const t0 = Date.now();
+    const f2 = await gm2.eval(`const V = ${imp("vote.mjs")}; const out = await V.finishVerdict(); return Array.isArray(out) ? out.length : out;`, { timeout: 120000 });
+    const f2Ms = Date.now() - t0;
+    await settle(1500);
+    const f2Toasts = await toastsSince(gm2, t2Mark);
+    const noAnswer = await gm2.eval(`return game.i18n.localize("DRPG.Bridge.why.noAnswer");`);
+    const authors3 = await until(() => gm.eval(SUMMARY(msgMark)), v => v.length >= 1);
+    const rec3 = await gm.eval(`const V = ${imp("vote.mjs")}; const v = V.trialProgress().verdict ?? {}; return { stage: v.stage ?? null, by: v.by ?? null };`);
+    check("TRIAL-03: gm2's Finish of a verdict gm gave, stopped, is granted on gm in seconds with no \"no answer\", and the steps run on gm2: the summary is gm2's, the record done by gm2",
+        typeof f2 === "number" && f2Ms < 30000 && !f2Toasts.some(([, msg]) => msg.includes(noAnswer)) && J(authors3) === J([GM2])
+            && rec3.stage === "done" && rec3.by === GM2, J({ f2, f2Ms, f2Toasts, authors3, rec3 }));
+
+    const msgMark6 = await gm.eval(`return game.messages.contents.length;`);
+    await stopAt(GM2, ["overflow"]);
+    await until(() => gm.eval(`const V = ${imp("vote.mjs")}; return V.verdictStopped() ? true : false;`), v => v === true);
+    const f6 = await gm.eval(`const V = ${imp("vote.mjs")}; const out = await V.finishVerdict(); return Array.isArray(out) ? out.length : out;`, { timeout: 120000 });
+    await settle(1500);
+    const authors6 = await until(() => gm.eval(SUMMARY(msgMark6)), v => v.length >= 1);
+    const rec6 = await gm.eval(`const V = ${imp("vote.mjs")}; const v = V.trialProgress().verdict ?? {}; return { stage: v.stage ?? null, by: v.by ?? null };`);
+    check("PRIM-06: gm's Finish of a verdict gm2 gave, a step failed and gm2 connected, takes it and runs the steps on gm: the summary is gm's, the record done by gm",
+        typeof f6 === "number" && J(authors6) === J([IDS.gm]) && rec6.stage === "done" && rec6.by === IDS.gm, J({ f6, authors6, rec6 }));
+    await gm.eval(`await game.settings.set("${MOD}", "trialProgress", ${J(trialWas)}); return true;`, { timeout: 60000 });
+    await settle(1000);
 }
+

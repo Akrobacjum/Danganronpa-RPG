@@ -32337,15 +32337,29 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         try {
             await withVerdictOpen(async () => {
                 await V.setTrialProgress({ voteClosed: true });
+                /* Road 1 since 2.0 line T3 TRIAL-03 (27.11.2026): this GM's press, its own verdict, takes the verdict on the
+                   primary first (verdict.mjs `claimVerdict`, `verdict.finish`); the stand-in primary has no browser to grant
+                   it, so the press is read as asked of it, nothing run here. Until then the runner ran it here, answered
+                   lines and the stage read "done" with one summary. Scenario 58 TRIAL-03 drives the grant on a real primary. */
                 await stoppedBy(me);
                 game.users.set(primary.id, primary);
                 const seen = await trialConsole(primary.name);
-                const answer = await press(primary);
+                const asked = [], emit = game.socket.emit;
+                game.socket.emit = function (event, packet, options, ...rest) {
+                    if (packet?.action === "verdict.finish") asked.push((options?.recipients ?? []).includes(primary.id));
+                    return emit.call(this, event, packet, options, ...rest);
+                };
+                let answer = "unanswered";
+                try {
+                    answer = await V.finishVerdict();
+                } finally {
+                    game.socket.emit = emit;
+                    game.users.delete(primary.id);
+                }
                 await settle();
-                equal(stableJson([seen, Array.isArray(answer), V.trialProgress().verdict?.stage ?? null, await summaries(),
-                    warned.filter(line => line.includes(primary.name))]),
-                    stableJson([[false, true, true, false], true, "done", 1, []]),
-                    "a GM who is not the primary, whose page reloaded inside the verdict they gave, was not offered Finish or could not finish it (console: lead names the primary, Finish, its default, End's default; answered, stage, summaries, warnings)");
+                equal(stableJson([seen, answer ?? null, V.trialProgress().verdict?.stage ?? null, await summaries(), asked]),
+                    stableJson([[false, true, true, false], null, "applying", 0, [true]]),
+                    "a GM who is not the primary, whose page reloaded inside the verdict they gave, was not offered Finish or ran it without taking it on the primary (console: lead names the primary, Finish, its default, End's default; answer, stage, summaries, asked the primary)");
 
                 await stoppedBy(other.id);
                 game.users.set(other.id, other);
@@ -32362,8 +32376,9 @@ equal(read.added, 3, "three additions to a purse at once lost one");
                 const gone = await trialConsole(other.name);
                 const finished = await press(other);
                 await settle();
+                // Since 2.0 line T3 TRIAL-05: a full GM finishes another GM's stopped verdict, so its console leads to Finish, the default.
                 equal(stableJson([failedThere, gone, Array.isArray(finished), V.trialProgress().verdict?.stage ?? null, await summaries()]),
-                    stableJson([[true, true, false, false], [false, true, true, false], true, "done", 2]),
+                    stableJson([[false, true, true, false], [false, true, true, false], true, "done", 1]),
                     "after a step failed on another GM's verdict, this GM's console made Finish the default or did not name that GM, or once that GM was gone this GM, the primary, could not finish it (console there, console after, answered, stage, summaries)");
             });
         } finally {
@@ -98555,7 +98570,8 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             finished: ["done", [], 1, LEVEL_UP.reinforced.picks, false, true, null],
             again: [null, 1, true],
             cards: [1, 0],
-            names: [["at", "by", "done", "failed", "final", "sentencePending", "stage"], []]
+            // `claimedAt` since 2.0 line T3 TRIAL-03: the Finish takes the verdict on the primary first (verdict.mjs `claimVerdict`), a time.
+            names: [["at", "by", "claimedAt", "done", "failed", "final", "sentencePending", "stage"], []]
         }), "a Final verdict stopped in its Level Ups was not offered Finish, its Finish did not give what waited once, or its record names somebody "
             + "(stopped: stage, failed, done, the stopped steps named, Y's offers, Y's waiting row, the console's Finish and its default; finished: stage, "
             + "failed, Y's offers, the waited picks in them, Y's waiting row, the GMs' store names Y given, stopped; again: a second Finish's answer, Y's offers, "
@@ -118857,6 +118873,94 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         }
         equal(stableJson(read), stableJson({ steps: [true, "reload", true, false, true, 1, "done", false] }),
             "{steps: [the mark written, its why, a second GM reads it stopped, a second mark, the Finish answers lines, days on, the record's stage after, the mark left]}");
+    }],
+    ["T3 TRIAL-03 - a second GM's Finish takes the verdict on the primary and runs its steps here", async () => {
+        /*
+         * 2.0 line T3 TRIAL-03, 27.11.2026 (Forge S1b TRIAL-03 passed on 1.2.129 only because GM2 gave the verdict
+         * itself). A second full GM's Finish of a verdict the primary ran was carried out by the primary's own Finish, its
+         * Level Ups' window and the Blackened's rule on the primary, while the asker's bridge waited `rulingMs` and said
+         * the GM did not answer. Now `verdict.finish` claims it here (bridge-runs-records.mjs `handleVerdictFinish`,
+         * verdict.mjs `claimVerdict`) and answers at once; the steps are the asker's. A stopped verdict (its GM gone), a
+         * second full GM stood in (as "a stopped verdict is finished by the GM who gave it ..." stands one): its claim read
+         * as the runner hands it, then a third GM's claim. Read: the answers, the record's `by`, `failed` and `claimedAt`,
+         * its stage and steps after, and the GMs' summaries posted here. Red at 0b69122: the handler ran the Finish here
+         * (answer lines, stage "done", one summary).
+         */
+        needs(env.primaryGm(), "the claim is taken on the primary GM alone");
+        const V = await import("./vote.mjs");
+        const { handleVerdictFinish } = await import("./bridge-runs-records.mjs");
+        const { wordsOf } = await import("./secret.mjs");
+        const title = game.i18n.localize("DRPG.Vote.verdictTitle");
+        const from = new Set(game.messages.map(m => m.id));
+        const gmUser = name => standInUser({ name, role: CONST.USER_ROLES.GAMEMASTER, active: true, sorts: "last" });
+        const second = gmUser("T3 TRIAL-03 second GM"), third = gmUser("T3 TRIAL-03 third GM");
+        const done = ["sentence", "executions", "card", "levelUps"];
+        const read = {};
+        const warned = [], warn = ui.notifications.warn;
+        try {
+            game.users.set(second.id, second);
+            game.users.set(third.id, third);
+            ui.notifications.warn = message => { warned.push(String(message)); };
+            await withVerdictOpen(async () => {
+                await V.setTrialProgress({ verdictApplied: true, voteClosed: true, verdict: { stage: "applying", correct: true, executedIds: [],
+                    by: "a GM who left", at: Date.now(), done, failed: [] } });
+                const answer = await handleVerdictFinish({}, second);
+                await settle();
+                const record = V.trialProgress().verdict ?? {};
+                const other = await handleVerdictFinish({}, third);
+                await settle();
+                const summaries = (await Promise.all(game.messages.filter(m => !from.has(m.id)).map(m => wordsOf(m, 1000))))
+                    .filter(words => String(words ?? "").includes(title)).length;
+                read.claim = [answer?.reply?.granted ?? null, record.by === second.id, stableJson(record.failed ?? null), Number.isFinite(record.claimedAt),
+                    record.stage ?? null, stableJson(record.done ?? null) === stableJson(done), summaries];
+                read.other = [other?.reply?.relayedRefusal?.key ?? null, other?.reply?.relayedRefusal?.data?.name === second.name,
+                    V.trialProgress().verdict?.by === second.id, warned.length];
+            });
+        } finally {
+            ui.notifications.warn = warn;
+            game.users.delete(second.id);
+            game.users.delete(third.id);
+        }
+        equal(stableJson(read), stableJson({ claim: [true, true, "[]", true, "applying", true, 0], other: ["DRPG.Vote.finishTaken", true, true, 0] }),
+            "{claim: [granted, `by` the asker, failed, claimedAt, stage, its steps as they were, summaries here]; other: [a third GM's claim refused with, naming the GM finishing it, `by` kept, toasts here]}");
+    }],
+    ["T3 PRIM-06 - the primary takes a stopped verdict a connected second GM gave, and runs its steps", async () => {
+        /*
+         * 2.0 line T3 PRIM-06, 27.11.2026. A verdict a connected second GM gave and whose step failed was the second GM's
+         * alone to finish: the primary's (and any third GM's) Finish was refused with `DRPG.Vote.finishOtherGm`. Now the
+         * primary's press takes it here (`claimVerdict`, local) and runs the steps left. The second GM stood in, connected;
+         * the record "applying" by them, its offers step failed. Read: the press's answer, the record's `by` and stage after,
+         * the summaries posted. Red at 0b69122: answer null, the refusal naming the second GM.
+         */
+        needs(env.primaryGm(), "the press is the primary GM's own");
+        const V = await import("./vote.mjs");
+        const { wordsOf } = await import("./secret.mjs");
+        const title = game.i18n.localize("DRPG.Vote.verdictTitle");
+        const from = new Set(game.messages.map(m => m.id));
+        const second = standInUser({ name: "T3 PRIM-06 second GM", role: CONST.USER_ROLES.GAMEMASTER, active: true, sorts: "last" });
+        const read = {};
+        const warned = [], warn = ui.notifications.warn;
+        try {
+            game.users.set(second.id, second);
+            ui.notifications.warn = message => { warned.push(String(message)); };
+            await withVerdictOpen(async () => {
+                await V.setTrialProgress({ verdictApplied: true, voteClosed: true, verdict: { stage: "applying", correct: true, executedIds: [],
+                    by: second.id, at: Date.now(), done: ["sentence", "executions", "card", "levelUps"], failed: ["offers"] } });
+                const answer = await V.finishVerdict();
+                await settle();
+                await until(() => game.messages.some(m => !from.has(m.id)));
+                const summaries = (await Promise.all(game.messages.filter(m => !from.has(m.id)).map(m => wordsOf(m, 1000))))
+                    .filter(words => String(words ?? "").includes(title)).length;
+                const record = V.trialProgress().verdict ?? {};
+                read.steps = [Array.isArray(answer), record.by === game.user.id, record.stage ?? null, summaries,
+                    warned.some(line => line.includes(second.name))];
+            });
+        } finally {
+            ui.notifications.warn = warn;
+            game.users.delete(second.id);
+        }
+        equal(stableJson(read), stableJson({ steps: [true, true, "done", 1, false] }),
+            "{steps: [the press answered lines, `by` this GM, stage, summaries, a refusal naming the second GM]}");
     }],
 ];
 

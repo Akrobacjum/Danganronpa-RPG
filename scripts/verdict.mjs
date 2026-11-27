@@ -38,7 +38,7 @@ import { trialBlackenedIds, trialBlackenedActors, whenTrialReadable } from "./mu
 import { deferredOfferStore, verdictStore } from "./gm-stores.mjs";
 import { RECORD } from "./gm-store.mjs";
 import { judgedFor, flagsHeldNow } from "./sheet-audit.mjs";
-import { announce, whisperToGms, whisperToOwner, primaryGmId, log, warn, error, plural, listOf, esc } from "./utils.mjs";
+import { announce, whisperToGms, whisperToOwner, primaryGmId, isPrimaryGm, log, warn, error, plural, listOf, esc } from "./utils.mjs";
 import { deathRecordFor } from "./settings.mjs";
 import { trialProgress, setTrialProgress, executionLines, executeAtExit } from "./trial-progress.mjs";
 import { runSteps, stepsReport } from "./steps.mjs";
@@ -447,6 +447,9 @@ export async function askBlackenedRule(unfound = []) {
  * (`verdictStopped`), and it closes the door to a second verdict here while the first write is on its way.
  */
 let verdictRunning = false;
+/** Whether a verdict is being given on this browser, and its latch closed (verdict-claim.mjs `claimVerdict`, in its step). */
+export const verdictRunningHere = () => verdictRunning;
+export const latchVerdictHere = () => { verdictRunning = true; };
 
 /**
  * ONE LOCK FOR BOTH VERDICTS (E41 C10b, 1.2.97; S17-28). What refuses a verdict, as the key of what the GM is told:
@@ -1089,15 +1092,13 @@ export function verdictRunner(progress = trialProgress()) {
 }
 
 /**
- * WHERE A FINISH OF THE VERDICT RUNS (E128, 22.11.2026; OWNER-128-SECOND-GM, line CORE's inventory row 6): "here" on the
- * verdict's runner (`verdictRunner`) or with no runner; "primary" on a second full GM when the runner is the primary GM -
- * the press is asked of the primary (`verdict.finish`), whose own Finish runs it, one browser and one latch as before;
- * "refuse" otherwise (the runner another GM who is connected, or an Assistant GM), told whom to ask. The arguments are the
- * suite's (R8732); this browser's otherwise.
+ * WHERE A FINISH OF THE VERDICT RUNS (E128; 2.0 line T3 TRIAL-03, PRIM-06, 27.11.2026): "claim" on every full GM - taken on
+ * the primary (verdict-claim.mjs `claimVerdict`), its steps run here, so their windows open on the GM who pressed; "here" on
+ * an Assistant GM that runs it or when none does; "refuse" on any other Assistant GM. The arguments are the suite's (R8732).
  */
-export function finishRoute({ runner, me = game.user?.id, primary = primaryGmId(), full = game.user?.role === CONST.USER_ROLES.GAMEMASTER } = {}) {
-    if (!runner || runner === me) return "here";
-    return runner === primary && full ? "primary" : "refuse";
+export function finishRoute({ runner, me = game.user?.id, full = game.user?.role === CONST.USER_ROLES.GAMEMASTER } = {}) {
+    if (full) return "claim";
+    return !runner || runner === me ? "here" : "refuse";
 }
 
 /**
@@ -1107,32 +1108,43 @@ export function finishRoute({ runner, me = game.user?.id, primary = primaryGmId(
  * (`whenTrialReadable`, `trialBlackenedIds`), only when the GMs' store holds none for this verdict -
  * never the world's record, which holds none.
  *
- * ON ONE GM ALONE (E10 fix r1-G1, 1.2.71; the round-1 goal verifier's S06-39, its doubt 2).
+ * ON ONE GM ALONE (E10 fix r1-G1, 1.2.71; the round-1 goal verifier's S06-39, its doubt 2; 2.0 line T3 TRIAL-03).
  * Every GM is offered Finish once a step failed or the verdict's GM left, and this browser's latch
- * (`verdictRunning`) is the only one: two GMs pressing it within one round trip both ran the steps
- * left - two cards, two class windows. One browser runs it now, whose latch holds two presses apart;
- * another GM is told whom to ask. Since fix r2-G2 that browser is the verdict's runner (`verdictRunner`):
- * its own GM while connected, otherwise the primary.
+ * (`verdictRunning`) held only this browser's presses: two GMs pressing it within one round trip both ran the steps
+ * left - two cards, two class windows. Since 1.2.130 a full GM's press takes the verdict on the primary first
+ * (`claimVerdict`: one write in the primary's one queue), and only the GM it grants runs the steps, on its own browser,
+ * whose latch then holds its own presses apart; the race of two presses is the primary's queue's. An Assistant GM runs
+ * a verdict it gave itself, and is told whom to ask otherwise (`finishRoute`).
  */
 export async function finishVerdict({ say = (key, data = {}) => ui.notifications.warn(game.i18n.format(key, data)) } = {}) {
     if (!game.user.isGM) return null;
-    const progress = trialProgress();
+    let progress = trialProgress();
     const runner = verdictRunner(progress);
     const route = finishRoute({ runner });
-    if (route === "primary") {
-        const { bridgeRequest, tellRelayedRefusal } = await import("./bridge-guards.mjs");
-        const res = await bridgeRequest("verdict.finish", {}, { settle: "reply", onPrimary: true });
-        // The primary's reason, relayed (2.0 line T3 TRIAL-02): said here, and not counted as a done.
-        if (!res.ok || tellRelayedRefusal(res.value)) return null;
-        return res.value ?? null;
-    }
     if (route === "refuse") {
         say("DRPG.Vote.finishOtherGm", { name: game.users.get(runner)?.name ?? "?" });
         return null;
     }
-    if (!verdictStopped(progress)) {
+    if (verdictRunning || progress?.verdict?.stage !== "applying") {
         say("DRPG.Vote.verdictAlreadyApplied");
         return null;
+    }
+    // A verdict another GM is still giving, as this browser reads it, is theirs: said before anything is asked of the primary.
+    if (!verdictStopped(progress)) {
+        say("DRPG.Vote.finishTaken", { name: game.users.get(progress.verdict.by)?.name ?? "?" });
+        return null;
+    }
+    if (route === "claim") {
+        if (isPrimaryGm()) {
+            const { claimVerdict } = await import("./verdict-claim.mjs");
+            if (!(await claimVerdict(game.user, { say }))) return null;
+        } else {
+            const { bridgeRequest, tellRelayedRefusal } = await import("./bridge-guards.mjs");
+            const res = await bridgeRequest("verdict.finish", {}, { settle: "reply", onPrimary: true });
+            // The primary's reason, relayed (2.0 line T3 TRIAL-02): said here, and not counted as a grant.
+            if (!res.ok || tellRelayedRefusal(res.value) || res.value?.granted !== true) return null;
+        }
+        progress = trialProgress();
     }
     verdictRunning = true;
     try {

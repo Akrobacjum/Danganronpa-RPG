@@ -67421,17 +67421,24 @@ const INVARIANTS = [
         }), stableJson({ relayed: true, lines: true }),
             "{relayed: a GM's answer with no value (relayed to the primary) reads as pending; lines: Ask again says Sent, Here for any answer, None for none}");
     }],
-    ["R8732 - a Finish of a stopped verdict runs on its runner, is asked of the primary by a second full GM when the primary runs it, and is refused with whom to ask otherwise (E128; scripts/verdict.mjs `finishRoute`, `finishVerdict`; OWNER-128-SECOND-GM, line CORE's inventory row 6)", async () => {
+    ["R8732 - a Finish of a stopped verdict is taken on the primary by every full GM and run where it was pressed; an Assistant GM runs one it gave and is refused with whom to ask otherwise (E128; 2.0 line T3 TRIAL-03, PRIM-06; scripts/verdict.mjs `finishRoute`, `finishVerdict`, verdict-claim.mjs `claimVerdict`; OWNER-128-SECOND-GM, line CORE's inventory row 6)", async () => {
         /* Red at 9eb89710: no `finishRoute` - a second GM's Finish of a verdict the primary ran was refused
-           (`DRPG.Vote.finishOtherGm`). Pure on stand-in ids, and a text read of `finishVerdict`; nothing written. */
+           (`DRPG.Vote.finishOtherGm`). Changed by 2.0 line T3 TRIAL-03 (27.11.2026): the route "primary" ran the primary's
+           own Finish, its windows on the primary while the asker's wait ran out, and a Finish of a verdict a connected
+           second GM gave was refused (PRIM-06); now every full GM's press is a "claim" - taken on the primary, the steps run
+           on the presser. Red at 0b69122 for the new routes: "here", "primary" and "refuse" where "claim" is read, and no
+           claim in `finishVerdict`. Pure on stand-in ids, and a text read of `finishVerdict`; nothing written. */
         const V = await import("./verdict.mjs");
+        const K = await import("./verdict-claim.mjs").catch(() => ({}));
         must(typeof V.finishRoute === "function", "verdict.mjs has no finishRoute: a second GM's Finish is refused whoever runs the verdict");
         const r = (runner, me, full = true) => V.finishRoute({ runner, me, primary: "PRIMARY", full });
         const finish = fnSource(stripComments((new Map(await moduleSources())).get("verdict.mjs") ?? ""), "finishVerdict") ?? "";
-        equal(stableJson({ routes: [r(null, "SECOND"), r("SECOND", "SECOND"), r("PRIMARY", "SECOND"), r("PRIMARY", "SECOND", false), r("THIRD", "SECOND"), r("PRIMARY", "PRIMARY")],
-            asks: /const route = finishRoute\(\{ runner \}\);\s*if \(route === "primary"\) \{[\s\S]{0,160}bridgeRequest\("verdict\.finish"/.test(finish) }),
-            stableJson({ routes: ["here", "here", "primary", "refuse", "refuse", "here"], asks: true }),
-            "{routes: no runner, the runner itself, a second full GM while the primary runs it, an Assistant GM then, another GM runs it, the primary runs it and presses; asks: finishVerdict sends a second GM's Finish to the primary}");
+        equal(stableJson({ routes: [r(null, "SECOND"), r("SECOND", "SECOND"), r("PRIMARY", "SECOND"), r("THIRD", "SECOND"), r("PRIMARY", "PRIMARY"),
+            r("PRIMARY", "SECOND", false), r(null, "SECOND", false), r("SECOND", "SECOND", false)],
+            claims: /if \(route === "claim"\) \{[\s\S]{0,200}claimVerdict\(game\.user[\s\S]{0,300}bridgeRequest\("verdict\.finish"/.test(finish),
+            granted: /res\.value\?\.granted !== true/.test(finish), claimFn: typeof K.claimVerdict === "function" }),
+            stableJson({ routes: ["claim", "claim", "claim", "claim", "claim", "refuse", "here", "here"], claims: true, granted: true, claimFn: true }),
+            "{routes: a full GM with no runner, the runner itself, a second full GM while the primary runs it, another GM runs it, the primary; an Assistant GM while another runs it, with none, its own; claims: finishVerdict claims on the primary itself or asks it; granted: it runs only on a grant; claimFn: verdict-claim.mjs has claimVerdict}");
     }],
     ["R8731 - Season setup's Reset the season asks who may reset at the press, before the window closes: a GM who is not the primary is told the reset is the primary's and the window is kept (E128; scripts/gm-campaign.mjs `mayResetSeasonHere`, season-setup.mjs `openSeasonSetup`; OWNER-128-SECOND-GM, line CORE's inventory row 7)", async () => {
         /* Red at 9eb89710: no `mayResetSeasonHere`; the press closed Season setup unsaved and season-wipe.mjs `resetSeason`
@@ -69872,6 +69879,19 @@ const INVARIANTS = [
             at({}, "PRIMARY"), C.chapterEndStopped({ stage: "done", by: "PRIMARY" }, { users, me: "SECOND", primary: "PRIMARY", running: false }) !== null]),
         stableJson([true, true, false, true, true, true, false]),
             "[stopped on a second GM: steps not run; halted; neither (running on the primary); a step failed; `by` gone; on the primary itself; a record done]");
+    }],
+    ["R9122 - a stopped verdict another GM gave is this full GM's to finish: the trial console's step is Finish the verdict, and Finish elsewhere is an Assistant GM's alone (2.0 line T3 TRIAL-05; scripts/trial-floor.mjs `TRIAL_NEXT_STEPS`)", async () => {
+        /* 2.0 line T3 TRIAL-05, 27.11.2026. With a verdict stopped on another GM the console's line said "Only {name} can
+           finish it" beside a Finish button that worked (through the primary since E128; taken there since TRIAL-03). The
+           view's `mayFinish` (a full GM) chooses now. Pure on views; nothing written. Red at 0b69122: "finishElsewhere" for
+           both. */
+        const F = await import("./trial-floor.mjs");
+        const view = extra => ({ afterwards: true, running: false, floor: null, progress: { verdictApplied: true, voteClosed: true },
+            stopped: "the Level Ups", runner: "R9122OTHER", ...extra });
+        equal(stableJson([F.trialNextStep(view({ mayFinish: true })), F.trialNextStep(view({ mayFinish: false })), F.trialNextStep(view({})),
+            F.trialNextStep(view({ mayFinish: true, stopped: null })), F.trialNextStep(view({ mayFinish: false, stopped: null }))]),
+        stableJson(["finishVerdict", "finishElsewhere", "finishElsewhere", "verdictElsewhere", "verdictElsewhere"]),
+            "[stopped on another GM: a full GM, an Assistant GM, a view without the field; running on another GM: a full GM, an Assistant GM]");
     }],
 ];
 
