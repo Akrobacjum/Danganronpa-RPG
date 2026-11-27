@@ -17461,6 +17461,17 @@ const INVARIANTS = [
          * token hook's handler (`onTokenChange`), a token write that moves neither flag, and the GM's own rule (this browser
          * is a GM's: nobody hidden). Whether avclient-livekit draws such a box, and its video and avatar, is LIVE-F119-03.
          * Red at e515907d: the dock's render hook wrote D's character name.
+         * THE MODE STATED ON EVERY READ (2.0 line T4, R7931, 27.11.2026). At The Forge (Foundry 14.370; docs/dev/v2/F3-forge-PC-2.md,
+         * FORGE-09d) this failed as "named a hidden participant, or did not name them again"; the report keeps no reading,
+         * so which part is not known. Read in the module against what the test assumed: `onTokenChange` relabelled in the
+         * mode this browser's A/V settings hold (`nameplateMode()`, `game.webrtc.settings.client.nameplates` under
+         * `foundry.av.AVSettings.NAMEPLATE_MODES`), and the test drew its boxes and read `back` as the BOTH mode. The harness
+         * has no NAMEPLATE_MODES, so `nameplateMode()` is null there and every read took BOTH's road; on a table whose
+         * plates show player names only, D's tooltip is taken off after the veil and `back`'s second part reads false, and
+         * with plates Off the "?" stays on a plate Foundry does not draw - both the mode's right answer, not the test's.
+         * `onTokenChange` takes the test's `plate` now (camera-view.mjs), BOTH. The accounts' names and characters are the
+         * world's either way: a plate reads `full(u)`, the module's own `voiceIdentity`, which holds for an account with no
+         * character too (its name), so no probe is asked. What the Forge's mode is stays the table's: LIVE-E134-02.
          */
         needs(world.atLeast("playerAccounts", 2), "two accounts besides the GM's, each with a box on the dock");
         const C = await import("./camera-view.mjs");
@@ -17484,9 +17495,9 @@ const INVARIANTS = [
         paint(playerOnly);
         read.playerOnly = plateOf(d);
         if (typeof C.onTokenChange === "function") {
-            read.quiet = C.onTokenChange({}, { name: "x" }, { root, hidden: () => false });
+            read.quiet = C.onTokenChange({}, { name: "x" }, { root, hidden: () => false, plate: both });
             read.stillHidden = plateOf(d);
-            read.lifted = C.onTokenChange({}, { flags: { [MODULE_ID]: { [`${"-="}veiled`]: null } } }, { root, hidden: () => false });
+            read.lifted = C.onTokenChange({}, { flags: { [MODULE_ID]: { [`${"-="}veiled`]: null } } }, { root, hidden: () => false, plate: both });
             read.back = [plateOf(d), tipOf(d) === foundry.utils.escapeHTML(full(d))];
         }
         read.gm = typeof C.hiddenFromHere === "function" ? C.hiddenFromHere(d, { veiled: () => true, masked: () => true }) : null;
