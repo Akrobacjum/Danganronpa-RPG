@@ -118776,6 +118776,48 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         equal(stableJson(read), stableJson({ before: ["true", false], after: [forcedDeletion() ? "none" : true, "false", game.i18n.localize("DRPG.Voice.micBlock")] }),
             "{before: the cell's aria-pressed and greyed with the player's block; after the press: the player's own BROADCAST_AUDIO, the cell's aria-pressed and word}");
     }],
+    ["E134 PANEL-01 - a repair pressed from Diagnostics asks first and runs the console's function: the Repairs window opened as its tile opens it, Draw the fog again pressed - a Cancel runs nothing, a Yes runs game.drpg.repaintFog once on this browser and tells the GM", async () => {
+        /*
+         * 2.0 line T4, PANEL-01 (27.11.2026). The row is the fog's because it writes nothing to the world: repaintFog draws
+         * this browser's layer again. `game.drpg.repaintFog` is stood in by a counter that calls the real one through, and
+         * `ui.notifications.info` by a recorder for the window's life; both are put back. Each question is answered by
+         * its own buttons, pressed as a GM would. Red before the line: no Repairs window.
+         */
+        must(game.user.isGM, "the Repairs window is a GM's");
+        const R = await import("./repair-window.mjs");
+        must(typeof R.openRepairs === "function", "repair-window.mjs has no openRepairs - Diagnostics has no Repairs window");
+        const windows = cls => [...foundry.applications.instances.values()].filter(a => a.rendered && a.options?.classes?.includes(cls));
+        const question = () => [...foundry.applications.instances.values()].find(a => a.rendered && a.element?.querySelector?.('button[data-action="yes"]')) ?? null;
+        const real = game.drpg.repaintFog;
+        let runs = 0;
+        const told = [];
+        const backs = [standIn(game.drpg, "repaintFog", (...args) => { runs++; return real(...args); }),
+            standIn(ui.notifications, "info", text => { told.push(String(text)); })];
+        const read = {};
+        try {
+            void Promise.resolve().then(() => R.openRepairs()).catch(() => null);
+            const button = () => windows("drpg-window-repairs")[0]?.element?.querySelector('[data-drpg-repair="fog"]') ?? null;
+            must(await until(() => button(), 6000), "the Repairs window drew no fog row - this would measure nothing");
+            button().click();
+            must(await until(() => question(), 4000), "the fog row asked nothing");
+            question().element.querySelector('button[data-action="no"]').click();
+            await until(() => !question(), 4000);
+            await settle();
+            read.cancel = runs;
+            button().click();
+            must(await until(() => question(), 4000), "the fog row asked nothing the second time");
+            question().element.querySelector('button[data-action="yes"]').click();
+            await until(() => runs > 0 && told.length > 0, 4000);
+            read.yes = [runs, told.filter(t => t === game.i18n.localize("DRPG.Repair.fog.done") || t === game.i18n.localize("DRPG.Repair.fog.stood")).length];
+        } finally {
+            for (const a of windows("drpg-window-repairs")) await a.close().catch(() => {});
+            const q = question();
+            if (q) await q.close().catch(() => {});
+            for (const put of backs.reverse()) put();
+        }
+        equal(JSON.stringify(read), JSON.stringify({ cancel: 0, yes: [1, 1] }),
+            "{cancel: repaintFog's runs after a Cancel; yes: [its runs after a Yes, the GM told what it answered]}");
+    }],
 ];
 
 // `drawnForPlayer` for the grid (E33 C7): a drawn crisis roll goes through the suite's one road to a draw (tests-grid.mjs `drawnAct`).

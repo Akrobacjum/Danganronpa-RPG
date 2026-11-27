@@ -9688,7 +9688,98 @@
       "voiceRoomsOffDone": "Pokoje głosu są wyłączone: wszyscy są w pokoju głównym.",
       "voiceRoomsOnDone": "Pokoje głosu są włączone: każdy znów słyszy tylko swój pokój.",
       "voiceRoomsNoLiveKit": "Tu nie ma klienta LiveKit AV, więc nie ma pokoi głosu do przełączenia.",
-      "voiceRoomsOffTip": "Wyłącza pokoje głosu: przełącznik Głos osobno w każdym pokoju w Ustawieniach gry."
+      "voiceRoomsOffTip": "Wyłącza pokoje głosu: przełącznik Głos osobno w każdym pokoju w Ustawieniach gry.",
+      "tile": "Naprawy",
+      "title": "Naprawy",
+      "intro": "Co zrobić, gdy coś utknęło. Każdy przycisk uruchamia naprawę z konsoli (game.drpg), najpierw pyta i mówi, co zrobił; konsola zostaje drugą drogą.",
+      "colSymptom": "Kiedy",
+      "colDoes": "Co robi przycisk",
+      "colPress": "Naprawa",
+      "failed": "Naprawa się nie udała; konsola (F12) mówi dlaczego.",
+      "primaryOnly": "Robi to tylko przeglądarka głównego GM-a, teraz {name}.",
+      "body": {
+        "symptom": "Znalezienie ciała zostaje: jego karta i cisza muzyki stoją.",
+        "does": "Czyści u wszystkich zapis znalezionego ciała, więc karta i cisza znikają. Zegar się nie przesuwa i nic ze śmierci ani ze śledztwa nie jest cofane.",
+        "button": "Wyczyść znalezienie ciała",
+        "done": "Znalezienie ciała jest wyczyszczone.",
+        "none": "Żadne znalezienie ciała nie czekało."
+      },
+      "chapterFinish": {
+        "symptom": "Koniec rozdziału stanął w połowie.",
+        "does": "Prowadzi zatrzymany koniec dalej od jego zapisu, w przeglądarce głównego GM-a: to, co już zrobił, nie jest robione drugi raz. Biegnie tylko w fazie, w której koniec stanął, a w innej mówi, w której.",
+        "button": "Dokończ koniec rozdziału"
+      },
+      "chapterDrop": {
+        "symptom": "Koniec rozdziału stanął, a reszta nie powinna biec.",
+        "does": "Niczego nie uruchamia: zapis końca jest oznaczony jako porzucony, a karta dla GM-ów wymienia kroki, które zostają niezrobione. Nic z tego, co koniec zrobił, nie jest cofane.",
+        "button": "Porzuć resztę końca"
+      },
+      "observes": {
+        "symptom": "Deklaracja Observe wisi i żaden GM nie może ustalić jej celu.",
+        "does": "Zapomina wszystkie czekające cele Observe, które trzymają GM-owie. Żadna akcja ani Hope nie wraca.",
+        "button": "Zapomnij czekające Observe",
+        "done": {
+          "one": "Zapomniano {n} czekające Observe.",
+          "few": "Zapomniano {n} czekające Observe.",
+          "many": "Zapomniano {n} czekających Observe.",
+          "other": "Zapomniano {n} czekającego Observe."
+        }
+      },
+      "unhide": {
+        "symptom": "Postać nadal jest ukryta.",
+        "does": "Kończy Hide tej postaci, tak jak jej własne Ujawnij się: wszyscy znów widzą jej token, mikrofon wraca, a gracz dostaje wiadomość. W przeglądarce innego GM-a prosi o to głównego.",
+        "button": "Pokaż postać",
+        "pick": "Postać do pokazania",
+        "done": "Postać {name} jest znowu widoczna.",
+        "failed": "Nie udało się pokazać postaci {name}: może już nie być ukryta.",
+        "noneHidden": "Nikt nie jest teraz ukryty."
+      },
+      "tokens": {
+        "symptom": "Search Tokeny pokoi są wydane, a powinny być pełne.",
+        "does": "Uzupełnia Search Tokeny każdego pokoju, tak jak następna pora dnia, bez przesuwania zegara. Prosi o to przeglądarkę głównego GM-a.",
+        "button": "Uzupełnij Search Tokeny",
+        "failed": "Nie udało się uzupełnić Search Tokenów."
+      },
+      "fog": {
+        "symptom": "Mgła na tym ekranie jest narysowana źle.",
+        "does": "Rysuje mgłę od nowa tylko w tej przeglądarce, na twoim ekranie. Na ekranie gracza gracz uruchamia game.drpg.repaintFog() we własnej konsoli.",
+        "button": "Narysuj mgłę od nowa",
+        "done": "Mgła jest narysowana od nowa w tej przeglądarce.",
+        "stood": "Mgła tutaj nie stoi albo czeka na koniec odsłaniania; game.drpg.diagnoseFog() w tej przeglądarce mówi, co z tych dwóch."
+      },
+      "music": {
+        "symptom": "Muzyka nie gra tego, czego chce chwila.",
+        "does": "Pyta muzykę od nowa, który stan obowiązuje, i go gra, w przeglądarce głównego GM-a, którą słyszą wszyscy. Utwór puszczony ręcznie przez GM-a nadal wygrywa.",
+        "button": "Zagraj właściwą muzykę",
+        "done": "Muzyka jest zapytana od nowa, co ma grać."
+      },
+      "reclaim": {
+        "symptom": "GM otworzył ten świat na wydaniu sprzed 1.2.63, które zapisało stary klucz magazynu GM-ów.",
+        "does": "Bierze ze starego klucza magazynu to, co zmieniło się od aktualizacji: wiersz, którego magazyn nie miał, jest dodawany, pole jest brane tylko wtedy, gdy własne pole magazynu jest starsze od aktualizacji, a reszta zostaje taka jak tutaj i jest liczona. To, co się zmieniło, idzie do pozostałych GM-ów.",
+        "button": "Weź ze starego klucza",
+        "pick": "Magazyn GM-ów",
+        "done": "{store}: dodane wiersze {added}, zmienione wiersze {count}, zostawione jak tutaj {kept}.",
+        "none": "{store} nie ma przejęcia starego klucza, z którego można brać.",
+        "noneChanged": "Stary klucz żadnego magazynu GM-ów nie zmienił się od aktualizacji."
+      },
+      "migrate": {
+        "symptom": "Dane tego świata wyglądają jak przed aktualizacją.",
+        "does": "Uruchamia od nowa każdą klauzulę migracji, cokolwiek mówi stempel wersji, w przeglądarce głównego GM-a. Wydanie testowe w świecie bez \"qa\" w nazwie nie uruchamia żadnej (Podręcznik GM-a 20.5).",
+        "button": "Uruchom migrację od nowa",
+        "done": "Migracja przebiegła od nowa. Zmiany: {count}; nieudane klauzule: {cut}."
+      },
+      "actions": {
+        "symptom": "Przejście pory dnia się nie udało i akcje nie zostały uzupełnione.",
+        "does": "Uzupełnia akcje każdej postaci i zabiera jej darmowe przydziały (Sprint i Burst), bez przesuwania zegara.",
+        "warn": "To nie jest zwykła droga: akcje wracają, gdy pora dnia przechodzi dalej, a uzupełnienie, które nie przesuwa zegara, to sposób na zgubienie, w której porze dnia stół naprawdę jest. Używaj tego tylko przy zepsutym przejściu.",
+        "button": "Uzupełnij akcje wszystkich",
+        "done": {
+          "one": "Uzupełniono akcje {n} postaci.",
+          "few": "Uzupełniono akcje {n} postaci.",
+          "many": "Uzupełniono akcje {n} postaci.",
+          "other": "Uzupełniono akcje {n} postaci."
+        }
+      }
     }
   }
 }

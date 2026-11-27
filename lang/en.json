@@ -7854,7 +7854,94 @@
       "voiceRoomsOffDone": "The voice rooms are off: everybody is in the main room.",
       "voiceRoomsOnDone": "The voice rooms are on: everybody hears only their own room again.",
       "voiceRoomsNoLiveKit": "There is no LiveKit AV client here, so there are no voice rooms to turn.",
-      "voiceRoomsOffTip": "Turns the voice rooms off: the switch Separate voice in each room in the Game settings."
+      "voiceRoomsOffTip": "Turns the voice rooms off: the switch Separate voice in each room in the Game settings.",
+      "tile": "Repairs",
+      "title": "Repairs",
+      "intro": "What to do when something is stuck. Each button runs the console's own repair (game.drpg), asks first, and says what it did; the console stays the second road.",
+      "colSymptom": "When",
+      "colDoes": "What the button does",
+      "colPress": "Repair",
+      "failed": "The repair failed; the console (F12) says why.",
+      "primaryOnly": "Only the primary GM's browser does this, {name}'s now.",
+      "body": {
+        "symptom": "A body's discovery stays: its card and the music's silence stand.",
+        "does": "Clears the record of the body found for everyone, so the card and the silence go. The clock does not move, and nothing of the death or the investigation is taken back.",
+        "button": "Clear the body's discovery",
+        "done": "The body's discovery is cleared.",
+        "none": "No body's discovery was waiting."
+      },
+      "chapterFinish": {
+        "symptom": "The chapter's end stopped half way.",
+        "does": "Runs the stopped end on from its record, on the primary GM's browser: what it did is not done again. It runs only in the phase the end stood on, and otherwise says which.",
+        "button": "Finish the chapter's end"
+      },
+      "chapterDrop": {
+        "symptom": "The chapter's end stopped, and the rest should not run.",
+        "does": "Runs nothing: the end's record is marked dropped, and the GMs' card names the steps that stay undone. Nothing the end did is taken back.",
+        "button": "Drop the rest of the end"
+      },
+      "observes": {
+        "symptom": "An Observe's declaration hangs, and no GM can fix its target.",
+        "does": "Forgets every pending Observe target the GMs hold. No action or Hope is given back.",
+        "button": "Forget the pending Observes",
+        "done": {
+          "one": "Forgot {n} pending Observe.",
+          "other": "Forgot {n} pending Observes."
+        }
+      },
+      "unhide": {
+        "symptom": "A character stays hidden.",
+        "does": "Ends that character's Hide, as their own Reveal yourself would: everyone sees their token again, their microphone comes back, and their player is told. On another GM's browser it is asked of the primary.",
+        "button": "Show the character",
+        "pick": "The character to show",
+        "done": "{name} is shown again.",
+        "failed": "{name} could not be shown: they may no longer be hidden.",
+        "noneHidden": "Nobody is hidden now."
+      },
+      "tokens": {
+        "symptom": "The rooms' Search Tokens are spent and should be full.",
+        "does": "Refills every room's Search Tokens, as the next time of day would, without moving the clock. Asked of the primary GM's browser.",
+        "button": "Refill the Search Tokens",
+        "failed": "The Search Tokens could not be refilled."
+      },
+      "fog": {
+        "symptom": "The fog on this screen is drawn wrong.",
+        "does": "Draws the fog again on this browser only, on your own screen. For a player's screen, the player runs game.drpg.repaintFog() in their own console.",
+        "button": "Draw the fog again",
+        "done": "The fog was drawn again on this browser.",
+        "stood": "The fog stood down here, or waits for a reveal to end; game.drpg.diagnoseFog() on this browser says which."
+      },
+      "music": {
+        "symptom": "The music does not play what the moment calls for.",
+        "does": "Asks the music again which state applies and plays it, on the primary GM's browser, whose playback everyone hears. A track a GM started by hand still wins.",
+        "button": "Play the right music",
+        "done": "The music was asked again what it should play."
+      },
+      "reclaim": {
+        "symptom": "A GM opened this world on a build before 1.2.63, which wrote a GM store's old key.",
+        "does": "Takes from the store's old key what changed since the upgrade: a row the store never held is added, a field is taken only while the store's own is older than the upgrade, and the rest is kept as it is here and counted. What changed goes to the other GMs.",
+        "button": "Take from the old key",
+        "pick": "The GM store",
+        "done": "{store}: rows added {added}, rows changed {count}, kept as they are here {kept}.",
+        "none": "{store} has no claim of an old key to take from.",
+        "noneChanged": "No GM store's old key changed since the upgrade."
+      },
+      "migrate": {
+        "symptom": "This world's data looks as it did before an upgrade.",
+        "does": "Runs every migration clause again, whatever the version stamp says, on the primary GM's browser. A test build in a world without \"qa\" in its name runs none (GM handbook 20.5).",
+        "button": "Run the migration again",
+        "done": "The migration ran again. Changes: {count}; clauses failed: {cut}."
+      },
+      "actions": {
+        "symptom": "A time of day's advance went wrong, and the actions were not refilled.",
+        "does": "Refills every character's actions and takes their free grants away (Sprint and Burst), without moving the clock.",
+        "warn": "Not the usual road: actions come back when the time of day advances, and a refill that does not move the clock is a way to lose track of which time of day the table is in. Use it for a botched advance only.",
+        "button": "Refill everyone's actions",
+        "done": {
+          "one": "Refilled the actions of {n} character.",
+          "other": "Refilled the actions of {n} characters."
+        }
+      }
     }
   }
 }

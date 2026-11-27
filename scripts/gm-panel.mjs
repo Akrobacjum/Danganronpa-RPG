@@ -33,7 +33,7 @@ import { firstOutstandingStep } from "./season-setup.mjs";
 import { roundOf, readyRecord } from "./boundary.mjs";
 import { trialNextStep, trialStepView, trialStepText } from "./trial-floor.mjs";
 import { openWhoIsAliveDialog } from "./gm-students.mjs";
-import { voiceRoomsLabelKey, voiceRoomsRefusal, toggleVoiceRooms } from "./repair-window.mjs";
+import { voiceRoomsLabelKey, voiceRoomsRefusal, toggleVoiceRooms, openRepairs } from "./repair-window.mjs";
 
 export { openWhoIsAliveDialog, applyAliveStates } from "./gm-students.mjs";
 export { correctsTheHour, openClockDialog } from "./gm-campaign.mjs";
@@ -384,7 +384,10 @@ const PANEL_SECTIONS = [
                 disabled: () => voiceRoomsRefusal({ mayModify: () => mayModifySettings() }) !== null,
                 disabledReason: () => voiceRoomsRefusal({ mayModify: () => mayModifySettings() }) ?? "",
                 run: () => toggleVoiceRooms({ refusal: () => voiceRoomsRefusal({ mayModify: () => mayModifySettings() }) }) },
-            "labelKey", { get: () => voiceRoomsLabelKey(), enumerable: true })
+            "labelKey", { get: () => voiceRoomsLabelKey(), enumerable: true }),
+            // REPAIRS (PANEL-01): the console's repair tools in a window of their own, each the function it was, asked
+            // first; "Refill everyone's actions" among them, last and with this comment's warning beside it.
+            { key: "repairs", icon: "fa-screwdriver-wrench", labelKey: "DRPG.Repair.tile", run: () => openRepairs() }
         ]
     }
 ];

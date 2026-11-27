@@ -56824,8 +56824,9 @@ const INVARIANTS = [
                 // E49 A1d: Reset the season into Season setup, Settings in its place (R3532). E49 A1e: Edit campaign, Despair Flow,
                 // Killing game rules and The Mastermind into Season setup (R3582).
                 ["between", ["roomSetup", "tables", "seasonSetup", "settings"]],
-                // The 2.0 line T4 (27.11.2026): its tiles together at the end of Diagnostics, voice rooms (VOICE-03, R9251).
-                ["fixes", ["failureLog", "voiceReset", "caseWindow", "voiceRooms"]]],
+                // The 2.0 line T4 (27.11.2026): its tiles together at the end of Diagnostics, voice rooms (VOICE-03, R9251)
+                // and Repairs (PANEL-01, R9249).
+                ["fixes", ["failureLog", "voiceReset", "caseWindow", "voiceRooms", "repairs"]]],
             caseTile: ["fixes", en["DRPG.Case.tile"] === undefined ? "?" : game.i18n.localize("DRPG.Case.tile"), age],
             diag: [0, 2], en: [], pl: [], keys: [[false, false], [false, false]]
         }), "{tiles: every section's tiles in order; caseTile: [its section, label, second line]; diag: [diagnostics.mjs's \"(Back up the case)\", its lines naming "
@@ -70530,6 +70531,102 @@ const INVARIANTS = [
             reasons: [L("DRPG.SettingsWindow.mayNot"), L("DRPG.Repair.voiceRoomsNoLiveKit"), null],
             tile: ["voiceRooms", true, true]
         }), "{labels: [rooms on, rooms off]; each press: [answered, asked [title, yes, a body, a tip], wrote, told] - off and Yes, off and Cancel, on, refused; reasons: [no settings right, no LiveKit, neither]; tile: [the tile after the base's last (The case), its words by the state, greyed as the refusal says]}");
+    }],
+    ["R9248 - a repair runs its console function only on Yes (2.0 line T4, PANEL-01): repair-window.mjs `runRepair` asks first for every row of `REPAIRS`, a Cancel and a closed question calling nothing, a Yes calling the row's `game.drpg` function once with its arguments - the pick of a row that picks, `{ drop: true }` for the dropped end, `{ force: true }` for the migration - and telling the GM what it answered; `repairState` greys a primary's row off the primary and a pick with nothing to pick, with the reason; the window's table hands a press its row and its pick, and a greyed button hands nothing", async () => {
+        /*
+         * PANEL-01 (docs/dev/v2/F1-infra.md). Every reading is the functions' with stand-ins through their parameters: the
+         * console (`api`, a recorder per function the rows name), the question (`ask`) and the notice (`notify`); the table
+         * is drawn into a div of the test's own and pressed there. Nothing is written and no console function runs. Red at
+         * 31d5812: there was no repair-window.mjs.
+         */
+        const R = await import("./repair-window.mjs").catch(() => null);
+        must(R && Array.isArray(R.REPAIRS) && typeof R.runRepair === "function" && typeof R.repairState === "function"
+            && typeof R.repairsHtml === "function" && typeof R.wireRepairs === "function",
+            "repair-window.mjs has no REPAIRS, runRepair, repairState, repairsHtml or wireRepairs - Diagnostics has no repairs");
+        const L = key => game.i18n.localize(key);
+        const calls = [];
+        const answers = { clearBodyDiscovery: {}, finishChapterEnd: null, clearPendingObserves: 3, unhide: true, resetTokens: true,
+            repaintFog: true, refreshMusic: undefined, gmStoreReclaim: { added: ["a"], taken: [], conflicts: ["c", "d"] },
+            migrate: { changed: 2, failed: [] }, resetAllActions: [{}, {}] };
+        const api = Object.fromEntries(Object.keys(answers).map(name => [name, async (...args) => { calls.push([name, JSON.parse(JSON.stringify(args))]); return answers[name]; }]));
+        const picks = { unhide: "R9248A", reclaim: "bullets" };
+        const choices = { unhide: [{ value: "R9248A", label: "R9248 Aiko" }], reclaim: [{ value: "bullets", label: "bullets" }] };
+        const press = async (key, answer) => {
+            calls.length = 0;
+            const told = [], asked = [];
+            const did = await R.runRepair(key, { api, pick: picks[key] ?? null, choices: choices[key] ?? null,
+                ask: async (title, body, yes, tip) => { asked.push(title === L(`DRPG.Repair.${key}.button`) && yes === title && tip === L(`DRPG.Repair.${key}.does`)); return answer; },
+                notify: text => told.push(text) });
+            return { did: did?.ran ?? did, asked, calls: [...calls], told };
+        };
+        const read = { keys: R.REPAIRS.map(r => r.key), rows: {} };
+        for (const row of R.REPAIRS) {
+            read.rows[row.key] = { cancel: await press(row.key, false), closed: await press(row.key, null), yes: await press(row.key, true) };
+        }
+        read.noPick = await R.runRepair("unhide", { api, ask: async () => true, notify: () => {} });
+        read.states = {
+            music: R.repairState(R.REPAIRS.find(r => r.key === "music"), { primary: false, primaryName: "R9248 Kenji" }).refusal,
+            musicHere: R.repairState(R.REPAIRS.find(r => r.key === "music"), { primary: true }).refusal,
+            noneHidden: R.repairState(R.REPAIRS.find(r => r.key === "unhide"), { primary: true, hidden: [] }).refusal,
+            hidden: R.repairState(R.REPAIRS.find(r => r.key === "unhide"), { primary: true, hidden: [{ actorId: "R9248A", name: "R9248 Aiko" }] }),
+            noStore: R.repairState(R.REPAIRS.find(r => r.key === "reclaim"), { primary: true, stores: [] }).refusal
+        };
+        // The window's table, pressed.
+        const states = new Map([["music", { refusal: "R9248 no", choices: null }], ["unhide", { refusal: null, choices: [{ value: "R9248A", label: "R9248 Aiko" }, { value: "R9248B", label: "R9248 Ben" }] }]]);
+        const box = document.createElement("div");
+        box.innerHTML = R.repairsHtml(states);
+        const pressed = [];
+        R.wireRepairs(box, { press: async (key, pick) => { pressed.push([key, pick]); } });
+        box.querySelector('[data-drpg-repair="fog"]').click();
+        box.querySelector('[data-drpg-repair-pick="unhide"]').value = "R9248B";
+        box.querySelector('[data-drpg-repair="unhide"]').click();
+        box.querySelector('[data-drpg-repair="music"]').click();
+        await settle();
+        read.table = { buttons: [...box.querySelectorAll("[data-drpg-repair]")].map(b => b.dataset.drpgRepair),
+            greyed: [...box.querySelectorAll("[data-drpg-repair]:disabled")].map(b => [b.dataset.drpgRepair, b.title]),
+            warned: Boolean(box.querySelector('[data-drpg-repair="actions"]')?.closest("tr")?.textContent.includes(L("DRPG.Repair.actions.warn"))), pressed };
+        const nothing = { did: false, asked: [true], calls: [], told: [] };
+        const yes = (call, args, told) => ({ did: true, asked: [true], calls: [[call, args]], told });
+        const F = (key, data) => game.i18n.format(key, data);
+        const { plural } = await import("./utils.mjs");
+        const want = {
+            body: yes("clearBodyDiscovery", [], [L("DRPG.Repair.body.done")]),
+            chapterFinish: yes("finishChapterEnd", [], []),
+            chapterDrop: yes("finishChapterEnd", [{ drop: true }], []),
+            observes: yes("clearPendingObserves", [], [plural("DRPG.Repair.observes.done", { n: 3 })]),
+            unhide: yes("unhide", ["R9248A"], [F("DRPG.Repair.unhide.done", { name: "R9248 Aiko" })]),
+            tokens: yes("resetTokens", [], []),
+            fog: yes("repaintFog", [], [L("DRPG.Repair.fog.done")]),
+            music: yes("refreshMusic", [], [L("DRPG.Repair.music.done")]),
+            reclaim: yes("gmStoreReclaim", ["bullets"], [F("DRPG.Repair.reclaim.done", { store: "bullets", added: 1, count: 0, kept: 2 })]),
+            migrate: yes("migrate", [{ force: true }], [F("DRPG.Repair.migrate.done", { count: 2, cut: 0 })]),
+            actions: yes("resetAllActions", [], [plural("DRPG.Repair.actions.done", { n: 2 })])
+        };
+        equal(JSON.stringify(read), JSON.stringify({
+            keys: Object.keys(want),
+            rows: Object.fromEntries(Object.entries(want).map(([key, y]) => [key, { cancel: nothing, closed: nothing, yes: y }])),
+            noPick: null,
+            states: { music: F("DRPG.Repair.primaryOnly", { name: "R9248 Kenji" }), musicHere: null, noneHidden: L("DRPG.Repair.unhide.noneHidden"),
+                hidden: { refusal: null, choices: [{ value: "R9248A", label: "R9248 Aiko" }] }, noStore: L("DRPG.Repair.reclaim.noneChanged") },
+            table: { buttons: Object.keys(want), greyed: [["music", "R9248 no"]], warned: true, pressed: [["fog", null], ["unhide", "R9248B"]] }
+        }), "{keys: the rows in order; rows: each row's [Cancel, closed, Yes]: [answered, asked as its button with its effect, the console calls with their arguments, told]; noPick: a picking row with no pick; states: a primary's row off and on the primary, no one hidden, one hidden, no store changed; table: [its buttons, the greyed ones with their reason, the actions' warning drawn, what three presses handed on]}");
+    }],
+    ["R9249 - every repair is a console function, and Repairs is Diagnostics' last tile (2.0 line T4, PANEL-01): each row of repair-window.mjs `REPAIRS` names a function `game.drpg` holds (the object as it stands, not its source); gm-panel.mjs draws the tile `repairs`, Repairs in both languages, last in Diagnostics", async () => {
+        /* PANEL-01: the window adds no logic, so each of its rows must be a road the console already had. Read off the
+           API object and the panel's markup (`buildSections`); nothing is called or written. Red at 31d5812: no repair-window.mjs. */
+        const R = await import("./repair-window.mjs").catch(() => null);
+        must(R && Array.isArray(R.REPAIRS) && R.REPAIRS.length, "repair-window.mjs has no REPAIRS - this would measure nothing");
+        const files = {};
+        for (const code of ["en", "pl"]) files[code] = await fetch(`/modules/${MODULE_ID}/lang/${code}.json`).then(r => r.json());
+        const P = await import("./gm-panel.mjs");
+        const box = document.createElement("div");
+        box.innerHTML = P.buildSections();
+        const fixes = [...box.querySelectorAll('details[data-drpg-key="fixes"] [data-drpg-run]')].map(b => b.dataset.drpgRun);
+        equal(JSON.stringify({ missing: R.REPAIRS.filter(r => typeof game.drpg?.[r.call] !== "function").map(r => r.call),
+            last: fixes.at(-1), words: [files.en?.DRPG?.Repair?.tile, files.pl?.DRPG?.Repair?.tile],
+            label: box.querySelector('[data-drpg-run="repairs"] span')?.textContent ?? null }),
+        JSON.stringify({ missing: [], last: "repairs", words: ["Repairs", "Naprawy"], label: game.i18n.localize("DRPG.Repair.tile") }),
+        "{missing: the rows' functions game.drpg does not hold; last: Diagnostics' last tile; words: the tile's [en, pl]; label: the drawn tile's words}");
     }],
 ];
 

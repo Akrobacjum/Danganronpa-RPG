@@ -266,11 +266,13 @@ Kafelki, według sekcji:
 | Teraz (zawsze otwarta) | **Uczniowie**, **Projects**, **Dźwięk** |
 | Sprawa (Daily Life, Investigation, Class Trial) | **Morderstwo**, **Investigation** i konsola **Class Trial**; Morderstwo jest wyszarzone podczas Eclipse, chyba że trwa incydent, a gdy incydent trwa, otwiera tracker incydentu |
 | Między sesjami (zwinięta) | **Ustawienia pokoi**, **Tabele przedmiotów**, **Ustawienia sezonu** (sekcja 2) i **Ustawienia gry**; kafelek Ustawienia gry jest wyłączony, z podanym powodem, dla GM-a, któremu Foundry nie pozwala zmieniać ustawień |
-| Diagnostyka (zwinięta, przyciemniona) | **Dziennik debugowania**, **Napraw głos**, **Sprawa**, czyli kopia zapasowa i przywracanie, z wiekiem ostatniej kopii (sekcja 14), i **Wszyscy w jednym pokoju głosu** (sekcja 9.5) |
+| Diagnostyka (zwinięta, przyciemniona) | **Dziennik debugowania**, **Napraw głos**, **Sprawa**, czyli kopia zapasowa i przywracanie, z wiekiem ostatniej kopii (sekcja 14), **Wszyscy w jednym pokoju głosu** (sekcja 9.5) i **Naprawy** (sekcja 20.3) |
 
 **Dziennik debugowania** wymienia wszystko, co w tej przeglądarce poszło nie tak od załadowania strony; powtórka to jeden wiersz z licznikiem, a przeładowanie opróżnia dziennik. Lista nadąża, póki okno jest otwarte, a **Kopiuj do schowka** kopiuje wiersze takie, jakie są w chwili kliknięcia; gdy przeglądarka nie pozwala skopiować tekstu, mówi o tym powiadomienie. **Kopiuj do schowka** i **Wyczyść dziennik** widać, gdy coś w nim jest, a gdy jest pusty, znikają, także w dzienniku otwartym pustym; nadążają za listą w ciągu pół sekundy. Zawsze ma **Foundry i moduły**. Okno Foundry i moduły ma dwie części. *Foundry, Daggerheart i moduły* daje jedną linię, gdy każde miejsce, na którym moduł w nich polega, jest takie, jakiego ta wersja oczekuje, a **!** przy każdym, które nie jest, z tym, co stół dostaje zamiast tego; listę ma sekcja 20, „Umowa z Foundry, Daggerheart i modułami”. Miejsca, których nie dało się sprawdzić na tym ekranie, to jedna policzona linia z listą schowaną pod nią; nie wiadomo, czy działają, bo czego nie sprawdzono, tego moduł nigdy nie zalicza. *Wygląd kości* mówi, jak odczytuje się wygląd kości innej przeglądarki, i ma **Otwórz wygląd kości**.
 
 **Napraw głos** wysyła każdemu jeszcze raz jego pokój głosowy (sekcja 9.5). Działa tylko przy aktywnym LiveKit AVClient. Pokoje wysyła przeglądarka głównego GM-a: naciśnięcie drugiego pełnego Gamemastera jest wykonywane tam (od 1.2.128); u Asystenta GM-a kafelek jest wyszarzony i podaje, kto jest głównym GM-em.
+
+**Naprawy** otwierają okno napraw z konsoli, jeden wiersz na każdą rzecz, która może utknąć: co widzisz, co robi przycisk, i sam przycisk, który najpierw pyta i mówi, co zrobił (sekcja 20.3). **Uzupełnij akcje wszystkich** stoi na końcu, z ostrzeżeniem: nie przesuwa zegara, więc jest tylko na zepsute przejście.
 
 **Uczniowie** mają wiersz dla każdej postaci, w grupach, gdy jest ich więcej niż jedna: najpierw uczniowie, potem Monokumy, Widzowie i postacie poza klasą. Każdy wiersz ma imię, przycisk arkusza, obok niego **Przedmioty** (poza wierszem Monokumy, bo jego arkusz nie ma zakładki Ekwipunek), kolumnę **Rola** i **Level Up** tam, gdzie arkusz go proponuje. **Rola** to Uczeń, Monokuma, Widz albo Poza klasą i zmienia się od razu, tak jak kontrolki w nagłówku arkusza, a oznaczenie postaci gracza jako Monokumy najpierw pyta; Widz zmarłego ucznia ma w tej kolumnie *Widz zmarłego ucznia*. **Level Up** otwiera menu Level Up arkusza i mówi, ile ofert czeka (*n oferty Level Up*), a **Przedmioty** otwierają **Daj / zabierz przedmioty** dla tej postaci; po każdym z nich tabela wraca.
 
@@ -1915,7 +1917,23 @@ Despair, który nie dochodzi, to zwykle brak połączonego głównego GM-a, wył
 | `publicRoll(formula, { flavor })` | jedyny rzut, który czytają wszyscy, gdy rzuty są wymuszone jako prywatne, na przykład remis w głosowaniu albo loteria Monokumy; tylko dla GM-a i uruchamiany z makra, bo panel nie ma na niego kafelka |
 | **Dziennik debugowania** w panelu (Diagnostyka) | narzędzie do zgłoszeń błędów: jego przycisk **Kopiuj do schowka** daje to, czego potrzebuje zgłoszenie błędu |
 
-**Naprawy.** `resetAllActions()` dla zepsutego przejścia zegara, a także `ruleOnParkedMurder(killerId, true)`, `applyChapterEnd({...})`, `setMotive(null)`, `refreshMusic()`, `repaintFog()` i `resetAllVoice()`.
+**Naprawy.** **Diagnostyka** panelu ma okno **Naprawy** (od 1.2.130): jeden wiersz na każdą naprawę poniżej, każdy najpierw pyta, z Anuluj jako domyślnym, i mówi, co zrobił. Konsola zostaje drugą drogą. Wiersz, który wykonuje tylko przeglądarka głównego GM-a, jest u innego GM-a wyszarzony, z powodem.
+
+| Kiedy | Przycisk w Naprawach | W konsoli |
+|---|---|---|
+| znalezienie ciała zostaje: jego karta i cisza muzyki stoją | **Wyczyść znalezienie ciała** | `clearBodyDiscovery()` |
+| koniec rozdziału stanął w połowie | **Dokończ koniec rozdziału** | `finishChapterEnd()` |
+| koniec rozdziału stanął, a reszta nie powinna biec | **Porzuć resztę końca** | `finishChapterEnd({ drop: true })` |
+| deklaracja Observe wisi | **Zapomnij czekające Observe** | `clearPendingObserves()` |
+| postać nadal jest ukryta | **Pokaż postać** (wybierz postać) | `unhide(actor)` |
+| Search Tokeny pokoi powinny być pełne | **Uzupełnij Search Tokeny** | `resetTokens()` |
+| mgła na twoim ekranie jest narysowana źle; na ekranie gracza wywołanie uruchamia gracz | **Narysuj mgłę od nowa** (tylko ta przeglądarka) | `repaintFog()` |
+| muzyka nie gra tego, czego chce chwila | **Zagraj właściwą muzykę** (główny GM) | `refreshMusic()` |
+| GM otworzył świat na wydaniu sprzed 1.2.63 | **Weź ze starego klucza** (wybierz magazyn) | `gmStoreReclaim(name)` |
+| dane świata wyglądają jak przed aktualizacją | **Uruchom migrację od nowa** (główny GM; sekcja 20.5) | `migrate({ force: true })` |
+| przejście pory dnia się nie udało i akcje nie zostały uzupełnione | **Uzupełnij akcje wszystkich**: to nie jest zwykła droga, bo nie przesuwa zegara | `resetAllActions()` |
+
+Tylko w konsoli: `ruleOnParkedMurder(killerId, true)`, `applyChapterEnd({...})`, `setMotive(null)` i `resetAllVoice()`.
 
 **Gdy ktoś traci sieć.** Po około 6,5 s bez połączenia Foundry pisze „Server connection lost” i przeładowuje stronę, a bez sieci kończy się to stroną błędu przeglądarki, która zostaje także po powrocie sieci. Wcześniej kafelek głosu tej osoby mówi **Brak połączenia z serwerem gry** (przy wyłączonym kafelku: jedno ostrzeżenie); moduł niczego wtedy nie zapisuje ani nie wysyła. Gdy sieć wróci, ta osoba naciska F5, a pełne wczytanie trwa 30-48 s (zmierzone na The Forge, 25.11.2026). Prośby wysłane przed utratą sieci wysyła od nowa (podręcznik gracza, rozdział 14).
 

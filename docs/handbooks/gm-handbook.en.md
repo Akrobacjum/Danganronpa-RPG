@@ -266,11 +266,13 @@ The tiles, by section:
 | Right now (always open) | **Students**, **Projects**, **Sound** |
 | The case (Daily Life, Investigation, Class Trial) | **Murder** (grayed out during an Eclipse, unless an incident runs: then it opens the incident tracker), **Investigation**, **Class Trial** console |
 | Between sessions (collapsed) | **Room setup**, **Item tables**, **Season setup** (section 2), **Settings** (the game's settings; disabled, with the reason, for a GM whom Foundry does not let change settings) |
-| Diagnostics (collapsed, dim) | **Debug log**, **Fix voice**, **The case** (backup and restore, with the last copy's age; section 14), **Everybody in one voice room** (section 9.5) |
+| Diagnostics (collapsed, dim) | **Debug log**, **Fix voice**, **The case** (backup and restore, with the last copy's age; section 14), **Everybody in one voice room** (section 9.5), **Repairs** (section 20.3) |
 
 **Debug log** lists everything this browser has failed at since the page loaded, a repeat as one row with a count; a reload empties it. The list follows while the window stands, and **Copy to clipboard** copies the rows as they are when you press it; when the browser does not let the text be copied, a notice says so. **Copy to clipboard** and **Clear the log** show while it holds anything and hide while it is empty, a log opened empty included, and follow the list within half a second; it always offers **Foundry and modules**. That window has two parts. *Foundry, Daggerheart and the modules* gives one line when every place the module relies on in them is as this version expects, and a **!** for each place that is not, with what the table gets instead (the list is in section 20, "The contract with Foundry, Daggerheart and the modules"); places that could not be checked on this screen are one counted line with the list folded under it, and are not known to work: unchecked is never a pass. *Dice look* says how another browser's dice look is read, with **Open the dice look**.
 
 **Fix voice** sends everybody their voice room again (section 9.5). It needs LiveKit AVClient active. The rooms are sent by the primary GM's browser: a second full Gamemaster's press is carried out there (since 1.2.128); for an Assistant GM the tile is greyed out and names the primary GM.
+
+**Repairs** opens a window of the console's repairs, one row for each thing that can get stuck: what you see, what the button does, and the button, which asks first and says what it did (section 20.3). **Refill everyone's actions** stands last, with its warning: it does not move the clock, so it is for a botched advance only.
 
 **Students** has a row for every character, in groups when there is more than one: the students, then the Monokumas, the Spectators and the characters not in the class. Every row has the name, a button for the sheet and **Items** beside it (not on a Monokuma's row: its sheet has no Inventory tab), its **Role**, and a **Level Up** where the sheet offers one. **Role** (Student, Monokuma, Spectator or Not in the class) changes at once, as the sheet header's controls do, and marking a player's character as Monokuma asks first; a dead student's Spectator reads *Dead student's Spectator* there. **Level Up** opens the sheet's own Level Up menu and says how many offers stand (*n Level Ups on offer*); **Items** opens **Give / take items** on that character; the table comes back after either.
 
@@ -1915,7 +1917,23 @@ Despair that does not arrive usually means no primary GM is connected, **Rolls g
 | `publicRoll(formula, { flavor })` | the one roll everybody reads while rolls are forced private, such as a vote's tie or Monokuma's lottery; GM only, and from a macro, since the panel has no tile for it |
 | the panel's **Debug log** (Diagnostics) | its **Copy to clipboard** produces the paste a bug report needs |
 
-**Repairs.** `resetAllActions()` for a botched advance; `ruleOnParkedMurder(killerId, true)`, `applyChapterEnd({...})`, `setMotive(null)`, `refreshMusic()`, `repaintFog()` and `resetAllVoice()`.
+**Repairs.** The panel's **Diagnostics** has a **Repairs** window (since 1.2.130): one row for each repair below, each asking first, with Cancel the default, and saying what it did. The console stays the second road. A row that only the primary GM's browser can carry out is greyed on another GM's, with the reason.
+
+| When | Button in Repairs | In the console |
+|---|---|---|
+| a body's discovery stays: its card and the music's silence stand | **Clear the body's discovery** | `clearBodyDiscovery()` |
+| the chapter's end stopped half way | **Finish the chapter's end** | `finishChapterEnd()` |
+| the chapter's end stopped, and the rest should not run | **Drop the rest of the end** | `finishChapterEnd({ drop: true })` |
+| an Observe's declaration hangs | **Forget the pending Observes** | `clearPendingObserves()` |
+| a character stays hidden | **Show the character** (pick the character) | `unhide(actor)` |
+| the rooms' Search Tokens should be full | **Refill the Search Tokens** | `resetTokens()` |
+| the fog on your screen is drawn wrong; on a player's screen the player runs the call | **Draw the fog again** (this browser only) | `repaintFog()` |
+| the music does not play what the moment calls for | **Play the right music** (primary GM) | `refreshMusic()` |
+| a GM opened the world on a build before 1.2.63 | **Take from the old key** (pick the store) | `gmStoreReclaim(name)` |
+| the world's data looks as before an upgrade | **Run the migration again** (primary GM; section 20.5) | `migrate({ force: true })` |
+| a time of day's advance went wrong and the actions were not refilled | **Refill everyone's actions**: not the usual road, since it does not move the clock | `resetAllActions()` |
+
+The console alone: `ruleOnParkedMurder(killerId, true)`, `applyChapterEnd({...})`, `setMotive(null)` and `resetAllVoice()`.
 
 **When somebody loses the network.** About 6.5 s without a connection Foundry writes "Server connection lost" and reloads the page, and with no network that ends on the browser's error page, which stays there once the network is back too. Before that, that person's voice tile says **No connection to the game server** (with the tile off: one warning); the module writes and sends nothing then. When the network is back, they press F5, and the whole load takes 30-48 s (measured on The Forge, 25.11.2026). Requests sent before the network went are sent again (the player handbook, chapter 14).
 
