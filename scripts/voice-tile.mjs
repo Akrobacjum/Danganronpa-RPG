@@ -1025,15 +1025,31 @@ function followOwnTrack() {
     }
 }
 
-/** The core push-to-talk key as Foundry's controls name it, or `null` when none is bound (external; guarded). */
-export function pushToTalkKey(keybindings = game.keybindings) {
+/**
+ * The core push-to-talk key as Foundry's controls name it, or `null` when none is bound (external; guarded).
+ *
+ * A KEY BOUND IS NAMED, WHATEVER THE NAMER MAKES OF IT (2.0 line T4, R8273, 27.11.2026). At The Forge (Foundry 14.370;
+ * docs/dev/v2/F3-forge-PC-2.md, FORGE-09d) R8273 read the Voice section's line not following a rebinding, though the test
+ * raises the hook itself - so the hook was heard and the key's read is what differed. The harness has no
+ * `ControlsConfig.humanizeBinding` and answers `binding.key`; v14 has it, and the test's binding was `{ key }` alone. That
+ * v14's `humanizeBinding` reads `binding.modifiers` (and throws on a binding without them) is remembered of v13, not read in
+ * v14's source (LIVE-E134-03); whatever threw, this answered null - "no key" for a key that is bound. Now the namer is handed
+ * the binding with `modifiers` defaulted to none, and a namer that throws or names nothing gives way to the key's code.
+ * `humanize` is the suite's (R9243).
+ */
+export function pushToTalkKey(keybindings = game.keybindings, { humanize = foundry.applications?.sidebar?.apps?.ControlsConfig?.humanizeBinding } = {}) {
+    let binding;
     try {
-        const binding = keybindings?.get?.("core", "pushToTalk")?.[0];
-        if (!binding?.key) return null;
-        const humanize = foundry.applications?.sidebar?.apps?.ControlsConfig?.humanizeBinding;
-        return typeof humanize === "function" ? humanize(binding) : binding.key;
+        binding = keybindings?.get?.("core", "pushToTalk")?.[0];
     } catch {
         return null;
+    }
+    if (!binding?.key) return null;
+    if (typeof humanize !== "function") return binding.key;
+    try {
+        return humanize({ ...binding, modifiers: Array.isArray(binding.modifiers) ? binding.modifiers : [] }) || binding.key;
+    } catch {
+        return binding.key;
     }
 }
 

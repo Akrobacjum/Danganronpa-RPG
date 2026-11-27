@@ -70028,6 +70028,29 @@ const INVARIANTS = [
                 "client:core.rtcClientSettings.users.R9230U.muted", `world:${MODULE_ID}.r9230Own`], mapped: [true, false] }),
             "{table: what differs after the dock's hold and the module's music; tests: after a test's own writes; mapped: [a playlist the map names, one named alike that it does not]}");
     }],
+    ["R9243 - the push-to-talk key is named whatever Foundry's namer makes of the binding (2.0 line T4, R8273): voice-tile.mjs `pushToTalkKey` hands the namer the binding with no modifiers given as none, answers the key's code when the namer throws or names nothing, and null with nothing bound", async () => {
+        /*
+         * R8273 failed at The Forge (Foundry 14.370; docs/dev/v2/F3-forge-PC-2.md, FORGE-09d) with the hook raised by the test
+         * itself, so the line's read of the key differed, not the hook: v14 names the binding through
+         * `ControlsConfig.humanizeBinding`, which the harness lacks, and a namer that threw answered null. A namer that reads
+         * `modifiers` as v13's did (remembered, not read in v14's source: LIVE-E134-03), one that throws and one that names
+         * nothing, over stand-in bindings. Nothing is read of this browser's own bindings. Red at 31d5812: the namer was not
+         * the one handed in, and a binding without modifiers read the bare code.
+         */
+        const V = await import("./voice-tile.mjs");
+        must(typeof V.pushToTalkKey === "function", "voice-tile.mjs has no pushToTalkKey - this would measure nothing");
+        const bound = binding => ({ get: (ns, name) => (ns === "core" && name === "pushToTalk" ? (binding ? [binding] : []) : []) });
+        const v13 = b => [...b.modifiers.map(m => m.toUpperCase()), b.key.replace(/^Key/, "")].join(" + ");
+        const read = [
+            V.pushToTalkKey(bound({ key: "KeyR" }), { humanize: v13 }),
+            V.pushToTalkKey(bound({ key: "KeyR", modifiers: ["Control"] }), { humanize: v13 }),
+            V.pushToTalkKey(bound({ key: "KeyR" }), { humanize: () => { throw new TypeError("Cannot read properties of undefined (reading 'reduce')"); } }),
+            V.pushToTalkKey(bound({ key: "KeyR" }), { humanize: () => "" }),
+            V.pushToTalkKey(bound(null), { humanize: v13 })
+        ];
+        equal(JSON.stringify(read), JSON.stringify(["R", "CONTROL + R", "KeyR", "KeyR", null]),
+            "[a binding without modifiers, one with Control, a namer that throws, one that names nothing, nothing bound]");
+    }],
 ];
 
 /**
