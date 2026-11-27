@@ -10278,7 +10278,7 @@
     {
      "fact": "An Analyze refused so hands its price back.",
      "file": "scripts/action-analyze.mjs",
-     "fn": "KEY_REFUSALS",
+     "fn": "refusedBeforeScoring",
      "note": null
     },
     {
@@ -10345,7 +10345,7 @@
     {
      "fact": "Asked by an Analyze and by sharing a Truth Bullet; an Analyze refused so hands its price back.",
      "file": "scripts/action-analyze.mjs",
-     "fn": "KEY_REFUSALS",
+     "fn": "refusedBeforeScoring",
      "note": null
     },
     {

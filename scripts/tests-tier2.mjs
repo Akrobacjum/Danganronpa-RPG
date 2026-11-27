@@ -118805,6 +118805,146 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             "{quote: the Objection's step with no action, 2 Hope and room for Sanity; after: [the card posted, the whisper names 1 Sanity given back, "
             + "it names 1 Hope, her Sanity marks as before, her Hope, the floor]}");
     }],
+    ["E135 INV-08 - an Analyze the GMs refuse as not analysable now gives its price back: an action out of the trial, and in a Class Trial with no action the Sanity mark it took", async () => {
+        /*
+         * 2.0 line T5, INV-08 (F1-investigation; TRIAGE-3 paket 3, D2-07). The Analyze of a bullet that stopped being
+         * analysable after its price was paid - locked by a GM's write between the payment and the reading, as a bullet
+         * handed on or a player's write taken back leaves it in the GMs' copy - is refused by analyze.mjs `resolveAnalyze`
+         * ("that bullet cannot be analysed now", `cannotNow`), and until 2.0 kept its price. On this GM, which runs the
+         * student's Analyze as a GM playing a student does (`performAction` with the bullet named, its request answered
+         * on this client): the student's document `update` wrapped so the write that pays (actions, or the Sanity marks)
+         * is followed by the GM's lock of the bullet (`lockedChapter` the clock's, through its own `update`, which the
+         * GMs' copy follows). Read: the actions and Sanity marks before and after (not the Hope: the dice are real, and a roll with Hope earns it). In Daily Life with 2 actions; in a Class Trial with
+         * no action, 2 Hope and room for Sanity (D2-22: Sanity is the step). Everything put back: the writer, the
+         * clock, the student's actions, Hope and Sanity, the bullet and every message posted. Red at 4ac0149 (1.2.129):
+         * the action stayed spent (2 -> 1) and the Sanity mark stayed (1 -> 2).
+         */
+        const rolls = await import("./action-rolls.mjs");
+        const T = await import("./truth-bullets.mjs");
+        const { sheetAuditIdle } = await import("./sheet-audit.mjs");
+        const { trustedWrite } = await import("./resource-guard.mjs");
+        const [who] = cast(1);
+        const clock = foundry.utils.deepClone(getClock());
+        const R = "system.resources";
+        const before = { actions: who.system.resources.actions.value, hope: who.system.resources.hope.value, stress: who.system.resources.stress.value,
+            grants: who.getFlag(MODULE_ID, FLAGS.freeActionGrants) };
+        const seen = new Set(game.messages.map(m => m.id));
+        const ownUpdate = Object.getOwnPropertyDescriptor(who, "update"), realUpdate = who.update;
+        // Actions and Sanity marks: the dice are real, and a roll with Hope earns its Hope whether or not the price comes back.
+        const purse = () => [who.system.resources.actions.value, who.system.resources.stress.value];
+        const read = {};
+        let item = null, locks = 0;
+        const analyse = async () => {
+            item = await T.createTruthBullet(who, { name: "SUITE E135 INV-08 a torn ticket", playerText: "SUITE E135 INV-08" });
+            must(item && T.analysableBullets(who).some(b => b.id === item.id), "the fixture bullet is not analysable - this would measure nothing");
+            const bullet = item;
+            let armed = true;
+            who.update = async function (data, ...rest) {
+                const out = await realUpdate.call(this, data, ...rest);
+                const flat = foundry.utils.flattenObject(data ?? {});
+                if (armed && (`${R}.actions.value` in flat || `${R}.stress.value` in flat)) {
+                    armed = false;
+                    await bullet.update({ [`flags.${MODULE_ID}.${T.TRUTH_BULLET_FLAGS.lockedChapter}`]: getClock().chapter });
+                    locks++;
+                }
+                return out;
+            };
+            const was = purse();
+            await rolls.performAction(who, "analyze", { bulletId: bullet.id });
+            await settle();
+            await sheetAuditIdle();
+            if (ownUpdate) Object.defineProperty(who, "update", ownUpdate); else delete who.update;
+            const after = purse();
+            await bullet.delete().catch(() => {});
+            await T.dropSecret(bullet.uuid);
+            item = null;
+            return [was, after];
+        };
+        try {
+            await who.setFlag(MODULE_ID, FLAGS.freeActionGrants, 0);
+            await setClock({ ...clock, phase: "investigation" });
+            await trustedWrite(who, { [`${R}.actions.value`]: 2, [`${R}.hope.value`]: 2, [`${R}.stress.value`]: 1 }, { reason: "gmRuling" });
+            await sheetAuditIdle();
+            read.day = await analyse();
+            await setClock({ ...clock, phase: "classTrial" });
+            await trustedWrite(who, { [`${R}.actions.value`]: 0, [`${R}.hope.value`]: 2, [`${R}.stress.value`]: 1 }, { reason: "gmRuling" });
+            await sheetAuditIdle();
+            read.trial = await analyse();
+        } finally {
+            if (ownUpdate) Object.defineProperty(who, "update", ownUpdate); else delete who.update;
+            if (item) { await item.delete().catch(() => {}); await T.dropSecret(item.uuid); }
+            await setClock(clock);
+            if (before.grants === undefined) await who.unsetFlag(MODULE_ID, FLAGS.freeActionGrants);
+            else await who.setFlag(MODULE_ID, FLAGS.freeActionGrants, before.grants);
+            await trustedWrite(who, { [`${R}.actions.value`]: before.actions, [`${R}.hope.value`]: before.hope, [`${R}.stress.value`]: before.stress }, { reason: "gmRuling" });
+            await sheetAuditIdle();
+            for (const m of game.messages.filter(m => !seen.has(m.id))) await m.delete().catch(() => {});
+            await settle();
+        }
+        must(locks === 2, `the bullet was locked between the payment and the reading ${locks} time(s), not twice - this would measure nothing`);
+        equal(stableJson(read), stableJson({ day: [[2, 1], [2, 1]], trial: [[0, 1], [0, 1]] }),
+            "{day: Daily Life, trial: a Class Trial with no action} x [[actions, Sanity marks] before, after the refused Analyze]");
+    }],
+
+    ["E135 INV-08 - an Analyze of a bullet gone before the GM read it gives its price back (nothing was carried out)", async () => {
+        /*
+         * 2.0 line T5, INV-08. The bullet deleted between the payment and the reading - handed away, discarded, taken -
+         * so analyze.mjs `resolveAnalyze` finds no Truth Bullet: a player is refused "nothing was carried out:
+         * resolveAnalyze analysed nothing" (bridge-runs-acts.mjs `handleAnalyzeResolve`, code `refused`), a GM's own
+         * client answered the resolver's null. Until 2.0 the price stayed. On this GM, as the test above: the write
+         * that pays followed by the bullet's delete. Read: the student's actions before and after. Red at 4ac0149
+         * (1.2.129): 2 -> 1.
+         */
+        const rolls = await import("./action-rolls.mjs");
+        const T = await import("./truth-bullets.mjs");
+        const { sheetAuditIdle } = await import("./sheet-audit.mjs");
+        const { trustedWrite } = await import("./resource-guard.mjs");
+        const [who] = cast(1);
+        const clock = foundry.utils.deepClone(getClock());
+        const R = "system.resources";
+        const before = { actions: who.system.resources.actions.value, grants: who.getFlag(MODULE_ID, FLAGS.freeActionGrants) };
+        const seen = new Set(game.messages.map(m => m.id));
+        const ownUpdate = Object.getOwnPropertyDescriptor(who, "update"), realUpdate = who.update;
+        let item = null, gone = 0, read = null;
+        try {
+            await who.setFlag(MODULE_ID, FLAGS.freeActionGrants, 0);
+            await setClock({ ...clock, phase: "investigation" });
+            await trustedWrite(who, { [`${R}.actions.value`]: 2 }, { reason: "gmRuling" });
+            await sheetAuditIdle();
+            item = await T.createTruthBullet(who, { name: "SUITE E135 INV-08 a note gone", playerText: "SUITE E135 INV-08" });
+            must(item && T.analysableBullets(who).some(b => b.id === item.id), "the fixture bullet is not analysable - this would measure nothing");
+            const bullet = item;
+            let armed = true;
+            who.update = async function (data, ...rest) {
+                const out = await realUpdate.call(this, data, ...rest);
+                if (armed && `${R}.actions.value` in foundry.utils.flattenObject(data ?? {})) {
+                    armed = false;
+                    await T.dropSecret(bullet.uuid);
+                    await bullet.delete();
+                    gone++;
+                }
+                return out;
+            };
+            const was = who.system.resources.actions.value;
+            await rolls.performAction(who, "analyze", { bulletId: bullet.id });
+            await settle();
+            await sheetAuditIdle();
+            read = [was, who.system.resources.actions.value, who.items.has(bullet.id)];
+            item = null;
+        } finally {
+            if (ownUpdate) Object.defineProperty(who, "update", ownUpdate); else delete who.update;
+            if (item) { await item.delete().catch(() => {}); await T.dropSecret(item.uuid); }
+            await setClock(clock);
+            if (before.grants === undefined) await who.unsetFlag(MODULE_ID, FLAGS.freeActionGrants);
+            else await who.setFlag(MODULE_ID, FLAGS.freeActionGrants, before.grants);
+            await trustedWrite(who, { [`${R}.actions.value`]: before.actions }, { reason: "gmRuling" });
+            await sheetAuditIdle();
+            for (const m of game.messages.filter(m => !seen.has(m.id))) await m.delete().catch(() => {});
+            await settle();
+        }
+        must(gone === 1, "the bullet was not deleted between the payment and the reading - this would measure nothing");
+        equal(stableJson(read), stableJson([2, 2, false]), "[actions before, after the Analyze of a bullet gone, the bullet still held]");
+    }],
 ];
 
 // `drawnForPlayer` for the grid (E33 C7): a drawn crisis roll goes through the suite's one road to a draw (tests-grid.mjs `drawnAct`).

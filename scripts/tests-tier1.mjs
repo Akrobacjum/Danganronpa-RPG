@@ -69945,6 +69945,50 @@ const INVARIANTS = [
         equal(stableJson({ landed, asked }), stableJson({ landed: true, asked: [{ "system.resources.stress.value": 3 }] }),
             "{landed: refundPrice's answer; asked: each update's changes}");
     }],
+    ["R9327 - INV-08: an Analyze's price comes back for every answer that is a refusal before anything was scored - the GMs' codes (cannotNow, refused, answerKeyMissing, keysNotOpen) and the guards' (notYours, rollUnknown), a GM's own client's refusal or empty answer, no GM to ask - and not for failed, noAnswer or a resolution", async () => {
+        /*
+         * 2.0 line T5, INV-08 (F1-investigation; TRIAGE-3 paket 3, accepted by D2-07: "Zwrot ceny takze przy odmowach
+         * cannotNow i 'nothing was carried out' sprzed liczenia"). action-analyze.mjs `refusedBeforeScoring`, the one
+         * decision `analyseBullet` asks, over the bridge's answers as bridge-guards.mjs `createWaiter` settles them:
+         * `{ ok: false, refused: true, reason }` refused by the GM's client, `{ ok: false, reason }` decided on this side,
+         * `{ ok: true, value }` answered - on a GM's own client the resolver's own value, a refusal `{ refused }` or null
+         * where it found no bullet (analyze.mjs `resolveAnalyze`'s two nulls stand before any read of the bullet). Pure.
+         * Red at 4ac0149 (1.2.129): action-analyze.mjs has no `refusedBeforeScoring` - the honest red of a part not yet
+         * there; the decision was two codes in a set, inline.
+         */
+        const A = await import("./action-analyze.mjs");
+        must(typeof A.refusedBeforeScoring === "function", "action-analyze.mjs has no refusedBeforeScoring - INV-08's decision is not one function");
+        const refused = reason => ({ ok: false, refused: true, reason });
+        const cases = [
+            refused("cannotNow"), refused("refused"), refused("answerKeyMissing"), refused("keysNotOpen"), refused("notYours"), refused("rollUnknown"),
+            refused("spectator"), { ok: true, value: { refused: "that bullet cannot be analysed now" } }, { ok: true, value: null }, { ok: false, reason: "noGm" },
+            refused("failed"), { ok: false, reason: "failed" }, { ok: false, reason: "noAnswer" }, { ok: true, value: { success: true, locked: false } },
+            { ok: true, value: { success: false, locked: true } }, null
+        ];
+        equal(stableJson(cases.map(res => A.refusedBeforeScoring(res))),
+            stableJson([true, true, true, true, true, true, true, true, true, true, false, false, false, false, false, false]),
+            "[refused: cannotNow, refused, answerKeyMissing, keysNotOpen, notYours, rollUnknown, spectator; a GM's own refusal; a GM's own null; "
+            + "noGm; refused failed; failed; noAnswer; a success; a failure that locked the bullet; no answer at all]");
+    }],
+
+    ["R9328 - INV-08: every refusal of analyze.mjs `resolveAnalyze`, and its answer of nothing, stands before its first write - so a refused Analyze has scored nothing and its price may come back", async () => {
+        /*
+         * 2.0 line T5, INV-08. `refusedBeforeScoring` gives an Analyze's price back on any refusal on the ground that
+         * every one comes before anything is written: the bridge's guards before the run, and in the resolver each
+         * `return { refused` and each `return null` ahead of its first `setSecret(` and `.update(`. This holds that ground
+         * so the refund cannot start paying for a reading that was made. Read off the source, comments and strings
+         * blanked. Green at 4ac0149 as well: it measures the assumption, which held on 1.2.129.
+         */
+        const src = stripComments((await moduleSources()).get("analyze.mjs") ?? "");
+        const body = fnSource(src, "resolveAnalyze") ?? "";
+        must(body.length > 200, "analyze.mjs `resolveAnalyze` was not found - this would measure nothing");
+        const at = re => { const all = []; let m; const g = new RegExp(re.source, "g"); while ((m = g.exec(body))) all.push(m.index); return all; };
+        const refusals = at(/return \{ refused/), nulls = at(/return null\b/);
+        const firstWrite = Math.min(...[...at(/setSecret\(/), ...at(/\.update\(/)]);
+        equal(stableJson({ refusals: refusals.length, nulls: nulls.length, before: [...refusals, ...nulls].every(i => i < firstWrite), writes: Number.isFinite(firstWrite) }),
+            stableJson({ refusals: 4, nulls: 2, before: true, writes: true }),
+            "{refusals: the resolver's `return { refused` count; nulls: its `return null`; before: all of them ahead of the first setSecret( or .update(; writes: a write was found}");
+    }],
 ];
 
 /**
