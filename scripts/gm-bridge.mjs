@@ -77,7 +77,9 @@ export {
  * primary GM's world has loaded and this browser is still waiting, each request
  * that asked for it goes out again once, with the SAME request id, so the answer
  * lands in the promise already waiting for it (`resendOnGmReady`,
- * bridge-guards.mjs). Once per request, and only while it is still waiting.
+ * bridge-guards.mjs). Only while it is still waiting, and three times at most
+ * per request (`RESENDS`), a primary's reload with a second GM here counted once
+ * (2.0 line T2, CALLS-06, 27.11.2026).
  *
  * HEARD ON EVERY BROWSER SINCE 2.0 (line T2, PRIM-03, 27.11.2026). Until then only a player listened. Now the GM's world
  * having loaded is first of all what makes it count for the primary on this browser (utils.mjs `markGmReady`,
@@ -99,7 +101,8 @@ export function onGmReady(payload, senderId) {
     // primary role has moved to the newcomer, the newcomer IS the primary.
     // Its own packet says it is up, whether or not this client has seen it connect (E04's fix round).
     if (senderId !== primaryGmId({ arriving: senderId })) return;
-    resendOnGmReady();
+    // The sender is named: the second half of its own reload asks again for nothing spent (2.0 line T2, CALLS-06).
+    resendOnGmReady(senderId);
     // And the Level Ups: a primary that has just arrived is the one holding them.
     askForOffers();
     /* And every copy a player holds of a GM store - the door, the cast, the fog - asks the

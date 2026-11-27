@@ -1914,7 +1914,7 @@ export const WINDOW_CLOCK = Object.freeze({ set: (fn, ms) => setTimeout(fn, ms),
 /**
  * A waiter: `request` asks, `onReply` takes the GM's answers, `resendOnGmReady`
  * asks once more for what is still waiting when a new primary can answer (three
- * times at most, `RESENDS`).
+ * times at most, `RESENDS`; a primary's reload counted once, CALLS-06).
  *
  * @param {object} deps
  * @param {(packet: object, recipients: string[]) => void} deps.emit  may throw
@@ -1958,7 +1958,7 @@ export function createWaiter({ emit, gmIds, me, notify, fromGm, clock = WINDOW_C
         timeoutMs = TIMING.rulingMs, local = null, onPrimary = false, localRun = false, quiet = false, nothingSpent = false, late = null,
         lateRefused = null, lateMs = 0, expired = null, received = null, untilPrimaryLeaves = false, sayRefused = true } = {}) {
         return new Promise(resolve => {
-            const entry = { id: null, action, kind, patient, resend, resent: 0, quiet, sayRefused, nothingSpent, late, lateRefused, lateMs, timeoutMs,
+            const entry = { id: null, action, kind, patient, resend, resent: 0, leftBy: null, quiet, sayRefused, nothingSpent, late, lateRefused, lateMs, timeoutMs,
                 expired, received, untilPrimaryLeaves, resolve, settled: false, ackTimer: null, answerTimer: null, packet: null };
             try {
                 const self = me();
@@ -2077,11 +2077,21 @@ export function createWaiter({ emit, gmIds, me, notify, fromGm, clock = WINDOW_C
         return true;
     }
 
-    /** 8. Ask once more, with the same id, for every request still waiting that asked for it, `RESENDS` times at most. */
-    function resendOnGmReady() {
+    /**
+     * 8. Ask once more, with the same id, for every request still waiting that asked for it, `RESENDS` times at most.
+     * `senderId`: the GM whose `bridge.gmReady` this is (gm-bridge.mjs `onGmReady`), null for a caller that does not say;
+     * `leaving`: the primary whose leave this is (`registerBridgeReplies`). An ask again at a leave marks the request with
+     * the GM who left (`leftBy`), and the ask again at that same GM's `bridge.gmReady` is the second half of its reload:
+     * it spends nothing and clears the mark (2.0 line T2, CALLS-06, 27.11.2026; see the note over `RESENDS`). R9034.
+     */
+    function resendOnGmReady(senderId = null, { leaving = null } = {}) {
         for (const entry of pending.values()) {
-            if (!entry.resend || entry.resent >= RESENDS || entry.settled) continue;
-            entry.resent += 1;
+            if (!entry.resend || entry.settled) continue;
+            const back = senderId !== null && entry.leftBy === senderId;
+            if (!back && entry.resent >= RESENDS) continue;
+            if (back) entry.leftBy = null;
+            else entry.resent += 1;
+            if (leaving !== null) entry.leftBy = leaving;
             try {
                 const to = gmIds();
                 if (to.length) emit(entry.packet, to);
@@ -2133,9 +2143,19 @@ export function createWaiter({ emit, gmIds, me, notify, fromGm, clock = WINDOW_C
  * still waiting was asked again once, and only when a primary's world had loaded (`bridge.gmReady`). A GM
  * who becomes the primary because the primary closed its browser has its world loaded already and sends
  * no such packet, so the ask went to a GM who had left and waited out its clock. Now the waiter asks
- * again on either, with the same id, and counts: three times covers a primary's reload, a handover to
- * another GM and a second reload within one ruling's clock, and bounds a GM whose world keeps reloading.
+ * again on either, with the same id, and counts to three; that bounds a GM whose world keeps reloading.
  * The primary finds the card it posted for an ask by its mark (call-gm.mjs `askAgain`). R841.
+ *
+ * A RELOAD IS ONE (2.0 line T2, CALLS-06, 27.11.2026; F1-calls CALLS-06). Until then this note said three
+ * covered a primary's reload, a handover and a second reload, counting a reload as one ask again. With a
+ * second GM here a primary's reload was two: its leave asked the GM who took over (`primaryLeft`), and its
+ * `bridge.gmReady` asked it again - so two reloads of the primary within one Call's clock (300 s) spent the
+ * three by the second leave, and the primary that came back the second time was not asked: a yes from its
+ * card answered `DRPG.Bridge.askNotHeld` while the player waited, then `noAnswer`. Now the ask again at a leave
+ * marks the request with the GM who left (`leftBy`), and the ask again at that same GM's `bridge.gmReady`
+ * spends nothing and clears the mark: two reloads of the primary spend two, and any other GM's leave or
+ * `bridge.gmReady` still asks again with the third. A lone primary's reload was one already (no leave is
+ * asked again with nobody to take over) and still is. The count itself is chosen, not measured. R9034.
  */
 const RESENDS = 3;
 
@@ -2194,11 +2214,13 @@ export function registerBridgeReplies() {
     Hooks.on("userConnected", (user, connected) => {
         if (connected || !primaryLeft(user)) return;
         waiter.primaryGone();
-        waiter.resendOnGmReady();
+        // The leaver marks what it asks again, so its own `bridge.gmReady` is not a second ask spent (CALLS-06).
+        waiter.resendOnGmReady(null, { leaving: user.id });
     });
 }
 
-/** A primary GM's world has loaded: ask again what is still waiting (gm-bridge.mjs's `onGmReady`). */
-export function resendOnGmReady() {
-    waiter.resendOnGmReady();
+/** A primary GM's world has loaded: ask again what is still waiting (gm-bridge.mjs's `onGmReady`). `senderId`: that GM,
+    so the second half of its reload is not counted again (2.0 line T2, CALLS-06, 27.11.2026). */
+export function resendOnGmReady(senderId = null) {
+    waiter.resendOnGmReady(senderId);
 }

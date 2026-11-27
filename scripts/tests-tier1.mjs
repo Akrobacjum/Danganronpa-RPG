@@ -31027,7 +31027,8 @@ const INVARIANTS = [
         const leaf = stripComments(new Map(await otherSources()).get("bridge-guards.mjs") ?? "");
         const listener = fnSource(leaf, "registerBridgeReplies");
         ok(listener.length > 50, "registerBridgeReplies is gone - the read below would measure nothing");
-        read.push(/Hooks\.on\("userConnected"[\s\S]*primaryLeft\([\s\S]*resendOnGmReady\(\)/.test(listener));
+        // Since CALLS-06 (2.0 line T2, 27.11.2026) the call hands the leaver (`resendOnGmReady(null, { leaving })`, R9034).
+        read.push(/Hooks\.on\("userConnected"[\s\S]*primaryLeft\([\s\S]*resendOnGmReady\(/.test(listener));
         equal(stableJson(read), stableJson([[true, 4, 1], [false, 1, 1], [true, true, false, false, true, false, false], true]),
             "[resent: sends, ids] per request, then primaryLeft for A with B here (active, gone), B, the Assistant, A with only the Assistant, A alone, a player, then whether the listener asks again on that hook - a request was not asked again three times at most under its one id, one that did not ask for it was, a new primary was not told apart from a GM who was not the primary, or the listener does not ask again when the primary leaves");
     }],
@@ -70042,6 +70043,52 @@ const INVARIANTS = [
             other: fmt("DRPG.Panel.primaryNow", B.name), player: null, load: null, road: true }),
         "{taker: B became the primary, on B; giver: B stopped, on B; other: on a third GM; player: on a player; load: the first reading; road: notePrimary -> tellPrimaryChange -> showPopup}");
         ok(["primaryNowYou", "primaryBack", "primaryNow"].every(k => game.i18n.localize(`DRPG.Panel.${k}`) !== `DRPG.Panel.${k}`), "the notices' keys have words");
+    }],
+    ["R9034 - a primary GM's reload during one request is one of its three asks again, not two: the ask again at the primary's leave (bridge-guards.mjs `registerBridgeReplies`, `resendOnGmReady(null, { leaving })`) marks the request with the GM who left, and the ask again at that same GM's `bridge.gmReady` (`resendOnGmReady(senderId)`, gm-bridge.mjs `onGmReady`) spends nothing and clears the mark; two reloads of the primary spend two of the three, and a third GM's event still asks again (2.0 line T2, CALLS-06, 27.11.2026)", async () => {
+        /* F1-calls CALLS-06. With a second GM here, a primary's reload asked again twice - at its leave, of the GM who
+           took over (`primaryLeft`, E18 C2), and at its own `bridge.gmReady` - so `RESENDS` (3) was spent by a reload and a
+           half, and after two reloads of the primary within one Call's clock the primary that came back did not hold the
+           ask: a yes from its card answered "the player is no longer waiting" (`DRPG.Bridge.askNotHeld`) while the player
+           waited, then `noAnswer`. Driven on `createWaiter` with fakes (as R165, R841): after each event, how many times
+           the request was sent again. The two wirings are read in the source. Red before CALLS-06: the extra arguments are
+           not read, so the fourth ask again is the budget's end and the third GM's event sends nothing. */
+        const G = await import("./bridge-guards.mjs");
+        const A = "R9034AAAAAAAAAAA", B = "R9034BBBBBBBBBBB";
+        const run = (events, { resend = true } = {}) => {
+            const sent = [];
+            const waiter = G.createWaiter({
+                emit: (packet, to) => sent.push({ id: packet.requestId, to }), gmIds: () => [B], notify: () => {},
+                me: () => ({ id: "R9034PPPPPPPPPPP", isGM: false, isPrimary: false }), fromGm: id => id === A || id === B, report: () => {}
+            });
+            const asked = waiter.request("r9034.ask", {}, { settle: "reply", patient: true, resend, timeoutMs: 400, quiet: true });
+            const steps = events.map(([kind, who]) => {
+                const before = sent.length;
+                if (kind === "left") waiter.resendOnGmReady(null, { leaving: who });
+                else waiter.resendOnGmReady(who);
+                return sent.length - before;
+            });
+            return { steps, ids: new Set(sent.map(s => s.id)).size, asked };
+        };
+        const twoReloads = run([["left", A], ["ready", A], ["left", A], ["ready", A], ["ready", B], ["ready", B]]);
+        const markCleared = run([["left", A], ["ready", A], ["ready", A], ["ready", A], ["ready", A]]);
+        const otherReady = run([["left", A], ["ready", B], ["ready", B], ["ready", B]]);
+        const spent = run([["ready", A], ["ready", A], ["ready", A], ["left", A], ["ready", A]]);
+        const notAsked = run([["left", A], ["ready", A]], { resend: false });
+        const read = {
+            twoReloads: twoReloads.steps, ids: twoReloads.ids, markCleared: markCleared.steps, otherReady: otherReady.steps,
+            spent: spent.steps, notAsked: notAsked.steps
+        };
+        await Promise.all([twoReloads.asked, markCleared.asked, otherReady.asked, spent.asked, notAsked.asked]);
+        const guards = stripComments(new Map(await otherSources()).get("bridge-guards.mjs") ?? "");
+        const bridge = await fetch(`/modules/${MODULE_ID}/scripts/gm-bridge.mjs`).then(lfText).then(stripComments);
+        const hook = bodyOf(fnSource(guards, "registerBridgeReplies"), 'Hooks.on("userConnected"', { until: "\n    });" });
+        read.wired = [/resendOnGmReady\(null, \{ leaving: user\.id \}\)/.test(hook), /resendOnGmReady\(senderId\)/.test(fnSource(bridge, "onGmReady")),
+            /waiter\.resendOnGmReady\(senderId\)/.test(fnSource(guards, "resendOnGmReady"))];
+        const note = bodyOf(new Map(await otherSources()).get("bridge-guards.mjs") ?? "", "const RESENDS", { back: 1600 });
+        read.comment = /CALLS-06/.test(note) && /R9034/.test(note) && !/three times covers a primary's reload, a handover/.test(note);
+        equal(stableJson(read), stableJson({ twoReloads: [1, 1, 1, 1, 1, 0], ids: 1, markCleared: [1, 1, 1, 1, 0], otherReady: [1, 1, 1, 0],
+            spent: [1, 1, 1, 0, 0], notAsked: [0, 0], wired: [true, true, true], comment: true }),
+            "{twoReloads: sent again at A's leave, A's ready, A's leave, A's ready, B's ready, B's ready again; ids: under how many ids; markCleared: A's leave, then four readies of A (one free); otherReady: A's leave, then three readies of B (none free); spent: three readies of A, its leave with nothing left, its ready (nothing free); notAsked: a request that did not ask to be resent; wired: [the leave hook hands the leaver, onGmReady hands its sender, the export passes it on]; comment: the note over RESENDS says what the code does}");
     }],
 ];
 
