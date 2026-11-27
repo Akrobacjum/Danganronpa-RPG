@@ -25,8 +25,8 @@ tego samego stanu.
 
 | Scenariusz | Konta | Co mierzy | Uwagi |
 | --- | --- | --- | --- |
-| `s1a-day-murder` | 6 | Daily Life z decyzjami obu GM-ów, Eclipse, Direct Murder i decyzje D2-06, D2-08..D2-12, MURDER-01..03, EXP-PL-02, DAY-01 | część kontroli zależy od kości (nieudane otwarcie: rzadko) |
-| `s1b-case-trial` | 6 | odkrycie ciała, Investigation, Class Trial, głosowanie, werdykt, koniec rozdziału (MURDER-05, EXP-GM-02..04, INV-01/02, TRIAL-01/03/06/07) | startuje ze stanu po s1a albo zakłada własny incydent; kończy w następnym rozdziale |
+| `s1a-day-murder` | 6 | Daily Life z decyzjami obu GM-ów, Eclipse, Direct Murder i decyzje D2-06, D2-08..D2-12, MURDER-01..03, EXP-PL-02, DAY-01 | część kontroli zależy od kości (nieudane otwarcie: rzadko); na starcie stan świata przygotowany albo odmowa (niżej) |
+| `s1b-case-trial` | 6 | odkrycie ciała, Investigation, Class Trial, głosowanie, werdykt, koniec rozdziału (MURDER-05, EXP-GM-02..04, INV-01/02, TRIAL-01/03/06/07) | startuje ze stanu po s1a albo zakłada własny incydent; kończy w następnym rozdziale; na starcie jak s1a, stan po s1a zachowany |
 | `s2-second-gm` | 4 | drugi GM robi każdą pracę GM-a (CALLS-01/03, INV-01/02, TRIAL-02/04, DAY-01, EXP-GM-01, PRIM-01) | reset sezonu tylko do pytania, bez wykonania |
 | `s3-disconnects` | 5 | gracz offline, odświeżenie w trakcie prośby, odświeżenie i odejście głównego GM-a, GM wychodzi w Eclipse | |
 | `s4-two-gms-at-once` | 3 | dwaj GM-owie naciskają to samo naraz | |
@@ -36,6 +36,23 @@ tego samego stanu.
 | `s8-load` | 3 | krzywa wydajności przy rosnącej liczbie Remnantów, tokenów, projektów, wiadomości i okien | sprząta po sobie; bez progów |
 
 Proponowana kolejność pierwszego przebiegu: S7 (nie pisze), S4, S2, S3, S5, S1a, S1b, S8, S6 (najdłuższy).
+
+**Stan świata na starcie S1a i S1b (F3PC2-S1-STATE; linia T4, 27.11.2026).** Drugi przebieg S1a/S1b (25.11.2026) oblał
+dwie kontrole FLOW przez stan świata po wcześniejszych przebiegach (rozdział 3, dzień 6, zmarli i ożywieni P1-P4,
+dodatkowe żetony "P3"). Odtąd oba scenariusze na starcie czytają świat (`scenarios/lib/s1-kit.mjs` `worldState`: faza,
+rozdział, dzień, Eclipse, incydent, `murderState`, zatrzymany koniec rozdziału, zmarli wśród P1-P4, nadmiarowe żetony
+postaci na aktywnej scenie, okna otwarte u GM1 i GM2, pusty planer), przywracają drogami modułu, co się da
+(`prepareWorld`: koniec Eclipse bez przesuwania zegara, zamknięcie incydentu, faza Daily Life zamiast Investigation,
+ożywienie, usunięcie nadmiarowych żetonów P1-P4, wznowienie gry, zamknięcie okien GM-ów), czytają go ponownie i
+**odmawiają z kodem 2** (powód w raporcie, `refused`), gdy się nie da: Class Trial w toku, koniec rozdziału zatrzymany w
+połowie, brak aktywnej sceny z pokojami, a z `DRPG_S1_CHAPTER=<n>` także inny rozdział. Stan przed i po jest w notatkach
+raportu ("world state before", "world prepared", "world state after"). S1b zachowuje stan, który zostawia S1a (incydent
+na Stage 6, ofiara martwa i nieznaleziona) i startuje z niego; bez niego zakłada własny incydent. `run.mjs` z kilkoma
+scenariuszami po odmowie jednego uruchamia następne i kończy kodem 2 (1, gdy coś innego nie przeszło).
+
+**Końcowe sprawdzenie (D2-15) startuje z `drpg-qa-forge`** - świata nieuruchamianego od 24.11.2026 - albo z jego świeżej
+kopii, nie z `drpg-qa-forge-2` (po przebiegach z 25.11.2026: rozdział 3, dzień 6, karty, zgony, wiadomości, żetony).
+Kolejność jak wyżej; S1b zaraz po S1a, bo startuje ze stanu, który S1a zostawia.
 
 **Ruch żetonów (FORGE-05, D2-25; linia T4, 27.11.2026).** `table.mjs` `readTable` oznacza sypialnie
 (`game.drpg.allBedrooms`), a `chooseRooms` (S5) i wybór sąsiada w S6 je pomijają: sypialnia jest zamknięta dla
@@ -65,6 +82,7 @@ Każde narzędzie odmawia pracy (kod 2), gdy aktywny świat nie jest tym z `DRPG
 | `DRPG_HEADFUL=1` | przeglądarki z oknem. Firefox bez okna na maszynie bez GPU nie dostaje WebGL i Foundry nie rysuje /join (w chmurze: Firefox z oknem pod `xvfb-run`). Na komputerze z ekranem okna pojawią się na pulpicie |
 | `DRPG_SIZES` | rozmiary ekranu do zrzutów i sprawdzeń, domyślnie `1920x1080,2560x1440` (docelowe rozdzielczości stołu, D2-20); pierwszy z nich to rozmiar, w którym strona się otwiera |
 | `DRPG_JOIN_MS` | ile strona /join może się ładować przy logowaniu, domyślnie 120000 ms |
+| `DRPG_S1_CHAPTER` | rozdział, w którym S1a i S1b muszą startować; inny - odmowa z kodem 2 (bez zmiennej rozdział jest tylko zapisany) |
 
 ## Na komputerze właściciela
 

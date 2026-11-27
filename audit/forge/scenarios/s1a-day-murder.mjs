@@ -75,7 +75,7 @@
  */
 
 import { kit, J, readWorld, pickRooms, placeTokens, unpause, readyPlayers, i18n, dynamicAction, economyAsDiceSay,
-    runOpening, resultSeenAt, crisisRoll, closeIncident, playerMove, series, firstWhere } from "./lib/s1-kit.mjs";
+    runOpening, resultSeenAt, crisisRoll, closeIncident, playerMove, series, firstWhere, startFromKnownWorld } from "./lib/s1-kit.mjs";
 
 export const meta = {
     id: "s1a-day-murder",
@@ -101,6 +101,8 @@ export async function run(ctx) {
         const kits = {};
         for (const role of meta.roles) kits[role] = await K.install(role);
         note("kit", J(kits));
+        // The world read, put back where a module road can, or refused (lib/s1-kit.mjs; 2.0 line T4, F3PC2-S1-STATE).
+        await startFromKnownWorld(ctx, K);
         const L = await i18n(K, "gm1", ["DRPG.Mask.askTitle", "DRPG.Action.murderOpensTitle", "DRPG.Chapter.stageSixTitle"]);
 
         await K.on("gm1", `F.auto("pre-lights", { title: ${J(L["DRPG.Action.murderOpensTitle"])}, press: "no" }); return true;`);
