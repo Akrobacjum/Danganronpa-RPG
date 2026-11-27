@@ -118778,6 +118778,64 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             "{told: after the leaver's own copy alone; revealed: after the GM's Reveal} x [the row's first find, its road, the ref's found]");
     }],
     // T1 murder-death-eclipse
+    ["T1 MURDER-09 - the spent-victim question is a row every full GM answers once (2.0 line T1; scripts/murder-rules.mjs `checkVictimSpent`, `raiseQuestion`, `askIncidentQuestion`)", async () => {
+        /*
+         * 2.0 line T1, 27.11.2026 (MURDER-09, the recommendation the owner took: "Pytanie u wszystkich GM-ow; pierwsza odpowiedz
+         * rozstrzyga, pozostalym okno sie zamyka"). As CASE-23 stands it: an accomplice on the killer's side, then the victim
+         * spent; the question is drawn here (`__dialogWindows`). While it stands, another full GM's End now is written on the
+         * cast's question (a stand-in user answers for that GM while the test runs). Read: the windows drawn, whether this one
+         * closed by itself, the line naming who answered, and the stage after. Put back: the incident, the victim, the clock.
+         * Red at 658302a: the window stood, no question on the cast.
+         */
+        needs(env.primaryGm(), "the victim's check is the primary's");
+        needs(env.dialogs(), "the window is drawn here");
+        needs(world.atLeast("studentsWithConnectedPlayer", 3), "a killer, a victim and an accomplice, each with a player");
+        const M = await import("./murder.mjs");
+        const { writeState } = await import("./incident-store.mjs");
+        const { livingStudents, isDeadForGm, reviveCharacter } = await import("./chapter.mjs");
+        const player = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const [killer, victim, third] = livingStudents().filter(player);
+        const title = game.i18n.localize("DRPG.Murder.ranOutTitle");
+        const drawn = () => [...foundry.applications.instances.values()].filter(a => a?.rendered && a.element?.isConnected && a.options?.window?.title === title);
+        const ID = "T1MURDER09GM0000";
+        const stand = { id: ID, name: "T1 MURDER-09 GM", active: true, isGM: true, role: CONST.USER_ROLES.GAMEMASTER };
+        const users = game.users, ownGet = Object.getOwnPropertyDescriptor(users, "get"), get = users.get;
+        const info = ui.notifications.info, told = [];
+        const res = victim.system?.resources ?? {};
+        const was = { hp: res.hitPoints?.value ?? 0, stress: res.stress?.value ?? 0 };
+        const clock = getClock();
+        const read = {};
+        try {
+            ui.notifications.info = function (message, ...rest) { told.push(String(message)); return info.call(this, message, ...rest); };
+            await M.openMurder({ killerId: killer.id, victimId: victim.id, openingTrait: "body" });
+            if (M.murderState()?.stage === "openingRoll") await M.resolveKillerOpening({ total: 24, isCritical: false, withHope: true });
+            await settle();
+            await M.thirdPartyEnters(third);
+            await M.resolveCrisisAction({ actorId: third.id, key: "crimePartners", total: 20, isCritical: false, withHope: true });
+            await settle();
+            await victim.update({ "system.resources.hitPoints.value": res.hitPoints?.max ?? 0, "system.resources.stress.value": res.stress?.max ?? 0 });
+            must(await until(() => drawn().length > 0, 6000), "the question was not drawn - this would measure nothing");
+            read.windows = drawn().length;
+            users.get = function (id, ...rest) { return id === ID ? stand : get.call(this, id, ...rest); };
+            const now = M.murderState();
+            await writeState({ question: { ...now.question, answeredBy: ID, answer: "end" } }, { expect: { stage: "incident", openedAt: now.openedAt } });
+            read.closed = await until(() => drawn().length === 0, 4000);
+            read.toast = told.includes(game.i18n.format("DRPG.Murder.questionAnswered", { gm: stand.name }));
+            await until(() => M.murderState()?.stage === "resolution", 4000);
+            read.stage = M.murderState()?.stage ?? null;
+        } finally {
+            ui.notifications.info = info;
+            if (ownGet) Object.defineProperty(users, "get", ownGet); else delete users.get;
+            for (const app of drawn()) await app.close().catch(() => {});
+            if (M.murderState()) await M.endMurder({ reason: "test", followUp: false });
+            await victim.update({ "system.resources.hitPoints.value": was.hp, "system.resources.stress.value": was.stress });
+            for (const a of [victim, killer, third]) if (isDeadForGm(a)) await reviveCharacter(a, { quiet: true });
+            await c3Incident(clock);
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ windows: 1, closed: true, toast: true, stage: "resolution" }),
+            "{windows: the questions drawn here; closed: this one shut on the other GM's answer; toast: the line naming who answered; stage: after End now}");
+    }],
     ["T1 MURDER-06 - a participant's disconnect raises one GM card and marks the tracker (2.0 line T1; scripts/murder-ui.mjs `noteParticipantLeft`, `awayLines`; gm-bridge.mjs the `userConnected` hook)", async () => {
         /*
          * 2.0 line T1, 27.11.2026 (MURDER-06, the recommendation the owner took: "Powiadomienie GM-ow i znak w trackerze, ze

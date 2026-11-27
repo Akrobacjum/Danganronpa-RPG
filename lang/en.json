@@ -3116,7 +3116,8 @@
         "openingRoll": "You can press Throw for the player.",
         "incident": "You can press Pass the turn.",
         "resolution": "You can press End the murder."
-      }
+      },
+      "questionAnswered": "{gm} has answered the incident's question already."
     },
     "Investigation": {
       "clearPlan": {

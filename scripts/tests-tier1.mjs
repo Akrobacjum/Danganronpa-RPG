@@ -46799,7 +46799,8 @@ const INVARIANTS = [
             sweep: destructiveYes(fnSource(investigationBy(read2), "confirmSweepBullets")),
             deleteTrace: destructiveYes(fnSource(investigationBy(read2), "deleteTraceRow")),
             endMurderTracker: destructiveYes(fnSource(read2("murder-ui.mjs"), "openIncidentTracker")),
-            endMurderFight: destructiveYes(fnSource(read2("murder-rules.mjs"), "killerFell")),
+            // Every killer fallen: asked of every full GM since 2.0 line T1 MURDER-09 (`askIncidentQuestion`), no longer in `killerFell`.
+            endMurderFight: destructiveYes(fnSource(read2("murder-rules.mjs"), "askIncidentQuestion")),
             finalVerdict: (t => /destructive:\s*\[[^\]]*action:\s*"correct"[\s\S]*action:\s*"wrong"/.test(t) && /default:\s*"cancel"/.test(t) && !/primary:/.test(t))(fnSource(read2("verdict.mjs"), "openFinalVerdictDialog")),
             stoppedEnd: /destructive:\s*\[\{\s*action:\s*"finish"[\s\S]*action:\s*"drop"/.test(fnSource(chapterBy(read2), "askStoppedEnd"))
         };
@@ -69836,6 +69837,21 @@ const INVARIANTS = [
         "{rows: [hidden, knows, incident, shown, shown with HOLDER_SEES_HIDDEN false]; the constant; a GM knows any trace; applyToRemnantToken asks the rule with knowsRemnant and shows a hidden held trace; shownAsFound asks the same; showHeld does not defer to a GM's hidden}");
     }],
     // T1 murder-death-eclipse
+    ["R8935 - the incident's question to every GM stands for its own incident and kind alone, and Stage 6 at two killers and the fallen killers' close ask it rather than this browser (2.0 line T1 MURDER-09; scripts/murder-rules.mjs `incidentQuestionOpen`, `checkVictimSpent`, `killerFell`, `askIncidentQuestion`)", async () => {
+        /* 2.0 line T1, 27.11.2026. Pure over stand-in states, and the four functions read in their source; nothing
+           written. Red at 658302a: no `incidentQuestionOpen`; the two questions asked in this browser's memory. */
+        const R = await import("./murder-rules.mjs");
+        must(typeof R.incidentQuestionOpen === "function", "murder-rules.mjs has no incidentQuestionOpen - the question is one browser's");
+        const q = (kind, openedAt = 5, answer = null) => ({ openedAt: 5, question: { kind, openedAt, at: 1, answeredBy: null, answer } });
+        const open = [R.incidentQuestionOpen(q("spent"), "spent"), R.incidentQuestionOpen(q("spent"), "noKiller"), R.incidentQuestionOpen(q("spent", 4), "spent"),
+            R.incidentQuestionOpen(q("noKiller", 5, "cancel"), "noKiller"), R.incidentQuestionOpen({ openedAt: 5, question: null }, "spent")];
+        const src = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/murder-rules.mjs`).then(lfText));
+        const roads = [/raiseQuestion\(state, "spent"\)/.test(fnSource(src, "checkVictimSpent") ?? ""), /raiseQuestion\(state, "noKiller"\)/.test(fnSource(src, "killerFell") ?? ""),
+            /drpgConfirm|askWhileIncident/.test(fnSource(src, "checkVictimSpent") ?? "") || /drpgConfirm/.test(fnSource(src, "killerFell") ?? ""),
+            /CONST\.USER_ROLES\.GAMEMASTER/.test(fnSource(src, "askIncidentQuestion") ?? "")];
+        equal(JSON.stringify({ open, roads }), JSON.stringify({ open: [true, false, false, true, false], roads: [true, true, false, true] }),
+            "{open: [its incident and kind, another kind, another incident, answered, none]; roads: [the spent check raises it, the fallen killers' raises it, either asks a window itself, the window a full Gamemaster's]}");
+    }],
     ["R8934 - who of the cast an incident waits on now, and whether nobody playing them is connected: the opening's roller, the side to act in the fight, every killer at Stage 6 (2.0 line T1 MURDER-06; scripts/murder-ui.mjs `expectedParticipants`, `participantAway`)", async () => {
         /* 2.0 line T1, 27.11.2026. Pure over stand-in states, actors and users; nothing written. Red at 658302a: neither
            function existed - a failed import is this test's red. */

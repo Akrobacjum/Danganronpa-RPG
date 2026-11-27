@@ -541,7 +541,8 @@ function castStamps() {
  * The watch's die kept at the lights (`watchDie`, 1.2.121, STG-01), null in every copy: the invitation carries the die
  * and nothing of its cause. Whether the lights opened the incident (`atLights`, 2.0 line T1 MURDER-01) likewise: its
  * one reader is the primary's veil (mask-gm.mjs `veilWanted`). Which GM throws the opening for its player
- * (`openingThrower`, MURDER-04) too: the GMs' reading of whom not to invite.
+ * (`openingThrower`, MURDER-04) too: the GMs' reading of whom not to invite. And the question to every GM (`question`,
+ * MURDER-09): the GMs' to answer.
  * The opening's statistic (`openingTrait`, E32+E07 C11c), null in every copy: a GM's pick
  * for a roll a direct murder's victim is not shown (D6) and a trap's builder is not shown
  * either, and the one player who rolls it is sent it with the invitation
@@ -585,7 +586,7 @@ function castCopyFor(userId, cast, state = null) {
     const afterFight = !incidentAudienceIds(seen, { stage: "incident" }).includes(userId);
     const killer = killerIds(theirs).some(owns);
     const withheld = [...(afterFight ? [...INCIDENT_FIGHT, ...(copy.thirdId ? [] : ["thirdId", "thirdSide"])] : ["keyRemnants"]),
-        "lastCrisis", "departed", "openingTrait", "watchDie", "atLights", "openingThrower", ...(killer ? [] : ["freeCleanup"]), "recent"];
+        "lastCrisis", "departed", "openingTrait", "watchDie", "atLights", "openingThrower", "question", ...(killer ? [] : ["freeCleanup"]), "recent"];
     for (const f of withheld) if (Object.hasOwn(copy, f)) copy[f] = null;
     /* THE KILLER BEHIND A "?" (E69 C8, 13.11.2026; mask-gm.mjs): while the GMs hold a mask for this incident's killer, every
        copy but the killers' holds no killer, as a trap's victim's does. The cast is sent again when the mask ends. */

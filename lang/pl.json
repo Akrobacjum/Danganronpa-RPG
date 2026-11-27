@@ -3278,7 +3278,8 @@
         "openingRoll": "Możesz nacisnąć Rzuć za gracza.",
         "incident": "Możesz nacisnąć Oddaj turę.",
         "resolution": "Możesz nacisnąć Zakończ morderstwo."
-      }
+      },
+      "questionAnswered": "Na pytanie o incydent odpowiedział już GM {gm}."
     },
     "Investigation": {
       "clearPlan": {

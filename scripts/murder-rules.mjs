@@ -37,7 +37,7 @@
  * `closeIncident`) and the betrayal (`betrayalTarget`, `betrayAsPlayer`,
  * `openBetrayal`); `registerMurder`; and the veiled `whisperToOwner` and
  * `announce` every card of this file is posted through. Its state: `resolving`,
- * `victimOwed`, `noKillerTold`, `victimCheck`, `openingInvited`,
+ * `victimOwed`, `victimCheck`, `openingInvited`, `questionsOpen`,
  * `openingPickOpen`, `openingRollsInFlight`, `closing` and `openingDialogs`. What
  * it does not hold: the incident's record and its roads (incident-store.mjs), the
  * murder window and the tracker (murder-ui.mjs).
@@ -434,6 +434,8 @@ export function freshIncidentState({ killerId, victimId, indirect = false, selfI
         atLights: Boolean(atLights),
         // No GM throws the opening for its player yet (2.0 line T1 MURDER-04, MURDER-11; `throwStanding`).
         openingThrower: null,
+        // No question to every GM yet (2.0 line T1 MURDER-09; `raiseQuestion`).
+        question: null,
         turn: 0,
         turnSide: "victim",
         // Whose turn it is on the killers' side. One name until somebody joins
@@ -1674,8 +1676,13 @@ export async function grantImprovisedWeapon(actor, def, band, done) {
  */
 export async function resolveCrisisAction(options = {}) {
     if (!game.user.isGM) return null;
-    // A new crisis action may ask the two killers' question again (`checkVictimSpent`, CASE-23).
-    if (!resolving) spentAsked = null;
+    // A new crisis action may ask the two killers' question again (`checkVictimSpent`, CASE-23): a Cancel is let go.
+    if (!resolving) {
+        const now = murderState();
+        if (incidentQuestionOpen(now, "spent") && now.question.answer === "cancel") {
+            await writeState({ question: null }, { expect: { stage: "incident", openedAt: now.openedAt } });
+        }
+    }
     resolving++;
     try {
         return await applyCrisisAction(options);
@@ -2502,11 +2509,100 @@ function isSpent(actor) {
  * THE TWO KILLERS' QUESTION IS ASKED ONCE A TURN (the audit's CASE-23, 1.2.122). `applyCrisisAction` asks it before the
  * card and after the pass, and the actor hook held while the action is scored asks it a third time as it ends, and
  * nothing remembered a Cancel: the same window came back two or three times in a row for one action. A question open
- * here, or one cancelled during this crisis action (`spentAsked`, the incident's `openedAt`, let go as the next action
- * starts in `resolveCrisisAction`), is not asked again; the next crisis action asks it once more - which its note now says, where it sent the GM to a tracker button that closes the incident with
+ * here, or one cancelled during this crisis action (since 2.0 line T1 MURDER-09 the cast's `question`, until then
+ * a mark in this browser's memory; let go as the next action starts in `resolveCrisisAction`), is not asked again; the next crisis action asks it once more - which its note now says, where it sent the GM to a tracker button that closes the incident with
  * nobody dead. Red at 21bf5d18 (tier 2 "1.2.122 CASE-23"): three windows for one action.
  */
-let spentAsked = null;
+/**
+ * THE INCIDENT'S QUESTION TO EVERY GM (2.0 line T1 MURDER-09): the cast's `question`, `{ kind, openedAt, at, answeredBy,
+ * answer }` - `spent`, the victim spent with two killers (`checkVictimSpent`), or `noKiller`, every killer fallen
+ * (`killerFell`) - written by the primary, answered by the first full GM ("end" or "cancel"). Whether one of `kind`
+ * stands for this incident. Pure (R8935).
+ */
+export function incidentQuestionOpen(state, kind) {
+    const q = state?.question;
+    return Boolean(q && q.kind === kind && q.openedAt === (state?.openedAt ?? null));
+}
+
+/** Write the question of `kind` on this incident unless one stands (MURDER-09); every GM's browser asks it. */
+async function raiseQuestion(state, kind) {
+    if (incidentQuestionOpen(state, kind)) return false;
+    const written = await writeState({ question: { kind, openedAt: state.openedAt ?? null, at: Date.now(), answeredBy: null, answer: null } },
+        { expect: { stage: "incident", openedAt: state.openedAt } });
+    if (written) void askIncidentQuestion();
+    return Boolean(written);
+}
+
+/** The questions open on this browser, by `<openedAt>:<kind>` (MURDER-09): one window each. */
+const questionsOpen = new Set();
+
+/**
+ * Ask the incident's question here (MURDER-09), on a full Gamemaster's browser, while it stands unanswered: the two
+ * killers' "the victim ran out" (End now) or "no killer left" (End the murder). The window closes unanswered when the
+ * incident moves on (`askWhileIncident`) or another GM answers (the cast's change), with a line naming who did. Its
+ * answer is written on the question: End now on `spent` brings the primary's check back (`checkVictimNow`), End the
+ * murder on `noKiller` ends it here.
+ */
+export async function askIncidentQuestion() {
+    if (!game.user?.isGM || game.user.role !== CONST.USER_ROLES.GAMEMASTER) return null;
+    const state = murderState();
+    const q = state?.question;
+    if (!q || q.answer || state.stage !== "incident" || q.openedAt !== (state.openedAt ?? null)) return null;
+    const key = `${q.openedAt}:${q.kind}`;
+    if (questionsOpen.has(key)) return null;
+    questionsOpen.add(key);
+    let closedBy = null, watch = null;
+    try {
+        const victim = game.actors.get(state.victimId ?? "");
+        const names = killerIds(state).map(id => game.actors.get(id)?.name).filter(Boolean).map(n => foundry.utils.escapeHTML(n)).join(" & ");
+        const words = game.i18n.localize("DRPG.Murder.noKillerLeft");
+        const options = q.kind === "spent" ? {
+            classes: ["drpg-panel"],
+            title: game.i18n.localize("DRPG.Murder.ranOutTitle"),
+            body: `<div>
+                <p>${game.i18n.format("DRPG.Murder.ranOutTwoKillers", { victim: foundry.utils.escapeHTML(victim?.name ?? "?"), killers: names })}</p>
+                <p class="notes">${game.i18n.localize("DRPG.Murder.ranOutTwoKillersNote")}</p>
+            </div>`,
+            yes: { label: game.i18n.localize("DRPG.Murder.ranOutEndNow") },
+            // The role's word (E21 rule 3), not "Keep going": the question is withdrawn and the fight goes on.
+            no: "cancel",
+            rejectClose: false
+        } : {
+            // End the murder, as the tracker asks it (E22 C3b): destructive, Cancel the default and first under Enter.
+            yes: { role: "destructive", label: game.i18n.localize("DRPG.Murder.endMurder") },
+            no: "cancel",
+            classes: ["drpg-panel"],
+            title: game.i18n.localize("DRPG.Murder.endMurder"),
+            body: `<p>${words}</p><p>${game.i18n.localize("DRPG.Murder.endConfirm")}</p>`,
+            rejectClose: false
+        };
+        const answer = await askWhileIncident(state, "incident", { ...options, render: (_event, dialog) => {
+            watch = Hooks.on("drpgCastChanged", () => {
+                const now = murderState()?.question;
+                if (now?.openedAt !== q.openedAt || now.kind !== q.kind || !now.answer || now.answeredBy === game.user.id) return;
+                closedBy = now.answeredBy;
+                dialog.close()?.catch?.(err => debug("Could not close a question another GM answered", err));
+            });
+        } });
+        if (closedBy) {
+            const who = game.users.get(closedBy)?.name;
+            if (who) ui.notifications.info(game.i18n.format("DRPG.Murder.questionAnswered", { gm: who }));
+            return null;
+        }
+        const now = murderState();
+        if (!incidentQuestionOpen(now, q.kind) || now.question.answer || now.stage !== "incident") return null;
+        const said = answer ? "end" : "cancel";
+        const kept = await writeState({ question: { ...now.question, answeredBy: game.user.id, answer: said } },
+            { expect: { stage: "incident", openedAt: state.openedAt } });
+        if (!kept || said !== "end") return said;
+        if (q.kind === "noKiller") await endMurder();
+        else if (isPrimaryGm()) checkVictimNow();
+        return said;
+    } finally {
+        if (watch !== null) Hooks.off("drpgCastChanged", watch);
+        questionsOpen.delete(key);
+    }
+}
 
 /**
  * A QUESTION GOES WITH ITS INCIDENT (the audit's REFR-39, 1.2.122; `killerFell`'s rule of E68 T6, made one helper):
@@ -2537,7 +2633,6 @@ async function checkVictimSpent(done = null, killed = null) {
 
     const victim = game.actors.get(state.victimId);
     if (!isSpent(victim)) return false;
-    const askedKey = String(state.openedAt ?? "");
 
     // One killer: the incident is over and closing it is bookkeeping.
     //
@@ -2548,28 +2643,18 @@ async function checkVictimSpent(done = null, killed = null) {
     // because the guide does not say, and the wrong silent default here is one
     // nobody can undo.
     if (killerIds(state).length > 1) {
-        if (spentAsked?.key === askedKey) return false;
-        spentAsked = { key: askedKey };
-        const names = killerIds(state)
-            .map(id => game.actors.get(id)?.name).filter(Boolean)
-            .map(n => foundry.utils.escapeHTML(n)).join(" & ");
-        // Closed unanswered once the incident is no longer this one in its fight (the audit's REFR-39, `askWhileIncident`).
-        const now = await askWhileIncident(state, "incident", {
-            classes: ["drpg-panel"],
-            title: game.i18n.localize("DRPG.Murder.ranOutTitle"),
-            body: `<div>
-                <p>${game.i18n.format("DRPG.Murder.ranOutTwoKillers", {
-                    victim: foundry.utils.escapeHTML(victim.name), killers: names
-                })}</p>
-                <p class="notes">${game.i18n.localize("DRPG.Murder.ranOutTwoKillersNote")}</p>
-            </div>`,
-            yes: { label: game.i18n.localize("DRPG.Murder.ranOutEndNow") },
-            // The role's word (E21 rule 3), not "Keep going": the question is withdrawn and the fight goes on.
-            no: "cancel",
-            rejectClose: false
-        });
-        if (!now) return false;
-        spentAsked = null;
+        /* EVERY FULL GM IS ASKED, THE FIRST ANSWER SETTLES IT (2.0 line T1 MURDER-09; the recommendation the owner took:
+           "Pytanie u wszystkich GM-ow; pierwsza odpowiedz rozstrzyga, pozostalym okno sie zamyka"). The primary still finds
+           the victim spent (one writer) and writes the question on the incident's cast (`question`), every full GM's
+           browser opens it (`askIncidentQuestion`), and End now on any of them answers "end", which brings this check back
+           here to write Stage 6. Asked once (the question stands, answered or not, CASE-23), and a Cancel is let go as the
+           next crisis action starts (`resolveCrisisAction`) - read off the cast, not this browser's memory (MF-07). */
+        const asked = incidentQuestionOpen(state, "spent") ? state.question : null;
+        if (!asked) {
+            await raiseQuestion(state, "spent");
+            return false;
+        }
+        if (asked.answer !== "end") return false;
     }
 
     // Against the incident it read (E32 C4): the hook's check and the action's, or two
@@ -3283,8 +3368,6 @@ export async function passTurn() {
  * never holds a turn. `pass` false leaves the turn to an action being scored on this
  * browser, which passes it itself once it is done.
  */
-let noKillerTold = null;
-
 async function killerFell({ pass = true } = {}) {
     const state = murderState();
     if (!state || state.stage !== "incident" || state.indirect) return;
@@ -3292,45 +3375,24 @@ async function killerFell({ pass = true } = {}) {
     const dead = id => isDeadForGm(game.actors.get(id ?? ""));
     if (!killers.some(dead)) return;
     if (pass && state.turnSide === "killer" && dead(state.killerTurnId ?? killers[0])) await passTurn();
-    if (!killers.every(dead) || noKillerTold === state.openedAt) return;
-    noKillerTold = state.openedAt;
+    // Told once an incident, read off the cast's question (2.0 line T1 MURDER-09), which every full GM is asked.
+    if (!killers.every(dead) || incidentQuestionOpen(state, "noKiller")) return;
     const words = game.i18n.localize("DRPG.Murder.noKillerLeft");
     await whisperToGms(`<p>${words}</p>`);
-    /* THE QUESTION GOES WITH ITS INCIDENT (E68 T6, 10.11.2026; STATUS E95 Open 15). Until then the window stayed on
-       screen after the incident it asks about was closed by any other road - the tracker's Close, a betrayal, tier 2's
-       restore - asking to end a murder that was over; its Yes then did nothing (the check below). Found by the suite
-       (tier 2's tests up to it and E47-T6 by `--only`, 10.11.2026): the test "the trial lists no living victim of an
-       open incident" kills its killer and leaves the close to tier 2's restore; this was the one window any of those
-       tests left open, and E47-T6's Cancel answered it in place of the Monokuma mark's question, about 660 tests
-       later in the whole order. So the window is closed, unanswered, once the world's half of the incident says it
-       is not this one at its incident stage: on the setting's update, which every client hears whichever GM wrote
-       it (measured headless on this GM's own close only). */
-    const asked = () => { const now = murderState(); return now?.stage === "incident" && now.openedAt === state.openedAt; };
-    let question = null;
-    const shut = dialog => { if (dialog && !asked()) dialog.close()?.catch?.(err => debug("Could not close the question of a closed incident", err)); };
-    const watch = Hooks.on("updateSetting", setting => { if (setting?.key === `${MODULE_ID}.${SETTINGS.murderState}`) shut(question); });
-    let sure = null;
-    try {
-        // End the murder, as the tracker asks it (E22 C3b): destructive, Cancel the default and first under Enter.
-        sure = await drpgConfirm({
-            yes: { role: "destructive", label: game.i18n.localize("DRPG.Murder.endMurder") },
-            no: "cancel",
-            classes: ["drpg-panel"],
-            title: game.i18n.localize("DRPG.Murder.endMurder"),
-            body: `<p>${words}</p><p>${game.i18n.localize("DRPG.Murder.endConfirm")}</p>`,
-            rejectClose: false,
-            render: (_event, dialog) => { question = dialog; shut(dialog); }
-        });
-    } finally {
-        Hooks.off("updateSetting", watch);
-    }
-    const now = murderState();
-    if (sure && now?.stage === "incident" && now.openedAt === state.openedAt) await endMurder();
+    await raiseQuestion(state, "noKiller");
 }
 
 export function registerMurder() {
     registerIncidentCastSync();
     registerDeathCopy();
+    // The incident's question to every full GM (2.0 line T1 MURDER-09): asked when the cast brings one, and at load.
+    // End now answered on another GM's browser brings the primary's check back, which writes Stage 6 (one writer).
+    Hooks.on("drpgCastChanged", () => {
+        void askIncidentQuestion().catch(err => error("Could not ask the incident's question", err));
+        const now = murderState();
+        if (isPrimaryGm() && now?.stage === "incident" && incidentQuestionOpen(now, "spent") && now.question.answer === "end") checkVictimNow();
+    });
+    setTimeout(() => { void askIncidentQuestion().catch(err => error("Could not ask the incident's question", err)); }, 0);
     // The roll window an opening opens on this browser, kept so taking it back closes it alone (S04-35).
     Hooks.on("renderD20RollDialog", markOpeningDialog);
 
