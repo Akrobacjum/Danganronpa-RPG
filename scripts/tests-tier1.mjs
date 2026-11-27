@@ -69993,6 +69993,20 @@ const INVARIANTS = [
         // the entry's own text (api.mjs wraps only an entry that takes an actor, and this takes nothing)
         ok(/askToChargeForUnfoundKeys\(\)/.test(String(fn)), `chargeKeyFee does not ask askToChargeForUnfoundKeys: ${String(fn)}`);
     }],
+    ["R9129 - the report of a resolve nobody answered is a quiet player's request that waits on nobody, is asked again of a new primary, and is held to the sender's own character and roll (2.0 line T3 INV-12; bridge-table.mjs `resolve.lost`)", async () => {
+        /* 2.0 line T3 INV-12, 27.11.2026. Read off the table; nothing judged. Red at bdf0825: no such row. */
+        const { BRIDGE_ACTIONS } = await import("./gm-bridge.mjs");
+        const G = await import("./bridge-guards.mjs");
+        const row = BRIDGE_ACTIONS["resolve.lost"];
+        must(Boolean(row), "the bridge has no resolve.lost");
+        const clean = row.sanitize({ actorId: "ACTORIDSUITE0001", kind: "search", rollId: "ROLLIDSUITE00001", total: 99 }, null);
+        equal(stableJson({ answer: row.answer, quiet: Boolean(row.quiet), resend: Boolean(row.resend), known: (row.guards ?? [])[0] === G.knownSender,
+            owns: (row.guards ?? []).some(g => g?.factory === "owns" && g.covers?.includes("actorId")),
+            rolled: row.rolled?.field ?? null, kinds: [].concat(row.rolled?.kind ?? []), fields: Object.keys(clean ?? {}).sort(), kind: clean?.kind ?? null }),
+        stableJson({ answer: "none", quiet: true, resend: true, known: true, owns: true, rolled: "rollId", kinds: ["observe", "analyze"],
+            fields: ["actorId", "kind", "rollId"], kind: null }),
+            "{answer, quiet, resend; known: knownSender first; owns: a guard on the character; rolled: the roll's field; kinds; fields: what the sanitizer keeps of a packet that says total 99; kind: a kind outside the two}");
+    }],
 ];
 
 /**

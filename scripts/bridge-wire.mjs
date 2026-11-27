@@ -230,3 +230,6 @@ export const ACTION_BULLET_GIVE = "bullet.give";
 
 /** GM -> primary GM: a second full GM's Reset the season, the plan its window gave (2.0 line T3 TRIAL-04; season-wipe.mjs `runSeasonReset`). */
 export const ACTION_SEASON_RESET = "season.reset";
+
+/** Player -> primary GM: an Observe or Analyze whose resolve went unanswered, told to the GMs (2.0 line T3 INV-12; bridge-runs-records.mjs `handleResolveLost`). */
+export const ACTION_RESOLVE_LOST = "resolve.lost";

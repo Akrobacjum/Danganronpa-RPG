@@ -239,6 +239,12 @@ async function analyseBullet(actor, def, roll, subject, charge = null) {
      */
     const refusedFor = res.ok ? (res.value?.refused ? reasonOf(res.value.refused) : null) : (res.refused ? res.reason : null);
     if (charge && KEY_REFUSALS.has(refusedFor)) await giveBackAfterRoll(actor, charge, [roll], { price: true });
+    // A resolve nobody answered (2.0 line T3 INV-12): said for what it is, and told to the primary there now (`resolve.lost`).
+    if (!res.ok && res.reason === "noAnswer") {
+        await whisperToOwner(actor, `<p><small>${game.i18n.localize("DRPG.Analyze.unresolved")}</small></p>`);
+        const { requestResolveLost } = await import("./bridge-asks.mjs");
+        await requestResolveLost({ actorId: actor.id, kind: "analyze", rollId });
+    }
 
     // The card above is silent on the outcome on purpose: this client does not know the number it was measured
     // against, and must not be told. Until 1.2.115 its "sent" line waited for the GM's client to have scored it (E31

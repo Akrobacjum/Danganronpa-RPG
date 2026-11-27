@@ -19,8 +19,8 @@
  * imports gm-bridge.mjs (the facade rule, .claude/rules/code.md).
  */
 
-import { HOPE_CALLS, DESPAIR_CALLS, TIMING, ACTIONS, DYNAMIC_THRESHOLDS } from "./config.mjs";
-import { announce, whisperToOwner, debug, error, cardHead } from "./utils.mjs";
+import { HOPE_CALLS, DESPAIR_CALLS, TIMING, ACTIONS, DYNAMIC_THRESHOLDS, MODULE_ID } from "./config.mjs";
+import { announce, whisperToOwner, whisperToGms, debug, error, cardHead } from "./utils.mjs";
 import {
     firstRefusal, armBuyerId, guardArmLiving, guardArmNotHeld, guardArmBuyer, guardArmOtherCharacter,
     guardArmHopeCallAllowed, guardArmBuyerHope, guardArmGmYes, as
@@ -1100,3 +1100,27 @@ export const resetCastOf = Object.freeze(Object.assign(value => {
     const to = ["stay", "bedroom", "point"].includes(value?.to) ? value.to : "stay";
     return to === "point" ? { to, scene: as.id(value?.scene), region: as.id(value?.region) } : { to };
 }, { kind: "raw" }));
+
+/*
+ * AN OBSERVE OR ANALYZE THE PRIMARY NEVER ANSWERED (2.0 line T3 INV-12, 27.11.2026; the owner's recommendation). A
+ * resolve whose primary dropped out before it answered (`observe.resolve`, `analyze.resolve`: no resend, since a resolve
+ * asked again of a new primary meets `rollUsed`) left the player a spent action and "no answer", and the GMs nothing. The
+ * player's browser tells the primary (`resolve.lost`, quiet, resent to a new primary), and this run whispers the GMs one
+ * card a roll - its total read off the GMs' record of the roll (`rollStore`), never the packet; the runner holds the roll
+ * to the sender's character and its action, and settles it as `lost` once (bridge-guards.mjs `rollRefusal`). A roll the
+ * GMs' record says was settled after all (`resolved` names its action) raises nothing. The card settles nothing itself:
+ * a GM gives the find or the answer by hand (the owner's P7 default: no refund).
+ */
+export async function handleResolveLost(payload) {
+    const { rollStore } = await import("./gm-stores.mjs");
+    await rollStore.whenHydrated();
+    const record = Object.values(rollStore.entries() ?? {}).find(row => row?.messageId === payload.rollId) ?? null;
+    if (!record) return { refused: "nothing was carried out: the GMs hold no record of that roll" };
+    if (Array.isArray(record.resolved) && record.resolved.includes(payload.kind)) return { refused: "nothing was carried out: that roll was settled after all" };
+    const actor = game.actors.get(payload.actorId);
+    const key = payload.kind === "analyze" ? "DRPG.Analyze.unresolvedGms" : "DRPG.Observe.unresolvedGms";
+    await whisperToGms({ tone: "warning", body: `<p>${game.i18n.format(key, {
+        actor: foundry.utils.escapeHTML(actor?.name ?? "?"), total: Number(record.total) || 0 })}</p>` },
+    { flags: { [MODULE_ID]: { gmPopup: true } } });
+    return {};
+}

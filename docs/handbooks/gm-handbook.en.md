@@ -1414,6 +1414,8 @@ The roll is scored against the Remnant's real type and visibility (the table bel
 
 These are the Observe DCs. Neutral is priced as Prep, and Final Truth as Key. No roll is scored on the Daily Life column: no Remnant is of that kind. It is the ladder Observe's briefing shows the player for something with no Remnant behind it, and the scale to hold an **Examine point of interest** to.
 
+**A resolve nobody answered** (since 1.2.130): when the primary GM's browser drops out after a player's Observe or Analyze roll and before it scores it, the player's card says the action is spent and that the GMs settle it by hand, and the GMs get one card per roll with the character and the total, read off the GMs' record of the roll. Settle it with **Give a Truth Bullet** or an answer in the player's thread; the action is not given back on its own.
+
 ### 14.7 Analyze
 
 Analyze rolls Head against the Truth Bullet's real type and original visibility. Key and Final Truth Bullets show their kind the moment they are picked up, but their analysis text still waits for an Analyze on the easiest column (6 / 9 / 12 / 15); only an Autopsy Truth Bullet arrives fully read. A success reveals the true type and whether the bullet is tied to the crime. A failure locks that bullet for this player until the chapter ends; a copy handed to somebody else is a different item and carries no lock.

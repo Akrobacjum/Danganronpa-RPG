@@ -1136,6 +1136,8 @@
       "whichBullet": "Which Truth Bullet?",
       "onBullet": "Analyze: {name}",
       "noBullets": "You have nothing left to analyze.",
+      "unresolved": "The GM's browser did not answer, so this Analyze is not settled. The action is spent; the GMs got a card and will settle the roll by hand.",
+      "unresolvedGms": "{actor}'s Analyze (a roll of {total}) was not settled: the primary GM did not answer. The action is spent; settle it by hand (Give a Truth Bullet, or an answer in the player's thread).",
       "sent": "You analyze {name}. The result comes on a card of its own.",
       "identifiedTitle": "Identified",
       "identified": "{name} is {a} {type}.",
@@ -3774,6 +3776,8 @@
       "describeTitle": "Observe: what the student sees",
       "describeRecovered": "{actor}'s find in {room} waited on a describe window that closed with no answer (a page reload, or a GM leaving). It went out under its prefilled name, with no words: add them in the Investigation window.",
       "describing": "The GM is describing your find. The result comes when the GM is done, in a few minutes at most.",
+      "unresolved": "The GM's browser did not answer, so this Observe is not settled. The action is spent; the GMs got a card and will settle the roll by hand.",
+      "unresolvedGms": "{actor}'s Observe (a roll of {total}) was not settled: the primary GM did not answer. The action is spent; settle it by hand (Give a Truth Bullet, or an answer in the player's thread).",
       "describeWaiting": "{actor}'s find in {room} waits for its words on {gm}'s screen.",
       "describeHere": "Write it here",
       "describeHereTooltip": "Opens this find's window here. The find carries the first words written, here or on the other GM's screen.",
@@ -5119,7 +5123,8 @@
         "ready.open": "Asking the players whether they are done",
         "ready.answer": "Your answer to the GM",
         "ready.end": "Ending the question to the players",
-        "season.reset": "Reset the season by a second GM, on the primary GM"
+        "season.reset": "Reset the season by a second GM, on the primary GM",
+        "resolve.lost": "An Observe or Analyze the primary GM did not answer"
       },
       "notDone": "“{what}” was not carried out. {why}",
       "nothingSpent": "You keep your action and your Hope.",

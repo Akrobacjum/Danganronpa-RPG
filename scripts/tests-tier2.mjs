@@ -119253,6 +119253,67 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             refused: { value: null, cards: [] }
         }), "{each answer: {value: what the ask answered; cards: [held fee's mark, its chapter the clock's, its button, whispered to this GM]}}");
     }],
+    ["T3 INV-12 - an Observe the primary never answered raises one GM card, its total read off the GMs' record", async () => {
+        /*
+         * 2.0 line T3 INV-12, 27.11.2026. An `observe.resolve` whose primary dropped out before it answered left the player a
+         * spent action and "no answer", and the GMs nothing. The world's player character throws a roll of the suite's own
+         * (`neutralRoll`, its author the player), the GMs' record of it an Observe of 17 (`recordFor`); then that player's
+         * `resolve.lost` is judged as the primary's listener judges it (bridge-guards.mjs `judge`), its packet saying 99
+         * where the record says 17 - twice - and once for a second roll whose record says the Observe was settled after
+         * all. Read: the GMs' cards each judgement made (raised as a GM's card, `gmPopup`; the record's total in the words,
+         * not the packet's). Messages and records go. Red at bdf0825: no such action.
+         */
+        needs(env.primaryGm(), "the report is judged on the primary GM");
+        const G = await import("./bridge-guards.mjs");
+        const { BRIDGE_ACTIONS } = await import("./gm-bridge.mjs");
+        const { cardFlag, wordsOf } = await import("./secret.mjs");
+        must(Boolean(BRIDGE_ACTIONS["resolve.lost"]), "the bridge has no resolve.lost - nothing tells the GMs of a resolve nobody answered");
+        const { player, actor } = await playerInRoom();
+        const made = [], backs = [];
+        const hook = Hooks.on("createChatMessage", doc => { made.push(doc); });
+        const read = {};
+        try {
+            const roll = async (resolved = null) => {
+                const { message } = await neutralRoll(actor);
+                must(message, `no roll of ${actor.name} was thrown - this would measure nothing`);
+                await message.update({ author: player.id });
+                backs.push(async () => game.messages.get(message.id)?.delete());
+                const kept = await recordFor(message, player, actor, "observe", { total: 17 });
+                backs.push(kept.putBack);
+                if (resolved) {
+                    const { rollStore } = await import("./gm-stores.mjs");
+                    await rollStore.patch(kept.rollId, { resolved });
+                }
+                return message;
+            };
+            const cards = async from => {
+                const out = [];
+                for (const doc of made.slice(from)) {
+                    if (!cardFlag(doc, "gmPopup")) continue;
+                    const words = String(await wordsOf(doc, 1000) ?? "");
+                    if (words.includes(foundry.utils.escapeHTML(actor.name))) out.push([words.includes("17"), words.includes("99")]);
+                }
+                return out;
+            };
+            const lost = async message => {
+                const from = made.length;
+                await G.judge(BRIDGE_ACTIONS, { action: "resolve.lost", requestId: `T3I12${foundry.utils.randomID(8)}`, actorId: actor.id,
+                    kind: "observe", rollId: message.id, total: 99 }, player.id, { send: () => {} });
+                await settle();
+                return cards(from);
+            };
+            const first = await roll();
+            read.first = await lost(first);
+            read.again = await lost(first);
+            read.settled = await lost(await roll(["observe"]));
+        } finally {
+            Hooks.off("createChatMessage", hook);
+            for (const back of backs.reverse()) await back().catch(() => {});
+            for (const doc of made) await game.messages.get(doc.id)?.delete().catch(() => {});
+        }
+        equal(stableJson(read), stableJson({ first: [[true, false]], again: [], settled: [] }),
+            "{first: the cards of the first report [the record's 17 in the words, the packet's 99]; again: of the same roll's second; settled: of a roll settled after all}");
+    }],
 ];
 
 // `drawnForPlayer` for the grid (E33 C7): a drawn crisis roll goes through the suite's one road to a draw (tests-grid.mjs `drawnAct`).

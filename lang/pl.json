@@ -1165,6 +1165,8 @@
       "whichBullet": "Który Truth Bullet?",
       "onBullet": "Analyze: {name}",
       "noBullets": "Nie masz teraz żadnego Truth Bulletu do analizy.",
+      "unresolved": "Przeglądarka GM-a nie odpowiedziała, więc ta akcja Analyze nie jest rozliczona. Akcja jest wydana; GM-owie dostali kartę i rozliczą rzut ręcznie.",
+      "unresolvedGms": "Analyze ucznia {actor} (wynik {total}) nie zostało rozliczone: główny GM nie odpowiedział. Akcja jest wydana; rozlicz ją ręcznie (Daj Truth Bullet albo odpowiedź w wątku gracza).",
       "sent": "Analizujesz Truth Bullet „{name}”. Wynik przyjdzie na osobnej karcie.",
       "identifiedTitle": "Zidentyfikowano",
       "identified": "{name} to {type}.",
@@ -4037,6 +4039,8 @@
       "describeTitle": "Znalezisko z Observe",
       "describeRecovered": "Znalezisko ucznia {actor} w pokoju {room} czekało na okno opisu, które zamknęło się bez odpowiedzi (odświeżenie strony albo wyjście GM-a). Trafiło do niego pod nazwą domyślną, bez opisu: dopisz go w oknie Investigation.",
       "describing": "GM opisuje twoje znalezisko. Wynik przyjdzie, gdy GM skończy, najpóźniej za kilka minut.",
+      "unresolved": "Przeglądarka GM-a nie odpowiedziała, więc ta akcja Observe nie jest rozliczona. Akcja jest wydana; GM-owie dostali kartę i rozliczą rzut ręcznie.",
+      "unresolvedGms": "Observe ucznia {actor} (wynik {total}) nie zostało rozliczone: główny GM nie odpowiedział. Akcja jest wydana; rozlicz ją ręcznie (Daj Truth Bullet albo odpowiedź w wątku gracza).",
       "describeWaiting": "Znalezisko ucznia {actor} w pokoju {room} czeka na opis na ekranie GM-a {gm}.",
       "describeHere": "Opisz tutaj",
       "describeHereTooltip": "Otwiera tutaj okno tego znaleziska. Znalezisko dostaje opis napisany pierwszy, tutaj albo na ekranie drugiego GM-a.",
@@ -5472,7 +5476,8 @@
         "ready.open": "Pytanie graczy, czy skończyli",
         "ready.answer": "Twoja odpowiedź dla GM-a",
         "ready.end": "Zamknięcie pytania do graczy",
-        "season.reset": "Reset sezonu przez drugiego GM-a, u głównego GM-a"
+        "season.reset": "Reset sezonu przez drugiego GM-a, u głównego GM-a",
+        "resolve.lost": "Observe albo Analyze, na które główny GM nie odpowiedział"
       },
       "notDone": "Prośba „{what}” nie została wykonana. {why}",
       "nothingSpent": "Nie tracisz akcji ani Hope.",

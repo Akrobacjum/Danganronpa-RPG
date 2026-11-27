@@ -35,7 +35,7 @@ import {
     ACTION_FRISK_ASK, ACTION_FRISK_ANSWER, ACTION_FRISK_FOLLOW, ACTION_CRISIS, ACTION_OPENING_RESULT, ACTION_CLEANUP,
     ACTION_BETRAYAL, ACTION_PARK_MURDER, ACTION_CUB_ABILITY, ACTION_CUB_ANSWER, ACTION_BRIBE_OFFER, ACTION_BRIBE_ANSWER, ACTION_DONE, ACTION_LOOT, ACTION_NOTE_SAVE,
     ACTION_ROLL_BOOKMARK, ACTION_REROLL, ACTION_CARD, ACTION_CARD_CLAIM, ACTION_BULLET_GIVE, ACTION_FACILITY_USE, ACTION_DASH, ACTION_TAIL_START, ACTION_DOOR_SHUT, ACTION_DOOR_FORCE, ACTION_DOOR_PICK, ACTION_WATCH_DECLARE, ACTION_DOOR_KNOCK,
-    ACTION_LISTEN_EAVESDROP, ACTION_LISTEN_STOP, ACTION_LISTEN_ECHOES, ACTION_MASK_REVEAL, ACTION_MASK_VEIL, ACTION_HIDE_START, ACTION_DEAD_SPECTATOR
+    ACTION_LISTEN_EAVESDROP, ACTION_LISTEN_STOP, ACTION_LISTEN_ECHOES, ACTION_MASK_REVEAL, ACTION_MASK_VEIL, ACTION_HIDE_START, ACTION_DEAD_SPECTATOR, ACTION_RESOLVE_LOST
 } from "./bridge-wire.mjs";
 import { ask } from "./bridge-table.mjs";
 
@@ -1001,6 +1001,14 @@ export function requestAnalyzeResolve({ actorId, itemId, total, isCritical, undo
     return ask(ACTION_ANALYZE_RESOLVE, { actorId, itemId, total, isCritical, undo, rollId }, {
         local: () => import("./analyze.mjs").then(m => m.resolveAnalyze({ actorId, itemId, total, isCritical, undo, rollId }))
     });
+}
+
+/**
+ * An Observe or Analyze whose resolve went unanswered, told to the GMs (2.0 line T3 INV-12; bridge-runs-records.mjs
+ * `handleResolveLost`): a report nobody waits on, so no `local` - a GM's own resolve is run on its own browser.
+ */
+export function requestResolveLost({ actorId, kind, rollId = null }) {
+    return ask(ACTION_RESOLVE_LOST, { actorId, kind, rollId });
 }
 
 /**

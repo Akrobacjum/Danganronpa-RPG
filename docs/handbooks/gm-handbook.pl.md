@@ -1414,6 +1414,8 @@ Rzut jest oceniany według prawdziwego typu i widoczności Remnantu; gracz pozna
 
 Tabela podaje DC Observe. Neutral jest wyceniany jak Prep, a Final Truth jak Key. Na kolumnie Daily Life nie jest liczony żaden rzut: żaden Remnant nie jest tego rodzaju. To drabina, którą briefing Observe pokazuje graczowi dla czegoś, za czym nie stoi żaden Remnant, i skala, do której przykładasz **Zbadaj punkt zainteresowania**.
 
+**Rozliczenie, na które nikt nie odpowiedział** (od 1.2.130): gdy przeglądarka głównego GM-a wypadnie po rzucie gracza na Observe albo Analyze, a przed jego rozliczeniem, karta gracza mówi, że akcja jest wydana i że GM-owie rozliczą ją ręcznie, a GM-owie dostają jedną kartę na rzut z postacią i wynikiem odczytanym z zapisu rzutu u GM-ów. Rozlicz go przez **Daj Truth Bullet** albo odpowiedź w wątku gracza; akcja nie wraca sama.
+
 ### 14.7 Analyze
 
 Analyze to rzut Head przeciw prawdziwemu typowi Truth Bulletu i jego pierwotnej widoczności. Key i Final Truth Bullety pokazują swój rodzaj od chwili, gdy gracz je zdobędzie, ale ich tekst analizy wciąż czeka na Analyze w najłatwiejszej kolumnie (6 / 9 / 12 / 15); tylko Autopsy Truth Bullet przychodzi w pełni odczytany. Sukces ujawnia prawdziwy typ i to, czy Truth Bullet jest powiązany ze zbrodnią, a porażka blokuje ten Truth Bullet dla tego gracza do końca rozdziału. Kopia przekazana komuś innemu to inny przedmiot i nie ma blokady.

@@ -42,6 +42,9 @@
  *             opening asks it (key-remnants.mjs `askToChargeForUnfoundKeys`, which clock.mjs `reconcilePhase` calls - the
  *             rest of the opening is not run): gm2 holds a held fee's card with Charge the Key fee; gm answers again, the
  *             button pressed twice charges the fee once. The trial's record, the pools and the plan's rows are put back.
+ *   INV-12    gm drops every observe.resolve packet (a primary gone before it answered), and p1 sweeps the room with Aiko
+ *             (a General Observe, its declaration answered as the window's): p1's roll card says the action is spent and
+ *             the GMs settle it by hand, and gm2 holds the GMs' card (`resolve.lost`, run on gm, which still answers that).
  *
  * What this cannot see: a real server's delivery times and a real F5 (97-two-gms's header says what its `reload` is).
  */
@@ -381,5 +384,41 @@ export async function run(api) {
             // this world closed no case, so the fee is the whole bar short: 4 Key Remnants, 3 Despair each, 12 to each pool, 24 if charged twice
             && pressed7[0] === true && after7?.charged === true && after7.moved.length === 2 && after7.moved.every(d => d === 12),
         J({ kept7, asked7, card7, notYet7, pressed7, after7 }));
+    await settle(800);
+
+    /* ----------------------------------------------------------------- INV-12 */
+    phase("INV-12 an Observe the primary never answered");
+    // gm drops every observe.resolve packet, as a primary gone before it answered; p1 sweeps the room with Aiko.
+    const unresolved12 = await p1.eval(`return game.i18n.localize("DRPG.Observe.unresolved");`);
+    await gm.eval(`const list = game.socket._handlers.get("module.${MOD}") ?? [];
+        globalThis.__s58Handlers = [...list];
+        globalThis.__s58Actions = game.actors.get("${IDS.aiko}").system.resources.actions.value;
+        list.splice(0, list.length, ...list.map(fn => (packet, ...rest) => (packet?.action === "observe.resolve" ? undefined : fn(packet, ...rest))));
+        return true;`);
+    await gm2.eval(`globalThis.__s58Had = new Set(game.messages.contents.map(m => m.id)); return true;`);
+    const swept12 = await p1.eval(`globalThis.__s58Had = new Set(game.messages.contents.map(m => m.id));
+        const actor = game.actors.get("${IDS.aiko}");
+        globalThis.__dialogAnswers.push(() => ({ value: "general", form: { querySelector: () => ({ value: "" }) } }));
+        globalThis.__forceRoll = { hope: 10, fear: 4 };
+        let err = null;
+        try { await Promise.race([game.drpg.performAction(actor, "observe", {}), new Promise(r => setTimeout(r, 90000))]); }
+        catch (e) { err = String(e?.stack ?? e).slice(0, 300); }
+        finally { delete globalThis.__forceRoll; globalThis.__dialogAnswers.length = 0; }
+        const S = await import("${REPO}/scripts/secret.mjs");
+        const lines = game.messages.contents.filter(m => !globalThis.__s58Had.has(m.id) && String(S.contentOf(m) ?? "").includes(${J(unresolved12)})).length;
+        return { err, lines };`, { timeout: 120000 });
+    const card12 = await until(() => gm2.eval(`const S = ${imp("secret.mjs")};
+        return game.messages.contents.filter(m => !globalThis.__s58Had.has(m.id) && S.cardFlag(m, "gmPopup") && String(S.contentOf(m) ?? "").includes("Observe")
+            && String(S.contentOf(m) ?? "").includes(game.actors.get("${IDS.aiko}")?.name ?? "?")).length;`), n => n >= 1, 10000);
+    await gm.eval(`const list = game.socket._handlers.get("module.${MOD}"); list.splice(0, list.length, ...globalThis.__s58Handlers); delete globalThis.__s58Handlers;
+        const OB = ${imp("observe.mjs")}; await OB.clearPendingObserves();
+        const { trustedWrite } = ${imp("resource-guard.mjs")};
+        await trustedWrite(game.actors.get("${IDS.aiko}"), { "system.resources.actions.value": globalThis.__s58Actions }, { reason: "gmRuling" });
+        delete globalThis.__s58Actions; return true;`, { timeout: 60000 });
+    for (const who of [gm2, p1]) await who.eval(`for (const id of game.messages.contents.filter(m => !globalThis.__s58Had.has(m.id)).map(m => m.id)) {
+            const m = game.messages.get(id); if (m?.isOwner) await m.delete().catch(() => {}); }
+        delete globalThis.__s58Had; return true;`, { timeout: 60000 });
+    check("INV-12: an Observe whose resolve gm never answers tells p1 the action is spent and the GMs settle it by hand, and gm2 holds the GMs' card about it",
+        swept12?.err === null && swept12.lines === 1 && card12 === 1, J({ swept12, card12 }));
     await settle(800);
 }
