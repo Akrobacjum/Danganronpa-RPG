@@ -69953,6 +69953,18 @@ const INVARIANTS = [
         stableJson([true, false, false, false, false, false, false]),
             "[the ask open; words on the row; the ask done; no row; the row resolved; another ask's button; no ask id]");
     }],
+    ["R9126 - the primary's hydration finishes only the finds whose window's GM is not connected: a row naming no GM, a GM gone or this browser itself; a connected other GM's window stands (2.0 line T3 INV-04; scripts/observe.mjs `describingLeftHere`)", async () => {
+        /* 2.0 line T3 INV-04, 27.11.2026. `recoverDescribing` at a hydration was called with no GM and finished every row
+           marked `describing`, a connected second GM's window among them - one that GM had opened while it was the primary
+           over the first one's F5: the find went out under its prefilled name and that GM's words met `alreadyHeld`. Pure on
+           stand-in users; nothing written. Red at 1fdb5d3: no `describingLeftHere`. */
+        const O = await import("./observe.mjs");
+        must(typeof O.describingLeftHere === "function", "observe.mjs has no describingLeftHere: a hydration finishes a connected GM's window");
+        const users = new Map([["ON", { id: "ON", active: true }], ["OFF", { id: "OFF", active: false }]]);
+        const at = gm => O.describingLeftHere({ describing: gm === undefined ? { at: 1 } : { at: 1, gm } }, { me: "ME", users });
+        equal(stableJson([at(undefined), at(null), at("OFF"), at("NOBODY"), at("ME"), at("ON")]), stableJson([true, true, true, true, true, false]),
+            "[a row from before 1.2.123 (no gm), gm null, its GM not connected, its GM no user, this browser's own, a connected other GM's]");
+    }],
 ];
 
 /**

@@ -1473,7 +1473,17 @@ export function pendingShape(key) {
  * scored on, the describe window answered as closed - the trace's prefilled name, no words - so the copy is made, the
  * row resolved and the player told as a find is; the GMs are told the words are theirs to add. Answers how many.
  * Registered at the primary's hydration (`registerObserveRecovery`); exported for the suite.
+ * Since 2.0 line T3 INV-04 (27.11.2026) a hydration finishes only the rows whose window is gone (`describingLeftHere`): a
+ * row naming no GM (marked before 1.2.123), a GM not connected, or this browser's own, whose window the reload closed. A
+ * connected other GM's window stands - one it opened while it stood in as the primary over this GM's F5 - and that GM
+ * finishes it, or `onGmLeft` does when it leaves; until then such a row went out under its prefilled name and that GM's
+ * words met `alreadyHeld`. A GM's disconnection (`gm`) finishes that GM's rows as before.
  */
+export function describingLeftHere(entry, { me = game.user?.id ?? null, users = game.users } = {}) {
+    const gm = entry?.describing?.gm ?? null;
+    if (!gm || gm === me) return true;
+    return users?.get?.(gm)?.active !== true;
+}
 const recovering = new Set();
 export async function recoverDescribing({ gm = null, leaving = null } = {}) {
     if (!game.user?.isGM || !isPrimaryGm({ leaving })) return 0;
@@ -1482,6 +1492,7 @@ export async function recoverDescribing({ gm = null, leaving = null } = {}) {
     for (const [key, entry] of [...pending]) {
         if (!entry?.describing || entry.result) continue;
         if (gm && entry.describing.gm !== gm) continue;
+        if (!gm && !describingLeftHere(entry)) continue;
         const { total, isCritical, rollId = null, by = null } = entry.describing;
         const actor = game.actors.get(entry.actorId);
         recovering.add(key);

@@ -33,6 +33,11 @@
  *             here is not drawn.
  *   INV-05    the same with nobody answering (a 1.5 s clock): gm2's window closes saying so, and gm2 holds the GMs' card
  *             that names the find.
+ *   INV-04    gm leaves; gm2, the primary meanwhile, scores Aiko's General Observe and its find waits on gm2's window;
+ *             gm comes back as the primary: its hydration finishes no row of a connected GM's window (no recovery card),
+ *             the find goes out once, and p1 is told no "already held". Headless, gm's own window for the row (INV-01's)
+ *             presses its default button as it opens - the prefilled name - so the words that go out are that window's,
+ *             not the words gm2's window was given; at a table a person reads it first.
  *
  * What this cannot see: a real server's delivery times and a real F5 (97-two-gms's header says what its `reload` is).
  */
@@ -57,7 +62,7 @@ async function until(read, done, ms = 6000, step = 150) {
 }
 
 export async function run(api) {
-    const { gm, gm2, check, phase, settle, connect, reload, primaryOn, repoUrl: REPO, IDS } = api;
+    const { gm, gm2, p1, check, phase, settle, connect, disconnect, reload, primaryOn, repoUrl: REPO, IDS } = api;
     const MOD = "danganronpa-rpg";
     const imp = file => `await import("${REPO}/scripts/${file}")`;
     const GM2 = accounts[0].id;
@@ -266,5 +271,64 @@ export async function run(api) {
         Boolean(placed5) && open5 === 1 && waited5?.done === true && closed5 === 0 && told5 === 1 && card5 === 1,
         J({ placed5, open5, waited5, closed5, told5, card5 }));
     await settle(800);
-}
 
+    /* ----------------------------------------------------------------- INV-04 */
+    phase("INV-04 the primary's hydration leaves a connected second GM's window");
+    // gm leaves; gm2, the primary meanwhile, scores Aiko's Observe and its find waits on gm2's window; gm comes back.
+    await disconnect("gm");
+    const alone = await until(primaryOn, on => Object.keys(on).length === 4 && Object.values(on).every(v => v === GM2));
+    const W4 = { name: "58 INV-04 gm2's name", playerText: "58 INV-04 what gm2 wrote", analyzedText: "" };
+    const held4 = await p1.eval(`return game.i18n.localize("DRPG.Observe.alreadyHeld");`);
+    const p1Had = await p1.eval(`globalThis.__s58Had = new Set(game.messages.contents.map(m => m.id)); return true;`);
+    // the recovery's card to the GMs, by the longest run of its text between two fields
+    const recovered4 = await gm2.eval(`globalThis.__s58Had = new Set(game.messages.contents.map(m => m.id));
+        return game.i18n.localize("DRPG.Observe.describeRecovered").split(/\\{[^}]+\\}/).sort((a, b) => b.length - a.length)[0].trim().slice(0, 30);`);
+    const started4 = await gm2.eval(`const R = ${imp("remnants.mjs")}, OB = ${imp("observe.mjs")};
+        const actor = game.actors.get("${IDS.aiko}"), tok = canvas.scene.tokens.find(t => t.actorId === actor.id);
+        if (!tok) return null;
+        const t = await R.placeRemnant({ type: "prep", visibility: "evident", scene: canvas.scene, x: tok.x, y: tok.y, note: "58 INV04" });
+        globalThis.__s58Items = new Set(actor.items.map(i => i.id));
+        globalThis.__s58Log = globalThis.__dialogLog.length;
+        globalThis.__s58Go = false;
+        globalThis.__dialogAnswers.push(async () => { while (!globalThis.__s58Go) await new Promise(r => setTimeout(r, 100)); return ${J(W4)}; });
+        const aimed = await OB.chooseObserveTarget({ actorId: actor.id, declaration: "general", userId: "${IDS.p1}", paid: true });
+        if (!t || !aimed?.ok) return { token: t?.id ?? null, aimed: aimed ?? null };
+        globalThis.__s58 = { done: false, answer: null };
+        OB.resolveObserve({ key: aimed.key, total: 30, isCritical: false, actorId: actor.id, senderId: "${IDS.p1}", senderIsGm: false })
+            .then(a => { globalThis.__s58 = { done: true, answer: a }; }, e => { globalThis.__s58 = { done: true, answer: "threw " + e }; });
+        return { token: t.id, key: aimed.key, target: aimed.tokenId ?? null };`, { timeout: 60000 });
+    const marked4 = await until(() => gm2.eval(`const { observeStore } = ${imp("gm-stores.mjs")};
+        return observeStore.get(${J(started4?.key ?? "")})?.describing?.gm ?? null;`), v => v === GM2, 8000);
+    await connect("gm");
+    const back4 = await until(primaryOn, on => allRead(on, IDS.gm));
+    await settle(2500);
+    const after4 = await gm.eval(`const { observeStore } = ${imp("gm-stores.mjs")}; const row = observeStore.get(${J(started4?.key ?? "")});
+        return { describing: Boolean(row?.describing), result: row?.result ?? null, described: row?.described ?? null, answeredBy: row?.describeAnswer?.by ?? null,
+            asked: globalThis.__dialogLog.filter(d => d.title === game.i18n.localize("DRPG.Observe.describeTitle")).length };`);
+    await gm2.eval(`globalThis.__s58Go = true; return true;`);
+    const waited4 = await until(() => gm2.eval(`return globalThis.__s58;`), v => v?.done === true, 15000);
+    await settle(1500);
+    const bullets4 = await gm2.eval(`const actor = game.actors.get("${IDS.aiko}");
+        return actor.items.filter(i => !globalThis.__s58Items.has(i.id)).map(i => i.name);`);
+    const cards4 = await gm2.eval(`const S = ${imp("secret.mjs")};
+        return game.messages.contents.filter(m => !globalThis.__s58Had.has(m.id) && String(S.contentOf(m) ?? "").includes(${J(recovered4)})).length;`);
+    const told4 = await p1.eval(`const S = ${imp("secret.mjs")};
+        return game.messages.contents.filter(m => !globalThis.__s58Had.has(m.id) && String(S.contentOf(m) ?? "").includes(${J(held4)})).length;`);
+    await gm2.eval(`const R = ${imp("remnants.mjs")}, OB = ${imp("observe.mjs")}, B = ${imp("truth-bullets.mjs")};
+        const actor = game.actors.get("${IDS.aiko}");
+        for (const item of [...actor.items]) { if (globalThis.__s58Items?.has(item.id)) continue; const uuid = item.uuid; await item.delete().catch(() => {}); await B.dropSecret(uuid); }
+        await OB.clearPendingObserves();
+        const t = canvas.scene.tokens.get(${J(started4?.token ?? "")}); if (t) { await R.dropRemnantSecret(t); await t.delete(); }
+        globalThis.__dialogAnswers.length = 0; delete globalThis.__s58Items; delete globalThis.__s58Go; delete globalThis.__s58Had; return true;`, { timeout: 60000 });
+    await p1.eval(`delete globalThis.__s58Had; return true;`);
+    /* Headless, gm's own window for the row (INV-01's, opened at its hydration) presses its default button as it opens
+       - the prefilled name - where a person at a table would read it and write; so the words read are gm's window's,
+       not gm2's, and what this part holds is that the find went out through a window and not through the recovery. */
+    check("INV-04: a find waiting on gm2's window, opened while gm was away, stands through gm's return as the primary: gm's hydration does not finish it (no recovery card to the GMs), the find goes out once, through gm's window for the row, and p1 is told no 'already held'",
+        p1Had === true && Object.keys(alone).length === 4 && Object.values(alone).every(v => v === GM2)
+            && Boolean(started4?.key) && marked4 === GM2 && allRead(back4, IDS.gm) && Boolean(recovered4)
+            && after4.asked === 1 && after4.answeredBy === IDS.gm && after4.described?.by === IDS.gm && after4.described?.timedOut === false
+            && waited4?.done === true && waited4.answer?.success === true && bullets4.length === 1 && cards4 === 0 && told4 === 0,
+        J({ alone, started4, marked4, after4, waited4, bullets4, cards4, told4 }));
+    await settle(800);
+}

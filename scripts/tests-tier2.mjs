@@ -119127,6 +119127,37 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         equal(stableJson(read), stableJson([[true, true]]),
             "[the cards naming the find: [whispered to this GM, raised as a GM's card]]");
     }],
+    ["T3 INV-04 - the primary's hydration leaves the row of a connected second GM's window", async () => {
+        /*
+         * 2.0 line T3 INV-04, 27.11.2026. A row of the GMs' store marked `describing` by a connected second GM (stood in as a
+         * user of the list, as E42-T12 stands one in), its result not written; the primary's hydration finishes the rows a
+         * reload left (observe.mjs `recoverDescribing()` with no argument). Read: how many it finished, and whether the row
+         * still stands, unresolved. The row dropped after. Red at 1fdb5d3: 1 finished (the find resolved under its name).
+         */
+        needs(env.primaryGm(), "the recovery is the primary GM's");
+        const O = await import("./observe.mjs");
+        const { observeStore } = await import("./gm-stores.mjs");
+        const [student] = cast(1);
+        const second = standInUser({ name: "T3 INV-04 second GM", role: CONST.USER_ROLES.GAMEMASTER, active: true, sorts: "last" });
+        const KEY = `suite-t3-inv04-${foundry.utils.randomID(6)}`;
+        const row = { actorId: student.id, sceneId: canvas?.scene?.id ?? null, tokenId: "SUITET3INV04TOK0", room: "SUITE T3 INV-04 room", at: Date.now(),
+            describing: { at: Date.now(), total: 15, isCritical: false, rollId: null, by: null, gm: second.id } };
+        let read = null;
+        try {
+            game.users.set(second.id, second);
+            await observeStore.patch(KEY, row);
+            await settle();
+            const finished = await O.recoverDescribing();
+            const left = observeStore.get(KEY);
+            read = { finished, stands: Boolean(left?.describing), result: left?.result ?? null };
+        } finally {
+            game.users.delete(second.id);
+            await observeStore.drop(KEY);
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ finished: 0, stands: true, result: null }),
+            "{finished: rows the hydration finished; stands: the row still marked; result: its result}");
+    }],
 ];
 
 // `drawnForPlayer` for the grid (E33 C7): a drawn crisis roll goes through the suite's one road to a draw (tests-grid.mjs `drawnAct`).
