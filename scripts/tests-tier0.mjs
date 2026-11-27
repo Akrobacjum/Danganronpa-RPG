@@ -23609,7 +23609,7 @@ const REGRESSIONS = [
             // E129 S0-CARDS (1.2.128): `giveBackAfterRoll` tells its reader the price came back, one sentence and the roll's lines (WHY.line).
             "action-pipeline.mjs": {"action": 1, "line": 1}, "action-project.mjs": {"action": 1, "line": 1, "message": 3},
             "action-report.mjs": {"built": 1}, "action-tail.mjs": {"built": 1}, "action-watch.mjs": {"built": 1}, "analyze.mjs": {"card": 1, "heading": 1, "line": 2},
-            "anonymity.mjs": {"card": 2}, "body.mjs": {"card": 1, "message": 1}, "bridge-runs-acts.mjs": {"card": 1},
+            "anonymity.mjs": {"card": 2}, "body.mjs": {"card": 1, "line": 1, "message": 1}, "bridge-runs-acts.mjs": {"card": 1},
             "bridge-runs-records.mjs": {"action": 1, "message": 1},
             "call-effects.mjs": {"action": 2, "card": 1, "message": 1}, "call-gm.mjs": {"built": 1},
             "call-world.mjs": {"message": 3}, "calls.mjs": {"heading": 1, "message": 2},
@@ -23652,7 +23652,8 @@ const REGRESSIONS = [
             /* 1.2.127 (line UI, OWNER-127-CENTRE): four of murder-rules.mjs's `announce({ content, whisper })` - the crisis
                card, its hidden copy and the opening's score - ask for the middle through notice-centre.mjs `withCentre`
                (built), as they were messages before. */
-            // 2.0 line T1 D2-08: murder-rules.mjs +1 line (a failed opening's one sentence to its victim, `tellVictimTheAttemptFailed`).
+            // 2.0 line T1 D2-08: murder-rules.mjs +1 line (a failed opening's one sentence to its victim, `tellVictimTheAttemptFailed`);
+            // body.mjs +1 line (EXP-GM-02, `tellGmsLoneFinder`).
             "murder-rules.mjs": {"action": 1, "built": 4, "card": 6, "heading": 3, "line": 10, "message": 4},
             "music.mjs": {"card": 1}, "observe.mjs": {"card": 4, "heading": 1, "line": 3},
             "overflow.mjs": {"built": 1, "message": 2}, "palm.mjs": {"built": 2, "line": 2}, "passages-gm.mjs": {"line": 4},

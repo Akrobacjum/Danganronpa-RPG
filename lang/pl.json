@@ -1320,7 +1320,10 @@
     },
     "Body": {
       "noToken": "Token postaci {name} nie stoi na żadnej scenie z pokojami, więc na mapie nie będzie ciała. Rzeczy tej postaci przeszukuje się przy jej tokenie.",
-      "tile": "Ciało: {name}"
+      "tile": "Ciało: {name}",
+      "answeredElsewhere": "Na odkrycie w pokoju {room} odpowiedział już GM {gm}.",
+      "loneFinderTitle": "Ciało znalezione w pojedynkę",
+      "loneFinderGm": "{finder} w pojedynkę znajduje ciało ({name}) w pokoju {room}. Nic nie zostaje ogłoszone: znalazca dostał informację prywatnie."
     },
     "Monocub": {
       "meddleRefused": "Confusion ich nie dosięga. Nie tracisz akcji ani Hope.",

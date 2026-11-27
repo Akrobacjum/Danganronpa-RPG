@@ -118775,6 +118775,101 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             "{told: after the leaver's own copy alone; revealed: after the GM's Reveal} x [the row's first find, its road, the ref's found]");
     }],
     // T1 murder-death-eclipse
+    ["T1 MURDER-05 - an answer written on the row closes the other GM's window (2.0 line T1; scripts/body.mjs `promptPendingBodies`, `bodyPromptAnsweredElsewhere`)", async () => {
+        /*
+         * 2.0 line T1, 27.11.2026 (MURDER-05, the recommendation the owner took: "Okno "Uczniowie znalezli cialo" u wszystkich
+         * GM-ow; pierwsza odpowiedz rozstrzyga, pozostalym okno sie zamyka"). One browser here: a death the GMs keep and a
+         * discovery waiting for it (`pendingBodyStore`, as CTRL-34 writes one); the prompt's window is drawn here
+         * (`__dialogWindows`). First another user's answer is written on the row while the window stands, as another GM's
+         * browser writes it; then the window is asked again (no answer on the row is younger than it) and this GM presses
+         * Not yet. Read: whether each window closed by itself, the toast naming who answered, the row's answer after Not yet,
+         * and whether the row still waits. With two GMs: scenario 57's MURDER-05. Red at 658302a: the first window stood.
+         */
+        needs(env.primaryGm(), "the prompt's row is the primary's walk's");
+        needs(env.dialogs(), "the window is drawn here");
+        const B = await import("./body.mjs");
+        const { deathStore, pendingBodyStore } = await import("./gm-stores.mjs");
+        const [victim, witness] = cast(2);
+        must(!deathStore.has(victim.id), "the fixture student is already dead in the GMs' store");
+        const other = game.users.find(u => u.id !== game.user.id && u.name);
+        must(other, "no other user to stand for the GM who answered");
+        const title = game.i18n.localize("DRPG.Chapter.pendingTitle");
+        const drawn = () => [...foundry.applications.instances.values()].find(a => a?.rendered && a.element?.isConnected && a.options?.window?.title === title) ?? null;
+        const clock = getClock();
+        const key = `T1M05:${victim.id}`;
+        const info = ui.notifications.info, told = [];
+        const read = {};
+        try {
+            ui.notifications.info = function (message, ...rest) { told.push(String(message)); return info.call(this, message, ...rest); };
+            await deathStore.patch(victim.id, { chapter: clock.chapter, day: 1, timeOfDay: "night", at: Date.now(), keepBullets: true, known: [] });
+            await pendingBodyStore.patch(key, { room: `T1 MURDER-05 room ${victim.id}`, sceneId: null, victimId: victim.id, deathId: null,
+                witnessIds: [witness.id], chapter: clock.chapter, epoch: seasonEpoch(), at: 1 });
+            await settle();
+            const first = B.askPendingBodies();
+            must(await until(() => Boolean(drawn()), 6000), "the window was not drawn - this would measure nothing");
+            await pendingBodyStore.patch(key, { answeredBy: other.id, answeredAt: Date.now() + 1, answer: "notYet" });
+            read.closed = await until(() => !drawn(), 3000);
+            read.announced = await Promise.race([first, wait(2000).then(() => "open")]);
+            // The room is where the body lies now (`bodyPlaceOf`), not the row's: the line is read by who answered.
+            const [before] = game.i18n.format("DRPG.Body.answeredElsewhere", { gm: other.name, room: "\u0000" }).split("\u0000");
+            read.toast = told.some(t => t.startsWith(before));
+            const second = B.askPendingBodies();
+            read.again = await until(() => Boolean(drawn()), 6000);
+            drawn()?.element?.querySelector('[data-action="close"]')?.click();
+            await Promise.race([second, wait(3000)]);
+            const row = pendingBodyStore.get(key) ?? null;
+            read.row = row ? [row.answeredBy === game.user.id, row.answer] : null;
+        } finally {
+            ui.notifications.info = info;
+            await drawn()?.close().catch(() => {});
+            if (pendingBodyStore.has(key)) await pendingBodyStore.drop(key);
+            if (deathStore.has(victim.id)) await deathStore.drop(victim.id);
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ closed: true, announced: 0, toast: true, again: true, row: [true, "notYet"] }),
+            "{closed: the window shut when another's answer reached the row; announced: what that prompt announced; toast: the line naming who answered; again: the window asked again; row: [this GM's answer on the row, its answer] after Not yet}");
+    }],
+    ["T1 EXP-GM-02 - a lone finder raises one GM card naming the finder and the room (2.0 line T1; scripts/body.mjs `checkBodyFound`, `tellGmsLoneFinder`)", async () => {
+        /*
+         * 2.0 line T1, 27.11.2026 (EXP-GM-02, the recommendation the owner took: "Powiadomienie (gmPopup) dla GM-ow z pokojem
+         * i imieniem znalazcy, gdy uczen sam znajdzie cialo"). As "a killer of the chapter's other incident who walks alone
+         * onto a body ..." stands it: two students alone in a room, one killed as the GMs keep a death, and the watcher asked
+         * about the other's token twice. Read: the GMs' cards raised as a notice (`gmPopup`) after each walk, and whether the
+         * first names the finder, the body and the room. Put back: the death, the tokens, the cards. Red at 658302a: no card.
+         */
+        const [finder, victim] = cast(2);
+        needs(world.ownedByPlayer(finder), "a lone finder is told through their player");
+        const C = await import("./chapter.mjs");
+        const { cardFlag, wordsOf } = await import("./secret.mjs");
+        const made = [];
+        const hook = Hooks.on("createChatMessage", m => made.push(m.id));
+        // A private card's flags and words travel beside its document (secret.mjs `postSecret`): read through the store.
+        const popups = () => game.messages.filter(m => made.includes(m.id) && cardFlag(m, "gmPopup") === true);
+        const stood = await aloneTogether(finder, victim);
+        const read = {};
+        try {
+            ok(await C.killCharacter(victim, { secret: true, keepBullets: true }), "the death was not kept by the GMs");
+            const token = canvas.scene.tokens.find(t => t.actorId === finder.id);
+            await C.maybeBodyFound(token);
+            await settle();
+            const first = popups();
+            read.first = first.length;
+            const text = first[0] ? String(await wordsOf(first[0], 2000)) : "";
+            read.names = [text.includes(finder.name), text.includes(victim.name), text.includes(stood.room)];
+            read.gmsOnly = first.every(m => (m.whisper ?? []).every(id => game.users.get(id)?.isGM));
+            await C.maybeBodyFound(token);
+            await settle();
+            read.again = popups().length - first.length;
+        } finally {
+            Hooks.off("createChatMessage", hook);
+            if (C.isDeadForGm(victim)) await C.reviveCharacter(victim, { quiet: true });
+            await stood.back();
+            for (const id of made) await game.messages.get(id)?.delete().catch(() => {});
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ first: 1, names: [true, true, true], gmsOnly: true, again: 0 }),
+            "{first: the GMs' notice cards after the first walk; names: [the finder, the body, the room] on it; gmsOnly: whispered to GMs alone; again: new ones after the same finder's second walk}");
+    }],
     ["T1 D2-09 - the opening roll moves no Hope and no Despair, drawn for the killer's player with Hope and with Despair (2.0 line T1 EXP-PL-03; scripts/roll-draw.mjs, despair-award.mjs `rollPaysResources`, `incidentRollExempt`)", async () => {
         /*
          * 2.0 line T1, 27.11.2026 (D2-09: "Rzuty w incydencie nie daja Despair ani Hope"; D2-11: the opening and the crisis

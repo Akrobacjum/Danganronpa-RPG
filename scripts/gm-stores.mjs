@@ -1050,6 +1050,9 @@ export const watchStore = defineGmStore({
  * GM's discovery window, dropped by the discovery that announces its room or when its body is no longer one to find.
  * Synced, so the GM who becomes the primary asks it; backed up. Cut by the reset's "deaths" group, with the deaths it
  * waits on. No player copy: which body waits, and who saw it, is the GMs'.
+ * 2.0 line T1 MURDER-05: every full GM is asked, and the first answer is written on the row - `answeredBy` (the user),
+ * `answeredAt` (its browser's clock), `answer` ("announce" or "notYet") - by whichever GM gave it; another GM's window
+ * open on the row closes when it reads one younger than its own opening (body.mjs `bodyPromptAnsweredElsewhere`).
  */
 export const pendingBodyStore = defineGmStore({
     name: "pendingBodies", key: SETTINGS.gmPendingBodies,

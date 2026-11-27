@@ -65555,11 +65555,12 @@ const INVARIANTS = [
             + "regreyOpenLoot reads that list] [it takes through takeFromBody; it asks the bridge itself] [buildBodyLoot opens it; buildBodyLoot takes]");
     }],
 
-    ["R5740 - the discovery's prompt is answered by the primary GM alone, and only a full Gamemaster (1.2.113; the owner's decision A of 13.11.2026): body.mjs `answersBodyPrompt` - a full Gamemaster who is the primary yes; an Assistant GM who is the primary, a full Gamemaster who is not, a player and nobody no", async () => {
+    ["R5740 - the discovery's prompt is answered by a full Gamemaster alone (1.2.113; the owner's decision A of 13.11.2026; since 2.0 line T1 MURDER-05 any full Gamemaster, the primary or not): body.mjs `answersBodyPrompt` - a full Gamemaster who is the primary yes, one who is not yes; an Assistant GM who is the primary, a player and nobody no", async () => {
         /*
          * 1.2.113, 13.11.2026. The coordinator's brief: "Any full Gamemaster may answer ... An Assistant GM cannot answer",
          * with the announcement the primary's (E11 fix r1-G2, `discoveryHere`). Stand-in users, a primary id handed in;
-         * nothing written. Red at a43e865e: no `answersBodyPrompt`.
+         * nothing written. Red at a43e865e: no `answersBodyPrompt`. 2.0 line T1 MURDER-05 (27.11.2026): a full Gamemaster
+         * who is not the primary answers too (the owner's recommendation, "Okno ... u wszystkich GM-ow").
          */
         const C = await import("./chapter.mjs");
         const { GAMEMASTER, ASSISTANT, PLAYER } = CONST.USER_ROLES;
@@ -69835,6 +69836,22 @@ const INVARIANTS = [
         "{rows: [hidden, knows, incident, shown, shown with HOLDER_SEES_HIDDEN false]; the constant; a GM knows any trace; applyToRemnantToken asks the rule with knowsRemnant and shows a hidden held trace; shownAsFound asks the same; showHeld does not defer to a GM's hidden}");
     }],
     // T1 murder-death-eclipse
+    ["R8930 - every full Gamemaster answers the 'Students found a body' window, an Assistant GM none, and a window closes on another GM's answer younger than itself or on its row gone (2.0 line T1 MURDER-05; scripts/body.mjs `answersBodyPrompt`, `bodyPromptAnsweredElsewhere`)", async () => {
+        /* 2.0 line T1, 27.11.2026. Pure over stand-in users and rows; nothing written. Red at 658302a: a second full GM
+           answered false (`user.id === primaryId`), and `bodyPromptAnsweredElsewhere` did not exist. */
+        const B = await import("./body.mjs");
+        must(typeof B.bodyPromptAnsweredElsewhere === "function", "body.mjs exports no bodyPromptAnsweredElsewhere - no window can tell another GM answered");
+        const GM = CONST.USER_ROLES.GAMEMASTER, AGM = CONST.USER_ROLES.ASSISTANT;
+        const user = (id, role, isGM = true) => ({ id, role, isGM });
+        const asks = [B.answersBodyPrompt(user("PRIMARY", GM), { primaryId: "PRIMARY" }), B.answersBodyPrompt(user("SECOND", GM), { primaryId: "PRIMARY" }),
+            B.answersBodyPrompt(user("ASSIST", AGM), { primaryId: "PRIMARY" }), B.answersBodyPrompt(user("PLAYER", 1, false), { primaryId: "PRIMARY" })];
+        const at = { openedAt: 1000, userId: "ME" };
+        const closes = [B.bodyPromptAnsweredElsewhere(null, at), B.bodyPromptAnsweredElsewhere({ room: "r" }, at),
+            B.bodyPromptAnsweredElsewhere({ answeredBy: "OTHER", answeredAt: 1500 }, at), B.bodyPromptAnsweredElsewhere({ answeredBy: "OTHER", answeredAt: 500 }, at),
+            B.bodyPromptAnsweredElsewhere({ answeredBy: "ME", answeredAt: 1500 }, at)];
+        equal(JSON.stringify({ asks, closes }), JSON.stringify({ asks: [true, true, false, false], closes: [true, false, true, false, false] }),
+            "{asks: [the primary, a second full GM, an Assistant GM, a player]; closes: [the row gone, no answer, another's answer after the opening, before it, this GM's own]}");
+    }],
     ["R8929 - a Spectator's message passes only as its own messenger thread to the GMs; a thread card with a player in its whisper, another's thread and plain chat do not (2.0 line T1 EXP-PL-10; scripts/spectator-ui.mjs `spectatorMessageAllowed`, `refuseOwnMessage`, `hiddenSpectatorMessage`, `dropSpectatorMessage`)", async () => {
         /* 2.0 line T1, 27.11.2026. Pure over stand-in messages and users, and the three parts read in their source; nothing
            written. Red at 658302a: no rule, every message of a Spectator's but the safeword's card refused. */

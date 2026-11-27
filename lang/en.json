@@ -1289,7 +1289,10 @@
     },
     "Body": {
       "noToken": "{name}'s token is on no scene with rooms, so no body was left on the map. Students can search their belongings at their token instead.",
-      "tile": "{name}'s body"
+      "tile": "{name}'s body",
+      "answeredElsewhere": "{gm} has answered the discovery in {room} already.",
+      "loneFinderTitle": "A body found alone",
+      "loneFinderGm": "{finder} has found {name}'s body alone in {room}. Nothing is announced: they were told privately."
     },
     "Monocub": {
       "panelTitle": "Monocub",
