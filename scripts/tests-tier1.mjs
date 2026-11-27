@@ -69828,6 +69828,36 @@ const INVARIANTS = [
         "{rows: [hidden, knows, incident, shown, shown with HOLDER_SEES_HIDDEN false]; the constant; a GM knows any trace; applyToRemnantToken asks the rule with knowsRemnant and shows a hidden held trace; shownAsFound asks the same; showHeld does not defer to a GM's hidden}");
     }],
     // T1 murder-death-eclipse
+    ["R8924 - Direct Murder's note window says that closing it sends the declaration, and offers Send without a note; no other note window does (2.0 line T1 DAY-08; scripts/action-menus.mjs `promptForNote`, action-murder.mjs `performDirectMurder`)", async () => {
+        /* 2.0 line T1, 27.11.2026. The window's options caught as the kit hands them to Foundry's DialogV2 (`wait`), answered
+           at once with no button; nothing written. Red at 658302a: no `closeSends`, no line, one button. */
+        const { promptForNote } = await import("./action-menus.mjs");
+        const { livingStudents } = await import("./chapter.mjs");
+        const actor = livingStudents()[0];
+        must(actor, "no living student to draw the window for - this would measure nothing");
+        const D = foundry.applications.api.DialogV2;
+        const own = Object.getOwnPropertyDescriptor(D, "wait");
+        const seen = [];
+        D.wait = async config => { seen.push(config); return null; };
+        const line = game.i18n.localize("DRPG.Action.murderNoteCloseSends");
+        const read = [];
+        try {
+            for (const [closeSends, traits] of [[true, null], [false, null], [true, ["body", "hand"]], [false, ["body", "hand"]]]) {
+                const from = seen.length;
+                const answer = await promptForNote(actor, { title: "R8924", prompt: "R8924", placeholder: "", traits, closeSends });
+                const cfg = seen[from] ?? null;
+                const content = cfg?.content;
+                const html = (typeof content === "string" ? content : String(content?.outerHTML ?? "")) + JSON.stringify(cfg?.buttons?.map(b => b.label) ?? []);
+                read.push([Boolean(cfg), html.includes(line), (cfg?.buttons ?? []).some(b => b.action === "noNote"), JSON.stringify(answer)]);
+            }
+        } finally {
+            if (own) Object.defineProperty(D, "wait", own); else delete D.wait;
+        }
+        const src = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/action-murder.mjs`).then(lfText));
+        equal(JSON.stringify({ read, murder: /closeSends: true/.test(fnSource(src, "performDirectMurder") ?? "") }),
+            JSON.stringify({ read: [[true, true, true, '""'], [true, false, false, '""'], [true, true, true, '{"note":"","proposed":null}'], [true, false, false, '{"note":"","proposed":null}']], murder: true }),
+            "{read: per [closeSends, a list of statistics] - [a window drawn, the closing line in it, the Send without a note button, the answer to a closed window]; murder: Direct Murder's declaration asks for it}");
+    }],
     ["R8923 - a refused declaration's words say the action comes back, in either language, and nothing it says before contradicts that (2.0 line T1 EXP-PL-07; lang `DRPG.Action.murderRefused`, `murderRefusedGm`, `murderAskNote`, `murderParked`, `murderSpendsAnyway`, `murderSecondDeclaration`)", async () => {
         /* 2.0 line T1, 27.11.2026. Read off the language files; nothing written. Red at f2523df: "The attempt is refused. The
            action stays spent." / "Akcja przepada." */

@@ -1157,7 +1157,9 @@
       "palmTitle": "{action} - {trait}, przebij {n}",
       "needed": "potrzeba {n}",
       "observeGmMode": "Sposób patrzenia: {mode}.",
-      "dynamicMissedGm": "Rzut się nie udał. Nie ma czego dawać; akcja zostaje wydana."
+      "dynamicMissedGm": "Rzut się nie udał. Nie ma czego dawać; akcja zostaje wydana.",
+      "murderNoteCloseSends": "Zamknięcie okna wysyła zgłoszenie bez notatki: akcja jest już wydana.",
+      "murderSendNoNote": "Wyślij bez notatki"
     },
     "Analyze": {
       "analyseBullet": "Zidentyfikuj Truth Bullet",
@@ -2097,7 +2099,8 @@
           "few": "Wydaje {n} akcje i daje ci zaznaczone korzyści odpoczynku",
           "many": "Wydaje {n} akcji i daje ci zaznaczone korzyści odpoczynku",
           "other": "Wydaje {n} akcji i daje ci zaznaczone korzyści odpoczynku"
-        }
+        },
+        "murderSendNoNoteTooltip": "Wysyła zgłoszenie od razu, bez notatki. Zamknięcie okna robi to samo."
       },
       "Trial": {
         "moveToChapterToTooltip": "Przesuwa zegar na następny rozdział i kończy Investigation, jeśli wciąż trwa",

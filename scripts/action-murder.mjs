@@ -414,7 +414,9 @@ export async function performDirectMurder(actor, def, options) {
         prompt: game.i18n.localize("DRPG.Action.murderPromptParked"),
         placeholder: game.i18n.localize("DRPG.Action.placeholder.directMurder"),
         traits: listedTraits({ kind: "opening", key: "killer" }),
-        brief: briefingBlock(actor, "directMurder", def)
+        brief: briefingBlock(actor, "directMurder", def),
+        // Paid already: closing sends it with no note, and the window says so (2.0 line T1 DAY-08).
+        closeSends: true
     });
 
     const { parkDirectMurder } = await import("./eclipse.mjs");

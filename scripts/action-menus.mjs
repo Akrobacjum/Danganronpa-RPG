@@ -644,12 +644,17 @@ function followConfirmLabel(dialog, confirmFor) {
  * right column). C9 had drawn the field above the sentence, in one column. Without `traits` the window is the one
  * column it was.
  */
-export async function promptForNote(actor, { title, prompt, placeholder, traits = null, brief = "" }) {
+export async function promptForNote(actor, { title, prompt, placeholder, traits = null, brief = "", closeSends = false }) {
     const propose = (traits ?? []).length > 1;
+    /* CLOSING SENDS IT, AND THE WINDOW SAYS SO (2.0 line T1 DAY-08; the recommendation the owner took: "Komunikat albo
+       podpowiedz w oknie, ze zamkniecie wysyla zgloszenie bez notatki"). Direct Murder's declaration (`closeSends`) is paid
+       before this window opens, so its cross sends the declaration with an empty note, as before: a line under the field
+       says that, and a second button, Send without a note, gives the same answer as the cross. Other callers unchanged. */
     const form = `<form>
             <p>${prompt}</p>
             <textarea name="note" rows="3"${tipAttr("DRPG.Tips.Sweep.Actions.murderNoteTooltip")} placeholder="${
                 foundry.utils.escapeHTML(placeholder ?? "")}"></textarea>
+            ${closeSends ? `<p class="notes">${esc(game.i18n.localize("DRPG.Action.murderNoteCloseSends"))}</p>` : ""}
             ${propose ? `<div class="${TRAIT_SLOT}">${traitFieldHtml(actor, traits, { propose: true, how: false })}</div>` : ""}
         </form>`;
     // On the kit's frame (E21 C5a): one answer, the primary; a closed window answers "" below, as it did.
@@ -663,7 +668,10 @@ export async function promptForNote(actor, { title, prompt, placeholder, traits 
             primary: {
                 action: "ok", label: game.i18n.localize("DRPG.Action.murderParkedConfirm"), tooltip: tipText("DRPG.Tips.Actions.makeTheAttemptTooltip"),
                 callback: (e, b, d) => propose ? readProposal(d.element, traits) : d.element.querySelector("[name=note]")?.value.trim() ?? ""
-            }
+            },
+            // The cross's own answer, "" (2.0 line T1 DAY-08): the declaration goes with no note.
+            secondary: closeSends ? [{ action: "noNote", label: game.i18n.localize("DRPG.Action.murderSendNoNote"),
+                tooltip: tipText("DRPG.Tips.Actions.murderSendNoNoteTooltip"), callback: () => "" }] : []
         },
         rejectClose: false
     }).catch(() => "");

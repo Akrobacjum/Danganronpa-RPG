@@ -1128,7 +1128,9 @@
       "palmTitle": "{action} - {trait}, beat {n}",
       "needed": "needed {n}",
       "observeGmMode": "The way they were looking: {mode}.",
-      "dynamicMissedGm": "The roll missed. There is nothing to give; the action stays spent."
+      "dynamicMissedGm": "The roll missed. There is nothing to give; the action stays spent.",
+      "murderNoteCloseSends": "Closing this window sends the declaration with no note: its action is paid already.",
+      "murderSendNoNote": "Send without a note"
     },
     "Analyze": {
       "analyseBullet": "Identify a Truth Bullet",
@@ -2009,7 +2011,8 @@
         "doItCostTooltip": {
           "one": "Spends {n} action and gives you the rest benefits you ticked",
           "other": "Spends {n} actions and gives you the rest benefits you ticked"
-        }
+        },
+        "murderSendNoNoteTooltip": "Sends the declaration now, with no note. Closing the window does the same."
       },
       "Trial": {
         "moveToChapterToTooltip": "Moves the clock to the next chapter and ends an Investigation still open",
