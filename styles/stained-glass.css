@@ -3708,9 +3708,11 @@ body.drpg-theme-stained-glass .drpg-panel .window-header .header-control {
    under Monokuma Legacy (docs/dev/owner129/chatrect/heights-*.json; R8910). The handbooks window keeps its height too
    (2.0 line T4, R111, 27.11.2026): grown to the screen's height it stood past the screen's foot at The Forge (Foundry
    14.370, 1920x1080; docs/dev/v2/F3-forge-PC-2.md) and its text scrolled nowhere, the jump to a section moving nothing
-   (R4721, R6602) - handbooks.mjs's note above `HandbookApp` says what was read; R9242. Left out in `:where()`, so the rule
-   keeps the weight it had and wins what it won (R1323, R1331, R1333 read that). */
-body.drpg-theme-stained-glass .application.drpg-panel:not(.minimized):where(:not(.drpg-messenger):not(.drpg-handbook)) {
+   (R4721, R6602) - handbooks.mjs's note above `HandbookApp` says what was read; R9242. It is left out by a class of its
+   own, `drpg-own-height`, not by its name: a rule that names a window moved onto the kit's frame is one R1357 reads as
+   framing it. Left out in `:where()`, so the rule keeps the weight it had and wins what it won (R1323, R1331, R1333 read
+   that). */
+body.drpg-theme-stained-glass .application.drpg-panel:not(.minimized):where(:not(.drpg-messenger):not(.drpg-own-height)) {
     height: auto !important;
     max-height: calc(100vh - 24px);
 }

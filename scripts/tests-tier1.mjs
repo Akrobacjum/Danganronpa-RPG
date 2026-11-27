@@ -70074,7 +70074,7 @@ const INVARIANTS = [
         equal(JSON.stringify(H.handbookBox({ innerWidth: 1920, innerHeight: 1080 })), JSON.stringify({ width: 900, height: 760, top: 160, left: 510 }),
             "the box at 1920x1080 with no place asked: centred");
     }],
-    ["R9242 - the handbooks window keeps the height it is given under both themes (2.0 line T4, R111, R4721, R6602): no stylesheet rule's `height` wins on `.application.drpg-panel.drpg-ui.drpg-handbook`, so its text is the region that scrolls and a jump to a section moves it; the control: a plain panel under Stained Glass still takes the glass's `auto`", async () => {
+    ["R9242 - the handbooks window keeps the height it is given under both themes (2.0 line T4, R111, R4721, R6602): no stylesheet rule's `height` wins on `.application.drpg-panel.drpg-ui.drpg-handbook`, so its text is the region that scrolls and a jump to a section moves it; the control: a plain panel under Stained Glass still takes the glass's `auto`. Read on the window's own classes (`HANDBOOK_WINDOW_CLASSES`)", async () => {
         /*
          * At The Forge (Foundry 14.370, 1920x1080; docs/dev/v2/F3-forge-PC-2.md, FORGE-09d) the window ran past the screen's
          * foot (R111) and a jump scrolled 0 where 312 was asked (R4721, R6602). Read in the code: the jump (`goToSection`,
@@ -70084,18 +70084,20 @@ const INVARIANTS = [
          * 31d5812: "auto !important" under Stained Glass.
          */
         const C = await styleCascade();
+        const H = await import("./handbooks.mjs");
+        must(Array.isArray(H.HANDBOOK_WINDOW_CLASSES), "handbooks.mjs states no HANDBOOK_WINDOW_CLASSES - the window's classes cannot be read");
         const heightOf = (theme, classes) => {
             const body = document.createElement("body");
             body.className = theme;
             const el = body.appendChild(document.createElement("div"));
-            el.className = `application drpg-panel drpg-ui ${classes}`.trim();
+            el.className = `application drpg-ui ${classes === "handbook" ? H.HANDBOOK_WINDOW_CLASSES.join(" ") : "drpg-panel"}`.trim();
             el.style.height = "760px";
             const won = C.winner(el, ["height"]);
             return won ? `${won.value}${won.important ? " !important" : ""}` : null;
         };
         const got = {};
         for (const [theme, key] of [["drpg-theme-stained-glass", "glass"], ["drpg-theme-monokuma-legacy", "legacy"]]) {
-            got[key] = { handbook: heightOf(theme, "drpg-handbook"), panel: heightOf(theme, "") };
+            got[key] = { handbook: heightOf(theme, "handbook"), panel: heightOf(theme, "") };
         }
         equal(stableJson({ glass: got.glass.handbook, legacy: got.legacy.handbook, glassPanel: /^auto\b/.test(got.glass.panel ?? "") }),
             stableJson({ glass: null, legacy: null, glassPanel: true }),

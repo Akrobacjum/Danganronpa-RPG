@@ -378,10 +378,14 @@ export function handbookBox({ innerWidth = window.innerWidth, innerHeight = wind
     return { width, height, top: place(top, height, innerHeight), left: place(left, width, innerWidth) };
 }
 
+/** The window's classes: `drpg-own-height` keeps the height it opens at under Stained Glass (stained-glass.css section 7;
+ *  2.0 line T4, R111). R9242 reads the cascade on these. */
+export const HANDBOOK_WINDOW_CLASSES = Object.freeze(["drpg-panel", WINDOW_CLASS, "drpg-own-height"]);
+
 class HandbookApp extends DrpgApp() {
     static DEFAULT_OPTIONS = {
         id: "drpg-handbooks",
-        classes: ["drpg-panel", WINDOW_CLASS],
+        classes: [...HANDBOOK_WINDOW_CLASSES],
         window: {
             icon: "fa-solid fa-book-open",
             resizable: true,
