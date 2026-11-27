@@ -15051,12 +15051,31 @@ const INVARIANTS = [
         must(!document.querySelector(".drpg-window-notices"), "the notice history window is open - close it: the suite measures a window it opened itself");
         must(!DrpgMessengerApp.instances.has(thread), "the thread the suite names is open - close it, or the button would raise it rather than ask for it");
 
+        /*
+         * THE TABLE'S MUSIC IS NOT THE WINDOW'S (2.0 line T4, R296, 27.11.2026). At The Forge (Foundry 14.370; docs/dev/v2/
+         * F3-forge-PC-2.md, FORGE-09d) the game was on hold and the module played its pause music (music-play.mjs drives
+         * the playlists the music map names), and this test failed as "opening the notice history plays sounds": every
+         * `Sound#play` and media `play` on the page was counted, a playlist's track among them. Read in the window's file:
+         * notice-history-app.mjs plays nothing (its source is read for the roads it must not take, below). So a play counts
+         * unless it is a world playlist's own track - `this` is the `sound` of a PlaylistSound in `game.playlists`, or that
+         * sound's media element - which is Foundry's playlist playback, whoever started it; a sound effect
+         * (sfx-play.mjs, `AudioHelper.play` or a Sound of its own) and any other media still count. No state is added to the
+         * module for the test. The rule is held on two stand-ins below (`counted`), a track and a loose sound.
+         */
+        const playlistSound = target => {
+            for (const playlist of game.playlists ?? []) for (const ps of playlist.sounds ?? []) {
+                const sound = ps?.sound;
+                if (sound && (target === sound || target === sound.element || target === sound.sound?.element)) return true;
+            }
+            return false;
+        };
+        const counted = (label, target) => label === "AudioHelper.play" || !playlistSound(target);
         const plays = [], undo = [];
         const watchCall = (owner, name, label) => {
             if (typeof owner?.[name] !== "function") return;
             const own = Object.hasOwn(owner, name), original = owner[name];
             owner[name] = function (...args) {
-                plays.push(label);
+                if (counted(label, this)) plays.push(label);
                 return original.apply(this, args);
             };
             undo.push(() => { if (own) owner[name] = original; else delete owner[name]; });
@@ -15256,6 +15275,18 @@ const INVARIANTS = [
             + "[the chip pressed, the entries listed] with the reader out of the list, [focus in the list, ...] with focus in it, and with a new entry behind the pill");
         equal(stableJson({ plays, created, page: page(), asked }), stableJson({ plays: [], created: 0, page: before, asked: [thread] }),
             "[sounds started; chat messages about to be created; the cards and messenger badges on the page; the threads the conversation button asked for]");
+        // The counting rule itself, on stand-ins (2.0 line T4): a world playlist's track and its media element are not the
+        // window's, a loose sound and AudioHelper.play are. `game.playlists` stood in for these four reads alone.
+        const track = { element: { r296: "media" } }, loose = { r296: "loose" };
+        const playlistsBack = standIn(game, "playlists", [{ sounds: [{ sound: track }] }]);
+        let rule;
+        try {
+            rule = [counted("Sound#play", track), counted("HTMLMediaElement#play", track.element), counted("Sound#play", loose), counted("AudioHelper.play", track)];
+        } finally {
+            playlistsBack();
+        }
+        equal(JSON.stringify(rule), JSON.stringify([false, false, true, true]),
+            "[counted: a playlist's track, its media element, a loose sound, AudioHelper.play]");
 
         const sources = await moduleSources();
         const app = stripComments(sources.get("notice-history-app.mjs") ?? "");
