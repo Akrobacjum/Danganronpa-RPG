@@ -5869,7 +5869,14 @@
         "monokumas": "Monokumy",
         "spectators": "Widzowie",
         "notInClass": "Poza klasą"
-      }
+      },
+      "primaryGm": "Główny GM: {name}",
+      "primaryGmYou": "Główny GM: {name} (ty)",
+      "primaryGmTooltip": "Przeglądarka głównego GM-a prowadzi automatykę stołu: głos, rzuty graczy, audyt arkuszy i mgłę.",
+      "primaryTitle": "Główny GM",
+      "primaryNowYou": "Jesteś teraz głównym GM-em: twoja przeglądarka prowadzi automatykę stołu (głos, rzuty graczy, audyt arkuszy, mgłę). Zostaw tę kartę przeglądarki otwartą.",
+      "primaryNow": "Głównym GM-em jest teraz {name}.",
+      "primaryBack": "Głównym GM-em jest teraz {name}. Twoja przeglądarka już nie prowadzi automatyki stołu."
     },
     "Character": {
       "notACharacter": "To działa tylko na postaci.",

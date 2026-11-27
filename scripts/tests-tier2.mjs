@@ -105761,7 +105761,8 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             const standing = box.querySelector(".drpg-gmp-standing");
             const tr = box.querySelector(`.drpg-gmp-roster tr[data-drpg-actor="${student.id}"]`);
             if (!tr) return null;
-            return { first: standing?.querySelector(".drpg-gmp-roster") === standing?.querySelector(":scope > :not(.drpg-box)"),
+            // First under the case's warning and the primary GM's line (2.0 line T2, PRIM-01, 27.11.2026: gm-panel.mjs `primaryLineHtml`).
+            return { first: standing?.querySelector(".drpg-gmp-roster") === standing?.querySelector(":scope > :not(.drpg-box):not(.drpg-gmp-primary)"),
                 actions: tr.querySelector("[data-drpg-actions]")?.dataset.drpgActions ?? null,
                 free: tr.querySelector("[data-drpg-free-move]")?.dataset.drpgFreeMove ?? null,
                 eclipse: tr.querySelector("[data-drpg-eclipse-moves]")?.dataset.drpgEclipseMoves ?? null };
@@ -118735,6 +118736,62 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         read.changes = changes;
         equal(stableJson(read), stableJson({ loading: ["me", true], ready: ["back", false], after: ["me", true], changes: [["me", "back"], ["back", "me"]] }),
             "{loading: after the stand-in connected; ready: after its bridge.gmReady; after: once it is gone} x [the primary here, this GM is it]; changes: what drpgPrimaryChanged told, [from, to]");
+    }],
+    ["E132 PRIM-02 - the GM who takes the table over is told, and so is the one who hands it back: a full Gamemaster who sorts first connects and loads with nothing told here; its `bridge.gmReady` makes it the primary, and this GM reads `DRPG.Panel.primaryBack` naming it in a notice once; gone again, this GM is the primary and reads `DRPG.Panel.primaryNowYou` once; the panel's line names the primary each time (gm-bridge.mjs `notePrimary`, `tellPrimaryChange`; gm-panel.mjs `primaryLineHtml`; 2.0 line T2, PRIM-01, PRIM-02, 27.11.2026)", async () => {
+        /*
+         * F1-infra PRIM-02 and F3 S3 D1 (on Forge the GM who took over the table was told nothing). E132 PRIM-03's
+         * stand-in (tests-kit `standInUser`, sorts first), announced as Foundry announces a socket that comes up, then its
+         * world's signal handed to the bridge's own listener (`onGmReady`). Read: the notices this page drew in the
+         * corner (`.drpg-popup`, each kept with its words as it is added) after each step, and the panel's primary line
+         * (`primaryLineHtml`, the id it names). The stand-in is taken out of the list and the registry, and the observer
+         * asked again, in the `finally` - which is the step that makes this GM the primary again. Red at 8bd6278: no
+         * notice at either change, and no line.
+         */
+        needs(env.primaryGm());
+        const U = await import("./utils.mjs");
+        const Br = await import("./gm-bridge.mjs");
+        const P = await import("./gm-panel.mjs");
+        const { ACTION_GM_READY } = await import("./bridge-wire.mjs");
+        const me = game.user.id;
+        const back = standInUser({ name: "E132 PRIM-02 first GM", role: CONST.USER_ROLES.GAMEMASTER, active: true, sorts: "first" });
+        const seen = [];
+        const watch = new MutationObserver(records => {
+            for (const r of records) for (const n of r.addedNodes) {
+                if (n instanceof Element && n.matches(".drpg-popup")) seen.push(n.textContent.replace(/\s+/g, " ").trim());
+            }
+        });
+        watch.observe(document.body, { childList: true, subtree: true });
+        const settle = () => new Promise(r => setTimeout(r, 600));
+        const lineId = () => {
+            const root = document.createElement("div");
+            root.innerHTML = typeof P.primaryLineHtml === "function" ? P.primaryLineHtml() : "";
+            const id = root.querySelector("p.drpg-gmp-primary")?.dataset.drpgPrimary ?? null;
+            return id === me ? "me" : id === back.id ? "back" : id;
+        };
+        const told = (from, words) => seen.slice(from).filter(t => t.includes(words)).length;
+        const handBack = game.i18n.format("DRPG.Panel.primaryBack", { name: back.name });
+        const nowYou = game.i18n.localize("DRPG.Panel.primaryNowYou");
+        const read = {};
+        game.users.set(back.id, back);
+        try {
+            Hooks.callAll("userConnected", back, true);
+            await settle();
+            read.loading = { line: lineId(), notices: seen.length };
+            const at = seen.length;
+            Br.onGmReady?.({ action: ACTION_GM_READY }, back.id);
+            await settle();
+            read.ready = { line: lineId(), handBack: told(at, handBack), nowYou: told(at, nowYou) };
+        } finally {
+            game.users.delete(back.id);
+            U.markGmReady?.(back.id);
+            const at = seen.length;
+            Br.notePrimary?.();
+            await settle();
+            read.after = { line: lineId(), handBack: told(at, handBack), nowYou: told(at, nowYou) };
+            watch.disconnect();
+        }
+        equal(stableJson(read), stableJson({ loading: { line: "me", notices: 0 }, ready: { line: "back", handBack: 1, nowYou: 0 }, after: { line: "me", handBack: 0, nowYou: 1 } }),
+            "{loading: after the stand-in connected; ready: after its bridge.gmReady; after: once it is gone} x {line: whom the panel's line names; notices: drawn here; handBack: primaryBack naming it; nowYou: primaryNowYou}");
     }],
 ];
 

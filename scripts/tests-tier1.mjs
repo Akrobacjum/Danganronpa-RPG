@@ -69965,6 +69965,84 @@ const INVARIANTS = [
         }
         equal(JSON.stringify(read), JSON.stringify([false, true]), "[it left while loading here: was it the primary leaving; it left once ready: was it]");
     }],
+    ["R9049 - the GM panel names the primary GM: gm-panel.mjs `primaryLineHtml` draws `p.drpg-gmp-primary` with the primary's id in `data-drpg-primary` and `DRPG.Panel.primaryGm` \"Primary GM: {name}\" (\"(you)\" on its own screen, `DRPG.Panel.primaryGmYou`), its name escaped and what the primary runs as its tooltip; `buildPanelContent` draws it first in the standing block (under the case's warning alone), which redraws on `drpgPrimaryChanged` (2.0 line T2, PRIM-01, 27.11.2026)", async () => {
+        /* F1-infra PRIM-01: who the primary is was readable only in the console, and handbook 20.7 said to look for the
+           lowest user id, which no screen shows. The line is drawn for stand-in users (a list of two with `get`), for this
+           GM as the primary, and with the defaults (`primaryGmId()` and this user); the standing block and its redraw are
+           read in the source (the panel's window is a dialog; tier 1 opens none). Red at 8bd6278: no `primaryLineHtml`. */
+        const P = await import("./gm-panel.mjs");
+        const U = await import("./utils.mjs");
+        const line = typeof P.primaryLineHtml === "function" ? P.primaryLineHtml : () => "";
+        const A = { id: "R9049AAAAAAAAAAA", name: "R9049 <b>First</b>" }, B = { id: "R9049BBBBBBBBBBB", name: "R9049 Second" };
+        const users = { get: id => [A, B].find(u => u.id === id) };
+        const drawn = html => {
+            const root = document.createElement("div");
+            root.innerHTML = html;
+            const p = root.querySelector("p.drpg-gmp-primary");
+            return p ? { id: p.dataset.drpgPrimary ?? null, text: p.textContent.trim(), tip: Boolean(p.dataset.tooltip), bold: Boolean(p.querySelector("b")) } : null;
+        };
+        const fmt = (key, name) => game.i18n.format(key, { name });
+        const other = drawn(line({ id: A.id, me: B.id, users }));
+        const own = drawn(line({ id: B.id, me: B.id, users }));
+        const live = drawn(line());
+        const src = await fetch(`/modules/${MODULE_ID}/scripts/gm-panel.mjs`).then(lfText).then(stripComments);
+        const content = fnSource(src, "buildPanelContent");
+        const fresh = bodyOf(fnSource(src, "keepPanelFresh"), 'region: ".drpg-gmp-standing"', { until: "\n    });" });
+        equal(stableJson({ other, own, live: live?.id === (U.primaryGmId() ?? ""),
+            first: /<div class="drpg-gmp-standing">\s*\$\{caseLine\}\s*\$\{primaryLineHtml\(\)\}/.test(content), redraw: /"drpgPrimaryChanged"/.test(fresh) }),
+        stableJson({ other: { id: A.id, text: fmt("DRPG.Panel.primaryGm", A.name), tip: true, bold: false },
+            own: { id: B.id, text: fmt("DRPG.Panel.primaryGmYou", B.name), tip: true, bold: false }, live: true, first: true, redraw: true }),
+        "{other: another GM primary; own: this GM primary; live: the defaults name primaryGmId(); first: the standing block opens with the line, under the case's warning; redraw: the standing block wakes on drpgPrimaryChanged}");
+        ok(fmt("DRPG.Panel.primaryGm", "x") !== "DRPG.Panel.primaryGm" && fmt("DRPG.Panel.primaryGmYou", "x") !== "DRPG.Panel.primaryGmYou", "the line's keys have words");
+    }],
+    ["R9050 - the primary's observer tells a change once and a reading that did not move not at all: gm-bridge.mjs `primaryChange` answers `{ from, to }` only when the reading differs from the last (none before the first reading), `notePrimary` with nothing moved returns null and calls no `drpgPrimaryChanged`, and a user's role written makes each GM read the primary again (`updateUser` with `role`; 2.0 line T2, PRIM-02, 27.11.2026)", async () => {
+        /* F1-infra PRIM-02, the observer half (spec 2.0 line T2, PRIM-02 (1)). PRIM-03 (8bd6278) put up the observer on
+           `userConnected` and `bridge.gmReady`; a role written (an Assistant made a full Gamemaster, a GM made a player)
+           moved the primary with no reading. The pure step is read on five cases; `notePrimary` live on this browser,
+           where nothing moved (a GM's or a player's), with the hook counted; the role trigger in the source. */
+        const Br = await import("./gm-bridge.mjs");
+        const step = typeof Br.primaryChange === "function" ? Br.primaryChange : () => "missing";
+        const A = "R9050AAAAAAAAAAA", B = "R9050BBBBBBBBBBB";
+        const cases = [step(undefined, A), step(A, A), step(A, B), step(null, A), step(A, null)];
+        let heard = 0;
+        const hook = Hooks.on("drpgPrimaryChanged", () => { heard++; });
+        let still;
+        try { still = Br.notePrimary(); } finally { Hooks.off("drpgPrimaryChanged", hook); }
+        const src = await fetch(`/modules/${MODULE_ID}/scripts/gm-bridge.mjs`).then(lfText).then(stripComments);
+        const wire = fnSource(src, "registerGmBridge");
+        const role = bodyOf(wire, 'Hooks.on("updateUser"', { until: "});" });
+        const note = fnSource(src, "notePrimary");
+        equal(stableJson({ cases, still, heard, role: /"role" in/.test(role) && /notePrimary\(\)/.test(role),
+            once: (note.match(/Hooks\.callAll\("drpgPrimaryChanged"/g) ?? []).length === 1 && /primaryChange\(/.test(note) }),
+        stableJson({ cases: [null, null, { from: A, to: B }, { from: null, to: A }, { from: A, to: null }], still: null, heard: 0, role: true, once: true }),
+        "{cases: [no reading yet, the same, moved, the first reading, to nobody]; still: notePrimary here with nothing moved; heard: drpgPrimaryChanged calls; role: updateUser with role reads again; once: notePrimary calls the hook once, through primaryChange}");
+    }],
+    ["R9051 - a change of the primary is told to the GMs alone: the GM who became the primary reads `DRPG.Panel.primaryNowYou`, the GM who stopped `DRPG.Panel.primaryBack` naming the new one, any other GM `DRPG.Panel.primaryNow` naming it, a player nothing, and the first reading at a load nothing; `notePrimary` hands the change to `tellPrimaryChange`, which shows it with `showPopup` (2.0 line T2, PRIM-02, 27.11.2026)", async () => {
+        /* F1-infra PRIM-02 and F3 S3 D1 (on Forge the GM who took over was told nothing). The words are chosen by
+           gm-bridge.mjs `primaryNoticeOf` for stand-in users; the popup itself is not raised here (tier 1 writes nothing,
+           and a notice is kept in the history): its road is read in the source, and E132 PRIM-02 raises it. */
+        const Br = await import("./gm-bridge.mjs");
+        const pick = typeof Br.primaryNoticeOf === "function" ? Br.primaryNoticeOf : () => "missing";
+        const A = { id: "R9051AAAAAAAAAAA", name: "R9051 First" }, B = { id: "R9051BBBBBBBBBBB", name: "R9051 Second" }, C = { id: "R9051CCCCCCCCCCC", name: "R9051 Third" };
+        const users = { get: id => [A, B, C].find(u => u.id === id) };
+        const as = (me, isGM = true) => ({ me: me.id, isGM, users });
+        const text = notice => (notice && typeof notice === "object" ? notice.text : notice ?? null);
+        const read = {
+            taker: text(pick({ from: A.id, to: B.id }, as(B))),
+            giver: text(pick({ from: B.id, to: A.id }, as(B))),
+            other: text(pick({ from: A.id, to: B.id }, as(C))),
+            player: text(pick({ from: A.id, to: B.id }, as(C, false))),
+            load: text(pick({ from: null, to: B.id }, as(B)))
+        };
+        const src = await fetch(`/modules/${MODULE_ID}/scripts/gm-bridge.mjs`).then(lfText).then(stripComments);
+        const tell = fnSource(src, "tellPrimaryChange");
+        const road = /tellPrimaryChange\(change\)/.test(fnSource(src, "notePrimary")) && /primaryNoticeOf\(/.test(tell) && /showPopup\(/.test(tell);
+        const fmt = (key, name) => game.i18n.format(key, { name });
+        equal(stableJson({ ...read, road }), stableJson({ taker: game.i18n.localize("DRPG.Panel.primaryNowYou"), giver: fmt("DRPG.Panel.primaryBack", A.name),
+            other: fmt("DRPG.Panel.primaryNow", B.name), player: null, load: null, road: true }),
+        "{taker: B became the primary, on B; giver: B stopped, on B; other: on a third GM; player: on a player; load: the first reading; road: notePrimary -> tellPrimaryChange -> showPopup}");
+        ok(["primaryNowYou", "primaryBack", "primaryNow"].every(k => game.i18n.localize(`DRPG.Panel.${k}`) !== `DRPG.Panel.${k}`), "the notices' keys have words");
+    }],
 ];
 
 /**

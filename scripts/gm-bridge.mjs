@@ -27,7 +27,7 @@
  * its wire name, row, run and ask in those files (R1239), never here.
  */
 
-import { isPrimaryGm, primaryGmId, markGmReady, debug, error } from "./utils.mjs";
+import { isPrimaryGm, primaryGmId, markGmReady, debug, error, esc } from "./utils.mjs";
 import { TIMING } from "./config.mjs";
 import { replyForMe, resendOnGmReady } from "./bridge-guards.mjs";
 
@@ -119,19 +119,66 @@ export function onGmReady(payload, senderId) {
  * reading, `from` null), at every `userConnected` and at every `bridge.gmReady` it hears, and once more
  * `TIMING.gmReadyWaitMs` after a GM connects (its bound, past which it counts as ready with no packet), and calls
  * `drpgPrimaryChanged` with `{ from, to }` when the reading differs from the last. A player's browser keeps no reading.
- * What else moves the role - a user's role written - and what a GM is told of it are line T2's PRIM-02.
+ * Since PRIM-02 (2.0 line T2, 27.11.2026) a user's role written is read too (`updateUser` with `role`, in
+ * `registerGmBridge`): a GM made an Assistant or a player, or an Assistant made a full Gamemaster, moves the role with
+ * no connect and no packet, and the GMs were never told. And each change is told to the GMs (`tellPrimaryChange`).
+ * The rule of choice is unchanged: the role goes back to the ready full GM with the lowest id when that GM is back
+ * (F1-infra PRIM-02 asked whether it should stay with the GM who took it over; the owner's answer, relayed 27.11.2026
+ * as D2-29: it goes back, with the GMs told at the take-over and the hand-back).
  */
 let primarySeen;
 
+/** The step of the observer, pure: `{ from, to }` when `to` differs from the last reading `seen`, null when it does not
+    or when there is no reading yet (`seen` undefined: this browser is not a GM's past its `registerGmBridge`). R9050. */
+export function primaryChange(seen, to) {
+    if (seen === undefined || to === seen) return null;
+    return { from: seen, to };
+}
+
 /** Read the primary on this GM and tell `drpgPrimaryChanged` if it moved: `{ from, to }`, or null. */
 export function notePrimary({ leaving = null } = {}) {
-    if (!game.user?.isGM || primarySeen === undefined) return null;
-    const to = primaryGmId({ leaving });
-    if (to === primarySeen) return null;
-    const change = { from: primarySeen, to };
-    primarySeen = to;
+    if (!game.user?.isGM) return null;
+    const change = primaryChange(primarySeen, primaryGmId({ leaving }));
+    if (!change) return null;
+    primarySeen = change.to;
     Hooks.callAll("drpgPrimaryChanged", change);
+    tellPrimaryChange(change);
     return change;
+}
+
+/*
+ * THE GMs ARE TOLD WHEN THE ROLE MOVES (2.0 line T2, PRIM-02, 27.11.2026; F1-infra PRIM-02, F3 S3 D1 and S5). The role
+ * moved in silence: the primary left and the second GM took it within 0.3-0.8 s on Forge and knew nothing of it, and when
+ * the first came back it took the role back as silently. Now each GM's browser tells its own GM, once a change (the
+ * observer above answers a change once): the GM who became the primary that its browser now runs the table's automation
+ * and should stay open, the GM who stopped who has it now, any other GM who has it now. A player is told nothing - the
+ * observer runs on a GM's browser alone. The first reading at a GM's load (`from` null) is told nothing: a GM loading
+ * the world is not taking anything over from anybody this browser saw, and a lone GM would be told at every load; the
+ * panel's line (gm-panel.mjs `primaryLineHtml`, PRIM-01) says it there. A corner notice, kept in the notice history and
+ * not sticky: a reload of the primary moves the role twice within a minute, and a sticky "you are now the primary" would
+ * stand on after the role had gone back. A GM who becomes the primary while loading, by a role written to it, is not told
+ * either, for the same reason as the first reading: its observer has no reading yet.
+ */
+
+/** The notice of `change` for the user `me`: `{ key, data, text }`, or null (a player; the first reading; nobody). R9051. */
+export function primaryNoticeOf(change, { me = game.user?.id, isGM = game.user?.isGM, users = game.users } = {}) {
+    if (!isGM || !change || change.from == null || !change.to) return null;
+    const name = users?.get?.(change.to)?.name ?? "?";
+    const [key, data] = change.to === me ? ["DRPG.Panel.primaryNowYou", null]
+        : change.from === me ? ["DRPG.Panel.primaryBack", { name }] : ["DRPG.Panel.primaryNow", { name }];
+    return { key, data, text: data ? game.i18n.format(key, data) : game.i18n.localize(key) };
+}
+
+/** Tell this GM of `change` in a corner notice (`showPopup`); the notice's words, or null when there is nothing to say. */
+export function tellPrimaryChange(change) {
+    const notice = primaryNoticeOf(change);
+    if (!notice) return null;
+    import("./popup.mjs")
+        .then(({ showPopup }) => showPopup(`<p>${esc(notice.text)}</p>`, {
+            title: game.i18n.localize("DRPG.Panel.primaryTitle"), kind: "info", source: "mine"
+        }))
+        .catch(err => debug("Could not tell this GM that the primary moved", err));
+    return notice.text;
 }
 
 export function registerGmBridge() {
@@ -170,6 +217,11 @@ export function registerGmBridge() {
             }
             if (connected || !user?.isGM || !isPrimaryGm({ leaving: user.id })) return;
             sweepAskCards({ leaving: user.id }).catch(err => debug("Could not sweep the asks' cards", err));
+        });
+        // A user's role written can move the primary (2.0 line T2, PRIM-02): a GM made an Assistant or a player, an
+        // Assistant made a full Gamemaster. `updateUser` fires on every browser once the change is applied here.
+        Hooks.on("updateUser", (user, changes) => {
+            if ("role" in (changes ?? {})) notePrimary();
         });
         // A card deleted takes the GMs' row of who ruled it with it (E18 C3): the primary writes the rows, and drops them.
         Hooks.on("deleteChatMessage", message => {

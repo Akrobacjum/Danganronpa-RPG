@@ -44,6 +44,9 @@
  *      token where the body lies, the student unflagged (Y1; `spectator.dead`).
  *   Z  1.2.128 (E129 S0-MASKLEFT): gm2 ends a masked fight with the victim alive; the mask, the "?" and the mute end on the
  *      primary (`mask.veil` "unmask"), and the killer's player is told (Z1).
+ *   PRIM  2.0 line T2, PRIM-01 and PRIM-02 (27.11.2026): gm leaves and comes back; gm2 is told it took the table, then
+ *      that gm has it again, and its panel's line names the primary each time (PRIM1, PRIM2); gm is told nothing at its
+ *      own load; no player is told of either (PRIM3).
  *
  * What this cannot see: a real F5 (a new process with the old localStorage, no cookie, IndexedDB or cache; the
  * order of "inactive", "active" and `ready` on v14 is LIVE-E30-05 and LIVE-E04-12), and a real server's delivery
@@ -109,13 +112,17 @@ export async function run(api) {
        whether each read gm2 there, how long its window was, and for how long the four readings differed between gm's
        connect and the last of them hearing gm ready (the disagreement 2.2 point 4 of LINE-T2 asks for). The first 100 ms
        after its connect are a browser's own poll's lag (two readings at 50 ms), not counted as taking gm. Red at 31d5812:
-       every one of them read gm from its connect on, gm2 never. */
+       every one of them read gm from its connect on, gm2 never. Each browser also reads the primary in its own hook on
+       gm's leave and connect and its listener for gm's packet (PRIM-02, 27.11.2026): since gm2 is told of each move in a
+       corner notice, the work of its leave's handlers held gm2's poll back 164 ms on one run (its first reading after the
+       leave at 121 ms past the connect, counted as taking gm at 100 ms), a lag of the poll and not a reading. */
     const WATCHERS = { gm2, p1, p2, p3 };
     const WATCH = `const U = ${imp("utils.mjs")}, W = ${imp("bridge-wire.mjs")};
         const log = globalThis.__t2PrimLog = { reads: [[Date.now(), U.primaryGmId()]], connectedAt: null, readyAt: null, done: false };
-        globalThis.__t2PrimTimer = setInterval(() => { const id = U.primaryGmId(); if (id !== log.reads.at(-1)[1]) log.reads.push([Date.now(), id]); }, 50);
-        Hooks.on("userConnected", (u, on) => { if (!log.done && u?.id === "${IDS.gm}" && on && log.connectedAt === null) log.connectedAt = Date.now(); });
-        game.socket.on(W.SOCKET_EVENT, (p, s) => { if (!log.done && p?.action === W.ACTION_GM_READY && s === "${IDS.gm}" && log.readyAt === null) log.readyAt = Date.now(); });
+        const readNow = () => { const id = U.primaryGmId(); if (id !== log.reads.at(-1)[1]) log.reads.push([Date.now(), id]); };
+        globalThis.__t2PrimTimer = setInterval(readNow, 50);
+        Hooks.on("userConnected", (u, on) => { if (!log.done && u?.id === "${IDS.gm}") { readNow(); if (on && log.connectedAt === null) log.connectedAt = Date.now(); } });
+        game.socket.on(W.SOCKET_EVENT, (p, s) => { if (!log.done && p?.action === W.ACTION_GM_READY && s === "${IDS.gm}" && log.readyAt === null) { readNow(); log.readyAt = Date.now(); } });
         return true;`;
     for (const h of Object.values(WATCHERS)) await h.eval(WATCH);
     const r2 = await reload("gm");
@@ -1280,6 +1287,50 @@ export async function run(api) {
     check("Z1: gm2 ends a masked fight with the victim alive, and on gm the mask's row, Aiko's \"?\" and p1's mute end, and p1 is told once (1.2.128 E129 S0-MASKLEFT)",
         J(zBefore) === J({ row: true, masked: 1, muted: true, stage: "openingRoll", put: true }) && J(zAfter) === J({ row: false, masked: 0, muted: false }) && zTold === 1,
         J({ zBefore, zAfter, zTold }), { flow: "mask" });
+
+    /* ------------------------------------------------------------------ PRIM */
+    /* 2.0 line T2, PRIM-01 and PRIM-02 (27.11.2026; F3 S3 D1 and D2 on Forge: the GM who took over was told nothing,
+       and no screen named the primary). Every client keeps the words of each corner notice it draws from here on (a
+       MutationObserver on `.drpg-popup`, as E132 PRIM-02 reads them); then gm leaves (`makePrimary("gm2")`), and comes
+       back. Read: on gm2, after each move, the notices that name the move in its own words (gm-bridge.mjs
+       `primaryNoticeOf`: `primaryNowYou` when it took the table, `primaryBack` naming gm when it handed it back) and the
+       panel's line (gm-panel.mjs `primaryLineHtml`); on gm once back, a new browser with no observer, the notices
+       standing in its corner (a corner notice stays until closed), any of the three primary forms (none: its own load is
+       the first reading) and its line; on the three players, any notice in any of the three forms, in their own
+       language, naming gm or gm2 (none: the observer runs on a GM's browser alone). Red at 8bd6278: nothing told on gm2,
+       and no line. */
+    phase("PRIM the GMs are told when the primary moves, the players are not");
+    const PRIM_WATCH = `globalThis.__t2PrimObs?.disconnect(); const seen = globalThis.__t2PrimSeen = [];
+        const obs = globalThis.__t2PrimObs = new MutationObserver(rs => { for (const r of rs) for (const n of r.addedNodes) {
+            if (n instanceof Element && n.matches(".drpg-popup")) seen.push(n.textContent.replace(/\\s+/g, " ").trim()); } });
+        obs.observe(document.body, { childList: true, subtree: true }); return true;`;
+    const PRIM_TOLD = `const names = ["${IDS.gm}", "${GM2}"].map(id => game.users.get(id)?.name ?? "?");
+        const forms = [game.i18n.localize("DRPG.Panel.primaryNowYou"), ...names.flatMap(name => ["primaryBack", "primaryNow"].map(k => game.i18n.format("DRPG.Panel." + k, { name })))];
+        const seen = globalThis.__t2PrimSeen ?? [...document.querySelectorAll(".drpg-popup")].map(n => n.textContent.replace(/\\s+/g, " ").trim());
+        return { nowYou: seen.filter(t => t.includes(forms[0])).length, backToGm: seen.filter(t => t.includes(forms[1])).length,
+            any: seen.filter(t => forms.some(f => t.includes(f))).length };`;
+    const PRIM_LINE = `const P = ${imp("gm-panel.mjs")}; const root = document.createElement("div"); root.innerHTML = P.primaryLineHtml?.() ?? "";
+        const p = root.querySelector("p.drpg-gmp-primary");
+        return p ? { id: p.dataset.drpgPrimary, you: p.textContent.trim() === game.i18n.format("DRPG.Panel.primaryGmYou", { name: game.user.name }) } : null;`;
+    for (const h of [gm, gm2, p1, p2, p3]) await h.eval(PRIM_WATCH);
+    const primLeft = await makePrimary("gm2");
+    await settle(900);
+    const primTook = { told: await gm2.eval(PRIM_TOLD), line: await gm2.eval(PRIM_LINE) };
+    await connect("gm");
+    const primBack = await until(primaryOn, on => allRead(on, IDS.gm));
+    await settle(1500);
+    const primHanded = { told: await gm2.eval(PRIM_TOLD), line: await gm2.eval(PRIM_LINE) };
+    const primGm = { told: await gm.eval(PRIM_TOLD), line: await gm.eval(PRIM_LINE) };
+    const primPlayers = {};
+    for (const [w, h] of Object.entries({ p1, p2, p3 })) primPlayers[w] = (await h.eval(PRIM_TOLD)).any;
+    for (const h of [gm, gm2, p1, p2, p3]) await h.eval(`globalThis.__t2PrimObs?.disconnect(); delete globalThis.__t2PrimObs; delete globalThis.__t2PrimSeen; return true;`);
+    check("PRIM1: gm leaves and gm2, the GM who takes the table over, is told so once, and its panel's line names it primary, \"(you)\" (2.0 line T2, PRIM-01, PRIM-02)",
+        primLeft.agreed === true && J(primTook) === J({ told: { nowYou: 1, backToGm: 0, any: 1 }, line: { id: GM2, you: true } }), J({ primLeft, primTook }));
+    check("PRIM2: gm comes back and is the primary on every client; gm2, which hands the table back, is told once that gm is the primary, its line names gm; gm is told nothing at its own load and its line says \"(you)\" (2.0 line T2, PRIM-01, PRIM-02)",
+        allRead(primBack, IDS.gm) && J(primHanded) === J({ told: { nowYou: 1, backToGm: 1, any: 2 }, line: { id: IDS.gm, you: false } })
+            && J(primGm) === J({ told: { nowYou: 0, backToGm: 0, any: 0 }, line: { id: IDS.gm, you: true } }), J({ primBack, primHanded, primGm }));
+    check("PRIM3: none of the three players is told of either move (2.0 line T2, PRIM-02)",
+        Object.keys(primPlayers).length === 3 && Object.values(primPlayers).every(n => n === 0), J(primPlayers));
 
     return { primary: { before, joined, afterGmReload, moved, backAgain }, reloads: { p1: r1, gm: r2, card: r3 },
         d153: { before: gBefore, onGm: gAfter, onGm2: gAfter2, found: gFound, gave: gGave } };
