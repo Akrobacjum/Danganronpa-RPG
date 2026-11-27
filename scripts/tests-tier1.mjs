@@ -69827,6 +69827,55 @@ const INVARIANTS = [
         "{rows: [hidden, knows, incident, shown, shown with HOLDER_SEES_HIDDEN false]; the constant; a GM knows any trace; applyToRemnantToken asks the rule with knowsRemnant and shows a hidden held trace; shownAsFound asks the same; showHeld does not defer to a GM's hidden}");
     }],
     // T4 voice-ui-text-infra-tests (2.0 line T4, E134, 27.11.2026: docs/dev/v2/LINE-T4.md). The line's tests stand in this block.
+    ["R9245 - a test build migrates only in a test world (2.0 line T4, D2-13): migrate.mjs `migrationGate` answers why not for a 1.9.x version and for a pre-release one in a world whose id and title have no \"qa\", and for a version that cannot be read in any world; null for 1.9.x where the id or the title has \"qa\" in any case, for a release and for 2.0.0", async () => {
+        /*
+         * The owner's D2-13 (docs/dev/v2/DECISIONS.md): "Wydania 1.9.x pomijają migracje i ostrzegają w świecie, którego nazwa
+         * nie zawiera \"qa\"". A pre-release suffix counts as a test build (the line's default, the owner's question in
+         * LINE-T4-REPORT.md); "?" is moduleVersion's answer with no module.json. Red at 31d5812: no migrationGate.
+         */
+        const M = await import("./migrate.mjs");
+        must(typeof M.migrationGate === "function", "no migrationGate in migrate.mjs - this would measure nothing");
+        const gate = (version, worldTitle, worldId = "kampania") => M.migrationGate({ version, worldId, worldTitle });
+        equal(JSON.stringify([gate("1.9.0", "Kampania"), gate("1.9.0", "DRPG-QA-Forge"), gate("1.9.4", "Kampania", "drpg-qa-forge-2"),
+            gate("1.2.130", "Kampania"), gate("2.0.0", "Kampania"), gate("1.2.130-qa.1", "Kampania"), gate("1.2.130-rc.1", "Szkoła QA"),
+            gate("?", "DRPG-QA-Forge", "drpg-qa-forge"), gate("", "Kampania"), gate("1.10.0", "Kampania")]),
+        JSON.stringify(["testBuild", null, null, null, null, "testBuild", null, "noVersion", "noVersion", null]),
+            "[1.9.0 in Kampania; 1.9.0 titled DRPG-QA-Forge; 1.9.4 with the id drpg-qa-forge-2; 1.2.130; 2.0.0; 1.2.130-qa.1 in Kampania; 1.2.130-rc.1 titled Szkoła QA; ? in a qa world; an empty version; 1.10.0]");
+    }],
+    ["R9246 - a test build in a world without \"qa\" in its name migrates nothing and says so once (2.0 line T4, D2-13): migrate1_2_0 with 1.9.x installed, forced or not, answers `skipped: \"testBuild\"` before it chooses a clause or reads the stamp, writes no setting, and warns the GM once, to stay up, naming the version; migrationStatus says the same", async () => {
+        /*
+         * Tier 1 writes nothing: the version, the world, the warning and game.settings.set are stood in for the two calls
+         * (standIn), and `only` is an array that answers no clause and records each key it was asked about - so on a tree
+         * without the gate the runner chooses none to run, and the stamp it would write lands in the stand-in. A version
+         * this run alone uses keeps "once a load for a build and a world" from reading a warning an earlier run gave. Red at
+         * 31d5812: both calls ran the pass (`skipped` undefined, every clause key asked, the stamp set).
+         */
+        const M = await import("./migrate.mjs");
+        const mod = game.modules.get(MODULE_ID);
+        needs(env.replaceable(game, "world", "game.world"));
+        needs(env.replaceable(mod, "version", "the module's version"));
+        needs(env.replaceable(game.settings, "set", "game.settings.set"));
+        const version = `1.9.${Date.now() % 100000}`;
+        const stampBefore = getSetting(SETTINGS.migratedVersion);
+        const fakeWorld = Object.create(game.world, { id: { value: "r9246-campaign" }, title: { value: "R9246 Campaign" } });
+        const warns = [], sets = [], asked = [];
+        const only = () => Object.assign([], { includes: key => { asked.push(key); return false; } });
+        const back = [standIn(game, "world", fakeWorld), standIn(mod, "version", version),
+            standIn(ui.notifications, "warn", (text, options) => { warns.push([String(text), Boolean(options?.permanent)]); }),
+            standIn(game.settings, "set", async (scope, key) => { sets.push(`${scope}.${key}`); })];
+        let first, second, status;
+        try {
+            first = await M.migrate1_2_0({ quiet: true, only: only() });
+            second = await M.migrate1_2_0({ force: true, only: only() });
+            status = M.migrationStatus?.().skipped;
+        } finally {
+            for (const put of back.reverse()) put();
+        }
+        equal(JSON.stringify({ first: first?.skipped, second: second?.skipped, changed: [first?.changed, second?.changed], asked: asked.length, sets,
+            warns: warns.length, permanent: warns[0]?.[1], names: Boolean(warns[0]?.[0].includes(version)), status, stamp: getSetting(SETTINGS.migratedVersion) === stampBefore }),
+        JSON.stringify({ first: "testBuild", second: "testBuild", changed: [0, 0], asked: 0, sets: [], warns: 1, permanent: true, names: true, status: "testBuild", stamp: true }),
+            "{first: the automatic pass's answer; second: a forced pass's; changed; asked: clause keys the runner chose among; sets: settings written; warns: warnings; permanent; names: the warning names the version; status: migrationStatus().skipped; stamp: the stamp as before}");
+    }],
 ];
 
 /**

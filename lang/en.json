@@ -7029,7 +7029,9 @@
         "other": "Danganronpa RPG: {n} parts of this world's data were updated for {version}."
       },
       "failed": "Danganronpa RPG: part of the data migration failed ({clauses}). It runs again when this world next loads; the console has the details.",
-      "notPrimary": "Danganronpa RPG: only the primary GM can finish the data migration. It runs when the primary GM next loads this world."
+      "notPrimary": "Danganronpa RPG: only the primary GM can finish the data migration. It runs when the primary GM next loads this world.",
+      "testBuild": "Danganronpa RPG: this is a test build ({version}), and this world is not a test world (its name has no \"qa\"). The data migration does not run, so the campaign's data stays as it is. Go back to a regular release, or run this build in a test world.",
+      "noVersion": "Danganronpa RPG: the module's version cannot be read, so the data migration does not run. Reinstall the module."
     },
     "Popup": {
       "centre": {

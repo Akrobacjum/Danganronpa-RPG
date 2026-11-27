@@ -112,6 +112,8 @@ Przed instalacją aktualizacji, która przenosi dane, skopiuj świat: kopią zap
 
 To, co 1.2.63 i 1.2.64 przeniosły z danych świata, jak zapisać stary magazyn przeglądarki do pliku i co zawiera świat skopiowany przed aktualizacją, opisuje sekcja 22.
 
+**Wydanie testowe w świecie kampanii.** Wydanie 1.9.x albo wydanie z przyrostkiem po myślniku (np. `1.2.130-qa.1`) to wydanie testowe. W świecie, którego nazwa ani identyfikator nie zawierają „qa”, nie uruchamia migracji danych, a każdy GM dostaje przy wczytaniu ostrzeżenie, które zostaje na ekranie. Dane kampanii zostają wtedy takie, jakie były. Wróć do zwykłego wydania albo uruchom wydanie testowe w świecie testowym (sekcja 20.5).
+
 ### 1.6 Co przeglądarki graczy widzą i mogą zrobić
 
 Przeglądarki graczy proszą przeglądarkę GM-a o większość zmian w tej grze, a Daggerheart robi to samo dla własnych reguł. Każda prośba jest sprawdzana: kto naprawdę ją wysłał, czy ten gracz prowadzi postać albo może widzieć projekt i czy pozwalają na nią pokój, etap i tura. Prośba, która nie przejdzie, niczego nie zmienia, a gracz dowiaduje się w swoim języku, czego nie wykonano i dlaczego; kilka nieudanych próśb, na które nikt nie czeka, trafia tylko do dziennika. Prośba gracza o cofnięcie czegoś jest odrzucana, a Reroll wykonuje przeglądarka GM-a.
@@ -1926,6 +1928,8 @@ Powiadomienie podaje przy każdym miejscu, co stół dostaje zamiast tego, a ca�
 ### 20.5 Migracja danych i API makr
 
 Migracja danych działa sama przy wczytaniu, w przeglądarce głównego GM-a, ilekroć zmieniła się zainstalowana wersja, a na świecie już aktualnym nic nie robi. Ręcznie to `game.drpg.migrate()`, a `game.drpg.migrate({ force: true })` uruchamia ją niezależnie od tego, czy wersja się zmieniła, i jest naprawą, gdy dane świata ewidentnie nie są aktualne. Uruchomiona drugi raz niczego nie zmienia. Wymuszona nadal nie zasiewa ponownie tego, co GM mógł usunąć albo czego nigdy nie wybrał: safeword i skrytki sypialni dostaje tylko świat, który tego kroku jeszcze nie przeszedł (od 1.2.122). `game.drpg.migrationStatus()` mówi, co by zrobiła, i niczego nie zapisuje. `migrate1_2_0` to jej nazwa z aktualizacji 1.2.0, ta sama funkcja zachowana jako alias: wołaj `migrate()`.
+
+**Wydanie testowe.** Wydanie 1.9.x albo z przyrostkiem po myślniku w świecie bez „qa” w nazwie i identyfikatorze nie uruchamia ani migracji przy wczytaniu, ani `game.drpg.migrate({ force: true })`, ani migracji DA39, niczego nie zapisuje i ostrzega każdego GM-a raz na wczytanie (sekcja 1.5). `game.drpg.migrationStatus()` mówi wtedy `skipped: "testBuild"`. Wersja, której nie da się odczytać, nie uruchamia migracji w żadnym świecie (`skipped: "noVersion"`).
 
 **API makr.** Makro woła wszystko pod `game.drpg`, z argumentami aktora jak wyżej. Nazwa, która nie jest ani id, ani nazwą żadnego aktora, daje ostrzeżenie z nazwą wywołania i podanym słowem, a nazwa wspólna dwóm aktorom też ostrzega i działa na pierwszym. `tools/api-surface.json` w repozytorium modułu wylicza każdy klucz `game.drpg` z jego rodzajem, a test pilnuje, żeby żywy obiekt zgadzał się z tym plikiem. Klucz znika z `game.drpg` dopiero po co najmniej jednym wydaniu pod starą nazwą jako alias. Obecne aliasy podaje `tools/api-surface.json`; *bez terminu* znaczy, że nie wyznaczono wydania, w którym stara nazwa zniknie, a alias *bez terminu* zostaje, dopóki jakieś wydanie nie powie inaczej.
 

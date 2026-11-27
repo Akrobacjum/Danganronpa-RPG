@@ -7583,7 +7583,9 @@
         "other": "Danganronpa RPG: {n} części danych tego świata zaktualizowano do {version}."
       },
       "failed": "Danganronpa RPG: migracja danych nie dokończyła się ({clauses}). Ruszy znowu przy następnym wczytaniu tego świata; szczegóły są w konsoli.",
-      "notPrimary": "Danganronpa RPG: nie jesteś głównym GM-em. Migrację danych przeprowadzi główny GM, gdy wczyta ten świat."
+      "notPrimary": "Danganronpa RPG: nie jesteś głównym GM-em. Migrację danych przeprowadzi główny GM, gdy wczyta ten świat.",
+      "testBuild": "Danganronpa RPG: to wydanie testowe ({version}), a ten świat nie jest światem testowym (w nazwie nie ma „qa”). Migracja danych nie rusza, żeby nie zmienić danych kampanii. Wróć do zwykłego wydania albo uruchom to wydanie w świecie testowym.",
+      "noVersion": "Danganronpa RPG: nie da się odczytać wersji modułu, więc migracja danych nie rusza. Zainstaluj moduł ponownie."
     },
     "Popup": {
       "centre": {

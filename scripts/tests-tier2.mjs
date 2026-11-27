@@ -118699,6 +118699,34 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             "{told: after the leaver's own copy alone; revealed: after the GM's Reveal} x [the row's first find, its road, the ref's found]");
     }],
     // T4 voice-ui-text-infra-tests (2.0 line T4, E134, 27.11.2026: docs/dev/v2/LINE-T4.md). The line's tests stand in this block.
+    ["E134 D2-13 - a 1.9 build in a world without qa in its name migrates nothing and says so: the whole forced pass, every clause offered, with 1.9.x installed in a world whose id and title have no \"qa\", answers skipped, leaves the stamp and every module setting as they were, and warns the GM to stay up", async () => {
+        /*
+         * The owner's D2-13 (2.0 line T4, 27.11.2026). R9246 measures the gate on stand-ins with no clause offered; this is
+         * the pass as a GM's console calls it, `game.drpg.migrate({ force: true })`, with nothing stood in but the version,
+         * the world's name and the warning. Red before the line: the forced pass ran every clause and stamped the 1.9 build.
+         */
+        must(game.user.isGM, "the migration is a GM's");
+        const mod = game.modules.get(MODULE_ID);
+        needs(env.replaceable(game, "world", "game.world"));
+        needs(env.replaceable(mod, "version", "the module's version"));
+        const version = `1.9.${(Date.now() % 100000) + 1}`;
+        const before = stableJson(Object.fromEntries(moduleSettingValues()));
+        const fakeWorld = Object.create(game.world, { id: { value: "e134-campaign" }, title: { value: "E134 Campaign" } });
+        const warns = [];
+        const back = [standIn(game, "world", fakeWorld), standIn(mod, "version", version),
+            standIn(ui.notifications, "warn", (text, options) => { warns.push([String(text), Boolean(options?.permanent)]); })];
+        let report;
+        try {
+            report = await game.drpg.migrate({ force: true });
+        } finally {
+            for (const put of back.reverse()) put();
+        }
+        await settle();
+        const after = stableJson(Object.fromEntries(moduleSettingValues()));
+        equal(JSON.stringify({ skipped: report?.skipped ?? null, changed: report?.changed ?? null, settings: after === before, warns: warns.map(([text, permanent]) => [text.includes(version), permanent]) }),
+            JSON.stringify({ skipped: "testBuild", changed: 0, settings: true, warns: [[true, true]] }),
+            "{skipped; changed; settings: every module setting as before; warns: [names the version, stays up]}");
+    }],
 ];
 
 // `drawnForPlayer` for the grid (E33 C7): a drawn crisis roll goes through the suite's one road to a draw (tests-grid.mjs `drawnAct`).

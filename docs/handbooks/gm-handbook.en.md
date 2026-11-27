@@ -112,6 +112,8 @@ Copy the world before you install an update that moves data, with Foundry's back
 
 What 1.2.63 and 1.2.64 moved out of the world's data, how to save the old browser store to a file, and what a world copied before the update holds are in section 22.
 
+**A test build in a campaign world.** A 1.9.x build, or a build with a suffix after a hyphen (such as `1.2.130-qa.1`), is a test build. In a world whose name and id have no "qa" in them it runs no data migration, and every GM gets a warning at load that stays on screen. The campaign's data stays as it was. Go back to a regular release, or run the test build in a test world (section 20.5).
+
 ### 1.6 What players' browsers can see and do
 
 Players' browsers ask a GM's browser to make most changes in this game, and Daggerheart does the same for its own rules. Each request is checked: who really sent it, whether that player plays the character or may see the project, and whether the room, the stage and the turn allow it. A request that fails changes nothing, and the player is told, in their own language, what was not carried out and why; a few that nobody waits on are only logged. A player's request to take something back is refused, and the Reroll is made on the GM's side.
@@ -1926,6 +1928,8 @@ The notice names what the table gets instead at each place. The whole register, 
 ### 20.5 The data migration and the macro API
 
 **The data migration** runs by itself at load, on the primary GM's browser, whenever the installed version has moved, and does nothing on a world that is already current. By hand it is `game.drpg.migrate()`; `game.drpg.migrate({ force: true })` runs it whether or not the version moved, which is the repair when a world's data plainly is not current. Running it twice changes nothing the second time. Forced, it still does not seed again what a GM may have removed or never chose: the safeword and the bedrooms' stashes are set only on a world that has not been through that step (since 1.2.122). `game.drpg.migrationStatus()` says what it would do and writes nothing. `migrate1_2_0` is its name from the 1.2.0 update, the same function, kept as an alias (below): call `migrate()`.
+
+**A test build.** A 1.9.x build, or one with a suffix after a hyphen, in a world without "qa" in its name and id runs neither the migration at load, nor `game.drpg.migrate({ force: true })`, nor the DA39 migration, writes nothing, and warns every GM once a load (section 1.5). `game.drpg.migrationStatus()` then says `skipped: "testBuild"`. A version that cannot be read runs no migration in any world (`skipped: "noVersion"`).
 
 **The macro API.** A macro calls everything under `game.drpg`, with actor arguments as above. A name that is no actor's id and no actor's name gives a warning that names the call and the word you gave it; a name two actors share warns too and acts on the first. `tools/api-surface.json` in the module's repository lists every key of `game.drpg` with its kind, and a test holds the live object to it: a key leaves `game.drpg` only after at least one release under its old name as an alias. The aliases today follow that file; *no end set* means no release is set for removing the old name, so it stays until a release says otherwise.
 
