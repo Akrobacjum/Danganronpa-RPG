@@ -22148,21 +22148,23 @@ const INVARIANTS = [
         const stranger = { id: "R7791X", name: "R7791 Stranger", items: [] };
         const known = new Set(["Aiko's Room", "Botan's Room", "Chie's Room", "Daichi's Room", "Cafeteria"]);
         const at = (obj, k) => k.split(".").reduce((o, p) => o?.[p], obj);
-        const own = game.i18n.localize, fmt = game.i18n.format;
         const read = {};
+        /* standIn, as R3980 does (2.0 line T4, FORGE-09c, 27.11.2026): v14's `format` is Localization.prototype's and read-only
+           there, so the plain assignment this test made threw "Cannot assign to read only property 'format'" on The Forge
+           (docs/dev/v2/F3-forge-PC-2.md); each put back once, in reverse. */
+        let word = k => k;
+        const back = [standIn(game.i18n, "localize", k => word(k)),
+            standIn(game.i18n, "format", (k, data = {}) => String(word(k)).replace(/\{(\w+)\}/g, (m, f) => (f in data ? String(data[f]) : m)))];
         try {
             for (const code of ["en", "pl"]) {
-                const word = k => at(files[code], k) ?? k;
-                game.i18n.localize = k => word(k);
-                game.i18n.format = (k, data = {}) => String(word(k)).replace(/\{(\w+)\}/g, (m, f) => (f in data ? String(data[f]) : m));
+                word = k => at(files[code], k) ?? k;
                 const say = actor => R.restRoomsSentence("short", "DRPG.Rest.allowedIn", {}, scene, known, actor);
                 read[code] = [say(me), say({ ...stranger, items: [] }), say(null)];
                 const knownOnly = new Set(["Botan's Room", "Chie's Room"]);
                 read[code].push(R.restRoomsSentence("short", "DRPG.Rest.allowedIn", {}, scene, knownOnly, stranger));
             }
         } finally {
-            game.i18n.localize = own;
-            game.i18n.format = fmt;
+            for (const putBack of back.reverse()) putBack();
         }
         const want = code => {
             const w = k => at(files[code], k) ?? `<no ${k}>`;
@@ -52226,14 +52228,23 @@ const INVARIANTS = [
          * the sidebar's Equipped and Experience blocks (Daggerheart 2.10.5's character/sidebar.hbs). No step may fail on
          * the stand-ins - that would be a plant, not the reading. Red on the tree before: one tag ("Murder Weapon - T2"),
          * no empty line.
+         * A STAND-IN ACTOR, NOT THE WORLD'S OWN PROPERTIES (2.0 line T4, FORGE-09c, 27.11.2026). On Foundry 14.370 an actor's
+         * `items` is its own property and cannot be redefined: `Object.defineProperty(actor, "items", ...)` threw "Cannot
+         * redefine property: items" on The Forge (docs/dev/v2/F3-forge-PC-2.md, FORGE-09c, 25.11.2026). So the sheet is drawn
+         * for an object whose prototype is the student - every read the steps make goes on to it - with its own `items` and
+         * a `system` whose prototype is the student's `system` (its methods kept: R1489's lesson) and whose own `experiences`
+         * is the test's. Nothing on the student is touched. That a step reads nothing through a getter the stand-in cannot
+         * answer on v14 (a private field) is not read: a step that throws shows in `failed`, which must be 0.
          */
-        const who = studentActors()[0];
-        must(who, "no student in the world - this would measure nothing");
+        const real = studentActors()[0];
+        must(real, "no student in the world - this would measure nothing");
         const flags = { category: "crimeTool", equipped: true, roles: ["tool", "crimeTool"], tier: 2 };
         const item = { id: "R1459ITEM0000001", uuid: "Actor.R1459.Item.R1459ITEM0000001", name: "R1459 knife", img: "", type: "loot", sheet: null,
             flags: { [MODULE_ID]: flags }, getFlag: (scope, key) => (scope === MODULE_ID ? flags[key] : undefined) };
-        item.actor = who;
-        const draw = experiences => e24Own(who, "items", e24Items([item]), () => e24Own(who.system, "experiences", experiences, () => {
+        let who = real;
+        const draw = async experiences => {
+            who = Object.create(real, { items: { value: e24Items([item]) }, system: { value: Object.create(real.system, { experiences: { value: experiences } }) } });
+            item.actor = who;
             const root = e24SheetRoot();
             root.querySelector(".character-sidebar-sheet").insertAdjacentHTML("beforeend",
                 `<div class="equipment-section"><div class="title"><h3>Equipment</h3></div><ul class="items-sidebar-list"></ul></div>`
@@ -52251,7 +52262,7 @@ const INVARIANTS = [
                 empty: [...root.querySelectorAll(".experience-section .drpg-experience-empty")].map(el => el.textContent),
                 labels: [...root.querySelectorAll('[data-drpg-equipped="crimeTool"] .item-labels .label')].map(el => el.textContent.trim()),
                 tags: [...root.querySelectorAll('[data-drpg-equipped="crimeTool"] .item-labels .drpg-equipped-tag')].map(el => el.textContent) };
-        }));
+        };
         const held = [`${ITEM_CATEGORIES.crimeTool.label} · ${ITEM_CATEGORIES.tool.label} - T2`];
         const tags = [ITEM_CATEGORIES.crimeTool.label, ITEM_CATEGORIES.tool.label];
         equal(stableJson({ none: await draw({}), one: await draw({ r1459: { name: "R1459 cooking", value: 2 } }) }),
@@ -52914,14 +52925,21 @@ const INVARIANTS = [
         must(guarded.every(text => text.length > 200 || text.includes("LEGAL")), "scoredOf's and modifierLabel's source was not read");
         const named = diceRows.filter(key => guarded.some(text => new RegExp(`key:\\s*["'\`]${key}["'\`]|["'\`]${key}["'\`]\\s*:`).test(text)));
 
-        // A student in Breakdown, in memory: the real student with its Sanity marks at the maximum, nothing written.
+        /* A student in Breakdown, in memory: the real student with its Sanity marks at the maximum, nothing written. Its
+           `system` is the real one's own stand-in, not a plain copy (2.0 line T4, FORGE-09c, 27.11.2026): a deep clone of
+           `toObject()` kept the fields and lost the TypeDataModel's methods, and on Foundry 14.370 the roll's expectation
+           asks the actor's roll data, so it threw "this.system.getRollData is not a function" on The Forge
+           (docs/dev/v2/F3-forge-PC-2.md, FORGE-09c, 25.11.2026); the harness's system has no such method in the way.
+           Now its prototype is the student's `system` - every method and every field the test does not set read from
+           there - with its own `resources`, a copy in which Sanity alone is set. */
         const real = livingStudents()[0];
-        const own = foundry.utils.deepClone(real.system.toObject?.() ?? real.system);
-        own.resources.stress.value = own.resources.stress.max;
+        const resources = foundry.utils.deepClone(real.system.toObject?.()?.resources ?? real.system.resources);
+        const systemWith = stress => Object.create(real.system, { resources: { value: { ...resources, stress: { ...resources.stress, value: stress } }, enumerable: true } });
+        const own = systemWith(resources.stress.max);
         const owner = { id: "r1489-owner", isGM: false }, player = { id: "r1489-player", isGM: false }, observer = { id: "r1489-observer", isGM: false };
         const levelOf = (user, level) => (user?.isGM || user?.id === owner.id) ? true : (user?.id === observer.id && level === "OBSERVER");
         const broken = Object.create(real, { system: { value: own }, testUserPermission: { value: levelOf } });
-        const calm = Object.create(real, { system: { value: { ...own, resources: { ...own.resources, stress: { ...own.resources.stress, value: 0 } } } } });
+        const calm = Object.create(real, { system: { value: systemWith(0) } });
         must(isBrokenDown(broken) && !isBrokenDown(calm), "the in-memory student is not in Breakdown (or the calm one is)");
         const [low, high] = [await D.expectedFor(calm, { actionKey: null }), await D.expectedFor(broken, { actionKey: null })];
 
@@ -69876,6 +69894,89 @@ const INVARIANTS = [
         JSON.stringify({ first: "testBuild", second: "testBuild", changed: [0, 0], asked: 0, sets: [], warns: 1, permanent: true, names: true, status: "testBuild", stamp: true }),
             "{first: the automatic pass's answer; second: a forced pass's; changed; asked: clause keys the runner chose among; sets: settings written; warns: warnings; permanent; names: the warning names the version; status: migrationStatus().skipped; stamp: the stamp as before}");
     }],
+    ["R9260 - a second open of the GM's messenger before the first has drawn its window raises nothing that has no element (2.0 line T4, FORGE-09c R1066): openMessenger() twice and openMessenger(<player>) in one tick throw nothing and leave one window, on the player's view; a player's thread window is raised only once rendered too", async () => {
+        /*
+         * R1066 threw "Cannot read properties of undefined (reading 'style')" on Foundry 14.370 at The Forge
+         * (docs/dev/v2/F3-forge-PC-2.md, FORGE-09c, 25.11.2026): its second openMessenger() raised the window the first had
+         * only begun to render. The harness's window draws its element in the tick of `render`, so the state v14 was in is
+         * stood in for: after the first call the window reads as not rendered and without an element (`standIn` on the
+         * instance), and its own `bringToFront` throws as v14's did when there is no element (the reading of the Forge's
+         * message, not of v14's source: LIVE-E134-01). The player's own thread window takes the same guard; tier 1 runs as
+         * a GM, so that branch is read in its source (`fnSource`). Red at 31d5812: the second call threw.
+         */
+        must(game.user.isGM, "the GM's window is a GM's");
+        needs(world.atLeast("playerAccounts", 1));
+        const A = await import("./messenger-app.mjs");
+        must(!A.gmMessengerWindow(), "the GM's messenger window is open - close it: this test opens its own");
+        const player = game.users.find(u => !u.isGM);
+        const putPositionsBack = holdMessengerPositions();
+        let threw = null, raisedBare = 0, read = null;
+        try {
+            A.openMessenger();
+            const app = A.gmMessengerWindow();
+            const real = app.bringToFront;
+            const back = [standIn(app, "element", undefined), standIn(app, "rendered", false), standIn(app, "bringToFront", function (...args) {
+                if (!this.element) { raisedBare++; throw new TypeError("Cannot read properties of undefined (reading 'style')"); }
+                return real.apply(this, args);
+            })];
+            try {
+                A.openMessenger();
+                A.openMessenger(player.id);
+            } catch (err) {
+                threw = String(err?.message ?? err);
+            } finally {
+                for (const put of back.reverse()) put();
+            }
+            await until(() => app.rendered && app.element?.isConnected, 2000);
+            read = [document.querySelectorAll("#drpg-messenger-gm").length, A.gmMessengerWindow() === app, app.view === player.id];
+        } finally {
+            await A.gmMessengerWindow()?.close();
+            putPositionsBack();
+        }
+        const src = stripComments((await moduleSources()).get("messenger-app.mjs") ?? "");
+        const playerRoad = fnSource(src, "openMessenger");
+        must(playerRoad.length > 200, "openMessenger's source was not read");
+        equal(JSON.stringify({ threw, raisedBare, read, player: /if \(existing\.rendered\) existing\.bringToFront\(\)/.test(playerRoad),
+            gm: /if \(existing\.rendered\) existing\.bringToFront\(\)/.test(fnSource(src, "openGmMessenger")) }),
+        JSON.stringify({ threw: null, raisedBare: 0, read: [1, true, true], player: true, gm: true }),
+            "{threw: what the second and third calls threw; raisedBare: raises of a window with no element; read: [windows, the same window, on the player's view]; player, gm: each road raises only a rendered window}");
+    }],
+    ["R9230 - the world dump leaves out what the table writes while the suite runs, and nothing a test writes (2.0 line T4, FORGE-09c): a change of `hideDock` and of a user's `popout` in core.rtcClientSettings, of rtcDockBefore and of `playing` on a sound of the cue playlist or of a playlist the music map names compares equal; a change of `muted` in the A/V settings, of a module setting, and of `playing` or `path` on any other playlist's sound is reported", async () => {
+        /*
+         * At The Forge, Foundry 14.370, 25.11.2026 (docs/dev/v2/F3-forge-PC-2.md, FORGE-09c): "tier 0/1 changed nothing in
+         * the world" failed on the camera dock's hold and the pause music, which no tier-0/1 test reaches (tests-kit.mjs, the
+         * DUMP_RULES rows of 27.11.2026, say what was read). Here two dumps of made-up values, through the dump's own road
+         * for a setting (`settingUnit`) and for a document (`dumpOf`), are compared with `dumpDiff`; nothing of the world is
+         * read but the playlists' rule, which is given its map. Red at 31d5812: no settingUnit, and the cue playlist's
+         * `playing` reported.
+         */
+        const K = await import("./tests-kit.mjs");
+        const { SITUATIONAL_PLAYLIST } = await import("./config.mjs");
+        must(typeof K.dumpDiff === "function" && typeof K.dumpOf === "function", "no dumpDiff or dumpOf - this would measure nothing");
+        const setting = (unit, value) => (typeof K.settingUnit === "function" ? K.settingUnit(unit, value) : JSON.stringify(value));
+        const av = (hideDock, popout, muted) => ({ audioSrc: "mic-1", hideDock, voice: { mode: "ptt" }, users: { R9230U: { popout, volume: 0.5, muted } } });
+        const settings = (a, record, own) => new Map([
+            ["client:core.rtcClientSettings", setting("client:core.rtcClientSettings", a)],
+            [`client:${MODULE_ID}.rtcDockBefore`, setting(`client:${MODULE_ID}.rtcDockBefore`, record)],
+            [`world:${MODULE_ID}.r9230Own`, setting(`world:${MODULE_ID}.r9230Own`, own)]
+        ].filter(([, v]) => v !== null));
+        const sound = (id, playing, path = "a.ogg") => ({ _id: id, name: id, path, playing, pausedTime: null, flags: {} });
+        const lists = (cue, other, otherPath = "a.ogg") => K.dumpOf("Playlist", [
+            { _id: "R9230CUE", name: SITUATIONAL_PLAYLIST, flags: {}, sounds: [sound("R9230CUES", cue)] },
+            { _id: "R9230OTHER", name: "Pause", flags: {}, sounds: [sound("R9230OTHERS", other, otherPath)] }]);
+        const names = diff => diff.map(d => d.path).sort();
+        const table = names(K.dumpDiff(new Map([...settings(av(false, true, false), {}, 1), ...lists(true, false)]),
+            new Map([...settings(av(true, false, false), { fields: { hideDock: false } }, 1), ...lists(false, false)])));
+        const tests = names(K.dumpDiff(new Map([...settings(av(true, false, false), {}, 1), ...lists(false, false)]),
+            new Map([...settings(av(true, false, true), {}, 2), ...lists(false, true, "b.ogg")])));
+        const mapped = typeof K.ownMusicPlaylist === "function"
+            ? [K.ownMusicPlaylist({ _id: "R9230M", name: "Pause" }, { map: { paused: "R9230M" } }), K.ownMusicPlaylist({ _id: "R9230N", name: "Pause" }, { map: { paused: "R9230M" } })]
+            : null;
+        equal(JSON.stringify({ table, tests, mapped }),
+            JSON.stringify({ table: [], tests: ["Playlist.R9230OTHER.sounds.R9230OTHERS.path", "Playlist.R9230OTHER.sounds.R9230OTHERS.playing",
+                "client:core.rtcClientSettings.users.R9230U.muted", `world:${MODULE_ID}.r9230Own`], mapped: [true, false] }),
+            "{table: what differs after the dock's hold and the module's music; tests: after a test's own writes; mapped: [a playlist the map names, one named alike that it does not]}");
+    }],
 ];
 
 /**
@@ -70572,16 +70673,6 @@ function partyStandIn(actor) {
 
 /* E24 C3b's fixtures (R1459): `obj[key]` answered as `value` for `run` - an own property in this browser's memory, the
    one it had (or none) put back in a finally, nothing written - and a list read as a document collection reads. */
-async function e24Own(obj, key, value, run) {
-    const own = Object.getOwnPropertyDescriptor(obj, key);
-    Object.defineProperty(obj, key, { configurable: true, writable: true, enumerable: own?.enumerable ?? false, value });
-    try {
-        return await run();
-    } finally {
-        if (own) Object.defineProperty(obj, key, own); else delete obj[key];
-    }
-}
-
 function e24Items(list) {
     const all = [...list];
     return {

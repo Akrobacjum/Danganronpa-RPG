@@ -130,7 +130,8 @@ export function openMessenger(playerUserId = game.user.id) {
            until the reader found it. It is read once it is seen (`seesThread`): `maximize` marks it when the fold has
            gone, `bringToFront` before that marks nothing. */
         if (existing.minimized) Promise.resolve(existing.maximize()).catch(err => debug("Could not unfold the conversation", err));
-        existing.bringToFront();
+        // Raised only once drawn: see openGmMessenger's note (2.0 line T4, R1066).
+        if (existing.rendered) existing.bringToFront();
         return existing;
     }
 
@@ -603,7 +604,12 @@ export function openGmMessenger(view = "console") {
     if (existing) {
         if (existing.view !== view) existing.setView(view);
         if (existing.minimized) Promise.resolve(existing.maximize()).catch(err => debug("Could not unfold the messenger", err));
-        existing.bringToFront();
+        /* RAISED ONLY ONCE DRAWN (2.0 line T4, FORGE-09c R1066, 27.11.2026). A second open in the tick of the first - a
+           launcher pressed twice, R1066's two calls - found the window the first had only begun to render, with no element
+           yet, and its `bringToFront` threw "Cannot read properties of undefined (reading 'style')" on Foundry 14.370 at
+           The Forge (docs/dev/v2/F3-forge-PC-2.md). The first render puts the window in front itself; the view asked for
+           is set above and drawn by it. */
+        if (existing.rendered) existing.bringToFront();
         return existing;
     }
     const app = new DrpgGmMessengerApp(view);

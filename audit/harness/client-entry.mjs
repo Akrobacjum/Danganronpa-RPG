@@ -367,7 +367,23 @@ const apps = buildApplications(ctx);
 // language file, so a lookup by path finds them. Mirror that, or the suite's
 // i18n coverage test fails on keys that resolve fine in the real client.
 const enJson = U.expandObject(JSON.parse(fs.readFileSync(path.join(REPO, "lang/en.json"), "utf8")));
-const i18n = {
+/* `format` INHERITED AND READ-ONLY, AS v14 HOLDS IT (2.0 line T4, FORGE-09c, 27.11.2026). On Foundry 14.370 `game.i18n.format`
+   is `Localization.prototype`'s, not writable and not configurable there (tests-kit.mjs `standIn`'s note, read on the
+   sandbox 19.11.2026), so a test's `game.i18n.format = fn` throws "Cannot assign to read only property 'format'" - R7791 did,
+   twice, on The Forge (docs/dev/v2/F3-forge-PC-2.md, FORGE-09c, 25.11.2026), and passed here, where `format` was the
+   object's own writable property. Modelled for `format` alone: `localize` is what v14 let the same test assign, and nothing
+   read says more. `standIn` puts an own property on `game.i18n` that shadows it, as on v14. */
+const I18N_PROTO = Object.create(Object.prototype, {
+    format: {
+        value: function format(key, data = {}) {
+            let s = this.localize(key);
+            for (const [k, v] of Object.entries(data)) s = s.replaceAll(`{${k}}`, String(v));
+            return s;
+        },
+        writable: false, configurable: false, enumerable: false
+    }
+});
+const i18n = Object.assign(Object.create(I18N_PROTO), {
     lang: process.env.DRPG_LANG ?? "en",
     translations: enJson,
     localize(key) {
@@ -376,13 +392,8 @@ const i18n = {
         globalThis.__missingI18n.add(key);
         return key;
     },
-    format(key, data = {}) {
-        let s = this.localize(key);
-        for (const [k, v] of Object.entries(data)) s = s.replaceAll(`{${k}}`, String(v));
-        return s;
-    },
     has(key) { return typeof U.getProperty(this.translations, key) === "string"; }
-};
+});
 
 /* ---------------------------- settings ----------------------------------- */
 
