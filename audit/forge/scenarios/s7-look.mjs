@@ -13,6 +13,8 @@
  *         the Class Trial console
  *   P1    the HUD, the messenger, the character sheet, a notification stack (six of Foundry's toasts and, where the
  *         module's own copy is reachable, three of its cards)
+ *   both  the handbooks, from the corner's book (R111: its whole rectangle inside the viewport, a check with R111's id in
+ *         place of the generic "no part past the viewport"; 2.0 line T4, 27.11.2026)
  *
  * CHECKS, per window and size
  *   - it is on screen (the Class Trial console is noted instead when it is not: outside a trial it may decline to open)
@@ -77,13 +79,17 @@ export const meta = {
     title: "The windows a table uses most, at 1920x1080 and 2560x1440 in Stained Glass: fit, overflow, the write box",
     roles: ["gm1", "p1"],
     writes: FOG,
-    triage: ["EXP-PL-01", "FORGE-03", "OWNER-129-WRITEBOX", ...(FOG ? ["EXP-PL-04"] : [])]
+    triage: ["EXP-PL-01", "FORGE-03", "OWNER-129-WRITEBOX", "R111", ...(FOG ? ["EXP-PL-04"] : [])]
 };
 
 const SIZES = (await import("../lib.mjs")).config.sizes;
+/* The handbooks (R111; 2.0 line T4, 27.11.2026): the suite's R111 read the window off the bottom of a 1920x1080 screen
+   on Forge (F3-forge-PC-2.md, FORGE-09d), which S7's list did not hold. Opened as the table opens it, the corner's book
+   (`#drpg-book-launcher`, handbooks.mjs `renderBookLauncher`; `game.drpg` has no opener), on both pages; found by its
+   class (`.drpg-handbook`) when it was open already. */
 const WINDOWS = {
-    gm1: [["hud", "#drpg-hud"], ["gmPanel", null], ["messengerGm", ".drpg-messenger"], ["sheetGm", null], ["students", null], ["investigation", null], ["trial", null]],
-    p1: [["hud", "#drpg-hud"], ["messenger", ".drpg-messenger"], ["sheet", null], ["notices", "#notifications"]]
+    gm1: [["hud", "#drpg-hud"], ["gmPanel", null], ["messengerGm", ".drpg-messenger"], ["sheetGm", null], ["students", null], ["investigation", null], ["trial", null], ["handbooks", ".drpg-handbook"]],
+    p1: [["hud", "#drpg-hud"], ["messenger", ".drpg-messenger"], ["sheet", null], ["notices", "#notifications"], ["handbooks", ".drpg-handbook"]]
 };
 const OPTIONAL = new Set(["trial"]);
 
@@ -99,7 +105,13 @@ async function openWindow({ name, p1Id }) {
         sheetGm: () => game.users.get(p1Id)?.character?.sheet?.render({ force: true }),
         students: () => game.drpg.monocubDialog(),
         investigation: () => game.drpg.investigationDashboard(),
-        trial: () => game.drpg.manageClassTrial()
+        trial: () => game.drpg.manageClassTrial(),
+        handbooks: async () => {
+            const book = document.getElementById("drpg-book-launcher");
+            if (book) { book.click(); return; }
+            if ((await qa.sameInstance()) === true) return (await qa.mod("handbooks.mjs")).openHandbooks();
+            throw new Error("no #drpg-book-launcher on the page, and the module's copy is not reachable");
+        }
     };
     if (!openers[name]) return { ids: [], none: "no opener" };
     let threw = null;
@@ -115,6 +127,13 @@ async function openWindow({ name, p1Id }) {
     }
     await new Promise(r => setTimeout(r, 1500));
     ids = qa.appIds().filter(id => !before.has(id));
+    /* The handbook's text arrives after its window (a fetch of the book): measured once the text is in, up to 8 s
+       more, since under Stained Glass the window grows with it (handbooks.mjs, the comment over `HandbookApp`). */
+    if (name === "handbooks") {
+        const t1 = Date.now();
+        while (Date.now() - t1 < 8000 && String(document.querySelector(".drpg-handbook .drpg-handbook-main")?.textContent ?? "").trim().length < 200) await new Promise(r => setTimeout(r, 250));
+        await new Promise(r => setTimeout(r, 1000));
+    }
     return { ids, threw: threw ?? window.__qaOpenError, described: ids.map(id => qa.describe(id, qa.apps().get(id))) };
 }
 
@@ -317,7 +336,7 @@ export async function run(ctx) {
                             await new Promise(r => setTimeout(r, 800));
                             return cards;
                         });
-                    } else if (!selector || name === "messengerGm" || name === "messenger") {
+                    } else if (!selector || name === "messengerGm" || name === "messenger" || name === "handbooks") {
                         opened = await inPage(ctx, role, openWindow, { name, p1Id }, { timeout: 30_000 });
                     }
                     const boxes = await inPage(ctx, role, measure, { ids: opened.ids, selector });
@@ -328,7 +347,9 @@ export async function run(ctx) {
                     } else {
                         /* Each check asks for a box first: a window that is not there measures nothing, and fails. */
                         check(`${label}: is on screen`, boxes.length > 0, J(opened.described ?? opened));
-                        check(`${label}: no part of it lies past the ${size} viewport`, boxes.length > 0 && boxes.every(b => b.fits), J(boxes.map(b => ({ root: b.root, box: b.box, past: b.past }))));
+                        /* The handbooks' fit is R111's claim, so it carries R111's id and says it in R111's words. */
+                        if (name === "handbooks") check(`${label}: the handbooks window is on screen (its whole rectangle inside the ${size} viewport)`, boxes.length > 0 && boxes.every(b => b.fits), J(boxes.map(b => ({ root: b.root, box: b.box, past: b.past }))), { ids: ["R111"] });
+                        else check(`${label}: no part of it lies past the ${size} viewport`, boxes.length > 0 && boxes.every(b => b.fits), J(boxes.map(b => ({ root: b.root, box: b.box, past: b.past }))));
                         check(`${label}: no text overflows its box (scrollWidth over clientWidth, on elements holding text)`, boxes.length > 0 && boxes.every(b => b.overflowCount === 0),
                             J(boxes.filter(b => b.overflowCount).map(b => ({ root: b.root, n: b.overflowCount, first: b.overflow }))));
                     }

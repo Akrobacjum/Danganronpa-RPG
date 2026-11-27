@@ -32,7 +32,7 @@ tego samego stanu.
 | `s4-two-gms-at-once` | 3 | dwaj GM-owie naciskają to samo naraz | |
 | `s5-voice` | 6 | pokój LiveKit każdego klienta wobec planu modułu, czasy przełączenia, ponowne połączenia | wymaga `DRPG_FAKE_MEDIA=1`; pokoje bez sypialni, ruchy GM1 z pominięciem ścian (`free`, niżej) |
 | `s6-soak` | 6 | 2 h zwykłej gry: pamięć, błędy, przeładowania; ruchy graczy liczone osobno: doszły / odmowa z komunikatem / bez komunikatu (FORGE-05) | `DRPG_SOAK_MINUTES`; sąsiad bez sypialni |
-| `s7-look` | 2 | zrzuty najważniejszych okien w rozmiarach z `DRPG_SIZES`, mieszczenie się, pole komunikatora; z `DRPG_S7_FOG=1` faza `fog-leak` (EXP-PL-04, tylko pomiar) | nie pisze do świata, poza fazą `fog-leak`, która pisze i odkłada (kafelek, drzwi, światło; niżej); także `DRPG_BROWSER=firefox` |
+| `s7-look` | 2 | zrzuty najważniejszych okien w rozmiarach z `DRPG_SIZES` (od 27.11.2026 także okno podręczników, R111), mieszczenie się, pole komunikatora; z `DRPG_S7_FOG=1` faza `fog-leak` (EXP-PL-04, tylko pomiar) | nie pisze do świata, poza fazą `fog-leak`, która pisze i odkłada (kafelek, drzwi, światło; niżej); także `DRPG_BROWSER=firefox` |
 | `s8-load` | 3 | krzywa wydajności przy rosnącej liczbie Remnantów, tokenów, projektów, wiadomości i okien; warunki przebiegu na każdym poziomie | sprząta po sobie (po znaczniku, niżej); bez progów; `DRPG_S8_RELOAD=1` - test sprzątania po przeładowaniu |
 
 Proponowana kolejność pierwszego przebiegu: S7 (bez `DRPG_S7_FOG=1` nie pisze), S4, S2, S3, S5, S1a, S1b, S8, S6 (najdłuższy).
