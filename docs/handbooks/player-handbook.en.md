@@ -791,7 +791,7 @@ Where a row says a failure "costs 1 more", that is 1 more point taken from whoev
 Survive and Role Reversal are resolution actions: each costs **1 Sanity** instead of an action, or **1 Health** once your Sanity is gone. The other crisis actions cost no action. Nothing the killer does can take a Reinforced Remnant off the map.
 
 > [!CAUTION]
-> A victim who runs out of both Health and Sanity dies.
+> A victim who runs out of both Health and Sanity dies. What the fight takes is not secret: the Health bar on a token, the Health on a sheet anybody opens and the Breakdown and Wounded badges show it to everyone at once (section 1).
 
 ### If you are the killer
 

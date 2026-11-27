@@ -791,7 +791,7 @@ Gdy wiersz mówi, że porażka „kosztuje 1 dodatkowo”, to 1 punkt więcej za
 Survive i Role Reversal to akcje rozstrzygnięcia: każda kosztuje **1 Sanity** zamiast akcji, a gdy Sanity się skończy, **1 Health**. Pozostałe akcje kryzysowe nie kosztują akcji. Nic, co zrobi zabójca, nie zdejmie z mapy Reinforced Remnantu.
 
 > [!CAUTION]
-> Ofiara, której skończą się i Health, i Sanity, umiera.
+> Ofiara, której skończą się i Health, i Sanity, umiera. To, co zabiera walka, nie jest tajemnicą: pasek Health na tokenie, Health na arkuszu, który każdy może otworzyć, oraz plakietki Breakdown i Wounded pokazują to wszystkim od razu (sekcja 1).
 
 ### Jeśli jesteś zabójcą
 
