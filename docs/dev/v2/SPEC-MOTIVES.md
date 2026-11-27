@@ -45,7 +45,24 @@ Cele prywatne nie mogą trafić do przeglądarki innego gracza w żadnej postaci
 świata, które każda przeglądarka dostaje (EXP-PL-15: konsola gracza czyta dane świata). Przechowywanie jak inne
 tajemnice: magazyny GM-ów (`gm-stores.mjs`) i prywatne karty (`secret.mjs`), a do gracza tylko jego własne cele.
 
-## Otwarte pytania
+## Odpowiedzi właściciela (27.11.2026)
+
+| # | Pytanie | Odpowiedź |
+| --- | --- | --- |
+| 1 | Kara za niewykonanie Monokuma Motive | tekst wpisany przez Monokumę, wykonywany ręcznie. Cała mechanika celów jest opcjonalna i prowadzona ręcznie |
+| 2 | Ukryty Monokuma Motive | gracze widzą, że cel jest, ale nie znają jego treści |
+| 3 | Limit Hope | nagroda nie przekracza maksimum Hope (bez overflow) |
+| 4 | Ile celów naraz | Monokuma Motive po kolei, jeden naraz; jeden Personal i jeden Relationship na gracza na rozdział |
+| 5 | Termin | tylko jeśli GM go poda |
+| 6 | Lista po procesie | wstępnie zaznaczeni gracze, którzy według zapisów zrealizowali wszystko, z wyjaśnieniem dlaczego; GM może zmienić |
+| 7 | Zmarli i widzowie | nie mają celów |
+| 8 | Dźwięk potwierdzenia | ustawiany w oknie Dźwięk |
+| 9 | Obecny motyw ("powód do zabójstwa") | znika |
+
+Do tego: nowa funkcja trafia do handbooków (GM i gracza, PL i EN).
+
+## Pytania otwarte przed tymi odpowiedziami (dla historii)
+
 
 1. **Kara za niewykonanie Monokuma Motive** - stała mechanika (np. Despair dla Monokum, utrata Hope) czy tekst wpisany
    przez Monokumę przy nadaniu, wykonywany ręcznie? Obecny motyw ma pole `consequence`.
