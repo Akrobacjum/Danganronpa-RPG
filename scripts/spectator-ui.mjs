@@ -96,8 +96,24 @@ export function isSafewordCard(message) {
     return Boolean(flagged) && content.includes("drpg-safeword-heading") && content.length <= 600;
 }
 
+/**
+ * A SPECTATOR WRITES TO THE GMS (2.0 line T1 EXP-PL-10; the recommendation the owner took: "Widz moze pisac do GM-ow w swoim
+ * watku komunikatora (bez kontaktu z zywymi)"). What passes the three parts below: a message of the Spectator's own
+ * messenger thread (messenger.mjs `MESSENGER_FLAGS.thread` naming its author, the typed kind "dm") whose whisper names
+ * nobody but its author and the GMs. Any other - a thread card with a player in its whisper, a card of another thread,
+ * plain chat - is refused as before, on its own browser and on the primary alike, so a Spectator's console cannot reach the
+ * living by it. `users` handed by the suite. Pure (R8929).
+ */
+export function spectatorMessageAllowed(message, author = message?.author ?? null, { users = game.users } = {}) {
+    if (!message || !author) return false;
+    const flags = message.flags?.[MODULE_ID] ?? message._source?.flags?.[MODULE_ID] ?? {};
+    const whisper = Array.isArray(message.whisper) ? message.whisper : [...(message.whisper ?? [])];
+    return flags.thread === author.id && flags.kind === "dm" && whisper.length > 0
+        && whisper.every(id => id === author.id || Boolean(users?.get?.(id)?.isGM));
+}
+
 function refuseOwnMessage(message, data, options, userId) {
-    if (userId !== game.user?.id || !spectatorViewer() || isSafewordCard(message)) return true;
+    if (userId !== game.user?.id || !spectatorViewer() || isSafewordCard(message) || spectatorMessageAllowed(message, game.user)) return true;
     ui.notifications?.warn?.(game.i18n.localize("DRPG.Spectator.noChat"));
     return false;
 }
@@ -115,7 +131,7 @@ const postedAsSpectator = new Set();
 
 /** Whether this browser leaves `message` undrawn (pure but for the set and the clock; `now` handed by the suite). */
 export function hiddenSpectatorMessage(message, { now = Date.now() } = {}) {
-    if (!spectatorAuthor(message)) return false;
+    if (!spectatorAuthor(message) || spectatorMessageAllowed(message)) return false;
     if (postedAsSpectator.has(message.id)) return true;
     const at = Number(message.timestamp) || 0;
     return at > 0 && now - at < SPECTATOR_FRESH_MS;
@@ -152,6 +168,8 @@ async function dropSpectatorMessage(message) {
         if (!isPrimaryGm() || !message?.author || message.author.isGM) return;
         const { senderNotSpectator } = await import("./bridge-guards.mjs");
         if (!(await senderNotSpectator(message.author))) return;
+        // A Spectator's own thread to the GMs stays (2.0 line T1 EXP-PL-10, `spectatorMessageAllowed`).
+        if (spectatorMessageAllowed(message)) return;
         if (isSafewordCard(message)) {
             // The card stays; its words become this GM's own card's (r122-E-2, above), once: the update's echo matches.
             const own = ownCardWords(message);

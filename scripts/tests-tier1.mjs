@@ -69835,6 +69835,23 @@ const INVARIANTS = [
         "{rows: [hidden, knows, incident, shown, shown with HOLDER_SEES_HIDDEN false]; the constant; a GM knows any trace; applyToRemnantToken asks the rule with knowsRemnant and shows a hidden held trace; shownAsFound asks the same; showHeld does not defer to a GM's hidden}");
     }],
     // T1 murder-death-eclipse
+    ["R8929 - a Spectator's message passes only as its own messenger thread to the GMs; a thread card with a player in its whisper, another's thread and plain chat do not (2.0 line T1 EXP-PL-10; scripts/spectator-ui.mjs `spectatorMessageAllowed`, `refuseOwnMessage`, `hiddenSpectatorMessage`, `dropSpectatorMessage`)", async () => {
+        /* 2.0 line T1, 27.11.2026. Pure over stand-in messages and users, and the three parts read in their source; nothing
+           written. Red at 658302a: no rule, every message of a Spectator's but the safeword's card refused. */
+        const U = await import("./spectator-ui.mjs");
+        must(typeof U.spectatorMessageAllowed === "function", "spectator-ui.mjs has no spectatorMessageAllowed - a Spectator cannot write to the GMs");
+        const users = new Map([["SPEC", { id: "SPEC", isGM: false }], ["GM1", { id: "GM1", isGM: true }], ["GM2", { id: "GM2", isGM: true }], ["P2", { id: "P2", isGM: false }]]);
+        const author = users.get("SPEC");
+        const msg = (whisper, flags) => ({ whisper, flags: { [MODULE_ID]: flags } });
+        const ok = m => U.spectatorMessageAllowed(m, author, { users });
+        const src = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/spectator-ui.mjs`).then(lfText));
+        const asks = ["refuseOwnMessage", "hiddenSpectatorMessage", "dropSpectatorMessage"].map(fn => /spectatorMessageAllowed\(/.test(fnSource(src, fn) ?? ""));
+        equal(JSON.stringify({ rows: [ok(msg(["SPEC", "GM1", "GM2"], { thread: "SPEC", kind: "dm" })), ok(msg(["GM1"], { thread: "SPEC", kind: "dm" })),
+            ok(msg(["SPEC", "GM1", "P2"], { thread: "SPEC", kind: "dm" })), ok(msg(["P2", "GM1"], { thread: "P2", kind: "dm" })),
+            ok(msg([], { thread: "SPEC", kind: "dm" })), ok(msg(["GM1"], { thread: "SPEC", kind: "action" })), ok(msg(["GM1"], {})), ok(msg([], {}))], asks }),
+        JSON.stringify({ rows: [true, true, false, false, false, false, false, false], asks: [true, true, true] }),
+            "{rows: [its thread to the GMs, to one GM, with a player in the whisper, another's thread, no whisper, a ruling card, a whisper to a GM with no thread, plain chat]; asks: the three parts ask the rule}");
+    }],
     ["R8927 - the name over a masked token is drawn on a GM's canvas alone: a Spectator's - a dead student's, a Spectator's account's, a Monocub's - keeps the \"?\" (2.0 line T1 MURDER-03; scripts/mask-gm.mjs `drawMaskName`)", async () => {
         /* 2.0 line T1, 27.11.2026. A stand-in token, its nameplate a plain object; nothing written. Red at 658302a:
            `drawMaskName` was not exported, and a Spectator's browser drew "? (name)". */

@@ -4446,7 +4446,7 @@
       "unmarked": "{name} is no longer a Spectator.",
       "talk": "Talk with the Spectators",
       "talkBack": "Listen in your room",
-      "noChat": "A Spectator has no chat."
+      "noChat": "A Spectator has no chat. You can write to the GMs in your own messenger thread."
     },
     "Class": {
       "notInClass": "Not in the class",

@@ -4735,7 +4735,7 @@
       "unmarked": "{name} nie jest już Widzem.",
       "talk": "Porozmawiaj z Widzami",
       "talkBack": "Słuchaj w swoim pokoju",
-      "noChat": "Widz nie ma czatu."
+      "noChat": "Widz nie ma czatu. Do GM-ów piszesz w swoim wątku komunikatora."
     },
     "Class": {
       "notInClass": "Poza klasą",
