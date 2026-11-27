@@ -16175,6 +16175,14 @@ const INVARIANTS = [
          * itself, opened for this browser's own viewer (the GM's Monokuma here, whatever room it stands in): its title
          * is the module's 'Description' and not a room's name, it holds none of those elements and no data-tooltip, its
          * heading is the viewer's room, and a second press answers the window already open rather than a second one.
+         * IN THE WINDOW'S BODY, NOT ITS FRAME (2.0 line T4, R505, 27.11.2026). At The Forge (Foundry 14.370, 1920x1080;
+         * docs/dev/v2/F3-forge-PC-2.md, FORGE-09d) the opened window counted 2 of those elements where the harness counts 0.
+         * Read in the module: the window's body is `roomWindowBody` alone - the name and the words through `textContent`, the
+         * title the module's own word (`get title`), nothing of the room drawn as markup on any road - and the frame is the
+         * kit's (`DrpgApp`), whose header Foundry draws: on v14 its controls carry `data-tooltip` (close, the controls'
+         * toggle; which two the Forge counted is not in the report, only the count), and the harness draws no header. So
+         * the count is taken in the body the module draws (`.drpg-room-window-body`), which must be there; the frame is not
+         * the GM's text.
          */
         ok(typeof T.roomWindowBody === "function" && typeof T.openRoomWindow === "function",
             "room-tile.mjs has no `roomWindowBody` or `openRoomWindow` - the narrow row has no window to read");
@@ -16183,7 +16191,8 @@ const INVARIANTS = [
         const room = await T.openRoomWindow(), again = await T.openRoomWindow();
         let shown;
         try {
-            shown = [room?.title, room?.element?.querySelectorAll("img, script, iframe, b, [data-tooltip]").length ?? null,
+            const drawn = room?.element?.querySelector(".drpg-room-window-body") ?? null;
+            shown = [room?.title, drawn ? drawn.querySelectorAll("img, script, iframe, b, [data-tooltip]").length : "no body",
                 room?.element?.querySelector(".drpg-room-window-name")?.textContent ?? null, again === room];
         } finally {
             await room?.close();
