@@ -742,7 +742,7 @@ Każde morderstwo ma dokładnie jeden rzut otwarcia, a jego rodzaj decyduje, kto
 
 **Za „?”.** Direct Murder, którego otwarcie udaje się z Hope albo jest krytykiem, ukrywa zabójcę. Ofiara i wszyscy inni widzą token zabójcy jako „?” bez imienia, a ofiara dowiaduje się tylko, że ktoś na nią rusza. Okno arkusza zabójcy otwarte u innego gracza się zamyka. Zabójca opuszcza kanał głosowy pokoju i trafia do cichego kanału tylko dla siebie: niczego nie słyszy i nikt go nie słyszy. GM i Widz widzą, kto to jest.
 
-Jako zabójca dostajesz pytanie **Zostać w ukryciu?** Po **Ujawnij się** wszyscy znów widzą twój token i imię, a twój głos wraca do pokoju. **Zostań w ukryciu** trzyma „?” do pierwszego z trzech zdarzeń: końca morderstwa, twojego wyjścia z pokoju morderstwa albo końca pory dnia (pierwsze dwa od 1.2.128); **Ujawnij się** zostaje do tego czasu na twoim kafelku głosu.
+Jako zabójca dostajesz pytanie **Zostać w ukryciu?** Po **Ujawnij się** wszyscy znów widzą twój token i imię, a twój głos wraca do pokoju. **Zostań w ukryciu** trzyma „?” do pierwszego z trzech zdarzeń: końca morderstwa, twojego wyjścia z pokoju morderstwa albo końca pory dnia (pierwsze dwa od 1.2.128); **Ujawnij się** zostaje do tego czasu na twoim kafelku głosu. Koniec morderstwa liczy się tylko wtedy, gdy ofiara zginęła: ofiara, która przeżyła incydent, nadal widzi „?”, dopóki nie wyjdziesz z tego pokoju albo nie skończy się pora dnia, a ty do tego czasu zostajesz w swoim cichym kanale głosowym (od 1.2.130).
 
 | Rzut zabójcy | Co się dzieje |
 |---|---|

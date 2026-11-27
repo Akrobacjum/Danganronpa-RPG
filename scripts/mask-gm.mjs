@@ -27,11 +27,15 @@
  *     bridge road `mask.reveal`.
  *
  * WHEN IT ENDS: the reveal, or a new time of day (`drpgTimeOfDayChanged`), whichever comes first; the season's reset cuts
- * the store; and, since 1.2.128, the incident's end, whoever died, and the killer leaving the room the mask went up in
+ * the store; and, since 1.2.128, the incident's end and the killer leaving the room the mask went up in
  * (`endMasksAtClose`, `maskLeftRoom`). Until then the incident's own end did not end it (a default,
  * docs/dev/e69/STATUS.md); the owner, at the table of 22.11.2026: "po przerwaniu morderstwa morderca dalej mial ? i
  * wyciszenie (modul nie ujawnil go automatycznie)", and on 23.11: "Zawsze zdejmujemy maske na koniec incydentu
- * morderstwa (po sprzataniu) lub po opuszczeniu pokoju".
+ * morderstwa (po sprzataniu) lub po opuszczeniu pokoju". The incident's end ends it only where the victim died, since 2.0
+ * line T1 (MURDER-02; the owner's D2-06 of 26.11.2026: "Gdy ofiara przezyla incydent, maska zabojcy zostaje do konca pory
+ * dnia albo do wyjscia zabojcy z pokoju, cokolwiek nastapi pierwsze"): a victim who lived stood in the room with the
+ * killer and watched the "?" turn into a face as the incident closed (`maskEndsAtClose`). The rest of the mask's rule
+ * stands for the time after it - the silent voice room among it (the owner's P5 default).
  *
  * WHAT IT CANNOT HIDE (Foundry's limit, recorded by 30-security's note): a token document keeps its `actorId`, so a
  * console can still read `game.actors.get(token.actorId).name` (it needs a console, not the interface). LIVE-E69-05 reads it at a
@@ -39,7 +43,7 @@
  */
 
 import { MODULE_ID } from "./config.mjs";
-import { SETTINGS } from "./settings.mjs";
+import { SETTINGS, isDeadForGm } from "./settings.mjs";
 import { isPrimaryGm, log, error, whisperToOwnerOnly, esc, forcedDeletion } from "./utils.mjs";
 import { maskStore, veilStore } from "./gm-stores.mjs";
 import { count } from "./perf-counters.mjs";
@@ -295,9 +299,13 @@ function maskFailed(actor, err) {
 /**
  * THE MASKS OF AN INCIDENT THAT ENDED (1.2.128, S0-MASKLEFT; the owner, 23.11.2026: "Zawsze zdejmujemy maske na koniec
  * incydentu morderstwa (po sprzataniu) lub po opuszczeniu pokoju"). On the primary, after the close's wipe
- * (murder-rules.mjs `closeIncident`): every one of `killerIds` whose mask stands is ended (`endMask`, "incidentEnd"),
- * whoever died - a dead killer's too, the owner deciding it knowing that its "?" comes off a body nobody has found (the
- * line's report says what that shows). Not a killer an incident running now names: the close of one incident does not
+ * (murder-rules.mjs `closeIncident`): every one of `killerIds` whose mask stands is ended (`endMask`, "incidentEnd")
+ * where its victim died - a dead killer's too, the owner deciding it knowing that its "?" comes off a body nobody has
+ * found (the line's report says what that shows). WHERE THE VICTIM LIVED IT STANDS (2.0 line T1 MURDER-02; the owner's
+ * D2-06: "Gdy ofiara przezyla incydent, maska zabojcy zostaje do konca pory dnia albo do wyjscia zabojcy z pokoju,
+ * cokolwiek nastapi pierwsze"): an escape, Survive, a crowding out, the GM's End before a death - the victim read off
+ * the mask's row and the GMs' deaths (`isDeadForGm`), so a second GM's close, asked of the primary, is judged the same
+ * (`maskEndsAtClose`). Not a killer an incident running now names: the close of one incident does not
  * end the mask of the next. A second GM's close asks the primary (`mask.veil`, "unmask"), held there to its own rows,
  * whatever the packet names. Answers how many masks ended. Tier 2 "1.2.128 S0-MASKLEFT".
  *
@@ -313,10 +321,26 @@ export async function endMasksAtClose(killerIds = [], { quiet = false } = {}) {
     const running = murderState()?.active ? killersOf(murderState()) : [];
     let n = 0;
     for (const id of new Set((Array.isArray(killerIds) ? killerIds : []).filter(id => typeof id === "string"))) {
-        if (!maskStore.get(id) || running.includes(id)) continue;
+        const row = maskStore.get(id);
+        if (!row || running.includes(id)) continue;
+        // The victim the mask went up for, as the GMs hold their death (D2-06): the row names them (`maskKiller`).
+        const victim = game.actors.get(row.victimId ?? "");
+        if (!maskEndsAtClose({ victimAlive: Boolean(victim) && !isDeadForGm(victim), quiet })) continue;
         if (await endMask(id, quiet ? "abandoned" : "incidentEnd")) n++;
     }
     return n;
+}
+
+/**
+ * WHETHER AN INCIDENT'S CLOSE ENDS ITS KILLER'S MASK (2.0 line T1 MURDER-02; the owner's D2-06): not while the victim lives
+ * - the mask then stands to the end of the time of day or until the killer leaves the room, whichever comes first
+ * (`masksAtNewTimeOfDay`, `endMasksBeforeTheBoard`, `maskLeftRoom`, unchanged) - and so the killer is told no
+ * `DRPG.Mask.endedIncident` either; yes where the victim died, after Stage 6's clean-up, as the owner's rule of 23.11.2026
+ * said; and yes, quietly, when the season's reset abandons the incident (`quiet`). Pure (R8922).
+ */
+export function maskEndsAtClose({ victimAlive = false, quiet = false } = {}) {
+    if (quiet) return true;
+    return !victimAlive;
 }
 
 /**

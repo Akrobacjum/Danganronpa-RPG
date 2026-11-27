@@ -42,8 +42,9 @@
  *      "Waiting" too, while its line stays in both streams (N2).
  *   Y  1.2.128 (E129 S0-VICTIM): gm2's Spectator role on a dead student makes the student's watcher on the primary, its
  *      token where the body lies, the student unflagged (Y1; `spectator.dead`).
- *   Z  1.2.128 (E129 S0-MASKLEFT): gm2 ends a masked fight with the victim alive; the mask, the "?" and the mute end on the
- *      primary (`mask.veil` "unmask"), and the killer's player is told (Z1).
+ *   Z  1.2.128 (E129 S0-MASKLEFT): gm2 ends a masked fight with the victim alive; the primary judges it (`mask.veil`
+ *      "unmask"): until 2.0 line T1 the mask, the "?" and the mute ended and the killer's player was told; since D2-06
+ *      (MURDER-02) a close the victim survived keeps all three and tells nothing (Z1).
  *
  * What this cannot see: a real F5 (a new process with the old localStorage, no cookie, IndexedDB or cache; the
  * order of "inactive", "active" and `ready` on v14 is LIVE-E30-05 and LIVE-E04-12), and a real server's delivery
@@ -1220,7 +1221,10 @@ export async function run(api) {
             return { ...read, stage: opened?.stage ?? null, put };`, { timeout: 60000 });
         await until(() => gm2.eval(`return game.drpg.murderState()?.active === true;`), v => v === true, 6000);
         await gm2.eval(`await game.drpg.endMurder({ reason: "suite", followUp: false }); return true;`, { timeout: 60000 });
-        zAfter = await until(() => gm.eval(Z_READ), r => r?.row === false, 8000);
+        /* Since 2.0 line T1 MURDER-02 (the owner's D2-06) a close with the victim alive keeps the mask: the primary judges
+           gm2's ask (`mask.veil` "unmask") by its own row's victim and ends nothing. Read after the close has settled. */
+        await settle(1500);
+        zAfter = await gm.eval(Z_READ);
         await settle(900);
         zTold = await p1.eval(`const S = ${imp("secret.mjs")}; const said = game.i18n.localize("DRPG.Mask.endedIncident"); let n = 0;
             for (const m of game.messages.contents.slice(${zFrom})) if (String(await S.wordsOf(m, 1000) ?? "").includes(said)) n++;
@@ -1233,8 +1237,8 @@ export async function run(api) {
             globalThis.__dialogAnswers.length = 0; return true;`);
         await settle(900);
     }
-    check("Z1: gm2 ends a masked fight with the victim alive, and on gm the mask's row, Aiko's \"?\" and p1's mute end, and p1 is told once (1.2.128 E129 S0-MASKLEFT)",
-        J(zBefore) === J({ row: true, masked: 1, muted: true, stage: "openingRoll", put: true }) && J(zAfter) === J({ row: false, masked: 0, muted: false }) && zTold === 1,
+    check("Z1: gm2 ends a masked fight with the victim alive, and on gm the mask's row, Aiko's \"?\" and p1's mute stand, and p1 is told nothing (1.2.128 E129 S0-MASKLEFT; since 2.0 line T1 D2-06 the mask outlives a close the victim survived)",
+        J(zBefore) === J({ row: true, masked: 1, muted: true, stage: "openingRoll", put: true }) && J(zAfter) === J({ row: true, masked: 1, muted: true }) && zTold === 0,
         J({ zBefore, zAfter, zTold }), { flow: "mask" });
 
     return { primary: { before, joined, afterGmReload, moved, backAgain }, reloads: { p1: r1, gm: r2, card: r3 },

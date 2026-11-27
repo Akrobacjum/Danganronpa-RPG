@@ -169,7 +169,7 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl, canar
         const head = foundry.utils.escapeHTML(MURDER_OPENING.killer.label) + " - " + foundry.utils.escapeHTML(game.actors.get("${ids.chie}").name) + "</h3>";
         const w = globalThis.__openWords;
         return { card: w.some(h => h.includes(head) && h.includes("<p>${total} ")), cards: w.filter(h => h.includes(head)).length,
-            all: w.length, dice3d: Boolean(game.dice3d) };`;
+            all: w.length, dice3d: Boolean(game.dice3d), attempt: w.filter(h => h.includes(game.i18n.localize("DRPG.Murder.victimAttemptFailed"))).length };`;
     /* THE REQUEST GOES WITH THE OPENING (E32+E07 C16, 03.10.2026; audit S02-30). The killer's
        notice "This roll is yours" stayed in the corner of their screen and in their chat log
        through the victim's first turn, and the GM's line that they were picking the statistic
@@ -235,7 +235,7 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl, canar
         JSON.stringify(atOpening.victim) === JSON.stringify(atOpening.bystander),
         `victim ${JSON.stringify(atOpening.victim)} vs bystander ${JSON.stringify(atOpening.bystander)}`);
 
-    /* The first murder's roll fails: the incident closes, and the victim is sent nothing. */
+    /* The first murder's roll fails: the incident closes, and the victim is sent the one line that somebody tried (2.0 line T1 D2-08). */
     const failed = await gm.eval(`
         const r = await game.drpg.resolveKillerOpening({ total: 1, isCritical: false, withHope: false });
         return { success: r?.success ?? null, running: Boolean(game.drpg.murderState()) };
@@ -262,9 +262,10 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl, canar
         JSON.stringify({ heldFirst, failed, victim: afterFail.victim, casts: castsAfterFail - castsAtStart }));
     const failWords = { killer: await p3.eval(OPEN_READ(1)), victim: await p1.eval(OPEN_READ(1)), bystander: await p2.eval(OPEN_READ(1)) };
     for (const c of [p1, p2, p3]) await c.eval(`game.dice3d = globalThis.__dice3dOff; delete globalThis.__dice3dOff; return true;`);
-    check("opening: without Dice So Nice the killer is sent what their failed opening came to, the victim and the bystander no card at all",
-        failWords.killer.card && failWords.killer.cards === 1 && failWords.killer.dice3d === false
-        && failWords.victim.all === 0 && failWords.bystander.all === 0,
+    /* Since 2.0 line T1 D2-08 (the owner's D2-08, D2-10) the victim is sent one line: somebody tried, never who. */
+    check("opening: without Dice So Nice the killer is sent what their failed opening came to, the victim the one line that somebody tried, the bystander no card at all",
+        failWords.killer.card && failWords.killer.cards === 1 && failWords.killer.dice3d === false && failWords.killer.attempt === 0
+        && failWords.victim.all === 1 && failWords.victim.attempt === 1 && failWords.victim.cards === 0 && failWords.bystander.all === 0,
         JSON.stringify(failWords));
 
     /* The second murder, whose opening part 1 lets succeed. */

@@ -742,7 +742,7 @@ A **betrayal**, turning on the killer after an incident you took part in (If you
 
 **Behind a "?".** A Direct Murder whose opening succeeds with Hope, or is a critical, hides the killer. The victim and everyone else see the killer's token as a "?" with no name, and the victim is told only that *someone* is moving on them. Another player's window for the killer's sheet closes, and the killer leaves the room's voice for a silent channel of their own: they hear nothing, and nobody hears them. A GM and a Spectator see who it is.
 
-As the killer you are asked **Stay hidden?** **Reveal yourself** gives everyone your token and your name back and puts your voice back in your room. **Stay hidden** keeps the "?" until the first of three: the murder's end, your leaving the room of the murder, or the end of the time of day (the first two since 1.2.128); **Reveal yourself** stays on your voice tile until then.
+As the killer you are asked **Stay hidden?** **Reveal yourself** gives everyone your token and your name back and puts your voice back in your room. **Stay hidden** keeps the "?" until the first of three: the murder's end, your leaving the room of the murder, or the end of the time of day (the first two since 1.2.128); **Reveal yourself** stays on your voice tile until then. The murder's end counts only when the victim died: a victim who survived the incident still sees the "?" until you leave that room or the time of day ends, and you stay in your silent voice channel until then (since 1.2.130).
 
 | Killer's roll | What happens |
 |---|---|

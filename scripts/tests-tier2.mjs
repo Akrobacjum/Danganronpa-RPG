@@ -10099,7 +10099,7 @@ const SCENARIOS = [
             "{Silence now on the first copy, the readied tool named on the open tracker, Silence now after another GM's press}");
     }],
 
-    ["1.2.128 S0-MASKLEFT - the killer comes out from behind the \"?\" when the murder's incident ends, whoever died, and when they leave its room (scripts/murder-rules.mjs `closeIncident`; mask-gm.mjs `endMasksAtClose`, `maskLeftRoom`, `endMask`; the owner, 23.11.2026: \"Zawsze zdejmujemy maske na koniec incydentu morderstwa (po sprzataniu) lub po opuszczeniu pokoju\"): a masked fight the GM ends with the victim alive, and one closed after the kill, leave no mask, no masked token and no mute, and tell the killer's player; a masked killer whose token is carried out of the crime room is unmasked while the fight still runs", async () => {
+    ["1.2.128 S0-MASKLEFT - the killer comes out from behind the \"?\" when the murder's incident ends with its victim dead (since 2.0 line T1 D2-06: not while the victim lives), and when they leave its room (scripts/murder-rules.mjs `closeIncident`; mask-gm.mjs `endMasksAtClose`, `maskLeftRoom`, `endMask`; the owner, 23.11.2026: \"Zawsze zdejmujemy maske na koniec incydentu morderstwa (po sprzataniu) lub po opuszczeniu pokoju\"): a masked fight the GM ends with the victim alive, and one closed after the kill, leave no mask, no masked token and no mute, and tell the killer's player; a masked killer whose token is carried out of the crime room is unmasked while the fight still runs", async () => {
         /*
          * 1.2.128 (E129), the owner's note of the table of 22.11.2026: after a murder was broken off, its killer still wore
          * the "?" and the mute, and the GM revealed them by hand. The mask ended only at a reveal, a new time of day, a lost
@@ -10109,7 +10109,8 @@ const SCENARIOS = [
          * the killer's token teleported to another named room while it runs. The words this GM sends the killer's player
          * are read (`wordsSent`). Read for each: the mask's row, the killer's masked tokens, the killer's player muted by the
          * mask (`maskMutedIds`), the line told; for (c) whether the fight still runs. Put back: the incident, the masks, the
-         * token, the clock. Red at 2e28785a: the mask stood in all three.
+         * token, the clock. Red at 2e28785a: the mask stood in all three. Since 2.0 line T1 (MURDER-02; the owner's D2-06,
+         * 26.11.2026) road (a) keeps the mask: the victim lived ("T1 D2-06" reads how it ends then).
          */
         needs(env.primaryGm(), "the mask is the primary's");
         needs(world.atLeast("studentsWithConnectedPlayer", 2), "a killer and a victim with players");
@@ -10146,6 +10147,8 @@ const SCENARIOS = [
             await fightOpen(M, killer, victim);
             must(MG.maskStands(killer.id) && masked() > 0, "the fight opened on Hope put up no mask - this would measure nothing");
             read.alive = reading(await wordsSent(async () => { await M.endMurder({ followUp: false }); await settle(); }));
+            // Since 2.0 line T1 MURDER-02 (the owner's D2-06) the victim lived, so the mask stands after the close.
+            read.alive.masked = read.alive.masked > 0;
             await reset();
             await fightOpen(M, killer, victim);
             await turnFor(M, killer, "finishingBlow");
@@ -10170,7 +10173,7 @@ const SCENARIOS = [
             await stood?.back();
         }
         equal(stableJson(read), stableJson({
-            alive: { row: false, masked: 0, muted: false, told: "incident" },
+            alive: { row: true, masked: true, muted: true, told: null },
             dead: { row: false, masked: 0, muted: false, told: "incident" },
             left: { row: false, masked: 0, muted: false, told: "room", running: true }
         }), "{each road: the mask's row, the killer's tokens masked, muted by the mask, the line told; the fight still running after the killer left}");
@@ -118707,6 +118710,101 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             "{told: after the leaver's own copy alone; revealed: after the GM's Reveal} x [the row's first find, its road, the ref's found]");
     }],
     // T1 murder-death-eclipse
+    ["T1 D2-06 - the victim survived: the mask stands after the incident's end, and ends when the killer leaves the room (2.0 line T1 MURDER-02; scripts/mask-gm.mjs `endMasksAtClose`, `maskEndsAtClose`, `maskLeftRoom`)", async () => {
+        /*
+         * 2.0 line T1, 27.11.2026 (D2-06: "Gdy ofiara przezyla incydent, maska zabojcy zostaje do konca pory dnia albo do
+         * wyjscia zabojcy z pokoju, cokolwiek nastapi pierwsze"). A fight opened on Hope behind a mask (`fightOpen`), ended
+         * by the GM with the victim alive; then the killer's token carried to another named room. Read after the close and
+         * after the walk: the mask's row, the killer's masked tokens, the killer's player muted by the mask, and the line
+         * the killer was told. Red at 94af3e9: the close ended the mask and told "incident".
+         */
+        needs(env.primaryGm(), "the mask is the primary's");
+        needs(world.atLeast("studentsWithConnectedPlayer", 2), "a killer and a victim with players");
+        needs(world.atLeast("namedRooms", 2), "the killer is carried to another room");
+        const M = await import("./murder.mjs");
+        const MG = await import("./mask-gm.mjs");
+        const { livingStudents } = await import("./chapter.mjs");
+        const { locateActor, allRooms, positionIn } = await import("./movement.mjs");
+        const player = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const [killer, victim] = livingStudents().filter(player);
+        const lines = { incident: game.i18n.localize("DRPG.Mask.endedIncident"), room: game.i18n.localize("DRPG.Mask.endedLeftRoom") };
+        const text = w => w.html.replace(/<[^>]+>/g, " ");
+        const masked = () => [...game.scenes].flatMap(s => [...s.tokens]).filter(t => t.actorId === killer.id && MG.isMaskedToken(t)).length > 0;
+        const reading = words => {
+            const said = words.filter(w => w.to.includes(player(killer).id)).map(text);
+            return { row: MG.maskStands(killer.id), masked: masked(), muted: MG.maskMutedIds().has(player(killer).id),
+                told: Object.keys(lines).filter(k => said.some(t => t.includes(lines[k]))) };
+        };
+        const token = canvas?.scene?.tokens?.find(t => t.actorId === killer.id) ?? null;
+        must(token, "the killer has no token on the scene on screen - this would measure nothing");
+        const was = { x: token.x, y: token.y };
+        const clock = getClock();
+        const read = {};
+        let stood = null;
+        try {
+            stood = await aloneTogether(killer, victim, { asked: true });
+            await fightOpen(M, killer, victim);
+            const crime = locateActor(killer)?.room ?? null;
+            const away = allRooms(canvas.scene).find(r => r !== crime) ?? null;
+            must(MG.maskStands(killer.id) && crime && away, "the fight put up no mask, or no other room to carry the killer to - this would measure nothing");
+            read.closed = reading(await wordsSent(async () => { await M.endMurder({ followUp: false }); await settle(); }));
+            read.left = reading(await wordsSent(async () => {
+                await token.update(positionIn(away, token), { teleport: true, movementAction: "displace", animate: false });
+                await until(() => !MG.maskStands(killer.id), 3000);
+                await settle();
+            }));
+        } finally {
+            if (M.murderState()) await M.endMurder({ reason: "test", followUp: false });
+            await MG.endMask(killer.id, "test");
+            await c3Incident(clock);
+            await token.update(was, { teleport: true, movementAction: "displace", animate: false });
+            await stood?.back();
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ closed: { row: true, masked: true, muted: true, told: [] }, left: { row: false, masked: false, muted: false, told: ["room"] } }),
+            "{closed: after the GM's End with the victim alive; left: after the killer's token left the room} x {the mask's row, the killer's tokens masked, muted by the mask, the lines told}");
+    }],
+    ["T1 D2-06 - the victim survived: the mask stands after the incident's end, and ends with the time of day (2.0 line T1 MURDER-02; scripts/mask-gm.mjs `endMasksAtClose`, `endMasksBeforeTheBoard`; clock.mjs `advanceTimeOfDay`)", async () => {
+        /*
+         * 2.0 line T1, 27.11.2026 (D2-06). As the test above, but the clock moves on to the next time of day after the close
+         * (clock.mjs `advanceTimeOfDay`, which ends every mask before any board, `endMasksBeforeTheBoard`). Read after the
+         * close and after the advance: the mask's row, the killer's masked tokens, the line told. Put back: the clock. Red at
+         * 94af3e9: the close ended the mask.
+         */
+        needs(env.primaryGm(), "the mask is the primary's");
+        needs(world.atLeast("studentsWithConnectedPlayer", 2), "a killer and a victim with players");
+        const M = await import("./murder.mjs");
+        const MG = await import("./mask-gm.mjs");
+        const { advanceTimeOfDay } = await import("./clock.mjs");
+        const { livingStudents } = await import("./chapter.mjs");
+        const player = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const [killer, victim] = livingStudents().filter(player);
+        const lines = { incident: game.i18n.localize("DRPG.Mask.endedIncident"), timeOfDay: game.i18n.localize("DRPG.Mask.ended") };
+        const text = w => w.html.replace(/<[^>]+>/g, " ");
+        const masked = () => [...game.scenes].flatMap(s => [...s.tokens]).filter(t => t.actorId === killer.id && MG.isMaskedToken(t)).length > 0;
+        const reading = words => {
+            const said = words.filter(w => w.to.includes(player(killer).id)).map(text);
+            return { row: MG.maskStands(killer.id), masked: masked(), told: Object.keys(lines).filter(k => said.some(t => t.includes(lines[k]))) };
+        };
+        const clock = getClock();
+        const read = {};
+        let stood = null;
+        try {
+            stood = await aloneTogether(killer, victim, { asked: true });
+            await fightOpen(M, killer, victim);
+            must(MG.maskStands(killer.id), "the fight put up no mask - this would measure nothing");
+            read.closed = reading(await wordsSent(async () => { await M.endMurder({ followUp: false }); await settle(); }));
+            read.advanced = reading(await wordsSent(async () => { await advanceTimeOfDay(); await settle(); }));
+        } finally {
+            if (M.murderState()) await M.endMurder({ reason: "test", followUp: false });
+            await MG.endMask(killer.id, "test");
+            await c3Incident(clock);
+            await stood?.back();
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ closed: { row: true, masked: true, told: [] }, advanced: { row: false, masked: false, told: ["timeOfDay"] } }),
+            "{closed: after the GM's End with the victim alive; advanced: after the clock's next time of day} x {the mask's row, the killer's tokens masked, the lines told}");
+    }],
     ["T1 MURDER-01 - an opening outside an Eclipse veils no token and blocks no microphone, and a failed one changes nothing on the map (2.0 line T1; D2-07; scripts/mask-gm.mjs `veilWanted`, murder-rules.mjs `openMurder`)", async () => {
         /*
          * 2.0 line T1, 27.11.2026 (MURDER-01; the owner's D2-07: "Poza Eclipse token zabojcy nie znika na czas rzutu
