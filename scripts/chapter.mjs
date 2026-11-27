@@ -889,15 +889,17 @@ export const CHAPTER_END_STEPS = [
  *   caller can ask for one step without knowing about the others. `opened` is
  *   the window's `endMark`; a call without it (the console, the suite) is not
  *   compared.
+ * @param {object} [opts] `say(key, data)`: how a refusal of the end is said - a warning toast here, the relay's
+ *   collector on the primary for a second GM's press (bridge-runs-records.mjs `handleChapterEnd`; 2.0 line T3 TRIAL-02).
  *
  * AND NONE WHILE ONE STANDS STOPPED (E42 C2, 1.2.97; E42-10): an end that stopped part way is finished or dropped
  * first (`finishChapterEnd`); a new one is refused and the GM told which steps wait (`endStands`).
  */
-export async function applyChapterEnd(choices = {}) {
+export async function applyChapterEnd(choices = {}, { say = sayToast } = {}) {
     if (game.user.isGM && endSentToPrimary()) return endOnPrimary({ ...Object.fromEntries(END_CHOICES.map(key => [key, Boolean(choices[key])])),
         opened: choices.opened ? endMark(choices.opened) : null });
-    if (!game.user.isGM || !chapterEndHere()) return null;
-    const run = chapterEnds.then(() => endChapterNow(choices));
+    if (!game.user.isGM || !chapterEndHere(say)) return null;
+    const run = chapterEnds.then(() => endChapterNow(choices, say));
     chapterEnds = run.catch(() => null);
     return run;
 }
@@ -933,28 +935,36 @@ function endSentToPrimary() {
 }
 
 async function endOnPrimary(payload) {
-    const { bridgeRequest } = await import("./bridge-guards.mjs");
+    const { bridgeRequest, tellRelayedRefusal } = await import("./bridge-guards.mjs");
     // Asked of the primary alone: on the primary `endSentToPrimary` is false, and the end runs in its own queue above.
     const res = await bridgeRequest("chapter.end", payload, { settle: "reply", onPrimary: true });
-    return res.ok ? res.value ?? null : null;
+    if (!res.ok) return null;
+    /* A REFUSAL THE PRIMARY RELAYED IS SAID HERE (2.0 line T3 TRIAL-02): its reason's key, not a done - read before the
+       answer counts as one. An answer without it is said as before, by the bridge. */
+    if (tellRelayedRefusal(res.value)) return null;
+    return res.value ?? null;
+}
+
+/** A refusal of the end said on this browser (the default `say` of `applyChapterEnd` and `finishChapterEnd`): a warning toast. */
+function sayToast(key, data = {}) {
+    ui.notifications.warn(game.i18n.format(key, data));
 }
 
 /** Whether this browser ends the chapter: the primary GM's does; another GM is told whose (`applyChapterEnd`, ONE BROWSER). */
-function chapterEndHere() {
+function chapterEndHere(say = sayToast) {
     if (isPrimaryGm()) return true;
-    const name = game.users.get(primaryGmId())?.name ?? "?";
-    ui.notifications.warn(game.i18n.format("DRPG.Chapter.endPrimaryOnly", { name }));
+    say("DRPG.Chapter.endPrimaryOnly", { name: game.users.get(primaryGmId())?.name ?? "?" });
     return false;
 }
 
-async function endChapterNow(choices) {
+async function endChapterNow(choices, say = sayToast) {
     /* ONE END AT A TIME, A STOPPED ONE INCLUDED (E42 C2, 1.2.97; E42-10). An end that stopped part way - a step that
        failed, the phase moved, a tab closed - stands until it is finished or dropped: a new end over it would read a
        clock the stopped one has half moved, and leave nobody able to tell what the first one did. Refused, and the GM
        told which steps wait; the window asks Finish the chapter's end or Drop the rest instead (`askStoppedEnd`). */
     const standing = chapterEndStopped();
     if (standing) {
-        ui.notifications.warn(game.i18n.format("DRPG.Chapter.endStands", { steps: listOf(askedSteps(standing, false).map(stepWords)) }));
+        say("DRPG.Chapter.endStands", { steps: listOf(askedSteps(standing, false).map(stepWords)) });
         return null;
     }
 
@@ -1095,18 +1105,18 @@ async function runChapterEnd(record) {
  * `{ drop: true }` runs nothing: the record stands "dropped" and the GMs' card names what stays undone. Answers the
  * Finish's lines (null when it said nothing), the dropped steps' keys, or null. `game.drpg.finishChapterEnd()`.
  */
-export async function finishChapterEnd({ drop = false } = {}) {
+export async function finishChapterEnd({ drop = false, say = sayToast } = {}) {
     if (game.user.isGM && endSentToPrimary()) return endOnPrimary({ finish: !drop, drop: Boolean(drop) });
-    if (!game.user.isGM || !chapterEndHere()) return null;
-    const run = chapterEnds.then(() => finishEndNow({ drop }));
+    if (!game.user.isGM || !chapterEndHere(say)) return null;
+    const run = chapterEnds.then(() => finishEndNow({ drop, say }));
     chapterEnds = run.catch(() => null);
     return run;
 }
 
-async function finishEndNow({ drop }) {
+async function finishEndNow({ drop, say = sayToast }) {
     const record = chapterEndStopped();
     if (!record) {
-        ui.notifications.warn(game.i18n.localize("DRPG.Chapter.notStopped"));
+        say("DRPG.Chapter.notStopped");
         return null;
     }
     if (drop) {
@@ -1127,7 +1137,7 @@ async function finishEndNow({ drop }) {
     // Its own words since E42 fix FG2 (the end review's G-F8): `endPhaseMoved` is a window's drawn on another phase, and
     // sent the GM to open End of chapter again, whose Finish was refused again.
     if (!stands) {
-        ui.notifications.warn(game.i18n.format("DRPG.Chapter.finishPhaseMoved", { opened: phaseLabel(record.ending?.stands), now: phaseLabel(clock.phase) }));
+        say("DRPG.Chapter.finishPhaseMoved", { opened: phaseLabel(record.ending?.stands), now: phaseLabel(clock.phase) });
         return null;
     }
     return runChapterEnd({ ...record, ending: { ...record.ending, stands } });

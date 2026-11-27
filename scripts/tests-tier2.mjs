@@ -118699,6 +118699,116 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             "{told: after the leaver's own copy alone; revealed: after the GM's Reveal} x [the row's first find, its road, the ref's found]");
     }],
     // T3 investigation-trial-chapter
+    ["T3 TRIAL-02 - a Finish of the chapter's end relayed with none stopped answers the reason's key, and no toast on the primary", async () => {
+        /*
+         * 2.0 line T3 TRIAL-02, 27.11.2026 (Forge S2 G1, F3-forge-PC-2.md). A second full GM's Finish of the chapter's end
+         * is run here by `chapter.end` (bridge-runs-records.mjs `handleChapterEnd`); with no end stopped the primary's own
+         * Finish refuses with `DRPG.Chapter.notStopped`, which was a toast on this primary's screen and "nothing was carried
+         * out" on the asker's. Called as the runner calls it, the warnings caught: the run's answer and the toasts here. Red
+         * at 0b69122: `{ refused }` and one toast. Nothing is written: a Finish with nothing stopped runs no step.
+         */
+        needs(env.primaryGm(), "the relay runs on the primary GM alone");
+        const C = await import("./chapter.mjs");
+        must(!C.chapterEndStopped(), "an end stands stopped in this world - the Finish would run it");
+        const { handleChapterEnd } = await import("./bridge-runs-records.mjs");
+        const warned = [], warn = ui.notifications.warn;
+        let answer = null;
+        try {
+            ui.notifications.warn = (message, ...rest) => { warned.push(String(message)); };
+            answer = await handleChapterEnd({ finish: true });
+        } finally {
+            ui.notifications.warn = warn;
+        }
+        equal(stableJson({ key: answer?.reply?.relayedRefusal?.key ?? null, refused: answer?.refused ?? null, toasts: warned.length }),
+            stableJson({ key: "DRPG.Chapter.notStopped", refused: null, toasts: 0 }),
+            "{key: the reason the run answers; refused: its bridge refusal; toasts: the warnings on the primary}");
+    }],
+    ["T3 VOICE-09 - a relayed Fix voice without LiveKit answers resetRefused.livekit", async () => {
+        /*
+         * 2.0 line T3 VOICE-09, 27.11.2026. A second full GM's Fix voice is run here by `voice.reset`
+         * (bridge-runs-records.mjs `handleVoiceReset`); with no LiveKit on this primary nothing is sent, and the asker read
+         * "nothing was carried out". LiveKit stood in as not active (`game.modules.get` answers it inactive for the run),
+         * the warnings caught. Red at 0b69122: `{ refused }`. Nothing is sent or written: no LiveKit, no pass.
+         */
+        needs(env.primaryGm(), "the relay runs on the primary GM alone");
+        needs(env.replaceable(game.modules, "get", "`game.modules.get`"));
+        const { handleVoiceReset } = await import("./bridge-runs-records.mjs");
+        const own = Object.getOwnPropertyDescriptor(game.modules, "get");
+        const get = game.modules.get;
+        const warned = [], warn = ui.notifications.warn;
+        let answer = null;
+        try {
+            game.modules.get = function (id, ...rest) { return id === "avclient-livekit" ? { id, active: false } : get.call(this, id, ...rest); };
+            ui.notifications.warn = message => { warned.push(String(message)); };
+            answer = await handleVoiceReset();
+        } finally {
+            ui.notifications.warn = warn;
+            if (own) Object.defineProperty(game.modules, "get", own); else delete game.modules.get;
+        }
+        equal(stableJson({ key: answer?.reply?.relayedRefusal?.key ?? null, refused: answer?.refused ?? null, toasts: warned.length }),
+            stableJson({ key: "DRPG.Voice.resetRefused.livekit", refused: null, toasts: 0 }),
+            "{key: the reason the run answers; refused: its bridge refusal; toasts: the warnings on the primary}");
+    }],
+    ["T3 MURDER-07 - a relayed announcement of a body already announced answers bodyAnnouncedAlready", async () => {
+        /*
+         * 2.0 line T3 MURDER-07, 27.11.2026. A second full GM's announcement is run here by `body.discover`
+         * (bridge-runs-records.mjs `handleBodyDiscover`), through the primary's own `discoverBody`, whose refusal of a body
+         * this chapter announced already (`DRPG.Chapter.bodyAnnouncedAlready`) was a toast on this primary's screen. The
+         * fixture is "a body already announced is marked in the GM's list and not announced twice in the chapter"'s: in
+         * Daily Life a death the GMs keep, announced by the GM's road in a room no region has, the hold answered; then the
+         * same body sent through the relay. Red at 0b69122: `{ refused }` and one toast. Everything put back.
+         */
+        needs(env.primaryGm(), "a discovery runs on the primary GM alone (`discoverBody`)");
+        const [victim] = cast(1);
+        const { killCharacter, discoverBody, reviveCharacter, isDeadForGm } = await import("./chapter.mjs");
+        const { bodyDiscovery, clearBodyDiscovery, isEclipse, bodiesFoundIn } = await import("./settings.mjs");
+        const { handleBodyDiscover } = await import("./bridge-runs-records.mjs");
+        must(!bodyDiscovery() && !isEclipse(), "a discovery is waiting on the GM or an Eclipse is open - the press would be refused for that");
+        const ROOM = "SUITE T3 MURDER-07 a room no region has";
+        const rows = () => bodiesFoundIn(getClock().chapter, seasonEpoch()).length;
+        const clockBefore = foundry.utils.deepClone(getClock());
+        const foundBefore = game.settings.get(MODULE_ID, SETTINGS.bodyFound) ?? {};
+        const stampsBefore = foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS.bodiesFound) ?? {});
+        const seen = new Set(game.messages.map(m => m.id));
+        const D = foundry.applications.api.DialogV2;
+        const own = { confirm: Object.getOwnPropertyDescriptor(D, "confirm"), wait: Object.getOwnPropertyDescriptor(D, "wait") };
+        const warned = [], warn = ui.notifications.warn;
+        let answer = null, read = null;
+        try {
+            D.confirm = async () => false;
+            D.wait = async () => null;
+            await setClock({ phase: "dailyLife" });
+            must(await killCharacter(victim, { secret: true, keepBullets: true }), `${victim.name}'s death was not kept by the GMs`);
+            const before = rows();
+            await discoverBody({ room: ROOM, victim, scene: canvas?.scene ?? null });
+            await settle();
+            await clearBodyDiscovery();
+            must(rows() - before === 1, "the first announcement wrote no stamp - this would measure nothing");
+            ui.notifications.warn = message => { warned.push(String(message)); };
+            try {
+                answer = await handleBodyDiscover({ room: ROOM, victimId: victim.id, sceneId: canvas?.scene?.id ?? null });
+                await settle();
+            } finally {
+                ui.notifications.warn = warn;
+            }
+            read = { key: answer?.reply?.relayedRefusal?.key ?? null, name: answer?.reply?.relayedRefusal?.data?.name === victim.name,
+                refused: answer?.refused ?? null, toasts: warned.length, stamps: rows() - before };
+        } finally {
+            for (const [name, desc] of Object.entries(own)) {
+                if (desc) Object.defineProperty(D, name, desc); else delete D[name];
+            }
+            if (isDeadForGm(victim)) await reviveCharacter(victim, { quiet: true });
+            if (stableJson(game.settings.get(MODULE_ID, SETTINGS.bodyFound) ?? {}) !== stableJson(foundBefore)) {
+                await game.settings.set(MODULE_ID, SETTINGS.bodyFound, foundBefore);
+            }
+            await game.settings.set(MODULE_ID, SETTINGS.bodiesFound, stampsBefore);
+            if (getClock().phase !== clockBefore.phase) await setClock({ phase: clockBefore.phase });
+            for (const m of game.messages.filter(m => !seen.has(m.id))) await m.delete();
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ key: "DRPG.Chapter.bodyAnnouncedAlready", name: true, refused: null, toasts: 0, stamps: 1 }),
+            "{key: the reason the run answers; name: it names the victim; refused: its bridge refusal; toasts: the warnings on the primary; stamps: the rows both announcements wrote}");
+    }],
 ];
 
 // `drawnForPlayer` for the grid (E33 C7): a drawn crisis roll goes through the suite's one road to a draw (tests-grid.mjs `drawnAct`).

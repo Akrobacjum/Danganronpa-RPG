@@ -30,7 +30,7 @@
  */
 
 import { MODULE_ID, HOPE_CALLS, DESPAIR_CALLS, STARTING, TIMING, CRISIS_ACTIONS } from "./config.mjs";
-import { activeGmIds, isPrimaryGm, primaryGmId, debug, warn, error, pause } from "./utils.mjs";
+import { activeGmIds, isPrimaryGm, primaryGmId, debug, warn, error, pause, esc } from "./utils.mjs";
 
 const SOCKET_EVENT = `module.${MODULE_ID}`;
 /** GM -> player: "your request arrived and was refused" - see `refuse`. */
@@ -151,7 +151,10 @@ export async function firstRefusal(sender, payload, ctx, ...guards) {
  * and `noAnswer`, which only the asking player's client can know. `refused`, the
  * fallback, is also the code of a run that carried out nothing ("nothing was
  * carried out: ..."): a run answers a done only for work done, and which of its
- * resolver's silent reasons applied is not told (E31 review). One run is the
+ * resolver's silent reasons applied is not told (E31 review) - but to a GM: the
+ * five relays a second full GM's press takes to the primary answer the reason's
+ * key itself, and the GM who pressed says it (`relayRefusal`, `tellRelayedRefusal`,
+ * the end of this file; 2.0 line T3 TRIAL-02). One run is the
  * exception, read 21.11.2026: `handleCubAbility` answers `{ reply: null }` for a
  * Monocub move the GM refused or could not pay, because the GM's whisper
  * (`DRPG.Monocub.moveRefused`) is that refusal's one message and the caller reads
@@ -2199,4 +2202,54 @@ export function registerBridgeReplies() {
 /** A primary GM's world has loaded: ask again what is still waiting (gm-bridge.mjs's `onGmReady`). */
 export function resendOnGmReady() {
     waiter.resendOnGmReady();
+}
+
+/*
+ * A REFUSAL RELAYED WITH ITS REASON (2.0 line T3 TRIAL-02, with PRIM-07, VOICE-09 and MURDER-07; 27.11.2026). A second full
+ * GM's press that the primary carries out (E128: the chapter's end and its Finish or Drop, the body's announcement, Fix
+ * voice, the verdict's Finish, the season's reset) was refused there with a toast on the primary's screen and the bridge's
+ * "nothing was carried out", so the GM who pressed read "the game did not allow it" and the reason stood on another screen
+ * (Forge S2 G1, F3-forge-PC-2.md). Now the functions run there take a `say(key, data)` - by default the toast they showed -
+ * and the relay hands them this collector instead: nothing reaches the primary's screen, and when nothing was carried out
+ * the relay answers `{ reply: { relayedRefusal: { key, data } } }` - a reply, not a done: the asker reads this field before
+ * it counts the answer as one (`tellRelayedRefusal`). The first reason said is the one kept.
+ *
+ * WHAT A RELAYED KEY MAY BE. A GM's packet is a GM's, but the answer is drawn on a GM's screen, so only a key of the closed
+ * list below that the language file holds is said (`game.i18n.has`), and every value of `data` is text, escaped before it
+ * is put in. No new code in `REASONS`: an answer without the field is said as before (`why.refused`, by the bridge). The
+ * refusals the GMs are all whispered (`endTwice`, `endPhaseMoved`) stay whispers and take nothing here.
+ */
+export const RELAYED_REFUSAL_PREFIXES = Object.freeze(["DRPG.Chapter.", "DRPG.Vote.", "DRPG.Season.", "DRPG.GmStore.",
+    "DRPG.Voice.resetRefused.", "DRPG.Body."]);
+/** The one key outside the prefixes a relayed refusal may name: the body's announcement refused in an Eclipse (body.mjs `runDiscovery`). */
+export const RELAYED_REFUSAL_KEYS = Object.freeze(["DRPG.Eclipse.bodyLocked"]);
+
+/** A collector for one relayed press: `say(key, data)` keeps the first reason said, `taken()` answers it, or null. */
+export function relayRefusal() {
+    let taken = null;
+    const say = (key, data = {}) => {
+        if (taken) return;
+        const values = data && typeof data === "object" ? Object.entries(data).map(([name, value]) => [name, String(value ?? "")]) : [];
+        taken = { key: String(key ?? ""), data: Object.fromEntries(values) };
+    };
+    return { say, taken: () => taken };
+}
+
+/** Whether `key` may be said as a relayed refusal: a key of the closed list (`RELAYED_REFUSAL_PREFIXES`, `RELAYED_REFUSAL_KEYS`). */
+export function relayableRefusalKey(key) {
+    return typeof key === "string" && (RELAYED_REFUSAL_KEYS.includes(key) || RELAYED_REFUSAL_PREFIXES.some(prefix => key.startsWith(prefix)));
+}
+
+/**
+ * Say the reason a relay answered (`{ relayedRefusal: { key, data } }`) on this browser: true when it was said, false when
+ * the answer carries none, or a key outside the closed list or one the language file does not hold - then the caller says
+ * what it said before. `notify` is the suite's; a warning toast otherwise.
+ */
+export function tellRelayedRefusal(value, notify = text => ui.notifications.warn(text)) {
+    const relayed = value && typeof value === "object" ? value.relayedRefusal : null;
+    if (!relayed || typeof relayed !== "object" || !relayableRefusalKey(relayed.key) || !game.i18n.has(relayed.key)) return false;
+    const data = relayed.data && typeof relayed.data === "object" ? relayed.data : {};
+    const safe = Object.fromEntries(Object.entries(data).filter(([name]) => typeof name === "string").map(([name, v]) => [name, esc(String(v ?? ""))]));
+    notify(game.i18n.format(relayed.key, safe));
+    return true;
 }

@@ -69827,6 +69827,36 @@ const INVARIANTS = [
         "{rows: [hidden, knows, incident, shown, shown with HOLDER_SEES_HIDDEN false]; the constant; a GM knows any trace; applyToRemnantToken asks the rule with knowsRemnant and shows a hidden held trace; shownAsFound asks the same; showHeld does not defer to a GM's hidden}");
     }],
     // T3 investigation-trial-chapter
+    ["R9120 - a refusal relayed from the primary is said with its reason's key when the key is of the closed list and the language file holds it, its values escaped; any other key is not said (2.0 line T3 TRIAL-02; scripts/bridge-guards.mjs `relayRefusal`, `tellRelayedRefusal`)", async () => {
+        /* 2.0 line T3 TRIAL-02, 27.11.2026. A second full GM's press carried out on the primary was refused with a toast on
+           the primary's screen and "nothing was carried out" on the asker's. The relays answer the reason's key now, and the
+           asker says it - only a key of the closed list (DRPG.Chapter., Vote., Season., GmStore., Voice.resetRefused., Body.,
+           and DRPG.Eclipse.bodyLocked) that `game.i18n.has`, each value of `data` escaped. Red at 0b69122: neither function
+           exists (the import's must). Pure: the notices caught; nothing written. */
+        const G = await import("./bridge-guards.mjs");
+        must(typeof G.tellRelayedRefusal === "function" && typeof G.relayRefusal === "function",
+            "bridge-guards.mjs has no tellRelayedRefusal or relayRefusal: a relayed refusal's reason reaches nobody who pressed");
+        const said = [];
+        const tell = value => [G.tellRelayedRefusal(value, text => said.push(String(text))), said.length];
+        const collector = G.relayRefusal();
+        collector.say("DRPG.Chapter.notStopped");
+        collector.say("DRPG.Vote.verdictAlreadyApplied");
+        const rows = [
+            tell({ relayedRefusal: { key: "DRPG.Chapter.notStopped", data: {} } }),
+            tell({ relayedRefusal: { key: "DRPG.Chapter.bodyAnnouncedAlready", data: { name: "<b>R9120</b>" } } }),
+            tell({ relayedRefusal: { key: "DRPG.Eclipse.bodyLocked" } }),
+            tell({ relayedRefusal: { key: "DRPG.Bridge.why.refused", data: {} } }),
+            tell({ relayedRefusal: { key: "DRPG.Chapter.r9120NoSuchKey", data: {} } }),
+            tell({ relayedRefusal: { key: "DRPG.Eclipse.bodyLockedR9120" } }),
+            tell(true), tell(null), tell(["DRPG.Chapter.notStopped"])
+        ];
+        equal(stableJson({ rows, first: said[0] === game.i18n.localize("DRPG.Chapter.notStopped"),
+            escaped: said[1]?.includes("&lt;b&gt;R9120&lt;/b&gt;") === true && !said[1]?.includes("<b>"),
+            kept: collector.taken() }),
+        stableJson({ rows: [[true, 1], [true, 2], [true, 3], [false, 3], [false, 3], [false, 3], [false, 3], [false, 3], [false, 3]],
+            first: true, escaped: true, kept: { key: "DRPG.Chapter.notStopped", data: {} } }),
+            "{rows: [said, notices so far] for a listed key, one with a value holding markup, the Eclipse's one key, a Bridge key, a listed prefix the file does not hold, a key past the one key, true, null, an array; first: the text is the key's; escaped: the value's markup escaped; kept: the collector keeps the first reason said}");
+    }],
 ];
 
 /**

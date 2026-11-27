@@ -1114,22 +1114,24 @@ export function finishRoute({ runner, me = game.user?.id, primary = primaryGmId(
  * another GM is told whom to ask. Since fix r2-G2 that browser is the verdict's runner (`verdictRunner`):
  * its own GM while connected, otherwise the primary.
  */
-export async function finishVerdict() {
+export async function finishVerdict({ say = (key, data = {}) => ui.notifications.warn(game.i18n.format(key, data)) } = {}) {
     if (!game.user.isGM) return null;
     const progress = trialProgress();
     const runner = verdictRunner(progress);
     const route = finishRoute({ runner });
     if (route === "primary") {
-        const { bridgeRequest } = await import("./bridge-guards.mjs");
+        const { bridgeRequest, tellRelayedRefusal } = await import("./bridge-guards.mjs");
         const res = await bridgeRequest("verdict.finish", {}, { settle: "reply", onPrimary: true });
-        return res.ok ? res.value ?? null : null;
+        // The primary's reason, relayed (2.0 line T3 TRIAL-02): said here, and not counted as a done.
+        if (!res.ok || tellRelayedRefusal(res.value)) return null;
+        return res.value ?? null;
     }
     if (route === "refuse") {
-        ui.notifications.warn(game.i18n.format("DRPG.Vote.finishOtherGm", { name: game.users.get(runner)?.name ?? "?" }));
+        say("DRPG.Vote.finishOtherGm", { name: game.users.get(runner)?.name ?? "?" });
         return null;
     }
     if (!verdictStopped(progress)) {
-        ui.notifications.warn(game.i18n.localize("DRPG.Vote.verdictAlreadyApplied"));
+        say("DRPG.Vote.verdictAlreadyApplied");
         return null;
     }
     verdictRunning = true;

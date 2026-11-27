@@ -6804,7 +6804,11 @@ const REGRESSIONS = [
             // E37 C3: the readiness round's open, answer and end, judged on the primary (boundary.mjs), whose runs pass their
             // `{ refused }` on.
             openRoundOnPrimary: "refused", answerOnPrimary: "refused", endRoundOnPrimary: "refused",
-            resolveObserve: "passes", hopeCallRefusal: "wraps"
+            resolveObserve: "passes", hopeCallRefusal: "wraps",
+            // 2.0 line T3 TRIAL-02 (27.11.2026): the collector a relay of a second full GM's press hands its function in place
+            // of a toast (bridge-guards.mjs). It gives no reason of the bridge: what it takes is answered as a reply's
+            // `relayedRefusal` (bridge-runs-records.mjs `relayed`), and a relay with nothing taken refuses with its own literal.
+            relayRefusal: "passes"
         };
         const sources = [...await otherSources()].map(([file, raw]) => [file, stripComments(raw)]);
         const functions = [], texts = [];
@@ -14041,8 +14045,9 @@ const REGRESSIONS = [
             finalConsole: /if \(inFinalTrial\(\)\) return openFinalVerdictDialog\(\);/.test(floorUi),
             season: /season: \(clock\.season \?\? 1\) \+ 1,\s*finalTrial: false/.test(wipe),
             deadObjector: /isDeceased\(await flagsAsHeld\(actor\)\)/.test(fnSource(code("trial.mjs"), "seizeFloor")),
-            // Since E128 through `finishRoute`: a second full GM's press while the primary runs it is the primary's.
-            finishRunner: /const runner = verdictRunner\(progress\);\s*const route = finishRoute\(\{ runner \}\);[\s\S]{0,400}if \(route === "refuse"\) \{\s*ui\.notifications\.warn\(game\.i18n\.format\("DRPG\.Vote\.finishOtherGm"/
+            // Since E128 through `finishRoute`: a second full GM's press while the primary runs it is the primary's. Its refusal
+            // through `say` since 2.0 line T3 TRIAL-02 (a toast by default, a relay's collector on the primary).
+            finishRunner: /const runner = verdictRunner\(progress\);\s*const route = finishRoute\(\{ runner \}\);[\s\S]{0,400}if \(route === "refuse"\) \{\s*say\("DRPG\.Vote\.finishOtherGm"/
                 .test(fnSource(vote, "finishVerdict"))
                 && /return by\?\.active \? by\.id : primaryGmId\(\);/.test(fnSource(vote, "verdictRunner"))
                 // The console's next step is trial-floor.mjs's table since E47 C1: the two rows of a verdict another GM runs.

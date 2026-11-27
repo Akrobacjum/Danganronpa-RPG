@@ -2777,8 +2777,10 @@ export async function voicePlan({ toChat = false, targets } = {}) {
 export async function resetVoiceFromHere() {
     if (isPrimaryGm()) return resetAllVoice();
     if (game.user?.role !== CONST.USER_ROLES.GAMEMASTER) return null;
-    const { bridgeRequest } = await import("./bridge-guards.mjs");
+    const { bridgeRequest, tellRelayedRefusal } = await import("./bridge-guards.mjs");
     const res = await bridgeRequest("voice.reset", {}, { settle: "reply", onPrimary: true });
+    // The primary's reason, relayed (2.0 line T3 VOICE-09): said here - no LiveKit on the primary - and answered null.
+    if (res.ok) tellRelayedRefusal(res.value);
     return res.ok && Number.isFinite(res.value) ? res.value : null;
 }
 
@@ -2802,12 +2804,17 @@ export async function resetVoiceFromHere() {
  * @param {object} [io.ledger]       `createVoiceLedger`'s, the module's own
  * @param {Function} [io.reconcile]  `scheduleReconcile`
  * @param {boolean} [io.enabled]     the `voiceEnabled` setting
+ * @param {Function} [io.say]        how the refusal with no LiveKit is said (`say(key)`): nothing, unless a relay asks
  * @returns {Promise<number|null>}
  */
 export async function resetAllVoice({ ledger = voiceLedger, reconcile = scheduleReconcile,
-    enabled = getSetting(SETTINGS.voiceEnabled) } = {}) {
-    // `null`, not `0`: the panel says why nothing was sent rather than "sent to 0 people".
-    if (!avclientActive()) return null;
+    enabled = getSetting(SETTINGS.voiceEnabled), say = () => {} } = {}) {
+    // `null`, not `0`: the panel says why nothing was sent rather than "sent to 0 people". The reason is said only where a
+    // caller asks (`say`): the relay of a second GM's Fix voice (2.0 line T3 VOICE-09); the panel's own press says its own.
+    if (!avclientActive()) {
+        say("DRPG.Voice.resetRefused.livekit");
+        return null;
+    }
     if (!isPrimaryGm()) return null;
 
     // Forget FIRST: every account below is unsettled, so the pass sends each one again.

@@ -791,43 +791,65 @@ export async function handleKeysCharge() {
     return { reply: await chargeForUnfoundKeys() };
 }
 
+/*
+ * THE FIVE RELAYS OF A SECOND FULL GM'S PRESS ANSWER THE REASON (2.0 line T3 TRIAL-02, PRIM-07, VOICE-09, MURDER-07;
+ * 27.11.2026). Until 1.2.130 each answered `{ refused: "nothing was carried out: ..." }` and the reason was a toast on
+ * this primary's screen, read by nobody who had pressed. Each hands its function a collector now (bridge-guards.mjs
+ * `relayRefusal`) in place of that toast; when nothing was carried out and a reason was said, it answers the reason's key
+ * (`{ reply: { relayedRefusal } }`), which the asker says (`tellRelayedRefusal`); when none was said - a refusal whispered
+ * to every GM (`endTwice`, `endPhaseMoved`), or a silent one - it is refused as before.
+ */
+function relayed(taken) {
+    return taken ? { reply: { relayedRefusal: taken } } : null;
+}
+
 /** The run of `body.discover` (E128): a second full GM's announcement, run here as the primary's own press runs it. */
 export async function handleBodyDiscover(payload) {
     const { discoverBody } = await import("./chapter.mjs");
+    const { relayRefusal } = await import("./bridge-guards.mjs");
+    const { say, taken } = relayRefusal();
     const done = await discoverBody({ room: payload.room, victim: game.actors.get(payload.victimId ?? "") ?? null,
-        scene: game.scenes.get(payload.sceneId ?? "") ?? null });
-    return done ? { reply: true } : { refused: "nothing was carried out: the primary GM announced no body (its own checks refused it)" };
+        scene: game.scenes.get(payload.sceneId ?? "") ?? null, say });
+    return done ? { reply: true } : relayed(taken()) ?? { refused: "nothing was carried out: the primary GM announced no body (its own checks refused it)" };
 }
 
 /**
  * The run of `chapter.end` (E128): a second full GM's end of the chapter, or its Finish or Drop, run in this primary's
  * one queue (chapter.mjs `applyChapterEnd`, `finishChapterEnd`). `opened` is the clock the asker's window was shown on,
- * kept to its four fields; an end whose clock has moved since is refused there, as the primary's own is.
+ * kept to its four fields; an end whose clock has moved since is refused here, as the primary's own is, and the reason
+ * answered to the asker (`relayed`, 2.0 line T3 TRIAL-02).
  */
 export async function handleChapterEnd(payload) {
     const C = await import("./chapter.mjs");
+    const { relayRefusal } = await import("./bridge-guards.mjs");
+    const { say, taken } = relayRefusal();
     const o = payload.opened && typeof payload.opened === "object" ? payload.opened : null;
     const opened = o ? { chapter: Number(o.chapter) || 0, session: Number(o.session) || 0, day: Number(o.day) || 1,
         phase: typeof o.phase === "string" ? o.phase : null } : null;
-    const lines = payload.finish || payload.drop ? await C.finishChapterEnd({ drop: Boolean(payload.drop) })
+    const lines = payload.finish || payload.drop ? await C.finishChapterEnd({ drop: Boolean(payload.drop), say })
         : await C.applyChapterEnd({ reveal: payload.reveal, sweep: payload.sweep, faint: payload.faint, keys: payload.keys,
             endTrial: payload.endTrial, nextChapter: payload.nextChapter, nextSession: payload.nextSession,
-            nextMorning: payload.nextMorning, opened });
+            nextMorning: payload.nextMorning, opened }, { say });
     return lines ? { reply: Array.isArray(lines) ? lines.map(String) : true }
-        : { refused: "nothing was carried out: the primary GM's end of the chapter refused it (its own checks)" };
+        : relayed(taken()) ?? { refused: "nothing was carried out: the primary GM's end of the chapter refused it (its own checks)" };
 }
 
 /** The run of `voice.reset` (E128): a second full GM's Fix voice, sent by this primary (voice.mjs `resetAllVoice`): how many. */
 export async function handleVoiceReset() {
     const { resetAllVoice } = await import("./voice.mjs");
-    const n = await resetAllVoice();
-    return n === null ? { refused: "nothing was carried out: the primary GM has no LiveKit AVClient active" } : { reply: n };
+    const { relayRefusal } = await import("./bridge-guards.mjs");
+    const { say, taken } = relayRefusal();
+    const n = await resetAllVoice({ say });
+    return n === null ? relayed(taken()) ?? { refused: "nothing was carried out: the primary GM has no LiveKit AVClient active" } : { reply: n };
 }
 
 /** The run of `verdict.finish` (E128): a second full GM's Finish, run by this primary's own (verdict.mjs `finishVerdict`). */
 export async function handleVerdictFinish() {
     const { finishVerdict } = await import("./vote.mjs");
-    return (await finishVerdict()) ? { reply: true } : { refused: "nothing was carried out: the primary GM's Finish of the verdict did nothing (its reason is on its screen)" };
+    const { relayRefusal } = await import("./bridge-guards.mjs");
+    const { say, taken } = relayRefusal();
+    return (await finishVerdict({ say })) ? { reply: true }
+        : relayed(taken()) ?? { refused: "nothing was carried out: the primary GM's Finish of the verdict did nothing" };
 }
 
 /** The run of `trial.record` (E70 fix p1-G2): the record's write on this primary (trial-progress.mjs `recordOnPrimary`), its answer or null. */
