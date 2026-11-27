@@ -67740,7 +67740,7 @@ const INVARIANTS = [
             picker: [L("DRPG.Floor.startBusy"), L("DRPG.Floor.startBusy"), L("DRPG.Floor.bar.inDebate"), L("DRPG.Floor.bar.inDebate")]
         }), "{family: [a round's Objection, its rebuttal, a debate's Objection, the Testimony]; next: [a round's Objection, a debate's]; straw: OBJECTION! in a Straw Poll; picker: Nonstop Debate's title in [a Testimony, a Straw Poll, the debate, a debate's Objection]}");
     }],
-    ["R8143 - the console's footer says why a button is held (1.2.122; CTRL-38, CTRL-44): Show summary greyed before the verdict says it is sent after the verdict, in a Final Trial that a Final Trial has none, and after the verdict carries no such reason; Finish the verdict on a GM who is not the verdict's runner is greyed with the runner's name, and pressable on the runner", async () => {
+    ["R8143 - the console's footer says why a button is held (1.2.122; CTRL-38, CTRL-44): Show summary greyed before the verdict says it is sent after the verdict, in a Final Trial that a Final Trial has none, and after the verdict carries no such reason; Finish the verdict on an Assistant GM who is not the verdict's runner is greyed with the runner's name, and pressable on a full GM and on the runner (2.0 line T3 TRIAL-05)", async () => {
         /* Red at 21bf5d18: no title on either, and Finish the verdict drawn enabled on every GM. */
         const UI = await import("./trial-floor-ui.mjs");
         const K = await import("./ui-kit.mjs");
@@ -67762,8 +67762,11 @@ const INVARIANTS = [
                 read(button(view({ stopped: "Level Ups", runner: game.user.id }, { voteClosed: true, verdictApplied: true }), "finishVerdict"))]
         }), stableJson({
             summary: [[true, L("DRPG.CaseSummary.afterVerdict")], [true, L("DRPG.CaseSummary.noneInFinal")], [false, null]],
-            finish: [[true, game.i18n.format("DRPG.Vote.finishOtherGm", { name: game.users.get(other.id)?.name ?? "?" })], [false, null]]
-        }), "{summary: [before the verdict, a Final Trial's, after the verdict]; finish: [on a GM who is not the runner, on the runner]}");
+            /* Changed by 2.0 line T3 TRIAL-05 (27.11.2026): on a full GM - this browser's role - Finish is live whoever runs the
+               verdict, since its press takes the verdict on the primary and runs here (verdict.mjs `finishRoute`, "claim");
+               greyed with the runner's name only on an Assistant GM, whose role this browser does not hold (read in the code). */
+            finish: [[false, null], [false, null]]
+        }), "{summary: [before the verdict, a Final Trial's, after the verdict]; finish: [on a full GM who is not the runner, on the runner]}");
     }],
     ["R8144 - the case schema in the console starts a mode by the mode picker's rule (1.2.122, CTRL-45): case-trial.mjs `trialSchemaHtml` over an open debate greys only the debate's own start, with 'already running'; over a round, the Closing or a zone mode every start, with 'Another mode is running'; with no floor none", async () => {
         /* Red at 21bf5d18: every start greyed whenever any floor was open, with 'Another mode is running. End it first.' */
