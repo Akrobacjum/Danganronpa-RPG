@@ -70267,6 +70267,48 @@ const INVARIANTS = [
             JSON.stringify({ first: { applied: ["A", "C"], reported: [["A", "rA"], ["C", "rC"]] }, parked: { applied: ["D"], reported: [["D", "rLate"]] } }),
             "{first: [rooms applied, [room, request id] reported] for A applying while B, C and a re-apply came; parked: a parked apply's room and the id it read at its start}");
     }],
+    ["R9226 - the voice tile says the game server is lost while it is, and nothing is written or sent (2.0 line T4, FORGE-04): voice-tile.mjs `watchServerConnection` on a stand-in socket - `disconnect` draws `DRPG.Voice.serverLost` on the tile (its `data-drpg-server-lost` and line), `connect` takes it off; with no tile drawn one warning a loss, again after a reconnect; nothing goes out on the socket and no setting is written", async () => {
+        /*
+         * FORGE-04 at The Forge (Foundry 14.370; docs/dev/v2/F3-forge-PC-2.md): about 6.5 s without the network Foundry reloads
+         * the page, and the module said nothing. A stand-in socket (`on`, `emit` counted) and a stand-in tile in no document;
+         * `game.settings.set` stood in to count writes, put back after. Red at 31d5812: no watchServerConnection - the tile
+         * unchanged on a disconnect.
+         */
+        const VT = await import("./voice-tile.mjs");
+        must(typeof VT.watchServerConnection === "function", "voice-tile.mjs has no watchServerConnection - a disconnect changes nothing on the tile");
+        const socket = () => {
+            const on = new Map(); let sent = 0;
+            return { on: (event, fn) => on.set(event, [...(on.get(event) ?? []), fn]), emit: () => { sent++; }, fire: event => (on.get(event) ?? []).forEach(fn => fn()), sent: () => sent };
+        };
+        const tile = document.createElement("div");
+        const state = () => [tile.dataset.drpgServerLost ?? null, tile.querySelector(".drpg-voice-server-lost")?.textContent ?? null];
+        const words = game.i18n.localize("DRPG.Voice.serverLost");
+        const writes = [];
+        const back = standIn(game.settings, "set", async (...args) => { writes.push(args.slice(0, 2).join(".")); });
+        const read = {};
+        try {
+            const a = socket(), warned = [];
+            VT.watchServerConnection(a, { tile: () => tile, warn: text => warned.push(text) });
+            read.before = state();
+            a.fire("disconnect");
+            read.lost = state();
+            a.fire("connect");
+            read.back = state();
+            const b = socket(), told = [];
+            VT.watchServerConnection(b, { tile: () => null, warn: text => told.push(text) });
+            b.fire("disconnect"); b.fire("disconnect");
+            const once = told.length;
+            b.fire("connect"); b.fire("disconnect");
+            read.noTile = [once, told.length, told[0] === words];
+            read.sent = a.sent() + b.sent();
+            b.fire("connect");
+        } finally {
+            back();
+        }
+        read.writes = writes;
+        equal(JSON.stringify(read), JSON.stringify({ before: [null, null], lost: ["true", words], back: [null, null], noTile: [1, 2, true], sent: 0, writes: [] }),
+            "{the tile before, after a disconnect, after a connect; with no tile: warnings after two disconnects, after a reconnect and a third, the words; packets sent; settings written}");
+    }],
 ];
 
 /**

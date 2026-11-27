@@ -2108,6 +2108,7 @@ export function refreshVoiceTile(client = liveKitClient()) {
             return;
         }
         const tile = ensureVoiceTile();
+        paintServerLost(tile, serverLost);
         if (live?.tile !== tile) {
             detachRoom(live);
             live = voiceWatch(tile, { controls: paintControls });
@@ -2179,5 +2180,71 @@ export function registerVoiceTile() {
     Hooks.on("updateSetting", setting => {
         if (TRIAL_KEYS.includes(setting?.key)) paintControls();
     });
+    watchServerConnection();
     refreshVoiceTile();
+}
+
+/*
+ * THE GAME SERVER LOST, SAID ON THE TILE (2.0 line T4, FORGE-04, 27.11.2026). At The Forge (Foundry 14.370;
+ * docs/dev/v2/F3-forge-PC-2.md, FORGE-04) a page that loses the network is told nothing by the module: after about 6.5 s
+ * Foundry writes "Server connection lost" and reloads the page, which offline ends on the browser's error page, and the
+ * player is back only after F5 and a whole load (30-48 s). The module listened to no event of `game.socket` (grep
+ * `disconnect` in scripts/, 27.11.2026). Now this page's socket is watched: on `disconnect` the voice tile says the server
+ * is lost and what to do (`DRPG.Voice.serverLost`, the tile's attribute `data-drpg-server-lost` and its line
+ * `.drpg-voice-server-lost`, which s3-disconnects reads), and on `connect` it takes it off; with no tile drawn (the tile off
+ * in the settings, or no voice here) one warning says it instead, once a loss. Nothing is written and nothing is sent -
+ * there is no server to send to. That v14's `game.socket` is a socket.io socket raising `disconnect` and `connect` (also
+ * on a reconnect), and in which order around Foundry's own reload, is not read in v14's source: LIVE-E134-04. R9226.
+ */
+let serverLost = false;
+
+/** The tile's line for a lost server, drawn or taken off; whether it changed anything. */
+function paintServerLost(tile, lost) {
+    if (!tile) return false;
+    const line = tile.querySelector(".drpg-voice-server-lost");
+    if (!lost) {
+        if (!line && tile.dataset.drpgServerLost === undefined) return false;
+        line?.remove();
+        delete tile.dataset.drpgServerLost;
+        return true;
+    }
+    const text = game.i18n.localize("DRPG.Voice.serverLost");
+    if (line?.textContent === text && tile.dataset.drpgServerLost === "true") return false;
+    tile.dataset.drpgServerLost = "true";
+    const el = line ?? textNode("p", "drpg-voice-server-lost", "");
+    el.textContent = text;
+    el.setAttribute("role", "status");
+    if (!line) tile.append(el);
+    return true;
+}
+
+/**
+ * This page's connection to the game server, watched (the note above). `socket`, `tile` and `warn` are the suite's
+ * (R9226); Foundry's socket, this page's tile and a warning otherwise. Answers the watch's `lost()`, or null with no
+ * socket to watch.
+ */
+export function watchServerConnection(socket = game.socket, { tile = () => document.getElementById(TILE_ID), warn = text => ui.notifications.warn(text) } = {}) {
+    if (typeof socket?.on !== "function") return null;
+    let warned = false;
+    socket.on("disconnect", () => {
+        try {
+            serverLost = true;
+            const el = tile();
+            if (el) paintServerLost(el, true);
+            else if (!warned) { warned = true; warn(game.i18n.localize("DRPG.Voice.serverLost")); }
+        } catch (err) {
+            error("Could not say that the game server is lost", err);
+        }
+    });
+    socket.on("connect", () => {
+        try {
+            serverLost = false;
+            warned = false;
+            const el = tile();
+            if (el) paintServerLost(el, false);
+        } catch (err) {
+            error("Could not take the lost server's line off", err);
+        }
+    });
+    return { lost: () => serverLost };
 }

@@ -6275,7 +6275,8 @@
         "noRoomsFix": "Name the regions to split them up.",
         "dupes": "\"{scene}\" has more than one region named {names}, and together they are one voice room.",
         "dupesHint": "Intended for a corridor drawn in two pieces; a mistake otherwise."
-      }
+      },
+      "serverLost": "No connection to the game server. If the page does not come back by itself, press F5 once the network is back."
     },
     "States": {
       "drpgBreakdown": {

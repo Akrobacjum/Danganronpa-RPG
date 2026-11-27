@@ -1915,6 +1915,8 @@ Despair that does not arrive usually means no primary GM is connected, **Rolls g
 
 **Repairs.** `resetAllActions()` for a botched advance; `ruleOnParkedMurder(killerId, true)`, `applyChapterEnd({...})`, `setMotive(null)`, `refreshMusic()`, `repaintFog()` and `resetAllVoice()`.
 
+**When somebody loses the network.** About 6.5 s without a connection Foundry writes "Server connection lost" and reloads the page, and with no network that ends on the browser's error page, which stays there once the network is back too. Before that, that person's voice tile says **No connection to the game server** (with the tile off: one warning); the module writes and sends nothing then. When the network is back, they press F5, and the whole load takes 30-48 s (measured on The Forge, 25.11.2026). Requests sent before the network went are sent again (the player handbook, chapter 14).
+
 ### 20.4 The contract with Foundry, Daggerheart and the modules
 
 The module reaches into code that is not its own (Foundry's, Daggerheart's, other modules') at many places, and each place is a row of one register, which `diagnosePatches()` lists. At each load the primary GM's browser reads every row as *ok*, *failed* or *unknown*; unknown means nothing here could tell, and it is a warning, never a pass. Nothing is written to the world.

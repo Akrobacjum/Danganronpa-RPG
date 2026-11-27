@@ -6717,7 +6717,8 @@
         "noRoomsFix": "Nazwij regiony, żeby ich rozdzielić.",
         "dupes": "„{scene}” ma kilka regionów o nazwie {names}, które razem tworzą jeden pokój głosowy.",
         "dupesHint": "Przewidziane dla korytarza narysowanego w dwóch częściach; w innym razie to pomyłka."
-      }
+      },
+      "serverLost": "Brak połączenia z serwerem gry. Jeśli strona nie wróci sama, naciśnij F5, gdy sieć wróci."
     },
     "States": {
       "drpgBreakdown": {

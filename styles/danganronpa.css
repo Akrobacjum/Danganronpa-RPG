@@ -19166,3 +19166,21 @@ body.drpg-high-contrast #token-hud.drpg-token-hud .control-icon:focus-visible {
 body.drpg-high-contrast #token-hud.drpg-token-hud :is(.control-icon, .palette.palette-list) {
     border-color: var(--drpg-bone);
 }
+
+/* 2.0 line T4: the voice tile's line for a lost game server (FORGE-04, voice-tile.mjs `watchServerConnection`; 27.11.2026).
+   Laid over the tile's top, out of its flow, so a tile the curtain has cut is not cut again for a line that stands a few
+   seconds before Foundry reloads the page; the tile is fixed (components.css), and stands in the flow of the tiles' row on a
+   stacked screen (narrow.css: relative), so either is the line's box. Both themes; the ink and the wash are the module's
+   blood and bone. */
+#drpg-voice-tile .drpg-voice-server-lost {
+    position: absolute;
+    inset: 4px 4px auto 4px;
+    z-index: 2;
+    margin: 0;
+    padding: 4px 6px;
+    font-size: var(--drpg-text-sm);
+    line-height: 1.3;
+    color: var(--drpg-bone);
+    background: var(--drpg-blood-deep);
+    border-radius: 3px;
+}

@@ -1915,6 +1915,8 @@ Despair, który nie dochodzi, to zwykle brak połączonego głównego GM-a, wył
 
 **Naprawy.** `resetAllActions()` dla zepsutego przejścia zegara, a także `ruleOnParkedMurder(killerId, true)`, `applyChapterEnd({...})`, `setMotive(null)`, `refreshMusic()`, `repaintFog()` i `resetAllVoice()`.
 
+**Gdy ktoś traci sieć.** Po około 6,5 s bez połączenia Foundry pisze „Server connection lost” i przeładowuje stronę, a bez sieci kończy się to stroną błędu przeglądarki, która zostaje także po powrocie sieci. Wcześniej kafelek głosu tej osoby mówi **Brak połączenia z serwerem gry** (przy wyłączonym kafelku: jedno ostrzeżenie); moduł niczego wtedy nie zapisuje ani nie wysyła. Gdy sieć wróci, ta osoba naciska F5, a pełne wczytanie trwa 30-48 s (zmierzone na The Forge, 25.11.2026). Prośby wysłane przed utratą sieci wysyła od nowa (podręcznik gracza, rozdział 14).
+
 ### 20.4 Umowa z Foundry, Daggerheart i modułami
 
 Moduł sięga w wielu miejscach w kod, który nie jest jego: Foundry, Daggerheart i innych modułów. Każde takie miejsce jest wierszem jednego rejestru, a `diagnosePatches()` go wylicza. Przy każdym wczytaniu przeglądarka głównego GM-a odczytuje każdy wiersz jako *ok*, *nieudane* albo *nieznane*. Nieznane znaczy, że nic tu nie potrafiło tego stwierdzić, i jest ostrzeżeniem, nigdy zaliczeniem. Nic nie jest zapisywane do świata.
