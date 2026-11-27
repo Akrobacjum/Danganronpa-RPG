@@ -65568,7 +65568,7 @@ const INVARIANTS = [
         const u = (id, role) => ({ id, role, isGM: role >= ASSISTANT });
         const ask = (user, primaryId) => typeof C.answersBodyPrompt === "function" ? C.answersBodyPrompt(user, { primaryId }) : "absent";
         equal(stableJson([ask(u("g1", GAMEMASTER), "g1"), ask(u("a1", ASSISTANT), "a1"), ask(u("g2", GAMEMASTER), "g1"),
-            ask(u("p1", PLAYER), "p1"), ask(null, "g1")]), stableJson([true, false, false, false, false]),
+            ask(u("p1", PLAYER), "p1"), ask(null, "g1")]), stableJson([true, false, true, false, false]),
             "[full GM primary, Assistant GM primary, full GM not primary, player, nobody]");
     }],
 

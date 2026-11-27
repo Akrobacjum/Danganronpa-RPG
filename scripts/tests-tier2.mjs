@@ -119280,6 +119280,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             read.here = await E.standingsOnPrimary(E.eclipseId());
             read.none = await E.standingsOnPrimary("T1-DAY-03-none");
         } finally {
+            // The row first: an Eclipse ended with a declaration standing asks the lights' question, and waits on it.
             if (S.pendingMurderStore.has(killer.id)) await S.pendingMurderStore.drop(killer.id);
             if (E.isEclipse()) await E.endEclipse({ advance: false }).catch(() => {});
             await stood.back();
