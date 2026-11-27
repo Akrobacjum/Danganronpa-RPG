@@ -3408,6 +3408,7 @@
       },
       "finalFoundBy": "Kto znalazł",
       "finalNobody": "Nikt go nie znalazł",
+      "chargeUnanswered": "Główny GM nie odpowiedział na opłatę za Key Remnanty przy otwarciu Class Trial, więc nie została pobrana. Pobierz ją przyciskiem niżej.",
       "chargeTooLate": "Nie naliczono Despair za nieznalezione Key Remnanty. Zegar jest już w rozdziale {now}, a ostatnia sprawa dotyczyła rozdziału {was}, więc ten rozdział nie ma sprawy, z której można by je policzyć.",
       "traceAnalysis": "Co ujawnia analiza",
       "keyOffPlan": {

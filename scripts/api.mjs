@@ -1617,7 +1617,11 @@ export const DrpgApi = {
         keys: SETTINGS,
         get: getSetting,
         set: setSetting
-    }
+    },
+
+    /* The Key fee asked of the primary again, as the trial's opening asks it (2.0 line T3 INV-07): answers what was
+       charged, or null; the trial's `keysCharged` stamp keeps a second charge off. */
+    chargeKeyFee: async () => (await import("./key-remnants.mjs")).askToChargeForUnfoundKeys()
 };
 
 /* ==========================================================================

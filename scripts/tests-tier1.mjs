@@ -66399,7 +66399,9 @@ const INVARIANTS = [
         const K = await import("./key-remnants.mjs");
         ok(typeof K.wireChargeHeld === "function", "key-remnants.mjs exports no wireChargeHeld - the held card has no button to wire");
         const src = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/key-remnants.mjs`).then(r => (r.ok ? lfText(r) : "")));
-        const charge = fnSource(src, "chargeForUnfoundKeys"), wire = fnSource(src, "wireChargeHeld");
+        // the card is drawn in `holdCharge` since 2.0 line T3 INV-07, which an unanswered ask posts as well: read with its caller
+        const held = fnSource(src, "chargeForUnfoundKeys");
+        const charge = /holdCharge\(/.test(held) ? `${held}\n${fnSource(src, "holdCharge")}` : held, wire = fnSource(src, "wireChargeHeld");
         const bridge = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/gm-bridge.mjs`).then(r => (r.ok ? lfText(r) : "")));
         const flats = {};
         for (const lang of ["en", "pl"]) flats[lang] = foundry.utils.flattenObject(foundry.utils.expandObject(await fetch(`/modules/${MODULE_ID}/lang/${lang}.json`).then(r => r.json())));
@@ -69981,6 +69983,15 @@ const INVARIANTS = [
             en: { fields: true, oneCause: false, reload: true, leaving: true },
             pl: { fields: true, oneCause: false, reload: true, leaving: true }
         }), "{fields: {actor} and {room} kept; oneCause: the reload named as the cause; reload, leaving: both causes named}");
+    }],
+    ["R9128 - the console can charge the Key fee: game.drpg.chargeKeyFee asks it of the primary as the trial's opening does (2.0 line T3 INV-07; scripts/api.mjs, key-remnants.mjs `askToChargeForUnfoundKeys`)", async () => {
+        /* 2.0 line T3 INV-07, 27.11.2026. A Key fee whose ask went unanswered left nothing to charge it with but a card;
+           the console now has `chargeKeyFee`, which asks the same road (the trial's `keysCharged` stamp keeps a second
+           charge off). Read off the API, the entry's own text; nothing called. Red at 6966f52: no such entry. */
+        const fn = game.drpg?.chargeKeyFee;
+        must(typeof fn === "function", "game.drpg has no chargeKeyFee");
+        // the entry's own text (api.mjs wraps only an entry that takes an actor, and this takes nothing)
+        ok(/askToChargeForUnfoundKeys\(\)/.test(String(fn)), `chargeKeyFee does not ask askToChargeForUnfoundKeys: ${String(fn)}`);
     }],
 ];
 

@@ -3228,6 +3228,7 @@
       },
       "finalFoundBy": "Found by",
       "finalNobody": "Nobody has found it",
+      "chargeUnanswered": "The primary GM did not answer the Key Remnant fee as the Class Trial opened, so it was not charged. Charge it with the button below.",
       "chargeTooLate": "No Despair was charged for unfound Key Remnants: the clock is in chapter {now}, but the last case belongs to chapter {was}, so this chapter has no case to count.",
       "traceAnalysis": "What analysis reveals"
     },

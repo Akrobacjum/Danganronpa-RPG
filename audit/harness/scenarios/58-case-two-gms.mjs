@@ -38,6 +38,10 @@
  *             the find goes out once, and p1 is told no "already held". Headless, gm's own window for the row (INV-01's)
  *             presses its default button as it opens - the prefilled name - so the words that go out are that window's,
  *             not the words gm2's window was given; at a table a person reads it first.
+ *   INV-07    gm drops every keys.charge packet (a primary that does not answer), and gm2 asks the Key fee as a trial's
+ *             opening asks it (key-remnants.mjs `askToChargeForUnfoundKeys`, which clock.mjs `reconcilePhase` calls - the
+ *             rest of the opening is not run): gm2 holds a held fee's card with Charge the Key fee; gm answers again, the
+ *             button pressed twice charges the fee once. The trial's record, the pools and the plan's rows are put back.
  *
  * What this cannot see: a real server's delivery times and a real F5 (97-two-gms's header says what its `reload` is).
  */
@@ -330,5 +334,52 @@ export async function run(api) {
             && after4.asked === 1 && after4.answeredBy === IDS.gm && after4.described?.by === IDS.gm && after4.described?.timedOut === false
             && waited4?.done === true && waited4.answer?.success === true && bullets4.length === 1 && cards4 === 0 && told4 === 0,
         J({ alone, started4, marked4, after4, waited4, bullets4, cards4, told4 }));
+    await settle(800);
+
+    /* ----------------------------------------------------------------- INV-07 */
+    phase("INV-07 an unanswered Key fee leaves gm2 a card that charges it");
+    // gm drops every keys.charge packet, as a primary that does not answer; gm2 asks the fee as a trial's opening asks it.
+    const kept7 = await gm.eval(`const V = ${imp("vote.mjs")}, D = ${imp("despair.mjs")}, { keyPlanStore } = ${imp("gm-stores.mjs")};
+        globalThis.__s58Trial = structuredClone(game.settings.get("${MOD}", "trialProgress") ?? null);
+        globalThis.__s58Despair = Object.fromEntries(D.monokumas().map(u => [u.id, D.getDespair(u.id)]));
+        globalThis.__s58Plan = new Set(Object.keys(keyPlanStore.entries() ?? {}));
+        const ch = "module.${MOD}", list = game.socket._handlers.get(ch) ?? [];
+        globalThis.__s58Handlers = [...list];
+        list.splice(0, list.length, ...list.map(fn => (packet, ...rest) => (packet?.action === "keys.charge" ? undefined : fn(packet, ...rest))));
+        return { charged: Boolean(V.trialProgress().keysCharged), handlers: list.length };`);
+    await gm2.eval(`globalThis.__s58Had = new Set(game.messages.contents.map(m => m.id)); return true;`);
+    const asked7 = await gm2.eval(`const K = ${imp("key-remnants.mjs")}; return await K.askToChargeForUnfoundKeys() ?? null;`, { timeout: 120000 });
+    const readCard7 = () => gm2.eval(`const S = ${imp("secret.mjs")};
+        const card = game.messages.contents.find(m => !globalThis.__s58Had.has(m.id) && S.cardFlag(m, "keyChargeHeld"));
+        return card ? { id: card.id, button: String(S.contentOf(card) ?? "").includes("data-drpg-key-charge") } : null;`);
+    const card7 = await until(readCard7, v => v !== null, 6000);
+    const notYet7 = await gm.eval(`const V = ${imp("vote.mjs")}; return Boolean(V.trialProgress().keysCharged);`);
+    // gm answers again; gm2 presses the card's button twice, as its click does (`wireChargeHeld`).
+    await gm.eval(`const list = game.socket._handlers.get("module.${MOD}"); list.splice(0, list.length, ...globalThis.__s58Handlers); delete globalThis.__s58Handlers; return true;`);
+    const press7 = () => gm2.eval(`const K = ${imp("key-remnants.mjs")}; const card = game.messages.get(${J(card7?.id ?? "")});
+        if (!card) return "no card";
+        const el = document.createElement("div"); el.innerHTML = \`<div data-message-id="\${card.id}">\${(${imp("secret.mjs")}).contentOf(card)}</div>\`;
+        document.body.append(el); K.wireChargeHeld(card, el.firstElementChild);
+        const button = el.querySelector("[data-drpg-key-charge]"); const had = Boolean(button);
+        button?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+        await new Promise(r => setTimeout(r, 2500)); el.remove(); return had;`, { timeout: 60000 });
+    const pressed7 = [await press7(), await press7()];
+    const after7 = await until(() => gm.eval(`const V = ${imp("vote.mjs")}, D = ${imp("despair.mjs")};
+        return { charged: Boolean(V.trialProgress().keysCharged), moved: D.monokumas().map(u => D.getDespair(u.id) - (globalThis.__s58Despair[u.id] ?? 0)) };`),
+        v => v?.charged === true, 8000);
+    await gm.eval(`const D = ${imp("despair.mjs")}, { keyPlanStore } = ${imp("gm-stores.mjs")};
+        for (const [id, was] of Object.entries(globalThis.__s58Despair)) { const d = was - D.getDespair(id); if (d) await D.adjustDespair(id, d); }
+        await game.settings.set("${MOD}", "trialProgress", globalThis.__s58Trial);
+        for (const key of Object.keys(keyPlanStore.entries() ?? {})) if (!globalThis.__s58Plan.has(key)) await keyPlanStore.drop(key);
+        delete globalThis.__s58Trial; delete globalThis.__s58Despair; delete globalThis.__s58Plan; return true;`, { timeout: 60000 });
+    await gm2.eval(`for (const id of game.messages.contents.filter(m => !globalThis.__s58Had.has(m.id)).map(m => m.id)) await game.messages.get(id)?.delete?.().catch(() => {});
+        delete globalThis.__s58Had; return true;`, { timeout: 60000 });
+    /* What a trial's opening does besides is not run: the fee is asked as `reconcilePhase` asks it (clock.mjs, on the GM who
+       moved the phase), so the part reads the ask and its card, not the budget, the voices or the move to the hall. */
+    check("INV-07: a Key fee gm does not answer leaves gm2 a held fee's card with Charge the Key fee; pressed twice once gm answers again, it is charged once",
+        kept7.charged === false && kept7.handlers > 0 && asked7 === null && card7?.button === true && notYet7 === false
+            // this world closed no case, so the fee is the whole bar short: 4 Key Remnants, 3 Despair each, 12 to each pool, 24 if charged twice
+            && pressed7[0] === true && after7?.charged === true && after7.moved.length === 2 && after7.moved.every(d => d === 12),
+        J({ kept7, asked7, card7, notYet7, pressed7, after7 }));
     await settle(800);
 }

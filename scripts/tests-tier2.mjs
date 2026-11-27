@@ -119213,6 +119213,46 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         equal(stableJson(read), stableJson({ general: 1, specific: 0 }),
             "{general: a sweep's find, the lines to its owners; specific: a named Observe's, whose card already says it waits}");
     }],
+    ["T3 INV-07 - an unanswered Key fee leaves the GMs a card that charges it", async () => {
+        /*
+         * 2.0 line T3 INV-07, 27.11.2026. A Class Trial opened on a GM who is not the primary asks the primary for the Key
+         * fee (key-remnants.mjs `askToChargeForUnfoundKeys`, `keys.charge`); when the ask went unanswered (no answer, no
+         * GM) its null was dropped - no fee, no card, nothing to press. The ask is answered here as the bridge answers a
+         * request nobody answered (`{ ok: false, reason }`, through the function's `ask`, the bridge's seam for the suite),
+         * once with no answer and once with no GM, and once refused. Read: the cards this browser created - whispered to
+         * the GMs, marked as a held fee's (`keyChargeHeld`, with the clock's chapter, `keyChargeChapter`) and holding its
+         * "Charge the Key fee" button - and what the ask answered; deleted after. Red at 6966f52: no card.
+         */
+        const K = await import("./key-remnants.mjs");
+        const { cardFlag, wordsOf } = await import("./secret.mjs");
+        const made = [];
+        const hook = Hooks.on("createChatMessage", doc => { made.push(doc); });
+        const chapter = Number(game.settings.get(MODULE_ID, SETTINGS.clock)?.chapter);
+        const read = {};
+        try {
+            for (const [name, answer] of [["noAnswer", { ok: false, reason: "noAnswer" }], ["noGm", { ok: false, reason: "noGm" }],
+                ["refused", { ok: false, refused: true, reason: "refused" }]]) {
+                const from = made.length;
+                const value = await K.askToChargeForUnfoundKeys({ ask: async () => answer });
+                await settle();
+                const cards = [];
+                for (const doc of made.slice(from)) {
+                    const words = String(await wordsOf(doc, 1000) ?? "");
+                    cards.push([Boolean(cardFlag(doc, "keyChargeHeld")), Number(cardFlag(doc, "keyChargeChapter")) === chapter,
+                        words.includes("data-drpg-key-charge"), (doc.whisper ?? []).includes(game.user.id)]);
+                }
+                read[name] = { value, cards };
+            }
+        } finally {
+            Hooks.off("createChatMessage", hook);
+            for (const doc of made) await doc.delete?.().catch(() => {});
+        }
+        equal(stableJson(read), stableJson({
+            noAnswer: { value: null, cards: [[true, true, true, true]] },
+            noGm: { value: null, cards: [[true, true, true, true]] },
+            refused: { value: null, cards: [] }
+        }), "{each answer: {value: what the ask answered; cards: [held fee's mark, its chapter the clock's, its button, whispered to this GM]}}");
+    }],
 ];
 
 // `drawnForPlayer` for the grid (E33 C7): a drawn crisis roll goes through the suite's one road to a draw (tests-grid.mjs `drawnAct`).
