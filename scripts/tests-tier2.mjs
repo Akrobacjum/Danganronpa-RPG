@@ -118698,6 +118698,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         equal(stableJson(read), stableJson({ told: [false, null, false], revealed: [true, "gm", true] }),
             "{told: after the leaver's own copy alone; revealed: after the GM's Reveal} x [the row's first find, its road, the ref's found]");
     }],
+    // T5 motives-trialprice (2.0 line T5, E135, 27.11.2026): D2-22, INV-08, TRIAL-09 and the motives (D2-23, D2-24).
 ];
 
 // `drawnForPlayer` for the grid (E33 C7): a drawn crisis roll goes through the suite's one road to a draw (tests-grid.mjs `drawnAct`).

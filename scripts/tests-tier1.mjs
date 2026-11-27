@@ -69826,6 +69826,7 @@ const INVARIANTS = [
             constant: true, gmKnows: true, apply: [true, true, true], found: true, held: true }),
         "{rows: [hidden, knows, incident, shown, shown with HOLDER_SEES_HIDDEN false]; the constant; a GM knows any trace; applyToRemnantToken asks the rule with knowsRemnant and shows a hidden held trace; shownAsFound asks the same; showHeld does not defer to a GM's hidden}");
     }],
+    // T5 motives-trialprice (2.0 line T5, E135, 27.11.2026): D2-22, INV-08, TRIAL-09 and the motives (D2-23, D2-24).
 ];
 
 /**
