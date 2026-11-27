@@ -23658,7 +23658,8 @@ const REGRESSIONS = [
                card, its hidden copy and the opening's score - ask for the middle through notice-centre.mjs `withCentre`
                (built), as they were messages before. */
             "murder-rules.mjs": {"action": 1, "built": 4, "card": 6, "heading": 3, "line": 9, "message": 4},
-            "music.mjs": {"card": 1}, "observe.mjs": {"card": 4, "heading": 1, "line": 3},
+            // 2.0 line T3 INV-05: observe.mjs +1 card (a describe window run out, told to every GM: `describeTimedOutGms`)
+            "music.mjs": {"card": 1}, "observe.mjs": {"card": 5, "heading": 1, "line": 3},
             "overflow.mjs": {"built": 1, "message": 2}, "palm.mjs": {"built": 2, "line": 2}, "passages-gm.mjs": {"line": 4},
             "price.mjs": {"line": 2}, "private-rolls.mjs": {"message": 1}, "projects-map.mjs": {"card": 1, "line": 1},
             // S17-31's three sight cards (522cd601, 12 lines) are a player's copy of the GMs' sight since E101's review, R2: 9.
