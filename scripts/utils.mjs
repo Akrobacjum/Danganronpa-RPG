@@ -206,7 +206,9 @@ export function debug(...args) {
     if (on) console.debug(`${MODULE_ID} |`, ...args);
 }
 
-/* global ForgeVTT -- The Forge's own object, read by `forgeAsset` below and nowhere else. */
+/* global ForgeVTT -- The Forge's own object, read by `forgeAsset` below and by `onTheForge` at the end of this file, and
+   nowhere else: R546 runs `forgeAsset`'s own source in a fresh realm, so it reads the name itself rather than through
+   `onTheForge` (2.0 line T4, FORGE-01, 27.11.2026). */
 /**
  * Whether `url` (a parsed URL) is a file of The Forge's Assets Library while this game runs on The Forge
  * (E78 fix h76-HF1, 14.10.2026). The one origin a picture may come from besides this page's: The Forge
@@ -1458,4 +1460,20 @@ export function firstSentence(text) {
 export function restOf(text) {
     const s = String(text ?? "").trim();
     return s.slice(firstSentence(s).length).trim();
+}
+
+/**
+ * Whether this page runs on The Forge (2.0 line T4, FORGE-01, 27.11.2026): `ForgeVTT.usingTheForge`, read by the name
+ * as `forgeAsset` reads it (its comment says why the name and not a property of the page) - true only when the field is
+ * true. case-copy.mjs `hostRefusal` asks it before it takes a refused upload for the host's refusal. Which shape The
+ * Forge's object has is LIVE-E78-11's question; the field's name is read off The Forge's guide, as `forgeAsset`'s is.
+ */
+export function onTheForge() {
+    let forge;
+    try {
+        forge = ForgeVTT;
+    } catch {
+        // No such name on this page, or one not yet initialised: not The Forge.
+    }
+    return forge?.usingTheForge === true;
 }

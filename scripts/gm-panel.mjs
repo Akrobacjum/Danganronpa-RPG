@@ -34,6 +34,7 @@ import { roundOf, readyRecord } from "./boundary.mjs";
 import { trialNextStep, trialStepView, trialStepText } from "./trial-floor.mjs";
 import { openWhoIsAliveDialog } from "./gm-students.mjs";
 import { voiceRoomsLabelKey, voiceRoomsRefusal, toggleVoiceRooms, openRepairs } from "./repair-window.mjs";
+import { copyImpossible } from "./case-copy.mjs";
 
 export { openWhoIsAliveDialog, applyAliveStates } from "./gm-students.mjs";
 export { correctsTheHour, openClockDialog } from "./gm-campaign.mjs";
@@ -358,7 +359,9 @@ const PANEL_SECTIONS = [
             // lives only in GM browsers - the answer keys, the traces, the cast, the Mastermind - to one file and back.
             // gm-stores.mjs `openCaseWindow`: Back up (`backupCase({ ask: true })`) and Restore from a file
             // (`openRestoreDialog`, its preview first), the same functions the two tiles called.
-            { key: "caseWindow", icon: "fa-box-archive", labelKey: "DRPG.Case.tile", subtitle: () => backupAge(),
+            // Its second line says when the copy on the server is impossible (2.0 line T4, FORGE-01): case-copy.mjs `copyImpossible`.
+            { key: "caseWindow", icon: "fa-box-archive", labelKey: "DRPG.Case.tile",
+              subtitle: () => (copyImpossible() ? game.i18n.format("DRPG.Case.copy.tileNoCopy", { when: backupAge() }) : backupAge()),
               run: () => import("./gm-stores.mjs").then(m => m.openCaseWindow()) },
             // GONE FROM HERE: the search-token report is two columns in Room
             // Setup, editing a Remnant's flags is the dashboard's Traces tab,

@@ -7493,7 +7493,6 @@
       },
       "copy": {
         "writeNow": "Write the copy now",
-        "emptyHere": "The case planner is empty here and the server holds no copy of it. Restore it from a backup file: GM panel, Diagnostics, The case.",
         "done": {
           "written": "The copy of the case on the server is written.",
           "same": "The copy of the case on the server already holds this case."
@@ -7507,7 +7506,24 @@
           "notHydrated": "The other GMs' copies of the case have not arrived yet. Try again in a moment.",
           "quiet": "The module's own tests hold the case right now. Try again when they end.",
           "list": "This browser could not list the case's folder on the server. The console has the details.",
-          "failed": "The copy of the case could not be written. The console has the details."
+          "failed": "The copy of the case could not be written. The console has the details.",
+          "host": "This host does not let this browser save the case's copy on the server. The case lives only in the GMs' browsers: at the end of the session save it to a file (GM panel, Diagnostics, The case, Back up), and load that file on a new computer."
+        },
+        "sources": "Where the case comes from on a browser that holds none: another GM's browser while you are both online, the copy on the server, or a backup file (Restore from a file).",
+        "tileNoCopy": "{when}; no copy on the server",
+        "card": {
+          "empty": {
+            "title": "The case planner is empty on this browser",
+            "body": "No other GM is online, and no copy of the case could be read from the server here. The case can come from another GM's browser when they connect, from the copy on the server, or from a backup file: open The case and choose Restore from a file.",
+            "button": "Open The case",
+            "tip": "Opens the window The case: Back up, Restore from a file and the copy on the server."
+          },
+          "file": {
+            "title": "Save the case to a file",
+            "body": "No copy of the case could be written to the server in this session, so the case lives only in the GMs' browsers. Save it to a file now and keep the file where no player can open it; on another computer, load it with Restore from a file.",
+            "button": "Save the case to a file",
+            "tip": "Back up: saves the whole case to a file on this computer."
+          }
         }
       },
       "row": {

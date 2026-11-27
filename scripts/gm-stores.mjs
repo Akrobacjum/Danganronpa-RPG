@@ -3059,8 +3059,11 @@ export async function openCaseWindow() {
         title: game.i18n.localize("DRPG.Case.tile"),
         classes: ["drpg-panel", "drpg-window-case-copy"],
         // The age a fact row in the kit's body ink (components.css `.drpg-briefing-facts`), the health report's own words.
+        /* WHERE THE CASE COMES FROM (2.0 line T4, FORGE-01, 27.11.2026): a browser that opens empty - a new computer, or
+           The Forge, where the copy on the server can be impossible - is told its three sources, in a line of its own. */
         body: `<p class="drpg-briefing-facts" data-drpg-case-age>${esc(age)}</p>
-            <p class="drpg-briefing-facts" data-drpg-case-server>${esc(copyLine)}</p>`,
+            <p class="drpg-briefing-facts" data-drpg-case-server>${esc(copyLine)}</p>
+            <p class="drpg-help" data-drpg-case-sources>${esc(game.i18n.localize("DRPG.Case.copy.sources"))}</p>`,
         render: (event, dialog) => followWhileOpen(dialog, paintCase),
         footer: {
             primary: { action: "backup", label: game.i18n.localize("DRPG.Case.backup"), tooltip: tipText("DRPG.Tips.Gm.backUpTooltip") },
@@ -3084,6 +3087,8 @@ export async function openCaseWindow() {
 /** The server copy's state as the case window's line says it (E111): the refusal, or found or not. Names no file. */
 export function copyLineText(copy) {
     if (copy?.refused && copy.refused !== "notGm") return game.i18n.localize(`DRPG.Case.copy.refused.${copy.refused}`);
+    // The last write or read could not reach the server (FORGE-01): the host refused, a write failed, the folder would not list.
+    if (["host", "failed", "list"].includes(copy?.last)) return game.i18n.localize(`DRPG.Case.copy.refused.${copy.last}`);
     if (!copy?.found) return game.i18n.localize("DRPG.Case.row.copyNone");
     return plural("DRPG.Case.row.copyFound", { n: copy.count, who: copy.exportedBy ?? "?",
         when: copy.exportedAt ? localeFormat("dateTime", Date.parse(copy.exportedAt)) : "?" });

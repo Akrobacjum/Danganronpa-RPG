@@ -70628,6 +70628,160 @@ const INVARIANTS = [
         JSON.stringify({ missing: [], last: "repairs", words: ["Repairs", "Naprawy"], label: game.i18n.localize("DRPG.Repair.tile") }),
         "{missing: the rows' functions game.drpg does not hold; last: Diagnostics' last tile; words: the tile's [en, pl]; label: the drawn tile's words}");
     }],
+    ["R9223 - the host's refusal of the case's copy is told once and stops the tries (2.0 line T4, FORGE-01): case-copy.mjs `writeServerCopy`, on The Forge with an upload refused in the Forge's words, answers \"host\" both times, warns once with `DRPG.Case.copy.refused.host` that stays and logs one warning and no error, and `scheduleCopy` plans nothing after; the same refusal off The Forge, and any other error, is \"failed\" and an error as before; `hostRefusal` takes a 401 or 403 on The Forge alone", async () => {
+        /*
+         * FORGE-01 (docs/dev/v2/F3-forge-S0.md): on The Forge every write ended in `error` and nothing was said. The
+         * FilePicker, The Forge, the stores' hydration, the files' privacy and the screen's warning are stood in through
+         * case-copy.mjs `SEAL_DEPS` (as scenario 34 does); the picker lists an empty folder and refuses the upload, so
+         * nothing is read into the stores and nothing is written. The console's lines are counted in this browser's
+         * failure log (utils.mjs `sessionFailures`). This session's refusal, and a write a failure scheduled, are forgotten after (`forgetCopySession`): cancelled, never written.
+         * Red at 31d5812: "failed" and an error at each write.
+         */
+        must(game.user.isGM, "the case's copy is a GM's");
+        const C = await import("./case-copy.mjs");
+        const { sessionFailures } = await import("./utils.mjs");
+        must(typeof C.hostRefusal === "function" && typeof C.forgetCopySession === "function", "case-copy.mjs has no hostRefusal or forgetCopySession - the host's refusal is not told apart");
+        // A write the module scheduled itself (its read at load, a store's change) is let run its course first: never cancelled.
+        await until(() => !C.copyState().pending, 65000);
+        must(!C.copyState().pending, "a write of the case's copy still waits on this browser after a minute - the test would cancel it");
+        const lastWas = C.copyState().last;
+        const FORGE = "Access Unauthorized. Please enter your API key or sign in to The Forge.";
+        const lines = () => {
+            const rows = sessionFailures().filter(r => /server copy/.test(r.message));
+            return { warn: rows.filter(r => r.level === "warn").reduce((n, r) => n + r.count, 0), error: rows.filter(r => r.level === "error").reduce((n, r) => n + r.count, 0) };
+        };
+        const run = async ({ forge, fail }) => {
+            const told = [];
+            const was = lines();
+            const deps = { ...C.SEAL_DEPS };
+            Object.assign(C.SEAL_DEPS, { hydrated: () => true, forge: () => forge, files: () => null, notify: (text, options) => told.push([text, Boolean(options?.permanent)]),
+                picker: () => ({ browse: async () => ({ files: [] }), createDirectory: async () => {}, upload: async () => { throw fail; } }) });
+            let answers, scheduled, pending;
+            try {
+                answers = [await C.writeServerCopy({ explicit: true }), await C.writeServerCopy({ explicit: true })];
+                scheduled = C.scheduleCopy();
+                pending = C.copyState().pending;
+            } finally {
+                // The write a failure scheduled is cancelled, never flushed against the module's own picker.
+                C.forgetCopySession({ last: lastWas });
+                Object.assign(C.SEAL_DEPS, deps);
+            }
+            const now = lines();
+            return { answers, told, scheduled, pending, warn: now.warn - was.warn, error: now.error - was.error };
+        };
+        const read = {
+            forge: await run({ forge: true, fail: new Error(FORGE) }),
+            offForge: await run({ forge: false, fail: new Error(FORGE) }),
+            other: await run({ forge: true, fail: new Error("R9223 disk full") }),
+            statuses: [C.hostRefusal({ status: 403 }, { forge: true }), C.hostRefusal({ statusCode: 401 }, { forge: true }), C.hostRefusal({ status: 403 }, { forge: false }),
+                C.hostRefusal({ status: 500 }, { forge: true }), C.hostRefusal(new Error("sign in to The Forge"), { forge: true })]
+        };
+        const host = game.i18n.localize("DRPG.Case.copy.refused.host");
+        equal(JSON.stringify(read), JSON.stringify({
+            forge: { answers: ["host", "host"], told: [[host, true]], scheduled: false, pending: false, warn: 1, error: 0 },
+            offForge: { answers: ["failed", "failed"], told: [], scheduled: true, pending: true, warn: 0, error: 2 },
+            other: { answers: ["failed", "failed"], told: [], scheduled: true, pending: true, warn: 0, error: 2 },
+            statuses: [true, true, false, false, true]
+        }), "{forge, offForge, other: [what two writes answered, the warnings told [text, it stays], a write scheduled after, one waiting, console warnings, console errors]; statuses: hostRefusal of a 403, a 401, a 403 off The Forge, a 500, the Forge's words}");
+    }],
+    ["R9224 - an empty planner on a GM's browser alone gets a card that stays, with The case a press away (2.0 line T4, FORGE-01): case-copy.mjs `copyAtLoad`, with the planner empty in a world whose case was recorded and no other GM online, raises the card \"empty\" when the folder held no copy and when it could not be listed, and none with another GM online, with the planner holding something or in a world never recorded; `caseCardBody`'s one button runs what it is handed; at a new session `offerFileAtSession` raises the card \"file\" on the primary while the copy is impossible, once a session", async () => {
+        /*
+         * FORGE-01: a fresh GM browser with no other GM online was told the planner was empty in one `info` that went, and
+         * only when the folder was read. Every reading is the functions' with stand-ins through their parameters (the
+         * folder's read, the planner, the world's mark, who is online, the card) and SEAL_DEPS.files; no card is drawn,
+         * nothing is read into the stores or written. Red at 31d5812: `copyAtLoad` was the module's own, with no card.
+         */
+        must(game.user.isGM, "the case's copy is a GM's");
+        const C = await import("./case-copy.mjs");
+        must(typeof C.copyAtLoad === "function" && typeof C.caseCardBody === "function" && typeof C.offerFileAtSession === "function",
+            "case-copy.mjs has no copyAtLoad, caseCardBody or offerFileAtSession - the empty planner raises no card");
+        // A write the module scheduled itself (its read at load, a store's change) is let run its course first: never cancelled.
+        await until(() => !C.copyState().pending, 65000);
+        must(!C.copyState().pending, "a write of the case's copy still waits on this browser after a minute - the test would cancel it");
+        const filesWere = C.SEAL_DEPS.files;
+        const lastWas = C.copyState().last;
+        const load = async ({ seen = { read: 0, count: 0 }, empty = true, since = 1, alone = true } = {}) => {
+            const cards = [];
+            await C.copyAtLoad({ read: async () => seen, empty: () => empty, since: () => since, alone: () => alone, card: async kind => { cards.push(kind); } });
+            return cards;
+        };
+        const read = {};
+        C.SEAL_DEPS.files = () => null;
+        try {
+            read.noCopy = await load();
+            read.list = await load({ seen: { refused: "list" } });
+            read.quiet = await load({ seen: { refused: "quiet" } });
+            read.read = await load({ seen: { read: 1, count: 1 } });
+            read.otherGm = await load({ alone: false });
+            read.full = await load({ empty: false });
+            read.newWorld = await load({ since: 0 });
+            // The session's card: the copy impossible ("list", from the read above), on the primary, once a session.
+            await load({ seen: { refused: "list" }, empty: false });
+            const cards = [];
+            const card = async kind => { cards.push(kind); };
+            read.session = [await C.offerFileAtSession({ session: 9224, primary: true, card }), await C.offerFileAtSession({ session: 9224, primary: true, card }),
+                await C.offerFileAtSession({ session: 9225, primary: false, card }), cards];
+        } finally {
+            // A load that read "no copy" on the primary scheduled a write: cancelled, never written; the last outcome put back.
+            C.forgetCopySession({ last: lastWas });
+            C.SEAL_DEPS.files = filesWere;
+        }
+        let opened = 0;
+        const body = C.caseCardBody("empty", { open: () => { opened++; } });
+        body.querySelector("button[data-drpg-case-card]").click();
+        await settle();
+        read.card = [body.querySelector("p")?.textContent === game.i18n.localize("DRPG.Case.copy.card.empty.body"),
+            body.querySelector("button")?.textContent === game.i18n.localize("DRPG.Case.copy.card.empty.button"), Boolean(body.querySelector("button")?.dataset.tooltip), opened];
+        equal(JSON.stringify(read), JSON.stringify({
+            noCopy: ["empty"], list: ["empty"], quiet: [], read: [], otherGm: [], full: [], newWorld: [],
+            session: [true, false, false, ["file"]], card: [true, true, true, 1]
+        }), "{each load: the cards raised - no copy, the folder not listed, the suite's quiet, a copy read, another GM online, a planner that holds something, a world never recorded; session: [the primary's first offer, its second in the same session, another GM's, the cards]; card: [its words, its button's words, a tooltip, the button's runs]}");
+    }],
+    ["R9225 - the case tile and The case's window say when the copy on the server is impossible (2.0 line T4, FORGE-01): gm-stores.mjs `copyLineText` says the host's refusal, a failed write and an unlisted folder in their own words; gm-panel.mjs draws the tile's second line with `DRPG.Case.copy.tileNoCopy` while case-copy.mjs `copyImpossible` holds, and the backup's age alone otherwise; the window's body names where the case comes from (`DRPG.Case.copy.sources`), in both languages", async () => {
+        /*
+         * FORGE-01: the tile showed the backup's age alone, and the window's line the last listing. `copyLineText` is
+         * handed each state; the tile is read off `buildSections` with the copy's state made "host" by a refused write on
+         * the stand-ins (R9223's), then forgotten; the window's body is read off its source. Nothing is written. Red at
+         * 31d5812: neither said it.
+         */
+        must(game.user.isGM, "the case tile is a GM's");
+        const C = await import("./case-copy.mjs");
+        const S = await import("./gm-stores.mjs");
+        const P = await import("./gm-panel.mjs");
+        must(typeof C.copyImpossible === "function" && typeof C.forgetCopySession === "function", "case-copy.mjs has no copyImpossible or forgetCopySession - the tile cannot say it");
+        // A write the module scheduled itself (its read at load, a store's change) is let run its course first: never cancelled.
+        await until(() => !C.copyState().pending, 65000);
+        must(!C.copyState().pending, "a write of the case's copy still waits on this browser after a minute - the test would cancel it");
+        const lastWas = C.copyState().last;
+        const L = key => game.i18n.localize(key);
+        const lines = Object.fromEntries(["host", "failed", "list"].map(last => [last, S.copyLineText({ refused: null, found: false, last }) === L(`DRPG.Case.copy.refused.${last}`)]));
+        const tile = () => {
+            const box = document.createElement("div");
+            box.innerHTML = P.buildSections();
+            return box.querySelector('[data-drpg-run="caseWindow"] small')?.textContent ?? null;
+        };
+        const before = tile();
+        const deps = { ...C.SEAL_DEPS };
+        let during;
+        Object.assign(C.SEAL_DEPS, { hydrated: () => true, forge: () => true, files: () => null, notify: () => {},
+            picker: () => ({ browse: async () => ({ files: [] }), createDirectory: async () => {}, upload: async () => { throw new Error("Access Unauthorized. Please enter your API key or sign in to The Forge."); } }) });
+        try {
+            const answer = await C.writeServerCopy({ explicit: true });
+            during = [answer, tile(), S.copyLineText(C.copyStatus()) === L("DRPG.Case.copy.refused.host")];
+        } finally {
+            C.forgetCopySession({ last: lastWas });
+            Object.assign(C.SEAL_DEPS, deps);
+        }
+        const files = {};
+        for (const code of ["en", "pl"]) files[code] = await fetch(`/modules/${MODULE_ID}/lang/${code}.json`).then(r => r.json());
+        const windowSource = fnSource(stripComments(new Map(await moduleSources()).get("gm-stores.mjs") ?? ""), "openCaseWindow");
+        must(windowSource, "gm-stores.mjs has no openCaseWindow - this would measure nothing");
+        equal(JSON.stringify({ lines, before: before !== null && !before.includes(";"), during, after: tile() === before,
+            sources: /DRPG\.Case\.copy\.sources/.test(windowSource), words: [Boolean(files.en?.DRPG?.Case?.copy?.sources), Boolean(files.pl?.DRPG?.Case?.copy?.sources)] }),
+        JSON.stringify({ lines: { host: true, failed: true, list: true }, before: true,
+            during: ["host", game.i18n.format("DRPG.Case.copy.tileNoCopy", { when: before }), true], after: true, sources: true, words: [true, true] }),
+        "{lines: the window's line for each impossible copy is its own words; before: the tile's second line the backup's age alone; during (the host refused): [the write's answer, the tile's second line, the window's line]; after: the tile as before; sources: the window names where the case comes from; words: [en, pl]}");
+    }],
 ];
 
 /**

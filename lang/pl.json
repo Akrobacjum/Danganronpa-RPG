@@ -9301,7 +9301,6 @@
       },
       "copy": {
         "writeNow": "Zapisz kopię teraz",
-        "emptyHere": "Planer sprawy jest tu pusty, a serwer nie ma jego kopii. Przywróć go z pliku kopii: panel GM-a, Diagnostyka, Sprawa.",
         "done": {
           "written": "Kopia na serwerze zapisana.",
           "same": "Kopia na serwerze ma już tę sprawę."
@@ -9315,7 +9314,24 @@
           "notHydrated": "Kopie sprawy od innych GM-ów jeszcze nie dotarły. Spróbuj za chwilę.",
           "quiet": "Testy modułu trzymają teraz sprawę. Spróbuj, gdy się skończą.",
           "list": "Ta przeglądarka nie mogła odczytać folderu sprawy na serwerze. Szczegóły są w konsoli.",
-          "failed": "Nie udało się zapisać kopii sprawy. Szczegóły są w konsoli."
+          "failed": "Nie udało się zapisać kopii sprawy. Szczegóły są w konsoli.",
+          "host": "Ten hosting nie pozwala tej przeglądarce zapisać kopii sprawy na serwerze. Sprawa jest tylko w przeglądarkach GM-ów: na koniec sesji zapisz ją do pliku (panel GM-a, Diagnostyka, Sprawa, Zrób kopię), a na nowym komputerze wczytaj ten plik."
+        },
+        "sources": "Skąd sprawa trafia do przeglądarki, która jej nie ma: z przeglądarki innego GM-a, gdy oboje jesteście online, z kopii na serwerze albo z pliku kopii (Przywróć z pliku).",
+        "tileNoCopy": "{when}; brak kopii na serwerze",
+        "card": {
+          "empty": {
+            "title": "Planer sprawy jest pusty w tej przeglądarce",
+            "body": "Żaden inny GM nie jest online i nie udało się tu wczytać kopii sprawy z serwera. Sprawa może przyjść z przeglądarki innego GM-a, gdy się połączy, z kopii na serwerze albo z pliku kopii: otwórz Sprawę i wybierz Przywróć z pliku.",
+            "button": "Otwórz Sprawę",
+            "tip": "Otwiera okno Sprawa: Zrób kopię, Przywróć z pliku i kopia na serwerze."
+          },
+          "file": {
+            "title": "Zapisz sprawę do pliku",
+            "body": "W tej sesji nie udało się zapisać kopii sprawy na serwerze, więc sprawa jest tylko w przeglądarkach GM-ów. Zapisz ją teraz do pliku i trzymaj plik tam, gdzie żaden gracz go nie otworzy; na innym komputerze wczytaj go przez Przywróć z pliku.",
+            "button": "Zapisz sprawę do pliku",
+            "tip": "Zrób kopię: zapisuje całą sprawę do pliku na tym komputerze."
+          }
         }
       },
       "row": {
