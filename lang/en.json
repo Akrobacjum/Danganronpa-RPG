@@ -643,6 +643,7 @@
       },
       "refunded": "You get {what} back.",
       "refundLost": "The {what} you paid did not come back, because the Despair Overflow blocks Hope. Tell the GM.",
+      "refundNoGm": "Your Objection lapsed because no GM could take your Truth Bullet. You get {what} back.",
       "noPrice": "This is not something you can do."
     },
     "Assign": {

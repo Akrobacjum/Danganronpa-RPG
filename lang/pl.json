@@ -8885,6 +8885,7 @@
       },
       "refunded": "Odzyskujesz: {what}.",
       "refundLost": "Nie odzyskujesz {what}: trwa zaciemnienie Overflow, w którym nie zdobywa się Hope. Powiedz o tym GM-owi.",
+      "refundNoGm": "Twoje Objection wygasło, bo żaden GM nie mógł przyjąć Truth Bulletu. Odzyskujesz: {what}.",
       "noPrice": "Tego nie możesz zrobić."
     },
     "Contract": {

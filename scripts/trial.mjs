@@ -710,6 +710,8 @@ export function registerTrial() {
             if (body) body.innerHTML = html;
         }
     });
+    // When this browser began to listen, for a lapsed Objection's price (2.0 line T5, TRIAL-09; `registerListening`).
+    registerListening();
 }
 
 /**
@@ -1720,5 +1722,113 @@ export async function openObjectionLog() {
             });
         },
         rejectClose: false
+    });
+}
+
+/* ==========================================================================
+ * AN OBJECTION THAT LAPSED WHILE NO GM LISTENED GIVES BACK WHAT IT COST
+ * --------------------------------------------------------------------------
+ * 2.0 line T5, TRIAL-09 (27.11.2026; F1-trial; TRIAGE-3 paket 3, accepted by D2-07: "Zwrot ceny, gdy Objection
+ * wygasa przez brak GM-a (noGm, noAnswer); zgodnie z nowa kolejnoscia D2-22"). The objector has
+ * `TRIAL.objectionPickSeconds` to choose the Truth Bullet, sent by `trial.evidence` to the primary. When the only GM
+ * reloads or loses the connection inside those seconds, the pick ends `noGm` or `noAnswer`, and the primary's first tick
+ * after its return lapses the Objection (trial-floor.mjs `advanceFrom`) - and until 2.0 the price stayed, by D4's rule
+ * for a lapse, which is right when the player let the seconds run out and wrong when nobody could take the bullet.
+ *
+ * NOBODY LISTENED, AS THE PRIMARY ITSELF KNOWS IT. The primary cannot see a packet that never reached it, and a
+ * player's word that one was sent is a claim (the trust model). What it can see is when it began to listen: its own
+ * `ready`, its socket coming back (`game.socket` "connect"), the moment it became the primary (a GM before it left).
+ * `listeningAt` is the server time of the latest of those, and a pending Objection whose pick began before it
+ * (`floor.startedAt < listeningAt`) was picked while this primary was not there to hear it (`lapseRefundDue`). That is
+ * generous by choice, not measured: a short break of the GM's network during the pick gives the price back too, and so
+ * does a second GM taking over as primary while the first's tab closed - the line's question 8.9 to the owner.
+ *
+ * THE RECEIPT IS THE PRICE, ONCE. What comes back is the record's receipt (`trialProgress().objections[card].paid`,
+ * `keepReceipt`), the step that paid - an action, a Sanity mark or Hope (D2-22 orders the paying; a refund gives back
+ * exactly the receipt) - through price.mjs `refundPrice`. The receipt is marked `refunded` in the record's own step
+ * before the refund is written (`lapseRefundOf` reads that mark), and the lapse's card withdrawal then drops it
+ * (`withdrawObjectionCard`), so a second GM's tick or a Now on the same floor gives nothing again. The card says the
+ * lapse as before; the objector is whispered what came back (`DRPG.Price.refundNoGm`). A withdrawal by the objector, an
+ * Overrule and a lapse while the GM listened keep the price, as D4 and R1028 say.
+ * ========================================================================== */
+
+let listeningAt = 0;
+let wasPrimary = false;
+
+/** The server time this browser last began to listen (`noteListening`), 0 before its `ready`. */
+export function listeningSince() {
+    return listeningAt;
+}
+
+/** This browser begins to listen now (its `ready`, its socket back, its becoming the primary), or at `at` (the suite's). */
+export function noteListening(at = serverNow()) {
+    listeningAt = Number(at) || 0;
+    wasPrimary = isPrimaryGm();
+    return listeningAt;
+}
+
+/**
+ * Whether a lapse of `floor` gives its price back: a pending Objection, with its card, whose pick began before this
+ * browser last began to listen. Pure over what it is handed (R9329).
+ */
+export function lapseRefundDue(floor, { listeningSince: since = listeningAt } = {}) {
+    if (!floor || floor.mode !== "objection" || floor.pending !== true || !floor.messageId) return false;
+    const began = Number(floor.startedAt) || 0;
+    return began > 0 && began < (Number(since) || 0);
+}
+
+/** The receipt of `messageId` a lapse may still give back: one that paid something and is not marked refunded. Pure (R9331). */
+export function lapseRefundOf(record, messageId) {
+    const row = record?.objections?.[messageId] ?? null;
+    return row && !row.refunded && row.paid?.pay ? row : null;
+}
+
+/**
+ * The primary GM gives a lapsed Objection's price back (trial-floor.mjs `advanceFrom`, when `lapseRefundDue`): the
+ * receipt marked `refunded` in the record's step, then `refundPrice` of it, and the objector told. Answers whether it
+ * gave anything back.
+ */
+export async function refundLapsedObjection(messageId) {
+    if (!isPrimaryGm() || !messageId) return false;
+    let row = null;
+    try {
+        const { setTrialProgress } = await import("./vote.mjs");
+        await setTrialProgress(record => {
+            const due = lapseRefundOf(record, messageId);
+            if (!due) return null;
+            row = due;
+            return { objections: { ...(record.objections ?? {}), [messageId]: { ...due, refunded: true } } };
+        });
+    } catch (err) {
+        error("Could not mark a lapsed Objection's receipt as refunded", err);
+        return false;
+    }
+    if (!row) return false;
+    const actor = game.actors.get(row.objectorId ?? "");
+    if (!actor) return false;
+    // Told here, in the lapse's own words: the refund's own "you get it back" whisper is kept off (`quiet`).
+    const landed = await refundPrice(actor, row.paid, { quiet: true });
+    if (landed) {
+        await whisperToOwner(actor, `<p>${esc(game.i18n.format("DRPG.Price.refundNoGm", { what: priceLabel(row.paid) }))}</p>`)
+            .catch(err => error("Could not tell an objector their lapsed Objection's price came back", err));
+    }
+    log(`${actor.name}'s Objection lapsed while no GM listened: ${landed ? "its price came back" : "its price could not come back"}.`);
+    return Boolean(landed);
+}
+
+/* When this browser begins to listen: its `ready`, its socket's return, and becoming the primary (`userConnected`, a GM
+   before it leaving). Registered from `registerTrial`, at init; `ready` is waited for there, where `game.user` is set. */
+function registerListening() {
+    Hooks.once("ready", () => { noteListening(); });
+    try {
+        game.socket?.on?.("connect", () => { if (game.user?.isGM) noteListening(); });
+    } catch (err) {
+        error("Could not listen for the socket's return", err);
+    }
+    Hooks.on("userConnected", () => {
+        if (!game.user?.isGM) return;
+        const now = isPrimaryGm();
+        if (now && !wasPrimary) noteListening();
+        wasPrimary = now;
     });
 }

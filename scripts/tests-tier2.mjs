@@ -49982,6 +49982,11 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         const made = [];
         let room = null;
         const read = [];
+        // A GM listened throughout (2.0 line T5, TRIAL-09): the lapse below keeps its price only when the primary listened
+        // since before the pick began, and its seconds are written 31 s back - so the listening mark is set before any
+        // of it, and put back after.
+        const listenedWas = trial.listeningSince?.() ?? null;
+        trial.noteListening?.(1);
         try {
             await setClock({ ...clock, phase: "classTrial" });
             if (floorMod.trialFloor()) await floorMod.endFloor();
@@ -50026,6 +50031,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
                     Boolean(second?.getFlag(MODULE_ID, TRIAL_FLAGS.pending)), second?.getFlag(MODULE_ID, TRIAL_FLAGS.item) === mine.id);
             }
         } finally {
+            if (listenedWas !== null) trial.noteListening(listenedWas);
             room?.restore();
             await clearObjections(floorMod, seen);
             for (const item of made) { try { await item?.delete(); } catch { /* already gone */ } }
@@ -50088,6 +50094,11 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             return [cards.length, entries.length, body.includes(pending), body.includes(name), body.includes(text), body.includes(withdrawn),
                 entries.some(entry => String(entry.text ?? "").includes(body.includes(withdrawn) ? withdrawn : body.includes(name) ? name : pending))];
         };
+        // A GM listened throughout (2.0 line T5, TRIAL-09): the lapse below keeps its price only when the primary listened
+        // since before the pick began, and its seconds are written 31 s back - so the listening mark is set before any
+        // of it, and put back after.
+        const listenedWas = trial.listeningSince?.() ?? null;
+        trial.noteListening?.(1);
         try {
             await setClock({ ...clock, phase: "classTrial" });
             if (floorMod.trialFloor()) await floorMod.endFloor();
@@ -50138,6 +50149,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             await until(() => onTable(lapsed)[5] && onTable(lapsed)[6], 5000);
             read.push(onTable(lapsed));
         } finally {
+            if (listenedWas !== null) trial.noteListening(listenedWas);
             room?.restore();
             await clearObjections(floorMod, seen);
             try { await item?.delete(); } catch { /* already gone */ }
@@ -118944,6 +118956,93 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         }
         must(gone === 1, "the bullet was not deleted between the payment and the reading - this would measure nothing");
         equal(stableJson(read), stableJson([2, 2, false]), "[actions before, after the Analyze of a bullet gone, the bullet still held]");
+    }],
+    ["E135 TRIAL-09 - an Objection that lapsed while no GM listened gives back what it cost, once, and one that lapsed while a GM listened keeps its price", async () => {
+        /*
+         * 2.0 line T5, TRIAL-09 (F1-trial; TRIAGE-3 paket 3, D2-07). O raises an Objection at B with no action left, so it
+         * is paid with a Sanity mark (D2-22), on the fallback road (a Room that is not connected), as E79 C16's lapse test
+         * does; then its seconds are spent (the floor's `startedAt` written 31 s back) and the heartbeat lapses it. Twice:
+         * first with this primary's `listeningSince` set after the pick began (trial.mjs `noteListening`, as its `ready`,
+         * its socket's return or its becoming the primary set it - the only GM reloaded while O chose), then with it
+         * before (a GM listened throughout). Read for each: O's Sanity marks before and after, the whispers that say
+         * `DRPG.Price.refundNoGm`, the receipt's `refunded`, and a second refund of the same card (`refundLapsedObjection`
+         * again: false). Everything put back: the listening mark, the Room, the clock, the queue, O's actions, Sanity and
+         * grants, the bullets and every message. Red at 4ac0149 (1.2.129): no `noteListening`, and the mark stayed.
+         */
+        const kit = await objectionKit();
+        ok(kit, "there is no pending Objection to lapse - the bullet is still chosen before the Objection");
+        if (!kit) return;
+        const { trial, speakers } = kit;
+        must(typeof trial.noteListening === "function" && typeof trial.listeningSince === "function", "trial.mjs keeps no listening mark - TRIAL-09 is not there");
+        const floorMod = await import("./trial-floor.mjs");
+        const bullets = await import("./truth-bullets.mjs");
+        const { contentOf } = await import("./secret.mjs");
+        const { sheetAuditIdle } = await import("./sheet-audit.mjs");
+        const V = await import("./vote.mjs");
+        const [O, B] = cast(2);
+        const clock = foundry.utils.deepClone(getClock());
+        const queue = foundry.utils.deepClone(getSetting(SETTINGS.trialQueue) ?? {});
+        const before = { actions: O.system.resources.actions.value, max: O.system.resources.actions.max, stress: O.system.resources.stress.value,
+            grants: O.getFlag(MODULE_ID, FLAGS.freeActionGrants) ?? 0 };
+        const listenedWas = trial.listeningSince();
+        const seen = new Set(game.messages.map(m => m.id));
+        const told = game.i18n.format("DRPG.Price.refundNoGm", { what: "\u0000" }).split("\u0000")[0].trim();
+        const toldCount = () => game.messages.filter(m => !seen.has(m.id)).filter(m => String(contentOf(m) ?? "").includes(told)).length;
+        const made = [];
+        let room = null;
+        const read = {};
+        const lapse = async heard => {
+            const room0 = Number(O.system.resources.stress.max) || 6;
+            await O.update({ "system.resources.actions.value": 0, "system.resources.stress.value": room0 - 3 });
+            await sheetAuditIdle();
+            await settle();
+            const marks = O.system.resources.stress.value;
+            const raised = await trial.objectOnPrimary({ actorId: O.id, targetId: B.id });
+            must(raised.reply?.messageId, `the Objection was not raised (${raised.refused})`);
+            const card = raised.reply.messageId;
+            const paid = V.trialProgress().objections?.[card]?.paid?.pay ?? null;
+            const startedAt = floorMod.trialFloor()?.startedAt ?? 0;
+            // "before": earlier than the start the seconds are then written back to (31 s), as a GM listening throughout reads.
+            trial.noteListening(heard === "after" ? startedAt + 1 : startedAt - 60000);
+            const n = toldCount();
+            const stored = getSetting(SETTINGS.trialQueue);
+            await game.settings.set(MODULE_ID, SETTINGS.trialQueue, { ...stored, startedAt: stored.startedAt - 31000 });
+            await until(() => floorMod.trialFloor()?.mode === floorMod.FLOOR_MODES.debate, 5000);
+            await sheetAuditIdle();
+            await settle();
+            const again = await trial.refundLapsedObjection(card);
+            await sheetAuditIdle();
+            return [paid, O.system.resources.stress.value - marks, toldCount() - n, again];
+        };
+        try {
+            await setClock({ ...clock, phase: "classTrial" });
+            if (floorMod.trialFloor()) await floorMod.endFloor();
+            await floorMod.startFloor({});
+            await O.setFlag(MODULE_ID, FLAGS.freeActionGrants, 0);
+            await O.update({ "system.resources.actions.max": 3 });
+            made.push(await bullets.createTruthBullet(O, { name: "SUITE E135 TRIAL-09 O's bullet", realType: "neutral", visibility: "obvious" }));
+            must(made.every(Boolean), "the fixture's Truth Bullet was not made");
+            room = standInRoom(speakers, { connected: false });
+            read.unheard = await lapse("after");
+            await floorMod.startFloor({});
+            read.heard = await lapse("before");
+        } finally {
+            trial.noteListening(listenedWas);
+            room?.restore();
+            await clearObjections(floorMod, seen);
+            for (const item of made) { try { await item?.delete(); } catch { /* already gone */ } }
+            if (floorMod.trialFloor()) await floorMod.endFloor();
+            await game.settings.set(MODULE_ID, SETTINGS.trialQueue, queue);
+            await setClock(clock);
+            await O.setFlag(MODULE_ID, FLAGS.freeActionGrants, before.grants);
+            await O.update({ "system.resources.actions.max": before.max, "system.resources.actions.value": before.actions, "system.resources.stress.value": before.stress });
+            await sheetAuditIdle();
+            for (const m of game.messages.filter(m => !seen.has(m.id))) await m.delete().catch(() => {});
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ unheard: ["stress", 0, 1, false], heard: ["stress", 1, 0, false] }),
+            "{unheard: the GM began to listen after the pick began; heard: it listened throughout} x [the receipt's step, O's Sanity marks after the lapse less before the raise, "
+            + "the whispers of refundNoGm, a second refund of the card]");
     }],
 ];
 

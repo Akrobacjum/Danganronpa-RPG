@@ -69989,6 +69989,67 @@ const INVARIANTS = [
             stableJson({ refusals: 4, nulls: 2, before: true, writes: true }),
             "{refusals: the resolver's `return { refused` count; nulls: its `return null`; before: all of them ahead of the first setSecret( or .update(; writes: a write was found}");
     }],
+    ["R9329 - TRIAL-09: a lapse gives the price back only for a pending Objection that began before the primary GM last began to listen (trial.mjs `lapseRefundDue`) - not a withdrawal, not an Overrule, not the minute after its Truth Bullet, not a rebuttal, not one raised while it listened", async () => {
+        /*
+         * 2.0 line T5, TRIAL-09 (F1-trial; TRIAGE-3 paket 3, D2-07: "Zwrot ceny, gdy Objection wygasa przez brak GM-a (noGm,
+         * noAnswer)"). The primary GM's browser cannot see a player's `trial.evidence` that never reached it; what it can
+         * see is when it itself began to listen - its `ready`, its socket coming back, the moment it became the primary -
+         * and an Objection whose pick began before that was picked while nobody heard it (`listeningSince`, a claim of
+         * no packet). Pure over floors handed in. Red at 4ac0149 (1.2.129): trial.mjs has no `lapseRefundDue`, the honest
+         * red of a part not yet there.
+         */
+        const T = await import("./trial.mjs");
+        must(typeof T.lapseRefundDue === "function", "trial.mjs has no lapseRefundDue - TRIAL-09's rule is not one function");
+        const since = 10000;
+        const floor = patch => ({ mode: "objection", pending: true, messageId: "R9329card0000000", holderId: "R9329objector000", startedAt: 9000, ...patch });
+        const cases = [
+            floor({}), floor({ startedAt: 11000 }), floor({ pending: false }), floor({ mode: "rebuttal" }), floor({ mode: "debate", pending: undefined }),
+            floor({ messageId: null }), floor({ startedAt: 0 }), null
+        ];
+        equal(stableJson(cases.map(f => T.lapseRefundDue(f, { listeningSince: since }))), stableJson([true, false, false, false, false, false, false, false]),
+            "[a pending Objection begun before the GM listened; begun after it; its minute after the bullet; a rebuttal; the debate a withdrawal or an Overrule "
+            + "leaves; no card; no start; no floor]");
+    }],
+
+    ["R9330 - TRIAL-09: the lapse gives back before the card's withdrawal drops the receipt, and the withdrawal and the Overrule still give nothing back (trial-floor.mjs `advanceFrom`, `withdrawObjection`, `overruleInStep`)", async () => {
+        /*
+         * 2.0 line T5, TRIAL-09 (2). `withdrawObjectionCard` takes the receipt out of the record (`dropReceipt`), so the
+         * refund reads it first: in `advanceFrom` the call of `refundLapsedObjection` stands before `commitFloor`, whose
+         * `withdrawReplaced` withdraws the card. The roads D4 keeps the price on are left as they were - no `refundPrice`
+         * and no refund of a lapse in `withdrawObjection`, its step (`withdrawObjectionInStep`), or `overruleInStep` (R1028 holds the Overrule's too).
+         * Read off the source, comments blanked. Red at 4ac0149 (1.2.129): `advanceFrom` asked no refund.
+         */
+        const src = stripComments((await moduleSources()).get("trial-floor.mjs") ?? "");
+        const advance = fnSource(src, "advanceFrom") ?? "";
+        must(advance.length > 100, "trial-floor.mjs `advanceFrom` was not found - this would measure nothing");
+        // The last `commitFloor(`: the Closing's draw, above the lapse's branch, commits a floor of its own first.
+        const refundAt = advance.indexOf("refundLapsedObjection("), commitAt = advance.lastIndexOf("commitFloor(");
+        const quiet = ["withdrawObjection", "withdrawObjectionInStep", "overruleInStep"].map(name => {
+            const body = fnSource(src, name) ?? "";
+            return [body.length > 0, /refundPrice\(|refundLapsedObjection\(/.test(body)];
+        });
+        equal(stableJson({ refund: refundAt > -1, before: refundAt > -1 && refundAt < commitAt, gated: /lapseRefundDue\(/.test(advance), quiet }),
+            stableJson({ refund: true, before: true, gated: true, quiet: [[true, false], [true, false], [true, false]] }),
+            "{refund: advanceFrom asks refundLapsedObjection; before: ahead of its last commitFloor; gated: by lapseRefundDue; quiet: [withdrawObjection, withdrawObjectionInStep, overruleInStep] x [found, gives anything back]}");
+    }],
+
+    ["R9331 - TRIAL-09: a lapsed Objection's price comes back once - the receipt marked refunded gives nothing a second time, nor one with nothing paid or none at all (trial.mjs `lapseRefundOf`)", async () => {
+        /*
+         * 2.0 line T5, TRIAL-09 (1). The refund marks the receipt `refunded: true` in the record in the same step that reads
+         * it, so a second GM's tick or a GM's Now on the same floor finds nothing to give. Pure over a record handed in.
+         * Red at 4ac0149 (1.2.129): no `lapseRefundOf`, the honest red of a part not yet there.
+         */
+        const T = await import("./trial.mjs");
+        must(typeof T.lapseRefundOf === "function", "trial.mjs has no lapseRefundOf - the one-refund rule is not one function");
+        const paid = { key: "objection", pay: "stress", amount: 1, grant: false };
+        const record = { objections: {
+            a: { objectorId: "x", paid }, b: { objectorId: "x", paid, refunded: true }, c: { objectorId: "x", paid: null },
+            d: { objectorId: "x", paid: { key: "objection", pay: null, amount: 0 } }
+        } };
+        equal(stableJson(["a", "b", "c", "d", "e"].map(id => T.lapseRefundOf(record, id)?.paid?.pay ?? null).concat([T.lapseRefundOf(null, "a")])),
+            stableJson(["stress", null, null, null, null, null]),
+            "[a receipt paid with Sanity; the same marked refunded; nothing paid; a receipt with no step; no receipt; no record]");
+    }],
 ];
 
 /**
