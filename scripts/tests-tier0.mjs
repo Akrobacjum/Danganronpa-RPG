@@ -27910,6 +27910,18 @@ const REGRESSIONS = [
             "{fitMin; fit: an 8000x2000 case in a 1000x400 view; tiny: one past the 5% floor; floor: the window's floor for it; smallFloor: a case that fits at 40%; unknownFloor: sizes not laid out; outAtFit, inFromFit: a step out and in from the fit; keptByApply: the clamp of the fit; transform; road: [wireCaseCamera asks the floor, fits the canvas to the box, zooms (buttons, keys, wheel) to the floor, clamps each apply to it, draws it]; readout: the toolbar's percent reads below 25%}");
     }],
     // T3 investigation-trial-chapter
+    ["R9134 - the summary's preview warns after a wrong verdict that sending it narrows the suspects, and only then (2.0 line T3 TRIAL-12; case-summary.mjs `summaryWarning`)", async () => {
+        /* 2.0 line T3 TRIAL-12, 27.11.2026. Pure on three payloads; nothing read or written. Red at c820fd7: no
+           `summaryWarning`. */
+        const S = await import("./case-summary.mjs");
+        must(typeof S.summaryWarning === "function", "case-summary.mjs has no summaryWarning: the preview of a wrong verdict's summary warns of nothing");
+        const node = { role: "evidence", name: "SUITE knife", text: "" };
+        equal(JSON.stringify([S.summaryWarning({ correct: false, nodes: [node] }), S.summaryWarning({ correct: false, nodes: [] }),
+            S.summaryWarning({ correct: true, nodes: [node] }), S.summaryWarning(null)]),
+        JSON.stringify(["DRPG.CaseSummary.wrongVerdictHint", null, null, null]),
+            "[a wrong verdict with evidence in the summary, a wrong verdict with nothing in it, a right verdict, no payload]");
+        ok(game.i18n.localize("DRPG.CaseSummary.wrongVerdictHint") !== "DRPG.CaseSummary.wrongVerdictHint", "the warning's words are missing");
+    }],
 ];
 
 

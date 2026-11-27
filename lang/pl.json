@@ -9667,7 +9667,8 @@
         "deduction": "Wnioski",
         "counter": "Kontry",
         "solution": "Rozwiązanie"
-      }
+      },
+      "wrongVerdictHint": "Werdykt był błędny, a zabójca gra dalej. Wysłane podsumowanie pokaże stołowi, które dowody i dedukcje były trafne, więc zawęzi krąg podejrzanych."
     },
     "Reveal": {
       "section": "Brakujące Key Remnanty",

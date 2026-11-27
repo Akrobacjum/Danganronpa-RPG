@@ -62,6 +62,16 @@ export function caseSummaryHtml(payload, { esc = s => String(s ?? "").replace(/[
 }
 
 /**
+ * THE PREVIEW WARNS WHEN THE KILLER PLAYS ON (2.0 line T3 TRIAL-12, 27.11.2026; the owner's recommendation). After a wrong
+ * verdict the summary shows the table the evidence tied to the murder that somebody found and the deductions the GMs
+ * ticked, while the Blackened plays on: sent, it narrows the suspects. The key of the warning the preview draws above the
+ * summary, or null - a wrong verdict with something in the summary; pure on the payload (R9134). Sending stays the GM's.
+ */
+export function summaryWarning(payload) {
+    return payload?.correct === false && Array.isArray(payload.nodes) && payload.nodes.length ? "DRPG.CaseSummary.wrongVerdictHint" : null;
+}
+
+/**
  * SHOW SUMMARY (E99 C7; D2's answer: the GM presses it after the verdict; Q-E99-9: once per trial). On a GM: the
  * chapter's graph, the trial's ticks, what the students found and the verdict's `correct`, composed by
  * `composeCaseSummary`; a preview of exactly what goes out (Close, the default; Send, never under Enter); Send posts one
@@ -75,7 +85,7 @@ export async function showCaseSummary() {
     if (!game.user?.isGM) return null;
     const { MODULE_ID } = await import("./config.mjs");
     const { esc, error } = await import("./utils.mjs");
-    const { drpgWindow, tipText } = await import("./ui-kit.mjs");
+    const { drpgWindow, tipText, box } = await import("./ui-kit.mjs");
     const { caseGraph, caseTicks } = await import("./case-schema.mjs");
     const { findersByAnyRemnant } = await import("./investigation.mjs");
     const { trialProgress, setTrialProgress } = await import("./vote.mjs");
@@ -93,7 +103,7 @@ export async function showCaseSummary() {
     const answer = await drpgWindow({
         title: L("DRPG.CaseSummary.previewTitle"),
         classes: ["drpg-panel", "drpg-window-case-summary"],
-        body: `<p>${esc(L("DRPG.CaseSummary.intro"))}</p>${html}`,
+        body: `<p>${esc(L("DRPG.CaseSummary.intro"))}</p>${summaryWarning(payload) ? box("warning", esc(L(summaryWarning(payload)))) : ""}${html}`,
         footer: { close: { role: "close", action: "close" }, secondary: [{ action: "send", label: L("DRPG.CaseSummary.send"), class: "drpg-state-change", tooltip: tipText("DRPG.Tips.Case.sendToEveryoneTooltip") }], default: "close" },
         rejectClose: false
     });
