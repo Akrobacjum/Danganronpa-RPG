@@ -656,7 +656,12 @@
       "notEnough": "{call} kosztuje {cost} Despair, a pula, która za niego płaci, może wydać tylko {held}.",
       "unknownCall": "Nieznany Despair Call: {key}.",
       "poolEmpty": "Ta pula nie ma Despair do oddania.",
-      "hopeAlreadyFull": "Ich Hope jest już na maksimum.",
+      "hopeAlreadyFull": {
+        "one": "{name} ma już maksimum Hope.",
+        "few": "Wszyscy ({n}) mają już maksimum Hope.",
+        "many": "Wszyscy ({n}) mają już maksimum Hope.",
+        "other": "Wszyscy ({n}) mają już maksimum Hope."
+      },
       "hopeConverted": "{who} zamienia dla ciebie część swojego Despair na Hope. Zyskujesz {n} Hope.",
       "owed": {
         "one": "{n} do spłaty",

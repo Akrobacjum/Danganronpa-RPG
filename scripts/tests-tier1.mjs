@@ -70197,6 +70197,38 @@ const INVARIANTS = [
             stableJson({ glass: null, legacy: null, glassPanel: true }),
             `[the rule winning \`height\` on the handbooks window under each theme, and the control] - read: ${stableJson(got)}`);
     }],
+    ["R9247 - \"already at the maximum Hope\" names its one receiver (2.0 line T4, CALLS-18): call-effects.mjs `refusalBeforePaying` for a Call that grants Hope to a target whose Hope is full says the counted key's one form with the target's name as seen, and despair.mjs `creditHopeFromDespair` asks the same form with the receiver's name; the key is counted in both languages (one/other; Polish one/few/many/other) and no code reads it bare", async () => {
+        /*
+         * CALLS-18 (docs/dev/v2/F1-calls.md; TRIAGE-3): "Their Hope is already at maximum." / "Ich Hope jest już na maksimum."
+         * spoke of one receiver in the plural. The Call's refusal is read on a stand-in target - the world's first student
+         * with its Hope at its maximum, in this page's memory alone (a prototype over the student and its `system`) - so
+         * nothing is written; the Despair credit, whose refusal comes after a write road, is read in its source. Red at
+         * 31d5812: the bare key, "Their Hope is already at maximum."
+         */
+        const E = await import("./call-effects.mjs");
+        const { overflowBlocksHope } = await import("./overflow.mjs");
+        const { nameAsSeen } = await import("./mask-gm.mjs");
+        const real = studentActors()[0];
+        must(real, "no student in the world - this would measure nothing");
+        must(!overflowBlocksHope(), "the Overflow's darkening holds Hope here - the refusal read would be its, not this one");
+        const resources = foundry.utils.deepClone(real.system.toObject?.()?.resources ?? real.system.resources);
+        const max = resources.hope?.max || 6;
+        const target = Object.create(real, { system: { value: Object.create(real.system, { resources: { value: { ...resources, hope: { ...resources.hope, value: max, max } }, enumerable: true } }) } });
+        const said = E.refusalBeforePaying({ grantsHope: true }, { target });
+        const files = {};
+        for (const code of ["en", "pl"]) files[code] = await fetch(`/modules/${MODULE_ID}/lang/${code}.json`).then(r => r.json());
+        const family = code => files[code]?.DRPG?.Despair?.hopeAlreadyFull;
+        const sources = await moduleSources();
+        const despair = fnSource(stripComments(sources.get("despair.mjs") ?? ""), "creditHopeFromDespair");
+        must(despair.length > 200, "creditHopeFromDespair's source was not read");
+        const bare = [...sources].filter(([file]) => !/^tests/.test(file))
+            .filter(([, text]) => /(?:localize|format)\(\s*["']DRPG\.Despair\.hopeAlreadyFull["']/.test(stripComments(text))).map(([file]) => file);
+        equal(JSON.stringify({ said, despair: /plural\("DRPG\.Despair\.hopeAlreadyFull", \{ n: 1, name: actor\.name \}\)/.test(despair),
+            en: Object.keys(family("en") ?? {}).sort(), pl: Object.keys(family("pl") ?? {}).sort(), bare }),
+        JSON.stringify({ said: game.i18n.format("DRPG.Despair.hopeAlreadyFull.one", { name: nameAsSeen(target) }), despair: true,
+            en: ["one", "other"], pl: ["few", "many", "one", "other"], bare: [] }),
+            "{said: the Call's refusal for a full target; despair: the credit asks the one form with the receiver's name; en, pl: the key's forms; bare: files that read the key whole}");
+    }],
 ];
 
 /**

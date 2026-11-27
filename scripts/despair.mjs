@@ -948,7 +948,9 @@ export async function creditHopeFromDespair(actor, amount, { payer = null, owes 
         return { held: hope, granted: room };
     });
     if (granted <= 0) {
-        ui.notifications.warn(game.i18n.localize("DRPG.Despair.hopeAlreadyFull"));
+        // One receiver, by name (2.0 line T4, CALLS-18): the key is counted since, and a notification draws its text
+        // escaped itself, as the Calls' refusals beside it pass their names.
+        ui.notifications.warn(plural("DRPG.Despair.hopeAlreadyFull", { n: 1, name: actor.name }));
         return { granted: 0, held, blocked: "full" };
     }
     await whisperToOwner(actor, `<p>${game.i18n.format("DRPG.Despair.hopeConverted", {

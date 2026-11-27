@@ -669,7 +669,10 @@
       "notEnough": "{call} costs {cost} Despair, and the pool can spend only {held}.",
       "unknownCall": "Unknown Despair Call: {key}.",
       "poolEmpty": "That pool has no Despair to give.",
-      "hopeAlreadyFull": "Their Hope is already at maximum.",
+      "hopeAlreadyFull": {
+        "one": "{name} already has the maximum Hope.",
+        "other": "All {n} already have the maximum Hope."
+      },
       "hopeConverted": "{who} gives you {n} Hope from their Despair.",
       "owed": {
         "one": "{n} owed",
