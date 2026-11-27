@@ -124,7 +124,7 @@ Trzy fazy:
 Przed każdą porą dnia gasną światła. Ten czas na ustawienie tokenów to **Eclipse**:
 
 - Podczas Eclipse nikt nie widzi na ekranie cudzych tokenów, w żadnym pokoju. Głos jest wtedy wyłączony dla wszystkich graczy: nikogo nie słyszysz i nikt nie słyszy ciebie, dopóki nie wrócą światła.
-- W Eclipse ustawiasz swój token najwyżej o 2 przejścia między połączonymi pokojami, a drzwi i przerwy w ścianach wciąż obowiązują. Token przesunięty ponad limit wraca na miejsce. Wyjątkiem jest Eclipse przed Nocą: wybierasz dowolny pokój na mapie. Akcja pokoju może dać ci więcej przejść na najbliższe Eclipse, a jej wiersz mówi, ile.
+- W Eclipse ustawiasz swój token najwyżej o 2 przejścia między połączonymi pokojami, a drzwi i przerwy w ścianach wciąż obowiązują. Token przesunięty ponad limit wraca na miejsce. Liczy się każde przejście, także powrót do pokoju, z którego przyszedłeś, a karta po każdym przejściu mówi o tym i podaje, ile ci zostało (od 1.2.130). Wyjątkiem jest Eclipse przed Nocą: wybierasz dowolny pokój na mapie. Akcja pokoju może dać ci więcej przejść na najbliższe Eclipse, a jej wiersz mówi, ile.
 - Twoje akcje są już odnowione, gdy Eclipse się zaczyna, ale podczas Eclipse wydajesz je tylko na **Direct Murder**. Calli nie użyjesz, dopóki nie zapali się światło.
 - Gdy kończy się pora dnia, z Eclipse albo bez, na środku ekranu otwiera się karta z podsumowaniem tego, co w niej zrobiłeś: co znalazłeś i co zostawiłeś. Otwiera się raz na każdą porę dnia, gdy zegar się obróci, a gdy gra plansza końca dnia, podsumowanie Wieczoru jest jej częścią.
 - Eclipse to jedyny moment pełnej osłony w grze i zwykle tu zaczyna się morderstwo. Nie jest częścią dnia: zegar nie rusza, dopóki GM nie zakończy Eclipse.
@@ -1117,7 +1117,7 @@ Ten dodatek zbiera to, czego rozdziały powyżej nie mówią graczowi przy stole
 
 ### 17.2 Czas
 
-**Eclipse.** Gdy nie jest połączony żaden GM, przejście podczas Eclipse jest odrzucane.
+**Eclipse.** Gdy nie jest połączony żaden GM, przejście podczas Eclipse jest odrzucane. Przejście liczy eclipse.mjs `judgeEclipseCrossing` wobec `movesLeft`, powrót tak samo jak każde inne.
 
 **Chwile na cały ekran** są odtwarzane od 1.2.109.
 

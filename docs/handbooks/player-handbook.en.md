@@ -124,7 +124,7 @@ The three phases:
 Before each time of day the lights go out. That placement window is the **Eclipse**:
 
 - Nobody's screen shows anybody else's token, in any room. No player is in voice: you hear nobody and nobody hears you until the lights come back.
-- You place your token up to **2 connected room crossings** away; doors and gaps still apply, and a crossing past the allowance goes back. The **Night Eclipse** is the exception: pick **any room on the map**. A room action may give you more crossings for the coming Eclipse; its row says how many.
+- You place your token up to **2 connected room crossings** away; doors and gaps still apply, and a crossing past the allowance goes back. Every crossing counts, going back to the room you came from included, and the card after each crossing says so with how many you have left (since 1.2.130). The **Night Eclipse** is the exception: pick **any room on the map**. A room action may give you more crossings for the coming Eclipse; its row says how many.
 - Your actions are already refilled when the Eclipse opens, but nothing spends them except a **Direct Murder**, and no Calls can be made until the lights come up.
 - When a time of day ends, with an Eclipse or without one as the GM moves the clock on, a summary card of what you did in it opens in the middle of the screen, once the clock has turned: what you found, what you left behind. It opens once for each time of day; when the end-of-day board plays (below), the Evening's summary is part of it.
 - The Eclipse is the game's one moment of total cover, and it is where a murder usually starts. It is not part of the day: the clock does not move until the GM ends it.
@@ -1117,7 +1117,7 @@ What the sections above leave out for a reader at the table: the code behind a r
 
 ### 17.2 Time
 
-**The Eclipse.** With no GM connected, a crossing during the Eclipse is refused.
+**The Eclipse.** With no GM connected, a crossing during the Eclipse is refused. A crossing is counted by eclipse.mjs `judgeEclipseCrossing` against `movesLeft`, a way back as any other.
 
 **Full-screen moments** are played since 1.2.109.
 

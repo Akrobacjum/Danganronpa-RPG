@@ -4879,16 +4879,16 @@
         "other": "Gasną światła. Każdy uczeń ma {n} przejść między połączonymi pokojami. Dopóki trwa Eclipse, nikt nie widzi tokenów pozostałych uczniów."
       },
       "yourMoves": {
-        "one": "Masz jedno przejście między pokojami. Jesteś w pokoju {room}. Przeciągnij token do połączonego pokoju; zamknięte drzwi wciąż cię nie wpuszczą.",
-        "few": "Masz {n} przejścia między pokojami. Jesteś w pokoju {room}. Przeciągnij token do połączonego pokoju; zamknięte drzwi wciąż cię nie wpuszczą.",
-        "many": "Masz {n} przejść między pokojami. Jesteś w pokoju {room}. Przeciągnij token do połączonego pokoju; zamknięte drzwi wciąż cię nie wpuszczą.",
-        "other": "Masz {n} przejść między pokojami. Jesteś w pokoju {room}. Przeciągnij token do połączonego pokoju; zamknięte drzwi wciąż cię nie wpuszczą."
+        "one": "Masz jedno przejście między pokojami. Jesteś w pokoju {room}. Przeciągnij token do połączonego pokoju; zamknięte drzwi wciąż cię nie wpuszczą. Powrót do pokoju też jest przejściem.",
+        "few": "Masz {n} przejścia między pokojami. Jesteś w pokoju {room}. Przeciągnij token do połączonego pokoju; zamknięte drzwi wciąż cię nie wpuszczą. Powrót do pokoju też jest przejściem.",
+        "many": "Masz {n} przejść między pokojami. Jesteś w pokoju {room}. Przeciągnij token do połączonego pokoju; zamknięte drzwi wciąż cię nie wpuszczą. Powrót do pokoju też jest przejściem.",
+        "other": "Masz {n} przejść między pokojami. Jesteś w pokoju {room}. Przeciągnij token do połączonego pokoju; zamknięte drzwi wciąż cię nie wpuszczą. Powrót do pokoju też jest przejściem."
       },
       "moved": {
-        "one": "Jesteś teraz w pokoju {room}. Do końca Eclipse zostało ci {left} przejście.",
-        "few": "Jesteś teraz w pokoju {room}. Do końca Eclipse zostały ci {left} przejścia.",
-        "many": "Jesteś teraz w pokoju {room}. Do końca Eclipse zostało ci {left} przejść.",
-        "other": "Jesteś teraz w pokoju {room}. Do końca Eclipse zostało ci {left} przejść."
+        "one": "Jesteś teraz w pokoju {room}. Do końca Eclipse zostało ci {left} przejście. Powrót do pokoju też jest przejściem.",
+        "few": "Jesteś teraz w pokoju {room}. Do końca Eclipse zostały ci {left} przejścia. Powrót do pokoju też jest przejściem.",
+        "many": "Jesteś teraz w pokoju {room}. Do końca Eclipse zostało ci {left} przejść. Powrót do pokoju też jest przejściem.",
+        "other": "Jesteś teraz w pokoju {room}. Do końca Eclipse zostało ci {left} przejść. Powrót do pokoju też jest przejściem."
       },
       "noMovesLeft": "W tym Eclipse nie masz już przejść. Token stoi tam, gdzie stał wcześniej, a akcje zostają.",
       "actionsLocked": "Podczas Eclipse działają tylko Move i Direct Murder. Reszta czeka, aż zapali się światło, a akcje są już odnowione.",

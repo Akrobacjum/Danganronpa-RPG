@@ -4557,12 +4557,12 @@
         "other": "Lights out. Everyone can make up to {n} crossings between connected rooms to place their token. Nobody sees anyone else until the Eclipse ends."
       },
       "yourMoves": {
-        "one": "You are in {room} and have one room crossing. Drag your token into a connected room; locked doors still stop you.",
-        "other": "You are in {room} and have {n} room crossings. Drag your token into a connected room; locked doors still stop you."
+        "one": "You are in {room} and have one room crossing. Drag your token into a connected room; locked doors still stop you. Going back to a room counts as a crossing too.",
+        "other": "You are in {room} and have {n} room crossings. Drag your token into a connected room; locked doors still stop you. Going back to a room counts as a crossing too."
       },
       "moved": {
-        "one": "You are now in {room}, with {left} crossing left during this Eclipse.",
-        "other": "You are now in {room}, with {left} crossings left during this Eclipse."
+        "one": "You are now in {room}, with {left} crossing left during this Eclipse. Going back to a room counts as a crossing too.",
+        "other": "You are now in {room}, with {left} crossings left during this Eclipse. Going back to a room counts as a crossing too."
       },
       "noMovesLeft": "Your Eclipse crossings are used up, so your token stays where it was.",
       "actionsLocked": "During an Eclipse, only Move and a Direct Murder are allowed; everything else waits until the Eclipse ends. Actions are already refilled.",

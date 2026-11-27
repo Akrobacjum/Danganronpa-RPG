@@ -69828,6 +69828,17 @@ const INVARIANTS = [
         "{rows: [hidden, knows, incident, shown, shown with HOLDER_SEES_HIDDEN false]; the constant; a GM knows any trace; applyToRemnantToken asks the rule with knowsRemnant and shows a hidden held trace; shownAsFound asks the same; showHeld does not defer to a GM's hidden}");
     }],
     // T1 murder-death-eclipse
+    ["R8925 - the Eclipse's crossing lines say that going back counts as a crossing, in every form of both languages (2.0 line T1 EXP-PL-06; lang `DRPG.Eclipse.yourMoves`, `DRPG.Eclipse.moved`; eclipse.mjs `judgeEclipseCrossing`)", async () => {
+        /* 2.0 line T1, 27.11.2026. Read off the language files; nothing written. Red at 658302a: no form says it. */
+        const en = await fetch(`/modules/${MODULE_ID}/lang/en.json`).then(r => r.json());
+        const pl = await fetch(`/modules/${MODULE_ID}/lang/pl.json`).then(r => r.json());
+        const said = { en: /going back to a room counts as a crossing/i, pl: /powrót do pokoju też jest przejściem/i };
+        const forms = (d, lang) => ["yourMoves", "moved"].map(k => Object.entries(d?.DRPG?.Eclipse?.[k] ?? {}).map(([form, t]) => [form, said[lang].test(String(t))]));
+        equal(JSON.stringify({ en: forms(en, "en"), pl: forms(pl, "pl") }),
+            JSON.stringify({ en: [[["one", true], ["other", true]], [["one", true], ["other", true]]],
+                pl: [[["one", true], ["few", true], ["many", true], ["other", true]], [["one", true], ["few", true], ["many", true], ["other", true]]] }),
+            "{per language: [yourMoves, moved] x each plural form - whether it says that going back counts}");
+    }],
     ["R8924 - Direct Murder's note window says that closing it sends the declaration, and offers Send without a note; no other note window does (2.0 line T1 DAY-08; scripts/action-menus.mjs `promptForNote`, action-murder.mjs `performDirectMurder`)", async () => {
         /* 2.0 line T1, 27.11.2026. The window's options caught as the kit hands them to Foundry's DialogV2 (`wait`), answered
            at once with no button; nothing written. Red at 658302a: no `closeSends`, no line, one button. */
