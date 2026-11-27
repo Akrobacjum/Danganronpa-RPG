@@ -10157,7 +10157,8 @@ const SCENARIOS = [
             await c3Incident(clock);
             await settle();
         }
-        equal(stableJson(read), stableJson({ silenceAtOpen: true, toolNamed: true, silenceAfter: false }),
+        // Since 2.0 line T1 MURDER-03 there is nothing to silence (the dead leave the room at death): no Silence now drawn.
+        equal(stableJson(read), stableJson({ silenceAtOpen: false, toolNamed: true, silenceAfter: false }),
             "{Silence now on the first copy, the readied tool named on the open tracker, Silence now after another GM's press}");
     }],
 
@@ -69091,7 +69092,8 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             await discoverBody({ room: ROOM, victim, scene: canvas.scene });
             await settle();
             const after = await read();
-            equal(stableJson([before, after]), stableJson([[false, false], [true, true]]),
+            // Since 2.0 line T1 MURDER-03 the voice is gone at the death, before the body is found too.
+            equal(stableJson([before, after]), stableJson([[false, true], [true, true]]),
                 "a death kept by the GMs read as known before its body was found, or still unknown after - the dead student "
                 + "talks to the room after the discovery, or leaves it before (before: announced, voice gone; after: the same)");
         } finally {
@@ -102949,7 +102951,8 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             return { before, first, written: Boolean(S.castStore.record()?.silencedDead?.[student.id]), after, again, living,
                 inCopy: Object.hasOwn(copy ?? {}, "silencedDead") };
         });
-        equal(stableJson(read), stableJson({ before: false, first: true, written: true, after: true, again: false, living: false, inCopy: false }),
+        // `before` true since 2.0 line T1 MURDER-03: the voice has left at the death; the press still writes its field.
+        equal(stableJson(read), stableJson({ before: true, first: true, written: true, after: true, again: false, living: false, inCopy: false }),
             "Silence now does not move a kept death's voice ([deathVoiceGone before, the write, the cast's field, deathVoiceGone after, a second press, "
             + "a living student, the field in the player's copy])");
     }],
