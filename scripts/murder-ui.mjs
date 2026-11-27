@@ -37,7 +37,7 @@ import { resourceValue, resourceMax, reserveNote, reserveView } from "./characte
 import { keepLive } from "./live.mjs";
 import { error, plural, esc } from "./utils.mjs";
 import { drpgWindow, formGrid, dataTable, emptyState, box, tipAttr } from "./ui-kit.mjs";
-import { murderState, killerIds, isDeadSilenced, silenceDeadNow } from "./incident-store.mjs";
+import { murderState, killerIds, silenceDeadNow } from "./incident-store.mjs";
 import { openMurder, passTurn, endMurder, openingInvited, rollOpening, askWhileIncident } from "./murder-rules.mjs";
 
 
@@ -756,15 +756,14 @@ export async function openIncidentTracker() {
     const state = murderState();
     // Whether the victim's voice can be moved now (E72 C8): a death the GMs keep, not yet moved.
     const victim = state?.victimId ? game.actors?.get(state.victimId) ?? null : null;
-    const { isDeadForGm, isDeceased } = await import("./chapter.mjs");
     /* READ AGAIN AT EVERY REBUILD (the audit's CTRL-80 and REFR-63, 1.2.122): it was read once as the window opened, and
        the footer is drawn only by a reopen, so a victim dead under an unchanged stage got no Silence now, and one drawn
        before the body was announced or another GM pressed it stayed, its press doing nothing. It is part of the
        signature below now, so a change of it reopens the tracker with the footer it wants. */
-    const silenceNow = () => {
-        const v = murderState()?.victimId ? game.actors?.get(murderState().victimId) ?? null : null;
-        return Boolean(v) && isDeadForGm(v) && !isDeceased(v) && !isDeadSilenced(v);
-    };
+    /* NOTHING TO SILENCE (2.0 line T1 MURDER-03): a dead student's voice leaves the room it died in at its death
+       (voice.mjs `deathVoiceGone`), so the button is not drawn; incident-store.mjs `silenceDeadNow` stays as an API. Until
+       1.2.129: a victim dead to the GMs, not yet published and not yet silenced. */
+    const silenceNow = () => false;
     const silence = silenceNow();
 
     /* AWAITED ONCE, HERE, so the body below can be rebuilt synchronously.

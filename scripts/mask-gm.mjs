@@ -12,8 +12,10 @@
  *     (gm-stores.mjs `maskStore`), never in a flag or a world setting, and written back at the end (`restorePatch`).
  *     The Actor's portrait wears the same "?" since E112 item 2b, kept on the row and written back (`portraitOf`,
  *     `portraitBack`; the audit's D271 of 1.2.122: this header did not say so).
- *     A GM's browser, and a Spectator's (the coordinator's default: a Spectator sees through it, as it sees secret
- *     projects), draws the character's own name over the "?" (`drawMaskName`), from the documents it already holds.
+ *     A GM's browser draws the character's own name over the "?" (`drawMaskName`), from the documents it already holds.
+ *     Until 2.0 line T1 a Spectator's did too (the coordinator's default of E69: "a Spectator sees through it, as it sees
+ *     secret projects"); since MURDER-03 (the recommendation the owner took: "Zmarly widzi "?" jak wszyscy (bez imienia)")
+ *     no Spectator's browser does - a dead student, a Spectator's account, a Monocub (the line's default P4).
  *   - THE VOICE. The killer is sent to a silent room of their own (voice.mjs `maskedRow`; the coordinator's answer of
  *     13.11: a name in the victim's voice list would defeat the mask), so they neither speak to the room nor hear it and
  *     no list there names them; and their account is blocked by C6's block with one more reason (`settleTrialVoices`,
@@ -830,12 +832,14 @@ export async function requestReveal(actor = myMask()) {
     return Boolean(res.ok);
 }
 
-/** On a GM's and a Spectator's canvas: the character's own name over a masked token (the documents they hold). */
-function drawMaskName(token) {
+/**
+ * On a GM's canvas: the character's own name over a masked token (the documents it holds). Not a Spectator's since 2.0 line
+ * T1 MURDER-03 (the header): a dead victim reads "?" as everyone does. `gm` handed by the suite (R8927).
+ */
+export function drawMaskName(token, { gm = Boolean(game.user?.isGM) } = {}) {
     try {
         if (!isMaskedToken(token?.document)) return;
-        const sees = game.user?.isGM || isSpectatorViewer();
-        if (!sees || !token.nameplate) return;
+        if (!gm || !token.nameplate) return;
         token.nameplate.text = `? (${token.document.actor?.name ?? ""})`;
         token.nameplate.visible = true;
     } catch (err) {
@@ -896,10 +900,7 @@ export function seenHere(actors, options = {}) {
     return (actors ?? []).filter(a => !veiledFromHere(a, options));
 }
 
-let spectatorViewerOf = () => false;
-const isSpectatorViewer = () => spectatorViewerOf();
-
-/** At ready: the primary's end at a new time of day, the GMs' and Spectators' names, the killer's question. */
+/** At ready: the primary's end at a new time of day, the GMs' names over the "?", the killer's question. */
 export function registerMasks() {
     Hooks.on("drpgTimeOfDayChanged", () => {
         if (isPrimaryGm()) masksAtNewTimeOfDay().catch(err => error("The masks could not end with the time of day", err));
@@ -917,7 +918,6 @@ export function registerMasks() {
     });
     // A token made while a mask or a veil stands joins it (E112, `adoptToken`).
     Hooks.on("createToken", tokenDoc => { if (isPrimaryGm()) adoptToken(tokenDoc).catch(err => error("Could not mask or veil a new token", err)); });
-    import("./spectator.mjs").then(m => { spectatorViewerOf = () => Boolean(m.spectatorViewer?.()); }).catch(() => {});
     // The veil's verdict for this browser's pickers (`seenHere`): the token's own rule, by `import()` as the Spectator's above.
     import("./visibility.mjs").then(m => { shownHere = doc => m.tokenShownTo(doc, m.viewerHere(d => Boolean(d?.isOwner))); }).catch(() => {});
     // By `import()`: secret.mjs is reached from gm-stores.mjs (through notice-history.mjs), which this file imports.

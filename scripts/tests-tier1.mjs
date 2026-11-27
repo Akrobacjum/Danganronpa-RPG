@@ -27360,30 +27360,34 @@ const INVARIANTS = [
 
         const kitchen = { victim: "Kitchen", killer: "Kitchen", witness: "Hall", bystander: "Dorm" };
         const out = { victim: "dead", killer: "Kitchen", witness: "Hall", bystander: "Dorm" };
+        /* 2.0 line T1 MURDER-03 (27.11.2026; the recommendation the owner took: "jego mikrofon milknie od chwili smierci do
+           znalezienia ciala"): a dead member of the running incident's cast leaves the room it died in at its death
+           (voice.mjs `deathVoiceGone`), so "in the incident" reads as "after" did - the dead in the Spectators' room - a
+           witness's room waits for nobody, and the passes send everyone at once, without the 1500 ms wait for the victim. */
         equal(stableJson(seen), stableJson([
-            ["in the incident", kitchen],
+            ["in the incident", out],
             ["after closeIncident", out],
             ["cast not here", { ...kitchen, victim: "kept" }],
-            ["cast arrived", kitchen],
-            ["killer dead in public, in the incident", kitchen],
+            ["cast arrived", out],
+            ["killer dead in public, in the incident", { ...kitchen, killer: "dead" }],
             ["killer dead in public, after", { ...kitchen, killer: "dead" }], // the main room until E72 C8
             ["outside the cast, secret", { ...kitchen, bystander: "dead" }],
             ["outside the cast, public", { ...kitchen, bystander: "dead" }], // the main room until E72 C8
             ["no incident, secret", { ...kitchen, bystander: "dead" }],
             ["the body found", out],
             ["silenced by a GM", out],
-            ["a witness", { ...out, witness: "Kitchen" }, { witness: ["victim"] }],
-            ["a witness, the actors reversed", { ...out, witness: "Kitchen" }, { witness: ["victim"] }],
-            ["Monokuma and a Monocub there", { victim: "Kitchen", killer: "Kitchen", witness: "Hall", cub: "Kitchen", gm: "Kitchen" }],
-            ["two victims", { victim: "Kitchen", killer: "Kitchen", third: "Kitchen" }],
+            ["a witness", { ...out, witness: "Kitchen" }, {}],
+            ["a witness, the actors reversed", { ...out, witness: "Kitchen" }, {}],
+            ["Monokuma and a Monocub there", { victim: "dead", killer: "Kitchen", witness: "Hall", cub: "Kitchen", gm: "Kitchen" }],
+            ["two victims", { victim: "dead", killer: "Kitchen", third: "dead" }],
             ["two victims, after", { victim: "dead", killer: "Kitchen", third: "dead" }],
             ["a second character, after", { victim: "Dorm", killer: "Kitchen" }],
-            ["a second character, in the incident", { victim: "Kitchen", killer: "Kitchen" }, { victim: "Kitchen", killer: "Kitchen" }, { killer: "Kitchen", victim: "Kitchen" }],
+            ["a second character, in the incident", { victim: "Dorm", killer: "Kitchen" }, { victim: "Dorm", killer: "Kitchen" }, { killer: "Kitchen", victim: "Dorm" }],
             ["a second character, cast not here", { victim: "kept", killer: "Kitchen" }, { victim: "kept", killer: "Kitchen" }],
             ["a second character sorting after, after", { victim: "Dorm", killer: "Kitchen" }],
-            ["the passes", { first: ["victim:dead", "killer:Kitchen", "bystander:Dorm"], waiting: [1500, 2000, 2000, 2000], forged: 3,
-                changed: 5, all: ["victim:dead", "killer:Kitchen", "bystander:Dorm", "witness:Kitchen", "gm:Hall"], alone: true }, true,
-            ["victim:dead", "killer:Kitchen", "bystander:Dorm", "witness:Kitchen", "gm:Hall"]],
+            ["the passes", { first: ["victim:dead", "killer:Kitchen", "witness:Kitchen", "bystander:Dorm", "gm:Hall"], waiting: [2000, 2000, 2000, 2000, 2000], forged: 5,
+                changed: 5, all: ["victim:dead", "killer:Kitchen", "witness:Kitchen", "bystander:Dorm", "gm:Hall"], alone: true }, true,
+            ["victim:dead", "killer:Kitchen", "witness:Kitchen", "bystander:Dorm", "gm:Hall"]],
             ["kept, sent", false, false, 2],
             ["micHold", { reason: "deadAlone", held: false }, null, null, true],
             ["triggers", { immediate: true }, { immediate: true }, true, true, true, true]]),
@@ -27392,7 +27396,8 @@ const INVARIANTS = [
             + "each to its account alone; the same on a fresh ledger; with no answer, after the 1500 ms], [a kept room: sent to the victim, how many], "
             + "[micHold: a player in the dead channel, in the main room, a GM in the dead channel, the line], "
             + "[the triggers: murderState, bodiesFound, the cast's change on the primary, the cast's arrival, the heartbeat, a kept room asked for]");
-        ok(asked > 0, "no case asked whether a body was found - the discovery's trigger was never read");
+        // Until 2.0 line T1 MURDER-03 a case had to ask whether a body was found; the dead now leave the room at death, so none does.
+        equal(asked, 0, "a case still asked whether a body was found - a dead member of the cast is out of the room at its death (MURDER-03)");
     }],
 
     ["R831 - in the dead channel the microphone stays its owner's: the reason is a line beside an open or muted button, a click mutes and unmutes, and a GM's block is named over it (E19-16; E19 fix r1-G1)", async () => {
@@ -27550,12 +27555,13 @@ const INVARIANTS = [
             ["the pass, the cast not here", ["bystander", "gm"]],
             ["asked, the cast not here", { victim: "kept", pub: "kept", witness: "held", killer: "held", bystander: "sent" },
                 ["victim:dead", "pub:dead", "bystander:Dorm"], true], // pub: the main room until E72 C8
-            ["the waits", { witness: ["victim"] }],
-            ["asked inside the wait, the victim answers", { first: ["victim:dead"], timers: [1500, 2000], said: "waited",
-                all: ["victim:dead", "witness:Kitchen"], alone: true }],
-            ["asked inside the wait, no answer", { first: ["victim:dead"], timers: [1500, 2000], said: "waited",
-                all: ["victim:dead", "witness:Kitchen"], alone: true }],
-            ["asked, the victim settled", "waited", ["witness:Kitchen"]],
+            // Since 2.0 line T1 MURDER-03 the dead victim is out of the room at its death: a witness waits for nobody.
+            ["the waits", {}],
+            ["asked inside the wait, the victim answers", { first: ["witness:Kitchen"], timers: [2000], said: "sent",
+                all: ["witness:Kitchen"], alone: true }],
+            ["asked inside the wait, no answer", { first: ["witness:Kitchen"], timers: [2000], said: "sent",
+                all: ["witness:Kitchen"], alone: true }],
+            ["asked, the victim settled", "sent", ["witness:Kitchen"]],
             ["onWhoAmI", true, true, true, true]]),
             "[the pass while the cast is not here: whom it sent], [each account asking then: what the answer did, the packets, each to its account alone], "
             + "[the witness's wait once the cast is here], [the witness asking inside the wait: sent before the victim answers, the timers, the answer, "
@@ -27731,7 +27737,8 @@ const INVARIANTS = [
             ["cold, Alice's death secret", { p: "Library", carol: "Gym", killer: "held", victim: "kept" }],
             ["cold, Alice of an earlier season", { p: "Library", carol: "Gym", killer: "held", victim: "kept" }],
             ["cold, a death of this chapter stays kept", { p: "kept", carol: "held", killer: "held", victim: "kept" }],
-            ["the cast here", { p: "Library", carol: "Gym", killer: "Kitchen", victim: "Kitchen" }],
+            // Since 2.0 line T1 MURDER-03 a dead member of the cast is out of the room at its death.
+            ["the cast here", { p: "Library", carol: "Gym", killer: "Kitchen", victim: "dead" }],
             ["deathFacts", true, "function", "number"]]),
             "[each case, the cast not here unless named: the room each account gets ('kept', 'held': nothing sent), what each account asking is answered "
             + "and sent, what the pass sends], [the real deathFacts: the clock's chapter, the record's reader, the season]");
@@ -69828,6 +69835,31 @@ const INVARIANTS = [
         "{rows: [hidden, knows, incident, shown, shown with HOLDER_SEES_HIDDEN false]; the constant; a GM knows any trace; applyToRemnantToken asks the rule with knowsRemnant and shows a hidden held trace; shownAsFound asks the same; showHeld does not defer to a GM's hidden}");
     }],
     // T1 murder-death-eclipse
+    ["R8927 - the name over a masked token is drawn on a GM's canvas alone: a Spectator's - a dead student's, a Spectator's account's, a Monocub's - keeps the \"?\" (2.0 line T1 MURDER-03; scripts/mask-gm.mjs `drawMaskName`)", async () => {
+        /* 2.0 line T1, 27.11.2026. A stand-in token, its nameplate a plain object; nothing written. Red at 658302a:
+           `drawMaskName` was not exported, and a Spectator's browser drew "? (name)". */
+        const K = await import("./mask-gm.mjs");
+        must(typeof K.drawMaskName === "function", "mask-gm.mjs exports no drawMaskName - nothing here can say whose canvas names a masked killer");
+        const token = gm => {
+            const t = { document: { flags: { [MODULE_ID]: { masked: true } }, actor: { name: "R8927 Killer" } }, nameplate: { text: "?", visible: false } };
+            K.drawMaskName(t, { gm });
+            return [t.nameplate.text, t.nameplate.visible];
+        };
+        const src = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/mask-gm.mjs`).then(lfText));
+        equal(JSON.stringify({ gm: token(true), other: token(false), spectatorRead: /spectatorViewer|isSpectatorViewer/.test(fnSource(src, "drawMaskName") ?? "") }),
+            JSON.stringify({ gm: ["? (R8927 Killer)", true], other: ["?", false], spectatorRead: false }),
+            "{gm: a GM's canvas, the nameplate's text and whether shown; other: any other canvas, a Spectator's among them; spectatorRead: drawMaskName asks whether this browser is a Spectator's}");
+    }],
+    ["R8928 - a dead member of the running incident's cast leaves the room it died in at its death, the body not found and no GM's Silence now (2.0 line T1 MURDER-03; scripts/voice.mjs `deathVoiceGone`)", async () => {
+        /* 2.0 line T1, 27.11.2026. Pure over handed facts; nothing written. Red at 658302a: false, the voice kept with the cast. */
+        const { deathVoiceGone } = await import("./voice.mjs");
+        const actor = { id: "R8928VICTIM00000" };
+        const state = { active: true, stage: "incident", victimId: actor.id };
+        const read = [await deathVoiceGone(actor, { state, hydrated: true, cast: new Set([actor.id]), announced: async () => false }),
+            await deathVoiceGone(actor, { state, hydrated: true, cast: new Set([actor.id]), announced: async () => true }),
+            await deathVoiceGone(actor, { state: null, hydrated: true, cast: new Set(), announced: async () => false })];
+        equal(JSON.stringify(read), JSON.stringify([true, true, true]), "[in the cast, the body not found; in the cast, found; no incident] - whether the voice has left the room");
+    }],
     ["R8926 - an incident's opening roll and its crisis rolls pay no resources, every other roll pays as before (2.0 line T1 EXP-PL-03, D2-09, D2-11; scripts/despair-award.mjs `rollPaysResources`, `incidentRollExempt`)", async () => {
         /* 2.0 line T1, 27.11.2026. Pure, over plain incidents and messages; nothing written. Red at 658302a: no rule. */
         const A = await import("./despair-award.mjs");

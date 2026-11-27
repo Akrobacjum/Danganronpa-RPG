@@ -1270,11 +1270,11 @@ export function olderDeath(record, { chapter = null, epoch = null } = {}) {
  *     is true at once (E19 fix r2-G1; the review's E19-FIX1-1): until the fix it was null too, kept, so a student dead
  *     since chapter 1 outranked its player's living character (`voiceRowFor`'s `stillThere`), sent that account its
  *     own `standIn` (`answerWhoAmI`) and held back every living player walking into the room its token stands in;
- *   - true: outside the running incident's cast (`participantIds`) - the incident it died in is over, or it died
- *     outside one; its body found this chapter (`deathAnnounced`); a GM's "Silence now" (`silencedDead`, which
- *     E72 (part A, formerly E67) writes in the cast; read only); or a living student from outside the cast in the same room (`witnessed`,
- *     `placeVoices`' second pass);
- *   - false: in the cast of the incident that runs, and none of the above.
+ *   - true: every other time, since 2.0 line T1 MURDER-03 (the owner's recommendation: the dead's "mikrofon milknie od
+ *     chwili smierci do znalezienia ciala"). Until then true only from the first of A9's triggers - outside the running
+ *     incident's cast (`participantIds`), its body found this chapter (`deathAnnounced`), a GM's "Silence now"
+ *     (`silencedDead`), a living student from outside the cast in the same room (`witnessed`) - and false in the cast of
+ *     the incident that runs: a dead victim spoke to its cast, a third included, until a GM pressed Silence now.
  * Only the primary asks it, of the GMs' records: no player's browser reads or is told any of it, and the dead
  * account is sent nothing but its own room (`send`). The facts are `deathFacts()`'s unless handed in.
  *
@@ -1284,9 +1284,14 @@ export function olderDeath(record, { chapter = null, epoch = null } = {}) {
  */
 export async function deathVoiceGone(actor, facts) {
     const known = facts ?? await deathFacts();
-    const { state = null, hydrated = true, cast = new Set(), witnessed = false } = known;
+    const { state = null, hydrated = true } = known;
     if (state && !hydrated) return olderDeath(known.recordOf?.(actor) ?? null, known) ? true : null;
-    return !cast.has(actor.id) || Boolean(await known.announced?.(actor)) || Boolean(state?.silencedDead?.[actor.id]) || witnessed === true;
+    /* FROM THE MOMENT OF DEATH (2.0 line T1 MURDER-03; the recommendation the owner took: "jego mikrofon milknie od chwili
+       smierci do znalezienia ciala"). Until 1.2.129 a dead member of the running incident's cast stayed in the room it died
+       in, with the cast - a third included - until a trigger of A9's (the body found, a GM's Silence now, a witness, the
+       incident's end), and spoke there. Now its voice goes where Silence now sent it, at once: the GMs' facts the triggers
+       read are left to their readers (`announced`, `silencedDead`, `witnessed`), and none of them can keep it. */
+    return true;
 }
 
 /**
