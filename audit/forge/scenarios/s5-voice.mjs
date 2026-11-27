@@ -48,8 +48,10 @@
  * eclipse flag back to false); the pause lifted (not put back). Each test browser's own client setting `debug`.
  *
  * UNMEASURED: everything ../table.mjs's header lists; that `endEclipse({ advance: false })` leaves the clock where it
- * was; that a GM's plain update moves a player's token through walls (a GM's move is free and never refused,
- * movement.mjs `onUpdateToken`); that `voiceTargets()` read on the primary as a dry run changes nothing a pass would
+ * was; that GM1's update with v14's movement option `constrainOptions.ignoreWalls` (../table.mjs `moveTokens` `free`,
+ * the shape not read in v14's source) moves a player's token through the walls - the module never refuses a GM's move
+ * (movement.mjs `onUpdateToken`), Foundry's path did on the second pass (FORGE-05; 2.0 line T4, 27.11.2026), so each
+ * "the plan sends ..." check's details say whether the token `arrived`; that `voiceTargets()` read on the primary as a dry run changes nothing a pass would
  * not (it runs the same `keepRoomsThroughGaps` the pass runs); that Foundry keeps a page that was offline 15 s rather
  * than reloading it (read: the kit's `timeOrigin` says whether it reloaded).
  */
@@ -70,6 +72,12 @@ const GMS = ["gm1", "gm2"];
 const PLAYERS = ["p1", "p2", "p3", "p4"];
 const ALL = [...GMS, ...PLAYERS];
 const STEP_MS = Number(process.env.DRPG_S5_STEP_MS || 400);
+/* GM1's moves are written past the test map's walls (../table.mjs `moveTokens` `free`; 2.0 line T4, FORGE-05+D2-25,
+   27.11.2026): the second pass on the owner's PC saw GM moves stop at a wall or in a room on the way (P2 never left
+   Electronic's Shop, P1 stopped in Yelena's Room), and the voice then followed the room the token stood in, not the one
+   asked. The rooms are chosen without bedrooms as well (`chooseRooms`). The option's shape is an assumption to confirm
+   on this scenario's first run: each "the plan sends ..." check's details carry `arrived` and the write's `options`. */
+const FREE = { free: true };
 
 /* One page's measurement in a line of numbers. */
 const line = a => a.none ? "no samples" : [
@@ -168,9 +176,9 @@ export async function run(ctx) {
         phase("setup");
         table = await readTable(ctx, "gm1", ALL);
         if (table.error) { check("setup: an active scene", false, table.error); return; }
-        const { chain, neighboursChain, spare, all } = chooseRooms(table, 3);
-        note("setup: the scene and its rooms", J({ scene: table.sceneName, grid: table.grid, step: table.step, cells: table.cells, scanMs: table.scanMs,
-            named: table.named.length, found: all.length, chain, neighboursChain, spare, gap: table.gap, who: table.who }));
+        const { chain, neighboursChain, spare, all, bedrooms } = chooseRooms(table, 3);
+        note("setup: the scene and its rooms (bedrooms left out of the choice)", J({ scene: table.sceneName, grid: table.grid, step: table.step, cells: table.cells, scanMs: table.scanMs,
+            named: table.named.length, found: all.length, chain, neighboursChain, spare, bedrooms, bedroomsRead: table.bedroomsRead, gap: table.gap, who: table.who }));
         const [A, B, C] = chain;
         const D = spare[0] ?? A, E = spare[1] ?? B, F = spare[2] ?? C;
         if (!(A && B && C) || !table.gap) {
@@ -271,40 +279,40 @@ export async function run(ctx) {
         await measured("initial placement", async () => null, { timeout: 120_000, ids: ["VOICE-01"] });
 
         phase("single move");
-        const single = await measured("single move: p1 A -> B", () => moveTokens(ctx, "gm1", table.sceneId, [move("p1", B)]), { ids: ["VOICE-01"], expect: { p1: B } });
+        const single = await measured("single move: p1 A -> B", () => moveTokens(ctx, "gm1", table.sceneId, [move("p1", B)], FREE), { ids: ["VOICE-01"], expect: { p1: B } });
         note("single move: pages other than p1 that reconnected (should be none)",
             J(Object.entries(single.per).filter(([r, a]) => r !== "p1" && a.reconnects > 0).map(([r, a]) => [r, a.reconnects])));
 
         phase("join");
-        const join = await measured("join: p2 into B, p1's room", () => moveTokens(ctx, "gm1", table.sceneId, [move("p2", B)]), { ids: ["VOICE-01"], expect: { p1: B, p2: B } });
+        const join = await measured("join: p2 into B, p1's room", () => moveTokens(ctx, "gm1", table.sceneId, [move("p2", B)], FREE), { ids: ["VOICE-01"], expect: { p1: B, p2: B } });
         note("join: p1 and p2 in one LiveKit room, and whom each hears (peers' identities, raw)",
             J({ p1: join.per.p1?.now, p2: join.per.p2?.now, sameRoom: Boolean(join.per.p1?.now?.room) && join.per.p1?.now?.room === join.per.p2?.now?.room,
                 p1HearsP2: join.per.p1?.now?.peers?.includes(users.p2) ?? null, p2HearsP1: join.per.p2?.now?.peers?.includes(users.p1) ?? null }));
 
         phase("back");
-        await measured("back: p1 B -> A", () => moveTokens(ctx, "gm1", table.sceneId, [move("p1", A)]), { ids: ["VOICE-01"], expect: { p1: A } });
+        await measured("back: p1 B -> A", () => moveTokens(ctx, "gm1", table.sceneId, [move("p1", A)], FREE), { ids: ["VOICE-01"], expect: { p1: A } });
 
         phase("walk");
         const walk = await measured(`walk: p1 A -> B -> C, ${STEP_MS} ms between the writes`, async () => {
-            const first = await moveTokens(ctx, "gm1", table.sceneId, [move("p1", B)]);
+            const first = await moveTokens(ctx, "gm1", table.sceneId, [move("p1", B)], FREE);
             await sleep(STEP_MS);
-            const second = await moveTokens(ctx, "gm1", table.sceneId, [move("p1", C)]);
+            const second = await moveTokens(ctx, "gm1", table.sceneId, [move("p1", C)], FREE);
             return { first, second };
         }, { ids: ["VOICE-02"], expect: { p1: C } });
         note(`walk: p1's connects for one walk through B (VOICE-02: 1 is the walk's own, 2 means B was joined on the way)`,
             J({ moduleConnects: walk.counted.p1?.connects, reconnects: walk.per.p1?.reconnects, rooms: walk.per.p1?.rooms, joinedB: walk.per.p1?.rooms?.includes(liveKitNames[B]) ?? null,
                 connectMs: walk.per.p1?.connectMs, writesApart: (walk.acted?.second?.t ?? 0) - (walk.acted?.first?.t ?? 0) }));
         const slow = await measured("walk: p1 C -> B -> A, 2500 ms between the writes", async () => {
-            await moveTokens(ctx, "gm1", table.sceneId, [move("p1", B)]);
+            await moveTokens(ctx, "gm1", table.sceneId, [move("p1", B)], FREE);
             await sleep(2500);
-            return moveTokens(ctx, "gm1", table.sceneId, [move("p1", A)]);
+            return moveTokens(ctx, "gm1", table.sceneId, [move("p1", A)], FREE);
         }, { ids: ["VOICE-02"], expect: { p1: A } });
         note("walk: the slow walk's connects, for comparison", J({ moduleConnects: slow.counted.p1?.connects, rooms: slow.per.p1?.rooms, connectMs: slow.per.p1?.connectMs }));
 
         phase("all at once");
         const shuffle = { p1: D, p2: A, p3: B, p4: C };
         const together = await measured("all at once: p1-p4 each to another room in one write",
-            () => moveTokens(ctx, "gm1", table.sceneId, PLAYERS.map(r => move(r, shuffle[r]))), { ids: ["VOICE-01"], expect: shuffle });
+            () => moveTokens(ctx, "gm1", table.sceneId, PLAYERS.map(r => move(r, shuffle[r])), FREE), { ids: ["VOICE-01"], expect: shuffle });
         note("all at once: pages that left their room within one second of each other", J(burst(together.per)));
 
         phase("offline");
@@ -370,7 +378,7 @@ export async function run(ctx) {
             matchedAfterMs: reload.per.p3?.matchedAfterMs }));
 
         phase("primary leaves");
-        const gapStand = await measured("primary leaves: p4 stood outside every room, beside two", () => moveTokens(ctx, "gm1", table.sceneId, [{ tokenId: token.p4, x: table.gap.x, y: table.gap.y }]), { ids: ["VOICE-05"] });
+        const gapStand = await measured("primary leaves: p4 stood outside every room, beside two", () => moveTokens(ctx, "gm1", table.sceneId, [{ tokenId: token.p4, x: table.gap.x, y: table.gap.y }], FREE), { ids: ["VOICE-05"] });
         const p4Before = gapStand.plan?.targets?.[users.p4];
         note("primary leaves: where GM1's plan puts p4 outside every room (E88: the room it came from)", J({ target: p4Before, kept: gapStand.plan?.kept?.[users.p4], between: table.gap.between }));
         if (!ctx.c.gm2) {

@@ -30,12 +30,20 @@ tego samego stanu.
 | `s2-second-gm` | 4 | drugi GM robi każdą pracę GM-a (CALLS-01/03, INV-01/02, TRIAL-02/04, DAY-01, EXP-GM-01, PRIM-01) | reset sezonu tylko do pytania, bez wykonania |
 | `s3-disconnects` | 5 | gracz offline, odświeżenie w trakcie prośby, odświeżenie i odejście głównego GM-a, GM wychodzi w Eclipse | |
 | `s4-two-gms-at-once` | 3 | dwaj GM-owie naciskają to samo naraz | |
-| `s5-voice` | 6 | pokój LiveKit każdego klienta wobec planu modułu, czasy przełączenia, ponowne połączenia | wymaga `DRPG_FAKE_MEDIA=1` |
-| `s6-soak` | 6 | 2 h zwykłej gry: pamięć, błędy, przeładowania | `DRPG_SOAK_MINUTES` |
+| `s5-voice` | 6 | pokój LiveKit każdego klienta wobec planu modułu, czasy przełączenia, ponowne połączenia | wymaga `DRPG_FAKE_MEDIA=1`; pokoje bez sypialni, ruchy GM1 z pominięciem ścian (`free`, niżej) |
+| `s6-soak` | 6 | 2 h zwykłej gry: pamięć, błędy, przeładowania; ruchy graczy liczone osobno: doszły / odmowa z komunikatem / bez komunikatu (FORGE-05) | `DRPG_SOAK_MINUTES`; sąsiad bez sypialni |
 | `s7-look` | 2 | zrzuty najważniejszych okien w rozmiarach z `DRPG_SIZES`, mieszczenie się, pole komunikatora | nie pisze do świata; także `DRPG_BROWSER=firefox` |
 | `s8-load` | 3 | krzywa wydajności przy rosnącej liczbie Remnantów, tokenów, projektów, wiadomości i okien | sprząta po sobie; bez progów |
 
 Proponowana kolejność pierwszego przebiegu: S7 (nie pisze), S4, S2, S3, S5, S1a, S1b, S8, S6 (najdłuższy).
+
+**Ruch żetonów (FORGE-05, D2-25; linia T4, 27.11.2026).** `table.mjs` `readTable` oznacza sypialnie
+(`game.drpg.allBedrooms`), a `chooseRooms` (S5) i wybór sąsiada w S6 je pomijają: sypialnia jest zamknięta dla
+wszystkich poza właścicielem i posiadaczem klucza, więc ruch do niej mierzył zamek, nie ruch. `moveTokens(..., { free:
+true })` (tylko strona GM-a; S5 dla ruchów GM1) zapisuje ruch z opcją ruchu v14 `movement: { [id]: { constrainOptions:
+{ ignoreWalls: true } } }`. **Założenie do potwierdzenia na pierwszym przebiegu S5**: kształtu opcji nie przeczytano w
+źródle v14. Szczegóły kontroli "the plan sends ..." mają `arrived` (czy żeton stanął w pokoju) i `wrote.options`
+(co wysłano); v14, który opcję pomija, zatrzyma żeton na ścianie jak dotąd, a taki, który ją odrzuca, da `threw`.
 
 Logowanie (`lib.mjs` `login`) nigdy nie wpisuje hasła; wszystkie narzędzia, także `doctor.mjs`, uruchamiają przeglądarkę przez `lib.mjs` (od 25.11.2026 `doctor.mjs` czyta `DRPG_BROWSER`).
 
