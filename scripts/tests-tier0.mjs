@@ -23547,7 +23547,7 @@ const REGRESSIONS = [
             ["body.mjs", "runDiscovery", "E49", 1, 0, 0], ["chapter.mjs", "endChapterNow", "E49", 1, 0, 0], ["chapter.mjs", "runChapterEnd", "E49", 1, 0, 0],
             ["chapter.mjs", "finishEndNow", "E49", 1, 0, 0], ["cleanup-reshape.mjs", "reshapeCardParts", "E49", 1, 0, 0], ["cleanup-reshape.mjs", "proposeReshape", "E49", 1, 0, 0],
             ["cleanup.mjs", "undoLastCleanup", "E49", 2, 0, 0], ["cleanup.mjs", "paidBack", "E49", 1, 0, 0], ["eclipse.mjs", "ruleOnParkedMurder", "E49", 1, 0, 0],
-            ["eclipse.mjs", "judgePendingMurders", "E49", 1, 0, 0], ["inventory.mjs", "transferItem", "E49", 3, 0, 0], ["key-remnants.mjs", "chargeForUnfoundKeys", "E49", 1, 0, 0],
+            ["eclipse.mjs", "judgePendingMurders", "E49", 1, 0, 0], ["inventory.mjs", "transferItem", "E49", 3, 0, 0], ["key-remnants.mjs", "holdCharge", "E49", 1, 0, 0], // chargeForUnfoundKeys's held card until 2.0 line T3 INV-07, which drew it in `holdCharge` for an unanswered ask too
             ["migrate.mjs", "*", "E49", 1, 0, 0], ["movement-audit.mjs", "auditMove", "E49", 2, 0, 0], ["movement.mjs", "keepRoomFlag", "E49", 1, 0, 0],
             ["movement.mjs", "removeDrop", "E49", 1, 0, 0], ["movement.mjs", "tellUnlawful", "E49", 1, 0, 0], ["movement.mjs", "tellDropped", "E49", 1, 0, 0],
             ["murder-rules.mjs", "resolveVictimOpening", "E49", 1, 0, 0], ["murder-rules.mjs", "applyCrisisAction", "E49", 1, 0, 0], ["murder-rules.mjs", "swapRoles", "E49", 1, 0, 0],

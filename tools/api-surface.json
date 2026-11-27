@@ -482,7 +482,8 @@
     "resolveThreshold": "function",
     "clamp": "function",
     "passages": "object",
-    "settings": "object"
+    "settings": "object",
+    "chargeKeyFee": "function"
   },
   "aliases": {
     "migrate1_2_0": {
