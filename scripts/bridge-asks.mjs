@@ -35,7 +35,8 @@ import {
     ACTION_FRISK_ASK, ACTION_FRISK_ANSWER, ACTION_FRISK_FOLLOW, ACTION_CRISIS, ACTION_OPENING_RESULT, ACTION_CLEANUP,
     ACTION_BETRAYAL, ACTION_PARK_MURDER, ACTION_CUB_ABILITY, ACTION_CUB_ANSWER, ACTION_BRIBE_OFFER, ACTION_BRIBE_ANSWER, ACTION_DONE, ACTION_LOOT, ACTION_NOTE_SAVE,
     ACTION_ROLL_BOOKMARK, ACTION_REROLL, ACTION_CARD, ACTION_CARD_CLAIM, ACTION_BULLET_GIVE, ACTION_FACILITY_USE, ACTION_DASH, ACTION_TAIL_START, ACTION_DOOR_SHUT, ACTION_DOOR_FORCE, ACTION_DOOR_PICK, ACTION_WATCH_DECLARE, ACTION_DOOR_KNOCK,
-    ACTION_LISTEN_EAVESDROP, ACTION_LISTEN_STOP, ACTION_LISTEN_ECHOES, ACTION_MASK_REVEAL, ACTION_MASK_VEIL, ACTION_HIDE_START, ACTION_DEAD_SPECTATOR
+    ACTION_LISTEN_EAVESDROP, ACTION_LISTEN_STOP, ACTION_LISTEN_ECHOES, ACTION_MASK_REVEAL, ACTION_MASK_VEIL, ACTION_HIDE_START, ACTION_DEAD_SPECTATOR,
+    ACTION_ECLIPSE_JUDGE
 } from "./bridge-wire.mjs";
 import { ask } from "./bridge-table.mjs";
 
@@ -1166,10 +1167,11 @@ export function requestCleanup({
 }
 
 /** Record a direct murder declared during an Eclipse. See eclipse.mjs. */
-export function requestParkMurder({ killerId, room = null, note = "", proposed = null }) {
-    // `proposed` (E68 C9): the opening's statistic the killer proposes, read against their list on the GM.
+export function requestParkMurder({ killerId, room = null, note = "", proposed = null, receipt = null }) {
+    // `proposed` (E68 C9): the opening's statistic the killer proposes, read against their list on the GM. `receipt` (2.0
+    // line T1 EXP-PL-07): the spend's, kept for a GM's own declaration alone - it never travels in the packet.
     return ask(ACTION_PARK_MURDER, { killerId, room, note, proposed }, {
-        local: () => import("./eclipse.mjs").then(m => m.writeParkedMurder({ killerId, room, note, proposed }))
+        local: () => import("./eclipse.mjs").then(m => m.writeParkedMurder({ killerId, room, note, proposed, receipt }))
     });
 }
 
@@ -1451,4 +1453,12 @@ export async function claimCard(message, work) {
         await askCardClaim(message.id, outcome?.settled || outcome?.held ? "done" : "drop");
     }
     return outcome;
+}
+
+/** A GM who is not the primary asks the primary where the declarations of `eclipse` stand at its lights (2.0 line T1 DAY-03; eclipse.mjs). */
+export function requestEclipseJudge({ eclipse }) {
+    return ask(ACTION_ECLIPSE_JUDGE, { eclipse }, {
+        onPrimary: true,
+        local: () => import("./bridge-runs-records.mjs").then(m => m.handleEclipseJudge({ eclipse }, game.user))
+    });
 }

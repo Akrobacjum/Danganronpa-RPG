@@ -512,7 +512,7 @@ Reinforced Remnants never come off.
 
 ### Direct Murder - 1 action, GM rules
 
-A face-to-face killing, agreed with the GM beforehand and <ins>consented to by the victim's player</ins>. You can declare it only **during an Eclipse**, the one moment you can be alone with somebody. The action is spent whether or not it comes off. If the GM refuses it, you are told at once; otherwise nobody, not even you, learns how it went until the Eclipse ends and the room settles. If you end up alone with them and the GM allows it, the incident opens (section 10), unless another killing opened one first.
+A face-to-face killing, agreed with the GM beforehand and <ins>consented to by the victim's player</ins>. You can declare it only **during an Eclipse**, the one moment you can be alone with somebody. Declaring spends the action. If the GM refuses it - on the card during the Eclipse or at the lights - you get the action back, and so you do when your declaration is refused because another killing opened first; an empty room or a witness when the Eclipse ends keeps it spent (since 1.2.130). If the GM refuses it on the card, you are told at once; otherwise nobody, not even you, learns how it went until the Eclipse ends and the room settles. If you end up alone with them and the GM allows it, the incident opens (section 10), unless another killing opened one first.
 
 ### Move - free, then 1 action
 
@@ -736,7 +736,7 @@ After a change, your window says what it was changed to and offers to roll it or
 
 Every murder has exactly one opening roll, and its kind decides who throws it. It cannot be skipped: close its window and it opens again, up to 3 times, and after that the GM is told.
 
-**Direct Murder:** the killer rolls Body or Hand against **8**, with advantage at Night (a murder declared in the Night Eclipse opens at Night). When you declare one in an Eclipse, the window asks *Which statistic do you propose?* (Body or Hand, Body to start) under your line of how you do it. The GM answers on one card: allow your proposal, change it to the other, or refuse. You hear nothing until the lights come back; the opening then rolls on the statistic the GM allowed, with no second window and nothing to pass.
+**Direct Murder:** the killer rolls Body or Hand against **8**, with advantage at Night (a murder declared in the Night Eclipse opens at Night). When you declare one in an Eclipse, the window asks *Which statistic do you propose?* (Body or Hand, Body to start) under your line of how you do it. The GM answers on one card: allow your proposal, change it to the other, or refuse. You hear nothing until the lights come back; the opening then rolls on the statistic the GM allowed, with no second window and nothing to pass. Your declaration is judged just before the lights come back - the room, any other declaration and the GM's answer - so one that does not hold never hides your token (since 1.2.130).
 
 A **betrayal**, turning on the killer after an incident you took part in (If you walk in on it, below), asks the same when you confirm it, with *How do you do it? (optional)* outside an Eclipse; the GM rules on it as the opening rolls, and you are told *The GM is ruling on the statistic you proposed for your opening.* With no proposal the GM picks, and you are told so and asked to say in your thread how you go about it. A watch the victim kept, of 18 or more or a critical, can put a hindrance die on your opening (section 4, Keep Watch).
 

@@ -227,3 +227,6 @@ export const ACTION_CARD_CLAIM = "card.claim";
 
 /** GM -> primary GM: Give a Truth Bullet, carried to the primary so its copy is made in the one receiver's finds' queue (E38; D153). */
 export const ACTION_BULLET_GIVE = "bullet.give";
+
+/** GM -> primary GM: where each declaration of an Eclipse stands at its lights, read on the primary's record of lawful places (2.0 line T1 DAY-03). */
+export const ACTION_ECLIPSE_JUDGE = "eclipse.judge";

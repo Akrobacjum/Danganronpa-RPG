@@ -451,124 +451,132 @@ async function endEclipseNow({ advance = true } = {}) {
 
     log("Eclipse ended.");
 
-    /* THE OPENING'S VEIL FROM THE START OF THE TIME OF DAY (E112; the owner's answer (4)): the killers the lights below will
-       judge are veiled while the Eclipse still hides every token, and `lightsJudged` settles once they have judged
-       (mask-gm.mjs `veilAtTheLights`). On the primary GM; another GM's end veils at each open instead. */
-    /* AND ONLY THOSE THE LIGHTS CAN STILL OPEN (1.2.121 line M2; the audit's DOC-01, through the coordinator of 21.11.2026).
-       Every declaration's killer was veiled here, and one the lights then cancelled - alone, or with witnesses - stayed
-       veiled until `lightsJudged`, after the whole judgement and any window it asks a GM: their token was drawn on no
-       player's map and flagged `veiled` in every browser's world data, a mark of a declaration that came to nothing.
-       Now the room is read here by the judgement's own reading (`standingAtTheLights`), so a killer it cancels is never
-       veiled, and one cancelled at the lights for any other reason - a second declaration, the GM's refusal, a refused
-       betrayal - is lifted as it is cancelled (`judgePendingMurders`, mask-gm.mjs `liftAtTheLights`). Tier 2 "1.2.121 the
-       lights veil only a killer they can still open". */
-    try {
-        await pendingMurderStore.whenHydrated();
-        await (await import("./mask-gm.mjs")).veilAtTheLights(await killersTheLightsCanOpen(ending));
-    } catch (err) {
-        error("Could not veil the killers the lights will judge", err);
-    }
-
-    // The other clients are told by the clock's write itself, on both branches below (clock.mjs `setClock` ->
-    // `reconcileEclipseEnded`), AFTER the clock, for the same reason the flag goes with it: it redraws the HUD on every
-    // other client, and sent first it redrew them into the half-finished state this function exists to skip past. ONE
-    // PACKET (E37 C2, 01.11.2026; audit S10-46, E37-11): this function sent a second `SYNC.eclipse` after both branches,
-    // which the bus's `heard` ran as nothing on every browser (tier 2 E37-T2 counts one).
-    if (advance) {
-        const { advanceTimeOfDay } = await import("./clock.mjs");
-        // NO REFILL HERE ANY MORE (Z2). The budget arrived when this Eclipse
-        // opened; asking for a second one on the way out would hand the table
-        // two in a row and wipe the cost of a Direct Murder declared in the
-        // dark - the exact thing this change exists to make payable.
-        //
-        // `resetActions` stays off by default in `advanceTimeOfDay`, so the
-        // omission below is the whole of it. The GM's clock editor still asks
-        // for one explicitly when a botched advance needs repairing.
-        //
-        // `eclipse: false` travels WITH the advance rather than ahead of it.
-        // Cleared first, the clock spent a frame reading as the time of day
-        // that had just finished - the flicker between the Eclipse and the
-        // time it leads into.
-        /*
-         * THE SOUND RIDES THIS CARD, AND THAT IS THE BUG THIS FIXES.
-         *
-         * `eclipseEnd` used to be attached to the `else` below - the branch for
-         * `advance: false`, which nothing in the game takes. An Eclipse ends by
-         * advancing the clock; that is what `advance` defaults to and what the
-         * GM panel calls. So the sound was mapped, catalogued, shown in the
-         * Sound panel with a Test button that worked, and never once played in
-         * a real session. Found at the table by Dawid, 28.08, and it could only
-         * be found there: nothing static can tell a live branch from a dead one.
-         *
-         * There is no card of its own on this path because there should not be:
-         * `advanceTimeOfDay` already announces the time of day the Eclipse was
-         * leading into, and a second card would say the same thing twice.
-         */
-        /* AND WHILE AN INCIDENT RUNS, ITS OWN PUBLIC CARD (E59 on the 1.2.115 line, CHAINS.md B-H3; R7180; Q-115-1). An
-           Eclipse may open at Stage 6 (`startRefusalOf`), on a public card and sound; the time of day's card is veiled to
-           the incident's audience then (clock.mjs `announceTimeOfDay`), so the bystanders heard the lights go out and
-           never come back. The end is told to everyone it was told to, naming no time of day, and the veiled card keeps
-           no sound of its own, so the incident's audience hears it once. */
-        const { murderState } = await import("./murder.mjs");
-        const inIncident = Boolean(murderState());
-        await advanceTimeOfDay({
-            also: { eclipse: false },
-            ...(inIncident ? {} : { sfx: { key: "eclipseEnd", gm: true } })
-        });
-        if (inIncident) {
+    /*
+     * THE LIGHTS JUDGE BEFORE THEY COME UP (2.0 line T1 EXP-PL-02, 27.11.2026; the recommendation the owner took, a blocker:
+     * "Rozstrzygac otwarcie morderstwa przed zapaleniem swiatel (decyzja GM-a i deklaracje przed lights), zeby zaslona szla
+     * tylko na potwierdzone morderstwo"). Until 1.2.129 every killer the room left with one other was veiled here, the
+     * clock moved, and only then did `judgePendingMurders` ask the GM, read a second declaration and a betrayal, and lift
+     * the veil of the ones it refused: a victim in the same room saw a figure appear at the new time of day that had not
+     * been there a moment before. Now the judgement runs in two steps around this function's clock (`judgePendingMurders`,
+     * `moveTheClock` handed to it): the room, a betrayal, a second declaration and the GM's answer first, while the Eclipse
+     * still hides every token - its window asked before the lights (`askAtTheLights`) - then the veil on the murders it
+     * confirmed alone (mask-gm.mjs `veilAtTheLights`), then the clock, then the incidents opened. A refused killer is never
+     * veiled. What is left: an opening confirmed at the lights is rolled by day under the veil, and one that fails shows the
+     * killer's token again in the victim's room (the owner's question P1 of the line's report; unchanged).
+     */
+    const moveTheClock = async confirmed => {
+        /* THE OPENING'S VEIL FROM THE START OF THE TIME OF DAY (E112; the owner's answer (4)): the killers the lights
+           confirmed are veiled while the Eclipse still hides every token, and `lightsJudged` settles once they have opened
+           (mask-gm.mjs `veilAtTheLights`). On the primary GM; another GM asks it (STG-31). Since 2.0 line T1 only the
+           confirmed ones (`judgePendingMurders`' first step): one the room, a second declaration or the GM refuses is never
+           veiled. */
+        try {
+            await (await import("./mask-gm.mjs")).veilAtTheLights(confirmed);
+        } catch (err) {
+            error("Could not veil the killers the lights will open", err);
+        }
+        // The other clients are told by the clock's write itself, on both branches below (clock.mjs `setClock` ->
+        // `reconcileEclipseEnded`), AFTER the clock, for the same reason the flag goes with it: it redraws the HUD on every
+        // other client, and sent first it redrew them into the half-finished state this function exists to skip past. ONE
+        // PACKET (E37 C2, 01.11.2026; audit S10-46, E37-11): this function sent a second `SYNC.eclipse` after both branches,
+        // which the bus's `heard` ran as nothing on every browser (tier 2 E37-T2 counts one).
+        if (advance) {
+            const { advanceTimeOfDay } = await import("./clock.mjs");
+            // NO REFILL HERE ANY MORE (Z2). The budget arrived when this Eclipse
+            // opened; asking for a second one on the way out would hand the table
+            // two in a row and wipe the cost of a Direct Murder declared in the
+            // dark - the exact thing this change exists to make payable.
+            //
+            // `resetActions` stays off by default in `advanceTimeOfDay`, so the
+            // omission below is the whole of it. The GM's clock editor still asks
+            // for one explicitly when a botched advance needs repairing.
+            //
+            // `eclipse: false` travels WITH the advance rather than ahead of it.
+            // Cleared first, the clock spent a frame reading as the time of day
+            // that had just finished - the flicker between the Eclipse and the
+            // time it leads into.
+            /*
+             * THE SOUND RIDES THIS CARD, AND THAT IS THE BUG THIS FIXES.
+             *
+             * `eclipseEnd` used to be attached to the `else` below - the branch for
+             * `advance: false`, which nothing in the game takes. An Eclipse ends by
+             * advancing the clock; that is what `advance` defaults to and what the
+             * GM panel calls. So the sound was mapped, catalogued, shown in the
+             * Sound panel with a Test button that worked, and never once played in
+             * a real session. Found at the table by Dawid, 28.08, and it could only
+             * be found there: nothing static can tell a live branch from a dead one.
+             *
+             * There is no card of its own on this path because there should not be:
+             * `advanceTimeOfDay` already announces the time of day the Eclipse was
+             * leading into, and a second card would say the same thing twice.
+             */
+            /* AND WHILE AN INCIDENT RUNS, ITS OWN PUBLIC CARD (E59 on the 1.2.115 line, CHAINS.md B-H3; R7180; Q-115-1). An
+               Eclipse may open at Stage 6 (`startRefusalOf`), on a public card and sound; the time of day's card is veiled to
+               the incident's audience then (clock.mjs `announceTimeOfDay`), so the bystanders heard the lights go out and
+               never come back. The end is told to everyone it was told to, naming no time of day, and the veiled card keeps
+               no sound of its own, so the incident's audience hears it once. */
+            const { murderState } = await import("./murder.mjs");
+            const inIncident = Boolean(murderState());
+            await advanceTimeOfDay({
+                also: { eclipse: false },
+                ...(inIncident ? {} : { sfx: { key: "eclipseEnd", gm: true } })
+            });
+            if (inIncident) {
+                await announce({
+                    flags: { [MODULE_ID]: { sfx: { key: "eclipseEnd", gm: true } } },
+                    content: `<p>${game.i18n.localize("DRPG.Eclipse.ended")}</p>`
+                });
+            }
+        } else {
+            /* WITHIN FIVE MINUTES, TAKEN BACK (E17 C7, 26.10.2026; audit S10-42). "End without advancing" gave nothing
+               back, and the next press refilled the same boundary again. Now what this Eclipse's opening changed - the
+               budgets, the grants, the seals - is put back when it is `lastAdvance`'s and younger than `TAKE_BACK_MS`, and
+               the boundary refills when it is opened again; later, nothing is put back and the boundary stays refilled
+               (`refilledFor`). The GM panel's "End without advancing" and the API's `endEclipse({ advance: false })` both
+               come here. */
+            const closing = await withTakeBack(getClock());
+            const last = takeBackFor(closing, boundaryStamp(closing));
+            /* AND A MORNING ECLIPSE ENDED WITHOUT ADVANCING TAKES BACK THE DAY IT OPENED ON THE BOARDS (13.11.2026): its start
+               wrote the next day's stamp and the GM's morning line (`openingDayPatch`); the line goes back to this GM's draft
+               and the stamp goes, so the roll-over that comes later writes both as if no Eclipse had been held. The start-of-day
+               board it played stays played on each browser (one start per key: sequence.mjs `dayStartKey`). */
+            const undoOpening = closing.dayBoard != null && Number(closing.dayBoard) === (Number(closing.day) || 0) + 1
+                && closing.timeOfDay === TIMES_OF_DAY[TIMES_OF_DAY.length - 1];
+            if (undoOpening && closing.morningLine) await game.settings.set(MODULE_ID, SETTINGS.morningLineDraft, closing.morningLine).catch(() => null);
+            await setClock({ eclipse: false, ...afterTakeBack(closing, last), ...(undoOpening ? { dayBoard: null, morningLine: null } : {}) });
+            if (last) await takeBackBoundary(last);
+            /* AND WHAT ITS START ENDED (A113-C2-6, the coordinator's follow-up, 13.11.2026): the timed effects and the unused
+               lock passes end as an Eclipse starts since C2-6, so they come back with the rest - a misclick costs them no
+               more than before. A barricade is not put back, as before. */
+            if (last) {
+                try {
+                    const stamp = boundaryStamp(closing);
+                    await (await import("./timed-effects.mjs")).putBackAtTakeBack(stamp);
+                    await (await import("./lockpick-gm.mjs")).putBackPassesAtTakeBack(stamp);
+                } catch (err) {
+                    error("Could not put back what the Eclipse's start ended", err);
+                }
+            }
             await announce({
                 flags: { [MODULE_ID]: { sfx: { key: "eclipseEnd", gm: true } } },
-                content: `<p>${game.i18n.localize("DRPG.Eclipse.ended")}</p>`
+                content: `<p><strong>${timeOfDayLabel()}</strong> - ${game.i18n.localize("DRPG.Eclipse.ended")}</p>`
             });
         }
-    } else {
-        /* WITHIN FIVE MINUTES, TAKEN BACK (E17 C7, 26.10.2026; audit S10-42). "End without advancing" gave nothing
-           back, and the next press refilled the same boundary again. Now what this Eclipse's opening changed - the
-           budgets, the grants, the seals - is put back when it is `lastAdvance`'s and younger than `TAKE_BACK_MS`, and
-           the boundary refills when it is opened again; later, nothing is put back and the boundary stays refilled
-           (`refilledFor`). The GM panel's "End without advancing" and the API's `endEclipse({ advance: false })` both
-           come here. */
-        const closing = await withTakeBack(getClock());
-        const last = takeBackFor(closing, boundaryStamp(closing));
-        /* AND A MORNING ECLIPSE ENDED WITHOUT ADVANCING TAKES BACK THE DAY IT OPENED ON THE BOARDS (13.11.2026): its start
-           wrote the next day's stamp and the GM's morning line (`openingDayPatch`); the line goes back to this GM's draft
-           and the stamp goes, so the roll-over that comes later writes both as if no Eclipse had been held. The start-of-day
-           board it played stays played on each browser (one start per key: sequence.mjs `dayStartKey`). */
-        const undoOpening = closing.dayBoard != null && Number(closing.dayBoard) === (Number(closing.day) || 0) + 1
-            && closing.timeOfDay === TIMES_OF_DAY[TIMES_OF_DAY.length - 1];
-        if (undoOpening && closing.morningLine) await game.settings.set(MODULE_ID, SETTINGS.morningLineDraft, closing.morningLine).catch(() => null);
-        await setClock({ eclipse: false, ...afterTakeBack(closing, last), ...(undoOpening ? { dayBoard: null, morningLine: null } : {}) });
-        if (last) await takeBackBoundary(last);
-        /* AND WHAT ITS START ENDED (A113-C2-6, the coordinator's follow-up, 13.11.2026): the timed effects and the unused
-           lock passes end as an Eclipse starts since C2-6, so they come back with the rest - a misclick costs them no
-           more than before. A barricade is not put back, as before. */
-        if (last) {
-            try {
-                const stamp = boundaryStamp(closing);
-                await (await import("./timed-effects.mjs")).putBackAtTakeBack(stamp);
-                await (await import("./lockpick-gm.mjs")).putBackPassesAtTakeBack(stamp);
-            } catch (err) {
-                error("Could not put back what the Eclipse's start ended", err);
-            }
-        }
-        await announce({
-            flags: { [MODULE_ID]: { sfx: { key: "eclipseEnd", gm: true } } },
-            content: `<p><strong>${timeOfDayLabel()}</strong> - ${game.i18n.localize("DRPG.Eclipse.ended")}</p>`
-        });
-    }
+    };
 
-    // LAST, and after the clock has moved. Everything a murder opened here needs
-    // - the new time of day, unlocked Hope Calls - is put in place by the lines
-    // above, and an incident opened before them lands in the placement window
-    // this function exists to close.
-    //
-    // The action budget is NOT among those things any more, and does not need
-    // to be: the declaration paid for itself when it was made, out of the
-    // budget this Eclipse opened with (Z2). Judging spends nothing.
+    // The judgement around the clock (above): its first step before `moveTheClock`, its second after it, the new time of
+    // day in place - everything a murder opened there needs, unlocked Hope Calls among it, is put in place by the clock.
+    // The action budget is not among those things: the declaration paid for itself when it was made (Z2).
+    // A clock whose write throws fails the end, as it did while the clock moved before the judgement (r121-K-3): the
+    // judgement stops at it, the finally below lets the watches' dice go, and the throw reaches the caller.
+    let clockFailed = null;
+    const moveOrFail = async confirmed => {
+        try { await moveTheClock(confirmed); } catch (err) { clockFailed = err; throw err; }
+    };
     try {
-        await judgePendingMurders(ending, taken);
+        await judgePendingMurders(ending, taken, { advance: moveOrFail });
     } catch (err) {
-        error("Could not judge the direct murders declared during the Eclipse", err);
+        if (err !== clockFailed) error("Could not judge the direct murders declared during the Eclipse", err);
     } finally {
         // Every row of "lights" no opening took over is lifted (E112); awaited, so the lights end with the veils settled.
         try {
@@ -583,6 +591,7 @@ async function endEclipseNow({ advance = true } = {}) {
             error("Could not let go of the watches' dice after the lights", err);
         }
     }
+    if (clockFailed) throw clockFailed;
     return true;
 }
 
@@ -618,17 +627,18 @@ function pendingMurders(id = eclipseId()) {
 }
 
 /** Record a declaration. One per killer: declaring twice replaces the first. */
-export async function parkDirectMurder({ killerId, room = null, note = "", proposed = null } = {}) {
+export async function parkDirectMurder({ killerId, room = null, note = "", proposed = null, receipt = null } = {}) {
     if (!killerId) return null;
     const { requestParkMurder } = await import("./gm-bridge.mjs");
-    const res = await requestParkMurder({ killerId, room, note, proposed });
+    // The spend's receipt is kept for a GM's own declaration alone (2.0 line T1 EXP-PL-07): a player's packet carries none.
+    const res = await requestParkMurder({ killerId, room, note, proposed, receipt });
     // A GM's own client answers the entry it wrote; a player's, that the GM has it.
     if (!res.ok) return null;
     return game.user.isGM ? res.value : { pending: true };
 }
 
 /** GM-side. The write itself, reached from the bridge or directly by a GM. */
-export async function writeParkedMurder({ killerId, room = null, note = "", proposed = null } = {}) {
+export async function writeParkedMurder({ killerId, room = null, note = "", proposed = null, receipt = null } = {}) {
     // Only in an Eclipse (E05 fix r1-G3; review S1-m8): outside one the row would be named
     // for no Eclipse, nothing could rule on it and the GMs were asked all the same. The
     // bridge refuses a player's with its reason first (bridge-runs-acts.mjs `handleParkMurder`).
@@ -640,7 +650,10 @@ export async function writeParkedMurder({ killerId, room = null, note = "", prop
     // rest: a murder declared after a betrayal by the same student replaces it whole. `proposed` is the opening's
     // statistic the killer proposed (E68 C9), one their opening lists or null; `trait` the one a GM allowed, none yet.
     const { proposed: claim } = await openingProposalFor("killer", { proposed });
-    const entry = { room, note, at: Date.now(), approved: null, eclipse: eclipseId(), betrayal: null, proposed: claim ?? null, trait: null };
+    /* `receipt` (2.0 line T1 EXP-PL-07): what paid, `{ grant }`, given back by a refusal (`refundDeclaration`); a GM's own
+       declaration's alone, null for a player's. `verdict` and `lightsMark` (DAY-04) come at the lights. */
+    const entry = { room, note, at: Date.now(), approved: null, eclipse: eclipseId(), betrayal: null, proposed: claim ?? null, trait: null,
+        receipt: receipt && typeof receipt === "object" ? { grant: receipt.grant === true } : null, verdict: null, lightsMark: null };
     await pendingMurderStore.patch(killerId, entry);
     log(`Direct murder declared in the dark by ${game.actors.get(killerId)?.name ?? killerId}.`);
 
@@ -775,8 +788,10 @@ async function openingProposalFor(side, proposal) {
  * and leaving it in the store only creates a second way for a dead
  * declaration to be reconsidered at the lights.
  *
- * The action stays spent either way. That is the guide's rule for a direct
- * murder and it does not change because the GM said no: declaring is the cost.
+ * A REFUSAL GIVES THE ACTION BACK (2.0 line T1 EXP-PL-07; the recommendation the owner took: "Zwrot akcji przy odmowie
+ * GM-a"). Until 1.2.129: "The action stays spent either way. That is the guide's rule for a direct murder and it does not
+ * change because the GM said no: declaring is the cost." The row's receipt is read before the row goes
+ * (`refundDeclaration`); an allowance spends it, as before.
  *
  * The killer's card is VEILED (E05, S11-02): addressed to them and the GMs it
  * named their actor as its speaker and their player among its readers, in a
@@ -816,6 +831,7 @@ export async function ruleOnParkedMurder(killerId, allow, trait = null) {
         await whisperToOwner(killer,
             `${cardHead({ action: game.i18n.localize("DRPG.Action.directMurder") })}<p>${
                 cardWarn(game.i18n.localize("DRPG.Action.murderRefused"), "span")}</p>`, { veiled: true });
+        await refundDeclaration(killer, parked);
     }
 
     log(`Direct murder by ${killer?.name ?? killerId} ${allow ? "allowed" : "refused"}.`);
@@ -889,9 +905,9 @@ export async function liftPendingMurders() {
 }
 
 /**
- * Where `killer` stands at the lights and who stands with them (`room`, `present`): the one reading the judgement and the
- * veil before it make (`judgePendingMurders`, `killersTheLightsCanOpen`), so the two cannot read two rooms. The second
- * argument's readers are movement.mjs's.
+ * Where `killer` stands at the lights and who stands with them (`room`, `present`): the one reading the judgement's first
+ * step makes (`judgePendingMurders` through `standingsAtTheLights`), and since 2.0 line T1 the veil follows its verdicts
+ * rather than a reading of its own, as it had until 1.2.129. The second argument's readers are movement.mjs's.
  */
 function standingAtTheLights(killer, parked, { othersInNamedRoom, locateActor, lawfulRoomOf }) {
     const where = locateActor(killer);
@@ -901,20 +917,49 @@ function standingAtTheLights(killer, parked, { othersInNamedRoom, locateActor, l
 }
 
 /**
- * The killers of the Eclipse `id`'s declarations the lights can still open (DOC-01, 1.2.121): a betrayal's - it has no
- * room test - and a direct murder's whose killer stands with exactly one other. The rest the judgement cancels on the
- * room alone, so the veil is not put on them (`endEclipse`). Whether a second declaration or the GM's refusal cancels one
- * is known only at the lights; those are lifted there.
+ * Where each of the Eclipse `id`'s direct murders stands at the lights (`all`, its rows): `{ [killerId]: { room, present,
+ * victimId } }` - `present` how many others stand with the killer, `victimId` the one when there is exactly one - read
+ * by the judgement's own reading (`standingAtTheLights`). The first step's room test (`judgePendingMurders`). A betrayal
+ * has none.
+ *
+ * THROUGH THE PRIMARY (2.0 line T1 DAY-03; the recommendation the owner took: "Osad Direct Murder przy swietle taki sam
+ * niezaleznie od GM-a"). Each witness counts where the witness judge lets them count (`lawfulRoomOf`, E12 fix r2-H3), and
+ * that judge's record is the primary's alone: until 1.2.129 a second GM who ended the Eclipse read every student where they
+ * stood, so a student a console put in the crime room past the rules was a witness, or the victim, there and not on the
+ * primary ("read in the code; not driven"). That GM asks the primary now (`eclipse.judge`, `standingsOnPrimary`) and reads
+ * its own only when no primary answers - an Assistant GM alone, as before.
  */
-async function killersTheLightsCanOpen(id) {
-    const all = pendingMurders(id);
+async function standingsAtTheLights(id, all = pendingMurders(id)) {
+    if (game.user?.isGM && !isPrimaryGm() && primaryGmId()) {
+        try {
+            const { requestEclipseJudge } = await import("./bridge-asks.mjs");
+            const res = await requestEclipseJudge({ eclipse: id });
+            if (res.ok && res.value && typeof res.value === "object") return res.value;
+        } catch (err) {
+            error("Could not ask the primary GM where the declarations stand at the lights", err);
+        }
+    }
+    return standingsHere(all);
+}
+
+/** The primary's side of `eclipse.judge` (DAY-03): its own rows of the Eclipse `id` read here, or null off the primary. */
+export async function standingsOnPrimary(id) {
+    if (!game.user?.isGM || !isPrimaryGm()) return null;
+    await pendingMurderStore.whenHydrated();
+    return standingsHere(typeof id === "string" && id ? pendingMurders(id) : {});
+}
+
+/** `standingsAtTheLights`' reading on this browser, of `all`'s rows. */
+async function standingsHere(all) {
     const mv = await import("./movement.mjs");
-    return Object.keys(all).filter(killerId => {
+    const out = {};
+    for (const [killerId, parked] of Object.entries(all)) {
         const killer = game.actors.get(killerId);
-        if (!killer) return false;
-        if (all[killerId]?.betrayal) return true;
-        return standingAtTheLights(killer, all[killerId], mv).present.length === 1;
-    });
+        if (!killer || parked?.betrayal) continue;
+        const { room, present } = standingAtTheLights(killer, parked, mv);
+        out[killerId] = { room: room ?? null, present: present.length, victimId: present.length === 1 ? present[0].id : null };
+    }
+    return out;
 }
 
 /**
@@ -979,131 +1024,243 @@ export async function settleDeclarationCards(killerIds) {
  * fully formed: the killer, the victim, the room, and the killer's own sentence
  * about what they are doing.
  *
- * EVERY ROW GOES, and another Eclipse's goes unjudged (E05): a declaration the
- * lights of its own Eclipse never reached - that Eclipse ended by a season reset, or
- * on a GM who did not hold it yet - is not an attempt at this Eclipse's placement.
- * Asked once the store holds the other GMs' copies, so a declaration parked through
- * the primary is judged by whichever GM ends the Eclipse.
+ * TWO STEPS AROUND THE CLOCK (2.0 line T1 EXP-PL-02; `endEclipseNow`'s note). The first, before `advance`: every
+ * declaration of this Eclipse in declaration order - its room (`standingAtTheLights`), a betrayal, a second declaration
+ * (the count of the ones this step confirmed, and an incident running already, not `murderState()` alone: nothing has
+ * opened yet), the GM's answer from the card or the window (`askAtTheLights`, asked while the Eclipse stands) - written
+ * on its row as `verdict` (DAY-04). Then `advance(confirmed)`: the veil on the confirmed killers alone, and the clock.
+ * The second, after it: each row in the same order told and carried out - an incident opened (`openMurder`, `atLights`),
+ * a betrayal opened, or the killer's line - and only then dropped.
+ *
+ * EVERY ROW GOES ONLY ONCE IT IS JUDGED (2.0 line T1 DAY-04; the recommendation the owner took: "Usuwac zgloszenie dopiero
+ * po osadzie (albo odtwarzac nierozstrzygniete przy ready) i powiadomic zabojce, gdy zgloszenie przepadlo"). Until 1.2.129
+ * every row was dropped before the judgement: a GM's reload at the lights' window lost the declaration without a trace,
+ * its action spent. Now a reload in the first step leaves the Eclipse running and every row standing - the next End the
+ * Eclipse asks again - and a row whose Eclipse has ended without its second step is met at the primary's ready
+ * (`sweepLostDeclarations`). A row of another Eclipse is lost at these lights the same way (`loseDeclaration`): a
+ * declaration the lights of its own Eclipse never reached - that Eclipse ended by a season reset, or on a GM who did not
+ * hold it yet - is not an attempt at this Eclipse's placement. Asked once the store holds the other GMs' copies, so a
+ * declaration parked through the primary is judged by whichever GM ends the Eclipse.
+ *
+ * A REFUSAL GIVES THE ACTION BACK (2.0 line T1 EXP-PL-07; the recommendation the owner took: "Zwrot akcji przy odmowie
+ * GM-a"). Every road that tells `murderRefused` refunds the declaration's action (`refundDeclaration`): the GM's refusal at
+ * the lights, and - so that D6 holds, the two looking alike to the killer - a second declaration and a refused betrayal
+ * (the line's default P2). A room that cancels it (nobody, witnesses) keeps the action spent, with its own words.
  */
-async function judgePendingMurders(id, taken = new Map()) {
-    if (!game.user.isGM) return;
+async function judgePendingMurders(id, taken = new Map(), { advance = async () => null } = {}) {
+    if (!game.user.isGM) return advance([]);
+    const { murderState } = await import("./murder.mjs");
+    const { whisperToGms } = await import("./utils.mjs");
+    // Veiled, as the ruling is (E05, S11-02): the document would name the killer's actor and their player at the moment
+    // the lights judged them.
+    const say = async (killer, line, warned = false) => {
+        await whisperToOwner(killer,
+            `${cardHead({ action: game.i18n.localize("DRPG.Action.directMurder") })}<p>${
+                warned ? cardWarn(line, "span") : line}</p>`, { veiled: true });
+    };
 
-    await pendingMurderStore.whenHydrated();
-    const held = Object.keys(pendingMurderStore.entries());
-    const all = pendingMurders(id);
-    const ids = Object.keys(all);
-    if (!held.length) return;
-    await pendingMurderStore.dropMany(held);
-    await settleDeclarationCards(held);
-    if (held.length > ids.length) log(`Dropped ${held.length - ids.length} declaration(s) made in another Eclipse, unjudged.`);
-    if (!ids.length) return;
-
-    const { othersInNamedRoom, locateActor, lawfulRoomOf } = await import("./movement.mjs");
-    const { openMurder, murderState } = await import("./murder.mjs");
-    const { whisperToOwner, whisperToGms } = await import("./utils.mjs");
-
-    // Declaration order, so "whoever got there first" is a fact about the table
-    // rather than about object-key ordering.
-    ids.sort((a, b) => (all[a].at ?? 0) - (all[b].at ?? 0));
-
-    for (const killerId of ids) {
-        const killer = game.actors.get(killerId);
-        if (!killer) continue;
-
-        /* Where the killer stands and who stands with them, on the killer's own scene (E12 C3,
-           11.10.2026; audit S10-14): `roomOfActor` and `othersInRoom` read the canvas until then,
-           so the primary GM looking at another scene at the end of the Eclipse judged a murder in
-           a room of three as one with nobody there (scenario 66 F2). One placing for both. And each
-           witness counted where the witness judge lets them count (E12 fix r2-H3; goal review N5, the
-           owner's Q3 a): a student a console put in the room past the rules cancels no murder there.
-           Where the primary ends the Eclipse: the judge's record is the primary's alone, so a co-GM who
-           ends it reads every student where they stand, as before (read in the code; not driven). */
-        const parked = all[killerId];
-        const { room, present } = standingAtTheLights(killer, parked, { othersInNamedRoom, locateActor, lawfulRoomOf });
-        // A killer the lights cancel is shown again at once, not after the whole judgement (DOC-01: `endEclipse`'s note).
-        const lift = () => import("./mask-gm.mjs").then(m => m.liftAtTheLights(killerId))
-            .catch(err => error("Could not lift the veil of a killer the lights cancelled", err));
-
-        // Veiled, as the ruling is (E05, S11-02): the document would name the killer's
-        // actor and their player at the moment the lights judged them.
-        const say = async (line, warned = false) => {
-            await whisperToOwner(killer,
-                `${cardHead({ action: game.i18n.localize("DRPG.Action.directMurder") })}<p>${
-                    warned ? cardWarn(line, "span") : line}</p>`, { veiled: true });
-        };
-
-        /*
-         * A BETRAYAL (E32 C5b, 28.09.2026; audit S02-24, the owner's Q3), in the rows' order
-         * like the rest. No room test - a betrayal outside an Eclipse has none either, its
-         * victim is the partner the offer names - and no GM's leave (`parkBetrayal`), and no
-         * day: its offer was taken before the clock moved (`takeDeclaredBetrayals`), so one
-         * declared in the Eclipse after Night opens on the next morning (fix r1-G2).
-         * `openParkedBetrayal` closes a Stage 6 still open, as the tile's betrayal does; refused
-         * - another declaration opened first, the partner or the betrayer dead, the offer gone -
-         * the offer goes back while its chapter and day hold, the GM ending the Eclipse is
-         * told why, and the betrayer is told what a refused murder is told.
-         */
-        if (parked.betrayal) {
-            const { openParkedBetrayal } = await import("./murder.mjs");
-            if (!await openParkedBetrayal(killerId, parked.betrayal.killerId, taken.get(killerId) ?? null, parked.note ?? "", parked.proposed ?? null)) {
-                await lift();
-                await say(game.i18n.localize("DRPG.Action.murderRefused"), true);
+    /* THE FIRST STEP, WHILE THE ECLIPSE STANDS. */
+    const judged = [];
+    let all = {};
+    try {
+        await pendingMurderStore.whenHydrated();
+        all = pendingMurders(id);
+        const others = Object.keys(pendingMurderStore.entries()).filter(killerId => !all[killerId]);
+        for (const killerId of others) await loseDeclaration(killerId, "otherEclipse");
+        if (others.length) log(`Dropped ${others.length} declaration(s) made in another Eclipse, unjudged; their killers were told.`);
+        // Declaration order, so "whoever got there first" is a fact about the table rather than about object-key ordering.
+        const ids = Object.keys(all).sort((a, b) => (all[a].at ?? 0) - (all[b].at ?? 0));
+        const standings = ids.length ? await standingsAtTheLights(id, all) : {};
+        // An incident running as the Eclipse ends (one opened at Stage 6 may stand) counts as one opened first.
+        let confirmed = murderState()?.active ? 1 : 0;
+        for (const killerId of ids) {
+            const killer = game.actors.get(killerId);
+            const parked = all[killerId];
+            let verdict;
+            if (!killer) verdict = { outcome: "gone" };
+            /* A BETRAYAL (E32 C5b, 28.09.2026; audit S02-24, the owner's Q3), in the rows' order like the rest. No room
+               test - a betrayal outside an Eclipse has none either, its victim is the partner the offer names - and no GM's
+               leave (`parkBetrayal`), and no day: its offer was taken before the clock moved (`takeDeclaredBetrayals`). One
+               after a confirmed murder is a second declaration; the rest are opened in the second step, which may still
+               refuse them (`openParkedBetrayal`). */
+            else if (parked.betrayal) verdict = { outcome: confirmed ? "second" : "betrayal" };
+            else {
+                const { room = null, present = [], victimId = null } = standings[killerId] ?? {};
+                if (present !== 1) verdict = { outcome: present === 0 ? "nobody" : "witnesses", room, n: Math.max(0, present - 1) };
+                else if (confirmed) verdict = { outcome: "second", room };
+                else {
+                    const victim = game.actors.get(victimId ?? "");
+                    // Ruled on already, or ruled on now - asked AFTER the room condition, so the GM is never made to decide
+                    // about an attempt that came to nothing on its own, and BEFORE the lights (EXP-PL-02). Either answer
+                    // names the opening's statistic (E68 C9): the card's, or the window's.
+                    const ruled = !victim ? false : parked.approved === true ? (parked.trait ?? null) : await askAtTheLights(killer, victim, room, parked);
+                    verdict = ruled === false ? { outcome: "refused", room } : { outcome: "open", room, victimId: victim.id, trait: ruled };
+                }
             }
-            continue;
+            if (["open", "betrayal"].includes(verdict.outcome)) confirmed++;
+            // The verdict on its row (DAY-04): a reload from here on finds it judged.
+            await pendingMurderStore.patch(killerId, { verdict });
+            judged.push({ killerId, parked, verdict });
         }
-
-        if (present.length !== 1) {
-            await lift();
-            const reason = present.length === 0
-                ? game.i18n.localize("DRPG.Action.murderNobody")
-                : plural("DRPG.Action.murderWitness", { n: present.length - 1 });
-            await say(reason, true);
-            // The GMs' card says why in the GMs' words: the killer's line speaks to the killer (E71, P2).
-            const gmReason = present.length === 0
-                ? game.i18n.localize("DRPG.Action.murderNobodyGm")
-                : plural("DRPG.Action.murderWitnessGm", { n: present.length - 1 });
-            await whisperToGms(`<p>${game.i18n.format("DRPG.Action.murderCancelled", {
-                killer: foundry.utils.escapeHTML(killer.name),
-                room: foundry.utils.escapeHTML(room ?? "-"),
-                reason: foundry.utils.escapeHTML(gmReason)
-            })}</p>`);
-            continue;
-        }
-
-        if (murderState()) {
-            await lift();
-            await say(game.i18n.localize("DRPG.Action.murderRefused"), true);
-            await whisperToGms(`<p>${game.i18n.format("DRPG.Action.murderSecondDeclaration", {
-                killer: foundry.utils.escapeHTML(killer.name)
-            })}</p>`);
-            continue;
-        }
-
-        const victim = present[0];
-
-        // Ruled on already, or ruled on now. Asked AFTER the room condition, so
-        // the GM is never made to decide about an attempt that came to nothing
-        // on its own. Either answer names the opening's statistic (E68 C9): the card's, or the window's.
-        const ruled = parked.approved === true ? (parked.trait ?? null) : await askAtTheLights(killer, victim, room, parked);
-        if (ruled === false) {
-            await lift();
-            await say(game.i18n.localize("DRPG.Action.murderRefused"), true);
-            continue;
-        }
-
-        await whisperToGms(`
-            <h3>${game.i18n.localize("DRPG.Action.murderOpensTitle")}</h3>
-            <p>${game.i18n.format("DRPG.Action.murderOpens", {
-                killer: foundry.utils.escapeHTML(killer.name),
-                victim: foundry.utils.escapeHTML(victim.name),
-                room: foundry.utils.escapeHTML(room ?? "-")
-            })}</p>
-            ${parked.note ? `<p class="notes">${foundry.utils.escapeHTML(parked.note)}</p>` : ""}`);
-
-        // On the statistic allowed, and no second window; allowed with none, the opening's window offers the proposal first.
-        await openMurder({ killerId: killer.id, victimId: victim.id, openingTrait: ruled,
-            openingProposal: { proposed: parked.proposed ?? null, note: parked.note ?? "" }, atLights: true });
+    } catch (err) {
+        error("Could not judge the direct murders declared during the Eclipse before its lights", err);
     }
+
+    /* BETWEEN THE STEPS: the veil on the confirmed killers alone, and the clock (`endEclipseNow`'s `moveTheClock`). */
+    await advance(judged.filter(j => ["open", "betrayal"].includes(j.verdict.outcome)).map(j => j.killerId));
+
+    /* THE SECOND STEP, IN THE NEW TIME OF DAY: each row carried out and told, then dropped. */
+    const mark = await markOfNow();
+    const lift = killerId => import("./mask-gm.mjs").then(m => m.liftAtTheLights(killerId))
+        .catch(err => error("Could not lift the veil of a killer the lights cancelled", err));
+    for (const { killerId, parked, verdict } of judged) {
+        const killer = game.actors.get(killerId);
+        try {
+            if (!killer) continue;
+            if (["open", "betrayal"].includes(verdict.outcome)) await pendingMurderStore.patch(killerId, { lightsMark: mark });
+            if (verdict.outcome === "betrayal") {
+                const { openParkedBetrayal } = await import("./murder.mjs");
+                /* `openParkedBetrayal` closes a Stage 6 still open, as the tile's betrayal does; refused - the partner or
+                   the betrayer dead, the offer gone - the offer goes back while its chapter and day hold, the GM ending the
+                   Eclipse is told why, and the betrayer is told what a refused murder is told, the action given back. */
+                if (!await openParkedBetrayal(killerId, parked.betrayal.killerId, taken.get(killerId) ?? null, parked.note ?? "", parked.proposed ?? null)) {
+                    await lift(killerId);
+                    await say(killer, game.i18n.localize("DRPG.Action.murderRefused"), true);
+                    await refundDeclaration(killer, parked);
+                }
+                continue;
+            }
+            if (verdict.outcome === "nobody" || verdict.outcome === "witnesses") {
+                const reason = verdict.outcome === "nobody"
+                    ? game.i18n.localize("DRPG.Action.murderNobody")
+                    : plural("DRPG.Action.murderWitness", { n: verdict.n });
+                await say(killer, reason, true);
+                // The GMs' card says why in the GMs' words: the killer's line speaks to the killer (E71, P2).
+                const gmReason = verdict.outcome === "nobody"
+                    ? game.i18n.localize("DRPG.Action.murderNobodyGm")
+                    : plural("DRPG.Action.murderWitnessGm", { n: verdict.n });
+                await whisperToGms(`<p>${game.i18n.format("DRPG.Action.murderCancelled", {
+                    killer: foundry.utils.escapeHTML(killer.name),
+                    room: foundry.utils.escapeHTML(verdict.room ?? "-"),
+                    reason: foundry.utils.escapeHTML(gmReason)
+                })}</p>`);
+                continue;
+            }
+            if (verdict.outcome === "second") {
+                await say(killer, game.i18n.localize("DRPG.Action.murderRefused"), true);
+                await whisperToGms(`<p>${game.i18n.format("DRPG.Action.murderSecondDeclaration", {
+                    killer: foundry.utils.escapeHTML(killer.name)
+                })}</p>`);
+                await refundDeclaration(killer, parked);
+                continue;
+            }
+            if (verdict.outcome === "refused") {
+                await say(killer, game.i18n.localize("DRPG.Action.murderRefused"), true);
+                await refundDeclaration(killer, parked);
+                continue;
+            }
+            if (verdict.outcome !== "open") continue;
+            const victim = game.actors.get(verdict.victimId ?? "");
+            const opened = victim ? await openAtTheLights(killer, victim, verdict, parked) : null;
+            if (!opened) {
+                // Refused at the open itself (an incident opened meanwhile, a death recorded since): told as a refusal.
+                await lift(killerId);
+                await say(killer, game.i18n.localize("DRPG.Action.murderRefused"), true);
+                await refundDeclaration(killer, parked);
+            }
+        } catch (err) {
+            error(`Could not carry out the lights' verdict on ${killer?.name ?? killerId}'s declaration`, err);
+        } finally {
+            await pendingMurderStore.drop(killerId).catch(err => error("Could not drop a judged declaration", err));
+        }
+    }
+    await settleDeclarationCards(Object.keys(all));
+}
+
+/** The time of day a mark names (eavesdrop-gm.mjs `markNow`, the masks' too): the lights' second step keeps it on a row. */
+const markOfNow = async () => (await import("./eavesdrop-gm.mjs")).markNow();
+
+/** The incident a confirmed declaration opens at the lights (the second step's, and the primary's ready's): the GMs told. */
+async function openAtTheLights(killer, victim, verdict, parked) {
+    const { openMurder } = await import("./murder.mjs");
+    const { whisperToGms } = await import("./utils.mjs");
+    await whisperToGms(`
+        <h3>${game.i18n.localize("DRPG.Action.murderOpensTitle")}</h3>
+        <p>${game.i18n.format("DRPG.Action.murderOpens", {
+            killer: foundry.utils.escapeHTML(killer.name),
+            victim: foundry.utils.escapeHTML(victim.name),
+            room: foundry.utils.escapeHTML(verdict.room ?? "-")
+        })}</p>
+        ${parked.note ? `<p class="notes">${foundry.utils.escapeHTML(parked.note)}</p>` : ""}`);
+    // On the statistic allowed, and no second window; allowed with none, the opening's window offers the proposal first.
+    return openMurder({ killerId: killer.id, victimId: victim.id, openingTrait: verdict.trait ?? null,
+        openingProposal: { proposed: parked.proposed ?? null, note: parked.note ?? "" }, atLights: true });
+}
+
+/**
+ * A REFUSED DECLARATION'S ACTION, GIVEN BACK (2.0 line T1 EXP-PL-07). The row's receipt (`writeParkedMurder`): a GM's own
+ * declaration keeps what `spendAction` answered there, a Burst given back as one (actions.mjs `refundAction`); a player's
+ * receipt would be a claim of their packet's, so the GM keeps none and refunds an action, as `refundAction` does for a
+ * spend made on another client. GM-side; one action at most.
+ */
+async function refundDeclaration(killer, parked) {
+    if (!game.user?.isGM || !killer) return false;
+    try {
+        const { refundAction } = await import("./actions.mjs");
+        return await refundAction(killer, 1, parked?.receipt?.grant === true ? { grant: true } : null);
+    } catch (err) {
+        error(`Could not give ${killer.name} the action of a refused declaration back`, err);
+        return false;
+    }
+}
+
+/**
+ * A DECLARATION LOST (2.0 line T1 DAY-04; the owner's default P3: the action comes back). A row whose lights never carried
+ * it out - its Eclipse ended by a season reset or on a GM who did not hold it, or ended with its second step cut off by a
+ * reload - is dropped, its killer told `DRPG.Eclipse.declarationLost` (nothing technical: the GMs keep the reason), its
+ * action given back, and the GMs whispered the killer's name and why (`why`: "otherEclipse", "notOpened"). GM-side.
+ */
+async function loseDeclaration(killerId, why) {
+    const row = pendingMurderStore.get(killerId);
+    await pendingMurderStore.drop(killerId);
+    const killer = game.actors.get(killerId);
+    if (!killer || !row) return false;
+    const { whisperToGms } = await import("./utils.mjs");
+    await whisperToOwner(killer, `<p>${esc(game.i18n.localize("DRPG.Eclipse.declarationLost"))}</p>`, { veiled: true });
+    await refundDeclaration(killer, row);
+    await whisperToGms(`<p>${game.i18n.format(why === "notOpened" ? "DRPG.Eclipse.declarationLostOpenGm" : "DRPG.Eclipse.declarationLostGm",
+        { killer: foundry.utils.escapeHTML(killer.name) })}</p>`);
+    log(`${killer.name}'s declaration was lost (${why}); dropped, the killer told and given the action back.`);
+    return true;
+}
+
+/**
+ * THE DECLARATIONS AN ENDED ECLIPSE LEFT, AT THE PRIMARY'S READY (2.0 line T1 DAY-04). Every row of an Eclipse that is no
+ * longer running: one the first step judged to open (`verdict` "open"), whose second step began in this very time of day
+ * (`lightsMark`), with no incident running and both students alive as the GMs hold them, is opened now
+ * (`openAtTheLights`) and dropped; every other is lost (`loseDeclaration`). Rows of the Eclipse running now are left: its
+ * lights judge them. On the primary, once the store holds the other GMs' copies. Answers `{ opened, lost }`.
+ */
+export async function sweepLostDeclarations() {
+    if (!game.user?.isGM || !isPrimaryGm()) return null;
+    await pendingMurderStore.whenHydrated();
+    const running = eclipseId();
+    const { murderState } = await import("./murder.mjs");
+    const out = { opened: 0, lost: 0 };
+    const rows = Object.entries(pendingMurderStore.entries() ?? {}).filter(([, row]) => row && row.eclipse !== running)
+        .sort(([, a], [, b]) => (a.at ?? 0) - (b.at ?? 0));
+    for (const [killerId, row] of rows) {
+        const killer = game.actors.get(killerId), victim = game.actors.get(row.verdict?.victimId ?? "");
+        const opens = row.verdict?.outcome === "open" && row.lightsMark === await markOfNow() && !murderState()?.active
+            && killer && victim && !isDeadForGm(killer) && !isDeadForGm(victim);
+        if (opens && await openAtTheLights(killer, victim, row.verdict, row)) {
+            await pendingMurderStore.drop(killerId);
+            out.opened++;
+            continue;
+        }
+        if (await loseDeclaration(killerId, row.verdict?.outcome === "open" ? "notOpened" : "otherEclipse")) out.lost++;
+    }
+    return out;
 }
 
 /**
@@ -1616,4 +1773,9 @@ export function registerEclipse() {
     Hooks.once("ready", refreshEclipse);
     Hooks.on("drpgTimeOfDayChanged", refreshEclipse);
     Hooks.once("ready", registerMovesCopy);
+    // The declarations an ended Eclipse left (2.0 line T1 DAY-04): met at the primary's ready, not while the suite holds the stores.
+    Hooks.once("ready", () => {
+        if (!isPrimaryGm() || gmStoresQuiet()) return;
+        sweepLostDeclarations().catch(err => error("Could not settle the declarations an ended Eclipse left", err));
+    });
 }

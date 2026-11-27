@@ -69828,6 +69828,22 @@ const INVARIANTS = [
         "{rows: [hidden, knows, incident, shown, shown with HOLDER_SEES_HIDDEN false]; the constant; a GM knows any trace; applyToRemnantToken asks the rule with knowsRemnant and shows a hidden held trace; shownAsFound asks the same; showHeld does not defer to a GM's hidden}");
     }],
     // T1 murder-death-eclipse
+    ["R8923 - a refused declaration's words say the action comes back, in either language, and nothing it says before contradicts that (2.0 line T1 EXP-PL-07; lang `DRPG.Action.murderRefused`, `murderRefusedGm`, `murderAskNote`, `murderParked`, `murderSpendsAnyway`, `murderSecondDeclaration`)", async () => {
+        /* 2.0 line T1, 27.11.2026. Read off the language files; nothing written. Red at f2523df: "The attempt is refused. The
+           action stays spent." / "Akcja przepada." */
+        const en = await fetch(`/modules/${MODULE_ID}/lang/en.json`).then(r => r.json());
+        const pl = await fetch(`/modules/${MODULE_ID}/lang/pl.json`).then(r => r.json());
+        const keys = ["murderRefused", "murderRefusedGm", "murderAskNote", "murderParked", "murderSecondDeclaration"];
+        const spent = { en: /stays spent/i, pl: /przepada/i };
+        const back = { en: /comes back|goes back|gets the action back|get the action back|gives it back/i, pl: /wraca|odzyskasz|odzyskuje|zwraca/i };
+        const read = Object.fromEntries(Object.entries({ en, pl }).map(([lang, d]) => [lang, keys.map(k => {
+            const t = String(d?.DRPG?.Action?.[k] ?? "");
+            return [Boolean(t), spent[lang].test(t), back[lang].test(t)];
+        })]));
+        const spends = [en, pl].map((d, i) => back[i ? "pl" : "en"].test(String(d?.DRPG?.Action?.murderSpendsAnyway ?? "")));
+        equal(JSON.stringify({ read, spends }), JSON.stringify({ read: { en: keys.map(() => [true, false, true]), pl: keys.map(() => [true, false, true]) }, spends: [true, true] }),
+            "{per language and key: [the text stands, it says the action stays spent, it says the action comes back]; spends: the confirmation says a refusal gives it back}");
+    }],
     ["R8922 - an incident's close ends its killer's mask only where the victim died, or quietly when the season's reset abandons it (2.0 line T1 MURDER-02, D2-06; scripts/mask-gm.mjs `maskEndsAtClose`, `endMasksAtClose`)", async () => {
         /* 2.0 line T1, 27.11.2026. Pure, and the close's road read in its source; nothing written. Red at 94af3e9: no
            `maskEndsAtClose`, and the close ended every mask whoever died. */

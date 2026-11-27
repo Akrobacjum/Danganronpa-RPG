@@ -685,6 +685,13 @@ export const projectSightCopy = defineGmCopy({
  * `pendingMurders`); the lights judge that Eclipse's rows and drop every other unjudged. In
  * the incident's reset group: a declaration nobody judged is an incident that has not
  * happened yet. No old key: the first rows come out of the world by `liftPendingMurders`.
+ *
+ * THE 2.0 LINE T1 FIELDS (27.11.2026): `verdict` - the lights' first step's judgement, `{ outcome, room, victimId, trait, n }`,
+ * `outcome` one of "open", "betrayal", "nobody", "witnesses", "second", "refused", "gone" (eclipse.mjs
+ * `judgePendingMurders`, EXP-PL-02, DAY-04); `lightsMark` - the time of day the second step began, the clock's mark
+ * (eavesdrop-gm.mjs `markNow`), which the primary's ready reads (`sweepLostDeclarations`, DAY-04); `receipt` - what paid
+ * a GM's own declaration, `{ grant }`, null for a player's (EXP-PL-07, `refundDeclaration`). A row stays until its
+ * second step has carried it out.
  */
 export const pendingMurderStore = defineGmStore({
     name: "pendingMurders", key: SETTINGS.pendingMurders,

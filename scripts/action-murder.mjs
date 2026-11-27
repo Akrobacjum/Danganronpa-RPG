@@ -418,7 +418,8 @@ export async function performDirectMurder(actor, def, options) {
     });
 
     const { parkDirectMurder } = await import("./eclipse.mjs");
-    const parked = await parkDirectMurder({ killerId: actor.id, room, note, proposed });
+    // The spend's receipt (2.0 line T1 EXP-PL-07): a refusal gives the action back; kept by a GM's own declaration alone.
+    const parked = await parkDirectMurder({ killerId: actor.id, room, note, proposed, receipt: paid && typeof paid === "object" ? paid : null });
     if (!parked) {
         // The GM went away between the check and the write. Nothing was
         // declared, so nothing is owed - and a Burst that paid comes back as one.

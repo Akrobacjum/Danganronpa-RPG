@@ -1041,3 +1041,15 @@ export async function handleCardPost(payload, sender) {
     if (!message) return { refused: "nothing was carried out: the card could not be posted" };
     return { reply: { id: message.id } };
 }
+
+/**
+ * The run of `eclipse.judge` (2.0 line T1 DAY-03): where each declaration of the Eclipse `eclipse` stands at its lights, read
+ * on this primary's record of lawful places (eclipse.mjs `standingsOnPrimary`), for the second GM whose End the Eclipse
+ * runs the judgement. Answers the standings, `{}` for an Eclipse with no declaration here.
+ */
+export async function handleEclipseJudge(payload) {
+    const { standingsOnPrimary } = await import("./eclipse.mjs");
+    const out = await standingsOnPrimary(payload.eclipse);
+    if (!out) return { refused: "nothing was carried out: this GM is not the primary" };
+    return { reply: out };
+}

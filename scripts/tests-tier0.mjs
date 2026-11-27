@@ -9829,6 +9829,7 @@ const REGRESSIONS = [
             ["SHEET vault-store.mjs#repointDeadKey", "out of scope as a reader (H84): `itemsHeldNow` inside `grantKeyNow`'s step, after its `judgedFor`; for the room's owner alone it points their one dead key at the room (`trustedWrite`, `setup`), no new road"],
             ["SHEET murder-rules.mjs#registerMurder", "judged where it acts: the `updateToken` hook runs on the primary (`maybeBodyFound` -> `checkBodyFound`); its `isDeadForGm`/resources reads are the incident's (E05). E11 C1 changed only the discovery it calls, whose walk-in tier 2 measures (\"a living convict the verdict executes after End the trial is no body to find\", \"a student revived and killed again in the chapter is found again - once\") and 65-season's B"],
             ["SHEET murder-rules.mjs#closeIncident", "out of scope as a reader (`isDeadForGm` of the victim, E05). C9 adds `conclude: false` for the reset only: the self-inflicted kill, ties, register, broken tool, case keys and the close's card are skipped [3.1] (E11 C9)"],
+            ["SHEET eclipse.mjs#sweepLostDeclarations", "judged on the primary (2.0 line T1 DAY-04): at its ready, a parked declaration of an Eclipse no longer running is dropped and its killer told and refunded (`loseDeclaration`), or opened where the lights' answer stands for this hour and both are alive as the GMs hold them (`isDeadForGm`); it reads the GMs' rows (`pendingMurderStore`), not a player's write; tier 2 \"T1 DAY-04 - an unjudged row of an ended Eclipse ...\" [1b.2]"],
             ["SHEET settings.mjs#deathRecordFor", "out of scope: the GM's record (flag or `deaths` row); since E11 C1 it answers the row's `phase` and `epoch` too, since fix r1-G1 its `deathId` (the death a discovery's stamp names, `announcedIn`), and C12's `sameSeason` reads `epoch` (E11 C12)"],
             ["STORE settings.mjs#bodyFound", "not a source: a world setting only a GM writes (`setBodyDiscovery`); since E11 C2 its freshness compares the chapter, the day and the time of day (`holdFreshAt`, R350). since E11 C3 `startEclipse` refuses while it is set"],
             ["STORE settings.mjs#bodiesFound", "not a source: a world setting (`config: false`) only a GM writes (`recordBodyFound`), whose one caller is `announceBody` (R349); cut by the reset's `bodyFound` group (E11 C1)"],
@@ -23623,7 +23624,7 @@ const REGRESSIONS = [
             // E59 on the 1.2.115 line (CHAINS.md B-H3, B-H2; R7180): eclipse.mjs `endEclipse`'s public end card during an incident
             // (a `message`, as the end without advancing), and overflow.mjs `announceOverflow`'s card built once and either
             // announced or whispered veiled to the incident's audience (a `built`).
-            "eavesdrop-gm.mjs": {"card": 1}, "eclipse.mjs": {"action": 3, "heading": 1, "line": 3, "message": 3},
+            "eavesdrop-gm.mjs": {"card": 1}, "eclipse.mjs": {"action": 3, "heading": 1, "line": 5, "message": 3},
             "enforced.mjs": {"line": 3}, "facilities-gm.mjs": {"card": 2}, "fog.mjs": {"line": 1}, "frisk.mjs": {"built": 7, "message": 2},
             "gm-items.mjs": {"action": 1, "heading": 2},
             // 1.2.122 line TEXT (TEXT-32): the missing answer key's one send to the owner and the GMs is two, the owner's and the GMs'
