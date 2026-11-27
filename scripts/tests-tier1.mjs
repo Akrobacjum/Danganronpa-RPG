@@ -70229,6 +70229,44 @@ const INVARIANTS = [
             en: ["one", "other"], pl: ["few", "many", "one", "other"], bare: [] }),
             "{said: the Call's refusal for a full target; despair: the credit asks the one form with the receiver's name; en, pl: the key's forms; bare: files that read the key whole}");
     }],
+    ["R9250 - the voice queue takes only the newest room (2.0 line T4, VOICE-02): voice-client.mjs `assignmentQueue` - with A applying, B and C come; A ends, then only C is applied, with the room told at its start; B is not reported; a re-apply with no request id while one waits keeps the id waiting; a parked apply reads its id when it starts", async () => {
+        /*
+         * VOICE-02, at The Forge (Foundry 14.370; S5, docs/dev/v2/F3-forge-PC-2.md): A -> B -> C every 2500 ms made 3
+         * connections and 4.7 s without voice; every assignment was its own link of the chain with its own room. The queue
+         * is read with its own chain and an apply that waits on the test (no LiveKit, nothing sent): `told` stands in for
+         * `desired`, `reported` for the report to the primary GM. Red at 31d5812: no assignmentQueue - each assignment
+         * applied in turn (A, B, C), measured as the room list of the chain the module had.
+         */
+        const VC = await import("./voice-client.mjs");
+        must(typeof VC.assignmentQueue === "function", "voice-client.mjs has no assignmentQueue - every assignment is applied in turn (A, B, C)");
+        let chain = Promise.resolve();
+        const chainOf = fn => (chain = chain.then(fn));
+        let told = null, release = null, parkedId = null;
+        const applied = [], reported = [];
+        const assign = VC.assignmentQueue(async slot => {
+            const room = told, id = slot.requestId ?? (slot.parked ? parkedId : null);
+            applied.push(room);
+            if (room === "A") await new Promise(resolve => { release = resolve; });
+            reported.push([room, id]);
+            return "applied";
+        }, { chainOf });
+        told = "A"; assign({ requestId: "rA" });
+        await until(() => release !== null, 1000);
+        told = "B"; assign({ requestId: "rB" });
+        told = "C"; assign({ requestId: "rC" });
+        assign();               // the drift's re-apply while C waits: no id of its own
+        release();
+        await chain;
+        const first = { applied: [...applied], reported: [...reported] };
+        applied.length = 0; reported.length = 0;
+        parkedId = "rEarly";
+        told = "D"; const parked = assign({ parked: true });
+        parkedId = "rLate";
+        await parked;
+        equal(JSON.stringify({ first, parked: { applied, reported } }),
+            JSON.stringify({ first: { applied: ["A", "C"], reported: [["A", "rA"], ["C", "rC"]] }, parked: { applied: ["D"], reported: [["D", "rLate"]] } }),
+            "{first: [rooms applied, [room, request id] reported] for A applying while B, C and a re-apply came; parked: a parked apply's room and the id it read at its start}");
+    }],
 ];
 
 /**
