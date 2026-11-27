@@ -49,7 +49,7 @@ import {
     ACTION_OPENING_RESULT, ACTION_CLEANUP, ACTION_BETRAYAL, ACTION_PARK_MURDER, ACTION_CUB_ABILITY, ACTION_CUB_ANSWER, ACTION_BRIBE_OFFER, ACTION_BRIBE_ANSWER, ACTION_LOOT,
     ACTION_NOTE_SAVE, ACTION_ROLL_BOOKMARK, ACTION_REROLL, ACTION_CARD, ACTION_CARD_CLAIM, ACTION_BULLET_GIVE, ACTION_FACILITY_USE, ACTION_DASH,
     ACTION_TAIL_START, ACTION_DOOR_SHUT, ACTION_DOOR_FORCE, ACTION_DOOR_PICK, ACTION_WATCH_DECLARE, ACTION_DOOR_KNOCK,
-    ACTION_LISTEN_EAVESDROP, ACTION_LISTEN_STOP, ACTION_LISTEN_ECHOES, ACTION_MASK_REVEAL, ACTION_MASK_VEIL, ACTION_HIDE_START, ACTION_DEAD_SPECTATOR
+    ACTION_LISTEN_EAVESDROP, ACTION_LISTEN_STOP, ACTION_LISTEN_ECHOES, ACTION_MASK_REVEAL, ACTION_MASK_VEIL, ACTION_HIDE_START, ACTION_DEAD_SPECTATOR, ACTION_SEASON_RESET
 } from "./bridge-wire.mjs";
 import {
     handleObserveTarget, handleCleanupTraces, handleObserveResolve, handleAnalyzeResolve, handleAdvancement,
@@ -70,7 +70,7 @@ import {
     handleReroll, handleAuditDecide, handleKeysCharge, handleBodyDiscover, handleChapterEnd, handleVoiceReset, handleVerdictFinish, handleTrialRecord, handleTrialEnter, handleVoteRun, handleBallot,
     handleBallotAsk, handleFloorNow, handleTrialObject, handleTrialEvidence, handleTrialWithdraw, handleFloorRepoint,
     handleTrialGm, handleTrialTurn, handleTrialClaim, handleTrialSide, handleTrialKeyword, handleReadyOpen, handleReadyAnswer, handleReadyEnd,
-    handleTrialPresent, handleReshapeRuling, handleObservePick, handleObserveDescribe, handleCardClaim, handleCardPost, handleGiveBullet, CASE_BRIDGE_ROWS
+    handleTrialPresent, handleReshapeRuling, handleObservePick, handleObserveDescribe, handleCardClaim, handleCardPost, handleGiveBullet, handleSeasonReset, resetGroupsOf, resetCastOf
 } from "./bridge-runs-records.mjs";
 
 /**
@@ -1685,8 +1685,8 @@ export const BRIDGE_ACTIONS = table({
             bullet: "the GM's own bullet payload, carried whole: gmOnly, so it is a GM's words and not a player's claim"
         }
     },
-    // The rows of 2.0 line T3 (`season.reset`; bridge-runs-records.mjs `CASE_BRIDGE_ROWS`): this file stands at its 1750 lines.
-    ...CASE_BRIDGE_ROWS
+    // 2.0 line T3, one line a row (this file stands at the owner's 1750): TRIAL-04 a second full GM's Reset the season, its plan run here (season-wipe.mjs `runSeasonReset`; the run refuses an Assistant GM; the converters and their reasons are bridge-runs-records.mjs's).
+    [ACTION_SEASON_RESET]: { label: "DRPG.Bridge.what.season.reset", guards: [gmOnly("only a GM resets the season")], sanitize: pick({ groups: resetGroupsOf, cast: resetCastOf, remember: as.bool }), run: handleSeasonReset, answer: "reply", timeoutMs: TIMING.rulingMs * 5, claims: { cast: "kept to the window's three choices by resetCastOf; a room's scene and region ids are read by season-wipe.mjs placeCast on the primary, which moves nobody to a room it does not find" } }
 });
 
 /** The two handovers: one declaration, told apart by the runner's `ctx.action`. */

@@ -458,7 +458,11 @@ export const FLOWS = Object.freeze([
     // E128 (22.11.2026; OWNER-128-SECOND-GM): a second full GM's Fix voice is sent by the primary (`voice.reset`, gmOnly);
     // 97-two-gms S drives it from gm2.
     { id: "voice", what: "Voice rooms: who hears whom",
-        entry: { sockets: ["voice.mjs", "voice-client.mjs"], bridge: ["voice.reset"] }, scenarios: ["97-two-gms"], status: "planned", stage: "E58" }
+        entry: { sockets: ["voice.mjs", "voice-client.mjs"], bridge: ["voice.reset"] }, scenarios: ["97-two-gms"], status: "planned", stage: "E58" },
+    // 2.0 line T3 TRIAL-04 (27.11.2026): a second full GM's Reset the season, its plan run on the primary (`season.reset`, gmOnly);
+    // 58-case-two-gms TRIAL-04 drives it from gm2.
+    { id: "season-reset-second-gm", what: "A second full GM's Reset the season, carried out on the primary GM",
+        entry: { bridge: ["season.reset"] }, scenarios: ["58-case-two-gms"], status: "planned", stage: "E133" }
 ]);
 
 export const FLOW_EXEMPT = Object.freeze({

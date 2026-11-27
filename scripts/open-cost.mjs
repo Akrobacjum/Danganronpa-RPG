@@ -55,7 +55,9 @@ export const WARM_IMPORTS = Object.freeze({
 
 /* Reached only by `import()` and left cold, each with its reason (R4200 reads that one is written). */
 export const NOT_WARMED = Object.freeze({
-    "patches.mjs": "module.mjs's ready hook imports it on every client already (watchSheetRenders), before this runs"
+    "patches.mjs": "module.mjs's ready hook imports it on every client already (watchSheetRenders), before this runs",
+    // 2.0 line T3 TRIAL-03 (27.11.2026): no window - a stopped verdict's claim on the primary, at a Finish's press.
+    "verdict-claim.mjs": "opens no window: the primary's claim of a stopped verdict at a Finish's press (verdict.mjs `finishVerdict`), a step of the trial's record"
 });
 
 /* How long after ready the first step waits: the boot's own work - the GM stores, the migration, the first canvas

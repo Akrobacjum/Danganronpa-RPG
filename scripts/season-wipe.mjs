@@ -359,13 +359,14 @@ export async function resetSeason() {
        reset this browser opened as the primary is refused then, with the primary's words, as before (scenario 65 U1) -
        its GM chose against the copy that was the primary's. A second full GM's window, opened off the primary, is sent to
        the primary as it stands at the close. */
-    if (!isPrimaryGm() && (openedAsPrimary || game.user.role !== CONST.USER_ROLES.GAMEMASTER)) {
+    if (!isPrimaryGm()) {
+        if (!openedAsPrimary && game.user.role === CONST.USER_ROLES.GAMEMASTER) return resetOnPrimary(asked);
         const name = game.users.get(primaryGmId())?.name ?? "?";
         ui.notifications.warn(game.i18n.format("DRPG.GmStore.resetPrimaryOnly", { name }));
         return null;
     }
-    if (!isPrimaryGm()) return resetOnPrimary(asked);
-    return runSeasonReset(asked);
+    // The primary's own plan: the groups as `planFrom(typed.ticked)` keeps them, run on the road a relay takes too.
+    return runSeasonReset({ ...asked, groups: [...planFrom(typed.ticked).groups] });
 }
 
 /**
