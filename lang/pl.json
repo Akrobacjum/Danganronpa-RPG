@@ -442,6 +442,10 @@
       "highContrast": {
         "name": "Wysoki kontrast",
         "hint": "Jaśniejszy drobny tekst, pełne cienkie linie, nieprzezroczyste panele i żadnego rozmycia za elementami interfejsu. Gdy twój system prosi o większy kontrast, ten wygląd działa także przy wyłączonym ustawieniu. Dotyczy tylko tej przeglądarki."
+      },
+      "motivesEnabled": {
+        "name": "Cele graczy",
+        "hint": "Każdy żywy uczeń dostaje w każdym rozdziale Personal Motive i Relationship Motive, a każdy zaliczony cel daje Hope. Wyłączone: przy tym stole nie ma celów."
       }
     },
     "SettingsWindow": {
@@ -2746,7 +2750,8 @@
         "finalExecution": "egzekucja",
         "finalLevelUps": "Level Upy, które czekały",
         "finalBets": "Ghost Bet",
-        "mastermind": "czyszczenie wyboru Masterminda"
+        "mastermind": "czyszczenie wyboru Masterminda",
+        "motives": "Level Upy za cele"
       }
     },
     "Music": {
@@ -4667,10 +4672,10 @@
       "silencedBadge": "Silence",
       "chainedBadge": "Chained",
       "motiveSet": {
-        "one": "Motive jest ogłoszony. Na zegarze została jedna pora dnia.",
-        "few": "Motive jest ogłoszony. Na zegarze zostały {n} pory dnia.",
-        "many": "Motive jest ogłoszony. Na zegarze zostało {n} pór dnia.",
-        "other": "Motive jest ogłoszony. Na zegarze zostało {n} pór dnia."
+        "one": "Monokuma Motive jest ogłoszony. Termin: jedna pora dnia.",
+        "few": "Monokuma Motive jest ogłoszony. Termin: {n} pory dnia.",
+        "many": "Monokuma Motive jest ogłoszony. Termin: {n} pór dnia.",
+        "other": "Monokuma Motive jest ogłoszony. Termin: {n} pór dnia."
       },
       "freeShort": "Za darmo",
       "gatherTitle": "Public Announcement",
@@ -4696,7 +4701,8 @@
       "choiceAsk": "Które z dwóch?",
       "talentAsk": "Na następny rzut: doświadczenie czy Ultimate?",
       "rowNoExperiences": "Na arkuszu nie ma jeszcze doświadczeń.",
-      "rowArmed": "Masz to już na następny rzut."
+      "rowArmed": "Masz to już na następny rzut.",
+      "motiveSetOpen": "Monokuma Motive jest ogłoszony, bez terminu."
     },
     "Monokuma": {
       "toggle": "Oznacz jako Monokumę",
@@ -5465,7 +5471,10 @@
         "trial.present": "Przedstawienie Truth Bulletu",
         "ready.open": "Pytanie graczy, czy skończyli",
         "ready.answer": "Twoja odpowiedź dla GM-a",
-        "ready.end": "Zamknięcie pytania do graczy"
+        "ready.end": "Zamknięcie pytania do graczy",
+        "motive.set": "Zapisanie celu",
+        "motive.report": "Zgłoszenie realizacji celu",
+        "motive.rule": "Decyzja o celu"
       },
       "notDone": "Prośba „{what}” nie została wykonana. {why}",
       "nothingSpent": "Nie tracisz akcji ani Hope.",
@@ -6750,18 +6759,32 @@
       "saveFailed": "Nie udało się zapisać zasad, więc zostają bez zmian i nic nie ogłoszono. Otwórz jeszcze raz okno Zasady killing game i wprowadź zmiany od nowa."
     },
     "Motive": {
-      "title": "Motive",
-      "banner": "MOTIVE OD MONOKUMY",
-      "withdrawn": "Wycofano Motive: nie obowiązuje już ani jego żądanie, ani termin, ani konsekwencja.",
-      "none": "Żaden Motive nie obowiązuje.",
-      "withdraw": "Wycofaj Motive",
-      "withdrawNote": "Wycofanie ogłasza wszystkim, że Motive już nie obowiązuje.",
-      "changedMeanwhile": "Motive zmienił się, gdy okno było otwarte. Teraz widać ten, który obowiązuje; naciśnij Wycofaj Motive jeszcze raz, żeby go wycofać.",
+      "title": "Monokuma Motive",
+      "banner": "MONOKUMA MOTIVE",
+      "none": "Żaden Monokuma Motive nie obowiązuje.",
+      "unknown": "Monokuma Motive istnieje, ale nikt jeszcze nie wie, co mówi.",
+      "hiddenTag": "ukryty",
+      "hiddenNote": "Ukryty: gracze widzą tylko, że istnieje.",
+      "noDeadline": "Bez terminu",
+      "penalty": "Jeśli się nie uda: {what}",
+      "withdraw": "Wycofaj Monokuma Motive",
+      "reveal": "Odsłoń",
+      "withdrawNote": "Wycofanie pyta, czy go zaliczono, i ogłasza wszystkim, że już nie obowiązuje. Zaliczenie daje każdemu żywemu uczniowi 3 Hope.",
+      "withdrawnPassed": "Został zaliczony: każdy żywy uczeń dostaje do 3 Hope.",
+      "withdrawnFailed": "Nie został zaliczony.",
+      "changedMeanwhile": "Monokuma Motive zmienił się, gdy okno było otwarte. Teraz widać ten, który obowiązuje; naciśnij Wycofaj Monokuma Motive jeszcze raz, żeby go wycofać.",
+      "passedQuestion": "Czy obowiązujący Monokuma Motive został zaliczony?",
+      "passedNote": "Tak daje każdemu żywemu uczniowi 3 Hope, do jego maksimum.",
+      "passedYes": "Tak, zaliczony",
+      "passedNo": "Nie",
+      "lastPassed": "Poprzedni Monokuma Motive został zaliczony.",
+      "lastFailed": "Poprzedni Monokuma Motive nie został zaliczony.",
+      "inForce": "Teraz obowiązuje: {text}",
       "deadline": {
-        "one": "Jedna pora dnia, by coś z tym zrobić.",
-        "few": "{n} pory dnia, by coś z tym zrobić.",
-        "many": "{n} pór dnia, by coś z tym zrobić.",
-        "other": "{n} pór dnia, by coś z tym zrobić."
+        "one": "Termin: jedna pora dnia.",
+        "few": "Termin: {n} pory dnia.",
+        "many": "Termin: {n} pór dnia.",
+        "other": "Termin: {n} pór dnia."
       },
       "left": {
         "one": "została 1 pora dnia",
@@ -6769,22 +6792,145 @@
         "many": "zostało {n} pór dnia",
         "other": "zostało {n} pór dnia"
       },
-      "orElse": "Jeśli nikt tego nie zrobi: {what}",
-      "dueBanner": "CZAS NA MOTIVE MINĄŁ",
+      "dueBanner": "TERMIN MONOKUMA MOTIVE MINĄŁ",
       "dueShort": "termin minął",
-      "demandLabel": "Czego chce Monokuma?",
-      "demandPlaceholder": "np. Ktoś ginie, zanim wróci światło, albo każdy sekret ląduje na tablicy ogłoszeń.",
-      "deadlineLabel": "Ile pór dnia?",
-      "deadlineNote": "Liczone w porach dnia. Pięć to jeden dzień, a Eclipse się nie liczy.",
-      "consequenceLabel": "A jeśli nikt tego nie zrobi?",
-      "consequencePlaceholder": "np. Każdy sekret zostaje odczytany przy śniadaniu.",
-      "publicNote": "Wpisz żądanie i konsekwencję, żeby przejść dalej. Żądanie, konsekwencja i termin trafią słowo w słowo na jedną kartę dla całego stołu.",
+      "dueNote": "Karę Monokuma wykonuje ręcznie. Moduł niczego nie zabiera.",
+      "demandLabel": "Co klasa ma zrobić razem?",
+      "demandPlaceholder": "np. Odkryć wszystkie pokoje na drugim piętrze albo ukończyć projekt szklarni.",
+      "hiddenLabel": "Ukryty: gracze widzą tylko, że Monokuma Motive istnieje",
+      "deadlineLabel": "Z terminem",
+      "deadlineCount": "Ile pór dnia?",
+      "deadlineNote": "Liczone w porach dnia. Pięć to jeden dzień, a Eclipse się nie liczy. Bez terminu obowiązuje do zmiany, wycofania albo końca rozdziału.",
+      "consequenceLabel": "Kara, jeśli się nie uda (opcjonalnie)",
+      "consequencePlaceholder": "np. Jutro nie ma śniadania.",
+      "publicNote": "Wpisz, co klasa ma zrobić, żeby przejść dalej. Trafi to na kartę dla całego stołu, a gdy cel jest ukryty, tylko wiadomość, że istnieje.",
+      "oldGone": "Ten świat miał Motive sprzed 1.2.130. Takich Motive już nie ma, więc został wyczyszczony. Brzmiał:",
+      "oldLeft": {
+        "one": "Została 1 pora dnia.",
+        "few": "Zostały {n} pory dnia.",
+        "many": "Zostało {n} pór dnia.",
+        "other": "Zostało {n} pór dnia."
+      },
+      "oldConsequence": "Jego konsekwencja: {what}",
+      "oldGoneNote": "Nic go nie zastąpiło. Monokuma Motive ustawia się Despair Callem Monokuma Motive.",
       "migrated": {
         "one": "Ten Motive ogłoszono, zanim Motive miały terminy, więc jego termin to teraz {n} pora dnia. Jeśli chcesz inny termin, wycofaj go i kup Motive jeszcze raz.",
         "few": "Ten Motive ogłoszono, zanim Motive miały terminy, więc jego termin to teraz {n} pory dnia. Jeśli chcesz inny termin, wycofaj go i kup Motive jeszcze raz.",
         "many": "Ten Motive ogłoszono, zanim Motive miały terminy, więc jego termin to teraz {n} pór dnia. Jeśli chcesz inny termin, wycofaj go i kup Motive jeszcze raz.",
         "other": "Ten Motive ogłoszono, zanim Motive miały terminy, więc jego termin to teraz {n} pór dnia. Jeśli chcesz inny termin, wycofaj go i kup Motive jeszcze raz."
+      },
+      "revealedNote": "Ukryty Monokuma Motive został odsłonięty.",
+      "withdrawn": "Wycofano Monokuma Motive: nie obowiązuje już ani to, czego chciał, ani termin, ani kara.",
+      "tip": {
+        "hidden": "Gracze widzą tylko, że Monokuma Motive istnieje. Możesz go odsłonić później w oknie Zasady killing game.",
+        "withDeadline": "Wyłączone: Monokuma Motive obowiązuje, dopóki go nie zmienisz albo nie wycofasz, albo do końca rozdziału.",
+        "passedYes": "Każdy żywy uczeń dostaje 3 Hope, do swojego maksimum.",
+        "passedNo": "Nikt nie dostaje za niego Hope."
       }
+    },
+    "Motives": {
+      "tab": "Personal",
+      "title": "Cele",
+      "personal": "Personal Motive",
+      "relationship": "Relationship Motive",
+      "notGiven": "Nienadany w tym rozdziale.",
+      "noneYet": "GM nie nadał ci jeszcze celów w tym rozdziale.",
+      "with": "dotyczy: {name}",
+      "stateLine": "Stan: {state}",
+      "reportLine": "Zgłoszenie: {text}",
+      "reportEmpty": "(bez opisu)",
+      "reasonLine": "Powód GM-a: {text}",
+      "state": {
+        "open": "otwarty",
+        "reported": "zgłoszony, jeszcze niezaliczony",
+        "done": "zaliczony",
+        "rejected": "odrzucony",
+        "none": "brak"
+      },
+      "report": "Zgłoś realizację",
+      "reportTitle": "Zgłoś realizację: {what}",
+      "reportLabel": "Co zrobiłeś?",
+      "reportPlaceholder": "Napisz GM-owi, co zrobiła twoja postać i kiedy.",
+      "reportNote": "Czytają to tylko GM-owie. GM zalicza albo odrzuca.",
+      "reportSend": "Wyślij GM-om",
+      "reportSent": "Twoje zgłoszenie trafiło do GM-ów.",
+      "edit": "Edytuj cele",
+      "editTitle": "Cele: {name}",
+      "editNote": "Wpisz cele ręcznie, razem z graczem albo za niego. Widzą je tylko GM-owie i gracz tego ucznia. Zostaw pole puste, żeby zabrać ten cel.",
+      "withLabel": "Relationship Motive dotyczy",
+      "save": "Zapisz",
+      "replaceQuestion": "Ten uczeń ma już ten cel w tym rozdziale. Zastąpić go?",
+      "replace": "Zastąp",
+      "holdsNone": "Ta postać nie ma celów: mają je tylko żywi uczniowie.",
+      "pass": "Zalicz",
+      "reject": "Odmów",
+      "rejectTitle": "Odmów zaliczenia ({name}): {what}",
+      "rejectLabel": "Dlaczego? (opcjonalnie, gracz to przeczyta)",
+      "givenPersonal": "GM nadał ci Personal Motive. Znajdziesz go w zakładce Personal na arkuszu.",
+      "givenRelationship": "GM nadał ci Relationship Motive. Znajdziesz go w zakładce Personal na arkuszu.",
+      "passedYou": {
+        "one": "Zaliczono twój cel: {what}. Dostajesz {n} Hope.",
+        "few": "Zaliczono twój cel: {what}. Dostajesz {n} Hope.",
+        "many": "Zaliczono twój cel: {what}. Dostajesz {n} Hope.",
+        "other": "Zaliczono twój cel: {what}. Dostajesz {n} Hope."
+      },
+      "rejectedYou": "Twoje zgłoszenie odrzucono: {what}. Możesz zgłosić je jeszcze raz.",
+      "rejectedWhy": "Twoje zgłoszenie odrzucono: {what}. Powód: {why} Możesz zgłosić je jeszcze raz.",
+      "passedGm": {
+        "one": "{gm} zaliczył cel ({name}): {what}. Doszło {n} Hope.",
+        "few": "{gm} zaliczył cel ({name}): {what}. Doszło {n} Hope.",
+        "many": "{gm} zaliczył cel ({name}): {what}. Doszło {n} Hope.",
+        "other": "{gm} zaliczył cel ({name}): {what}. Doszło {n} Hope."
+      },
+      "rejectedGm": "{gm} odrzucił zgłoszenie ({name}): {what}.",
+      "cardTitle": "{name} zgłasza realizację: {what}",
+      "monokumaPassedTitle": "Monokuma Motive zaliczony. Każdy żywy uczeń dostaje do 3 Hope:",
+      "monokumaRow": {
+        "one": "{name}: {n} Hope",
+        "few": "{name}: {n} Hope",
+        "many": "{name}: {n} Hope",
+        "other": "{name}: {n} Hope"
+      },
+      "reasonPart": "{what}: {state}",
+      "reasonMonokuma": {
+        "one": "Monokuma Motive: zaliczone {n} z {total}",
+        "few": "Monokuma Motive: zaliczone {n} z {total}",
+        "many": "Monokuma Motive: zaliczone {n} z {total}",
+        "other": "Monokuma Motive: zaliczone {n} z {total}"
+      },
+      "reasonNoMonokuma": "brak Monokuma Motive w tym rozdziale",
+      "levelUpTitle": "Kto zrealizował wszystkie cele?",
+      "levelUpNote": "Zaznacz, kto zrealizował wszystkie cele tego rozdziału: Personal Motive, Relationship Motive i każdy Monokuma Motive. Zaznaczenia według zapisów są już ustawione; zmień je według własnej oceny. Każdy zaznaczony dostaje 1 Level Up.",
+      "levelUpGive": "Daj Level Upy",
+      "levelUpNone": "Brak celów w tym rozdziale.",
+      "levelUpNobody": "Nikt nie dostał Level Upu za cele.",
+      "levelUpGiven": {
+        "one": "1 uczeń dostaje Level Up za cele.",
+        "few": "{n} uczniów dostaje Level Up za cele.",
+        "many": "{n} uczniów dostaje Level Up za cele.",
+        "other": "{n} uczniów dostaje Level Up za cele."
+      },
+      "tile": "Cele",
+      "tileOff": "Stół gra bez celów (Ustawienia).",
+      "overviewTitle": "Cele",
+      "waiting": {
+        "one": "Czeka 1 zgłoszenie.",
+        "few": "Czekają {n} zgłoszenia.",
+        "many": "Czeka {n} zgłoszeń.",
+        "other": "Czeka {n} zgłoszeń."
+      },
+      "nobody": "Żaden żywy uczeń nie ma celów.",
+      "column": "Cele",
+      "cellPersonal": "P: {state}",
+      "cellRelationship": "R: {state}",
+      "tip": {
+        "report": "Powiedz GM-om, że twoja postać to zrobiła. GM zalicza albo odmawia zaliczenia.",
+        "pass": "Oznacz ten cel jako zaliczony. Uczeń dostaje 3 Hope, do swojego maksimum.",
+        "reject": "Odmów zaliczenia. Gracz może zgłosić cel jeszcze raz.",
+        "edit": "Wpisz albo zmień cele tego ucznia. Widzą je tylko GM-owie i gracz tego ucznia.",
+        "reason": "Opcjonalnie. Gracz przeczyta to pod odrzuconym zgłoszeniem."
+      },
+      "nobodyOption": "- nikt -"
     },
     "Secret": {
       "speaker": "Monokuma",
@@ -7268,7 +7414,7 @@
         "mastermind": "Mastermind",
         "passages": "Kto zna które tajne przejście, przejścia zbudowane w projektach i ich wyłomy (przejścia GM-ów zostają, a kto znał je na początku sezonu, zna je znowu)",
         "seals": "Wciąż obowiązujące Despair Calls i każdy Call uzbrojony na rzut",
-        "motive": "Motive",
+        "motives": "Cele graczy",
         "rules": "Stałe zasady Monokumy",
         "doors": "Zamknięte drzwi, z powrotem do stanu z otwarcia sezonu",
         "eclipseMoves": "Wykorzystane przejścia Eclipse",
@@ -8121,8 +8267,8 @@
           "effect": "Żywi uczniowie i Monocuby zostają wezwani do jednego pokoju i trafiają tam na początku następnej pory dnia, a gdy przed nią wypada Eclipse, dopiero po nim."
         },
         "motive": {
-          "label": "Motive",
-          "effect": "Monokuma ogłasza Motive: żądanie, ile pór dnia jest na jego spełnienie, i cenę za niespełnienie. Zegar odlicza pozostałe pory dnia."
+          "label": "Monokuma Motive",
+          "effect": "Ustawia albo zmienia Monokuma Motive: cel, nad którym pracuje cała klasa, jawny albo ukryty, z terminem i karą, jeśli Monokuma je poda. Zaliczony daje każdemu żywemu uczniowi 3 Hope."
         },
         "newRule": {
           "label": "New Rule",
@@ -8550,8 +8696,12 @@
           "hint": "Nowa zasada trafia na listę „Zasady Monokumy” na arkuszach postaci. Pochodzi z Calla New Rule Monokumy albo od Blackened, który uszedł z rozprawy cało. Słyszy cały stół."
         },
         "motive": {
-          "label": "Motive",
-          "hint": "Monokuma ogłasza Motive i drugi raz, gdy mija termin. Słyszy cały stół."
+          "label": "Monokuma Motive",
+          "hint": "Monokuma ustawia, zmienia, odsłania albo cofa Monokuma Motive, a także gdy mija jego termin. Słyszy cały stół."
+        },
+        "motivePassed": {
+          "label": "Twój cel zaliczony",
+          "hint": "Słyszy tylko gracz, którego cel GM zaliczył. Bez własnego pliku gra dźwięk Użyto Hope Call."
         },
         "publicAnnouncement": {
           "label": "Zwołano zgromadzenie",
@@ -9286,7 +9436,8 @@
         "caseTicks": "Zaznaczenia z rozprawy: wnioski, kontry i rozwiązanie zaznaczone przez GM-a w każdym rozdziale",
         "facilityUses": "Użycia akcji w pokoju: która postać użyła akcji którego projektu i kiedy",
         "balanceLog": "Dziennik balansu: każdy rzut, który GM-owie losowali, gdy był włączony, i notatki GM-ów",
-        "diveSets": "Zestawy Logic Dive: pytania każdego zestawu, ich odpowiedzi i to, która odpowiedź jest dobra"
+        "diveSets": "Zestawy Logic Dive: pytania każdego zestawu, ich odpowiedzi i to, która odpowiedź jest dobra",
+        "motives": "Cele graczy: Personal i Relationship Motive każdego ucznia, ich zgłoszenia i decyzje oraz ukryta treść i wyniki Monokuma Motive"
       },
       "copy": {
         "writeNow": "Zapisz kopię teraz",

@@ -1911,6 +1911,39 @@ export const fogCopy = defineGmCopy({
     }
 });
 
+/* ---------------------------------------------------------------------------
+ * THE PLAYERS' MOTIVES (2.0 line T5, D2-23 and D2-24, 27.11.2026; docs/dev/v2/SPEC-MOTIVES.md; scripts/motives.mjs).
+ * ------------------------------------------------------------------------- */
+
+/**
+ * THE MOTIVES (2.0 line T5). A row per student, keyed by its actor id: `{ actorId, chapter, epoch, personal,
+ * relationship }`, each motive `{ text, status, report, reason, at, by, ... }` and the Relationship Motive's
+ * `withActorId`, `status` one of open, reported, done, rejected; a row of another chapter or season is nobody's
+ * (motives.mjs `currentRow`, R356's rule). And two rows of the Monokuma Motive: `monokuma`, a hidden one's words
+ * `{ id, text, penalty }`, never in world data, and `monokumaLog`, `{ entries: [{ id, chapter, epoch, outcome }] }`,
+ * how each of the chapter's Monokuma Motives ended, for the Level Up list after the trial. Written by the primary GM's
+ * runs and by a GM's Despair Call (motives.mjs, rules.mjs); synced; backed up, and every owner sent their copy again
+ * after a restore (R182). Cut by the reset's group "motives". No old key. A row's `exists` is its actor, but for the two
+ * Monokuma rows, which belong to no actor.
+ */
+export const motiveStore = defineGmStore({
+    name: "motives", key: SETTINGS.gmMotives,
+    kind: "ledger", resetGroup: "motives", backup: true, sync: true,
+    afterRestore: () => import("./motives.mjs").then(m => m.retellMotives()),
+    exists: key => key === "monokuma" || key === "monokumaLog" || Boolean(game.actors?.has(key))
+});
+
+/**
+ * AN OWNER'S MOTIVES (2.0 line T5): `{ actorId: { chapter, epoch, personal, relationship } }` for the characters this
+ * user owns, as the primary GM sent them (motives.mjs `sendMotivesTo`, `copyRowsFor`: never another's row, nor the
+ * Monokuma Motive's hidden words), a stamp per character - taken by the offers' rule (`offersCombine`). Read by the
+ * owner's Personal tab (motives-ui.mjs).
+ */
+export const motiveCopy = defineGmCopy({
+    name: "motives", key: SETTINGS.mineMotives, from: "motives", resetGroup: "motives", fallback: {},
+    combine: offersCombine
+});
+
 /** The part of the GMs' fog store that is `user`'s: the rows and tombstones of the characters they own, and the watermark. */
 export function fogSectionFor(user) {
     const all = discoveryStore.section();

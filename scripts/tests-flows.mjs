@@ -458,7 +458,13 @@ export const FLOWS = Object.freeze([
     // E128 (22.11.2026; OWNER-128-SECOND-GM): a second full GM's Fix voice is sent by the primary (`voice.reset`, gmOnly);
     // 97-two-gms S drives it from gm2.
     { id: "voice", what: "Voice rooms: who hears whom",
-        entry: { sockets: ["voice.mjs", "voice-client.mjs"], bridge: ["voice.reset"] }, scenarios: ["97-two-gms"], status: "planned", stage: "E58" }
+        entry: { sockets: ["voice.mjs", "voice-client.mjs"], bridge: ["voice.reset"] }, scenarios: ["97-two-gms"], status: "planned", stage: "E58" },
+    // 2.0 line T5 (E135, D2-23 and D2-24, 27.11.2026): a GM writes a student's motives (`motive.set`, gmOnly), its player
+    // reports one done (`motive.report`), a GM passes or refuses it (`motive.rule`, gmOnly), all on the primary; the owner's
+    // copy goes to that player alone (motives.mjs's socket, `motives.mine`). 30-security forges each from a player, 33
+    // drives each legal road.
+    { id: "motives", what: "The players' motives: a GM writes a student's, its player reports one done, a GM passes or refuses it, and only its owner is sent them",
+        entry: { sockets: ["motives.mjs"], bridge: ["motive.set", "motive.report", "motive.rule"] }, scenarios: ["30-security", "33-bridge-paths"], status: "covered", stage: "1.2.130" }
 ]);
 
 export const FLOW_EXEMPT = Object.freeze({

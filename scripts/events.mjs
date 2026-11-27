@@ -89,29 +89,29 @@ function eventsWindowActive() {
 /* ---- the cards (nine builders feed `renderEvents`) ------------------------- */
 
 /**
- * The motive's card on the Event panel. `view` is who looks (E17 fix p2-G3, 26.10.2026; the end review's E17p2-R3): a
- * bystander of the running incident (incident-store.mjs `clockHiddenHere`) reads the countdown the incident's first
- * private move of the clock found (rules.mjs `shownMotive`), as their HUD keeps the clock - the card turned "Due" on
- * every bystander's screen at the move inside the incident. Exported for the suite (tier 2 E17-T10), which has no
- * bystander's browser to draw it on.
+ * The Monokuma Motive's card on the Event panel (2.0 line T5, D2-23; until 2.0 the old motive's, with its countdown and
+ * consequence always). Its words, or "unknown" while hidden (D2-24 #2); its deadline only when the GM gave one (#5) - no
+ * "Due" and no count of times of day otherwise; its penalty in the note and the tooltip. No Monokuma Motive, no card.
+ * `view` is who looks (E17 fix p2-G3, 26.10.2026; the end review's E17p2-R3): a bystander of the running incident
+ * (incident-store.mjs `clockHiddenHere`) reads the countdown the incident's first private move of the clock found
+ * (rules.mjs `shownMotive`), as their HUD keeps the clock. Exported for the suite (tier 2 E17-T10, R9350).
  */
-export function motiveCard(view = motiveView()) {
-    const record = shownMotive(motive(), view);
-    if (!record) return null;
-    const meta = record.due
-        ? game.i18n.localize("DRPG.Motive.dueShort")
-        : plural("DRPG.Motive.left", { n: record.remaining ?? 0 });
-    const tooltip = [foundry.utils.escapeHTML(record.text)];
-    if (record.consequence) tooltip.push(`<em>${game.i18n.format("DRPG.Motive.orElse", { what: foundry.utils.escapeHTML(record.consequence) })}</em>`);
+export function motiveCard(view = motiveView(), record = shownMotive(motive(), view)) {
+    if (!record?.id) return null;
+    const words = record.hidden ? game.i18n.localize("DRPG.Motive.unknown") : record.text;
+    const meta = !record.deadline ? null
+        : record.due ? game.i18n.localize("DRPG.Motive.dueShort")
+            : plural("DRPG.Motive.left", { n: record.remaining ?? 0 });
+    const penalty = !record.hidden && record.penalty ? game.i18n.format("DRPG.Motive.penalty", { what: record.penalty }) : null;
+    const tooltip = [foundry.utils.escapeHTML(words)];
+    if (penalty) tooltip.push(`<em>${foundry.utils.escapeHTML(penalty)}</em>`);
     return {
         kind: "motive", due: Boolean(record.due),
         title: game.i18n.localize("DRPG.Motive.title"),
-        sub: record.text,
+        sub: words,
         meta,
-        // The half of a motive that says what it costs to ignore.
-        note: record.consequence
-            ? game.i18n.format("DRPG.Motive.orElse", { what: record.consequence })
-            : null,
+        // The half of a motive that says what it costs to miss, the Monokuma's own words.
+        note: penalty,
         tooltip: tooltip.join("<br>")
     };
 }

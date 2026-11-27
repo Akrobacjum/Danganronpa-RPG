@@ -34,7 +34,24 @@ import { roomPhrase } from "./rooms.mjs";
 import { isDeadWatcher, spectatorForTheDead } from "./spectator-dead.mjs";
 import { isDeadForGm } from "./settings.mjs";
 import { actionsLeft, actionsMax, hasFreeMove } from "./actions.mjs";
+// The column "Motives", last (2.0 line T5, D2-23): drawn and wired by motives-ui.mjs, which reaches no file of this family.
+import { motiveColumn, motiveCell, wireMotiveColumn } from "./motives-ui.mjs";
+import { motivesEnabled } from "./motives.mjs";
 
+
+/**
+ * THE STUDENTS WINDOW'S LAST COLUMN, "MOTIVES" (2.0 line T5, D2-23; SPEC-MOTIVES.md "Interfejs"), appended after every
+ * other line's columns (the coordinator's order: the existing, T2's, T4's microphone, then this): each student's two
+ * motives' state and the button that opens their motives (motives-ui.mjs `motiveCell`); a Monokuma's, a Spectator's, an
+ * NPC's and a group heading's cells empty. No column while the table plays without motives (`motivesEnabled`).
+ */
+function motivesColumnOf(columns, rows, students) {
+    if (!motivesEnabled()) return { columns, rows };
+    return {
+        columns: [...columns, motiveColumn()],
+        rows: rows.map(row => (row.id ? { ...row, motives: motiveCell(game.actors.get(row.id), students) } : row))
+    };
+}
 
 /**
  * WHO IS ALIVE - three windows, one table.
@@ -67,6 +84,7 @@ import { actionsLeft, actionsMax, hasFreeMove } from "./actions.mjs";
  * merge - see the stage's verification. The one thing deliberately NOT carried
  * across is the death dialog's own character picker: this table is the picker.
  */
+
 /*
  * THE TABLE, REBUILDABLE. Everything above is a function of the world now,
  * so this can be called again in place while the window stays open.
@@ -231,9 +249,10 @@ function aliveTableHtml({ roster, others, stateOf, donors, isCrimeSilenced, invi
         { key: "levelUp", label: L("DRPG.Panel.levelUpColumn") },
         { key: "do", label: L("DRPG.Panel.doColumn") }
     ];
+    const withMotives = motivesColumnOf(columns, rows, students);
     return `<div class="drpg-alive-live">
         <p class="notes">${L("DRPG.Panel.whoIsAliveNote")}</p>
-        ${dataTable({ columns, rows, rowAttrs: r => ({ "data-actor": r.id }) })}
+        ${dataTable({ columns: withMotives.columns, rows: withMotives.rows, rowAttrs: r => ({ "data-actor": r.id }) })}
     </div>`;
 }
 
@@ -588,6 +607,8 @@ export async function openWhoIsAliveDialog(options = {}) {
             });
 
             wireAll();
+            // The motives' column (2.0 line T5): one listener on the window's root, which the table's redraw keeps.
+            wireMotiveColumn(dialog.element);
             /*
              * A DEATH IS AN ACTOR FLAG, so `watch: { actors: true }` is what
              * carries it here - the same listener the GM panel's own standing

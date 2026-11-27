@@ -49,7 +49,7 @@ import {
     ACTION_OPENING_RESULT, ACTION_CLEANUP, ACTION_BETRAYAL, ACTION_PARK_MURDER, ACTION_CUB_ABILITY, ACTION_CUB_ANSWER, ACTION_BRIBE_OFFER, ACTION_BRIBE_ANSWER, ACTION_LOOT,
     ACTION_NOTE_SAVE, ACTION_ROLL_BOOKMARK, ACTION_REROLL, ACTION_CARD, ACTION_CARD_CLAIM, ACTION_BULLET_GIVE, ACTION_FACILITY_USE, ACTION_DASH,
     ACTION_TAIL_START, ACTION_DOOR_SHUT, ACTION_DOOR_FORCE, ACTION_DOOR_PICK, ACTION_WATCH_DECLARE, ACTION_DOOR_KNOCK,
-    ACTION_LISTEN_EAVESDROP, ACTION_LISTEN_STOP, ACTION_LISTEN_ECHOES, ACTION_MASK_REVEAL, ACTION_MASK_VEIL, ACTION_HIDE_START, ACTION_DEAD_SPECTATOR
+    ACTION_LISTEN_EAVESDROP, ACTION_LISTEN_STOP, ACTION_LISTEN_ECHOES, ACTION_MASK_REVEAL, ACTION_MASK_VEIL, ACTION_HIDE_START, ACTION_DEAD_SPECTATOR, ACTION_MOTIVE_SET, ACTION_MOTIVE_REPORT, ACTION_MOTIVE_RULE
 } from "./bridge-wire.mjs";
 import {
     handleObserveTarget, handleCleanupTraces, handleObserveResolve, handleAnalyzeResolve, handleAdvancement,
@@ -70,7 +70,7 @@ import {
     handleReroll, handleAuditDecide, handleKeysCharge, handleBodyDiscover, handleChapterEnd, handleVoiceReset, handleVerdictFinish, handleTrialRecord, handleTrialEnter, handleVoteRun, handleBallot,
     handleBallotAsk, handleFloorNow, handleTrialObject, handleTrialEvidence, handleTrialWithdraw, handleFloorRepoint,
     handleTrialGm, handleTrialTurn, handleTrialClaim, handleTrialSide, handleTrialKeyword, handleReadyOpen, handleReadyAnswer, handleReadyEnd,
-    handleTrialPresent, handleReshapeRuling, handleObservePick, handleObserveDescribe, handleCardClaim, handleCardPost, handleGiveBullet
+    handleTrialPresent, handleReshapeRuling, handleObservePick, handleObserveDescribe, handleCardClaim, handleCardPost, handleGiveBullet, handleMotiveSet, handleMotiveReport, handleMotiveRule
 } from "./bridge-runs-records.mjs";
 
 /**
@@ -1684,7 +1684,11 @@ export const BRIDGE_ACTIONS = table({
             whoId: "the receiver, read on the primary by handleGiveBullet; giveBullet makes the copy in that receiver's finds' queue",
             bullet: "the GM's own bullet payload, carried whole: gmOnly, so it is a GM's words and not a player's claim"
         }
-    }
+    },
+    // The players' motives (2.0 line T5, D2-23; motives.mjs's header; a row a line, the file at the owner's 1750): a GM writes, a player reports (a claim), a GM rules once.
+    [ACTION_MOTIVE_SET]: { label: "DRPG.Bridge.what.motive.set", guards: [gmOnly("only a GM writes a motive")], sanitize: pick({ actorId: as.id, kind: as.oneOf("personal", "relationship"), text: as.text, withActorId: as.id }), claims: { actorId: "a GM's: motives.mjs setRefusal holds it to a living student of the roster", withActorId: "a GM's: setRefusal holds it to another living student" }, run: handleMotiveSet, answer: "reply" },
+    [ACTION_MOTIVE_REPORT]: { label: "DRPG.Bridge.what.motive.report", guards: [knownSender, notSpectator("actorId"), owns("actorId", "sender does not own that character")], sanitize: pick({ actorId: as.id, kind: as.oneOf("personal", "relationship"), text: as.text }), run: handleMotiveReport, answer: "ack" },
+    [ACTION_MOTIVE_RULE]: { label: "DRPG.Bridge.what.motive.rule", guards: [gmOnly("only a GM rules on a motive")], sanitize: pick({ actorId: as.id, kind: as.oneOf("personal", "relationship"), pass: as.bool, reason: as.text }), claims: { actorId: "a GM's: motives.mjs ruleRefusal holds it to a living student with that motive this chapter" }, run: handleMotiveRule, answer: "reply" }
 });
 
 /** The two handovers: one declaration, told apart by the runner's `ctx.action`. */

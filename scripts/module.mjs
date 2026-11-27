@@ -30,6 +30,9 @@ import { registerTails } from "./tail-gm.mjs";
 import { registerDoors } from "./doors-gm.mjs";
 import { registerWatches } from "./watch-gm.mjs";
 import { registerLockpicks } from "./lockpick-gm.mjs";
+// The players' motives (2.0 line T5, D2-23): the owner's copy, the GMs' cards, the sheets redrawn.
+import { registerMotives } from "./motives.mjs";
+import { registerMotivesUi } from "./motives-ui.mjs";
 import { registerHiddenStashes } from "./hidden-stashes.mjs";
 import { registerFacilityUses } from "./facility-uses.mjs";
 import { registerFacilityClock } from "./facilities-gm.mjs";
@@ -280,6 +283,8 @@ Hooks.once("init", () => {
     // Keep Watch's posts, cards and summary (E74 C6), on the primary GM: an Eclipse's start and end, a settled crossing.
     safely("the watches", registerWatches);
     safely("the pick's passes", registerLockpicks);
+    safely("the players' motives", registerMotives);
+    safely("the players' motives' cards", registerMotivesUi);
     // Which stashes are hidden, out of the rooms' region data (1.2.122, CORE-25): the owners' copy's wire.
     safely("the hidden stashes", registerHiddenStashes);
     // A player's own uses of project actions, so the Facilities window greys a used row (P2).

@@ -12984,6 +12984,8 @@ const REGRESSIONS = [
             // 16 since E104 (the 1.2.112 tree): a planned Remnant's, Final Truth's and Truth Bullet's three each, the case map's node editor.
             "investigation.mjs": [16, "the Remnants table's text and analysis, the Key tab's two, the case map's node text, a planned Autopsy node's player text and GM note, a planned Remnant's, Final Truth's and Truth Bullet's words, analysis and note (the dashboard)"],
             "messenger-app.mjs": [3, "the messenger's input and note, a GM's ruling reply"],
+            // 2.0 line T5 (D2-23): a player's report, a GM's reason for refusing one, and a student's two motives (kit windows).
+            "motives-ui.mjs": [4, "a motive's report, a refusal's reason, the Personal and Relationship Motives (kit windows)"],
             "observe.mjs": [3, "a critical's hint, a find's description and its analysed text (Observe's kit window)"],
             "projects-ui.mjs": [1, "a project's description"],
             "remnant-ring.mjs": [2, "the GM's Remnant card, in the trace's actor sheet"],
@@ -18290,7 +18292,8 @@ const REGRESSIONS = [
             budget: /budget: \{ minutesAt16: 270 \}/.test(config) && /minutesAt16\) \|\| 270\) \* size \/ 16/.test(fnSource(floorUi, "trialTime")),
             // E72 C7: the wrong verdict's "remind" (a card to the Monocubs; it kills nobody either).
             // E72 C18 adds the step "bets" after the overflow on either verdict (the Ghost Bets settled; no death): changed on purpose.
-            noKill: /const VERDICT_STEPS = \{\s*(?:\/\/[^\n]*\n\s*)?correct: \["sentence", "card", "levelUps", "overflow", "bets"\],\s*(?:\/\/[^\n]*\n\s*)?wrong: \["sentence", "card", "offers", "despair", "rule", "remind", "overflow", "bets"\]\s*\};/.test(vote),
+            // 2.0 line T5 (D2-23): the motives' Level Ups after the class's ("motives"), and still no execution among the steps.
+            noKill: /const VERDICT_STEPS = \{\s*(?:\/\/[^\n]*\n\s*)*correct: \["sentence", "card", "levelUps", "motives", "overflow", "bets"\],\s*(?:\/\/[^\n]*\n\s*)?wrong: \["sentence", "card", "offers", "motives", "despair", "rule", "remind", "overflow", "bets"\]\s*\};/.test(vote),
             atExit: /\bexecuteAtExit\(\)/.test(reconcile) && /\bexecuteAtExit\(\)/.test(fnSource(floorUi, "closeTrial")),
             mutedDead: /\bisMutedDead\(actor\)/.test(fnSource(vote, "trialParticipants")) && fnSource(voice, "settleTrialVoices").length > 0,
             api: ["skipStep", "adjustTime", "overruleObjection", "endMode", "returnToDebate", "advanceFloorNow", "extendFloor", "endFloor"]
@@ -21299,8 +21302,9 @@ const REGRESSIONS = [
             "the reader does not name a Final step keyed \"card\" planted in FINAL_VERDICT_STEPS");
         equal(JSON.stringify(readOf(vote)), JSON.stringify({
             // E72 C7 (changed on purpose): the wrong verdict's "remind", after its card, before the overflow. E72 C18: "bets" last on both.
-            ordinary: { correct: ["sentence", "card", "levelUps", "overflow", "bets"], wrong: ["sentence", "card", "offers", "despair", "rule", "remind", "overflow", "bets"] },
-            needs: { card: "sentence", levelUps: "sentence", offers: "sentence", rule: "sentence", remind: "card", bets: "card", finalExecution: "finalSentence", mastermind: "finalSentence", finalBets: "finalCard" },
+            // 2.0 line T5 (D2-23): "motives", the motives' Level Ups, after the class's and the Blackened's offers, needing the sentence.
+            ordinary: { correct: ["sentence", "card", "levelUps", "motives", "overflow", "bets"], wrong: ["sentence", "card", "offers", "motives", "despair", "rule", "remind", "overflow", "bets"] },
+            needs: { card: "sentence", levelUps: "sentence", offers: "sentence", rule: "sentence", remind: "card", bets: "card", motives: "sentence", finalExecution: "finalSentence", mastermind: "finalSentence", finalBets: "finalCard" },
             final: FINAL, finalForbidden: [], unrun: [], unlabelled: [], finalTable: true, runners: []
         }), "the verdicts' step tables are not as E70 left the ordinary one and E42 wrote the Final Trial's, or a loop is not the one runner "
             + "(ordinary, needs, final: the tables; finalForbidden: a Final key that is card, sentence, executions or an ordinary key; unrun: a key with no "
@@ -21345,7 +21349,8 @@ const REGRESSIONS = [
             mastermind: "mastermind.mjs", passages: "passages-gm.mjs", deaths: "death.mjs", bodyFound: "death.mjs",
             remnants: "remnants.mjs", bullets: "truth-bullets.mjs", trialFloor: "trial.mjs", trialProgress: "trial-progress.mjs",
             discovered: "fog.mjs", searchTokens: "search-tokens.mjs", keyPlan: "key-remnants.mjs", eclipseMoves: "eclipse.mjs",
-            motive: "rules.mjs", rules: "rules.mjs", actions: "actions.mjs", despair: "despair.mjs", overflow: "overflow.mjs",
+            // 2.0 line T5 (D2-23): "motives" (the Monokuma Motive and the students' motives) is motives.mjs's, where "motive" was rules.mjs's.
+            motives: "motives.mjs", rules: "rules.mjs", actions: "actions.mjs", despair: "despair.mjs", overflow: "overflow.mjs",
             doors: "vault-store.mjs", preNotes: "pre-session-note.mjs",
             // D36 = 2 (E42 C4): the students' division between the Monokumas.
             assignments: "assignments.mjs",
@@ -21391,13 +21396,14 @@ const REGRESSIONS = [
             return out;
         };
         const plantedFiles = new Map([
-            ["rules.mjs", "export function clearSeasonMotive() {}\nregisterSeasonState({ group: \"motive\", clear: clearSeasonMotive });\n"
-                + "registerSeasonState({ group: \"motive\", clear: clearSeasonMotive });\n"],
+            // 2.0 line T5 (D2-23): the group is "motives" now, motives.mjs's - planted twice there.
+            ["motives.mjs", "export function clearSeasonMotives() {}\nregisterSeasonState({ group: \"motives\", clear: clearSeasonMotives });\n"
+                + "registerSeasonState({ group: \"motives\", clear: clearSeasonMotives });\n"],
             ["trial.mjs", "// registerSeasonState({ group: \"trialFloor\", clear: x });\nfunction f() {\n    registerSeasonState({ group: \"rules\", clear: x });\n}\n"],
             ["fog.mjs", "registerSeasonState({ group: \"keyPlan\", clear: clearSeasonKeyPlan });\n"]
         ]);
         const plantedProblems = problemsOf(registrations(new Map([...plantedFiles].map(([f, t]) => [f, blankComments(t)]))));
-        ok(["motive: 2 entries", "rules: no entry", "trialFloor: no entry", "keyPlan: registered in fog.mjs, not key-remnants.mjs"]
+        ok(["motives: 2 entries", "rules: no entry", "trialFloor: no entry", "keyPlan: registered in fog.mjs, not key-remnants.mjs"]
             .every(line => plantedProblems.includes(line)) && !plantedProblems.some(line => line.startsWith("bodyFound: registered")),
             `the reader of the registrations does not see the planted ones as they are: ${plantedProblems.slice(0, 8).join("; ")}`);
 
@@ -21515,8 +21521,10 @@ const REGRESSIONS = [
         }), JSON.stringify({
             // 20 season settings since E93 C1: `facilityClosed`, the GM room actions closed this time of day, cleared by the
             // "actions" entry (actions.mjs `clearSeasonActions`).
+            // 21 since 2.0 line T5 (D2-23): `monokumaMotive`, the Monokuma Motive's public record, cleared by the "motives" entry
+            // (motives.mjs `clearSeasonMotives`) with the old `motive`, which stays registered for the migration alone.
             season: ["bodiesFound", "bodyFound", "chapterEnd", "clock", "despairPools", "discoveredRooms", "facilityClosed", "gmAssignments", "killingGameRules",
-                "motive", "murderState", "overflow", "pendingGather", "projectMeta", "readyRound", "restrictions", "sealedRooms", "searchTokens",
+                "monokumaMotive", "motive", "murderState", "overflow", "pendingGather", "projectMeta", "readyRound", "restrictions", "sealedRooms", "searchTokens",
                 "trialProgress", "trialQueue"],
             // 35 table settings since E60 C5d: `diceDualityLook`, the table's Hope and Despair dice, outlives a season;
             // 36 since E68 C2: `autoApproveTraits`, the valve, a rule of play the GM switches;
@@ -21525,7 +21533,8 @@ const REGRESSIONS = [
             // 39 since E108: `diceLookKind`, which look the table's forced dice take, outlives a season as the switch does.
             // 40 since E53 C3: `balanceLog`, the balance log's switch, the table's as the rules of play the GM switches.
             // E129 S0-NOMUTE (23.11.2026): `trialVoicesFree`, a table's switch - 40 table settings until then.
-            counts: [20, 11, 41], clock: ["chapterEnd", "clock", "readyRound"], assignments: ["gmAssignments"], record: "campaign"
+            // 2.0 line T5 (D2-24 #1): `motivesEnabled`, whether the table plays with the players' motives - 42.
+            counts: [21, 11, 42], clock: ["chapterEnd", "clock", "readyRound"], assignments: ["gmAssignments"], record: "campaign"
         }), "the season's settings are not the twenty the reset clears, the lifetimes do not count 20, 11 and 41, the clock's entry does not "
             + "name the readiness round and the End of chapter's record, the assignments' entry does not name gmAssignments, or the reset's own record is not kept as the campaign's");
     }],
@@ -23548,7 +23557,8 @@ const REGRESSIONS = [
             ["murder-rules.mjs", "refuseBetrayal", "E49", 1, 0, 0], ["murder-rules.mjs", "throwOpeningRoll", "E49", 2, 0, 0], ["observe.mjs", "resolveObserve", "E49", 2, 0, 0],
             ["relay-guard.mjs", "reportRefusal", "E49", 1, 0, 0], ["relay-guard.mjs", "unknownSender", "E49", 1, 0, 0], ["relay-guard.mjs", "shapeWarning", "E49", 1, 0, 0],
             ["relay-guard.mjs", "announce", "E49", 3, 0, 0], ["remnants.mjs", "dropRemnant", "E49", 1, 0, 0], ["reroll-receipts.mjs", "warnGms", "E49", 1, 0, 0],
-            ["roll-draw.mjs", "tellUnexpected", "E49", 1, 0, 0], ["rules.mjs", "setMotive", "E49", 1, 0, 0], ["rules.mjs", "dueCard", "E49", 1, 0, 0],
+            // 2.0 line T5 (D2-23): the Monokuma Motive's card - its penalty the warning - is drawn by `motiveCardHtml`, which `setMotive` and `revealMotive` post.
+            ["roll-draw.mjs", "tellUnexpected", "E49", 1, 0, 0], ["rules.mjs", "motiveCardHtml", "E49", 1, 0, 0], ["rules.mjs", "dueCard", "E49", 1, 0, 0],
             ["sheet-audit.mjs", "record", "E49", 1, 0, 0], ["sheet-audit.mjs", "onForgedCard", "E49", 1, 0, 0], ["steps.mjs", "stepsReport", "E49", 1, 0, 0],
             ["truth-bullets.mjs", "revertPlayerBulletEdit", "E49", 1, 0, 0], ["use-items.mjs", "discardBroken", "E49", 1, 0, 0], ["vault-store.mjs", "clearSplitPiece", "E49", 1, 0, 0]
         ];
@@ -23639,11 +23649,14 @@ const REGRESSIONS = [
             // E69 C8 (13.11.2026): the killer's own cards behind the "?" (mask-gm.mjs), its start and its end at the time of day.
             // E112 (15.11.2026): the opening's veil adds the killer's one line before the roll (mask-gm.mjs `veilActor`).
             "mask-gm.mjs": {"card": 4}, "mastermind.mjs": {"message": 1},
-            "messenger-app.mjs": {"built": 1}, "migrate.mjs": {"card": 3, "line": 2},
+            // 2.0 line T5 (D2-23, D2-24): migrate.mjs `oldMotiveGone` whispers the GMs what the old Motive said, built of its lines;
+            // motives.mjs tells a student's owner a motive was given (built), passed or refused (lines), the GMs a ruling (a line),
+            // the GMs a report's card (built, with its two buttons) and the table a Monokuma Motive passed (message).
+            "messenger-app.mjs": {"built": 1}, "migrate.mjs": {"built": 1, "card": 3, "line": 2},
             /* Merged with E72 and E91 (12.11.2026): the Monocubs' veiled lines and its built cards (E72 C2-C17), the Final
                Trial's bets line (verdict.mjs), and the unlock card moved from room-setup.mjs to vault-store.mjs `writeRoomLock`
                (E91 C4, D038), every one in a form this census names. */
-            "monocub.mjs": {"built": 3, "line": 19, "message": 1}, "movement.mjs": {"action": 3, "card": 5},
+            "monocub.mjs": {"built": 3, "line": 19, "message": 1}, "motives.mjs": {"built": 2, "line": 3, "message": 1}, "movement.mjs": {"action": 3, "card": 5},
             // murder-rules.mjs message 6 -> 8 (1.2.121 line K, CASE-16): `announceCrisis` posts the GMs' card and, for the seats a
             // defence is hidden from, a second copy, by the same `announce({ content, whisper })` form as before.
             // line INVEST of 1.2.122: murder-rules.mjs +1 card (an opening that found no copy of the incident, R8183), observe.mjs
@@ -23661,7 +23674,8 @@ const REGRESSIONS = [
             "remnants.mjs": {"built": 1, "card": 1, "heading": 2, "line": 1}, "requirements.mjs": {"built": 1},
             "reroll-receipts.mjs": {"card": 1}, "reroll.mjs": {"heading": 3, "line": 3}, "rest.mjs": {"action": 1},
             "roll-draw.mjs": {"built": 2, "card": 1, "message": 1},
-            "rules.mjs": {"built": 3, "message": 3}, "safeword.mjs": {"built": 3},
+            // 2.0 line T5 (D2-24): rules.mjs `revealMotive` posts the revealed Monokuma Motive's card, one message more.
+            "rules.mjs": {"built": 3, "message": 4}, "safeword.mjs": {"built": 3},
             "search-tokens.mjs": {"heading": 1, "line": 1}, "season-wipe.mjs": {"heading": 1},
             "secret.mjs": {"message": 1}, "sheet-audit.mjs": {"built": 2, "card": 2}, "stash-reach.mjs": {"line": 11},
             "states.mjs": {"line": 1}, "tables-editor.mjs": {"card": 1}, "tail-gm.mjs": {"line": 3}, "timed-effects.mjs": {"line": 1}, "traps.mjs": {"line": 1},
@@ -24450,10 +24464,11 @@ const REGRESSIONS = [
                 // E53 C3: `balanceLog`, the balance log's switch, born in the rules section (no Foundry list showed it).
                 // E129 S0-NOMUTE (1.2.128): `trialVoicesFree`, the Class Trial's forced muting switched off, born in audio.
                 // E129 S0-HOVERNAME B (1.2.128 line MAP): `tokenCaptions`, the tokens' names as captions, born in look.
-                ["audio", "game", 3, true], ["rules", "game", 7, true], ["privacy", "game", 6, true], ["gm", "game", 3, true], ["foundry", "game", 7, true]],
+                ["audio", "game", 3, true], ["rules", "game", 8, true], ["privacy", "game", 6, true], ["gm", "game", 3, true], ["foundry", "game", 7, true]],
             // E61 C1 (12.11.2026): `sequences`, the table's switch for the sequences, a world setting born in this window
             // E57 C3 (D34): `documentLanguage` in gm, beside them.
-            once: [], others: ["tokenCaptions", "trialVoicesFree", "balanceLog", "sequences", "documentLanguage", "sfxVary"], mixed: [], configTrue: [], menuCalls: ["SETTINGS_MENU"], menuRestricted: true,
+            // 2.0 line T5 (D2-24 #1): `motivesEnabled`, last of the game's rules - 8 there, and one more key since the frozen list.
+            once: [], others: ["tokenCaptions", "trialVoicesFree", "balanceLog", "motivesEnabled", "sequences", "documentLanguage", "sfxVary"], mixed: [], configTrue: [], menuCalls: ["SETTINGS_MENU"], menuRestricted: true,
             menus: read.menus === "not modelled" ? "not modelled" : [[`${MODULE_ID}.drpgSettings`, false]],
             words: [], sectionWords: [true, true, true, true, true, true, true, true, true]
         }), "[the module loads; its sections (key, place, size, an icon); keys not in exactly one; keys no frozen one; keys of the other scope than their place; settings still config: true; "

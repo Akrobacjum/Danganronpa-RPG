@@ -227,3 +227,12 @@ export const ACTION_CARD_CLAIM = "card.claim";
 
 /** GM -> primary GM: Give a Truth Bullet, carried to the primary so its copy is made in the one receiver's finds' queue (E38; D153). */
 export const ACTION_BULLET_GIVE = "bullet.give";
+
+/* The players' motives (2.0 line T5, D2-23 and D2-24; scripts/motives.mjs): written by a GM on the primary, a player's
+   report of one done, a GM's pass or reject - each run there, where the GMs' store `motives` is written. */
+/** GM -> primary GM: write a student's Personal or Relationship Motive, or take it away (motives.mjs `setMotiveOnPrimary`). */
+export const ACTION_MOTIVE_SET = "motive.set";
+/** player -> GM: my character did its motive - a claim the GM reads (motives.mjs `reportMotiveOnPrimary`). */
+export const ACTION_MOTIVE_REPORT = "motive.report";
+/** GM -> primary GM: pass or reject a motive, once (motives.mjs `ruleMotiveOnPrimary`). */
+export const ACTION_MOTIVE_RULE = "motive.rule";

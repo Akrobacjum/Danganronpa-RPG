@@ -1041,3 +1041,29 @@ export async function handleCardPost(payload, sender) {
     if (!message) return { refused: "nothing was carried out: the card could not be posted" };
     return { reply: { id: message.id } };
 }
+
+/*
+ * THE PLAYERS' MOTIVES (2.0 line T5, D2-23 and D2-24, 27.11.2026; scripts/motives.mjs's header, which says who may read
+ * what). Three runs on the primary, each handing the whitelisted fields to motives.mjs, which judges them against the
+ * GMs' store and the roster and answers the run's `{ reply }` or `{ refused }`: a GM's write of a student's motive
+ * (`motive.set`, gmOnly), a player's report of one done (`motive.report`: a claim, which the GM reads and rules on), a
+ * GM's pass or reject (`motive.rule`, gmOnly, once).
+ */
+
+/** The run of `motive.set`: a GM writes `kind` of a student's motives (empty words take it away). */
+export async function handleMotiveSet(payload, sender) {
+    const { setMotiveOnPrimary } = await import("./motives.mjs");
+    return setMotiveOnPrimary({ actorId: payload.actorId, kind: payload.kind, text: payload.text, withActorId: payload.withActorId }, sender);
+}
+
+/** The run of `motive.report`: the sender's own student (`owns`) did its `kind` of motive, in `text` - a claim. */
+export async function handleMotiveReport(payload, sender) {
+    const { reportMotiveOnPrimary } = await import("./motives.mjs");
+    return reportMotiveOnPrimary({ actorId: payload.actorId, kind: payload.kind, text: payload.text }, sender);
+}
+
+/** The run of `motive.rule`: a GM passes or rejects a student's `kind` of motive, with an optional reason. */
+export async function handleMotiveRule(payload, sender) {
+    const { ruleMotiveOnPrimary } = await import("./motives.mjs");
+    return ruleMotiveOnPrimary({ actorId: payload.actorId, kind: payload.kind, pass: payload.pass, reason: payload.reason }, sender);
+}

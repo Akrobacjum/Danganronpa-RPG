@@ -35,7 +35,8 @@ import {
     ACTION_FRISK_ASK, ACTION_FRISK_ANSWER, ACTION_FRISK_FOLLOW, ACTION_CRISIS, ACTION_OPENING_RESULT, ACTION_CLEANUP,
     ACTION_BETRAYAL, ACTION_PARK_MURDER, ACTION_CUB_ABILITY, ACTION_CUB_ANSWER, ACTION_BRIBE_OFFER, ACTION_BRIBE_ANSWER, ACTION_DONE, ACTION_LOOT, ACTION_NOTE_SAVE,
     ACTION_ROLL_BOOKMARK, ACTION_REROLL, ACTION_CARD, ACTION_CARD_CLAIM, ACTION_BULLET_GIVE, ACTION_FACILITY_USE, ACTION_DASH, ACTION_TAIL_START, ACTION_DOOR_SHUT, ACTION_DOOR_FORCE, ACTION_DOOR_PICK, ACTION_WATCH_DECLARE, ACTION_DOOR_KNOCK,
-    ACTION_LISTEN_EAVESDROP, ACTION_LISTEN_STOP, ACTION_LISTEN_ECHOES, ACTION_MASK_REVEAL, ACTION_MASK_VEIL, ACTION_HIDE_START, ACTION_DEAD_SPECTATOR
+    ACTION_LISTEN_EAVESDROP, ACTION_LISTEN_STOP, ACTION_LISTEN_ECHOES, ACTION_MASK_REVEAL, ACTION_MASK_VEIL, ACTION_HIDE_START, ACTION_DEAD_SPECTATOR,
+    ACTION_MOTIVE_SET, ACTION_MOTIVE_REPORT, ACTION_MOTIVE_RULE
 } from "./bridge-wire.mjs";
 import { ask } from "./bridge-table.mjs";
 
@@ -1451,4 +1452,34 @@ export async function claimCard(message, work) {
         await askCardClaim(message.id, outcome?.settled || outcome?.held ? "done" : "drop");
     }
     return outcome;
+}
+
+/* The players' motives (2.0 line T5, D2-23; motives.mjs): each run on the primary GM, by the primary itself (`local`, the
+   row's own run, `localRun`) or asked of it. */
+
+/** A GM writes `kind` of `actorId`'s motives (empty `text` takes it away); answers `{ kind, status }` as `.value`. */
+export function requestMotiveSet({ actorId, kind, text = "", withActorId = null }) {
+    return ask(ACTION_MOTIVE_SET, { actorId, kind, text, withActorId }, {
+        localRun: true,
+        onPrimary: true,
+        local: () => import("./bridge-runs-records.mjs").then(m => m.handleMotiveSet({ actorId, kind, text, withActorId }, game.user))
+    });
+}
+
+/** A player reports `kind` of their student's motive done, in `text`: the GMs get it to rule on. */
+export function requestMotiveReport({ actorId, kind, text = "" }) {
+    return ask(ACTION_MOTIVE_REPORT, { actorId, kind, text }, {
+        localRun: true,
+        onPrimary: true,
+        local: () => import("./bridge-runs-records.mjs").then(m => m.handleMotiveReport({ actorId, kind, text }, game.user))
+    });
+}
+
+/** A GM passes (`pass`) or rejects `kind` of `actorId`'s motive, with an optional `reason`; answers `{ status, landed }` as `.value`. */
+export function requestMotiveRule({ actorId, kind, pass = false, reason = "" }) {
+    return ask(ACTION_MOTIVE_RULE, { actorId, kind, pass, reason }, {
+        localRun: true,
+        onPrimary: true,
+        local: () => import("./bridge-runs-records.mjs").then(m => m.handleMotiveRule({ actorId, kind, pass, reason }, game.user))
+    });
 }

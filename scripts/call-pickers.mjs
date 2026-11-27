@@ -33,7 +33,7 @@
 
 import { MODULE_ID, HOPE_CALLS, DESPAIR_CALLS, MOTIVE } from "./config.mjs";
 import { esc, wholeNumber, proseOf } from "./utils.mjs";
-import { stepper, stepperId, drpgWindow, tipText } from "./ui-kit.mjs";
+import { stepper, stepperId, drpgWindow, tipText, tipAttr } from "./ui-kit.mjs";
 import { alreadyOpen, keepLive } from "./live.mjs";
 import { choiceRowHtml } from "./ui-columns.mjs";
 import { nameAsSeen, seenHere } from "./mask-gm.mjs";
@@ -334,24 +334,33 @@ async function pickText(ask) {
 }
 
 /**
- * The three questions a motive is made of: what Monokuma wants, how long the
- * cast has, and what happens when the time runs out.
- *
- * BOTH SENTENCES ARE REQUIRED, AND THE WINDOW SAYS SO BEFORE THE BUTTON (the
- * E13 lesson, learned on the rest picker). A motive costs six Despair
- * (config.mjs DESPAIR_CALLS.motive), half a pool; one bought without a stated consequence is a threat the table
- * cannot be held to, and finding that out after paying is the version of this
- * that costs somebody their time of day.
+ * THE MONOKUMA MOTIVE'S WINDOW (2.0 line T5, D2-23 and D2-24, 27.11.2026; until 2.0 the old motive's three required
+ * questions: a demand, a deadline of 1-10 times of day, a consequence). What the class is to do together (required);
+ * whether it is hidden - the players see that there is one and not what it says (#2); a deadline, only if the Monokuma
+ * gives one (#5: the box unticked, none); and a penalty, words carried out by hand (#1), which may stay empty. When a
+ * Monokuma Motive is in force, the window shows it and asks "Was it passed?" with no answer chosen (M3): Yes gives every
+ * living student 3 Hope (motives.mjs `rewardMonokumaMotive`), and the outcome goes into the chapter's record for the Level
+ * Up list. The button stays off until the words are written and, with one in force, the question answered.
  */
 async function pickMotive(ask) {
     const deadline = stepperId();
+    const { motive, motiveForGm } = await import("./rules.mjs");
+    const current = game.user?.isGM ? motiveForGm() : motive();
+    const shown = current ? (current.hidden ? (current.hiddenText || game.i18n.localize("DRPG.Motive.unknown")) : current.text) : "";
     const record = await callWindow({
         ...ask, layout: "action",
         body: `<form>
+            ${current ? `<p class="notes">${esc(game.i18n.format("DRPG.Motive.inForce", { text: shown }))}</p>
+            <fieldset><legend>${game.i18n.localize("DRPG.Motive.passedQuestion")}</legend>
+                <label class="drpg-checkbox"><input type="radio" name="passed" value="yes" /> ${game.i18n.localize("DRPG.Motive.passedYes")}</label>
+                <label class="drpg-checkbox"><input type="radio" name="passed" value="no" /> ${game.i18n.localize("DRPG.Motive.passedNo")}</label>
+            </fieldset>` : ""}
             <label>${game.i18n.localize("DRPG.Motive.demandLabel")}
                 <textarea name="text" rows="3"
                     placeholder="${game.i18n.localize("DRPG.Motive.demandPlaceholder")}"></textarea></label>
-            <label for="${deadline}">${game.i18n.localize("DRPG.Motive.deadlineLabel")}
+            <label class="drpg-checkbox"><input type="checkbox" name="hidden"${tipAttr("DRPG.Motive.tip.hidden")} /> ${game.i18n.localize("DRPG.Motive.hiddenLabel")}</label>
+            <label class="drpg-checkbox"><input type="checkbox" name="withDeadline"${tipAttr("DRPG.Motive.tip.withDeadline")} /> ${game.i18n.localize("DRPG.Motive.deadlineLabel")}</label>
+            <label for="${deadline}">${game.i18n.localize("DRPG.Motive.deadlineCount")}
                 ${stepper({ name: "timesOfDay", value: MOTIVE.defaultTimesOfDay, min: MOTIVE.minTimesOfDay, max: MOTIVE.maxTimesOfDay, step: 1, id: deadline })}</label>
             <p class="notes">${game.i18n.localize("DRPG.Motive.deadlineNote")}</p>
             <label>${game.i18n.localize("DRPG.Motive.consequenceLabel")}
@@ -362,34 +371,49 @@ async function pickMotive(ask) {
         render: (event, dialog) => {
             const root = dialog?.element;
             if (!root) return;
-            const fields = ["text", "consequence"]
-                .map(name => root.querySelector(`[name=${name}]`))
-                .filter(Boolean);
+            const text = root.querySelector("[name=text]");
             const confirm = root.querySelector('button[data-action="ok"]');
             const sync = () => {
-                if (confirm) confirm.disabled = fields.some(f => !f.value.trim());
+                const answered = !current || Boolean(root.querySelector("[name=passed]:checked"));
+                if (confirm) confirm.disabled = !text?.value.trim() || !answered;
             };
-            for (const f of fields) f.addEventListener("input", sync);
+            root.addEventListener("input", sync);
+            root.addEventListener("change", sync);
             sync();
         },
         footer: { primary: {
             action: "ok", label: game.i18n.localize("DRPG.Calls.next"),
-            callback: (e, b, d) => {
-                const f = d.element.querySelector("form");
-                return {
-                    text: f.querySelector("[name=text]").value.trim(),
-                    consequence: f.querySelector("[name=consequence]").value.trim(),
-                    timesOfDay: wholeNumber(f.querySelector("[name=timesOfDay]").value, { min: MOTIVE.minTimesOfDay, max: MOTIVE.maxTimesOfDay, fallback: MOTIVE.defaultTimesOfDay })
-                };
-            }
+            callback: (e, b, d) => readMotiveForm(d.element.querySelector("form"), { current: Boolean(current) })
         } }
     });
 
-    // The backstop behind the disabled button, for the same reason the rest
-    // picker keeps one: a template change or a render that never fired would
-    // take the guard away and leave nothing behind it.
-    if (!record || record === "cancel" || !record.text) return null;
-    return { motive: record };
+    // The backstop behind the disabled button: a template change or a render that never fired would take the guard away.
+    if (!record || record === "cancel" || !record.motive?.text || (current && typeof record.passed !== "boolean")) return null;
+    return record;
+}
+
+/**
+ * The Monokuma Motive's window read back (R9337): `{ motive: { text, hidden, timesOfDay, penalty }, passed }`, the
+ * deadline null unless its box is ticked, `passed` true or false when one is in force and the question was answered, and
+ * null for a window that cannot go on - no words, or one in force with no answer. Pure over the form it is handed.
+ */
+export function readMotiveForm(form, { current = false } = {}) {
+    if (!form) return null;
+    const value = name => form.querySelector(`[name=${name}]`);
+    const text = String(value("text")?.value ?? "").trim();
+    const answer = form.querySelector("[name=passed]:checked")?.value ?? null;
+    if (!text || (current && answer !== "yes" && answer !== "no")) return null;
+    return {
+        motive: {
+            text,
+            hidden: Boolean(value("hidden")?.checked),
+            timesOfDay: value("withDeadline")?.checked
+                ? wholeNumber(form.querySelector("[name=timesOfDay]")?.value, { min: MOTIVE.minTimesOfDay, max: MOTIVE.maxTimesOfDay, fallback: MOTIVE.defaultTimesOfDay })
+                : null,
+            penalty: String(value("consequence")?.value ?? "").trim()
+        },
+        passed: current ? answer === "yes" : null
+    };
 }
 
 async function pickPlayer(actor, ask) {

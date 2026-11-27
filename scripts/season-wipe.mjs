@@ -406,7 +406,7 @@ async function deleteMessages(ids) {
 export const RESET_STEPS = Object.freeze([
     "incident", "seals", "projects", "mastermind", "passages", "deaths",
     "remnants", "bullets", "trialFloor", "trialProgress", "bodyFound", "discovered", "searchTokens",
-    "keyPlan", "eclipseMoves", "motive", "rules", "assembly",
+    "keyPlan", "eclipseMoves", "motives", "rules", "assembly",
     "items", "advancement", "actions", "despair", "assignments", "overflow", "doors", "stashesFound",
     "placeCast",
     "preNotes", "cards", "chatRest",

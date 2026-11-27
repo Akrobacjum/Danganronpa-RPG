@@ -8546,7 +8546,7 @@
       "owner": null
     },
     {
-      "key": "DRPG.Season.group.motive",
+      "key": "DRPG.Season.group.motives",
       "group": "window",
       "surface": "gm-diagnostics",
       "screen": "season-wipe",
@@ -8563,9 +8563,9 @@
           "note": null
         },
         {
-          "fact": "The motive is written empty, with no announcement.",
-          "file": "scripts/rules.mjs",
-          "fn": "clearSeasonMotive",
+          "fact": "The Monokuma Motive and every student's motives are written empty, with no announcement (2.0 line T5: the group \"motive\" became \"motives\").",
+          "file": "scripts/motives.mjs",
+          "fn": "clearSeasonMotives",
           "note": null
         }
       ],

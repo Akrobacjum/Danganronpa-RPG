@@ -7616,6 +7616,8 @@ const INVARIANTS = [
             // 1.2.122 (CORE-25): a room's region with the killer's open stash - public, and named by its owner's id.
             regions: [{ id: "R190SCENE0000001.R190REGION000001", flags: { [MOD]: { drpgStashes: [{ actorId: KILLER }], drpgVaultOwner: KILLER } } }]
         });
+        /* 2.0 line T5 (D2-23, D2-24 #2): a hidden Monokuma Motive as rules.mjs `setMotive` writes it - no words, no penalty. */
+        const cleanMotive = { id: "R190MOTIVE000001", hidden: true, text: "", penalty: "", timesOfDay: null, remaining: null, chapter: 2, epoch: 0, at: 1 };
         // One secret each: what it is, how it is planted in a clean snapshot, and the hit it must give.
         const FIXTURES = [
             // E05's fix round (r1-G1, S1-m1) added `saboteur`, the user who asked for a sabotage; E15 part 2 C2 a Secret
@@ -7785,12 +7787,31 @@ const INVARIANTS = [
             // E94 C4: the mood's word may ride in the clock, the Overflow's numbers it is read from may not
             ...["overflowCount", "overflowThreshold"].map(f => [`clock.${f}`,
                 s => { s.settings.clock.mood = "uneasy"; s.settings.clock[f] = 4; },
-                h => h.kind === "field" && h.doc === "setting" && h.id === "clock" && h.path === f])
+                h => h.kind === "field" && h.doc === "setting" && h.id === "clock" && h.path === f]),
+            // 2.0 line T5 (D2-23): nothing of a student's private motives beside the Monokuma Motive's public part, and a hidden
+            // one's words and penalty kept out of it (`whileField`); no actor flag holds a motive, on a world actor or a token's delta.
+            ...["personal", "relationship", "withActorId", "report", "hiddenText", "hiddenPenalty"].map(f => [`monokumaMotive.${f}`,
+                s => { s.settings.monokumaMotive = { ...cleanMotive, [f]: "R190 a motive" }; },
+                h => h.kind === "field" && h.doc === "setting" && h.id === "monokumaMotive" && h.path === f]),
+            ...["text", "penalty"].map(f => [`monokumaMotive while hidden: ${f}`,
+                s => { s.settings.monokumaMotive = { ...cleanMotive, [f]: "R190 work on the pool together" }; },
+                h => h.kind === "field" && h.doc === "setting" && h.id === "monokumaMotive" && h.path === f]),
+            ["Actor flag motives",
+                s => { s.actors[1].flags[MOD].motives = { personal: { text: "R190 protect the library" } }; },
+                h => h.kind === "flag" && h.doc === "Actor" && h.id === "R190BYSTANDER001" && h.path === `flags.${MOD}.motives`],
+            ["unlinked token's Actor flag motives",
+                s => { s.tokens[0].delta.flags[MOD].motives = {}; },
+                h => h.kind === "flag" && h.doc === "Actor" && h.id === "R190SCENE0000001.R190TOKEN0000001" && h.path === `delta.flags.${MOD}.motives`]
         ];
         /* The exemptions: [what, plant, whether the hits are right]. projectMeta's own map token, as
            projects-map.mjs writes it (E05 C5): it reads clean there, and a tokenId planted in the clock
            beside it is found - an exemption is one setting's, not the field's. */
         const EXEMPT = [
+            /* 2.0 line T5, both ways: a Monokuma Motive that is not hidden holds its words and penalty, and reads clean; the
+               same words with `hidden` true are found (above). */
+            ["monokumaMotive may hold a public one's words",
+                s => { s.settings.monokumaMotive = { ...cleanMotive, hidden: false, text: "R190 discover every room", penalty: "R190 no breakfast" }; },
+                hits => !hits.some(h => h.id === "monokumaMotive")],
             /* 1.2.122 (CORE-25), both ways: an open stash's entry `concealed: false` and the legacy flag `false`, as
                CORE-25's migration clause and vault-store.mjs leave them, read clean; `true` is found (above). */
             ["a region may hold concealed false",
@@ -7833,6 +7854,7 @@ const INVARIANTS = [
         const unfixtured = [
             ...Object.entries(R.settings).flatMap(([key, rule]) => [...(rule.fields ?? []).map(f => `${key}.${f}`),
                 ...(rule.whileSecret?.fields ?? []).map(f => `${key} while secret: ${f}`),
+                ...(rule.whileField?.fields ?? []).map(f => `${key} while ${rule.whileField.field}: ${f}`),
                 ...(rule.empty ? [`${key}: empty`] : []), ...(rule.only ? [`${key}: only ${rule.only.join(", ")}`] : [])]),
             ...(R.everySetting?.fields ?? []).map(f => `every setting: ${f}`),
             ...Object.entries(R.everySetting?.except ?? {}).flatMap(([key, fields]) => fields.map(f => `${key} may hold ${f}`)),
@@ -36980,6 +37002,9 @@ const INVARIANTS = [
          * its time left, its price, the Withdraw button), `wireMotiveWithdraw` on a detached element with a stand-in for
          * the withdrawal, pressed twice, and, with comments blanked, the manager drawing and wiring the section. Nothing
          * is written (E20-T5 withdraws on the suite's world). Red at the parent: neither was exported.
+         * 2.0 line T5 (D2-23, D2-24, 27.11.2026): the Monokuma Motive - its words and penalty, its time left only with a
+         * deadline, Reveal for a hidden one - and Withdraw asks first whether it was passed (`ask`, answered here by a
+         * stand-in), handing the answer to the withdrawal.
          */
         let R = null;
         try { R = await import("./rules.mjs"); } catch { R = null; }
@@ -36990,11 +37015,14 @@ const INVARIANTS = [
             const draw = html => { const el = document.createElement("div"); el.innerHTML = html; return el; };
             const none = draw(R.motiveSection(null));
             out.none = [none.textContent.includes(game.i18n.localize("DRPG.Motive.none")), Boolean(none.querySelector("[data-drpg-motive-withdraw]"))];
-            const some = draw(R.motiveSection({ text: "R1520 demand", remaining: 3, consequence: "R1520 price", due: false }));
+            const some = draw(R.motiveSection({ id: "R1520MOTIVE00001", text: "R1520 demand", deadline: true, remaining: 3, penalty: "R1520 price", due: false }));
             out.some = [some.textContent.includes("R1520 demand"), some.textContent.includes(plural("DRPG.Motive.left", { n: 3 })),
-                some.textContent.includes("R1520 price"), some.querySelector("[data-drpg-motive-withdraw]")?.textContent.trim() === game.i18n.localize("DRPG.Motive.withdraw")];
-            let calls = 0;
-            const wired = R.wireMotiveWithdraw(some, { withdraw: async () => { calls++; } });
+                some.textContent.includes("R1520 price"), some.querySelector("[data-drpg-motive-withdraw]")?.textContent.trim() === game.i18n.localize("DRPG.Motive.withdraw"),
+                Boolean(some.querySelector("[data-drpg-motive-reveal]")),
+                Boolean(draw(R.motiveSection({ id: "R1520MOTIVE00002", hidden: true, hiddenText: "R1520 hidden", text: "" })).querySelector("[data-drpg-motive-reveal]"))];
+            const calls = [];
+            const wired = R.wireMotiveWithdraw(some, { withdraw: async passed => { calls.push(passed); }, ask: async () => true,
+                shown: "R1520", now: () => "R1520" });
             const button = some.querySelector("[data-drpg-motive-withdraw]");
             button?.click();
             button?.click();
@@ -37006,9 +37034,9 @@ const INVARIANTS = [
         must(rules.length, "rules.mjs is not among the module's sources - this would measure nothing");
         const manager = fnSource(rules, "openRulesManager");
         equal(stableJson({ ready, ...out, manager: [manager.includes("motiveSection("), manager.includes("wireMotiveWithdraw(")] }), stableJson({
-            ready: true, none: [true, false], some: [true, true, true, true], calls: [1, true], manager: [true, true]
+            ready: true, none: [true, false], some: [true, true, true, true, false, true], calls: [[true], true], manager: [true, true]
         }), "the motive cannot be withdrawn from the rules manager [the two exported | no motive: says so, no button | a motive: its text, its time "
-            + "left, its price, the Withdraw button | pressed twice: withdrawn once, the button off | the manager draws and wires it]");
+            + "left, its penalty, the Withdraw button, a Reveal on a public one, a Reveal on a hidden one | pressed twice: withdrawn once with the answer, the button off | the manager draws and wires it]");
     }],
     ["R1521 - a number field's - and + say the step they move by, \"One more / One fewer\" only at a step of 1 (E20 C6, E20-22; S01-48)", async () => {
         /*
@@ -42811,15 +42839,16 @@ const INVARIANTS = [
          * somebody remembered the list. Each entry's `tally` is its row's lines now. Pure over a plan and tallies of
          * the test's own; then the window's own tallies, read off this world without writing (each entry's lines, by
          * group). Red before C3: the planted line under the motive row missing (`GOES_DETAIL` has no motive).
+         * 2.0 line T5 (D2-23): the group "motive" became "motives" (motives.mjs registers it); read on that one.
          */
         const S = await import("./season-setup.mjs");
         const { RESET_GROUPS, planFrom } = await import("./season-exceptions.mjs");
         const keys = RESET_GROUPS.map(group => group.key);
         const host = document.createElement("div");
-        host.innerHTML = S.resetGoesHtml(planFrom(keys), { motive: ["R1255 planted line"], projects: [] });
+        host.innerHTML = S.resetGoesHtml(planFrom(keys), { motives: ["R1255 planted line"], projects: [] });
         const notes = key => host.querySelector(`li[data-group="${key}"] .notes`)?.textContent ?? null;
-        equal(JSON.stringify([notes("motive"), notes("projects"), notes("rules")]), JSON.stringify(["(R1255 planted line)", null, null]),
-            "the window does not show a planted tally's lines under its group, or counts a group whose tally gave none (motive, projects, rules)");
+        equal(JSON.stringify([notes("motives"), notes("projects"), notes("rules")]), JSON.stringify(["(R1255 planted line)", null, null]),
+            "the window does not show a planted tally's lines under its group, or counts a group whose tally gave none (motives, projects, rules)");
         const R = await import("./season-reset.mjs");
         const described = R.seasonStateEntries().filter(entry => entry.group === null);
         must(described.length >= 1, "the registry holds no descriptive entry - the window's line for one is read on nothing");
@@ -42846,10 +42875,11 @@ const INVARIANTS = [
          * one the registry refuses whatever it says of `primaryOnly` (a group already registered, a group the window does
          * not offer), so nothing is registered, red or green: the error is read for its words. Red at 7129a316: refused
          * for the group alone, the error naming no `primaryOnly`, and every entry holding the key.
+         * 2.0 line T5 (D2-23): the group "motive" became "motives" (motives.mjs registers it); read on that one.
          */
         const R = await import("./season-reset.mjs");
-        const taken = R.seasonStateFor("motive");
-        must(taken, "the motive group has no entry - the first call would register one");
+        const taken = R.seasonStateFor("motives");
+        must(taken, "the motives group has no entry - the first call would register one");
         const refusal = spec => {
             try {
                 R.registerSeasonState(spec);
@@ -42859,10 +42889,10 @@ const INVARIANTS = [
             }
         };
         const words = [
-            refusal({ group: "motive", clear: () => null, primaryOnly: false }),
+            refusal({ group: "motives", clear: () => null, primaryOnly: false }),
             refusal({ group: "R1258-no-such-group", clear: () => null, primaryOnly: true })
         ];
-        must(R.seasonStateFor("motive") === taken, "the motive group's entry was replaced - the registry took a second entry");
+        must(R.seasonStateFor("motives") === taken, "the motives group's entry was replaced - the registry took a second entry");
         const entries = R.seasonStateEntries();
         must(entries.length >= 30, `the registry holds ${entries.length} entries - the shape is read on next to nothing`);
         equal(JSON.stringify([words.map(text => /\bprimaryOnly\b/.test(text)), entries.filter(entry => "primaryOnly" in entry).length]), "[[true,true],0]",
@@ -48889,7 +48919,9 @@ const INVARIANTS = [
             keep: [".application.drpg-prompt", "drpg-prompt", false],
             kit: [[false, false], [true, false]],
             asking: ["action-menus.mjs chooseVariant", "action-menus.mjs promptForNote", "action-project.mjs proposeProjectTrait", "call-gm.mjs askForRequest", "frisk.mjs askToForce", "frisk.mjs openAskWindow",
-                "level-up.mjs askWhoPicks", "level-up.mjs openAdvancement", "mask-gm.mjs askReveal", "observe.mjs askWhichRemnant", "observe.mjs describeFind", "observe.mjs wireDescribeHere", "trait-ruling.mjs pickHere",
+                // 2.0 line T5 (D2-23): a player's report, a GM's motives of a student, the verdict's motive Level Ups and a refusal's reason are waited on.
+                "level-up.mjs askWhoPicks", "level-up.mjs openAdvancement", "mask-gm.mjs askReveal",
+                "motives-ui.mjs openStudentMotives", "motives-ui.mjs pickMotiveLevelUps", "motives-ui.mjs reportMotive", "motives-ui.mjs ruleMotive", "observe.mjs askWhichRemnant", "observe.mjs describeFind", "observe.mjs wireDescribeHere", "trait-ruling.mjs pickHere",
                 "trait-ruling.mjs rollChanged", "trial-prompt.mjs confirmEnd", "trial-prompt.mjs promptClaim", "trial-prompt.mjs promptFinish", "trial-prompt.mjs promptTurn", "vote.mjs castBallot"],
             naming: ["roll-dialog.mjs", "stacking.mjs", "ui-kit.mjs"],
             // E69 C1: the Infiltrate tile's rows (action-listen.mjs `performListen`), an action's declaration.
@@ -56333,7 +56365,9 @@ const INVARIANTS = [
         // the three Monocub columns in every table since E49 A3 (R3406 reads their dimmed cells).
         const heads = [T("DRPG.Panel.character"), T("DRPG.Panel.openColumn"), T("DRPG.Panel.roleColumn"), T("DRPG.Panel.stateColumn"), T("DRPG.Actions.label"), T("DRPG.Panel.freeMove"),
             T("DRPG.Monocub.hope"), T("DRPG.Monocub.giveHopeColumn"), T("DRPG.Monocub.silenced"),
-            T("DRPG.Panel.levelUpColumn"), T("DRPG.Panel.doColumn")];
+            T("DRPG.Panel.levelUpColumn"), T("DRPG.Panel.doColumn"),
+            // 2.0 line T5 (D2-23): the Motives column last, while the table plays with motives (motives-ui.mjs `motiveColumn`).
+            ...(game.settings.get(MODULE_ID, SETTINGS.motivesEnabled) !== false ? [T("DRPG.Motives.column")] : [])];
         const shown = [["students", students], ["monokumas", kumas], ["notInClass", npcs]].filter(([, list]) => list.length);
         equal(stableJson(got), stableJson({
             kit: true,
@@ -56671,7 +56705,8 @@ const INVARIANTS = [
             keys: ["DRPG.Case.backupTile", "DRPG.Case.restoreTile"].map(k => [k in en, k in pl])
         }), stableJson({
             // E49 A2 moved three tiles and took one out (R3345 holds the four moves): the order as it stands after them.
-            tiles: [["now", ["whoIsAlive", "projects", "sound"]], ["case", ["murder", "investigation", "trial"]],
+            // 2.0 line T5 (D2-23): "motives", the players' motives' overview, last of the standing tiles.
+            tiles: [["now", ["whoIsAlive", "projects", "sound", "motives"]], ["case", ["murder", "investigation", "trial"]],
                 // E49 A1d: Reset the season into Season setup, Settings in its place (R3532). E49 A1e: Edit campaign, Despair Flow,
                 // Killing game rules and The Mastermind into Season setup (R3582).
                 ["between", ["roomSetup", "tables", "seasonSetup", "settings"]],
@@ -70049,6 +70084,345 @@ const INVARIANTS = [
         equal(stableJson(["a", "b", "c", "d", "e"].map(id => T.lapseRefundOf(record, id)?.paid?.pay ?? null).concat([T.lapseRefundOf(null, "a")])),
             stableJson(["stress", null, null, null, null, null]),
             "[a receipt paid with Sanity; the same marked refunded; nothing paid; a receipt with no step; no receipt; no record]");
+    }],
+
+    ["R9333 - motives M1: a student's motives live in the GMs' store and its owner's copy alone - both client settings, neither in world data - and the Monokuma Motive's public record is the one world setting, synced as a rule", async () => {
+        /*
+         * 2.0 line T5, D2-23 (#2: "Cele prywatne: widza je tylko GM-owie i wlasciciel postaci"; trust-model.md D2). Read
+         * off Foundry's registrations: `gmMotives` (the store `motives`) and `mineMotives` (the copy) are client settings,
+         * so Foundry sends them to no other browser, and gm-stores.mjs names them so; `monokumaMotive` is the world
+         * setting every browser reads, its words absent while it is hidden (R190 holds that rule's fixtures), synced as
+         * a rule (sync.mjs). Red at 7954f47 (1.2.129): none of the three is registered.
+         */
+        // The store's and the copy's keys read off the engine's rows (`spec.key`): R171 holds their names to the engine.
+        const reg = key => game.settings.settings.get(`${MODULE_ID}.${key}`) ?? null;
+        const S = await import("./gm-stores.mjs");
+        const sync = await import("./sync.mjs");
+        const storeKey = S.motiveStore?.spec?.key ?? null, copyKey = S.motiveCopy?.spec?.key ?? null;
+        must(storeKey && copyKey && SETTINGS.monokumaMotive, "gm-stores.mjs has no motives' store or copy - M1 is not there");
+        equal(stableJson([reg(storeKey)?.scope, reg(copyKey)?.scope, reg(SETTINGS.monokumaMotive)?.scope, storeKey !== copyKey,
+            sync.isSyncedSetting(SETTINGS.monokumaMotive), sync.isSyncedSetting(storeKey), sync.isSyncedSetting(copyKey)]),
+            stableJson(["client", "client", "world", true, true, false, false]),
+            "[the store's key's scope, the copy's, monokumaMotive's, two keys, monokumaMotive synced, the store's key synced, the copy's]");
+    }],
+
+    ["R9334 - motives M1: the rows one player is sent are their own characters' alone, each cleaned to its motives, state, report and reason - never another student's row, not the Monokuma Motive's hidden words, not who wrote it", async () => {
+        /*
+         * 2.0 line T5, D2-23 #2 (the private copy). motives.mjs `copyRowsFor` over a store's rows as the GMs hold them:
+         * A owned by the player, B not - B's Relationship Motive names A, which must not reach A's player - and the
+         * store's two Monokuma rows (`monokuma`, with a hidden one's words; `monokumaLog`). Pure. Red at 7954f47
+         * (1.2.129): motives.mjs is not there.
+         */
+        const M = await import("./motives.mjs").catch(() => null);
+        must(M && typeof M.copyRowsFor === "function", "motives.mjs has no copyRowsFor - the owner's copy is not one function");
+        const rows = {
+            R9334ACTORAAAAAA: { actorId: "R9334ACTORAAAAAA", chapter: 2, epoch: 7, personal: { text: "A's own", status: "reported", report: "did it", reason: "", at: 5, by: "R9334GMUSER00001" },
+                relationship: { text: "A with B", status: "open", withActorId: "R9334ACTORBBBBBB", by: "R9334GMUSER00001" } },
+            R9334ACTORBBBBBB: { actorId: "R9334ACTORBBBBBB", chapter: 2, epoch: 7, relationship: { text: "B about A - secret", status: "open", withActorId: "R9334ACTORAAAAAA" } },
+            monokuma: { id: "R9334MOTIVE00001", text: "hidden words", penalty: "hidden penalty" },
+            monokumaLog: { entries: [{ id: "x", outcome: "done" }] }
+        };
+        const sent = M.copyRowsFor(rows, ["R9334ACTORAAAAAA", "monokuma", "monokumaLog"]);
+        equal(stableJson(sent), stableJson({ R9334ACTORAAAAAA: { chapter: 2, epoch: 7,
+            personal: { text: "A's own", status: "reported", report: "did it", reason: "", at: 5 },
+            relationship: { text: "A with B", status: "open", report: "", reason: "", at: 0, withActorId: "R9334ACTORBBBBBB" } } }),
+            "what A's player is sent of the four rows");
+        ok(!JSON.stringify(sent).includes("secret") && !JSON.stringify(sent).includes("hidden"), "a word of another row or of the hidden Monokuma Motive reached the copy");
+        equal(stableJson(M.copyRowsFor(rows, [])), "{}", "a player with no character is sent a row");
+    }],
+
+    ["R9335 - motives M1, M2: a hidden Monokuma Motive's public record holds no words or penalty and reads as unknown; and a student's row of another chapter or of the season a reset ended is nobody's now", async () => {
+        /*
+         * 2.0 line T5, D2-23 (#2 and #4: per chapter) and D2-24 #2 (a hidden one: "Monokuma Motive: nieznany"). rules.mjs
+         * `setMotive` read for the record it writes when hidden (text and penalty empty, the words kept for the GMs first,
+         * motives.mjs `keepHiddenMonokumaWords`), events.mjs `motiveCard` on such a record, and motives.mjs `currentRow`
+         * against the clock handed in and this season's epoch (settings.mjs `seasonEpoch`). Red at 7954f47 (1.2.129): no
+         * hidden Monokuma Motive and no motives.mjs.
+         */
+        const M = await import("./motives.mjs").catch(() => null);
+        must(M && typeof M.currentRow === "function", "motives.mjs has no currentRow");
+        const rules = stripComments((await moduleSources()).get("rules.mjs") ?? "");
+        const set = fnSource(rules, "setMotive");
+        const E = await import("./events.mjs");
+        const hiddenCard = E.motiveCard({ hide: false, key: null }, { id: "R9335MOTIVE00001", hidden: true, text: "", penalty: "" });
+        equal(stableJson([/text: hidden \? "" : trimmed,/.test(set), /penalty: hidden \? "" : penalty,/.test(set),
+            set.indexOf("keepHiddenMonokumaWords(") >= 0 && set.indexOf("keepHiddenMonokumaWords(") < set.indexOf("SETTINGS.monokumaMotive, record"),
+            hiddenCard?.sub === game.i18n.localize("DRPG.Motive.unknown")]), stableJson([true, true, true, true]),
+            "[a hidden one's text written empty, its penalty empty, its words kept for the GMs before the record is written, its card unknown]");
+        const { seasonEpoch } = await import("./settings.mjs");
+        const epoch = seasonEpoch();
+        const row = patch => ({ chapter: 3, epoch, personal: { text: "x" }, ...patch });
+        const clock = { chapter: 3 };
+        equal(stableJson([row({}), row({ chapter: 2 }), row({ epoch: epoch + 1 }), null, "text"].map(r => Boolean(M.currentRow(r, clock)))),
+            stableJson([true, false, false, false, false]),
+            "[this chapter and season, the chapter before, another season's epoch, no row, not an object]");
+    }],
+
+    ["R9336 - motives M2: the Monokuma Motive's deadline is optional - an empty or zero field is none, a number is clamped to MOTIVE's bounds - and only one with a deadline counts down", async () => {
+        /*
+         * 2.0 line T5, D2-23 #5 (the owner: termin opcjonalny). rules.mjs `deadlineOf` on what the window hands it, and
+         * `tickMotive` / `untickMotive` read for their guard on `deadline` (a record with none answers null and writes
+         * nothing). Red at 7954f47 (1.2.129): no `deadlineOf`; every motive had a deadline.
+         */
+        const R = await import("./rules.mjs");
+        must(typeof R.deadlineOf === "function", "rules.mjs has no deadlineOf - the deadline is not optional");
+        const { MOTIVE } = await import("./config.mjs");
+        equal(stableJson(["", 0, -2, "3", 99, 2.7, null, "abc"].map(v => R.deadlineOf(v))),
+            stableJson([null, null, null, 3, MOTIVE.maxTimesOfDay, 2, null, null]),
+            "[empty, 0, -2, \"3\", 99, 2.7, null, \"abc\"]");
+        const src = stripComments((await moduleSources()).get("rules.mjs") ?? "");
+        ok(["tickMotive", "untickMotive"].every(fn => /if \(!stored\?\.deadline\) return null;/.test(fnSource(src, fn))),
+            "tickMotive or untickMotive counts a Monokuma Motive with no deadline");
+    }],
+
+    ["R9337 - motives M3: the Despair Call's window answers the Monokuma Motive it read - words, hidden, deadline or none, penalty - and, with one in force, the GM's yes or no to whether it was passed, with no answer taken for one", async () => {
+        /*
+         * 2.0 line T5, D2-24 (the line's M3: "bez domyslnego Tak"). call-pickers.mjs `readMotiveForm` on forms built in
+         * the page (no window drawn). Red at 7954f47 (1.2.129): no `readMotiveForm`.
+         */
+        const P = await import("./call-pickers.mjs");
+        must(typeof P.readMotiveForm === "function", "call-pickers.mjs has no readMotiveForm");
+        const form = ({ text = "", hidden = false, withDeadline = false, timesOfDay = "4", consequence = "", passed = null } = {}) => {
+            const f = document.createElement("form");
+            f.innerHTML = `<textarea name="text"></textarea><input type="checkbox" name="hidden"><input type="checkbox" name="withDeadline">
+                <input name="timesOfDay"><textarea name="consequence"></textarea>
+                <input type="radio" name="passed" value="yes"><input type="radio" name="passed" value="no">`;
+            f.querySelector("[name=text]").value = text;
+            f.querySelector("[name=hidden]").checked = hidden;
+            f.querySelector("[name=withDeadline]").checked = withDeadline;
+            f.querySelector("[name=timesOfDay]").value = timesOfDay;
+            f.querySelector("[name=consequence]").value = consequence;
+            if (passed) f.querySelector(`[name=passed][value=${passed}]`).checked = true;
+            return f;
+        };
+        const read = [
+            P.readMotiveForm(form({ text: " Discover every room " })),
+            P.readMotiveForm(form({ text: "Finish the greenhouse", hidden: true, withDeadline: true, timesOfDay: "4", consequence: "No breakfast" })),
+            P.readMotiveForm(form({ text: "" })),
+            P.readMotiveForm(form({ text: "Next", passed: null }), { current: true }),
+            P.readMotiveForm(form({ text: "Next", passed: "yes" }), { current: true }),
+            P.readMotiveForm(form({ text: "Next", passed: "no" }), { current: true })
+        ];
+        equal(stableJson(read), stableJson([
+            { motive: { text: "Discover every room", hidden: false, timesOfDay: null, penalty: "" }, passed: null },
+            { motive: { text: "Finish the greenhouse", hidden: true, timesOfDay: 4, penalty: "No breakfast" }, passed: null },
+            null, null,
+            { motive: { text: "Next", hidden: false, timesOfDay: null, penalty: "" }, passed: true },
+            { motive: { text: "Next", hidden: false, timesOfDay: null, penalty: "" }, passed: false }
+        ]), "[words only, all four, no words, one in force and no answer, the same answered yes, answered no]");
+    }],
+
+    ["R9338 - motives M2: the Despair Call is the Monokuma Motive - 6 Despair, its name and effect say what the class is to do together, in both languages - and the old reason to kill is gone from its words", async () => {
+        /*
+         * 2.0 line T5, D2-23 ("Monokuma Motive (6 Despair, Despair Call)"). config.mjs `DESPAIR_CALLS.motive` and its
+         * Polish prose (lang/pl.json DRPG.Config.DESPAIR_CALLS.motive). Red at 7954f47 (1.2.129): its label is "Motive".
+         */
+        const row = DESPAIR_CALLS.motive;
+        const pl = game.i18n.translations?.DRPG?.Config?.DESPAIR_CALLS?.motive ?? null;
+        equal(stableJson([row?.cost, row?.label, /together/i.test(row?.effect ?? ""), /kill|murder/i.test(row?.effect ?? "")]),
+            stableJson([6, "Monokuma Motive", true, false]), "[cost, label, the effect names the class together, the effect names a killing]");
+        ok(game.i18n.lang !== "pl" || (pl && pl.label === "Monokuma Motive"), "the Polish label is not Monokuma Motive");
+    }],
+
+    ["R9339 - motives M4: a GM's write of a student's motive is refused for what is not one - the switch off, no student, no kind, a non-student, words over the cap, a Relationship Motive naming nobody, itself or a dead student - and every reason is one of the bridge's", async () => {
+        /*
+         * 2.0 line T5, D2-23 #4, #7 and D2-24 #1. motives.mjs `setRefusal` on stand-ins (alive: no death flag, no GM's
+         * death); each reason held to bridge-guards.mjs `reasonOf` (a closed list, R164). Red at 7954f47 (1.2.129).
+         */
+        const M = await import("./motives.mjs").catch(() => null);
+        must(M && typeof M.setRefusal === "function", "motives.mjs has no setRefusal");
+        const G = await import("./bridge-guards.mjs");
+        const stand = id => ({ id, name: id, type: "character", getFlag: () => undefined, flags: {} });
+        const A = stand("R9339ACTORAAAAAA"), B = stand("R9339ACTORBBBBBB"), N = { ...stand("R9339NPC00000000"), type: "npc" };
+        const students = [A, B];
+        const cases = [
+            { actor: A, kind: "personal", text: "Protect the library" },
+            { actor: A, kind: "personal", text: "" },
+            { actor: null, kind: "personal", text: "x" },
+            { actor: A, kind: "secret", text: "x" },
+            { actor: N, kind: "personal", text: "x" },
+            { actor: A, kind: "personal", text: "x".repeat(40000) },
+            { actor: A, kind: "relationship", text: "Befriend", withActor: null },
+            { actor: A, kind: "relationship", text: "Befriend", withActor: A },
+            { actor: A, kind: "relationship", text: "Befriend", withActor: stand("R9339OUTSIDER0000") },
+            { actor: A, kind: "relationship", text: "Befriend", withActor: B }
+        ].map(c => M.setRefusal({ ...c, students }));
+        equal(stableJson(cases.map(r => (r === null ? null : G.reasonOf(r)))),
+            stableJson([null, null, "missing", "badRequest", "cannotNow", "badRequest", "badRequest", "cannotNow", "badRequest", null]),
+            "[a motive, an empty one, no actor, no kind, an NPC, over the cap, naming nobody, itself, a non-student, a student]");
+    }],
+
+    ["R9340 - motives M5: a passed motive gives 3 Hope up to the maximum, and never past it - what does not fit is lost, nothing of it is Overflow", async () => {
+        /*
+         * 2.0 line T5, D2-24 #3 ("3 Hope do maksimum"). motives.mjs `rewardAmount` (pure) and config.mjs `MOTIVES.hope`.
+         * Red at 7954f47 (1.2.129).
+         */
+        const M = await import("./motives.mjs").catch(() => null);
+        must(M && typeof M.rewardAmount === "function", "motives.mjs has no rewardAmount");
+        const { MOTIVES } = await import("./config.mjs");
+        equal(stableJson([MOTIVES?.hope, M.rewardAmount(0, 6), M.rewardAmount(4, 6), M.rewardAmount(6, 6), M.rewardAmount(7, 6), M.rewardAmount(2, 0), M.rewardAmount(1, 6, 1)]),
+            stableJson([3, 3, 2, 0, 0, 3, 1]), "[MOTIVES.hope, 0/6, 4/6, 6/6, 7/6, 2 with no maximum read (the starting 6), 1/6 for 1]");
+    }],
+
+    ["R9341 - motives M6: a player's report is refused for a motive not given, already passed or already reported, and taken for one open or refused before", async () => {
+        /*
+         * 2.0 line T5, D2-23 (Przebieg zaliczenia 1) and the line's question 8.8 (a refused report may come again).
+         * motives.mjs `reportRefusal`. Red at 7954f47 (1.2.129).
+         */
+        const M = await import("./motives.mjs").catch(() => null);
+        must(M && typeof M.reportRefusal === "function", "motives.mjs has no reportRefusal");
+        const A = { id: "R9341ACTORAAAAAA", type: "character", getFlag: () => undefined, flags: {} };
+        const motive = status => (status ? { text: "x", status } : null);
+        equal(stableJson([null, "open", "rejected", "reported", "done"].map(s => M.reportRefusal({ actor: A, kind: "personal", text: "did it", motive: motive(s), students: [A] }))),
+            stableJson(["no such motive this chapter", null, null, "that motive is already reported", "that motive is already passed"]),
+            "[not given, open, refused before, reported, passed]");
+    }],
+
+    ["R9342 - motives M6: a GM's ruling passes a motive once - with or without a report - and refuses only a reported one; a second pass is refused", async () => {
+        /*
+         * 2.0 line T5, D2-23 (Przebieg zaliczenia 2: "GM moze tez zaliczyc cel sam"). motives.mjs `ruleRefusal`. Red at
+         * 7954f47 (1.2.129).
+         */
+        const M = await import("./motives.mjs").catch(() => null);
+        must(M && typeof M.ruleRefusal === "function", "motives.mjs has no ruleRefusal");
+        const A = { id: "R9342ACTORAAAAAA", type: "character", getFlag: () => undefined, flags: {} };
+        const rule = (status, pass) => M.ruleRefusal({ actor: A, kind: "relationship", pass, motive: status ? { text: "x", status } : null, students: [A] });
+        equal(stableJson([rule("open", true), rule("reported", true), rule("rejected", true), rule("done", true), rule("open", false), rule("reported", false), rule(null, true)]),
+            stableJson([null, null, null, "that motive is already passed", "that motive has no report to reject", null, "no such motive this chapter"]),
+            "[pass open, pass reported, pass refused-before, pass passed, refuse open, refuse reported, pass not given]");
+    }],
+
+    ["R9343 - motives M7: the Students window's Motives column is the last, drawn only while the table plays with motives, and its cell names states, never a motive's words", async () => {
+        /*
+         * 2.0 line T5, D2-23 (Interfejs: "Panel GM-a, Students"; the coordinator's order: the column last). Read off
+         * gm-students.mjs `motivesColumnOf` and motives-ui.mjs `motiveCell` (a cell is two states and a button). Red at
+         * 7954f47 (1.2.129): no column.
+         */
+        const all = await moduleSources();
+        const students = stripComments(all.get("gm-students.mjs") ?? ""), ui = stripComments(all.get("motives-ui.mjs") ?? "");
+        const column = fnSource(students, "motivesColumnOf"), cell = fnSource(ui, "motiveCell");
+        equal(stableJson([/columns: \[\.\.\.columns, motiveColumn\(\)\]/.test(column), /if \(!motivesEnabled\(\)\) return \{ columns, rows \};/.test(column),
+            /motivesColumnOf\(columns, rows, students\)/.test(fnSource(students, "aliveTableHtml")), Boolean(cell) && !/\.text\b/.test(cell)]),
+            stableJson([true, true, true, true]),
+            "[the column appended after every other, none while motives are off, the table asks for it, the cell reads no words]");
+    }],
+
+    ["R9344 - motives M5: the sound of a passed motive is its own event, heard by its player alone, and plays Hope Call used's file until one is set", async () => {
+        /*
+         * 2.0 line T5, D2-23 #8 ("nowy, prywatny dzwiek"). config.mjs `SFX_EVENTS.motivePassed` (its fallback an event
+         * that exists, its category one of `SFX_CATEGORIES`), and motives.mjs `ruleMotiveOnPrimary` playing it through
+         * sfx-play.mjs `playSfxForUsers` to the owners alone. Red at 7954f47 (1.2.129).
+         */
+        const row = SFX_EVENTS.motivePassed;
+        const src = stripComments((await moduleSources()).get("motives.mjs") ?? "");
+        equal(stableJson([Boolean(row), row?.fallsBackTo, Boolean(SFX_EVENTS[row?.fallsBackTo]), Boolean(SFX_CATEGORIES[row?.category] ?? (Array.isArray(SFX_CATEGORIES) && SFX_CATEGORIES.includes(row?.category))),
+            /playSfxForUsers\(ownersOf\(actor\), "motivePassed"\)/.test(fnSource(src, "ruleMotiveOnPrimary"))]),
+            stableJson([true, "hopeCall", true, true, true]), "[the event, its fallback, the fallback an event, its category, played to the owners alone]");
+    }],
+
+    ["R9345 - motives M9: who did every motive of the chapter, by the record - both private motives passed and every Monokuma Motive of the chapter passed; one not given, not passed or still running is not done", async () => {
+        /*
+         * 2.0 line T5, D2-24 #6 and the line's questions 8.3, 8.4. motives.mjs `levelUpReading` (pure). Red at 7954f47.
+         */
+        const M = await import("./motives.mjs").catch(() => null);
+        must(M && typeof M.levelUpReading === "function", "motives.mjs has no levelUpReading");
+        const both = { personal: { status: "done" }, relationship: { status: "done" } };
+        const done = [{ outcome: "done" }], failed = [{ outcome: "failed" }];
+        equal(stableJson([
+            M.levelUpReading(both, done, false).ticked, M.levelUpReading(both, [], false).ticked, M.levelUpReading(both, failed, false).ticked,
+            M.levelUpReading(both, done, true).ticked, M.levelUpReading({ personal: { status: "done" } }, [], false).ticked,
+            M.levelUpReading({ personal: { status: "done" }, relationship: { status: "reported" } }, [], false).parts,
+            M.levelUpReading(both, [...done, ...failed], false).monokuma
+        ]), stableJson([true, true, false, false, false, [["personal", "done"], ["relationship", "reported"]], [1, 2]]),
+        "[both passed and the chapter's one passed, both and none run, one failed, one still running, the Relationship one not given, a part reported, 1 of 2]");
+    }],
+
+    ["R9346 - motives M9: the verdict asks for the motives' Level Ups once, after the class's, needing only the sentence, with its label in both languages; the Final Trial asks nothing", async () => {
+        /*
+         * 2.0 line T5, D2-24 #6 (SPEC 5: the verdict's own Level Ups unchanged). Read off verdict.mjs `VERDICT_STEPS`,
+         * `VERDICT_NEEDS` and `VERDICT_STEP` (not exported: the source) and lang. Red at 7954f47 (1.2.129).
+         */
+        const src = stripComments((await moduleSources()).get("verdict.mjs") ?? "");
+        const steps = bodyOf(src, "const VERDICT_STEPS = {", { until: "};" });
+        const lists = [...steps.matchAll(/\[([^\]]*)\]/g)].map(m => m[1].match(/"[a-zA-Z]+"/g)?.map(s => s.slice(1, -1)) ?? []);
+        const withMotives = lists.filter(l => l.includes("motives"));
+        equal(stableJson([withMotives.length, withMotives.every(l => l.filter(s => s === "motives").length === 1 && l.indexOf("motives") > l.indexOf("levelUps")),
+            /motives: "sentence"/.test(bodyOf(src, "const VERDICT_NEEDS = {", { until: "};" })), /motives: verdictMotives/.test(bodyOf(src, "const VERDICT_STEP = {", { until: "};" })),
+            /"motives"/.test(bodyOf(src, "const FINAL_VERDICT_STEPS =", { until: ");" })),
+            Boolean(game.i18n.translations?.DRPG?.Vote?.verdictSteps?.motives)]),
+            stableJson([2, true, true, true, false, true]),
+            "[lists that hold it, once each and after the class's Level Ups, needs the sentence, its runner, in the Final Trial's, its label]");
+    }],
+
+    ["R9347 - motives M8: the sheet's Personal tab shows the Monokuma Motive to every student, and the private motives to their own player alone - not to another player, a Monokuma, a Spectator, an NPC or the dead; with the switch off, nothing", async () => {
+        /*
+         * 2.0 line T5, D2-23 #2 and #7. motives-ui.mjs `personalTabReading` (pure over the mode handed in). Red at 7954f47.
+         */
+        const U = await import("./motives-ui.mjs").catch(() => null);
+        must(U && typeof U.personalTabReading === "function", "motives-ui.mjs has no personalTabReading");
+        const record = { id: "R9347MOTIVE00001", text: "Together" }, rows = { personal: { text: "mine" }, relationship: null };
+        const read = mode => { const r = U.personalTabReading({ record, mode, holds: true, rows }); return [Boolean(r.monokuma), r.own, r.personal?.text ?? null]; };
+        equal(stableJson([read({ owner: true }), read({ owner: false }), read({ owner: true, monokuma: true }), read({ owner: true, spectator: true }),
+            read({ owner: true, npc: true }), read({ owner: true, dead: true })]),
+            stableJson([[true, true, "mine"], [true, false, null], [false, false, null], [false, false, null], [false, false, null], [false, false, null]]),
+            "[its owner, another player, a Monokuma, a Spectator, an NPC, the dead] x [the Monokuma Motive, own, the Personal Motive]");
+    }],
+
+    ["R9348 - motives M8: the Biography tab is named Personal in both languages, and its id stays biography", async () => {
+        /*
+         * 2.0 line T5, D2-23 (Interfejs: "zakladka Personal (dawne Biography)"). lang DRPG.Motives.tab and motives-ui.mjs
+         * relabelling the `[data-tab="biography"]` entry. Red at 7954f47 (1.2.129).
+         */
+        const ui = stripComments((await moduleSources()).get("motives-ui.mjs") ?? "");
+        equal(stableJson([game.i18n.translations?.DRPG?.Motives?.tab ?? null, /\[data-tab="biography"\]/.test(ui)]), stableJson(["Personal", true]),
+            "[the tab's label in this language, the tab found by its id]");
+    }],
+
+    ["R9349 - motives M11: the season reset's group is \"motives\" - the Monokuma Motive and every student's motives - and no group \"motive\" is left", async () => {
+        /*
+         * 2.0 line T5, D2-23 (M11). season-exceptions.mjs `RESET_GROUPS`, season-wipe.mjs `RESET_STEPS`, the store's
+         * `resetGroup` and the season registry (season-reset.mjs) through motives.mjs `registerSeasonState`. Red at
+         * 7954f47 (1.2.129): the group is "motive".
+         */
+        const E = await import("./season-exceptions.mjs"), W = await import("./season-wipe.mjs"), S = await import("./gm-stores.mjs");
+        const ids = list => (list ?? []).map(g => (typeof g === "string" ? g : g.id ?? g.group ?? g.key));
+        const src = stripComments((await moduleSources()).get("motives.mjs") ?? "");
+        equal(stableJson([ids(E.RESET_GROUPS).includes("motives"), ids(E.RESET_GROUPS).includes("motive"), ids(W.RESET_STEPS).includes("motives"), ids(W.RESET_STEPS).includes("motive"),
+            S.motiveStore?.spec?.resetGroup ?? null, /registerSeasonState\(\{ group: "motives"/.test(src)]),
+            stableJson([true, false, true, false, "motives", true]),
+            "[RESET_GROUPS has motives, has motive, RESET_STEPS has motives, has motive, the store's group, the registry's]");
+    }],
+
+    ["R9350 - motives M2: the Event panel's card of a Monokuma Motive shows its countdown only when it has a deadline, its penalty when it is public, and nothing of a hidden one's words", async () => {
+        /*
+         * 2.0 line T5, D2-23 #5. events.mjs `motiveCard` on records handed in. Red at 7954f47 (1.2.129): every card had
+         * a countdown.
+         */
+        const E = await import("./events.mjs");
+        const view = { hide: false, key: null };
+        const card = r => { const c = E.motiveCard(view, { id: "R9350MOTIVE00001", text: "Together", penalty: "No breakfast", ...r }); return [c?.sub ?? null, c?.meta ?? null, c?.note ? "note" : null]; };
+        const unknown = game.i18n.localize("DRPG.Motive.unknown");
+        equal(stableJson([card({ deadline: false }), card({ deadline: true, remaining: 2 })[1] !== null, card({ hidden: true, text: "", penalty: "" })]),
+            stableJson([["Together", null, "note"], true, [unknown, null, null]]),
+            "[no deadline, a deadline's countdown, hidden]");
+    }],
+
+    ["R9351 - motives M12: the old Motive is gone at 1.2.130 - one in force this chapter and season is told to the GMs with its words, a stale one is cleared silently", async () => {
+        /*
+         * 2.0 line T5, D2-23 (M12; the line's question 8.10). migrate.mjs `oldMotiveFate` (pure) and its clause
+         * `oldMotiveGone` (since "1.2.130", the primary alone). Red at 7954f47 (1.2.129).
+         */
+        const G = await import("./migrate.mjs");
+        must(typeof G.oldMotiveFate === "function", "migrate.mjs has no oldMotiveFate");
+        const { seasonEpoch } = await import("./settings.mjs");
+        const epoch = seasonEpoch();
+        const fate = (s, chapter = 2) => { const f = G.oldMotiveFate(s, { chapter, epoch }); return [f.tell, f.text, f.remaining]; };
+        equal(stableJson([fate({ text: " Kill by dawn ", chapter: 2, epoch, timesOfDay: 3, remaining: 1, consequence: "x" }), fate({ text: "old", chapter: 1, epoch }), fate({}), fate(null)]),
+            stableJson([[true, "Kill by dawn", 1], [false, "old", 0], [false, "", 0], [false, "", 0]]),
+            "[one in force, last chapter's, empty, none]");
+        const src = stripComments((await moduleSources()).get("migrate.mjs") ?? "");
+        ok(/key: "oldMotiveGone",\s*since: "1\.2\.130"/.test(src),
+            "migrate.mjs has no clause oldMotiveGone since 1.2.130");
     }],
 ];
 

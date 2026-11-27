@@ -36,6 +36,8 @@ import { paintPartyReserves, noteStepStart, onTunnelStep, redrawPassageSheets, s
 import { repaintPresentButtons, tidyInventoryTab, groupInventory, noteRoomSignature, redrawRoomSheets } from "./sheet-inventory.mjs";
 import { forgetTamper, replaceEffectsTab, injectActionPanel } from "./sheet-actions.mjs";
 import { holdAppRenders } from "./dice-hold.mjs";
+// The Personal tab's motives (2.0 line T5, D2-23): a file of their own, which reaches no sheet file (R161).
+import { injectMotives } from "./motives-ui.mjs";
 export { sheetMode, rowGate, headerGate } from "./sheet-mode.mjs";
 export { wearMarkup, bulletBadges } from "./sheet-item.mjs";
 export { renderPlan, installRenderPlan, paintHopeGlyphs } from "./sheet-repaint.mjs";
@@ -227,6 +229,9 @@ export const SHEET_STEPS = [
     ["injectKnownPassages", ({ app, element, mode }) => injectKnownPassages(app, element, mode)],
     ["injectSafeword", ({ app, element, mode }) => injectSafeword(app, element, mode)],
     ["tidyBiography", ({ app, element, mode }) => tidyBiography(app, element, mode)],
+    // The Biography tab named Personal, the motives on top of it (2.0 line T5, D2-23), in a step of its own so that a
+    // failure takes nothing else with it; after `tidyBiography`, which may drop the tab (a Monokuma's).
+    ["injectMotives", ({ app, element, mode }) => injectMotives(app, element, mode)],
     ["groupInventory", ({ app, element, mode }) => groupInventory(app, element, mode)],
     ["tidyInventoryTab", ({ app, element, mode }) => tidyInventoryTab(app, element, mode)],
     ["replaceEffectsTab", ({ app, element }) => replaceEffectsTab(app, element)],

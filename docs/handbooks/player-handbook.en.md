@@ -550,6 +550,14 @@ Sprint and Burst bank instead and last until the time of day ends; a Class Trial
 > [!IMPORTANT]
 > Nobody can spend Hope Calls during an Eclipse, while Silenced by Monokuma, or while the Overflow's Silence darkens the time of day.
 
+### 5.1 Motives and the Personal tab
+
+Each chapter your student can have two motives of their own, which the GM gives you: a **Personal Motive** and a **Relationship Motive**, which names another living student. They are private: only you and the GMs see them, and nothing of them reaches another player's browser. You find them on your sheet's **Personal** tab (the Biography tab), under the **Monokuma Motive** in force, the class's shared one, which everybody sees (section 6).
+
+When your character has done a motive, press **Report it done** under it and write what you did and when. Only the GMs read it. A GM passes it or refuses it: a pass gives you **3 Hope**, up to your maximum (what does not fit is lost), with a sound only you hear; a refusal says why when the GM gives a reason, and you can report again. When a Monokuma Motive is passed, every living student gets 3 Hope, up to their maximum.
+
+After the Class Trial's verdict, the GM gives 1 Level Up to each student who did every motive of the chapter: their Personal Motive, their Relationship Motive and every Monokuma Motive. A table can play without the players' motives; then the tab shows only the Monokuma Motive.
+
 ---
 
 ## 6. Despair - the other side
@@ -573,7 +581,7 @@ Every roll of yours that lands with Despair feeds the pool of the Monokuma who w
 | Silence | 4 | You cannot spend Hope Calls until the time of day ends. |
 | Contraband | 4 | Destroys any one item but a Truth Bullet. |
 | Public Announcement | 6 | Everyone is called to one room at the start of the next time of day. You have until then; where you are when it starts is up to you. |
-| Motive | 6 | A demand, a deadline in times of day, and the price of ignoring it, announced to everyone word for word. The countdown sits on the Event panel. |
+| Monokuma Motive | 6 | What the class is to do together to move on, announced to everyone, with a deadline in times of day and a penalty or without. A hidden one is announced only as existing. A countdown sits on the Event panel; a pass gives every living student 3 Hope (section 5.1). |
 | New Rule | 9 | One new killing game rule of Monokuma's choice. Rules land on the **Rules** tab of every sheet. |
 | Bounty | 1 | Secret, for the Monocubs and the GMs only: one Hope to the first Monocub whose Confusion hinders the named student. The Despair is taken at the next time of day. |
 
@@ -1051,7 +1059,7 @@ During an Eclipse the phase line names it, *Night Eclipse* for instance. During 
 
 **A window's title bar**: a double-click folds the window to its title bar and a second one opens it again, as everywhere in Foundry. A folded window keeps what it held, and the button that opened it opens it again. A short window that asks one question, such as a confirmation, does not fold. A window that waits for your answer (a roll, Observe, an action you declare, the vote, a Level Up, or the trial's questions) stays over your character sheet, also when you click the sheet or it redraws; other windows come to the front as Foundry brings them there. A text box you type in grows over its window to fit your text, up to 60% of the screen's height, and goes back when you leave it or press Escape.
 
-**The Event panel** (under the Despair rows) shows what is happening now: the Motive with its countdown and what ignoring it costs, a called assembly, a darkening that is running, a body found, the trial's mode, speaker and time left, an open vote, and a stopped scene. A murder's own cards show only to the people in it. The panel never scrolls: it grows with its cards down to the next block under it or the bottom of the screen, and past that the cards below the first fold to their titles, from the last up. A folded card opens on a click or Enter, and titles that still do not fit are counted under the panel as "+N".
+**The Event panel** (under the Despair rows) shows what is happening now: the Monokuma Motive with its countdown, when it has a deadline, and its penalty (a hidden one only as existing), a called assembly, a darkening that is running, a body found, the trial's mode, speaker and time left, an open vote, and a stopped scene. A murder's own cards show only to the people in it. The panel never scrolls: it grows with its cards down to the next block under it or the bottom of the screen, and past that the cards below the first fold to their titles, from the last up. A folded card opens on a click or Enter, and titles that still do not fit are counted under the panel as "+N".
 
 **The status strip** (right, above the Projects tray) shows your actions left, your Move, and your Hope. The Move row is always two feet. Outside an Eclipse the first is the Free Move of this time of day, solid while you still have it, and the second, the Eclipse's, is dimmed. During an Eclipse the two are its crossings: the first is solid while you have one left and the second while you have two, and in a placement where you may pick any room both are solid. A third crossing from a room action still shows as two solid feet; point at the row for the number. A Monocub's crossings cost nothing, so its first foot is always solid, and during an Eclipse both are; its actions then read *Placement only.* A dead student's strip is one row: **Dead**. Anything banked with Sprint or Burst shows on your sheet, in the line above the action grid. Click the strip for the explanation.
 

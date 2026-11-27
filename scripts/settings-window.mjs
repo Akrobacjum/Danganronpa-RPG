@@ -103,7 +103,8 @@ export const CLIENT_SECTIONS = Object.freeze([
 export const GAME_SECTIONS = Object.freeze([
     // "trialVoicesFree" (E129 S0-NOMUTE, 1.2.128): the Class Trial's forced muting switched off, beside the voice rows.
     section("game", "audio", "fa-headset", ["voiceEnabled", "voiceTile", "trialVoicesFree"]),
-    section("game", "rules", "fa-scale-balanced", ["searchTokensPerRoom", "despairFromRolls", "chargeMovement", "friskForce", "autoApproveTraits", "moveAudit", "balanceLog"]),
+    // "motivesEnabled" (2.0 line T5, D2-24 #1): whether the table plays with the players' motives, last among the rules.
+    section("game", "rules", "fa-scale-balanced", ["searchTokensPerRoom", "despairFromRolls", "chargeMovement", "friskForce", "autoApproveTraits", "moveAudit", "balanceLog", "motivesEnabled"]),
     section("game", "privacy", "fa-user-secret", ["forcePrivateRolls", "forceDiceLook", "lockRollDialog", "enforceAnonymity", "roomVisibility", "lockPlayerResources"]),
     /* "sequences" (1.2.109, E61-62's full-screen sequences) where 1.2.109 put it, beside the rooms' fog: kept in the r112
        merge with E101's moves (13.11.2026). */

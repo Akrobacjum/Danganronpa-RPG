@@ -550,6 +550,14 @@ Sprint i Burst zamiast czekać na rzut idą do zapasu i trwają do końca pory d
 > [!IMPORTANT]
 > Nikt nie wydaje Hope Calli podczas Eclipse. Nie wydaje ich też ten, kogo Monokuma uciszył (Silence), ani nikt, gdy Silence z Overflow zaciemnia porę dnia.
 
+### 5.1 Cele i zakładka Personal
+
+W każdym rozdziale twój uczeń może mieć dwa własne cele, które nadaje ci GM: **Personal Motive** i **Relationship Motive**, który dotyczy innego żywego ucznia. Są prywatne: widzisz je tylko ty i GM-owie, a nic z nich nie trafia do przeglądarki innego gracza. Znajdziesz je w zakładce **Personal** arkusza (dawna zakładka Biografia), pod obowiązującym **Monokuma Motive**, wspólnym celem klasy, który widzą wszyscy (rozdział 6).
+
+Gdy twoja postać zrealizowała cel, naciśnij pod nim **Zgłoś realizację** i napisz, co zrobiła i kiedy. Czytają to tylko GM-owie. GM zalicza zgłoszenie albo odmawia: zaliczenie daje ci **3 Hope**, do twojego maksimum (co się nie mieści, przepada), z dźwiękiem, który słyszysz tylko ty; odmowa podaje powód, jeśli GM go wpisze, i możesz zgłosić cel jeszcze raz. Gdy zaliczony zostaje Monokuma Motive, każdy żywy uczeń dostaje 3 Hope, do swojego maksimum.
+
+Po werdykcie Class Trial GM daje 1 Level Up każdemu uczniowi, który zrealizował wszystkie cele rozdziału: swój Personal Motive, swój Relationship Motive i każdy Monokuma Motive. Stół może grać bez celów graczy; wtedy zakładka pokazuje tylko Monokuma Motive.
+
 ---
 
 ## 6. Despair - druga strona
@@ -573,7 +581,7 @@ Każdy twój rzut zakończony Despair zasila pulę Monokumy, który cię pilnuje
 | Silence | 4 | Nie możesz wydawać Hope Calli do końca pory dnia. |
 | Contraband | 4 | Niszczy dowolny jeden przedmiot oprócz Truth Bulletu. |
 | Public Announcement | 6 | Wszyscy zostają wezwani do jednego pokoju na początek następnej pory dnia. Macie czas do tej pory, a to, gdzie będziesz, gdy się zacznie, zależy od ciebie. |
-| Motive | 6 | Żądanie, termin w porach dnia i cena zignorowania go, ogłoszone wszystkim słowo w słowo. Odliczanie wisi na panelu zdarzeń. |
+| Monokuma Motive | 6 | Co klasa ma zrobić razem, żeby przejść dalej, ogłoszone wszystkim, z terminem w porach dnia i karą albo bez. Ukryty jest ogłaszany tylko jako istniejący. Odliczanie wisi na panelu zdarzeń; zaliczenie daje każdemu żywemu uczniowi 3 Hope (rozdział 5.1). |
 | New Rule | 9 | Jedna nowa zasada killing game, wybrana przez Monokumę. Zasady lądują na zakładce **Zasady** każdego arkusza. |
 | Bounty | 1 | Tajne, tylko dla Monocubów i GM-ów: jeden Hope dla pierwszego Monocuba, którego Confusion przeszkodzi wskazanemu uczniowi. Despair jest pobierany o następnej porze dnia. |
 
@@ -1051,7 +1059,7 @@ Podczas Eclipse linia fazy podaje jego nazwę, na przykład *Eclipse (Noc)*. Pod
 
 **Pasek tytułu okna**: dwukrotne kliknięcie zwija okno do paska tytułu, a kolejne rozwija je z powrotem, jak wszędzie w Foundry. Zwinięte okno zachowuje to, co w nim było, a przycisk, który je otworzył, otwiera je ponownie. Krótkie okno z jednym pytaniem, na przykład potwierdzenie, nie zwija się. Okno, które czeka na twoją odpowiedź (rzut, Observe, deklaracja akcji, głosowanie, Level Up albo pytania Class Trial), zostaje nad arkuszem postaci, także gdy klikniesz arkusz albo gdy on się przerysuje; pozostałe okna wychodzą na wierzch tak, jak wyciąga je Foundry. Pole tekstowe, w którym piszesz, rośnie nad swoim oknem, by zmieścić tekst, najwyżej do 60% wysokości ekranu, i wraca na miejsce, gdy z niego wyjdziesz albo naciśniesz Escape.
 
-**Panel zdarzeń** (pod wierszami Despair) pokazuje to, co dzieje się teraz: Motive z odliczaniem i ceną zignorowania, zwołane zgromadzenie, trwające zaciemnienie, znalezione ciało, tryb Class Trial, mówcę i pozostały czas, otwarte głosowanie i zatrzymaną scenę. Karty samego morderstwa widzą tylko jego uczestnicy. Panel nigdy się nie przewija: rośnie razem z kartami aż do najbliższego bloku pod nim albo do dołu ekranu, a gdy brakuje miejsca, karty pod pierwszą zwijają się do tytułów, od ostatniej w górę. Zwiniętą kartę otwiera kliknięcie albo Enter, a tytuły, które dalej się nie mieszczą, są policzone pod panelem jako „+N”.
+**Panel zdarzeń** (pod wierszami Despair) pokazuje to, co dzieje się teraz: Monokuma Motive z odliczaniem, gdy ma termin, i karą (ukryty tylko jako istniejący), zwołane zgromadzenie, trwające zaciemnienie, znalezione ciało, tryb Class Trial, mówcę i pozostały czas, otwarte głosowanie i zatrzymaną scenę. Karty samego morderstwa widzą tylko jego uczestnicy. Panel nigdy się nie przewija: rośnie razem z kartami aż do najbliższego bloku pod nim albo do dołu ekranu, a gdy brakuje miejsca, karty pod pierwszą zwijają się do tytułów, od ostatniej w górę. Zwiniętą kartę otwiera kliknięcie albo Enter, a tytuły, które dalej się nie mieszczą, są policzone pod panelem jako „+N”.
 
 **Pasek stanu** (po prawej, nad zasobnikiem projektów) pokazuje pozostałe akcje, twój Move i twój Hope. Wiersz Move to zawsze dwie stopy. Poza Eclipse pierwsza stopa to Free Move tej pory dnia, pełna, dopóki go masz, a druga, stopa Eclipse, jest przygaszona. Podczas Eclipse dwie stopy to jego przejścia: pierwsza jest pełna, dopóki zostało ci jedno przejście, a druga, dopóki zostały dwa. Przy ustawianiu, w którym możesz wybrać dowolny pokój, obie stopy są pełne, a trzecie przejście z akcji pokoju też widać jako dwie pełne stopy; wskaż wiersz kursorem, by zobaczyć liczbę. Przejścia Monocuba nic nie kosztują, więc jego pierwsza stopa jest zawsze pełna; podczas Eclipse pełne są obie, a jego akcje mówią *Tylko ustawianie.* Pasek martwego ucznia to jeden wiersz: **Nie żyje**. To, co masz w zapasie ze Sprint albo Burst, widać na arkuszu, w linii nad siatką akcji. Kliknij pasek, by dostać wyjaśnienie.
 
