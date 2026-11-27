@@ -27,7 +27,8 @@
  * its wire name, row, run and ask in those files (R1239), never here.
  */
 
-import { isPrimaryGm, primaryGmId, debug, error } from "./utils.mjs";
+import { isPrimaryGm, primaryGmId, markGmReady, debug, error } from "./utils.mjs";
+import { TIMING } from "./config.mjs";
 import { replyForMe, resendOnGmReady } from "./bridge-guards.mjs";
 
 import { cardFlag } from "./secret.mjs";
@@ -77,10 +78,21 @@ export {
  * that asked for it goes out again once, with the SAME request id, so the answer
  * lands in the promise already waiting for it (`resendOnGmReady`,
  * bridge-guards.mjs). Once per request, and only while it is still waiting.
+ *
+ * HEARD ON EVERY BROWSER SINCE 2.0 (line T2, PRIM-03, 27.11.2026). Until then only a player listened. Now the GM's world
+ * having loaded is first of all what makes it count for the primary on this browser (utils.mjs `markGmReady`,
+ * `primaryGmId`): from its `userConnected` to this packet it was loading here, and the next GM in the order held the
+ * table. A GM's browser then reads who is the primary again (`notePrimary`) and stops: the asks again, the Level Ups
+ * and `drpgPrimaryReady` are a player's, as before. Exported for E132 PRIM-03, which hands it a stand-in's packet.
  */
-function onGmReady(payload, senderId) {
+export function onGmReady(payload, senderId) {
     if (payload?.action !== ACTION_GM_READY) return;
     if (!game.users.get(senderId)?.isGM) return;
+    markGmReady(senderId);
+    if (game.user?.isGM) {
+        notePrimary();
+        return;
+    }
     // The PRIMARY GM's arrival, not any GM's (COMM-05): a second GM joining
     // while the primary still had the question open made this client ask it
     // again, and the primary was answering the same request twice. When the
@@ -99,6 +111,29 @@ function onGmReady(payload, senderId) {
     Hooks.callAll("drpgPrimaryReady", senderId);
 }
 
+/*
+ * WHO IS THE PRIMARY ON THIS GM, AND WHEN IT MOVES (2.0 line T2, PRIM-03, 27.11.2026). Since the primary is a GM whose
+ * world has loaded (utils.mjs `primaryGmId`), the role moves at a `bridge.gmReady` as well as at a connect or a leave,
+ * and a browser that becomes the primary has work to pick up that no hook of its own asks for: the voice's plan
+ * (voice.mjs, `drpgPrimaryChanged`). So each GM's browser reads the primary at its `registerGmBridge` (the first
+ * reading, `from` null), at every `userConnected` and at every `bridge.gmReady` it hears, and once more
+ * `TIMING.gmReadyWaitMs` after a GM connects (its bound, past which it counts as ready with no packet), and calls
+ * `drpgPrimaryChanged` with `{ from, to }` when the reading differs from the last. A player's browser keeps no reading.
+ * What else moves the role - a user's role written - and what a GM is told of it are line T2's PRIM-02.
+ */
+let primarySeen;
+
+/** Read the primary on this GM and tell `drpgPrimaryChanged` if it moved: `{ from, to }`, or null. */
+export function notePrimary({ leaving = null } = {}) {
+    if (!game.user?.isGM || primarySeen === undefined) return null;
+    const to = primaryGmId({ leaving });
+    if (to === primarySeen) return null;
+    const change = { from: primarySeen, to };
+    primarySeen = to;
+    Hooks.callAll("drpgPrimaryChanged", change);
+    return change;
+}
+
 export function registerGmBridge() {
     /* THE RESCUE SIGNAL IS "A GM IS LISTENING", NOT "A GM IS CONNECTED".
        -----------------------------------------------------------------------
@@ -107,9 +142,10 @@ export function registerGmBridge() {
        measured on a live reload: the re-sent question left before the GM had a
        listener for it and vanished. So the GM announces themselves once, HERE,
        at the point where they can actually answer, and anybody still waiting
-       asks again. */
+       asks again. Every browser listens since 2.0 (line T2, PRIM-03): the packet
+       is also what makes the GM count for the primary (`onGmReady`). */
     if (game.user.isGM) game.socket.emit(SOCKET_EVENT, { action: ACTION_GM_READY });
-    else game.socket.on(SOCKET_EVENT, onGmReady);
+    game.socket.on(SOCKET_EVENT, onGmReady);
 
     // A ruling card with no thread to live in (see the fallback in `callGm`)
     // is a chat card, and its buttons need the same wiring a bubble gets.
@@ -119,9 +155,19 @@ export function registerGmBridge() {
         // The asks' cards left open by an asker who left or a primary that reloaded end at their time (E18 C2):
         // swept once this world is up, and again by the GM who becomes the primary when the primary leaves.
         sweepAskCards().catch(err => debug("Could not sweep the asks' cards", err));
+        // The first reading of the primary on this GM (`notePrimary`): `from` null.
+        primarySeen = null;
+        notePrimary();
         Hooks.on("userConnected", (user, connected) => {
             // A GM who left in the middle of a ruling holds no card any more (E18 C3).
             if (!connected && user?.id) releaseClaimsOf(user.id);
+            // A player's leave reaches this line before any return (line T1's place, MURDER-06; 2.0 line T2, 27.11.2026).
+            // A GM who connects or leaves can move the primary (2.0 line T2, PRIM-03); one who connects is read again at
+            // its bound, past which it counts as ready without its packet.
+            if (user?.isGM) {
+                notePrimary({ leaving: connected ? null : user.id });
+                if (connected) setTimeout(() => notePrimary(), TIMING.gmReadyWaitMs + 50);
+            }
             if (connected || !user?.isGM || !isPrimaryGm({ leaving: user.id })) return;
             sweepAskCards({ leaving: user.id }).catch(err => debug("Could not sweep the asks' cards", err));
         });

@@ -30,7 +30,7 @@
  */
 
 import { MODULE_ID, HOPE_CALLS, DESPAIR_CALLS, STARTING, TIMING, CRISIS_ACTIONS } from "./config.mjs";
-import { activeGmIds, isPrimaryGm, primaryGmId, debug, warn, error, pause } from "./utils.mjs";
+import { activeGmIds, isPrimaryGm, primaryGmId, gmLoading, debug, warn, error, pause } from "./utils.mjs";
 
 const SOCKET_EVENT = `module.${MODULE_ID}`;
 /** GM -> player: "your request arrived and was refused" - see `refuse`. */
@@ -2142,10 +2142,12 @@ const RESENDS = 3;
 /**
  * Was the GM who just left the primary, with another GM here to take it (`userConnected(user, false)`)?
  * Counted both ways whatever `user.active` says yet: as here before it left, as gone after. Pure over
- * `users` (R841 hands its own list).
+ * `users` (R841 hands its own list). A GM that left while this browser still counted it as loading was not the primary
+ * to leave (utils.mjs `gmLoading`, which keeps its mark through the leave; 2.0 line T2, PRIM-03, 27.11.2026): the GM
+ * holding the table is still here, and what waits on it is not asked again.
  */
 export function primaryLeft(user, users = game.users) {
-    if (!user?.isGM) return false;
+    if (!user?.isGM || gmLoading(user.id)) return false;
     const before = primaryGmId({ arriving: user.id, users });
     const after = primaryGmId({ leaving: user.id, users });
     return before === user.id && after !== null && after !== user.id;

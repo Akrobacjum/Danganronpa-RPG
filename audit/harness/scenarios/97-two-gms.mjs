@@ -70,7 +70,7 @@ async function until(read, done, ms = 6000, step = 150) {
 }
 
 export async function run(api) {
-    const { gm, gm2, p1, p2, check, note, phase, settle, connect, disconnect, storageOf, reload, makePrimary, primaryOn, repoUrl: REPO, IDS } = api;
+    const { gm, gm2, p1, p2, p3, check, note, phase, settle, connect, disconnect, storageOf, reload, makePrimary, primaryOn, repoUrl: REPO, IDS } = api;
     const MOD = "danganronpa-rpg";
     const imp = file => `await import("${REPO}/scripts/${file}")`;
     const GM2 = accounts[0].id;
@@ -101,8 +101,52 @@ export async function run(api) {
         J({ r1, p1Back, heard }));
 
     await gm.eval(`localStorage.setItem("e38.reload.mark", "gm"); return true;`);
+    /* A3b (2.0 line T2, PRIM-03, 27.11.2026): who the primary is on gm2 and on the three players while gm reloads. Each
+       of them reads utils.mjs `primaryGmId` every 50 ms in its own browser and keeps each change with its time, and the
+       moments it heard gm connect (`userConnected`) and gm's `bridge.gmReady`. The harness announces a GM's connect
+       before its client boots (cluster.mjs `connect`, D10), so the two moments are the window F3 S3 C1 measured on Forge
+       (17.1 s with no primary listening). Read after: whether any of them took gm for the primary inside its window,
+       whether each read gm2 there, how long its window was, and for how long the four readings differed between gm's
+       connect and the last of them hearing gm ready (the disagreement 2.2 point 4 of LINE-T2 asks for). The first 100 ms
+       after its connect are a browser's own poll's lag (two readings at 50 ms), not counted as taking gm. Red at 31d5812:
+       every one of them read gm from its connect on, gm2 never. */
+    const WATCHERS = { gm2, p1, p2, p3 };
+    const WATCH = `const U = ${imp("utils.mjs")}, W = ${imp("bridge-wire.mjs")};
+        const log = globalThis.__t2PrimLog = { reads: [[Date.now(), U.primaryGmId()]], connectedAt: null, readyAt: null, done: false };
+        globalThis.__t2PrimTimer = setInterval(() => { const id = U.primaryGmId(); if (id !== log.reads.at(-1)[1]) log.reads.push([Date.now(), id]); }, 50);
+        Hooks.on("userConnected", (u, on) => { if (!log.done && u?.id === "${IDS.gm}" && on && log.connectedAt === null) log.connectedAt = Date.now(); });
+        game.socket.on(W.SOCKET_EVENT, (p, s) => { if (!log.done && p?.action === W.ACTION_GM_READY && s === "${IDS.gm}" && log.readyAt === null) log.readyAt = Date.now(); });
+        return true;`;
+    for (const h of Object.values(WATCHERS)) await h.eval(WATCH);
     const r2 = await reload("gm");
     const afterGmReload = await until(primaryOn, on => allRead(on, IDS.gm));
+    await wait(300);
+    const primLogs = {};
+    for (const [w, h] of Object.entries(WATCHERS)) {
+        primLogs[w] = await h.eval(`clearInterval(globalThis.__t2PrimTimer); const log = globalThis.__t2PrimLog; log.done = true; return log;`);
+    }
+    const readAt = (log, t) => { let id = log.reads[0][1]; for (const [at, v] of log.reads) { if (at <= t) id = v; } return id; };
+    const logs = Object.values(primLogs);
+    const primHeard = logs.every(l => Number.isFinite(l?.connectedAt) && Number.isFinite(l?.readyAt) && l.readyAt >= l.connectedAt);
+    const perWatcher = Object.fromEntries(Object.entries(primLogs).map(([w, l]) => [w, !primHeard ? null : {
+        windowMs: l.readyAt - l.connectedAt,
+        tookGmEarly: [l.connectedAt + 100, ...l.reads.map(([at]) => at).filter(at => at >= l.connectedAt + 100 && at < l.readyAt)].filter(at => at < l.readyAt && readAt(l, at) === IDS.gm).length,
+        readGm2: l.reads.some(([at, v]) => v === GM2 && at >= l.connectedAt && at < l.readyAt) || readAt(l, l.connectedAt) === GM2,
+        gmAfterMs: readAt(l, l.readyAt) === IDS.gm ? 0 : (l.reads.find(([at, v]) => v === IDS.gm && at >= l.readyAt)?.[0] ?? NaN) - l.readyAt
+    }]));
+    let disagreeMs = null;
+    if (primHeard) {
+        const from = Math.min(...logs.map(l => l.connectedAt)), to = Math.max(...logs.map(l => l.readyAt)) + 200;
+        const marks = [...new Set([from, to, ...logs.flatMap(l => l.reads.map(([at]) => at)).filter(at => at > from && at < to)])].sort((a, b) => a - b);
+        disagreeMs = 0;
+        for (let i = 0; i + 1 < marks.length; i++) {
+            if (new Set(logs.map(l => readAt(l, marks[i]))).size > 1) disagreeMs += marks[i + 1] - marks[i];
+        }
+    }
+    check("A3b: while the primary reloads, gm2 and the three players take gm2 for the primary from gm's connect to its bridge.gmReady, none of them gm, and gm once it is ready (2.0 line T2, PRIM-03)",
+        primHeard && Object.values(perWatcher).every(v => v && v.tookGmEarly === 0 && v.readGm2 && Number.isFinite(v.gmAfterMs)),
+        J({ perWatcher, disagreeMs, reads: Object.fromEntries(Object.entries(primLogs).map(([w, l]) => [w, l?.reads?.map(([at, v]) => [at - (l.connectedAt ?? 0), v === IDS.gm ? "gm" : v === GM2 ? "gm2" : v])])) }));
+    note(`A3b: the windows ${J(Object.fromEntries(Object.entries(perWatcher).map(([w, v]) => [w, v?.windowMs ?? null])))} ms; the four readings differed for ${disagreeMs} ms between gm's connect and the last of them hearing it ready`);
     const gmBack = await gm.eval(`globalThis.__e38Heard = []; Hooks.on("userConnected", (u, a) => globalThis.__e38Heard.push([u.id, Boolean(a)]));
         return { mark: localStorage.getItem("e38.reload.mark"), user: game.user.id, gm: game.user.isGM };`);
     check("A3: the primary GM reloads while gm2 is here, and once back it is the primary again on all five clients, its localStorage kept",

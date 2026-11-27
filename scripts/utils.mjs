@@ -4,7 +4,7 @@
  * E54 (the plan's W1): `windowWidthFor` and `eachPane` live in windows.mjs, re-exported here; this file keeps the rest.
  */
 
-import { MODULE_ID, epochClock, fillProse } from "./config.mjs";
+import { MODULE_ID, epochClock, fillProse, TIMING } from "./config.mjs";
 import { SETTINGS, pageLanguage, documentLanguage } from "./settings.mjs";
 // E57 C3: config prose in the world's language - the tables and the English kept of them; its own line.
 import * as CONFIG_SOURCE from "./config.mjs";
@@ -371,8 +371,9 @@ export function gmIds() {
     return game.users.filter(u => u.isGM).map(u => u.id);
 }
 
-/** Ids of GMs who are actually connected; `users` is the world's list unless a test
- *  hands primaryGmId its own (E79 fix r2-G1). */
+/** Ids of GMs who are actually connected, whether or not their world has loaded (the bridge addresses a request to
+ *  every one of them); `users` is the world's list unless a test hands its own (E79 fix r2-G1). The primary is chosen
+ *  among the connected GMs who have loaded (`primaryGmId`, 2.0 line T2, PRIM-03). */
 export function activeGmIds(users = game.users) {
     return users.filter(u => u.isGM && u.active).map(u => u.id);
 }
@@ -445,6 +446,67 @@ export function hiddenByGm(tokenDoc) {
     return Boolean(doc?.hidden);
 }
 
+/* ==========================================================================
+ * WHICH GMs HAVE LOADED (2.0 line T2, PRIM-03, 27.11.2026)
+ * --------------------------------------------------------------------------
+ * A GM's socket comes up many seconds before its world has loaded and its
+ * listeners exist (gm-bridge.mjs `registerGmBridge`, "THE RESCUE SIGNAL IS 'A
+ * GM IS LISTENING'"): on Forge, F3 S3 C1 measured 17.1 s after the primary's F5
+ * with no primary listening, because every browser counted it from its
+ * `userConnected(true)` on (docs/dev/v2/F3-forge-PC-2.md; D10 read 5.7 s from a
+ * GM's connect to its `bridge.gmReady` on 14.370). So each browser keeps the GMs
+ * it SAW connect as loading, from that `userConnected` to the GM's own
+ * `bridge.gmReady` (gm-bridge.mjs `onGmReady`, on every browser since this
+ * change), and `primaryGmId` passes them by. A GM already active when this
+ * browser loaded was never seen connecting and counts as ready. This browser's
+ * own memory only: nothing is sent or written.
+ *
+ * The mark is set and taken off by the one `userConnected` listener below,
+ * registered when this file is evaluated - before any `init`, so before every
+ * other listener of the hook (Foundry calls them in the order they were put
+ * up), which all read `primaryGmId` with the mark already in place. A GM that
+ * connects while this browser is still loading (`game.ready` false) is not
+ * marked: its `bridge.gmReady` may come before this browser listens for it
+ * (the listener is put up in this browser's own `ready`), and a mark nothing
+ * takes off would keep it from the table for `TIMING.gmReadyWaitMs`. A GM that
+ * leaves keeps its mark until it connects again: `primaryLeft` (bridge-guards.mjs)
+ * reads in the same dispatch whether the GM who left was still loading, so was
+ * not the primary to leave; an inactive GM is not counted whatever its mark.
+ * ========================================================================== */
+const gmLoadingSince = new Map();
+
+/** This browser saw the GM `id` connect at `sinceMs`: loading until its `bridge.gmReady` or the bound. */
+export function markGmLoading(id, sinceMs = Date.now()) {
+    if (id) gmLoadingSince.set(String(id), sinceMs);
+}
+
+/** The GM `id` said its world has loaded (`bridge.gmReady`), or the mark is taken back. */
+export function markGmReady(id) {
+    if (id) gmLoadingSince.delete(String(id));
+}
+
+/**
+ * Is the GM `id` still loading, as this browser knows it? Marked and inside `TIMING.gmReadyWaitMs` of the mark; past
+ * the bound it counts as ready, so a `bridge.gmReady` lost on the way never keeps a GM from the table for good. This
+ * browser's own user is loading until its `ready` (`game.ready`): Foundry draws the first scene before it (projects-map.mjs
+ * `syncProjectTokens`, "`canvasReady` OUTRUNS `ready` AT BOOT"), and a primary's hook fired then ran on a world not yet
+ * loaded while another GM held the table. `game.ready` and not this browser's own `registerGmBridge` (2.2 point 1 of the
+ * spec says the latter): the `ready` hook's own primary-only steps (the migration, the state check, the case's health,
+ * the load-time passes; module.mjs) run before `registerGmBridge` in the same dispatch and are not asked again, so a
+ * later moment would have dropped them on every load. `now`, `self` and `ready` are a test's (R9053, R9055).
+ */
+export function gmLoading(id, { now = Date.now(), self = game.user?.id ?? null, ready = game.ready } = {}) {
+    if (!id) return false;
+    if (id === self) return ready !== true;
+    const since = gmLoadingSince.get(String(id));
+    return since !== undefined && now - since < TIMING.gmReadyWaitMs;
+}
+
+globalThis.Hooks?.on?.("userConnected", (user, connected) => {
+    if (!user?.isGM || !user.id || user.id === game.user?.id) return;
+    if (connected && game.ready) markGmLoading(user.id);
+});
+
 /**
  * Exactly one client runs GM-side automation, so two GMs never both apply the
  * same effect.
@@ -453,7 +515,7 @@ export function hiddenByGm(tokenDoc) {
  * assistants too, so picking the lowest id across everyone with `isGM` can hand
  * the job to an assistant - and if that assistant is offline, or their id sorts
  * first while the real GM is the one running the game, the automation silently
- * never fires. Assistants are only used when no full GM is connected.
+ * never fires. Assistants are only used when no full GM is connected and ready.
  */
 export function isPrimaryGm({ leaving = null } = {}) {
     // `game.user` is null for the first and last moments of a client's life,
@@ -470,7 +532,25 @@ export function isPrimaryGm({ leaving = null } = {}) {
  * same rule. Both sides computing it from the same user list is what keeps them
  * from disagreeing.
  *
- * `arriving`: a GM whose own packet says its client is up - counted as connected
+ * A GM COUNTS ONCE ITS WORLD HAS LOADED (2.0 line T2, PRIM-03, 27.11.2026). A GM is here when it is connected and
+ * not loading as this browser knows it (`gmLoading`, above): seen connecting and no `bridge.gmReady` from it yet, or
+ * this browser's own user before its `ready`. So while the primary reloads, the next GM in the order is the primary
+ * on every browser that saw it go, and listens for the table, until the reloading one says it is up; before, every
+ * browser took the reloading GM for the primary from its `userConnected` on, and nobody ran the automation (F3 S3 C1).
+ * Same for the Assistants' pool. The signature and every caller are as before. WHAT IT LEAVES (2.2 point 4): browsers
+ * can disagree for a moment. One that loaded while a GM was loading counts that GM as ready, since it never saw it
+ * connect; and each browser moves the role at its own `bridge.gmReady`, a packet that reaches them one by one, while
+ * the GM itself is the primary from its own `ready`, a moment before its packet goes out. Measured headless on
+ * 27.11.2026 (the harness announces a GM's connect before its client boots, D10): scenario 97's A3b, the primary's
+ * reload with gm2 here, each of gm2 and the three players polling every 50 ms - a window of 1976-2048 ms each over two
+ * runs, gm2 read throughout it, the four readings apart for 47 and 99 ms in all (the polls' own lag at its two ends). Over whole runs, every
+ * browser past its `ready` read every 100 ms (a copy instrumented for it, not committed): scenario 97 had the readings
+ * apart in 8 of 1128 slots, each a single slot at one move of the role (a connect, a leave, a `bridge.gmReady`), and
+ * scenario 33, which reloads no GM, in none of 1993. The order of `userConnected` and `ready` on v14 for a GM is
+ * LIVE-E04-12 (one reading, D10, 5.7 s); how long the role stands on two browsers at once at a real table is not
+ * measured.
+ *
+ * `arriving`: a GM whose own packet says its client is up - counted as connected and ready
  * whether or not this client has seen it connect yet (E04's fix round: the bridge's
  * "a GM is listening" signal, gm-bridge.mjs `onGmReady`; which of the two a client
  * sees first on v14 is LIVE-E04-12).
@@ -481,17 +561,16 @@ export function isPrimaryGm({ leaving = null } = {}) {
  * of the hook and the flag comes first is read on 14.370 for a player leaving (the flag already false inside the hook;
  * docs/dev/e39/CALIBRATION.md, LIVE-E30-05), not yet for a GM (LIVE-E08-03); the harness's second GM keeps the shim's order.
  *
- * @returns {string|null} User id, or null when no GM is connected.
+ * @returns {string|null} User id, or null when no GM is connected and ready.
  */
 export function primaryGmId({ arriving = null, leaving = null, users = game.users } = {}) {
-    const here = u => u.id !== leaving && (u.active || (arriving !== null && u.id === arriving));
+    const here = u => u.id !== leaving && ((u.active && !gmLoading(u.id)) || (arriving !== null && u.id === arriving));
     const full = users
         .filter(u => here(u) && u.role === CONST.USER_ROLES.GAMEMASTER)
         .map(u => u.id)
         .sort();
 
-    const assistants = (arriving !== null && users.get(arriving)?.isGM ? [...new Set([...activeGmIds(users), arriving])] : activeGmIds(users))
-        .filter(id => id !== leaving);
+    const assistants = users.filter(u => u.isGM && here(u)).map(u => u.id);
     const pool = full.length ? full : assistants.sort();
     return pool[0] ?? null;
 }

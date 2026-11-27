@@ -118698,6 +118698,44 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         equal(stableJson(read), stableJson({ told: [false, null, false], revealed: [true, "gm", true] }),
             "{told: after the leaver's own copy alone; revealed: after the GM's Reveal} x [the row's first find, its road, the ref's found]");
     }],
+    // T2 rulings-bridge-secondgm
+    ["E132 PRIM-03 - while the reloading primary loads, the other GM answers for the table: a full Gamemaster who sorts first, seen connecting and not yet ready, leaves this GM the primary; its `bridge.gmReady` makes it the primary here, told once by `drpgPrimaryChanged`, and this GM is the primary again once it is gone (scripts/utils.mjs `primaryGmId`, gm-bridge.mjs `onGmReady`, `notePrimary`; 2.0 line T2, PRIM-03, 27.11.2026)", async () => {
+        /*
+         * F1-infra PRIM-03 and F3 S3 C1 (17.1 s on Forge with no primary listening after the primary's F5). A stand-in
+         * Gamemaster whose id sorts before every user here (tests-kit `standInUser`), put in this browser's user list and
+         * announced the way Foundry announces a socket that comes up (`userConnected` with true); then its world's
+         * signal handed to the bridge's own listener (`onGmReady`), as the socket hands it. Read: who is the primary here
+         * and whether this GM is, and the changes this browser's observer told. The stand-in is taken out of the list and
+         * the registry, and the observer asked again, in the `finally`. Red at 31d5812: the stand-in was the primary the
+         * moment it connected, and nothing was told.
+         */
+        needs(env.primaryGm());
+        const U = await import("./utils.mjs");
+        const Br = await import("./gm-bridge.mjs");
+        const { ACTION_GM_READY } = await import("./bridge-wire.mjs");
+        const me = game.user.id;
+        const back = standInUser({ name: "E132 PRIM-03 reloading primary", role: CONST.USER_ROLES.GAMEMASTER, active: true, sorts: "first" });
+        const who = id => (id === me ? "me" : id === back.id ? "back" : id ?? null);
+        const changes = [];
+        const hook = Hooks.on("drpgPrimaryChanged", change => changes.push([who(change?.from), who(change?.to)]));
+        const read = {};
+        game.users.set(back.id, back);
+        try {
+            Hooks.callAll("userConnected", back, true);
+            read.loading = [who(U.primaryGmId()), U.isPrimaryGm()];
+            Br.onGmReady?.({ action: ACTION_GM_READY }, back.id);
+            read.ready = [who(U.primaryGmId()), U.isPrimaryGm()];
+        } finally {
+            game.users.delete(back.id);
+            U.markGmReady?.(back.id);
+            Br.notePrimary?.();
+            Hooks.off("drpgPrimaryChanged", hook);
+        }
+        read.after = [who(U.primaryGmId()), U.isPrimaryGm()];
+        read.changes = changes;
+        equal(stableJson(read), stableJson({ loading: ["me", true], ready: ["back", false], after: ["me", true], changes: [["me", "back"], ["back", "me"]] }),
+            "{loading: after the stand-in connected; ready: after its bridge.gmReady; after: once it is gone} x [the primary here, this GM is it]; changes: what drpgPrimaryChanged told, [from, to]");
+    }],
 ];
 
 // `drawnForPlayer` for the grid (E33 C7): a drawn crisis roll goes through the suite's one road to a draw (tests-grid.mjs `drawnAct`).

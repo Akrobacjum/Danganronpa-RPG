@@ -304,6 +304,13 @@ export function registerVoice() {
     Hooks.on("updateUser", (user, changes) => {
         if ("role" in (changes ?? {})) standDownRoomsKept();
     });
+    // The primary moved on this GM (gm-bridge.mjs `notePrimary`; 2.0 line T2, PRIM-03, 27.11.2026): since the primary
+    // is a GM whose world has loaded, the role comes back to a reloaded GM at its `bridge.gmReady`, and on its own browser
+    // at its `ready`, after the first scene's `canvasReady` whose pass it no longer runs. The GM it reaches plans again.
+    Hooks.on("drpgPrimaryChanged", ({ to } = {}) => {
+        standDownRoomsKept();
+        if (to === game.user?.id) scheduleReconcile({ force: true });
+    });
     // What changes whose voice goes where without moving a token (`reconcileTrigger`): without these the change
     // would not land until the next time somebody happened to walk somewhere, or the heartbeat.
     for (const hook of RECONCILE_HOOKS) {

@@ -69826,6 +69826,145 @@ const INVARIANTS = [
             constant: true, gmKnows: true, apply: [true, true, true], found: true, held: true }),
         "{rows: [hidden, knows, incident, shown, shown with HOLDER_SEES_HIDDEN false]; the constant; a GM knows any trace; applyToRemnantToken asks the rule with knowsRemnant and shows a hidden held trace; shownAsFound asks the same; showHeld does not defer to a GM's hidden}");
     }],
+    // T2 rulings-bridge-secondgm
+    ["R9052 - the primary is a GM whose world has loaded: on a list where the full Gamemaster who sorts first is connected but still loading (this browser saw it connect and has heard no `bridge.gmReady` from it), utils.mjs `primaryGmId` picks the next connected full Gamemaster, none with that one leaving, and the first again once it is ready (2.0 line T2, PRIM-03, 27.11.2026)", async () => {
+        /*
+         * F1-infra PRIM-03, measured on Forge in F3 S3 C1: after the primary's F5 its `userConnected(true)` reached every
+         * browser 17.1 s before it listened, and `primaryGmId` counted `u.active` alone, so the other GM stood down and
+         * nobody ran the table's automation. The rule now counts a GM this browser saw connect as loading until its own
+         * `bridge.gmReady` (gm-bridge.mjs `onGmReady`) or `TIMING.gmReadyWaitMs`. Read on a list of its own, with the
+         * readiness registry's mark set and taken off here (the ids are no user's). Red at 31d5812: no registry, so the
+         * loading GM was the primary at every reading.
+         */
+        const U = await import("./utils.mjs");
+        const R = CONST.USER_ROLES;
+        const A = { id: "R9052AAAAAAAAAAA", role: R.GAMEMASTER, isGM: true, active: true };
+        const B = { id: "R9052BBBBBBBBBBB", role: R.GAMEMASTER, isGM: true, active: true };
+        const P = { id: "R9052PPPPPPPPPPP", role: R.PLAYER, isGM: false, active: true };
+        const users = Object.assign([A, B, P], { get: id => [A, B, P].find(u => u.id === id) });
+        const read = [];
+        try {
+            read.push(U.primaryGmId({ users }));
+            U.markGmLoading?.(A.id);
+            read.push(U.primaryGmId({ users }), U.primaryGmId({ users, leaving: B.id }));
+            U.markGmReady?.(A.id);
+            read.push(U.primaryGmId({ users }));
+        } finally {
+            U.markGmReady?.(A.id);
+        }
+        equal(JSON.stringify(read), JSON.stringify([A.id, B.id, null, A.id]),
+            "[both ready: the first; the first loading: the second; the first loading and the second leaving: none; the first ready again: the first]");
+    }],
+    ["R9053 - a GM this browser found connected when it loaded counts as ready, and a GM's own packet saying it is up counts it as here as before (`arriving`); the registry answers loading for a GM marked and for this browser's own user before its `ready`, and not after (utils.mjs `gmLoading`; 2.0 line T2, PRIM-03, 27.11.2026)", async () => {
+        /*
+         * This browser did not see the connection of a GM already active at its own load, so it has no moment to count a
+         * load from: such a GM is ready here (2.2 point 1; the disagreement it leaves is written over `primaryGmId`).
+         * `arriving` is onGmReady's own reading - the sender's packet says it has loaded - and wins over a mark. This
+         * browser's own GM is not the primary before its `ready` (`game.ready`): Foundry draws the first scene before it,
+         * and a hook fired then ran a primary's automation on a world still loading while another GM held the table.
+         * Red at 31d5812: no `gmLoading`.
+         */
+        const U = await import("./utils.mjs");
+        const R = CONST.USER_ROLES;
+        const A = { id: "R9053AAAAAAAAAAA", role: R.GAMEMASTER, isGM: true, active: true };
+        const B = { id: "R9053BBBBBBBBBBB", role: R.GAMEMASTER, isGM: true, active: true };
+        const users = Object.assign([A, B], { get: id => [A, B].find(u => u.id === id) });
+        const loading = (id, opts) => (typeof U.gmLoading === "function" ? U.gmLoading(id, opts) : null);
+        const read = [];
+        try {
+            read.push(U.primaryGmId({ users }), loading(A.id));
+            U.markGmLoading?.(A.id);
+            read.push(loading(A.id), U.primaryGmId({ users }), U.primaryGmId({ users, arriving: A.id }));
+            read.push(loading(game.user.id, { ready: false }), loading(game.user.id, { ready: true }), loading(game.user.id));
+        } finally {
+            U.markGmReady?.(A.id);
+        }
+        equal(JSON.stringify(read), JSON.stringify([A.id, false, true, B.id, A.id, true, false, false]),
+            "[unmarked: the first, not loading; marked: loading, the second, the first when its own packet arrives; this browser's own user before ready: loading, after: not, now: not]");
+    }],
+    ["R9054 - with no full Gamemaster ready the primary is an Assistant GM who is ready, as before with none connected, and with none ready nobody (utils.mjs `primaryGmId`; 2.0 line T2, PRIM-03, 27.11.2026)", async () => {
+        /* The Assistants' pool takes the same reading as the full Gamemasters' (2.2 point 1). Red at 31d5812: the loading
+           full Gamemaster was the primary at every reading. */
+        const U = await import("./utils.mjs");
+        const R = CONST.USER_ROLES;
+        const A = { id: "R9054AAAAAAAAAAA", role: R.GAMEMASTER, isGM: true, active: true };
+        const S = { id: "R9054SSSSSSSSSSS", role: R.ASSISTANT, isGM: true, active: true };
+        const T = { id: "R9054TTTTTTTTTTT", role: R.ASSISTANT, isGM: true, active: true };
+        const all = Object.assign([A, S, T], { get: id => [A, S, T].find(u => u.id === id) });
+        const alone = Object.assign([A], { get: id => (id === A.id ? A : undefined) });
+        const read = [];
+        try {
+            U.markGmLoading?.(A.id);
+            read.push(U.primaryGmId({ users: all }));
+            U.markGmLoading?.(S.id);
+            read.push(U.primaryGmId({ users: all }), U.primaryGmId({ users: alone }));
+            U.markGmReady?.(A.id);
+            read.push(U.primaryGmId({ users: all }));
+        } finally {
+            for (const u of [A, S]) U.markGmReady?.(u.id);
+        }
+        equal(JSON.stringify(read), JSON.stringify([S.id, T.id, null, A.id]),
+            "[the full GM loading: the first Assistant; it loading too: the second Assistant; the full GM alone and loading: none; the full GM ready: the full GM]");
+    }],
+    ["R9055 - a GM seen connecting counts as loading for `TIMING.gmReadyWaitMs` at most, then as ready, so a lost `bridge.gmReady` does not keep it from the table for good; the bound is longer than the longest load F3 measured on Forge, 51.7 s (utils.mjs `gmLoading`, config.mjs; 2.0 line T2, PRIM-03, 27.11.2026)", async () => {
+        /* The bound is chosen, not measured at a table (config.mjs `gmReadyWaitMs`). Read a second inside it and a moment
+           past it, by the mark's own time. Red at 31d5812: no bound and no registry. */
+        const U = await import("./utils.mjs");
+        const { TIMING } = await import("./config.mjs");
+        const R = CONST.USER_ROLES;
+        const A = { id: "R9055AAAAAAAAAAA", role: R.GAMEMASTER, isGM: true, active: true };
+        const B = { id: "R9055BBBBBBBBBBB", role: R.GAMEMASTER, isGM: true, active: true };
+        const users = Object.assign([A, B], { get: id => [A, B].find(u => u.id === id) });
+        const bound = TIMING.gmReadyWaitMs;
+        const loading = (id, opts) => (typeof U.gmLoading === "function" ? U.gmLoading(id, opts) : null);
+        const read = [typeof bound === "number" && bound > 51700];
+        try {
+            const now = Date.now();
+            U.markGmLoading?.(A.id, now - bound + 5000);
+            read.push(loading(A.id, { now }), U.primaryGmId({ users }));
+            U.markGmLoading?.(A.id, now - bound - 50);
+            read.push(loading(A.id, { now }), U.primaryGmId({ users }));
+        } finally {
+            U.markGmReady?.(A.id);
+        }
+        equal(JSON.stringify(read), JSON.stringify([true, true, B.id, false, A.id]),
+            `[the bound (${bound}) past 51.7 s; marked five seconds inside it: loading, the second the primary; marked just past it: ready, the first the primary]`);
+    }],
+    ["R9068 - the voice re-plans on the browser that has just become the primary: voice.mjs `registerVoice` hangs one hook on `drpgPrimaryChanged` that calls `standDownRoomsKept()` and, where `to` is this user, `scheduleReconcile({ force: true })`; gm-bridge.mjs `registerGmBridge` hears `bridge.gmReady` on every browser, and its `onGmReady` marks the sender ready before anything else (2.0 line T2, PRIM-03, 27.11.2026)", async () => {
+        /* 2.2 points 2 and 3. The harness draws no LiveKit room, so the hook is read in its source; the readiness it
+           follows is measured by R9052-R9055 and E132 PRIM-03. Red at 31d5812: neither the hook nor the mark. */
+        const [voice, bridge] = await Promise.all(["voice.mjs", "gm-bridge.mjs"].map(f => fetch(`/modules/${MODULE_ID}/scripts/${f}`).then(lfText).then(stripComments)));
+        const reg = fnSource(voice, "registerVoice");
+        const hook = bodyOf(reg, 'Hooks.on("drpgPrimaryChanged"', { until: "\n    });" });
+        const ready = fnSource(bridge, "onGmReady"), wire = fnSource(bridge, "registerGmBridge");
+        const firstCall = /markGmReady\(senderId\)/.exec(ready)?.index ?? -1;
+        equal(JSON.stringify([/standDownRoomsKept\(\)/.test(hook), /to === game\.user\??\.id/.test(hook) && /scheduleReconcile\(\{ force: true \}\)/.test(hook),
+            firstCall > 0 && ["resendOnGmReady(", "askForOffers(", "drpgPrimaryReady"].every(s => ready.indexOf(s) > firstCall),
+            /^\s*game\.socket\.on\(SOCKET_EVENT, onGmReady\);/m.test(wire) && !/else game\.socket\.on\(SOCKET_EVENT, onGmReady\)/.test(wire)]),
+            JSON.stringify([true, true, true, true]),
+            "[the hook stands the kept rooms down; it forces a pass on the new primary; onGmReady marks the sender ready before the resend, the offers and drpgPrimaryReady; registerGmBridge listens on every browser]");
+    }],
+    ["R9069 - a GM who leaves while this browser still counts it as loading was not the primary to leave: bridge-guards.mjs `primaryLeft` answers false for it, so what waits on the primary is not ended or asked again, and true for the same GM once it was ready (2.0 line T2, PRIM-03, 27.11.2026)", async () => {
+        /* `primaryLeft` counts the GM who left as here before it left (`arriving`), which counts a GM whatever its
+           readiness; a GM that reloads twice, or closes its tab while loading, held no table to hand on. The mark is kept
+           through the leave for this reading (utils.mjs, WHICH GMs HAVE LOADED). Red without the guard: true both times. */
+        const U = await import("./utils.mjs");
+        const G = await import("./bridge-guards.mjs");
+        const R = CONST.USER_ROLES;
+        const A = { id: "R9069AAAAAAAAAAA", role: R.GAMEMASTER, isGM: true, active: false };
+        const B = { id: "R9069BBBBBBBBBBB", role: R.GAMEMASTER, isGM: true, active: true };
+        const users = Object.assign([A, B], { get: id => [A, B].find(u => u.id === id) });
+        const read = [];
+        try {
+            U.markGmLoading?.(A.id);
+            read.push(G.primaryLeft(A, users));
+            U.markGmReady?.(A.id);
+            read.push(G.primaryLeft(A, users));
+        } finally {
+            U.markGmReady?.(A.id);
+        }
+        equal(JSON.stringify(read), JSON.stringify([false, true]), "[it left while loading here: was it the primary leaving; it left once ready: was it]");
+    }],
 ];
 
 /**
