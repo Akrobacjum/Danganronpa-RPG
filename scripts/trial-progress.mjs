@@ -96,14 +96,87 @@ const blankVote = () => ({ open: false, round: 0, picks: 1, issued: [], openedAt
  */
 let executing = null;
 
-export function executeAtExit({ chapter = trialProgressChapter() } = {}) {
+export function executeAtExit({ chapter = trialProgressChapter(), ask = bridgeRequest } = {}) {
     if (!game.user.isGM || chapter === null || chapter === undefined) return Promise.resolve(null);
     /* ON THE PRIMARY, ONCE (E70 fix p1-G2; the review's SEC-3, E70-16). The sentence ran on whichever GM ended the
        trial, and "once" was that browser's latch: two GMs pressing End the trial within a round trip each read no
        `executedAt` and killed the convict twice, or the second wrote `failed` over the first's record. The primary
        carries it out, under its latch, whoever asks. */
-    if (!isPrimaryGm()) return askRecord("execute", { chapter }, () => startExecution(chapter));
+    if (!isPrimaryGm()) return askExecution(chapter, ask);
     return startExecution(chapter);
+}
+
+/*
+ * AN EXECUTION THE PRIMARY DID NOT ANSWER LEAVES THE GMS A CARD (2.0 line T3 TRIAL-07, 27.11.2026; the owner's
+ * recommendation). A second GM's `execute` asked of a primary that did not answer, or with none connected, answered null
+ * like a refusal, and nothing tried again: `retrySentence` asks only a sentence that was tried and failed, so the convict
+ * walked into Daily Life alive and the GM read "the change of the trial's record was not carried out". Now the GMs get a
+ * card naming the sentenced, raised as a GM's (`gmPopup`), with Carry out the sentence again (`data-drpg-sentence-again`,
+ * its chapter beside it, `wireSentenceAgain`); its press is this road again, and the primary's `executedAt` keeps a late
+ * answer and a press from executing twice. A refusal is the primary's answer and leaves no card. `ask` is the bridge, or
+ * the suite's stand-in for it (tier 2 "T3 TRIAL-07").
+ */
+async function askExecution(chapter, ask) {
+    const res = await ask("trial.record", { op: "execute", chapter }, { settle: "reply", onPrimary: true, local: () => startExecution(chapter) });
+    if (res.ok) return res.value ?? null;
+    if (!res.refused && !res.pending) await holdSentence(chapter);
+    return null;
+}
+
+/** The GMs' card of a sentence a primary did not carry out, with its button; nothing when nobody waits on one. */
+async function holdSentence(chapter) {
+    const record = trialProgress(chapter);
+    if (record.executedAt) return;
+    const ids = await sentenceOf(record) ?? [];
+    const names = ids.map(id => game.actors.get(id)).filter(actor => actor && !isDeceased(actor)).map(actor => esc(actor.name));
+    if (!names.length) return;
+    await whisperToGms({ tone: "warning", body: `<p>${game.i18n.format("DRPG.Trial.sentenceNotCarried", { names: names.join(", ") })}</p>`
+        + `<div class="drpg-call-actions"><button type="button" data-drpg-sentence-again="${esc(String(chapter))}" data-tooltip="${
+            esc(game.i18n.localize("DRPG.Trial.sentenceAgainTooltip"))}">${esc(game.i18n.localize("DRPG.Trial.sentenceAgain"))}</button></div>` },
+    { flags: { [MODULE_ID]: { gmPopup: true, sentenceAgain: Number(chapter) } } });
+}
+
+/**
+ * Whether a card's Carry out the sentence again still does something (2.0 line T3 TRIAL-07): the record of the card's
+ * chapter is the one the trial keeps, not stamped carried out, and somebody it sentenced still waits. Pure, for tier 1.
+ */
+export function sentenceAgainLive({ cardChapter, chapter, executedAt = null, pending = [] } = {}) {
+    if (!Number.isFinite(Number(cardChapter)) || cardChapter === null || Number(cardChapter) !== Number(chapter)) return false;
+    return !executedAt && Array.isArray(pending) && pending.length > 0;
+}
+
+/** A GM's browser wires a card's Carry out the sentence again, and takes it away when it has nothing left to do. */
+export async function wireSentenceAgain(message, element) {
+    if (!game.user?.isGM || !element?.querySelector) return false;
+    const button = element.querySelector("[data-drpg-sentence-again]");
+    if (!button) return false;
+    const cardChapter = Number(button.dataset.drpgSentenceAgain);
+    const live = async () => {
+        const chapter = trialProgressChapter();
+        const record = chapter === null ? {} : trialProgress(chapter);
+        return sentenceAgainLive({ cardChapter, chapter, executedAt: record.executedAt ?? null, pending: await pendingSentence() });
+    };
+    if (!(await live())) {
+        button.closest(".drpg-call-actions")?.remove();
+        return false;
+    }
+    button.addEventListener("click", async event => {
+        event.preventDefault();
+        button.closest(".drpg-call-actions")?.remove();
+        if (await live()) await executeAtExit({ chapter: cardChapter });
+    });
+    return true;
+}
+
+/** The hook that wires those cards on a GM's browser (module.mjs); once a load. */
+let sentenceHooked = false;
+export function registerSentenceAgain() {
+    if (sentenceHooked) return;
+    sentenceHooked = true;
+    Hooks.on("renderChatMessageHTML", (message, element) => {
+        if (!game.user?.isGM || !message?.getFlag?.(MODULE_ID, "sentenceAgain")) return;
+        void wireSentenceAgain(message, element).catch(err => error("Could not wire a sentence's Carry out again", err));
+    });
 }
 
 /** The execution under this primary's latch. */

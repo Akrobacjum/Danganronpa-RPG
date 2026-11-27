@@ -45,6 +45,10 @@
  *   INV-12    gm drops every observe.resolve packet (a primary gone before it answered), and p1 sweeps the room with Aiko
  *             (a General Observe, its declaration answered as the window's): p1's roll card says the action is spent and
  *             the GMs settle it by hand, and gm2 holds the GMs' card (`resolve.lost`, run on gm, which still answers that).
+ *   TRIAL-07  Daichi sentenced in this chapter's record; gm drops every trial.record packet, and gm2 asks the execution as
+ *             a trial's end asks it (vote.mjs `executeAtExit`; the rest of the end is not run): gm2 holds the GMs' card
+ *             with Carry out the sentence again; gm answers again, the button pressed twice executes Daichi once on gm.
+ *             Daichi is brought back and the record put back.
  *
  * What this cannot see: a real server's delivery times and a real F5 (97-two-gms's header says what its `reload` is).
  */
@@ -420,5 +424,50 @@ export async function run(api) {
         delete globalThis.__s58Had; return true;`, { timeout: 60000 });
     check("INV-12: an Observe whose resolve gm never answers tells p1 the action is spent and the GMs settle it by hand, and gm2 holds the GMs' card about it",
         swept12?.err === null && swept12.lines === 1 && card12 === 1, J({ swept12, card12 }));
+    await settle(800);
+
+    /* ---------------------------------------------------------------- TRIAL-07 */
+    phase("TRIAL-07 an execute the primary did not answer, carried out from gm2's card");
+    // Daichi sentenced in this chapter's record; gm drops every trial.record packet, and gm2 asks the execution as a trial's end does.
+    const set7 = await gm.eval(`const V = ${imp("vote.mjs")}, C = ${imp("clock.mjs")};
+        globalThis.__s58Trial7 = structuredClone(game.settings.get("${MOD}", "trialProgress") ?? null);
+        const chapter = C.getClock().chapter;
+        await game.settings.set("${MOD}", "trialProgress", { ...V.trialProgress(chapter), chapter, verdictApplied: true,
+            verdict: { stage: "done", correct: false, executedIds: ["${IDS.daichi}"], sentenced: ["${IDS.daichi}"], by: game.user.id, at: Date.now(),
+                done: ["sentence", "card"], failed: [] }, executedAt: null, execution: null });
+        const list = game.socket._handlers.get("module.${MOD}") ?? [];
+        globalThis.__s58Handlers = [...list];
+        list.splice(0, list.length, ...list.map(fn => (packet, ...rest) => (packet?.action === "trial.record" ? undefined : fn(packet, ...rest))));
+        return { chapter };`);
+    await settle(800);
+    await gm2.eval(`globalThis.__s58Had = new Set(game.messages.contents.map(m => m.id)); return true;`);
+    const asked07 = await gm2.eval(`const V = ${imp("vote.mjs")}; return await V.executeAtExit({ chapter: ${J(set7.chapter)} }) ?? null;`, { timeout: 120000 });
+    const card07 = await until(() => gm2.eval(`const S = ${imp("secret.mjs")};
+        const card = game.messages.contents.find(m => !globalThis.__s58Had.has(m.id) && S.cardFlag(m, "sentenceAgain") !== undefined && S.cardFlag(m, "sentenceAgain") !== null);
+        return card ? { id: card.id, button: String(S.contentOf(card) ?? "").includes("data-drpg-sentence-again"), popup: Boolean(S.cardFlag(card, "gmPopup")) } : null;`), v => v !== null, 6000);
+    const alive07 = await gm.eval(`const CH = ${imp("chapter.mjs")}; return !CH.isDeadForGm(game.actors.get("${IDS.daichi}"));`);
+    await gm.eval(`const list = game.socket._handlers.get("module.${MOD}"); list.splice(0, list.length, ...globalThis.__s58Handlers); delete globalThis.__s58Handlers; return true;`);
+    const press07 = () => gm2.eval(`const T = ${imp("trial-progress.mjs")}, S = ${imp("secret.mjs")};
+        const card = game.messages.get(${J(card07?.id ?? "")}); if (!card) return "no card";
+        const el = document.createElement("div"); el.innerHTML = S.contentOf(card); document.body.append(el);
+        const wired = await T.wireSentenceAgain(card, el);
+        el.querySelector("[data-drpg-sentence-again]")?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+        await new Promise(r => setTimeout(r, 3000)); el.remove(); return wired;`, { timeout: 60000 });
+    const pressed07 = [await press07(), await press07()];
+    const after07 = await until(() => gm.eval(`const V = ${imp("vote.mjs")}, CH = ${imp("chapter.mjs")};
+        const r = V.trialProgress(${J(set7.chapter)});
+        return { dead: CH.isDeadForGm(game.actors.get("${IDS.daichi}")), stamped: Number.isFinite(r.executedAt), executed: r.execution?.done ?? null };`),
+        v => v?.stamped === true, 10000);
+    await gm.eval(`const CH = ${imp("chapter.mjs")}; const d = game.actors.get("${IDS.daichi}");
+        if (CH.isDeadForGm(d)) await CH.reviveCharacter(d, { quiet: true });
+        await game.settings.set("${MOD}", "trialProgress", globalThis.__s58Trial7); delete globalThis.__s58Trial7; return true;`, { timeout: 60000 });
+    await gm2.eval(`for (const id of game.messages.contents.filter(m => !globalThis.__s58Had.has(m.id)).map(m => m.id)) await game.messages.get(id)?.delete?.().catch(() => {});
+        delete globalThis.__s58Had; return true;`, { timeout: 60000 });
+    /* The rest of a trial's end is not run: the execution is asked as `executeAtExit` is asked at it (trial-floor-ui.mjs
+       `closeTrial`, clock.mjs `reconcilePhase`), so the part reads the ask, its card and the press. */
+    check("TRIAL-07: an execute gm does not answer leaves gm2 the GMs' card with Carry out the sentence again; pressed twice once gm answers again, Daichi is executed once on gm",
+        asked07 === null && card07?.button === true && card07.popup === true && alive07 === true
+            && pressed07[0] === true && pressed07[1] === false && after07?.dead === true && after07.stamped === true && J(after07.executed) === J([IDS.daichi]),
+        J({ asked07, card07, alive07, pressed07, after07 }));
     await settle(800);
 }

@@ -70007,6 +70007,15 @@ const INVARIANTS = [
             fields: ["actorId", "kind", "rollId"], kind: null }),
             "{answer, quiet, resend; known: knownSender first; owns: a guard on the character; rolled: the roll's field; kinds; fields: what the sanitizer keeps of a packet that says total 99; kind: a kind outside the two}");
     }],
+    ["R9130 - a card's Carry out the sentence again does something only while its chapter's sentence waits: the card's chapter the trial's, no stamp, somebody sentenced alive (2.0 line T3 TRIAL-07; trial-progress.mjs `sentenceAgainLive`)", async () => {
+        /* 2.0 line T3 TRIAL-07, 27.11.2026. Pure; nothing read or written. Red at 7286c53: no `sentenceAgainLive`. */
+        const T = await import("./trial-progress.mjs");
+        must(typeof T.sentenceAgainLive === "function", "trial-progress.mjs has no sentenceAgainLive: a sentence the primary did not carry out leaves nothing to press");
+        const live = (over = {}) => T.sentenceAgainLive({ cardChapter: 3, chapter: 3, executedAt: null, pending: ["A"], ...over });
+        equal(stableJson([live(), live({ executedAt: 1795800000000 }), live({ pending: [] }), live({ chapter: 4 }), live({ cardChapter: null }), live({ cardChapter: "x" })]),
+            stableJson([true, false, false, false, false, false]),
+            "[waiting; stamped carried out; nobody left to sentence; another chapter's trial; a card with no chapter; a chapter that is no number]");
+    }],
 ];
 
 /**

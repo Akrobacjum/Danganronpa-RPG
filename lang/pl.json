@@ -3827,6 +3827,9 @@
       "castToken": "Token w sali"
     },
     "Trial": {
+      "sentenceNotCarried": "Wyrok na {names} nie został wykonany: główny GM nie odpowiedział. Jeśli uczeń nadal żyje, naciśnij Wykonaj wyrok ponownie.",
+      "sentenceAgain": "Wykonaj wyrok ponownie",
+      "sentenceAgainTooltip": "Prosi głównego GM-a o wykonanie wyroku. Wyrok już wykonany nie zostanie wykonany drugi raz.",
       "presentTooltip": "Przedstaw ten Truth Bullet: wszyscy go zobaczą, a pozostali uczestnicy rozprawy dostaną jego kopię.",
       "presentTitle": "Przedstaw dowód {name}",
       "presentIntro": "Wszyscy zobaczą dowód {name} ({type}) na karcie czatu. Na kartę trafia tylko to, co widać na twoim arkuszu, bez notatek GM-a.",

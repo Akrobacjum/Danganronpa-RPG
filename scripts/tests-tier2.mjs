@@ -119314,6 +119314,84 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         equal(stableJson(read), stableJson({ first: [[true, false]], again: [], settled: [] }),
             "{first: the cards of the first report [the record's 17 in the words, the packet's 99]; again: of the same roll's second; settled: of a roll settled after all}");
     }],
+    ["T3 TRIAL-07 - an execute the primary did not answer leaves the GMs a card that carries the sentence out once", async () => {
+        /*
+         * 2.0 line T3 TRIAL-07, 27.11.2026. A second GM's `execute` asked of a primary that did not answer answered null,
+         * and nothing asked again (`retrySentence` asks only a sentence tried and failed). A student of the cast sentenced
+         * in this chapter's record, as E42-T3 writes one; another full GM stood in as the primary (tests-kit `standInUser`,
+         * sorting first), and the ask answered as the bridge answers one nobody answered (`executeAtExit`'s `ask`). Then
+         * the stand-in gone, so this GM is the primary, the card's button pressed twice (`wireSentenceAgain` on the card's
+         * words). Read: the cards made (raised as a GM's card, `gmPopup`, naming the student, with the button), the
+         * student's deaths written, the record stamped once and the button gone. Put back as E42-T3 puts it back.
+         * Red at 7286c53: no `wireSentenceAgain`, and no card.
+         */
+        needs(env.primaryGm(), "the sentence is carried out on the primary GM once the stand-in is gone");
+        const [A] = cast(1);
+        const V = await import("./vote.mjs");
+        const T = await import("./trial-progress.mjs");
+        const { cardFlag, wordsOf } = await import("./secret.mjs");
+        const { reviveCharacter, isDeceased, isDeadForGm } = await import("./chapter.mjs");
+        const clock = foundry.utils.deepClone(getClock());
+        const progress = foundry.utils.deepClone(getSetting(SETTINGS.trialProgress) ?? {});
+        must(!isDeadForGm(A), "the sentenced student is dead before the test - this would measure nothing");
+        must(typeof T.wireSentenceAgain === "function", "trial-progress.mjs has no wireSentenceAgain: a sentence the primary did not carry out leaves nothing to press");
+        let deaths = 0;
+        const hook = Hooks.on("updateActor", (actor, change) => {
+            if (actor.id === A.id && foundry.utils.getProperty(foundry.utils.expandObject(change ?? {}), `flags.${MODULE_ID}.${FLAGS.deceased}`)) deaths++;
+        });
+        const made = [];
+        const madeHook = Hooks.on("createChatMessage", doc => { made.push(doc); });
+        const primary = standInUser({ name: "T3 TRIAL-07 primary GM", role: CONST.USER_ROLES.GAMEMASTER, active: true, sorts: "first" });
+        const read = {};
+        try {
+            const chapter = getClock().chapter;
+            await game.settings.set(MODULE_ID, SETTINGS.clock, { ...getClock(), phase: "dailyLife" });
+            await game.settings.set(MODULE_ID, SETTINGS.trialProgress, { ...V.trialProgress(chapter), chapter, verdictApplied: true,
+                verdict: { stage: "done", correct: false, executedIds: [A.id], sentenced: [A.id], by: game.user.id, at: Date.now(),
+                    done: ["sentence", "card"], failed: [] }, executedAt: null, execution: null });
+            game.users.set(primary.id, primary);
+            let answer = "unset";
+            try {
+                answer = await V.executeAtExit({ chapter, ask: async () => ({ ok: false, reason: "noAnswer" }) });
+            } finally {
+                game.users.delete(primary.id);
+            }
+            await settle();
+            const cards = [];
+            for (const doc of made) {
+                if (!cardFlag(doc, "gmPopup")) continue;
+                const words = String(await wordsOf(doc, 1000) ?? "");
+                if (words.includes(foundry.utils.escapeHTML(A.name))) cards.push({ doc, words });
+            }
+            read.asked = [answer, cards.length, cards.map(c => c.words.includes("data-drpg-sentence-again"))];
+            const card = cards[0]?.doc ?? null;
+            const press = async () => {
+                const el = document.createElement("div");
+                el.innerHTML = cards[0]?.words ?? "";
+                document.body.append(el);
+                const wired = card ? await T.wireSentenceAgain(card, el) : false;
+                el.querySelector("[data-drpg-sentence-again]")?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+                await wait(1500);
+                el.remove();
+                return wired;
+            };
+            const pressed = [await press(), await press()];
+            await settle();
+            const r = getSetting(SETTINGS.trialProgress);
+            read.pressed = [pressed, isDeceased(A), deaths, Number.isFinite(r?.executedAt)];
+        } finally {
+            Hooks.off("updateActor", hook);
+            Hooks.off("createChatMessage", madeHook);
+            for (const u of game.users.filter(u => u.name === "T3 TRIAL-07 primary GM")) game.users.delete(u.id);
+            if (isDeadForGm(A)) await reviveCharacter(A, { quiet: true });
+            await game.settings.set(MODULE_ID, SETTINGS.clock, clock);
+            await game.settings.set(MODULE_ID, SETTINGS.trialProgress, progress);
+            for (const doc of made) await game.messages.get(doc.id)?.delete().catch(() => {});
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ asked: [null, 1, [true]], pressed: [[true, false], true, 1, true] }),
+            "{asked: [what the unanswered execute answered, the GMs' cards naming the student, each with its button]; pressed: [the button wired on the first press and the second, the student dead, deaths written, the record stamped]}");
+    }],
 ];
 
 // `drawnForPlayer` for the grid (E33 C7): a drawn crisis roll goes through the suite's one road to a draw (tests-grid.mjs `drawnAct`).
