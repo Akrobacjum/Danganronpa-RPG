@@ -1345,6 +1345,15 @@ export async function describeFind(actor, entry, isCritical, fallbackName, store
         pending.set(rowKey, entry);
         await writePending();
     }
+    /* THE FINDER IS TOLD THE GM IS DESCRIBING IT (2.0 line T3 INV-03, 27.11.2026; the owner's recommendation): a General,
+       Non-obvious or Follow my traces sweep is scored here with nobody pressing anything, so its roll's card says no "the
+       GM is judging" (action-observe.mjs `settleObserveRoll`), and a find that waits on this window then waited in
+       silence for as long as the window stands. Its owners are told once, as the find's own card is (`withCentre`); a
+       named Observe's card already says it waits (`DRPG.Observe.sent`), so it is told nothing more here. */
+    if (entry.declaration !== "specific" && entry.declaration !== "anything") {
+        await whisperToOwner(actor, `<p>${game.i18n.localize("DRPG.Observe.describing")}</p>`, withCentre())
+            .catch(err => debug("Could not tell the finder the GM is describing the find", err));
+    }
     /* THE OTHER GMs ARE TOLD THE FIND WAITS HERE (line INVEST of 1.2.122; audit 1.2.118 domain-case-c-investigation 6): the
        window opened on this browser alone, and a second GM never learned a player was waiting on it. KEPT AS THE CHAT'S
        RECORD (2.0 line T3 INV-02, the owner's P11 default): the window opens on their screen now, and the whisper's button

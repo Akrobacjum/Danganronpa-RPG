@@ -170,7 +170,10 @@ async function settleObserveRoll(actor, def, roll, observeKey, declaration) {
     // the verdict lands about a second later - so the note told the player to
     // wait for something that had already happened, on the one branch where it
     // was never true. Naming a target and asking the GM outright do go to a
-    // person, and there the wait is real.
+    // person, and there the wait is real. A sweep whose find waits on the GM's
+    // describe window (an undescribed trace, or a critical) is told so by the GM
+    // who scores it, since this client cannot know it hit (observe.mjs
+    // `describeFind`, `DRPG.Observe.describing`; 2.0 line T3 INV-03).
     // And only when the GM's client has it (E31 review): a request refused or not
     // answered has been said once already.
     const waits = (declaration === "specific" || declaration === "anything") && res.ok;

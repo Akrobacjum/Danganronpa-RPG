@@ -4035,6 +4035,7 @@
       "tiedFlag": "powiązany ze zbrodnią",
       "describeTitle": "Znalezisko z Observe",
       "describeRecovered": "Znalezisko ucznia {actor} w pokoju {room} czekało na okno opisu, które zamknęło się bez odpowiedzi (odświeżenie strony albo wyjście GM-a). Trafiło do niego pod nazwą domyślną, bez opisu: dopisz go w oknie Investigation.",
+      "describing": "GM opisuje twoje znalezisko. Wynik przyjdzie, gdy GM skończy, najpóźniej za kilka minut.",
       "describeWaiting": "Znalezisko ucznia {actor} w pokoju {room} czeka na opis na ekranie GM-a {gm}.",
       "describeHere": "Opisz tutaj",
       "describeHereTooltip": "Otwiera tutaj okno tego znaleziska. Znalezisko dostaje opis napisany pierwszy, tutaj albo na ekranie drugiego GM-a.",

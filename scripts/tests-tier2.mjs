@@ -114578,16 +114578,15 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         const warnWas = ui.notifications.warn;
         const otherGm = "suite123d6gm0000";
         const made = [];
-        const madeAt = new Map();
-        const hook = Hooks.on("createChatMessage", doc => { made.push(doc); madeAt.set(doc, Date.now()); });
+        const hook = Hooks.on("createChatMessage", doc => { made.push(doc); });
         const usersFilter = game.users.filter;
-        let answer = "unset", took = null, at = Date.now();
+        let answer = "unset", took = null;
         try {
             ui.notifications.warn = (msg, ...rest) => { shown.push(String(msg)); return warnWas.call(ui.notifications, msg, ...rest); };
             // a second GM, connected, as activeGmIds reads the users
             const fake = { id: otherGm, isGM: true, active: true, name: "SUITE GM 2", role: 4 };
             game.users.filter = function (fn, ...rest) { const list = usersFilter.call(this, fn, ...rest); return fn(fake) ? [...list, fake] : list; };
-            at = Date.now();
+            const at = Date.now();
             const pending = O.describeFind(student, { room: "SUITE 123d room", data: { visibilityLabel: "Evident", typeLabel: "Prep", note: "" } }, false, "SUITE 123d name", null, { waitMs: 400 });
             const type = async text => { const f = drawn()?.element?.querySelector('textarea[name="playerText"]'); if (f) { f.value = text; f.dispatchEvent(new Event("input", { bubbles: true })); } };
             await wait(250); await type("SUITE 123d words");
@@ -114595,9 +114594,17 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             answer = await Promise.race([pending, wait(5000).then(() => "timeout")]);
             took = Date.now() - at;
             await settle();
-            /* The 'waits on a screen' card alone, made as the window opens: since 2.0 line T3 INV-05 (27.11.2026) the window
-               running out also whispers every GM, this one too, at its end - that item's card, not this test's. */
-            for (const doc of made) if ((doc.whisper ?? []).length && madeAt.get(doc) - at < 200) whispers.push([...doc.whisper]);
+            /* The 'waits on a screen' card alone: since 2.0 line T3 INV-05 (27.11.2026) the window running out also whispers
+               every GM, this one too, at its end (a GM's card, `gmPopup`), and since INV-03 the finder's owners and the GMs are
+               told the GM is describing it as it opens (`DRPG.Observe.describing`) - those items' cards, not this test's. The
+               'waits' card itself is whispered to the other GM alone, so this browser does not hold its words to read. */
+            const { wordsOf, cardFlag } = await import("./secret.mjs");
+            const describing = game.i18n.localize("DRPG.Observe.describing");
+            for (const doc of made) {
+                if (!(doc.whisper ?? []).length || cardFlag(doc, "gmPopup")) continue;
+                if (String(await wordsOf(doc, 1000) ?? "").includes(describing)) continue;
+                whispers.push([...doc.whisper]);
+            }
         } finally {
             Hooks.off("createChatMessage", hook);
             for (const doc of made) await doc.delete?.().catch(() => {});
@@ -119157,6 +119164,54 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         }
         equal(stableJson(read), stableJson({ finished: 0, stands: true, result: null }),
             "{finished: rows the hydration finished; stands: the row still marked; result: its result}");
+    }],
+    ["T3 INV-03 - a sweep that finds an undescribed trace tells its finder the GM is describing it, once", async () => {
+        /*
+         * 2.0 line T3 INV-03, 27.11.2026. A General, Non-obvious or Follow my traces sweep is scored on the GM's browser, so
+         * the player's card says no "the GM is judging" (action-observe.mjs `settleObserveRoll`), and a find that waits on
+         * the describe window then waited in silence for up to the window's time. The window opened for a find of the
+         * suite's own, as `createFind` opens it (observe.mjs `describeFind`, a time of 300 ms, left to run out), once as a
+         * General sweep's and once as a named Observe's, whose card already says it waits. Read: the cards this browser
+         * created meanwhile that say `DRPG.Observe.describing`, whispered to the character's owners; deleted after. A trace
+         * with words and no critical is not asked (`createFind` calls no window), so it has no line by construction.
+         * Red at af1bf21: no such line.
+         */
+        needs(env.dialogs(), "the window is drawn");
+        const O = await import("./observe.mjs");
+        const { wordsOf } = await import("./secret.mjs");
+        const [student] = cast(1);
+        const owners = Object.entries(student.ownership ?? {}).filter(([id, level]) => id !== "default" && level >= 3 && !game.users.get(id)?.isGM).map(([id]) => id);
+        const line = game.i18n.localize("DRPG.Observe.describing");
+        const title = game.i18n.localize("DRPG.Observe.describeTitle");
+        const drawn = () => [...foundry.applications.instances.values()].filter(a => a.rendered && a.options?.window?.title === title);
+        const made = [];
+        const hook = Hooks.on("createChatMessage", doc => { made.push(doc); });
+        const [warn, info] = [ui.notifications.warn, ui.notifications.info];
+        const read = {};
+        try {
+            ui.notifications.warn = () => {};
+            ui.notifications.info = () => {};
+            for (const declaration of ["general", "specific"]) {
+                const from = made.length;
+                await Promise.race([O.describeFind(student, { room: "SUITE T3 INV-03 room", declaration,
+                    data: { visibilityLabel: "Evident", typeLabel: "Prep", note: "" } }, false, "SUITE T3 INV-03 name", null, { waitMs: 300 }), wait(5000)]);
+                await settle();
+                let n = 0;
+                for (const doc of made.slice(from)) {
+                    const words = String(await wordsOf(doc, 1000) ?? "");
+                    if (words.includes(line) && owners.every(id => (doc.whisper ?? []).includes(id))) n++;
+                }
+                read[declaration] = n;
+                for (const app of drawn()) await app.close().catch(() => {});
+            }
+        } finally {
+            Hooks.off("createChatMessage", hook);
+            [ui.notifications.warn, ui.notifications.info] = [warn, info];
+            for (const doc of made) await doc.delete?.().catch(() => {});
+            for (const app of drawn()) await app.close().catch(() => {});
+        }
+        equal(stableJson(read), stableJson({ general: 1, specific: 0 }),
+            "{general: a sweep's find, the lines to its owners; specific: a named Observe's, whose card already says it waits}");
     }],
 ];
 

@@ -3772,6 +3772,7 @@
       "tiedFlag": "tied to the crime",
       "describeTitle": "Observe: what the student sees",
       "describeRecovered": "{actor}'s find in {room} waited on a describe window that closed with no answer (a page reload, or a GM leaving). It went out under its prefilled name, with no words: add them in the Investigation window.",
+      "describing": "The GM is describing your find. The result comes when the GM is done, in a few minutes at most.",
       "describeWaiting": "{actor}'s find in {room} waits for its words on {gm}'s screen.",
       "describeHere": "Write it here",
       "describeHereTooltip": "Opens this find's window here. The find carries the first words written, here or on the other GM's screen.",
