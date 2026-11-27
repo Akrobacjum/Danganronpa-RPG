@@ -23602,7 +23602,8 @@ const REGRESSIONS = [
         const PINNED = {
             // Option B (16.11.2026, Q-SC-4): projects-map.mjs `onPickedSceneDeleted`, the other GMs told that a picked scene
             // went, is a GMs' warning, so a warning card.
-            "action-analyze.mjs": {"line": 4},
+            // 2.0 line T3 INV-12: action-analyze.mjs +1 line (an Analyze nobody answered, `DRPG.Analyze.unresolved`)
+            "action-analyze.mjs": {"line": 5},
             // E69, E74, E93 (merged into this train with E49's count on 12.11.2026; the coordinator's rule of that day): the
             // result an action's roller reads - Shut, Force, Pick, a tail begun, a watch kept, a Dash, a room action, the GM's
             // text, a watch's summary - is E49's card; a note to another reader or a running report is a line (WHY.line); a
@@ -23615,7 +23616,8 @@ const REGRESSIONS = [
             "action-pipeline.mjs": {"action": 1, "line": 1}, "action-project.mjs": {"action": 1, "line": 1, "message": 3},
             "action-report.mjs": {"built": 1}, "action-tail.mjs": {"built": 1}, "action-watch.mjs": {"built": 1}, "analyze.mjs": {"card": 1, "heading": 1, "line": 2},
             "anonymity.mjs": {"card": 2}, "body.mjs": {"card": 1, "message": 1}, "bridge-runs-acts.mjs": {"card": 1},
-            "bridge-runs-records.mjs": {"action": 1, "message": 1},
+            // 2.0 line T3 INV-12: bridge-runs-records.mjs +1 card (`handleResolveLost`, the GMs' card of a resolve nobody answered)
+            "bridge-runs-records.mjs": {"action": 1, "card": 1, "message": 1},
             "call-effects.mjs": {"action": 2, "card": 1, "message": 1}, "call-gm.mjs": {"built": 1},
             "call-world.mjs": {"message": 3}, "calls.mjs": {"heading": 1, "message": 2},
             // E99 C7: the case summary's one public card, built through chatCard with its flag (case-summary.mjs `showCaseSummary`)
