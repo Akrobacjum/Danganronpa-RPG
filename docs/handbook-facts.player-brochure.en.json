@@ -251,7 +251,7 @@
   {"id": "s7.p5.f4", "unit": "s7.p5", "place": "When it goes wrong, line 103", "kind": "warning", "text": "A withdrawn Objection's price is not given back.", "keywords": ["its price is not given back"]},
   {"id": "s7.p5.f5", "unit": "s7.p5", "place": "When it goes wrong, line 103", "kind": "number", "text": "Then comes 30 s of you alone.", "keywords": ["30 s of you alone"]},
   {"id": "s7.p5.f6", "unit": "s7.p5", "place": "When it goes wrong, line 103", "kind": "number", "text": "Then comes a 120 s rebuttal with the person it was aimed at.", "keywords": ["120 s rebuttal with the person it was aimed at"]},
-  {"id": "s7.p5.f7", "unit": "s7.p5", "place": "When it goes wrong, line 103", "kind": "number", "text": "An Objection, like Analyze in a trial, costs 1 action, else 1 Hope, else 1 Sanity.", "keywords": ["costs 1 action, else 1 Hope, else 1 Sanity"]},
+  {"id": "s7.p5.f7", "unit": "s7.p5", "place": "When it goes wrong, line 103", "kind": "number", "text": "An Objection, like Analyze in a trial, costs 1 action, else 1 Sanity, else 1 Hope.", "keywords": ["costs 1 action, else 1 Sanity, else 1 Hope"]},
   {"id": "s7.p6.f1", "unit": "s7.p6", "place": "When it goes wrong, line 104", "kind": "rule", "text": "In Testimony and a Panic Round everyone speaks in turn.", "keywords": ["Testimony", "Panic Round", "everyone speaks in turn"]},
   {"id": "s7.p6.f2", "unit": "s7.p6", "place": "When it goes wrong, line 104", "kind": "rule", "text": "Speakers press Done or Pass.", "keywords": ["Done", "Pass"]},
   {"id": "s7.p6.f3", "unit": "s7.p6", "place": "When it goes wrong, line 104", "kind": "number", "text": "In the Closing Argument the GM confirms one volunteer for 300 s.", "keywords": ["Closing Argument", "one volunteer for 300 s"]},

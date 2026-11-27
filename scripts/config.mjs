@@ -1510,17 +1510,19 @@ export const KEY_REMNANTS = {
 };
 
 /* ==========================================================================
- * WHAT AN INTERRUPTION COSTS, IN THE ORDER IT IS PAID (T-1, Dawid 17.09)
+ * WHAT AN INTERRUPTION COSTS, IN THE ORDER IT IS PAID (T-1, Dawid 17.09; D2-22, 27.11.2026)
  * --------------------------------------------------------------------------
  * Three things in this game are priced as a CHAIN rather than as one cost: you
  * pay the first step you can still pay, and if you cannot pay any of them you
- * cannot do it. Dawid's rule, in his order:
+ * cannot do it. The owner's rule, in the order it is paid since 2.0 (line T5,
+ * D2-22, 27.11.2026: "Objection, Palm i Analyze w Class Trial placa w
+ * kolejnosci: akcja, potem Sanity, na koncu Hope (bylo: akcja, Hope, Sanity).
+ * Tamper bez zmian."):
  *
- *   an Objection   1 action, else 1 Hope, else 1 Sanity
+ *   an Objection   1 action, else 1 Sanity, else 1 Hope
  *   Analyze        the same three - but only inside a Class Trial; anywhere
  *                  else it costs its action or nothing happens
- *   Palm           the same three, inside a Class Trial alone (E129 S0-PALM, 23.11.2026; the owner's note of session
- *                  0: "palm powinno byc dostepne w trialu za akcje, potem za hope, potem za sanity"), as Analyze's;
+ *   Palm           the same three, inside a Class Trial alone (E129 S0-PALM, 23.11.2026), as Analyze's;
  *                  anywhere else its action, as before
  *   Tamper         1 action, else 1 Sanity - but since E64 (12.11.2026) only the
  *                  killer's own Stage 6 reaches the Sanity step: anyone else's
@@ -1529,6 +1531,15 @@ export const KEY_REMNANTS = {
  *                  step, deliberately: an Objection buys a moment of the trial's
  *                  attention, and this buys the destruction of evidence - Hope is
  *                  the wrong currency for it.
+ *
+ * THE ORDER'S HISTORY. T-1 (Dawid, 17.09) wrote an action, else 1 Hope, else 1
+ * Sanity, and Palm took the same in 1.2.128 (the owner's note of session 0, 23.11:
+ * "za akcje, potem za hope, potem za sanity"). D2-22 turned the last two: a
+ * Sanity mark before Hope. Read literally, as this table does: the Sanity step
+ * pays while a mark is left - the last one too, which is a Breakdown, and the
+ * window warns of it (price.mjs `lastSanity`, `DRPG.Price.will.breakdown`) - and
+ * Hope only once the track is full (the line's question 8.1 to the owner). A
+ * refund is not ordered: it gives back the step its receipt names (`refundPrice`).
  *
  * ARRAY ORDER IS PAYMENT ORDER, and `steps[0].amount` is also the action cost
  * the tile shows, so `ACTIONS.<key>.cost` and this table must agree - there is a
@@ -1556,23 +1567,23 @@ export const PRICE_CHAINS = {
     objection: {
         steps: [
             { pay: "action", amount: 1 },
-            { pay: "hope", amount: 1 },
-            { pay: "stress", amount: RESOLUTION_STRESS_COST }
+            { pay: "stress", amount: RESOLUTION_STRESS_COST },
+            { pay: "hope", amount: 1 }
         ]
     },
     analyze: {
         steps: [
             { pay: "action", amount: 1 },
-            { pay: "hope", amount: 1 },
-            { pay: "stress", amount: RESOLUTION_STRESS_COST }
+            { pay: "stress", amount: RESOLUTION_STRESS_COST },
+            { pay: "hope", amount: 1 }
         ],
         stepsBeyondFirst: "classTrial"
     },
     palm: {
         steps: [
             { pay: "action", amount: 1 },
-            { pay: "hope", amount: 1 },
-            { pay: "stress", amount: RESOLUTION_STRESS_COST }
+            { pay: "stress", amount: RESOLUTION_STRESS_COST },
+            { pay: "hope", amount: 1 }
         ],
         stepsBeyondFirst: "classTrial"
     },
@@ -1677,7 +1688,7 @@ export const ACTIONS = {
     analyze: {
         kind: "universal",
         // `cost` is the first step of `PRICE_CHAINS.analyze`, and inside a Class
-        // Trial the chain carries on into Hope and then Sanity (T-1).
+        // Trial the chain carries on into Sanity and then Hope (T-1; D2-22, 27.11.2026).
         label: "Analyze",
         icon: "fa-brain",
         traits: ["head"],

@@ -620,17 +620,17 @@
         "burst": { "one": "Costs {n} action, which your banked Burst pays.", "other": "Costs {n} actions, which your banked Burst pays." },
         "hope": { "one": "No actions left, so this costs {n} Hope.", "other": "No actions left, so this costs {n} Hope." },
         "hopeHeld": { "one": "You hold {held} Hope.", "other": "You hold {held} Hope." },
-        "stressAfterHope": { "one": "No actions and no Hope left, so this costs {n} Sanity.", "other": "No actions and no Hope left, so this costs {n} Sanity." },
+        "hopeAfterSanity": { "one": "No actions and no Sanity left, so this costs {n} Hope.", "other": "No actions and no Sanity left, so this costs {n} Hope." },
         "stressAfterAction": { "one": "No actions left, so this costs {n} Sanity.", "other": "No actions left, so this costs {n} Sanity." },
         "skippedAction": { "one": "No action is needed here. This costs {n} Sanity.", "other": "No action is needed here. This costs {n} Sanity." },
         "breakdown": "That is your last Sanity. Paying it puts you in Breakdown.",
         "free": "This costs nothing."
       },
       "nothingLeft": {
-        "objection": "No action, no Hope, and no Sanity left, so you cannot object.",
-        "analyze": "No action, no Hope, and no Sanity left, so there is nothing to pay for Analyze with.",
+        "objection": "No action, no Sanity, and no Hope left, so you cannot object.",
+        "analyze": "No action, no Sanity, and no Hope left, so there is nothing to pay for Analyze with.",
         "analyzeOneStep": "No action left, so there is nothing to pay for Analyze with.",
-        "palm": "No action, no Hope, and no Sanity left, so there is nothing to pay for Palm with.",
+        "palm": "No action, no Sanity, and no Hope left, so there is nothing to pay for Palm with.",
         "palmOneStep": "No action left, so there is nothing to pay for Palm with.",
         "tamper": "No action left, and Tamper takes nothing else.",
         "tamperSkippedAction": "No action is needed here, but you have no Sanity left to pay with."

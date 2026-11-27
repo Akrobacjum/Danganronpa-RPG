@@ -14241,11 +14241,11 @@ const SCENARIOS = [
             + "unseen roll's payment, or a payment handed back still pays, or a second draw of the action is judged while the first is "
             + "under way (each draw in turn; the two at once; the tickets left)");
     }],
-    ["1.2.128 S0-PALM - Palm in the Class Trial frisks and nothing else: its Frisk unseen, asked and forced on the hall as one room, paid with Hope when no action is left and its card saying so, its Steal and Plant refused (allowed-now.mjs `TRIAL_OPEN_PERSON`, frisk.mjs `personActionRefusal` with `frisk`, `personPlace`, `roomWitnessesOnGm`, roll-draw.mjs `CHAIN_OF`; the owner, 23.11.2026: \"z palm w trialu ma byc dostepne tylko przeszukanie - ukradkiem, consensual lub silowe\")", async () => {
+    ["1.2.128 S0-PALM - Palm in the Class Trial frisks and nothing else: its Frisk unseen, asked and forced on the hall as one room, paid with Hope when no action and no room for Sanity is left and its card saying so (D2-22: Sanity before Hope), its Steal and Plant refused (allowed-now.mjs `TRIAL_OPEN_PERSON`, frisk.mjs `personActionRefusal` with `frisk`, `personPlace`, `roomWitnessesOnGm`, roll-draw.mjs `CHAIN_OF`; the owner, 23.11.2026: \"z palm w trialu ma byc dostepne tylko przeszukanie - ukradkiem, consensual lub silowe\")", async () => {
         /* On this GM, as a player's roll and ask are judged (`drawnForPlayer`, `G.judge` with the player's id; a payment
-           written as the player's browser writes it, `PAID_AS_PLAYER`). (1) In a trial, no actions and Hope: the price quoted is
-           Hope, the unseen Frisk's cover drawn on a Hope paid and its hand riding it; outside the trial the same Hope buys no
-           cover. (2) The chain's receipt and its card's line, and Sanity once Hope is gone. (3) A hall of the suite's own
+           written as the player's browser writes it, `PAID_AS_PLAYER`). (1) In a trial, no actions, Hope and the Sanity track full (D2-22, 2.0 line T5,
+           27.11.2026: an action, then Sanity, then Hope - until 1.2.129 this stood at Sanity 0): the price quoted is Hope, the unseen Frisk's cover drawn on a Hope paid and its hand riding it; outside the trial the same Hope buys no
+           cover. (2) The chain's receipts in D2-22's order: the last Sanity mark first, its card's line, then Hope. (3) A hall of the suite's own
            linked, the two students' tokens and a third's on it: the Frisk's gate lets them through, a Steal's and a Plant's
            say the trial (and the primary's steal refuses), the target's token hidden is not in that room, the searcher with no
            token has none; the Frisk's place is the hall and its witnesses the third. (4) The open ask on the hall, paid with
@@ -14290,8 +14290,9 @@ const SCENARIOS = [
             await settle();
             return out;
         };
+        const SAN_FULL = Number(theirs.system.resources.stress?.max) || 6;
         const payHope = async () => {
-            await trustedWrite(theirs, { [ACT]: 0, [HOPE]: 2, [SAN]: 0 }, { reason: "gmRuling" });
+            await trustedWrite(theirs, { [ACT]: 0, [HOPE]: 2, [SAN]: SAN_FULL }, { reason: "gmRuling" });
             D.forgetPayments?.(theirs.id);
             await trustedWrite(theirs, { [HOPE]: 1 }, { reason: "gmRuling", ...asPlayer });
         };
@@ -14303,7 +14304,7 @@ const SCENARIOS = [
             if (force !== null) await game.settings.set(MODULE_ID, "friskForce", true);
             // (1) the chain, the unseen Frisk's two rolls on one Hope.
             await setClock({ ...clock, phase: "classTrial" });
-            await trustedWrite(theirs, { [ACT]: 0, [HOPE]: 2, [SAN]: 0 }, { reason: "gmRuling" });
+            await trustedWrite(theirs, { [ACT]: 0, [HOPE]: 2, [SAN]: SAN_FULL }, { reason: "gmRuling" });
             D.forgetPayments?.(theirs.id);
             read.quote = P.quotePrice(theirs, "palm").pay;
             await trustedWrite(theirs, { [HOPE]: 1 }, { reason: "gmRuling", ...asPlayer });
@@ -14314,10 +14315,10 @@ const SCENARIOS = [
             // (2) the receipts.
             await setClock({ ...clock, phase: "classTrial" });
             D.forgetPayments?.(theirs.id);
-            await trustedWrite(theirs, { [ACT]: 0, [HOPE]: 1, [SAN]: 0 }, { reason: "gmRuling" });
-            const hopeReceipt = await P.payPrice(theirs, "palm", { quiet: true });
+            await trustedWrite(theirs, { [ACT]: 0, [HOPE]: 1, [SAN]: SAN_FULL - 1 }, { reason: "gmRuling" });
             const stressReceipt = await P.payPrice(theirs, "palm", { quiet: true });
-            read.receipts = [hopeReceipt?.pay ?? null, P.paidLine(hopeReceipt) === game.i18n.format("DRPG.Price.paid.hope.one", { n: 1 }), stressReceipt?.pay ?? null, res(theirs).hope, res(theirs).san];
+            const hopeReceipt = await P.payPrice(theirs, "palm", { quiet: true });
+            read.receipts = [stressReceipt?.pay ?? null, P.paidLine(stressReceipt) === game.i18n.format("DRPG.Price.paid.stress.one", { n: 1 }), hopeReceipt?.pay ?? null, res(theirs).hope, res(theirs).san === SAN_FULL];
             // (3) the hall, the three on it.
             hall = await Scene.create({ name: "SUITE S0-PALM hall", width: 1000, height: 1000, grid: { size: 100 }, active: false, navigation: false });
             const [mine, theirsTok] = await hall.createEmbeddedDocuments("Token", [
@@ -14337,6 +14338,8 @@ const SCENARIOS = [
             const { performAction } = await import("./action-rolls.mjs");
             const warned = [], warn = ui.notifications.warn;
             ui.notifications.warn = (text, ...rest) => { warned.push(String(text)); return null; };
+            // A price Palm can still pay with the Sanity track full from (2): 1 Hope (D2-22), so "nothing paid" reads the Hope.
+            await trustedWrite(theirs, { [ACT]: 0, [HOPE]: 1, [SAN]: SAN_FULL }, { reason: "gmRuling" });
             const hopeBefore = res(theirs).hope;
             let rows = null;
             try {
@@ -14393,7 +14396,7 @@ const SCENARIOS = [
         }
         equal(stableJson(read), stableJson({
             quote: "hope", trialDraw: [true, true], dayDraw: "notPaid",
-            receipts: ["hope", true, "stress", 0, 1],
+            receipts: ["stress", true, "hope", 0, true],
             gate: { frisk: null, palm: "that waits until the Class Trial is over", steal: "that waits until the Class Trial is over",
                 plant: "that waits until the Class Trial is over", place: [true, true], witnesses: true },
             // `asked`: nothing sent yet - an ask answers its asker when it ends (`askToFrisk`'s `reply`); the row is its proof.
@@ -14401,7 +14404,7 @@ const SCENARIOS = [
             press: { rows: [[true, true, false], [true, true, false], [true, false, true]], refused: true, paid: 0 },
             unseen: ["done", true],
             hidden: "the character is not in that room", noToken: "the character has no token on a scene"
-        }), "{quote; trialDraw: [the unseen Frisk's cover on a Hope paid, its hand riding it]; dayDraw: the cover on a Hope outside the trial; receipts: [step, its card line, the next step, Hope, Sanity]; gate: [the Frisk's, a Palm's Steal-Plant key, the primary's steal and Plant, the Frisk's place the hall, the third its witness]; ask: [asked, marked as asked in the trial, its room (the hall's), the target's no, a force open, the force drawn on the Hope, the follow after the trial's end]; unseen: [the judgement, its cards]; hidden; noToken}");
+        }), "{quote; trialDraw: [the unseen Frisk's cover on a Hope paid, its hand riding it]; dayDraw: the cover on a Hope outside the trial; receipts: [the first step (the last mark), its card line, the next step, Hope, Sanity full]; gate: [the Frisk's, a Palm's Steal-Plant key, the primary's steal and Plant, the Frisk's place the hall, the third its witness]; ask: [asked, marked as asked in the trial, its room (the hall's), the target's no, a force open, the force drawn on the Hope, the follow after the trial's end]; unseen: [the judgement, its cards]; hidden; noToken}");
     }],
     ["a Frisk's rolls ride a Palm's one payment (A11-4): the hand after the cover and never first, never beside a Take's hand; a Search and a Call's Hope keep payments of their own; an ask's ticket carries one force, only while the GMs leave that searcher a force open", async () => {
         /*
@@ -37798,9 +37801,12 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         await settle();
     }],
 
-    ["a price walks action, then Hope, then Sanity, and then stops", async () => {
+    ["a price walks action, then Sanity, then Hope, and then stops", async () => {
         /*
-         * T-1's whole rule, in one actor. The chain is walked from the top every
+         * T-1's whole rule, in one actor, in D2-22's order (2.0 line T5, 27.11.2026: the owner's "akcja, potem Sanity, na
+         * koncu Hope"; until 1.2.129 this test was "a price walks action, then Hope, then Sanity, and then stops" and walked
+         * Hope second). Sanity is a reverse track, so its step is paid while a mark is left - the last one a Breakdown - and
+         * Hope only once the track is full. The chain is walked from the top every
          * time it is asked, so what a player can pay decides what they pay - and
          * when they can pay nothing, the refusal says WHICH kind of nothing it is,
          * because C5 offers a free Present for one of them and not for the other.
@@ -37838,29 +37844,32 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             equal(burst.pay, "action", "a banked Burst did not cover the action step");
             ok(burst.grant, "the quote did not say the Burst is what pays");
 
-            // No actions, no Burst, two Hope: the second step.
+            // No actions, no Burst, two Hope and room for Sanity: the second step is Sanity, and the Hope stays (D2-22).
             await who.setFlag(MODULE_ID, FLAGS.freeActionGrants, 0);
             await settle();
-            const hope = P.quotePrice(who, "objection");
-            equal(hope.pay, "hope", "an Objection with no actions did not fall through to Hope");
-            equal(hope.held, 2, "the quote did not say how much Hope is held");
+            const second = P.quotePrice(who, "objection");
+            equal(second.pay, "stress", "an Objection with no actions did not fall through to Sanity");
+            ok(!second.lastSanity, "a first mark was quoted as the last");
 
-            // No actions, no Hope, one point of Sanity left: the last step, and it
-            // is the last mark.
-            await who.update({
-                "system.resources.hope.value": 0,
-                "system.resources.stress.value": sanityMax - 1
-            });
+            // One point of Sanity left: still the Sanity step, and it is the last mark.
+            await who.update({ "system.resources.stress.value": sanityMax - 1 });
             await settle();
             const sanity = P.quotePrice(who, "objection");
-            equal(sanity.pay, "stress", "an Objection with no actions and no Hope did not reach Sanity");
+            equal(sanity.pay, "stress", "an Objection with one Sanity mark left did not take it before Hope");
             ok(sanity.lastSanity, "the quote did not warn that this is the last mark");
             ok(P.priceLine(who, sanity).includes(
                 game.i18n.localize("DRPG.Price.will.breakdown")),
                 "the sentence does not say that paying it breaks them down");
 
-            // Nothing at all left.
+            // The Sanity track full: the last step, Hope.
             await who.update({ "system.resources.stress.value": sanityMax });
+            await settle();
+            const hope = P.quotePrice(who, "objection");
+            equal(hope.pay, "hope", "an Objection with no actions and a full Sanity track did not fall through to Hope");
+            equal(hope.held, 2, "the quote did not say how much Hope is held");
+
+            // Nothing at all left.
+            await who.update({ "system.resources.hope.value": 0 });
             await settle();
             const stuck = P.quotePrice(who, "objection");
             equal(stuck.pay, null, "a full Sanity track still quoted a price");
@@ -37897,8 +37906,12 @@ equal(read.added, 3, "three additions to a purse at once lost one");
                out on the way in; that is its own scenario. */
             await who.update({ "system.resources.actions.value": 0 });
             await settle();
+            equal(P.quotePrice(who, "analyze").pay, "stress",
+                "Analyze inside a trial did not fall through to Sanity");
+            await who.update({ "system.resources.stress.value": sanityMax });
+            await settle();
             equal(P.quotePrice(who, "analyze").pay, "hope",
-                "Analyze inside a trial did not fall through to Hope");
+                "Analyze inside a trial with the Sanity track full did not fall through to Hope");
         } finally {
             await setClock(clock);
             await who.setFlag(MODULE_ID, FLAGS.freeActionGrants, before.grants);
@@ -37943,28 +37956,34 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             await settle();
             equal(who.system.resources.actions.value, 2, "the action did not come back");
 
-            // The Hope step.
+            // The Sanity step, second since D2-22 (2.0 line T5, 27.11.2026; until 1.2.129 Hope was second). Paying ADDS
+            // a mark; the refund lifts that same mark, and the Hope is not touched either way.
             await who.update({ "system.resources.actions.value": 0 });
-            await settle();
-            const paidHope = await P.payPrice(who, "objection");
-            await settle();
-            equal(paidHope?.pay, "hope", "the Hope step did not pay");
-            equal(who.system.resources.hope.value, 2, "the Hope was not spent");
-            equal(who.system.resources.stress.value, 1, "paying Hope marked Sanity");
-            ok(await P.refundPrice(who, paidHope), "the Hope refund refused");
-            await settle();
-            equal(who.system.resources.hope.value, 3, "the Hope did not come back");
-
-            // The Sanity step. Paying ADDS a mark; the refund lifts that same mark.
-            await who.update({ "system.resources.hope.value": 0 });
             await settle();
             const paidSanity = await P.payPrice(who, "objection");
             await settle();
             equal(paidSanity?.pay, "stress", "the Sanity step did not pay");
             equal(who.system.resources.stress.value, 2, "the Sanity mark was not made");
+            equal(who.system.resources.hope.value, 3, "paying Sanity moved the Hope");
             ok(await P.refundPrice(who, paidSanity), "the Sanity refund refused");
             await settle();
             equal(who.system.resources.stress.value, 1, "the Sanity mark was not lifted");
+            equal(who.system.resources.hope.value, 3, "the Sanity refund moved the Hope");
+
+            // The Hope step, last: only with the Sanity track full.
+            const full = who.system.resources.stress.max;
+            await who.update({ "system.resources.stress.value": full });
+            await settle();
+            const paidHope = await P.payPrice(who, "objection");
+            await settle();
+            equal(paidHope?.pay, "hope", "the Hope step did not pay");
+            equal(who.system.resources.hope.value, 2, "the Hope was not spent");
+            equal(who.system.resources.stress.value, full, "paying Hope marked Sanity");
+            ok(await P.refundPrice(who, paidHope), "the Hope refund refused");
+            await settle();
+            equal(who.system.resources.hope.value, 3, "the Hope did not come back");
+            await who.update({ "system.resources.stress.value": 1 });
+            await settle();
 
             /*
              * A BURST COMES BACK AS A BURST (trap 98), which is the whole reason the
@@ -65247,7 +65266,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
          * back (`refundPrice`), Despair turned into Hope (despair.mjs `convertDespairToHope`), an item's effect a GM
          * grants (use-items.mjs `grantItemEffect`), a Despair Call's Hope (call-effects.mjs, Fuel a Monocub), a Hope Call
          * a GM buys on the sheet (calls.mjs `spendHopeCall`, a Sprint at 2) and a rest a GM gives (rest.mjs `takeRest`,
-         * Breath; paid with an action since 1.2.112, when a Relief's free rest stopped giving Breath). Each from 2 Hope the GMs hold, the console's 5 refused its put-back (`inConsoleWindow`). Read: the
+         * Breath; paid with an action since 1.2.112, when a Relief's free rest stopped giving Breath). Each from 2 Hope the GMs hold, the console's 5 refused its put-back (`inConsoleWindow`); the Objection's with the Sanity track full, since D2-22 (2.0 line T5, 27.11.2026) puts the Sanity step before the Hope one. Read: the
          * Hope, on the sheet and in the GMs' mark. At 85fdf9d (06.10.2026, e29run/r2h24red) each road wrote from the
          * console's 5, on the sheet and in the mark alike: the Objection left 4 (1 since), the refund, the conversion, the
          * ruling, the Call and the rest 6 (3 since), the Sprint 3 (0 since).
@@ -65275,15 +65294,15 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         must(donor, "no Monokuma's pool to convert from - this would measure nothing");
         must(!overflowBlocksHope(), "the Despair darkening holds Hope down - this would measure nothing");
         must(resourceMax(student, "hope") === STARTING.hopeMax, `${student.name}'s Hope maximum is not ${STARTING.hopeMax}: ${resourceMax(student, "hope")}`);
-        const R = "system.resources", HOPE = `${R}.hope.value`, ACTS = `${R}.actions.value`;
+        const R = "system.resources", HOPE = `${R}.hope.value`, ACTS = `${R}.actions.value`, SAN = `${R}.stress.value`;
         const GRANTS = `flags.${MODULE_ID}.${FLAGS.freeActionGrants}`, MOVES = `flags.${MODULE_ID}.${FLAGS.freeMoveGrants}`;
-        const putBack = sheetAsFound(student, [HOPE, ACTS, GRANTS, MOVES]);
+        const putBack = sheetAsFound(student, [HOPE, ACTS, GRANTS, MOVES, SAN]);
         const despairWas = D.getDespair(donor.id);
         const Dialog = foundry.applications.api.DialogV2, ownWait = Object.getOwnPropertyDescriptor(Dialog, "wait");
         const inWindow = road => inConsoleWindow(student, player(student), { honest: { [HOPE]: 2 }, forged: { [HOPE]: 5 }, paths: [HOPE] }, road);
         const read = {};
         try {
-            await trustedWrite(student, { [ACTS]: 0, [GRANTS]: 0 }, { reason: "gmRuling" });
+            await trustedWrite(student, { [ACTS]: 0, [GRANTS]: 0, [SAN]: resourceMax(student, "stress") }, { reason: "gmRuling" });
             read.objection = await inWindow(() => payPrice(student, "objection", { quiet: true }));
             read.refund = await inWindow(() => refundPrice(student, { key: "objection", pay: "hope", amount: 1, grant: false }, { quiet: true }));
             await despairOwedStore.drop(donor.id);
@@ -95311,9 +95330,9 @@ equal(read.added, 3, "three additions to a purse at once lost one");
          * at Botan three times on the GM's card road (`presentBullet`, objection): (1) the card names an item she does
          * not hold - refused before the price; (2) with her actions, the floor's write of her Objection swallowed
          * (the world's settings refusing that one value, as a write that never lands), so the floor stays the debate and
-         * the action comes back; (3) with no action and 2 Hope, the same, and her Hope write held back once more for the
+         * the action comes back; (3) with no action, 2 Hope and her Sanity track full (D2-22, 2.0 line T5, 27.11.2026: Hope is the step after Sanity; until 1.2.129 her Sanity stood as the cast left it), the same, and her Hope write held back once more for the
          * refund (her document's update refusing a rise), so the refund does not land. Each whisper's words read with
-         * `contentOf`. Everything put back: the settings' and the document's writers, her actions, Hope, grants and
+         * `contentOf`. Everything put back: the settings' and the document's writers, her actions, Hope, Sanity, grants and
          * bullet, the floor, the queue, the clock and every message posted. Red at C6's parent: (2) and (3) whisper
          * "Nothing was taken from you".
          *
@@ -95340,7 +95359,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         const queue = foundry.utils.deepClone(getSetting(SETTINGS.trialQueue) ?? {});
         const overflowWas = foundry.utils.deepClone(getSetting(SETTINGS.overflow) ?? {});
         const before = { actions: who.system.resources.actions.value, max: who.system.resources.actions.max, hope: who.system.resources.hope.value,
-            grants: who.getFlag(MODULE_ID, FLAGS.freeActionGrants) };
+            stress: who.system.resources.stress.value, grants: who.getFlag(MODULE_ID, FLAGS.freeActionGrants) };
         const seen = new Set(game.messages.map(m => m.id));
         const settings = game.settings;
         const ownSet = Object.getOwnPropertyDescriptor(settings, "set"), realSet = settings.set;
@@ -95400,7 +95419,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             read.action = [posted2, words2.some(t => t.includes(expect.action)), words2.some(t => t.includes(expect.nothing)),
                 who.system.resources.actions.value, F.trialFloor()?.mode ?? null];
 
-            await who.update({ "system.resources.actions.value": 0 });
+            await who.update({ "system.resources.actions.value": 0, "system.resources.stress.value": who.system.resources.stress.max });
             await sheetAuditIdle();
             const hopeBefore = who.system.resources.hope.value;
             who.update = async function (data, ...rest) {
@@ -95437,7 +95456,8 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             await game.settings.set(MODULE_ID, SETTINGS.overflow, overflowWas);
             if (before.grants === undefined) await who.unsetFlag(MODULE_ID, FLAGS.freeActionGrants);
             else await who.setFlag(MODULE_ID, FLAGS.freeActionGrants, before.grants);
-            await who.update({ "system.resources.actions.max": before.max, "system.resources.actions.value": before.actions, "system.resources.hope.value": before.hope });
+            await who.update({ "system.resources.actions.max": before.max, "system.resources.actions.value": before.actions, "system.resources.hope.value": before.hope,
+                "system.resources.stress.value": before.stress });
             await sheetAuditIdle();
             await settle();
         }
@@ -118699,6 +118719,92 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             "{told: after the leaver's own copy alone; revealed: after the GM's Reveal} x [the row's first find, its road, the ref's found]");
     }],
     // T5 motives-trialprice (2.0 line T5, E135, 27.11.2026): D2-22, INV-08, TRIAL-09 and the motives (D2-23, D2-24).
+    ["E135 D2-22 - a refused Objection gives back the Sanity it took: with no action left it is paid with a Sanity mark, not Hope, and when the floor does not move that mark is lifted and the card names 1 Sanity", async () => {
+        /*
+         * 2.0 line T5, D2-22 (the owner, 27.11.2026: an action, then Sanity, then Hope). E51-T18's road (a GM's card of
+         * an Objection, `presentBullet` with `objection`, judged on this primary GM's `seizeFloor`), with Aiko holding
+         * no action, 2 Hope and one Sanity mark of room to spare: the floor's write of her Objection swallowed (the
+         * world's settings refusing that one value, as a write that never lands), so the floor stays the debate and the
+         * price comes back. Read: the whisper's sentence (`DRPG.Trial.objectionRefunded` with "1 Sanity"), her Sanity
+         * marks and Hope after it, the floor's mode. Everything put back: the settings' writer, her actions, Hope,
+         * Sanity, grants and bullet, the floor, the queue, the clock and every message posted. Red at 4ac0149
+         * (1.2.129): the Objection was paid with 1 Hope and the card named it.
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 2), "two participants, one to object and one to be objected to");
+        const { isPrimaryGm } = await import("./utils.mjs");
+        must(isPrimaryGm(), "this client is not the primary GM, which judges a GM's Objection card - this would measure nothing");
+        const F = await import("./trial-floor.mjs");
+        const trial = await import("./trial.mjs");
+        const B = await import("./truth-bullets.mjs");
+        const P = await import("./price.mjs");
+        const { contentOf } = await import("./secret.mjs");
+        const { sheetAuditIdle } = await import("./sheet-audit.mjs");
+        const V = await import("./vote.mjs");
+        const taking = new Set(V.trialParticipants({ connected: false }).map(p => p.actor.id));
+        const [who, other] = cast(2);
+        must(taking.has(who.id) && taking.has(other.id), "the two cast are not both the trial's participants - this would measure nothing");
+        const clock = foundry.utils.deepClone(getClock());
+        const queue = foundry.utils.deepClone(getSetting(SETTINGS.trialQueue) ?? {});
+        const before = { actions: who.system.resources.actions.value, max: who.system.resources.actions.max, hope: who.system.resources.hope.value,
+            stress: who.system.resources.stress.value, grants: who.getFlag(MODULE_ID, FLAGS.freeActionGrants) };
+        const seen = new Set(game.messages.map(m => m.id));
+        const settings = game.settings;
+        const ownSet = Object.getOwnPropertyDescriptor(settings, "set"), realSet = settings.set;
+        const why = game.i18n.localize("DRPG.Trial.objectionNoFloor");
+        const opening = game.i18n.format("DRPG.Trial.objectionRefusedWhisper", { why: "\u0000" }).split("\u0000")[0].trim();
+        const said = () => game.messages.filter(m => !seen.has(m.id)).map(m => contentOf(m))
+            .filter(text => String(text ?? "").includes(opening));
+        const sanityBack = game.i18n.format("DRPG.Trial.objectionRefunded", { why, what: P.priceLabel({ pay: "stress", amount: 1 }) });
+        const hopeBack = game.i18n.format("DRPG.Trial.objectionRefunded", { why, what: P.priceLabel({ pay: "hope", amount: 1 }) });
+        const read = {};
+        let item = null, swallowed = 0;
+        try {
+            if (F.trialFloor()) await F.endFloor();
+            await game.settings.set(MODULE_ID, SETTINGS.clock, { ...clock, phase: "classTrial" });
+            await F.startFloor({});
+            item = await B.createTruthBullet(who, { name: "SUITE E135 D2-22 a torn ticket", realType: "neutral", visibility: "obvious" });
+            must(item, "the fixture's Truth Bullet was not made - this would measure nothing");
+            await who.setFlag(MODULE_ID, FLAGS.freeActionGrants, 0);
+            const room = Number(who.system.resources.stress.max) || 6;
+            await who.update({ "system.resources.actions.max": 3, "system.resources.actions.value": 0, "system.resources.hope.value": 2,
+                "system.resources.stress.value": room - 2 });
+            await sheetAuditIdle();
+            await settle();
+            read.quote = P.quotePrice(who, "objection").pay;
+            settings.set = async function (namespace, key, value, ...rest) {
+                if (namespace === MODULE_ID && key === SETTINGS.trialQueue && value?.mode === F.FLOOR_MODES.objection && value?.holderId === who.id) {
+                    swallowed++;
+                    return value;
+                }
+                return realSet.call(this, namespace, key, value, ...rest);
+            };
+            const n = said().length;
+            const posted = await trial.presentBullet(who, item, { objection: true, targetId: other.id });
+            await until(() => said().length > n, 6000);
+            await sheetAuditIdle();
+            await settle();
+            const words = said().slice(n);
+            read.after = [Boolean(posted), words.some(t => t.includes(sanityBack)), words.some(t => t.includes(hopeBack)),
+                who.system.resources.stress.value === room - 2, who.system.resources.hope.value, F.trialFloor()?.mode ?? null];
+        } finally {
+            if (ownSet) Object.defineProperty(settings, "set", ownSet); else delete settings.set;
+            try { await item?.delete(); } catch { /* already gone */ }
+            await clearObjections(F, seen);
+            if (F.trialFloor()) await F.endFloor();
+            await game.settings.set(MODULE_ID, SETTINGS.trialQueue, queue);
+            await game.settings.set(MODULE_ID, SETTINGS.clock, clock);
+            if (before.grants === undefined) await who.unsetFlag(MODULE_ID, FLAGS.freeActionGrants);
+            else await who.setFlag(MODULE_ID, FLAGS.freeActionGrants, before.grants);
+            await who.update({ "system.resources.actions.max": before.max, "system.resources.actions.value": before.actions, "system.resources.hope.value": before.hope,
+                "system.resources.stress.value": before.stress });
+            await sheetAuditIdle();
+            await settle();
+        }
+        must(swallowed >= 1, "the floor's write of the Objection was never swallowed - this would measure nothing");
+        equal(stableJson(read), stableJson({ quote: "stress", after: [true, true, false, true, 2, "debate"] }),
+            "{quote: the Objection's step with no action, 2 Hope and room for Sanity; after: [the card posted, the whisper names 1 Sanity given back, "
+            + "it names 1 Hope, her Sanity marks as before, her Hope, the floor]}");
+    }],
 ];
 
 // `drawnForPlayer` for the grid (E33 C7): a drawn crisis roll goes through the suite's one road to a draw (tests-grid.mjs `drawnAct`).

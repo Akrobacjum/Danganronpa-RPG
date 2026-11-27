@@ -65,9 +65,11 @@ const INVARIANTS = [
             }
         }
 
+        // D2-22 (2.0 line T5, 27.11.2026; the owner): an action, then Sanity, then Hope - T-1's order was Hope before Sanity.
         const order = key => PRICE_CHAINS[key].steps.map(step => step.pay).join(" -> ");
-        equal(order("objection"), "action -> hope -> stress", "the Objection's chain changed order");
-        equal(order("analyze"), "action -> hope -> stress", "Analyze's chain changed order");
+        equal(order("objection"), "action -> stress -> hope", "the Objection's chain changed order");
+        equal(order("analyze"), "action -> stress -> hope", "Analyze's chain changed order");
+        equal(order("palm"), "action -> stress -> hope", "Palm's chain changed order");
         ok(!PRICE_CHAINS.tamper.steps.some(step => step.pay === "hope"),
             "Tamper grew a Hope step - Dawid's decision on 17.09 was action, then Sanity");
         equal(PRICE_CHAINS.tamper.steps[1].amount, RESOLUTION_STRESS_COST,
@@ -85,7 +87,7 @@ const INVARIANTS = [
          */
         /* Since E66 C2 (S18-36) the counted lines are plural families, read by their `.other`; a gated chain has its
            one-step refusal (`nothingLeft.<key>OneStep`, S09-40). */
-        const WILL_FAMILIES = ["action", "actionsLeft", "burst", "hope", "hopeHeld", "stressAfterHope", "stressAfterAction", "skippedAction"];
+        const WILL_FAMILIES = ["action", "actionsLeft", "burst", "hope", "hopeHeld", "hopeAfterSanity", "stressAfterAction", "skippedAction"];
         const WILL_LINES = ["breakdown", "free"];
         const oneStep = Object.keys(PRICE_CHAINS).filter(key => PRICE_CHAINS[key].stepsBeyondFirst).map(key => `${key}OneStep`);
         /* E66 fix r1 F3: a refusal with the action step skipped, for the one chain a caller skips it of (cleanup.mjs
@@ -41119,7 +41121,7 @@ const INVARIANTS = [
         const FAMILIES = [
             ["DRPG.Price.paid.action", "n"], ["DRPG.Price.paid.hope", "n"], ["DRPG.Price.paid.stress", "n"],
             ["DRPG.Price.will.action", "n"], ["DRPG.Price.will.actionsLeft", "left"], ["DRPG.Price.will.burst", "n"],
-            ["DRPG.Price.will.hope", "n"], ["DRPG.Price.will.hopeHeld", "held"], ["DRPG.Price.will.stressAfterHope", "n"],
+            ["DRPG.Price.will.hope", "n"], ["DRPG.Price.will.hopeHeld", "held"], ["DRPG.Price.will.hopeAfterSanity", "n"],
             ["DRPG.Price.will.stressAfterAction", "n"], ["DRPG.Price.will.skippedAction", "n"], ["DRPG.Action.costActions", "n"],
             ["DRPG.Monocub.meddleCost", "actions"], ["DRPG.Monocub.meddleCostShort", "actions"],
             ["DRPG.Murder.hinderedActions", "turns"], ["DRPG.Murder.blockedActions", "turns"], ["DRPG.Cleanup.actionBack", "n"]
@@ -41180,9 +41182,9 @@ const INVARIANTS = [
             en: {
                 broken: [],
                 cost: ["Costs 1 action.", "Costs 2 actions.", "Costs 5 actions.", "Costs 22 actions.", "Costs 25 actions."],
-                lines: ["Costs 2 actions. You have 5 actions left.", "No actions left, so this costs 1 Hope. You hold 2 Hope.", "Paid with 2 actions.", "2 actions", "1 Hope, 2 actions."],
+                lines: ["Costs 2 actions. You have 5 actions left.", "No actions and no Sanity left, so this costs 1 Hope. You hold 2 Hope.", "Paid with 2 actions.", "2 actions", "1 Hope, 2 actions."],
                 skipped: "No action is needed here. This costs 1 Sanity.",
-                analyze: ["No action left, so there is nothing to pay for Analyze with.", "No action, no Hope, and no Sanity left, so there is nothing to pay for Analyze with."],
+                analyze: ["No action left, so there is nothing to pay for Analyze with.", "No action, no Sanity, and no Hope left, so there is nothing to pay for Analyze with."],
                 tamperStuck: ["No action is needed here, but you have no Sanity left to pay with.", "No action left, and Tamper takes nothing else."],
                 raw: [`The victim rolls ${lc} and ${sv} at disadvantage for 2 turns of their own.`, `The victim cannot use ${st} or ${rr} for 2 turns of their own.`,
                     `The victim cannot use ${sv} for 1 turn of their own.`, "You get 1 action back.", "You get 1 Sanity back."]
@@ -41190,9 +41192,9 @@ const INVARIANTS = [
             pl: {
                 broken: [],
                 cost: ["Kosztuje 1 akcję.", "Kosztuje 2 akcje.", "Kosztuje 5 akcji.", "Kosztuje 22 akcje.", "Kosztuje 25 akcji."],
-                lines: ["Kosztuje 2 akcje. Masz 5 akcji.", "Nie masz już akcji, więc to kosztuje 1 Hope. Masz 2 Hope.", "Zapłacono 2 akcjami.", "2 akcje", "1 Hope, 2 akcje."],
+                lines: ["Kosztuje 2 akcje. Masz 5 akcji.", "Nie masz już akcji ani Sanity, więc to kosztuje 1 Hope. Masz 2 Hope.", "Zapłacono 2 akcjami.", "2 akcje", "1 Hope, 2 akcje."],
                 skipped: "Akcja nie jest tu potrzebna. To kosztuje 1 Sanity.",
-                analyze: ["Nie masz już akcji, więc nie masz czym zapłacić za Analyze.", "Nie masz już akcji, Hope ani Sanity, więc nie masz czym zapłacić za Analyze."],
+                analyze: ["Nie masz już akcji, więc nie masz czym zapłacić za Analyze.", "Nie masz już akcji, Sanity ani Hope, więc nie masz czym zapłacić za Analyze."],
                 tamperStuck: ["Akcja nie jest tu potrzebna, ale nie masz już Sanity, by zapłacić.", "Nie masz już akcji, a Tamper nie przyjmuje niczego innego."],
                 raw: [`Przez 2 tury ofiara rzuca z utrudnieniem przy ${lc} i ${sv}.`, `Przez 2 tury ofiara nie może użyć ${st} ani ${rr}.`,
                     `Przez 1 turę ofiara nie może użyć ${sv}.`, "Odzyskujesz 1 akcję.", "Odzyskujesz 1 Sanity."]
@@ -68562,7 +68564,8 @@ const INVARIANTS = [
         }), stableJson({
             pays: [[true, true, false], [true, true, false]],
             table: ["analyze", "palm"], open: ["analyze", "palm"], personTable: ["frisk"], inTrial: ["open", "trial", "trial"], outside: ["open", "open", "open"],
-            chain: [[["action", 1], ["hope", 1], ["stress", 1]], "classTrial", true], hall: true
+            // D2-22 (2.0 line T5, 27.11.2026): an action, then Sanity, then Hope - E129 wrote Hope before Sanity.
+            chain: [[["action", 1], ["stress", 1], ["hope", 1]], "classTrial", true], hall: true
         }), "{pays: [performFrisk, performFriskOpenly] by payPalm, refunded by refundPalm, no bare spendAction; table; open: the action keys a trial leaves open; personTable; inTrial: [the Frisk's road, Palm's Steal and Plant, a nameless road]; outside: the same out of a trial; chain: [steps, the phase of the later ones, its first step the tile's cost]; hall}");
     }],
     ["R8773 - the ballot lists each Monokuma by its own name, sorted, as the GMs hold the flag (E129 S0-VOTEKUMA; the owner's note of 23.11.2026, \"w glosowaniu zamiast opcji \"monokuma\" niech bedzie mozliwosc wyboru kazdego indywidualnego monokumy z osobna\"): vote.mjs `monokumaCandidates`, config.mjs `TRIAL.eachMonokumaOnBallot`", async () => {
@@ -69827,6 +69830,121 @@ const INVARIANTS = [
         "{rows: [hidden, knows, incident, shown, shown with HOLDER_SEES_HIDDEN false]; the constant; a GM knows any trace; applyToRemnantToken asks the rule with knowsRemnant and shows a hidden held trace; shownAsFound asks the same; showHeld does not defer to a GM's hidden}");
     }],
     // T5 motives-trialprice (2.0 line T5, E135, 27.11.2026): D2-22, INV-08, TRIAL-09 and the motives (D2-23, D2-24).
+    ["R9320 - D2-22: in a Class Trial an Objection, an Analyze and a Palm pay an action, then Sanity, then Hope - the last Sanity mark (a Breakdown) before any Hope, Hope only with the Sanity track full, nothing left refused; outside the trial Analyze and Palm are one step", async () => {
+        /*
+         * 2.0 line T5, D2-22 (the owner, 27.11.2026): "Objection, Palm i Analyze w Class Trial placa w kolejnosci: akcja,
+         * potem Sanity, na koncu Hope (bylo: akcja, Hope, Sanity). Tamper bez zmian." Read off price.mjs `quotePrice` on
+         * stand-ins (no document: tier 1 writes nothing), with the clock answered as the Class Trial and then as Daily
+         * Life (game.settings.get stood in for the clock alone, put back in a finally, R1155's way). Sanity is a reverse
+         * track: 5/6 marked is the last mark, a Breakdown, still payable (`lastSanity`); 6/6 is full, and only then Hope.
+         * Red at 4ac0149 (1.2.129): the student with no action, Hope and room for Sanity was quoted `hope`.
+         */
+        const P = await import("./price.mjs"), U = await import("./utils.mjs");
+        const stand = (actions, hope, marks) => ({
+            id: `R9320-${actions}-${hope}-${marks}`, name: "R9320", type: "character", items: [], getFlag: () => undefined,
+            system: { resources: { actions: { value: actions, max: 3 }, hope: { value: hope, max: 6 }, stress: { value: marks, max: 6 }, hitPoints: { value: 0, max: 6 } } }
+        });
+        const settings = game.settings, ownGet = Object.hasOwn(settings, "get"), realGet = settings.get;
+        let phase = "classTrial";
+        const read = {};
+        try {
+            settings.get = function (ns, key, ...rest) {
+                if (ns === MODULE_ID && key === SETTINGS.clock) return { ...(realGet.call(this, ns, key, ...rest) ?? {}), phase };
+                return realGet.call(this, ns, key, ...rest);
+            };
+            for (const key of ["objection", "analyze", "palm"]) {
+                phase = "classTrial";
+                const row = [stand(2, 3, 0), stand(0, 3, 2), stand(0, 3, 5), stand(0, 3, 6), stand(0, 0, 6)].map(actor => {
+                    const q = P.quotePrice(actor, key);
+                    return [q.pay, q.lastSanity, q.blockedKind];
+                });
+                const full = P.quotePrice(stand(0, 3, 6), key);
+                row.push(P.priceLine(stand(0, 3, 6), full).startsWith(U.plural("DRPG.Price.will.hopeAfterSanity", { n: 1 })));
+                phase = "dailyLife";
+                const outside = P.quotePrice(stand(0, 3, 0), key);
+                row.push([outside.pay, outside.blockedKind]);
+                read[key] = row;
+            }
+            phase = "classTrial";
+            read.tamper = [stand(0, 3, 2), stand(0, 3, 6)].map(actor => P.quotePrice(actor, "tamper").pay);
+        } finally {
+            if (ownGet) settings.get = realGet; else delete settings.get;
+        }
+        const inTrial = [["action", false, null], ["stress", false, null], ["stress", true, null], ["hope", false, null], [null, false, "nothingLeft"], true];
+        equal(stableJson(read), stableJson({
+            objection: [...inTrial, ["stress", null]],
+            analyze: [...inTrial, [null, "nothingLeft"]],
+            palm: [...inTrial, [null, "nothingLeft"]],
+            tamper: ["stress", null]
+        }), "{each key: [quote in the trial at (actions, Hope, marked of 6) = (2,3,0), (0,3,2), (0,3,5), (0,3,6), (0,0,6) as "
+            + "[pay, lastSanity, blockedKind]; the full track's priceLine opens with will.hopeAfterSanity; out of the trial at (0,3,0) "
+            + "[pay, blockedKind] - the Objection has no gate]; tamper in the trial at (0,3,2) and (0,3,6)}");
+    }],
+
+    ["R9321 - D2-22: the Sanity step of the three trial chains names no Hope, the Hope step names the Sanity, and running out names action, Sanity, Hope in that order, in English and in Polish", async () => {
+        /*
+         * 2.0 line T5, D2-22. price.mjs `priceLine` said "No actions and no Hope left, so this costs 1 Sanity"
+         * (`will.stressAfterHope`) whenever the chain held a Hope step, which after D2-22 is a step the Sanity step comes
+         * BEFORE. Each language is read with its file's DRPG block put in place and the page's language stood in
+         * (settings.mjs `setPageLanguage`), both put back in a finally (R1155's way). Plain quotes, nothing written.
+         * Red at 4ac0149: the Sanity line named Hope, and the refusals said "no Hope, and no Sanity".
+         */
+        const S = await import("./settings.mjs"), P = await import("./price.mjs");
+        must(typeof S.setPageLanguage === "function", "settings.mjs has no setPageLanguage - the page's language cannot be stood in");
+        const files = {};
+        for (const code of ["en", "pl"]) {
+            const res = await fetch(`/modules/${MODULE_ID}/lang/${code}.json`, { cache: "no-cache" });
+            must(res.ok, `${code}.json: HTTP ${res.status}`);
+            files[code] = await res.json();
+        }
+        const own = game.i18n.translations, was = S.setPageLanguage("en");
+        const read = {};
+        try {
+            for (const code of ["en", "pl"]) {
+                game.i18n.translations = { ...own, DRPG: files[code].DRPG };
+                S.setPageLanguage(code);
+                const r = read[code] = {};
+                const sanity = word => new RegExp(word).test.bind(new RegExp(word));
+                const hope = sanity("Hope"), mark = sanity("Sanity");
+                r.stress = ["objection", "analyze", "palm"].map(key => {
+                    const line = P.priceLine(null, { key, pay: "stress", amount: 1, lastSanity: false, skipped: [] });
+                    return [hope(line), mark(line)];
+                });
+                r.hope = ["objection", "analyze", "palm"].map(key => mark(P.priceLine(null, { key, pay: "hope", amount: 1, held: 2 })));
+                r.order = ["objection", "analyze", "palm"].map(key => {
+                    const text = game.i18n.localize(`DRPG.Price.nothingLeft.${key}`);
+                    return text.indexOf("Sanity") > -1 && text.indexOf("Hope") > text.indexOf("Sanity");
+                });
+                r.gone = game.i18n.has("DRPG.Price.will.stressAfterHope.other");
+            }
+        } finally {
+            game.i18n.translations = own;
+            S.setPageLanguage(was);
+        }
+        const each = { stress: [[false, true], [false, true], [false, true]], hope: [true, true, true], order: [true, true, true], gone: false };
+        equal(stableJson(read), stableJson({ en: each, pl: each }),
+            "{en, pl: stress - the Sanity step's line of objection, analyze, palm as [names Hope, names Sanity]; hope - the Hope step's line names the Sanity; "
+            + "order - nothingLeft.<key> names Sanity before Hope; gone - will.stressAfterHope still in the file}");
+    }],
+
+    ["R9322 - D2-22: a refund of a receipt that paid with Sanity lifts the mark and touches no Hope (price.mjs `refundPrice`, unchanged by the new order)", async () => {
+        /*
+         * 2.0 line T5, D2-22 (4): the order is the payer's; a refund gives back exactly what the receipt says paid, so a
+         * Sanity step comes back as a mark lifted. On a stand-in whose `update` records what it was asked (no document:
+         * tier 1 writes nothing; sheet-audit.mjs `noteOwnDropped` passes over anything that is not an Actor), `quiet` so no
+         * whisper is posted. Green at 4ac0149 too: the refund road is not what D2-22 changes, and this holds it so.
+         */
+        const P = await import("./price.mjs");
+        const asked = [];
+        const stand = {
+            id: "R9322", name: "R9322", type: "character", items: [], getFlag: () => undefined,
+            system: { resources: { actions: { value: 0, max: 3 }, hope: { value: 2, max: 6 }, stress: { value: 4, max: 6 } } },
+            update: async changes => { asked.push(changes); return stand; }
+        };
+        const landed = await P.refundPrice(stand, { key: "objection", pay: "stress", amount: 1, grant: false }, { quiet: true });
+        equal(stableJson({ landed, asked }), stableJson({ landed: true, asked: [{ "system.resources.stress.value": 3 }] }),
+            "{landed: refundPrice's answer; asked: each update's changes}");
+    }],
 ];
 
 /**

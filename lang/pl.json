@@ -8832,11 +8832,11 @@
           "many": "Masz {held} Hope.",
           "other": "Masz {held} Hope."
         },
-        "stressAfterHope": {
-          "one": "Nie masz już akcji ani Hope, więc to kosztuje {n} Sanity.",
-          "few": "Nie masz już akcji ani Hope, więc to kosztuje {n} Sanity.",
-          "many": "Nie masz już akcji ani Hope, więc to kosztuje {n} Sanity.",
-          "other": "Nie masz już akcji ani Hope, więc to kosztuje {n} Sanity."
+        "hopeAfterSanity": {
+          "one": "Nie masz już akcji ani Sanity, więc to kosztuje {n} Hope.",
+          "few": "Nie masz już akcji ani Sanity, więc to kosztuje {n} Hope.",
+          "many": "Nie masz już akcji ani Sanity, więc to kosztuje {n} Hope.",
+          "other": "Nie masz już akcji ani Sanity, więc to kosztuje {n} Hope."
         },
         "stressAfterAction": {
           "one": "Nie masz już akcji, więc to kosztuje {n} Sanity.",
@@ -8854,10 +8854,10 @@
         "free": "To nic nie kosztuje."
       },
       "nothingLeft": {
-        "objection": "Nie masz już akcji, Hope ani Sanity, więc nie możesz wnieść objection.",
-        "analyze": "Nie masz już akcji, Hope ani Sanity, więc nie masz czym zapłacić za Analyze.",
+        "objection": "Nie masz już akcji, Sanity ani Hope, więc nie możesz wnieść objection.",
+        "analyze": "Nie masz już akcji, Sanity ani Hope, więc nie masz czym zapłacić za Analyze.",
         "analyzeOneStep": "Nie masz już akcji, więc nie masz czym zapłacić za Analyze.",
-        "palm": "Nie masz już akcji, Hope ani Sanity, więc nie masz czym zapłacić za Palm.",
+        "palm": "Nie masz już akcji, Sanity ani Hope, więc nie masz czym zapłacić za Palm.",
         "palmOneStep": "Nie masz już akcji, więc nie masz czym zapłacić za Palm.",
         "tamper": "Nie masz już akcji, a Tamper nie przyjmuje niczego innego.",
         "tamperSkippedAction": "Akcja nie jest tu potrzebna, ale nie masz już Sanity, by zapłacić."

@@ -78,7 +78,7 @@ const ANALYZE_ROW_REQUEST = Object.freeze({ bullet: "analyze.resolve", hint: "an
 export async function performAnalyze(actor, def, options) {
     /*
      * ANALYZE PAYS A CHAIN (T-1, Dawid 17.09): an action, and inside a Class
-     * Trial a Hope or a Sanity mark once the actions are gone. That the later
+     * Trial a Sanity mark, then Hope, once the actions are gone (D2-22's order, 2.0 line T5, 27.11.2026). That the later
      * steps exist only in a trial is `stepsBeyondFirst` in PRICE_CHAINS, not a
      * question this function asks the clock - one table, one answer.
      *

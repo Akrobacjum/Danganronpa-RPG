@@ -105,6 +105,13 @@
       "dropped": 1,
       "baseline": false,
       "note": ""
+    },
+    {
+      "date": "2026-11-27",
+      "keys": 7,
+      "dropped": 4,
+      "baseline": false,
+      "note": "2.0 line T5, D2-22: the price lines the new order rewrote (will.hopeAfterSanity, nothingLeft.objection, analyze, palm), written in both languages beside each other; will.stressAfterHope dropped with its key"
     }
   ],
   "keys": {
@@ -4661,9 +4668,10 @@
     "DRPG.Price.label.stress.one": "c9e054ff:c9e054ff:b",
     "DRPG.Price.label.stress.other": "c9e054ff:c9e054ff:b",
     "DRPG.Price.noPrice": "43a4c252:0580c663:b",
-    "DRPG.Price.nothingLeft.analyze": "39456175:c2c08a43",
+    "DRPG.Price.nothingLeft.analyze": "3c84bb95:85756daf",
     "DRPG.Price.nothingLeft.analyzeOneStep": "fd3ab678:3878a177:b",
-    "DRPG.Price.nothingLeft.objection": "974ca017:4e635649:b",
+    "DRPG.Price.nothingLeft.objection": "45be3177:f665654d",
+    "DRPG.Price.nothingLeft.palm": "94e7831f:67c9c1f1",
     "DRPG.Price.nothingLeft.tamper": "b46c0d7f:4e89411a:b",
     "DRPG.Price.nothingLeft.tamperSkippedAction": "f898660e:939e4fc9:b",
     "DRPG.Price.paid.action.few": "842efec4:c102a72c:b",
@@ -4699,6 +4707,10 @@
     "DRPG.Price.will.hope.many": "cf0d3342:d160508b:b",
     "DRPG.Price.will.hope.one": "cf0d3342:d160508b:b",
     "DRPG.Price.will.hope.other": "cf0d3342:d160508b:b",
+    "DRPG.Price.will.hopeAfterSanity.few": "e99d8dc8:47ef5321",
+    "DRPG.Price.will.hopeAfterSanity.many": "e99d8dc8:47ef5321",
+    "DRPG.Price.will.hopeAfterSanity.one": "e99d8dc8:47ef5321",
+    "DRPG.Price.will.hopeAfterSanity.other": "e99d8dc8:47ef5321",
     "DRPG.Price.will.hopeHeld.few": "e3d7a30e:962987d7:b",
     "DRPG.Price.will.hopeHeld.many": "e3d7a30e:962987d7:b",
     "DRPG.Price.will.hopeHeld.one": "e3d7a30e:962987d7:b",
@@ -4711,10 +4723,6 @@
     "DRPG.Price.will.stressAfterAction.many": "cd618ef2:85d5b99f:b",
     "DRPG.Price.will.stressAfterAction.one": "cd618ef2:85d5b99f:b",
     "DRPG.Price.will.stressAfterAction.other": "cd618ef2:85d5b99f:b",
-    "DRPG.Price.will.stressAfterHope.few": "2a83be58:a93904dd:b",
-    "DRPG.Price.will.stressAfterHope.many": "2a83be58:a93904dd:b",
-    "DRPG.Price.will.stressAfterHope.one": "2a83be58:a93904dd:b",
-    "DRPG.Price.will.stressAfterHope.other": "2a83be58:a93904dd:b",
     "DRPG.Project.agreedWarning": "7fa234e6:3df02e7f:b",
     "DRPG.Project.allComplete": "b576542f:9d922ad0:b",
     "DRPG.Project.allSabotaged": "17518cd3:5849162e:b",
