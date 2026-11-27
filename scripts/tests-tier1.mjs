@@ -70309,6 +70309,45 @@ const INVARIANTS = [
         equal(JSON.stringify(read), JSON.stringify({ before: [null, null], lost: ["true", words], back: [null, null], noTile: [1, 2, true], sent: 0, writes: [] }),
             "{the tile before, after a disconnect, after a connect; with no tile: warnings after two disconnects, after a reconnect and a third, the words; packets sent; settings written}");
     }],
+    ["R9227 - a gather's pan stands down on a board whose view is not on the page, and the gather's own write pans nobody (2.0 line T4, FORGE-06): call-world.mjs `panToGathered` on a stand-in board pans to this user's token when the view is on the page or the board has no app (the harness's), and not, with no throw, when the view is off the page or missing; `fallbackGather` writes with `pan: false`", async () => {
+        /*
+         * FORGE-06 at The Forge (Foundry 14.370; S2, docs/dev/v2/F3-forge-PC-2.md): "Cannot read properties of null (reading
+         * 'clientWidth') at DepthSortPlaceable.panCanvas" on P1 at a body's announcement - core v14's `Token#panCanvas` under
+         * isometric-perspective's token class, called by core's _onUpdate on the client that controls a moved token unless
+         * the write says `pan: false` (call-world.mjs's note above `panToGathered`, what was read and what was not). Stand-ins:
+         * the board and the user's own student, through `panToGathered`'s second argument; nothing of this page's canvas is
+         * read or panned. Red at 31d5812: `panToGathered` took no board, panned this page's canvas (and returned null here:
+         * a GM has no student), and the direct placement wrote no `pan: false`.
+         */
+        const W = await import("./call-world.mjs");
+        must(typeof W.panToGathered === "function", "call-world.mjs has no panToGathered - this would measure nothing");
+        const mine = { id: "R9227A" };
+        const token = { id: "R9227T", actor: { id: "R9227A" }, center: { x: 10, y: 20 } };
+        const board = app => {
+            const pans = [];
+            return { pans, b: { ready: true, scene: { id: "R9227S" }, tokens: { get: id => (id === token.id ? token : null) }, app, animatePan: async to => { pans.push(to); } } };
+        };
+        const onPage = document.createElement("canvas");
+        document.body.append(onPage);
+        const read = {};
+        try {
+            for (const [key, app] of [["onPage", { canvas: onPage }], ["oldView", { view: onPage }], ["noApp", undefined], ["offPage", { canvas: document.createElement("canvas") }], ["noView", {}]]) {
+                const { pans, b } = board(app);
+                let threw = null, answer;
+                try { answer = await W.panToGathered({ scene: "R9227S", tokenIds: [token.id] }, { board: b, mine }); } catch (err) { threw = err.message; }
+                read[key] = [answer ?? null, pans.length, threw];
+            }
+        } finally {
+            onPage.remove();
+        }
+        const src = stripComments((await moduleSources()).get("call-world.mjs") ?? "");
+        const fallback = fnSource(src, "fallbackGather");
+        must(fallback.length > 200, "fallbackGather's source was not read");
+        read.fallbackPanFalse = /updateEmbeddedDocuments\("Token",[\s\S]*?pan:\s*false[\s\S]*?\}\);/.test(fallback);
+        equal(JSON.stringify(read), JSON.stringify({ onPage: ["R9227T", 1, null], oldView: ["R9227T", 1, null], noApp: ["R9227T", 1, null],
+            offPage: [null, 0, null], noView: [null, 0, null], fallbackPanFalse: true }),
+            "{each board: [the answer, pans asked, what threw]: view on the page (PIXI 8's canvas, PIXI 7's view), no app, view off the page, no view; the direct placement's pan: false}");
+    }],
 ];
 
 /**

@@ -32,7 +32,7 @@
 
 import { MODULE_ID } from "./config.mjs";
 import { SETTINGS, getClock } from "./settings.mjs";
-import { announce, log, warn, error, plural, isPrimaryGm, primaryGmId, serialWrite, forcedDeletion } from "./utils.mjs";
+import { announce, log, debug, warn, error, plural, isPrimaryGm, primaryGmId, serialWrite, forcedDeletion } from "./utils.mjs";
 import { roomRegions, homeScene, sceneOfRoom } from "./rooms.mjs";
 // A leaf (season-exceptions.mjs alone): the registry of season state the reset walks (E42 C3).
 import { registerSeasonState } from "./season-reset.mjs";
@@ -749,17 +749,36 @@ export async function clearCarriedFrom(token, whole = false) {
  * new position reaches a player's canvas before this packet does at a real table is not
  * measured: both go through the server from the same GM, and the position's write is sent first.
  */
-export async function panToGathered({ scene, tokenIds } = {}) {
+/*
+ * A BOARD WITH NO VIEW IS NOT PANNED (2.0 line T4, FORGE-06, 27.11.2026). At The Forge (Foundry 14.370; S2,
+ * docs/dev/v2/F3-forge-PC-2.md) P1's page threw "Cannot read properties of null (reading 'clientWidth') at
+ * DepthSortPlaceable.panCanvas" as a body was announced. Read, not measured: DepthSortPlaceable is isometric-perspective's
+ * token class (its v14.0.6 `scripts/autosorting.js`, the mixin `isoDepthSortTokenMixin` on CONFIG.Token.objectClass), and
+ * panCanvas is core v14's Token#panCanvas, which core's Token#_onUpdate calls on the client that controls a token whose
+ * centre moved unless the update's options say `pan: false` (a generated copy of v14.369's Token; v14's own body of
+ * panCanvas, and which element was null, unread). This file calls neither; its gather moves the tokens (`gatherEveryone`)
+ * and this pans each client after. So the gather's direct placement (`fallbackGather`) now says `pan: false` too, as the
+ * region's teleport always did, and this pan stands down on a board whose view is not on the page (`board.app`'s `canvas`,
+ * PIXI 8, or `view`, PIXI 7), with a debug line, rather than hand Foundry a pan of a board being drawn again. With no `app`
+ * (the harness's board) it pans as before. `board` and `mine` are the suite's (R9227).
+ */
+export async function panToGathered({ scene, tokenIds } = {}, { board = canvas, mine = undefined } = {}) {
     // `scene` is one id, or the list of the scenes a move put tokens on (the season reset's, 1.2.122: CORE-24).
     const scenes = Array.isArray(scene) ? scene : [scene];
-    if (!canvas?.ready || !scene || !scenes.includes(canvas.scene?.id) || !Array.isArray(tokenIds)) return null;
-    const { ownStudent } = await import("./monokuma.mjs");
-    const mine = ownStudent();
-    if (!mine) return null;
-    const token = tokenIds.map(id => canvas.tokens?.get(id)).find(t => t?.actor?.id === mine.id);
+    // The scene on screen: this page's camera (rooms.mjs CAMERA_READERS), or the suite's board.
+    const onScreen = board === canvas ? canvas.scene?.id : board?.scene?.id;
+    if (!board?.ready || !scene || !scenes.includes(onScreen) || !Array.isArray(tokenIds)) return null;
+    const own = mine === undefined ? (await import("./monokuma.mjs")).ownStudent() : mine;
+    if (!own) return null;
+    const token = tokenIds.map(id => board.tokens?.get(id)).find(t => t?.actor?.id === own.id);
     const centre = token?.center;
     if (!centre) return null;
-    await canvas.animatePan({ x: centre.x, y: centre.y });
+    const view = board.app ? (board.app.canvas ?? board.app.view ?? null) : undefined;
+    if (view !== undefined && !view?.isConnected) {
+        debug("The gather's pan stood down: this page's board has no view on the page.");
+        return null;
+    }
+    await board.animatePan({ x: centre.x, y: centre.y });
     return token.id;
 }
 
@@ -795,7 +814,10 @@ async function fallbackGather(scene, region, tokens, REVERT, box = null) {
         [REVERT]: true,
         teleport: true,
         movementAction: "displace",
-        animate: false
+        animate: false,
+        // No client pans its own camera with this write (core's `Token#_onUpdate`): each pans after (`panToGathered`;
+        // 2.0 line T4, FORGE-06).
+        pan: false
     });
     return updates.length;
 }
