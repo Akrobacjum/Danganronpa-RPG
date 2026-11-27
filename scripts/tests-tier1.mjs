@@ -69828,6 +69828,23 @@ const INVARIANTS = [
         "{rows: [hidden, knows, incident, shown, shown with HOLDER_SEES_HIDDEN false]; the constant; a GM knows any trace; applyToRemnantToken asks the rule with knowsRemnant and shows a hidden held trace; shownAsFound asks the same; showHeld does not defer to a GM's hidden}");
     }],
     // T1 murder-death-eclipse
+    ["R8926 - an incident's opening roll and its crisis rolls pay no resources, every other roll pays as before (2.0 line T1 EXP-PL-03, D2-09, D2-11; scripts/despair-award.mjs `rollPaysResources`, `incidentRollExempt`)", async () => {
+        /* 2.0 line T1, 27.11.2026. Pure, over plain incidents and messages; nothing written. Red at 658302a: no rule. */
+        const A = await import("./despair-award.mjs");
+        must(typeof A.rollPaysResources === "function" && typeof A.incidentRollExempt === "function", "despair-award.mjs has no rollPaysResources - every incident roll pays");
+        const st = (stage, extra = {}) => ({ active: true, stage, killerId: "K", victimId: "V", thirdId: "T", indirect: false, ...extra });
+        const pays = (key, state, actorId) => A.rollPaysResources({ key, state, actorId });
+        const msg = (gm, flag) => ({ author: { isGM: gm }, getFlag: (scope, key) => (scope === MODULE_ID && key === A.INCIDENT_FREE_FLAG ? flag : undefined) });
+        equal(JSON.stringify({
+            opening: [pays("murderOpening", st("openingRoll"), "K"), pays("murderOpening", st("openingRoll", { indirect: true }), "V"), pays("murderOpening", st("openingRoll"), "V"),
+                pays("murderOpening", null, "K"), pays("murderOpening", st("incident"), "K")],
+            crisis: [pays("crisis", st("incident"), "V"), pays("crisis", st("incident"), "K"), pays("crisis", st("incident"), "T"), pays("crisis", st("incident"), "B"),
+                pays("crisis", null, "V"), pays("crisis", st("resolution"), "V")],
+            others: [pays("search", st("incident"), "B"), pays("search", st("incident"), "V"), pays(null, st("incident"), "V")],
+            exempt: [A.incidentRollExempt(msg(true, true)), A.incidentRollExempt(msg(false, true)), A.incidentRollExempt(msg(true, undefined))]
+        }), JSON.stringify({ opening: [false, false, true, true, true], crisis: [false, false, false, true, true, true], others: [true, true, true], exempt: [true, false, false] }),
+        "{opening: [the killer at the opening, a trap's victim, a direct murder's victim, no incident, the fight]; crisis: [victim, killer, third, a bystander, no incident, Stage 6]; others: [a bystander's Search, the victim's Search, no key]; exempt: [a GM's flagged message, a player's, a GM's unflagged]}");
+    }],
     ["R8925 - the Eclipse's crossing lines say that going back counts as a crossing, in every form of both languages (2.0 line T1 EXP-PL-06; lang `DRPG.Eclipse.yourMoves`, `DRPG.Eclipse.moved`; eclipse.mjs `judgeEclipseCrossing`)", async () => {
         /* 2.0 line T1, 27.11.2026. Read off the language files; nothing written. Red at 658302a: no form says it. */
         const en = await fetch(`/modules/${MODULE_ID}/lang/en.json`).then(r => r.json());

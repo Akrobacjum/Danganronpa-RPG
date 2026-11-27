@@ -197,6 +197,12 @@ async function throwDice(actor, drpgTrait, { remember, actionKey, context, title
     // they will say. See forced-roll.mjs for why a real roll matters.
     const free = armed?.grants === "critical";
     const { LOADED_DIE, loadedDieHeld } = await import("./forced-roll.mjs");
+    /* A GM'S OWN THROW OF AN INCIDENT'S OPENING OR CRISIS ROLL MOVES NO HOPE AND NO DESPAIR (2.0 line T1 EXP-PL-03; the owner's
+       D2-09, D2-11): a GM's roll is not drawn (roll-draw.mjs `drawsHere`), so its resource step is skipped here, read off
+       the incident this GM holds, and its message stamped for the Despair award and the Reroll (despair-award.mjs
+       `INCIDENT_FREE_FLAG`). A player's roll is drawn, and the draw decides it there: the packet carries no `skips`. */
+    const { rollPaysResources, INCIDENT_FREE_FLAG } = await import("./despair-award.mjs");
+    const incidentFree = Boolean(game.user?.isGM) && !rollPaysResources({ key: actionKey, state: (await import("./incident-store.mjs")).murderState(), actorId: actor.id });
 
     // Always open the configuration window.
     //
@@ -266,8 +272,9 @@ async function throwDice(actor, drpgTrait, { remember, actionKey, context, title
         // for the murder project, where three windows open one after the
         // other, all called "Shadow Roll", and the player answers the same
         // question three times without being told which is which.
-        ...(title ? { title, headerTitle: title } : {})
-    })), { subject: actor, actionKey, facts: { calls: armedCalls.map(entry => entry.nonce), context } });
+        ...(title ? { title, headerTitle: title } : {}),
+        ...(incidentFree ? { skips: { resources: true } } : {})
+    })), { subject: actor, actionKey, facts: { calls: armedCalls.map(entry => entry.nonce), context }, ...(incidentFree ? { stamp: { [INCIDENT_FREE_FLAG]: true } } : {}) });
     if (!result) return null;
     // Which character the roll is about: told to the primary GM as the message
     // was created (the claim's `subject`, E06 fix r1-G2), because the Despair

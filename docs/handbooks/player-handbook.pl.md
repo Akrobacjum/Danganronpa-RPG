@@ -554,7 +554,7 @@ Sprint i Burst zamiast czekać na rzut idą do zapasu i trwają do końca pory d
 
 ## 6. Despair - druga strona
 
-Każdy twój rzut zakończony Despair zasila pulę Monokumy, który cię pilnuje, chyba że GM wyłączył ustawienie **Rzuty dają Despair**. Pula mieści **12**, a stan każdej puli widać na każdym ekranie, także twoim, w panelu **Pule Despair** u góry.
+Każdy twój rzut zakończony Despair zasila pulę Monokumy, który cię pilnuje, chyba że GM wyłączył ustawienie **Rzuty dają Despair**. Wyjątkiem są rzut otwarcia morderstwa i rzuty kryzysu: nie zasilają żadnej puli i nie dają ci Hope, jakiekolwiek wypadną kości (sekcja 10); zwykłe rzuty postronnych liczą się w tym czasie jak zawsze. Pula mieści **12**, a stan każdej puli widać na każdym ekranie, także twoim, w panelu **Pule Despair** u góry.
 
 ### Despair Calls - co Monokuma może ci zrobić
 
@@ -734,7 +734,7 @@ Po zmianie twoje okno mówi, na co ją zmieniono, i daje do wyboru rzut albo *Pa
 
 ### Rzut otwarcia
 
-Każde morderstwo ma dokładnie jeden rzut otwarcia, a jego rodzaj decyduje, kto nim rzuca. Rzutu otwarcia nie da się pominąć: jeśli zamkniesz jego okno, otwiera się ponownie, do 3 razy, a gdy otworzyło się 3 razy, GM dostaje o tym wiadomość.
+Każde morderstwo ma dokładnie jeden rzut otwarcia, a jego rodzaj decyduje, kto nim rzuca. Rzutu otwarcia nie da się pominąć: jeśli zamkniesz jego okno, otwiera się ponownie, do 3 razy, a gdy otworzyło się 3 razy, GM dostaje o tym wiadomość. Rzut otwarcia i rzut każdej akcji kryzysu nie dają Hope i nie zasilają Despair; mówi o tym karta rzutu.
 
 **Direct Murder:** rzuca zabójca, Body albo Hand przeciw **8**, nocą z przewagą; morderstwo zgłoszone podczas nocnego Eclipse otwiera się nocą. Gdy zgłaszasz Direct Murder podczas Eclipse, okno pyta *Którą statystykę proponujesz?*: Body albo Hand, domyślnie Body, a pod spodem jest twoja linijka o tym, jak to robisz. GM odpowiada na jednej karcie: pozwala na twoją propozycję, zmienia ją na drugą albo odmawia. Do zapalenia świateł nic nie słyszysz; rzut otwarcia wykonujesz potem na statystyce, na którą GM pozwolił, bez drugiego okna i bez rezygnacji. Twoje zgłoszenie jest oceniane tuż przed zapaleniem świateł - pokój, inne zgłoszenia i odpowiedź GM-a - więc zgłoszenie, które nie dochodzi do skutku, nigdy nie ukrywa twojego tokenu (od 1.2.130).
 

@@ -554,7 +554,7 @@ Sprint and Burst bank instead and last until the time of day ends; a Class Trial
 
 ## 6. Despair - the other side
 
-Every roll of yours that lands with Despair feeds the pool of the Monokuma who watches you, unless your GM has switched off **Rolls grant Despair**. A pool holds **12**, and every pool's count is on every screen, yours included, in the **Despair Pools** at the top.
+Every roll of yours that lands with Despair feeds the pool of the Monokuma who watches you, unless your GM has switched off **Rolls grant Despair**. A murder's opening roll and its crisis rolls are the exception: they feed no pool and earn you no Hope, whatever their dice (section 10); a bystander's own rolls meanwhile count as always. A pool holds **12**, and every pool's count is on every screen, yours included, in the **Despair Pools** at the top.
 
 ### Despair Calls - what Monokuma can do to you
 
@@ -734,7 +734,7 @@ After a change, your window says what it was changed to and offers to roll it or
 
 ### The opening roll
 
-Every murder has exactly one opening roll, and its kind decides who throws it. It cannot be skipped: close its window and it opens again, up to 3 times, and after that the GM is told.
+Every murder has exactly one opening roll, and its kind decides who throws it. It cannot be skipped: close its window and it opens again, up to 3 times, and after that the GM is told. The opening roll and every crisis action's roll earn no Hope and feed no Despair; the roll's card says so.
 
 **Direct Murder:** the killer rolls Body or Hand against **8**, with advantage at Night (a murder declared in the Night Eclipse opens at Night). When you declare one in an Eclipse, the window asks *Which statistic do you propose?* (Body or Hand, Body to start) under your line of how you do it. The GM answers on one card: allow your proposal, change it to the other, or refuse. You hear nothing until the lights come back; the opening then rolls on the statistic the GM allowed, with no second window and nothing to pass. Your declaration is judged just before the lights come back - the room, any other declaration and the GM's answer - so one that does not hold never hides your token (since 1.2.130).
 

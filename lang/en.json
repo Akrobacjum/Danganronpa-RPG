@@ -3098,7 +3098,8 @@
       "castNotArrived": "The other GMs' copies of the incident's cast have not reached this browser yet. Try again in a moment.",
       "deniedByIncident": "The incident has taken this one away from you.",
       "trackerScore": "{total} against {n}",
-      "victimAttemptFailed": "Someone tried to kill you, and failed."
+      "victimAttemptFailed": "Someone tried to kill you, and failed.",
+      "incidentRollFree": "This roll earns you no Hope and feeds no Despair."
     },
     "Investigation": {
       "clearPlan": {

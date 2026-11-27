@@ -4434,12 +4434,15 @@ async function tellGms(text, extra = {}) {
  * to every seat of the incident with masked names, so the lines are the roller's own users' (`youOrThem`, as the
  * crisis's reserve note), cut by secret.mjs `wordsFor`: nobody else reads "you earn". `band` is the card's own,
  * "critical", "hope" or "despair". Answers "" with nobody to say it to.
+ *
+ * SINCE 2.0 LINE T1 THEY EARN NOTHING (EXP-PL-03; the owner's D2-09 and D2-11): the GM's draw and a GM's own throw skip
+ * the resource step for both (despair-award.mjs `rollPaysResources`), and the Despair award passes them over, so the
+ * roller's line says that the roll moved no Hope and no Despair instead of what it earned (`DRPG.Murder.incidentRollFree`).
  */
 async function incidentRollLines(actor, band) {
     if (!["critical", "hope", "despair"].includes(band)) return "";
-    const { rollEffectsHtml } = await import("./action-report.mjs");
-    const lines = rollEffectsHtml([{ isCritical: band === "critical", withHope: band === "hope" }]);
-    return lines ? youOrThem(ownerIdsOf(actor), { you: lines, them: "" }) : "";
+    const lines = `<p class="notes">${esc(game.i18n.localize("DRPG.Murder.incidentRollFree"))}</p>`;
+    return youOrThem(ownerIdsOf(actor), { you: lines, them: "" });
 }
 
 /**

@@ -3260,7 +3260,8 @@
       "castNotArrived": "Obsada incydentu od pozostałych GM-ów jeszcze tu nie dotarła. Spróbuj za chwilę.",
       "deniedByIncident": "Incydent odebrał ci tę akcję.",
       "trackerScore": "{total} wobec {n}",
-      "victimAttemptFailed": "Ktoś próbował cię zabić, ale mu się nie udało."
+      "victimAttemptFailed": "Ktoś próbował cię zabić, ale mu się nie udało.",
+      "incidentRollFree": "Ten rzut nie daje ci Hope i nie zasila Despair."
     },
     "Investigation": {
       "clearPlan": {

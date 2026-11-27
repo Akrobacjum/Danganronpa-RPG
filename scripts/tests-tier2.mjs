@@ -118775,6 +118775,96 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             "{told: after the leaver's own copy alone; revealed: after the GM's Reveal} x [the row's first find, its road, the ref's found]");
     }],
     // T1 murder-death-eclipse
+    ["T1 D2-09 - the opening roll moves no Hope and no Despair, drawn for the killer's player with Hope and with Despair (2.0 line T1 EXP-PL-03; scripts/roll-draw.mjs, despair-award.mjs `rollPaysResources`, `incidentRollExempt`)", async () => {
+        /*
+         * 2.0 line T1, 27.11.2026 (D2-09: "Rzuty w incydencie nie daja Despair ani Hope"; D2-11: the opening and the crisis
+         * rolls). A direct murder between two students with players, its invitation held; the opening thrown as
+         * `throwOpeningRoll` throws it and drawn as the killer's player's (`drawnForPlayer`), once at the GM's faces 9 and 4
+         * (Hope), once at 4 and 9 (Despair). Read: the killer's Hope and their Monokuma's pool, after less before, over each,
+         * and the drawn record's `noResources`. Red at 658302a: Hope +1 on the first, the pool +1 on the second.
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 2), "a killer and a victim, each with a player");
+        const M = await import("./murder.mjs");
+        const rolls = await import("./action-rolls.mjs");
+        const { getDespair } = await import("./despair.mjs");
+        const { monokumaFor } = await import("./assignments.mjs");
+        const { livingStudents } = await import("./chapter.mjs");
+        const owner = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const [killer, victim] = livingStudents().filter(owner);
+        const mono = monokumaFor(killer);
+        must(mono, `${killer.name} has no Monokuma to feed - this would measure nothing`);
+        const hope = () => Number(killer.system?.resources?.hope?.value ?? 0);
+        const pool = () => Number(getDespair(mono.id) ?? 0);
+        const opening = () => rolls.rollTrait(killer, "body", { remember: false, byGm: true, actionKey: "murderOpening",
+            title: game.i18n.localize("DRPG.Roll.opening.killer"), dc: 8, context: { side: "killer" } });
+        const read = [];
+        const hopeWas = hope(), poolWas = pool();
+        try {
+            for (const faces of [{ hope: 9, fear: 4 }, { hope: 4, fear: 9 }]) {
+                await heldInvitations(async () => {
+                    await M.openMurder({ killerId: killer.id, victimId: victim.id, openingTrait: "body" });
+                    must(M.murderState()?.stage === "openingRoll", "the incident is not waiting on its opening - this would measure nothing");
+                    const [h, d] = [hope(), pool()];
+                    const F = await drawnForPlayer(owner(killer), killer, { actionKey: "murderOpening", pay: false, faces,
+                        thrower: async () => { const outcome = await opening(); return { outcome, message: outcome?.raw?.message ?? null }; } });
+                    await settle();
+                    read.push([hope() - h, pool() - d, F.record?.noResources ?? null]);
+                    await F.putBack();
+                    if (M.murderState()) await M.endMurder({ reason: "test", followUp: false });
+                });
+            }
+        } finally {
+            if (M.murderState()) await M.endMurder({ reason: "test", followUp: false });
+            const { adjustDespair } = await import("./despair.mjs");
+            if (pool() !== poolWas) await adjustDespair(mono.id, poolWas - pool());
+            if (hope() !== hopeWas) await killer.update({ "system.resources.hope.value": hopeWas });
+            await settle();
+        }
+        equal(stableJson(read), stableJson([[0, 0, true], [0, 0, true]]), "[with Hope, with Despair] x [the killer's Hope moved, the Monokuma's pool moved, the record's noResources]");
+    }],
+    ["T1 D2-09 - a crisis roll moves no Hope and no Despair, drawn for the victim's player with Hope and with Despair (2.0 line T1 EXP-PL-03; scripts/roll-draw.mjs, despair-award.mjs `rollPaysResources`)", async () => {
+        /*
+         * 2.0 line T1, 27.11.2026 (D2-09, D2-11). A direct murder's fight (`fightOpen`); the victim's Leave a Clue roll
+         * thrown as the crisis road throws it and drawn as their player's (`drawnForPlayer`, key `crisis`), at the GM's faces 9
+         * and 4, then 4 and 9. Read:
+         * the victim's Hope and their Monokuma's pool, after less before, over each. Red at 658302a: Hope +1, the pool +1.
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 2), "a killer and a victim, each with a player");
+        const M = await import("./murder.mjs");
+        const rolls = await import("./action-rolls.mjs");
+        const { getDespair, adjustDespair } = await import("./despair.mjs");
+        const { monokumaFor } = await import("./assignments.mjs");
+        const { livingStudents } = await import("./chapter.mjs");
+        const owner = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const [killer, victim] = livingStudents().filter(owner);
+        const mono = monokumaFor(victim);
+        must(mono, `${victim.name} has no Monokuma to feed - this would measure nothing`);
+        const hope = () => Number(victim.system?.resources?.hope?.value ?? 0);
+        const pool = () => Number(getDespair(mono.id) ?? 0);
+        const read = [];
+        const hopeWas = hope(), poolWas = pool();
+        try {
+            await fightOpen(M, killer, victim);
+            for (const faces of [{ hope: 9, fear: 4 }, { hope: 4, fear: 9 }]) {
+                const [h, d] = [hope(), pool()];
+                // Thrown as the crisis road throws it (`rollTrait`, key `crisis`), so the suite's own throw here is the
+                // incident's roll too, as the opening's is above; a neutral roll here would pay as any roll of the GM's.
+                const F = await drawnForPlayer(owner(victim), victim, { actionKey: "crisis", pay: false, faces, trait: "hand",
+                    thrower: async () => { const outcome = await rolls.rollTrait(victim, "hand", { remember: false, actionKey: "crisis", context: { crisis: "leaveClue" } });
+                        return { outcome, message: outcome?.raw?.message ?? null }; },
+                    edit: p => ({ ...p, context: { ...(p.context ?? {}), crisis: "leaveClue" } }) });
+                await settle();
+                read.push([hope() - h, pool() - d]);
+                await F.putBack();
+            }
+        } finally {
+            if (M.murderState()) await M.endMurder({ reason: "test", followUp: false });
+            if (pool() !== poolWas) await adjustDespair(mono.id, poolWas - pool());
+            if (hope() !== hopeWas) await victim.update({ "system.resources.hope.value": hopeWas });
+            await settle();
+        }
+        equal(stableJson(read), stableJson([[0, 0], [0, 0]]), "[with Hope, with Despair] x [the victim's Hope moved, the Monokuma's pool moved]");
+    }],
     ["T1 DAY-03 - a second GM's lights read the room through the primary: the primary answers each declaration's standing from its own record, and any other GM asks it (2.0 line T1; scripts/eclipse.mjs `standingsAtTheLights`, `standingsOnPrimary`; bridge-table.mjs `eclipse.judge`)", async () => {
         /*
          * 2.0 line T1, 27.11.2026 (DAY-03, the recommendation the owner took: "przez glownego (most)"). One browser here, the
