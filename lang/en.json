@@ -7845,6 +7845,16 @@
       "pastPaid": "Every Key Remnant that Despair was charged for has been revealed. Confirm to reveal another.",
       "noText": "Write what the players read on this Key Remnant first.",
       "notDone": "The Key Remnant was not revealed."
+    },
+    "Repair": {
+      "voiceRoomsOff": "Everybody in one voice room",
+      "voiceRoomsOn": "Turn the voice rooms on",
+      "voiceRoomsOffAsk": "Everybody goes to the main voice room, and the rooms stop keeping their secrets in voice until you turn them on again. Use it when LiveKit cannot keep up with the rooms.",
+      "voiceRoomsOffYes": "Put everybody in one room",
+      "voiceRoomsOffDone": "The voice rooms are off: everybody is in the main room.",
+      "voiceRoomsOnDone": "The voice rooms are on: everybody hears only their own room again.",
+      "voiceRoomsNoLiveKit": "There is no LiveKit AV client here, so there are no voice rooms to turn.",
+      "voiceRoomsOffTip": "Turns the voice rooms off: the switch Separate voice in each room in the Game settings."
     }
   }
 }

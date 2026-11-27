@@ -56824,7 +56824,8 @@ const INVARIANTS = [
                 // E49 A1d: Reset the season into Season setup, Settings in its place (R3532). E49 A1e: Edit campaign, Despair Flow,
                 // Killing game rules and The Mastermind into Season setup (R3582).
                 ["between", ["roomSetup", "tables", "seasonSetup", "settings"]],
-                ["fixes", ["failureLog", "voiceReset", "caseWindow"]]],
+                // The 2.0 line T4 (27.11.2026): its tiles together at the end of Diagnostics, voice rooms (VOICE-03, R9251).
+                ["fixes", ["failureLog", "voiceReset", "caseWindow", "voiceRooms"]]],
             caseTile: ["fixes", en["DRPG.Case.tile"] === undefined ? "?" : game.i18n.localize("DRPG.Case.tile"), age],
             diag: [0, 2], en: [], pl: [], keys: [[false, false], [false, false]]
         }), "{tiles: every section's tiles in order; caseTile: [its section, label, second line]; diag: [diagnostics.mjs's \"(Back up the case)\", its lines naming "
@@ -70480,6 +70481,55 @@ const INVARIANTS = [
         equal(JSON.stringify({ en: [/Students/.test(words("en")), /Who you hear|voice channel/.test(words("en"))], pl: [/Uczniowie/.test(words("pl")), /Kogo słyszysz|kanale/.test(words("pl"))], did, lifted }),
             JSON.stringify({ en: [true, false], pl: [true, false], did: true, lifted: true }),
             "{en, pl: [the words name the Students window, the words still name the list or the channel]; did: toggleBlock wrote; lifted: what it wrote takes the player's own block off}");
+    }],
+    ["R9251 - Diagnostics turns the voice rooms off and on (2.0 line T4, VOICE-03): repair-window.mjs names the tile by what a press will do - Everybody in one voice room while the rooms are on, Turn the voice rooms on while they are off - asks before it turns them off, Cancel writing nothing, writes `voiceEnabled` at once when it turns them on, and refuses with its reason a GM who may not write the settings or a world with no LiveKit; gm-panel.mjs draws the tile in Diagnostics after The case, the line's tiles together at the end, under the setting's state", async () => {
+        /*
+         * VOICE-03 (docs/dev/v2/F1-infra.md): "Voice in each room" stood in the Game settings window alone, and the GM
+         * handbook's "When voice goes wrong" did not name it. Every reading here is the functions' with stand-ins handed
+         * through their parameters - the setting's state (`on`), its write (`set`), the question (`ask`), the notice
+         * (`notify`) and the refusal; nothing is written and no window is drawn. The tile is read off `buildSections`, the
+         * panel's markup alone. Red at 31d5812: there was no repair-window.mjs.
+         */
+        const R = await import("./repair-window.mjs").catch(() => null);
+        must(R && typeof R.toggleVoiceRooms === "function" && typeof R.voiceRoomsRefusal === "function" && typeof R.voiceRoomsLabelKey === "function",
+            "no repair-window.mjs with toggleVoiceRooms, voiceRoomsRefusal and voiceRoomsLabelKey - Diagnostics has no voice rooms tile");
+        const L = key => game.i18n.localize(key);
+        const press = async (on, answer, refusal = () => null) => {
+            const asked = [], wrote = [], told = [];
+            const did = await R.toggleVoiceRooms({ on, refusal, set: async value => { wrote.push(value); },
+                ask: async (title, body, yes, tip) => { asked.push([title, yes, Boolean(body), Boolean(tip)]); return answer; },
+                notify: text => told.push(text) });
+            return { did, asked, wrote, told };
+        };
+        const read = {
+            labels: [L(R.voiceRoomsLabelKey(true)), L(R.voiceRoomsLabelKey(false))],
+            off: await press(true, true),
+            cancel: await press(true, false),
+            on: await press(false, false),
+            refused: await press(true, true, () => "R9251 no"),
+            reasons: [R.voiceRoomsRefusal({ mayModify: () => false, liveKit: () => true }), R.voiceRoomsRefusal({ mayModify: () => true, liveKit: () => false }),
+                R.voiceRoomsRefusal({ mayModify: () => true, liveKit: () => true })]
+        };
+        // The tile as the panel draws it, under the world's own setting.
+        const P = await import("./gm-panel.mjs");
+        const box = document.createElement("div");
+        box.innerHTML = P.buildSections();
+        const fixes = [...box.querySelectorAll('details[data-drpg-key="fixes"] [data-drpg-run]')].map(b => b.dataset.drpgRun);
+        const tile = box.querySelector('[data-drpg-run="voiceRooms"]');
+        const base = fixes.indexOf("caseWindow");
+        must(base >= 0, "Diagnostics has no The case tile - the line's tiles stand after it, so this would measure nothing");
+        read.tile = [fixes[base + 1] ?? null, tile?.querySelector("span")?.textContent === L(R.voiceRoomsLabelKey(R.voiceRoomsOn())),
+            tile?.disabled === (R.voiceRoomsRefusal() !== null)];
+        const asked = [L("DRPG.Repair.voiceRoomsOff"), L("DRPG.Repair.voiceRoomsOffYes"), true, true];
+        equal(JSON.stringify(read), JSON.stringify({
+            labels: [L("DRPG.Repair.voiceRoomsOff"), L("DRPG.Repair.voiceRoomsOn")],
+            off: { did: true, asked: [asked], wrote: [false], told: [L("DRPG.Repair.voiceRoomsOffDone")] },
+            cancel: { did: false, asked: [asked], wrote: [], told: [] },
+            on: { did: true, asked: [], wrote: [true], told: [L("DRPG.Repair.voiceRoomsOnDone")] },
+            refused: { did: null, asked: [], wrote: [], told: [] },
+            reasons: [L("DRPG.SettingsWindow.mayNot"), L("DRPG.Repair.voiceRoomsNoLiveKit"), null],
+            tile: ["voiceRooms", true, true]
+        }), "{labels: [rooms on, rooms off]; each press: [answered, asked [title, yes, a body, a tip], wrote, told] - off and Yes, off and Cancel, on, refused; reasons: [no settings right, no LiveKit, neither]; tile: [the tile after the base's last (The case), its words by the state, greyed as the refusal says]}");
     }],
 ];
 

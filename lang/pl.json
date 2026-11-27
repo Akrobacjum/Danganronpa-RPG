@@ -9679,6 +9679,16 @@
       "pastPaid": "Ujawniono już każdy Key Remnant, za który pobrano Despair. Potwierdź, aby ujawnić kolejny.",
       "noText": "Najpierw wpisz, co przeczytają gracze na tym Key Remnancie.",
       "notDone": "Key Remnant nie został ujawniony."
+    },
+    "Repair": {
+      "voiceRoomsOff": "Wszyscy w jednym pokoju głosu",
+      "voiceRoomsOn": "Włącz pokoje głosu",
+      "voiceRoomsOffAsk": "Każdy trafi do pokoju głównego, a pokoje przestaną trzymać swoje tajemnice w głosie, dopóki nie włączysz ich z powrotem. Użyj tego, gdy LiveKit nie radzi sobie z pokojami.",
+      "voiceRoomsOffYes": "Wszyscy do jednego pokoju",
+      "voiceRoomsOffDone": "Pokoje głosu są wyłączone: wszyscy są w pokoju głównym.",
+      "voiceRoomsOnDone": "Pokoje głosu są włączone: każdy znów słyszy tylko swój pokój.",
+      "voiceRoomsNoLiveKit": "Tu nie ma klienta LiveKit AV, więc nie ma pokoi głosu do przełączenia.",
+      "voiceRoomsOffTip": "Wyłącza pokoje głosu: przełącznik Głos osobno w każdym pokoju w Ustawieniach gry."
     }
   }
 }

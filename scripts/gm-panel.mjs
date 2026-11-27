@@ -33,6 +33,7 @@ import { firstOutstandingStep } from "./season-setup.mjs";
 import { roundOf, readyRecord } from "./boundary.mjs";
 import { trialNextStep, trialStepView, trialStepText } from "./trial-floor.mjs";
 import { openWhoIsAliveDialog } from "./gm-students.mjs";
+import { voiceRoomsLabelKey, voiceRoomsRefusal, toggleVoiceRooms } from "./repair-window.mjs";
 
 export { openWhoIsAliveDialog, applyAliveStates } from "./gm-students.mjs";
 export { correctsTheHour, openClockDialog } from "./gm-campaign.mjs";
@@ -372,6 +373,18 @@ const PANEL_SECTIONS = [
             // a way to lose track of which time of day the table is actually
             // in. `game.drpg.resetAllActions()` is still there for a GM who
             // genuinely needs to repair a botched advance.
+            //
+            // 2.0 LINE T4'S TILES, TOGETHER AT THE END (27.11.2026; docs/dev/v2/LINE-T4.md). EVERYBODY IN ONE VOICE ROOM
+            // (VOICE-03): the way out when LiveKit cannot keep up with the rooms, named by what a press does now (its
+            // words follow `voiceEnabled`), asked first before the rooms go; the setting's own `onChange` does the rest.
+            // repair-window.mjs's header says more.
+            // Its label a getter, read each time `tileHtml` draws it; written with defineProperty, as R22 reads a getter's
+            // name as a call.
+            Object.defineProperty({ key: "voiceRooms", icon: "fa-people-group",
+                disabled: () => voiceRoomsRefusal({ mayModify: () => mayModifySettings() }) !== null,
+                disabledReason: () => voiceRoomsRefusal({ mayModify: () => mayModifySettings() }) ?? "",
+                run: () => toggleVoiceRooms({ refusal: () => voiceRoomsRefusal({ mayModify: () => mayModifySettings() }) }) },
+            "labelKey", { get: () => voiceRoomsLabelKey(), enumerable: true })
         ]
     }
 ];
@@ -694,8 +707,9 @@ function keepPanelFresh(dialog) {
     /* THE TILES WAKE ON THEIR OWN KEYS (E44 C2b, 04.11.2026; audit S10-58). Without `settings` every write of a
        module setting redrew the thirteen tiles, a player's action among them. What the tiles print is the clock (the
        phase opens a section, `clock.eclipse` shuts the murder tile: `isEclipse`), the incident (since E47-C3 it keeps
-       the murder tile live in an Eclipse and marks it current: `murderState`) and the case's backup mark (the case
-       tile's age, `backupAge`), read by `buildSections` and nothing else, in every state; R1317 builds the
+       the murder tile live in an Eclipse and marks it current: `murderState`), the case's backup mark (the case
+       tile's age, `backupAge`) and, since the 2.0 line T4 (VOICE-03, 27.11.2026), the voice rooms' switch (the voice
+       rooms tile's words, `voiceEnabled`), read by `buildSections` and nothing else, in every state; R1317 builds the
        region with `game.settings.get` counted and holds the reads to this list.
        The standing block above keeps no list, deliberately: `nextStep` reads a different setting on each of its
        branches (the incident, the readiness round, a stopped chapter's end, the trial's progress and floor, the
@@ -708,7 +722,7 @@ function keepPanelFresh(dialog) {
            a GM who may not modify settings, and a grant while the panel stood left it so) and a GM connecting or leaving
            (the voice reset is drawn disabled off the primary, CTRL-85). Neither is a key of the module, which R1317
            holds `settings` to. */
-        watch: { settings: [SETTINGS.clock, SETTINGS.murderState, SETTINGS.caseMark], settingKeys: ["core.permissions"], hooks: ["userConnected"] }
+        watch: { settings: [SETTINGS.clock, SETTINGS.murderState, SETTINGS.caseMark, SETTINGS.voiceEnabled], settingKeys: ["core.permissions"], hooks: ["userConnected"] }
     });
 }
 
