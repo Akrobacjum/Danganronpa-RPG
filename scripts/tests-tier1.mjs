@@ -69989,7 +69989,11 @@ const INVARIANTS = [
          * `{ ok: true, value }` answered - on a GM's own client the resolver's own value, a refusal `{ refused }` or null
          * where it found no bullet (analyze.mjs `resolveAnalyze`'s two nulls stand before any read of the bullet). Pure.
          * Red at 4ac0149 (1.2.129): action-analyze.mjs has no `refusedBeforeScoring` - the honest red of a part not yet
-         * there; the decision was two codes in a set, inline.
+         * there; the decision was two codes in a set, inline. Corrected 27.11.2026 (CI red on f7232e0: 61-gmstore-case M4,
+         * 40-flow): a player's scored Analyze answers `{ ok: true, value: null }` over the wire (bridge-runs-acts.mjs
+         * `handleAnalyzeResolve` gives no reply on a resolution), and this test's success was a value no wire answers, so
+         * it passed a rule that refunded every scored Analyze. Each case is read on both roads now (`local`): a GM's own null is
+         * no bullet (given back), the wire's null a scored Analyze (kept). Red on f7232e0's rule: the wire's null read true.
          */
         const A = await import("./action-analyze.mjs");
         must(typeof A.refusedBeforeScoring === "function", "action-analyze.mjs has no refusedBeforeScoring - INV-08's decision is not one function");
@@ -69998,12 +70002,14 @@ const INVARIANTS = [
             refused("cannotNow"), refused("refused"), refused("answerKeyMissing"), refused("keysNotOpen"), refused("notYours"), refused("rollUnknown"),
             refused("spectator"), { ok: true, value: { refused: "that bullet cannot be analysed now" } }, { ok: true, value: null }, { ok: false, reason: "noGm" },
             refused("failed"), { ok: false, reason: "failed" }, { ok: false, reason: "noAnswer" }, { ok: true, value: { success: true, locked: false } },
-            { ok: true, value: { success: false, locked: true } }, null
+            { ok: true, value: { success: false, locked: true } }, null, { ok: true, value: undefined }
         ];
-        equal(stableJson(cases.map(res => A.refusedBeforeScoring(res))),
-            stableJson([true, true, true, true, true, true, true, true, true, true, false, false, false, false, false, false]),
-            "[refused: cannotNow, refused, answerKeyMissing, keysNotOpen, notYours, rollUnknown, spectator; a GM's own refusal; a GM's own null; "
-            + "noGm; refused failed; failed; noAnswer; a success; a failure that locked the bullet; no answer at all]");
+        // Each case on both roads: a GM's own client (`local`) and a player's, over the wire.
+        equal(stableJson(cases.map(res => [A.refusedBeforeScoring(res, { local: true }), A.refusedBeforeScoring(res)])),
+            stableJson([[true, true], [true, true], [true, true], [true, true], [true, true], [true, true], [true, true], [true, true], [true, false], [true, true],
+                [false, false], [false, false], [false, false], [false, false], [false, false], [false, false], [true, false]]),
+            "[refused: cannotNow, refused, answerKeyMissing, keysNotOpen, notYours, rollUnknown, spectator; a GM's own refusal; null - a GM's own no bullet, a player's "
+            + "scored Analyze; noGm; refused failed; failed; noAnswer; a resolution; a failure that locked the bullet; no answer at all; a done with no value] x [local, over the wire]");
     }],
 
     ["R9328 - INV-08: every refusal of analyze.mjs `resolveAnalyze`, and its answer of nothing, stands before its first write - so a refused Analyze has scored nothing and its price may come back", async () => {

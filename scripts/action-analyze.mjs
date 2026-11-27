@@ -184,14 +184,20 @@ export async function performAnalyze(actor, def, options) {
  * refusal of any code is one that scored nothing. What stays without a refund: `failed` (a throw, which can come after
  * a write) and `noAnswer` (the asker heard nothing, which can follow a resolution that happened). `noGm` gives back as
  * well: nothing was sent (bridge-guards.mjs `createWaiter` step 3) - a GM gone between `gmOnline()` above and the ask.
- * On a GM's own client the answer is the resolver's own value (`requestAnalyzeResolve`'s `local`), its refusal
- * `{ refused }` or null for no bullet; a resolution answers `{ success, locked }`, never null. Handed the answer's four
- * fields, read where it was asked (the rule `drpg/bridge-result`: the bridge's result is never handed on). Pure (R9327).
+ * A done is read by the road it came: on a GM's own client (`local`: `requestAnalyzeResolve`'s `local`, no `localRun`)
+ * the value is the resolver's own - `{ refused }`, or null for no such bullet, both before any write - and a resolution
+ * `{ success, locked }`. Over the wire a scored Analyze answers `{ ok: true, value: null }` (bridge-runs-acts.mjs
+ * `handleAnalyzeResolve` gives no `reply` on a resolution, and the asker settles with `packet.value ?? null`), and its
+ * refusals come as `{ ok: false, refused }`. The first cut of this rule (f7232e0) read null as nothing scored on both
+ * roads, and so gave back the price of every Analyze a player's GM scored - measured red by CI on f7232e0 and 7954f47
+ * (61-gmstore-case M4: `left0` 3, `left` 3; 40-flow's Daily Life audit), missed by R9327, whose success case was a value
+ * no wire answers (fixed 27.11.2026: R9327 holds both roads). Handed the answer's four fields and the road, read where
+ * it was asked (the rule `drpg/bridge-result`: the bridge's result is never handed on). Pure (R9327).
  */
-export function refusedBeforeScoring(answer) {
+export function refusedBeforeScoring(answer, { local = false } = {}) {
     if (!answer) return false;
     const { ok, value, refused, reason } = answer;
-    if (ok) return value === null || value === undefined || Boolean(value?.refused);
+    if (ok) return local ? (value === null || value === undefined || Boolean(value?.refused)) : Boolean(value?.refused);
     if (refused) return reason !== "failed" && reason !== "noAnswer";
     return reason === "noGm";
 }
@@ -261,7 +267,8 @@ async function analyseBullet(actor, def, roll, subject, charge = null) {
      * the step of D2-22's chain on the receipt. The refusal is said by the bridge,
      * what came back by the give-back's card (`DRPG.Result.givenBack`).
      */
-    if (charge && refusedBeforeScoring({ ok: res.ok, value: res.value, refused: res.refused, reason: res.reason })) {
+    // A GM's own client answers from the resolver itself (bridge-guards.mjs `createWaiter` step 1), a player's over the wire.
+    if (charge && refusedBeforeScoring({ ok: res.ok, value: res.value, refused: res.refused, reason: res.reason }, { local: Boolean(game.user?.isGM) })) {
         await giveBackAfterRoll(actor, charge, [roll], { price: true });
     }
 
