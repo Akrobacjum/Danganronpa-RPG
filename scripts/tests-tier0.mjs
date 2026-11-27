@@ -27898,6 +27898,7 @@ const REGRESSIONS = [
             inFromFit: 0.1563, keptByApply: 0.125, transform: "translate(0px, 0px) scale(0.125)", road: [true, true, true, true, true], readout: true }),
             "{fitMin; fit: an 8000x2000 case in a 1000x400 view; tiny: one past the 5% floor; floor: the window's floor for it; smallFloor: a case that fits at 40%; unknownFloor: sizes not laid out; outAtFit, inFromFit: a step out and in from the fit; keptByApply: the clamp of the fit; transform; road: [wireCaseCamera asks the floor, fits the canvas to the box, zooms (buttons, keys, wheel) to the floor, clamps each apply to it, draws it]; readout: the toolbar's percent reads below 25%}");
     }],
+    // T4 voice-ui-text-infra-tests (2.0 line T4, E134, 27.11.2026: docs/dev/v2/LINE-T4.md). The line's tests stand in this block.
 ];
 
 

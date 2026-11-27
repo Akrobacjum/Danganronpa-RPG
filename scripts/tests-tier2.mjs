@@ -118698,6 +118698,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         equal(stableJson(read), stableJson({ told: [false, null, false], revealed: [true, "gm", true] }),
             "{told: after the leaver's own copy alone; revealed: after the GM's Reveal} x [the row's first find, its road, the ref's found]");
     }],
+    // T4 voice-ui-text-infra-tests (2.0 line T4, E134, 27.11.2026: docs/dev/v2/LINE-T4.md). The line's tests stand in this block.
 ];
 
 // `drawnForPlayer` for the grid (E33 C7): a drawn crisis roll goes through the suite's one road to a draw (tests-grid.mjs `drawnAct`).
