@@ -1005,10 +1005,13 @@ export function requestAnalyzeResolve({ actorId, itemId, total, isCritical, undo
 
 /**
  * An Observe or Analyze whose resolve went unanswered, told to the GMs (2.0 line T3 INV-12; bridge-runs-records.mjs
- * `handleResolveLost`): a report nobody waits on, so no `local` - a GM's own resolve is run on its own browser.
+ * `handleResolveLost`): a report nobody waits on. A GM's own resolve runs on its own browser and is never unanswered,
+ * but a GM who reaches this runs the report here (`local`, R6), off the GMs' record of the roll as the primary would.
  */
 export function requestResolveLost({ actorId, kind, rollId = null }) {
-    return ask(ACTION_RESOLVE_LOST, { actorId, kind, rollId });
+    return ask(ACTION_RESOLVE_LOST, { actorId, kind, rollId }, {
+        local: () => import("./bridge-runs-records.mjs").then(m => m.handleResolveLost({ actorId, kind, rollId }))
+    });
 }
 
 /**
