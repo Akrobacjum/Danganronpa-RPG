@@ -70016,6 +70016,29 @@ const INVARIANTS = [
             stableJson([true, false, false, false, false, false]),
             "[waiting; stamped carried out; nobody left to sentence; another chapter's trial; a card with no chapter; a chapter that is no number]");
     }],
+    ["R9131 - a vote with no ballot on this browser does not suggest starting it over: Close and count works, and the line says so alone (2.0 line T3 TRIAL-16; lang `DRPG.Vote.openNoBallots`)", async () => {
+        /* 2.0 line T3 TRIAL-16, 27.11.2026. The vote's window on a GM whose browser holds no ballot said Close and count
+           works and then offered Start the vote over, which throws every ballot cast away. Read off both files as the
+           client loads them; nothing written. Red at 910b39b: both texts offer the restart. */
+        const U = foundry.utils;
+        const read = async lang => U.getProperty(U.expandObject(await (await fetch(`modules/${MODULE_ID}/lang/${lang}.json`)).json()), "DRPG.Vote.openNoBallots");
+        const [en, pl] = [await read("en"), await read("pl")];
+        must(typeof en === "string" && typeof pl === "string", "DRPG.Vote.openNoBallots is missing from a language file");
+        equal(stableJson({ en: [/\bover\b/i.test(en), /Close and count/.test(en), en.includes("{n}")], pl: [/od nowa/i.test(pl), /Zamknij i policz/.test(pl), pl.includes("{n}")] }),
+            stableJson({ en: [false, true, true], pl: [false, true, true] }),
+            "{each language: [offers the restart, names Close and count, keeps {n}]}");
+    }],
+    ["R9132 - the ballot says a vote once cast cannot be changed (2.0 line T3 EXP-PL-16; vote.mjs `ballotFormHtml`, lang `DRPG.Vote.ballotFinal`)", async () => {
+        /* 2.0 line T3 EXP-PL-16, 27.11.2026. A second ballot is refused as cast already (`ballotRefusal`), and the ballot
+           did not say so. The ballot's form built for two candidates, one pick; nothing drawn or written. Red at 910b39b:
+           no `ballotFormHtml`. */
+        const V = await import("./vote.mjs");
+        must(typeof V.ballotFormHtml === "function", "vote.mjs builds the ballot inside castBallot alone: there is nothing to read");
+        const html = V.ballotFormHtml({ picks: 1, candidates: [{ id: "A0000000000000AA", name: "SUITE ballot A" }, { id: "B0000000000000BB", name: "SUITE ballot B" }] });
+        const final = game.i18n.localize("DRPG.Vote.ballotFinal");
+        equal(stableJson([final !== "DRPG.Vote.ballotFinal", html.includes(final), html.includes("SUITE ballot A"), (html.match(/type="radio"/g) ?? []).length]),
+            stableJson([true, true, true, 2]), "[the sentence exists, the ballot holds it, the ballot names a candidate, its choices]");
+    }],
 ];
 
 /**

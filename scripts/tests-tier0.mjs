@@ -23284,7 +23284,7 @@ const REGRESSIONS = [
             "trial-floor-ui.mjs:endClassTrial": [ui, "endClassTrial", 1, 1], "trial-floor-ui.mjs:confirmReveal": [ui, "confirmReveal", 1, 0],
             "trial-floor-ui.mjs:trialConsoleHtml": [ui, "trialConsoleHtml", 2, 3], "trial-floor-ui.mjs:openVoteDialog": [ui, "openVoteDialog", 2, 2],
             "verdict.mjs:openVerdictDialog": [verdict, "openVerdictDialog", 3, 0], "verdict.mjs:askBlackenedRule": [verdict, "askBlackenedRule", 1, 0],
-            "verdict.mjs:openFinalVerdictDialog": [verdict, "openFinalVerdictDialog", 0, 1], "vote.mjs:castBallot": [vote, "castBallot", 0, 1]
+            "verdict.mjs:openFinalVerdictDialog": [verdict, "openFinalVerdictDialog", 0, 1], "vote.mjs:castBallot": [vote, "ballotFormHtml", 0, 1] /* the ballot's form, out of castBallot since 2.0 line T3 EXP-PL-16 */
         };
         const count = (text, re) => (text.match(re) ?? []).length;
         const got = {}, want = {};
@@ -23536,7 +23536,7 @@ const REGRESSIONS = [
             ["trial-floor-ui.mjs", "endClassTrial", "E47", 1, 1, 0], ["trial-floor-ui.mjs", "confirmReveal", "E47", 1, 0, 0],
             ["trial-floor-ui.mjs", "trialConsoleHtml", "E47", 2, 3, 0], ["trial-floor-ui.mjs", "openVoteDialog", "E47", 2, 2, 0],
             ["verdict.mjs", "openVerdictDialog", "E47", 3, 0, 0], ["verdict.mjs", "askBlackenedRule", "E47", 1, 0, 0], ["verdict.mjs", "openFinalVerdictDialog", "E47", 0, 1, 0],
-            ["vote.mjs", "castBallot", "E47", 0, 1, 0],
+            ["vote.mjs", "ballotFormHtml", "E47", 0, 1, 0], // castBallot's form until 2.0 line T3 EXP-PL-16
             ["action-project.mjs", "startProject", "open", 1, 0, 1], ["call-pickers.mjs", "callHeader", "open", 0, 0, 1],
             ["mastermind.mjs", "openMastermindDialog", "open", 0, 0, 1], ["reroll.mjs", "settleGmRuling", "open", 0, 0, 1],
             ["roll-dialog.mjs", "announceFreeCritical", "open", 0, 0, 1], ["trial.mjs", "pickObjectionEvidence", "open", 0, 0, 1],

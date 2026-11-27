@@ -829,9 +829,12 @@ export function ballotInHere(progress = trialProgress()) {
 /** A primary GM whose world said it had loaded before this browser saw it connect (pre-session-note.mjs `owedTo`). */
 let owedTo = null;
 
-/** The ballot itself, on a player's screen; the answer goes to the primary GM (`sendBallot`). */
-async function castBallot({ round = 0, picks = 1, candidates = [] } = {}) {
-    if (!Array.isArray(candidates) || !candidates.length) return;
+/**
+ * The ballot's form: its rows, one list per pick, and its lines (2.0 line T3 EXP-PL-16 took it out of `castBallot`, so
+ * tier 1 R9132 reads it). A vote once cast cannot be changed - `ballotRefusal` refuses a second as cast already - and
+ * the ballot says so under its lines (`DRPG.Vote.ballotFinal`).
+ */
+export function ballotFormHtml({ picks = 1, candidates = [] } = {}) {
     const wanted = Math.max(1, Math.trunc(Number(picks)) || 1);
 
     /* THE BALLOT IS A LIST OF PEOPLE, NOT A DROP-DOWN.
@@ -861,6 +864,21 @@ async function castBallot({ round = 0, picks = 1, candidates = [] } = {}) {
                 <div class="drpg-choice-list">${rows(i)}</div>
             </fieldset>`).join("");
 
+    return `<form>
+                <p>${game.i18n.localize("DRPG.Vote.ballotIntro")}</p>
+                ${wanted > 1 ? box("info", `${
+                    game.i18n.format("DRPG.Vote.twoBlackened", { n: wanted })}`) : ""}
+                ${fields}
+                <p class="notes">${game.i18n.localize("DRPG.Vote.ballotNote")}</p>
+                <p class="notes">${game.i18n.localize("DRPG.Vote.ballotFinal")}</p>
+            </form>`;
+}
+
+/** The ballot itself, on a player's screen; the answer goes to the primary GM (`sendBallot`). */
+async function castBallot({ round = 0, picks = 1, candidates = [] } = {}) {
+    if (!Array.isArray(candidates) || !candidates.length) return;
+    const wanted = Math.max(1, Math.trunc(Number(picks)) || 1);
+
     // One ballot window at a time (CASE-14): a Remind that reached a player
     // whose first window was still open stacked a second, and either counted.
     // Counted before the close, so the window closed here goes without a word (below).
@@ -879,13 +897,7 @@ async function castBallot({ round = 0, picks = 1, candidates = [] } = {}) {
             classes: ["drpg-panel", "drpg-ballot"],
             // The ballot the trial waits on: kept above the sheet (stacking.mjs; E23 C5a).
             prompt: true,
-            body: `<form>
-                <p>${game.i18n.localize("DRPG.Vote.ballotIntro")}</p>
-                ${wanted > 1 ? box("info", `${
-                    game.i18n.format("DRPG.Vote.twoBlackened", { n: wanted })}`) : ""}
-                ${fields}
-                <p class="notes">${game.i18n.localize("DRPG.Vote.ballotNote")}</p>
-            </form>`,
+            body: ballotFormHtml({ picks: wanted, candidates }),
             render: (event, dialog) => {
                 wireBallot(dialog?.element, wanted);
                 /* CLOSED WITH ITS ROUND (1.2.122, REFR-72): a ballot left open stayed after the vote was closed and
