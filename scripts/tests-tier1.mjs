@@ -70051,6 +70051,56 @@ const INVARIANTS = [
         equal(JSON.stringify(read), JSON.stringify(["R", "CONTROL + R", "KeyR", "KeyR", null]),
             "[a binding without modifiers, one with Control, a namer that throws, one that names nothing, nothing bound]");
     }],
+    ["R9241 - the handbooks window opens wholly on the screen (2.0 line T4, R111): handbooks.mjs `handbookBox` at 1920x1080 and 2560x1440, centred and moved low, right or off the top, keeps 900 x 760 where they fit and the window's every edge at least 8 px inside the screen; on a small screen it shrinks to the screen less 40 and 60", async () => {
+        /*
+         * R111 at The Forge (Foundry 14.370, 1920x1080; docs/dev/v2/F3-forge-PC-2.md, FORGE-09d): "the handbook window runs
+         * off the bottom of the screen". The box is a pure function of the screen and the place asked, so it is read here at
+         * the owner's two sizes (D2-20) and at 1280x720 with no window drawn. Red at 31d5812: no handbookBox - the window's
+         * place was Foundry's, for a height the glass did not keep (handbooks.mjs's note).
+         */
+        const H = await import("./handbooks.mjs");
+        must(typeof H.handbookBox === "function", "handbooks.mjs has no handbookBox - this would measure nothing");
+        const rows = [];
+        for (const [innerWidth, innerHeight] of [[1920, 1080], [2560, 1440], [1280, 720]]) {
+            for (const [top, left] of [[null, null], [innerHeight - 100, null], [null, innerWidth - 50], [-200, -200]]) {
+                const b = H.handbookBox({ innerWidth, innerHeight, top, left });
+                rows.push([`${innerWidth}x${innerHeight}`, top, left, b.width, b.height,
+                    b.top >= 8 && b.top + b.height <= innerHeight - 8, b.left >= 8 && b.left + b.width <= innerWidth - 8]);
+            }
+        }
+        const wrong = rows.filter(([size, , , width, height, inY, inX]) => !inY || !inX
+            || (size === "1280x720" ? width !== 900 || height !== 660 : width !== 900 || height !== 760));
+        equal(JSON.stringify(wrong), "[]", `[the screens and places whose box is not on the screen less 8 px a side, or not 900 x 760 (900 x 660 at 1280x720)] - read: ${JSON.stringify(rows)}`);
+        equal(JSON.stringify(H.handbookBox({ innerWidth: 1920, innerHeight: 1080 })), JSON.stringify({ width: 900, height: 760, top: 160, left: 510 }),
+            "the box at 1920x1080 with no place asked: centred");
+    }],
+    ["R9242 - the handbooks window keeps the height it is given under both themes (2.0 line T4, R111, R4721, R6602): no stylesheet rule's `height` wins on `.application.drpg-panel.drpg-ui.drpg-handbook`, so its text is the region that scrolls and a jump to a section moves it; the control: a plain panel under Stained Glass still takes the glass's `auto`", async () => {
+        /*
+         * At The Forge (Foundry 14.370, 1920x1080; docs/dev/v2/F3-forge-PC-2.md, FORGE-09d) the window ran past the screen's
+         * foot (R111) and a jump scrolled 0 where 312 was asked (R4721, R6602). Read in the code: the jump (`goToSection`,
+         * `scrollToHeading`) scrolls the text, as it should - the cause is the window's height, which the glass drew `auto`,
+         * so the text never had a height to scroll in (handbooks.mjs's note above `HandbookApp`). Read here as R8910 reads the
+         * messenger's: the suite's cascade (`styleCascade().winner`), the rules as written, not the inline height. Red at
+         * 31d5812: "auto !important" under Stained Glass.
+         */
+        const C = await styleCascade();
+        const heightOf = (theme, classes) => {
+            const body = document.createElement("body");
+            body.className = theme;
+            const el = body.appendChild(document.createElement("div"));
+            el.className = `application drpg-panel drpg-ui ${classes}`.trim();
+            el.style.height = "760px";
+            const won = C.winner(el, ["height"]);
+            return won ? `${won.value}${won.important ? " !important" : ""}` : null;
+        };
+        const got = {};
+        for (const [theme, key] of [["drpg-theme-stained-glass", "glass"], ["drpg-theme-monokuma-legacy", "legacy"]]) {
+            got[key] = { handbook: heightOf(theme, "drpg-handbook"), panel: heightOf(theme, "") };
+        }
+        equal(stableJson({ glass: got.glass.handbook, legacy: got.legacy.handbook, glassPanel: /^auto\b/.test(got.glass.panel ?? "") }),
+            stableJson({ glass: null, legacy: null, glassPanel: true }),
+            `[the rule winning \`height\` on the handbooks window under each theme, and the control] - read: ${stableJson(got)}`);
+    }],
 ];
 
 /**

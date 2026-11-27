@@ -351,9 +351,33 @@ function toHtml(markdown) {
  * scroll inside it, each on its own, as before. Until C6a Stained Glass held the window to the height it was opened or
  * resized to through `--drpg-window-h`, which its `ApplicationV2#_onPosition` override mirrored (22.09: the 70 KB book
  * came out 1038 px tall with its foot off the screen); the frame's `max-height` does that now in both themes, and the
- * two rules went with the mirror. Under Stained Glass the window is as tall as the screen less 16 px once a book is in
- * it (the glass's `height: auto`), not the 760 px it was asked for: not seen at a table.
+ * two rules went with the mirror.
+ * SEEN AT A TABLE, AND THE HEIGHT KEPT (2.0 line T4, R111, R4721, R6602, 27.11.2026). This said that under Stained Glass the
+ * window grew as tall as the screen less 16 px once a book was in it (the glass's `height: auto !important`, stained-glass.css
+ * "Windows the size of what is in them"), "not seen at a table". At The Forge it was (Foundry 14.370, 1920x1080;
+ * docs/dev/v2/F3-forge-PC-2.md, FORGE-09d): R111 "the handbook window runs off the bottom of the screen", and a jump to a
+ * section scrolled 0 where 312 was asked (R4721, R6602). Read, not measured in a browser here: Foundry places the window for
+ * the 760 px it is opened at (its top centred for that height), the glass then draws it to the screen's height less 16-24 px,
+ * so its foot stands past the screen; and with the window's height `auto` the frame's column has no definite height, so the
+ * two columns' grid row takes the whole text's height, the text scrolls nowhere (`.drpg-handbook-text`'s `overflow-y` never
+ * engages) and the window's content scrolls instead - the jump, which scrolls the text (`scrollToHeading`), moves nothing:
+ * R4721 and R6602 follow from R111. So the window keeps the height it is given under both themes (the glass's rule leaves it
+ * out, as it leaves out the messenger's), and it opens at `handbookBox`'s box: as big as it was, its top and left placed so
+ * the whole window stands on the screen less 8 px a side.
  */
+
+/**
+ * The handbooks window's box on a screen: `{ width, height, top, left }`, in px. As wide as 900 and as tall as 760 where they
+ * fit (the screen less 40 and less 60, as before), and placed where `top` and `left` ask - centred where they do not -
+ * held so the whole window stands on the screen less 8 px a side. Pure on its arguments (R9241).
+ */
+export function handbookBox({ innerWidth = window.innerWidth, innerHeight = window.innerHeight, top = null, left = null } = {}) {
+    const width = Math.max(0, Math.min(900, innerWidth - 40));
+    const height = Math.max(0, Math.min(760, innerHeight - 60));
+    const place = (at, size, room) => Math.round(Math.max(8, Math.min(Number.isFinite(at) ? at : (room - size) / 2, room - size - 8)));
+    return { width, height, top: place(top, height, innerHeight), left: place(left, width, innerWidth) };
+}
+
 class HandbookApp extends DrpgApp() {
     static DEFAULT_OPTIONS = {
         id: "drpg-handbooks",
@@ -369,13 +393,8 @@ class HandbookApp extends DrpgApp() {
 
     constructor(options = {}) {
         const { section = null, ...rest } = options;
-        // Never taller or wider than the screen it opens on.
-        super(foundry.utils.mergeObject({
-            position: {
-                width: Math.min(900, window.innerWidth - 40),
-                height: Math.min(760, window.innerHeight - 60)
-            }
-        }, rest));
+        // Never taller or wider than the screen it opens on, and wholly on it (`handbookBox`, R111).
+        super(foundry.utils.mergeObject({ position: handbookBox() }, rest));
         this.book = openingBook(rest.book ?? storedBook());
         this.ticket = 0;
         /* The section the window was last asked for, where it landed (null: nowhere, the text at its top), the book
