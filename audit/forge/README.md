@@ -33,7 +33,7 @@ tego samego stanu.
 | `s5-voice` | 6 | pokój LiveKit każdego klienta wobec planu modułu, czasy przełączenia, ponowne połączenia | wymaga `DRPG_FAKE_MEDIA=1`; pokoje bez sypialni, ruchy GM1 z pominięciem ścian (`free`, niżej) |
 | `s6-soak` | 6 | 2 h zwykłej gry: pamięć, błędy, przeładowania; ruchy graczy liczone osobno: doszły / odmowa z komunikatem / bez komunikatu (FORGE-05) | `DRPG_SOAK_MINUTES`; sąsiad bez sypialni |
 | `s7-look` | 2 | zrzuty najważniejszych okien w rozmiarach z `DRPG_SIZES`, mieszczenie się, pole komunikatora | nie pisze do świata; także `DRPG_BROWSER=firefox` |
-| `s8-load` | 3 | krzywa wydajności przy rosnącej liczbie Remnantów, tokenów, projektów, wiadomości i okien | sprząta po sobie; bez progów |
+| `s8-load` | 3 | krzywa wydajności przy rosnącej liczbie Remnantów, tokenów, projektów, wiadomości i okien; warunki przebiegu na każdym poziomie | sprząta po sobie (po znaczniku, niżej); bez progów; `DRPG_S8_RELOAD=1` - test sprzątania po przeładowaniu |
 
 Proponowana kolejność pierwszego przebiegu: S7 (nie pisze), S4, S2, S3, S5, S1a, S1b, S8, S6 (najdłuższy).
 
@@ -53,6 +53,38 @@ scenariuszami po odmowie jednego uruchamia następne i kończy kodem 2 (1, gdy c
 **Końcowe sprawdzenie (D2-15) startuje z `drpg-qa-forge`** - świata nieuruchamianego od 24.11.2026 - albo z jego świeżej
 kopii, nie z `drpg-qa-forge-2` (po przebiegach z 25.11.2026: rozdział 3, dzień 6, karty, zgony, wiadomości, żetony).
 Kolejność jak wyżej; S1b zaraz po S1a, bo startuje ze stanu, który S1a zostawia.
+
+**S8: znacznik, sprzątanie i trzeci przebieg (F3PC2-S8-CLEANUP, F3PC2-S8-CURVE; linia T4, 27.11.2026).** Każdy dokument,
+który S8 tworzy, dostaje `flags.world.drpgQa` = znacznik przebiegu (`s8-<czas>`, `page-kit.mjs` `runTag`; zakres `world`,
+nie modułu): żetony NPC, aktor NPC i publiczne wiadomości w danych tworzenia, ślady (`placeRemnant`), karty
+(`whisperToOwner`) i wiadomości komunikatora (`sendMessengerMessage`) zaraz po utworzeniu, a to, co moduł tworzy obok
+(aktor Remnantów, żeton projektu, ogłoszenie), po każdym poziomie z zapisu hooków GM1. Projekt nie jest dokumentem: ma
+znacznik w nazwie. Sprzątanie szuka najpierw po znaczniku w całym świecie (każda scena, czat, aktorzy z przedmiotami,
+przedmioty, dzienniki, projekty), potem po identyfikatorach; raport mówi, ile znalazł którą drogą (`byTag`,
+`byIdOnly`). Liczba oznaczonych żetonów i stojących żetonów NPC i śladów S8 jest zapisana przed i po każdym poziomie.
+Dokumenty ze znacznikiem innego przebiegu S8 są tylko liczone (`otherRuns`), nie usuwane.
+
+- **Test sprzątania:** `DRPG_S8_RELOAD=1` - strona GM1 przeładowana w środku sprzątania (po pięciu usuniętych), drugie
+  podejście na świeżej stronie bez zapisu hooków, kontrola "cleanup after a reload leaves nothing tagged" (`FLOW`).
+  Krótko: `DRPG_S8_REMNANTS=30 DRPG_S8_TOKENS=8 DRPG_S8_PROJECTS=4 DRPG_S8_MESSAGES=30 DRPG_S8_RELOAD=1`.
+- **Trzeci przebieg krzywej** (przed progami, D2-18; właściciel, D2-21): jak w nagłówku `s8-load.mjs` - na komputerze z
+  kartą graficzną `DRPG_FULL_RENDER=1`, bez `DRPG_S8_RELOAD`, nic innego na pierwszym planie. Każdy poziom zapisuje
+  warunki GM1 i P1 (`visibilityState`, `hasFocus()`, renderer WebGL, tryb wydajności i limit klatek Foundry,
+  `DRPG_FULL_RENDER`, rozmiar i rozdzielczość płótna, `devicePixelRatio`, `hardwareConcurrency`, czas od wczytania,
+  liczba otwartych stron, pamięć); pierwszy poziom po rozgrzewce (`DRPG_S8_WARMUP_MS`, 30 s bez pomiaru) i powtórzony
+  po sprzątaniu ("baseline again, after the cleanup"). Notatka "curve: the conditions of every level" stoi obok krzywej.
+- **32 żetony NPC "QA s8", które zniknęły między przebiegami 25.11.2026:** przeczytane 27.11.2026 - nic w
+  `scripts/` nie usuwa zwykłego żetonu NPC postawionego przez GM-a na scenie z pokojami (usuwane są tylko: żetony
+  śladów `isRemnant` - koniec rozdziału, reset sezonu, `removeRemnant`; żetony projektów bez projektu -
+  `projects-map.mjs`; Widza i Monokubka - `spectator-dead.mjs`; upuszczenie gracza, którego zasady nie pozwalają -
+  `movement.mjs` `removeDrop`, tylko żeton utworzony przez gracza; żetony na sali rozpraw - `trial-scene.mjs`; kopie
+  niesionych żetonów - `call-world.mjs`; klucze nieznalezione - `case-realize.mjs`), reset sezonu (`placeCastStep` w
+  `season-wipe.mjs`) tylko przesuwa żetony uczniów, a w `audit/forge` sprzątanie S8 usuwa tylko identyfikatory swojego
+  przebiegu, a `table.mjs` `placeTokens` i `restore` innych scenariuszy tylko tworzą i przesuwają. Hipoteza (nie
+  sprawdzona): usunęła je ręczna sonda sprzątająca z 25.11.2026 (poza repozytorium), która brała ślady sceny bez
+  odróżnienia ich od innych żetonów bez właściciela; druga hipoteza: Foundry przy usunięciu aktora bazowego "QA s8 NPC"
+  (żetony niepowiązane, `actorLink: false`) - zachowanie v14 nieprzeczytane w źródle. Odtąd liczby oznaczonych żetonów
+  przed i po każdym poziomie i `otherRuns` na starcie pokażą, kiedy taki żeton znika.
 
 **Ruch żetonów (FORGE-05, D2-25; linia T4, 27.11.2026).** `table.mjs` `readTable` oznacza sypialnie
 (`game.drpg.allBedrooms`), a `chooseRooms` (S5) i wybór sąsiada w S6 je pomijają: sypialnia jest zamknięta dla
@@ -82,6 +114,8 @@ Każde narzędzie odmawia pracy (kod 2), gdy aktywny świat nie jest tym z `DRPG
 | `DRPG_HEADFUL=1` | przeglądarki z oknem. Firefox bez okna na maszynie bez GPU nie dostaje WebGL i Foundry nie rysuje /join (w chmurze: Firefox z oknem pod `xvfb-run`). Na komputerze z ekranem okna pojawią się na pulpicie |
 | `DRPG_SIZES` | rozmiary ekranu do zrzutów i sprawdzeń, domyślnie `1920x1080,2560x1440` (docelowe rozdzielczości stołu, D2-20); pierwszy z nich to rozmiar, w którym strona się otwiera |
 | `DRPG_JOIN_MS` | ile strona /join może się ładować przy logowaniu, domyślnie 120000 ms |
+| `DRPG_S8_RELOAD=1` | S8: przeładowanie strony GM1 w środku sprzątania i kontrola "cleanup after a reload leaves nothing tagged" |
+| `DRPG_S8_WARMUP_MS` | S8: rozgrzewka przed pierwszym pomiarem, domyślnie 30000 ms (bez pomiaru); poziomy: `DRPG_S8_REMNANTS`, `DRPG_S8_TOKENS`, `DRPG_S8_PROJECTS`, `DRPG_S8_MESSAGES`, `DRPG_S8_SETTLE_MS` (nagłówek `s8-load.mjs`) |
 | `DRPG_S1_CHAPTER` | rozdział, w którym S1a i S1b muszą startować; inny - odmowa z kodem 2 (bez zmiennej rozdział jest tylko zapisany) |
 
 ## Na komputerze właściciela
