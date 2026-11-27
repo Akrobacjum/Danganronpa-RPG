@@ -254,6 +254,13 @@ export function gmMessengerClass(Base, { buildBubble, previewOf, savePosition })
             line.textContent = preview;
             text.append(who, line);
             button.append(text);
+            /* THE WHOLE PREVIEW IN THE ROW'S TOOLTIP (2.0 line T4, FORGE-07, 27.11.2026). At The Forge (Foundry 14.370; S7,
+               docs/dev/v2/F3-forge-PC-2.md) the Timeline row's preview ran 308 px of text in a 179 px box at 1920x1080 (363 at
+               2560x1440), in both browsers, cut by an ellipsis S7 counts as an overflow. The preview now takes two lines
+               (danganronpa.css, the T4 block), and what is still cut is read in the row's one tooltip, its second line - not
+               a second tooltip on the line (`title` beside Foundry's would be two at once). Escaped: Foundry draws a
+               `data-tooltip` as markup, and a player's message is a player's words. */
+            if (preview && button.dataset.tooltip) button.dataset.tooltip = `${button.dataset.tooltip}<br>${esc(preview)}`;
             if (badge > 0) {
                 const mark = document.createElement("span");
                 mark.className = "drpg-messenger-badge";

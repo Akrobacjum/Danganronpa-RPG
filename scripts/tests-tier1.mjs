@@ -70348,6 +70348,48 @@ const INVARIANTS = [
             offPage: [null, 0, null], noView: [null, 0, null], fallbackPanFalse: true }),
             "{each board: [the answer, pans asked, what threw]: view on the page (PIXI 8's canvas, PIXI 7's view), no app, view off the page, no view; the direct placement's pan: false}");
     }],
+    ["R9229 - the GM's messenger list shows each row's whole preview (2.0 line T4, FORGE-07): messenger-gm.mjs `navRow` puts the preview, escaped, as the second line of the row's one tooltip (the Timeline's and a player's), and the preview's winning rules are two lines clamped, wrapping, with no ellipsis, under both themes", async () => {
+        /*
+         * FORGE-07 at The Forge (Foundry 14.370; S7, docs/dev/v2/F3-forge-PC-2.md): the Timeline row's preview held 308 px of
+         * text in 179 px at 1920x1080, an ellipsis S7 counts as an overflow. On a GM's page with a player in the world the
+         * window is opened as R1066 opens it and closed after; the rules are read with the suite's cascade on a stand-in row
+         * under each theme (`styleCascade().winner`, the sheets as written). Red at 31d5812: the tooltip held the row's tip
+         * alone, and base.css's `nowrap` and `ellipsis` won.
+         */
+        must(game.user.isGM, "the GM's window is a GM's");
+        needs(world.atLeast("playerAccounts", 1));
+        const A = await import("./messenger-app.mjs");
+        must(!A.gmMessengerWindow(), "the GM's messenger window is open - close it: this test opens its own");
+        const putPositionsBack = holdMessengerPositions();
+        let rows = [];
+        try {
+            A.openMessenger();
+            await until(() => A.gmMessengerWindow()?.element?.querySelector(".drpg-messenger-gm-nav-row"), 3000);
+            const root = A.gmMessengerWindow()?.element;
+            rows = [...(root?.querySelectorAll(".drpg-messenger-gm-nav-row") ?? [])].map(row => {
+                const preview = row.querySelector(".drpg-messenger-roster-preview")?.textContent ?? "";
+                const tip = row.dataset.tooltip ?? "";
+                return [row.dataset.drpgView === "console" ? "console" : "player", Boolean(preview) && tip.endsWith(`<br>${foundry.utils.escapeHTML(preview)}`) && tip.split("<br>").length === 2];
+            });
+        } finally {
+            await A.gmMessengerWindow()?.close();
+            putPositionsBack();
+        }
+        must(rows.length >= 2, `the window drew ${rows.length} row(s) - the Timeline's and a player's are read`);
+        const C = await styleCascade();
+        const won = theme => {
+            const body = document.createElement("body");
+            body.className = theme;
+            body.innerHTML = `<div class="application drpg-panel drpg-messenger drpg-messenger-gm"><nav class="drpg-messenger-gm-nav"><button class="drpg-messenger-gm-nav-row"><span class="drpg-messenger-roster-text"><span class="drpg-messenger-roster-preview">R9229</span></span></button></nav></div>`;
+            const el = body.querySelector(".drpg-messenger-roster-preview");
+            return Object.fromEntries(["white-space", "-webkit-line-clamp", "text-overflow", "display"].map(p => [p, C.winner(el, [p])?.value ?? null]));
+        };
+        const themes = { glass: won("drpg-theme-stained-glass"), legacy: won("drpg-theme-monokuma-legacy") };
+        const want = { "white-space": "normal", "-webkit-line-clamp": "2", "text-overflow": "clip", display: "-webkit-box" };
+        equal(JSON.stringify({ rows: [...new Set(rows.map(([kind, holds]) => `${kind}:${holds}`))].sort(), themes }),
+            JSON.stringify({ rows: ["console:true", "player:true"], themes: { glass: want, legacy: want } }),
+            "{rows: each kind of row, whether its tooltip's second and last line is its whole preview, escaped; themes: the preview's winning rules under each}");
+    }],
 ];
 
 /**

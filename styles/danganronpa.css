@@ -19184,3 +19184,18 @@ body.drpg-high-contrast #token-hud.drpg-token-hud :is(.control-icon, .palette.pa
     background: var(--drpg-blood-deep);
     border-radius: 3px;
 }
+
+/* 2.0 line T4: the GM's messenger list shows a row's preview on two lines (FORGE-07, messenger-gm.mjs `navRow`; 27.11.2026).
+   At The Forge (Foundry 14.370; S7, docs/dev/v2/F3-forge-PC-2.md) the Timeline row's one line held 308 px of text in a
+   179 px box at 1920x1080 (363 at 2560x1440), cut by base.css's ellipsis. Two lines, clamped, with no ellipsis of base.css's;
+   the whole preview is the row's tooltip's second line. One class above base.css's two rules, so it wins in either sheet
+   order without `!important`; stained-glass.css states nothing for the preview. */
+.drpg-messenger-gm-nav .drpg-messenger-gm-nav-row .drpg-messenger-roster-preview {
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    overflow: hidden;
+    white-space: normal;
+    text-overflow: clip;
+}
