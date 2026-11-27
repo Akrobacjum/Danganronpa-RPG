@@ -70039,6 +70039,20 @@ const INVARIANTS = [
         equal(stableJson([final !== "DRPG.Vote.ballotFinal", html.includes(final), html.includes("SUITE ballot A"), (html.match(/type="radio"/g) ?? []).length]),
             stableJson([true, true, true, 2]), "[the sentence exists, the ballot holds it, the ballot names a candidate, its choices]");
     }],
+    ["R9133 - a floor step refused on a browser that is no longer the primary says the primary just changed, not that no trial runs (2.0 line T3 PRIM-10; trial-floor.mjs `stepRefusal`)", async () => {
+        /* 2.0 line T3 PRIM-10, 27.11.2026. The floor's four steps on the primary refused "Only during a Class Trial" on a
+           browser that was not the primary, in a trial that ran, when the primary had just changed. Pure on its two
+           readings, and the four functions read off the source; nothing written. Red at f893908: no `stepRefusal`. */
+        const F = await import("./trial-floor.mjs");
+        must(typeof F.stepRefusal === "function", "trial-floor.mjs has no stepRefusal");
+        const src = await fetch(`/modules/${MODULE_ID}/scripts/trial-floor.mjs`).then(r => (r.ok ? lfText(r) : ""));
+        const reads = ["zoneStepInStep", "roundStepInStep", "closingStepInStep", "finishObjectionOnPrimary"]
+            .map(name => /stepRefusal\(/.test(fnSource(src, name)) && !/"DRPG\.Floor\.bar\.notTrial"/.test(fnSource(src, name)));
+        equal(stableJson([F.stepRefusal({ primary: true, running: true }), F.stepRefusal({ primary: false, running: true }),
+            F.stepRefusal({ primary: true, running: false }), F.stepRefusal({ primary: false, running: false }), reads]),
+        stableJson([null, "DRPG.Floor.bar.notPrimary", "DRPG.Floor.bar.notTrial", "DRPG.Floor.bar.notPrimary", [true, true, true, true]]),
+            "[the primary in a trial, another GM in a trial, the primary outside one, another GM outside one; each of the four steps asks stepRefusal and names no key of its own]");
+    }],
 ];
 
 /**

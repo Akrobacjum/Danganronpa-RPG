@@ -1732,6 +1732,7 @@
         "overrule": "Overrule",
         "endMode": "End this mode",
         "notTrial": "Only during a Class Trial.",
+        "notPrimary": "The primary GM has changed. Try again.",
         "noMode": "No mode is running. Open the debate or start another mode first.",
         "noTurn": "A debate has no turn to skip. To close it, press End this mode.",
         "noTime": "The debate has no time left to take.",

@@ -501,12 +501,23 @@ async function zoneStartInStep(event) {
 }
 
 /**
+ * Why a floor step is refused before it reads the floor, or null (2.0 line T3 PRIM-10, 27.11.2026): on a browser that is
+ * not the primary - in a trial, the primary has just changed - `DRPG.Floor.bar.notPrimary` ("The primary GM has changed. Try again."); outside a Class Trial
+ * `notTrial`. Until then both said "Only during a Class Trial", in a trial that ran. Pure on its two readings (R9133).
+ */
+export function stepRefusal({ primary = isPrimaryGm(), running = inClassTrial() } = {}) {
+    if (!primary) return "DRPG.Floor.bar.notPrimary";
+    return running ? null : "DRPG.Floor.bar.notTrial";
+}
+
+/**
  * A STEP OF A ZONE MODE, in a step of `SEIZE_KEY` on the primary (E73): the GM's Count now and Skip question, a
  * participant's pick ("trial.side") and a Scrum speaker's thesis ("trial.keyword"). `{ written }`, or `{ refused }` with
  * the machine's key.
  */
 export async function zoneStepInStep(event) {
-    if (!isPrimaryGm() || !inClassTrial()) return { refused: "DRPG.Floor.bar.notTrial" };
+    const no = stepRefusal();
+    if (no) return { refused: no };
     const floor = trialFloor();
     if (!isZoneMode(floor?.mode)) return { refused: "DRPG.Floor.bar.noMode" };
     const result = nextFloor(floor, event, floorCtx(floor));
@@ -549,7 +560,8 @@ export function drawOrder(ids = []) {
  * the step finds; the answer `{ written }`, or `{ refused }` with the machine's key.
  */
 export async function roundStepInStep(event) {
-    if (!isPrimaryGm() || !inClassTrial()) return { refused: "DRPG.Floor.bar.notTrial" };
+    const no = stepRefusal();
+    if (no) return { refused: no };
     const floor = trialFloor();
     let result = nextFloor(floor, event, floorCtx(floor));
     if (result.refused) return { refused: result.refused };
@@ -636,7 +648,8 @@ export async function closingStepRefusal(op, args = {}) {
  * machine's key, for the asker that wants it (`closingStepInStep(event, { why: true })`).
  */
 export async function closingStepInStep(event, { why = false } = {}) {
-    if (!isPrimaryGm() || !inClassTrial()) return why ? { refused: "DRPG.Floor.bar.notTrial" } : null;
+    const no = stepRefusal();
+    if (no) return why ? { refused: no } : null;
     const floor = trialFloor();
     const ctx = await closingCtx(floor);
     const result = nextFloor(floor, event, ctx);
@@ -1747,7 +1760,9 @@ export async function advanceFloorOnPrimary(seen) {
  * are told in their corner. Answers `{ written }` or `{ refused }` in the machine's words (trial-modes.mjs maps them).
  */
 export async function finishObjectionOnPrimary({ actorId, startedAt }) {
-    if (!isPrimaryGm()) return { refused: "DRPG.Floor.bar.notTrial" };
+    // the primary alone, as before: whether the trial runs is the machine's question here, read off the floor below
+    const no = stepRefusal({ running: true });
+    if (no) return { refused: no };
     if (advancing) return { refused: "DRPG.Floor.round.stale" };
     advancing = true;
     let written = null;

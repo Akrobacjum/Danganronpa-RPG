@@ -1776,6 +1776,7 @@
         "overrule": "Oddalenie",
         "endMode": "Zakończ ten tryb",
         "notTrial": "Tylko w trakcie Class Trial.",
+        "notPrimary": "Główny GM się zmienił. Spróbuj jeszcze raz.",
         "noMode": "Nie trwa żaden tryb. Najpierw otwórz debatę albo zacznij inny tryb.",
         "noTurn": "Debata nie ma tury do pominięcia. Żeby ją zamknąć, naciśnij Zakończ ten tryb.",
         "noTime": "Debacie nie zostało już czasu do odjęcia.",
