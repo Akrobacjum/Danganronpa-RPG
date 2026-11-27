@@ -69965,6 +69965,23 @@ const INVARIANTS = [
         equal(stableJson([at(undefined), at(null), at("OFF"), at("NOBODY"), at("ME"), at("ON")]), stableJson([true, true, true, true, true, false]),
             "[a row from before 1.2.123 (no gm), gm null, its GM not connected, its GM no user, this browser's own, a connected other GM's]");
     }],
+    ["R9127 - the card for a find finished without its words names no single cause: a reload or a GM leaving, in English and in Polish (2.0 line T3 INV-09; lang `DRPG.Observe.describeRecovered`)", async () => {
+        /* 2.0 line T3 INV-09, 27.11.2026. `recoverDescribing` posts `DRPG.Observe.describeRecovered` at a hydration and at a
+           GM's disconnection (`onGmLeft`), and the text said a reload closed the window either way. Read off both files,
+           fetched as the client loads them; nothing written. Red at 581aeb9: both texts name the reload alone. */
+        const U = foundry.utils;
+        const read = async lang => U.getProperty(U.expandObject(await (await fetch(`modules/${MODULE_ID}/lang/${lang}.json`)).json()), "DRPG.Observe.describeRecovered");
+        const [en, pl] = [await read("en"), await read("pl")];
+        must(typeof en === "string" && typeof pl === "string", "DRPG.Observe.describeRecovered is missing from a language file");
+        const shape = text => ({ fields: ["{actor}", "{room}"].every(f => text.includes(f)) });
+        equal(stableJson({
+            en: { ...shape(en), oneCause: /a reload closed/i.test(en), reload: /reload/i.test(en), leaving: /GM (leaving|left|leaves)/i.test(en) },
+            pl: { ...shape(pl), oneCause: /zamknęło odświeżenie strony/i.test(pl), reload: /odświeżeni/i.test(pl), leaving: /wyjści[ea] GM-a/i.test(pl) }
+        }), stableJson({
+            en: { fields: true, oneCause: false, reload: true, leaving: true },
+            pl: { fields: true, oneCause: false, reload: true, leaving: true }
+        }), "{fields: {actor} and {room} kept; oneCause: the reload named as the cause; reload, leaving: both causes named}");
+    }],
 ];
 
 /**
