@@ -5113,7 +5113,8 @@
         "trial.present": "Presenting a Truth Bullet",
         "ready.open": "Asking the players whether they are done",
         "ready.answer": "Your answer to the GM",
-        "ready.end": "Ending the question to the players"
+        "ready.end": "Ending the question to the players",
+        "season.reset": "Reset the season by a second GM, on the primary GM"
       },
       "notDone": "“{what}” was not carried out. {why}",
       "nothingSpent": "You keep your action and your Hope.",
@@ -7320,7 +7321,7 @@
         "one": "The GM store could not take over this browser's old \"{store}\" ({n} row): {error}. The old copy stays here as it was, and the next load tries again.",
         "other": "The GM store could not take over this browser's old \"{store}\" ({n} rows): {error}. The old copy stays here as it was, and the next load tries again."
       },
-      "resetPrimaryOnly": "Only the primary GM, {name}, can reset the season. Ask {name}, or reset when you are the only GM connected.",
+      "resetPrimaryOnly": "Only the primary GM, {name}, can reset the season. Ask {name} or another full GM to do it.",
       "resetOfflineGms": {
         "one": "One GM is not connected ({names}): their browser drops what this reset clears the next time it opens this world.",
         "other": "{n} GMs are not connected ({names}): their browsers drop what this reset clears the next time they open this world."

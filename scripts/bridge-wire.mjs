@@ -227,3 +227,6 @@ export const ACTION_CARD_CLAIM = "card.claim";
 
 /** GM -> primary GM: Give a Truth Bullet, carried to the primary so its copy is made in the one receiver's finds' queue (E38; D153). */
 export const ACTION_BULLET_GIVE = "bullet.give";
+
+/** GM -> primary GM: a second full GM's Reset the season, the plan its window gave (2.0 line T3 TRIAL-04; season-wipe.mjs `runSeasonReset`). */
+export const ACTION_SEASON_RESET = "season.reset";

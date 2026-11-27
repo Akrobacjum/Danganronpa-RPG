@@ -5466,7 +5466,8 @@
         "trial.present": "Przedstawienie Truth Bulletu",
         "ready.open": "Pytanie graczy, czy skończyli",
         "ready.answer": "Twoja odpowiedź dla GM-a",
-        "ready.end": "Zamknięcie pytania do graczy"
+        "ready.end": "Zamknięcie pytania do graczy",
+        "season.reset": "Reset sezonu przez drugiego GM-a, u głównego GM-a"
       },
       "notDone": "Prośba „{what}” nie została wykonana. {why}",
       "nothingSpent": "Nie tracisz akcji ani Hope.",
@@ -9116,7 +9117,7 @@
         "many": "Magazyn GM-a nie mógł przejąć starego „{store}” z tej przeglądarki ({n} wierszy): {error}. Stara kopia zostaje tu bez zmian, a przy następnym wczytaniu świata magazyn spróbuje jeszcze raz.",
         "other": "Magazyn GM-a nie mógł przejąć starego „{store}” z tej przeglądarki ({n} wiersza): {error}. Stara kopia zostaje tu bez zmian, a przy następnym wczytaniu świata magazyn spróbuje jeszcze raz."
       },
-      "resetPrimaryOnly": "Sezon resetuje tylko główny GM, {name}. Poproś o to GM-a {name} albo zresetuj sezon, gdy będziesz jedynym połączonym GM-em.",
+      "resetPrimaryOnly": "Sezon resetuje tylko główny GM, {name}. Poproś o to GM-a {name} albo innego pełnego GM-a.",
       "resetOfflineGms": {
         "one": "Jeden GM nie jest połączony ({names}): jego przeglądarka usunie to, co czyści ten reset, gdy następnym razem otworzy ten świat.",
         "few": "{n} GM-ów nie jest połączonych ({names}): ich przeglądarki usuną to, co czyści ten reset, gdy następnym razem otworzą ten świat.",

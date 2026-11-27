@@ -118962,6 +118962,36 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         equal(stableJson(read), stableJson({ steps: [true, true, "done", 1, false] }),
             "{steps: [the press answered lines, `by` this GM, stage, summaries, a refusal naming the second GM]}");
     }],
+    ["T3 TRIAL-04 - a second GM's reset runs on the primary from the plan it sends", async () => {
+        /*
+         * 2.0 line T3 TRIAL-04, 27.11.2026 (Forge S2 H1). A second full GM's Reset the season was refused before its window
+         * and again after the word (`DRPG.GmStore.resetPrimaryOnly`); its plan is run here now, by the run of `season.reset`
+         * (bridge-runs-records.mjs `handleSeasonReset`, season-wipe.mjs `runSeasonReset`), on this primary. As "a reset
+         * counts the season and keeps the fog epoch" runs one: the clock alone ticked, the cast left where it stands, the
+         * exceptions not remembered; a second full GM and an Assistant GM stood in as senders. Read: the Assistant's answer,
+         * the second GM's reply (what was cleared), the season counted on. The clock is put back here, the rest by tier 2's
+         * restore. Red at 79a4164: no `handleSeasonReset`.
+         */
+        needs(env.primaryGm(), "a season reset is the primary GM's");
+        const R = await import("./bridge-runs-records.mjs");
+        must(typeof R.handleSeasonReset === "function", "bridge-runs-records.mjs has no handleSeasonReset: a second GM's reset never reaches the primary");
+        const second = standInUser({ name: "T3 TRIAL-04 second GM", role: CONST.USER_ROLES.GAMEMASTER, active: true, sorts: "last" });
+        const assistant = standInUser({ name: "T3 TRIAL-04 Assistant GM", role: CONST.USER_ROLES.ASSISTANT, active: true, sorts: "last" });
+        const before = getClock();
+        const plan = { groups: ["clock"], cast: { to: "stay" }, remember: false };
+        let read = null;
+        try {
+            const refused = await R.handleSeasonReset(plan, assistant);
+            const answer = await R.handleSeasonReset(plan, second);
+            await gmStoresIdle();
+            read = { refused: typeof refused?.refused === "string" && refused.refused.startsWith("only a GM "), cleared: answer?.reply?.cleared ?? null,
+                season: (getClock().season ?? 1) - (before.season ?? 1) };
+        } finally {
+            await setClock(before);
+        }
+        equal(stableJson(read), stableJson({ refused: true, cleared: ["clock"], season: 1 }),
+            "{refused: an Assistant GM's plan; cleared: what the second GM's reset cleared; season: counted on}");
+    }],
 ];
 
 // `drawnForPlayer` for the grid (E33 C7): a drawn crisis roll goes through the suite's one road to a draw (tests-grid.mjs `drawnAct`).

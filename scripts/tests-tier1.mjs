@@ -67440,7 +67440,7 @@ const INVARIANTS = [
             stableJson({ routes: ["claim", "claim", "claim", "claim", "claim", "refuse", "here", "here"], claims: true, granted: true, claimFn: true }),
             "{routes: a full GM with no runner, the runner itself, a second full GM while the primary runs it, another GM runs it, the primary; an Assistant GM while another runs it, with none, its own; claims: finishVerdict claims on the primary itself or asks it; granted: it runs only on a grant; claimFn: verdict-claim.mjs has claimVerdict}");
     }],
-    ["R8731 - Season setup's Reset the season asks who may reset at the press, before the window closes: a GM who is not the primary is told the reset is the primary's and the window is kept (E128; scripts/gm-campaign.mjs `mayResetSeasonHere`, season-setup.mjs `openSeasonSetup`; OWNER-128-SECOND-GM, line CORE's inventory row 7)", async () => {
+    ["R8731 - Season setup's Reset the season asks who may reset at the press, before the window closes: an Assistant GM who is not the primary is told the reset is the primary's and the window is kept, a second full GM's press goes on to its window (E128; 2.0 line T3 TRIAL-04; scripts/gm-campaign.mjs `mayResetSeasonHere`, season-setup.mjs `openSeasonSetup`; OWNER-128-SECOND-GM, line CORE's inventory row 7)", async () => {
         /* Red at 9eb89710: no `mayResetSeasonHere`; the press closed Season setup unsaved and season-wipe.mjs `resetSeason`
            refused after, so a second GM's typed edits were lost. Pure (the warning caught) and a text read of the handler;
            nothing written. */
@@ -67451,15 +67451,18 @@ const INVARIANTS = [
         let answer = null;
         try {
             if (ui.notifications) ui.notifications.warn = text => { warned.push(String(text)); };
-            answer = [G.mayResetSeasonHere({ primary: false }), G.mayResetSeasonHere({ primary: true })];
+            /* Changed by 2.0 line T3 TRIAL-04 (27.11.2026): a second full GM's reset is sent to the primary, so only an Assistant
+               GM is refused; red at f27f4f2: true for the second full GM was read false. */
+            answer = [G.mayResetSeasonHere({ primary: false, full: false }), G.mayResetSeasonHere({ primary: false, full: true }),
+                G.mayResetSeasonHere({ primary: true, full: false })];
         } finally {
             if (ui.notifications) ui.notifications.warn = realWarn;
         }
         const said = game.i18n.format("DRPG.GmStore.resetPrimaryOnly", { name: "" }).split("{")[0].slice(0, 12);
         equal(stableJson({ answer, warned: warned.length, words: warned.every(w => w.startsWith(said)),
             asks: /\[data-drpg-reset-season\][\s\S]{0,160}if \(!mayResetSeasonHere\(\)\) return;\s*resetAsked = true;/.test(season) }),
-            stableJson({ answer: [false, true], warned: 1, words: true, asks: true }),
-            "{answer: a GM who is not the primary, the primary; warned: how often; words: the reset's own; asks: the press asks before it marks the reset and closes}");
+            stableJson({ answer: [false, true, true], warned: 1, words: true, asks: true }),
+            "{answer: an Assistant GM who is not the primary, a second full GM, the primary; warned: how often; words: the reset's own; asks: the press asks before it marks the reset and closes}");
     }],
     ["R8730 - a Spectator viewer's outline stands round the room its own Spectator token stands in, where its screen clears the room, and nowhere its fog does not; its walk still finds nothing and stands in no room of the fog's; a living player's outline is its own rooms as before (E127; scripts/fog.mjs `outlineLeadRooms`, `spectatorLeadRoom`, `leadsHere`, `myCurrentRooms`, `recordDiscovery`, `seedCells`; the owner at the table, 22.11.2026)", async () => {
         /*
@@ -69892,6 +69895,31 @@ const INVARIANTS = [
             F.trialNextStep(view({ mayFinish: true, stopped: null })), F.trialNextStep(view({ mayFinish: false, stopped: null }))]),
         stableJson(["finishVerdict", "finishElsewhere", "finishElsewhere", "verdictElsewhere", "verdictElsewhere"]),
             "[stopped on another GM: a full GM, an Assistant GM, a view without the field; running on another GM: a full GM, an Assistant GM]");
+    }],
+    ["R9123 - the season reset a second full GM sends the primary is a GM's row whose groups are held to the reset's registry as it stands, and whose cast is one of the window's three choices (2.0 line T3 TRIAL-04; scripts/bridge-table.mjs `season.reset`)", async () => {
+        /* 2.0 line T3 TRIAL-04, 27.11.2026 (Forge S2 H1). A second full GM's Reset the season sends its plan to the primary
+           (`season.reset`); the row is a GM's (`gmOnly`), answers once the reset has run (a reply, a wait longer than a
+           ruling's), and passes on only the groups of season-exceptions.mjs `RESET_GROUPS` as the registry stands when the
+           packet arrives - a group spelt wrong, or a key of nothing, is dropped - and a cast of the window's three choices.
+           Pure: the row's sanitizer and fields read; nothing sent. Red at 79a4164: no row `season.reset`. */
+        const { BRIDGE_ACTIONS } = await import("./bridge-table.mjs");
+        const { RESET_GROUPS } = await import("./season-exceptions.mjs");
+        const { TIMING } = await import("./config.mjs");
+        const row = BRIDGE_ACTIONS["season.reset"];
+        must(row, "BRIDGE_ACTIONS has no season.reset: a second GM's reset is refused before its window");
+        const keys = RESET_GROUPS.map(group => group.key);
+        must(keys.includes("clock") && keys.includes("remnants"), "the reset's registry has no clock or remnants group - this would measure nothing");
+        const clean = payload => row.sanitize(payload);
+        equal(stableJson({
+            guards: row.guards.map(guard => guard.factory ?? guard.name),
+            fields: Object.keys(row.sanitize.fields).sort(),
+            groups: clean({ groups: ["clock", "R9123 no such group", "remnants", "clock", 7] }).groups,
+            notList: clean({ groups: "clock" }).groups,
+            cast: [clean({ cast: { to: "point", scene: "SCENE", region: "REGION", extra: 1 } }).cast, clean({ cast: { to: "elsewhere" } }).cast, clean({}).cast],
+            answer: row.answer, longer: row.timeoutMs > TIMING.rulingMs
+        }), stableJson({ guards: ["gmOnly"], fields: ["cast", "groups", "remember"], groups: ["clock", "remnants"], notList: [],
+            cast: [{ to: "point", scene: "SCENE", region: "REGION" }, { to: "stay" }, { to: "stay" }], answer: "reply", longer: true }),
+            "{guards; fields; groups: registry keys kept once, anything else dropped; notList: a groups field that is no list; cast: a room, a choice the window has not, none; answer; longer: the wait past a ruling's}");
     }],
 ];
 

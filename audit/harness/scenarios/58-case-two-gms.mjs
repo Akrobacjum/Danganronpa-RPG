@@ -21,6 +21,9 @@
  *             step would hand out Level Ups this scenario could not put back, so where the Level Ups' window opens is
  *             read as where the steps run (the window opens in `runVerdict`'s step, verdict.mjs `verdictLevelUps`).
  *   PRIM-06   the same verdict given by gm2, a step failed, gm2 connected: gm's Finish takes it and the steps run on gm.
+ *   TRIAL-04  gm2 opens Reset the season, its window drawn on gm2 (its answer given as the Reset button gives it: the word
+ *             typed and one group ticked, the pre-session notes, which this world has none of), and the reset runs on
+ *             gm: gm2 reads the report's groups, gm posts the report card, gm2 is told no refusal.
  *
  * What this cannot see: a real server's delivery times and a real F5 (97-two-gms's header says what its `reload` is).
  */
@@ -148,5 +151,25 @@ export async function run(api) {
         typeof f6 === "number" && J(authors6) === J([IDS.gm]) && rec6.stage === "done" && rec6.by === IDS.gm, J({ f6, authors6, rec6 }));
     await gm.eval(`await game.settings.set("${MOD}", "trialProgress", ${J(trialWas)}); return true;`, { timeout: 60000 });
     await settle(1000);
+
+    /* ------------------------------------------------------------- TRIAL-04 */
+    phase("TRIAL-04 a second GM's reset of the season, run on the primary");
+    const recordWas = await gm.eval(`return foundry.utils.deepClone(game.settings.get("${MOD}", "seasonReset") ?? {});`);
+    const t4Mark = await toastMark(gm2);
+    const reset4 = await gm2.eval(`const S = ${imp("season-setup.mjs")};
+        const word = game.i18n.localize("DRPG.Season.resetWord");
+        const mark = globalThis.__dialogLog.length;
+        globalThis.__dialogAnswers.push({ word, ticked: ["preNotes"], cast: { to: "stay" } });
+        const out = await S.resetSeason();
+        const drawn = globalThis.__dialogLog.slice(mark).map(d => d.title);
+        return { cleared: out?.cleared ?? null, drawn };`, { timeout: 180000 });
+    await settle(1500);
+    const resetTitle = await gm2.eval(`return game.i18n.localize("DRPG.Season.resetTitle");`);
+    const t4Toasts = await toastsSince(gm2, t4Mark);
+    // The reset's record names the browser that ran it (season-wipe.mjs `wipeSeason`): the primary's.
+    const record4 = await gm.eval(`const r = game.settings.get("${MOD}", "seasonReset") ?? {}; return { by: r.by ?? null, stage: r.stage ?? null, groups: r.groups ?? null };`);
+    check("TRIAL-04: gm2's Reset the season draws its window on gm2 and runs on gm from the plan gm2 sent: the groups cleared answered to gm2, the reset's record gm's, no refusal on gm2",
+        J(reset4.cleared) === J(["preNotes"]) && reset4.drawn.includes(resetTitle) && record4.by === IDS.gm && J(record4.groups) === J(["preNotes"])
+            && !t4Toasts.some(([level]) => level === "warn"), J({ reset4, record4, t4Toasts, recordWas: Boolean(recordWas) }));
 }
 

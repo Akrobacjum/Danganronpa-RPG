@@ -70,7 +70,7 @@ import {
     handleReroll, handleAuditDecide, handleKeysCharge, handleBodyDiscover, handleChapterEnd, handleVoiceReset, handleVerdictFinish, handleTrialRecord, handleTrialEnter, handleVoteRun, handleBallot,
     handleBallotAsk, handleFloorNow, handleTrialObject, handleTrialEvidence, handleTrialWithdraw, handleFloorRepoint,
     handleTrialGm, handleTrialTurn, handleTrialClaim, handleTrialSide, handleTrialKeyword, handleReadyOpen, handleReadyAnswer, handleReadyEnd,
-    handleTrialPresent, handleReshapeRuling, handleObservePick, handleObserveDescribe, handleCardClaim, handleCardPost, handleGiveBullet
+    handleTrialPresent, handleReshapeRuling, handleObservePick, handleObserveDescribe, handleCardClaim, handleCardPost, handleGiveBullet, CASE_BRIDGE_ROWS
 } from "./bridge-runs-records.mjs";
 
 /**
@@ -1684,7 +1684,9 @@ export const BRIDGE_ACTIONS = table({
             whoId: "the receiver, read on the primary by handleGiveBullet; giveBullet makes the copy in that receiver's finds' queue",
             bullet: "the GM's own bullet payload, carried whole: gmOnly, so it is a GM's words and not a player's claim"
         }
-    }
+    },
+    // The rows of 2.0 line T3 (`season.reset`; bridge-runs-records.mjs `CASE_BRIDGE_ROWS`): this file stands at its 1750 lines.
+    ...CASE_BRIDGE_ROWS
 });
 
 /** The two handovers: one declaration, told apart by the runner's `ctx.action`. */

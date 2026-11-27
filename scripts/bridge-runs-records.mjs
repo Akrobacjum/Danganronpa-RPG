@@ -23,8 +23,10 @@ import { HOPE_CALLS, DESPAIR_CALLS, TIMING, ACTIONS, DYNAMIC_THRESHOLDS } from "
 import { announce, whisperToOwner, debug, error, cardHead } from "./utils.mjs";
 import {
     firstRefusal, armBuyerId, guardArmLiving, guardArmNotHeld, guardArmBuyer, guardArmOtherCharacter,
-    guardArmHopeCallAllowed, guardArmBuyerHope, guardArmGmYes
+    guardArmHopeCallAllowed, guardArmBuyerHope, guardArmGmYes, gmOnly, pick, as
 } from "./bridge-guards.mjs";
+import { ACTION_SEASON_RESET } from "./bridge-wire.mjs";
+import { RESET_GROUPS } from "./season-exceptions.mjs";
 import { cardFlag, cardWriter } from "./secret.mjs";
 import { claimOnPrimary, observePickOnPrimary } from "./call-gm.mjs";
 
@@ -858,6 +860,22 @@ export async function handleVerdictFinish(payload, sender) {
         : relayed(taken()) ?? { refused: "nothing was carried out: the primary GM gave the verdict to nobody" };
 }
 
+/**
+ * The run of `season.reset` (2.0 line T3 TRIAL-04): a second full GM's reset, its plan run by this primary's own road after
+ * its window (season-wipe.mjs `runSeasonReset`). Answers the report's groups - cleared, kept, failed, not run - and the
+ * students the cast's move left, or the reason it did nothing (`relayed`). An Assistant GM is refused.
+ */
+export async function handleSeasonReset(payload, sender) {
+    if (sender?.role !== CONST.USER_ROLES.GAMEMASTER) return { refused: "only a GM with the full Gamemaster role resets the season" };
+    const { runSeasonReset } = await import("./season-wipe.mjs");
+    const { relayRefusal } = await import("./bridge-guards.mjs");
+    const { say, taken } = relayRefusal();
+    const out = await runSeasonReset({ groups: payload.groups, cast: payload.cast, remember: payload.remember }, { say });
+    if (!out) return relayed(taken()) ?? { refused: "nothing was carried out: the primary GM reset nothing" };
+    const keys = list => (Array.isArray(list) ? list.map(String) : []);
+    return { reply: { cleared: keys(out.cleared), kept: keys(out.kept), failed: keys(out.failed), notRun: keys(out.notRun), stayed: keys(out.stayed) } };
+}
+
 /** The run of `trial.record` (E70 fix p1-G2): the record's write on this primary (trial-progress.mjs `recordOnPrimary`), its answer or null. */
 export async function handleTrialRecord(payload) {
     const { recordOnPrimary } = await import("./vote.mjs");
@@ -1069,3 +1087,42 @@ export async function handleCardPost(payload, sender) {
     if (!message) return { refused: "nothing was carried out: the card could not be posted" };
     return { reply: { id: message.id } };
 }
+
+/* ==========================================================================
+ * THE ROWS OF 2.0 LINE T3 IN BRIDGE_ACTIONS (27.11.2026)
+ * --------------------------------------------------------------------------
+ * Spread into the table at its end (bridge-table.mjs `...CASE_BRIDGE_ROWS`): that file stands at the 1750 lines the owner
+ * accepts for it (tools/check.mjs `lengths`, STG-61), so the line's new declarations are written here, beside their runs,
+ * and judged by the same runner as every row (`judge`); R1b and R162-R166 read them in the live table.
+ * ========================================================================== */
+
+/** The season reset's groups as a packet names them: each a key of the registry as it stands now, once (`season.reset`). */
+const resetGroupsOf = Object.freeze(Object.assign(value => (Array.isArray(value)
+    ? [...new Set(value.filter(key => typeof key === "string" && RESET_GROUPS.some(group => group.key === key)))] : []), { kind: "list" }));
+
+/** Where the reset sends the cast, as a packet names it: one of the window's three choices, a room as its scene and region ids. */
+const resetCastOf = Object.freeze(Object.assign(value => {
+    const to = ["stay", "bedroom", "point"].includes(value?.to) ? value.to : "stay";
+    return to === "point" ? { to, scene: as.id(value?.scene), region: as.id(value?.region) } : { to };
+}, { kind: "raw" }));
+
+export const CASE_BRIDGE_ROWS = Object.freeze({
+    /*
+     * A SECOND FULL GM'S RESET OF THE SEASON, ON THE PRIMARY (2.0 line T3 TRIAL-04, PRIM-05). The cut stays the primary's
+     * (season-wipe.mjs `resetSeason`'s header): a second full GM's window is drawn and its word checked on its own browser,
+     * and the plan - the groups ticked, where the cast goes, whether the exceptions are remembered - is run here by
+     * `runSeasonReset`, the primary's own road after its window. A full GM's alone (`gmOnly`, and the run refuses an
+     * Assistant GM). The groups are held to the registry as it stands when the packet arrives (season-exceptions.mjs
+     * `RESET_GROUPS`, read at the check, so a group registered later passes with no change here); the cast to its three
+     * choices and two ids. The answer comes once the reset has run, so the wait is five rulings long (`resetOnPrimary`).
+     */
+    [ACTION_SEASON_RESET]: {
+        label: "DRPG.Bridge.what.season.reset",
+        guards: [gmOnly("only a GM resets the season")],
+        sanitize: pick({ groups: resetGroupsOf, cast: resetCastOf, remember: as.bool }),
+        run: handleSeasonReset,
+        answer: "reply",
+        timeoutMs: TIMING.rulingMs * 5,
+        claims: { cast: "kept to the window's three choices by resetCastOf; a room's scene and region ids are read by season-wipe.mjs placeCast on the primary, which moves nobody to a room it does not find" }
+    }
+});
