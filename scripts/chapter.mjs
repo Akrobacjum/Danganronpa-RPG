@@ -46,6 +46,7 @@ import { whisperToGms, log, error, plural, esc, isPrimaryGm, primaryGmId, server
 // The kit's frame (E21 C3a): every window of the case's chapter is a `drpgWindow` or a `drpgConfirm`, answering as before.
 import { drpgWindow, box, tipAttr, tipText } from "./ui-kit.mjs";
 import { keepFresh } from "./live.mjs";
+import { onGmStoresHydrated, gmStoresQuiet } from "./gm-store.mjs";
 import { columnsHtml } from "./ui-columns.mjs";
 // A leaf (utils.mjs alone): the one runner of the procedures that cannot be taken back, and its report (E42 C2).
 import { runSteps, stepsReport } from "./steps.mjs";
@@ -611,13 +612,57 @@ function chapterEndRecord() {
  * record whose `by` is a connected GM that is the primary now, and that names no step failed, is running there - as
  * the verdict reads its `by` (verdict.mjs `verdictStopped`); one whose `by` left, reloaded or is no longer the primary
  * is stopped. Tier 2 E42-T12.
+ *
+ * AND ONE THE PRIMARY ITSELF STOPPED IS STOPPED ON EVERY GM (2.0 line T3 TRIAL-01, 27.11.2026; Forge S1b TRIAL-01). A
+ * second GM's browser cannot see the primary's `endRunning`, so it read an end whose `by` is the connected primary as
+ * running whenever no step had failed - also one the phase's move stopped (its record names the steps it left,
+ * `notRun`) and one the primary's own reload cut (its run gone with the page): the second GM's window drew the ordinary
+ * form, and the primary refused its press with `endStands`. Now a record that names steps not run, or that its own
+ * primary marked `halted` at its ready (`markHaltedEnd`, below: it reloaded under the end), reads as stopped here too,
+ * and every GM is offered Finish the chapter's end or Drop the rest (`askStoppedEnd`), carried out on the primary. The
+ * arguments after the record are the suite's (R9121); this browser's otherwise.
  */
-export function chapterEndStopped(record = chapterEndRecord()) {
-    if (record?.stage !== "applying" || endRunning) return null;
-    const by = game.users.get(record.by);
+export function chapterEndStopped(record = chapterEndRecord(), { users = game.users, me = game.user?.id, primary = primaryGmId(),
+    running = endRunning } = {}) {
+    if (record?.stage !== "applying" || running) return null;
+    const by = users.get(record.by);
     const failed = Array.isArray(record.failed) ? record.failed : [];
-    if (!failed.length && by?.active && by.isGM && by.id !== game.user.id && by.id === primaryGmId()) return null;
+    const notRun = Array.isArray(record.notRun) ? record.notRun : [];
+    if (!failed.length && !notRun.length && !record.halted && by?.active && by.isGM && by.id !== me && by.id === primary) return null;
     return record;
+}
+
+/**
+ * AN END THE PRIMARY'S RELOAD CUT, MARKED AT ITS READY (2.0 line T3 TRIAL-01, 27.11.2026). On the primary GM once its
+ * stores are open (`registerHaltedEnd`): a record "applying" whose `by` is this browser, with no end running here, was cut
+ * by this browser's own reload - its run went with the page - so it is written `halted: { at, why: "reload" }`, in the
+ * end's one queue like every write of the record, and every GM reads it as stopped (`chapterEndStopped`). The next run of
+ * the end, its Finish, writes the record without it (`runChapterEnd`). Answers true when it wrote the mark.
+ */
+export async function markHaltedEnd() {
+    if (!game.user?.isGM || !isPrimaryGm()) return false;
+    const run = chapterEnds.then(async () => {
+        const record = chapterEndRecord();
+        if (record?.stage !== "applying" || record.by !== game.user.id || endRunning || record.halted) return false;
+        await game.settings.set(MODULE_ID, SETTINGS.chapterEnd, { ...record, halted: { at: serverNow(), why: "reload" } });
+        return true;
+    });
+    chapterEnds = run.catch(() => null);
+    return run.catch(err => {
+        error("Could not mark the chapter's end a reload cut as halted", err);
+        return false;
+    });
+}
+
+/**
+ * At init (module.mjs): `markHaltedEnd` when this browser's GM stores open - a reload, or a GM who opens the world as the
+ * primary. Not while the suite holds the stores: a hydration then is the suite's. (Once line T2's primary's ready
+ * signal is in, this is its first reader: the coordinator's note in docs/dev/v2/LINE-T3-REPORT.md.)
+ */
+export function registerHaltedEnd() {
+    onGmStoresHydrated(() => {
+        if (!gmStoresQuiet()) void markHaltedEnd();
+    });
 }
 
 /**
@@ -1020,9 +1065,11 @@ async function runChapterEnd(record) {
        before its next step once this browser is no longer the primary, the steps it left named with whose browser
        finishes them. Tier 2 E42-T12. */
     const write = async next => {
-        if (!isPrimaryGm() || JSON.stringify(next) === JSON.stringify(written)) return;
-        await game.settings.set(MODULE_ID, SETTINGS.chapterEnd, next);
-        written = next;
+        // The reload's mark goes with this run's first write (2.0 line T3 TRIAL-01, `markHaltedEnd`): the end runs again.
+        const { halted, ...kept } = next;
+        if (!isPrimaryGm() || JSON.stringify(kept) === JSON.stringify(written)) return;
+        await game.settings.set(MODULE_ID, SETTINGS.chapterEnd, kept);
+        written = kept;
     };
     endRunning = true;
     let result = null, notRun = [];

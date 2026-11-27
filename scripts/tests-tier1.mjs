@@ -69857,6 +69857,22 @@ const INVARIANTS = [
             first: true, escaped: true, kept: { key: "DRPG.Chapter.notStopped", data: {} } }),
             "{rows: [said, notices so far] for a listed key, one with a value holding markup, the Eclipse's one key, a Bridge key, a listed prefix the file does not hold, a key past the one key, true, null, an array; first: the text is the key's; escaped: the value's markup escaped; kept: the collector keeps the first reason said}");
     }],
+    ["R9121 - an end of the chapter whose record names steps not run, or that its primary marked halted, reads as stopped on every GM, its `by` the connected primary too; one with neither reads as running there (2.0 line T3 TRIAL-01; scripts/chapter.mjs `chapterEndStopped`)", async () => {
+        /* 2.0 line T3 TRIAL-01, 27.11.2026 (Forge S1b TRIAL-01: `stage: "applying"` after GM1's F5). A second GM read an end
+           whose `by` is the connected primary as running whenever no step had failed - one the phase's move stopped
+           (`notRun`) and one the primary's reload cut - so its window drew the form and the primary refused the press.
+           Pure on stand-in users (the arguments after the record, as R8732 reads `finishRoute`); nothing written. Red at
+           0b69122: null for the first two (the stand-ins not read: the record's `by` is no user of this world). */
+        const C = await import("./chapter.mjs");
+        must(typeof C.chapterEndStopped === "function", "chapter.mjs has no chapterEndStopped - this would measure nothing");
+        const users = new Map([["PRIMARY", { id: "PRIMARY", active: true, isGM: true }], ["GONE", { id: "GONE", active: false, isGM: true }]]);
+        const at = (record, me = "SECOND") => C.chapterEndStopped({ stage: "applying", by: "PRIMARY", done: [], failed: [], notRun: [], ...record },
+            { users, me, primary: "PRIMARY", running: false }) !== null;
+        equal(stableJson([at({ notRun: ["clock"] }), at({ halted: { at: 1, why: "reload" } }), at({}), at({ failed: ["sweep"] }), at({ by: "GONE" }),
+            at({}, "PRIMARY"), C.chapterEndStopped({ stage: "done", by: "PRIMARY" }, { users, me: "SECOND", primary: "PRIMARY", running: false }) !== null]),
+        stableJson([true, true, false, true, true, true, false]),
+            "[stopped on a second GM: steps not run; halted; neither (running on the primary); a step failed; `by` gone; on the primary itself; a record done]");
+    }],
 ];
 
 /**

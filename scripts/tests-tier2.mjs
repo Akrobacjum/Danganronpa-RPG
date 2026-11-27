@@ -118809,6 +118809,55 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         equal(stableJson(read), stableJson({ key: "DRPG.Chapter.bodyAnnouncedAlready", name: true, refused: null, toasts: 0, stamps: 1 }),
             "{key: the reason the run answers; name: it names the victim; refused: its bridge refusal; toasts: the warnings on the primary; stamps: the rows both announcements wrote}");
     }],
+    ["T3 TRIAL-01 - a primary that reloaded mid-end marks its record halted at its ready, and finishes it on a second GM's Finish", async () => {
+        /*
+         * 2.0 line T3 TRIAL-01, 27.11.2026 (Forge S1b TRIAL-01). A record "applying" written by this browser with no end
+         * running here is what this primary's reload leaves; at its ready it marks it halted (chapter.mjs `markHaltedEnd`),
+         * so a second GM reads it stopped, and a second GM's Finish run here through `chapter.end` (bridge-runs-records.mjs
+         * `handleChapterEnd`) does the rest, writing the record without the mark. From Daily Life with no trial: the record
+         * asks the next morning alone. Read: the mark, a second GM's reading of it (a stand-in full GM, as E42-T12 stands
+         * one in), the Finish's answer, the day moved and the record after. The clock and the record are put back. Red at
+         * 0b69122: no `markHaltedEnd`.
+         */
+        needs(env.primaryGm(), "the chapter's end runs on the primary GM alone");
+        const C = await import("./chapter.mjs");
+        const { handleChapterEnd } = await import("./bridge-runs-records.mjs");
+        const { trialFloor } = await import("./trial-floor.mjs");
+        const { murderState } = await import("./murder.mjs");
+        const { isEclipse } = await import("./settings.mjs");
+        must(typeof C.markHaltedEnd === "function", "chapter.mjs has no markHaltedEnd: a reload of the primary mid-end leaves an end no second GM sees stopped");
+        must(!murderState() && !isEclipse() && !trialFloor(), "an incident, an Eclipse or a trial is open - the end would not run as asked");
+        const KEY = SETTINGS.chapterEnd;
+        const clock = foundry.utils.deepClone(getClock());
+        const SECOND = standInUser({ name: "T3 TRIAL-01 second GM", role: CONST.USER_ROLES.GAMEMASTER, active: true, sorts: "last" });
+        const read = {};
+        try {
+            await setClock({ ...clock, phase: "dailyLife" });
+            const start = foundry.utils.deepClone(getClock());
+            const choices = { reveal: false, sweep: false, faint: false, keys: false, endTrial: false, nextChapter: false, nextSession: false, nextMorning: true };
+            await game.settings.set(MODULE_ID, KEY, { stage: "applying", by: game.user.id, at: 1, opened: null, choices, done: [], failed: [], notRun: [],
+                ending: { chapter: start.chapter, session: start.session, day: start.day ?? 1, phase: "dailyLife", stands: "dailyLife" } });
+            await settle();
+            const marked = await C.markHaltedEnd();
+            const record = foundry.utils.deepClone(game.settings.get(MODULE_ID, KEY) ?? {});
+            game.users.set(SECOND.id, SECOND);
+            const seen = C.chapterEndStopped(record, { users: game.users, me: SECOND.id, primary: game.user.id, running: false }) !== null;
+            game.users.delete(SECOND.id);
+            const again = await C.markHaltedEnd();
+            const answer = await handleChapterEnd({ finish: true });
+            await settle();
+            const after = game.settings.get(MODULE_ID, KEY) ?? {};
+            read.steps = [marked, record.halted?.why ?? null, seen, again, Array.isArray(answer?.reply), (getClock().day ?? 1) - (start.day ?? 1),
+                after.stage ?? null, "halted" in after];
+        } finally {
+            game.users.delete(SECOND.id);
+            await setClock(clock);
+            await game.settings.set(MODULE_ID, KEY, {});
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ steps: [true, "reload", true, false, true, 1, "done", false] }),
+            "{steps: [the mark written, its why, a second GM reads it stopped, a second mark, the Finish answers lines, days on, the record's stage after, the mark left]}");
+    }],
 ];
 
 // `drawnForPlayer` for the grid (E33 C7): a drawn crisis roll goes through the suite's one road to a draw (tests-grid.mjs `drawnAct`).
