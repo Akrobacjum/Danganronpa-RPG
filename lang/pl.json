@@ -3829,6 +3829,7 @@
       "castToken": "Token w sali"
     },
     "Trial": {
+      "recordWrittenHere": "Główny GM {name} nie odpowiedział na zapis przebiegu Class Trial, więc zapisała go przeglądarka GM-a {gm}. Jeśli konsola rozprawy pokazuje coś dziwnego, sprawdź ją na obu ekranach.",
       "sentenceNotCarried": "Wyrok na {names} nie został wykonany: główny GM nie odpowiedział. Jeśli uczeń nadal żyje, naciśnij Wykonaj wyrok ponownie.",
       "sentenceAgain": "Wykonaj wyrok ponownie",
       "sentenceAgainTooltip": "Prosi głównego GM-a o wykonanie wyroku. Wyrok już wykonany nie zostanie wykonany drugi raz.",

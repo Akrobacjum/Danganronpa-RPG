@@ -23677,7 +23677,7 @@ const REGRESSIONS = [
             "states.mjs": {"line": 1}, "tables-editor.mjs": {"card": 1}, "tail-gm.mjs": {"line": 3}, "timed-effects.mjs": {"line": 1}, "traps.mjs": {"line": 1},
             // E129 S0-SKIP (23.11.2026): trial-floor.mjs `finishObjectionOnPrimary` whispers the GMs one line, the objector's finish.
             "trial-floor-ui.mjs": {"message": 4}, "trial-floor.mjs": {"line": 1, "message": 1},
-            "trial-modes.mjs": {"heading": 1, "message": 1}, "trial-progress.mjs": {"card": 1, "line": 2, "message": 1}, // 2.0 line T3 TRIAL-07: +1 card (`holdSentence`)
+            "trial-modes.mjs": {"heading": 1, "message": 1}, "trial-progress.mjs": {"card": 2, "line": 2, "message": 1}, // 2.0 line T3 TRIAL-07: +1 card (`holdSentence`); TRIAL-15: +1 (`tellWrittenHere`)
             "trial-scene.mjs": {"built": 1, "line": 10}, "trial-zones.mjs": {"card": 1, "message": 1}, "trial.mjs": {"line": 11, "message": 4},
             "truth-bullets.mjs": {"card": 1, "heading": 2}, "use-items.mjs": {"card": 1, "line": 6},
             "user-match.mjs": {"line": 1}, "utils.mjs": {"built": 1}, "vault-store.mjs": {"card": 1, "line": 3, "message": 1},

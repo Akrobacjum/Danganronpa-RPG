@@ -3588,6 +3588,7 @@
       "castToken": "Token in the hall"
     },
     "Trial": {
+      "recordWrittenHere": "The primary GM {name} did not answer a write of the Class Trial's record, so {gm}'s browser wrote it. If the trial console shows something odd, check it on both screens.",
       "sentenceNotCarried": "The sentence on {names} was not carried out: the primary GM did not answer. If the student is still alive, press Carry out the sentence again.",
       "sentenceAgain": "Carry out the sentence again",
       "sentenceAgainTooltip": "Asks the primary GM to carry out the sentence. A sentence already carried out is not carried out twice.",

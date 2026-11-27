@@ -119392,6 +119392,52 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         equal(stableJson(read), stableJson({ asked: [null, 1, [true]], pressed: [[true, false], true, 1, true] }),
             "{asked: [what the unanswered execute answered, the GMs' cards naming the student, each with its button]; pressed: [the button wired on the first press and the second, the student dead, deaths written, the record stamped]}");
     }],
+    ["T3 TRIAL-15 - a record write the primary did not answer is told to the GMs once", async () => {
+        /*
+         * 2.0 line T3 TRIAL-15, 27.11.2026. A write of the trial's record that a primary did not answer goes on from this
+         * browser (trial-progress.mjs `askRecord`), and only the console said so. Another full GM stood in as the primary
+         * (tests-kit `standInUser`, sorting first), and two writes of the record's `keysCharged` as it stands, each asked as
+         * the bridge answers a request nobody answered (`setTrialProgress`'s `ask`), within the minute. Read: the cards this
+         * browser created that say `DRPG.Trial.recordWrittenHere`, whispered to the GMs, not raised as a GM's card. The
+         * record and the cards put back. Red at 283f5e9: no card.
+         */
+        needs(env.primaryGm(), "the stand-in primary is set beside this GM");
+        const T = await import("./trial-progress.mjs");
+        const { cardFlag, wordsOf } = await import("./secret.mjs");
+        const progress = foundry.utils.deepClone(getSetting(SETTINGS.trialProgress) ?? {});
+        const piece = game.i18n.localize("DRPG.Trial.recordWrittenHere").split(/\{[^}]+\}/).sort((a, b) => b.length - a.length)[0].trim().slice(0, 30);
+        const made = [];
+        const hook = Hooks.on("createChatMessage", doc => { made.push(doc); });
+        const primary = standInUser({ name: "T3 TRIAL-15 primary GM", role: CONST.USER_ROLES.GAMEMASTER, active: true, sorts: "first" });
+        const warnWas = console.warn;
+        let read = null;
+        try {
+            T.forgetWrittenHere?.();
+            console.warn = () => {};
+            game.users.set(primary.id, primary);
+            const noAnswer = async () => ({ ok: false, reason: "noAnswer" });
+            const charged = Boolean(T.trialProgress().keysCharged);
+            await T.setTrialProgress({ keysCharged: charged }, { ask: noAnswer });
+            await T.setTrialProgress({ keysCharged: charged }, { ask: noAnswer });
+            game.users.delete(primary.id);
+            await settle();
+            const cards = [];
+            for (const doc of made) {
+                const words = String(await wordsOf(doc, 1000) ?? "");
+                if (words.includes(piece)) cards.push([(doc.whisper ?? []).includes(game.user.id), Boolean(cardFlag(doc, "gmPopup"))]);
+            }
+            read = cards;
+        } finally {
+            console.warn = warnWas;
+            Hooks.off("createChatMessage", hook);
+            for (const u of game.users.filter(u => u.name === "T3 TRIAL-15 primary GM")) game.users.delete(u.id);
+            T.forgetWrittenHere?.();
+            await game.settings.set(MODULE_ID, SETTINGS.trialProgress, progress);
+            for (const doc of made) await game.messages.get(doc.id)?.delete().catch(() => {});
+            await settle();
+        }
+        equal(stableJson(read), stableJson([[true, false]]), "[the cards saying the write went from this browser: [whispered to this GM, raised as a GM's card]]");
+    }],
 ];
 
 // `drawnForPlayer` for the grid (E33 C7): a drawn crisis roll goes through the suite's one road to a draw (tests-grid.mjs `drawnAct`).

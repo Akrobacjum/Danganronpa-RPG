@@ -46,7 +46,7 @@ import { runSteps } from "./steps.mjs";
 // A leaf (season-exceptions.mjs alone): the registry of season state the reset walks (E42 C3).
 import { registerSeasonState } from "./season-reset.mjs";
 import {
-    announce, whisperToGms, whisperToOwner, isPrimaryGm, log, warn, error, serialWrite, serverNow, esc
+    announce, whisperToGms, whisperToOwner, isPrimaryGm, primaryGmId, log, warn, error, serialWrite, serverNow, esc
 } from "./utils.mjs";
 
 /** A vote nobody has opened in this trial: the blank of `trialProgress().vote`. */
@@ -571,15 +571,15 @@ export const TRIAL_PROGRESS_KEY = "trial.progress";
  * A step never calls this (it would wait for its own key): the step's work is `writeTrialProgressInStep`, which a step of
  * this key in another file calls (voice.mjs `settleTrialVoices`, E70 C5).
  */
-export function setTrialProgress(patch = {}) {
+export function setTrialProgress(patch = {}, { ask = bridgeRequest } = {}) {
     if (!game.user.isGM) return Promise.resolve(null);
     // A Finding's press and the summary's claim, each the primary's step over the record as it finds it (`stepOfPatch`).
     const step = typeof patch === "function" ? null : stepOfPatch(patch);
     if (step) {
         if (isPrimaryGm()) return serialWrite(TRIAL_PROGRESS_KEY, () => writeTrialProgressInStep(step));
-        return askRecord("patch", { patch }, () => recordOnPrimary("patch", { patch }));
+        return askRecord("patch", { patch }, () => recordOnPrimary("patch", { patch }), ask);
     }
-    if (typeof patch !== "function" && !isPrimaryGm()) return askRecord("patch", { patch }, () => recordOnPrimary("patch", { patch }));
+    if (typeof patch !== "function" && !isPrimaryGm()) return askRecord("patch", { patch }, () => recordOnPrimary("patch", { patch }), ask);
     return serialWrite(TRIAL_PROGRESS_KEY, () => writeTrialProgressInStep(patch));
 }
 
@@ -657,14 +657,35 @@ export function recordPatchOf(patch) {
 }
 
 /** Ask the primary GM for one of the record's writes (the GMs' row "trial.record"), or run it here on the primary. */
-async function askRecord(op, fields, local) {
-    const res = await bridgeRequest("trial.record", { op, ...fields }, { settle: "reply", onPrimary: true, local });
+async function askRecord(op, fields, local, ask = bridgeRequest) {
+    const res = await ask("trial.record", { op, ...fields }, { settle: "reply", onPrimary: true, local });
     if (res.ok) return res.value ?? null;
     if (op === "patch" && !res.refused) {
         warn(`The primary GM did not answer a write of the trial's record; written here: ${Object.keys(fields.patch ?? {}).join(", ")}`);
+        tellWrittenHere();
         return serialWrite(TRIAL_PROGRESS_KEY, () => writeTrialProgressInStep(stepOfPatch(fields.patch) ?? fields.patch));
     }
     return null;
+}
+
+/*
+ * A WRITE THE PRIMARY DID NOT ANSWER IS TOLD TO THE GMS (2.0 line T3 TRIAL-15, 27.11.2026; the owner's recommendation). The
+ * write goes on from this browser, as it did, and until now only the console said so: the GMs are whispered that it was
+ * written here, which GM's and whose primary did not answer, at most once a minute from one browser, with no field names.
+ * Not raised as a GM's card. `forgetWrittenHere` is the suite's, so a run's second minute is told again.
+ */
+let toldWrittenAt = 0;
+function tellWrittenHere(now = Date.now()) {
+    if (now - toldWrittenAt < 60_000) return;
+    toldWrittenAt = now;
+    const primary = game.users.get(primaryGmId() ?? "")?.name ?? "?";
+    whisperToGms({ tone: "warning", body: `<p>${game.i18n.format("DRPG.Trial.recordWrittenHere", { name: esc(primary), gm: esc(game.user?.name ?? "?") })}</p>` })
+        .catch(err => error("Could not tell the GMs a write of the trial's record went from this browser", err));
+}
+
+/** The suite's: the next unanswered write is told again (`tellWrittenHere`). */
+export function forgetWrittenHere() {
+    toldWrittenAt = 0;
 }
 
 /**
