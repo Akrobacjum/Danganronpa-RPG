@@ -6532,7 +6532,7 @@
       "mainRoom": "główny pokój",
       "deadRoom": "pokój Widzów",
       "claimTrial": "podczas Class Trial wszyscy są w jednym pokoju",
-      "trialMuteLeft": "Mikrofon gracza {name} jest nadal zablokowany po rozprawie. Odblokuj go w „Kogo słyszysz” na kafelku głosu, gdy {name} jest w twoim kanale głosowym: lista pokazuje tylko osoby, które słyszysz.",
+      "trialMuteLeft": "Mikrofon gracza {name} jest nadal zablokowany po rozprawie. Odblokuj go w oknie Uczniowie, w kolumnie Mikrofon.",
       "needsAvclient": "Ustawienie „Głos osobno w każdym pokoju” jest włączone, ale LiveKit AVClient nie jest aktywny. Włącz go w Zarządzaj modułami i przeładuj świat.",
       "avDisabled": "Ustawienie „Głos osobno w każdym pokoju” jest włączone, ale Audio/Wideo jest wyłączone dla tego świata. Włącz je w Konfiguracji ustawień.",
       "resetDone": {
@@ -6718,7 +6718,11 @@
         "dupes": "„{scene}” ma kilka regionów o nazwie {names}, które razem tworzą jeden pokój głosowy.",
         "dupesHint": "Przewidziane dla korytarza narysowanego w dwóch częściach; w innym razie to pomyłka."
       },
-      "serverLost": "Brak połączenia z serwerem gry. Jeśli strona nie wróci sama, naciśnij F5, gdy sieć wróci."
+      "serverLost": "Brak połączenia z serwerem gry. Jeśli strona nie wróci sama, naciśnij F5, gdy sieć wróci.",
+      "micColumn": "Mikrofon",
+      "micBlock": "Zablokuj",
+      "micUnblock": "Odblokuj",
+      "micNoVoice": "Tu nie ma głosu: klient LiveKit nie działa, więc nie ma mikrofonu do zablokowania."
     },
     "States": {
       "drpgBreakdown": {

@@ -1780,6 +1780,26 @@ export async function toggleBlock(user, { holds = target => moduleHoldsMic(targe
     return true;
 }
 
+/**
+ * A GM's microphone control for one user OUTSIDE the voice list (2.0 line T4, VOICE-04, 27.11.2026): the Students window's
+ * Microphone column (gm-students.mjs `micCellHtml`). The list "Who you hear" shows only who is in the GM's own channel,
+ * so a player in another room could not be blocked or unblocked from anywhere - not even a trial's block left behind
+ * (voice.mjs `restoreTrialBlock`'s `trialMuteLeft`). `toggleBlock` is the one write and asks again at the click; this says
+ * what the control shows now: `{ blocked, disabled, reason }`, `reason` the words a greyed control says - no voice here
+ * (no LiveKit client), no microphone permission in this Foundry, or the module's hold (`moduleHoldsMic`, its own line).
+ * Answers null for no user, a GM, or this browser's own account. `client`, `settings`, `holds` and `perms` are the suite's.
+ */
+export function micCellState(user, { client = liveKitClient(), settings = game.webrtc?.settings, holds = target => moduleHoldsMic(target),
+    perms = globalThis.CONST?.USER_PERMISSIONS } = {}) {
+    if (!user?.id || user.isGM || user.id === game.user?.id) return null;
+    const blocked = !(settings?.getUser?.(user.id)?.canBroadcastAudio ?? true);
+    if (!client) return { blocked, disabled: true, reason: game.i18n.localize("DRPG.Voice.micNoVoice") };
+    if (!broadcastAudioKnown(perms)) return { blocked, disabled: true, reason: game.i18n.localize("DRPG.Voice.list.gmNoBlock") };
+    const hold = holds(user);
+    if (hold?.held) return { blocked, disabled: true, reason: heldLine(hold) };
+    return { blocked, disabled: false, reason: null };
+}
+
 /** Run a change the list asked for, then draw the list again; a failure is logged, never thrown into a listener. */
 function listAct(watch, fn) {
     Promise.resolve().then(fn).then(() => paintList(watch)).catch(err => error("Could not change what you hear", err));

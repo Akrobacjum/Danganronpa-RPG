@@ -118727,6 +118727,55 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             JSON.stringify({ skipped: "testBuild", changed: 0, settings: true, warns: [[true, true]] }),
             "{skipped; changed; settings: every module setting as before; warns: [names the version, stays up]}");
     }],
+    ["E134 VOICE-04 - a GM unblocks a player's microphone from the Students window while the player is in another room: the player's own block written, the window opened as the GM panel opens it, the Microphone cell of that player's student pressed - the block is lifted and the cell says Block again; the permission put back after", async () => {
+        /*
+         * 2.0 line T4, VOICE-04 (27.11.2026). The list "Who you hear" reached only the GM's own channel; the Students window's
+         * cell reaches every player. "Another room" needs no move: the cell asks nothing of a channel or a room, and the GM's
+         * list is not opened. Headless there is no avclient-livekit client (lib/livekit.mjs installs one only for scenario
+         * 75), so the field the module reads for it is stood in for the window's life when it is absent, and so is
+         * Foundry's `AVSettings#getUser` - whose `canBroadcastAudio` answers the user's permission (from memory of v13, not
+         * read in v14's source; the harness's settings hold no such row) - read off the user's own BROADCAST_AUDIO; at a
+         * table both are the real ones. Written and put back: the player's BROADCAST_AUDIO. Red before the line: no
+         * Microphone cell.
+         */
+        must(game.user.isGM, "the Students window is a GM's");
+        needs(world.atLeast("playersWithCharacter", 1), "a player whose character is a student");
+        const GP = await import("./gm-panel.mjs");
+        const { forcedDeletion } = await import("./utils.mjs");
+        const { studentActors } = await import("./monokuma.mjs");
+        const students = new Set(studentActors().map(a => a.id));
+        const player = game.users.find(u => !u.isGM && u.character && students.has(u.character.id));
+        must(player, "no player plays a student - the cell has no row to stand in");
+        must(getClock()?.phase !== "classTrial", "the clock stands in a Class Trial - the trial holds microphones its own way");
+        const permsWere = foundry.utils.deepClone(player._source?.permissions ?? {});
+        const alive = () => [...foundry.applications.instances.values()].filter(a => a.rendered && a.options?.classes?.includes("drpg-window-alive"));
+        const rtc = game.webrtc?.client;
+        const av = game.webrtc?.settings;
+        const backs = [rtc && !rtc._liveKitClient ? standIn(rtc, "_liveKitClient", { r134: "stand-in" }) : null,
+            av && typeof av.getUser !== "function" ? standIn(av, "getUser", id => ({ canBroadcastAudio: game.users.get(id)?._source?.permissions?.BROADCAST_AUDIO !== false })) : null]
+            .filter(Boolean);
+        const back = () => { for (const put of backs.reverse()) put(); };
+        const read = {};
+        try {
+            await player.update({ "permissions.BROADCAST_AUDIO": false });
+            await settle();
+            void Promise.resolve().then(() => GP.openWhoIsAliveDialog()).catch(() => null);
+            const cellOf = () => alive()[0]?.element?.querySelector(`tr[data-actor="${CSS.escape(player.character.id)}"] [data-drpg-mic]`) ?? null;
+            must(await until(() => cellOf(), 6000), "the Students window drew no Microphone cell on the player's row - this would measure nothing");
+            read.before = [cellOf().getAttribute("aria-pressed"), cellOf().disabled];
+            cellOf().click();
+            await until(() => game.users.get(player.id)._source?.permissions?.BROADCAST_AUDIO !== false && cellOf()?.getAttribute("aria-pressed") === "false", 4000);
+            const own = game.users.get(player.id)._source?.permissions ?? {};
+            read.after = [Object.hasOwn(own, "BROADCAST_AUDIO") ? own.BROADCAST_AUDIO : "none", cellOf()?.getAttribute("aria-pressed") ?? null, cellOf()?.textContent ?? null];
+        } finally {
+            for (const a of alive()) await a.close().catch(() => {});
+            back();
+            await player.update({ "permissions.BROADCAST_AUDIO": Object.hasOwn(permsWere, "BROADCAST_AUDIO") ? permsWere.BROADCAST_AUDIO : (forcedDeletion() ?? true) });
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ before: ["true", false], after: [forcedDeletion() ? "none" : true, "false", game.i18n.localize("DRPG.Voice.micBlock")] }),
+            "{before: the cell's aria-pressed and greyed with the player's block; after the press: the player's own BROADCAST_AUDIO, the cell's aria-pressed and word}");
+    }],
 ];
 
 // `drawnForPlayer` for the grid (E33 C7): a drawn crisis roll goes through the suite's one road to a draw (tests-grid.mjs `drawnAct`).

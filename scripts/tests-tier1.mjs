@@ -56480,7 +56480,9 @@ const INVARIANTS = [
         // the three Monocub columns in every table since E49 A3 (R3406 reads their dimmed cells).
         const heads = [T("DRPG.Panel.character"), T("DRPG.Panel.openColumn"), T("DRPG.Panel.roleColumn"), T("DRPG.Panel.stateColumn"), T("DRPG.Actions.label"), T("DRPG.Panel.freeMove"),
             T("DRPG.Monocub.hope"), T("DRPG.Monocub.giveHopeColumn"), T("DRPG.Monocub.silenced"),
-            T("DRPG.Panel.levelUpColumn"), T("DRPG.Panel.doColumn")];
+            T("DRPG.Panel.levelUpColumn"), T("DRPG.Panel.doColumn"),
+            // The Microphone, last (2.0 line T4, VOICE-04, 27.11.2026; R9252): a column every row has, empty but a student's.
+            T("DRPG.Voice.micColumn")];
         const shown = [["students", students], ["monokumas", kumas], ["notInClass", npcs]].filter(([, list]) => list.length);
         equal(stableJson(got), stableJson({
             kit: true,
@@ -70389,6 +70391,95 @@ const INVARIANTS = [
         equal(JSON.stringify({ rows: [...new Set(rows.map(([kind, holds]) => `${kind}:${holds}`))].sort(), themes }),
             JSON.stringify({ rows: ["console:true", "player:true"], themes: { glass: want, legacy: want } }),
             "{rows: each kind of row, whether its tooltip's second and last line is its whole preview, escaped; themes: the preview's winning rules under each}");
+    }],
+    ["R9252 - the Students window's Microphone cell (2.0 line T4, VOICE-04): gm-students.mjs `micCellHtml` draws Block or Unblock for the row's player account as Foundry answers its microphone, `aria-pressed` its block, greyed with the module's own reason where voice-tile.mjs `micCellState` says the module holds it, there is no voice client or no microphone permission, and nothing for a row no player plays; `wireMicCells` hands a press to `toggleBlock` with that user and draws the cell again on the user's change", async () => {
+        /*
+         * VOICE-04 (docs/dev/v2/F1-infra.md): a GM could block or unblock a microphone only from the voice tile's list, which
+         * holds only the GM's own channel. Every reading here is stand-ins handed to the two functions: the users, the
+         * voice settings and client, the module's hold, the permissions, and the press's road (`toggle`); a window of the
+         * test's own, in no document but its own div, wired and then taken off the page so its hook stands down. Nothing is
+         * written. Red at 31d5812: gm-students.mjs had no micCellHtml.
+         */
+        const S = await import("./gm-students.mjs");
+        const VT = await import("./voice-tile.mjs");
+        must(typeof S.micCellHtml === "function" && typeof S.wireMicCells === "function" && typeof VT.micCellState === "function",
+            "no micCellHtml, wireMicCells or micCellState - the Students window has no microphone cell");
+        const player = { id: "R9252P", name: "R9252 Aiko", isGM: false, character: { id: "R9252A" } };
+        const users = { find: fn => [player].find(fn), get: id => (id === player.id ? player : null) };
+        let blocked = false, held = null;
+        const settings = { getUser: id => (id === player.id ? { canBroadcastAudio: !blocked } : null) };
+        const perms = { BROADCAST_AUDIO: "BROADCAST_AUDIO" };
+        const state = user => VT.micCellState(user, { client: {}, settings, holds: () => held, perms });
+        const cell = id => {
+            const box = document.createElement("div");
+            box.innerHTML = S.micCellHtml(id, { state, users });
+            const b = box.querySelector("button");
+            return b ? [b.textContent, b.getAttribute("aria-pressed"), b.disabled, b.dataset.tooltip] : null;
+        };
+        const L = key => game.i18n.localize(key);
+        const read = { open: cell("R9252A"), noPlayer: cell("R9252X") };
+        blocked = true; read.blocked = cell("R9252A");
+        held = { held: true, reason: "masked" }; read.held = cell("R9252A");
+        held = null;
+        read.noVoice = VT.micCellState(player, { client: null, settings, holds: () => null, perms })?.reason === L("DRPG.Voice.micNoVoice");
+        read.noPerm = VT.micCellState(player, { client: {}, settings, holds: () => null, perms: {} })?.reason === L("DRPG.Voice.list.gmNoBlock");
+        read.gm = VT.micCellState({ id: "R9252G", isGM: true }, { client: {}, settings, holds: () => null, perms });
+        // The wiring: a press, then the user's change drawn in place.
+        const page = document.createElement("div");
+        page.innerHTML = `<table><tr data-actor="R9252A"><td>${S.micCellHtml("R9252A", { state, users })}</td></tr></table>`;
+        document.body.append(page);
+        const pressed = [];
+        try {
+            S.wireMicCells({ element: page }, { toggle: user => { pressed.push(user.id); blocked = !blocked; }, state, users });
+            page.querySelector("[data-drpg-mic]").click();
+            await until(() => page.querySelector("[data-drpg-mic]")?.textContent === L("DRPG.Voice.micBlock"), 1000);
+            read.press = [pressed, page.querySelector("[data-drpg-mic]")?.textContent];
+            blocked = true;
+            Hooks.callAll("updateUser", player, {}, {}, game.user.id);
+            read.followed = page.querySelector("[data-drpg-mic]")?.textContent;
+        } finally {
+            page.remove();
+            Hooks.callAll("updateUser", player, {}, {}, game.user.id);
+        }
+        const block = game.i18n.format("DRPG.Voice.list.gmBlock", { name: player.name }), unblock = game.i18n.format("DRPG.Voice.list.gmUnblock", { name: player.name });
+        equal(JSON.stringify(read), JSON.stringify({
+            open: [L("DRPG.Voice.micBlock"), "false", false, block], noPlayer: null,
+            blocked: [L("DRPG.Voice.micUnblock"), "true", false, unblock],
+            held: [L("DRPG.Voice.micUnblock"), "true", true, L("DRPG.Voice.list.gmHeld")],
+            noVoice: true, noPerm: true, gm: null,
+            press: [["R9252P"], L("DRPG.Voice.micBlock")], followed: L("DRPG.Voice.micUnblock")
+        }), "{each cell: [its word, aria-pressed, greyed, its tooltip]: open, a row no player plays, blocked, held by the module; the reasons for no voice and no permission; a GM's; a press: [users toggled, the word after]; the word after the user's change}");
+    }],
+    ["R9253 - a trial's block left behind is lifted from the Students window, wherever the player stands (2.0 line T4, VOICE-04): `DRPG.Voice.trialMuteLeft` sends the GM to the Students window, in both languages, and no longer to \"Who you hear\" and the GM's channel; voice-tile.mjs `toggleBlock` lifts a player's own block with no word of the GM's channel or the player's room", async () => {
+        /*
+         * VOICE-04: voice.mjs `restoreTrialBlock`, in a Foundry with no deletion marker, leaves the trial's block and whispers
+         * `trialMuteLeft` to the GMs, which told them to unblock it in the list of the people they hear - so only for a
+         * player in their own voice channel. `toggleBlock` asks nothing of a channel: here a player account of the world is
+         * handed to it with Foundry's answers stood in (their microphone blocked by a key of their own, nothing held), and its
+         * `update` stood in to read what would be written; nothing is. Red at 31d5812: the old words.
+         */
+        needs(world.atLeast("playerAccounts", 1));
+        must(game.user.isGM, "toggleBlock is a GM's");
+        const VT = await import("./voice-tile.mjs");
+        const files = {};
+        for (const code of ["en", "pl"]) files[code] = await fetch(`/modules/${MODULE_ID}/lang/${code}.json`).then(r => r.json());
+        const words = code => String(files[code]?.DRPG?.Voice?.trialMuteLeft ?? "");
+        const player = game.users.find(u => !u.isGM);
+        const wrote = [];
+        const back = standIn(player, "update", async change => { wrote.push(change); return player; });
+        let did;
+        try {
+            did = await VT.toggleBlock(player, { holds: () => null, settings: { getUser: () => ({ canBroadcastAudio: false }) },
+                notify: () => {}, perms: { BROADCAST_AUDIO: "BROADCAST_AUDIO" }, ownKey: () => true });
+        } finally {
+            back();
+        }
+        const { forcedDeletion } = await import("./utils.mjs");
+        const lifted = wrote.length === 1 && Object.keys(wrote[0]).join() === "permissions.BROADCAST_AUDIO"
+            && (forcedDeletion() ? wrote[0]["permissions.BROADCAST_AUDIO"] !== false && wrote[0]["permissions.BROADCAST_AUDIO"] !== true : wrote[0]["permissions.BROADCAST_AUDIO"] === true);
+        equal(JSON.stringify({ en: [/Students/.test(words("en")), /Who you hear|voice channel/.test(words("en"))], pl: [/Uczniowie/.test(words("pl")), /Kogo słyszysz|kanale/.test(words("pl"))], did, lifted }),
+            JSON.stringify({ en: [true, false], pl: [true, false], did: true, lifted: true }),
+            "{en, pl: [the words name the Students window, the words still name the list or the channel]; did: toggleBlock wrote; lifted: what it wrote takes the player's own block off}");
     }],
 ];
 

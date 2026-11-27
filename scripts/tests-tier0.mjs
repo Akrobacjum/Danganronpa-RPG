@@ -11347,6 +11347,7 @@ const REGRESSIONS = [
             ["CLIENT voice-tile.mjs#unhidePeer -> *", "`users.<id>.blocked` false only, for a remote participant of the own Room, on the viewer's click (R538)"],
             ["CLIENT voice-panel.mjs#writeVoiceSetting -> *", "an allowlist of `audioSrc`, `audioSink` and `voice.mode` (always or ptt), strings only, this browser's own A/V client settings; nothing of the camera or the server (R542)"],
             ["HOLD voice-tile.mjs#paintList#moduleHoldsMic -> block", "the block is built only for a GM's list and disabled with its line where `moduleHoldsMic` holds; a secret death's line says only that a block would give it away (R539)"],
+            ["HOLD voice-tile.mjs#micCellState#moduleHoldsMic -> block", "the Students window's Microphone cell (2.0 line T4, VOICE-04, 27.11.2026): drawn greyed with its line where `moduleHoldsMic` holds, and `toggleBlock` asks again at the press, writing nothing while it holds (R9252, R539)"],
             ["HOLD voice-tile.mjs#toggleBlock#moduleHoldsMic -> block", "asked again at the click on the GM's client from the world's facts, not the button's state; held, nothing is written (R539)"],
             // E70 C5 (1.2.90; amend 6, answer 3 (b)): the trial's own block of the dead's microphones, on the primary (R1035).
             ["BLOCK voice.mjs#grantOf -> block", "a read (E70 C5): the user's own grant off its source, `{ had, value }`, for the trial's block and its restore; writes nothing"],

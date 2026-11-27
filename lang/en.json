@@ -6096,7 +6096,7 @@
       "mainRoom": "the main room",
       "deadRoom": "the Spectators' room",
       "claimTrial": "the Class Trial, with everybody in one room",
-      "trialMuteLeft": "{name}'s microphone is still blocked after the trial. Unblock it in “Who you hear” on the voice tile while {name} is in your voice channel: the list shows only the people you hear.",
+      "trialMuteLeft": "{name}'s microphone is still blocked after the trial. Unblock it in the Students window, in the Microphone column.",
       "needsAvclient": "'Separate voice in each room' is on, but LiveKit AVClient is not active. Turn it on in Manage Modules, then reload the world.",
       "avDisabled": "'Separate voice in each room' is on, but Audio/Video is off for this world. Turn it on in Configure Settings.",
       "resetDone": {
@@ -6276,7 +6276,11 @@
         "dupes": "\"{scene}\" has more than one region named {names}, and together they are one voice room.",
         "dupesHint": "Intended for a corridor drawn in two pieces; a mistake otherwise."
       },
-      "serverLost": "No connection to the game server. If the page does not come back by itself, press F5 once the network is back."
+      "serverLost": "No connection to the game server. If the page does not come back by itself, press F5 once the network is back.",
+      "micColumn": "Microphone",
+      "micBlock": "Block",
+      "micUnblock": "Unblock",
+      "micNoVoice": "No voice here: the LiveKit client is not on, so there is no microphone to block."
     },
     "States": {
       "drpgBreakdown": {
