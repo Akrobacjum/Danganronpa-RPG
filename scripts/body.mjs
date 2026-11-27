@@ -13,7 +13,7 @@ import { getClock } from "./clock.mjs";
 import { sameSeason, deathRecordFor, seasonEpoch, setBodyDiscovery, isDeadForGm, recordBodyFound, SETTINGS, bodiesFoundIn, pendingDeath, deadIn, bodyDiscovery } from "./settings.mjs";
 import { remnantsOn, remnantData, setRemnantFlagsMany } from "./remnants.mjs";
 import { studentActors } from "./monokuma.mjs";
-import { log, error, isPrimaryGm, hiddenByGm, primaryGmId, announce, whisperToGms, serverNow, plural, warn, esc, listOf, ownerIdsOf } from "./utils.mjs";
+import { log, error, isPrimaryGm, hiddenByGm, primaryGmId, announce, whisperToGms, serverNow, plural, warn, esc, listOf, ownerIdsOf, activeGmIds } from "./utils.mjs";
 import { drpgWindow, emptyOption, tipAttr } from "./ui-kit.mjs";
 import { keepLive } from "./live.mjs";
 import { pendingBodyStore, deathStore, bodyHeardStore } from "./gm-stores.mjs";
@@ -159,6 +159,7 @@ function enqueueBodyWork(work) {
  */
 export function discoverBody(options = {}) {
     if (!game.user.isGM || !options?.room) return Promise.resolve(null);
+    // `announcer` (2.0 line T1 MURDER-08): the second GM the bridge names (bridge-runs-records.mjs `handleBodyDiscover`).
     if (sentToPrimary()) return discoverOnPrimary(options);
     if (!discoveryHere()) return Promise.resolve(null);
     return enqueueBodyWork(() => runDiscovery(options));
@@ -177,7 +178,18 @@ async function discoverOnPrimary({ room, victim = null, scene = null } = {}) {
     const { bridgeRequest } = await import("./bridge-guards.mjs");
     const res = await bridgeRequest("body.discover", { room, victimId: victim?.id ?? null, sceneId: scene?.id ?? null },
         { settle: "reply", onPrimary: true, local: () => enqueueBodyWork(() => runDiscovery({ room, victim, scene })) });
-    return res.ok ? res.value ?? null : null;
+    const value = res.ok ? res.value ?? null : null;
+    /* THE QUESTIONS AFTER THE ANNOUNCEMENT ARE THE ANNOUNCER'S (2.0 line T1 MURDER-08, INV-06; the recommendation the owner
+       took: "Pytanie u GM-a, ktory oglosil cialo"). The primary ran the discovery and asked nothing of its own (`runDiscovery`
+       with this GM as `announcer`); its answer names what to ask here: the Faint Prep question (`askPromotion`) and the
+       case's question at a body (case-realize.mjs `askAtBody`). The one place this browser reads the answer. */
+    const here = askedHere(value);
+    if (here) {
+        void askPromotion(here);
+        import("./case-realize.mjs").then(m => m.askAtBody(here.chapter))
+            .catch(err => error("The case's question at a body failed", err));
+    }
+    return value;
 }
 
 /* THE DISCOVERY IS THE PRIMARY GM'S (E11 fix r1-G2, 1.2.73; round 1's sec F1 and goal K6). The
@@ -224,7 +236,7 @@ export async function deathAnnounced(actor) {
     return announcedAlready(actor, flagsHeldNow);
 }
 
-async function runDiscovery({ room, victim = null, scene = null, by = "gm" } = {}) {
+async function runDiscovery({ room, victim = null, scene = null, by = "gm", announcer = null } = {}) {
     if (!game.user.isGM || !room) return null;
     // The chapter and season the discovery happens in, read before anything is awaited: the
     // stamp is filed under these, whatever the clock reads by the time it is written (E11 C1).
@@ -309,8 +321,10 @@ async function runDiscovery({ room, victim = null, scene = null, by = "gm" } = {
        deaths are the table's, before the gather and the card, so a failure in either leaves the
        bodies known as found. Its `at` is the server's clock, as the trial's end it is compared
        with is (`bodyFoundSinceTrial`; E11 fix r1-G3). */
+    // The announcer rides the writer's own call of the hook (case-realize.mjs asks there), never the stamp.
+    const elsewhere = announcedElsewhere(announcer);
     await announceBody({ chapter: clock.chapter, epoch, at: serverNow(), room, sceneId: where?.id ?? null,
-        victimIds: victims, deaths, by, day: clock.day ?? 1, timeOfDay: clock.timeOfDay });
+        victimIds: victims, deaths, by, day: clock.day ?? 1, timeOfDay: clock.timeOfDay }, { announcer: elsewhere ? announcer : null });
 
     /* AND OF WHAT EACH OF THOSE DEATHS TIED, AND NOTHING ELSE (E09 fix r1-G1, 08.10.2026; the
        round-1 reviews' sec F8). C4 sent every tie of the chapter here, so a discovery sent the
@@ -386,8 +400,29 @@ async function runDiscovery({ room, victim = null, scene = null, by = "gm" } = {
        wait for each other (`promotionQueue`), so a second one lists only what the first left
        Faint (read in the code; no test drives two at once). Its own toast comes only when a trace was ticked. Tier 2 "the discovery card comes
        before the Prep question"; 65-season B1c on the witnesses' road. */
+    /* AT THE ANNOUNCER'S (2.0 line T1 MURDER-08): a second full GM who announced through the primary (`handleBodyDiscover`
+       hands its id, Foundry's sender, never a packet's field) is asked on its own browser - the answer carries where and
+       for which chapter (`discoverOnPrimary`) - and nothing opens here. */
+    if (elsewhere) return { moved, promotion: { room, chapter: clock.chapter } };
     const promotion = askPromotion({ room, chapter: clock.chapter });
     return { moved, promotion };
+}
+
+/**
+ * What the primary's answer to `body.discover` asks this browser (MURDER-08, INV-06): the `{ room, chapter }` of its
+ * `promotion`, or null - for `true`, the answer before 2.0, and for the local road's own result, whose `promotion` is
+ * the question it asked already (a promise, no room). Pure (R8931).
+ */
+export function askedHere(value) {
+    const here = value && typeof value === "object" ? value.promotion : null;
+    return here && typeof here === "object" && typeof here.then !== "function" && typeof here.room === "string" && here.room
+        && Number.isInteger(here.chapter) ? { room: here.room, chapter: here.chapter } : null;
+}
+
+/** Whether `announcer` is another connected full Gamemaster than this browser's user (MURDER-08, INV-06). */
+function announcedElsewhere(announcer) {
+    const user = announcer ? game.users.get(announcer) : null;
+    return Boolean(user && user.id !== game.user?.id && activeGmIds([user]).length && user.role === CONST.USER_ROLES.GAMEMASTER);
 }
 
 let promotionQueue = Promise.resolve(0);
@@ -492,7 +527,7 @@ async function publishFoundBodies(room, victim, scene, { clock = getClock(), epo
  * (`registerBodyAnnounced`), `writer: false`, with no `waitUntil`. A failed stamp calls nothing. The row is marked
  * seen before the write, so the stamp's `updateSetting` on this browser does not call it a second time.
  */
-export async function announceBody(row) {
+export async function announceBody(row, { announcer = null } = {}) {
     if (!game.user.isGM || !row) return null;
     const key = `${Number.isFinite(row.epoch) ? row.epoch : seasonEpoch()}:${row.chapter}`;
     const seen = announcedRowKey(key, { at: row.at, victimIds: [...new Set(row.victimIds ?? [])] });
@@ -508,7 +543,7 @@ export async function announceBody(row) {
         announcedSeen.delete(seen);
         return null;
     }
-    await callBodyAnnounced(bodyAnnouncedPayload(key, stamp), { writer: true });
+    await callBodyAnnounced({ ...bodyAnnouncedPayload(key, stamp), ...(announcer ? { announcer } : {}) }, { writer: true });
     return stamp;
 }
 

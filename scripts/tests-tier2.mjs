@@ -118870,6 +118870,73 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         equal(stableJson(read), stableJson({ first: 1, names: [true, true, true], gmsOnly: true, again: 0 }),
             "{first: the GMs' notice cards after the first walk; names: [the finder, the body, the room] on it; gmsOnly: whispered to GMs alone; again: new ones after the same finder's second walk}");
     }],
+    ["T1 MURDER-08 - the Prep question opens on the GM who announced (2.0 line T1; MURDER-08, INV-06; scripts/body.mjs `runDiscovery`, `discoverBody`; case-realize.mjs `registerCaseAsk`)", async () => {
+        /*
+         * 2.0 line T1, 27.11.2026 (MURDER-08, INV-06; the recommendation the owner took: "Pytanie u GM-a, ktory oglosil cialo").
+         * As "the discovery card comes before the Prep question" drives it: a death the GMs keep, a room nobody stands in, a
+         * Faint Prep trace of this chapter - announced on the primary for a second full GM (`announcer`, the id the bridge
+         * hands `discoverBody`), whom a stand-in user answers for while the test runs. Read: the Prep windows opened here,
+         * what the discovery answers for the announcer to ask, and the announcer on the writer's call of the body's hook.
+         * With two GMs: scenario 57's MURDER-08 and INV-06. Red at 658302a: the window opened here, no `promotion` to send.
+         */
+        needs(env.primaryGm(), "a discovery runs on the primary GM alone (`discoverBody`)");
+        needs(world.atLeast("sceneOnScreen"), "the fixture trace is placed on the scene on screen");
+        const [victim] = cast(1);
+        const { killCharacter, discoverBody, isDeadForGm, reviveCharacter } = await import("./chapter.mjs");
+        const { BODY_ANNOUNCED_HOOK } = await import("./body.mjs");
+        const remnants = await import("./remnants.mjs");
+        const ROOM = "SUITE T1 MURDER-08 a room nobody stands in";
+        const ID = "T1MURDER08GM0000";
+        const stand = { id: ID, name: "T1 MURDER-08 GM", active: true, isGM: true, role: CONST.USER_ROLES.GAMEMASTER };
+        const chapter = getClock().chapter;
+        const scene = canvas.scene;
+        const anchor = scene?.tokens?.find(t => t.x || t.y);
+        const foundBefore = game.settings.get(MODULE_ID, SETTINGS.bodyFound) ?? {};
+        const stampsBefore = foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS.bodiesFound) ?? {});
+        const D = foundry.applications.api.DialogV2;
+        const own = { confirm: Object.getOwnPropertyDescriptor(D, "confirm"), wait: Object.getOwnPropertyDescriptor(D, "wait") };
+        const users = game.users, ownGet = Object.getOwnPropertyDescriptor(users, "get"), get = users.get;
+        const placed = [], heard = [];
+        let asked = 0, result = null;
+        const hook = Hooks.on(BODY_ANNOUNCED_HOOK, payload => { if (payload?.writer) heard.push(payload.announcer ?? null); });
+        try {
+            const mine = await remnants.placeRemnant({ type: "prep", visibility: "subtle", faint: true, tiedToCrime: false, x: anchor?.x ?? 0, y: anchor?.y ?? 0, scene, chapter, subject: "SUITE T1 MURDER-08" });
+            placed.push(mine);
+            must(mine, "could not place the fixture trace");
+            D.confirm = async () => false;
+            D.wait = async config => {
+                const el = document.createElement("div");
+                if (typeof config?.content === "string") el.innerHTML = config.content;
+                else if (config?.content) el.append(config.content.cloneNode(true));
+                if (el.querySelector('input[name="promote"]')) asked += 1;
+                return null;
+            };
+            users.get = function (id, ...rest) { return id === ID ? stand : get.call(this, id, ...rest); };
+            await setClock({ phase: "dailyLife" });
+            must(await killCharacter(victim, { secret: true, keepBullets: true }), `${victim.name}'s death was not kept by the GMs`);
+            result = await discoverBody({ room: ROOM, victim, scene, announcer: ID });
+            await settle();
+            await wait(300);
+        } finally {
+            Hooks.off(BODY_ANNOUNCED_HOOK, hook);
+            if (ownGet) Object.defineProperty(users, "get", ownGet); else delete users.get;
+            for (const [name, desc] of Object.entries(own)) {
+                if (desc) Object.defineProperty(D, name, desc); else delete D[name];
+            }
+            for (const t of placed.filter(Boolean)) {
+                try { await remnants.dropRemnantSecret(t); } catch { /* nothing filed */ }
+                try { await t.delete(); } catch { /* already gone */ }
+            }
+            if (isDeadForGm(victim)) await reviveCharacter(victim, { quiet: true });
+            if (stableJson(game.settings.get(MODULE_ID, SETTINGS.bodyFound) ?? {}) !== stableJson(foundBefore)) {
+                await game.settings.set(MODULE_ID, SETTINGS.bodyFound, foundBefore);
+            }
+            await game.settings.set(MODULE_ID, SETTINGS.bodiesFound, stampsBefore);
+            await settle();
+        }
+        equal(stableJson({ asked, promotion: result?.promotion ?? null, heard }), stableJson({ asked: 0, promotion: { room: ROOM, chapter }, heard: [ID] }),
+            "{asked: the Prep windows opened on the primary; promotion: what the discovery answers for the announcer to ask; heard: the announcer on the writer's call of the body's hook}");
+    }],
     ["T1 D2-09 - the opening roll moves no Hope and no Despair, drawn for the killer's player with Hope and with Despair (2.0 line T1 EXP-PL-03; scripts/roll-draw.mjs, despair-award.mjs `rollPaysResources`, `incidentRollExempt`)", async () => {
         /*
          * 2.0 line T1, 27.11.2026 (D2-09: "Rzuty w incydencie nie daja Despair ani Hope"; D2-11: the opening and the crisis

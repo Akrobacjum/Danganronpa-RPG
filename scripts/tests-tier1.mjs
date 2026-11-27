@@ -69852,6 +69852,23 @@ const INVARIANTS = [
         equal(JSON.stringify({ asks, closes }), JSON.stringify({ asks: [true, true, false, false], closes: [true, false, true, false, false] }),
             "{asks: [the primary, a second full GM, an Assistant GM, a player]; closes: [the row gone, no answer, another's answer after the opening, before it, this GM's own]}");
     }],
+    ["R8931 - the case's question at a body is asked on the GM who announced it while connected and a full Gamemaster, else on the primary; and a second GM's browser asks after the primary's answer only what that answer names (2.0 line T1 INV-06, MURDER-08; scripts/case-realize.mjs `caseAskerId`, body.mjs `askedHere`)", async () => {
+        /* 2.0 line T1, 27.11.2026. Pure over stand-in users and answers; nothing written. Red at 658302a: neither
+           function existed, and the hook asked on the primary whoever announced. */
+        const C = await import("./case-realize.mjs");
+        const B = await import("./body.mjs");
+        must(typeof C.caseAskerId === "function" && typeof B.askedHere === "function", "caseAskerId or askedHere is missing - nothing here says who asks");
+        const GM = CONST.USER_ROLES.GAMEMASTER, AGM = CONST.USER_ROLES.ASSISTANT;
+        const users = new Map([["SECOND", { id: "SECOND", active: true, isGM: true, role: GM }], ["GONE", { id: "GONE", active: false, isGM: true, role: GM }],
+            ["ASSIST", { id: "ASSIST", active: true, isGM: true, role: AGM }], ["PLAYER", { id: "PLAYER", active: true, isGM: false, role: 1 }]]);
+        const who = announcer => C.caseAskerId({ announcer, primaryId: "PRIMARY", users });
+        const asker = [who(null), who("SECOND"), who("GONE"), who("ASSIST"), who("PLAYER"), who("NOBODY")];
+        const here = [B.askedHere({ promotion: { room: "Hall", chapter: 2 } }), B.askedHere(true), B.askedHere({ moved: 1, promotion: Promise.resolve(0) }),
+            B.askedHere({ promotion: { room: "", chapter: 2 } }), B.askedHere(null)];
+        equal(JSON.stringify({ asker, here }), JSON.stringify({ asker: ["PRIMARY", "SECOND", "PRIMARY", "PRIMARY", "PRIMARY", "PRIMARY"],
+            here: [{ room: "Hall", chapter: 2 }, null, null, null, null] }),
+            "{asker: [no announcer, a connected second GM, one gone, an Assistant GM, a player, an unknown id]; here: [the primary's question, true, the local road's own result, no room, nothing]}");
+    }],
     ["R8929 - a Spectator's message passes only as its own messenger thread to the GMs; a thread card with a player in its whisper, another's thread and plain chat do not (2.0 line T1 EXP-PL-10; scripts/spectator-ui.mjs `spectatorMessageAllowed`, `refuseOwnMessage`, `hiddenSpectatorMessage`, `dropSpectatorMessage`)", async () => {
         /* 2.0 line T1, 27.11.2026. Pure over stand-in messages and users, and the three parts read in their source; nothing
            written. Red at 658302a: no rule, every message of a Spectator's but the safeword's card refused. */
