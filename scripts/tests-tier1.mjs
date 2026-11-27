@@ -4104,9 +4104,11 @@ const INVARIANTS = [
                 const pts = (/polygon\((.*)\)/.exec(cs.clipPath)?.[1] ?? "").split(",").filter(Boolean).map(q => q.trim().split(/\s+/).map(parseFloat));
                 const miss = pts.length === poly.length ? Math.max(...pts.map(([x, y], i) => Math.hypot(L + ox + m.a * (x - ox) + m.c * (y - oy) + m.e - at.left - poly[i][0],
                     T + oy + m.b * (x - ox) + m.d * (y - oy) + m.f - at.top - poly[i][1]))) : Infinity;
-                return { points: pts.length, miss, turn: [Math.atan2(m.b, m.a), Math.atan2(o.b, o.a)].map(a => a * 180 / Math.PI) }; };
+                return { points: pts.length, miss, turn: [Math.atan2(m.b, m.a), Math.atan2(o.b, o.a)].map(a => a * 180 / Math.PI),
+                    // what the miss is made of (2.0 line T4, FORGE-09e, 27.11.2026: at The Forge it read 29 px and said no more)
+                    seen: { first: pts[0] ?? null, paneFirst: poly[0] ?? null, left: L, top: T, transform: cs.transform, curtain: [at.left, at.top] } }; };
             const f = fitOf(art, pane.poly, document.getElementById("drpg-curtain").getBoundingClientRect(), tile);
-            ok(f.miss <= 1 && Math.abs(f.turn[0] - f.turn[1]) <= 0.05, `the portrait's outline is ${f.miss.toFixed(2)} px off its pane, turned ${f.turn.map(d => d.toFixed(2))} deg against its tile's`);
+            ok(f.miss <= 1 && Math.abs(f.turn[0] - f.turn[1]) <= 0.05, `the portrait's outline is ${f.miss.toFixed(2)} px off its pane, turned ${f.turn.map(d => d.toFixed(2))} deg against its tile's - read: ${JSON.stringify(f.seen)}`);
             equal(f.points, pane.poly.length, "the portrait's outline against its pane's corners");
         }
         const plate = tile.querySelector(".drpg-voice-tile-plate");
@@ -16640,8 +16642,23 @@ const INVARIANTS = [
             equal(JSON.stringify(G.roomPlacement(innerWidth, innerHeight)), JSON.stringify(placed), "a second reading of roomPlacement");
             const near = (a, b, d = 1) => Math.abs(a - b) <= d;
             const at = cur.getBoundingClientRect();
+            /* UPRIGHT, AS THE MODULE MEASURES IT (2.0 line T4, FORGE-09e, 27.11.2026). At The Forge (Foundry 14.370, 1920x1080;
+               docs/dev/v2/F3-forge-PC-2.md) the tile read 292 px wide where it is placed at 265. `data-drpg-measuring` turns
+               the transitions off but not the turn: under Stained Glass the rotation sheet (`#drpg-glass-rotation`, glass.mjs
+               `writeRotations`) turns the tile and the clock, and a box 265 x 364 turned by about 4.4 degrees is 292 px wide.
+               The module measures with that sheet off and each block's own transform cleared (glass.mjs `moduleLayout`), the
+               glass harness with `transform: none` (`drpgRoomCheck`); this reads the same way and puts the turn back with the
+               transitions still off. That the turn is the whole 27 px is the arithmetic of the box, not a reading at the
+               Forge (the report kept no reading); headless there is no rotation sheet and nothing turns. */
             document.body.toggleAttribute("data-drpg-measuring", true);
+            const rot = document.getElementById("drpg-glass-rotation"), rotWas = rot ? rot.disabled : null;
+            const inline = [tile, hud].map(el => [el.style.getPropertyValue("transform"), el.style.getPropertyPriority("transform")]);
+            if (rot) rot.disabled = true;
+            for (const el of [tile, hud]) el.style.setProperty("transform", "none", "important");
             const t = tile.getBoundingClientRect(), h = hud.getBoundingClientRect();
+            [tile, hud].forEach((el, k) => { if (inline[k][0]) el.style.setProperty("transform", inline[k][0], inline[k][1]); else el.style.removeProperty("transform"); });
+            if (rot) rot.disabled = rotWas;
+            void document.body.offsetWidth;
             document.body.toggleAttribute("data-drpg-measuring", false);
             void document.body.offsetWidth;
             const laid = [t.left - at.left, t.top - at.top, t.width, t.height];
@@ -28589,7 +28606,14 @@ const INVARIANTS = [
         const stand = value => (had && !had.configurable
             ? (game.paused = value)
             : Object.defineProperty(game, "paused", { get: () => value, configurable: true }));
-        const rows = () => [...hud.children].map(child => [...child.classList].filter(c => c !== "is-paused").sort().join(".")).join(" ");
+        /* The rows by their kind, not their state (2.0 line T4, FORGE-09e, 27.11.2026): at The Forge (Foundry 14.370;
+           docs/dev/v2/F3-forge-PC-2.md) the world was on hold, so the clock held a `pausedAt`, and hud-elapsed.mjs
+           `paintElapsed` marks the stopwatch's line `paused` while `game.paused` and that stamp both stand, and `past-first`
+           / `past-second` by the time it reads - which a pause freezes and its stand-in's end does not. Those are a row's
+           state, drawn in place (danganronpa.css: opacity and italic), not a row that comes or goes; the harness's world is
+           never paused, so its clock has no stamp and the line never took them. */
+        const STATE = new Set(["is-paused", "paused", "past-first", "past-second"]);
+        const rows = () => [...hud.children].map(child => [...child.classList].filter(c => !STATE.has(c)).sort().join(".")).join(" ");
         const read = () => {
             const marks = [...hud.querySelectorAll(".drpg-hud-paused")];
             const mark = marks[0], campaign = hud.querySelector(":scope > .drpg-hud-campaign");
@@ -37203,8 +37227,12 @@ const INVARIANTS = [
             root.className = "application dialog drpg-window-season";
             // E49 A1e (12.11.2026): the rows and Pre-season checks are the Season checklist's, Season setup's tiles pinned under
             // Edit campaign; one stand-in holds the three, as the reader of each is one function for both windows.
-            root.innerHTML = `<section class="window-content"><form>${SS.campaignFieldsHtml({ campaignName: "R1524" }, "R1524word")}
-                ${SS.setupRows(rows)}</form></section>${SS.seasonTilesHtml(GP.SEASON_TILES, GP.tileHtml)}
+            /* A body a browser can scroll 420 px (2.0 line T4, FORGE-09e, 27.11.2026): at The Forge (Foundry 14.370;
+               docs/dev/v2/F3-forge-PC-2.md) this failed where the harness passes - a stand-in body with no height of its own
+               and nothing below its rows clamps `scrollTop = 420` to 0 in a browser, and jsdom keeps it. So the body is 200 px
+               tall over 1200 px of room; headless it reads as before. */
+            root.innerHTML = `<section class="window-content" style="height: 200px; overflow-y: auto"><form>${SS.campaignFieldsHtml({ campaignName: "R1524" }, "R1524word")}
+                ${SS.setupRows(rows)}<div class="r1524-fill" style="height: 1200px"></div></form></section>${SS.seasonTilesHtml(GP.SEASON_TILES, GP.tileHtml)}
                 <footer class="form-footer"><button type="submit" data-action="save" autofocus>R1524 save</button><button type="button" data-action="checks">R1524 checks</button></footer>`;
             document.body.append(root);
             return root;
@@ -44234,7 +44262,15 @@ const INVARIANTS = [
         const { openNotices } = await import("./notice-history-app.mjs");
         let win = null, read = null;
         await NH.holdNoticeHistory(true);
+        /* ON A LAID-OUT PAGE TOO (2.0 line T4, FORGE-09e, 27.11.2026). At The Forge (Foundry 14.370; docs/dev/v2/F3-forge-PC-2.md)
+           this failed where the harness passes. Read against a browser: with two notices the list cannot scroll 40 px (no
+           pill, nothing to keep); `focus()` scrolls its element into view; with a layout `dressList` keeps the reader's
+           entry where it stood, which moves `scrollTop` on purpose; and 300 ms fixed waits did not cover a slower page or
+           v14's animated close. So forty older notices are recorded first, the line is focused without scrolling, the
+           scroll is read on a laid-out page as the entry the reader was on standing where it stood (`env.layout`, a reading
+           of this browser, not a skip), and each wait is for what it waits for. Headless it reads as before. */
         try {
+            for (let n = 0; n < 40; n++) NH.recordNotice({ source: "mine", kind: "info", title: `R7973 filler ${n}`, text: "R7973 filler words", html: "", state: "unread" });
             const older = NH.recordNotice({ source: "mine", kind: "info", title: "R7973 older", text: "R7973 older words", html: "", state: "unread" });
             NH.recordNotice({ source: "mine", kind: "info", title: "R7973 newer", text: "R7973 newer words", html: "", state: "unread" });
             win = await openNotices();
@@ -44245,23 +44281,34 @@ const INVARIANTS = [
             must(entry(older), "the window does not list the suite's older notice - there is nothing to stand on");
             list().scrollTop = 40;
             const scrolled = list().scrollTop;
-            entry(older).querySelector("summary").focus();
+            must(scrolled === 40, `the list scrolled ${scrolled} of 40 px - there is no place to keep`);
+            entry(older).querySelector("summary").focus({ preventScroll: true });
+            const laidOut = env.layout().holds;
+            const anchor = () => {
+                const top = list().getBoundingClientRect().top;
+                const at = [...list().querySelectorAll("details.drpg-notice-entry")].find(el => el.getBoundingClientRect().bottom > top);
+                return at ? { key: at.dataset.drpgKey, dy: Math.round(at.getBoundingClientRect().top - top) } : null;
+            };
+            const stood = laidOut ? anchor() : null;
             must(document.activeElement === entry(older).querySelector("summary"), "the focus could not be put on the older entry's line");
             const fresh = NH.recordNotice({ source: "mine", kind: "info", title: "R7973 fresh", text: "R7973 fresh words", html: "", state: "unread" });
-            await wait(300);
+            await until(() => entry(fresh), 3000);
+            await wait(50);
             const pill = root.querySelector(".drpg-notices-new");
+            const now = laidOut ? anchor() : null;
             read = {
                 fresh: Boolean(entry(fresh)), pill: pill ? !pill.hidden : null,
-                scroll: list().scrollTop === scrolled, focus: document.activeElement === entry(older)?.querySelector("summary")
+                scroll: laidOut ? Boolean(now && stood && now.key === stood.key && Math.abs(now.dy - stood.dy) <= 1) : list().scrollTop === scrolled,
+                focus: document.activeElement === entry(older)?.querySelector("summary")
             };
             const unread = () => list().querySelectorAll("details.drpg-notice-entry.is-unread").length;
             read.unreadBefore = unread() > 0;
             NH.markNoticesRead();
-            await wait(300);
+            await until(() => unread() === 0, 3000);
             read.unreadAfter = unread();
             read.focusAfter = document.activeElement === entry(older)?.querySelector("summary");
             root.querySelector('footer.drpg-kit-footer [data-action="close"]')?.click();
-            await wait(300);
+            await until(() => !win.rendered && !root.isConnected, 3000);
             read.closed = !win.rendered && !root.isConnected;
         } finally {
             if (win?.rendered) await win.close();
@@ -44326,7 +44373,11 @@ const INVARIANTS = [
             }
             const before = r.refreshes();
             r.wake();
-            await wait(450);
+            /* Until the region is drawn again, not a fixed 450 ms (2.0 line T4, FORGE-09e, 27.11.2026): at The Forge (Foundry
+               14.370; docs/dev/v2/F3-forge-PC-2.md) this failed where the harness passes, on a page about five times slower
+               than headless (the run took 990 s against 200 s); the debounce (TIMING.coalesceMs) and the rebuild did not fit
+               the wait there (a hypothesis: the report kept no reading). 3 s at most, then the reading below says what came. */
+            await until(() => r.refreshes() > before && region() !== null && region() !== el, 3000);
             const now = region(), active = document.activeElement;
             // `now` found at all: a build that returns something else than the region's own element loses the region (the Hope box did).
             const read = { field: kind, rebuilt: Boolean(now) && r.refreshes() > before && now !== el };
@@ -46292,10 +46343,14 @@ const INVARIANTS = [
             return w;
         };
         const low = bare("5000px"), high = bare("-50px");
-        let clamped;
+        /* The low window's own height in the clamp (2.0 line T4, FORGE-09e, 27.11.2026): `keepInScreen` holds the foot at
+           `innerHeight - height - 8`, and this read `innerHeight - 8` - a height of 0, which only jsdom lays out. At The
+           Forge (Foundry 14.370; docs/dev/v2/F3-forge-PC-2.md) it failed there; headless the height is still 0. */
+        let clamped, lowH = 0;
         try {
             for (const w of [low, high]) w.querySelector('[data-drpg-tab-key="y"]').click();
             clamped = [low.style.top, high.style.top];
+            lowH = low.getBoundingClientRect().height;
         } finally { low.remove(); high.remove(); }
 
         /* The growth: four tabs in a 400 px window, then wider tabs in the grown one. */
@@ -46325,7 +46380,7 @@ const INVARIANTS = [
             asked: [[stableJson({ height: "auto" }), "b", "close,add", "b"], [stableJson({ height: "auto" }), "c", "save,close,add", "bc"], [stableJson({ height: "auto" }), "a", "save,close", "bca"]],
             panes: [["a", false, ""], ["b", true, ""], ["c", true, ""]],
             fields: ["r1353a", "r1353b", "r1353c"],
-            clamped: [`${innerHeight - 8}px`, "8px"],
+            clamped: [`${Math.max(8, innerHeight - lowH - 8)}px`, "8px"],
             // the second bar wraps since E47-KFb (two rows of the tabs' own widths, no columns); a 2 x 2 grid before it
             fits: [[1, 21, "421px", "400"], [2, null, 0, "421px"]]
         }), `[positions asked on the first draw; after each of three presses (b, c, a): what was asked, with the pane shown, the footer's shown buttons and the tabs onSwitch was told then (${asked.length} reposition(s) after 3 presses); the panes (key, hidden, inline display); the form's fields; the tops a page with no application clamped (5000 px, -50 px); the first fit (rows, grew, width, first width) and the second (rows, columns, grew, width)]`);
@@ -48799,7 +48854,10 @@ const INVARIANTS = [
             }
             await wait(150);
         };
-        const beat = async () => { for (let i = 0; i < 20 && !standing(); i++) await wait(50); await wait(200); };
+        /* A beat waits for the window up to 5 s, then 400 ms for a second one (2.0 line T4, FORGE-09e, 27.11.2026): at The Forge
+           (Foundry 14.370; docs/dev/v2/F3-forge-PC-2.md) this failed where the harness passes; up to 1 s and then 200 ms read
+           a first render slower than that as no window, and the late one as a second (a hypothesis: the report kept no reading). */
+        const beat = async () => { await until(() => standing() > 0, 5000); await wait(400); };
         const read = {};
         const probe = document.createElement("button");
         probe.type = "button";
@@ -50163,7 +50221,7 @@ const INVARIANTS = [
         needs(env.motion());
         const G = await import("./glass.mjs");
         const rig = turnRig(G);
-        let read = null;
+        let read = null, readClip = null;
         try {
             rig.job.pathD = "M0 0H400V300H0Z";
             const h = rig.turn({ force: true, flash: false });
@@ -50177,11 +50235,19 @@ const INVARIANTS = [
             for (const a of rig.animations()) if (a.el !== frost) a.finish();
             await new Promise(resolve => setTimeout(resolve, 0));
             await new Promise(resolve => setTimeout(resolve, 0));
-            read = [faded, during.includes("M200 0L400 0L400 150Z"), during.includes("M400 150L400 300L200 300Z"), during.includes("M0 0L200 0L0 150Z"), during.includes("260"), frost.style.clipPath === "path('M0 0H400V300H0Z')"];
+            /* A path read as this browser writes it back (2.0 line T4, FORGE-09e, 27.11.2026). At The Forge (Foundry 14.370,
+               Chromium; docs/dev/v2/F3-forge-PC-2.md) this failed where the harness passes: jsdom keeps `clip-path` as the
+               text it was given, and Blink serialises `path()` in its own spelling (quotes and spaces - remembered of Blink,
+               not read at the Forge: the old message printed truths only). Each expected path is set on a probe element
+               and read back, so both sides are this browser's spelling; headless the probe reads the text unchanged. */
+            const norm = d => { const probe = document.createElement("div"); probe.style.clipPath = `path('${d}')`; return probe.style.clipPath; };
+            const part = d => norm(d).replace(/^path\(\s*["']?|["']?\s*\)$/g, "");
+            read = [faded, during.includes(part("M200 0L400 0L400 150Z")), during.includes(part("M400 150L400 300L200 300Z")), during.includes(part("M0 0L200 0L0 150Z")), during.includes("260"), frost.style.clipPath === norm("M0 0H400V300H0Z")];
+            readClip = [during, frost.style.clipPath];
             h.cancel();
         } finally { rig.done(); }
         equal(JSON.stringify(read), JSON.stringify([false, true, true, true, false, true]),
-            "[a frost animation reaches 0, the moves' frost holds pane 1, holds pane 3, holds pane 0's old and new overlap, holds a corner only pane 0's new place has, the frost on the new cut after the moves]");
+            `[a frost animation reaches 0, the moves' frost holds pane 1, holds pane 3, holds pane 0's old and new overlap, holds a corner only pane 0's new place has, the frost on the new cut after the moves] - read: ${JSON.stringify(readClip)}`);
     }],
     ["R3120 - a recolour is a crossfade (glass.mjs `glassTurn`, E96 C2; the owner at the table on 1.2.101, H102 DIAGNOSIS 6): on a stand-in curtain a turn under a new accent bakes the new look per batch beside the old, rising 0 to 1 on the old one's delay while the old falls 1 to 0, each batch's two layers a group of their own with the new one added on; a moving pane's new place rises the same way under it; and the curtain is held at 0 under them until every rising layer ends, at one time", async () => {
         /*
@@ -52246,17 +52312,31 @@ const INVARIANTS = [
         const SH = await import("./sheet.mjs");
         const who = studentActors()[0];
         must(who, "no student in the world - this would measure nothing");
+        /* A root a browser can scroll (2.0 line T4, FORGE-09e, 27.11.2026): at The Forge (Foundry 14.370;
+           docs/dev/v2/F3-forge-PC-2.md) this failed where the harness passes - a detached root with empty tabs keeps no
+           `scrollTop` in a browser, only in jsdom. So the stand-in is put on the page off screen, each tab a box 100 px tall
+           over 1000 px of content, and taken off after its draw; headless it reads as before. */
         const draw = (id, tab, scrollTo = null) => {
             const root = e24SheetRoot();
-            for (const section of root.querySelectorAll("section.tab")) section.classList.toggle("active", section.dataset.tab === tab);
-            Hooks.callAll("renderCharacterSheet", { id, document: who, isEditable: true }, root, {}, { isFirstRender: false });
-            const pane = root.querySelector(`section.tab[data-tab="${tab}"]`);
-            const seen = pane.scrollTop;
-            if (scrollTo !== null) {
-                pane.scrollTop = scrollTo;
-                pane.dispatchEvent(new Event("scroll"));
+            root.style.cssText = "position: fixed; left: -5000px; top: 0; width: 300px";
+            for (const section of root.querySelectorAll("section.tab")) {
+                section.style.cssText = "display: block; height: 100px; overflow-y: auto";
+                section.insertAdjacentHTML("beforeend", '<div class="r1458-fill" style="height: 1000px"></div>');
             }
-            return seen;
+            document.body.append(root);
+            try {
+                for (const section of root.querySelectorAll("section.tab")) section.classList.toggle("active", section.dataset.tab === tab);
+                Hooks.callAll("renderCharacterSheet", { id, document: who, isEditable: true }, root, {}, { isFirstRender: false });
+                const pane = root.querySelector(`section.tab[data-tab="${tab}"]`);
+                const seen = pane.scrollTop;
+                if (scrollTo !== null) {
+                    pane.scrollTop = scrollTo;
+                    pane.dispatchEvent(new Event("scroll"));
+                }
+                return seen;
+            } finally {
+                root.remove();
+            }
         };
         /* The kept scrolls live for the page's life, so each run draws apps of its own ids: the suite runs twice in one
            page (01-runtests' parts A1 and A2), and fixed ids read the first run's 140 as the second run's first draw. */
@@ -59700,16 +59780,21 @@ const INVARIANTS = [
         const S = await import("./sequence.mjs");
         const body = document.body, hadGlass = body.classList.contains("drpg-theme-stained-glass"), wasReduced = body.classList.contains("drpg-reduced-motion"), phase = body.dataset.drpgPhase;
         const clock = { ...getClock(), phase: "classTrial", chapter: 3, timeOfDayStartedAt: `R3705:${Date.now()}`, trialCut: true }, read = {};
+        /* THE SCENE'S GATE STOOD IN (2.0 line T4, FORGE-09e, 27.11.2026). At The Forge (Foundry 14.370; docs/dev/v2/F3-forge-PC-2.md)
+           this failed where the harness passes: a world with a trial hall linked (rooms.mjs `trialScene`) and not drawn on
+           this canvas holds every frame after the title's out for the hall, up to SCENE_WAIT_MS (15 s; sequence.mjs
+           `sceneGateFor`) - the harness's world has no hall, so its gate opens at once. The gate is not this test's promise
+           (R4860's and the curtain's), so it is stood in by `scene: "none"`, the gate a clock that switches no scene takes. */
         try {
             body.classList.remove("drpg-theme-stained-glass");
             body.classList.add("drpg-reduced-motion");
-            read.mode = await S.onPhaseChanged("classTrial", clock);
+            read.mode = await S.playTrialEntry(clock, { scene: "none" });
             const host = document.getElementById(S.SEQUENCE_HOST_ID);
             read.title = host?.querySelector(".drpg-seq-title-band")?.textContent ?? null;
             read.sub = host?.querySelector(".drpg-seq-title-sub")?.textContent === game.i18n.format("DRPG.Sequence.trialSubtitle", { chapter: 3 });
             read.lids = host?.querySelectorAll(".drpg-seq-lid").length ?? 0;
             read.cover = body.hasAttribute(`${S.SEQUENCE_ATTR}-cover`);
-            await wait(S.SEQUENCE_TIMES.trialEntry.still + 200);
+            await until(() => !document.getElementById(S.SEQUENCE_HOST_ID), S.SEQUENCE_TIMES.trialEntry.still + 1500);
             read.endedAlone = !document.getElementById(S.SEQUENCE_HOST_ID) && S.sequenceNow() === null;
             read.uncovered = !body.hasAttribute(`${S.SEQUENCE_ATTR}-cover`);
         } finally {
@@ -59753,11 +59838,12 @@ const INVARIANTS = [
             return me;
         };
         const clock = k => ({ ...getClock(), phase: "classTrial", chapter: 2, timeOfDayStartedAt: `R3917${k}:${Date.now()}`, trialCut: true });
+        /* The scene's gate stood in by `scene: "none"` (2.0 line T4, FORGE-09e, 27.11.2026): R3705's note says why. */
         try {
             body.classList.remove("drpg-reduced-motion");
             S.endSequence("cut");
             const m = stand(), c = clock("m");
-            read.motion = await S.playTrialEntry(c, { pieces: m });
+            read.motion = await S.playTrialEntry(c, { pieces: m, scene: "none" });
             read.heldAtOnce = m.calls.map(x => x.slice(0, 2));
             read.look = document.getElementById(S.SEQUENCE_HOST_ID)?.dataset.drpgSequenceLook ?? null;
             read.covered = body.hasAttribute(`${S.SEQUENCE_ATTR}-cover`);
@@ -59769,11 +59855,11 @@ const INVARIANTS = [
             read.hold = hold?.[1] === T.handIn;
             read.back = back?.[1] === T.hand && back?.[2] >= T.end - T.hand - TICK;
             read.release = rel?.[2] >= T.end && rel?.[2] >= back?.[2] + T.hand && m.gone === true;
-            read.again = await S.playTrialEntry(c, { pieces: stand() });
+            read.again = await S.playTrialEntry(c, { pieces: stand(), scene: "none" });
             S.endSequence("cut");
             body.classList.add("drpg-reduced-motion");
             const st = stand();
-            read.still = await S.playTrialEntry(clock("s"), { pieces: st });
+            read.still = await S.playTrialEntry(clock("s"), { pieces: st, scene: "none" });
             read.stillHold = st.calls.map(x => x.slice(0, 2));
             await until(() => !document.getElementById(S.SEQUENCE_HOST_ID), T.still + 1500);
             read.stillEnd = st.calls.map(x => x[0]);
@@ -59832,13 +59918,14 @@ const INVARIANTS = [
             body.classList.remove("drpg-reduced-motion");
             S.endSequence("cut");
             const T = S.SEQUENCE_TIMES.trialEntry, m = stand();
-            const played = await S.playTrialEntry({ ...getClock(), phase: "classTrial", chapter: 2, timeOfDayStartedAt: `R6850e:${Date.now()}`, trialCut: true }, { pieces: m });
+            // The scene's gate stood in by `scene: "none"` (2.0 line T4, FORGE-09e, 27.11.2026): R3705's note says why.
+            const played = await S.playTrialEntry({ ...getClock(), phase: "classTrial", chapter: 2, timeOfDayStartedAt: `R6850e:${Date.now()}`, trialCut: true }, { pieces: m, scene: "none" });
             if (played === "motion") stall(m, T);
             await until(() => !document.getElementById(S.SEQUENCE_HOST_ID), T.end + T.hand + 1500);
             read.entry = { played, ...reading(m, T) };
             S.endSequence("cut");
             const X = S.SEQUENCE_TIMES.trialExit, x = stand();
-            const out = await S.playTrialExit({ ...getClock(), phase: "dailyLife", chapter: 3, trialEndedAt: `R6850x:${Date.now()}`, trialCut: true }, { pieces: x, on: true });
+            const out = await S.playTrialExit({ ...getClock(), phase: "dailyLife", chapter: 3, trialEndedAt: `R6850x:${Date.now()}`, trialCut: true }, { pieces: x, on: true, scene: "none" });
             if (out === "motion") stall(x, X);
             await until(() => !document.getElementById(S.SEQUENCE_HOST_ID), X.end + X.hand + 1500);
             read.exit = { played: out, ...reading(x, X) };
@@ -60339,8 +60426,14 @@ const INVARIANTS = [
             .flatMap(rule => rule.decls.filter(d => d.property === "z-index").map(d => [rule.file, rule.selector, num(d.value)]))
             .filter(([, , n]) => Number.isFinite(n) && n < base + 1 && n >= curtainZ)
             .map(([file, sel, n]) => `${file} ${sel}: ${n}`);
-        // the windows open on this page, each between the two layers (Foundry's counter; the shim's headless)
-        const open = [...(foundry.applications?.instances?.values?.() ?? [])].map(app => app?.element).filter(el => el?.isConnected);
+        /* the windows open on this page, each between the two layers (Foundry's counter; the shim's headless). Windows, not
+           every application (2.0 line T4, FORGE-09e, 27.11.2026): at The Forge (Foundry 14.370; docs/dev/v2/F3-forge-PC-2.md)
+           this failed where the harness passes - v14's `foundry.applications.instances` holds the frameless parts of the
+           interface too (the sidebar, the hotbar, the players list, the controls), whose z-index is not a window's, and the
+           shim registers only windows. A rendered application with a frame, as foundry-windows.mjs counts them
+           (`hasFrame`); that the interface's parts are in `instances` on v14 is the reading of v13, not of v14's source. */
+        const open = [...(foundry.applications?.instances?.values?.() ?? [])].filter(app => app?.rendered && app.hasFrame !== false)
+            .map(app => app.element).filter(el => el?.isConnected);
         read.windows = open.filter(el => { const z = Number.parseInt(el.style.zIndex || getComputedStyle(el).zIndex, 10); return !(z > curtainZ && z < 99980); }).map(el => el.id || el.className);
         const edge = (popups) => ({ host: "contents", curtain: ["fixed", base - 2, "auto"], top: ["fixed", 99980, "none"], popups });
         const others = [{ host: [false, 99980], popups: 99990 }];
@@ -60386,7 +60479,8 @@ const INVARIANTS = [
             S.endSequence("cut");
             // The clocks carry the road's mark, `trialCut: true`, not the world's (R3704's comment; 01-runtests' A2).
             // the entry with the glass, in motion: the layers at the start and once the title is in, and the fades
-            read.glass = { mode: await S.playTrialEntry({ ...getClock(), phase: "classTrial", chapter: 4, timeOfDayStartedAt: `${stamp}g`, trialCut: true }, { pieces: stand() }) };
+            // The scene's gate stood in by `scene: "none"` (2.0 line T4, FORGE-09e, 27.11.2026): R3705's note says why.
+            read.glass = { mode: await S.playTrialEntry({ ...getClock(), phase: "classTrial", chapter: 4, timeOfDayStartedAt: `${stamp}g`, trialCut: true }, { pieces: stand(), scene: "none" }) };
             const host = document.getElementById(S.SEQUENCE_HOST_ID);
             read.glass.start = layers();
             await wait(T.title + 150);
@@ -60396,15 +60490,15 @@ const INVARIANTS = [
             read.glass.fadeOut = fades(host, T.hand, 1, 0);
             // the lids, in motion and still, and the exit
             body.classList.remove("drpg-theme-stained-glass");
-            read.lids = { mode: await S.playTrialEntry({ ...getClock(), phase: "classTrial", chapter: 4, timeOfDayStartedAt: `${stamp}l`, trialCut: true }) };
+            read.lids = { mode: await S.playTrialEntry({ ...getClock(), phase: "classTrial", chapter: 4, timeOfDayStartedAt: `${stamp}l`, trialCut: true }, { scene: "none" }) };
             read.lids.start = layers();
             await wait(T.title + 150);
             read.lids.titled = layers();
             S.endSequence("cut");
             body.classList.add("drpg-reduced-motion");
-            read.still = { mode: await S.playTrialEntry({ ...getClock(), phase: "classTrial", chapter: 4, timeOfDayStartedAt: `${stamp}s`, trialCut: true }), ...layers() };
+            read.still = { mode: await S.playTrialEntry({ ...getClock(), phase: "classTrial", chapter: 4, timeOfDayStartedAt: `${stamp}s`, trialCut: true }, { scene: "none" }), ...layers() };
             S.endSequence("cut");
-            read.exit = { mode: await S.playTrialExit({ ...getClock(), phase: "dailyLife", chapter: 4, trialEndedAt: `${stamp}x`, trialCut: true }, { on: true }), ...layers() };
+            read.exit = { mode: await S.playTrialExit({ ...getClock(), phase: "dailyLife", chapter: 4, trialEndedAt: `${stamp}x`, trialCut: true }, { on: true, scene: "none" }), ...layers() };
             S.endSequence("cut");
             // a sequence that closes no curtain draws in the one host
             read.one = S.playSequence("dayStart", `${stamp}d`, ctx => ctx.host.append(Object.assign(document.createElement("div"), { className: "drpg-seq-day" })), { on: true }) && layers().kids;
