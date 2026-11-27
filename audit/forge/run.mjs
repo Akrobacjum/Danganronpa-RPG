@@ -17,7 +17,7 @@
  *   note(name, details)                 something seen, no verdict
  *   phase(name)                         the label of the checks that follow
  *   settle(ms)                          wait
- *   shot(role, name)                    a screenshot into the report's folder
+ *   shot(role, name, { clip })          a screenshot into the report's folder (a part of the page with `clip`); answers the image
  *   reload(role)                        F5, waiting for game.ready again
  *   offline(role, ms)                   the browser's network cut for `ms`, then back (context.setOffline)
  *   leave(role) / rejoin(role)          the account's browser closed / logged in again
@@ -78,10 +78,15 @@ async function runOne(file) {
                written, so its notes (the world as found) are kept (2.0 line T4, F3PC2-S1-STATE, 27.11.2026). */
             refuse: why => { const err = new Error(String(why)); err.refusal = true; throw err; },
             settle: (ms = 500) => new Promise(r => setTimeout(r, ms)),
-            shot: async (role, name) => {
+            /* `clip` (a viewport rectangle) takes a part of the page, and the image comes back for a scenario that
+               compares two (s7-look's fog-leak; 2.0 line T4, EXP-PL-04, 27.11.2026); null when it was not taken. */
+            shot: async (role, name, { clip = null } = {}) => {
                 const fileName = `${role}-${name}.png`.replace(/[^\w.-]+/g, "_");
-                try { await c[role].page.screenshot({ path: path.join(dir, fileName), timeout: 120_000 }); report.shots.push(fileName); }
-                catch (err) { report.shots.push(`${fileName}: not taken - ${String(err.message).split("\n")[0]}`); }
+                try {
+                    const image = await c[role].page.screenshot({ path: path.join(dir, fileName), timeout: 120_000, ...(clip ? { clip } : {}) });
+                    report.shots.push(fileName);
+                    return image;
+                } catch (err) { report.shots.push(`${fileName}: not taken - ${String(err.message).split("\n")[0]}`); return null; }
             },
             reload: async role => {
                 const page = c[role].page;
