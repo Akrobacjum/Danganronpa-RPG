@@ -27899,6 +27899,21 @@ const REGRESSIONS = [
             "{fitMin; fit: an 8000x2000 case in a 1000x400 view; tiny: one past the 5% floor; floor: the window's floor for it; smallFloor: a case that fits at 40%; unknownFloor: sizes not laid out; outAtFit, inFromFit: a step out and in from the fit; keptByApply: the clamp of the fit; transform; road: [wireCaseCamera asks the floor, fits the canvas to the box, zooms (buttons, keys, wheel) to the floor, clamps each apply to it, draws it]; readout: the toolbar's percent reads below 25%}");
     }],
     // T1 murder-death-eclipse
+    ["R8920 - the opening's veil stands only for an incident the Eclipse's lights opened (2.0 line T1 MURDER-01, D2-07; scripts/mask-gm.mjs `veilWanted`): a direct murder waiting on its opening veils nobody when it was opened outside an Eclipse, and its killer and a third on the killers' side when the lights opened it (`atLights`)", async () => {
+        /*
+         * 2.0 line T1, 27.11.2026 (MURDER-01; the owner's D2-07: "Poza Eclipse token zabojcy nie znika na czas rzutu
+         * otwarcia. Przy porazce nic sie na mapie nie zmienia"). Pure, over plain incidents. Red at 07c93d1: the open
+         * from the murder window's road (no `atLights`) read ["K"].
+         */
+        const K = await import("./mask-gm.mjs");
+        must(typeof K.veilWanted === "function", "mask-gm.mjs has no veilWanted - this would measure nothing");
+        const base = { active: true, stage: "openingRoll", killerId: "K", victimId: "V", thirdId: "T", thirdSide: "killer", indirect: false, selfInflicted: false };
+        equal(JSON.stringify([K.veilWanted(base), K.veilWanted({ ...base, atLights: false }), K.veilWanted({ ...base, atLights: true }),
+            K.veilWanted({ ...base, atLights: true, thirdSide: "victim" }), K.veilWanted({ ...base, atLights: true, stage: "incident" }),
+            K.veilWanted({ ...base, atLights: true, indirect: true })]),
+        JSON.stringify([[], [], ["K", "T"], ["K"], [], []]),
+        "[outside an Eclipse, atLights false, at the lights with a third on the killers' side, a third on the victim's, the fight's stage, a trap at the lights]");
+    }],
 ];
 
 

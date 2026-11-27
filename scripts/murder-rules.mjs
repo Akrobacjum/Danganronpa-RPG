@@ -411,7 +411,7 @@ export function atNight() {
  * fix r1-G3: the close keeps the case's Key count under it, `closeIncident`).
  */
 export function freshIncidentState({ killerId, victimId, indirect = false, selfInflicted = false, openingTrait = null,
-    watchDie = null, openedAt = Date.now(), chapter = getClock()?.chapter ?? null } = {}) {
+    watchDie = null, atLights = false, openedAt = Date.now(), chapter = getClock()?.chapter ?? null } = {}) {
     // `const fresh`, read by R191's census of the fields an incident's writes name.
     const fresh = {
         active: true,
@@ -429,6 +429,9 @@ export function freshIncidentState({ killerId, victimId, indirect = false, selfI
         // The victim's watch's die, kept at the lights (1.2.121, STG-01; watch-gm.mjs `heldAtTheLights`): null at any
         // other open, and the opening reads the running watch.
         watchDie,
+        // Opened by the Eclipse's lights (2.0 line T1 MURDER-01; D2-07): the opening's veil stands for this one alone
+        // (mask-gm.mjs `veilWanted`). False for an incident opened anywhere else.
+        atLights: Boolean(atLights),
         turn: 0,
         turnSide: "victim",
         // Whose turn it is on the killers' side. One name until somebody joins
@@ -479,7 +482,7 @@ function refuseSecondIncident(running) {
  * Murder's declaration, a betrayal's confirmation - which that window offers first (`openingTraitFor`). Read for
  * the killer's side alone (`openingProposalFor`): a trap victim's opening is the GM's pick (DA36 = 2).
  */
-export async function openMurder({ killerId, victimId, indirect = false, openingTrait = null, openingProposal = null } = {}) {
+export async function openMurder({ killerId, victimId, indirect = false, openingTrait = null, openingProposal = null, atLights = false } = {}) {
     if (!game.user.isGM) return null;
 
     // The Eclipse is a placement window, not a moment in the story - nobody has
@@ -594,14 +597,18 @@ export async function openMurder({ killerId, victimId, indirect = false, opening
        `heldAtTheLights`, null at any other open). */
     const { heldAtTheLights } = await import("./watch-gm.mjs");
     const watchDie = indirect ? null : heldAtTheLights(victimId);
-    const opened = await restoreState(freshIncidentState({ killerId, victimId, indirect, selfInflicted, openingTrait, watchDie }),
+    const opened = await restoreState(freshIncidentState({ killerId, victimId, indirect, selfInflicted, openingTrait, watchDie, atLights: atLights === true && !indirect }),
         { keep: ["betrayal"], expect: { active: null } });
     if (!opened) {
         refuseSecondIncident(murderState());
         return null;
     }
-    /* THE OPENING'S VEIL GOES UP HERE (E112, mask-gm.mjs `settleVeils`): awaited before anything is said or asked, so the
-       killer's tokens are hidden before the opening's first card, and its one line comes before the invitation's. */
+    /* THE OPENING'S VEIL, SETTLED HERE (E112, mask-gm.mjs `settleVeils`): awaited before anything is said or asked, so the
+       killer's tokens are hidden before the opening's first card, and its one line comes before the invitation's - for an
+       incident the Eclipse's lights open (`atLights`) alone since 2.0 line T1 MURDER-01 (the owner's D2-07: "Poza Eclipse
+       token zabojcy nie znika na czas rzutu otwarcia. Przy porazce nic sie na mapie nie zmienia"). An open from the murder
+       window, a ruling card or the console veils nobody and blocks no microphone; the settle only lifts what no opening
+       holds. */
     try {
         await (await import("./mask-gm.mjs")).settleVeils();
     } catch (err) {
@@ -689,10 +696,10 @@ async function markCubWitnesses(state) {
  * turn nobody announces is a turn that gets missed.
  *
  * Deliberately NOT sent when the murder opens - only when it actually begins. A
- * direct murder that fails its opening roll never happened as far as the victim
- * is concerned: the killer lost their nerve, no one was ever in danger, and
- * telling them "someone tried to kill you" would hand the table a fact the
- * rules never generated. See the note on `MURDER_OPENING`.
+ * direct murder that fails its opening roll is told to its victim by a line of its own since 2.0 line T1
+ * (`tellVictimTheAttemptFailed`; the owner's D2-08 and D2-10): that somebody tried, never who. Until 1.2.129 it was
+ * told nothing, on the reading that "someone tried to kill you" handed the table a fact the rules never generated; the
+ * owner decided otherwise. See the note on `MURDER_OPENING`.
  *
  * A DIRECT VICTIM IS TOLD WHO (E06 C4, 27.09.2026; audit S04-31, the owner's D6). The
  * whisper said "Someone is moving on you" while the Event card and the cast the victim
@@ -715,6 +722,20 @@ async function tellVictimTheIncidentBegan(state) {
         // The incident has already started in world state; a message that fails
         // to send must not roll that back.
         error("Could not tell the victim the incident had begun", err);
+    }
+}
+
+/**
+ * A failed opening's line to its victim (2.0 line T1; D2-08, D2-10): `DRPG.Murder.victimAttemptFailed`, which names nobody,
+ * veiled. In its own try: a line that fails to send must not hold up the close.
+ */
+async function tellVictimTheAttemptFailed(state) {
+    try {
+        const victim = game.actors.get(state?.victimId ?? "");
+        if (!victim || state?.indirect) return;
+        await whisperToOwner(victim, `<p>${esc(game.i18n.localize("DRPG.Murder.victimAttemptFailed"))}</p>`);
+    } catch (err) {
+        error("Could not tell the victim that the attempt failed", err);
     }
 }
 
@@ -758,6 +779,13 @@ export async function resolveKillerOpening({ total, isCritical, withHope }) {
            a GM's screen (popup.mjs) - the GM watching the tracker saw it vanish and nothing
            say why. On this browser, the GM's that scored the roll. */
         ui.notifications.warn(prose.failure);
+        /* THE VICTIM IS TOLD SOMEBODY TRIED, AND NOT WHO (2.0 line T1; the owner's D2-08: "Gdy rzut otwarcia morderstwa sie
+           nie uda, ofiara dostaje powiadomienie o probie", and D2-10: "powiadomienie ofiary o nieudanej probie nie mowi, kto
+           probowal"). Until 1.2.129 a failed opening said nothing to its victim (the D6 reading of `tellVictimTheIncidentBegan`).
+           One line, veiled (its document names no speaker and no reader), naming nobody, right after the roll: a direct
+           murder's victim, not a death by one's own hand (a trap never reaches here). The map says nothing either: since
+           MURDER-01 an opening outside an Eclipse veils no token. */
+        if (!state.selfInflicted) await tellVictimTheAttemptFailed(state);
         // No follow-up: the killer lost their nerve, so there is no body, no
         // room to announce and nothing to investigate. The checklist would be
         // asking the GM to find a corpse that does not exist.
@@ -4137,7 +4165,7 @@ export async function betrayAsPlayer(actorId, { note = "", proposed = null } = {
  * So the GM is TOLD. The announcement below already whispers them the whole
  * thing, and `endMurder` is one press away if it was a misclick.
  */
-async function openBetrayal(third, killer, { asked = false, taken = null, note = "", proposed = null } = {}) {
+async function openBetrayal(third, killer, { asked = false, taken = null, note = "", proposed = null, atLights = false } = {}) {
     /*
      * NOT ON TOP OF A RUNNING FIGHT, AND NOT IN AN ECLIPSE - asked before anything is
      * taken or closed. The first is the tile's own rule (`betrayalTarget`), asked again
@@ -4194,7 +4222,8 @@ async function openBetrayal(third, killer, { asked = false, taken = null, note =
     }
 
     // The betrayer's proposal (E68 C9): no GM's leave is asked for a betrayal, so the opening's window offers it first.
-    const opened = await openMurder({ killerId: third.id, victimId: killer.id, openingProposal: { proposed, note } });
+    // At the lights a betrayal opens veiled, as a declared murder does (`atLights`, 2.0 line T1 MURDER-01); the tile's does not.
+    const opened = await openMurder({ killerId: third.id, victimId: killer.id, openingProposal: { proposed, note }, atLights });
     if (!opened) return refuseBetrayal(third, isEclipse() ? "eclipse" : murderState()?.active ? "fight" : "failed", { asked, offer });
 
     // Told after it opened, so the GMs are never told of a betrayal that did not happen.
@@ -4219,7 +4248,7 @@ export async function openParkedBetrayal(thirdId, killerId, offer, note = "", pr
     const third = game.actors.get(thirdId ?? ""), killer = game.actors.get(killerId ?? "");
     if (!third || !killer) return null;
     if (offer?.thirdId !== third.id || offer.killerId !== killer.id) return refuseBetrayal(third, "spent", { asked: false, offer: null });
-    return openBetrayal(third, killer, { taken: offer, note, proposed });
+    return openBetrayal(third, killer, { taken: offer, note, proposed, atLights: true });
 }
 
 /**
@@ -4860,8 +4889,8 @@ export function closeOpeningRoll() {
  * else. Until E06 both the killer and the victim were, on the reading that a
  * message to somebody with nothing in flight costs nothing; it costs a direct
  * murder's victim the one fact D6 keeps from them - measured 27.09 by the tier-2
- * test "a failed opening tells the victim nothing", which caught the cancel
- * addressed to the victim's player as the killer's roll failed. The side is the
+ * test "a failed opening tells the victim only that somebody tried" (until 2.0 line T1 "... tells the victim
+ * nothing"), which caught the cancel addressed to the victim's player as the killer's roll failed. The side is the
  * murder's kind, fixed as it opens, and every re-sent invitation goes to it
  * (`rollOpening`). The GM's own client is closed directly, because a roll with no
  * active owner is thrown here.

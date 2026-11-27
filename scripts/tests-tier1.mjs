@@ -63147,7 +63147,8 @@ const INVARIANTS = [
         // The sweeps a GM gone or reloaded mid opening is answered by: the primary settles at its ready, when a GM leaves, and on every write of the incident.
         const register = stripComments(fnSource(await fetch(`/modules/${MODULE_ID}/scripts/mask-gm.mjs`).then(lfText), "registerMasks") ?? "");
         const wanted = typeof K.veilWanted === "function" ? K.veilWanted : () => "none";
-        const base = { active: true, stage: "openingRoll", killerId: "K", victimId: "V", indirect: false, selfInflicted: false };
+        /* At the lights (`atLights`): since 2.0 line T1 MURDER-01 the veil stands for an incident the Eclipse's lights opened alone (R8920). */
+        const base = { active: true, stage: "openingRoll", killerId: "K", victimId: "V", indirect: false, selfInflicted: false, atLights: true };
         const user = { id: "R7405USER0000000", name: "R7405", isGM: false, active: true };
         const hold = veiled => V.micHold({ user, room: "drpg-x", external: false, connected: true, canBroadcastAudio: false, actors: [], trial: null, listening: null, masked: false, veiled });
         const doc = { actorId: "K", actor: { type: "character" }, flags: { [MODULE_ID]: { veiled: true } } };
@@ -69827,6 +69828,19 @@ const INVARIANTS = [
         "{rows: [hidden, knows, incident, shown, shown with HOLDER_SEES_HIDDEN false]; the constant; a GM knows any trace; applyToRemnantToken asks the rule with knowsRemnant and shows a hidden held trace; shownAsFound asks the same; showHeld does not defer to a GM's hidden}");
     }],
     // T1 murder-death-eclipse
+    ["R8921 - a failed opening's line to its victim names nobody, in either language (2.0 line T1 D2-08, D2-10; lang `DRPG.Murder.victimAttemptFailed`): no placeholder and no name in the English or the Polish text, and the failure branch of murder-rules.mjs `resolveKillerOpening` sends it to the victim", async () => {
+        /* 2.0 line T1, 27.11.2026. Read off the language files and the source; nothing written. Red at 07c93d1: no key. */
+        const en = await fetch(`/modules/${MODULE_ID}/lang/en.json`).then(r => r.json());
+        const pl = await fetch(`/modules/${MODULE_ID}/lang/pl.json`).then(r => r.json());
+        const src = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/murder-rules.mjs`).then(lfText));
+        const open = fnSource(src, "resolveKillerOpening") ?? "";
+        const tell = fnSource(src, "tellVictimTheAttemptFailed") ?? "";
+        const texts = [en?.DRPG?.Murder?.victimAttemptFailed, pl?.DRPG?.Murder?.victimAttemptFailed];
+        equal(JSON.stringify({ texts: texts.map(t => typeof t === "string" && t.length > 0), placeholders: texts.map(t => /\{[^}]*\}/.test(String(t ?? ""))),
+            road: [/if \(!state\.selfInflicted\) await tellVictimTheAttemptFailed\(state\)/.test(open), /DRPG\.Murder\.victimAttemptFailed/.test(tell), /state\??\.victimId/.test(tell)] }),
+        JSON.stringify({ texts: [true, true], placeholders: [false, false], road: [true, true, true] }),
+        "{texts: the English and the Polish line stand; placeholders: either names a placeholder; road: the failure branch tells the victim but for a death by one's own hand, the line is the key's, to the victim}");
+    }],
 ];
 
 /**

@@ -3256,7 +3256,8 @@
       "castMissingHere": "Ta przeglądarka nie zna obsady trwającego incydentu, więc nie oddasz tu tury ani nie wpuścisz trzeciej osoby. Użyj „Wpisz obsadę ręcznie” w oknie „Sprawa w tej przeglądarce”.",
       "castNotArrived": "Obsada incydentu od pozostałych GM-ów jeszcze tu nie dotarła. Spróbuj za chwilę.",
       "deniedByIncident": "Incydent odebrał ci tę akcję.",
-      "trackerScore": "{total} wobec {n}"
+      "trackerScore": "{total} wobec {n}",
+      "victimAttemptFailed": "Ktoś próbował cię zabić, ale mu się nie udało."
     },
     "Investigation": {
       "clearPlan": {
@@ -8321,7 +8322,7 @@
           "hope": "Incydent się zaczyna. Zabójca jest ukryty za „?”, dopóki się nie ujawni albo nie skończy się pora dnia.",
           "despair": "Incydent się zaczyna. Ofiara traci całe Sanity i w tym incydencie nie może wziąć Role Reversal. Zabójca nie jest ukryty: ofiara od razu dowiaduje się, kto to.",
           "critical": "Incydent się zaczyna. Zabójca jest ukryty za „?”, dopóki się nie ujawni albo nie skończy się pora dnia.",
-          "failure": "Incydentu nie ma, a ofiara nigdy się nie dowie o próbie. Akcja przepada; zabójca może spróbować znowu o innej porze dnia.",
+          "failure": "Incydentu nie ma. Ofiara dowiaduje się, że ktoś próbował i mu się nie udało, ale nie kto. Akcja przepada; zabójca może spróbować znowu o innej porze dnia.",
           "selfInflicted": {
             "label": "Rzut otwarcia - z własnej ręki",
             "hope": "Stało się. Nic w pokoju nie zostało zaaranżowane: scena jest dokładnie tak prosta jak sam czyn i tak się będzie czytać.",

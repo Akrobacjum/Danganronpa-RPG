@@ -437,9 +437,13 @@ async function retell() {
  * start of the time of day the murder is declared in; the killer told in one line.
  *
  *   - WHO: a direct murder's killers (`veilWanted`: the killer, and a third seated on the killers' side, `thirdSide`),
- *     while the incident waits on its opening (`openingRoll`). A trap and a self-inflicted death have none.
- *   - WHEN IT BEGINS: at the open (murder-rules.mjs `openMurder` writes the stage, and `settleVeils` follows every write
- *     of the incident); for a murder declared in an Eclipse, as the Eclipse ends and before its lights show anyone
+ *     while the incident waits on its opening (`openingRoll`). A trap and a self-inflicted death have none - and, since
+ *     2.0 line T1 MURDER-01 (the owner's D2-07 of 26.11.2026: "Poza Eclipse token zabojcy nie znika na czas rzutu
+ *     otwarcia. Przy porazce nic sie na mapie nie zmienia"), neither has an incident opened outside an Eclipse's lights:
+ *     the murder window's, a ruling card's or the console's open. There the token stays where the room saw it, and a
+ *     Hope or critical opening puts the "?" on over it at once (D2-12), the table seeing the change.
+ *   - WHEN IT BEGINS: only for a murder declared in an Eclipse (the incident's `atLights`, murder-rules.mjs `openMurder`),
+ *     as the Eclipse ends and before its lights show anyone
  *     (eclipse.mjs `endEclipse`, `veilAtTheLights`): a row of `why: "lights"` for every killer the lights will judge,
  *     kept while they judge and taken over by the incident that opens, or lifted if none does. The declaration itself
  *     is in the dark: an Eclipse hides every player's token from every other (visibility.mjs `tokenShownTo`).
@@ -481,10 +485,11 @@ export function isVeiledToken(token) {
 /**
  * Whom the opening of `state` veils: a direct murder's killers, while it waits on the opening - the killer, and a third
  * seated on the killers' side (incident-store.mjs `killerIds`' rule). None for a trap, a self-inflicted death, any other
- * stage. Pure (R7405).
+ * stage, and since 2.0 line T1 MURDER-01 none for an incident the Eclipse's lights did not open (`atLights`, the owner's
+ * D2-07): outside an Eclipse the killer's token stays on the map through the opening. Pure (R7405, R8920).
  */
 export function veilWanted(state) {
-    if (!state?.active || state.stage !== "openingRoll" || state.indirect || state.selfInflicted) return [];
+    if (!state?.active || state.stage !== "openingRoll" || state.indirect || state.selfInflicted || state.atLights !== true) return [];
     return [...new Set([state.killerId, state.thirdSide === "killer" ? state.thirdId : null].filter(Boolean))];
 }
 

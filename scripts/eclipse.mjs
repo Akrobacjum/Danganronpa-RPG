@@ -1102,7 +1102,7 @@ async function judgePendingMurders(id, taken = new Map()) {
 
         // On the statistic allowed, and no second window; allowed with none, the opening's window offers the proposal first.
         await openMurder({ killerId: killer.id, victimId: victim.id, openingTrait: ruled,
-            openingProposal: { proposed: parked.proposed ?? null, note: parked.note ?? "" } });
+            openingProposal: { proposed: parked.proposed ?? null, note: parked.note ?? "" }, atLights: true });
     }
 }
 

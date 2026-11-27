@@ -3094,7 +3094,8 @@
       "castMissingHere": "This browser lacks the incident's cast and cannot work out the turn. Press Enter the cast by hand in the health check, or let a GM who holds it act.",
       "castNotArrived": "The other GMs' copies of the incident's cast have not reached this browser yet. Try again in a moment.",
       "deniedByIncident": "The incident has taken this one away from you.",
-      "trackerScore": "{total} against {n}"
+      "trackerScore": "{total} against {n}",
+      "victimAttemptFailed": "Someone tried to kill you, and failed."
     },
     "Investigation": {
       "clearPlan": {

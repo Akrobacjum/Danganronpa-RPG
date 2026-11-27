@@ -746,14 +746,14 @@ As the killer you are asked **Stay hidden?** **Reveal yourself** gives everyone 
 
 | Killer's roll | What happens |
 |---|---|
-| Failure | nothing happens, and the victim never learns anything was attempted; the action is spent, and you can try again in another time of day |
+| Failure | nothing happens on the map; the victim is told only that someone tried to kill them and failed, never who (since 1.2.130); the action is spent, and you can try again in another time of day |
 | Success with Hope | the incident begins, and the case keeps 5 Key Remnants |
 | Success with Despair | the incident begins, the victim loses all their Sanity on the spot and loses Role Reversal for this incident, and the case keeps 4 Key Remnants |
 | Critical | the incident begins, and the case keeps the fewest Key Remnants: 3 |
 
-The victim sees nothing while the killer rolls: no card, no music, nothing on the Event panel. When the roll succeeds, they are told at once that the incident has begun and who is moving on them, or, behind a "?", only that *someone* is. A failure leaves them nothing at all.
+The victim sees nothing while the killer rolls: no card, no music, nothing on the Event panel. When the roll succeeds, they are told at once that the incident has begun and who is moving on them, or, behind a "?", only that *someone* is. A failure tells them one line, that someone tried to kill them and failed; it names nobody (since 1.2.130).
 
-**Unseen until the opening roll.** From the moment a direct murder opens until the killer's opening roll lands, the other players do not see the killer's tokens - the victim and everyone else in the room included - and the killer's microphone is off; the killer still hears the room and is told so in one line. An accomplice already on the killer's side is hidden and muted the same way, and sees the killer. For a murder declared in an Eclipse this starts as the lights come back, so nobody sees the killer when the new time of day begins. When the roll lands the killer's tokens come back as they were - behind a "?" first, if the roll puts the killer behind one. A trap and a death by one's own hand hide nobody.
+**Unseen until the opening roll.** Only a direct murder declared in an Eclipse hides its killer before the roll: from the moment it opens until the killer's opening roll lands the other players do not see the killer's tokens - the victim and everyone else in the room included - and the killer's microphone is off; the killer still hears the room and is told so in one line. An accomplice already on the killer's side is hidden and muted the same way, and sees the killer. For a murder declared in an Eclipse this starts as the lights come back, so nobody sees the killer when the new time of day begins. When the roll lands the killer's tokens come back as they were - behind a "?" first, if the roll puts the killer behind one. A direct murder the GM opens outside an Eclipse hides nobody before the roll: the killer's token stays where it stands and the microphone stays on, and a roll that puts the killer behind a "?" turns that token into the "?" where the room can see it (since 1.2.130). A trap and a death by one's own hand hide nobody.
 
 **Indirect Murder (a trap):** the **victim** rolls Eye or Head against **20**, the same at Night as by day, and the GM picks which. Being asked to roll is itself the warning: you are told that the GM is setting up a roll for you, and the window reads "Something feels wrong".
 
@@ -1173,7 +1173,7 @@ The killer behind a "?" is new in 1.2.113 (E69 C8). What it cannot hide: a playe
 
 What you take from a body moves between two sheets, which every player's browser can read.
 
-The opening roll's window opens at most `TIMING.openingAttempts` times (3) when it is closed unthrown. How far Move the Body carries is `CLEANUP.actions.moveBody.rooms` (1 room on a hit, 2 on a critical), read by cleanup.mjs `bodyLanding`.
+The opening roll's window opens at most `TIMING.openingAttempts` times (3) when it is closed unthrown. The opening's veil is the module's own mark on a token, written only for an incident the Eclipse's lights opened (the incident's `atLights`, read by mask-gm.mjs `veilWanted`; since 1.2.130). How far Move the Body carries is `CLEANUP.actions.moveBody.rooms` (1 room on a hit, 2 on a critical), read by cleanup.mjs `bodyLanding`.
 
 ### 17.12 The Class Trial
 

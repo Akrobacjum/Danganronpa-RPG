@@ -746,14 +746,14 @@ Jako zabójca dostajesz pytanie **Zostać w ukryciu?** Po **Ujawnij się** wszys
 
 | Rzut zabójcy | Co się dzieje |
 |---|---|
-| Porażka | Nic się nie dzieje, a ofiara nigdy się nie dowie, że czegoś próbowano. Akcja jest wydana; możesz spróbować znowu o innej porze dnia. |
+| Porażka | Na mapie nic się nie dzieje; ofiara dowiaduje się tylko, że ktoś próbował ją zabić i mu się nie udało, nigdy kto (od 1.2.130). Akcja jest wydana; możesz spróbować znowu o innej porze dnia. |
 | Sukces z Hope | Incydent się zaczyna, a sprawa ma 5 Key Remnantów. |
 | Sukces z Despair | Incydent się zaczyna, ofiara od razu traci całe Sanity i dostęp do Role Reversal na ten incydent, a sprawa ma 4 Key Remnanty. |
 | Krytyk | Incydent się zaczyna, a sprawa ma najmniej Key Remnantów: 3. |
 
-Ofiara nie widzi niczego, gdy zabójca rzuca: żadnej karty, muzyki ani niczego na panelu zdarzeń. Gdy rzut się uda, od razu dowiaduje się, że incydent się zaczął i kto na nią rusza; gdy zabójca jest ukryty za „?”, dowiaduje się tylko, że ktoś na nią rusza. Przy porażce ofiara niczego się nie dowiaduje.
+Ofiara nie widzi niczego, gdy zabójca rzuca: żadnej karty, muzyki ani niczego na panelu zdarzeń. Gdy rzut się uda, od razu dowiaduje się, że incydent się zaczął i kto na nią rusza; gdy zabójca jest ukryty za „?”, dowiaduje się tylko, że ktoś na nią rusza. Przy porażce ofiara dostaje jedną linię: ktoś próbował ją zabić i mu się nie udało; linia nikogo nie wymienia (od 1.2.130).
 
-**Niewidoczny do rzutu otwarcia.** Od chwili, gdy zaczyna się Direct Murder, aż do rzutu otwarcia zabójcy pozostali gracze nie widzą tokenów zabójcy - także ofiara i wszyscy inni w pokoju - a mikrofon zabójcy jest wyłączony. Zabójca nadal słyszy pokój i dostaje o tym jedną linię. Wspólnik, który już jest po stronie zabójcy, jest ukryty i wyciszony tak samo i widzi zabójcę. Przy morderstwie zadeklarowanym w Eclipse zaczyna się to, gdy wracają światła, więc nikt nie widzi zabójcy na początku nowej pory dnia. Po rzucie tokeny zabójcy wracają takie, jakie były; jeśli rzut ukrywa zabójcę za „?”, najpierw pojawia się „?”. Pułapka i śmierć z własnej ręki nikogo nie ukrywają.
+**Niewidoczny do rzutu otwarcia.** Przed rzutem ukrywa zabójcę tylko Direct Murder zadeklarowany w Eclipse: od chwili, gdy się zaczyna, aż do rzutu otwarcia zabójcy pozostali gracze nie widzą tokenów zabójcy - także ofiara i wszyscy inni w pokoju - a mikrofon zabójcy jest wyłączony. Zabójca nadal słyszy pokój i dostaje o tym jedną linię. Wspólnik, który już jest po stronie zabójcy, jest ukryty i wyciszony tak samo i widzi zabójcę. Przy morderstwie zadeklarowanym w Eclipse zaczyna się to, gdy wracają światła, więc nikt nie widzi zabójcy na początku nowej pory dnia. Po rzucie tokeny zabójcy wracają takie, jakie były; jeśli rzut ukrywa zabójcę za „?”, najpierw pojawia się „?”. Direct Murder, który GM otwiera poza Eclipse, nikogo przed rzutem nie ukrywa: token zabójcy stoi tam, gdzie stał, a mikrofon zostaje włączony, a rzut, który ukrywa zabójcę za „?”, zamienia ten token w „?” na oczach pokoju (od 1.2.130). Pułapka i śmierć z własnej ręki nikogo nie ukrywają.
 
 **Morderstwo pośrednie (pułapka):** rzuca **ofiara**, Eye albo Head przeciw **20**, nocą tak samo jak za dnia; którą z dwóch, wybiera GM. Sama prośba o rzut jest ostrzeżeniem: słyszysz, że GM przygotowuje dla ciebie rzut, a okno nosi tytuł "Coś tu nie gra".
 
@@ -1173,7 +1173,7 @@ Zabójca za „?” to nowość 1.2.113 (E69 C8). Gracz, który otworzy konsolę
 
 To, co bierzesz z ciała, przechodzi między dwoma arkuszami, a te dwa arkusze może odczytać przeglądarka każdego gracza.
 
-Okno rzutu otwarcia zamknięte bez rzutu otwiera się znowu najwyżej `TIMING.openingAttempts` razy (3). Move the Body przenosi ciało o tyle pokoi, ile mówi `CLEANUP.actions.moveBody.rooms` (1 pokój przy trafieniu, 2 przy krytyku), a odczytuje to `cleanup.mjs` `bodyLanding`.
+Okno rzutu otwarcia zamknięte bez rzutu otwiera się znowu najwyżej `TIMING.openingAttempts` razy (3). Zasłona otwarcia to własny znacznik modułu na tokenie, zapisywany tylko przy incydencie otwartym przez światło po Eclipse (pole incydentu `atLights`, czytane przez mask-gm.mjs `veilWanted`; od 1.2.130). Move the Body przenosi ciało o tyle pokoi, ile mówi `CLEANUP.actions.moveBody.rooms` (1 pokój przy trafieniu, 2 przy krytyku), a odczytuje to `cleanup.mjs` `bodyLanding`.
 
 ### 17.12 Class Trial
 

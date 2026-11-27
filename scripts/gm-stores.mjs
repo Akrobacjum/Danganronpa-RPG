@@ -371,6 +371,10 @@ export const INCIDENT_FIGHT = Object.freeze([
  * null for an incident opened anywhere else. The GMs' alone: the roller is sent the die with the invitation, never its
  * cause, and every player's copy holds it null.
  *
+ * `atLights` (2.0 line T1 MURDER-01, 27.11.2026; the owner's D2-07): true for an incident the Eclipse's lights opened
+ * (eclipse.mjs `judgePendingMurders`), false for one opened anywhere else. The opening's veil stands only for the first
+ * (mask-gm.mjs `veilWanted`). The GMs' alone: every player's copy holds it null, as `watchDie`.
+ *
  * `freeCleanup` (E32+E07 C13, 03.10.2026; audit S04-07, the owner's D13): the actor id of
  * whoever struck a critical Finishing blow, until their first clean-up attempt in Stage 6
  * spends it (cleanup.mjs `consumeFreeCleanup`). Written with the stage that ends the fight,
@@ -395,7 +399,7 @@ export const INCIDENT_FIGHT = Object.freeze([
  * read out of the incident by `readCast` and `castCopyFor`.
  */
 export const CAST_FIELDS = Object.freeze([
-    "killerId", "killerTurnId", "victimId", "thirdId", "thirdSide", "departed", "openingTrait", "watchDie", "freeCleanup", "recent", "lastCrisis", "betrayal", "swung", ...INCIDENT_METHOD,
+    "killerId", "killerTurnId", "victimId", "thirdId", "thirdSide", "departed", "openingTrait", "watchDie", "atLights", "freeCleanup", "recent", "lastCrisis", "betrayal", "swung", ...INCIDENT_METHOD,
     ...INCIDENT_FIGHT,
     /* A GM's "Silence now" (E72 C8; the plan's A9 of 11.10): `{ [actorId]: true }` for a dead student whose voice leaves
        the room before the body is found (voice.mjs `deathVoiceGone`). Split, so two GMs silencing two students both stay;

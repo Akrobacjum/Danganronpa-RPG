@@ -4228,7 +4228,7 @@ const SCENARIOS = [
         }
     }],
 
-    ["a failed opening tells the victim nothing", async () => {
+    ["a failed opening tells the victim only that somebody tried: one card's words, nothing else (until 2.0 line T1: \"a failed opening tells the victim nothing\")", async () => {
         /*
          * E06 C2, 27.09.2026; the owner's D6. A direct murder whose killer's roll fails never
          * happened as far as its victim is concerned (`resolveVictimOpening`'s note): nothing
@@ -4240,6 +4240,9 @@ const SCENARIOS = [
          * participant; 13-murder-signals reads the victim's browser for it. Red on the first
          * C2 tree (27.09): the invitation's withdrawal, `murder.openingCancel`, was addressed
          * to the victim's player as well (murder-rules.mjs `revokeOpeningInvitation`).
+         * 2.0 line T1, 27.11.2026 (the owner's D2-08 and D2-10): the victim is told now that somebody tried, never who - one
+         * veiled card, whose words travel by one addressed packet (`secret.card`); its words are read by "T1 D2-08".
+         * Nothing else reaches them.
          */
         needs(world.atLeast("studentsWithConnectedPlayer", 2), "a killer whose player is asked the opening roll, and a victim with a player to tell");
         const M = await import("./murder.mjs");
@@ -4276,7 +4279,7 @@ const SCENARIOS = [
         equal(stableJson([opened?.stage ?? null, failed?.success ?? null, after, to(player(killer)).includes("murder.openingAsk")]),
             stableJson(["openingRoll", false, null, true]),
             `the opening did not fail and close, or the net did not see the roll asked of the killer's player: ${stableJson(sent)}`);
-        equal(stableJson([to(player(victim)), whispered]), stableJson([[], 0]),
+        equal(stableJson([to(player(victim)), whispered]), stableJson([["secret.card"], 0]),
             "the victim's player was sent a packet or a chat card by an opening that failed: "
             + stableJson(whisperedTo.map(m => ({ author: m.author?.id ?? null, speaker: m.speaker?.actor ?? null, rolls: m.rolls?.length ?? 0,
                 flags: Object.keys(m.flags?.[MODULE_ID] ?? {}), text: String(m.content ?? "").replace(/<[^>]+>/g, "").slice(0, 80) }))));
@@ -20028,14 +20031,15 @@ const SCENARIOS = [
         // What a token made from the prototype looks like with no mask: its name and picture (`getTokenDocument`).
         const protoBefore = (d => [d.name ?? null, d.texture?.src ?? null])((await killer.getTokenDocument({ x: first.x, y: first.y })).toObject());
         try {
-            await heldInvitations(() => M.openMurder({ killerId: killer.id, victimId: victim.id, openingTrait: "body" }));
+            // Opened at the lights (`atLights`): since 2.0 line T1 MURDER-01 the opening's veil stands for such an incident alone (R8920).
+            await heldInvitations(() => M.openMurder({ killerId: killer.id, victimId: victim.id, openingTrait: "body", atLights: true }));
             await K.settleVeils();
             const veiled = await fromPrototype();
             read.veil = [Boolean(veiled?._source?.hidden) === false, flags(veiled).veiled === true];
             await M.endMurder({ reason: "test", followUp: false });
             await settle();
             read.veilBack = [Boolean(veiled?._source?.hidden) === false, flags(veiled).veiled ?? null];
-            await heldInvitations(() => M.openMurder({ killerId: killer.id, victimId: victim.id, openingTrait: "body" }));
+            await heldInvitations(() => M.openMurder({ killerId: killer.id, victimId: victim.id, openingTrait: "body", atLights: true }));
             await M.resolveKillerOpening({ total: 20, isCritical: false, withHope: true });
             await settle();
             must(K.maskStands(killer.id), "the opening on Hope put up no mask - this would measure nothing");
@@ -20643,7 +20647,8 @@ const SCENARIOS = [
         try {
             ({ back } = await aloneTogether(killer, victim));
             await S.veilStore.whenHydrated();
-            await M.openMurder({ killerId: killer.id, victimId: victim.id, openingTrait: "body" });
+            // Opened at the lights (`atLights`): since 2.0 line T1 MURDER-01 the opening's veil stands for such an incident alone (R8920).
+            await M.openMurder({ killerId: killer.id, victimId: victim.id, openingTrait: "body", atLights: true });
             await K.settleVeils();
             must(S.veilStore.has(killer.id), "the opening did not veil the killer - this would measure nothing");
             read.veiled = await use(victim, vp, killer);
@@ -20730,7 +20735,8 @@ const SCENARIOS = [
                 }
             }
             await S.veilStore.whenHydrated();
-            await M.openMurder({ killerId: killer.id, victimId: victim.id, openingTrait: "body" });
+            // Opened at the lights (`atLights`): since 2.0 line T1 MURDER-01 the opening's veil stands for such an incident alone (R8920).
+            await M.openMurder({ killerId: killer.id, victimId: victim.id, openingTrait: "body", atLights: true });
             await K.settleVeils();
             must(S.veilStore.has(killer.id), "the opening did not veil the killer - this would measure nothing");
             const drawnHere = await asVictim(async () => K.veiledFromHere(killer));
@@ -20920,7 +20926,8 @@ const SCENARIOS = [
                 && S.veilStore.get(killer.id)?.hides === "module",
             K.veilMutedIds().has(kp.id), Boolean(S.trialMuteStore.get(kp.id)?.wrote)];
         const cleared = expected => [stableJson(looks()) === stableJson(expected ?? before), S.veilStore.has(killer.id), K.veilMutedIds().has(kp.id)];
-        const open = extra => heldInvitations(() => M.openMurder({ killerId: killer.id, victimId: victim.id, openingTrait: "body", ...extra }));
+        // Opened at the lights (`atLights`): since 2.0 line T1 MURDER-01 the opening's veil stands for such an incident alone (R8920).
+        const open = extra => heldInvitations(() => M.openMurder({ killerId: killer.id, victimId: victim.id, openingTrait: "body", atLights: true, ...extra }));
         const close = async () => { if (M.murderState()) await M.endMurder({ reason: "test", followUp: false }); };
         const read = {};
         const hiddenBefore = tokens()[0];
@@ -20964,7 +20971,7 @@ const SCENARIOS = [
             await K.settleVeils();
             read.trap = S.veilStore.has(killer.id) || S.veilStore.has(victim.id);
             await close();
-            await heldInvitations(() => M.openMurder({ killerId: killer.id, victimId: killer.id, openingTrait: "body" }));
+            await heldInvitations(() => M.openMurder({ killerId: killer.id, victimId: killer.id, openingTrait: "body", atLights: true }));
             await K.settleVeils();
             read.self = S.veilStore.has(killer.id);
             await close();
@@ -21054,7 +21061,8 @@ const SCENARIOS = [
         try {
             await S.veilStore.whenHydrated();
             // (A) The opening still waits: converted.
-            await heldInvitations(() => M.openMurder({ killerId: killer.id, victimId: victim.id, openingTrait: "body" }));
+            // Opened at the lights (`atLights`): since 2.0 line T1 MURDER-01 the opening's veil stands for such an incident alone (R8920).
+            await heldInvitations(() => M.openMurder({ killerId: killer.id, victimId: victim.id, openingTrait: "body", atLights: true }));
             await K.settleVeils();
             await asLegacy(M.murderState()?.openedAt ?? null);
             const held = looks();
@@ -118699,6 +118707,134 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             "{told: after the leaver's own copy alone; revealed: after the GM's Reveal} x [the row's first find, its road, the ref's found]");
     }],
     // T1 murder-death-eclipse
+    ["T1 MURDER-01 - an opening outside an Eclipse veils no token and blocks no microphone, and a failed one changes nothing on the map (2.0 line T1; D2-07; scripts/mask-gm.mjs `veilWanted`, murder-rules.mjs `openMurder`)", async () => {
+        /*
+         * 2.0 line T1, 27.11.2026 (MURDER-01; the owner's D2-07: "Poza Eclipse token zabojcy nie znika na czas rzutu
+         * otwarcia. Przy porazce nic sie na mapie nie zmienia"). A direct murder opened as the murder window opens it (no
+         * `atLights`), its invitation held. Read before the roll: the GMs' veil row, the killer's tokens' flag and whether the
+         * killer's player is among the blocked (`veilMutedIds`); then a failed opening, and every write to the killer's tokens
+         * over the whole run. Red at 07c93d1: the row, the flag and the block stood before the roll, and the failure wrote
+         * the flag off again.
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 2), "a killer and a victim, each with a player");
+        const M = await import("./murder.mjs");
+        const K = await import("./mask-gm.mjs");
+        const S = await import("./gm-stores.mjs");
+        const { livingStudents } = await import("./chapter.mjs");
+        const owner = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const [killer, victim] = livingStudents().filter(owner);
+        const kp = owner(killer);
+        const tokens = () => game.scenes.contents.flatMap(scene => scene.tokens.filter(t => t.actorId === killer.id));
+        must(tokens().length > 0, `${killer.name} has no token - this would measure nothing`);
+        const writes = [];
+        const hook = Hooks.on("updateToken", (doc, changes) => { if (doc.actorId === killer.id) writes.push(Object.keys(foundry.utils.flattenObject(changes ?? {}))); });
+        const read = {};
+        try {
+            await S.veilStore.whenHydrated();
+            await heldInvitations(() => M.openMurder({ killerId: killer.id, victimId: victim.id, openingTrait: "body" }));
+            await K.settleVeils();
+            await settle();
+            read.before = [M.murderState()?.stage ?? null, S.veilStore.has(killer.id), tokens().some(t => t._source.flags?.[MODULE_ID]?.veiled === true), K.veilMutedIds().has(kp.id)];
+            await M.resolveKillerOpening({ total: 1, isCritical: false, withHope: false });
+            await settle();
+            read.after = [M.murderState()?.active ?? null, S.veilStore.has(killer.id)];
+        } finally {
+            Hooks.off("updateToken", hook);
+            if (M.murderState()) await M.endMurder({ reason: "test", followUp: false });
+            if (S.veilStore.has(killer.id)) await S.veilStore.drop(killer.id);
+            for (const t of tokens()) if (t._source.flags?.[MODULE_ID]?.veiled !== undefined) await t.update(K.unveilPatch((await import("./utils.mjs")).forcedDeletion()));
+            await settle();
+        }
+        read.writes = writes.length;
+        equal(stableJson(read), stableJson({ before: ["openingRoll", false, false, false], after: [null, false], writes: 0 }),
+            "{before the roll: [the stage, a veil row, a token flagged veiled, the killer's player blocked]; after the failed roll: [an incident, a veil row]; writes: the writes to the killer's tokens over the run}");
+    }],
+    ["T1 D2-12 - a Hope opening outside an Eclipse puts the \"?\" on at once: the mask stands before the stage moves on (2.0 line T1; D2-12; scripts/murder-rules.mjs `resolveKillerOpening`, mask-gm.mjs `maskKiller`)", async () => {
+        /*
+         * 2.0 line T1, 27.11.2026 (D2-12: "przy udanym otwarciu (Hope albo krytyk) poza Eclipse maska "?" zakladana od razu,
+         * choc stol widzi zamiane"). An opening outside an Eclipse, its invitation held, scored on Hope. Read: whether the
+         * killer's tokens were masked by the time the incident's stage read "incident" (an `updateSetting` hook on the world
+         * half), the mask standing after, and no veil on the run. Nothing red to show at 07c93d1: the order is today's; the
+         * test holds it through MURDER-01.
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 2), "a killer and a victim, each with a player");
+        const M = await import("./murder.mjs");
+        const K = await import("./mask-gm.mjs");
+        const S = await import("./gm-stores.mjs");
+        const { livingStudents } = await import("./chapter.mjs");
+        const owner = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const [killer, victim] = livingStudents().filter(owner);
+        const tokens = () => game.scenes.contents.flatMap(scene => scene.tokens.filter(t => t.actorId === killer.id));
+        must(tokens().length > 0, `${killer.name} has no token - this would measure nothing`);
+        const atStage = [];
+        let veiled = false;
+        const hook = Hooks.on("updateSetting", setting => {
+            if (setting?.key !== `${MODULE_ID}.murderState`) return;
+            if (M.murderState()?.stage === "incident") atStage.push(tokens().every(t => K.isMaskedToken(t)));
+        });
+        const veilHook = Hooks.on("updateToken", doc => { if (doc.actorId === killer.id && doc._source.flags?.[MODULE_ID]?.veiled) veiled = true; });
+        const read = {};
+        try {
+            await heldInvitations(() => M.openMurder({ killerId: killer.id, victimId: victim.id, openingTrait: "body" }));
+            await K.settleVeils();
+            await M.resolveKillerOpening({ total: 20, isCritical: false, withHope: true });
+            await settle();
+            read.run = [atStage.length > 0 && atStage.every(Boolean), K.maskStands(killer.id), veiled];
+        } finally {
+            Hooks.off("updateSetting", hook);
+            Hooks.off("updateToken", veilHook);
+            if (M.murderState()) await M.endMurder({ reason: "test", followUp: false });
+            if (K.maskStands(killer.id)) await K.endMask(killer.id, "suite");
+            if (S.veilStore.has(killer.id)) await S.veilStore.drop(killer.id);
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ run: [true, true, false] }),
+            "{run: [every token masked when the stage read the fight, the mask standing after the roll, a token veiled on the way]}");
+    }],
+    ["T1 D2-08 - a failed opening whispers the victim once, naming nobody (2.0 line T1; D2-08, D2-10; scripts/murder-rules.mjs `resolveKillerOpening`)", async () => {
+        /*
+         * 2.0 line T1, 27.11.2026 (D2-08: "Gdy rzut otwarcia morderstwa sie nie uda, ofiara dostaje powiadomienie o probie";
+         * D2-10: "powiadomienie ofiary o nieudanej probie nie mowi, kto probowal"). A direct murder opened outside an Eclipse,
+         * its invitation held, its opening failed. Read: every packet this GM sends addressed to the victim's player that
+         * carries a card's words (secret.mjs `sendWords`: a veiled card's words travel so), the words' text, and whether any
+         * names the killer. Red at 07c93d1: none reached the victim.
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 2), "a killer and a victim, each with a player");
+        const M = await import("./murder.mjs");
+        const { livingStudents } = await import("./chapter.mjs");
+        const owner = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const [killer, victim] = livingStudents().filter(owner);
+        const vp = owner(victim);
+        const made = [];
+        const hook = Hooks.on("createChatMessage", m => made.push(m.id));
+        const lines = [];
+        const socket = game.socket;
+        const own = Object.getOwnPropertyDescriptor(socket, "emit");
+        const send = socket.emit;
+        socket.emit = function (event, packet, options, ...rest) {
+            if (packet?.action === "murder.openingAsk") return true;
+            if ((options?.recipients ?? []).includes(vp.id) && typeof packet?.html === "string") {
+                lines.push(packet.html.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim());
+            }
+            return send.call(this, event, packet, options, ...rest);
+        };
+        try {
+            await M.openMurder({ killerId: killer.id, victimId: victim.id, openingTrait: "body" });
+            await M.resolveKillerOpening({ total: 1, isCritical: false, withHope: false });
+            await settle();
+        } finally {
+            if (own) Object.defineProperty(socket, "emit", own); else delete socket.emit;
+            Hooks.off("createChatMessage", hook);
+            if (M.murderState()) await M.endMurder({ reason: "test", followUp: false });
+            for (const id of made) await game.messages.get(id)?.delete().catch(() => {});
+            await settle();
+        }
+        const said = game.i18n.localize("DRPG.Murder.victimAttemptFailed");
+        const told = lines.filter(line => line.includes(said));
+        equal(stableJson({ told: told.length, named: lines.some(line => line.includes(killer.name)), others: lines.length - told.length }),
+            stableJson({ told: 1, named: false, others: 0 }),
+            `{told: the words reaching the victim's player that are the attempt's notice; named: any of them naming the killer; others: any other words to them}: ${stableJson(lines)}`);
+    }],
 ];
 
 // `drawnForPlayer` for the grid (E33 C7): a drawn crisis roll goes through the suite's one road to a draw (tests-grid.mjs `drawnAct`).
