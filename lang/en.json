@@ -3796,7 +3796,10 @@
       "nonObviousHint": "As a sweep, but the hardest Remnant to spot; only this way finds a hidden secret project.",
       "followTracesHint": "Find what you left behind.",
       "specificHint": "Say what you seek; a GM, blind to your total, picks the Remnant. Blank is a sweep.",
-      "anythingHint": "Anything but a Remnant. A GM rules on it."
+      "anythingHint": "Anything but a Remnant. A GM rules on it.",
+      "describeTakenBy": "{actor}'s find already has its words from {gm}, and went out as “{name}”. What you typed here was not sent: add it in the Investigation window.",
+      "describeTakenTimedOut": "Nobody answered {actor}'s find in time, so it went out as “{name}”, with no words. Add them in the Investigation window.",
+      "describeTimedOutGms": "{actor}'s find in {room} went out as “{name}”, with no words: nobody answered its window in time. Add its words in the Investigation window."
     },
     "TruthBullet": {
       "title": "Truth Bullet",

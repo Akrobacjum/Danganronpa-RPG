@@ -23,7 +23,16 @@
  *   PRIM-06   the same verdict given by gm2, a step failed, gm2 connected: gm's Finish takes it and the steps run on gm.
  *   TRIAL-04  gm2 opens Reset the season, its window drawn on gm2 (its answer given as the Reset button gives it: the word
  *             typed and one group ticked, the pre-session notes, which this world has none of), and the reset runs on
- *             gm: gm2 reads the report's groups, gm posts the report card, gm2 is told no refusal.
+ *             gm: gm2 reads the report's groups, the reset's record is gm's, gm2 is told no refusal.
+ *   INV-01    a find waiting on its words on gm (a trace placed in Dorm A, Aiko's find's window opened as an Observe's
+ *             resolution opens it, observe.mjs `describeFind`, on a row of the GMs' store): the same window opens on gm2
+ *             from the row, gm2 answers it, and the find takes gm2's words. The Observe is not thrown: its row is written
+ *             as `scoreObserve` writes it, so what is read is the ask and its answer, not a roll.
+ *   INV-02    the same with gm answering first (its window's answer given after 2.5 s): gm2's window, drawn and left,
+ *             closes, gm2 is told whose words went out under what name, and after gm2's reload its whisper's Write it
+ *             here is not drawn.
+ *   INV-05    the same with nobody answering (a 1.5 s clock): gm2's window closes saying so, and gm2 holds the GMs' card
+ *             that names the find.
  *
  * What this cannot see: a real server's delivery times and a real F5 (97-two-gms's header says what its `reload` is).
  */
@@ -171,5 +180,91 @@ export async function run(api) {
     check("TRIAL-04: gm2's Reset the season draws its window on gm2 and runs on gm from the plan gm2 sent: the groups cleared answered to gm2, the reset's record gm's, no refusal on gm2",
         J(reset4.cleared) === J(["preNotes"]) && reset4.drawn.includes(resetTitle) && record4.by === IDS.gm && J(record4.groups) === J(["preNotes"])
             && !t4Toasts.some(([level]) => level === "warn"), J({ reset4, record4, t4Toasts, recordWas: Boolean(recordWas) }));
+
+    /* -------------------------------------------------------- INV-01, INV-02, INV-05 */
+    phase("INV-01 INV-02 INV-05 a find's describe window on both GMs");
+    const describeTitle = await gm.eval(`return game.i18n.localize("DRPG.Observe.describeTitle");`);
+    const WINDOWS = `[...foundry.applications.instances.values()].filter(a => a.rendered && a.options?.window?.title === ${J(describeTitle)})`;
+    // gm opens a find's window on a row (`describeFind` with the row's key), as `scoreObserve` would: answered as `answerOnGm` says.
+    const openFind = (tag, { waitMs = 30000, answerOnGm = null, drawnOnGm = true } = {}) => gm.eval(`const R = ${imp("remnants.mjs")}, OB = ${imp("observe.mjs")};
+        const scene = canvas.scene, t = await R.placeRemnant({ type: "prep", visibility: "evident", scene, x: 400, y: 400, room: "Dorm A", note: "58 ${tag}" });
+        if (!t) return null;
+        globalThis.__s58Was ??= globalThis.__dialogWindows;
+        globalThis.__dialogWindows = ${drawnOnGm ? "true" : "false"};
+        ${answerOnGm ? `globalThis.__dialogAnswers.push(async () => { await new Promise(r => setTimeout(r, ${answerOnGm.after})); return ${J(answerOnGm.words)}; });` : ""}
+        const key = "s58-${tag}-" + foundry.utils.randomID(6);
+        const entry = { actorId: "${IDS.aiko}", sceneId: scene.id, tokenId: t.id, room: "Dorm A", at: Date.now(),
+            data: R.remnantData(R.remnantById(scene.id, t.id)),
+            describing: { at: Date.now(), total: 15, isCritical: false, rollId: null, by: null, gm: game.user.id } };
+        globalThis.__s58 = { done: false, answer: null };
+        OB.describeFind(game.actors.get("${IDS.aiko}"), entry, false, "58 ${tag} fallback", null, { waitMs: ${waitMs}, key })
+            .then(a => { globalThis.__s58 = { done: true, answer: a }; }, e => { globalThis.__s58 = { done: true, answer: "threw " + e }; });
+        return { token: t.id, key };`, { timeout: 60000 });
+    const closeFind = placed => gm.eval(`const R = ${imp("remnants.mjs")}, OB = ${imp("observe.mjs")};
+        for (const app of ${WINDOWS}) await app.close().catch(() => {});
+        globalThis.__dialogWindows = globalThis.__s58Was; delete globalThis.__s58Was; globalThis.__dialogAnswers.length = 0;
+        await OB.clearPendingObserves();
+        const t = canvas.scene.tokens.get(${J(placed?.token ?? "")}); if (t) { await R.dropRemnantSecret(t); await t.delete(); }
+        return true;`, { timeout: 60000 });
+    const gm2Windows = () => gm2.eval(`return ${WINDOWS}.length;`);
+
+    // INV-01: gm2's window from the row, answered by gm2, and the find takes gm2's words.
+    const W2 = { name: "58 INV-01 gm2's name", playerText: "58 INV-01 what gm2 wrote", analyzedText: "" };
+    await gm2.eval(`globalThis.__s58Log = globalThis.__dialogLog.length; globalThis.__dialogAnswers.push(${J(W2)}); return true;`);
+    const placed1 = await openFind("INV01");
+    const waited1 = await until(() => gm.eval(`return globalThis.__s58;`), v => v?.done === true, 15000);
+    const asked1 = await gm2.eval(`return globalThis.__dialogLog.slice(globalThis.__s58Log).filter(d => d.title === ${J(describeTitle)}).length;`);
+    await closeFind(placed1);
+    await gm2.eval(`globalThis.__dialogAnswers.length = 0; return true;`);
+    check("INV-01: a find waiting on its words on gm opens the same window on gm2 from the row; gm2 answers it, and the find takes gm2's words",
+        Boolean(placed1) && asked1 === 1 && waited1?.done === true && waited1.answer?.name === W2.name && waited1.answer?.playerText === W2.playerText,
+        J({ placed1, asked1, waited1 }));
+    await settle(800);
+
+    // INV-02: gm answers first; gm2's drawn window closes with whose words, and its whisper's button is gone after a reload.
+    const W1 = { name: "58 INV-02 gm's name", playerText: "58 INV-02 what gm wrote", analyzedText: "" };
+    await gm2.eval(`globalThis.__s58Was = globalThis.__dialogWindows; globalThis.__dialogWindows = true; return true;`);
+    const n2 = await toastMark(gm2);
+    const placed2 = await openFind("INV02", { answerOnGm: { after: 2500, words: W1 }, drawnOnGm: false });
+    const open2 = await until(gm2Windows, n => n === 1, 6000);
+    const waited2 = await until(() => gm.eval(`return globalThis.__s58;`), v => v?.done === true, 15000);
+    const closed2 = await until(gm2Windows, n => n === 0, 6000);
+    const takenBy = await gm2.eval(`return game.i18n.format("DRPG.Observe.describeTakenBy", { gm: game.users.get("${IDS.gm}")?.name ?? "?",
+        actor: game.actors.get("${IDS.aiko}")?.name ?? "?", name: ${J(W1.name)} });`);
+    const told2 = (await toastsSince(gm2, n2)).filter(([, msg]) => msg === takenBy).length;
+    await gm2.eval(`globalThis.__dialogWindows = globalThis.__s58Was; delete globalThis.__s58Was; return true;`);
+    const r2 = await reload("gm2");
+    await until(primaryOn, on => allRead(on, IDS.gm));
+    const button2 = await until(() => gm2.eval(`const S = ${imp("secret.mjs")}, OB = ${imp("observe.mjs")};
+        const card = game.messages.contents.find(m => String(S.contentOf(m) ?? "").includes(${J(placed2?.token ?? "?")}) && String(S.contentOf(m) ?? "").includes("data-drpg-describe-find"));
+        if (!card) return null;
+        const body = document.createElement("div"); body.innerHTML = S.contentOf(card); document.body.append(body);
+        OB.wireDescribeHere(body);
+        const left = Boolean(body.querySelector("[data-drpg-describe-find]")); body.remove();
+        return { left };`), v => v !== null, 10000);
+    await closeFind(placed2);
+    check("INV-02: gm answers first: gm2's window, drawn and left, closes, gm2 is told whose words went out under what name, and after gm2's reload its whisper's Write it here is not drawn",
+        Boolean(placed2) && open2 === 1 && waited2?.answer?.name === W1.name && closed2 === 0 && told2 === 1 && r2.back === true && button2?.left === false,
+        J({ placed2, open2, waited2, closed2, told2, r2, button2 }));
+    await settle(800);
+
+    // INV-05: nobody answers; gm2's window closes saying so, and gm2 holds the GMs' card naming the find.
+    await gm2.eval(`globalThis.__s58Was = globalThis.__dialogWindows; globalThis.__dialogWindows = true; globalThis.__s58Had = new Set(game.messages.contents.map(m => m.id)); return true;`);
+    const n5 = await toastMark(gm2);
+    const placed5 = await openFind("INV05", { waitMs: 1500 });
+    const open5 = await until(gm2Windows, n => n === 1, 6000);
+    const waited5 = await until(() => gm.eval(`return globalThis.__s58;`), v => v?.done === true, 15000);
+    const closed5 = await until(gm2Windows, n => n === 0, 6000);
+    const timedOut = await gm2.eval(`return game.i18n.format("DRPG.Observe.describeTakenTimedOut", { actor: game.actors.get("${IDS.aiko}")?.name ?? "?", name: "58 INV05 fallback" });`);
+    const told5 = (await toastsSince(gm2, n5)).filter(([, msg]) => msg === timedOut).length;
+    const card5 = await until(() => gm2.eval(`const S = ${imp("secret.mjs")};
+        return game.messages.contents.filter(m => !globalThis.__s58Had.has(m.id) && String(S.contentOf(m) ?? "").includes("58 INV05 fallback")
+            && !String(S.contentOf(m) ?? "").includes("data-drpg-describe-find")).length;`), n => n >= 1, 6000);
+    await gm2.eval(`globalThis.__dialogWindows = globalThis.__s58Was; delete globalThis.__s58Was; delete globalThis.__s58Had; return true;`);
+    await closeFind(placed5);
+    check("INV-05: nobody answers a find's window in time: gm2's window closes saying so, and gm2 holds the GMs' card naming the find",
+        Boolean(placed5) && open5 === 1 && waited5?.done === true && closed5 === 0 && told5 === 1 && card5 === 1,
+        J({ placed5, open5, waited5, closed5, told5, card5 }));
+    await settle(800);
 }
 

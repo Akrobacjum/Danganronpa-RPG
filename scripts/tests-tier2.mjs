@@ -114578,15 +114578,16 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         const warnWas = ui.notifications.warn;
         const otherGm = "suite123d6gm0000";
         const made = [];
-        const hook = Hooks.on("createChatMessage", doc => { made.push(doc); });
+        const madeAt = new Map();
+        const hook = Hooks.on("createChatMessage", doc => { made.push(doc); madeAt.set(doc, Date.now()); });
         const usersFilter = game.users.filter;
-        let answer = "unset", took = null;
+        let answer = "unset", took = null, at = Date.now();
         try {
             ui.notifications.warn = (msg, ...rest) => { shown.push(String(msg)); return warnWas.call(ui.notifications, msg, ...rest); };
             // a second GM, connected, as activeGmIds reads the users
             const fake = { id: otherGm, isGM: true, active: true, name: "SUITE GM 2", role: 4 };
             game.users.filter = function (fn, ...rest) { const list = usersFilter.call(this, fn, ...rest); return fn(fake) ? [...list, fake] : list; };
-            const at = Date.now();
+            at = Date.now();
             const pending = O.describeFind(student, { room: "SUITE 123d room", data: { visibilityLabel: "Evident", typeLabel: "Prep", note: "" } }, false, "SUITE 123d name", null, { waitMs: 400 });
             const type = async text => { const f = drawn()?.element?.querySelector('textarea[name="playerText"]'); if (f) { f.value = text; f.dispatchEvent(new Event("input", { bubbles: true })); } };
             await wait(250); await type("SUITE 123d words");
@@ -114594,7 +114595,9 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             answer = await Promise.race([pending, wait(5000).then(() => "timeout")]);
             took = Date.now() - at;
             await settle();
-            for (const doc of made) if ((doc.whisper ?? []).length) whispers.push([...doc.whisper]);
+            /* The 'waits on a screen' card alone, made as the window opens: since 2.0 line T3 INV-05 (27.11.2026) the window
+               running out also whispers every GM, this one too, at its end - that item's card, not this test's. */
+            for (const doc of made) if ((doc.whisper ?? []).length && madeAt.get(doc) - at < 200) whispers.push([...doc.whisper]);
         } finally {
             Hooks.off("createChatMessage", hook);
             for (const doc of made) await doc.delete?.().catch(() => {});
@@ -118991,6 +118994,138 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         }
         equal(stableJson(read), stableJson({ refused: true, cleared: ["clock"], season: 1 }),
             "{refused: an Assistant GM's plan; cleared: what the second GM's reset cleared; season: counted on}");
+    }],
+    ["T3 INV-01 - a find waiting on its words opens the describe window on a second full GM from the row, and on a GM who loads later", async () => {
+        /*
+         * 2.0 line T3 INV-01, 27.11.2026 (Forge S1b INV-01, S2 D1). A row of the GMs' store written as another full GM's
+         * browser writes it while its window waits (`describing` with `askId`, `gm` that GM, the prefilled name): this
+         * browser asks from the rows (observe.mjs `askDescribeFromRows`, as at a store's change or its stores' opening) and
+         * draws the window, once per ask; a browser that has not asked yet - one loading later - would ask
+         * (`describeAskedHere` with nothing asked). The seeded trace, a student of the cast; the window closed and the row
+         * dropped after. Red at 79a4164: no `askDescribeFromRows` - nothing on this browser asks from a row, only a whisper.
+         */
+        needs(env.dialogs(), "the window is drawn");
+        needs(world.atLeast("remnantTokens", 1), "a find is of a trace");
+        const O = await import("./observe.mjs");
+        const R = await import("./remnants.mjs");
+        const { observeStore } = await import("./gm-stores.mjs");
+        must(typeof O.askDescribeFromRows === "function", "observe.mjs has no askDescribeFromRows: another GM's find asks nobody on this browser");
+        const [student] = cast(1);
+        const [scene, ref] = [...game.scenes].flatMap(s => R.remnantsOn(s).map(r => [s, r]))[0] ?? [];
+        must(scene && ref, "no trace ref - this would measure nothing");
+        const tokenId = ref.tokenId ?? ref.id ?? ref.token?.id;
+        const title = game.i18n.localize("DRPG.Observe.describeTitle");
+        const drawn = () => [...foundry.applications.instances.values()].filter(a => a.rendered && a.options?.window?.title === title);
+        const KEY = `suite-t3-inv01-${foundry.utils.randomID(6)}`, ASK = foundry.utils.randomID();
+        const row = { actorId: student.id, sceneId: scene.id, tokenId, room: "SUITE T3 INV-01 room", at: Date.now(),
+            describing: { at: Date.now(), total: 15, isCritical: false, gm: "SUITET3INV01GM00", askId: ASK, fallbackName: "SUITE T3 INV-01 name", stored: false, room: "SUITE T3 INV-01 room" } };
+        let read = null;
+        try {
+            // The row's write is the store's change: this browser asks from the rows at it (registerObserveRecovery's hook).
+            await observeStore.patch(KEY, row);
+            await until(() => drawn().length > 0, 3000);
+            const windows = drawn().length;
+            const name = drawn()[0]?.element?.querySelector('input[name="name"]')?.value ?? null;
+            const again = O.askDescribeFromRows();
+            const later = O.describeAskedHere(observeStore.get(KEY), { asked: new Set() });
+            read = { windows, name, again, later };
+        } finally {
+            for (const app of drawn()) await app.close().catch(() => {});
+            await observeStore.drop(KEY);
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ windows: 1, name: "SUITE T3 INV-01 name", again: 0, later: true }),
+            "{windows: drawn at the row's write; name: the row's prefilled name; again: a second read of the rows opens none; later: a browser with nothing asked would ask}");
+    }],
+    ["T3 INV-02 - the other GM's describe window closes once the find's words are in, and says whose and under what name", async () => {
+        /*
+         * 2.0 line T3 INV-02, 27.11.2026 (Forge S1b INV-02, S2 D2). The second GM's window stood after the counting GM had
+         * answered, and its press ended in "the game did not allow it". The row of another GM's find asked here, its window
+         * drawn (`askDescribeHere`), then the row written as that GM's browser writes the ask's end (`described`: by that GM,
+         * the name): the window closes (`closeAnsweredWindows`) with one notice naming the GM and the name, and nothing is
+         * written to the row from here. A stand-in GM, the seeded trace; the window and the row put back. Red at 79a4164: no
+         * `askDescribeHere`.
+         */
+        needs(env.dialogs(), "the window is drawn");
+        needs(world.atLeast("remnantTokens", 1), "a find is of a trace");
+        const O = await import("./observe.mjs");
+        const R = await import("./remnants.mjs");
+        const { observeStore } = await import("./gm-stores.mjs");
+        must(typeof O.askDescribeHere === "function" && typeof O.closeAnsweredWindows === "function",
+            "observe.mjs has no askDescribeHere or closeAnsweredWindows: another GM's window stands after the find's words are in");
+        const [student] = cast(1);
+        const [scene, ref] = [...game.scenes].flatMap(s => R.remnantsOn(s).map(r => [s, r]))[0] ?? [];
+        must(scene && ref, "no trace ref - this would measure nothing");
+        const tokenId = ref.tokenId ?? ref.id ?? ref.token?.id;
+        const counting = standInUser({ name: "T3 INV-02 counting GM", role: CONST.USER_ROLES.GAMEMASTER, active: true, sorts: "last" });
+        const title = game.i18n.localize("DRPG.Observe.describeTitle");
+        const drawn = () => [...foundry.applications.instances.values()].filter(a => a.rendered && a.options?.window?.title === title);
+        const KEY = `suite-t3-inv02-${foundry.utils.randomID(6)}`, ASK = foundry.utils.randomID();
+        const row = { actorId: student.id, sceneId: scene.id, tokenId, room: "SUITE T3 INV-02 room", at: Date.now(),
+            describing: { at: Date.now(), total: 15, isCritical: false, gm: counting.id, askId: ASK, fallbackName: "SUITE T3 INV-02 name", stored: false, room: "SUITE T3 INV-02 room" } };
+        const told = [], info = ui.notifications.info;
+        let read = null;
+        try {
+            game.users.set(counting.id, counting);
+            ui.notifications.info = message => { told.push(String(message)); };
+            // The row's write opens the window (the store's change, `askDescribeFromRows` to `askDescribeHere`); the ask's end
+            // written as the counting GM's browser writes it closes it (`closeAnsweredWindows`, at the next change).
+            await observeStore.patch(KEY, row);
+            await until(() => drawn().length > 0, 3000);
+            const before = drawn().length;
+            await observeStore.patch(KEY, { described: { askId: ASK, by: counting.id, name: "SUITE T3 INV-02 given", at: Date.now(), timedOut: false } });
+            await until(() => drawn().length === 0, 3000);
+            await settle();
+            const closed = O.closeAnsweredWindows();
+            read = { before, closed, after: drawn().length, answered: Boolean(observeStore.get(KEY)?.describeAnswer),
+                told: told.filter(line => line === game.i18n.format("DRPG.Observe.describeTakenBy", { gm: counting.name, actor: student.name, name: "SUITE T3 INV-02 given" })).length };
+        } finally {
+            ui.notifications.info = info;
+            for (const app of drawn()) await app.close().catch(() => {});
+            game.users.delete(counting.id);
+            await observeStore.drop(KEY);
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ before: 1, closed: 0, after: 0, answered: false, told: 1 }),
+            "{before: the window drawn; closed: windows left for a second read to close; after: drawn after; answered: words written from here; told: the notice naming the GM and the name}");
+    }],
+    ["T3 INV-05 - a describe window that runs out tells every GM, the find's name in the words", async () => {
+        /*
+         * 2.0 line T3 INV-05, 27.11.2026. When the describe window's clock ran out the toast went to the browser that
+         * counted the Observe alone, and a GM without the window open never learned which Truth Bullet waits for its words.
+         * The window opened for a find of the suite's own with a time of 300 ms and left (observe.mjs `describeFind`, as
+         * "1.2.122 CASE-37" opens it). Read: the cards this browser created in the window's time - whispered to the GMs,
+         * raised as a GM's card (`gmPopup`), the find's name in their words - deleted after. Red at be1883e: no card.
+         */
+        needs(env.dialogs(), "the window is drawn");
+        const O = await import("./observe.mjs");
+        const { cardFlag, wordsOf } = await import("./secret.mjs");
+        const [student] = cast(1);
+        const title = game.i18n.localize("DRPG.Observe.describeTitle");
+        const drawn = () => [...foundry.applications.instances.values()].find(a => a.rendered && a.options?.window?.title === title);
+        const made = [];
+        const hook = Hooks.on("createChatMessage", doc => { made.push(doc); });
+        const warn = ui.notifications.warn;
+        let read = null;
+        try {
+            ui.notifications.warn = () => {};
+            await Promise.race([O.describeFind(student, { room: "SUITE T3 INV-05 room", data: { visibilityLabel: "Evident", typeLabel: "Prep", note: "" } },
+                false, "SUITE T3 INV-05 name", null, { waitMs: 300 }), wait(5000)]);
+            await settle();
+            const cards = [];
+            for (const doc of made) {
+                const words = String(await wordsOf(doc, 1000) ?? "");
+                if (words.includes("SUITE T3 INV-05 name")) cards.push([(doc.whisper ?? []).includes(game.user.id), Boolean(cardFlag(doc, "gmPopup"))]);
+            }
+            read = cards;
+        } finally {
+            Hooks.off("createChatMessage", hook);
+            ui.notifications.warn = warn;
+            for (const doc of made) await doc.delete?.().catch(() => {});
+            await drawn()?.close().catch(() => {});
+        }
+        equal(stableJson(read), stableJson([[true, true]]),
+            "[the cards naming the find: [whispered to this GM, raised as a GM's card]]");
     }],
 ];
 

@@ -4059,7 +4059,10 @@
       "specificHint": "Wpisz, czego szukasz; GM, nie znając wyniku, wybiera Remnant. Puste pole to rozglądanie się.",
       "anythingHint": "Coś poza Remnantem. Rozstrzyga GM.",
       "resolveLost": "{name} rzuca {total} na Observe, a ta przeglądarka nie ma zapisu, na co patrzyła ta osoba. Nic się nie znajduje, Sanity postaci zostaje bez zmian, a wydana akcja nie wraca. Zapytaj gracza, jak się rozglądał, i jeśli było coś do znalezienia, daj mu Truth Bullet ręcznie.",
-      "resolveLostOwner": "Nie dało się ocenić twojego Observe: GM nie ma zapisu, na co patrzysz. Niczego nie znajdujesz i zachowujesz Sanity, ale akcja zostaje wydana. Powiedz GM-owi, jakie było twoje zgłoszenie."
+      "resolveLostOwner": "Nie dało się ocenić twojego Observe: GM nie ma zapisu, na co patrzysz. Niczego nie znajdujesz i zachowujesz Sanity, ale akcja zostaje wydana. Powiedz GM-owi, jakie było twoje zgłoszenie.",
+      "describeTakenBy": "Znalezisko ucznia {actor} ma już opis od GM-a {gm} i wyszło pod nazwą „{name}”. To, co wpisano tutaj, nie zostało wysłane: dopisz to w oknie Investigation.",
+      "describeTakenTimedOut": "Nikt nie odpowiedział w porę na znalezisko ucznia {actor}, więc wyszło pod nazwą „{name}”, bez opisu. Dopisz go w oknie Investigation.",
+      "describeTimedOutGms": "Znalezisko ucznia {actor} w pokoju {room} wyszło pod nazwą „{name}”, bez opisu: nikt nie odpowiedział w porę w jego oknie. Dopisz opis w oknie Investigation."
     },
     "TruthBullet": {
       "title": "Truth Bullet",

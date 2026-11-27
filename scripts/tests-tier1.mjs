@@ -48887,7 +48887,7 @@ const INVARIANTS = [
             keep: [".application.drpg-prompt", "drpg-prompt", false],
             kit: [[false, false], [true, false]],
             asking: ["action-menus.mjs chooseVariant", "action-menus.mjs promptForNote", "action-project.mjs proposeProjectTrait", "call-gm.mjs askForRequest", "frisk.mjs askToForce", "frisk.mjs openAskWindow",
-                "level-up.mjs askWhoPicks", "level-up.mjs openAdvancement", "mask-gm.mjs askReveal", "observe.mjs askWhichRemnant", "observe.mjs describeFind", "observe.mjs wireDescribeHere", "trait-ruling.mjs pickHere",
+                "level-up.mjs askWhoPicks", "level-up.mjs openAdvancement", "mask-gm.mjs askReveal", "observe.mjs askDescribeHere", "observe.mjs askWhichRemnant", "observe.mjs describeFind", "observe.mjs wireDescribeHere", "trait-ruling.mjs pickHere",
                 "trait-ruling.mjs rollChanged", "trial-prompt.mjs confirmEnd", "trial-prompt.mjs promptClaim", "trial-prompt.mjs promptFinish", "trial-prompt.mjs promptTurn", "vote.mjs castBallot"],
             naming: ["roll-dialog.mjs", "stacking.mjs", "ui-kit.mjs"],
             // E69 C1: the Infiltrate tile's rows (action-listen.mjs `performListen`), an action's declaration.
@@ -69923,6 +69923,35 @@ const INVARIANTS = [
         }), stableJson({ guards: ["gmOnly"], fields: ["cast", "groups", "remember"], groups: ["clock", "remnants"], notList: [],
             cast: [{ to: "point", scene: "SCENE", region: "REGION" }, { to: "stay" }, { to: "stay" }], answer: "reply", longer: true }),
             "{guards; fields; groups: registry keys kept once, anything else dropped; notList: a groups field that is no list; cast: a room, a choice the window has not, none; answer; longer: the wait past a ruling's}");
+    }],
+    ["R9124 - a find's words are asked on every full GM's browser but the one whose window it is, once per ask, and not once the row has its words (2.0 line T3 INV-01; scripts/observe.mjs `describeAskedHere`)", async () => {
+        /* 2.0 line T3 INV-01, 27.11.2026 (Forge S1b INV-01, S2 D1). The describe window opened only on the browser that
+           scored the Observe; the other GMs had a whisper with no window, and a GM who joined later had nothing. The ask is
+           a row now (`describing.askId`), and this rule says which browser opens its window. Pure on stand-in rows; nothing
+           written. Red at 79a4164: no `describeAskedHere` (the import's must). */
+        const O = await import("./observe.mjs");
+        must(typeof O.describeAskedHere === "function", "observe.mjs has no describeAskedHere: only the browser that scored a find asks for its words");
+        const FULL = CONST.USER_ROLES.GAMEMASTER, ASSISTANT = CONST.USER_ROLES.ASSISTANT;
+        const row = extra => ({ describing: { askId: "ASK", gm: "COUNTING" }, ...extra });
+        const at = (r, { me = "SECOND", role = FULL, asked = new Set() } = {}) => O.describeAskedHere(r, { me, role, asked });
+        equal(stableJson([at(row()), at(row(), { me: "COUNTING" }), at(row(), { role: ASSISTANT }),
+            at(row({ describeAnswer: { askId: "ASK" } })), at(row({ described: { askId: "ASK" } })), at(row(), { asked: new Set(["ASK"]) }),
+            at(row({ result: { success: true } })), at({ describing: { gm: "COUNTING" } }), at(null), at(row({ describeAnswer: { askId: "OTHER" } }))]),
+        stableJson([true, false, false, false, false, false, false, false, false, true]),
+            "[a second full GM; the GM whose window it is; an Assistant GM; the row answered; the ask done; asked here already; the row resolved; no ask; no row; an older ask's words]");
+    }],
+    ["R9125 - a whisper's Write it here for a find is drawn only while its row's ask is open: not once the row has words, is done or is gone (2.0 line T3 INV-02; scripts/observe.mjs `describeButtonLive`)", async () => {
+        /* 2.0 line T3 INV-02, 27.11.2026 (Forge S1b INV-02, S2 D2). The second GM's button stayed live after the counting
+           GM had answered, and drew again after a reload; its press ended in "the game did not allow it". Pure on stand-in
+           rows; nothing written. Red at 79a4164: no `describeButtonLive`. */
+        const O = await import("./observe.mjs");
+        must(typeof O.describeButtonLive === "function", "observe.mjs has no describeButtonLive: a find's button stays live after its words are in");
+        const open = { describing: { askId: "ASK", gm: "G" } };
+        equal(stableJson([O.describeButtonLive("ASK", { k: open }), O.describeButtonLive("ASK", { k: { ...open, describeAnswer: { askId: "ASK" } } }),
+            O.describeButtonLive("ASK", { k: { ...open, described: { askId: "ASK" } } }), O.describeButtonLive("ASK", {}),
+            O.describeButtonLive("ASK", { k: { ...open, result: { success: true } } }), O.describeButtonLive("OTHER", { k: open }), O.describeButtonLive(null, { k: open })]),
+        stableJson([true, false, false, false, false, false, false]),
+            "[the ask open; words on the row; the ask done; no row; the row resolved; another ask's button; no ask id]");
     }],
 ];
 
