@@ -119532,6 +119532,63 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         }
         equal(stableJson(read), stableJson({ noSpeaker: 1, other: 0 }), "{noSpeaker: the line after that refusal; other: after another refusal}");
     }],
+    ["T3 EXP-PL-08 - a GM's rename of a trace tells each copy's holder once, and a reading reaches only an analysed copy's holder", async () => {
+        /*
+         * 2.0 line T3 EXP-PL-08, 27.11.2026. A GM's edit of a trace's public record rewrites every copy (truth-bullets.mjs
+         * `propagateRemnantPublic`) and told nobody. A trace of the suite's own described by the GM, a copy on each of two
+         * students of the cast (the second made analysed), then the trace renamed, then its reading written
+         * (remnants.mjs `setRemnantPublic`, the Dashboard's write). Read: per edit, the whispers made that say
+         * `DRPG.TruthBullet.copyChanged`, by whose copy (the card's speaker). Items, secrets, trace and cards put back.
+         * Red at 45682b1: none.
+         */
+        needs(world.atLeast("sceneOnScreen"), "the fixture trace is placed on the scene on screen");
+        const [A, B] = cast(2);
+        const R = await import("./remnants.mjs");
+        const TB = await import("./truth-bullets.mjs");
+        const { wordsOf } = await import("./secret.mjs");
+        const scene = canvas.scene;
+        const piece = game.i18n.localize("DRPG.TruthBullet.copyChanged").split(/\{[^}]+\}/).sort((a, b) => b.length - a.length)[0].trim().slice(0, 18);
+        const made = [];
+        const hook = Hooks.on("createChatMessage", doc => { made.push(doc); });
+        let trace = null;
+        const copies = [];
+        const read = {};
+        try {
+            trace = await R.placeRemnant({ type: "prep", visibility: "evident", scene, x: 300, y: 300, note: "SUITE T3 EXP-PL-08" });
+            must(trace, "the fixture's trace was not placed - this would measure nothing");
+            await R.setRemnantPublic(trace, { name: "SUITE T3 knife", playerText: "SUITE T3 on the floor" });
+            copies.push(await TB.createTruthBullet(A, { name: "SUITE T3 knife", playerText: "SUITE T3 on the floor", realType: "prep", visibility: "evident", remnantId: trace.id, sceneId: scene.id }));
+            copies.push(await TB.createTruthBullet(B, { name: "SUITE T3 knife", playerText: "SUITE T3 on the floor", realType: "prep", visibility: "evident", remnantId: trace.id, sceneId: scene.id, analyzed: true }));
+            must(copies.every(Boolean), "the fixture's copies were not made - this would measure nothing");
+            await settle();
+            const told = async from => {
+                const out = [];
+                for (const doc of made.slice(from)) {
+                    if (!String(await wordsOf(doc, 1000) ?? "").includes(piece)) continue;
+                    // whom: the card's speaker, the copy's holder (utils.mjs `whisperToOwner` speaks as the actor)
+                    const who = String(doc.speaker?.actor ?? "");
+                    out.push(who === A.id ? "A" : who === B.id ? "B" : "?");
+                }
+                return out.sort();
+            };
+            let from = made.length;
+            await R.setRemnantPublic(trace, { name: "SUITE T3 bloody knife" });
+            await settle();
+            read.rename = await told(from);
+            from = made.length;
+            await R.setRemnantPublic(trace, { analyzedText: "SUITE T3 the lab says rust" });
+            await settle();
+            read.reading = await told(from);
+        } finally {
+            Hooks.off("createChatMessage", hook);
+            for (const item of copies.filter(Boolean)) { const uuid = item.uuid; await item.delete().catch(() => {}); await TB.dropSecret(uuid).catch(() => {}); }
+            if (trace) { await R.dropRemnantSecret(trace).catch(() => {}); if (scene.tokens.has(trace.id)) await scene.deleteEmbeddedDocuments("Token", [trace.id]); }
+            for (const doc of made) await game.messages.get(doc.id)?.delete().catch(() => {});
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ rename: ["A", "B"], reading: ["B"] }),
+            "{rename: whose copy's holder each whisper of the rename told; reading: of the reading}");
+    }],
 ];
 
 // `drawnForPlayer` for the grid (E33 C7): a drawn crisis roll goes through the suite's one road to a draw (tests-grid.mjs `drawnAct`).

@@ -70106,6 +70106,19 @@ const INVARIANTS = [
         stableJson({ en: [true, true, true], pl: [true, true, true], card: true, bodyCard: true }),
             "{each language: [the body card's next line, the explanation, the start's card each name the GM and the Class Trial]; card: reconcilePhase posts the start's card into the Investigation; bodyCard: the body's card says the next line}");
     }],
+    ["R9138 - a holder is told the parts of a GM's edit their copy takes, and the reading only when the copy reads it (2.0 line T3 EXP-PL-08; truth-bullets.mjs `copyChangedParts`)", async () => {
+        /* 2.0 line T3 EXP-PL-08, 27.11.2026. Pure on stand-in copies; nothing read or written. Red at 45682b1: no
+           `copyChangedParts`. */
+        const T = await import("./truth-bullets.mjs");
+        must(typeof T.copyChangedParts === "function", "truth-bullets.mjs has no copyChangedParts");
+        const copy = { name: "Knife", img: "a.png", playerText: "On the floor.", analyzedText: "", reads: false };
+        const read = { ...copy, analyzedText: "Old", reads: true };
+        equal(stableJson([T.copyChangedParts({ name: "Bloody knife" }, copy), T.copyChangedParts({ name: "Knife" }, copy),
+            T.copyChangedParts({ playerText: "Under the bed.", img: "b.png" }, copy), T.copyChangedParts({ analyzedText: "New" }, copy),
+            T.copyChangedParts({ analyzedText: "New" }, read), T.copyChangedParts({ analyzedText: "Old" }, read)]),
+        stableJson([["name"], [], ["words", "image"], [], ["reading"], []]),
+            "[a new name; the name it has; new words and picture; a reading to an unanalysed copy; to an analysed one; the reading it has]");
+    }],
 ];
 
 /**

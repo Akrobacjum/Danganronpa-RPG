@@ -4082,6 +4082,13 @@
       "describeTimedOutGms": "Znalezisko ucznia {actor} w pokoju {room} wyszło pod nazwą „{name}”, bez opisu: nikt nie odpowiedział w porę w jego oknie. Dopisz opis w oknie Investigation."
     },
     "TruthBullet": {
+      "copyChanged": "GM zmienił twój Truth Bullet „{old}”: {parts}.",
+      "copyPart": {
+        "name": "nazwę, teraz „{name}”",
+        "words": "opis",
+        "image": "obraz",
+        "reading": "odczyt"
+      },
       "title": "Truth Bullet",
       "give": "Daj Truth Bullet",
       "takeAway": "Zabierz Truth Bullet",

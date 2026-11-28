@@ -3819,6 +3819,13 @@
       "describeTimedOutGms": "{actor}'s find in {room} went out as “{name}”, with no words: nobody answered its window in time. Add its words in the Investigation window."
     },
     "TruthBullet": {
+      "copyChanged": "The GM changed your Truth Bullet “{old}”: {parts}.",
+      "copyPart": {
+        "name": "its name, now “{name}”",
+        "words": "its description",
+        "image": "its picture",
+        "reading": "its reading"
+      },
       "title": "Truth Bullet",
       "give": "Give a Truth Bullet",
       "takeAway": "Take a Truth Bullet away",

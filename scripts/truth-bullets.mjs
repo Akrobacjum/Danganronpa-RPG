@@ -981,6 +981,10 @@ export async function propagateRemnantPublic(remnantTokenId, changed) {
             const own = key => held.getFlag(MODULE_ID, key) ?? "";
             const earned = reading ? (hasReading(held) ? analyzedText : "") : own(TRUTH_BULLET_FLAGS.analyzedText);
             const playerText = words ? (changed.playerText ?? "") : own(TRUTH_BULLET_FLAGS.playerText);
+            // what this holder is told changed (`copyChangedParts`), read before the write moves it
+            const parts = copyChangedParts(changed, { name: held.name, img: held.img, playerText: own(TRUTH_BULLET_FLAGS.playerText),
+                analyzedText: own(TRUTH_BULLET_FLAGS.analyzedText), reads: hasReading(held) });
+            const was = held.name;
 
             // `FROM_REMNANT` on the OPTIONS, not the data: it is a fact about
             // where this write came from, not about the bullet. `watchBulletEdits`
@@ -994,11 +998,35 @@ export async function propagateRemnantPublic(remnantTokenId, changed) {
                 ...(reading ? { [`flags.${MODULE_ID}.${TRUTH_BULLET_FLAGS.analyzedText}`]: earned } : {})
             }, { [FROM_REMNANT]: true });
             touched++;
+            if (parts.length && item.parent) await tellCopyChanged(item.parent, was, parts, changed.name || held.name);
         } catch (err) {
             error(`Could not propagate the Remnant's public record onto "${item.name}"`, err);
         }
     }
     return touched;
+}
+
+/**
+ * WHAT A HOLDER IS TOLD OF A GM'S EDIT OF THEIR COPY (2.0 line T3 EXP-PL-08, 27.11.2026; the owner's recommendation). The
+ * write above moved a copy's name, words, picture and reading with no word to its holder. The parts `changed` moves on
+ * this copy as it stands (`copy`: its name, picture, words, reading, and whether it reads the analysis): a part the write
+ * does not name, or names as the copy already holds it, is not told, and the reading only to a copy that reads it - an
+ * unanalysed copy does not learn that a reading exists. Pure (R9138): "name", "words", "image", "reading".
+ */
+export function copyChangedParts(changed, copy) {
+    const has = field => Object.hasOwn(changed ?? {}, field);
+    const out = [];
+    if (has("name") && (changed.name || copy.name) !== copy.name) out.push("name");
+    if (has("playerText") && String(changed.playerText ?? "") !== String(copy.playerText ?? "")) out.push("words");
+    if (has("img") && (changed.img || copy.img) !== copy.img) out.push("image");
+    if (has("analyzedText") && copy.reads && String(changed.analyzedText ?? "") !== String(copy.analyzedText ?? "")) out.push("reading");
+    return out;
+}
+
+/** The holder's one whisper of a GM's edit (`copyChangedParts`), the new name with its part. */
+async function tellCopyChanged(actor, was, parts, name) {
+    const words = parts.map(part => game.i18n.format(`DRPG.TruthBullet.copyPart.${part}`, { name: foundry.utils.escapeHTML(name ?? "") }));
+    await whisperToOwner(actor, `<p>${game.i18n.format("DRPG.TruthBullet.copyChanged", { old: foundry.utils.escapeHTML(was ?? ""), parts: words.join(", ") })}</p>`);
 }
 
 /**

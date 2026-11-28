@@ -683,7 +683,7 @@ A Truth Bullet card shows:
 
 The pack can be grouped by **Chapter** or by **Location**. A Truth Bullet is the only thing you can present at a trial.
 
-Your sheet does not let you rename an item or change its picture or description: what a thing is called is part of the evidence. A change made anyway stays and is recorded for the GMs, except on a Truth Bullet, where it is put back.
+Your sheet does not let you rename an item or change its picture or description: what a thing is called is part of the evidence. A change made anyway stays and is recorded for the GMs, except on a Truth Bullet, where it is put back. When the GM changes the name, the description, the picture or the reading of a Remnant you hold a copy of, your copy changes with it and you are told what changed; you hear of the reading only when your copy already has one.
 
 ### Reading the difficulty ladder
 

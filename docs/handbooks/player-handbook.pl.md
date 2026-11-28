@@ -683,7 +683,7 @@ Karta Truth Bulletu pokazuje:
 
 Truth Bullety możesz grupować według **Rozdziału** albo **Lokacji**. Truth Bullet to jedyna rzecz, którą możesz przedstawić w Class Trial.
 
-Arkusz nie pozwala zmienić nazwy, obrazka ani opisu przedmiotu, bo to, jak rzecz się nazywa, jest częścią dowodu. Zmiana zrobiona mimo to zostaje i jest zapisywana dla GM-ów, a na Truth Bullecie zostaje cofnięta.
+Arkusz nie pozwala zmienić nazwy, obrazka ani opisu przedmiotu, bo to, jak rzecz się nazywa, jest częścią dowodu. Zmiana zrobiona mimo to zostaje i jest zapisywana dla GM-ów, a na Truth Bullecie zostaje cofnięta. Gdy GM zmieni nazwę, opis, obraz albo odczyt Remnantu, z którego masz kopię, twoja kopia zmienia się razem z nim, a ty dostajesz wiadomość, co się zmieniło; o odczycie dowiadujesz się tylko wtedy, gdy twoja kopia już go ma.
 
 ### Jak czytać drabinę trudności
 
