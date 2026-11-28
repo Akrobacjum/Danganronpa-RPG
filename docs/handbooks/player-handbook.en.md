@@ -1239,4 +1239,6 @@ If the GM asks how fast your screen runs: stand still, open the console (F12), t
 
 ### 17.17 Browser and network
 
+Foundry 14 wants a browser built on Chromium 146 or newer (Chrome, Edge, Opera) or a current Firefox; an older one gets a red notice from Foundry at every load, which is Foundry's and not the module's. Red notices "Error connecting to LiveKit Server" come from the voice client, not the module: tell your GM, who can press **Fix voice**.
+
 About 6.5 s without the network Foundry writes "Server connection lost" and reloads the page; the load after F5 took 30-48 s (measured on The Forge, Foundry 14.370, 25.11.2026). The voice tile says the connection is lost since 1.2.130: the module then listens to this browser's connection events with the game server and writes and sends nothing, and with the tile off it gives one warning. The order of those events against Foundry's reload has not been tried at a table yet.

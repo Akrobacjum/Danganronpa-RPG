@@ -1239,4 +1239,6 @@ Gdy GM zapyta, jak szybko działa twój ekran, stań w miejscu, otwórz konsolę
 
 ### 17.17 Przeglądarka i sieć
 
+Foundry 14 potrzebuje przeglądarki opartej na Chromium 146 lub nowszym (Chrome, Edge, Opera) albo aktualnego Firefoksa; starsza dostaje od Foundry czerwone powiadomienie przy każdym wczytaniu, które jest Foundry, a nie modułu. Czerwone powiadomienia "Error connecting to LiveKit Server" pochodzą od klienta głosu, nie od modułu: powiedz o nich GM-owi, który może nacisnąć **Napraw głos**.
+
 Po około 6,5 s bez sieci Foundry pisze „Server connection lost” i przeładowuje stronę; wczytanie po F5 trwało 30-48 s (zmierzone na The Forge, Foundry 14.370, 25.11.2026). Kafelek głosu mówi o utracie połączenia od 1.2.130: moduł słucha wtedy zdarzeń połączenia tej przeglądarki z serwerem gry i niczego nie zapisuje ani nie wysyła, a przy wyłączonym kafelku daje jedno ostrzeżenie. Kolejności tych zdarzeń wobec przeładowania Foundry nie sprawdzono jeszcze przy stole.

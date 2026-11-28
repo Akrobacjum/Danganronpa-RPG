@@ -52,6 +52,8 @@ Załóż świat na systemie Daggerheart, włącz moduł i jego zależności i wc
 
 **Linia Dalej.** Dopóki nie są spełnione wszystkie wymagane wiersze, linia **Dalej** w panelu GM-a zaczyna się od *Do ustawienia:* i podaje pierwszy wiersz, który został do zrobienia, a **Otwórz listę kontrolną sezonu** obok niej otwiera listę. Przed spełnieniem wszystkich wymaganych wierszy linia Dalej nigdy nie proponuje Eclipse. Pokoje ocenia na scenie szkoły, na jakąkolwiek scenę patrzysz, i nie czeka na wiersz, którego moduł nie może za ciebie dokończyć: wiersz sekretu serwera głosu (sekcja 2) zostaje na liście skreślony. Gdy wymagane wiersze są spełnione albo gdy sezon już ruszył, choćby z niezrobionym wierszem, linia Dalej prowadzi przez dzień (sekcja 3, linia Dalej, punkty 10 i 11).
 
+**Przeglądarka.** Foundry 14 potrzebuje przeglądarki opartej na Chromium 146 lub nowszym (Chrome, Edge, Opera) albo aktualnego Firefoksa; starsza dostaje od Foundry czerwone powiadomienie przy każdym wczytaniu, które jest Foundry, a nie modułu. Czerwone powiadomienia "Error connecting to LiveKit Server" pochodzą od klienta głosu (LiveKit AVClient), nie od modułu: **Napraw głos** (część **Diagnostyka** panelu GM-a) albo sekcja 9.5.
+
 ### 1.2 Co moduł zmienia w Foundry i jak to oddać
 
 Póki działa, moduł trzyma te ustawienia Foundry, Daggerheart i modułów, których potrzebuje. Ustawienie, które moduł trzyma, nie pojawia się w Configure Settings, a zmiana wprowadzona w nim mimo to jest cofana. Moduł zachowuje wartość, jaką każde z tych ustawień miało, zanim pierwszy raz je zmienił.

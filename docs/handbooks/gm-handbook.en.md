@@ -52,6 +52,8 @@ Make a world on the Daggerheart system, enable the module and its dependencies, 
 
 **The Next line.** Until every required row holds, the GM panel's **Next** line reads *To set up:* and names the first row still to do, and **Open the Season checklist** beside it opens the checklist; it never offers the Eclipse before. It judges the rooms on the school, whichever scene you are looking at, and it does not wait on a row the module cannot finish for you (the voice server's secret, section 2: that row stays crossed in the checklist). Once the required rows hold, or once the season has started even with a row not done, the line follows the day (section 3, the Next line, items 10 and 11).
 
+**The browser.** Foundry 14 wants a browser built on Chromium 146 or newer (Chrome, Edge, Opera) or a current Firefox; an older one gets a red notice from Foundry at every load, which is Foundry's and not the module's. Red notices "Error connecting to LiveKit Server" are the voice client's (LiveKit AVClient), not the module's: **Fix voice** (the GM panel's **Diagnostics**) or section 9.5.
+
 ### 1.2 What the module changes in Foundry, and giving it back
 
 While it runs, the module holds these settings of Foundry, Daggerheart and the modules it needs. A held setting does not show in Configure Settings, and a change made to it anyway is put back. The module keeps the value each setting had before it first changed it.
