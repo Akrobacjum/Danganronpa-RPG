@@ -3705,9 +3705,14 @@ body.drpg-theme-stained-glass .drpg-panel .window-header .header-control {
    which a height that follows the content would undo - it ran past the screen's foot at 1920 x 1080 (the owner's shots,
    22.11.2026); a player's since 1.2.129 (OWNER-129-CHATRECT, the owner: "niech trzyma u graczy ksztalt prostokata"),
    which was drawn 284 px tall with no message and 1064 with forty where 730 was asked, its log scrolling inside it as
-   under Monokuma Legacy (docs/dev/owner129/chatrect/heights-*.json; R8910). Left out in `:where()`, so the rule keeps
-   the weight it had and wins what it won (R1323, R1331, R1333 read that). */
-body.drpg-theme-stained-glass .application.drpg-panel:not(.minimized):where(:not(.drpg-messenger)) {
+   under Monokuma Legacy (docs/dev/owner129/chatrect/heights-*.json; R8910). The handbooks window keeps its height too
+   (2.0 line T4, R111, 27.11.2026): grown to the screen's height it stood past the screen's foot at The Forge (Foundry
+   14.370, 1920x1080; docs/dev/v2/F3-forge-PC-2.md) and its text scrolled nowhere, the jump to a section moving nothing
+   (R4721, R6602) - handbooks.mjs's note above `HandbookApp` says what was read; R9242. It is left out by a class of its
+   own, `drpg-own-height`, not by its name: a rule that names a window moved onto the kit's frame is one R1357 reads as
+   framing it. Left out in `:where()`, so the rule keeps the weight it had and wins what it won (R1323, R1331, R1333 read
+   that). */
+body.drpg-theme-stained-glass .application.drpg-panel:not(.minimized):where(:not(.drpg-messenger):not(.drpg-own-height)) {
     height: auto !important;
     max-height: calc(100vh - 24px);
 }
@@ -3716,7 +3721,7 @@ body.drpg-theme-stained-glass .application.drpg-panel:not(.minimized) .window-co
     max-height: calc(100vh - 80px);
 }
 /* The handbooks' own height rule went with E21 C6a: the window is on the kit's frame (handbooks.mjs's note), held to
-   the screen by components.css. */
+   the screen by components.css, and since 2.0 line T4 it keeps the height it opens at (the rule above leaves it out). */
 /* A book needs two levels of heading, and the panel rule gives h2 and h3 one: the same 13 px
    capitals. The section keeps them; a subsection reads as a title in the prose face with the
    base sheet's short bar under it. Bold takes the time of day's accent here rather than gold. */

@@ -72,7 +72,7 @@ import { actionsLeft, actionsMax, hasFreeMove } from "./actions.mjs";
  * so this can be called again in place while the window stays open.
  */
 function aliveTableHtml({ roster, others, stateOf, donors, isCrimeSilenced, invited = () => false, resourceValue, resourceMax, levelUp, offers,
-    purseOf = () => 0, cubHopeTotal = a => resourceValue(a, "hope"), deadSilenced = () => false }) {
+    purseOf = () => 0, cubHopeTotal = a => resourceValue(a, "hope"), deadSilenced = () => false, micCell = () => "" }) {
     /*
      * THE THREE MONOCUB COLUMNS ARE ALWAYS THERE (E49 A3, 11.11.2026; the owner's "Tak, naprawiamy oba" and the rule of
      * 10.11: a state changes look, never layout). From D-F4 to E49 they appeared the moment somebody accepted the
@@ -218,7 +218,10 @@ function aliveTableHtml({ roster, others, stateOf, donors, isCrimeSilenced, invi
         ["notInClass", rest.filter(a => roleOf(a) === "npc"), otherRow]].filter(([, list]) => list.length);
     // One group needs no heading: the rows say it already.
     const headed = groups.length > 1;
-    const rows = groups.flatMap(([key, list, build]) => [...(headed ? [{ group: L(`DRPG.Panel.group.${key}`), count: list.length }] : []), ...list.map(build)]);
+    // The Microphone column's cells (2.0 line T4, VOICE-04): a student's row alone, each by its own builder (`micCellHtml`).
+    const studentIds = new Set(students.map(a => a.id));
+    const withMic = r => (r?.id && studentIds.has(r.id) ? { ...r, mic: micCell(r.id) } : { ...r, mic: "" });
+    const rows = groups.flatMap(([key, list, build]) => [...(headed ? [{ group: L(`DRPG.Panel.group.${key}`), count: list.length }] : []), ...list.map(build).map(withMic)]);
     const columns = [
         { key: "name", label: L("DRPG.Panel.character"), cls: "name" },
         { key: "open", label: L("DRPG.Panel.openColumn"), cls: "open" },
@@ -229,7 +232,9 @@ function aliveTableHtml({ roster, others, stateOf, donors, isCrimeSilenced, invi
         { key: "hope", label: L("DRPG.Monocub.hope") }, { key: "give", label: L("DRPG.Monocub.giveHopeColumn") },
         { key: "silenced", label: L("DRPG.Monocub.silenced"), cls: "silenced", tooltip: L("DRPG.Monocub.silencedNote") },
         { key: "levelUp", label: L("DRPG.Panel.levelUpColumn") },
-        { key: "do", label: L("DRPG.Panel.doColumn") }
+        { key: "do", label: L("DRPG.Panel.doColumn") },
+        // The Microphone, a column of its own, last (2.0 line T4, VOICE-04): T2's columns go before it, T5's after it.
+        MIC_COLUMN()
     ];
     return `<div class="drpg-alive-live">
         <p class="notes">${L("DRPG.Panel.whoIsAliveNote")}</p>
@@ -257,6 +262,72 @@ function aliveTableHtml({ roster, others, stateOf, donors, isCrimeSilenced, invi
  * flag set; to Monokuma marks first and unmarks the Spectator after a yes, as from an NPC. A Monokuma flag wins over it
  * (`roleOf`, as the sheet reads a character carrying both), and a Spectator over "Not in the class".
  */
+/*
+ * THE MICROPHONE COLUMN (2.0 line T4, VOICE-04, 27.11.2026; LINE-T4.md): a GM blocked or unblocked a player's microphone
+ * only from the voice tile's list "Who you hear", which holds only who is in the GM's own channel, so a player in another
+ * room could not be reached - a trial's block left behind included (voice.mjs `restoreTrialBlock`, `trialMuteLeft`). The
+ * column's cell is a button for the row's player account (`micCellHtml`): Block or Unblock as Foundry answers now
+ * (`canBroadcastAudio`), `aria-pressed` its block, greyed with its reason where the module holds the microphone
+ * (`moduleHoldsMic`, its own line), where this Foundry has no microphone permission, or with no LiveKit client; empty
+ * for a student no player account plays, and on a Monokuma's, a Spectator's or an NPC's row. A press is voice-tile.mjs
+ * `toggleBlock`, every check of it asked again; the cells follow a user's change in place (`wireMicCells`), the window
+ * not drawn again. The block is the user document's permission, which every client holds already (voice-tile.mjs's
+ * header): nothing new is told to anybody. Each part its own function and column object, so T2's and T5's columns stand
+ * beside it without touching it.
+ */
+const MIC_COLUMN = () => ({ key: "mic", label: game.i18n.localize("DRPG.Voice.micColumn"), cls: "mic" });
+
+/** The player account a student's row names, or null: the user whose character it is. */
+function micUserOf(actorId, { users = game.users } = {}) {
+    return users?.find?.(u => !u.isGM && u.character?.id === actorId) ?? null;
+}
+
+/** A student's Microphone cell (the column's note): `state` is voice-tile.mjs `micCellState`, handed in. */
+export function micCellHtml(actorId, { state, users = game.users } = {}) {
+    const user = micUserOf(actorId, { users });
+    const at = user && typeof state === "function" ? state(user) : null;
+    if (!at) return "";
+    const L = key => game.i18n.localize(key);
+    // The tooltip: the reason a greyed cell is greyed, else what a press does to whom.
+    const label = game.i18n.format(at.blocked ? "DRPG.Voice.list.gmUnblock" : "DRPG.Voice.list.gmBlock", { name: user.name });
+    const word = L(at.blocked ? "DRPG.Voice.micUnblock" : "DRPG.Voice.micBlock");
+    return `<button type="button" class="drpg-mini-button drpg-alive-mic" data-drpg-mic="${esc(user.id)}" aria-pressed="${at.blocked}" aria-label="${esc(label)}" data-tooltip="${esc(at.reason ?? label)}"${at.disabled ? " disabled" : ""}>${esc(word)}</button>`;
+}
+
+/**
+ * The Microphone cells wired (the column's note): one press listener on the window's element for every cell, drawn now or
+ * by a rebuild later, and one `updateUser` hook that draws a changed user's cell again in place - taken off when the
+ * window has gone. `toggle` and `state` are voice-tile.mjs's `toggleBlock` and `micCellState`, handed in.
+ */
+export function wireMicCells(dialog, { toggle, state, users = game.users } = {}) {
+    const root = dialog?.element;
+    if (!root || typeof toggle !== "function") return null;
+    const repaint = userId => {
+        for (const cell of root.querySelectorAll(`[data-drpg-mic="${CSS.escape(userId)}"]`)) {
+            const actorId = cell.closest("[data-actor]")?.dataset.actor;
+            const html = actorId ? micCellHtml(actorId, { state, users }) : "";
+            if (!html) continue;
+            const t = document.createElement("template");
+            t.innerHTML = html;
+            cell.replaceWith(t.content.firstElementChild);
+        }
+    };
+    root.addEventListener("click", event => {
+        const button = event.target.closest?.("[data-drpg-mic]");
+        if (!button || button.disabled) return;
+        const user = users?.get?.(button.dataset.drpgMic);
+        if (!user) return;
+        button.disabled = true;
+        Promise.resolve(toggle(user)).catch(err => error("Could not change a player's microphone", err))
+            .finally(() => { if (button.isConnected) repaint(user.id); });
+    });
+    const hook = Hooks.on("updateUser", user => {
+        if (!root.isConnected) { Hooks.off("updateUser", hook); return; }
+        if (user?.id) repaint(user.id);
+    });
+    return { repaint, hook };
+}
+
 const ROLES = Object.freeze(["student", "monokuma", "spectator", "npc"]);
 const ROLE_WORDS = Object.freeze({ student: "DRPG.Panel.role.student", monokuma: "DRPG.Monokuma.isMonokuma", spectator: "DRPG.Spectator.role",
     npc: "DRPG.Class.notInClass" });
@@ -550,10 +621,13 @@ export async function openWhoIsAliveDialog(options = {}) {
     const buildDonors = () => monokumas().map(u =>
         `<option value="${u.id}">${esc(donorLabel(u))}</option>`).join("");
 
+    // The Microphone column's voice side (2.0 line T4, VOICE-04), by `import()`: a cell is drawn with the table.
+    const VT = await import("./voice-tile.mjs");
     const table = () => {
         const donors = buildDonors();
         return aliveTableHtml({ roster, others, stateOf, donors, isCrimeSilenced, invited: invitationOpen, resourceValue, resourceMax, purseOf, cubHopeTotal, deadSilenced: isDeadSilenced,
-            levelUp: a => Boolean(sheetMode(a, game.user).levelUp), offers: a => standingOffers(a).length });
+            levelUp: a => Boolean(sheetMode(a, game.user).levelUp), offers: a => standingOffers(a).length,
+            micCell: id => micCellHtml(id, { state: user => VT.micCellState(user) }) });
     };
 
     // A row button's round trip, if one is running: this window did not answer,
@@ -588,6 +662,8 @@ export async function openWhoIsAliveDialog(options = {}) {
             });
 
             wireAll();
+            // The Microphone cells (2.0 line T4, VOICE-04): wired once, by delegation, so a rebuilt table needs nothing more.
+            wireMicCells(dialog, { toggle: user => VT.toggleBlock(user), state: user => VT.micCellState(user) });
             /*
              * A DEATH IS AN ACTOR FLAG, so `watch: { actors: true }` is what
              * carries it here - the same listener the GM panel's own standing

@@ -498,6 +498,13 @@ roll at a table.
 
 ## What the harness cannot do
 
+- **`game.i18n.format` is inherited and read-only, as v14 holds it** (2.0 line T4, FORGE-09c, 27.11.2026; client-entry.mjs
+  `I18N_PROTO`). On Foundry 14.370 a test's `game.i18n.format = fn` throws "Cannot assign to read only property 'format'"
+  (tests-kit.mjs `standIn`'s note, the sandbox 19.11.2026); R7791 did so twice at The Forge (docs/dev/v2/F3-forge-PC-2.md) and
+  passed here, where `format` was the object's own writable property. Modelled for `format` alone - `localize` is what v14
+  let that test assign. A test stands either in with `standIn`. Not modelled, from the same Forge run: an actor's `items` that
+  cannot be redefined (R1459) and a `system` whose methods a plain copy loses (R1489) - the harness's actor takes both, so
+  those two tests no longer lean on it, but nothing here would catch the next one.
 - **No scene holds a wall** (DOC-06; read 21.11.2026). The seed makes both scenes with `walls: []` (lib/seed.mjs), and the
   owner's sandbox world is seeded from it: its third probe of 19.11.2026 searched the whole Academy grid for a walled square
   and found none (docs/dev/e39/CALIBRATION.md on claude/e58-local, "The third probe"). So a test or scenario that reads

@@ -17,17 +17,21 @@
  *   note(name, details)                 something seen, no verdict
  *   phase(name)                         the label of the checks that follow
  *   settle(ms)                          wait
- *   shot(role, name)                    a screenshot into the report's folder
+ *   shot(role, name, { clip })          a screenshot into the report's folder (a part of the page with `clip`); answers the image
  *   reload(role)                        F5, waiting for game.ready again
  *   offline(role, ms)                   the browser's network cut for `ms`, then back (context.setOffline)
  *   leave(role) / rejoin(role)          the account's browser closed / logged in again
  *   errors(role)                        `window.__errors` and missing i18n keys in that page so far
  *   until(role, code, { timeout, every }) poll the code's value in that page until truthy; answers it or null
+ *   refuse(why)                         stop the scenario: the world is not one it can vouch for (its report keeps
+ *                                       `refused`, its notes and checks so far; no "ran no check" failure)
  *
  * A check is a claim about the 2.0 behaviour the owner decided (the triage and docs/dev/v2/DECISIONS.md): on 1.2.129
  * a check of a known defect fails, and the same check passes when the fix is in. That is the before/after reading.
  *
- * Exit: 0 when every check passed; 1 on a failed check or a broken scenario; 2 on a refusal.
+ * Exit: 0 when every check passed; 1 on a failed check or a broken scenario; 2 on a refusal (lib.mjs's, which stops
+ * the run at once, or a scenario's `refuse`, after which the next scenario named still runs; a failure elsewhere in
+ * the run makes it 1).
  */
 
 import fs from "node:fs";
@@ -69,11 +73,20 @@ async function runOne(file) {
             check: (name, ok, details = "", { ids = [] } = {}) => report.checks.push({ phase: phaseName, name, ok: Boolean(ok), ids, details: String(details ?? "").slice(0, 3000) }),
             note: (name, details = "") => report.notes.push({ phase: phaseName, name, details: String(details ?? "").slice(0, 3000) }),
             phase: name => { phaseName = name; report.phases.push({ name, at: new Date().toISOString() }); },
+            /* A scenario that finds the world in a state it cannot vouch for stops here, writing nothing more, and the
+               run exits 2 as lib.mjs `refuse` does for a world that is not the test world - but with the report
+               written, so its notes (the world as found) are kept (2.0 line T4, F3PC2-S1-STATE, 27.11.2026). */
+            refuse: why => { const err = new Error(String(why)); err.refusal = true; throw err; },
             settle: (ms = 500) => new Promise(r => setTimeout(r, ms)),
-            shot: async (role, name) => {
+            /* `clip` (a viewport rectangle) takes a part of the page, and the image comes back for a scenario that
+               compares two (s7-look's fog-leak; 2.0 line T4, EXP-PL-04, 27.11.2026); null when it was not taken. */
+            shot: async (role, name, { clip = null } = {}) => {
                 const fileName = `${role}-${name}.png`.replace(/[^\w.-]+/g, "_");
-                try { await c[role].page.screenshot({ path: path.join(dir, fileName), timeout: 120_000 }); report.shots.push(fileName); }
-                catch (err) { report.shots.push(`${fileName}: not taken - ${String(err.message).split("\n")[0]}`); }
+                try {
+                    const image = await c[role].page.screenshot({ path: path.join(dir, fileName), timeout: 120_000, ...(clip ? { clip } : {}) });
+                    report.shots.push(fileName);
+                    return image;
+                } catch (err) { report.shots.push(`${fileName}: not taken - ${String(err.message).split("\n")[0]}`); return null; }
             },
             reload: async role => {
                 const page = c[role].page;
@@ -104,26 +117,31 @@ async function runOne(file) {
             if (e) report.notes.push({ phase: "end", name: `${role}: errors and missing keys`, details: JSON.stringify(e).slice(0, 3000) });
         }
     } catch (err) {
-        report.failures.push(`the scenario broke in phase "${phaseName}": ${String(err.stack ?? err).split("\n").slice(0, 4).join(" / ")}`);
+        if (err?.refusal) report.refused = { phase: phaseName, why: String(err.message) };
+        else report.failures.push(`the scenario broke in phase "${phaseName}": ${String(err.stack ?? err).split("\n").slice(0, 4).join(" / ")}`);
     } finally {
         await browser.close().catch(() => {});
     }
     report.finishedAt = new Date().toISOString();
     const failed = report.checks.filter(k => !k.ok);
-    if (!report.checks.length) report.failures.push("the scenario ran no check");
+    if (!report.checks.length && !report.refused) report.failures.push("the scenario ran no check");
     fs.writeFileSync(path.join(dir, "report.json"), JSON.stringify(report, null, 2));
     console.log(`${id}: ${report.checks.length - failed.length} of ${report.checks.length} checks passed; report in ${path.relative(process.cwd(), dir)}`);
+    if (report.refused) console.log(`${id}: refused - ${report.refused.why}`);
     for (const k of failed) console.log(`  FAIL [${k.phase}] ${k.name}${k.ids.length ? ` (${k.ids.join(", ")})` : ""}`);
     for (const f of report.failures) console.log(`  - ${f}`);
-    return failed.length === 0 && report.failures.length === 0;
+    if (failed.length || report.failures.length) return false;
+    return report.refused ? "refused" : true;
 }
 
 const names = process.argv.slice(2);
 if (!names.length) { console.log("usage: node audit/forge/run.mjs <scenario> [...] (audit/forge/scenarios/)"); process.exit(2); }
-let ok = true;
+let ok = true, refused = false;
 for (const n of names) {
     const file = path.join(HERE, "scenarios", n.endsWith(".mjs") ? n : `${n}.mjs`);
     if (!fs.existsSync(file)) { console.log(`${n}: no such scenario (${path.relative(process.cwd(), file)})`); ok = false; continue; }
-    ok = (await runOne(file)) && ok;
+    const result = await runOne(file);
+    if (result === "refused") refused = true;
+    else ok = result && ok;
 }
-process.exit(ok ? 0 : 1);
+process.exit(!ok ? 1 : refused ? 2 : 0);

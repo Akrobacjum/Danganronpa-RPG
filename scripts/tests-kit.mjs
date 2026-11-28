@@ -11,7 +11,7 @@
  * that imports it imports no other tier. What the tiers are: the header of tests.mjs.
  */
 
-import { MODULE_ID, FLAGS } from "./config.mjs";
+import { MODULE_ID, FLAGS, SITUATIONAL_PLAYLIST } from "./config.mjs";
 import { studentActors, isMonokuma } from "./monokuma.mjs";
 import { narrowScreen } from "./settings.mjs";
 import { allVaults } from "./vault.mjs";
@@ -2688,6 +2688,30 @@ const DUMP_RULES = [
             + "runs, as a playing track's pausedTime moves: measured 26.10.2026 on tiers 0-1 at 3efafbd0 with C6's code "
             + "(213.9 s), the dump read two leaves of the store's record go from none to a stamp, and failed \"tier 0/1 changed nothing\". "
             + "Its value and whether this browser stores it are both left out; tier 2 E17-T9 reads the beat itself" },
+    /* THE TABLE'S OWN WRITES DURING A RUN (2.0 line T4, FORGE-09c, 27.11.2026). On Foundry 14.370 at The Forge "tier 0/1
+       changed nothing in the world" failed on `core.rtcClientSettings`, `rtcDockBefore` and the sounds of a playlist named
+       "Pause" switching (docs/dev/v2/F3-forge-PC-2.md, FORGE-09c, 25.11.2026: S0's `suite.mjs`, a paused game, the camera
+       dock on, the module's pause music playing). Read before these rows: no tier-0 or tier-1 test reaches them - R809
+       holds the dock on a stand-in AVSettings and a record in memory, R1387 stands `game.paused` in for synchronous
+       renders the music's debounced `schedule` cannot fall inside, and no tier-0/1 test calls `holdRtcDock`,
+       `applyEnforced` on the dock's row, `schedule`, `refreshMusic` or a music hook (git grep, 27.11.2026). So they are
+       the browser's own while the table plays: enforced.mjs `holdRtcDock` at `ready` and on every change of the A/V
+       settings (a user who connects adds a row to them), and music-play.mjs driving the playlists it plays. Each row is
+       narrow: of the A/V settings only the two fields `holdRtcDock` writes, the rest compared; `rtcDockBefore` whole, the
+       hold's own record; of a playlist's sounds only `playing`, and only on a playlist the module plays itself - the
+       cue playlist or one the music map names (`ownMusicPlaylist`), not one matched by its name. A test's own write of
+       any other field, setting or sound still fails the run (R9230). */
+    { match: "client:core.rtcClientSettings", omit: ["hideDock", "users.*.popout"], until: "never",
+        why: "enforced.mjs `holdRtcDock` writes these two fields on ready and on every change of the A/V settings, a user's "
+            + "connection included - measured on Foundry 14.370 at The Forge, 25.11.2026 (FORGE-09c): tiers 0-1 read them moved "
+            + "with no test calling the hold; the microphone, volumes and the rest of the object are compared" },
+    { match: `client:${MODULE_ID}.rtcDockBefore`, skip: true, until: "never",
+        why: "the hold's record of what it folded (enforced.mjs `holdRtcDock`, E19 fix r1-G2), written with the two fields "
+            + "above - measured with them at The Forge, 25.11.2026 (FORGE-09c)" },
+    { match: "Playlist.*.sounds.*", stripWhen: { field: "playing", parent: "ownMusic" }, until: "never",
+        why: "music-play.mjs plays the playlists the music map names and the cue playlist by itself while the table runs: "
+            + "at The Forge, 25.11.2026 (FORGE-09c), a paused game's music switched a mapped playlist's sounds during tiers 0-1; "
+            + "`playing` alone, and only on those playlists" },
     { match: "*", emptyFlagScopes: "absent", until: "never",
         why: "Foundry keeps a flag scope its last flag leaves as {}, and getFlag reads an empty scope and no scope alike; "
             + "measured 24.09.2026 on the dump's second run, after restore deleted the last grant a student had (Actor "
@@ -2711,8 +2735,45 @@ function hashText(text) {
 /* A document class by name: Foundry's CONFIG entry, or the harness's registry. */
 const docClass = name => CONFIG?.[name]?.documentClass ?? globalThis.getDocumentClass?.(name) ?? null;
 
-/* One document, and its embedded ones, into `out` - under the rules for its path. */
-function dumpDocument(out, path, name, data) {
+/** Whether a playlist's source is one the module plays by itself (DUMP_RULES' `ownMusic`): the cue playlist, by its
+ *  name as music-states.mjs `isCuePlaylist` matches it, or a playlist the music map names by id. `map` stands in for the
+ *  world's in a test. */
+function ownMusicPlaylist(source, { map } = {}) {
+    if (!source) return false;
+    if (String(source.name ?? "").trim().toLowerCase() === SITUATIONAL_PLAYLIST.trim().toLowerCase()) return true;
+    let mapped = map;
+    if (mapped === undefined) { try { mapped = game.settings.get(MODULE_ID, "musicMap"); } catch { mapped = null; } }
+    return Object.values(mapped ?? {}).includes(source._id);
+}
+
+/** The paths of `omit` (dots, `*` for any key) taken out of a copy of `value`. */
+function omitPaths(value, omit) {
+    if (!omit.length || !value || typeof value !== "object") return value;
+    const copy = structuredClone(value);
+    const drop = (node, parts) => {
+        if (!node || typeof node !== "object") return;
+        const [head, ...rest] = parts;
+        const keys = head === "*" ? Object.keys(node) : [head];
+        for (const k of keys) {
+            if (!rest.length) delete node[k];
+            else drop(node[k], rest);
+        }
+    };
+    for (const path of omit) drop(copy, path.split("."));
+    return copy;
+}
+
+/** A setting's unit as the dump files it (`world:ns.key` / `client:ns.key`): its stable JSON under DUMP_RULES, or null where
+ *  a row skips it. The dump's one road for a setting, and R9230's. */
+function settingUnit(unit, value) {
+    const rules = DUMP_RULES.filter(r => r.match === unit);
+    if (rules.some(r => r.skip)) return null;
+    return stableJson(omitPaths(value, rules.flatMap(r => r.omit ?? [])));
+}
+
+/* One document, and its embedded ones, into `out` - under the rules for its path. `parent` is the source of the document
+   it is embedded in, for a rule that asks of it (`stripWhen`). */
+function dumpDocument(out, path, name, data, parent = null) {
     const rules = DUMP_RULES.filter(r => ruleMatches(r.match, path));
     if (rules.some(r => r.skip)) return;
     const embedded = docClass(name)?.metadata?.embedded ?? {};
@@ -2721,7 +2782,7 @@ function dumpDocument(out, path, name, data) {
         const list = unit[key];
         delete unit[key];
         if (!Array.isArray(list)) continue;
-        for (const child of list) if (child?._id) dumpDocument(out, `${path}.${key}.${child._id}`, childName, child);
+        for (const child of list) if (child?._id) dumpDocument(out, `${path}.${key}.${child._id}`, childName, child, data);
     }
     if (rules.some(r => r.idsOnly)) { out.set(path, stableJson({ _id: unit._id })); return; }
     if (rules.some(r => r.emptyFlagScopes === "absent") && unit.flags && typeof unit.flags === "object") {
@@ -2731,6 +2792,9 @@ function dumpDocument(out, path, name, data) {
     const keep = rules.find(r => r.keep)?.keep;
     let kept = keep ? Object.fromEntries(Object.entries(unit).filter(([k]) => keep.includes(k) || k === "_id")) : unit;
     for (const field of rules.flatMap(r => r.strip ?? [])) delete kept[field];
+    for (const { field, parent: asks } of rules.map(r => r.stripWhen).filter(Boolean)) {
+        if (asks === "ownMusic" && ownMusicPlaylist(parent)) delete kept[field];
+    }
     for (const field of rules.flatMap(r => r.hash ?? [])) {
         if (unit[field] !== undefined) kept = { ...kept, [field]: hashText(stableJson(unit[field])) };
     }
@@ -2822,8 +2886,8 @@ async function worldDump() {
         // read, and before it the first dump filed core.globalPlaylistVolume as world.
         const def = game.settings.settings.get(full);
         const unit = `${def?.scope === "client" ? "client" : "world"}:${full}`;
-        if (DUMP_RULES.some(r => r.skip && r.match === unit)) continue;
-        out.set(unit, stableJson(value));
+        const filed = settingUnit(unit, value);
+        if (filed !== null) out.set(unit, filed);
     }
     for (const [full, raw] of clientStored()) {
         if (DUMP_RULES.some(r => r.skip && r.match === `client:${full}`)) continue;
@@ -3166,5 +3230,5 @@ export {
     cssThemeTokens, cssContrastOf, cssContrastRatio, cssContrastSelfCheck, cssKitSheetProblems, cssMeaningReads, cssMeaningSelfCheck, cssHourKept, cssForcedBlockProblems, CSS_FORCED_STATES, cssHourDistances, cssDeltaE00Check,
     stringLiterals, STANDING, stableJson, moduleSettingValues, clientStored, putBackStored, appearedBodyTiles, watchWrites, watchLog, cast,
     kitQuestion, kitQuestions,
-    worldDump, dumpDiff, describeDiff, hashText, dumpOf, dumpPathsOf, DUMP_RULES, DUMP_FOREIGN_SETTINGS
+    worldDump, dumpDiff, describeDiff, hashText, dumpOf, dumpPathsOf, DUMP_RULES, DUMP_FOREIGN_SETTINGS, settingUnit, ownMusicPlaylist
 };

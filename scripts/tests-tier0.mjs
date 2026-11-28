@@ -10716,6 +10716,8 @@ const REGRESSIONS = [
             ["SURFACE trial.mjs#registerTrial", "the evidence card, drawn only when a GM authored it (E70 fix p2-G2); kept as evidence, one entry for its message, and cleaned at save (R297, R294); the tile's corner button counts it among the unread and shows none of its words (R298)"],
             ["SURFACE hide.mjs#showEndInCorner", "this browser's own hide ended (S0-HIDE, 1.2.128; the call `tellHideEnd` makes through `showEndInCorner`, R8909's stand-in point): i18n words of the module's own (`DRPG.Hide.ended.*`) with the time of day's name, escaped, read off the token's `hideEnd` flag by its owner on a player's browser (`hideEndNotice`: no GM, no other player); kept as a notice like any other, once per end (`at`; R8908, scenario 22's phase gm)"],
             ["SURFACE voice-client.mjs#dropCard", "this browser's own dropped voice (E19 C2): frozen i18n text, nothing of anybody else's; kept as this client's own (`source` \"mine\"), and taken off the screen, not out of the history, once voice is back (R812, scenario 75's phase H)"],
+            // 2.0 line T4 (FORGE-01, 27.11.2026): the case's own corner card.
+            ["SURFACE case-copy.mjs#showCaseCard", "a GM's own case card (2.0 line T4, FORGE-01): the planner empty on this browser with no other GM online, or at a new session the case to save to a file while its copy on the server is impossible - the module's own i18n words, escaped (`caseCardBody`), and one button of its own; sticky; kept as this client's own (`source` \"mine\": no chat card, nobody else's words; R9224)"],
             ["RECORD bridge-guards.mjs#sayNotDone", "after `notify(text)`, whoever `notify` is: kind error, source notDone, state read, the text this client composed from closed lists - a GM's reason chooses none of its words; a history error never stops the toast (R297)"],
             ["RECORD frisk.mjs#toast", "an open Frisk's line beside its toast (E80 part 2 C3): kind info, source mine, state unread, the row's label as its title and text this client composed from its language file with names as text - the ask it waits on, a withdrawn window, or for a GM the notice that nobody was asked; no markup, and a history error never stops the toast"],
             ["RECORD popup.mjs#showPopup", "the recorder: `recordNotice` in try/catch after the body is filled and before a host takes the card; the snapshot followed while the card is on screen and its state set by the close's reason; a history error never stops the card (R293); an entry the history cannot save is kept in memory until this page closes, the window's footer saying so (`status`, R292)"],
@@ -11347,6 +11349,7 @@ const REGRESSIONS = [
             ["CLIENT voice-tile.mjs#unhidePeer -> *", "`users.<id>.blocked` false only, for a remote participant of the own Room, on the viewer's click (R538)"],
             ["CLIENT voice-panel.mjs#writeVoiceSetting -> *", "an allowlist of `audioSrc`, `audioSink` and `voice.mode` (always or ptt), strings only, this browser's own A/V client settings; nothing of the camera or the server (R542)"],
             ["HOLD voice-tile.mjs#paintList#moduleHoldsMic -> block", "the block is built only for a GM's list and disabled with its line where `moduleHoldsMic` holds; a secret death's line says only that a block would give it away (R539)"],
+            ["HOLD voice-tile.mjs#micCellState#moduleHoldsMic -> block", "the Students window's Microphone cell (2.0 line T4, VOICE-04, 27.11.2026): drawn greyed with its line where `moduleHoldsMic` holds, and `toggleBlock` asks again at the press, writing nothing while it holds (R9252, R539)"],
             ["HOLD voice-tile.mjs#toggleBlock#moduleHoldsMic -> block", "asked again at the click on the GM's client from the world's facts, not the button's state; held, nothing is written (R539)"],
             // E70 C5 (1.2.90; amend 6, answer 3 (b)): the trial's own block of the dead's microphones, on the primary (R1035).
             ["BLOCK voice.mjs#grantOf -> block", "a read (E70 C5): the user's own grant off its source, `{ had, value }`, for the trial's block and its restore; writes nothing"],
@@ -12974,6 +12977,8 @@ const REGRESSIONS = [
          */
         const FLOAT_SURVEY = {
             "action-menus.mjs": [2, "an action's request field and a parked declaration's note (kit windows)"],
+            // 2.0 line T4 (EXP-GM-08, 27.11.2026).
+            "announce.mjs": [1, "Monokuma's announcement's words (a kit window)"],
             "action-search.mjs": [1, "Search's request field (its kit window)"],
             "call-gm.mjs": [1, "the request to the GM (a kit window)"],
             "call-pickers.mjs": [3, "a Call's text, motive and consequence (kit windows)"],
@@ -16029,7 +16034,8 @@ const REGRESSIONS = [
                     secretDoors: ["| No Foundry secret doors (recommended) |", "**Convert to passages** makes each one an ordinary wall, shut",
                         "the primary GM's browser puts a secret door a player changed back as a GM last left it (the door itself keeps that; a door no GM has changed yet, as it stood when a GM's browser first found it)",
                         "and one changed while no GM was connected as soon as a GM connects, naming its scene on the GM's screen"],
-                    rulers: ["| The players' movement ruler is hidden (optional) |", "**Hide** takes the movement ruler from the Player and Trusted Player roles, and **Show** gives it back"]
+                    // Required since the 2.0 line T4 (EXP-PL-01, 27.11.2026): the row's title lost "(optional)".
+                    rulers: ["| The players' movement ruler is hidden |", "**Hide** takes the movement ruler from the Player and Trusted Player roles, and **Show** gives it back"]
                 },
                 player: {
                     tunnel: ["Some passages are a tunnel or stairs between two rooms, on one floor or two"],
@@ -16064,7 +16070,8 @@ const REGRESSIONS = [
                     secretDoors: ["| Brak sekretnych drzwi Foundry (zalecane) |", "**Zamień na przejścia** robi z każdych zwykłą, zamkniętą ścianę",
                         "przeglądarka głównego GM-a ustawia sekretne drzwi, które zmienił gracz, z powrotem tak, jak GM ostatnio je zostawił (to pamiętają same drzwi; drzwi, których żaden GM jeszcze nie zmieniał, tak, jak stały, kiedy przeglądarka GM-a pierwszy raz je zastała)",
                         "a te zmienione, kiedy nie był połączony żaden GM, zaraz po połączeniu się GM-a, wymieniając ich scenę na ekranie GM-a"],
-                    rulers: ["| Linijka ruchu graczy jest ukryta (opcjonalnie) |", "**Ukryj** zabiera linijkę ruchu rolom Gracz i Zaufany gracz, a **Pokaż** ją oddaje"]
+                    // Required since the 2.0 line T4 (EXP-PL-01, 27.11.2026): the row's Polish title lost "(opcjonalnie)".
+                    rulers: ["| Linijka ruchu graczy jest ukryta |", "**Ukryj** zabiera linijkę ruchu rolom Gracz i Zaufany gracz, a **Pokaż** ją oddaje"]
                 },
                 player: {
                     tunnel: ["Niektóre przejścia to tunel lub schody między dwoma pokojami, na jednym piętrze lub dwóch"],
@@ -23608,6 +23615,9 @@ const REGRESSIONS = [
             // E129 S0-CARDS (1.2.128): `giveBackAfterRoll` tells its reader the price came back, one sentence and the roll's lines (WHY.line).
             "action-pipeline.mjs": {"action": 1, "line": 1}, "action-project.mjs": {"action": 1, "line": 1, "message": 3},
             "action-report.mjs": {"built": 1}, "action-tail.mjs": {"built": 1}, "action-watch.mjs": {"built": 1}, "analyze.mjs": {"card": 1, "heading": 1, "line": 2},
+            // 2.0 line T4 (EXP-GM-08, 27.11.2026): Monokuma's announcement to a room and to a student, each a `chatCard(...)` built
+            // before its thread post (built); the school's card is a ChatMessage the census does not read as a poster.
+            "announce.mjs": {"built": 2},
             "anonymity.mjs": {"card": 2}, "body.mjs": {"card": 1, "message": 1}, "bridge-runs-acts.mjs": {"card": 1},
             "bridge-runs-records.mjs": {"action": 1, "message": 1},
             "call-effects.mjs": {"action": 2, "card": 1, "message": 1}, "call-gm.mjs": {"built": 1},
@@ -23670,7 +23680,9 @@ const REGRESSIONS = [
             "trial-modes.mjs": {"heading": 1, "message": 1}, "trial-progress.mjs": {"line": 2, "message": 1},
             "trial-scene.mjs": {"built": 1, "line": 10}, "trial-zones.mjs": {"card": 1, "message": 1}, "trial.mjs": {"line": 11, "message": 4},
             "truth-bullets.mjs": {"card": 1, "heading": 2}, "use-items.mjs": {"card": 1, "line": 6},
-            "user-match.mjs": {"line": 1}, "utils.mjs": {"built": 1}, "vault-store.mjs": {"card": 1, "line": 3, "message": 1},
+            // user-match.mjs's one line went at the 2.0 line T4 (EXP-GM-09, 27.11.2026): `tellGms` posts through its parameter
+            // `whisper` (whisperToGms by default), which this grep does not match - the card it posts is the same `line`.
+            "utils.mjs": {"built": 1}, "vault-store.mjs": {"card": 1, "line": 3, "message": 1},
             "verdict.mjs": {"built": 3, "line": 1, "message": 1}, "voice.mjs": {"card": 1, "line": 1}, "vote.mjs": {"message": 2}, "watch-gm.mjs": {"card": 1, "line": 2}
         };
         const card = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/chat-card.mjs`).then(r => r.ok ? lfText(r) : ""));
@@ -27898,6 +27910,7 @@ const REGRESSIONS = [
             inFromFit: 0.1563, keptByApply: 0.125, transform: "translate(0px, 0px) scale(0.125)", road: [true, true, true, true, true], readout: true }),
             "{fitMin; fit: an 8000x2000 case in a 1000x400 view; tiny: one past the 5% floor; floor: the window's floor for it; smallFloor: a case that fits at 40%; unknownFloor: sizes not laid out; outAtFit, inFromFit: a step out and in from the fit; keptByApply: the clamp of the fit; transform; road: [wireCaseCamera asks the floor, fits the canvas to the box, zooms (buttons, keys, wheel) to the floor, clamps each apply to it, draws it]; readout: the toolbar's percent reads below 25%}");
     }],
+    // T4 voice-ui-text-infra-tests (2.0 line T4, E134, 27.11.2026: docs/dev/v2/LINE-T4.md). The line's tests stand in this block.
 ];
 
 

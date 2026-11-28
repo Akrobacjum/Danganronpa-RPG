@@ -20,9 +20,10 @@
  *   setup     the active scene's rooms (../table.mjs `readTable`), P1-P4's tokens placed in four rooms by GM1 where they
  *             stand in none, the game unpaused; on every page the kit, a navigation listener and the first sample
  *   play      until the time is up, one step every DRPG_SOAK_STEP_SECONDS, in a seeded order:
- *               move      a player drags their own token into a neighbouring room (an update of x and y from that
- *                         player's page, as a drop writes it; the module judges it there and may refuse - a refusal is
- *                         counted, not failed: no Move or action left is ordinary play)
+ *               move      a player drags their own token into a neighbouring room that is not a bedroom (an update of
+ *                         x and y from that player's page, as a drop writes it; the module judges it there and may
+ *                         refuse - a refusal with words is counted, not failed: no Move or action left is ordinary play;
+ *                         a move that neither lands nor says anything is the finding FORGE-05 names, counted apart)
  *               sheet     a player opens their character sheet, clicks through its tabs, closes it
  *               message   a player writes into their messenger thread; every third time a GM answers in it
  *               notices   a player opens the notice history and closes it
@@ -44,6 +45,9 @@
  *   - no page reloaded or navigated (`performance.timeOrigin` unchanged and no main-frame navigation)
  *   - heap growth per hour under HEAP_BOUND on every Chromium page (Firefox: no heap reading, noted UNMEASURED)
  *   - the loop played: steps ran, and at least one move landed in the room asked
+ *   - FORGE-05: every move to a reachable room (a neighbour by the module's `neighbouringRooms`, not a bedroom) arrived or
+ *     was refused with words (a notice or a module card on the mover's page, Forge's case-copy and LiveKit toasts left
+ *     out); a move that did neither is listed (2.0 line T4, FORGE-05+D2-25, 27.11.2026)
  *
  * WRITES TO THE WORLD: P1-P4's tokens (created where absent, moved by their players), messenger messages (chat
  * messages) from P1-P4 and the GMs, the clock moved through Eclipses and times of day (put back at the end, which does
@@ -93,6 +97,10 @@ const STEP_S = env("DRPG_SOAK_STEP_SECONDS", 20);
  * A run shorter than three samples after the warm-up measures no slope; that is noted, never passed.
  */
 const HEAP_BOUND = env("DRPG_SOAK_HEAP_MB_PER_HOUR", 30);
+/* Toasts that say nothing about a move: the case's server copy on Forge (FORGE-01, today's "Access Unauthorized ..."
+   and the line's own warning and planner texts) and avclient-livekit's (FORGE-03). As s3-disconnects.mjs D1 leaves them
+   out of a take-over's words, a move's words leave them out here. */
+const UNRELATED = /access unauthorized|sign in to the forge|does not let this browser save the case|nie pozwala tej przegl\u0105darce zapisa\u0107 kopii sprawy|case planner is empty|planer sprawy jest pusty|save the case to a file|zapisz spraw\u0119 do pliku|livekit/i;
 const WARMUP_MIN = 10;
 
 /* A seeded order (mulberry32), so two runs with one seed play the same steps. */
@@ -122,7 +130,11 @@ export async function run(ctx) {
     const random = rng(env("DRPG_SOAK_SEED", 1));
     const pick = list => list[Math.floor(random() * list.length)];
     const origin = {}, navigations = {}, cdp = {}, samples = {}, lastCounts = {};
-    const tally = { steps: 0, threw: 0, byKind: {}, moves: { asked: 0, landed: 0, refused: 0, noNeighbour: 0 }, clock: [], closed: [] };
+    /* The moves counted three ways (2.0 line T4, FORGE-05+D2-25, 27.11.2026): the second pass on the owner's PC
+       (F3-forge-PC-2.md) counted 32 landed of 89 and noted 7 refusals, 5 of them with no word to the player - one
+       `refused` could not tell the table's ordinary "no move left" from a move that went nowhere unsaid. `refused` stays
+       the sum of the two, as before, so the numbers compare with that pass's. */
+    const tally = { steps: 0, threw: 0, byKind: {}, moves: { asked: 0, landed: 0, refused: 0, refusedWithWords: 0, silent: 0, noNeighbour: 0 }, silentMoves: [], clock: [], closed: [] };
     let table = null, clockWas = null, started = Date.now();
 
     phase("setup");
@@ -141,12 +153,15 @@ export async function run(ctx) {
     table = await readTable(ctx, "gm1", ALL);
     if (table.error) { check("setup: an active scene", false, table.error); return; }
     const roomNames = Object.keys(table.rooms);
-    note("setup: the scene", J({ scene: table.sceneName, rooms: roomNames.length, named: table.named.length, scanMs: table.scanMs, who: table.who }));
+    /* A token placed by GM1 goes to a room that is not a bedroom where the map has two such (FORGE-05+D2-25). */
+    const common = roomNames.filter(n => !table.rooms[n].bedroom);
+    const placeIn = common.length >= 2 ? common : roomNames;
+    note("setup: the scene", J({ scene: table.sceneName, rooms: roomNames.length, bedrooms: table.bedrooms, bedroomsRead: table.bedroomsRead, named: table.named.length, scanMs: table.scanMs, who: table.who }));
     const missing = PLAYERS.filter(r => !table.who[r]?.actorId);
     if (missing.length || roomNames.length < 2) { check("setup: P1-P4 each have a character and the scene has two rooms or more", false, J({ missing, rooms: roomNames })); return; }
     const users = Object.fromEntries(ALL.map(r => [r, table.who[r]?.userId]));
     const toPlace = PLAYERS.filter(r => !table.who[r].tokenId || !table.who[r].room)
-        .map((role, i) => ({ role, actorId: table.who[role].actorId, tokenId: table.who[role].tokenId, ...table.rooms[roomNames[i % roomNames.length]] }));
+        .map((role, i) => ({ role, actorId: table.who[role].actorId, tokenId: table.who[role].tokenId, ...table.rooms[placeIn[i % placeIn.length]] }));
     const placed = toPlace.length ? await placeTokens(ctx, "gm1", table.sceneId, toPlace) : {};
     const token = Object.fromEntries(PLAYERS.map(r => [r, placed[r]?.tokenId ?? table.who[r].tokenId]));
     note("setup: tokens placed where a character stood in no room", J(placed));
@@ -197,26 +212,42 @@ export async function run(ctx) {
     const steps = {
         async move(role) {
             tally.moves.asked++;
-            const r = await inPage(ctx, role, async ({ tokenId, sceneId, rooms, draw }) => {
+            const r = await inPage(ctx, role, async ({ tokenId, sceneId, rooms, draw, unrelated }) => {
                 const scene = game.scenes.get(sceneId);
                 const t = scene.tokens.get(tokenId);
                 const from = game.drpg.roomOfToken(t);
-                const near = (from ? game.drpg.neighbouringRooms(scene, from) ?? [] : Object.keys(rooms)).filter(n => rooms[n] && n !== from);
+                /* Reachable: a neighbour by the module's own reading, and not a bedroom (its lock is not the move's). */
+                const near = (from ? game.drpg.neighbouringRooms(scene, from) ?? [] : Object.keys(rooms)).filter(n => rooms[n] && !rooms[n].bedroom && n !== from);
                 if (!near.length) return { from, none: true };
                 const to = near[Math.floor(draw * near.length)];
                 const n = (window.__notifications ?? []).length;
-                try { await t.update({ x: rooms[to].x, y: rooms[to].y }); } catch (err) { return { from, to, threw: String(err?.message ?? err) }; }
+                const cards0 = document.querySelectorAll("#drpg-popups .drpg-popup").length;
+                const skip = new RegExp(unrelated, "i");
+                const words = () => [
+                    ...(window.__notifications ?? []).slice(n).map(x => `${x.type}: ${x.message}`.slice(0, 160)),
+                    ...[...document.querySelectorAll("#drpg-popups .drpg-popup")].slice(cards0).map(c => `card: ${String(c.textContent ?? "").replace(/\s+/g, " ").trim()}`.slice(0, 160))
+                ].filter(w => !skip.test(w));
+                let threw = null;
+                try { await t.update({ x: rooms[to].x, y: rooms[to].y }); } catch (err) { threw = String(err?.message ?? err); }
+                if (threw) { await new Promise(r => setTimeout(r, 3000)); return { from, to, threw, now: game.drpg.roomOfToken(scene.tokens.get(tokenId)), said: words() }; }
                 /* On Foundry 14 the write is a movement along a path that can take several seconds (S5 on the owner's PC,
                    25.11.2026): a fixed 3 s counted a token still on its way as refused. 3 s at least, as before, then
                    up to 15 s for the token to stand in the room asked. */
                 const t0 = Date.now();
                 await new Promise(r => setTimeout(r, 3000));
                 while (Date.now() - t0 < 15_000 && game.drpg.roomOfToken(scene.tokens.get(tokenId)) !== to) await new Promise(r => setTimeout(r, 250));
-                return { from, to, now: game.drpg.roomOfToken(scene.tokens.get(tokenId)), ms: Date.now() - t0, said: (window.__notifications ?? []).slice(n).map(x => `${x.type}: ${x.message}`.slice(0, 160)) };
-            }, { tokenId: token[role], sceneId: table.sceneId, rooms: table.rooms, draw: random() });
+                return { from, to, now: game.drpg.roomOfToken(scene.tokens.get(tokenId)), ms: Date.now() - t0, said: words() };
+            }, { tokenId: token[role], sceneId: table.sceneId, rooms: table.rooms, draw: random(), unrelated: UNRELATED.source });
             if (r.none) tally.moves.noNeighbour++;
             else if (r.now === r.to) tally.moves.landed++;
-            else tally.moves.refused++;
+            else {
+                tally.moves.refused++;
+                if (r.said?.length) tally.moves.refusedWithWords++;
+                else {
+                    tally.moves.silent++;
+                    if (tally.silentMoves.length < 25) tally.silentMoves.push({ role, step: tally.steps, from: r.from, to: r.to, now: r.now, threw: r.threw ?? null });
+                }
+            }
             return r;
         },
         async sheet(role) {
@@ -355,6 +386,13 @@ export async function run(ctx) {
         note("play: what ran", J({ minutes: Math.round((Date.now() - started) / 600) / 100, ...tally, closed: tally.closed.slice(-40) }));
         check("play: the loop played - steps ran and at least one move landed in the room asked",
             tally.steps > 0 && tally.moves.landed > 0, J({ steps: tally.steps, moves: tally.moves, threw: tally.threw }));
+        /* FORGE-05: a move that neither lands nor says why is a finding, not noise. A run whose every move found no
+           reachable room measured nothing, and fails as such. */
+        const reachable = tally.moves.asked - tally.moves.noNeighbour;
+        check("end: every move to a reachable room arrived or was refused with words",
+            reachable > 0 && tally.moves.silent === 0,
+            J({ reachable, arrived: tally.moves.landed, refusedWithWords: tally.moves.refusedWithWords, silent: tally.moves.silent, noNeighbour: tally.moves.noNeighbour, silentMoves: tally.silentMoves }),
+            { ids: ["FORGE-05"] });
         for (const role of ALL) {
             const list = samples[role] ?? [];
             if (!ctx.c[role] || !list.length) { note(`end: ${role} has no samples`, ""); continue; }

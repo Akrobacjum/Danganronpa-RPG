@@ -226,10 +226,12 @@ export function movesAPlate(changes) {
     return ["veiled", "masked", "hiding"].some(key => key in f || `-=${key}` in f);
 }
 
-/** The token hook: every plate of the dock read again when a veil or a mask moved. `root` and `hidden` are the suite's. */
-export function onTokenChange(doc, changes, { root = dockRoot(), hidden = hiddenFromHere } = {}) {
+/** The token hook: every plate of the dock read again when a veil or a mask moved. `root`, `hidden` and `plate` are the
+ *  suite's: `plate` (the nameplate mode) since 2.0 line T4 (R7931, 27.11.2026), so a test that states the mode it drew
+ *  in is read back in that mode and not in the one this browser's A/V settings hold. */
+export function onTokenChange(doc, changes, { root = dockRoot(), hidden = hiddenFromHere, plate = nameplateMode() } = {}) {
     if (!movesAPlate(changes)) return 0;
-    return relabelCameraDock(root, { hidden });
+    return relabelCameraDock(root, { hidden, plate });
 }
 
 /** Whether a veil or a mask stands on any token this browser holds: the clock's write reads the plates only then. */

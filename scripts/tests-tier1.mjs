@@ -4104,9 +4104,11 @@ const INVARIANTS = [
                 const pts = (/polygon\((.*)\)/.exec(cs.clipPath)?.[1] ?? "").split(",").filter(Boolean).map(q => q.trim().split(/\s+/).map(parseFloat));
                 const miss = pts.length === poly.length ? Math.max(...pts.map(([x, y], i) => Math.hypot(L + ox + m.a * (x - ox) + m.c * (y - oy) + m.e - at.left - poly[i][0],
                     T + oy + m.b * (x - ox) + m.d * (y - oy) + m.f - at.top - poly[i][1]))) : Infinity;
-                return { points: pts.length, miss, turn: [Math.atan2(m.b, m.a), Math.atan2(o.b, o.a)].map(a => a * 180 / Math.PI) }; };
+                return { points: pts.length, miss, turn: [Math.atan2(m.b, m.a), Math.atan2(o.b, o.a)].map(a => a * 180 / Math.PI),
+                    // what the miss is made of (2.0 line T4, FORGE-09e, 27.11.2026: at The Forge it read 29 px and said no more)
+                    seen: { first: pts[0] ?? null, paneFirst: poly[0] ?? null, left: L, top: T, transform: cs.transform, curtain: [at.left, at.top] } }; };
             const f = fitOf(art, pane.poly, document.getElementById("drpg-curtain").getBoundingClientRect(), tile);
-            ok(f.miss <= 1 && Math.abs(f.turn[0] - f.turn[1]) <= 0.05, `the portrait's outline is ${f.miss.toFixed(2)} px off its pane, turned ${f.turn.map(d => d.toFixed(2))} deg against its tile's`);
+            ok(f.miss <= 1 && Math.abs(f.turn[0] - f.turn[1]) <= 0.05, `the portrait's outline is ${f.miss.toFixed(2)} px off its pane, turned ${f.turn.map(d => d.toFixed(2))} deg against its tile's - read: ${JSON.stringify(f.seen)}`);
             equal(f.points, pane.poly.length, "the portrait's outline against its pane's corners");
         }
         const plate = tile.querySelector(".drpg-voice-tile-plate");
@@ -15051,12 +15053,31 @@ const INVARIANTS = [
         must(!document.querySelector(".drpg-window-notices"), "the notice history window is open - close it: the suite measures a window it opened itself");
         must(!DrpgMessengerApp.instances.has(thread), "the thread the suite names is open - close it, or the button would raise it rather than ask for it");
 
+        /*
+         * THE TABLE'S MUSIC IS NOT THE WINDOW'S (2.0 line T4, R296, 27.11.2026). At The Forge (Foundry 14.370; docs/dev/v2/
+         * F3-forge-PC-2.md, FORGE-09d) the game was on hold and the module played its pause music (music-play.mjs drives
+         * the playlists the music map names), and this test failed as "opening the notice history plays sounds": every
+         * `Sound#play` and media `play` on the page was counted, a playlist's track among them. Read in the window's file:
+         * notice-history-app.mjs plays nothing (its source is read for the roads it must not take, below). So a play counts
+         * unless it is a world playlist's own track - `this` is the `sound` of a PlaylistSound in `game.playlists`, or that
+         * sound's media element - which is Foundry's playlist playback, whoever started it; a sound effect
+         * (sfx-play.mjs, `AudioHelper.play` or a Sound of its own) and any other media still count. No state is added to the
+         * module for the test. The rule is held on two stand-ins below (`counted`), a track and a loose sound.
+         */
+        const playlistSound = target => {
+            for (const playlist of game.playlists ?? []) for (const ps of playlist.sounds ?? []) {
+                const sound = ps?.sound;
+                if (sound && (target === sound || target === sound.element || target === sound.sound?.element)) return true;
+            }
+            return false;
+        };
+        const counted = (label, target) => label === "AudioHelper.play" || !playlistSound(target);
         const plays = [], undo = [];
         const watchCall = (owner, name, label) => {
             if (typeof owner?.[name] !== "function") return;
             const own = Object.hasOwn(owner, name), original = owner[name];
             owner[name] = function (...args) {
-                plays.push(label);
+                if (counted(label, this)) plays.push(label);
                 return original.apply(this, args);
             };
             undo.push(() => { if (own) owner[name] = original; else delete owner[name]; });
@@ -15256,6 +15277,18 @@ const INVARIANTS = [
             + "[the chip pressed, the entries listed] with the reader out of the list, [focus in the list, ...] with focus in it, and with a new entry behind the pill");
         equal(stableJson({ plays, created, page: page(), asked }), stableJson({ plays: [], created: 0, page: before, asked: [thread] }),
             "[sounds started; chat messages about to be created; the cards and messenger badges on the page; the threads the conversation button asked for]");
+        // The counting rule itself, on stand-ins (2.0 line T4): a world playlist's track and its media element are not the
+        // window's, a loose sound and AudioHelper.play are. `game.playlists` stood in for these four reads alone.
+        const track = { element: { r296: "media" } }, loose = { r296: "loose" };
+        const playlistsBack = standIn(game, "playlists", [{ sounds: [{ sound: track }] }]);
+        let rule;
+        try {
+            rule = [counted("Sound#play", track), counted("HTMLMediaElement#play", track.element), counted("Sound#play", loose), counted("AudioHelper.play", track)];
+        } finally {
+            playlistsBack();
+        }
+        equal(JSON.stringify(rule), JSON.stringify([false, false, true, true]),
+            "[counted: a playlist's track, its media element, a loose sound, AudioHelper.play]");
 
         const sources = await moduleSources();
         const app = stripComments(sources.get("notice-history-app.mjs") ?? "");
@@ -16144,6 +16177,14 @@ const INVARIANTS = [
          * itself, opened for this browser's own viewer (the GM's Monokuma here, whatever room it stands in): its title
          * is the module's 'Description' and not a room's name, it holds none of those elements and no data-tooltip, its
          * heading is the viewer's room, and a second press answers the window already open rather than a second one.
+         * IN THE WINDOW'S BODY, NOT ITS FRAME (2.0 line T4, R505, 27.11.2026). At The Forge (Foundry 14.370, 1920x1080;
+         * docs/dev/v2/F3-forge-PC-2.md, FORGE-09d) the opened window counted 2 of those elements where the harness counts 0.
+         * Read in the module: the window's body is `roomWindowBody` alone - the name and the words through `textContent`, the
+         * title the module's own word (`get title`), nothing of the room drawn as markup on any road - and the frame is the
+         * kit's (`DrpgApp`), whose header Foundry draws: on v14 its controls carry `data-tooltip` (close, the controls'
+         * toggle; which two the Forge counted is not in the report, only the count), and the harness draws no header. So
+         * the count is taken in the body the module draws (`.drpg-room-window-body`), which must be there; the frame is not
+         * the GM's text.
          */
         ok(typeof T.roomWindowBody === "function" && typeof T.openRoomWindow === "function",
             "room-tile.mjs has no `roomWindowBody` or `openRoomWindow` - the narrow row has no window to read");
@@ -16152,7 +16193,8 @@ const INVARIANTS = [
         const room = await T.openRoomWindow(), again = await T.openRoomWindow();
         let shown;
         try {
-            shown = [room?.title, room?.element?.querySelectorAll("img, script, iframe, b, [data-tooltip]").length ?? null,
+            const drawn = room?.element?.querySelector(".drpg-room-window-body") ?? null;
+            shown = [room?.title, drawn ? drawn.querySelectorAll("img, script, iframe, b, [data-tooltip]").length : "no body",
                 room?.element?.querySelector(".drpg-room-window-name")?.textContent ?? null, again === room];
         } finally {
             await room?.close();
@@ -16600,8 +16642,23 @@ const INVARIANTS = [
             equal(JSON.stringify(G.roomPlacement(innerWidth, innerHeight)), JSON.stringify(placed), "a second reading of roomPlacement");
             const near = (a, b, d = 1) => Math.abs(a - b) <= d;
             const at = cur.getBoundingClientRect();
+            /* UPRIGHT, AS THE MODULE MEASURES IT (2.0 line T4, FORGE-09e, 27.11.2026). At The Forge (Foundry 14.370, 1920x1080;
+               docs/dev/v2/F3-forge-PC-2.md) the tile read 292 px wide where it is placed at 265. `data-drpg-measuring` turns
+               the transitions off but not the turn: under Stained Glass the rotation sheet (`#drpg-glass-rotation`, glass.mjs
+               `writeRotations`) turns the tile and the clock, and a box 265 x 364 turned by about 4.4 degrees is 292 px wide.
+               The module measures with that sheet off and each block's own transform cleared (glass.mjs `moduleLayout`), the
+               glass harness with `transform: none` (`drpgRoomCheck`); this reads the same way and puts the turn back with the
+               transitions still off. That the turn is the whole 27 px is the arithmetic of the box, not a reading at the
+               Forge (the report kept no reading); headless there is no rotation sheet and nothing turns. */
             document.body.toggleAttribute("data-drpg-measuring", true);
+            const rot = document.getElementById("drpg-glass-rotation"), rotWas = rot ? rot.disabled : null;
+            const inline = [tile, hud].map(el => [el.style.getPropertyValue("transform"), el.style.getPropertyPriority("transform")]);
+            if (rot) rot.disabled = true;
+            for (const el of [tile, hud]) el.style.setProperty("transform", "none", "important");
             const t = tile.getBoundingClientRect(), h = hud.getBoundingClientRect();
+            [tile, hud].forEach((el, k) => { if (inline[k][0]) el.style.setProperty("transform", inline[k][0], inline[k][1]); else el.style.removeProperty("transform"); });
+            if (rot) rot.disabled = rotWas;
+            void document.body.offsetWidth;
             document.body.toggleAttribute("data-drpg-measuring", false);
             void document.body.offsetWidth;
             const laid = [t.left - at.left, t.top - at.top, t.width, t.height];
@@ -17461,6 +17518,17 @@ const INVARIANTS = [
          * token hook's handler (`onTokenChange`), a token write that moves neither flag, and the GM's own rule (this browser
          * is a GM's: nobody hidden). Whether avclient-livekit draws such a box, and its video and avatar, is LIVE-F119-03.
          * Red at e515907d: the dock's render hook wrote D's character name.
+         * THE MODE STATED ON EVERY READ (2.0 line T4, R7931, 27.11.2026). At The Forge (Foundry 14.370; docs/dev/v2/F3-forge-PC-2.md,
+         * FORGE-09d) this failed as "named a hidden participant, or did not name them again"; the report keeps no reading,
+         * so which part is not known. Read in the module against what the test assumed: `onTokenChange` relabelled in the
+         * mode this browser's A/V settings hold (`nameplateMode()`, `game.webrtc.settings.client.nameplates` under
+         * `foundry.av.AVSettings.NAMEPLATE_MODES`), and the test drew its boxes and read `back` as the BOTH mode. The harness
+         * has no NAMEPLATE_MODES, so `nameplateMode()` is null there and every read took BOTH's road; on a table whose
+         * plates show player names only, D's tooltip is taken off after the veil and `back`'s second part reads false, and
+         * with plates Off the "?" stays on a plate Foundry does not draw - both the mode's right answer, not the test's.
+         * `onTokenChange` takes the test's `plate` now (camera-view.mjs), BOTH. The accounts' names and characters are the
+         * world's either way: a plate reads `full(u)`, the module's own `voiceIdentity`, which holds for an account with no
+         * character too (its name), so no probe is asked. What the Forge's mode is stays the table's: LIVE-E134-02.
          */
         needs(world.atLeast("playerAccounts", 2), "two accounts besides the GM's, each with a box on the dock");
         const C = await import("./camera-view.mjs");
@@ -17484,9 +17552,9 @@ const INVARIANTS = [
         paint(playerOnly);
         read.playerOnly = plateOf(d);
         if (typeof C.onTokenChange === "function") {
-            read.quiet = C.onTokenChange({}, { name: "x" }, { root, hidden: () => false });
+            read.quiet = C.onTokenChange({}, { name: "x" }, { root, hidden: () => false, plate: both });
             read.stillHidden = plateOf(d);
-            read.lifted = C.onTokenChange({}, { flags: { [MODULE_ID]: { [`${"-="}veiled`]: null } } }, { root, hidden: () => false });
+            read.lifted = C.onTokenChange({}, { flags: { [MODULE_ID]: { [`${"-="}veiled`]: null } } }, { root, hidden: () => false, plate: both });
             read.back = [plateOf(d), tipOf(d) === foundry.utils.escapeHTML(full(d))];
         }
         read.gm = typeof C.hiddenFromHere === "function" ? C.hiddenFromHere(d, { veiled: () => true, masked: () => true }) : null;
@@ -21226,8 +21294,12 @@ const INVARIANTS = [
         }), "[the plan for the twenty-one accounts: assigned with or without Owner; none; several; alike; owned by another player; owning another student; kept as the GMs' record holds it]");
         const src = stripComments((await moduleSources()).get("user-match.mjs") ?? "");
         const pass = fnSource(src, "matchAccounts");
+        // The GMs' card's own flags (2.0 line T4, EXP-GM-09: `gmPopup` and its title on the chat card `tellGms` posts) are
+        // a card's, not an account's: that one literal is left out of the read; any other flag still turns it red.
+        const card = /flags:\s*\{\s*\[MODULE_ID\]:\s*\{\s*gmPopup:\s*true,\s*popupTitle:[^}]*\}\s*\}/;
+        must(card.test(src), "user-match.mjs posts no card with gmPopup - the read below would leave out nothing");
         equal(J([/^[^{]*\{\s*if \(!isPrimaryGm\(\)\) return null;/.test(pass), (src.match(/\.update\(/g) ?? []).length, (pass.match(/\.update\(/g) ?? []).length,
-            /\bflags\b|getFlag|setFlag|unsetFlag/.test(src)]),
+            /\bflags\b|getFlag|setFlag|unsetFlag/.test(src.replace(card, ""))]),
             J([true, 2, 2, false]), "[the pass refuses any browser but the primary GM's first; the file's writes; the pass's writes; a flag read or written]");
     }],
 
@@ -22148,21 +22220,23 @@ const INVARIANTS = [
         const stranger = { id: "R7791X", name: "R7791 Stranger", items: [] };
         const known = new Set(["Aiko's Room", "Botan's Room", "Chie's Room", "Daichi's Room", "Cafeteria"]);
         const at = (obj, k) => k.split(".").reduce((o, p) => o?.[p], obj);
-        const own = game.i18n.localize, fmt = game.i18n.format;
         const read = {};
+        /* standIn, as R3980 does (2.0 line T4, FORGE-09c, 27.11.2026): v14's `format` is Localization.prototype's and read-only
+           there, so the plain assignment this test made threw "Cannot assign to read only property 'format'" on The Forge
+           (docs/dev/v2/F3-forge-PC-2.md); each put back once, in reverse. */
+        let word = k => k;
+        const back = [standIn(game.i18n, "localize", k => word(k)),
+            standIn(game.i18n, "format", (k, data = {}) => String(word(k)).replace(/\{(\w+)\}/g, (m, f) => (f in data ? String(data[f]) : m)))];
         try {
             for (const code of ["en", "pl"]) {
-                const word = k => at(files[code], k) ?? k;
-                game.i18n.localize = k => word(k);
-                game.i18n.format = (k, data = {}) => String(word(k)).replace(/\{(\w+)\}/g, (m, f) => (f in data ? String(data[f]) : m));
+                word = k => at(files[code], k) ?? k;
                 const say = actor => R.restRoomsSentence("short", "DRPG.Rest.allowedIn", {}, scene, known, actor);
                 read[code] = [say(me), say({ ...stranger, items: [] }), say(null)];
                 const knownOnly = new Set(["Botan's Room", "Chie's Room"]);
                 read[code].push(R.restRoomsSentence("short", "DRPG.Rest.allowedIn", {}, scene, knownOnly, stranger));
             }
         } finally {
-            game.i18n.localize = own;
-            game.i18n.format = fmt;
+            for (const putBack of back.reverse()) putBack();
         }
         const want = code => {
             const w = k => at(files[code], k) ?? `<no ${k}>`;
@@ -24309,7 +24383,8 @@ const INVARIANTS = [
         const offered = SS.steps().filter(r => ["secretDoors", "rulers"].includes(r.key))
             .map(r => [r.key, Boolean(r.optional), typeof r.fix, typeof r.undo, [`DRPG.Season.step.${r.key}`, `DRPG.Season.hint.${r.key}`, r.fixedKey, r.doKey, r.undoKey, r.undoneKey]
                 .filter(Boolean).every(k => game.i18n.has(k) || game.i18n.has(`${k}.other`))]);
-        equal(J(offered), J([["secretDoors", true, "function", "undefined", true], ["rulers", true, "function", "function", true]]),
+        // The rulers row is required since the 2.0 line T4 (EXP-PL-01, 27.11.2026): the killer's route in an Eclipse.
+        equal(J(offered), J([["secretDoors", true, "function", "undefined", true], ["rulers", false, "function", "function", true]]),
             "[each new row of the Season setup as [key, optional, its fix, its undo, every one of its words in the language file]]");
     }],
     ["R602 - Make public and Make secret (D4): a public passage is in the copy of every student's owner, each copy naming the player's own students alone, and the GMs' audit lets any student through it while a secret one beside it still stops a stranger; Make secret gives it back to those who knew it; neither writes a cell or a chat message, and the reset keeps it public; the Passages tab's columns are Rooms, Kind, Shape, Origin and then the rest", async () => {
@@ -28536,7 +28611,14 @@ const INVARIANTS = [
         const stand = value => (had && !had.configurable
             ? (game.paused = value)
             : Object.defineProperty(game, "paused", { get: () => value, configurable: true }));
-        const rows = () => [...hud.children].map(child => [...child.classList].filter(c => c !== "is-paused").sort().join(".")).join(" ");
+        /* The rows by their kind, not their state (2.0 line T4, FORGE-09e, 27.11.2026): at The Forge (Foundry 14.370;
+           docs/dev/v2/F3-forge-PC-2.md) the world was on hold, so the clock held a `pausedAt`, and hud-elapsed.mjs
+           `paintElapsed` marks the stopwatch's line `paused` while `game.paused` and that stamp both stand, and `past-first`
+           / `past-second` by the time it reads - which a pause freezes and its stand-in's end does not. Those are a row's
+           state, drawn in place (danganronpa.css: opacity and italic), not a row that comes or goes; the harness's world is
+           never paused, so its clock has no stamp and the line never took them. */
+        const STATE = new Set(["is-paused", "paused", "past-first", "past-second"]);
+        const rows = () => [...hud.children].map(child => [...child.classList].filter(c => !STATE.has(c)).sort().join(".")).join(" ");
         const read = () => {
             const marks = [...hud.querySelectorAll(".drpg-hud-paused")];
             const mark = marks[0], campaign = hud.querySelector(":scope > .drpg-hud-campaign");
@@ -36084,7 +36166,7 @@ const INVARIANTS = [
             SS.cursorRoles({ SHOW_CURSOR: [R.PLAYER] }, { SHOW_CURSOR: [R.PLAYER, R.GAMEMASTER] })];
         const sources = await K.moduleSources();
         must(sources.get("season-setup.mjs")?.length, "season-setup.mjs is not among the module's sources - this would measure nothing");
-        const readsInForce = /cursorRoles\([^;]*permissionsInForce\(\)\)/.test(fnSource(stripComments(sources.get("season-setup.mjs")), "gmRolesSharingCursor"));
+        const readsInForce = /cursorRoles\([^;]*permissionsInForce\(\)\)/.test(fnSource(stripComments(sources.get("season-setup.mjs")), "rolesSharingCursor")); // gmRolesSharingCursor until the 2.0 line T4 (EXP-PL-01)
         const pool = D.monokumas()[0] ?? null;
         must(pool, "no Despair pool in this world (every full Gamemaster holds one) - the fallback cannot be read");
         const fx = await e20Fixture();
@@ -37150,8 +37232,12 @@ const INVARIANTS = [
             root.className = "application dialog drpg-window-season";
             // E49 A1e (12.11.2026): the rows and Pre-season checks are the Season checklist's, Season setup's tiles pinned under
             // Edit campaign; one stand-in holds the three, as the reader of each is one function for both windows.
-            root.innerHTML = `<section class="window-content"><form>${SS.campaignFieldsHtml({ campaignName: "R1524" }, "R1524word")}
-                ${SS.setupRows(rows)}</form></section>${SS.seasonTilesHtml(GP.SEASON_TILES, GP.tileHtml)}
+            /* A body a browser can scroll 420 px (2.0 line T4, FORGE-09e, 27.11.2026): at The Forge (Foundry 14.370;
+               docs/dev/v2/F3-forge-PC-2.md) this failed where the harness passes - a stand-in body with no height of its own
+               and nothing below its rows clamps `scrollTop = 420` to 0 in a browser, and jsdom keeps it. So the body is 200 px
+               tall over 1200 px of room; headless it reads as before. */
+            root.innerHTML = `<section class="window-content" style="height: 200px; overflow-y: auto"><form>${SS.campaignFieldsHtml({ campaignName: "R1524" }, "R1524word")}
+                ${SS.setupRows(rows)}<div class="r1524-fill" style="height: 1200px"></div></form></section>${SS.seasonTilesHtml(GP.SEASON_TILES, GP.tileHtml)}
                 <footer class="form-footer"><button type="submit" data-action="save" autofocus>R1524 save</button><button type="button" data-action="checks">R1524 checks</button></footer>`;
             document.body.append(root);
             return root;
@@ -44181,7 +44267,15 @@ const INVARIANTS = [
         const { openNotices } = await import("./notice-history-app.mjs");
         let win = null, read = null;
         await NH.holdNoticeHistory(true);
+        /* ON A LAID-OUT PAGE TOO (2.0 line T4, FORGE-09e, 27.11.2026). At The Forge (Foundry 14.370; docs/dev/v2/F3-forge-PC-2.md)
+           this failed where the harness passes. Read against a browser: with two notices the list cannot scroll 40 px (no
+           pill, nothing to keep); `focus()` scrolls its element into view; with a layout `dressList` keeps the reader's
+           entry where it stood, which moves `scrollTop` on purpose; and 300 ms fixed waits did not cover a slower page or
+           v14's animated close. So forty older notices are recorded first, the line is focused without scrolling, the
+           scroll is read on a laid-out page as the entry the reader was on standing where it stood (`env.layout`, a reading
+           of this browser, not a skip), and each wait is for what it waits for. Headless it reads as before. */
         try {
+            for (let n = 0; n < 40; n++) NH.recordNotice({ source: "mine", kind: "info", title: `R7973 filler ${n}`, text: "R7973 filler words", html: "", state: "unread" });
             const older = NH.recordNotice({ source: "mine", kind: "info", title: "R7973 older", text: "R7973 older words", html: "", state: "unread" });
             NH.recordNotice({ source: "mine", kind: "info", title: "R7973 newer", text: "R7973 newer words", html: "", state: "unread" });
             win = await openNotices();
@@ -44192,23 +44286,34 @@ const INVARIANTS = [
             must(entry(older), "the window does not list the suite's older notice - there is nothing to stand on");
             list().scrollTop = 40;
             const scrolled = list().scrollTop;
-            entry(older).querySelector("summary").focus();
+            must(scrolled === 40, `the list scrolled ${scrolled} of 40 px - there is no place to keep`);
+            entry(older).querySelector("summary").focus({ preventScroll: true });
+            const laidOut = env.layout().holds;
+            const anchor = () => {
+                const top = list().getBoundingClientRect().top;
+                const at = [...list().querySelectorAll("details.drpg-notice-entry")].find(el => el.getBoundingClientRect().bottom > top);
+                return at ? { key: at.dataset.drpgKey, dy: Math.round(at.getBoundingClientRect().top - top) } : null;
+            };
+            const stood = laidOut ? anchor() : null;
             must(document.activeElement === entry(older).querySelector("summary"), "the focus could not be put on the older entry's line");
             const fresh = NH.recordNotice({ source: "mine", kind: "info", title: "R7973 fresh", text: "R7973 fresh words", html: "", state: "unread" });
-            await wait(300);
+            await until(() => entry(fresh), 3000);
+            await wait(50);
             const pill = root.querySelector(".drpg-notices-new");
+            const now = laidOut ? anchor() : null;
             read = {
                 fresh: Boolean(entry(fresh)), pill: pill ? !pill.hidden : null,
-                scroll: list().scrollTop === scrolled, focus: document.activeElement === entry(older)?.querySelector("summary")
+                scroll: laidOut ? Boolean(now && stood && now.key === stood.key && Math.abs(now.dy - stood.dy) <= 1) : list().scrollTop === scrolled,
+                focus: document.activeElement === entry(older)?.querySelector("summary")
             };
             const unread = () => list().querySelectorAll("details.drpg-notice-entry.is-unread").length;
             read.unreadBefore = unread() > 0;
             NH.markNoticesRead();
-            await wait(300);
+            await until(() => unread() === 0, 3000);
             read.unreadAfter = unread();
             read.focusAfter = document.activeElement === entry(older)?.querySelector("summary");
             root.querySelector('footer.drpg-kit-footer [data-action="close"]')?.click();
-            await wait(300);
+            await until(() => !win.rendered && !root.isConnected, 3000);
             read.closed = !win.rendered && !root.isConnected;
         } finally {
             if (win?.rendered) await win.close();
@@ -44273,7 +44378,11 @@ const INVARIANTS = [
             }
             const before = r.refreshes();
             r.wake();
-            await wait(450);
+            /* Until the region is drawn again, not a fixed 450 ms (2.0 line T4, FORGE-09e, 27.11.2026): at The Forge (Foundry
+               14.370; docs/dev/v2/F3-forge-PC-2.md) this failed where the harness passes, on a page about five times slower
+               than headless (the run took 990 s against 200 s); the debounce (TIMING.coalesceMs) and the rebuild did not fit
+               the wait there (a hypothesis: the report kept no reading). 3 s at most, then the reading below says what came. */
+            await until(() => r.refreshes() > before && region() !== null && region() !== el, 3000);
             const now = region(), active = document.activeElement;
             // `now` found at all: a build that returns something else than the region's own element loses the region (the Hope box did).
             const read = { field: kind, rebuilt: Boolean(now) && r.refreshes() > before && now !== el };
@@ -46239,10 +46348,14 @@ const INVARIANTS = [
             return w;
         };
         const low = bare("5000px"), high = bare("-50px");
-        let clamped;
+        /* The low window's own height in the clamp (2.0 line T4, FORGE-09e, 27.11.2026): `keepInScreen` holds the foot at
+           `innerHeight - height - 8`, and this read `innerHeight - 8` - a height of 0, which only jsdom lays out. At The
+           Forge (Foundry 14.370; docs/dev/v2/F3-forge-PC-2.md) it failed there; headless the height is still 0. */
+        let clamped, lowH = 0;
         try {
             for (const w of [low, high]) w.querySelector('[data-drpg-tab-key="y"]').click();
             clamped = [low.style.top, high.style.top];
+            lowH = low.getBoundingClientRect().height;
         } finally { low.remove(); high.remove(); }
 
         /* The growth: four tabs in a 400 px window, then wider tabs in the grown one. */
@@ -46272,7 +46385,7 @@ const INVARIANTS = [
             asked: [[stableJson({ height: "auto" }), "b", "close,add", "b"], [stableJson({ height: "auto" }), "c", "save,close,add", "bc"], [stableJson({ height: "auto" }), "a", "save,close", "bca"]],
             panes: [["a", false, ""], ["b", true, ""], ["c", true, ""]],
             fields: ["r1353a", "r1353b", "r1353c"],
-            clamped: [`${innerHeight - 8}px`, "8px"],
+            clamped: [`${Math.max(8, innerHeight - lowH - 8)}px`, "8px"],
             // the second bar wraps since E47-KFb (two rows of the tabs' own widths, no columns); a 2 x 2 grid before it
             fits: [[1, 21, "421px", "400"], [2, null, 0, "421px"]]
         }), `[positions asked on the first draw; after each of three presses (b, c, a): what was asked, with the pane shown, the footer's shown buttons and the tabs onSwitch was told then (${asked.length} reposition(s) after 3 presses); the panes (key, hidden, inline display); the form's fields; the tops a page with no application clamped (5000 px, -50 px); the first fit (rows, grew, width, first width) and the second (rows, columns, grew, width)]`);
@@ -48746,7 +48859,10 @@ const INVARIANTS = [
             }
             await wait(150);
         };
-        const beat = async () => { for (let i = 0; i < 20 && !standing(); i++) await wait(50); await wait(200); };
+        /* A beat waits for the window up to 5 s, then 400 ms for a second one (2.0 line T4, FORGE-09e, 27.11.2026): at The Forge
+           (Foundry 14.370; docs/dev/v2/F3-forge-PC-2.md) this failed where the harness passes; up to 1 s and then 200 ms read
+           a first render slower than that as no window, and the late one as a second (a hypothesis: the report kept no reading). */
+        const beat = async () => { await until(() => standing() > 0, 5000); await wait(400); };
         const read = {};
         const probe = document.createElement("button");
         probe.type = "button";
@@ -50110,7 +50226,7 @@ const INVARIANTS = [
         needs(env.motion());
         const G = await import("./glass.mjs");
         const rig = turnRig(G);
-        let read = null;
+        let read = null, readClip = null;
         try {
             rig.job.pathD = "M0 0H400V300H0Z";
             const h = rig.turn({ force: true, flash: false });
@@ -50124,11 +50240,19 @@ const INVARIANTS = [
             for (const a of rig.animations()) if (a.el !== frost) a.finish();
             await new Promise(resolve => setTimeout(resolve, 0));
             await new Promise(resolve => setTimeout(resolve, 0));
-            read = [faded, during.includes("M200 0L400 0L400 150Z"), during.includes("M400 150L400 300L200 300Z"), during.includes("M0 0L200 0L0 150Z"), during.includes("260"), frost.style.clipPath === "path('M0 0H400V300H0Z')"];
+            /* A path read as this browser writes it back (2.0 line T4, FORGE-09e, 27.11.2026). At The Forge (Foundry 14.370,
+               Chromium; docs/dev/v2/F3-forge-PC-2.md) this failed where the harness passes: jsdom keeps `clip-path` as the
+               text it was given, and Blink serialises `path()` in its own spelling (quotes and spaces - remembered of Blink,
+               not read at the Forge: the old message printed truths only). Each expected path is set on a probe element
+               and read back, so both sides are this browser's spelling; headless the probe reads the text unchanged. */
+            const norm = d => { const probe = document.createElement("div"); probe.style.clipPath = `path('${d}')`; return probe.style.clipPath; };
+            const part = d => norm(d).replace(/^path\(\s*["']?|["']?\s*\)$/g, "");
+            read = [faded, during.includes(part("M200 0L400 0L400 150Z")), during.includes(part("M400 150L400 300L200 300Z")), during.includes(part("M0 0L200 0L0 150Z")), during.includes("260"), frost.style.clipPath === norm("M0 0H400V300H0Z")];
+            readClip = [during, frost.style.clipPath];
             h.cancel();
         } finally { rig.done(); }
         equal(JSON.stringify(read), JSON.stringify([false, true, true, true, false, true]),
-            "[a frost animation reaches 0, the moves' frost holds pane 1, holds pane 3, holds pane 0's old and new overlap, holds a corner only pane 0's new place has, the frost on the new cut after the moves]");
+            `[a frost animation reaches 0, the moves' frost holds pane 1, holds pane 3, holds pane 0's old and new overlap, holds a corner only pane 0's new place has, the frost on the new cut after the moves] - read: ${JSON.stringify(readClip)}`);
     }],
     ["R3120 - a recolour is a crossfade (glass.mjs `glassTurn`, E96 C2; the owner at the table on 1.2.101, H102 DIAGNOSIS 6): on a stand-in curtain a turn under a new accent bakes the new look per batch beside the old, rising 0 to 1 on the old one's delay while the old falls 1 to 0, each batch's two layers a group of their own with the new one added on; a moving pane's new place rises the same way under it; and the curtain is held at 0 under them until every rising layer ends, at one time", async () => {
         /*
@@ -52193,17 +52317,31 @@ const INVARIANTS = [
         const SH = await import("./sheet.mjs");
         const who = studentActors()[0];
         must(who, "no student in the world - this would measure nothing");
+        /* A root a browser can scroll (2.0 line T4, FORGE-09e, 27.11.2026): at The Forge (Foundry 14.370;
+           docs/dev/v2/F3-forge-PC-2.md) this failed where the harness passes - a detached root with empty tabs keeps no
+           `scrollTop` in a browser, only in jsdom. So the stand-in is put on the page off screen, each tab a box 100 px tall
+           over 1000 px of content, and taken off after its draw; headless it reads as before. */
         const draw = (id, tab, scrollTo = null) => {
             const root = e24SheetRoot();
-            for (const section of root.querySelectorAll("section.tab")) section.classList.toggle("active", section.dataset.tab === tab);
-            Hooks.callAll("renderCharacterSheet", { id, document: who, isEditable: true }, root, {}, { isFirstRender: false });
-            const pane = root.querySelector(`section.tab[data-tab="${tab}"]`);
-            const seen = pane.scrollTop;
-            if (scrollTo !== null) {
-                pane.scrollTop = scrollTo;
-                pane.dispatchEvent(new Event("scroll"));
+            root.style.cssText = "position: fixed; left: -5000px; top: 0; width: 300px";
+            for (const section of root.querySelectorAll("section.tab")) {
+                section.style.cssText = "display: block; height: 100px; overflow-y: auto";
+                section.insertAdjacentHTML("beforeend", '<div class="r1458-fill" style="height: 1000px"></div>');
             }
-            return seen;
+            document.body.append(root);
+            try {
+                for (const section of root.querySelectorAll("section.tab")) section.classList.toggle("active", section.dataset.tab === tab);
+                Hooks.callAll("renderCharacterSheet", { id, document: who, isEditable: true }, root, {}, { isFirstRender: false });
+                const pane = root.querySelector(`section.tab[data-tab="${tab}"]`);
+                const seen = pane.scrollTop;
+                if (scrollTo !== null) {
+                    pane.scrollTop = scrollTo;
+                    pane.dispatchEvent(new Event("scroll"));
+                }
+                return seen;
+            } finally {
+                root.remove();
+            }
         };
         /* The kept scrolls live for the page's life, so each run draws apps of its own ids: the suite runs twice in one
            page (01-runtests' parts A1 and A2), and fixed ids read the first run's 140 as the second run's first draw. */
@@ -52226,14 +52364,23 @@ const INVARIANTS = [
          * the sidebar's Equipped and Experience blocks (Daggerheart 2.10.5's character/sidebar.hbs). No step may fail on
          * the stand-ins - that would be a plant, not the reading. Red on the tree before: one tag ("Murder Weapon - T2"),
          * no empty line.
+         * A STAND-IN ACTOR, NOT THE WORLD'S OWN PROPERTIES (2.0 line T4, FORGE-09c, 27.11.2026). On Foundry 14.370 an actor's
+         * `items` is its own property and cannot be redefined: `Object.defineProperty(actor, "items", ...)` threw "Cannot
+         * redefine property: items" on The Forge (docs/dev/v2/F3-forge-PC-2.md, FORGE-09c, 25.11.2026). So the sheet is drawn
+         * for an object whose prototype is the student - every read the steps make goes on to it - with its own `items` and
+         * a `system` whose prototype is the student's `system` (its methods kept: R1489's lesson) and whose own `experiences`
+         * is the test's. Nothing on the student is touched. That a step reads nothing through a getter the stand-in cannot
+         * answer on v14 (a private field) is not read: a step that throws shows in `failed`, which must be 0.
          */
-        const who = studentActors()[0];
-        must(who, "no student in the world - this would measure nothing");
+        const real = studentActors()[0];
+        must(real, "no student in the world - this would measure nothing");
         const flags = { category: "crimeTool", equipped: true, roles: ["tool", "crimeTool"], tier: 2 };
         const item = { id: "R1459ITEM0000001", uuid: "Actor.R1459.Item.R1459ITEM0000001", name: "R1459 knife", img: "", type: "loot", sheet: null,
             flags: { [MODULE_ID]: flags }, getFlag: (scope, key) => (scope === MODULE_ID ? flags[key] : undefined) };
-        item.actor = who;
-        const draw = experiences => e24Own(who, "items", e24Items([item]), () => e24Own(who.system, "experiences", experiences, () => {
+        let who = real;
+        const draw = async experiences => {
+            who = Object.create(real, { items: { value: e24Items([item]) }, system: { value: Object.create(real.system, { experiences: { value: experiences } }) } });
+            item.actor = who;
             const root = e24SheetRoot();
             root.querySelector(".character-sidebar-sheet").insertAdjacentHTML("beforeend",
                 `<div class="equipment-section"><div class="title"><h3>Equipment</h3></div><ul class="items-sidebar-list"></ul></div>`
@@ -52251,7 +52398,7 @@ const INVARIANTS = [
                 empty: [...root.querySelectorAll(".experience-section .drpg-experience-empty")].map(el => el.textContent),
                 labels: [...root.querySelectorAll('[data-drpg-equipped="crimeTool"] .item-labels .label')].map(el => el.textContent.trim()),
                 tags: [...root.querySelectorAll('[data-drpg-equipped="crimeTool"] .item-labels .drpg-equipped-tag')].map(el => el.textContent) };
-        }));
+        };
         const held = [`${ITEM_CATEGORIES.crimeTool.label} · ${ITEM_CATEGORIES.tool.label} - T2`];
         const tags = [ITEM_CATEGORIES.crimeTool.label, ITEM_CATEGORIES.tool.label];
         equal(stableJson({ none: await draw({}), one: await draw({ r1459: { name: "R1459 cooking", value: 2 } }) }),
@@ -52914,14 +53061,21 @@ const INVARIANTS = [
         must(guarded.every(text => text.length > 200 || text.includes("LEGAL")), "scoredOf's and modifierLabel's source was not read");
         const named = diceRows.filter(key => guarded.some(text => new RegExp(`key:\\s*["'\`]${key}["'\`]|["'\`]${key}["'\`]\\s*:`).test(text)));
 
-        // A student in Breakdown, in memory: the real student with its Sanity marks at the maximum, nothing written.
+        /* A student in Breakdown, in memory: the real student with its Sanity marks at the maximum, nothing written. Its
+           `system` is the real one's own stand-in, not a plain copy (2.0 line T4, FORGE-09c, 27.11.2026): a deep clone of
+           `toObject()` kept the fields and lost the TypeDataModel's methods, and on Foundry 14.370 the roll's expectation
+           asks the actor's roll data, so it threw "this.system.getRollData is not a function" on The Forge
+           (docs/dev/v2/F3-forge-PC-2.md, FORGE-09c, 25.11.2026); the harness's system has no such method in the way.
+           Now its prototype is the student's `system` - every method and every field the test does not set read from
+           there - with its own `resources`, a copy in which Sanity alone is set. */
         const real = livingStudents()[0];
-        const own = foundry.utils.deepClone(real.system.toObject?.() ?? real.system);
-        own.resources.stress.value = own.resources.stress.max;
+        const resources = foundry.utils.deepClone(real.system.toObject?.()?.resources ?? real.system.resources);
+        const systemWith = stress => Object.create(real.system, { resources: { value: { ...resources, stress: { ...resources.stress, value: stress } }, enumerable: true } });
+        const own = systemWith(resources.stress.max);
         const owner = { id: "r1489-owner", isGM: false }, player = { id: "r1489-player", isGM: false }, observer = { id: "r1489-observer", isGM: false };
         const levelOf = (user, level) => (user?.isGM || user?.id === owner.id) ? true : (user?.id === observer.id && level === "OBSERVER");
         const broken = Object.create(real, { system: { value: own }, testUserPermission: { value: levelOf } });
-        const calm = Object.create(real, { system: { value: { ...own, resources: { ...own.resources, stress: { ...own.resources.stress, value: 0 } } } } });
+        const calm = Object.create(real, { system: { value: systemWith(0) } });
         must(isBrokenDown(broken) && !isBrokenDown(calm), "the in-memory student is not in Breakdown (or the calm one is)");
         const [low, high] = [await D.expectedFor(calm, { actionKey: null }), await D.expectedFor(broken, { actionKey: null })];
 
@@ -56331,7 +56485,9 @@ const INVARIANTS = [
         // the three Monocub columns in every table since E49 A3 (R3406 reads their dimmed cells).
         const heads = [T("DRPG.Panel.character"), T("DRPG.Panel.openColumn"), T("DRPG.Panel.roleColumn"), T("DRPG.Panel.stateColumn"), T("DRPG.Actions.label"), T("DRPG.Panel.freeMove"),
             T("DRPG.Monocub.hope"), T("DRPG.Monocub.giveHopeColumn"), T("DRPG.Monocub.silenced"),
-            T("DRPG.Panel.levelUpColumn"), T("DRPG.Panel.doColumn")];
+            T("DRPG.Panel.levelUpColumn"), T("DRPG.Panel.doColumn"),
+            // The Microphone, last (2.0 line T4, VOICE-04, 27.11.2026; R9252): a column every row has, empty but a student's.
+            T("DRPG.Voice.micColumn")];
         const shown = [["students", students], ["monokumas", kumas], ["notInClass", npcs]].filter(([, list]) => list.length);
         equal(stableJson(got), stableJson({
             kit: true,
@@ -56669,11 +56825,14 @@ const INVARIANTS = [
             keys: ["DRPG.Case.backupTile", "DRPG.Case.restoreTile"].map(k => [k in en, k in pl])
         }), stableJson({
             // E49 A2 moved three tiles and took one out (R3345 holds the four moves): the order as it stands after them.
-            tiles: [["now", ["whoIsAlive", "projects", "sound"]], ["case", ["murder", "investigation", "trial"]],
+            // The 2.0 line T4 (27.11.2026): Monokuma's announcement last in Now (EXP-GM-08, R9254).
+            tiles: [["now", ["whoIsAlive", "projects", "sound", "announce"]], ["case", ["murder", "investigation", "trial"]],
                 // E49 A1d: Reset the season into Season setup, Settings in its place (R3532). E49 A1e: Edit campaign, Despair Flow,
                 // Killing game rules and The Mastermind into Season setup (R3582).
                 ["between", ["roomSetup", "tables", "seasonSetup", "settings"]],
-                ["fixes", ["failureLog", "voiceReset", "caseWindow"]]],
+                // The 2.0 line T4 (27.11.2026): its tiles together at the end of Diagnostics, voice rooms (VOICE-03, R9251)
+                // and Repairs (PANEL-01, R9249).
+                ["fixes", ["failureLog", "voiceReset", "caseWindow", "voiceRooms", "repairs"]]],
             caseTile: ["fixes", en["DRPG.Case.tile"] === undefined ? "?" : game.i18n.localize("DRPG.Case.tile"), age],
             diag: [0, 2], en: [], pl: [], keys: [[false, false], [false, false]]
         }), "{tiles: every section's tiles in order; caseTile: [its section, label, second line]; diag: [diagnostics.mjs's \"(Back up the case)\", its lines naming "
@@ -59631,16 +59790,21 @@ const INVARIANTS = [
         const S = await import("./sequence.mjs");
         const body = document.body, hadGlass = body.classList.contains("drpg-theme-stained-glass"), wasReduced = body.classList.contains("drpg-reduced-motion"), phase = body.dataset.drpgPhase;
         const clock = { ...getClock(), phase: "classTrial", chapter: 3, timeOfDayStartedAt: `R3705:${Date.now()}`, trialCut: true }, read = {};
+        /* THE SCENE'S GATE STOOD IN (2.0 line T4, FORGE-09e, 27.11.2026). At The Forge (Foundry 14.370; docs/dev/v2/F3-forge-PC-2.md)
+           this failed where the harness passes: a world with a trial hall linked (rooms.mjs `trialScene`) and not drawn on
+           this canvas holds every frame after the title's out for the hall, up to SCENE_WAIT_MS (15 s; sequence.mjs
+           `sceneGateFor`) - the harness's world has no hall, so its gate opens at once. The gate is not this test's promise
+           (R4860's and the curtain's), so it is stood in by `scene: "none"`, the gate a clock that switches no scene takes. */
         try {
             body.classList.remove("drpg-theme-stained-glass");
             body.classList.add("drpg-reduced-motion");
-            read.mode = await S.onPhaseChanged("classTrial", clock);
+            read.mode = await S.playTrialEntry(clock, { scene: "none" });
             const host = document.getElementById(S.SEQUENCE_HOST_ID);
             read.title = host?.querySelector(".drpg-seq-title-band")?.textContent ?? null;
             read.sub = host?.querySelector(".drpg-seq-title-sub")?.textContent === game.i18n.format("DRPG.Sequence.trialSubtitle", { chapter: 3 });
             read.lids = host?.querySelectorAll(".drpg-seq-lid").length ?? 0;
             read.cover = body.hasAttribute(`${S.SEQUENCE_ATTR}-cover`);
-            await wait(S.SEQUENCE_TIMES.trialEntry.still + 200);
+            await until(() => !document.getElementById(S.SEQUENCE_HOST_ID), S.SEQUENCE_TIMES.trialEntry.still + 1500);
             read.endedAlone = !document.getElementById(S.SEQUENCE_HOST_ID) && S.sequenceNow() === null;
             read.uncovered = !body.hasAttribute(`${S.SEQUENCE_ATTR}-cover`);
         } finally {
@@ -59684,11 +59848,12 @@ const INVARIANTS = [
             return me;
         };
         const clock = k => ({ ...getClock(), phase: "classTrial", chapter: 2, timeOfDayStartedAt: `R3917${k}:${Date.now()}`, trialCut: true });
+        /* The scene's gate stood in by `scene: "none"` (2.0 line T4, FORGE-09e, 27.11.2026): R3705's note says why. */
         try {
             body.classList.remove("drpg-reduced-motion");
             S.endSequence("cut");
             const m = stand(), c = clock("m");
-            read.motion = await S.playTrialEntry(c, { pieces: m });
+            read.motion = await S.playTrialEntry(c, { pieces: m, scene: "none" });
             read.heldAtOnce = m.calls.map(x => x.slice(0, 2));
             read.look = document.getElementById(S.SEQUENCE_HOST_ID)?.dataset.drpgSequenceLook ?? null;
             read.covered = body.hasAttribute(`${S.SEQUENCE_ATTR}-cover`);
@@ -59700,11 +59865,11 @@ const INVARIANTS = [
             read.hold = hold?.[1] === T.handIn;
             read.back = back?.[1] === T.hand && back?.[2] >= T.end - T.hand - TICK;
             read.release = rel?.[2] >= T.end && rel?.[2] >= back?.[2] + T.hand && m.gone === true;
-            read.again = await S.playTrialEntry(c, { pieces: stand() });
+            read.again = await S.playTrialEntry(c, { pieces: stand(), scene: "none" });
             S.endSequence("cut");
             body.classList.add("drpg-reduced-motion");
             const st = stand();
-            read.still = await S.playTrialEntry(clock("s"), { pieces: st });
+            read.still = await S.playTrialEntry(clock("s"), { pieces: st, scene: "none" });
             read.stillHold = st.calls.map(x => x.slice(0, 2));
             await until(() => !document.getElementById(S.SEQUENCE_HOST_ID), T.still + 1500);
             read.stillEnd = st.calls.map(x => x[0]);
@@ -59763,13 +59928,14 @@ const INVARIANTS = [
             body.classList.remove("drpg-reduced-motion");
             S.endSequence("cut");
             const T = S.SEQUENCE_TIMES.trialEntry, m = stand();
-            const played = await S.playTrialEntry({ ...getClock(), phase: "classTrial", chapter: 2, timeOfDayStartedAt: `R6850e:${Date.now()}`, trialCut: true }, { pieces: m });
+            // The scene's gate stood in by `scene: "none"` (2.0 line T4, FORGE-09e, 27.11.2026): R3705's note says why.
+            const played = await S.playTrialEntry({ ...getClock(), phase: "classTrial", chapter: 2, timeOfDayStartedAt: `R6850e:${Date.now()}`, trialCut: true }, { pieces: m, scene: "none" });
             if (played === "motion") stall(m, T);
             await until(() => !document.getElementById(S.SEQUENCE_HOST_ID), T.end + T.hand + 1500);
             read.entry = { played, ...reading(m, T) };
             S.endSequence("cut");
             const X = S.SEQUENCE_TIMES.trialExit, x = stand();
-            const out = await S.playTrialExit({ ...getClock(), phase: "dailyLife", chapter: 3, trialEndedAt: `R6850x:${Date.now()}`, trialCut: true }, { pieces: x, on: true });
+            const out = await S.playTrialExit({ ...getClock(), phase: "dailyLife", chapter: 3, trialEndedAt: `R6850x:${Date.now()}`, trialCut: true }, { pieces: x, on: true, scene: "none" });
             if (out === "motion") stall(x, X);
             await until(() => !document.getElementById(S.SEQUENCE_HOST_ID), X.end + X.hand + 1500);
             read.exit = { played: out, ...reading(x, X) };
@@ -60270,8 +60436,14 @@ const INVARIANTS = [
             .flatMap(rule => rule.decls.filter(d => d.property === "z-index").map(d => [rule.file, rule.selector, num(d.value)]))
             .filter(([, , n]) => Number.isFinite(n) && n < base + 1 && n >= curtainZ)
             .map(([file, sel, n]) => `${file} ${sel}: ${n}`);
-        // the windows open on this page, each between the two layers (Foundry's counter; the shim's headless)
-        const open = [...(foundry.applications?.instances?.values?.() ?? [])].map(app => app?.element).filter(el => el?.isConnected);
+        /* the windows open on this page, each between the two layers (Foundry's counter; the shim's headless). Windows, not
+           every application (2.0 line T4, FORGE-09e, 27.11.2026): at The Forge (Foundry 14.370; docs/dev/v2/F3-forge-PC-2.md)
+           this failed where the harness passes - v14's `foundry.applications.instances` holds the frameless parts of the
+           interface too (the sidebar, the hotbar, the players list, the controls), whose z-index is not a window's, and the
+           shim registers only windows. A rendered application with a frame, as foundry-windows.mjs counts them
+           (`hasFrame`); that the interface's parts are in `instances` on v14 is the reading of v13, not of v14's source. */
+        const open = [...(foundry.applications?.instances?.values?.() ?? [])].filter(app => app?.rendered && app.hasFrame !== false)
+            .map(app => app.element).filter(el => el?.isConnected);
         read.windows = open.filter(el => { const z = Number.parseInt(el.style.zIndex || getComputedStyle(el).zIndex, 10); return !(z > curtainZ && z < 99980); }).map(el => el.id || el.className);
         const edge = (popups) => ({ host: "contents", curtain: ["fixed", base - 2, "auto"], top: ["fixed", 99980, "none"], popups });
         const others = [{ host: [false, 99980], popups: 99990 }];
@@ -60317,7 +60489,8 @@ const INVARIANTS = [
             S.endSequence("cut");
             // The clocks carry the road's mark, `trialCut: true`, not the world's (R3704's comment; 01-runtests' A2).
             // the entry with the glass, in motion: the layers at the start and once the title is in, and the fades
-            read.glass = { mode: await S.playTrialEntry({ ...getClock(), phase: "classTrial", chapter: 4, timeOfDayStartedAt: `${stamp}g`, trialCut: true }, { pieces: stand() }) };
+            // The scene's gate stood in by `scene: "none"` (2.0 line T4, FORGE-09e, 27.11.2026): R3705's note says why.
+            read.glass = { mode: await S.playTrialEntry({ ...getClock(), phase: "classTrial", chapter: 4, timeOfDayStartedAt: `${stamp}g`, trialCut: true }, { pieces: stand(), scene: "none" }) };
             const host = document.getElementById(S.SEQUENCE_HOST_ID);
             read.glass.start = layers();
             await wait(T.title + 150);
@@ -60327,15 +60500,15 @@ const INVARIANTS = [
             read.glass.fadeOut = fades(host, T.hand, 1, 0);
             // the lids, in motion and still, and the exit
             body.classList.remove("drpg-theme-stained-glass");
-            read.lids = { mode: await S.playTrialEntry({ ...getClock(), phase: "classTrial", chapter: 4, timeOfDayStartedAt: `${stamp}l`, trialCut: true }) };
+            read.lids = { mode: await S.playTrialEntry({ ...getClock(), phase: "classTrial", chapter: 4, timeOfDayStartedAt: `${stamp}l`, trialCut: true }, { scene: "none" }) };
             read.lids.start = layers();
             await wait(T.title + 150);
             read.lids.titled = layers();
             S.endSequence("cut");
             body.classList.add("drpg-reduced-motion");
-            read.still = { mode: await S.playTrialEntry({ ...getClock(), phase: "classTrial", chapter: 4, timeOfDayStartedAt: `${stamp}s`, trialCut: true }), ...layers() };
+            read.still = { mode: await S.playTrialEntry({ ...getClock(), phase: "classTrial", chapter: 4, timeOfDayStartedAt: `${stamp}s`, trialCut: true }, { scene: "none" }), ...layers() };
             S.endSequence("cut");
-            read.exit = { mode: await S.playTrialExit({ ...getClock(), phase: "dailyLife", chapter: 4, trialEndedAt: `${stamp}x`, trialCut: true }, { on: true }), ...layers() };
+            read.exit = { mode: await S.playTrialExit({ ...getClock(), phase: "dailyLife", chapter: 4, trialEndedAt: `${stamp}x`, trialCut: true }, { on: true, scene: "none" }), ...layers() };
             S.endSequence("cut");
             // a sequence that closes no curtain draws in the one host
             read.one = S.playSequence("dayStart", `${stamp}d`, ctx => ctx.host.append(Object.assign(document.createElement("div"), { className: "drpg-seq-day" })), { on: true }) && layers().kids;
@@ -69826,6 +69999,1041 @@ const INVARIANTS = [
             constant: true, gmKnows: true, apply: [true, true, true], found: true, held: true }),
         "{rows: [hidden, knows, incident, shown, shown with HOLDER_SEES_HIDDEN false]; the constant; a GM knows any trace; applyToRemnantToken asks the rule with knowsRemnant and shows a hidden held trace; shownAsFound asks the same; showHeld does not defer to a GM's hidden}");
     }],
+    // T4 voice-ui-text-infra-tests (2.0 line T4, E134, 27.11.2026: docs/dev/v2/LINE-T4.md). The line's tests stand in this block.
+    ["R9245 - a test build migrates only in a test world (2.0 line T4, D2-13): migrate.mjs `migrationGate` answers why not for a 1.9.x version and for a pre-release one in a world whose id and title have no \"qa\", and for a version that cannot be read in any world; null for 1.9.x where the id or the title has \"qa\" in any case, for a release and for 2.0.0", async () => {
+        /*
+         * The owner's D2-13 (docs/dev/v2/DECISIONS.md): "Wydania 1.9.x pomijają migracje i ostrzegają w świecie, którego nazwa
+         * nie zawiera \"qa\"". A pre-release suffix counts as a test build (the line's default, the owner's question in
+         * LINE-T4-REPORT.md); "?" is moduleVersion's answer with no module.json. Red at 31d5812: no migrationGate.
+         */
+        const M = await import("./migrate.mjs");
+        must(typeof M.migrationGate === "function", "no migrationGate in migrate.mjs - this would measure nothing");
+        const gate = (version, worldTitle, worldId = "kampania") => M.migrationGate({ version, worldId, worldTitle });
+        equal(JSON.stringify([gate("1.9.0", "Kampania"), gate("1.9.0", "DRPG-QA-Forge"), gate("1.9.4", "Kampania", "drpg-qa-forge-2"),
+            gate("1.2.130", "Kampania"), gate("2.0.0", "Kampania"), gate("1.2.130-qa.1", "Kampania"), gate("1.2.130-rc.1", "Szkoła QA"),
+            gate("?", "DRPG-QA-Forge", "drpg-qa-forge"), gate("", "Kampania"), gate("1.10.0", "Kampania")]),
+        JSON.stringify(["testBuild", null, null, null, null, "testBuild", null, "noVersion", "noVersion", null]),
+            "[1.9.0 in Kampania; 1.9.0 titled DRPG-QA-Forge; 1.9.4 with the id drpg-qa-forge-2; 1.2.130; 2.0.0; 1.2.130-qa.1 in Kampania; 1.2.130-rc.1 titled Szkoła QA; ? in a qa world; an empty version; 1.10.0]");
+    }],
+    ["R9246 - a test build in a world without \"qa\" in its name migrates nothing and says so once (2.0 line T4, D2-13): migrate1_2_0 with 1.9.x installed, forced or not, answers `skipped: \"testBuild\"` before it chooses a clause or reads the stamp, writes no setting, and warns the GM once, to stay up, naming the version; migrationStatus says the same", async () => {
+        /*
+         * Tier 1 writes nothing: the version, the world, the warning and game.settings.set are stood in for the two calls
+         * (standIn), and `only` is an array that answers no clause and records each key it was asked about - so on a tree
+         * without the gate the runner chooses none to run, and the stamp it would write lands in the stand-in. A version
+         * this run alone uses keeps "once a load for a build and a world" from reading a warning an earlier run gave. Red at
+         * 31d5812: both calls ran the pass (`skipped` undefined, every clause key asked, the stamp set).
+         */
+        const M = await import("./migrate.mjs");
+        const mod = game.modules.get(MODULE_ID);
+        needs(env.replaceable(game, "world", "game.world"));
+        needs(env.replaceable(mod, "version", "the module's version"));
+        needs(env.replaceable(game.settings, "set", "game.settings.set"));
+        const version = `1.9.${Date.now() % 100000}`;
+        const stampBefore = getSetting(SETTINGS.migratedVersion);
+        const fakeWorld = Object.create(game.world, { id: { value: "r9246-campaign" }, title: { value: "R9246 Campaign" } });
+        const warns = [], sets = [], asked = [];
+        const only = () => Object.assign([], { includes: key => { asked.push(key); return false; } });
+        const back = [standIn(game, "world", fakeWorld), standIn(mod, "version", version),
+            standIn(ui.notifications, "warn", (text, options) => { warns.push([String(text), Boolean(options?.permanent)]); }),
+            standIn(game.settings, "set", async (scope, key) => { sets.push(`${scope}.${key}`); })];
+        let first, second, status;
+        try {
+            first = await M.migrate1_2_0({ quiet: true, only: only() });
+            second = await M.migrate1_2_0({ force: true, only: only() });
+            status = M.migrationStatus?.().skipped;
+        } finally {
+            for (const put of back.reverse()) put();
+        }
+        equal(JSON.stringify({ first: first?.skipped, second: second?.skipped, changed: [first?.changed, second?.changed], asked: asked.length, sets,
+            warns: warns.length, permanent: warns[0]?.[1], names: Boolean(warns[0]?.[0].includes(version)), status, stamp: getSetting(SETTINGS.migratedVersion) === stampBefore }),
+        JSON.stringify({ first: "testBuild", second: "testBuild", changed: [0, 0], asked: 0, sets: [], warns: 1, permanent: true, names: true, status: "testBuild", stamp: true }),
+            "{first: the automatic pass's answer; second: a forced pass's; changed; asked: clause keys the runner chose among; sets: settings written; warns: warnings; permanent; names: the warning names the version; status: migrationStatus().skipped; stamp: the stamp as before}");
+    }],
+    ["R9260 - a second open of the GM's messenger before the first has drawn its window raises nothing that has no element (2.0 line T4, FORGE-09c R1066): openMessenger() twice and openMessenger(<player>) in one tick throw nothing and leave one window, on the player's view; a player's thread window is raised only once rendered too", async () => {
+        /*
+         * R1066 threw "Cannot read properties of undefined (reading 'style')" on Foundry 14.370 at The Forge
+         * (docs/dev/v2/F3-forge-PC-2.md, FORGE-09c, 25.11.2026): its second openMessenger() raised the window the first had
+         * only begun to render. The harness's window draws its element in the tick of `render`, so the state v14 was in is
+         * stood in for: after the first call the window reads as not rendered and without an element (`standIn` on the
+         * instance), and its own `bringToFront` throws as v14's did when there is no element (the reading of the Forge's
+         * message, not of v14's source: LIVE-E134-01). The player's own thread window takes the same guard; tier 1 runs as
+         * a GM, so that branch is read in its source (`fnSource`). Red at 31d5812: the second call threw.
+         */
+        must(game.user.isGM, "the GM's window is a GM's");
+        needs(world.atLeast("playerAccounts", 1));
+        const A = await import("./messenger-app.mjs");
+        must(!A.gmMessengerWindow(), "the GM's messenger window is open - close it: this test opens its own");
+        const player = game.users.find(u => !u.isGM);
+        const putPositionsBack = holdMessengerPositions();
+        let threw = null, raisedBare = 0, read = null;
+        try {
+            A.openMessenger();
+            const app = A.gmMessengerWindow();
+            const real = app.bringToFront;
+            const back = [standIn(app, "element", undefined), standIn(app, "rendered", false), standIn(app, "bringToFront", function (...args) {
+                if (!this.element) { raisedBare++; throw new TypeError("Cannot read properties of undefined (reading 'style')"); }
+                return real.apply(this, args);
+            })];
+            try {
+                A.openMessenger();
+                A.openMessenger(player.id);
+            } catch (err) {
+                threw = String(err?.message ?? err);
+            } finally {
+                for (const put of back.reverse()) put();
+            }
+            await until(() => app.rendered && app.element?.isConnected, 2000);
+            read = [document.querySelectorAll("#drpg-messenger-gm").length, A.gmMessengerWindow() === app, app.view === player.id];
+        } finally {
+            await A.gmMessengerWindow()?.close();
+            putPositionsBack();
+        }
+        const src = stripComments((await moduleSources()).get("messenger-app.mjs") ?? "");
+        const playerRoad = fnSource(src, "openMessenger");
+        must(playerRoad.length > 200, "openMessenger's source was not read");
+        equal(JSON.stringify({ threw, raisedBare, read, player: /if \(existing\.rendered\) existing\.bringToFront\(\)/.test(playerRoad),
+            gm: /if \(existing\.rendered\) existing\.bringToFront\(\)/.test(fnSource(src, "openGmMessenger")) }),
+        JSON.stringify({ threw: null, raisedBare: 0, read: [1, true, true], player: true, gm: true }),
+            "{threw: what the second and third calls threw; raisedBare: raises of a window with no element; read: [windows, the same window, on the player's view]; player, gm: each road raises only a rendered window}");
+    }],
+    ["R9230 - the world dump leaves out what the table writes while the suite runs, and nothing a test writes (2.0 line T4, FORGE-09c): a change of `hideDock` and of a user's `popout` in core.rtcClientSettings, of rtcDockBefore and of `playing` on a sound of the cue playlist or of a playlist the music map names compares equal; a change of `muted` in the A/V settings, of a module setting, and of `playing` or `path` on any other playlist's sound is reported", async () => {
+        /*
+         * At The Forge, Foundry 14.370, 25.11.2026 (docs/dev/v2/F3-forge-PC-2.md, FORGE-09c): "tier 0/1 changed nothing in
+         * the world" failed on the camera dock's hold and the pause music, which no tier-0/1 test reaches (tests-kit.mjs, the
+         * DUMP_RULES rows of 27.11.2026, say what was read). Here two dumps of made-up values, through the dump's own road
+         * for a setting (`settingUnit`) and for a document (`dumpOf`), are compared with `dumpDiff`; nothing of the world is
+         * read but the playlists' rule, which is given its map. Red at 31d5812: no settingUnit, and the cue playlist's
+         * `playing` reported.
+         */
+        const K = await import("./tests-kit.mjs");
+        const { SITUATIONAL_PLAYLIST } = await import("./config.mjs");
+        must(typeof K.dumpDiff === "function" && typeof K.dumpOf === "function", "no dumpDiff or dumpOf - this would measure nothing");
+        const setting = (unit, value) => (typeof K.settingUnit === "function" ? K.settingUnit(unit, value) : JSON.stringify(value));
+        const av = (hideDock, popout, muted) => ({ audioSrc: "mic-1", hideDock, voice: { mode: "ptt" }, users: { R9230U: { popout, volume: 0.5, muted } } });
+        const settings = (a, record, own) => new Map([
+            ["client:core.rtcClientSettings", setting("client:core.rtcClientSettings", a)],
+            [`client:${MODULE_ID}.rtcDockBefore`, setting(`client:${MODULE_ID}.rtcDockBefore`, record)],
+            [`world:${MODULE_ID}.r9230Own`, setting(`world:${MODULE_ID}.r9230Own`, own)]
+        ].filter(([, v]) => v !== null));
+        const sound = (id, playing, path = "a.ogg") => ({ _id: id, name: id, path, playing, pausedTime: null, flags: {} });
+        const lists = (cue, other, otherPath = "a.ogg") => K.dumpOf("Playlist", [
+            { _id: "R9230CUE", name: SITUATIONAL_PLAYLIST, flags: {}, sounds: [sound("R9230CUES", cue)] },
+            { _id: "R9230OTHER", name: "Pause", flags: {}, sounds: [sound("R9230OTHERS", other, otherPath)] }]);
+        const names = diff => diff.map(d => d.path).sort();
+        const table = names(K.dumpDiff(new Map([...settings(av(false, true, false), {}, 1), ...lists(true, false)]),
+            new Map([...settings(av(true, false, false), { fields: { hideDock: false } }, 1), ...lists(false, false)])));
+        const tests = names(K.dumpDiff(new Map([...settings(av(true, false, false), {}, 1), ...lists(false, false)]),
+            new Map([...settings(av(true, false, true), {}, 2), ...lists(false, true, "b.ogg")])));
+        const mapped = typeof K.ownMusicPlaylist === "function"
+            ? [K.ownMusicPlaylist({ _id: "R9230M", name: "Pause" }, { map: { paused: "R9230M" } }), K.ownMusicPlaylist({ _id: "R9230N", name: "Pause" }, { map: { paused: "R9230M" } })]
+            : null;
+        equal(JSON.stringify({ table, tests, mapped }),
+            JSON.stringify({ table: [], tests: ["Playlist.R9230OTHER.sounds.R9230OTHERS.path", "Playlist.R9230OTHER.sounds.R9230OTHERS.playing",
+                "client:core.rtcClientSettings.users.R9230U.muted", `world:${MODULE_ID}.r9230Own`], mapped: [true, false] }),
+            "{table: what differs after the dock's hold and the module's music; tests: after a test's own writes; mapped: [a playlist the map names, one named alike that it does not]}");
+    }],
+    ["R9243 - the push-to-talk key is named whatever Foundry's namer makes of the binding (2.0 line T4, R8273): voice-tile.mjs `pushToTalkKey` hands the namer the binding with no modifiers given as none, answers the key's code when the namer throws or names nothing, and null with nothing bound", async () => {
+        /*
+         * R8273 failed at The Forge (Foundry 14.370; docs/dev/v2/F3-forge-PC-2.md, FORGE-09d) with the hook raised by the test
+         * itself, so the line's read of the key differed, not the hook: v14 names the binding through
+         * `ControlsConfig.humanizeBinding`, which the harness lacks, and a namer that threw answered null. A namer that reads
+         * `modifiers` as v13's did (remembered, not read in v14's source: LIVE-E134-03), one that throws and one that names
+         * nothing, over stand-in bindings. Nothing is read of this browser's own bindings. Red at 31d5812: the namer was not
+         * the one handed in, and a binding without modifiers read the bare code.
+         */
+        const V = await import("./voice-tile.mjs");
+        must(typeof V.pushToTalkKey === "function", "voice-tile.mjs has no pushToTalkKey - this would measure nothing");
+        const bound = binding => ({ get: (ns, name) => (ns === "core" && name === "pushToTalk" ? (binding ? [binding] : []) : []) });
+        const v13 = b => [...b.modifiers.map(m => m.toUpperCase()), b.key.replace(/^Key/, "")].join(" + ");
+        const read = [
+            V.pushToTalkKey(bound({ key: "KeyR" }), { humanize: v13 }),
+            V.pushToTalkKey(bound({ key: "KeyR", modifiers: ["Control"] }), { humanize: v13 }),
+            V.pushToTalkKey(bound({ key: "KeyR" }), { humanize: () => { throw new TypeError("Cannot read properties of undefined (reading 'reduce')"); } }),
+            V.pushToTalkKey(bound({ key: "KeyR" }), { humanize: () => "" }),
+            V.pushToTalkKey(bound(null), { humanize: v13 })
+        ];
+        equal(JSON.stringify(read), JSON.stringify(["R", "CONTROL + R", "KeyR", "KeyR", null]),
+            "[a binding without modifiers, one with Control, a namer that throws, one that names nothing, nothing bound]");
+    }],
+    ["R9241 - the handbooks window opens wholly on the screen (2.0 line T4, R111): handbooks.mjs `handbookBox` at 1920x1080 and 2560x1440, centred and moved low, right or off the top, keeps 900 x 760 where they fit and the window's every edge at least 8 px inside the screen; on a small screen it shrinks to the screen less 40 and 60", async () => {
+        /*
+         * R111 at The Forge (Foundry 14.370, 1920x1080; docs/dev/v2/F3-forge-PC-2.md, FORGE-09d): "the handbook window runs
+         * off the bottom of the screen". The box is a pure function of the screen and the place asked, so it is read here at
+         * the owner's two sizes (D2-20) and at 1280x720 with no window drawn. Red at 31d5812: no handbookBox - the window's
+         * place was Foundry's, for a height the glass did not keep (handbooks.mjs's note).
+         */
+        const H = await import("./handbooks.mjs");
+        must(typeof H.handbookBox === "function", "handbooks.mjs has no handbookBox - this would measure nothing");
+        const rows = [];
+        for (const [innerWidth, innerHeight] of [[1920, 1080], [2560, 1440], [1280, 720]]) {
+            for (const [top, left] of [[null, null], [innerHeight - 100, null], [null, innerWidth - 50], [-200, -200]]) {
+                const b = H.handbookBox({ innerWidth, innerHeight, top, left });
+                rows.push([`${innerWidth}x${innerHeight}`, top, left, b.width, b.height,
+                    b.top >= 8 && b.top + b.height <= innerHeight - 8, b.left >= 8 && b.left + b.width <= innerWidth - 8]);
+            }
+        }
+        const wrong = rows.filter(([size, , , width, height, inY, inX]) => !inY || !inX
+            || (size === "1280x720" ? width !== 900 || height !== 660 : width !== 900 || height !== 760));
+        equal(JSON.stringify(wrong), "[]", `[the screens and places whose box is not on the screen less 8 px a side, or not 900 x 760 (900 x 660 at 1280x720)] - read: ${JSON.stringify(rows)}`);
+        equal(JSON.stringify(H.handbookBox({ innerWidth: 1920, innerHeight: 1080 })), JSON.stringify({ width: 900, height: 760, top: 160, left: 510 }),
+            "the box at 1920x1080 with no place asked: centred");
+    }],
+    ["R9242 - the handbooks window keeps the height it is given under both themes (2.0 line T4, R111, R4721, R6602): no stylesheet rule's `height` wins on `.application.drpg-panel.drpg-ui.drpg-handbook`, so its text is the region that scrolls and a jump to a section moves it; the control: a plain panel under Stained Glass still takes the glass's `auto`. Read on the window's own classes (`HANDBOOK_WINDOW_CLASSES`)", async () => {
+        /*
+         * At The Forge (Foundry 14.370, 1920x1080; docs/dev/v2/F3-forge-PC-2.md, FORGE-09d) the window ran past the screen's
+         * foot (R111) and a jump scrolled 0 where 312 was asked (R4721, R6602). Read in the code: the jump (`goToSection`,
+         * `scrollToHeading`) scrolls the text, as it should - the cause is the window's height, which the glass drew `auto`,
+         * so the text never had a height to scroll in (handbooks.mjs's note above `HandbookApp`). Read here as R8910 reads the
+         * messenger's: the suite's cascade (`styleCascade().winner`), the rules as written, not the inline height. Red at
+         * 31d5812: "auto !important" under Stained Glass.
+         */
+        const C = await styleCascade();
+        const H = await import("./handbooks.mjs");
+        must(Array.isArray(H.HANDBOOK_WINDOW_CLASSES), "handbooks.mjs states no HANDBOOK_WINDOW_CLASSES - the window's classes cannot be read");
+        const heightOf = (theme, classes) => {
+            const body = document.createElement("body");
+            body.className = theme;
+            const el = body.appendChild(document.createElement("div"));
+            el.className = `application drpg-ui ${classes === "handbook" ? H.HANDBOOK_WINDOW_CLASSES.join(" ") : "drpg-panel"}`.trim();
+            el.style.height = "760px";
+            const won = C.winner(el, ["height"]);
+            return won ? `${won.value}${won.important ? " !important" : ""}` : null;
+        };
+        const got = {};
+        for (const [theme, key] of [["drpg-theme-stained-glass", "glass"], ["drpg-theme-monokuma-legacy", "legacy"]]) {
+            got[key] = { handbook: heightOf(theme, "handbook"), panel: heightOf(theme, "") };
+        }
+        equal(stableJson({ glass: got.glass.handbook, legacy: got.legacy.handbook, glassPanel: /^auto\b/.test(got.glass.panel ?? "") }),
+            stableJson({ glass: null, legacy: null, glassPanel: true }),
+            `[the rule winning \`height\` on the handbooks window under each theme, and the control] - read: ${stableJson(got)}`);
+    }],
+    ["R9247 - \"already at the maximum Hope\" names its one receiver (2.0 line T4, CALLS-18): call-effects.mjs `refusalBeforePaying` for a Call that grants Hope to a target whose Hope is full says the counted key's one form with the target's name as seen, and despair.mjs `creditHopeFromDespair` asks the same form with the receiver's name; the key is counted in both languages (one/other; Polish one/few/many/other) and no code reads it bare", async () => {
+        /*
+         * CALLS-18 (docs/dev/v2/F1-calls.md; TRIAGE-3): "Their Hope is already at maximum." / "Ich Hope jest już na maksimum."
+         * spoke of one receiver in the plural. The Call's refusal is read on a stand-in target - the world's first student
+         * with its Hope at its maximum, in this page's memory alone (a prototype over the student and its `system`) - so
+         * nothing is written; the Despair credit, whose refusal comes after a write road, is read in its source. Red at
+         * 31d5812: the bare key, "Their Hope is already at maximum."
+         */
+        const E = await import("./call-effects.mjs");
+        const { overflowBlocksHope } = await import("./overflow.mjs");
+        const { nameAsSeen } = await import("./mask-gm.mjs");
+        const real = studentActors()[0];
+        must(real, "no student in the world - this would measure nothing");
+        must(!overflowBlocksHope(), "the Overflow's darkening holds Hope here - the refusal read would be its, not this one");
+        const resources = foundry.utils.deepClone(real.system.toObject?.()?.resources ?? real.system.resources);
+        const max = resources.hope?.max || 6;
+        const target = Object.create(real, { system: { value: Object.create(real.system, { resources: { value: { ...resources, hope: { ...resources.hope, value: max, max } }, enumerable: true } }) } });
+        const said = E.refusalBeforePaying({ grantsHope: true }, { target });
+        const files = {};
+        for (const code of ["en", "pl"]) files[code] = await fetch(`/modules/${MODULE_ID}/lang/${code}.json`).then(r => r.json());
+        const family = code => files[code]?.DRPG?.Despair?.hopeAlreadyFull;
+        const sources = await moduleSources();
+        const despair = fnSource(stripComments(sources.get("despair.mjs") ?? ""), "creditHopeFromDespair");
+        must(despair.length > 200, "creditHopeFromDespair's source was not read");
+        const bare = [...sources].filter(([file]) => !/^tests/.test(file))
+            .filter(([, text]) => /(?:localize|format)\(\s*["']DRPG\.Despair\.hopeAlreadyFull["']/.test(stripComments(text))).map(([file]) => file);
+        equal(JSON.stringify({ said, despair: /plural\("DRPG\.Despair\.hopeAlreadyFull", \{ n: 1, name: actor\.name \}\)/.test(despair),
+            en: Object.keys(family("en") ?? {}).sort(), pl: Object.keys(family("pl") ?? {}).sort(), bare }),
+        JSON.stringify({ said: game.i18n.format("DRPG.Despair.hopeAlreadyFull.one", { name: nameAsSeen(target) }), despair: true,
+            en: ["one", "other"], pl: ["few", "many", "one", "other"], bare: [] }),
+            "{said: the Call's refusal for a full target; despair: the credit asks the one form with the receiver's name; en, pl: the key's forms; bare: files that read the key whole}");
+    }],
+    ["R9250 - the voice queue takes only the newest room (2.0 line T4, VOICE-02): voice-client.mjs `assignmentQueue` - with A applying, B and C come; A ends, then only C is applied, with the room told at its start; B is not reported; a re-apply with no request id while one waits keeps the id waiting; a parked apply reads its id when it starts", async () => {
+        /*
+         * VOICE-02, at The Forge (Foundry 14.370; S5, docs/dev/v2/F3-forge-PC-2.md): A -> B -> C every 2500 ms made 3
+         * connections and 4.7 s without voice; every assignment was its own link of the chain with its own room. The queue
+         * is read with its own chain and an apply that waits on the test (no LiveKit, nothing sent): `told` stands in for
+         * `desired`, `reported` for the report to the primary GM. Red at 31d5812: no assignmentQueue - each assignment
+         * applied in turn (A, B, C), measured as the room list of the chain the module had.
+         */
+        const VC = await import("./voice-client.mjs");
+        must(typeof VC.assignmentQueue === "function", "voice-client.mjs has no assignmentQueue - every assignment is applied in turn (A, B, C)");
+        let chain = Promise.resolve();
+        const chainOf = fn => (chain = chain.then(fn));
+        let told = null, release = null, parkedId = null;
+        const applied = [], reported = [];
+        const assign = VC.assignmentQueue(async slot => {
+            const room = told, id = slot.requestId ?? (slot.parked ? parkedId : null);
+            applied.push(room);
+            if (room === "A") await new Promise(resolve => { release = resolve; });
+            reported.push([room, id]);
+            return "applied";
+        }, { chainOf });
+        told = "A"; assign({ requestId: "rA" });
+        await until(() => release !== null, 1000);
+        told = "B"; assign({ requestId: "rB" });
+        told = "C"; assign({ requestId: "rC" });
+        assign();               // the drift's re-apply while C waits: no id of its own
+        release();
+        await chain;
+        const first = { applied: [...applied], reported: [...reported] };
+        applied.length = 0; reported.length = 0;
+        parkedId = "rEarly";
+        told = "D"; const parked = assign({ parked: true });
+        parkedId = "rLate";
+        await parked;
+        equal(JSON.stringify({ first, parked: { applied, reported } }),
+            JSON.stringify({ first: { applied: ["A", "C"], reported: [["A", "rA"], ["C", "rC"]] }, parked: { applied: ["D"], reported: [["D", "rLate"]] } }),
+            "{first: [rooms applied, [room, request id] reported] for A applying while B, C and a re-apply came; parked: a parked apply's room and the id it read at its start}");
+    }],
+    ["R9226 - the voice tile says the game server is lost while it is, and nothing is written or sent (2.0 line T4, FORGE-04): voice-tile.mjs `watchServerConnection` on a stand-in socket - `disconnect` draws `DRPG.Voice.serverLost` on the tile (its `data-drpg-server-lost` and line), `connect` takes it off; with no tile drawn one warning a loss, again after a reconnect; nothing goes out on the socket and no setting is written", async () => {
+        /*
+         * FORGE-04 at The Forge (Foundry 14.370; docs/dev/v2/F3-forge-PC-2.md): about 6.5 s without the network Foundry reloads
+         * the page, and the module said nothing. A stand-in socket (`on`, `emit` counted) and a stand-in tile in no document;
+         * `game.settings.set` stood in to count writes, put back after. Red at 31d5812: no watchServerConnection - the tile
+         * unchanged on a disconnect.
+         */
+        const VT = await import("./voice-tile.mjs");
+        must(typeof VT.watchServerConnection === "function", "voice-tile.mjs has no watchServerConnection - a disconnect changes nothing on the tile");
+        const socket = () => {
+            const on = new Map(); let sent = 0;
+            return { on: (event, fn) => on.set(event, [...(on.get(event) ?? []), fn]), emit: () => { sent++; }, fire: event => (on.get(event) ?? []).forEach(fn => fn()), sent: () => sent };
+        };
+        const tile = document.createElement("div");
+        const state = () => [tile.dataset.drpgServerLost ?? null, tile.querySelector(".drpg-voice-server-lost")?.textContent ?? null];
+        const words = game.i18n.localize("DRPG.Voice.serverLost");
+        const writes = [];
+        const back = standIn(game.settings, "set", async (...args) => { writes.push(args.slice(0, 2).join(".")); });
+        const read = {};
+        try {
+            const a = socket(), warned = [];
+            VT.watchServerConnection(a, { tile: () => tile, warn: text => warned.push(text) });
+            read.before = state();
+            a.fire("disconnect");
+            read.lost = state();
+            a.fire("connect");
+            read.back = state();
+            const b = socket(), told = [];
+            VT.watchServerConnection(b, { tile: () => null, warn: text => told.push(text) });
+            b.fire("disconnect"); b.fire("disconnect");
+            const once = told.length;
+            b.fire("connect"); b.fire("disconnect");
+            read.noTile = [once, told.length, told[0] === words];
+            read.sent = a.sent() + b.sent();
+            b.fire("connect");
+        } finally {
+            back();
+        }
+        read.writes = writes;
+        equal(JSON.stringify(read), JSON.stringify({ before: [null, null], lost: ["true", words], back: [null, null], noTile: [1, 2, true], sent: 0, writes: [] }),
+            "{the tile before, after a disconnect, after a connect; with no tile: warnings after two disconnects, after a reconnect and a third, the words; packets sent; settings written}");
+    }],
+    ["R9227 - a gather's pan stands down on a board whose view is not on the page, and the gather's own write pans nobody (2.0 line T4, FORGE-06): call-world.mjs `panToGathered` on a stand-in board pans to this user's token when the view is on the page, the board has no app or its app names no view (the harness's), and not, with no throw, when the view is off the page; `fallbackGather` writes with `pan: false`", async () => {
+        /*
+         * FORGE-06 at The Forge (Foundry 14.370; S2, docs/dev/v2/F3-forge-PC-2.md): "Cannot read properties of null (reading
+         * 'clientWidth') at DepthSortPlaceable.panCanvas" on P1 at a body's announcement - core v14's `Token#panCanvas` under
+         * isometric-perspective's token class, called by core's _onUpdate on the client that controls a moved token unless
+         * the write says `pan: false` (call-world.mjs's note above `panToGathered`, what was read and what was not). Stand-ins:
+         * the board and the user's own student, through `panToGathered`'s second argument; nothing of this page's canvas is
+         * read or panned. Red at 31d5812: `panToGathered` took no board, panned this page's canvas (and returned null here:
+         * a GM has no student), and the direct placement wrote no `pan: false`.
+         */
+        const W = await import("./call-world.mjs");
+        must(typeof W.panToGathered === "function", "call-world.mjs has no panToGathered - this would measure nothing");
+        const mine = { id: "R9227A" };
+        const token = { id: "R9227T", actor: { id: "R9227A" }, center: { x: 10, y: 20 } };
+        const board = app => {
+            const pans = [];
+            return { pans, b: { ready: true, scene: { id: "R9227S" }, tokens: { get: id => (id === token.id ? token : null) }, app, animatePan: async to => { pans.push(to); } } };
+        };
+        const onPage = document.createElement("canvas");
+        document.body.append(onPage);
+        const read = {};
+        try {
+            for (const [key, app] of [["onPage", { canvas: onPage }], ["oldView", { view: onPage }], ["noApp", undefined], ["offPage", { canvas: document.createElement("canvas") }], ["noView", {}]]) {
+                const { pans, b } = board(app);
+                let threw = null, answer;
+                try { answer = await W.panToGathered({ scene: "R9227S", tokenIds: [token.id] }, { board: b, mine }); } catch (err) { threw = err.message; }
+                read[key] = [answer ?? null, pans.length, threw];
+            }
+        } finally {
+            onPage.remove();
+        }
+        const src = stripComments((await moduleSources()).get("call-world.mjs") ?? "");
+        const fallback = fnSource(src, "fallbackGather");
+        must(fallback.length > 200, "fallbackGather's source was not read");
+        read.fallbackPanFalse = /updateEmbeddedDocuments\("Token",[\s\S]*?pan:\s*false[\s\S]*?\}\);/.test(fallback);
+        equal(JSON.stringify(read), JSON.stringify({ onPage: ["R9227T", 1, null], oldView: ["R9227T", 1, null], noApp: ["R9227T", 1, null],
+            // An app that names no view pans as before (the harness's board; scenario 65 B1b, U0).
+            offPage: [null, 0, null], noView: ["R9227T", 1, null], fallbackPanFalse: true }),
+            "{each board: [the answer, pans asked, what threw]: view on the page (PIXI 8's canvas, PIXI 7's view), no app, view off the page, an app with no view; the direct placement's pan: false}");
+    }],
+    ["R9229 - the GM's messenger list shows each row's whole preview (2.0 line T4, FORGE-07): messenger-gm.mjs `navRow` puts the preview, escaped, as the second line of the row's one tooltip (the Timeline's and a player's), and the preview's winning rules are two lines clamped, wrapping, with no ellipsis, under both themes", async () => {
+        /*
+         * FORGE-07 at The Forge (Foundry 14.370; S7, docs/dev/v2/F3-forge-PC-2.md): the Timeline row's preview held 308 px of
+         * text in 179 px at 1920x1080, an ellipsis S7 counts as an overflow. On a GM's page with a player in the world the
+         * window is opened as R1066 opens it and closed after; the rules are read with the suite's cascade on a stand-in row
+         * under each theme (`styleCascade().winner`, the sheets as written). Red at 31d5812: the tooltip held the row's tip
+         * alone, and base.css's `nowrap` and `ellipsis` won.
+         */
+        must(game.user.isGM, "the GM's window is a GM's");
+        needs(world.atLeast("playerAccounts", 1));
+        const A = await import("./messenger-app.mjs");
+        must(!A.gmMessengerWindow(), "the GM's messenger window is open - close it: this test opens its own");
+        const putPositionsBack = holdMessengerPositions();
+        let rows = [];
+        try {
+            A.openMessenger();
+            await until(() => A.gmMessengerWindow()?.element?.querySelector(".drpg-messenger-gm-nav-row"), 3000);
+            const root = A.gmMessengerWindow()?.element;
+            rows = [...(root?.querySelectorAll(".drpg-messenger-gm-nav-row") ?? [])].map(row => {
+                const preview = row.querySelector(".drpg-messenger-roster-preview")?.textContent ?? "";
+                const tip = row.dataset.tooltip ?? "";
+                return [row.dataset.drpgView === "console" ? "console" : "player", Boolean(preview) && tip.endsWith(`<br>${foundry.utils.escapeHTML(preview)}`) && tip.split("<br>").length === 2];
+            });
+        } finally {
+            await A.gmMessengerWindow()?.close();
+            putPositionsBack();
+        }
+        must(rows.length >= 2, `the window drew ${rows.length} row(s) - the Timeline's and a player's are read`);
+        const C = await styleCascade();
+        const won = theme => {
+            const body = document.createElement("body");
+            body.className = theme;
+            body.innerHTML = `<div class="application drpg-panel drpg-messenger drpg-messenger-gm"><nav class="drpg-messenger-gm-nav"><button class="drpg-messenger-gm-nav-row"><span class="drpg-messenger-roster-text"><span class="drpg-messenger-roster-preview">R9229</span></span></button></nav></div>`;
+            const el = body.querySelector(".drpg-messenger-roster-preview");
+            return Object.fromEntries(["white-space", "-webkit-line-clamp", "text-overflow", "display"].map(p => [p, C.winner(el, [p])?.value ?? null]));
+        };
+        const themes = { glass: won("drpg-theme-stained-glass"), legacy: won("drpg-theme-monokuma-legacy") };
+        const want = { "white-space": "normal", "-webkit-line-clamp": "2", "text-overflow": "clip", display: "-webkit-box" };
+        equal(JSON.stringify({ rows: [...new Set(rows.map(([kind, holds]) => `${kind}:${holds}`))].sort(), themes }),
+            JSON.stringify({ rows: ["console:true", "player:true"], themes: { glass: want, legacy: want } }),
+            "{rows: each kind of row, whether its tooltip's second and last line is its whole preview, escaped; themes: the preview's winning rules under each}");
+    }],
+    ["R9252 - the Students window's Microphone cell (2.0 line T4, VOICE-04): gm-students.mjs `micCellHtml` draws Block or Unblock for the row's player account as Foundry answers its microphone, `aria-pressed` its block, greyed with the module's own reason where voice-tile.mjs `micCellState` says the module holds it, there is no voice client or no microphone permission, and nothing for a row no player plays; `wireMicCells` hands a press to `toggleBlock` with that user and draws the cell again on the user's change", async () => {
+        /*
+         * VOICE-04 (docs/dev/v2/F1-infra.md): a GM could block or unblock a microphone only from the voice tile's list, which
+         * holds only the GM's own channel. Every reading here is stand-ins handed to the two functions: the users, the
+         * voice settings and client, the module's hold, the permissions, and the press's road (`toggle`); a window of the
+         * test's own, in no document but its own div, wired and then taken off the page so its hook stands down. Nothing is
+         * written. Red at 31d5812: gm-students.mjs had no micCellHtml.
+         */
+        const S = await import("./gm-students.mjs");
+        const VT = await import("./voice-tile.mjs");
+        must(typeof S.micCellHtml === "function" && typeof S.wireMicCells === "function" && typeof VT.micCellState === "function",
+            "no micCellHtml, wireMicCells or micCellState - the Students window has no microphone cell");
+        const player = { id: "R9252P", name: "R9252 Aiko", isGM: false, character: { id: "R9252A" } };
+        const users = { find: fn => [player].find(fn), get: id => (id === player.id ? player : null) };
+        let blocked = false, held = null;
+        const settings = { getUser: id => (id === player.id ? { canBroadcastAudio: !blocked } : null) };
+        const perms = { BROADCAST_AUDIO: "BROADCAST_AUDIO" };
+        const state = user => VT.micCellState(user, { client: {}, settings, holds: () => held, perms });
+        const cell = id => {
+            const box = document.createElement("div");
+            box.innerHTML = S.micCellHtml(id, { state, users });
+            const b = box.querySelector("button");
+            return b ? [b.textContent, b.getAttribute("aria-pressed"), b.disabled, b.dataset.tooltip] : null;
+        };
+        const L = key => game.i18n.localize(key);
+        const read = { open: cell("R9252A"), noPlayer: cell("R9252X") };
+        blocked = true; read.blocked = cell("R9252A");
+        held = { held: true, reason: "masked" }; read.held = cell("R9252A");
+        held = null;
+        read.noVoice = VT.micCellState(player, { client: null, settings, holds: () => null, perms })?.reason === L("DRPG.Voice.micNoVoice");
+        read.noPerm = VT.micCellState(player, { client: {}, settings, holds: () => null, perms: {} })?.reason === L("DRPG.Voice.list.gmNoBlock");
+        read.gm = VT.micCellState({ id: "R9252G", isGM: true }, { client: {}, settings, holds: () => null, perms });
+        // The wiring: a press, then the user's change drawn in place.
+        const page = document.createElement("div");
+        page.innerHTML = `<table><tr data-actor="R9252A"><td>${S.micCellHtml("R9252A", { state, users })}</td></tr></table>`;
+        document.body.append(page);
+        const pressed = [];
+        try {
+            S.wireMicCells({ element: page }, { toggle: user => { pressed.push(user.id); blocked = !blocked; }, state, users });
+            page.querySelector("[data-drpg-mic]").click();
+            await until(() => page.querySelector("[data-drpg-mic]")?.textContent === L("DRPG.Voice.micBlock"), 1000);
+            read.press = [pressed, page.querySelector("[data-drpg-mic]")?.textContent];
+            blocked = true;
+            Hooks.callAll("updateUser", player, {}, {}, game.user.id);
+            read.followed = page.querySelector("[data-drpg-mic]")?.textContent;
+        } finally {
+            page.remove();
+            Hooks.callAll("updateUser", player, {}, {}, game.user.id);
+        }
+        const block = game.i18n.format("DRPG.Voice.list.gmBlock", { name: player.name }), unblock = game.i18n.format("DRPG.Voice.list.gmUnblock", { name: player.name });
+        equal(JSON.stringify(read), JSON.stringify({
+            open: [L("DRPG.Voice.micBlock"), "false", false, block], noPlayer: null,
+            blocked: [L("DRPG.Voice.micUnblock"), "true", false, unblock],
+            held: [L("DRPG.Voice.micUnblock"), "true", true, L("DRPG.Voice.list.gmHeld")],
+            noVoice: true, noPerm: true, gm: null,
+            press: [["R9252P"], L("DRPG.Voice.micBlock")], followed: L("DRPG.Voice.micUnblock")
+        }), "{each cell: [its word, aria-pressed, greyed, its tooltip]: open, a row no player plays, blocked, held by the module; the reasons for no voice and no permission; a GM's; a press: [users toggled, the word after]; the word after the user's change}");
+    }],
+    ["R9253 - a trial's block left behind is lifted from the Students window, wherever the player stands (2.0 line T4, VOICE-04): `DRPG.Voice.trialMuteLeft` sends the GM to the Students window, in both languages, and no longer to \"Who you hear\" and the GM's channel; voice-tile.mjs `toggleBlock` lifts a player's own block with no word of the GM's channel or the player's room", async () => {
+        /*
+         * VOICE-04: voice.mjs `restoreTrialBlock`, in a Foundry with no deletion marker, leaves the trial's block and whispers
+         * `trialMuteLeft` to the GMs, which told them to unblock it in the list of the people they hear - so only for a
+         * player in their own voice channel. `toggleBlock` asks nothing of a channel: here a player account of the world is
+         * handed to it with Foundry's answers stood in (their microphone blocked by a key of their own, nothing held), and its
+         * `update` stood in to read what would be written; nothing is. Red at 31d5812: the old words.
+         */
+        needs(world.atLeast("playerAccounts", 1));
+        must(game.user.isGM, "toggleBlock is a GM's");
+        const VT = await import("./voice-tile.mjs");
+        const files = {};
+        for (const code of ["en", "pl"]) files[code] = await fetch(`/modules/${MODULE_ID}/lang/${code}.json`).then(r => r.json());
+        const words = code => String(files[code]?.DRPG?.Voice?.trialMuteLeft ?? "");
+        const player = game.users.find(u => !u.isGM);
+        const wrote = [];
+        const back = standIn(player, "update", async change => { wrote.push(change); return player; });
+        let did;
+        try {
+            did = await VT.toggleBlock(player, { holds: () => null, settings: { getUser: () => ({ canBroadcastAudio: false }) },
+                notify: () => {}, perms: { BROADCAST_AUDIO: "BROADCAST_AUDIO" }, ownKey: () => true });
+        } finally {
+            back();
+        }
+        const { forcedDeletion } = await import("./utils.mjs");
+        const lifted = wrote.length === 1 && Object.keys(wrote[0]).join() === "permissions.BROADCAST_AUDIO"
+            && (forcedDeletion() ? wrote[0]["permissions.BROADCAST_AUDIO"] !== false && wrote[0]["permissions.BROADCAST_AUDIO"] !== true : wrote[0]["permissions.BROADCAST_AUDIO"] === true);
+        equal(JSON.stringify({ en: [/Students/.test(words("en")), /Who you hear|voice channel/.test(words("en"))], pl: [/Uczniowie/.test(words("pl")), /Kogo słyszysz|kanale/.test(words("pl"))], did, lifted }),
+            JSON.stringify({ en: [true, false], pl: [true, false], did: true, lifted: true }),
+            "{en, pl: [the words name the Students window, the words still name the list or the channel]; did: toggleBlock wrote; lifted: what it wrote takes the player's own block off}");
+    }],
+    ["R9251 - Diagnostics turns the voice rooms off and on (2.0 line T4, VOICE-03): repair-window.mjs names the tile by what a press will do - Everybody in one voice room while the rooms are on, Turn the voice rooms on while they are off - asks before it turns them off, Cancel writing nothing, writes `voiceEnabled` at once when it turns them on, and refuses with its reason a GM who may not write the settings or a world with no LiveKit; gm-panel.mjs draws the tile in Diagnostics after The case, the line's tiles together at the end, under the setting's state", async () => {
+        /*
+         * VOICE-03 (docs/dev/v2/F1-infra.md): "Voice in each room" stood in the Game settings window alone, and the GM
+         * handbook's "When voice goes wrong" did not name it. Every reading here is the functions' with stand-ins handed
+         * through their parameters - the setting's state (`on`), its write (`set`), the question (`ask`), the notice
+         * (`notify`) and the refusal; nothing is written and no window is drawn. The tile is read off `buildSections`, the
+         * panel's markup alone. Red at 31d5812: there was no repair-window.mjs.
+         */
+        const R = await import("./repair-window.mjs").catch(() => null);
+        must(R && typeof R.toggleVoiceRooms === "function" && typeof R.voiceRoomsRefusal === "function" && typeof R.voiceRoomsLabelKey === "function",
+            "no repair-window.mjs with toggleVoiceRooms, voiceRoomsRefusal and voiceRoomsLabelKey - Diagnostics has no voice rooms tile");
+        const L = key => game.i18n.localize(key);
+        const press = async (on, answer, refusal = () => null) => {
+            const asked = [], wrote = [], told = [];
+            const did = await R.toggleVoiceRooms({ on, refusal, set: async value => { wrote.push(value); },
+                ask: async (title, body, yes, tip) => { asked.push([title, yes, Boolean(body), Boolean(tip)]); return answer; },
+                notify: text => told.push(text) });
+            return { did, asked, wrote, told };
+        };
+        const read = {
+            labels: [L(R.voiceRoomsLabelKey(true)), L(R.voiceRoomsLabelKey(false))],
+            off: await press(true, true),
+            cancel: await press(true, false),
+            on: await press(false, false),
+            refused: await press(true, true, () => "R9251 no"),
+            reasons: [R.voiceRoomsRefusal({ mayModify: () => false, liveKit: () => true }), R.voiceRoomsRefusal({ mayModify: () => true, liveKit: () => false }),
+                R.voiceRoomsRefusal({ mayModify: () => true, liveKit: () => true })]
+        };
+        // The tile as the panel draws it, under the world's own setting.
+        const P = await import("./gm-panel.mjs");
+        const box = document.createElement("div");
+        box.innerHTML = P.buildSections();
+        const fixes = [...box.querySelectorAll('details[data-drpg-key="fixes"] [data-drpg-run]')].map(b => b.dataset.drpgRun);
+        const tile = box.querySelector('[data-drpg-run="voiceRooms"]');
+        const base = fixes.indexOf("caseWindow");
+        must(base >= 0, "Diagnostics has no The case tile - the line's tiles stand after it, so this would measure nothing");
+        read.tile = [fixes[base + 1] ?? null, tile?.querySelector("span")?.textContent === L(R.voiceRoomsLabelKey(R.voiceRoomsOn())),
+            tile?.disabled === (R.voiceRoomsRefusal() !== null)];
+        const asked = [L("DRPG.Repair.voiceRoomsOff"), L("DRPG.Repair.voiceRoomsOffYes"), true, true];
+        equal(JSON.stringify(read), JSON.stringify({
+            labels: [L("DRPG.Repair.voiceRoomsOff"), L("DRPG.Repair.voiceRoomsOn")],
+            off: { did: true, asked: [asked], wrote: [false], told: [L("DRPG.Repair.voiceRoomsOffDone")] },
+            cancel: { did: false, asked: [asked], wrote: [], told: [] },
+            on: { did: true, asked: [], wrote: [true], told: [L("DRPG.Repair.voiceRoomsOnDone")] },
+            refused: { did: null, asked: [], wrote: [], told: [] },
+            reasons: [L("DRPG.SettingsWindow.mayNot"), L("DRPG.Repair.voiceRoomsNoLiveKit"), null],
+            tile: ["voiceRooms", true, true]
+        }), "{labels: [rooms on, rooms off]; each press: [answered, asked [title, yes, a body, a tip], wrote, told] - off and Yes, off and Cancel, on, refused; reasons: [no settings right, no LiveKit, neither]; tile: [the tile after the base's last (The case), its words by the state, greyed as the refusal says]}");
+    }],
+    ["R9248 - a repair runs its console function only on Yes (2.0 line T4, PANEL-01): repair-window.mjs `runRepair` asks first for every row of `REPAIRS`, a Cancel and a closed question calling nothing, a Yes calling the row's `game.drpg` function once with its arguments - the pick of a row that picks, `{ drop: true }` for the dropped end, `{ force: true }` for the migration - and telling the GM what it answered; `repairState` greys a primary's row off the primary and a pick with nothing to pick, with the reason; the window's table hands a press its row and its pick, and a greyed button hands nothing", async () => {
+        /*
+         * PANEL-01 (docs/dev/v2/F1-infra.md). Every reading is the functions' with stand-ins through their parameters: the
+         * console (`api`, a recorder per function the rows name), the question (`ask`) and the notice (`notify`); the table
+         * is drawn into a div of the test's own and pressed there. Nothing is written and no console function runs. Red at
+         * 31d5812: there was no repair-window.mjs.
+         */
+        const R = await import("./repair-window.mjs").catch(() => null);
+        must(R && Array.isArray(R.REPAIRS) && typeof R.runRepair === "function" && typeof R.repairState === "function"
+            && typeof R.repairsHtml === "function" && typeof R.wireRepairs === "function",
+            "repair-window.mjs has no REPAIRS, runRepair, repairState, repairsHtml or wireRepairs - Diagnostics has no repairs");
+        const L = key => game.i18n.localize(key);
+        const calls = [];
+        const answers = { clearBodyDiscovery: {}, finishChapterEnd: null, clearPendingObserves: 3, unhide: true, resetTokens: true,
+            repaintFog: true, refreshMusic: undefined, gmStoreReclaim: { added: ["a"], taken: [], conflicts: ["c", "d"] },
+            migrate: { changed: 2, failed: [] }, resetAllActions: [{}, {}] };
+        const api = Object.fromEntries(Object.keys(answers).map(name => [name, async (...args) => { calls.push([name, JSON.parse(JSON.stringify(args))]); return answers[name]; }]));
+        const picks = { unhide: "R9248A", reclaim: "bullets" };
+        const choices = { unhide: [{ value: "R9248A", label: "R9248 Aiko" }], reclaim: [{ value: "bullets", label: "bullets" }] };
+        const press = async (key, answer) => {
+            calls.length = 0;
+            const told = [], asked = [];
+            const did = await R.runRepair(key, { api, pick: picks[key] ?? null, choices: choices[key] ?? null,
+                ask: async (title, body, yes, tip) => { asked.push(title === L(`DRPG.Repair.${key}.button`) && yes === title && tip === L(`DRPG.Repair.${key}.does`)); return answer; },
+                notify: text => told.push(text) });
+            return { did: did?.ran ?? did, asked, calls: [...calls], told };
+        };
+        const read = { keys: R.REPAIRS.map(r => r.key), rows: {} };
+        for (const row of R.REPAIRS) {
+            read.rows[row.key] = { cancel: await press(row.key, false), closed: await press(row.key, null), yes: await press(row.key, true) };
+        }
+        read.noPick = await R.runRepair("unhide", { api, ask: async () => true, notify: () => {} });
+        read.states = {
+            music: R.repairState(R.REPAIRS.find(r => r.key === "music"), { primary: false, primaryName: "R9248 Kenji" }).refusal,
+            musicHere: R.repairState(R.REPAIRS.find(r => r.key === "music"), { primary: true }).refusal,
+            noneHidden: R.repairState(R.REPAIRS.find(r => r.key === "unhide"), { primary: true, hidden: [] }).refusal,
+            hidden: R.repairState(R.REPAIRS.find(r => r.key === "unhide"), { primary: true, hidden: [{ actorId: "R9248A", name: "R9248 Aiko" }] }),
+            noStore: R.repairState(R.REPAIRS.find(r => r.key === "reclaim"), { primary: true, stores: [] }).refusal
+        };
+        // The window's table, pressed.
+        const states = new Map([["music", { refusal: "R9248 no", choices: null }], ["unhide", { refusal: null, choices: [{ value: "R9248A", label: "R9248 Aiko" }, { value: "R9248B", label: "R9248 Ben" }] }]]);
+        const box = document.createElement("div");
+        box.innerHTML = R.repairsHtml(states);
+        const pressed = [];
+        R.wireRepairs(box, { press: async (key, pick) => { pressed.push([key, pick]); } });
+        box.querySelector('[data-drpg-repair="fog"]').click();
+        box.querySelector('[data-drpg-repair-pick="unhide"]').value = "R9248B";
+        box.querySelector('[data-drpg-repair="unhide"]').click();
+        box.querySelector('[data-drpg-repair="music"]').click();
+        await settle();
+        read.table = { buttons: [...box.querySelectorAll("[data-drpg-repair]")].map(b => b.dataset.drpgRepair),
+            greyed: [...box.querySelectorAll("[data-drpg-repair]:disabled")].map(b => [b.dataset.drpgRepair, b.title]),
+            warned: Boolean(box.querySelector('[data-drpg-repair="actions"]')?.closest("tr")?.textContent.includes(L("DRPG.Repair.actions.warn"))), pressed };
+        const nothing = { did: false, asked: [true], calls: [], told: [] };
+        const yes = (call, args, told) => ({ did: true, asked: [true], calls: [[call, args]], told });
+        const F = (key, data) => game.i18n.format(key, data);
+        const { plural } = await import("./utils.mjs");
+        const want = {
+            body: yes("clearBodyDiscovery", [], [L("DRPG.Repair.body.done")]),
+            chapterFinish: yes("finishChapterEnd", [], []),
+            chapterDrop: yes("finishChapterEnd", [{ drop: true }], []),
+            observes: yes("clearPendingObserves", [], [plural("DRPG.Repair.observes.done", { n: 3 })]),
+            unhide: yes("unhide", ["R9248A"], [F("DRPG.Repair.unhide.done", { name: "R9248 Aiko" })]),
+            tokens: yes("resetTokens", [], []),
+            fog: yes("repaintFog", [], [L("DRPG.Repair.fog.done")]),
+            music: yes("refreshMusic", [], [L("DRPG.Repair.music.done")]),
+            reclaim: yes("gmStoreReclaim", ["bullets"], [F("DRPG.Repair.reclaim.done", { store: "bullets", added: 1, count: 0, kept: 2 })]),
+            migrate: yes("migrate", [{ force: true }], [F("DRPG.Repair.migrate.done", { count: 2, cut: 0 })]),
+            actions: yes("resetAllActions", [], [plural("DRPG.Repair.actions.done", { n: 2 })])
+        };
+        equal(JSON.stringify(read), JSON.stringify({
+            keys: Object.keys(want),
+            rows: Object.fromEntries(Object.entries(want).map(([key, y]) => [key, { cancel: nothing, closed: nothing, yes: y }])),
+            noPick: null,
+            states: { music: F("DRPG.Repair.primaryOnly", { name: "R9248 Kenji" }), musicHere: null, noneHidden: L("DRPG.Repair.unhide.noneHidden"),
+                hidden: { refusal: null, choices: [{ value: "R9248A", label: "R9248 Aiko" }] }, noStore: L("DRPG.Repair.reclaim.noneChanged") },
+            table: { buttons: Object.keys(want), greyed: [["music", "R9248 no"]], warned: true, pressed: [["fog", null], ["unhide", "R9248B"]] }
+        }), "{keys: the rows in order; rows: each row's [Cancel, closed, Yes]: [answered, asked as its button with its effect, the console calls with their arguments, told]; noPick: a picking row with no pick; states: a primary's row off and on the primary, no one hidden, one hidden, no store changed; table: [its buttons, the greyed ones with their reason, the actions' warning drawn, what three presses handed on]}");
+    }],
+    ["R9249 - every repair is a console function, and Repairs is Diagnostics' last tile (2.0 line T4, PANEL-01): each row of repair-window.mjs `REPAIRS` names a function `game.drpg` holds (the object as it stands, not its source); gm-panel.mjs draws the tile `repairs`, Repairs in both languages, last in Diagnostics", async () => {
+        /* PANEL-01: the window adds no logic, so each of its rows must be a road the console already had. Read off the
+           API object and the panel's markup (`buildSections`); nothing is called or written. Red at 31d5812: no repair-window.mjs. */
+        const R = await import("./repair-window.mjs").catch(() => null);
+        must(R && Array.isArray(R.REPAIRS) && R.REPAIRS.length, "repair-window.mjs has no REPAIRS - this would measure nothing");
+        const files = {};
+        for (const code of ["en", "pl"]) files[code] = await fetch(`/modules/${MODULE_ID}/lang/${code}.json`).then(r => r.json());
+        const P = await import("./gm-panel.mjs");
+        const box = document.createElement("div");
+        box.innerHTML = P.buildSections();
+        const fixes = [...box.querySelectorAll('details[data-drpg-key="fixes"] [data-drpg-run]')].map(b => b.dataset.drpgRun);
+        equal(JSON.stringify({ missing: R.REPAIRS.filter(r => typeof game.drpg?.[r.call] !== "function").map(r => r.call),
+            last: fixes.at(-1), words: [files.en?.DRPG?.Repair?.tile, files.pl?.DRPG?.Repair?.tile],
+            label: box.querySelector('[data-drpg-run="repairs"] span')?.textContent ?? null }),
+        JSON.stringify({ missing: [], last: "repairs", words: ["Repairs", "Naprawy"], label: game.i18n.localize("DRPG.Repair.tile") }),
+        "{missing: the rows' functions game.drpg does not hold; last: Diagnostics' last tile; words: the tile's [en, pl]; label: the drawn tile's words}");
+    }],
+    ["R9223 - the host's refusal of the case's copy is told once and stops the tries (2.0 line T4, FORGE-01): case-copy.mjs `writeServerCopy`, on The Forge with an upload refused in the Forge's words, answers \"host\" both times, warns once with `DRPG.Case.copy.refused.host` that stays and logs one warning and no error, and `scheduleCopy` plans nothing after; the same refusal off The Forge, and any other error, is \"failed\" and an error as before; `hostRefusal` takes a 401 or 403 on The Forge alone", async () => {
+        /*
+         * FORGE-01 (docs/dev/v2/F3-forge-S0.md): on The Forge every write ended in `error` and nothing was said. The
+         * FilePicker, The Forge, the stores' hydration, the files' privacy and the screen's warning are stood in through
+         * case-copy.mjs `SEAL_DEPS` (as scenario 34 does); the picker lists an empty folder and refuses the upload, so
+         * nothing is read into the stores and nothing is written. The console's lines are counted in this browser's
+         * failure log (utils.mjs `sessionFailures`). This session's refusal, and a write a failure scheduled, are forgotten after (`forgetCopySession`): cancelled, never written.
+         * Red at 31d5812: "failed" and an error at each write.
+         */
+        must(game.user.isGM, "the case's copy is a GM's");
+        const C = await import("./case-copy.mjs");
+        const { sessionFailures } = await import("./utils.mjs");
+        must(typeof C.hostRefusal === "function" && typeof C.forgetCopySession === "function", "case-copy.mjs has no hostRefusal or forgetCopySession - the host's refusal is not told apart");
+        // A write the module scheduled itself (its read at load, a store's change) is let run its course first: never cancelled.
+        await until(() => !C.copyState().pending, 65000);
+        must(!C.copyState().pending, "a write of the case's copy still waits on this browser after a minute - the test would cancel it");
+        const lastWas = C.copyState().last;
+        const FORGE = "Access Unauthorized. Please enter your API key or sign in to The Forge.";
+        const lines = () => {
+            const rows = sessionFailures().filter(r => /server copy/.test(r.message));
+            return { warn: rows.filter(r => r.level === "warn").reduce((n, r) => n + r.count, 0), error: rows.filter(r => r.level === "error").reduce((n, r) => n + r.count, 0) };
+        };
+        const run = async ({ forge, fail }) => {
+            const told = [];
+            const was = lines();
+            const deps = { ...C.SEAL_DEPS };
+            Object.assign(C.SEAL_DEPS, { hydrated: () => true, forge: () => forge, files: () => null, notify: (text, options) => told.push([text, Boolean(options?.permanent)]),
+                picker: () => ({ browse: async () => ({ files: [] }), createDirectory: async () => {}, upload: async () => { throw fail; } }) });
+            let answers, scheduled, pending;
+            try {
+                answers = [await C.writeServerCopy({ explicit: true }), await C.writeServerCopy({ explicit: true })];
+                scheduled = C.scheduleCopy();
+                pending = C.copyState().pending;
+            } finally {
+                // The write a failure scheduled is cancelled, never flushed against the module's own picker.
+                C.forgetCopySession({ last: lastWas });
+                Object.assign(C.SEAL_DEPS, deps);
+            }
+            const now = lines();
+            return { answers, told, scheduled, pending, warn: now.warn - was.warn, error: now.error - was.error };
+        };
+        const read = {
+            forge: await run({ forge: true, fail: new Error(FORGE) }),
+            offForge: await run({ forge: false, fail: new Error(FORGE) }),
+            other: await run({ forge: true, fail: new Error("R9223 disk full") }),
+            statuses: [C.hostRefusal({ status: 403 }, { forge: true }), C.hostRefusal({ statusCode: 401 }, { forge: true }), C.hostRefusal({ status: 403 }, { forge: false }),
+                C.hostRefusal({ status: 500 }, { forge: true }), C.hostRefusal(new Error("sign in to The Forge"), { forge: true })]
+        };
+        const host = game.i18n.localize("DRPG.Case.copy.refused.host");
+        equal(JSON.stringify(read), JSON.stringify({
+            forge: { answers: ["host", "host"], told: [[host, true]], scheduled: false, pending: false, warn: 1, error: 0 },
+            offForge: { answers: ["failed", "failed"], told: [], scheduled: true, pending: true, warn: 0, error: 2 },
+            other: { answers: ["failed", "failed"], told: [], scheduled: true, pending: true, warn: 0, error: 2 },
+            statuses: [true, true, false, false, true]
+        }), "{forge, offForge, other: [what two writes answered, the warnings told [text, it stays], a write scheduled after, one waiting, console warnings, console errors]; statuses: hostRefusal of a 403, a 401, a 403 off The Forge, a 500, the Forge's words}");
+    }],
+    ["R9224 - an empty planner on a GM's browser alone gets a card that stays, with The case a press away (2.0 line T4, FORGE-01): case-copy.mjs `copyAtLoad`, with the planner empty in a world whose case was recorded and no other GM online, raises the card \"empty\" when the folder held no copy and when it could not be listed, and none with another GM online, with the planner holding something or in a world never recorded; `caseCardBody`'s one button runs what it is handed; at a new session `offerFileAtSession` raises the card \"file\" on the primary while the copy is impossible, once a session", async () => {
+        /*
+         * FORGE-01: a fresh GM browser with no other GM online was told the planner was empty in one `info` that went, and
+         * only when the folder was read. Every reading is the functions' with stand-ins through their parameters (the
+         * folder's read, the planner, the world's mark, who is online, the card) and SEAL_DEPS.files; no card is drawn,
+         * nothing is read into the stores or written. Red at 31d5812: `copyAtLoad` was the module's own, with no card.
+         */
+        must(game.user.isGM, "the case's copy is a GM's");
+        const C = await import("./case-copy.mjs");
+        must(typeof C.copyAtLoad === "function" && typeof C.caseCardBody === "function" && typeof C.offerFileAtSession === "function",
+            "case-copy.mjs has no copyAtLoad, caseCardBody or offerFileAtSession - the empty planner raises no card");
+        // A write the module scheduled itself (its read at load, a store's change) is let run its course first: never cancelled.
+        await until(() => !C.copyState().pending, 65000);
+        must(!C.copyState().pending, "a write of the case's copy still waits on this browser after a minute - the test would cancel it");
+        const filesWere = C.SEAL_DEPS.files;
+        const lastWas = C.copyState().last;
+        const load = async ({ seen = { read: 0, count: 0 }, empty = true, since = 1, alone = true } = {}) => {
+            const cards = [];
+            await C.copyAtLoad({ read: async () => seen, empty: () => empty, since: () => since, alone: () => alone, card: async kind => { cards.push(kind); } });
+            return cards;
+        };
+        const read = {};
+        C.SEAL_DEPS.files = () => null;
+        try {
+            read.noCopy = await load();
+            read.list = await load({ seen: { refused: "list" } });
+            read.quiet = await load({ seen: { refused: "quiet" } });
+            read.read = await load({ seen: { read: 1, count: 1 } });
+            read.otherGm = await load({ alone: false });
+            read.full = await load({ empty: false });
+            read.newWorld = await load({ since: 0 });
+            // The session's card: the copy impossible ("list", from the read above), on the primary, once a session.
+            await load({ seen: { refused: "list" }, empty: false });
+            const cards = [];
+            const card = async kind => { cards.push(kind); };
+            read.session = [await C.offerFileAtSession({ session: 9224, primary: true, card }), await C.offerFileAtSession({ session: 9224, primary: true, card }),
+                await C.offerFileAtSession({ session: 9225, primary: false, card }), cards];
+        } finally {
+            // A load that read "no copy" on the primary scheduled a write: cancelled, never written; the last outcome put back.
+            C.forgetCopySession({ last: lastWas });
+            C.SEAL_DEPS.files = filesWere;
+        }
+        let opened = 0;
+        const body = C.caseCardBody("empty", { open: () => { opened++; } });
+        body.querySelector("button[data-drpg-case-card]").click();
+        await settle();
+        read.card = [body.querySelector("p")?.textContent === game.i18n.localize("DRPG.Case.copy.card.empty.body"),
+            body.querySelector("button")?.textContent === game.i18n.localize("DRPG.Case.copy.card.empty.button"), Boolean(body.querySelector("button")?.dataset.tooltip), opened];
+        equal(JSON.stringify(read), JSON.stringify({
+            noCopy: ["empty"], list: ["empty"], quiet: [], read: [], otherGm: [], full: [], newWorld: [],
+            session: [true, false, false, ["file"]], card: [true, true, true, 1]
+        }), "{each load: the cards raised - no copy, the folder not listed, the suite's quiet, a copy read, another GM online, a planner that holds something, a world never recorded; session: [the primary's first offer, its second in the same session, another GM's, the cards]; card: [its words, its button's words, a tooltip, the button's runs]}");
+    }],
+    ["R9225 - the case tile and The case's window say when the copy on the server is impossible (2.0 line T4, FORGE-01): gm-stores.mjs `copyLineText` says the host's refusal, a failed write and an unlisted folder in their own words; gm-panel.mjs draws the tile's second line with `DRPG.Case.copy.tileNoCopy` while case-copy.mjs `copyImpossible` holds, and the backup's age alone otherwise; the window's body names where the case comes from (`DRPG.Case.copy.sources`), in both languages", async () => {
+        /*
+         * FORGE-01: the tile showed the backup's age alone, and the window's line the last listing. `copyLineText` is
+         * handed each state; the tile is read off `buildSections` with the copy's state made "host" by a refused write on
+         * the stand-ins (R9223's), then forgotten; the window's body is read off its source. Nothing is written. Red at
+         * 31d5812: neither said it.
+         */
+        must(game.user.isGM, "the case tile is a GM's");
+        const C = await import("./case-copy.mjs");
+        const S = await import("./gm-stores.mjs");
+        const P = await import("./gm-panel.mjs");
+        must(typeof C.copyImpossible === "function" && typeof C.forgetCopySession === "function", "case-copy.mjs has no copyImpossible or forgetCopySession - the tile cannot say it");
+        // A write the module scheduled itself (its read at load, a store's change) is let run its course first: never cancelled.
+        await until(() => !C.copyState().pending, 65000);
+        must(!C.copyState().pending, "a write of the case's copy still waits on this browser after a minute - the test would cancel it");
+        const lastWas = C.copyState().last;
+        const L = key => game.i18n.localize(key);
+        const lines = Object.fromEntries(["host", "failed", "list"].map(last => [last, S.copyLineText({ refused: null, found: false, last }) === L(`DRPG.Case.copy.refused.${last}`)]));
+        const tile = () => {
+            const box = document.createElement("div");
+            box.innerHTML = P.buildSections();
+            return box.querySelector('[data-drpg-run="caseWindow"] small')?.textContent ?? null;
+        };
+        const before = tile();
+        const deps = { ...C.SEAL_DEPS };
+        let during;
+        Object.assign(C.SEAL_DEPS, { hydrated: () => true, forge: () => true, files: () => null, notify: () => {},
+            picker: () => ({ browse: async () => ({ files: [] }), createDirectory: async () => {}, upload: async () => { throw new Error("Access Unauthorized. Please enter your API key or sign in to The Forge."); } }) });
+        try {
+            const answer = await C.writeServerCopy({ explicit: true });
+            during = [answer, tile(), S.copyLineText(C.copyStatus()) === L("DRPG.Case.copy.refused.host")];
+        } finally {
+            C.forgetCopySession({ last: lastWas });
+            Object.assign(C.SEAL_DEPS, deps);
+        }
+        const files = {};
+        for (const code of ["en", "pl"]) files[code] = await fetch(`/modules/${MODULE_ID}/lang/${code}.json`).then(r => r.json());
+        const windowSource = fnSource(stripComments(new Map(await moduleSources()).get("gm-stores.mjs") ?? ""), "openCaseWindow");
+        must(windowSource, "gm-stores.mjs has no openCaseWindow - this would measure nothing");
+        equal(JSON.stringify({ lines, before: before !== null && !before.includes(";"), during, after: tile() === before,
+            sources: /DRPG\.Case\.copy\.sources/.test(windowSource), words: [Boolean(files.en?.DRPG?.Case?.copy?.sources), Boolean(files.pl?.DRPG?.Case?.copy?.sources)] }),
+        JSON.stringify({ lines: { host: true, failed: true, list: true }, before: true,
+            during: ["host", game.i18n.format("DRPG.Case.copy.tileNoCopy", { when: before }), true], after: true, sources: true, words: [true, true] }),
+        "{lines: the window's line for each impossible copy is its own words; before: the tile's second line the backup's age alone; during (the host refused): [the write's answer, the tile's second line, the window's line]; after: the tile as before; sources: the window names where the case comes from; words: [en, pl]}");
+    }],
+    ["R9254 - a room's announcement goes to the players whose students stand there (2.0 line T4, EXP-GM-08): announce.mjs `roomRecipients` answers the player accounts whose character stands in the room on the scene asked, each once, with no GM, no account without a character, no dead student and no Spectator, and nobody on another scene's room of that name", async () => {
+        /*
+         * EXP-GM-08 (docs/dev/v2/F1-*.md): who hears a room's announcement is read off the GMs' documents. The accounts,
+         * where each character stands (`place`), the dead and the Spectators are stood in through the parameters; nothing
+         * is read of the world and nothing written. Decided here: a dead student and a Spectator are not "in the room"
+         * for an announcement (the report says so). Red at 31d5812: there was no announce.mjs.
+         */
+        const A = await import("./announce.mjs").catch(() => null);
+        must(A && typeof A.roomRecipients === "function", "no announce.mjs with roomRecipients - Monokuma cannot announce to a room");
+        const actor = id => ({ id, name: id });
+        const users = [
+            { id: "U1", isGM: false, character: actor("A1") }, { id: "U2", isGM: false, character: actor("A2") },
+            { id: "U3", isGM: false, character: actor("A3") }, { id: "U4", isGM: false, character: actor("A4") },
+            { id: "U5", isGM: false, character: actor("A5") }, { id: "U6", isGM: false, character: null },
+            { id: "G1", isGM: true, character: actor("A6") }, { id: "U1", isGM: false, character: actor("A1") }
+        ];
+        const where = { A1: ["S1", "Kitchen"], A2: ["S1", "Kitchen"], A3: ["S1", "Library"], A4: ["S2", "Kitchen"], A5: ["S1", "Kitchen"], A6: ["S1", "Kitchen"] };
+        const place = a => (where[a.id] ? { scene: { id: where[a.id][0] }, room: where[a.id][1] } : null);
+        const opts = { scene: { id: "S1" }, users, place, dead: a => a.id === "A2", spectator: a => a.id === "A5" };
+        equal(JSON.stringify({ kitchen: await A.roomRecipients("Kitchen", opts), library: await A.roomRecipients("Library", opts),
+            none: await A.roomRecipients("Attic", opts), noRoom: await A.roomRecipients(null, opts) }),
+        JSON.stringify({ kitchen: ["U1"], library: ["U3"], none: [], noRoom: [] }),
+        "{kitchen: the accounts reached (U1 alive there; U2 dead, U4 on another scene, U5 a Spectator, U6 no character, G1 a GM; U1 listed twice); library; a room nobody stands in; no room}");
+    }],
+    ["R9255 - Monokuma's announcement: one card a recipient in their own thread, the words escaped, and the school's one public card spoken by Monokuma (2.0 line T4, EXP-GM-08): announce.mjs `announce` posts a room's card once into each recipient's thread and nowhere else, a student's into that thread, the school's as a card with no whisper list, Monokuma its speaker and `popupForce` on it; the GM's words are escaped in every card; empty words, no room, a GM as the student and a player's browser are refused", async () => {
+        /*
+         * EXP-GM-08: the posts are stood in through the parameters (`post` the thread's poster, `create` the chat's,
+         * `recipients` the room's list); nothing is posted. Red at 31d5812: there was no announce.mjs.
+         */
+        const A = await import("./announce.mjs").catch(() => null);
+        must(A && typeof A.announce === "function", "no announce.mjs with announce - Monokuma cannot announce");
+        must(game.user.isGM, "announcing is a GM's");
+        const player = game.users.find(u => !u.isGM);
+        needs(world.atLeast("playerAccounts", 1));
+        const gm = game.users.find(u => u.isGM);
+        const words = `<b>R9255</b> & "everybody"`;
+        const run = async (call) => {
+            const posts = [], cards = [];
+            const answer = await A.announce(call, { post: async (id, html, opts) => { posts.push([id, html, opts?.kind ?? null]); return { id: "m" }; },
+                create: async data => { cards.push(data); return { id: "c" }; }, recipients: async room => (room === "Kitchen" ? ["U1", "U3"] : []), scene: { id: "S1" } });
+            return { answer, posts, cards };
+        };
+        const room = await run({ to: "room", room: "Kitchen", text: words });
+        const school = await run({ to: "school", text: words });
+        const student = await run({ to: "student", userId: player.id, text: words });
+        const raw = html => html.includes("<b>R9255</b>") || /& "everybody"/.test(html);
+        const read = {
+            room: [room.answer, room.posts.map(p => p[0]), room.posts.every(p => !raw(p[1]) && p[1].includes("&lt;b&gt;R9255&lt;/b&gt;")), room.cards.length],
+            school: [school.answer, school.posts.length, school.cards.length, school.cards[0]?.whisper ?? "none", school.cards[0]?.speaker?.alias,
+                Boolean(school.cards[0]?.flags?.[MODULE_ID]?.popupForce), !raw(school.cards[0]?.content ?? "<b>R9255</b>")],
+            student: [student.answer, student.posts.map(p => p[0]), student.cards.length],
+            refused: [(await run({ to: "room", room: "Kitchen", text: "   " })).answer, (await run({ to: "room", room: null, text: "x" })).answer,
+                (await run({ to: "student", userId: gm?.id, text: "x" })).answer]
+        };
+        equal(JSON.stringify(read), JSON.stringify({
+            room: [{ sent: 2 }, ["U1", "U3"], true, 0],
+            school: [{ sent: 1 }, 0, 1, "none", game.i18n.localize("DRPG.Announce.speaker"), true, true],
+            student: [{ sent: 1 }, [player.id], 0],
+            refused: [{ refused: "empty" }, { refused: "noRoom" }, { refused: "noStudent" }]
+        }), "{room: [the answer, the threads posted into, every card's words escaped, public cards]; school: [the answer, thread posts, cards, its whisper list, its speaker, popupForce, its words escaped]; student: [the answer, the thread, public cards]; refused: [empty words, no room, a GM as the student]}");
+    }],
+    ["R9220 - the checklist's cursor row reads every role's pointer and its fix takes them all off, nothing else (2.0 line T4, EXP-PL-01): season-setup.mjs's `cursor` row is not done while a player role holds SHOW_CURSOR, names the roles, and is required; `hideAllCursors` empties SHOW_CURSOR - stored or, with nothing stored, as Foundry's default gives it - writes every other permission back as it read it, and writes nothing when no role holds it", async () => {
+        /*
+         * EXP-PL-01 (docs/dev/v2/F3-forge-PC.md, blocker): the row took the two GM roles alone off SHOW_CURSOR ("Players
+         * keep theirs"). The permissions are stood in: `settings` handed to `hideAllCursors` (R601's shape), and
+         * `game.settings.get` answering `core.permissions` with a fixture while `steps()` builds its rows (standIn, put
+         * back); nothing is written. Red at 31d5812: no hideAllCursors, and a player role did not count.
+         */
+        const SS = await import("./season-setup.mjs");
+        must(typeof SS.hideAllCursors === "function", "season-setup.mjs has no hideAllCursors - the cursor row takes the GMs' alone");
+        const R = CONST.USER_ROLES;
+        const fix = async (stored, inForce = {}) => {
+            const wrote = [];
+            const settings = { get: () => foundry.utils.deepClone(stored), set: async (scope, key, value) => { wrote.push([scope, key, value]); } };
+            return [await SS.hideAllCursors({ settings, inForce }), wrote];
+        };
+        const rowUnder = perms => {
+            const real = game.settings.get;
+            const back = standIn(game.settings, "get", function (scope, key, ...rest) {
+                return scope === "core" && key === "permissions" ? foundry.utils.deepClone(perms) : real.call(this, scope, key, ...rest);
+            });
+            try {
+                const row = SS.steps({ roomScene: null }).find(s => s.key === "cursor");
+                return row ? [row.done, Boolean(row.optional), row.missing?.() ?? null] : null;
+            } finally {
+                back();
+            }
+        };
+        const L = key => game.i18n.localize(key);
+        // A role's word as the row prints it (season-setup.mjs `roleName`): core's, else the constant's name.
+        const word = (key, name) => (L(key) === key ? name : L(key));
+        const read = {
+            players: rowUnder({ SHOW_CURSOR: [R.PLAYER] }),
+            none: rowUnder({ SHOW_CURSOR: [] }),
+            all: await fix({ SHOW_CURSOR: [R.PLAYER, R.TRUSTED, R.ASSISTANT, R.GAMEMASTER], SHOW_RULER: [R.PLAYER], FILES_BROWSE: [R.ASSISTANT] }),
+            unstored: await fix({ FILES_BROWSE: [R.ASSISTANT] }),
+            empty: await fix({ SHOW_CURSOR: [], PING_CANVAS: [R.TRUSTED] })
+        };
+        equal(JSON.stringify(read), JSON.stringify({
+            players: [false, false, [word("USER.RolePlayer", "PLAYER")]], none: [true, false, []],
+            all: [4, [["core", "permissions", { SHOW_CURSOR: [], SHOW_RULER: [R.PLAYER], FILES_BROWSE: [R.ASSISTANT] }]]],
+            unstored: [4, [["core", "permissions", { FILES_BROWSE: [R.ASSISTANT], SHOW_CURSOR: [] }]]],
+            empty: [0, []]
+        }), "{players, none: the cursor row [done, optional, the roles it names] with a player's SHOW_CURSOR and with none; all, unstored, empty: hideAllCursors' [answer, writes] - every role stored, nothing stored (Foundry's default: Player up), none holding it}");
+    }],
+    ["R9221 - the checklist's pings row: the players' PING_CANVAS is a cross, and its fix takes the two player roles alone off (2.0 line T4, EXP-PL-01): season-setup.mjs's `pings` row stands right after `rulers`, is required, is not done while the Player or Trusted Player role holds PING_CANVAS and names them; `setPlayerPings(false)` takes those two off and writes the rest back as read, `setPlayerPings(true)` gives them back, and neither writes when nothing changes", async () => {
+        /* EXP-PL-01: nothing in the module read PING_CANVAS. Stand-ins as R9220's; nothing is written. Red at 31d5812: no pings row. */
+        const SS = await import("./season-setup.mjs");
+        must(typeof SS.setPlayerPings === "function", "season-setup.mjs has no setPlayerPings - the checklist has no pings row");
+        const R = CONST.USER_ROLES;
+        const set = async (show, stored) => {
+            const wrote = [];
+            const settings = { get: () => foundry.utils.deepClone(stored), set: async (scope, key, value) => { wrote.push(value); } };
+            return [await SS.setPlayerPings(show, { settings, inForce: {} }), wrote];
+        };
+        const rows = perms => {
+            const real = game.settings.get;
+            const back = standIn(game.settings, "get", function (scope, key, ...rest) {
+                return scope === "core" && key === "permissions" ? foundry.utils.deepClone(perms) : real.call(this, scope, key, ...rest);
+            });
+            try {
+                const list = SS.steps({ roomScene: null });
+                const at = list.findIndex(s => s.key === "pings");
+                const row = list[at];
+                return row ? [list[at - 1]?.key ?? null, row.done, Boolean(row.optional), row.missing?.() ?? null] : null;
+            } finally {
+                back();
+            }
+        };
+        const L = key => game.i18n.localize(key);
+        const word = (key, name) => (L(key) === key ? name : L(key));
+        const read = {
+            trusted: rows({ PING_CANVAS: [R.TRUSTED, R.ASSISTANT, R.GAMEMASTER] }),
+            gmsOnly: rows({ PING_CANVAS: [R.ASSISTANT, R.GAMEMASTER] }),
+            hide: await set(false, { PING_CANVAS: [R.PLAYER, R.TRUSTED, R.GAMEMASTER], SHOW_CURSOR: [R.GAMEMASTER] }),
+            show: await set(true, { PING_CANVAS: [R.GAMEMASTER], SHOW_CURSOR: [] }),
+            nothing: await set(false, { PING_CANVAS: [R.GAMEMASTER] })
+        };
+        equal(JSON.stringify(read), JSON.stringify({
+            trusted: ["rulers", false, false, [word("USER.RoleTrusted", "TRUSTED")]], gmsOnly: ["rulers", true, false, []],
+            hide: [2, [{ PING_CANVAS: [R.GAMEMASTER], SHOW_CURSOR: [R.GAMEMASTER] }]],
+            show: [2, [{ PING_CANVAS: [R.PLAYER, R.TRUSTED, R.GAMEMASTER], SHOW_CURSOR: [] }]],
+            nothing: [0, []]
+        }), "{trusted, gmsOnly: the pings row [the row before it, done, optional, the roles it names]; hide, show, nothing: setPlayerPings' [answer, writes]}");
+    }],
+    ["R9222 - the Next line waits on the cursor, the rulers and the pings (2.0 line T4, EXP-PL-01): season-setup.mjs `firstOutstandingStep` answers `cursor` while a role holds SHOW_CURSOR, then `rulers` while a player role holds SHOW_RULER, then `pings` while one holds PING_CANVAS, and none of the three once all are off - none of the rows optional", async () => {
+        /* EXP-PL-01: the rows were optional, so the Next line passed over them. The three rows read off `steps()` under a
+           stood-in `core.permissions` (as R9220); the rest of the list is left out, so only these three are judged. Nothing is
+           written. Red at 31d5812: the three were optional and the Next line answered none of them. */
+        const SS = await import("./season-setup.mjs");
+        const R = CONST.USER_ROLES;
+        const first = perms => {
+            const real = game.settings.get;
+            const back = standIn(game.settings, "get", function (scope, key, ...rest) {
+                return scope === "core" && key === "permissions" ? foundry.utils.deepClone(perms) : real.call(this, scope, key, ...rest);
+            });
+            try {
+                const three = SS.steps({ roomScene: null }).filter(s => ["cursor", "rulers", "pings"].includes(s.key));
+                must(three.length === 3, `the checklist holds ${three.length} of the cursor, rulers and pings rows - this would measure nothing`);
+                return [SS.firstOutstandingStep(three)?.key ?? null, three.some(s => s.optional)];
+            } finally {
+                back();
+            }
+        };
+        const all = [R.PLAYER, R.TRUSTED, R.ASSISTANT, R.GAMEMASTER];
+        equal(JSON.stringify({
+            cursor: first({ SHOW_CURSOR: all, SHOW_RULER: all, PING_CANVAS: all }),
+            rulers: first({ SHOW_CURSOR: [], SHOW_RULER: all, PING_CANVAS: all }),
+            pings: first({ SHOW_CURSOR: [], SHOW_RULER: [R.GAMEMASTER], PING_CANVAS: [R.PLAYER] }),
+            none: first({ SHOW_CURSOR: [], SHOW_RULER: [R.GAMEMASTER], PING_CANVAS: [R.GAMEMASTER] })
+        }), JSON.stringify({ cursor: ["cursor", false], rulers: ["rulers", false], pings: ["pings", false], none: [null, false] }),
+        "{each permission set: [the row the Next line waits on, any of the three optional]}");
+    }],
+    ["R9256 - the checklist's players row names every player account with nothing to play (2.0 line T4, EXP-GM-09): season-setup.mjs `unplayedAccounts` holds a Player or Trusted Player account with no character, or with one that is no student of the cast and no Spectator, and never a GM or an Assistant; the `players` row is required, not done while one stands, names the accounts, waits with no cast, and opens Foundry's configuration of the first", async () => {
+        /* EXP-GM-09: the accounts, the Spectator and the NPC are plain objects handed to `steps({ users, roster })`, the
+           cast one student of the world (the other rows read its sheet); nothing is written. Red at 31d5812: no
+           unplayedAccounts and no players row. */
+        const SS = await import("./season-setup.mjs");
+        must(typeof SS.unplayedAccounts === "function", "season-setup.mjs has no unplayedAccounts - the checklist has no players row");
+        needs(world.atLeast("livingStudents", 1));
+        const { studentActors } = await import("./monokuma.mjs");
+        const R = CONST.USER_ROLES;
+        const aiko = studentActors()[0];
+        const watcher = { id: "R9256S", name: "R9256 Spectator", type: "character", flags: { [MODULE_ID]: { spectator: true } }, getFlag: (scope, key) => (key === "spectator" ? true : undefined) };
+        const npc = { id: "R9256N", name: "R9256 Janitor", flags: {}, getFlag: () => undefined };
+        let opened = 0;
+        const users = [
+            { id: "U1", name: "Player One", isGM: false, role: R.PLAYER, character: aiko },
+            { id: "U2", name: "Player Two", isGM: false, role: R.TRUSTED, character: null, sheet: { render: async () => { opened++; } } },
+            { id: "U3", name: "Player Three", isGM: false, role: R.PLAYER, character: npc },
+            { id: "U4", name: "Watcher", isGM: false, role: R.PLAYER, character: watcher },
+            { id: "G1", name: "Assistant", isGM: true, role: R.ASSISTANT, character: null },
+            { id: "G2", name: "GM", isGM: true, role: R.GAMEMASTER, character: null }
+        ];
+        const row = (roster, list) => SS.steps({ roster, users: list, roomScene: null, tokenScene: null }).find(s => s.key === "players");
+        const full = row([aiko], users);
+        await full?.open?.();
+        const empty = row([], users);
+        const clean = row([aiko], [users[0], users[3], users[4], users[5]]);
+        equal(JSON.stringify({ pure: SS.unplayedAccounts(users, [aiko]).map(u => u.id),
+            full: [full?.done, Boolean(full?.optional), full?.missing?.() ?? null, opened], waiting: [empty?.done, Boolean(empty?.waiting)], clean: clean?.done }),
+        JSON.stringify({ pure: ["U2", "U3"], full: [false, false, ["Player Two", "Player Three"], 1], waiting: [false, true], clean: true }),
+        "{pure: the accounts with nothing to play; full: the row [done, optional, the accounts it names, the configurations opened]; waiting: with no cast [done, waiting]; clean: with every account playing}");
+    }],
+    ["R9257 - the checklist's tokens row names every living student with no token on the school's scene (2.0 line T4, EXP-GM-09): season-setup.mjs `studentsWithoutToken` holds the living students the scene holds no token of, and no dead one; the `tokens` row is required, not done while one stands or with no school scene, names them, and waits with no cast", async () => {
+        /* EXP-GM-09: the scene's tokens and the dead are stand-ins handed in, the cast two living students of the world (the
+           other rows read their sheets); nothing is read of the world's scenes and nothing written. Red at 31d5812: no
+           studentsWithoutToken and no tokens row. */
+        const SS = await import("./season-setup.mjs");
+        must(typeof SS.studentsWithoutToken === "function", "season-setup.mjs has no studentsWithoutToken - the checklist has no tokens row");
+        needs(world.atLeast("livingStudents", 2));
+        const { studentActors } = await import("./monokuma.mjs");
+        const { isDeadForGm } = await import("./settings.mjs");
+        const [a, b] = studentActors().filter(x => !isDeadForGm(x));
+        const c = { id: "R9257C", name: "R9257 Chie" };
+        const scene = { id: "S", tokens: [{ actorId: a.id }, { actorId: "R9257X" }] };
+        const pure = SS.studentsWithoutToken([a, b, c], scene, { dead: actor => actor.id === "R9257C" }).map(x => x.id);
+        const row = (roster, tokenScene) => SS.steps({ roster, users: [], roomScene: null, tokenScene }).find(s => s.key === "tokens");
+        const placed = row([a], scene);
+        const missing = row([a, b], scene);
+        const noScene = row([a], null);
+        const empty = row([], scene);
+        equal(JSON.stringify({ pure, placed: placed?.done, missing: [missing?.done, Boolean(missing?.optional), missing?.missing?.() ?? null],
+            noScene: [noScene?.done, noScene?.missing?.() ?? null], waiting: [empty?.done, Boolean(empty?.waiting)] }),
+        JSON.stringify({ pure: [b.id], placed: true, missing: [false, false, [b.name]],
+            noScene: [false, [game.i18n.localize("DRPG.Season.noSchoolScene")]], waiting: [false, true] }),
+        "{pure: the living students with no token (C dead); placed, missing: the row with every student placed, with one not [done, optional, names]; noScene: [done, names] with no school scene; waiting: with no cast}");
+    }],
+    ["R9258 - the card of unmatched accounts is raised in the GMs' corner (2.0 line T4, EXP-GM-09): user-match.mjs `tellGms` whispers the GMs a card with `gmPopup` and its title, once per account and reason", async () => {
+        /* EXP-GM-09: the card was a whisper with no `gmPopup`, so it landed silently in the log. The poster and the session's
+           record are stood in through the parameters; an account of the world is named in the plan; nothing is posted. Red at
+           31d5812: `tellGms` was not exported and wrote no flag. */
+        const U = await import("./user-match.mjs");
+        must(typeof U.tellGms === "function", "user-match.mjs exports no tellGms - its card cannot be read");
+        needs(world.atLeast("playerAccounts", 1));
+        const player = game.users.find(u => !u.isGM);
+        const posts = [];
+        const seen = new Set();
+        const plan = { none: [player.id], several: [], same: [], owned: [], owns: [] };
+        const whisper = async (content, extra) => { posts.push([typeof content === "string" && content.includes("data-drpg-match"), extra?.flags?.[MODULE_ID] ?? null]); return {}; };
+        await U.tellGms(plan, new Set([player.id]), { whisper, seen });
+        await U.tellGms(plan, new Set([player.id]), { whisper, seen });
+        equal(JSON.stringify(posts), JSON.stringify([[true, { gmPopup: true, popupTitle: game.i18n.localize("DRPG.Users.match.title") }]]),
+            "[each card posted: [its words are the match card, its module flags]] - two passes with the same account and reason");
+    }],
 ];
 
 /**
@@ -70522,16 +71730,6 @@ function partyStandIn(actor) {
 
 /* E24 C3b's fixtures (R1459): `obj[key]` answered as `value` for `run` - an own property in this browser's memory, the
    one it had (or none) put back in a finally, nothing written - and a list read as a document collection reads. */
-async function e24Own(obj, key, value, run) {
-    const own = Object.getOwnPropertyDescriptor(obj, key);
-    Object.defineProperty(obj, key, { configurable: true, writable: true, enumerable: own?.enumerable ?? false, value });
-    try {
-        return await run();
-    } finally {
-        if (own) Object.defineProperty(obj, key, own); else delete obj[key];
-    }
-}
-
 function e24Items(list) {
     const all = [...list];
     return {

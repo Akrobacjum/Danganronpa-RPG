@@ -927,7 +927,7 @@ export function refusalBeforePaying(call, choice = {}) {
     if (call?.grantsHope && target) {
         if (overflowBlocksHope()) return i18n.localize("DRPG.Overflow.hopeBlocked");
         const max = resourceMax(target, "hope") || STARTING.hopeMax;
-        if (resourceValue(target, "hope") >= max) return i18n.localize("DRPG.Despair.hopeAlreadyFull");
+        if (resourceValue(target, "hope") >= max) return plural("DRPG.Despair.hopeAlreadyFull", { n: 1, name });   // one target, as seen (2.0 line T4, CALLS-18)
     }
     return null;
 }

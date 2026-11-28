@@ -60,7 +60,8 @@
  * second student). The record shuts that for an account a pass saw with a character;
  * an account that owns a student it never held as its character has no row, so the
  * plan skips an account that owns any student other than the one named like it, and
- * the GMs are told on the same card.
+ * the GMs are told on the same card. That card is raised in every GM's corner since the 2.0 line T4 (EXP-GM-09,
+ * 27.11.2026: `gmPopup`, as call-gm.mjs's cards to the GMs): a whisper to the GMs alone stayed silent in the log.
  *
  * WHO WRITES. The primary GM alone (utils.mjs `isPrimaryGm`), at its ready and when a
  * user connects, a user is made or renamed, or a student is made or renamed; one pass
@@ -253,13 +254,17 @@ export async function matchAccounts() {
     return plan;
 }
 
-async function tellGms(plan, asked) {
+/**
+ * The GMs told which accounts were not matched, once per account and reason this session. `whisper` and `seen` are the
+ * suite's (R9258): the poster and the session's record of what was told.
+ */
+export async function tellGms(plan, asked, { whisper = whisperToGms, seen = told } = {}) {
     const fresh = (id, why) => {
         const user = game.users.get(id);
         if (!user || !(user.active || asked.has(id))) return false;
         const key = `${id}|${nameKey(user.name)}|${why}`;
-        if (told.has(key)) return false;
-        told.add(key);
+        if (seen.has(key)) return false;
+        seen.add(key);
         return true;
     };
     const nameOf = id => esc(game.users.get(id)?.name ?? id);
@@ -278,7 +283,10 @@ async function tellGms(plan, asked) {
     }
     if (!lines.length) return;
     try {
-        await whisperToGms(`<div data-drpg-match>${lines.map(line => `<p>${line}</p>`).join("")}</div>`);
+        // In the GMs' corner (EXP-GM-09): `gmPopup` with its title, a GM's browser the writer, as call-gm.mjs `callGm` posts.
+        await whisper(`<div data-drpg-match>${lines.map(line => `<p>${line}</p>`).join("")}</div>`, {
+            flags: { [MODULE_ID]: { gmPopup: true, popupTitle: game.i18n.localize("DRPG.Users.match.title") } }
+        });
     } catch (err) {
         warn("Could not tell the GMs which accounts have no character", err);
     }

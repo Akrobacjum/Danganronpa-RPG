@@ -669,7 +669,10 @@
       "notEnough": "{call} costs {cost} Despair, and the pool can spend only {held}.",
       "unknownCall": "Unknown Despair Call: {key}.",
       "poolEmpty": "That pool has no Despair to give.",
-      "hopeAlreadyFull": "Their Hope is already at maximum.",
+      "hopeAlreadyFull": {
+        "one": "{name} already has the maximum Hope.",
+        "other": "All {n} already have the maximum Hope."
+      },
       "hopeConverted": "{who} gives you {n} Hope from their Despair.",
       "owed": {
         "one": "{n} owed",
@@ -5678,7 +5681,8 @@
         "several": "More than one student has the same name as these accounts: {names}. Assign their characters in User Configuration.",
         "same": "These accounts are named alike: {names}. Rename one of them, or assign their characters in User Configuration.",
         "owned": "The student with the same name as {account} already belongs to {owner}, so {account} gets no character. Assign one in User Configuration.",
-        "owns": "{account} already owns {students}, so it gets no other student. Assign its character in User Configuration."
+        "owns": "{account} already owns {students}, so it gets no other student. Assign its character in User Configuration.",
+        "title": "Accounts and students"
       }
     },
     "Anonymity": {
@@ -6093,7 +6097,7 @@
       "mainRoom": "the main room",
       "deadRoom": "the Spectators' room",
       "claimTrial": "the Class Trial, with everybody in one room",
-      "trialMuteLeft": "{name}'s microphone is still blocked after the trial. Unblock it in “Who you hear” on the voice tile while {name} is in your voice channel: the list shows only the people you hear.",
+      "trialMuteLeft": "{name}'s microphone is still blocked after the trial. Unblock it in the Students window, in the Microphone column.",
       "needsAvclient": "'Separate voice in each room' is on, but LiveKit AVClient is not active. Turn it on in Manage Modules, then reload the world.",
       "avDisabled": "'Separate voice in each room' is on, but Audio/Video is off for this world. Turn it on in Configure Settings.",
       "resetDone": {
@@ -6272,7 +6276,12 @@
         "noRoomsFix": "Name the regions to split them up.",
         "dupes": "\"{scene}\" has more than one region named {names}, and together they are one voice room.",
         "dupesHint": "Intended for a corridor drawn in two pieces; a mistake otherwise."
-      }
+      },
+      "serverLost": "No connection to the game server. If the page does not come back by itself, press F5 once the network is back.",
+      "micColumn": "Microphone",
+      "micBlock": "Block",
+      "micUnblock": "Unblock",
+      "micNoVoice": "No voice here: the LiveKit client is not on, so there is no microphone to block."
     },
     "States": {
       "drpgBreakdown": {
@@ -6492,7 +6501,7 @@
       "introOutstanding": "{n} still to do. The season can start without them.",
       "introReady": "Every row this list needs is done. Read the further checks below before the first session.",
       "resourcesButton": "Give the starting resources",
-      "cursorButton": "Hide the GMs' cursor",
+      "cursorButton": "Hide every cursor",
       "openIt": "Open",
       "fixedCursor": {
         "one": "Stopped sharing the cursor for {n} role.",
@@ -6565,12 +6574,12 @@
       "hint.roomsMarked": "A region is a room only when a GM ticks “This is a room” in Room setup (the Rooms tab). These named regions have not been decided yet.",
       "step.scenes": "The school and the trial hall are linked",
       "hint.scenes": "Room setup's Scenes tab links the scene the season is played on and the scene the Class Trial is held in. Optional: with none linked the trial is held wherever the table is.",
-      "step.cursor": "The GMs' cursor is private (recommended)",
-      "hint.cursor": "Otherwise the players see your cursor on the map.",
+      "step.cursor": "The cursors are private",
+      "hint.cursor": "Otherwise everybody sees every cursor on the map, the killer's in an Eclipse too.",
       "step.secretDoors": "No Foundry secret doors (recommended)",
       "hint.secretDoors": "Any player can open a Foundry secret door. Convert them to secret passages.",
-      "step.rulers": "The players' movement ruler is hidden (optional)",
-      "hint.rulers": "Otherwise the table sees a player's route, even through a secret passage.",
+      "step.rulers": "The players' movement ruler is hidden",
+      "hint.rulers": "Otherwise the table sees a player's route, even through a secret passage, and the killer's in an Eclipse.",
       "step.mastermind": "The Mastermind (optional)",
       "hint.mastermind": "Who is hiding among the students, and what proves it.",
       "step.foundryHeld": "The module holds Foundry's settings (optional)",
@@ -6746,7 +6755,24 @@
       "windows": "The season's windows",
       "checklistTitle": "Season checklist",
       "startHereTitle": "Where to start",
-      "startHereText": "Open Season setup from the GM panel. Its Season checklist walks you through a season in the order it is built, and the GM panel's Next line names the first thing still to do."
+      "startHereText": "Open Season setup from the GM panel. Its Season checklist walks you through a season in the order it is built, and the GM panel's Next line names the first thing still to do.",
+      "step.pings": "The players' pings are off",
+      "hint.pings": "Otherwise every screen sees where a player pings, the killer's room in an Eclipse too.",
+      "hidePings": "Hide",
+      "showPings": "Show",
+      "fixedPings": {
+        "one": "Pings are off for {n} role.",
+        "other": "Pings are off for {n} roles."
+      },
+      "undonePings": {
+        "one": "Pings are on for {n} role again.",
+        "other": "Pings are on for {n} roles again."
+      },
+      "step.players": "Every player account plays a student",
+      "hint.players": "Otherwise that player has nothing to play: choose the account's student in its configuration in Foundry (Open).",
+      "step.tokens": "Every living student has a token on the school's scene",
+      "hint.tokens": "Otherwise that student is nowhere on the map: drag the character onto the school's scene (Open shows it).",
+      "noSchoolScene": "no school scene"
     },
     "Explain": {
       "state": {
@@ -7029,7 +7055,9 @@
         "other": "Danganronpa RPG: {n} parts of this world's data were updated for {version}."
       },
       "failed": "Danganronpa RPG: part of the data migration failed ({clauses}). It runs again when this world next loads; the console has the details.",
-      "notPrimary": "Danganronpa RPG: only the primary GM can finish the data migration. It runs when the primary GM next loads this world."
+      "notPrimary": "Danganronpa RPG: only the primary GM can finish the data migration. It runs when the primary GM next loads this world.",
+      "testBuild": "Danganronpa RPG: this is a test build ({version}), and this world is not a test world (its name has no \"qa\"). The data migration does not run, so the campaign's data stays as it is. Go back to a regular release, or run this build in a test world.",
+      "noVersion": "Danganronpa RPG: the module's version cannot be read, so the data migration does not run. Reinstall the module."
     },
     "Popup": {
       "centre": {
@@ -7483,7 +7511,6 @@
       },
       "copy": {
         "writeNow": "Write the copy now",
-        "emptyHere": "The case planner is empty here and the server holds no copy of it. Restore it from a backup file: GM panel, Diagnostics, The case.",
         "done": {
           "written": "The copy of the case on the server is written.",
           "same": "The copy of the case on the server already holds this case."
@@ -7497,7 +7524,24 @@
           "notHydrated": "The other GMs' copies of the case have not arrived yet. Try again in a moment.",
           "quiet": "The module's own tests hold the case right now. Try again when they end.",
           "list": "This browser could not list the case's folder on the server. The console has the details.",
-          "failed": "The copy of the case could not be written. The console has the details."
+          "failed": "The copy of the case could not be written. The console has the details.",
+          "host": "This host does not let this browser save the case's copy on the server. The case lives only in the GMs' browsers: at the end of the session save it to a file (GM panel, Diagnostics, The case, Back up), and load that file on a new computer."
+        },
+        "sources": "Where the case comes from on a browser that holds none: another GM's browser while you are both online, the copy on the server, or a backup file (Restore from a file).",
+        "tileNoCopy": "{when}; no copy on the server",
+        "card": {
+          "empty": {
+            "title": "The case planner is empty on this browser",
+            "body": "No other GM is online, and no copy of the case could be read from the server here. The case can come from another GM's browser when they connect, from the copy on the server, or from a backup file: open The case and choose Restore from a file.",
+            "button": "Open The case",
+            "tip": "Opens the window The case: Back up, Restore from a file and the copy on the server."
+          },
+          "file": {
+            "title": "Save the case to a file",
+            "body": "No copy of the case could be written to the server in this session, so the case lives only in the GMs' browsers. Save it to a file now and keep the file where no player can open it; on another computer, load it with Restore from a file.",
+            "button": "Save the case to a file",
+            "tip": "Back up: saves the whole case to a file on this computer."
+          }
         }
       },
       "row": {
@@ -7835,6 +7879,145 @@
       "pastPaid": "Every Key Remnant that Despair was charged for has been revealed. Confirm to reveal another.",
       "noText": "Write what the players read on this Key Remnant first.",
       "notDone": "The Key Remnant was not revealed."
+    },
+    "Repair": {
+      "voiceRoomsOff": "Everybody in one voice room",
+      "voiceRoomsOn": "Turn the voice rooms on",
+      "voiceRoomsOffAsk": "Everybody goes to the main voice room, and the rooms stop keeping their secrets in voice until you turn them on again. Use it when LiveKit cannot keep up with the rooms.",
+      "voiceRoomsOffYes": "Put everybody in one room",
+      "voiceRoomsOffDone": "The voice rooms are off: everybody is in the main room.",
+      "voiceRoomsOnDone": "The voice rooms are on: everybody hears only their own room again.",
+      "voiceRoomsNoLiveKit": "There is no LiveKit AV client here, so there are no voice rooms to turn.",
+      "voiceRoomsOffTip": "Turns the voice rooms off: the switch Separate voice in each room in the Game settings.",
+      "tile": "Repairs",
+      "title": "Repairs",
+      "intro": "What to do when something is stuck. Each button runs the console's own repair (game.drpg), asks first, and says what it did; the console stays the second road.",
+      "colSymptom": "When",
+      "colDoes": "What the button does",
+      "colPress": "Repair",
+      "failed": "The repair failed; the console (F12) says why.",
+      "primaryOnly": "Only the primary GM's browser does this, {name}'s now.",
+      "body": {
+        "symptom": "A body's discovery stays: its card and the music's silence stand.",
+        "does": "Clears the record of the body found for everyone, so the card and the silence go. The clock does not move, and nothing of the death or the investigation is taken back.",
+        "button": "Clear the body's discovery",
+        "done": "The body's discovery is cleared.",
+        "none": "No body's discovery was waiting."
+      },
+      "chapterFinish": {
+        "symptom": "The chapter's end stopped half way.",
+        "does": "Runs the stopped end on from its record, on the primary GM's browser: what it did is not done again. It runs only in the phase the end stood on, and otherwise says which.",
+        "button": "Finish the chapter's end"
+      },
+      "chapterDrop": {
+        "symptom": "The chapter's end stopped, and the rest should not run.",
+        "does": "Runs nothing: the end's record is marked dropped, and the GMs' card names the steps that stay undone. Nothing the end did is taken back.",
+        "button": "Drop the rest of the end"
+      },
+      "observes": {
+        "symptom": "An Observe's declaration hangs, and no GM can fix its target.",
+        "does": "Forgets every pending Observe target the GMs hold. No action or Hope is given back.",
+        "button": "Forget the pending Observes",
+        "done": {
+          "one": "Forgot {n} pending Observe.",
+          "other": "Forgot {n} pending Observes."
+        }
+      },
+      "unhide": {
+        "symptom": "A character stays hidden.",
+        "does": "Ends that character's Hide, as their own Reveal yourself would: everyone sees their token again, their microphone comes back, and their player is told. On another GM's browser it is asked of the primary.",
+        "button": "Show the character",
+        "pick": "The character to show",
+        "done": "{name} is shown again.",
+        "failed": "{name} could not be shown: they may no longer be hidden.",
+        "noneHidden": "Nobody is hidden now."
+      },
+      "tokens": {
+        "symptom": "The rooms' Search Tokens are spent and should be full.",
+        "does": "Refills every room's Search Tokens, as the next time of day would, without moving the clock. Asked of the primary GM's browser.",
+        "button": "Refill the Search Tokens",
+        "failed": "The Search Tokens could not be refilled."
+      },
+      "fog": {
+        "symptom": "The fog on this screen is drawn wrong.",
+        "does": "Draws the fog again on this browser only, on your own screen. For a player's screen, the player runs game.drpg.repaintFog() in their own console.",
+        "button": "Draw the fog again",
+        "done": "The fog was drawn again on this browser.",
+        "stood": "The fog stood down here, or waits for a reveal to end; game.drpg.diagnoseFog() on this browser says which."
+      },
+      "music": {
+        "symptom": "The music does not play what the moment calls for.",
+        "does": "Asks the music again which state applies and plays it, on the primary GM's browser, whose playback everyone hears. A track a GM started by hand still wins.",
+        "button": "Play the right music",
+        "done": "The music was asked again what it should play."
+      },
+      "reclaim": {
+        "symptom": "A GM opened this world on a build before 1.2.63, which wrote a GM store's old key.",
+        "does": "Takes from the store's old key what changed since the upgrade: a row the store never held is added, a field is taken only while the store's own is older than the upgrade, and the rest is kept as it is here and counted. What changed goes to the other GMs.",
+        "button": "Take from the old key",
+        "pick": "The GM store",
+        "done": "{store}: rows added {added}, rows changed {count}, kept as they are here {kept}.",
+        "none": "{store} has no claim of an old key to take from.",
+        "noneChanged": "No GM store's old key changed since the upgrade."
+      },
+      "migrate": {
+        "symptom": "This world's data looks as it did before an upgrade.",
+        "does": "Runs every migration clause again, whatever the version stamp says, on the primary GM's browser. A test build in a world without \"qa\" in its name runs none (GM handbook 20.5).",
+        "button": "Run the migration again",
+        "done": "The migration ran again. Changes: {count}; clauses failed: {cut}."
+      },
+      "actions": {
+        "symptom": "A time of day's advance went wrong, and the actions were not refilled.",
+        "does": "Refills every character's actions and takes their free grants away (Sprint and Burst), without moving the clock.",
+        "warn": "Not the usual road: actions come back when the time of day advances, and a refill that does not move the clock is a way to lose track of which time of day the table is in. Use it for a botched advance only.",
+        "button": "Refill everyone's actions",
+        "done": {
+          "one": "Refilled the actions of {n} character.",
+          "other": "Refilled the actions of {n} characters."
+        }
+      }
+    },
+    "Announce": {
+      "tile": "Announcement",
+      "title": "Monokuma's announcement",
+      "speaker": "Monokuma",
+      "schoolTitle": "Monokuma's announcement",
+      "roomTitle": "Monokuma's announcement to {room}",
+      "studentTitle": "Monokuma's announcement to you",
+      "textLabel": "What Monokuma says",
+      "textTip": "The words go out as you write them.",
+      "toLabel": "To",
+      "toTip": "The whole school, one room of the school, or one student.",
+      "to": {
+        "school": "The whole school",
+        "room": "One room",
+        "student": "One student"
+      },
+      "roomLabel": "Room",
+      "roomTip": "A room of the school. The players whose students stand there now get it in their threads.",
+      "studentLabel": "Student",
+      "studentTip": "The player who gets it in their thread.",
+      "reach": {
+        "one": "{n} player will get it in their thread.",
+        "other": "{n} players will get it in their threads."
+      },
+      "reachOf": {
+        "school": "Every screen gets it, the Spectators' too.",
+        "student": "That player gets it in their thread."
+      },
+      "send": "Announce",
+      "sendTip": "Sends the announcement now.",
+      "sent": {
+        "one": "Announced: {n} card sent.",
+        "other": "Announced: {n} cards sent."
+      },
+      "refused": {
+        "notGm": "Only a GM can announce.",
+        "empty": "Write what Monokuma says first.",
+        "noRoom": "Pick a room of the school.",
+        "noStudent": "Pick a player's student.",
+        "failed": "The announcement could not be sent; the console (F12) says why."
+      }
     }
   }
 }

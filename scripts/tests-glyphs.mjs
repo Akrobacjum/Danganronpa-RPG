@@ -430,7 +430,14 @@ export const ELEMENTS = {
     "gm.roomSetup": "room-setup", "gm.tables": "table", "gm.voiceReset": "voice-reset",
     "gm.seasonSetup": "wand", "gm.settings": "settings",
     "gm.failureLog": "bug", "gm.caseWindow": "case-backup",
-    "gm.rules": "rules", "gm.gmTeam": "team", "gm.mastermind": "mask", "gm.seasonChecklist": "season-checklist"
+    "gm.rules": "rules", "gm.gmTeam": "team", "gm.mastermind": "mask", "gm.seasonChecklist": "season-checklist",
+    // 2.0 line T4 (27.11.2026): Diagnostics' voice rooms switch (VOICE-03), three people in one room under a sound wave - drawn by the line, awaiting the owner's look (tools/glyphs.json).
+    "gm.voiceRooms": "voice-rooms",
+    // 2.0 line T4 (27.11.2026): Diagnostics' Repairs window (PANEL-01), a wrench - drawn by the line, awaiting the owner's look.
+    "gm.repairs": "repairs",
+    // 2.0 line T4 (27.11.2026): the Now section's Monokuma's announcement (EXP-GM-08), a school loudspeaker on its pole -
+    // not the Despair Call's megaphone (horn): R3338 holds two functions to two drawings. Drawn by the line, awaiting the owner's look.
+    "gm.announce": "announce"
     /* E49 A1e: gm.jump left with its tile on 11.11.2026 (Edit campaign is Season setup's top block now). gm.gmTeam,
        gm.rules and gm.mastermind left the panel with theirs and came back on 12.11.2026 as tiles of Season setup's row
        (gm-panel.mjs SEASON_TILES; the owner: "the same shape as the GM panel's tiles", the glyphs they wore), each the
@@ -1340,6 +1347,8 @@ export const LEGACY_ICONS = {
     "gm.roomSetup": "--drpg-pix-room-setup",
     "gm.tables": "--drpg-pix-tables",
     "gm.voiceReset": "fa:fa-microphone-lines",
+    // 2.0 line T4: its markup's Font Awesome under Legacy, as Voice reset wears its own.
+    "gm.voiceRooms": "fa:fa-people-group", "gm.repairs": "fa:fa-screwdriver-wrench", "gm.announce": "fa:fa-bullhorn",
     "gm.seasonSetup": "--drpg-pix-season-setup",
     /* E105 FT batch 2 (11.11.2026): E49 A1d's Settings tile was added to danganronpa.css's hand-masked tiles with the
        corner gear's drawing (legacy gear, the Look launcher's); one glyph per function, so under Legacy it wears its own

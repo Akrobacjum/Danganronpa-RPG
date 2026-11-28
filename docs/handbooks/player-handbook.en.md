@@ -1086,6 +1086,8 @@ Some moments make no sound on purpose, so that nothing tells the table more than
 
 **If the screen stutters**, change these in the settings window one at a time: turn **Glass blurs the map** off first, then **Glass pulse** and **Time of day behind the clock**, then turn **Reduced motion** on, and last try the theme Monokuma Legacy. Each changes only your own screen. If the GM asks how fast your screen runs, the steps are in section 17.
 
+**When the network goes:** a few seconds after the connection drops, the voice tile says **No connection to the game server**, and Foundry reloads the page soon after. With no network that ends on the browser's error page, which stays there even once the network is back. Press F5 then: the game loads again, which takes up to about a minute. Send again a request you sent just before the network went (chapter 14).
+
 > [!NOTE]
 > **Rolls are private:** every roll you make is seen by you and the GMs alone. A GM's screen shows your dice falling only while that GM's Monokuma stands in your room; every GM gets the result either way. Nobody sees anyone else's dice, with three exceptions. A roll in an incident is shown to the people in it, with its dice, what it came to, and which action it was, from the moment the incident begins to its end. A trap's builder is not among them: they see none of its dice and none of its cards, the card of the action that ends it included. What the opening roll came to is told to the roller's side alone (the killers of a Direct Murder, a trap's victim), and the clean-up stays the roller's own. A Monocub's rolls, Confusion included, are seen by everyone in its room. The one roll everybody reads is a public roll the GM throws, such as a vote's tie or Monokuma's lottery.
 
@@ -1234,3 +1236,9 @@ The public roll the GM throws (a vote's tie, Monokuma's lottery) is not yet chec
 The notice history is kept in this browser's own storage, for each account on it: 250 entries for a player, 40 from any one sender. When the browser runs short of room, or other accounts' histories on it fill their share, it keeps fewer or stops saving, and its window says when it has stopped.
 
 If the GM asks how fast your screen runs: stand still, open the console (F12), type `await game.drpg.fps({ toChat: false })`, and copy what it prints after about twenty seconds. While it measures, the glass and the map's effects switch off for a second at most each and come back by themselves, and at the end the map stands still for a second.
+
+### 17.17 Browser and network
+
+Foundry 14 wants a browser built on Chromium 146 or newer (Chrome, Edge, Opera) or a current Firefox; an older one gets a red notice from Foundry at every load, which is Foundry's and not the module's. Red notices "Error connecting to LiveKit Server" come from the voice client, not the module: tell your GM, who can press **Fix voice**.
+
+About 6.5 s without the network Foundry writes "Server connection lost" and reloads the page; the load after F5 took 30-48 s (measured on The Forge, Foundry 14.370, 25.11.2026). The voice tile says the connection is lost since 1.2.130: the module then listens to this browser's connection events with the game server and writes and sends nothing, and with the tile off it gives one warning. The order of those events against Foundry's reload has not been tried at a table yet.

@@ -656,7 +656,12 @@
       "notEnough": "{call} kosztuje {cost} Despair, a pula, która za niego płaci, może wydać tylko {held}.",
       "unknownCall": "Nieznany Despair Call: {key}.",
       "poolEmpty": "Ta pula nie ma Despair do oddania.",
-      "hopeAlreadyFull": "Ich Hope jest już na maksimum.",
+      "hopeAlreadyFull": {
+        "one": "{name} ma już maksimum Hope.",
+        "few": "Wszyscy ({n}) mają już maksimum Hope.",
+        "many": "Wszyscy ({n}) mają już maksimum Hope.",
+        "other": "Wszyscy ({n}) mają już maksimum Hope."
+      },
       "hopeConverted": "{who} zamienia dla ciebie część swojego Despair na Hope. Zyskujesz {n} Hope.",
       "owed": {
         "one": "{n} do spłaty",
@@ -6084,7 +6089,8 @@
         "several": "Tak jak te konta nazywa się więcej niż jedna postać: {names}. Przypisz im postacie w konfiguracji użytkownika.",
         "same": "Te konta nazywają się tak samo: {names}. Zmień nazwę jednego z nich albo przypisz im postacie w konfiguracji użytkownika.",
         "owned": "Postać o tej samej nazwie co konto {account} ma już właściciela ({owner}), więc konto {account} nie dostaje postaci. Przypisz mu postać w konfiguracji użytkownika.",
-        "owns": "Konto {account} ma już uprawnienia Właściciela do postaci {students}, więc nie dostaje kolejnej. Przypisz mu postać w konfiguracji użytkownika."
+        "owns": "Konto {account} ma już uprawnienia Właściciela do postaci {students}, więc nie dostaje kolejnej. Przypisz mu postać w konfiguracji użytkownika.",
+        "title": "Konta i uczniowie"
       }
     },
     "Anonymity": {
@@ -6527,7 +6533,7 @@
       "mainRoom": "główny pokój",
       "deadRoom": "pokój Widzów",
       "claimTrial": "podczas Class Trial wszyscy są w jednym pokoju",
-      "trialMuteLeft": "Mikrofon gracza {name} jest nadal zablokowany po rozprawie. Odblokuj go w „Kogo słyszysz” na kafelku głosu, gdy {name} jest w twoim kanale głosowym: lista pokazuje tylko osoby, które słyszysz.",
+      "trialMuteLeft": "Mikrofon gracza {name} jest nadal zablokowany po rozprawie. Odblokuj go w oknie Uczniowie, w kolumnie Mikrofon.",
       "needsAvclient": "Ustawienie „Głos osobno w każdym pokoju” jest włączone, ale LiveKit AVClient nie jest aktywny. Włącz go w Zarządzaj modułami i przeładuj świat.",
       "avDisabled": "Ustawienie „Głos osobno w każdym pokoju” jest włączone, ale Audio/Wideo jest wyłączone dla tego świata. Włącz je w Konfiguracji ustawień.",
       "resetDone": {
@@ -6712,7 +6718,12 @@
         "noRoomsFix": "Nazwij regiony, żeby ich rozdzielić.",
         "dupes": "„{scene}” ma kilka regionów o nazwie {names}, które razem tworzą jeden pokój głosowy.",
         "dupesHint": "Przewidziane dla korytarza narysowanego w dwóch częściach; w innym razie to pomyłka."
-      }
+      },
+      "serverLost": "Brak połączenia z serwerem gry. Jeśli strona nie wróci sama, naciśnij F5, gdy sieć wróci.",
+      "micColumn": "Mikrofon",
+      "micBlock": "Zablokuj",
+      "micUnblock": "Odblokuj",
+      "micNoVoice": "Tu nie ma głosu: klient LiveKit nie działa, więc nie ma mikrofonu do zablokowania."
     },
     "States": {
       "drpgBreakdown": {
@@ -6971,7 +6982,7 @@
       "introOutstanding": "Jeszcze {n} do zrobienia. Sezon może ruszyć i bez nich.",
       "introReady": "Każdy wiersz, którego ta lista wymaga, jest zrobiony. Przed pierwszą sesją przeczytaj dalsze sprawdzenia poniżej.",
       "resourcesButton": "Nadaj zasoby startowe",
-      "cursorButton": "Ukryj kursor GM-ów",
+      "cursorButton": "Ukryj wszystkie kursory",
       "openIt": "Otwórz",
       "fixed": {
         "one": "Nadano zasoby startowe {n} postaci.",
@@ -7279,7 +7290,32 @@
         "assignments": "Podział uczniów między Monokumy w Despair Flow, więc każdy uczeń wraca do pierwszej puli",
         "overflow": "Overflow i jego zaciemnienie",
         "clock": "Zegar, z powrotem na rozdział 1, dzień 1, rano"
-      }
+      },
+      "step.cursor": "Kursory są prywatne",
+      "step.rulers": "Linijka ruchu graczy jest ukryta",
+      "hint.cursor": "Inaczej wszyscy widzą każdy kursor na mapie, także kursor zabójcy w Eclipse.",
+      "hint.rulers": "Inaczej stół widzi trasę gracza, także przez tajne przejście, i trasę zabójcy w Eclipse.",
+      "step.pings": "Pingi graczy są wyłączone",
+      "hint.pings": "Inaczej każdy ekran widzi, gdzie gracz pinguje, także pokój zabójcy w Eclipse.",
+      "hidePings": "Ukryj",
+      "showPings": "Pokaż",
+      "fixedPings": {
+        "one": "Pingi są teraz wyłączone dla {n} roli.",
+        "few": "Pingi są teraz wyłączone dla {n} ról.",
+        "many": "Pingi są teraz wyłączone dla {n} ról.",
+        "other": "Pingi są teraz wyłączone dla {n} roli."
+      },
+      "undonePings": {
+        "one": "Pingi są znów włączone dla {n} roli.",
+        "few": "Pingi są znów włączone dla {n} ról.",
+        "many": "Pingi są znów włączone dla {n} ról.",
+        "other": "Pingi są znów włączone dla {n} roli."
+      },
+      "step.players": "Każde konto gracza gra uczniem",
+      "hint.players": "Inaczej ten gracz nie ma kim grać: wybierz ucznia konta w jego konfiguracji w Foundry (Otwórz).",
+      "step.tokens": "Każdy żywy uczeń ma token na scenie szkoły",
+      "hint.tokens": "Inaczej tego ucznia nie ma na mapie: przeciągnij postać na scenę szkoły (Otwórz ją pokazuje).",
+      "noSchoolScene": "brak sceny szkoły"
     },
     "Explain": {
       "state": {
@@ -7583,7 +7619,9 @@
         "other": "Danganronpa RPG: {n} części danych tego świata zaktualizowano do {version}."
       },
       "failed": "Danganronpa RPG: migracja danych nie dokończyła się ({clauses}). Ruszy znowu przy następnym wczytaniu tego świata; szczegóły są w konsoli.",
-      "notPrimary": "Danganronpa RPG: nie jesteś głównym GM-em. Migrację danych przeprowadzi główny GM, gdy wczyta ten świat."
+      "notPrimary": "Danganronpa RPG: nie jesteś głównym GM-em. Migrację danych przeprowadzi główny GM, gdy wczyta ten świat.",
+      "testBuild": "Danganronpa RPG: to wydanie testowe ({version}), a ten świat nie jest światem testowym (w nazwie nie ma „qa”). Migracja danych nie rusza, żeby nie zmienić danych kampanii. Wróć do zwykłego wydania albo uruchom to wydanie w świecie testowym.",
+      "noVersion": "Danganronpa RPG: nie da się odczytać wersji modułu, więc migracja danych nie rusza. Zainstaluj moduł ponownie."
     },
     "Popup": {
       "centre": {
@@ -9289,7 +9327,6 @@
       },
       "copy": {
         "writeNow": "Zapisz kopię teraz",
-        "emptyHere": "Planer sprawy jest tu pusty, a serwer nie ma jego kopii. Przywróć go z pliku kopii: panel GM-a, Diagnostyka, Sprawa.",
         "done": {
           "written": "Kopia na serwerze zapisana.",
           "same": "Kopia na serwerze ma już tę sprawę."
@@ -9303,7 +9340,24 @@
           "notHydrated": "Kopie sprawy od innych GM-ów jeszcze nie dotarły. Spróbuj za chwilę.",
           "quiet": "Testy modułu trzymają teraz sprawę. Spróbuj, gdy się skończą.",
           "list": "Ta przeglądarka nie mogła odczytać folderu sprawy na serwerze. Szczegóły są w konsoli.",
-          "failed": "Nie udało się zapisać kopii sprawy. Szczegóły są w konsoli."
+          "failed": "Nie udało się zapisać kopii sprawy. Szczegóły są w konsoli.",
+          "host": "Ten hosting nie pozwala tej przeglądarce zapisać kopii sprawy na serwerze. Sprawa jest tylko w przeglądarkach GM-ów: na koniec sesji zapisz ją do pliku (panel GM-a, Diagnostyka, Sprawa, Zrób kopię), a na nowym komputerze wczytaj ten plik."
+        },
+        "sources": "Skąd sprawa trafia do przeglądarki, która jej nie ma: z przeglądarki innego GM-a, gdy oboje jesteście online, z kopii na serwerze albo z pliku kopii (Przywróć z pliku).",
+        "tileNoCopy": "{when}; brak kopii na serwerze",
+        "card": {
+          "empty": {
+            "title": "Planer sprawy jest pusty w tej przeglądarce",
+            "body": "Żaden inny GM nie jest online i nie udało się tu wczytać kopii sprawy z serwera. Sprawa może przyjść z przeglądarki innego GM-a, gdy się połączy, z kopii na serwerze albo z pliku kopii: otwórz Sprawę i wybierz Przywróć z pliku.",
+            "button": "Otwórz Sprawę",
+            "tip": "Otwiera okno Sprawa: Zrób kopię, Przywróć z pliku i kopia na serwerze."
+          },
+          "file": {
+            "title": "Zapisz sprawę do pliku",
+            "body": "W tej sesji nie udało się zapisać kopii sprawy na serwerze, więc sprawa jest tylko w przeglądarkach GM-ów. Zapisz ją teraz do pliku i trzymaj plik tam, gdzie żaden gracz go nie otworzy; na innym komputerze wczytaj go przez Przywróć z pliku.",
+            "button": "Zapisz sprawę do pliku",
+            "tip": "Zrób kopię: zapisuje całą sprawę do pliku na tym komputerze."
+          }
         }
       },
       "row": {
@@ -9667,6 +9721,153 @@
       "pastPaid": "Ujawniono już każdy Key Remnant, za który pobrano Despair. Potwierdź, aby ujawnić kolejny.",
       "noText": "Najpierw wpisz, co przeczytają gracze na tym Key Remnancie.",
       "notDone": "Key Remnant nie został ujawniony."
+    },
+    "Repair": {
+      "voiceRoomsOff": "Wszyscy w jednym pokoju głosu",
+      "voiceRoomsOn": "Włącz pokoje głosu",
+      "voiceRoomsOffAsk": "Każdy trafi do pokoju głównego, a pokoje przestaną trzymać swoje tajemnice w głosie, dopóki nie włączysz ich z powrotem. Użyj tego, gdy LiveKit nie radzi sobie z pokojami.",
+      "voiceRoomsOffYes": "Wszyscy do jednego pokoju",
+      "voiceRoomsOffDone": "Pokoje głosu są wyłączone: wszyscy są w pokoju głównym.",
+      "voiceRoomsOnDone": "Pokoje głosu są włączone: każdy znów słyszy tylko swój pokój.",
+      "voiceRoomsNoLiveKit": "Tu nie ma klienta LiveKit AV, więc nie ma pokoi głosu do przełączenia.",
+      "voiceRoomsOffTip": "Wyłącza pokoje głosu: przełącznik Głos osobno w każdym pokoju w Ustawieniach gry.",
+      "tile": "Naprawy",
+      "title": "Naprawy",
+      "intro": "Co zrobić, gdy coś utknęło. Każdy przycisk uruchamia naprawę z konsoli (game.drpg), najpierw pyta i mówi, co zrobił; konsola zostaje drugą drogą.",
+      "colSymptom": "Kiedy",
+      "colDoes": "Co robi przycisk",
+      "colPress": "Naprawa",
+      "failed": "Naprawa się nie udała; konsola (F12) mówi dlaczego.",
+      "primaryOnly": "Robi to tylko przeglądarka głównego GM-a, teraz {name}.",
+      "body": {
+        "symptom": "Znalezienie ciała zostaje: jego karta i cisza muzyki stoją.",
+        "does": "Czyści u wszystkich zapis znalezionego ciała, więc karta i cisza znikają. Zegar się nie przesuwa i nic ze śmierci ani ze śledztwa nie jest cofane.",
+        "button": "Wyczyść znalezienie ciała",
+        "done": "Znalezienie ciała jest wyczyszczone.",
+        "none": "Żadne znalezienie ciała nie czekało."
+      },
+      "chapterFinish": {
+        "symptom": "Koniec rozdziału stanął w połowie.",
+        "does": "Prowadzi zatrzymany koniec dalej od jego zapisu, w przeglądarce głównego GM-a: to, co już zrobił, nie jest robione drugi raz. Biegnie tylko w fazie, w której koniec stanął, a w innej mówi, w której.",
+        "button": "Dokończ koniec rozdziału"
+      },
+      "chapterDrop": {
+        "symptom": "Koniec rozdziału stanął, a reszta nie powinna biec.",
+        "does": "Niczego nie uruchamia: zapis końca jest oznaczony jako porzucony, a karta dla GM-ów wymienia kroki, które zostają niezrobione. Nic z tego, co koniec zrobił, nie jest cofane.",
+        "button": "Porzuć resztę końca"
+      },
+      "observes": {
+        "symptom": "Deklaracja Observe wisi i żaden GM nie może ustalić jej celu.",
+        "does": "Zapomina wszystkie czekające cele Observe, które trzymają GM-owie. Żadna akcja ani Hope nie wraca.",
+        "button": "Zapomnij czekające Observe",
+        "done": {
+          "one": "Zapomniano {n} czekające Observe.",
+          "few": "Zapomniano {n} czekające Observe.",
+          "many": "Zapomniano {n} czekających Observe.",
+          "other": "Zapomniano {n} czekającego Observe."
+        }
+      },
+      "unhide": {
+        "symptom": "Postać nadal jest ukryta.",
+        "does": "Kończy Hide tej postaci, tak jak jej własne Ujawnij się: wszyscy znów widzą jej token, mikrofon wraca, a gracz dostaje wiadomość. W przeglądarce innego GM-a prosi o to głównego.",
+        "button": "Pokaż postać",
+        "pick": "Postać do pokazania",
+        "done": "Postać {name} jest znowu widoczna.",
+        "failed": "Nie udało się pokazać postaci {name}: może już nie być ukryta.",
+        "noneHidden": "Nikt nie jest teraz ukryty."
+      },
+      "tokens": {
+        "symptom": "Search Tokeny pokoi są wydane, a powinny być pełne.",
+        "does": "Uzupełnia Search Tokeny każdego pokoju, tak jak następna pora dnia, bez przesuwania zegara. Prosi o to przeglądarkę głównego GM-a.",
+        "button": "Uzupełnij Search Tokeny",
+        "failed": "Nie udało się uzupełnić Search Tokenów."
+      },
+      "fog": {
+        "symptom": "Mgła na tym ekranie jest narysowana źle.",
+        "does": "Rysuje mgłę od nowa tylko w tej przeglądarce, na twoim ekranie. Na ekranie gracza gracz uruchamia game.drpg.repaintFog() we własnej konsoli.",
+        "button": "Narysuj mgłę od nowa",
+        "done": "Mgła jest narysowana od nowa w tej przeglądarce.",
+        "stood": "Mgła tutaj nie stoi albo czeka na koniec odsłaniania; game.drpg.diagnoseFog() w tej przeglądarce mówi, co z tych dwóch."
+      },
+      "music": {
+        "symptom": "Muzyka nie gra tego, czego chce chwila.",
+        "does": "Pyta muzykę od nowa, który stan obowiązuje, i go gra, w przeglądarce głównego GM-a, którą słyszą wszyscy. Utwór puszczony ręcznie przez GM-a nadal wygrywa.",
+        "button": "Zagraj właściwą muzykę",
+        "done": "Muzyka jest zapytana od nowa, co ma grać."
+      },
+      "reclaim": {
+        "symptom": "GM otworzył ten świat na wydaniu sprzed 1.2.63, które zapisało stary klucz magazynu GM-ów.",
+        "does": "Bierze ze starego klucza magazynu to, co zmieniło się od aktualizacji: wiersz, którego magazyn nie miał, jest dodawany, pole jest brane tylko wtedy, gdy własne pole magazynu jest starsze od aktualizacji, a reszta zostaje taka jak tutaj i jest liczona. To, co się zmieniło, idzie do pozostałych GM-ów.",
+        "button": "Weź ze starego klucza",
+        "pick": "Magazyn GM-ów",
+        "done": "{store}: dodane wiersze {added}, zmienione wiersze {count}, zostawione jak tutaj {kept}.",
+        "none": "{store} nie ma przejęcia starego klucza, z którego można brać.",
+        "noneChanged": "Stary klucz żadnego magazynu GM-ów nie zmienił się od aktualizacji."
+      },
+      "migrate": {
+        "symptom": "Dane tego świata wyglądają jak przed aktualizacją.",
+        "does": "Uruchamia od nowa każdą klauzulę migracji, cokolwiek mówi stempel wersji, w przeglądarce głównego GM-a. Wydanie testowe w świecie bez \"qa\" w nazwie nie uruchamia żadnej (Podręcznik GM-a 20.5).",
+        "button": "Uruchom migrację od nowa",
+        "done": "Migracja przebiegła od nowa. Zmiany: {count}; nieudane klauzule: {cut}."
+      },
+      "actions": {
+        "symptom": "Przejście pory dnia się nie udało i akcje nie zostały uzupełnione.",
+        "does": "Uzupełnia akcje każdej postaci i zabiera jej darmowe przydziały (Sprint i Burst), bez przesuwania zegara.",
+        "warn": "To nie jest zwykła droga: akcje wracają, gdy pora dnia przechodzi dalej, a uzupełnienie, które nie przesuwa zegara, to sposób na zgubienie, w której porze dnia stół naprawdę jest. Używaj tego tylko przy zepsutym przejściu.",
+        "button": "Uzupełnij akcje wszystkich",
+        "done": {
+          "one": "Uzupełniono akcje {n} postaci.",
+          "few": "Uzupełniono akcje {n} postaci.",
+          "many": "Uzupełniono akcje {n} postaci.",
+          "other": "Uzupełniono akcje {n} postaci."
+        }
+      }
+    },
+    "Announce": {
+      "tile": "Ogłoszenie",
+      "title": "Ogłoszenie Monokumy",
+      "speaker": "Monokuma",
+      "schoolTitle": "Ogłoszenie Monokumy",
+      "roomTitle": "Ogłoszenie Monokumy w pokoju {room}",
+      "studentTitle": "Ogłoszenie Monokumy dla ciebie",
+      "textLabel": "Co mówi Monokuma",
+      "textTip": "Słowa idą tak, jak je napiszesz.",
+      "toLabel": "Do kogo",
+      "toTip": "Cała szkoła, jeden pokój szkoły albo jeden uczeń.",
+      "to": {
+        "school": "Cała szkoła",
+        "room": "Jeden pokój",
+        "student": "Jeden uczeń"
+      },
+      "roomLabel": "Pokój",
+      "roomTip": "Pokój szkoły. Dostają je w swoich wątkach gracze, których uczniowie teraz tam stoją.",
+      "studentLabel": "Uczeń",
+      "studentTip": "Gracz, który dostanie je w swoim wątku.",
+      "reach": {
+        "one": "Ogłoszenie dostanie {n} gracz, w swoim wątku.",
+        "few": "Ogłoszenie dostaną {n} gracze, każdy w swoim wątku.",
+        "many": "Ogłoszenie dostanie {n} graczy, każdy w swoim wątku.",
+        "other": "Ogłoszenie dostanie {n} gracza, każdy w swoim wątku."
+      },
+      "reachOf": {
+        "school": "Dostaje je każdy ekran, także Widzów.",
+        "student": "Ten gracz dostaje je w swoim wątku."
+      },
+      "send": "Ogłoś",
+      "sendTip": "Wysyła ogłoszenie teraz.",
+      "sent": {
+        "one": "Ogłoszono: wysłano {n} kartę.",
+        "few": "Ogłoszono: wysłano {n} karty.",
+        "many": "Ogłoszono: wysłano {n} kart.",
+        "other": "Ogłoszono: wysłano {n} karty."
+      },
+      "refused": {
+        "notGm": "Ogłaszać może tylko GM.",
+        "empty": "Najpierw napisz, co mówi Monokuma.",
+        "noRoom": "Wybierz pokój szkoły.",
+        "noStudent": "Wybierz ucznia gracza.",
+        "failed": "Nie udało się wysłać ogłoszenia; konsola (F12) mówi dlaczego."
+      }
     }
   }
 }

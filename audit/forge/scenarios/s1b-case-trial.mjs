@@ -11,7 +11,9 @@
  * runs is closed (an Eclipse ended without advancing, an incident ended), the phase put to Daily Life, P1-P4 revived,
  * P1 and P3 put alone in a room, GM1 opens P1 -> P3 (up to 3 openings until one succeeds; the dice are not forced) and
  * marks P3 dead in the fight. The note "start" says which. In both cases the killer is P1's character or the incident's,
- * and the finders are taken from P2, P4 and then P1-P4 in that order.
+ * and the finders are taken from P2, P4 and then P1-P4 in that order. Before either, the world is read and put back
+ * where a module road can, s1a's end state kept when it is here, or the scenario refuses with exit 2 (lib/s1-kit.mjs
+ * `startFromKnownWorld`; 2.0 line T4, F3PC2-S1-STATE, 27.11.2026).
  *
  * WHAT IT CLAIMS (ids as in s1a: a check of a known defect fails on 1.2.129 and passes once 2.0 is in; ["FLOW"] is the
  * scenario's own road):
@@ -75,7 +77,7 @@
  *     the verdict raise, are answered by their primary button (`F.answer` with no named button).
  */
 
-import { kit, J, readWorld, pickRooms, placeTokens, unpause, readyPlayers, i18n, runOpening, closeIncident } from "./lib/s1-kit.mjs";
+import { kit, J, readWorld, pickRooms, placeTokens, unpause, readyPlayers, i18n, runOpening, closeIncident, startFromKnownWorld } from "./lib/s1-kit.mjs";
 
 export const meta = {
     id: "s1b-case-trial",
@@ -101,6 +103,9 @@ export async function run(ctx) {
         const kits = {};
         for (const role of meta.roles) kits[role] = await K.install(role);
         note("kit", J(kits));
+        // The world read, put back where a module road can, or refused (lib/s1-kit.mjs; 2.0 line T4, F3PC2-S1-STATE): s1a's
+        // end state is kept when it is here.
+        await startFromKnownWorld(ctx, K, { keepS1aIncident: true });
         const L = await i18n(K, "gm1", ["DRPG.Chapter.pendingTitle", "DRPG.Observe.describeTitle", "DRPG.Floor.startTrial",
             "DRPG.Messenger.gm.waiting", "DRPG.Vote.resultBanner", "DRPG.Chapter.stageSixTitle", "DRPG.Action.murderOpensTitle", "DRPG.Mask.askTitle"]);
         let world = await readWorld(K);

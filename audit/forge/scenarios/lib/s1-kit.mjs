@@ -28,10 +28,12 @@
  * relative to the page. Forge serves the module from assets.forge-vtt.com (F3-forge-S0.md); whether the entry is there
  * on every browser is the first thing `install` reports (`base`, `fromEntries`).
  *
- * WHAT IT WRITES: nothing in `pageKit`. `setupTable` writes the world (GM1's browser): tokens of P1-P4 and the two
- * Monokumas created on the active scene where absent and moved into the rooms named, the game unpaused, and on a
- * scenario's request a stale incident closed, an Eclipse ended without advancing and a dead P1-P4 revived. Every write
- * is returned in `wrote`, which the scenarios put in a note.
+ * WHAT IT WRITES: nothing in `pageKit`. `placeTokens`, `unpause` and `closeIncident` write the world (GM1's browser;
+ * this paragraph named a `setupTable` no file holds until 27.11.2026): tokens of P1-P4 and the two Monokumas created on
+ * the active scene where absent and moved into the rooms named, the game unpaused, a running incident closed; the
+ * scenarios' own set-up ended an Eclipse without advancing and revived a dead P1-P4. Every write is returned in
+ * `wrote`, which the scenarios put in a note. `prepareWorld` (the last section, 2.0 line T4,
+ * F3PC2-S1-STATE) writes what it lists in its header at a scenario's start, or nothing when it refuses.
  */
 
 export const MOD = "danganronpa-rpg";
@@ -558,4 +560,201 @@ export async function playerMove(K, role, { tokenId, actorId, room }) {
         await F.sleep(2000);
         const now = canvas.scene.tokens.get(${J(tokenId)});
         return { ok: M.roomOfToken(now) === ${J(room)}, from, to: M.roomOfToken(now), left0, left1: game.drpg.movesLeft?.(game.actors.get(${J(actorId)})) ?? null, error };`, { timeout: 60_000 });
+}
+
+/* ==========================================================================
+ * THE WORLD'S STATE AT THE START (2.0 line T4, F3PC2-S1-STATE, 27.11.2026)
+ * ==========================================================================
+ * The second S1a/S1b pass on the owner's PC (F3-forge-PC-2.md, "Inne obserwacje" and "Czego nie zrobiłem") failed two
+ * FLOW checks that hung on the world the earlier passes left - P3's Set difficulty card never reached GM1, and GM1 was
+ * not asked about the body but shown "The case on this browser" instead - in a world at chapter 3, day 6, with P1-P4
+ * dead and revived over the passes and four extra "P3" tokens on the scene. A FLOW failure there measured the world,
+ * not the module. So both scenarios read the world first (`worldState`), put back what a module road can put back
+ * (`prepareWorld`), read it again, and REFUSE (exit 2, run.mjs `ctx.refuse`, as lib.mjs refuses a world that is not
+ * the test world) where it cannot, instead of running checks on a world they cannot vouch for. `startFromKnownWorld`
+ * is the one call each scenario makes; its notes "world state before", "world prepared" and "world state after" go
+ * into the report.
+ *
+ * PUT BACK, each by the module's own road (scripts/api.mjs, read 27.11.2026; nothing new in the module):
+ *   - an Eclipse running: `game.drpg.endEclipse({ advance: false })`, the lights' "Open the incident?" answered No
+ *     (`F.auto`), as s1a's set-up did;
+ *   - an incident running: `game.drpg.endMurder({ reason: "closed", followUp: false })` (closeIncident's road) - but
+ *     for S1b (`keepS1aIncident`) the incident s1a leaves (Stage 6, the victim dead for the GMs and not found) is kept,
+ *     with its dead victim;
+ *   - the phase Investigation with no incident kept: `game.drpg.setPhase("dailyLife")`, as s1a's set-up did;
+ *   - a dead P1-P4 (`isDeadForGm`): `game.drpg.reviveCharacter(actor, { quiet: true })` (S5's and s1a's road);
+ *   - more than one token of a P1-P4 character on the active scene, read after the revive: every one but the first the
+ *     scene lists deleted (`deleteEmbeddedDocuments`, a GM deleting a token - Foundry's road; the module has none) - the
+ *     first is the one `readWorld` and `placeTokens` read (`scene.tokens.find`); the kept victim's are left alone;
+ *   - the game paused: `game.togglePause(false, { broadcast: true })`;
+ *   - the windows open on GM1's and GM2's pages (framed ApplicationV2s): closed (a window that waits for an answer is
+ *     cancelled by its close; the report lists their titles).
+ * READ, NEVER PUT BACK (no module road restores them): the case planner empty on GM1 (case-copy.mjs `plannerEmpty`; a
+ * fresh browser on Forge, FORGE-01 - only a file restores it), tokens named like a P1-P4 character that belong to
+ * another actor (a Spectator's, a copy: listed, not deleted), the chapter, day and session.
+ * REFUSED (exit 2, the reason in the report's `refused`):
+ *   - no active scene, or one with no rooms (s1a's and s1b's own throws say the same later; refusing first writes nothing);
+ *   - a Class Trial in progress (phase `classTrial`): no road ends it short of running the trial;
+ *   - a chapter's end stopped half way (chapter.mjs `chapterEndStopped`, stage "applying"): finishing it moves the
+ *     chapter, dropping it leaves its steps half done;
+ *   - with DRPG_S1_CHAPTER set, a clock in another chapter: `setClock` writes the number, not what a chapter's end did,
+ *     so a run that must start in chapter N refuses another (unset: the chapter is recorded and not judged);
+ *   - anything above still not as it should be when read again after the writes.
+ *
+ * UNMEASURED on Forge: that `hasFrame` (or a direct `header.window-header`) tells a window from Foundry's own interface
+ * parts (the sidebar, the hotbar are ApplicationV2s too); that `reviveCharacter` quiet takes a Spectator's token away
+ * with the death (death.mjs `removeDeadSpectator`), which may be what the extra "P3" tokens were - the namesakes' list
+ * will say.
+ */
+
+/* In a page: the framed windows open (an ApplicationV2 with its window frame), as `{ app, title }`. Source only. */
+const FRAMED = `[...(foundry.applications?.instances?.values?.() ?? [])]
+    .filter(a => a.rendered && a.element?.isConnected && (a.hasFrame ?? Boolean(a.element.querySelector(":scope > header.window-header"))))`;
+
+/** The world as GM1 reads it, and the windows open on each GM's page. Writes nothing. */
+export async function worldState(K, { gms = ["gm1", "gm2"] } = {}) {
+    const state = await K.on("gm1", `
+        const M = await F.imp("movement"), R = await F.imp("rooms");
+        const scene = game.scenes.active ?? canvas.scene ?? null;
+        const c = game.drpg.getClock();
+        const s = game.drpg.murderState();
+        let stopped = null;
+        try { const C = await F.imp("chapter"); const r = C.chapterEndStopped?.() ?? null; stopped = r ? { stage: r.stage ?? null, by: r.by ?? null, failed: F.safe(r.failed ?? []) } : null; }
+        catch (e) { stopped = { unread: String(e?.message ?? e) }; }
+        let progress = null;
+        try { progress = F.safe(game.drpg.trialProgress()); } catch (e) { progress = { unread: String(e?.message ?? e) }; }
+        let planner = null;
+        try { const CC = await F.imp("case-copy"); planner = { empty: Boolean(CC.plannerEmpty()), copy: F.safe(CC.copyState?.() ?? null) }; }
+        catch (e) { planner = { unread: String(e?.message ?? e) }; }
+        const students = {};
+        for (const n of ["P1", "P2", "P3", "P4"]) {
+            const a = game.actors.getName(n);
+            if (!a) { students[n] = null; continue; }
+            const own = scene ? scene.tokens.filter(t => t.actorId === a.id) : [];
+            students[n] = { id: a.id, dead: Boolean(game.drpg.isDeadForGm(a)), deceased: Boolean(game.drpg.isDeceased(a)),
+                tokens: own.map(t => ({ id: t.id, room: M.roomOfToken(t) ?? null, hidden: Boolean(t.hidden) })),
+                namesakes: scene ? scene.tokens.filter(t => t.actorId !== a.id && t.name === a.name).map(t => ({ id: t.id, actorId: t.actorId ?? null })) : [] };
+        }
+        const victim = s?.active && s.victimId ? game.actors.get(s.victimId) : null;
+        return { at: Date.now(), scene: scene ? { id: scene.id, name: scene.name, isPlace: Boolean(R.isPlaceScene(scene)) } : null,
+            clock: { chapter: c.chapter, session: c.session, day: c.day, timeOfDay: c.timeOfDay, phase: c.phase }, eclipse: Boolean(game.drpg.isEclipse()),
+            paused: game.paused, incident: s?.active ? { stage: s.stage ?? null, killerId: s.killerId ?? null, victimId: s.victimId ?? null } : null,
+            s1aEnd: Boolean(s?.active && s.stage === "resolution" && victim && game.drpg.isDeadForGm(victim) && !game.drpg.isDeceased(victim)),
+            chapterEndStopped: stopped, trialProgress: progress, planner, students };`, { timeout: 60_000 });
+    state.windows = {};
+    for (const role of gms) {
+        try { state.windows[role] = await K.on(role, `return ${FRAMED}.map(a => ({ id: a.id, title: String(a.title ?? "").slice(0, 80) }));`); }
+        catch (err) { state.windows[role] = { unread: String(err?.message ?? err).split("\n")[0] }; }
+    }
+    return state;
+}
+
+/** What `state` holds that `prepareWorld` cannot put back: a reason to refuse, or null. */
+function refusalOf(state, { chapter = null } = {}) {
+    if (!state?.scene) return "no active scene: S1 plays on the active scene's rooms";
+    if (!state.scene.isPlace) return `the active scene "${state.scene.name}" holds no room`;
+    if (state.clock?.phase === "classTrial") return "a Class Trial is in progress (phase classTrial): no module road ends it short of running the trial - start from drpg-qa-forge or a fresh copy of it";
+    if (state.chapterEndStopped && !state.chapterEndStopped.unread) return `a chapter's end stopped half way (${J(state.chapterEndStopped)}): finishing it moves the chapter and dropping it leaves its steps half done - start from drpg-qa-forge or a fresh copy of it`;
+    if (chapter !== null && Number(state.clock?.chapter) !== chapter) return `the clock reads chapter ${state.clock?.chapter} and DRPG_S1_CHAPTER asks for ${chapter}: setClock writes the number, not what a chapter's end did`;
+    return null;
+}
+
+/**
+ * Put back what the module's roads can put back (the header above), on GM1, then close the windows open on each GM's
+ * page. Answers `{ refused }` (nothing written) or `{ wrote, kept, closed }`.
+ */
+export async function prepareWorld(K, state, { keepS1aIncident = false, chapter = null, gms = ["gm1", "gm2"] } = {}) {
+    const refused = refusalOf(state, { chapter });
+    if (refused) return { refused };
+    const keep = Boolean(keepS1aIncident && state.s1aEnd);
+    const out = await K.on("gm1", `
+        const wrote = [], kept = [];
+        const KEEP = ${keep ? "true" : "false"};
+        F.auto("prep-lights", { title: game.i18n.localize("DRPG.Action.murderOpensTitle"), press: "no" });
+        try {
+            if (game.drpg.isEclipse()) { await game.drpg.endEclipse({ advance: false }); wrote.push("a running Eclipse ended without advancing (endEclipse)"); await F.sleep(1500); }
+            const s = game.drpg.murderState();
+            const victimId = KEEP && s?.active ? s.victimId : null;
+            if (s?.active && !KEEP) { await game.drpg.endMurder({ reason: "closed", followUp: false }); wrote.push("a running incident closed (endMurder; stage " + s.stage + ")"); await F.sleep(1500); }
+            else if (s?.active) kept.push("s1a's incident kept: stage " + s.stage + ", victim " + (game.actors.get(s.victimId)?.name ?? s.victimId) + " dead and not found");
+            const phase = game.drpg.getClock().phase;
+            if (phase === "investigation" && !KEEP) { await game.drpg.setPhase("dailyLife"); wrote.push("phase investigation -> dailyLife (setPhase)"); }
+            const scene = game.scenes.active ?? canvas.scene;
+            for (const n of ["P1", "P2", "P3", "P4"]) {
+                const a = game.actors.getName(n);
+                if (!a) continue;
+                if (game.drpg.isDeadForGm(a)) {
+                    if (a.id === victimId) kept.push(n + " dead (s1a's victim)");
+                    else { await game.drpg.reviveCharacter(a, { quiet: true }); wrote.push(n + " revived (reviveCharacter, quiet)"); }
+                }
+                /* After the revive, which takes a Spectator's and a Monocub's token with the death (spectator-dead.mjs
+                   removeDeadSpectator): the kept victim's tokens are left alone - a Monocub token is the student's own. */
+                const own = scene.tokens.filter(t => t.actorId === a.id);
+                if (own.length > 1 && a.id === victimId) kept.push(n + ": " + own.length + " tokens left as they are (s1a's victim)");
+                else if (own.length > 1) {
+                    const extra = own.slice(1).map(t => t.id);
+                    await scene.deleteEmbeddedDocuments("Token", extra);
+                    wrote.push(n + ": " + extra.length + " extra token(s) deleted from " + scene.name + ", " + own[0].id + " kept");
+                }
+            }
+            if (game.paused) { try { await game.togglePause(false, { broadcast: true }); } catch { await game.togglePause(false, true); } wrote.push("the game unpaused"); }
+            await F.sleep(2500);
+        } finally {
+            F.stopAuto("prep-lights");
+        }
+        return { wrote, kept };`, { timeout: 240_000 });
+    out.closed = {};
+    for (const role of gms) {
+        try {
+            out.closed[role] = await K.on(role, `const closed = [];
+                for (const a of ${FRAMED}) {
+                    closed.push(String(a.title ?? a.id).slice(0, 80));
+                    try { await a.close(); } catch { /* one that will not close is read again after */ }
+                }
+                return closed;`);
+        } catch (err) {
+            out.closed[role] = { unread: String(err?.message ?? err).split("\n")[0] };
+        }
+    }
+    return out;
+}
+
+/** What `after` still holds that `prepareWorld` should have put back: a list, empty when the world is ready. */
+function unrestored(after, { keep }) {
+    const left = [];
+    if (after.eclipse) left.push("an Eclipse still runs");
+    if (after.incident && !keep) left.push(`an incident still runs (${J(after.incident)})`);
+    if (keep && !after.s1aEnd) left.push("s1a's incident was to be kept and is no longer there as s1a left it");
+    if (after.paused) left.push("the game is still paused");
+    for (const [n, row] of Object.entries(after.students ?? {})) {
+        if (!row) continue;
+        const victim = keep && row.id === after.incident?.victimId;
+        if (row.dead && !victim) left.push(`${n} is still dead for the GMs`);
+        if (row.tokens.length > 1 && !victim) left.push(`${n} still has ${row.tokens.length} tokens on the scene`);
+    }
+    for (const [role, list] of Object.entries(after.windows ?? {})) {
+        if (Array.isArray(list) && list.length) left.push(`${role} still has windows open: ${list.map(w => w.title).join(", ")}`);
+    }
+    return left;
+}
+
+/**
+ * The one call S1a and S1b make at their start: the state read, put back, read again, each in a note; a refusal
+ * (run.mjs `ctx.refuse`, exit 2) where the world cannot be put back. `keepS1aIncident` is S1b's: it starts from s1a's
+ * end state when it finds it. DRPG_S1_CHAPTER, when set, is the chapter the run must start in. Answers the state after.
+ */
+export async function startFromKnownWorld(ctx, K, { keepS1aIncident = false } = {}) {
+    const chapter = process.env.DRPG_S1_CHAPTER ? Number(process.env.DRPG_S1_CHAPTER) : null;
+    const before = await worldState(K);
+    ctx.note("world state before (lib/s1-kit.mjs worldState)", J(before));
+    const prep = await prepareWorld(K, before, { keepS1aIncident, chapter });
+    if (prep.refused) ctx.refuse(`the world cannot be put back for ${ctx.meta?.id ?? "S1"}: ${prep.refused}`);
+    ctx.note("world prepared (lib/s1-kit.mjs prepareWorld)", J(prep));
+    const after = await worldState(K);
+    ctx.note("world state after (lib/s1-kit.mjs worldState)", J(after));
+    const left = unrestored(after, { keep: Boolean(keepS1aIncident && before.s1aEnd) });
+    const again = refusalOf(after, { chapter });
+    if (again) left.push(again);
+    if (left.length) ctx.refuse(`the world was not put back for ${ctx.meta?.id ?? "S1"}: ${left.join("; ")}`);
+    return after;
 }

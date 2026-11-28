@@ -139,7 +139,10 @@ a Player, a Trusted Player or a player's own account (`filesRefusal`; R7345;
 scenario 34 B1-B2), and tells the GMs why. A write never comes from a browser
 whose stores have not heard the other GMs, and never before it has listed and
 merged every copy in the folder (`copyRefusal`, `writeServerCopy`; R7346; scenario
-34 D1-D2).
+34 D1-D2). On The Forge the host can refuse a GM's browser the upload altogether
+(2.0 line T4, FORGE-01): the module answers "host" (`hostRefusal`; R9223), says so
+once a session and tries no more, and the case is then only in the GMs' browsers,
+to be saved to a file by hand at the end of a session (LIVE-E134-05).
 
 What stays open: a roll not drawn - one thrown with no GM connected (an action
 waits; any other roll is stamped and moves nothing until a GM grants it, on the

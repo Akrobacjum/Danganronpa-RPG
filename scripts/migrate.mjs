@@ -1701,6 +1701,13 @@ export async function migrate1_2_0({ force = false, quiet = false, wasInPlay = n
         ui.notifications.warn(game.i18n.localize("DRPG.Migrate.gmOnly"));
         return null;
     }
+    // The test build's gate (D2-13), before the stamp is read and before any clause: `force` does not pass it.
+    const gated = migrationGate();
+    if (gated) {
+        tellMigrationGate(gated);
+        log(`Migration: skipped (${gated}) - ${moduleVersion()} in the world "${game.world?.id}".`);
+        return { skipped: gated, to: moduleVersion(), clauses: {}, changed: 0 };
+    }
 
     const to = moduleVersion();
     const from = getSetting(SETTINGS.migratedVersion) || "";
@@ -1808,7 +1815,16 @@ let onLoad = null;
  * as safe, it is one race per clause.
  */
 export function runMigrationOnLoad() {
+    /* Every GM hears the test build's gate, not only the primary (D2-13): the warning is about the world, and a second
+       GM who loads it should know its data is not being lifted. The primary's pass meets the same gate in migrate1_2_0. */
+    const gated = migrationGate();
+    if (gated && game.user?.isGM) tellMigrationGate(gated);
     if (!isPrimaryGm()) return;
+    if (gated) {
+        // Neither the clauses nor the DA39 migration after them: the gate stands before both (D2-13).
+        onLoad = Promise.resolve({ skipped: gated, to: moduleVersion(), clauses: {}, changed: 0 });
+        return;
+    }
 
     // Read now, before the first clause - or anything else at `ready` - writes the
     // world: whether it was played before this load (S01-14).
@@ -1845,6 +1861,8 @@ export function migrationStatus() {
         stampedAt: from || null,
         installed: to,
         current: from === to,
+        // The test build's gate (D2-13): its reason while it holds the passes back, else null.
+        skipped: migrationGate(),
         // `pending` is the question the stamp alone cannot answer: a world can
         // be behind on the version and still have nothing owing.
         clauses: CLAUSES.map(c => ({
@@ -1853,4 +1871,37 @@ export function migrationStatus() {
             pending: !from || foundry.utils.isNewerVersion(c.since, from)
         }))
     };
+}
+
+/*
+ * THE TEST BUILD'S GATE (2.0 line T4, D2-13, 27.11.2026; the owner's decision D2-13 in docs/dev/v2/DECISIONS.md: "Wydania
+ * 1.9.x pomijają migracje i ostrzegają w świecie, którego nazwa nie zawiera \"qa\""). The 2.0 road ships test builds -
+ * 1.9.x, or any version with a pre-release suffix (`1.2.130-qa.1`) - that a GM could install over a campaign by mistake,
+ * and every clause above writes the campaign's world data in a shape a later build may not read back. So such a build lifts
+ * nothing in a world whose id or title does not contain "qa" (any case: `drpg-qa-forge-2` / "DRPG-QA-FORGE-2" pass), and
+ * says so to every GM once a load. A version that cannot be read ("?": no module.json) lifts nothing either, in any world:
+ * with no version there is nothing to stamp the pass with. One place, at the runner's entry (migrate1_2_0) and before the
+ * DA39 migration (runMigrationOnLoad): the clauses T2 and T5 append to `CLAUSES` pass through it like every other, and
+ * `force: true` does not open it (the decision names no way round; the owner's question in LINE-T4-REPORT.md). What else
+ * writes the world at `ready` outside `CLAUSES` is not a migration in the decision's sense and is not held here (listed in
+ * the report). A skipped pass writes nothing: no stamp, no clause.
+ */
+
+/** Whether this build may migrate this world's data: null, or why not ("testBuild", "noVersion"). Pure on its arguments. */
+export function migrationGate({ version = moduleVersion(), worldId = game.world?.id, worldTitle = game.world?.title } = {}) {
+    const v = String(version ?? "?").trim();
+    if (!v || v === "?") return "noVersion";
+    if (!/^1\.9\./.test(v) && !v.includes("-")) return null;
+    return /qa/i.test(`${worldId ?? ""} ${worldTitle ?? ""}`) ? null : "testBuild";
+}
+
+/** The gate's reason said once a load for a build and a world, to a GM, until closed (D2-13): the load's pass and every call by
+ *  hand after it say it once between them. */
+const gateTold = new Set();
+function tellMigrationGate(reason) {
+    const said = `${reason}|${moduleVersion()}|${game.world?.id}`;
+    if (gateTold.has(said) || !game.user?.isGM) return;
+    gateTold.add(said);
+    const key = reason === "noVersion" ? "DRPG.Migrate.noVersion" : "DRPG.Migrate.testBuild";
+    ui.notifications.warn(game.i18n.format(key, { version: moduleVersion() }), { permanent: true });
 }

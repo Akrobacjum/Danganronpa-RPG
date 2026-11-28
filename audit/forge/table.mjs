@@ -11,8 +11,9 @@
  *      "Voice: the connect for X took N ms", voice-client.mjs `applyBreakout`), lists the open windows, and imports a
  *      module file from the address the page loaded the module from.
  *   2. THE TABLE (`readTable`, `placeTokens`, `moveTokens`): the active scene's rooms found by the module's own hit test
- *      (`game.drpg.roomOfToken` on a stand-in token at every grid cell), a deep spot per room, a spot outside every room
- *      beside two of them (a doorway or a corridor, for VOICE-05), and each role's token placed or found.
+ *      (`game.drpg.roomOfToken` on a stand-in token at every grid cell), a deep spot per room, which of them are
+ *      bedrooms (`game.drpg.allBedrooms`), a spot outside every room beside two of them (a doorway or a corridor, for
+ *      VOICE-05), and each role's token placed, found or moved (by a GM, optionally past the walls: `free`).
  *   3. THE VOICE READINGS (`planOf`, `converge`, `analyse`): the room the primary GM's plan wants for each account
  *      (`game.drpg.voiceTargets()`, the decision the reconcile loop sends), polled against the room each page's LiveKit
  *      client is in until they agree, and each page's log read for how long it took and how many reconnects it cost.
@@ -27,6 +28,11 @@
  *     proves the copy by counting into it and reading the count back through `game.drpg.counters()`.
  *   - `roomOfToken` accepts a plain object for a token (movement.mjs `roomAt` reads x, y, width, height, elevation, level
  *     and parent alone) and the scene has one floor (level null asks every floor).
+ *   - `moveTokens(..., { free: true })`'s option shape, `{ movement: { [tokenId]: { constrainOptions: { ignoreWalls:
+ *     true } } } }` on `updateEmbeddedDocuments`: taken from the line spec (LINE-T4.md, FORGE-05+D2-25), NOT read in
+ *     v14's source. TO CONFIRM ON THE FIRST S5 RUN: every "the plan sends ..." check's `arrived` names each moved token
+ *     in its room; a v14 that ignores the option moves the token as before (stopped at a wall), one that rejects it
+ *     answers `threw` in the write's details (2.0 line T4, FORGE-05, 27.11.2026).
  */
 
 import { config } from "./lib.mjs";
@@ -207,6 +213,14 @@ export const userNames = roles => Object.fromEntries(roles.map(r => [r, config.u
 /**
  * On a GM's page: the active scene, its rooms with a deep spot each and their neighbours, one spot outside every room
  * beside two of them, each role's user, actor and token. Writes nothing.
+ *
+ * BEDROOMS (2.0 line T4, FORGE-05+D2-25, 27.11.2026). The second Forge pass (F3-forge-PC-2.md, FORGE-05) saw tokens stop
+ * short of the rooms asked: S5's GM moves stopped in a room on the way, and in S6 57 of 89 players' moves to a room the
+ * module calls a neighbour (`neighbouringRooms`) did not land, 5 of the 7 noted with no word to the player. A bedroom is
+ * shut to everybody but its owner and whoever holds its key (vault-store.mjs, the bedroom keys), so a chain or a
+ * neighbour through one measures the bedroom's rule, not the move. Each room is marked here: `rooms[name].bedroom`, and
+ * `bedrooms` the list, read as s1-kit.mjs `readWorld` reads it (`game.drpg.allBedrooms(scene)`, each `{ room }`);
+ * `bedroomsRead` false says the read threw and every room was taken for a common one.
  */
 export async function readTable(ctx, gmRole, roles) {
     return inPage(ctx, gmRole, async ({ names }) => {
@@ -243,6 +257,8 @@ export async function readTable(ctx, gmRole, roles) {
             return k;
         };
         const named = (() => { try { return game.drpg.allRooms(scene) ?? []; } catch { return []; } })();
+        let bedrooms = [], bedroomsRead = true;
+        try { bedrooms = [...new Set((game.drpg.allBedrooms(scene) ?? []).map(b => b?.room).filter(Boolean))]; } catch { bedroomsRead = false; }
         const rooms = {};
         let gap = null;
         for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) {
@@ -256,6 +272,7 @@ export async function readTable(ctx, gmRole, roles) {
             for (let dr = -1; dr <= 1; dr++) for (let dc = -1; dc <= 1; dc++) { const n = cell(r + dr, c + dc); if (n) near.add(n); }
             if (near.size && (!gap || near.size > gap.between.length)) gap = { x: x0 + c * step, y: y0 + r * step, between: [...near].sort() };
         }
+        for (const name of Object.keys(rooms)) rooms[name].bedroom = bedrooms.includes(name);
         const neighbours = {};
         for (const name of Object.keys(rooms)) {
             try { neighbours[name] = (game.drpg.neighbouringRooms(scene, name) ?? []).filter(n => rooms[n]); } catch { neighbours[name] = []; }
@@ -274,7 +291,7 @@ export async function readTable(ctx, gmRole, roles) {
                 tokenId: token?.id ?? null, at: token ? { x: token.x, y: token.y } : null, room: token ? game.drpg.roomOfToken(token) : null };
         }
         return { sceneId: scene.id, sceneName: scene.name, grid: size, step, cells: rows * cols, scanMs: Math.round(performance.now() - t0),
-            named, rooms, neighbours, gap, who, paused: game.paused };
+            named, rooms, neighbours, bedrooms, bedroomsRead, gap, who, paused: game.paused };
     }, { names: userNames(roles) }, { timeout: 180_000 });
 }
 
@@ -316,19 +333,29 @@ export async function placeTokens(ctx, gmRole, sceneId, list) {
 /**
  * Move tokens as a drop writes them: one `updateEmbeddedDocuments` of x and y, Foundry's own animation, no option of
  * the module's - on `role`'s page (a GM for the voice tests, the owning player for the soak). Answers the page's
- * `Date.now()` at the write and what threw.
+ * `Date.now()` at the write, the options sent and what threw.
+ *
+ * `free` (2.0 line T4, FORGE-05+D2-25, 27.11.2026): on Foundry 14 a write of x and y is a movement along a path, and a
+ * path stops at a wall (F3-forge-PC-2.md, poprawka 9: P1 passed Yelena's Room; FORGE-05: P2 never left Electronic's
+ * Shop). D2-25 names the test map's walls as the cause to rule out, so a GM's move may be written past them: the
+ * movement option `constrainOptions.ignoreWalls` for every token moved, still animated, still a movement the module's
+ * hooks see. The shape is the line spec's, NOT read in v14's source - an assumption to confirm on the first S5 run (the
+ * header's UNMEASURED). Only a GM's page: a player's move past the walls is not a move the table makes, so `free` on a
+ * player's page writes nothing and answers `refused`.
  */
-export async function moveTokens(ctx, role, sceneId, moves) {
-    return inPage(ctx, role, async ({ sceneId, moves }) => {
+export async function moveTokens(ctx, role, sceneId, moves, { free = false } = {}) {
+    return inPage(ctx, role, async ({ sceneId, moves, free }) => {
         const scene = game.scenes.get(sceneId);
         const t = Date.now();
+        if (free && !game.user.isGM) return { t, free, refused: "free: a GM's move only; nothing written" };
+        const options = free ? { movement: Object.fromEntries(moves.map(m => [m.tokenId, { constrainOptions: { ignoreWalls: true } }])) } : {};
         try {
-            await scene.updateEmbeddedDocuments("Token", moves.map(m => ({ _id: m.tokenId, x: m.x, y: m.y })));
-            return { t };
+            await scene.updateEmbeddedDocuments("Token", moves.map(m => ({ _id: m.tokenId, x: m.x, y: m.y })), options);
+            return { t, free, options };
         } catch (err) {
-            return { t, threw: String(err?.message ?? err) };
+            return { t, free, options, threw: String(err?.message ?? err) };
         }
-    }, { sceneId, moves }, { timeout: 60_000 });
+    }, { sceneId, moves, free }, { timeout: 60_000 });
 }
 
 /** Unpause the game on a GM's page (Foundry's own toggle, broadcast); answers whether it was paused. */
@@ -342,14 +369,18 @@ export async function unpause(ctx, gmRole) {
 
 /**
  * Pick three rooms A, B, C with B a neighbour of A and C a neighbour of B (not A) where the map has such a chain, else
- * any three; and as many more distinct rooms as asked. Rooms are ranked by the depth of their spot.
+ * any three; and as many more distinct rooms as asked. Rooms are ranked by the depth of their spot. Bedrooms are left
+ * out of all of it (`readTable`'s `bedroom`; 2.0 line T4, FORGE-05+D2-25, 27.11.2026: a chain through a bedroom measured
+ * its lock), as s1-kit.mjs `readWorld` leaves them out of S1's rooms; `bedrooms` answers the ones left out.
  */
 export function chooseRooms(table, more = 4) {
-    const names = Object.keys(table.rooms).sort((a, b) => table.rooms[b].depth - table.rooms[a].depth || a.localeCompare(b));
+    const bedrooms = Object.keys(table.rooms).filter(n => table.rooms[n].bedroom);
+    const names = Object.keys(table.rooms).filter(n => !table.rooms[n].bedroom)
+        .sort((a, b) => table.rooms[b].depth - table.rooms[a].depth || a.localeCompare(b));
     let chain = null;
     for (const a of names) {
-        for (const b of table.neighbours[a] ?? []) {
-            const c = (table.neighbours[b] ?? []).find(n => n !== a);
+        for (const b of (table.neighbours[a] ?? []).filter(n => names.includes(n))) {
+            const c = (table.neighbours[b] ?? []).find(n => n !== a && names.includes(n));
             if (c) { chain = [a, b, c]; break; }
         }
         if (chain) break;
@@ -357,7 +388,7 @@ export function chooseRooms(table, more = 4) {
     const neighboursChain = Boolean(chain);
     chain ??= names.slice(0, 3);
     const rest = names.filter(n => !chain.includes(n));
-    return { chain, neighboursChain, spare: rest.slice(0, more), all: names };
+    return { chain, neighboursChain, spare: rest.slice(0, more), all: names, bedrooms };
 }
 
 /* ==========================================================================

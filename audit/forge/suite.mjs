@@ -40,9 +40,13 @@ try {
     const t0 = Date.now();
     await gm.evaluate(() => {
         window.__forgeSuite = { running: true };
+        /* A failure's message whole, up to 8000 characters (2.0 line T4, FORGE-09e, 27.11.2026): `equal` prints its label
+           first and then "expected ..., measured ...", and labels of 300 characters and more left the readings past the
+           600 this kept, so the second run's report (F3-forge-PC-2.md) holds the 23 tests of FORGE-09e without their
+           values. Measuring nothing more: the same message, not cut. */
         game.drpg.runTests({ tier: 1 }).then(r => {
             window.__forgeSuite = r && { passed: r.passed, failed: r.failed, skipped: r.skipped, red: r.red, refused: r.refused ?? null, text: r.text ?? null,
-                notPassed: (r.results ?? []).filter(x => x.outcome !== "pass").map(x => ({ tier: x.tier, name: x.name, outcome: x.outcome, message: String(x.message ?? "").slice(0, 600) })) };
+                notPassed: (r.results ?? []).filter(x => x.outcome !== "pass").map(x => ({ tier: x.tier, name: x.name, outcome: x.outcome, message: String(x.message ?? "").slice(0, 8000) })) };
         }, e => { window.__forgeSuite = { threw: String(e?.stack ?? e) }; });
     });
     let suite = null;

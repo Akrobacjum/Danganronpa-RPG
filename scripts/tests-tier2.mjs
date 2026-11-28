@@ -118698,6 +118698,211 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         equal(stableJson(read), stableJson({ told: [false, null, false], revealed: [true, "gm", true] }),
             "{told: after the leaver's own copy alone; revealed: after the GM's Reveal} x [the row's first find, its road, the ref's found]");
     }],
+    // T4 voice-ui-text-infra-tests (2.0 line T4, E134, 27.11.2026: docs/dev/v2/LINE-T4.md). The line's tests stand in this block.
+    ["E134 D2-13 - a 1.9 build in a world without qa in its name migrates nothing and says so: the whole forced pass, every clause offered, with 1.9.x installed in a world whose id and title have no \"qa\", answers skipped, leaves the stamp and every module setting as they were, and warns the GM to stay up", async () => {
+        /*
+         * The owner's D2-13 (2.0 line T4, 27.11.2026). R9246 measures the gate on stand-ins with no clause offered; this is
+         * the pass as a GM's console calls it, `game.drpg.migrate({ force: true })`, with nothing stood in but the version,
+         * the world's name and the warning. Red before the line: the forced pass ran every clause and stamped the 1.9 build.
+         */
+        must(game.user.isGM, "the migration is a GM's");
+        const mod = game.modules.get(MODULE_ID);
+        needs(env.replaceable(game, "world", "game.world"));
+        needs(env.replaceable(mod, "version", "the module's version"));
+        const version = `1.9.${(Date.now() % 100000) + 1}`;
+        const before = stableJson(Object.fromEntries(moduleSettingValues()));
+        const fakeWorld = Object.create(game.world, { id: { value: "e134-campaign" }, title: { value: "E134 Campaign" } });
+        const warns = [];
+        const back = [standIn(game, "world", fakeWorld), standIn(mod, "version", version),
+            standIn(ui.notifications, "warn", (text, options) => { warns.push([String(text), Boolean(options?.permanent)]); })];
+        let report;
+        try {
+            report = await game.drpg.migrate({ force: true });
+        } finally {
+            for (const put of back.reverse()) put();
+        }
+        await settle();
+        const after = stableJson(Object.fromEntries(moduleSettingValues()));
+        equal(JSON.stringify({ skipped: report?.skipped ?? null, changed: report?.changed ?? null, settings: after === before, warns: warns.map(([text, permanent]) => [text.includes(version), permanent]) }),
+            JSON.stringify({ skipped: "testBuild", changed: 0, settings: true, warns: [[true, true]] }),
+            "{skipped; changed; settings: every module setting as before; warns: [names the version, stays up]}");
+    }],
+    ["E134 VOICE-04 - a GM unblocks a player's microphone from the Students window while the player is in another room: the player's own block written, the window opened as the GM panel opens it, the Microphone cell of that player's student pressed - the block is lifted and the cell says Block again; the permission put back after", async () => {
+        /*
+         * 2.0 line T4, VOICE-04 (27.11.2026). The list "Who you hear" reached only the GM's own channel; the Students window's
+         * cell reaches every player. "Another room" needs no move: the cell asks nothing of a channel or a room, and the GM's
+         * list is not opened. Headless there is no avclient-livekit client (lib/livekit.mjs installs one only for scenario
+         * 75), so the field the module reads for it is stood in for the window's life when it is absent, and so is
+         * Foundry's `AVSettings#getUser` - whose `canBroadcastAudio` answers the user's permission (from memory of v13, not
+         * read in v14's source; the harness's settings hold no such row) - read off the user's own BROADCAST_AUDIO; at a
+         * table both are the real ones. Written and put back: the player's BROADCAST_AUDIO. Red before the line: no
+         * Microphone cell.
+         */
+        must(game.user.isGM, "the Students window is a GM's");
+        needs(world.atLeast("playersWithCharacter", 1), "a player whose character is a student");
+        const GP = await import("./gm-panel.mjs");
+        const { forcedDeletion } = await import("./utils.mjs");
+        const { studentActors } = await import("./monokuma.mjs");
+        const students = new Set(studentActors().map(a => a.id));
+        const player = game.users.find(u => !u.isGM && u.character && students.has(u.character.id));
+        must(player, "no player plays a student - the cell has no row to stand in");
+        must(getClock()?.phase !== "classTrial", "the clock stands in a Class Trial - the trial holds microphones its own way");
+        const permsWere = foundry.utils.deepClone(player._source?.permissions ?? {});
+        const alive = () => [...foundry.applications.instances.values()].filter(a => a.rendered && a.options?.classes?.includes("drpg-window-alive"));
+        const rtc = game.webrtc?.client;
+        const av = game.webrtc?.settings;
+        const backs = [rtc && !rtc._liveKitClient ? standIn(rtc, "_liveKitClient", { r134: "stand-in" }) : null,
+            av && typeof av.getUser !== "function" ? standIn(av, "getUser", id => ({ canBroadcastAudio: game.users.get(id)?._source?.permissions?.BROADCAST_AUDIO !== false })) : null]
+            .filter(Boolean);
+        const back = () => { for (const put of backs.reverse()) put(); };
+        const read = {};
+        try {
+            await player.update({ "permissions.BROADCAST_AUDIO": false });
+            await settle();
+            void Promise.resolve().then(() => GP.openWhoIsAliveDialog()).catch(() => null);
+            const cellOf = () => alive()[0]?.element?.querySelector(`tr[data-actor="${CSS.escape(player.character.id)}"] [data-drpg-mic]`) ?? null;
+            must(await until(() => cellOf(), 6000), "the Students window drew no Microphone cell on the player's row - this would measure nothing");
+            read.before = [cellOf().getAttribute("aria-pressed"), cellOf().disabled];
+            cellOf().click();
+            await until(() => game.users.get(player.id)._source?.permissions?.BROADCAST_AUDIO !== false && cellOf()?.getAttribute("aria-pressed") === "false", 4000);
+            const own = game.users.get(player.id)._source?.permissions ?? {};
+            read.after = [Object.hasOwn(own, "BROADCAST_AUDIO") ? own.BROADCAST_AUDIO : "none", cellOf()?.getAttribute("aria-pressed") ?? null, cellOf()?.textContent ?? null];
+        } finally {
+            for (const a of alive()) await a.close().catch(() => {});
+            back();
+            await player.update({ "permissions.BROADCAST_AUDIO": Object.hasOwn(permsWere, "BROADCAST_AUDIO") ? permsWere.BROADCAST_AUDIO : (forcedDeletion() ?? true) });
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ before: ["true", false], after: [forcedDeletion() ? "none" : true, "false", game.i18n.localize("DRPG.Voice.micBlock")] }),
+            "{before: the cell's aria-pressed and greyed with the player's block; after the press: the player's own BROADCAST_AUDIO, the cell's aria-pressed and word}");
+    }],
+    ["E134 PANEL-01 - a repair pressed from Diagnostics asks first and runs the console's function: the Repairs window opened as its tile opens it, Draw the fog again pressed - a Cancel runs nothing, a Yes runs game.drpg.repaintFog once on this browser and tells the GM", async () => {
+        /*
+         * 2.0 line T4, PANEL-01 (27.11.2026). The row is the fog's because it writes nothing to the world: repaintFog draws
+         * this browser's layer again. `game.drpg.repaintFog` is stood in by a counter that calls the real one through, and
+         * `ui.notifications.info` by a recorder for the window's life; both are put back. Each question is answered by
+         * its own buttons, pressed as a GM would. Red before the line: no Repairs window.
+         */
+        must(game.user.isGM, "the Repairs window is a GM's");
+        const R = await import("./repair-window.mjs");
+        must(typeof R.openRepairs === "function", "repair-window.mjs has no openRepairs - Diagnostics has no Repairs window");
+        const windows = cls => [...foundry.applications.instances.values()].filter(a => a.rendered && a.options?.classes?.includes(cls));
+        const question = () => [...foundry.applications.instances.values()].find(a => a.rendered && a.element?.querySelector?.('button[data-action="yes"]')) ?? null;
+        const real = game.drpg.repaintFog;
+        let runs = 0;
+        const told = [];
+        const backs = [standIn(game.drpg, "repaintFog", (...args) => { runs++; return real(...args); }),
+            standIn(ui.notifications, "info", text => { told.push(String(text)); })];
+        const read = {};
+        try {
+            void Promise.resolve().then(() => R.openRepairs()).catch(() => null);
+            const button = () => windows("drpg-window-repairs")[0]?.element?.querySelector('[data-drpg-repair="fog"]') ?? null;
+            must(await until(() => button(), 6000), "the Repairs window drew no fog row - this would measure nothing");
+            button().click();
+            must(await until(() => question(), 4000), "the fog row asked nothing");
+            question().element.querySelector('button[data-action="no"]').click();
+            await until(() => !question(), 4000);
+            await settle();
+            read.cancel = runs;
+            button().click();
+            must(await until(() => question(), 4000), "the fog row asked nothing the second time");
+            question().element.querySelector('button[data-action="yes"]').click();
+            await until(() => runs > 0 && told.length > 0, 4000);
+            read.yes = [runs, told.filter(t => t === game.i18n.localize("DRPG.Repair.fog.done") || t === game.i18n.localize("DRPG.Repair.fog.stood")).length];
+        } finally {
+            for (const a of windows("drpg-window-repairs")) await a.close().catch(() => {});
+            const q = question();
+            if (q) await q.close().catch(() => {});
+            for (const put of backs.reverse()) put();
+        }
+        equal(JSON.stringify(read), JSON.stringify({ cancel: 0, yes: [1, 1] }),
+            "{cancel: repaintFog's runs after a Cancel; yes: [its runs after a Yes, the GM told what it answered]}");
+    }],
+    ["E134 EXP-GM-08 - Monokuma's announcement to a room reaches that room's students and nobody else: game.drpg.announce to the room a player's student stands in posts one card, in that player's thread, whispered to that player and the GMs alone; a second player's student moved out of the room first gets nothing; the cards deleted after", async () => {
+        /*
+         * 2.0 line T4, EXP-GM-08 (27.11.2026). The real road: the API, the GMs' documents for where the students stand,
+         * messenger.mjs `postToThread`. Written and put back: the second student's token, moved one room's width and
+         * moved back, and the cards the announcement posted, deleted. Red before the line: no game.drpg.announce.
+         */
+        must(game.user.isGM, "announcing is a GM's");
+        must(typeof game.drpg.announce === "function", "no game.drpg.announce - Monokuma cannot announce");
+        needs(world.atLeast("playersWithCharacter", 2), "two players whose characters are students");
+        const { locateActor } = await import("./movement.mjs");
+        const { isDeadForGm } = await import("./settings.mjs");
+        const { isSpectator } = await import("./monokuma.mjs");
+        const players = game.users.filter(u => !u.isGM && u.character && !isDeadForGm(u.character) && !isSpectator(u.character) && locateActor(u.character)?.room);
+        must(players.length >= 2, "fewer than two living students stand in a room - this would measure nothing");
+        const [first, second] = players;
+        const at = locateActor(first.character);
+        const before = new Set(game.messages.map(m => m.id));
+        const tag = `E134 GM-08 ${Date.now()}`;
+        let moved = null;
+        const read = {};
+        try {
+            const there = locateActor(second.character);
+            if (there?.room === at.room) {
+                // Out of the room: a step past the room's edge to an empty spot, read back by the room it lands in.
+                const doc = there.tokenDoc;
+                moved = { doc, x: doc.x, y: doc.y };
+                const size = (canvas?.dimensions?.size ?? 100);
+                for (const dx of [10, -10, 20, -20]) {
+                    await doc.update({ x: moved.x + dx * size }, { animate: false });
+                    await settle();
+                    if (locateActor(second.character)?.room !== at.room) break;
+                }
+                must(locateActor(second.character)?.room !== at.room, "the second student could not be stepped out of the room");
+            }
+            const answer = await game.drpg.announce({ to: "room", room: at.room, text: tag });
+            await settle();
+            const made = game.messages.filter(m => !before.has(m.id));
+            read.answer = answer;
+            read.cards = made.map(m => [m.getFlag(MODULE_ID, "thread") ?? null, [...(m.whisper ?? [])].sort().join()]);
+        } finally {
+            for (const m of game.messages.filter(m => !before.has(m.id))) await m.delete().catch(() => {});
+            if (moved) await moved.doc.update({ x: moved.x, y: moved.y }, { animate: false });
+            await settle();
+        }
+        const gms = game.users.filter(u => u.isGM).map(u => u.id);
+        const reached = game.users.filter(u => !u.isGM && u.character && !isDeadForGm(u.character) && !isSpectator(u.character) && u.id !== second.id).length;
+        must(reached >= 1, "no player stands reached");
+        equal(JSON.stringify({ to: read.cards?.map(c => c[0]).includes(first.id), notSecond: !read.cards?.some(c => c[0] === second.id),
+            whispers: read.cards?.every(c => c[1] === [c[0], ...gms].sort().join()), sent: read.answer?.sent === read.cards?.length }),
+        JSON.stringify({ to: true, notSecond: true, whispers: true, sent: true }),
+        "{to: the first player's thread holds a card; notSecond: none in the second's; whispers: each card to its player and the GMs alone; sent: the answer counts the cards}");
+    }],
+    ["E134 EXP-PL-01 - the checklist takes every role's pointer and the players' pings off and leaves the rest of the permissions as they were: with SHOW_CURSOR and PING_CANVAS given to every role, the cursor row's fix and the pings row's fix run as their buttons run them - SHOW_CURSOR empty, PING_CANVAS the GM roles', every other permission as it stood; the permissions put back after", async () => {
+        /*
+         * 2.0 line T4, EXP-PL-01 (27.11.2026). Written and put back: Foundry's `core.permissions`, read first and written
+         * back whole in `finally`. The rows are the checklist's own (`steps()`), their `fix` what the window's button calls.
+         * Red before the line: the cursor's fix left the player roles, and there was no pings row.
+         */
+        must(game.user.isGM, "the checklist is a GM's");
+        const SS = await import("./season-setup.mjs");
+        const R = CONST.USER_ROLES;
+        const was = foundry.utils.deepClone(game.settings.get("core", "permissions") ?? {});
+        const all = [R.PLAYER, R.TRUSTED, R.ASSISTANT, R.GAMEMASTER];
+        const read = {};
+        try {
+            await game.settings.set("core", "permissions", { ...foundry.utils.deepClone(was), SHOW_CURSOR: all, PING_CANVAS: all });
+            await settle();
+            const rows = () => Object.fromEntries(SS.steps({ roomScene: null }).filter(s => ["cursor", "pings"].includes(s.key)).map(s => [s.key, s]));
+            const before = rows();
+            must(before.cursor && before.pings, "the checklist has no cursor or pings row - this would measure nothing");
+            read.before = [before.cursor.done, before.pings.done];
+            read.fixed = [await before.cursor.fix(), await before.pings.fix()];
+            await settle();
+            const now = game.settings.get("core", "permissions") ?? {};
+            const rest = obj => JSON.stringify(Object.fromEntries(Object.entries(obj).filter(([k]) => !["SHOW_CURSOR", "PING_CANVAS"].includes(k)).sort()));
+            read.after = [now.SHOW_CURSOR, now.PING_CANVAS, rest(now) === rest(was)];
+            const after = rows();
+            read.done = [after.cursor.done, after.pings.done];
+        } finally {
+            await game.settings.set("core", "permissions", was);
+            await settle();
+        }
+        equal(JSON.stringify(read), JSON.stringify({ before: [false, false], fixed: [4, 2], after: [[], [R.ASSISTANT, R.GAMEMASTER], true], done: [true, true] }),
+            "{before: [cursor done, pings done]; fixed: [roles off the cursor, player roles off the pings]; after: [SHOW_CURSOR, PING_CANVAS, every other permission as it was]; done: the two rows after}");
+    }],
 ];
 
 // `drawnForPlayer` for the grid (E33 C7): a drawn crisis roll goes through the suite's one road to a draw (tests-grid.mjs `drawnAct`).

@@ -29,11 +29,22 @@
  * file uses (newer wins per field, removals by their stamps, a season reset's cut never crossed, another world's file
  * refused), no rule of its own. The file is JSON as Back up writes it, not compressed: it is not broadcast to every
  * browser as a setting would be, and a GM can hand it to Restore from a file as it stands.
+ *
+ * WHERE THE HOST REFUSES (2.0 line T4, FORGE-01, 27.11.2026; docs/dev/v2/F3-forge-S0.md). On The Forge a GM's upload
+ * was refused with "Access Unauthorized. Please enter your API key or sign in to The Forge." on every write (S6: eleven
+ * times, S8: every level), each an `error` and nothing said to the GM, and the writes went on being scheduled. Read off
+ * the Forge's error text and the soak's logs, not off its source: a refusal of that shape on The Forge (`hostRefusal`)
+ * is answered "host", told once a session (a warning that stays, and one `warn` in the console), and this browser
+ * schedules no more writes until it reloads; "Write the copy now" still tries, and says what it got. So on The Forge
+ * the copy can be impossible, and the case then lives only in the GMs' browsers: the case tile and window say so, and
+ * at a new session the primary GM is asked to save the case to a file (`offerFileAtSession`). Writing through the
+ * owner's own Forge files (the FilePicker's source named forgevtt) is not tried without a measurement (a question for the
+ * owner, LINE-T4's report). Any other failure stays an `error`, as before.
  */
 
 import { MODULE_ID } from "./config.mjs";
 import { SETTINGS, getSetting } from "./settings.mjs";
-import { isPrimaryGm, warn, error } from "./utils.mjs";
+import { isPrimaryGm, activeGmIds, warn, error, esc, onTheForge } from "./utils.mjs";
 import { gmStoresHydrated, gmStoreHandles, onGmStoresHydrated, stableJson, gmStoresQuiet } from "./gm-store.mjs";
 import { caseFileNow, restoreCase, caseMark } from "./gm-stores.mjs";
 import { ENFORCED, permissionsInForce } from "./enforced.mjs";
@@ -100,10 +111,14 @@ export function copyRefusal({ isGM, primary, hydrated, files, quiet = false }) {
 /* THIS SESSION'S STATE, read by the health check, the window and the suite (`copyState`). `last`: the last read's
    or write's outcome; `copies`: what the last listing found, by name `{ exportedAt, exportedBy }` (the names stay in
    this GM's browser). SEAL_DEPS.hydrated is the suite's stand-in for the stores' hydration (34's unhydrated case). */
-const state = { timer: null, first: 0, running: null, last: null, copies: {}, wrote: 0, told: new Set(), refused: {} };
-export const SEAL_DEPS = { hydrated: () => gmStoresHydrated() };
+const state = { timer: null, first: 0, running: null, last: null, copies: {}, wrote: 0, told: new Set(), refused: {}, hostRefused: false, offeredSession: null };
+/* The suite's stand-ins (34 and R9223-R9225): the stores' hydration, the FilePicker, whether this page is on The Forge,
+   the files' privacy, and the warning on the screen. The module's own are the defaults; the console's lines are
+   utils.mjs's `warn` and `error`, which the suite reads in this browser's failure log (`sessionFailures`). */
+export const SEAL_DEPS = { hydrated: () => gmStoresHydrated(), picker: () => picker(), forge: () => onTheForge(), files: () => filesPrivate(),
+    notify: (text, options) => ui.notifications?.warn?.(text, options) };
 export const copyState = () => ({ last: state.last, pending: state.timer !== null, wrote: state.wrote,
-    copies: Object.values(state.copies).map(c => ({ ...c })), refused: { ...state.refused } });
+    copies: Object.values(state.copies).map(c => ({ ...c })), refused: { ...state.refused }, hostRefused: state.hostRefused });
 
 /** Whether the case planner holds nothing here: the Key Remnant plan and the case schema both empty. */
 export function plannerEmpty() {
@@ -112,7 +127,7 @@ export function plannerEmpty() {
 
 /** The copies in the folder, as paths; [] when it does not exist. Throws when this browser may not list it. */
 async function listCopies() {
-    const FP = picker();
+    const FP = SEAL_DEPS.picker();
     let listed;
     try { listed = await FP.browse("data", copyFolder()); }
     catch (err) {
@@ -167,7 +182,7 @@ export async function readServerCopies() {
 export async function writeServerCopy({ explicit = false } = {}) {
     if (state.running) await state.running.catch(() => {});
     const why = copyRefusal({ isGM: Boolean(game.user?.isGM), primary: explicit || isPrimaryGm(), hydrated: SEAL_DEPS.hydrated(),
-        files: game.user?.isGM ? filesPrivate() : null, quiet: gmStoresQuiet() });
+        files: game.user?.isGM ? SEAL_DEPS.files() : null, quiet: gmStoresQuiet() });
     if (why) {
         state.refused[why] = (state.refused[why] ?? 0) + 1;
         state.last = why;
@@ -183,7 +198,7 @@ export async function writeServerCopy({ explicit = false } = {}) {
         const file = await caseFileNow();
         if (seen.newestFile && stableJson(seen.newestFile.stores ?? {}) === stableJson(file.stores ?? {})) return (state.last = "same");
         const name = seen.newest ? seen.newest.slice(seen.newest.lastIndexOf("/") + 1) : newCopyName();
-        const FP = picker();
+        const FP = SEAL_DEPS.picker();
         if (!seen.count) {
             try { await FP.createDirectory("data", copyFolder()); }
             catch (err) { if (!/exist/i.test(String(err?.message ?? err))) throw err; }
@@ -196,20 +211,69 @@ export async function writeServerCopy({ explicit = false } = {}) {
     })();
     state.running = run;
     try { return await run; }
-    catch (err) { error("The case's server copy could not be written", String(err?.message ?? err)); return (state.last = "failed"); }
+    catch (err) {
+        if (hostRefusal(err, { forge: SEAL_DEPS.forge() })) return refusedByHost(err);
+        error("The case's server copy could not be written", String(err?.message ?? err));
+        return (state.last = "failed");
+    }
     finally { if (state.running === run) state.running = null; }
+}
+
+/**
+ * Whether a write's error is the host refusing this browser (FORGE-01): on The Forge (`forge`), an error whose words are
+ * the Forge's refusal ("Access Unauthorized", "sign in to The Forge") or whose HTTP status is 401 or 403. Off The Forge
+ * never: a 403 there is a failure of its own, told as one. Pure over what it is handed. The words are the Forge's as
+ * the soak read them (F3-forge-S0.md), the status fields (`status`, `statusCode`) a guess at its error's shape, not read
+ * in its source (LIVE-E134-05).
+ */
+export function hostRefusal(err, { forge = false } = {}) {
+    if (!forge) return false;
+    const status = Number(err?.status ?? err?.statusCode ?? err?.response?.status);
+    if (status === 401 || status === 403) return true;
+    return /access unauthorized|sign in to the forge/i.test(String(err?.message ?? err ?? ""));
+}
+
+/* The host's refusal answered: "host", one warning that stays and one console line a session, and no write scheduled
+   again on this browser (`scheduleCopy`). */
+function refusedByHost(err) {
+    state.last = "host";
+    state.refused.host = (state.refused.host ?? 0) + 1;
+    if (state.timer !== null) { clearTimeout(state.timer); state.timer = null; }
+    if (!state.hostRefused) {
+        state.hostRefused = true;
+        warn("The case's server copy: the host refuses this browser's upload, so no copy is written this session", String(err?.message ?? err));
+    }
+    if (!state.told.has("host")) {
+        state.told.add("host");
+        SEAL_DEPS.notify(game.i18n.localize("DRPG.Case.copy.refused.host"), { permanent: true });
+    }
+    return "host";
+}
+
+/**
+ * The suite's (R9223-R9225): this session's refusal by the host, its warning, the session's offer of a file and a
+ * write waiting forgotten - the write cancelled, never written - and the last outcome set back to `last`.
+ */
+export function forgetCopySession({ last = null } = {}) {
+    if (state.timer !== null) { clearTimeout(state.timer); state.timer = null; }
+    state.hostRefused = false;
+    state.told.delete("host");
+    delete state.refused.host;
+    state.offeredSession = null;
+    state.last = last;
 }
 
 /** A refusal that the GMs must act on is told once a session, on this GM's screen: the files open to players. */
 function tellRefused(why) {
     if (!["switchOff", "roles", "account"].includes(why) || state.told.has(why)) return;
     state.told.add(why);
-    ui.notifications?.warn?.(game.i18n.localize(`DRPG.Case.copy.refused.${why}`), { permanent: true });
+    SEAL_DEPS.notify(game.i18n.localize(`DRPG.Case.copy.refused.${why}`), { permanent: true });
 }
 
 /** Ask for a write: SEAL_QUIET_MS after the last ask, at most SEAL_MOST_MS after the first one waiting. */
 export function scheduleCopy() {
-    if (!game.user?.isGM) return false;
+    // The host refused this browser's upload (FORGE-01): no more tries until a reload, but a GM's own press.
+    if (!game.user?.isGM || state.hostRefused) return false;
     const now = Date.now();
     if (state.timer === null) state.first = now;
     else clearTimeout(state.timer);
@@ -253,15 +317,18 @@ export function registerCaseCopy() {
     if (registered || !game.user?.isGM) return;
     registered = true;
     onGmStoresHydrated(() => { void copyAtLoad(); });
+    // A new session (FORGE-01): the clock's turn past the day's last time of day, on every browser with its summary.
+    Hooks.on("drpgTimeOfDayChanged", (clock, summary) => { if (summary?.rolledOver) void offerFileAtSession({ session: clock?.session ?? null }); });
     Hooks.on("clientSettingChanged", key => {
         if (!gmStoreHandles().some(h => h.spec.backup && key === `${MODULE_ID}.${h.spec.key}`)) return;
         scheduleCopy();
     });
 }
 
-async function copyAtLoad() {
+export async function copyAtLoad({ read = readServerCopies, empty = plannerEmpty, since = () => caseMark().since, alone = aloneAsGm,
+    card = showCaseCard } = {}) {
     try {
-        const files = filesPrivate();
+        const files = SEAL_DEPS.files();
         /* THE FILES OPEN TO PLAYERS: NOTHING READ, AND EVERY GM TOLD (line INVEST of 1.2.122; audit 1.2.118 E111-2 and
            domain-case-f-planner-stores 5). Not read on purpose: a player who may upload can have written the file, and a
            restore of it would be a player's write into the GMs' stores. Until this line only the primary was told, and
@@ -272,14 +339,66 @@ async function copyAtLoad() {
             state.last = files;
             return;
         }
-        const seen = await readServerCopies();
+        const seen = await read();
         state.last = seen.refused ?? "read";
         if (!seen.refused && isPrimaryGm()) scheduleCopy();
-        // Said only in a world whose case was recorded before (`caseMark.since`): a new world's empty planner is no news.
-        if (!seen.refused && !seen.read && plannerEmpty() && caseMark().since) {
-            ui.notifications?.info?.(game.i18n.localize("DRPG.Case.copy.emptyHere"));
-        }
+        /* THE EMPTY PLANNER, A CARD THAT STAYS (FORGE-01). Said only in a world whose case was recorded before
+           (`caseMark.since`): a new world's empty planner is no news. Until the line it was one `info` that went, and
+           only when the folder was read; now a card in this GM's corner that stays, with The case's window a press
+           away, also when the folder could not be listed ("list"), and only while no other GM is online - with one,
+           the stores bring each other the case. */
+        const unread = seen.refused ? seen.refused === "list" : !seen.read;
+        if (unread && empty() && since() && alone()) await card("empty");
     } catch (err) {
         warn("The case's server copy could not be read at load", String(err?.message ?? err));
     }
+}
+
+/** Whether no other GM is connected (FORGE-01): the stores of a GM online would bring this browser the case. */
+function aloneAsGm() {
+    return !activeGmIds().some(id => id !== game.user?.id);
+}
+
+/** Whether this browser's copy on the server is impossible now: the host refused, a write failed, or the folder would not list. */
+export function copyImpossible(last = state.last) {
+    return ["host", "failed", "list"].includes(last);
+}
+
+/**
+ * At a new session, the primary GM is asked to save the case to a file (FORGE-01) while its copy on the server is
+ * impossible (`copyImpossible`): a card that stays, once a session, whose button is Back up (`backupCase({ ask: true })`).
+ * `primary` and `card` are the suite's.
+ */
+export async function offerFileAtSession({ session = null, primary = isPrimaryGm(), card = showCaseCard } = {}) {
+    if (!game.user?.isGM || !primary || !copyImpossible() || (session !== null && state.offeredSession === session)) return false;
+    state.offeredSession = session;
+    await card("file");
+    return true;
+}
+
+/**
+ * A card of the case in this GM's corner (FORGE-01): "empty" (the planner is empty here, and where the case can come
+ * from, with The case's window) or "file" (save the case to a file, with Back up). Its body is `caseCardBody`'s; it
+ * stays until closed (popup.mjs `showPopup`, `sticky`), on this browser alone - no chat card, nothing to the other GMs.
+ */
+async function showCaseCard(kind) {
+    const { showPopup } = await import("./popup.mjs");
+    const open = kind === "file"
+        ? () => import("./gm-stores.mjs").then(m => m.backupCase({ ask: true }))
+        : () => import("./gm-stores.mjs").then(m => m.openCaseWindow());
+    showPopup(caseCardBody(kind, { open }), { title: game.i18n.localize(`DRPG.Case.copy.card.${kind}.title`), sticky: true, kind: "info" });
+}
+
+/** The card's body: its words and its one button, which runs `open` (the suite's stand-in, R9224). */
+export function caseCardBody(kind, { open }) {
+    const box = document.createElement("div");
+    box.innerHTML = `<p>${esc(game.i18n.localize(`DRPG.Case.copy.card.${kind}.body`))}</p>
+        <p><button type="button" data-drpg-case-card="${esc(kind)}" data-tooltip="${esc(game.i18n.localize(`DRPG.Case.copy.card.${kind}.tip`))}">${
+            esc(game.i18n.localize(`DRPG.Case.copy.card.${kind}.button`))}</button></p>`;
+    box.querySelector("button").addEventListener("click", ev => {
+        ev.preventDefault();
+        ev.stopPropagation();
+        Promise.resolve().then(open).catch(err => error("The case card's button failed", err));
+    });
+    return box;
 }

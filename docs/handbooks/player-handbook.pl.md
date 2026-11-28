@@ -1086,6 +1086,8 @@ Niektóre chwile celowo nie grają dźwięku, żeby nic nie mówiło stołowi wi
 
 **Gdy ekran się przycina**, zmieniaj te ustawienia w oknie ustawień po jednym: najpierw wyłącz **Szkło rozmywa mapę**, potem **Puls szkła** i **Pora dnia za zegarem**, potem włącz **Ograniczone animacje**, a na końcu spróbuj motywu **Monokuma Legacy**. Każde z nich zmienia tylko twój ekran. Jeśli GM zapyta, jak szybko działa twój ekran, kroki są w rozdziale 17.
 
+**Gdy znika sieć:** po kilku sekundach bez połączenia kafelek głosu mówi **Brak połączenia z serwerem gry**, a Foundry zaraz potem przeładowuje stronę. Bez sieci kończy się to stroną błędu przeglądarki i ona zostaje, nawet gdy sieć wróci. Wtedy naciśnij F5: gra wczytuje się od nowa, co trwa do około minuty. Prośbę wysłaną tuż przed utratą sieci wyślij jeszcze raz (rozdział 14).
+
 > [!NOTE]
 > **Rzuty są prywatne:** każdy twój rzut widzą tylko GM-owie i ty. Ekran GM-a pokazuje, jak padają twoje kości, tylko gdy w twoim pokoju stoi Monokuma tego GM-a; wynik i tak dociera do każdego GM-a. Nikt nie widzi cudzych kości, z trzema wyjątkami. Rzut w incydencie widzą jego uczestnicy, z kośćmi, wynikiem i tym, jaka to akcja, od chwili, gdy incydent się zaczyna, do jego końca. Budowniczy pułapki do nich nie należy: nie widzi żadnych kości ani kart incydentu, także karty akcji, która go kończy. Wynik rzutu otwarcia poznaje tylko strona, która rzuca (zabójcy w Direct Murder, ofiara pułapki), a rzut sprzątania widzi tylko ten, kto go wykonuje. Rzuty Monocuba, łącznie z Confusion, widzą wszyscy w jego pokoju. Jedyny rzut, który czytają wszyscy, to rzut publiczny, który wykonuje GM, na przykład remis w głosowaniu albo loteria Monokumy.
 
@@ -1234,3 +1236,9 @@ Rzutu publicznego, który wykonuje GM (remis w głosowaniu, loteria Monokumy), j
 Historia powiadomień jest trzymana w pamięci tej przeglądarki, osobno dla każdego konta na niej: najwyżej 250 wpisów dla gracza i najwyżej 40 od jednego nadawcy. Gdy w przeglądarce zabraknie miejsca albo historie innych kont zapełnią swój udział, zostaje mniej wpisów albo zapis staje, a okno historii mówi, kiedy stanął.
 
 Gdy GM zapyta, jak szybko działa twój ekran, stań w miejscu, otwórz konsolę (F12), wpisz `await game.drpg.fps({ toChat: false })` i skopiuj to, co wypisze po mniej więcej dwudziestu sekundach. W czasie pomiaru szkło i każdy z efektów mapy wyłączają się najwyżej na sekundę i wracają same, a na końcu mapa stoi przez sekundę.
+
+### 17.17 Przeglądarka i sieć
+
+Foundry 14 potrzebuje przeglądarki opartej na Chromium 146 lub nowszym (Chrome, Edge, Opera) albo aktualnego Firefoksa; starsza dostaje od Foundry czerwone powiadomienie przy każdym wczytaniu, które jest Foundry, a nie modułu. Czerwone powiadomienia "Error connecting to LiveKit Server" pochodzą od klienta głosu, nie od modułu: powiedz o nich GM-owi, który może nacisnąć **Napraw głos**.
+
+Po około 6,5 s bez sieci Foundry pisze „Server connection lost” i przeładowuje stronę; wczytanie po F5 trwało 30-48 s (zmierzone na The Forge, Foundry 14.370, 25.11.2026). Kafelek głosu mówi o utracie połączenia od 1.2.130: moduł słucha wtedy zdarzeń połączenia tej przeglądarki z serwerem gry i niczego nie zapisuje ani nie wysyła, a przy wyłączonym kafelku daje jedno ostrzeżenie. Kolejności tych zdarzeń wobec przeładowania Foundry nie sprawdzono jeszcze przy stole.

@@ -33,6 +33,8 @@ import { firstOutstandingStep } from "./season-setup.mjs";
 import { roundOf, readyRecord } from "./boundary.mjs";
 import { trialNextStep, trialStepView, trialStepText } from "./trial-floor.mjs";
 import { openWhoIsAliveDialog } from "./gm-students.mjs";
+import { voiceRoomsLabelKey, voiceRoomsRefusal, toggleVoiceRooms, openRepairs } from "./repair-window.mjs";
+import { copyImpossible } from "./case-copy.mjs";
 
 export { openWhoIsAliveDialog, applyAliveStates } from "./gm-students.mjs";
 export { correctsTheHour, openClockDialog } from "./gm-campaign.mjs";
@@ -210,7 +212,7 @@ const PANEL_SECTIONS = [
             // tab of sound-effect files and the two volume sliders, so naming
             // the tile after one of its three tabs stopped being true.
             { key: "sound", icon: "fa-volume-high", labelKey: "DRPG.Sound.title",
-              run: () => import("./music.mjs").then(m => m.openSoundDialog()) }
+              run: () => import("./music.mjs").then(m => m.openSoundDialog()) },
             // GONE FROM HERE:
             //   Killing game rules - to Between sessions (E49 A2; the owner, 10.11.2026: "Killing game rules wrzucmy do
             //     between sessions"): the rules are agreed before a session, not changed in the middle of a scene.
@@ -234,6 +236,9 @@ const PANEL_SECTIONS = [
             //     LiveKit shows the listener's tile to the room, so it never
             //     was a way to listen unseen. The voice reset it also carried
             //     is a tile under Diagnostics since E49 A2 (its own note there).
+            // MONOKUMA'S ANNOUNCEMENT (2.0 line T4, EXP-GM-08, 27.11.2026): to the school, a room or a student, in a window
+            // of its own (announce.mjs, read by import() as the Sound tile reads music.mjs).
+            { key: "announce", icon: "fa-bullhorn", labelKey: "DRPG.Announce.tile", run: () => import("./announce.mjs").then(m => m.openAnnounce()) }
         ]
     },
     {
@@ -357,7 +362,9 @@ const PANEL_SECTIONS = [
             // lives only in GM browsers - the answer keys, the traces, the cast, the Mastermind - to one file and back.
             // gm-stores.mjs `openCaseWindow`: Back up (`backupCase({ ask: true })`) and Restore from a file
             // (`openRestoreDialog`, its preview first), the same functions the two tiles called.
-            { key: "caseWindow", icon: "fa-box-archive", labelKey: "DRPG.Case.tile", subtitle: () => backupAge(),
+            // Its second line says when the copy on the server is impossible (2.0 line T4, FORGE-01): case-copy.mjs `copyImpossible`.
+            { key: "caseWindow", icon: "fa-box-archive", labelKey: "DRPG.Case.tile",
+              subtitle: () => (copyImpossible() ? game.i18n.format("DRPG.Case.copy.tileNoCopy", { when: backupAge() }) : backupAge()),
               run: () => import("./gm-stores.mjs").then(m => m.openCaseWindow()) },
             // GONE FROM HERE: the search-token report is two columns in Room
             // Setup, editing a Remnant's flags is the dashboard's Traces tab,
@@ -372,6 +379,21 @@ const PANEL_SECTIONS = [
             // a way to lose track of which time of day the table is actually
             // in. `game.drpg.resetAllActions()` is still there for a GM who
             // genuinely needs to repair a botched advance.
+            //
+            // 2.0 LINE T4'S TILES, TOGETHER AT THE END (27.11.2026; docs/dev/v2/LINE-T4.md). EVERYBODY IN ONE VOICE ROOM
+            // (VOICE-03): the way out when LiveKit cannot keep up with the rooms, named by what a press does now (its
+            // words follow `voiceEnabled`), asked first before the rooms go; the setting's own `onChange` does the rest.
+            // repair-window.mjs's header says more.
+            // Its label a getter, read each time `tileHtml` draws it; written with defineProperty, as R22 reads a getter's
+            // name as a call.
+            Object.defineProperty({ key: "voiceRooms", icon: "fa-people-group",
+                disabled: () => voiceRoomsRefusal({ mayModify: () => mayModifySettings() }) !== null,
+                disabledReason: () => voiceRoomsRefusal({ mayModify: () => mayModifySettings() }) ?? "",
+                run: () => toggleVoiceRooms({ refusal: () => voiceRoomsRefusal({ mayModify: () => mayModifySettings() }) }) },
+            "labelKey", { get: () => voiceRoomsLabelKey(), enumerable: true }),
+            // REPAIRS (PANEL-01): the console's repair tools in a window of their own, each the function it was, asked
+            // first; "Refill everyone's actions" among them, last and with this comment's warning beside it.
+            { key: "repairs", icon: "fa-screwdriver-wrench", labelKey: "DRPG.Repair.tile", run: () => openRepairs() }
         ]
     }
 ];
@@ -694,8 +716,9 @@ function keepPanelFresh(dialog) {
     /* THE TILES WAKE ON THEIR OWN KEYS (E44 C2b, 04.11.2026; audit S10-58). Without `settings` every write of a
        module setting redrew the thirteen tiles, a player's action among them. What the tiles print is the clock (the
        phase opens a section, `clock.eclipse` shuts the murder tile: `isEclipse`), the incident (since E47-C3 it keeps
-       the murder tile live in an Eclipse and marks it current: `murderState`) and the case's backup mark (the case
-       tile's age, `backupAge`), read by `buildSections` and nothing else, in every state; R1317 builds the
+       the murder tile live in an Eclipse and marks it current: `murderState`), the case's backup mark (the case
+       tile's age, `backupAge`) and, since the 2.0 line T4 (VOICE-03, 27.11.2026), the voice rooms' switch (the voice
+       rooms tile's words, `voiceEnabled`), read by `buildSections` and nothing else, in every state; R1317 builds the
        region with `game.settings.get` counted and holds the reads to this list.
        The standing block above keeps no list, deliberately: `nextStep` reads a different setting on each of its
        branches (the incident, the readiness round, a stopped chapter's end, the trial's progress and floor, the
@@ -708,7 +731,7 @@ function keepPanelFresh(dialog) {
            a GM who may not modify settings, and a grant while the panel stood left it so) and a GM connecting or leaving
            (the voice reset is drawn disabled off the primary, CTRL-85). Neither is a key of the module, which R1317
            holds `settings` to. */
-        watch: { settings: [SETTINGS.clock, SETTINGS.murderState, SETTINGS.caseMark], settingKeys: ["core.permissions"], hooks: ["userConnected"] }
+        watch: { settings: [SETTINGS.clock, SETTINGS.murderState, SETTINGS.caseMark, SETTINGS.voiceEnabled], settingKeys: ["core.permissions"], hooks: ["userConnected"] }
     });
 }
 

@@ -147,7 +147,7 @@ export function registerVoiceClient() {
         // Foundry's own connect at setup comes right after this hook: alone, not in the main room (`landAloneFirst`).
         landAloneFirst();
         if (!game.ready) return;
-        if (desired !== undefined) enqueue(() => applyAndReport(desired, parkedRequestId));
+        if (desired !== undefined) assign({ parked: true });
         else askWhereIBelong();
     });
 
@@ -188,7 +188,7 @@ export function registerVoiceClient() {
  * @returns {Promise<string|null>}
  */
 export function catchUpVoice() {
-    if (desired !== undefined && clientReady()) return enqueue(() => applyAndReport(desired, parkedRequestId));
+    if (desired !== undefined && clientReady()) return assign({ parked: true });
     askWhereIBelong();
     // Nobody can answer: no GM is connected. A page that landed alone (`landAloneFirst`) joins the main room as every
     // page did before E19 fix r1-G1, unremembered; the GM who arrives is asked again (`userConnected` above).
@@ -295,7 +295,7 @@ export function selfCheck() {
     if (!avclientActive() || !clientReady()) return null;
     if (game.webrtc?.mode === foundry.av.AVSettings.AV_MODES.DISABLED || usingLiveKit() === false) return null;
     // Out of voice on purpose (an Eclipse, E19 C4): no connection is the right state, and a connected one is left again.
-    if (silentFor(desired)) return landedCorrectly(desired) ? null : enqueue(() => applyAndReport(desired, null));
+    if (silentFor(desired)) return landedCorrectly(desired) ? null : assign();
     if (lost && !lost.retry) return null;       // closed for us: the card says reload
     if (PENDING_STATES.includes(roomState())) return null;
     if (!externalAV() && !live()) {
@@ -307,7 +307,7 @@ export function selfCheck() {
     if (landedCorrectly(desired)) return null;
 
     debug(`Voice: drifted out of "${desired ?? "the main room"}" - re-applying.`);
-    return enqueue(() => applyAndReport(desired, null));
+    return assign();
 }
 
 /* ==========================================================================
@@ -377,9 +377,8 @@ function onVoiceSocket(payload, senderId) {
     // same user list; see `primaryGmId`.
     if (senderId !== primaryGmId()) return;
 
-    const room = payload.room ?? null;
-    desired = room;
-    enqueue(() => applyAndReport(room, payload.requestId ?? null));
+    desired = payload.room ?? null;
+    assign({ requestId: payload.requestId ?? null });
 }
 
 /* ==========================================================================
@@ -390,6 +389,52 @@ function enqueue(fn) {
     chain = chain.then(fn).catch(err => error("Voice apply failed", err));
     return chain;
 }
+
+/*
+ * ONE ASSIGNMENT WAITS, AND IT IS THE NEWEST (2.0 line T4, VOICE-02, 27.11.2026). Every assignment was its own link of
+ * the chain with the room it came with, so a run of them was applied one by one: at The Forge (Foundry 14.370; S5,
+ * docs/dev/v2/F3-forge-PC-2.md) a token moved A -> B -> C every 2500 ms made 3 connections and 4.7 s without voice, and
+ * the room crossed on the way was joined only to be left. Now an assignment that comes while another one waits (has not
+ * started) takes its place, and the one that starts applies the room this browser is told now (`desired`), not the one
+ * it was told when it came; one that is running ends as it would. What applies `desired` waits in the same one place - a
+ * room parked before the client was ready (`parked`: its request id read when it starts), the drift's and the silent
+ * room's re-apply (no id) - so a run of them is one apply. A newer request id takes the place of the one waiting; a
+ * re-apply with none keeps it. An assignment replaced before it started is not reported: the primary GM waits only for
+ * the newest request it sent a player (voice.mjs `createVoiceLedger`: `assignUser` forgets the one before, and an older
+ * id's retry timer stands down), and the newest is answered. The rest of the chain - Foundry's own reconnect, the page
+ * that lands alone first (`landAloneFirst`), the GM's own apply (`applyLocally`) - is not an assignment and queues as
+ * before. Crossing a room while a token is dragged (`draggedNow`) is voice.mjs's and unchanged. R9250.
+ */
+
+/**
+ * The one waiting place (`assign` below): `apply(slot)` is run on the chain (`chainOf`) for the slot that waits, once it
+ * starts; an assignment made while one waits is folded into it. Exported for the suite (R9250), which hands its own
+ * `apply` and chain.
+ *
+ * @param {(slot: {requestId: string|null, parked: boolean}) => Promise<unknown>} apply
+ * @param {{chainOf?: (fn: Function) => Promise<unknown>}} [options]
+ * @returns {(next?: {requestId?: string|null, parked?: boolean}) => Promise<unknown>}
+ */
+export function assignmentQueue(apply, { chainOf = enqueue } = {}) {
+    let waiting = null;
+    return ({ requestId = null, parked = false } = {}) => {
+        if (waiting) {
+            if (requestId) waiting.requestId = requestId;
+            waiting.parked ||= parked;
+            return waiting.promise;
+        }
+        const slot = { requestId, parked, promise: null };
+        waiting = slot;
+        slot.promise = chainOf(() => {
+            if (waiting === slot) waiting = null;
+            return apply(slot);
+        });
+        return slot.promise;
+    };
+}
+
+/** This browser's assignments: the room it is told now, and the request it answers (a parked one read as it starts). */
+const assign = assignmentQueue(slot => applyAndReport(desired, slot.requestId ?? (slot.parked ? parkedRequestId : null)));
 
 /** Whether the LiveKit AV client module is enabled at all. Shared with voice.mjs. */
 export function avclientActive() {
