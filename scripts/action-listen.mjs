@@ -16,7 +16,9 @@
 
 import { ACTIONS, INFILTRATE, ROOM_OWNER_FLAG } from "./config.mjs";
 import { spendAction, actionsLeft } from "./actions.mjs";
-import { roomOfActor, locateActor, neighbouringRooms, isLocked } from "./movement.mjs";
+import { roomOfActor, locateActor, neighbouringRooms, isLocked, roomBarricaded } from "./movement.mjs";
+import { barricadeStore } from "./gm-stores.mjs";
+import { barricadeKey } from "./doors-gm.mjs";
 import { roomFlag } from "./rooms.mjs";
 import { resolveThreshold, whisperToOwner, plural } from "./utils.mjs";
 import { rollTrait, noteRollContext, abort, canAfford } from "./action-pipeline.mjs";
@@ -106,7 +108,8 @@ export function echoesShutWhy({ eclipse = isEclipse() } = {}) {
  * is paid and rolled before the GM judges it (doors-gm.mjs `shutRefusal`), and a refusal gives nothing back: a refund
  * after the roll would hand out its Hope for free (action-pipeline.mjs `spentAfterRoll`). So what this browser knows of
  * the GM's reasons shuts the row before it costs anything: an Eclipse, somebody else's bedroom, more open doors than
- * `INFILTRATE.shut.maxExits`. A body nobody has found and another's barricade are the GMs' to know, and stay their refusal.
+ * `INFILTRATE.shut.maxExits`, and since 1.2.130 a barricade not the character's own (2.0 line T2b, DAY-09: the barricade
+ * is a public flag; only its author is the GMs'). A body nobody has found is the GMs' to know, and stays their refusal.
  */
 export function shutShutWhy(actor, { eclipse = isEclipse() } = {}) {
     if (eclipse) return game.i18n.localize("DRPG.Infiltrate.shut.whyEclipse");
@@ -117,7 +120,45 @@ export function shutShutWhy(actor, { eclipse = isEclipse() } = {}) {
     if (owner && owner !== actor?.id) return game.i18n.localize("DRPG.Infiltrate.shut.whyBedroom");
     const max = INFILTRATE.shut.maxExits;
     if (neighbouringRooms(place.scene, room).filter(other => !isLocked(place.scene, other)).length > max) return plural("DRPG.Infiltrate.shut.whyDoors", { n: max });
-    return null;
+    // A barricade that is not this character's (2.0 line T2b, DAY-09): `barricadeShutWhy`, read as `ownBarricadeHere` reads it.
+    return barricadeShutWhy(ownBarricadeHere(actor, place.scene, room));
+}
+
+/**
+ * WHERE A BARRICADE STANDS (2.0 line T2b, DAY-09, 28.11.2026; F1-daily DAY-09). Shut the Door in a room another had
+ * barricaded was live, paid and rolled, and refused after the roll in general words. The room's barricade is a public
+ * flag (movement.mjs `roomBarricaded`), which its people see anyway (player handbook 4), so the row is grayed before its
+ * price with it. Its author's own Shut there is not refused - it puts the barricade up again at the new roll's strength
+ * (doors-gm.mjs `shutRefusal`, `shutDoor`, read 28.11.2026) - so the row stays open over the character's own: `own` is
+ * that. Pure: `{ barricaded, own }` from `ownBarricadeHere`; answers the reason's words or null. R9047.
+ */
+export function barricadeShutWhy({ barricaded = false, own = false } = {}) {
+    return barricaded && !own ? game.i18n.localize("DRPG.Infiltrate.shut.whyBarricaded") : null;
+}
+
+/* This browser's memory of the barricades its own Shut the Door put up, `${actorId}|${sceneId}|${room}` (DAY-09): the
+   author is the GMs' secret (`barricadeStore`), and a player's browser knows only its own success (`performShut`). A
+   memory for a room no longer barricaded is forgotten when read. A reload forgets them all, and the author's row is then
+   grayed until the barricade comes down - the GM's refusal stays the rule either way. */
+const ownBarricades = new Set();
+
+/** Note that `actor`'s Shut the Door put a barricade up in `room` on `scene` (action-doors.mjs `performShut`, DAY-09). */
+export function noteOwnBarricade(actor, scene, room) {
+    if (actor?.id && scene?.id && room) ownBarricades.add(`${actor.id}|${scene.id}|${room}`);
+}
+
+/**
+ * Whether a barricade stands in `room` on `scene`, and whether it is `actor`'s own (DAY-09): the public flag; on a GM's
+ * browser the GMs' row's author, on a player's this browser's memory (`noteOwnBarricade`). `{ barricaded, own }`.
+ */
+export function ownBarricadeHere(actor, scene, room) {
+    const mark = `${actor?.id}|${scene?.id}|${room}`;
+    if (!scene || !room || !roomBarricaded(scene, room)) {
+        ownBarricades.delete(mark);
+        return { barricaded: false, own: false };
+    }
+    if (game.user?.isGM) return { barricaded: true, own: barricadeStore.get(barricadeKey(scene.id, room))?.authorId === actor?.id };
+    return { barricaded: true, own: ownBarricades.has(mark) };
 }
 
 /**

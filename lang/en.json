@@ -4002,7 +4002,8 @@
         "whyBedroom": "This is somebody else's bedroom.",
         "whyDoors": { "one": "This room has more than {n} open door.", "other": "This room has more than {n} open doors." },
         "seenBy": "{name} barricades {room} from inside.",
-        "done": "You barricade {room}. Until you leave or the time of day ends, nobody walks in through a door unless they force it."
+        "done": "You barricade {room}. Until you leave or the time of day ends, nobody walks in through a door unless they force it.",
+        "whyBarricaded": "A barricade already stands in this room."
       },
       "tail": {
         "nobody": "Nobody else stands in this room to tail.",
@@ -5203,7 +5204,8 @@
         "eclipseSpent": "Your Eclipse crossings are used up.",
         "roundMovedOn": "The GM is asking again: answer the new question.",
         "notInRound": "This question is for the players whose students are in play, and yours is not.",
-        "roundOpen": "Another GM is asking the players a different question right now."
+        "roundOpen": "Another GM is asking the players a different question right now.",
+        "barricadeStands": "A barricade already stands in this room."
       },
       "criticalHint": "This roll is a critical, so give the player a substantial hint.",
       "send": "Send to the GM",

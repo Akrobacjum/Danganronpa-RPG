@@ -71013,7 +71013,7 @@ const INVARIANTS = [
             all: 6, order: true, reads: [true, true, true, true, true]
         }), "{asked: the rows Apply revives; one dead student's question: [title, yes, named, effects]; with an unfound death and a Monocub besides, six effects; Apply asks before it writes; what reviveCharacter writes, read in it}");
     }],
-    ["R9043 - a press refused because a readiness round of another kind is open has its own reason, `roundOpen`, the closed list's last and the patterns' last, its words in both languages (bridge-guards.mjs `REASONS`, `REASON_PATTERNS`, `reasonOf`; boundary.mjs `openRoundOnPrimary`; 2.0 line T2b, DAY-06, 28.11.2026)", async () => {
+    ["R9043 - a press refused because a readiness round of another kind is open has its own reason, `roundOpen`, added after the closed list's rows and the patterns that stood before it, and taken by its own pattern first, its words in both languages (bridge-guards.mjs `REASONS`, `REASON_PATTERNS`, `reasonOf`; boundary.mjs `openRoundOnPrimary`; 2.0 line T2b, DAY-06, 28.11.2026)", async () => {
         /*
          * F1-daily DAY-06 (confirmed on Forge, F3 S4 C3): a second GM's press of the Eclipse chevron while another GM's
          * round of the next time of day was open read the general "... was not carried out. You cannot do that right
@@ -71028,12 +71028,12 @@ const INVARIANTS = [
         const TEXT = "another kind of readiness round is open";
         const firstTaking = G.REASON_PATTERNS.findIndex(([, re]) => re.test(TEXT));
         equal(stableJson({
-            code: G.REASONS.includes("roundOpen"), last: G.REASONS[G.REASONS.length - 1],
-            read: G.reasonOf(TEXT), pattern: [firstTaking === G.REASON_PATTERNS.length - 1, G.REASON_PATTERNS[G.REASON_PATTERNS.length - 1]?.[0]],
+            code: G.REASONS.includes("roundOpen"), last: G.REASONS.indexOf("roundOpen") > G.REASONS.indexOf("onWatch"),
+            read: G.reasonOf(TEXT), pattern: [firstTaking > G.REASON_PATTERNS.findIndex(([code]) => code === "notInRound"), G.REASON_PATTERNS[firstTaking]?.[0]],
             run: open.includes(JSON.stringify(TEXT)), oldGone: !open.includes('"another readiness round is open"'),
             words: game.i18n.localize("DRPG.Bridge.why.roundOpen") !== "DRPG.Bridge.why.roundOpen"
-        }), stableJson({ code: true, last: "roundOpen", read: "roundOpen", pattern: [true, "roundOpen"], run: true, oldGone: true, words: true }),
-            "{the code in the closed list, the list's last; the text read as it; the first pattern taking it is the last, its code; the run says it; the old text gone from the run; the words}");
+        }), stableJson({ code: true, last: true, read: "roundOpen", pattern: [true, "roundOpen"], run: true, oldGone: true, words: true }),
+            "{the code in the closed list, after E74's last; the text read as it; the first pattern taking it stands after the round's old ones, and is its own; the run says it; the old text gone from the run; the words}");
     }],
     ["R9044 - the GM refused for another kind of round is told whose round it is, which, and how to join or end it, once, and the panel's Next line names that GM (boundary.mjs `roundOpenLine`, `askReadiness`; bridge-asks.mjs `requestReadyOpen`; gm-panel.mjs `nextStep`; 2.0 line T2b, DAY-06, 28.11.2026)", async () => {
         /*
@@ -71126,6 +71126,54 @@ const INVARIANTS = [
             anyGm: /if \(!sent\) \{\s*if \(game\.user\.isGM\) await SearchTokens\.giveBack\(/.test(fnSource(as, "searchSpecific"))
         }), stableJson({ op: "giveBack", guard: "only a GM sets the Search Tokens", run: true, asks: true, anyGm: true }),
             "{the row keeps the op; its first guard refuses a player (gmOnly); the run gives back in the primary's queue; giveBack asks the primary or writes here; the unsent specific Search gives back on any GM}");
+    }],
+    ["R9047 - Shut the Door's row is grayed before its price where a barricade stands that is not this character's, and open over its own (action-listen.mjs `barricadeShutWhy`, `shutShutWhy`, `noteOwnBarricade`; action-doors.mjs `performShut`; 2.0 line T2b, DAY-09, 28.11.2026)", async () => {
+        /*
+         * F1-daily DAY-09: in a room another had barricaded the row was live, the action paid and rolled, and the GM
+         * refused after the roll with the general "You cannot do that right now". The room's barricade is a public flag
+         * (movement.mjs `roomBarricaded`, its one reader), which the room's people see anyway; its author is the GMs'
+         * (`barricadeStore`). The author's own Shut there is not refused: it puts the barricade up again at the new roll's
+         * strength (doors-gm.mjs `shutRefusal` lets the author through, `shutDoor` writes the new strength - read on
+         * 28.11.2026). So the row stays open for the author: on a GM's browser by the store's author, on the player's by
+         * this browser's memory of its own successful Shut (`noteOwnBarricade`, written by `performShut`) - a memory a
+         * reload forgets, which grays the author's row until the barricade comes down (the GM's refusal stays the rule).
+         * Read on the pure rule and the sources; nothing is written. Red at 20353d9: no `barricadeShutWhy`.
+         */
+        const A = await import("./action-listen.mjs");
+        if (typeof A.barricadeShutWhy !== "function") { ok(false, "action-listen.mjs has no barricadeShutWhy"); return; }
+        const sources = new Map(await otherSources());
+        const listen = stripComments(sources.get("action-listen.mjs") ?? ""), doors = stripComments(sources.get("action-doors.mjs") ?? "");
+        const why = fnSource(listen, "shutShutWhy"), perform = fnSource(doors, "performShut");
+        const W = game.i18n.localize("DRPG.Infiltrate.shut.whyBarricaded");
+        equal(stableJson({
+            rule: [A.barricadeShutWhy({ barricaded: false, own: false }), A.barricadeShutWhy({ barricaded: true, own: false }), A.barricadeShutWhy({ barricaded: true, own: true })],
+            order: why.search(/barricadeShutWhy\(/) > why.search(/whyDoors/) && why.search(/whyDoors/) > 0,
+            reads: [/roomBarricaded\(/.test(fnSource(listen, "ownBarricadeHere")), /barricadeStore/.test(fnSource(listen, "ownBarricadeHere"))],
+            noted: perform.search(/noteOwnBarricade\(/) > perform.search(/requestDoorShut\(/) && perform.search(/requestDoorShut\(/) > 0,
+            words: W !== "DRPG.Infiltrate.shut.whyBarricaded"
+        }), stableJson({ rule: [null, W, null], order: true, reads: [true, true], noted: true, words: true }),
+            "{rule: [no barricade, another's, this character's own]; read after the doors' count; the reader asks the public flag and, on a GM, the store; performShut notes its own after the GM's answer; the words}");
+    }],
+    ["R9048 - a Shut the Door refused after its roll because a barricade went up meanwhile says so, with a code of its own (doors-gm.mjs `shutRefusal`; bridge-guards.mjs `REASONS`, `REASON_PATTERNS`; 2.0 line T2b, DAY-09, 28.11.2026)", async () => {
+        /*
+         * F1-daily DAY-09: the after-roll refusal for another's barricade was "that cannot be done now" - the general
+         * `cannotNow`. The code `barricaded` the spec names is the door's ("The door does not give.", a walk in refused),
+         * so the refusal has its own code, `barricadeStands`, at the end of REASONS and of REASON_PATTERNS, its words the
+         * row's (`DRPG.Infiltrate.shut.whyBarricaded`). A body nobody found keeps the general words: that one is the GMs'
+         * secret. Read on the tables and the source; nothing is written. Red at 20353d9: the refusal read as cannotNow.
+         */
+        const G = await import("./bridge-guards.mjs");
+        const D = stripComments(new Map(await otherSources()).get("doors-gm.mjs") ?? "");
+        const refusal = fnSource(D, "shutRefusal");
+        const TEXT = "a barricade already stands in that room";
+        equal(stableJson({
+            code: G.REASONS.includes("barricadeStands"), read: G.reasonOf(TEXT),
+            last: G.REASON_PATTERNS[G.REASON_PATTERNS.findIndex(([, re]) => re.test(TEXT))]?.[0] === "barricadeStands" && G.REASONS.indexOf("barricadeStands") > G.REASONS.indexOf("onWatch"),
+            run: /row && row\.authorId !== actor\.id\) return \{ why: "a barricade already stands in that room" \}/.test(refusal),
+            body: /knownUnfoundBodyIn\([^)]*\)\) return \{ why: "that cannot be done now" \}/.test(refusal),
+            words: game.i18n.localize("DRPG.Bridge.why.barricadeStands") === game.i18n.localize("DRPG.Infiltrate.shut.whyBarricaded")
+        }), stableJson({ code: true, read: "barricadeStands", last: true, run: true, body: true, words: true }),
+            "{the code in the closed list; the text read as it; the first pattern taking it is its own, the code after E74's; the run says it for another's barricade; a body keeps the general words; the told words are the row's}");
     }],
 ];
 

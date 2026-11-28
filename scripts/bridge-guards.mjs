@@ -174,7 +174,9 @@ export const REASONS = Object.freeze([
     // E74: a barricade (movement.mjs `barricadedFrom`) and a watcher held to the post (watch-gm.mjs).
     "barricaded", "onWatch",
     // 2.0 line T2b DAY-06: a readiness round of another kind open (boundary.mjs `openRoundOnPrimary`), said by the press.
-    "roundOpen"
+    "roundOpen",
+    // 2.0 line T2b DAY-09: Shut the Door over another's barricade (doors-gm.mjs `shutRefusal`); `barricaded` is the door's.
+    "barricadeStands"
 ]);
 
 /**
@@ -491,7 +493,9 @@ export const REASON_PATTERNS = Object.freeze([
     ["roundMovedOn", /^the readiness round has moved on since that answer$/],
     ["notInRound", /^the sender plays no student the round asks$/],
     // 2.0 line T2b DAY-06: another kind of round open, said with its GM and kind (boundary.mjs `roundOpenLine`; R9043).
-    ["roundOpen", /^another kind of readiness round is open$/]
+    ["roundOpen", /^another kind of readiness round is open$/],
+    // 2.0 line T2b DAY-09: Shut the Door where another's barricade stands (doors-gm.mjs `shutRefusal`; R9048).
+    ["barricadeStands", /^a barricade already stands in that room$/]
 ].map(([code, pattern]) => Object.freeze([code, pattern])));
 
 /** The code of the closed list an English reason stands for: the first pattern that takes it, else `refused`. */

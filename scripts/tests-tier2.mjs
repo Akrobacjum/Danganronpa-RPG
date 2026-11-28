@@ -119693,6 +119693,89 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         equal(stableJson(read), stableJson([1, ...Array.from({ length: max }, (_, i) => Math.min(max, 2 + i)), max]),
             "[the room's count set to 1; each give-back's answer, up to the maximum and held there; the count after]");
     }],
+    ["E132 T2b DAY-09 - Shut the Door is greyed before its price where a barricade stands (action-listen.mjs `shutShutWhy`; doors-gm.mjs `shutRefusal`; bridge-table.mjs `door.shut`; 2.0 line T2b, 28.11.2026)", async () => {
+        /*
+         * F1-daily DAY-09. As E74-T1 sets it: the player's character stood in a room with one open door. A barricade of
+         * another character put up there (the GMs' row and the public flag, as doors-gm.mjs `shutDoor` writes them): the
+         * row's reason on this GM's browser is the barricade's; the character's own Shut judged as the primary judges the
+         * player's packet is refused `barricadeStands`. The barricade made the character's own: the row is open. Put back:
+         * the records, the messages, the barricades, the doors, the token. Red at 20353d9: the row open over another's
+         * barricade, the refusal `cannotNow`.
+         */
+        const S = await import("./gm-stores.mjs"), G = await import("./bridge-guards.mjs"), M = await import("./movement.mjs");
+        const D = await import("./doors-gm.mjs"), L = await import("./action-listen.mjs");
+        const { INFILTRATE } = await import("./config.mjs");
+        const { BRIDGE_ACTIONS } = await import("./gm-bridge.mjs");
+        needs(world.atLeast("namedRooms", 2), "a room to shut and a room next to it");
+        const { player, actor } = await playerInRoom();
+        const other = game.actors.find(a => a.type === "character" && a.id !== actor.id && !a.testUserPermission(player, "OWNER"));
+        must(other, "no character the player does not own - this would measure nothing");
+        const scene = canvas.scene;
+        const token = scene.tokens.find(t => t.actorId === actor.id);
+        must(token, "the player's character has no token on the scene on screen");
+        const rooms = M.allRooms(scene);
+        const [few, many] = rooms;
+        const doors = { [few]: [many], [many]: [few] };
+        const { roomRegions } = await import("./rooms.mjs");
+        const flagsWere = [];
+        for (const [room, list] of Object.entries(doors)) for (const piece of roomRegions(scene, room)) {
+            flagsWere.push([piece, piece.getFlag(MODULE_ID, M.ROOM_FLAGS.neighbours) ?? null]);
+            await piece.setFlag(MODULE_ID, M.ROOM_FLAGS.neighbours, list.join(", "));
+        }
+        const was = { x: token.x, y: token.y };
+        const PLACE = { teleport: true, movementAction: "displace", animate: false };
+        const made = [], told = [];
+        const ask = async packet => {
+            const from = told.length;
+            await G.judge(BRIDGE_ACTIONS, { action: "door.shut", requestId: `E132D9${foundry.utils.randomID(8)}`, actorId: actor.id, ...packet },
+                player.id, { send: (to, reply) => told.push(reply) });
+            await settle();
+            const reply = told.slice(from).find(r => r?.action === "bridge.done" || r?.action === "bridge.refused") ?? null;
+            return reply?.action === "bridge.refused" ? reply.reason : reply?.value ?? null;
+        };
+        const rollOf = async total => {
+            const { message } = await neutralRoll(actor, { faces: { hope: 6, fear: 3 } });
+            must(message, "no roll was thrown - this would measure nothing");
+            await message.update({ author: player.id });
+            const kept = await recordFor(message, player, actor, "shut", { total });
+            made.push({ message, kept });
+            return message.id;
+        };
+        const key = D.barricadeKey(scene.id, few);
+        const putUp = async by => {
+            await S.barricadeStore.patch(key, { sceneId: scene.id, room: few, authorId: by.id, strength: 9, at: Date.now(), userId: null });
+            await M.setRoomBarricaded(scene, few, true);
+            await settle();
+        };
+        const W = game.i18n.localize("DRPG.Infiltrate.shut.whyBarricaded");
+        const read = {};
+        try {
+            const exits = (await D.openExits(scene, few)).length;
+            must(exits >= 1 && exits <= INFILTRATE.shut.maxExits, `the doors written did not take: ${exits}`);
+            await token.update(M.positionIn(few, token), { ...PLACE });
+            await settle();
+            read.clear = L.shutShutWhy(actor, { eclipse: false });
+            await putUp(other);
+            read.theirs = [M.roomBarricaded(scene, few), L.shutShutWhy(actor, { eclipse: false }) === W];
+            read.refused = await ask({ rollId: await rollOf(14) });
+            await D.endBarricade(key);
+            await putUp(actor);
+            read.own = L.shutShutWhy(actor, { eclipse: false });
+        } finally {
+            const { remnantData } = await import("./remnants.mjs");
+            for (const t of canvas.scene.tokens.filter(t => remnantData(t)?.action === "infiltrate")) await t.delete();
+            for (const { message, kept } of made) { await kept.putBack(); await game.messages.get(message.id)?.delete(); }
+            await D.endBarricade(key);
+            for (const [piece, value] of flagsWere) {
+                if (value === null) await piece.unsetFlag(MODULE_ID, M.ROOM_FLAGS.neighbours);
+                else await piece.setFlag(MODULE_ID, M.ROOM_FLAGS.neighbours, value);
+            }
+            if (scene.tokens.has(token.id)) await token.update(was, { ...PLACE });
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ clear: null, theirs: [true, true], refused: "barricadeStands", own: null }),
+            "{clear: the row with no barricade; theirs: [the public flag, the row grayed with the barricade's words]; refused: the Shut judged over another's barricade; own: the row over the character's own}");
+    }],
 ];
 
 // `drawnForPlayer` for the grid (E33 C7): a drawn crisis roll goes through the suite's one road to a draw (tests-grid.mjs `drawnAct`).
