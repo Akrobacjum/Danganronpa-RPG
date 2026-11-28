@@ -7414,4 +7414,116 @@ export async function run({ gm, p1, p2, p3, check, note, phase, settle, permissi
             && rlForged?.settled === false && rlForged.held === true
             && rlOwn?.settled === true && rlOwn.held === false && rlOwn.lines.includes("DRPG.Bridge.settledReloaded"),
         JSON.stringify({ rlCard, rlForged, rlOwn }), { flow: "hope-call" });
+
+    // 2.0 line T2
+    /* EXP-PL-12, FIX-G3 SEC-T2-01 of line T2's end review (28.11.2026): the forged withdrawal above names p2's own id in
+       its `userId`, so it showed that another player's `rid` ends nothing, never that a payload field naming the victim is
+       not read. Here p2's console sends `ask.withdraw` with `userId` naming p1 as well as p1's `rid`: whose ask a withdrawal
+       ends is Foundry's sender (bridge-guards.mjs `guardAskWithdraw`, bridge-runs-acts.mjs `handleAskWithdraw` read
+       `sender.id`; the row's `sanitize: pick({ rid })` keeps no `userId`). Read on the GM: the card still open, the ask
+       still held for p1, the refusal logged. Then p1's own withdrawal ends the card. Deleted after. */
+    phase("a forged withdrawal naming the victim's user", { flow: "hope-call" });
+    await gm.eval(`(await import("${repoUrl}/scripts/utils.mjs")).clearSessionFailures(); return true;`);
+    const WV_RID = "SECT2ASKOFP10002";
+    await p1.eval(`game.socket.emit("${SOCKET}", { action: "dynamic.difficulty", userId: game.user.id, requestId: "${WV_RID}",
+            description: "SEC T2 SEC-T2-01", actorName: "Aiko", room: null, actorId: "${ids.aiko}" },
+        { recipients: game.users.filter(u => u.isGM && u.active).map(u => u.id) });
+        return true;`);
+    await settle(1500);
+    const wvRead = `const { cardFlag } = await import("${repoUrl}/scripts/secret.mjs");
+        const C = await import("${repoUrl}/scripts/call-gm.mjs");
+        const card = game.messages.contents.find(m => cardFlag(m, "rid")?.id === "${WV_RID}") ?? null;
+        return card ? { id: card.id, settled: Boolean(cardFlag(card, "settled")), held: Boolean(C.heldAskOf("${WV_RID}", "${IDS.p1}")) } : null;`;
+    const wvCard = await gm.eval(wvRead);
+    if (wvCard) {
+        await p2.eval(`game.socket.emit("${SOCKET}", { action: "ask.withdraw", userId: "${IDS.p1}", rid: "${WV_RID}" },
+            { recipients: game.users.filter(u => u.isGM && u.active).map(u => u.id) }); return true;`);
+        await settle(1200);
+    }
+    const wvForged = wvCard ? { ...(await gm.eval(wvRead)), logged: await gm.eval(`return (await import("${repoUrl}/scripts/utils.mjs")).sessionFailures()
+        .filter(e => /Refused a "ask\\.withdraw"/.test(e.message)).map(e => [e.message, e.count]);`) } : null;
+    if (wvCard) {
+        await p1.eval(`game.socket.emit("${SOCKET}", { action: "ask.withdraw", userId: game.user.id, rid: "${WV_RID}" },
+            { recipients: game.users.filter(u => u.isGM && u.active).map(u => u.id) }); return true;`);
+        await settle(1200);
+    }
+    const wvOwn = wvCard ? await gm.eval(wvRead) : null;
+    if (wvCard) await gm.eval(`await game.messages.get("${wvCard.id}")?.delete(); return true;`);
+    await settle(400);
+    check("SECURITY: p2's console's ask.withdraw whose userId names p1, with p1's ask, ends no card and drops no ask - whose ask ends is Foundry's sender, never a payload field; p1's own ends the card (2.0 line T2, EXP-PL-12, SEC-T2-01)",
+        Boolean(wvCard) && wvCard.settled === false && wvCard.held === true
+            && wvForged?.settled === false && wvForged.held === true
+            && wvForged.logged.some(([m]) => /"ask\.withdraw".*holds no ask of the sender/.test(m))
+            && wvOwn?.settled === true && wvOwn.held === false,
+        JSON.stringify({ wvCard, wvForged, wvOwn }), { flow: "hope-call" });
+
+    // 2.0 line T2
+    /* EXP-PL-12, FIX-G3 SEC-T2-02 of line T2's end review (28.11.2026): `ask.state` (primary -> player) tells an asker that a
+       GM is reading its request; the waiter takes it from the primary alone, by Foundry's sender (bridge-guards.mjs
+       `createWaiter`'s `fromPrimary`, wired to `primaryGmId()` on the receiving browser - the readiness registry since
+       PRIM-03). R9030 measures it with stand-in senders; this is the same on a real client. p1 asks for a Dynamic Action's
+       difficulty on Aiko as its action does (action-dynamic.mjs `performDynamic`'s two steps: popup.mjs `showWaiting` with
+       ask-withdraw.mjs `waitingFor`, then gm-bridge.mjs `requestDynamicDifficulty` under the card's id), so its waiting card
+       and its wait are real. p2's console sends p1 `ask.state` "ruling" for that ask. Read on p1: the waiting card's state
+       line. Then the control on the primary's real road: the GM takes the card (bridge-asks.mjs `claimCard`, its work held
+       open), and p1's line reads "A GM is reading your request."; the work ends, the claim drops, the line reads waiting
+       again; p1's own Withdraw (ask-withdraw.mjs `withdrawAsk`) ends the card. Deleted after. */
+    phase("a forged state of another player's ask", { flow: "hope-call" });
+    const stLine = `const el = [...document.querySelectorAll("[data-drpg-ask]")].find(e => e.dataset.drpgAsk === globalThis.__t2StRid) ?? null;
+        return el ? el.textContent.trim() : null;`;
+    const stRid = await p1.eval(`const { showWaiting } = await import("${repoUrl}/scripts/popup.mjs");
+        const { waitingFor } = await import("${repoUrl}/scripts/ask-withdraw.mjs");
+        const { requestDynamicDifficulty } = await import("${repoUrl}/scripts/gm-bridge.mjs");
+        const { TIMING } = await import("${repoUrl}/scripts/config.mjs");
+        const actor = game.actors.get("${ids.aiko}");
+        const waiting = showWaiting(game.i18n.localize("DRPG.Action.dynamicWaiting"), "S30 T2 SEC-T2-02", waitingFor(TIMING.rulingMs));
+        globalThis.__t2StRid = waiting.requestId;
+        globalThis.__t2StClose = waiting;
+        globalThis.__t2StAsk = requestDynamicDifficulty({ description: "SEC T2 SEC-T2-02", actorName: actor?.name ?? "Aiko", actorId: "${ids.aiko}", room: null },
+            undefined, { requestId: waiting.requestId });
+        return waiting.requestId ?? null;`, { timeout: 30000 });
+    await settle(1500);
+    const stWords = await p1.eval(`return { waiting: game.i18n.localize("DRPG.Action.dynamicWaiting"), ruling: game.i18n.localize("DRPG.Bridge.askRuling") };`);
+    const stRead = `const { cardFlag } = await import("${repoUrl}/scripts/secret.mjs");
+        const C = await import("${repoUrl}/scripts/call-gm.mjs");
+        const card = game.messages.contents.find(m => cardFlag(m, "rid")?.id === ${JSON.stringify(stRid)}) ?? null;
+        return card ? { id: card.id, settled: Boolean(cardFlag(card, "settled")), held: Boolean(C.heldAskOf(${JSON.stringify(stRid)}, "${IDS.p1}")) } : null;`;
+    const stCard = stRid ? await gm.eval(stRead) : null;
+    const stBefore = { line: await p1.eval(stLine) };
+    if (stCard) {
+        await p2.eval(`game.socket.emit("${SOCKET}", { action: "ask.state", userId: "${IDS.p1}", rid: ${JSON.stringify(stRid)}, state: "ruling" },
+            { recipients: ["${IDS.p1}"] }); return true;`);
+        await settle(1200);
+    }
+    const stForged = { line: await p1.eval(stLine) };
+    if (stCard) {
+        await gm.eval(`const A = await import("${repoUrl}/scripts/bridge-asks.mjs");
+            const m = game.messages.get("${stCard.id}");
+            globalThis.__t2StWork = A.claimCard(m, () => new Promise(r => { globalThis.__t2StRelease = r; }));
+            const end = Date.now() + 5000;
+            while (Date.now() < end && !globalThis.__t2StRelease) await new Promise(r => setTimeout(r, 50));
+            return Boolean(globalThis.__t2StRelease);`, { timeout: 30000 });
+        await settle(1200);
+    }
+    const stTaken = { line: await p1.eval(stLine) };
+    if (stCard) {
+        await gm.eval(`globalThis.__t2StRelease?.(null); await globalThis.__t2StWork;
+            delete globalThis.__t2StRelease; delete globalThis.__t2StWork; return true;`, { timeout: 30000 });
+        await settle(1200);
+    }
+    const stDropped = { line: await p1.eval(stLine) };
+    const stOwn = stRid ? { withdrew: await p1.eval(`const { withdrawAsk } = await import("${repoUrl}/scripts/ask-withdraw.mjs");
+        const ok = await withdrawAsk(globalThis.__t2StRid); const res = await globalThis.__t2StAsk;
+        globalThis.__t2StClose?.(); delete globalThis.__t2StClose; delete globalThis.__t2StAsk; delete globalThis.__t2StRid;
+        return [ok, Boolean(res?.ok)];`, { timeout: 30000 }) } : null;
+    await settle(1200);
+    if (stOwn) Object.assign(stOwn, stCard ? await gm.eval(stRead) : {});
+    if (stCard) await gm.eval(`await game.messages.get("${stCard.id}")?.delete(); return true;`);
+    await settle(400);
+    check("SECURITY: p2's console's ask.state naming p1's waiting ask changes nothing on p1's waiting card - taken from the primary GM alone by Foundry's sender; the primary's own take tells p1 a GM is reading it, its drop puts the card back to waiting (2.0 line T2, EXP-PL-12, SEC-T2-02)",
+        Boolean(stRid) && Boolean(stCard) && stCard.settled === false && stCard.held === true
+            && stBefore.line === stWords.waiting && stForged.line === stWords.waiting
+            && stTaken.line === stWords.ruling && stDropped.line === stWords.waiting
+            && stOwn?.withdrew?.[0] === true && stOwn.withdrew[1] === false && stOwn.settled === true && stOwn.held === false,
+        JSON.stringify({ stRid, stCard, stWords, stBefore, stForged, stTaken, stDropped, stOwn }), { flow: "hope-call" });
 }

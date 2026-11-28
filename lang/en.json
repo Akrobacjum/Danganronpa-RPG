@@ -5508,9 +5508,9 @@
       },
       "primaryGm": "Primary GM: {name}",
       "primaryGmYou": "Primary GM: {name} (you)",
-      "primaryGmTooltip": "The primary GM's browser runs the table's automation: voice, players' rolls, the sheet audit and the fog.",
+      "primaryGmTooltip": "The primary GM's browser runs the table's automation: the voice, the players' rolls, the sheet audit, and the fog.",
       "primaryTitle": "Primary GM",
-      "primaryNowYou": "You are now the primary GM: your browser runs the table's automation (voice, players' rolls, the sheet audit, the fog). Keep this browser tab open.",
+      "primaryNowYou": "You are now the primary GM: your browser runs the table's automation (the voice, the players' rolls, the sheet audit, and the fog). Keep this browser tab open.",
       "primaryNow": "{name} is now the primary GM.",
       "primaryBack": "{name} is now the primary GM. Your browser no longer runs the table's automation."
     },

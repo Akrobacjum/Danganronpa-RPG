@@ -440,8 +440,10 @@ export async function safewordDialog(actor = null) {
  * pauses. The race the old comment named: two GMs who both read `!game.paused` before either's pause arrives both call
  * `game.togglePause(true, { broadcast: true })`. The call names the state, `true`, and is not a bare toggle: the
  * harness's stand-in (audit/harness/client-entry.mjs `togglePause`) sets the state asked, so a second `true` leaves the
- * game paused. Foundry's own `togglePause` is not in this repository and was not read; that v14 and its server take a
- * second `true` as paused, and do not toggle back, is not measured at a table (named for one in line T2's report, PRIM-09).
+ * game paused - but that stand-in is the harness's own code, not Foundry's, and sets what it is asked by construction, so
+ * it proves nothing about v14. Foundry's own `togglePause` is not in this repository and was not read; that v14 and its
+ * server take a second `true` as paused, and do not toggle back, is not measured at a table: LIVE-E132-22 (two GMs, one
+ * safeword card, the game still paused after 10 s; AUDIT 9.2, T2-GOAL-03 of line T2's end review, 28.11.2026).
  * The public card is still the primary's to post (`hearSafeword`), and since PRIM-03 the primary is a GM whose world has
  * loaded. Exported for the suite (R9059), which hands it stand-in users.
  */
