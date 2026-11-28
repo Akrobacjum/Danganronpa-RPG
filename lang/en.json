@@ -2067,6 +2067,7 @@
         "wrongStepOffersTooltip": "Ticked: a wrong verdict gives the Blackened their Reinforced Level Up. Untick to leave it out.",
         "wrongStepRuleTooltip": "Ticked: a wrong verdict asks the Blackened for their new rule. Untick to leave it out.",
         "wrongStepDespairTooltip": "Ticked: a wrong verdict fills every Monokuma's Despair pool. Untick to leave it out.",
+        "ballotChoiceTooltip": "A vote for this student. Only the GMs see your pick. Once you cast your vote, you cannot change it.",
         "startAnywayTooltip": "Starts the Class Trial with these requests still waiting; their cards stay as they are"
       },
       "CasePlan": {

@@ -52,7 +52,7 @@ import {
 } from "./utils.mjs";
 import { trialProgress, setTrialProgress, retrySentence, findingsHtml } from "./trial-progress.mjs";
 import { goneBallots, goneNames } from "./vote-gone.mjs";
-import { drpgWindow, box } from "./ui-kit.mjs";
+import { drpgWindow, box, tipAttr } from "./ui-kit.mjs";
 export {
     trialProgress, trialProgressChapter, TRIAL_PROGRESS_KEY, setTrialProgress, RECORD_FIELDS, recordPatchOf,
     recordOnPrimary, writeTrialProgressInStep, resetTrialProgress, trialSizeNow, executeAtExit, retrySentence,
@@ -859,7 +859,7 @@ export function ballotFormHtml({ picks = 1, candidates = [] } = {}) {
        No row is checked here on purpose - a pre-selected ballot is a vote nobody cast. */
     const rows = i => candidates.map(c => `
                 <label class="drpg-choice">
-                    <input type="radio" name="choice${i}" value="${c.id}">
+                    <input type="radio" name="choice${i}" value="${c.id}"${tipAttr("DRPG.Tips.Trial.ballotChoiceTooltip")}>
                     <span class="drpg-choice-text">
                         <strong>${foundry.utils.escapeHTML(c.name)}</strong>
                         ${c.dead ? `<small>${game.i18n.localize("DRPG.Chapter.deadShort")}</small>` : ""}

@@ -718,18 +718,6 @@
    }
   },
   {
-   "file": "scripts/vote.mjs",
-   "unit": "ballotFormHtml",
-   "kind": "radio",
-   "key": null,
-   "count": 1,
-   "why": "hint: the note under the lists (DRPG.Vote.ballotNote) says the vote goes to the GMs alone and the table sees only totals; each row is a name (castBallot's until 2.0 line T3 EXP-PL-16 moved the form to ballotFormHtml)",
-   "held": {
-    "fn": "ballotFormHtml",
-    "pattern": "DRPG\\.Vote\\.ballotNote"
-   }
-  },
-  {
    "file": "scripts/action-tamper.mjs",
    "unit": "chooseTamper",
    "kind": "select",

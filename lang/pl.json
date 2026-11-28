@@ -2155,6 +2155,7 @@
         "wrongStepOffersTooltip": "Zaznaczone: błędny werdykt daje Blackened Reinforced Level Up. Odznacz, żeby go pominąć.",
         "wrongStepRuleTooltip": "Zaznaczone: błędny werdykt pyta Blackened o nową zasadę. Odznacz, żeby to pominąć.",
         "wrongStepDespairTooltip": "Zaznaczone: błędny werdykt napełnia pulę Despair każdego Monokumy. Odznacz, żeby to pominąć.",
+        "ballotChoiceTooltip": "Głos na tego ucznia. Twój wybór widzą tylko GM-owie. Oddanego głosu nie zmienisz.",
         "startAnywayTooltip": "Zaczyna Class Trial, choć te prośby nadal czekają; ich karty zostają bez zmian"
       },
       "CasePlan": {
