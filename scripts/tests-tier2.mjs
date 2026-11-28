@@ -33402,8 +33402,11 @@ equal(read.added, 3, "three additions to a purse at once lost one");
                 && !S.pendingMurderStore.has(victim.id),
                 "the refusal's card is not veiled - its document names the one refused - or it was not posted, or the refused row stands");
 
-            await E.endEclipse({ advance: false });
-            await settle();
+            // Its opening thrown and landed, 8 or more (2.0 line T1 D2-28: the lights wait for it), so the incident stands.
+            await throwingOpenings(async () => {
+                await E.endEclipse({ advance: false });
+                await settle();
+            }, { total: 20 });
             const state = murder.murderState();
             equal(stableJson([state?.killerId ?? null, state?.victimId ?? null]), stableJson([killer.id, victim.id]),
                 "the lights did not open the allowed declaration between the two who stood alone");
@@ -33464,8 +33467,11 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             const row = S.pendingMurderStore.get(killer.id);
             equal(stableJson([row?.approved ?? null, row?.trait ?? null, row?.proposed ?? null]), stableJson([true, "hand", "hand"]),
                 "the allowance did not keep the statistic the card named (approved, trait, proposed)");
-            await E.endEclipse({ advance: false });
-            await settle();
+            // Its opening thrown and landed, 8 or more (2.0 line T1 D2-28: the lights wait for it), so the incident stands.
+            await throwingOpenings(async () => {
+                await E.endEclipse({ advance: false });
+                await settle();
+            }, { total: 20 });
             await until(() => murder.murderState()?.openingTrait, 5000);
             const state = murder.murderState();
             equal(stableJson([state?.killerId ?? null, state?.victimId ?? null, state?.openingTrait ?? null, windows.asked]),
