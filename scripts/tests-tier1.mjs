@@ -71050,6 +71050,29 @@ const INVARIANTS = [
         }), "cases: failureLogElsewhereHtml [another GM the primary, this GM the primary, no primary] as {the primary's id, the words}; here: the defaults on this browser; wired: [the open draws it first in the live region, the redraw too, the redraw's signature reads the primary]");
         ok(!words.startsWith("DRPG.") && words.includes(OTHER.name), "the hint's key has words and names the primary");
     }],
+    ["R9059 - a safeword card pauses the game on every GM's browser that sees it while the game runs, not on the primary's alone: safeword.mjs `safewordPauses` answers true for a GM who is not the primary with the game running, false with it paused and false for a player, and asks nothing of who the primary is; the `createChatMessage` hook in `registerSafeword` pauses on its answer and reads no `isPrimaryGm` (2.0 line T2, PRIM-09, 28.11.2026)", async () => {
+        /* F1-infra PRIM-09 (TRIAGE-3: fix): the hook paused only where `isPrimaryGm()`, so in PRIM-03's window - the primary
+           reloaded, connected and not yet ready - or with the primary's page not listening, the card landed, a second GM
+           was present, and the game did not stop; handbook 19 told the GM to pause it by hand. Driven on stand-in users
+           (a Gamemaster whose id is nobody's here, so no reading of the primary can make it one; a player), and the
+           hook's own source cut from `registerSafeword`, which the suite cannot fire without pausing the table (tier 2's
+           E132 PRIM-09 fires it on a GM that is not the primary). Red before PRIM-09: there is no `safewordPauses`, and the
+           hook's condition reads `isPrimaryGm()`. */
+        const S = await import("./safeword.mjs");
+        const U = await import("./utils.mjs");
+        const pauses = typeof S.safewordPauses === "function" ? S.safewordPauses : () => "missing";
+        const gm = { id: "R9059GmNotThePrim", name: "R9059 GM", isGM: true };
+        const player = { id: "R9059PlayerPlayer", name: "R9059 Player", isGM: false };
+        const cases = [pauses(gm, false), pauses(gm, true), pauses(player, false), pauses(null, false)];
+        const src = await fetch(`/modules/${MODULE_ID}/scripts/safeword.mjs`).then(lfText).then(stripComments);
+        const own = /export function safewordPauses\(/.test(src) ? fnSource(src, "safewordPauses") : "";
+        const hook = bodyOf(fnSource(src, "registerSafeword"), 'Hooks.on("createChatMessage"', { until: 'Hooks.on("renderChatMessageHTML"' });
+        equal(stableJson({ cases, notPrimary: U.primaryGmId() !== gm.id, own: own !== "" && !/isPrimaryGm|primaryGmId/.test(own), hook: [
+            /if \(safewordPauses\(\)\) \{?\s*game\.togglePause\(true, \{ broadcast: true \}\)/.test(hook),
+            /isPrimaryGm|primaryGmId/.test(hook)
+        ] }), stableJson({ cases: [true, false, false, false], notPrimary: true, own: true, hook: [true, false] }),
+        "cases: safewordPauses [a GM not the primary, game running; the same GM, game paused; a player, running; nobody]; notPrimary: the stand-in GM is not the primary here; own: the function reads no primary; hook: [the createChatMessage hook pauses on safewordPauses(), it reads the primary]");
+    }],
 ];
 
 /**

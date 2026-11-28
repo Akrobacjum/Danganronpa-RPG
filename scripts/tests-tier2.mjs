@@ -119433,6 +119433,44 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             after: false
         }), "{left: askerLeftOnPrimary signed this card; signed, resent[1], reloaded: the card [settled, its lines by key, the sign in the GMs' copy and the asker's, its buttons, the ask held]; resent[0]: cards posted after the resend under the same id; fromGm: settled after a GM's bridge.playerReady; after: a difficulty sent on after the end}");
     }],
+    ["E132 PRIM-09 - a safeword pauses the game on a GM who is not the primary: with a full Gamemaster who sorts first connected and ready, so the primary is another GM, a safeword card that lands on this GM's browser with the game running pauses it here; the card is the only one posted (safeword.mjs `registerSafeword`, `safewordPauses`; 2.0 line T2, PRIM-09, 28.11.2026)", async () => {
+        /*
+         * F1-infra PRIM-09: only the primary's browser paused, so in PRIM-03's window (the primary reloaded, connected and
+         * not ready) or with the primary's page not listening, a second GM was present and the game did not stop. E132
+         * PRIM-03's stand-in (tests-kit `standInUser`, sorts first), announced as Foundry announces a socket that comes up
+         * and then ready through the bridge's own listener (`onGmReady`), takes the role from this GM; the game is set
+         * running, and a GM's safeword card is posted as a GM's press posts it (`announce(safewordCard())`). Read: whether
+         * this GM was the primary when the card landed, the game's pause after it, and the cards posted. `safewordRun`
+         * deletes the card and puts the pause back; the stand-in is taken out of the list and the registry, and the
+         * observer asked again, in the `finally`. Red before PRIM-09: the card landed and the game ran on.
+         */
+        needs(env.primaryGm());
+        const S = await import("./safeword.mjs");
+        const U = await import("./utils.mjs");
+        const Br = await import("./gm-bridge.mjs");
+        const { ACTION_GM_READY } = await import("./bridge-wire.mjs");
+        const primary = standInUser({ name: "E132 PRIM-09 primary GM", role: CONST.USER_ROLES.GAMEMASTER, active: true, sorts: "first" });
+        const read = {};
+        game.users.set(primary.id, primary);
+        try {
+            Hooks.callAll("userConnected", primary, true);
+            Br.onGmReady?.({ action: ACTION_GM_READY }, primary.id);
+            read.primary = [U.primaryGmId() === primary.id, U.isPrimaryGm()];
+            const run = await safewordRun(S, game.user, async () => {
+                if (game.paused) await game.togglePause(false);
+                read.running = !game.paused;
+                await U.announce(S.safewordCard());
+            }, cards => ({ cards: cards.length, mine: cards.every(m => m.author?.id === game.user.id) }));
+            read.card = { cards: run.cards, mine: run.mine, paused: run.paused };
+        } finally {
+            game.users.delete(primary.id);
+            U.markGmReady?.(primary.id);
+            Br.notePrimary?.();
+        }
+        read.after = U.isPrimaryGm();
+        equal(stableJson(read), stableJson({ primary: [true, false], running: true, card: { cards: 1, mine: true, paused: true }, after: true }),
+            "primary: [the stand-in is the primary, this GM is]; running: the game ran before the card; card: {cards posted, all by this GM, the game paused once it landed}; after: this GM the primary again");
+    }],
 ];
 
 // `drawnForPlayer` for the grid (E33 C7): a drawn crisis roll goes through the suite's one road to a draw (tests-grid.mjs `drawnAct`).

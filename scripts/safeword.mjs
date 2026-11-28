@@ -429,6 +429,26 @@ export async function safewordDialog(actor = null) {
     return callSafeword({ room });
 }
 
+/**
+ * Whether this browser pauses the game for a safeword card that has just landed: a GM's, while the game runs.
+ *
+ * EVERY GM, NOT THE PRIMARY ALONE (2.0 line T2, PRIM-09, 28.11.2026; F1-infra PRIM-09). The hook paused only where
+ * `isPrimaryGm()`, with the comment "Exactly one client pauses, or several GMs race on the same toggle". So in PRIM-03's
+ * window - the primary reloaded, connected and not yet ready - or with the primary's page not listening, the card landed,
+ * a second GM was present, and the game ran on; handbook 19 told the GM to pause it by hand. A safety feature is
+ * expected to stop the table whenever any GM is there, so every GM's browser that sees the card with the game running
+ * pauses. The race the old comment named: two GMs who both read `!game.paused` before either's pause arrives both call
+ * `game.togglePause(true, { broadcast: true })`. The call names the state, `true`, and is not a bare toggle: the
+ * harness's stand-in (audit/harness/client-entry.mjs `togglePause`) sets the state asked, so a second `true` leaves the
+ * game paused. Foundry's own `togglePause` is not in this repository and was not read; that v14 and its server take a
+ * second `true` as paused, and do not toggle back, is not measured at a table (named for one in line T2's report, PRIM-09).
+ * The public card is still the primary's to post (`hearSafeword`), and since PRIM-03 the primary is a GM whose world has
+ * loaded. Exported for the suite (R9059), which hands it stand-in users.
+ */
+export function safewordPauses(user = game.user, paused = game.paused) {
+    return Boolean(user?.isGM) && !paused;
+}
+
 export function registerSafeword() {
     /* A DOOR THAT EXISTS FOR EVERY USER (COMM-11). The only button was on the
        character sheet, and the promise is "anyone may: player, GM, dead,
@@ -468,12 +488,10 @@ export function registerSafeword() {
         if (ownCallAt && Date.now() - ownCallAt < TIMING.safewordRepeatMs) ownCallAt = 0;
         else raiseCard(message.author && !message.author.isGM ? message.author.id : null, message.id);
 
-        // Exactly one client pauses, or several GMs race on the same toggle.
+        // Every GM's browser that sees the card pauses, the primary's or not (`safewordPauses`, PRIM-09).
         // A player cannot pause a Foundry game at all, which is the whole reason
         // this hangs off the message rather than being done by the caller.
-        if (game.user.isGM && isPrimaryGm() && !game.paused) {
-            game.togglePause(true, { broadcast: true });
-        }
+        if (safewordPauses()) game.togglePause(true, { broadcast: true });
     });
 
     /* THE CARD A PLAYER POSTED, WITH NO GM CONNECTED (E06 C9): its header would draw the
