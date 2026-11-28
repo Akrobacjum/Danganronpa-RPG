@@ -23629,7 +23629,7 @@ const REGRESSIONS = [
             "case-summary.mjs": {"message": 1},
             
             
-            "chapter.mjs": {"card": 3, "message": 1} /* 2.0 line T3 EXP-PL-13: +1 message, the new chapter's card (announce with a chat-card spec) */, "cleanup-reshape.mjs": {"action": 2, "card": 1, "line": 1}, "cleanup.mjs": {"action": 4, "built": 1, "card": 3, "heading": 2, "line": 6, "message": 1}, "clock.mjs": {"built": 1, "line": 2, "message": 1} /* 2.0 line T3 EXP-PL-11: +1 line, the Investigation's start */, "context-loss.mjs": {"line": 1}, "death.mjs": {"heading": 1}, "despair.mjs": {"line": 1, "message": 1},
+            "chapter.mjs": {"card": 3, "message": 1} /* 2.0 line T3 EXP-PL-13: +1 message, the new chapter's card (announce with a chat-card spec) */, "cleanup-reshape.mjs": {"action": 2, "card": 1, "line": 1}, "cleanup.mjs": {"action": 4, "built": 1, "card": 3, "heading": 2, "line": 6, "message": 1}, "clock.mjs": {"built": 2, "line": 2, "message": 1} /* 2.0 line T3 TRIAL-08: +1 built, the GMs told a cut change of phase was finished (finishPhaseSteps); EXP-PL-11: +1 line, the Investigation's start */, "context-loss.mjs": {"line": 1}, "death.mjs": {"heading": 1}, "despair.mjs": {"line": 1, "message": 1},
             "diagnostics.mjs": {"card": 1}, "doors-gm.mjs": {"built": 2, "line": 3},
             // E69 C6, C7 (13.11.2026): the listener's line and Echoes' result are E49's card (action-listen.mjs); the GMs'
             // warning that voice per room is off is a warning card (eavesdrop-gm.mjs).

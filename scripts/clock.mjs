@@ -1105,22 +1105,20 @@ async function phaseRecorder(from, to, { only = null, rowKey = null } = {}) {
             error("Could not keep the steps of the change of phase", err);
         }
     };
-    return {
-        want,
-        /** Run one step, if wanted: its failure logged as before (`failure(err)`), and its mark on the row. */
-        async step(name, run, failure) {
-            if (!want(name)) return;
-            if (ONCE_STEPS.includes(name)) await mark("started", name);
-            try {
-                await run();
-            } catch (err) {
-                failure(err);
-                await mark("failed", name);
-                return;
-            }
-            await mark("done", name);
+    /** Run one step, if wanted: its failure logged as before (`failure(err)`), and its mark on the row. */
+    async function step(name, run, failure) {
+        if (!want(name)) return;
+        if (ONCE_STEPS.includes(name)) await mark("started", name);
+        try {
+            await run();
+        } catch (err) {
+            failure(err);
+            await mark("failed", name);
+            return;
         }
-    };
+        await mark("done", name);
+    }
+    return { want, step };
 }
 
 /**
