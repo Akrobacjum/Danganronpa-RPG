@@ -884,7 +884,7 @@ export function wireCallActions(body, message = null) {
                 // Sent on by the primary, which writes the card's line once the player has it (E18 C1): held till it redraws.
                 if (outcome?.held) return;
                 if (outcome?.settled) {
-                    await settleCall(message, outcome.settled, outcome.ruling ?? null);
+                    await settleCall(message, outcome.settled, outcome.ruling ?? null, outcome.gmNote ?? null);
                     return; // The card redraws itself; these buttons are gone.
                 }
                 // Answered already, on the other copy of this card (F118: a GM's log and messenger both wire a thread's
@@ -992,7 +992,7 @@ export async function pressCard(message, action, data = {}) {
     if (!message?.id || !game.user?.isGM) return null;
     const { claimCard, settleCall } = await import("./gm-bridge.mjs");
     const outcome = await claimCard(message, () => runCallAction(action, { ...data }, message));
-    if (outcome?.settled && !outcome.held) await settleCall(message, outcome.settled, outcome.ruling ?? null);
+    if (outcome?.settled && !outcome.held) await settleCall(message, outcome.settled, outcome.ruling ?? null, outcome.gmNote ?? null);
     return outcome;
 }
 
@@ -1049,7 +1049,8 @@ async function askItemEffect(item) {
 // to the asking client over the packet the old dialog used; the player's
 // own `spendHopeCall` asks the GM to arm it on a yes, and the GM charges the
 // Hope then. A yes goes by the primary, which keeps it for that arm (E29 fix
-// r2-H4): one it could not keep closes the card with "The player was no longer waiting." (`askNotHeld`, 1.2.122),
+// r2-H4): one it could not keep closes the card as an ask that ran out, "The player was no longer waiting." the GMs'
+// own line under it (`askNotHeld`, 1.2.122; 2.0 line T2, CALLS-14),
 // or leaves it open where the bridge said why. The primary writes
 // "Approved" on the card once the player's browser has the yes (E18 C1). The
 // card pressed goes with it: the primary keeps a yes only for the ask held on
@@ -1106,13 +1107,21 @@ async function takenOverMeanwhile(message) {
 /**
  * A ruling on an ask the primary no longer holds (1.2.122, the audit's CTRL-23): the player reloaded and asked again
  * elsewhere, or its time ran out. The buttons came back with a line in the console alone, so the GM pressed again; the
- * card says so now and settles with "The player was no longer waiting.". Where the bridge said why (no primary to ask,
- * no answer: `out.told`), the buttons come back and nothing more is said.
+ * card says so now and settles. Where the bridge said why (no primary to ask, no answer: `out.told`), the buttons come
+ * back and nothing more is said.
+ *
+ * THE GMS' LINE IS THE GMS' (2.0 line T2, CALLS-14, 27.11.2026; F1-calls CALLS-14). It settled with "The player was no
+ * longer waiting." as the card's own line, so the player read about themselves in the third person in their own thread,
+ * where the GM handbook (6.3) says the card ends "Nobody answered in time. You can ask again." for everyone and that line
+ * for the GMs. It ends now as the primary's own end of such a card writes it (call-gm.mjs `endExpired`): the line for
+ * everyone and the GMs' note, both by key, so each reader writes them in its own language (secret.mjs `readersLines`),
+ * and the note in the card's `.drpg-gm-only`, which a player's copy of the words never holds. `wireCallActions` and
+ * `pressCard` hand the note to `settleCall`. R9036, tier 2's "E132 CALLS-14".
  */
 function askNotHeld(out) {
     if (out?.told) return null;
     ui.notifications.warn(game.i18n.localize("DRPG.Bridge.askNotHeld"));
-    return settled("DRPG.Bridge.settledGone");
+    return { settled: { key: "DRPG.Bridge.settledExpired" }, gmNote: { key: "DRPG.Bridge.settledGone" } };
 }
 
 async function ruleRefuseDynamic(action, data, message = null) {

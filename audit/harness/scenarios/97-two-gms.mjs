@@ -882,12 +882,20 @@ export async function run(api) {
             b?.click(); return Boolean(b);`);
         const read = await until(() => gm.eval(`${FIND} const text = S.contentOf(card ?? {});
             return { buttons: (text.match(/data-drpg-call=/g) ?? []).length, gone: text.includes(${J(gone)}) };`), v => v.gone, 8000);
-        stale.push({ press, pressed, ...read });
+        // And p1's own copy (2.0 line T2, CALLS-14): its closing lines, by key or else in words; the GMs' note never among them.
+        const theirs = await until(() => p1.eval(`${FIND} const t = document.createElement("template"); t.innerHTML = S.contentOf(card ?? {});
+            return [...t.content.querySelectorAll(".drpg-call-settled")].map(el => el.dataset.drpgLine ?? el.textContent);`), v => v.length > 0, 8000);
+        stale.push({ press, pressed, ...read, theirs });
     }
     const notDone = (await gm2.eval(NOT_DONE)) - notDoneBefore;
     await gm2.eval(`${APP} await A.gmMessengerWindow()?.close(); return true;`);
     check("P1: gm2's Approve on a Call and Refuse on a Dynamic action the primary no longer holds settle each card as the primary does - the player was no longer waiting - and no \"not done\" is shown (E128)",
         stale.length === 2 && stale.every(r => r.pressed && r.gone && r.buttons === 0) && notDone === 0, J({ stale, notDone, gone }), { flow: "messenger" });
+    /* 2.0 line T2, CALLS-14, 27.11.2026: the same two cards as p1 holds them end as an ask that ran out, and "The player
+       was no longer waiting." is the GMs' note alone - gm2's presses are clicks, the road `wireCallActions` hands the note
+       on (tier 2's "E132 CALLS-14" reads `pressCard`'s). Red at 9fbf34c: p1's line was "The player was no longer waiting.", in words. */
+    check("P2: p1's copy of each card ends \"Nobody answered in time\" and holds no line for the GMs (2.0 line T2, CALLS-14)",
+        stale.length === 2 && stale.every(r => J(r.theirs) === J(["DRPG.Bridge.settledExpired"])), J(stale.map(r => r.theirs)), { flow: "messenger" });
 
     /* ------------------------------------------------------------------ Q */
     /* E128, 22.11.2026 (OWNER-128-SECOND-GM, line CORE's inventory row 3). A second full GM's announcement of a body was

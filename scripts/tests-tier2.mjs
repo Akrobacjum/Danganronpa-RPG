@@ -118968,6 +118968,69 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             kept: [2, "me"], row: ["me", false], signAfter: [null, null], otherDone: ["me", false, true], left: 0
         }), "{signBefore: the second copy's sign [the GM it names, its words, Take over]; signWords: its words name the other GM and the claim's time; question: [it names the other GM, its buttons [action, default]]; during: inside this GM's window [the claim held here, the row's GM, taken from]; otherRuling: the other GM's ruling meanwhile kept; kept: [the difficulty on the card, who sent it on]; row: [its GM, pending]; signAfter: both copies; otherDone: the other GM's end after [row's GM, pending, unchanged]; left: answers no window took}");
     }],
+    ["E132 CALLS-14 - the player was no longer waiting is the GMs' note: a Refuse pressed on a player's Dynamic ask's card for an ask the primary no longer holds ends the card \"Nobody answered in time. You can ask again.\" in the asker's copy and in the GMs', with \"The player was no longer waiting.\" in the GMs' copy alone, as the primary's own end of such a card writes it (messenger-app.mjs `askNotHeld`, `pressCard`; call-gm.mjs `settleCall`; 2.0 line T2, CALLS-14, 27.11.2026)", async () => {
+        /*
+         * F1-calls CALLS-14 (its scene A11): the GM handbook (6.3) says such a card ends "Nobody answered in time. You can
+         * ask again." for everyone and "The player was no longer waiting." for the GMs; `askNotHeld` wrote the GMs' line
+         * as the card's own, so the player read about themselves in the third person in their thread. Read on this
+         * primary: a player's Dynamic ask handed to the bridge's runner with the user Foundry names puts its card up in
+         * that player's thread; Refuse is pressed on it through `pressCard` (the road the valve and a click take) with an
+         * ask id nobody holds, as after the player reloaded and asked again. Read: the press's answer, and the card's
+         * closing lines in the GMs' copy and in the asker's (`wordsFor`), each [the line for everyone, the GMs' own]. The
+         * real ask is let go with its asker's expiry, which finds the card ended, and the card is deleted after. Red at
+         * 9fbf34c: the GMs' sentence was the line for everyone, in the asker's copy too, and there was no note.
+         */
+        needs(env.primaryGm());
+        needs(world.atLeast("connectedPlayersWithCharacter", 1), "the ask is a player's, and Foundry names only a connected one");
+        const { player, theirs } = playerAndCharacters();
+        const G = await import("./bridge-guards.mjs");
+        const B = await import("./gm-bridge.mjs");
+        const { pressCard } = await import("./messenger-app.mjs");
+        const { contentOf, cardFlag, wordsFor } = await import("./secret.mjs");
+        const judged = (action, fields, from, requestId = null) =>
+            G.judge(B.BRIDGE_ACTIONS, { action, ...(requestId ? { requestId } : {}), ...fields }, from, { send: () => {} });
+        const lines = html => {
+            const wrap = document.createElement("template");
+            wrap.innerHTML = html;
+            const all = [...wrap.content.querySelectorAll(".drpg-call-settled")];
+            return [all.filter(el => !el.closest(".drpg-gm-only")).map(el => el.textContent).join(" | ") || null,
+                all.filter(el => el.closest(".drpg-gm-only")).map(el => el.textContent).join(" | ") || null];
+        };
+        const seen = new Set(game.messages.map(m => m.id));
+        const created = [];
+        const hook = Hooks.on("createChatMessage", m => { if (!seen.has(m.id)) created.push(m); });
+        const warns = [], realWarn = ui.notifications.warn;
+        const rid = foundry.utils.randomID(16);
+        const read = {};
+        try {
+            await judged("dynamic.difficulty", { actorId: theirs.id, description: "E132 CALLS-14 an ask nobody waits on", actorName: theirs.name, room: null }, player.id, rid);
+            must(await until(() => created.length > 0, 5000), "the ask put no card up - this would measure nothing");
+            const card = game.messages.get(created[0].id);
+            ui.notifications.warn = text => { warns.push(String(text)); };
+            const out = await pressCard(card, "refuseDynamic", { rid: foundry.utils.randomID(16), asker: player.id });
+            ui.notifications.warn = realWarn;
+            read.out = [out?.settled?.key ?? out?.settled ?? null, out?.gmNote?.key ?? null];
+            read.ended = await until(() => Boolean(cardFlag(game.messages.get(card.id), "settled")), 3000);
+            const words = contentOf(game.messages.get(card.id));
+            read.gm = lines(words);
+            read.asker = lines(wordsFor(player.id, words));
+            read.told = warns.filter(w => w === game.i18n.localize("DRPG.Bridge.askNotHeld")).length;
+            await judged("ruling.expired", { rid }, player.id);
+            await settle(300);
+        } finally {
+            ui.notifications.warn = realWarn;
+            Hooks.off("createChatMessage", hook);
+            for (const node of [...document.querySelectorAll(".drpg-popup")]) node.dispatchEvent(new CustomEvent("drpg-dismiss"));
+            for (const message of created) await message.delete().catch(() => {});
+            await settle(300);
+            const S = await import("./gm-stores.mjs");
+            for (const message of created) if (S.ruledCardStore.has(message.id)) await S.ruledCardStore.drop(message.id);
+        }
+        const EXPIRED = game.i18n.localize("DRPG.Bridge.settledExpired"), GONE = game.i18n.localize("DRPG.Bridge.settledGone");
+        equal(stableJson(read), stableJson({
+            out: ["DRPG.Bridge.settledExpired", "DRPG.Bridge.settledGone"], ended: true, gm: [EXPIRED, GONE], asker: [EXPIRED, null], told: 1
+        }), "{out: [the card's line, the GMs' note] the press answered; ended: the card settled; gm, asker: the card's closing lines in the GMs' copy and the asker's [for everyone, the GMs' own]; told: this GM's notice that the player is no longer waiting}");
+    }],
 ];
 
 // `drawnForPlayer` for the grid (E33 C7): a drawn crisis roll goes through the suite's one road to a draw (tests-grid.mjs `drawnAct`).

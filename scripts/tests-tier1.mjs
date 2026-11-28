@@ -18223,7 +18223,8 @@ const INVARIANTS = [
          * no such ask (the player reloaded and asked again, or its time ran out); the buttons came back and the GM saw
          * nothing. On this primary GM, the three rulings pressed through `runCallAction` with an ask no primary holds: the
          * primary answers at once, before any write (call-gm.mjs `yesOnPrimary`, `dynamicOnPrimary`). Red at 21bf5d18:
-         * null for each, no notice.
+         * null for each, no notice. Since 2.0 line T2's CALLS-14 the card's line is the expired ask's, by key, and "The
+         * player was no longer waiting." the GMs' note (R9036 reads both); it read that sentence as the line before.
          */
         const { isPrimaryGm } = await import("./utils.mjs");
         must(isPrimaryGm(), "this browser is not the primary GM - the ask would travel, and this would measure nothing");
@@ -18233,11 +18234,11 @@ const INVARIANTS = [
         const data = { rid: "R8281NoSuchAsk00", asker: player.id };
         const warns = [], realWarn = ui.notifications.warn;
         ui.notifications.warn = text => { warns.push(String(text)); };
-        const line = game.i18n.format("DRPG.Bridge.settledGone", { name: game.user.name });
+        const line = "DRPG.Bridge.settledExpired";
         let read = null;
         try {
             read = [];
-            for (const action of ["approveCall", "refuseDynamic"]) read.push((await M.runCallAction(action, data))?.settled === line);
+            for (const action of ["approveCall", "refuseDynamic"]) read.push((await M.runCallAction(action, data))?.settled?.key === line);
             read.push(warns.filter(w => w === game.i18n.localize("DRPG.Bridge.askNotHeld")).length);
         } finally {
             ui.notifications.warn = realWarn;
@@ -70382,6 +70383,36 @@ const INVARIANTS = [
         equal(stableJson({ second, said, asked: asked.length, worked, raised }), stableJson({
             second: null, said: [game.i18n.localize("DRPG.Bridge.claimOwnOpen")], asked: 0, worked: false, raised: 1
         }), "{second: what the second press answered; said: what this GM was told; asked: take-over questions; worked: the ruling ran; raised: the claim's window brought to the front}");
+    }],
+    ["R9036 - a ruling on an ask the primary no longer holds ends its card as an ask that ran out, with \"The player was no longer waiting.\" for the GMs alone: messenger-app.mjs `askNotHeld` answers `DRPG.Bridge.settledExpired` as the card's line and `DRPG.Bridge.settledGone` as its GMs' note, by key, and both `wireCallActions` and `pressCard` hand the note to `settleCall` (2.0 line T2, CALLS-14, 27.11.2026)", async () => {
+        /* F1-calls CALLS-14: the GM handbook (6.3) says the card ends "Nobody answered in time. You can ask again." for
+           everyone and "The player was no longer waiting." for the GMs, as the primary's own end of such a card writes it
+           (call-gm.mjs `endExpired`), but `askNotHeld` wrote the GMs' line as the card's line, which the player's thread
+           shows. On this primary, Approve on a Call and Refuse on a Dynamic action pressed through `runCallAction` with an
+           ask no primary holds (the primary answers at once, before any write, as R8281 reads); the two roads that settle
+           a card are read in the source. Red before CALLS-14: the line was the GMs' sentence in words, with no note. */
+        needs(env.primaryGm());
+        needs(world.atLeast("playerAccounts", 1), "an asker");
+        const M = await import("./messenger-app.mjs");
+        const player = game.users.find(u => !u.isGM);
+        const data = { rid: "R9036NoSuchAsk00", asker: player.id };
+        const realWarn = ui.notifications.warn;
+        ui.notifications.warn = () => {};
+        const said = {};
+        try {
+            for (const action of ["approveCall", "refuseDynamic"]) {
+                const out = await M.runCallAction(action, data);
+                said[action] = [out?.settled?.key ?? out?.settled ?? null, out?.gmNote?.key ?? null];
+            }
+        } finally {
+            ui.notifications.warn = realWarn;
+        }
+        const source = await fetch(`/modules/${MODULE_ID}/scripts/messenger-app.mjs`).then(lfText).then(stripComments);
+        const handed = name => /settleCall\(message, outcome\.settled, outcome\.ruling \?\? null, outcome\.gmNote \?\? null\)/.test(fnSource(source, name));
+        said.handed = [handed("wireCallActions"), handed("pressCard")];
+        const line = ["DRPG.Bridge.settledExpired", "DRPG.Bridge.settledGone"];
+        equal(stableJson(said), stableJson({ approveCall: line, refuseDynamic: line, handed: [true, true] }),
+            "{approveCall, refuseDynamic: [the card's line, the GMs' note] a ruling on an ask nobody holds answers; handed: [wireCallActions, pressCard] give the note to settleCall}");
     }],
 ];
 
