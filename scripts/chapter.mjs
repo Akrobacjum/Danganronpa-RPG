@@ -42,7 +42,7 @@ import { clearBodyDiscovery, isDeceased, isDeadForGm, deathRecord, deathRecordFo
 import { TRUTH_BULLET_FLAGS, bulletsOf, secretOf, dropSecret, faintOf, bulletAsHeld, publishReading } from "./truth-bullets.mjs";
 import { remnantsOn, remnantData } from "./remnants.mjs";
 
-import { whisperToGms, log, error, plural, esc, isPrimaryGm, primaryGmId, serverNow, listOf } from "./utils.mjs";
+import { announce, whisperToGms, log, error, plural, esc, isPrimaryGm, primaryGmId, serverNow, listOf } from "./utils.mjs";
 // The kit's frame (E21 C3a): every window of the case's chapter is a `drpgWindow` or a `drpgConfirm`, answering as before.
 import { drpgWindow, box, tipAttr, tipText } from "./ui-kit.mjs";
 import { keepFresh } from "./live.mjs";
@@ -882,8 +882,39 @@ export const CHAPTER_END_STEPS = [
     { key: "hold", run: async () => {
         await clearBodyDiscovery();
         return null;
+    } },
+    /* AND THE TABLE IS TOLD WHAT THE NEW CHAPTER STARTS WITH (2.0 line T3 EXP-PL-13, 27.11.2026; the owner's
+       recommendation). The end told the GMs alone (`stepsReport`), and a player read nothing of what had gone and what
+       stayed. One public card, last, for a move to the next chapter whose clock step ran: its lines are
+       `newChapterLines`', each one a step above that ran, and nothing else. */
+    { key: "players", asked: ({ choices }) => Boolean(choices.nextChapter), run: async ({ choices, failed }) => {
+        if (!choices.nextChapter || failed.includes("clock")) return null;
+        const { fresh, kept } = newChapterLines(choices);
+        const li = list => `<ul>${list.map(key => `<li>${game.i18n.localize(key)}</li>`).join("")}</ul>`;
+        await announce({ card: { glyph: "list-check", title: game.i18n.format("DRPG.Chapter.newChapter.title", { chapter: getClock().chapter }),
+            body: `<p>${game.i18n.localize("DRPG.Chapter.newChapter.fresh")}</p>${li(fresh)}<p>${game.i18n.localize("DRPG.Chapter.newChapter.kept")}</p>${li(kept)}` } });
+        return null;
     } }
 ];
+
+/**
+ * The new chapter's card for the players (EXP-PL-13), from the end's choices: what starts over and what stays, as keys.
+ * Pure (R9140). Each line stands on a step of `CHAPTER_END_STEPS` that ran: the morning's (`setTimeOfDay` with
+ * `resetActions` and `resetSearchTokens`), the sweep's (`sweepTruthBullets`, Faint and Final excepted), the Faint
+ * Remnants' (`clearFaintRemnants`), the Key Remnants' (`clearChapterKeyRemnants`); what stays is what no step touches:
+ * the inventory (no step deletes an item but the sweep's Truth Bullets), and the Truth Bullets when the sweep was not
+ * ticked. Despair, rests and conditions are not on it: no step of the end resets them (the report says so).
+ */
+export function newChapterLines(choices = {}) {
+    const fresh = [];
+    if (choices.nextMorning) fresh.push("DRPG.Chapter.newChapter.morning");
+    if (choices.sweep) fresh.push("DRPG.Chapter.newChapter.sweep");
+    if (choices.faint) fresh.push("DRPG.Chapter.newChapter.faint");
+    if (choices.keys) fresh.push("DRPG.Chapter.newChapter.keys");
+    const kept = ["DRPG.Chapter.newChapter.items", choices.sweep ? "DRPG.Chapter.newChapter.keptFaint" : "DRPG.Chapter.newChapter.bullets"];
+    if (!fresh.length) fresh.push("DRPG.Chapter.newChapter.nothing");
+    return { fresh, kept };
+}
 
 /**
  * Everything the End of chapter screen does, once the GM has said which parts.

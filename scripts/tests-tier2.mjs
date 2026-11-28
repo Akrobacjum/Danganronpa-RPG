@@ -119625,6 +119625,43 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         equal(stableJson(read), stableJson({ moved: pools.map(() => 0), rule: false, skip: ["rule", "despair"], done: [true, true, true], stage: "done", finished: null }),
             "{moved: each pool's move; rule: the rule's window asked; skip: the record's; done: offers, rule, despair written done; stage; finished: the Finish's answer}");
     }],
+    ["T3 EXP-PL-13 - the chapter's end with Next chapter posts one public card of what starts over and what stays", async () => {
+        /*
+         * 2.0 line T3 EXP-PL-13, 27.11.2026. The chapter's end told the GMs alone. Its last step (chapter.mjs
+         * `CHAPTER_END_STEPS` "players") run as the end's runner runs it (steps.mjs `runSteps`: `run(context)`), with Next
+         * chapter and the morning asked, once after a clock step that ran, once after one that failed, and once with no
+         * move to the next chapter. No whole end is run: the move to the next chapter takes the chapter's tools, holds and
+         * plans with it. Read: the public cards each run posted, and whether the card names the morning's line. The cards
+         * are deleted after. Red at cc1e9c8: no such step.
+         */
+        const C = await import("./chapter.mjs");
+        const step = C.CHAPTER_END_STEPS.find(s => s.key === "players");
+        must(step, "the chapter's end has no players' card step - nothing tells the table what the new chapter starts with");
+        const title = game.i18n.format("DRPG.Chapter.newChapter.title", { chapter: getClock().chapter });
+        const morning = game.i18n.localize("DRPG.Chapter.newChapter.morning");
+        const made = [];
+        const hook = Hooks.on("createChatMessage", doc => { made.push(doc); });
+        const read = {};
+        try {
+            const runOnce = async context => {
+                const from = made.length;
+                await step.run(context);
+                await settle();
+                return made.slice(from).filter(m => !(m.whisper ?? []).length && String(m.content ?? "").includes(foundry.utils.escapeHTML(title)))
+                    .map(m => String(m.content ?? "").includes(morning));
+            };
+            const choices = { nextChapter: true, nextMorning: true, sweep: false, faint: false, keys: false };
+            read.ran = await runOnce({ choices, failed: [] });
+            read.clockFailed = await runOnce({ choices, failed: ["clock"] });
+            read.noMove = await runOnce({ choices: { ...choices, nextChapter: false }, failed: [] });
+        } finally {
+            Hooks.off("createChatMessage", hook);
+            for (const doc of made) await game.messages.get(doc.id)?.delete().catch(() => {});
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ ran: [true], clockFailed: [], noMove: [] }),
+            "{ran: the public cards after a clock step that ran [names the morning]; clockFailed: after one that failed; noMove: with no Next chapter}");
+    }],
 ];
 
 // `drawnForPlayer` for the grid (E33 C7): a drawn crisis roll goes through the suite's one road to a draw (tests-grid.mjs `drawnAct`).

@@ -1663,7 +1663,7 @@ A screen that loads within 10 minutes of the event - a player who joins late, or
 
 ### 16.1 End the chapter
 
-**End the chapter** is one screen with checkboxes, each counted before it is offered. You find it at the foot of **Edit campaign** (in its own window or at the top of Season setup), on the Next line, and on the trial console once the verdict is applied. The boxes:
+**End the chapter** is one screen with checkboxes, each counted before it is offered. You find it at the foot of **Edit campaign** (in its own window or at the top of Season setup), on the Next line, and on the trial console once the verdict is applied. The boxes: Since 1.2.130 the end with Next chapter also posts one public card for the table, last: what starts over and what stays, each line only for a step that ran.
 
 - **Reveal the Truth Bullets' real types and readings (n to reveal)**: every Truth Bullet shows what it really is, with its reading, as an Analyze would. The box counts what it would reveal, and is unticked and grayed out when there is nothing to reveal. A Faint stays unread, but every Final, Faint or not, shows its kind without its reading; both are still to be analyzed in the next chapter. A Truth Bullet not analyzed with no real type recorded cannot be revealed, and a warning in the window names who holds it: take it, and give one with its type from Give / take items.
 - **Collect the Truth Bullets** takes the students' Truth Bullets; Faint and Final ones stay.

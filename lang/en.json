@@ -3397,6 +3397,19 @@
       "imageBroken": "This picture does not load. Pick the file again."
     },
     "Chapter": {
+      "newChapter": {
+        "title": "Chapter {chapter} begins",
+        "fresh": "Starts over:",
+        "kept": "Stays:",
+        "morning": "A new morning, with actions and Search Tokens refilled.",
+        "sweep": "The last case's Truth Bullets are collected, except Faint and Final Truth ones.",
+        "faint": "The Faint Remnants are gone from the map.",
+        "keys": "The last case's Key Remnants are gone from the map.",
+        "items": "What you carry in your inventory.",
+        "keptFaint": "Your Faint and Final Truth Bullets.",
+        "bullets": "Your Truth Bullets.",
+        "nothing": "The chapter's number alone."
+      },
       "deathTitle": "A character dies",
       "whoDied": "Who died?",
       "chooseOne": "- choose -",
@@ -3521,7 +3534,8 @@
         "clock": "moving the clock",
         "trial": "closing the trial",
         "morning": "opening the next morning",
-        "hold": "clearing the body's discovery"
+        "hold": "clearing the body's discovery",
+        "players": "telling the table what the new chapter starts with"
       }
     },
     "TrialScene": {

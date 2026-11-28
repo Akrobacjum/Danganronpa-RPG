@@ -993,7 +993,7 @@ Once your death is known to the table, the GMs may invite you to play on as a **
 
 A critical with nothing to move (they had every action left, or none left to lose) says so.
 
-Monokumas, the GM side, have no actions and no Hope, walk through walls and locked doors, and spend Despair where you spend Hope.
+Monokumas, the GM side, have no actions and no Hope, walk through walls and locked doors, and spend Despair where you spend Hope. Since 1.2.130, when the GM ends the chapter with Next chapter, everyone gets one card of what starts over and what stays: a new morning with actions and Search Tokens refilled, the last case's Truth Bullets collected but for Faint and Final Truth ones, the Faint and Key Remnants gone from the map, each only when the GM chose it; and what you carry stays.
 
 ---
 

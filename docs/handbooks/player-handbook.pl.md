@@ -993,7 +993,7 @@ Gdy twoja śmierć stanie się jawna dla stołu, GM-owie mogą cię zaprosić do
 
 Gdy krytyk nie ma czego zmienić, bo cel ma wszystkie akcje albo nie ma już żadnej do stracenia, karta o tym mówi.
 
-Same Monokumy to strona GM-a: nie mają akcji ani Hope, przechodzą przez ściany i zamknięte drzwi i wydają Despair tam, gdzie ty wydajesz Hope.
+Same Monokumy to strona GM-a: nie mają akcji ani Hope, przechodzą przez ściany i zamknięte drzwi i wydają Despair tam, gdzie ty wydajesz Hope. Od 1.2.130, gdy GM kończy rozdział z Następnym rozdziałem, wszyscy dostają jedną kartę o tym, co zaczyna się od nowa, a co zostaje: nowy poranek z odnowionymi akcjami i Search Tokenami, zebrane Truth Bullety z poprzedniej sprawy poza Faint i Final Truth, Faint i Key Remnanty zdjęte z mapy, każde tylko wtedy, gdy GM to wybrał; a to, co masz przy sobie, zostaje.
 
 ---
 

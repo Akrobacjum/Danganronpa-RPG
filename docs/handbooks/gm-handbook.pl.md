@@ -1663,7 +1663,7 @@ Ekran, który wczyta się w ciągu 10 minut od zdarzenia (gracz, który dołącz
 
 ### 16.1 Zakończ rozdział
 
-**Zakończ rozdział** to jeden ekran z polami wyboru, a przy każdym polu okno najpierw liczy, czego ono dotyczy. Znajdziesz go na dole **Edytuj kampanię** (w osobnym oknie albo na górze Ustawień sezonu), w linii Dalej i na konsoli Class Trial, na konsoli dopiero po zastosowaniu werdyktu.
+**Zakończ rozdział** to jeden ekran z polami wyboru, a przy każdym polu okno najpierw liczy, czego ono dotyczy. Znajdziesz go na dole **Edytuj kampanię** (w osobnym oknie albo na górze Ustawień sezonu), w linii Dalej i na konsoli Class Trial, na konsoli dopiero po zastosowaniu werdyktu. Od 1.2.130 koniec z Następnym rozdziałem postuje też na końcu jedną publiczną kartę dla stołu: co zaczyna się od nowa, a co zostaje, każdą linię tylko dla kroku, który się wykonał.
 
 - **Ujawnij prawdziwe typy i odczyty Truth Bulletów**: każdy Truth Bullet pokazuje, czym naprawdę jest, razem z odczytem, tak jak zrobiłby to Analyze. Pole liczy, co ujawni, a gdy nie ma czego ujawnić, jest odznaczone i wyszarzone. Faint zostaje nieodczytany, a każdy Final, Faint czy nie, pokazuje swój rodzaj bez odczytu; oba można przeanalizować w następnym rozdziale. Nieprzeanalizowanego Truth Bulletu bez zapisanego prawdziwego typu nie da się ujawnić, a ostrzeżenie w oknie mówi, kto go trzyma: zabierz mu go i daj taki z jego typem w Daj / zabierz przedmioty.
 - **Zbierz Truth Bullets** zabiera uczniom ich Truth Bullets; Faint i Final zostają.

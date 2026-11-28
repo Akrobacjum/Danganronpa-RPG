@@ -21328,8 +21328,9 @@ const REGRESSIONS = [
                 .filter(key => ["en", "pl"].some(code => typeof foundry.utils.getProperty(lang[code], `DRPG.Chapter.step.${key}`) !== "string")),
             runner: [/\brunSteps\(\{/.test(runner), /\bstop:/.test(runner), /\bsave:/.test(runner), /\bstepsReport\(/.test(runner)]
         }), JSON.stringify({
-            keys: ["reveal", "sweep", "faint", "keys", "tools", "clock", "trial", "morning", "hold"],
-            asked: ["reveal", "sweep", "faint", "keys", "clock", "trial", "morning"],
+            // "players" since 2.0 line T3 EXP-PL-13: the table's card of the new chapter, last, asked with Next chapter
+            keys: ["reveal", "sweep", "faint", "keys", "tools", "clock", "trial", "morning", "hold", "players"],
+            asked: ["reveal", "sweep", "faint", "keys", "clock", "trial", "morning", "players"],
             unlabelled: [], runner: [true, true, true, true]
         }), "the chapter's end is not E11's nine steps on the one runner (keys in order; asked: those the choices ask for; unlabelled: a key with no "
             + "text in a language; runner: runChapterEnd on runSteps, with stop, save and stepsReport)");
@@ -23625,7 +23626,7 @@ const REGRESSIONS = [
             "case-summary.mjs": {"message": 1},
             
             
-            "chapter.mjs": {"card": 3}, "cleanup-reshape.mjs": {"action": 2, "card": 1, "line": 1}, "cleanup.mjs": {"action": 4, "built": 1, "card": 3, "heading": 2, "line": 6, "message": 1}, "clock.mjs": {"built": 1, "line": 2, "message": 1} /* 2.0 line T3 EXP-PL-11: +1 line, the Investigation's start */, "context-loss.mjs": {"line": 1}, "death.mjs": {"heading": 1}, "despair.mjs": {"line": 1, "message": 1},
+            "chapter.mjs": {"card": 3, "message": 1} /* 2.0 line T3 EXP-PL-13: +1 message, the new chapter's card (announce with a chat-card spec) */, "cleanup-reshape.mjs": {"action": 2, "card": 1, "line": 1}, "cleanup.mjs": {"action": 4, "built": 1, "card": 3, "heading": 2, "line": 6, "message": 1}, "clock.mjs": {"built": 1, "line": 2, "message": 1} /* 2.0 line T3 EXP-PL-11: +1 line, the Investigation's start */, "context-loss.mjs": {"line": 1}, "death.mjs": {"heading": 1}, "despair.mjs": {"line": 1, "message": 1},
             "diagnostics.mjs": {"card": 1}, "doors-gm.mjs": {"built": 2, "line": 3},
             // E69 C6, C7 (13.11.2026): the listener's line and Echoes' result are E49's card (action-listen.mjs); the GMs'
             // warning that voice per room is off is a warning card (eavesdrop-gm.mjs).

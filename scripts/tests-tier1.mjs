@@ -70136,6 +70136,19 @@ const INVARIANTS = [
         stableJson([3, [], ["rule", "despair"], { skip: ["rule", "despair"] }, {}, {}]),
             "[the ticks drawn; all left ticked; offers alone ticked; a wrong verdict's field (twice and a step not of the three dropped); a right verdict's; none left out]");
     }],
+    ["R9140 - the new chapter's card says what starts over and what stays from the end's choices alone, the sweep's line only when it was ticked (2.0 line T3 EXP-PL-13; chapter.mjs `newChapterLines`)", async () => {
+        /* 2.0 line T3 EXP-PL-13, 27.11.2026. Pure on three sets of choices; nothing read or written. Red at cc1e9c8: no
+           `newChapterLines`. */
+        const C = await import("./chapter.mjs");
+        must(typeof C.newChapterLines === "function", "chapter.mjs has no newChapterLines");
+        const N = "DRPG.Chapter.newChapter.";
+        equal(stableJson([C.newChapterLines({ nextChapter: true, nextMorning: true, sweep: true, faint: true, keys: true }),
+            C.newChapterLines({ nextChapter: true, nextMorning: true }), C.newChapterLines({ nextChapter: true })]),
+        stableJson([{ fresh: [`${N}morning`, `${N}sweep`, `${N}faint`, `${N}keys`], kept: [`${N}items`, `${N}keptFaint`] },
+            { fresh: [`${N}morning`], kept: [`${N}items`, `${N}bullets`] }, { fresh: [`${N}nothing`], kept: [`${N}items`, `${N}bullets`] }]),
+            "[every clean-up ticked with the morning; the morning alone; nothing but the move]");
+        ok(C.CHAPTER_END_STEPS.at(-1)?.key === "players", "the players' card is not the chapter's end's last step");
+    }],
 ];
 
 /**

@@ -3603,6 +3603,19 @@
       "imageBroken": "To zdjęcie się nie wczytuje. Wybierz plik jeszcze raz."
     },
     "Chapter": {
+      "newChapter": {
+        "title": "Zaczyna się rozdział {chapter}",
+        "fresh": "Zaczyna się od nowa:",
+        "kept": "Zostaje:",
+        "morning": "Nowy poranek, z odnowionymi akcjami i Search Tokenami.",
+        "sweep": "Truth Bullety z poprzedniej sprawy są zebrane, poza Faint i Final Truth.",
+        "faint": "Faint Remnanty znikają z mapy.",
+        "keys": "Key Remnanty z poprzedniej sprawy znikają z mapy.",
+        "items": "To, co masz w ekwipunku.",
+        "keptFaint": "Twoje Truth Bullety Faint i Final Truth.",
+        "bullets": "Twoje Truth Bullety.",
+        "nothing": "Tylko numer rozdziału."
+      },
       "deathTitle": "Postać umiera",
       "whoDied": "Kto zginął?",
       "chooseOne": "- wybierz -",
@@ -3752,7 +3765,8 @@
         "clock": "przesuwanie zegara",
         "trial": "zamykanie Class Trial",
         "morning": "otwieranie następnego ranka",
-        "hold": "zamykanie odkrycia ciała"
+        "hold": "zamykanie odkrycia ciała",
+        "players": "ogłaszanie stołowi, z czym zaczyna się nowy rozdział"
       }
     },
     "TrialScene": {
