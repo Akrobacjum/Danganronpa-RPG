@@ -51,7 +51,7 @@
  */
 
 import { MODULE_ID, FLAGS, TIME_OF_DAY_LABELS, moduleVersion } from "./config.mjs";
-import { SETTINGS, getSetting, setSetting, deathRecord, seasonEpoch } from "./settings.mjs";
+import { SETTINGS, getSetting, setSetting, deathRecord, seasonEpoch, sameSeason } from "./settings.mjs";
 import { log, error, esc, isPrimaryGm, plural, whisperToGms, gmReport, gmIds, forcedDeletion, MESSAGE_FLAG, serverNow } from "./utils.mjs";
 import { ROOM_FLAG, ROOMS_MARKED_FLAG, hasBehaviours, playerRegionIds, roomDecided } from "./rooms.mjs";
 
@@ -1229,6 +1229,38 @@ const CLAUSES = [
             const report = await liftCopyOrigins();
             return report && (report.notPrimary || report.lifted || report.dropped) ? report : null;
         }
+    },
+    {
+        key: "oldMotiveGone",
+        since: "1.2.130",
+        /*
+         * THE OLD MOTIVE IS GONE (2.0 line T5, D2-24 #9: "znika"; corrected 27.11.2026 at the review of the five specs: it
+         * does NOT become a Monokuma Motive - the old one was a reason to kill, and a Monokuma Motive is always about the
+         * class working together). Once, on the primary: a world's old record (the setting `motive`, `{ text, consequence,
+         * timesOfDay, remaining, chapter, epoch, ... }`) in force this chapter and season is whispered to the GMs alone -
+         * what it said, its time left, its consequence - with the sentence that a Monokuma Motive is set by the Despair Call;
+         * no Monokuma Motive is made. Then the old key is written empty and read back before anything is reported (the
+         * `motiveTimer` clause's rule): a key that did not empty throws, and the next load tries again. A record of another
+         * chapter or season is cleared with no whisper. The `motiveTimer` clause above stays, for a world older than 1.1.37.
+         */
+        run: async () => {
+            if (!isPrimaryGm()) return { notPrimary: true };
+            const stored = getSetting(SETTINGS.motive) ?? {};
+            if (!stored || typeof stored !== "object" || !Object.keys(stored).length) return null;
+            const { getClock } = await import("./clock.mjs");
+            const fate = oldMotiveFate(stored, { chapter: getClock()?.chapter ?? null, epoch: seasonEpoch() });
+            await setSetting(SETTINGS.motive, {});
+            const check = getSetting(SETTINGS.motive) ?? {};
+            if (Object.keys(check).length) throw new Error("the old motive's key was not emptied");
+            if (fate.tell) {
+                const parts = [`<p>${esc(game.i18n.localize("DRPG.Motive.oldGone"))}</p>`, `<p>${esc(fate.text)}</p>`];
+                if (fate.timesOfDay) parts.push(`<p class="notes">${esc(plural("DRPG.Motive.oldLeft", { n: fate.remaining }))}</p>`);
+                if (fate.consequence) parts.push(`<p class="notes">${esc(game.i18n.format("DRPG.Motive.oldConsequence", { what: fate.consequence }))}</p>`);
+                parts.push(`<p class="notes">${esc(game.i18n.localize("DRPG.Motive.oldGoneNote"))}</p>`);
+                await whisperToGms(parts.join(""));
+            }
+            return { told: fate.tell, text: fate.tell ? fate.text : null };
+        }
     }
 ];
 
@@ -1272,6 +1304,23 @@ export async function liftMorningDraft() {
     }
     if (clear) await game.settings.set(MODULE_ID, SETTINGS.morningLineDraft, "");
     return clear ? { lifted: write !== null ? 1 : 0, kept: write === null ? 1 : 0 } : null;
+}
+
+/**
+ * WHAT BECOMES OF THE OLD MOTIVE (`oldMotiveGone`; tier 1 R9351): told to the GMs when it was in force - its words, in
+ * `clock`'s chapter and season (settings.mjs `sameSeason`, by the record's `epoch` or its stamp) - and only cleared
+ * otherwise. Pure: `{ tell, text, timesOfDay, remaining, consequence }`.
+ */
+export function oldMotiveFate(stored, { chapter = null, epoch = 0 } = {}) {
+    const text = String(stored?.text ?? "").trim();
+    const inForce = Boolean(text) && stored.chapter === chapter && sameSeason(stored, epoch);
+    return {
+        tell: inForce,
+        text,
+        timesOfDay: Number.isFinite(stored?.timesOfDay) ? stored.timesOfDay : null,
+        remaining: Math.max(0, Number(stored?.remaining) || 0),
+        consequence: String(stored?.consequence ?? "").trim()
+    };
 }
 
 /**

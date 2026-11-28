@@ -1170,7 +1170,21 @@ export const SETTINGS = {
      * region fog entirely, for a table that would rather use Foundry's walls
      * and vision as they come.
      */
-    regionFog: "regionFog"
+    regionFog: "regionFog",
+    /**
+     * THE PLAYERS' MOTIVES (2.0 line T5, D2-23 and D2-24, 27.11.2026; scripts/motives.mjs). `monokumaMotive` is the
+     * Monokuma Motive's public part, every browser's by design - a goal the class works on together - and a hidden one's
+     * words are never written here (world-secrets.mjs, the rule `motives`): `{ id, hidden, text, penalty, timesOfDay,
+     * remaining, chapter, epoch, at, ... }` (rules.mjs `setMotive`). `gmMotives` is a GM store (gm-stores.mjs
+     * `motiveStore`): a row per student of their Personal and Relationship Motives, and the Monokuma Motive's hidden
+     * words and outcomes; `mineMotives` each player's copy of their own students' rows (`motiveCopy`). `motivesEnabled`
+     * is the switch (on by default, the line's question 8.7). The old `motive` above stays registered for its clause in
+     * migrate.mjs (`oldMotiveGone`) and its reset (motives.mjs `clearSeasonMotives`), and nothing else reads it.
+     */
+    monokumaMotive: "monokumaMotive",
+    gmMotives: "gmMotives",
+    mineMotives: "mineMotives",
+    motivesEnabled: "motivesEnabled"
 };
 
 /* Foundry's settings window: the module's row marked. Stands here, under the table, since E54 (W3): at the file's end it
@@ -1207,7 +1221,9 @@ const SEASON_SETTINGS = [
     SETTINGS.murderState, SETTINGS.sealedRooms, SETTINGS.restrictions, SETTINGS.projectMeta, SETTINGS.trialQueue,
     SETTINGS.trialProgress, SETTINGS.bodyFound, SETTINGS.bodiesFound, SETTINGS.discoveredRooms, SETTINGS.searchTokens,
     SETTINGS.motive, SETTINGS.killingGameRules, SETTINGS.pendingGather, SETTINGS.gmAssignments, SETTINGS.despairPools,
-    SETTINGS.overflow, SETTINGS.clock, SETTINGS.readyRound, SETTINGS.chapterEnd, SETTINGS.facilityClosed
+    SETTINGS.overflow, SETTINGS.clock, SETTINGS.readyRound, SETTINGS.chapterEnd, SETTINGS.facilityClosed,
+    // 2.0 line T5: the Monokuma Motive, cleared by the reset's group "motives" with the old `motive` (motives.mjs).
+    SETTINGS.monokumaMotive
 ];
 /*
  * The campaign's. The remembered exceptions and the scenes' roles, Room Setup's players' regions, the item tables' music
@@ -1234,7 +1250,9 @@ const TABLE_SETTINGS = [
     SETTINGS.foundryBefore, SETTINGS.foundryGivenBack, SETTINGS.musicEnabled, SETTINGS.sfxVary, SETTINGS.safeword,
     SETTINGS.migratedVersion, SETTINGS.levelUpsMigrated, SETTINGS.caseMark, SETTINGS.moveAudit, SETTINGS.foundryToolWindows, SETTINGS.isoTokenShield,
     SETTINGS.regionFog, SETTINGS.despairFromRolls, SETTINGS.lockRollDialog, SETTINGS.roomVisibility, SETTINGS.lockPlayerResources,
-    SETTINGS.friskForce, SETTINGS.trialVoicesFree, SETTINGS.balanceLog, SETTINGS.autoApproveTraits, SETTINGS.chargeMovement, SETTINGS.sequences, SETTINGS.legacyKeyRemnantPlan, SETTINGS.legacyPendingMurders, SETTINGS.legacyEclipseMoves
+    SETTINGS.friskForce, SETTINGS.trialVoicesFree, SETTINGS.balanceLog, SETTINGS.autoApproveTraits, SETTINGS.chargeMovement, SETTINGS.sequences, SETTINGS.legacyKeyRemnantPlan, SETTINGS.legacyPendingMurders, SETTINGS.legacyEclipseMoves,
+    // 2.0 line T5: whether the table plays with the players' motives (D2-24 #1, optional).
+    SETTINGS.motivesEnabled
 ];
 /** Every world setting the module registers, by its key -> "season", "campaign" or "table" (above). */
 export const WORLD_LIFETIMES = Object.freeze(Object.fromEntries([
@@ -3606,6 +3624,38 @@ export function registerSettings() {
         // sheets. Redrawing the sheets alone was why the time of day changed in
         // the header while the Eclipse stayed light and tokens stayed visible.
         onChange: () => onWorldChange(SETTINGS.clock)
+    });
+
+    // The players' motives (2.0 line T5, D2-23; SETTINGS above): the Monokuma Motive's public part, the GMs' store, each
+    // owner's copy, the switch. The public part redraws what the clock's change redraws (the Event panel, the sheets).
+    game.settings.register(MODULE_ID, SETTINGS.monokumaMotive, {
+        scope: "world",
+        config: false,
+        type: Object,
+        default: {},
+        onChange: () => onWorldChange(SETTINGS.monokumaMotive)
+    });
+    game.settings.register(MODULE_ID, SETTINGS.gmMotives, {
+        scope: "client",
+        config: false,
+        type: Object,
+        default: {}
+    });
+    game.settings.register(MODULE_ID, SETTINGS.mineMotives, {
+        scope: "client",
+        config: false,
+        type: Object,
+        default: {},
+        onChange: () => import("./clock.mjs").then(m => m.refreshSheets()).catch(() => {})
+    });
+    game.settings.register(MODULE_ID, SETTINGS.motivesEnabled, {
+        name: "DRPG.Settings.motivesEnabled.name",
+        hint: "DRPG.Settings.motivesEnabled.hint",
+        scope: "world",
+        config: false,
+        type: Boolean,
+        default: true,
+        onChange: () => import("./clock.mjs").then(m => m.refreshSheets()).catch(() => {})
     });
 }
 

@@ -1523,17 +1523,19 @@ export const KEY_REMNANTS = {
 };
 
 /* ==========================================================================
- * WHAT AN INTERRUPTION COSTS, IN THE ORDER IT IS PAID (T-1, Dawid 17.09)
+ * WHAT AN INTERRUPTION COSTS, IN THE ORDER IT IS PAID (T-1, Dawid 17.09; D2-22, 27.11.2026)
  * --------------------------------------------------------------------------
  * Three things in this game are priced as a CHAIN rather than as one cost: you
  * pay the first step you can still pay, and if you cannot pay any of them you
- * cannot do it. Dawid's rule, in his order:
+ * cannot do it. The owner's rule, in the order it is paid since 2.0 (line T5,
+ * D2-22, 27.11.2026: "Objection, Palm i Analyze w Class Trial placa w
+ * kolejnosci: akcja, potem Sanity, na koncu Hope (bylo: akcja, Hope, Sanity).
+ * Tamper bez zmian."):
  *
- *   an Objection   1 action, else 1 Hope, else 1 Sanity
+ *   an Objection   1 action, else 1 Sanity, else 1 Hope
  *   Analyze        the same three - but only inside a Class Trial; anywhere
  *                  else it costs its action or nothing happens
- *   Palm           the same three, inside a Class Trial alone (E129 S0-PALM, 23.11.2026; the owner's note of session
- *                  0: "palm powinno byc dostepne w trialu za akcje, potem za hope, potem za sanity"), as Analyze's;
+ *   Palm           the same three, inside a Class Trial alone (E129 S0-PALM, 23.11.2026), as Analyze's;
  *                  anywhere else its action, as before
  *   Tamper         1 action, else 1 Sanity - but since E64 (12.11.2026) only the
  *                  killer's own Stage 6 reaches the Sanity step: anyone else's
@@ -1542,6 +1544,15 @@ export const KEY_REMNANTS = {
  *                  step, deliberately: an Objection buys a moment of the trial's
  *                  attention, and this buys the destruction of evidence - Hope is
  *                  the wrong currency for it.
+ *
+ * THE ORDER'S HISTORY. T-1 (Dawid, 17.09) wrote an action, else 1 Hope, else 1
+ * Sanity, and Palm took the same in 1.2.128 (the owner's note of session 0, 23.11:
+ * "za akcje, potem za hope, potem za sanity"). D2-22 turned the last two: a
+ * Sanity mark before Hope. Read literally, as this table does: the Sanity step
+ * pays while a mark is left - the last one too, which is a Breakdown, and the
+ * window warns of it (price.mjs `lastSanity`, `DRPG.Price.will.breakdown`) - and
+ * Hope only once the track is full (the line's question 8.1 to the owner). A
+ * refund is not ordered: it gives back the step its receipt names (`refundPrice`).
  *
  * ARRAY ORDER IS PAYMENT ORDER, and `steps[0].amount` is also the action cost
  * the tile shows, so `ACTIONS.<key>.cost` and this table must agree - there is a
@@ -1569,23 +1580,23 @@ export const PRICE_CHAINS = {
     objection: {
         steps: [
             { pay: "action", amount: 1 },
-            { pay: "hope", amount: 1 },
-            { pay: "stress", amount: RESOLUTION_STRESS_COST }
+            { pay: "stress", amount: RESOLUTION_STRESS_COST },
+            { pay: "hope", amount: 1 }
         ]
     },
     analyze: {
         steps: [
             { pay: "action", amount: 1 },
-            { pay: "hope", amount: 1 },
-            { pay: "stress", amount: RESOLUTION_STRESS_COST }
+            { pay: "stress", amount: RESOLUTION_STRESS_COST },
+            { pay: "hope", amount: 1 }
         ],
         stepsBeyondFirst: "classTrial"
     },
     palm: {
         steps: [
             { pay: "action", amount: 1 },
-            { pay: "hope", amount: 1 },
-            { pay: "stress", amount: RESOLUTION_STRESS_COST }
+            { pay: "stress", amount: RESOLUTION_STRESS_COST },
+            { pay: "hope", amount: 1 }
         ],
         stepsBeyondFirst: "classTrial"
     },
@@ -1690,7 +1701,7 @@ export const ACTIONS = {
     analyze: {
         kind: "universal",
         // `cost` is the first step of `PRICE_CHAINS.analyze`, and inside a Class
-        // Trial the chain carries on into Hope and then Sanity (T-1).
+        // Trial the chain carries on into Sanity and then Hope (T-1; D2-22, 27.11.2026).
         label: "Analyze",
         icon: "fa-brain",
         traits: ["head"],
@@ -3028,28 +3039,23 @@ export const DESPAIR_CALLS = {
     },
     motive: {
         /*
-         * MONOKUMA'S MOTIVE, AND THE ONLY WAY TO ONE.
+         * THE MONOKUMA MOTIVE, AND THE ONLY WAY TO ONE (2.0 line T5, D2-23 and D2-24, 27.11.2026; SPEC-MOTIVES.md).
          *
-         * Guide, p. 16: a motive is a roleplay reason to kill, announced
-         * publicly, lasting at most to the end of the chapter. It used to be
-         * free - a GM typed it into `setMotive` and it appeared. Free was
-         * wrong. A motive is the single loudest move in the game and the one
-         * most likely to end somebody, and Monokuma's moves cost Despair.
+         * Until 2.0 this was "Motive", the guide's p. 16: a roleplay reason to kill, public, with a deadline in times of
+         * day and a price for missing it. The owner retired it (D2-24 #9, "znika"): the Monokuma Motive is the class's
+         * goal, always about working together - discover every room, finish a project - set or changed here, one at a
+         * time (#4), hidden if the Monokuma wishes (the players see that there is one, not what it says, #2), with a
+         * deadline only if one is given (#5) and a penalty that is words, carried out by hand (#1). Changing or
+         * withdrawing one asks whether the last was passed; a pass gives every living student 3 Hope (`MOTIVES.hope`).
          *
-         * SIX, and it began at nine (E24, 31.08). Nine was three quarters of
-         * a full pool, and that priced the loudest move in the game out of the
-         * game: a motive came out about once every two chapters, and the
-         * Monokuma who announced one did almost nothing else that time of day.
-         * Six stands beside Public Announcement and can be repeated, which is
-         * what the module's main pacing tool has to be able to do.
+         * The key stays `motive`: the data and the sounds name it (`SFX_EVENTS.motive`, the Calls' records).
          *
-         * Three fields rather than one, because a motive that is only a
-         * sentence is a motive nobody can hold Monokuma to: the demand, how
-         * many times of day it runs, and what happens when it runs out. The
-         * countdown lives on the HUD where the cast can watch it.
+         * SIX, and it began at nine (E24, 31.08): nine priced the loudest move in the game out of the game, and six
+         * stands beside Public Announcement and can be repeated. Kept at six for the new motive (the line's question
+         * 8.2 to the owner).
          */
-        label: "Motive", icon: "fa-envelope", cost: 6, target: "none", setsMotive: true,
-        effect: "Announces a Motive to everyone: a demand, a deadline in times of day, and the price of missing it. The clock counts the deadline down."
+        label: "Monokuma Motive", icon: "fa-envelope", cost: 6, target: "none", setsMotive: true,
+        effect: "Sets or changes the Monokuma Motive: a goal the whole class works on together, open or hidden, with a deadline and a penalty if the Monokuma gives them. Passed, it gives every living student 3 Hope."
     },
     newRule: {
         /*
@@ -3078,7 +3084,9 @@ export const DESPAIR_CALLS = {
 };
 
 /**
- * The motive's timer.
+ * The Monokuma Motive's deadline (2.0 line T5, D2-24 #5: "tylko jesli GM go poda" - a deadline only when the GM gives
+ * one; until 2.0 every motive had one). These are its bounds when it is given; an empty field is no deadline, and the
+ * clock counts down only a Monokuma Motive with one (rules.mjs `tickMotive`).
  *
  * Counted in TIMES OF DAY, and Eclipses do not count - which costs nothing to
  * arrange: `endEclipse()` finishes with a single `advanceTimeOfDay()`, so an
@@ -3094,6 +3102,18 @@ export const MOTIVE = {
     maxTimesOfDay: 10,
     defaultTimesOfDay: 3
 };
+
+/*
+ * THE PLAYERS' MOTIVES (2.0 line T5, D2-23 and D2-24; docs/dev/v2/SPEC-MOTIVES.md; scripts/motives.mjs). `hope` is what a
+ * motive passed gives - each living student for a Monokuma Motive, its student for a Personal or a Relationship Motive -
+ * never past the maximum (#3): the owner's number, chosen, not measured. `maxBytes` bounds a motive's words and a
+ * player's report as every player's words are bounded (secret.mjs `MAX_PLAYER_BYTES`, 32 KiB; pre-session-note.mjs
+ * `noteTooLong`), written here as a number because this file imports nothing.
+ */
+export const MOTIVES = Object.freeze({
+    hope: 3,
+    maxBytes: 32 * 1024
+});
 
 /**
  * A Call's effect line, with its own numbers put back into it.
@@ -5452,9 +5472,19 @@ export const SFX_EVENTS = {
         category: "chat"
     },
     motive: {
-        label: "A motive",
-        hint: "A Monokuma announces a motive, and again when its deadline comes. Heard by the whole table.",
+        // 2.0 line T5 (D2-23): the Monokuma Motive, set, changed, revealed or withdrawn; the key the old motive's.
+        label: "The Monokuma Motive",
+        hint: "A Monokuma sets, changes, reveals or withdraws the Monokuma Motive, and again when its deadline comes. Heard by the whole table.",
         category: "chat"
+    },
+    motivePassed: {
+        /* 2.0 line T5, D2-23 (#8: "ustawiany w oknie Dzwiek"): a Personal or a Relationship Motive passed, played on its
+           player's browser alone (motives.mjs `ruleMotiveOnPrimary`, sfx-play.mjs `playSfxForUsers`), never a GM's or
+           another player's. No file of the owner's exists, so it plays Hope Call used's until one is set (chosen). */
+        label: "Your motive passed",
+        hint: "Heard only by the player whose motive a GM passed. With no file of its own it plays the sound of Hope Call used.",
+        category: "chat",
+        fallsBackTo: "hopeCall"
     },
     publicAnnouncement: {
         label: "An assembly is called",
@@ -5920,4 +5950,5 @@ export const DRPG = {
     itemIcon,
     moduleVersion,
     staleStamp,
+    MOTIVES,
 };

@@ -442,6 +442,10 @@
       "voiceTile": {
         "name": "Voice tile instead of the camera dock",
         "hint": "Hides the cameras. The tile shows how many people are in your channel."
+      },
+      "motivesEnabled": {
+        "name": "Players' motives",
+        "hint": "Each living student gets a Personal and a Relationship Motive each chapter, and each motive passed gives Hope. Off: no motives at this table."
       }
     },
     "SettingsWindow": {
@@ -621,17 +625,17 @@
         "burst": { "one": "Costs {n} action, which your banked Burst pays.", "other": "Costs {n} actions, which your banked Burst pays." },
         "hope": { "one": "No actions left, so this costs {n} Hope.", "other": "No actions left, so this costs {n} Hope." },
         "hopeHeld": { "one": "You hold {held} Hope.", "other": "You hold {held} Hope." },
-        "stressAfterHope": { "one": "No actions and no Hope left, so this costs {n} Sanity.", "other": "No actions and no Hope left, so this costs {n} Sanity." },
+        "hopeAfterSanity": { "one": "No actions and no Sanity left, so this costs {n} Hope.", "other": "No actions and no Sanity left, so this costs {n} Hope." },
         "stressAfterAction": { "one": "No actions left, so this costs {n} Sanity.", "other": "No actions left, so this costs {n} Sanity." },
         "skippedAction": { "one": "No action is needed here. This costs {n} Sanity.", "other": "No action is needed here. This costs {n} Sanity." },
         "breakdown": "That is your last Sanity. Paying it puts you in Breakdown.",
         "free": "This costs nothing."
       },
       "nothingLeft": {
-        "objection": "No action, no Hope, and no Sanity left, so you cannot object.",
-        "analyze": "No action, no Hope, and no Sanity left, so there is nothing to pay for Analyze with.",
+        "objection": "No action, no Sanity, and no Hope left, so you cannot object.",
+        "analyze": "No action, no Sanity, and no Hope left, so there is nothing to pay for Analyze with.",
         "analyzeOneStep": "No action left, so there is nothing to pay for Analyze with.",
-        "palm": "No action, no Hope, and no Sanity left, so there is nothing to pay for Palm with.",
+        "palm": "No action, no Sanity, and no Hope left, so there is nothing to pay for Palm with.",
         "palmOneStep": "No action left, so there is nothing to pay for Palm with.",
         "tamper": "No action left, and Tamper takes nothing else.",
         "tamperSkippedAction": "No action is needed here, but you have no Sanity left to pay with."
@@ -644,6 +648,7 @@
       },
       "refunded": "You get {what} back.",
       "refundLost": "The {what} you paid did not come back, because the Despair Overflow blocks Hope. Tell the GM.",
+      "refundNoGm": "Your Objection lapsed because no GM could take your Truth Bullet. You get {what} back.",
       "noPrice": "This is not something you can do."
     },
     "Assign": {
@@ -2665,7 +2670,8 @@
         "finalExecution": "the execution",
         "finalLevelUps": "the Level Ups that waited",
         "finalBets": "Ghost Bets",
-        "mastermind": "clearing the Mastermind's pick"
+        "mastermind": "clearing the Mastermind's pick",
+        "motives": "the Level Ups for motives"
       },
       "finishTaken": "{name} is finishing this verdict already."
     },
@@ -4509,8 +4515,8 @@
       "silencedBadge": "Silenced",
       "chainedBadge": "Chained",
       "motiveSet": {
-        "one": "The motive is announced, with a deadline of one time of day.",
-        "other": "The motive is announced, with a deadline of {n} times of day."
+        "one": "The Monokuma Motive is announced, with a deadline of one time of day.",
+        "other": "The Monokuma Motive is announced, with a deadline of {n} times of day."
       },
       "freeShort": "Free",
       "gatherRoomGone": "The assembly in “{room}” could not be held: the room is no longer on its scene. It is called off and its Despair stays spent. Move the characters by hand.",
@@ -4529,7 +4535,8 @@
       "choiceAsk": "Which of the two?",
       "talentAsk": "For your next roll: an experience, or your Ultimate?",
       "rowNoExperiences": "No experiences on your sheet yet.",
-      "rowArmed": "You already hold it for your next roll."
+      "rowArmed": "You already hold it for your next roll.",
+      "motiveSetOpen": "The Monokuma Motive is announced, with no deadline."
     },
     "Monokuma": {
       "toggle": "Mark as Monokuma",
@@ -5245,7 +5252,10 @@
         "bridge.playerReady": "Telling the GMs that your page has loaded",
         "eclipse.judge": "The rooms at the lights, read on the primary GM",
         "season.reset": "Reset the season by a second GM, on the primary GM",
-        "resolve.lost": "An Observe or Analyze the primary GM did not answer"
+        "resolve.lost": "An Observe or Analyze the primary GM did not answer",
+        "motive.set": "Writing a motive",
+        "motive.report": "Reporting a motive",
+        "motive.rule": "Ruling on a motive"
       },
       "notDone": "“{what}” was not carried out. {why}",
       "nothingSpent": "You keep your action and your Hope.",
@@ -6494,13 +6504,27 @@
       "saveFailed": "The rules could not be saved, so they stay as they were and nothing was announced. Open the window again to redo your changes."
     },
     "Motive": {
-      "title": "Motive",
-      "banner": "MONOKUMA'S MOTIVE",
-      "withdrawn": "The Motive is withdrawn. Its demand, deadline, and consequence no longer apply.",
-      "none": "No Motive is in force.",
-      "withdraw": "Withdraw Motive",
-      "withdrawNote": "Withdrawing it tells the whole table the Motive is off.",
-      "changedMeanwhile": "The Motive changed while this window was open. The one in force is shown now; press Withdraw Motive again to withdraw it.",
+      "title": "Monokuma Motive",
+      "banner": "THE MONOKUMA MOTIVE",
+      "none": "No Monokuma Motive is in force.",
+      "unknown": "There is a Monokuma Motive, but nobody knows what it says yet.",
+      "hiddenTag": "hidden",
+      "hiddenNote": "Hidden: the players see only that there is one.",
+      "noDeadline": "No deadline",
+      "penalty": "If it is not done: {what}",
+      "withdraw": "Withdraw Monokuma Motive",
+      "reveal": "Reveal",
+      "withdrawNote": "Withdrawing it asks whether it was passed and tells the whole table it is off. A pass gives every living student 3 Hope.",
+      "withdrawnPassed": "It was passed: every living student gets up to 3 Hope.",
+      "withdrawnFailed": "It was not passed.",
+      "changedMeanwhile": "The Monokuma Motive changed while this window was open. The one in force is shown now; press Withdraw Monokuma Motive again to withdraw it.",
+      "passedQuestion": "Was the Monokuma Motive in force passed?",
+      "passedNote": "Yes gives every living student 3 Hope, up to their maximum.",
+      "passedYes": "Yes, passed",
+      "passedNo": "No",
+      "lastPassed": "The last Monokuma Motive was passed.",
+      "lastFailed": "The last Monokuma Motive was not passed.",
+      "inForce": "In force now: {text}",
       "deadline": {
         "one": "The deadline is one time of day.",
         "other": "The deadline is {n} times of day."
@@ -6509,17 +6533,126 @@
         "one": "1 time of day left",
         "other": "{n} times of day left"
       },
-      "orElse": "If nobody does: {what}",
-      "dueBanner": "THE MOTIVE HAS COME DUE",
+      "dueBanner": "THE MONOKUMA MOTIVE HAS COME DUE",
       "dueShort": "due now",
-      "demandLabel": "What does Monokuma want?",
-      "demandPlaceholder": "e.g. Somebody dies before the lights come back on, or everybody's secret goes on the noticeboard.",
-      "deadlineLabel": "How many times of day?",
-      "deadlineNote": "Counted in times of day. Five make one day, and an Eclipse is not one of them.",
-      "consequenceLabel": "And if nobody does?",
-      "consequencePlaceholder": "e.g. Every secret is read out at breakfast.",
-      "publicNote": "Fill in the demand and the consequence to go on. They and the deadline are announced to the whole table.",
-      "migrated": { "one": "This world's Motive was announced before Motives had deadlines, so its deadline is now {n} time of day. To set another, withdraw it and buy Motive again.", "other": "This world's Motive was announced before Motives had deadlines, so its deadline is now {n} times of day. To set another, withdraw it and buy Motive again." }
+      "dueNote": "The Monokuma carries out the penalty by hand. The module takes nothing.",
+      "demandLabel": "What is the class to do together?",
+      "demandPlaceholder": "e.g. Find every room on the second floor, or finish the greenhouse project.",
+      "hiddenLabel": "Hidden: the players see only that there is a Monokuma Motive",
+      "deadlineLabel": "With a deadline",
+      "deadlineCount": "How many times of day?",
+      "deadlineNote": "Counted in times of day. Five make one day, and an Eclipse is not one of them. Without a deadline it runs until it is changed, withdrawn or the chapter ends.",
+      "consequenceLabel": "The penalty, if it is not done (optional)",
+      "consequencePlaceholder": "e.g. No breakfast tomorrow.",
+      "publicNote": "Write what the class is to do to go on. It is announced to the whole table, or only that there is one if it is hidden.",
+      "oldGone": "This world held a Motive from before 1.2.130. Motives of that kind are gone, and it is cleared. It said:",
+      "oldLeft": {
+        "one": "1 time of day was left.",
+        "other": "{n} times of day were left."
+      },
+      "oldConsequence": "Its consequence: {what}",
+      "oldGoneNote": "Nothing replaced it. A Monokuma Motive is set with the Despair Call Monokuma Motive.",
+      "migrated": { "one": "This world's Motive was announced before Motives had deadlines, so its deadline is now {n} time of day. To set another, withdraw it and buy Motive again.", "other": "This world's Motive was announced before Motives had deadlines, so its deadline is now {n} times of day. To set another, withdraw it and buy Motive again." },
+      "revealedNote": "The hidden Monokuma Motive is revealed.",
+      "withdrawn": "The Monokuma Motive is withdrawn. What it asked, its deadline and its penalty no longer apply.",
+      "tip": {
+        "hidden": "The players see only that a Monokuma Motive exists. You can reveal it later from Killing game rules.",
+        "withDeadline": "Off: the Monokuma Motive stays until you change or withdraw it, or the chapter ends.",
+        "passedYes": "Every living student gets 3 Hope, up to their maximum.",
+        "passedNo": "Nobody gets Hope for it."
+      }
+    },
+    "Motives": {
+      "tab": "Personal",
+      "title": "Motives",
+      "personal": "Personal Motive",
+      "relationship": "Relationship Motive",
+      "notGiven": "Not given this chapter.",
+      "noneYet": "The GM has not given you any motives this chapter yet.",
+      "with": "with {name}",
+      "stateLine": "State: {state}",
+      "reportLine": "Report: {text}",
+      "reportEmpty": "(no words)",
+      "reasonLine": "The GM's reason: {text}",
+      "state": {
+        "open": "open",
+        "reported": "reported, not passed yet",
+        "done": "passed",
+        "rejected": "rejected",
+        "none": "none"
+      },
+      "report": "Report done",
+      "reportTitle": "Report done: {what}",
+      "reportLabel": "What did you do?",
+      "reportPlaceholder": "Tell the GM what your character did, and when.",
+      "reportNote": "Only the GMs read this. A GM passes or rejects it.",
+      "reportSend": "Send to the GMs",
+      "reportSent": "Your report went to the GMs.",
+      "edit": "Edit motives",
+      "editTitle": "Motives: {name}",
+      "editNote": "Write the motives by hand, with the player or for them. Only the GMs and this student's player see them. Leave a field empty to take that motive away.",
+      "withLabel": "The Relationship Motive is about",
+      "save": "Save",
+      "replaceQuestion": "This student already has this motive this chapter. Replace it?",
+      "replace": "Replace",
+      "holdsNone": "This character holds no motives: only a living student does.",
+      "pass": "Pass",
+      "reject": "Refuse",
+      "rejectTitle": "Refuse {name}'s report: {what}",
+      "rejectLabel": "Why? (optional, the player reads it)",
+      "givenPersonal": "A GM gave you a Personal Motive. It is on your sheet's Personal tab.",
+      "givenRelationship": "A GM gave you a Relationship Motive. It is on your sheet's Personal tab.",
+      "passedYou": {
+        "one": "Your {what} is passed. You get {n} Hope.",
+        "other": "Your {what} is passed. You get {n} Hope."
+      },
+      "rejectedYou": "Your report of your {what} was rejected. You can report it again.",
+      "rejectedWhy": "Your report of your {what} was rejected: {why} You can report it again.",
+      "passedGm": {
+        "one": "{gm} passed {name}'s {what}. {n} Hope landed.",
+        "other": "{gm} passed {name}'s {what}. {n} Hope landed."
+      },
+      "rejectedGm": "{gm} rejected {name}'s report of their {what}.",
+      "cardTitle": "{name} reports their {what} done",
+      "monokumaPassedTitle": "The Monokuma Motive is passed. Each living student gets up to 3 Hope:",
+      "monokumaRow": {
+        "one": "{name}: {n} Hope",
+        "other": "{name}: {n} Hope"
+      },
+      "reasonPart": "{what}: {state}",
+      "reasonMonokuma": {
+        "one": "Monokuma Motive: {n} of {total} passed",
+        "other": "Monokuma Motive: {n} of {total} passed"
+      },
+      "reasonNoMonokuma": "no Monokuma Motive this chapter",
+      "levelUpTitle": "Who did every motive?",
+      "levelUpNote": "Tick who did all of this chapter's motives: their Personal and Relationship Motives and every Monokuma Motive. The record's ticks are set; change them as you judge. Each one ticked takes 1 Level Up.",
+      "levelUpGive": "Give the Level Ups",
+      "levelUpNone": "No motives this chapter.",
+      "levelUpNobody": "Nobody took a motive Level Up.",
+      "levelUpGiven": {
+        "one": "1 student takes a motive Level Up.",
+        "other": "{n} students take a motive Level Up."
+      },
+      "tile": "Motives",
+      "tileOff": "The table plays without motives (Settings).",
+      "overviewTitle": "Motives",
+      "waiting": {
+        "one": "1 student's report is waiting.",
+        "other": "{n} students' reports are waiting."
+      },
+      "nobody": "No living student holds motives.",
+      "column": "Motives",
+      "cellPersonal": "P: {state}",
+      "cellRelationship": "R: {state}",
+      "tip": {
+        "report": "Tell the GMs that your character did it. A GM passes or refuses the report.",
+        "pass": "Mark this motive as passed. The student gets 3 Hope, up to their maximum.",
+        "reject": "Refuse the report. The player can report it again.",
+        "edit": "Write or change this student's motives. Only the GMs and this student's player see them.",
+        "reason": "Optional. The player reads it under the refused report."
+      },
+      "nobodyOption": "- nobody -"
     },
     "Secret": {
       "speaker": "Monokuma",
@@ -6891,7 +7024,7 @@
         "mastermind": "The Mastermind",
         "passages": "Who knows each secret passage, the passages projects made, and their breaches (the GMs' passages stay, and whoever knew one at season start knows it again)",
         "seals": "Despair Calls still in force, and every Call armed for a roll",
-        "motive": "The motive",
+        "motives": "The players' motives",
         "rules": "Monokuma's standing rules",
         "doors": "Locked doors, back to how the season opened",
         "eclipseMoves": "Eclipse crossings already used",
@@ -7691,7 +7824,8 @@
         "diveSets": "Logic Dive sets: each set's questions, their answers, and which answer is right",
         "morningLine": "The next morning's line the GMs share, until the day's start shows it",
         "phaseSteps": "A change into or out of the Class Trial, kept step by step so the primary GM can finish it after a reload",
-        "erasedRemnants": "Remnants erased at a clean-up: what each was, where and when it lay, and who cleaned"
+        "erasedRemnants": "Remnants erased at a clean-up: what each was, where and when it lay, and who cleaned",
+        "motives": "The players' motives: each student's Personal and Relationship Motive, their reports and rulings, and the Monokuma Motive's hidden words and outcomes"
       },
       "copy": {
         "writeNow": "Write the copy now",

@@ -442,7 +442,7 @@ export async function performFrisk(actor, def, victim, mode, { cost = def?.cost 
     const A = await import("./action-rolls.mjs");
     const PA = await import("./palm.mjs");
     const part = def.rummage;
-    // Palm's own payment (E129 S0-PALM): its action, and in a Class Trial its chain - an action, else Hope, else Sanity.
+    // Palm's own payment (E129 S0-PALM): its action, and in a Class Trial its chain - an action, else Sanity, else Hope (D2-22).
     const paid = await PA.payPalm(actor, cost);
     if (cost > 0 && !paid) return null;
     // "Palm - Shadow, beat 15" and "Palm - Hand, beat 10" (palm.mjs `palmTitle`, E51 C1; the owner's A11). While hidden the
@@ -1302,7 +1302,7 @@ function gmForceShut(searcher, target, silentAtAsk, heldBy = null, askedAt = 0) 
 async function performFriskOpenly(actor, def, victim, { cost = def?.cost ?? 1, room = null } = {}) {
     const A = await import("./action-rolls.mjs");
     const PA = await import("./palm.mjs");
-    // Palm's own payment (E129 S0-PALM): its action, and in a Class Trial its chain - an action, else Hope, else Sanity.
+    // Palm's own payment (E129 S0-PALM): its action, and in a Class Trial its chain - an action, else Sanity, else Hope (D2-22).
     const paid = await PA.payPalm(actor, cost);
     if (cost > 0 && !paid) return null;
     // Handed back as it was paid: a chain's receipt says what came back itself (price.mjs `refundPrice`).

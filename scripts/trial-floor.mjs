@@ -1824,7 +1824,8 @@ export async function finishObjectionOnPrimary({ actorId, startedAt }) {
  * `advanceFloorOnPrimary`'s and the heartbeat's write, held under `advancing`: the machine's `due` row for the
  * heartbeat, its `skip` row for a GM's Now (the bar's Skip, told in chat as "Turn skipped: {name}."). Since E70 C1 the
  * rows are floor-machine.mjs `stepOn`'s: a pending Objection lapses back to the debate with the seconds it had (E79
- * C16: no evidence came, so there is nothing to answer, and nothing is given back), an Objection's minute becomes the
+ * C16: no evidence came, so there is nothing to answer, and nothing is given back - but where it lapsed while no GM
+ * listened, TRIAL-09, below), an Objection's minute becomes the
  * rebuttal, and a rebuttal ends the floor:
  *
  * A REBUTTAL ENDS THE FLOOR (Dawid, 28.08), rather than dropping back into
@@ -1849,6 +1850,13 @@ async function advanceFrom(floor, type = "due") {
         const { drawInStep } = await import("./trial-modes.mjs");
         const drawn = await drawInStep();
         return commitFloor(floor, nextFloor(floor, { type }, { ...floorCtx(floor), drawn }), type);
+    }
+    /* A PENDING OBJECTION THAT LAPSES WHILE NO GM LISTENED (2.0 line T5, TRIAL-09, 27.11.2026): its price comes back from
+       its receipt, read here before `commitFloor` withdraws its card and drops the receipt - trial.mjs `lapseRefundDue`
+       and `refundLapsedObjection`, which say why. Every other lapse, the withdrawal and the Overrule give nothing back. */
+    if (floor?.mode === FLOOR_MODES.objection && floor.pending === true) {
+        const { lapseRefundDue, refundLapsedObjection } = await import("./trial.mjs");
+        if (lapseRefundDue(floor)) await refundLapsedObjection(floor.messageId);
     }
     return commitFloor(floor, nextFloor(floor, { type }, floorCtx(floor)), type);
 }

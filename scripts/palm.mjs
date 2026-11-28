@@ -290,7 +290,7 @@ export async function handBackIfRefusedBeforeRolls(actor, paid, res, rolls = [])
 }
 
 async function palmBack(actor, paid) {
-    // By its receipt since 1.2.128 (E129 S0-PALM): a Hope or a Sanity mark paid in the trial comes back as itself.
+    // By its receipt since 1.2.128 (E129 S0-PALM): a Sanity mark or a Hope paid in the trial comes back as itself.
     await givePalmBack(actor, paid);
 }
 
@@ -383,7 +383,7 @@ export async function refundPalm(actor, paid) {
 
 export async function performPalm(actor, def, options) {
     const cost = options.free ? 0 : def.cost;
-    // In a Class Trial the chain's quote: an action, else Hope, else Sanity (E129 S0-PALM); elsewhere the action alone.
+    // In a Class Trial the chain's quote: an action, else Sanity, else Hope (E129 S0-PALM; D2-22's order, 2.0 line T5); elsewhere the action alone.
     if (cost > 0 && palmInTrial()) {
         const quote = quotePrice(actor, "palm");
         if (quote.blocked) {

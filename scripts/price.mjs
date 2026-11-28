@@ -4,8 +4,8 @@
  * T-1 (Dawid, 17.09) priced three things as a CHAIN rather than as one cost: an
  * Objection, Analyze inside a Class Trial, and a Tamper attempt; and Palm inside a Class Trial since 1.2.128 (E129
  * S0-PALM, the owner's note of 23.11.2026), as Analyze's. You pay the
- * first step you can still pay - an action, then Hope, then a Sanity mark - and
- * when you can pay none of them you cannot do it.
+ * first step you can still pay - an action, then a Sanity mark, then Hope, since 2.0 (line T5, D2-22, 27.11.2026;
+ * T-1's order was Hope before Sanity) - and when you can pay none of them you cannot do it.
  *
  * ONE TABLE, ONE PAYER, ONE RECEIPT. The table is `PRICE_CHAINS` in config.mjs.
  * This file is the payer, and everything it charges comes back as a receipt:
@@ -49,7 +49,7 @@ function chainFor(key) {
  * Which steps of a chain are on offer right now.
  *
  * `stepsBeyondFirst` names the phase the later steps live in: Analyze pays its
- * action anywhere, and its Hope or its Sanity only inside a Class Trial (T-1).
+ * action anywhere, and its Sanity or its Hope only inside a Class Trial (T-1; D2-22's order).
  * Outside that phase the chain is one step long, which is exactly how Analyze
  * behaved before this file existed.
  *
@@ -349,11 +349,14 @@ export function priceLabel(quote) {
 
 /**
  * The sentence a window shows BEFORE paying: what this will cost, and what is
- * left. The Sanity step says which of the earlier steps ran out, because "no
- * actions left" and "no actions and no Hope left" are different situations and the
- * player is about to mark their Sanity over the difference - and, when the caller
- * skipped the action step (`quote.skipped`), that no action is needed, never "no
- * actions left" (E66 C2; S09-40).
+ * left. A later step says which of the earlier steps ran out - read off the chain's
+ * steps before the paying one (`stepsBefore`), not guessed from whether the chain
+ * holds a Hope step: until 2.0 the Sanity line said "no actions and no Hope left"
+ * whenever the chain had one, and D2-22 (line T5, 27.11.2026) put Sanity BEFORE
+ * Hope, so the Sanity step says "no actions left" (`stressAfterAction`) and the
+ * Hope step "no actions and no Sanity left" (`hopeAfterSanity`) - and, when the
+ * caller skipped the action step (`quote.skipped`), that no action is needed,
+ * never "no actions left" (E66 C2; S09-40).
  *
  * EVERY COUNT ITS OWN FAMILY (E66 C2, 01.11.2026; S18-36, E66-12): the cost and what
  * is held are two families joined with a space, each through `plural()`, so a Polish
@@ -370,22 +373,32 @@ export function priceLine(actor, quote) {
         return `${plural("DRPG.Price.will.action", { n: quote.amount })} ${plural("DRPG.Price.will.actionsLeft", { left }, "left")}`;
     }
 
+    const before = stepsBefore(quote);
     if (quote.pay === "hope") {
         const held = actor ? resourceValue(actor, "hope") : quote.held;
-        return `${plural("DRPG.Price.will.hope", { n: quote.amount })} ${plural("DRPG.Price.will.hopeHeld", { held }, "held")}`;
+        const first = before.includes("stress") ? "DRPG.Price.will.hopeAfterSanity" : "DRPG.Price.will.hope";
+        return `${plural(first, { n: quote.amount })} ${plural("DRPG.Price.will.hopeHeld", { held }, "held")}`;
     }
 
-    const afterHope = Boolean(chainFor(quote.key)?.steps?.some(step => step.pay === "hope"));
+    /* Every chain's Sanity step stands right after its action since D2-22, so `stressAfterAction`; a chain with a Hope
+       step before its Sanity one would need its own line again (there is none, and `will.stressAfterHope` went with
+       the old order: line T5, 27.11.2026). */
     const line = plural((quote.skipped ?? []).includes("action")
         ? "DRPG.Price.will.skippedAction"
-        : afterHope
-            ? "DRPG.Price.will.stressAfterHope"
-            : "DRPG.Price.will.stressAfterAction", { n: quote.amount });
+        : "DRPG.Price.will.stressAfterAction", { n: quote.amount });
     // The last mark, said in the same breath as the price: this is the one step
     // that changes what the character is.
     return quote.lastSanity
         ? `${line} ${game.i18n.localize("DRPG.Price.will.breakdown")}`
         : line;
+}
+
+/* The kinds a quote's chain asks before its paying step, in order (`priceLine`): the steps of the chain as written, not
+   as this phase offers them, since a later step is only ever paid where the phase offers it. */
+function stepsBefore(quote) {
+    const steps = chainFor(quote?.key)?.steps ?? [];
+    const at = steps.findIndex(step => step.pay === quote?.pay);
+    return at > 0 ? steps.slice(0, at).map(step => step.pay) : [];
 }
 
 /** What a card says AFTER paying. */

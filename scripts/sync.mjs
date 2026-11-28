@@ -124,6 +124,9 @@ const SETTING_KINDS = {
     // a HUD row, which is why `SYNC.rules` redraws the HUD as well as the
     // sheets - see the case below.
     motive: SYNC.rules,
+    // The Monokuma Motive since 2.0 (line T5, D2-23): the old `motive` above is read by its migration alone. The sheets'
+    // Personal tab shows it, and the Event panel's card (events.mjs `motiveCard`) is drawn with the HUD.
+    monokumaMotive: SYNC.rules,
     // A called assembly changes two things at once: the HUD row every player
     // reads, and the Public Announcement tile on a Monokuma's sheet, which is
     // its own cancel button while one is pending. `restrictions` already

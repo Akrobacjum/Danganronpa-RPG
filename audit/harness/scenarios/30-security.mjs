@@ -7295,6 +7295,44 @@ export async function run({ gm, p1, p2, p3, check, note, phase, settle, permissi
             && fz.counts.refused > fz.counts.tablePackets / 2 && fz.refusalsLogged > 0 && fz.answered.every(a => a.startsWith("note.save ")),
         fzEvidence);
 
+    // 2.0 line T5 (E135, D2-23 and D2-24, 27.11.2026): the motives' three requests, forged from p1's console.
+    /* A PLAYER WRITES NO MOTIVE, RULES ON NONE, AND REPORTS NONE OF ANOTHER'S STUDENT. From p1's console, as a console
+       reaches the bridge: `motive.set` for its own Aiko (gmOnly), `motive.rule` passing Aiko's (gmOnly) and `motive.report`
+       for p2's Botan (owns). Read on the GM: the store `motives` before and after, and the refusal each was told and
+       logged. 33-bridge-paths drives the legal roads. */
+    phase("2.0 line T5: the motives' requests forged from a player");
+    const MOTIVES_READ = `const { motiveStore } = await import("${repoUrl}/scripts/gm-stores.mjs"); await motiveStore.whenHydrated(); return motiveStore.entries();`;
+    const motiveForge = async (action, fields, id) => {
+        await gm.eval(`(await import("${repoUrl}/scripts/utils.mjs")).clearSessionFailures(); return true;`);
+        const before = await gm.eval(MOTIVES_READ);
+        await p1.eval(`
+            if (!globalThis.__motiveTold) {
+                globalThis.__motiveTold = [];
+                game.socket.on("${SOCKET}", payload => {
+                    if (payload?.action === "bridge.refused" || payload?.action === "bridge.done") globalThis.__motiveTold.push([payload.requestId ?? null, payload.action, payload.reason ?? null]);
+                });
+            }
+            globalThis.__motiveTold.length = 0;
+            game.socket.emit("${SOCKET}", { action: "${action}", userId: game.user.id, requestId: "${id}", ...${JSON.stringify(fields)} },
+                { recipients: game.users.filter(u => u.isGM && u.active).map(u => u.id) });
+            return true;`);
+        await settle(1200);
+        const after = await gm.eval(MOTIVES_READ);
+        const told = await p1.eval(`return globalThis.__motiveTold.filter(t => t[0] === "${id}");`);
+        const logged = await gm.eval(`return (await import("${repoUrl}/scripts/utils.mjs")).sessionFailures()
+            .filter(e => e.message.includes('Refused a "${action}"')).map(e => e.message);`);
+        return { told, logged, unchanged: JSON.stringify(before) === JSON.stringify(after) };
+    };
+    const motiveSet = await motiveForge("motive.set", { actorId: ids.aiko, kind: "personal", text: "S30 a motive I wrote myself", withActorId: null }, "SECMOTIVESET");
+    const motiveRule = await motiveForge("motive.rule", { actorId: ids.aiko, kind: "personal", pass: true, reason: "" }, "SECMOTIVERULE");
+    const motiveReport = await motiveForge("motive.report", { actorId: ids.botan, kind: "personal", text: "S30 Botan did it" }, "SECMOTIVEREPORT");
+    const motiveRefused = sent => sent.unchanged && sent.told.length === 1 && sent.told[0][1] === "bridge.refused" && sent.logged.length >= 1;
+    check("SECURITY: a player's console cannot write a motive, pass one or report another player's student's - each refused, told and logged, the GMs' store unchanged (2.0 line T5)",
+        motiveRefused(motiveSet) && motiveRefused(motiveRule) && motiveRefused(motiveReport)
+            && motiveSet.logged.some(r => /only a GM writes a motive/.test(r)) && motiveRule.logged.some(r => /only a GM rules on a motive/.test(r))
+            && motiveReport.logged.some(r => /sender does not own/.test(r)),
+        JSON.stringify({ motiveSet, motiveRule, motiveReport }), { flow: "motives" });
+
     // summary of what server refused
     check("SECURITY: server logged permission denials for player writes", (permissionDenials ?? []).length >= 2, JSON.stringify((permissionDenials||[]).slice(0,8)));
 

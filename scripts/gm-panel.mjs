@@ -23,7 +23,7 @@ import { studentActors, actingStudents } from "./monokuma.mjs";
 import { error, plural, esc, primaryGmId, isPrimaryGm, hiddenByGm } from "./utils.mjs";
 import { keepLive, alreadyOpen, RAISED } from "./live.mjs";
 import { launcher, drpgWindow, box, dataTable, tipAttr, tipText, WINDOW_HELP } from "./ui-kit.mjs";
-import { SETTINGS, bodyDiscovery, bodyFoundSinceTrial, seasonEpoch } from "./settings.mjs";
+import { SETTINGS, bodyDiscovery, bodyFoundSinceTrial, seasonEpoch, getSetting } from "./settings.mjs";
 import { bodiesToDiscover, announcedIn, chapterEndStopped, pendingBodyDiscoveries } from "./chapter.mjs";
 import { flagsHeldNow } from "./sheet-audit.mjs";
 import { roomOfToken } from "./movement.mjs";
@@ -238,7 +238,9 @@ const PANEL_SECTIONS = [
             //     is a tile under Diagnostics since E49 A2 (its own note there).
             // MONOKUMA'S ANNOUNCEMENT (2.0 line T4, EXP-GM-08, 27.11.2026): to the school, a room or a student, in a window
             // of its own (announce.mjs, read by import() as the Sound tile reads music.mjs).
-            { key: "announce", icon: "fa-bullhorn", labelKey: "DRPG.Announce.tile", run: () => import("./announce.mjs").then(m => m.openAnnounce()) }
+            { key: "announce", icon: "fa-bullhorn", labelKey: "DRPG.Announce.tile", run: () => import("./announce.mjs").then(m => m.openAnnounce()) },
+            // The players' motives (2.0 line T5, D2-23): its own function, below.
+            motivesTile()
         ]
     },
     {
@@ -513,6 +515,21 @@ const EXTRA_ACTIONS = {
    next panel's first build and then dropped; the redraws inside one window keep theirs as before (live.mjs `capture`). */
 let keptFolds = null;
 
+/**
+ * THE PANEL'S TILE "MOTIVES" (2.0 line T5, D2-23 and D2-24; SPEC-MOTIVES.md "Interfejs": "Panel GM-a, Students: cele
+ * kazdego ucznia, ich stan i przycisk zaliczenia"). Opens the overview (motives-ui.mjs `openMotivesOverview`): the
+ * Monokuma Motive, the reports waiting, every student's two motives. Greyed while the table plays without motives (the
+ * world setting `motivesEnabled`, D2-24 #1), with the reason.
+ */
+function motivesTile() {
+    return {
+        key: "motives", icon: "fa-bullseye", labelKey: "DRPG.Motives.tile",
+        disabled: () => getSetting(SETTINGS.motivesEnabled) === false,
+        disabledReason: "DRPG.Motives.tileOff",
+        run: () => import("./motives-ui.mjs").then(m => m.openMotivesOverview())
+    };
+}
+
 export function buildSections() {
     // The clock decides what opens. See the note on PANEL_SECTIONS.
     const phase = getClock().phase;
@@ -733,8 +750,9 @@ function keepPanelFresh(dialog) {
            a GM who may not modify settings, and a grant while the panel stood left it so) and a GM connecting or leaving
            (the voice reset is drawn disabled off the primary, CTRL-85), and the primary moving at a GM's `bridge.gmReady`
            or a role written (`drpgPrimaryChanged`, 2.0 line T2, PRIM-02). Neither is a key of the module, which R1317
-           holds `settings` to. */
-        watch: { settings: [SETTINGS.clock, SETTINGS.murderState, SETTINGS.caseMark, SETTINGS.voiceEnabled], settingKeys: ["core.permissions"], hooks: ["userConnected", "drpgPrimaryChanged"] }
+           holds `settings` to. And `motivesEnabled` (2.0 line T5, D2-24 #1): the Motives tile drawn off while the table plays
+           without motives (`motivesTile`). */
+        watch: { settings: [SETTINGS.clock, SETTINGS.murderState, SETTINGS.caseMark, SETTINGS.voiceEnabled, SETTINGS.motivesEnabled], settingKeys: ["core.permissions"], hooks: ["userConnected", "drpgPrimaryChanged"] }
     });
 }
 

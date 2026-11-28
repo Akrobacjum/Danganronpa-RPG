@@ -80,7 +80,9 @@ export const RESET_GROUPS = [
     // and so does each one's start access, given back by the step (E79 C8).
     { key: "passages", section: "board" },
     { key: "seals", section: "board" },
-    { key: "motive", section: "board" },
+    // 2.0 line T5 (D2-23): the players' motives - the Monokuma Motive and every student's - where "motive", the old
+    // motive's group, stood. A table's remembered exception "motive" is dropped as a key it no longer knows (`KNOWN`).
+    { key: "motives", section: "board" },
     { key: "rules", section: "board" },
     { key: "doors", section: "board" },
     { key: "eclipseMoves", section: "board" },

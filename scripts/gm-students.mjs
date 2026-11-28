@@ -35,7 +35,24 @@ import { roomPhrase } from "./rooms.mjs";
 import { isDeadWatcher, spectatorForTheDead } from "./spectator-dead.mjs";
 import { isDeadForGm } from "./settings.mjs";
 import { actionsLeft, actionsMax, hasFreeMove } from "./actions.mjs";
+// The column "Motives", last (2.0 line T5, D2-23): drawn and wired by motives-ui.mjs, which reaches no file of this family.
+import { motiveColumn, motiveCell, wireMotiveColumn } from "./motives-ui.mjs";
+import { motivesEnabled } from "./motives.mjs";
 
+
+/**
+ * THE STUDENTS WINDOW'S LAST COLUMN, "MOTIVES" (2.0 line T5, D2-23; SPEC-MOTIVES.md "Interfejs"), appended after every
+ * other line's columns (the coordinator's order: the existing, T2's, T4's microphone, then this): each student's two
+ * motives' state and the button that opens their motives (motives-ui.mjs `motiveCell`); a Monokuma's, a Spectator's, an
+ * NPC's and a group heading's cells empty. No column while the table plays without motives (`motivesEnabled`).
+ */
+function motivesColumnOf(columns, rows, students) {
+    if (!motivesEnabled()) return { columns, rows };
+    return {
+        columns: [...columns, motiveColumn()],
+        rows: rows.map(row => (row.id ? { ...row, motives: motiveCell(game.actors.get(row.id), students) } : row))
+    };
+}
 
 /**
  * WHO IS ALIVE - three windows, one table.
@@ -68,6 +85,7 @@ import { actionsLeft, actionsMax, hasFreeMove } from "./actions.mjs";
  * merge - see the stage's verification. The one thing deliberately NOT carried
  * across is the death dialog's own character picker: this table is the picker.
  */
+
 /*
  * THE TABLE, REBUILDABLE. Everything above is a function of the world now,
  * so this can be called again in place while the window stays open.
@@ -237,9 +255,10 @@ function aliveTableHtml({ roster, others, stateOf, donors, isCrimeSilenced, invi
         // The Microphone, a column of its own, last (2.0 line T4, VOICE-04): T2's columns go before it, T5's after it.
         MIC_COLUMN()
     ];
+    const withMotives = motivesColumnOf(columns, rows, students);
     return `<div class="drpg-alive-live">
         <p class="notes">${L("DRPG.Panel.whoIsAliveNote")}</p>
-        ${dataTable({ columns, rows, rowAttrs: r => ({ "data-actor": r.id }) })}
+        ${dataTable({ columns: withMotives.columns, rows: withMotives.rows, rowAttrs: r => ({ "data-actor": r.id }) })}
     </div>`;
 }
 
@@ -665,6 +684,8 @@ export async function openWhoIsAliveDialog(options = {}) {
             wireAll();
             // The Microphone cells (2.0 line T4, VOICE-04): wired once, by delegation, so a rebuilt table needs nothing more.
             wireMicCells(dialog, { toggle: user => VT.toggleBlock(user), state: user => VT.micCellState(user) });
+            // The motives' column (2.0 line T5): one listener on the window's root, which the table's redraw keeps.
+            wireMotiveColumn(dialog.element);
             /*
              * A DEATH IS AN ACTOR FLAG, so `watch: { actors: true }` is what
              * carries it here - the same listener the GM panel's own standing
@@ -678,7 +699,9 @@ export async function openWhoIsAliveDialog(options = {}) {
                 // A death kept by the GMs writes no actor (E05 C10): its store's change is the sign; so is a Monocub's row (E72 C2).
                 // The standing Level Up offers too (1.2.122 line ITEMS; the audit's REFR-48): the Level Up button counts them,
                 // and another GM's offer merged here writes no actor and fires no hook, only the store's key. Tier 2's "1.2.122 CTRL-35 ...".
-                watch: { actors: true, hooks: ["drpgDeathsChanged", "drpgDespairOwedChanged", "drpgCrossingsChanged", "drpgCubsChanged", "drpgCastChanged"], stores: [offerStore] },
+                // The motives' column (2.0 line T5) on `drpgMotivesChanged`, which motives.mjs fires for a write here and for the
+                // store merged from another GM: a motive set or reported writes no actor (tier 2's "E135 MOTIVES-M7").
+                watch: { actors: true, hooks: ["drpgDeathsChanged", "drpgDespairOwedChanged", "drpgCrossingsChanged", "drpgCubsChanged", "drpgCastChanged", "drpgMotivesChanged"], stores: [offerStore] },
                 after: wireAll
             });
         },

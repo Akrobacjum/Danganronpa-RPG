@@ -11299,10 +11299,10 @@
           "note": null
         },
         {
-          "fact": "That refusal (answerKeyMissing, in KEY_REFUSALS) hands the player's price back on their client.",
+          "fact": "That refusal (answerKeyMissing, one of refusedBeforeScoring's) hands the player's price back on their client.",
           "file": "scripts/action-analyze.mjs",
           "fn": "analyseBullet",
-          "note": "the refund is the `KEY_REFUSALS` branch of action-analyze.mjs, read at its `refundPrice` call"
+          "note": "the refund is the `refusedBeforeScoring` branch of action-analyze.mjs (2.0 line T5, INV-08: every refusal before scoring; until then two codes in a set), read at its `giveBackAfterRoll` call"
         },
         {
           "fact": "The case window, with Back up and Restore from a file, is the tile The case in the GM panel's Diagnostics section (Panel.section.fixes \"Diagnostics\").",
@@ -11330,7 +11330,7 @@
         "Added \"and the price given back\" (O8: the refusal says what the player keeps; fact 2).",
         "The item's name in curly quotes, “{bullet}” (EN17); \"Restore it\" becomes \"Restore the case\", the thing the backup brings back; \": Restore from a file\" left the path, as in DRPG.Case.continued (O14).",
         "PL: \"w tej przeglądarce\" becomes \"w przeglądarce GM-a, która rozstrzygała to Analyze\": the card goes to every GM, and the key is missing on the one that answered (fact 1).",
-        "PL: added \"a koszt wraca do gracza\" (O8; fact 2, refundPrice in the KEY_REFUSALS branch).",
+        "PL: added \"a koszt wraca do gracza\" (O8; fact 2, the refund in the branch of refusals before scoring).",
         "PL: \"Przywróć go\" becomes \"Przywróć sprawę\", and \": Przywróć z pliku\" left the path, as in DRPG.Case.continued (O14).",
         "REV: en: \"on the browser that scored it\" becomes \"on the GM browser that answered its Analyze\": \"it\" read as the Truth Bullet and \"scored\" was the code's word (T29; fact 1); the cold reader's point too.",
         "FIX: R2063: \"Restore the case from a backup\" becomes \"Restore a backup of the case\": the old words read as the retired tile Restore the case, which no lang text names since E47-C3; the same instruction.",

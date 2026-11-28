@@ -44,6 +44,10 @@
  *       text, attributes and classes (security "For 71"); a Hope maximum written alone (general n1). E2 is general m3:
  *       a dead student's Hope write repaints with no mark.
  *
+ *   L - the Personal tab and a motive's sound (2.0 line T5, M10 and M8): a student's motives drawn on top of the tab
+ *       for their player and the GM, none of them anywhere in another player's page, and a pass's sound handed to the
+ *       audio layer on that player's browser alone.
+ *
  * Red first: A, B and C on E45-C1's tree (before C2's render without state) - C3a's message quotes them; H4, I2, I3
  * and J3 on da8e8a3b - C3b's message quotes them.
  */
@@ -774,6 +778,111 @@ export async function run({ gm, p1, p2, check, note, phase, settle, repoUrl, IDS
         verdict("Aiko's token is marked a corpse from her kept death, read on gm and p2, the skull drawn; the announcement hands it to the dead status, the status taken off brings the skull back, and the revive takes the mark off",
             every(s0, [false, false]) && every(s1, [true, true]) && every(s2, [true, false]) && every(s3, [true, true]) && every(s4, [false, false]),
             { s0, s1, s2, s3, s4 });
+
+        /* L (2.0 line T5, D2-23 #2 and #5, M10 and M8; SPEC-MOTIVES.md "Zakladka Personal", "Dzwiek"). Aiko's sheet open on
+           gm, p1 (her player) and p2, Botan's on p2; gm writes Aiko's Personal Motive, her Relationship Motive (naming Botan)
+           and Botan's Personal Motive on the primary. Read on the open sheets, not reopened: the tab bar's entry, whether the
+           motives' section stands first in the tab with the biography below, its motives and their states, and which motives'
+           words are anywhere in that browser's page. Then p1 reports Aiko's Personal Motive done through the bridge and gm
+           passes it: the files handed to Foundry's audio layer on each browser from the pass on (the harness has no audio: a
+           hand-off is counted, as 79-death-sounds counts it), `motivePassed` mapped to a file of its own for the run. Put
+           back: the motives (and every player's copy told again), Aiko's Hope, the Sound map and the sliders, the messages. */
+        begin("L", "the Personal tab shows a student's motives to their player and the GM and nobody else's, and a pass plays its sound for that player alone");
+        const WORDS = { aikoP: "SUITE S71 L Aiko personal", aikoR: "SUITE S71 L Aiko relationship", botanP: "SUITE S71 L Botan personal" };
+        const SOUND = "sounds/s71-motivePassed.ogg";
+        const RECORD = `globalThis.__s71L = []; const H = foundry.audio.AudioHelper;
+            if (!globalThis.__s71LReal) { globalThis.__s71LReal = H.play; H.play = async (data, ...rest) => { globalThis.__s71L?.push(String(data?.src ?? "")); return globalThis.__s71LReal.call(H, data, ...rest); }; }
+            return true;`;
+        const personal = async (repo, actorId, words) => {
+            const actor = game.actors.get(actorId);
+            const root = globalThis.__s71.get(actor)?.element ?? null;
+            const tab = root?.querySelector('section[data-application-part="biography"]') ?? null;
+            const section = tab?.querySelector(":scope > .drpg-motives") ?? null;
+            const page = document.body.innerHTML;
+            return {
+                nav: root?.querySelector('nav [data-tab="biography"]')?.textContent?.trim() ?? null,
+                top: Boolean(section && tab.firstElementChild === section),
+                bioBelow: Boolean(section && section.nextElementSibling?.localName === "fieldset"),
+                motives: [...(section?.querySelectorAll("[data-drpg-motive-kind]") ?? [])].map(n => [n.dataset.drpgMotiveKind, n.dataset.drpgMotiveState ?? null]),
+                onSheet: Object.fromEntries(Object.entries(words).map(([k, w]) => [k, Boolean(root?.textContent?.includes(w))])),
+                inPage: Object.fromEntries(Object.entries(words).map(([k, w]) => [k, page.includes(w)]))
+            };
+        };
+        const tabLabel = await p1.eval(`return game.i18n.localize("DRPG.Motives.tab");`);
+        const kept = await gm.eval(`const ST = await import("${repoUrl}/scripts/settings.mjs"), SFX = await import("${repoUrl}/scripts/sfx.mjs");
+            const { motiveStore } = await import("${repoUrl}/scripts/gm-stores.mjs"); await motiveStore.whenHydrated();
+            globalThis.__s71LKept = { map: foundry.utils.deepClone(ST.getSetting(ST.SETTINGS.sfxMap) ?? {}), hope: game.actors.get("${IDS.aiko}").system.resources.hope.value,
+                rows: { aiko: motiveStore.get("${IDS.aiko}") ?? null, botan: motiveStore.get("${IDS.botan}") ?? null }, messages: game.messages.map(m => m.id) };
+            await game.actors.get("${IDS.aiko}").update({ "system.resources.hope.value": 0 });
+            await SFX.setSoundFor("motivePassed", "${SOUND}"); return SFX.soundFor("motivePassed");`, { timeout: 60000 });
+        for (const c of [gm, p1, p2]) await c.eval(`const SFX = await import("${repoUrl}/scripts/sfx.mjs"), ST = await import("${repoUrl}/scripts/settings.mjs");
+            globalThis.__s71LVol = foundry.utils.deepClone(ST.getSetting(ST.SETTINGS.sfxVolumes) ?? {}); await SFX.setSfxVolume("sound", 0.8); return true;`, { timeout: 30000 });
+        let l1 = null, l2 = null, heard = null, reported = null, anonWas = null;
+        try {
+            for (const c of [gm, p1, p2]) await on(c, open, IDS.aiko, {});
+            await on(p2, open, IDS.botan, {});
+            const wrote = await gm.eval(`const M = await import("${repoUrl}/scripts/motives.mjs");
+                const a = await M.setMotiveOnPrimary({ actorId: "${IDS.aiko}", kind: "personal", text: ${J(WORDS.aikoP)} });
+                const b = await M.setMotiveOnPrimary({ actorId: "${IDS.aiko}", kind: "relationship", text: ${J(WORDS.aikoR)}, withActorId: "${IDS.botan}" });
+                const c = await M.setMotiveOnPrimary({ actorId: "${IDS.botan}", kind: "personal", text: ${J(WORDS.botanP)} });
+                return [a, b, c].map(r => r.reply?.status ?? r.refused);`, { timeout: 60000 });
+            await wait(2500);
+            l1 = { gm: await on(gm, personal, IDS.aiko, WORDS), p1: await on(p1, personal, IDS.aiko, WORDS), p2: await on(p2, personal, IDS.aiko, WORDS),
+                p2own: await on(p2, personal, IDS.botan, WORDS), wrote };
+            /* With "Keep character sheets anonymous" on (the world's default) p2's view of Aiko is redacted (anonymity.mjs
+               `redactSheet` empties its tabs), so the read above cannot tell the tab's own gate from the redaction. Read
+               again with the switch off, Aiko's sheet opened anew on p2: the motives' gate (motives-ui.mjs
+               `personalTabReading`) and p2's copy are then what stands. */
+            anonWas = await gm.eval(`const v = game.settings.get("${MOD}", "enforceAnonymity"); await game.settings.set("${MOD}", "enforceAnonymity", false); return v;`, { timeout: 30000 });
+            await wait(1000);
+            await on(p2, open, IDS.aiko, {});
+            l1.p2open = await on(p2, personal, IDS.aiko, WORDS);
+            await gm.eval(`await game.settings.set("${MOD}", "enforceAnonymity", ${J(anonWas)}); return true;`, { timeout: 30000 });
+            anonWas = null;
+            await wait(1000);
+            await on(p2, open, IDS.aiko, {});
+            reported = await p1.eval(`const B = await import("${repoUrl}/scripts/bridge-asks.mjs");
+                const r = await B.requestMotiveReport({ actorId: "${IDS.aiko}", kind: "personal", text: "SUITE S71 L done" }); return { ok: r.ok, refused: r.refused ?? null, reason: r.reason ?? null };`, { timeout: 60000 });
+            await wait(1500);
+            for (const c of [gm, p1, p2]) await c.eval(RECORD);
+            const passed = await gm.eval(`const M = await import("${repoUrl}/scripts/motives.mjs");
+                const r = await M.ruleMotiveOnPrimary({ actorId: "${IDS.aiko}", kind: "personal", pass: true }); return r.reply ?? r.refused;`, { timeout: 60000 });
+            await wait(2500);
+            heard = {};
+            for (const [who, c] of Object.entries({ gm, p1, p2 })) heard[who] = await c.eval(`return [...(globalThis.__s71L ?? [])];`);
+            l2 = { passed, p1: await on(p1, personal, IDS.aiko, WORDS), p2: await on(p2, personal, IDS.aiko, WORDS) };
+        } finally {
+            if (anonWas !== null) await gm.eval(`await game.settings.set("${MOD}", "enforceAnonymity", ${J(anonWas)}); return true;`, { timeout: 30000 }).catch(() => null);
+            await gm.eval(`const ST = await import("${repoUrl}/scripts/settings.mjs"), M = await import("${repoUrl}/scripts/motives.mjs");
+                const { motiveStore } = await import("${repoUrl}/scripts/gm-stores.mjs"); const k = globalThis.__s71LKept ?? {};
+                for (const [id, row] of [["${IDS.aiko}", k.rows?.aiko], ["${IDS.botan}", k.rows?.botan]]) {
+                    if (row) await motiveStore.patch(id, row); else if (motiveStore.get(id)) await motiveStore.drop(id); }
+                await M.retellMotives();
+                if (k.map) await game.settings.set("${MOD}", ST.SETTINGS.sfxMap, k.map);
+                if (k.hope !== undefined) await game.actors.get("${IDS.aiko}").update({ "system.resources.hope.value": k.hope });
+                const was = new Set(k.messages ?? []); for (const m of game.messages.filter(m => !was.has(m.id))) await m.delete().catch(() => {});
+                return true;`, { timeout: 60000 }).catch(() => null);
+            for (const c of [gm, p1, p2]) await c.eval(`const ST = await import("${repoUrl}/scripts/settings.mjs");
+                if (globalThis.__s71LVol) await game.settings.set("${MOD}", ST.SETTINGS.sfxVolumes, globalThis.__s71LVol); return true;`, { timeout: 30000 }).catch(() => null);
+            await wait(1000);
+        }
+        console.log(`[71 L] ${J({ kept, l1, reported, heard, l2 })}`);
+        const none = { aikoP: false, aikoR: false, botanP: false };
+        verdict("the sound of a pass is mapped to its own file for the run, and the three motives are written on the primary", kept === SOUND && J(l1?.wrote) === J(["open", "open", "open"]), { kept, wrote: l1?.wrote });
+        verdict("Aiko's sheet open on p1 and gm: the tab named Personal, both her motives on top, open, the biography below, her words and not Botan's; drawn without a reopen",
+            ["p1", "gm"].every(who => l1?.[who]?.nav === tabLabel && l1[who].top && l1[who].bioBelow
+                && J(l1[who].motives) === J([["personal", "open"], ["relationship", "open"]])
+                && J(l1[who].onSheet) === J({ aikoP: true, aikoR: true, botanP: false })), l1);
+        verdict("Aiko's sheet open on p2, with the sheets kept anonymous and with that switch off: the tab named Personal, no motive of hers drawn, and neither of her motives' words anywhere in p2's page",
+            ["p2", "p2open"].every(k => l1?.[k]?.nav === tabLabel && l1[k].motives.length === 0 && J(l1[k].onSheet) === J(none) && l1[k].inPage.aikoP === false && l1[k].inPage.aikoR === false),
+            { p2: l1?.p2, p2open: l1?.p2open });
+        verdict("Botan's sheet open on p2: his own Personal Motive on top, open, and none of Aiko's",
+            l1?.p2own?.top === true && J(l1.p2own.motives) === J([["personal", "open"], ["relationship", null]]) && J(l1.p2own.onSheet) === J({ aikoP: false, aikoR: false, botanP: true }), l1?.p2own);
+        verdict("p1's report is taken, and gm's pass lands Aiko's 3 Hope from 0; p1's open sheet draws the motive passed, p2's still draws none of hers",
+            reported?.ok === true && l2?.passed?.status === "done" && l2.passed.landed === 3 && J(l2.p1.motives) === J([["personal", "done"], ["relationship", "open"]])
+                && l2.p2.motives.length === 0 && J(l2.p2.onSheet) === J(none), { reported, l2 });
+        verdict("the pass's sound: handed to the audio layer once on p1, Aiko's player, and never on gm or p2",
+            heard && heard.p1.filter(s => s === SOUND).length === 1 && heard.gm.filter(s => s === SOUND).length === 0 && heard.p2.filter(s => s === SOUND).length === 0, heard);
     } finally {
         await each(closeAll).catch(() => null);
     }

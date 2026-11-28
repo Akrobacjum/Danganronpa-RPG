@@ -1683,6 +1683,42 @@
         "source": ["E129 plan"],
         "open": true,
         "note": "A session's pace, a planning aid for the GM (E129 S0-SESSIONLEN; the owner's ask of 23.11.2026, through the coordinator: \"dwa warianty czasu sesji. Wariant sesji z 15min na porę dnia (nie licząc eclipse) i wariant sesji z 30min na porę dnia\"). One game day in one session at the table, about 30 minutes of play per time of day, the Eclipses not counted; the HUD's amber mark is halfway, its red mark where a time of day ends. Nothing in the module holds a pace: no setting names it, and the HUD's marks stay at TIMING.elapsedMarksMinutes (15 and 30) whichever the GM picks. Said in the GM handbook's section 4 and 21 and the player handbook's section 2. The Polish is the coordinator's proposal; open: forbids nothing yet."
+      },
+      {
+        "id": "monokuma-motive",
+        "en": "Monokuma Motive",
+        "pl": "Monokuma Motive",
+        "gender": "m",
+        "inflection": "Stays English in Polish (D33a); masculine: \"Monokuma Motive jest ogłoszony\", \"obowiązujący Monokuma Motive\", \"wycofano Monokuma Motive\".",
+        "forbidden": {"en": {"variants": [], "scope": ["ui"]}, "pl": {"variants": [], "scope": ["ui"]}},
+        "stage": "E135",
+        "source": ["E135 plan"],
+        "open": true,
+        "note": "The class's shared goal, a Despair Call (DESPAIR_CALLS.motive): what the class is to do together, optionally hidden, with a deadline and a penalty or without; a pass gives every living student 3 Hope (2.0 line T5, D2-23 and D2-24, 27.11.2026). Until 1.2.130 the Call was \"Motive\", a public reason to kill with a deadline and a consequence; that Motive is gone (migrate.mjs `oldMotiveGone`). Open: forbids nothing yet."
+      },
+      {
+        "id": "personal-motive",
+        "en": "Personal Motive",
+        "pl": "Personal Motive",
+        "gender": "m",
+        "inflection": "Stays English in Polish (D33a); masculine.",
+        "forbidden": {"en": {"variants": [], "scope": ["ui"]}, "pl": {"variants": [], "scope": ["ui"]}},
+        "stage": "E135",
+        "source": ["E135 plan"],
+        "open": true,
+        "note": "A student's own private goal for the chapter, written by the GM, seen only by the GMs and that student's player; reported by the player, passed or refused by a GM; a pass gives 3 Hope (2.0 line T5). \"Cele\" is the Polish for the motives together (DRPG.Motives.title). Open: forbids nothing yet."
+      },
+      {
+        "id": "relationship-motive",
+        "en": "Relationship Motive",
+        "pl": "Relationship Motive",
+        "gender": "m",
+        "inflection": "Stays English in Polish (D33a); masculine.",
+        "forbidden": {"en": {"variants": [], "scope": ["ui"]}, "pl": {"variants": [], "scope": ["ui"]}},
+        "stage": "E135",
+        "source": ["E135 plan"],
+        "open": true,
+        "note": "A student's private goal for the chapter that names another living student; otherwise as the Personal Motive (2.0 line T5). Open: forbids nothing yet."
       }
     ],
     "retired": [

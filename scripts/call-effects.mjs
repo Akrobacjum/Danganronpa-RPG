@@ -1327,18 +1327,17 @@ async function chainEffect(actor, call, choice, done) {
     await (here ? tell(choice.target, "DRPG.Calls.chainedNoticeIn", { room: here }) : tell(choice.target, "DRPG.Calls.chainedNotice"));
 }
 
-/* --- a motive: a demand, a deadline and a price for missing it ---
+/* --- the Monokuma Motive: set or changed (2.0 line T5, D2-23 and D2-24) ---
  *
- * The whole record comes from the picker, so this branch does nothing
- * but hand it over and report. `setMotive` announces publicly - the
- * guide requires it - which means the receipt below is the SECOND
- * thing the table sees, not the first.
+ * The whole record comes from the picker (call-pickers.mjs `pickMotive`), with the answer to "was the last one passed?"
+ * when one was in force, so this branch hands both over and reports. `setMotive` announces publicly, which means the
+ * receipt below is the SECOND thing the table sees, not the first; its words say the deadline only when there is one.
  */
 async function motiveEffect(actor, call, choice, done) {
     const { setMotive } = await import("./rules.mjs");
-    const record = await setMotive(choice.motive);
+    const record = await setMotive(choice.motive, { passed: choice.passed === true });
     if (!record) throw new Error("the motive was not announced");
-    done.push(plural("DRPG.Calls.motiveSet", { n: record.timesOfDay }));
+    done.push(record.timesOfDay ? plural("DRPG.Calls.motiveSet", { n: record.timesOfDay }) : game.i18n.localize("DRPG.Calls.motiveSetOpen"));
 }
 
 /* --- gather everyone, now or at the start of the next time of day ---

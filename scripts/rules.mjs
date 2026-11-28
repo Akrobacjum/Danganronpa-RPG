@@ -21,8 +21,12 @@ import { cardWarn } from "./chat-card.mjs";
 import { SETTINGS, seasonEpoch, sameSeason } from "./settings.mjs";
 import { getClock } from "./clock.mjs";
 import { announce, log, error, plural, esc} from "./utils.mjs";
-import { drpgWindow, tipAttr } from "./ui-kit.mjs";
+import { drpgWindow, tipAttr, tipText } from "./ui-kit.mjs";
 import { alreadyOpen, RAISED, keepLive } from "./live.mjs";
+// The Monokuma Motive's hidden words, its outcomes and its reward (2.0 line T5): motives.mjs reaches nothing that reaches
+// this file (R161), and gm-stores.mjs the store the manager's read-out watches.
+import { hiddenMonokumaWords, keepHiddenMonokumaWords, keepMonokumaOutcome, rewardMonokumaMotive } from "./motives.mjs";
+import { motiveStore } from "./gm-stores.mjs";
 // A leaf (season-exceptions.mjs alone): the registry of season state the reset walks (E42 C3).
 import { registerSeasonState } from "./season-reset.mjs";
 
@@ -47,165 +51,198 @@ export function rules() {
 }
 
 /* ==========================================================================
- * MOTIVES
+ * THE MONOKUMA MOTIVE
  * --------------------------------------------------------------------------
- * Guide, p. 16: "Monokuma w każdym momencie rozdziału może dać graczom motyw -
- * powód roleplayowy do zabijania, od różnych metod szantażu, aż po ostrzeżenie,
- * że zabije 2 losowych graczy w wypadku sprzeciwu. Motyw musi być ogłaszany
- * publicznie i trwać maksymalnie do końca rozdziału."
+ * 2.0 line T5, D2-23 and D2-24 (the owner, 27.11.2026; docs/dev/v2/SPEC-MOTIVES.md, scripts/motives.mjs's header).
+ * The class's goal, always about working together, bought with the Despair Call "Monokuma Motive": one at a time (#4),
+ * public, or hidden - the players see that there is one and not what it says (#2) - with a deadline only when the GM
+ * gives one (#5) and a penalty that is the Monokuma's words, carried out by hand (#1). Changing or withdrawing it asks
+ * whether the last one was passed; a pass gives every living student 3 Hope (motives.mjs `rewardMonokumaMotive`), and
+ * the outcome is kept for the chapter's Level Up list (`keepMonokumaOutcome`).
  *
- * A motive is NOT a rule, which is why it does not live in the list above: a
- * rule is permanent and a motive expires. Both halves of that sentence are
- * modelled - announcing it is what `setMotive` does, and the chapter stamp is
- * what makes it lapse without anybody having to remember to clear it.
+ * Until 2.0 this block was Monokuma's Motive of the guide's p. 16, "powód roleplayowy do zabijania", with a demand, a
+ * deadline of 1-10 times of day and a consequence, in the world setting `motive`. The owner retired it (#9: "znika");
+ * migrate.mjs `oldMotiveGone` tells the GMs what an old one in force said and clears the key. The names `motive`,
+ * `setMotive`, `tickMotive`, `untickMotive` and `announceOwedMotive` stay, for their callers (clock.mjs,
+ * murder-rules.mjs, call-effects.mjs) and for the record's shape below.
+ *
+ * WHAT EVERY BROWSER HOLDS. The world setting `monokumaMotive` (SETTINGS.monokumaMotive): `{ id, hidden, text, penalty,
+ * timesOfDay, remaining, chapter, epoch, at, dueAnnounced, heldIn, heldRemaining, dueToldIn }`, `timesOfDay` null for no
+ * deadline. A hidden one's `text` and `penalty` are empty there, and its words stand in the GMs' store alone (motives.mjs
+ * `keepHiddenMonokumaWords`; world-secrets.mjs, the rule `motives`). Stamped with its chapter and its season, so it
+ * lapses on its own when the chapter turns or a reset starts a new season (R356).
  * ========================================================================== */
 
 /**
- * The motive in force this chapter, or null.
- *
- * `due` is derived rather than stored twice: the record holds one number, and
- * every reader - the HUD row, the card, the tick - asks the same question of
- * it in the same place.
+ * The Monokuma Motive in force this chapter, as every browser may read it, or null. `due` and `deadline` are derived:
+ * `deadline` whether the GM gave one, `due` whether it has run out.
  */
 export function motive() {
     try {
-        const stored = game.settings.get(MODULE_ID, SETTINGS.motive) ?? {};
-        if (!stored.text) return null;
-        // Expired by arithmetic rather than by a cleanup pass: a motive from an
-        // earlier chapter simply stops being the current one. The guide's outer
-        // bound ("maksymalnie do końca rozdziału") survives the countdown being
-        // added inside it - a motive can run out early, never late.
-        // And of this season (E11 C12): a reset that keeps the motive starts the clock at
-        // chapter 1 again, where last season's chapter-1 motive read as in force.
+        const stored = game.settings.get(MODULE_ID, SETTINGS.monokumaMotive) ?? {};
+        if (!stored.id) return null;
+        // Expired by arithmetic rather than by a cleanup pass, and of this season (E11 C12): a reset that keeps the
+        // motive starts the clock at chapter 1 again, where last season's chapter-1 motive read as in force.
         if (stored.chapter !== getClock().chapter || !sameSeason(stored)) return null;
-        return { ...stored, due: (stored.remaining ?? 0) <= 0 };
+        const deadline = Number.isFinite(stored.timesOfDay) && stored.timesOfDay > 0;
+        return { ...stored, deadline, due: deadline && (stored.remaining ?? 0) <= 0 };
     } catch {
         return null;
     }
 }
 
 /**
- * THE RECORD AS STORED, WITHOUT WHAT `motive()` DERIVES (E51 C7, 31.10.2026; audit S10-56). `due` is read off
- * `remaining` at every read, as the note above says, and the tick, the rewind and the close wrote `{ ...motive() }`
- * back - so the world held a `due` beside the number it is derived from. Every write of a read record goes through
- * this. E51-T20 reads the setting raw after a tick and a rewind.
+ * The Monokuma Motive as a GM reads it: `motive()` with a hidden one's words from the GMs' store (`hiddenText`,
+ * `hiddenPenalty`). A player's browser gets `motive()` alone.
  */
+export function motiveForGm() {
+    const record = motive();
+    if (!record || !record.hidden || !game.user?.isGM) return record;
+    const words = hiddenMonokumaWords(record.id);
+    return { ...record, hiddenText: words?.text ?? "", hiddenPenalty: words?.penalty ?? "" };
+}
+
+/** The record as stored, without what `motive()` derives (E51 C7): every write of a read record goes through this. */
 function storedMotive(record) {
-    const { due: _derived, ...stored } = record ?? {};
+    const { due: _due, deadline: _deadline, hiddenText: _text, hiddenPenalty: _penalty, ...stored } = record ?? {};
     return stored;
 }
 
+/** The deadline asked for, clamped to `MOTIVE`'s bounds, or null for none (#5): an empty or zero field is none. */
+export function deadlineOf(asked) {
+    const n = Math.trunc(Number(asked));
+    if (!Number.isFinite(n) || n <= 0) return null;
+    return Math.min(MOTIVE.maxTimesOfDay, Math.max(MOTIVE.minTimesOfDay, n));
+}
+
 /**
- * Announce a motive, or withdraw the current one with `null`.
- *
- * Announced out loud, always. The guide's "musi być ogłaszany publicznie" is
- * the whole mechanism - a motive works by everybody knowing it is on the table.
- *
- * THREE FIELDS, NOT ONE (E14). A motive is a demand, a deadline and a price
- * for missing it. Written as a single sentence it was none of those things
- * mechanically: nothing counted down, nothing came due, and whether it was
- * still in force was a memory test the table failed two sessions later.
- *
- * NOT A GM ENTRANCE ANY MORE. This is reached from the Motive Despair Call and
- * from `game.drpg.setMotive` for repair; the free route the rules manager used
- * to offer is gone, because a motive that costs nothing is a move Monokuma can
- * make every time of day forever.
- *
- * @param {object|string|null} input  `{ text, timesOfDay, consequence }`, or a
- *   bare string for the demand alone (the API's old shape), or null to
- *   withdraw.
+ * The Monokuma Motive in force ends: its outcome kept for the chapter (motives.mjs `keepMonokumaOutcome`), and a pass
+ * rewarded (`rewardMonokumaMotive`). `passed` is the GM's answer to "was it passed?" - anything but `true` is no.
  */
-export async function setMotive(input) {
+async function endMotive(record, passed) {
+    await keepMonokumaOutcome(record, passed === true);
+    await keepHiddenMonokumaWords(null);
+    if (passed === true) await rewardMonokumaMotive();
+}
+
+/**
+ * Set or change the Monokuma Motive, or withdraw it with `null`.
+ *
+ * Announced out loud, always: everybody knows there is one, and what it says unless it is hidden. Reached from the
+ * Despair Call (call-effects.mjs `motiveEffect`), the rules manager's Withdraw and Reveal, and `game.drpg.motives` for
+ * repair. `passed` answers "was the Monokuma Motive in force passed?" for the one it replaces or withdraws; the windows
+ * ask it with no default, and the API's default is no.
+ *
+ * @param {object|string|null} input  `{ text, hidden, timesOfDay, penalty }`, a bare string for the words alone, or null
+ * @param {{ passed?: boolean }} [options]
+ */
+export async function setMotive(input, { passed = false } = {}) {
     if (!game.user.isGM) return null;
 
     const given = typeof input === "string" || input == null ? { text: input } : input;
     const trimmed = String(given.text ?? "").trim();
+    const current = motive();
+    if (current) await endMotive(current, passed);
 
     if (!trimmed) {
-        await game.settings.set(MODULE_ID, SETTINGS.motive, {});
-        await announce({
-            content: `<h3>${game.i18n.localize("DRPG.Motive.title")}</h3>
-                      <p>${game.i18n.localize("DRPG.Motive.withdrawn")}</p>`
-        });
-        log("Motive withdrawn.");
+        await game.settings.set(MODULE_ID, SETTINGS.monokumaMotive, {});
+        if (current) {
+            await announce({
+                content: `<h3>${esc(game.i18n.localize("DRPG.Motive.title"))}</h3>
+                      <p>${esc(game.i18n.localize("DRPG.Motive.withdrawn"))}</p>
+                      <p class="notes">${esc(game.i18n.localize(passed === true ? "DRPG.Motive.withdrawnPassed" : "DRPG.Motive.withdrawnFailed"))}</p>`
+            });
+        }
+        log("Monokuma Motive withdrawn.");
         return null;
     }
 
-    // Clamped rather than trusted: this arrives from a number input, and a
-    // motive with a deadline of zero would be due before it was announced.
-    const asked = Math.trunc(Number(given.timesOfDay)) || MOTIVE.defaultTimesOfDay;
-    const timesOfDay = Math.min(MOTIVE.maxTimesOfDay, Math.max(MOTIVE.minTimesOfDay, asked));
-
+    const hidden = Boolean(given.hidden);
+    const penalty = String(given.penalty ?? "").trim();
+    const timesOfDay = deadlineOf(given.timesOfDay);
+    const id = foundry.utils.randomID();
     const record = {
-        text: trimmed,
-        consequence: String(given.consequence ?? "").trim(),
+        id, hidden,
+        text: hidden ? "" : trimmed,
+        penalty: hidden ? "" : penalty,
         timesOfDay,
         remaining: timesOfDay,
         chapter: getClock().chapter,
         epoch: seasonEpoch(),
         at: Date.now()
     };
-    await game.settings.set(MODULE_ID, SETTINGS.motive, record);
-
-    const consequence = record.consequence
-        ? cardWarn(game.i18n.format("DRPG.Motive.orElse", {
-            what: esc(record.consequence)
-        }))
-        : "";
+    // The words first, where only the GMs read them, then the public record: no browser reads a hidden motive's id
+    // before the GMs hold what it says.
+    if (hidden) await keepHiddenMonokumaWords({ id, text: trimmed, penalty });
+    await game.settings.set(MODULE_ID, SETTINGS.monokumaMotive, record);
 
     await announce({
         flags: { [MODULE_ID]: { sfx: { key: "motive", gm: true } } },
-        content: `<div class="drpg-evidence-card">
-            <div class="drpg-objection-banner">${game.i18n.localize("DRPG.Motive.banner")}</div>
-            <p>${esc(trimmed)}</p>
-            ${consequence}
-            <p class="notes">${plural("DRPG.Motive.deadline", { n: timesOfDay })}</p>
-        </div>`
+        content: motiveCardHtml(record, {
+            // A change says so on the line above the banner, with whether the last one was passed: one banner in capitals.
+            outcome: current ? (passed === true ? "DRPG.Motive.lastPassed" : "DRPG.Motive.lastFailed") : null })
     });
 
-    log(`Motive announced for chapter ${record.chapter} (${timesOfDay} times of day): ${trimmed}`);
+    log(`Monokuma Motive set for chapter ${record.chapter}${hidden ? " (hidden)" : `: ${trimmed}`}${timesOfDay ? `, ${timesOfDay} times of day` : ""}.`);
+    return record;
+}
+
+/** The public card of a Monokuma Motive: its words or "unknown", its penalty, its deadline when it has one. */
+function motiveCardHtml(record, { outcome = null } = {}) {
+    const words = record.hidden ? `<p><em>${esc(game.i18n.localize("DRPG.Motive.unknown"))}</em></p>` : `<p>${esc(record.text)}</p>`;
+    const penalty = !record.hidden && record.penalty
+        ? cardWarn(game.i18n.format("DRPG.Motive.penalty", { what: esc(record.penalty) }))
+        : "";
+    const deadline = Number(record.timesOfDay) > 0 ? `<p class="notes">${esc(plural("DRPG.Motive.deadline", { n: record.timesOfDay }))}</p>` : "";
+    return `<div class="drpg-evidence-card">
+            ${outcome ? `<p class="notes">${esc(game.i18n.localize(outcome))}</p>` : ""}
+            <div class="drpg-objection-banner">${esc(game.i18n.localize("DRPG.Motive.banner"))}</div>
+            ${words}
+            ${penalty}
+            ${deadline}
+        </div>`;
+}
+
+/**
+ * Reveal a hidden Monokuma Motive (SPEC: "odslaniany, gdy GM zdecyduje"): its words and penalty written into the public
+ * record, the GMs' copy of them dropped, and the table told. GM only. Answers the record, or null.
+ */
+export async function revealMotive() {
+    if (!game.user?.isGM) return null;
+    const current = motiveForGm();
+    if (!current?.hidden) return null;
+    const record = { ...storedMotive(current), hidden: false, text: current.hiddenText ?? "", penalty: current.hiddenPenalty ?? "" };
+    await game.settings.set(MODULE_ID, SETTINGS.monokumaMotive, record);
+    await keepHiddenMonokumaWords(null);
+    await announce({ flags: { [MODULE_ID]: { sfx: { key: "motive", gm: true } } }, content: motiveCardHtml(record, { outcome: "DRPG.Motive.revealedNote" }) });
+    log("The hidden Monokuma Motive is revealed.");
     return record;
 }
 
 /**
- * One time of day has passed. Returns the record, or null if there was none.
+ * One time of day has passed. Returns the record, or null if there was none - or none with a deadline (#5): a
+ * Monokuma Motive with no deadline runs until it is changed, withdrawn or the chapter turns.
  *
- * ZERO IS A STATE, NOT AN END. The counter floors at zero and the motive stays
- * on the board, marked due, until Monokuma withdraws it or the chapter turns.
- * The alternative - expiring at zero - hides the motive at the exact moment it
- * matters, which is the moment somebody has to decide whether the threat was
- * real.
- *
- * Announced ONCE when it comes due, guarded by a stored flag rather than by
- * "was it above zero a moment ago": the tick can be re-entered by a rewind and
- * a re-advance, and a deadline announced twice reads as a second deadline.
+ * ZERO IS A STATE, NOT AN END. The counter floors at zero and the motive stays on the board, marked due, until it is
+ * changed or withdrawn or the chapter turns - the moment it matters is the moment it runs out. Announced ONCE when it
+ * comes due, guarded by a stored flag: the tick can be re-entered by a rewind and a re-advance.
  */
 export async function tickMotive() {
     if (!game.user.isGM) return null;
 
     const stored = motive();
-    if (!stored) return null;
+    if (!stored?.deadline) return null;
 
     const remaining = Math.max(0, (stored.remaining ?? 0) - 1);
     const due = remaining === 0;
     let announceDue = due && !stored.dueAnnounced;
 
     /*
-     * DUE IN AN INCIDENT, TOLD TO ITS TABLE AND OWED TO THE REST (E17 C7, 26.10.2026; audit S10-07). The clock moves in
-     * private while an incident runs (clock.mjs `announceTimeOfDay`), and this card on the same move told every screen
-     * that the GM had just moved it. Now it goes where that move's card goes - veiled, to the GMs and the incident's
-     * audience (`incidentAudienceIds`) - and the motive is not marked announced, so the public card comes with the
-     * first move of the clock after the incident. Tier 2 "the Eclipse and the incident (E17-T10)".
-     *
-     * AND THE COUNTDOWN HELD FOR THE BYSTANDERS, THE TABLE TOLD ONCE, THE REST AT THE CLOSE (E17 fix p2-G3, 26.10.2026;
-     * the end review's E17p2-R3, R8 of correctness and R5 of goal). The Event panel's motive card (events.mjs
-     * `motiveCard`) reads `remaining` on every browser, so the move inside the incident turned it "Due" on every
-     * bystander's screen at once: every tick inside an incident keeps `heldRemaining`, the count as the incident's first
-     * private tick found it, under `heldIn` (the incident's `openedAt`), and a bystander's card reads that
-     * (`shownMotive`) until the incident closes; a tick with no incident lets it go. The table's whisper is marked
-     * (`dueToldIn`), so a second move inside the same incident does not whisper it again; and the public card is posted
-     * by the close (`announceOwedMotive`, murder-rules.mjs `closeIncident`), where the bystanders' clock catches up,
-     * not at the next move of the clock, which may be a whole time of day later.
+     * DUE IN AN INCIDENT, TOLD TO ITS TABLE AND OWED TO THE REST (E17 C7 and fix p2-G3, 26.10.2026; audit S10-07, the end
+     * review's E17p2-R3, R5). The clock moves in private while an incident runs, so this card goes where that move's card
+     * goes - veiled, to the GMs and the incident's audience - and the bystanders' Event panel keeps the count the
+     * incident's first private tick found (`heldRemaining` under `heldIn`, `shownMotive`) until the close posts the
+     * public card (`announceOwedMotive`, murder-rules.mjs `closeIncident`). Tier 2 "the Eclipse and the incident (E17-T10)".
      */
     const { murderState, incidentAudienceIds } = await import("./murder.mjs");
     const incident = murderState();
@@ -213,7 +250,7 @@ export async function tickMotive() {
     const toldHere = Boolean(incident) && stored.dueToldIn === key;
     if (toldHere) announceDue = false;
 
-    await game.settings.set(MODULE_ID, SETTINGS.motive, {
+    await game.settings.set(MODULE_ID, SETTINGS.monokumaMotive, {
         ...storedMotive(stored), remaining, dueAnnounced: stored.dueAnnounced || (due && !incident),
         heldIn: key,
         heldRemaining: incident ? (stored.heldIn === key && Number.isFinite(stored.heldRemaining) ? stored.heldRemaining : (stored.remaining ?? 0)) : null,
@@ -227,10 +264,10 @@ export async function tickMotive() {
             await whisperToGms(card.content, {
                 whisper: Array.from(new Set([...gmIds(), ...incidentAudienceIds(incident)])), veiled: true, flags: card.flags
             });
-            log("The motive has come due, told to the incident's table; the table is told after it.");
+            log("The Monokuma Motive has come due, told to the incident's table; the table is told after it.");
         } else {
             await announce(card);
-            log("The motive has come due.");
+            log("The Monokuma Motive has come due.");
         }
     }
 
@@ -254,10 +291,9 @@ export function shownMotive(record, { hide = false, key = null } = {}) {
 }
 
 /**
- * THE PUBLIC CARD OF A MOTIVE THAT CAME DUE INSIDE AN INCIDENT (E17 fix p2-G3, 26.10.2026; the end review's E17p2-R5,
- * goal): posted once by the incident's close (murder-rules.mjs `closeIncident`), where the bystanders' clock catches
- * up, and the motive marked announced; nothing when no motive is due, when it was announced, or while an incident
- * still runs. GM only. Answers whether it posted.
+ * THE PUBLIC CARD OF A MOTIVE THAT CAME DUE INSIDE AN INCIDENT (E17 fix p2-G3): posted once by the incident's close
+ * (murder-rules.mjs `closeIncident`), and the motive marked announced; nothing when no motive is due, when it was
+ * announced, or while an incident still runs. GM only. Answers whether it posted.
  */
 export async function announceOwedMotive() {
     if (!game.user.isGM) return false;
@@ -265,58 +301,47 @@ export async function announceOwedMotive() {
     if (!stored?.due || stored.dueAnnounced) return false;
     const { murderState } = await import("./murder.mjs");
     if (murderState()) return false;
-    await game.settings.set(MODULE_ID, SETTINGS.motive, { ...storedMotive(stored), dueAnnounced: true, heldIn: null, heldRemaining: null, dueToldIn: null });
+    await game.settings.set(MODULE_ID, SETTINGS.monokumaMotive, { ...storedMotive(stored), dueAnnounced: true, heldIn: null, heldRemaining: null, dueToldIn: null });
     await announce(dueCard(stored));
-    log("The motive came due in the incident; the table is told now it is closed.");
+    log("The Monokuma Motive came due in the incident; the table is told now it is closed.");
     return true;
 }
 
-/** The motive's "due" card, as `tickMotive` and `announceOwedMotive` post it. */
+/**
+ * The Monokuma Motive's "due" card, as `tickMotive` and `announceOwedMotive` post it: its words (or "unknown") and the
+ * penalty's words - the module takes nothing; the Monokuma carries the penalty out by hand (#1).
+ */
 function dueCard(stored) {
     return {
         flags: { [MODULE_ID]: { sfx: { key: "motive", gm: true } } },
         content: `<div class="drpg-evidence-card">
-                <div class="drpg-objection-banner">${game.i18n.localize("DRPG.Motive.dueBanner")}</div>
-                <p>${esc(stored.text)}</p>
-                ${stored.consequence
-                    ? cardWarn(esc(stored.consequence))
-                    : ""}
+                <div class="drpg-objection-banner">${esc(game.i18n.localize("DRPG.Motive.dueBanner"))}</div>
+                ${stored.hidden ? `<p><em>${esc(game.i18n.localize("DRPG.Motive.unknown"))}</em></p>` : `<p>${esc(stored.text)}</p>`}
+                ${!stored.hidden && stored.penalty ? cardWarn(game.i18n.format("DRPG.Motive.penalty", { what: esc(stored.penalty) })) : ""}
+                <p class="notes">${esc(game.i18n.localize("DRPG.Motive.dueNote"))}</p>
             </div>`
     };
 }
 
 /**
- * Give the time of day back. A rewind is a correction for a misclick, and a
- * misclick must not cost the cast a time of day off Monokuma's deadline.
- *
- * Capped at what was bought, so repeated rewinds cannot inflate a three-time-
- * of-day motive into a longer one. `dueAnnounced` is cleared on the way back
- * up, because the deadline that was announced has been un-happened.
+ * Give the time of day back. A rewind is a correction for a misclick, and a misclick must not cost the cast a time of
+ * day off the deadline. Capped at what was given, and nothing for a motive with no deadline.
  */
 export async function untickMotive() {
     if (!game.user.isGM) return null;
 
     const stored = motive();
-    if (!stored) return null;
+    if (!stored?.deadline) return null;
 
-    const cap = stored.timesOfDay ?? MOTIVE.defaultTimesOfDay;
+    const cap = stored.timesOfDay;
     const remaining = Math.min(cap, (stored.remaining ?? 0) + 1);
     if (remaining === stored.remaining) return stored;
 
     const next = { ...storedMotive(stored), remaining, dueAnnounced: remaining === 0 && stored.dueAnnounced,
         // Un-happened as well (E17 fix p2-G3): a motive that comes due again in the same incident is told to its table again.
         dueToldIn: remaining === 0 ? (stored.dueToldIn ?? null) : null };
-    await game.settings.set(MODULE_ID, SETTINGS.motive, next);
+    await game.settings.set(MODULE_ID, SETTINGS.monokumaMotive, next);
     return { ...next, due: remaining <= 0 };
-}
-
-/**
- * The season reset's motive group (E42 C3; a run of season-setup.mjs `wipeSeason` until then). Written directly rather
- * than through `setMotive("")`, which announces the withdrawal in chat: nobody needs to be told a motive is over
- * during a reset that is also clearing the chat it would be posted in.
- */
-export async function clearSeasonMotive() {
-    await game.settings.set(MODULE_ID, SETTINGS.motive, {});
 }
 
 /**
@@ -330,7 +355,6 @@ async function clearSeasonRules() {
     await game.settings.set(MODULE_ID, SETTINGS.killingGameRules, []);
 }
 
-registerSeasonState({ group: "motive", clear: clearSeasonMotive, settings: [SETTINGS.motive] });
 registerSeasonState({ group: "rules", clear: clearSeasonRules, settings: [SETTINGS.killingGameRules] });
 
 /* ==========================================================================
@@ -400,68 +424,102 @@ export async function removeRule(id) {
  * ========================================================================== */
 
 /**
- * THE MOTIVE IN THE MANAGER (E20 C6, 30.10.2026; S10-55). A motive Monokuma had carried out hung on the HUD and in the
- * Event panel, the handbook said "until you withdraw it", and the console's `setMotive(null)` was the only road. The
- * manager shows the motive in force - its demand, its time left, its price - with Withdraw, which is `setMotive(null)`:
- * written and announced to the table. One block, drawn and wired here and nowhere else.
+ * THE MONOKUMA MOTIVE IN THE MANAGER (E20 C6, 30.10.2026; S10-55; 2.0 line T5, D2-23). The manager shows the Monokuma
+ * Motive in force - its words (a hidden one's too, to the GM, marked hidden), its time left when it has a deadline, its
+ * penalty - with Withdraw, which asks first whether it was passed (`askPassed`; a pass gives every living student 3 Hope),
+ * and, for a hidden one, Reveal (`revealMotive`). One block, drawn and wired here and nowhere else.
  *
- * @param {object|null} [record]  `motive()`'s answer
+ * @param {object|null} [record]  `motiveForGm()`'s answer, or `motive()`'s
  */
-export function motiveSection(record = motive()) {
+export function motiveSection(record = motiveForGm()) {
     const t = key => esc(game.i18n.localize(key));
-    if (!record?.text) {
+    if (!record?.id) {
         return `<section class="drpg-rules-motive"><h4>${t("DRPG.Motive.title")}</h4>
             <p class="notes">${t("DRPG.Motive.none")}</p></section>`;
     }
-    const left = record.due ? t("DRPG.Motive.dueShort") : esc(plural("DRPG.Motive.left", { n: Math.max(0, Number(record.remaining) || 0) }));
+    const words = record.hidden ? (record.hiddenText ?? "") : record.text;
+    const penalty = record.hidden ? (record.hiddenPenalty ?? "") : record.penalty;
+    const left = !record.deadline ? t("DRPG.Motive.noDeadline")
+        : record.due ? t("DRPG.Motive.dueShort") : esc(plural("DRPG.Motive.left", { n: Math.max(0, Number(record.remaining) || 0) }));
     return `<section class="drpg-rules-motive"><h4>${t("DRPG.Motive.title")}</h4>
-        <p>${esc(record.text)}</p>
+        ${record.hidden ? `<p class="notes">${t("DRPG.Motive.hiddenNote")}</p>` : ""}
+        <p>${esc(words)}</p>
         <p class="notes">${left}</p>
-        ${record.consequence ? `<p class="notes">${esc(game.i18n.format("DRPG.Motive.orElse", { what: record.consequence }))}</p>` : ""}
-        <p><button type="button" data-drpg-motive-withdraw>${t("DRPG.Motive.withdraw")}</button></p>
+        ${penalty ? `<p class="notes">${esc(game.i18n.format("DRPG.Motive.penalty", { what: penalty }))}</p>` : ""}
+        <p><button type="button" data-drpg-motive-withdraw>${t("DRPG.Motive.withdraw")}</button>${
+            record.hidden ? ` <button type="button" data-drpg-motive-reveal>${t("DRPG.Motive.reveal")}</button>` : ""}</p>
         <p class="notes">${t("DRPG.Motive.withdrawNote")}</p></section>`;
 }
 
-/** Which motive is in force, as one string: its text, chapter and stamp (`motive()`'s record), or "" for none. */
+/** Which Monokuma Motive is in force, as one string: its id, chapter and stamp (`motive()`'s record), or "" for none. */
 export function motiveMark(record = motive()) {
-    return record?.text ? JSON.stringify([record.text, record.chapter ?? null, record.at ?? null]) : "";
+    return record?.id ? JSON.stringify([record.id, record.chapter ?? null, record.at ?? null]) : "";
 }
 
 /**
- * Wire the section's Withdraw: pressed once (the button goes off at once, so a second press withdraws nothing more),
- * then the section says there is no motive. `withdraw` is `setMotive(null)` unless the suite hands a stand-in (R1520).
+ * "WAS THE MONOKUMA MOTIVE PASSED?" - Yes, No, or the window closed (null): asked before a change or a withdrawal, with
+ * no default (the line's M3: no "Yes" the GM did not choose). Answers true, false or null.
+ */
+export async function askPassed() {
+    const answer = await drpgWindow({
+        title: game.i18n.localize("DRPG.Motive.title"),
+        classes: ["drpg-panel", "drpg-window-motive-passed"],
+        body: `<p>${esc(game.i18n.localize("DRPG.Motive.passedQuestion"))}</p><p class="notes">${esc(game.i18n.localize("DRPG.Motive.passedNote"))}</p>`,
+        // Enter presses Cancel, not Yes: the GM chooses the answer (M3).
+        footer: {
+            primary: { action: "yes", label: game.i18n.localize("DRPG.Motive.passedYes"), tooltip: tipText("DRPG.Motive.tip.passedYes"), callback: () => "yes" },
+            secondary: [{ action: "no", label: game.i18n.localize("DRPG.Motive.passedNo"), tooltip: tipText("DRPG.Motive.tip.passedNo"), callback: () => "no" }],
+            close: { role: "cancel", action: "cancel" },
+            default: "cancel"
+        },
+        rejectClose: false
+    });
+    return answer === "yes" ? true : answer === "no" ? false : null;
+}
+
+/**
+ * Wire the section's Withdraw and Reveal: Withdraw asks whether the motive was passed, then withdraws it (`setMotive(null,
+ * { passed })`); pressed once (the button goes off at once). `withdraw` is that unless the suite hands a stand-in
+ * (R1520), handed the answer. A motive that is no longer the one drawn is drawn instead and the GM told (REFR-22).
  *
  * @returns {{ done: () => Promise<unknown> }} what the last press is still doing
  */
-export function wireMotiveWithdraw(root, { withdraw = () => setMotive(null), shown = motiveMark(), now = () => motiveMark() } = {}) {
+export function wireMotiveWithdraw(root, { withdraw = passed => setMotive(null, { passed }), ask = askPassed,
+    shown = motiveMark(), now = () => motiveMark() } = {}) {
     let pending = Promise.resolve();
     const button = root?.querySelector?.("[data-drpg-motive-withdraw]");
+    const reveal = root?.querySelector?.("[data-drpg-motive-reveal]");
+    const redraw = async record => {
+        const section = root?.querySelector?.(".drpg-rules-motive");
+        const host = section?.parentNode ?? null;
+        if (!host) return;
+        section.outerHTML = motiveSection(record);
+        wireMotiveWithdraw(host, { withdraw, ask, now });
+    };
+    reveal?.addEventListener("click", () => {
+        if (reveal.disabled) return;
+        reveal.disabled = true;
+        pending = Promise.resolve().then(() => revealMotive()).then(() => redraw(motiveForGm()))
+            .catch(err => { reveal.disabled = false; error("Could not reveal the Monokuma Motive", err); });
+    });
     if (!button) return { done: () => pending };
     button.addEventListener("click", () => {
         if (button.disabled) return;
         button.disabled = true;
-        /* THE MOTIVE IT SHOWS, OR NONE (the audit's REFR-22, 1.2.122): Withdraw withdrew whatever was in force, a motive
-           another GM or a Despair Call set while the window stood included. A motive that is no longer the one drawn is
-           drawn instead, and the GM told; a second press withdraws it. */
         if (now() !== shown) {
-            const section = button.closest(".drpg-rules-motive");
-            const host = section?.parentNode ?? null;
-            if (host) {
-                section.outerHTML = motiveSection();
-                wireMotiveWithdraw(host, { withdraw, now });
-            }
+            void redraw(motiveForGm());
             ui.notifications.info(game.i18n.localize("DRPG.Motive.changedMeanwhile"));
             return;
         }
         pending = Promise.resolve()
-            .then(() => withdraw())
-            .then(() => {
-                const section = button.closest(".drpg-rules-motive");
-                if (section?.parentNode) section.outerHTML = motiveSection(null);
+            .then(() => ask())
+            .then(passed => {
+                if (passed === null) { button.disabled = false; return null; }
+                return Promise.resolve(withdraw(passed)).then(() => redraw(null));
             })
             .catch(err => {
                 button.disabled = false;
-                error("Could not withdraw the motive", err);
+                error("Could not withdraw the Monokuma Motive", err);
             });
     });
     return { done: () => pending };
@@ -511,7 +569,7 @@ export async function openRulesManager() {
         // On the kit's frame, as wide as its widest table (ui-kit.mjs `fitKitWidth`; utils.mjs `tableDialog` until E21 C2a).
         fit: true,
         body: `<form>
-            ${motiveSection()}
+            ${motiveSection(motiveForGm())}
             <hr />
             <p>${game.i18n.localize("DRPG.Rules.manageIntro")}</p>
             ${current.length ? `<table class="drpg-vault-table"><thead><tr>
@@ -554,8 +612,9 @@ export async function openRulesManager() {
             wireMotiveWithdraw(dialog?.element);
             // The motive is a read-out: drawn again when it changes, wherever (REFR-22, 1.2.122). The rules' rows are the
             // GM's form and are not redrawn under their hands; the save reads them against today's list (`saveRulesEdit`).
-            keepLive(dialog, { region: ".drpg-rules-motive", build: () => motiveSection(),
-                watch: { settings: [SETTINGS.motive, SETTINGS.clock] }, after: el => wireMotiveWithdraw(el) });
+            // A hidden one's words are the GMs' store's (2.0 line T5): drawn with them (`motiveForGm`), the store watched too.
+            keepLive(dialog, { region: ".drpg-rules-motive", build: () => motiveSection(motiveForGm()),
+                watch: { settings: [SETTINGS.monokumaMotive, SETTINGS.clock], stores: [motiveStore] }, after: el => wireMotiveWithdraw(el) });
         },
         rejectClose: false
     });

@@ -6,7 +6,7 @@
  * the primary GM (`ANALYZE_ROW_REQUEST`, the `passage` row among them),
  * `performAnalyze` and its picker (`askWhatToAnalyze`), and its four roads: a
  * Truth Bullet (`analyseBullet`, with the refusals that hand its price back,
- * `KEY_REFUSALS`), a GM's hint (`askForHint`), a stash (`locateStash`) and a
+ * `refusedBeforeScoring`), a GM's hint (`askForHint`), a stash (`locateStash`) and a
  * passage (`locatePassage`, the owner's A10 of 11.10).
  *
  * WHERE IT SITS. Moved out of action-rolls.mjs by E41 C4 (1.2.97), a pure move
@@ -78,7 +78,7 @@ const ANALYZE_ROW_REQUEST = Object.freeze({ bullet: "analyze.resolve", hint: "an
 export async function performAnalyze(actor, def, options) {
     /*
      * ANALYZE PAYS A CHAIN (T-1, Dawid 17.09): an action, and inside a Class
-     * Trial a Hope or a Sanity mark once the actions are gone. That the later
+     * Trial a Sanity mark, then Hope, once the actions are gone (D2-22's order, 2.0 line T5, 27.11.2026). That the later
      * steps exist only in a trial is `stepsBeyondFirst` in PRICE_CHAINS, not a
      * question this function asks the clock - one table, one answer.
      *
@@ -171,8 +171,36 @@ export async function performAnalyze(actor, def, options) {
         : askForHint(actor, def, roll, asked?.request ?? "", charge);
 }
 
-/* The refusals of an Analyze that hand its price back (`analyseBullet`): the GM's side scored nothing. */
-const KEY_REFUSALS = new Set(["answerKeyMissing", "keysNotOpen"]);
+/*
+ * WHETHER AN ANALYZE'S ANSWER SAYS NOTHING WAS SCORED (2.0 line T5, INV-08, 27.11.2026; F1-investigation, TRIAGE-3
+ * paket 3, accepted by D2-07: "Zwrot ceny takze przy odmowach cannotNow i 'nothing was carried out' sprzed liczenia").
+ * `analyseBullet` gives its price back where this answers true. Until 2.0 it was two codes in a set of their own
+ * (`answerKeyMissing` and `keysNotOpen`), "and no other": "no answer" can follow a resolution that happened, and so can
+ * a run that failed part-way - and the Analyze of a bullet no longer analysable in the GMs' copy (`cannotNow`), or gone
+ * before the GM read it ("nothing was carried out", `refused`), kept its action, in a trial its step of the chain.
+ * Read again on 4ac0149 (27.11.2026): every refusal of the row `analyze.resolve` comes before anything is written - the
+ * guards before the run (bridge-guards.mjs `judge`), and in analyze.mjs `resolveAnalyze` each of its four
+ * `return { refused }` and its two `return null` before its first `setSecret` or `update` (R9328 holds that) - so a
+ * refusal of any code is one that scored nothing. What stays without a refund: `failed` (a throw, which can come after
+ * a write) and `noAnswer` (the asker heard nothing, which can follow a resolution that happened). `noGm` gives back as
+ * well: nothing was sent (bridge-guards.mjs `createWaiter` step 3) - a GM gone between `gmOnline()` above and the ask.
+ * A done is read by the road it came: on a GM's own client (`local`: `requestAnalyzeResolve`'s `local`, no `localRun`)
+ * the value is the resolver's own - `{ refused }`, or null for no such bullet, both before any write - and a resolution
+ * `{ success, locked }`. Over the wire a scored Analyze answers `{ ok: true, value: null }` (bridge-runs-acts.mjs
+ * `handleAnalyzeResolve` gives no `reply` on a resolution, and the asker settles with `packet.value ?? null`), and its
+ * refusals come as `{ ok: false, refused }`. The first cut of this rule (f7232e0) read null as nothing scored on both
+ * roads, and so gave back the price of every Analyze a player's GM scored - measured red by CI on f7232e0 and 7954f47
+ * (61-gmstore-case M4: `left0` 3, `left` 3; 40-flow's Daily Life audit), missed by R9327, whose success case was a value
+ * no wire answers (fixed 27.11.2026: R9327 holds both roads). Handed the answer's four fields and the road, read where
+ * it was asked (the rule `drpg/bridge-result`: the bridge's result is never handed on). Pure (R9327).
+ */
+export function refusedBeforeScoring(answer, { local = false } = {}) {
+    if (!answer) return false;
+    const { ok, value, refused, reason } = answer;
+    if (ok) return local ? (value === null || value === undefined || Boolean(value?.refused)) : Boolean(value?.refused);
+    if (refused) return reason !== "failed" && reason !== "noAnswer";
+    return reason === "noGm";
+}
 
 /**
  * Analysing evidence. The roll goes to the GM's client to be scored, because
@@ -181,15 +209,15 @@ const KEY_REFUSALS = new Set(["answerKeyMissing", "keysNotOpen"]);
  */
 async function analyseBullet(actor, def, roll, subject, charge = null) {
     const { requestAnalyzeResolve } = await import("./gm-bridge.mjs");
-    const { gmOnline, sayNotDone, reasonOf } = await import("./bridge-guards.mjs");
+    const { gmOnline, sayNotDone } = await import("./bridge-guards.mjs");
 
     /*
      * THE LAST GM CAN LEAVE WHILE THE DICE ARE IN THE AIR, and then there is
-     * nobody to score this against the answer key. Refunded on THAT, and on the
-     * two refusals below that say by their code that nothing was scored: on a
-     * GM's client `requestAnalyzeResolve` answers the resolver's own value, which
-     * may legitimately be null, so a refund keyed on anything else it answered
-     * would hand the price back for a resolution that happened (T-1).
+     * nobody to score this against the answer key. Refunded on THAT, and on every
+     * answer below that says nothing was scored (`refusedBeforeScoring`, INV-08):
+     * on a GM's client `requestAnalyzeResolve` answers the resolver's own value,
+     * which is null only where it found no bullet to read (T-1; read again for
+     * INV-08 on 4ac0149: a resolution answers `{ success, locked }`).
      */
     if (!gmOnline()) {
         await giveBackAfterRoll(actor, charge, [roll], { price: true });
@@ -228,17 +256,21 @@ async function analyseBullet(actor, def, roll, subject, charge = null) {
 
     /*
      * A KEY THE GM'S BROWSER CANNOT READ IS NOT THE PLAYER'S TO PAY FOR (E04's fix
-     * round 10, 26.09.2026). Two refusals come before anything is scored, for a
-     * reason that is no part of the rules: the bullet has no answer key on the GM's
-     * browser (`answerKeyMissing`), or the GM's stores did not open in time
-     * (`keysNotOpen`). Each hands back the step that paid, as a closed window does.
+     * round 10, 26.09.2026): the bullet has no answer key on the GM's browser
+     * (`answerKeyMissing`), or the GM's stores did not open in time (`keysNotOpen`).
      * Measured on 05ac984: the missing key left p1's actions 3 -> 2, nothing given
-     * back, though analyze.mjs said a refusal did. Those two codes and no other: "no
-     * answer" can follow a resolution that happened, and so can a run that failed
-     * part-way. On a GM's own client the refusal is the resolver's value, read alike.
+     * back, though analyze.mjs said a refusal did. NOR ANY OTHER REFUSAL (2.0 line
+     * T5, INV-08, 27.11.2026): a bullet the GMs' copy no longer holds analysable
+     * (`cannotNow`), one gone before the GM read it ("nothing was carried out"), a
+     * guard's - each comes before anything is scored (`refusedBeforeScoring`, above),
+     * and hands back the step that paid, as a closed window does: in a Class Trial
+     * the step of D2-22's chain on the receipt. The refusal is said by the bridge,
+     * what came back by the give-back's card (`DRPG.Result.givenBack`).
      */
-    const refusedFor = res.ok ? (res.value?.refused ? reasonOf(res.value.refused) : null) : (res.refused ? res.reason : null);
-    if (charge && KEY_REFUSALS.has(refusedFor)) await giveBackAfterRoll(actor, charge, [roll], { price: true });
+    // A GM's own client answers from the resolver itself (bridge-guards.mjs `createWaiter` step 1), a player's over the wire.
+    if (charge && refusedBeforeScoring({ ok: res.ok, value: res.value, refused: res.refused, reason: res.reason }, { local: Boolean(game.user?.isGM) })) {
+        await giveBackAfterRoll(actor, charge, [roll], { price: true });
+    }
     // A resolve nobody answered (2.0 line T3 INV-12): said for what it is, and told to the primary there now (`resolve.lost`).
     if (!res.ok && res.reason === "noAnswer") {
         await whisperToOwner(actor, `<p><small>${game.i18n.localize("DRPG.Analyze.unresolved")}</small></p>`);

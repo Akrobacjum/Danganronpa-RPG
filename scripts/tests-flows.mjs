@@ -470,7 +470,13 @@ export const FLOWS = Object.freeze([
     // 2.0 line T3 INV-12 (27.11.2026): a player's Observe or Analyze whose resolve the primary never answered, told to the GMs on
     // one card a roll (`resolve.lost`, quiet); 33-bridge-paths drives its legal road, 58-case-two-gms INV-12 the lost resolve.
     { id: "resolve-lost", what: "An Observe or Analyze the primary GM did not answer, told to the GMs once a roll",
-        entry: { bridge: ["resolve.lost"] }, scenarios: ["33-bridge-paths", "58-case-two-gms"], status: "planned", stage: "E133" }
+        entry: { bridge: ["resolve.lost"] }, scenarios: ["33-bridge-paths", "58-case-two-gms"], status: "planned", stage: "E133" },
+    // 2.0 line T5 (E135, D2-23 and D2-24, 27.11.2026): a GM writes a student's motives (`motive.set`, gmOnly), its player
+    // reports one done (`motive.report`), a GM passes or refuses it (`motive.rule`, gmOnly), all on the primary; the owner's
+    // copy goes to that player alone (motives.mjs's socket, `motives.mine`). 30-security forges each from a player, 33
+    // drives each legal road.
+    { id: "motives", what: "The players' motives: a GM writes a student's, its player reports one done, a GM passes or refuses it, and only its owner is sent them",
+        entry: { sockets: ["motives.mjs"], bridge: ["motive.set", "motive.report", "motive.rule"] }, scenarios: ["30-security", "33-bridge-paths"], status: "covered", stage: "1.2.130" }
 ]);
 
 export const FLOW_EXEMPT = Object.freeze({

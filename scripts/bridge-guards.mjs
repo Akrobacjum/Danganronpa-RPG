@@ -498,7 +498,16 @@ export const REASON_PATTERNS = Object.freeze([
     // 2.0 line T2b DAY-06: another kind of round open, said with its GM and kind (boundary.mjs `roundOpenLine`; R9043).
     ["roundOpen", /^another kind of readiness round is open$/],
     // 2.0 line T2b DAY-09: Shut the Door where another's barricade stands (doors-gm.mjs `shutRefusal`; R9048).
-    ["barricadeStands", /^a barricade already stands in that room$/]
+    ["barricadeStands", /^a barricade already stands in that room$/],
+    // 2.0 line T5 D2-23: the players' motives' runs (motives.mjs `setRefusal`, `reportRefusal`, `ruleRefusal`), each a code of the list.
+    ["cannotNow", /^the players' motives are off at this table$/],
+    ["badRequest", /^that is not a kind of motive$/],
+    ["cannotNow", /^that character holds no motives$/],
+    ["badRequest", /^a Relationship Motive names another living student$/],
+    ["missing", /^no such motive this chapter$/],
+    ["alreadyDone", /^that motive is already passed$/],
+    ["alreadyDone", /^that motive is already reported$/],
+    ["cannotNow", /^that motive has no report to reject$/]
 ].map(([code, pattern]) => Object.freeze([code, pattern])));
 
 /** The code of the closed list an English reason stands for: the first pattern that takes it, else `refused`. */

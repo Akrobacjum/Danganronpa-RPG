@@ -162,7 +162,7 @@ function briefingFacts(actor, actionKey, def, extraFacts = []) {
          *
          * "Costs 1 action. You have 0" is a true sentence that answers the wrong
          * question once the price is a chain: what the player needs to know is
-         * that this one is about to be paid in Hope, or in a Sanity mark, and
+         * that this one is about to be paid in a Sanity mark, or in Hope, and
          * that the mark is their last. `priceLine` is that sentence, and it comes
          * from the same quote the tile and the payer read.
          */

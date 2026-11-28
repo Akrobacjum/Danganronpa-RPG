@@ -200,7 +200,10 @@ import {
 } from "./monokuma.mjs";
 import { openGmTeamDialog } from "./gm-team-dialog.mjs";
 import { styleSnapshot } from "./style-snapshot.mjs";
-import { rules, addRule, updateRule, removeRule, openRulesManager, motive, setMotive } from "./rules.mjs";
+import { rules, addRule, updateRule, removeRule, openRulesManager, motive, setMotive, motiveForGm, revealMotive } from "./rules.mjs";
+// The players' motives (2.0 line T5): `game.drpg.motives`, last in the object.
+import { motivesOf, motivesEnabled } from "./motives.mjs";
+import { requestMotiveSet, requestMotiveRule } from "./bridge-asks.mjs";
 import { spendHopeCall, spendDespairCallFor, hopeHeld, affordableHopeCalls, despairCallsFor } from "./calls.mjs";
 import { openMessenger } from "./messenger-app.mjs";
 import {
@@ -1329,15 +1332,15 @@ export const DrpgApi = {
     removeRule,
     rulesManager: openRulesManager,
 
-    /** Monokuma's motive: public by definition, on a countdown in times of
-     *  day, and it lapses on its own when the chapter counter moves.
+    /** The Monokuma Motive (2.0 line T5, D2-23; until 2.0 Monokuma's old motive, a reason to kill): public, the
+     *  class's goal, hidden if the Monokuma wishes, with a deadline only if given; it lapses on its own when the
+     *  chapter counter moves.
      *
-     *      setMotive({ text, timesOfDay, consequence })
-     *      setMotive(null)     // withdraw it
+     *      setMotive({ text, hidden, timesOfDay, penalty }, { passed })
+     *      setMotive(null, { passed })     // withdraw it; `passed` gives every living student 3 Hope
      *
-     *  The way to one IN PLAY is the nine-Despair Call, not this - a motive
-     *  that costs nothing is a move Monokuma can make every time of day
-     *  forever. This is the repair route. */
+     *  The way to one IN PLAY is the six-Despair Call, not this. This is the repair route; the players' own motives
+     *  are `motives`, at the end of this object. */
     motive,
     setMotive,
 
@@ -1636,7 +1639,41 @@ export const DrpgApi = {
 
     /* The Key fee asked of the primary again, as the trial's opening asks it (2.0 line T3 INV-07): answers what was
        charged, or null; the trial's `keysCharged` stamp keeps a second charge off. */
-    chargeKeyFee: async () => (await import("./key-remnants.mjs")).askToChargeForUnfoundKeys()
+    chargeKeyFee: async () => (await import("./key-remnants.mjs")).askToChargeForUnfoundKeys(),
+
+    /*
+     * THE PLAYERS' MOTIVES (2.0 line T5, D2-23 and D2-24; scripts/motives.mjs). For reading and for repair, as the
+     * windows do it: `of(actor)` a student's two motives as this browser may know them (a player's own alone), `set` a
+     * GM's write (`motive.set` on the primary), `pass` and `reject` a GM's ruling (`motive.rule`), `monokuma()` the
+     * Monokuma Motive as every browser reads it, `monokumaForGm()` with a hidden one's words, `reveal()` a hidden one,
+     * `enabled()` the switch, `overview()` the GM's window. The Monokuma Motive itself is `setMotive` above: since 2.0
+     * `setMotive({ text, hidden, timesOfDay, penalty }, { passed })` sets or changes it and `setMotive(null, { passed })`
+     * withdraws it, each asking nothing - the API's `passed` defaults to no.
+     */
+    motives: {
+        of: actor => {
+            const id = idOf(actor);
+            return id ? motivesOf(id) : null;
+        },
+        // Each answers what the GM's client said, read off the bridge's result here: { ok, value, refused, reason }.
+        set: async (actor, kind, text = "", withActor = null) => {
+            const res = await requestMotiveSet({ actorId: idOf(actor), kind, text, withActorId: idOf(withActor) });
+            return { ok: res.ok, value: res.value ?? null, refused: res.refused ?? null, reason: res.reason ?? null };
+        },
+        pass: async (actor, kind) => {
+            const res = await requestMotiveRule({ actorId: idOf(actor), kind, pass: true });
+            return { ok: res.ok, value: res.value ?? null, refused: res.refused ?? null, reason: res.reason ?? null };
+        },
+        reject: async (actor, kind, reason = "") => {
+            const res = await requestMotiveRule({ actorId: idOf(actor), kind, pass: false, reason });
+            return { ok: res.ok, value: res.value ?? null, refused: res.refused ?? null, reason: res.reason ?? null };
+        },
+        monokuma: () => motive(),
+        monokumaForGm: () => motiveForGm(),
+        reveal: () => revealMotive(),
+        enabled: () => motivesEnabled(),
+        overview: () => import("./motives-ui.mjs").then(m => m.openMotivesOverview())
+    }
 };
 
 /* ==========================================================================
@@ -1739,4 +1776,10 @@ function normalise(api) {
 export function registerApi() {
     game.drpg = normalise(DrpgApi);
     log(`API ready on game.drpg - system: ${game.system.id} ${game.system.version}, Foundry: ${game.version}`);
+}
+
+/** An actor's id from an Actor or an id, for the motives' entries (2.0 line T5); null for neither. */
+function idOf(actor) {
+    if (typeof actor === "string") return actor || null;
+    return actor?.id ?? null;
 }

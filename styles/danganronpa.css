@@ -19199,3 +19199,34 @@ body.drpg-high-contrast #token-hud.drpg-token-hud :is(.control-icon, .palette.pa
     white-space: normal;
     text-overflow: clip;
 }
+
+/* 2.0 line T5: motives (D2-23, 27.11.2026). The sheet's Personal tab opens on the motives (motives-ui.mjs
+   `personalSectionHtml`): the Monokuma Motive, then the student's two, each a block with a rule under it, so the
+   biography below reads apart; a state line and its buttons as the tab's other notes are. */
+.drpg-motives {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    margin-bottom: 0.75rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid var(--drpg-line-strong);
+}
+.drpg-motive {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+.drpg-motive > h5,
+.drpg-motive > p {
+    margin: 0;
+}
+/* The Students window's cell: the two states on one line, the button after them. */
+.drpg-motive-cell {
+    white-space: nowrap;
+    margin-right: 0.25rem;
+}
+/* The Monokuma Motive passed: one card, a row per student with the Hope that landed. */
+.drpg-motive-hope {
+    margin: 0.25rem 0 0;
+    padding-left: 1.25rem;
+}

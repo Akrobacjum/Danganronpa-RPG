@@ -2309,6 +2309,50 @@ export async function run({ gm, ag, p1, p2, p3, check, phase, settle, opLog, set
         Boolean(lostRoll?.messageId) && lostHad > 0 && JSON.stringify(lostCards) === JSON.stringify([true]) && !lostTold.length,
         JSON.stringify({ lostRoll, lostCards, lostTold }), { flow: "resolve-lost" });
 
+    /* A-MOTIVES. THE PLAYERS' MOTIVES (2.0 line T5, E135, 27.11.2026; D2-23). The Assistant GM writes Aiko's Personal Motive on
+       the primary (`motive.set`), p1 reports it done for its own Aiko (`motive.report`), and the Assistant passes it
+       (`motive.rule`). Read on the GM after each: the store's row (open, then reported with p1's words, then done) and
+       Aiko's Hope (up by what the pass says landed); and the refusals p1 was told and the GM logged: none. 30-security
+       forges each from a player. Put back: the row and Aiko's Hope. */
+    phase("the players' motives, by the Assistant GM and a player", { flow: "motives" });
+    await clearFailures(gm);
+    const motAsks = `(await import("${repoUrl}/scripts/bridge-asks.mjs"))`;
+    const motRead = `const { motiveStore } = await import("${repoUrl}/scripts/gm-stores.mjs"); await motiveStore.whenHydrated();
+        const r = motiveStore.get("${IDS.aiko}"); return { status: r?.personal?.status ?? null, report: r?.personal?.report ?? null,
+        hope: game.actors.get("${IDS.aiko}").system.resources.hope.value };`;
+    const motWas = await gm.eval(`const { motiveStore } = await import("${repoUrl}/scripts/gm-stores.mjs"); await motiveStore.whenHydrated();
+        return { row: motiveStore.get("${IDS.aiko}") ?? null, hope: game.actors.get("${IDS.aiko}").system.resources.hope.value };`);
+    // From 2 of 6 Hope, so the pass's 3 land whole and the Hope read is the reward's.
+    await gm.eval(`await game.actors.get("${IDS.aiko}").update({ "system.resources.hope.value": 2 }); return true;`);
+    await settle(300);
+    const motRefused = (await refusedSince(p1)).length;
+    const motSet = await ag.eval(`const r = await ${motAsks}.requestMotiveSet({ actorId: "${IDS.aiko}", kind: "personal", text: "S33 win the race", withActorId: null });
+        return { ok: r.ok, refused: r.refused ?? null, status: r.value?.status ?? null };`);
+    await settle(800);
+    const motAfterSet = await gm.eval(motRead);
+    const motReport = await p1.eval(`const r = await ${motAsks}.requestMotiveReport({ actorId: "${IDS.aiko}", kind: "personal", text: "S33 I won it" });
+        return { ok: r.ok, refused: r.refused ?? null };`);
+    await settle(800);
+    const motAfterReport = await gm.eval(motRead);
+    const motRule = await ag.eval(`const r = await ${motAsks}.requestMotiveRule({ actorId: "${IDS.aiko}", kind: "personal", pass: true, reason: "" });
+        return { ok: r.ok, refused: r.refused ?? null, status: r.value?.status ?? null, landed: r.value?.landed ?? null };`);
+    await settle(800);
+    const mot = { set: motSet, afterSet: motAfterSet, report: motReport, afterReport: motAfterReport, rule: motRule, afterRule: await gm.eval(motRead),
+        hopeWas: 2, refused: (await refusedSince(p1)).length - motRefused,
+        logged: [...await refusalsLogged(gm, "motive.set"), ...await refusalsLogged(gm, "motive.report"), ...await refusalsLogged(gm, "motive.rule")] };
+    check("A-MOTIVES: the Assistant GM writes a student's motive on the primary, its player reports it done, and the Assistant passes it - each answered, the row open, reported, then done, the Hope that landed given, nothing refused (2.0 line T5)",
+        mot.set.ok === true && mot.set.status === "open" && mot.afterSet.status === "open"
+            && mot.report.ok === true && mot.afterReport.status === "reported" && mot.afterReport.report === "S33 I won it"
+            && mot.rule.ok === true && mot.rule.status === "done" && mot.afterRule.status === "done" && mot.rule.landed === 3
+            && mot.afterRule.hope === mot.hopeWas + mot.rule.landed && mot.refused === 0 && mot.logged.length === 0,
+        JSON.stringify(mot), { flow: "motives" });
+    await gm.eval(`const { motiveStore } = await import("${repoUrl}/scripts/gm-stores.mjs");
+        const was = ${JSON.stringify(motWas.row)};
+        if (was) await motiveStore.patch("${IDS.aiko}", was); else if (motiveStore.get("${IDS.aiko}")) await motiveStore.drop("${IDS.aiko}");
+        await game.actors.get("${IDS.aiko}").update({ "system.resources.hope.value": ${Number(motWas.hope) || 0} });
+        return true;`, { timeout: 30000 });
+    await settle(500);
+
     /* ------------------------------------------- H. the hostile-client matrix (E43 C5) */
 
     /* E43 C5, 13.11.2026; the plan's item 3, its "32-case-security" (lib/fuzz.mjs `hostileMatrix` says what each cell

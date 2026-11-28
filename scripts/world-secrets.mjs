@@ -147,6 +147,18 @@ export const WORLD_SECRET_RULES = Object.freeze({
             only: Object.freeze(["active", "stage"]),
             since: "E05 C8; the stage alone since E32 C2",
             why: "how an incident happened - a trap, a death by the victim's own hand, a reversal, when it opened, how it ended - who is in it (S04-08), and how its fight goes, turn by turn"
+        }),
+        /* THE MONOKUMA MOTIVE'S PUBLIC PART (2.0 line T5, D2-23 and D2-24, 27.11.2026; rules.mjs `setMotive`). Public by
+           design - the class's goal - and a hidden one's words and penalty are the GMs' store's (motives.mjs
+           `keepHiddenMonokumaWords`): `whileField` holds `text` and `penalty` empty while `hidden` is true (D2-24 #2: the
+           players see that there is one, not what it says). And nothing of a student's private motives - their words,
+           who a Relationship Motive names, a report, the words a GM stood by - is ever written beside it. */
+        monokumaMotive: Object.freeze({
+            fields: Object.freeze(["personal", "relationship", "withActorId", "report", "hiddenText", "hiddenPenalty"]),
+            whileField: Object.freeze({ field: "hidden", value: true, fields: Object.freeze(["text", "penalty"]),
+                since: "2.0 line T5 (D2-24 #2)", why: "a hidden Monokuma Motive's words and penalty, which only the GMs may read" }),
+            since: "2.0 line T5 (D2-23)",
+            why: "a student's Personal or Relationship Motive, who it names, a player's report of it - the GMs' store motives and each owner's copy hold them"
         })
     }),
     everySetting: Object.freeze({
@@ -197,7 +209,8 @@ export const WORLD_SECRET_RULES = Object.freeze({
         // on its target (call-effects.mjs `unsigned`; S09-10). A `*` is any index of the armed list.
         // E72 C2: which Monocub saw the crime is the row's `witness` in the GMs' `cubStore` and its owner's copy; the
         // flag `silencedChapter` that held it goes at the update (monocub.mjs `liftCubWitness`; S18-51).
-        Actor: Object.freeze(["lastAction", "lootTrace", "pendingCall.*.from", "silencedChapter"]),
+        // 2.0 line T5 (D2-23): a student's motives are the GMs' store and its owner's copy (motives.mjs); no flag holds them.
+        Actor: Object.freeze(["lastAction", "lootTrace", "pendingCall.*.from", "silencedChapter", "motives"]),
         // E05 C6: a player's pre-session note for the GMs - "Am I planning to kill? How?" - is a GM
         // store; the flag keeps only `{ updatedAt, written }` (pre-session-note.mjs; S11-03, S01-08).
         User: Object.freeze(["preSessionNote.text"]),
@@ -416,6 +429,15 @@ export function findWorldSecrets(snapshot, { ids = [], rules = WORLD_SECRET_RULE
                 if (!isObject(row) || row.secret !== true) continue;
                 for (const f of own.whileSecret.fields) {
                     if (Object.hasOwn(row, f)) out.push({ kind: "field", doc: "setting", id: key, path: `${id}.${f}`, rule: `${own.whileSecret.why} (${own.whileSecret.since})` });
+                }
+            }
+        }
+        /* A rule of a setting while one of its own top-level fields says so (2.0 line T5, D2-24 #2): `whileField`, the
+           fields it names absent or empty while `field` is `value` - a hidden Monokuma Motive's words. */
+        if (own?.whileField && isObject(value) && value[own.whileField.field] === own.whileField.value) {
+            for (const f of own.whileField.fields) {
+                if (Object.hasOwn(value, f) && !isEmpty(value[f])) {
+                    out.push({ kind: "field", doc: "setting", id: key, path: f, rule: `${own.whileField.why} (${own.whileField.since})` });
                 }
             }
         }
