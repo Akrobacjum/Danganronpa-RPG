@@ -69939,7 +69939,7 @@ const INVARIANTS = [
         const reg = fnSource(voice, "registerVoice");
         const hook = bodyOf(reg, 'Hooks.on("drpgPrimaryChanged"', { until: "\n    });" });
         const ready = fnSource(bridge, "onGmReady"), wire = fnSource(bridge, "registerGmBridge");
-        const firstCall = /markGmReady\(senderId\)/.exec(ready)?.index ?? -1;
+        const firstCall = /markGmReady\(senderId[,)]/.exec(ready)?.index ?? -1;
         equal(JSON.stringify([/standDownRoomsKept\(\)/.test(hook), /to === game\.user\??\.id/.test(hook) && /scheduleReconcile\(\{ force: true \}\)/.test(hook),
             firstCall > 0 && ["resendOnGmReady(", "askForOffers(", "drpgPrimaryReady"].every(s => ready.indexOf(s) > firstCall),
             /^\s*game\.socket\.on\(SOCKET_EVENT, onGmReady\);/m.test(wire) && !/else game\.socket\.on\(SOCKET_EVENT, onGmReady\)/.test(wire)]),
@@ -70910,7 +70910,7 @@ const INVARIANTS = [
         const bridge = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/gm-bridge.mjs`).then(lfText));
         const wire = fnSource(bridge, "registerGmBridge");
         const gmBranch = bodyOf(wire, "if (game.user.isGM) {", { until: "\n    }\n" });
-        read.wired = [/if \(game\.user\.isGM\) game\.socket\.emit\(SOCKET_EVENT, \{ action: ACTION_GM_READY \}\);\s*else tellGmsPlayerReady\(\);/.test(wire),
+        read.wired = [/if \(game\.user\.isGM\) sayGmReady\(\);\s*else tellGmsPlayerReady\(\);/.test(wire),
             /game\.socket\.on\(SOCKET_EVENT, onPlayerReady\);/.test(gmBranch)];
         read.label = [];
         for (const lang of ["en", "pl"]) {
@@ -71111,6 +71111,86 @@ const INVARIANTS = [
             card: { gmBlock: true, playerReads: false, buttons: ["cubGiveHope:1:true", "cubGiveHope:2:true", "cubNotNow::true"] },
             refusal: [true, true, null], order: [true, true, true]
         }), "card: {the GMs' block says Give pays from the presser's pool, a player's words say it, the buttons [action:n:the character]}; refusal: [askPoolEmptyLine at 0 is DRPG.Monocub.askPoolEmpty, it names the pool, at 1]; order: [answerHopeAsk waits for the owed rows before it asks, it asks the presser's spendable pool, a refusal warns and answers null before convertDespairToHope]");
+    }],
+    ["R9119 - a GM whose socket comes back without a reload says again that its world has loaded, and a word that comes before its connect is kept for it: gm-bridge.mjs `gmSocketBack` sends `bridge.gmReady` on a GM's browser past its `ready` and nothing on a player's or before the `ready`, and `registerGmBridge` puts it on the socket's \"connect\"; utils.mjs `gmConnectSeen` marks a GM seen connecting as loading, and not when its `bridge.gmReady` came while it was away (`markGmReady` `away`), once; `onGmReady` says whether the sender was away (2.0 line T2, PRIM-03, the end review's T2-COR-01, 28.11.2026)", async () => {
+        /* T2-COR-01: a GM whose socket dropped and came back with its page loaded was marked loading by every other browser
+           at its `userConnected(true)`, and only a page load sends `bridge.gmReady`: for `TIMING.gmReadyWaitMs` the others
+           passed it by while it counted itself the primary, so two browsers ran the table. The sender is driven on a socket
+           of the test's own (nothing goes out); the registry on a stand-in id nobody here has, put back in the `finally`
+           (a leave clears the kept word, a `markGmReady` the mark); the wiring read in the sources. Tier 2's E132 PRIM-03
+           "a GM whose socket comes back" fires this GM's own "connect" listeners and drives the order on a stand-in.
+           Red before the fix: there is no `gmSocketBack` and no `gmConnectSeen`. */
+        const U = await import("./utils.mjs");
+        const Br = await import("./gm-bridge.mjs");
+        const { SOCKET_EVENT, ACTION_GM_READY } = await import("./bridge-wire.mjs");
+        const read = {};
+        if (typeof Br.gmSocketBack === "function") {
+            const said = opts => {
+                const sent = [];
+                const answer = Br.gmSocketBack({ socket: { emit: (...args) => sent.push(args) }, ...opts });
+                return [answer, sent.map(([event, packet, options]) => [event === SOCKET_EVENT, stableJson(packet), options ?? null])];
+            };
+            read.sent = [said({ isGM: true, ready: true }), said({ isGM: false, ready: true }), said({ isGM: true, ready: false })];
+        } else read.sent = "missing";
+        const A = { id: "R9119AAAAAAAAAAA", isGM: true }, P = { id: "R9119PPPPPPPPPPP", isGM: false };
+        if (typeof U.gmConnectSeen === "function") {
+            const seen = (user, connected, ready = true) => U.gmConnectSeen(user, connected, { ready });
+            const steps = [];
+            try {
+                seen(A, true); steps.push(U.gmLoading(A.id));
+                U.markGmReady(A.id); steps.push(U.gmLoading(A.id));
+                seen(A, false); seen(A, true); steps.push(U.gmLoading(A.id));
+                U.markGmReady(A.id);
+                seen(A, false); U.markGmReady(A.id, { away: true }); seen(A, true); steps.push(U.gmLoading(A.id));
+                seen(A, false); seen(A, true); steps.push(U.gmLoading(A.id));
+                U.markGmReady(A.id);
+                U.markGmReady(A.id, { away: true }); seen(A, false); seen(A, true); steps.push(U.gmLoading(A.id));
+                U.markGmReady(A.id);
+                seen(A, false); seen(A, true, false); steps.push(U.gmLoading(A.id));
+                seen(P, true); steps.push(U.gmLoading(P.id));
+            } finally {
+                U.markGmReady(A.id);
+                U.gmConnectSeen(A, false);
+            }
+            read.steps = steps;
+        } else read.steps = "missing";
+        const [utils, bridge] = await Promise.all(["utils.mjs", "gm-bridge.mjs"].map(f => fetch(`/modules/${MODULE_ID}/scripts/${f}`).then(lfText).then(stripComments)));
+        const wire = fnSource(bridge, "registerGmBridge");
+        const gmBranch = bodyOf(wire, "if (game.user.isGM) {", { until: "game.socket.on(SOCKET_EVENT, onSocket);" });
+        read.wired = [/game\.socket\.on\("connect", gmSocketBack\);/.test(gmBranch), (wire.match(/gmSocketBack/g) ?? []).length,
+            /markGmReady\(senderId, \{ away: !game\.users\.get\(senderId\)\?\.active \}\)/.test(fnSource(bridge, "onGmReady")),
+            /Hooks\?\.on\?\.\("userConnected", \(user, connected\) => gmConnectSeen\(user, connected\)\)/.test(utils)];
+        equal(stableJson(read), stableJson({
+            sent: [[true, [[true, stableJson({ action: ACTION_GM_READY }), null]]], [false, []], [false, []]],
+            steps: [true, false, true, false, true, true, false, false],
+            wired: [true, 1, true, true]
+        }), "sent: gmSocketBack [a GM past its ready, a player, a GM before its ready] as [its answer, what went out: [the module's socket, the packet, options]]; steps: loading after [a connect; its gmReady; a leave and a connect; a leave, its gmReady away, a connect; the next leave and connect; a word kept before the leave; a connect while this browser loads; a player's connect]; wired: [registerGmBridge's GM branch listens on connect, named once, onGmReady tells away, the userConnected hook is gmConnectSeen]");
+    }],
+    ["R9118 - a GM who stops being the primary forgets the claims it held as the primary: gm-bridge.mjs `forgetClaimsOnPrimaryMove` empties the claims in memory when the role moves from this GM to another, answers the cards it let go, and keeps them for any other change; a claim so forgotten holds the card no longer (`underClaim`); `registerGmBridge` hangs it on `drpgPrimaryChanged` (2.0 line T2, PRIM-03, CALLS-01, the end review's T2-COR-03, 28.11.2026)", async () => {
+        /* T2-COR-03: `claimsInProgress` is the primary's memory, and nothing emptied it when this browser stopped being the
+           primary. A claim taken while it was and ended after the role moved (its "drop" goes to the new primary) stayed,
+           held by no row, so it never ran out (`claimRanOut` needs the row): back as the primary, this GM read "You already
+           have this card's window open" with no window, and the card's end waited on a claim's end that never came. Driven on
+           maps of the test's own and a store with no rows; the hook read in the source. Red before the fix: there is no
+           `forgetClaimsOnPrimaryMove`, and the claim held in memory holds the card. */
+        const C = await import("./call-gm.mjs");
+        const Br = await import("./gm-bridge.mjs");
+        const me = "R9118MeMeMeMeMeM", other = "R9118OtherOtherO", ONE = "R9118CardOneOneO", TWO = "R9118CardTwoTwoT";
+        const forget = typeof Br.forgetClaimsOnPrimaryMove === "function" ? Br.forgetClaimsOnPrimaryMove : () => "missing";
+        const store = { get: () => undefined };
+        const held = () => new Map([[ONE, me], [TWO, other]]);
+        const step = async change => {
+            const map = held();
+            const freed = forget(change, { me, held: map });
+            return [freed, map.size, await C.underClaim(ONE, { store, held: map })];
+        };
+        const cases = [await step({ from: me, to: other }), await step({ from: other, to: me }), await step({ from: null, to: me }),
+            await step({ from: other, to: "R9118ThirdThirdT" }), await step({ from: me, to: null }), await step(null)];
+        const bridge = await fetch(`/modules/${MODULE_ID}/scripts/gm-bridge.mjs`).then(lfText).then(stripComments);
+        const wire = fnSource(bridge, "registerGmBridge");
+        equal(stableJson({ cases, hooked: /Hooks\.on\("drpgPrimaryChanged", (\w+) => forgetClaimsOnPrimaryMove\(\1\)\);/.test(wire) }), stableJson({
+            cases: [[[ONE, TWO], 0, false], [[], 2, true], [[], 2, true], [[], 2, true], [[ONE, TWO], 0, false], [[], 2, true]], hooked: true
+        }), "cases: [the role moves from this GM to another; from another to this GM; the first reading; between two others; from this GM to nobody; no change] as [the cards let go, the claims left, the first card held]; hooked: registerGmBridge forgets on drpgPrimaryChanged");
     }],
 ];
 

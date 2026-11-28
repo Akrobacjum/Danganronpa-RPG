@@ -119546,6 +119546,101 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             paid: { settledLine: true, settled: true, hope: 1, open: false }
         }), "gmBlock: the card's GM block says Give pays from the presser's pool; empty: Give 1 from a pool of 0 {a settled line, DRPG.Monocub.askPoolEmpty naming the pool told, despair.mjs's poolEmpty told, the card settled, the Monocub's Hope, the ask open}; paid: Give 1 from a pool of 2 {a settled line, the card settled, Hope, open}");
     }],
+    ["E132 PRIM-03 - a GM whose socket comes back without a reload is the primary again at its word, not at the bound: this GM's socket's \"connect\" sends `bridge.gmReady` once; a full Gamemaster who sorts first and was the primary, seen leaving and connecting again, is passed by until its `bridge.gmReady` and is the primary at it, and one whose `bridge.gmReady` lands while it is still away is the primary at its connect (gm-bridge.mjs `gmSocketBack`, `onGmReady`; utils.mjs `gmConnectSeen`; 2.0 line T2, PRIM-03, the end review's T2-COR-01, 28.11.2026)", async () => {
+        /*
+         * T2-COR-01. A GM's socket that drops and comes back with the page loaded: the other browsers saw it leave and
+         * connect, marked it loading at the connect, and only a page load sent `bridge.gmReady`, so for
+         * `TIMING.gmReadyWaitMs` they passed it by while it counted itself the primary - two browsers ran the table. The
+         * harness drops no socket of a client that stays up (cluster.mjs `disconnect` ends the client), so both halves are
+         * driven here. This GM's half: every listener of its own socket's "connect" called as socket.io calls them (with
+         * nothing), the module's socket's sends caught and put back (frisk.mjs `friskSocketBack` and gm-store.mjs's hello
+         * listen there too; nothing goes out). The others' half, on this browser: E132 PRIM-03's stand-in (tests-kit
+         * `standInUser`, sorts first) never seen connecting, so the primary; its leave as utils.mjs and the observer read
+         * one (`gmConnectSeen`, `notePrimary` with `leaving` - not the `userConnected` hook, whose leave sweeps this
+         * world's ask cards), its connect as Foundry announces one, its word handed to the bridge's own listener
+         * (`onGmReady`); then the same with the word before the connect, an order v14's is not read for (LIVE-E132-21).
+         * The stand-in is taken out of the list and the registry, and the observer asked again, in the `finally`. Red
+         * before the fix: the "connect" sent nothing, and the GM whose word came first was passed by at its connect.
+         */
+        needs(env.primaryGm());
+        const U = await import("./utils.mjs");
+        const Br = await import("./gm-bridge.mjs");
+        const { SOCKET_EVENT, ACTION_GM_READY } = await import("./bridge-wire.mjs");
+        const me = game.user.id;
+        const socket = game.socket;
+        const own = Object.getOwnPropertyDescriptor(socket, "emit");
+        const sent = [];
+        const read = {};
+        Object.defineProperty(socket, "emit", { configurable: true, writable: true, value: (event, packet) => { sent.push([event === SOCKET_EVENT, packet?.action ?? null]); } });
+        try {
+            for (const fn of [...(socket.listeners?.("connect") ?? [])]) await fn();
+        } finally {
+            if (own) Object.defineProperty(socket, "emit", own); else delete socket.emit;
+        }
+        read.connect = sent.filter(([ours, action]) => ours && action === ACTION_GM_READY).length;
+        const back = standInUser({ name: "E132 PRIM-03 socket back", role: CONST.USER_ROLES.GAMEMASTER, active: true, sorts: "first" });
+        const who = id => (id === me ? "me" : id === back.id ? "back" : id ?? null);
+        const primary = () => [who(U.primaryGmId()), U.isPrimaryGm()];
+        const leaves = () => { back.active = false; U.gmConnectSeen?.(back, false); Br.notePrimary?.({ leaving: back.id }); };
+        const connects = () => { back.active = true; Hooks.callAll("userConnected", back, true); };
+        const says = () => Br.onGmReady?.({ action: ACTION_GM_READY }, back.id);
+        game.users.set(back.id, back);
+        try {
+            read.before = primary();
+            leaves(); read.away = primary();
+            connects(); read.connected = primary();
+            says(); read.ready = primary();
+            leaves(); says(); read.wordAway = primary();
+            connects(); read.wordFirst = primary();
+        } finally {
+            game.users.delete(back.id);
+            U.markGmReady?.(back.id);
+            U.gmConnectSeen?.(back, false);
+            Br.notePrimary?.();
+        }
+        read.after = primary();
+        equal(stableJson(read), stableJson({ connect: 1, before: ["back", false], away: ["me", true], connected: ["me", true], ready: ["back", false],
+            wordAway: ["me", true], wordFirst: ["back", false], after: ["me", true] }),
+            "connect: bridge.gmReady sent by this GM's socket's connect; before: the stand-in, found here; away: once it left; connected: once it connected again; ready: after its bridge.gmReady; wordAway: it left again and its word came while away; wordFirst: its connect after it; after: once it is gone - each [the primary here, this GM is it]");
+    }],
+    ["E132 CALLS-01 - a GM who stops being the primary forgets the claims it held as the primary: a claim in this primary's memory on a card with no row holds the card; when a full Gamemaster who sorts first connects and says its world has loaded, the role moves and the claim is gone, and once this GM is the primary again the card is held by nobody (gm-bridge.mjs `forgetClaimsOnPrimaryMove`, `registerGmBridge`; call-gm.mjs `claimsInProgress`, `underClaim`; 2.0 line T2, PRIM-03, CALLS-01, the end review's T2-COR-03, 28.11.2026)", async () => {
+        /*
+         * T2-COR-03. The failing case's last state, set here: a claim this GM held as the primary whose "drop" went to the
+         * GM who had the role meanwhile, which left the row off and this GM's memory as it was. Set straight into
+         * `claimsInProgress` on a card id nobody has (no card, no row: no claim of a real card is touched), then the role
+         * moved by E132 PRIM-03's stand-in (tests-kit `standInUser`, sorts first) connecting and saying it has loaded
+         * (`onGmReady`), and back by its leave from the list in the `finally`. Read: whether the card is held, as the
+         * primary's end of an ask asks it (`underClaim`), and the memory. Red before the fix: the claim outlived the move,
+         * and the card was held again once this GM was the primary.
+         */
+        needs(env.primaryGm());
+        const U = await import("./utils.mjs");
+        const Br = await import("./gm-bridge.mjs");
+        const C = await import("./call-gm.mjs");
+        const { ACTION_GM_READY } = await import("./bridge-wire.mjs");
+        const CARD = `E132COR03${foundry.utils.randomID(7)}`;
+        const back = standInUser({ name: "E132 CALLS-01 primary for a while", role: CONST.USER_ROLES.GAMEMASTER, active: true, sorts: "first" });
+        const read = {};
+        C.claimsInProgress.set(CARD, game.user.id);
+        try {
+            read.held = [U.isPrimaryGm(), await C.underClaim(CARD)];
+            game.users.set(back.id, back);
+            try {
+                Hooks.callAll("userConnected", back, true);
+                Br.onGmReady?.({ action: ACTION_GM_READY }, back.id);
+                read.moved = [U.primaryGmId() === back.id, C.claimsInProgress.has(CARD)];
+            } finally {
+                game.users.delete(back.id);
+                U.markGmReady?.(back.id);
+                Br.notePrimary?.();
+            }
+            read.back = [U.isPrimaryGm(), C.claimsInProgress.has(CARD), await C.underClaim(CARD)];
+        } finally {
+            C.claimsInProgress.delete(CARD);
+        }
+        equal(stableJson(read), stableJson({ held: [true, true], moved: [true, false], back: [true, false, false] }),
+            "held: before [this GM is the primary, the card is held]; moved: after the stand-in's word [it is the primary, the claim is in memory]; back: once it is gone [this GM is the primary, the claim is in memory, the card is held]");
+    }],
 ];
 
 // `drawnForPlayer` for the grid (E33 C7): a drawn crisis roll goes through the suite's one road to a draw (tests-grid.mjs `drawnAct`).

@@ -1088,7 +1088,8 @@ export function threadOf(actor, userId, { poster = game.user } = {}) {
  * who clicked is told who has it.
  * ========================================================================== */
 
-/** On the primary: the cards a GM's click is ruling on now, messageId -> that GM's user id. */
+/** On the primary: the cards a GM's click is ruling on now, messageId -> that GM's user id. Emptied when the role moves
+    away from this GM (gm-bridge.mjs `forgetClaimsOnPrimaryMove`, T2-COR-03). */
 export const claimsInProgress = new Map();
 
 /**

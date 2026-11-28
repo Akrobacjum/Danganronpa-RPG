@@ -2,7 +2,8 @@
  * Danganronpa RPG - the bridge: the GM -> player wire and the registration.
  * ---------------------------------------------------------------------------
  * What stays here: `registerGmBridge` (the socket's listeners and a GM's
- * ready signal), a primary GM's arrival (`onGmReady`), a player's browser
+ * ready signal, sent again when its socket comes back, `gmSocketBack`),
+ * a primary GM's arrival (`onGmReady`), a player's browser
  * loaded (`tellGmsPlayerReady`, `onPlayerReady`, 2.0 line T2 CALLS-04), the opening roll's
  * invitation and its withdrawal (`askOpeningRoll`, `cancelOpeningRoll` and
  * their listeners), and the Level Up offers' listener with `askForOffers`.
@@ -93,7 +94,8 @@ export {
 export function onGmReady(payload, senderId) {
     if (payload?.action !== ACTION_GM_READY) return;
     if (!game.users.get(senderId)?.isGM) return;
-    markGmReady(senderId);
+    // A word from a GM this browser counts as away is kept for its connect (utils.mjs `markGmReady`, T2-COR-01).
+    markGmReady(senderId, { away: !game.users.get(senderId)?.active });
     if (game.user?.isGM) {
         notePrimary();
         return;
@@ -115,6 +117,51 @@ export function onGmReady(payload, senderId) {
        who had loaded first held no copy until its own next load. The hook carries the
        primary's id, so a client that has not seen it connect yet still knows whom to ask. */
     Hooks.callAll("drpgPrimaryReady", senderId);
+}
+
+/**
+ * THIS GM'S SOCKET CAME BACK, SO IT SAYS AGAIN THAT ITS WORLD HAS LOADED (2.0 line T2, PRIM-03, the end review's T2-COR-01,
+ * 28.11.2026). The others count a GM seen connecting as loading until its `bridge.gmReady` (utils.mjs `markGmLoading`), and
+ * a socket that drops and comes back is a leave and a connect to them, with this page still loaded: only a page load sent
+ * the packet, so for `TIMING.gmReadyWaitMs` they passed this GM by while it counted itself the primary, and two browsers
+ * ran the table - both judged a player's packet. Put on the socket's "connect" in `registerGmBridge`, which runs past the
+ * first connect, as frisk.mjs `friskSocketBack` and gm-store.mjs's hello are: v14 does emit "connect" again after a drop
+ * without a reload, read on 14.370 for a console's `game.socket.disconnect()` then `connect()` (LIVE-E04-04); a real
+ * network loss, and whether the others hear the connect before this packet, is LIVE-E132-21. A player's browser sends
+ * nothing: a player's word (`bridge.playerReady`) ends the asks its page left, and a page that stayed has left none. On
+ * the players this GM's packet does what a reload's does (`onGmReady`): what still waits on it is asked again, and the
+ * Level Ups and the stores' copies are asked for. `socket`, `isGM` and `ready` are a test's (R9119).
+ * Answers whether it was sent.
+ */
+export function gmSocketBack(opts) {
+    const { socket = game.socket, isGM = game.user?.isGM, ready = game.ready } = opts ?? {};
+    if (!isGM || ready !== true) return false;
+    sayGmReady(socket);
+    return true;
+}
+
+/** A GM's word that its world has loaded, to every browser: the one send of it, at `registerGmBridge` and at a socket back
+    (`gmSocketBack`). One place, as R201 holds a file to one send to every browser. */
+function sayGmReady(socket = game.socket) {
+    socket.emit(SOCKET_EVENT, { action: ACTION_GM_READY });
+}
+
+/**
+ * A GM WHO STOPS BEING THE PRIMARY FORGETS WHAT IT HELD AS THE PRIMARY (2.0 line T2, PRIM-03, CALLS-01, the end review's
+ * T2-COR-03, 28.11.2026). call-gm.mjs `claimsInProgress` is the primary's memory, and nothing emptied it when the role moved away: a
+ * claim this GM took as the primary whose "drop" or "done" went to the GM who had the role by then (that primary lets go of
+ * its own map and the row) stayed here, and held by no row it never ran out (`claimRanOut` reads the row). Back as the
+ * primary, this GM read "You already have this card's window open" with no window open, and the card's end at its time
+ * waited on a claim's end that never came (`underClaim`). The new primary judges every claim from the GMs' rows
+ * (call-gm.mjs `claimHolder`): each "take" writes one, pending, as it holds the card. So when `drpgPrimaryChanged` moves the role
+ * from this GM (`registerGmBridge`), the memory is emptied; nothing is sent or written. Any other change
+ * keeps it. Answers the cards let go. `me` and `held` are a test's (R9118).
+ */
+export function forgetClaimsOnPrimaryMove(change, { me = game.user?.id ?? null, held = claimsInProgress } = {}) {
+    if (!change || !me || change.from !== me || change.to === me) return [];
+    const freed = [...held.keys()];
+    held.clear();
+    return freed;
 }
 
 /*
@@ -226,7 +273,7 @@ export function registerGmBridge() {
        asks again. Every browser listens since 2.0 (line T2, PRIM-03): the packet
        is also what makes the GM count for the primary (`onGmReady`). A player's browser says the same since 2.0 (line T2,
        CALLS-04), so the primary ends the asks its page before left waiting (`tellGmsPlayerReady`). */
-    if (game.user.isGM) game.socket.emit(SOCKET_EVENT, { action: ACTION_GM_READY });
+    if (game.user.isGM) sayGmReady();
     else tellGmsPlayerReady();
     game.socket.on(SOCKET_EVENT, onGmReady);
 
@@ -248,6 +295,11 @@ export function registerGmBridge() {
         // The first reading of the primary on this GM (`notePrimary`): `from` null.
         primarySeen = null;
         notePrimary();
+        // A socket back without a reload says the world has loaded again (`gmSocketBack`, T2-COR-01).
+        game.socket.on("connect", gmSocketBack);
+        // A GM who stops being the primary forgets the claims it held as the primary (`forgetClaimsOnPrimaryMove`;
+        // 2.0 line T2, the end review's T2-COR-03, 28.11.2026).
+        Hooks.on("drpgPrimaryChanged", change => forgetClaimsOnPrimaryMove(change));
         Hooks.on("userConnected", (user, connected) => {
             // A GM who left in the middle of a ruling holds no card any more (E18 C3).
             if (!connected && user?.id) releaseClaimsOf(user.id);

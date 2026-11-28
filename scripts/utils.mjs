@@ -480,9 +480,24 @@ export function markGmLoading(id, sinceMs = Date.now()) {
     if (id) gmLoadingSince.set(String(id), sinceMs);
 }
 
-/** The GM `id` said its world has loaded (`bridge.gmReady`), or the mark is taken back. */
-export function markGmReady(id) {
-    if (id) gmLoadingSince.delete(String(id));
+/*
+ * A WORD THAT CAME BEFORE ITS CONNECT (2.0 line T2, PRIM-03, the end review's T2-COR-01, 28.11.2026). A GM's socket that
+ * drops and comes back with its page loaded says again that its world has loaded (gm-bridge.mjs `gmSocketBack`), and its
+ * page loaded is the only page that can say it. Which of its `bridge.gmReady` and the others' `userConnected(true)` comes
+ * first on v14 is not read (LIVE-E132-21; LIVE-E04-12 asks the same of a page load): a word heard while this browser
+ * still counted the GM away would have been taken off a mark not yet set, and the connect after it would have marked the
+ * GM loading for `TIMING.gmReadyWaitMs` - the 90 s with two browsers running the table that the re-announce is there to
+ * end. So a word from a GM that is away here (`onGmReady` says so: `away`) is kept, and its next connect marks nothing;
+ * the GM's next leave throws it away, so it is spent by the one connect that follows it or not at all.
+ */
+const gmReadyAway = new Set();
+
+/** The GM `id` said its world has loaded (`bridge.gmReady`), or the mark is taken back. `away`: the GM was not
+    connected here when it said so - its next connect does not mark it loading (`gmConnectSeen`). */
+export function markGmReady(id, { away = false } = {}) {
+    if (!id) return;
+    gmLoadingSince.delete(String(id));
+    if (away) gmReadyAway.add(String(id));
 }
 
 /**
@@ -502,10 +517,22 @@ export function gmLoading(id, { now = Date.now(), self = game.user?.id ?? null, 
     return since !== undefined && now - since < TIMING.gmReadyWaitMs;
 }
 
-globalThis.Hooks?.on?.("userConnected", (user, connected) => {
-    if (!user?.isGM || !user.id || user.id === game.user?.id) return;
-    if (connected && game.ready) markGmLoading(user.id);
-});
+/** This browser saw the GM `user` connect or leave (the `userConnected` hook below): a connect marks it loading once this
+    browser is past its `ready`, unless its word came first (`markGmReady` `away`); a leave throws a kept word away and
+    keeps the mark. Answers whether it marked. `ready` is a test's (R9119). */
+export function gmConnectSeen(user, connected, { ready = game.ready } = {}) {
+    if (!user?.isGM || !user.id || user.id === game.user?.id) return false;
+    const id = String(user.id);
+    if (!connected) {
+        gmReadyAway.delete(id);
+        return false;
+    }
+    if (gmReadyAway.delete(id) || !ready) return false;
+    markGmLoading(id);
+    return true;
+}
+
+globalThis.Hooks?.on?.("userConnected", (user, connected) => gmConnectSeen(user, connected));
 
 /**
  * Exactly one client runs GM-side automation, so two GMs never both apply the
