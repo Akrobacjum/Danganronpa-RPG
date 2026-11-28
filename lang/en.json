@@ -1426,7 +1426,9 @@
       "meddleCostShort": { "one": "{hope} Hope, {actions} action", "other": "{hope} Hope, {actions} actions" },
       "silencedBadge": "Can't discuss the crime",
       "silencedTooltip": "You're a witness: you can't discuss the crime until this chapter ends; Confusion still works.",
-      "invite": "Invite as a Monocub"
+      "invite": "Invite as a Monocub",
+      "askFromYourPool": "Give pays from the Despair pool of the GM who presses it.",
+      "askPoolEmpty": "Your Despair pool ({pool}) has no Despair to give, and Give pays from the pool of the GM who presses it. The card stays open: a GM with Despair can press Give, or you can press Not now."
     },
     "Mastermind": {
       "lair": {

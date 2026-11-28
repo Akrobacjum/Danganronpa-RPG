@@ -119471,6 +119471,81 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         equal(stableJson(read), stableJson({ primary: [true, false], running: true, card: { cards: 1, mine: true, paused: true }, after: true }),
             "primary: [the stand-in is the primary, this GM is]; running: the game ran before the card; card: {cards posted, all by this GM, the game paused once it landed}; after: this GM the primary again");
     }],
+
+    ["E132 CALLS-07 - a Give on a Monocub's Ask for Hope from a GM whose pool can spend nothing is refused with the pool's name and the card stays open; a Give from the same GM once the pool holds Despair pays and settles it: the card's GM block says Give pays from the presser's pool (monocub.mjs `hopeAskCard`, `answerHopeAsk`, `askPoolEmptyLine`; messenger-app.mjs `pressCard`, `ruleCubHope`; 2.0 line T2, CALLS-07, 28.11.2026)", async () => {
+        /*
+         * F1-calls CALLS-07: Give pays from the pool of the GM who presses it, nothing on the card said so, and a GM with an
+         * empty pool was told only "That pool has no Despair to give." (despair.mjs `convertDespairToHope`). On this GM, as
+         * E72 C5's test sets it up: a Monocub with no Hope asks (`performCubAbility`), this GM's pool is set to 0 with none
+         * owed, and Give 1 is pressed on the card by the road a GM's click takes (`pressCard`: the claim, `runCallAction`,
+         * `ruleCubHope`); then the pool is set to 2 and Give 1 pressed again. Read: the card's GM block, the notices this
+         * GM was given, the card's settled mark, the Monocub's Hope and the ask's open mark after each press. Red before
+         * CALLS-07: no GM block, and the notice was despair.mjs's poolEmpty, naming no pool.
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 1), "a Monocub with a player whose thread the card goes to");
+        const M = await import("./monocub.mjs");
+        const D = await import("./despair.mjs");
+        const { pressCard } = await import("./messenger-app.mjs");
+        const { cubStore, despairOwedStore } = await import("./gm-stores.mjs");
+        const { livingStudents } = await import("./chapter.mjs");
+        const { contentOf, cardFlag } = await import("./secret.mjs");
+        const { trustedWrite } = await import("./resource-guard.mjs");
+        const player = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const [cub] = livingStudents().filter(player);
+        ok(D.monokumas().some(u => u.id === game.user.id), "this GM holds no Despair pool to give from - this would measure nothing");
+        const was = [cub.system.resources.actions.value, cub.system.resources.hope.value];
+        const despairWas = D.getDespair(game.user.id);
+        const rowWas = foundry.utils.deepClone(cubStore?.get(cub.id) ?? null);
+        const had = new Set(game.messages.contents.map(m => m.id));
+        const warns = [], warned = ui.notifications.warn;
+        const read = {};
+        try {
+            await cub.setFlag(MODULE_ID, FLAGS.monocub, true);
+            await trustedWrite(cub, { "system.resources.hope.value": 0 }, { reason: "gmRuling" });
+            if (cubStore?.has(cub.id)) await cubStore.drop(cub.id);
+            await despairOwedStore.drop(game.user.id);
+            await D.setDespair(game.user.id, 0);
+            await settle();
+            ui.notifications.warn = text => { warns.push(String(text)); };
+            const asked = await M.performCubAbility(cub, "askHope", { targetId: cub.id, choice: "ask" });
+            await settle();
+            must(asked?.done, "the Monocub's Ask for Hope posted no card - this would measure nothing");
+            const card = game.messages.contents.find(m => !had.has(m.id) && String(contentOf(m) ?? "").includes('data-drpg-call="cubGiveHope"'));
+            must(card, "no Ask for Hope card with a Give button - this would measure nothing");
+            const wrap = document.createElement("template");
+            wrap.innerHTML = contentOf(card);
+            read.gmBlock = [...wrap.content.querySelectorAll(".drpg-gm-only")].some(el => el.textContent.includes(game.i18n.localize("DRPG.Monocub.askFromYourPool")));
+            const give1 = wrap.content.querySelector('[data-drpg-call="cubGiveHope"][data-n="1"]');
+            must(give1, "the card carries no Give 1 - this would measure nothing");
+            const empty = await pressCard(card, "cubGiveHope", { ...give1.dataset });
+            await settle();
+            read.empty = { settledLine: Boolean(empty?.settled), told: warns.includes(game.i18n.format("DRPG.Monocub.askPoolEmpty", { pool: D.poolLabel(game.user) })),
+                oldLine: warns.includes(game.i18n.localize("DRPG.Despair.poolEmpty")), settled: Boolean(cardFlag(game.messages.get(card.id), "settled")),
+                hope: cub.system.resources.hope.value, open: Boolean(cubStore.get(cub.id)?.askOpen) };
+            await D.setDespair(game.user.id, 2);
+            await settle();
+            const paid = await pressCard(card, "cubGiveHope", { ...give1.dataset });
+            await until(() => Boolean(cardFlag(game.messages.get(card.id), "settled")), 3000);
+            read.paid = { settledLine: typeof paid?.settled === "string", settled: Boolean(cardFlag(game.messages.get(card.id), "settled")),
+                hope: cub.system.resources.hope.value, open: Boolean(cubStore.get(cub.id)?.askOpen) };
+        } finally {
+            ui.notifications.warn = warned;
+            await cub.unsetFlag(MODULE_ID, FLAGS.monocub);
+            await cub.update({ "system.resources.actions.value": was[0], "system.resources.hope.value": was[1] });
+            await despairOwedStore.drop(game.user.id);
+            await D.setDespair(game.user.id, despairWas);
+            if (cubStore) {
+                if (rowWas) await cubStore.patch(cub.id, rowWas);
+                else if (cubStore.has(cub.id)) await cubStore.drop(cub.id);
+            }
+            for (const m of game.messages.contents.filter(m => !had.has(m.id))) await m.delete();
+        }
+        equal(stableJson(read), stableJson({
+            gmBlock: true,
+            empty: { settledLine: false, told: true, oldLine: false, settled: false, hope: 0, open: true },
+            paid: { settledLine: true, settled: true, hope: 1, open: false }
+        }), "gmBlock: the card's GM block says Give pays from the presser's pool; empty: Give 1 from a pool of 0 {a settled line, DRPG.Monocub.askPoolEmpty naming the pool told, despair.mjs's poolEmpty told, the card settled, the Monocub's Hope, the ask open}; paid: Give 1 from a pool of 2 {a settled line, the card settled, Hope, open}");
+    }],
 ];
 
 // `drawnForPlayer` for the grid (E33 C7): a drawn crisis roll goes through the suite's one road to a draw (tests-grid.mjs `drawnAct`).

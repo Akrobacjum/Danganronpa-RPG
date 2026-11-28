@@ -1471,7 +1471,9 @@
       "silencedTooltip": "Jesteś świadkiem: nie możesz mówić o zbrodni do końca tego rozdziału; Confusion wciąż działa.",
       "invite": "Zaproś jako Monocuba",
       "onlyTwoActions": "Monocub chodzi swobodnie i używa swoich kafelków: Confusion, Tinker, Redeem, Ask for Hope i Ghost Bet.",
-      "giveAtLeast": "Wpisz co najmniej {n} Despair do zamiany na Hope."
+      "giveAtLeast": "Wpisz co najmniej {n} Despair do zamiany na Hope.",
+      "askFromYourPool": "Daj płaci z puli Despair GM-a, który go naciśnie.",
+      "askPoolEmpty": "Twoja pula Despair ({pool}) nie ma Despair do oddania, a Daj płaci z puli GM-a, który go naciska. Karta zostaje otwarta: Daj może nacisnąć GM, który ma Despair, albo możesz nacisnąć Nie teraz."
     },
     "Mastermind": {
       "lair": {

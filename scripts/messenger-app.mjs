@@ -1692,7 +1692,11 @@ const CARD_ACTIONS = {
     cubNotNow: ruleCubHope
 };
 
-/** Give 1, Give 2 or Not now on a Monocub's Ask for Hope (E72 C5): the GM's own Despair, or none. */
+/**
+ * Give 1, Give 2 or Not now on a Monocub's Ask for Hope (E72 C5): the pressing GM's own Despair, or none. A presser whose
+ * pool can spend nothing is told so with the pool's name, and the card stays open for another GM or Not now
+ * (monocub.mjs `answerHopeAsk` answers null; 2.0 line T2, CALLS-07, 28.11.2026).
+ */
 async function ruleCubHope(action, data) {
     const actor = game.actors.get(data.actor);
     if (!actor) return settled("DRPG.Bridge.settledNoCharacter");   // Deleted meanwhile (CTRL-23): said, not silent.

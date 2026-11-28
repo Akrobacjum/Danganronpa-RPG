@@ -71073,6 +71073,45 @@ const INVARIANTS = [
         ] }), stableJson({ cases: [true, false, false, false], notPrimary: true, own: true, hook: [true, false] }),
         "cases: safewordPauses [a GM not the primary, game running; the same GM, game paused; a player, running; nobody]; notPrimary: the stand-in GM is not the primary here; own: the function reads no primary; hook: [the createChatMessage hook pauses on safewordPauses(), it reads the primary]");
     }],
+
+    ["R9035 - a Monocub's Ask for Hope says to the GMs whose pool Give pays from, and a Give from a pool that can spend nothing is refused with the pool's name before any Despair moves: monocub.mjs `hopeAskCard` puts `DRPG.Monocub.askFromYourPool` in the card's GM-only block and not in the words its player reads; `askPoolEmptyLine` answers `DRPG.Monocub.askPoolEmpty` naming the pool when the pool can spend 0 and null when it can spend 1; `answerHopeAsk` asks it once the owed rows are in, before `convertDespairToHope`, warns it and answers null, so the card stays open (2.0 line T2, CALLS-07, 28.11.2026)", async () => {
+        /* F1-calls CALLS-07 (TRIAGE-3: a message or a hint): Give pays from the pool of the GM who presses it
+           (`convertDespairToHope(game.user.id, ...)`), nothing on the card said so, and a second GM with an empty pool
+           was told only despair.mjs's "That pool has no Despair to give." - the card stayed open and nobody was told why.
+           The card is built here as `postHopeAsk` builds it, for a stand-in character (no world read or write), and drawn
+           by call-gm.mjs `callCardHtml`, which `callGm` posts; the refusal's words are read off the pure helper, and its
+           place in `answerHopeAsk` off the source, cut with the kit (tier 1 writes nothing: tier 2's E132 CALLS-07 presses
+           the card with an empty pool and then a full one). Red before CALLS-07: there is no `hopeAskCard` and no
+           `askPoolEmptyLine`, and `answerHopeAsk` goes straight to `convertDespairToHope`. */
+        const M = await import("./monocub.mjs");
+        const { callCardHtml } = await import("./call-gm.mjs");
+        const cub = { id: "R9035CubCubCubCu", name: "R9035 Cub" };
+        const fromPool = game.i18n.localize("DRPG.Monocub.askFromYourPool");
+        const read = {};
+        if (typeof M.hopeAskCard === "function") {
+            const root = document.createElement("div");
+            root.innerHTML = callCardHtml(cub, M.hopeAskCard(cub));
+            const gmOnly = [...root.querySelectorAll(".drpg-gm-only")].map(el => el.textContent).join(" ");
+            root.querySelectorAll(".drpg-gm-only").forEach(el => el.remove());
+            read.card = { gmBlock: gmOnly.includes(fromPool), playerReads: root.textContent.includes(fromPool),
+                buttons: [...root.querySelectorAll("[data-drpg-call]")].map(b => `${b.dataset.drpgCall}:${b.dataset.n ?? ""}:${b.dataset.actor === cub.id}`) };
+        } else read.card = "missing";
+        const line = typeof M.askPoolEmptyLine === "function" ? M.askPoolEmptyLine : () => "missing";
+        read.refusal = [line(0, "R9035 Pool") === game.i18n.format("DRPG.Monocub.askPoolEmpty", { pool: "R9035 Pool" }),
+            String(line(0, "R9035 Pool")).includes("R9035 Pool"), line(1, "R9035 Pool")];
+        const src = await fetch(`/modules/${MODULE_ID}/scripts/monocub.mjs`).then(lfText).then(stripComments);
+        const own = fnSource(src, "answerHopeAsk");
+        const at = text => own.indexOf(text);
+        const asked = at("askPoolEmptyLine(spendableDespair(game.user.id)");
+        const between = asked >= 0 && at("convertDespairToHope(game.user.id") > asked
+            ? bodyOf(own, "askPoolEmptyLine(spendableDespair(game.user.id)", { until: "convertDespairToHope(game.user.id" }) : "";
+        read.order = [at("despairOwedStore.whenHydrated()") >= 0 && at("despairOwedStore.whenHydrated()") < asked, asked >= 0,
+            /ui\.notifications\.warn\(empty\);\s*return null;/.test(between)];
+        equal(stableJson(read), stableJson({
+            card: { gmBlock: true, playerReads: false, buttons: ["cubGiveHope:1:true", "cubGiveHope:2:true", "cubNotNow::true"] },
+            refusal: [true, true, null], order: [true, true, true]
+        }), "card: {the GMs' block says Give pays from the presser's pool, a player's words say it, the buttons [action:n:the character]}; refusal: [askPoolEmptyLine at 0 is DRPG.Monocub.askPoolEmpty, it names the pool, at 1]; order: [answerHopeAsk waits for the owed rows before it asks, it asks the presser's spendable pool, a refusal warns and answers null before convertDespairToHope]");
+    }],
 ];
 
 /**

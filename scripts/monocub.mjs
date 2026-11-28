@@ -1597,17 +1597,40 @@ export const ASK_GIVE_MAX = 2;
 async function postHopeAsk(actor) {
     const { callGm } = await import("./gm-bridge.mjs");
     const owner = ownerOf(actor);
-    const give = n => ({ action: "cubGiveHope", label: game.i18n.format("DRPG.Monocub.askGive", { n }), data: { actor: actor.id, n } });
-    const posted = await callGm(actor, {
-        title: game.i18n.localize("DRPG.Monocub.askTitle"),
-        body: `<p>${esc(game.i18n.format("DRPG.Monocub.askBody", { name: actor.name }))}</p>`,
-        actions: [give(1), give(ASK_GIVE_MAX), { action: "cubNotNow", label: game.i18n.localize("DRPG.Monocub.askNotNow"), data: { actor: actor.id } }],
-        thread: owner?.id ?? null,
-        veiled: true
-    });
+    const posted = await callGm(actor, { ...hopeAskCard(actor), thread: owner?.id ?? null, veiled: true });
     if (posted) await patchCubRow(actor.id, { askOpen: askMarkNow() });
     log(`${actor.name} (a Monocub) asked the GMs for Hope.`);
     return { success: Boolean(posted) };
+}
+
+/**
+ * WHAT THE ASK'S CARD SAYS (2.0 line T2, CALLS-07, 28.11.2026; F1-calls CALLS-07). Give pays from the Despair pool of
+ * the GM who presses it (`answerHopeAsk`: `convertDespairToHope(game.user.id, ...)`), whichever GM that is, and nothing on
+ * the card said so: at a table of two GMs with their students split, a press was paid from the presser's own pool, and
+ * one with an empty pool was told only "That pool has no Despair to give." The rule is not changed here (the line's
+ * spec: not this line's decision); the GMs' block of the card says it
+ * (`gmBody`, which `callGm` wraps in `.drpg-gm-only` and a player's copy never carries), so the Monocub's player reads
+ * the card as before. Its own function so tier 1 reads the card without posting one (R9035).
+ */
+export function hopeAskCard(actor) {
+    const give = n => ({ action: "cubGiveHope", label: game.i18n.format("DRPG.Monocub.askGive", { n }), data: { actor: actor.id, n } });
+    return {
+        title: game.i18n.localize("DRPG.Monocub.askTitle"),
+        body: `<p>${esc(game.i18n.format("DRPG.Monocub.askBody", { name: actor.name }))}</p>`,
+        gmBody: `<p>${esc(game.i18n.localize("DRPG.Monocub.askFromYourPool"))}</p>`,
+        actions: [give(1), give(ASK_GIVE_MAX), { action: "cubNotNow", label: game.i18n.localize("DRPG.Monocub.askNotNow"), data: { actor: actor.id } }]
+    };
+}
+
+/**
+ * The pressing GM's refusal of a Give when its pool can spend nothing (2.0 line T2, CALLS-07, 28.11.2026): the words, or
+ * null when `spendable` (despair.mjs `spendableDespair`: the pool less what it owes) holds a Despair. `pool` is the
+ * pool's label (`poolLabel`), the name the Despair bar and the card's settled line give it. The spec's `{pool}` is read
+ * as that name, not a count: the count is 0 whenever this speaks, and a pool that shows 2 skulls and owes 2 would say "2"
+ * beside "no Despair to give". Pure, for R9035.
+ */
+export function askPoolEmptyLine(spendable, pool) {
+    return Number(spendable) > 0 ? null : game.i18n.format("DRPG.Monocub.askPoolEmpty", { pool: String(pool ?? "?") });
 }
 
 /**
@@ -1624,7 +1647,18 @@ export async function answerHopeAsk(actor, n) {
     // else's Monocub is closed before this (messenger-app.mjs `CARD_CHARACTER_FIELD`, r122-G-3).
     const amount = isMonocub(actor) ? wholeNumber(n, { min: 0, max: ASK_GIVE_MAX, fallback: 0 }) : 0;
     if (amount > 0) {
-        const { convertDespairToHope } = await import("./despair.mjs");
+        const { convertDespairToHope, spendableDespair, poolLabel: labelOf } = await import("./despair.mjs");
+        /* THE PRESSER'S POOL, READ FIRST (2.0 line T2, CALLS-07, 28.11.2026). Give pays from this GM's pool; one that can
+           spend nothing was told only despair.mjs's "That pool has no Despair to give." (`convertDespairToHope`), which
+           named neither the pool nor why another GM's would do. Read as `convertDespairToHope` reads it - once the store
+           holds the other GMs' owed rows - and said with the pool's name; the card stays open (null). The conversion
+           still reads the pool again itself, so a spend between the two is refused there with its own line. */
+        await despairOwedStore.whenHydrated();
+        const empty = askPoolEmptyLine(spendableDespair(game.user.id), labelOf(game.user));
+        if (empty) {
+            ui.notifications.warn(empty);
+            return null;
+        }
         const granted = await convertDespairToHope(game.user.id, actor, amount);
         if (granted <= 0) return null;
         await patchCubRow(actor.id, { askOpen: null });
