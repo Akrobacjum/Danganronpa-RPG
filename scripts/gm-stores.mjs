@@ -3298,3 +3298,17 @@ export const erasedRemnantStore = defineGmStore({
     name: "erasedRemnants", key: SETTINGS.gmErasedRemnants,
     kind: "ledger", resetGroup: "remnants", backup: true, sync: true
 });
+
+/**
+ * AN OWNER'S COPIES' ORIGINS (2.0 line T3 EXP-PL-17 with D2-30, 28.11.2026; the owner: "pochodzenie kopii nie może być
+ * czytelne w konsoli innych graczy"): `{ itemUuid: { kind, name?, gaveTo? } }` for the Truth Bullets on the characters
+ * this user owns, as a GM sent them - the `origin` field of each bullet's row in `bulletStore` - a stamp per bullet, taken
+ * by the offers' rule as `bulletRefCopy` is, and sent in the same addressed packet (truth-bullets.mjs `sendBulletRefsTo`).
+ * Read by truth-bullets.mjs `copyOriginOf`. No old key: the item flag of the first 2.0 build is lifted into the rows
+ * (`liftCopyOrigins`).
+ */
+export const copyOriginCopy = defineGmCopy({
+    name: "copyOrigins", key: SETTINGS.mineCopyOrigins, from: "bullets", resetGroup: "bullets", fallback: {},
+    combine: offersCombine
+});
+

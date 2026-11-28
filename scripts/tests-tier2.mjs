@@ -118987,9 +118987,10 @@ equal(read.added, 3, "three additions to a purse at once lost one");
     ["T3 EXP-PL-17 - a copy given to two ticked students says the GM gave it to others too, naming nobody", async () => {
         /*
          * 2.0 line T3 EXP-PL-17, 28.11.2026. A new Truth Bullet given through gm-items.mjs `giveToMany` to two living students,
-         * then another to a third alone: each copy's `copyOrigin` flag, as its holder's browser reads it off the item, and
-         * the sentence the card draws from it (truth-bullets.mjs `copyOriginLines`). Tell the player off. Every new bullet
-         * and its answer key are taken away. Red at 383c779: no copyOrigin on a given copy.
+         * then another to a third alone: each copy's origin as this GM reads it (truth-bullets.mjs `copyOriginOf`, the
+         * bullet's row since D2-30), the sentence the card draws from it (`copyOriginLines`), and no `copyOrigin` flag on
+         * the item, which every browser holds. Tell the player off. Every new bullet and its answer key are taken away. Red
+         * at 383c779: no origin on a given copy; the flag half red at dcdfe4c, which wrote it on the item.
          */
         const G = await import("./gm-items.mjs");
         const TB = await import("./truth-bullets.mjs");
@@ -119008,8 +119009,8 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             await G.giveToMany(result("SUITE T3 EXP-PL-17 one"), [c], [], {});
             await settle();
             const of = x => fresh(x).map(i => {
-                const flag = i.getFlag(MODULE_ID, TB.TRUTH_BULLET_FLAGS.copyOrigin) ?? null;
-                return { flag, lines: TB.copyOriginLines(flag) };
+                const flag = TB.copyOriginOf(i);
+                return { flag, lines: TB.copyOriginLines(flag), onItem: Object.hasOwn(i.flags?.[MODULE_ID] ?? {}, TB.TRUTH_BULLET_FLAGS.copyOrigin) };
             });
             read = { a: of(a), b: of(b), c: of(c) };
         } finally {
@@ -119019,9 +119020,48 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             }
             await settle();
         }
-        const many = { flag: { kind: "givenMany" }, lines: [{ key: "DRPG.TruthBullet.copyOrigin.givenMany", data: {} }] };
-        equal(stableJson(read), stableJson({ a: [many], b: [many], c: [{ flag: { kind: "given" }, lines: [{ key: "DRPG.TruthBullet.copyOrigin.given", data: {} }] }] }),
-            "{each of the two: its copy says a GM gave it to others too, no name; the third, given alone: a GM gave it to you}");
+        const many = { flag: { kind: "givenMany" }, lines: [{ key: "DRPG.TruthBullet.copyOrigin.givenMany", data: {} }], onItem: false };
+        equal(stableJson(read), stableJson({ a: [many], b: [many], c: [{ flag: { kind: "given" }, lines: [{ key: "DRPG.TruthBullet.copyOrigin.given", data: {} }], onItem: false }] }),
+            "{each of the two: its copy says a GM gave it to others too, no name; the third, given alone: a GM gave it to you; none on the item}");
+    }],
+    ["T3 D2-30 - the first 2.0 build's copyOrigin flag is lifted into the bullet's row and only then taken off the item", async () => {
+        /*
+         * 2.0 line T3 EXP-PL-17 with D2-30, 28.11.2026. A Truth Bullet made on a living student, then the flag the first 2.0
+         * build wrote planted on it (a shared copy, a giver's name), and a second one of no known shape: the clause's run
+         * (truth-bullets.mjs `liftCopyOrigins`, as migrate.mjs `liftCopyOrigins` calls it). Read: its report, the row's
+         * origin, the flags after, and a second run. The bullets and their answer keys are taken away. Red at dcdfe4c: no
+         * liftCopyOrigins.
+         */
+        needs(env.primaryGm(), "the lift is the primary GM's");
+        const TB = await import("./truth-bullets.mjs");
+        must(typeof TB.liftCopyOrigins === "function", "truth-bullets.mjs has no liftCopyOrigins: the flag of the first 2.0 build stays on the items");
+        const { livingStudentsForGm } = await import("./chapter.mjs");
+        const [who] = livingStudentsForGm();
+        must(who, "a living student is needed - this would measure nothing");
+        const FLAG = `flags.${MODULE_ID}.${TB.TRUTH_BULLET_FLAGS.copyOrigin}`;
+        const made = [];
+        let read = null;
+        try {
+            for (const name of ["SUITE D2-30 lifted", "SUITE D2-30 shapeless"]) made.push(await TB.createTruthBullet(who, { name, playerText: "SUITE" }));
+            must(made.every(Boolean), "the fixture's bullets were not made");
+            await made[0].update({ [FLAG]: { kind: "shared", name: "SUITE giver" } });
+            await made[1].update({ [FLAG]: { kind: "elsewhere" } });
+            await settle();
+            const report = await TB.liftCopyOrigins();
+            await settle();
+            read = { report, row: TB.copyOriginOf(made[0]), shapeless: TB.copyOriginOf(made[1]),
+                flags: made.map(i => Object.hasOwn(who.items.get(i.id)?.flags?.[MODULE_ID] ?? {}, TB.TRUTH_BULLET_FLAGS.copyOrigin)),
+                again: await TB.liftCopyOrigins() };
+        } finally {
+            for (const item of made.filter(Boolean)) {
+                await TB.dropSecret(item.uuid).catch(() => {});
+                await who.items.get(item.id)?.delete().catch(() => {});
+            }
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ report: { lifted: 1, dropped: 1, kept: 0 }, row: { kind: "shared", name: "SUITE giver" }, shapeless: null,
+            flags: [false, false], again: null }),
+            "{the report; the lifted origin in the row; the shapeless one dropped; neither flag left; a second run finds none}");
     }],
     ["T3 EXP-GM-10 - an erasing clean-up leaves a row naming the trace, its room and the clean-up, and the Investigation window lists it", async () => {
         /*

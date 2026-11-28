@@ -80,6 +80,8 @@ export const SEEDS = Object.freeze({
     "item.name": { cls: "metadata", field: "the name of an item a student carries", plantedBy: "72-canary" },
     // A found trace's public name as the GM names it: the GM's and its finder's (planted since E05 C13).
     "remnant.publicName": { cls: "answer-key", field: "a found trace's public name, as the GM names it", plantedBy: "72-canary" },
+    // 2.0 line T3 EXP-PL-17 with D2-30 (28.11.2026): who handed a copy to its holder - the holder's and the GMs' alone.
+    "bullet.copyOrigin": { cls: "metadata", field: "the name of the student who handed a Truth Bullet copy to its holder", plantedBy: "72-canary" },
     // E99 C8: the case's schema after a wrong verdict - what the players' summary may never carry (72's summary phase).
     "case.note": { cls: "gm-notes", field: "a ticked deduction's GM note in the case schema", plantedBy: "72-canary" },
     "case.unticked": { cls: "answer-key", field: "the name of a deduction the GMs did not tick", plantedBy: "72-canary" },

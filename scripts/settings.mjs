@@ -1137,6 +1137,13 @@ export const SETTINGS = {
      */
     gmErasedRemnants: "gmErasedRemnants",
     /**
+     * HOW EACH OF A PLAYER'S OWN COPIES CAME TO THEM (2.0 line T3 EXP-PL-17 with D2-30, 28.11.2026): the player's copy of
+     * the `origin` of their bullets' rows (gm-stores.mjs `copyOriginCopy`, truth-bullets.mjs `copyOriginOf`), read by the
+     * sheet's Copies chip. The first 2.0 build wrote it as the item's flag `copyOrigin`, which every browser holds; the
+     * clause `liftCopyOrigins` takes that off the items.
+     */
+    mineCopyOrigins: "mineCopyOrigins",
+    /**
      * What the primary GM does with a player's token moved through a wall its character could not
      * pass (E79 C4, movement-audit.mjs): "log", a row in the Debug log (the default, the plan's AM-1),
      * or "sendBack", the token put back where it stood, its player told and the GMs warned.
@@ -3471,6 +3478,15 @@ export function registerSettings() {
         config: false,
         type: Object,
         default: {}
+    });
+    // A player's copy of how each of their copies came to them (2.0 line T3 D2-30): a change redraws their open sheets'
+    // Copies chips (`drpgCopyOriginsChanged`, truth-bullets.mjs).
+    game.settings.register(MODULE_ID, SETTINGS.mineCopyOrigins, {
+        scope: "client",
+        config: false,
+        type: Object,
+        default: {},
+        onChange: () => Hooks.callAll("drpgCopyOriginsChanged")
     });
     // The world key before 1.2.64: read once by `liftEclipseMoves`, and empty after.
     game.settings.register(MODULE_ID, SETTINGS.legacyEclipseMoves, {

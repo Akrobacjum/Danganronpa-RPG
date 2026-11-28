@@ -7741,8 +7741,8 @@ const INVARIANTS = [
             ["Item flag remnantRef",
                 s => { s.items[0].flags[MOD].remnantRef = null; },
                 h => h.kind === "flag" && h.doc === "Item" && h.id === "R190BYSTANDER001.items.R190ITEM00000001" && h.path === `flags.${MOD}.remnantRef`],
-            // E97 C1: who left the trace a bullet came from is its answer key's, never the item's.
-            ...["leftBy", "leftByName"].map(f => [`Item flag ${f}`,
+            // E97 C1: who left the trace a bullet came from is its answer key's, never the item's; and since D2-30 (2.0 line T3) how a copy came to its holder.
+            ...["leftBy", "leftByName", "copyOrigin"].map(f => [`Item flag ${f}`,
                 s => { s.items[0].flags[MOD][f] = "R190"; },
                 h => h.kind === "flag" && h.doc === "Item" && h.id === "R190BYSTANDER001.items.R190ITEM00000001" && h.path === `flags.${MOD}.${f}`]),
             // E70 C5: the trial's list of the dead outside the trial - an empty one is found as well; in it, nothing (below).

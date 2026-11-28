@@ -1200,6 +1200,22 @@ const CLAUSES = [
             if (!isPrimaryGm()) return { notPrimary: true };      // a tile's write: the primary's, once a world
             return await hideBodyTiles(game.scenes ?? []);
         }
+    },
+    {
+        key: "liftCopyOrigins",
+        since: "1.2.130",
+        /*
+         * HOW A COPY CAME TO ITS HOLDER, OUT OF WORLD DATA (2.0 line T3 EXP-PL-17 with D2-30, 28.11.2026). The first 2.0
+         * build wrote it as the item's `copyOrigin` flag, and every browser holds every item: a console read who had handed
+         * whom which Truth Bullet. Once, on the primary, after the GM stores' copies arrived, with the rules written on
+         * `liftCopyOrigins` (truth-bullets.mjs): the origin into the bullet's row weak and fill-only, off the item only
+         * once the row reads back holding one, then each owner's copy.
+         */
+        run: async () => {
+            const { liftCopyOrigins } = await import("./truth-bullets.mjs");
+            const report = await liftCopyOrigins();
+            return report && (report.notPrimary || report.lifted || report.dropped) ? report : null;
+        }
     }
 ];
 
