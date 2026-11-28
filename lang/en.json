@@ -3589,6 +3589,8 @@
       "castToken": "Token in the hall"
     },
     "Trial": {
+      "objectionAimedElsewhere": "The Objection went to {target}: the target is chosen from what the primary GM hears.",
+      "objectionSpeakersFresh": "Who has spoken is heard by the primary GM's browser, and when the primary changes it starts over. Wait until somebody speaks.",
       "recordWrittenHere": "The primary GM {name} did not answer a write of the Class Trial's record, so {gm}'s browser wrote it. If the trial console shows something odd, check it on both screens.",
       "sentenceNotCarried": "The sentence on {names} was not carried out: the primary GM did not answer. If the student is still alive, press Carry out the sentence again.",
       "sentenceAgain": "Carry out the sentence again",

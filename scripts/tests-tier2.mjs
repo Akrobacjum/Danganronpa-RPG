@@ -119500,6 +119500,38 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         equal(stableJson(read), stableJson({ cards: 1, floor: ["objection", true] }),
             "{cards: the GMs' cards that the objector holding the floor is gone, after the grace and a second drop; floor: its mode and whether the objector still holds it}");
     }],
+    ["T3 TRIAL-10 - a noSpeaker refusal adds the line on how the primary hears the room", async () => {
+        /*
+         * 2.0 line T3 TRIAL-10, 27.11.2026. Who has spoken is heard on the primary's browser, and a new primary starts with
+         * nobody: the objector read only "nobody has spoken". In a Class Trial, a student's OBJECTION! pressed with the
+         * primary's answer stood in (`raiseObjection`'s `request`): refused `noSpeaker`, then refused another way. Read:
+         * the toasts saying `DRPG.Trial.objectionSpeakersFresh` each press showed. The clock is put back. Red at f291658:
+         * none.
+         */
+        const T = await import("./trial.mjs");
+        const [student] = cast(1);
+        const clock = foundry.utils.deepClone(getClock());
+        const line = game.i18n.localize("DRPG.Trial.objectionSpeakersFresh");
+        const info = ui.notifications.info, shown = [];
+        const read = {};
+        try {
+            await setClock({ ...clock, phase: "classTrial" });
+            await settle();
+            ui.notifications.info = (msg, ...rest) => { shown.push(String(msg)); };
+            const press = async answer => {
+                const from = shown.length;
+                await T.raiseObjection(student, { request: async () => answer });
+                return shown.slice(from).filter(msg => msg === line).length;
+            };
+            read.noSpeaker = await press({ ok: false, refused: true, reason: "noSpeaker" });
+            read.other = await press({ ok: false, refused: true, reason: "floorClosed" });
+        } finally {
+            ui.notifications.info = info;
+            await setClock(clock);
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ noSpeaker: 1, other: 0 }), "{noSpeaker: the line after that refusal; other: after another refusal}");
+    }],
 ];
 
 // `drawnForPlayer` for the grid (E33 C7): a drawn crisis roll goes through the suite's one road to a draw (tests-grid.mjs `drawnAct`).

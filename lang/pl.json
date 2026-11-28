@@ -3830,6 +3830,8 @@
       "castToken": "Token w sali"
     },
     "Trial": {
+      "objectionAimedElsewhere": "Objection trafiło w {target}: cel wybiera to, co słyszy główny GM.",
+      "objectionSpeakersFresh": "Kto mówił, słyszy przeglądarka głównego GM-a; gdy główny się zmienia, zaczyna od nowa. Poczekaj, aż ktoś się odezwie.",
       "recordWrittenHere": "Główny GM {name} nie odpowiedział na zapis przebiegu Class Trial, więc zapisała go przeglądarka GM-a {gm}. Jeśli konsola rozprawy pokazuje coś dziwnego, sprawdź ją na obu ekranach.",
       "sentenceNotCarried": "Wyrok na {names} nie został wykonany: główny GM nie odpowiedział. Jeśli uczeń nadal żyje, naciśnij Wykonaj wyrok ponownie.",
       "sentenceAgain": "Wykonaj wyrok ponownie",

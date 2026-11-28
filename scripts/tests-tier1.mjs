@@ -70053,6 +70053,17 @@ const INVARIANTS = [
         stableJson([null, "DRPG.Floor.bar.notPrimary", "DRPG.Floor.bar.notTrial", "DRPG.Floor.bar.notPrimary", [true, true, true, true]]),
             "[the primary in a trial, another GM in a trial, the primary outside one, another GM outside one; each of the four steps asks stepRefusal and names no key of its own]");
     }],
+    ["R9135 - an Objection the primary aimed at someone other than the press's preview says whom it went to, and only then (2.0 line T3 TRIAL-10; trial.mjs `objectionAimedElsewhere`)", async () => {
+        /* 2.0 line T3 TRIAL-10, 27.11.2026. Pure on four readings; nothing read or written. Red at f291658: no
+           `objectionAimedElsewhere`. */
+        const T = await import("./trial.mjs");
+        must(typeof T.objectionAimedElsewhere === "function", "trial.mjs has no objectionAimedElsewhere");
+        equal(stableJson([T.objectionAimedElsewhere({ preview: "Aiko", target: "Aiko" }), T.objectionAimedElsewhere({ preview: "Aiko", target: "Botan" }),
+            T.objectionAimedElsewhere({ preview: null, target: "Botan" }), T.objectionAimedElsewhere({ preview: "Aiko", target: null })]),
+        stableJson([null, "DRPG.Trial.objectionAimedElsewhere", null, null]),
+            "[the same name, another name, no preview, no target answered]");
+        ok(game.i18n.localize("DRPG.Trial.objectionAimedElsewhere").includes("{target}"), "the line names no {target}");
+    }],
 ];
 
 /**
