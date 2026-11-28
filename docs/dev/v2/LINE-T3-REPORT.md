@@ -1,9 +1,10 @@
 # Raport linii T3 - Investigation, rozprawa, koniec rozdziału
 
 Gałąź `claude/v2-t3`, założona z `claude/dazzling-bohr-juuh4g` na 31d5812 (1.2.129). Specyfikacja:
-`docs/dev/v2/LINE-T3.md`. Etap `E133` w `tools/stages.json` (planned 1.2.130). Napisane 28.11.2026.
+`docs/dev/v2/LINE-T3.md`. Etap `E133` w `tools/stages.json` (planned 1.2.130). Napisane 28.11.2026, uzupełnione tego samego dnia o cztery ostatnie pozycje.
 
-Skrót: z 34 wierszy sekcji 2 zrobionych 30, nie zrobione 4 (TRIAL-08, EXP-GM-10, EXP-GM-11, EXP-PL-17). Bez pull
+Skrót: z 34 wierszy sekcji 2 zrobione wszystkie 34 (cztery ostatnie - TRIAL-08, EXP-GM-11, EXP-PL-17, EXP-GM-10 - po
+prośbie koordynatora z 28.11.2026, po pierwszej wersji tego raportu). Bez pull
 requesta, bez wydania, bez zmian `module.json`, `CHANGELOG.md` i bez `node tools/stages.mjs ship`. Na Forge nic nie było
 uruchamiane: jedyna zmieniona kontrola Forge (S1b TRIAL-06) jest sprawdzona tylko `node --check`, ESLint i czytaniem.
 
@@ -28,7 +29,7 @@ Części scenariusza 58 nazywam ich etykietą w `58-case-two-gms.mjs` (np. "58 I
 | TRIAL-05 | zrobione | ec84627, 857caa9 | R9122; R8143 zmieniony | `finishElsewhere` tylko u Asystenta (`mayFinish`) |
 | TRIAL-06 | zrobione | 9cfee74, d496768, e246839 | R9142; T3 TRIAL-06 | ostrzeżenie `DRPG.Vote.silentGone` z imionami uczniów w oknie głosowania, podglądzie i oknie werdyktu (nowy plik `vote-gone.mjs`); podstawa liczenia bez zmian (P1); kontrola S1b przepisana |
 | TRIAL-07 | zrobione | 910b39b, c820fd7 | R9130; T3 TRIAL-07 (+ 2x "primary GM"); 58 TRIAL-07 | `holdSentence` - karta GM-ów z "Wykonaj wyrok ponownie" (`data-drpg-sentence-again`); główny nie wykonuje sam (P8) |
-| TRIAL-08 | nie zrobione | - | - | `reconcilePhase` jako kroki z nowym magazynem `phaseStepStore` i dokończeniem u głównego to nowy magazyn, rejestracja w `settings.mjs`, odzysk przy gotowości i części 58; przy czasie, który został przed końcowym `npm test`, nie dało się tego zrobić z red-first i mutantami. Do przeniesienia |
+| TRIAL-08 | zrobione | a9d03a4, 383c779 | R9143; T3 TRIAL-08; 58 TRIAL-08 | `reconcilePhase` zapisuje wiersz `phaseStepStore` (blok T3 `gm-stores.mjs`, klucz `gmPhaseSteps`) przed pierwszym krokiem i po każdym; główny dokańcza wiersz przy gotowości (sprzed własnego F5) i przy wyjściu GM-a, który go pisał (`finishPhaseSteps`). Wywołania zostają w `reconcilePhase` w tej samej kolejności (lista `runSteps` nie wzięta - sekcja 6). Budżet nie jest idempotentny po wydaniu akcji: `started` przed, `done` po; rozpoczęty i nieskończony nie biegnie drugi raz, idzie do `failed`, GM-owie dostają szept (P9) |
 | TRIAL-10 | zrobione | 8692c24 | R9135; T3 TRIAL-10 | `objectionSpeakersFresh` przy odmowie noSpeaker, `objectionAimedElsewhere` przy innym celu niż podgląd; czeka na `drpgPrimaryChanged` z T2 (sekcja 6) |
 | TRIAL-12 | zrobione | 3c3eebc | R9134 (tier 0) | `summaryWarning` z `DRPG.CaseSummary.wrongVerdictHint` tylko po błędnym werdykcie |
 | TRIAL-14 | zrobione | f291658 | T3 TRIAL-14 | `holderGone` dla Objection/Rebuttalu po czasie łaski, karta GM-ów `DRPG.Floor.holderGone`; bez części 58 |
@@ -38,14 +39,14 @@ Części scenariusza 58 nazywam ich etykietą w `58-case-two-gms.mjs` (np. "58 I
 | PRIM-10 | zrobione | b91568b | R9133 | `stepRefusal` z `DRPG.Floor.bar.notPrimary` |
 | EXP-GM-03 | zrobione | 5264395, 3385c89 | R9141; T3 EXP-GM-03 | `waitingCards()` w `messenger-gm.mjs`, `waitingObserves()` w `observe.mjs`, okno `waitingFirst` z "Zacznij mimo to"; sygnatura `waitingCards` odbiega od sekcji 4 (sekcja 6) |
 | EXP-GM-04 | zrobione | 9cfee74, d496768 | T3 EXP-GM-04; R312, R2050, R1257, R4752 zmienione | `closeRound` zapisuje `resultCard`, nie ogłasza; podgląd `previewVoteResult` z "Ogłoś wynik"; nowy op `announce` i krok konsoli `announceVote` |
-| EXP-GM-10 | nie zrobione | - | - | nowy magazyn GM-ów `erasedRemnantStore`, zapis w `removeRemnant`, widok w oknie Investigation i handbook - za duże na czas, który został; do przeniesienia |
-| EXP-GM-11 | nie zrobione | - | - | wybór kilku uczniów w oknie Daj zmienia `giveTruthBulletDialog`, formularz Truth Bulletu i drogę `give` (z dopiskiem T2 po Daj); nie zaczęte |
+| EXP-GM-10 | zrobione | 3f87755 | R9146; T3 EXP-GM-10 | magazyn `erasedRemnantStore` (blok T3, klucz `gmErasedRemnants`, `backup: true`, grupa `remnants`); wiersz pisany w `resolveEraseRoad` po udanym `removeRemnant` z `receipt.erased`; Reroll, który przywraca Remnant, usuwa wiersz; zwijana lista "Usunięte przy sprzątaniu (n)" pod tabelą zakładki Remnanty, tylko do odczytu |
+| EXP-GM-11 | zrobione | 42c490f | R9144; T3 EXP-GM-11 | "Wybrani uczniowie" w oknie Daj Truth Bullet z polami wyboru żyjących uczniów; `giveToMany`, z którego korzysta Wszyscy; bez zaznaczonych Daj wstrzymany. Zakładka Daj okna rzeczy (własny wybór `who`) i plan bez zmian |
 | EXP-GM-12 | zrobione | cc1e9c8, 3385c89 | R9139; T3 EXP-GM-12; R4755 zmieniony | trzy pola w oknie werdyktu (nowy plik `verdict-skips.mjs`), `verdict.skip` na rekordzie, `DRPG.Vote.verdictSkipped` na karcie GM-ów |
 | EXP-PL-08 | zrobione | 7bd6a6d | R9138; T3 EXP-PL-08 | `tellCopyChanged` - jeden szept na kopię z częściami, które się zmieniły; odczyt tylko przy przeanalizowanej kopii, obraz razem z resztą (P6) |
 | EXP-PL-11 | zrobione | 45682b1 | R9137 | `DRPG.Chapter.bodyCalledNext`, nowe zdanie `Explain.phase.investigation`, karta `DRPG.Explain.investigationStarted` w `reconcilePhase` |
 | EXP-PL-13 | zrobione | d7d982b | R9140; T3 EXP-PL-13; R1252 zmieniony (10 kroków) | ostatni krok `players` w `CHAPTER_END_STEPS`, jedna publiczna karta (P10) |
 | EXP-PL-16 | zrobione | f893908 | R9132 | `ballotFormHtml` wydzielony z `castBallot`, `DRPG.Vote.ballotFinal` |
-| EXP-PL-17 | nie zrobione | - | - | flaga pochodzenia kopii musi być zapisywana przez każdą drogę, która tworzy kopię (znalezienie, podział, Autopsy, Daj, Handover); nie zaczęte |
+| EXP-PL-17 | zrobione | 42c490f | R9145; T3 EXP-PL-17 | flaga `copyOrigin` przy każdej drodze tworzenia kopii (Observe, łup z ciała, przekazanie i Present, Daj jednemu i kilku, Reveal Monokumy, Autopsy) i `gaveTo` na kopii dającego; plakietka Kopie na arkuszu z podpowiedzią ze zdaniami |
 | CTL-03..CTL-30 | zrobione | d63b1d4, cc1e9c8 | R9136; R4755 | `nodeButton` z `opensMap` w konsoli rozprawy: bez `aria-expanded`, podpowiedź `DRPG.Tips.Case.nodeOpensMapTooltip`; komentarze w `case-trial.mjs` i `case-map.mjs` poprawione |
 
 ### Kontrole Forge (nie uruchamiane)
@@ -96,21 +97,28 @@ Części scenariusza 58 nazywam ich etykietą w `58-case-two-gms.mjs` (np. "58 I
 | R9140 | 1 | EXP-PL-13 | linie karty nowego rozdziału z wyborów końca |
 | R9141 | 1 | EXP-GM-03 | `waitingCards` czyta te same karty co "Czeka na decyzję" |
 | R9142 | 1 | TRIAL-06 | `goneBallots`: wydane, niewrócone, gracz niepołączony teraz |
+| R9143 | 1 | TRIAL-08 | `phaseRowFinishesHere` (pisarz nieobecny - tak; inny połączony - nie; ja po F5 - tak; faza inna - nie; nic nie zostało - nie) i `phaseStepsLeft` (rozpoczęty budżet - nie drugi raz) |
+| R9144 | 1 | EXP-GM-11 | `pickedRecipientRows`: pole na ucznia, zaznaczony ten, dla którego okno otwarto; droga okna przez `giveToMany` |
+| R9145 | 1 | EXP-PL-17 | `copyOriginLines`: klucz na pochodzenie, bez imion przy `givenMany` i `autopsy`, `gaveTo`, brak flagi - null |
+| R9146 | 1 | EXP-GM-10 | `erasedRemnantsHtml`: brak wierszy - brak sekcji; dwa wiersze - dwa elementy, od najnowszego, tekst wyescapowany |
 
-Następny wolny numer linii: R9143.
+Następny wolny numer linii: R9147.
 
 ### Tier 2 (blok `// T3 investigation-trial-chapter` w `scripts/tests-tier2.mjs`)
 
 T3 TRIAL-02, T3 VOICE-09, T3 MURDER-07, T3 TRIAL-01 (+ "T3 TRIAL-01 second GM"), T3 TRIAL-03 (+ "second GM", "third GM"),
 T3 PRIM-06 (+ "second GM"), T3 TRIAL-04 (+ "second GM", "Assistant GM"), T3 INV-01, T3 INV-02 (+ "counting GM"), T3 INV-05,
 T3 INV-04 (+ "second GM"), T3 INV-03, T3 INV-07, T3 INV-12, T3 TRIAL-07 (+ 2x "primary GM"), T3 TRIAL-15 (+ 2x "primary GM"),
-T3 TRIAL-14, T3 TRIAL-10, T3 EXP-PL-08, T3 EXP-GM-12, T3 EXP-PL-13, T3 EXP-GM-03, T3 EXP-GM-04, T3 TRIAL-06.
+T3 TRIAL-14, T3 TRIAL-10, T3 EXP-PL-08, T3 EXP-GM-12, T3 EXP-PL-13, T3 EXP-GM-03, T3 EXP-GM-04, T3 TRIAL-06,
+T3 TRIAL-08, T3 EXP-GM-11, T3 EXP-PL-17, T3 EXP-GM-10.
 Wpisy "+ ..." to rola przeglądarki w tym samym teście, nie osobne testy.
 
 ### Scenariusz 58 (`audit/harness/scenarios/58-case-two-gms.mjs`, nowy, warstwa `ci`, wiersz w `audit/harness/README.md`)
 
 Części: 0 (gm2 dołącza, wszyscy czytają GM-a ziarna jako głównego), TRIAL-02, TRIAL-01, TRIAL-03, PRIM-06, TRIAL-04,
-INV-01, INV-02, INV-05, INV-04, INV-07, INV-12, TRIAL-07 - 13 części. Bez części dla INV-03, INV-09, TRIAL-05, TRIAL-06,
+INV-01, INV-02, INV-05, INV-04, INV-07, INV-12, TRIAL-07, TRIAL-08 - 14 części. TRIAL-08: gm2 zaczyna rozprawę
+przez `setClock` z zawieszonymi zapisami aktorów (jego wejście staje w budżecie, oznaczonym `started`) i przeładowuje
+się; gm dokańcza resztę przy wyjściu gm2, budżetu nie daje drugi raz. Bez części dla INV-03, INV-09, TRIAL-05, TRIAL-06,
 TRIAL-10, TRIAL-12, TRIAL-14, TRIAL-15, TRIAL-16, PRIM-10, EXP-GM-03, EXP-GM-04, EXP-GM-12, EXP-PL-*, CTL - te mierzą
 tylko testy tier 1/2 (jedna przeglądarka wystarcza do ich odczytu albo zabrakło czasu; TRIAL-14, TRIAL-10, EXP-GM-03 i
 EXP-GM-04 zyskałyby na części z dwoma GM-ami).
@@ -141,6 +149,9 @@ obejmuje każdą akcję `gmOnly`.
 | R6, R1560 (`tools/api-surface.json`) | 67e8de3, c5d1a7e | `requestResolveLost` z `local`; `chargeKeyFee` |
 | R4752 (48 kluczy), `tools/tooltip-census.json` (wiersz `ballotFormHtml` usunięty) | 6a52df4 | pole wyboru na karcie głosu ma własną podpowiedź zamiast wiersza spisu (CI 651 czerwone na `check tooltips`) |
 | 88-flow-length "the Class Trial", `audit/harness/flow-length.json` (verdict) | 8484751 | odpowiedź "start" na pytanie EXP-GM-03 i sprawdzenie, że się pojawiło; krok Ogłoś z EXP-GM-04 w wierszu verdict (GM 8 -> 9). Opis w sekcji 2, "Ostatni pełny" |
+| R22, R3510 (tier 0) | 383c779 | R22: spis nazw nie czytał parametrów metody w literale obiektu - `step` jest funkcją zagnieżdżoną; R3510: `clock.mjs` +1 "built" (szept o dokończonej zmianie fazy) |
+| "Back up the case, then Restore, brings every store back" (tier 2) | 3f87755 | fikstura dla nowego magazynu z `backup: true`, `erasedRemnants` |
+| R4752 (bez zmiany liczby) i spis podpowiedzi | 42c490f, 3f87755 | nowe klucze w `DRPG.Tips.Sweep.Gm` (`pickedTargetTooltip`) i `DRPG.Tips.Sweep.Case` (`erasedListTooltip`); żaden test liczący tych rodzin nie był czerwony |
 | 61-gmstore-case J1 | 7f10014 | trzymało starą odmowę resetu drugiemu GM-owi; TRIAL-04 ją zmienił (okno u gm2, plan do głównego). J1 czyta teraz: okno u gm2 (1), brak odmowy, po anulowaniu żadnego pakietu `season.reset`, zegar nie przecięty, wybór Mastermind zostaje. Specyfikacja kazała uruchomić 65, 58 i 33, nie 61; CI 645 (d7d982b) pokazało czerwone J1 |
 
 ### Mutanty (na kopii drzewa, nigdy na drzewie)
@@ -152,6 +163,12 @@ obejmuje każdą akcję `gmOnly`.
 | `season.reset`: sanitizer grup bez zamkniętej listy (`value.filter(key => typeof key === "string")`) | R9123 | KILLED (28.11.2026 na e246839: "groups: registry keys kept once, anything else dropped" czerwone) |
 
 | pole wyboru głosu bez `tipAttr` (6a52df4) | R4752; `check tooltips` | KILLED oba (R4752 FAIL; census: "draws a radio with no tooltip and no hint") |
+| TRIAL-08: rozpoczęty budżet uruchamiany ponownie (`phaseStepsLeft` bez warunku `ONCE_STEPS`) | R9143; 58 TRIAL-08; T3 TRIAL-08 | KILLED, KILLED (Aiko odzyskała akcje); tier 2 SURVIVED - jego wiersz ma budżet `done`, jak w specyfikacji |
+| TRIAL-08: wiersz połączonego GM-a dokańczany (`return true`) | R9143; T3 TRIAL-08 | KILLED; tier 2 SURVIVED (jego pisarz jest nieobecny) |
+| EXP-GM-11: `giveToMany` daje tylko pierwszemu | T3 EXP-GM-11 | KILLED |
+| EXP-PL-17: kilku zapisane jako `given` | T3 EXP-PL-17 | KILLED |
+| EXP-GM-10: wiersz nie zapisywany | T3 EXP-GM-10 | KILLED |
+| EXP-GM-10: Reroll nie usuwa wiersza | T3 EXP-GM-10 | KILLED |
 
 Inne mutanty nie były mierzone. To mniej niż metoda (`docs/dev/METHOD.md`) zakłada dla każdej oznaczonej drogi.
 
@@ -159,21 +176,19 @@ Inne mutanty nie były mierzone. To mniej niż metoda (`docs/dev/METHOD.md`) zak
 
 Pełny `npm test` nie mieści się w tym kontenerze: `run-all.mjs` zabija suite po 108 minutach (`SUITE_TIMEOUT_MS`),
 a jeden bieg 01-runtests trwa tu dłużej. Bieg monolityczny zabiłem; zgodnie z ustaleniem koordynatora za pełny bieg
-uznaje się zielone CI na ostatnim pushu. Stan na 28.11.2026, 05:30 UTC:
+uznaje się zielone CI. Stan na 28.11.2026, 07:15 UTC:
 
 | Co | sha | wynik |
 | --- | --- | --- |
-| CI run 651 (ostatni run z kompletem zadań) | e246839 | **czerwony** w trzech zadaniach, reszta zielona: wszystkie 8 shardów suite zielone, kubełki b2-b7 zielone; czerwone `lint, check, gate` (`check tooltips`), b1 (61-gmstore-case J1) i b8 (88-flow-length). Wszystkie trzy przyczyny poprawione po e246839 (niżej) |
-| CI run 645 | d7d982b | czerwony: suite 1/8 (R4752, poprawione w 3385c89) i b1 (61 J1); `verdict` czerwony z ich powodu |
-| CI run 658 / 659 / 661 | 6a52df4 / 7f10014 / 5799d56 | 658 i 659 czerwone na `check registry` (R4752 przemianowany bez `registry.mjs --write`, poprawione w 5799d56); 658 b1 czerwone na 61 J1 (poprawione w 7f10014); 661 w kolejce |
-| **CI run 662** | **8484751** (ostatni commit kodu) | **w kolejce; wyniku nie znam w chwili pisania raportu** |
-| lokalnie: 8 shardów suite + `suite-merge.mjs` | e246839 | **3981 passed, 0 failed, 27 skipped, 0 red**; merge zielony (8 shardów, 1876 testów tier 2 na liście, każdy raz) |
-| lokalnie: tiers 0-1 | 6a52df4 | 2076 passed, 0 failed, 16 skipped, 0 red (616.6 s) |
-| lokalnie: `npm run quick` z pobranym `origin/main` | 8484751 | zielone: lint 461 plików 0 problemów, check 26 części, gate 62/62 |
-| lokalnie: 61-gmstore-case | 6a52df4 / 7f10014 | 117/118 (J1 FAIL, jak w CI) / 118/118 |
-| lokalnie: 88-flow-length | 5799d56 / 8484751 | FAIL (eval "the Class Trial" po 60 s, jak w CI) / 27/27 |
-| lokalnie: 95-tooltips-drawn | 8484751 | 4/4 |
-| lokalnie: pozostałe scenariusze `ci` | e246839 | 18 zielonych (00 ... 41-trial-scene), potem bieg przerwany limitem czasu zadania w tle; resztę pokrywa CI 651 |
+| **CI run 662** | **8484751** (30 pozycji i poprawki CI) | **zielony**: 19 zadań success (lint, check, gate; 8 shardów suite; 8 kubełków scenariuszy; plan; verdict), 2 zadania CRLF pominięte jak przy każdym pushu |
+| CI run 665 / 667 / 671 | a9d03a4 / 383c779 / 3f87755 (TRIAL-08; R22 i R3510; EXP-GM-11, EXP-PL-17, EXP-GM-10) | w kolejce - **wyniku nie znam w chwili pisania**; run tego raportu też |
+| CI run 651 / 645 / 658 / 659 / 661 | e246839 / d7d982b / 6a52df4 / 7f10014 / 5799d56 | czerwone, przyczyny niżej, wszystkie poprawione do 8484751 (662 zielony) |
+| lokalnie: tiers 0-1 | 3f87755 (drzewo robocze tych samych plików) | **2080 passed, 0 failed, 16 skipped, 0 red** |
+| lokalnie: 8 shardów suite + `suite-merge.mjs` | e246839 | 3981 passed, 0 failed, 27 skipped, 0 red; merge zielony |
+| lokalnie: `npm run quick` z pobranym `origin/main` | 3f87755 | zielone: lint 461 plików 0 problemów, check 26 części, gate 62/62 |
+| lokalnie: scenariusze po TRIAL-08 | 383c779 | 41 52/52, 63 79/79, 18 94/94, 65 59/61 (2 expected red), 61 118/118, 97 58/58, 58 15/15, 88 27/27 |
+| lokalnie: scenariusze po EXP-GM-11, EXP-PL-17, EXP-GM-10 | 3f87755 | 95 4/4, 62 62/62, 72 163/166 (3 expected red), 10 45/45, 13 87/87, 34 17/17, 60 19/19, 40 90/90, 99 23/23, 33 93/95 (2 expected red), 30 309/311 (2 expected red) |
+| lokalnie: tier 2 testów linii | a9d03a4, 3f87755 | T3 TRIAL-08, T3 EXP-GM-11, T3 EXP-PL-17, T3 EXP-GM-10 i "Back up the case, then Restore" zielone; pełnego tier 2 lokalnie nie uruchamiałem po e246839 |
 
 Poprawki po e246839, każda z odczytem przed i po:
 - `check tooltips` (6a52df4): wiersz spisu podpowiedzi przeniesiony z `castBallot` do `ballotFormHtml` (EXP-PL-16), a
@@ -199,16 +214,18 @@ Każda zmiana w EN i PL tym samym miejscem. Zdania dopisane do istniejących aka
 
 | Plik | Sekcja | Co |
 | --- | --- | --- |
+| gm-handbook | 14.2 Okno Investigation (akapit stopki) | lista Usunięte przy sprzątaniu w zakładce Remnanty (EXP-GM-10) |
 | gm-handbook | 14.4 Key Remnants | opłata, na którą główny nie odpowiedział, zostawia kartę z Pobierz opłatę; `game.drpg.chargeKeyFee` (INV-07) |
 | gm-handbook | 14.6 Observe | okno opisu u każdego GM-a i zamykane u reszty (INV-01, INV-02, INV-05); karta nierozliczonego Observe/Analyze (INV-12) |
-| gm-handbook | 15 (wstęp, krok 1) | Zacznij Class Trial pyta, gdy prośby czekają (EXP-GM-03) |
+| gm-handbook | 14 (akapit Zaplanowany Truth Bullet) | Wybrani uczniowie w oknie Daj Truth Bullet (EXP-GM-11) |
+| gm-handbook | 15 (wstęp, krok 1) | Zacznij Class Trial pyta, gdy prośby czekają (EXP-GM-03); kroki rozpoczęcia i zakończenia dokańczane przez głównego po przerwie, akcje nie drugi raz (TRIAL-08) |
 | gm-handbook | 15, Pasek GM-a | rozłączony z głosem w Objection/Rebuttalu (TRIAL-14) |
 | gm-handbook | 15, Głosowanie | podgląd wyniku i Ogłoś wynik (EXP-GM-04); ostrzeżenie o kartach rozłączonych (TRIAL-06) |
 | gm-handbook | 15, Werdykt | Dokończ werdykt u każdego pełnego GM-a, odmowa mówiona naciskającemu (TRIAL-03, PRIM-06, TRIAL-02); kroki złego werdyktu do odznaczenia (EXP-GM-12); karta niewykonanego wyroku (TRIAL-07) |
 | gm-handbook | 15, akapit **Show summary** (pod nagłówkiem Tryby rozprawy) | ostrzeżenie w podglądzie podsumowania po błędnym werdykcie (TRIAL-12) |
 | gm-handbook | 16.1 Zakończ rozdział | zatrzymany koniec widoczny u każdego pełnego GM-a (TRIAL-01); powód odmowy wraca do pytającego (TRIAL-02); karta nowego rozdziału (EXP-PL-13) |
 | gm-handbook | 16.2 Zresetuj sezon | reset drugiego pełnego GM-a biegnie u głównego (TRIAL-04) |
-| player-handbook | 8, Truth Bullets | gracz dostaje szept o zmianie jego kopii (EXP-PL-08) |
+| player-handbook | 8, Truth Bullets | gracz dostaje szept o zmianie jego kopii (EXP-PL-08); plakietka Kopie, zdanie w akapicie po liście karty (EXP-PL-17) |
 | player-handbook | 11 Investigation | start Investigation na karcie, kończy ją GM; linia "GM opisuje"; linia nierozliczonego Observe/Analyze (EXP-PL-11, INV-03, INV-12) |
 | player-handbook | 12, Objection (akapit o celu) | "kto mówił" słyszy przeglądarka głównego; po zmianie głównego zaczyna od nikogo, a gracz słyszy, w kogo poszedł Objection (TRIAL-10) |
 | player-handbook | 12, Głosowanie | wynik pojawia się, gdy GM go ogłosi (EXP-GM-04); oddanego głosu nie da się zmienić (EXP-PL-16) |
@@ -219,17 +236,21 @@ PRIM-10, CTL (teksty widać w oknie albo szepcie).
 
 ## 4. Klucze i18n
 
-Względem 31d5812: 65 nowych, 6 zmienionych, 0 usuniętych (EN i PL, `node tools/check.mjs parity` zielone).
+Względem 31d5812: 87 nowych, 6 zmienionych, 0 usuniętych (EN i PL, `node tools/check.mjs parity` zielone).
 
 ### W przestrzeniach T3
 
 - `DRPG.Observe`: nowe `describing`, `unresolved`, `unresolvedGms`, `describeTakenBy`, `describeTakenTimedOut`,
   `describeTimedOutGms`; zmieniony `describeRecovered`.
 - `DRPG.Analyze`: nowe `unresolved`, `unresolvedGms`.
-- `DRPG.Investigation`: nowy `chargeUnanswered`.
-- `DRPG.TruthBullet`: nowe `copyChanged`, `copyPart.name`, `copyPart.words`, `copyPart.image`, `copyPart.reading`.
+- `DRPG.Investigation`: nowe `chargeUnanswered`, `erasedTitle.one`/`.other` (PL także `.few`, `.many`), `erasedRow`,
+  `erasedRowNobody`, `erasedNoRoom` (EXP-GM-10).
+- `DRPG.TruthBullet`: nowe `copyChanged`, `copyPart.name`, `copyPart.words`, `copyPart.image`, `copyPart.reading`;
+  `recipientPicked`, `pickedLegend`, `pickedNone` (EXP-GM-11); `copyOrigin.label`, `.found`, `.shared`, `.given`,
+  `.givenMany`, `.autopsy`, `.gave` (EXP-PL-17).
 - `DRPG.Trial`: nowe `objectionAimedElsewhere`, `objectionSpeakersFresh`, `recordWrittenHere`, `sentenceNotCarried`,
-  `sentenceAgain`, `sentenceAgainTooltip`.
+  `sentenceAgain`, `sentenceAgainTooltip`; `phaseStepsEntryFinished`, `phaseStepsExitFinished`, `phaseBudgetCut`
+  (TRIAL-08).
 - `DRPG.Floor`: nowe `waitingIntro`, `startAnyway`, `waitingObserve`, `holderGone`, `next.announceVote`,
   `lead.announceVote`, `bar.notPrimary`; zmienione `next.finishElsewhere`, `lead.finishElsewhere`.
 - `DRPG.Vote`: nowe `silentGone.one`, `silentGone.other` (PL także `.few`, `.many`), `notYet`, `announce`, `previewIntro`,
@@ -249,6 +270,8 @@ Względem 31d5812: 65 nowych, 6 zmienionych, 0 usuniętych (EN i PL, `node tools
   `castBallot` do `ballotFormHtml` (sekcja 2, "CI").
 - `DRPG.Explain.investigationStarted` (nowy).
 - `DRPG.CaseSummary.wrongVerdictHint`.
+- `DRPG.Case.store.phaseSteps`, `DRPG.Case.store.erasedRemnants` - nazwy nowych magazynów w oknach sprawy (R173).
+- `DRPG.Tips.Sweep.Gm.pickedTargetTooltip` (EXP-GM-11), `DRPG.Tips.Sweep.Case.erasedListTooltip` (EXP-GM-10).
 
 ### Istniejące klucze bez właściciela, zmienione
 
@@ -293,6 +316,13 @@ Tylko czytane: `DRPG.Messenger.gm.waiting`, `DRPG.Voice.resetRefused.*`, `DRPG.B
   (45682b1; R9137).
 - Koniec rozdziału z Next chapter daje stołowi kartę: co zaczyna się od nowa, co zostaje (d7d982b; R9140).
 - Węzeł schematu w konsoli rozprawy mówi, że otwiera go na Mapie (d63b1d4; R9136).
+- Rozpoczęcie albo zakończenie Class Trial przerwane przeładowaniem GM-a albo utratą połączenia dokańcza główny GM; akcji
+  na rozprawę nie rozdaje drugi raz i mówi GM-om, gdy przerwa wypadła w ich trakcie (a9d03a4; R9143, T3 TRIAL-08, 58 TRIAL-08).
+- Daj Truth Bullet ma Wybrani uczniowie: każdy zaznaczony dostaje własną kopię (42c490f; R9144, T3 EXP-GM-11).
+- Truth Bullet na arkuszu ma plakietkę Kopie: skąd jest ta kopia i czy inni mogą mieć swoją, bez imion, których gracz
+  nie zna (42c490f; R9145, T3 EXP-PL-17).
+- Zakładka Remnanty okna Investigation wymienia Remnanty usunięte przy sprzątaniu: co, gdzie, kiedy i czyje sprzątanie
+  (3f87755; R9146, T3 EXP-GM-10).
 
 ## 6. Uwagi dla koordynatora
 
@@ -329,13 +359,16 @@ ale to warto potwierdzić przy scaleniu.
 **Pliki poza listą sekcji 4, zmienione:** `module.mjs` (`registerSentenceAgain`, `registerHaltedEnd`), `api.mjs`
 (`chargeKeyFee` na końcu), `open-cost.mjs` (`NOT_WARMED`), `tests-flows.mjs` (przepływy `season-reset-second-gm` i
 `resolve-lost`), `case-map.mjs`, `case-trial.mjs`, `case-summary.mjs`, `truth-bullets.mjs`, `tools/api-surface.json`,
-`tools/tooltip-census.json`, `audit/harness/scenarios/97-two-gms.mjs` (U1, 2d769cb).
+`tools/tooltip-census.json`, `audit/harness/scenarios/97-two-gms.mjs` (U1, 2d769cb), `scripts/trial-modes.mjs` (EXP-PL-17,
+jedna opcja Reveal), `scripts/tests-tier0.mjs` (R3510, R22 - 383c779), `audit/harness/scenarios/61-gmstore-case.mjs` (J1),
+`audit/harness/scenarios/88-flow-length.mjs` i `audit/harness/flow-length.json`.
 
 **Przewidywane konflikty.** `bridge-runs-records.mjs` koniec pliku (`handleResolveLost`, `resetGroupsOf`/`resetCastOf`;
 T1 dopisuje `eclipse.judge`); `bridge-table.mjs` koniec `BRIDGE_ACTIONS` i długość; `bridge-wire.mjs` (dwie stałe
 `ACTION_`); `lang/*.json` końce `DRPG.Bridge.what` i `DRPG.Tips.Trial`; `trial-floor.mjs` (`TRIAL_NEXT_STEPS`, T5);
 `chapter.mjs` (`CHAPTER_END_STEPS` ma teraz `players` jako ostatni - T5 dopisze zerowanie motywów); `R-REGISTRY.md`
-(generowany). `gm-stores.mjs` i `settings.mjs` bez zmian (TRIAL-08 i EXP-GM-10 nie zrobione).
+(generowany); `gm-stores.mjs` - jeden blok T3 na końcu pliku (`phaseStepStore`, `erasedRemnantStore`); `settings.mjs` -
+dwa klucze (`gmPhaseSteps`, `gmErasedRemnants`) i ich rejestracje po `minePassages`.
 
 **Odstępstwa od specyfikacji.**
 - Handbooki: nowe treści jako zdania dopisane do istniejących akapitów, także karta nowego rozdziału w sekcji 13
@@ -348,6 +381,21 @@ T1 dopisuje `eclipse.judge`); `bridge-table.mjs` koniec `BRIDGE_ACTIONS` i dług
   inaczej nazwa użytkownika.
 - EXP-GM-04: podgląd jest otwierany w `closeVote` bez czekania (`closeVote({ preview = true })`); czekanie na okno
   zawieszało wołających (bieg zabity po 900 s).
+- TRIAL-08: kroki nie są listą `steps.mjs` `runSteps` (specyfikacja: "jak `CHAPTER_END_STEPS`"). Każde wywołanie zostaje
+  w `reconcilePhase` w tej samej kolejności, owinięte w `step(...)`, a dokończenie to `reconcilePhase(from, to, { only,
+  rowKey })`; testy tier 0 (R113, R1033, R3404, R7172 i inne) czytają tę kolejność w źródle. Rejestracja odzysku idzie
+  przez `trial-progress.mjs` `registerSentenceAgain` (`module.mjs` nic nie importuje z `clock.mjs`, a `module.mjs` nie
+  jest na liście TRIAL-08). Odczyt budżetu: `openTrialBudget` (`resetAllActions` z `keepGrants`) ustawia akcje każdego
+  ucznia na pełną pulę - powtórzony po wydaniu akcji w rozprawie oddałby ją, więc nie jest idempotentny w ogólności;
+  komentarz nad `reconcilePhase` mówi o idempotencji dla drugiej debaty, nie dla F5. Poza tym: wiersz może dojść do
+  głównego, zanim ostatni znacznik `done` piszącego zdąży się zsynchronizować - wtedy krok idempotentny biegnie drugi
+  raz (bez skutku), a budżet bez znacznika `started` też (nie zmierzone; główny sprawdza tylko to, co do niego doszło).
+- EXP-PL-17: Reveal Monokumy (`trial-modes.mjs` `revealInStep`, plik spoza listy) pisze `givenMany` - jedna opcja w
+  wywołaniu. Present (`trial.mjs` przez `mintCopy`) pisze `shared` z imieniem prezentującego, a na kopii prezentującego
+  `gaveTo` z imionami wszystkich uczestników. Kopia "told" zostawiającego ślad (własny ślad, o którym mu powiedziano)
+  nie dostaje pochodzenia. Zdanie jest w podpowiedzi plakietki Kopie, nie w osobnym wierszu karty.
+- EXP-GM-11: `RECIPIENT_PICKED` jest stałą w `gm-items.mjs` (`config.mjs` nie jest na liście pozycji); zakładka Daj
+  okna rzeczy ma własny wybór ucznia i została bez zmian.
 
 **Błędy spoza zakresu.** W trakcie pracy widziałem czerwone 65 X2/X2b i 33 A21b/E74-A2; 33 było później zielone
 w całości, a 65 jest zielone w CI 651 (kubełek b3, e246839). Nie badałem, czy były czerwone na 31d5812. Wszystkie
@@ -360,8 +408,8 @@ robiły `git fetch origin main:refs/remotes/origin/main`. Specyfikacja kazała u
 i 33, a 61 J1 też czyta reset drugiego GM-a; przy EXP-GM-03 i EXP-GM-04 nie wymieniała 88, który liczy kliknięcia
 rozprawy.
 
-**Nie zrobione, do przeniesienia:** TRIAL-08, EXP-GM-10, EXP-GM-11, EXP-PL-17 (sekcja 1) oraz części 58 dla TRIAL-14,
-TRIAL-10, EXP-GM-03, EXP-GM-04.
+**Nie zrobione, do przeniesienia:** części 58 dla TRIAL-14, TRIAL-10, EXP-GM-03, EXP-GM-04 (pozycje są zrobione i
+mierzone testami tier 1/2).
 
 ## 7. Pytania do właściciela
 
@@ -373,11 +421,11 @@ Odpowiedzi nie było; linia pracowała na domyślnych.
 | P2 | EXP-GM-04: czy werdykt może zapaść, zanim wynik głosowania ogłoszono stołowi? | może; konsola podpowiada najpierw Ogłoś wynik głosowania |
 | P3 | TRIAL-03 i PRIM-06: każdy pełny GM może zająć zatrzymany werdykt i dokończyć go u siebie; werdyktu, w którego oknach wykonawca siedzi, nikt nie przejmuje. Tak? | tak |
 | P4 | EXP-GM-12: czy pominięcie Reinforced Level Up ma zabrać ofertę także, gdy GM zmieni zdanie później? | pominięty na stałe w tym werdykcie; GM daje Level Up ręcznie |
-| P5 | EXP-PL-17: zdanie o kopiach mówi tylko to, co gracz wie z własnej akcji albo karty. Wystarczy? | tak (pozycja nie zrobiona) |
+| P5 | EXP-PL-17: zdanie o kopiach mówi tylko to, co gracz wie z własnej akcji albo karty. Wystarczy? | tak |
 | P6 | EXP-PL-08: zmiana obrazu też ma być ogłaszana? | odczyt tylko przy przeanalizowanej kopii; obraz ogłaszany razem z innymi częściami |
 | P7 | INV-12: czy gracz ma dostać akcję z powrotem, gdy GM uzna rzut za nierozliczony? | bez automatycznego zwrotu; GM oddaje ręcznie |
 | P8 | TRIAL-07: czy główny przy gotowości ma sam wykonać wyrok, którego nie potwierdził? | nie, tylko przycisk na karcie GM-ów |
-| P9 | TRIAL-08: czy gdy F5 trafi w trakcie kroku budżetu, główny ma go powtórzyć? | nie, jeśli krok nie jest idempotentny (pozycja nie zrobiona) |
+| P9 | TRIAL-08: czy gdy F5 trafi w trakcie kroku budżetu, główny ma go powtórzyć? | nie - budżet nie jest idempotentny po wydaniu akcji; krok idzie do `failed`, GM-owie dostają szept |
 | P10 | EXP-PL-13: karta nowego rozdziału ma też iść osobno do każdego gracza? | jedna publiczna karta, bez danych osobistych |
 | P11 | INV-01: zostawić szept "Znalezisko ... czeka na opis" jako zapis? | zostawić jako zapis |
 | P12 | EXP-PL-13: koniec rozdziału nie zeruje Despair, odpoczynków ani stanów (kod tego nie robi), więc karta o nich nie mówi. Czy koniec rozdziału ma je zerować? | nie; karta mówi tylko to, co kod zeruje i przenosi |
@@ -386,3 +434,4 @@ Odpowiedzi nie było; linia pracowała na domyślnych.
 | P15 | TRIAL-06: imię przy karcie rozłączonego gracza - przypisana postać, uczeń, którego jest właścicielem, albo nazwa użytkownika. Tak? | tak, w tej kolejności |
 | P16 | TRIAL-15: szept o zapisie z tej przeglądarki najwyżej raz na minutę na przeglądarkę. Wystarczy? | tak |
 | P17 | EXP-GM-03: Rozpocznij rozprawę pyta o każdą kartę, którą konsola pokazuje w "Czeka", także kartę po rzucie czekającą na ocenę GM-a (wynik Observe, podpowiedź, rzut akcji dynamicznej - tak było w 88). Czy pytanie ma obejmować tylko prośby wysłane przez gracza w komunikatorze? | wszystkie karty z "Czeka", jak konsola |
+| P18 | EXP-PL-17: flaga `copyOrigin` stoi na przedmiocie, a flagi przedmiotów dochodzą do każdej przeglądarki - gracz z konsolą przeczyta u kogoś innego, od kogo ma kopię i komu ją przekazał (imiona uczniów, nie klucz odpowiedzi; `world-secrets.mjs` zabrania tylko `remnantRef`, `leftBy`, `leftByName`). Tak jak dziś treść samego Truth Bulletu. Zostawić, czy przenieść to do kopii gracza w magazynie GM-ów? | zostawić na przedmiocie |
