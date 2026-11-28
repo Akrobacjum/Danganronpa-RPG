@@ -1631,6 +1631,7 @@
       "waitingObserve": "a find in {room} waits for its words",
       "holderGone": "{name} holds the floor and is not connected. Press Skip or End this mode on the trial's bar.",
       "next": {
+        "announceVote": "The vote is counted. Announce the result to the table.",
         "start": "No Class Trial is running. Start the Class Trial.",
         "openDebate": "The trial is in discussion. Open the debate when the room is ready for one.",
         "openAgain": "An Objection was overruled after its exchange. Open the debate again with the time it had left.",
@@ -1689,6 +1690,7 @@
       },
       "trialEnded": "The Class Trial has ended; the chapter has not.",
       "lead": {
+        "announceVote": "The vote is counted. Announce the result to the table next.",
         "start": "No Class Trial is running. Press Start the Class Trial to move the phase, tell the table, and open the trial in discussion.",
         "openDebate": "The trial is in discussion. Open the debate when the table is ready to argue, and send the ballots from The vote once it has argued it out.",
         "openAgain": "The GM overruled an Objection after its exchange, and the trial is in discussion. Open the debate again with the time it had left, or send the ballots from The vote.",
@@ -2019,6 +2021,8 @@
         }
       },
       "Trial": {
+        "notYetTooltip": "Leaves the result unannounced: the console's next step and the vote window offer Announce",
+        "announceTooltip": "Posts the vote's result card to the whole table, once",
         "moveToChapterToTooltip": "Moves the clock to the next chapter and ends an Investigation still open",
         "countThisAsSessionTooltip": "Raises the session number and ends an Investigation still open",
         "finishTheChapterSTooltip": "Runs the steps that did not finish, in their order",
@@ -2500,6 +2504,14 @@
       }
     },
     "Vote": {
+      "silentGone": {
+        "one": "{n} of those ballots is with a player who is not connected now: {names}.",
+        "other": "{n} of those ballots are with players who are not connected now: {names}."
+      },
+      "notYet": "Not yet",
+      "announce": "Announce the result",
+      "previewIntro": "Only the GMs see this. The table gets the card when you announce it.",
+      "previewTitle": "The vote's result",
       "verdictSkipped": "Left out in the verdict's window: {steps}.",
       "wrongSteps": {
         "legend": "When they got it wrong",

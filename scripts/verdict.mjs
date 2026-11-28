@@ -42,7 +42,7 @@ import { announce, whisperToGms, whisperToOwner, primaryGmId, isPrimaryGm, log, 
 import { deathRecordFor } from "./settings.mjs";
 import { trialProgress, setTrialProgress, executionLines, executeAtExit } from "./trial-progress.mjs";
 import { runSteps, stepsReport } from "./steps.mjs";
-import { wrongStepsHtml, wrongSkipsOf, skipField, skipsStep, skippedLines } from "./verdict-skips.mjs";
+import { wrongStepsHtml, wrongSkipsOf, skipField, skipsStep, skippedLines, goneVerdictHtml } from "./verdict-skips.mjs";
 // The kit's frame for the verdict's windows: the Final Trial's (E22 C3b), the ordinary verdict and the Blackened's rule
 // (E21 C4).
 import { drpgWindow, box, tipAttr } from "./ui-kit.mjs";
@@ -204,7 +204,7 @@ export async function openVerdictDialog() {
                 <select name="blackened">${blackenedOptions}</select></label>`}
             <p class="notes">${game.i18n.localize(known.length
                 ? "DRPG.Vote.verdictNoteKnown" : "DRPG.Vote.verdictNote")}</p>
-            ${wrongStepsHtml()}${tiedVote ? box("warning", `${
+            ${wrongStepsHtml()}${goneVerdictHtml()}${tiedVote ? box("warning", `${
                 game.i18n.localize("DRPG.Vote.tiedVerdictNote")}`) : ""}
         </form>`,
         /*

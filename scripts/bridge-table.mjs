@@ -1270,7 +1270,7 @@ export const BRIDGE_ACTIONS = table({
     [ACTION_VOTE_RUN]: {
         label: "DRPG.Bridge.what.vote.run",
         guards: [gmOnly("only a GM runs the vote")],
-        sanitize: pick({ op: as.oneOf("open", "close", "restart", "resend", "remind"), picks: as.num }),
+        sanitize: pick({ op: as.oneOf("open", "close", "restart", "resend", "remind", "announce"), picks: as.num }), // "announce": 2.0 line T3 EXP-GM-04
         run: handleVoteRun,
         answer: "reply"
     },

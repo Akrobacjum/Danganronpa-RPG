@@ -890,7 +890,9 @@ const TRIAL_LEADS = {
     verdictElsewhere: "DRPG.Floor.lead.verdictElsewhere",
     chapterEnd: "DRPG.Floor.lead.chapterEnd",
     // E99: the case summary before the chapter's end (trial-floor.mjs `TRIAL_NEXT_STEPS`).
-    caseSummary: "DRPG.Floor.lead.caseSummary"
+    caseSummary: "DRPG.Floor.lead.caseSummary",
+    // 2.0 line T3 EXP-GM-04: the count closed and not yet announced.
+    announceVote: "DRPG.Floor.lead.announceVote"
 };
 
 /*
@@ -1494,6 +1496,8 @@ function trialButtons({ floor, running, finalNow, progress, afterwards, stopped,
                    second round of Level Ups) - the step's table now never offers it after the verdict. In a Final Trial
                    it is the Final Trial's verdict, and says so (E10 C10, S06-16). Its road is unchanged:
                    `TRIAL_ACTIONS.verdict`, the verdict's window and its runner on the primary. */
+                // The count closed and not announced (2.0 line T3 EXP-GM-04): its Announce while it is the next step.
+                ...(isDefault("announceVote") ? [{ action: "announceVote", label: game.i18n.localize("DRPG.Vote.announce"), default: true }] : []),
                 ...(isDefault("verdict") && progress.voteClosed && !progress.verdictApplied
                     ? [{ action: "verdict", label: game.i18n.localize(finalNow ? "DRPG.Mastermind.verdictTitle" : "DRPG.Vote.verdictTitle"), default: true }]
                     : []),
@@ -1617,6 +1621,7 @@ const TRIAL_ACTIONS = {
     endZone: () => endMode(),
     closeDebate: () => closeDebate(),
     vote: () => openVoteDialog(),
+    announceVote: async () => (await import("./vote.mjs")).announceVote(),
     caseSummary: async () => (await import("./case-summary.mjs")).showCaseSummary(),
     caseSummaryReplay: async () => (await import("./case-summary.mjs")).replayCaseSummary(),
     /* THE FINAL TRIAL'S VERDICT IS THE MASTERMIND'S WINDOW (E10 C10, 1.2.71; audit S06-16). This
@@ -1932,7 +1937,7 @@ export async function startTrialMode(action, mode = null, extra = {}) {
  * The vote window's footer, by the vote's state: `pending` is `pendingVoters`' answer (null with no vote open),
  * `recipients` how many would be handed a ballot now (`ballotRecipients`). Redrawn in place (`liveFooter`, E47 C1).
  */
-export function voteFooter({ pending, recipients }) {
+export function voteFooter({ pending, recipients, unannounced = false }) {
     const running = pending !== null;
     const canSend = recipients > 0;
     /* ON THE KIT (E21 C4): Send the ballots is the primary before a vote, a secondary while one runs; Cancel the closing
@@ -1966,11 +1971,13 @@ export function voteFooter({ pending, recipients }) {
     // above the footer says to send the ballots first. Never the default (Open 44): neither
     // it nor Send again (which restarts the vote) is what Enter presses while a vote runs.
     const tally = { action: "tally", label: game.i18n.localize("DRPG.Vote.tally"), disabled: !running };
+    // A count not yet announced (2.0 line T3 EXP-GM-04): Announce, beside the rest, on a vote that no longer runs.
+    const announce = !running && unannounced ? [{ action: "announceVote", label: game.i18n.localize("DRPG.Vote.announce"), tooltip: tipText("DRPG.Tips.Trial.announceTooltip") }] : [];
     return running
         ? { secondary: [send, ...remind], destructive: [tally], close: "cancel" }
         : canSend
-            ? { primary: send, secondary: remind, destructive: [tally], close: "cancel" }
-            : { secondary: [send, ...remind], destructive: [tally], close: "cancel" };
+            ? { primary: send, secondary: [...announce, ...remind], destructive: [tally], close: "cancel" }
+            : { secondary: [...announce, send, ...remind], destructive: [tally], close: "cancel" };
 }
 
 /**
@@ -1993,7 +2000,8 @@ export async function openVoteDialog() {
     if (alreadyOpen("drpg-window-vote")) return RAISED;
 
     const { openVote, closeVote, pendingVoters, remindVoters, votesIn, voteBar, ballotCopyStatus, trialProgress,
-        ballotRecipients } = await import("./vote.mjs");
+        ballotRecipients, announceVote } = await import("./vote.mjs");
+    const { goneBallotsLine } = await import("./vote-gone.mjs");
 
     // Who is still outstanding, while a vote is running.
     //
@@ -2042,6 +2050,8 @@ export async function openVoteDialog() {
                 who: foundry.utils.escapeHTML(listOf(waiting.map(p => p.name)))
             })}`)
             : `<p class="notes">${game.i18n.localize("DRPG.Vote.allIn")}</p>`;
+        // the ballots out that sit with a player not connected now, named for the GMs (2.0 line T3 TRIAL-06)
+        const gone = waiting?.length ? goneBallotsLine() : "";
         const status = waiting === null
             ? `<p class="notes">${game.i18n.localize("DRPG.Vote.notRunning")}</p>${beforeSend()}`
             : copy === "notReady"
@@ -2049,8 +2059,8 @@ export async function openVoteDialog() {
                 : copy === "none"
                     ? box("warning", `${game.i18n.format("DRPG.Vote.openNoBallots", {
                         n: trialProgress().vote.round
-                    })}`) + outstanding
-                    : outstanding;
+                    })}`) + outstanding + goneWarning(gone)
+                    : outstanding + goneWarning(gone);
         return `<div class="drpg-vote-status">${voteLead(trialStepView())}${status}${
             bar ? `<p class="notes">${game.i18n.format("DRPG.Vote.barLine", bar)}</p>` : ""}</div>`;
     };
@@ -2068,14 +2078,14 @@ export async function openVoteDialog() {
             ${statusHtml()}
             <p class="notes">${game.i18n.localize("DRPG.Vote.privacyNote")}</p>
         </div>`,
-        footer: voteFooter({ pending, recipients: ballotRecipients().length }),
+        footer: voteFooter({ pending, recipients: ballotRecipients().length, unannounced: unannounced(trialProgress()) }),
         render: (event, dialog) => keepLive(dialog, {
             // Every setting of ours, the world's trial record among them; the ballots, which no setting
             // reports; and a player connecting, who is a recipient a moment later.
             region: ".drpg-vote-status", build: statusHtml,
             watch: { hooks: ["drpgBallotsChanged", "userConnected"], where: PARTICIPANT_WRITES, stores: [sheetMarkStore] },
             after: () => {
-                try { liveFooter(dialog, voteFooter({ pending: pendingVoters(), recipients: ballotRecipients().length })); } catch (err) {
+                try { liveFooter(dialog, voteFooter({ pending: pendingVoters(), recipients: ballotRecipients().length, unannounced: unannounced(trialProgress()) })); } catch (err) {
                     error("Could not redraw the vote window's footer", err);
                 }
             }
@@ -2129,6 +2139,41 @@ export async function openVoteDialog() {
         ui.notifications.info(plural("DRPG.Vote.reminded", { n: await remindVoters() }));
         return openVoteDialog();
     }
-    if (action === "tally") return closeVote();
+    if (action === "tally") {
+        const count = await closeVote();
+        return count?.card ? previewVoteResult(count) : count;
+    }
+    if (action === "announceVote") return announceVote();
     return null;
+}
+
+/** The GMs' warning of the ballots disconnected players hold (2.0 line T3 TRIAL-06, vote-gone.mjs), or "". */
+function goneWarning(line) {
+    return line ? box("warning", line) : "";
+}
+
+/** Whether a closed vote's count waits for its Announce (2.0 line T3 EXP-GM-04): its card written, not posted. */
+function unannounced(progress) {
+    return Boolean(progress?.voteClosed && progress.resultCard && !progress.resultAnnouncedAt);
+}
+
+/*
+ * THE COUNT, SEEN BY THE GM BEFORE THE TABLE (2.0 line T3 EXP-GM-04, 27.11.2026; the owner's recommendation). Close and
+ * count posted the result to the table in the same press. The GM who pressed it reads the count's card here, with the
+ * ballots disconnected players hold (TRIAL-06, `goneBallots`), and Announce posts it (vote.mjs `announceVote`, once on
+ * the primary); Not yet leaves it for the console's next step and the vote window's button. The verdict does not wait.
+ */
+async function previewVoteResult(count) {
+    const { announceVote } = await import("./vote.mjs");
+    const gone = count.gone?.length ? plural("DRPG.Vote.silentGone", { n: count.gone.length, names: listOf(count.gone.map(name => esc(name))) }) : "";
+    const answer = await drpgWindow({
+        title: game.i18n.localize("DRPG.Vote.previewTitle"),
+        classes: ["drpg-panel"],
+        body: `<p>${esc(game.i18n.localize("DRPG.Vote.previewIntro"))}</p>${count.card}${goneWarning(gone)}`,
+        footer: { primary: { action: "announce", label: game.i18n.localize("DRPG.Vote.announce"), tooltip: tipText("DRPG.Tips.Trial.announceTooltip") },
+            close: { action: "notYet", label: game.i18n.localize("DRPG.Vote.notYet"), tooltip: tipText("DRPG.Tips.Trial.notYetTooltip") } },
+        rejectClose: false
+    });
+    if (answer === "announce") return announceVote();
+    return count;
 }

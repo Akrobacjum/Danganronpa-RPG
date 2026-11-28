@@ -31428,6 +31428,9 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             stableJson([true, true, true, [], 4, 6, [`${a.id}:4`, `${b.id}:2`, `${c.id}:1`, `${d.id}:1`].sort()]),
             "the count accused a second name short of the majority (4 of 6), or did not record that the room has no majority");
 
+            // the count's card goes to the table at the GMs' Announce since 2.0 line T3 EXP-GM-04, not at the close
+            if (typeof V.announceVote === "function") await V.announceVote();
+            await settle();
             const banner = game.i18n.localize("DRPG.Vote.resultBanner");
             const card = game.messages.find(m => !before.has(m.id) && String(m.content ?? "").includes(banner));
             const el = document.createElement("div");
@@ -119707,6 +119710,88 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         }
         equal(stableJson(read), stableJson({ window: [true, true], phase: "dailyLife" }),
             "{window: [the waiting window opened under the console's heading, it named the request's words]; phase: after its Cancel}");
+    }],
+    ["T3 EXP-GM-04 - Close and count shows the GM the count and posts nothing until Announce", async () => {
+        /*
+         * 2.0 line T3 EXP-GM-04, 27.11.2026. Close and count posted the result to the table in the same press. A round of
+         * two ballots on this primary, as "the count of a two-name vote short of a majority" builds one (the ballots'
+         * packets held back, the rows written to the GMs' store), closed (`closeVote`), then announced twice
+         * (`announceVote`). Read: the result cards in the chat after the close, after the first Announce and after the
+         * second; what the close answered of the card; the record's `resultAnnouncedAt` stamped. The record and the cards
+         * put back. Red at 3385c89: one card after the close.
+         */
+        needs(world.atLeast("connectedPlayersWithCharacter", 2), "two voters");
+        const { isPrimaryGm } = await import("./utils.mjs");
+        must(isPrimaryGm(), "this browser is not the primary GM, which counts the ballots");
+        const V = await import("./vote.mjs");
+        const { ballotStore } = await import("./gm-stores.mjs");
+        const [a, b] = cast(2);
+        const socket = game.socket;
+        const ownEmit = Object.getOwnPropertyDescriptor(socket, "emit");
+        const before = new Set(game.messages.map(m => m.id));
+        const stored = foundry.utils.deepClone(getSetting(SETTINGS.trialProgress) ?? {});
+        const banner = game.i18n.localize("DRPG.Vote.resultBanner");
+        const cards = () => game.messages.filter(m => !before.has(m.id) && String(m.content ?? "").includes(banner)).length;
+        let voters = [];
+        const read = {};
+        try {
+            await game.settings.set(MODULE_ID, SETTINGS.trialProgress, {});
+            const send = socket.emit;
+            socket.emit = function (event, packet, options, ...rest) {
+                if (packet?.action === "vote.open") return true;
+                return send.call(this, event, packet, options, ...rest);
+            };
+            await V.openVote({ picks: 1 });
+            const progress = V.trialProgress();
+            const vote = progress.vote ?? {};
+            must(vote.open === true && vote.issued.length >= 2, `the vote did not open with two ballots out: ${stableJson(vote)}`);
+            voters = vote.issued.slice(0, 2);
+            for (const userId of voters) await ballotStore.patch(userId, { chapter: progress.chapter, round: vote.round, actorId: a.id, choice: [b.id], at: Date.now() });
+            const count = await V.closeVote();
+            await settle();
+            read.closed = [cards(), String(count?.card ?? "").includes(banner), V.trialProgress().resultAnnouncedAt ?? null];
+            read.first = [await V.announceVote(), cards()];
+            await settle();
+            read.second = [await V.announceVote(), cards(), Number.isFinite(V.trialProgress().resultAnnouncedAt)];
+        } finally {
+            if (ownEmit) Object.defineProperty(socket, "emit", ownEmit); else delete socket.emit;
+            await ballotStore?.dropMany?.(voters);
+            await game.settings.set(MODULE_ID, SETTINGS.trialProgress, stored);
+            const fresh = game.messages.filter(m => !before.has(m.id)).map(m => m.id);
+            if (fresh.length) await ChatMessage.deleteDocuments(fresh);
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ closed: [0, true, null], first: [true, 1], second: [false, 1, true] }),
+            "{closed: [result cards, the close's answer holds the card, the record's stamp]; first: [the first Announce posted, cards]; second: [the second posted, cards, stamped]}");
+    }],
+    ["T3 TRIAL-06 - the verdict window names the students whose ballots sit with a disconnected player", async () => {
+        /*
+         * 2.0 line T3 TRIAL-06, 27.11.2026. The GM read only "1 ballot never came back" and not that it sits with a player
+         * who is not connected. A player of the suite's own stood in (tests-kit `standInUser`, not connected), issued a
+         * ballot in this chapter's record of a closed count, none returned; the verdict's window opened (`openVerdictDialog`)
+         * inside `withVerdictOpen` and its words read as the window is asked, then Cancel. The record is put back. Red at
+         * 3385c89: the window names nobody.
+         */
+        const V = await import("./vote.mjs");
+        const away = standInUser({ name: "SUITE T3 TRIAL-06 away", role: CONST.USER_ROLES.PLAYER, active: false });
+        let seen = null;
+        try {
+            game.users.set(away.id, away);
+            await withVerdictOpen(async () => {
+                const now = V.trialProgress();
+                await game.settings.set(MODULE_ID, SETTINGS.trialProgress, { ...now, voteClosed: true, total: 1, accused: [], accusedIds: [], tied: true,
+                    vote: { ...(now.vote ?? {}), open: false, round: (Number(now.vote?.round) || 0) + 1, picks: 1, issued: [away.id] } });
+                globalThis.__dialogAnswers.push(cfg => { seen = String(cfg?.content?.innerHTML ?? cfg?.content ?? ""); return "cancel"; });
+                await V.openVerdictDialog();
+            });
+        } finally {
+            globalThis.__dialogAnswers.length = 0;
+            game.users.delete(away.id);
+            await settle();
+        }
+        const line = game.i18n.format("DRPG.Vote.silentGone.one", { n: 1, names: "SUITE T3 TRIAL-06 away" });
+        equal(stableJson([seen !== null, String(seen ?? "").includes("SUITE T3 TRIAL-06 away"), String(seen ?? "").includes(line)]), stableJson([true, true, true]),
+            "[the verdict window was asked, it names the away player's student, in the GMs' line of ballots with disconnected players]");
     }],
 ];
 

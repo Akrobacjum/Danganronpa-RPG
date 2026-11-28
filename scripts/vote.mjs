@@ -51,6 +51,7 @@ import {
     announce, isPrimaryGm, primaryGmId, activeGmIds, log, warn, error, plural, serverNow, listOf, esc
 } from "./utils.mjs";
 import { trialProgress, setTrialProgress, retrySentence, findingsHtml } from "./trial-progress.mjs";
+import { goneBallots, goneNames } from "./vote-gone.mjs";
 import { drpgWindow, box } from "./ui-kit.mjs";
 export {
     trialProgress, trialProgressChapter, TRIAL_PROGRESS_KEY, setTrialProgress, RECORD_FIELDS, recordPatchOf,
@@ -73,7 +74,8 @@ const ACTION_OPEN = "vote.open";
  * entitled who has not returned one - a player who joined since included - and "resend" to the
  * ones already handed one.
  */
-export const VOTE_OPS = Object.freeze(["open", "restart", "remind", "resend", "close"]);
+// "announce" (2.0 line T3 EXP-GM-04): the count's card, posted once by the GMs' Announce after Close and count.
+export const VOTE_OPS = Object.freeze(["open", "restart", "remind", "resend", "close", "announce"]);
 
 /** What `askVote` tells the GM who asked, by the status the primary answered. */
 const VOTE_STATUS = Object.freeze({
@@ -423,6 +425,7 @@ async function voteStep(op, picks) {
         log(`The vote's "${op}" was asked during an Eclipse; nothing was done.`);
         return { status: "eclipse" };
     }
+    if (op === "announce") return announceRound();
     const progress = trialProgress();
     const { open, round } = progress.vote;
     if (op === "open" ? open : op === "restart" && !open) {
@@ -1172,9 +1175,11 @@ async function closeRound(progress) {
             : accused.length > 1
                 ? plural("DRPG.Vote.accusesLineMany", accusing, "total")
                 : game.i18n.format("DRPG.Vote.accusesLine", accusing);
-    await announce({
-        flags: { [MODULE_ID]: { sfx: { key: "verdict", gm: true } } },
-        content: `<div class="drpg-evidence-card">
+    /* THE GMS SEE IT BEFORE THE TABLE (2.0 line T3 EXP-GM-04, 27.11.2026; the owner's recommendation). The card went to
+       the table in the same step as the count. It is written on the record now (`resultCard`, with `resultAnnouncedAt`
+       null) and handed back to the GM who pressed Close and count, whose console previews it (trial-floor-ui.mjs
+       `previewVoteResult`); Announce posts it once (`announceRound`). The record already held every count it shows. */
+    const card = `<div class="drpg-evidence-card">
             <div class="drpg-objection-banner">${game.i18n.localize("DRPG.Vote.resultBanner")}</div>
             <div class="drpg-vote-count">${rows.map(r => `<div class="drpg-vote-row">
                 <span class="drpg-vote-name">${esc(r.name)}</span>
@@ -1184,10 +1189,34 @@ async function closeRound(progress) {
             <p class="drpg-vote-sentence">${sentence}</p>
             ${silent ? `<p class="notes">${
                 plural("DRPG.Vote.silent", { n: silent })}</p>` : ""}
-        </div>`
-    });
+        </div>`;
+    await setTrialProgress({ resultCard: card, resultAnnouncedAt: null });
 
     log(`Vote closed: ${returned} of ${issued} ballot(s) returned, ${noMajority ? "no majority"
         : tied ? "tied" : `${accused.map(r => named(r.id)).join(", ")} accused`}.`);
-    return { rows, total: issued, tied, accusedId: tied ? null : rows[0]?.id ?? null, accusedIds };
+    return { rows, total: issued, tied, accusedId: tied ? null : rows[0]?.id ?? null, accusedIds, card,
+        // the ballots out that sit with a player not connected now (2.0 line T3 TRIAL-06; vote-gone.mjs), for the GMs' preview
+        gone: goneNames(goneBallots({ issued: vote.issued, cast: cast.map(([userId]) => userId), users: game.users })) };
+}
+
+/**
+ * THE COUNT'S CARD, POSTED ONCE (2.0 line T3 EXP-GM-04): on the primary, the record's `resultCard` posted to the table and
+ * `resultAnnouncedAt` written in the record's own step, first - a second Announce, or two at once, finds it written and
+ * posts nothing (`{ status: "announced" }`); with no count's card waiting, `{ status: "notClosed" }`.
+ */
+async function announceRound() {
+    const at = Date.now();
+    const before = trialProgress();
+    if (!before.voteClosed || !before.resultCard) return { status: "notClosed" };
+    if (before.resultAnnouncedAt) return { status: "announced" };
+    const after = await setTrialProgress(now => (now.resultCard && !now.resultAnnouncedAt ? { resultAnnouncedAt: at } : {}));
+    if (Number((after ?? trialProgress()).resultAnnouncedAt) !== at) return { status: "announced" };
+    await announce({ flags: { [MODULE_ID]: { sfx: { key: "verdict", gm: true } } }, content: before.resultCard });
+    return { announced: at };
+}
+
+/** Announce the count's card to the table, asked of the primary GM (`announceRound`). Answers whether this press posted it. */
+export async function announceVote() {
+    const reply = await askVote("announce");
+    return Boolean(reply?.announced);
 }

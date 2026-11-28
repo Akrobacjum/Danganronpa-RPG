@@ -1676,6 +1676,7 @@
       "waitingObserve": "znalezisko w pokoju {room} czeka na opis",
       "holderGone": "Głos ma {name}, a ta osoba jest rozłączona. Naciśnij Pomiń albo Zakończ ten tryb na pasku rozprawy.",
       "next": {
+        "announceVote": "Głosy policzone. Ogłoś wynik stołowi.",
         "start": "Żaden Class Trial nie trwa. Zacznij Class Trial.",
         "openDebate": "Class Trial toczy się w dyskusji. Otwórz debatę, gdy sala będzie na nią gotowa.",
         "openAgain": "GM oddalił Objection po jego wymianie. Otwórz debatę ponownie z czasem, który jej został.",
@@ -1734,6 +1735,7 @@
       },
       "trialEnded": "Class Trial się skończył; rozdział jeszcze nie.",
       "lead": {
+        "announceVote": "Głosy policzone. Teraz ogłoś wynik stołowi.",
         "start": "Żaden Class Trial nie trwa. Naciśnij przycisk Zacznij Class Trial: faza się zmieni, stół dostanie ogłoszenie, a rozprawa zacznie się dyskusją.",
         "openDebate": "Class Trial jest w fazie dyskusji. Otwórz debatę, gdy stół będzie gotów do sporu, a gdy spór się wyczerpie, wyślij karty z okna Głosowanie.",
         "openAgain": "GM oddalił Objection po jego wymianie i Class Trial jest w fazie dyskusji. Otwórz debatę ponownie z czasem, który jej został, albo wyślij karty z okna Głosowanie.",
@@ -2107,6 +2109,8 @@
         }
       },
       "Trial": {
+        "notYetTooltip": "Zostawia wynik nieogłoszony: następny krok konsoli i okno głosowania podsuwają Ogłoś",
+        "announceTooltip": "Wysyła kartę wyniku głosowania do całego stołu, raz",
         "moveToChapterToTooltip": "Przesuwa zegar na następny rozdział i kończy Investigation, jeśli wciąż trwa",
         "countThisAsSessionTooltip": "Podnosi numer sesji i kończy Investigation, jeśli wciąż trwa",
         "finishTheChapterSTooltip": "Wykonuje kroki, które się nie skończyły, w ich kolejności",
@@ -2598,6 +2602,16 @@
       }
     },
     "Vote": {
+      "silentGone": {
+        "one": "{n} z tych kart ma gracz, który jest teraz rozłączony: {names}.",
+        "few": "{n} z tych kart mają gracze, którzy są teraz rozłączeni: {names}.",
+        "many": "{n} z tych kart mają gracze, którzy są teraz rozłączeni: {names}.",
+        "other": "{n} z tych kart mają gracze, którzy są teraz rozłączeni: {names}."
+      },
+      "notYet": "Jeszcze nie",
+      "announce": "Ogłoś wynik",
+      "previewIntro": "Widzą to tylko GM-owie. Stół dostanie kartę, gdy ją ogłosisz.",
+      "previewTitle": "Wynik głosowania",
       "verdictSkipped": "Pominięte w oknie werdyktu: {steps}.",
       "wrongSteps": {
         "legend": "Gdy się pomylili",

@@ -458,6 +458,9 @@ export const TRIAL_RECORD = Object.freeze({
     // E99 C7 (Q-E99-9: once per trial): when this trial's case summary went out, a time and nothing of its content; a
     // second trial in the chapter starts with none, so it has a summary of its own.
     summaryShown: row({ lives: "trial", by: "case-summary.mjs `showCaseSummary`", blank: fresh(null), atEntry: fresh(null) }),
+    // 2.0 line T3 EXP-GM-04: the count's card, written by the close and posted by the GMs' Announce, and when it was posted.
+    resultCard: row({ lives: "trial", by: "vote.mjs `closeRound`", blank: fresh(null), atEntry: fresh(null) }),
+    resultAnnouncedAt: row({ lives: "trial", by: "vote.mjs `announceRound`", blank: fresh(null), atEntry: fresh(null) }),
     // E70 C5: the trial's list of the dead, written by the settle alone and taken out at the exit - in no blank, and
     // left by the entry (the settle that follows it writes it).
     mutedDead: row({ lives: "trial", by: "voice.mjs `settleTrialVoices`" })

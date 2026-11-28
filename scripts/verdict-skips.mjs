@@ -11,7 +11,8 @@
  */
 import { TRIAL } from "./config.mjs";
 import { listOf, esc } from "./utils.mjs";
-import { tipAttr } from "./ui-kit.mjs";
+import { tipAttr, box } from "./ui-kit.mjs";
+import { goneBallotsLine } from "./vote-gone.mjs";
 
 /** The wrong verdict's steps that may be left out, in the window's order. */
 export const WRONG_SKIPPABLE = Object.freeze(["offers", "rule", "despair"]);
@@ -56,4 +57,10 @@ export function skippedLines(record) {
     const list = WRONG_SKIPPABLE.filter(key => skipsStep(record, key));
     if (!list.length) return [];
     return [game.i18n.format("DRPG.Vote.verdictSkipped", { steps: listOf(list.map(key => game.i18n.localize(`DRPG.Vote.verdictSteps.${key}`))) })];
+}
+
+/** The verdict window's warning of the ballots disconnected players hold (2.0 line T3 TRIAL-06; vote-gone.mjs), or "". */
+export function goneVerdictHtml() {
+    const line = goneBallotsLine();
+    return line ? box("warning", line) : "";
 }

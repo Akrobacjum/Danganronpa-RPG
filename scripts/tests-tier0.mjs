@@ -13244,9 +13244,10 @@ const REGRESSIONS = [
         ok(run.guards?.[0]?.factory === "gmOnly", "a player can run a step of the vote through the bridge");
         equal(JSON.stringify(run.sanitize?.fields ?? null), JSON.stringify({ op: "oneOf", picks: "num" }),
             "vote.run's packet is not a step from a list and a number");
-        must(VOTE_OPS?.length === 5, `vote.mjs lists ${VOTE_OPS?.length ?? "no"} step(s) of the vote, not five`);
+        // six since 2.0 line T3 EXP-GM-04: "announce", the count's card posted by the GMs' Announce
+        must(VOTE_OPS?.length === 6, `vote.mjs lists ${VOTE_OPS?.length ?? "no"} step(s) of the vote, not six`);
         ok(VOTE_OPS.every(op => run.sanitize({ op }).op === op), "a step of the vote the primary runs is not passed by vote.run's packet");
-        equal(run.sanitize({ op: "count" }).op, null, "vote.run passes a step that is not one of the five");
+        equal(run.sanitize({ op: "count" }).op, null, "vote.run passes a step that is not one of the six");
         equal(run.answer, "reply", "vote.run does not hand back the primary's reply");
 
         // E41 C10a (1.2.97): vote.mjs's record and sentence left it for trial-progress.mjs, its verdict for verdict.mjs; the vote's family's text (the kit's `voteText`).

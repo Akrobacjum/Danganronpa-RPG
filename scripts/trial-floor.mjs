@@ -211,6 +211,8 @@ export const TRIAL_NEXT_STEPS = Object.freeze([
     // (undefined) reads as before - and never in a Final Trial, which has no summary (Q-E99-5).
     [view => view.progress.verdictApplied && view.progress.summaryShown === null && !view.finalNow, "caseSummary"],
     [view => view.progress.verdictApplied, "chapterEnd"],
+    // 2.0 line T3 EXP-GM-04: the count closed and its card not yet posted - Announce first; the verdict does not wait on it.
+    [view => view.progress.voteClosed && Boolean(view.progress.resultCard) && !view.progress.resultAnnouncedAt, "announceVote"],
     [view => view.progress.voteClosed, "verdict"],
     // Only a running trial gets here: `afterwards` without a count or a verdict is `running`.
     [view => view.progress.vote?.open, "vote"],

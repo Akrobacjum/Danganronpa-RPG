@@ -29126,7 +29126,7 @@ const INVARIANTS = [
         }).map(([k, f, unit]) => `${k} in ${f}${unit ? ` ${unit}()` : ""}`).concat(helpers);
         equal(bad.join("; "), "", "{the keys whose words are missing or too long, or whose control's function does not draw them}");
     }],
-    ["R4752 - the chapter, murder and Class Trial windows draw their tooltips (E102 C3, 13.11.2026; the owner's stage \"Tooltips across the module\", docs/dev/e102/TOOLTIPS.json and KEYS.json): each of the family's 45 keys (41 until 2.0 line T3, 34 until E110 C3, 36 until E40 on 16.11.2026, 37 until E129 on 23.11.2026) under DRPG.Tips.Trial has words in English and in Polish, at most 23 words each (the guide's tooltip limit), and the function that draws its control writes it where that control draws it (tests-tips.mjs `tipPlacement`: inside the control's own tag and not as a condition, as a labelled button's or tab's `tooltip`, in a builder's `data-tooltip` attrs, by `setTip`, or through a named local helper that writes it; a count's words through `plural`, each form within the limit)", async () => {
+    ["R4752 - the chapter, murder and Class Trial windows draw their tooltips (E102 C3, 13.11.2026; the owner's stage \"Tooltips across the module\", docs/dev/e102/TOOLTIPS.json and KEYS.json): each of the family's 47 keys (41 until 2.0 line T3, 34 until E110 C3, 36 until E40 on 16.11.2026, 37 until E129 on 23.11.2026) under DRPG.Tips.Trial has words in English and in Polish, at most 23 words each (the guide's tooltip limit), and the function that draws its control writes it where that control draws it (tests-tips.mjs `tipPlacement`: inside the control's own tag and not as a condition, as a labelled button's or tab's `tooltip`, in a builder's `data-tooltip` attrs, by `setTip`, or through a named local helper that writes it; a count's words through `plural`, each form within the limit)", async () => {
         /* Red at 70613472 with the keys and this test in place and the family's scripts as they were: no function read a DRPG.Tips.Trial key. Since REVIEW-E102-code C1: where the key lands, not only that it is named - red on the review's planted ternary that names the key and draws nothing (action-dynamic.mjs:336). */
         const TIPS = [
             ["DRPG.Tips.Trial.moveToChapterToTooltip","chapter.mjs","chapterEndForm"],
@@ -29178,7 +29178,10 @@ const INVARIANTS = [
             ["DRPG.Tips.Trial.wrongStepOffersTooltip","verdict-skips.mjs","wrongStepsHtml"],
             ["DRPG.Tips.Trial.wrongStepRuleTooltip","verdict-skips.mjs","wrongStepsHtml"],
             ["DRPG.Tips.Trial.wrongStepDespairTooltip","verdict-skips.mjs","wrongStepsHtml"],
-            ["DRPG.Tips.Trial.startAnywayTooltip","trial-floor-ui.mjs","waitingFirst"]
+            ["DRPG.Tips.Trial.startAnywayTooltip","trial-floor-ui.mjs","waitingFirst"],
+            // EXP-GM-04's Announce and Not yet: the family grew by two more.
+            ["DRPG.Tips.Trial.announceTooltip","trial-floor-ui.mjs","previewVoteResult"],
+            ["DRPG.Tips.Trial.notYetTooltip","trial-floor-ui.mjs","previewVoteResult"]
         ];
         const en = await fetch(`/modules/${MODULE_ID}/lang/en.json`).then(r => r.json());
         const pl = await fetch(`/modules/${MODULE_ID}/lang/pl.json`).then(r => r.json());
@@ -29186,7 +29189,7 @@ const INVARIANTS = [
         const src = new Map();
         for (const f of new Set(TIPS.map(t => t[1]))) src.set(f, stripComments(await fetch(`/modules/${MODULE_ID}/scripts/${f}`).then(r => (r.ok ? lfText(r) : ""))));
         must([...src.values()].every(s => s.length > 500), "a script of the family read as nothing - this would measure nothing");
-        must(Object.keys(words(en, "DRPG.Tips.Trial") ?? {}).length === 45, "lang/en.json has not the family's 45 keys under DRPG.Tips.Trial");
+        must(Object.keys(words(en, "DRPG.Tips.Trial") ?? {}).length === 47, "lang/en.json has not the family's 47 keys under DRPG.Tips.Trial");
         const fits = w => (w && typeof w === "object" ? Object.values(w).length > 0 && Object.values(w).every(fits) : typeof w === "string" && w.trim().length > 0 && w.trim().split(/\s+/).length <= 23);
         const P = await import("./tests-tips.mjs");
         must(P.tipPlacementSelfCheck().length === 0, `tests-tips.mjs misreads its own plants: ${P.tipPlacementSelfCheck().join("; ")}`);
@@ -55629,13 +55632,16 @@ const INVARIANTS = [
             ["ended, the verdict stopped", null, false, true, { voteClosed: true, verdictApplied: true }, "Level Ups", null],
             ["ended, the verdict another GM gives", null, false, true, { voteClosed: true, verdictApplied: true }, null, "other"],
             ["ended, a floor left, the vote counted", "debate", false, true, { voteClosed: true }, null, null],
-            ["a debate, the verdict given", "debate", true, true, { voteClosed: true, verdictApplied: true }, null, null]
+            ["a debate, the verdict given", "debate", true, true, { voteClosed: true, verdictApplied: true }, null, null],
+            // 2.0 line T3 EXP-GM-04: the count closed and its card not posted - Announce first
+            ["the vote counted, not announced", null, true, true, { voteClosed: true, resultCard: true }, null, null]
         ];
         const viewOf = ([, mode, running, afterwards, p, stopped, runner]) => ({
             floor: mode === null ? null : mode === "closingX" ? { mode: "objection", closing: { phase: "speak" } } : { mode },
             running, afterwards, stopped, runner: runner === "me" ? game.user.id : runner === "other" ? "otherGM000000000" : null,
             progress: { voteClosed: Boolean(p.voteClosed), verdictApplied: Boolean(p.verdictApplied), debateAgain: Boolean(p.debateAgain),
-                againAfterOverrule: p.againAfterOverrule ? { messageId: "cardR2050AAAAAAA", seconds: 90 } : null, vote: { open: Boolean(p.vote) } }
+                againAfterOverrule: p.againAfterOverrule ? { messageId: "cardR2050AAAAAAA", seconds: 90 } : null, vote: { open: Boolean(p.vote) },
+                resultCard: p.resultCard ? "<p>R2050 the count</p>" : null, resultAnnouncedAt: null }
         });
         const HEAD = {
             "no trial": "start",
@@ -55668,7 +55674,8 @@ const INVARIANTS = [
             "ended, the verdict stopped": "finishVerdict",
             "ended, the verdict another GM gives": "verdictElsewhere",
             "ended, a floor left, the vote counted": "verdict",
-            "a debate, the verdict given": "closeDebate"
+            "a debate, the verdict given": "closeDebate",
+            "the vote counted, not announced": "announceVote"
         };
         const first = (table, view) => table.find(([when]) => when(view))?.[1] ?? null;
         const read = Object.fromEntries(VIEWS.map(v => [v[0], F.trialNextStep(viewOf(v))]));
@@ -55683,7 +55690,7 @@ const INVARIANTS = [
         ok(table.length > 300 && /Scrum Debate/.test(table) && /\n\s*\[view => [^\n]*strawPoll\?\.split === true, "scrum"\]/.test(table), "the table holds no row for E73's Scrum Debate after a split in the Straw Poll");
         ok(!/"closeTrial"|"endTrial"|"end"\]/.test(stripComments(table)) && src.length > 2000, "a row of the table closes the trial (05.10, topic C: the sentence after the verdict is E70's)");
         const steps = [...new Set(Object.values(HEAD))].sort();
-        equal(steps.length, 13, "the views do not reach every step");
+        equal(steps.length, 14, "the views do not reach every step");
         const lang = {};
         for (const code of ["en", "pl"]) lang[code] = await fetch(`/modules/${MODULE_ID}/lang/${code}.json`).then(r => r.json()).then(j => j.DRPG?.Floor?.next ?? {});
         equal(stableJson(["en", "pl"].map(code => steps.filter(s => !(typeof lang[code][s] === "string" && lang[code][s].length > 10)))), stableJson([[], []]),
@@ -70169,6 +70176,16 @@ const INVARIANTS = [
         const read = M.waitingCards({ messages: [card("live"), card("settled", { settled: true }), card("plain", { button: false })], words: m => m.content });
         equal(stableJson(read.map(r => [r.messageId, r.player === player.id, r.text.startsWith("SUITE R9141 live asks to climb")])), stableJson([["live", true, true]]),
             "[the waiting cards: id, the thread's player, the request's first words] of a live card, a settled one and one with no button");
+    }],
+    ["R9142 - the ballots out that sit with a disconnected player are those issued, not returned, whose player is not connected now (2.0 line T3 TRIAL-06; vote-gone.mjs `goneBallots`)", async () => {
+        /* 2.0 line T3 TRIAL-06, 27.11.2026. Pure on stand-in users; nothing read or written. Red at 3385c89: no
+           vote-gone.mjs. */
+        let V = null;
+        try { V = await import("./vote-gone.mjs"); } catch { V = null; }
+        must(V && typeof V.goneBallots === "function", "there is no vote-gone.mjs with goneBallots");
+        const users = new Map([["AWAY", { id: "AWAY", active: false }], ["HERE", { id: "HERE", active: true }], ["CAST", { id: "CAST", active: false }]]);
+        equal(stableJson(V.goneBallots({ issued: ["AWAY", "HERE", "CAST", "NOBODY", "AWAY"], cast: ["CAST"], users })), stableJson(["AWAY"]),
+            "[issued, not returned, not connected: counted; connected: not; returned: not; no such user: not; twice: once]");
     }],
 ];
 
