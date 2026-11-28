@@ -119439,6 +119439,119 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         equal(stableJson(read), stableJson({ field: [LINE, true], clock: ["morning", day + 1, LINE], store: "", draft: STALE }),
             "{field: Edit campaign's line and whether it names its writer; the clock after the move: [time of day, day, line]; the store's line after it; this browser's old draft, unread}");
     }],
+    ["E132 T2b DAY-02 - the rewind asks first and is refused inside an incident before Stage 6 (hud.mjs `pressRewind`; clock.mjs `rewindTimeOfDay`, `rewindQuestion`; 2.0 line T2b, 28.11.2026)", async () => {
+        /*
+         * F1-daily DAY-02. Driven on this GM at Noon, with no Eclipse: the chevron's press (`pressRewind`, its question
+         * answered by a stand-in for the window - R9041 holds the window itself): Cancel moves nothing; then a fight opened
+         * between two students with players (`fightOpen`): the press asks nothing and the rewind, pressed and called as
+         * the API calls it, is refused with its words and moves nothing; then, the fight closed, the press answered yes
+         * steps the clock back to Morning. Put back: the clock, the settings a rewind writes (the seals, the motive, the
+         * search tokens), the incident, the victim. Red at 0d3d4f2: no `pressRewind`.
+         */
+        needs(env.primaryGm(), "the clock is moved on the primary GM");
+        needs(world.atLeast("studentsWithConnectedPlayer", 2), "a killer and a victim, each with a player");
+        const H = await import("./hud.mjs"), C = await import("./clock.mjs"), M = await import("./murder.mjs");
+        const { livingStudents, isDeadForGm, reviveCharacter } = await import("./chapter.mjs");
+        const { isEclipse, bodyDiscovery } = await import("./settings.mjs");
+        must(typeof H.pressRewind === "function", "hud.mjs has no pressRewind - the chevron asks nothing");
+        must(!M.murderState() && !bodyDiscovery() && !isEclipse(), "an incident, a body's hold or an Eclipse is open - this would measure something else");
+        const player = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const [killer, victim] = livingStudents().filter(player);
+        const was = foundry.utils.deepClone(getClock());
+        const settingsWas = Object.fromEntries(["sealedRooms", "restrictions", "motive", "searchTokens"]
+            .map(key => [key, foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS[key]) ?? null)]));
+        const warned = [], warn = ui.notifications.warn;
+        const read = {};
+        try {
+            ui.notifications.warn = (text, ...rest) => { warned.push(String(text)); return warn.call(ui.notifications, text, ...rest); };
+            await setClock({ phase: "dailyLife", timeOfDay: "noon", eclipse: false });
+            await settle();
+            let asked = null;
+            await H.pressRewind({ ask: q => { asked = q; return Promise.resolve(false); } });
+            await settle();
+            read.cancel = [getClock().timeOfDay, asked?.title === game.i18n.localize("DRPG.Clock.rewindAskTitle"), (asked?.effects?.length ?? 0) >= 2];
+            await fightOpen(M, killer, victim);
+            let askedIn = null;
+            await H.pressRewind({ ask: q => { askedIn = q; return Promise.resolve(true); } });
+            const direct = await C.rewindTimeOfDay();
+            await settle();
+            const words = game.i18n.localize("DRPG.Clock.rewindDuringIncident");
+            read.incident = [getClock().timeOfDay, askedIn, direct, warned.filter(w => w === words).length];
+            await M.endMurder({ reason: "test", followUp: false });
+            await settle();
+            await H.pressRewind({ ask: () => Promise.resolve(true) });
+            await settle();
+            read.yes = getClock().timeOfDay;
+        } finally {
+            ui.notifications.warn = warn;
+            if (M.murderState()) await M.endMurder({ reason: "test", followUp: false });
+            if (victim && isDeadForGm(victim)) await reviveCharacter(victim, { quiet: true });
+            await setClock(was);
+            for (const [k, value] of Object.entries(settingsWas)) if (value !== null) await game.settings.set(MODULE_ID, SETTINGS[k], value);
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ cancel: ["noon", true, true], incident: ["noon", null, null, 2], yes: "morning" }),
+            "{cancel: [the time of day after Cancel, the question's title, at least two effects]; in a fight: [the time of day, the question asked, the API's answer, the refusal said for the press and the call]; yes: the time of day after the yes}");
+    }],
+    ["E132 T2b EXP-GM-13 - Alive asks with what the revive does, Cancel writes nothing (gm-students.mjs `openWhoIsAliveDialog`, `reviveQuestion`; undo-confirm.mjs `confirmUndo`; 2.0 line T2b, 28.11.2026)", async () => {
+        /*
+         * F1-blind-gm EXP-GM-13. On the drawn Students window as the GM panel's tile opens it: one student marked dead
+         * (chapter.mjs `markDeceased`), another living; Alive chosen on the dead row and Dead on the living one, Apply
+         * pressed: the question opens before anything is written, names the student and lists what the revive does;
+         * its Cancel leaves both rows as they were - the death standing, the living student alive. The same Apply again
+         * with the living row left as it is, answered yes: the student is alive. Put back: both alive. Red at 0d3d4f2:
+         * no question - the first Apply wrote both rows at once.
+         */
+        needs(env.dialogs(), "the Students window and its question are drawn and pressed");
+        const C = await import("./chapter.mjs"), MC = await import("./monocub.mjs"), GP = await import("./gm-panel.mjs");
+        const [who, other] = C.livingStudents().filter(a => !MC.isMonocub(a));
+        must(who && other, "two living students who are no Monocub are needed - this would measure nothing");
+        const drawn = cls => [...foundry.applications.instances.values()].find(a => a.rendered && a.options?.classes?.includes(cls));
+        const question = () => drawn("drpg-window-undo");
+        const press = (app, action) => app?.element?.querySelector(`button[data-action="${action}"]`)?.click();
+        const apply = async states => {
+            const answer = Promise.resolve().then(() => GP.openWhoIsAliveDialog()).catch(err => `threw: ${err.message}`);
+            await until(() => drawn("drpg-window-alive")?.element?.querySelector(`[name="state.${who.id}"]`), 6000);
+            const win = drawn("drpg-window-alive");
+            must(win?.element, "the Students window did not open with the student's row - this would measure nothing");
+            for (const [id, state] of Object.entries(states)) {
+                const select = win.element.querySelector(`[name="state.${id}"]`);
+                select.value = state;
+                select.dispatchEvent(new Event("change", { bubbles: true }));
+            }
+            press(win, "save");
+            return answer;
+        };
+        const read = {};
+        let pending = null;
+        try {
+            must(await C.markDeceased(who), `${who.name}'s death could not be written - this would measure nothing`);
+            await settle();
+            pending = apply({ [who.id]: "alive", [other.id]: "dead" });
+            await until(() => question(), 6000);
+            const asked = question();
+            const text = asked?.element?.textContent ?? "";
+            read.asked = [Boolean(asked), text.includes(who.name), text.includes(game.i18n.localize("DRPG.Panel.reviveFxMark")), text.includes(game.i18n.localize("DRPG.Panel.reviveFxBullets")),
+                C.isDeceased(who), C.isDeceased(other)];
+            press(asked, "no");
+            await pending; pending = null;
+            await settle();
+            read.cancel = [C.isDeceased(who), C.isDeadForGm(other)];
+            pending = apply({ [who.id]: "alive" });
+            await until(() => question(), 6000);
+            press(question(), "yes");
+            await pending; pending = null;
+            await settle();
+            read.yes = [C.isDeceased(who), C.isDeadForGm(other)];
+        } finally {
+            for (const cls of ["drpg-window-undo", "drpg-window-alive"]) for (const a of [...foundry.applications.instances.values()].filter(a => a.options?.classes?.includes(cls))) await a.close().catch(() => {});
+            if (pending) await Promise.race([pending, wait(3000)]);
+            for (const a of [who, other]) if (a && C.isDeadForGm(a)) await C.reviveCharacter(a, { quiet: true });
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ asked: [true, true, true, true, true, false], cancel: [true, false], yes: [false, false] }),
+            "{asked: [the question drawn, naming the student, the mark's line, the Truth Bullets' line, still dead while asked, the other still alive]; after Cancel: [dead, the other dead]; after the yes: [dead, the other dead]}");
+    }],
 ];
 
 // `drawnForPlayer` for the grid (E33 C7): a drawn crisis roll goes through the suite's one road to a draw (tests-grid.mjs `drawnAct`).

@@ -26,7 +26,8 @@
  */
 
 import { studentActors, isMonokuma, isNotInClass, isSpectator, markFromSheet, setMonokuma, setNotInClass, setSpectator } from "./monokuma.mjs";
-import { error, plural, esc, wholeNumber } from "./utils.mjs";
+import { error, plural, esc, wholeNumber, listOf } from "./utils.mjs";
+import { confirmUndo } from "./undo-confirm.mjs";
 import { stepper, drpgWindow, dataTable, iconButton, roleButton, tipAttr, tipText } from "./ui-kit.mjs";
 import { keepLive, alreadyOpen, handOff, RAISED } from "./live.mjs";
 import { crossingStore, offerStore } from "./gm-stores.mjs";
@@ -614,11 +615,69 @@ export async function openWhoIsAliveDialog(options = {}) {
 
     if (!chosen || chosen === "cancel") return;
 
+    /* ALIVE ASKS FIRST, WITH WHAT THE REVIVE DOES (2.0 line T2b, EXP-GM-13, 28.11.2026; F1-blind-gm EXP-GM-13, E-GM-87).
+       A row moved from Dead, Dead (not found) or Monocub to Alive brought the student back at Apply, nothing said first.
+       The one undo question asks now (undo-confirm.mjs `confirmUndo`, Cancel the default), naming each student and what
+       `reviveCharacter` writes (`reviveQuestion`), and Cancel writes nothing of this Apply - no row, the others' neither. */
+    const stateNow = await aliveStateReader();
+    const revived = revivesAsked(chosen, stateNow);
+    if (revived.length) {
+        const rows = revived.map(id => ({ name: game.actors.get(id)?.name ?? "?", state: stateNow(id) }));
+        if (!await confirmUndo(reviveQuestion(rows))) return;
+    }
+
     const changed = await applyAliveStates(chosen);
 
     ui.notifications.info(changed
         ? plural("DRPG.Panel.stateSaved", { n: changed })
         : game.i18n.localize("DRPG.Panel.stateUnchanged"));
+}
+
+/**
+ * The state a row of the Students window stands at now, by actor id: "monocub", "dead", "unfound" (a death the GMs keep)
+ * or "alive", as `applyAliveStates` reads it; null for an id that is no actor (2.0 line T2b, EXP-GM-13).
+ */
+async function aliveStateReader() {
+    const { isDeceased, isDeadForGm } = await import("./chapter.mjs");
+    const { isMonocub } = await import("./monocub.mjs");
+    return id => {
+        const a = game.actors.get(id);
+        if (!a) return null;
+        return isMonocub(a) ? "monocub" : isDeceased(a) ? "dead" : isDeadForGm(a) ? "unfound" : "alive";
+    };
+}
+
+/**
+ * The ids an Apply of the Students window would bring back to life (2.0 line T2b, EXP-GM-13; R9042): each row of
+ * `chosen` asked Alive whose state now (`stateOf(id)`) is Dead, Dead (not found) or Monocub. Pure.
+ */
+export function revivesAsked(chosen, stateOf) {
+    return Object.entries(chosen ?? {}).filter(([id, want]) => want?.state === "alive" && ["dead", "unfound", "monocub"].includes(stateOf(id)))
+        .map(([id]) => id);
+}
+
+/**
+ * WHAT THE REVIVE DOES, SAID BEFORE IT IS DONE (2.0 line T2b, EXP-GM-13, 28.11.2026): the question Apply asks for `rows`
+ * (`{ name, state }`, the state before), read from what death.mjs `reviveCharacter` writes, as read on 28.11.2026 - the
+ * dead flag and status off, the skull off the tokens and the body tiles off the map; the dead's Spectator taken away; a
+ * death nobody found dropped from the GMs' record (a row "unfound"); a Monocub's flag cleared first (`applyAliveStates`,
+ * a row "monocub"); voice hears the student with the living again, as it reads the death (voice.mjs, `isDeadForGm`);
+ * and what it does not do: the Truth Bullets the death destroyed stay gone. `{ title, intro, effects, yesLabel }` for
+ * undo-confirm.mjs `confirmUndo`. Pure but for the words.
+ */
+export function reviveQuestion(rows) {
+    const L = key => game.i18n.localize(key);
+    const states = new Set((rows ?? []).map(row => row.state));
+    const effects = [L("DRPG.Panel.reviveFxMark"), L("DRPG.Panel.reviveFxSpectator")];
+    if (states.has("monocub")) effects.push(L("DRPG.Panel.reviveFxMonocub"));
+    if (states.has("unfound")) effects.push(L("DRPG.Panel.reviveFxUnfound"));
+    effects.push(L("DRPG.Panel.reviveFxVoice"), L("DRPG.Panel.reviveFxBullets"));
+    return {
+        title: L("DRPG.Panel.reviveAskTitle"),
+        intro: game.i18n.format("DRPG.Panel.reviveAskIntro", { names: listOf((rows ?? []).map(row => row.name)) }),
+        effects,
+        yesLabel: L("DRPG.Panel.reviveAskYes")
+    };
 }
 
 /**

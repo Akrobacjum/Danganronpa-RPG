@@ -5362,7 +5362,15 @@
       "searchTokensRestocked": "Every room restocked with Search Tokens",
       "woundedNote": "With no Health left, these students are down an action this time of day: {names}.",
       "morningLineShared": "Shared by the GMs.",
-      "morningLineSharedBy": "Shared by the GMs. Last changed by {gm}."
+      "morningLineSharedBy": "Shared by the GMs. Last changed by {gm}.",
+      "rewindDuringIncident": "An incident is running and has not reached Stage 6. End it, or press Move to Stage 6 in the incident tracker, before you step the clock back.",
+      "rewindAskTitle": "Step the clock back?",
+      "rewindAskIntro": "Stepping back one time of day does this:",
+      "rewindAskTime": "The clock goes from “{from}” back to “{to}”.",
+      "rewindAskDay": "The day and the session go back one, to day {day} and session {session}.",
+      "rewindAskTakeBack": "Actions, Free Moves, what Sprint and Burst bought, Search Tokens and seals go back to how they were before this time of day began.",
+      "rewindAskClockOnly": "Nothing else comes back: actions and Search Tokens stay as they are, and the seals of this time of day end.",
+      "rewindAskYes": "Step back"
     },
     "Context": {
       "lost": "{name}'s browser lost its drawing context ({scene})."
@@ -5509,7 +5517,16 @@
       "primaryTitle": "Primary GM",
       "primaryNowYou": "You are now the primary GM: your browser runs the table's automation (voice, players' rolls, the sheet audit, the fog). Keep this browser tab open.",
       "primaryNow": "{name} is now the primary GM.",
-      "primaryBack": "{name} is now the primary GM. Your browser no longer runs the table's automation."
+      "primaryBack": "{name} is now the primary GM. Your browser no longer runs the table's automation.",
+      "reviveAskTitle": "Bring back to life?",
+      "reviveAskIntro": "Apply brings {names} back to life. Cancel writes none of this window's changes. What the revive does:",
+      "reviveAskYes": "Bring back",
+      "reviveFxMark": "The death comes off their sheet and their tokens, and their body leaves the map.",
+      "reviveFxSpectator": "Their Spectator, if they have one, leaves the map.",
+      "reviveFxMonocub": "A Monocub stops being a Monocub.",
+      "reviveFxUnfound": "A death nobody has found is dropped from the GMs' record.",
+      "reviveFxVoice": "In voice chat they talk with the living again.",
+      "reviveFxBullets": "The Truth Bullets the death destroyed do not come back."
     },
     "Character": {
       "notACharacter": "That only works on a character.",

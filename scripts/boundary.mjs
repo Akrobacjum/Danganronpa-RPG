@@ -67,7 +67,7 @@
 
 import { MODULE_ID } from "./config.mjs";
 import { SETTINGS } from "./settings.mjs";
-import { getClock, timeOfDayLabel, boundaryStamp, advanceTimeOfDay } from "./clock.mjs";
+import { getClock, timeOfDayLabel, boundaryStamp, advanceTimeOfDay, incidentHoldsHour } from "./clock.mjs";
 import { isEclipse, incomingTimeOfDay, startEclipse, endEclipse, startRefusal, placementStatus, eclipseLabel } from "./eclipse.mjs";
 import { actingStudents } from "./monokuma.mjs";
 import { serialWrite, isPrimaryGm, serverNow, listOf, plural, esc, error, debug } from "./utils.mjs";
@@ -126,10 +126,11 @@ export async function toggleEclipse() {
     return null;
 }
 
-/** Whether an incident runs and has not reached Stage 6 (`resolution`): the panel's Next time of day waits for it (CORE-32). Exported for R8114. */
+/** Whether an incident runs and has not reached Stage 6 (`resolution`): the panel's Next time of day waits for it (CORE-32). Exported for R8114.
+ *  The rule is clock.mjs `incidentHoldsHour`, the rewind's too since 2.0 line T2b (DAY-02). */
 export async function incidentHoldsTheHour(state = undefined) {
     const now = state === undefined ? (await import("./murder.mjs")).murderState() : state;
-    return Boolean(now) && now.stage !== "resolution";
+    return incidentHoldsHour(now);
 }
 
 /**

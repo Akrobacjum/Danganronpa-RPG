@@ -5731,7 +5731,15 @@
       "rewindDuringEclipse": "Trwa Eclipse. Najpierw je zakończ.",
       "takenBack": "Początek tej pory dnia jest cofnięty: akcje, Free Move, to, co dały Sprint i Burst, Search Tokeny pokoi i pieczęcie wracają do stanu sprzed niego.",
       "morningLineShared": "Wspólne dla GM-ów.",
-      "morningLineSharedBy": "Wspólne dla GM-ów. Ostatnia zmiana: {gm}."
+      "morningLineSharedBy": "Wspólne dla GM-ów. Ostatnia zmiana: {gm}.",
+      "rewindDuringIncident": "Trwa incydent, który nie doszedł do Stage 6. Zakończ go albo naciśnij Przejdź do Stage 6 w Śledzeniu incydentu, zanim cofniesz zegar.",
+      "rewindAskTitle": "Cofnąć zegar?",
+      "rewindAskIntro": "Cofnięcie o jedną porę dnia zrobi tyle:",
+      "rewindAskTime": "Zegar wraca z pory „{from}” na „{to}”.",
+      "rewindAskDay": "Dzień i sesja cofają się o jeden: do dnia {day} i sesji {session}.",
+      "rewindAskTakeBack": "Akcje, Free Move, to, co dały Sprint i Burst, Search Tokeny pokoi i pieczęcie wracają do stanu sprzed początku tej pory dnia.",
+      "rewindAskClockOnly": "Nic więcej nie wraca: akcje i Search Tokeny zostają, jakie są, a pieczęcie tej pory dnia się kończą.",
+      "rewindAskYes": "Cofnij"
     },
     "Context": {
       "lost": "Przeglądarka gracza {name} utraciła kontekst rysowania ({scene})."
@@ -5897,7 +5905,16 @@
       "primaryTitle": "Główny GM",
       "primaryNowYou": "Jesteś teraz głównym GM-em: twoja przeglądarka prowadzi automatykę stołu (głos, rzuty graczy, audyt arkuszy, mgłę). Zostaw tę kartę przeglądarki otwartą.",
       "primaryNow": "Głównym GM-em jest teraz {name}.",
-      "primaryBack": "Głównym GM-em jest teraz {name}. Twoja przeglądarka już nie prowadzi automatyki stołu."
+      "primaryBack": "Głównym GM-em jest teraz {name}. Twoja przeglądarka już nie prowadzi automatyki stołu.",
+      "reviveAskTitle": "Przywrócić do życia?",
+      "reviveAskIntro": "Zastosuj przywraca do życia: {names}. Anuluj nie zapisuje żadnej zmiany z tego okna. Co zrobi przywrócenie:",
+      "reviveAskYes": "Przywróć",
+      "reviveFxMark": "Śmierć znika z arkusza postaci i z żetonów, a ciało znika z mapy.",
+      "reviveFxSpectator": "Widz tej postaci, jeśli jest, znika z mapy.",
+      "reviveFxMonocub": "Monocub przestaje być Monocubem.",
+      "reviveFxUnfound": "Śmierć, której nikt nie znalazł, znika z zapisu GM-ów.",
+      "reviveFxVoice": "W czacie głosowym znowu rozmawia z żywymi.",
+      "reviveFxBullets": "Truth Bullety zniszczone przez śmierć nie wracają."
     },
     "Character": {
       "notACharacter": "To działa tylko na postaci.",

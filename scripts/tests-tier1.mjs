@@ -70883,6 +70883,136 @@ const INVARIANTS = [
             everyGm: true
         }), "{cases: [a draft and an empty store: lifted, cleared; a draft and a line held: kept out, cleared; no draft: nothing; nothing at all: nothing; a blank draft: cleared, nothing lifted; a long draft cut to 400]; the clause, after bodyTilesUnseen, its version; the lift decides, reads back and waits for the stores; the hydration hook on every GM runs it}");
     }],
+    ["R9039 - the clock's rewind is refused inside an incident before Stage 6, on every road, before the assembly is called off, and the chevron is dimmed with the same words (clock.mjs `rewindRefusalOf`, `incidentHoldsHour`, `rewindTimeOfDay`; boundary.mjs `incidentHoldsTheHour`; hud.mjs `buildTimeRow`; 2.0 line T2b, DAY-02, 28.11.2026)", async () => {
+        /*
+         * F1-daily DAY-02: the left chevron stepped the clock back inside an incident before Stage 6, where Next time of day
+         * is refused (CORE-32, boundary.mjs `nextTimeOfDay`): a take-back within five minutes puts every bystander's budget
+         * and the rooms' Search Tokens back, world writes every browser draws while their clock stands still. The refusal is
+         * one pure rule now, read by `rewindTimeOfDay` (the HUD, the API and the console all call it) before
+         * `cancelGather`, as the Eclipse's refusal is, and by the chevron for its dim and tooltip, as the Eclipse's chevron
+         * reads `startRefusalOf`; Next's gate reads the same predicate. Read on the rule and the sources; nothing is
+         * written. Red at 0d3d4f2: no `rewindRefusalOf`.
+         */
+        const C = await import("./clock.mjs"), B = await import("./boundary.mjs");
+        if (typeof C.rewindRefusalOf !== "function") { ok(false, "clock.mjs has no rewindRefusalOf"); return; }
+        const sources = new Map(await otherSources());
+        const clockSrc = stripComments(sources.get("clock.mjs") ?? ""), hudSrc = stripComments(sources.get("hud.mjs") ?? ""), bSrc = stripComments(sources.get("boundary.mjs") ?? "");
+        must(clockSrc.length > 5000 && hudSrc.length > 5000, "a source was not read - this reads nothing");
+        const rewind = fnSource(clockSrc, "rewindTimeOfDay");
+        const at = re => rewind.search(re);
+        const refuse = (clock, incident) => C.rewindRefusalOf(clock, { incident });
+        const noon = { timeOfDay: "noon", eclipse: false };
+        equal(stableJson({
+            rule: [refuse(noon, null), refuse(noon, { active: true, stage: "openingRoll" }), refuse(noon, { active: true, stage: "incident" }),
+                refuse(noon, { active: true, stage: "resolution" }), refuse({ ...noon, eclipse: true }, { active: true, stage: "incident" })],
+            next: await Promise.all([null, { stage: "incident" }, { stage: "resolution" }].map(s => B.incidentHoldsTheHour(s))),
+            oneRule: /incidentHoldsHour\(/.test(fnSource(bSrc, "incidentHoldsTheHour")) && /incidentHoldsHour\(/.test(fnSource(clockSrc, "rewindRefusalOf")),
+            order: at(/rewindRefusalOf\(/) > 0 && at(/murderState\(\)/) > 0 && at(/rewindRefusalOf\(/) < at(/cancelGather\(\)/),
+            chevron: /rewindRefusalOf\(/.test(fnSource(hudSrc, "buildTimeRow")),
+            worded: ["DRPG.Clock.rewindDuringIncident"].map(k => game.i18n.localize(k) !== k)
+        }), stableJson({
+            rule: [null, "DRPG.Clock.rewindDuringIncident", "DRPG.Clock.rewindDuringIncident", null, "DRPG.Clock.rewindDuringEclipse"],
+            next: [false, true, false], oneRule: true, order: true, chevron: true, worded: [true]
+        }), "{rule: [no incident, an opening roll, a fight, Stage 6, an Eclipse over a fight]; Next's gate: [none, a fight, Stage 6]; one predicate for both; the rewind asks before calling the assembly off; the chevron reads the rule; the words exist}");
+    }],
+    ["R9040 - the clock's left chevron asks first, Cancel the default, and says what the rewind does: from which time of day to which, whether the day and the session go back, and whether the budgets, the Search Tokens and the seals come back or nothing but the clock moves (clock.mjs `rewindQuestion`; hud.mjs `pressRewind`; 2.0 line T2b, DAY-02 and EXP-GM-13, 28.11.2026)", async () => {
+        /*
+         * F1-daily DAY-02, F1-blind-gm EXP-GM-13: the left chevron stepped the clock back at the press, beside a right one
+         * that asks, and said what it had done only afterwards. It asks through the one undo question now
+         * (undo-confirm.mjs `confirmUndo`, R9041), its words from `rewindQuestion`, which reads the take-back as
+         * `rewindTimeOfDay` will (`takeBackFor` on the boundary's stamp, younger than TAKE_BACK_MS): the budgets, the
+         * Search Tokens and the seals as they were, or nothing back and the seals of this time of day ended (`clearSeals`).
+         * Read on clocks of its own, at a fixed `now`, and on the press's source; nothing is written. Red at 0d3d4f2: no
+         * `rewindQuestion`.
+         */
+        const C = await import("./clock.mjs");
+        if (typeof C.rewindQuestion !== "function") { ok(false, "clock.mjs has no rewindQuestion"); return; }
+        const now = 1_900_000_000_000;
+        const base = { season: 1, chapter: 2, day: 5, session: 9, timeOfDay: "noon", eclipse: false };
+        const memo = (clock, ago) => ({ ...clock, lastAdvance: { for: C.boundaryStamp(clock, clock), at: now - ago, snapshot: { actions: {}, tokens: {}, sealed: [], restrictions: {} } } });
+        const morning = { ...base, timeOfDay: "morning" };
+        const label = key => C.timeOfDayLabel(key);
+        const time = (from, to) => game.i18n.format("DRPG.Clock.rewindAskTime", { from: label(from), to: label(to) });
+        const L = key => game.i18n.localize(key);
+        const q = clock => { const out = C.rewindQuestion(clock, now); return [out.title, out.yesLabel, out.effects]; };
+        const hud = stripComments(new Map(await otherSources()).get("hud.mjs") ?? "");
+        const press = fnSource(hud, "pressRewind");
+        equal(stableJson({
+            fresh: q(memo(base, 60_000)), late: q(memo(base, 10 * 60_000)), none: q(base), dayBack: q(morning),
+            press: [press.search(/confirmUndo|ask\(/) > 0, press.search(/rewindQuestion\(/) > 0, press.search(/rewindQuestion\(/) < press.lastIndexOf("rewindTimeOfDay()"),
+                /pressRewind\(/.test(fnSource(hud, "buildTimeRow"))]
+        }), stableJson({
+            fresh: [L("DRPG.Clock.rewindAskTitle"), L("DRPG.Clock.rewindAskYes"), [time("noon", "morning"), L("DRPG.Clock.rewindAskTakeBack")]],
+            late: [L("DRPG.Clock.rewindAskTitle"), L("DRPG.Clock.rewindAskYes"), [time("noon", "morning"), L("DRPG.Clock.rewindAskClockOnly")]],
+            none: [L("DRPG.Clock.rewindAskTitle"), L("DRPG.Clock.rewindAskYes"), [time("noon", "morning"), L("DRPG.Clock.rewindAskClockOnly")]],
+            dayBack: [L("DRPG.Clock.rewindAskTitle"), L("DRPG.Clock.rewindAskYes"), [time("morning", "night"),
+                game.i18n.format("DRPG.Clock.rewindAskDay", { day: 4, session: 8 }), L("DRPG.Clock.rewindAskClockOnly")]],
+            press: [true, true, true, true]
+        }), "{[title, yes, effects] for: a boundary crossed a minute ago, ten minutes ago, none kept, Morning back into the night before; the press asks, words from rewindQuestion, before the rewind, and the chevron runs it}");
+    }],
+    ["R9041 - the one question before an undo: Cancel on the left and the default, the yes on the right, a closed window a no, and the list of what the undo does said item by item, escaped (undo-confirm.mjs `confirmUndo`, `undoBody`; 2.0 line T2b, EXP-GM-13, 28.11.2026)", async () => {
+        /*
+         * F1-blind-gm EXP-GM-13 (E-GM-87): the undos said what they had undone only afterwards. One question asks for each
+         * now - the clock's rewind (R9040) and the Students window's Alive (R9042). Read with a recorder in the kit
+         * window's place (`open`), answering as a window would: the yes, Cancel, and a close (undefined). Nothing is drawn
+         * or written. Red at 0d3d4f2: no undo-confirm.mjs.
+         */
+        let U = null;
+        try { U = await import("./undo-confirm.mjs"); } catch { U = null; }
+        if (typeof U?.confirmUndo !== "function") { ok(false, "undo-confirm.mjs has no confirmUndo"); return; }
+        const asked = [];
+        const answer = value => spec => { asked.push(spec); return Promise.resolve(spec.footer?.[value === true ? "primary" : "close"]?.callback?.() ?? value); };
+        const question = { title: "R9041 title", intro: "R9041 <intro>", effects: ["R9041 <one>", "R9041 two"], yesLabel: "R9041 yes", tip: "R9041 tip" };
+        const read = [await U.confirmUndo(question, { open: answer(true) }), await U.confirmUndo(question, { open: answer(false) }),
+            await U.confirmUndo(question, { open: () => Promise.resolve(undefined) }), await U.confirmUndo(question, { open: () => Promise.resolve(null) })];
+        const spec = asked[0];
+        const box = document.createElement("div");
+        box.innerHTML = spec?.body ?? "";
+        equal(stableJson({
+            read,
+            footer: spec ? [spec.footer?.primary?.action, spec.footer?.primary?.label, spec.footer?.primary?.tooltip, spec.footer?.close?.role, spec.footer?.default, spec.rejectClose, spec.title] : null,
+            body: [box.querySelector("p")?.textContent ?? null, [...box.querySelectorAll("li")].map(li => li.textContent), box.querySelectorAll("script, intro, one").length]
+        }), stableJson({
+            read: [true, false, false, false],
+            footer: ["yes", "R9041 yes", "R9041 tip", "cancel", "no", false, "R9041 title"],
+            body: ["R9041 <intro>", ["R9041 <one>", "R9041 two"], 0]
+        }), "{read: [the yes, Cancel, closed, closed to null]; footer: [the yes's action, label, tooltip, the close's role, the default, rejectClose, title]; body: [the intro, the effects, no tag let through]}");
+    }],
+    ["R9042 - Apply in the Students window asks before it brings anybody back to life, with what the revive really does, and Cancel writes nothing of that Apply (gm-students.mjs `revivesAsked`, `reviveQuestion`, `openWhoIsAliveDialog`; death.mjs `reviveCharacter`; 2.0 line T2b, EXP-GM-13, 28.11.2026)", async () => {
+        /*
+         * F1-blind-gm EXP-GM-13: Alive on a dead or unfound row brought the student back at Apply (`applyAliveStates` ->
+         * death.mjs `reviveCharacter`), nothing said first. Apply asks now when any row goes from Dead, Dead (not found)
+         * or Monocub to Alive, through `confirmUndo` (R9041), and only a yes writes the Apply - every row of it. The list
+         * is what `reviveCharacter` writes, read from it: the dead flag and status off, the skull off the tokens, the body
+         * tiles off the map, the dead's Spectator gone, a death nobody found dropped from the GMs' record; the Monocub's
+         * flag cleared first (`applyAliveStates`); voice reads the death through `isDeadForGm`; the Truth Bullets the death
+         * destroyed stay gone. Read on the pure parts with states of its own, and on the sources; nothing is written.
+         * Red at 0d3d4f2: no `revivesAsked`.
+         */
+        const G = await import("./gm-students.mjs");
+        if (typeof G.revivesAsked !== "function" || typeof G.reviveQuestion !== "function") { ok(false, "gm-students.mjs has no revivesAsked or reviveQuestion"); return; }
+        const states = { a: "dead", b: "unfound", c: "monocub", d: "alive", e: "dead" };
+        const chosen = { a: { state: "alive" }, b: { state: "alive" }, c: { state: "alive" }, d: { state: "alive" }, e: { state: "dead" }, f: { state: "alive" } };
+        const asked = G.revivesAsked(chosen, id => states[id] ?? null);
+        const L = key => game.i18n.localize(key);
+        const q = G.reviveQuestion([{ name: "R9042 <A>", state: "dead" }]);
+        const all = G.reviveQuestion([{ name: "A", state: "dead" }, { name: "B", state: "unfound" }, { name: "C", state: "monocub" }]);
+        const sources = new Map(await otherSources());
+        const win = stripComments(sources.get("gm-students.mjs") ?? ""), death = stripComments(sources.get("death.mjs") ?? "");
+        const open = fnSource(win, "openWhoIsAliveDialog"), revive = fnSource(death, "reviveCharacter");
+        equal(stableJson({
+            asked,
+            one: [q.title, q.yesLabel, q.intro.includes("R9042 <A>"), q.effects],
+            all: all.effects.length,
+            order: open.search(/confirmUndo\(/) > 0 && open.search(/confirmUndo\(/) < open.search(/applyAliveStates\(chosen\)/),
+            reads: [/removeDeadSpectator\(/, /deathStore\.drop\(/, /unsetFlag\(MODULE_ID, FLAGS\.deceased\)/, /markCorpse\(actor, false\)/, /removeBodyTiles\(/].map(re => re.test(revive))
+        }), stableJson({
+            asked: ["a", "b", "c"],
+            one: [L("DRPG.Panel.reviveAskTitle"), L("DRPG.Panel.reviveAskYes"), true,
+                [L("DRPG.Panel.reviveFxMark"), L("DRPG.Panel.reviveFxSpectator"), L("DRPG.Panel.reviveFxVoice"), L("DRPG.Panel.reviveFxBullets")]],
+            all: 6, order: true, reads: [true, true, true, true, true]
+        }), "{asked: the rows Apply revives; one dead student's question: [title, yes, named, effects]; with an unfound death and a Monocub besides, six effects; Apply asks before it writes; what reviveCharacter writes, read in it}");
+    }],
 ];
 
 /**
