@@ -153,13 +153,14 @@ async function settleObserveRoll(actor, def, roll, observeKey, declaration) {
         room: roomOfActor(actor)
     });
 
+    // The roll the GMs' fact of the result goes on (fix r1-G2).
+    const rollId = rollInHand(actor)?.messageId ?? null;
     const res = await requestObserveResolve({
         actorId: actor.id,
         key: observeKey,
         total: roll.total,
         isCritical: Boolean(roll.isCritical),
-        // The roll the GMs' fact of the result goes on (fix r1-G2).
-        rollId: rollInHand(actor)?.messageId ?? null
+        rollId
     });
 
     // Deliberately silent about the outcome: the verdict is the GM's to send,
@@ -170,13 +171,26 @@ async function settleObserveRoll(actor, def, roll, observeKey, declaration) {
     // the verdict lands about a second later - so the note told the player to
     // wait for something that had already happened, on the one branch where it
     // was never true. Naming a target and asking the GM outright do go to a
-    // person, and there the wait is real.
+    // person, and there the wait is real. A sweep whose find waits on the GM's
+    // describe window (an undescribed trace, or a critical) is told so by the GM
+    // who scores it, since this client cannot know it hit (observe.mjs
+    // `describeFind`, `DRPG.Observe.describing`; 2.0 line T3 INV-03).
     // And only when the GM's client has it (E31 review): a request refused or not
     // answered has been said once already.
     const waits = (declaration === "specific" || declaration === "anything") && res.ok;
+    /* AND A RESOLVE NOBODY ANSWERED IS SAID FOR WHAT IT IS (2.0 line T3 INV-12, 27.11.2026): the action is spent and the
+       primary may have gone before it scored the roll, so the card says the GMs settle it by hand, and the primary that
+       is there now is told (`resolve.lost`: one GMs' card a roll, its total off the GMs' record). Not resent: a resolve
+       asked again of a new primary meets the roll used (bridge-guards.mjs `rollRefusal`). */
+    const lost = !res.ok && res.reason === "noAnswer";
 
     await whisperToOwner(actor, `${rollHead(def, roll)}${
-        waits ? `<p><small>${game.i18n.localize("DRPG.Observe.sent")}</small></p>` : ""}`, rollCardFlags(def, roll));
+        waits ? `<p><small>${game.i18n.localize("DRPG.Observe.sent")}</small></p>` : ""}${
+        lost ? `<p><small>${game.i18n.localize("DRPG.Observe.unresolved")}</small></p>` : ""}`, rollCardFlags(def, roll));
+    if (lost) {
+        const { requestResolveLost } = await import("./bridge-asks.mjs");
+        await requestResolveLost({ actorId: actor.id, kind: "observe", rollId });
+    }
 
     return { roll, observeKey };
 }

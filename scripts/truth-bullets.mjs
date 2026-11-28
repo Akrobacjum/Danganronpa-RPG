@@ -42,7 +42,7 @@ import {
     whisperToOwner, whisperToGms, isPrimaryGm, primaryGmId, ownerIdsOf, forcedDeletion, log, warn, error, plural, esc
 } from "./utils.mjs";
 import { playSfxFor } from "./sfx.mjs";
-import { bulletStore, bulletRefCopy, restoreCase, lootTraceStore, deathStore } from "./gm-stores.mjs";
+import { bulletStore, bulletRefCopy, copyOriginCopy, restoreCase, lootTraceStore, deathStore } from "./gm-stores.mjs";
 import { gmStoresQuiet, whenGmStoresAudible, stableJson } from "./gm-store.mjs";
 import { replyForMe } from "./bridge-guards.mjs";
 import { itemMarkedBefore, itemsWritten, judgedFor, reachOf } from "./sheet-audit.mjs";
@@ -152,8 +152,81 @@ export const TRUTH_BULLET_FLAGS = {
     /** Which action left the source trace - drives the Remnant token's icon. */
     sourceAction: "sourceAction",
     /** Whether the source trace belongs to the murder - drives the sort. */
-    tiedToCrime: "tiedToCrime"
+    tiedToCrime: "tiedToCrime",
+    /**
+     * HOW THIS COPY CAME TO ITS HOLDER, AS THE FIRST 2.0 BUILD WROTE IT (2.0 line T3 EXP-PL-17): the item's flag, which
+     * every browser holds - so, by D2-30 (28.11.2026: "pochodzenie kopii nie może być czytelne w konsoli innych graczy"),
+     * written by nothing now: the origin is the bullet's row's `origin` and its owner's copy (`copyOriginOf`), the clause
+     * `liftCopyOrigins` takes the flag off, and world-secrets.mjs forbids it on any item. Kept for that clause.
+     *
+     * The origin itself: `{ kind, name?, gaveTo? }`, written when the copy is made - `found` (the holder's own Observe, or
+     * a body's loot), `shared` (handed over by the student `name`, which the receiver's card names anyway), `given` (a GM
+     * gave it to them alone), `givenMany` (a GM gave it to several or everyone, or Monokuma's Reveal did: no names),
+     * `autopsy` (no names) - and `gaveTo`, the students this holder handed a copy to, which the holder chose. Nothing
+     * else: who else found a trace is the GMs' (the answer key), and nothing is counted from it. A copy made before
+     * 1.2.130 holds none and says nothing (`copyOriginLines`).
+     */
+    copyOrigin: "copyOrigin"
 };
+
+/** The kinds of `copyOrigin` a copy may name, each with its sentence (`DRPG.TruthBullet.copyOrigin.<kind>`). */
+export const COPY_ORIGINS = Object.freeze(["found", "shared", "given", "givenMany", "autopsy"]);
+
+/**
+ * The sentences a copy's card says of other copies (EXP-PL-17): its origin's, then the students it was handed on to.
+ * `[{ key, data }]`, or null for a copy with no origin or one of no kind above. A name only where the holder knows it:
+ * the giver of a shared copy and the receivers of one handed on. Pure on the flag (R9145).
+ */
+export function copyOriginLines(flag) {
+    if (!flag || typeof flag !== "object" || !COPY_ORIGINS.includes(flag.kind)) return null;
+    const lines = [{ key: `DRPG.TruthBullet.copyOrigin.${flag.kind}`, data: flag.kind === "shared" ? { name: String(flag.name ?? "") } : {} }];
+    const gave = Array.isArray(flag.gaveTo) ? flag.gaveTo.filter(n => typeof n === "string" && n) : [];
+    if (gave.length) lines.push({ key: "DRPG.TruthBullet.copyOrigin.gave", data: { names: gave } });
+    return lines;
+}
+
+/** The origin a copy is born with, as `createTruthBullet` writes it: a known kind, and `name` for a shared one alone. */
+function originFlag(origin) {
+    if (!origin || !COPY_ORIGINS.includes(origin.kind)) return null;
+    return origin.kind === "shared" ? { kind: "shared", name: String(origin.name ?? "") } : { kind: origin.kind };
+}
+
+/**
+ * A copy handed on by its holder (EXP-PL-17): the receiver's name added to the holder's own copy's `gaveTo`, in the
+ * bullet's row (D2-30), and the holder's owners sent their copy. GM side.
+ */
+export async function noteCopyHandedOn(item, name) {
+    if (!game.user.isGM || !item?.uuid || !name) return;
+    const was = secretOf(item.uuid).origin;
+    const base = was && typeof was === "object" ? was : {};
+    const gaveTo = [...new Set([...(Array.isArray(base.gaveTo) ? base.gaveTo : []), String(name)])];
+    await setSecret(item.uuid, { origin: { ...base, gaveTo } });
+    tellBulletRefs(ownerIdsOf(item.parent));
+}
+
+/**
+ * HOW A COPY CAME TO ITS HOLDER, AS THIS BROWSER MAY KNOW IT (D2-30): a GM's from the bullet's row (`origin`), a player's
+ * from their own copy (gm-stores.mjs `copyOriginCopy`), which holds their own characters' bullets alone. Null when none.
+ */
+export function copyOriginOf(item) {
+    if (!item?.uuid) return null;
+    try {
+        const origin = game.user?.isGM ? bulletStore.get(item.uuid)?.origin : (copyOriginCopy.read() ?? {})[item.uuid];
+        return origin && typeof origin === "object" ? origin : null;
+    } catch {
+        return null;
+    }
+}
+
+/** An origin as a packet or a flag may carry it, held to its shape: a known kind, a shared one's name, `gaveTo`'s names. */
+function cleanOrigin(origin) {
+    if (!origin || typeof origin !== "object" || !COPY_ORIGINS.includes(origin.kind)) return null;
+    const out = { kind: origin.kind };
+    if (origin.kind === "shared" && typeof origin.name === "string") out.name = origin.name.slice(0, 120);
+    const gave = Array.isArray(origin.gaveTo) ? origin.gaveTo.filter(n => typeof n === "string" && n).map(n => n.slice(0, 120)) : [];
+    if (gave.length) out.gaveTo = [...new Set(gave)];
+    return out;
+}
 
 /* ==========================================================================
  * THE ANSWER KEY
@@ -711,7 +784,7 @@ export async function createTruthBullet(actor, {
     faint = false, playerText = "", analyzedText = "", img = null, gmNote = "",
     remnantId = null, sceneId = null,
     room = null, analyzed = null, stamp = null, foundIn = undefined, epoch = undefined,
-    sourceAction = null, tiedToCrime = null, leftBy = undefined, leftByName = undefined, told = false
+    sourceAction = null, tiedToCrime = null, leftBy = undefined, leftByName = undefined, told = false, origin = null
 } = {}) {
     if (!actor || !name) return null;
 
@@ -784,6 +857,7 @@ export async function createTruthBullet(actor, {
             // Never inherited. A failed analysis is a fact about the person who
             // failed, not about the evidence - guide, Stage 3.
             [TRUTH_BULLET_FLAGS.lockedChapter]: null
+            // How this copy came to its holder is not here (D2-30): it is the row's `origin`, below.
         }
     });
 
@@ -805,6 +879,9 @@ export async function createTruthBullet(actor, {
         ...(author.leftBy ? author : {}),
         // Its leaver's own copy of a trace they were told of (1.2.125 H2): held, never a find (`isToldCopy`).
         ...(told ? { told: true } : {}),
+        // How this copy came to its holder (EXP-PL-17, D2-30): the caller's road, on the GMs' row; its owners' copy is
+        // sent with the trace's key just below (`tellBulletRefs`). None, no sentence.
+        ...(originFlag(origin) ? { origin: originFlag(origin) } : {}),
         chapter: foundIn !== undefined ? foundIn : (stamp?.chapter ?? clock.chapter),
         ...(season !== undefined ? { epoch: season } : {})
     });
@@ -981,6 +1058,10 @@ export async function propagateRemnantPublic(remnantTokenId, changed) {
             const own = key => held.getFlag(MODULE_ID, key) ?? "";
             const earned = reading ? (hasReading(held) ? analyzedText : "") : own(TRUTH_BULLET_FLAGS.analyzedText);
             const playerText = words ? (changed.playerText ?? "") : own(TRUTH_BULLET_FLAGS.playerText);
+            // what this holder is told changed (`copyChangedParts`), read before the write moves it
+            const parts = copyChangedParts(changed, { name: held.name, img: held.img, playerText: own(TRUTH_BULLET_FLAGS.playerText),
+                analyzedText: own(TRUTH_BULLET_FLAGS.analyzedText), reads: hasReading(held) });
+            const was = held.name;
 
             // `FROM_REMNANT` on the OPTIONS, not the data: it is a fact about
             // where this write came from, not about the bullet. `watchBulletEdits`
@@ -994,11 +1075,35 @@ export async function propagateRemnantPublic(remnantTokenId, changed) {
                 ...(reading ? { [`flags.${MODULE_ID}.${TRUTH_BULLET_FLAGS.analyzedText}`]: earned } : {})
             }, { [FROM_REMNANT]: true });
             touched++;
+            if (parts.length && item.parent) await tellCopyChanged(item.parent, was, parts, changed.name || held.name);
         } catch (err) {
             error(`Could not propagate the Remnant's public record onto "${item.name}"`, err);
         }
     }
     return touched;
+}
+
+/**
+ * WHAT A HOLDER IS TOLD OF A GM'S EDIT OF THEIR COPY (2.0 line T3 EXP-PL-08, 27.11.2026; the owner's recommendation). The
+ * write above moved a copy's name, words, picture and reading with no word to its holder. The parts `changed` moves on
+ * this copy as it stands (`copy`: its name, picture, words, reading, and whether it reads the analysis): a part the write
+ * does not name, or names as the copy already holds it, is not told, and the reading only to a copy that reads it - an
+ * unanalysed copy does not learn that a reading exists. Pure (R9138): "name", "words", "image", "reading".
+ */
+export function copyChangedParts(changed, copy) {
+    const has = field => Object.hasOwn(changed ?? {}, field);
+    const out = [];
+    if (has("name") && (changed.name || copy.name) !== copy.name) out.push("name");
+    if (has("playerText") && String(changed.playerText ?? "") !== String(copy.playerText ?? "")) out.push("words");
+    if (has("img") && (changed.img || copy.img) !== copy.img) out.push("image");
+    if (has("analyzedText") && copy.reads && String(changed.analyzedText ?? "") !== String(copy.analyzedText ?? "")) out.push("reading");
+    return out;
+}
+
+/** The holder's one whisper of a GM's edit (`copyChangedParts`), the new name with its part. */
+async function tellCopyChanged(actor, was, parts, name) {
+    const words = parts.map(part => game.i18n.format(`DRPG.TruthBullet.copyPart.${part}`, { name: foundry.utils.escapeHTML(name ?? "") }));
+    await whisperToOwner(actor, `<p>${game.i18n.format("DRPG.TruthBullet.copyChanged", { old: foundry.utils.escapeHTML(was ?? ""), parts: words.join(", ") })}</p>`);
 }
 
 /**
@@ -1108,7 +1213,8 @@ export async function issueAutopsy(actors, { name, playerText = "", gmNote = "" 
             // The autopsy is BY DEFINITION about the murder, and it arrives
             // identified - so it takes its place at the top of the pack's
             // murder-first sort from the moment it lands.
-            tiedToCrime: true
+            tiedToCrime: true,
+            origin: { kind: "autopsy" }
         });
         if (!item) continue;
         issued++;
@@ -1880,17 +1986,21 @@ export function ownBulletRefs() {
  */
 export function bulletRefsFor(userId) {
     const user = game.users.get(userId);
-    const refs = {}, stamps = {};
-    if (!game.user?.isGM || !user || user.isGM) return { refs, stamps };
+    const refs = {}, stamps = {}, origins = {};
+    if (!game.user?.isGM || !user || user.isGM) return { refs, stamps, origins };
     for (const actor of game.actors ?? []) {
         if (actor.type !== "character" || !actor.testUserPermission?.(user, "OWNER")) continue;
         for (const item of bulletsOf(actor)) {
             stamps[item.uuid] = bulletStore.newest(item.uuid);
-            const ref = refOf(bulletStore.get(item.uuid));
+            const row = bulletStore.get(item.uuid);
+            const ref = refOf(row);
             if (ref) refs[item.uuid] = ref;
+            // How the copy came to them (D2-30): the owner's own bullets' alone, in this addressed packet.
+            const origin = cleanOrigin(row?.origin);
+            if (origin) origins[item.uuid] = origin;
         }
     }
-    return { refs, stamps };
+    return { refs, stamps, origins };
 }
 
 /**
@@ -1901,10 +2011,10 @@ export function bulletRefsFor(userId) {
 export function sendBulletRefsTo(userId) {
     const user = game.users.get(userId);
     if (!game.user?.isGM || !user?.active || user.isGM || gmStoresQuiet()) return false;
-    const { refs, stamps } = bulletRefsFor(userId);
+    const { refs, stamps, origins } = bulletRefsFor(userId);
     if (!Object.keys(stamps).length) return false;
     try {
-        game.socket.emit(SOCKET_EVENT, { action: ACTION_REFS, userId, refs, stamps }, { recipients: [userId] });
+        game.socket.emit(SOCKET_EVENT, { action: ACTION_REFS, userId, refs, stamps, origins }, { recipients: [userId] });
     } catch (err) {
         error("Could not tell a player which traces their Truth Bullets came from", err);
         return false;
@@ -1940,15 +2050,19 @@ export async function retellBulletRefs() {
 }
 
 /** Owner: take a GM's answer where it is newer (`bulletRefCopy`), for bullets on this user's own characters only. */
-export async function receiveBulletRefs(refs, stamps) {
-    const mine = {}, own = {};
+export async function receiveBulletRefs(refs, stamps, origins = {}) {
+    const mine = {}, own = {}, theirs = {};
     for (const [uuid, s] of Object.entries(stamps ?? {})) {
         const actorId = OWN_BULLET.exec(uuid)?.[1];
         if (!actorId || !game.actors.get(actorId)?.isOwner) continue;
         own[uuid] = Number(s) || 0;
         const ref = refs?.[uuid];
         if (typeof ref === "string" && TRACE_KEY.test(ref)) mine[uuid] = ref;
+        const origin = cleanOrigin(origins?.[uuid]);
+        if (origin) theirs[uuid] = origin;
     }
+    // How each copy came to them (D2-30), at the same stamps: the owner's own bullets alone, as the keys above.
+    await copyOriginCopy.receive(theirs, own);
     return bulletRefCopy.receive(mine, own);
 }
 
@@ -1975,7 +2089,7 @@ function onBulletRefsSocket(payload, senderId) {
     if (payload?.action !== ACTION_REFS || game.user.isGM) return;
     // A GM's, and addressed to this user: a player cannot hand another the traces their bullets came from.
     if (!replyForMe(payload, senderId)) return;
-    receiveBulletRefs(payload.refs, payload.stamps)
+    receiveBulletRefs(payload.refs, payload.stamps, payload.origins)
         .catch(err => error("Could not keep which traces this player's Truth Bullets came from", err));
 }
 
@@ -1991,8 +2105,60 @@ function registerBulletRefsCopy() {
         return;
     }
     Hooks.callAll("drpgBulletRefsChanged");
+    // The Copies chips follow this player's copy of their copies' origins (D2-30): their open sheets drawn again.
+    Hooks.on("drpgCopyOriginsChanged", () => import("./clock.mjs").then(m => m.refreshSheets()).catch(() => {}));
     askForBulletRefs();
     Hooks.on("drpgPrimaryReady", primary => askForBulletRefs(primary));
+}
+
+/**
+ * THE FIRST 2.0 BUILD'S `copyOrigin` FLAG, OUT OF WORLD DATA (2.0 line T3 D2-30, 28.11.2026): migrate.mjs's clause
+ * `liftCopyOrigins` runs this once, on the primary, once the store holds the other GMs' copies - as `liftBulletRefs`
+ * does, below. Each flag's origin goes into its bullet's row as `origin`, weak and fill-only (a row that has one keeps
+ * its own); the flag leaves the item only once the row reads back holding an `origin`, and a flag of no known shape is
+ * deleted. Then the owners are sent their copy. A flag still on an item throws, with the count, so the next load tries
+ * again. Idempotent. Answers null when no item holds the flag.
+ */
+export async function liftCopyOrigins() {
+    if (!isPrimaryGm()) return { notPrimary: true };
+    if (await bulletStore.whenHydrated() === "timedOut") {
+        throw new Error("the other GMs' copies of the Truth Bullets' answer keys did not arrive; the next load tries again");
+    }
+    const flag = TRUTH_BULLET_FLAGS.copyOrigin;
+    const found = itemsWithFlag(flag);
+    if (!found.length) return null;
+    const rows = {};
+    for (const item of found) {
+        const origin = cleanOrigin(item.flags[MODULE_ID][flag]);
+        if (origin) rows[item.uuid] = { origin };
+    }
+    if (Object.keys(rows).length) {
+        await bulletStore.patchMany(rows, { weak: true, fillOnly: true });
+        await bulletStore.idle();
+    }
+    const deletion = forcedDeletion();
+    const owners = new Set();
+    let lifted = 0, dropped = 0, kept = 0;
+    for (const item of found) {
+        if (rows[item.uuid]) {
+            const row = bulletStore.persisted(item.uuid);
+            if (!row || !Object.hasOwn(row, "origin")) {
+                kept++;
+                continue;
+            }
+            lifted++;
+            for (const userId of ownerIdsOf(item.parent)) owners.add(userId);
+        } else {
+            dropped++;
+        }
+        if (deletion) await item.update({ [`flags.${MODULE_ID}.${flag}`]: deletion }, { [NOT_AN_EDIT]: true });
+        else await item.unsetFlag(MODULE_ID, flag);
+    }
+    const left = itemsWithFlag(flag).length;
+    if (lifted || dropped) log(`Took ${lifted + dropped} Truth Bullet copy origin(s) out of world data (${lifted} held by the GM store, ${dropped} of no known shape); ${left} left.`);
+    tellBulletRefs(owners);
+    if (left) throw new Error(`${left} Truth Bullet(s) still carry their copy's origin in a flag (${kept} whose row the GM store did not read back); the next load tries again`);
+    return { lifted, dropped, kept };
 }
 
 /** Every item that carries this module flag at all - a `null` counts - in the sidebar and on every actor's sheet. */

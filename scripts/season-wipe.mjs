@@ -215,12 +215,18 @@ export async function resetSeason() {
      * the clock and the stores' clears, which are the primary's alone (the handle's
      * `clear`): one browser decides, the one that already answers for the table. On
      * 1.2.62 an assistant's reset cleared its own browser and left last season's trap
-     * plants on the primary's, which hands a Search its find. Another GM is told whose
-     * the reset is. And the window waits for this browser to have the other GMs' copies
-     * before it opens, so the cut's stamp is taken over every row they hold (the
-     * design's row 12).
+     * plants on the primary's, which hands a Search its find. And the window waits for this
+     * browser to have the other GMs' copies before it opens, so the cut's stamp is taken
+     * over every row they hold (the design's row 12).
+     *
+     * A SECOND FULL GM'S RESET IS CARRIED OUT ON THE PRIMARY (2.0 line T3 TRIAL-04, PRIM-05, 27.11.2026; Forge S2 H1). The
+     * cut stays on one browser, the primary's: a second full GM's window is drawn here, from this browser's copy of the
+     * case (`resetTallies`), the word is checked here, in this GM's language, and the plan - the groups ticked and where
+     * the cast goes - is sent to the primary (`season.reset`), which runs everything after the window there
+     * (`runSeasonReset`). An Assistant GM is told whose the reset is, as before.
      */
-    if (!isPrimaryGm()) {
+    const openedAsPrimary = isPrimaryGm();
+    if (!openedAsPrimary && game.user.role !== CONST.USER_ROLES.GAMEMASTER) {
         const name = game.users.get(primaryGmId())?.name ?? "?";
         ui.notifications.warn(game.i18n.format("DRPG.GmStore.resetPrimaryOnly", { name }));
         return null;
@@ -340,32 +346,66 @@ export async function resetSeason() {
         ui.notifications.warn(game.i18n.format("DRPG.Season.resetMistyped", { word }));
         return null;
     }
-    /* STILL THE PRIMARY WHEN THE WINDOW CLOSES (E11 fix r2-H4; round 2's sec S4 and COR2-8). The check
-       above runs before the window, which can stand for minutes: a GM with a lower id (or a full GM,
-       when an assistant opened it) arriving meanwhile made another browser the primary, and the reset
-       ran here anyway - the cast's step moved nobody and named nobody (and, read in the code, the
-       deaths step dropped this browser's rows instead of clearing the store). Asked again, with the
-       same words, before anything is written. Scenario 65 U1 (the returning GM connecting while the
-       window stands). */
-    if (!isPrimaryGm()) {
-        const name = game.users.get(primaryGmId())?.name ?? "?";
-        ui.notifications.warn(game.i18n.format("DRPG.GmStore.resetPrimaryOnly", { name }));
-        return null;
-    }
-
     // Where the cast goes rides on the plan: a choice, not a tick, so `planFrom` (the ticks') does not read it.
-    const plan = { ...planFrom(typed.ticked), cast: typed.cast ?? { to: "stay" } };
-    if (!plan.groups.size) {
+    const asked = { groups: [...typed.ticked], cast: typed.cast ?? { to: "stay" }, remember: !unfinished.length };
+    if (!asked.groups.length) {
         // Nothing ticked is not a reset, and it is worth saying so rather than
         // running a wipe that does nothing and reporting success.
         ui.notifications.warn(game.i18n.localize("DRPG.Season.resetNothing"));
         return null;
     }
+    /* A WINDOW THE PRIMARY OPENED STAYS THE PRIMARY'S (E11 fix r2-H4; round 2's sec S4 and COR2-8; 2.0 line T3 TRIAL-04).
+       The window can stand for minutes: a GM with a lower id arriving meanwhile makes another browser the primary, and a
+       reset this browser opened as the primary is refused then, with the primary's words, as before (scenario 65 U1) -
+       its GM chose against the copy that was the primary's. A second full GM's window, opened off the primary, is sent to
+       the primary as it stands at the close. */
+    if (!isPrimaryGm()) {
+        if (!openedAsPrimary && game.user.role === CONST.USER_ROLES.GAMEMASTER) return resetOnPrimary(asked);
+        const name = game.users.get(primaryGmId())?.name ?? "?";
+        ui.notifications.warn(game.i18n.format("DRPG.GmStore.resetPrimaryOnly", { name }));
+        return null;
+    }
+    // The primary's own plan: the groups as `planFrom(typed.ticked)` keeps them, run on the road a relay takes too.
+    return runSeasonReset({ ...asked, groups: [...planFrom(typed.ticked).groups] });
+}
 
+/**
+ * A second full GM's reset, asked of the primary (2.0 line T3 TRIAL-04): the plan its window gave (`season.reset`,
+ * bridge-runs-records.mjs `handleSeasonReset`). Answers the reset's report as the primary's run answers it, or null - the
+ * primary's reason said here when it relays one (bridge-guards.mjs `tellRelayedRefusal`), the bridge's otherwise.
+ */
+async function resetOnPrimary(asked) {
+    const { bridgeRequest, tellRelayedRefusal } = await import("./bridge-guards.mjs");
+    const { TIMING } = await import("./config.mjs");
+    /* The answer comes once the whole reset has run there - its chat's deletions in batches, every group's step - so the
+       wait is five rulings' long, as bridge-table.mjs's row says; not measured at a table (LINE-T3-REPORT.md). */
+    const res = await bridgeRequest("season.reset", asked, { settle: "reply", onPrimary: true, timeoutMs: TIMING.rulingMs * 5 });
+    if (!res.ok || tellRelayedRefusal(res.value)) return null;
+    return res.value ?? null;
+}
+
+/**
+ * EVERYTHING AFTER THE WINDOW, ON THE PRIMARY (2.0 line T3 TRIAL-04, 27.11.2026; moved out of `resetSeason`): the
+ * primary's own reset and a second full GM's (`handleSeasonReset`) run the same road. `asked` is `{ groups, cast,
+ * remember }`: the groups ticked (the registry's keys, `planFrom` keeps only those), where the cast goes, and whether the
+ * exceptions are remembered (not by a reset that finishes an unfinished one, E42 C4). Refusals are said through `say` -
+ * a warning toast here, the relay's collector for a second GM's press. Answers `wipeSeason`'s result, or null.
+ */
+export async function runSeasonReset(asked = {}, { say = (key, data = {}) => ui.notifications.warn(game.i18n.format(key, data)) } = {}) {
+    /* STILL THE PRIMARY (E11 fix r2-H4; round 2's sec S4 and COR2-8). Asked again before anything is written: the cast's
+       step moved nobody off the primary and the deaths step dropped this browser's rows instead of clearing the store. */
+    if (!game.user?.isGM || !isPrimaryGm()) {
+        say("DRPG.GmStore.resetPrimaryOnly", { name: game.users.get(primaryGmId())?.name ?? "?" });
+        return null;
+    }
+    const plan = { ...planFrom(asked.groups ?? []), cast: asked.cast ?? { to: "stay" } };
+    if (!plan.groups.size) {
+        say("DRPG.Season.resetNothing");
+        return null;
+    }
     // Remembered BEFORE the wipe: everything stored is what the wipe is about to
-    // leave alone, so nothing it does can lose the decision. Not by a reset that finishes an unfinished one (E42 C4).
-    if (!unfinished.length) await rememberExceptions(plan.keep);
-
+    // leave alone, so nothing it does can lose the decision.
+    if (asked.remember) await rememberExceptions(plan.keep);
     return wipeSeason(plan);
 }
 

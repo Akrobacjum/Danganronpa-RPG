@@ -49,7 +49,7 @@ import {
     ACTION_OPENING_RESULT, ACTION_CLEANUP, ACTION_BETRAYAL, ACTION_PARK_MURDER, ACTION_CUB_ABILITY, ACTION_CUB_ANSWER, ACTION_BRIBE_OFFER, ACTION_BRIBE_ANSWER, ACTION_LOOT,
     ACTION_NOTE_SAVE, ACTION_ROLL_BOOKMARK, ACTION_REROLL, ACTION_CARD, ACTION_CARD_CLAIM, ACTION_BULLET_GIVE, ACTION_FACILITY_USE, ACTION_DASH,
     ACTION_TAIL_START, ACTION_DOOR_SHUT, ACTION_DOOR_FORCE, ACTION_DOOR_PICK, ACTION_WATCH_DECLARE, ACTION_DOOR_KNOCK,
-    ACTION_LISTEN_EAVESDROP, ACTION_LISTEN_STOP, ACTION_LISTEN_ECHOES, ACTION_MASK_REVEAL, ACTION_MASK_VEIL, ACTION_HIDE_START, ACTION_DEAD_SPECTATOR, ACTION_ASK_WITHDRAW, ACTION_ECLIPSE_JUDGE
+    ACTION_LISTEN_EAVESDROP, ACTION_LISTEN_STOP, ACTION_LISTEN_ECHOES, ACTION_MASK_REVEAL, ACTION_MASK_VEIL, ACTION_HIDE_START, ACTION_DEAD_SPECTATOR, ACTION_ASK_WITHDRAW, ACTION_ECLIPSE_JUDGE, ACTION_SEASON_RESET, ACTION_RESOLVE_LOST
 } from "./bridge-wire.mjs";
 import {
     handleObserveTarget, handleCleanupTraces, handleObserveResolve, handleAnalyzeResolve, handleAdvancement,
@@ -70,7 +70,7 @@ import {
     handleReroll, handleAuditDecide, handleKeysCharge, handleBodyDiscover, handleChapterEnd, handleVoiceReset, handleVerdictFinish, handleTrialRecord, handleTrialEnter, handleVoteRun, handleBallot,
     handleBallotAsk, handleFloorNow, handleTrialObject, handleTrialEvidence, handleTrialWithdraw, handleFloorRepoint,
     handleTrialGm, handleTrialTurn, handleTrialClaim, handleTrialSide, handleTrialKeyword, handleReadyOpen, handleReadyAnswer, handleReadyEnd,
-    handleTrialPresent, handleReshapeRuling, handleObservePick, handleObserveDescribe, handleCardClaim, handleCardPost, handleGiveBullet, handleEclipseJudge
+    handleTrialPresent, handleReshapeRuling, handleObservePick, handleObserveDescribe, handleCardClaim, handleCardPost, handleGiveBullet, handleEclipseJudge, handleSeasonReset, resetGroupsOf, resetCastOf, handleResolveLost
 } from "./bridge-runs-records.mjs";
 
 /**
@@ -1219,7 +1219,7 @@ export const BRIDGE_ACTIONS = table({
     // A second full GM's Fix voice (E128): the rooms are the primary's to send (voice.mjs `resetAllVoice`). Carries nothing.
     [ACTION_VOICE_RESET]: { label: "DRPG.Bridge.what.voice.reset", guards: [gmOnly("only a GM sends the voice rooms again")],
         sanitize: pick({}), run: handleVoiceReset, answer: "reply" },
-    // A second full GM's Finish of a verdict the primary runs (E128; verdict.mjs `finishRoute`). Carries nothing.
+    // A full GM's claim of a stopped verdict, its steps then run on the asker (E128; T3 TRIAL-03, verdict-claim.mjs). Carries nothing.
     [ACTION_VERDICT_FINISH]: { label: "DRPG.Bridge.what.verdict.finish", guards: [gmOnly("only a GM finishes a verdict")],
         sanitize: pick({}), run: handleVerdictFinish, answer: "reply" },
     // A GM's ask for the opening's card, the primary's to post once (E128; murder-rules.mjs `postOpeningCard`). No ids.
@@ -1270,7 +1270,7 @@ export const BRIDGE_ACTIONS = table({
     [ACTION_VOTE_RUN]: {
         label: "DRPG.Bridge.what.vote.run",
         guards: [gmOnly("only a GM runs the vote")],
-        sanitize: pick({ op: as.oneOf("open", "close", "restart", "resend", "remind"), picks: as.num }),
+        sanitize: pick({ op: as.oneOf("open", "close", "restart", "resend", "remind", "announce"), picks: as.num }), // "announce": 2.0 line T3 EXP-GM-04
         run: handleVoteRun,
         answer: "reply"
     },
@@ -1690,7 +1690,10 @@ export const BRIDGE_ACTIONS = table({
     },
     /* The lights' rooms read on the primary, for a second GM's End the Eclipse (2.0 line T1 DAY-03; eclipse.mjs `standingsAtTheLights`). */
     [ACTION_ECLIPSE_JUDGE]: { label: "DRPG.Bridge.what.eclipse.judge", guards: [gmOnly("only a GM ends the Eclipse")], sanitize: pick({ eclipse: as.text }),
-        run: handleEclipseJudge, answer: "reply", claims: { eclipse: "held on the primary to its own rows of that Eclipse (eclipse.mjs `standingsOnPrimary`): a name with none answers no standing" } }
+        run: handleEclipseJudge, answer: "reply", claims: { eclipse: "held on the primary to its own rows of that Eclipse (eclipse.mjs `standingsOnPrimary`): a name with none answers no standing" } },
+    // 2.0 line T3, one line a row (this file stands at the owner's 1750): TRIAL-04 a second full GM's Reset the season, its plan run here (season-wipe.mjs `runSeasonReset`; the run refuses an Assistant GM; the converters and their reasons are bridge-runs-records.mjs's); INV-12 a player's Observe or Analyze the primary never answered, told to the GMs once a roll (bridge-runs-records.mjs `handleResolveLost`).
+    [ACTION_SEASON_RESET]: { label: "DRPG.Bridge.what.season.reset", guards: [gmOnly("only a GM resets the season")], sanitize: pick({ groups: resetGroupsOf, cast: resetCastOf, remember: as.bool }), run: handleSeasonReset, answer: "reply", timeoutMs: TIMING.rulingMs * 5, claims: { cast: "kept to the window's three choices by resetCastOf; a room's scene and region ids are read by season-wipe.mjs placeCast on the primary, which moves nobody to a room it does not find" } },
+    [ACTION_RESOLVE_LOST]: { label: "DRPG.Bridge.what.resolve.lost", guards: [knownSender, notSpectator("actorId"), owns("actorId", "sender does not own that character")], sanitize: pick({ actorId: as.id, kind: as.oneOf("observe", "analyze"), rollId: as.id }), run: handleResolveLost, answer: "none", quiet: true, resend: true, rolled: { field: "rollId", actor: "actorId", kind: ["observe", "analyze"], kindAt: "kind", settles: "lost" }, claims: { rollId: "the roll the GMs' card reads its total from (bridge-guards.mjs rollRefusal: the sender's, its character's, of that action), told once a roll (settles lost); handleResolveLost reads the GMs' record, never the packet" } }
 });
 
 /** The two handovers: one declaration, told apart by the runner's `ctx.action`. */

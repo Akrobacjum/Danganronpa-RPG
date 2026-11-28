@@ -23,7 +23,7 @@ import { MODULE_ID, TIMES_OF_DAY, TIME_OF_DAY_LABELS, PHASES } from "./config.mj
 import { SETTINGS, getClock, clearBodyDiscovery, incomingTimeOfDay, bodiesFoundIn } from "./settings.mjs";
 import { resetAllActions, budgetsOf, putBackBudgets, clearGrants } from "./actions.mjs";
 import { SearchTokens } from "./search-tokens.mjs";
-import { announce, log, warn, error, debug, plural, serverNow, serialWrite } from "./utils.mjs";
+import { announce, log, warn, error, debug, plural, serverNow, serialWrite, isPrimaryGm, primaryGmId, whisperToGms } from "./utils.mjs";
 // E88 C0: the counters `fps()` and scenario 86 read (perf-counters.mjs); an increment each, nothing timed.
 import { count } from "./perf-counters.mjs";
 
@@ -1076,6 +1076,161 @@ function renderOnRestore(app) {
     };
 }
 
+/*
+ * A CHANGE INTO OR OUT OF THE TRIAL, KEPT STEP BY STEP AND FINISHED ON THE PRIMARY (2.0 line T3 TRIAL-08, 28.11.2026; the
+ * owner's adopted recommendation: "Zapis postępu kroków i dokończenie niewykonanych przy ready głównego"). The steps below
+ * ran only on the browser that wrote the phase, and a page closed half way - an F5 on the Start button's GM, a dropped
+ * connection - left the rest undone with no trace: a trial opened with last chapter's record, nobody muted, no fee. Now a
+ * change into or out of the trial writes a row of the GMs' store `phaseStepStore` before its first step and after each
+ * one (`done`, `failed`; `started` before a step that must not run twice), and the primary finishes a row's steps left
+ * when the row's writer is gone, or is this browser after its own reload, and the phase still stands at the row's `to`
+ * (`phaseRowFinishesHere`, R9143) - by `reconcilePhase` itself, asked for those steps alone, so every step still has
+ * one caller and the order below holds (R113, R1033, R3404, R7172). The other branches - a waiting sentence, the
+ * Investigation's card - are no part of a row and are not run again.
+ *
+ * THE BUDGET IS NEVER HANDED OUT TWICE. `openTrialBudget` (actions.mjs `resetAllActions` with `keepGrants`) sets every
+ * student's actions to the allowance: run again after a player spent one in the trial, it would give the action back.
+ * The comment above `reconcilePhase` calls the steps idempotent, and of this one that holds only while nobody has spent
+ * anything since. So it is marked `started` before it runs and `done` after, and a row whose budget started and did not
+ * finish is not run again: the step goes to `failed` and the GMs are told to check the actions by hand (line T3's P9,
+ * the default "no, when the step is not idempotent"). The other steps are, as that comment says: run twice they write
+ * what they wrote once. The spec's runSteps list (steps.mjs) was not taken: the suite reads the calls of this function
+ * in order, and the list would have moved each one out of it.
+ */
+/** The steps of a change, by direction, in the order `reconcilePhase` runs them. */
+export const PHASE_STEPS = Object.freeze({
+    entry: Object.freeze(["budget", "reset", "voices", "fee", "deaths", "follow"]),
+    exit: Object.freeze(["floor", "vote", "voices", "sentence", "bodies", "follow"])
+});
+/** The steps that run once whatever happens: started and not finished, never again. */
+const ONCE_STEPS = Object.freeze(["budget"]);
+const directionOf = row => (row?.to === "classTrial" ? "entry" : row?.from === "classTrial" ? "exit" : null);
+const listIn = (row, field) => (Array.isArray(row?.[field]) ? row[field] : []);
+
+/** A row's steps still to run: neither done nor failed, and no once-step that started. Pure on the row (R9143). */
+export function phaseStepsLeft(row) {
+    const over = new Set([...listIn(row, "done"), ...listIn(row, "failed")]), started = new Set(listIn(row, "started"));
+    return (PHASE_STEPS[directionOf(row)] ?? []).filter(key => !over.has(key) && !(ONCE_STEPS.includes(key) && started.has(key)));
+}
+
+/** A row's once-steps that started and neither finished nor were written failed: cut half way. */
+function phaseStepsCut(row) {
+    const over = new Set([...listIn(row, "done"), ...listIn(row, "failed")]);
+    return ONCE_STEPS.filter(key => listIn(row, "started").includes(key) && !over.has(key));
+}
+
+/**
+ * Whether this browser finishes `row`: the phase stands at its `to`, a step is left or a once-step was cut, and its writer
+ * is this browser (after a reload: the caller leaves out the rows this page wrote) or is not connected. Pure on its
+ * readings (R9143).
+ */
+export function phaseRowFinishesHere(row, { phase = getClock().phase, me = game.user?.id ?? null, active = id => Boolean(game.users?.get(id)?.active) } = {}) {
+    if (!row || !directionOf(row) || row.to !== phase) return false;
+    if (!phaseStepsLeft(row).length && !phaseStepsCut(row).length) return false;
+    return row.by === me || !active(row.by);
+}
+
+/** The rows this page wrote: live here, never finished here as a reload's. */
+const ownPhaseRows = new Set();
+
+/** The recorder of one run of `reconcilePhase`: which steps it runs, and each one's mark on the row. */
+async function phaseRecorder(from, to, { only = null, rowKey = null } = {}) {
+    const want = key => !only || only.includes(key);
+    const trial = from === "classTrial" || to === "classTrial";
+    let store = null, key = rowKey;
+    if (game.user?.isGM) {
+        try {
+            ({ phaseStepStore: store } = await import("./gm-stores.mjs"));
+            if (!rowKey) {
+                const at = serverNow();
+                key = trial ? String(at) : null;
+                const older = Object.keys(store.entries() ?? {}).filter(k => k !== key);
+                if (older.length) await store.dropMany(older);
+                if (key) {
+                    ownPhaseRows.add(key);
+                    await store.patch(key, { from, to, at, by: game.user.id, done: [], failed: [], started: [] });
+                }
+            }
+        } catch (err) {
+            error("Could not keep the steps of the change of phase", err);
+            store = null;
+        }
+    }
+    const mark = async (field, step) => {
+        if (!store || !key || !trial) return;
+        try {
+            const row = store.get(key) ?? {};
+            await store.patch(key, { [field]: [...new Set([...listIn(row, field), step])] });
+        } catch (err) {
+            error("Could not keep the steps of the change of phase", err);
+        }
+    };
+    /** Run one step, if wanted: its failure logged as before (`failure(err)`), and its mark on the row. */
+    async function step(name, run, failure) {
+        if (!want(name)) return;
+        if (ONCE_STEPS.includes(name)) await mark("started", name);
+        try {
+            await run();
+        } catch (err) {
+            failure(err);
+            await mark("failed", name);
+            return;
+        }
+        await mark("done", name);
+    }
+    return { want, step };
+}
+
+/**
+ * The primary finishes the changes of phase whose writer's page closed half way: at its ready (`leaving` null: rows this
+ * browser wrote before its reload, or whose writer is gone) and when a GM leaves (`leaving`: that GM's rows, on the
+ * browser that is the primary once they have gone). Each row's steps left run through `reconcilePhase`, a cut once-step
+ * is written failed, and the GMs are told what was finished here. One run at a time; answers what it did.
+ */
+let finishingPhase = null;
+export function finishPhaseSteps({ leaving = null } = {}) {
+    if (finishingPhase) return finishingPhase;
+    finishingPhase = (async () => {
+        if (!game.user?.isGM) return [];
+        if (leaving ? primaryGmId({ leaving }) !== game.user.id : !isPrimaryGm()) return [];
+        const { phaseStepStore } = await import("./gm-stores.mjs");
+        const phase = getClock().phase, out = [];
+        const active = id => id !== leaving && Boolean(game.users?.get(id)?.active);
+        for (const [key, row] of Object.entries(phaseStepStore.entries() ?? {})) {
+            if (ownPhaseRows.has(key) || (leaving && row?.by !== leaving)) continue;
+            if (!phaseRowFinishesHere(row, { phase, me: game.user.id, active })) continue;
+            const only = phaseStepsLeft(row), cut = phaseStepsCut(row);
+            if (cut.length) await phaseStepStore.patch(key, { failed: [...new Set([...listIn(row, "failed"), ...cut])] });
+            if (only.length) await reconcilePhase(row.from, row.to, { only, rowKey: key });
+            out.push({ key, from: row.from, to: row.to, ran: only, cut });
+            const writer = game.users?.get(row.by)?.name ?? "?";
+            const lines = [];
+            if (only.length) lines.push(game.i18n.format(directionOf(row) === "entry" ? "DRPG.Trial.phaseStepsEntryFinished" : "DRPG.Trial.phaseStepsExitFinished", { gm: writer }));
+            if (cut.includes("budget")) lines.push(game.i18n.format("DRPG.Trial.phaseBudgetCut", { gm: writer }));
+            if (lines.length) await whisperToGms(lines.map(line => `<p>${line}</p>`).join(""));
+        }
+        return out;
+    })().catch(err => {
+        error("Could not finish the steps of a change of phase", err);
+        return [];
+    }).finally(() => { finishingPhase = null; });
+    return finishingPhase;
+}
+
+/** At init, through trial-progress.mjs `registerSentenceAgain`: the primary finishes a cut change at its ready and when a GM leaves. */
+let phaseStepsHooked = false;
+export async function registerPhaseSteps() {
+    if (phaseStepsHooked) return;
+    phaseStepsHooked = true;
+    const { onGmStoresHydrated, gmStoresQuiet } = await import("./gm-store.mjs");
+    onGmStoresHydrated(() => {
+        if (!gmStoresQuiet()) void finishPhaseSteps();
+    });
+    Hooks.on("userConnected", (user, connected) => {
+        if (!connected && user?.isGM && game.user?.isGM && user.id !== game.user.id) void finishPhaseSteps({ leaving: user.id });
+    });
+}
+
 /**
  * THE PHASE OWNS STATE, AND MORE THAN ONE ROUTE WRITES THE PHASE.
  *
@@ -1096,14 +1251,13 @@ function renderOnRestore(app) {
  * stamps `keysCharged` and refuses to run twice in one chapter - so a door that
  * comes through here is not doing its own work a second time.
  */
-async function reconcilePhase(from, to) {
+async function reconcilePhase(from, to, { only = null, rowKey = null } = {}) {
+    const steps = await phaseRecorder(from, to, { only, rowKey });
     if (from === "classTrial") {
-        try {
+        await steps.step("floor", async () => {
             const { endFloor } = await import("./trial-floor.mjs");
             await endFloor();
-        } catch (err) {
-            error("Could not close the debate floor after the phase changed", err);
-        }
+        }, err => error("Could not close the debate floor after the phase changed", err));
         /* THE SENTENCE, ON EVERY ROAD OUT (E70 C4; DC36). After the floor and before the hall's move below, so the
            executed die in the hall and do not gather at school. End the trial carried it out before its write
            (trial-floor-ui.mjs `closeTrial`), and this finds it stamped; Edit campaign, `setClock` and any other
@@ -1111,44 +1265,37 @@ async function reconcilePhase(from, to) {
            (trial-progress.mjs `executeAtExit` reads the record by its own chapter). */
         /* THE VOTE CLOSED, UNCOUNTED (E59 on the 1.2.115 line, CHAINS.md B-T6; R7172): a vote left open by End the trial
            handed a ballot to a player who reloaded in Daily Life. Before the sentence, as the floor before it. */
-        try {
+        await steps.step("vote", async () => {
             const { shutVoteAtExit } = await import("./trial-progress.mjs");
             await shutVoteAtExit();
-        } catch (err) {
-            error("Could not close the trial's vote after the phase changed", err);
-        }
+        }, err => error("Could not close the trial's vote after the phase changed", err));
         /* THE DEAD'S MICROPHONES GIVEN BACK (E70 C5), before the sentence: the trial's list taken out of the record and
            every block it wrote put back on the primary, so the convicted, who spoke until now, are not listed as they
            die, and nobody leaves the trial muted (voice.mjs `settleTrialVoices`, asked of the primary by "trial.enter"). */
-        try {
+        await steps.step("voices", async () => {
             const { askTrialVoices } = await import("./voice.mjs");
             await askTrialVoices();
-        } catch (err) {
-            error("Could not give the dead's microphones back after the trial", err);
-        }
-        try {
+        }, err => error("Could not give the dead's microphones back after the trial", err));
+        await steps.step("sentence", async () => {
             const { executeAtExit } = await import("./vote.mjs");
             await executeAtExit();
-        } catch (err) {
-            error("Could not carry out the trial's sentence after the phase changed", err);
-        }
+        }, err => error("Could not carry out the trial's sentence after the phase changed", err));
         /* EVERY BODY OFF THE MAP (E63 C2, 11.11.2026; the owner on E95 Q2 "kafel smierci po trialu znika" and Q8 "Kafle
            ciala sa usuwane ... na koniec class trial"). After the sentence, so the executed's tile, laid by it, goes in
            the same click (QUESTIONS E63 Q2). On the browser that wrote the phase; a second GM's sentence is asked of the
            primary and waits for its reply, which comes after the kill (trial-progress.mjs `askRecord`, settle "reply";
            a primary that does not answer in the bridge's `rulingMs` is the one case it could come first: STATUS E63).
            Tier 2's fence leaves the table's bodies (body-tile.mjs `holdBodyTiles`). */
-        try {
+        await steps.step("bodies", async () => {
             const { removeBodyTiles } = await import("./body-tile.mjs");
             await removeBodyTiles(null);
-        } catch (err) {
-            error("Could not take the bodies off the map after the trial", err);
-        }
+        }, err => error("Could not take the bodies off the map after the trial", err));
     }
 
     /* A SENTENCE THAT COULD NOT BE CARRIED OUT, ASKED AGAIN (E70 fix p1-G2; the review's BEH-2) at every change of phase
        outside the trial: the primary carries it out once (trial-progress.mjs `executeAtExit`), and a record with nothing waiting
        answers null. */
+    /* Not in a row's finish (TRIAL-08): a row is a change into or out of the trial, which this guard leaves out. */
     if (from !== "classTrial" && to !== "classTrial") {
         try {
             const { executeAtExit, trialProgressChapter, trialProgress } = await import("./vote.mjs");
@@ -1162,6 +1309,18 @@ async function reconcilePhase(from, to) {
             }
         } catch (err) {
             error("Could not carry out a sentence that waited", err);
+        }
+    }
+
+    /* THE INVESTIGATION'S START, TOLD TO THE TABLE (2.0 line T3 EXP-PL-11, 27.11.2026; the owner's recommendation). The
+       body's card says the GM starts the Investigation, and nothing said when it had started or how it ends: the clock's
+       explanation is read on its hover alone (explain.mjs `phaseExplanation`). One public card on the browser that wrote
+       the phase, on every road into it: the Investigation has begun and lasts until the GM starts the Class Trial. */
+    if (!only && to === "investigation" && from !== "investigation") {
+        try {
+            await announce(`<p>${game.i18n.localize("DRPG.Explain.investigationStarted")}</p>`);
+        } catch (err) {
+            error("Could not tell the table the Investigation has begun", err);
         }
     }
 
@@ -1179,27 +1338,21 @@ async function reconcilePhase(from, to) {
          * a1c041c until this line, starting a trial refilled nobody, while the card
          * the Start button posts announced that it had.
          */
-        try {
+        await steps.step("budget", async () => {
             const { openTrialBudget } = await import("./actions.mjs");
             await openTrialBudget();
-        } catch (err) {
-            error("Could not hand out the trial's budget after the phase changed", err);
-        }
-        try {
+        }, err => error("Could not hand out the trial's budget after the phase changed", err));
+        await steps.step("reset", async () => {
             const { resetTrialProgress } = await import("./vote.mjs");
             await resetTrialProgress();
-        } catch (err) {
-            error("Could not reset the trial's progress after the phase changed", err);
-        }
+        }, err => error("Could not reset the trial's progress after the phase changed", err));
         /* THE TRIAL'S DEAD MUTED (E70 C5; TR30, DC19), after the reset - the list is a field of the record it blanks - and
            on the primary, whose deaths store holds the deaths nobody has found (voice.mjs `settleTrialVoices`). */
-        try {
+        await steps.step("voices", async () => {
             const { askTrialVoices } = await import("./voice.mjs");
             await askTrialVoices();
-        } catch (err) {
-            error("Could not mute the dead for the trial after the phase changed", err);
-        }
-        try {
+        }, err => error("Could not mute the dead for the trial after the phase changed", err));
+        await steps.step("fee", async () => {
             /* AFTER the reset, never before: the reset blanks this chapter's trial
                record and the "already charged" stamp lives in it, so charging first
                would have the stamp wiped a line later and the next trial opened in
@@ -1209,17 +1362,13 @@ async function reconcilePhase(from, to) {
                the GMs' marks it counts by are the primary's. */
             const { askToChargeForUnfoundKeys } = await import("./investigation.mjs");
             await askToChargeForUnfoundKeys();
-        } catch (err) {
-            error("Could not charge for the Key Remnants nobody found", err);
-        }
-        try {
+        }, err => error("Could not charge for the Key Remnants nobody found", err));
+        await steps.step("deaths", async () => {
             /* A death nobody has found stays the GMs' through the trial (E05 C10; the owner's
                Q3, 26.09.2026): the GM opening it is told how many, and publishes by hand. */
             const { tellUnfoundDeaths } = await import("./chapter.mjs");
             tellUnfoundDeaths();
-        } catch (err) {
-            error("Could not count the deaths nobody has found at the trial's start", err);
-        }
+        }, err => error("Could not count the deaths nobody has found at the trial's start", err));
     }
 
     /* THE TABLE AND THE HALL'S CAST (E13 C2, C3): into the trial the hall's cast the GMs chose is
@@ -1230,12 +1379,10 @@ async function reconcilePhase(from, to) {
        updated or activated must not hold up the budget or the reset. No hall linked, it does
        nothing. */
     if (from === "classTrial" || to === "classTrial") {
-        try {
+        await steps.step("follow", async () => {
             const { followPhase } = await import("./trial-scene.mjs");
             await followPhase(from, to);
-        } catch (err) {
-            error("Could not move the table to or from the trial hall after the phase changed", err);
-        }
+        }, err => error("Could not move the table to or from the trial hall after the phase changed", err));
     }
 }
 

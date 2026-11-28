@@ -225,7 +225,9 @@ export const WORLD_SECRET_RULES = Object.freeze({
         // console which traces had been found and by whom, is gone - a `null` one as well
         // (truth-bullets.mjs `liftBulletRefs`; S05-39 (2)). An item on a sheet or in the sidebar.
         // E97 C1: who left the trace a bullet came from is its answer key's (truth-bullets.mjs `leftByOf`; Q1), never the item's.
-        Item: Object.freeze(["remnantRef", "leftBy", "leftByName"])
+        // 2.0 line T3 EXP-PL-17 with D2-30 (28.11.2026): how a copy came to its holder - who handed it, to whom it went - is
+        // the bullet's row's and its owner's copy (`mineCopyOrigins`), never the item's (truth-bullets.mjs `liftCopyOrigins`).
+        Item: Object.freeze(["remnantRef", "leftBy", "leftByName", "copyOrigin"])
     }),
     /* A FLAG THAT MAY STAND, BUT NOT WITH ONE VALUE (1.2.122, line CORE; the audit of 1.2.118, CORE-25, which ITEMS'
        line built): keyed by document type like `flags`, each row a path under the module's flag scope (a `*` any index of

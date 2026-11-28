@@ -19,12 +19,13 @@
  * imports gm-bridge.mjs (the facade rule, .claude/rules/code.md).
  */
 
-import { HOPE_CALLS, DESPAIR_CALLS, TIMING, ACTIONS, DYNAMIC_THRESHOLDS } from "./config.mjs";
-import { announce, whisperToOwner, debug, error, cardHead } from "./utils.mjs";
+import { HOPE_CALLS, DESPAIR_CALLS, TIMING, ACTIONS, DYNAMIC_THRESHOLDS, MODULE_ID } from "./config.mjs";
+import { announce, whisperToOwner, whisperToGms, debug, error, cardHead } from "./utils.mjs";
 import {
     firstRefusal, armBuyerId, guardArmLiving, guardArmNotHeld, guardArmBuyer, guardArmOtherCharacter,
-    guardArmHopeCallAllowed, guardArmBuyerHope, guardArmGmYes
+    guardArmHopeCallAllowed, guardArmBuyerHope, guardArmGmYes, as
 } from "./bridge-guards.mjs";
+import { RESET_GROUPS } from "./season-exceptions.mjs";
 import { cardFlag, cardWriter } from "./secret.mjs";
 import { claimOnPrimary, observePickOnPrimary } from "./call-gm.mjs";
 
@@ -791,46 +792,92 @@ export async function handleKeysCharge() {
     return { reply: await chargeForUnfoundKeys() };
 }
 
+/*
+ * THE FIVE RELAYS OF A SECOND FULL GM'S PRESS ANSWER THE REASON (2.0 line T3 TRIAL-02, PRIM-07, VOICE-09, MURDER-07;
+ * 27.11.2026). Until 1.2.130 each answered `{ refused: "nothing was carried out: ..." }` and the reason was a toast on
+ * this primary's screen, read by nobody who had pressed. Each hands its function a collector now (bridge-guards.mjs
+ * `relayRefusal`) in place of that toast; when nothing was carried out and a reason was said, it answers the reason's key
+ * (`{ reply: { relayedRefusal } }`), which the asker says (`tellRelayedRefusal`); when none was said - a refusal whispered
+ * to every GM (`endTwice`, `endPhaseMoved`), or a silent one - it is refused as before.
+ */
+function relayed(taken) {
+    return taken ? { reply: { relayedRefusal: taken } } : null;
+}
+
 /** The run of `body.discover` (E128): a second full GM's announcement, run here as the primary's own press runs it. */
 export async function handleBodyDiscover(payload, sender) {
     const { discoverBody } = await import("./chapter.mjs");
+    const { relayRefusal } = await import("./bridge-guards.mjs");
+    const { say, taken } = relayRefusal();
     // The announcer is Foundry's sender, never a packet's field (2.0 line T1 MURDER-08): the questions after the
-    // announcement open on its browser, and the answer says where (body.mjs `runDiscovery`).
+    // announcement open on its browser, and the answer says where (body.mjs `runDiscovery`). A refusal's reason is
+    // collected and answered to the GM who pressed (2.0 line T3 TRIAL-02, MURDER-07: `relayed`, above).
     const done = await discoverBody({ room: payload.room, victim: game.actors.get(payload.victimId ?? "") ?? null,
-        scene: game.scenes.get(payload.sceneId ?? "") ?? null, announcer: sender?.id ?? null });
+        scene: game.scenes.get(payload.sceneId ?? "") ?? null, announcer: sender?.id ?? null, say });
     const ask = done?.promotion && typeof done.promotion.then !== "function" ? done.promotion : null;
-    return done ? { reply: ask ? { promotion: { room: ask.room, chapter: ask.chapter } } : true } : { refused: "nothing was carried out: the primary GM announced no body (its own checks refused it)" };
+    return done ? { reply: ask ? { promotion: { room: ask.room, chapter: ask.chapter } } : true }
+        : relayed(taken()) ?? { refused: "nothing was carried out: the primary GM announced no body (its own checks refused it)" };
 }
 
 /**
  * The run of `chapter.end` (E128): a second full GM's end of the chapter, or its Finish or Drop, run in this primary's
  * one queue (chapter.mjs `applyChapterEnd`, `finishChapterEnd`). `opened` is the clock the asker's window was shown on,
- * kept to its four fields; an end whose clock has moved since is refused there, as the primary's own is.
+ * kept to its four fields; an end whose clock has moved since is refused here, as the primary's own is, and the reason
+ * answered to the asker (`relayed`, 2.0 line T3 TRIAL-02).
  */
 export async function handleChapterEnd(payload) {
     const C = await import("./chapter.mjs");
+    const { relayRefusal } = await import("./bridge-guards.mjs");
+    const { say, taken } = relayRefusal();
     const o = payload.opened && typeof payload.opened === "object" ? payload.opened : null;
     const opened = o ? { chapter: Number(o.chapter) || 0, session: Number(o.session) || 0, day: Number(o.day) || 1,
         phase: typeof o.phase === "string" ? o.phase : null } : null;
-    const lines = payload.finish || payload.drop ? await C.finishChapterEnd({ drop: Boolean(payload.drop) })
+    const lines = payload.finish || payload.drop ? await C.finishChapterEnd({ drop: Boolean(payload.drop), say })
         : await C.applyChapterEnd({ reveal: payload.reveal, sweep: payload.sweep, faint: payload.faint, keys: payload.keys,
             endTrial: payload.endTrial, nextChapter: payload.nextChapter, nextSession: payload.nextSession,
-            nextMorning: payload.nextMorning, opened });
+            nextMorning: payload.nextMorning, opened }, { say });
     return lines ? { reply: Array.isArray(lines) ? lines.map(String) : true }
-        : { refused: "nothing was carried out: the primary GM's end of the chapter refused it (its own checks)" };
+        : relayed(taken()) ?? { refused: "nothing was carried out: the primary GM's end of the chapter refused it (its own checks)" };
 }
 
 /** The run of `voice.reset` (E128): a second full GM's Fix voice, sent by this primary (voice.mjs `resetAllVoice`): how many. */
 export async function handleVoiceReset() {
     const { resetAllVoice } = await import("./voice.mjs");
-    const n = await resetAllVoice();
-    return n === null ? { refused: "nothing was carried out: the primary GM has no LiveKit AVClient active" } : { reply: n };
+    const { relayRefusal } = await import("./bridge-guards.mjs");
+    const { say, taken } = relayRefusal();
+    const n = await resetAllVoice({ say });
+    return n === null ? relayed(taken()) ?? { refused: "nothing was carried out: the primary GM has no LiveKit AVClient active" } : { reply: n };
 }
 
-/** The run of `verdict.finish` (E128): a second full GM's Finish, run by this primary's own (verdict.mjs `finishVerdict`). */
-export async function handleVerdictFinish() {
-    const { finishVerdict } = await import("./vote.mjs");
-    return (await finishVerdict()) ? { reply: true } : { refused: "nothing was carried out: the primary GM's Finish of the verdict did nothing (its reason is on its screen)" };
+/**
+ * The run of `verdict.finish` (E128; 2.0 line T3 TRIAL-03, PRIM-06): a full GM's claim of a stopped verdict, taken in this
+ * primary's one queue (verdict.mjs `claimVerdict`) and answered `{ granted: true }`; the asker then runs the steps on its
+ * own browser, so its windows are its own and the answer comes in seconds. Until 1.2.130 this ran the primary's own
+ * Finish, its windows here, while the asker's wait ran out. A refusal answers its reason (`relayed`).
+ */
+export async function handleVerdictFinish(payload, sender) {
+    const { claimVerdict } = await import("./verdict-claim.mjs");
+    const { relayRefusal } = await import("./bridge-guards.mjs");
+    const { say, taken } = relayRefusal();
+    const granted = await claimVerdict(sender, { say });
+    return granted ? { reply: granted }
+        : relayed(taken()) ?? { refused: "nothing was carried out: the primary GM gave the verdict to nobody" };
+}
+
+/**
+ * The run of `season.reset` (2.0 line T3 TRIAL-04): a second full GM's reset, its plan run by this primary's own road after
+ * its window (season-wipe.mjs `runSeasonReset`). Answers the report's groups - cleared, kept, failed, not run - and the
+ * students the cast's move left, or the reason it did nothing (`relayed`). An Assistant GM is refused.
+ */
+export async function handleSeasonReset(payload, sender) {
+    if (sender?.role !== CONST.USER_ROLES.GAMEMASTER) return { refused: "only a GM with the full Gamemaster role resets the season" };
+    const { runSeasonReset } = await import("./season-wipe.mjs");
+    const { relayRefusal } = await import("./bridge-guards.mjs");
+    const { say, taken } = relayRefusal();
+    const out = await runSeasonReset({ groups: payload.groups, cast: payload.cast, remember: payload.remember }, { say });
+    if (!out) return relayed(taken()) ?? { refused: "nothing was carried out: the primary GM reset nothing" };
+    const keys = list => (Array.isArray(list) ? list.map(String) : []);
+    return { reply: { cleared: keys(out.cleared), kept: keys(out.kept), failed: keys(out.failed), notRun: keys(out.notRun), stayed: keys(out.stayed) } };
 }
 
 /** The run of `trial.record` (E70 fix p1-G2): the record's write on this primary (trial-progress.mjs `recordOnPrimary`), its answer or null. */
@@ -1055,4 +1102,42 @@ export async function handleEclipseJudge(payload) {
     const out = await standingsOnPrimary(payload.eclipse);
     if (!out) return { refused: "nothing was carried out: this GM is not the primary" };
     return { reply: out };
+}
+
+/*
+ * THE SEASON RESET'S FIELDS, AS A SECOND FULL GM'S PACKET NAMES THEM (2.0 line T3 TRIAL-04, 27.11.2026): the sanitizer's two
+ * converters of bridge-table.mjs's row `season.reset`, written here beside its run because that file stands at the 1750
+ * lines the owner accepts for it (tools/check.mjs `lengths`, STG-61). The groups are held to the reset's registry as it
+ * stands when the packet arrives (season-exceptions.mjs `RESET_GROUPS`, read at the check, so a group registered later
+ * passes with no change of the row); the cast to the window's three choices and a room's two ids.
+ */
+export const resetGroupsOf = Object.freeze(Object.assign(value => (Array.isArray(value)
+    ? [...new Set(value.filter(key => typeof key === "string" && RESET_GROUPS.some(group => group.key === key)))] : []), { kind: "list" }));
+export const resetCastOf = Object.freeze(Object.assign(value => {
+    const to = ["stay", "bedroom", "point"].includes(value?.to) ? value.to : "stay";
+    return to === "point" ? { to, scene: as.id(value?.scene), region: as.id(value?.region) } : { to };
+}, { kind: "raw" }));
+
+/*
+ * AN OBSERVE OR ANALYZE THE PRIMARY NEVER ANSWERED (2.0 line T3 INV-12, 27.11.2026; the owner's recommendation). A
+ * resolve whose primary dropped out before it answered (`observe.resolve`, `analyze.resolve`: no resend, since a resolve
+ * asked again of a new primary meets `rollUsed`) left the player a spent action and "no answer", and the GMs nothing. The
+ * player's browser tells the primary (`resolve.lost`, quiet, resent to a new primary), and this run whispers the GMs one
+ * card a roll - its total read off the GMs' record of the roll (`rollStore`), never the packet; the runner holds the roll
+ * to the sender's character and its action, and settles it as `lost` once (bridge-guards.mjs `rollRefusal`). A roll the
+ * GMs' record says was settled after all (`resolved` names its action) raises nothing. The card settles nothing itself:
+ * a GM gives the find or the answer by hand (the owner's P7 default: no refund).
+ */
+export async function handleResolveLost(payload) {
+    const { rollStore } = await import("./gm-stores.mjs");
+    await rollStore.whenHydrated();
+    const record = Object.values(rollStore.entries() ?? {}).find(row => row?.messageId === payload.rollId) ?? null;
+    if (!record) return { refused: "nothing was carried out: the GMs hold no record of that roll" };
+    if (Array.isArray(record.resolved) && record.resolved.includes(payload.kind)) return { refused: "nothing was carried out: that roll was settled after all" };
+    const actor = game.actors.get(payload.actorId);
+    const key = payload.kind === "analyze" ? "DRPG.Analyze.unresolvedGms" : "DRPG.Observe.unresolvedGms";
+    await whisperToGms({ tone: "warning", body: `<p>${game.i18n.format(key, {
+        actor: foundry.utils.escapeHTML(actor?.name ?? "?"), total: Number(record.total) || 0 })}</p>` },
+    { flags: { [MODULE_ID]: { gmPopup: true } } });
+    return {};
 }

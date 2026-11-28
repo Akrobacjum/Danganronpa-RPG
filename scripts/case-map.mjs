@@ -190,7 +190,7 @@ function reachOf(node, reach) {
 /** The trial's marks on a node (E99 C5; case-trial.mjs): a class each, and its words in the node's label. */
 const MARK_KEYS = Object.freeze({ presented: "DRPG.CaseTrial.presented", hinted: "DRPG.CaseTrial.hint", ticked: "DRPG.CaseTrial.ticked" });
 
-function nodeButton(node, p, { state, selected, loose, author, reach = null, warn = false, marks = [], controlled = false, editing = false, editable = false }) {
+function nodeButton(node, p, { state, selected, loose, author, reach = null, warn = false, marks = [], controlled = false, editing = false, editable = false, opensMap = false }) {
     const kind = kindLabel(node);
     const name = nameOf(node);
     const stateText = STATE_KEYS[state] ? L(STATE_KEYS[state]) : "";
@@ -205,9 +205,14 @@ function nodeButton(node, p, { state, selected, loose, author, reach = null, war
     /* THE WHOLE CONTENT, ALWAYS (E97 fix; the owner's "zawsze wyswietlaly cala swoja zawartosc"): the head's parts wrap
        onto a second line rather than cut the kind, the name is whole, and the node's own words (a schema node's note, a
        Remnant's or a slot's description) stand under it whole. The button opens its fields (`aria-expanded`). */
-    // its tooltip only on the Map (`editable`): the Class Trial console draws the same face read only, a press opening nothing
+    /* ON THE MAP (`editable`) a press opens its fields, so it says so (`aria-expanded`) and its tooltip says what for. In the
+       Class Trial console (`opensMap`, 2.0 line T3 CTL-03..CTL-30, 27.11.2026) the same face is read only and a press opens
+       the node on the Investigation's Map (case-trial.mjs `liveSchema`'s `onPick`, since 1.2.122): its own tooltip says so,
+       and it opens nothing here to be expanded. Until then this drew `aria-expanded="false"` and no tooltip there. */
+    const expands = !opensMap || editable;
     return `<button type="button" class="${cls.join(" ")}" data-drpg-node="${esc(node.id)}"${typed.attr} style="left: ${p.x}px; top: ${p.y}px"`
-        + `${selected ? ` aria-current="true"` : ""} aria-expanded="${selected ? "true" : "false"}" aria-label="${esc(said)}"${editable ? tipAttr("DRPG.Tips.Case.nodeOnTheMapTooltip") : ""}>`
+        + `${selected ? ` aria-current="true"` : ""}${expands ? ` aria-expanded="${selected ? "true" : "false"}"` : ""} aria-label="${esc(said)}"${editable ? tipAttr("DRPG.Tips.Case.nodeOnTheMapTooltip")
+            : opensMap ? tipAttr("DRPG.Tips.Case.nodeOpensMapTooltip") : ""}>`
         + nodeHeadHtml(node, { state, reach, warn })
         + `<span class="drpg-case-node-name">${esc(name)}</span>`
         + (text ? `<span class="drpg-case-node-text">${esc(text)}</span>` : "") + `</button>`;
@@ -243,7 +248,7 @@ export function nodeHeadHtml(node, { state, reach = null, warn = false } = {}) {
  * case-view.mjs `relayoutCaseMap` needs to place the nodes again at their measured size (`data-drpg-place`); the viewport
  * (`.drpg-case-graph`) is the container's to size.
  */
-export function caseGraphHtml({ graph, layout, finders = null, authors = null, selected = null, fold = false, label = "", reach = null, problems = [], editors = null, marks = {}, controls = null, allOpen = false } = {}) {
+export function caseGraphHtml({ graph, layout, finders = null, authors = null, selected = null, fold = false, label = "", reach = null, problems = [], editors = null, marks = {}, controls = null, allOpen = false, opensMap = false } = {}) {
     /* EVERY NODE OPEN (owner-116, 15.11.2026; the owner: "W planerze niech od teraz widok edycji modułu będzie domyślnym
        widokiem modułu", option A): on the Map (`editors`) with `allOpen`, every node is drawn as its fields - each face
        hidden (`is-editing`), each fieldset shown, with the face's head on top and no Close - and the canvas says so
@@ -294,7 +299,7 @@ export function caseGraphHtml({ graph, layout, finders = null, authors = null, s
             reach: reach?.[id] ?? null, warn: warned.has(id), marks: marks?.[id] ?? [], controlled: Boolean(controls?.[id]),
             // THE OPEN NODE IS ITS EDITOR (the owner at a real table, 12.11.2026): on the Map its face is hidden while open
             // (`is-editing`, components.css) and its fields take its place (`nodeEditHtml`).
-            editing: Boolean(editors) && (open || id === selected), editable: Boolean(editors) }));
+            editing: Boolean(editors) && (open || id === selected), editable: Boolean(editors), opensMap: !editors && Boolean(opensMap) }));
         if (editors) fields.push(nodeEditHtml({ graph, node, p, open: open || id === selected, allOpen: open, state, finders, authors, reach, problems, warn: warned.has(id), html: editors.get?.(id) ?? "" }));
     }
     /* THE TRIAL'S CONTROLS ON THE TILE (E99 C5, round 4; the owner's 12:00: "jako przycisk na kaflu"): `controls` by node

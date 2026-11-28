@@ -1142,6 +1142,8 @@
       "whichBullet": "Which Truth Bullet?",
       "onBullet": "Analyze: {name}",
       "noBullets": "You have nothing left to analyze.",
+      "unresolved": "The GM's browser did not answer, so this Analyze is not settled. The action is spent; the GMs got a card and will settle the roll by hand.",
+      "unresolvedGms": "{actor}'s Analyze (a roll of {total}) was not settled: the primary GM did not answer. The action is spent; settle it by hand (Give a Truth Bullet, or an answer in the player's thread).",
       "sent": "You analyze {name}. The result comes on a card of its own.",
       "identifiedTitle": "Identified",
       "identified": "{name} is {a} {type}.",
@@ -1633,7 +1635,12 @@
       }
     },
     "Floor": {
+      "waitingIntro": "These requests still wait on a GM's decision. Start the Class Trial anyway?",
+      "startAnyway": "Start anyway",
+      "waitingObserve": "a find in {room} waits for its words",
+      "holderGone": "{name} holds the floor and is not connected. Press Skip or End this mode on the trial's bar.",
       "next": {
+        "announceVote": "The vote is counted. Announce the result to the table.",
         "start": "No Class Trial is running. Start the Class Trial.",
         "openDebate": "The trial is in discussion. Open the debate when the room is ready for one.",
         "openAgain": "An Objection was overruled after its exchange. Open the debate again with the time it had left.",
@@ -1645,7 +1652,7 @@
         "vote": "The ballots are out. When they are back, Close and count in The vote.",
         "verdict": "The vote is counted. Deliver the verdict.",
         "finishVerdict": "The verdict stopped before every step was done. Finish the verdict.",
-        "finishElsewhere": "The verdict stopped before every step was done. Only {name} can finish it.",
+        "finishElsewhere": "The verdict stopped before every step was done. A full GM can finish it, {name} for one.",
         "verdictElsewhere": "{name} is giving the verdict. End the chapter once it is done.",
         "chapterEnd": "The verdict is in. End the chapter.",
         "caseSummary": "The verdict is in. Show the case summary.",
@@ -1692,6 +1699,7 @@
       },
       "trialEnded": "The Class Trial has ended; the chapter has not.",
       "lead": {
+        "announceVote": "The vote is counted. Announce the result to the table next.",
         "start": "No Class Trial is running. Press Start the Class Trial to move the phase, tell the table, and open the trial in discussion.",
         "openDebate": "The trial is in discussion. Open the debate when the table is ready to argue, and send the ballots from The vote once it has argued it out.",
         "openAgain": "The GM overruled an Objection after its exchange, and the trial is in discussion. Open the debate again with the time it had left, or send the ballots from The vote.",
@@ -1701,7 +1709,7 @@
         "vote": "The ballots are out. When they are back, press Close and count in The vote.",
         "verdict": "The vote is counted. Deliver the verdict next.",
         "finishVerdict": "The verdict stopped before every step was done. Press Finish the verdict to run the rest.",
-        "finishElsewhere": "The verdict stopped before every step was done, and only {name} can finish it. Ask {name} to do so before the chapter ends.",
+        "finishElsewhere": "The verdict stopped before every step was done, and an Assistant GM cannot finish it. Ask a full GM, {name} for one, to do so before the chapter ends.",
         "verdictElsewhere": "{name} is giving the verdict. If their page reloaded during it, Finish the verdict is on their console. Do not end the chapter until the verdict is done.",
         "chapterEnd": "The verdict is in. End the chapter for the reveal and the next chapter.",
         "caseSummary": "The verdict is in. Show the players the case summary, then end the chapter.",
@@ -1739,6 +1747,7 @@
         "overrule": "Overrule",
         "endMode": "End this mode",
         "notTrial": "Only during a Class Trial.",
+        "notPrimary": "The primary GM has changed. Try again.",
         "noMode": "No mode is running. Open the debate or start another mode first.",
         "noTurn": "A debate has no turn to skip. To close it, press End this mode.",
         "noTime": "The debate has no time left to take.",
@@ -2022,6 +2031,8 @@
         "murderSendNoNoteTooltip": "Sends the declaration now, with no note. Closing the window does the same."
       },
       "Trial": {
+        "notYetTooltip": "Leaves the result unannounced: the console's next step and the vote window offer Announce",
+        "announceTooltip": "Posts the vote's result card to the whole table, once",
         "moveToChapterToTooltip": "Moves the clock to the next chapter and ends an Investigation still open",
         "countThisAsSessionTooltip": "Raises the session number and ends an Investigation still open",
         "finishTheChapterSTooltip": "Runs the steps that did not finish, in their order",
@@ -2062,7 +2073,12 @@
         "scrubAtItTooltip": "Rolls to wipe the chosen Remnant away",
         "carryItThereTooltip": "Rolls to drag the body into the room you picked",
         "killerTooltip": "Picking a killer ticks Indirect murder when they have a finished trap, and unticks it when not",
-        "executedEachTooltip": "Ticked: executed if the table got it wrong. Untick to spare this student."
+        "executedEachTooltip": "Ticked: executed if the table got it wrong. Untick to spare this student.",
+        "wrongStepOffersTooltip": "Ticked: a wrong verdict gives the Blackened their Reinforced Level Up. Untick to leave it out.",
+        "wrongStepRuleTooltip": "Ticked: a wrong verdict asks the Blackened for their new rule. Untick to leave it out.",
+        "wrongStepDespairTooltip": "Ticked: a wrong verdict fills every Monokuma's Despair pool. Untick to leave it out.",
+        "ballotChoiceTooltip": "A vote for this student. Only the GMs see your pick. Once you cast your vote, you cannot change it.",
+        "startAnywayTooltip": "Starts the Class Trial with these requests still waiting; their cards stay as they are"
       },
       "CasePlan": {
         "clearPlanTooltip": "Clears one chapter's planned Key Remnants and case schema, after a question that counts them",
@@ -2214,7 +2230,8 @@
         "placeFinalNowTooltip": "Places the Final Truth Remnant in the room you picked, as Save would",
         "keepForLaterTooltip": "Your words are kept and nothing goes on the map; Save places it later",
         "allOpenTooltip": "On, every node shows its fields. Off, a node shows its summary until you click it.",
-        "foldedListTooltip": "Opens the list: tick what this node rests on, or what it refutes."
+        "foldedListTooltip": "Opens the list: tick what this node rests on, or what it refutes.",
+        "nodeOpensMapTooltip": "Opens this node on the Map in the Investigation window"
       },
       "Sweep": {
         "Actions": {
@@ -2339,7 +2356,8 @@
           "experienceUpTooltip": "This experience adds one more when a Talent Call brings it into a roll",
           "newExperienceTooltip": "A Talent Call can add it to a roll it fits, once a GM approves",
           "acceptRuleTooltip": "Your student becomes a Monocub at once, bound by the Rule above",
-          "revokeRuleTooltip": "On Save the rule is revoked; with Announce changes ticked, everyone sees it on a card"
+          "revokeRuleTooltip": "On Save the rule is revoked; with Announce changes ticked, everyone sees it on a card",
+          "pickedTargetTooltip": "Ticked, this student gets their own copy of this Truth Bullet."
         },
         "Setup": {
           "facilityCostsActionTooltip": "On, using it costs the student an action; off, it's free. The Overflow's Toll adds to either",
@@ -2400,7 +2418,8 @@
           "bulletNoteTooltip": "Goes with the Truth Bullet when you give it. Only GMs read it",
           "bulletRecipientTooltip": "Who Give a Truth Bullet opens for. Everyone gives each living student a copy",
           "finalNoteTooltip": "Kept with the Final Truth Remnant when you place it. Only GMs read it",
-          "finalRoomAskTooltip": "Place it puts the Final Truth Remnant at a random spot in this room, with everything the plan holds"
+          "finalRoomAskTooltip": "Place it puts the Final Truth Remnant at a random spot in this room, with everything the plan holds",
+          "erasedListTooltip": "The Remnants clean-ups erased, newest first. A Reroll that puts one back takes it off this list."
         },
         "More": {
           "brochureTabTooltip": "The rules on one page: your statistics, your resources, and what each time of day holds.",
@@ -2498,6 +2517,21 @@
       }
     },
     "Vote": {
+      "silentGone": {
+        "one": "{n} of those ballots is with a player who is not connected now: {names}.",
+        "other": "{n} of those ballots are with players who are not connected now: {names}."
+      },
+      "notYet": "Not yet",
+      "announce": "Announce the result",
+      "previewIntro": "Only the GMs see this. The table gets the card when you announce it.",
+      "previewTitle": "The vote's result",
+      "verdictSkipped": "Left out in the verdict's window: {steps}.",
+      "wrongSteps": {
+        "legend": "When they got it wrong",
+        "offers": "The Blackened's Reinforced Level Up",
+        "rule": "The Blackened's new rule",
+        "despair": "Every Despair pool filled"
+      },
       "openTitle": "The vote",
       "openIntro": "Send the ballots, wait for them to come back, then close and count.",
       "privacyNote": "Who voted for whom stays with the GMs until the next vote opens. The table sees only the totals.",
@@ -2526,6 +2560,7 @@
       "ballotTitle": "Who did it?",
       "ballotIntro": "Vote for whoever you believe is the Blackened. You may vote for yourself, for each Monokuma by name, and for the dead.",
       "ballotNote": "Your vote goes to the GMs alone. The table sees only the totals.",
+      "ballotFinal": "Once you cast your vote, you cannot change it.",
       "who": "Your vote",
       "cast": "Cast your vote",
       "castConfirmed": "Your vote is in.",
@@ -2605,7 +2640,7 @@
       "unfoundDead": "Dead, though only the GMs know it: {names}. If you pick a student named here, their death becomes the execution, and the table learns of it when the sentence is carried out.",
       "storeNotReady": "This browser is still loading the ballots, so it cannot yet show who has voted.",
       "movedOn": "The vote has moved on since this window opened.",
-      "openNoBallots": "The vote's round {n} is open, but this browser holds none of its ballots. The primary GM counts them, so Close and count still works; you can also Start the vote over.",
+      "openNoBallots": "The vote's round {n} is open, but this browser holds none of its ballots. The primary GM counts them, so Close and count still works.",
       "verdictCardTitle": "THE VERDICT",
       "verdictRight": "The class got it right.",
       "verdictWrong": "The class got it wrong.",
@@ -2631,7 +2666,8 @@
         "finalLevelUps": "the Level Ups that waited",
         "finalBets": "Ghost Bets",
         "mastermind": "clearing the Mastermind's pick"
-      }
+      },
+      "finishTaken": "{name} is finishing this verdict already."
     },
     "Music": {
       "notSet": "- not set -",
@@ -3255,8 +3291,16 @@
       },
       "finalFoundBy": "Found by",
       "finalNobody": "Nobody has found it",
+      "chargeUnanswered": "The primary GM did not answer the Key Remnant fee as the Class Trial opened, so it was not charged. Charge it with the button below.",
       "chargeTooLate": "No Despair was charged for unfound Key Remnants: the clock is in chapter {now}, but the last case belongs to chapter {was}, so this chapter has no case to count.",
-      "traceAnalysis": "What analysis reveals"
+      "traceAnalysis": "What analysis reveals",
+      "erasedTitle": {
+          "one": "Erased at a clean-up ({n})",
+          "other": "Erased at a clean-up ({n})"
+      },
+      "erasedRow": "{name}, {room}: chapter {chapter}, day {day}, {time}. Erased at {who}'s clean-up.",
+      "erasedRowNobody": "{name}, {room}: chapter {chapter}, day {day}, {time}. Erased at a clean-up.",
+      "erasedNoRoom": "no room"
     },
     "Live": {
       "movedUnder": "Changed elsewhere to: {value}",
@@ -3407,6 +3451,19 @@
       "imageBroken": "This picture does not load. Pick the file again."
     },
     "Chapter": {
+      "newChapter": {
+        "title": "Chapter {chapter} begins",
+        "fresh": "Starts over:",
+        "kept": "Stays:",
+        "morning": "A new morning, with actions and Search Tokens refilled.",
+        "sweep": "The last case's Truth Bullets are collected, except Faint and Final Truth ones.",
+        "faint": "The Faint Remnants are gone from the map.",
+        "keys": "The last case's Key Remnants are gone from the map.",
+        "items": "What you carry in your inventory.",
+        "keptFaint": "Your Faint and Final Truth Bullets.",
+        "bullets": "Your Truth Bullets.",
+        "nothing": "The chapter's number alone."
+      },
       "deathTitle": "A character dies",
       "whoDied": "Who died?",
       "chooseOne": "- choose -",
@@ -3466,6 +3523,7 @@
       "bodyFound": "A body has been found in {room}.",
       "bodyFoundNamed": "{name} has been found dead in {room}.",
       "bodyCalled": "Everyone is gathered in the room with the body. The GM will start the Investigation.",
+      "bodyCalledNext": "Once it starts, Observe and Analyze turn up Truth Bullets for the trial, and the GM ends it by starting the Class Trial.",
       "bodyDone": "Everyone was brought to {room}.",
       "promoted": {
         "one": "{n} Remnant now counts as evidence of this murder.",
@@ -3530,7 +3588,8 @@
         "clock": "moving the clock",
         "trial": "closing the trial",
         "morning": "opening the next morning",
-        "hold": "clearing the body's discovery"
+        "hold": "clearing the body's discovery",
+        "players": "telling the table what the new chapter starts with"
       }
     },
     "TrialScene": {
@@ -3610,6 +3669,12 @@
       "castToken": "Token in the hall"
     },
     "Trial": {
+      "objectionAimedElsewhere": "The Objection went to {target}: the target is chosen from what the primary GM hears.",
+      "objectionSpeakersFresh": "Who has spoken is heard by the primary GM's browser, and when the primary changes it starts over. Wait until somebody speaks.",
+      "recordWrittenHere": "The primary GM {name} did not answer a write of the Class Trial's record, so {gm}'s browser wrote it. If the trial console shows something odd, check it on both screens.",
+      "sentenceNotCarried": "The sentence on {names} was not carried out: the primary GM did not answer. If the student is still alive, press Carry out the sentence again.",
+      "sentenceAgain": "Carry out the sentence again",
+      "sentenceAgainTooltip": "Asks the primary GM to carry out the sentence. A sentence already carried out is not carried out twice.",
       "presentTooltip": "Present this Truth Bullet: everyone sees it, and everyone else in the trial gets a copy.",
       "presentTitle": "Present {name}",
       "presentIntro": "Everyone will see {name} ({type}) on a card, with only what your sheet shows and none of the GM's notes.",
@@ -3714,7 +3779,10 @@
       },
       "objectionClosingNobody": "Nobody is speaking in the Closing Argument now, so there is nobody to object to.",
       "objectionClosingSpeaker": "In the Closing Argument, an Objection can only be aimed at whoever is speaking.",
-      "objectionClosingDecision": "After the exchange, the GM decides who continues the Closing Argument: the speaker or one who objected."
+      "objectionClosingDecision": "After the exchange, the GM decides who continues the Closing Argument: the speaker or one who objected.",
+      "phaseStepsEntryFinished": "The Class Trial's start was cut off on {gm}'s browser before it finished. This browser finished the rest of its steps.",
+      "phaseStepsExitFinished": "The Class Trial's end was cut off on {gm}'s browser before it finished. This browser finished the rest of its steps.",
+      "phaseBudgetCut": "{gm}'s browser was handing out the trial's actions when it was cut off. This browser did not hand them out again: check each student's actions in the Students window."
     },
     "Handover": {
       "alreadyHasKey": "{who} already has a key to that room.",
@@ -3798,7 +3866,10 @@
       "pickGone": "Nobody is waiting on this Observe anymore: its player stopped waiting, its time ran out, or another GM answered it first.",
       "tiedFlag": "tied to the crime",
       "describeTitle": "Observe: what the student sees",
-      "describeRecovered": "{actor}'s find in {room} waited on a describe window that a reload closed. It went out under its prefilled name, with no words: add them in the Investigation window.",
+      "describeRecovered": "{actor}'s find in {room} waited on a describe window that closed with no answer (a page reload, or a GM leaving). It went out under its prefilled name, with no words: add them in the Investigation window.",
+      "describing": "The GM is describing your find. The result comes when the GM is done, in a few minutes at most.",
+      "unresolved": "The GM's browser did not answer, so this Observe is not settled. The action is spent; the GMs got a card and will settle the roll by hand.",
+      "unresolvedGms": "{actor}'s Observe (a roll of {total}) was not settled: the primary GM did not answer. The action is spent; settle it by hand (Give a Truth Bullet, or an answer in the player's thread).",
       "describeWaiting": "{actor}'s find in {room} waits for its words on {gm}'s screen.",
       "describeHere": "Write it here",
       "describeHereTooltip": "Opens this find's window here. The find carries the first words written, here or on the other GM's screen.",
@@ -3823,9 +3894,19 @@
       "nonObviousHint": "As a sweep, but the hardest Remnant to spot; only this way finds a hidden secret project.",
       "followTracesHint": "Find what you left behind.",
       "specificHint": "Say what you seek; a GM, blind to your total, picks the Remnant. Blank is a sweep.",
-      "anythingHint": "Anything but a Remnant. A GM rules on it."
+      "anythingHint": "Anything but a Remnant. A GM rules on it.",
+      "describeTakenBy": "{actor}'s find already has its words from {gm}, and went out as “{name}”. What you typed here was not sent: add it in the Investigation window.",
+      "describeTakenTimedOut": "Nobody answered {actor}'s find in time, so it went out as “{name}”, with no words. Add them in the Investigation window.",
+      "describeTimedOutGms": "{actor}'s find in {room} went out as “{name}”, with no words: nobody answered its window in time. Add its words in the Investigation window."
     },
     "TruthBullet": {
+      "copyChanged": "The GM changed your Truth Bullet “{old}”: {parts}.",
+      "copyPart": {
+        "name": "its name, now “{name}”",
+        "words": "its description",
+        "image": "its picture",
+        "reading": "its reading"
+      },
       "title": "Truth Bullet",
       "give": "Give a Truth Bullet",
       "takeAway": "Take a Truth Bullet away",
@@ -3890,7 +3971,19 @@
         "other": "{n} Truth Bullets from an older version now have a type, a visibility, and a chapter. Their real types were lost, so each is recorded as Neutral. Where that matters, take one away and give one with its real type in Give / take items."
       },
       "editReverted": "{player} changed what their Truth Bullet “{bullet}” says or what it is. The change was undone: only a GM can change evidence.",
-      "editUnrestored": "{player} changed the Truth Bullet “{bullet}”. There is no record of what it said before, so the change stays on that copy alone. Check it by hand."
+      "editUnrestored": "{player} changed the Truth Bullet “{bullet}”. There is no record of what it said before, so the change stays on that copy alone. Check it by hand.",
+      "recipientPicked": "Picked students",
+      "pickedLegend": "Who gets a copy",
+      "pickedNone": "Tick at least one student.",
+      "copyOrigin": {
+          "label": "Copies",
+          "found": "You found this yourself. Other students may hold their own copy of this Remnant if they found it too.",
+          "shared": "{name} handed you this copy and keeps one too.",
+          "given": "A GM gave you this Truth Bullet.",
+          "givenMany": "A GM gave this Truth Bullet to other students too.",
+          "autopsy": "Other students got this autopsy too.",
+          "gave": "You handed a copy to {names}."
+      }
     },
     "Inventory": {
       "overCap": "{actor} is now over the {category} limit ({held}/{limit}). The item was given anyway.",
@@ -5150,7 +5243,9 @@
         "ask.withdraw": "Withdrawing a request you made",
         "ask.state": "Your request's state, from the GM",
         "bridge.playerReady": "Telling the GMs that your page has loaded",
-        "eclipse.judge": "The rooms at the lights, read on the primary GM"
+        "eclipse.judge": "The rooms at the lights, read on the primary GM",
+        "season.reset": "Reset the season by a second GM, on the primary GM",
+        "resolve.lost": "An Observe or Analyze the primary GM did not answer"
       },
       "notDone": "“{what}” was not carried out. {why}",
       "nothingSpent": "You keep your action and your Hope.",
@@ -6859,6 +6954,7 @@
       "noSchoolScene": "no school scene"
     },
     "Explain": {
+      "investigationStarted": "The Investigation has begun. It lasts until the GM starts the Class Trial.",
       "state": {
         "window": "Where things stand",
         "title": "The season"
@@ -6869,7 +6965,7 @@
         "eclipseDark": "The lights are out. Everyone places their token, {reach}, or {night} at night, and nobody sees who went where. Your actions are already refilled, but you can spend them only on a Direct Murder, and nobody makes a Call until the lights come up.",
         "eclipseReach": { "one": "up to {n} connected room", "other": "up to {n} connected rooms" },
         "dailyLife": "Ordinary days inside the school. You have {actions} each time of day to search rooms, work on projects, rest, talk, and prepare. No body has been found yet this chapter, and this is when you decide who you trust.",
-        "investigation": "A body has been found. Observe Remnants on the map, Analyze what you collect, and every Truth Bullet you build is one you can present at the trial. What you fail to find, you will not have.",
+        "investigation": "A body has been found. Observe Remnants on the map, Analyze what you collect, and every Truth Bullet you build is one you can present at the trial. What you fail to find, you will not have. The Investigation lasts until the GM starts the Class Trial.",
         "classTrial": "Everyone is in the room, and one of the students did it. Testimony, Objections, and finally the vote. If the class names the killer, the killer is punished; if not, everybody else is."
       },
       "time": {
@@ -7432,7 +7528,7 @@
         "one": "The GM store could not take over this browser's old \"{store}\" ({n} row): {error}. The old copy stays here as it was, and the next load tries again.",
         "other": "The GM store could not take over this browser's old \"{store}\" ({n} rows): {error}. The old copy stays here as it was, and the next load tries again."
       },
-      "resetPrimaryOnly": "Only the primary GM, {name}, can reset the season. Ask {name}, or reset when you are the only GM connected.",
+      "resetPrimaryOnly": "Only the primary GM, {name}, can reset the season. Ask {name} or another full GM to do it.",
       "resetOfflineGms": {
         "one": "One GM is not connected ({names}): their browser drops what this reset clears the next time it opens this world.",
         "other": "{n} GMs are not connected ({names}): their browsers drop what this reset clears the next time they open this world."
@@ -7593,7 +7689,9 @@
         "facilityUses": "Room action uses: which character used which project's room action, and when",
         "balanceLog": "The balance log: each roll the GMs drew while it was on, and the GMs' notes",
         "diveSets": "Logic Dive sets: each set's questions, their answers, and which answer is right",
-        "morningLine": "The next morning's line the GMs share, until the day's start shows it"
+        "morningLine": "The next morning's line the GMs share, until the day's start shows it",
+        "phaseSteps": "A change into or out of the Class Trial, kept step by step so the primary GM can finish it after a reload",
+        "erasedRemnants": "Remnants erased at a clean-up: what each was, where and when it lay, and who cleaned"
       },
       "copy": {
         "writeNow": "Write the copy now",
@@ -7947,7 +8045,8 @@
         "deduction": "Deductions",
         "counter": "Counters",
         "solution": "Solution"
-      }
+      },
+      "wrongVerdictHint": "The verdict was wrong, and the killer plays on. Sent, this summary shows the table which evidence and deductions were right, so it narrows the suspects."
     },
     "Reveal": {
       "section": "Missing Key Remnants",

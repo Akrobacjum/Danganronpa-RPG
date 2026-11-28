@@ -131,10 +131,12 @@ export function mayEndChapterHere({ primary = isPrimaryGm(), full = game.user?.r
  * OWNER-128-SECOND-GM, line CORE's inventory row 7). The reset stays the primary GM's (season-wipe.mjs `resetSeason`:
  * its cut is stamped over every GM's rows, on one browser), and on another GM the press closed Season setup unsaved and
  * only then was refused, so what that GM had typed was lost. Told now with the reset's own words
- * (`DRPG.GmStore.resetPrimaryOnly`), the window kept. `primary` stands in for `isPrimaryGm()` (R8731).
+ * (`DRPG.GmStore.resetPrimaryOnly`), the window kept. Since 2.0 line T3 TRIAL-04 (27.11.2026) a second full GM's reset is
+ * sent to the primary, as the chapter's end is (`season.reset`, season-wipe.mjs `resetOnPrimary`), so only an Assistant
+ * GM is refused here. `primary` stands in for `isPrimaryGm()`, `full` for the role (R8731).
  */
-export function mayResetSeasonHere({ primary = isPrimaryGm() } = {}) {
-    if (primary) return true;
+export function mayResetSeasonHere({ primary = isPrimaryGm(), full = game.user?.role === CONST.USER_ROLES.GAMEMASTER } = {}) {
+    if (primary || full) return true;
     const name = game.users.get(primaryGmId())?.name ?? "?";
     ui.notifications?.warn(game.i18n.format("DRPG.GmStore.resetPrimaryOnly", { name }));
     return false;

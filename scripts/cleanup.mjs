@@ -959,6 +959,28 @@ async function resolveTransformRoad(actor, token, data, verdict, {
 }
 
 /**
+ * THE GMS' ROW OF A REMNANT A CLEAN-UP ERASED (2.0 line T3 EXP-GM-10, 28.11.2026): gm-stores.mjs `erasedRemnantStore`, from
+ * the attempt's receipt (`receipt.erased`, read off the ledger before the removal, cleanup-reshape.mjs `recreationDataFor`),
+ * not read again: the row is gone by now. Its name as the GMs know it (remnants.mjs `traceLabel`). A failed write is logged
+ * and the clean-up stands.
+ */
+async function keepErasedRow(actor, receipt) {
+    const erased = receipt?.erased;
+    if (!game.user.isGM || !erased?._id) return;
+    try {
+        const { erasedRemnantStore } = await import("./gm-stores.mjs");
+        const { traceLabel } = await import("./remnants.mjs");
+        await erasedRemnantStore.patch(erased._id, {
+            name: traceLabel(erased), type: erased.type ?? null, visibility: erased.visibility ?? null, room: erased.room ?? null,
+            sceneId: erased.sceneId ?? null, chapter: erased.chapter ?? null, day: erased.day ?? null, timeOfDay: erased.timeOfDay ?? null,
+            at: Date.now(), by: actor?.id ?? null, byName: actor?.name ?? "", attempt: receipt.attempt ?? null
+        });
+    } catch (err) {
+        error("Could not keep the GMs' row of a Remnant a clean-up erased", err);
+    }
+}
+
+/**
  * The erase road's own verdict: a critical may rewrite the trace, a success
  * removes it, anything else leaves it standing. Answers what was rewritten,
  * if anything, for the log line.
@@ -990,7 +1012,9 @@ async function resolveEraseRoad(actor, token, data, { outcome, transforming, isC
             // Through `removeRemnant` rather than `token.delete()`: it owns the
             // refusal of reinforced traces, and one place deciding that is the
             // difference between a rule and two rules that can drift apart.
-            await removeRemnant(token);
+            const removed = await removeRemnant(token);
+            // The GMs' row of what went (2.0 line T3 EXP-GM-10), from the receipt, once it is gone: a refusal writes none.
+            if (removed) await keepErasedRow(actor, receipt);
             done.push(game.i18n.format("DRPG.Cleanup.removed", {
                 what: foundry.utils.escapeHTML(traceLabelFor(actor, token.id, data, { cleaner: isCleaner(actor) }))
             }));
@@ -2253,6 +2277,11 @@ async function undoLastCleanup(actor, tokenId) {
             data.tiedToCrime = receiptTie(actor.id, "erased", data.tiedToCrime);
             // Under the id it had (`recreationDataFor`).
             const back = await placeRemnant(data, { keepId: true });
+            // Back, it is no erased trace (2.0 line T3 EXP-GM-10): its row in the GMs' list goes.
+            if (back) {
+                const { erasedRemnantStore } = await import("./gm-stores.mjs");
+                if (erasedRemnantStore.has(receipt.erased._id)) await erasedRemnantStore.drop(receipt.erased._id);
+            }
             // The words it had, onto the ledger alone: the copies already held kept theirs
             // through the erase, and through a reshape before it (E09 C9, `reshapeTrace`).
             if (back && pub) await setRemnantPublic(back, pub, { propagate: false });

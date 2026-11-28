@@ -1173,6 +1173,8 @@
       "whichBullet": "Który Truth Bullet?",
       "onBullet": "Analyze: {name}",
       "noBullets": "Nie masz teraz żadnego Truth Bulletu do analizy.",
+      "unresolved": "Przeglądarka GM-a nie odpowiedziała, więc ta akcja Analyze nie jest rozliczona. Akcja jest wydana; GM-owie dostali kartę i rozliczą rzut ręcznie.",
+      "unresolvedGms": "Analyze ucznia {actor} (wynik {total}) nie zostało rozliczone: główny GM nie odpowiedział. Akcja jest wydana; rozlicz ją ręcznie (Daj Truth Bullet albo odpowiedź w wątku gracza).",
       "sent": "Analizujesz Truth Bullet „{name}”. Wynik przyjdzie na osobnej karcie.",
       "identifiedTitle": "Zidentyfikowano",
       "identified": "{name} to {type}.",
@@ -1680,7 +1682,12 @@
       }
     },
     "Floor": {
+      "waitingIntro": "Te prośby nadal czekają na decyzję GM-a. Zacząć Class Trial mimo to?",
+      "startAnyway": "Zacznij mimo to",
+      "waitingObserve": "znalezisko w pokoju {room} czeka na opis",
+      "holderGone": "Głos ma {name}, a ta osoba jest rozłączona. Naciśnij Pomiń albo Zakończ ten tryb na pasku rozprawy.",
       "next": {
+        "announceVote": "Głosy policzone. Ogłoś wynik stołowi.",
         "start": "Żaden Class Trial nie trwa. Zacznij Class Trial.",
         "openDebate": "Class Trial toczy się w dyskusji. Otwórz debatę, gdy sala będzie na nią gotowa.",
         "openAgain": "GM oddalił Objection po jego wymianie. Otwórz debatę ponownie z czasem, który jej został.",
@@ -1692,7 +1699,7 @@
         "vote": "Karty są rozesłane. Gdy wrócą, użyj Zamknij i policz w oknie Głosowanie.",
         "verdict": "Głosy policzone. Ogłoś werdykt.",
         "finishVerdict": "Werdykt zatrzymał się, zanim wykonał wszystkie kroki. Dokończ werdykt.",
-        "finishElsewhere": "Werdykt zatrzymał się, zanim wykonał wszystkie kroki. Dokończyć go może tylko {name}.",
+        "finishElsewhere": "Werdykt zatrzymał się, zanim wykonał wszystkie kroki. Dokończyć go może pełny GM, na przykład {name}.",
         "verdictElsewhere": "Werdykt wydaje {name}. Zakończ rozdział, gdy werdykt będzie wydany.",
         "chapterEnd": "Werdykt zapadł. Zakończ rozdział.",
         "caseSummary": "Werdykt zapadł. Pokaż podsumowanie sprawy.",
@@ -1739,6 +1746,7 @@
       },
       "trialEnded": "Class Trial się skończył; rozdział jeszcze nie.",
       "lead": {
+        "announceVote": "Głosy policzone. Teraz ogłoś wynik stołowi.",
         "start": "Żaden Class Trial nie trwa. Naciśnij przycisk Zacznij Class Trial: faza się zmieni, stół dostanie ogłoszenie, a rozprawa zacznie się dyskusją.",
         "openDebate": "Class Trial jest w fazie dyskusji. Otwórz debatę, gdy stół będzie gotów do sporu, a gdy spór się wyczerpie, wyślij karty z okna Głosowanie.",
         "openAgain": "GM oddalił Objection po jego wymianie i Class Trial jest w fazie dyskusji. Otwórz debatę ponownie z czasem, który jej został, albo wyślij karty z okna Głosowanie.",
@@ -1748,7 +1756,7 @@
         "vote": "Karty są rozesłane. Gdy wrócą, użyj Zamknij i policz w oknie Głosowanie.",
         "verdict": "Głosy są policzone. Teraz ogłoś werdykt.",
         "finishVerdict": "Werdykt zatrzymał się, zanim wykonał wszystkie kroki. Przycisk Dokończ werdykt wykona pozostałe.",
-        "finishElsewhere": "Werdykt zatrzymał się, zanim wykonał wszystkie kroki, a dokończyć go może tylko {name}. Poproś o to tę osobę przed zakończeniem rozdziału.",
+        "finishElsewhere": "Werdykt zatrzymał się, zanim wykonał wszystkie kroki, a Asystent GM-a nie może go dokończyć. Poproś pełnego GM-a, na przykład {name}, żeby zrobił to przed zakończeniem rozdziału.",
         "verdictElsewhere": "Werdykt wydaje {name}. Jeśli temu GM-owi przeładowała się strona w trakcie, Dokończ werdykt jest w jego konsoli. Nie kończ rozdziału, dopóki werdykt nie będzie wydany.",
         "chapterEnd": "Werdykt zapadł. Użyj Zakończ rozdział, by przejść do ujawnienia i następnego rozdziału.",
         "caseSummary": "Werdykt zapadł. Pokaż graczom podsumowanie sprawy, potem zakończ rozdział.",
@@ -1785,6 +1793,7 @@
         "overrule": "Oddalenie",
         "endMode": "Zakończ ten tryb",
         "notTrial": "Tylko w trakcie Class Trial.",
+        "notPrimary": "Główny GM się zmienił. Spróbuj jeszcze raz.",
         "noMode": "Nie trwa żaden tryb. Najpierw otwórz debatę albo zacznij inny tryb.",
         "noTurn": "Debata nie ma tury do pominięcia. Żeby ją zamknąć, naciśnij Zakończ ten tryb.",
         "noTime": "Debacie nie zostało już czasu do odjęcia.",
@@ -2112,6 +2121,8 @@
         "murderSendNoNoteTooltip": "Wysyła zgłoszenie od razu, bez notatki. Zamknięcie okna robi to samo."
       },
       "Trial": {
+        "notYetTooltip": "Zostawia wynik nieogłoszony: następny krok konsoli i okno głosowania podsuwają Ogłoś",
+        "announceTooltip": "Wysyła kartę wyniku głosowania do całego stołu, raz",
         "moveToChapterToTooltip": "Przesuwa zegar na następny rozdział i kończy Investigation, jeśli wciąż trwa",
         "countThisAsSessionTooltip": "Podnosi numer sesji i kończy Investigation, jeśli wciąż trwa",
         "finishTheChapterSTooltip": "Wykonuje kroki, które się nie skończyły, w ich kolejności",
@@ -2152,7 +2163,12 @@
         "scrubAtItTooltip": "Rzut na wytarcie wybranego Remnantu",
         "carryItThereTooltip": "Rzut na przeciągnięcie ciała do wybranego pokoju",
         "killerTooltip": "Wybór zabójcy zaznacza Morderstwo pośrednie, gdy ma gotową pułapkę, a w przeciwnym razie je odznacza",
-        "executedEachTooltip": "Zaznaczone: stracenie, jeśli stół się pomylił. Odznacz, by oszczędzić tę osobę."
+        "executedEachTooltip": "Zaznaczone: stracenie, jeśli stół się pomylił. Odznacz, by oszczędzić tę osobę.",
+        "wrongStepOffersTooltip": "Zaznaczone: błędny werdykt daje Blackened Reinforced Level Up. Odznacz, żeby go pominąć.",
+        "wrongStepRuleTooltip": "Zaznaczone: błędny werdykt pyta Blackened o nową zasadę. Odznacz, żeby to pominąć.",
+        "wrongStepDespairTooltip": "Zaznaczone: błędny werdykt napełnia pulę Despair każdego Monokumy. Odznacz, żeby to pominąć.",
+        "ballotChoiceTooltip": "Głos na tego ucznia. Twój wybór widzą tylko GM-owie. Oddanego głosu nie zmienisz.",
+        "startAnywayTooltip": "Zaczyna Class Trial, choć te prośby nadal czekają; ich karty zostają bez zmian"
       },
       "CasePlan": {
         "clearPlanTooltip": "Czyści zaplanowane Key Remnanty i schemat sprawy jednego rozdziału, po pytaniu, które je liczy",
@@ -2304,7 +2320,8 @@
         "placeFinalNowTooltip": "Stawia Final Truth Remnant w wybranym pokoju, tak jak zrobiłby to Zapisz",
         "keepForLaterTooltip": "Twoje słowa zostają, a na mapie nic nie staje; Zapisz postawi go później",
         "allOpenTooltip": "Włączone: każdy węzeł pokazuje swoje pola. Wyłączone: węzeł pokazuje skrót, dopóki go nie klikniesz.",
-        "foldedListTooltip": "Rozwija listę: zaznacz, z czego wynika ten węzeł albo co obala."
+        "foldedListTooltip": "Rozwija listę: zaznacz, z czego wynika ten węzeł albo co obala.",
+        "nodeOpensMapTooltip": "Otwiera ten węzeł na Mapie w oknie Investigation"
       },
       "Sweep": {
         "Actions": {
@@ -2429,7 +2446,8 @@
           "experienceUpTooltip": "To doświadczenie da o jeden więcej, gdy użyjesz go w rzucie przez Talent Call",
           "newExperienceTooltip": "Talent Call doda je do pasującego rzutu, gdy GM się zgodzi",
           "acceptRuleTooltip": "Twój uczeń od razu staje się Monocubem i obowiązuje go Zasada powyżej",
-          "revokeRuleTooltip": "Po Zapisz zasada zostaje cofnięta; z zaznaczonym „Ogłoś zmiany” wszyscy zobaczą to na karcie"
+          "revokeRuleTooltip": "Po Zapisz zasada zostaje cofnięta; z zaznaczonym „Ogłoś zmiany” wszyscy zobaczą to na karcie",
+          "pickedTargetTooltip": "Zaznaczony uczeń dostaje własną kopię tego Truth Bulletu."
         },
         "Setup": {
           "facilityCostsActionTooltip": "Włączone: użycie kosztuje ucznia akcję. Wyłączone: jest darmowe. Toll z Overflow dolicza się w obu przypadkach",
@@ -2490,7 +2508,8 @@
           "bulletNoteTooltip": "Trafia do Truth Bulletu, gdy go wydasz. Czytają ją tylko GM-owie",
           "bulletRecipientTooltip": "Dla kogo otworzy się okno Daj Truth Bullet. Wszystkim daje kopię każdemu żywemu uczniowi",
           "finalNoteTooltip": "Trafia do Final Truth Remnantu, gdy go postawisz. Czytają ją tylko GM-owie",
-          "finalRoomAskTooltip": "Postaw umieszcza Final Truth Remnant w losowym miejscu tego pokoju, ze wszystkim, co zapisano w planie"
+          "finalRoomAskTooltip": "Postaw umieszcza Final Truth Remnant w losowym miejscu tego pokoju, ze wszystkim, co zapisano w planie",
+          "erasedListTooltip": "Remnanty usunięte przy sprzątaniu, od najnowszego. Reroll, który przywraca Remnant, zdejmuje go z tej listy."
         },
         "More": {
           "brochureTabTooltip": "Zasady na jednej stronie: statystyki, zasoby i to, co niesie każda pora dnia.",
@@ -2598,6 +2617,23 @@
       }
     },
     "Vote": {
+      "silentGone": {
+        "one": "{n} z tych kart ma gracz, który jest teraz rozłączony: {names}.",
+        "few": "{n} z tych kart mają gracze, którzy są teraz rozłączeni: {names}.",
+        "many": "{n} z tych kart mają gracze, którzy są teraz rozłączeni: {names}.",
+        "other": "{n} z tych kart mają gracze, którzy są teraz rozłączeni: {names}."
+      },
+      "notYet": "Jeszcze nie",
+      "announce": "Ogłoś wynik",
+      "previewIntro": "Widzą to tylko GM-owie. Stół dostanie kartę, gdy ją ogłosisz.",
+      "previewTitle": "Wynik głosowania",
+      "verdictSkipped": "Pominięte w oknie werdyktu: {steps}.",
+      "wrongSteps": {
+        "legend": "Gdy się pomylili",
+        "offers": "Reinforced Level Up dla Blackened",
+        "rule": "Nowa zasada Blackened",
+        "despair": "Napełnienie każdej puli Despair"
+      },
       "openTitle": "Głosowanie",
       "openIntro": "Wyślij karty, poczekaj, aż wrócą, potem zamknij i policz.",
       "privacyNote": "Karty trafiają tylko do GM-ów i zostają u nich do otwarcia następnej rundy głosowania. Stół widzi tylko sumy.",
@@ -2632,6 +2668,7 @@
       "ballotTitle": "Kto to zrobił?",
       "ballotIntro": "Zagłosuj na tego, kto twoim zdaniem jest Blackened. Możesz głosować na siebie, na każdego Monokumę z osobna i na zmarłych.",
       "ballotNote": "Twój głos trafia tylko do GM-ów. Stół widzi wyłącznie sumy.",
+      "ballotFinal": "Oddanego głosu nie da się zmienić.",
       "who": "Twój głos",
       "cast": "Oddaj głos",
       "castConfirmed": "Twój głos oddany.",
@@ -2733,7 +2770,7 @@
       "verdictAlreadyApplied": "Ten Class Trial ma już werdykt. Następny krok podaje konsola Class Trial.",
       "storeNotReady": "Ta przeglądarka wciąż wczytuje karty, więc nie pokaże jeszcze, kto zagłosował.",
       "movedOn": "Od otwarcia tego okna głosowanie się zmieniło, więc to, co w nim wybrano, się nie liczy.",
-      "openNoBallots": "Trwa głosowanie (runda {n}), ale ta przeglądarka nie ma żadnej z jego kart. Przycisk Zamknij i policz nadal działa, bo karty liczy główny GM; możesz też zacząć głosowanie od nowa.",
+      "openNoBallots": "Trwa głosowanie (runda {n}), ale ta przeglądarka nie ma żadnej z jego kart. Przycisk Zamknij i policz nadal działa, bo karty liczy główny GM.",
       "verdictCardTitle": "WERDYKT",
       "verdictRight": "Klasa trafiła.",
       "verdictWrong": "Klasa się pomyliła.",
@@ -2759,7 +2796,8 @@
         "finalLevelUps": "Level Upy, które czekały",
         "finalBets": "Ghost Bet",
         "mastermind": "czyszczenie wyboru Masterminda"
-      }
+      },
+      "finishTaken": "{name} już dokańcza ten werdykt."
     },
     "Music": {
       "notSet": "- nie ustawiono -",
@@ -3437,6 +3475,7 @@
       },
       "finalFoundBy": "Kto znalazł",
       "finalNobody": "Nikt go nie znalazł",
+      "chargeUnanswered": "Główny GM nie odpowiedział na opłatę za Key Remnanty przy otwarciu Class Trial, więc nie została pobrana. Pobierz ją przyciskiem niżej.",
       "chargeTooLate": "Nie naliczono Despair za nieznalezione Key Remnanty. Zegar jest już w rozdziale {now}, a ostatnia sprawa dotyczyła rozdziału {was}, więc ten rozdział nie ma sprawy, z której można by je policzyć.",
       "traceAnalysis": "Co ujawnia analiza",
       "keyOffPlan": {
@@ -3454,7 +3493,16 @@
       "newTraceDone": "{type} jest teraz w pokoju {room}.",
       "noRooms": "Na tej scenie nie ma jeszcze pokoi, więc nie ma gdzie postawić Remnantu. Najpierw narysuj regiony; jak to zrobić, wyjaśniają Ustawienia pokoi.",
       "keyDcNote": "Key Remnant to najłatwiejsza do zauważenia rzecz w pokoju, a jak łatwo go zauważyć, zależy od jego widoczności: {list}. Zwykły dowód o tej samej widoczności ma próg wyższy o {low} do {high}. Skala powyżej nie zmienia tego progu; mówi tylko, ile trop zdradza.",
-      "newTraceUnfindable": "Observe nie ma progu dla Remnantu tego rodzaju przy tej widoczności, więc nikt by go nie znalazł. Otwórz Nowy Remnant jeszcze raz i wybierz inny rodzaj albo inną widoczność."
+      "newTraceUnfindable": "Observe nie ma progu dla Remnantu tego rodzaju przy tej widoczności, więc nikt by go nie znalazł. Otwórz Nowy Remnant jeszcze raz i wybierz inny rodzaj albo inną widoczność.",
+      "erasedTitle": {
+          "one": "Usunięte przy sprzątaniu ({n})",
+          "few": "Usunięte przy sprzątaniu ({n})",
+          "many": "Usunięte przy sprzątaniu ({n})",
+          "other": "Usunięte przy sprzątaniu ({n})"
+      },
+      "erasedRow": "{name}, {room}: rozdział {chapter}, dzień {day}, {time}. Usunięte przy sprzątaniu. Sprzątanie: {who}.",
+      "erasedRowNobody": "{name}, {room}: rozdział {chapter}, dzień {day}, {time}. Usunięte przy sprzątaniu.",
+      "erasedNoRoom": "bez pokoju"
     },
     "Live": {
       "movedUnder": "Gdzie indziej zmieniono to pole na {value}",
@@ -3615,6 +3663,19 @@
       "imageBroken": "To zdjęcie się nie wczytuje. Wybierz plik jeszcze raz."
     },
     "Chapter": {
+      "newChapter": {
+        "title": "Zaczyna się rozdział {chapter}",
+        "fresh": "Zaczyna się od nowa:",
+        "kept": "Zostaje:",
+        "morning": "Nowy poranek, z odnowionymi akcjami i Search Tokenami.",
+        "sweep": "Truth Bullety z poprzedniej sprawy są zebrane, poza Faint i Final Truth.",
+        "faint": "Faint Remnanty znikają z mapy.",
+        "keys": "Key Remnanty z poprzedniej sprawy znikają z mapy.",
+        "items": "To, co masz w ekwipunku.",
+        "keptFaint": "Twoje Truth Bullety Faint i Final Truth.",
+        "bullets": "Twoje Truth Bullety.",
+        "nothing": "Tylko numer rozdziału."
+      },
       "deathTitle": "Postać umiera",
       "whoDied": "Kto zginął?",
       "chooseOne": "- wybierz -",
@@ -3678,6 +3739,7 @@
       "bodyFound": "W pokoju {room} znaleziono ciało.",
       "bodyFoundNamed": "{name} nie żyje. Ciało leży w pokoju {room}.",
       "bodyCalled": "Wszystkie tokeny stoją teraz w pokoju z ciałem. Investigation jeszcze nie trwa. Rozpocznie je GM.",
+      "bodyCalledNext": "Gdy się zacznie, Observe i Analyze dają Truth Bullety do rozprawy, a kończy je GM, zaczynając Class Trial.",
       "bodyDone": "Wszystkich sprowadzono do pokoju {room}.",
       "promoted": {
         "one": "{n} Remnant liczy się teraz jako dowód tego morderstwa.",
@@ -3763,7 +3825,8 @@
         "clock": "przesuwanie zegara",
         "trial": "zamykanie Class Trial",
         "morning": "otwieranie następnego ranka",
-        "hold": "zamykanie odkrycia ciała"
+        "hold": "zamykanie odkrycia ciała",
+        "players": "ogłaszanie stołowi, z czym zaczyna się nowy rozdział"
       }
     },
     "TrialScene": {
@@ -3853,6 +3916,12 @@
       "castToken": "Token w sali"
     },
     "Trial": {
+      "objectionAimedElsewhere": "Objection trafiło w {target}: cel wybiera to, co słyszy główny GM.",
+      "objectionSpeakersFresh": "Kto mówił, słyszy przeglądarka głównego GM-a; gdy główny się zmienia, zaczyna od nowa. Poczekaj, aż ktoś się odezwie.",
+      "recordWrittenHere": "Główny GM {name} nie odpowiedział na zapis przebiegu Class Trial, więc zapisała go przeglądarka GM-a {gm}. Jeśli konsola rozprawy pokazuje coś dziwnego, sprawdź ją na obu ekranach.",
+      "sentenceNotCarried": "Wyrok na {names} nie został wykonany: główny GM nie odpowiedział. Jeśli uczeń nadal żyje, naciśnij Wykonaj wyrok ponownie.",
+      "sentenceAgain": "Wykonaj wyrok ponownie",
+      "sentenceAgainTooltip": "Prosi głównego GM-a o wykonanie wyroku. Wyrok już wykonany nie zostanie wykonany drugi raz.",
       "presentTooltip": "Przedstaw ten Truth Bullet: wszyscy go zobaczą, a pozostali uczestnicy rozprawy dostaną jego kopię.",
       "presentTitle": "Przedstaw dowód {name}",
       "presentIntro": "Wszyscy zobaczą dowód {name} ({type}) na karcie czatu. Na kartę trafia tylko to, co widać na twoim arkuszu, bez notatek GM-a.",
@@ -3977,7 +4046,10 @@
       },
       "objectionClosingNobody": "Teraz nikt nie mówi w Closing Argument, więc nie masz wobec kogo wnieść Objection.",
       "objectionClosingSpeaker": "W Closing Argument Objection można zgłosić tylko wobec osoby, która mówi.",
-      "objectionClosingDecision": "Po wymianie GM decyduje, kto kontynuuje Closing Argument: mówca czy ktoś, kto zgłosił Objection."
+      "objectionClosingDecision": "Po wymianie GM decyduje, kto kontynuuje Closing Argument: mówca czy ktoś, kto zgłosił Objection.",
+      "phaseStepsEntryFinished": "Rozpoczęcie Class Trial przerwało się w przeglądarce {gm}, zanim się skończyło. Ta przeglądarka dokończyła pozostałe kroki.",
+      "phaseStepsExitFinished": "Zakończenie Class Trial przerwało się w przeglądarce {gm}, zanim się skończyło. Ta przeglądarka dokończyła pozostałe kroki.",
+      "phaseBudgetCut": "Przeglądarka {gm} rozdawała akcje na rozprawę, gdy się przerwała. Ta przeglądarka nie rozdała ich drugi raz: sprawdź akcje każdego ucznia w oknie Uczniowie."
     },
     "Handover": {
       "alreadyHasKey": "{who} ma już klucz do tego pokoju.",
@@ -4063,7 +4135,10 @@
       "pickGone": "Nikt już nie czeka na to Observe: gracz przestał czekać, minął czas albo inny GM odpowiedział pierwszy.",
       "tiedFlag": "powiązany ze zbrodnią",
       "describeTitle": "Znalezisko z Observe",
-      "describeRecovered": "Znalezisko ucznia {actor} w pokoju {room} czekało na okno opisu, które zamknęło odświeżenie strony. Trafiło do niego pod nazwą domyślną, bez opisu: dopisz go w oknie Investigation.",
+      "describeRecovered": "Znalezisko ucznia {actor} w pokoju {room} czekało na okno opisu, które zamknęło się bez odpowiedzi (odświeżenie strony albo wyjście GM-a). Trafiło do niego pod nazwą domyślną, bez opisu: dopisz go w oknie Investigation.",
+      "describing": "GM opisuje twoje znalezisko. Wynik przyjdzie, gdy GM skończy, najpóźniej za kilka minut.",
+      "unresolved": "Przeglądarka GM-a nie odpowiedziała, więc ta akcja Observe nie jest rozliczona. Akcja jest wydana; GM-owie dostali kartę i rozliczą rzut ręcznie.",
+      "unresolvedGms": "Observe ucznia {actor} (wynik {total}) nie zostało rozliczone: główny GM nie odpowiedział. Akcja jest wydana; rozlicz ją ręcznie (Daj Truth Bullet albo odpowiedź w wątku gracza).",
       "describeWaiting": "Znalezisko ucznia {actor} w pokoju {room} czeka na opis na ekranie GM-a {gm}.",
       "describeHere": "Opisz tutaj",
       "describeHereTooltip": "Otwiera tutaj okno tego znaleziska. Znalezisko dostaje opis napisany pierwszy, tutaj albo na ekranie drugiego GM-a.",
@@ -4088,9 +4163,19 @@
       "specificHint": "Wpisz, czego szukasz; GM, nie znając wyniku, wybiera Remnant. Puste pole to rozglądanie się.",
       "anythingHint": "Coś poza Remnantem. Rozstrzyga GM.",
       "resolveLost": "{name} rzuca {total} na Observe, a ta przeglądarka nie ma zapisu, na co patrzyła ta osoba. Nic się nie znajduje, Sanity postaci zostaje bez zmian, a wydana akcja nie wraca. Zapytaj gracza, jak się rozglądał, i jeśli było coś do znalezienia, daj mu Truth Bullet ręcznie.",
-      "resolveLostOwner": "Nie dało się ocenić twojego Observe: GM nie ma zapisu, na co patrzysz. Niczego nie znajdujesz i zachowujesz Sanity, ale akcja zostaje wydana. Powiedz GM-owi, jakie było twoje zgłoszenie."
+      "resolveLostOwner": "Nie dało się ocenić twojego Observe: GM nie ma zapisu, na co patrzysz. Niczego nie znajdujesz i zachowujesz Sanity, ale akcja zostaje wydana. Powiedz GM-owi, jakie było twoje zgłoszenie.",
+      "describeTakenBy": "Znalezisko ucznia {actor} ma już opis od GM-a {gm} i wyszło pod nazwą „{name}”. To, co wpisano tutaj, nie zostało wysłane: dopisz to w oknie Investigation.",
+      "describeTakenTimedOut": "Nikt nie odpowiedział w porę na znalezisko ucznia {actor}, więc wyszło pod nazwą „{name}”, bez opisu. Dopisz go w oknie Investigation.",
+      "describeTimedOutGms": "Znalezisko ucznia {actor} w pokoju {room} wyszło pod nazwą „{name}”, bez opisu: nikt nie odpowiedział w porę w jego oknie. Dopisz opis w oknie Investigation."
     },
     "TruthBullet": {
+      "copyChanged": "GM zmienił twój Truth Bullet „{old}”: {parts}.",
+      "copyPart": {
+        "name": "nazwę, teraz „{name}”",
+        "words": "opis",
+        "image": "obraz",
+        "reading": "odczyt"
+      },
       "title": "Truth Bullet",
       "give": "Daj Truth Bullet",
       "takeAway": "Zabierz Truth Bullet",
@@ -4159,7 +4244,19 @@
         "other": "{n} Truth Bulletu ze starszej wersji modułu ma teraz typ, widoczność i rozdział. Widoczność odtworzono dokładnie, ale prawdziwych typów nie, więc każdy zapisano jako Neutral; lista jest poniżej. Żeby nadać któremuś prawdziwy typ, GM zabiera go w Daj / zabierz przedmioty i daje nowy z tym typem."
       },
       "editReverted": "{player} zmienia nazwę, opis albo typ swojego Truth Bulletu „{bullet}”. Moduł cofnął tę zmianę, bo treść Truth Bulletu zapisuje tylko GM.",
-      "editUnrestored": "{player} zmienia Truth Bullet „{bullet}”, a moduł nie ma wcześniejszej wersji, którą mógłby przywrócić. Zmiana zostaje tylko na tej kopii i nie trafia do Remnantu ani do innych kopii. Sprawdź ją ręcznie."
+      "editUnrestored": "{player} zmienia Truth Bullet „{bullet}”, a moduł nie ma wcześniejszej wersji, którą mógłby przywrócić. Zmiana zostaje tylko na tej kopii i nie trafia do Remnantu ani do innych kopii. Sprawdź ją ręcznie.",
+      "recipientPicked": "Wybrani uczniowie",
+      "pickedLegend": "Kto dostaje kopię",
+      "pickedNone": "Zaznacz przynajmniej jednego ucznia.",
+      "copyOrigin": {
+          "label": "Kopie",
+          "found": "To twoje znalezisko. Inni uczniowie mogą mieć własną kopię tego Remnantu, jeśli też go znaleźli.",
+          "shared": "{name} przekazuje ci tę kopię i też ma własną.",
+          "given": "Ten Truth Bullet dał ci GM.",
+          "givenMany": "Ten Truth Bullet GM dał też innym uczniom.",
+          "autopsy": "Tę autopsję dostali też inni uczniowie.",
+          "gave": "Twoją kopię dostali też: {names}."
+      }
     },
     "Inventory": {
       "overCap": "{actor} przekracza limit ({category}: {held}/{limit}), ale przedmiot i tak trafia do ekwipunku.",
@@ -5505,7 +5602,9 @@
         "ask.withdraw": "Wycofanie twojej prośby",
         "ask.state": "Stan twojej prośby, od GM-a",
         "bridge.playerReady": "Wiadomość dla GM-ów, że twoja strona się wczytała",
-        "eclipse.judge": "Pokoje przy świetle, odczytane u głównego GM-a"
+        "eclipse.judge": "Pokoje przy świetle, odczytane u głównego GM-a",
+        "season.reset": "Reset sezonu przez drugiego GM-a, u głównego GM-a",
+        "resolve.lost": "Observe albo Analyze, na które główny GM nie odpowiedział"
       },
       "notDone": "Prośba „{what}” nie została wykonana. {why}",
       "nothingSpent": "Nie tracisz akcji ani Hope.",
@@ -7402,6 +7501,7 @@
       "noSchoolScene": "brak sceny szkoły"
     },
     "Explain": {
+      "investigationStarted": "Zaczyna się Investigation. Trwa, dopóki GM nie zacznie Class Trial.",
       "state": {
         "window": "Gdzie jesteśmy",
         "title": "Sezon"
@@ -7417,7 +7517,7 @@
           "other": "do {n} połączonego pokoju"
         },
         "dailyLife": "Zwykłe dni w szkole. Masz {actions} na każdą porę dnia: na przeszukiwanie pokoi, pracę nad projektami, odpoczynek, rozmowy i przygotowania. W tym rozdziale nie znaleziono jeszcze ciała. To czas, w którym decydujesz, komu ufasz.",
-        "investigation": "Znaleziono ciało. Używaj Observe na Remnantach na mapie, Analyze na tym, co zbierzesz, a każdy Truth Bullet, który zbudujesz, możesz przedstawić w Class Trial. Czego nie znajdziesz, tego nie będziesz mieć.",
+        "investigation": "Znaleziono ciało. Używaj Observe na Remnantach na mapie, Analyze na tym, co zbierzesz, a każdy Truth Bullet, który zbudujesz, możesz przedstawić w Class Trial. Czego nie znajdziesz, tego nie będziesz mieć. Investigation trwa, dopóki GM nie zacznie Class Trial.",
         "classTrial": "Wszyscy są w sali, a ktoś z uczniów to zrobił. Zeznania, Objections i wreszcie głosowanie. Jeśli klasa wskaże zabójcę, zabójca zostanie ukarany; jeśli nie, ukarani zostaną wszyscy pozostali."
       },
       "time": {
@@ -9238,7 +9338,7 @@
         "many": "Magazyn GM-a nie mógł przejąć starego „{store}” z tej przeglądarki ({n} wierszy): {error}. Stara kopia zostaje tu bez zmian, a przy następnym wczytaniu świata magazyn spróbuje jeszcze raz.",
         "other": "Magazyn GM-a nie mógł przejąć starego „{store}” z tej przeglądarki ({n} wiersza): {error}. Stara kopia zostaje tu bez zmian, a przy następnym wczytaniu świata magazyn spróbuje jeszcze raz."
       },
-      "resetPrimaryOnly": "Sezon resetuje tylko główny GM, {name}. Poproś o to GM-a {name} albo zresetuj sezon, gdy będziesz jedynym połączonym GM-em.",
+      "resetPrimaryOnly": "Sezon resetuje tylko główny GM, {name}. Poproś o to GM-a {name} albo innego pełnego GM-a.",
       "resetOfflineGms": {
         "one": "Jeden GM nie jest połączony ({names}): jego przeglądarka usunie to, co czyści ten reset, gdy następnym razem otworzy ten świat.",
         "few": "{n} GM-ów nie jest połączonych ({names}): ich przeglądarki usuną to, co czyści ten reset, gdy następnym razem otworzą ten świat.",
@@ -9409,7 +9509,9 @@
         "facilityUses": "Użycia akcji w pokoju: która postać użyła akcji którego projektu i kiedy",
         "balanceLog": "Dziennik balansu: każdy rzut, który GM-owie losowali, gdy był włączony, i notatki GM-ów",
         "diveSets": "Zestawy Logic Dive: pytania każdego zestawu, ich odpowiedzi i to, która odpowiedź jest dobra",
-        "morningLine": "Wspólne zdanie GM-ów na następny poranek, do początku dnia, który je pokaże"
+        "morningLine": "Wspólne zdanie GM-ów na następny poranek, do początku dnia, który je pokaże",
+        "phaseSteps": "Wejście do Class Trial albo wyjście z niego, zapisywane krok po kroku, żeby główny GM mógł je dokończyć po przeładowaniu",
+        "erasedRemnants": "Remnanty usunięte przy sprzątaniu: czym były, gdzie i kiedy leżały i kto sprzątał"
       },
       "copy": {
         "writeNow": "Zapisz kopię teraz",
@@ -9789,7 +9891,8 @@
         "deduction": "Wnioski",
         "counter": "Kontry",
         "solution": "Rozwiązanie"
-      }
+      },
+      "wrongVerdictHint": "Werdykt był błędny, a zabójca gra dalej. Wysłane podsumowanie pokaże stołowi, które dowody i dedukcje były trafne, więc zawęzi krąg podejrzanych."
     },
     "Reveal": {
       "section": "Brakujące Key Remnanty",

@@ -1130,6 +1130,26 @@ export const SETTINGS = {
      */
     minePassages: "minePassages",
     /**
+     * A CHANGE OF PHASE INTO OR OUT OF THE CLASS TRIAL, STEP BY STEP (2.0 line T3 TRIAL-08, 28.11.2026): a GM store
+     * (gm-stores.mjs `phaseStepStore`), a row per change `{ from, to, at, by, done, failed, started }`, which the primary
+     * finishes when its writer's page was closed half way (clock.mjs `finishPhaseSteps`). Synced, not backed up; no
+     * player copy.
+     */
+    gmPhaseSteps: "gmPhaseSteps",
+    /**
+     * A REMNANT ERASED AT A CLEAN-UP (2.0 line T3 EXP-GM-10, 28.11.2026): a GM store (gm-stores.mjs `erasedRemnantStore`),
+     * a row per erased trace - what it was, where and when it lay, who cleaned and which attempt - for the Investigation
+     * window. Synced and backed up; no player copy.
+     */
+    gmErasedRemnants: "gmErasedRemnants",
+    /**
+     * HOW EACH OF A PLAYER'S OWN COPIES CAME TO THEM (2.0 line T3 EXP-PL-17 with D2-30, 28.11.2026): the player's copy of
+     * the `origin` of their bullets' rows (gm-stores.mjs `copyOriginCopy`, truth-bullets.mjs `copyOriginOf`), read by the
+     * sheet's Copies chip. The first 2.0 build wrote it as the item's flag `copyOrigin`, which every browser holds; the
+     * clause `liftCopyOrigins` takes that off the items.
+     */
+    mineCopyOrigins: "mineCopyOrigins",
+    /**
      * What the primary GM does with a player's token moved through a wall its character could not
      * pass (E79 C4, movement-audit.mjs): "log", a row in the Debug log (the default, the plan's AM-1),
      * or "sendBack", the token put back where it stood, its player told and the GMs warned.
@@ -3458,6 +3478,30 @@ export function registerSettings() {
         type: Object,
         default: {},
         onChange: () => Hooks.callAll("drpgPassagesChanged")
+    });
+    // A change of phase into or out of the trial, step by step (2.0 line T3 TRIAL-08): no `onChange` - read by the
+    // primary at its ready and when the GM who wrote the change leaves (clock.mjs `finishPhaseSteps`).
+    game.settings.register(MODULE_ID, SETTINGS.gmPhaseSteps, {
+        scope: "client",
+        config: false,
+        type: Object,
+        default: {}
+    });
+    // A Remnant erased at a clean-up (2.0 line T3 EXP-GM-10): no `onChange` - the Investigation window watches the store.
+    game.settings.register(MODULE_ID, SETTINGS.gmErasedRemnants, {
+        scope: "client",
+        config: false,
+        type: Object,
+        default: {}
+    });
+    // A player's copy of how each of their copies came to them (2.0 line T3 D2-30): a change redraws their open sheets'
+    // Copies chips (`drpgCopyOriginsChanged`, truth-bullets.mjs).
+    game.settings.register(MODULE_ID, SETTINGS.mineCopyOrigins, {
+        scope: "client",
+        config: false,
+        type: Object,
+        default: {},
+        onChange: () => Hooks.callAll("drpgCopyOriginsChanged")
     });
     // The world key before 1.2.64: read once by `liftEclipseMoves`, and empty after.
     game.settings.register(MODULE_ID, SETTINGS.legacyEclipseMoves, {

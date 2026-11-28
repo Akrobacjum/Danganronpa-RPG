@@ -243,3 +243,9 @@ export const ACTION_ASK_STATE = "ask.state";
 export const ACTION_PLAYER_READY = "bridge.playerReady";
 /** GM -> primary GM: where each declaration of an Eclipse stands at its lights, read on the primary's record of lawful places (2.0 line T1 DAY-03). */
 export const ACTION_ECLIPSE_JUDGE = "eclipse.judge";
+
+/** GM -> primary GM: a second full GM's Reset the season, the plan its window gave (2.0 line T3 TRIAL-04; season-wipe.mjs `runSeasonReset`). */
+export const ACTION_SEASON_RESET = "season.reset";
+
+/** Player -> primary GM: an Observe or Analyze whose resolve went unanswered, told to the GMs (2.0 line T3 INV-12; bridge-runs-records.mjs `handleResolveLost`). */
+export const ACTION_RESOLVE_LOST = "resolve.lost";

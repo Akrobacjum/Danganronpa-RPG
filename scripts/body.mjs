@@ -156,12 +156,14 @@ function enqueueBodyWork(work) {
  * @param {string} options.room     Where the body is.
  * @param {Actor} [options.victim]  Named in the announcement when given.
  * @param {Scene} [options.scene]   The scene the room is on; this client's own when not given.
+ * @param {Function} [options.say]  How a refusal is said (`say(key, data)`): a warning toast, or on the primary the
+ *   relay's collector for a second GM's press (bridge-runs-records.mjs `handleBodyDiscover`; 2.0 line T3 MURDER-07).
  */
 export function discoverBody(options = {}) {
     if (!game.user.isGM || !options?.room) return Promise.resolve(null);
     // `announcer` (2.0 line T1 MURDER-08): the second GM the bridge names (bridge-runs-records.mjs `handleBodyDiscover`).
     if (sentToPrimary()) return discoverOnPrimary(options);
-    if (!discoveryHere()) return Promise.resolve(null);
+    if (!discoveryHere(options.say)) return Promise.resolve(null);
     return enqueueBodyWork(() => runDiscovery(options));
 }
 
@@ -178,7 +180,10 @@ async function discoverOnPrimary({ room, victim = null, scene = null } = {}) {
     const { bridgeRequest } = await import("./bridge-guards.mjs");
     const res = await bridgeRequest("body.discover", { room, victimId: victim?.id ?? null, sceneId: scene?.id ?? null },
         { settle: "reply", onPrimary: true, local: () => enqueueBodyWork(() => runDiscovery({ room, victim, scene })) });
-    const value = res.ok ? res.value ?? null : null;
+    // The primary's reason, relayed (2.0 line T3 MURDER-07, through TRIAL-02's mechanism): said here, not counted as a done.
+    const { tellRelayedRefusal } = await import("./bridge-guards.mjs");
+    if (!res.ok || tellRelayedRefusal(res.value)) return null;
+    const value = res.value ?? null;
     /* THE QUESTIONS AFTER THE ANNOUNCEMENT ARE THE ANNOUNCER'S (2.0 line T1 MURDER-08, INV-06; the recommendation the owner
        took: "Pytanie u GM-a, ktory oglosil cialo"). The primary ran the discovery and asked nothing of its own (`runDiscovery`
        with this GM as `announcer`); its answer names what to ask here: the Faint Prep question (`askPromotion`) and the
@@ -192,6 +197,11 @@ async function discoverOnPrimary({ room, victim = null, scene = null } = {}) {
     return value;
 }
 
+/** A refusal of the announcement said on this browser (`runDiscovery`'s default `say`): a warning toast. */
+function sayToast(key, data = {}) {
+    ui.notifications.warn(game.i18n.format(key, data));
+}
+
 /* THE DISCOVERY IS THE PRIMARY GM'S (E11 fix r1-G2, 1.2.73; round 1's sec F1 and goal K6). The
    walk-in watcher has always run on the primary only (murder-rules.mjs, `updateToken`); the GM's
    own announcement ran on whichever GM pressed it. On any other GM `flagsHeldNow` reads the
@@ -203,10 +213,9 @@ async function discoverOnPrimary({ room, victim = null, scene = null } = {}) {
    whose the announcement is. Refused rather than sent on to the primary: a forwarded press would
    be a new GM-to-GM request with its own checks and census row, for a window the primary GM can
    open just as well. Tier 2 "a GM who is not the primary announces no body and is told whose it is". */
-function discoveryHere() {
+function discoveryHere(say = sayToast) {
     if (isPrimaryGm()) return true;
-    const name = game.users.get(primaryGmId())?.name ?? "?";
-    ui.notifications.warn(game.i18n.format("DRPG.Chapter.bodyPrimaryOnly", { name }));
+    say("DRPG.Chapter.bodyPrimaryOnly", { name: game.users.get(primaryGmId())?.name ?? "?" });
     return false;
 }
 
@@ -236,7 +245,7 @@ export async function deathAnnounced(actor) {
     return announcedAlready(actor, flagsHeldNow);
 }
 
-async function runDiscovery({ room, victim = null, scene = null, by = "gm", announcer = null } = {}) {
+async function runDiscovery({ room, victim = null, scene = null, by = "gm", announcer = null, say = sayToast } = {}) {
     if (!game.user.isGM || !room) return null;
     // The chapter and season the discovery happens in, read before anything is awaited: the
     // stamp is filed under these, whatever the clock reads by the time it is written (E11 C1).
@@ -265,7 +274,7 @@ async function runDiscovery({ room, victim = null, scene = null, by = "gm", anno
     // included.
     const { isEclipse } = await import("./eclipse.mjs");
     if (isEclipse()) {
-        ui.notifications.warn(game.i18n.localize("DRPG.Eclipse.bodyLocked"));
+        say("DRPG.Eclipse.bodyLocked");
         return null;
     }
 
@@ -289,7 +298,7 @@ async function runDiscovery({ room, victim = null, scene = null, by = "gm", anno
        (read in the code). The walk-in road names only a body the mark already holds dead. */
     if (victim && !deathRecordFor(flagsHeldNow(victim))) await judgedFor(victim.id);
     if (victim && announcedAlready(victim, flagsHeldNow, { clock, epoch })) {
-        ui.notifications.warn(game.i18n.format("DRPG.Chapter.bodyAnnouncedAlready", { name: victim.name }));
+        say("DRPG.Chapter.bodyAnnouncedAlready", { name: victim.name });
         return null;
     }
 
@@ -373,7 +382,7 @@ async function runDiscovery({ room, victim = null, scene = null, by = "gm", anno
                 : game.i18n.format("DRPG.Chapter.bodyFound", {
                     room: foundry.utils.escapeHTML(room)
                 })}</p>
-            <p>${game.i18n.localize("DRPG.Chapter.bodyCalled")}</p>
+            <p>${game.i18n.localize("DRPG.Chapter.bodyCalled")} ${game.i18n.localize("DRPG.Chapter.bodyCalledNext")}</p>
         </div>`
     });
 

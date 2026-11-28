@@ -31548,7 +31548,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             for (const [i, userId] of voters.entries()) {
                 await ballotStore.patch(userId, { chapter: progress.chapter, round: vote.round, actorId: a.id, choice: choices[i], at: Date.now() });
             }
-            await V.closeVote();
+            await V.closeVote({ preview: false });
             await settle();
             const after = V.trialProgress();
             equal(stableJson([after.voteClosed, after.noMajority, after.tied, after.accusedIds, after.majority, after.total,
@@ -31556,6 +31556,9 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             stableJson([true, true, true, [], 4, 6, [`${a.id}:4`, `${b.id}:2`, `${c.id}:1`, `${d.id}:1`].sort()]),
             "the count accused a second name short of the majority (4 of 6), or did not record that the room has no majority");
 
+            // the count's card goes to the table at the GMs' Announce since 2.0 line T3 EXP-GM-04, not at the close
+            if (typeof V.announceVote === "function") await V.announceVote();
+            await settle();
             const banner = game.i18n.localize("DRPG.Vote.resultBanner");
             const card = game.messages.find(m => !before.has(m.id) && String(m.content ?? "").includes(banner));
             const el = document.createElement("div");
@@ -32465,15 +32468,29 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         try {
             await withVerdictOpen(async () => {
                 await V.setTrialProgress({ voteClosed: true });
+                /* Road 1 since 2.0 line T3 TRIAL-03 (27.11.2026): this GM's press, its own verdict, takes the verdict on the
+                   primary first (verdict.mjs `claimVerdict`, `verdict.finish`); the stand-in primary has no browser to grant
+                   it, so the press is read as asked of it, nothing run here. Until then the runner ran it here, answered
+                   lines and the stage read "done" with one summary. Scenario 58 TRIAL-03 drives the grant on a real primary. */
                 await stoppedBy(me);
                 game.users.set(primary.id, primary);
                 const seen = await trialConsole(primary.name);
-                const answer = await press(primary);
+                const asked = [], emit = game.socket.emit;
+                game.socket.emit = function (event, packet, options, ...rest) {
+                    if (packet?.action === "verdict.finish") asked.push((options?.recipients ?? []).includes(primary.id));
+                    return emit.call(this, event, packet, options, ...rest);
+                };
+                let answer = "unanswered";
+                try {
+                    answer = await V.finishVerdict();
+                } finally {
+                    game.socket.emit = emit;
+                    game.users.delete(primary.id);
+                }
                 await settle();
-                equal(stableJson([seen, Array.isArray(answer), V.trialProgress().verdict?.stage ?? null, await summaries(),
-                    warned.filter(line => line.includes(primary.name))]),
-                    stableJson([[false, true, true, false], true, "done", 1, []]),
-                    "a GM who is not the primary, whose page reloaded inside the verdict they gave, was not offered Finish or could not finish it (console: lead names the primary, Finish, its default, End's default; answered, stage, summaries, warnings)");
+                equal(stableJson([seen, answer ?? null, V.trialProgress().verdict?.stage ?? null, await summaries(), asked]),
+                    stableJson([[false, true, true, false], null, "applying", 0, [true]]),
+                    "a GM who is not the primary, whose page reloaded inside the verdict they gave, was not offered Finish or ran it without taking it on the primary (console: lead names the primary, Finish, its default, End's default; answer, stage, summaries, asked the primary)");
 
                 await stoppedBy(other.id);
                 game.users.set(other.id, other);
@@ -32490,8 +32507,9 @@ equal(read.added, 3, "three additions to a purse at once lost one");
                 const gone = await trialConsole(other.name);
                 const finished = await press(other);
                 await settle();
+                // Since 2.0 line T3 TRIAL-05: a full GM finishes another GM's stopped verdict, so its console leads to Finish, the default.
                 equal(stableJson([failedThere, gone, Array.isArray(finished), V.trialProgress().verdict?.stage ?? null, await summaries()]),
-                    stableJson([[true, true, false, false], [false, true, true, false], true, "done", 2]),
+                    stableJson([[false, true, true, false], [false, true, true, false], true, "done", 1]),
                     "after a step failed on another GM's verdict, this GM's console made Finish the default or did not name that GM, or once that GM was gone this GM, the primary, could not finish it (console there, console after, answered, stage, summaries)");
             });
         } finally {
@@ -61900,6 +61918,17 @@ equal(read.added, 3, "three additions to a purse at once lost one");
                 },
                 gone: (report, key) => !S.foundDoneStore.has(key),
                 back: key => stableJson([S.foundDoneStore.get(key)?.name, S.foundDoneStore.get(key)?.room]) === stableJson(["SUITE backed-up finished card", "SUITE PV room"])
+            },
+            // A Remnant erased at a clean-up, through its store (2.0 line T3 EXP-GM-10; `backup: true`, the case's record).
+            // A row of a trace no scene holds: the Investigation window lists it, nothing else reads it.
+            erasedRemnants: {
+                seed: async () => {
+                    await S.erasedRemnantStore.patch("SUITET3ERASED000", { name: "SUITE backed-up erased trace", type: "incident", visibility: "evident",
+                        room: "SUITE erased room", sceneId: "SUITET3SCENE0000", chapter: 99, day: 1, timeOfDay: "night", at: 1, by: null, byName: "", attempt: "SUITEATTEMPT" });
+                    return "SUITET3ERASED000";
+                },
+                gone: (report, key) => !S.erasedRemnantStore.has(key),
+                back: key => stableJson([S.erasedRemnantStore.get(key)?.name, S.erasedRemnantStore.get(key)?.room]) === stableJson(["SUITE backed-up erased trace", "SUITE erased room"])
             },
             // A Logic Dive set, through its store (E73 C4; backed up with the case, `backup: true`). Backed up with no
             // fixture here from 5101742, and this test failed naming it (CI 12.11, run 43164772167, shard 7). A set no
@@ -98693,7 +98722,8 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             finished: ["done", [], 1, LEVEL_UP.reinforced.picks, false, true, null],
             again: [null, 1, true],
             cards: [1, 0],
-            names: [["at", "by", "done", "failed", "final", "sentencePending", "stage"], []]
+            // `claimedAt` since 2.0 line T3 TRIAL-03: the Finish takes the verdict on the primary first (verdict.mjs `claimVerdict`), a time.
+            names: [["at", "by", "claimedAt", "done", "failed", "final", "sentencePending", "stage"], []]
         }), "a Final verdict stopped in its Level Ups was not offered Finish, its Finish did not give what waited once, or its record names somebody "
             + "(stopped: stage, failed, done, the stopped steps named, Y's offers, Y's waiting row, the console's Finish and its default; finished: stage, "
             + "failed, Y's offers, the waited picks in them, Y's waiting row, the GMs' store names Y given, stopped; again: a second Finish's answer, Y's offers, "
@@ -114733,7 +114763,17 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             answer = await Promise.race([pending, wait(5000).then(() => "timeout")]);
             took = Date.now() - at;
             await settle();
-            for (const doc of made) if ((doc.whisper ?? []).length) whispers.push([...doc.whisper]);
+            /* The 'waits on a screen' card alone: since 2.0 line T3 INV-05 (27.11.2026) the window running out also whispers
+               every GM, this one too, at its end (a GM's card, `gmPopup`), and since INV-03 the finder's owners and the GMs are
+               told the GM is describing it as it opens (`DRPG.Observe.describing`) - those items' cards, not this test's. The
+               'waits' card itself is whispered to the other GM alone, so this browser does not hold its words to read. */
+            const { wordsOf, cardFlag } = await import("./secret.mjs");
+            const describing = game.i18n.localize("DRPG.Observe.describing");
+            for (const doc of made) {
+                if (!(doc.whisper ?? []).length || cardFlag(doc, "gmPopup")) continue;
+                if (String(await wordsOf(doc, 1000) ?? "").includes(describing)) continue;
+                whispers.push([...doc.whisper]);
+            }
         } finally {
             Hooks.off("createChatMessage", hook);
             for (const doc of made) await doc.delete?.().catch(() => {});
@@ -121248,6 +121288,1299 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         equal(stableJson({ told: told.length, named: lines.some(line => line.includes(killer.name)), others: lines.length - told.length }),
             stableJson({ told: 1, named: false, others: 0 }),
             `{told: the words reaching the victim's player that are the attempt's notice; named: any of them naming the killer; others: any other words to them}: ${stableJson(lines)}`);
+    }],
+    // T3 investigation-trial-chapter
+    ["T3 TRIAL-02 - a Finish of the chapter's end relayed with none stopped answers the reason's key, and no toast on the primary", async () => {
+        /*
+         * 2.0 line T3 TRIAL-02, 27.11.2026 (Forge S2 G1, F3-forge-PC-2.md). A second full GM's Finish of the chapter's end
+         * is run here by `chapter.end` (bridge-runs-records.mjs `handleChapterEnd`); with no end stopped the primary's own
+         * Finish refuses with `DRPG.Chapter.notStopped`, which was a toast on this primary's screen and "nothing was carried
+         * out" on the asker's. Called as the runner calls it, the warnings caught: the run's answer and the toasts here. Red
+         * at 0b69122: `{ refused }` and one toast. Nothing is written: a Finish with nothing stopped runs no step.
+         */
+        needs(env.primaryGm(), "the relay runs on the primary GM alone");
+        const C = await import("./chapter.mjs");
+        must(!C.chapterEndStopped(), "an end stands stopped in this world - the Finish would run it");
+        const { handleChapterEnd } = await import("./bridge-runs-records.mjs");
+        const warned = [], warn = ui.notifications.warn;
+        let answer = null;
+        try {
+            ui.notifications.warn = (message, ...rest) => { warned.push(String(message)); };
+            answer = await handleChapterEnd({ finish: true });
+        } finally {
+            ui.notifications.warn = warn;
+        }
+        equal(stableJson({ key: answer?.reply?.relayedRefusal?.key ?? null, refused: answer?.refused ?? null, toasts: warned.length }),
+            stableJson({ key: "DRPG.Chapter.notStopped", refused: null, toasts: 0 }),
+            "{key: the reason the run answers; refused: its bridge refusal; toasts: the warnings on the primary}");
+    }],
+    ["T3 VOICE-09 - a relayed Fix voice without LiveKit answers resetRefused.livekit", async () => {
+        /*
+         * 2.0 line T3 VOICE-09, 27.11.2026. A second full GM's Fix voice is run here by `voice.reset`
+         * (bridge-runs-records.mjs `handleVoiceReset`); with no LiveKit on this primary nothing is sent, and the asker read
+         * "nothing was carried out". LiveKit stood in as not active (`game.modules.get` answers it inactive for the run),
+         * the warnings caught. Red at 0b69122: `{ refused }`. Nothing is sent or written: no LiveKit, no pass.
+         */
+        needs(env.primaryGm(), "the relay runs on the primary GM alone");
+        needs(env.replaceable(game.modules, "get", "`game.modules.get`"));
+        const { handleVoiceReset } = await import("./bridge-runs-records.mjs");
+        const own = Object.getOwnPropertyDescriptor(game.modules, "get");
+        const get = game.modules.get;
+        const warned = [], warn = ui.notifications.warn;
+        let answer = null;
+        try {
+            game.modules.get = function (id, ...rest) { return id === "avclient-livekit" ? { id, active: false } : get.call(this, id, ...rest); };
+            ui.notifications.warn = message => { warned.push(String(message)); };
+            answer = await handleVoiceReset();
+        } finally {
+            ui.notifications.warn = warn;
+            if (own) Object.defineProperty(game.modules, "get", own); else delete game.modules.get;
+        }
+        equal(stableJson({ key: answer?.reply?.relayedRefusal?.key ?? null, refused: answer?.refused ?? null, toasts: warned.length }),
+            stableJson({ key: "DRPG.Voice.resetRefused.livekit", refused: null, toasts: 0 }),
+            "{key: the reason the run answers; refused: its bridge refusal; toasts: the warnings on the primary}");
+    }],
+    ["T3 MURDER-07 - a relayed announcement of a body already announced answers bodyAnnouncedAlready", async () => {
+        /*
+         * 2.0 line T3 MURDER-07, 27.11.2026. A second full GM's announcement is run here by `body.discover`
+         * (bridge-runs-records.mjs `handleBodyDiscover`), through the primary's own `discoverBody`, whose refusal of a body
+         * this chapter announced already (`DRPG.Chapter.bodyAnnouncedAlready`) was a toast on this primary's screen. The
+         * fixture is "a body already announced is marked in the GM's list and not announced twice in the chapter"'s: in
+         * Daily Life a death the GMs keep, announced by the GM's road in a room no region has, the hold answered; then the
+         * same body sent through the relay. Red at 0b69122: `{ refused }` and one toast. Everything put back.
+         */
+        needs(env.primaryGm(), "a discovery runs on the primary GM alone (`discoverBody`)");
+        const [victim] = cast(1);
+        const { killCharacter, discoverBody, reviveCharacter, isDeadForGm } = await import("./chapter.mjs");
+        const { bodyDiscovery, clearBodyDiscovery, isEclipse, bodiesFoundIn } = await import("./settings.mjs");
+        const { handleBodyDiscover } = await import("./bridge-runs-records.mjs");
+        must(!bodyDiscovery() && !isEclipse(), "a discovery is waiting on the GM or an Eclipse is open - the press would be refused for that");
+        const ROOM = "SUITE T3 MURDER-07 a room no region has";
+        const rows = () => bodiesFoundIn(getClock().chapter, seasonEpoch()).length;
+        const clockBefore = foundry.utils.deepClone(getClock());
+        const foundBefore = game.settings.get(MODULE_ID, SETTINGS.bodyFound) ?? {};
+        const stampsBefore = foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS.bodiesFound) ?? {});
+        const seen = new Set(game.messages.map(m => m.id));
+        const D = foundry.applications.api.DialogV2;
+        const own = { confirm: Object.getOwnPropertyDescriptor(D, "confirm"), wait: Object.getOwnPropertyDescriptor(D, "wait") };
+        const warned = [], warn = ui.notifications.warn;
+        let answer = null, read = null;
+        try {
+            D.confirm = async () => false;
+            D.wait = async () => null;
+            await setClock({ phase: "dailyLife" });
+            must(await killCharacter(victim, { secret: true, keepBullets: true }), `${victim.name}'s death was not kept by the GMs`);
+            const before = rows();
+            await discoverBody({ room: ROOM, victim, scene: canvas?.scene ?? null });
+            await settle();
+            await clearBodyDiscovery();
+            must(rows() - before === 1, "the first announcement wrote no stamp - this would measure nothing");
+            ui.notifications.warn = message => { warned.push(String(message)); };
+            try {
+                answer = await handleBodyDiscover({ room: ROOM, victimId: victim.id, sceneId: canvas?.scene?.id ?? null });
+                await settle();
+            } finally {
+                ui.notifications.warn = warn;
+            }
+            read = { key: answer?.reply?.relayedRefusal?.key ?? null, name: answer?.reply?.relayedRefusal?.data?.name === victim.name,
+                refused: answer?.refused ?? null, toasts: warned.length, stamps: rows() - before };
+        } finally {
+            for (const [name, desc] of Object.entries(own)) {
+                if (desc) Object.defineProperty(D, name, desc); else delete D[name];
+            }
+            if (isDeadForGm(victim)) await reviveCharacter(victim, { quiet: true });
+            if (stableJson(game.settings.get(MODULE_ID, SETTINGS.bodyFound) ?? {}) !== stableJson(foundBefore)) {
+                await game.settings.set(MODULE_ID, SETTINGS.bodyFound, foundBefore);
+            }
+            await game.settings.set(MODULE_ID, SETTINGS.bodiesFound, stampsBefore);
+            if (getClock().phase !== clockBefore.phase) await setClock({ phase: clockBefore.phase });
+            for (const m of game.messages.filter(m => !seen.has(m.id))) await m.delete();
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ key: "DRPG.Chapter.bodyAnnouncedAlready", name: true, refused: null, toasts: 0, stamps: 1 }),
+            "{key: the reason the run answers; name: it names the victim; refused: its bridge refusal; toasts: the warnings on the primary; stamps: the rows both announcements wrote}");
+    }],
+    ["T3 TRIAL-01 - a primary that reloaded mid-end marks its record halted at its ready, and finishes it on a second GM's Finish", async () => {
+        /*
+         * 2.0 line T3 TRIAL-01, 27.11.2026 (Forge S1b TRIAL-01). A record "applying" written by this browser with no end
+         * running here is what this primary's reload leaves; at its ready it marks it halted (chapter.mjs `markHaltedEnd`),
+         * so a second GM reads it stopped, and a second GM's Finish run here through `chapter.end` (bridge-runs-records.mjs
+         * `handleChapterEnd`) does the rest, writing the record without the mark. From Daily Life with no trial: the record
+         * asks the next morning alone. Read: the mark, a second GM's reading of it (a stand-in full GM, as E42-T12 stands
+         * one in), the Finish's answer, the day moved and the record after. The clock and the record are put back. Red at
+         * 0b69122: no `markHaltedEnd`.
+         */
+        needs(env.primaryGm(), "the chapter's end runs on the primary GM alone");
+        const C = await import("./chapter.mjs");
+        const { handleChapterEnd } = await import("./bridge-runs-records.mjs");
+        const { trialFloor } = await import("./trial-floor.mjs");
+        const { murderState } = await import("./murder.mjs");
+        const { isEclipse } = await import("./settings.mjs");
+        must(typeof C.markHaltedEnd === "function", "chapter.mjs has no markHaltedEnd: a reload of the primary mid-end leaves an end no second GM sees stopped");
+        must(!murderState() && !isEclipse() && !trialFloor(), "an incident, an Eclipse or a trial is open - the end would not run as asked");
+        const KEY = SETTINGS.chapterEnd;
+        const clock = foundry.utils.deepClone(getClock());
+        const SECOND = standInUser({ name: "T3 TRIAL-01 second GM", role: CONST.USER_ROLES.GAMEMASTER, active: true, sorts: "last" });
+        const read = {};
+        try {
+            await setClock({ ...clock, phase: "dailyLife" });
+            const start = foundry.utils.deepClone(getClock());
+            const choices = { reveal: false, sweep: false, faint: false, keys: false, endTrial: false, nextChapter: false, nextSession: false, nextMorning: true };
+            await game.settings.set(MODULE_ID, KEY, { stage: "applying", by: game.user.id, at: 1, opened: null, choices, done: [], failed: [], notRun: [],
+                ending: { chapter: start.chapter, session: start.session, day: start.day ?? 1, phase: "dailyLife", stands: "dailyLife" } });
+            await settle();
+            const marked = await C.markHaltedEnd();
+            const record = foundry.utils.deepClone(game.settings.get(MODULE_ID, KEY) ?? {});
+            game.users.set(SECOND.id, SECOND);
+            const seen = C.chapterEndStopped(record, { users: game.users, me: SECOND.id, primary: game.user.id, running: false }) !== null;
+            game.users.delete(SECOND.id);
+            const again = await C.markHaltedEnd();
+            const answer = await handleChapterEnd({ finish: true });
+            await settle();
+            const after = game.settings.get(MODULE_ID, KEY) ?? {};
+            read.steps = [marked, record.halted?.why ?? null, seen, again, Array.isArray(answer?.reply), (getClock().day ?? 1) - (start.day ?? 1),
+                after.stage ?? null, "halted" in after];
+        } finally {
+            game.users.delete(SECOND.id);
+            await setClock(clock);
+            await game.settings.set(MODULE_ID, KEY, {});
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ steps: [true, "reload", true, false, true, 1, "done", false] }),
+            "{steps: [the mark written, its why, a second GM reads it stopped, a second mark, the Finish answers lines, days on, the record's stage after, the mark left]}");
+    }],
+    ["T3 TRIAL-08 - an entry into the trial cut after the budget is finished at the primary's ready: the reset and the fee run, the budget does not run again", async () => {
+        /*
+         * 2.0 line T3 TRIAL-08, 28.11.2026. The phase written into the clock and the page closed before its steps ran past the
+         * budget: the clock's setting set raw (no `setClock`, so none of `reconcilePhase` runs here), and a row of the GMs'
+         * store `phaseStepStore` as the writer left it - by a GM who is not connected, `done` and `started` the budget, and
+         * the steps that reach out of the world (the dead's microphones, the deaths' whisper, the hall) done too, so the
+         * steps left are the record's reset and the Key fee. A student's actions spent to 0 before: the budget, run again,
+         * would give them back. Then the primary's ready finish (clock.mjs `finishPhaseSteps`). Read: a field the reset
+         * blanks (`verdictApplied`), the fee's stamp (`keysCharged`), the student's actions and the row after. The clock,
+         * the record, the budgets, the pools and the store's rows are put back. Red at 5243413: no `finishPhaseSteps`.
+         */
+        needs(env.primaryGm(), "the primary finishes the steps");
+        const C = await import("./clock.mjs");
+        must(typeof C.finishPhaseSteps === "function", "clock.mjs has no finishPhaseSteps: an entry cut half way stays cut");
+        const { phaseStepStore } = await import("./gm-stores.mjs");
+        const { budgetsOf, putBackBudgets, setActions } = await import("./actions.mjs");
+        const { monokumas, getDespair, setDespair } = await import("./despair.mjs");
+        const { trialFloor } = await import("./trial-floor.mjs");
+        must(!trialFloor() && getClock().phase !== "classTrial", "a trial is open - the fixture would cut a real one");
+        const [actor] = cast(1);
+        const clock = foundry.utils.deepClone(getClock());
+        const record = foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS.trialProgress) ?? {});
+        const budgets = budgetsOf(), pools = monokumas().map(user => [user.id, getDespair(user.id)]);
+        const rowsBefore = Object.keys(phaseStepStore.entries() ?? {});
+        const KEY = "T3TRIAL08", GONE = "T3TRIAL08GONE000";
+        const read = {};
+        try {
+            await game.settings.set(MODULE_ID, SETTINGS.trialProgress, { ...record, chapter: clock.chapter, verdictApplied: true, keysCharged: false });
+            await setActions(actor, 0);
+            await game.settings.set(MODULE_ID, SETTINGS.clock, { ...clock, phase: "classTrial" });
+            await phaseStepStore.patch(KEY, { from: clock.phase, to: "classTrial", at: 1, by: GONE,
+                done: ["budget", "voices", "deaths", "follow"], failed: [], started: ["budget"] });
+            await settle();
+            const out = await C.finishPhaseSteps();
+            await settle();
+            const after = game.settings.get(MODULE_ID, SETTINGS.trialProgress) ?? {}, row = phaseStepStore.get(KEY) ?? {};
+            read.finished = out.map(x => [x.key, x.ran]);
+            read.record = [Boolean(after.verdictApplied), Boolean(after.keysCharged)];
+            read.actions = budgetsOf()[actor.id]?.value ?? null;
+            read.row = [...(row.done ?? [])].sort();
+            read.again = (await C.finishPhaseSteps()).length;
+        } finally {
+            await game.settings.set(MODULE_ID, SETTINGS.clock, clock);
+            await game.settings.set(MODULE_ID, SETTINGS.trialProgress, record);
+            await putBackBudgets(budgets);
+            for (const [id, n] of pools) if (getDespair(id) !== n) await setDespair(id, n);
+            const extra = Object.keys(phaseStepStore.entries() ?? {}).filter(k => !rowsBefore.includes(k));
+            if (extra.length) await phaseStepStore.dropMany(extra);
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ finished: [[KEY, ["reset", "fee"]]], record: [false, true], actions: 0,
+            row: ["budget", "deaths", "fee", "follow", "reset", "voices"], again: 0 }),
+            "{finished: [the row, the steps run]; record: [verdictApplied after the reset, the fee's stamp]; the student's actions (the budget not run again); the row's done; a second finish: nothing}");
+    }],
+    ["T3 EXP-GM-11 - Give to the ticked students gives each one copy", async () => {
+        /*
+         * 2.0 line T3 EXP-GM-11, 28.11.2026. Two of three living students given a new Truth Bullet through gm-items.mjs
+         * `giveToMany` (the road Picked students and Everyone take): each of the two holds one new copy, the third none.
+         * Tell the player off, so no card is posted. Every new bullet and its answer key are taken away. Red at 383c779:
+         * no giveToMany.
+         */
+        const G = await import("./gm-items.mjs");
+        const TB = await import("./truth-bullets.mjs");
+        must(typeof G.giveToMany === "function", "gm-items.mjs has no giveToMany: Give cannot go to the ticked students");
+        const { livingStudentsForGm } = await import("./chapter.mjs");
+        const living = livingStudentsForGm();
+        must(living.length >= 3, "three living students are needed - this would measure nothing");
+        const [a, b, c] = living;
+        const before = new Map([a, b, c].map(x => [x.id, new Set(TB.bulletsOf(x).map(i => i.uuid))]));
+        const fresh = x => TB.bulletsOf(x).filter(i => !before.get(x.id).has(i.uuid));
+        const result = { recipient: null, tell: false, mode: "create", name: "SUITE T3 EXP-GM-11 picked", realType: "neutral", shown: "auto",
+            visibility: "evident", faint: false, tied: false, playerText: "SUITE picked words", analyzedText: "", gmNote: "", img: null };
+        let given = null, read = null;
+        try {
+            given = await G.giveToMany(result, [a, b], [], {});
+            await settle();
+            read = [a, b, c].map(x => fresh(x).length);
+        } finally {
+            for (const x of [a, b, c]) for (const item of fresh(x)) {
+                await TB.dropSecret(item.uuid).catch(() => {});
+                await item.delete().catch(() => {});
+            }
+            await settle();
+        }
+        equal(stableJson({ given, read }), stableJson({ given: true, read: [1, 1, 0] }), "{every ticked one got theirs; new copies: [first ticked, second ticked, not ticked]}");
+    }],
+    ["T3 EXP-PL-17 - a copy given to two ticked students says the GM gave it to others too, naming nobody", async () => {
+        /*
+         * 2.0 line T3 EXP-PL-17, 28.11.2026. A new Truth Bullet given through gm-items.mjs `giveToMany` to two living students,
+         * then another to a third alone: each copy's origin as this GM reads it (truth-bullets.mjs `copyOriginOf`, the
+         * bullet's row since D2-30), the sentence the card draws from it (`copyOriginLines`), and no `copyOrigin` flag on
+         * the item, which every browser holds. Tell the player off. Every new bullet and its answer key are taken away. Red
+         * at 383c779: no origin on a given copy; the flag half red at dcdfe4c, which wrote it on the item.
+         */
+        const G = await import("./gm-items.mjs");
+        const TB = await import("./truth-bullets.mjs");
+        must(typeof G.giveToMany === "function" && typeof TB.copyOriginLines === "function", "no giveToMany / copyOriginLines");
+        const { livingStudentsForGm } = await import("./chapter.mjs");
+        const living = livingStudentsForGm();
+        must(living.length >= 3, "three living students are needed - this would measure nothing");
+        const [a, b, c] = living;
+        const before = new Map([a, b, c].map(x => [x.id, new Set(TB.bulletsOf(x).map(i => i.uuid))]));
+        const fresh = x => TB.bulletsOf(x).filter(i => !before.get(x.id).has(i.uuid));
+        const result = name => ({ recipient: null, tell: false, mode: "create", name, realType: "neutral", shown: "auto",
+            visibility: "evident", faint: false, tied: false, playerText: "SUITE origin words", analyzedText: "", gmNote: "", img: null });
+        let read = null;
+        try {
+            await G.giveToMany(result("SUITE T3 EXP-PL-17 two"), [a, b], [], {});
+            await G.giveToMany(result("SUITE T3 EXP-PL-17 one"), [c], [], {});
+            await settle();
+            const of = x => fresh(x).map(i => {
+                const flag = TB.copyOriginOf(i);
+                return { flag, lines: TB.copyOriginLines(flag), onItem: Object.hasOwn(i.flags?.[MODULE_ID] ?? {}, TB.TRUTH_BULLET_FLAGS.copyOrigin) };
+            });
+            read = { a: of(a), b: of(b), c: of(c) };
+        } finally {
+            for (const x of [a, b, c]) for (const item of fresh(x)) {
+                await TB.dropSecret(item.uuid).catch(() => {});
+                await item.delete().catch(() => {});
+            }
+            await settle();
+        }
+        const many = { flag: { kind: "givenMany" }, lines: [{ key: "DRPG.TruthBullet.copyOrigin.givenMany", data: {} }], onItem: false };
+        equal(stableJson(read), stableJson({ a: [many], b: [many], c: [{ flag: { kind: "given" }, lines: [{ key: "DRPG.TruthBullet.copyOrigin.given", data: {} }], onItem: false }] }),
+            "{each of the two: its copy says a GM gave it to others too, no name; the third, given alone: a GM gave it to you; none on the item}");
+    }],
+    ["T3 D2-30 - the first 2.0 build's copyOrigin flag is lifted into the bullet's row and only then taken off the item", async () => {
+        /*
+         * 2.0 line T3 EXP-PL-17 with D2-30, 28.11.2026. A Truth Bullet made on a living student, then the flag the first 2.0
+         * build wrote planted on it (a shared copy, a giver's name), and a second one of no known shape: the clause's run
+         * (truth-bullets.mjs `liftCopyOrigins`, as migrate.mjs `liftCopyOrigins` calls it). Read: its report, the row's
+         * origin, the flags after, and a second run. The bullets and their answer keys are taken away. Red at dcdfe4c: no
+         * liftCopyOrigins.
+         */
+        needs(env.primaryGm(), "the lift is the primary GM's");
+        const TB = await import("./truth-bullets.mjs");
+        must(typeof TB.liftCopyOrigins === "function", "truth-bullets.mjs has no liftCopyOrigins: the flag of the first 2.0 build stays on the items");
+        const { livingStudentsForGm } = await import("./chapter.mjs");
+        const [who] = livingStudentsForGm();
+        must(who, "a living student is needed - this would measure nothing");
+        const FLAG = `flags.${MODULE_ID}.${TB.TRUTH_BULLET_FLAGS.copyOrigin}`;
+        const made = [];
+        let read = null;
+        try {
+            for (const name of ["SUITE D2-30 lifted", "SUITE D2-30 shapeless"]) made.push(await TB.createTruthBullet(who, { name, playerText: "SUITE" }));
+            must(made.every(Boolean), "the fixture's bullets were not made");
+            await made[0].update({ [FLAG]: { kind: "shared", name: "SUITE giver" } });
+            await made[1].update({ [FLAG]: { kind: "elsewhere" } });
+            await settle();
+            const report = await TB.liftCopyOrigins();
+            await settle();
+            read = { report, row: TB.copyOriginOf(made[0]), shapeless: TB.copyOriginOf(made[1]),
+                flags: made.map(i => Object.hasOwn(who.items.get(i.id)?.flags?.[MODULE_ID] ?? {}, TB.TRUTH_BULLET_FLAGS.copyOrigin)),
+                again: await TB.liftCopyOrigins() };
+        } finally {
+            for (const item of made.filter(Boolean)) {
+                await TB.dropSecret(item.uuid).catch(() => {});
+                await who.items.get(item.id)?.delete().catch(() => {});
+            }
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ report: { lifted: 1, dropped: 1, kept: 0 }, row: { kind: "shared", name: "SUITE giver" }, shapeless: null,
+            flags: [false, false], again: null }),
+            "{the report; the lifted origin in the row; the shapeless one dropped; neither flag left; a second run finds none}");
+    }],
+    ["T3 EXP-GM-10 - an erasing clean-up leaves a row naming the trace, its room and the clean-up, and the Investigation window lists it", async () => {
+        /*
+         * 2.0 line T3 EXP-GM-10, 28.11.2026. As the used Cleaning Tools' test stands its fight: a killer at Stage 6, a trace
+         * placed on the scene on screen, a clean-up of total 30 that erases it (cleanup.mjs `resolveCleanup`, as the bridge
+         * calls it). Read: the GMs' row of the erased trace (gm-stores.mjs `erasedRemnantStore`) - its name, its room, the
+         * cleaner and the attempt - and the window's list built from the store (investigation.mjs `erasedRemnantsHtml`); then
+         * the clean-up undone (`undo: true`, the Reroll's road) with a roll that erases nothing (total 1): the trace is put
+         * back (under a new id here, as the used-tools test of E32+E07 C13 reads it) and its row taken. A Reroll at 30 would
+         * put it back and erase it again.
+         * The incident, the victim, the trace and the rows are put back. Red at 42c490f: no erasedRemnantStore.
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 2), "a killer and a victim, each with a player");
+        needs(world.atLeast("sceneOnScreen"), "the scrubbed trace is placed on the scene on screen");
+        const S = await import("./gm-stores.mjs");
+        must(S.erasedRemnantStore, "gm-stores.mjs has no erasedRemnantStore: an erased trace leaves the GMs nothing");
+        const M = await import("./murder.mjs");
+        const CL = await import("./cleanup.mjs");
+        const I = await import("./investigation.mjs");
+        const { placeRemnant, remnantById, remnantsOn, remnantData } = await import("./remnants.mjs");
+        const { livingStudents, isDeadForGm, reviveCharacter } = await import("./chapter.mjs");
+        const player = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const [killer, victim] = livingStudents().filter(player);
+        const scene = game.scenes.active ?? canvas?.scene;
+        const anchor = scene?.tokens?.find(t => t.x || t.y);
+        const ours = () => remnantsOn(scene).filter(t => remnantData(t)?.note === "SUITE EXP-GM-10 a trace the killer erases");
+        let trace = null, read = null;
+        try {
+            await fightOpen(M, killer, victim);
+            await turnFor(M, killer, "finishingBlow");
+            await M.resolveCrisisAction({ actorId: killer.id, key: "finishingBlow", total: 99, isCritical: false, withHope: true });
+            await settle();
+            must(M.murderState()?.stage === "resolution", `the fixture's Stage 6 did not come: ${stableJson(M.murderState())}`);
+            trace = await placeRemnant({ type: "incident", visibility: "evident", x: anchor?.x ?? 0, y: anchor?.y ?? 0, scene,
+                room: "SUITE EXP-GM-10 room", note: "SUITE EXP-GM-10 a trace the killer erases" });
+            must(trace, "the fixture's trace was not placed");
+            const id = trace.id;
+            await CL.resolveCleanup({ actorId: killer.id, tokenId: id, total: 30, isCritical: false, withHope: true });
+            await settle();
+            const row = S.erasedRemnantStore.get(id);
+            const gone = !remnantById(scene.id, id);
+            const html = I.erasedRemnantsHtml(S.erasedRemnantStore.entries());
+            await CL.resolveCleanup({ actorId: killer.id, tokenId: id, total: 1, isCritical: false, withHope: true, undo: true, price: null });
+            await settle();
+            read = { gone, row: row ? [row.room, row.by, typeof row.attempt === "string" && row.attempt.length > 0, row.sceneId === scene.id] : null,
+                listed: html.includes(row?.name ?? "\u0000") && html.includes("SUITE EXP-GM-10 room"), back: ours().length === 1,
+                rowAfterUndo: S.erasedRemnantStore.has(id) };
+        } finally {
+            if (M.murderState()) await M.endMurder({ reason: "test", followUp: false });
+            if (isDeadForGm(victim)) await reviveCharacter(victim, { quiet: true });
+            if (trace?.id && S.erasedRemnantStore?.has(trace.id)) await S.erasedRemnantStore.drop(trace.id);
+            for (const left of ours()) {
+                if (S.erasedRemnantStore?.has(left.id)) await S.erasedRemnantStore.drop(left.id);
+                try { await (left?.document ?? left)?.delete(); } catch { /* already gone */ }
+            }
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ gone: true, row: ["SUITE EXP-GM-10 room", killer.id, true, true], listed: true, back: true, rowAfterUndo: false }),
+            "{the trace gone; its row: [room, cleaner, an attempt, its scene]; the window lists its name and room; undone: the trace back, the row gone}");
+    }],
+    ["T3 TRIAL-03 - a second GM's Finish takes the verdict on the primary and runs its steps here", async () => {
+        /*
+         * 2.0 line T3 TRIAL-03, 27.11.2026 (Forge S1b TRIAL-03 passed on 1.2.129 only because GM2 gave the verdict
+         * itself). A second full GM's Finish of a verdict the primary ran was carried out by the primary's own Finish, its
+         * Level Ups' window and the Blackened's rule on the primary, while the asker's bridge waited `rulingMs` and said
+         * the GM did not answer. Now `verdict.finish` claims it here (bridge-runs-records.mjs `handleVerdictFinish`,
+         * verdict.mjs `claimVerdict`) and answers at once; the steps are the asker's. A stopped verdict (its GM gone), a
+         * second full GM stood in (as "a stopped verdict is finished by the GM who gave it ..." stands one): its claim read
+         * as the runner hands it, then a third GM's claim. Read: the answers, the record's `by`, `failed` and `claimedAt`,
+         * its stage and steps after, and the GMs' summaries posted here. Red at 0b69122: the handler ran the Finish here
+         * (answer lines, stage "done", one summary).
+         */
+        needs(env.primaryGm(), "the claim is taken on the primary GM alone");
+        const V = await import("./vote.mjs");
+        const { handleVerdictFinish } = await import("./bridge-runs-records.mjs");
+        const { wordsOf } = await import("./secret.mjs");
+        const title = game.i18n.localize("DRPG.Vote.verdictTitle");
+        const from = new Set(game.messages.map(m => m.id));
+        const gmUser = name => standInUser({ name, role: CONST.USER_ROLES.GAMEMASTER, active: true, sorts: "last" });
+        const second = gmUser("T3 TRIAL-03 second GM"), third = gmUser("T3 TRIAL-03 third GM");
+        const done = ["sentence", "executions", "card", "levelUps"];
+        const read = {};
+        const warned = [], warn = ui.notifications.warn;
+        try {
+            game.users.set(second.id, second);
+            game.users.set(third.id, third);
+            ui.notifications.warn = message => { warned.push(String(message)); };
+            await withVerdictOpen(async () => {
+                await V.setTrialProgress({ verdictApplied: true, voteClosed: true, verdict: { stage: "applying", correct: true, executedIds: [],
+                    by: "a GM who left", at: Date.now(), done, failed: [] } });
+                const answer = await handleVerdictFinish({}, second);
+                await settle();
+                const record = V.trialProgress().verdict ?? {};
+                const other = await handleVerdictFinish({}, third);
+                await settle();
+                const summaries = (await Promise.all(game.messages.filter(m => !from.has(m.id)).map(m => wordsOf(m, 1000))))
+                    .filter(words => String(words ?? "").includes(title)).length;
+                read.claim = [answer?.reply?.granted ?? null, record.by === second.id, stableJson(record.failed ?? null), Number.isFinite(record.claimedAt),
+                    record.stage ?? null, stableJson(record.done ?? null) === stableJson(done), summaries];
+                read.other = [other?.reply?.relayedRefusal?.key ?? null, other?.reply?.relayedRefusal?.data?.name === second.name,
+                    V.trialProgress().verdict?.by === second.id, warned.length];
+            });
+        } finally {
+            ui.notifications.warn = warn;
+            game.users.delete(second.id);
+            game.users.delete(third.id);
+        }
+        equal(stableJson(read), stableJson({ claim: [true, true, "[]", true, "applying", true, 0], other: ["DRPG.Vote.finishTaken", true, true, 0] }),
+            "{claim: [granted, `by` the asker, failed, claimedAt, stage, its steps as they were, summaries here]; other: [a third GM's claim refused with, naming the GM finishing it, `by` kept, toasts here]}");
+    }],
+    ["T3 PRIM-06 - the primary takes a stopped verdict a connected second GM gave, and runs its steps", async () => {
+        /*
+         * 2.0 line T3 PRIM-06, 27.11.2026. A verdict a connected second GM gave and whose step failed was the second GM's
+         * alone to finish: the primary's (and any third GM's) Finish was refused with `DRPG.Vote.finishOtherGm`. Now the
+         * primary's press takes it here (`claimVerdict`, local) and runs the steps left. The second GM stood in, connected;
+         * the record "applying" by them, its offers step failed. Read: the press's answer, the record's `by` and stage after,
+         * the summaries posted. Red at 0b69122: answer null, the refusal naming the second GM.
+         */
+        needs(env.primaryGm(), "the press is the primary GM's own");
+        const V = await import("./vote.mjs");
+        const { wordsOf } = await import("./secret.mjs");
+        const title = game.i18n.localize("DRPG.Vote.verdictTitle");
+        const from = new Set(game.messages.map(m => m.id));
+        const second = standInUser({ name: "T3 PRIM-06 second GM", role: CONST.USER_ROLES.GAMEMASTER, active: true, sorts: "last" });
+        const read = {};
+        const warned = [], warn = ui.notifications.warn;
+        try {
+            game.users.set(second.id, second);
+            ui.notifications.warn = message => { warned.push(String(message)); };
+            await withVerdictOpen(async () => {
+                await V.setTrialProgress({ verdictApplied: true, voteClosed: true, verdict: { stage: "applying", correct: true, executedIds: [],
+                    by: second.id, at: Date.now(), done: ["sentence", "executions", "card", "levelUps"], failed: ["offers"] } });
+                const answer = await V.finishVerdict();
+                await settle();
+                await until(() => game.messages.some(m => !from.has(m.id)));
+                const summaries = (await Promise.all(game.messages.filter(m => !from.has(m.id)).map(m => wordsOf(m, 1000))))
+                    .filter(words => String(words ?? "").includes(title)).length;
+                const record = V.trialProgress().verdict ?? {};
+                read.steps = [Array.isArray(answer), record.by === game.user.id, record.stage ?? null, summaries,
+                    warned.some(line => line.includes(second.name))];
+            });
+        } finally {
+            ui.notifications.warn = warn;
+            game.users.delete(second.id);
+        }
+        equal(stableJson(read), stableJson({ steps: [true, true, "done", 1, false] }),
+            "{steps: [the press answered lines, `by` this GM, stage, summaries, a refusal naming the second GM]}");
+    }],
+    ["T3 TRIAL-04 - a second GM's reset runs on the primary from the plan it sends", async () => {
+        /*
+         * 2.0 line T3 TRIAL-04, 27.11.2026 (Forge S2 H1). A second full GM's Reset the season was refused before its window
+         * and again after the word (`DRPG.GmStore.resetPrimaryOnly`); its plan is run here now, by the run of `season.reset`
+         * (bridge-runs-records.mjs `handleSeasonReset`, season-wipe.mjs `runSeasonReset`), on this primary. As "a reset
+         * counts the season and keeps the fog epoch" runs one: the clock alone ticked, the cast left where it stands, the
+         * exceptions not remembered; a second full GM and an Assistant GM stood in as senders. Read: the Assistant's answer,
+         * the second GM's reply (what was cleared), the season counted on. The clock is put back here, the rest by tier 2's
+         * restore. Red at 79a4164: no `handleSeasonReset`.
+         */
+        needs(env.primaryGm(), "a season reset is the primary GM's");
+        const R = await import("./bridge-runs-records.mjs");
+        must(typeof R.handleSeasonReset === "function", "bridge-runs-records.mjs has no handleSeasonReset: a second GM's reset never reaches the primary");
+        const second = standInUser({ name: "T3 TRIAL-04 second GM", role: CONST.USER_ROLES.GAMEMASTER, active: true, sorts: "last" });
+        const assistant = standInUser({ name: "T3 TRIAL-04 Assistant GM", role: CONST.USER_ROLES.ASSISTANT, active: true, sorts: "last" });
+        const before = getClock();
+        const plan = { groups: ["clock"], cast: { to: "stay" }, remember: false };
+        let read = null;
+        try {
+            const refused = await R.handleSeasonReset(plan, assistant);
+            const answer = await R.handleSeasonReset(plan, second);
+            await gmStoresIdle();
+            read = { refused: typeof refused?.refused === "string" && refused.refused.startsWith("only a GM "), cleared: answer?.reply?.cleared ?? null,
+                season: (getClock().season ?? 1) - (before.season ?? 1) };
+        } finally {
+            await setClock(before);
+        }
+        equal(stableJson(read), stableJson({ refused: true, cleared: ["clock"], season: 1 }),
+            "{refused: an Assistant GM's plan; cleared: what the second GM's reset cleared; season: counted on}");
+    }],
+    ["T3 INV-01 - a find waiting on its words opens the describe window on a second full GM from the row, and on a GM who loads later", async () => {
+        /*
+         * 2.0 line T3 INV-01, 27.11.2026 (Forge S1b INV-01, S2 D1). A row of the GMs' store written as another full GM's
+         * browser writes it while its window waits (`describing` with `askId`, `gm` that GM, the prefilled name): this
+         * browser asks from the rows (observe.mjs `askDescribeFromRows`, as at a store's change or its stores' opening) and
+         * draws the window, once per ask; a browser that has not asked yet - one loading later - would ask
+         * (`describeAskedHere` with nothing asked). The seeded trace, a student of the cast; the window closed and the row
+         * dropped after. Red at 79a4164: no `askDescribeFromRows` - nothing on this browser asks from a row, only a whisper.
+         */
+        needs(env.dialogs(), "the window is drawn");
+        needs(world.atLeast("remnantTokens", 1), "a find is of a trace");
+        const O = await import("./observe.mjs");
+        const R = await import("./remnants.mjs");
+        const { observeStore } = await import("./gm-stores.mjs");
+        must(typeof O.askDescribeFromRows === "function", "observe.mjs has no askDescribeFromRows: another GM's find asks nobody on this browser");
+        const [student] = cast(1);
+        const [scene, ref] = [...game.scenes].flatMap(s => R.remnantsOn(s).map(r => [s, r]))[0] ?? [];
+        must(scene && ref, "no trace ref - this would measure nothing");
+        const tokenId = ref.tokenId ?? ref.id ?? ref.token?.id;
+        const title = game.i18n.localize("DRPG.Observe.describeTitle");
+        const drawn = () => [...foundry.applications.instances.values()].filter(a => a.rendered && a.options?.window?.title === title);
+        const KEY = `suite-t3-inv01-${foundry.utils.randomID(6)}`, ASK = foundry.utils.randomID();
+        const row = { actorId: student.id, sceneId: scene.id, tokenId, room: "SUITE T3 INV-01 room", at: Date.now(),
+            describing: { at: Date.now(), total: 15, isCritical: false, gm: "SUITET3INV01GM00", askId: ASK, fallbackName: "SUITE T3 INV-01 name", stored: false, room: "SUITE T3 INV-01 room" } };
+        let read = null;
+        try {
+            // The row's write is the store's change: this browser asks from the rows at it (registerObserveRecovery's hook).
+            await observeStore.patch(KEY, row);
+            await until(() => drawn().length > 0, 3000);
+            const windows = drawn().length;
+            const name = drawn()[0]?.element?.querySelector('input[name="name"]')?.value ?? null;
+            const again = O.askDescribeFromRows();
+            const later = O.describeAskedHere(observeStore.get(KEY), { asked: new Set() });
+            read = { windows, name, again, later };
+        } finally {
+            for (const app of drawn()) await app.close().catch(() => {});
+            await observeStore.drop(KEY);
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ windows: 1, name: "SUITE T3 INV-01 name", again: 0, later: true }),
+            "{windows: drawn at the row's write; name: the row's prefilled name; again: a second read of the rows opens none; later: a browser with nothing asked would ask}");
+    }],
+    ["T3 INV-02 - the other GM's describe window closes once the find's words are in, and says whose and under what name", async () => {
+        /*
+         * 2.0 line T3 INV-02, 27.11.2026 (Forge S1b INV-02, S2 D2). The second GM's window stood after the counting GM had
+         * answered, and its press ended in "the game did not allow it". The row of another GM's find asked here, its window
+         * drawn (`askDescribeHere`), then the row written as that GM's browser writes the ask's end (`described`: by that GM,
+         * the name): the window closes (`closeAnsweredWindows`) with one notice naming the GM and the name, and nothing is
+         * written to the row from here. A stand-in GM, the seeded trace; the window and the row put back. Red at 79a4164: no
+         * `askDescribeHere`.
+         */
+        needs(env.dialogs(), "the window is drawn");
+        needs(world.atLeast("remnantTokens", 1), "a find is of a trace");
+        const O = await import("./observe.mjs");
+        const R = await import("./remnants.mjs");
+        const { observeStore } = await import("./gm-stores.mjs");
+        must(typeof O.askDescribeHere === "function" && typeof O.closeAnsweredWindows === "function",
+            "observe.mjs has no askDescribeHere or closeAnsweredWindows: another GM's window stands after the find's words are in");
+        const [student] = cast(1);
+        const [scene, ref] = [...game.scenes].flatMap(s => R.remnantsOn(s).map(r => [s, r]))[0] ?? [];
+        must(scene && ref, "no trace ref - this would measure nothing");
+        const tokenId = ref.tokenId ?? ref.id ?? ref.token?.id;
+        const counting = standInUser({ name: "T3 INV-02 counting GM", role: CONST.USER_ROLES.GAMEMASTER, active: true, sorts: "last" });
+        const title = game.i18n.localize("DRPG.Observe.describeTitle");
+        const drawn = () => [...foundry.applications.instances.values()].filter(a => a.rendered && a.options?.window?.title === title);
+        const KEY = `suite-t3-inv02-${foundry.utils.randomID(6)}`, ASK = foundry.utils.randomID();
+        const row = { actorId: student.id, sceneId: scene.id, tokenId, room: "SUITE T3 INV-02 room", at: Date.now(),
+            describing: { at: Date.now(), total: 15, isCritical: false, gm: counting.id, askId: ASK, fallbackName: "SUITE T3 INV-02 name", stored: false, room: "SUITE T3 INV-02 room" } };
+        const told = [], info = ui.notifications.info;
+        let read = null;
+        try {
+            game.users.set(counting.id, counting);
+            ui.notifications.info = message => { told.push(String(message)); };
+            // The row's write opens the window (the store's change, `askDescribeFromRows` to `askDescribeHere`); the ask's end
+            // written as the counting GM's browser writes it closes it (`closeAnsweredWindows`, at the next change).
+            await observeStore.patch(KEY, row);
+            await until(() => drawn().length > 0, 3000);
+            const before = drawn().length;
+            await observeStore.patch(KEY, { described: { askId: ASK, by: counting.id, name: "SUITE T3 INV-02 given", at: Date.now(), timedOut: false } });
+            await until(() => drawn().length === 0, 3000);
+            await settle();
+            const closed = O.closeAnsweredWindows();
+            read = { before, closed, after: drawn().length, answered: Boolean(observeStore.get(KEY)?.describeAnswer),
+                told: told.filter(line => line === game.i18n.format("DRPG.Observe.describeTakenBy", { gm: counting.name, actor: student.name, name: "SUITE T3 INV-02 given" })).length };
+        } finally {
+            ui.notifications.info = info;
+            for (const app of drawn()) await app.close().catch(() => {});
+            game.users.delete(counting.id);
+            await observeStore.drop(KEY);
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ before: 1, closed: 0, after: 0, answered: false, told: 1 }),
+            "{before: the window drawn; closed: windows left for a second read to close; after: drawn after; answered: words written from here; told: the notice naming the GM and the name}");
+    }],
+    ["T3 INV-05 - a describe window that runs out tells every GM, the find's name in the words", async () => {
+        /*
+         * 2.0 line T3 INV-05, 27.11.2026. When the describe window's clock ran out the toast went to the browser that
+         * counted the Observe alone, and a GM without the window open never learned which Truth Bullet waits for its words.
+         * The window opened for a find of the suite's own with a time of 300 ms and left (observe.mjs `describeFind`, as
+         * "1.2.122 CASE-37" opens it). Read: the cards this browser created in the window's time - whispered to the GMs,
+         * raised as a GM's card (`gmPopup`), the find's name in their words - deleted after. Red at be1883e: no card.
+         */
+        needs(env.dialogs(), "the window is drawn");
+        const O = await import("./observe.mjs");
+        const { cardFlag, wordsOf } = await import("./secret.mjs");
+        const [student] = cast(1);
+        const title = game.i18n.localize("DRPG.Observe.describeTitle");
+        const drawn = () => [...foundry.applications.instances.values()].find(a => a.rendered && a.options?.window?.title === title);
+        const made = [];
+        const hook = Hooks.on("createChatMessage", doc => { made.push(doc); });
+        const warn = ui.notifications.warn;
+        let read = null;
+        try {
+            ui.notifications.warn = () => {};
+            await Promise.race([O.describeFind(student, { room: "SUITE T3 INV-05 room", data: { visibilityLabel: "Evident", typeLabel: "Prep", note: "" } },
+                false, "SUITE T3 INV-05 name", null, { waitMs: 300 }), wait(5000)]);
+            await settle();
+            const cards = [];
+            for (const doc of made) {
+                const words = String(await wordsOf(doc, 1000) ?? "");
+                if (words.includes("SUITE T3 INV-05 name")) cards.push([(doc.whisper ?? []).includes(game.user.id), Boolean(cardFlag(doc, "gmPopup"))]);
+            }
+            read = cards;
+        } finally {
+            Hooks.off("createChatMessage", hook);
+            ui.notifications.warn = warn;
+            for (const doc of made) await doc.delete?.().catch(() => {});
+            await drawn()?.close().catch(() => {});
+        }
+        equal(stableJson(read), stableJson([[true, true]]),
+            "[the cards naming the find: [whispered to this GM, raised as a GM's card]]");
+    }],
+    ["T3 INV-04 - the primary's hydration leaves the row of a connected second GM's window", async () => {
+        /*
+         * 2.0 line T3 INV-04, 27.11.2026. A row of the GMs' store marked `describing` by a connected second GM (stood in as a
+         * user of the list, as E42-T12 stands one in), its result not written; the primary's hydration finishes the rows a
+         * reload left (observe.mjs `recoverDescribing()` with no argument). Read: how many it finished, and whether the row
+         * still stands, unresolved. The row dropped after. Red at 1fdb5d3: 1 finished (the find resolved under its name).
+         */
+        needs(env.primaryGm(), "the recovery is the primary GM's");
+        const O = await import("./observe.mjs");
+        const { observeStore } = await import("./gm-stores.mjs");
+        const [student] = cast(1);
+        const second = standInUser({ name: "T3 INV-04 second GM", role: CONST.USER_ROLES.GAMEMASTER, active: true, sorts: "last" });
+        const KEY = `suite-t3-inv04-${foundry.utils.randomID(6)}`;
+        const row = { actorId: student.id, sceneId: canvas?.scene?.id ?? null, tokenId: "SUITET3INV04TOK0", room: "SUITE T3 INV-04 room", at: Date.now(),
+            describing: { at: Date.now(), total: 15, isCritical: false, rollId: null, by: null, gm: second.id } };
+        let read = null;
+        try {
+            game.users.set(second.id, second);
+            await observeStore.patch(KEY, row);
+            await settle();
+            const finished = await O.recoverDescribing();
+            const left = observeStore.get(KEY);
+            read = { finished, stands: Boolean(left?.describing), result: left?.result ?? null };
+        } finally {
+            game.users.delete(second.id);
+            await observeStore.drop(KEY);
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ finished: 0, stands: true, result: null }),
+            "{finished: rows the hydration finished; stands: the row still marked; result: its result}");
+    }],
+    ["T3 INV-03 - a sweep that finds an undescribed trace tells its finder the GM is describing it, once", async () => {
+        /*
+         * 2.0 line T3 INV-03, 27.11.2026. A General, Non-obvious or Follow my traces sweep is scored on the GM's browser, so
+         * the player's card says no "the GM is judging" (action-observe.mjs `settleObserveRoll`), and a find that waits on
+         * the describe window then waited in silence for up to the window's time. The window opened for a find of the
+         * suite's own, as `createFind` opens it (observe.mjs `describeFind`, a time of 300 ms, left to run out), once as a
+         * General sweep's and once as a named Observe's, whose card already says it waits. Read: the cards this browser
+         * created meanwhile that say `DRPG.Observe.describing`, whispered to the character's owners; deleted after. A trace
+         * with words and no critical is not asked (`createFind` calls no window), so it has no line by construction.
+         * Red at af1bf21: no such line.
+         */
+        needs(env.dialogs(), "the window is drawn");
+        const O = await import("./observe.mjs");
+        const { wordsOf } = await import("./secret.mjs");
+        const [student] = cast(1);
+        const owners = Object.entries(student.ownership ?? {}).filter(([id, level]) => id !== "default" && level >= 3 && !game.users.get(id)?.isGM).map(([id]) => id);
+        const line = game.i18n.localize("DRPG.Observe.describing");
+        const title = game.i18n.localize("DRPG.Observe.describeTitle");
+        const drawn = () => [...foundry.applications.instances.values()].filter(a => a.rendered && a.options?.window?.title === title);
+        const made = [];
+        const hook = Hooks.on("createChatMessage", doc => { made.push(doc); });
+        const [warn, info] = [ui.notifications.warn, ui.notifications.info];
+        const read = {};
+        try {
+            ui.notifications.warn = () => {};
+            ui.notifications.info = () => {};
+            for (const declaration of ["general", "specific"]) {
+                const from = made.length;
+                await Promise.race([O.describeFind(student, { room: "SUITE T3 INV-03 room", declaration,
+                    data: { visibilityLabel: "Evident", typeLabel: "Prep", note: "" } }, false, "SUITE T3 INV-03 name", null, { waitMs: 300 }), wait(5000)]);
+                await settle();
+                let n = 0;
+                for (const doc of made.slice(from)) {
+                    const words = String(await wordsOf(doc, 1000) ?? "");
+                    if (words.includes(line) && owners.every(id => (doc.whisper ?? []).includes(id))) n++;
+                }
+                read[declaration] = n;
+                for (const app of drawn()) await app.close().catch(() => {});
+            }
+        } finally {
+            Hooks.off("createChatMessage", hook);
+            [ui.notifications.warn, ui.notifications.info] = [warn, info];
+            for (const doc of made) await doc.delete?.().catch(() => {});
+            for (const app of drawn()) await app.close().catch(() => {});
+        }
+        equal(stableJson(read), stableJson({ general: 1, specific: 0 }),
+            "{general: a sweep's find, the lines to its owners; specific: a named Observe's, whose card already says it waits}");
+    }],
+    ["T3 INV-07 - an unanswered Key fee leaves the GMs a card that charges it", async () => {
+        /*
+         * 2.0 line T3 INV-07, 27.11.2026. A Class Trial opened on a GM who is not the primary asks the primary for the Key
+         * fee (key-remnants.mjs `askToChargeForUnfoundKeys`, `keys.charge`); when the ask went unanswered (no answer, no
+         * GM) its null was dropped - no fee, no card, nothing to press. The ask is answered here as the bridge answers a
+         * request nobody answered (`{ ok: false, reason }`, through the function's `ask`, the bridge's seam for the suite),
+         * once with no answer and once with no GM, and once refused. Read: the cards this browser created - whispered to
+         * the GMs, marked as a held fee's (`keyChargeHeld`, with the clock's chapter, `keyChargeChapter`) and holding its
+         * "Charge the Key fee" button - and what the ask answered; deleted after. Red at 6966f52: no card.
+         */
+        const K = await import("./key-remnants.mjs");
+        const { cardFlag, wordsOf } = await import("./secret.mjs");
+        const made = [];
+        const hook = Hooks.on("createChatMessage", doc => { made.push(doc); });
+        const chapter = Number(game.settings.get(MODULE_ID, SETTINGS.clock)?.chapter);
+        const read = {};
+        try {
+            for (const [name, answer] of [["noAnswer", { ok: false, reason: "noAnswer" }], ["noGm", { ok: false, reason: "noGm" }],
+                ["refused", { ok: false, refused: true, reason: "refused" }]]) {
+                const from = made.length;
+                const value = await K.askToChargeForUnfoundKeys({ ask: async () => answer });
+                await settle();
+                const cards = [];
+                for (const doc of made.slice(from)) {
+                    const words = String(await wordsOf(doc, 1000) ?? "");
+                    cards.push([Boolean(cardFlag(doc, "keyChargeHeld")), Number(cardFlag(doc, "keyChargeChapter")) === chapter,
+                        words.includes("data-drpg-key-charge"), (doc.whisper ?? []).includes(game.user.id)]);
+                }
+                read[name] = { value, cards };
+            }
+        } finally {
+            Hooks.off("createChatMessage", hook);
+            for (const doc of made) await doc.delete?.().catch(() => {});
+        }
+        equal(stableJson(read), stableJson({
+            noAnswer: { value: null, cards: [[true, true, true, true]] },
+            noGm: { value: null, cards: [[true, true, true, true]] },
+            refused: { value: null, cards: [] }
+        }), "{each answer: {value: what the ask answered; cards: [held fee's mark, its chapter the clock's, its button, whispered to this GM]}}");
+    }],
+    ["T3 INV-12 - an Observe the primary never answered raises one GM card, its total read off the GMs' record", async () => {
+        /*
+         * 2.0 line T3 INV-12, 27.11.2026. An `observe.resolve` whose primary dropped out before it answered left the player a
+         * spent action and "no answer", and the GMs nothing. The world's player character throws a roll of the suite's own
+         * (`neutralRoll`, its author the player), the GMs' record of it an Observe of 17 (`recordFor`); then that player's
+         * `resolve.lost` is judged as the primary's listener judges it (bridge-guards.mjs `judge`), its packet saying 99
+         * where the record says 17 - twice - and once for a second roll whose record says the Observe was settled after
+         * all. Read: the GMs' cards each judgement made (raised as a GM's card, `gmPopup`; the record's total in the words,
+         * not the packet's). Messages and records go. Red at bdf0825: no such action.
+         */
+        needs(env.primaryGm(), "the report is judged on the primary GM");
+        const G = await import("./bridge-guards.mjs");
+        const { BRIDGE_ACTIONS } = await import("./gm-bridge.mjs");
+        const { cardFlag, wordsOf } = await import("./secret.mjs");
+        must(Boolean(BRIDGE_ACTIONS["resolve.lost"]), "the bridge has no resolve.lost - nothing tells the GMs of a resolve nobody answered");
+        const { player, actor } = await playerInRoom();
+        const made = [], backs = [];
+        const hook = Hooks.on("createChatMessage", doc => { made.push(doc); });
+        const read = {};
+        try {
+            const roll = async (resolved = null) => {
+                const { message } = await neutralRoll(actor);
+                must(message, `no roll of ${actor.name} was thrown - this would measure nothing`);
+                await message.update({ author: player.id });
+                backs.push(async () => game.messages.get(message.id)?.delete());
+                const kept = await recordFor(message, player, actor, "observe", { total: 17 });
+                backs.push(kept.putBack);
+                if (resolved) {
+                    const { rollStore } = await import("./gm-stores.mjs");
+                    await rollStore.patch(kept.rollId, { resolved });
+                }
+                return message;
+            };
+            const cards = async from => {
+                const out = [];
+                for (const doc of made.slice(from)) {
+                    if (!cardFlag(doc, "gmPopup")) continue;
+                    const words = String(await wordsOf(doc, 1000) ?? "");
+                    if (words.includes(foundry.utils.escapeHTML(actor.name))) out.push([words.includes("17"), words.includes("99")]);
+                }
+                return out;
+            };
+            const lost = async message => {
+                const from = made.length;
+                await G.judge(BRIDGE_ACTIONS, { action: "resolve.lost", requestId: `T3I12${foundry.utils.randomID(8)}`, actorId: actor.id,
+                    kind: "observe", rollId: message.id, total: 99 }, player.id, { send: () => {} });
+                await settle();
+                return cards(from);
+            };
+            const first = await roll();
+            read.first = await lost(first);
+            read.again = await lost(first);
+            read.settled = await lost(await roll(["observe"]));
+        } finally {
+            Hooks.off("createChatMessage", hook);
+            for (const back of backs.reverse()) await back().catch(() => {});
+            for (const doc of made) await game.messages.get(doc.id)?.delete().catch(() => {});
+        }
+        equal(stableJson(read), stableJson({ first: [[true, false]], again: [], settled: [] }),
+            "{first: the cards of the first report [the record's 17 in the words, the packet's 99]; again: of the same roll's second; settled: of a roll settled after all}");
+    }],
+    ["T3 TRIAL-07 - an execute the primary did not answer leaves the GMs a card that carries the sentence out once", async () => {
+        /*
+         * 2.0 line T3 TRIAL-07, 27.11.2026. A second GM's `execute` asked of a primary that did not answer answered null,
+         * and nothing asked again (`retrySentence` asks only a sentence tried and failed). A student of the cast sentenced
+         * in this chapter's record, as E42-T3 writes one; another full GM stood in as the primary (tests-kit `standInUser`,
+         * sorting first), and the ask answered as the bridge answers one nobody answered (`executeAtExit`'s `ask`). Then
+         * the stand-in gone, so this GM is the primary, the card's button pressed twice (`wireSentenceAgain` on the card's
+         * words). Read: the cards made (raised as a GM's card, `gmPopup`, naming the student, with the button), the
+         * student's deaths written, the record stamped once and the button gone. Put back as E42-T3 puts it back.
+         * Red at 7286c53: no `wireSentenceAgain`, and no card.
+         */
+        needs(env.primaryGm(), "the sentence is carried out on the primary GM once the stand-in is gone");
+        const [A] = cast(1);
+        const V = await import("./vote.mjs");
+        const T = await import("./trial-progress.mjs");
+        const { cardFlag, wordsOf } = await import("./secret.mjs");
+        const { reviveCharacter, isDeceased, isDeadForGm } = await import("./chapter.mjs");
+        const clock = foundry.utils.deepClone(getClock());
+        const progress = foundry.utils.deepClone(getSetting(SETTINGS.trialProgress) ?? {});
+        must(!isDeadForGm(A), "the sentenced student is dead before the test - this would measure nothing");
+        must(typeof T.wireSentenceAgain === "function", "trial-progress.mjs has no wireSentenceAgain: a sentence the primary did not carry out leaves nothing to press");
+        let deaths = 0;
+        const hook = Hooks.on("updateActor", (actor, change) => {
+            if (actor.id === A.id && foundry.utils.getProperty(foundry.utils.expandObject(change ?? {}), `flags.${MODULE_ID}.${FLAGS.deceased}`)) deaths++;
+        });
+        const made = [];
+        const madeHook = Hooks.on("createChatMessage", doc => { made.push(doc); });
+        const primary = standInUser({ name: "T3 TRIAL-07 primary GM", role: CONST.USER_ROLES.GAMEMASTER, active: true, sorts: "first" });
+        const read = {};
+        try {
+            const chapter = getClock().chapter;
+            await game.settings.set(MODULE_ID, SETTINGS.clock, { ...getClock(), phase: "dailyLife" });
+            await game.settings.set(MODULE_ID, SETTINGS.trialProgress, { ...V.trialProgress(chapter), chapter, verdictApplied: true,
+                verdict: { stage: "done", correct: false, executedIds: [A.id], sentenced: [A.id], by: game.user.id, at: Date.now(),
+                    done: ["sentence", "card"], failed: [] }, executedAt: null, execution: null });
+            game.users.set(primary.id, primary);
+            let answer = "unset";
+            try {
+                answer = await V.executeAtExit({ chapter, ask: async () => ({ ok: false, reason: "noAnswer" }) });
+            } finally {
+                game.users.delete(primary.id);
+            }
+            await settle();
+            const cards = [];
+            for (const doc of made) {
+                if (!cardFlag(doc, "gmPopup")) continue;
+                const words = String(await wordsOf(doc, 1000) ?? "");
+                if (words.includes(foundry.utils.escapeHTML(A.name))) cards.push({ doc, words });
+            }
+            read.asked = [answer, cards.length, cards.map(c => c.words.includes("data-drpg-sentence-again"))];
+            const card = cards[0]?.doc ?? null;
+            const press = async () => {
+                const el = document.createElement("div");
+                el.innerHTML = cards[0]?.words ?? "";
+                document.body.append(el);
+                const wired = card ? await T.wireSentenceAgain(card, el) : false;
+                el.querySelector("[data-drpg-sentence-again]")?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+                await wait(1500);
+                el.remove();
+                return wired;
+            };
+            const pressed = [await press(), await press()];
+            await settle();
+            const r = getSetting(SETTINGS.trialProgress);
+            read.pressed = [pressed, isDeceased(A), deaths, Number.isFinite(r?.executedAt)];
+        } finally {
+            Hooks.off("updateActor", hook);
+            Hooks.off("createChatMessage", madeHook);
+            for (const u of game.users.filter(u => u.name === "T3 TRIAL-07 primary GM")) game.users.delete(u.id);
+            if (isDeadForGm(A)) await reviveCharacter(A, { quiet: true });
+            await game.settings.set(MODULE_ID, SETTINGS.clock, clock);
+            await game.settings.set(MODULE_ID, SETTINGS.trialProgress, progress);
+            for (const doc of made) await game.messages.get(doc.id)?.delete().catch(() => {});
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ asked: [null, 1, [true]], pressed: [[true, false], true, 1, true] }),
+            "{asked: [what the unanswered execute answered, the GMs' cards naming the student, each with its button]; pressed: [the button wired on the first press and the second, the student dead, deaths written, the record stamped]}");
+    }],
+    ["T3 TRIAL-15 - a record write the primary did not answer is told to the GMs once", async () => {
+        /*
+         * 2.0 line T3 TRIAL-15, 27.11.2026. A write of the trial's record that a primary did not answer goes on from this
+         * browser (trial-progress.mjs `askRecord`), and only the console said so. Another full GM stood in as the primary
+         * (tests-kit `standInUser`, sorting first), and two writes of the record's `keysCharged` as it stands, each asked as
+         * the bridge answers a request nobody answered (`setTrialProgress`'s `ask`), within the minute. Read: the cards this
+         * browser created that say `DRPG.Trial.recordWrittenHere`, whispered to the GMs, not raised as a GM's card. The
+         * record and the cards put back. Red at 283f5e9: no card.
+         */
+        needs(env.primaryGm(), "the stand-in primary is set beside this GM");
+        const T = await import("./trial-progress.mjs");
+        const { cardFlag, wordsOf } = await import("./secret.mjs");
+        const progress = foundry.utils.deepClone(getSetting(SETTINGS.trialProgress) ?? {});
+        const piece = game.i18n.localize("DRPG.Trial.recordWrittenHere").split(/\{[^}]+\}/).sort((a, b) => b.length - a.length)[0].trim().slice(0, 30);
+        const made = [];
+        const hook = Hooks.on("createChatMessage", doc => { made.push(doc); });
+        const primary = standInUser({ name: "T3 TRIAL-15 primary GM", role: CONST.USER_ROLES.GAMEMASTER, active: true, sorts: "first" });
+        const warnWas = console.warn;
+        let read = null;
+        try {
+            T.forgetWrittenHere?.();
+            console.warn = () => {};
+            game.users.set(primary.id, primary);
+            const noAnswer = async () => ({ ok: false, reason: "noAnswer" });
+            const charged = Boolean(T.trialProgress().keysCharged);
+            await T.setTrialProgress({ keysCharged: charged }, { ask: noAnswer });
+            await T.setTrialProgress({ keysCharged: charged }, { ask: noAnswer });
+            game.users.delete(primary.id);
+            await settle();
+            const cards = [];
+            for (const doc of made) {
+                const words = String(await wordsOf(doc, 1000) ?? "");
+                if (words.includes(piece)) cards.push([(doc.whisper ?? []).includes(game.user.id), Boolean(cardFlag(doc, "gmPopup"))]);
+            }
+            read = cards;
+        } finally {
+            console.warn = warnWas;
+            Hooks.off("createChatMessage", hook);
+            for (const u of game.users.filter(u => u.name === "T3 TRIAL-15 primary GM")) game.users.delete(u.id);
+            T.forgetWrittenHere?.();
+            await game.settings.set(MODULE_ID, SETTINGS.trialProgress, progress);
+            for (const doc of made) await game.messages.get(doc.id)?.delete().catch(() => {});
+            await settle();
+        }
+        equal(stableJson(read), stableJson([[true, false]]), "[the cards saying the write went from this browser: [whispered to this GM, raised as a GM's card]]");
+    }],
+    ["T3 TRIAL-14 - a disconnected objector raises one GM card after the grace, and the floor stands", async () => {
+        /*
+         * 2.0 line T3 TRIAL-14, 27.11.2026. An Objection's objector whose player left held the floor to the clock's end, and
+         * no GM was told. On this primary in a Class Trial, a debate and an Objection of the first participant at the
+         * second (as "1.2.128 S0-SKIP" opens one), the objector's User read as not connected by its `active` and
+         * `userConnected` called as Foundry calls it, as "1.2.128 S0-CUT B" does; then the grace waited and a second drop
+         * told. Read: the GMs' cards raised (`gmPopup`) whose words say `DRPG.Floor.holderGone` with the objector's name,
+         * and the floor's mode and holder after. The floor, the clock and the cards are put back. Waits the grace, about
+         * 17 s. Red at 3c3eebc: no card.
+         */
+        needs(world.atLeast("connectedPlayersWithCharacter", 2), "an objector and a target whose players are here");
+        const { isPrimaryGm } = await import("./utils.mjs");
+        must(isPrimaryGm(), "this browser is not the primary GM, which writes the floor - this would measure nothing");
+        const { TRIAL } = await import("./config.mjs");
+        const F = await import("./trial-floor.mjs");
+        const V = await import("./vote.mjs");
+        const { cardFlag, wordsOf } = await import("./secret.mjs");
+        const clock = foundry.utils.deepClone(getClock());
+        const queue = foundry.utils.deepClone(getSetting(SETTINGS.trialQueue) ?? {});
+        const progress = foundry.utils.deepClone(getSetting(SETTINGS.trialProgress) ?? {});
+        const seen = new Set(game.messages.map(m => m.id));
+        const graceMs = (Number(TRIAL.modes?.round?.goneGraceSeconds) || 0) * 1000;
+        const read = {};
+        let user = null, own;
+        const away = () => { Object.defineProperty(user, "active", { get: () => false, configurable: true }); Hooks.callAll("userConnected", user, false); };
+        try {
+            await setClock({ ...clock, phase: "classTrial" });
+            await game.settings.set(MODULE_ID, SETTINGS.trialQueue, {});
+            await settle();
+            const [one, two] = V.trialParticipants();
+            must(one && two, "two participants - this would measure nothing");
+            await F.startFloor({});
+            await F.openObjection(one.actor.id, two.actor.id, {});
+            await settle();
+            must(F.trialFloor()?.mode === "objection" && F.trialFloor()?.holderId === one.actor.id, "the Objection did not open on its objector - this would measure nothing");
+            user = one.user;
+            own = Object.getOwnPropertyDescriptor(user, "active");
+            away();
+            await wait(graceMs + 1500);
+            away();
+            await wait(1500);
+            const text = game.i18n.format("DRPG.Floor.holderGone", { name: foundry.utils.escapeHTML(one.actor.name) });
+            let cards = 0;
+            for (const m of game.messages.filter(m => !seen.has(m.id))) {
+                if (cardFlag(m, "gmPopup") && String(await wordsOf(m, 1000) ?? "").includes(text)) cards++;
+            }
+            read.cards = cards;
+            read.floor = [F.trialFloor()?.mode ?? null, F.trialFloor()?.holderId === one.actor.id];
+        } finally {
+            if (user) { if (own) Object.defineProperty(user, "active", own); else delete user.active; }
+            if (F.trialFloor()) await F.endFloor();
+            await game.settings.set(MODULE_ID, SETTINGS.trialQueue, queue);
+            await game.settings.set(MODULE_ID, SETTINGS.trialProgress, progress);
+            await setClock(clock);
+            F.renderTrialFloor();
+            const fresh = game.messages.filter(m => !seen.has(m.id)).map(m => m.id);
+            if (fresh.length) await ChatMessage.deleteDocuments(fresh);
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ cards: 1, floor: ["objection", true] }),
+            "{cards: the GMs' cards that the objector holding the floor is gone, after the grace and a second drop; floor: its mode and whether the objector still holds it}");
+    }],
+    ["T3 TRIAL-10 - a noSpeaker refusal adds the line on how the primary hears the room", async () => {
+        /*
+         * 2.0 line T3 TRIAL-10, 27.11.2026. Who has spoken is heard on the primary's browser, and a new primary starts with
+         * nobody: the objector read only "nobody has spoken". In a Class Trial, a student's OBJECTION! pressed with the
+         * primary's answer stood in (`raiseObjection`'s `request`): refused `noSpeaker`, then refused another way. Read:
+         * the toasts saying `DRPG.Trial.objectionSpeakersFresh` each press showed. The clock is put back. Red at f291658:
+         * none.
+         */
+        const T = await import("./trial.mjs");
+        const [student] = cast(1);
+        const clock = foundry.utils.deepClone(getClock());
+        const line = game.i18n.localize("DRPG.Trial.objectionSpeakersFresh");
+        const info = ui.notifications.info, shown = [];
+        const read = {};
+        try {
+            await setClock({ ...clock, phase: "classTrial" });
+            await settle();
+            ui.notifications.info = (msg, ...rest) => { shown.push(String(msg)); };
+            const press = async answer => {
+                const from = shown.length;
+                await T.raiseObjection(student, { request: async () => answer });
+                return shown.slice(from).filter(msg => msg === line).length;
+            };
+            read.noSpeaker = await press({ ok: false, refused: true, reason: "noSpeaker" });
+            read.other = await press({ ok: false, refused: true, reason: "floorClosed" });
+        } finally {
+            ui.notifications.info = info;
+            await setClock(clock);
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ noSpeaker: 1, other: 0 }), "{noSpeaker: the line after that refusal; other: after another refusal}");
+    }],
+    ["T3 EXP-PL-08 - a GM's rename of a trace tells each copy's holder once, and a reading reaches only an analysed copy's holder", async () => {
+        /*
+         * 2.0 line T3 EXP-PL-08, 27.11.2026. A GM's edit of a trace's public record rewrites every copy (truth-bullets.mjs
+         * `propagateRemnantPublic`) and told nobody. A trace of the suite's own described by the GM, a copy on each of two
+         * students of the cast (the second made analysed), then the trace renamed, then its reading written
+         * (remnants.mjs `setRemnantPublic`, the Dashboard's write). Read: per edit, the whispers made that say
+         * `DRPG.TruthBullet.copyChanged`, by whose copy (the card's speaker). Items, secrets, trace and cards put back.
+         * Red at 45682b1: none.
+         */
+        needs(world.atLeast("sceneOnScreen"), "the fixture trace is placed on the scene on screen");
+        const [A, B] = cast(2);
+        const R = await import("./remnants.mjs");
+        const TB = await import("./truth-bullets.mjs");
+        const { wordsOf } = await import("./secret.mjs");
+        const scene = canvas.scene;
+        const piece = game.i18n.localize("DRPG.TruthBullet.copyChanged").split(/\{[^}]+\}/).sort((a, b) => b.length - a.length)[0].trim().slice(0, 18);
+        const made = [];
+        const hook = Hooks.on("createChatMessage", doc => { made.push(doc); });
+        let trace = null;
+        const copies = [];
+        const read = {};
+        try {
+            trace = await R.placeRemnant({ type: "prep", visibility: "evident", scene, x: 300, y: 300, note: "SUITE T3 EXP-PL-08" });
+            must(trace, "the fixture's trace was not placed - this would measure nothing");
+            await R.setRemnantPublic(trace, { name: "SUITE T3 knife", playerText: "SUITE T3 on the floor" });
+            copies.push(await TB.createTruthBullet(A, { name: "SUITE T3 knife", playerText: "SUITE T3 on the floor", realType: "prep", visibility: "evident", remnantId: trace.id, sceneId: scene.id }));
+            copies.push(await TB.createTruthBullet(B, { name: "SUITE T3 knife", playerText: "SUITE T3 on the floor", realType: "prep", visibility: "evident", remnantId: trace.id, sceneId: scene.id, analyzed: true }));
+            must(copies.every(Boolean), "the fixture's copies were not made - this would measure nothing");
+            await settle();
+            const told = async from => {
+                const out = [];
+                for (const doc of made.slice(from)) {
+                    if (!String(await wordsOf(doc, 1000) ?? "").includes(piece)) continue;
+                    // whom: the card's speaker, the copy's holder (utils.mjs `whisperToOwner` speaks as the actor)
+                    const who = String(doc.speaker?.actor ?? "");
+                    out.push(who === A.id ? "A" : who === B.id ? "B" : "?");
+                }
+                return out.sort();
+            };
+            let from = made.length;
+            await R.setRemnantPublic(trace, { name: "SUITE T3 bloody knife" });
+            await settle();
+            read.rename = await told(from);
+            from = made.length;
+            await R.setRemnantPublic(trace, { analyzedText: "SUITE T3 the lab says rust" });
+            await settle();
+            read.reading = await told(from);
+        } finally {
+            Hooks.off("createChatMessage", hook);
+            for (const item of copies.filter(Boolean)) { const uuid = item.uuid; await item.delete().catch(() => {}); await TB.dropSecret(uuid).catch(() => {}); }
+            if (trace) { await R.dropRemnantSecret(trace).catch(() => {}); if (scene.tokens.has(trace.id)) await scene.deleteEmbeddedDocuments("Token", [trace.id]); }
+            for (const doc of made) await game.messages.get(doc.id)?.delete().catch(() => {});
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ rename: ["A", "B"], reading: ["B"] }),
+            "{rename: whose copy's holder each whisper of the rename told; reading: of the reading}");
+    }],
+    ["T3 EXP-GM-12 - a wrong verdict with the rule and the fill unticked runs neither, and a Finish does not run them", async () => {
+        /*
+         * 2.0 line T3 EXP-GM-12, 27.11.2026. A wrong verdict always gave the Blackened their Reinforced Level Up, asked
+         * their rule and filled every Despair pool. A wrong verdict on a Blackened of the cast with the rule and the fill
+         * left out (`applyVerdict`'s `skip`, as the window's ticks hand it), inside `withVerdictOpen` and
+         * `withAdvanceWindows` as the E05 C11 test gives one; then the verdict's Finish asked (`finishVerdict`). Read: each
+         * Monokuma's pool's move, whether the rule's window was asked, the record's `skip` and its `done` for the three,
+         * its stage, and what the Finish did. The waiting Level Up and the record put back. Red at 7bd6a6d: the rule's
+         * window asked and the pools filled.
+         */
+        const [killer] = cast(1);
+        const V = await import("./vote.mjs");
+        const D = await import("./despair.mjs");
+        const { deferredOfferStore } = await import("./gm-stores.mjs");
+        const ruleTitle = game.i18n.localize("DRPG.Vote.blackenedRuleTitle");
+        const pools = D.monokumas().map(u => [u.id, D.getDespair(u.id)]);
+        let read = null;
+        try {
+            await withVerdictOpen(async () => {
+                const asked = await withAdvanceWindows(() => null,
+                    () => V.applyVerdict({ correct: false, executedIds: [], blackenedIds: [killer.id], skip: ["rule", "despair"] }));
+                await settle();
+                const r = V.trialProgress().verdict ?? {};
+                const finished = await V.finishVerdict().catch(err => `threw ${err}`);
+                read = { moved: pools.map(([id, was]) => D.getDespair(id) - was), rule: asked.some(e => e.title === ruleTitle),
+                    skip: r.skip ?? null, done: ["offers", "rule", "despair"].map(step => (r.done ?? []).includes(step)), stage: r.stage ?? null,
+                    finished: finished ?? null };
+            });
+        } finally {
+            await deferredOfferStore.drop(killer.id);
+            for (const [id, was] of pools) { const d = was - D.getDespair(id); if (d) await D.adjustDespair(id, d); }
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ moved: pools.map(() => 0), rule: false, skip: ["rule", "despair"], done: [true, true, true], stage: "done", finished: null }),
+            "{moved: each pool's move; rule: the rule's window asked; skip: the record's; done: offers, rule, despair written done; stage; finished: the Finish's answer}");
+    }],
+    ["T3 EXP-PL-13 - the chapter's end with Next chapter posts one public card of what starts over and what stays", async () => {
+        /*
+         * 2.0 line T3 EXP-PL-13, 27.11.2026. The chapter's end told the GMs alone. Its last step (chapter.mjs
+         * `CHAPTER_END_STEPS` "players") run as the end's runner runs it (steps.mjs `runSteps`: `run(context)`), with Next
+         * chapter and the morning asked, once after a clock step that ran, once after one that failed, and once with no
+         * move to the next chapter. No whole end is run: the move to the next chapter takes the chapter's tools, holds and
+         * plans with it. Read: the public cards each run posted, and whether the card names the morning's line. The cards
+         * are deleted after. Red at cc1e9c8: no such step.
+         */
+        const C = await import("./chapter.mjs");
+        const step = C.CHAPTER_END_STEPS.find(s => s.key === "players");
+        must(step, "the chapter's end has no players' card step - nothing tells the table what the new chapter starts with");
+        const title = game.i18n.format("DRPG.Chapter.newChapter.title", { chapter: getClock().chapter });
+        const morning = game.i18n.localize("DRPG.Chapter.newChapter.morning");
+        const made = [];
+        const hook = Hooks.on("createChatMessage", doc => { made.push(doc); });
+        const read = {};
+        try {
+            const runOnce = async context => {
+                const from = made.length;
+                await step.run(context);
+                await settle();
+                return made.slice(from).filter(m => !(m.whisper ?? []).length && String(m.content ?? "").includes(foundry.utils.escapeHTML(title)))
+                    .map(m => String(m.content ?? "").includes(morning));
+            };
+            const choices = { nextChapter: true, nextMorning: true, sweep: false, faint: false, keys: false };
+            read.ran = await runOnce({ choices, failed: [] });
+            read.clockFailed = await runOnce({ choices, failed: ["clock"] });
+            read.noMove = await runOnce({ choices: { ...choices, nextChapter: false }, failed: [] });
+        } finally {
+            Hooks.off("createChatMessage", hook);
+            for (const doc of made) await game.messages.get(doc.id)?.delete().catch(() => {});
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ ran: [true], clockFailed: [], noMove: [] }),
+            "{ran: the public cards after a clock step that ran [names the morning]; clockFailed: after one that failed; noMove: with no Next chapter}");
+    }],
+    ["T3 EXP-GM-03 - Start the Class Trial with a request card waiting asks first and names it, and Cancel starts nothing", async () => {
+        /*
+         * 2.0 line T3 EXP-GM-03, 27.11.2026. Start the Class Trial read no request still waiting on a GM. A card of a
+         * player's thread with a ruling button, written as the console's Waiting holds one (the thread's flag, a GM its
+         * author), then Start the Class Trial pressed (`startClassTrial`): its own window answered as Start answers it, the
+         * waiting window read and Cancel pressed. Read: whether the waiting window opened, held the console's heading and
+         * the request's words, and the phase after. The card and the clock put back. Red at d7d982b: no waiting window,
+         * and the phase moved.
+         */
+        needs(world.atLeast("connectedPlayersWithCharacter", 1), "a player's thread");
+        needs(env.primaryGm(), "the trial is started on the primary GM");
+        const { MESSENGER_FLAGS } = await import("./messenger.mjs");
+        const T = await import("./trial-floor-ui.mjs");
+        const player = game.users.find(u => !u.isGM && u.active && u.character);
+        const clock = foundry.utils.deepClone(getClock());
+        const heading = game.i18n.localize("DRPG.Messenger.gm.waiting");
+        const WORDS = "SUITE T3 EXP-GM-03 asks to climb the fence";
+        let card = null, seen = null;
+        const read = {};
+        try {
+            await setClock({ ...clock, phase: "dailyLife" });
+            card = await ChatMessage.create({ content: `<p>${WORDS}</p><div class="drpg-call-actions"><button type="button" data-drpg-call="decline">No</button></div>`,
+                whisper: game.users.filter(u => u.isGM).map(u => u.id), flags: { [MODULE_ID]: { [MESSENGER_FLAGS.thread]: player.id } } });
+            await settle();
+            globalThis.__dialogAnswers.push(cfg => {
+                const text = String(cfg?.content?.innerHTML ?? cfg?.content ?? "");
+                if (text.includes(heading)) { seen = text; return "cancel"; }
+                return { cast: null };
+            }, cfg => {
+                const text = String(cfg?.content?.innerHTML ?? cfg?.content ?? "");
+                if (text.includes(heading)) { seen = text; return "cancel"; }
+                return "cancel";
+            });
+            await T.startClassTrial();
+            await settle();
+            read.window = [Boolean(seen), String(seen ?? "").includes(WORDS)];
+            read.phase = getClock().phase;
+        } finally {
+            globalThis.__dialogAnswers.length = 0;
+            if (card) await card.delete().catch(() => {});
+            await setClock(clock);
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ window: [true, true], phase: "dailyLife" }),
+            "{window: [the waiting window opened under the console's heading, it named the request's words]; phase: after its Cancel}");
+    }],
+    ["T3 EXP-GM-04 - Close and count shows the GM the count and posts nothing until Announce", async () => {
+        /*
+         * 2.0 line T3 EXP-GM-04, 27.11.2026. Close and count posted the result to the table in the same press. A round of
+         * two ballots on this primary, as "the count of a two-name vote short of a majority" builds one (the ballots'
+         * packets held back, the rows written to the GMs' store), closed (`closeVote`), then announced twice
+         * (`announceVote`). Read: the result cards in the chat after the close, after the first Announce and after the
+         * second; what the close answered of the card; the record's `resultAnnouncedAt` stamped. The record and the cards
+         * put back. Red at 3385c89: one card after the close.
+         */
+        needs(world.atLeast("connectedPlayersWithCharacter", 2), "two voters");
+        const { isPrimaryGm } = await import("./utils.mjs");
+        must(isPrimaryGm(), "this browser is not the primary GM, which counts the ballots");
+        const V = await import("./vote.mjs");
+        const { ballotStore } = await import("./gm-stores.mjs");
+        const [a, b] = cast(2);
+        const socket = game.socket;
+        const ownEmit = Object.getOwnPropertyDescriptor(socket, "emit");
+        const before = new Set(game.messages.map(m => m.id));
+        const stored = foundry.utils.deepClone(getSetting(SETTINGS.trialProgress) ?? {});
+        const banner = game.i18n.localize("DRPG.Vote.resultBanner");
+        const cards = () => game.messages.filter(m => !before.has(m.id) && String(m.content ?? "").includes(banner)).length;
+        let voters = [];
+        const read = {};
+        try {
+            await game.settings.set(MODULE_ID, SETTINGS.trialProgress, {});
+            const send = socket.emit;
+            socket.emit = function (event, packet, options, ...rest) {
+                if (packet?.action === "vote.open") return true;
+                return send.call(this, event, packet, options, ...rest);
+            };
+            await V.openVote({ picks: 1 });
+            const progress = V.trialProgress();
+            const vote = progress.vote ?? {};
+            must(vote.open === true && vote.issued.length >= 2, `the vote did not open with two ballots out: ${stableJson(vote)}`);
+            voters = vote.issued.slice(0, 2);
+            for (const userId of voters) await ballotStore.patch(userId, { chapter: progress.chapter, round: vote.round, actorId: a.id, choice: [b.id], at: Date.now() });
+            // the preview's Not yet pressed, as the GM who reads the count first would (`closeVote` opens it on this GM)
+            globalThis.__dialogAnswers.push("notYet");
+            const count = await V.closeVote();
+            await settle();
+            read.closed = [cards(), String(count?.card ?? "").includes(banner), V.trialProgress().resultAnnouncedAt ?? null];
+            read.first = [await V.announceVote(), cards()];
+            await settle();
+            read.second = [await V.announceVote(), cards(), Number.isFinite(V.trialProgress().resultAnnouncedAt)];
+        } finally {
+            globalThis.__dialogAnswers.length = 0;
+            if (ownEmit) Object.defineProperty(socket, "emit", ownEmit); else delete socket.emit;
+            await ballotStore?.dropMany?.(voters);
+            await game.settings.set(MODULE_ID, SETTINGS.trialProgress, stored);
+            const fresh = game.messages.filter(m => !before.has(m.id)).map(m => m.id);
+            if (fresh.length) await ChatMessage.deleteDocuments(fresh);
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ closed: [0, true, null], first: [true, 1], second: [false, 1, true] }),
+            "{closed: [result cards, the close's answer holds the card, the record's stamp]; first: [the first Announce posted, cards]; second: [the second posted, cards, stamped]}");
+    }],
+    ["T3 TRIAL-06 - the verdict window names the students whose ballots sit with a disconnected player", async () => {
+        /*
+         * 2.0 line T3 TRIAL-06, 27.11.2026. The GM read only "1 ballot never came back" and not that it sits with a player
+         * who is not connected. A player of the suite's own stood in (tests-kit `standInUser`, not connected), issued a
+         * ballot in this chapter's record of a closed count, none returned; the verdict's window opened (`openVerdictDialog`)
+         * inside `withVerdictOpen` and its words read as the window is asked, then Cancel. The record is put back. Red at
+         * 3385c89: the window names nobody.
+         */
+        const V = await import("./vote.mjs");
+        const away = standInUser({ name: "SUITE T3 TRIAL-06 away", role: CONST.USER_ROLES.PLAYER, active: false });
+        let seen = null;
+        try {
+            game.users.set(away.id, away);
+            await withVerdictOpen(async () => {
+                const now = V.trialProgress();
+                await game.settings.set(MODULE_ID, SETTINGS.trialProgress, { ...now, voteClosed: true, total: 1, accused: [], accusedIds: [], tied: true,
+                    vote: { ...(now.vote ?? {}), open: false, round: (Number(now.vote?.round) || 0) + 1, picks: 1, issued: [away.id] } });
+                globalThis.__dialogAnswers.push(cfg => { seen = String(cfg?.content?.innerHTML ?? cfg?.content ?? ""); return "cancel"; });
+                await V.openVerdictDialog();
+            });
+        } finally {
+            globalThis.__dialogAnswers.length = 0;
+            game.users.delete(away.id);
+            await settle();
+        }
+        const line = game.i18n.format("DRPG.Vote.silentGone.one", { n: 1, names: "SUITE T3 TRIAL-06 away" });
+        equal(stableJson([seen !== null, String(seen ?? "").includes("SUITE T3 TRIAL-06 away"), String(seen ?? "").includes(line)]), stableJson([true, true, true]),
+            "[the verdict window was asked, it names the away player's student, in the GMs' line of ballots with disconnected players]");
     }],
 ];
 

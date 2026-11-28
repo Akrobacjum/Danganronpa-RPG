@@ -46,7 +46,7 @@ import { runSteps } from "./steps.mjs";
 // A leaf (season-exceptions.mjs alone): the registry of season state the reset walks (E42 C3).
 import { registerSeasonState } from "./season-reset.mjs";
 import {
-    announce, whisperToGms, whisperToOwner, isPrimaryGm, log, warn, error, serialWrite, serverNow, esc
+    announce, whisperToGms, whisperToOwner, isPrimaryGm, primaryGmId, log, warn, error, serialWrite, serverNow, esc
 } from "./utils.mjs";
 
 /** A vote nobody has opened in this trial: the blank of `trialProgress().vote`. */
@@ -96,14 +96,92 @@ const blankVote = () => ({ open: false, round: 0, picks: 1, issued: [], openedAt
  */
 let executing = null;
 
-export function executeAtExit({ chapter = trialProgressChapter() } = {}) {
+export function executeAtExit({ chapter = trialProgressChapter(), ask = bridgeRequest } = {}) {
     if (!game.user.isGM || chapter === null || chapter === undefined) return Promise.resolve(null);
     /* ON THE PRIMARY, ONCE (E70 fix p1-G2; the review's SEC-3, E70-16). The sentence ran on whichever GM ended the
        trial, and "once" was that browser's latch: two GMs pressing End the trial within a round trip each read no
        `executedAt` and killed the convict twice, or the second wrote `failed` over the first's record. The primary
        carries it out, under its latch, whoever asks. */
-    if (!isPrimaryGm()) return askRecord("execute", { chapter }, () => startExecution(chapter));
+    if (!isPrimaryGm()) return askExecution(chapter, ask);
     return startExecution(chapter);
+}
+
+/*
+ * AN EXECUTION THE PRIMARY DID NOT ANSWER LEAVES THE GMS A CARD (2.0 line T3 TRIAL-07, 27.11.2026; the owner's
+ * recommendation). A second GM's `execute` asked of a primary that did not answer, or with none connected, answered null
+ * like a refusal, and nothing tried again: `retrySentence` asks only a sentence that was tried and failed, so the convict
+ * walked into Daily Life alive and the GM read "the change of the trial's record was not carried out". Now the GMs get a
+ * card naming the sentenced, raised as a GM's (`gmPopup`), with Carry out the sentence again (`data-drpg-sentence-again`,
+ * its chapter beside it, `wireSentenceAgain`); its press is this road again, and the primary's `executedAt` keeps a late
+ * answer and a press from executing twice. A refusal is the primary's answer and leaves no card. `ask` is the bridge, or
+ * the suite's stand-in for it (tier 2 "T3 TRIAL-07").
+ */
+async function askExecution(chapter, ask) {
+    const res = await ask("trial.record", { op: "execute", chapter }, { settle: "reply", onPrimary: true, local: () => startExecution(chapter) });
+    if (res.ok) return res.value ?? null;
+    if (!res.refused && !res.pending) await holdSentence(chapter);
+    return null;
+}
+
+/** The GMs' card of a sentence a primary did not carry out, with its button; nothing when nobody waits on one. */
+async function holdSentence(chapter) {
+    const record = trialProgress(chapter);
+    if (record.executedAt) return;
+    const ids = await sentenceOf(record) ?? [];
+    const names = ids.map(id => game.actors.get(id)).filter(actor => actor && !isDeceased(actor)).map(actor => esc(actor.name));
+    if (!names.length) return;
+    await whisperToGms({ tone: "warning", body: `<p>${game.i18n.format("DRPG.Trial.sentenceNotCarried", { names: names.join(", ") })}</p>`
+        + `<div class="drpg-call-actions"><button type="button" data-drpg-sentence-again="${esc(String(chapter))}" data-tooltip="${
+            esc(game.i18n.localize("DRPG.Trial.sentenceAgainTooltip"))}">${esc(game.i18n.localize("DRPG.Trial.sentenceAgain"))}</button></div>` },
+    { flags: { [MODULE_ID]: { gmPopup: true, sentenceAgain: Number(chapter) } } });
+}
+
+/**
+ * Whether a card's Carry out the sentence again still does something (2.0 line T3 TRIAL-07): the record of the card's
+ * chapter is the one the trial keeps, not stamped carried out, and somebody it sentenced still waits. Pure, for tier 1.
+ */
+export function sentenceAgainLive({ cardChapter, chapter, executedAt = null, pending = [] } = {}) {
+    if (!Number.isFinite(Number(cardChapter)) || cardChapter === null || Number(cardChapter) !== Number(chapter)) return false;
+    return !executedAt && Array.isArray(pending) && pending.length > 0;
+}
+
+/** A GM's browser wires a card's Carry out the sentence again, and takes it away when it has nothing left to do. */
+export async function wireSentenceAgain(message, element) {
+    if (!game.user?.isGM || !element?.querySelector) return false;
+    const button = element.querySelector("[data-drpg-sentence-again]");
+    if (!button) return false;
+    const cardChapter = Number(button.dataset.drpgSentenceAgain);
+    const live = async () => {
+        const chapter = trialProgressChapter();
+        const record = chapter === null ? {} : trialProgress(chapter);
+        return sentenceAgainLive({ cardChapter, chapter, executedAt: record.executedAt ?? null, pending: await pendingSentence() });
+    };
+    if (!(await live())) {
+        button.closest(".drpg-call-actions")?.remove();
+        return false;
+    }
+    button.addEventListener("click", async event => {
+        event.preventDefault();
+        button.closest(".drpg-call-actions")?.remove();
+        if (await live()) await executeAtExit({ chapter: cardChapter });
+    });
+    return true;
+}
+
+/** The hook that wires those cards on a GM's browser (module.mjs); once a load. */
+let sentenceHooked = false;
+export function registerSentenceAgain() {
+    if (sentenceHooked) return;
+    sentenceHooked = true;
+    /* AND THE TRIAL'S OWN STEPS (2.0 line T3 TRIAL-08, 28.11.2026): a change into or out of the trial cut half way is
+       finished on the primary (clock.mjs `finishPhaseSteps`) - the trial's work left undone, as a sentence not carried
+       out is. Hooked here because module.mjs registers this file's hook at init and imports nothing from clock.mjs;
+       by `import()`, as clock.mjs reads this file. */
+    import("./clock.mjs").then(m => m.registerPhaseSteps()).catch(err => error("Could not watch the trial's steps", err));
+    Hooks.on("renderChatMessageHTML", (message, element) => {
+        if (!game.user?.isGM || !message?.getFlag?.(MODULE_ID, "sentenceAgain")) return;
+        void wireSentenceAgain(message, element).catch(err => error("Could not wire a sentence's Carry out again", err));
+    });
 }
 
 /** The execution under this primary's latch. */
@@ -385,6 +463,9 @@ export const TRIAL_RECORD = Object.freeze({
     // E99 C7 (Q-E99-9: once per trial): when this trial's case summary went out, a time and nothing of its content; a
     // second trial in the chapter starts with none, so it has a summary of its own.
     summaryShown: row({ lives: "trial", by: "case-summary.mjs `showCaseSummary`", blank: fresh(null), atEntry: fresh(null) }),
+    // 2.0 line T3 EXP-GM-04: the count's card, written by the close and posted by the GMs' Announce, and when it was posted.
+    resultCard: row({ lives: "trial", by: "vote.mjs `closeRound`", blank: fresh(null), atEntry: fresh(null) }),
+    resultAnnouncedAt: row({ lives: "trial", by: "vote.mjs `announceRound`", blank: fresh(null), atEntry: fresh(null) }),
     // E70 C5: the trial's list of the dead, written by the settle alone and taken out at the exit - in no blank, and
     // left by the entry (the settle that follows it writes it).
     mutedDead: row({ lives: "trial", by: "voice.mjs `settleTrialVoices`" })
@@ -498,15 +579,15 @@ export const TRIAL_PROGRESS_KEY = "trial.progress";
  * A step never calls this (it would wait for its own key): the step's work is `writeTrialProgressInStep`, which a step of
  * this key in another file calls (voice.mjs `settleTrialVoices`, E70 C5).
  */
-export function setTrialProgress(patch = {}) {
+export function setTrialProgress(patch = {}, { ask = bridgeRequest } = {}) {
     if (!game.user.isGM) return Promise.resolve(null);
     // A Finding's press and the summary's claim, each the primary's step over the record as it finds it (`stepOfPatch`).
     const step = typeof patch === "function" ? null : stepOfPatch(patch);
     if (step) {
         if (isPrimaryGm()) return serialWrite(TRIAL_PROGRESS_KEY, () => writeTrialProgressInStep(step));
-        return askRecord("patch", { patch }, () => recordOnPrimary("patch", { patch }));
+        return askRecord("patch", { patch }, () => recordOnPrimary("patch", { patch }), ask);
     }
-    if (typeof patch !== "function" && !isPrimaryGm()) return askRecord("patch", { patch }, () => recordOnPrimary("patch", { patch }));
+    if (typeof patch !== "function" && !isPrimaryGm()) return askRecord("patch", { patch }, () => recordOnPrimary("patch", { patch }), ask);
     return serialWrite(TRIAL_PROGRESS_KEY, () => writeTrialProgressInStep(patch));
 }
 
@@ -584,14 +665,35 @@ export function recordPatchOf(patch) {
 }
 
 /** Ask the primary GM for one of the record's writes (the GMs' row "trial.record"), or run it here on the primary. */
-async function askRecord(op, fields, local) {
-    const res = await bridgeRequest("trial.record", { op, ...fields }, { settle: "reply", onPrimary: true, local });
+async function askRecord(op, fields, local, ask = bridgeRequest) {
+    const res = await ask("trial.record", { op, ...fields }, { settle: "reply", onPrimary: true, local });
     if (res.ok) return res.value ?? null;
     if (op === "patch" && !res.refused) {
         warn(`The primary GM did not answer a write of the trial's record; written here: ${Object.keys(fields.patch ?? {}).join(", ")}`);
+        tellWrittenHere();
         return serialWrite(TRIAL_PROGRESS_KEY, () => writeTrialProgressInStep(stepOfPatch(fields.patch) ?? fields.patch));
     }
     return null;
+}
+
+/*
+ * A WRITE THE PRIMARY DID NOT ANSWER IS TOLD TO THE GMS (2.0 line T3 TRIAL-15, 27.11.2026; the owner's recommendation). The
+ * write goes on from this browser, as it did, and until now only the console said so: the GMs are whispered that it was
+ * written here, which GM's and whose primary did not answer, at most once a minute from one browser, with no field names.
+ * Not raised as a GM's card. `forgetWrittenHere` is the suite's, so a run's second minute is told again.
+ */
+let toldWrittenAt = 0;
+function tellWrittenHere(now = Date.now()) {
+    if (now - toldWrittenAt < 60_000) return;
+    toldWrittenAt = now;
+    const primary = game.users.get(primaryGmId() ?? "")?.name ?? "?";
+    whisperToGms({ tone: "warning", body: `<p>${game.i18n.format("DRPG.Trial.recordWrittenHere", { name: esc(primary), gm: esc(game.user?.name ?? "?") })}</p>` })
+        .catch(err => error("Could not tell the GMs a write of the trial's record went from this browser", err));
+}
+
+/** The suite's: the next unanswered write is told again (`tellWrittenHere`). */
+export function forgetWrittenHere() {
+    toldWrittenAt = 0;
 }
 
 /**

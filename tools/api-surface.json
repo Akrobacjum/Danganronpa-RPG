@@ -485,7 +485,8 @@
     "settings": "object",
     "announce": "function",
     "morningLine": "function",
-    "setMorningLine": "function"
+    "setMorningLine": "function",
+    "chargeKeyFee": "function"
   },
   "aliases": {
     "migrate1_2_0": {

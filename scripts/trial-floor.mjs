@@ -200,14 +200,19 @@ export const TRIAL_NEXT_STEPS = Object.freeze([
     // A zone mode's end (E73): End this mode, the footer's step.
     [view => view.running && view.floor && floorFamily(view.floor) === "zones", "endZone"],
     [view => view.running && view.floor, "closeDebate"],
-    [view => view.progress.verdictApplied && notMine(view) && view.stopped, "finishElsewhere"],
-    [view => view.progress.verdictApplied && notMine(view), "verdictElsewhere"],
+    /* A STOPPED VERDICT IS ANY FULL GM'S TO FINISH (2.0 line T3 TRIAL-05, with TRIAL-03 and PRIM-06): its Finish takes it on
+       the primary and runs here (verdict.mjs `claimVerdict`), so "finishElsewhere" is the step only of a browser that
+       cannot - an Assistant GM (`mayFinish` false, as the view reads the role); a view without the field reads as one. */
+    [view => view.progress.verdictApplied && notMine(view) && view.stopped && !view.mayFinish, "finishElsewhere"],
+    [view => view.progress.verdictApplied && notMine(view) && !(view.stopped && view.mayFinish), "verdictElsewhere"],
     [view => view.progress.verdictApplied && view.stopped, "finishVerdict"],
     // E99 (12.11.2026; the plan's C7): the case summary before the chapter's end, while this trial's record says it is
     // not out - `summaryShown` null, as the record's blank and every trial's entry write it; a view with no record of it
     // (undefined) reads as before - and never in a Final Trial, which has no summary (Q-E99-5).
     [view => view.progress.verdictApplied && view.progress.summaryShown === null && !view.finalNow, "caseSummary"],
     [view => view.progress.verdictApplied, "chapterEnd"],
+    // 2.0 line T3 EXP-GM-04: the count closed and its card not yet posted - Announce first; the verdict does not wait on it.
+    [view => view.progress.voteClosed && Boolean(view.progress.resultCard) && !view.progress.resultAnnouncedAt, "announceVote"],
     [view => view.progress.voteClosed, "verdict"],
     // Only a running trial gets here: `afterwards` without a count or a verdict is `running`.
     [view => view.progress.vote?.open, "vote"],
@@ -220,7 +225,7 @@ export const TRIAL_NEXT_STEPS = Object.freeze([
     [() => true, "openDebate"]
 ]);
 
-/** The console's next step for `view` (`{ floor, running, progress, afterwards, stopped, runner }`): `TRIAL_NEXT_STEPS`' first row that holds. */
+/** The console's next step for `view` (`{ floor, running, progress, afterwards, stopped, runner, mayFinish }`): `TRIAL_NEXT_STEPS`' first row that holds. */
 export function trialNextStep(view) {
     return TRIAL_NEXT_STEPS.find(([when]) => when(view))[1];
 }
@@ -233,7 +238,8 @@ export function trialNextStep(view) {
 export function trialStepView({ clock = getClock(), progress = trialProgress() } = {}) {
     const running = clock.phase === "classTrial";
     return { floor: trialFloor(), running, progress, afterwards: running || progress.voteClosed || progress.verdictApplied,
-        stopped: verdictStopped(progress), runner: verdictRunner(progress), finalNow: Boolean(clock.finalTrial) };
+        stopped: verdictStopped(progress), runner: verdictRunner(progress), finalNow: Boolean(clock.finalTrial),
+        mayFinish: game.user?.role === CONST.USER_ROLES.GAMEMASTER };
 }
 
 /** A step's one text (`DRPG.Floor.next.<step>`), the runner's name in the two a GM elsewhere gives. Markup: the name escaped. */
@@ -497,12 +503,23 @@ async function zoneStartInStep(event) {
 }
 
 /**
+ * Why a floor step is refused before it reads the floor, or null (2.0 line T3 PRIM-10, 27.11.2026): on a browser that is
+ * not the primary - in a trial, the primary has just changed - `DRPG.Floor.bar.notPrimary` ("The primary GM has changed. Try again."); outside a Class Trial
+ * `notTrial`. Until then both said "Only during a Class Trial", in a trial that ran. Pure on its two readings (R9133).
+ */
+export function stepRefusal({ primary = isPrimaryGm(), running = inClassTrial() } = {}) {
+    if (!primary) return "DRPG.Floor.bar.notPrimary";
+    return running ? null : "DRPG.Floor.bar.notTrial";
+}
+
+/**
  * A STEP OF A ZONE MODE, in a step of `SEIZE_KEY` on the primary (E73): the GM's Count now and Skip question, a
  * participant's pick ("trial.side") and a Scrum speaker's thesis ("trial.keyword"). `{ written }`, or `{ refused }` with
  * the machine's key.
  */
 export async function zoneStepInStep(event) {
-    if (!isPrimaryGm() || !inClassTrial()) return { refused: "DRPG.Floor.bar.notTrial" };
+    const no = stepRefusal();
+    if (no) return { refused: no };
     const floor = trialFloor();
     if (!isZoneMode(floor?.mode)) return { refused: "DRPG.Floor.bar.noMode" };
     const result = nextFloor(floor, event, floorCtx(floor));
@@ -545,7 +562,8 @@ export function drawOrder(ids = []) {
  * the step finds; the answer `{ written }`, or `{ refused }` with the machine's key.
  */
 export async function roundStepInStep(event) {
-    if (!isPrimaryGm() || !inClassTrial()) return { refused: "DRPG.Floor.bar.notTrial" };
+    const no = stepRefusal();
+    if (no) return { refused: no };
     const floor = trialFloor();
     let result = nextFloor(floor, event, floorCtx(floor));
     if (result.refused) return { refused: result.refused };
@@ -632,7 +650,8 @@ export async function closingStepRefusal(op, args = {}) {
  * machine's key, for the asker that wants it (`closingStepInStep(event, { why: true })`).
  */
 export async function closingStepInStep(event, { why = false } = {}) {
-    if (!isPrimaryGm() || !inClassTrial()) return why ? { refused: "DRPG.Floor.bar.notTrial" } : null;
+    const no = stepRefusal();
+    if (no) return why ? { refused: no } : null;
     const floor = trialFloor();
     const ctx = await closingCtx(floor);
     const result = nextFloor(floor, event, ctx);
@@ -648,7 +667,7 @@ export async function closingStepInStep(event, { why = false } = {}) {
 /**
  * A SPEAKER GONE (E70 C7; E70-45: "a disconnected speaker passes at once"): on the primary, when a user leaves and the
  * round's speaker has no player connected any more, the turn passes; the Closing's speaker hands the choice back to the
- * GM (E70 C8).
+ * GM (E70 C8). An Objection's or a Rebuttal's speaker gone only tells the GMs (`holderGone`, since 2.0 line T3 TRIAL-14).
  *
  * NOT AT ONCE SINCE 1.2.128 (E129 S0-CUT B, 23.11.2026; the owner's note of session 0, "testimony ucielo ostatniego
  * gracza", and the coordinator's "a reload during your own turn should never pass you"): the turn passes only when the
@@ -667,6 +686,7 @@ function goneTurnOf(floor) {
 
 async function speakerGone() {
     const floor = trialFloor();
+    if (isPrimaryGm() && (floor?.mode === MODES.objection || floor?.mode === MODES.rebuttal)) return holderGone(floor);
     const closingSpeaker = floor?.mode === MODES.closing && closingOf(floor)?.phase === "speak";
     // A Scrum Debate's speaker too (E110 C3): the camps' rotation passes them (zone-machine.mjs `gone`).
     const scrumSpeaker = floor?.mode === MODES.scrum && zoneOf(floor)?.phase === "speak";
@@ -688,6 +708,37 @@ async function speakerGone() {
     const graceMs = Math.max(Number(TRIAL.modes?.round?.goneGraceSeconds) || 0, 0) * 1000;
     if (!graceMs) return pass();
     goneWaiting.set(turn, setTimeout(() => { pass().catch(err => error("Could not pass the turn of a speaker who left", err)); }, graceMs));
+}
+
+/*
+ * AN OBJECTION'S OR A REBUTTAL'S SPEAKER GONE IS TOLD, NOT PASSED (2.0 line T3 TRIAL-14, 27.11.2026; the owner's
+ * recommendation). The objector, or either of the Rebuttal's two, whose player left held the floor to its clock's end
+ * (30 s, 120 s) with the others' microphones off, and no GM was told. The mode's rule stands - the turn does not move on
+ * its own - but once the same grace as a round's (`TRIAL.modes.round.goneGraceSeconds`) has passed with them still not
+ * back, the primary whispers the GMs once a turn and a gone set (`goneTold`), raised as a GM's card, to press Skip or End
+ * the mode on the trial's bar (`DRPG.Floor.holderGone`).
+ */
+const goneTold = new Set();
+function holderGone(floor) {
+    const ids = (floor.mode === MODES.rebuttal ? [floor.holderId, floor.targetId] : [floor.holderId]).filter(Boolean);
+    const gone = absentOf(ids);
+    if (!gone.length) return;
+    const turn = goneTurnOf(floor);
+    const told = `${turn}|${gone.join(",")}`;
+    if (goneTold.has(told) || goneWaiting.has(told)) return;
+    const tell = async () => {
+        goneWaiting.delete(told);
+        if (!isPrimaryGm() || goneTurnOf(trialFloor()) !== turn) return;
+        const still = absentOf(gone);
+        if (!still.length || goneTold.has(told)) return;
+        goneTold.add(told);
+        const names = still.map(id => game.actors.get(id)?.name ?? "?").map(name => foundry.utils.escapeHTML(name)).join(", ");
+        await whisperToGms({ tone: "warning", body: `<p>${game.i18n.format("DRPG.Floor.holderGone", { name: names })}</p>` },
+            { flags: { [MODULE_ID]: { gmPopup: true } } });
+    };
+    const graceMs = Math.max(Number(TRIAL.modes?.round?.goneGraceSeconds) || 0, 0) * 1000;
+    if (!graceMs) return tell();
+    goneWaiting.set(told, setTimeout(() => { tell().catch(err => error("Could not tell the GMs the floor's speaker left", err)); }, graceMs));
 }
 
 /*
@@ -1743,7 +1794,9 @@ export async function advanceFloorOnPrimary(seen) {
  * are told in their corner. Answers `{ written }` or `{ refused }` in the machine's words (trial-modes.mjs maps them).
  */
 export async function finishObjectionOnPrimary({ actorId, startedAt }) {
-    if (!isPrimaryGm()) return { refused: "DRPG.Floor.bar.notTrial" };
+    // the primary alone, as before: whether the trial runs is the machine's question here, read off the floor below
+    const no = stepRefusal({ running: true });
+    if (no) return { refused: no };
     if (advancing) return { refused: "DRPG.Floor.round.stale" };
     advancing = true;
     let written = null;

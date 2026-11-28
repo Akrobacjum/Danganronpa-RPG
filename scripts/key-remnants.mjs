@@ -774,9 +774,7 @@ export async function chargeForUnfoundKeys() {
     const fee = await keyFeeOf(now);
     if (fee.held) {
         // With the way to ask again on the card (E109, DISAGREEMENTS.json D27, D28): `wireChargeHeld` wires it on a GM's browser.
-        await whisperToGms({ tone: "warning", body: `<p>${plural("DRPG.Case.chargeHeld", { n: fee.held })}</p><div class="drpg-call-actions">`
-            + `<button type="button" data-drpg-key-charge data-tooltip="${foundry.utils.escapeHTML(game.i18n.localize("DRPG.Case.chargeAgainHint"))}">${foundry.utils.escapeHTML(game.i18n.localize("DRPG.Case.chargeAgain"))}</button></div>` },
-            { flags: { [MODULE_ID]: { keyChargeHeld: true, keyChargeChapter: now } } });
+        await holdCharge(`<p>${plural("DRPG.Case.chargeHeld", { n: fee.held })}</p>`, now);
         return null;
     }
     const short = fee.short;
@@ -828,9 +826,26 @@ export async function chargeForUnfoundKeys() {
  * this is the primary, asked of it otherwise (`keys.charge`, gm-bridge.mjs) - the shape
  * `askToDecideWrite` gives a flagged write's decision. Answers what was paid, or null.
  */
-export async function askToChargeForUnfoundKeys() {
-    const res = await bridgeRequest("keys.charge", {}, { settle: "reply", onPrimary: true, local: () => chargeForUnfoundKeys() });
+export async function askToChargeForUnfoundKeys({ ask = bridgeRequest } = {}) {
+    const res = await ask("keys.charge", {}, { settle: "reply", onPrimary: true, local: () => chargeForUnfoundKeys() });
+    /* AN ASK NOBODY ANSWERED LEAVES A CARD (2.0 line T3 INV-07, 27.11.2026; the owner's recommendation). A trial opened
+       on a GM who is not the primary, the primary gone or not answering in time (`noAnswer`, `noGm`), dropped the fee in
+       silence: no charge, no card, nothing to press. The GMs get the held fee's card with its button (`holdCharge`), so
+       `wireChargeHeld`, `heldChargeStale` and `watchHeldCharges` hold it as they hold the other, and a press asks again
+       on this road; the trial's `keysCharged` stamp keeps a late answer and a press from charging twice. A refusal is
+       the primary's answer and leaves no card. `ask` is the bridge, or the suite's stand-in for it (tier 2 "T3 INV-07"). */
+    if (!res.ok && !res.refused && !res.pending) {
+        await holdCharge(`<p>${game.i18n.localize("DRPG.Investigation.chargeUnanswered")}</p>`, Number(getClock().chapter));
+    }
     return res.ok ? res.value ?? null : null;
+}
+
+/** The GMs' card of a Key fee not charged, with its "Charge the Key fee" (`wireChargeHeld`), for the clock's `chapter`. */
+async function holdCharge(body, chapter) {
+    // With the way to ask again on the card (E109, DISAGREEMENTS.json D27, D28): `wireChargeHeld` wires it on a GM's browser.
+    await whisperToGms({ tone: "warning", body: `${body}<div class="drpg-call-actions">`
+        + `<button type="button" data-drpg-key-charge data-tooltip="${foundry.utils.escapeHTML(game.i18n.localize("DRPG.Case.chargeAgainHint"))}">${foundry.utils.escapeHTML(game.i18n.localize("DRPG.Case.chargeAgain"))}</button></div>` },
+        { flags: { [MODULE_ID]: { keyChargeHeld: true, keyChargeChapter: chapter } } });
 }
 
 /**

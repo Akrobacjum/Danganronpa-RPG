@@ -57,7 +57,8 @@ export function trialSchemaHtml({ graph, layout, ticks = {}, presented = [], hin
                 reason: !held(start.action) ? "" : overDebate ? L("DRPG.Floor.bar.inDebate") : L("DRPG.CaseTrial.floorOpen") } : null };
     }
     return `<div class="drpg-case-trial is-console">${unknownLine}<div class="drpg-case-graph" tabindex="-1">`
-        + `${caseGraphHtml({ graph, layout, fold, marks, controls, label: L("DRPG.CaseTrial.title") })}</div>${cameraHtml(camera?.z ?? 1)}</div>`;
+        // a node's press opens it on the Investigation's Map (`liveSchema`'s `onPick`), and its face says so (`opensMap`)
+        + `${caseGraphHtml({ graph, layout, fold, marks, controls, label: L("DRPG.CaseTrial.title"), opensMap: true })}</div>${cameraHtml(camera?.z ?? 1)}</div>`;
 }
 
 /** What the console's schema draws now (a GM's read): the chapter's graph, its ticks, the presentations' marks and hints. */
@@ -90,9 +91,9 @@ const TRIAL_SCHEMA_SLOT = "[data-drpg-trial-schema]";
 
 /*
  * The schema's region in `dialog` kept live on its own watches, answering the stop. Its graph is wired read only by the
- * Map's own code (case-map.mjs `wireCaseMap` with no editors and no callbacks: nodes measured whole, the camera; a click
- * on a node opens nothing), the trial's controls placed on their tiles after each measure, a tick button toggling the
- * GMs' tick and a start starting its mode. The camera is the mount's, kept across redraws.
+ * Map's own code (case-map.mjs `wireCaseMap` with no editors: nodes measured whole, the camera; a click on a node opens
+ * it on the Investigation's Map, `onPick` below, and its face's tooltip says so, `opensMap`), the trial's controls placed
+ * on their tiles after each measure, a tick button toggling the GMs' tick and a start starting its mode. The camera is the mount's, kept across redraws.
  */
 function liveSchema(dialog, chapter) {
     const regionOf = () => dialog.element?.querySelector(".drpg-case-trial-live");

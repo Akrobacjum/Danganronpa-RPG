@@ -1595,10 +1595,15 @@ export async function run({ gm, gm2, gm3, gma, gmb, gmc, p1, p2, p3, p4, check, 
     /* ------------------- J. the season reset is the primary's, and the clock cuts ------------------- */
 
     /* J1: a Mastermind is picked on the primary while gm2 is here, so gm2's browser holds a
-       pick (E ended with none) - and gm2, not the primary while the seed GM is, is refused the
-       reset. A queued "cancel" stands in for the GM at the window, should one open (on 1.2.62
-       it did, for any GM), so the run never waits on it. */
-    phase("J1: a GM who is not the primary is refused the season reset and told whose it is", { flow: "gm-store" });
+       pick (E ended with none). Until 2.0 line T3 gm2, not the primary while the seed GM is, was
+       refused the reset before its window. Since TRIAL-04 (the owner's adopted recommendation: "Reset
+       sezonu przekazywany głównemu GM-owi jak koniec rozdziału") a full GM who is not the primary
+       draws the window on its own browser and sends the plan to the primary (`season.reset`); only
+       an Assistant is refused (R8731 - this scenario has none), and the road that runs is scenario
+       58's TRIAL-04. Here the queued "cancel" closes that window: the run never waits on it, and a
+       cancelled reset must send the primary nothing and cut nothing. The old check went red in CI
+       on d7d982b (run 645: windows 1, no warning - the refusal it held until TRIAL-04). */
+    phase("J1: a full GM who is not the primary draws the season reset's window, and a cancel there sends the primary nothing", { flow: "gm-store" });
     const RESET = `const R = await import("${repoUrl}/scripts/season-setup.mjs");`;
     const cutsOn = client => client.eval(`return (await import("${repoUrl}/scripts/clock.mjs")).getClock().resetCuts ?? {};`);
     await gm.eval(`${MM} await M.setMastermind(game.actors.get("${IDS.aiko}"), { room: "Library" }); return true;`);
@@ -1606,6 +1611,7 @@ export async function run({ gm, gm2, gm3, gma, gmb, gmc, p1, p2, p3, p4, check, 
     const pickedJ1 = await gm2.eval(`${MM} return S.mastermindStore.record().actorId ?? null;`);
     const gmName = await gm.eval(`return game.user.name;`);
     const cutsBefore = await cutsOn(gm);
+    const sentJ1 = socketTraffic.length;
     const refusedJ1 = await gm2.eval(`${RESET} const title = game.i18n.localize("DRPG.Season.resetTitle");
         const n = globalThis.__notifications.length, d = globalThis.__dialogLog.length;
         globalThis.__dialogAnswers.push("cancel");
@@ -1613,9 +1619,12 @@ export async function run({ gm, gm2, gm3, gma, gmb, gmc, p1, p2, p3, p4, check, 
         return { result, warned: globalThis.__notifications.slice(n).filter(x => x.level === "warn").map(x => x.msg),
             windows: globalThis.__dialogLog.slice(d).filter(x => x.title === title).length };`, { timeout: 30000 });
     const cutsAfterJ1 = await cutsOn(gm);
-    check("J1: the second GM's season reset is refused and names the primary GM; no window opens and the clock is not cut",
-        pickedJ1 === IDS.aiko && refusedJ1.result === null && refusedJ1.warned.some(m => m.includes(gmName)) && refusedJ1.windows === 0
-        && J(cutsAfterJ1) === J(cutsBefore), J({ pickedJ1, gmName, refusedJ1, cutsBefore, cutsAfterJ1 }));
+    const resetAsksJ1 = socketTraffic.slice(sentJ1).filter(t => t.action === "season.reset").length;
+    const pickAfterJ1 = await gm.eval(`${MM} return S.mastermindStore.record().actorId ?? null;`);
+    check("J1: the second GM's season reset draws its window there (TRIAL-04), names no refusal of the primary's, and once cancelled sends no season.reset, cuts no clock and keeps the pick",
+        pickedJ1 === IDS.aiko && refusedJ1.result === null && refusedJ1.windows === 1 && !refusedJ1.warned.some(m => m.includes(gmName))
+        && resetAsksJ1 === 0 && J(cutsAfterJ1) === J(cutsBefore) && pickAfterJ1 === IDS.aiko,
+        J({ pickedJ1, gmName, refusedJ1, resetAsksJ1, cutsBefore, cutsAfterJ1, pickAfterJ1 }));
 
     /* J1b (the round-2 reviews' R2-M1 and M3, the fix list's 13, 26.09): tier 2 writes its fixtures
        into this world's records with the stores held, and puts them back before it lets go. While

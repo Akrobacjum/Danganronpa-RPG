@@ -919,7 +919,7 @@ async function scoreObserve(actor, entry, key, { total, isCritical, undo, rollId
         entry.describing = { at: Date.now(), total, isCritical: Boolean(isCritical), rollId, by, gm: game.user?.id ?? null };
         await writePending();
     }
-    const item = success ? await createFind(actor, entry, isCritical, { ask: !recovering.has(key) }) : null;
+    const item = success ? await createFind(actor, entry, isCritical, { ask: !recovering.has(key), key }) : null;
     // null, not deleted: the store's patch merges a row, so a field left out stays as it was
     if (entry.describing) entry.describing = null;
     const marked = success ? 0 : await applyFailure(actor, total, entry);
@@ -949,6 +949,10 @@ async function scoreObserve(actor, entry, key, { total, isCritical, undo, rollId
  * fact of the row - the row the target step would have found was the roll before.
  */
 async function keepResult(rolls, roll, key, entry) {
+    /* The entry this resolve holds is the row written (2.0 line T3 INV-01): a store change meanwhile - another GM's words
+       on the row, `describeAnswer` - empties the cache for its next read (`readPending`), which then holds a copy, and the
+       result written to this entry would not be the cache's. Set back first, so the write carries it. */
+    pending.set(key, entry);
     await writePending();
     await rolls.noteFactOn(roll, { observeKey: key, observeResult: structuredClone(entry.result) });
 }
@@ -1080,7 +1084,7 @@ async function applyFailure(actor, total, entry) {
  * prefilled text: a result that has already been rolled must never evaporate
  * because a dialog was dismissed.
  */
-async function createFind(actor, entry, isCritical, { ask = true } = {}) {
+async function createFind(actor, entry, isCritical, { ask = true, key = null } = {}) {
     const data = entry.data;
     const fallbackName = data.subject
         || game.i18n.format("DRPG.Observe.defaultName", { room: entry.room });
@@ -1147,7 +1151,7 @@ async function createFind(actor, entry, isCritical, { ask = true } = {}) {
     // a find finished after a reload (`recoverDescribing`) asks nobody: the window it waited on is gone
     if (ask && (!described || isCritical)) {
         const asked = (async () => {
-            written = await describeFind(actor, entry, isCritical, described?.name || fallbackName, described);
+            written = await describeFind(actor, entry, isCritical, described?.name || fallbackName, described, { key });
             // Written back on the GM's client, where the ledger lives. Only when there
             // is something to write: a dismissed dialog must not overwrite a good
             // description with an empty one.
@@ -1228,6 +1232,9 @@ export async function mintFindCopy(actor, entry, { name, playerText = "", analyz
     const data = entry.data;
     const made = await serialWrite(observeFindKey(actor.id), () => copiedRemnants(actor).has(entry.tokenId) ? HELD : createTruthBullet(actor, {
         name,
+        // The holder's own find (2.0 line T3 EXP-PL-17): its card says others may hold a copy if they found it too. A
+        // leaver's told copy of their own trace is no find, and says nothing.
+        origin: told ? null : { kind: "found" },
         realType: data.type,
         /*
          * A critical identifies the category outright - guide, p. 30: "Truth
@@ -1316,20 +1323,44 @@ async function alreadyHeld(actor, entry) {
  * loses the find (no other GM is shown the window, and nothing asks again); that half is a table's, proposed as a live
  * check. Exported for the suite, which hands a short `waitMs` (tier 2 "1.2.122 CASE-37").
  */
-export async function describeFind(actor, entry, isCritical, fallbackName, stored = null, { waitMs = TIMING.rulingMs } = {}) {
+export async function describeFind(actor, entry, isCritical, fallbackName, stored = null, { waitMs = TIMING.rulingMs, key = null } = {}) {
     const data = entry.data;
     let shown = null, timer = null, timedOut = false;
-    /* ANOTHER GM MAY WRITE IT (E128, 22.11.2026; OWNER-128-SECOND-GM, line CORE's inventory row 1). The window opens on the
-       browser the find is resolved on - the primary's - and a second GM was only told the find waited there. Its whisper
-       carries "Write it here" now (`wireDescribeHere`): the same form on that GM's browser, its words sent here
-       (`observe.describe`, `answerDescribeFrom`), and the first answer of the two is the find's - this window is closed
-       when another GM's words arrive first, and this GM is told whose they are. */
+    /* ANOTHER GM MAY WRITE IT (E128, 22.11.2026; OWNER-128-SECOND-GM, line CORE's inventory row 1; 2.0 line T3 INV-01,
+       27.11.2026). The window opens on the browser the find is resolved on, and on every other full GM's too, from the
+       row: the ask is written on the find's row in the GMs' store (`describing.askId`, with the window's prefilled name,
+       whether it is a critical, whether the trace had words, its room), and each full GM's browser that is not this one
+       opens the same window when the row reaches it - at the store's change, at its stores' opening, after a reload - once
+       per ask (`askDescribeFromRows`). Its words come back on the row (`describeAnswer`), which this browser reads
+       (`takeRowAnswers`) as it read the bridge's (`observe.describe`, `answerDescribeFrom`, which still answers an older
+       whisper's "Write it here"): the first answer of all is the find's - this window is closed when another GM's words
+       arrive first, and this GM is told whose they are. Until 1.2.130 the other GMs had a whisper alone, with no window
+       and no sound, and a GM who joined later had nothing (Forge S1b and S2 D1). */
     const askId = foundry.utils.randomID();
     let fromOther = null;
     const otherAnswer = new Promise(resolve => { fromOther = resolve; });
     describeAsks.set(askId, fromOther);
+    const rowKey = key ?? [...pending].find(([, row]) => row === entry)?.[0] ?? null;
+    if (rowKey && entry.describing) {
+        entry.describing = { ...entry.describing, askId, fallbackName: String(fallbackName ?? ""), isCritical: Boolean(isCritical),
+            stored: Boolean(stored), room: entry.room ?? null };
+        describeRows.set(askId, rowKey);
+        pending.set(rowKey, entry);
+        await writePending();
+    }
+    /* THE FINDER IS TOLD THE GM IS DESCRIBING IT (2.0 line T3 INV-03, 27.11.2026; the owner's recommendation): a General,
+       Non-obvious or Follow my traces sweep is scored here with nobody pressing anything, so its roll's card says no "the
+       GM is judging" (action-observe.mjs `settleObserveRoll`), and a find that waits on this window then waited in
+       silence for as long as the window stands. Its owners are told once, as the find's own card is (`withCentre`); a
+       named Observe's card already says it waits (`DRPG.Observe.sent`), so it is told nothing more here. */
+    if (entry.declaration !== "specific" && entry.declaration !== "anything") {
+        await whisperToOwner(actor, `<p>${game.i18n.localize("DRPG.Observe.describing")}</p>`, withCentre())
+            .catch(err => debug("Could not tell the finder the GM is describing the find", err));
+    }
     /* THE OTHER GMs ARE TOLD THE FIND WAITS HERE (line INVEST of 1.2.122; audit 1.2.118 domain-case-c-investigation 6): the
-       window opens on this browser alone, and a second GM never learned a player was waiting on it. */
+       window opened on this browser alone, and a second GM never learned a player was waiting on it. KEPT AS THE CHAT'S
+       RECORD (2.0 line T3 INV-02, the owner's P11 default): the window opens on their screen now, and the whisper's button
+       goes once the row has its words (`describeButtonLive`). */
     /* TO THE OTHER GMs ONLY (the line INVEST of 1.2.123; the auditor's r122-D-6): `whisperToGms` whispers every GM, so the
        GM whose screen it is was told the find waits on their own screen. */
     const others = activeGmIds().filter(id => id !== game.user?.id);
@@ -1385,22 +1416,43 @@ export async function describeFind(actor, entry, isCritical, fallbackName, store
     // prefilled name and no description" - the find still lands either way.
     }).catch(() => null);
     const remote = otherAnswer.then(given => ({ given }));
+    // A row's words that came before this wait began (a GM quicker than this browser's own write's echo).
+    if (rowKey) takeRowAnswers();
     const raced = await Promise.race([asked, clock, remote]);
     describeAsks.delete(askId);
+    describeRows.delete(askId);
     clearTimeout(timer);
     // Another GM's words came first (E128): this window is closed, and this GM told whose words the find carries.
     const byOther = raced && typeof raced === "object" && Object.hasOwn(raced, "given") ? raced.given : null;
     if (byOther) {
         Promise.resolve(shown?.close?.()).catch(() => {});
         ui.notifications?.info?.(game.i18n.format("DRPG.Observe.describeByOther", { gm: game.users.get(byOther.by ?? "")?.name ?? "?" }));
+        await markDescribed(rowKey, entry, { askId, by: byOther.by ?? null, name: byOther.answer?.name || stored?.name || fallbackName || "", timedOut: false });
         return byOther.answer;
     }
     const answer = raced;
+    /* WHOSE WORDS, ON THE ROW (2.0 line T3 INV-02, INV-05): written before `scoreObserve` clears `describing`, so every other
+       GM's window of this ask closes, saying whose words went out under what name, or that nobody answered in time. */
+    await markDescribed(rowKey, entry, { askId, by: game.user?.id ?? null, name: answer?.name || stored?.name || fallbackName || "", timedOut });
     if (timedOut) {
         const key = answer ? "DRPG.Observe.describeTimedOutTyped" : "DRPG.Observe.describeTimedOut";
         ui.notifications?.warn?.(game.i18n.format(key, { actor: actor?.name ?? "", name: answer?.name || fallbackName || "" }), { permanent: true });
+        /* EVERY GM IS TOLD (2.0 line T3 INV-05): the toast was this browser's alone, so a GM without the window open never
+           learned which Truth Bullet waits for its words. A card to the GMs, raised as a GM's card (`gmPopup`). */
+        const esc = value => foundry.utils.escapeHTML(String(value ?? ""));
+        await whisperToGms({ tone: "warning", body: `<p>${game.i18n.format("DRPG.Observe.describeTimedOutGms", {
+            actor: esc(actor?.name ?? "?"), room: esc(entry.room ?? "?"), name: esc(answer?.name || fallbackName || "") })}</p>` },
+        { flags: { [MODULE_ID]: { gmPopup: true, popupTitle: game.i18n.localize("DRPG.Observe.describeTitle") } } }).catch(() => {});
     }
     return answer;
+}
+
+/** The ask's end written on its row (`described`), in the cache and in the store, once: whose words and under what name. */
+async function markDescribed(rowKey, entry, { askId, by, name, timedOut }) {
+    if (!rowKey) return;
+    entry.described = { askId, by, name: String(name ?? ""), at: Date.now(), timedOut: Boolean(timedOut) };
+    pending.set(rowKey, entry);
+    await writePending();
 }
 
 /**
@@ -1433,7 +1485,17 @@ export function pendingShape(key) {
  * scored on, the describe window answered as closed - the trace's prefilled name, no words - so the copy is made, the
  * row resolved and the player told as a find is; the GMs are told the words are theirs to add. Answers how many.
  * Registered at the primary's hydration (`registerObserveRecovery`); exported for the suite.
+ * Since 2.0 line T3 INV-04 (27.11.2026) a hydration finishes only the rows whose window is gone (`describingLeftHere`): a
+ * row naming no GM (marked before 1.2.123), a GM not connected, or this browser's own, whose window the reload closed. A
+ * connected other GM's window stands - one it opened while it stood in as the primary over this GM's F5 - and that GM
+ * finishes it, or `onGmLeft` does when it leaves; until then such a row went out under its prefilled name and that GM's
+ * words met `alreadyHeld`. A GM's disconnection (`gm`) finishes that GM's rows as before.
  */
+export function describingLeftHere(entry, { me = game.user?.id ?? null, users = game.users } = {}) {
+    const gm = entry?.describing?.gm ?? null;
+    if (!gm || gm === me) return true;
+    return users?.get?.(gm)?.active !== true;
+}
 const recovering = new Set();
 export async function recoverDescribing({ gm = null, leaving = null } = {}) {
     if (!game.user?.isGM || !isPrimaryGm({ leaving })) return 0;
@@ -1442,6 +1504,7 @@ export async function recoverDescribing({ gm = null, leaving = null } = {}) {
     for (const [key, entry] of [...pending]) {
         if (!entry?.describing || entry.result) continue;
         if (gm && entry.describing.gm !== gm) continue;
+        if (!gm && !describingLeftHere(entry)) continue;
         const { total, isCritical, rollId = null, by = null } = entry.describing;
         const actor = game.actors.get(entry.actorId);
         recovering.add(key);
@@ -1467,6 +1530,150 @@ export async function recoverDescribing({ gm = null, leaving = null } = {}) {
    before 1.2.123 names no GM and waits for a hydration as before (tier 2 "1.2.123 CASE-37 rest"). */
 /** The finds waiting on this browser's window for words another GM may write (E128): ask id -> its resolver. */
 const describeAsks = new Map();
+/** The row each of those asks is written on (2.0 line T3 INV-01): ask id -> the row's key in `observeStore`. */
+const describeRows = new Map();
+
+/** Another GM's words written on the row of an ask waiting here (`describeAnswer`), handed to its wait as the bridge's are. */
+function takeRowAnswers() {
+    for (const [askId, key] of [...describeRows]) {
+        const given = observeStore.get(key)?.describeAnswer;
+        if (given?.askId === askId && given.answer) answerDescribeFrom(askId, given.answer, given.by ?? null);
+    }
+}
+
+/**
+ * WHETHER THIS BROWSER ASKS FOR A FIND'S WORDS (2.0 line T3 INV-01, 27.11.2026). Pure, for tier 1 R9124: a row whose ask
+ * is open (`describing.askId`, no `result`, no `describeAnswer` or `described` of that ask) is asked on a full GM's browser
+ * that is not the one whose window it is (`describing.gm`), once per ask (`asked`). An Assistant GM gets no window.
+ */
+export function describeAskedHere(row, { me = game.user?.id, role = game.user?.role, asked = askedHere } = {}) {
+    const d = row?.describing;
+    if (!d?.askId || row.result || role !== CONST.USER_ROLES.GAMEMASTER) return false;
+    if (!d.gm || d.gm === me) return false;
+    if (row.describeAnswer?.askId === d.askId || row.described?.askId === d.askId) return false;
+    return !asked.has(d.askId);
+}
+
+/**
+ * Whether a whisper's "Write it here" for `askId` still does something (2.0 line T3 INV-02): a row's ask is open under it.
+ * Pure on the store's rows, for tier 1 R9125: an ask whose row has words (`describeAnswer`), is done (`described`) or is
+ * gone draws no button.
+ */
+export function describeButtonLive(askId, rows = {}) {
+    if (!askId) return false;
+    return Object.values(rows ?? {}).some(row => row?.describing?.askId === askId && !row.result
+        && row.describeAnswer?.askId !== askId && row.described?.askId !== askId);
+}
+
+/** The asks this browser opened a window for (`askDescribeFromRows`), once each until it reloads. */
+const askedHere = new Set();
+/** The describe windows standing on this browser for another GM's find: ask id -> `{ key, dialog, closed }`. */
+const describeWindows = new Map();
+
+/**
+ * The finds whose describe window stands, read only (2.0 line T3 EXP-GM-03): a row marked `describing`, with no result
+ * and no words given yet, each `{ key, who, text }` - its finder's name and its room. GM only; nothing is written.
+ */
+export function waitingObserves() {
+    if (!game.user?.isGM) return [];
+    return Object.entries(observeStore.entries() ?? {}).filter(([, row]) => row?.describing && !row.result && row.described?.askId !== row.describing.askId)
+        .map(([key, row]) => ({ key, who: game.actors.get(row.actorId ?? "")?.name ?? "?",
+            text: game.i18n.format("DRPG.Floor.waitingObserve", { room: row.room ?? "?" }) }));
+}
+
+/** Every row that asks this browser for a find's words opens its window (`askDescribeHere`); GM only. */
+export function askDescribeFromRows() {
+    if (!game.user?.isGM) return 0;
+    let n = 0;
+    for (const [key, row] of Object.entries(observeStore.entries() ?? {})) {
+        if (!describeAskedHere(row)) continue;
+        askedHere.add(row.describing.askId);
+        n++;
+        void askDescribeHere(row, key).catch(err => error("Could not ask for a find's words on this GM's browser", err));
+    }
+    return n;
+}
+
+/**
+ * THE FIND'S WINDOW ON ANOTHER FULL GM'S BROWSER (2.0 line T3 INV-01, INV-02; 27.11.2026). The same form the browser whose
+ * window it is draws (`describeFormBody`), from this browser's copy of the trace, and its words written on the row
+ * (`describeAnswer`) for that browser to take - unless the row has its words by then. The window closes, its words not
+ * sent, once the row says the ask is done (`described`) or the row is gone (`closeAnsweredWindows`). Answers the words
+ * written, or null.
+ */
+export async function askDescribeHere(row, key) {
+    const d = row?.describing;
+    if (!d?.askId || !game.user?.isGM) return null;
+    const { remnantById, remnantData, remnantPublicById } = await import("./remnants.mjs");
+    const ref = remnantById(row.sceneId, row.tokenId);
+    const data = ref ? remnantData(ref) : null;
+    const actor = game.actors.get(row.actorId ?? "") ?? null;
+    if (!data || !actor) return null;
+    const pub = remnantPublicById(row.sceneId, row.tokenId);
+    const stored = pub?.name ? pub : null;
+    const held = { key, dialog: null, closed: false };
+    describeWindows.set(d.askId, held);
+    let answer = null;
+    try {
+        answer = await drpgWindow({
+            title: game.i18n.localize("DRPG.Observe.describeTitle"), classes: ["drpg-panel"], prompt: true,
+            render: (event, dialog) => {
+                held.dialog = dialog;
+                if (held.closed) Promise.resolve(dialog?.close?.()).catch(() => {});
+            },
+            body: describeFormBody({ actor, room: d.room ?? row.room, data, isCritical: Boolean(d.isCritical), fallbackName: d.fallbackName ?? "", stored }),
+            footer: { primary: { action: "ok", label: game.i18n.localize("DRPG.Observe.describeConfirm"),
+                tooltip: tipText("DRPG.Observe.describeConfirmTooltip"), callback: (e, b, dialog) => readDescribeForm(dialog.element.querySelector("form")) } },
+            rejectClose: false
+        }).catch(() => null);
+    } finally {
+        describeWindows.delete(d.askId);
+    }
+    if (held.closed || !answer || typeof answer !== "object") return null;
+    const now = observeStore.get(key);
+    if (now?.describing?.askId !== d.askId || now.describeAnswer || now.described?.askId === d.askId) return null;
+    await observeStore.patch(key, { describeAnswer: { askId: d.askId, by: game.user.id, answer, at: Date.now() } });
+    ui.notifications?.info?.(game.i18n.localize("DRPG.Observe.describeSent"));
+    return answer;
+}
+
+/**
+ * THE OTHER WINDOWS CLOSE ONCE THE FIND HAS ITS WORDS (2.0 line T3 INV-02, INV-05; 27.11.2026): each describe window of
+ * another GM's find standing here closes when its row says the ask is done (`described`) - saying whose words went out
+ * under what name (`DRPG.Observe.describeTakenBy`), or that nobody answered in time (`describeTakenTimedOut`) - or when
+ * the row is gone; the whispers' "Write it here" of an ask that is done go with them (`describeButtonLive`).
+ */
+export function closeAnsweredWindows() {
+    if (!game.user?.isGM) return 0;
+    const rows = observeStore.entries() ?? {};
+    let n = 0;
+    for (const [askId, held] of [...describeWindows]) {
+        const row = rows[held.key];
+        const done = row?.described?.askId === askId ? row.described : null;
+        if (row && !done && row.describing?.askId === askId) continue;
+        held.closed = true;
+        describeWindows.delete(askId);
+        Promise.resolve(held.dialog?.close?.()).catch(() => {});
+        n++;
+        const actor = game.actors.get(row?.actorId ?? "")?.name ?? "?";
+        const text = !done ? game.i18n.localize("DRPG.Observe.describeGone")
+            : done.timedOut ? game.i18n.format("DRPG.Observe.describeTakenTimedOut", { actor, name: done.name ?? "" })
+                : game.i18n.format("DRPG.Observe.describeTakenBy", { gm: game.users.get(done.by ?? "")?.name ?? "?", actor, name: done.name ?? "" });
+        ui.notifications?.info?.(text);
+    }
+    for (const button of document.querySelectorAll?.("[data-drpg-describe-find]") ?? []) {
+        if (!describeButtonLive(button.dataset.drpgDescribeFind, rows)) button.closest(".drpg-call-actions")?.remove();
+    }
+    return n;
+}
+
+/** The find's rows changed in the store (a GM's write, or another GM's merged): words taken, windows asked and closed. */
+function afterRowsChanged() {
+    if (!game.user?.isGM) return;
+    takeRowAnswers();
+    closeAnsweredWindows();
+    askDescribeFromRows();
+}
 
 /**
  * Another GM's words for a find waiting here (E128; the run of `observe.describe`, bridge-runs-acts.mjs): handed to the
@@ -1579,7 +1786,14 @@ function readDescribeForm(f) {
  */
 export function wireDescribeHere(body) {
     if (!game.user?.isGM || !body?.querySelectorAll) return;
+    const rows = observeStore.entries() ?? {};
     for (const button of body.querySelectorAll("[data-drpg-describe-find]")) {
+        // An ask whose row has its words, is done or gone draws no button (2.0 line T3 INV-02; a reload's render too).
+        const rowOf = Object.entries(rows).find(([, row]) => row?.describing?.askId === button.dataset.drpgDescribeFind || row?.described?.askId === button.dataset.drpgDescribeFind);
+        if (rowOf && !describeButtonLive(button.dataset.drpgDescribeFind, rows)) {
+            button.closest(".drpg-call-actions")?.remove();
+            continue;
+        }
         if (button.dataset.drpgWired) continue;
         button.dataset.drpgWired = "1";
         button.addEventListener("click", async event => {
@@ -1588,6 +1802,15 @@ export function wireDescribeHere(body) {
             button.disabled = true;
             try {
                 const d = button.dataset;
+                // The row's window, when the ask is on a row (2.0 line T3 INV-01) and none stands here already.
+                const live = Object.entries(observeStore.entries() ?? {}).find(([, row]) => row?.describing?.askId === d.drpgDescribeFind);
+                if (live) {
+                    if (!describeWindows.has(d.drpgDescribeFind) && describeButtonLive(d.drpgDescribeFind, observeStore.entries())) {
+                        askedHere.add(d.drpgDescribeFind);
+                        await askDescribeHere(live[1], live[0]);
+                    }
+                    return;
+                }
                 const { remnantById, remnantData, remnantPublicById } = await import("./remnants.mjs");
                 const ref = remnantById(d.scene, d.token);
                 const data = ref ? remnantData(ref) : null;
@@ -1626,6 +1849,12 @@ export function onGmLeft(user, connected) {
 }
 export function registerObserveRecovery() {
     onGmStoresHydrated(() => { if (!gmStoresQuiet()) void recoverDescribing(); });
+    // A find's window on every full GM's browser (2.0 line T3 INV-01): asked from the rows at the stores' opening and at
+    // every change of the store, and closed once the row has its words (INV-02).
+    onGmStoresHydrated(() => { if (!gmStoresQuiet()) afterRowsChanged(); });
+    Hooks.on("clientSettingChanged", key => {
+        if (key === `${MODULE_ID}.${SETTINGS.observePending}`) Promise.resolve().then(afterRowsChanged).catch(err => debug("Could not read the finds' rows", err));
+    });
     Hooks.on("userConnected", (user, connected) => { void onGmLeft(user, connected); });
     // A find's "Write it here" on the whisper a GM is sent (E128, `wireDescribeHere`): read after the secret swap, as the
     // ruling cards are (gm-bridge.mjs), which draws the words in this same hook's dispatch.

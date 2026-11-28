@@ -2279,6 +2279,36 @@ export async function run({ gm, ag, p1, p2, p3, check, phase, settle, opLog, set
             && e74c.out?.room === "Dorm A" && e74c.outRow === null && e74c.again?.pass === false && e74c.again?.room === "Dorm A",
         JSON.stringify(e74c).slice(0, 2000), { flow: "door-pick" });
 
+    /* 2.0 line T3 INV-12 (27.11.2026): a resolve nobody answered, told to the GMs. p1 throws an Observe roll of Aiko's the GM
+       draws, as the Reroll's phase above does, and reports it lost from its own browser (bridge-asks.mjs `requestResolveLost`,
+       which `settleObserveRoll` sends on a `noAnswer`), twice. Read on gm: the GMs' cards raised (`gmPopup`) that name Aiko,
+       and whether the total in them is the record's; p1 told no refusal (the action is quiet). The cards go after. */
+    phase("an Observe the primary never answered, told to the GMs", { flow: "resolve-lost" });
+    const lostRoll = await p1.eval(`const A = await import("${repoUrl}/scripts/action-rolls.mjs");
+        ${payFor(IDS.aiko)}
+        globalThis.__forceRoll = { hope: 10, fear: 3 };
+        let out = null;
+        try { out = await A.rollTrait(game.actors.get("${IDS.aiko}"), "eye", { actionKey: "observe", remember: false }); }
+        finally { delete globalThis.__forceRoll; }
+        return { messageId: out?.raw?.[A.DRAWN_ROLL]?.messageId ?? null, total: out?.total ?? null };`, { timeout: 60000 });
+    await settle(800);
+    const lostHad = await gm.eval(`globalThis.__s33Lost = new Set(game.messages.contents.map(m => m.id)); return globalThis.__s33Lost.size;`);
+    mark = await refusedCount(p1);
+    for (let i = 0; i < 2; i++) {
+        await p1.eval(`const B = await import("${repoUrl}/scripts/bridge-asks.mjs");
+            await B.requestResolveLost({ actorId: "${IDS.aiko}", kind: "observe", rollId: ${JSON.stringify(lostRoll?.messageId ?? null)} }); return true;`);
+        await settle(1200);
+    }
+    const lostCards = await gm.eval(`const S = await import("${repoUrl}/scripts/secret.mjs");
+        const cards = game.messages.contents.filter(m => !globalThis.__s33Lost.has(m.id) && S.cardFlag(m, "gmPopup") && String(S.contentOf(m) ?? "").includes("Aiko"));
+        const out = cards.map(m => String(S.contentOf(m) ?? "").includes(${JSON.stringify(`(a roll of ${lostRoll?.total ?? "?"})`)}));
+        for (const m of cards) await m.delete();
+        delete globalThis.__s33Lost; return out;`, { timeout: 30000 });
+    const lostTold = await refusedSince(p1, mark);
+    check("INV-12: p1's report of an Observe the primary never answered raises one GMs' card, its total the GMs' record's; a second report of the roll raises none, and p1 is told no refusal",
+        Boolean(lostRoll?.messageId) && lostHad > 0 && JSON.stringify(lostCards) === JSON.stringify([true]) && !lostTold.length,
+        JSON.stringify({ lostRoll, lostCards, lostTold }), { flow: "resolve-lost" });
+
     /* ------------------------------------------- H. the hostile-client matrix (E43 C5) */
 
     /* E43 C5, 13.11.2026; the plan's item 3, its "32-case-security" (lib/fuzz.mjs `hostileMatrix` says what each cell

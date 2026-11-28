@@ -207,6 +207,21 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, canary, dump, 
     check("gm: a trace is revealed, named by the GM and copied onto Aiko's sheet under a name of its own",
         Boolean(foundTrace?.uuid) && foundTrace.hidden === false && foundTrace.named === true, JSON.stringify(foundTrace), { flow: "truth-bullets" });
 
+    /* HOW A COPY CAME TO ITS HOLDER IS ITS HOLDER'S (2.0 line T3 EXP-PL-17, then D2-30 of 28.11.2026: "pochodzenie kopii nie
+       może być czytelne w konsoli innych graczy"). A copy handed to Aiko by a student whose name is the marker, allowed on
+       the GM and on p1 (Aiko's player) alone: the scan at rest finds it nowhere on p2 or p3 - no flag, setting, packet or
+       store - and p1's own copy reads it (truth-bullets.mjs `copyOriginOf`, from `mineCopyOrigins`). Red at dcdfe4c: the
+       origin was the item's flag `copyOrigin`, which every browser holds. */
+    const giverName = canary.marker("bullet.copyOrigin", { allowed: ["gm", "p1"] });
+    const shared = await gm.eval(`const item = await game.drpg.createTruthBullet(game.actors.get("${IDS.aiko}"), { name: "72: a shared note",
+        playerText: "A note in a stranger's hand.", origin: { kind: "shared", name: "${giverName}" } });
+        return item?.uuid ?? null;`, { timeout: 60000 });
+    await settle(1200);
+    const ownOrigin = await p1.eval(`const TB = await import("${repoUrl}/scripts/truth-bullets.mjs"); const item = fromUuidSync(${JSON.stringify(shared ?? "")});
+        return typeof TB.copyOriginOf === "function" && item ? TB.copyOriginOf(item) : null;`);
+    check("p1: Aiko's copy shared by a student says who handed it, from p1's own copy of the GMs' row",
+        Boolean(shared) && ownOrigin?.kind === "shared" && ownOrigin.name === giverName, JSON.stringify({ shared, ownOrigin }), { flow: "truth-bullets" });
+
     phase("rest");
     await settle(1500);
     await canary.scan({ phase: "rest" });

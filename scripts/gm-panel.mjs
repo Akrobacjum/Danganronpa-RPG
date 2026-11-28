@@ -349,7 +349,8 @@ const PANEL_SECTIONS = [
                   const { resetVoiceFromHere } = await import("./voice.mjs");
                   const { avclientActive } = await import("./voice-client.mjs");
                   const n = await resetVoiceFromHere();
-                  // A second GM's refusal is the bridge's to say (E128); below is this browser's own.
+                  // A second GM's refusal is said already: the primary's relayed reason (voice.mjs `resetVoiceFromHere`, 2.0 line
+                  // T3 VOICE-09), or the bridge's (E128); below is this browser's own.
                   if (n === null && !isPrimaryGm()) return null;
                   if (n !== null) return ui.notifications.info(plural("DRPG.Voice.resetDone", { n }));
                   const name = game.users.get(primaryGmId())?.name ?? "";

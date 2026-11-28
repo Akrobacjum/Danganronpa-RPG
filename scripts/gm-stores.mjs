@@ -3417,3 +3417,52 @@ export function healthOnPrimaryChange(change, { me = game.user?.id ?? null, load
     if (!change?.from || !change.to || change.to !== me || !loaded) return null;
     return run();
 }
+
+/* =====================================================================================================================
+ * 2.0 LINE T3 (27-28.11.2026): the line's stores, in one block at the end of the definitions (LINE-T3.md section 4).
+ * ===================================================================================================================== */
+
+/**
+ * A CHANGE OF PHASE INTO OR OUT OF THE CLASS TRIAL, STEP BY STEP (2.0 line T3 TRIAL-08, 28.11.2026; the owner's adopted
+ * recommendation: "Zapis postępu kroków i dokończenie niewykonanych przy ready głównego"). clock.mjs `reconcilePhase` runs
+ * the trial's entry steps (the budget, the record's reset, the dead's microphones, the Key fee, the deaths nobody found,
+ * the hall) and its exit steps (the floor, the vote, the microphones, the sentence, the bodies, the school) on the browser
+ * that wrote the phase, and a page closed half way left the rest undone with no trace. A row per change, keyed by its
+ * stamp: `{ from, to, at, by, done, failed, started }` - written before the first step and after each one, the older
+ * rows dropped by the next change. The primary finishes what a row left (clock.mjs `finishPhaseSteps`). Synced, so the
+ * primary reads another GM's row; not backed up: it is worth the moments of one change. Cut by the reset's "clock"
+ * group with the phase it belongs to. No player copy and no old key.
+ */
+export const phaseStepStore = defineGmStore({
+    name: "phaseSteps", key: SETTINGS.gmPhaseSteps,
+    kind: "ledger", resetGroup: "clock", backup: false, sync: true
+});
+
+/**
+ * A REMNANT ERASED AT A CLEAN-UP (2.0 line T3 EXP-GM-10, 28.11.2026; the owner's adopted recommendation: "Ślad usunięcia
+ * (co, kiedy, w którym sprzątaniu) w oknie Investigation dla GM-ów"). cleanup.mjs `resolveEraseRoad` removes the trace's
+ * row and its token (remnants.mjs `removeRemnant`), and what it was stood on the clean-up's card alone. A row per erased
+ * trace, keyed by its id: `{ name, type, visibility, room, sceneId, chapter, day, timeOfDay, at, by, byName, attempt }` -
+ * the name as the GMs know it, where and when it lay, who cleaned and which attempt - written from the attempt's receipt
+ * (`receipt.erased`) right after the removal, and dropped when a Reroll puts the trace back under its id. Read by the
+ * Investigation window's Remnants tab (investigation.mjs `erasedRemnantsHtml`). Synced and backed up: the case's record.
+ * Cut by the reset's "remnants" group with the traces it was one of. No player copy and no old key.
+ */
+export const erasedRemnantStore = defineGmStore({
+    name: "erasedRemnants", key: SETTINGS.gmErasedRemnants,
+    kind: "ledger", resetGroup: "remnants", backup: true, sync: true
+});
+
+/**
+ * AN OWNER'S COPIES' ORIGINS (2.0 line T3 EXP-PL-17 with D2-30, 28.11.2026; the owner: "pochodzenie kopii nie może być
+ * czytelne w konsoli innych graczy"): `{ itemUuid: { kind, name?, gaveTo? } }` for the Truth Bullets on the characters
+ * this user owns, as a GM sent them - the `origin` field of each bullet's row in `bulletStore` - a stamp per bullet, taken
+ * by the offers' rule as `bulletRefCopy` is, and sent in the same addressed packet (truth-bullets.mjs `sendBulletRefsTo`).
+ * Read by truth-bullets.mjs `copyOriginOf`. No old key: the item flag of the first 2.0 build is lifted into the rows
+ * (`liftCopyOrigins`).
+ */
+export const copyOriginCopy = defineGmCopy({
+    name: "copyOrigins", key: SETTINGS.mineCopyOrigins, from: "bullets", resetGroup: "bullets", fallback: {},
+    combine: offersCombine
+});
+

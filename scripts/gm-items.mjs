@@ -28,6 +28,9 @@ import { ITEM_POOLS, USABLE_GOALS, moduleTables, rolesOfResult, MULTI_ROLE_TIER,
     from "./tables.mjs";
 import { studentActors } from "./monokuma.mjs";
 
+/** The Give window's third recipient (EXP-GM-11): the students ticked under the select. Local: config.mjs is not this line's to change. */
+const RECIPIENT_PICKED = "picked";
+
 /** The student <option> list every give/take window opens with (ITEM-18). */
 function recipientOptions(students, selectedId) {
     /* The actor a window was opened for is in its list even when it is no student (E47-KFb; E47-C8's Open 3): the
@@ -1304,12 +1307,22 @@ function wireBulletForm(dialog, traces, traceContextLine, scope = null, reread =
         // Give off on From a Remnant with no trace to pick (CTRL-61), with the hub's own reason.
         const paint = () => {
             const existing = (shownTab(dialog.element) ?? "create") === "existing";
+            const form = dialog.element.querySelector("form");
             // No list, or a list the traces' redraw emptied (`followTheTraces`).
-            const empty = existing && !dialog.element.querySelector("form")?.elements?.remnant?.options?.length;
-            holdGive(dialog.element, !empty, empty ? game.i18n.localize("DRPG.TruthBullet.remnantEmpty") : null);
+            const empty = existing && !form?.elements?.remnant?.options?.length;
+            // Picked students with none ticked (EXP-GM-11): Give held, and the ticks shown only for Picked.
+            const picking = form?.elements?.recipient?.value === RECIPIENT_PICKED;
+            const set = form?.querySelector("[data-drpg-bullet-picked]");
+            if (set) set.hidden = !picking;
+            const none = picking && !form.querySelector('input[name="pick"]:checked');
+            holdGive(dialog.element, !empty && !none, empty ? game.i18n.localize("DRPG.TruthBullet.remnantEmpty")
+                : none ? game.i18n.localize("DRPG.TruthBullet.pickedNone") : null);
         };
         wireKitTabs(dialog.element, { win: dialog.element, app: dialog, onSwitch: paint });
         scope = dialogScope(dialog, paint);
+        dialog.element.querySelector("form")?.addEventListener("change", event => {
+            if (event.target?.name === "recipient" || event.target?.name === "pick") paint();
+        });
         paint();
     }
     const form = scope.form;
@@ -1376,7 +1389,9 @@ function readBulletForm(d) {
 function readBulletFields(f, active, { recipient = "recipient", nameField = "name" } = {}) {
     const common = {
         recipient: f.elements[recipient]?.value ?? null,
-        tell: f.elements.tell.checked
+        tell: f.elements.tell.checked,
+        // Picked students' ticks (EXP-GM-11), read whatever the select says; the give reads them only for Picked.
+        picked: [...f.querySelectorAll('input[name="pick"]:checked')].map(box => box.value)
     };
 
     if (active === "existing" && f.elements.remnant) {
@@ -1579,8 +1594,15 @@ export async function giveTruthBulletDialog(actor, { scenes: only = null, fill =
 
     /* EVERYONE (1.2.113; config.mjs `RECIPIENT_EVERYONE`): last in the list, picked where the plan names it */
     const everyone = fill?.recipient === RECIPIENT_EVERYONE;
+    /* PICKED STUDENTS (2.0 line T3 EXP-GM-11, 28.11.2026; the owner's adopted recommendation: "Wybór kilku uczniów w
+       oknie Daj, jak przy Autopsy"): the third choice, a tick per living student under the select, the one the window
+       was opened for ticked (`pickedRecipientRows`); given through `giveToMany`, one copy each, as Everyone is. */
     const recipients = recipientOptions(students, everyone ? null : initial.id)
-        + `<option value="${RECIPIENT_EVERYONE}"${everyone ? " selected" : ""}>${esc(game.i18n.localize("DRPG.Items.everyone"))}</option>`;
+        + `<option value="${RECIPIENT_EVERYONE}"${everyone ? " selected" : ""}>${esc(game.i18n.localize("DRPG.Items.everyone"))}</option>`
+        + `<option value="${RECIPIENT_PICKED}">${esc(game.i18n.localize("DRPG.TruthBullet.recipientPicked"))}</option>`;
+    const { livingStudentsForGm } = await import("./chapter.mjs");
+    const picked = `<fieldset data-drpg-bullet-picked hidden><legend>${esc(game.i18n.localize("DRPG.TruthBullet.pickedLegend"))}</legend>`
+        + `${pickedRecipientRows(livingStudentsForGm(), initial.id)}</fieldset>`;
     const { traces, writers, traceContextLine } = await bulletTraces(only);
 
     const existingPane = bulletExistingPane(traces, initial, traceContextLine);
@@ -1596,7 +1618,7 @@ export async function giveTruthBulletDialog(actor, { scenes: only = null, fill =
             { key: "create", label: game.i18n.localize("DRPG.TruthBullet.tabWriteNew"),
               html: bulletCreatePane(fill), tooltip: tipText("DRPG.Tips.Sweep.Gm.tabWriteNewTooltip") }
             /* a planned Truth Bullet (E104) opens on Write new, filled in, its recipient and Tell as planned */
-        ], { active: fill || !traces.length ? "create" : "existing" })}${recipientRows(recipients, "DRPG.TruthBullet.secretNote", "drpg-bullet", { tell: fill?.tell ?? true })}</form>`,
+        ], { active: fill || !traces.length ? "create" : "existing" })}${recipientRows(recipients, "DRPG.TruthBullet.secretNote", "drpg-bullet", { tell: fill?.tell ?? true })}${picked}</form>`,
         render: (event, dialog) => { wireBulletForm(dialog, traces, traceContextLine, null, () => bulletTraces(only)); followTheWorld(dialog, "recipient"); },
         footer: {
             primary: { action: "ok", label: game.i18n.localize("DRPG.TruthBullet.give"), callback: (e, b, d) => readBulletForm(d),
@@ -1608,7 +1630,16 @@ export async function giveTruthBulletDialog(actor, { scenes: only = null, fill =
 
     if (!result || result === "cancel") return false;
     if (result.recipient === RECIPIENT_EVERYONE) return giveToEveryone(result, traces, writers);
+    if (result.recipient === RECIPIENT_PICKED) return giveToMany(result, (result.picked ?? []).map(id => game.actors.get(id)).filter(Boolean), traces, writers);
     return giveBulletNow(result, game.actors.get(result.recipient) ?? initial, traces, writers);
+}
+
+
+/** Picked students' rows (EXP-GM-11): a tick per student, `ticked` (the one the window was opened for) ticked alone. Pure on its arguments (R9144). */
+export function pickedRecipientRows(students = [], ticked = null) {
+    return students.map(a => `<label class="drpg-checkbox">
+            <input type="checkbox" name="pick" value="${esc(a.id)}"${a.id === ticked ? " checked" : ""}${tipAttr("DRPG.Tips.Sweep.Gm.pickedTargetTooltip")} />
+            ${esc(a.name)}</label>`).join("");
 }
 
 /**
@@ -1652,12 +1683,21 @@ export async function givePlannedBulletNow(row = {}) {
  * is nobody to give it to. Exported for the suite.
  */
 export async function giveToEveryone(result, traces, writers) {
+    const { livingStudentsForGm } = await import("./chapter.mjs");
+    return giveToMany(result, livingStudentsForGm(), traces, writers);
+}
+
+/**
+ * GIVE A TRUTH BULLET TO SEVERAL (2.0 line T3 EXP-GM-11, 28.11.2026): `giveToEveryone`'s body over the students given -
+ * the living for Everyone, the ticked for Picked students - one copy each through `giveBulletNow`, its "has a copy
+ * already" refusal a student's own, and the GM told who got none. The one place a give to several ends. Exported for the
+ * suite.
+ */
+export async function giveToMany(result, students = [], traces = [], writers = {}) {
     if (!result.name) {
         ui.notifications.warn(game.i18n.localize("DRPG.TruthBullet.needsName"));
         return false;
     }
-    const { livingStudentsForGm } = await import("./chapter.mjs");
-    const students = livingStudentsForGm();
     if (!students.length) {
         ui.notifications.warn(game.i18n.localize("DRPG.Panel.noCharacters"));
         return false;
@@ -1665,7 +1705,7 @@ export async function giveToEveryone(result, traces, writers) {
     const missed = [];
     for (const who of students) {
         let made = false;
-        try { made = await giveBulletNow(result, who, traces, writers); } catch (err) { error(`Give to everyone: no Truth Bullet for ${who.name}`, err); }
+        try { made = await giveBulletNow(result, who, traces, writers, { kind: students.length > 1 ? "givenMany" : "given" }); } catch (err) { error(`Give to everyone: no Truth Bullet for ${who.name}`, err); }
         if (made !== true) missed.push(who.name);
     }
     if (missed.length) ui.notifications.warn(game.i18n.format("DRPG.TruthBullet.everyoneMissed", { names: listOf(missed) }));
@@ -1699,8 +1739,9 @@ async function bulletTraces(only = null) {
     return { traces, traceContextLine, writers: { setRemnantPublicById, markRemnantEditedById, tieForCopy } };
 }
 
-/* A Truth Bullet's give carried out for `who`, as its window and the hub's Give tab answer it (E101 F2). */
-async function giveBulletNow(result, who, traces, writers) {
+/* A Truth Bullet's give carried out for `who`, as its window and the hub's Give tab answer it (E101 F2). `origin` is the
+   copy's (2.0 line T3 EXP-PL-17): a GM's give to this student alone, unless a give to several says so. */
+async function giveBulletNow(result, who, traces, writers, origin = { kind: "given" }) {
     if (!result.name) {
         ui.notifications.warn(game.i18n.localize("DRPG.TruthBullet.needsName"));
         return false;
@@ -1717,7 +1758,7 @@ async function giveBulletNow(result, who, traces, writers) {
        still makes it on its own browser (`requestGiveBullet`'s `local`, `onPrimary`). The bridge says why on a refusal,
        so this reads only the value. */
     const { requestGiveBullet } = await import("./gm-bridge.mjs");
-    const res = await requestGiveBullet(who, payload);
+    const res = await requestGiveBullet(who, { ...payload, origin });
     const given = res.value?.given ?? null;
     if (given === "already") {
         ui.notifications.warn(game.i18n.format("DRPG.TruthBullet.alreadyGiven", { actor: who.name }));

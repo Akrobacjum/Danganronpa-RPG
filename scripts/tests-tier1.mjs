@@ -7743,8 +7743,8 @@ const INVARIANTS = [
             ["Item flag remnantRef",
                 s => { s.items[0].flags[MOD].remnantRef = null; },
                 h => h.kind === "flag" && h.doc === "Item" && h.id === "R190BYSTANDER001.items.R190ITEM00000001" && h.path === `flags.${MOD}.remnantRef`],
-            // E97 C1: who left the trace a bullet came from is its answer key's, never the item's.
-            ...["leftBy", "leftByName"].map(f => [`Item flag ${f}`,
+            // E97 C1: who left the trace a bullet came from is its answer key's, never the item's; and since D2-30 (2.0 line T3) how a copy came to its holder.
+            ...["leftBy", "leftByName", "copyOrigin"].map(f => [`Item flag ${f}`,
                 s => { s.items[0].flags[MOD][f] = "R190"; },
                 h => h.kind === "flag" && h.doc === "Item" && h.id === "R190BYSTANDER001.items.R190ITEM00000001" && h.path === `flags.${MOD}.${f}`]),
             // E70 C5: the trial's list of the dead outside the trial - an empty one is found as well; in it, nothing (below).
@@ -29219,7 +29219,7 @@ const INVARIANTS = [
         }).map(([k, f, unit]) => `${k} in ${f}${unit ? ` ${unit}()` : ""}`).concat(helpers);
         equal(bad.join("; "), "", "{the keys whose words are missing or too long, or whose control's function does not draw them}");
     }],
-    ["R4752 - the chapter, murder and Class Trial windows draw their tooltips (E102 C3, 13.11.2026; the owner's stage \"Tooltips across the module\", docs/dev/e102/TOOLTIPS.json and KEYS.json): each of the family's 41 keys (34 until E110 C3, 36 until E40 on 16.11.2026, 37 until E129 on 23.11.2026) under DRPG.Tips.Trial has words in English and in Polish, at most 23 words each (the guide's tooltip limit), and the function that draws its control writes it where that control draws it (tests-tips.mjs `tipPlacement`: inside the control's own tag and not as a condition, as a labelled button's or tab's `tooltip`, in a builder's `data-tooltip` attrs, by `setTip`, or through a named local helper that writes it; a count's words through `plural`, each form within the limit)", async () => {
+    ["R4752 - the chapter, murder and Class Trial windows draw their tooltips (E102 C3, 13.11.2026; the owner's stage \"Tooltips across the module\", docs/dev/e102/TOOLTIPS.json and KEYS.json): each of the family's 48 keys (41 until 2.0 line T3, 47 until its CI fix of 28.11.2026, 34 until E110 C3, 36 until E40 on 16.11.2026, 37 until E129 on 23.11.2026) under DRPG.Tips.Trial has words in English and in Polish, at most 23 words each (the guide's tooltip limit), and the function that draws its control writes it where that control draws it (tests-tips.mjs `tipPlacement`: inside the control's own tag and not as a condition, as a labelled button's or tab's `tooltip`, in a builder's `data-tooltip` attrs, by `setTip`, or through a named local helper that writes it; a count's words through `plural`, each form within the limit)", async () => {
         /* Red at 70613472 with the keys and this test in place and the family's scripts as they were: no function read a DRPG.Tips.Trial key. Since REVIEW-E102-code C1: where the key lands, not only that it is named - red on the review's planted ternary that names the key and draws nothing (action-dynamic.mjs:336). */
         const TIPS = [
             ["DRPG.Tips.Trial.moveToChapterToTooltip","chapter.mjs","chapterEndForm"],
@@ -29266,7 +29266,18 @@ const INVARIANTS = [
             ["DRPG.Tips.Trial.finishKeepTooltip","trial-prompt.mjs","promptFinish"],
             ["DRPG.Tips.Trial.finishDoneTooltip","trial-prompt.mjs","promptFinish"],
             ["DRPG.Tips.Trial.confirmKeepTooltip","trial-prompt.mjs","confirmEnd"],
-            ["DRPG.Tips.Trial.confirmEndTooltip","trial-prompt.mjs","confirmEnd"]
+            ["DRPG.Tips.Trial.confirmEndTooltip","trial-prompt.mjs","confirmEnd"],
+            // 2.0 line T3 (27.11.2026): EXP-GM-12's three ticks of a wrong verdict, EXP-GM-03's Start anyway - the family grew by four.
+            ["DRPG.Tips.Trial.wrongStepOffersTooltip","verdict-skips.mjs","wrongStepsHtml"],
+            ["DRPG.Tips.Trial.wrongStepRuleTooltip","verdict-skips.mjs","wrongStepsHtml"],
+            ["DRPG.Tips.Trial.wrongStepDespairTooltip","verdict-skips.mjs","wrongStepsHtml"],
+            ["DRPG.Tips.Trial.startAnywayTooltip","trial-floor-ui.mjs","waitingFirst"],
+            // EXP-GM-04's Announce and Not yet: the family grew by two more.
+            ["DRPG.Tips.Trial.announceTooltip","trial-floor-ui.mjs","previewVoteResult"],
+            ["DRPG.Tips.Trial.notYetTooltip","trial-floor-ui.mjs","previewVoteResult"],
+            // 28.11.2026: the ballot's radio, which CI's tooltip census refused as a row moved from castBallot to ballotFormHtml
+            // (main held none there) - given its tooltip instead, the family grew by one.
+            ["DRPG.Tips.Trial.ballotChoiceTooltip","vote.mjs","ballotFormHtml"]
         ];
         const en = await fetch(`/modules/${MODULE_ID}/lang/en.json`).then(r => r.json());
         const pl = await fetch(`/modules/${MODULE_ID}/lang/pl.json`).then(r => r.json());
@@ -29274,7 +29285,7 @@ const INVARIANTS = [
         const src = new Map();
         for (const f of new Set(TIPS.map(t => t[1]))) src.set(f, stripComments(await fetch(`/modules/${MODULE_ID}/scripts/${f}`).then(r => (r.ok ? lfText(r) : ""))));
         must([...src.values()].every(s => s.length > 500), "a script of the family read as nothing - this would measure nothing");
-        must(Object.keys(words(en, "DRPG.Tips.Trial") ?? {}).length === 41, "lang/en.json has not the family's 41 keys under DRPG.Tips.Trial");
+        must(Object.keys(words(en, "DRPG.Tips.Trial") ?? {}).length === 48, "lang/en.json has not the family's 48 keys under DRPG.Tips.Trial");
         const fits = w => (w && typeof w === "object" ? Object.values(w).length > 0 && Object.values(w).every(fits) : typeof w === "string" && w.trim().length > 0 && w.trim().split(/\s+/).length <= 23);
         const P = await import("./tests-tips.mjs");
         must(P.tipPlacementSelfCheck().length === 0, `tests-tips.mjs misreads its own plants: ${P.tipPlacementSelfCheck().join("; ")}`);
@@ -29403,6 +29414,8 @@ const INVARIANTS = [
            C6b's part red at 05a97e0c (E54 merged): 30 keys missing and no investigation.mjs or key-remnants.mjs function drawing one. */
         const TIPS = [
             ["DRPG.Tips.Case.nodeOnTheMapTooltip","case-map.mjs","nodeButton"],
+            // 2.0 line T3 CTL-03..CTL-30: the Class Trial console's node, which opens the node on the Map (`opensMap`)
+            ["DRPG.Tips.Case.nodeOpensMapTooltip","case-map.mjs","nodeButton"],
             ["DRPG.Tips.Case.onANodeTooltip","case-map.mjs","caseGraphHtml"],
             ["DRPG.Tips.Case.notTiedToTheTooltip","case-map.mjs","caseGraphHtml"],
             ["DRPG.Tips.Case.moveUpMoveDownTooltip","case-map.mjs","nodeEditHtml"],
@@ -49016,7 +49029,7 @@ const INVARIANTS = [
             keep: [".application.drpg-prompt", "drpg-prompt", false],
             kit: [[false, false], [true, false]],
             asking: ["action-menus.mjs chooseVariant", "action-menus.mjs promptForNote", "action-project.mjs proposeProjectTrait", "call-gm.mjs askForRequest", "frisk.mjs askToForce", "frisk.mjs openAskWindow",
-                "level-up.mjs askWhoPicks", "level-up.mjs openAdvancement", "mask-gm.mjs askReveal", "observe.mjs askWhichRemnant", "observe.mjs describeFind", "observe.mjs wireDescribeHere", "trait-ruling.mjs pickHere",
+                "level-up.mjs askWhoPicks", "level-up.mjs openAdvancement", "mask-gm.mjs askReveal", "observe.mjs askDescribeHere", "observe.mjs askWhichRemnant", "observe.mjs describeFind", "observe.mjs wireDescribeHere", "trait-ruling.mjs pickHere",
                 "trait-ruling.mjs rollChanged", "trial-prompt.mjs confirmEnd", "trial-prompt.mjs promptClaim", "trial-prompt.mjs promptFinish", "trial-prompt.mjs promptTurn", "vote.mjs castBallot"],
             naming: ["roll-dialog.mjs", "stacking.mjs", "ui-kit.mjs"],
             // E69 C1: the Infiltrate tile's rows (action-listen.mjs `performListen`), an action's declaration.
@@ -55789,13 +55802,16 @@ const INVARIANTS = [
             ["ended, the verdict stopped", null, false, true, { voteClosed: true, verdictApplied: true }, "Level Ups", null],
             ["ended, the verdict another GM gives", null, false, true, { voteClosed: true, verdictApplied: true }, null, "other"],
             ["ended, a floor left, the vote counted", "debate", false, true, { voteClosed: true }, null, null],
-            ["a debate, the verdict given", "debate", true, true, { voteClosed: true, verdictApplied: true }, null, null]
+            ["a debate, the verdict given", "debate", true, true, { voteClosed: true, verdictApplied: true }, null, null],
+            // 2.0 line T3 EXP-GM-04: the count closed and its card not posted - Announce first
+            ["the vote counted, not announced", null, true, true, { voteClosed: true, resultCard: true }, null, null]
         ];
         const viewOf = ([, mode, running, afterwards, p, stopped, runner]) => ({
             floor: mode === null ? null : mode === "closingX" ? { mode: "objection", closing: { phase: "speak" } } : { mode },
             running, afterwards, stopped, runner: runner === "me" ? game.user.id : runner === "other" ? "otherGM000000000" : null,
             progress: { voteClosed: Boolean(p.voteClosed), verdictApplied: Boolean(p.verdictApplied), debateAgain: Boolean(p.debateAgain),
-                againAfterOverrule: p.againAfterOverrule ? { messageId: "cardR2050AAAAAAA", seconds: 90 } : null, vote: { open: Boolean(p.vote) } }
+                againAfterOverrule: p.againAfterOverrule ? { messageId: "cardR2050AAAAAAA", seconds: 90 } : null, vote: { open: Boolean(p.vote) },
+                resultCard: p.resultCard ? "<p>R2050 the count</p>" : null, resultAnnouncedAt: null }
         });
         const HEAD = {
             "no trial": "start",
@@ -55828,7 +55844,8 @@ const INVARIANTS = [
             "ended, the verdict stopped": "finishVerdict",
             "ended, the verdict another GM gives": "verdictElsewhere",
             "ended, a floor left, the vote counted": "verdict",
-            "a debate, the verdict given": "closeDebate"
+            "a debate, the verdict given": "closeDebate",
+            "the vote counted, not announced": "announceVote"
         };
         const first = (table, view) => table.find(([when]) => when(view))?.[1] ?? null;
         const read = Object.fromEntries(VIEWS.map(v => [v[0], F.trialNextStep(viewOf(v))]));
@@ -55843,7 +55860,7 @@ const INVARIANTS = [
         ok(table.length > 300 && /Scrum Debate/.test(table) && /\n\s*\[view => [^\n]*strawPoll\?\.split === true, "scrum"\]/.test(table), "the table holds no row for E73's Scrum Debate after a split in the Straw Poll");
         ok(!/"closeTrial"|"endTrial"|"end"\]/.test(stripComments(table)) && src.length > 2000, "a row of the table closes the trial (05.10, topic C: the sentence after the verdict is E70's)");
         const steps = [...new Set(Object.values(HEAD))].sort();
-        equal(steps.length, 13, "the views do not reach every step");
+        equal(steps.length, 14, "the views do not reach every step");
         const lang = {};
         for (const code of ["en", "pl"]) lang[code] = await fetch(`/modules/${MODULE_ID}/lang/${code}.json`).then(r => r.json()).then(j => j.DRPG?.Floor?.next ?? {});
         equal(stableJson(["en", "pl"].map(code => steps.filter(s => !(typeof lang[code][s] === "string" && lang[code][s].length > 10)))), stableJson([[], []]),
@@ -66589,7 +66606,9 @@ const INVARIANTS = [
         const K = await import("./key-remnants.mjs");
         ok(typeof K.wireChargeHeld === "function", "key-remnants.mjs exports no wireChargeHeld - the held card has no button to wire");
         const src = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/key-remnants.mjs`).then(r => (r.ok ? lfText(r) : "")));
-        const charge = fnSource(src, "chargeForUnfoundKeys"), wire = fnSource(src, "wireChargeHeld");
+        // the card is drawn in `holdCharge` since 2.0 line T3 INV-07, which an unanswered ask posts as well: read with its caller
+        const held = fnSource(src, "chargeForUnfoundKeys");
+        const charge = /holdCharge\(/.test(held) ? `${held}\n${fnSource(src, "holdCharge")}` : held, wire = fnSource(src, "wireChargeHeld");
         const bridge = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/gm-bridge.mjs`).then(r => (r.ok ? lfText(r) : "")));
         const flats = {};
         for (const lang of ["en", "pl"]) flats[lang] = foundry.utils.flattenObject(foundry.utils.expandObject(await fetch(`/modules/${MODULE_ID}/lang/${lang}.json`).then(r => r.json())));
@@ -67611,19 +67630,26 @@ const INVARIANTS = [
         }), stableJson({ relayed: true, lines: true }),
             "{relayed: a GM's answer with no value (relayed to the primary) reads as pending; lines: Ask again says Sent, Here for any answer, None for none}");
     }],
-    ["R8732 - a Finish of a stopped verdict runs on its runner, is asked of the primary by a second full GM when the primary runs it, and is refused with whom to ask otherwise (E128; scripts/verdict.mjs `finishRoute`, `finishVerdict`; OWNER-128-SECOND-GM, line CORE's inventory row 6)", async () => {
+    ["R8732 - a Finish of a stopped verdict is taken on the primary by every full GM and run where it was pressed; an Assistant GM runs one it gave and is refused with whom to ask otherwise (E128; 2.0 line T3 TRIAL-03, PRIM-06; scripts/verdict.mjs `finishRoute`, `finishVerdict`, verdict-claim.mjs `claimVerdict`; OWNER-128-SECOND-GM, line CORE's inventory row 6)", async () => {
         /* Red at 9eb89710: no `finishRoute` - a second GM's Finish of a verdict the primary ran was refused
-           (`DRPG.Vote.finishOtherGm`). Pure on stand-in ids, and a text read of `finishVerdict`; nothing written. */
+           (`DRPG.Vote.finishOtherGm`). Changed by 2.0 line T3 TRIAL-03 (27.11.2026): the route "primary" ran the primary's
+           own Finish, its windows on the primary while the asker's wait ran out, and a Finish of a verdict a connected
+           second GM gave was refused (PRIM-06); now every full GM's press is a "claim" - taken on the primary, the steps run
+           on the presser. Red at 0b69122 for the new routes: "here", "primary" and "refuse" where "claim" is read, and no
+           claim in `finishVerdict`. Pure on stand-in ids, and a text read of `finishVerdict`; nothing written. */
         const V = await import("./verdict.mjs");
+        const K = await import("./verdict-claim.mjs").catch(() => ({}));
         must(typeof V.finishRoute === "function", "verdict.mjs has no finishRoute: a second GM's Finish is refused whoever runs the verdict");
         const r = (runner, me, full = true) => V.finishRoute({ runner, me, primary: "PRIMARY", full });
         const finish = fnSource(stripComments((new Map(await moduleSources())).get("verdict.mjs") ?? ""), "finishVerdict") ?? "";
-        equal(stableJson({ routes: [r(null, "SECOND"), r("SECOND", "SECOND"), r("PRIMARY", "SECOND"), r("PRIMARY", "SECOND", false), r("THIRD", "SECOND"), r("PRIMARY", "PRIMARY")],
-            asks: /const route = finishRoute\(\{ runner \}\);\s*if \(route === "primary"\) \{[\s\S]{0,160}bridgeRequest\("verdict\.finish"/.test(finish) }),
-            stableJson({ routes: ["here", "here", "primary", "refuse", "refuse", "here"], asks: true }),
-            "{routes: no runner, the runner itself, a second full GM while the primary runs it, an Assistant GM then, another GM runs it, the primary runs it and presses; asks: finishVerdict sends a second GM's Finish to the primary}");
+        equal(stableJson({ routes: [r(null, "SECOND"), r("SECOND", "SECOND"), r("PRIMARY", "SECOND"), r("THIRD", "SECOND"), r("PRIMARY", "PRIMARY"),
+            r("PRIMARY", "SECOND", false), r(null, "SECOND", false), r("SECOND", "SECOND", false)],
+            claims: /if \(route === "claim"\) \{[\s\S]{0,200}claimVerdict\(game\.user[\s\S]{0,300}bridgeRequest\("verdict\.finish"/.test(finish),
+            granted: /res\.value\?\.granted !== true/.test(finish), claimFn: typeof K.claimVerdict === "function" }),
+            stableJson({ routes: ["claim", "claim", "claim", "claim", "claim", "refuse", "here", "here"], claims: true, granted: true, claimFn: true }),
+            "{routes: a full GM with no runner, the runner itself, a second full GM while the primary runs it, another GM runs it, the primary; an Assistant GM while another runs it, with none, its own; claims: finishVerdict claims on the primary itself or asks it; granted: it runs only on a grant; claimFn: verdict-claim.mjs has claimVerdict}");
     }],
-    ["R8731 - Season setup's Reset the season asks who may reset at the press, before the window closes: a GM who is not the primary is told the reset is the primary's and the window is kept (E128; scripts/gm-campaign.mjs `mayResetSeasonHere`, season-setup.mjs `openSeasonSetup`; OWNER-128-SECOND-GM, line CORE's inventory row 7)", async () => {
+    ["R8731 - Season setup's Reset the season asks who may reset at the press, before the window closes: an Assistant GM who is not the primary is told the reset is the primary's and the window is kept, a second full GM's press goes on to its window (E128; 2.0 line T3 TRIAL-04; scripts/gm-campaign.mjs `mayResetSeasonHere`, season-setup.mjs `openSeasonSetup`; OWNER-128-SECOND-GM, line CORE's inventory row 7)", async () => {
         /* Red at 9eb89710: no `mayResetSeasonHere`; the press closed Season setup unsaved and season-wipe.mjs `resetSeason`
            refused after, so a second GM's typed edits were lost. Pure (the warning caught) and a text read of the handler;
            nothing written. */
@@ -67634,15 +67660,18 @@ const INVARIANTS = [
         let answer = null;
         try {
             if (ui.notifications) ui.notifications.warn = text => { warned.push(String(text)); };
-            answer = [G.mayResetSeasonHere({ primary: false }), G.mayResetSeasonHere({ primary: true })];
+            /* Changed by 2.0 line T3 TRIAL-04 (27.11.2026): a second full GM's reset is sent to the primary, so only an Assistant
+               GM is refused; red at f27f4f2: true for the second full GM was read false. */
+            answer = [G.mayResetSeasonHere({ primary: false, full: false }), G.mayResetSeasonHere({ primary: false, full: true }),
+                G.mayResetSeasonHere({ primary: true, full: false })];
         } finally {
             if (ui.notifications) ui.notifications.warn = realWarn;
         }
         const said = game.i18n.format("DRPG.GmStore.resetPrimaryOnly", { name: "" }).split("{")[0].slice(0, 12);
         equal(stableJson({ answer, warned: warned.length, words: warned.every(w => w.startsWith(said)),
             asks: /\[data-drpg-reset-season\][\s\S]{0,160}if \(!mayResetSeasonHere\(\)\) return;\s*resetAsked = true;/.test(season) }),
-            stableJson({ answer: [false, true], warned: 1, words: true, asks: true }),
-            "{answer: a GM who is not the primary, the primary; warned: how often; words: the reset's own; asks: the press asks before it marks the reset and closes}");
+            stableJson({ answer: [false, true, true], warned: 1, words: true, asks: true }),
+            "{answer: an Assistant GM who is not the primary, a second full GM, the primary; warned: how often; words: the reset's own; asks: the press asks before it marks the reset and closes}");
     }],
     ["R8730 - a Spectator viewer's outline stands round the room its own Spectator token stands in, where its screen clears the room, and nowhere its fog does not; its walk still finds nothing and stands in no room of the fog's; a living player's outline is its own rooms as before (E127; scripts/fog.mjs `outlineLeadRooms`, `spectatorLeadRoom`, `leadsHere`, `myCurrentRooms`, `recordDiscovery`, `seedCells`; the owner at the table, 22.11.2026)", async () => {
         /*
@@ -67920,7 +67949,7 @@ const INVARIANTS = [
             picker: [L("DRPG.Floor.startBusy"), L("DRPG.Floor.startBusy"), L("DRPG.Floor.bar.inDebate"), L("DRPG.Floor.bar.inDebate")]
         }), "{family: [a round's Objection, its rebuttal, a debate's Objection, the Testimony]; next: [a round's Objection, a debate's]; straw: OBJECTION! in a Straw Poll; picker: Nonstop Debate's title in [a Testimony, a Straw Poll, the debate, a debate's Objection]}");
     }],
-    ["R8143 - the console's footer says why a button is held (1.2.122; CTRL-38, CTRL-44): Show summary greyed before the verdict says it is sent after the verdict, in a Final Trial that a Final Trial has none, and after the verdict carries no such reason; Finish the verdict on a GM who is not the verdict's runner is greyed with the runner's name, and pressable on the runner", async () => {
+    ["R8143 - the console's footer says why a button is held (1.2.122; CTRL-38, CTRL-44): Show summary greyed before the verdict says it is sent after the verdict, in a Final Trial that a Final Trial has none, and after the verdict carries no such reason; Finish the verdict on an Assistant GM who is not the verdict's runner is greyed with the runner's name, and pressable on a full GM and on the runner (2.0 line T3 TRIAL-05)", async () => {
         /* Red at 21bf5d18: no title on either, and Finish the verdict drawn enabled on every GM. */
         const UI = await import("./trial-floor-ui.mjs");
         const K = await import("./ui-kit.mjs");
@@ -67942,8 +67971,11 @@ const INVARIANTS = [
                 read(button(view({ stopped: "Level Ups", runner: game.user.id }, { voteClosed: true, verdictApplied: true }), "finishVerdict"))]
         }), stableJson({
             summary: [[true, L("DRPG.CaseSummary.afterVerdict")], [true, L("DRPG.CaseSummary.noneInFinal")], [false, null]],
-            finish: [[true, game.i18n.format("DRPG.Vote.finishOtherGm", { name: game.users.get(other.id)?.name ?? "?" })], [false, null]]
-        }), "{summary: [before the verdict, a Final Trial's, after the verdict]; finish: [on a GM who is not the runner, on the runner]}");
+            /* Changed by 2.0 line T3 TRIAL-05 (27.11.2026): on a full GM - this browser's role - Finish is live whoever runs the
+               verdict, since its press takes the verdict on the primary and runs here (verdict.mjs `finishRoute`, "claim");
+               greyed with the runner's name only on an Assistant GM, whose role this browser does not hold (read in the code). */
+            finish: [[false, null], [false, null]]
+        }), "{summary: [before the verdict, a Final Trial's, after the verdict]; finish: [on a full GM who is not the runner, on the runner]}");
     }],
     ["R8144 - the case schema in the console starts a mode by the mode picker's rule (1.2.122, CTRL-45): case-trial.mjs `trialSchemaHtml` over an open debate greys only the debate's own start, with 'already running'; over a round, the Closing or a zone mode every start, with 'Another mode is running'; with no floor none", async () => {
         /* Red at 21bf5d18: every start greyed whenever any floor was open, with 'Another mode is running. End it first.' */
@@ -72874,6 +72906,410 @@ const INVARIANTS = [
             road: [/if \(!state\.selfInflicted\) await tellVictimTheAttemptFailed\(state\)/.test(open), /DRPG\.Murder\.victimAttemptFailed/.test(tell), /state\??\.victimId/.test(tell)] }),
         JSON.stringify({ texts: [true, true], placeholders: [false, false], road: [true, true, true] }),
         "{texts: the English and the Polish line stand; placeholders: either names a placeholder; road: the failure branch tells the victim but for a death by one's own hand, the line is the key's, to the victim}");
+    }],
+    // T3 investigation-trial-chapter
+    ["R9120 - a refusal relayed from the primary is said with its reason's key when the key is of the closed list and the language file holds it, its values escaped; any other key is not said (2.0 line T3 TRIAL-02; scripts/bridge-guards.mjs `relayRefusal`, `tellRelayedRefusal`)", async () => {
+        /* 2.0 line T3 TRIAL-02, 27.11.2026. A second full GM's press carried out on the primary was refused with a toast on
+           the primary's screen and "nothing was carried out" on the asker's. The relays answer the reason's key now, and the
+           asker says it - only a key of the closed list (DRPG.Chapter., Vote., Season., GmStore., Voice.resetRefused., Body.,
+           and DRPG.Eclipse.bodyLocked) that `game.i18n.has`, each value of `data` escaped. Red at 0b69122: neither function
+           exists (the import's must). Pure: the notices caught; nothing written. */
+        const G = await import("./bridge-guards.mjs");
+        must(typeof G.tellRelayedRefusal === "function" && typeof G.relayRefusal === "function",
+            "bridge-guards.mjs has no tellRelayedRefusal or relayRefusal: a relayed refusal's reason reaches nobody who pressed");
+        const said = [];
+        const tell = value => [G.tellRelayedRefusal(value, text => said.push(String(text))), said.length];
+        const collector = G.relayRefusal();
+        collector.say("DRPG.Chapter.notStopped");
+        collector.say("DRPG.Vote.verdictAlreadyApplied");
+        const rows = [
+            tell({ relayedRefusal: { key: "DRPG.Chapter.notStopped", data: {} } }),
+            tell({ relayedRefusal: { key: "DRPG.Chapter.bodyAnnouncedAlready", data: { name: "<b>R9120</b>" } } }),
+            tell({ relayedRefusal: { key: "DRPG.Eclipse.bodyLocked" } }),
+            tell({ relayedRefusal: { key: "DRPG.Bridge.why.refused", data: {} } }),
+            tell({ relayedRefusal: { key: "DRPG.Chapter.r9120NoSuchKey", data: {} } }),
+            tell({ relayedRefusal: { key: "DRPG.Eclipse.bodyLockedR9120" } }),
+            tell(true), tell(null), tell(["DRPG.Chapter.notStopped"])
+        ];
+        equal(stableJson({ rows, first: said[0] === game.i18n.localize("DRPG.Chapter.notStopped"),
+            escaped: said[1]?.includes("&lt;b&gt;R9120&lt;/b&gt;") === true && !said[1]?.includes("<b>"),
+            kept: collector.taken() }),
+        stableJson({ rows: [[true, 1], [true, 2], [true, 3], [false, 3], [false, 3], [false, 3], [false, 3], [false, 3], [false, 3]],
+            first: true, escaped: true, kept: { key: "DRPG.Chapter.notStopped", data: {} } }),
+            "{rows: [said, notices so far] for a listed key, one with a value holding markup, the Eclipse's one key, a Bridge key, a listed prefix the file does not hold, a key past the one key, true, null, an array; first: the text is the key's; escaped: the value's markup escaped; kept: the collector keeps the first reason said}");
+    }],
+    ["R9121 - an end of the chapter whose record names steps not run, or that its primary marked halted, reads as stopped on every GM, its `by` the connected primary too; one with neither reads as running there (2.0 line T3 TRIAL-01; scripts/chapter.mjs `chapterEndStopped`)", async () => {
+        /* 2.0 line T3 TRIAL-01, 27.11.2026 (Forge S1b TRIAL-01: `stage: "applying"` after GM1's F5). A second GM read an end
+           whose `by` is the connected primary as running whenever no step had failed - one the phase's move stopped
+           (`notRun`) and one the primary's reload cut - so its window drew the form and the primary refused the press.
+           Pure on stand-in users (the arguments after the record, as R8732 reads `finishRoute`); nothing written. Red at
+           0b69122: null for the first two (the stand-ins not read: the record's `by` is no user of this world). */
+        const C = await import("./chapter.mjs");
+        must(typeof C.chapterEndStopped === "function", "chapter.mjs has no chapterEndStopped - this would measure nothing");
+        const users = new Map([["PRIMARY", { id: "PRIMARY", active: true, isGM: true }], ["GONE", { id: "GONE", active: false, isGM: true }]]);
+        const at = (record, me = "SECOND") => C.chapterEndStopped({ stage: "applying", by: "PRIMARY", done: [], failed: [], notRun: [], ...record },
+            { users, me, primary: "PRIMARY", running: false }) !== null;
+        equal(stableJson([at({ notRun: ["clock"] }), at({ halted: { at: 1, why: "reload" } }), at({}), at({ failed: ["sweep"] }), at({ by: "GONE" }),
+            at({}, "PRIMARY"), C.chapterEndStopped({ stage: "done", by: "PRIMARY" }, { users, me: "SECOND", primary: "PRIMARY", running: false }) !== null]),
+        stableJson([true, true, false, true, true, true, false]),
+            "[stopped on a second GM: steps not run; halted; neither (running on the primary); a step failed; `by` gone; on the primary itself; a record done]");
+    }],
+    ["R9122 - a stopped verdict another GM gave is this full GM's to finish: the trial console's step is Finish the verdict, and Finish elsewhere is an Assistant GM's alone (2.0 line T3 TRIAL-05; scripts/trial-floor.mjs `TRIAL_NEXT_STEPS`)", async () => {
+        /* 2.0 line T3 TRIAL-05, 27.11.2026. With a verdict stopped on another GM the console's line said "Only {name} can
+           finish it" beside a Finish button that worked (through the primary since E128; taken there since TRIAL-03). The
+           view's `mayFinish` (a full GM) chooses now. Pure on views; nothing written. Red at 0b69122: "finishElsewhere" for
+           both. */
+        const F = await import("./trial-floor.mjs");
+        const view = extra => ({ afterwards: true, running: false, floor: null, progress: { verdictApplied: true, voteClosed: true },
+            stopped: "the Level Ups", runner: "R9122OTHER", ...extra });
+        equal(stableJson([F.trialNextStep(view({ mayFinish: true })), F.trialNextStep(view({ mayFinish: false })), F.trialNextStep(view({})),
+            F.trialNextStep(view({ mayFinish: true, stopped: null })), F.trialNextStep(view({ mayFinish: false, stopped: null }))]),
+        stableJson(["finishVerdict", "finishElsewhere", "finishElsewhere", "verdictElsewhere", "verdictElsewhere"]),
+            "[stopped on another GM: a full GM, an Assistant GM, a view without the field; running on another GM: a full GM, an Assistant GM]");
+    }],
+    ["R9123 - the season reset a second full GM sends the primary is a GM's row whose groups are held to the reset's registry as it stands, and whose cast is one of the window's three choices (2.0 line T3 TRIAL-04; scripts/bridge-table.mjs `season.reset`)", async () => {
+        /* 2.0 line T3 TRIAL-04, 27.11.2026 (Forge S2 H1). A second full GM's Reset the season sends its plan to the primary
+           (`season.reset`); the row is a GM's (`gmOnly`), answers once the reset has run (a reply, a wait longer than a
+           ruling's), and passes on only the groups of season-exceptions.mjs `RESET_GROUPS` as the registry stands when the
+           packet arrives - a group spelt wrong, or a key of nothing, is dropped - and a cast of the window's three choices.
+           Pure: the row's sanitizer and fields read; nothing sent. Red at 79a4164: no row `season.reset`. */
+        const { BRIDGE_ACTIONS } = await import("./bridge-table.mjs");
+        const { RESET_GROUPS } = await import("./season-exceptions.mjs");
+        const { TIMING } = await import("./config.mjs");
+        const row = BRIDGE_ACTIONS["season.reset"];
+        must(row, "BRIDGE_ACTIONS has no season.reset: a second GM's reset is refused before its window");
+        const keys = RESET_GROUPS.map(group => group.key);
+        must(keys.includes("clock") && keys.includes("remnants"), "the reset's registry has no clock or remnants group - this would measure nothing");
+        const clean = payload => row.sanitize(payload);
+        equal(stableJson({
+            guards: row.guards.map(guard => guard.factory ?? guard.name),
+            fields: Object.keys(row.sanitize.fields).sort(),
+            groups: clean({ groups: ["clock", "R9123 no such group", "remnants", "clock", 7] }).groups,
+            notList: clean({ groups: "clock" }).groups,
+            cast: [clean({ cast: { to: "point", scene: "SCENE", region: "REGION", extra: 1 } }).cast, clean({ cast: { to: "elsewhere" } }).cast, clean({}).cast],
+            answer: row.answer, longer: row.timeoutMs > TIMING.rulingMs
+        }), stableJson({ guards: ["gmOnly"], fields: ["cast", "groups", "remember"], groups: ["clock", "remnants"], notList: [],
+            cast: [{ to: "point", scene: "SCENE", region: "REGION" }, { to: "stay" }, { to: "stay" }], answer: "reply", longer: true }),
+            "{guards; fields; groups: registry keys kept once, anything else dropped; notList: a groups field that is no list; cast: a room, a choice the window has not, none; answer; longer: the wait past a ruling's}");
+    }],
+    ["R9124 - a find's words are asked on every full GM's browser but the one whose window it is, once per ask, and not once the row has its words (2.0 line T3 INV-01; scripts/observe.mjs `describeAskedHere`)", async () => {
+        /* 2.0 line T3 INV-01, 27.11.2026 (Forge S1b INV-01, S2 D1). The describe window opened only on the browser that
+           scored the Observe; the other GMs had a whisper with no window, and a GM who joined later had nothing. The ask is
+           a row now (`describing.askId`), and this rule says which browser opens its window. Pure on stand-in rows; nothing
+           written. Red at 79a4164: no `describeAskedHere` (the import's must). */
+        const O = await import("./observe.mjs");
+        must(typeof O.describeAskedHere === "function", "observe.mjs has no describeAskedHere: only the browser that scored a find asks for its words");
+        const FULL = CONST.USER_ROLES.GAMEMASTER, ASSISTANT = CONST.USER_ROLES.ASSISTANT;
+        const row = extra => ({ describing: { askId: "ASK", gm: "COUNTING" }, ...extra });
+        const at = (r, { me = "SECOND", role = FULL, asked = new Set() } = {}) => O.describeAskedHere(r, { me, role, asked });
+        equal(stableJson([at(row()), at(row(), { me: "COUNTING" }), at(row(), { role: ASSISTANT }),
+            at(row({ describeAnswer: { askId: "ASK" } })), at(row({ described: { askId: "ASK" } })), at(row(), { asked: new Set(["ASK"]) }),
+            at(row({ result: { success: true } })), at({ describing: { gm: "COUNTING" } }), at(null), at(row({ describeAnswer: { askId: "OTHER" } }))]),
+        stableJson([true, false, false, false, false, false, false, false, false, true]),
+            "[a second full GM; the GM whose window it is; an Assistant GM; the row answered; the ask done; asked here already; the row resolved; no ask; no row; an older ask's words]");
+    }],
+    ["R9125 - a whisper's Write it here for a find is drawn only while its row's ask is open: not once the row has words, is done or is gone (2.0 line T3 INV-02; scripts/observe.mjs `describeButtonLive`)", async () => {
+        /* 2.0 line T3 INV-02, 27.11.2026 (Forge S1b INV-02, S2 D2). The second GM's button stayed live after the counting
+           GM had answered, and drew again after a reload; its press ended in "the game did not allow it". Pure on stand-in
+           rows; nothing written. Red at 79a4164: no `describeButtonLive`. */
+        const O = await import("./observe.mjs");
+        must(typeof O.describeButtonLive === "function", "observe.mjs has no describeButtonLive: a find's button stays live after its words are in");
+        const open = { describing: { askId: "ASK", gm: "G" } };
+        equal(stableJson([O.describeButtonLive("ASK", { k: open }), O.describeButtonLive("ASK", { k: { ...open, describeAnswer: { askId: "ASK" } } }),
+            O.describeButtonLive("ASK", { k: { ...open, described: { askId: "ASK" } } }), O.describeButtonLive("ASK", {}),
+            O.describeButtonLive("ASK", { k: { ...open, result: { success: true } } }), O.describeButtonLive("OTHER", { k: open }), O.describeButtonLive(null, { k: open })]),
+        stableJson([true, false, false, false, false, false, false]),
+            "[the ask open; words on the row; the ask done; no row; the row resolved; another ask's button; no ask id]");
+    }],
+    ["R9126 - the primary's hydration finishes only the finds whose window's GM is not connected: a row naming no GM, a GM gone or this browser itself; a connected other GM's window stands (2.0 line T3 INV-04; scripts/observe.mjs `describingLeftHere`)", async () => {
+        /* 2.0 line T3 INV-04, 27.11.2026. `recoverDescribing` at a hydration was called with no GM and finished every row
+           marked `describing`, a connected second GM's window among them - one that GM had opened while it was the primary
+           over the first one's F5: the find went out under its prefilled name and that GM's words met `alreadyHeld`. Pure on
+           stand-in users; nothing written. Red at 1fdb5d3: no `describingLeftHere`. */
+        const O = await import("./observe.mjs");
+        must(typeof O.describingLeftHere === "function", "observe.mjs has no describingLeftHere: a hydration finishes a connected GM's window");
+        const users = new Map([["ON", { id: "ON", active: true }], ["OFF", { id: "OFF", active: false }]]);
+        const at = gm => O.describingLeftHere({ describing: gm === undefined ? { at: 1 } : { at: 1, gm } }, { me: "ME", users });
+        equal(stableJson([at(undefined), at(null), at("OFF"), at("NOBODY"), at("ME"), at("ON")]), stableJson([true, true, true, true, true, false]),
+            "[a row from before 1.2.123 (no gm), gm null, its GM not connected, its GM no user, this browser's own, a connected other GM's]");
+    }],
+    ["R9127 - the card for a find finished without its words names no single cause: a reload or a GM leaving, in English and in Polish (2.0 line T3 INV-09; lang `DRPG.Observe.describeRecovered`)", async () => {
+        /* 2.0 line T3 INV-09, 27.11.2026. `recoverDescribing` posts `DRPG.Observe.describeRecovered` at a hydration and at a
+           GM's disconnection (`onGmLeft`), and the text said a reload closed the window either way. Read off both files,
+           fetched as the client loads them; nothing written. Red at 581aeb9: both texts name the reload alone. */
+        const U = foundry.utils;
+        const read = async lang => U.getProperty(U.expandObject(await (await fetch(`modules/${MODULE_ID}/lang/${lang}.json`)).json()), "DRPG.Observe.describeRecovered");
+        const [en, pl] = [await read("en"), await read("pl")];
+        must(typeof en === "string" && typeof pl === "string", "DRPG.Observe.describeRecovered is missing from a language file");
+        const shape = text => ({ fields: ["{actor}", "{room}"].every(f => text.includes(f)) });
+        equal(stableJson({
+            en: { ...shape(en), oneCause: /a reload closed/i.test(en), reload: /reload/i.test(en), leaving: /GM (leaving|left|leaves)/i.test(en) },
+            pl: { ...shape(pl), oneCause: /zamknęło odświeżenie strony/i.test(pl), reload: /odświeżeni/i.test(pl), leaving: /wyjści[ea] GM-a/i.test(pl) }
+        }), stableJson({
+            en: { fields: true, oneCause: false, reload: true, leaving: true },
+            pl: { fields: true, oneCause: false, reload: true, leaving: true }
+        }), "{fields: {actor} and {room} kept; oneCause: the reload named as the cause; reload, leaving: both causes named}");
+    }],
+    ["R9128 - the console can charge the Key fee: game.drpg.chargeKeyFee asks it of the primary as the trial's opening does (2.0 line T3 INV-07; scripts/api.mjs, key-remnants.mjs `askToChargeForUnfoundKeys`)", async () => {
+        /* 2.0 line T3 INV-07, 27.11.2026. A Key fee whose ask went unanswered left nothing to charge it with but a card;
+           the console now has `chargeKeyFee`, which asks the same road (the trial's `keysCharged` stamp keeps a second
+           charge off). Read off the API, the entry's own text; nothing called. Red at 6966f52: no such entry. */
+        const fn = game.drpg?.chargeKeyFee;
+        must(typeof fn === "function", "game.drpg has no chargeKeyFee");
+        // the entry's own text (api.mjs wraps only an entry that takes an actor, and this takes nothing)
+        ok(/askToChargeForUnfoundKeys\(\)/.test(String(fn)), `chargeKeyFee does not ask askToChargeForUnfoundKeys: ${String(fn)}`);
+    }],
+    ["R9129 - the report of a resolve nobody answered is a quiet player's request that waits on nobody, is asked again of a new primary, and is held to the sender's own character and roll (2.0 line T3 INV-12; bridge-table.mjs `resolve.lost`)", async () => {
+        /* 2.0 line T3 INV-12, 27.11.2026. Read off the table; nothing judged. Red at bdf0825: no such row. */
+        const { BRIDGE_ACTIONS } = await import("./gm-bridge.mjs");
+        const G = await import("./bridge-guards.mjs");
+        const row = BRIDGE_ACTIONS["resolve.lost"];
+        must(Boolean(row), "the bridge has no resolve.lost");
+        const clean = row.sanitize({ actorId: "ACTORIDSUITE0001", kind: "search", rollId: "ROLLIDSUITE00001", total: 99 }, null);
+        equal(stableJson({ answer: row.answer, quiet: Boolean(row.quiet), resend: Boolean(row.resend), known: (row.guards ?? [])[0] === G.knownSender,
+            owns: (row.guards ?? []).some(g => g?.factory === "owns" && g.covers?.includes("actorId")),
+            rolled: row.rolled?.field ?? null, kinds: [].concat(row.rolled?.kind ?? []), fields: Object.keys(clean ?? {}).sort(), kind: clean?.kind ?? null }),
+        stableJson({ answer: "none", quiet: true, resend: true, known: true, owns: true, rolled: "rollId", kinds: ["observe", "analyze"],
+            fields: ["actorId", "kind", "rollId"], kind: null }),
+            "{answer, quiet, resend; known: knownSender first; owns: a guard on the character; rolled: the roll's field; kinds; fields: what the sanitizer keeps of a packet that says total 99; kind: a kind outside the two}");
+    }],
+    ["R9130 - a card's Carry out the sentence again does something only while its chapter's sentence waits: the card's chapter the trial's, no stamp, somebody sentenced alive (2.0 line T3 TRIAL-07; trial-progress.mjs `sentenceAgainLive`)", async () => {
+        /* 2.0 line T3 TRIAL-07, 27.11.2026. Pure; nothing read or written. Red at 7286c53: no `sentenceAgainLive`. */
+        const T = await import("./trial-progress.mjs");
+        must(typeof T.sentenceAgainLive === "function", "trial-progress.mjs has no sentenceAgainLive: a sentence the primary did not carry out leaves nothing to press");
+        const live = (over = {}) => T.sentenceAgainLive({ cardChapter: 3, chapter: 3, executedAt: null, pending: ["A"], ...over });
+        equal(stableJson([live(), live({ executedAt: 1795800000000 }), live({ pending: [] }), live({ chapter: 4 }), live({ cardChapter: null }), live({ cardChapter: "x" })]),
+            stableJson([true, false, false, false, false, false]),
+            "[waiting; stamped carried out; nobody left to sentence; another chapter's trial; a card with no chapter; a chapter that is no number]");
+    }],
+    ["R9131 - a vote with no ballot on this browser does not suggest starting it over: Close and count works, and the line says so alone (2.0 line T3 TRIAL-16; lang `DRPG.Vote.openNoBallots`)", async () => {
+        /* 2.0 line T3 TRIAL-16, 27.11.2026. The vote's window on a GM whose browser holds no ballot said Close and count
+           works and then offered Start the vote over, which throws every ballot cast away. Read off both files as the
+           client loads them; nothing written. Red at 910b39b: both texts offer the restart. */
+        const U = foundry.utils;
+        const read = async lang => U.getProperty(U.expandObject(await (await fetch(`modules/${MODULE_ID}/lang/${lang}.json`)).json()), "DRPG.Vote.openNoBallots");
+        const [en, pl] = [await read("en"), await read("pl")];
+        must(typeof en === "string" && typeof pl === "string", "DRPG.Vote.openNoBallots is missing from a language file");
+        equal(stableJson({ en: [/\bover\b/i.test(en), /Close and count/.test(en), en.includes("{n}")], pl: [/od nowa/i.test(pl), /Zamknij i policz/.test(pl), pl.includes("{n}")] }),
+            stableJson({ en: [false, true, true], pl: [false, true, true] }),
+            "{each language: [offers the restart, names Close and count, keeps {n}]}");
+    }],
+    ["R9132 - the ballot says a vote once cast cannot be changed (2.0 line T3 EXP-PL-16; vote.mjs `ballotFormHtml`, lang `DRPG.Vote.ballotFinal`)", async () => {
+        /* 2.0 line T3 EXP-PL-16, 27.11.2026. A second ballot is refused as cast already (`ballotRefusal`), and the ballot
+           did not say so. The ballot's form built for two candidates, one pick; nothing drawn or written. Red at 910b39b:
+           no `ballotFormHtml`. */
+        const V = await import("./vote.mjs");
+        must(typeof V.ballotFormHtml === "function", "vote.mjs builds the ballot inside castBallot alone: there is nothing to read");
+        const html = V.ballotFormHtml({ picks: 1, candidates: [{ id: "A0000000000000AA", name: "SUITE ballot A" }, { id: "B0000000000000BB", name: "SUITE ballot B" }] });
+        const final = game.i18n.localize("DRPG.Vote.ballotFinal");
+        equal(stableJson([final !== "DRPG.Vote.ballotFinal", html.includes(final), html.includes("SUITE ballot A"), (html.match(/type="radio"/g) ?? []).length]),
+            stableJson([true, true, true, 2]), "[the sentence exists, the ballot holds it, the ballot names a candidate, its choices]");
+    }],
+    ["R9133 - a floor step refused on a browser that is no longer the primary says the primary just changed, not that no trial runs (2.0 line T3 PRIM-10; trial-floor.mjs `stepRefusal`)", async () => {
+        /* 2.0 line T3 PRIM-10, 27.11.2026. The floor's four steps on the primary refused "Only during a Class Trial" on a
+           browser that was not the primary, in a trial that ran, when the primary had just changed. Pure on its two
+           readings, and the four functions read off the source; nothing written. Red at f893908: no `stepRefusal`. */
+        const F = await import("./trial-floor.mjs");
+        must(typeof F.stepRefusal === "function", "trial-floor.mjs has no stepRefusal");
+        const src = await fetch(`/modules/${MODULE_ID}/scripts/trial-floor.mjs`).then(r => (r.ok ? lfText(r) : ""));
+        const reads = ["zoneStepInStep", "roundStepInStep", "closingStepInStep", "finishObjectionOnPrimary"]
+            .map(name => /stepRefusal\(/.test(fnSource(src, name)) && !/"DRPG\.Floor\.bar\.notTrial"/.test(fnSource(src, name)));
+        equal(stableJson([F.stepRefusal({ primary: true, running: true }), F.stepRefusal({ primary: false, running: true }),
+            F.stepRefusal({ primary: true, running: false }), F.stepRefusal({ primary: false, running: false }), reads]),
+        stableJson([null, "DRPG.Floor.bar.notPrimary", "DRPG.Floor.bar.notTrial", "DRPG.Floor.bar.notPrimary", [true, true, true, true]]),
+            "[the primary in a trial, another GM in a trial, the primary outside one, another GM outside one; each of the four steps asks stepRefusal and names no key of its own]");
+    }],
+    ["R9135 - an Objection the primary aimed at someone other than the press's preview says whom it went to, and only then (2.0 line T3 TRIAL-10; trial.mjs `objectionAimedElsewhere`)", async () => {
+        /* 2.0 line T3 TRIAL-10, 27.11.2026. Pure on four readings; nothing read or written. Red at f291658: no
+           `objectionAimedElsewhere`. */
+        const T = await import("./trial.mjs");
+        must(typeof T.objectionAimedElsewhere === "function", "trial.mjs has no objectionAimedElsewhere");
+        equal(stableJson([T.objectionAimedElsewhere({ preview: "Aiko", target: "Aiko" }), T.objectionAimedElsewhere({ preview: "Aiko", target: "Botan" }),
+            T.objectionAimedElsewhere({ preview: null, target: "Botan" }), T.objectionAimedElsewhere({ preview: "Aiko", target: null })]),
+        stableJson([null, "DRPG.Trial.objectionAimedElsewhere", null, null]),
+            "[the same name, another name, no preview, no target answered]");
+        ok(game.i18n.localize("DRPG.Trial.objectionAimedElsewhere").includes("{target}"), "the line names no {target}");
+    }],
+    ["R9136 - a node of the Class Trial console's schema says it opens the node on the Map and claims no fields to expand; on the Map a node keeps both (2.0 line T3 CTL-03..CTL-30; case-map.mjs `nodeButton`'s `opensMap`)", async () => {
+        /* 2.0 line T3 CTL-03..CTL-30, 27.11.2026. The console's node opens the Investigation's Map on that node since
+           1.2.122 (case-trial.mjs `liveSchema`'s `onPick`), and it drew `aria-expanded="false"` and no tooltip, as if a
+           press did nothing. A graph as R3651 builds it, drawn as the console draws it and as the Map does (an editor
+           each); nothing written. Red at 8692c24: no tooltip and `aria-expanded` on the console's node. */
+        const M = await import("./case-map.mjs");
+        const S = await import("./case-schema.mjs");
+        const { layoutCase } = await import("./case-layout.mjs");
+        const graph = S.graphOf({ chapter: 3, rows: { "d-a": { kind: "deduction", label: "R9136 who", inputs: ["S.T1"] } },
+            traces: [{ key: "S.T1", type: "prep", name: "R9136 knife", tiedToCrime: true }], slots: [] });
+        const layout = layoutCase(graph, { sort: "kind" });
+        const read = html => {
+            const d = document.createElement("div");
+            d.innerHTML = html;
+            const b = d.querySelector('button[data-drpg-node="d-a"]');
+            return b ? [b.getAttribute("data-tooltip") ?? null, b.hasAttribute("aria-expanded")] : null;
+        };
+        const inConsole = read(M.caseGraphHtml({ graph, layout, opensMap: true }));
+        const map = read(M.caseGraphHtml({ graph, layout, editors: new Map(), opensMap: true }));
+        const L = k => game.i18n.localize(k);
+        equal(stableJson({ console: inConsole ? [String(inConsole[0] ?? "").includes(L("DRPG.Tips.Case.nodeOpensMapTooltip")), inConsole[1]] : null,
+            map: map ? [String(map[0] ?? "").includes(L("DRPG.Tips.Case.nodeOnTheMapTooltip")), map[1]] : null }),
+        stableJson({ console: [true, false], map: [true, true] }),
+            "{console: [its tooltip says it opens the node on the Map, it claims aria-expanded]; map: [its tooltip, aria-expanded]}");
+    }],
+    ["R9137 - the body's card and the clock's explanation say what the Investigation is for and that the GM ends it by starting the Class Trial, and its start is told on a card (2.0 line T3 EXP-PL-11; lang `DRPG.Chapter.bodyCalledNext`, `DRPG.Explain.phase.investigation`, `DRPG.Explain.investigationStarted`; clock.mjs `reconcilePhase`, body.mjs `runDiscovery`)", async () => {
+        /* 2.0 line T3 EXP-PL-11, 27.11.2026. Read off both language files and the two functions' source; nothing written.
+           Red at d63b1d4: no `bodyCalledNext`, no card, and the explanation did not say how the Investigation ends. */
+        const U = foundry.utils;
+        const keys = ["DRPG.Chapter.bodyCalledNext", "DRPG.Explain.phase.investigation", "DRPG.Explain.investigationStarted"];
+        const says = {};
+        for (const lang of ["en", "pl"]) {
+            const all = U.expandObject(await (await fetch(`modules/${MODULE_ID}/lang/${lang}.json`)).json());
+            says[lang] = keys.map(key => { const text = U.getProperty(all, key); return typeof text === "string" && /Class Trial/.test(text) && /GM/.test(text); });
+        }
+        const src = async file => stripComments(await fetch(`/modules/${MODULE_ID}/scripts/${file}`).then(r => (r.ok ? lfText(r) : "")));
+        const clock = fnSource(await src("clock.mjs"), "reconcilePhase"), body = fnSource(await src("body.mjs"), "runDiscovery");
+        equal(stableJson({ ...says, card: /DRPG\.Explain\.investigationStarted/.test(clock) && /to === "investigation"/.test(clock),
+            bodyCard: /DRPG\.Chapter\.bodyCalledNext/.test(body) }),
+        stableJson({ en: [true, true, true], pl: [true, true, true], card: true, bodyCard: true }),
+            "{each language: [the body card's next line, the explanation, the start's card each name the GM and the Class Trial]; card: reconcilePhase posts the start's card into the Investigation; bodyCard: the body's card says the next line}");
+    }],
+    ["R9138 - a holder is told the parts of a GM's edit their copy takes, and the reading only when the copy reads it (2.0 line T3 EXP-PL-08; truth-bullets.mjs `copyChangedParts`)", async () => {
+        /* 2.0 line T3 EXP-PL-08, 27.11.2026. Pure on stand-in copies; nothing read or written. Red at 45682b1: no
+           `copyChangedParts`. */
+        const T = await import("./truth-bullets.mjs");
+        must(typeof T.copyChangedParts === "function", "truth-bullets.mjs has no copyChangedParts");
+        const copy = { name: "Knife", img: "a.png", playerText: "On the floor.", analyzedText: "", reads: false };
+        const read = { ...copy, analyzedText: "Old", reads: true };
+        equal(stableJson([T.copyChangedParts({ name: "Bloody knife" }, copy), T.copyChangedParts({ name: "Knife" }, copy),
+            T.copyChangedParts({ playerText: "Under the bed.", img: "b.png" }, copy), T.copyChangedParts({ analyzedText: "New" }, copy),
+            T.copyChangedParts({ analyzedText: "New" }, read), T.copyChangedParts({ analyzedText: "Old" }, read)]),
+        stableJson([["name"], [], ["words", "image"], [], ["reading"], []]),
+            "[a new name; the name it has; new words and picture; a reading to an unanalysed copy; to an analysed one; the reading it has]");
+    }],
+    ["R9139 - the verdict window's three ticks for a wrong verdict leave out what is unticked, and nothing when all stand (2.0 line T3 EXP-GM-12; verdict-skips.mjs `wrongSkipsOf`, `skipField`)", async () => {
+        /* 2.0 line T3 EXP-GM-12, 27.11.2026. The window's fieldset drawn into a form of the test's own and read back;
+           nothing written. Red at 7bd6a6d: no verdict-skips.mjs. */
+        let S = null;
+        try { S = await import("./verdict-skips.mjs"); } catch { S = null; }
+        must(S && typeof S.wrongSkipsOf === "function", "there is no verdict-skips.mjs: a wrong verdict's steps cannot be left out");
+        const form = document.createElement("form");
+        form.innerHTML = S.wrongStepsHtml();
+        const all = S.wrongSkipsOf(form);
+        for (const box of form.querySelectorAll('input[name="wrongStep"]')) if (box.value !== "offers") box.checked = false;
+        equal(stableJson([form.querySelectorAll('input[name="wrongStep"]').length, all, S.wrongSkipsOf(form), S.skipField(false, ["rule", "despair", "rule", "card"]),
+            S.skipField(true, ["rule"]), S.skipField(false, [])]),
+        stableJson([3, [], ["rule", "despair"], { skip: ["rule", "despair"] }, {}, {}]),
+            "[the ticks drawn; all left ticked; offers alone ticked; a wrong verdict's field (twice and a step not of the three dropped); a right verdict's; none left out]");
+    }],
+    ["R9140 - the new chapter's card says what starts over and what stays from the end's choices alone, the sweep's line only when it was ticked (2.0 line T3 EXP-PL-13; chapter.mjs `newChapterLines`)", async () => {
+        /* 2.0 line T3 EXP-PL-13, 27.11.2026. Pure on three sets of choices; nothing read or written. Red at cc1e9c8: no
+           `newChapterLines`. */
+        const C = await import("./chapter.mjs");
+        must(typeof C.newChapterLines === "function", "chapter.mjs has no newChapterLines");
+        const N = "DRPG.Chapter.newChapter.";
+        equal(stableJson([C.newChapterLines({ nextChapter: true, nextMorning: true, sweep: true, faint: true, keys: true }),
+            C.newChapterLines({ nextChapter: true, nextMorning: true }), C.newChapterLines({ nextChapter: true })]),
+        stableJson([{ fresh: [`${N}morning`, `${N}sweep`, `${N}faint`, `${N}keys`], kept: [`${N}items`, `${N}keptFaint`] },
+            { fresh: [`${N}morning`], kept: [`${N}items`, `${N}bullets`] }, { fresh: [`${N}nothing`], kept: [`${N}items`, `${N}bullets`] }]),
+            "[every clean-up ticked with the morning; the morning alone; nothing but the move]");
+        ok(C.CHAPTER_END_STEPS.at(-1)?.key === "players", "the players' card is not the chapter's end's last step");
+    }],
+    ["R9141 - the requests waiting on a GM are the thread cards the console's Waiting draws: a player's, not settled, with a ruling button (2.0 line T3 EXP-GM-03; messenger-gm.mjs `waitingCards`)", async () => {
+        /* 2.0 line T3 EXP-GM-03, 27.11.2026. Stand-in messages of a player's thread and their words handed in; nothing
+           read off the chat, nothing written. Red at d7d982b: no `waitingCards`. */
+        needs(world.atLeast("connectedPlayersWithCharacter", 1), "a player's thread");
+        const M = await import("./messenger-gm.mjs");
+        const { MESSENGER_FLAGS } = await import("./messenger.mjs");
+        must(typeof M.waitingCards === "function", "messenger-gm.mjs has no waitingCards");
+        const player = game.users.find(u => !u.isGM);
+        const gm = game.users.find(u => u.isGM);
+        const card = (id, { settled = false, button = true, author = gm } = {}) => ({ id, author, timestamp: 1,
+            flags: { [MODULE_ID]: { [MESSENGER_FLAGS.thread]: player.id, ...(settled ? { [MESSENGER_FLAGS.settled]: true } : {}) } },
+            content: `<p>SUITE R9141 ${id} asks to climb</p>${button ? `<div class="drpg-call-actions"><button data-drpg-call="decline">No</button></div>` : ""}` });
+        const read = M.waitingCards({ messages: [card("live"), card("settled", { settled: true }), card("plain", { button: false })], words: m => m.content });
+        equal(stableJson(read.map(r => [r.messageId, r.player === player.id, r.text.startsWith("SUITE R9141 live asks to climb")])), stableJson([["live", true, true]]),
+            "[the waiting cards: id, the thread's player, the request's first words] of a live card, a settled one and one with no button");
+    }],
+    ["R9142 - the ballots out that sit with a disconnected player are those issued, not returned, whose player is not connected now (2.0 line T3 TRIAL-06; vote-gone.mjs `goneBallots`)", async () => {
+        /* 2.0 line T3 TRIAL-06, 27.11.2026. Pure on stand-in users; nothing read or written. Red at 3385c89: no
+           vote-gone.mjs. */
+        let V = null;
+        try { V = await import("./vote-gone.mjs"); } catch { V = null; }
+        must(V && typeof V.goneBallots === "function", "there is no vote-gone.mjs with goneBallots");
+        const users = new Map([["AWAY", { id: "AWAY", active: false }], ["HERE", { id: "HERE", active: true }], ["CAST", { id: "CAST", active: false }]]);
+        equal(stableJson(V.goneBallots({ issued: ["AWAY", "HERE", "CAST", "NOBODY", "AWAY"], cast: ["CAST"], users })), stableJson(["AWAY"]),
+            "[issued, not returned, not connected: counted; connected: not; returned: not; no such user: not; twice: once]");
+    }],
+    ["R9143 - a change of phase into or out of the Class Trial is finished on this browser only when its writer is gone or is this browser after a reload, the phase still stands, and a step is left; a started budget is never handed out again (2.0 line T3 TRIAL-08; clock.mjs `phaseRowFinishesHere`, `phaseStepsLeft`)", async () => {
+        /* 2.0 line T3 TRIAL-08, 28.11.2026. Pure on stand-in rows and users; nothing read or written. Red at 5243413: clock.mjs
+           exports neither function. */
+        const C = await import("./clock.mjs");
+        must(typeof C.phaseRowFinishesHere === "function" && typeof C.phaseStepsLeft === "function", "clock.mjs exports no phaseRowFinishesHere / phaseStepsLeft");
+        const into = { from: "investigation", to: "classTrial", by: "AWAY", done: ["budget", "reset"], failed: [], started: ["budget", "reset"] };
+        const active = id => id === "HERE" || id === "ME";
+        const at = (row, phase = "classTrial", me = "ME") => C.phaseRowFinishesHere(row, { phase, me, active });
+        equal(stableJson({
+            gone: at(into), otherHere: at({ ...into, by: "HERE" }), meAfterReload: at({ ...into, by: "ME" }), phaseMoved: at(into, "dailyLife"),
+            allDone: at({ ...into, done: C.PHASE_STEPS.entry }), none: at(null)
+        }), stableJson({ gone: true, otherHere: false, meAfterReload: true, phaseMoved: false, allDone: false, none: false }),
+            "{writer gone: yes; another GM here wrote it: no; this browser wrote it before its reload: yes; the phase moved on: no; nothing left: no; no row: no}");
+        equal(stableJson({
+            entry: C.phaseStepsLeft(into),
+            budgetCut: C.phaseStepsLeft({ ...into, done: [], started: ["budget"] }),
+            exit: C.phaseStepsLeft({ from: "classTrial", to: "dailyLife", done: ["floor"], failed: ["vote"], started: ["floor", "vote"] })
+        }), stableJson({
+            entry: C.PHASE_STEPS.entry.filter(k => !["budget", "reset"].includes(k)),
+            budgetCut: C.PHASE_STEPS.entry.filter(k => k !== "budget"),
+            exit: C.PHASE_STEPS.exit.filter(k => !["floor", "vote"].includes(k))
+        }), "{entry: what is not done; a budget started and not done: not again; exit: neither the done nor the failed}");
+    }],
+    ["R9144 - Give a Truth Bullet offers Picked students: a tick per living student, the one the window opened for ticked alone, and the picked are given through giveToMany (2.0 line T3 EXP-GM-11; gm-items.mjs `pickedRecipientRows`, `giveTruthBulletDialog`)", async () => {
+        /* 2.0 line T3 EXP-GM-11, 28.11.2026. The rows from their builder on stand-in students, and the window's road read in
+           its source; nothing opened or written. Red at 383c779: no pickedRecipientRows. */
+        const G = await import("./gm-items.mjs");
+        must(typeof G.pickedRecipientRows === "function" && typeof G.giveToMany === "function", "gm-items.mjs has no pickedRecipientRows / giveToMany");
+        const root = document.createElement("div");
+        root.innerHTML = G.pickedRecipientRows([{ id: "A0000000000000AA", name: "SUITE pick <A>" }, { id: "B0000000000000BB", name: "SUITE pick B" }], "B0000000000000BB");
+        const boxes = [...root.querySelectorAll('input[type="checkbox"][name="pick"]')];
+        const dialog = fnSource(stripComments(await fetch(`/modules/${MODULE_ID}/scripts/gm-items.mjs`).then(r => lfText(r))), "giveTruthBulletDialog");
+        equal(stableJson({ boxes: boxes.map(b => [b.value, b.checked]), names: root.textContent.replace(/\s+/g, " ").trim(),
+            road: /RECIPIENT_PICKED[^]*giveToMany\(/.test(dialog) }),
+            stableJson({ boxes: [["A0000000000000AA", false], ["B0000000000000BB", true]], names: "SUITE pick <A> SUITE pick B", road: true }),
+            "{a tick per student, the opened-for one ticked; the names as text; the window gives the picked through giveToMany}");
+    }],
+    ["R9145 - a Truth Bullet's sentence about other copies comes from its copy's origin alone: a key per origin, names only where the holder knows them, none for a copy made before 1.2.130 (2.0 line T3 EXP-PL-17; truth-bullets.mjs `copyOriginLines`)", async () => {
+        /* 2.0 line T3 EXP-PL-17, 28.11.2026. Pure on stand-in flags; nothing read or written. Red at 383c779: no copyOriginLines. */
+        const TB = await import("./truth-bullets.mjs");
+        must(typeof TB.copyOriginLines === "function", "truth-bullets.mjs has no copyOriginLines");
+        const lines = flag => (TB.copyOriginLines(flag) ?? null);
+        equal(stableJson({
+            found: lines({ kind: "found" }), shared: lines({ kind: "shared", name: "Aiko" }), given: lines({ kind: "given" }),
+            many: lines({ kind: "givenMany", name: "Aiko" }), autopsy: lines({ kind: "autopsy", name: "Aiko" }),
+            gave: lines({ kind: "found", gaveTo: ["Botan", "Chie"] }), none: lines(null), unknown: lines({ kind: "elsewhere" })
+        }), stableJson({
+            found: [{ key: "DRPG.TruthBullet.copyOrigin.found", data: {} }],
+            shared: [{ key: "DRPG.TruthBullet.copyOrigin.shared", data: { name: "Aiko" } }],
+            given: [{ key: "DRPG.TruthBullet.copyOrigin.given", data: {} }],
+            many: [{ key: "DRPG.TruthBullet.copyOrigin.givenMany", data: {} }],
+            autopsy: [{ key: "DRPG.TruthBullet.copyOrigin.autopsy", data: {} }],
+            gave: [{ key: "DRPG.TruthBullet.copyOrigin.found", data: {} }, { key: "DRPG.TruthBullet.copyOrigin.gave", data: { names: ["Botan", "Chie"] } }],
+            none: null, unknown: null
+        }), "{each origin its key; givenMany and autopsy name nobody; a copy handed on names its receivers; no flag or an unknown one: no sentence}");
+        must(["found", "shared", "given", "givenMany", "autopsy", "gave", "label"].every(k => game.i18n.has(`DRPG.TruthBullet.copyOrigin.${k}`)),
+            "a copyOrigin key has no words");
+    }],
+    ["R9146 - the Investigation window's list of Remnants erased at a clean-up: none, no section; a row per trace, its words as text (2.0 line T3 EXP-GM-10; investigation.mjs `erasedRemnantsHtml`)", async () => {
+        /* 2.0 line T3 EXP-GM-10, 28.11.2026. Pure on stand-in rows; nothing read or written. Red at 42c490f: no erasedRemnantsHtml. */
+        const I = await import("./investigation.mjs");
+        must(typeof I.erasedRemnantsHtml === "function", "investigation.mjs has no erasedRemnantsHtml");
+        const root = document.createElement("div");
+        const rows = { T1: { name: "SUITE <erased> one", room: "Library", chapter: 1, day: 2, timeOfDay: "night", byName: "Chie", at: 2 },
+            T2: { name: "SUITE erased two", room: null, chapter: 1, day: 1, timeOfDay: "morning", byName: "", at: 1 } };
+        root.innerHTML = I.erasedRemnantsHtml(rows);
+        const items = [...root.querySelectorAll("[data-drpg-erased] li")];
+        equal(stableJson({ empty: I.erasedRemnantsHtml({}), items: items.length, first: items[0]?.textContent.includes("SUITE <erased> one") ?? false,
+            order: items.map(li => li.dataset.drpgErasedId), raw: root.innerHTML.includes("<erased>") }),
+            stableJson({ empty: "", items: 2, first: true, order: ["T1", "T2"], raw: false }),
+            "{no row: no section; two rows: two items, the newest first; the name as text, never markup}");
     }],
 ];
 

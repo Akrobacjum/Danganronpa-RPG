@@ -34,7 +34,7 @@
  */
 
 import { MESSENGER_FLAGS, THREAD_KIND, threadUsers, isThreadUser, threadStats, threadCardAllowed } from "./messenger.mjs";
-import { cardFlag } from "./secret.mjs";
+import { cardFlag, contentOf } from "./secret.mjs";
 import { noticeEntries, noticeTime, onNoticeHistoryChange } from "./notice-history.mjs";
 import { esc, markLanguage } from "./utils.mjs";
 import { count } from "./perf-counters.mjs";
@@ -42,6 +42,26 @@ import { setTip } from "./ui-kit.mjs";
 
 /** The most items the stream draws when the window opens: the newest, so an evening's chat does not draw at once. */
 export const CONSOLE_STREAM_LIMIT = 300;
+
+/**
+ * THE REQUESTS THAT WAIT ON A GM'S DECISION, READ ONLY (2.0 line T3 EXP-GM-03, 27.11.2026): the thread cards the console's
+ * "Waiting" draws (`waitingCard`: a card of a player's thread, not settled, with a ruling button), each `{ messageId,
+ * player, who, text }` - the thread's player, their name and the request's first words. From this browser's copy of
+ * the chat, so another GM's cards too; nothing is written. `messages` and `words` are the suite's (R9141); the console
+ * reads the same marks off the card it draws.
+ */
+export function waitingCards({ messages = game.messages ?? [], words = message => contentOf(message) } = {}) {
+    const out = [];
+    for (const message of messages) {
+        const player = cardFlag(message, MESSENGER_FLAGS.thread);
+        if (!player || !isThreadUser(player) || !threadCardAllowed(message) || cardFlag(message, MESSENGER_FLAGS.settled)) continue;
+        const html = String(words(message) ?? "");
+        if (!/data-drpg-call=/.test(html)) continue;
+        const text = html.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim().slice(0, 90);
+        out.push({ messageId: message.id, player, who: game.users.get(player)?.name ?? "?", text });
+    }
+    return out;
+}
 
 /**
  * The messenger windows' sizes (E129, the owner's S0-MSGSIZE of 23.11.2026: "powiekszmy cale okno messenger znacznie"):

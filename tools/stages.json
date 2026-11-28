@@ -121,6 +121,7 @@
     {"id": "E134", "planned": "1.2.130", "with": "E83", "version": null, "shipped": null, "touches": ["sockets", "scenes"], "drills": []},
     {"id": "E132", "planned": "1.2.130", "with": "E134", "version": null, "shipped": null, "touches": ["sockets"], "drills": []},
     {"id": "E131", "planned": "1.2.130", "with": "E132", "version": null, "shipped": null, "touches": ["sockets", "rolls", "scenes"], "drills": []},
+    {"id": "E133", "planned": "1.2.130", "with": "E131", "version": null, "shipped": null, "touches": ["sockets", "scenes"], "drills": []},
     {"id": "E26", "planned": "1.3.0", "version": null, "shipped": null, "touches": null, "drills": []}
   ]
 }

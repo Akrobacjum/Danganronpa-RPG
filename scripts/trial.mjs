@@ -1348,18 +1348,27 @@ export async function withdrawObjectionCard(messageId) {
  *
  * @param {Actor} actor  the viewer's own student (hud.mjs `viewerActor`)
  */
-export async function raiseObjection(actor) {
+export async function raiseObjection(actor, { request = null } = {}) {
     if (!actor || !inClassTrial()) return false;
     const { requestObject, requestEvidence, requestWithdraw } = await import("./gm-bridge.mjs");
-    const asked = await requestObject({ actorId: actor.id, targetId: null });
+    const askObject = request ?? requestObject;
+    /* WHO THE PRESS SAW, AND WHO THE PRIMARY HEARD (2.0 line T3 TRIAL-10, 27.11.2026; the owner's recommendation). Who has
+       spoken is heard on the primary GM's browser (trial-speakers.mjs), and a new primary starts with nobody: its
+       `noSpeaker` refusal is told with how the room is heard, and an Objection the primary aimed at someone other than
+       the bar's preview on this browser says whom it went to (`objectionAimedElsewhere`). */
+    const preview = await objectionPreview(actor);
+    const asked = await askObject({ actorId: actor.id, targetId: null });
+    if (!asked.ok && asked.reason === "noSpeaker") ui.notifications.info(game.i18n.localize("DRPG.Trial.objectionSpeakersFresh"));
     let raised = asked.ok ? (asked.value ?? null) : null;
     if (raised?.needName === true) {
         const named = await nameObjectionTarget(actor);
         if (!named) return false;
-        const again = await requestObject({ actorId: actor.id, targetId: named });
+        const again = await askObject({ actorId: actor.id, targetId: named });
         raised = again.ok ? (again.value ?? null) : null;
     }
     if (!raised?.messageId) return false;
+    const elsewhere = objectionAimedElsewhere({ preview, target: raised.target ?? null });
+    if (elsewhere) ui.notifications.info(game.i18n.format(elsewhere, { target: foundry.utils.escapeHTML(String(raised.target)) }));
     const pick = await pickObjectionEvidence(actor, raised);
     if (!pick) {
         // Closed or cancelled while the Objection still waits: it is withdrawn now, as the handbooks say (fix r4-G2,
@@ -1370,6 +1379,22 @@ export async function raiseObjection(actor) {
     }
     const filled = await requestEvidence({ actorId: actor.id, itemId: pick.itemId, comment: pick.comment, analysis: pick.analysis });
     return filled.ok === true;
+}
+
+/** The name the bar's OBJECTION! previews on this browser (`objectionButtonState`'s Room reading), or null. */
+async function objectionPreview(actor) {
+    const speakers = await import("./trial-speakers.mjs");
+    if (!speakers.speakerRoomOpen()) return null;
+    const found = speakers.objectionTarget({ exclude: actor.id });
+    return found ? game.actors.get(found.actorId)?.name ?? null : null;
+}
+
+/**
+ * Whether an Objection went to someone the press did not preview (2.0 line T3 TRIAL-10): the key of the line that says
+ * so, or null - the same name, no preview, or no target answered. Pure (R9135).
+ */
+export function objectionAimedElsewhere({ preview = null, target = null } = {}) {
+    return preview && target && preview !== target ? "DRPG.Trial.objectionAimedElsewhere" : null;
 }
 
 /** The old choice, when the primary GM has no voice Room: a living participant, during a rebuttal one of the two in it. */

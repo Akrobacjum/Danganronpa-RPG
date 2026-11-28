@@ -291,7 +291,12 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl, IDS }
 
     /* ---------------------------------------------------------------- the Class Trial */
     /* As 63-class-trial's A: a victim killed, Chie in the register, the trial opened (its window answered "ok" from the
-       harness's queue); then the console stands open, held, for the GM's flows. */
+       harness's queue); then the console stands open, held, for the GM's flows. Since 2.0 line T3 EXP-GM-03 (5264395)
+       Start the trial asks first when a player's card still waits on a GM's ruling (trial-floor-ui.mjs `waitingFirst`:
+       messenger-gm.mjs `waitingCards`, the console's "Waiting"), and by here three of p1's do - the Observe's total, the
+       hint and the Dynamic action's roll, which the flows above charge and never score (read 28.11.2026 on 5799d56). So
+       "start" follows "ok" in the queue, and the check holds that the second window was drawn: with no answer for it the
+       eval waited out its 60 s (CI run 651, e246839). */
     phase("the Class Trial", { flow: "class-trial" });
     const trial = await gm.eval(`const C = await import("${repoUrl}/scripts/chapter.mjs");
         const { blackenedStore } = await import("${repoUrl}/scripts/gm-stores.mjs");
@@ -299,12 +304,16 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl, IDS }
         const victim = await Actor.create({ name: "S88 Victim", type: "character" });
         await C.killCharacter(victim, { secret: false, keepBullets: true });
         await blackenedStore.patch("${IDS.chie}", { chapter: getClock().chapter, epoch: seasonEpoch(), at: Date.now(), victims: [victim.id] });
-        globalThis.__dialogAnswers.push("ok");
+        const { waitingCards } = await import("${repoUrl}/scripts/messenger-gm.mjs");
+        const waiting = waitingCards().length, title = game.i18n.localize("DRPG.Floor.startTrial"), d = globalThis.__dialogLog.length;
+        globalThis.__dialogAnswers.push("ok", "start");
         const { startClassTrial } = await import("${repoUrl}/scripts/trial-floor-ui.mjs");
-        return { started: await startClassTrial(), phase: getClock().phase };`, { timeout: 60000 });
+        const started = await startClassTrial();
+        return { started, phase: getClock().phase, waiting, windows: globalThis.__dialogLog.slice(d).filter(x => x.title === title).length };`, { timeout: 60000 });
     await settle(800);
     const consoleUp = await standing(gm, T.trial, `const UI = await import("${repoUrl}/scripts/trial-floor-ui.mjs"); UI.manageClassTrial();`);
-    check("the trial: opened, and its console stands on the GM", trial.started === true && trial.phase === "classTrial" && consoleUp, J({ trial, consoleUp }));
+    check("the trial: opened past the waiting cards' question (EXP-GM-03), and its console stands on the GM",
+        trial.started === true && trial.phase === "classTrial" && trial.waiting > 0 && trial.windows === 2 && consoleUp, J({ trial, consoleUp }));
     const floorMode = `const F = await import("${repoUrl}/scripts/trial-floor.mjs"); return F.trialFloor()?.mode ?? null;`;
     const HOLD_ALL = [{ title: "", hold: true }];
 

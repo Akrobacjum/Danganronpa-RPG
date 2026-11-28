@@ -1632,7 +1632,11 @@ export const DrpgApi = {
     morningLine: () => morningLine(),
     /** Write it, as Edit campaign's Apply does (cut to 400): `setMorningLine(text)`, "" to empty it. GM only; answers the
      *  line as held after it. The Forge scenarios and the harness write the line through this. */
-    setMorningLine: text => setMorningLine(text)
+    setMorningLine: text => setMorningLine(text),
+
+    /* The Key fee asked of the primary again, as the trial's opening asks it (2.0 line T3 INV-07): answers what was
+       charged, or null; the trial's `keysCharged` stamp keeps a second charge off. */
+    chargeKeyFee: async () => (await import("./key-remnants.mjs")).askToChargeForUnfoundKeys()
 };
 
 /* ==========================================================================

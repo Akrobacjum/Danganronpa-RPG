@@ -26,7 +26,7 @@
  * re-exported here; this file keeps `openNewTrace` and the dashboard.
  */
 
-import { MODULE_ID, KEY_REMNANTS, TRUTH_BULLET_TYPES, OBSERVE_DC, REMNANT_TYPES, TRIAL, REMNANT_VISIBILITY, REMNANT_VISIBILITY_LABELS, TIMES_OF_DAY, observeDc, RECIPIENT_EVERYONE } from "./config.mjs";
+import { MODULE_ID, KEY_REMNANTS, TRUTH_BULLET_TYPES, OBSERVE_DC, REMNANT_TYPES, TRIAL, REMNANT_VISIBILITY, REMNANT_VISIBILITY_LABELS, TIMES_OF_DAY, TIME_OF_DAY_LABELS, observeDc, RECIPIENT_EVERYONE } from "./config.mjs";
 import { isEclipse, sameSeason, bodiesFoundIn } from "./settings.mjs";
 import { getClock } from "./clock.mjs";
 import { remnantsOn, remnantData, setRemnantFlags, setRemnantPublic, markRemnantEdited, shownBand, bandOptions, removeRemnant, traceContextLine, traceLabel, authorOptions, keyOf, traceTokenHeard } from "./remnants.mjs";
@@ -41,7 +41,7 @@ import { caseGraph, caseRows, caseNodeOf, caseModes, PLANNED_TYPES, AUTOPSY_MAX,
 import { layoutCase } from "./case-layout.mjs";
 import { caseMapHtml, wireCaseMap, glyphHtml, editRow, caseToolsHtml, mapPlace, MAP_GEOMETRY } from "./case-map.mjs";
 import { alreadyOpen, keepLive, keepFresh, drawnOf, heldIn, isDirty, keepDrawn, RAISED } from "./live.mjs";
-import { keyPlanStore, remnantStore, caseSchemaStore, blackenedStore, castStore, deathStore, diveSetStore, bulletStore } from "./gm-stores.mjs";
+import { keyPlanStore, remnantStore, caseSchemaStore, blackenedStore, castStore, deathStore, diveSetStore, bulletStore, erasedRemnantStore } from "./gm-stores.mjs";
 import { murderState, blackenedIds, killerIds } from "./incident-store.mjs";
 
 import { roomRegions, ROOM_FLAG } from "./rooms.mjs";
@@ -795,7 +795,7 @@ function caseTraceFilters(traces, shown, reading) {
 }
 
 /** The Traces tab's pane (the kit draws its frame, `kitTabs`): the filter bar, the rule, and the table or the reason it is empty. */
-function caseTracesPanel({ traces, shown, finders, reading }) {
+function caseTracesPanel({ traces, shown, finders, reading, erased = erasedRemnantStore.entries() }) {
     return `
         ${caseTraceFilters(traces, shown, reading)}
         <p class="notes drpg-clue-rule">${
@@ -803,7 +803,28 @@ function caseTracesPanel({ traces, shown, finders, reading }) {
             game.i18n.format("DRPG.Investigation.neverOnePerson", { min: KEY_REMNANTS.suspectRange[0], max: KEY_REMNANTS.suspectRange[1] })}</p>
         ${shown.length ? caseTraceTable(shown, finders)
             : `<p class="notes">${game.i18n.localize(traces.length
-                ? "DRPG.Investigation.noneMatch" : "DRPG.Investigation.noTraces")}</p>`}`;
+                ? "DRPG.Investigation.noneMatch" : "DRPG.Investigation.noTraces")}</p>`}
+        ${erasedRemnantsHtml(erased)}`;
+}
+
+/**
+ * THE REMNANTS A CLEAN-UP ERASED (2.0 line T3 EXP-GM-10, 28.11.2026; the owner's adopted recommendation: "Ślad usunięcia
+ * (co, kiedy, w którym sprzątaniu) w oknie Investigation dla GM-ów"). Under the tab's table, folded: "Erased at a clean-up
+ * (n)", a line per row of the GMs' store (gm-stores.mjs `erasedRemnantStore`), the newest first - what it was, where it lay,
+ * when, and who cleaned. Read only: a Reroll of the clean-up puts a trace back and takes its row. No row, no section. Every
+ * word escaped. Pure on the rows (R9146).
+ */
+export function erasedRemnantsHtml(rows = {}) {
+    const list = Object.entries(rows ?? {}).filter(([, row]) => row && typeof row === "object")
+        .sort(([, a], [, b]) => (Number(b.at) || 0) - (Number(a.at) || 0));
+    if (!list.length) return "";
+    const items = list.map(([id, row]) => {
+        const time = TIME_OF_DAY_LABELS?.[row.timeOfDay] ? game.i18n.localize(TIME_OF_DAY_LABELS[row.timeOfDay]) : "";
+        const data = { name: esc(row.name ?? ""), room: esc(row.room || game.i18n.localize("DRPG.Investigation.erasedNoRoom")),
+            chapter: esc(String(row.chapter ?? "?")), day: esc(String(row.day ?? "?")), time: esc(time), who: esc(row.byName ?? "") };
+        return `<li data-drpg-erased-id="${esc(id)}">${game.i18n.format(row.byName ? "DRPG.Investigation.erasedRow" : "DRPG.Investigation.erasedRowNobody", data)}</li>`;
+    }).join("");
+    return `<details data-drpg-erased><summary${tipAttr("DRPG.Tips.Sweep.Case.erasedListTooltip")}>${esc(plural("DRPG.Investigation.erasedTitle", { n: list.length }))}</summary><ul>${items}</ul></details>`;
 }
 
 /**
@@ -2725,7 +2746,7 @@ export async function openInvestigationDashboard({ said = null, node = null, vie
             live = keepLive(dialog, {
                 region: ".drpg-case-live",
                 build: buildCase,
-                watch: { actors: true, items: true, stores: [remnantStore, keyPlanStore, caseSchemaStore, blackenedStore, castStore, deathStore, diveSetStore, bulletStore], where: CASE_WATCH },
+                watch: { actors: true, items: true, stores: [remnantStore, keyPlanStore, caseSchemaStore, blackenedStore, castStore, deathStore, diveSetStore, bulletStore, erasedRemnantStore], where: CASE_WATCH },
                 /* a focused field nobody typed in does not hold the redraw (live.mjs `whileEditing`; the owner, 20.11.2026, the
                    line claude/plan-119): with every node open on the Map a GM's focus is in a field most of the time */
                 whileEditing: true,

@@ -1082,8 +1082,10 @@ export async function run(api) {
         await gm.eval(`await game.settings.set("${MOD}", "trialProgress", globalThis.__e128uKept); delete globalThis.__e128uKept; return true;`);
         await settle(600);
     }
-    check("U1: gm2's console offers Finish live on a verdict the primary runs, and its press finishes it once, on gm (E128)",
-        uSeen?.shown === true && uSeen.disabled === false && uSeen.runner === IDS.gm && uAfter?.stage === "done" && uAfter.by === IDS.gm
+    /* Since 2.0 line T3 TRIAL-03 (27.11.2026) the press takes the verdict on the primary and runs its steps on gm2
+       (verdict-claim.mjs `claimVerdict`), so the verdict is done by gm2, not gm: until then it read `by` gm. */
+    check("U1: gm2's console offers Finish live on a verdict the primary runs, and its press takes it on gm and finishes it once, on gm2 (E128; 2.0 line T3 TRIAL-03)",
+        uSeen?.shown === true && uSeen.disabled === false && uSeen.runner === IDS.gm && uAfter?.stage === "done" && uAfter.by === GM2
             && uAfter.summaries === 1, J({ uSeen, uAfter }), { flow: "class-trial" });
 
     /* ------------------------------------------------------------------ W */

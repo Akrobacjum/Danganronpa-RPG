@@ -51,7 +51,8 @@ import {
     announce, isPrimaryGm, primaryGmId, activeGmIds, log, warn, error, plural, serverNow, listOf, esc
 } from "./utils.mjs";
 import { trialProgress, setTrialProgress, retrySentence, findingsHtml } from "./trial-progress.mjs";
-import { drpgWindow, box } from "./ui-kit.mjs";
+import { goneBallots, goneNames } from "./vote-gone.mjs";
+import { drpgWindow, box, tipAttr } from "./ui-kit.mjs";
 export {
     trialProgress, trialProgressChapter, TRIAL_PROGRESS_KEY, setTrialProgress, RECORD_FIELDS, recordPatchOf,
     recordOnPrimary, writeTrialProgressInStep, resetTrialProgress, trialSizeNow, executeAtExit, retrySentence,
@@ -73,7 +74,8 @@ const ACTION_OPEN = "vote.open";
  * entitled who has not returned one - a player who joined since included - and "resend" to the
  * ones already handed one.
  */
-export const VOTE_OPS = Object.freeze(["open", "restart", "remind", "resend", "close"]);
+// "announce" (2.0 line T3 EXP-GM-04): the count's card, posted once by the GMs' Announce after Close and count.
+export const VOTE_OPS = Object.freeze(["open", "restart", "remind", "resend", "close", "announce"]);
 
 /** What `askVote` tells the GM who asked, by the status the primary answered. */
 const VOTE_STATUS = Object.freeze({
@@ -331,9 +333,18 @@ export async function openVote({ picks = null, restart = false } = {}) {
  * its own copy of the ballots (`closeRound`). Answers the count, or null when
  * there was none to publish.
  */
-export async function closeVote() {
+export async function closeVote({ preview = true } = {}) {
     const reply = await askVote("close");
-    return reply && !reply.status ? reply : null;
+    const count = reply && !reply.status ? reply : null;
+    /* THE GM WHO PRESSED SEES THE COUNT FIRST (2.0 line T3 EXP-GM-04): Close and count's every road - the vote window,
+       the console, `game.drpg.closeVote` - opens the preview on this GM (trial-floor-ui.mjs `previewVoteResult`), whose
+       Announce posts the card; `preview: false` is the suite's, which announces by itself. */
+    // Not awaited: the window waits on a person, and no caller of the close waits on it (the suite's drawn windows hung on it).
+    if (count?.card && preview) {
+        import("./trial-floor-ui.mjs").then(m => m.previewVoteResult(count))
+            .catch(err => error("Could not show the vote's count before it is announced", err));
+    }
+    return count;
 }
 
 /**
@@ -423,6 +434,7 @@ async function voteStep(op, picks) {
         log(`The vote's "${op}" was asked during an Eclipse; nothing was done.`);
         return { status: "eclipse" };
     }
+    if (op === "announce") return announceRound();
     const progress = trialProgress();
     const { open, round } = progress.vote;
     if (op === "open" ? open : op === "restart" && !open) {
@@ -829,9 +841,12 @@ export function ballotInHere(progress = trialProgress()) {
 /** A primary GM whose world said it had loaded before this browser saw it connect (pre-session-note.mjs `owedTo`). */
 let owedTo = null;
 
-/** The ballot itself, on a player's screen; the answer goes to the primary GM (`sendBallot`). */
-async function castBallot({ round = 0, picks = 1, candidates = [] } = {}) {
-    if (!Array.isArray(candidates) || !candidates.length) return;
+/**
+ * The ballot's form: its rows, one list per pick, and its lines (2.0 line T3 EXP-PL-16 took it out of `castBallot`, so
+ * tier 1 R9132 reads it). A vote once cast cannot be changed - `ballotRefusal` refuses a second as cast already - and
+ * the ballot says so under its lines (`DRPG.Vote.ballotFinal`).
+ */
+export function ballotFormHtml({ picks = 1, candidates = [] } = {}) {
     const wanted = Math.max(1, Math.trunc(Number(picks)) || 1);
 
     /* THE BALLOT IS A LIST OF PEOPLE, NOT A DROP-DOWN.
@@ -844,7 +859,7 @@ async function castBallot({ round = 0, picks = 1, candidates = [] } = {}) {
        No row is checked here on purpose - a pre-selected ballot is a vote nobody cast. */
     const rows = i => candidates.map(c => `
                 <label class="drpg-choice">
-                    <input type="radio" name="choice${i}" value="${c.id}">
+                    <input type="radio" name="choice${i}" value="${c.id}"${tipAttr("DRPG.Tips.Trial.ballotChoiceTooltip")}>
                     <span class="drpg-choice-text">
                         <strong>${foundry.utils.escapeHTML(c.name)}</strong>
                         ${c.dead ? `<small>${game.i18n.localize("DRPG.Chapter.deadShort")}</small>` : ""}
@@ -860,6 +875,21 @@ async function castBallot({ round = 0, picks = 1, candidates = [] } = {}) {
                     : game.i18n.localize("DRPG.Vote.who")}</legend>
                 <div class="drpg-choice-list">${rows(i)}</div>
             </fieldset>`).join("");
+
+    return `<form>
+                <p>${game.i18n.localize("DRPG.Vote.ballotIntro")}</p>
+                ${wanted > 1 ? box("info", `${
+                    game.i18n.format("DRPG.Vote.twoBlackened", { n: wanted })}`) : ""}
+                ${fields}
+                <p class="notes">${game.i18n.localize("DRPG.Vote.ballotNote")}</p>
+                <p class="notes">${game.i18n.localize("DRPG.Vote.ballotFinal")}</p>
+            </form>`;
+}
+
+/** The ballot itself, on a player's screen; the answer goes to the primary GM (`sendBallot`). */
+async function castBallot({ round = 0, picks = 1, candidates = [] } = {}) {
+    if (!Array.isArray(candidates) || !candidates.length) return;
+    const wanted = Math.max(1, Math.trunc(Number(picks)) || 1);
 
     // One ballot window at a time (CASE-14): a Remind that reached a player
     // whose first window was still open stacked a second, and either counted.
@@ -879,13 +909,7 @@ async function castBallot({ round = 0, picks = 1, candidates = [] } = {}) {
             classes: ["drpg-panel", "drpg-ballot"],
             // The ballot the trial waits on: kept above the sheet (stacking.mjs; E23 C5a).
             prompt: true,
-            body: `<form>
-                <p>${game.i18n.localize("DRPG.Vote.ballotIntro")}</p>
-                ${wanted > 1 ? box("info", `${
-                    game.i18n.format("DRPG.Vote.twoBlackened", { n: wanted })}`) : ""}
-                ${fields}
-                <p class="notes">${game.i18n.localize("DRPG.Vote.ballotNote")}</p>
-            </form>`,
+            body: ballotFormHtml({ picks: wanted, candidates }),
             render: (event, dialog) => {
                 wireBallot(dialog?.element, wanted);
                 /* CLOSED WITH ITS ROUND (1.2.122, REFR-72): a ballot left open stayed after the vote was closed and
@@ -1160,9 +1184,11 @@ async function closeRound(progress) {
             : accused.length > 1
                 ? plural("DRPG.Vote.accusesLineMany", accusing, "total")
                 : game.i18n.format("DRPG.Vote.accusesLine", accusing);
-    await announce({
-        flags: { [MODULE_ID]: { sfx: { key: "verdict", gm: true } } },
-        content: `<div class="drpg-evidence-card">
+    /* THE GMS SEE IT BEFORE THE TABLE (2.0 line T3 EXP-GM-04, 27.11.2026; the owner's recommendation). The card went to
+       the table in the same step as the count. It is written on the record now (`resultCard`, with `resultAnnouncedAt`
+       null) and handed back to the GM who pressed Close and count, whose console previews it (trial-floor-ui.mjs
+       `previewVoteResult`); Announce posts it once (`announceRound`). The record already held every count it shows. */
+    const card = `<div class="drpg-evidence-card">
             <div class="drpg-objection-banner">${game.i18n.localize("DRPG.Vote.resultBanner")}</div>
             <div class="drpg-vote-count">${rows.map(r => `<div class="drpg-vote-row">
                 <span class="drpg-vote-name">${esc(r.name)}</span>
@@ -1172,10 +1198,34 @@ async function closeRound(progress) {
             <p class="drpg-vote-sentence">${sentence}</p>
             ${silent ? `<p class="notes">${
                 plural("DRPG.Vote.silent", { n: silent })}</p>` : ""}
-        </div>`
-    });
+        </div>`;
+    await setTrialProgress({ resultCard: card, resultAnnouncedAt: null });
 
     log(`Vote closed: ${returned} of ${issued} ballot(s) returned, ${noMajority ? "no majority"
         : tied ? "tied" : `${accused.map(r => named(r.id)).join(", ")} accused`}.`);
-    return { rows, total: issued, tied, accusedId: tied ? null : rows[0]?.id ?? null, accusedIds };
+    return { rows, total: issued, tied, accusedId: tied ? null : rows[0]?.id ?? null, accusedIds, card,
+        // the ballots out that sit with a player not connected now (2.0 line T3 TRIAL-06; vote-gone.mjs), for the GMs' preview
+        gone: goneNames(goneBallots({ issued: vote.issued, cast: cast.map(([userId]) => userId), users: game.users })) };
+}
+
+/**
+ * THE COUNT'S CARD, POSTED ONCE (2.0 line T3 EXP-GM-04): on the primary, the record's `resultCard` posted to the table and
+ * `resultAnnouncedAt` written in the record's own step, first - a second Announce, or two at once, finds it written and
+ * posts nothing (`{ status: "announced" }`); with no count's card waiting, `{ status: "notClosed" }`.
+ */
+async function announceRound() {
+    const at = Date.now();
+    const before = trialProgress();
+    if (!before.voteClosed || !before.resultCard) return { status: "notClosed" };
+    if (before.resultAnnouncedAt) return { status: "announced" };
+    const after = await setTrialProgress(now => (now.resultCard && !now.resultAnnouncedAt ? { resultAnnouncedAt: at } : {}));
+    if (Number((after ?? trialProgress()).resultAnnouncedAt) !== at) return { status: "announced" };
+    await announce({ flags: { [MODULE_ID]: { sfx: { key: "verdict", gm: true } } }, content: before.resultCard });
+    return { announced: at };
+}
+
+/** Announce the count's card to the table, asked of the primary GM (`announceRound`). Answers whether this press posted it. */
+export async function announceVote() {
+    const reply = await askVote("announce");
+    return Boolean(reply?.announced);
 }

@@ -6808,7 +6808,11 @@ const REGRESSIONS = [
             // E37 C3: the readiness round's open, answer and end, judged on the primary (boundary.mjs), whose runs pass their
             // `{ refused }` on.
             openRoundOnPrimary: "refused", answerOnPrimary: "refused", endRoundOnPrimary: "refused",
-            resolveObserve: "passes", hopeCallRefusal: "wraps"
+            resolveObserve: "passes", hopeCallRefusal: "wraps",
+            // 2.0 line T3 TRIAL-02 (27.11.2026): the collector a relay of a second full GM's press hands its function in place
+            // of a toast (bridge-guards.mjs). It gives no reason of the bridge: what it takes is answered as a reply's
+            // `relayedRefusal` (bridge-runs-records.mjs `relayed`), and a relay with nothing taken refuses with its own literal.
+            relayRefusal: "passes"
         };
         const sources = [...await otherSources()].map(([file, raw]) => [file, stripComments(raw)]);
         const functions = [], texts = [];
@@ -9524,6 +9528,7 @@ const REGRESSIONS = [
             ["SHEET verdict.mjs#verdictHeld", "judged (C5, fix r2-G3): who is executed, who advances and which Blackened a wrong verdict keeps, read once as the GMs hold them - `flagsHeldNow(actor)` in one synchronous pass, after `verdictReading` awaits `judgedFor` of the executed, the Blackened and every student - and dead is the death the table knows (`isDeceased`; Q-E10-2 (a)) in all three, the Blackened's since fix r2-G3; `isDeadForGm` names only `unfound`, the kept Blackened whose death the GMs hold, for the rule's window on the GM [1b.2]"],
             ["SHEET trial-progress.mjs#carryOutSentence", "judged (C5, fix r1-G4; since E70 C4 at the trial's end, not in the verdict): each execution awaits `judgedFor(id)`, reads `flagsHeldNow(actor)` and, with nothing awaited after that read (H3), calls `killCharacter`, whose own head check is `isDeadForGm`, or for a death the GMs hold and nobody has found `publishDeath`, whose head reads the GMs' row (Q-E10-2 (a)); one the table knows dead is passed over, not killed twice; `killCharacter` is told `secret: false`, so an execution is public, an open incident's living victim's too (fix r2-G3), and `phase: \"classTrial\"` on both branches, so a verdict given after End the trial is no body to discover (E11 fix r1-G1); and `cause: \"executed\"`, in the trial's own chapter, once (`executedAt`) [1b.2]"],
             ["SHEET trial-progress.mjs#pendingSentence", "out of scope: a display on the GM's own End the trial question (GM gate); names the sentenced the table does not know dead (`isDeceased` of the document) and decides nothing - the execution reads them held (`carryOutSentence`) (E70 C4)"],
+            ["SHEET trial-progress.mjs#holdSentence", "out of scope (2.0 line T3 TRIAL-07): the GMs' card of a sentence a primary did not answer, on a GM's browser; names the sentenced the table does not know dead (`isDeceased` of the document), as `pendingSentence` does, and decides nothing - its button asks `executeAtExit` again, whose execution reads them held (`carryOutSentence`)"],
             ["SHEET level-up.mjs#buildDetail", "out of scope: the picker's display on the player's own browser (R4); the GM decides in `handleAdvancement` [1b.2]"],
             ["SHEET level-up.mjs#givenCounts", "held (E42 fix FG4; the end review's S-M3): a Level Up row's `advances` before its write and at a Finish (`rowGrew`), read as the GMs hold them (`flagsHeldNow` after `judgedFor`) - a player's own raised value, standing until its put-back lands, no longer reads as the row given; the offers are the GMs' store's (`standingOffers`) [1b.2]"],
             ["SHEET level-up.mjs#applyAdvancement", "judged (C8): one `meansWrite` from `numberHeld` (E29 r2-H24/H25); a statistic not among TRAITS, an experience to raise with none named, or one not on the sheet the GMs hold (read in the job) stops the whole Level Up, nothing written; the `actor.system.experiences[id].name` read is a label in the GM's summary; R318 pins it [1b.2]"],
@@ -13250,9 +13255,10 @@ const REGRESSIONS = [
         ok(run.guards?.[0]?.factory === "gmOnly", "a player can run a step of the vote through the bridge");
         equal(JSON.stringify(run.sanitize?.fields ?? null), JSON.stringify({ op: "oneOf", picks: "num" }),
             "vote.run's packet is not a step from a list and a number");
-        must(VOTE_OPS?.length === 5, `vote.mjs lists ${VOTE_OPS?.length ?? "no"} step(s) of the vote, not five`);
+        // six since 2.0 line T3 EXP-GM-04: "announce", the count's card posted by the GMs' Announce
+        must(VOTE_OPS?.length === 6, `vote.mjs lists ${VOTE_OPS?.length ?? "no"} step(s) of the vote, not six`);
         ok(VOTE_OPS.every(op => run.sanitize({ op }).op === op), "a step of the vote the primary runs is not passed by vote.run's packet");
-        equal(run.sanitize({ op: "count" }).op, null, "vote.run passes a step that is not one of the five");
+        equal(run.sanitize({ op: "count" }).op, null, "vote.run passes a step that is not one of the six");
         equal(run.answer, "reply", "vote.run does not hand back the primary's reply");
 
         // E41 C10a (1.2.97): vote.mjs's record and sentence left it for trial-progress.mjs, its verdict for verdict.mjs; the vote's family's text (the kit's `voteText`).
@@ -14052,12 +14058,14 @@ const REGRESSIONS = [
             finalConsole: /if \(inFinalTrial\(\)\) return openFinalVerdictDialog\(\);/.test(floorUi),
             season: /season: \(clock\.season \?\? 1\) \+ 1,\s*finalTrial: false/.test(wipe),
             deadObjector: /isDeceased\(await flagsAsHeld\(actor\)\)/.test(fnSource(code("trial.mjs"), "seizeFloor")),
-            // Since E128 through `finishRoute`: a second full GM's press while the primary runs it is the primary's.
-            finishRunner: /const runner = verdictRunner\(progress\);\s*const route = finishRoute\(\{ runner \}\);[\s\S]{0,400}if \(route === "refuse"\) \{\s*ui\.notifications\.warn\(game\.i18n\.format\("DRPG\.Vote\.finishOtherGm"/
-                .test(fnSource(vote, "finishVerdict"))
+            // Since E128 through `finishRoute`; since 2.0 line T3 TRIAL-03 (27.11.2026) every full GM's press claims the verdict
+            // on the primary and runs it here, and an Assistant GM's is refused naming the runner.
+            finishRunner: /if \(full\) return "claim";\s*return !runner \|\| runner === me \? "here" : "refuse";/.test(fnSource(vote, "finishRoute"))
+                && /if \(route === "refuse"\) \{\s*say\("DRPG\.Vote\.finishOtherGm"[\s\S]{0,600}if \(route === "claim"\) \{[\s\S]{0,200}claimVerdict\(game\.user/.test(fnSource(vote, "finishVerdict"))
                 && /return by\?\.active \? by\.id : primaryGmId\(\);/.test(fnSource(vote, "verdictRunner"))
-                // The console's next step is trial-floor.mjs's table since E47 C1: the two rows of a verdict another GM runs.
-                && /\[view => view\.progress\.verdictApplied && notMine\(view\) && view\.stopped, "finishElsewhere"\],\s*\[view => view\.progress\.verdictApplied && notMine\(view\), "verdictElsewhere"\]/.test(floorCode)
+                // The console's next step is trial-floor.mjs's table since E47 C1: the two rows of a verdict another GM runs,
+                // the first an Assistant GM's alone since 2.0 line T3 TRIAL-05 (`mayFinish`).
+                && /\[view => view\.progress\.verdictApplied && notMine\(view\) && view\.stopped && !view\.mayFinish, "finishElsewhere"\],\s*\[view => view\.progress\.verdictApplied && notMine\(view\) && !\(view\.stopped && view\.mayFinish\), "verdictElsewhere"\]/.test(floorCode)
                 && /const notMine = view => Boolean\(view\.runner\) && view\.runner !== game\.user\?\.id;/.test(floorCode),
             noRepeat: /if \(verdictCardPosted\(context\.record\)\) return;/.test(fnSource(vote, "verdictCard"))
                 && /given: context\.record\.given \?\? \[\]/.test(fnSource(vote, "verdictLevelUps"))
@@ -14103,8 +14111,8 @@ const REGRESSIONS = [
                     finalConsole: [/the console's verdict button opens \*\*Final Trial verdict\*\*/, /^\| A final verdict \| given from the trial console's verdict button, which opens \*\*Final Trial verdict\*\* in a Final Trial \|/],
                     season: [/the season counted one on and the Final Trial flag down/],
                     deadObjector: [/an Objection posted in a dead student's name is refused on the primary GM's browser/],
-                    finishRunner: [/It runs on the browser of the GM who gave the verdict while they are connected, otherwise on the primary GM's - a second full Gamemaster's press is then carried out by the primary GM's \(since 1\.2\.128\); on any other GM's the console names whom to ask, and Enter presses nothing there/],
-                    noRepeat: [/it gives no survivor a second Level Up and posts no second card/],
+                    finishRunner: [/Since 1\.2\.130 any full Gamemaster can press it, also on a verdict another GM gave once a step failed or that GM left: the press first takes the verdict on the primary GM's browser, and the steps left, with their windows - the Level Ups, the Blackened's rule - run on the browser of the GM who pressed\. Of two presses at once one takes the verdict and the other GM is told who is finishing it[\s\S]{0,300}An Assistant GM finishes only a verdict they gave; on their console the step names whom to ask/],
+                    noRepeat: [/gives no survivor a second Level Up and posts no second card/],
                     givenGap: [/a GM who leaves between a row's Level Up and the write that records it no longer leaves that row to be given again/],
                     takeBackBusy: [/A take-back is refused, and you are told, while that character's Level Up is being written\./],
                     enterGives: [/\*\*Hand them out\*\* - the first button and the default, so Enter does it - follows the rows/],
@@ -14141,8 +14149,8 @@ const REGRESSIONS = [
                     finalConsole: [/przycisk werdyktu w konsoli otwiera \*\*Werdykt Final Trial\*\*/, /^\| Werdykt finału \| wydawany przyciskiem werdyktu w konsoli Class Trial, który w Final Trial otwiera \*\*Werdykt Final Trial\*\* \|/],
                     season: [/licznikiem sezonu o jeden dalej i zdjętą flagą Final Trial/],
                     deadObjector: [/Objection wniesione w imieniu martwego ucznia jest odrzucane w przeglądarce głównego GM-a/],
-                    finishRunner: [/Wykonuje się w przeglądarce GM-a, który wydał werdykt, dopóki jest połączony, a inaczej w przeglądarce głównego GM-a - naciśnięcie drugiego pełnego Gamemastera wykonuje wtedy przeglądarka głównego GM-a \(od 1\.2\.128\); w przeglądarce każdego innego GM-a konsola mówi, kogo poprosić, a Enter niczego tam nie naciska/],
-                    noRepeat: [/żadnemu ocalałemu nie daje drugiego Level Upa ani nie wysyła drugiej karty/],
+                    finishRunner: [/Od 1\.2\.130 może go nacisnąć każdy pełny Gamemaster, także przy werdykcie, który wydał inny GM, gdy któryś krok się nie udał albo ten GM wyszedł: naciśnięcie najpierw zajmuje werdykt w przeglądarce głównego GM-a, a pozostałe kroki z ich oknami - Level Upami i zasadą Blackened - wykonuje przeglądarka GM-a, który nacisnął\. Z dwóch naciśnięć naraz jedno zajmuje werdykt, a drugi GM dowiaduje się, kto go dokańcza[\s\S]{0,300}Asystent GM-a dokańcza tylko werdykt, który sam wydał; w jego konsoli krok mówi, kogo poprosić/],
+                    noRepeat: [/nie daje żadnemu ocalałemu drugiego Level Upa ani nie wysyła drugiej karty/],
                     givenGap: [/GM, który wyjdzie między Level Upem wiersza a zapisem, który go odnotowuje, nie zostawia już tego wiersza do przyznania jeszcze raz/],
                     takeBackBusy: [/Cofnięcie jest odmawiane, a ty się o tym dowiadujesz, dopóki Level Up tej postaci jest zapisywany\./],
                     enterGives: [/\*\*Przyznaj\*\* - pierwszy przycisk i domyślny, więc Enter robi to samo - wykonuje wiersze/],
@@ -21334,8 +21342,9 @@ const REGRESSIONS = [
                 .filter(key => ["en", "pl"].some(code => typeof foundry.utils.getProperty(lang[code], `DRPG.Chapter.step.${key}`) !== "string")),
             runner: [/\brunSteps\(\{/.test(runner), /\bstop:/.test(runner), /\bsave:/.test(runner), /\bstepsReport\(/.test(runner)]
         }), JSON.stringify({
-            keys: ["reveal", "sweep", "faint", "keys", "tools", "clock", "trial", "morning", "hold"],
-            asked: ["reveal", "sweep", "faint", "keys", "clock", "trial", "morning"],
+            // "players" since 2.0 line T3 EXP-PL-13: the table's card of the new chapter, last, asked with Next chapter
+            keys: ["reveal", "sweep", "faint", "keys", "tools", "clock", "trial", "morning", "hold", "players"],
+            asked: ["reveal", "sweep", "faint", "keys", "clock", "trial", "morning", "players"],
             unlabelled: [], runner: [true, true, true, true]
         }), "the chapter's end is not E11's nine steps on the one runner (keys in order; asked: those the choices ask for; unlabelled: a key with no "
             + "text in a language; runner: runChapterEnd on runSteps, with stop, save and stepsReport)");
@@ -21578,7 +21587,9 @@ const REGRESSIONS = [
             // E73 (12.11.2026): the zone modes' Findings and the last Straw Poll's count, the trial's, a GM's to edit.
             "findings", "strawPoll",
             // E99 (12.11.2026, Q-E99-9): when the trial's case summary went out, the trial's.
-            "summaryShown"];
+            "summaryShown",
+            // 2.0 line T3 EXP-GM-04: the count's card and when the GMs' Announce posted it, the trial's.
+            "resultCard", "resultAnnouncedAt"];
         const KEPT = ["chapter", "mutedDead", "objections", "closing"];
         const blank = P.trialProgress(0);
         const patch = P.entryPatch({ ...blank, vote: { ...blank.vote, round: 3 } }, { seconds: 120 });
@@ -21591,12 +21602,12 @@ const REGRESSIONS = [
             blank: { chapter: 0, seconds: SECONDS, voteClosed: false, verdictApplied: false, keysCharged: false, tied: false, majority: 0,
                 noMajority: false, vote: { open: false, round: 0, picks: 1, issued: [], openedAt: null, closedAt: null }, accused: [], total: 0,
                 accusedIds: [], verdict: null, objections: {}, trialStartedAt: null, againAfterOverrule: null, topic: null, debateAgain: false,
-                voteOpenedAt: null, trialSize: 0, lastVerdictAt: null, executedAt: null, execution: null, closing: null, findings: [], strawPoll: null, summaryShown: null },
+                voteOpenedAt: null, trialSize: 0, lastVerdictAt: null, executedAt: null, execution: null, closing: null, findings: [], strawPoll: null, summaryShown: null, resultCard: null, resultAnnouncedAt: null },
             keys: BLANK, fields: BLANK.filter(key => !KEPT.includes(key)),
             entry: { seconds: 120, voteClosed: false, verdictApplied: false, tied: false, majority: 0, noMajority: false,
                 vote: { open: false, round: 3, picks: 1, issued: [], openedAt: null, closedAt: null }, accused: [], total: 0, accusedIds: [], verdict: null,
                 trialStartedAt: "number", againAfterOverrule: null, topic: null, debateAgain: false, voteOpenedAt: null, trialSize: "number",
-                executedAt: null, execution: null, closing: null, findings: [], strawPoll: null, summaryShown: null },
+                executedAt: null, execution: null, closing: null, findings: [], strawPoll: null, summaryShown: null, resultCard: null, resultAnnouncedAt: null },
             chapter: ["chapter", "keysCharged", "objections", "lastVerdictAt"], trial: ["mutedDead"]
         }), "the blank, the entry's patch or the whitelist of another GM's patch is not 1.2.96's, or the chapter's fields are not the chapter, the Key fee, the receipts "
             + "and the last verdict's stamp, or a trial's field in no blank is more than the trial's list of the dead (read: blank, its keys, RECORD_FIELDS, the entry's patch, the chapter's, the trial's outside the blank)");
@@ -23291,7 +23302,7 @@ const REGRESSIONS = [
             "trial-floor-ui.mjs:endClassTrial": [ui, "endClassTrial", 1, 1], "trial-floor-ui.mjs:confirmReveal": [ui, "confirmReveal", 1, 0],
             "trial-floor-ui.mjs:trialConsoleHtml": [ui, "trialConsoleHtml", 2, 3], "trial-floor-ui.mjs:openVoteDialog": [ui, "openVoteDialog", 2, 2],
             "verdict.mjs:openVerdictDialog": [verdict, "openVerdictDialog", 3, 0], "verdict.mjs:askBlackenedRule": [verdict, "askBlackenedRule", 1, 0],
-            "verdict.mjs:openFinalVerdictDialog": [verdict, "openFinalVerdictDialog", 0, 1], "vote.mjs:castBallot": [vote, "castBallot", 0, 1]
+            "verdict.mjs:openFinalVerdictDialog": [verdict, "openFinalVerdictDialog", 0, 1], "vote.mjs:castBallot": [vote, "ballotFormHtml", 0, 1] /* the ballot's form, out of castBallot since 2.0 line T3 EXP-PL-16 */
         };
         const count = (text, re) => (text.match(re) ?? []).length;
         const got = {}, want = {};
@@ -23543,7 +23554,7 @@ const REGRESSIONS = [
             ["trial-floor-ui.mjs", "endClassTrial", "E47", 1, 1, 0], ["trial-floor-ui.mjs", "confirmReveal", "E47", 1, 0, 0],
             ["trial-floor-ui.mjs", "trialConsoleHtml", "E47", 2, 3, 0], ["trial-floor-ui.mjs", "openVoteDialog", "E47", 2, 2, 0],
             ["verdict.mjs", "openVerdictDialog", "E47", 3, 0, 0], ["verdict.mjs", "askBlackenedRule", "E47", 1, 0, 0], ["verdict.mjs", "openFinalVerdictDialog", "E47", 0, 1, 0],
-            ["vote.mjs", "castBallot", "E47", 0, 1, 0],
+            ["vote.mjs", "ballotFormHtml", "E47", 0, 1, 0], // castBallot's form until 2.0 line T3 EXP-PL-16
             ["action-project.mjs", "startProject", "open", 1, 0, 1], ["call-pickers.mjs", "callHeader", "open", 0, 0, 1],
             ["mastermind.mjs", "openMastermindDialog", "open", 0, 0, 1], ["reroll.mjs", "settleGmRuling", "open", 0, 0, 1],
             ["roll-dialog.mjs", "announceFreeCritical", "open", 0, 0, 1], ["trial.mjs", "pickObjectionEvidence", "open", 0, 0, 1],
@@ -23554,7 +23565,7 @@ const REGRESSIONS = [
             ["body.mjs", "runDiscovery", "E49", 1, 0, 0], ["chapter.mjs", "endChapterNow", "E49", 1, 0, 0], ["chapter.mjs", "runChapterEnd", "E49", 1, 0, 0],
             ["chapter.mjs", "finishEndNow", "E49", 1, 0, 0], ["cleanup-reshape.mjs", "reshapeCardParts", "E49", 1, 0, 0], ["cleanup-reshape.mjs", "proposeReshape", "E49", 1, 0, 0],
             ["cleanup.mjs", "undoLastCleanup", "E49", 2, 0, 0], ["cleanup.mjs", "paidBack", "E49", 1, 0, 0], ["eclipse.mjs", "ruleOnParkedMurder", "E49", 1, 0, 0],
-            ["eclipse.mjs", "judgePendingMurders", "E49", 1, 0, 0], ["inventory.mjs", "transferItem", "E49", 3, 0, 0], ["key-remnants.mjs", "chargeForUnfoundKeys", "E49", 1, 0, 0],
+            ["eclipse.mjs", "judgePendingMurders", "E49", 1, 0, 0], ["inventory.mjs", "transferItem", "E49", 3, 0, 0], ["key-remnants.mjs", "holdCharge", "E49", 1, 0, 0], // chargeForUnfoundKeys's held card until 2.0 line T3 INV-07, which drew it in `holdCharge` for an unanswered ask too
             ["migrate.mjs", "*", "E49", 1, 0, 0], ["movement-audit.mjs", "auditMove", "E49", 2, 0, 0], ["movement.mjs", "keepRoomFlag", "E49", 1, 0, 0],
             ["movement.mjs", "removeDrop", "E49", 1, 0, 0], ["movement.mjs", "tellUnlawful", "E49", 1, 0, 0], ["movement.mjs", "tellDropped", "E49", 1, 0, 0],
             ["murder-rules.mjs", "resolveVictimOpening", "E49", 1, 0, 0], ["murder-rules.mjs", "applyCrisisAction", "E49", 1, 0, 0], ["murder-rules.mjs", "swapRoles", "E49", 1, 0, 0],
@@ -23609,7 +23620,8 @@ const REGRESSIONS = [
         const PINNED = {
             // Option B (16.11.2026, Q-SC-4): projects-map.mjs `onPickedSceneDeleted`, the other GMs told that a picked scene
             // went, is a GMs' warning, so a warning card.
-            "action-analyze.mjs": {"line": 4},
+            // 2.0 line T3 INV-12: action-analyze.mjs +1 line (an Analyze nobody answered, `DRPG.Analyze.unresolved`)
+            "action-analyze.mjs": {"line": 5},
             // E69, E74, E93 (merged into this train with E49's count on 12.11.2026; the coordinator's rule of that day): the
             // result an action's roller reads - Shut, Force, Pick, a tail begun, a watch kept, a Dash, a room action, the GM's
             // text, a watch's summary - is E49's card; a note to another reader or a running report is a line (WHY.line); a
@@ -23625,14 +23637,15 @@ const REGRESSIONS = [
             // before its thread post (built); the school's card is a ChatMessage the census does not read as a poster.
             "announce.mjs": {"built": 2},
             "anonymity.mjs": {"card": 2}, "body.mjs": {"card": 1, "line": 1, "message": 1}, "bridge-runs-acts.mjs": {"card": 1},
-            "bridge-runs-records.mjs": {"action": 1, "message": 1},
+            // 2.0 line T3 INV-12: bridge-runs-records.mjs +1 card (`handleResolveLost`, the GMs' card of a resolve nobody answered)
+            "bridge-runs-records.mjs": {"action": 1, "card": 1, "message": 1},
             "call-effects.mjs": {"action": 2, "card": 1, "message": 1}, "call-gm.mjs": {"built": 1},
             "call-world.mjs": {"message": 3}, "calls.mjs": {"heading": 1, "message": 2},
             // E99 C7: the case summary's one public card, built through chatCard with its flag (case-summary.mjs `showCaseSummary`)
             "case-summary.mjs": {"message": 1},
             
             
-            "chapter.mjs": {"card": 3}, "cleanup-reshape.mjs": {"action": 2, "card": 1, "line": 1}, "cleanup.mjs": {"action": 4, "built": 1, "card": 3, "heading": 2, "line": 6, "message": 1}, "clock.mjs": {"built": 1, "line": 1, "message": 1}, "context-loss.mjs": {"line": 1}, "death.mjs": {"heading": 1}, "despair.mjs": {"line": 1, "message": 1},
+            "chapter.mjs": {"card": 3, "message": 1} /* 2.0 line T3 EXP-PL-13: +1 message, the new chapter's card (announce with a chat-card spec) */, "cleanup-reshape.mjs": {"action": 2, "card": 1, "line": 1}, "cleanup.mjs": {"action": 4, "built": 1, "card": 3, "heading": 2, "line": 6, "message": 1}, "clock.mjs": {"built": 2, "line": 2, "message": 1} /* 2.0 line T3 TRIAL-08: +1 built, the GMs told a cut change of phase was finished (finishPhaseSteps); EXP-PL-11: +1 line, the Investigation's start */, "context-loss.mjs": {"line": 1}, "death.mjs": {"heading": 1}, "despair.mjs": {"line": 1, "message": 1},
             "diagnostics.mjs": {"card": 1}, "doors-gm.mjs": {"built": 2, "line": 3},
             // E69 C6, C7 (13.11.2026): the listener's line and Echoes' result are E49's card (action-listen.mjs); the GMs'
             // warning that voice per room is off is a warning card (eavesdrop-gm.mjs).
@@ -23672,7 +23685,9 @@ const REGRESSIONS = [
             // body.mjs +1 line (EXP-GM-02, `tellGmsLoneFinder`); murder-rules.mjs +1 line (MURDER-14, `tellKillersStageSix`) and +1
             // (MURDER-04, `tellOwnersGmThrows`); murder-ui.mjs +1 line (MURDER-06, `noteParticipantLeft`).
             "murder-rules.mjs": {"action": 1, "built": 4, "card": 6, "heading": 3, "line": 12, "message": 4}, "murder-ui.mjs": {"line": 1},
-            "music.mjs": {"card": 1}, "observe.mjs": {"card": 4, "heading": 1, "line": 3},
+            // 2.0 line T3 INV-05: observe.mjs +1 card (a describe window run out, told to every GM: `describeTimedOutGms`);
+            // INV-03: +1 line (the finder told the GM is describing the find, `DRPG.Observe.describing`)
+            "music.mjs": {"card": 1}, "observe.mjs": {"card": 5, "heading": 1, "line": 4},
             "overflow.mjs": {"built": 1, "message": 2}, "palm.mjs": {"built": 2, "line": 2}, "passages-gm.mjs": {"line": 4},
             "price.mjs": {"line": 2}, "private-rolls.mjs": {"message": 1}, "projects-map.mjs": {"card": 1, "line": 1},
             // S17-31's three sight cards (522cd601, 12 lines) are a player's copy of the GMs' sight since E101's review, R2: 9.
@@ -23686,10 +23701,11 @@ const REGRESSIONS = [
             "secret.mjs": {"message": 1}, "sheet-audit.mjs": {"built": 2, "card": 2}, "stash-reach.mjs": {"line": 11},
             "states.mjs": {"line": 1}, "tables-editor.mjs": {"card": 1}, "tail-gm.mjs": {"line": 3}, "timed-effects.mjs": {"line": 1}, "traps.mjs": {"line": 1},
             // E129 S0-SKIP (23.11.2026): trial-floor.mjs `finishObjectionOnPrimary` whispers the GMs one line, the objector's finish.
-            "trial-floor-ui.mjs": {"message": 4}, "trial-floor.mjs": {"line": 1, "message": 1},
-            "trial-modes.mjs": {"heading": 1, "message": 1}, "trial-progress.mjs": {"line": 2, "message": 1},
+            // 2.0 line T3 TRIAL-14: trial-floor.mjs +1 card (`holderGone`, the GMs told an Objection's or a Rebuttal's speaker left)
+            "trial-floor-ui.mjs": {"message": 4}, "trial-floor.mjs": {"card": 1, "line": 1, "message": 1},
+            "trial-modes.mjs": {"heading": 1, "message": 1}, "trial-progress.mjs": {"card": 2, "line": 2, "message": 1}, // 2.0 line T3 TRIAL-07: +1 card (`holdSentence`); TRIAL-15: +1 (`tellWrittenHere`)
             "trial-scene.mjs": {"built": 1, "line": 10}, "trial-zones.mjs": {"card": 1, "message": 1}, "trial.mjs": {"line": 11, "message": 4},
-            "truth-bullets.mjs": {"card": 1, "heading": 2}, "use-items.mjs": {"card": 1, "line": 6},
+            "truth-bullets.mjs": {"card": 1, "heading": 2, "line": 1} /* 2.0 line T3 EXP-PL-08: +1 line, a copy changed by a GM */, "use-items.mjs": {"card": 1, "line": 6},
             // user-match.mjs's one line went at the 2.0 line T4 (EXP-GM-09, 27.11.2026): `tellGms` posts through its parameter
             // `whisper` (whisperToGms by default), which this grep does not match - the card it posts is the same `line`.
             "utils.mjs": {"built": 1}, "vault-store.mjs": {"card": 1, "line": 3, "message": 1},
@@ -27936,6 +27952,19 @@ const REGRESSIONS = [
             K.veilWanted({ ...base, atLights: true, indirect: true })]),
         JSON.stringify([[], [], ["K", "T"], ["K"], [], []]),
         "[outside an Eclipse, atLights false, at the lights with a third on the killers' side, a third on the victim's, the fight's stage, a trap at the lights]");
+    }],
+    // T3 investigation-trial-chapter
+    ["R9134 - the summary's preview warns after a wrong verdict that sending it narrows the suspects, and only then (2.0 line T3 TRIAL-12; case-summary.mjs `summaryWarning`)", async () => {
+        /* 2.0 line T3 TRIAL-12, 27.11.2026. Pure on three payloads; nothing read or written. Red at c820fd7: no
+           `summaryWarning`. */
+        const S = await import("./case-summary.mjs");
+        must(typeof S.summaryWarning === "function", "case-summary.mjs has no summaryWarning: the preview of a wrong verdict's summary warns of nothing");
+        const node = { role: "evidence", name: "SUITE knife", text: "" };
+        equal(JSON.stringify([S.summaryWarning({ correct: false, nodes: [node] }), S.summaryWarning({ correct: false, nodes: [] }),
+            S.summaryWarning({ correct: true, nodes: [node] }), S.summaryWarning(null)]),
+        JSON.stringify(["DRPG.CaseSummary.wrongVerdictHint", null, null, null]),
+            "[a wrong verdict with evidence in the summary, a wrong verdict with nothing in it, a right verdict, no payload]");
+        ok(game.i18n.localize("DRPG.CaseSummary.wrongVerdictHint") !== "DRPG.CaseSummary.wrongVerdictHint", "the warning's words are missing");
     }],
 ];
 
