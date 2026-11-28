@@ -556,7 +556,7 @@ W każdym rozdziale twój uczeń może mieć dwa własne cele, które nadaje ci 
 
 Gdy twoja postać zrealizowała cel, naciśnij pod nim **Zgłoś realizację** i napisz, co zrobiła i kiedy. Czytają to tylko GM-owie. GM zalicza zgłoszenie albo odmawia: zaliczenie daje ci **3 Hope**, do twojego maksimum (co się nie mieści, przepada), z dźwiękiem, który słyszysz tylko ty; odmowa podaje powód, jeśli GM go wpisze, i możesz zgłosić cel jeszcze raz. Gdy zaliczony zostaje Monokuma Motive, każdy żywy uczeń dostaje 3 Hope, do swojego maksimum.
 
-Po werdykcie Class Trial GM daje 1 Level Up każdemu uczniowi, który zrealizował wszystkie cele rozdziału: swój Personal Motive, swój Relationship Motive i każdy Monokuma Motive. Stół może grać bez celów graczy; wtedy zakładka pokazuje tylko Monokuma Motive.
+Po werdykcie Class Trial GM daje 1 Level Up każdemu uczniowi, który zrealizował wszystkie cele rozdziału: swój Personal Motive, swój Relationship Motive i każdy Monokuma Motive. Stół może grać bez celów graczy; wtedy zakładka nic z tego nie pokazuje, a Monokuma Motive widać w panelu zdarzeń (rozdział 16).
 
 ---
 

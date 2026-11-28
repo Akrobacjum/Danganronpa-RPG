@@ -556,7 +556,7 @@ Each chapter your student can have two motives of their own, which the GM gives 
 
 When your character has done a motive, press **Report it done** under it and write what you did and when. Only the GMs read it. A GM passes it or refuses it: a pass gives you **3 Hope**, up to your maximum (what does not fit is lost), with a sound only you hear; a refusal says why when the GM gives a reason, and you can report again. When a Monokuma Motive is passed, every living student gets 3 Hope, up to their maximum.
 
-After the Class Trial's verdict, the GM gives 1 Level Up to each student who did every motive of the chapter: their Personal Motive, their Relationship Motive and every Monokuma Motive. A table can play without the players' motives; then the tab shows only the Monokuma Motive.
+After the Class Trial's verdict, the GM gives 1 Level Up to each student who did every motive of the chapter: their Personal Motive, their Relationship Motive and every Monokuma Motive. A table can play without the players' motives; then the tab shows none of this, and the Monokuma Motive stands in the Event panel (section 16).
 
 ---
 

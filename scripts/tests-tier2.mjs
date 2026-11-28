@@ -61817,6 +61817,19 @@ equal(read.added, 3, "three additions to a purse at once lost one");
                 gone: (report, key) => !S.diveSetStore.has(key),
                 back: key => stableJson([S.diveSetStore.get(key)?.name, S.diveSetStore.get(key)?.questions?.[0]?.truth]) === stableJson(["SUITE backed-up set", "b"])
             },
+            // A student's motives, through their store (2.0 line T5, D2-23; `backup: true`). Backed up with no fixture here
+            // from 0432888, and this test failed naming it (CI 28.11.2026, run 46082639954, shard 5). A row of chapter 99 of
+            // another season (`epoch` -1): no reader takes it as this chapter's (motives.mjs `currentRow`), and nobody is sent
+            // it while tier 2 holds the stores; tier 2's restore takes it back.
+            motives: {
+                seed: async () => {
+                    await S.motiveStore.patch(holder.id, { actorId: holder.id, chapter: 99, epoch: -1,
+                        personal: { text: "SUITE backed-up motive", status: "open", report: "", reason: "", at: 1, by: game.user.id }, relationship: null });
+                    return holder.id;
+                },
+                gone: (report, key) => !S.motiveStore.get(key)?.personal,
+                back: key => S.motiveStore.get(key)?.personal?.text === "SUITE backed-up motive" && S.motiveStore.get(key)?.chapter === 99
+            },
             // A listener's eavesdrop, through its store (E69 C6; `backup: true`). Backed up with no fixture here from the merge
             // of fix-113o (ad89e657), and this test failed naming it (14.11.2026, 6dd02975). An ended row with no user
             // and no room: it blocks no microphone (`eavesdropMutedIds` reads `userId`), the voice pass places nobody by it
