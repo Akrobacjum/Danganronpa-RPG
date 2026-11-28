@@ -42876,12 +42876,20 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         const G = await import("./bridge-guards.mjs");
         const B = await import("./gm-bridge.mjs");
         const { gmStoreHandles } = await import("./gm-store.mjs");
+        const { clockBeatStore } = await import("./gm-stores.mjs");
         const judged = (action, fields, from, requestId = null) =>
             G.judge(B.BRIDGE_ACTIONS, { action, ...(requestId ? { requestId } : {}), ...fields }, from, { send: () => {} });
         const seen = new Set(game.messages.map(m => m.id));
         const created = [];
         const made = Hooks.on("createChatMessage", m => { if (!seen.has(m.id)) created.push(m); });
-        /* The window: what one expiry does once its card is gone. */
+        /* The window: what one expiry does once its card is gone. The primary's beat is nobody's (tests-kit.mjs
+           `SELF_TICKING`, fix-113s; R6094): hud.mjs's 60 s interval patches `clockBeatStore` whatever runs, and it is the
+           beat's one writer (hud-elapsed.mjs `beatClock`, read 28.11.2026), so its patch is left out here and nothing
+           else is - a read of that store still counts. MEASURED: CI run 681 (ef2ac91) shard 4/8 and the same shard here
+           (28.11.2026, 785.8 s) both failed on exactly `yes: ["clockBeat.patch"]`, the beat landing in the ~0.3 s window;
+           the shard at 20353d9 (run 680) was green, the dealing's timing alone having moved (2.0 line T2b). */
+        must(clockBeatStore?.name, "the beat's store has no name - its patch could not be told apart");
+        const selfTicking = (handle, key) => handle.name === clockBeatStore.name && key === "patch";
         const counted = async run => {
             const touched = [], undo = [];
             for (const handle of gmStoreHandles()) {
@@ -42889,7 +42897,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
                     const original = handle[key];
                     if (typeof original !== "function") continue;
                     undo.push(() => { handle[key] = original; });
-                    handle[key] = (...args) => { touched.push(`${handle.name}.${key}`); return original(...args); };
+                    handle[key] = (...args) => { if (!selfTicking(handle, key)) touched.push(`${handle.name}.${key}`); return original(...args); };
                 }
             }
             const emit = game.socket.emit;

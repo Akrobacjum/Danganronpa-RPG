@@ -10,14 +10,14 @@ Wszystko poza tymi siedmioma pozycjami należy do T2, T2c i pozostałych linii i
 | Co | Wartość |
 | --- | --- |
 | Baza (czubek `claude/v2-t2` w chwili startu) | `0d3d4f2a7cc5ed03692cad97826f4726f9aeab1b` |
-| Koniec kodu | `ef2ac91` (DAY-09); po nim tylko ten raport |
-| Commity | 7: sześć z kodem (jeden na pozycję albo grupę DAY-02+EXP-GM-13) i raport |
+| Koniec kodu | `ef2ac91` (DAY-09); po nim raport i jedna poprawka testu E40-T5 (zob. 1.1 i 6.10) |
+| Commity | 8: sześć z kodem (jeden na pozycję albo grupę DAY-02+EXP-GM-13), raport, poprawka E40-T5 razem z wynikami CI |
 | Tiery 0-1 na bazie | `run-tests: 2077 passed, 0 failed, 16 skipped, 0 red` (2092 testy, 493,3 s) |
 | Tiery 0-1 na końcu kodu | `run-tests: 2089 passed, 0 failed, 16 skipped, 0 red` (2104 testy, 521,2 s, drzewo `20353d9` + zmiany DAY-09, zatwierdzone jako `ef2ac91`) |
 | `npm run quick` | zielone przed każdym commitem (dwa razy najpierw czerwone, opisane w commitach: `registry` bez `--write` i R173/R472, poprawione) |
 | Pełne `npm test` lokalnie | nie uruchomione (koordynator: nie mieści się w limicie); w zamian tiery 0-1, własne i powiązane testy tier 2, scenariusze 69, 97, 33, 30 |
 | CI | zob. 1.1 |
-| Mutanty | 9, wszystkie zabite (sekcja 3.4) |
+| Mutanty | 10, wszystkie zabite (sekcja 3.4) |
 
 ### 1.1 CI
 
@@ -26,12 +26,22 @@ Każdy push uruchamia `ci.yml` (8 shardów, kubełki scenariuszy, `verdict`). Ko
 
 | Run | Commit | Wynik |
 | --- | --- | --- |
-| 669 (46116736832) | `7016da4` DAY-01 | wszystkie zadania zielone: lint/check/gate, 8 kubełków scenariuszy, 8 shardów; `verdict` w chwili pisania w kolejce |
-| 673 (46118224148) | `3d367da` DAY-02, EXP-GM-13 | w trakcie w chwili pisania |
-| 675, 678, 680 | `2686b68`, `0d73f94`, `20353d9` | w kolejce w chwili pisania |
-| 681 (46124276971) | `ef2ac91` DAY-09, ostatni commit kodu | w kolejce w chwili pisania; wynik dopisany niżej, gdy będzie |
+| 669 (46116736832) | `7016da4` DAY-01 | success: lint/check/gate, plan, 8 kubełków scenariuszy, 8 shardów, `verdict` |
+| 673 (46118224148) | `3d367da` DAY-02, EXP-GM-13 | success |
+| 675 (46119951668) | `2686b68` DAY-06 | success (zadania odczytane po kolei: lint/check/gate, plan, b1-b8, suite 1/8-8/8 zielone; crlf pominięte; `verdict` zielony) |
+| 678 (46121033138) | `0d73f94` DAY-05 | success |
+| 680 (46122489622) | `20353d9` DAY-10 | success: lint/check/gate, plan, b1-b8, suite 1/8-8/8, `verdict` (oba kroki: "The shards together are the whole suite", "Every job green") |
+| 681 (46124276971) | `ef2ac91` DAY-09 | **failure**: lint/check/gate, plan, b1-b8 i suite 1-3/8, 5-8/8 zielone; **suite 4/8 czerwony**: 271 passed, 1 failed - E40-T5 "an ask whose card is gone ends nothing when its time runs out"; `verdict` czerwony przez ten shard ("The shards together are the whole suite") |
+| 683 (46124731864) | `d9d19db` raport (kod jak w `ef2ac91`) | success: ten sam kod co 681, suite 4/8 zielony |
 
-Run na commicie tego raportu (zmienia tylko ten plik) podaje ostatnia wiadomość sesji.
+**Czerwień 681, zmierzona.** E40-T5 liczy każdy odczyt i zapis magazynu GM-ów w ok. 0,3 s okna wygaśnięcia
+prośby, której karty już nie ma. W 681 zmierzył `yes: ["clockBeat.patch"]`: bicie głównego GM-a (hud.mjs, interwał
+`CLOCK_BEAT_MS` = 60 s; jedyny zapisujący to hud-elapsed.mjs `beatClock`, odczyt 28.11.2026) wypadło w tym oknie.
+To nie zapis wygaśnięcia. Lokalnie: shard 4/8 na `ef2ac91` raz czerwony z tym samym pomiarem (785,8 s, 271/1), a 683 na
+tym samym kodzie zielony - zależność od czasu, nie od kodu DAY-09 (żadna z dróg DAY-09 nie pisze bicia; `ownBarricadeHere`
+czyta `barricadeStore` tylko przy rysowaniu wierszy Infiltrate w zabarykadowanym pokoju). Poprawka testu - sekcja 6.10.
+Po niej: E40-T5 sam zielony, mutant (bez wczesnego powrotu `endExpired` w call-gm.mjs) zabity, shard 4/8 lokalnie
+zielony (794,9 s, 272 passed, 0 failed). Run CI na commicie z poprawką podaje ostatnia wiadomość sesji.
 
 ## 2. Tabela pozycji
 
@@ -84,6 +94,7 @@ Numery z nadmiaru R9090-R9104 nie były potrzebne.
 | 69-day-boards | zapis zdania przez `game.drpg.setMorningLine`, odtworzenie magazynu |
 | 97-two-gms | nowa faza DAY1 na końcu (gm2 pisze, gm przesuwa zegar) |
 | 33-bridge-paths | nowa faza A28 za A27 z T2 (Asystent GM oddaje token przez głównego) |
+| E40-T5 (tier 2, nie mój) | pomija tylko `clockBeat.patch` (bicie, które tyka samo), jak tests-kit.mjs `SELF_TICKING` (fix-113s, R6094); wszystko inne liczy dalej - sekcja 6.10 |
 
 `audit/harness/skip-baseline.json`: bez zmian.
 
@@ -100,6 +111,7 @@ Numery z nadmiaru R9090-R9104 nie były potrzebne.
 | M7 zdanie poranka znowu z ustawienia klienta | KILLED | R9037, E132 T2b DAY-01 |
 | M8 `roundOpen` mówione ogólnie | KILLED | R9044, E132 T2b DAY-06 |
 | M9 oddanie tokenu zostaje na drugim GM-ie | KILLED | R9046 |
+| M10 (na drzewie roboczym po 6.10) `endExpired` bez wczesnego powrotu dla karty, której nie ma | KILLED | E40-T5 (1 failed) |
 
 ## 4. Kontrole Forge do końcowego sprawdzenia (D2-15)
 
@@ -183,6 +195,13 @@ Istniejących kluczy nie zmieniono. `DRPG.Hud` nie dostał nowego klucza (sekcja
    autora jest wyszarzony, dopóki barykada nie zniknie (pytanie do właściciela niżej).
 9. R9043 najpierw sprawdzał "ostatni kod" i "ostatni wzorzec"; mój własny kod DAY-09 to złamał. Teraz sprawdza "po
    kodach E74" i "pierwszy pasujący wzorzec jest jego" - ta sama obietnica, odporna na kody dopisane przez T1 i T5.
+10. E40-T5 (test E40, nie tej linii) zmieniony po czerwieni CI 681 (sekcja 1.1): jego okno liczyło też zapis bicia
+    głównego GM-a, które tyka samo co 60 s, cokolwiek robi test. Test pomija teraz dokładnie `clockBeat.patch` (po nazwie
+    magazynu, z `must`, że nazwa jest) - tak jak zestaw `SELF_TICKING` w tests-kit.mjs od fix-113s i R6094 pomija to samo
+    bicie w obserwacji zapisów. Odczyt magazynu bicia i każdy inny odczyt i zapis liczą się nadal; obietnica testu
+    (wygaśnięcie nie czyta ani nie pisze magazynu) się nie zmienia, a mutant M10 pokazuje, że test dalej ją łapie. To nie
+    osłabienie: bicie nie należy do wygaśnięcia, a jego jedynym zapisującym jest interwał hud.mjs. Jeśli właściciel woli
+    zatrzymywać bicie na czas okna zamiast je pomijać, trzeba by wystawić uchwyt interwału (dziś anonimowy `setInterval`).
 
 **Poprawka do wiadomości commita `ef2ac91`:** napisałem tam, że 2 oczekiwane czerwone scenariusza 30 to "the door.shut
 forgeries". To nieprawda: to `foundry-secret-door-type` i `foundry-masked-token-actor`, ograniczenia Foundry, te same
