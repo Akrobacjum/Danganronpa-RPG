@@ -1151,6 +1151,10 @@ function rulingThread(actor, message) {
 // "Approve" and each "Change to" are this one action, and the list's guard holds both - a
 // "Change to" off the list is refused here as any pick is. The ruling keeps the proposal and
 // `how` ("approved", "changed", or "picked" with none), read as the button's data says it.
+// The card's line says the pick is not confirmed (`DRPG.Bridge.settledUnconfirmed`, by key, each reader's language):
+// it goes from this browser to the asker and nothing here knows it arrived; the primary writes it "Answered by" on
+// the asker's receipt (2.0 line T2, CALLS-05, 28.11.2026; pick-receipt.mjs `pickReceived`). The valve's own press keeps its
+// "Approved automatically.", made by the primary as the card goes up.
 async function rulePickTrait(action, data) {
     // The valve's press (E68 C2; call-gm.mjs `askTraitByCard`): no card's button carries `auto`, only the primary's own call.
     const auto = data.auto === "1";
@@ -1165,7 +1169,7 @@ async function rulePickTrait(action, data) {
     if (!answerTraitRuling(data.rid, data.asker, data.trait)) return null;
     const proposed = listedTraits(spec).includes(data.proposed) ? data.proposed : null;
     const how = !proposed ? "picked" : proposed === data.trait ? "approved" : "changed";
-    return { ...(auto ? { settled: game.i18n.localize("DRPG.TraitRuling.autoApproved") } : settled("DRPG.Bridge.settledAnswered")),
+    return { settled: auto ? game.i18n.localize("DRPG.TraitRuling.autoApproved") : { key: "DRPG.Bridge.settledUnconfirmed", name: game.user.name },
         ruling: { type: "trait", actorId: data.by, ...spec, trait: data.trait, ...(proposed ? { proposed } : {}), how, ...(auto ? { auto: true } : {}) } };
 }
 

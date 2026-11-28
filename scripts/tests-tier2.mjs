@@ -119031,6 +119031,103 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             out: ["DRPG.Bridge.settledExpired", "DRPG.Bridge.settledGone"], ended: true, gm: [EXPIRED, GONE], asker: [EXPIRED, null], told: 1
         }), "{out: [the card's line, the GMs' note] the press answered; ended: the card settled; gm, asker: the card's closing lines in the GMs' copy and the asker's [for everyone, the GMs' own]; told: this GM's notice that the player is no longer waiting}");
     }],
+    ["E132 CALLS-05 - a statistic's pick says unconfirmed until the player's receipt: a GM's pick on a player's statistic card goes to the asker and ends the card \"Answered by {name}, but nothing confirms that the answer arrived.\" in the GMs' copy and the asker's; the asker's receipt has the primary write it \"Answered by {name}.\", also when the receipt reaches the primary before the pick's line does; a receipt from another user changes nothing, and with none the line stays (messenger-app.mjs `rulePickTrait`; call-gm.mjs `receivedOnPrimary`; pick-receipt.mjs `pickReceived`, `pickWordsStored`; 2.0 line T2, CALLS-05, 28.11.2026)", async () => {
+        /*
+         * F1-calls CALLS-05: a pick went from the GM who pressed it straight to its asker (bridge-asks.mjs
+         * `answerTraitRuling`) and its card said "Answered by {name}." at once, also when the player's browser was no
+         * longer waiting (a reload), so the GM read that the player had answered when nothing had arrived. Read on this
+         * primary, each packet handed to the bridge's runner with the user Foundry names: three asks of a connected
+         * player's statistic for a Search (kind `action`, the one action that lists several), each card pressed through
+         * `pressCard` with its first statistic's button data, the answers held here (read, not sent). Card A: the line
+         * after the pick, then after the asker's `ruling.received`. Card B: the receipt handed to the runner as the answer
+         * leaves, before the pick's line is written (the order two browsers can bring them in). Card C: a receipt from
+         * another user, then none. Each line read in the GMs' copy and the asker's (`wordsFor`): [its key, its name].
+         * The asks are let go with their asker's expiry and the cards deleted after. Red at 42f0cee: every line was
+         * "Answered by" from the pick on, receipt or not.
+         */
+        needs(env.primaryGm());
+        needs(world.atLeast("connectedPlayersWithCharacter", 1), "the ask is a player's, and Foundry names only a connected one");
+        const { player, theirs } = playerAndCharacters();
+        const G = await import("./bridge-guards.mjs");
+        const B = await import("./gm-bridge.mjs");
+        const { pressCard } = await import("./messenger-app.mjs");
+        const { contentOf, cardFlag, wordsFor } = await import("./secret.mjs");
+        const judged = (action, fields, from, requestId = null) =>
+            G.judge(B.BRIDGE_ACTIONS, { action, ...(requestId ? { requestId } : {}), ...fields }, from, { send: () => {} });
+        const lineOf = html => {
+            const wrap = document.createElement("template");
+            wrap.innerHTML = html ?? "";
+            return [...wrap.content.querySelectorAll(".drpg-call-settled")].filter(el => !el.closest(".drpg-gm-only"))
+                .map(el => [el.dataset.drpgLine ?? el.textContent, el.dataset.drpgName ?? null]);
+        };
+        const copies = id => {
+            const words = contentOf(game.messages.get(id));
+            return [lineOf(words), lineOf(wordsFor(player.id, words))];
+        };
+        const other = game.users.find(u => u.id !== player.id && u.id !== game.user.id) ?? game.user;
+        const seen = new Set(game.messages.map(m => m.id));
+        const created = [];
+        const hook = Hooks.on("createChatMessage", m => { if (!seen.has(m.id)) created.push(m); });
+        const socket = game.socket, own = Object.getOwnPropertyDescriptor(socket, "emit"), send = socket.emit;
+        const rids = { A: foundry.utils.randomID(16), B: foundry.utils.randomID(16), C: foundry.utils.randomID(16) };
+        const done = [];
+        let early = null;
+        socket.emit = function (event, packet, options, ...rest) {
+            if (packet?.action === "bridge.done" && Object.values(rids).includes(packet.requestId)) {
+                done.push([Object.keys(rids).find(k => rids[k] === packet.requestId), options?.recipients ?? [], typeof packet.value]);
+                if (packet.requestId === rids.B) early = judged("ruling.received", { rid: rids.B }, player.id);
+                return undefined;
+            }
+            return send.call(this, event, packet, options, ...rest);
+        };
+        const read = {};
+        try {
+            const ask = async key => {
+                const before = created.length;
+                await judged("trait.ruling", { actorId: theirs.id, kind: "action", key: "search", variant: null }, player.id, rids[key]);
+                must(await until(() => created.length > before, 5000), `ask ${key} put no card up - this would measure nothing`);
+                const card = game.messages.get(created[before].id);
+                const wrap = document.createElement("template");
+                wrap.innerHTML = contentOf(card);
+                const button = wrap.content.querySelector('[data-drpg-call="pickTrait"]');
+                must(button, `card ${key} carries no statistic's button - this would measure nothing`);
+                const out = await pressCard(card, "pickTrait", { ...button.dataset });
+                must(out?.settled, `the pick on card ${key} was not ruled - this would measure nothing`);
+                await until(() => Boolean(cardFlag(game.messages.get(card.id), "settled")), 3000);
+                return card.id;
+            };
+            const a = await ask("A");
+            read.A = [copies(a)];
+            await judged("ruling.received", { rid: rids.A }, player.id);
+            await settle(500);
+            read.A.push(copies(a));
+            const b = await ask("B");
+            await early;
+            await settle(800);
+            read.B = copies(b);
+            const c = await ask("C");
+            await judged("ruling.received", { rid: rids.C }, other.id);
+            await settle(800);
+            read.C = copies(c);
+            read.done = done;
+        } finally {
+            if (own) Object.defineProperty(socket, "emit", own); else delete socket.emit;
+            Hooks.off("createChatMessage", hook);
+            for (const rid of Object.values(rids)) await judged("ruling.expired", { rid }, player.id).catch(() => {});
+            await settle(300);
+            for (const node of [...document.querySelectorAll(".drpg-popup")]) node.dispatchEvent(new CustomEvent("drpg-dismiss"));
+            for (const message of created) await message.delete().catch(() => {});
+            await settle(300);
+            const S = await import("./gm-stores.mjs");
+            for (const message of created) if (S.ruledCardStore.has(message.id)) await S.ruledCardStore.drop(message.id);
+        }
+        const me = game.user.name;
+        const UNC = [["DRPG.Bridge.settledUnconfirmed", me]], ANS = [["DRPG.Bridge.settledAnswered", me]];
+        equal(stableJson(read), stableJson({
+            A: [[UNC, UNC], [ANS, ANS]], B: [ANS, ANS], C: [UNC, UNC],
+            done: [["A", [player.id], "string"], ["B", [player.id], "string"], ["C", [player.id], "string"]]
+        }), "{A: [after the pick, after the asker's receipt] each [the GMs' copy's line, the asker's]; B: the receipt before the pick's line, after both; C: after another user's receipt; done: the answers [card, to, value's type]}");
+    }],
 ];
 
 // `drawnForPlayer` for the grid (E33 C7): a drawn crisis roll goes through the suite's one road to a draw (tests-grid.mjs `drawnAct`).

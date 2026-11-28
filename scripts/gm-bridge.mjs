@@ -33,6 +33,7 @@ import { replyForMe, resendOnGmReady } from "./bridge-guards.mjs";
 
 import { cardFlag } from "./secret.mjs";
 import { sweepAskCards, claimsInProgress, releaseClaimsOf, releaseOwnClaims } from "./call-gm.mjs";
+import { pickWordsStored } from "./pick-receipt.mjs";
 import { onCardTakenOver } from "./card-takeover.mjs";
 import {
     SOCKET_EVENT, ACTION_ADVANCEMENT_ASK, ACTION_ADVANCEMENT_OFFERS, ACTION_OPENING_ASK, ACTION_OPENING_CANCEL,
@@ -244,6 +245,11 @@ export function registerGmBridge() {
             import("./gm-stores.mjs")
                 .then(({ ruledCardStore }) => (ruledCardStore.has(message.id) ? ruledCardStore.drop(message.id) : null))
                 .catch(err => debug("Could not drop a deleted card's ruling row", err));
+        });
+        // A statistic's pick whose asker's receipt came before its line: written as answered once its words are here
+        // (2.0 line T2, CALLS-05, 28.11.2026; pick-receipt.mjs `pickWordsStored`, a lookup in a map for any other card).
+        Hooks.on("drpgSecretStored", message => {
+            if (isPrimaryGm()) pickWordsStored(message);
         });
         // A held Key fee's card: its "Charge the Key fee" asks the primary's charge again (E109, key-remnants.mjs `wireChargeHeld`).
         Hooks.on("renderChatMessageHTML", (message, element) => {

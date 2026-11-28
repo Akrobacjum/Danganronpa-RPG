@@ -783,7 +783,8 @@ export async function askObservePick({ rid, actorId, tokenId = null, refuse = fa
 
 /**
  * A GM's answer to a statistic card, sent to the player who asked alone: the
- * request's `bridge.done`, the trait, or `false` for Refuse.
+ * request's `bridge.done`, the trait, or `false` for Refuse. Not by the primary, so a pick's
+ * card says it is not confirmed until the asker's receipt (2.0 line T2, CALLS-05; pick-receipt.mjs `pickReceived`).
  */
 export function answerTraitRuling(requestId, asker, trait) {
     if (!game.user.isGM || !requestId || !asker) return false;

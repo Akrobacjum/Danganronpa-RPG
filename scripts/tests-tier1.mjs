@@ -70414,6 +70414,92 @@ const INVARIANTS = [
         equal(stableJson(said), stableJson({ approveCall: line, refuseDynamic: line, handed: [true, true] }),
             "{approveCall, refuseDynamic: [the card's line, the GMs' note] a ruling on an ask nobody holds answers; handed: [wireCallActions, pressCard] give the note to settleCall}");
     }],
+    ["R9033 - a statistic's pick says it is not confirmed until its asker's receipt: messenger-app.mjs `rulePickTrait` answers the asker alone and settles its card `DRPG.Bridge.settledUnconfirmed` by key with this GM's name; on the primary a receipt rewrites that line as `DRPG.Bridge.settledAnswered` with the same name (pick-receipt.mjs `confirmedPickHtml`, `pickReceived`), at once when the line is here and, when the receipt came first, once the card's words are stored within `TIMING.ackMs` (`pickWordsStored`); no other line is rewritten, the GMs' own lines are not, and with no receipt the line stays (2.0 line T2, CALLS-05, 28.11.2026)", async () => {
+        /* F1-calls CALLS-05: a pick went from the GM who pressed it straight to its asker (bridge-asks.mjs
+           `answerTraitRuling`) and the card said "Answered by {name}." at once, also when the asker's browser was no longer
+           waiting, while a Call's yes and a Dynamic difficulty wait for their receipt. Read with no write: the pick run
+           through `runCallAction` with `game.socket.emit` held (the answer is read, not sent), and the rewrite and its two
+           roads on cards of this test's own (`write` records instead of writing). Red at 42f0cee: the pick's line was
+           "Answered by" in words, and nothing rewrote it. */
+        needs(env.primaryGm());
+        needs(world.atLeast("playerAccounts", 1), "an asker");
+        const M = await import("./messenger-app.mjs");
+        const C = await import("./pick-receipt.mjs");
+        const { TIMING } = await import("./config.mjs");
+        const { listedTraits } = await import("./trait-ruling.mjs");
+        const player = game.users.find(u => !u.isGM);
+        const actor = game.actors.find(a => a.type === "character") ?? null;
+        must(actor, "no character to name on the card - this would measure nothing");
+        const spec = { kind: "crisis", key: "weaponAttack", variant: null };
+        const trait = listedTraits(spec)[0] ?? null;
+        must(trait, "Attack with a weapon lists no statistic here - this would measure nothing");
+        const read = {};
+        const socket = game.socket, own = Object.getOwnPropertyDescriptor(socket, "emit");
+        const sent = [];
+        socket.emit = (event, packet, options) => { sent.push([packet?.action ?? null, options?.recipients ?? null, packet?.value ?? null]); };
+        try {
+            const out = await M.runCallAction("pickTrait", { rid: "R9033PickNoAsk00", asker: player.id, by: actor.id, ...spec, variant: "", trait });
+            read.pick = [out?.settled?.key ?? out?.settled ?? null, out?.settled?.name ?? null, out?.ruling?.trait ?? null];
+        } finally {
+            if (own) Object.defineProperty(socket, "emit", own); else delete socket.emit;
+        }
+        read.sent = sent;
+        const NAME = "R9033 Gamemaster";
+        const line = (key, { gm = false, name = NAME } = {}) => {
+            const p = `<p class="drpg-call-settled" data-drpg-line="${key}" data-drpg-name="${name}">${game.i18n.format(key, { name })}</p>`;
+            return gm ? `<div class="drpg-gm-only">${p}</div>` : p;
+        };
+        const lines = html => {
+            if (typeof html !== "string") return html ?? null;
+            const wrap = document.createElement("template");
+            wrap.innerHTML = html;
+            return [...wrap.content.querySelectorAll(".drpg-call-settled")].map(el => [el.dataset.drpgLine ?? null, el.dataset.drpgName ?? null,
+                el.textContent, Boolean(el.closest(".drpg-gm-only"))]);
+        };
+        const has = typeof C.confirmedPickHtml === "function" && typeof C.pickReceived === "function" && typeof C.pickWordsStored === "function";
+        read.exported = has;
+        if (has) {
+            const UNC = "DRPG.Bridge.settledUnconfirmed", ANS = "DRPG.Bridge.settledAnswered";
+            read.html = [C.confirmedPickHtml(`<p>card</p>${line(UNC)}`), C.confirmedPickHtml(`<p>card</p>${line(ANS)}`),
+                C.confirmedPickHtml(`<p>card</p>${line("DRPG.Bridge.settledDeclined")}`),
+                C.confirmedPickHtml(`<p>card</p><p class="drpg-call-settled">${game.i18n.localize("DRPG.TraitRuling.autoApproved")}</p>`),
+                C.confirmedPickHtml(`<p>card</p>${line(UNC, { gm: true })}`)].map(lines);
+            const fake = (id, html, settled) => ({ id, content: html, flags: {}, getFlag: (scope, key) => (key === "settled" ? settled : undefined) });
+            const writes = [];
+            const write = async (message, html) => { writes.push([message.id, lines(html)]); };
+            const now = Date.now();
+            // The line is here: written at once.
+            const here = fake("R9033CardHere000", `<p>card</p>${line(UNC)}`, true);
+            read.here = [await C.pickReceived(here.id, { message: here, write }), writes.splice(0)];
+            // The receipt first: kept, and written when the card's words with the line are stored, once.
+            const first = fake("R9033CardFirst00", "<p>card</p><p class=\"drpg-call-awaiting\">awaiting</p>", false);
+            const later = fake(first.id, `<p>card</p>${line(UNC)}`, true);
+            read.first = [await C.pickReceived(first.id, { message: first, write }), writes.splice(0),
+                C.pickWordsStored(later, { write }), C.pickWordsStored(later, { write })];
+            await settle(50);
+            read.first.push(writes.splice(0));
+            // A receipt kept longer than ackMs writes nothing; words with no receipt write nothing; a card ended another way keeps nothing.
+            const stale = fake("R9033CardStale00", "<p>card</p>", false);
+            await C.pickReceived(stale.id, { message: stale, write });
+            const staleLater = fake(stale.id, `<p>card</p>${line(UNC)}`, true);
+            const declined = fake("R9033CardDecl000", `<p>card</p>${line("DRPG.Bridge.settledDeclined")}`, true);
+            read.none = [C.pickWordsStored(staleLater, { write, now: now + TIMING.ackMs + 60000 }),
+                C.pickWordsStored(fake("R9033CardNoRcpt0", `<p>card</p>${line(UNC)}`, true), { write }),
+                await C.pickReceived(declined.id, { message: declined, write }),
+                C.pickWordsStored(fake(declined.id, `<p>card</p>${line(UNC)}`, true), { write })];
+            await settle(50);
+            read.none.push(writes.splice(0));
+        }
+        const UNC = "DRPG.Bridge.settledUnconfirmed", ANS = "DRPG.Bridge.settledAnswered";
+        const answered = [["DRPG.Bridge.settledAnswered", NAME, game.i18n.format(ANS, { name: NAME }), false]];
+        equal(stableJson(read), stableJson({
+            pick: [UNC, game.user.name, trait], sent: [["bridge.done", [player.id], trait]], exported: true,
+            html: [answered, null, null, null, null],
+            here: [true, [["R9033CardHere000", answered]]],
+            first: [false, [], true, false, [["R9033CardFirst00", answered]]],
+            none: [false, false, false, false, []]
+        }), "{pick: [the card's line key, its name, the trait kept]; sent: the answers [action, to, value]; exported; html: the rewrite of [unconfirmed, answered, declined, auto-approved, unconfirmed in the GMs' note]; here: [a receipt with the line here: rewritten, the writes]; first: [the receipt first: rewritten now, writes, the words stored: written, again: written, the writes]; none: [a receipt past ackMs, words with no receipt, a receipt for a declined card, its words after, the writes]}");
+    }],
 ];
 
 /**

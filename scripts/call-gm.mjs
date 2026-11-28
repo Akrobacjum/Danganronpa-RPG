@@ -378,7 +378,8 @@ export const observeAsks = new Map();
  * cards carry the ask's mark and its time (`askMark`, `expires`), a resend finds its card (`askAgain`), the asker's
  * expiry and receipt end or close them (`expiredOnPrimary`, `receivedOnPrimary`) and the primary ends each at its time
  * (`endAtExpiry`, `sweepAskCards`). A pick on a statistic's card is still sent to its asker by the GM who pressed it
- * (`answerTraitRuling`); a pick on an Observe's card was the primary's already (`observePickOnPrimary`). Tier 2's "a
+ * (`answerTraitRuling`), and since 2.0 its card says the pick is not confirmed until the asker's receipt
+ * (pick-receipt.mjs, line T2 CALLS-05); a pick on an Observe's card was the primary's already (`observePickOnPrimary`). Tier 2's "a
  * statistic's ask and an Observe's end as the other asks do" reads it.
  */
 const traitAsks = new Map();
@@ -613,7 +614,9 @@ function sendOnFromPrimary(requestId, held, value, { text, by, yes = null, rulin
  * that ruling's: `claimCard` sends "done" in its `finally`, before its caller writes the line (`settleCall`), so an
  * expiry ended there read `settled` still unwritten and put "Nobody answered in time - ask again." on the card, under
  * the ruling's own line. A statistic's ruling made after the expiry is sent on all the same (messenger-app.mjs
- * `rulePickTrait` keeps a project's pick, and `answerTraitRuling` reads no held entry), so its line is the true one.
+ * `rulePickTrait` keeps a project's pick, and `answerTraitRuling` reads no held entry), so its line is the true one:
+ * since 2.0 "Answered by {name}, but nothing confirms that the answer arrived.", which no receipt rewrites, for its
+ * asker stopped waiting (line T2, CALLS-05).
  * The waiting expiry is dropped on "done" (`expiryAfterClaim(id, { ruled: true })`). Tier 2's "an expiry under a
  * claim that ends in a ruling" reads it.
  */
@@ -755,9 +758,10 @@ export async function expiredOnPrimary(requestId, senderId) {
 /**
  * The ruling reached its asker (`ruling.received`, E18 C1): its card is written as ruled - a Dynamic
  * difficulty is in its meta since it was sent on (`keepRuling`). A receipt for an ask this primary still
- * holds is a ruling another GM sent straight to its asker (a Call's no, `answerHopeCall`): that ask is
- * over, and a yes after it is not kept. False for anything else - another user's receipt, or one for
- * nothing sent: nothing is done.
+ * holds is a ruling another GM sent straight to its asker (a Call's no, `answerHopeCall`; a statistic's pick or
+ * Refuse, `answerTraitRuling`): that ask is over, and a yes after it is not kept; a statistic's pick has its line
+ * written as answered (pick-receipt.mjs `pickReceived`, 2.0 line T2, CALLS-05). False for anything else - another user's receipt, or
+ * one for nothing sent: nothing is done.
  */
 export async function receivedOnPrimary(requestId, senderId) {
     const reached = answeredAsks.get(requestId ?? "");
@@ -771,6 +775,8 @@ export async function receivedOnPrimary(requestId, senderId) {
     const answeredElsewhere = heldAskOf(requestId, senderId);
     if (answeredElsewhere) {
         answeredElsewhere.asks.delete(requestId);
+        const { messageId } = answeredElsewhere.held;
+        if (answeredElsewhere.asks === traitAsks) await (await import("./pick-receipt.mjs")).pickReceived(messageId);
         return true;
     }
     // An open Frisk's answer, held by its request id and its asker in frisk.mjs's memory, as its expiry is (E68 C11; D084).
