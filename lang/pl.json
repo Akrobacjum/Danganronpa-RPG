@@ -4005,7 +4005,10 @@
       },
       "objectionClosingNobody": "Teraz nikt nie mówi w Closing Argument, więc nie masz wobec kogo wnieść Objection.",
       "objectionClosingSpeaker": "W Closing Argument Objection można zgłosić tylko wobec osoby, która mówi.",
-      "objectionClosingDecision": "Po wymianie GM decyduje, kto kontynuuje Closing Argument: mówca czy ktoś, kto zgłosił Objection."
+      "objectionClosingDecision": "Po wymianie GM decyduje, kto kontynuuje Closing Argument: mówca czy ktoś, kto zgłosił Objection.",
+      "phaseStepsEntryFinished": "Rozpoczęcie Class Trial przerwało się w przeglądarce {gm}, zanim się skończyło. Ta przeglądarka dokończyła pozostałe kroki.",
+      "phaseStepsExitFinished": "Zakończenie Class Trial przerwało się w przeglądarce {gm}, zanim się skończyło. Ta przeglądarka dokończyła pozostałe kroki.",
+      "phaseBudgetCut": "Przeglądarka {gm} rozdawała akcje na rozprawę, gdy się przerwała. Ta przeglądarka nie rozdała ich drugi raz: sprawdź akcje każdego ucznia w oknie Uczniowie."
     },
     "Handover": {
       "alreadyHasKey": "{who} ma już klucz do tego pokoju.",
@@ -9359,7 +9362,8 @@
         "caseTicks": "Zaznaczenia z rozprawy: wnioski, kontry i rozwiązanie zaznaczone przez GM-a w każdym rozdziale",
         "facilityUses": "Użycia akcji w pokoju: która postać użyła akcji którego projektu i kiedy",
         "balanceLog": "Dziennik balansu: każdy rzut, który GM-owie losowali, gdy był włączony, i notatki GM-ów",
-        "diveSets": "Zestawy Logic Dive: pytania każdego zestawu, ich odpowiedzi i to, która odpowiedź jest dobra"
+        "diveSets": "Zestawy Logic Dive: pytania każdego zestawu, ich odpowiedzi i to, która odpowiedź jest dobra",
+        "phaseSteps": "Wejście do Class Trial albo wyjście z niego, zapisywane krok po kroku, żeby główny GM mógł je dokończyć po przeładowaniu"
       },
       "copy": {
         "writeNow": "Zapisz kopię teraz",

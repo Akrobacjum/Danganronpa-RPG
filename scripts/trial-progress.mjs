@@ -173,6 +173,11 @@ let sentenceHooked = false;
 export function registerSentenceAgain() {
     if (sentenceHooked) return;
     sentenceHooked = true;
+    /* AND THE TRIAL'S OWN STEPS (2.0 line T3 TRIAL-08, 28.11.2026): a change into or out of the trial cut half way is
+       finished on the primary (clock.mjs `finishPhaseSteps`) - the trial's work left undone, as a sentence not carried
+       out is. Hooked here because module.mjs registers this file's hook at init and imports nothing from clock.mjs;
+       by `import()`, as clock.mjs reads this file. */
+    import("./clock.mjs").then(m => m.registerPhaseSteps()).catch(err => error("Could not watch the trial's steps", err));
     Hooks.on("renderChatMessageHTML", (message, element) => {
         if (!game.user?.isGM || !message?.getFlag?.(MODULE_ID, "sentenceAgain")) return;
         void wireSentenceAgain(message, element).catch(err => error("Could not wire a sentence's Carry out again", err));

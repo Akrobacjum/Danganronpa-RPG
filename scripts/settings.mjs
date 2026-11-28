@@ -1124,6 +1124,13 @@ export const SETTINGS = {
      */
     minePassages: "minePassages",
     /**
+     * A CHANGE OF PHASE INTO OR OUT OF THE CLASS TRIAL, STEP BY STEP (2.0 line T3 TRIAL-08, 28.11.2026): a GM store
+     * (gm-stores.mjs `phaseStepStore`), a row per change `{ from, to, at, by, done, failed, started }`, which the primary
+     * finishes when its writer's page was closed half way (clock.mjs `finishPhaseSteps`). Synced, not backed up; no
+     * player copy.
+     */
+    gmPhaseSteps: "gmPhaseSteps",
+    /**
      * What the primary GM does with a player's token moved through a wall its character could not
      * pass (E79 C4, movement-audit.mjs): "log", a row in the Debug log (the default, the plan's AM-1),
      * or "sendBack", the token put back where it stood, its player told and the GMs warned.
@@ -3443,6 +3450,14 @@ export function registerSettings() {
         type: Object,
         default: {},
         onChange: () => Hooks.callAll("drpgPassagesChanged")
+    });
+    // A change of phase into or out of the trial, step by step (2.0 line T3 TRIAL-08): no `onChange` - read by the
+    // primary at its ready and when the GM who wrote the change leaves (clock.mjs `finishPhaseSteps`).
+    game.settings.register(MODULE_ID, SETTINGS.gmPhaseSteps, {
+        scope: "client",
+        config: false,
+        type: Object,
+        default: {}
     });
     // The world key before 1.2.64: read once by `liftEclipseMoves`, and empty after.
     game.settings.register(MODULE_ID, SETTINGS.legacyEclipseMoves, {

@@ -118887,6 +118887,60 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         equal(stableJson(read), stableJson({ steps: [true, "reload", true, false, true, 1, "done", false] }),
             "{steps: [the mark written, its why, a second GM reads it stopped, a second mark, the Finish answers lines, days on, the record's stage after, the mark left]}");
     }],
+    ["T3 TRIAL-08 - an entry into the trial cut after the budget is finished at the primary's ready: the reset and the fee run, the budget does not run again", async () => {
+        /*
+         * 2.0 line T3 TRIAL-08, 28.11.2026. The phase written into the clock and the page closed before its steps ran past the
+         * budget: the clock's setting set raw (no `setClock`, so none of `reconcilePhase` runs here), and a row of the GMs'
+         * store `phaseStepStore` as the writer left it - by a GM who is not connected, `done` and `started` the budget, and
+         * the steps that reach out of the world (the dead's microphones, the deaths' whisper, the hall) done too, so the
+         * steps left are the record's reset and the Key fee. A student's actions spent to 0 before: the budget, run again,
+         * would give them back. Then the primary's ready finish (clock.mjs `finishPhaseSteps`). Read: a field the reset
+         * blanks (`verdictApplied`), the fee's stamp (`keysCharged`), the student's actions and the row after. The clock,
+         * the record, the budgets, the pools and the store's rows are put back. Red at 5243413: no `finishPhaseSteps`.
+         */
+        needs(env.primaryGm(), "the primary finishes the steps");
+        const C = await import("./clock.mjs");
+        must(typeof C.finishPhaseSteps === "function", "clock.mjs has no finishPhaseSteps: an entry cut half way stays cut");
+        const { phaseStepStore } = await import("./gm-stores.mjs");
+        const { budgetsOf, putBackBudgets, setActions } = await import("./actions.mjs");
+        const { monokumas, getDespair, setDespair } = await import("./despair.mjs");
+        const { trialFloor } = await import("./trial-floor.mjs");
+        must(!trialFloor() && getClock().phase !== "classTrial", "a trial is open - the fixture would cut a real one");
+        const [actor] = cast(1);
+        const clock = foundry.utils.deepClone(getClock());
+        const record = foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS.trialProgress) ?? {});
+        const budgets = budgetsOf(), pools = monokumas().map(user => [user.id, getDespair(user.id)]);
+        const rowsBefore = Object.keys(phaseStepStore.entries() ?? {});
+        const KEY = "T3TRIAL08", GONE = "T3TRIAL08GONE000";
+        const read = {};
+        try {
+            await game.settings.set(MODULE_ID, SETTINGS.trialProgress, { ...record, chapter: clock.chapter, verdictApplied: true, keysCharged: false });
+            await setActions(actor, 0);
+            await game.settings.set(MODULE_ID, SETTINGS.clock, { ...clock, phase: "classTrial" });
+            await phaseStepStore.patch(KEY, { from: clock.phase, to: "classTrial", at: 1, by: GONE,
+                done: ["budget", "voices", "deaths", "follow"], failed: [], started: ["budget"] });
+            await settle();
+            const out = await C.finishPhaseSteps();
+            await settle();
+            const after = game.settings.get(MODULE_ID, SETTINGS.trialProgress) ?? {}, row = phaseStepStore.get(KEY) ?? {};
+            read.finished = out.map(x => [x.key, x.ran]);
+            read.record = [Boolean(after.verdictApplied), Boolean(after.keysCharged)];
+            read.actions = budgetsOf()[actor.id]?.value ?? null;
+            read.row = [...(row.done ?? [])].sort();
+            read.again = (await C.finishPhaseSteps()).length;
+        } finally {
+            await game.settings.set(MODULE_ID, SETTINGS.clock, clock);
+            await game.settings.set(MODULE_ID, SETTINGS.trialProgress, record);
+            await putBackBudgets(budgets);
+            for (const [id, n] of pools) if (getDespair(id) !== n) await setDespair(id, n);
+            const extra = Object.keys(phaseStepStore.entries() ?? {}).filter(k => !rowsBefore.includes(k));
+            if (extra.length) await phaseStepStore.dropMany(extra);
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ finished: [[KEY, ["reset", "fee"]]], record: [false, true], actions: 0,
+            row: ["budget", "deaths", "fee", "follow", "reset", "voices"], again: 0 }),
+            "{finished: [the row, the steps run]; record: [verdictApplied after the reset, the fee's stamp]; the student's actions (the budget not run again); the row's done; a second finish: nothing}");
+    }],
     ["T3 TRIAL-03 - a second GM's Finish takes the verdict on the primary and runs its steps here", async () => {
         /*
          * 2.0 line T3 TRIAL-03, 27.11.2026 (Forge S1b TRIAL-03 passed on 1.2.129 only because GM2 gave the verdict

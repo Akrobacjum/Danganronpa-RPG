@@ -49,6 +49,13 @@
  *             a trial's end asks it (vote.mjs `executeAtExit`; the rest of the end is not run): gm2 holds the GMs' card
  *             with Carry out the sentence again; gm answers again, the button pressed twice executes Daichi once on gm.
  *             Daichi is brought back and the record put back.
+ *   TRIAL-08  gm2 starts the Class Trial through the clock (`setClock`, as every road in does) with its actor writes
+ *             held (`Actor.prototype.update` never answers on gm2, so its entry stops inside the budget, the first step,
+ *             marked started), and reloads: gm, the primary, finishes the entry when gm2 leaves (clock.mjs
+ *             `finishPhaseSteps`) - the record reset (a planted `verdictApplied` blanked), the dead's list written
+ *             (`mutedDead`), the fee stamped - and does not hand out the budget again (Aiko's actions, spent to 0, stay
+ *             0): the row says the budget failed, and the GMs are told on gm. The clock, the record, the budgets, the
+ *             pools, the rows and the whispers are put back, raw (no `setClock` back out, which would run the exit).
  *
  * What this cannot see: a real server's delivery times and a real F5 (97-two-gms's header says what its `reload` is).
  */
@@ -470,4 +477,48 @@ export async function run(api) {
             && pressed07[0] === true && pressed07[1] === false && after07?.dead === true && after07.stamped === true && J(after07.executed) === J([IDS.daichi]),
         J({ asked07, card07, alive07, pressed07, after07 }));
     await settle(800);
+
+    /* ------------------------------------------------------- TRIAL-08 */
+    phase("TRIAL-08 gm2's entry into the trial cut by its reload, finished on gm");
+    const set8 = await gm.eval(`const K = ${imp("clock.mjs")}, A = ${imp("actions.mjs")}, D = ${imp("despair.mjs")}, G = ${imp("gm-stores.mjs")};
+        const clock = structuredClone(K.getClock());
+        globalThis.__s58Trial8 = { clock, record: structuredClone(game.settings.get("${MOD}", "trialProgress") ?? {}), budgets: A.budgetsOf(),
+            pools: D.monokumas().map(u => [u.id, D.getDespair(u.id)]), rows: Object.keys(G.phaseStepStore.entries() ?? {}),
+            messages: game.messages.contents.map(m => m.id) };
+        await game.settings.set("${MOD}", "trialProgress", { ...(game.settings.get("${MOD}", "trialProgress") ?? {}), chapter: clock.chapter, verdictApplied: true, keysCharged: false });
+        await A.setActions(game.actors.get("${IDS.aiko}"), 0);
+        return { phase: clock.phase, chapter: clock.chapter };`, { timeout: 60000 });
+    await settle(800);
+    // gm2's actor writes never answer from here, so its entry stops in the budget; the clock write is a setting's, and lands.
+    void gm2.eval(`Actor.prototype.update = function () { return new Promise(() => {}); };
+        const K = ${imp("clock.mjs")}; void K.setClock({ phase: "classTrial" }); return true;`, { timeout: 60000 }).catch(() => null);
+    const cut8 = await until(() => gm2.eval(`const G = ${imp("gm-stores.mjs")}, K = ${imp("clock.mjs")};
+        const row = Object.values(G.phaseStepStore.entries() ?? {}).find(r => r?.to === "classTrial" && r?.by === game.user.id) ?? null;
+        return { phase: K.getClock().phase, row };`), v => v?.phase === "classTrial" && (v.row?.started ?? []).includes("budget"), 15000);
+    await settle(1000);
+    const r8 = await reload("gm2");
+    const row8 = await until(() => gm.eval(`const G = ${imp("gm-stores.mjs")};
+        return Object.values(G.phaseStepStore.entries() ?? {}).find(r => r?.to === "classTrial" && r?.by === "${accounts[0].id}") ?? null;`),
+        v => (v?.done ?? []).includes("follow"), 20000);
+    const after8 = await gm.eval(`const A = ${imp("actions.mjs")}, S = ${imp("secret.mjs")};
+        const record = game.settings.get("${MOD}", "trialProgress") ?? {};
+        const cut = game.i18n.format("DRPG.Trial.phaseBudgetCut", { gm: ${J(accounts[0].name)} });
+        const told = game.messages.contents.filter(m => !globalThis.__s58Trial8.messages.includes(m.id)).map(m => String(S.contentOf(m) ?? ""));
+        return { verdictApplied: Boolean(record.verdictApplied), mutedDead: Array.isArray(record.mutedDead), keysCharged: Boolean(record.keysCharged),
+            aiko: A.budgetsOf()["${IDS.aiko}"]?.value ?? null, toldCut: told.some(t => t.includes(cut.slice(0, 40))) };`, { timeout: 60000 });
+    await gm.eval(`const A = ${imp("actions.mjs")}, D = ${imp("despair.mjs")}, G = ${imp("gm-stores.mjs")}; const w = globalThis.__s58Trial8;
+        await game.settings.set("${MOD}", "clock", w.clock);
+        await game.settings.set("${MOD}", "trialProgress", w.record);
+        await A.putBackBudgets(w.budgets);
+        for (const [id, n] of w.pools) if (D.getDespair(id) !== n) await D.setDespair(id, n);
+        const extra = Object.keys(G.phaseStepStore.entries() ?? {}).filter(k => !w.rows.includes(k));
+        if (extra.length) await G.phaseStepStore.dropMany(extra);
+        for (const id of game.messages.contents.filter(m => !w.messages.includes(m.id)).map(m => m.id)) await game.messages.get(id)?.delete?.().catch(() => {});
+        delete globalThis.__s58Trial8; return true;`, { timeout: 60000 });
+    await settle(1000);
+    check("TRIAL-08: gm2's entry into the trial, cut by its reload inside the budget, is finished on gm - the record reset, the dead's list written, the fee stamped - and the budget is not handed out again (Aiko stays at 0): the row says it failed and the GMs are told",
+        cut8?.phase === "classTrial" && (cut8.row?.started ?? []).includes("budget") && !(cut8.row?.done ?? []).includes("budget") && r8.back === true
+            && ["reset", "voices", "fee", "deaths", "follow"].every(k => (row8?.done ?? []).includes(k)) && (row8?.failed ?? []).includes("budget")
+            && after8.verdictApplied === false && after8.mutedDead === true && after8.keysCharged === true && after8.aiko === 0 && after8.toldCut === true,
+        J({ cut8, r8, row8, after8, set8 }));
 }

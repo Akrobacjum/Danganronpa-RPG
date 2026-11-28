@@ -3742,7 +3742,10 @@
       },
       "objectionClosingNobody": "Nobody is speaking in the Closing Argument now, so there is nobody to object to.",
       "objectionClosingSpeaker": "In the Closing Argument, an Objection can only be aimed at whoever is speaking.",
-      "objectionClosingDecision": "After the exchange, the GM decides who continues the Closing Argument: the speaker or one who objected."
+      "objectionClosingDecision": "After the exchange, the GM decides who continues the Closing Argument: the speaker or one who objected.",
+      "phaseStepsEntryFinished": "The Class Trial's start was cut off on {gm}'s browser before it finished. This browser finished the rest of its steps.",
+      "phaseStepsExitFinished": "The Class Trial's end was cut off on {gm}'s browser before it finished. This browser finished the rest of its steps.",
+      "phaseBudgetCut": "{gm}'s browser was handing out the trial's actions when it was cut off. This browser did not hand them out again: check each student's actions in the Students window."
     },
     "Handover": {
       "alreadyHasKey": "{who} already has a key to that room.",
@@ -7551,7 +7554,8 @@
         "caseTicks": "The trial's ticks: each chapter's deductions, counters, and solution a GM ticked",
         "facilityUses": "Room action uses: which character used which project's room action, and when",
         "balanceLog": "The balance log: each roll the GMs drew while it was on, and the GMs' notes",
-        "diveSets": "Logic Dive sets: each set's questions, their answers, and which answer is right"
+        "diveSets": "Logic Dive sets: each set's questions, their answers, and which answer is right",
+        "phaseSteps": "A change into or out of the Class Trial, kept step by step so the primary GM can finish it after a reload"
       },
       "copy": {
         "writeNow": "Write the copy now",

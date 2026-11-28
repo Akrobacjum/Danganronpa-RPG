@@ -70190,6 +70190,29 @@ const INVARIANTS = [
         equal(stableJson(V.goneBallots({ issued: ["AWAY", "HERE", "CAST", "NOBODY", "AWAY"], cast: ["CAST"], users })), stableJson(["AWAY"]),
             "[issued, not returned, not connected: counted; connected: not; returned: not; no such user: not; twice: once]");
     }],
+    ["R9143 - a change of phase into or out of the Class Trial is finished on this browser only when its writer is gone or is this browser after a reload, the phase still stands, and a step is left; a started budget is never handed out again (2.0 line T3 TRIAL-08; clock.mjs `phaseRowFinishesHere`, `phaseStepsLeft`)", async () => {
+        /* 2.0 line T3 TRIAL-08, 28.11.2026. Pure on stand-in rows and users; nothing read or written. Red at 5243413: clock.mjs
+           exports neither function. */
+        const C = await import("./clock.mjs");
+        must(typeof C.phaseRowFinishesHere === "function" && typeof C.phaseStepsLeft === "function", "clock.mjs exports no phaseRowFinishesHere / phaseStepsLeft");
+        const into = { from: "investigation", to: "classTrial", by: "AWAY", done: ["budget", "reset"], failed: [], started: ["budget", "reset"] };
+        const active = id => id === "HERE" || id === "ME";
+        const at = (row, phase = "classTrial", me = "ME") => C.phaseRowFinishesHere(row, { phase, me, active });
+        equal(stableJson({
+            gone: at(into), otherHere: at({ ...into, by: "HERE" }), meAfterReload: at({ ...into, by: "ME" }), phaseMoved: at(into, "dailyLife"),
+            allDone: at({ ...into, done: C.PHASE_STEPS.entry }), none: at(null)
+        }), stableJson({ gone: true, otherHere: false, meAfterReload: true, phaseMoved: false, allDone: false, none: false }),
+            "{writer gone: yes; another GM here wrote it: no; this browser wrote it before its reload: yes; the phase moved on: no; nothing left: no; no row: no}");
+        equal(stableJson({
+            entry: C.phaseStepsLeft(into),
+            budgetCut: C.phaseStepsLeft({ ...into, done: [], started: ["budget"] }),
+            exit: C.phaseStepsLeft({ from: "classTrial", to: "dailyLife", done: ["floor"], failed: ["vote"], started: ["floor", "vote"] })
+        }), stableJson({
+            entry: C.PHASE_STEPS.entry.filter(k => !["budget", "reset"].includes(k)),
+            budgetCut: C.PHASE_STEPS.entry.filter(k => k !== "budget"),
+            exit: C.PHASE_STEPS.exit.filter(k => !["floor", "vote"].includes(k))
+        }), "{entry: what is not done; a budget started and not done: not again; exit: neither the done nor the failed}");
+    }],
 ];
 
 /**

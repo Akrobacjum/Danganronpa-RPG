@@ -3263,3 +3263,23 @@ export function registerCaseHealth() {
         else if (!gathering) gathering = setTimeout(() => { gathering = null; void recheck(); }, RECHECK_GATHER_MS);
     });
 }
+
+/* =====================================================================================================================
+ * 2.0 LINE T3 (27-28.11.2026): the line's stores, in one block at the end of the definitions (LINE-T3.md section 4).
+ * ===================================================================================================================== */
+
+/**
+ * A CHANGE OF PHASE INTO OR OUT OF THE CLASS TRIAL, STEP BY STEP (2.0 line T3 TRIAL-08, 28.11.2026; the owner's adopted
+ * recommendation: "Zapis postępu kroków i dokończenie niewykonanych przy ready głównego"). clock.mjs `reconcilePhase` runs
+ * the trial's entry steps (the budget, the record's reset, the dead's microphones, the Key fee, the deaths nobody found,
+ * the hall) and its exit steps (the floor, the vote, the microphones, the sentence, the bodies, the school) on the browser
+ * that wrote the phase, and a page closed half way left the rest undone with no trace. A row per change, keyed by its
+ * stamp: `{ from, to, at, by, done, failed, started }` - written before the first step and after each one, the older
+ * rows dropped by the next change. The primary finishes what a row left (clock.mjs `finishPhaseSteps`). Synced, so the
+ * primary reads another GM's row; not backed up: it is worth the moments of one change. Cut by the reset's "clock"
+ * group with the phase it belongs to. No player copy and no old key.
+ */
+export const phaseStepStore = defineGmStore({
+    name: "phaseSteps", key: SETTINGS.gmPhaseSteps,
+    kind: "ledger", resetGroup: "clock", backup: false, sync: true
+});
