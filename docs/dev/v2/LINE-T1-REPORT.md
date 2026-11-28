@@ -124,8 +124,13 @@ Mutanty (każdy cofnięty po przebiegu, 27.11.2026):
 | Etap 6 liczy się dla zdrady | `confirmed > 0` (stan z 658302a) | KILLED - "a betrayal declared in an Eclipse costs an action" |
 | oferta nie wraca | bez `refuseParkedBetrayal` | KILLED - "a second declaration in the same Eclipse and a betrayal" |
 
-Ostatni pomiar całości (audit/harness, 4 rdzenie, 28.11.2026), w kształcie CI, bo `npm test` w jednym kawałku nie mieści
-się tu w limicie etapu suite (sekcja 6):
+**Pełny bieg: zielone CI na 2bc9bd9** - workflow CI, run #666 (id 46114943935), push 28.11.2026 06:04-06:53 UTC,
+conclusion success (8 shardów, scenariusze, verdict; za pełny bieg koordynator uznaje zielone CI na ostatnim pushu). Po
+nim tylko commity raportu. Wcześniejsze runy tej gałęzi (#615-#660) były czerwone; ostatnie trzy przed #666: #649
+(7abfac3), #656 (83131bd), #660 (fe6681c) - przyczyny wyszły też lokalnie i są poprawione (sekcja 6).
+
+Lokalnie (audit/harness, 4 rdzenie, 28.11.2026), w kształcie CI, bo `npm test` w jednym kawałku nie mieści się tu w
+limicie etapu suite (sekcja 6):
 
 | Część | sha | Wynik |
 | --- | --- | --- |
