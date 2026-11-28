@@ -71102,6 +71102,31 @@ const INVARIANTS = [
             seen: [true, true, true], refund: [true, true], words: true
         }), "{the lost race; the same read off a count of 0; a room empty with no free token seen, twice; a sealed room; an unanswered spend; the free token seen before the roll and handed on; the outcome read with it and the refund's road; the words}");
     }],
+    ["R9046 - a GM who is not the primary gives a room's Search Token back through the primary, so a second GM's unsent Search for something specific does not keep it taken (search-tokens.mjs `giveBack`, `giveBackHere`, `searchTokens.gmWrite` op \"giveBack\"; action-search.mjs `searchSpecific`; 2.0 line T2b, DAY-10, 28.11.2026)", async () => {
+        /*
+         * F1-daily DAY-10: `SearchTokens.giveBack` answered null on any GM but the primary, so the room's token taken for a
+         * second GM's Search whose card was not posted stayed taken. The second GM's spend is not a bridge request with a
+         * ledger entry (it is `searchTokens.gmWrite` op "spend", read on 28.11.2026), so `returnToken` and its
+         * `spendRequestId` do not apply; the give-back travels the same GM-only row as the spend, a new op "giveBack",
+         * written in the primary's queue (`giveBackHere`). Read on the row and the sources; nothing is written. Red at
+         * 2686b68: the row's op list had no "giveBack".
+         */
+        const T = await import("./search-tokens.mjs");
+        const row = T.SEARCH_ACTIONS?.["searchTokens.gmWrite"];
+        must(row, "search-tokens.mjs has no searchTokens.gmWrite row - this reads nothing");
+        const src = stripComments(new Map(await otherSources()).get("search-tokens.mjs") ?? "");
+        const as = stripComments(new Map(await otherSources()).get("action-search.mjs") ?? "");
+        const player = game.users.find(u => !u.isGM);
+        const cut = row.sanitize({ op: "giveBack", roomName: "R9046 room", sceneId: "R9046SceneAAAAAA" });
+        const give = /static async giveBack\(roomName, sceneId\) \{[^]*?\n    \}/.exec(src)?.[0] ?? "";
+        equal(stableJson({
+            op: cut?.op ?? null, guard: player ? String(await row.guards[0](player, {}, {}) ?? "") : null,
+            run: /payload\.op === "giveBack"[^]*?giveBackHere\(payload\.roomName/.test(fnSource(src, "runGmWrite")),
+            asks: /gmWriteOnPrimary\(\{ op: "giveBack"/.test(give) && /giveBackHere\(roomName, sceneId\)/.test(give),
+            anyGm: /if \(!sent\) \{\s*if \(game\.user\.isGM\) await SearchTokens\.giveBack\(/.test(fnSource(as, "searchSpecific"))
+        }), stableJson({ op: "giveBack", guard: "only a GM sets the Search Tokens", run: true, asks: true, anyGm: true }),
+            "{the row keeps the op; its first guard refuses a player (gmOnly); the run gives back in the primary's queue; giveBack asks the primary or writes here; the unsent specific Search gives back on any GM}");
+    }],
 ];
 
 /**

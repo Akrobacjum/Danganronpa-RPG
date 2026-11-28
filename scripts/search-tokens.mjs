@@ -311,6 +311,18 @@ export class SearchTokens {
      */
     static async giveBack(roomName, sceneId) {
         if (!game.user.isGM || !roomName) return null;
+        /* ON ANY GM, THROUGH THE PRIMARY (2.0 line T2b, DAY-10, 28.11.2026; F1-daily DAY-10): a second GM's Search for
+           something specific whose card was not posted (action-search.mjs `searchSpecific`) kept the room's token taken,
+           since this answered null off the primary. That GM's spend was the primary's `searchTokens.gmWrite` op "spend",
+           with no ledger entry for `returnToken`, so the give-back travels the same GM-only row, op "giveBack". */
+        const asked = await gmWriteOnPrimary({ op: "giveBack", roomName, sceneId: sceneId ?? null });
+        if (asked !== HERE) return typeof asked === "number" ? asked : null;
+        return this.giveBackHere(roomName, sceneId);
+    }
+
+    /** `giveBack`'s write, on the primary (or with no primary to ask): one more, never above the maximum (DAY-10). */
+    static async giveBackHere(roomName, sceneId) {
+        if (!game.user.isGM || !roomName) return null;
         return serialWrite(SEARCH_KEY, async () => {
             // The primary's alone (`returnToken`), asked again in the step (E17 fix e1-G4).
             if (!isPrimaryGm()) return null;
@@ -528,7 +540,8 @@ const ACTION_RETURN_PLANT = "searchTokens.returnPlant";
 /** player -> primary GM: the token of a spend whose answer came after this browser stopped waiting, back (E17 C4). */
 const ACTION_RETURN_TOKEN = "searchTokens.returnToken";
 /** a GM who is not the primary -> primary GM: Room Setup's count and step, a GM's own spend, a refill or a boundary's put-back
- *  of the counters (MAP-40; the step and the spend since 1.2.123, r122-lane-B-7). */
+ *  of the counters (MAP-40; the step and the spend since 1.2.123, r122-lane-B-7), and a room's token given back (2.0 line
+ *  T2b, DAY-10). */
 const ACTION_GM_WRITE = "searchTokens.gmWrite";
 
 /*
@@ -573,6 +586,11 @@ async function runGmWrite(payload) {
     if (payload.op === "step") {
         if (!payload.roomName) return { refused: "nothing was carried out: no room was named" };
         return { reply: await SearchTokens.stepForHere(payload.roomName, payload.value, payload.sceneId ?? null) };
+    }
+    // A GM's own give-back of a room's token (2.0 line T2b, DAY-10; `giveBack`): one more in the primary's queue.
+    if (payload.op === "giveBack") {
+        if (!payload.roomName) return { refused: "nothing was carried out: no room was named" };
+        return { reply: await SearchTokens.giveBackHere(payload.roomName, payload.sceneId ?? null) };
     }
     if (payload.op === "spend") {
         if (!payload.roomName) return { refused: "nothing was carried out: no room was named" };
@@ -1012,7 +1030,7 @@ export const SEARCH_ACTIONS = table({
     [ACTION_GM_WRITE]: {
         label: "DRPG.Bridge.what.searchTokens.gmWrite",
         guards: [gmOnly("only a GM sets the Search Tokens")],
-        sanitize: pick({ op: as.oneOf("set", "step", "spend", "reset", "putBack"), roomName: as.text, sceneId: as.id, value: as.num, store: as.raw }),
+        sanitize: pick({ op: as.oneOf("set", "step", "spend", "reset", "putBack", "giveBack"), roomName: as.text, sceneId: as.id, value: as.num, store: as.raw }),
         run: runGmWrite,
         answer: "reply",
         claims: { sceneId: "a GM's own pick of a room's scene, which keys that room's counter alone (`SearchTokens.key`); the asker is a GM (`gmOnly`), and the run writes it in the primary's step of SEARCH_KEY",

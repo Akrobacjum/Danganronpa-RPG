@@ -119661,6 +119661,38 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         equal(stableJson(read), stableJson([-1, 1].map(d => [d, kept(d) ? 1 : 0, kept(d)])),
             "per Search: [the roll's side (Fear, Hope), the actions it kept spent, the kept-after-roll words said]");
     }],
+    ["E132 T2b DAY-10 - a second GM's unsent specific Search gives the room's token back through the primary (search-tokens.mjs `searchTokens.gmWrite` op \"giveBack\", `giveBackHere`; 2.0 line T2b, 28.11.2026)", async () => {
+        /*
+         * F1-daily DAY-10. The primary's half, on this primary: the row's run as the bridge runs it for another GM's ask
+         * (`SEARCH_ACTIONS["searchTokens.gmWrite"].run`, op "giveBack") for a room of the suite's own on a scene id no scene
+         * has, set to 1 first: the counter reads 2, then 3 at the maximum's cap and no further. The second GM's half - that
+         * a GM who is not the primary asks - is 33-bridge-paths A28, with the Assistant GM. Put back: the counters. Red at
+         * 2686b68: the op refused ("no such write of the counters").
+         */
+        needs(env.primaryGm(), "the counters are written on the primary GM");
+        const T = await import("./search-tokens.mjs");
+        const run = T.SEARCH_ACTIONS?.["searchTokens.gmWrite"]?.run;
+        must(typeof run === "function", "search-tokens.mjs has no searchTokens.gmWrite run - this would measure nothing");
+        const tokens = foundry.utils.duplicate(game.settings.get(MODULE_ID, SETTINGS.searchTokens) ?? {});
+        const ROOM = "SUITE E132 DAY-10 room", SCENE = "E132T2bDay10Scn0";
+        const read = [];
+        try {
+            await T.SearchTokens.setFor(ROOM, 1, SCENE);
+            read.push(T.SearchTokens.left(ROOM, SCENE));
+            const max = T.SearchTokens.max;
+            for (let i = 0; i < max; i++) {
+                const out = await run({ op: "giveBack", roomName: ROOM, sceneId: SCENE });
+                read.push(out?.refused ?? out?.reply ?? null);
+            }
+            read.push(T.SearchTokens.left(ROOM, SCENE));
+        } finally {
+            await game.settings.set(MODULE_ID, SETTINGS.searchTokens, tokens);
+            await settle();
+        }
+        const max = T.SearchTokens.max;
+        equal(stableJson(read), stableJson([1, ...Array.from({ length: max }, (_, i) => Math.min(max, 2 + i)), max]),
+            "[the room's count set to 1; each give-back's answer, up to the maximum and held there; the count after]");
+    }],
 ];
 
 // `drawnForPlayer` for the grid (E33 C7): a drawn crisis roll goes through the suite's one road to a draw (tests-grid.mjs `drawnAct`).

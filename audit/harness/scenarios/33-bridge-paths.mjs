@@ -2376,6 +2376,29 @@ export async function run({ gm, ag, p1, p2, p3, check, phase, settle, opLog, set
             && a27.after === false && !a27.logged.length,
         JSON.stringify(a27), { flow: "hope-call" });
 
+    // T2b day-clock (split from T2)
+    /* ------------------------------------------- a second GM's token given back (2.0 line T2b, DAY-10) */
+    /* 2.0 line T2b, DAY-10 (28.11.2026; F1-daily DAY-10): a second GM's Search for something specific whose card was not
+       posted gives the room's token back - `SearchTokens.giveBack`, which until now answered null off the primary and left
+       the token taken. The Assistant GM, no primary, gives the Gym's token back: asked of the primary
+       (`searchTokens.gmWrite` op "giveBack"), answered, the counter 1 -> 2 written by the GM alone, nothing refused. Put
+       back: the counters as found. Red at 2686b68: the Assistant's answer null, the counter 1. */
+    phase("A28: an Assistant GM gives a room's Search Token back through the primary", { flow: "search-observe" });
+    const a28Before = await gm.eval(`return foundry.utils.deepClone(game.settings.get("${MOD}", "searchTokens") ?? {});`);
+    await gm.eval(`await ${a23Tokens}.setFor("Gym", 1, canvas.scene.id); return true;`);
+    await settle(800);
+    const a28Written = settingLog.length;
+    const a28Back = await ag.eval(`return { primary: ${utils}.isPrimaryGm(), n: await ${a23Tokens}.giveBack("Gym", canvas.scene.id) };`, { timeout: 30000 });
+    await settle(800);
+    const a28 = { back: a28Back, after: await gm.eval(a25Gym),
+        writers: [...new Set(settingLog.slice(a28Written).filter(w => /searchTokens$/.test(w.key)).map(w => w.who))],
+        logged: await refusalsLogged(gm, "searchTokens.gmWrite") };
+    await gm.eval(`await game.settings.set("${MOD}", "searchTokens", ${JSON.stringify(a28Before)}); return true;`);
+    await settle(300);
+    check("A28: the Assistant GM's give-back of a room's Search Token is carried out on the primary - answered 2, the counter 1 -> 2, written by the GM alone, nothing refused (2.0 line T2b, DAY-10)",
+        a28.back.primary === false && a28.back.n === 2 && a28.after === 2 && JSON.stringify(a28.writers) === JSON.stringify(["gm"]) && a28.logged.length === 0,
+        JSON.stringify(a28), { flow: "search-observe" });
+
     phase("H: the hostile-client matrix");
     const mxWho = await gm.eval(`const b = game.actors.get("${IDS.botan}"); const t = canvas.scene.tokens.find(t => t.actorId === b.id);
         return { victimActor: b.id, victimToken: t?.id ?? null, sceneId: canvas.scene.id };`);
