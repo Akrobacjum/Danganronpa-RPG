@@ -29076,7 +29076,7 @@ const INVARIANTS = [
             tabs: [["one", "One", 'Say "one"'], ["two", "Two", null]]
         }), "{tipText's words; a key with no words; tipAttr's data-tooltip; with title: true; the tab bar's tooltips}");
     }],
-    ["R4751 - the actions' windows and the projects' windows draw their tooltips (E102 C2, 13.11.2026; the owner's stage \"Tooltips across the module\", docs/dev/e102/TOOLTIPS.json and KEYS.json): each of the family's 35 keys (34 until option (c), 16.11.2026) under DRPG.Tips.Actions has words in English and in Polish, at most 23 words each (the guide's tooltip limit), and the function that draws its control writes it where that control draws it (tests-tips.mjs `tipPlacement`: inside the control's own tag and not as a condition, as a labelled button's or tab's `tooltip`, in a builder's `data-tooltip` attrs, by `setTip`, or through a named local helper that writes it; a count's words through `plural`, each form within the limit)", async () => {
+    ["R4751 - the actions' windows and the projects' windows draw their tooltips (E102 C2, 13.11.2026; the owner's stage \"Tooltips across the module\", docs/dev/e102/TOOLTIPS.json and KEYS.json): each of the family's 36 keys (34 until option (c), 16.11.2026; 35 until line T1's DAY-08, 28.11.2026) under DRPG.Tips.Actions has words in English and in Polish, at most 23 words each (the guide's tooltip limit), and the function that draws its control writes it where that control draws it (tests-tips.mjs `tipPlacement`: inside the control's own tag and not as a condition, as a labelled button's or tab's `tooltip`, in a builder's `data-tooltip` attrs, by `setTip`, or through a named local helper that writes it; a count's words through `plural`, each form within the limit)", async () => {
         /* Red at 45e36627 with the keys and this test in place and the family's scripts as they were: no function read a DRPG.Tips.Actions key. Since REVIEW-E102-code C1: where the key lands, not only that it is named - red on the review's planted ternary that names the key and draws nothing (action-dynamic.mjs:336). */
         const TIPS = [
             ["DRPG.Tips.Actions.difficultyTooltip","action-dynamic.mjs","askDynamicDifficulty"],
@@ -29114,7 +29114,9 @@ const INVARIANTS = [
             ["DRPG.Tips.Actions.doItCostTooltip","rest.mjs","choosePicks"],
             // E69 C8 (13.11.2026): the killer's question behind the "?" (mask-gm.mjs), its two buttons.
             ["DRPG.Tips.Actions.maskRevealTooltip","mask-gm.mjs","askReveal"],
-            ["DRPG.Tips.Actions.maskStayTooltip","mask-gm.mjs","askReveal"]
+            ["DRPG.Tips.Actions.maskStayTooltip","mask-gm.mjs","askReveal"],
+            // Line T1 DAY-08 (28.11.2026): the murder declaration's Send without a note, when closing sends.
+            ["DRPG.Tips.Actions.murderSendNoNoteTooltip","action-menus.mjs","promptForNote"]
         ];
         const en = await fetch(`/modules/${MODULE_ID}/lang/en.json`).then(r => r.json());
         const pl = await fetch(`/modules/${MODULE_ID}/lang/pl.json`).then(r => r.json());
@@ -29122,7 +29124,7 @@ const INVARIANTS = [
         const src = new Map();
         for (const f of new Set(TIPS.map(t => t[1]))) src.set(f, stripComments(await fetch(`/modules/${MODULE_ID}/scripts/${f}`).then(r => (r.ok ? lfText(r) : ""))));
         must([...src.values()].every(s => s.length > 500), "a script of the family read as nothing - this would measure nothing");
-        must(Object.keys(words(en, "DRPG.Tips.Actions") ?? {}).length === 35, "lang/en.json has not the family's 35 keys under DRPG.Tips.Actions");
+        must(Object.keys(words(en, "DRPG.Tips.Actions") ?? {}).length === 36, "lang/en.json has not the family's 36 keys under DRPG.Tips.Actions");
         const fits = w => (w && typeof w === "object" ? Object.values(w).length > 0 && Object.values(w).every(fits) : typeof w === "string" && w.trim().length > 0 && w.trim().split(/\s+/).length <= 23);
         const P = await import("./tests-tips.mjs");
         must(P.tipPlacementSelfCheck().length === 0, `tests-tips.mjs misreads its own plants: ${P.tipPlacementSelfCheck().join("; ")}`);

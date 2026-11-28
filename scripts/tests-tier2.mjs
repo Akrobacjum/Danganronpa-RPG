@@ -17,7 +17,7 @@ import { gmStoresIdle, gmStoreNow } from "./gm-store.mjs";
 import {
     ok, must, needs, env, world, equal, wait, settle, until, moduleSources, otherSources, stripComments, moduleStyles, bodyOf, fnSource,
     STANDING, stableJson, moduleSettingValues, clientStored, putBackStored, appearedBodyTiles, watchLog, cast, systemSheetsAvailable, lfText,
-    bridgeFn, bridgeText, actionText, kitQuestion, kitQuestions, sheetText, glassFetch, standInUser, standIn
+    bridgeFn, bridgeText, actionText, kitQuestion, kitQuestions, sheetText, glassFetch, standInUser, standIn, expectedRed
 } from "./tests-kit.mjs";
 import { GRID } from "./tests-grid.mjs";
 
@@ -118778,6 +118778,72 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             "{told: after the leaver's own copy alone; revealed: after the GM's Reveal} x [the row's first find, its road, the ref's found]");
     }],
     // T1 murder-death-eclipse
+    ["T1 D2-28 - the lights wait for the opening's result before the clock moves (2.0 line T1; D2-28; scripts/eclipse.mjs `judgePendingMurders`, `awaitOpening`; murder-rules.mjs `openMurder`)", async () => {
+        /*
+         * 2.0 line T1, 28.11.2026 (D2-28, the owner's answer to the line's P1: "rzut otwarcia morderstwa zapada w trakcie
+         * Eclipse, przed pora dnia - swiatla czekaja na rzut"). A declaration in an Eclipse the suite opens, its killer stood
+         * alone with its victim, the lights' window answered Allow; the invitation to the killer's player is held, and as it
+         * goes out the opening is failed on this GM, as a roll below 8 lands. Read: whether the Eclipse still stood as the
+         * invitation went, the GMs' line that the lights wait (`DRPG.Eclipse.lightsWaitOpening`), and the Eclipse and the
+         * incident once the lights are done. Red at d35e338: the invitation went after the clock had cleared the Eclipse. Red on purpose until E131 builds it (the report, section 6).
+         */
+        needs(env.primaryGm(), "the lights' judgement is the primary GM's");
+        needs(world.atLeast("studentsWithConnectedPlayer", 2), "a killer and a victim");
+        needs(world.atLeast("studentTokensOnScreen", 2), "the two are stood in one room by their tokens");
+        needs(world.atLeast("namedRooms", 2), "one room is left to the two of them");
+        const E = await import("./eclipse.mjs");
+        const S = await import("./gm-stores.mjs");
+        const M = await import("./murder.mjs");
+        const { livingStudents } = await import("./chapter.mjs");
+        const player = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const [killer, victim] = livingStudents().filter(player);
+        must(!M.murderState() && !E.isEclipse(), "an incident or an Eclipse is running - this would measure something else");
+        const socket = game.socket, own = Object.getOwnPropertyDescriptor(socket, "emit"), send = socket.emit;
+        const D = foundry.applications.api.DialogV2, ownWait = Object.getOwnPropertyDescriptor(D, "wait"), wait = D.wait;
+        const title = game.i18n.localize("DRPG.Action.murderOpensTitle");
+        const made = [];
+        const hook = Hooks.on("createChatMessage", m => made.push(m.id));
+        const stood = await aloneTogether(killer, victim, { asked: true });
+        const read = { atInvite: [] };
+        try {
+            await E.startEclipse();
+            await settle();
+            await S.pendingMurderStore.patch(killer.id, { room: stood.room, note: "SUITE T1 D2-28", at: 1, approved: null, eclipse: E.eclipseId() });
+            socket.emit = function (event, packet, options, ...rest) {
+                if (packet?.action === "murder.openingAsk") {
+                    read.atInvite.push(E.isEclipse());
+                    // Landed a second later, as a player's roll takes its time: the lights are seen waiting meanwhile.
+                    setTimeout(() => { void M.resolveKillerOpening({ total: 1, isCritical: false, withHope: false }); }, 1000);
+                    return true;
+                }
+                return send.call(this, event, packet, options, ...rest);
+            };
+            D.wait = async function (config, ...rest) {
+                if (config?.window?.title !== title) return wait.call(this, config, ...rest);
+                return config?.buttons?.find(b => b.action !== "no")?.action ?? "no";
+            };
+            await E.endEclipse({ advance: false });
+            await settle();
+            const { wordsOf } = await import("./secret.mjs");
+            const line = game.i18n.format("DRPG.Eclipse.lightsWaitOpening", { name: killer.name });
+            let told = 0;
+            const textOf = html => { const el = document.createElement("div"); el.innerHTML = html; return el.textContent ?? ""; };
+            for (const id of made) { const m = game.messages.get(id); if (m && textOf(String(await wordsOf(m, 1000) ?? "")).includes(line)) told++; }
+            read.told = told;
+            read.after = { eclipse: E.isEclipse(), incident: Boolean(M.murderState()?.active) };
+        } finally {
+            if (own) Object.defineProperty(socket, "emit", own); else delete socket.emit;
+            if (ownWait) Object.defineProperty(D, "wait", ownWait); else delete D.wait;
+            Hooks.off("createChatMessage", hook);
+            if (S.pendingMurderStore.has(killer.id)) await S.pendingMurderStore.drop(killer.id);
+            if (E.isEclipse()) await E.endEclipse({ advance: false }).catch(() => {});
+            if (M.murderState()) await M.endMurder({ reason: "test", followUp: false });
+            for (const id of made) await game.messages.get(id)?.delete().catch(() => {});
+            await stood.back();
+        }
+        equal(stableJson(read), stableJson({ atInvite: [true], told: 1, after: { eclipse: false, incident: false } }),
+            "{atInvite: the Eclipse standing as each opening's invitation went; told: the GMs' line that the lights wait; after: the Eclipse and an incident once the lights are done}");
+    }, expectedRed("E131", "D2-28 is not built on this line: the lights still move the clock before the incidents they confirm open (eclipse.mjs `judgePendingMurders`); docs/dev/v2/LINE-T1-REPORT.md section 6 says why and what it takes")],
     ["T1 MURDER-09 - the spent-victim question is a row every full GM answers once (2.0 line T1; scripts/murder-rules.mjs `checkVictimSpent`, `raiseQuestion`, `askIncidentQuestion`)", async () => {
         /*
          * 2.0 line T1, 27.11.2026 (MURDER-09, the recommendation the owner took: "Pytanie u wszystkich GM-ow; pierwsza odpowiedz
