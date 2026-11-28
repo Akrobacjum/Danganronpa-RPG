@@ -591,7 +591,25 @@ function objectionStateCard(name, targetName, state, topic = null) {
  * DISPLAY - the same message, on everybody's screen
  * ========================================================================== */
 
+/**
+ * Whether this browser tells the table that who has spoken is heard afresh (2.0 line T3 TRIAL-10 after the assembly,
+ * 28.11.2026; line T2's `drpgPrimaryChanged`): the primary role taken over by this GM (`from` another GM, `to` this one)
+ * during a Class Trial. Who has spoken is heard on the primary's browser (trial-speakers.mjs) and a new primary starts with
+ * nobody, so an Objection pressed now is refused `noSpeaker` or aimed at the next voice; the table reads it once, at the
+ * change, as well as at a refusal (`raiseObjection`). Not this browser's own first reading (`from` null): a load is not a
+ * handover. Pure (R9148).
+ */
+export function speakersFreshOnChange(change, { me = game.user?.id ?? null, phase = getClock().phase } = {}) {
+    return Boolean(change?.from && me && change.to === me && phase === "classTrial");
+}
+
 export function registerTrial() {
+    // A takeover in a trial, told to the table once (TRIAL-10 with line T2's PRIM-03): see `speakersFreshOnChange`.
+    Hooks.on("drpgPrimaryChanged", change => {
+        if (!speakersFreshOnChange(change)) return;
+        Promise.resolve(announce(`<p>${game.i18n.localize("DRPG.Trial.objectionSpeakersFresh")}</p>`))
+            .catch(err => error("Could not tell the table that the new primary hears who spoke afresh", err));
+    });
     // Deliberately NOT an async handler. Foundry throws a hook's return value
     // away, so an `await` in here is a promise nobody is holding: a rejection
     // becomes an unhandled one, invisible in the log.

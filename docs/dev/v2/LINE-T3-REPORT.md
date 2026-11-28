@@ -101,8 +101,10 @@ Części scenariusza 58 nazywam ich etykietą w `58-case-two-gms.mjs` (np. "58 I
 | R9144 | 1 | EXP-GM-11 | `pickedRecipientRows`: pole na ucznia, zaznaczony ten, dla którego okno otwarto; droga okna przez `giveToMany` |
 | R9145 | 1 | EXP-PL-17 | `copyOriginLines`: klucz na pochodzenie, bez imion przy `givenMany` i `autopsy`, `gaveTo`, brak flagi - null |
 | R9146 | 1 | EXP-GM-10 | `erasedRemnantsHtml`: brak wierszy - brak sekcji; dwa wiersze - dwa elementy, od najnowszego, tekst wyescapowany |
+| R9147 | 1 | TRIAL-01 | `haltedOnPrimaryChange` i hak `drpgPrimaryChanged` w `registerHaltedEnd` |
+| R9148 | 1 | TRIAL-10 | `speakersFreshOnChange`: przejęcie w rozprawie - tak; własny pierwszy odczyt, oddanie roli, poza rozprawą - nie |
 
-Następny wolny numer linii: R9147.
+Następny wolny numer linii: R9149.
 
 ### Tier 2 (blok `// T3 investigation-trial-chapter` w `scripts/tests-tier2.mjs`)
 
@@ -333,11 +335,15 @@ Tylko czytane: `DRPG.Messenger.gm.waiting`, `DRPG.Voice.resetRefused.*`, `DRPG.B
 ## 6. Uwagi dla koordynatora
 
 **Czekam na T2.**
-- TRIAL-01: `markHaltedEnd` jest wołane przy `onGmStoresHydrated` (`registerHaltedEnd` w `module.mjs`); po scaleniu ma
-  iść na gotowość głównego (PRIM-03).
-- TRIAL-10: zmiana celu po przejęciu roli głównego jest czytana w chwili Objection; `drpgPrimaryChanged` z T2 nie jest
-  użyty, bo go tu nie ma.
-- EXP-GM-03: `waitingCards` ma nazwę z sekcji 4, ale nie jej sygnaturę: przyjmuje opcjonalne `{ messages, words }`
+- TRIAL-01: zrobione po scaleniu (2e64a3e, commit "TRIAL-01 + TRIAL-10 po scaleniu"): `registerHaltedEnd` słucha
+  `drpgPrimaryChanged` i znaczy przerwany koniec, gdy rola dochodzi do tego GM-a (`haltedOnPrimaryChange`, R9147), nie przy
+  `onGmStoresHydrated`. 58 TRIAL-01 był zielony i przed zmianą: w harnessie rola jest u gm już przy jego hydracji, więc
+  przypadek "magazyny otwarte, rola jeszcze u drugiego GM-a" mierzy tylko R9147.
+- TRIAL-10: zrobione po scaleniu: GM, który przejmuje rolę głównego w Class Trial, mówi stołowi jedną kartą
+  `DRPG.Trial.objectionSpeakersFresh` (`speakersFreshOnChange`, R9148; nie przy własnym pierwszym odczycie po wczytaniu).
+  Komunikaty przy odmowie i zmianie celu w chwili Objection zostają.
+- EXP-GM-03: po scaleniu `waitingCards` jest wersją T2c, a `waitingFirst` czyta z niej `userId` -> imię (przepięte przy
+  scalaniu); sprawdzone: 58, 63 i 88 zielone. Poniżej stan sprzed scalenia. `waitingCards` miało nazwę z sekcji 4, ale nie jej sygnaturę: przyjmuje opcjonalne `{ messages, words }`
   (dla R9141; woła się ją bez argumentów) i zwraca `{ messageId, player, who, text }` zamiast
   `{ messageId, actorId, userId, kind, text }`. Przy scaleniu zostaje wersja T2; `trial-floor-ui.mjs` `waitingFirst`
   czyta z niej tylko `who` (imię gracza) i `text`, więc trzeba go przepiąć na `userId` -> imię, a R9141 na wersję T2.

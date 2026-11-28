@@ -46,7 +46,7 @@ import { announce, whisperToGms, log, error, plural, esc, isPrimaryGm, primaryGm
 // The kit's frame (E21 C3a): every window of the case's chapter is a `drpgWindow` or a `drpgConfirm`, answering as before.
 import { drpgWindow, box, tipAttr, tipText } from "./ui-kit.mjs";
 import { keepFresh } from "./live.mjs";
-import { onGmStoresHydrated, gmStoresQuiet } from "./gm-store.mjs";
+import { gmStoresQuiet } from "./gm-store.mjs";
 import { columnsHtml } from "./ui-columns.mjs";
 // A leaf (utils.mjs alone): the one runner of the procedures that cannot be taken back, and its report (E42 C2).
 import { runSteps, stepsReport } from "./steps.mjs";
@@ -655,13 +655,25 @@ export async function markHaltedEnd() {
 }
 
 /**
- * At init (module.mjs): `markHaltedEnd` when this browser's GM stores open - a reload, or a GM who opens the world as the
- * primary. Not while the suite holds the stores: a hydration then is the suite's. (Once line T2's primary's ready
- * signal is in, this is its first reader: the coordinator's note in docs/dev/v2/LINE-T3-REPORT.md.)
+ * Whether a change of the primary GM (gm-bridge.mjs `drpgPrimaryChanged`, `{ from, to }`) asks this browser to mark a cut
+ * end: the role has come to `me` - taken over, or this browser's own first reading as the primary at its `ready`. Pure
+ * (R9147).
+ */
+export function haltedOnPrimaryChange(change, me) {
+    return Boolean(change && me && change.to === me);
+}
+
+/**
+ * At init (module.mjs): `markHaltedEnd` when the primary role reaches this GM (2.0 line T3 TRIAL-01 after the assembly,
+ * 28.11.2026; line T2's PRIM-03). It ran when this browser's GM stores opened, but since PRIM-03 the primary is a GM
+ * whose world has loaded, and a GM's stores can open while the role is still with the GM who held the table during its
+ * reload: then nothing marked the end until the next load. `drpgPrimaryChanged` is read on every GM's browser at its
+ * `registerGmBridge` (the first reading, `from` null), at a connect, a leave and a `bridge.gmReady`, so the mark follows
+ * the role. Not while the suite holds the stores. `markHaltedEnd` asks the primary again, and marks once.
  */
 export function registerHaltedEnd() {
-    onGmStoresHydrated(() => {
-        if (!gmStoresQuiet()) void markHaltedEnd();
+    Hooks.on("drpgPrimaryChanged", change => {
+        if (haltedOnPrimaryChange(change, game.user?.id) && !gmStoresQuiet()) void markHaltedEnd();
     });
 }
 
