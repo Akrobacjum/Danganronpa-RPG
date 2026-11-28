@@ -9,17 +9,26 @@ graczy, SPEC-MOTIVES.md), INV-08 i TRIAL-09. Etap E135 w `tools/stages.json`. Ga
 | | |
 | --- | --- |
 | Początek | 31d5812 (`docs(v2): line specs T1-T5 ...`) |
-| Koniec (kod) | 87f684b; ten raport to commit po nim |
-| Commity linii | 8 z raportem: 4ac0149 (C0), 612c09e (D2-22), f7232e0 (INV-08), 7954f47 (TRIAL-09), 0432888 (M1-M12), b7619b9 (poprawka INV-08), 87f684b (fikstura kopii zapasowej `motives`, zdanie 5.1), raport |
+| Koniec (kod) | 0d6a81e - uzupełnienie po raporcie (28.11.2026, prośba koordynatora): "Motives: the GM's windows, the
+Level Up after a verdict, the Personal tab and the pass's sound measured ..." po 8028f21; raport w commicie po nim |
+| Commity linii | 4ac0149 (C0), 612c09e (D2-22), f7232e0 (INV-08), 7954f47 (TRIAL-09), 0432888 (M1-M12), b7619b9 (poprawka INV-08), 87f684b (fikstura kopii zapasowej `motives`, zdanie 5.1), 8028f21 (raport), 0d6a81e (uzupełnienie: testy M7-M10, dwie poprawki okien i kart, poprawka 76 G, R9352), raport po uzupełnieniu |
 | Tiery 0-1 na bazie | `run-tests: 2053 passed, 0 failed, 16 skipped, 0 red`, 536,5 s (31d5812, 4 rdzenie tej sesji) |
-| Tiery 0-1 na końcu | `run-tests: 2080 passed, 0 failed, 16 skipped, 0 red`, 510,1 s (0432888, ostatni pełny bieg tierów 0-1 tutaj); b7619b9 i 87f684b zmieniły R9327 (zielony, `--only`) i jeden test tieru 2 |
+| Tiery 0-1 na końcu | `run-tests: 2081 passed, 0 failed, 16 skipped, 0 red`, 532,6 s (drzewo uzupełnienia, 28.11.2026; 2096 testów; wcześniej 2080 na 0432888) |
 | Ostatnie `npm test` | sekcja 1a |
 | CI na ostatnim pushu | sekcja 1b |
 
-Liczba "passed" liczy asercje-testy runnera, nie testy: 2095 testów tierów 0-1 uruchomionych na końcu (2076 na
-TRIAL-09). `skip-baseline.json` bez zmian (16 pominięć, te same).
+Liczba "passed" to liczba testów, które zaliczył runner, a "tests ran" liczy też kontrole runnera: 2096 testów tierów
+0-1 uruchomionych na końcu (2076 na TRIAL-09). `skip-baseline.json` bez zmian (16 pominięć, te same).
 
 ### 1a. Ostatnie `npm test` (audit/harness)
+
+Uzgodnione z koordynatorem 28.11.2026: pełne `npm test` się tu nie mieści (pomiar niżej), więc za pełny bieg linii uchodzi
+zielone CI (8 shardów, scenariusze, verdict) na ostatnim pushu - numer runu i sha w ostatniej wiadomości linii i w
+sekcji 1b. Na drzewie uzupełnienia lokalnie: tiery 0-1 jak w tabeli; tier 2 `--only "E135 "` 22 passed, 0 failed;
+71-sheet 50/50, 33-bridge-paths 93/95 (2 expected red), 61-gmstore-case 118/118, 76-passages 118/119 (1 expected red);
+`npm run quick` zielone.
+
+Wcześniej (b7619b9):
 
 Pełnego `npm test` nie mam. Bieg na b7619b9 (28.11.2026, 4 rdzenie): lint, check (26 części) i self-test gate zielone;
 suite `01-runtests` (tiery 0-2 w jednym procesie) przerwany przez limit harnessu po 6480 s (`timed out after 6480 s`,
@@ -49,13 +58,36 @@ Bieg na 0432888 (run 46081284676): czerwone b1 i b4 (regresja INV-08), b6 (76-pa
 Hoshino, the model's null") i suite 5/8 (fikstura `motives`). XI07 był zielony w suite 3/8 na b7619b9 - w tej linii nie
 sprawdzałem jego przyczyny.
 
-**76-passages G** jest niestabilny, nie zawsze czerwony: lokalnie na b7619b9 czerwony 2 razy na 8 biegów (oraz 0
-na 6 biegów z sondą, która czytała rekord głównego jeszcze raz po 3 s - oba odczyty dobre); na bazie 7954f47 zielony 3
-na 3. Próbka jest za mała, żeby powiedzieć, że to nowy magazyn `motives` (więcej ruchu GM-GM przy podłączeniu drugiego
-GM-a) - to tylko podejrzenie. Test czeka (`until`) na identyfikatory przejść, a nie na nadanie (`access`), więc czyta
-moment, w którym rekord głównego może jeszcze nie mieć nadania, które główny już wysłał graczowi p2.
+**76-passages G - to jest regresja tej linii** (ustalone w uzupełnieniu, 28.11.2026; wcześniejszy akapit nazywał to
+niestabilnością i tylko podejrzewał magazyn `motives` - za mało zmierzone):
 
-CI dla 87f684b i tego raportu: nie zakończone w chwili pisania; wynik w ostatniej wiadomości linii.
+| Drzewo | Biegi 76 (lokalnie, 4 rdzenie) | G czerwone |
+| --- | --- | --- |
+| baza 31d5812, własny harness | 6 | 0 |
+| baza 31d5812, sonda czasu (harness tej gałęzi) | 2 | 0 |
+| b7619b9 | 8 | 2 |
+| 8028f21 + testy uzupełnienia, sonda czasu | 1 | 1 |
+| po poprawce, sonda czasu | 6 | 1 (bieg #3, puszczony równolegle z moim biegiem R9352 - gm2 potrzebował wtedy 191 ms na odczyt, który zwykle trwa 0-1 ms) |
+| CI | 0432888, b7619b9, 8028f21 | 3 z 3 |
+
+Sonda (kopia 76 z odczytem rekordu głównego GM-a, potem czekająca, aż pojawi się nadanie): na moim kodzie przejście
+gm2 jest już w rekordzie głównego, ale bez nadania (`knowsAtIds: 0`), a nadanie przychodzi 10 ms później; na bazie
+nadanie jest już na miejscu. Przyczyna z mojej strony: przy podłączeniu drugiego GM-a główny zapisuje raz każdy z 71
+magazynów GM-ów (scalenie jego sekcji; zmierzone sondą: po jednym `clientSettingChanged` na magazyn), a zapis magazynu
+`motives` jako jedyny przerysowywał otwarte karty (`drpgMotivesChanged` -> 120 ms później render) - na głównym, w chwili,
+gdy dochodzą pierwsze zapisy gm2. Poprawka (motives.mjs `registerMotives`): hak tylko, gdy zmieniło się to, co ta
+przeglądarka trzyma; sonda podłączenia: `drpgMotivesChanged` 1 -> 0; R9352 (czerwony na 8028f21: `[1,2]`, zielony po).
+Zostaje sam wyścig scenariusza: odczyt czeka (`until`) na identyfikatory, a nie na nadanie, które sprawdza - pod
+obciążeniem nadal może przegrać (bieg #3 wyżej). Scenariusza linii przejść nie zmieniałem (nie osłabiam testu i to nie
+mój plik); propozycja dla właściciela 76: czekać w `records` także na `access` przejścia, z tym samym limitem `until`.
+Wynik CI po poprawce: sekcja 1.
+
+**grid XI07**: osobno (`--tier 2 --only "grid XI07"`) zielony 3 z 3 na bazie 31d5812 i 3 z 3 na tej gałęzi; w CI czerwony
+raz (0432888, suite 3/8, w otoczeniu innych testów shardu), zielony w każdym następnym biegu. Nie odtworzyłem go, więc
+nie umiem powiedzieć, czy to ta linia.
+
+CI dla 87f684b i raportu (8028f21, run 46098380715): wszystko zielone poza scenarios b6 (76-passages G) i przez to
+verdict. Wynik po uzupełnieniu: sekcja 1.
 
 Uwaga o CI w trakcie: CI na f7232e0 (INV-08), 7954f47 (TRIAL-09) i 0432888 (cele) było czerwone w dwóch kubełkach
 scenariuszy (b1: 61-gmstore-case M4; b4: 40-flow) - regresja INV-08, opisana w 2 (INV-08) i naprawiona w b7619b9. Moja
@@ -76,10 +108,10 @@ R9327 miał zły przypadek sukcesu. D2-22 (612c09e) - CI zielone w całości.
 | M4 nadawanie | zrobione | 0432888 | R9339; tier 2 "E135 MOTIVES-M4 - a GM sets a student's motives through the primary and the owner alone is told ..."; 30-security, 33-bridge-paths A-MOTIVES | GM 8.1 | tier 2 M4 przez `requestMotiveSet` na kliencie głównego GM-a (tier 2 ma jednego GM-a); drugi GM to 33 (Asystent GM) |
 | M5 nagroda | zrobione | 0432888 | R9340; tier 2 "E135 MOTIVES-M5 - a passed motive gives 3 Hope up to the maximum and says what landed"; 33 A-MOTIVES (landed 3) | GM 6.2, 8.1; gracz 5.1 | 83-roll-integrity w `npm test` |
 | M6 zgłoszenie i decyzja | zrobione | 0432888 | R9341, R9342; tier 2 "E135 MOTIVES-M6 - a player reports a motive, a GM passes it, ..." i "E135 MOTIVES-M6 - a refused report tells the player why and lets them report again"; 30-security, 33 | GM 8.1; gracz 5.1 | przycisk "Odmów" zamiast "Odrzuć" (glosariusz, sekcja 6) |
-| M7 interfejs GM-a | zrobione częściowo | 0432888 | R9343, R2080, R2063 | GM 8.1 | brak testu tier 2 "E135 MOTIVES-M7 - the GM sets and passes a motive from the Students window and from the panel, and both redraw": nie napisany (czas); kolumna i kafelek mierzone tierem 1 |
-| M8 prywatny dźwięk | zrobione częściowo | 0432888 | R9344 | GM 17 | odtworzenie tylko u właściciela czytane ze źródła (`playSfxForUsers(ownersOf(actor), "motivePassed")`); licznik odtworzeń harnessu w teście M6 nie zmierzony |
-| M9 Level Up po Class Trial | zrobione częściowo | 0432888 | R9345, R9346, R1252, R1036; tier 2 "E135 MOTIVES-M9 - a chapter with no motives adds no window to the verdict" | GM 15 | brak testu tier 2 "... the GM gives the motive Level Up to the pre-ticked and to one ticked by hand, once" (z Dokończ werdykt): nie napisany; `motivesGiven` w rekordzie jest, niezmierzone |
-| M10 zakładka Personal | zrobione częściowo | 0432888, 87f684b | R9347, R9348 | gracz 5.1 | brak testu tier 2 "E135 MOTIVES-M10 ..." (karta gracza w przeglądarce innego gracza) - nie napisany; 71-sheet w `npm test` |
+| M7 interfejs GM-a | zrobione (po uzupełnieniu) | 0432888, uzupełnienie | R9343, R2080, R2063; tier 2 "E135 MOTIVES-M7 - the GM sets and passes a motive from the Students window and from the panel, and both redraw" | GM 8.1 | test dopisany po raporcie (prośba koordynatora): **czerwony na 8028f21** - komórka "Cele" w oknie Uczniowie stała na "P: brak" po zapisie i po zgłoszeniu (`keepLive` okna nie słuchał żadnej zmiany celów; zmieniała się dopiero przy zaliczeniu, bo Hope pisze aktora). Poprawka: `drpgMotivesChanged` w `watch.hooks` okna (gm-students.mjs, plik T2 - sekcja 6); zielony po. Mutanty: bez tej poprawki i bez przerysowania przeglądu - oba zabite |
+| M8 prywatny dźwięk | zrobione (po uzupełnieniu) | 0432888, uzupełnienie | R9344; scenariusz 71-sheet L6 (licznik przekazań do `AudioHelper.play`, jak w 79-death-sounds) | GM 17 | nie w tierze 2: tier 2 biegnie na jednej przeglądarce GM-a, a pomiar "u p1, nie u p2 i nie u GM-a" wymaga trzech - zrobione w scenariuszu, który specyfikacja M10 wskazuje (71-sheet). L6: `motivePassed` przekazany raz na p1, 0 na gm i p2; mutant "dźwięk do wszystkich" zabity |
+| M9 Level Up po Class Trial | zrobione (po uzupełnieniu) | 0432888, uzupełnienie | R9345, R9346, R1252, R1036; tier 2 "E135 MOTIVES-M9 - a chapter with no motives adds no window to the verdict" i "E135 MOTIVES-M9 - after a correct verdict the GM gives the motive Level Up to the pre-ticked and to one ticked by hand, once" | GM 15 | nowy test: pełny `applyVerdict` (poprawny), okno celów z P zaznaczonym z rekordu i H zaznaczonym ręcznie; potem stan GM-a, który odszedł w kroku celów (zapis rekordu z `motivesGiven: [P]`, Level Up H cofnięty) i `finishVerdict`. Zmierzone: Level Upy [2, 2, 1, 1], `motivesGiven` [P, H], etap "done", okno Dokończ bez P. Zielony od razu (funkcja była); mutanty: bez filtra `given`, bez wstępnego zaznaczenia, bez zapisu `motivesGiven` - wszystkie zabite |
+| M10 zakładka Personal | zrobione (po uzupełnieniu) | 0432888, 87f684b, uzupełnienie | R9347, R9348; scenariusz 71-sheet L2-L5 | gracz 5.1 | nie w tierze 2 (jak M8: potrzebne przeglądarki dwóch graczy). L: karty otwarte przed zapisem celów, czytane bez ponownego otwarcia. **Czerwony na 8028f21**: karty na gm i p1 nie przerysowały się po zapisie (`refreshSheets` chodzi po `ui.windows` i `foundry.applications.instances`, a karta harnessu stoi w `actor.apps`); poprawka: przerysowanie przez `sheetsFor(actor)`, drogą znaku śmierci (motives-ui.mjs `redrawMotiveSheets`). L3 czyta kartę Aiko u p2 przy włączonej anonimowości kart i przy wyłączonej (sekcja 3, mutanty) |
 | M11 panel, reset, opcjonalność | zrobione | 0432888 | R9349, R9350, R1254, R1255, R1256, R1258; tier 2 "E135 MOTIVES-M11 - the next chapter reads none of the last one's motives, ..."; E42-T6/T8/T13 | GM 16.2, 22 | reset z drugiego GM-a przez `season.reset` (T3) nie zmierzony - sanitizer T3 nie istnieje na tej gałęzi (sekcja 6) |
 | M12 migracja | zrobione | 0432888 | R9351; tier 2 "E135 MOTIVES-M12 - a world with the old motive in force tells the GMs what it said once, ..." | GM 20.3, 22 | `api.mjs` `motive`/`setMotive` zostały (przekierowane na Monokuma Motive), nowe `game.drpg.motives` |
 
@@ -90,10 +122,15 @@ części" albo zmierzonym starym kształtem.
 ## 3. Testy dodane i zmienione
 
 **Dodane, tier 1:** R9320, R9321, R9322 (D2-22); R9327, R9328 (INV-08); R9329, R9330, R9331 (TRIAL-09); R9333-R9351
-(cele). Wolne z zakresu: R9323-R9326, R9332, R9352-R9419. Rejestr: `node tools/registry.mjs --write --stage E135`.
+(cele); R9352 (uzupełnienie: zapis magazynu bez zmiany treści nie przerysowuje nic - 76 G, sekcja 1b). Wolne z
+zakresu: R9323-R9326, R9332, R9353-R9419. Rejestr: `node tools/registry.mjs --write --stage E135`.
 
 **Dodane, tier 2:** "E135 D2-22 - a refused Objection gives back the Sanity it took ...", dwa "E135 INV-08 - ...",
 "E135 TRIAL-09 - ...", "E135 MOTIVES-M1", "-M2", "-M3", "-M4", "-M5", "-M6" (dwa), "-M9", "-M11", "-M12".
+
+**Dodane po raporcie (prośba koordynatora z 28.11.2026):** tier 2 "E135 MOTIVES-M7 - ..." i "E135 MOTIVES-M9 - after
+a correct verdict ..."; scenariusz 71-sheet, część L (L1-L6: zakładka Personal na gm, p1 i p2, z anonimowością kart
+włączoną i wyłączoną, oraz dźwięk zaliczenia). Bez nowych numerów R (testy tieru 2 mają nazwy; scenariusz ma litery).
 
 **Dodane w scenariuszach:** 30-security - "SECURITY: a player's console cannot write a motive, pass one or report another
 player's student's ..." (sfałszowane `motive.set`, `motive.rule`, `motive.report`); 33-bridge-paths - "A-MOTIVES: the
@@ -122,6 +159,16 @@ Assistant GM writes a student's motive on the primary, its player reports it don
 | M1: `copyRowsFor` bez filtra własnych postaci | R9334 i "E135 MOTIVES-M1" |
 | TRIAL-09: `lapseRefundOf` bez `!row.refunded` | R9331 ("E135 TRIAL-09" nie: po wygaśnięciu karta i paragon znikają, więc drugi zwrot i tak nic nie znajduje) |
 | INV-08 reguła f7232e0 (null przez sieć = odmowa) | R9327 po poprawce |
+| M7: okno Uczniowie bez `drpgMotivesChanged` w `watch` (stan 8028f21) | "E135 MOTIVES-M7" |
+| M7: przegląd celów bez przerysowania na `drpgMotivesChanged` | "E135 MOTIVES-M7" |
+| M9: `verdictMotivesStep` bez filtra `given` | "E135 MOTIVES-M9 - after ..." (P wraca do okna Dokończ zaznaczony; drugiego Level Upu nie dostaje, bo `runAdvancementBatch` i tak pomija `given` - dwie warstwy) |
+| M9: okno bez wstępnego zaznaczenia z rekordu | "E135 MOTIVES-M9 - after ..." |
+| M9: `onGiven` nie zapisuje `motivesGiven` | "E135 MOTIVES-M9 - after ..." (brak zapisu rekordu z jednym nadanym) |
+| M8: `playSfxForUsers` do wszystkich użytkowników | 71-sheet L6 |
+| 76 G: `drpgMotivesChanged` na każdy zapis magazynu (stan 8028f21) | R9352 (`[1,2]` zamiast `[0,1]`) |
+| M10: sekcja celów na dole zakładki | 71-sheet L2, L4 |
+| M10: brak przerysowania otwartych kart | 71-sheet L2, L4, L5 |
+| M10: wyciek do innego gracza - `motivesFor` bez wyboru własnych postaci, `receiveMotives` bez `isOwner`, zakładka bez bramki właściciela (trzy zmiany naraz) | 71-sheet L3, ale **dopiero po dodaniu odczytu z wyłączoną anonimowością**: przy włączonej (domyślnej) `redactSheet` (anonymity.mjs) czyści zakładki widza i pierwsza wersja L3 przeszła z tym mutantem. Każda z trzech warstw osobno trzyma pozostałe, więc pojedynczy mutant jednej z nich (np. tylko zakładki) przeżywa L3 - to zamierzona obrona warstwowa, nie luka testu; filtr kopii osobno mierzą R9334 i "E135 MOTIVES-M1" |
 
 ## 4. Kontrole Forge do końcowego sprawdzenia (D2-15)
 
@@ -206,6 +253,14 @@ s22.p165) i fakty D2-22.
   `scripts/tests-flows.mjs`.
 - **Registry:** `node tools/registry.mjs --write` stemplował nowe wiersze etapem E39 (pierwszym nieodesłanym w
   stages.json); użyłem `--stage E135`.
+- **gm-students.mjs (plik T2)**: w uzupełnieniu dopisany `"drpgMotivesChanged"` do `watch.hooks` w `keepLive` okna
+  Uczniowie (jedna pozycja listy i dwa wiersze komentarza, nie na końcu pliku) - bez tego kolumna Cele nie przerysowuje
+  się (M7). Po przebazowaniu na T2 sprawdzić, że lista `hooks` T2 ma tę pozycję.
+- **Przerysowanie kart po zmianie celów** idzie od uzupełnienia przez `sheetsFor(actor)` (`actor.apps`), nie przez
+  clock.mjs `refreshSheets`; zakładam, że przy stole karta Daggerheart (ApplicationV2) jest w `document.apps`, jak przy
+  znaku śmierci (sheet.mjs `redrawDeathMarks`) - nie zmierzone na v14 w tej linii.
+- **Przegląd celów** zdejmuje swój `Hooks.on("drpgMotivesChanged")` przy pierwszej zmianie po zamknięciu okna (wcześniej
+  słuchacz zostawał na zawsze).
 - **Gniazdo `motives.mine`** wysyła kopię `{ recipients: [userId] }`, jak lockpick-gm.mjs i gm-store.mjs - to samo
   założenie o serwerze Foundry, nie zmierzone na v14 w tej linii.
 
@@ -274,8 +329,9 @@ Każde z zachowaniem, na którym linia pracowała.
   `DRPG.Panel.faintConfirmNote`, `DRPG.Panel.faintNone`): `stale-pl --stamp` je usuwa przy każdym uruchomieniu;
   przywracałem je ręcznie, nie są tej linii.
 - **76-passages G** (scenariusz linii przejść): odczyt rekordu głównego GM-a czeka tylko na identyfikatory, nie na
-  nadanie - niestabilny (sekcja 1b); nie zmieniałem scenariusza innej linii.
-- **grid XI07** czerwony raz w CI (0432888, suite 3/8), zielony w następnym biegu - nie badałem.
+  nadanie. Moja część przyczyny poprawiona (sekcja 1b); wyścig w odczycie zostaje - propozycja dla właściciela scenariusza
+  w 1b.
+- **grid XI07** czerwony raz w CI (0432888, suite 3/8); osobno zielony 3/3 na bazie i 3/3 tutaj - nie odtworzony.
 - **Test tier 2 "E135 TRIAL-09"** nie zabija mutanta bez `refunded` (sekcja 3) - drugi zwrot sprawdza R9331.
 - **`docs/handbook-facts.gm-handbook.en.json`** ma stare numery linii (decyzja właściciela z 16.11.2026: nie
   regenerowany); fakty przepisałem treścią, miejsca zostawiłem.
