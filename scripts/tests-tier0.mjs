@@ -23723,7 +23723,7 @@ const REGRESSIONS = [
             "trial-floor-ui.mjs": {"message": 4}, "trial-floor.mjs": {"card": 1, "line": 1, "message": 1},
             "trial-modes.mjs": {"heading": 1, "message": 1}, "trial-progress.mjs": {"card": 2, "line": 2, "message": 1}, // 2.0 line T3 TRIAL-07: +1 card (`holdSentence`); TRIAL-15: +1 (`tellWrittenHere`)
             // 2.0 line T5, TRIAL-09 (27.11.2026): trial.mjs `refundLapsedObjection` whispers the objector one line, the price given back.
-            "trial-scene.mjs": {"built": 1, "line": 10}, "trial-zones.mjs": {"card": 1, "message": 1}, "trial.mjs": {"line": 12, "message": 4},
+            "trial-scene.mjs": {"built": 1, "line": 10}, "trial-zones.mjs": {"card": 1, "message": 1}, "trial.mjs": {"line": 13, "message": 4} /* 2.0 line T3 TRIAL-10 after the assembly: +1 line, the takeover's card in a trial (registerTrial, speakersFreshOnChange) */,
             "truth-bullets.mjs": {"card": 1, "heading": 2, "line": 1} /* 2.0 line T3 EXP-PL-08: +1 line, a copy changed by a GM */, "use-items.mjs": {"card": 1, "line": 6},
             // user-match.mjs's one line went at the 2.0 line T4 (EXP-GM-09, 27.11.2026): `tellGms` posts through its parameter
             // `whisper` (whisperToGms by default), which this grep does not match - the card it posts is the same `line`.
