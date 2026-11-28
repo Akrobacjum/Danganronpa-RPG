@@ -488,7 +488,8 @@
       "sealed": "You cannot search this room. There is nothing in here to find, at any time of day.",
       "roomSetupLine": "Search Tokens per room: {max}, refilled every time of day. A room's - and + buttons change that room alone.",
       "sealedColumn": "No search",
-      "sealedNote": "“No search” shuts the room to Search until you untick it."
+      "sealedNote": "“No search” shuts the room to Search until you untick it.",
+      "lostRace": "Someone took this room's last Search Token at the same moment."
     },
     "Sheet": {
       "ultimateLabel": "Ultimate",

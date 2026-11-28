@@ -71070,6 +71070,38 @@ const INVARIANTS = [
             next: [game.i18n.format("DRPG.Panel.nextReadyBy", { gm: other.name, kind: title }), "advance", game.i18n.localize("DRPG.Panel.nextReady")]
         }), "{the line for another GM's round, for this GM's own, for no record; the request says nothing itself and its own press and the remote press say the line or the reason; the Next line for another GM's round, its action, and for this GM's own}");
     }],
+    ["R9045 - a Search that lost the room's last Search Token to another at the same moment says so and gives its action back by the after-roll rule, while a room it already knew was empty keeps the action (action-search.mjs `unclaimedOutcome`, `searchUnclaimed`, `performSearch`; 2.0 line T2b, DAY-05, 28.11.2026)", async () => {
+        /*
+         * F1-daily DAY-05: two players search a room with one token left; both pass the check before the price (this
+         * browser's count), the second claim is refused "empty", and the loser read "The room had no Search Token left by
+         * then. The action is spent." Now a refusal "empty" after this browser saw a free token before the roll
+         * (`sawFree`) is the lost race: its own words and the action back through `giveBackAfterRoll`, by the after-roll
+         * rule (price.mjs `mayRefundAfterRoll`, `ROLL_REFUNDS.afterRoll`). A room read empty is refused before the price,
+         * so the branch needs another's claim landing first. Without `sawFree` the old answer stands (tier 2 E17-T7
+         * reads it). Read on the pure function and the source; nothing is written. Red at 7016da4: the lost race
+         * read as picked clean, no refund.
+         */
+        const A = await import("./action-search.mjs");
+        const O = (why, left, opts) => A.unclaimedOutcome(why, left, opts);
+        const src = stripComments(new Map(await otherSources()).get("action-search.mjs") ?? "");
+        const perform = fnSource(src, "performSearch"), unclaimed = fnSource(src, "searchUnclaimed");
+        const sawAt = perform.search(/sawFree = SearchTokens\.left\(/);
+        equal(stableJson({
+            race: O("empty", 0, { sawFree: true }), raceLeft: O(null, 0, { sawFree: true }), clean: O("empty", 0), cleanNot: O("empty", 0, { sawFree: false }),
+            sealed: O("sealed", 2, { sawFree: true }), unanswered: O("unanswered", 2, { sawFree: true }),
+            seen: [sawAt > 0, sawAt < perform.search(/rollTrait\(actor/), /searchUnclaimed\(actor, def, roll, \{[^}]*sawFree/.test(perform)],
+            refund: [/unclaimedOutcome\(why, SearchTokens\.left\(room, scene\), \{ sawFree \}\)/.test(unclaimed), /giveBackAfterRoll\(actor, paid, \[roll\]\)/.test(unclaimed)],
+            words: game.i18n.localize("DRPG.SearchTokens.lostRace") !== "DRPG.SearchTokens.lostRace"
+        }), stableJson({
+            race: { text: "DRPG.SearchTokens.lostRace", refund: true, exhausted: true, lostRace: true },
+            raceLeft: { text: "DRPG.SearchTokens.lostRace", refund: true, exhausted: true, lostRace: true },
+            clean: { text: "DRPG.SearchTokens.pickedClean", refund: false, exhausted: true },
+            cleanNot: { text: "DRPG.SearchTokens.pickedClean", refund: false, exhausted: true },
+            sealed: { text: "DRPG.SearchTokens.sealed", refund: true, exhausted: false },
+            unanswered: { text: "DRPG.SearchTokens.timeout", refund: true, exhausted: false },
+            seen: [true, true, true], refund: [true, true], words: true
+        }), "{the lost race; the same read off a count of 0; a room empty with no free token seen, twice; a sealed room; an unanswered spend; the free token seen before the roll and handed on; the outcome read with it and the refund's road; the words}");
+    }],
 ];
 
 /**

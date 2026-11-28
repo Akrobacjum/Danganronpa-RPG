@@ -242,7 +242,7 @@ Głośnik pokazuje, ile innych osób jest w twoim kanale, licząc każdą, któr
 
 ### Search Tokens
 
-Każdy pokój ma na porę dnia pewną liczbę przeszukań, czyli **Search Tokeny**: domyślnie 3, a GM ustawia od 0 do 10. Każde Search wydaje jeden Search Token. Przeszukany do cna pokój jest przeszukany dla wszystkich, dopóki zegar się nie przesunie, a HUD mówi, ile zostało tam, gdzie stoisz. Jeśli Search kończy się komunikatem *Search się nie liczy. Nie tracisz akcji.*, pokój także zachowuje token. Pokój, który GM zapieczętował, mówi ci, że nie da się go przeszukać, a akcję zachowujesz.
+Każdy pokój ma na porę dnia pewną liczbę przeszukań, czyli **Search Tokeny**: domyślnie 3, a GM ustawia od 0 do 10. Każde Search wydaje jeden Search Token. Przeszukany do cna pokój jest przeszukany dla wszystkich, dopóki zegar się nie przesunie, a HUD mówi, ile zostało tam, gdzie stoisz. Jeśli Search kończy się komunikatem *Search się nie liczy. Nie tracisz akcji.*, pokój także zachowuje token. Pokój, który GM zapieczętował, mówi ci, że nie da się go przeszukać, a akcję zachowujesz. Gdy ostatni Search Token pokoju zabierze w tej samej chwili ktoś inny, choć twój ekran pokazywał go jako wolny, Search mówi *Ktoś zabrał ostatni Search Token tego pokoju w tej samej chwili.* i oddaje ci akcję, tak jak akcję oddaje się po rzucie (od 1.2.130).
 
 ---
 

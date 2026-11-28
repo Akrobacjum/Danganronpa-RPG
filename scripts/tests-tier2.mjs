@@ -119596,6 +119596,71 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         equal(stableJson(read), stableJson({ press: [null, true, "E132T2bDay06Rnd"], said: 1, line: true, general: 0 }),
             "{press: [its answer, the clock unmoved, the round still the other's]; messages naming that user; the round's line said; the general refusal said}");
     }],
+    ["E132 T2b DAY-05 - a Search that lost the last token's race gets its action back by the after-roll rule (action-search.mjs `performSearch`, `searchUnclaimed`, `unclaimedOutcome`; action-pipeline.mjs `giveBackAfterRoll`; 2.0 line T2b, 28.11.2026)", async () => {
+        /*
+         * F1-daily DAY-05. A student stood alone in a room (`standAlone`) searches on this GM's browser, the windows
+         * answered as the player would (something to heal), the room showing a free token; the claim answers as the
+         * primary does when another took the last token first (`SearchTokens.claim` stood in for: `{ ok: false, why:
+         * "empty" }`). Twice: a roll with Fear and a roll with Hope, each given back or kept as the after-roll rule says
+         * (`ROLL_REFUNDS.afterRoll`: "always" as read on 28.11.2026, so both come back; "never" keeps both; any other
+         * keeps a Hope roll, told `DRPG.Action.keptAfterRoll`). Read: the actions each Search kept spent, and the words
+         * said. Put back: the claim, the actions, the room's tokens, the cards. Red at 2686b68: both kept their action.
+         */
+        needs(world.atLeast("studentTokensOnScreen", 1), "a student stood in a room by their token");
+        needs(world.atLeast("namedRooms", 2), "a room is left to the student alone");
+        const rolls = await import("./action-rolls.mjs");
+        const { ACTIONS, ACTIONS_RESOURCE, MODULE_ID } = await import("./config.mjs");
+        const { SETTINGS } = await import("./settings.mjs");
+        const { actionsLeft } = await import("./actions.mjs");
+        const { SearchTokens } = await import("./search-tokens.mjs");
+        const { locateActor } = await import("./movement.mjs");
+        const [student] = cast(1);
+        const ACTS = `system.resources.${ACTIONS_RESOURCE}.value`;
+        const had = foundry.utils.getProperty(student, ACTS);
+        const tokens = foundry.utils.duplicate(game.settings.get(MODULE_ID, SETTINGS.searchTokens) ?? {});
+        const seen = new Set(game.messages.map(m => m.id));
+        const windows = answerWindows((cfg, root) => {
+            const pick = root.querySelector('input[name="variant"][value="healing"]');
+            if (pick) for (const each of root.querySelectorAll('input[name="variant"]')) each.checked = each === pick;
+            return press(cfg, root);
+        });
+        const claim = Object.getOwnPropertyDescriptor(SearchTokens, "claim");
+        const said = [], info = ui.notifications.info;
+        const stood = await standAlone(student);
+        let claimed = 0;
+        const read = [];
+        try {
+            ui.notifications.info = (text, ...rest) => { said.push(String(text)); return info.call(ui.notifications, text, ...rest); };
+            Object.defineProperty(SearchTokens, "claim", { configurable: true, writable: true, value: async () => { claimed++; return { ok: false, why: "empty" }; } });
+            const total = Math.min(...ACTIONS.search.thresholds.map(t => t.min)) + 1;
+            for (const duality of [-1, 1]) {
+                await student.update({ [ACTS]: Math.max(Number(had) || 0, 1) });
+                student.rollTrait = async () => ({ roll: { total, isCritical: false, result: { duality, total }, options: { roll: { trait: "eye" } } } });
+                const where = locateActor(student);
+                must(SearchTokens.left(where?.room ?? null, where?.scene ?? null) > 0, "the room shows no free token - the Search would be refused before its price, and this measures nothing");
+                const before = actionsLeft(student);
+                said.length = 0;
+                await rolls.performAction(student, "search");
+                await settle(300);
+                read.push([duality, before - actionsLeft(student), said.includes(game.i18n.localize("DRPG.Action.keptAfterRoll"))]);
+            }
+        } finally {
+            if (claim) Object.defineProperty(SearchTokens, "claim", claim);
+            else delete SearchTokens.claim;
+            ui.notifications.info = info;
+            windows.restore();
+            delete student.rollTrait;
+            for (const message of game.messages.contents.filter(m => !seen.has(m.id))) await message.delete().catch(() => {});
+            await game.settings.set(MODULE_ID, SETTINGS.searchTokens, tokens);
+            await student.update({ [ACTS]: had });
+            await stood.back();
+        }
+        must(claimed === 2, `the claim was asked ${claimed} time(s), not twice - the Search did not reach its token, and this measures nothing`);
+        const { ROLL_REFUNDS } = await import("./config.mjs");
+        const kept = duality => (ROLL_REFUNDS.afterRoll === "always" ? false : ROLL_REFUNDS.afterRoll === "never" ? true : duality === 1);
+        equal(stableJson(read), stableJson([-1, 1].map(d => [d, kept(d) ? 1 : 0, kept(d)])),
+            "per Search: [the roll's side (Fear, Hope), the actions it kept spent, the kept-after-roll words said]");
+    }],
 ];
 
 // `drawnForPlayer` for the grid (E33 C7): a drawn crisis roll goes through the suite's one road to a draw (tests-grid.mjs `drawnAct`).

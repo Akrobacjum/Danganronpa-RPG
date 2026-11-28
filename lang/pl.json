@@ -493,7 +493,8 @@
       "sealed": "Tego pokoju nie przeszukasz: nie ma tu nic do znalezienia o żadnej porze dnia.",
       "roomSetupLine": "Liczba Search Tokenów na pokój to {max}. Tokeny odnawiają się z każdą porą dnia. Przyciski - i + zmieniają tylko pokój w swoim wierszu.",
       "sealedColumn": "Bez Search",
-      "sealedNote": "„Bez Search” zamyka pokój na Search, dopóki tego nie odznaczysz."
+      "sealedNote": "„Bez Search” zamyka pokój na Search, dopóki tego nie odznaczysz.",
+      "lostRace": "Ktoś zabrał ostatni Search Token tego pokoju w tej samej chwili."
     },
     "Sheet": {
       "ultimateLabel": "Ultimate",

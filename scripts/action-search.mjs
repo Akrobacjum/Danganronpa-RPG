@@ -96,14 +96,20 @@ export function searchTier(roll, change = 0, def = ACTIONS.search) {
  * browser's map was drawn read as "The search was not counted."; it reads the seal now, the action back, as an
  * unanswered request's is - the player could not have known. Pure (tier 2 E17-T7).
  */
-export function unclaimedOutcome(why, left) {
+export function unclaimedOutcome(why, left, { sawFree = false } = {}) {
     if (why === "sealed") return { text: "DRPG.SearchTokens.sealed", refund: true, exhausted: false };
     const empty = why === "empty" || left <= 0;
+    /* A RACE LOST, NOT A ROOM KNOWN EMPTY (2.0 line T2b, DAY-05, 28.11.2026; F1-daily DAY-05). This browser saw a free
+       token before the roll (`sawFree`, `performSearch`), and another's claim took the last one first: said as that, the
+       action back - through `giveBackAfterRoll`, by the after-roll rule (price.mjs `mayRefundAfterRoll`,
+       `ROLL_REFUNDS.afterRoll`: "always" as read on 28.11.2026, so the action comes back whatever the roll). Without
+       `sawFree` a room read empty keeps the old answer (tier 2 E17-T7). R9045. */
+    if (empty && sawFree) return { text: "DRPG.SearchTokens.lostRace", refund: true, exhausted: true, lostRace: true };
     return { text: empty ? "DRPG.SearchTokens.pickedClean" : "DRPG.SearchTokens.timeout", refund: !empty, exhausted: empty };
 }
 
 /** The token was refused: an empty room, a sealed one, or nobody there to answer. Which one decides what the player keeps. */
-async function searchUnclaimed(actor, def, roll, { room, scene, category, goalKey, paid, why = null }) {
+async function searchUnclaimed(actor, def, roll, { room, scene, category, goalKey, paid, why = null, sawFree = false }) {
     // WHY the token was refused decides what the player is told and whether
     // they keep the action.
     //
@@ -119,14 +125,14 @@ async function searchUnclaimed(actor, def, roll, { room, scene, category, goalKe
     // and, on the unanswered path, uncached: nothing wrote a fresh count,
     // so this reads the world setting.
     //
-    // Only the genuinely-empty branch keeps charging. That is the branch the
-    // charge was introduced for - "a room they knew was empty" is the Hope
-    // generator, and it still costs - while an unanswered request is the
-    // module failing the player, not the player gaming it.
+    // Only a room this browser already read as empty keeps charging (2.0 line T2b, DAY-05): a race lost for a token
+    // it saw free comes back by the after-roll rule (`sawFree`, `unclaimedOutcome`), and an unanswered request is the
+    // module failing the player, not the player gaming it. Since the check before the price refuses a room read empty,
+    // the branch that keeps charging is left for a count this browser read stale.
     //
     // A third answer since E17 C4: the GM refused a room it has sealed, which the
     // reply names (`why`) - said as the seal, the action back (`unclaimedOutcome`).
-    const outcome = unclaimedOutcome(why, SearchTokens.left(room, scene));
+    const outcome = unclaimedOutcome(why, SearchTokens.left(room, scene), { sawFree });
     // With the receipt the spend handed back, so a Burst returns as a Burst.
     if (outcome.refund && paid) await giveBackAfterRoll(actor, paid, [roll]);
 
@@ -137,7 +143,7 @@ async function searchUnclaimed(actor, def, roll, { room, scene, category, goalKe
         text: game.i18n.localize(outcome.text),
         room, tokensLeft: SearchTokens.left(room, scene)
     });
-    return { success: false, exhausted: outcome.exhausted, unanswered: outcome.refund && why !== "sealed", sealed: why === "sealed" };
+    return { success: false, exhausted: outcome.exhausted, unanswered: outcome.refund && why !== "sealed" && !outcome.lostRace, sealed: why === "sealed" };
 }
 
 // "Something specific" is the one goal no table can answer. The roll still
@@ -535,6 +541,8 @@ export async function performSearch(actor, def, options) {
      * (DA2) a Search lists six: Eye with nobody asked, or the statistic a GM approved
      * or changed to (`searchTrait`), locked either way and said which (`byGm`).
      */
+    // A free token seen before the roll (2.0 line T2b, DAY-05): a claim refused "empty" after it is a race lost.
+    const sawFree = SearchTokens.left(room, scene) > 0;
     let roll;
     try {
         roll = await rollTrait(actor, trait, {
@@ -565,17 +573,15 @@ export async function performSearch(actor, def, options) {
     // the room was closed for the rest of the time of day.
     const { ok: claimed, why } = await SearchTokens.claim(room, scene?.id ?? null, { actorId: actor.id });
 
-    // Kept whatever the token says - it was paid before the roll. The check
-    // above the picker reads this client's copy of the counter, which can be a
-    // moment behind the GM's - so two players searching the same room with one
-    // token left both get through it and both roll. Letting the loser off meant
-    // they kept their action AND banked whatever the duality granted them: a
-    // Hope generator anybody could run by searching a room they knew was empty.
-    //
-    // Paying for it is also just what happened in the fiction. They searched a
-    // room somebody else had already picked clean.
+    // THE LOSER OF A RACE FOR THE LAST TOKEN (2.0 line T2b, DAY-05, 28.11.2026; F1-daily DAY-05). The check above the
+    // picker reads this client's copy of the counter, which can be a moment behind the GM's - so two players searching
+    // the same room with one token left both get through it and both roll. Until 1.2.130 the loser kept paying: letting
+    // them off was read as a Hope generator, the action back AND whatever the duality granted. The loser gets the action
+    // back now, by the after-roll rule (`giveBackAfterRoll`; `ROLL_REFUNDS.afterRoll`, "always" as read on 28.11.2026, so
+    // the roll's Hope stays too). Nothing to farm by it: a room this browser reads as empty is refused before the price,
+    // so the branch needs another player's claim landing first in the same moment, which no player chooses alone.
 
-    if (!claimed) return searchUnclaimed(actor, def, roll, { room, scene, category, goalKey, paid, why });
+    if (!claimed) return searchUnclaimed(actor, def, roll, { room, scene, category, goalKey, paid, why, sawFree });
 
     // The dice's own total, on the room's table: a Search reaches into no stash (`searchOdds`, 1.2.112).
     const { hit, tier } = searchTier(roll, 0, def);
