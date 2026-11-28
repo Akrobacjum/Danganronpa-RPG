@@ -18291,7 +18291,8 @@ const INVARIANTS = [
          * no such ask (the player reloaded and asked again, or its time ran out); the buttons came back and the GM saw
          * nothing. On this primary GM, the three rulings pressed through `runCallAction` with an ask no primary holds: the
          * primary answers at once, before any write (call-gm.mjs `yesOnPrimary`, `dynamicOnPrimary`). Red at 21bf5d18:
-         * null for each, no notice.
+         * null for each, no notice. Since 2.0 line T2's CALLS-14 the card's line is the expired ask's, by key, and "The
+         * player was no longer waiting." the GMs' note (R9036 reads both); it read that sentence as the line before.
          */
         const { isPrimaryGm } = await import("./utils.mjs");
         must(isPrimaryGm(), "this browser is not the primary GM - the ask would travel, and this would measure nothing");
@@ -18301,11 +18302,11 @@ const INVARIANTS = [
         const data = { rid: "R8281NoSuchAsk00", asker: player.id };
         const warns = [], realWarn = ui.notifications.warn;
         ui.notifications.warn = text => { warns.push(String(text)); };
-        const line = game.i18n.format("DRPG.Bridge.settledGone", { name: game.user.name });
+        const line = "DRPG.Bridge.settledExpired";
         let read = null;
         try {
             read = [];
-            for (const action of ["approveCall", "refuseDynamic"]) read.push((await M.runCallAction(action, data))?.settled === line);
+            for (const action of ["approveCall", "refuseDynamic"]) read.push((await M.runCallAction(action, data))?.settled?.key === line);
             read.push(warns.filter(w => w === game.i18n.localize("DRPG.Bridge.askNotHeld")).length);
         } finally {
             ui.notifications.warn = realWarn;
@@ -31109,7 +31110,8 @@ const INVARIANTS = [
         const leaf = stripComments(new Map(await otherSources()).get("bridge-guards.mjs") ?? "");
         const listener = fnSource(leaf, "registerBridgeReplies");
         ok(listener.length > 50, "registerBridgeReplies is gone - the read below would measure nothing");
-        read.push(/Hooks\.on\("userConnected"[\s\S]*primaryLeft\([\s\S]*resendOnGmReady\(\)/.test(listener));
+        // Since CALLS-06 (2.0 line T2, 27.11.2026) the call hands the leaver (`resendOnGmReady(null, { leaving })`, R9034).
+        read.push(/Hooks\.on\("userConnected"[\s\S]*primaryLeft\([\s\S]*resendOnGmReady\(/.test(listener));
         equal(stableJson(read), stableJson([[true, 4, 1], [false, 1, 1], [true, true, false, false, true, false, false], true]),
             "[resent: sends, ids] per request, then primaryLeft for A with B here (active, gone), B, the Assistant, A with only the Assistant, A alone, a player, then whether the listener asks again on that hook - a request was not asked again three times at most under its one id, one that did not ask for it was, a new primary was not told apart from a GM who was not the primary, or the listener does not ask again when the primary leaves");
     }],
@@ -71033,6 +71035,1228 @@ const INVARIANTS = [
         await U.tellGms(plan, new Set([player.id]), { whisper, seen });
         equal(JSON.stringify(posts), JSON.stringify([[true, { gmPopup: true, popupTitle: game.i18n.localize("DRPG.Users.match.title") }]]),
             "[each card posted: [its words are the match card, its module flags]] - two passes with the same account and reason");
+    }],
+    // T2 rulings-bridge-secondgm
+    ["R9052 - the primary is a GM whose world has loaded: on a list where the full Gamemaster who sorts first is connected but still loading (this browser saw it connect and has heard no `bridge.gmReady` from it), utils.mjs `primaryGmId` picks the next connected full Gamemaster, none with that one leaving, and the first again once it is ready (2.0 line T2, PRIM-03, 27.11.2026)", async () => {
+        /*
+         * F1-infra PRIM-03, measured on Forge in F3 S3 C1: after the primary's F5 its `userConnected(true)` reached every
+         * browser 17.1 s before it listened, and `primaryGmId` counted `u.active` alone, so the other GM stood down and
+         * nobody ran the table's automation. The rule now counts a GM this browser saw connect as loading until its own
+         * `bridge.gmReady` (gm-bridge.mjs `onGmReady`) or `TIMING.gmReadyWaitMs`. Read on a list of its own, with the
+         * readiness registry's mark set and taken off here (the ids are no user's). Red at 31d5812: no registry, so the
+         * loading GM was the primary at every reading.
+         */
+        const U = await import("./utils.mjs");
+        const R = CONST.USER_ROLES;
+        const A = { id: "R9052AAAAAAAAAAA", role: R.GAMEMASTER, isGM: true, active: true };
+        const B = { id: "R9052BBBBBBBBBBB", role: R.GAMEMASTER, isGM: true, active: true };
+        const P = { id: "R9052PPPPPPPPPPP", role: R.PLAYER, isGM: false, active: true };
+        const users = Object.assign([A, B, P], { get: id => [A, B, P].find(u => u.id === id) });
+        const read = [];
+        try {
+            read.push(U.primaryGmId({ users }));
+            U.markGmLoading?.(A.id);
+            read.push(U.primaryGmId({ users }), U.primaryGmId({ users, leaving: B.id }));
+            U.markGmReady?.(A.id);
+            read.push(U.primaryGmId({ users }));
+        } finally {
+            U.markGmReady?.(A.id);
+        }
+        equal(JSON.stringify(read), JSON.stringify([A.id, B.id, null, A.id]),
+            "[both ready: the first; the first loading: the second; the first loading and the second leaving: none; the first ready again: the first]");
+    }],
+    ["R9053 - a GM this browser found connected when it loaded counts as ready, and a GM's own packet saying it is up counts it as here as before (`arriving`); the registry answers loading for a GM marked and for this browser's own user before its `ready`, and not after (utils.mjs `gmLoading`; 2.0 line T2, PRIM-03, 27.11.2026)", async () => {
+        /*
+         * This browser did not see the connection of a GM already active at its own load, so it has no moment to count a
+         * load from: such a GM is ready here (2.2 point 1; the disagreement it leaves is written over `primaryGmId`).
+         * `arriving` is onGmReady's own reading - the sender's packet says it has loaded - and wins over a mark. This
+         * browser's own GM is not the primary before its `ready` (`game.ready`): Foundry draws the first scene before it,
+         * and a hook fired then ran a primary's automation on a world still loading while another GM held the table.
+         * Red at 31d5812: no `gmLoading`.
+         */
+        const U = await import("./utils.mjs");
+        const R = CONST.USER_ROLES;
+        const A = { id: "R9053AAAAAAAAAAA", role: R.GAMEMASTER, isGM: true, active: true };
+        const B = { id: "R9053BBBBBBBBBBB", role: R.GAMEMASTER, isGM: true, active: true };
+        const users = Object.assign([A, B], { get: id => [A, B].find(u => u.id === id) });
+        const loading = (id, opts) => (typeof U.gmLoading === "function" ? U.gmLoading(id, opts) : null);
+        const read = [];
+        try {
+            read.push(U.primaryGmId({ users }), loading(A.id));
+            U.markGmLoading?.(A.id);
+            read.push(loading(A.id), U.primaryGmId({ users }), U.primaryGmId({ users, arriving: A.id }));
+            read.push(loading(game.user.id, { ready: false }), loading(game.user.id, { ready: true }), loading(game.user.id));
+        } finally {
+            U.markGmReady?.(A.id);
+        }
+        equal(JSON.stringify(read), JSON.stringify([A.id, false, true, B.id, A.id, true, false, false]),
+            "[unmarked: the first, not loading; marked: loading, the second, the first when its own packet arrives; this browser's own user before ready: loading, after: not, now: not]");
+    }],
+    ["R9054 - with no full Gamemaster ready the primary is an Assistant GM who is ready, as before with none connected, and with none ready nobody (utils.mjs `primaryGmId`; 2.0 line T2, PRIM-03, 27.11.2026)", async () => {
+        /* The Assistants' pool takes the same reading as the full Gamemasters' (2.2 point 1). Red at 31d5812: the loading
+           full Gamemaster was the primary at every reading. */
+        const U = await import("./utils.mjs");
+        const R = CONST.USER_ROLES;
+        const A = { id: "R9054AAAAAAAAAAA", role: R.GAMEMASTER, isGM: true, active: true };
+        const S = { id: "R9054SSSSSSSSSSS", role: R.ASSISTANT, isGM: true, active: true };
+        const T = { id: "R9054TTTTTTTTTTT", role: R.ASSISTANT, isGM: true, active: true };
+        const all = Object.assign([A, S, T], { get: id => [A, S, T].find(u => u.id === id) });
+        const alone = Object.assign([A], { get: id => (id === A.id ? A : undefined) });
+        const read = [];
+        try {
+            U.markGmLoading?.(A.id);
+            read.push(U.primaryGmId({ users: all }));
+            U.markGmLoading?.(S.id);
+            read.push(U.primaryGmId({ users: all }), U.primaryGmId({ users: alone }));
+            U.markGmReady?.(A.id);
+            read.push(U.primaryGmId({ users: all }));
+        } finally {
+            for (const u of [A, S]) U.markGmReady?.(u.id);
+        }
+        equal(JSON.stringify(read), JSON.stringify([S.id, T.id, null, A.id]),
+            "[the full GM loading: the first Assistant; it loading too: the second Assistant; the full GM alone and loading: none; the full GM ready: the full GM]");
+    }],
+    ["R9055 - a GM seen connecting counts as loading for `TIMING.gmReadyWaitMs` at most, then as ready, so a lost `bridge.gmReady` does not keep it from the table for good; the bound is longer than the longest load F3 measured on Forge, 51.7 s (utils.mjs `gmLoading`, config.mjs; 2.0 line T2, PRIM-03, 27.11.2026)", async () => {
+        /* The bound is chosen, not measured at a table (config.mjs `gmReadyWaitMs`). Read a second inside it and a moment
+           past it, by the mark's own time. Red at 31d5812: no bound and no registry. */
+        const U = await import("./utils.mjs");
+        const { TIMING } = await import("./config.mjs");
+        const R = CONST.USER_ROLES;
+        const A = { id: "R9055AAAAAAAAAAA", role: R.GAMEMASTER, isGM: true, active: true };
+        const B = { id: "R9055BBBBBBBBBBB", role: R.GAMEMASTER, isGM: true, active: true };
+        const users = Object.assign([A, B], { get: id => [A, B].find(u => u.id === id) });
+        const bound = TIMING.gmReadyWaitMs;
+        const loading = (id, opts) => (typeof U.gmLoading === "function" ? U.gmLoading(id, opts) : null);
+        const read = [typeof bound === "number" && bound > 51700];
+        try {
+            const now = Date.now();
+            U.markGmLoading?.(A.id, now - bound + 5000);
+            read.push(loading(A.id, { now }), U.primaryGmId({ users }));
+            U.markGmLoading?.(A.id, now - bound - 50);
+            read.push(loading(A.id, { now }), U.primaryGmId({ users }));
+        } finally {
+            U.markGmReady?.(A.id);
+        }
+        equal(JSON.stringify(read), JSON.stringify([true, true, B.id, false, A.id]),
+            `[the bound (${bound}) past 51.7 s; marked five seconds inside it: loading, the second the primary; marked just past it: ready, the first the primary]`);
+    }],
+    ["R9068 - the voice re-plans on the browser that has just become the primary: voice.mjs `registerVoice` hangs one hook on `drpgPrimaryChanged` that calls `standDownRoomsKept()` and, where `to` is this user, `scheduleReconcile({ force: true })`; gm-bridge.mjs `registerGmBridge` hears `bridge.gmReady` on every browser, and its `onGmReady` marks the sender ready before anything else (2.0 line T2, PRIM-03, 27.11.2026)", async () => {
+        /* 2.2 points 2 and 3. The harness draws no LiveKit room, so the hook is read in its source; the readiness it
+           follows is measured by R9052-R9055 and E132 PRIM-03. Red at 31d5812: neither the hook nor the mark. */
+        const [voice, bridge] = await Promise.all(["voice.mjs", "gm-bridge.mjs"].map(f => fetch(`/modules/${MODULE_ID}/scripts/${f}`).then(lfText).then(stripComments)));
+        const reg = fnSource(voice, "registerVoice");
+        const hook = bodyOf(reg, 'Hooks.on("drpgPrimaryChanged"', { until: "\n    });" });
+        const ready = fnSource(bridge, "onGmReady"), wire = fnSource(bridge, "registerGmBridge");
+        const firstCall = /markGmReady\(senderId\)/.exec(ready)?.index ?? -1;
+        equal(JSON.stringify([/standDownRoomsKept\(\)/.test(hook), /to === game\.user\??\.id/.test(hook) && /scheduleReconcile\(\{ force: true \}\)/.test(hook),
+            firstCall > 0 && ["resendOnGmReady(", "askForOffers(", "drpgPrimaryReady"].every(s => ready.indexOf(s) > firstCall),
+            /^\s*game\.socket\.on\(SOCKET_EVENT, onGmReady\);/m.test(wire) && !/else game\.socket\.on\(SOCKET_EVENT, onGmReady\)/.test(wire)]),
+            JSON.stringify([true, true, true, true]),
+            "[the hook stands the kept rooms down; it forces a pass on the new primary; onGmReady marks the sender ready before the resend, the offers and drpgPrimaryReady; registerGmBridge listens on every browser]");
+    }],
+    ["R9069 - a GM who leaves while this browser still counts it as loading was not the primary to leave: bridge-guards.mjs `primaryLeft` answers false for it, so what waits on the primary is not ended or asked again, and true for the same GM once it was ready (2.0 line T2, PRIM-03, 27.11.2026)", async () => {
+        /* `primaryLeft` counts the GM who left as here before it left (`arriving`), which counts a GM whatever its
+           readiness; a GM that reloads twice, or closes its tab while loading, held no table to hand on. The mark is kept
+           through the leave for this reading (utils.mjs, WHICH GMs HAVE LOADED). Red without the guard: true both times. */
+        const U = await import("./utils.mjs");
+        const G = await import("./bridge-guards.mjs");
+        const R = CONST.USER_ROLES;
+        const A = { id: "R9069AAAAAAAAAAA", role: R.GAMEMASTER, isGM: true, active: false };
+        const B = { id: "R9069BBBBBBBBBBB", role: R.GAMEMASTER, isGM: true, active: true };
+        const users = Object.assign([A, B], { get: id => [A, B].find(u => u.id === id) });
+        const read = [];
+        try {
+            U.markGmLoading?.(A.id);
+            read.push(G.primaryLeft(A, users));
+            U.markGmReady?.(A.id);
+            read.push(G.primaryLeft(A, users));
+        } finally {
+            U.markGmReady?.(A.id);
+        }
+        equal(JSON.stringify(read), JSON.stringify([false, true]), "[it left while loading here: was it the primary leaving; it left once ready: was it]");
+    }],
+    ["R9049 - the GM panel names the primary GM: gm-panel.mjs `primaryLineHtml` draws `p.drpg-gmp-primary` with the primary's id in `data-drpg-primary` and `DRPG.Panel.primaryGm` \"Primary GM: {name}\" (\"(you)\" on its own screen, `DRPG.Panel.primaryGmYou`), its name escaped and what the primary runs as its tooltip; `buildPanelContent` draws it first in the standing block (under the case's warning alone), which redraws on `drpgPrimaryChanged` (2.0 line T2, PRIM-01, 27.11.2026)", async () => {
+        /* F1-infra PRIM-01: who the primary is was readable only in the console, and handbook 20.7 said to look for the
+           lowest user id, which no screen shows. The line is drawn for stand-in users (a list of two with `get`), for this
+           GM as the primary, and with the defaults (`primaryGmId()` and this user); the standing block and its redraw are
+           read in the source (the panel's window is a dialog; tier 1 opens none). Red at 8bd6278: no `primaryLineHtml`. */
+        const P = await import("./gm-panel.mjs");
+        const U = await import("./utils.mjs");
+        const line = typeof P.primaryLineHtml === "function" ? P.primaryLineHtml : () => "";
+        const A = { id: "R9049AAAAAAAAAAA", name: "R9049 <b>First</b>" }, B = { id: "R9049BBBBBBBBBBB", name: "R9049 Second" };
+        const users = { get: id => [A, B].find(u => u.id === id) };
+        const drawn = html => {
+            const root = document.createElement("div");
+            root.innerHTML = html;
+            const p = root.querySelector("p.drpg-gmp-primary");
+            return p ? { id: p.dataset.drpgPrimary ?? null, text: p.textContent.trim(), tip: Boolean(p.dataset.tooltip), bold: Boolean(p.querySelector("b")) } : null;
+        };
+        const fmt = (key, name) => game.i18n.format(key, { name });
+        const other = drawn(line({ id: A.id, me: B.id, users }));
+        const own = drawn(line({ id: B.id, me: B.id, users }));
+        const live = drawn(line());
+        const src = await fetch(`/modules/${MODULE_ID}/scripts/gm-panel.mjs`).then(lfText).then(stripComments);
+        const content = fnSource(src, "buildPanelContent");
+        const fresh = bodyOf(fnSource(src, "keepPanelFresh"), 'region: ".drpg-gmp-standing"', { until: "\n    });" });
+        equal(stableJson({ other, own, live: live?.id === (U.primaryGmId() ?? ""),
+            first: /<div class="drpg-gmp-standing">\s*\$\{caseLine\}\s*\$\{primaryLineHtml\(\)\}/.test(content), redraw: /"drpgPrimaryChanged"/.test(fresh) }),
+        stableJson({ other: { id: A.id, text: fmt("DRPG.Panel.primaryGm", A.name), tip: true, bold: false },
+            own: { id: B.id, text: fmt("DRPG.Panel.primaryGmYou", B.name), tip: true, bold: false }, live: true, first: true, redraw: true }),
+        "{other: another GM primary; own: this GM primary; live: the defaults name primaryGmId(); first: the standing block opens with the line, under the case's warning; redraw: the standing block wakes on drpgPrimaryChanged}");
+        ok(fmt("DRPG.Panel.primaryGm", "x") !== "DRPG.Panel.primaryGm" && fmt("DRPG.Panel.primaryGmYou", "x") !== "DRPG.Panel.primaryGmYou", "the line's keys have words");
+    }],
+    ["R9050 - the primary's observer tells a change once and a reading that did not move not at all: gm-bridge.mjs `primaryChange` answers `{ from, to }` only when the reading differs from the last (none before the first reading), `notePrimary` with nothing moved returns null and calls no `drpgPrimaryChanged`, and a user's role written makes each GM read the primary again (`updateUser` with `role`; 2.0 line T2, PRIM-02, 27.11.2026)", async () => {
+        /* F1-infra PRIM-02, the observer half (spec 2.0 line T2, PRIM-02 (1)). PRIM-03 (8bd6278) put up the observer on
+           `userConnected` and `bridge.gmReady`; a role written (an Assistant made a full Gamemaster, a GM made a player)
+           moved the primary with no reading. The pure step is read on five cases; `notePrimary` live on this browser,
+           where nothing moved (a GM's or a player's), with the hook counted; the role trigger in the source. */
+        const Br = await import("./gm-bridge.mjs");
+        const step = typeof Br.primaryChange === "function" ? Br.primaryChange : () => "missing";
+        const A = "R9050AAAAAAAAAAA", B = "R9050BBBBBBBBBBB";
+        const cases = [step(undefined, A), step(A, A), step(A, B), step(null, A), step(A, null)];
+        let heard = 0;
+        const hook = Hooks.on("drpgPrimaryChanged", () => { heard++; });
+        let still;
+        try { still = Br.notePrimary(); } finally { Hooks.off("drpgPrimaryChanged", hook); }
+        const src = await fetch(`/modules/${MODULE_ID}/scripts/gm-bridge.mjs`).then(lfText).then(stripComments);
+        const wire = fnSource(src, "registerGmBridge");
+        const role = bodyOf(wire, 'Hooks.on("updateUser"', { until: "});" });
+        const note = fnSource(src, "notePrimary");
+        equal(stableJson({ cases, still, heard, role: /"role" in/.test(role) && /notePrimary\(\)/.test(role),
+            once: (note.match(/Hooks\.callAll\("drpgPrimaryChanged"/g) ?? []).length === 1 && /primaryChange\(/.test(note) }),
+        stableJson({ cases: [null, null, { from: A, to: B }, { from: null, to: A }, { from: A, to: null }], still: null, heard: 0, role: true, once: true }),
+        "{cases: [no reading yet, the same, moved, the first reading, to nobody]; still: notePrimary here with nothing moved; heard: drpgPrimaryChanged calls; role: updateUser with role reads again; once: notePrimary calls the hook once, through primaryChange}");
+    }],
+    ["R9051 - a change of the primary is told to the GMs alone: the GM who became the primary reads `DRPG.Panel.primaryNowYou`, the GM who stopped `DRPG.Panel.primaryBack` naming the new one, any other GM `DRPG.Panel.primaryNow` naming it, a player nothing, and the first reading at a load nothing; `notePrimary` hands the change to `tellPrimaryChange`, which shows it with `showPopup` (2.0 line T2, PRIM-02, 27.11.2026)", async () => {
+        /* F1-infra PRIM-02 and F3 S3 D1 (on Forge the GM who took over was told nothing). The words are chosen by
+           gm-bridge.mjs `primaryNoticeOf` for stand-in users; the popup itself is not raised here (tier 1 writes nothing,
+           and a notice is kept in the history): its road is read in the source, and E132 PRIM-02 raises it. */
+        const Br = await import("./gm-bridge.mjs");
+        const pick = typeof Br.primaryNoticeOf === "function" ? Br.primaryNoticeOf : () => "missing";
+        const A = { id: "R9051AAAAAAAAAAA", name: "R9051 First" }, B = { id: "R9051BBBBBBBBBBB", name: "R9051 Second" }, C = { id: "R9051CCCCCCCCCCC", name: "R9051 Third" };
+        const users = { get: id => [A, B, C].find(u => u.id === id) };
+        const as = (me, isGM = true) => ({ me: me.id, isGM, users });
+        const text = notice => (notice && typeof notice === "object" ? notice.text : notice ?? null);
+        const read = {
+            taker: text(pick({ from: A.id, to: B.id }, as(B))),
+            giver: text(pick({ from: B.id, to: A.id }, as(B))),
+            other: text(pick({ from: A.id, to: B.id }, as(C))),
+            player: text(pick({ from: A.id, to: B.id }, as(C, false))),
+            load: text(pick({ from: null, to: B.id }, as(B)))
+        };
+        const src = await fetch(`/modules/${MODULE_ID}/scripts/gm-bridge.mjs`).then(lfText).then(stripComments);
+        const tell = fnSource(src, "tellPrimaryChange");
+        const road = /tellPrimaryChange\(change\)/.test(fnSource(src, "notePrimary")) && /primaryNoticeOf\(/.test(tell) && /showPopup\(/.test(tell);
+        const fmt = (key, name) => game.i18n.format(key, { name });
+        equal(stableJson({ ...read, road }), stableJson({ taker: game.i18n.localize("DRPG.Panel.primaryNowYou"), giver: fmt("DRPG.Panel.primaryBack", A.name),
+            other: fmt("DRPG.Panel.primaryNow", B.name), player: null, load: null, road: true }),
+        "{taker: B became the primary, on B; giver: B stopped, on B; other: on a third GM; player: on a player; load: the first reading; road: notePrimary -> tellPrimaryChange -> showPopup}");
+        ok(["primaryNowYou", "primaryBack", "primaryNow"].every(k => game.i18n.localize(`DRPG.Panel.${k}`) !== `DRPG.Panel.${k}`), "the notices' keys have words");
+    }],
+    ["R9034 - a primary GM's reload during one request is one of its three asks again, not two: the ask again at the primary's leave (bridge-guards.mjs `registerBridgeReplies`, `resendOnGmReady(null, { leaving })`) marks the request with the GM who left, and the ask again at that same GM's `bridge.gmReady` (`resendOnGmReady(senderId)`, gm-bridge.mjs `onGmReady`) spends nothing and clears the mark; two reloads of the primary spend two of the three, and a third GM's event still asks again (2.0 line T2, CALLS-06, 27.11.2026)", async () => {
+        /* F1-calls CALLS-06. With a second GM here, a primary's reload asked again twice - at its leave, of the GM who
+           took over (`primaryLeft`, E18 C2), and at its own `bridge.gmReady` - so `RESENDS` (3) was spent by a reload and a
+           half, and after two reloads of the primary within one Call's clock the primary that came back did not hold the
+           ask: a yes from its card answered "the player is no longer waiting" (`DRPG.Bridge.askNotHeld`) while the player
+           waited, then `noAnswer`. Driven on `createWaiter` with fakes (as R165, R841): after each event, how many times
+           the request was sent again. The two wirings are read in the source. Red before CALLS-06: the extra arguments are
+           not read, so the fourth ask again is the budget's end and the third GM's event sends nothing. */
+        const G = await import("./bridge-guards.mjs");
+        const A = "R9034AAAAAAAAAAA", B = "R9034BBBBBBBBBBB";
+        const run = (events, { resend = true } = {}) => {
+            const sent = [];
+            const waiter = G.createWaiter({
+                emit: (packet, to) => sent.push({ id: packet.requestId, to }), gmIds: () => [B], notify: () => {},
+                me: () => ({ id: "R9034PPPPPPPPPPP", isGM: false, isPrimary: false }), fromGm: id => id === A || id === B, report: () => {}
+            });
+            const asked = waiter.request("r9034.ask", {}, { settle: "reply", patient: true, resend, timeoutMs: 400, quiet: true });
+            const steps = events.map(([kind, who]) => {
+                const before = sent.length;
+                if (kind === "left") waiter.resendOnGmReady(null, { leaving: who });
+                else waiter.resendOnGmReady(who);
+                return sent.length - before;
+            });
+            return { steps, ids: new Set(sent.map(s => s.id)).size, asked };
+        };
+        const twoReloads = run([["left", A], ["ready", A], ["left", A], ["ready", A], ["ready", B], ["ready", B]]);
+        const markCleared = run([["left", A], ["ready", A], ["ready", A], ["ready", A], ["ready", A]]);
+        const otherReady = run([["left", A], ["ready", B], ["ready", B], ["ready", B]]);
+        const spent = run([["ready", A], ["ready", A], ["ready", A], ["left", A], ["ready", A]]);
+        const notAsked = run([["left", A], ["ready", A]], { resend: false });
+        const read = {
+            twoReloads: twoReloads.steps, ids: twoReloads.ids, markCleared: markCleared.steps, otherReady: otherReady.steps,
+            spent: spent.steps, notAsked: notAsked.steps
+        };
+        await Promise.all([twoReloads.asked, markCleared.asked, otherReady.asked, spent.asked, notAsked.asked]);
+        const guards = stripComments(new Map(await otherSources()).get("bridge-guards.mjs") ?? "");
+        const bridge = await fetch(`/modules/${MODULE_ID}/scripts/gm-bridge.mjs`).then(lfText).then(stripComments);
+        const hook = bodyOf(fnSource(guards, "registerBridgeReplies"), 'Hooks.on("userConnected"', { until: "\n    });" });
+        read.wired = [/resendOnGmReady\(null, \{ leaving: user\.id \}\)/.test(hook), /resendOnGmReady\(senderId\)/.test(fnSource(bridge, "onGmReady")),
+            /waiter\.resendOnGmReady\(senderId\)/.test(fnSource(guards, "resendOnGmReady"))];
+        const note = bodyOf(new Map(await otherSources()).get("bridge-guards.mjs") ?? "", "const RESENDS", { back: 1600 });
+        read.comment = /CALLS-06/.test(note) && /R9034/.test(note) && !/three times covers a primary's reload, a handover/.test(note);
+        equal(stableJson(read), stableJson({ twoReloads: [1, 1, 1, 1, 1, 0], ids: 1, markCleared: [1, 1, 1, 1, 0], otherReady: [1, 1, 1, 0],
+            spent: [1, 1, 1, 0, 0], notAsked: [0, 0], wired: [true, true, true], comment: true }),
+            "{twoReloads: sent again at A's leave, A's ready, A's leave, A's ready, B's ready, B's ready again; ids: under how many ids; markCleared: A's leave, then four readies of A (one free); otherReady: A's leave, then three readies of B (none free); spent: three readies of A, its leave with nothing left, its ready (nothing free); notAsked: a request that did not ask to be resent; wired: [the leave hook hands the leaver, onGmReady hands its sender, the export passes it on]; comment: the note over RESENDS says what the code does}");
+    }],
+    ["R9025 - a GM's own claim left by its reload is let go at its ready: call-gm.mjs `releaseOwnClaims` reads the GMs' `ruledCardStore` once it has hydrated and lets go of every pending row of this GM taken before this load - on the primary in one `dropMany`, on a second GM by a \"drop\" for each to the primary (`askCardClaim`) - and leaves another GM's pending row, a ruled row, a row taken since this load and a claim this browser holds now; gm-bridge.mjs `registerGmBridge` runs it on a GM's browser before the sweep of the asks' cards (2.0 line T2, CALLS-02, 27.11.2026)", async () => {
+        /* F1-calls CALLS-02 (F1-verify: confirmed; F3 S3 D5 on Forge: the card held "GM2 is ruling on this card right now"
+           in the reloaded GM's own name). The only GM here reloads with a ruling's window open: its pending row stays in
+           `ruledCardStore` (a client setting, it outlives F5), and back here that GM is active, so `claimOnPrimary` answers
+           "busy" by itself for good and a card's end at its time waits on it (`underClaim`); `releaseClaimsOf` runs only on
+           another GM's browser. Driven with fakes - a store whose rows read empty until it has hydrated, the primary or
+           not, a drop that records - so nothing is written; the two wirings are read in the source. Red before CALLS-02:
+           there is no `releaseOwnClaims`, and the bridge lets go of nothing at its ready. */
+        const C = await import("./call-gm.mjs");
+        const ME = "R9025MEMEMEMEMEM", OTHER = "R9025OTHEROTHERO";
+        const rows = {
+            own: { by: ME, at: 1000, pending: true }, ownNoTime: { by: ME, pending: true }, ruled: { by: ME, at: 1000, pending: false },
+            theirs: { by: OTHER, at: 1000, pending: true }, sinceLoad: { by: ME, at: 6000, pending: true }, heldNow: { by: ME, at: 1000, pending: true }
+        };
+        const run = async primary => {
+            let hydrated = false;
+            const done = { dropMany: [], drop: [], readBefore: false };
+            const store = {
+                whenHydrated: async () => { await null; hydrated = true; return "answered"; },
+                entries: () => { if (!hydrated) done.readBefore = true; return hydrated ? structuredClone(rows) : {}; },
+                dropMany: async ids => { done.dropMany.push([...ids].sort()); }
+            };
+            const freed = typeof C.releaseOwnClaims === "function"
+                ? await C.releaseOwnClaims({ me: ME, since: 5000, store, primary, held: new Map([["heldNow", ME]]), drop: async id => { done.drop.push(id); } })
+                : null;
+            return { freed: freed ? [...freed].sort() : null, ...done, drop: done.drop.sort() };
+        };
+        const read = { primary: await run(true), second: await run(false) };
+        // Left to the function, the road is this browser's: one write on the primary, the drops on a second GM.
+        const { isPrimaryGm } = await import("./utils.mjs");
+        const asked = await run(undefined);
+        read.ownRoad = isPrimaryGm() ? asked.dropMany.length === 1 && !asked.drop.length : !asked.dropMany.length && asked.drop.length === 2;
+        const source = await fetch(`/modules/${MODULE_ID}/scripts/call-gm.mjs`).then(lfText).then(stripComments);
+        const bridge = await fetch(`/modules/${MODULE_ID}/scripts/gm-bridge.mjs`).then(lfText).then(stripComments);
+        const fn = /export async function releaseOwnClaims\(/.test(source) ? fnSource(source, "releaseOwnClaims") : "";
+        const gmBranch = bodyOf(fnSource(bridge, "registerGmBridge"), "if (game.user.isGM) {", { until: 'Hooks.on("userConnected"' });
+        read.wired = [/expiryAfterClaim\(/.test(fn), /askCardClaim\(id, "drop"\)/.test(fn),
+            /releaseOwnClaims\(\)[\s\S]*sweepAskCards\(\)/.test(gmBranch)];
+        const note = bodyOf(new Map(await otherSources()).get("call-gm.mjs") ?? "", "export async function claimOnPrimary(", { back: 1400 });
+        read.comment = /releaseOwnClaims/.test(note) && /CALLS-02/.test(note);
+        const freed = ["own", "ownNoTime"];
+        equal(stableJson(read), stableJson({
+            primary: { freed, dropMany: [freed], drop: [], readBefore: false },
+            second: { freed, dropMany: [], drop: freed, readBefore: false }, ownRoad: true,
+            wired: [true, true, true], comment: true
+        }), "{primary, second: this GM's browser as the primary or as a second GM} x {freed: the cards let go; dropMany: the primary's one write; drop: the drops asked of the primary; readBefore: rows read before the store hydrated}; ownRoad: left to the function, it takes this browser's road (the primary's one write or a second GM's drops); wired: [the primary ends a waiting expiry, a second GM asks the existing drop, the bridge runs it before the sweep at a GM's ready]; comment: the note over claimOnPrimary names it");
+    }],
+    ["R9020 - a card another GM's claim holds can be taken over, and the old holder's end writes nothing: call-gm.mjs `claimOnPrimary`'s step \"takeover\" moves the claim to the GM who asks, writes the row `{ by, pending, from }` and tells the GM it was taken from; that GM's \"done\" and \"drop\" after it answer \"busy\" naming the new holder and write nothing; a takeover of a card nobody holds answers \"free\", of a ruled card \"ruled\", of one's own claim \"busy\"; `card.claim` takes the step; on the old holder's browser the primary's `card.takenOver` alone closes the claim's windows, marks it lost and tells that GM, and `claimCard` then answers null whatever its ruling said (2.0 line T2, CALLS-01, 27.11.2026)", async () => {
+        /* F1-calls CALLS-01 (F1-verify: confirmed; F3 S2 B on Forge: the second GM read "is ruling on this card right now"
+           for 150 s, and the player "Nobody answered in time"). Driven with fakes - the GMs' store, the claims in memory,
+           the card, who is told - so nothing is written; the old holder's half with a real kit window, drawn and closed
+           here, and the claim's own roads handed in (`claim`, `say`). Red before CALLS-01: there is no step "takeover"
+           (a take of a held card answers "busy"), no `card.takenOver`, and `claimCard` has no window to close. */
+        const C = await import("./call-gm.mjs");
+        const A = await import("./bridge-asks.mjs");
+        const K = await import("./card-takeover.mjs");
+        const B = await import("./gm-bridge.mjs");
+        const { primaryGmId } = await import("./utils.mjs");
+        const ME = game.user.id, OLD = "R9020OLDHOLDERAA";
+        const rows = {}, writes = [], told = [], held = new Map();
+        const store = {
+            whenHydrated: async () => "answered", get: id => rows[id],
+            patch: async (id, v) => { writes.push(["patch", id]); rows[id] = { ...(rows[id] ?? {}), ...v }; },
+            drop: async id => { writes.push(["drop", id]); delete rows[id]; }
+        };
+        const card = { id: "R9020CARDAAAAAAA", flags: {} };
+        const step = (s, by, message = card) => C.claimOnPrimary(card.id, s, by, { store, held, message, tell: (...a) => told.push(a) });
+        const brief = r => (r ? [r.taken, r.why ?? null, r.by === ME ? "me" : r.by === OLD ? "old" : r.by] : null);
+        const read = {};
+        held.set(card.id, OLD);
+        rows[card.id] = { by: OLD, at: Date.now(), pending: true };
+        read.take = brief(await step("take", ME));
+        read.takeover = brief(await step("takeover", ME));
+        read.after = { held: held.get(card.id) === ME, row: rows[card.id] ? [rows[card.id].by === ME, rows[card.id].pending, rows[card.id].from === OLD] : null,
+            told: told.map(([id, from, by]) => [id === card.id, from === OLD, by === ME]) };
+        const before = writes.length;
+        read.oldDone = brief(await step("done", OLD));
+        read.oldDrop = brief(await step("drop", OLD));
+        read.oldWrote = writes.length - before;
+        read.again = brief(await step("takeover", ME));
+        delete rows[card.id];
+        held.delete(card.id);
+        read.free = brief(await step("takeover", ME));
+        rows[card.id] = { by: OLD, at: Date.now(), pending: false };
+        read.ruled = brief(await step("takeover", ME));
+        const sanitized = B.BRIDGE_ACTIONS["card.claim"]?.sanitize?.({ messageId: card.id, step: "takeover" }) ?? null;
+        read.wire = sanitized?.step ?? null;
+
+        // The old holder's browser: a claim running here with a window drawn while it runs.
+        const said = [];
+        let finish;
+        const app = new foundry.applications.api.DialogV2({ window: { title: "R9020" }, content: "<p>R9020</p>", buttons: [{ action: "ok", label: "OK", default: true }] });
+        const claims = [];
+        const claim = async (id, s) => { claims.push(s); return s === "take" ? { taken: true, by: ME } : { taken: true, by: ME }; };
+        const running = A.claimCard({ id: "R9020RUNNINGCARD" }, async () => {
+            await app.render({ force: true });
+            return new Promise(resolve => { finish = resolve; });
+        }, { claim, say: text => said.push(text) });
+        await until(() => app.rendered && typeof finish === "function", 3000);
+        const packet = { action: "card.takenOver", messageId: "R9020RUNNINGCARD", userId: ME, by: OLD };
+        read.forged = [K.onCardTakenOver(packet, "R9020NOTPRIMARYA", { say: text => said.push(text) }), app.rendered, K.claimLostHere("R9020RUNNINGCARD")];
+        read.real = [K.onCardTakenOver(packet, primaryGmId(), { say: text => said.push(text) })];
+        await until(() => !app.rendered, 2000);
+        read.real.push(app.rendered, K.claimLostHere("R9020RUNNINGCARD"));
+        finish?.({ settled: "R9020 a ruling made all the same" });
+        read.answered = await running;
+        read.said = said.map(t => t === game.i18n.format("DRPG.Bridge.claimTakenOver", { gm: game.users.get(OLD)?.name ?? "?" }));
+        read.claims = claims;
+        if (app.rendered) await app.close();
+        equal(stableJson(read), stableJson({
+            take: [false, "busy", "old"], takeover: [true, null, "me"], after: { held: true, row: [true, true, true], told: [[true, true, true]] },
+            oldDone: [false, "busy", "me"], oldDrop: [false, "busy", "me"], oldWrote: 0, again: [false, "busy", "me"],
+            free: [false, "free", null], ruled: [false, "ruled", "old"], wire: "takeover",
+            forged: [false, true, false], real: [true, false, true], answered: null, said: [true], claims: ["take", "done"]
+        }), "{take: another GM's held card [taken, why, by]; takeover: the same card taken over; after: [held in memory by this GM, the row (by this GM, pending, from the old holder), who was told]; oldDone, oldDrop: the old holder's ends after; oldWrote: the store writes they made; again: a takeover of one's own claim; free: of a card nobody holds; ruled: of a ruled card; wire: the step card.claim keeps} - the old holder's browser: forged [a packet from another sender acted, the window still open, the claim lost], real [the primary's packet acted, the window open, the claim lost], answered: what claimCard answered though its ruling settled, said: the notice told, claims: the steps it asked");
+    }],
+    ["R9021 - a claim runs out: call-gm.mjs `claimRanOut` reads a pending claim older than `TIMING.claimHoldMs` (120 s, under the player's own clock `TIMING.rulingMs`) as free and a newer one, a ruled row or one with no time as not; `claimOnPrimary` lets another GM \"take\" a card whose claim ran out - held in memory or only in the GMs' row - and tells the GM it was taken from; `underClaim` answers false for it and true for a claim that holds; the hold's end ends the card's end that waited (`watchClaimHold` -> `expiryAfterClaim`) (2.0 line T2, CALLS-01, 27.11.2026)", async () => {
+        /* CALLS-01's second half: a claim with no bound held a card while its GM's window stood open (F1-calls CALLS-01;
+           S2 B measured 150 s of refusals). Driven with fakes as R9020; the wiring of the hold's timer read in the source.
+           The hold is chosen, not measured (config.mjs, LIVE-E132-01). Red before CALLS-01: no `claimRanOut`, no
+           `claimHoldMs`, and a take of a claim of any age answered "busy". */
+        const C = await import("./call-gm.mjs");
+        const { TIMING } = await import("./config.mjs");
+        const { serverNow } = await import("./utils.mjs");
+        const ME = game.user.id, OLD = "R9021OLDHOLDERAA";
+        const hold = TIMING.claimHoldMs;
+        const now = serverNow();
+        const ran = typeof C.claimRanOut === "function" ? C.claimRanOut : () => null;
+        const read = {
+            hold: [hold, Number.isFinite(hold) && hold < TIMING.rulingMs],
+            ranOut: [ran({ by: OLD, pending: true, at: now - hold - 1 }, now), ran({ by: OLD, pending: true, at: now - hold + 1000 }, now),
+                ran({ by: OLD, pending: false, at: now - hold - 1 }, now), ran({ by: OLD, pending: true }, now), ran(null, now)]
+        };
+        const rows = {}, told = [], held = new Map();
+        const store = { whenHydrated: async () => "answered", get: id => rows[id], patch: async (id, v) => { rows[id] = { ...(rows[id] ?? {}), ...v }; }, drop: async id => { delete rows[id]; } };
+        const take = async (id, inMemory) => {
+            if (inMemory) held.set(id, OLD);
+            rows[id] = { by: OLD, at: serverNow() - hold - 5000, pending: true };
+            const under = await C.underClaim?.(id, { store, held }) ?? null;
+            const r = await C.claimOnPrimary(id, "take", ME, { store, held, message: { id, flags: {} }, tell: (...a) => told.push(a) });
+            return [under, r?.taken ?? null, r?.by === ME, rows[id]?.by === ME, rows[id]?.from === OLD];
+        };
+        read.inMemory = await take("R9021CARDMEMORYA", true);
+        read.rowOnly = await take("R9021CARDROWONLY", false);
+        rows.R9021CARDFRESHAA = { by: OLD, at: serverNow(), pending: true };
+        held.set("R9021CARDFRESHAA", OLD);
+        read.fresh = [await C.underClaim?.("R9021CARDFRESHAA", { store, held }) ?? null,
+            (await C.claimOnPrimary("R9021CARDFRESHAA", "take", ME, { store, held, message: { id: "R9021CARDFRESHAA", flags: {} }, tell: () => {} }))?.why ?? null];
+        read.told = told.map(([, from, by]) => [from === OLD, by === ME]);
+        const source = await fetch(`/modules/${MODULE_ID}/scripts/call-gm.mjs`).then(lfText).then(stripComments);
+        const watch = /function watchClaimHold\(/.test(source) ? fnSource(source, "watchClaimHold") : "";
+        const claimFn = fnSource(source, "claimOnPrimary");
+        read.wired = [/TIMING\.claimHoldMs/.test(watch) && /expiryAfterClaim\(messageId\)/.test(watch), /watchClaimHold\(messageId, by, at\)/.test(claimFn),
+            /claimHolder\(/.test(fnSource(source, "underClaim"))];
+        equal(stableJson(read), stableJson({
+            hold: [120000, true], ranOut: [true, false, false, false, false],
+            inMemory: [false, true, true, true, true], rowOnly: [false, true, true, true, true], fresh: [true, "busy"], told: [[true, true], [true, true]], wired: [true, true, true]
+        }), "{hold: [TIMING.claimHoldMs, under rulingMs]; ranOut: [a claim older than the hold, a newer one, a ruled row, a row with no time, none]; inMemory, rowOnly: a card whose claim ran out, held in memory or only in the GMs' row [underClaim, taken, by this GM, the row this GM's, from the old holder]; fresh: a claim that holds [underClaim, why]; told: [from the old holder, to this GM]; wired: [the hold's timer ends the waiting expiry, claimOnPrimary starts it, underClaim reads claimHolder]}");
+    }],
+    ["R9022 - a decision from a window another GM's take-over closed is refused on the primary: call-gm.mjs `claimedByAnother` answers true only while another GM's claim holds the card (in memory or the GMs' row, not run out), and `yesOnPrimary`, `dynamicOnPrimary` and `observePickOnPrimary` ask it before they read their ask - the Observe's pick answering \"takenOver\", which no ruling settles a card on; the rulings of `CARD_ACTIONS` whose effect follows their window on the GM's own browser - the difficulty, Reply, an item's effect - read the claim's lost mark first (messenger-app.mjs `takenOverMeanwhile`, card-takeover.mjs `claimLostHere`) (2.0 line T2, CALLS-01, 27.11.2026)", async () => {
+        /* CALLS-01's third half: GM A's window outlived the take-over, and A's yes, difficulty or pick would have reached the
+           primary and been kept. The truth table driven with fakes; the order in each decision and the rulings' reads in
+           the source (a held ask cannot be made in tier 1 without the bridge). Red before CALLS-01: no `claimedByAnother`,
+           and the three decisions are judged by the ask alone. */
+        const C = await import("./call-gm.mjs");
+        const { serverNow } = await import("./utils.mjs");
+        const { TIMING } = await import("./config.mjs");
+        const ME = game.user.id, OTHER = "R9022OTHERGMAAAA";
+        const rows = {}, held = new Map();
+        const store = { whenHydrated: async () => "answered", get: id => rows[id] };
+        const asks = typeof C.claimedByAnother === "function" ? (id, by) => C.claimedByAnother(id, by, { store, held }) : async () => null;
+        held.set("R9022HELDOTHERAA", OTHER);
+        held.set("R9022HELDMINEAAA", ME);
+        rows.R9022ROWMINEAAAA = { by: ME, at: serverNow(), pending: true };
+        held.set("R9022RANOUTAAAAA", OTHER);
+        rows.R9022RANOUTAAAAA = { by: OTHER, at: serverNow() - TIMING.claimHoldMs - 1, pending: true };
+        const read = { table: [await asks("R9022HELDOTHERAA", ME), await asks("R9022HELDMINEAAA", ME), await asks("R9022ROWMINEAAAA", OTHER),
+            await asks("R9022RANOUTAAAAA", ME), await asks("R9022NOBODYAAAAA", ME), await asks(null, ME)] };
+        const source = await fetch(`/modules/${MODULE_ID}/scripts/call-gm.mjs`).then(lfText).then(stripComments);
+        const before = (fn, first, then) => { const body = fnSource(source, fn); const a = body.indexOf(first), b = body.indexOf(then); return a >= 0 && b > a; };
+        read.order = [before("yesOnPrimary", "claimedByAnother(", "callAsks.delete"), before("dynamicOnPrimary", "claimedByAnother(", "dynamicAsks.delete"),
+            before("observePickOnPrimary", "claimedByAnother(", "asked.answering = true"), /value: "takenOver"/.test(fnSource(source, "observePickOnPrimary"))];
+        const app = await fetch(`/modules/${MODULE_ID}/scripts/messenger-app.mjs`).then(lfText).then(stripComments);
+        const reads = fn => /takenOverMeanwhile\(message\)/.test(fnSource(app, fn));
+        read.rulings = [reads("ruleSetDifficulty"), reads("ruleReply"), reads("ruleItemWorksOrItemNoEffectOrItemRefuse"),
+            /claimLostHere\(message\.id\)/.test(/async function takenOverMeanwhile\(/.test(app) ? fnSource(app, "takenOverMeanwhile") : "")];
+        equal(stableJson(read), stableJson({ table: [true, false, true, false, false, false], order: [true, true, true, true], rulings: [true, true, true, true] }),
+            "{table: claimedByAnother for [another GM's claim in memory, this GM's own, this GM's row asked by another, another's run out, nobody's, no card]; order: [the yes, the difficulty and the pick ask it before they take their ask; the pick answers takenOver]; rulings: [the difficulty, Reply and an item's effect read the lost mark; the mark is card-takeover.mjs claimLostHere]}");
+    }],
+    ["R9070 - a press on a card another GM holds asks whether to take it over: bridge-asks.mjs `claimCard` answers a \"busy\" of another GM by asking this GM (card-takeover.mjs `askTakeOver`, naming the GM and since when; Cancel on the left and the default, Take over `data-action=\"take\"`), Cancel rules nothing and says nothing, and the question closes itself once that GM no longer holds the card; yes asks \"takeover\" and runs the ruling, a takeover the primary finds free is a take; an end the primary answers \"busy\" by another GM answers null; the card's own Take over (card-takeover.mjs `takeOverFromCard`) takes over and lets go at once (2.0 line T2, CALLS-01, EXP-GM-05, 27.11.2026)", async () => {
+        /* CALLS-01's GM B: until 2.0 a busy card said only `DRPG.Bridge.claimBusy`. S2 B1 on Forge presses, in a window it
+           does not know, the first of yes, take, takeOver, takeover, confirm or ok, then expects the difficulty window: this
+           question is that road. Driven with the claim's roads handed in; the window's shape read in the source. Red before
+           CALLS-01: no question, no "takeover", and an old holder's end was not read. */
+        const A = await import("./bridge-asks.mjs");
+        const ME = game.user.id, OTHER = "R9070OTHERGMAAAA";
+        const run = async (answers, { ask = false } = {}) => {
+            const steps = [], asked = [], said = [];
+            let worked = false;
+            const claim = async (id, s) => { steps.push(s); return answers[s]?.shift?.() ?? { taken: true, by: ME }; };
+            const out = await A.claimCard({ id: "R9070CARDAAAAAAA" }, async () => { worked = true; return { settled: "R9070" }; },
+                { claim, ask: async t => { asked.push([t.by === OTHER, t.at]); return ask; }, say: t => said.push(t) });
+            return { steps, asked, said: said.length, worked, out: out ? Object.keys(out) : null };
+        };
+        const busy = { taken: false, why: "busy", by: OTHER, at: 1234 };
+        const read = {
+            cancel: await run({ take: [busy] }),
+            yes: await run({ take: [busy] }, { ask: true }),
+            free: await run({ take: [busy, { taken: true, by: ME }], takeover: [{ taken: false, why: "free", by: null }] }, { ask: true }),
+            lostAtEnd: await run({ done: [busy] })
+        };
+        const fromCard = [];
+        read.card = [await (await import("./card-takeover.mjs")).takeOverFromCard?.("R9070CARDAAAAAAA", { claim: async (id, s) => { fromCard.push(s); return { taken: true, by: ME }; }, say: () => {} }) ?? null, fromCard];
+        const source = await fetch(`/modules/${MODULE_ID}/scripts/card-takeover.mjs`).then(r => (r.ok ? lfText(r) : "")).then(stripComments);
+        const win = /async function askTakeOver\(/.test(source) ? fnSource(source, "askTakeOver") : "";
+        read.window = [/action: "take"/.test(win), /default: "cancel"/.test(win), /role: "cancel"/.test(win), /DRPG\.Bridge\.takeOverAsk/.test(win), /\{ gm, time \}/.test(win),
+            /clientSettingChanged/.test(win) && /row\?\.pending && row\.by === taken\.by/.test(win) && /dialog\.close\(\)/.test(win)];
+        equal(stableJson(read), stableJson({
+            cancel: { steps: ["take"], asked: [[true, 1234]], said: 0, worked: false, out: null },
+            yes: { steps: ["take", "takeover", "done"], asked: [[true, 1234]], said: 0, worked: true, out: ["settled"] },
+            free: { steps: ["take", "takeover", "take", "done"], asked: [[true, 1234]], said: 0, worked: true, out: ["settled"] },
+            lostAtEnd: { steps: ["take", "done"], asked: [], said: 0, worked: true, out: null },
+            card: [true, ["takeover", "drop"]], window: [true, true, true, true, true, true]
+        }), "{cancel, yes, free: a card another GM holds - [the claim's steps asked, the question (another GM named, since when), notices, the ruling ran, what claimCard answered]; lostAtEnd: a ruling whose done the primary answers busy by another GM; card: the card's Take over [answered, its steps]; window: [Take over is data-action take, Cancel the default, Cancel's role, the question's words, naming the GM and the time, it closes itself once the GMs' row no longer says that GM holds the card]}");
+    }],
+    ["R9023 - every GM's copy of a card says who is ruling on it: messenger-app.mjs `paintClaimSign` draws in the card's answers' block, for a pending claim of another GM who is here, `DRPG.Bridge.claimedBy` naming that GM and the time and a Take over button, and nothing for this GM's own claim, one run out, a ruled row or none; `wireCallActions` draws it after a player's copy has lost the block, and draws it again when the GMs' `ruledCardStore` changes (2.0 line T2, EXP-GM-05, 27.11.2026)", async () => {
+        /* F1-blind-gm EXP-GM-05: a second GM learnt that another was ruling only by pressing and being refused. The sign is
+           drawn on detached blocks with the row handed in, so no store is read or written; a connected player stands in
+           for a GM who is here (the sign reads only that its user is connected). The wiring is read in the source.
+           Red before EXP-GM-05: there is no sign. */
+        needs(world.atLeast("connectedPlayersWithCharacter", 1), "a connected user stands in for another GM who is here");
+        const M = await import("./messenger-app.mjs");
+        const { serverNow } = await import("./utils.mjs");
+        const { TIMING } = await import("./config.mjs");
+        const other = game.users.find(u => u.active && u.id !== game.user.id);
+        const paint = async row => {
+            const actions = document.createElement("div");
+            actions.className = "drpg-call-actions";
+            actions.dataset.drpgClaimOf = "R9023CARDAAAAAAA";
+            actions.innerHTML = '<button data-drpg-call="reply">x</button>';
+            const by = typeof M.paintClaimSign === "function" ? await M.paintClaimSign(actions, { row }) : undefined;
+            const sign = actions.querySelector(".drpg-call-claim");
+            return { by: by === other.id ? "other" : by ?? null, line: sign?.querySelector("p")?.textContent ?? null,
+                take: sign?.querySelector("button[data-drpg-claim-take]")?.dataset.drpgClaimTake ?? null, gmOnly: Boolean(sign?.classList.contains("drpg-gm-only")) };
+        };
+        const at = serverNow() - 1000;
+        const line = game.i18n.format("DRPG.Bridge.claimedBy", { gm: other.name, time: M.bubbleTime(at) });
+        const read = {
+            other: await paint({ by: other.id, at, pending: true }),
+            own: (await paint({ by: game.user.id, at, pending: true })).line,
+            ranOut: (await paint({ by: other.id, at: serverNow() - TIMING.claimHoldMs - 1, pending: true })).line,
+            ruled: (await paint({ by: other.id, at, pending: false })).line,
+            away: (await paint({ by: "R9023NOBODYHEREA", at, pending: true })).line,
+            none: (await paint(null)).line
+        };
+        const source = await fetch(`/modules/${MODULE_ID}/scripts/messenger-app.mjs`).then(lfText).then(stripComments);
+        const wire = fnSource(source, "wireCallActions");
+        const watch = /function watchClaimSigns\(/.test(source) ? fnSource(source, "watchClaimSigns") : "";
+        read.wired = [wire.indexOf("signClaim(body, message)") > wire.indexOf("if (!game.user.isGM)"), /clientSettingChanged/.test(watch) && /SETTINGS\.gmRuledCards/.test(watch),
+            /takeOverFromCard\(id\)/.test(/export async function paintClaimSign\(/.test(source) ? fnSource(source, "paintClaimSign") : "")];
+        equal(stableJson(read), stableJson({
+            other: { by: "other", line, take: "R9023CARDAAAAAAA", gmOnly: true }, own: null, ranOut: null, ruled: null, away: null, none: null,
+            wired: [true, true, true]
+        }), "{other: another GM's claim [the GM named, the line, Take over's card, the GMs' block]; own, ranOut, ruled, away, none: the line for this GM's own claim, one run out, a ruled row, a GM not here, no row; wired: [drawn after a player's copy loses the block, drawn again on the store's change, Take over takes the card over]}");
+    }],
+    ["R9024 - a GM who presses the other copy of a card whose window that GM has open is told so, not that the GM is ruling on it: bridge-asks.mjs `claimCard` answers a \"busy\" of this GM itself with `DRPG.Bridge.claimOwnOpen`, asks no take-over and runs no ruling, and brings the claim's own window to the front (2.0 line T2, CALLS-12, 27.11.2026)", async () => {
+        /* F1-calls CALLS-12: the chat log and the messenger each draw a thread's card (F118), and the second copy's press
+           read "{gm} is ruling on this card right now." with this GM's own name. A claim of this GM's runs here with a kit
+           window drawn under it; the second press is answered "busy" by this GM. Red before CALLS-12: the notice was
+           `DRPG.Bridge.claimBusy`, and no window moved. */
+        const A = await import("./bridge-asks.mjs");
+        const ME = game.user.id;
+        let finish;
+        const app = new foundry.applications.api.DialogV2({ window: { title: "R9024" }, content: "<p>R9024</p>", buttons: [{ action: "ok", label: "OK", default: true }] });
+        const first = A.claimCard({ id: "R9024CARDAAAAAAA" }, async () => {
+            await app.render({ force: true });
+            return new Promise(resolve => { finish = resolve; });
+        }, { claim: async () => ({ taken: true, by: ME }), say: () => {} });
+        await until(() => app.rendered && typeof finish === "function", 3000);
+        let raised = 0;
+        const front = app.bringToFront;
+        app.bringToFront = function (...args) { raised++; return front?.apply(this, args); };
+        const said = [], asked = [];
+        let worked = false;
+        const second = await A.claimCard({ id: "R9024CARDAAAAAAA" }, async () => { worked = true; return null; },
+            { claim: async () => ({ taken: false, why: "busy", by: ME, at: 1 }), ask: async () => { asked.push(1); return true; }, say: t => said.push(t) });
+        finish?.(null);
+        await first;
+        if (app.rendered) await app.close();
+        equal(stableJson({ second, said, asked: asked.length, worked, raised }), stableJson({
+            second: null, said: [game.i18n.localize("DRPG.Bridge.claimOwnOpen")], asked: 0, worked: false, raised: 1
+        }), "{second: what the second press answered; said: what this GM was told; asked: take-over questions; worked: the ruling ran; raised: the claim's window brought to the front}");
+    }],
+    ["R9036 - a ruling on an ask the primary no longer holds ends its card as an ask that ran out, with \"The player was no longer waiting.\" for the GMs alone: messenger-app.mjs `askNotHeld` answers `DRPG.Bridge.settledExpired` as the card's line and `DRPG.Bridge.settledGone` as its GMs' note, by key, and both `wireCallActions` and `pressCard` hand the note to `settleCall` (2.0 line T2, CALLS-14, 27.11.2026)", async () => {
+        /* F1-calls CALLS-14: the GM handbook (6.3) says the card ends "Nobody answered in time. You can ask again." for
+           everyone and "The player was no longer waiting." for the GMs, as the primary's own end of such a card writes it
+           (call-gm.mjs `endExpired`), but `askNotHeld` wrote the GMs' line as the card's line, which the player's thread
+           shows. On this primary, Approve on a Call and Refuse on a Dynamic action pressed through `runCallAction` with an
+           ask no primary holds (the primary answers at once, before any write, as R8281 reads); the two roads that settle
+           a card are read in the source. Red before CALLS-14: the line was the GMs' sentence in words, with no note. */
+        needs(env.primaryGm());
+        needs(world.atLeast("playerAccounts", 1), "an asker");
+        const M = await import("./messenger-app.mjs");
+        const player = game.users.find(u => !u.isGM);
+        const data = { rid: "R9036NoSuchAsk00", asker: player.id };
+        const realWarn = ui.notifications.warn;
+        ui.notifications.warn = () => {};
+        const said = {};
+        try {
+            for (const action of ["approveCall", "refuseDynamic"]) {
+                const out = await M.runCallAction(action, data);
+                said[action] = [out?.settled?.key ?? out?.settled ?? null, out?.gmNote?.key ?? null];
+            }
+        } finally {
+            ui.notifications.warn = realWarn;
+        }
+        const source = await fetch(`/modules/${MODULE_ID}/scripts/messenger-app.mjs`).then(lfText).then(stripComments);
+        const handed = name => /settleCall\(message, outcome\.settled, outcome\.ruling \?\? null, outcome\.gmNote \?\? null\)/.test(fnSource(source, name));
+        said.handed = [handed("wireCallActions"), handed("pressCard")];
+        const line = ["DRPG.Bridge.settledExpired", "DRPG.Bridge.settledGone"];
+        equal(stableJson(said), stableJson({ approveCall: line, refuseDynamic: line, handed: [true, true] }),
+            "{approveCall, refuseDynamic: [the card's line, the GMs' note] a ruling on an ask nobody holds answers; handed: [wireCallActions, pressCard] give the note to settleCall}");
+    }],
+    ["R9033 - a statistic's pick says it is not confirmed until its asker's receipt: messenger-app.mjs `rulePickTrait` answers the asker alone and settles its card `DRPG.Bridge.settledUnconfirmed` by key with this GM's name; on the primary a receipt rewrites that line as `DRPG.Bridge.settledAnswered` with the same name (pick-receipt.mjs `confirmedPickHtml`, `pickReceived`), at once when the line is here and, when the receipt came first, once the card's words are stored within `TIMING.ackMs` (`pickWordsStored`); no other line is rewritten, the GMs' own lines are not, and with no receipt the line stays (2.0 line T2, CALLS-05, 28.11.2026)", async () => {
+        /* F1-calls CALLS-05: a pick went from the GM who pressed it straight to its asker (bridge-asks.mjs
+           `answerTraitRuling`) and the card said "Answered by {name}." at once, also when the asker's browser was no longer
+           waiting, while a Call's yes and a Dynamic difficulty wait for their receipt. Read with no write: the pick run
+           through `runCallAction` with `game.socket.emit` held (the answer is read, not sent), and the rewrite and its two
+           roads on cards of this test's own (`write` records instead of writing). Red at 42f0cee: the pick's line was
+           "Answered by" in words, and nothing rewrote it. */
+        needs(env.primaryGm());
+        needs(world.atLeast("playerAccounts", 1), "an asker");
+        const M = await import("./messenger-app.mjs");
+        const C = await import("./pick-receipt.mjs");
+        const { TIMING } = await import("./config.mjs");
+        const { listedTraits } = await import("./trait-ruling.mjs");
+        const player = game.users.find(u => !u.isGM);
+        const actor = game.actors.find(a => a.type === "character") ?? null;
+        must(actor, "no character to name on the card - this would measure nothing");
+        const spec = { kind: "crisis", key: "weaponAttack", variant: null };
+        const trait = listedTraits(spec)[0] ?? null;
+        must(trait, "Attack with a weapon lists no statistic here - this would measure nothing");
+        const read = {};
+        const socket = game.socket, own = Object.getOwnPropertyDescriptor(socket, "emit");
+        const sent = [];
+        socket.emit = (event, packet, options) => { sent.push([packet?.action ?? null, options?.recipients ?? null, packet?.value ?? null]); };
+        try {
+            const out = await M.runCallAction("pickTrait", { rid: "R9033PickNoAsk00", asker: player.id, by: actor.id, ...spec, variant: "", trait });
+            read.pick = [out?.settled?.key ?? out?.settled ?? null, out?.settled?.name ?? null, out?.ruling?.trait ?? null];
+        } finally {
+            if (own) Object.defineProperty(socket, "emit", own); else delete socket.emit;
+        }
+        read.sent = sent;
+        const NAME = "R9033 Gamemaster";
+        const line = (key, { gm = false, name = NAME } = {}) => {
+            const p = `<p class="drpg-call-settled" data-drpg-line="${key}" data-drpg-name="${name}">${game.i18n.format(key, { name })}</p>`;
+            return gm ? `<div class="drpg-gm-only">${p}</div>` : p;
+        };
+        const lines = html => {
+            if (typeof html !== "string") return html ?? null;
+            const wrap = document.createElement("template");
+            wrap.innerHTML = html;
+            return [...wrap.content.querySelectorAll(".drpg-call-settled")].map(el => [el.dataset.drpgLine ?? null, el.dataset.drpgName ?? null,
+                el.textContent, Boolean(el.closest(".drpg-gm-only"))]);
+        };
+        const has = typeof C.confirmedPickHtml === "function" && typeof C.pickReceived === "function" && typeof C.pickWordsStored === "function";
+        read.exported = has;
+        if (has) {
+            const UNC = "DRPG.Bridge.settledUnconfirmed", ANS = "DRPG.Bridge.settledAnswered";
+            read.html = [C.confirmedPickHtml(`<p>card</p>${line(UNC)}`), C.confirmedPickHtml(`<p>card</p>${line(ANS)}`),
+                C.confirmedPickHtml(`<p>card</p>${line("DRPG.Bridge.settledDeclined")}`),
+                C.confirmedPickHtml(`<p>card</p><p class="drpg-call-settled">${game.i18n.localize("DRPG.TraitRuling.autoApproved")}</p>`),
+                C.confirmedPickHtml(`<p>card</p>${line(UNC, { gm: true })}`)].map(lines);
+            const fake = (id, html, settled) => ({ id, content: html, flags: {}, getFlag: (scope, key) => (key === "settled" ? settled : undefined) });
+            const writes = [];
+            const write = async (message, html) => { writes.push([message.id, lines(html)]); };
+            const now = Date.now();
+            // The line is here: written at once.
+            const here = fake("R9033CardHere000", `<p>card</p>${line(UNC)}`, true);
+            read.here = [await C.pickReceived(here.id, { message: here, write }), writes.splice(0)];
+            // The receipt first: kept, and written when the card's words with the line are stored, once.
+            const first = fake("R9033CardFirst00", "<p>card</p><p class=\"drpg-call-awaiting\">awaiting</p>", false);
+            const later = fake(first.id, `<p>card</p>${line(UNC)}`, true);
+            read.first = [await C.pickReceived(first.id, { message: first, write }), writes.splice(0),
+                C.pickWordsStored(later, { write }), C.pickWordsStored(later, { write })];
+            await settle(50);
+            read.first.push(writes.splice(0));
+            // A receipt kept longer than ackMs writes nothing; words with no receipt write nothing; a card ended another way keeps nothing.
+            const stale = fake("R9033CardStale00", "<p>card</p>", false);
+            await C.pickReceived(stale.id, { message: stale, write });
+            const staleLater = fake(stale.id, `<p>card</p>${line(UNC)}`, true);
+            const declined = fake("R9033CardDecl000", `<p>card</p>${line("DRPG.Bridge.settledDeclined")}`, true);
+            read.none = [C.pickWordsStored(staleLater, { write, now: now + TIMING.ackMs + 60000 }),
+                C.pickWordsStored(fake("R9033CardNoRcpt0", `<p>card</p>${line(UNC)}`, true), { write }),
+                await C.pickReceived(declined.id, { message: declined, write }),
+                C.pickWordsStored(fake(declined.id, `<p>card</p>${line(UNC)}`, true), { write })];
+            await settle(50);
+            read.none.push(writes.splice(0));
+        }
+        const UNC = "DRPG.Bridge.settledUnconfirmed", ANS = "DRPG.Bridge.settledAnswered";
+        const answered = [["DRPG.Bridge.settledAnswered", NAME, game.i18n.format(ANS, { name: NAME }), false]];
+        equal(stableJson(read), stableJson({
+            pick: [UNC, game.user.name, trait], sent: [["bridge.done", [player.id], trait]], exported: true,
+            html: [answered, null, null, null, null],
+            here: [true, [["R9033CardHere000", answered]]],
+            first: [false, [], true, false, [["R9033CardFirst00", answered]]],
+            none: [false, false, false, false, []]
+        }), "{pick: [the card's line key, its name, the trait kept]; sent: the answers [action, to, value]; exported; html: the rewrite of [unconfirmed, answered, declined, auto-approved, unconfirmed in the GMs' note]; here: [a receipt with the line here: rewritten, the writes]; first: [the receipt first: rewritten now, writes, the words stored: written, again: written, the writes]; none: [a receipt past ackMs, words with no receipt, a receipt for a declined card, its words after, the writes]}");
+    }],
+    ["R9026 - the GM's difficulty window says how long the player still waits: messenger-app.mjs `ruleSetDifficulty` hands action-dynamic.mjs `askDynamicDifficulty` the card's time (call-gm.mjs `askCardExpiry`, the card's `data-expires`) as `expires`, and the window draws `[data-drpg-expires]` with `DRPG.Bridge.timeLeft` from it, written again each second while the window stands (`keepTimeLeft`), and `DRPG.Bridge.timeUp` once the time has passed; a window with no time - a GM's own action - draws none (2.0 line T2, CALLS-03, 28.11.2026)", async () => {
+        /* F1-calls CALLS-03: the card says "Open until 21:35." but the difficulty window a GM opens from it said nothing
+           of the time, and a ruling given after it is thrown away (`askNotHeld`). Read with no write: the window's
+           DialogV2.wait answered here - its content put in this page and its own render hook run, as Foundry runs it -
+           and closed unanswered, so the card is not ruled. Card A is a card of this test's own whose time is two minutes
+           and six seconds off, pressed through `runCallAction`; card B's time is two and a half seconds off, read at once
+           and after three seconds; the GM's own window has no time. A text is read as one of the times a draw up to two
+           seconds late could show (the press imports its modules first), never as a time computed by the code read. Red
+           at 0f9bbe1: no element. */
+        const M = await import("./messenger-app.mjs");
+        const A = await import("./action-dynamic.mjs");
+        const { serverNow } = await import("./utils.mjs");
+        const D = foundry.applications.api.DialogV2;
+        const own = Object.getOwnPropertyDescriptor(D, "wait");
+        const roots = [];
+        const drawn = root => {
+            const el = root?.querySelector("[data-drpg-expires]");
+            return el ? [Number(el.getAttribute("data-drpg-expires")), el.textContent.trim()] : null;
+        };
+        const card = (id, expires) => ({ id, content: `<p>card</p><span class="drpg-call-expires" data-expires="${expires}">until</span>`,
+            flags: {}, getFlag: () => undefined, author: game.user, user: game.user });
+        const read = {};
+        try {
+            D.wait = async cfg => {
+                const root = document.createElement("div");
+                if (cfg?.content instanceof HTMLElement) root.append(cfg.content);
+                else root.innerHTML = String(cfg?.content ?? "");
+                document.body.append(root);
+                roots.push(root);
+                cfg?.render?.(null, { element: root, close: async () => root.remove(), addEventListener: () => {} });
+                return null;
+            };
+            const data = { rid: "R9026NoSuchAsk00", asker: game.user.id, desc: "R9026 I climb the fence", name: "R9026", by: "", room: "" };
+            const far = Math.round(serverNow() + 126000 - 500);
+            read.A = [await M.runCallAction("setDifficulty", data, card("R9026CardFar0000", far)), drawn(roots.at(-1))];
+            const near = Math.round(serverNow() + 2500);
+            await M.runCallAction("setDifficulty", data, card("R9026CardNear000", near));
+            const b = roots.at(-1);
+            read.B = [drawn(b)];
+            await wait(3100);
+            read.B.push(drawn(b));
+            await A.askDynamicDifficulty({ description: "R9026 a GM's own", actorName: "R9026", room: null });
+            read.own = drawn(roots.at(-1));
+            read.far = far;
+            read.near = near;
+        } finally {
+            if (own) Object.defineProperty(D, "wait", own); else delete D.wait;
+            for (const root of roots) root.remove();
+        }
+        const left = time => game.i18n.format("DRPG.Bridge.timeLeft", { time });
+        must(read.A?.[1] !== undefined, "the window was not drawn - this would measure nothing");
+        // A text one of `times`, as `true`; any other text as itself.
+        const shown = (el, times) => (el ? [el[0], times.map(left).includes(el[1]) || el[1]] : el);
+        read.A = [read.A[0], shown(read.A[1], ["2:06", "2:05", "2:04"])];
+        read.B = [shown(read.B[0], ["0:03", "0:02", "0:01"]), read.B[1]];
+        equal(stableJson(read), stableJson({
+            A: [null, [read.far, true]], B: [[read.near, true], [read.near, game.i18n.localize("DRPG.Bridge.timeUp")]],
+            own: null, far: read.far, near: read.near
+        }), "{A: [the press's answer, the window's time element [its expires, its text one of 2:06-2:04 left]]; B: card B's element at once [its text one of 0:03-0:01 left] and three seconds later; own: a GM's own window's element}");
+    }],
+    ["R9027 - a Dynamic description no GM answered is offered again: trait-ruling.mjs `keepWords` keeps a player's words per character and definition when the ask ended with no GM's answer, and drops them on an answer; call-gm.mjs `askForRequest` and `promptForRequest` start `textarea[name=\"request\"]` with `value`, once (a window asked again after an empty Send starts empty); action-menus.mjs `traitFieldHtml` with `keep` picks the kept statistic and fills the kept note; action-dynamic.mjs `performDynamic` offers the kept description and statistic and keeps them by its ask's `res.ok`; trait-ruling.mjs `askGms` keeps a statistic's proposal and note the same way, and the Search, Tail and Project windows offer it (2.0 line T2, CALLS-03, 28.11.2026)", async () => {
+        /* F1-calls CALLS-03: an ask that ran out cost the player their words - the next window started empty. Read with no
+           write: the store on ids of this test's own and on a character's, put back; the windows with DialogV2.wait
+           answered here; the roads in the source. Red at 0f9bbe1: nothing kept, no `value`, no `keep`. */
+        const T = await import("./trait-ruling.mjs");
+        const B = await import("./gm-bridge.mjs");
+        const { traitFieldHtml } = await import("./action-menus.mjs");
+        const read = {};
+        const has = typeof T.keepWords === "function" && typeof T.keptWords === "function";
+        read.exported = has;
+        const DYN = { kind: "action", key: "dynamic" }, SEARCH = { kind: "action", key: "search" };
+        const actor = game.actors.find(a => a.type === "character") ?? null;
+        must(actor, "no character to keep words for - this would measure nothing");
+        const traits = ACTIONS.search.traits ?? [];
+        must(traits.length > 1, "Search lists one statistic here - this would measure nothing");
+        if (has) {
+            const X = "R9027Actor000001", Y = "R9027Actor000002";
+            T.keepWords(X, DYN, { text: "R9027 words", proposed: "eye" }, false);
+            T.keepWords(Y, DYN, { text: "R9027 other", proposed: null }, false);
+            read.store = [T.keptWords(X, DYN), T.keptWords(X, SEARCH), T.keptWords(Y, DYN)];
+            T.keepWords(X, DYN, { text: "R9027 answered", proposed: "eye" }, true);
+            T.keepWords(Y, DYN, { text: "", proposed: null, note: "" }, false);
+            read.store.push(T.keptWords(X, DYN), T.keptWords(Y, DYN));
+            T.keepWords(Y, DYN, {}, true);
+            T.keepWords(actor.id, SEARCH, { proposed: traits[1], note: "R9027 how" }, false);
+            const wrap = document.createElement("template");
+            wrap.innerHTML = traitFieldHtml(actor, traits, { propose: true, keep: SEARCH });
+            const plain = document.createElement("template");
+            plain.innerHTML = traitFieldHtml(actor, traits, { propose: true });
+            T.keepWords(actor.id, SEARCH, {}, true);
+            const field = t => [t.content.querySelector("[name=proposed]")?.value ?? null, t.content.querySelector("[name=note]")?.value ?? null];
+            read.field = [field(wrap), field(plain), T.keptWords(actor.id, SEARCH)];
+        }
+        const D = foundry.applications.api.DialogV2;
+        const own = Object.getOwnPropertyDescriptor(D, "wait");
+        const starts = [];
+        let answers = [];
+        try {
+            D.wait = async cfg => {
+                const root = document.createElement("div");
+                if (cfg?.content instanceof HTMLElement) root.append(cfg.content);
+                else root.innerHTML = String(cfg?.content ?? "");
+                const field = root.querySelector("[name=request]");
+                starts.push(field?.value ?? null);
+                const next = answers.shift() ?? { close: true };
+                if (next.close) return null;
+                if (field) field.value = next.text ?? "";
+                const button = (cfg?.buttons ?? []).find(b => b.action === "send");
+                return button?.callback ? button.callback(null, null, { element: root }) : null;
+            };
+            const NH = await import("./notice-history.mjs");
+            await NH.holdNoticeHistory(true);
+            try {
+                answers = [{ text: "R9027 sent" }];
+                read.windows = [await B.askForRequest({ title: "R9027", prompt: "R9027", value: "R9027 kept" })];
+                answers = [{ text: "" }, { close: true }];
+                read.windows.push(await B.askForRequest({ title: "R9027", prompt: "R9027", required: true, value: "R9027 kept" }));
+                answers = [{ close: true }];
+                read.windows.push(await B.promptForRequest({ title: "R9027", prompt: "R9027", value: "R9027 prompted" }));
+                answers = [{ close: true }];
+                read.windows.push(await B.askForRequest({ title: "R9027", prompt: "R9027" }));
+            } finally {
+                await settle(50);
+                for (const c of [...document.querySelectorAll(".drpg-popup")]) c.dispatchEvent(new CustomEvent("drpg-dismiss", { detail: { instant: true } }));
+                NH.holdNoticeHistory(false);
+            }
+        } finally {
+            if (own) Object.defineProperty(D, "wait", own); else delete D.wait;
+        }
+        read.starts = starts;
+        const src = async file => stripComments(await fetch(`/modules/${MODULE_ID}/scripts/${file}`).then(lfText));
+        const dynamic = fnSource(await src("action-dynamic.mjs"), "performDynamic") ?? "";
+        const asks = fnSource(await src("trait-ruling.mjs"), "askGms") ?? "";
+        const offers = async (file, name) => /traitFieldHtml\([^;]*\bkeep:\s*\{\s*kind:/.test(fnSource(await src(file), name) ?? "");
+        read.roads = [
+            /promptForRequest\(\{[^;]*\bvalue:\s*keptWords\(actor\.id, DYNAMIC_WORDS\)\?\.text/.test(dynamic),
+            /traitFieldHtml\(actor, def\.traits, \{[^}]*\bkeep:\s*DYNAMIC_WORDS/.test(dynamic),
+            /requestDynamicDifficulty\(request[^;]*\);\s*keepWords\(actor\.id, DYNAMIC_WORDS, \{ text: description, proposed \}, res\.ok\);/.test(dynamic),
+            /requestTraitRuling\([^;]*\);\s*keepWords\(actor\.id, \{ kind, key \}, \{ proposed, note \}, res\.ok\);/.test(asks),
+            await offers("action-search.mjs", "chooseSearchCategory"), await offers("action-tail.mjs", "performTail"),
+            await offers("action-project.mjs", "proposeProjectTrait")
+        ];
+        equal(stableJson(read), stableJson({
+            exported: true,
+            store: [{ text: "R9027 words", proposed: "eye", note: "" }, null, { text: "R9027 other", proposed: null, note: "" }, null, null],
+            field: [[traits[1], "R9027 how"], [traits[0], ""], null],
+            windows: ["R9027 sent", null, null, null],
+            starts: ["R9027 kept", "R9027 kept", "", "R9027 prompted", ""],
+            roads: [true, true, true, true, true, true, true]
+        }), "{exported; store: [kept, another definition, another character, after an answer, empty words unanswered]; field: [[statistic, note] with keep, without, the store after]; windows: what four windows answered; starts: each window's words at its open; roads: [Dynamic's value, Dynamic's keep, Dynamic keeps by res.ok, askGms keeps by res.ok, Search, Tail, Project offer it]}");
+    }],
+    ["R9028 - a player's waiting card says how long the request stays open and offers Withdraw: popup.mjs `showWaiting` with `expires` draws `[role=timer][data-drpg-expires]` with `DRPG.Bridge.waitLeft`, and with `onWithdraw` a button `DRPG.Bridge.withdraw` that hands it the card's `requestId` - the id the request is sent under; its state line `[data-drpg-ask]` reads `DRPG.Bridge.askRuling` while a GM rules (ask-withdraw.mjs `paintAskState`) and its own words again after; with neither option it is drawn as before; the three roads that wait on a GM - a Call's (calls.mjs), a Dynamic Action's (action-dynamic.mjs `performDynamic`) and a statistic's (trait-ruling.mjs `askGms`) - draw it with their own clock (ask-withdraw.mjs `waitingFor`) and send their request under its id (2.0 line T2, EXP-PL-12, CALLS-09, DAY-07, 28.11.2026)", async () => {
+        /* F1-calls CALLS-09, F1-daily DAY-07, F1-blind-player EXP-PL-12: "Waiting on the GM..." had no time, no state and no
+           way out; the player sat up to 180 s (a Call 300 s). Read with no write: two cards of this test's own, drawn in this
+           page and closed (a waiting card is kept nowhere, `record: false`), the press of Withdraw handed to a recorder, and
+           the roads in the source. A time is read as one of the texts a draw up to two seconds late can show. Red at
+           577c96f: no time, no button, no id. */
+        const P = await import("./popup.mjs");
+        const { serverNow } = await import("./utils.mjs");
+        const W = await import("./ask-withdraw.mjs").catch(() => null);
+        const read = {}, pressed = [], closers = [];
+        const cardOf = words => [...document.querySelectorAll(".drpg-popup")].find(c => c.textContent.includes(words)) ?? null;
+        try {
+            const far = Math.round(serverNow() + 65000 - 300);
+            const close = P.showWaiting("R9028 waiting", "R9028", { expires: far, onWithdraw: id => pressed.push(id) });
+            closers.push(close);
+            const card = cardOf("R9028 waiting");
+            must(card, "the waiting card was not drawn - this would measure nothing");
+            const rid = typeof close?.requestId === "string" && close.requestId ? close.requestId : null;
+            const line = () => card.querySelector("[data-drpg-ask]")?.textContent.trim() ?? null;
+            const timer = card.querySelector("[role=timer][data-drpg-expires]");
+            const button = card.querySelector("button[data-drpg-withdraw]");
+            const left = time => game.i18n.format("DRPG.Bridge.waitLeft", { time });
+            read.drawn = [Boolean(rid), card.querySelector("[data-drpg-ask]")?.dataset.drpgAsk === rid, line(),
+                timer ? [Number(timer.getAttribute("data-drpg-expires")) === far, ["1:05", "1:04", "1:03"].map(left).includes(timer.textContent.trim())] : null,
+                button?.textContent.trim() ?? null];
+            button?.click();
+            await settle(50);
+            read.pressed = pressed.map(id => id === rid && rid !== null);
+            W?.paintAskState?.(rid, "ruling");
+            const ruling = line();
+            W?.paintAskState?.(rid, "waiting");
+            read.state = [ruling, line()];
+            const plain = P.showWaiting("R9028 plain", "R9028");
+            closers.push(plain);
+            const bare = cardOf("R9028 plain");
+            read.plain = bare ? [plain?.requestId ?? null, Boolean(bare.querySelector("[data-drpg-expires]")), Boolean(bare.querySelector("button[data-drpg-withdraw]")),
+                Boolean(bare.querySelector("[data-drpg-ask]"))] : null;
+            const asked = W?.waitingFor?.(4000) ?? null;
+            read.waitingFor = asked ? [Math.abs(asked.expires - (serverNow() + 4000)) < 2000, asked.onWithdraw === W.withdrawAsk] : null;
+        } finally {
+            for (const close of closers) close?.();
+            await settle(50);
+            for (const c of [...document.querySelectorAll(".drpg-popup")]) if (/R9028 (waiting|plain)/.test(c.textContent)) c.dispatchEvent(new CustomEvent("drpg-dismiss", { detail: { instant: true } }));
+        }
+        const src = async file => stripComments(await fetch(`/modules/${MODULE_ID}/scripts/${file}`).then(lfText));
+        const calls = await src("calls.mjs"), dynamic = await src("action-dynamic.mjs"), trait = await src("trait-ruling.mjs"), asks = await src("bridge-asks.mjs");
+        const sends = name => /return ask\(ACTION_\w+, \{[^}]*\}, \{[^}]*\brequestId\b[^}]*\}\);/.test(fnSource(asks, name) ?? "");
+        read.roads = [
+            /showWaiting\([^;]*waitingFor\(TIMING\.hopeCallRulingMs\)\)/.test(fnSource(calls, "showWaitingCard") ?? ""),
+            /requestHopeCallApproval\(ask, undefined, \{ requestId: waiting\.requestId \}\)/.test(fnSource(calls, "spendHopeCall") ?? ""),
+            /showWaiting\([^;]*waitingFor\(TIMING\.rulingMs\)\)/.test(fnSource(dynamic, "performDynamic") ?? ""),
+            /requestDynamicDifficulty\(request, undefined, \{ requestId: waiting\.requestId \}\)/.test(fnSource(dynamic, "performDynamic") ?? ""),
+            /showWaiting\([^;]*waitingFor\(TIMING\.rulingMs\)\)/.test(fnSource(trait, "askGms") ?? ""),
+            /requestTraitRuling\(\{[^;]*\}, \{ requestId: waiting\.requestId \}\)/.test(fnSource(trait, "askGms") ?? ""),
+            sends("requestHopeCallApproval"), sends("requestDynamicDifficulty"), sends("requestTraitRuling")
+        ];
+        equal(stableJson(read), stableJson({
+            drawn: [true, true, "R9028 waiting", [true, true], game.i18n.localize("DRPG.Bridge.withdraw")],
+            pressed: [true],
+            state: [game.i18n.localize("DRPG.Bridge.askRuling"), "R9028 waiting"],
+            plain: [null, false, false, false],
+            waitingFor: [true, true],
+            roads: [true, true, true, true, true, true, true, true, true]
+        }), "{drawn: [an id, the state line carries it, the line's words, the time [its expires, its text one of 1:05-1:03 left], the button's words]; pressed: Withdraw handed the card's id; state: the line while a GM rules and after; plain: a card with neither option [its id, a time, a button, a state line]; waitingFor: [its expires is the clock's from now, its Withdraw is withdrawAsk]; roads: [the Call's card and its ask under its id, the Dynamic's, the statistic's, and each request function sends the id]}");
+    }],
+    ["R9029 - `ask.withdraw` ends only the sender's own ask: its row in bridge-table.mjs asks `knownSender` and then bridge-guards.mjs `guardAskWithdraw`, which covers `rid`, takes `rid` as an id and nothing else, answers none and is quiet; the guard and the run read ask-withdraw.mjs `askToWithdraw(rid, sender.id)`, which finds the ask held on a card under that id for that user - not another user's, not an id nobody asked under, not an Observe's - and the guard refuses a `rid` it does not find with a reason of the closed list; its label `DRPG.Bridge.what.ask.withdraw` is in both languages (2.0 line T2, EXP-PL-12, CALLS-09, DAY-07, 28.11.2026)", async () => {
+        /* The trust model: a packet's `rid` is a claim, and a forged one - another player's ask - must end nothing. Read with
+           no write: the row as declared, `askToWithdraw` over maps of this test's own beside the primary's Observe asks (one
+           entry put in this page's memory and taken out), the guard on an id nobody asked under, and the source. The live
+           road - a card held, a forged withdrawal refused, the asker's own ending the card - is tier 2's E132 EXP-PL-12 and
+           scenario 30's 2.0 line T2 block. Red at 577c96f: no row, no guard, no askToWithdraw. */
+        const G = await import("./bridge-guards.mjs");
+        const B = await import("./gm-bridge.mjs");
+        const C = await import("./call-gm.mjs");
+        const W = await import("./ask-withdraw.mjs").catch(() => null);
+        const me = game.user.id;
+        const read = {};
+        const row = B.BRIDGE_ACTIONS["ask.withdraw"] ?? null;
+        read.row = row ? [row.label, (row.guards ?? []).map(g => (g === G.knownSender ? "knownSender" : g === G.guardAskWithdraw ? "guardAskWithdraw" : "other")),
+            [...(G.guardAskWithdraw?.covers ?? [])], row.sanitize?.fields ?? null, row.answer, Boolean(row.quiet)] : null;
+        const MINE = "R9029Mine0000001", THEIRS = "R9029Theirs00001", OBSERVE = "R9029Observe0001";
+        if (typeof W?.askToWithdraw === "function") {
+            const asks = new Map([[MINE, { userId: me, messageId: null }], [THEIRS, { userId: "R9029Other000001", messageId: null }]]);
+            C.observeAsks.set(OBSERVE, { userId: me, messageId: null });
+            try {
+                const found = (rid, who) => { const f = W.askToWithdraw(rid, who, [asks, C.observeAsks]); return f ? [f.asks === asks, f.held.userId === who] : null; };
+                read.found = [found(MINE, me), found(THEIRS, me), found("R9029NoSuchAsk01", me), found(OBSERVE, me), found(MINE, "R9029Other000001")];
+            } finally {
+                C.observeAsks.delete(OBSERVE);
+            }
+        }
+        if (typeof G.guardAskWithdraw === "function") {
+            const why = await G.guardAskWithdraw(game.user, { rid: "R9029NoSuchAsk01" }, {});
+            read.refused = [typeof why === "string" && why.length > 0, G.REASONS.includes(G.reasonOf(why))];
+        }
+        const src = async file => stripComments(await fetch(`/modules/${MODULE_ID}/scripts/${file}`).then(lfText));
+        const guards = await src("bridge-guards.mjs"), withdraw = await src("ask-withdraw.mjs").catch(() => "");
+        read.reads = [
+            /export const guardAskWithdraw = made\([\s\S]{0,300}?askToWithdraw\(payload\?\.rid, sender\?\.id\)/.test(guards),
+            /function withdrawnOnPrimary\(/.test(withdraw) && /askToWithdraw\(rid, senderId\)/.test(fnSource(withdraw, "withdrawnOnPrimary") ?? "")
+        ];
+        read.label = [];
+        for (const lang of ["en", "pl"]) {
+            const words = await fetch(`/modules/${MODULE_ID}/lang/${lang}.json`).then(r => r.json()).catch(() => null);
+            read.label.push(typeof words?.DRPG?.Bridge?.what?.["ask.withdraw"] === "string" && words.DRPG.Bridge.what["ask.withdraw"].length > 0);
+        }
+        equal(stableJson(read), stableJson({
+            row: ["DRPG.Bridge.what.ask.withdraw", ["knownSender", "guardAskWithdraw"], ["rid"], { rid: "id" }, "none", true],
+            found: [[true, true], null, null, null, null],
+            refused: [true, true],
+            reads: [true, true],
+            label: [true, true]
+        }), "{row: [label, guards, what the guard covers, sanitized fields, answer, quiet]; found: askToWithdraw [the sender's own, another user's, an id nobody asked under, an Observe's, the sender's own asked by another]; refused: the guard on an id nobody asked under [a reason, of the closed list]; reads: [the guard reads askToWithdraw on the packet's rid and the sender, the run's withdrawnOnPrimary too]; label}");
+    }],
+    ["R9030 - an ask's state is taken only from the primary GM, by Foundry's sender, for this browser's own waiting request, and Withdraw ends the wait with nothing said: bridge-guards.mjs `createWaiter` hands `onState` an `ask.state` packet's `rid` and `state` only when `fromPrimary(senderId)` - the module's waiter compares the sender with utils.mjs `primaryGmId()` - when it is addressed to this user, its `rid` is a request still waiting and its state `ruling` or `waiting`; a request is sent under the `requestId` its caller gives; `cancel(requestId)` settles that request `{ ok: false, withdrawn: true }` with no message and no report to the GMs, answers false for one not waiting, and a late answer or refusal after it is said nowhere (2.0 line T2, EXP-PL-12, 28.11.2026)", async () => {
+        /* The waiter is built as R570 builds it, with fakes for the socket and the message and the clock of this browser: a
+           primary, another GM and this player. Red at 577c96f: no state was handed on and there was no cancel. */
+        const { createWaiter } = await import("./bridge-guards.mjs");
+        const PRIMARY = "R9030Primary0000", OTHER = "R9030OtherGm0000", ME = "R9030Me000000000", RID = "R9030Ask00000001";
+        const sent = [], said = [], states = [], reported = [];
+        const waiter = createWaiter({
+            emit: (packet, to) => sent.push({ packet, to }),
+            gmIds: () => [PRIMARY, OTHER],
+            me: () => ({ id: ME, isGM: false, isPrimary: false }),
+            notify: (action, reason) => said.push(`${action} ${reason}`),
+            fromGm: id => id === PRIMARY || id === OTHER,
+            fromPrimary: id => id === PRIMARY,
+            onState: (rid, state) => states.push([rid, state]),
+            report: (text, err) => reported.push(`${text}: ${err?.message ?? err}`)
+        });
+        const read = {};
+        const asked = waiter.request("r9030.ask", {}, { settle: "reply", patient: true, timeoutMs: 3000, requestId: RID, expired: "r9030.expired" });
+        read.sentUnder = sent.at(-1)?.packet.requestId === RID;
+        const st = (extra, from) => waiter.onReply({ action: "ask.state", userId: ME, rid: RID, state: "ruling", ...extra }, from);
+        st({}, OTHER);
+        st({ userId: "R9030Someone0000" }, PRIMARY);
+        st({ rid: "R9030NoSuchAsk00" }, PRIMARY);
+        st({ state: "R9030 bogus" }, PRIMARY);
+        st({}, PRIMARY);
+        st({ state: "waiting" }, PRIMARY);
+        read.states = states.map(([rid, state]) => [rid === RID, state]);
+        read.cancel = [typeof waiter.cancel === "function" ? waiter.cancel("R9030NoSuchAsk00") : null, waiter.cancel?.(RID) ?? null, waiter.cancel?.(RID) ?? null];
+        read.answer = typeof waiter.cancel === "function" ? await asked : null;
+        st({}, PRIMARY);
+        waiter.onReply({ action: "bridge.done", userId: ME, requestId: RID, value: "R9030 late" }, PRIMARY);
+        waiter.onReply({ action: "bridge.refused", userId: ME, requestId: RID, reason: "refused", what: "r9030.ask" }, PRIMARY);
+        read.after = { states: states.length, said, sent: sent.map(s => s.packet.action), waiting: waiter.waiting(), reported };
+        const guards = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/bridge-guards.mjs`).then(lfText));
+        read.module = /fromPrimary: senderId => Boolean\(senderId\) && senderId === primaryGmId\(\)/.test(guards);
+        equal(stableJson(read), stableJson({
+            sentUnder: true,
+            states: [[true, "ruling"], [true, "waiting"]],
+            cancel: [false, true, false],
+            answer: { ok: false, withdrawn: true },
+            after: { states: 2, said: [], sent: ["r9030.ask"], waiting: 0, reported: [] },
+            module: true
+        }), "{sentUnder: the request went under its caller's id; states: what onState was handed of six packets [another GM's, another user's, an id not waiting, a state not known, the primary's ruling, its waiting]; cancel: [an id not waiting, the request, again]; answer: what the request settled; after: [states handed after the cancel, messages said, packets sent, requests waiting, throws]; module: the module's waiter reads the primary by primaryGmId}");
+    }],
+    ["R9031 - a player who leaves with asks held is signed on their cards for the GMs alone: on `userConnected(user, false)` of a player the primary hands every ask it holds for that user on a card (call-gm.mjs `heldAskMaps`) to ask-withdraw.mjs `askerLeftOnPrimary`, which marks each card once and drops nothing - not another user's ask, not one with no card yet, nothing for a GM who leaves or on a browser that is not the primary; the sign `withAskerLeft` writes is one `.drpg-gm-only[data-drpg-asker-left]` before the card's answers, `DRPG.Bridge.askerLeft` with the asker's name and the time, written again in place, and a player's copy of the words (secret.mjs `wordsFor`) holds none of it; registerGmBridge's hook calls it for a player's leave before any return (2.0 line T2, CALLS-04, 28.11.2026)", async () => {
+        /* F1-calls CALLS-04 and F3 S3 B: a player who reloaded while waiting left the GMs' card standing with live buttons to its
+           time, and the primary did nothing at a player's leave (registerGmBridge's `userConnected` handled GMs alone). Read
+           with no write: `askerLeftOnPrimary` over maps of this test's own with a recorder for the mark, `withAskerLeft` on a
+           card's words, and the hook's source. The live road - a real card signed, the player's copy without it - is tier 2's
+           E132 CALLS-04. Red at 0d3d4f2: no askerLeftOnPrimary, no withAskerLeft, no call in the hook. */
+        const W = await import("./ask-withdraw.mjs");
+        const { wordsFor } = await import("./secret.mjs");
+        const { localeFormat } = await import("./utils.mjs");
+        const P = "R9031Player00001", Q = "R9031Other000001", AT = Date.UTC(2026, 10, 28, 20, 15);
+        const read = {};
+        if (typeof W.askerLeftOnPrimary === "function") {
+            const one = new Map([["R9031Ask0000001", { userId: P, messageId: "R9031Card0000001" }], ["R9031Ask0000002", { userId: P, messageId: null }],
+                ["R9031Ask0000003", { userId: Q, messageId: "R9031Card0000003" }]]);
+            const two = new Map([["R9031Ask0000004", { userId: P, messageId: "R9031Card0000004" }], ["R9031Ask0000005", { userId: P, messageId: "R9031Card0000001" }]]);
+            const marks = [];
+            const run = (user, primary) => W.askerLeftOnPrimary(user, { maps: [one, two], primary, at: AT, mark: (id, name, at) => { marks.push([id, name, at === AT]); return true; } });
+            read.left = [run({ id: P, isGM: false, name: "R9031 Player" }, true), run({ id: P, isGM: true, name: "R9031 GM" }, true),
+                run({ id: P, isGM: false, name: "R9031 Player" }, false), run(null, true)];
+            read.marks = marks;
+            read.kept = [one.size, two.size];
+        }
+        if (typeof W.withAskerLeft === "function") {
+            const CARD = '<h3>R9031</h3><p class="drpg-call-awaiting"><em>Awaiting</em></p><div class="drpg-call-actions"><button type="button" data-drpg-call="approveCall">Yes</button></div>';
+            const once = W.withAskerLeft(CARD, "R9031 Player", AT), twice = W.withAskerLeft(once, "R9031 Player", AT + 60000);
+            const shape = html => {
+                const wrap = document.createElement("template");
+                wrap.innerHTML = html;
+                const signs = [...wrap.content.querySelectorAll("[data-drpg-asker-left]")];
+                return { signs: signs.length, gmOnly: signs.every(el => el.classList.contains("drpg-gm-only")),
+                    before: signs[0]?.nextElementSibling?.classList.contains("drpg-call-actions") ?? false, text: signs[0]?.textContent ?? null,
+                    buttons: wrap.content.querySelectorAll("[data-drpg-call]").length };
+            };
+            const timeOf = at => localeFormat("time", at, { hour: "2-digit", minute: "2-digit" });
+            read.sign = [shape(once), shape(twice), shape(wordsFor(P, twice)).signs];
+            read.words = [game.i18n.format("DRPG.Bridge.askerLeft", { name: "R9031 Player", time: timeOf(AT) }),
+                game.i18n.format("DRPG.Bridge.askerLeft", { name: "R9031 Player", time: timeOf(AT + 60000) })];
+        }
+        const bridge = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/gm-bridge.mjs`).then(lfText));
+        const hook = bodyOf(fnSource(bridge, "registerGmBridge"), 'Hooks.on("userConnected"', { until: "\n        });" });
+        const call = hook.search(/askerLeftOnPrimary\(user\)/), firstReturn = hook.search(/\breturn\b/);
+        read.hook = [call > 0, call < firstReturn, /!connected && user && !user\.isGM/.test(hook)];
+        read.label = [];
+        for (const lang of ["en", "pl"]) {
+            const words = await fetch(`/modules/${MODULE_ID}/lang/${lang}.json`).then(r => r.json()).catch(() => null);
+            const text = words?.DRPG?.Bridge?.askerLeft;
+            read.label.push(typeof text === "string" && text.includes("{name}") && text.includes("{time}"));
+        }
+        const want = read.words ?? [null, null];
+        equal(stableJson(read), stableJson({
+            left: [["R9031Card0000001", "R9031Card0000004"], [], [], []],
+            marks: [["R9031Card0000001", "R9031 Player", true], ["R9031Card0000004", "R9031 Player", true]],
+            kept: [3, 2],
+            sign: [{ signs: 1, gmOnly: true, before: true, text: want[0], buttons: 1 }, { signs: 1, gmOnly: true, before: true, text: want[1], buttons: 1 }, 0],
+            words: want,
+            hook: [true, true, true],
+            label: [true, true]
+        }), "{left: the cards askerLeftOnPrimary marked [a player who left, a GM, off the primary, nobody]; marks: [card, name, the time] handed to the mark; kept: the maps' sizes after; sign: withAskerLeft [once, written again, signs in a player's copy]; hook: [the hook calls it, before its first return, for a player's leave]; label: askerLeft with {name} and {time} in en and pl}");
+    }],
+    ["R9032 - a player's browser that has loaded tells the GMs, and the primary ends only that sender's asks held from before: gm-bridge.mjs `tellGmsPlayerReady` sends `bridge.playerReady` with no field but its name to the GMs who are connected, and nothing with none; registerGmBridge sends it on a player's browser and listens for it on a GM's (`onPlayerReady`, which takes no other packet); ask-withdraw.mjs `askerReloadedOnPrimary` takes the sender from Foundry's `senderId` - a GM, a user nobody knows or a browser that is not the primary ends nothing - drops every ask held for that sender, a card's or not, and ends each of their cards once, never another player's; the asks held after it stay; the card's line `DRPG.Bridge.settledReloaded` and the packet's label are in both languages (2.0 line T2, CALLS-04, 28.11.2026)", async () => {
+        /* The trust model: the packet carries nothing, so whose asks end is Foundry's sender and nothing else - another
+           player's console sending it ends only that player's own. Read with no write: `askerReloadedOnPrimary` over maps of
+           this test's own with a recorder for the card's end and fake users, `tellGmsPlayerReady` with a recorder for the
+           socket, `onPlayerReady` on a packet of another name and on one from a user nobody knows (the primary's real maps,
+           which hold no ask of that id), and the source. The cards ended for real are tier 2's E132 CALLS-04 and scenario 30's
+           2.0 line T2 block. Red at 0d3d4f2: none of the three. */
+        const W = await import("./ask-withdraw.mjs");
+        const B = await import("./gm-bridge.mjs");
+        const { SOCKET_EVENT } = await import("./bridge-wire.mjs");
+        const P = "R9032Player00001", Q = "R9032Other000001", GM = "R9032Gm000000001";
+        const users = new Map([[P, { id: P, isGM: false }], [Q, { id: Q, isGM: false }], [GM, { id: GM, isGM: true }]]);
+        const read = {};
+        if (typeof W.askerReloadedOnPrimary === "function") {
+            const one = new Map([["R9032Ask0000001", { userId: P, messageId: "R9032Card0000001" }], ["R9032Ask0000002", { userId: P, messageId: null }],
+                ["R9032Ask0000003", { userId: Q, messageId: "R9032Card0000003" }], ["R9032Ask0000007", { userId: GM, messageId: "R9032Card0000007" }]]);
+            const two = new Map([["R9032Ask0000004", { userId: P, messageId: "R9032Card0000004" }], ["R9032Ask0000005", { userId: P, messageId: "R9032Card0000001" }]]);
+            const ended = [];
+            const run = (id, primary = true) => W.askerReloadedOnPrimary(id, { maps: [one, two], users, primary, end: messageId => { ended.push(messageId); return true; } });
+            read.runs = [await run(GM), await run("R9032Nobody00001"), await run(P, false), await run(null)];
+            read.untouched = [one.size, two.size, ended.length];
+            read.other = await run(Q);
+            read.afterOther = [[...one.keys()], [...two.keys()]];
+            two.set("R9032Ask0000006", { userId: Q, messageId: "R9032Card0000006" });
+            read.own = await run(P);
+            read.afterOwn = [[...one.keys()], [...two.keys()]];
+            read.ended = ended;
+        }
+        if (typeof B.tellGmsPlayerReady === "function") {
+            const sent = [];
+            const emit = (...args) => sent.push(args);
+            const list = rows => ({ filter: fn => rows.filter(fn) });
+            read.tell = [B.tellGmsPlayerReady({ socket: { emit }, users: list([{ id: GM, isGM: true, active: true }, { id: "R9032Gm000000002", isGM: true, active: false }, { id: P, isGM: false, active: true }]) }),
+                B.tellGmsPlayerReady({ socket: { emit }, users: list([{ id: GM, isGM: true, active: false }, { id: P, isGM: false, active: true }]) })];
+            read.sent = sent.map(([event, packet, options]) => [event === SOCKET_EVENT, Object.keys(packet).join(), packet.action, options?.recipients ?? null]);
+        }
+        if (typeof B.onPlayerReady === "function") {
+            read.listener = [B.onPlayerReady({ action: "bridge.gmReady" }, P), await B.onPlayerReady({ action: "bridge.playerReady" }, "R9032Nobody00001")];
+        }
+        const bridge = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/gm-bridge.mjs`).then(lfText));
+        const wire = fnSource(bridge, "registerGmBridge");
+        const gmBranch = bodyOf(wire, "if (game.user.isGM) {", { until: "\n    }\n" });
+        read.wired = [/if \(game\.user\.isGM\) game\.socket\.emit\(SOCKET_EVENT, \{ action: ACTION_GM_READY \}\);\s*else tellGmsPlayerReady\(\);/.test(wire),
+            /game\.socket\.on\(SOCKET_EVENT, onPlayerReady\);/.test(gmBranch)];
+        read.label = [];
+        for (const lang of ["en", "pl"]) {
+            const words = await fetch(`/modules/${MODULE_ID}/lang/${lang}.json`).then(r => r.json()).catch(() => null);
+            read.label.push([typeof words?.DRPG?.Bridge?.settledReloaded === "string" && words.DRPG.Bridge.settledReloaded.length > 0,
+                typeof words?.DRPG?.Bridge?.what?.["bridge.playerReady"] === "string" && words.DRPG.Bridge.what["bridge.playerReady"].length > 0]);
+        }
+        equal(stableJson(read), stableJson({
+            runs: [[], [], [], []],
+            untouched: [4, 2, 0],
+            other: ["R9032Card0000003"],
+            afterOther: [["R9032Ask0000001", "R9032Ask0000002", "R9032Ask0000007"], ["R9032Ask0000004", "R9032Ask0000005"]],
+            own: ["R9032Card0000001", "R9032Card0000004"],
+            afterOwn: [["R9032Ask0000007"], ["R9032Ask0000006"]],
+            ended: ["R9032Card0000003", "R9032Card0000001", "R9032Card0000004"],
+            tell: [true, false],
+            sent: [[true, "action", "bridge.playerReady", [GM]]],
+            listener: [false, []],
+            wired: [true, true],
+            label: [[true, true], [true, true]]
+        }), "{runs: askerReloadedOnPrimary from [a GM - one entry held under its id -, a user nobody knows, off the primary, nobody]; untouched: the maps' sizes and the ends after them; other: the cards ended from another player; afterOther: the asks left; own: the cards ended from the player; afterOwn: the asks left, one held after kept; ended: every card handed to the end; tell: tellGmsPlayerReady [with a GM connected, with none]; sent: [the module's socket, the packet's fields, its name, to whom]; listener: onPlayerReady [another packet, a user nobody knows]; wired: [a player's browser sends it after the GM's ready line, a GM's listens]; label: [settledReloaded, the packet's label] in en and pl}");
+    }],
+    ["R9056 - on a GM who is not the primary the case's health check runs quietly: gm-stores.mjs `runHealthCheck` hands such a GM to `quietHealthCheck`, which keeps the report for the GM panel's red line (`caseWarning`, told by `drpgCaseHealthChanged`) and opens no window, raises no notice and decides nothing of the Mastermind; the quiet recheck that takes the line down once the rows arrive by merge runs on any GM, and the Mastermind's decision stays the primary's (2.0 line T2, PRIM-04, 28.11.2026)", async () => {
+        /* F1-infra PRIM-04 (TRIAGE-3: fix): the check ran on the primary alone, at its load and after a restore, so a
+           second GM - and one who took the table over mid-session with an incomplete copy, whose copy decides from then on -
+           never saw the red line handbook 3 promises "while a check has found the case incomplete on this browser". Driven
+           with a report of this test's own (a missing row and the Mastermind's open decision, which on the primary would
+           open the window), then put back with this browser's real one; the notices and the hook are recorded while it
+           runs, the windows counted in the page. The road a GM who is not the primary takes is read in the source: tier 1
+           runs on the primary. Red before PRIM-04: there is no `quietHealthCheck`, and `runHealthCheck` returns null. */
+        const S = await import("./gm-stores.mjs");
+        const read = { quiet: null };
+        const wasShowing = Boolean(S.caseWarning());
+        if (typeof S.quietHealthCheck === "function") {
+            const fake = { missing: 1, counts: {}, rows: [
+                { id: "bullets", level: "missing", key: "DRPG.Case.row.bullets", data: { n: 1, of: 1 } },
+                { id: "mastermindCleared", level: "conflict", key: "DRPG.Case.row.mastermindCleared", data: {} }] };
+            const windows = () => document.querySelectorAll(".drpg-window-case-health").length;
+            const notices = [];
+            const real = {};
+            for (const kind of ["info", "warn", "error"]) {
+                real[kind] = ui.notifications[kind];
+                ui.notifications[kind] = (...args) => { notices.push([kind, String(args[0] ?? "")]); return null; };
+            }
+            const told = [];
+            const hook = Hooks.on("drpgCaseHealthChanged", report => told.push(report === fake));
+            const windowsBefore = windows();
+            let kept, returned;
+            try {
+                returned = await S.quietHealthCheck({ health: async () => fake });
+                kept = S.caseWarning() === fake;
+                await new Promise(resolve => setTimeout(resolve, 50));
+            } finally {
+                for (const kind of Object.keys(real)) ui.notifications[kind] = real[kind];
+                Hooks.off("drpgCaseHealthChanged", hook);
+                // This browser's own report back: the line as the case stands here.
+                await S.quietHealthCheck();
+            }
+            read.quiet = { returned: returned === fake, kept, windows: windows() - windowsBefore, notices, told: told.slice(0, 1),
+                back: Boolean(S.caseWarning()) === wasShowing };
+        }
+        const source = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/gm-stores.mjs`).then(lfText));
+        const check = /export async function runHealthCheck\(/.test(source) ? fnSource(source, "runHealthCheck") : "";
+        const register = /export function registerCaseHealth\(/.test(source) ? fnSource(source, "registerCaseHealth") : "";
+        read.wired = [
+            /^export async function runHealthCheck\(\) \{\s*if \(!isPrimaryGm\(\)\) return quietHealthCheck\(\);/.test(check),
+            /if \(!lastHealth\?\.missing \|\| healthOpen\) return;/.test(register),
+            /SETTINGS\.mastermind\}`[^\n]*!isPrimaryGm\(\)\) return;/.test(register)
+        ];
+        equal(stableJson(read), stableJson({
+            // Told only when the line moves: a browser whose own case is incomplete already shows it.
+            quiet: { returned: true, kept: true, windows: 0, notices: [], told: wasShowing ? [] : [true], back: true },
+            wired: [true, true, true]
+        }), "quiet: quietHealthCheck with a missing row and the Mastermind's open decision {returned: the report; kept: caseWarning reads it; windows: health windows opened; notices: raised meanwhile; told: drpgCaseHealthChanged with it; back: the line as before once this browser's report is kept again}; wired: [runHealthCheck sends a GM who is not the primary to quietHealthCheck first, the quiet recheck asks no role, the Mastermind's decision stays the primary's]");
+    }],
+    ["R9057 - a GM who becomes the primary runs the primary's whole check: gm-stores.mjs `healthOnPrimaryChange` runs `runHealthCheck` when `drpgPrimaryChanged` names this GM the new primary once this browser's check at load has run, and nothing at the first reading (`from` null), when the role goes to or stays with another GM, or before the check at load (which reads the role itself); `registerCaseHealth` hangs it on `drpgPrimaryChanged` (gm-bridge.mjs `notePrimary`) (2.0 line T2, PRIM-04, 28.11.2026)", async () => {
+        /* F1-infra PRIM-04 and C11: a second GM who becomes the primary by a take-over (the primary left or reloads) kept the
+           check it ran - none - and from then on its copy decides (the Key Remnant fee, the incident's cast). Driven with a
+           recorder for the check, so no window opens here; the window on a real take-over is the primary's road, which
+           R174 and scenario 61 read. Red before PRIM-04: there is no `healthOnPrimaryChange`, and nothing listens. */
+        const S = await import("./gm-stores.mjs");
+        const ME = "R9057MeMeMeMeMeM", OTHER = "R9057OtherOtherO", THIRD = "R9057ThirdThirdT";
+        const read = { runs: null };
+        if (typeof S.healthOnPrimaryChange === "function") {
+            const run = (change, loaded) => {
+                let ran = 0;
+                const answer = S.healthOnPrimaryChange(change, { me: ME, loaded, run: () => { ran++; return "checked"; } });
+                return [ran, answer ?? null];
+            };
+            read.runs = [run({ from: OTHER, to: ME }, true), run({ from: null, to: ME }, true), run({ from: ME, to: OTHER }, true),
+                run({ from: OTHER, to: THIRD }, true), run({ from: OTHER, to: ME }, false), run(null, true), run({ from: OTHER, to: null }, true)];
+        }
+        const source = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/gm-stores.mjs`).then(lfText));
+        const register = /export function registerCaseHealth\(/.test(source) ? fnSource(source, "registerCaseHealth") : "";
+        read.wired = [/Hooks\.on\("drpgPrimaryChanged", change =>[^\n]*healthOnPrimaryChange\(change\)/.test(register),
+            /checkedAtLoad = true;[\s\S]*return runHealthCheck\(\);/.test(register)];
+        equal(stableJson(read), stableJson({
+            runs: [[1, "checked"], [0, null], [0, null], [0, null], [0, null], [0, null], [0, null]],
+            wired: [true, true]
+        }), "runs: healthOnPrimaryChange [the role came to this GM, the first reading named this GM, the role left this GM, it moved between two others, it came to this GM before the check at load, no change, to nobody] x [checks run, its answer]; wired: [registerCaseHealth hangs it on drpgPrimaryChanged, the check at load marks that it ran before it runs]");
+    }],
+    ["R9058 - the Debug log of a GM who is not the primary says above its rows where the rest is: gm-panel.mjs `failureLogElsewhereHtml` draws `DRPG.Failures.elsewhere` naming the primary GM when another GM is the primary, and nothing on the primary's own log or with no primary; `openFailureLog` puts it first in the log's live region, at the open and at each redraw, and redraws when the primary moves (2.0 line T2, PRIM-08, 28.11.2026)", async () => {
+        /* F1-infra PRIM-08 (TRIAGE-3: a hint): the log is this browser's alone, and the table's automation (the voice, the
+           players' rolls, the sheet audit) and the refusals of requests handed to the primary land in the primary's log,
+           so a second GM who opened its own found nothing and was not told where to look; handbook 20.7 sent it to "the
+           Debug log on that GM's browser". Driven on stand-in users (another GM the primary, this GM, nobody), then the
+           defaults on this browser, whose answer follows its own role; the window's two drawing places are read in the
+           source (`openFailureLog` is not exported), and scenario 97's FLOG opens the real window on a second GM. Red
+           before PRIM-08: there is no `failureLogElsewhereHtml`, no key, and the window draws nothing of it. */
+        const P = await import("./gm-panel.mjs");
+        const U = await import("./utils.mjs");
+        const draw = typeof P.failureLogElsewhereHtml === "function" ? P.failureLogElsewhereHtml : () => "missing";
+        const ME = { id: "R9058MeMeMeMeMeM", name: "R9058 Me" }, OTHER = { id: "R9058OtherOtherO", name: "R9058 Primary" };
+        const users = { get: id => [ME, OTHER].find(u => u.id === id) };
+        const read = html => {
+            if (typeof html !== "string") return "not text";
+            if (html === "" || html === "missing") return html;
+            const root = document.createElement("div");
+            root.innerHTML = html;
+            const p = root.querySelector("p.drpg-failure-elsewhere");
+            return p && root.children.length === 1 ? { id: p.dataset.drpgPrimary ?? null, text: p.textContent.trim() } : "other markup";
+        };
+        const cases = [draw({ id: OTHER.id, me: ME.id, users }), draw({ id: ME.id, me: ME.id, users }), draw({ id: null, me: ME.id, users })].map(read);
+        const primary = U.primaryGmId();
+        const here = read(draw());
+        const src = await fetch(`/modules/${MODULE_ID}/scripts/gm-panel.mjs`).then(lfText).then(stripComments);
+        const log = /async function openFailureLog\(/.test(src) ? fnSource(src, "openFailureLog") : "";
+        const words = game.i18n.format("DRPG.Failures.elsewhere", { name: OTHER.name });
+        equal(stableJson({ cases, here, wired: [
+            /<div class="drpg-failure-live">\$\{failureLogElsewhereHtml\(\)\}\$\{head\(/.test(log),
+            /region\.innerHTML = `\$\{failureLogElsewhereHtml\(\)\}\$\{head\(/.test(log),
+            /const signature = \(\) => JSON\.stringify\(\[primaryGmId\(\), /.test(log)
+        ] }), stableJson({
+            cases: [{ id: OTHER.id, text: words }, "", ""],
+            here: primary && primary !== game.user.id ? { id: primary, text: game.i18n.format("DRPG.Failures.elsewhere", { name: game.users.get(primary)?.name ?? "?" }) } : "",
+            wired: [true, true, true]
+        }), "cases: failureLogElsewhereHtml [another GM the primary, this GM the primary, no primary] as {the primary's id, the words}; here: the defaults on this browser; wired: [the open draws it first in the live region, the redraw too, the redraw's signature reads the primary]");
+        ok(!words.startsWith("DRPG.") && words.includes(OTHER.name), "the hint's key has words and names the primary");
     }],
 ];
 

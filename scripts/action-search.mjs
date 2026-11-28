@@ -680,7 +680,7 @@ async function chooseSearchCategory(actor, def = ACTIONS.search) {
                 <span>${game.i18n.localize("DRPG.Action.goalSpecificPrompt")}</span>
                 <textarea name="request" rows="2"${tipAttr("DRPG.Tips.Sweep.Actions.searchSpecificTooltip")}
                     placeholder="${game.i18n.localize("DRPG.Action.goalSpecificPlaceholder")}"></textarea>
-            </label>${traitFieldHtml(actor, def.traits, { propose: true, howLabel: "DRPG.TraitRuling.howSearch" })}`
+            </label>${traitFieldHtml(actor, def.traits, { propose: true, howLabel: "DRPG.TraitRuling.howSearch", keep: { kind: "action", key: "search" } })}`
     });
 
     if (!picked) return null;

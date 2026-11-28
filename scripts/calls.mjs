@@ -14,7 +14,7 @@
  * public: when Monokuma acts, the room should know.
  */
 
-import { MODULE_ID, HOPE_CALLS, DESPAIR_CALLS, STARTING } from "./config.mjs";
+import { MODULE_ID, HOPE_CALLS, DESPAIR_CALLS, STARTING, TIMING } from "./config.mjs";
 import { resourceValue, resourceMax } from "./character.mjs";
 import { trustedWrite } from "./resource-guard.mjs";
 import { announce, whisperToOwner, log, error, esc, proseOf, gmIds } from "./utils.mjs";
@@ -231,7 +231,7 @@ export async function spendHopeCall(actor, key, { note = "", choice = {} } = {})
                     approved = await askHopeCallApproval(ask);
                 } else {
                     const { requestHopeCallApproval } = await import("./gm-bridge.mjs");
-                    const res = await requestHopeCallApproval(ask);
+                    const res = await requestHopeCallApproval(ask, undefined, { requestId: waiting.requestId });
                     // Not asked, not answered, refused by the GM's client: said once
                     // already, with "Nothing was spent." (E31). Only a GM's no is left
                     // for this card to say.
@@ -830,12 +830,14 @@ export async function confirmCall(call, { kind = "hope", held = 0, choice = {}, 
 /**
  * A sticky notice while the GM decides (COMM-04). The player used to see
  * nothing at all between pressing the tile and the answer, and could not tell
- * a GM reading the question from a socket that had dropped it.
+ * a GM reading the question from a socket that had dropped it. With the Call's clock and Withdraw since 2.0, its id the
+ * ask's (line T2, EXP-PL-12; ask-withdraw.mjs): nothing is paid before the yes, so a withdrawal gives nothing back.
  */
 async function showWaitingCard(call) {
     try {
         const { showWaiting } = await import("./popup.mjs");
-        return showWaiting(game.i18n.format("DRPG.Calls.waitingGm", { call: call.label }), call.label);
+        const { waitingFor } = await import("./ask-withdraw.mjs");
+        return showWaiting(game.i18n.format("DRPG.Calls.waitingGm", { call: call.label }), call.label, waitingFor(TIMING.hopeCallRulingMs));
     } catch {
         return () => {};
     }

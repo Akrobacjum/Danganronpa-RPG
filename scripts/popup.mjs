@@ -43,13 +43,13 @@
 
 import { MODULE_ID } from "./config.mjs";
 import { MESSENGER_FLAGS } from "./messenger.mjs";
-import { MESSAGE_FLAG, plural, debug, markLanguage } from "./utils.mjs";
+import { MESSAGE_FLAG, plural, debug, markLanguage, serverNow, esc } from "./utils.mjs";
 import { play, BEAT, ARRIVE, SNAP, reducedMotion } from "./motion.mjs";
 import { recordNotice, updateNotice, noticeUnread, onNoticeHistoryChange } from "./notice-history.mjs";
 
 import { wordsOf, secretHtml, isVeiled, cardFlag, cardWriter, SECRET_FLAG } from "./secret.mjs";
 
-import { setTip } from "./ui-kit.mjs";
+import { setTip, tipAttr } from "./ui-kit.mjs";
 import { centredNotice } from "./notice-centre.mjs";
 
 const CONTAINER_ID = "drpg-popups";
@@ -1208,17 +1208,59 @@ export function showPopup(bodyHtml, {
  * five seconds or nothing at all, and then sat for minutes unable to tell a
  * GM reading the question from a socket that had dropped it. Sticky, so it
  * stays until the answer comes; closable, so it never traps anybody.
+ *
+ * AND HOW LONG, WHO HAS IT, AND A WAY OUT (2.0 line T2, EXP-PL-12, CALLS-09, DAY-07, 28.11.2026; ask-withdraw.mjs's note).
+ * `expires` (the server's milliseconds) draws the time the ask stays open, `DRPG.Bridge.waitLeft`, written again each
+ * second; `onWithdraw` draws Withdraw, which hands it the card's `requestId` - the caller's, or one made here - and the
+ * function this returns carries that id as `requestId`, for the request to be sent under. With either, the words are
+ * the state line `[data-drpg-ask]` that ask-withdraw.mjs `paintAskState` writes "A GM is reading your request." on.
+ * With neither the card is as it was. No class on what it adds: R294 reads the classes of the files that build cards.
  */
-export function showWaiting(text, title = null) {
+export function showWaiting(text, title = null, { expires = null, onWithdraw = null, requestId = null } = {}) {
+    const timed = Number.isFinite(expires) && expires > 0;
+    const withdraw = typeof onWithdraw === "function";
+    const rid = typeof requestId === "string" && requestId ? requestId : timed || withdraw ? foundry.utils.randomID(16) : null;
+    const parts = [rid ? `<p data-drpg-ask="${esc(rid)}">${text}</p>` : `<p>${text}</p>`];
+    if (timed) parts.push(`<p role="timer" data-drpg-expires="${Math.round(expires)}">${esc(waitLeftText(expires))}</p>`);
+    if (withdraw) {
+        parts.push(`<p><button type="button" data-drpg-withdraw="${esc(rid)}"${tipAttr("DRPG.Bridge.withdrawTooltip")}>${
+            esc(game.i18n.localize("DRPG.Bridge.withdraw"))}</button></p>`);
+    }
     // Kept nowhere (E81 C3): it says only that an answer is coming, and the answer is its own card.
-    const dismiss = showPopup(`<p>${text}</p>`, { sticky: true, title, kind: "info", record: false });
-    return () => {
+    const dismiss = showPopup(parts.join(""), { sticky: true, title, kind: "info", record: false });
+    const card = rid ? [...document.querySelectorAll("[data-drpg-ask]")].find(el => el.dataset.drpgAsk === rid)?.closest(".drpg-popup") ?? null : null;
+    const button = card?.querySelector("button[data-drpg-withdraw]") ?? null;
+    button?.addEventListener("click", event => {
+        event.preventDefault();
+        event.stopPropagation();
+        button.disabled = true;
+        Promise.resolve().then(() => onWithdraw(rid)).catch(err => debug("A request could not be withdrawn", err));
+    });
+    const line = timed ? card?.querySelector("[data-drpg-expires]") ?? null : null;
+    const timer = line ? setInterval(() => {
+        if (!line.isConnected) return clearInterval(timer);
+        line.textContent = waitLeftText(expires);
+        if (serverNow() >= expires) clearInterval(timer);
+        return undefined;
+    }, 1000) : null;
+    const close = () => {
+        if (timer !== null) clearInterval(timer);
         try {
             dismiss?.();
         } catch {
             // Already gone.
         }
     };
+    close.requestId = rid;
+    return close;
+}
+
+/** "The request stays open for 2:06." until `expires` (the server's milliseconds), the seconds rounded up and never below
+    0:00 - the card goes with the wait's own end (2.0 line T2, EXP-PL-12). Minutes and seconds the module writes itself, as
+    action-dynamic.mjs `timeLeftText` does: no time of day for `localeFormat` to write. */
+function waitLeftText(expires, now = serverNow()) {
+    const left = Math.max(0, Math.ceil((Number(expires) - now) / 1000));
+    return game.i18n.format("DRPG.Bridge.waitLeft", { time: `${Math.floor(left / 60)}:${String(left % 60).padStart(2, "0")}` });
 }
 
 /* ==========================================================================

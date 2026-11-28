@@ -23,7 +23,7 @@ import { SETTINGS } from "./settings.mjs";
 import { esc } from "./utils.mjs";
 import { drpgWindow, tipAttr, tipText } from "./ui-kit.mjs";
 import { WIDE, choiceRowHtml, wideWindow } from "./ui-columns.mjs";
-import { PROPOSAL_NOTE_MAX } from "./trait-ruling.mjs";
+import { PROPOSAL_NOTE_MAX, keptWords } from "./trait-ruling.mjs";
 import { holdRowLines } from "./ui-hold.mjs";
 import { keepLive } from "./live.mjs";
 
@@ -48,18 +48,21 @@ import { keepLive } from "./live.mjs";
  * A proposal is one container, `drpg-trait-proposal` (E68 C7, 10.11.2026): the select and the words together, so a
  * layout can place the field as one block (the orchestrator's note for E68 C12's right column).
  */
-export function traitFieldHtml(actor, traits, { note = "", propose = false, how = propose, howLabel = "DRPG.TraitRuling.howLabel" } = {}) {
+export function traitFieldHtml(actor, traits, { note = "", propose = false, how = propose, howLabel = "DRPG.TraitRuling.howLabel", keep = null } = {}) {
     const allowed = traits ?? [];
     if (allowed.length < 2) return "";
+    // `keep` (2.0 line T2, CALLS-03, 28.11.2026): the definition `{ kind, key }` whose last ask no GM answered - its
+    // statistic is picked and its note written again (trait-ruling.mjs `keptWords`).
+    const kept = keep && actor?.id ? keptWords(actor.id, keep) : null;
 
     const options = allowed.map(key => {
         const t = TRAITS[key];
         const value = actor.system.traits?.[t.dh]?.value ?? 0;
-        return `<option value="${key}">${t.label} (${value > 0 ? "+" : ""}${value})</option>`;
+        return `<option value="${key}"${key === kept?.proposed ? " selected" : ""}>${t.label} (${value > 0 ? "+" : ""}${value})</option>`;
     }).join("");
 
     const words = how ? `<label class="drpg-trait-how"><span>${game.i18n.localize(howLabel)}</span>
-        <input type="text" name="note" maxlength="${PROPOSAL_NOTE_MAX}"></label>` : "";
+        <input type="text" name="note" maxlength="${PROPOSAL_NOTE_MAX}"${kept?.note ? ` value="${esc(kept.note)}"` : ""}></label>` : "";
     const field = `<label class="drpg-trait-field"><span>${game.i18n.localize(propose ? "DRPG.TraitRuling.proposeLabel" : "DRPG.Advance.whichTrait")}</span>
         <select name="${propose ? "proposed" : "trait"}">${options}</select>
         ${note ? `<small class="notes">${note}</small>` : ""}

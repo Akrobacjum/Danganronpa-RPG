@@ -706,11 +706,12 @@ function keepPanelFresh(dialog) {
         /* And the two sources the Next line and the red case line read that none of these wakes (1.2.122 line ITEMS; the
            audit's REFR-46): the bodies waiting for the GM's word (a GM store whose write fires only its own key) and the
            case's last health report (`drpgCaseHealthChanged`). A GM connecting or leaving changes who the primary is,
-           which the Next line's two primary-only buttons read (CTRL-85). */
+           which the Next line's two primary-only buttons read (CTRL-85), and so does `drpgPrimaryChanged` since 2.0 (line T2,
+           PRIM-01): the primary moves at a GM's `bridge.gmReady` and a role written as well, and the standing names it. */
         /* And the Eclipse's crossings (1.2.128, S0-GMLIST): the roster's Moves column reads the GMs' store of crossings
            made (`eclipseMoveStore`) and a room action's extra crossings (`timedEffectStore`), neither an actor's write. */
         watch: { actors: true, items: true, tokens: true, stores: [keyPlanStore, caseSchemaStore, pendingBodyStore, eclipseMoveStore, timedEffectStore],
-            hooks: ["drpgCaseHealthChanged", "userConnected"] }
+            hooks: ["drpgCaseHealthChanged", "userConnected", "drpgPrimaryChanged"] }
     });
 
     /* THE TILES WAKE ON THEIR OWN KEYS (E44 C2b, 04.11.2026; audit S10-58). Without `settings` every write of a
@@ -729,9 +730,10 @@ function keepPanelFresh(dialog) {
         build: () => buildSections(),
         /* And Foundry's permission table (1.2.122 line ITEMS; the audit's REFR-47: the Settings tile is drawn disabled for
            a GM who may not modify settings, and a grant while the panel stood left it so) and a GM connecting or leaving
-           (the voice reset is drawn disabled off the primary, CTRL-85). Neither is a key of the module, which R1317
+           (the voice reset is drawn disabled off the primary, CTRL-85), and the primary moving at a GM's `bridge.gmReady`
+           or a role written (`drpgPrimaryChanged`, 2.0 line T2, PRIM-02). Neither is a key of the module, which R1317
            holds `settings` to. */
-        watch: { settings: [SETTINGS.clock, SETTINGS.murderState, SETTINGS.caseMark, SETTINGS.voiceEnabled], settingKeys: ["core.permissions"], hooks: ["userConnected"] }
+        watch: { settings: [SETTINGS.clock, SETTINGS.murderState, SETTINGS.caseMark, SETTINGS.voiceEnabled], settingKeys: ["core.permissions"], hooks: ["userConnected", "drpgPrimaryChanged"] }
     });
 }
 
@@ -786,8 +788,9 @@ async function openFailureLog() {
        while the GM read the log - a new row, a count rising - showed only on a reopen, and Copy copied the rows of the
        open. utils.mjs `record` fires no hook (a hook inside the error road could fail into it again), so the window
        reads the log twice a second while it stands and redraws its list when what it would print has changed; Copy
-       reads the log at the press. */
-    const signature = () => JSON.stringify([sessionFailuresDropped(), sessionFailures().map(r => [r.at, r.count, r.message])]);
+       reads the log at the press. The primary GM is part of what it prints since PRIM-08 (the line above the rows, below),
+       so a move of the role while the log stands redraws it too. */
+    const signature = () => JSON.stringify([primaryGmId(), sessionFailuresDropped(), sessionFailures().map(r => [r.at, r.count, r.message])]);
 
     // On the kit (E21 C2b): Close the default, Copy secondary, and Clear the log destructive - it throws away what
     // this browser kept, and nothing brings it back (E22, A4).
@@ -797,7 +800,7 @@ async function openFailureLog() {
         width: "wide",
         body: `<div>
             <p class="notes">${esc(game.i18n.localize("DRPG.Failures.intro"))}</p>
-            <div class="drpg-failure-live">${head(dropped, rows.length)}${listOf(rows)}</div>
+            <div class="drpg-failure-live">${failureLogElsewhereHtml()}${head(dropped, rows.length)}${listOf(rows)}</div>
         </div>`,
         footer: {
             close: { role: "close", action: "close" },
@@ -834,7 +837,7 @@ async function openFailureLog() {
                 if (now === seen) return;
                 seen = now;
                 const fresh = sessionFailures();
-                region.innerHTML = `${head(sessionFailuresDropped(), fresh.length)}${listOf(fresh)}`;
+                region.innerHTML = `${failureLogElsewhereHtml()}${head(sessionFailuresDropped(), fresh.length)}${listOf(fresh)}`;
                 showButtons(fresh.length);
             }, 500);
         },
@@ -880,6 +883,22 @@ async function openFailureLog() {
         clearSessionFailures();
         ui.notifications.info(game.i18n.localize("DRPG.Failures.cleared"));
     }
+}
+
+/**
+ * WHERE THE REST OF THE LOG IS (2.0 line T2, PRIM-08, 28.11.2026; F1-infra PRIM-08, TRIAGE-3: a hint). The Debug log is
+ * this browser's alone (`openFailureLog`, above), and what the table's automation fails at - the voice, the players'
+ * rolls, the sheet audit - and the refusals of requests handed to the primary GM are written on the primary's browser,
+ * so a second GM who opened its own log after "it did nothing" found no row and nothing said where to look. On a GM who
+ * is not the primary the log says so above its rows, naming the primary (`DRPG.Failures.elsewhere`); on the primary's
+ * own log, and with no primary to name, nothing. Drawn at the open and at each redraw of the log's live region, whose
+ * signature reads the primary, so the line follows a move of the role while the log stands. Not in the Copy text, which
+ * is this browser's rows for whoever debugs them. Exported for R9058; the arguments are the suite's stand-ins.
+ */
+export function failureLogElsewhereHtml({ id = primaryGmId(), me = game.user?.id, users = game.users } = {}) {
+    if (!id || id === me) return "";
+    const name = users?.get?.(id)?.name ?? "?";
+    return `<p class="notes drpg-failure-elsewhere" data-drpg-primary="${esc(id)}">${esc(game.i18n.format("DRPG.Failures.elsewhere", { name }))}</p>`;
 }
 
 /**
@@ -1194,8 +1213,10 @@ function buildPanelContent() {
     const advance = advanceHtml(clock);
 
     // THE CASE IS INCOMPLETE ON THIS BROWSER (E04): the primary's health check
-    // found a row missing and the GM chose Continue. It stays, at the top, until
-    // a check passes - a restore, or the next load with the copy in place.
+    // found a row missing and the GM chose Continue, or since 2.0 (line T2, PRIM-04)
+    // another GM's quiet check found one (gm-stores.mjs `quietHealthCheck`). It stays,
+    // at the top, until a check passes - a restore, a merge, or the next load with the
+    // copy in place.
     const warning = caseWarning();
     // A kit box since E47-C3 (E21's carried warning site, homed in E47): the GMs' words, never red.
     const caseLine = warning
@@ -1205,6 +1226,7 @@ function buildPanelContent() {
 
     return `<div class="drpg-gmp-standing">
                 ${caseLine}
+                ${primaryLineHtml()}
                 ${PANEL_ROSTER ? rosterTableHtml() : ""}
                 <h3>${foundry.utils.escapeHTML(campaignName(clock))}</h3>
                 <p class="drpg-gmp-clockline"><strong>${clockSummary(clock)}</strong>
@@ -1218,6 +1240,23 @@ function buildPanelContent() {
                      the Investigation window's Map, Place on the map (investigation.mjs placeIncident). */ ""}
                 ${studentsLeftHtml()}
             </div>`;
+}
+
+/**
+ * WHO THE PRIMARY GM IS, AT THE TOP OF THE STANDING (2.0 line T2, PRIM-01, 27.11.2026; F1-infra PRIM-01, F3 S2 J2 and
+ * S3 D2). The primary was readable only in the console (`diagnose()`, `voicePlan()`) and in the tooltip of a disabled
+ * tile, and handbook 20.7 told a GM to look for the lowest user id, which no screen shows. One line, "Primary GM: {name}",
+ * "(you)" on the primary's own screen, the first of the standing under the case's warning (which stays above it all,
+ * E04), with what the primary's browser runs as its tooltip; the standing redraws on `drpgPrimaryChanged` (gm-bridge.mjs
+ * `notePrimary`, PRIM-02), which moves at a connect, a leave, a GM's `bridge.gmReady` and a role written. The words and
+ * the name are one element's own text, under 160 characters: the Forge kit (page-kit.mjs `uiProbe`) looks for an element
+ * whose own text names the primary beside "primary"/"główn". Exported for R9049 and E132 PRIM-02; the arguments are the
+ * suite's stand-ins.
+ */
+export function primaryLineHtml({ id = primaryGmId(), me = game.user?.id, users = game.users } = {}) {
+    const name = users?.get?.(id ?? "")?.name ?? "?";
+    const words = game.i18n.format(id && id === me ? "DRPG.Panel.primaryGmYou" : "DRPG.Panel.primaryGm", { name });
+    return `<p class="drpg-gmp-primary" data-drpg-primary="${esc(id ?? "")}"${tipAttr("DRPG.Panel.primaryGmTooltip")}>${esc(words)}</p>`;
 }
 
 /**

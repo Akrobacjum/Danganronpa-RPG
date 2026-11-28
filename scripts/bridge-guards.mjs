@@ -30,7 +30,7 @@
  */
 
 import { MODULE_ID, HOPE_CALLS, DESPAIR_CALLS, STARTING, TIMING, CRISIS_ACTIONS } from "./config.mjs";
-import { activeGmIds, isPrimaryGm, primaryGmId, debug, warn, error, pause } from "./utils.mjs";
+import { activeGmIds, isPrimaryGm, primaryGmId, gmLoading, debug, warn, error, pause } from "./utils.mjs";
 
 const SOCKET_EVENT = `module.${MODULE_ID}`;
 /** GM -> player: "your request arrived and was refused" - see `refuse`. */
@@ -1447,6 +1447,13 @@ export function playersOnly(why) {
     return made((sender, payload, ctx) => sender?.isGM ? why : null, "playersOnly", [], why);
 }
 
+/** `ask.withdraw`'s guard (2.0 line T2, EXP-PL-12, 28.11.2026): the packet's `rid` names an ask this primary holds on a card for
+    the sender (ask-withdraw.mjs `askToWithdraw`), so a forged `rid` - another player's ask - ends nothing. R9029. */
+export const guardAskWithdraw = made(async (sender, payload, ctx) => {
+    const { askToWithdraw } = await import("./ask-withdraw.mjs");
+    return askToWithdraw(payload?.rid, sender?.id) ? null : "nothing was carried out: the primary GM holds no ask of the sender under that id";
+}, "heldAsk", ["rid"], "nothing was carried out: the primary GM holds no ask of the sender under that id");
+
 /*
  * A SPECTATOR ACTS NOT (E92 Q-E92-7, 12.11.2026; the owner's "zgadzam sie, zlecaj"). A Spectator's character takes no
  * student's action through the bridge: its sheet draws no action (sheet-mode.mjs `sheetMode`), but its player's console can
@@ -1884,6 +1891,10 @@ function answer(decl, ctx, value, send) {
 
 /** GM -> player: "your request was carried out", with its answer - see `answer`. */
 const ACTION_DONE = "bridge.done";
+/** Primary GM -> player: a GM took the card of this player's ask, or let it go (bridge-wire.mjs `ACTION_ASK_STATE`, spelt here as
+    `ACTION_DONE` is: this file imports config.mjs and utils.mjs alone, R161). The two states it may carry. 2.0 line T2, EXP-PL-12. */
+const ACTION_ASK_STATE = "ask.state";
+const ASK_STATES = Object.freeze(["ruling", "waiting"]);
 
 /**
  * Is this reply addressed to me, and did a GM actually send it?
@@ -1914,7 +1925,7 @@ export const WINDOW_CLOCK = Object.freeze({ set: (fn, ms) => setTimeout(fn, ms),
 /**
  * A waiter: `request` asks, `onReply` takes the GM's answers, `resendOnGmReady`
  * asks once more for what is still waiting when a new primary can answer (three
- * times at most, `RESENDS`).
+ * times at most, `RESENDS`; a primary's reload counted once, CALLS-06).
  *
  * @param {object} deps
  * @param {(packet: object, recipients: string[]) => void} deps.emit  may throw
@@ -1922,8 +1933,10 @@ export const WINDOW_CLOCK = Object.freeze({ set: (fn, ms) => setTimeout(fn, ms),
  * @param {() => {id: string, isGM: boolean, isPrimary: boolean}} deps.me
  * @param {(action: string, reason: string, opts: {nothingSpent: boolean}) => void} deps.notify  the one message
  * @param {(senderId: string) => boolean} deps.fromGm  was a reply sent by a GM
+ * @param {(senderId: string) => boolean} [deps.fromPrimary]  was it sent by the primary GM (an ask's state, below)
+ * @param {(requestId: string, state: string) => void} [deps.onState]  a request's state the primary sent, handed on
  */
-export function createWaiter({ emit, gmIds, me, notify, fromGm, clock = WINDOW_CLOCK,
+export function createWaiter({ emit, gmIds, me, notify, fromGm, fromPrimary = () => false, onState = () => {}, clock = WINDOW_CLOCK,
     newId = () => foundry.utils.randomID(), report = (text, err) => error(text, err) } = {}) {
     // Waiting for an answer, by request id.
     const pending = new Map();
@@ -1956,9 +1969,9 @@ export function createWaiter({ emit, gmIds, me, notify, fromGm, clock = WINDOW_C
 
     function request(action, payload = {}, { settle: kind = "ack", patient = false, resend = false, ackMs = TIMING.ackMs,
         timeoutMs = TIMING.rulingMs, local = null, onPrimary = false, localRun = false, quiet = false, nothingSpent = false, late = null,
-        lateRefused = null, lateMs = 0, expired = null, received = null, untilPrimaryLeaves = false, sayRefused = true } = {}) {
+        lateRefused = null, lateMs = 0, expired = null, received = null, untilPrimaryLeaves = false, sayRefused = true, requestId = null } = {}) {
         return new Promise(resolve => {
-            const entry = { id: null, action, kind, patient, resend, resent: 0, quiet, sayRefused, nothingSpent, late, lateRefused, lateMs, timeoutMs,
+            const entry = { id: null, action, kind, patient, resend, resent: 0, leftBy: null, quiet, sayRefused, nothingSpent, late, lateRefused, lateMs, timeoutMs,
                 expired, received, untilPrimaryLeaves, resolve, settled: false, ackTimer: null, answerTimer: null, packet: null };
             try {
                 const self = me();
@@ -2003,8 +2016,9 @@ export function createWaiter({ emit, gmIds, me, notify, fromGm, clock = WINDOW_C
                     emit(packet, to);
                     return settle(entry, { ok: true, pending: true });
                 }
-                // 5. One id, one entry, two clocks from the send: the "got it", and the answer.
-                entry.id = newId();
+                // 5. One id, one entry, two clocks from the send: the "got it", and the answer. The id is the caller's
+                //    where it gives one no request here holds (`requestId`: the waiting card that can withdraw it, EXP-PL-12).
+                entry.id = typeof requestId === "string" && requestId && !pending.has(requestId) && !closed.has(requestId) ? requestId : newId();
                 entry.packet = { ...packet, requestId: entry.id };
                 pending.set(entry.id, entry);
                 if (!patient) {
@@ -2033,9 +2047,23 @@ export function createWaiter({ emit, gmIds, me, notify, fromGm, clock = WINDOW_C
         });
     }
 
-    /** 6. A GM's "got it", answer or refusal, for this client. Returns whether it was one. */
+    /** 6. A GM's "got it", answer or refusal, for this client - or the primary's word of an ask's state. Returns whether it was one. */
     function onReply(packet, senderId) {
         const action = packet?.action;
+        /*
+         * A GM IS READING IT (2.0 line T2, EXP-PL-12, 28.11.2026; F1-blind-player EXP-PL-12, E-PL-105). The player did not
+         * know that a GM had taken the card of their ask: the claim is the primary's (call-gm.mjs `claimOnPrimary`), and
+         * only another GM saw it. The primary tells the asker now (`tellAskState`), and the packet is a claim like any:
+         * taken only from the primary by Foundry's sender (`fromPrimary`), addressed to this user, for a request this
+         * browser still waits on, in one of the two states - and handed on (`onState`, which paints the waiting card and
+         * the thread's card), naming no GM. R9030.
+         */
+        if (action === ACTION_ASK_STATE) {
+            if (packet.userId !== me().id || !fromPrimary(senderId)) return false;
+            const entry = pending.get(packet.rid ?? "");
+            if (entry && !entry.settled && ASK_STATES.includes(packet.state)) onState(entry.id, packet.state);
+            return true;
+        }
         if (action !== ACTION_ACK && action !== ACTION_DONE && action !== ACTION_REFUSED) return false;
         if (packet.userId !== me().id || !fromGm(senderId)) return false;
         const id = packet.requestId ?? null;
@@ -2077,11 +2105,21 @@ export function createWaiter({ emit, gmIds, me, notify, fromGm, clock = WINDOW_C
         return true;
     }
 
-    /** 8. Ask once more, with the same id, for every request still waiting that asked for it, `RESENDS` times at most. */
-    function resendOnGmReady() {
+    /**
+     * 8. Ask once more, with the same id, for every request still waiting that asked for it, `RESENDS` times at most.
+     * `senderId`: the GM whose `bridge.gmReady` this is (gm-bridge.mjs `onGmReady`), null for a caller that does not say;
+     * `leaving`: the primary whose leave this is (`registerBridgeReplies`). An ask again at a leave marks the request with
+     * the GM who left (`leftBy`), and the ask again at that same GM's `bridge.gmReady` is the second half of its reload:
+     * it spends nothing and clears the mark (2.0 line T2, CALLS-06, 27.11.2026; see the note over `RESENDS`). R9034.
+     */
+    function resendOnGmReady(senderId = null, { leaving = null } = {}) {
         for (const entry of pending.values()) {
-            if (!entry.resend || entry.resent >= RESENDS || entry.settled) continue;
-            entry.resent += 1;
+            if (!entry.resend || entry.settled) continue;
+            const back = senderId !== null && entry.leftBy === senderId;
+            if (!back && entry.resent >= RESENDS) continue;
+            if (back) entry.leftBy = null;
+            else entry.resent += 1;
+            if (leaving !== null) entry.leftBy = leaving;
             try {
                 const to = gmIds();
                 if (to.length) emit(entry.packet, to);
@@ -2125,7 +2163,26 @@ export function createWaiter({ emit, gmIds, me, notify, fromGm, clock = WINDOW_C
         }
     }
 
-    return { request, onReply, resendOnGmReady, primaryGone, waiting: () => pending.size };
+    /*
+     * 10. WITHDRAWN BY ITS ASKER (2.0 line T2, EXP-PL-12, CALLS-09, DAY-07, 28.11.2026; F1-calls CALLS-09, F1-daily DAY-07).
+     * A player waiting on a GM's ruling could not take the ask back: the card waited out its clock (180 s, a Call's 300 s).
+     * The waiting card's Withdraw ends the wait here first (ask-withdraw.mjs `withdrawAsk`): the request is closed as an
+     * answered one is - a late answer or refusal for it is said nowhere - and settled `{ ok: false, withdrawn: true }`,
+     * with no message (the caller's road says the one, `DRPG.Bridge.withdrawn`) and no report to the GMs (`ask.withdraw`,
+     * sent after, ends the card). Nothing was paid before the ruling on any of the three roads that wait so (a Call's Hope
+     * on the yes, calls.mjs `spendHopeCall`; a Dynamic Action's action after the difficulty, action-dynamic.mjs
+     * `performDynamic`; a statistic's price after the pick, by each caller of trait-ruling.mjs `traitFor`), so nothing is
+     * given back. False for a request not waiting. R9030.
+     */
+    function cancel(requestId) {
+        const entry = pending.get(requestId ?? "");
+        if (!entry || entry.settled) return false;
+        close(entry);
+        settle(entry, { ok: false, withdrawn: true });
+        return true;
+    }
+
+    return { request, onReply, resendOnGmReady, primaryGone, cancel, waiting: () => pending.size };
 }
 
 /*
@@ -2133,19 +2190,31 @@ export function createWaiter({ emit, gmIds, me, notify, fromGm, clock = WINDOW_C
  * still waiting was asked again once, and only when a primary's world had loaded (`bridge.gmReady`). A GM
  * who becomes the primary because the primary closed its browser has its world loaded already and sends
  * no such packet, so the ask went to a GM who had left and waited out its clock. Now the waiter asks
- * again on either, with the same id, and counts: three times covers a primary's reload, a handover to
- * another GM and a second reload within one ruling's clock, and bounds a GM whose world keeps reloading.
+ * again on either, with the same id, and counts to three; that bounds a GM whose world keeps reloading.
  * The primary finds the card it posted for an ask by its mark (call-gm.mjs `askAgain`). R841.
+ *
+ * A RELOAD IS ONE (2.0 line T2, CALLS-06, 27.11.2026; F1-calls CALLS-06). Until then this note said three
+ * covered a primary's reload, a handover and a second reload, counting a reload as one ask again. With a
+ * second GM here a primary's reload was two: its leave asked the GM who took over (`primaryLeft`), and its
+ * `bridge.gmReady` asked it again - so two reloads of the primary within one Call's clock (300 s) spent the
+ * three by the second leave, and the primary that came back the second time was not asked: a yes from its
+ * card answered `DRPG.Bridge.askNotHeld` while the player waited, then `noAnswer`. Now the ask again at a leave
+ * marks the request with the GM who left (`leftBy`), and the ask again at that same GM's `bridge.gmReady`
+ * spends nothing and clears the mark: two reloads of the primary spend two, and any other GM's leave or
+ * `bridge.gmReady` still asks again with the third. A lone primary's reload was one already (no leave is
+ * asked again with nobody to take over) and still is. The count itself is chosen, not measured. R9034.
  */
 const RESENDS = 3;
 
 /**
  * Was the GM who just left the primary, with another GM here to take it (`userConnected(user, false)`)?
  * Counted both ways whatever `user.active` says yet: as here before it left, as gone after. Pure over
- * `users` (R841 hands its own list).
+ * `users` (R841 hands its own list). A GM that left while this browser still counted it as loading was not the primary
+ * to leave (utils.mjs `gmLoading`, which keeps its mark through the leave; 2.0 line T2, PRIM-03, 27.11.2026): the GM
+ * holding the table is still here, and what waits on it is not asked again.
  */
 export function primaryLeft(user, users = game.users) {
-    if (!user?.isGM) return false;
+    if (!user?.isGM || gmLoading(user.id)) return false;
     const before = primaryGmId({ arriving: user.id, users });
     const after = primaryGmId({ leaving: user.id, users });
     return before === user.id && after !== null && after !== user.id;
@@ -2159,7 +2228,10 @@ const waiter = createWaiter({
     gmIds: () => activeGmIds(),
     me: () => ({ id: game.user?.id ?? null, isGM: Boolean(game.user?.isGM), isPrimary: isPrimaryGm() }),
     notify: (action, reason, opts) => sayNotDone(action, reason, opts),
-    fromGm: senderId => Boolean(game.users.get(senderId)?.isGM)
+    fromGm: senderId => Boolean(game.users.get(senderId)?.isGM),
+    fromPrimary: senderId => Boolean(senderId) && senderId === primaryGmId(),
+    onState: (requestId, state) => void import("./ask-withdraw.mjs").then(m => m.paintAskState(requestId, state))
+        .catch(err => debug("An ask's state could not be shown", err))
 });
 
 /**
@@ -2192,11 +2264,18 @@ export function registerBridgeReplies() {
     Hooks.on("userConnected", (user, connected) => {
         if (connected || !primaryLeft(user)) return;
         waiter.primaryGone();
-        waiter.resendOnGmReady();
+        // The leaver marks what it asks again, so its own `bridge.gmReady` is not a second ask spent (CALLS-06).
+        waiter.resendOnGmReady(null, { leaving: user.id });
     });
 }
 
-/** A primary GM's world has loaded: ask again what is still waiting (gm-bridge.mjs's `onGmReady`). */
-export function resendOnGmReady() {
-    waiter.resendOnGmReady();
+/** Withdraw a request this browser waits on (`cancel`, above; ask-withdraw.mjs `withdrawAsk`): true when it was waiting. */
+export function cancelRequest(requestId) {
+    return waiter.cancel(requestId);
+}
+
+/** A primary GM's world has loaded: ask again what is still waiting (gm-bridge.mjs's `onGmReady`). `senderId`: that GM,
+    so the second half of its reload is not counted again (2.0 line T2, CALLS-06, 27.11.2026). */
+export function resendOnGmReady(senderId = null) {
+    waiter.resendOnGmReady(senderId);
 }

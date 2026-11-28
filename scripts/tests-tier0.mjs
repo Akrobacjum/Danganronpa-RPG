@@ -271,6 +271,8 @@ const REGRESSIONS = [
             "note.save": "the player's own notebook (a User flag), which a Spectator may keep: no character acts, nothing of the game moves",
             "ruling.expired": "a card's bookkeeping on the primary: the asker's own ruling card ends, no character acts",
             "ruling.received": "a card's bookkeeping on the primary: the asker's own ruling card is marked seen, no character acts",
+            // 2.0 line T2, EXP-PL-12 (28.11.2026).
+            "ask.withdraw": "a card's bookkeeping on the primary: the asker's own ask ends and its card with it, no character acts",
             "action.friskAnswer": "the answer to a Frisk aimed at the sender's character; a Spectator is no Frisk's target (movement.mjs `othersInRoom` leaves it out), and the Frisk itself is guarded",
             "searchTokens.returnPlant": "gives back what a guarded take handed out (`guardPlantReturn` holds it to the same user), nothing new",
             "searchTokens.returnToken": "gives back a token a guarded spend took (`guardTokenReturn` holds it to the same user), nothing new"
@@ -465,7 +467,7 @@ const REGRESSIONS = [
             "voice.mjs": "room membership, keyed by the sender",
             "voice-client.mjs": "room membership, keyed by the sender",
             // E31 review: it passed on text elsewhere in the file (the runner, the guards); this is its own reason.
-            "bridge-guards.mjs": "the answers to this client's own requests: taken only from a GM, for its own pending id; acts on no actor",
+            "bridge-guards.mjs": "the answers to this client's own requests: taken only from a GM, for its own pending id; and since 2.0 (line T2, EXP-PL-12) an ask's state, taken only from the primary GM by Foundry's sender, addressed to this user, for its own pending id; acts on no actor",
             // E79 C1 (1.2.79): `payload.userId` is the copy's address, compared with this user's own id; R555 holds the rule (`passageRowsRefusal`).
             "passages.mjs": "a player's copy of the secret passages: taken only from the primary GM, addressed to this user, and cut to the characters it stamps; acts on no actor",
             // E79 C4 (1.2.79): `payload.userId` is the address, `sceneId` and `tokenId` only name the room the line says; `sentBackRefusal` holds the rule.
@@ -474,7 +476,7 @@ const REGRESSIONS = [
             "frisk.mjs": "an open Frisk's window and its withdrawal: taken only from the primary GM, addressed to this user; the window's answer goes back on the bridge (`action.friskAnswer`), judged there by its sender, and acts on no actor",
             // E41 C2b: read from E41 C5b, when the table leaves gm-bridge.mjs for bridge-table.mjs; until then the file
             // is a table file and skipped as one, above. Not idle: gm-bridge.mjs listens on the socket.
-            "gm-bridge.mjs": "GM -> player only: the opening roll's invitation and its withdrawal, the Level Up offers and a GM's ready signal, each taken only from a GM (`game.users.get(senderId)?.isGM`, `replyForMe`) and addressed to this user; the players' requests are the table file's `onSocket`, read above"
+            "gm-bridge.mjs": "GM -> player only: the opening roll's invitation and its withdrawal, the Level Up offers and a GM's ready signal, each taken only from a GM (`game.users.get(senderId)?.isGM`, `replyForMe`) and addressed to this user; the players' requests are the table file's `onSocket`, read above; and GM -> GM since 2.0 (line T2, CALLS-01) the primary's word that a card was taken over (card-takeover.mjs `onCardTakenOver`): taken on a GM's browser only from the primary by Foundry's sender, addressed to this user, its card's id naming only which of this browser's own claims ends; and player -> GMs since 2.0 (line T2, CALLS-04) a player's browser loaded (`onPlayerReady`): it carries no field, its sender is Foundry's and must be a player, and only that sender's own asks held on the primary end; acts on no actor"
             // E10 C2 (1.2.71): vote.mjs is off the list. A ballot reaches the GMs on the bridge (`vote.cast`), and
             // the one packet its listener still takes, a GM's ballot, names no id.
         };
@@ -483,7 +485,9 @@ const REGRESSIONS = [
            below, so gm-bridge.mjs's row holds only while what it excuses is what was read when it was written: the five
            listeners gm-bridge.mjs registers at 69f8f661 (a GM's ready, the table file's `onSocket`, the opening roll's
            ask and its withdrawal, the Level Up offers) and no run of BRIDGE_ACTIONS imported - a sixth listener acting
-           on a packet's id, or a run called past `judge`, would pass under the row unread. */
+           on a packet's id, or a run called past `judge`, would pass under the row unread. The sixth since 2.0 (line T2,
+           CALLS-01, 27.11.2026) is `onCardTakenOver`, read when it was added and named in the row, and the seventh (CALLS-04,
+           28.11.2026) `onPlayerReady`, the same. */
         const facade = stripComments((await otherSources()).find(([file]) => file === "gm-bridge.mjs")?.[1] ?? "");
         must(facade.length > 1000, "gm-bridge.mjs did not load - its row below would excuse nothing that was read");
         const bridgeRuns = new Set(Object.values(tables.find(t => t.name === "BRIDGE_ACTIONS")?.table ?? {}).map(d => d.run?.name).filter(Boolean));
@@ -493,7 +497,7 @@ const REGRESSIONS = [
         equal(JSON.stringify({ on: (facade.match(/game\.socket\.on\(/g) ?? []).length,
             listeners: [...facade.matchAll(/game\.socket\.on\(\s*SOCKET_EVENT\s*,\s*(\w+)\s*\)/g)].map(m => m[1]).sort(),
             runs: facadeImports.filter(name => bridgeRuns.has(name)) }),
-        JSON.stringify({ on: 5, listeners: ["onAdvancementOffers", "onGmReady", "onOpeningAsk", "onOpeningCancel", "onSocket"], runs: [] }),
+        JSON.stringify({ on: 7, listeners: ["onAdvancementOffers", "onCardTakenOver", "onGmReady", "onOpeningAsk", "onOpeningCancel", "onPlayerReady", "onSocket"], runs: [] }),
             "gm-bridge.mjs registers other listeners than its exemption row was written for, or imports a run of BRIDGE_ACTIONS - the row excuses what nobody read "
             + "({ on: its game.socket.on calls, listeners: the handlers they name, runs: the runs it imports })");
 
@@ -10718,6 +10722,7 @@ const REGRESSIONS = [
             ["SURFACE voice-client.mjs#dropCard", "this browser's own dropped voice (E19 C2): frozen i18n text, nothing of anybody else's; kept as this client's own (`source` \"mine\"), and taken off the screen, not out of the history, once voice is back (R812, scenario 75's phase H)"],
             // 2.0 line T4 (FORGE-01, 27.11.2026): the case's own corner card.
             ["SURFACE case-copy.mjs#showCaseCard", "a GM's own case card (2.0 line T4, FORGE-01): the planner empty on this browser with no other GM online, or at a new session the case to save to a file while its copy on the server is impossible - the module's own i18n words, escaped (`caseCardBody`), and one button of its own; sticky; kept as this client's own (`source` \"mine\": no chat card, nobody else's words; R9224)"],
+            ["SURFACE gm-bridge.mjs#tellPrimaryChange", "this GM's own notice that the primary GM moved (2.0 line T2, PRIM-02, 27.11.2026): i18n words of the module's own (`DRPG.Panel.primaryNowYou`, `primaryNow`, `primaryBack`) with the new primary's user name, escaped (`esc`), chosen by `primaryNoticeOf` on a GM's browser alone (a player and the first reading at a load get none); kept as this client's own (`source` \"mine\"), once a change (R9050, R9051, E132 PRIM-02, scenario 97's phase PRIM)"],
             ["RECORD bridge-guards.mjs#sayNotDone", "after `notify(text)`, whoever `notify` is: kind error, source notDone, state read, the text this client composed from closed lists - a GM's reason chooses none of its words; a history error never stops the toast (R297)"],
             ["RECORD frisk.mjs#toast", "an open Frisk's line beside its toast (E80 part 2 C3): kind info, source mine, state unread, the row's label as its title and text this client composed from its language file with names as text - the ask it waits on, a withdrawn window, or for a GM the notice that nobody was asked; no markup, and a history error never stops the toast"],
             ["RECORD popup.mjs#showPopup", "the recorder: `recordNotice` in try/catch after the body is filled and before a host takes the card; the snapshot followed while the card is on screen and its state set by the close's reason; a history error never stops the card (R293); an entry the history cannot save is kept in memory until this page closes, the window's footer saying so (`status`, R292)"],

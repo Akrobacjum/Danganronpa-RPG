@@ -25,7 +25,8 @@
  *      Assistant GM, written on the primary (A19). Since E72 C6 also a dead student's player's yes to the GMs'
  *      invitation to become a Monocub, from the window with the Rule (A20), and a Bribe offered from one player's browser
  *      and accepted in its window on the other's (A21). Since E110 C1 also the GM's redirect of a running Objection from
- *      the Assistant GM, by the console's road and the GMs' row, written once on the primary (A23).
+ *      the Assistant GM, by the console's road and the GMs' row, written once on the primary (A23). Since 2.0 line T2
+ *      (CALLS-01) also a card the GM's claim holds taken over by the Assistant, and the GM's end of it after (A26).
  *   B  what E31 adds, each written red (`expectedRed`, with what it measured) until the commit that
  *      made it so, and a plain check since: a refusal carries its reason, in the player's own
  *      language; a refused request is not acknowledged; an exception on the GM's side ends as one
@@ -2287,6 +2288,94 @@ export async function run({ gm, ag, p1, p2, p3, check, phase, settle, opLog, set
        GM (a listener there counts it by its request id); then its effect: nothing written, refused by the guard the cell
        is about, in the GM's log, and told to p1 with its code (a quiet declaration tells nobody). Not covered here: a
        project a player may not see (`canSeeProject`, scenario 30's forged requests) and a Spectator's guard (scenario 93). */
+    /* ------------------------------------------- the claim's takeover (2.0 line T2, CALLS-01) */
+    /* 2.0 line T2, CALLS-01 (27.11.2026): `card.claim`'s step "takeover", the legal road. The GM's own claim holds a card
+       (the GM's click, `claimOnPrimary` "take" on the primary); the Assistant takes it over through the bridge, as a second
+       GM's question does (bridge-asks.mjs `askCardClaim`); then the GM's "done", the old holder's end; then the
+       Assistant's "drop". Read on the GM: the card's row after each, and the refusals of `card.claim` the GM logged. */
+    phase("a card the GM holds taken over by the Assistant", { flow: "card-claim" });
+    await clearFailures(gm);
+    const tkCard = await gm.eval(`const m = await ChatMessage.create({ content: "<p>T2 CALLS-01 33</p>", whisper: [game.user.id] }); return m?.id ?? null;`);
+    const claimCall = (client, step) => client.eval(`const A = await import("${repoUrl}/scripts/bridge-asks.mjs");
+        const r = await A.askCardClaim("${tkCard}", "${step}"); return r ? { taken: r.taken, why: r.why ?? null, by: r.by ?? null } : null;`, { timeout: 30000 });
+    const tkRow = () => gm.eval(`const S = await import("${repoUrl}/scripts/gm-stores.mjs"); const r = S.ruledCardStore.get("${tkCard}");
+        return r ? { by: r.by ?? null, from: r.from ?? null, pending: Boolean(r.pending) } : null;`);
+    const tk = { gmTake: await claimCall(gm, "take") };
+    tk.agTakeover = await claimCall(ag, "takeover");
+    await settle(600);
+    tk.rowTaken = await tkRow();
+    tk.gmDone = await claimCall(gm, "done");
+    tk.rowAfterDone = await tkRow();
+    tk.agDrop = await claimCall(ag, "drop");
+    await settle(600);
+    tk.rowDropped = await tkRow();
+    tk.logged = await refusalsLogged(gm, "card.claim");
+    await gm.eval(`await game.messages.get("${tkCard}")?.delete(); return true;`);
+    await settle(400);
+    check("A26: the Assistant's takeover of a card the GM's claim holds lands once on the primary - the row is the Assistant's, taken from the GM; the GM's done after it writes nothing and names the Assistant; the Assistant's drop frees the card; nothing is refused (2.0 line T2, CALLS-01)",
+        Boolean(tkCard) && JSON.stringify(tk) === JSON.stringify({
+            gmTake: { taken: true, why: null, by: IDS.gm }, agTakeover: { taken: true, why: null, by: IDS.ag },
+            rowTaken: { by: IDS.ag, from: IDS.gm, pending: true }, gmDone: { taken: false, why: "busy", by: IDS.ag },
+            rowAfterDone: { by: IDS.ag, from: IDS.gm, pending: true }, agDrop: { taken: false, why: "dropped", by: IDS.ag },
+            rowDropped: null, logged: [] }), JSON.stringify({ tkCard, tk }), { flow: "card-claim" });
+
+    /* ------------------------------------------- an ask withdrawn by its player (2.0 line T2, EXP-PL-12) */
+    /* 2.0 line T2, EXP-PL-12 (28.11.2026): `ask.withdraw`, the legal road, and the primary's `ask.state` it rides beside. p1
+       asks for a Dynamic Action's difficulty on Aiko on the bridge's own road, under an id of its own (as the waiting card's
+       Withdraw names it); its browser records every `ask.state` packet it is sent, with the sender. The GM takes the card's
+       claim and drops it; then p1 withdraws (ask-withdraw.mjs `withdrawAsk`, what the Withdraw button calls), and the
+       Assistant GM's difficulty for it after. Read: the states p1 heard and from whom, p1's answer and what it was told, the
+       card's lines on the GM and in p1's copy, the Assistant's answer, and the refusals of `ask.withdraw` the GM logged. */
+    phase("an ask withdrawn by its player", { flow: "hope-call" });
+    await clearFailures(gm);
+    let a27 = null;
+    {
+        const rid = `T2A27ASK${Date.now()}`;
+        const toldAt = await noticeCount(p1);
+        await p1.eval(`globalThis.__t2States = [];
+            globalThis.__t2StateOn = (payload, senderId) => { if (payload?.action === "ask.state") globalThis.__t2States.push([payload.rid === "${rid}", payload.state, senderId, Object.keys(payload).sort().join()]); };
+            game.socket.on("${SOCKET}", globalThis.__t2StateOn);
+            globalThis.__t2Ask = ${bridge}.requestDynamicDifficulty({ description: "T2 EXP-PL-12: an ask withdrawn", actorName: "Aiko",
+                room: null, actorId: "${IDS.aiko}" }, 60000, { requestId: "${rid}" });
+            return true;`);
+        await settle(1500);
+        const card = await gm.eval(`const S = await import("${repoUrl}/scripts/secret.mjs");
+            for (const m of game.drpg.messengerThreadMessages("${IDS.p1}").slice().reverse()) {
+                if (S.contentOf(m).includes("T2 EXP-PL-12: an ask withdrawn")) return { id: m.id };
+            }
+            return null;`);
+        if (card) {
+            await gm.eval(`const C = await import("${repoUrl}/scripts/call-gm.mjs");
+                await C.claimOnPrimary("${card.id}", "take", game.user.id); await new Promise(r => setTimeout(r, 400));
+                await C.claimOnPrimary("${card.id}", "drop", game.user.id); return true;`);
+            await settle(800);
+        }
+        const withdrew = await p1.eval(`const W = await import("${repoUrl}/scripts/ask-withdraw.mjs");
+            const done = await W.withdrawAsk("${rid}");
+            const answer = await globalThis.__t2Ask;
+            game.socket.off?.("${SOCKET}", globalThis.__t2StateOn);
+            return { done, answer, states: globalThis.__t2States };`, { timeout: 30000 });
+        await settle(1500);
+        const after = card ? await ag.eval(`return await ${bridge}.answerDynamic("${rid}", "${IDS.p1}", { tier: 1, trait: "eye" }, "${card.id}");`, { timeout: 30000 }) : null;
+        await settle(600);
+        a27 = { card, withdrew, after,
+            told: (await noticesSince(p1, toldAt)).map(n => n.msg),
+            withdrawnText: await p1.eval(`return game.i18n.localize("DRPG.Bridge.withdrawn");`),
+            settledText: await gm.eval(`return game.i18n.localize("DRPG.Bridge.settledWithdrawn");`),
+            lines: card ? await gm.eval(`${CARD_LINES}("${card.id}")`) : null,
+            theirs: card ? await p1.eval(`${CARD_LINES}("${card.id}")`) : null,
+            logged: await refusalsLogged(gm, "ask.withdraw") };
+        if (card) await gm.eval(`await game.messages.get("${card.id}")?.delete();
+            const S = await import("${repoUrl}/scripts/gm-stores.mjs"); if (S.ruledCardStore.has("${card.id}")) await S.ruledCardStore.drop("${card.id}"); return true;`);
+    }
+    check("A27: p1 hears from the primary that a GM took its ask's card and let it go, naming no GM; its own withdrawal ends its wait with nothing spent, said once, and the card for p1 and the GMs - \"Request withdrawn.\" - and the Assistant's difficulty after it is not sent on; nothing is refused (2.0 line T2, EXP-PL-12)",
+        Boolean(a27.card?.id) && JSON.stringify(a27.withdrew?.states) === JSON.stringify([[true, "ruling", IDS.gm, "action,rid,state,userId"], [true, "waiting", IDS.gm, "action,rid,state,userId"]])
+            && a27.withdrew.done === true && JSON.stringify(a27.withdrew.answer) === JSON.stringify({ ok: false, withdrawn: true })
+            && a27.told.filter(t => t === a27.withdrawnText).length === 1
+            && JSON.stringify(a27.lines) === JSON.stringify([a27.settledText, null]) && JSON.stringify(a27.theirs) === JSON.stringify([a27.settledText, null])
+            && a27.after === false && !a27.logged.length,
+        JSON.stringify(a27), { flow: "hope-call" });
+
     phase("H: the hostile-client matrix");
     const mxWho = await gm.eval(`const b = game.actors.get("${IDS.botan}"); const t = canvas.scene.tokens.find(t => t.actorId === b.id);
         return { victimActor: b.id, victimToken: t?.id ?? null, sceneId: canvas.scene.id };`);

@@ -5470,7 +5470,11 @@
         "trial.present": "Przedstawienie Truth Bulletu",
         "ready.open": "Pytanie graczy, czy skończyli",
         "ready.answer": "Twoja odpowiedź dla GM-a",
-        "ready.end": "Zamknięcie pytania do graczy"
+        "ready.end": "Zamknięcie pytania do graczy",
+        "card.takenOver": "Karta przejęta przez innego GM-a",
+        "ask.withdraw": "Wycofanie twojej prośby",
+        "ask.state": "Stan twojej prośby, od GM-a",
+        "bridge.playerReady": "Wiadomość dla GM-ów, że twoja strona się wczytała"
       },
       "notDone": "Prośba „{what}” nie została wykonana. {why}",
       "nothingSpent": "Nie tracisz akcji ani Hope.",
@@ -5589,7 +5593,25 @@
       "createItemStays": "„Utwórz przedmiot” nie zamyka tej karty, więc możesz jeszcze wybrać inną odpowiedź.",
       "giveItem": "Daj istniejący przedmiot",
       "keyRemnantHere": "Utwórz tu Key Remnant",
-      "unnamed": "bez nazwy"
+      "unnamed": "bez nazwy",
+      "claimedBy": "Tę kartę rozstrzyga GM {gm} od {time}.",
+      "takeOver": "Przejmij kartę",
+      "takeOverTitle": "Przejęcie karty",
+      "takeOverAsk": "Tę kartę rozstrzyga GM {gm} od {time}. Przejąć ją? Okno tej karty u GM-a {gm} się zamknie.",
+      "claimTakenOver": "Tę kartę przejmuje GM {gm}. Twoje okno tej karty jest zamknięte i nic z niego nie poszło.",
+      "claimOwnOpen": "Masz już otwarte okno tej karty. Dokończ je albo zamknij.",
+      "takeOverTooltip": "Zamyka okno tej karty u drugiego GM-a i zwalnia kartę. Potem wybierz na niej odpowiedź.",
+      "takeOverNowTooltip": "Zamyka okno tej karty u drugiego GM-a i otwiera u ciebie okno tej odpowiedzi.",
+      "timeLeft": "Czas na decyzję: {time}.",
+      "timeUp": "Czas minął: gracz już nie czeka na tę decyzję.",
+      "withdraw": "Wycofaj prośbę",
+      "withdrawTooltip": "Kończy tę prośbę. Zachowujesz wszystko, co by kosztowała.",
+      "withdrawn": "Prośba wycofana. Zachowujesz wszystko, co by kosztowała.",
+      "askRuling": "GM czyta twoją prośbę.",
+      "waitLeft": "Prośba czeka jeszcze {time}.",
+      "settledWithdrawn": "Prośba wycofana.",
+      "askerLeft": "{name}: rozłączenie o {time}. Jeśli wróci po przeładowaniu strony, zapyta od nowa.",
+      "settledReloaded": "Po przeładowaniu strony ta prośba już nie czeka. Możesz zapytać jeszcze raz."
     },
     "Tables": {
       "installed": "Tabele przedmiotów są gotowe: utworzono {created}, a {skipped} zostawiono bez zmian.",
@@ -5874,7 +5896,14 @@
         "monokumas": "Monokumy",
         "spectators": "Widzowie",
         "notInClass": "Poza klasą"
-      }
+      },
+      "primaryGm": "Główny GM: {name}",
+      "primaryGmYou": "Główny GM: {name} (ty)",
+      "primaryGmTooltip": "Przeglądarka głównego GM-a prowadzi automatykę stołu: głos, rzuty graczy, audyt arkuszy i mgłę.",
+      "primaryTitle": "Główny GM",
+      "primaryNowYou": "Jesteś teraz głównym GM-em: twoja przeglądarka prowadzi automatykę stołu (głos, rzuty graczy, audyt arkuszy, mgłę). Zostaw tę kartę przeglądarki otwartą.",
+      "primaryNow": "Głównym GM-em jest teraz {name}.",
+      "primaryBack": "Głównym GM-em jest teraz {name}. Twoja przeglądarka już nie prowadzi automatyki stołu."
     },
     "Character": {
       "notACharacter": "To działa tylko na postaci.",
@@ -7412,7 +7441,8 @@
       "cleared": "Debug log w tej przeglądarce jest teraz pusty.",
       "copy": "Kopiuj do schowka",
       "copied": "Dziennik jest w schowku. Wklej go (Ctrl+V) tam, gdzie ma trafić.",
-      "copyFailed": "Ta przeglądarka nie pozwoliła skopiować tekstu do schowka. Nic nie zostało skopiowane."
+      "copyFailed": "Ta przeglądarka nie pozwoliła skopiować tekstu do schowka. Nic nie zostało skopiowane.",
+      "elsewhere": "Wpisy automatyki stołu i odmowy próśb przekazanych głównemu GM-owi są w Dzienniku debugowania głównego GM-a. Głównym GM-em jest {name}."
     },
     "Fog": {
       "scenesPrepared": {

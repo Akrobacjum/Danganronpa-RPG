@@ -446,7 +446,8 @@ Hooks.once("ready", () => {
     // claim of this browser's old keys for this world, the reset's cuts, the
     // GM-to-GM exchange. Not awaited, for the reason the migration is not. The
     // case's health check is hung on the moment the other GMs' copies have
-    // arrived, before the stores open, so it cannot miss it (the primary only).
+    // arrived, before the stores open, so it cannot miss it (the primary's whole
+    // check, another GM's quiet one since 2.0 line T2, PRIM-04).
     safely("the case health check", registerCaseHealth);
     // The case's copy on the server (E111): read once the stores are hydrated, written after they change.
     safely("the case's server copy", registerCaseCopy);

@@ -7,7 +7,7 @@
  * lint rule `drpg/bridge-result`), and the asks a card or a GM's window makes
  * through `ask`: `sendDespairToPrimary`, `askObservePick`,
  * `answerTraitRuling`, `answerHopeCall`, `askReshapeRuling`,
- * `answerDynamic`, `askCardClaim`, `claimCard`.
+ * `answerDynamic`, `askCardClaim`, `claimCard` (a card taken over, since 2.0: card-takeover.mjs, line T2 CALLS-01).
  *
  * WHERE IT SITS. Moved out of gm-bridge.mjs by E41 C5b (1.2.97), a pure move
  * that `node tools/moved-only.mjs` proves line by line, in gm-bridge.mjs's
@@ -20,6 +20,7 @@ import { TIMING } from "./config.mjs";
 import { debug } from "./utils.mjs";
 import { sayNotDone, reasonOf } from "./bridge-guards.mjs";
 import { claimOnPrimary, sayRefusedHere, observePickOnPrimary, yesOnPrimary, dynamicOnPrimary } from "./call-gm.mjs";
+import { startClaimRun, endClaimRun, askTakeOver, raiseOwnClaim } from "./card-takeover.mjs";
 import {
     SOCKET_EVENT, ACTION_PROGRESS, ACTION_SHARE, ACTION_REMNANT, ACTION_TIE_TRACE, ACTION_REMNANT_EDIT, ACTION_SABOTAGE,
     ACTION_UNSABOTAGE, ACTION_PROJECT_CHANGE, ACTION_SENDBACK, ACTION_ECLIPSE_MOVE, ACTION_ARM, ACTION_DESPAIR,
@@ -28,7 +29,7 @@ import {
     ACTION_TRIAL_OBJECT, ACTION_TRIAL_EVIDENCE, ACTION_TRIAL_WITHDRAW, ACTION_FLOOR_REPOINT, ACTION_TRIAL_GM,
     ACTION_TRIAL_TURN, ACTION_TRIAL_CLAIM, ACTION_TRIAL_SIDE, ACTION_TRIAL_KEYWORD, ACTION_TRIAL_PRESENT, ACTION_READY_OPEN, ACTION_READY_ANSWER,
     ACTION_READY_END, ACTION_RESHAPE_RULING, ACTION_TRAIT_RULING, ACTION_HOPE_CALL, ACTION_CALL_YES,
-    ACTION_RULING_EXPIRED, ACTION_RULING_RECEIVED, ACTION_DYNAMIC_ANSWER, ACTION_OBSERVE_TARGET, ACTION_OBSERVE_RESOLVE,
+    ACTION_RULING_EXPIRED, ACTION_RULING_RECEIVED, ACTION_ASK_WITHDRAW, ACTION_DYNAMIC_ANSWER, ACTION_OBSERVE_TARGET, ACTION_OBSERVE_RESOLVE,
     ACTION_OBSERVE_PICK, ACTION_CLEANUP_TRACES, ACTION_ANALYZE_RESOLVE, ACTION_ADVANCEMENT, ACTION_ADVANCEMENT_OFFER,
     ACTION_SHARE_BULLET, ACTION_GIVE_ITEM, ACTION_PASSAGE_SHARE, ACTION_PASSAGE_CROSS, ACTION_PASSAGE_FIND, ACTION_PASSAGE_LAIR_SEAL, ACTION_LAIR_LOCK,
     ACTION_REFUND_CROSSING, ACTION_VAULT_STEAL, ACTION_STEAL, ACTION_FIND_STASH, ACTION_PLANT, ACTION_FRISK_UNSEEN,
@@ -782,7 +783,8 @@ export async function askObservePick({ rid, actorId, tokenId = null, refuse = fa
 
 /**
  * A GM's answer to a statistic card, sent to the player who asked alone: the
- * request's `bridge.done`, the trait, or `false` for Refuse.
+ * request's `bridge.done`, the trait, or `false` for Refuse. Not by the primary, so a pick's
+ * card says it is not confirmed until the asker's receipt (2.0 line T2, CALLS-05; pick-receipt.mjs `pickReceived`).
  */
 export function answerTraitRuling(requestId, asker, trait) {
     if (!game.user.isGM || !requestId || !asker) return false;
@@ -871,9 +873,10 @@ export async function answerDynamic(requestId, asker, ruling, messageId = null, 
  * @returns {Promise<object>} the bridge's result; `value` true to allow, false to refuse.
  */
 export function requestHopeCallApproval(
-    { actorId, actorName, key, callLabel, effect, cost, note, nonce }, timeoutMs = TIMING.hopeCallRulingMs) {
+    { actorId, actorName, key, callLabel, effect, cost, note, nonce }, timeoutMs = TIMING.hopeCallRulingMs, { requestId = null } = {}) {
+    // `requestId`: the waiting card's, whose Withdraw names it (2.0 line T2, EXP-PL-12; ask-withdraw.mjs), here and below.
     return ask(ACTION_HOPE_CALL, { actorId, actorName, key, callLabel, effect, cost, note, nonce }, { timeoutMs, nothingSpent: true,
-        expired: ACTION_RULING_EXPIRED, received: ACTION_RULING_RECEIVED });
+        expired: ACTION_RULING_EXPIRED, received: ACTION_RULING_RECEIVED, requestId });
 }
 
 /**
@@ -890,10 +893,10 @@ export function requestHopeCallApproval(
  *
  * @returns {Promise<object>} the bridge's result; `value` `{tier, trait}`, or false when the GM refused.
  */
-export function requestDynamicDifficulty({ description, actorName, room, actorId = null, proposed = null }, timeoutMs = TIMING.rulingMs) {
+export function requestDynamicDifficulty({ description, actorName, room, actorId = null, proposed = null }, timeoutMs = TIMING.rulingMs, { requestId = null } = {}) {
     // `proposed` (E68 C4): the statistic the player proposes; the card says it, the GM's editor checks it first.
     return ask(ACTION_DIFFICULTY, { description, actorName, room, actorId, proposed }, { timeoutMs, nothingSpent: true,
-        expired: ACTION_RULING_EXPIRED, received: ACTION_RULING_RECEIVED });
+        expired: ACTION_RULING_EXPIRED, received: ACTION_RULING_RECEIVED, requestId });
 }
 
 /**
@@ -906,9 +909,15 @@ export function requestDynamicDifficulty({ description, actorName, room, actorId
  *
  * @returns {Promise<object>} the bridge's result; `value` the trait, or false when the GM refused.
  */
-export function requestTraitRuling({ actorId, kind, key, variant = null, proposed = null, note = "" }) {
+export function requestTraitRuling({ actorId, kind, key, variant = null, proposed = null, note = "" }, { requestId = null } = {}) {
     return ask(ACTION_TRAIT_RULING, { actorId, kind, key, variant, proposed, note }, { nothingSpent: true,
-        expired: ACTION_RULING_EXPIRED, received: ACTION_RULING_RECEIVED });
+        expired: ACTION_RULING_EXPIRED, received: ACTION_RULING_RECEIVED, requestId });
+}
+
+/** The asker's Withdraw of its ask, `rid` the ask's own id (2.0 line T2, EXP-PL-12; ask-withdraw.mjs `withdrawAsk`): nobody
+    waits on it, and the primary ends the card (`withdrawnOnPrimary`). Not re-exported by gm-bridge.mjs. */
+export function requestAskWithdraw(rid) {
+    return ask(ACTION_ASK_WITHDRAW, { rid });
 }
 
 /**
@@ -1410,8 +1419,12 @@ export function requestProjectShare(countdownId, userId) {
     return ask(ACTION_SHARE, { countdownId, targetUserId: userId });
 }
 
-/** One step of a claim, asked of the primary - or run here when this GM is the primary. The answer of `claimOnPrimary`, or null. */
-async function askCardClaim(messageId, step) {
+/**
+ * One step of a claim, asked of the primary - or run here when this GM is the primary. The answer of `claimOnPrimary`, or null.
+ * Exported since 2.0 (line T2, CALLS-02, 27.11.2026) for call-gm.mjs `releaseOwnClaims` alone, which reaches it by `import()`
+ * (bridge-asks.mjs imports call-gm.mjs): a second GM lets go of its own claims left by its reload with this "drop".
+ */
+export async function askCardClaim(messageId, step) {
     const res = await ask(ACTION_CARD_CLAIM, { messageId, step }, {
         onPrimary: true,
         local: () => claimOnPrimary(messageId, step, game.user.id)
@@ -1430,25 +1443,52 @@ async function askCardClaim(messageId, step) {
  * today, and the cards E72 (part A, formerly E67: the gmAsk card's 'Give 1/2'), E68 (the trait card)
  * and E72 (Accept and Refuse) put on it. Overrule and the Closing's approve are not claimed (E18 amend 3).
  *
+ * A CARD ANOTHER GM HAS IS ASKED FOR, NOT ONLY REFUSED (2.0 line T2, CALLS-01, 27.11.2026; F1-calls CALLS-01, F3 S2 B1).
+ * A press on a card another GM's claim holds asks this GM whether to take it over (card-takeover.mjs `askTakeOver`: who and since when,
+ * Cancel on the left and the default, Take over `data-action="take"`, the button S2 B1's kit presses in a window it
+ * does not know); yes is the claim's "takeover", and the ruling's work runs here at once. A takeover the primary finds
+ * free - the other GM finished or backed out meanwhile - is a plain take. A card this GM's own other window holds is no
+ * question (CALLS-12): this GM is told so (`DRPG.Bridge.claimOwnOpen`), and that window is brought to the front
+ * (`raiseOwnClaim`).
+ *
+ * THE WINDOWS A CLAIM OPENS ARE ITS OWN (CALLS-01). While `work` runs, every window first drawn here is kept with the
+ * claim (card-takeover.mjs `startClaimRun`, through `renderApplicationV2`; a window open before the claim is not). When
+ * another GM takes the card over, the primary says so (`card.takenOver`, `onCardTakenOver`): those windows are closed - a
+ * kit window closed answers null, so its ruling returns nothing - and the claim is marked lost (`claimLostHere`), which a ruling
+ * whose effect comes after its window here reads before it acts (messenger-app.mjs). And whatever this browser heard,
+ * the primary answers this claim's "done" or "drop" with "busy" by the GM who has it; then nothing is answered here,
+ * so the caller writes no line on a card that is another GM's.
+ *
  * @param {ChatMessage} message  The card.
  * @param {() => Promise<object|null>} work  The ruling, run on this GM's browser.
+ * @param {object} [roads]  A test's (R9024): `claim` for `askCardClaim`, `ask` for the question, `say` for the notice.
  * @returns {Promise<object|null>} What `work` answered, or null when the card was not this GM's to rule.
  */
-export async function claimCard(message, work) {
+export async function claimCard(message, work, { claim = askCardClaim, ask = askTakeOver, say = sayRefusedHere } = {}) {
     if (!message?.id || !game.user?.isGM) return null;
-    const taken = await askCardClaim(message.id, "take");
+    let taken = await claim(message.id, "take");
+    if (!taken?.taken && taken?.why === "busy" && taken.by && taken.by !== game.user.id) {
+        if (!(await ask(taken, message.id))) return null;
+        taken = await claim(message.id, "takeover");
+        if (taken?.why === "free") taken = await claim(message.id, "take");
+    }
     if (!taken?.taken) {
         const gm = game.users.get(taken?.by ?? "")?.name ?? String(taken?.by ?? "");
-        if (taken?.why === "ruled") sayRefusedHere(game.i18n.format("DRPG.Bridge.alreadyRuled", { gm }));
-        else if (taken?.why === "busy") sayRefusedHere(game.i18n.format("DRPG.Bridge.claimBusy", { gm }));
-        else if (taken?.why === "settled") sayRefusedHere(game.i18n.localize("DRPG.Bridge.alreadySettled"));
+        if (taken?.why === "ruled") say(game.i18n.format("DRPG.Bridge.alreadyRuled", { gm }));
+        else if (taken?.why === "busy" && taken.by === game.user.id) raiseOwnClaim(message.id, say);
+        else if (taken?.why === "busy") say(game.i18n.format("DRPG.Bridge.claimBusy", { gm }));
+        else if (taken?.why === "settled") say(game.i18n.localize("DRPG.Bridge.alreadySettled"));
         return null;
     }
+    const run = startClaimRun(message.id);
     let outcome = null;
+    let ended = null;
     try {
         outcome = await work();
     } finally {
-        await askCardClaim(message.id, outcome?.settled || outcome?.held ? "done" : "drop");
+        endClaimRun(message.id, run);
+        ended = await claim(message.id, outcome?.settled || outcome?.held ? "done" : "drop");
     }
+    if (run.lost || (ended?.why === "busy" && ended.by && ended.by !== game.user.id)) return null;
     return outcome;
 }

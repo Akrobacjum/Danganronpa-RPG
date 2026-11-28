@@ -852,8 +852,13 @@ export function wireCallActions(body, message = null) {
 
     if (!game.user.isGM) {
         for (const button of buttons) button.closest(".drpg-call-actions")?.remove();
+        // Its asker's own card reads whether a GM is reading it, as the primary last said (2.0 line T2, EXP-PL-12).
+        void import("./ask-withdraw.mjs").then(m => m.markAskCard(body, message)).catch(err => debug("An ask's card could not show its state", err));
         return;
     }
+
+    // Who is ruling on the card, on every GM's copy (2.0 line T2, EXP-GM-05; `signClaim`, below).
+    signClaim(body, message);
 
     /*
      * EVERY BUTTON OF THE CARD IS HELD WHILE ONE CLICK RUNS (E09 C10, 08.10.2026). Only
@@ -887,7 +892,7 @@ export function wireCallActions(body, message = null) {
                 // Sent on by the primary, which writes the card's line once the player has it (E18 C1): held till it redraws.
                 if (outcome?.held) return;
                 if (outcome?.settled) {
-                    await settleCall(message, outcome.settled, outcome.ruling ?? null);
+                    await settleCall(message, outcome.settled, outcome.ruling ?? null, outcome.gmNote ?? null);
                     return; // The card redraws itself; these buttons are gone.
                 }
                 // Answered already, on the other copy of this card (F118: a GM's log and messenger both wire a thread's
@@ -903,6 +908,89 @@ export function wireCallActions(body, message = null) {
     }
 }
 
+/*
+ * WHO IS RULING ON A CARD, ON THE CARD (2.0 line T2, EXP-GM-05, 27.11.2026; F1-blind-gm EXP-GM-05, E-GM-15). A second
+ * GM learnt that another GM was ruling on a card only by pressing it and being refused (`DRPG.Bridge.claimBusy`). Every
+ * GM's copy of a card - the chat log's and the messenger's, both drawn through `wireCallActions` - now carries, while
+ * another GM's claim holds it (a pending row of a GM who is here in the GMs' `ruledCardStore`, not run out:
+ * call-gm.mjs `claimRanOut`), a line "{gm} has been ruling on this card since {time}." and Take over, in the card's
+ * answers' block, which a player's copy never has (it is removed above) - so nothing of it is drawn for a player. Its
+ * own GM's claim draws nothing. Drawn again when the store changes here (`clientSettingChanged` on its key: a write of
+ * this primary's, or another GM's row merged in) and once the claim's hold has run out; it goes with the block when the
+ * card is ruled. Take over takes the claim over and lets it go at once (card-takeover.mjs `takeOverFromCard`): the other
+ * GM's window closes, and this GM presses an answer as usual.
+ */
+const CLAIM_SIGN_CLASS = "drpg-call-claim";
+let claimSignsWatched = false;
+
+/** Draw the card's claim sign in its answers' block and keep it drawn (EXP-GM-05). */
+function signClaim(body, message) {
+    const actions = body.querySelector(".drpg-call-actions");
+    if (!actions || !message?.id) return;
+    actions.dataset.drpgClaimOf = message.id;
+    watchClaimSigns();
+    void paintClaimSign(actions).catch(err => debug("Could not draw who is ruling on a card", err));
+}
+
+/** Every drawn card's sign, drawn again when the GMs' `ruledCardStore` changes on this browser; once per browser. */
+function watchClaimSigns() {
+    if (claimSignsWatched) return;
+    claimSignsWatched = true;
+    Hooks.on("clientSettingChanged", key => {
+        if (key !== `${MODULE_ID}.${SETTINGS.gmRuledCards}`) return;
+        for (const actions of document.querySelectorAll(".drpg-call-actions[data-drpg-claim-of]")) {
+            void paintClaimSign(actions).catch(err => debug("Could not draw who is ruling on a card", err));
+        }
+    });
+}
+
+/**
+ * The claim sign of one card's answers' block (EXP-GM-05), drawn from the card's row in the GMs' `ruledCardStore` (or
+ * `row`, a test's: R9023): the line and Take over when another GM who is here holds a claim that has not run out,
+ * nothing otherwise, and nothing on a player's browser. Answers the GM it names, or null.
+ */
+export async function paintClaimSign(actions, { row = undefined } = {}) {
+    const id = actions?.dataset?.drpgClaimOf;
+    if (!id) return null;
+    const read = row !== undefined ? row : (await import("./gm-stores.mjs")).ruledCardStore.get(id);
+    const { claimRanOut } = await import("./call-gm.mjs");
+    const by = game.user?.isGM && read?.pending && read.by && read.by !== game.user.id && !claimRanOut(read)
+        && game.users.get(read.by)?.active ? read.by : null;
+    actions.querySelector(`.${CLAIM_SIGN_CLASS}`)?.remove();
+    if (!by) return null;
+    const sign = document.createElement("div");
+    sign.className = `${CLAIM_SIGN_CLASS} drpg-gm-only`;
+    sign.dataset.drpgClaimBy = by;
+    const line = document.createElement("p");
+    line.textContent = game.i18n.format("DRPG.Bridge.claimedBy", { gm: game.users.get(by)?.name ?? "?", time: bubbleTime(read.at) });
+    const take = document.createElement("button");
+    take.type = "button";
+    take.dataset.drpgClaimTake = id;
+    take.textContent = game.i18n.localize("DRPG.Bridge.takeOver");
+    setTip(take, "DRPG.Bridge.takeOverTooltip");
+    take.addEventListener("click", async event => {
+        event.preventDefault();
+        event.stopPropagation();
+        take.disabled = true;
+        try {
+            const { takeOverFromCard } = await import("./card-takeover.mjs");
+            await takeOverFromCard(id);
+        } catch (err) {
+            error("Could not take the card over", err);
+        } finally {
+            take.disabled = false;
+        }
+    });
+    sign.append(line, take);
+    actions.prepend(sign);
+    // Drawn again once the claim's hold has run out, when no store change says so.
+    const { TIMING } = await import("./config.mjs");
+    const { serverNow } = await import("./utils.mjs");
+    const left = typeof read.at === "number" ? read.at + TIMING.claimHoldMs - serverNow() : null;
+    if (left !== null) setTimeout(() => { if (actions.isConnected) void paintClaimSign(actions).catch(() => {}); }, Math.max(0, left) + 1000);
+    return by;
+}
+
 /**
  * One of a card's actions run on this GM's browser by the road a press takes (E68 C2): claimed on the primary,
  * ruled, and the card settled with the ruling's line - what `wireCallActions` does for a click, with no button.
@@ -912,7 +1000,7 @@ export async function pressCard(message, action, data = {}) {
     if (!message?.id || !game.user?.isGM) return null;
     const { claimCard, settleCall } = await import("./gm-bridge.mjs");
     const outcome = await claimCard(message, () => runCallAction(action, { ...data }, message));
-    if (outcome?.settled && !outcome.held) await settleCall(message, outcome.settled, outcome.ruling ?? null);
+    if (outcome?.settled && !outcome.held) await settleCall(message, outcome.settled, outcome.ruling ?? null, outcome.gmNote ?? null);
     return outcome;
 }
 
@@ -969,7 +1057,8 @@ async function askItemEffect(item) {
 // to the asking client over the packet the old dialog used; the player's
 // own `spendHopeCall` asks the GM to arm it on a yes, and the GM charges the
 // Hope then. A yes goes by the primary, which keeps it for that arm (E29 fix
-// r2-H4): one it could not keep closes the card with "The player was no longer waiting." (`askNotHeld`, 1.2.122),
+// r2-H4): one it could not keep closes the card as an ask that ran out, "The player was no longer waiting." the GMs'
+// own line under it (`askNotHeld`, 1.2.122; 2.0 line T2, CALLS-14),
 // or leaves it open where the bridge said why. The primary writes
 // "Approved" on the card once the player's browser has the yes (E18 C1). The
 // card pressed goes with it: the primary keeps a yes only for the ask held on
@@ -978,7 +1067,7 @@ async function ruleApproveCallOrRefuseCall(action, data, message = null) {
     const { answerHopeCall } = await import("./gm-bridge.mjs");
     const yes = action === "approveCall";
     const out = {};
-    if (!(await answerHopeCall(data.rid, data.asker, yes, message?.id ?? null, out))) return askNotHeld(out);
+    if (!(await answerHopeCall(data.rid, data.asker, yes, message?.id ?? null, out))) return askNotHeld(out, message);
     return yes ? { held: true } : settled("DRPG.Bridge.settledDeclined");
 }
 
@@ -992,33 +1081,66 @@ async function ruleApproveCallOrRefuseCall(action, data, message = null) {
 // the ask held on the card pressed alone (`dynamicOnPrimary`, fix early-C2-G2).
 async function ruleSetDifficulty(action, data, message = null) {
     const { askDynamicDifficulty } = await import("./action-rolls.mjs");
+    // The card's time, which the window counts down to (2.0 line T2, CALLS-03, 28.11.2026).
+    const { askCardExpiry } = await import("./call-gm.mjs");
     const ruling = await askDynamicDifficulty({
-        description: data.desc ?? "", actorName: data.name ?? "?", actorId: data.by || null, room: data.room || null, proposed: data.proposed || null
+        description: data.desc ?? "", actorName: data.name ?? "?", actorId: data.by || null, room: data.room || null, proposed: data.proposed || null,
+        expires: message ? askCardExpiry(message) : null
     });
+    // Taken over by another GM while the window stood open: nothing from it is ruled (2.0 line T2, CALLS-01).
+    if (await takenOverMeanwhile(message)) return null;
     // The window's Refuse is the card's Refuse (1.2.122, CTRL-27); closed with no answer, the card stays open.
     if (ruling === false) return ruleRefuseDynamic(action, data, message);
     if (!ruling) return null;
     const { answerDynamic } = await import("./gm-bridge.mjs");
     const out = {};
-    return (await answerDynamic(data.rid, data.asker, ruling, message?.id ?? null, out)) ? { held: true } : askNotHeld(out);
+    return (await answerDynamic(data.rid, data.asker, ruling, message?.id ?? null, out)) ? { held: true } : askNotHeld(out, message);
+}
+
+/*
+ * A RULING'S WINDOW ANOTHER GM TOOK OVER RULES NOTHING (2.0 line T2, CALLS-01, 27.11.2026). When another GM takes over a
+ * card whose window is open here, the primary says so and the claim's windows are closed (bridge-asks.mjs
+ * `cardTakenOverHere`): a kit window closed answers null, so the ruling returns nothing. Of the two ways the spec of the
+ * line gives a ruling that acts with no primary - ask the primary with a step of the claim, or read a mark this browser
+ * keeps - this reads the mark (`claimLostHere`), in every ruling of `CARD_ACTIONS` whose effect follows its window here:
+ * the difficulty (whose answer goes by the primary, which refuses a GM it no longer holds the card for, call-gm.mjs
+ * `claimedByAnother`), Reply and an item's effect. The rulings whose window carries out its own effect - a project's,
+ * a trap's plant and target, an item given, a Key Remnant placed, the item tables - are held by the window's close alone;
+ * an Observe's pick goes by the primary. The rulings with no window act at the press. A take-over the primary's packet
+ * did not bring here is caught by the primary alone, and on the rulings that go by it.
+ */
+async function takenOverMeanwhile(message) {
+    if (!message?.id) return false;
+    const { claimLostHere } = await import("./card-takeover.mjs");
+    return claimLostHere(message.id);
 }
 
 /**
  * A ruling on an ask the primary no longer holds (1.2.122, the audit's CTRL-23): the player reloaded and asked again
  * elsewhere, or its time ran out. The buttons came back with a line in the console alone, so the GM pressed again; the
- * card says so now and settles with "The player was no longer waiting.". Where the bridge said why (no primary to ask,
- * no answer: `out.told`), the buttons come back and nothing more is said.
+ * card says so now and settles. Where the bridge said why (no primary to ask, no answer: `out.told`), the buttons come
+ * back and nothing more is said.
+ *
+ * THE GMS' LINE IS THE GMS' (2.0 line T2, CALLS-14, 27.11.2026; F1-calls CALLS-14). It settled with "The player was no
+ * longer waiting." as the card's own line, so the player read about themselves in the third person in their own thread,
+ * where the GM handbook (6.3) says the card ends "Nobody answered in time. You can ask again." for everyone and that line
+ * for the GMs. It ends now as the primary's own end of such a card writes it (call-gm.mjs `endExpired`): the line for
+ * everyone and the GMs' note, both by key, so each reader writes them in its own language (secret.mjs `readersLines`),
+ * and the note in the card's `.drpg-gm-only`, which a player's copy of the words never holds. `wireCallActions` and
+ * `pressCard` hand the note to `settleCall`. R9036, tier 2's "E132 CALLS-14".
  */
-function askNotHeld(out) {
+function askNotHeld(out, message = null) {
     if (out?.told) return null;
+    // An ask its player withdrew has its card ended already, "Request withdrawn." (2.0 line T2, EXP-PL-12): no second line.
+    if (message && cardFlag(message, MESSENGER_FLAGS.settled)) return null;
     ui.notifications.warn(game.i18n.localize("DRPG.Bridge.askNotHeld"));
-    return settled("DRPG.Bridge.settledGone");
+    return { settled: { key: "DRPG.Bridge.settledExpired" }, gmNote: { key: "DRPG.Bridge.settledGone" } };
 }
 
 async function ruleRefuseDynamic(action, data, message = null) {
     const { answerDynamic } = await import("./gm-bridge.mjs");
     const out = {};
-    return (await answerDynamic(data.rid, data.asker, false, message?.id ?? null, out)) ? { held: true } : askNotHeld(out);
+    return (await answerDynamic(data.rid, data.asker, false, message?.id ?? null, out)) ? { held: true } : askNotHeld(out, message);
 }
 
 /**
@@ -1042,6 +1164,10 @@ function rulingThread(actor, message) {
 // "Approve" and each "Change to" are this one action, and the list's guard holds both - a
 // "Change to" off the list is refused here as any pick is. The ruling keeps the proposal and
 // `how` ("approved", "changed", or "picked" with none), read as the button's data says it.
+// The card's line says the pick is not confirmed (`DRPG.Bridge.settledUnconfirmed`, by key, each reader's language):
+// it goes from this browser to the asker and nothing here knows it arrived; the primary writes it "Answered by" on
+// the asker's receipt (2.0 line T2, CALLS-05, 28.11.2026; pick-receipt.mjs `pickReceived`). The valve's own press keeps its
+// "Approved automatically.", made by the primary as the card goes up.
 async function rulePickTrait(action, data) {
     // The valve's press (E68 C2; call-gm.mjs `askTraitByCard`): no card's button carries `auto`, only the primary's own call.
     const auto = data.auto === "1";
@@ -1056,7 +1182,7 @@ async function rulePickTrait(action, data) {
     if (!answerTraitRuling(data.rid, data.asker, data.trait)) return null;
     const proposed = listedTraits(spec).includes(data.proposed) ? data.proposed : null;
     const how = !proposed ? "picked" : proposed === data.trait ? "approved" : "changed";
-    return { ...(auto ? { settled: game.i18n.localize("DRPG.TraitRuling.autoApproved") } : settled("DRPG.Bridge.settledAnswered")),
+    return { settled: auto ? game.i18n.localize("DRPG.TraitRuling.autoApproved") : { key: "DRPG.Bridge.settledUnconfirmed", name: game.user.name },
         ruling: { type: "trait", actorId: data.by, ...spec, trait: data.trait, ...(proposed ? { proposed } : {}), how, ...(auto ? { auto: true } : {}) } };
 }
 
@@ -1088,7 +1214,9 @@ async function ruleItemWorksOrItemNoEffectOrItemRefuse(action, data, message = n
     }
     // One ruling at a time on an item, and none on one gone or used up meanwhile (E14 part 1 C5; audit S08-35):
     // held on this GM by `ruleCreativeUse`, which reads the item before the window and again after it.
-    const ask = action === "itemNoEffect" ? async () => ({ amounts: {}, consume: true }) : () => askItemEffect(item);
+    // Taken over by another GM while the effect's window stood open: no effect (2.0 line T2, CALLS-01; `takenOverMeanwhile`).
+    const ask = action === "itemNoEffect" ? async () => ({ amounts: {}, consume: true })
+        : () => askItemEffect(item).then(async r => ((await takenOverMeanwhile(message)) ? null : r));
     const done = await ruleCreativeUse(actor, item.id, ask,
         ruling => grantItemEffect(actor, actor.items.get(item.id) ?? item, ruling.amounts, { consumeItem: ruling.consume }));
     if (done?.busy) {
@@ -1295,7 +1423,7 @@ async function ruleReply(action, data, message = null) {
     // `{ text }`, so a ruling reading "cancel" is a ruling (E18 C0, S11-60): Cancel answers its action's name,
     // "cancel" (its callback's null falls back to the action in DialogV2), and the words bare could not be told from it.
     const text = typeof answer?.text === "string" ? answer.text : "";
-    if (!text) return null;
+    if (!text || (await takenOverMeanwhile(message))) return null;   // Taken over meanwhile (2.0 line T2, CALLS-01).
 
     const { postToThread } = await import("./messenger.mjs");
     const owner = rulingThread(actor, message);

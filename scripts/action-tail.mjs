@@ -88,7 +88,7 @@ export async function performTail(actor, options = {}) {
                 <p>${esc(game.i18n.format("DRPG.Infiltrate.tail.prompt", { n: rule.unseen.threshold }))}</p>
                 <label>${esc(game.i18n.localize("DRPG.Infiltrate.tail.who"))}
                     ${whoSelect(targets)}</label>
-                ${traitFieldHtml(actor, traits, { propose: true })}
+                ${traitFieldHtml(actor, traits, { propose: true, keep: { kind: "generic", key: "tail" } })}
             </form>`,
             footer: {
                 primary: {

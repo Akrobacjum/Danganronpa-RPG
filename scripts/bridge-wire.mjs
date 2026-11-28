@@ -227,3 +227,17 @@ export const ACTION_CARD_CLAIM = "card.claim";
 
 /** GM -> primary GM: Give a Truth Bullet, carried to the primary so its copy is made in the one receiver's finds' queue (E38; D153). */
 export const ACTION_BULLET_GIVE = "bullet.give";
+
+/** primary GM -> GM: another GM took over the card this GM's claim held; its window of the card closes and nothing from it
+    is ruled (2.0 line T2, CALLS-01, 27.11.2026) - see call-gm.mjs `claimOnPrimary`, card-takeover.mjs `onCardTakenOver`. */
+export const ACTION_CARD_TAKEN = "card.takenOver";
+
+/** player -> primary GM: an ask the player withdrew from its waiting card, its card ended for everyone (2.0 line T2, EXP-PL-12,
+    28.11.2026) - see ask-withdraw.mjs `withdrawAsk`, `withdrawnOnPrimary`. */
+export const ACTION_ASK_WITHDRAW = "ask.withdraw";
+/** primary GM -> player: a GM took the card of this player's ask (`ruling`) or let it go (`waiting`), naming no GM (2.0 line T2,
+    EXP-PL-12) - see call-gm.mjs `tellAskState`; taken by bridge-guards.mjs `createWaiter` from the primary alone. */
+export const ACTION_ASK_STATE = "ask.state";
+/** player -> GMs: this player's browser has loaded, so it waits on no ask it sent before (2.0 line T2, CALLS-04, 28.11.2026) - see
+    gm-bridge.mjs `tellGmsPlayerReady`, `onPlayerReady`; no field but its name: whose asks end is Foundry's sender. */
+export const ACTION_PLAYER_READY = "bridge.playerReady";

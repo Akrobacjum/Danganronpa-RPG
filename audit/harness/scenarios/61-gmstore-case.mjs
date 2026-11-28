@@ -128,7 +128,8 @@
  *      try once the notice history gave its room back, and the case's health counts the history apart.
  *   Y  a player's Hope Call asked while the primary leaves or reloads (E18 C2): it is asked again, the
  *      card the GM posted before is the ask's, and the yes reaches the player.
- *   CL two GMs' clicks on one card to the GMs (E18 C3): one ruling, the other GM told who ruled, a
+ *   CL two GMs' clicks on one card to the GMs (E18 C3): one ruling, the other GM told who ruled (or, since 2.0 line T2
+ *      CALLS-01, asked whether to take the card over while the claim is under way), a
  *      player's forged claim refused, and the card its author reopened not ruled again.
  *   TD the traces' digest (E51 C5; fix FG1): the primary's trace and a second GM's are said once, by the primary, at
  *      the time of day after the primary's F5; a trace of a primary that leaves is said by the next; a GM sorting first
@@ -1932,6 +1933,16 @@ export async function run({ gm, gm2, gm3, gma, gmb, gmc, p1, p2, p3, p4, check, 
        C-m7): the door, the offers and the fog, read off the packets. */
     await connect("gma");
     await settle(1500);
+    /* Z2b (2.0 line T2, PRIM-04, 28.11.2026): gma, a second GM with an empty browser, checks quietly at its load - the
+       panel's red line, and no window and no notice; the window stays the primary's (gm3's, Z2). Until 2.0 the check
+       returned at once on a GM who was not the primary, and gma showed nothing. Which rows: gma's own reading (traces on
+       28.11.2026 - the bullets' rows reach it from gm3's copy by then), not pinned here. */
+    const quietOnGma = await gma.eval(`const S = await import("${repoUrl}/scripts/gm-stores.mjs");
+        return { primary: (await import("${repoUrl}/scripts/utils.mjs")).isPrimaryGm(), warning: Boolean(S.caseWarning()),
+            missing: (S.caseWarning()?.rows ?? []).filter(r => r.level === "missing").map(r => r.id).sort(),
+            dialogs: globalThis.__dialogLog.filter(d => d.title === game.i18n.localize("DRPG.Case.healthTitle")).length };`);
+    check("Z2b: a second GM with an empty browser shows the case's red line on its own panel, with no window",
+        !quietOnGma.primary && quietOnGma.warning && quietOnGma.missing.length >= 1 && quietOnGma.dialogs === 0, J(quietOnGma));
     const fromZ = socketTraffic.length;
     const restored = await gma.eval(`const result = await game.drpg.restoreCase(${J(backup.text)});
         return { refused: result?.refused ?? null, primary: (await import("${repoUrl}/scripts/utils.mjs")).isPrimaryGm() };`);
@@ -1940,6 +1951,8 @@ export async function run({ gm, gm2, gm3, gma, gmb, gmc, p1, p2, p3, p4, check, 
         const report = await game.drpg.gmStoreHealth();
         return { warning: Boolean(S.caseWarning()), missing: report.rows.filter(r => r.level === "missing").map(r => r.id),
             bullets: report.counts.bullets, traces: report.counts.traces };`);
+    // And the restoring GM's own line goes: its restore checks again, quietly (PRIM-04).
+    const lineOnGma = await gma.eval(`const S = await import("${repoUrl}/scripts/gm-stores.mjs"); return Boolean(S.caseWarning());`);
     const keysOnGm3 = await gm3.eval(keyOf(made));
     const tracesOnGm3 = await gm3.eval(traceRows(idsZ));
     // The restore runs the Faint pass again: the third bullet's Faint moves off its item into its row.
@@ -1949,6 +1962,8 @@ export async function run({ gm, gm2, gm3, gma, gmb, gmc, p1, p2, p3, p4, check, 
         && J(tracesOnGm3) === J(expectZ) && J(afterZ.missing) === J([]) && !afterZ.warning
         && afterZ.bullets.missing === 0 && afterZ.bullets.noAnswer === 0 && afterZ.traces.missing === 0,
         J({ restored, afterZ, keysOnGm3, tracesOnGm3 }));
+    check("Z3b: the second GM who restored the file shows no red line any more (its restore's check, quiet on a GM who is not the primary)",
+        quietOnGma.warning && lineOnGma === false, J({ before: quietOnGma.warning, after: lineOnGma }));
     const toldZ = socketTraffic.slice(fromZ).filter(t => t.from === "gma" && !String(t.action ?? "").startsWith("gms."));
     const toEach = action => [IDS.p1, IDS.p2, IDS.p3].every(id => toldZ.some(t => t.action === action && Array.isArray(t.to) && t.to.includes(id)));
     const doorP1 = await p1.eval(`const E = await import("${repoUrl}/scripts/gm-store.mjs"); return E.readMine("door");`);
@@ -2652,8 +2667,12 @@ export async function run({ gm, gm2, gm3, gma, gmb, gmc, p1, p2, p3, p4, check, 
     /* What the GM who clicked is told: a refusal card (call-gm.mjs `sayRefusedHere`, a showPopup of kind error since
        E18 fix e1-G3, which left this read on the toasts alone and CL2/CL3 red at 89095263), or a toast where no card could
        be shown - each in the order shown. */
+    /* Since 2.0 (line T2, CALLS-01, 27.11.2026) a click on a card another GM's claim still holds asks whether to take it
+       over (card-takeover.mjs `askTakeOver`, its words naming that GM), where it said "busy": the question is read here
+       too, off the harness's window log, as "asked: <its words>" - headless it is answered by its default, Cancel. */
     const clickCL = client => client.eval(`const told = [], real = ui.notifications.warn;
         const shownBefore = new Set(document.querySelectorAll(".drpg-popup"));
+        const askedFrom = globalThis.__dialogLog.length;
         ui.notifications.warn = (text, ...rest) => { told.push(String(text)); return real.call(ui.notifications, text, ...rest); };
         try {
             globalThis.__clButton?.click();
@@ -2665,7 +2684,8 @@ export async function run({ gm, gm2, gm3, gma, gmb, gmc, p1, p2, p3, p4, check, 
         const cards = [...document.querySelectorAll(".drpg-popup.drpg-popup-error")].filter(c => !shownBefore.has(c))
             .sort((a, b) => Number(a.dataset.drpgSeq) - Number(b.dataset.drpgSeq))
             .map(c => c.querySelector(".drpg-popup-body")?.textContent.trim() ?? "");
-        return [...cards, ...told];`, { timeout: 30000 });
+        const asked = globalThis.__dialogLog.slice(askedFrom).filter(d => d.title === game.i18n.localize("DRPG.Bridge.takeOverTitle")).map(d => "asked: " + d.text);
+        return [...cards, ...told, ...asked];`, { timeout: 30000 });
     const linesCL = id => gma.eval(`return game.messages.contents.filter(m => !globalThis.__clBefore.includes(m.id) && m.id !== "${id}").length;`);
     let cl = null;
     await connect("gmb", { storage: await storageOf("gmb") });
@@ -2708,7 +2728,7 @@ export async function run({ gm, gm2, gm3, gma, gmb, gmc, p1, p2, p3, p4, check, 
     const loserTold = cl ? (winner === "GM A" ? cl.toldB : cl.toldA) : null, winnerTold = cl ? (winner === "GM A" ? cl.toldA : cl.toldB) : null;
     check("CL1: p1's forged claim of a card to the GMs, and its forged \"done\", are refused (gmOnly) and told",
         J(cl?.forged?.map(t => t.slice(1))) === J([["bridge.refused", "gmOnly"], ["bridge.refused", "gmOnly"]]), J(cl), { flow: "card-claim" });
-    check("CL2: two GMs' clicks on one card at once rule it once: one line to the player, the row names the GM who ruled on both GMs, and only the other GM is told, by that GM's name",
+    check("CL2: two GMs' clicks on one card at once rule it once: one line to the player, the row names the GM who ruled on both GMs, and only the other GM is told, by that GM's name - that it was ruled, or since 2.0 asked whether to take it over (line T2, CALLS-01)",
         J(cl?.wired) === J([true, true]) && cl.lines === 1 && winner !== null && J(winnerTold) === "[]" && loserTold?.length === 1 && loserTold[0].includes(winner),
         J(cl), { flow: "card-claim" });
     check("CL3: the card reopened by its author is not ruled again: the second GM's click reads who ruled, and no line is posted",

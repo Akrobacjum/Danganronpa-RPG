@@ -77,7 +77,7 @@
  * `rulePickTrait`, settled), so the answer, the card's line ("Approved automatically.") and the
  * ruling it keeps (`auto: true`) are the ones a press makes; on a GM's own browser no window opens.
  */
-import { TRAITS, CRISIS_ACTIONS, MURDER_OPENING, CLEANUP, ACTIONS, INFILTRATE } from "./config.mjs";
+import { TRAITS, CRISIS_ACTIONS, MURDER_OPENING, CLEANUP, ACTIONS, INFILTRATE, TIMING } from "./config.mjs";
 import { pendingCalls } from "./call-effects.mjs";
 import { allProjects } from "./projects.mjs";
 import { esc, warn } from "./utils.mjs";
@@ -289,16 +289,53 @@ export async function keepProjectPick(spec, trait) {
     return updateProject(spec.key, { trait });
 }
 
-/** A player's client: the request, and the notice that stays up while a GM reads the thread. */
+/*
+ * WORDS NO GM ANSWERED ARE KEPT FOR THE NEXT ASK (2.0 line T2, CALLS-03, 28.11.2026; F1-calls CALLS-03). An ask that
+ * ran out ("Nobody answered in time. You can ask again."), or found no GM to answer it, cost the player what they had
+ * written: the next window started empty, so the description of a Dynamic Action, or the note of how a proposed statistic
+ * is used, was written twice. A player's browser keeps them now, in this page's memory alone, per character and
+ * definition (`{ kind, key }`: a Dynamic Action's is `{ kind: "action", key: "dynamic" }`, action-dynamic.mjs
+ * `DYNAMIC_WORDS`), as `{ text, proposed, note }`, and the next window of that character for it starts with them
+ * (call-gm.mjs `askForRequest`'s `value`, action-menus.mjs `traitFieldHtml`'s `keep`). An ask a GM answered - a ruling
+ * or a Refuse - drops them: those words had their answer. Nothing goes to the world or another browser; a reload forgets
+ * them. Which results keep is the asker's `res.ok` alone, so an ask that ends for a reason a later stage adds (a
+ * withdrawal) keeps the words too. R9027, tier 2's "E132 CALLS-03".
+ */
+const keptByAsk = new Map();
+
+const keptKey = (actorId, { kind = null, key = null } = {}) => `${actorId}|${kind}|${key}`;
+
+/** Keep `words` (`{ text, proposed, note }`) of `actorId`'s ask for `spec` when no GM answered it; drop them when one did. */
+export function keepWords(actorId, spec, words = {}, answered = false) {
+    if (!actorId) return;
+    const at = keptKey(actorId, spec);
+    const text = typeof words?.text === "string" ? words.text.trim() : "";
+    const note = typeof words?.note === "string" ? words.note.trim() : "";
+    const proposed = typeof words?.proposed === "string" && words.proposed ? words.proposed : null;
+    if (answered || (!text && !note && !proposed)) keptByAsk.delete(at);
+    else keptByAsk.set(at, { text, proposed, note });
+}
+
+/** The words kept for `actorId`'s next ask for `spec` (`keepWords`), or null. */
+export function keptWords(actorId, spec) {
+    const kept = actorId ? keptByAsk.get(keptKey(actorId, spec)) : null;
+    return kept ? { ...kept } : null;
+}
+
+/** A player's client: the request, and the notice that stays up while a GM reads the thread - with the ask's clock and
+    Withdraw since 2.0, the ask sent under its id (line T2, EXP-PL-12; ask-withdraw.mjs). Every caller pays after the pick,
+    so a withdrawal, which answers null as a request not carried out does, gives nothing back and keeps the words. */
 async function askGms(actor, { kind, key, variant = null }, { proposed = null, note = "", onPass = null } = {}) {
     const { showWaiting } = await import("./popup.mjs");
-    const waiting = showWaiting(game.i18n.localize("DRPG.TraitRuling.waiting"), game.i18n.localize("DRPG.TraitRuling.title"));
+    const { waitingFor } = await import("./ask-withdraw.mjs");
+    const waiting = showWaiting(game.i18n.localize("DRPG.TraitRuling.waiting"), game.i18n.localize("DRPG.TraitRuling.title"), waitingFor(TIMING.rulingMs));
     let answer = null;
     try {
         // Never from a GM's client, which `traitFor` sends to its own window: the packet would go to itself (R6).
         if (game.user?.isGM) return null;
         const { requestTraitRuling } = await import("./gm-bridge.mjs");
-        const res = await requestTraitRuling({ actorId: actor.id, kind, key, variant, proposed, note });
+        const res = await requestTraitRuling({ actorId: actor.id, kind, key, variant, proposed, note }, { requestId: waiting.requestId });
+        keepWords(actor.id, { kind, key }, { proposed, note }, res.ok);
         // `false` is the GM's Refuse; a request not carried out has been told already, by the bridge.
         if (res.ok && res.value === false) ui.notifications.info(game.i18n.localize("DRPG.TraitRuling.refused"));
         answer = res.ok && typeof res.value === "string" ? res.value : null;

@@ -254,9 +254,11 @@ export const FLOWS = Object.freeze([
     // the primary, 33 from an Assistant GM, 30 arms with none and says yes from p1's console. E18 C1 (19.10.2026): the
     // asker's reports that end the card (`ruling.expired`, `ruling.received`, a Dynamic action's too) - 33's A13 reads
     // the card written on p1's receipt and A17 the card p1's clock ended; 30-security's 4b2e (E18 fix e1-G2) forges both from
-    // p2's console against p1's open ask, and p1's own expiry ends it.
+    // p2's console against p1's open ask, and p1's own expiry ends it. 2.0 line T2, EXP-PL-12 (28.11.2026): the asker's Withdraw
+    // of an ask on a card, a Call's, a Dynamic action's or a statistic's (`ask.withdraw`) - 33's A27 drives p1's own, 30-security's
+    // 2.0 line T2 block p2's forged one against p1's open ask.
     { id: "hope-call", what: "A Hope Call that waits for the GM: the card, the ruling, the Hope charged",
-        entry: { bridge: ["call.approve", "call.yes", "ruling.expired", "ruling.received"] }, scenarios: ["40-flow", "30-security", "33-bridge-paths", "88-flow-length"], status: "covered", stage: "<=1.2.50" },
+        entry: { bridge: ["call.approve", "call.yes", "ruling.expired", "ruling.received", "ask.withdraw"] }, scenarios: ["40-flow", "30-security", "33-bridge-paths", "88-flow-length"], status: "covered", stage: "<=1.2.50" },
     // E12 C0 (11.10.2026): 66-rooms drives the shim's floors (S) and a scene of two floors (G). E12 C9 (11.10.2026): G
     // judges a level-only move - a lock on the floor above refused, the stairs charged as a door, a stairwell's floors
     // free - on the mover's browser; partial until the GM judges the arrival (C12) and the fog is drawn by floor (C10).
@@ -462,8 +464,8 @@ export const FLOWS = Object.freeze([
 ]);
 
 export const FLOW_EXEMPT = Object.freeze({
-    "gm-bridge.mjs": "the bridge's own plumbing (gmReady, the Stage 4 invitation, the offers); its actions are claimed one by one",
-    "bridge-guards.mjs": "the answers to every request (ack, done, refused), heard for whichever flow asked (E31)",
+    "gm-bridge.mjs": "the bridge's own plumbing (gmReady, playerReady, the Stage 4 invitation, the offers); its actions are claimed one by one",
+    "bridge-guards.mjs": "the answers to every request (ack, done, refused) and an ask's state from the primary (2.0 line T2, EXP-PL-12), heard for whichever flow asked (E31)",
     "sync.mjs": "the world-state echo every flow rides on; 00-boot and 40-flow read it on every client"
 });
 

@@ -5115,7 +5115,11 @@
         "trial.present": "Presenting a Truth Bullet",
         "ready.open": "Asking the players whether they are done",
         "ready.answer": "Your answer to the GM",
-        "ready.end": "Ending the question to the players"
+        "ready.end": "Ending the question to the players",
+        "card.takenOver": "A card taken over by another GM",
+        "ask.withdraw": "Withdrawing a request you made",
+        "ask.state": "Your request's state, from the GM",
+        "bridge.playerReady": "Telling the GMs that your page has loaded"
       },
       "notDone": "“{what}” was not carried out. {why}",
       "nothingSpent": "You keep your action and your Hope.",
@@ -5234,7 +5238,25 @@
       "createItemStays": "“Create an item” keeps this card open, so you can still pick another answer.",
       "giveItem": "Give an existing item",
       "keyRemnantHere": "Create a Key Remnant here",
-      "unnamed": "Unnamed request"
+      "unnamed": "Unnamed request",
+      "claimedBy": "{gm} has been ruling on this card since {time}.",
+      "takeOver": "Take over the card",
+      "takeOverTitle": "Take over the card",
+      "takeOverAsk": "{gm} has been ruling on this card since {time}. Take it over? Their window for this card will close.",
+      "claimTakenOver": "{gm} took over this card. Your window for it is closed, and nothing from it was sent.",
+      "claimOwnOpen": "You already have this card's window open. Finish it or close it.",
+      "takeOverTooltip": "Closes the other GM's window of this card and frees the card. Then pick an answer on it.",
+      "takeOverNowTooltip": "Closes the other GM's window of this card and opens yours for this answer.",
+      "timeLeft": "Time to rule: {time}.",
+      "timeUp": "Time is up: the player is no longer waiting for this ruling.",
+      "withdraw": "Withdraw request",
+      "withdrawTooltip": "Ends this request. You keep everything it would have cost.",
+      "withdrawn": "Request withdrawn. You keep everything it would have cost.",
+      "askRuling": "A GM is reading your request.",
+      "waitLeft": "The request stays open for {time}.",
+      "settledWithdrawn": "Request withdrawn.",
+      "askerLeft": "{name} disconnected at {time}. If they come back after a reload, they will ask again.",
+      "settledReloaded": "The page was reloaded, so this request is no longer waiting. You can ask again."
     },
     "Tables": {
       "installed": "Item tables ready: {created} created, {skipped} already existed.",
@@ -5484,7 +5506,14 @@
         "monokumas": "Monokumas",
         "spectators": "Spectators",
         "notInClass": "Not in the class"
-      }
+      },
+      "primaryGm": "Primary GM: {name}",
+      "primaryGmYou": "Primary GM: {name} (you)",
+      "primaryGmTooltip": "The primary GM's browser runs the table's automation: voice, players' rolls, the sheet audit and the fog.",
+      "primaryTitle": "Primary GM",
+      "primaryNowYou": "You are now the primary GM: your browser runs the table's automation (voice, players' rolls, the sheet audit, the fog). Keep this browser tab open.",
+      "primaryNow": "{name} is now the primary GM.",
+      "primaryBack": "{name} is now the primary GM. Your browser no longer runs the table's automation."
     },
     "Character": {
       "notACharacter": "That only works on a character.",
@@ -6862,7 +6891,8 @@
       "cleared": "The debug log on this browser is now empty.",
       "copy": "Copy to clipboard",
       "copied": "Debug log copied. Paste it (Ctrl+V) wherever it needs to go.",
-      "copyFailed": "This browser did not let the text be copied to the clipboard. Nothing was copied."
+      "copyFailed": "This browser did not let the text be copied to the clipboard. Nothing was copied.",
+      "elsewhere": "Entries for the table's automation and refusals of requests passed to the primary GM are in the primary GM's Debug log. The primary GM is {name}."
     },
     "Fog": {
       "scenesPrepared": {

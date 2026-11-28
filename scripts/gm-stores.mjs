@@ -2901,13 +2901,15 @@ export function caseWarning() {
 
 /**
  * The primary GM's check, at ready once the other GMs' copies have arrived (or
- * none were waited for, or the wait timed out), and after every restore. When a
- * row is missing: one window with the rows, Restore from a file, and Continue -
- * the default, which leaves a notification that stays and a red line on the GM
- * panel until a check passes. Another GM sees the rows in diagnostics only.
+ * none were waited for, or the wait timed out), after every restore, and since
+ * 2.0 (line T2, PRIM-04) when this GM becomes the primary (`healthOnPrimaryChange`).
+ * When a row is missing: one window with the rows, Restore from a file, and
+ * Continue - the default, which leaves a notification that stays and a red line on
+ * the GM panel until a check passes. Another GM's check runs quietly since PRIM-04:
+ * the red line, no window, no notice (`quietHealthCheck`, at the end of this file).
  */
 export async function runHealthCheck() {
-    if (!isPrimaryGm()) return null;
+    if (!isPrimaryGm()) return quietHealthCheck();
     const report = await gmStoreHealth();
     setLastHealth(report);
     const decide = report?.rows?.some(r => r.id === "mastermindCleared");
@@ -3226,8 +3228,14 @@ export function registerCaseHealth() {
         const marked = markUpgrade().then(() => markCaseSince()).then(() => settleTieStates());
         // The marks are the load's writes; the check's window waits for a GM, and the suite does not wait for it.
         marking = marked.catch(() => {});
-        marked.then(() => runHealthCheck()).catch(err => error("The case health check could not run", err));
+        // Marked as it starts, so a take-over from here on checks again and one before it waits for this (PRIM-04).
+        marked.then(() => {
+            checkedAtLoad = true;
+            return runHealthCheck();
+        }).catch(err => error("The case health check could not run", err));
     });
+    // This GM becomes the primary: the primary's whole check (2.0 line T2, PRIM-04; `healthOnPrimaryChange`, below).
+    Hooks.on("drpgPrimaryChanged", change => healthOnPrimaryChange(change)?.catch?.(err => error("The case health check could not run", err)));
     /* The upgrade day's clear is put to the primary whenever the record changes after
        that (the review's M1): the note, or a pick older than it, can arrive by merge from
        a GM who joins later, and the check at load has run by then. */
@@ -3241,7 +3249,9 @@ export function registerCaseHealth() {
        incomplete until the primary reloaded. While the last check found something
        missing, a change to a backed-up store's key checks again - quietly, no window -
        and the line goes once a check passes. A change that lands while one runs asks
-       for one more: a restore's stores arrive one flush at a time. */
+       for one more: a restore's stores arrive one flush at a time. On any GM since 2.0
+       (line T2, PRIM-04, 28.11.2026): a GM who is not the primary has the red line too
+       (`quietHealthCheck`), and a merge takes it down there the same way. */
     /* GATHERED, AND WITHOUT THE BYTES (1.2.122 line ITEMS; the audit's CASE-72). Every write of a backed-up store on the
        primary ran the whole check again while a row was missing - every scene's traces, every bullet, and a read and
        parse of every store's key for a byte count no red line reads. The changes of 0.75 s are one recheck now, and
@@ -3262,9 +3272,46 @@ export function registerCaseHealth() {
         }
     };
     Hooks.on("clientSettingChanged", key => {
-        if (!lastHealth?.missing || healthOpen || !isPrimaryGm()) return;
+        if (!lastHealth?.missing || healthOpen) return;
         if (!gmStoreHandles().some(h => h.spec.backup && key === `${MODULE_ID}.${h.spec.key}`)) return;
         if (rechecking) again = true;
         else if (!gathering) gathering = setTimeout(() => { gathering = null; void recheck(); }, RECHECK_GATHER_MS);
     });
+}
+
+/* ------------------ the check on a GM who is not the primary (2.0 line T2, PRIM-04) ------------------ */
+
+/*
+ * THE SECOND GM SEES THE RED LINE, AND THE GM WHO TAKES THE TABLE OVER GETS THE WINDOW (2.0 line T2, PRIM-04,
+ * 28.11.2026; F1-infra PRIM-04 and C11, TRIAGE-3: fix). Until 2.0 `runHealthCheck` returned at once on a GM who was not
+ * the primary: the check ran on the primary alone, at its load and after a restore. A second GM never saw the red line
+ * handbook 3 promises "while a check has found the case incomplete on this browser", and a GM who became the primary
+ * mid-session with an incomplete copy - whose copy decides from then on (the Key Remnant fee, the incident's cast) -
+ * never got the window. Now a GM who is not the primary checks quietly (`quietHealthCheck`): the report is kept for the
+ * panel's red line, with no window, no notice and no decision of the Mastermind, which stay the primary's (two GMs each
+ * putting Keep or Clear would decide the same record twice). And a GM who becomes the primary runs the primary's whole
+ * check (`healthOnPrimaryChange`, on gm-bridge.mjs's `drpgPrimaryChanged`): the window, Continue's notice, the decision.
+ * No notice of its own for the second GM: the red line is the sign, and line T4's reminder of an empty planner
+ * (FORGE-01) is not said twice. R9056, R9057.
+ */
+let checkedAtLoad = false;
+
+/** A GM's check that is not the primary's: the report kept for `caseWarning`, nothing opened, raised or decided. `health`
+    is the suite's (R9056); left out, this browser's report as `gmStoreHealth` reads it. */
+export async function quietHealthCheck({ health = gmStoreHealth } = {}) {
+    const report = await health();
+    setLastHealth(report);
+    return report;
+}
+
+/**
+ * The hook's step on `drpgPrimaryChanged` (`{ from, to }`, gm-bridge.mjs `notePrimary`): the primary's whole check when
+ * the role has just come to this GM (`to` is `me`), and nothing at the first reading on this browser (`from` null: its
+ * check at load follows and reads the role itself), for any other move, or before this browser's check at load has run
+ * (`loaded`: it has not, and when it does it is the primary's). Answers `run()`'s promise, or null. `me`, `loaded` and
+ * `run` are the suite's (R9057).
+ */
+export function healthOnPrimaryChange(change, { me = game.user?.id ?? null, loaded = checkedAtLoad, run = runHealthCheck } = {}) {
+    if (!change?.from || !change.to || change.to !== me || !loaded) return null;
+    return run();
 }
