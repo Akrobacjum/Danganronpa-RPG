@@ -1671,6 +1671,7 @@
       }
     },
     "Floor": {
+      "holderGone": "Głos ma {name}, a ta osoba jest rozłączona. Naciśnij Pomiń albo Zakończ ten tryb na pasku rozprawy.",
       "next": {
         "start": "Żaden Class Trial nie trwa. Zacznij Class Trial.",
         "openDebate": "Class Trial toczy się w dyskusji. Otwórz debatę, gdy sala będzie na nią gotowa.",

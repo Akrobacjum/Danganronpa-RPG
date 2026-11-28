@@ -119438,6 +119438,68 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         }
         equal(stableJson(read), stableJson([[true, false]]), "[the cards saying the write went from this browser: [whispered to this GM, raised as a GM's card]]");
     }],
+    ["T3 TRIAL-14 - a disconnected objector raises one GM card after the grace, and the floor stands", async () => {
+        /*
+         * 2.0 line T3 TRIAL-14, 27.11.2026. An Objection's objector whose player left held the floor to the clock's end, and
+         * no GM was told. On this primary in a Class Trial, a debate and an Objection of the first participant at the
+         * second (as "1.2.128 S0-SKIP" opens one), the objector's User read as not connected by its `active` and
+         * `userConnected` called as Foundry calls it, as "1.2.128 S0-CUT B" does; then the grace waited and a second drop
+         * told. Read: the GMs' cards raised (`gmPopup`) whose words say `DRPG.Floor.holderGone` with the objector's name,
+         * and the floor's mode and holder after. The floor, the clock and the cards are put back. Waits the grace, about
+         * 17 s. Red at 3c3eebc: no card.
+         */
+        needs(world.atLeast("connectedPlayersWithCharacter", 2), "an objector and a target whose players are here");
+        const { isPrimaryGm } = await import("./utils.mjs");
+        must(isPrimaryGm(), "this browser is not the primary GM, which writes the floor - this would measure nothing");
+        const { TRIAL } = await import("./config.mjs");
+        const F = await import("./trial-floor.mjs");
+        const V = await import("./vote.mjs");
+        const { cardFlag, wordsOf } = await import("./secret.mjs");
+        const clock = foundry.utils.deepClone(getClock());
+        const queue = foundry.utils.deepClone(getSetting(SETTINGS.trialQueue) ?? {});
+        const progress = foundry.utils.deepClone(getSetting(SETTINGS.trialProgress) ?? {});
+        const seen = new Set(game.messages.map(m => m.id));
+        const graceMs = (Number(TRIAL.modes?.round?.goneGraceSeconds) || 0) * 1000;
+        const read = {};
+        let user = null, own;
+        const away = () => { Object.defineProperty(user, "active", { get: () => false, configurable: true }); Hooks.callAll("userConnected", user, false); };
+        try {
+            await setClock({ ...clock, phase: "classTrial" });
+            await game.settings.set(MODULE_ID, SETTINGS.trialQueue, {});
+            await settle();
+            const [one, two] = V.trialParticipants();
+            must(one && two, "two participants - this would measure nothing");
+            await F.startFloor({});
+            await F.openObjection(one.actor.id, two.actor.id, {});
+            await settle();
+            must(F.trialFloor()?.mode === "objection" && F.trialFloor()?.holderId === one.actor.id, "the Objection did not open on its objector - this would measure nothing");
+            user = one.user;
+            own = Object.getOwnPropertyDescriptor(user, "active");
+            away();
+            await wait(graceMs + 1500);
+            away();
+            await wait(1500);
+            const text = game.i18n.format("DRPG.Floor.holderGone", { name: foundry.utils.escapeHTML(one.actor.name) });
+            let cards = 0;
+            for (const m of game.messages.filter(m => !seen.has(m.id))) {
+                if (cardFlag(m, "gmPopup") && String(await wordsOf(m, 1000) ?? "").includes(text)) cards++;
+            }
+            read.cards = cards;
+            read.floor = [F.trialFloor()?.mode ?? null, F.trialFloor()?.holderId === one.actor.id];
+        } finally {
+            if (user) { if (own) Object.defineProperty(user, "active", own); else delete user.active; }
+            if (F.trialFloor()) await F.endFloor();
+            await game.settings.set(MODULE_ID, SETTINGS.trialQueue, queue);
+            await game.settings.set(MODULE_ID, SETTINGS.trialProgress, progress);
+            await setClock(clock);
+            F.renderTrialFloor();
+            const fresh = game.messages.filter(m => !seen.has(m.id)).map(m => m.id);
+            if (fresh.length) await ChatMessage.deleteDocuments(fresh);
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ cards: 1, floor: ["objection", true] }),
+            "{cards: the GMs' cards that the objector holding the floor is gone, after the grace and a second drop; floor: its mode and whether the objector still holds it}");
+    }],
 ];
 
 // `drawnForPlayer` for the grid (E33 C7): a drawn crisis roll goes through the suite's one road to a draw (tests-grid.mjs `drawnAct`).

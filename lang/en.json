@@ -1626,6 +1626,7 @@
       }
     },
     "Floor": {
+      "holderGone": "{name} holds the floor and is not connected. Press Skip or End this mode on the trial's bar.",
       "next": {
         "start": "No Class Trial is running. Start the Class Trial.",
         "openDebate": "The trial is in discussion. Open the debate when the room is ready for one.",

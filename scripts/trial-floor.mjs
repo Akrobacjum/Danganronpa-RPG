@@ -665,7 +665,7 @@ export async function closingStepInStep(event, { why = false } = {}) {
 /**
  * A SPEAKER GONE (E70 C7; E70-45: "a disconnected speaker passes at once"): on the primary, when a user leaves and the
  * round's speaker has no player connected any more, the turn passes; the Closing's speaker hands the choice back to the
- * GM (E70 C8).
+ * GM (E70 C8). An Objection's or a Rebuttal's speaker gone only tells the GMs (`holderGone`, since 2.0 line T3 TRIAL-14).
  *
  * NOT AT ONCE SINCE 1.2.128 (E129 S0-CUT B, 23.11.2026; the owner's note of session 0, "testimony ucielo ostatniego
  * gracza", and the coordinator's "a reload during your own turn should never pass you"): the turn passes only when the
@@ -684,6 +684,7 @@ function goneTurnOf(floor) {
 
 async function speakerGone() {
     const floor = trialFloor();
+    if (isPrimaryGm() && (floor?.mode === MODES.objection || floor?.mode === MODES.rebuttal)) return holderGone(floor);
     const closingSpeaker = floor?.mode === MODES.closing && closingOf(floor)?.phase === "speak";
     // A Scrum Debate's speaker too (E110 C3): the camps' rotation passes them (zone-machine.mjs `gone`).
     const scrumSpeaker = floor?.mode === MODES.scrum && zoneOf(floor)?.phase === "speak";
@@ -705,6 +706,37 @@ async function speakerGone() {
     const graceMs = Math.max(Number(TRIAL.modes?.round?.goneGraceSeconds) || 0, 0) * 1000;
     if (!graceMs) return pass();
     goneWaiting.set(turn, setTimeout(() => { pass().catch(err => error("Could not pass the turn of a speaker who left", err)); }, graceMs));
+}
+
+/*
+ * AN OBJECTION'S OR A REBUTTAL'S SPEAKER GONE IS TOLD, NOT PASSED (2.0 line T3 TRIAL-14, 27.11.2026; the owner's
+ * recommendation). The objector, or either of the Rebuttal's two, whose player left held the floor to its clock's end
+ * (30 s, 120 s) with the others' microphones off, and no GM was told. The mode's rule stands - the turn does not move on
+ * its own - but once the same grace as a round's (`TRIAL.modes.round.goneGraceSeconds`) has passed with them still not
+ * back, the primary whispers the GMs once a turn and a gone set (`goneTold`), raised as a GM's card, to press Skip or End
+ * the mode on the trial's bar (`DRPG.Floor.holderGone`).
+ */
+const goneTold = new Set();
+function holderGone(floor) {
+    const ids = (floor.mode === MODES.rebuttal ? [floor.holderId, floor.targetId] : [floor.holderId]).filter(Boolean);
+    const gone = absentOf(ids);
+    if (!gone.length) return;
+    const turn = goneTurnOf(floor);
+    const told = `${turn}|${gone.join(",")}`;
+    if (goneTold.has(told) || goneWaiting.has(told)) return;
+    const tell = async () => {
+        goneWaiting.delete(told);
+        if (!isPrimaryGm() || goneTurnOf(trialFloor()) !== turn) return;
+        const still = absentOf(gone);
+        if (!still.length || goneTold.has(told)) return;
+        goneTold.add(told);
+        const names = still.map(id => game.actors.get(id)?.name ?? "?").map(name => foundry.utils.escapeHTML(name)).join(", ");
+        await whisperToGms({ tone: "warning", body: `<p>${game.i18n.format("DRPG.Floor.holderGone", { name: names })}</p>` },
+            { flags: { [MODULE_ID]: { gmPopup: true } } });
+    };
+    const graceMs = Math.max(Number(TRIAL.modes?.round?.goneGraceSeconds) || 0, 0) * 1000;
+    if (!graceMs) return tell();
+    goneWaiting.set(told, setTimeout(() => { tell().catch(err => error("Could not tell the GMs the floor's speaker left", err)); }, graceMs));
 }
 
 /*
