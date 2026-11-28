@@ -6130,7 +6130,14 @@
         "rollKind": "Roll",
         "rollTitle": "{actor}, {action}",
         "rollResult": "Total {total}.",
-        "rollResultWay": "Total {total}, {result}."
+        "rollResultWay": "Total {total}, {result}.",
+        "told": {
+          "title": "Another GM's change",
+          "bullet": "{actor} gets the Truth Bullet “{item}” from {gm}.",
+          "states": "{gm} changed the state of {list}.",
+          "stateOf": "{name} ({state})",
+          "pool": "{gm} set the Despair of {pool} to {n}."
+        }
       }
     },
     "Voice": {

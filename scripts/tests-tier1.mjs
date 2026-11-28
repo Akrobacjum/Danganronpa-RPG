@@ -71046,6 +71046,42 @@ const INVARIANTS = [
             flagged: [11, null], sources: [true, true, true, true] }),
         "{cases: [a result card a GM ran, a failed shadow's, a thread card, one with no total, a body's card, about no character a player owns]; drawn: the stream's entry [its class, player, action mark, total line, title, GM's mark]; flagged: rollCardFlags' rollTotal [with a total, without]; sources: [the stream builds the entries, the window follows new cards, report carries the total, the listener raises no notice]}");
     }],
+    ["R9065 - what one GM did is told to the other GMs, and not drawn where it was sent from: popup.mjs `tellOtherGms` whispers a card to every other GM - none to this GM - with `gmPopup`, a title and `toldGms`, its words the key's with this GM as `{gm}`, escaped, and sends nothing with no other GM or on a player's browser; `onCreateChatMessage` draws no notice of such a card on its author's browser; the three roads call it: a Truth Bullet given (gm-items.mjs `giveBulletNow`), a state changed by Apply (gm-students.mjs `applyAliveStates`), a pool corrected by hand (despair.mjs `correctPool`, which the bar's pips and steppers take) (2.0 line T2c, EXP-GM-14, 28.11.2026)", async () => {
+        /* F1-blind-gm EXP-GM-14, E-GM-99: a second GM learnt nothing of the first's changes, because a whisper to the GMs
+           raises no notice. The card is caught before it is posted (its poster, `whisperToGms`, handed in as a stand-in,
+           and the GM list with it); the roads read in the source. Red at
+           0d3d4f2: no `tellOtherGms`. */
+        must(game.user.isGM, "the card is a GM's to send");
+        const P = await import("./popup.mjs");
+        const tell = typeof P.tellOtherGms === "function" ? P.tellOtherGms : null;
+        const U = await import("./utils.mjs");
+        const posted = [];
+        const sent = async gms => {
+            if (!tell) return "missing";
+            const before = posted.length;
+            await tell("DRPG.Messenger.gm.told.bullet", { item: "R9065 <b>knife</b>", actor: "R9065 Aoi" },
+                { gms, post: async (content, extra) => { posted.push({ whisper: [...(extra?.whisper ?? [])], content: String(content), flags: extra?.flags?.[MODULE_ID] ?? null }); return null; } });
+            return posted.length - before;
+        };
+        const OTHER = "R9065OtherGm0001";
+        const counts = [await sent([game.user.id, OTHER]), await sent([game.user.id])];
+        const first = posted[0] ?? null;
+        const words = game.i18n.format("DRPG.Messenger.gm.told.bullet", { gm: game.user.name, item: "R9065 <b>knife</b>", actor: "R9065 Aoi" });
+        const popup = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/popup.mjs`).then(lfText));
+        const items = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/gm-items.mjs`).then(lfText));
+        const students = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/gm-students.mjs`).then(lfText));
+        const despair = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/despair.mjs`).then(lfText));
+        const tellSrc = fnSource(popup, "tellOtherGms");
+        equal(stableJson({ counts, whisper: first?.whisper ?? null, escaped: Boolean(first?.content.includes(U.esc(words))) && !first?.content.includes("<b>knife"),
+            flags: first?.flags ? [first.flags.gmPopup, first.flags.popupTitle === game.i18n.localize("DRPG.Messenger.gm.told.title"), first.flags[P.TOLD_GMS]] : null,
+            gmOnly: /if \(!game\.user\?\.isGM\) return null;/.test(tellSrc),
+            notHere: /if \(cardFlag\(message, TOLD_GMS\) && \(message\.author \?\? message\.user\)\?\.id === game\.user\.id\) return;/.test(fnSource(popup, "onCreateChatMessage")),
+            roads: [/tellOtherGms\("DRPG\.Messenger\.gm\.told\.bullet"/.test(fnSource(items, "giveBulletNow")), /tellOtherGms\("DRPG\.Messenger\.gm\.told\.states"/.test(fnSource(students, "applyAliveStates")),
+                /tellOtherGms\("DRPG\.Messenger\.gm\.told\.pool"/.test(fnSource(despair, "correctPool")),
+                (bodyOf(despair, "export function despairRowOf(", { until: "\nfunction stepper(" }).match(/correctPool\(user\.id/g) ?? []).length] }),
+        stableJson({ counts: [1, 0], whisper: [OTHER], escaped: true, flags: [true, true, true], gmOnly: true, notHere: true, roads: [true, true, true, 3] }),
+        "{counts: cards sent [with another GM, with this GM alone]; whisper: who the card was for; escaped: the words, escaped; flags: [gmPopup, its title, toldGms]; gmOnly: a GM's browser alone sends it; notHere: no notice on its author's browser; roads: [the Truth Bullet's give, Apply's states, the hand's pool, the bar's three presses through correctPool]}");
+    }],
 ];
 
 /**

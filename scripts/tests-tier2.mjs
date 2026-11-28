@@ -119555,6 +119555,80 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             corner: 0, gone: true }),
         "{entry: the stream's entry [its player, its title, its total line]; corner: notices drawn while it landed; gone: the entry after the card's deletion}");
     }],
+    ["E132 T2c EXP-GM-14 - the other GM is told of a Truth Bullet given, a state changed, a pool corrected: with a second GM at the table, each of the three posts one card whispered to that GM alone, with `gmPopup` and `toldGms`, naming what changed, and this GM's corner draws none of them; five presses on a pool make one card (popup.mjs `tellOtherGms`, gm-students.mjs `applyAliveStates`, despair.mjs `correctPool`; 2.0 line T2c, EXP-GM-14, 28.11.2026)", async () => {
+        /*
+         * F1-blind-gm EXP-GM-14, E-GM-99. A stand-in second Gamemaster (tests-kit `standInUser`) in this browser's user
+         * list for the length of the test, so the cards have someone to go to; then: `tellOtherGms` with the give's key (the
+         * give itself runs on the primary through the bridge's `bullet.give`, read in R9065's source check); a student made
+         * Dead and Alive again by Apply's road (`applyAliveStates`, a student no death was kept for: the repair's mark and the
+         * revive); a Monokuma's pool pressed up five times and down five times on the bar's road (`correctPool`), each run of
+         * presses awaited still. Read off the words' packets this browser sends (secret.mjs `sendWords`: on the sender a
+         * card's flags travel with its words, and its own copy is kept for its readers, never read here - `authorHold`):
+         * each told card's recipients, flags and words, and the notices this page drew. The stand-in goes, the cards are
+         * deleted and the pool is checked back in the `finally`. Red at 0d3d4f2: no `tellOtherGms`, no
+         * card on any road.
+         */
+        needs(world.atLeast("livingStudents", 1));
+        const P = await import("./popup.mjs");
+        const S = await import("./gm-students.mjs");
+        const D = await import("./despair.mjs");
+        const { isDeceased, reviveCharacter } = await import("./chapter.mjs");
+        must(typeof P.tellOtherGms === "function" && typeof D.correctPool === "function", "the module has no road to tell the other GMs - nothing to measure");
+        const [student] = cast(1);
+        const [monokuma] = D.monokumas();
+        const other = standInUser({ name: "E132 T2c EXP-GM-14 other GM", role: CONST.USER_ROLES.GAMEMASTER, active: true });
+        const seen = new Set(game.messages.map(m => m.id));
+        const corner = [];
+        const watch = new MutationObserver(records => {
+            for (const r of records) for (const n of r.addedNodes) if (n instanceof Element && n.matches(".drpg-popup")) corner.push(n.textContent);
+        });
+        const packets = [];
+        const socket = game.socket, ownEmit = Object.getOwnPropertyDescriptor(socket, "emit"), realEmit = socket.emit;
+        socket.emit = function (event, payload, options, ...rest) {
+            if (payload?.meta?.toldGms) packets.push({ to: [...(options?.recipients ?? [])], meta: payload.meta, html: String(payload.html ?? "") });
+            return realEmit.call(this, event, payload, options, ...rest);
+        };
+        const told = () => packets;
+        const words = p => String(p?.html ?? "").replace(/<[^>]+>/g, "").trim();
+        const read = {};
+        const pool = monokuma ? D.getDespair(monokuma.id) : null;
+        game.users.set(other.id, other);
+        watch.observe(document.body, { childList: true, subtree: true });
+        try {
+            await P.tellOtherGms("DRPG.Messenger.gm.told.bullet", { item: "E132 T2c knife", actor: student.name });
+            await until(() => told().length >= 1, 3000).catch(() => {});
+            await S.applyAliveStates({ [student.id]: { state: "dead" } });
+            await S.applyAliveStates({ [student.id]: { state: "alive" } });
+            await until(() => told().length >= 3, 4000).catch(() => {});
+            if (monokuma) {
+                const room = Math.max(0, D.despairMax() - pool);
+                const up = Math.min(5, room) || 0;
+                for (let i = 0; i < up; i++) await D.correctPool(monokuma.id, +1);
+                await until(() => told().length >= 4, 4000).catch(() => {});
+                for (let i = 0; i < up; i++) await D.correctPool(monokuma.id, -1);
+                await until(() => told().length >= 5, 4000).catch(() => {});
+                read.poolBack = D.getDespair(monokuma.id) === pool;
+                read.pressed = up > 0;
+            }
+            await settle();
+            const cards = told();
+            read.cards = cards.map(p => [JSON.stringify(p.to) === JSON.stringify([other.id]), p.meta.gmPopup === true, words(p).includes(game.user.name)]);
+            read.said = [words(cards[0]).includes("E132 T2c knife"), words(cards[1]).includes(game.i18n.localize("DRPG.Panel.state.dead")),
+                words(cards[2]).includes(game.i18n.localize("DRPG.Panel.state.alive")), monokuma ? words(cards[3]).includes(D.poolLabel(monokuma)) : true];
+            read.corner = corner.filter(t => cards.some(p => t.includes(words(p).slice(0, 20)))).length;
+        } finally {
+            if (ownEmit) Object.defineProperty(socket, "emit", ownEmit); else delete socket.emit;
+            watch.disconnect();
+            game.users.delete(other.id);
+            if (isDeceased(student)) await reviveCharacter(student, { silent: true }).catch(() => {});
+            for (const m of game.messages.filter(m => !seen.has(m.id))) await m.delete().catch(() => {});
+            await settle();
+        }
+        const n = monokuma ? 5 : 3;
+        equal(stableJson({ ...read, poolBack: read.poolBack ?? true, pressed: read.pressed ?? true }),
+            stableJson({ cards: Array(n).fill([true, true, true]), said: [true, true, true, true], corner: 0, poolBack: true, pressed: true }),
+            "{cards: each card told [to the other GM alone, gmPopup, names this GM]; said: [the Truth Bullet, Dead, Alive, the pool]; corner: notices of them drawn here; poolBack: the pool as before; pressed: the pool was pressed}");
+    }],
 ];
 
 // `drawnForPlayer` for the grid (E33 C7): a drawn crisis roll goes through the suite's one road to a draw (tests-grid.mjs `drawnAct`).

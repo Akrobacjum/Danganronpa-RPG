@@ -1733,6 +1733,9 @@ async function giveBulletNow(result, who, traces, writers) {
     ui.notifications.info(game.i18n.format("DRPG.TruthBullet.gave", {
         item: payload.name, actor: who.name
     }));
+    // The other GMs are told (popup.mjs `tellOtherGms`, 2.0 line T2c, EXP-GM-14).
+    void import("./popup.mjs").then(m => m.tellOtherGms("DRPG.Messenger.gm.told.bullet", { item: payload.name, actor: who.name }))
+        .catch(err => debug("The other GMs were not told of a Truth Bullet given", err));
 
     if (result.tell) await tellBulletGiven(who, payload);
 

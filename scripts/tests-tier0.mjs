@@ -10796,6 +10796,8 @@ const REGRESSIONS = [
                no longer reads the flag - notice-centre.mjs `centredNotice` does, a name of its closed list from a GM's card
                or a player's own (R8670, R8671); where the card stands, not what it says, and the card is kept as before. */
             ["FLAG popup.mjs#onCreateChatMessage#popupTone", "a closed list (`TONES`) on draw; a tone outside it refused on read (E81 C2)"],
+            // 2.0 line T2c, EXP-GM-14 (28.11.2026): what one GM tells the others (`tellOtherGms`).
+            ["FLAG popup.mjs#onCreateChatMessage#TOLD_GMS", "it only takes away: a card carrying it is not drawn on its own author's browser (Foundry's author stamp), and on any other reader it changes nothing the rule above would draw or keep (R9065)"],
             ["DELETE incident-store.mjs#retireOpeningNotices", "the module takes back the opening's request cards with its withdraw option: every browser's entry of them goes with the card (R295, 13-murder-signals)"],
             ["DELETE murder-rules.mjs#undoLastCrisis", "a crisis taken back deletes its receipt card with the withdraw option: every browser's entry of it goes with the card (R295)"],
             ["DELETE season-wipe.mjs#deleteMessages", "the season reset deletes in batches without the withdraw option (R295): an entry stays, marked deleted, until the epoch clears every section of this world at the next read or write (R297)"],

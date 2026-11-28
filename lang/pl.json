@@ -6566,7 +6566,14 @@
         "rollKind": "Rzut",
         "rollTitle": "{actor}, {action}",
         "rollResult": "Wynik {total}.",
-        "rollResultWay": "Wynik {total}, {result}."
+        "rollResultWay": "Wynik {total}, {result}.",
+        "told": {
+          "title": "Zmiana innego GM-a",
+          "bullet": "{actor} dostaje od {gm} Truth Bullet „{item}”.",
+          "states": "{gm} zmienia stan uczniów: {list}.",
+          "stateOf": "{name} ({state})",
+          "pool": "{gm} ustawia Despair w puli {pool} na {n}."
+        }
       }
     },
     "Voice": {

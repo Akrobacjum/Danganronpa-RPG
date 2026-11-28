@@ -43,7 +43,7 @@
 
 import { MODULE_ID } from "./config.mjs";
 import { MESSENGER_FLAGS } from "./messenger.mjs";
-import { MESSAGE_FLAG, plural, debug, markLanguage, serverNow, esc } from "./utils.mjs";
+import { MESSAGE_FLAG, plural, debug, markLanguage, serverNow, esc, gmIds, whisperToGms } from "./utils.mjs";
 import { play, BEAT, ARRIVE, SNAP, reducedMotion } from "./motion.mjs";
 import { recordNotice, updateNotice, noticeUnread, onNoticeHistoryChange } from "./notice-history.mjs";
 
@@ -1376,6 +1376,31 @@ function withoutRulingButtons(html) {
  * module message goes through, not by sniffing the content: half of these are a
  * bare heading and a paragraph with nothing to recognise them by.
  */
+/*
+ * WHAT ONE GM DID, TOLD TO THE OTHERS (2.0 line T2c, EXP-GM-14, split from line T2, 28.11.2026; F1-blind-gm EXP-GM-14,
+ * E-GM-99). A second GM learnt nothing of a Truth Bullet the first gave, a state the first changed in Students, or a
+ * Despair pool the first corrected by hand: a whisper to the GMs raises no notice (the rule below), and the Timeline
+ * shows only what this browser was shown. `tellOtherGms(key, data)` whispers a short card to every other GM - the words
+ * `key` formats with this GM's name as `{gm}` and `data`, escaped - with `gmPopup`, which the rule below lets through
+ * for a card a GM's browser wrote, so it is a notice in the other GMs' corners and in their Timeline's stream (it is in
+ * their notice history); `TOLD_GMS` on it keeps this browser from drawing its own card, and the whisper does not name
+ * this GM. No other GM: nothing is sent. The card says who did what, to whom, and nothing a GM does not know already
+ * (the readers are GMs). Answers the card, or null; `gms` and `post` are the suite's stand-ins. Its callers: gm-items.mjs `giveBulletNow`, gm-students.mjs
+ * `applyAliveStates`, despair.mjs `correctPool`. R9065.
+ */
+export const TOLD_GMS = "toldGms";
+
+export async function tellOtherGms(key, data = {}, { gms = gmIds(), post = whisperToGms } = {}) {
+    if (!game.user?.isGM) return null;
+    const others = gms.filter(id => id !== game.user.id);
+    if (!others.length) return null;
+    const words = game.i18n.format(key, { gm: game.user.name ?? "?", ...data });
+    return post(`<p>${esc(words)}</p>`, {
+        whisper: others,
+        flags: { [MODULE_ID]: { gmPopup: true, popupTitle: game.i18n.localize("DRPG.Messenger.gm.told.title"), [TOLD_GMS]: true } }
+    });
+}
+
 export async function onCreateChatMessage(message) {
     if (!message.getFlag(MODULE_ID, MESSAGE_FLAG)) return;
 
@@ -1404,6 +1429,8 @@ export async function onCreateChatMessage(message) {
     //                        richer card than this generic one - the Class
     //                        Trial's sticky evidence card is the case in point
     if (cardFlag(message, MESSENGER_FLAGS.thread)) return;
+    // What one GM tells the others (`tellOtherGms`, EXP-GM-14) is not drawn where it was sent from.
+    if (cardFlag(message, TOLD_GMS) && (message.author ?? message.user)?.id === game.user.id) return;
     const kind = cardFlag(message, "popupKind") ?? "info";
     if (kind === "none") return;
 

@@ -26,7 +26,7 @@
  */
 
 import { studentActors, isMonokuma, isNotInClass, isSpectator, markFromSheet, setMonokuma, setNotInClass, setSpectator } from "./monokuma.mjs";
-import { error, plural, esc, wholeNumber, ownerIdsOf } from "./utils.mjs";
+import { error, plural, esc, wholeNumber, ownerIdsOf, listOf } from "./utils.mjs";
 import { stepper, drpgWindow, dataTable, iconButton, roleButton, tipAttr, tipText } from "./ui-kit.mjs";
 import { keepLive, alreadyOpen, handOff, RAISED } from "./live.mjs";
 import { crossingStore, offerStore } from "./gm-stores.mjs";
@@ -746,6 +746,8 @@ export async function applyAliveStates(chosen = {}) {
     const makeKnown = a => (pendingDeath(a) ? publishDeath(a) : markDeceased(a));
 
     const changed = new Set();
+    // What each changed character's state became, for the other GMs (EXP-GM-14, below the loop).
+    const became = new Map();
     for (const [id, want] of Object.entries(chosen)) {
         const actor = game.actors.get(id);
         if (!actor || actor.type !== "character" || isMonokuma(actor) || !want?.state) continue;
@@ -794,6 +796,7 @@ export async function applyAliveStates(chosen = {}) {
                does nothing more (`incidentVictimDied` asks). */
             if (living && died?.chapter) await incidentVictimDied(actor, died.chapter);
             changed.add(actor.id);
+            became.set(actor.id, want.state);
         }
 
         // Silence only means anything for a cub, and only after the state above has
@@ -807,6 +810,14 @@ export async function applyAliveStates(chosen = {}) {
             await setSilenced(actor, want.silenced);
             changed.add(actor.id);
         }
+    }
+    /* THE OTHER GMS ARE TOLD (2.0 line T2c, EXP-GM-14, 28.11.2026; popup.mjs `tellOtherGms`): which characters' states this
+       pass changed and what each became, as the State list names it, in one card. A silence alone is not a state. */
+    if (became.size) {
+        const L = state => game.i18n.localize(state === "unfound" ? "DRPG.Chapter.deadUnfound" : `DRPG.Panel.state.${state}`);
+        const list = listOf([...became].map(([id, state]) => game.i18n.format("DRPG.Messenger.gm.told.stateOf", { name: game.actors.get(id)?.name ?? "?", state: L(state) })));
+        await import("./popup.mjs").then(m => m.tellOtherGms("DRPG.Messenger.gm.told.states", { list }))
+            .catch(err => error("The other GMs were not told of a state changed", err));
     }
     return changed.size;
 }
