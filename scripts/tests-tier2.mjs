@@ -119175,6 +119175,49 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         equal(stableJson({ asks, told, answer }), stableJson({ asks: 0, told: 1, answer: null }),
             "{asks: invitations sent while another GM throws; told: the owner's lines naming that GM; answer: what the ask answered}");
     }],
+    ["T1 MURDER-05 - a whole ask made while a store change's ask runs still asks the row answered Not yet (2.0 line T1; scripts/body.mjs `askPendingBodies`)", async () => {
+        /*
+         * 2.0 line T1, 28.11.2026. A change of the discoveries' rows asks only what nobody has answered (`fresh`, MURDER-05),
+         * and the write of an answer reaches the browser that wrote it too - so a whole ask made while that one ran (a load,
+         * a GM leaving, the discovery window's Ask again; 72-canary's "announce", red 2 runs in 6 that day) was handed its
+         * promise and asked nothing. One browser: a death the GMs keep and its discovery, answered "Not yet" by another
+         * user; a store change's ask and, at once, a whole ask. Read: whether the whole ask drew the window. Red at 940e93b:
+         * no window.
+         */
+        needs(env.primaryGm(), "the prompt's row is the primary's walk's");
+        needs(env.dialogs(), "the window is drawn here");
+        const B = await import("./body.mjs");
+        const { deathStore, pendingBodyStore } = await import("./gm-stores.mjs");
+        const [victim, witness] = cast(2);
+        must(!deathStore.has(victim.id), "the fixture student is already dead in the GMs' store");
+        const other = game.users.find(u => u.id !== game.user.id && u.name);
+        must(other, "no other user to stand for the GM who answered");
+        const title = game.i18n.localize("DRPG.Chapter.pendingTitle");
+        const drawn = () => [...foundry.applications.instances.values()].find(a => a?.rendered && a.element?.isConnected && a.options?.window?.title === title) ?? null;
+        const clock = getClock();
+        const key = `T1M05W:${victim.id}`;
+        const read = {};
+        try {
+            await deathStore.patch(victim.id, { chapter: clock.chapter, day: 1, timeOfDay: "night", at: Date.now(), keepBullets: true, known: [] });
+            await pendingBodyStore.patch(key, { room: `T1 MURDER-05 whole ask ${victim.id}`, sceneId: null, victimId: victim.id, deathId: null,
+                witnessIds: [witness.id], chapter: clock.chapter, epoch: seasonEpoch(), at: 1, answeredBy: other.id, answeredAt: Date.now(), answer: "notYet" });
+            await settle();
+            must(!drawn(), "a window stands already - this would measure something else");
+            const fresh = B.askPendingBodies({ fresh: true });
+            const whole = B.askPendingBodies();
+            read.asked = await until(() => Boolean(drawn()), 6000);
+            drawn()?.element?.querySelector('[data-action="close"]')?.click();
+            await Promise.race([Promise.all([fresh, whole]), wait(3000)]);
+            read.waits = pendingBodyStore.has(key);
+        } finally {
+            await drawn()?.close().catch(() => {});
+            if (pendingBodyStore.has(key)) await pendingBodyStore.drop(key);
+            if (deathStore.has(victim.id)) await deathStore.drop(victim.id);
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ asked: true, waits: true }),
+            "{asked: the whole ask drew the window for the row another GM answered Not yet; waits: the row still waits after this GM closed it}");
+    }],
     ["T1 MURDER-05 - an answer written on the row closes the other GM's window (2.0 line T1; scripts/body.mjs `promptPendingBodies`, `bodyPromptAnsweredElsewhere`)", async () => {
         /*
          * 2.0 line T1, 27.11.2026 (MURDER-05, the recommendation the owner took: "Okno "Uczniowie znalezli cialo" u wszystkich

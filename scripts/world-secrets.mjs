@@ -219,7 +219,9 @@ export const WORLD_SECRET_RULES = Object.freeze({
         // client store; the `summary` flag that held them on the document is gone (secret.mjs
         // `dropCardSummaries`; S10-05, S02-11). Read since E05's fix round (S1-m3): until then
         // one check in 40-flow held this, and the rule read no ChatMessage at all.
-        ChatMessage: Object.freeze(["summary"]),
+        // 2.0 line T1 D2-33 (28.11.2026): that a roll paid nothing - an incident's opening or crisis roll - is the GMs'
+        // (private-rolls.mjs `rollPaidNothing`); the `incidentFree` flag that said it from cdbe1bb to 2bc9bd9 is gone.
+        ChatMessage: Object.freeze(["summary", "incidentFree"]),
         // E05 C13: which trace a Truth Bullet was copied from is its row's in the GMs' store and
         // its owner's copy (`mineBulletRefs`); the bullet's `remnantRef` flag, which told every
         // console which traces had been found and by whom, is gone - a `null` one as well
@@ -249,7 +251,10 @@ export const WORLD_SECRET_RULES = Object.freeze({
            and everything a roll's options held of the character - its data, whole, where C5b
            took only the id and the name; its effects, the experiences picked and the modifiers'
            labels that name them; its statistic (`neutralRollOf`). Its fix r2-G2 (28.09.2026; review
-           round 2's mn1 = m1): the Loaded Die's mark, the nonce its Call keeps on the character. */
+           round 2's mn1 = m1): the Loaded Die's mark, the nonce its Call keeps on the character. 2.0 line T1 D2-33 (the
+           owner's answer to P13, 28.11.2026): the resource step's skip, which said the roll paid nothing - an incident's
+           opening or crisis roll (D2-09) - read true on p1 in 72-canary that day; the GMs keep it (private-rolls.mjs
+           `rollPaidNothing`). */
         Object.freeze({
             when: "supersededRoll",
             fields: Object.freeze(["speaker.actor", "speaker.token", "system.title", "system.source.actor",
@@ -257,7 +262,7 @@ export const WORLD_SECRET_RULES = Object.freeze({
                 "rolls.*.options.data", "rolls.*.options.effects", "rolls.*.options.bonusEffects",
                 "rolls.*.options.experiences", "rolls.*.options.roll.trait",
                 "rolls.*.options.roll.modifiers.*.label", "rolls.*.options.roll.baseModifiers.*.label",
-                "rolls.*.options.drpgLoadedDie"]),
+                "rolls.*.options.drpgLoadedDie", "rolls.*.options.skips.resources"]),
             since: "E06 C5b", why: "a roll the module threw names its character and its action to every browser (S02-02, S04-02)"
         }),
         /* E06 C7a: a private card's document keeps what places it (secret.mjs `splitFlags`); what

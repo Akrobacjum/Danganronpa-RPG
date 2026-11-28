@@ -7608,7 +7608,7 @@ const INVARIANTS = [
                     speaker: { alias: "Monokuma", actor: null, token: null, scene: null }, system: { title: "", source: { actor: "" }, targets: [] },
                     rolls: [JSON.stringify({ class: "DualityRoll", total: 14, options: { title: "", headerTitle: "", source: { actor: "" },
                         data: {}, roll: { type: "action", modifiers: [{ label: "", value: 1 }], baseModifiers: [{ label: "", value: 0 }] },
-                        actionType: "action" } })] }],
+                        skips: {}, actionType: "action" } })] }],
             items: [{ id: "R190BYSTANDER001.items.R190ITEM00000001", flags: { [MOD]: {
                 category: "truthBullet", isTruthBullet: true, shownType: "neutral", room: "Gym" } } }],
             // 1.2.122 (CORE-25): a room's region with the killer's open stash - public, and named by its owner's id.
@@ -7672,6 +7672,10 @@ const INVARIANTS = [
             ["ChatMessage flag summary",
                 s => { s.messages[0].flags[MOD].summary = { action: "Search", item: "R190 a find" }; },
                 h => h.kind === "flag" && h.doc === "ChatMessage" && h.id === "R190MESSAGE00001" && h.path === `flags.${MOD}.summary`],
+            // 2.0 line T1 D2-33: a roll's message never says it paid nothing (the GMs' memory does, private-rolls.mjs `rollPaidNothing`).
+            ["ChatMessage flag incidentFree",
+                s => { s.messages[1].flags[MOD].incidentFree = true; },
+                h => h.kind === "flag" && h.doc === "ChatMessage" && h.id === "R190MESSAGE00002" && h.path === `flags.${MOD}.incidentFree`],
             // E06 C5b: a roll the module threw names nobody - each field planted in the neutral one, a roll's inside its JSON text.
             ...[["speaker.actor", KILLER], ["speaker.token", "R190TOKEN0000001"], ["system.title", "R190 Strike"], ["system.source.actor", `Actor.${KILLER}`],
                 ["rolls.*.options.title", "R190 Strike"], ["rolls.*.options.headerTitle", "R190 Strike"], ["rolls.*.options.source.actor", `Actor.${KILLER}`],
@@ -7683,7 +7687,9 @@ const INVARIANTS = [
                 ["rolls.*.options.roll.trait", "agility"], ["rolls.*.options.roll.modifiers.*.label", "R190 Kendo Captain"],
                 ["rolls.*.options.roll.baseModifiers.*.label", "R190 Kendo Captain"],
                 // Fix r2-G2: the Loaded Die's mark - the nonce its Call keeps on the character, the bystander's here.
-                ["rolls.*.options.drpgLoadedDie", "R190NONCE"]].map(([f, value]) => [`message supersededRoll: ${f}`,
+                ["rolls.*.options.drpgLoadedDie", "R190NONCE"],
+                // 2.0 line T1 D2-33: the resource step's skip, which says the roll paid nothing - an incident's.
+                ["rolls.*.options.skips.resources", true]].map(([f, value]) => [`message supersededRoll: ${f}`,
                 s => {
                     const message = s.messages[1];
                     const inRoll = f.startsWith("rolls.*.");
@@ -69978,21 +69984,48 @@ const INVARIANTS = [
         equal(JSON.stringify(read), JSON.stringify([true, true, true]), "[in the cast, the body not found; in the cast, found; no incident] - whether the voice has left the room");
     }],
     ["R8926 - an incident's opening roll and its crisis rolls pay no resources, every other roll pays as before (2.0 line T1 EXP-PL-03, D2-09, D2-11; scripts/despair-award.mjs `rollPaysResources`, `incidentRollExempt`)", async () => {
-        /* 2.0 line T1, 27.11.2026. Pure, over plain incidents and messages; nothing written. Red at 658302a: no rule. */
+        /* 2.0 line T1, 27.11.2026. Pure, over plain incidents; nothing written. Red at 658302a: no rule. Which roll paid
+           nothing is the GMs' memory since D2-33, not a message's flag: R8936. */
         const A = await import("./despair-award.mjs");
-        must(typeof A.rollPaysResources === "function" && typeof A.incidentRollExempt === "function", "despair-award.mjs has no rollPaysResources - every incident roll pays");
+        must(typeof A.rollPaysResources === "function", "despair-award.mjs has no rollPaysResources - every incident roll pays");
         const st = (stage, extra = {}) => ({ active: true, stage, killerId: "K", victimId: "V", thirdId: "T", indirect: false, ...extra });
         const pays = (key, state, actorId) => A.rollPaysResources({ key, state, actorId });
-        const msg = (gm, flag) => ({ author: { isGM: gm }, getFlag: (scope, key) => (scope === MODULE_ID && key === A.INCIDENT_FREE_FLAG ? flag : undefined) });
         equal(JSON.stringify({
             opening: [pays("murderOpening", st("openingRoll"), "K"), pays("murderOpening", st("openingRoll", { indirect: true }), "V"), pays("murderOpening", st("openingRoll"), "V"),
                 pays("murderOpening", null, "K"), pays("murderOpening", st("incident"), "K")],
             crisis: [pays("crisis", st("incident"), "V"), pays("crisis", st("incident"), "K"), pays("crisis", st("incident"), "T"), pays("crisis", st("incident"), "B"),
                 pays("crisis", null, "V"), pays("crisis", st("resolution"), "V")],
-            others: [pays("search", st("incident"), "B"), pays("search", st("incident"), "V"), pays(null, st("incident"), "V")],
-            exempt: [A.incidentRollExempt(msg(true, true)), A.incidentRollExempt(msg(false, true)), A.incidentRollExempt(msg(true, undefined))]
-        }), JSON.stringify({ opening: [false, false, true, true, true], crisis: [false, false, false, true, true, true], others: [true, true, true], exempt: [true, false, false] }),
-        "{opening: [the killer at the opening, a trap's victim, a direct murder's victim, no incident, the fight]; crisis: [victim, killer, third, a bystander, no incident, Stage 6]; others: [a bystander's Search, the victim's Search, no key]; exempt: [a GM's flagged message, a player's, a GM's unflagged]}");
+            others: [pays("search", st("incident"), "B"), pays("search", st("incident"), "V"), pays(null, st("incident"), "V")]
+        }), JSON.stringify({ opening: [false, false, true, true, true], crisis: [false, false, false, true, true, true], others: [true, true, true] }),
+        "{opening: [the killer at the opening, a trap's victim, a direct murder's victim, no incident, the fight]; crisis: [victim, killer, third, a bystander, no incident, Stage 6]; others: [a bystander's Search, the victim's Search, no key]}");
+    }],
+    ["R8936 - whether a roll paid nothing is the GMs' to know, never its message's (2.0 line T1 D2-33; scripts/private-rolls.mjs `neutralRollOf`, `keepSubject`, `rollPaidNothing`; despair-award.mjs `incidentRollExempt`)", async () => {
+        /*
+         * 2.0 line T1, 28.11.2026 (D2-33, the owner's answer to the line's P13: "TAK, ukryć"). Until then a roll that paid no
+         * Hope and no Despair carried the GM's `incidentFree` flag and Daggerheart's `options.skips.resources` on its message,
+         * which every browser holds: a bystander's console read that it was an incident's opening or crisis roll (measured on
+         * p1 in 72-canary, 28.11.2026). Read here: the roll a message keeps (`neutralRollOf`) - the resource step's skip gone,
+         * the other skips as they were - and the GMs' memory of which roll paid nothing, kept with the roll's subject
+         * (`keepSubject`, `rollPaidNothing`) and read by the Despair award and the Reroll (`incidentRollExempt`): a message's
+         * own flag counts for nothing. Synthetic message ids, kept in this browser's memory only; nothing written to the
+         * world. Red at 940e93b: the skip kept, and no `rollPaidNothing`.
+         */
+        const P = await import("./private-rolls.mjs");
+        const A = await import("./despair-award.mjs");
+        must(typeof P.rollPaidNothing === "function", "private-rolls.mjs has no rollPaidNothing - the award reads a message's flag");
+        const roll = JSON.stringify({ class: "DualityRoll", options: { skips: { resources: true, triggers: true }, actionType: "action" } });
+        const kept = JSON.parse(P.neutralRollOf(roll))?.options?.skips ?? null;
+        const ids = ["R8936MESSAGE0001", "R8936MESSAGE0002", "R8936MESSAGE0003"];
+        P.keepSubject(ids[0], "R8936ACTOR000001", game.user.id, { free: true });
+        P.keepSubject(ids[1], "R8936ACTOR000001", game.user.id);
+        const flagged = { id: ids[2], author: { isGM: true }, getFlag: (scope, key) => (scope === MODULE_ID && key === "incidentFree" ? true : undefined) };
+        const read = {
+            skips: kept,
+            paidNothing: [P.rollPaidNothing({ id: ids[0] }), P.rollPaidNothing({ id: ids[1] }), P.rollPaidNothing(flagged)],
+            exempt: await Promise.all([A.incidentRollExempt({ id: ids[0] }), A.incidentRollExempt({ id: ids[1] }), A.incidentRollExempt(flagged)])
+        };
+        equal(JSON.stringify(read), JSON.stringify({ skips: { triggers: true }, paidNothing: [true, false, false], exempt: [true, false, false] }),
+            "{skips: what a message keeps of a free roll's skips; paidNothing and exempt: [kept as free, kept as paying, a GM's message flagged incidentFree with nothing kept]}");
     }],
     ["R8925 - the Eclipse's crossing lines say that going back counts as a crossing, in every form of both languages (2.0 line T1 EXP-PL-06; lang `DRPG.Eclipse.yourMoves`, `DRPG.Eclipse.moved`; eclipse.mjs `judgeEclipseCrossing`)", async () => {
         /* 2.0 line T1, 27.11.2026. Read off the language files; nothing written. Red at 658302a: no form says it. */

@@ -24,8 +24,9 @@
  *   MURDER-03  a masked token's name: gm2's canvas draws it, p2's (no GM) keeps the "?".
  *   EXP-PL-10  a Spectator's message to the GMs on p1's page: its own thread to gm and gm2 passes, one with a player
  *              in its whisper does not.
- *   D2-09      a forged crisis roll: p1's own Despair message carrying the GM's flag (`incidentFree`) feeds the pool as
- *              any player's roll does - the exemption is read off a GM's message alone.
+ *   D2-09      a forged crisis roll: p1's own Despair message carrying the flag the GM wrote until D2-33 (`incidentFree`) feeds the pool as
+ *              any player's roll does - the exemption is the GMs' memory of the roll (private-rolls.mjs
+ *              `rollPaidNothing`), never a message's flag.
  *
  * What this cannot see: a real browser's windows and timing, a real server, a third GM; the parts' roll windows are held
  * stand-ins (`rollTrait` replaced), as 97's Z holds Aiko's.

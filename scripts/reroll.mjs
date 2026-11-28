@@ -682,9 +682,9 @@ async function makeReroll(actor, sender) {
        20.11.2026): each browser draws the Hope and the Despair the Reroll moves once its dice of the Reroll have landed. */
     const { stampRollWrites } = await import("./dice-hold.mjs");
     /* An incident's opening or crisis roll paid no Hope and no Despair (2.0 line T1 EXP-PL-03; despair-award.mjs
-       `incidentRollExempt`, the GM's own stamp on the message): its Reroll moves none either. */
+       `incidentRollExempt`, the GMs' memory and the draw's record, D2-33): its Reroll moves none either. */
     const { incidentRollExempt } = await import("./despair-award.mjs");
-    const exempt = incidentRollExempt(message);
+    const exempt = await incidentRollExempt(message);
     if (!exempt) await stampRollWrites(message.id, [actor.id, actor.system?.partner?.id], async () => {
         await settleDualityReroll(original, rerolled, actor);
         if (original.options?.actionType !== "reaction") {

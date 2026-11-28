@@ -971,6 +971,8 @@ export function bodyPromptAnsweredElsewhere(row, { openedAt = 0, userId = null }
 }
 
 let askingPending = null;
+/** Whether the prompt running (`askingPending`) is a store change's, asking only what nobody has answered (MURDER-05). */
+let askingFresh = false;
 
 /**
  * THE PROMPT (1.2.113; the owner's decision A). On the primary GM, when it is a full Gamemaster (`answersBodyPrompt`): each
@@ -980,13 +982,21 @@ let askingPending = null;
  * walk reaches the count, when this browser's GM stores open (a reload, a GM connecting) and when a GM leaves and this
  * browser becomes the primary. One prompt at a time on a browser: a call while one is open answers that one's promise.
  * Rows that are no discovery any more are dropped first. Answers how many were announced.
+ * A WHOLE ASK IS NEVER SWALLOWED BY A STORE CHANGE'S (2.0 line T1; found by 72-canary, red 2 runs in 6 on 28.11.2026): a
+ * change of the rows asks only what nobody has answered (`fresh`, MURDER-05), and that write's own change reaches this
+ * browser too - so a whole ask made while it ran (a load, a GM leaving, the discovery window's Ask again) was handed its
+ * promise and asked nothing of a row answered "Not yet". It waits for that prompt now, and then asks every row.
  */
 export function askPendingBodies({ leaving = null, fresh = false } = {}) {
     if (!game.user?.isGM || !answersBodyPrompt(game.user, { primaryId: primaryGmId({ leaving }) })) return Promise.resolve(0);
-    askingPending ??= promptPendingBodies({ fresh }).catch(err => {
-        error("Could not ask the GM about a body found", err);
-        return 0;
-    }).finally(() => { askingPending = null; });
+    if (askingPending && askingFresh && !fresh) return askingPending.then(() => askPendingBodies({ leaving }));
+    if (!askingPending) {
+        askingFresh = fresh === true;
+        askingPending = promptPendingBodies({ fresh }).catch(err => {
+            error("Could not ask the GM about a body found", err);
+            return 0;
+        }).finally(() => { askingPending = null; askingFresh = false; });
+    }
     return askingPending;
 }
 

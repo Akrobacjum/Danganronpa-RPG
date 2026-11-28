@@ -53,15 +53,6 @@ async function onChatMessage(message) {
             return;
         }
 
-        /* AN INCIDENT'S OPENING AND ITS CRISIS ROLLS FEED NO DESPAIR (2.0 line T1 EXP-PL-03; the owner's D2-09: "Rzuty w
-           incydencie nie daja Despair ani Hope", narrowed by D2-11 to the opening and the crisis rolls). The GM that threw or
-           drew the roll decided it from the incident it holds (`rollPaysResources`) and stamped its own message
-           (`INCIDENT_FREE_FLAG`); a player's message carrying the flag is no GM's and pays as before. */
-        if (incidentRollExempt(message)) {
-            debug("An incident's opening or crisis roll: no Despair.");
-            return;
-        }
-
         // A roll thrown with no GM connected (E08+E28 C18, roll-draw.mjs `UNWITNESSED_FLAG`) is
         // the GMs' card's to grant, its Despair with it: awarded here as well, a Grant all paid it
         // twice. A stamp is its roller's word, so one written while a GM is here asks that GM too.
@@ -84,6 +75,16 @@ async function onChatMessage(message) {
         const actor = await resolveActor(message);
         if (!actor || actor.type !== "character") {
             debug("Roll had no character behind it; nothing awarded.", message?.speaker);
+            return;
+        }
+
+        /* AN INCIDENT'S OPENING AND ITS CRISIS ROLLS FEED NO DESPAIR (2.0 line T1 EXP-PL-03; the owner's D2-09: "Rzuty w
+           incydencie nie daja Despair ani Hope", narrowed by D2-11 to the opening and the crisis rolls). The GM that threw or
+           drew the roll decided it from the incident it holds (`rollPaysResources`) and told it with the roll's subject,
+           which the award has waited for above (`resolveActor`): the GMs' memory, never the message (`incidentRollExempt`,
+           D2-33). */
+        if (await incidentRollExempt(message)) {
+            debug("An incident's opening or crisis roll: no Despair.");
             return;
         }
 
@@ -132,12 +133,20 @@ export function rollPaysResources({ key = null, state = null, actorId = null } =
     return true;
 }
 
-/** The flag a GM's own roll message carries when it paid nothing (`rollPaysResources`): set by the GM that made it. */
-export const INCIDENT_FREE_FLAG = "incidentFree";
-
-/** Whether `message` is a GM's roll message of an incident roll that pays nothing (`INCIDENT_FREE_FLAG` on a GM's message). */
-export function incidentRollExempt(message) {
-    return Boolean(message?.author?.isGM && message.getFlag?.(MODULE_ID, INCIDENT_FREE_FLAG));
+/**
+ * Whether `message` is the roll of an incident's opening or crisis that paid nothing (`rollPaysResources` on the GM that threw
+ * or drew it), as this GM knows it: kept with the roll's subject (private-rolls.mjs `rollPaidNothing`), or the record of a
+ * roll the GM drew (roll-draw.mjs `noResources`, which outlives a reload). Never read off the message: from cdbe1bb to
+ * 2bc9bd9 a flag there (`incidentFree`) told every browser that the roll was an incident's (2.0 line T1 D2-33, the owner's
+ * answer to P13; world-secrets.mjs holds the flag and the skip off every message). Imported when asked: private-rolls.mjs
+ * imports this file (R161).
+ */
+export async function incidentRollExempt(message) {
+    if (!message) return false;
+    const { rollPaidNothing } = await import("./private-rolls.mjs");
+    if (rollPaidNothing(message)) return true;
+    const { drawnRecordOf } = await import("./roll-draw.mjs");
+    return drawnRecordOf(message)?.noResources === true;
 }
 
 /**

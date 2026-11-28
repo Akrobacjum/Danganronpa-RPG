@@ -629,9 +629,12 @@ export function rollNonceOf(message, data = null) {
  * Daggerheart's `toMessage` waits for Dice So Nice (`onCreated`). A statistic from the sheet
  * keeps Daggerheart's card (`keepCard`, C13): its message is claimed - whispered to the GMs and
  * emptied as it is created - but not hidden, since no card of the module's stands for it.
+ * A GM's roll that paid nothing (`free`, 2.0 line T1 D2-33: an incident's opening or crisis roll, D2-09) says so with its
+ * subject, to the GMs alone (`reportRollSubject`), never on its message.
  */
-export async function supersedingRoll(fn, { subject = null, actionKey = null, facts = null, nonce = null, stamp = null, by = null, shown = false, keepCard = false, onCreated = null } = {}) {
-    const claim = { spent: false, subject, actionKey, facts, reported: false, nonce: nonce ?? foundry.utils.randomID(), stamp, by, shown: shown === true, keepCard, onCreated };
+export async function supersedingRoll(fn, { subject = null, actionKey = null, facts = null, nonce = null, stamp = null, by = null, shown = false, keepCard = false, onCreated = null, free = false } = {}) {
+    const claim = { spent: false, subject, actionKey, facts, reported: false, nonce: nonce ?? foundry.utils.randomID(), stamp, by, shown: shown === true, keepCard, onCreated,
+        free: free === true && Boolean(game.user?.isGM) };
     rollClaims.push(claim);
     try {
         return await fn(claim.nonce);
@@ -698,7 +701,7 @@ function reportClaimedRoll(message, options, userId) {
     const claim = nonce ? rollClaims.find(c => c.spent && !c.reported && c.nonce === nonce) : null;
     if (!claim) return;
     claim.reported = true;
-    if (claim.subject) reportRollSubject(message, claim.subject, { by: claim.by, shown: claim.shown });
+    if (claim.subject) reportRollSubject(message, claim.subject, { by: claim.by, shown: claim.shown, free: claim.free });
     if (typeof claim.onCreated === "function") claim.onCreated(message);
 }
 
@@ -791,6 +794,13 @@ export function neutralRollOf(entry) {
         delete opts.bonusEffects;
         delete opts.experiences;
         delete opts[LOADED_DIE];
+        /* THE RESOURCE STEP'S SKIP (2.0 line T1 D2-33, the owner's answer to the line's P13: "TAK, ukryć"): an incident's
+           opening and crisis rolls skip Daggerheart's resource step (D2-09; roll-draw.mjs, action-pipeline.mjs), which reads
+           the skip off the config in memory as the roll is evaluated (dualityRoll.mjs `addDualityResourceUpdates`; the
+           harness's lib/daggerheart.mjs) - kept on the message, it told every browser the roll paid nothing, so that it was
+           an incident's (read true on p1 in 72-canary, 28.11.2026). Which roll paid nothing is the GMs' (`rollPaidNothing`);
+           the other skips stay as Daggerheart wrote them. */
+        if (opts.skips && typeof opts.skips === "object") delete opts.skips.resources;
         if (Object.hasOwn(opts, "targets")) opts.targets = [];
         if (opts.roll && typeof opts.roll === "object") {
             delete opts.roll.trait;
@@ -1106,10 +1116,10 @@ const subjectWaiters = new Map();
  * Exported for the GM's draw (roll-draw.mjs, E08+E28 C12a): the roller's browser keeps the
  * subject of the message the GM wrote for it, as it keeps one it threw, and asks nothing.
  */
-export function keepSubject(messageId, actorId, userId) {
+export function keepSubject(messageId, actorId, userId, { free = false } = {}) {
     const now = Date.now();
     rollSubjects.delete(messageId);
-    rollSubjects.set(messageId, { actorId, userId, at: now });
+    rollSubjects.set(messageId, { actorId, userId, at: now, free: free === true });
     for (const [id, entry] of rollSubjects) {
         if (rollSubjects.size <= SUBJECTS_KEPT && now - entry.at <= SUBJECT_KEPT_MS) break;
         rollSubjects.delete(id);
@@ -1129,7 +1139,7 @@ export const ROLL_ACTIONS = table({
     "roll.subject": {
         label: "DRPG.Bridge.what.roll.subject",
         guards: [knownSender, notSpectator("actorId"), owns("actorId", "sender does not own that character"), guardRollAuthor],
-        sanitize: pick({ messageId: as.id, actorId: as.id }),
+        sanitize: pick({ messageId: as.id, actorId: as.id, free: as.bool }),
         run: keepRollSubject,
         answer: "none", quiet: true,
         claims: { messageId: guardRollAuthor }
@@ -1212,7 +1222,8 @@ async function drawnAgain(sender, ctx) {
 
 /** The run of `roll.subject`: its guards tied the message to the sender and the character to them. */
 function keepRollSubject(payload, sender, ctx) {
-    keepSubject(payload.messageId, payload.actorId, sender.id);
+    // That the roll paid nothing is a GM's word alone (D2-33): a player's packet saying so is kept as a paying roll.
+    keepSubject(payload.messageId, payload.actorId, sender.id, { free: payload.free === true && Boolean(sender?.isGM) });
     relayIncidentDice(game.messages.get(payload.messageId));
 }
 
@@ -1226,13 +1237,14 @@ function keepRollSubject(payload, sender, ctx) {
  * without a packet; one it drew for a player (`by`, the roller) has its dice shown
  * as theirs (`relayDrawnDice`, E08+E28 C13) - on this screen already where `shown` (H82 C6).
  */
-export function reportRollSubject(message, actor, { by = null, shown = false } = {}) {
+export function reportRollSubject(message, actor, { by = null, shown = false, free = false } = {}) {
     const messageId = message?.id ?? message?._id ?? null;
     if (!messageId || !actor?.id || keptRollSubject(message) === actor.id) return;
-    keepSubject(messageId, actor.id, game.user?.id ?? null);
+    const paidNothing = free === true && Boolean(game.user?.isGM);
+    keepSubject(messageId, actor.id, game.user?.id ?? null, { free: paidNothing });
     if (isPrimaryGm()) return by ? relayDrawnDice(message, by, { shown }) : relayIncidentDice(message);
     const decl = ROLL_ACTIONS["roll.subject"];
-    void bridgeRequest("roll.subject", { messageId, actorId: actor.id }, { settle: decl.answer, quiet: decl.quiet });
+    void bridgeRequest("roll.subject", { messageId, actorId: actor.id, ...(paidNothing ? { free: true } : {}) }, { settle: decl.answer, quiet: decl.quiet });
 }
 
 /** Is this a roll the module threw - a message `supersedingRoll` claimed as it was created? */
@@ -1353,6 +1365,16 @@ export async function publicRoll(formula = "1d6", { flavor = "" } = {}) {
         flags: { [MODULE_ID]: { [PUBLIC_ROLL_FLAG]: true } }
     }, { messageMode: "public" });
     return message ?? null;
+}
+
+/**
+ * Whether the roll of `message` paid nothing - an incident's opening or crisis roll (2.0 line T1 D2-09; D2-33): kept with
+ * its subject on the GM that threw or drew it, and told the primary GM with the subject (`roll.subject`'s `free`, from a
+ * GM alone). Never read off the message, whose flags and rolls every browser holds. In this browser's memory, as the
+ * subject is: a reload forgets it (the record of a roll the GM drew keeps it, roll-draw.mjs `noResources`).
+ */
+export function rollPaidNothing(message) {
+    return rollSubjects.get(message?.id ?? "")?.free === true;
 }
 
 /** The character this client was told (or knows, having thrown it) a roll is about, as an id, or null. */

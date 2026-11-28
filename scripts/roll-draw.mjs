@@ -52,7 +52,7 @@ import { MODULE_ID, FLAGS, TIMING, ACTIONS, TRAITS, TRAIT_BY_DH, MURDER_OPENING,
 import { SETTINGS, getClock } from "./settings.mjs";
 import { primaryGmId, isPrimaryGm, announce, whisperToGms, debug, warn, error, esc, listOf } from "./utils.mjs";
 import { bridgeRequest, ownsActor } from "./bridge-guards.mjs";
-import { readDuality, awardRollDespair, rollPaysResources, INCIDENT_FREE_FLAG } from "./despair-award.mjs";
+import { readDuality, awardRollDespair, rollPaysResources } from "./despair-award.mjs";
 import { answerKeysOpen, rollStore, sheetMarkStore } from "./gm-stores.mjs";
 import { ROLL_NONCE, supersedingRoll, rollClaimOf, keepSubject, neutralRollOf, readHere, awaitDrawn, isDrawnRoll, forgedFlagsOf, isReadableHere,
     rollNonceOf, gmsInRoomOf } from "./private-rolls.mjs";
@@ -1716,9 +1716,10 @@ async function throwDrawn({ actorId, actionKey, nonce, claimed, loaded, costs, r
     /* AN INCIDENT'S OPENING OR CRISIS ROLL MOVES NO HOPE AND NO DESPAIR (2.0 line T1 EXP-PL-03; D2-09, D2-11): read here,
        off the incident this GM holds and the action the roll was drawn for (`key`, which `expectedFor` held to a roll the
        character is taking), never off the packet - so Daggerheart's resource step is skipped (`skips.resources`: no Hope, no
-       Stress, no critical's Hope; critical.mjs pays nothing on a skipped step), the message is stamped for the Despair award
-       and the Reroll (despair-award.mjs `INCIDENT_FREE_FLAG`), and the record keeps it. The Calls' Hope it spends is still
-       paid (`costs`, below). */
+       Stress, no critical's Hope; critical.mjs pays nothing on a skipped step), the GMs are told it with the roll's subject
+       for the Despair award and the Reroll (private-rolls.mjs `rollPaidNothing`), and the record keeps it. Never on the
+       message, which every browser holds (D2-33): the skip comes off it as it is written (`neutralRollOf`). The Calls'
+       Hope it spends is still paid (`costs`, below). */
     const { murderState } = await import("./incident-store.mjs");
     const incidentFree = !rollPaysResources({ key, state: murderState(), actorId: actor.id });
     if (incidentFree) config.skips = { ...(config.skips ?? {}), resources: true };
@@ -2678,7 +2679,7 @@ async function writeDrawnMessage(cls, roll, config, { actor, nonce, rollId, send
     let heard = null;
     const created = new Promise(resolve => { heard = resolve; });
     const writing = supersedingRoll(() => cls.toMessage(roll, config),
-        { subject: actor, nonce, stamp: { rollId, drawn: true, ...(incidentFree ? { [INCIDENT_FREE_FLAG]: true } : {}) }, by: sender.id, shown, keepCard, onCreated: heard });
+        { subject: actor, nonce, stamp: { rollId, drawn: true }, by: sender.id, shown, keepCard, onCreated: heard, free: incidentFree });
     const message = await Promise.race([created, writing]);
     writing.catch(err => error("The message of a roll the GM drew failed after it was written", err));
     if (!message?.id) throw new Error("the drawn roll's message was not written");
