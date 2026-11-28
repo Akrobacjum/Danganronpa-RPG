@@ -1626,6 +1626,9 @@
       }
     },
     "Floor": {
+      "waitingIntro": "These requests still wait on a GM's decision. Start the Class Trial anyway?",
+      "startAnyway": "Start anyway",
+      "waitingObserve": "a find in {room} waits for its words",
       "holderGone": "{name} holds the floor and is not connected. Press Skip or End this mode on the trial's bar.",
       "next": {
         "start": "No Class Trial is running. Start the Class Trial.",
@@ -2059,7 +2062,8 @@
         "executedEachTooltip": "Ticked: executed if the table got it wrong. Untick to spare this student.",
         "wrongStepOffersTooltip": "Ticked: a wrong verdict gives the Blackened their Reinforced Level Up. Untick to leave it out.",
         "wrongStepRuleTooltip": "Ticked: a wrong verdict asks the Blackened for their new rule. Untick to leave it out.",
-        "wrongStepDespairTooltip": "Ticked: a wrong verdict fills every Monokuma's Despair pool. Untick to leave it out."
+        "wrongStepDespairTooltip": "Ticked: a wrong verdict fills every Monokuma's Despair pool. Untick to leave it out.",
+        "startAnywayTooltip": "Starts the Class Trial with these requests still waiting; their cards stay as they are"
       },
       "CasePlan": {
         "clearPlanTooltip": "Clears one chapter's planned Key Remnants and case schema, after a question that counts them",

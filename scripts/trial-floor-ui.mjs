@@ -187,6 +187,7 @@ export async function startClassTrial() {
     if (!result || result === "cancel") return null;
     if (!(await incidentClosedFirst())) return null;
     if (!(await confirmNewTrial())) return null;
+    if (!(await waitingFirst())) return null;
     const picked = result.cast;
     if (hall && picked?.sceneId === hall.id && Object.keys(picked.changes ?? {}).length) await saveTrialCast(hall, picked.changes);
 
@@ -218,6 +219,30 @@ export async function startClassTrial() {
     });
 
     return true;
+}
+
+/*
+ * REQUESTS THAT WAIT ASK FIRST (2.0 line T3 EXP-GM-03, 27.11.2026; the owner's recommendation). Start the Class Trial read
+ * the Eclipse, the living, the incident and a second verdict, and not the requests still waiting on a GM: a player's
+ * card in the console's "Waiting" (messenger-gm.mjs `waitingCards`) or a find whose describe window stands
+ * (observe.mjs `waitingObserves`). With any, a window lists them under the console's heading, each its player and its
+ * first words: Cancel, the default, starts nothing; Start anyway goes on. From this browser's copy, so another GM's
+ * cards and windows count. The window changes no card. Answers whether to go on.
+ */
+async function waitingFirst() {
+    const [{ waitingCards }, { waitingObserves }] = await Promise.all([import("./messenger-gm.mjs"), import("./observe.mjs")]);
+    const rows = [...waitingCards(), ...waitingObserves()];
+    if (!rows.length) return true;
+    const answer = await drpgWindow({
+        title: game.i18n.localize("DRPG.Floor.startTrial"),
+        classes: ["drpg-panel"],
+        body: `<h3>${esc(game.i18n.localize("DRPG.Messenger.gm.waiting"))}</h3><p>${esc(game.i18n.localize("DRPG.Floor.waitingIntro"))}</p>`
+            + `<ul>${rows.map(row => `<li><strong>${esc(row.who)}</strong>: ${esc(row.text)}</li>`).join("")}</ul>`,
+        footer: { destructive: [{ action: "start", label: game.i18n.localize("DRPG.Floor.startAnyway"), tooltip: tipText("DRPG.Tips.Trial.startAnywayTooltip") }],
+            close: "cancel", default: "cancel" },
+        rejectClose: false
+    });
+    return answer === "start";
 }
 
 /**

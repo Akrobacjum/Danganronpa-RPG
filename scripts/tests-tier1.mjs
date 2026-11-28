@@ -70149,6 +70149,22 @@ const INVARIANTS = [
             "[every clean-up ticked with the morning; the morning alone; nothing but the move]");
         ok(C.CHAPTER_END_STEPS.at(-1)?.key === "players", "the players' card is not the chapter's end's last step");
     }],
+    ["R9141 - the requests waiting on a GM are the thread cards the console's Waiting draws: a player's, not settled, with a ruling button (2.0 line T3 EXP-GM-03; messenger-gm.mjs `waitingCards`)", async () => {
+        /* 2.0 line T3 EXP-GM-03, 27.11.2026. Stand-in messages of a player's thread and their words handed in; nothing
+           read off the chat, nothing written. Red at d7d982b: no `waitingCards`. */
+        needs(world.atLeast("connectedPlayersWithCharacter", 1), "a player's thread");
+        const M = await import("./messenger-gm.mjs");
+        const { MESSENGER_FLAGS } = await import("./messenger.mjs");
+        must(typeof M.waitingCards === "function", "messenger-gm.mjs has no waitingCards");
+        const player = game.users.find(u => !u.isGM);
+        const gm = game.users.find(u => u.isGM);
+        const card = (id, { settled = false, button = true, author = gm } = {}) => ({ id, author, timestamp: 1,
+            flags: { [MODULE_ID]: { [MESSENGER_FLAGS.thread]: player.id, ...(settled ? { [MESSENGER_FLAGS.settled]: true } : {}) } },
+            content: `<p>SUITE R9141 ${id} asks to climb</p>${button ? `<div class="drpg-call-actions"><button data-drpg-call="decline">No</button></div>` : ""}` });
+        const read = M.waitingCards({ messages: [card("live"), card("settled", { settled: true }), card("plain", { button: false })], words: m => m.content });
+        equal(stableJson(read.map(r => [r.messageId, r.player === player.id, r.text.startsWith("SUITE R9141 live asks to climb")])), stableJson([["live", true, true]]),
+            "[the waiting cards: id, the thread's player, the request's first words] of a live card, a settled one and one with no button");
+    }],
 ];
 
 /**

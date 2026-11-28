@@ -119662,6 +119662,52 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         equal(stableJson(read), stableJson({ ran: [true], clockFailed: [], noMove: [] }),
             "{ran: the public cards after a clock step that ran [names the morning]; clockFailed: after one that failed; noMove: with no Next chapter}");
     }],
+    ["T3 EXP-GM-03 - Start the Class Trial with a request card waiting asks first and names it, and Cancel starts nothing", async () => {
+        /*
+         * 2.0 line T3 EXP-GM-03, 27.11.2026. Start the Class Trial read no request still waiting on a GM. A card of a
+         * player's thread with a ruling button, written as the console's Waiting holds one (the thread's flag, a GM its
+         * author), then Start the Class Trial pressed (`startClassTrial`): its own window answered as Start answers it, the
+         * waiting window read and Cancel pressed. Read: whether the waiting window opened, held the console's heading and
+         * the request's words, and the phase after. The card and the clock put back. Red at d7d982b: no waiting window,
+         * and the phase moved.
+         */
+        needs(world.atLeast("connectedPlayersWithCharacter", 1), "a player's thread");
+        needs(env.primaryGm(), "the trial is started on the primary GM");
+        const { MESSENGER_FLAGS } = await import("./messenger.mjs");
+        const T = await import("./trial-floor-ui.mjs");
+        const player = game.users.find(u => !u.isGM && u.active && u.character);
+        const clock = foundry.utils.deepClone(getClock());
+        const heading = game.i18n.localize("DRPG.Messenger.gm.waiting");
+        const WORDS = "SUITE T3 EXP-GM-03 asks to climb the fence";
+        let card = null, seen = null;
+        const read = {};
+        try {
+            await setClock({ ...clock, phase: "dailyLife" });
+            card = await ChatMessage.create({ content: `<p>${WORDS}</p><div class="drpg-call-actions"><button type="button" data-drpg-call="decline">No</button></div>`,
+                whisper: game.users.filter(u => u.isGM).map(u => u.id), flags: { [MODULE_ID]: { [MESSENGER_FLAGS.thread]: player.id } } });
+            await settle();
+            globalThis.__dialogAnswers.push(cfg => {
+                const text = String(cfg?.content?.innerHTML ?? cfg?.content ?? "");
+                if (text.includes(heading)) { seen = text; return "cancel"; }
+                return { cast: null };
+            }, cfg => {
+                const text = String(cfg?.content?.innerHTML ?? cfg?.content ?? "");
+                if (text.includes(heading)) { seen = text; return "cancel"; }
+                return "cancel";
+            });
+            await T.startClassTrial();
+            await settle();
+            read.window = [Boolean(seen), String(seen ?? "").includes(WORDS)];
+            read.phase = getClock().phase;
+        } finally {
+            globalThis.__dialogAnswers.length = 0;
+            if (card) await card.delete().catch(() => {});
+            await setClock(clock);
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ window: [true, true], phase: "dailyLife" }),
+            "{window: [the waiting window opened under the console's heading, it named the request's words]; phase: after its Cancel}");
+    }],
 ];
 
 // `drawnForPlayer` for the grid (E33 C7): a drawn crisis roll goes through the suite's one road to a draw (tests-grid.mjs `drawnAct`).

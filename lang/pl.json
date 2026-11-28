@@ -1671,6 +1671,9 @@
       }
     },
     "Floor": {
+      "waitingIntro": "Te prośby nadal czekają na decyzję GM-a. Zacząć Class Trial mimo to?",
+      "startAnyway": "Zacznij mimo to",
+      "waitingObserve": "znalezisko w pokoju {room} czeka na opis",
       "holderGone": "Głos ma {name}, a ta osoba jest rozłączona. Naciśnij Pomiń albo Zakończ ten tryb na pasku rozprawy.",
       "next": {
         "start": "Żaden Class Trial nie trwa. Zacznij Class Trial.",
@@ -2147,7 +2150,8 @@
         "executedEachTooltip": "Zaznaczone: stracenie, jeśli stół się pomylił. Odznacz, by oszczędzić tę osobę.",
         "wrongStepOffersTooltip": "Zaznaczone: błędny werdykt daje Blackened Reinforced Level Up. Odznacz, żeby go pominąć.",
         "wrongStepRuleTooltip": "Zaznaczone: błędny werdykt pyta Blackened o nową zasadę. Odznacz, żeby to pominąć.",
-        "wrongStepDespairTooltip": "Zaznaczone: błędny werdykt napełnia pulę Despair każdego Monokumy. Odznacz, żeby to pominąć."
+        "wrongStepDespairTooltip": "Zaznaczone: błędny werdykt napełnia pulę Despair każdego Monokumy. Odznacz, żeby to pominąć.",
+        "startAnywayTooltip": "Zaczyna Class Trial, choć te prośby nadal czekają; ich karty zostają bez zmian"
       },
       "CasePlan": {
         "clearPlanTooltip": "Czyści zaplanowane Key Remnanty i schemat sprawy jednego rozdziału, po pytaniu, które je liczy",

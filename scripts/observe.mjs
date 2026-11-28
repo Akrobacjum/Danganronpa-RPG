@@ -1567,6 +1567,17 @@ const askedHere = new Set();
 /** The describe windows standing on this browser for another GM's find: ask id -> `{ key, dialog, closed }`. */
 const describeWindows = new Map();
 
+/**
+ * The finds whose describe window stands, read only (2.0 line T3 EXP-GM-03): a row marked `describing`, with no result
+ * and no words given yet, each `{ key, who, text }` - its finder's name and its room. GM only; nothing is written.
+ */
+export function waitingObserves() {
+    if (!game.user?.isGM) return [];
+    return Object.entries(observeStore.entries() ?? {}).filter(([, row]) => row?.describing && !row.result && row.described?.askId !== row.describing.askId)
+        .map(([key, row]) => ({ key, who: game.actors.get(row.actorId ?? "")?.name ?? "?",
+            text: game.i18n.format("DRPG.Floor.waitingObserve", { room: row.room ?? "?" }) }));
+}
+
 /** Every row that asks this browser for a find's words opens its window (`askDescribeHere`); GM only. */
 export function askDescribeFromRows() {
     if (!game.user?.isGM) return 0;
