@@ -42,6 +42,7 @@ import { announce, whisperToGms, whisperToOwner, primaryGmId, isPrimaryGm, log, 
 import { deathRecordFor } from "./settings.mjs";
 import { trialProgress, setTrialProgress, executionLines, executeAtExit } from "./trial-progress.mjs";
 import { runSteps, stepsReport } from "./steps.mjs";
+import { wrongStepsHtml, wrongSkipsOf, skipField, skipsStep, skippedLines } from "./verdict-skips.mjs";
 // The kit's frame for the verdict's windows: the Final Trial's (E22 C3b), the ordinary verdict and the Blackened's rule
 // (E21 C4).
 import { drpgWindow, box, tipAttr } from "./ui-kit.mjs";
@@ -203,7 +204,7 @@ export async function openVerdictDialog() {
                 <select name="blackened">${blackenedOptions}</select></label>`}
             <p class="notes">${game.i18n.localize(known.length
                 ? "DRPG.Vote.verdictNoteKnown" : "DRPG.Vote.verdictNote")}</p>
-            ${tiedVote ? box("warning", `${
+            ${wrongStepsHtml()}${tiedVote ? box("warning", `${
                 game.i18n.localize("DRPG.Vote.tiedVerdictNote")}`) : ""}
         </form>`,
         /*
@@ -357,16 +358,16 @@ function read(dialog, correct, known, dead = new Set(), choices = []) {
             ui.notifications.warn(game.i18n.localize("DRPG.Vote.pickOneAccused"));
             return NONE_TICKED;
         }
-        return { correct, executedIds: chosen.executedIds, blackenedIds: blackenedIdList };
+        return { correct, executedIds: chosen.executedIds, blackenedIds: blackenedIdList, skip: wrongSkipsOf(f) };
     }
     const executed = String(f.executed?.value ?? "");
     if (executed && dead.has(executed)) {
         const name = game.actors.get(executed)?.name ?? executed;
         warn(`The verdict window named ${name}, who is dead, to execute - nobody is executed.`);
         ui.notifications.warn(game.i18n.format("DRPG.Vote.accusedDead", { names: name }));
-        return { correct, executedIds: [], blackenedIds: blackenedIdList };
+        return { correct, executedIds: [], blackenedIds: blackenedIdList, skip: wrongSkipsOf(f) };
     }
-    return { correct, executedIds: [executed].filter(Boolean), blackenedIds: blackenedIdList };
+    return { correct, executedIds: [executed].filter(Boolean), blackenedIds: blackenedIdList, skip: wrongSkipsOf(f) };
 }
 
 /**
@@ -480,7 +481,7 @@ export function verdictRefusal() {
  * steps, and kept for a Finish in a GM store (`keepVerdictBlackened`).
  */
 export async function applyVerdict({
-    correct, executedIds, blackenedIds: named, executedId, blackenedId
+    correct, executedIds, blackenedIds: named, executedId, blackenedId, skip = []
 } = {}) {
     if (!game.user.isGM) return null;
 
@@ -511,7 +512,7 @@ export async function applyVerdict({
         const record = {
             stage: "applying", correct: Boolean(correct),
             executedIds: (executedIds ?? [executedId]).filter(id => id && game.actors.get(id)),
-            by: game.user.id, at: Date.now(), done: [], failed: []
+            by: game.user.id, at: Date.now(), done: [], failed: [], ...skipField(correct, skip) // the wrong verdict's steps left out (verdict-skips.mjs)
         };
         const blackenedIds = (named ?? [blackenedId]).filter(id => id && game.actors.get(id));
         await setTrialProgress({ verdictApplied: true, verdict: record });
@@ -635,7 +636,7 @@ async function runVerdict(record, blackenedIds, final = null) {
         steps: verdictSteps(record).map(key => ({
             key, needs: VERDICT_NEEDS[key],
             // A step that answers false did not do its work (`verdictDespair`'s fill nobody wrote, E42 fix FG1): failed.
-            run: async () => ((await VERDICT_STEP[key](context)) === false ? false : undefined),
+            run: async () => (skipsStep(context.record, key) ? undefined : (await VERDICT_STEP[key](context)) === false ? false : undefined),
             after: key === "card" ? () => verdictExecutedNow(context) : null
         })),
         save: async (run, { end = false } = {}) => {
@@ -659,7 +660,7 @@ async function runVerdict(record, blackenedIds, final = null) {
         await whisperToGms(verdictSummaryContent(final ? finalSummary(final, report) : {
             title: "DRPG.Vote.verdictTitle",
             summary: game.i18n.localize(record.correct ? "DRPG.Vote.correctSummary" : "DRPG.Vote.wrongSummary"),
-            lines: report.lines,
+            lines: [...report.lines, ...skippedLines(record)],
             warning: report.warnings.join(" ")
         }));
     } catch (err) {

@@ -119589,6 +119589,42 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         equal(stableJson(read), stableJson({ rename: ["A", "B"], reading: ["B"] }),
             "{rename: whose copy's holder each whisper of the rename told; reading: of the reading}");
     }],
+    ["T3 EXP-GM-12 - a wrong verdict with the rule and the fill unticked runs neither, and a Finish does not run them", async () => {
+        /*
+         * 2.0 line T3 EXP-GM-12, 27.11.2026. A wrong verdict always gave the Blackened their Reinforced Level Up, asked
+         * their rule and filled every Despair pool. A wrong verdict on a Blackened of the cast with the rule and the fill
+         * left out (`applyVerdict`'s `skip`, as the window's ticks hand it), inside `withVerdictOpen` and
+         * `withAdvanceWindows` as the E05 C11 test gives one; then the verdict's Finish asked (`finishVerdict`). Read: each
+         * Monokuma's pool's move, whether the rule's window was asked, the record's `skip` and its `done` for the three,
+         * its stage, and what the Finish did. The waiting Level Up and the record put back. Red at 7bd6a6d: the rule's
+         * window asked and the pools filled.
+         */
+        const [killer] = cast(1);
+        const V = await import("./vote.mjs");
+        const D = await import("./despair.mjs");
+        const { deferredOfferStore } = await import("./gm-stores.mjs");
+        const ruleTitle = game.i18n.localize("DRPG.Vote.blackenedRuleTitle");
+        const pools = D.monokumas().map(u => [u.id, D.getDespair(u.id)]);
+        let read = null;
+        try {
+            await withVerdictOpen(async () => {
+                const asked = await withAdvanceWindows(() => null,
+                    () => V.applyVerdict({ correct: false, executedIds: [], blackenedIds: [killer.id], skip: ["rule", "despair"] }));
+                await settle();
+                const r = V.trialProgress().verdict ?? {};
+                const finished = await V.finishVerdict().catch(err => `threw ${err}`);
+                read = { moved: pools.map(([id, was]) => D.getDespair(id) - was), rule: asked.some(e => e.title === ruleTitle),
+                    skip: r.skip ?? null, done: ["offers", "rule", "despair"].map(step => (r.done ?? []).includes(step)), stage: r.stage ?? null,
+                    finished: finished ?? null };
+            });
+        } finally {
+            await deferredOfferStore.drop(killer.id);
+            for (const [id, was] of pools) { const d = was - D.getDespair(id); if (d) await D.adjustDespair(id, d); }
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ moved: pools.map(() => 0), rule: false, skip: ["rule", "despair"], done: [true, true, true], stage: "done", finished: null }),
+            "{moved: each pool's move; rule: the rule's window asked; skip: the record's; done: offers, rule, despair written done; stage; finished: the Finish's answer}");
+    }],
 ];
 
 // `drawnForPlayer` for the grid (E33 C7): a drawn crisis roll goes through the suite's one road to a draw (tests-grid.mjs `drawnAct`).

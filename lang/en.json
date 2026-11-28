@@ -2056,7 +2056,10 @@
         "scrubAtItTooltip": "Rolls to wipe the chosen Remnant away",
         "carryItThereTooltip": "Rolls to drag the body into the room you picked",
         "killerTooltip": "Picking a killer ticks Indirect murder when they have a finished trap, and unticks it when not",
-        "executedEachTooltip": "Ticked: executed if the table got it wrong. Untick to spare this student."
+        "executedEachTooltip": "Ticked: executed if the table got it wrong. Untick to spare this student.",
+        "wrongStepOffersTooltip": "Ticked: a wrong verdict gives the Blackened their Reinforced Level Up. Untick to leave it out.",
+        "wrongStepRuleTooltip": "Ticked: a wrong verdict asks the Blackened for their new rule. Untick to leave it out.",
+        "wrongStepDespairTooltip": "Ticked: a wrong verdict fills every Monokuma's Despair pool. Untick to leave it out."
       },
       "CasePlan": {
         "clearPlanTooltip": "Clears one chapter's planned Key Remnants and case schema, after a question that counts them",
@@ -2493,6 +2496,13 @@
       }
     },
     "Vote": {
+      "verdictSkipped": "Left out in the verdict's window: {steps}.",
+      "wrongSteps": {
+        "legend": "When they got it wrong",
+        "offers": "The Blackened's Reinforced Level Up",
+        "rule": "The Blackened's new rule",
+        "despair": "Every Despair pool filled"
+      },
       "openTitle": "The vote",
       "openIntro": "Send the ballots, wait for them to come back, then close and count.",
       "privacyNote": "Who voted for whom stays with the GMs until the next vote opens. The table sees only the totals.",

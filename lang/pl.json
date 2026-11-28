@@ -2144,7 +2144,10 @@
         "scrubAtItTooltip": "Rzut na wytarcie wybranego Remnantu",
         "carryItThereTooltip": "Rzut na przeciągnięcie ciała do wybranego pokoju",
         "killerTooltip": "Wybór zabójcy zaznacza Morderstwo pośrednie, gdy ma gotową pułapkę, a w przeciwnym razie je odznacza",
-        "executedEachTooltip": "Zaznaczone: stracenie, jeśli stół się pomylił. Odznacz, by oszczędzić tę osobę."
+        "executedEachTooltip": "Zaznaczone: stracenie, jeśli stół się pomylił. Odznacz, by oszczędzić tę osobę.",
+        "wrongStepOffersTooltip": "Zaznaczone: błędny werdykt daje Blackened Reinforced Level Up. Odznacz, żeby go pominąć.",
+        "wrongStepRuleTooltip": "Zaznaczone: błędny werdykt pyta Blackened o nową zasadę. Odznacz, żeby to pominąć.",
+        "wrongStepDespairTooltip": "Zaznaczone: błędny werdykt napełnia pulę Despair każdego Monokumy. Odznacz, żeby to pominąć."
       },
       "CasePlan": {
         "clearPlanTooltip": "Czyści zaplanowane Key Remnanty i schemat sprawy jednego rozdziału, po pytaniu, które je liczy",
@@ -2591,6 +2594,13 @@
       }
     },
     "Vote": {
+      "verdictSkipped": "Pominięte w oknie werdyktu: {steps}.",
+      "wrongSteps": {
+        "legend": "Gdy się pomylili",
+        "offers": "Reinforced Level Up dla Blackened",
+        "rule": "Nowa zasada Blackened",
+        "despair": "Napełnienie każdej puli Despair"
+      },
       "openTitle": "Głosowanie",
       "openIntro": "Wyślij karty, poczekaj, aż wrócą, potem zamknij i policz.",
       "privacyNote": "Karty trafiają tylko do GM-ów i zostają u nich do otwarcia następnej rundy głosowania. Stół widzi tylko sumy.",

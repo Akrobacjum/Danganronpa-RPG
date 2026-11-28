@@ -210,9 +210,9 @@ function nodeButton(node, p, { state, selected, loose, author, reach = null, war
        the node on the Investigation's Map (case-trial.mjs `liveSchema`'s `onPick`, since 1.2.122): its own tooltip says so,
        and it opens nothing here to be expanded. Until then this drew `aria-expanded="false"` and no tooltip there. */
     const expands = !opensMap || editable;
-    const tip = editable ? tipAttr("DRPG.Tips.Case.nodeOnTheMapTooltip") : opensMap ? tipAttr("DRPG.Tips.Case.nodeOpensMapTooltip") : "";
     return `<button type="button" class="${cls.join(" ")}" data-drpg-node="${esc(node.id)}"${typed.attr} style="left: ${p.x}px; top: ${p.y}px"`
-        + `${selected ? ` aria-current="true"` : ""}${expands ? ` aria-expanded="${selected ? "true" : "false"}"` : ""} aria-label="${esc(said)}"${tip}>`
+        + `${selected ? ` aria-current="true"` : ""}${expands ? ` aria-expanded="${selected ? "true" : "false"}"` : ""} aria-label="${esc(said)}"${editable ? tipAttr("DRPG.Tips.Case.nodeOnTheMapTooltip")
+            : opensMap ? tipAttr("DRPG.Tips.Case.nodeOpensMapTooltip") : ""}>`
         + nodeHeadHtml(node, { state, reach, warn })
         + `<span class="drpg-case-node-name">${esc(name)}</span>`
         + (text ? `<span class="drpg-case-node-text">${esc(text)}</span>` : "") + `</button>`;

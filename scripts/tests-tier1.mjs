@@ -29310,6 +29310,8 @@ const INVARIANTS = [
            C6b's part red at 05a97e0c (E54 merged): 30 keys missing and no investigation.mjs or key-remnants.mjs function drawing one. */
         const TIPS = [
             ["DRPG.Tips.Case.nodeOnTheMapTooltip","case-map.mjs","nodeButton"],
+            // 2.0 line T3 CTL-03..CTL-30: the Class Trial console's node, which opens the node on the Map (`opensMap`)
+            ["DRPG.Tips.Case.nodeOpensMapTooltip","case-map.mjs","nodeButton"],
             ["DRPG.Tips.Case.onANodeTooltip","case-map.mjs","caseGraphHtml"],
             ["DRPG.Tips.Case.notTiedToTheTooltip","case-map.mjs","caseGraphHtml"],
             ["DRPG.Tips.Case.moveUpMoveDownTooltip","case-map.mjs","nodeEditHtml"],
@@ -70118,6 +70120,21 @@ const INVARIANTS = [
             T.copyChangedParts({ analyzedText: "New" }, read), T.copyChangedParts({ analyzedText: "Old" }, read)]),
         stableJson([["name"], [], ["words", "image"], [], ["reading"], []]),
             "[a new name; the name it has; new words and picture; a reading to an unanalysed copy; to an analysed one; the reading it has]");
+    }],
+    ["R9139 - the verdict window's three ticks for a wrong verdict leave out what is unticked, and nothing when all stand (2.0 line T3 EXP-GM-12; verdict-skips.mjs `wrongSkipsOf`, `skipField`)", async () => {
+        /* 2.0 line T3 EXP-GM-12, 27.11.2026. The window's fieldset drawn into a form of the test's own and read back;
+           nothing written. Red at 7bd6a6d: no verdict-skips.mjs. */
+        let S = null;
+        try { S = await import("./verdict-skips.mjs"); } catch { S = null; }
+        must(S && typeof S.wrongSkipsOf === "function", "there is no verdict-skips.mjs: a wrong verdict's steps cannot be left out");
+        const form = document.createElement("form");
+        form.innerHTML = S.wrongStepsHtml();
+        const all = S.wrongSkipsOf(form);
+        for (const box of form.querySelectorAll('input[name="wrongStep"]')) if (box.value !== "offers") box.checked = false;
+        equal(stableJson([form.querySelectorAll('input[name="wrongStep"]').length, all, S.wrongSkipsOf(form), S.skipField(false, ["rule", "despair", "rule", "card"]),
+            S.skipField(true, ["rule"]), S.skipField(false, [])]),
+        stableJson([3, [], ["rule", "despair"], { skip: ["rule", "despair"] }, {}, {}]),
+            "[the ticks drawn; all left ticked; offers alone ticked; a wrong verdict's field (twice and a step not of the three dropped); a right verdict's; none left out]");
     }],
 ];
 
