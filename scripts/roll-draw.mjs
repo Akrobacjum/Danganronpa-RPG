@@ -52,7 +52,7 @@ import { MODULE_ID, FLAGS, TIMING, ACTIONS, TRAITS, TRAIT_BY_DH, MURDER_OPENING,
 import { SETTINGS, getClock } from "./settings.mjs";
 import { primaryGmId, isPrimaryGm, announce, whisperToGms, debug, warn, error, esc, listOf } from "./utils.mjs";
 import { bridgeRequest, ownsActor } from "./bridge-guards.mjs";
-import { readDuality, awardRollDespair } from "./despair-award.mjs";
+import { readDuality, awardRollDespair, rollPaysResources, INCIDENT_FREE_FLAG } from "./despair-award.mjs";
 import { answerKeysOpen, rollStore, sheetMarkStore } from "./gm-stores.mjs";
 import { ROLL_NONCE, supersedingRoll, rollClaimOf, keepSubject, neutralRollOf, readHere, awaitDrawn, isDrawnRoll, forgedFlagsOf, isReadableHere,
     rollNonceOf, gmsInRoomOf } from "./private-rolls.mjs";
@@ -1713,6 +1713,15 @@ async function throwDrawn({ actorId, actionKey, nonce, claimed, loaded, costs, r
     const config = roll.options;
     config.source = { ...(config.source ?? {}), actor: actor.uuid };
     config.mute = true;
+    /* AN INCIDENT'S OPENING OR CRISIS ROLL MOVES NO HOPE AND NO DESPAIR (2.0 line T1 EXP-PL-03; D2-09, D2-11): read here,
+       off the incident this GM holds and the action the roll was drawn for (`key`, which `expectedFor` held to a roll the
+       character is taking), never off the packet - so Daggerheart's resource step is skipped (`skips.resources`: no Hope, no
+       Stress, no critical's Hope; critical.mjs pays nothing on a skipped step), the message is stamped for the Despair award
+       and the Reroll (despair-award.mjs `INCIDENT_FREE_FLAG`), and the record keeps it. The Calls' Hope it spends is still
+       paid (`costs`, below). */
+    const { murderState } = await import("./incident-store.mjs");
+    const incidentFree = !rollPaysResources({ key, state: murderState(), actorId: actor.id });
+    if (incidentFree) config.skips = { ...(config.skips ?? {}), resources: true };
     config.costs = paidCosts(costs);
     config.resourceUpdates = new DrawnResources(actor);
     roll.data = actor.getRollData?.() ?? {};
@@ -1729,7 +1738,7 @@ async function throwDrawn({ actorId, actionKey, nonce, claimed, loaded, costs, r
     const rollId = foundry.utils.randomID();
     let message;
     try {
-        message = await writeDrawnMessage(cls, roll, config, { actor, nonce, rollId, sender, keepCard: claimed === false, shown });
+        message = await writeDrawnMessage(cls, roll, config, { actor, nonce, rollId, sender, keepCard: claimed === false, shown, incidentFree });
     } catch (err) {
         if (shown) debug(`The dice of ${sender?.name ?? "a player"}'s roll were thrown on this screen, and its message was not written: no card stands for them.`);
         throw err;
@@ -1778,6 +1787,8 @@ async function throwDrawn({ actorId, actionKey, nonce, claimed, loaded, costs, r
         requestId: !sender.isGM && typeof requestId === "string" && requestId ? requestId : null,
         answer: { faces: facesOf(roll), total: roll.total, roll: legal.json },
         messageId: message.id, claimed: Boolean(claimed), formula: roll.formula,
+        // An incident's opening or crisis roll, which paid no Hope and no Despair (2.0 line T1 EXP-PL-03).
+        noResources: incidentFree,
         // The statistic and the experiences the roll was thrown with, as the GM was told them at
         // the draw - a Reroll of a roll with no `scored` rebuilds the roll from these (reroll.mjs
         // `rollAsThrown`), not from a bookmark the roller may send again; one with it, from `scored`
@@ -2663,11 +2674,11 @@ function detachOptions(roll, config) {
  * Nice, which does not animate this message and so answers at once (`keepDiceToReaders`); the
  * draw does not wait for it either (the plan's 3.3): it goes on as soon as the message exists.
  */
-async function writeDrawnMessage(cls, roll, config, { actor, nonce, rollId, sender, keepCard = false, shown = false }) {
+async function writeDrawnMessage(cls, roll, config, { actor, nonce, rollId, sender, keepCard = false, shown = false, incidentFree = false }) {
     let heard = null;
     const created = new Promise(resolve => { heard = resolve; });
     const writing = supersedingRoll(() => cls.toMessage(roll, config),
-        { subject: actor, nonce, stamp: { rollId, drawn: true }, by: sender.id, shown, keepCard, onCreated: heard });
+        { subject: actor, nonce, stamp: { rollId, drawn: true, ...(incidentFree ? { [INCIDENT_FREE_FLAG]: true } : {}) }, by: sender.id, shown, keepCard, onCreated: heard });
     const message = await Promise.race([created, writing]);
     writing.catch(err => error("The message of a roll the GM drew failed after it was written", err));
     if (!message?.id) throw new Error("the drawn roll's message was not written");

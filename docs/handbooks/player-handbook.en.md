@@ -95,7 +95,7 @@ Click a statistic on your sheet when the GM asks you for a roll outside an actio
 
 ### If you are a Spectator
 
-The GM may make your character a **Spectator**: you watch and do not play. You have no actions, Hope, Calls, or Level Ups, nobody counts you anywhere, and other players do not see your token. You talk with the other Spectators, wherever your token stands. **Listen in your room** on your voice tile lets you hear the room your token stands in instead, with your microphone off, and the same button, now **Talk with the Spectators**, brings you back; during an Eclipse nobody is in voice until the lights come back. If the GM turned the voice tile off, the button is not there and you stay with the Spectators. Drag your token to move, at no cost. You see every room the class has found, everybody's token, and every project, secret ones too, with its description, in every room. At the day's end the end-of-day board shows you only its heading and the school's mood. You have no chat; the messenger still brings you the GM's messages, and you cannot answer them.
+The GM may make your character a **Spectator**: you watch and do not play. You have no actions, Hope, Calls, or Level Ups, nobody counts you anywhere, and other players do not see your token. You talk with the other Spectators, wherever your token stands. **Listen in your room** on your voice tile lets you hear the room your token stands in instead, with your microphone off, and the same button, now **Talk with the Spectators**, brings you back; during an Eclipse nobody is in voice until the lights come back. If the GM turned the voice tile off, the button is not there and you stay with the Spectators. Drag your token to move, at no cost. You see every room the class has found, everybody's token, and every project, secret ones too, with its description, in every room. At the day's end the end-of-day board shows you only its heading and the school's mood. You have no chat; the messenger still brings you the GM's messages, and since 1.2.130 you can answer them in your own thread, which only the GMs read.
 
 When your character dies, you watch the same way, with a Spectator of your own: it has your character's name and pictures and stands where your body lies. Drag it anywhere, at no cost; other players do not see it. Since 1.2.128 you see the map as a Spectator does, at once: every room the class has found and everyone in it. If you become a Monocub, its token becomes your Monocub.
 
@@ -124,7 +124,7 @@ The three phases:
 Before each time of day the lights go out. That placement window is the **Eclipse**:
 
 - Nobody's screen shows anybody else's token, in any room. No player is in voice: you hear nobody and nobody hears you until the lights come back.
-- You place your token up to **2 connected room crossings** away; doors and gaps still apply, and a crossing past the allowance goes back. The **Night Eclipse** is the exception: pick **any room on the map**. A room action may give you more crossings for the coming Eclipse; its row says how many.
+- You place your token up to **2 connected room crossings** away; doors and gaps still apply, and a crossing past the allowance goes back. Every crossing counts, going back to the room you came from included, and the card after each crossing says so with how many you have left (since 1.2.130). The **Night Eclipse** is the exception: pick **any room on the map**. A room action may give you more crossings for the coming Eclipse; its row says how many.
 - Your actions are already refilled when the Eclipse opens, but nothing spends them except a **Direct Murder**, and no Calls can be made until the lights come up.
 - When a time of day ends, with an Eclipse or without one as the GM moves the clock on, a summary card of what you did in it opens in the middle of the screen, once the clock has turned: what you found, what you left behind. It opens once for each time of day; when the end-of-day board plays (below), the Evening's summary is part of it.
 - The Eclipse is the game's one moment of total cover, and it is where a murder usually starts. It is not part of the day: the clock does not move until the GM ends it.
@@ -512,7 +512,7 @@ Reinforced Remnants never come off.
 
 ### Direct Murder - 1 action, GM rules
 
-A face-to-face killing, agreed with the GM beforehand and <ins>consented to by the victim's player</ins>. You can declare it only **during an Eclipse**, the one moment you can be alone with somebody. The action is spent whether or not it comes off. If the GM refuses it, you are told at once; otherwise nobody, not even you, learns how it went until the Eclipse ends and the room settles. If you end up alone with them and the GM allows it, the incident opens (section 10), unless another killing opened one first.
+A face-to-face killing, agreed with the GM beforehand and <ins>consented to by the victim's player</ins>. You can declare it only **during an Eclipse**, the one moment you can be alone with somebody. Declaring spends the action. If the GM refuses it - on the card during the Eclipse or at the lights - you get the action back, and so you do when your declaration is refused because another killing opened first; an empty room or a witness when the Eclipse ends keeps it spent (since 1.2.130). If the GM refuses it on the card, you are told at once; otherwise nobody, not even you, learns how it went until the Eclipse ends and the room settles. If you end up alone with them and the GM allows it, the incident opens (section 10), unless another killing opened one first.
 
 ### Move - free, then 1 action
 
@@ -554,7 +554,7 @@ Sprint and Burst bank instead and last until the time of day ends; a Class Trial
 
 ## 6. Despair - the other side
 
-Every roll of yours that lands with Despair feeds the pool of the Monokuma who watches you, unless your GM has switched off **Rolls grant Despair**. A pool holds **12**, and every pool's count is on every screen, yours included, in the **Despair Pools** at the top.
+Every roll of yours that lands with Despair feeds the pool of the Monokuma who watches you, unless your GM has switched off **Rolls grant Despair**. A murder's opening roll and its crisis rolls are the exception: they feed no pool and earn you no Hope, whatever their dice (section 10); a bystander's own rolls meanwhile count as always. A pool holds **12**, and every pool's count is on every screen, yours included, in the **Despair Pools** at the top.
 
 ### Despair Calls - what Monokuma can do to you
 
@@ -734,26 +734,26 @@ After a change, your window says what it was changed to and offers to roll it or
 
 ### The opening roll
 
-Every murder has exactly one opening roll, and its kind decides who throws it. It cannot be skipped: close its window and it opens again, up to 3 times, and after that the GM is told.
+Every murder has exactly one opening roll, and its kind decides who throws it. It cannot be skipped: close its window and it opens again, up to 3 times, and after that the GM is told. The opening roll and every crisis action's roll earn no Hope and feed no Despair; the roll's card says so.
 
-**Direct Murder:** the killer rolls Body or Hand against **8**, with advantage at Night (a murder declared in the Night Eclipse opens at Night). When you declare one in an Eclipse, the window asks *Which statistic do you propose?* (Body or Hand, Body to start) under your line of how you do it. The GM answers on one card: allow your proposal, change it to the other, or refuse. You hear nothing until the lights come back; the opening then rolls on the statistic the GM allowed, with no second window and nothing to pass.
+**Direct Murder:** the killer rolls Body or Hand against **8**, with advantage at Night (a murder declared in the Night Eclipse opens at Night). When you declare one in an Eclipse, the window asks *Which statistic do you propose?* (Body or Hand, Body to start) under your line of how you do it. The GM answers on one card: allow your proposal, change it to the other, or refuse. You hear nothing until the lights come back; the opening then rolls on the statistic the GM allowed, with no second window and nothing to pass. Your declaration is judged just before the lights come back - the room, any other declaration and the GM's answer - so one that does not hold never hides your token, and the opening is rolled before the lights come back, the clock waiting for its result (since 1.2.130).
 
 A **betrayal**, turning on the killer after an incident you took part in (If you walk in on it, below), asks the same when you confirm it, with *How do you do it? (optional)* outside an Eclipse; the GM rules on it as the opening rolls, and you are told *The GM is ruling on the statistic you proposed for your opening.* With no proposal the GM picks, and you are told so and asked to say in your thread how you go about it. A watch the victim kept, of 18 or more or a critical, can put a hindrance die on your opening (section 4, Keep Watch).
 
-**Behind a "?".** A Direct Murder whose opening succeeds with Hope, or is a critical, hides the killer. The victim and everyone else see the killer's token as a "?" with no name, and the victim is told only that *someone* is moving on them. Another player's window for the killer's sheet closes, and the killer leaves the room's voice for a silent channel of their own: they hear nothing, and nobody hears them. A GM and a Spectator see who it is.
+**Behind a "?".** A Direct Murder whose opening succeeds with Hope, or is a critical, hides the killer. The victim and everyone else see the killer's token as a "?" with no name, and the victim is told only that *someone* is moving on them. Another player's window for the killer's sheet closes, and the killer leaves the room's voice for a silent channel of their own: they hear nothing, and nobody hears them. A GM sees who it is; a Spectator, a dead student among them, does not (since 1.2.130).
 
-As the killer you are asked **Stay hidden?** **Reveal yourself** gives everyone your token and your name back and puts your voice back in your room. **Stay hidden** keeps the "?" until the first of three: the murder's end, your leaving the room of the murder, or the end of the time of day (the first two since 1.2.128); **Reveal yourself** stays on your voice tile until then.
+As the killer you are asked **Stay hidden?** **Reveal yourself** gives everyone your token and your name back and puts your voice back in your room. **Stay hidden** keeps the "?" until the first of three: the murder's end, your leaving the room of the murder, or the end of the time of day (the first two since 1.2.128); **Reveal yourself** stays on your voice tile until then. The murder's end counts only when the victim died: a victim who survived the incident still sees the "?" until you leave that room or the time of day ends, and you stay in your silent voice channel until then (since 1.2.130).
 
 | Killer's roll | What happens |
 |---|---|
-| Failure | nothing happens, and the victim never learns anything was attempted; the action is spent, and you can try again in another time of day |
+| Failure | nothing happens on the map; the victim is told only that someone tried to kill them and failed, never who (since 1.2.130); the action is spent, and you can try again in another time of day |
 | Success with Hope | the incident begins, and the case keeps 5 Key Remnants |
 | Success with Despair | the incident begins, the victim loses all their Sanity on the spot and loses Role Reversal for this incident, and the case keeps 4 Key Remnants |
 | Critical | the incident begins, and the case keeps the fewest Key Remnants: 3 |
 
-The victim sees nothing while the killer rolls: no card, no music, nothing on the Event panel. When the roll succeeds, they are told at once that the incident has begun and who is moving on them, or, behind a "?", only that *someone* is. A failure leaves them nothing at all.
+The victim sees nothing while the killer rolls: no card, no music, nothing on the Event panel. When the roll succeeds, they are told at once that the incident has begun and who is moving on them, or, behind a "?", only that *someone* is. A failure tells them one line, that someone tried to kill them and failed; it names nobody (since 1.2.130).
 
-**Unseen until the opening roll.** From the moment a direct murder opens until the killer's opening roll lands, the other players do not see the killer's tokens - the victim and everyone else in the room included - and the killer's microphone is off; the killer still hears the room and is told so in one line. An accomplice already on the killer's side is hidden and muted the same way, and sees the killer. For a murder declared in an Eclipse this starts as the lights come back, so nobody sees the killer when the new time of day begins. When the roll lands the killer's tokens come back as they were - behind a "?" first, if the roll puts the killer behind one. A trap and a death by one's own hand hide nobody.
+**Unseen until the opening roll.** Only a direct murder declared in an Eclipse hides its killer before the roll: from the moment it opens until the killer's opening roll lands the other players do not see the killer's tokens - the victim and everyone else in the room included - and the killer's microphone is off; the killer still hears the room and is told so in one line. An accomplice already on the killer's side is hidden and muted the same way, and sees the killer. For a murder declared in an Eclipse this starts as the lights come back, so nobody sees the killer when the new time of day begins. When the roll lands the killer's tokens come back as they were - behind a "?" first, if the roll puts the killer behind one. A direct murder the GM opens outside an Eclipse hides nobody before the roll: the killer's token stays where it stands and the microphone stays on, and a roll that puts the killer behind a "?" turns that token into the "?" where the room can see it (since 1.2.130). A trap and a death by one's own hand hide nobody.
 
 **Indirect Murder (a trap):** the **victim** rolls Eye or Head against **20**, the same at Night as by day, and the GM picks which. Being asked to roll is itself the warning: you are told that the GM is setting up a roll for you, and the window reads "Something feels wrong".
 
@@ -791,7 +791,7 @@ Where a row says a failure "costs 1 more", that is 1 more point taken from whoev
 Survive and Role Reversal are resolution actions: each costs **1 Sanity** instead of an action, or **1 Health** once your Sanity is gone. The other crisis actions cost no action. Nothing the killer does can take a Reinforced Remnant off the map.
 
 > [!CAUTION]
-> A victim who runs out of both Health and Sanity dies.
+> A victim who runs out of both Health and Sanity dies. What the fight takes is not secret: the Health bar on a token, the Health on a sheet anybody opens and the Breakdown and Wounded badges show it to everyone at once (section 1).
 
 ### If you are the killer
 
@@ -810,7 +810,7 @@ Finishing Blow is a resolution action too: 1 Sanity, or 1 Health once your Sanit
 
 An action aimed at the other side needs 1 more when that side is strong: Strike, Attack with a Weapon, and Pin Them Down when the victim's Body is +1 or better, Keep Your Distance when the victim's Leg is; Self-Defense and Role Reversal when the killer's Body is, Survive and Escape Together when the killer's Leg is. The tile says so ("Beat 16 (+1 for the victim's Body)"). When you cannot know who the killer is (behind a "?", or in a trap), the tile and the roll window say "Beat 18 + a hidden defense": the GM judges with the killer's statistic in it, and your result card says only your total against that number and whether it was a hit. The opening rolls never change this way.
 
-Then comes the **clean-up**. Your **Tamper** tile now lists every Remnant in the room you are standing in, yours and everybody else's. At your own scene an attempt costs no action, only **1 Sanity**. Erasing, reshaping, and the Misleading Trail roll Shadow, and nobody is asked.
+Then comes the **clean-up**. Your **Tamper** tile now lists every Remnant in the room you are standing in, yours and everybody else's. At your own scene an attempt costs no action, only **1 Sanity**. Erasing, reshaping, and the Misleading Trail roll Shadow, and nobody is asked. The clean-up lasts until the GM ends it: you are told so as it opens, and when you have finished, tell the GM in your messenger thread.
 
 | Option | Roll, and what it does |
 |---|---|
@@ -957,7 +957,7 @@ Somebody among you may have built this place. The **Final Truth Remnants**, one 
 ## 13. Death, and after
 
 - The dead take no actions and spend no Hope. You keep your sheet; where your voice goes is below, and in a Class Trial you listen (section 12).
-- Your voice after you die in an incident: while that incident runs, you stay in the room you died in. You move to the Spectators as soon as the incident ends, your body is found, a living student from outside the incident walks in, or a GM moves your voice; outside an incident you move at once. Then you talk with the Spectators, whether or not your death is known: the living do not hear you, you hear the Spectators and the other dead, and your microphone stays yours. In the Class Trial you are back in the main room with everybody, and listen (section 12). As a Monocub you talk as a Monocub.
+- Your voice after you die: you leave the room you died in at once, in an incident too, and nobody in it hears you from that moment, the incident's other people included (since 1.2.130; until then you stayed with them while the incident ran). Then you talk with the Spectators, whether or not your death is known: the living do not hear you, you hear the Spectators and the other dead, and your microphone stays yours. In the Class Trial you are back in the main room with everybody, and listen (section 12). As a Monocub you talk as a Monocub.
 - Your **Truth Bullets die with you**, unless the GM keeps them, once your death is known. Everything else stays on the body to be found, as it was: the dead do not use, ready, throw away, put away, or take out anything, and a Monocub's things are its body's too.
 - Going through a body's pockets works as section 11 says: **Take from the Body** on its sheet, a Hand roll, and a Remnant. You must stand in its room, alive, outside a Class Trial and an Eclipse, and until the body is found, only those who know of the death can. A thing you cannot take is grayed in the window, with the reason beside it: you are not where you need to be, or your hands hold the most of its kind and you have no stash. The window closes when you press **Take**. A Take that took nothing says only why, for instance that you had walked out or somebody else took it first; open the window again to see what you can take now.
 - If you die in an incident, nobody else is told until your body is found or a GM makes it known: your sheet shows you dead, with "Nobody has found your body yet." Until then the table may take you for alive, but in a Class Trial your microphone is off like every dead student's, and you hold no ballot, so the table learns that somebody has died. A correct verdict's Level Up is still yours too, as it is every student's the table thinks alive.
@@ -1119,7 +1119,7 @@ What the sections above leave out for a reader at the table: the code behind a r
 
 ### 17.2 Time
 
-**The Eclipse.** With no GM connected, a crossing during the Eclipse is refused.
+**The Eclipse.** With no GM connected, a crossing during the Eclipse is refused. A crossing is counted by eclipse.mjs `judgeEclipseCrossing` against `movesLeft`, a way back as any other.
 
 **Full-screen moments** are played since 1.2.109.
 
@@ -1175,7 +1175,7 @@ The killer behind a "?" is new in 1.2.113 (E69 C8). What it cannot hide: a playe
 
 What you take from a body moves between two sheets, which every player's browser can read.
 
-The opening roll's window opens at most `TIMING.openingAttempts` times (3) when it is closed unthrown. How far Move the Body carries is `CLEANUP.actions.moveBody.rooms` (1 room on a hit, 2 on a critical), read by cleanup.mjs `bodyLanding`.
+The opening roll's window opens at most `TIMING.openingAttempts` times (3) when it is closed unthrown. The opening's veil is the module's own mark on a token, written only for an incident the Eclipse's lights opened (the incident's `atLights`, read by mask-gm.mjs `veilWanted`; since 1.2.130). How far Move the Body carries is `CLEANUP.actions.moveBody.rooms` (1 room on a hit, 2 on a critical), read by cleanup.mjs `bodyLanding`.
 
 ### 17.12 The Class Trial
 
@@ -1193,7 +1193,7 @@ The opening roll's window opens at most `TIMING.openingAttempts` times (3) when 
 
 ### 17.13 Death, and after
 
-**The dead's voice.** The primary GM's browser decides when a dead student's voice leaves the room they died in: at once outside the running incident's cast, else when the body is found, when a GM presses **Silence now**, or when a living student from outside the cast stands in the same room. The voice then goes to the Spectators' room (since 1.2.112).
+**The dead's voice.** The primary GM's browser moves a dead student's voice out of the room they died in at once, in the running incident's cast too (voice.mjs `deathVoiceGone`, since 1.2.130; until then the cast kept it until the body was found, a GM pressed **Silence now**, or a living student from outside the cast stood in the same room). The voice goes to the Spectators' room (since 1.2.112). The name over a masked killer's "?" is drawn on a GM's canvas alone (mask-gm.mjs `drawMaskName`, since 1.2.130).
 
 **Taking from a body.** The Take from the Body window checks again while it is open, as you, the body, or the clock move. The GM's side refuses a Take when the taker had walked out or somebody else took the thing first; a Take also takes nothing when no GM answered, or when the player plays no character (*You have no character in this game to receive it.*).
 

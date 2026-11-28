@@ -2411,6 +2411,27 @@ export async function run({ gm, ag, p1, p2, p3, check, phase, settle, opLog, set
     check("H2: every cell was refused by the guard it is about, in the GM's log and to p1 with its code, and nothing was written",
         mxBad.length === 0 && mx.writes.length === 0, mxEvidence);
 
+    /* T1-DAY-03. THE LIGHTS' ROOMS, READ ON THE PRIMARY (2.0 line T1 DAY-03, 27.11.2026; `eclipse.judge`). The legal control:
+       the Assistant GM, who is no primary while the GM is here, asks the primary where the declarations of an Eclipse stand
+       (eclipse.mjs `standingsAtTheLights` asks this on any GM but the primary): answered, `{}` for an Eclipse with no
+       declaration, no refusal logged or told. The forged one: p1's console sends the same packet, refused by `gmOnly`. */
+    phase("T1-DAY-03 the lights' rooms through the primary");
+    await clearFailures(gm);
+    const judgeFrom = await refusedCount(p1);
+    const judgeAg = await ag.eval(`const A = await import("${repoUrl}/scripts/bridge-asks.mjs");
+        const res = await A.requestEclipseJudge({ eclipse: "T1-DAY-03-none" });
+        return { primary: ${utils}.isPrimaryGm(), ok: res.ok, value: res.value ?? null };`, { timeout: 30000 });
+    const judgeP1 = await p1.eval(`const A = await import("${repoUrl}/scripts/bridge-asks.mjs");
+        const res = await A.requestEclipseJudge({ eclipse: "T1-DAY-03-none" });
+        return { ok: res.ok, refused: res.refused ?? null };`, { timeout: 30000 });
+    await settle(500);
+    const judgeLogged = await refusalsLogged(gm, "eclipse.judge");
+    const judgeTold = await refusedSince(p1, judgeFrom);
+    check("T1-DAY-03: the Assistant GM's ask for the lights' rooms is answered by the primary, {} for an Eclipse with no declaration, and p1's forged one is refused by gmOnly and told",
+        judgeAg.primary === false && judgeAg.ok === true && JSON.stringify(judgeAg.value) === "{}"
+        && judgeP1.ok === false && judgeLogged.length === 1 && judgeTold.length === 1,
+        JSON.stringify({ judgeAg, judgeP1, judgeLogged, judgeTold }));
+
     /* ------------------------------------------- A. the Assistant as the primary */
 
     phase("the Assistant as the primary", { flow: "give-take-stash" });

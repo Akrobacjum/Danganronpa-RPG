@@ -53,6 +53,15 @@ async function onChatMessage(message) {
             return;
         }
 
+        /* AN INCIDENT'S OPENING AND ITS CRISIS ROLLS FEED NO DESPAIR (2.0 line T1 EXP-PL-03; the owner's D2-09: "Rzuty w
+           incydencie nie daja Despair ani Hope", narrowed by D2-11 to the opening and the crisis rolls). The GM that threw or
+           drew the roll decided it from the incident it holds (`rollPaysResources`) and stamped its own message
+           (`INCIDENT_FREE_FLAG`); a player's message carrying the flag is no GM's and pays as before. */
+        if (incidentRollExempt(message)) {
+            debug("An incident's opening or crisis roll: no Despair.");
+            return;
+        }
+
         // A roll thrown with no GM connected (E08+E28 C18, roll-draw.mjs `UNWITNESSED_FLAG`) is
         // the GMs' card's to grant, its Despair with it: awarded here as well, a Grant all paid it
         // twice. A stamp is its roller's word, so one written while a GM is here asks that GM too.
@@ -105,6 +114,30 @@ async function onChatMessage(message) {
     } catch (err) {
         error("Could not award Despair from a roll", err);
     }
+}
+
+/**
+ * WHETHER A ROLL PAYS ITS RESOURCES (2.0 line T1 EXP-PL-03; the owner's D2-09 and D2-11): the Hope Daggerheart's step adds,
+ * a critical's, and the Despair a Despair result feeds. Not the opening roll of an incident waiting on it (`murderOpening`
+ * at `openingRoll`, by the side that rolls it: a direct murder's killer, a trap's victim) and not a crisis action's roll
+ * in the fight (`crisis` at `incident`, by a character of its cast); every other roll pays as before - the same keys with
+ * no incident running, and a bystander's ordinary roll during one (D2-11). `key` is the action the GM drew or threw the
+ * roll for (roll-draw.mjs, action-pipeline.mjs), and `state` the incident the GM holds - never a packet's word. Pure
+ * (R8926).
+ */
+export function rollPaysResources({ key = null, state = null, actorId = null } = {}) {
+    if (!state?.active || !actorId) return true;
+    if (key === "murderOpening") return !(state.stage === "openingRoll" && (state.indirect ? state.victimId : state.killerId) === actorId);
+    if (key === "crisis") return !(state.stage === "incident" && [state.killerId, state.victimId, state.thirdId].includes(actorId));
+    return true;
+}
+
+/** The flag a GM's own roll message carries when it paid nothing (`rollPaysResources`): set by the GM that made it. */
+export const INCIDENT_FREE_FLAG = "incidentFree";
+
+/** Whether `message` is a GM's roll message of an incident roll that pays nothing (`INCIDENT_FREE_FLAG` on a GM's message). */
+export function incidentRollExempt(message) {
+    return Boolean(message?.author?.isGM && message.getFlag?.(MODULE_ID, INCIDENT_FREE_FLAG));
 }
 
 /**

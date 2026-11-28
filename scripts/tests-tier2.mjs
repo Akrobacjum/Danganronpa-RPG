@@ -1111,6 +1111,36 @@ async function wordsSent(run) {
 }
 
 /**
+ * `run` with each opening's roll thrown (2.0 line T1 D2-28). Since D2-28 the lights wait for an opening's result before
+ * the clock (eclipse.mjs `awaitOpening`), and in tier 2 the players sit still, so a test that ends an Eclipse on a
+ * declaration the lights open lands the killer's roll itself. Watched on the incident, not the invitation: an opening
+ * can wait on its invitation, on the GM's question of which statistic, or on a GM throwing for an owner away
+ * (murder-rules.mjs `rollOpening`), and each holds the lights alike. Four times a second, an incident at its opening
+ * roll not seen before is read (`at`: its killer and victim, whether it opened at the lights, whether the Eclipse
+ * stood) and landed on this GM as `total` would, with Hope as `withHope` (below 8 fails and ends the incident; 8 or
+ * more takes it to the fight). Answers `at`, one entry per opening, handed to `run` as it fills.
+ */
+async function throwingOpenings(run, { total = 1, withHope = false } = {}) {
+    const M = await import("./murder.mjs");
+    const E = await import("./eclipse.mjs");
+    const at = [];
+    const seen = new Set();
+    const watch = setInterval(() => {
+        const state = M.murderState();
+        if (!state?.active || state.stage !== "openingRoll" || seen.has(state.openedAt)) return;
+        seen.add(state.openedAt);
+        at.push({ killerId: state.killerId ?? null, victimId: state.victimId ?? null, atLights: state.atLights === true, eclipse: E.isEclipse() });
+        void M.resolveKillerOpening({ total, isCritical: false, withHope }).catch(() => null);
+    }, 250);
+    try {
+        await run(at);
+    } finally {
+        clearInterval(watch);
+    }
+    return at;
+}
+
+/**
  * The opening roll's invitations this client sent while `run` ran (E32+E07 C11c): each
  * `murder.openingAsk` packet (gm-bridge.mjs `askOpeningRoll`) as { to, side, actorId, trait },
  * and every packet let through. `run` is handed the list as it fills: the invitation goes
@@ -4115,6 +4145,73 @@ async function e93DropTraces(scene, tokenIds) {
     }
 }
 
+/**
+ * 2.0 line T1 (EXP-PL-02, DAY-04, EXP-PL-07): one declaration of `killer`'s in an Eclipse the suite opens, the killer stood
+ * alone with `victim` (or alone, `victim` null), its row as `row` adds to it; the lights' window answered `answer` and
+ * read as it opens (`atWindow`: the Eclipse, the clock's time of day, the row, its verdict, the veil's row and flag); then
+ * the Eclipse ended without advancing. Answers `{ atWindow, asked, flagged, told, row }`: whether a token of the killer
+ * was ever flagged veiled, the cards' words sent to the killer's player, the row after. Puts back the Eclipse, the
+ * incident, the rows, the veils and the tokens; the caller puts back the actions it set.
+ */
+async function lightsOnOne(killer, victim, { answer = "no", row = {}, more = null } = {}) {
+    const E = await import("./eclipse.mjs");
+    const S = await import("./gm-stores.mjs");
+    const M = await import("./murder.mjs");
+    const kp = game.users.find(u => !u.isGM && u.active && killer.testUserPermission(u, "OWNER"));
+    let flagged = false, asked = 0;
+    const atWindow = [];
+    const told = [];
+    const watch = Hooks.on("updateToken", doc => { if (doc.actorId === killer.id && doc._source.flags?.[MODULE_ID]?.veiled) flagged = true; });
+    const socket = game.socket;
+    const ownEmit = Object.getOwnPropertyDescriptor(socket, "emit");
+    const send = socket.emit;
+    const D = foundry.applications.api.DialogV2;
+    const ownWait = Object.getOwnPropertyDescriptor(D, "wait");
+    const wait = D.wait;
+    const title = game.i18n.localize("DRPG.Action.murderOpensTitle");
+    const stood = await aloneTogether(killer, victim, { asked: true });
+    const extra = [];
+    try {
+        await E.startEclipse();
+        await settle();
+        const id = E.eclipseId();
+        must(E.isEclipse() && id, "the Eclipse did not open - this would measure nothing");
+        await S.pendingMurderStore.patch(killer.id, { room: stood.room, note: "SUITE T1 declared in the dark", at: 1, approved: null, eclipse: id, ...row });
+        if (more) extra.push(...await more(id));
+        socket.emit = function (event, packet, options, ...rest) {
+            /* Held, and landed below 8 on this GM a moment later, as a player's roll would: since 2.0 line T1 D2-28 the
+               lights wait for an opening's result before the clock, so a held invitation alone would hold them. */
+            if (packet?.action === "murder.openingAsk") {
+                setTimeout(() => { void M.resolveKillerOpening({ total: 1, isCritical: false, withHope: false }); }, 300);
+                return true;
+            }
+            if (packet?.action === "secret.card" && kp && (options?.recipients ?? []).includes(kp.id)) told.push(String(packet.html ?? "").replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim());
+            return send.call(this, event, packet, options, ...rest);
+        };
+        D.wait = async function (config, ...rest) {
+            if (config?.window?.title !== title) return wait.call(this, config, ...rest);
+            asked++;
+            atWindow.push({ eclipse: E.isEclipse(), row: S.pendingMurderStore.has(killer.id), verdict: S.pendingMurderStore.get(killer.id)?.verdict ?? null,
+                veiled: S.veilStore.has(killer.id) || flagged });
+            return answer === "first" ? (config?.buttons?.find(b => b.action !== "no")?.action ?? "no") : answer;
+        };
+        await E.endEclipse({ advance: false });
+        await settle();
+    } finally {
+        Hooks.off("updateToken", watch);
+        if (ownEmit) Object.defineProperty(socket, "emit", ownEmit); else delete socket.emit;
+        if (ownWait) Object.defineProperty(D, "wait", ownWait); else delete D.wait;
+        if (E.isEclipse()) await E.endEclipse({ advance: false }).catch(() => {});
+        if (M.murderState()) await M.endMurder({ reason: "test", followUp: false });
+        const ids = [killer.id, ...extra.map(x => x.id)];
+        await S.pendingMurderStore.dropMany(ids.filter(k => S.pendingMurderStore.has(k)));
+        for (const k of ids) if (S.veilStore.has(k)) await S.veilStore.drop(k);
+        for (const x of extra.reverse()) await x.back?.();
+        await stood.back();
+    }
+    return { atWindow, asked, flagged, told, row: S.pendingMurderStore.get(killer.id) ?? null };
+}
+
 const SCENARIOS = [
     ["a document keeps a given id only with keepId", async () => {
         /*
@@ -4228,7 +4325,7 @@ const SCENARIOS = [
         }
     }],
 
-    ["a failed opening tells the victim nothing", async () => {
+    ["a failed opening tells the victim only that somebody tried: one card's words, nothing else (until 2.0 line T1: \"a failed opening tells the victim nothing\")", async () => {
         /*
          * E06 C2, 27.09.2026; the owner's D6. A direct murder whose killer's roll fails never
          * happened as far as its victim is concerned (`resolveVictimOpening`'s note): nothing
@@ -4240,6 +4337,9 @@ const SCENARIOS = [
          * participant; 13-murder-signals reads the victim's browser for it. Red on the first
          * C2 tree (27.09): the invitation's withdrawal, `murder.openingCancel`, was addressed
          * to the victim's player as well (murder-rules.mjs `revokeOpeningInvitation`).
+         * 2.0 line T1, 27.11.2026 (the owner's D2-08 and D2-10): the victim is told now that somebody tried, never who - one
+         * veiled card, whose words travel by one addressed packet (`secret.card`); its words are read by "T1 D2-08".
+         * Nothing else reaches them.
          */
         needs(world.atLeast("studentsWithConnectedPlayer", 2), "a killer whose player is asked the opening roll, and a victim with a player to tell");
         const M = await import("./murder.mjs");
@@ -4276,7 +4376,7 @@ const SCENARIOS = [
         equal(stableJson([opened?.stage ?? null, failed?.success ?? null, after, to(player(killer)).includes("murder.openingAsk")]),
             stableJson(["openingRoll", false, null, true]),
             `the opening did not fail and close, or the net did not see the roll asked of the killer's player: ${stableJson(sent)}`);
-        equal(stableJson([to(player(victim)), whispered]), stableJson([[], 0]),
+        equal(stableJson([to(player(victim)), whispered]), stableJson([["secret.card"], 0]),
             "the victim's player was sent a packet or a chat card by an opening that failed: "
             + stableJson(whisperedTo.map(m => ({ author: m.author?.id ?? null, speaker: m.speaker?.actor ?? null, rolls: m.rolls?.length ?? 0,
                 flags: Object.keys(m.flags?.[MODULE_ID] ?? {}), text: String(m.content ?? "").replace(/<[^>]+>/g, "").slice(0, 80) }))));
@@ -7729,9 +7829,11 @@ const SCENARIOS = [
             const standing = incidentCast().betrayal;
             const dark = [Boolean(answer?.parked), left - actionsLeft(third), row?.betrayal?.killerId ?? null, row?.note ?? null,
                 standing ? `${standing.thirdId}>${standing.killerId}` : null, M.murderState()?.stage ?? null, unanswered];
-            await E.endEclipse({ advance: false });
-            await settle();
-            if (M.murderState()?.stage === "openingRoll") await M.resolveKillerOpening({ total: 24, isCritical: false, withHope: true });
+            /* The opening's roll landed as before (24, with Hope), now while the lights wait for it (2.0 line T1 D2-28). */
+            await throwingOpenings(async () => {
+                await E.endEclipse({ advance: false });
+                await settle();
+            }, { total: 24, withHope: true });
             await settle();
             const state = M.murderState();
             const now = M.blackenedIds();
@@ -7781,7 +7883,8 @@ const SCENARIOS = [
         let closes = 0, other = null, lights = false;
         const closed = Hooks.on("drpgIncidentClosed", () => {
             closes++;
-            if (lights && !other) other = M.openMurder({ killerId: killer.id, victimId: third.id, openingTrait: "body" });
+            // `atLights`: since 2.0 line T1 D2-28 the lights judge in the Eclipse, where only their own open is let through.
+            if (lights && !other) other = M.openMurder({ killerId: killer.id, victimId: third.id, openingTrait: "body", atLights: true });
         });
         try {
             await accompliceAtStageSix(M, killer, victim, third);
@@ -7861,10 +7964,12 @@ const SCENARIOS = [
             await withBetrayalWindows("SUITE E32 C5b declared second", () => rolls.performAction(third, "directMurder"));
             await settle();
             const parked = Boolean(S.pendingMurderStore.get(third.id)?.betrayal);
-            const sent = await wordsSent(async () => {
+            /* Its opening thrown and landed (2.0 line T1 D2-28: the lights wait for it), 8 or more, so the incident stands
+               as the betrayal is judged after it, as it stood at its opening before D2-28. */
+            const sent = await wordsSent(() => throwingOpenings(async () => {
                 await E.endEclipse({ advance: false });
                 await settle();
-            });
+            }, { total: 20 }));
             const state = M.murderState();
             const offer = incidentCast().betrayal ?? null;
             const told = sent.filter(w => w.to.includes(player(third).id) && w.html.includes(refused)).length;
@@ -7916,8 +8021,12 @@ const SCENARIOS = [
             let answer = null;
             await withBetrayalWindows("SUITE fix r1-G2 declared at Night", async () => { answer = await rolls.performAction(third, "directMurder"); });
             await settle();
-            await E.endEclipse();
-            await settle();
+            /* Since 2.0 line T1 D2-28 the betrayal's opening is rolled in the Eclipse, before the clock moves into the morning;
+               thrown and landed here, 8 or more, so the incident stands into the morning as it stood at its opening before. */
+            await throwingOpenings(async () => {
+                await E.endEclipse();
+                await settle();
+            }, { total: 20 });
             const state = M.murderState();
             equal(stableJson([Boolean(answer?.parked), (getClock()?.day ?? 0) - dark, getClock()?.timeOfDay ?? null, state?.killerId ?? null,
                 state?.victimId ?? null, incidentCast().betrayal ?? null, S.pendingMurderStore.has(third.id)]),
@@ -7977,8 +8086,11 @@ const SCENARIOS = [
             await withBetrayalWindows("SUITE fix r1-G2 declared twice", async () => { answers.push(await rolls.performAction(third, "directMurder")); });
             await settle();
             const twice = [stamp() === before, once[1] - actionsLeft(third), S.pendingMurderStore.get(third.id)?.note ?? null, M.betrayalTarget(third)?.id ?? null];
-            await E.endEclipse();
-            await settle();
+            // Its opening thrown and landed, 8 or more (2.0 line T1 D2-28: the lights wait for it), so the incident stands.
+            await throwingOpenings(async () => {
+                await E.endEclipse();
+                await settle();
+            }, { total: 20 });
             const lights = [stamp() > before, M.murderState()?.killerId ?? null, incidentCast().betrayal ?? null];
             equal(stableJson([Boolean(answers[0]?.parked), once[0], answers[1] ?? null, ...twice, ...lights]),
                 stableJson([true, true, null, true, 0, NOTE, killer.id, true, third.id, null]),
@@ -10092,11 +10204,12 @@ const SCENARIOS = [
             await c3Incident(clock);
             await settle();
         }
-        equal(stableJson(read), stableJson({ silenceAtOpen: true, toolNamed: true, silenceAfter: false }),
+        // Since 2.0 line T1 MURDER-03 there is nothing to silence (the dead leave the room at death): no Silence now drawn.
+        equal(stableJson(read), stableJson({ silenceAtOpen: false, toolNamed: true, silenceAfter: false }),
             "{Silence now on the first copy, the readied tool named on the open tracker, Silence now after another GM's press}");
     }],
 
-    ["1.2.128 S0-MASKLEFT - the killer comes out from behind the \"?\" when the murder's incident ends, whoever died, and when they leave its room (scripts/murder-rules.mjs `closeIncident`; mask-gm.mjs `endMasksAtClose`, `maskLeftRoom`, `endMask`; the owner, 23.11.2026: \"Zawsze zdejmujemy maske na koniec incydentu morderstwa (po sprzataniu) lub po opuszczeniu pokoju\"): a masked fight the GM ends with the victim alive, and one closed after the kill, leave no mask, no masked token and no mute, and tell the killer's player; a masked killer whose token is carried out of the crime room is unmasked while the fight still runs", async () => {
+    ["1.2.128 S0-MASKLEFT - the killer comes out from behind the \"?\" when the murder's incident ends with its victim dead (since 2.0 line T1 D2-06: not while the victim lives), and when they leave its room (scripts/murder-rules.mjs `closeIncident`; mask-gm.mjs `endMasksAtClose`, `maskLeftRoom`, `endMask`; the owner, 23.11.2026: \"Zawsze zdejmujemy maske na koniec incydentu morderstwa (po sprzataniu) lub po opuszczeniu pokoju\"): a masked fight the GM ends with the victim alive, and one closed after the kill, leave no mask, no masked token and no mute, and tell the killer's player; a masked killer whose token is carried out of the crime room is unmasked while the fight still runs", async () => {
         /*
          * 1.2.128 (E129), the owner's note of the table of 22.11.2026: after a murder was broken off, its killer still wore
          * the "?" and the mute, and the GM revealed them by hand. The mask ended only at a reveal, a new time of day, a lost
@@ -10106,7 +10219,8 @@ const SCENARIOS = [
          * the killer's token teleported to another named room while it runs. The words this GM sends the killer's player
          * are read (`wordsSent`). Read for each: the mask's row, the killer's masked tokens, the killer's player muted by the
          * mask (`maskMutedIds`), the line told; for (c) whether the fight still runs. Put back: the incident, the masks, the
-         * token, the clock. Red at 2e28785a: the mask stood in all three.
+         * token, the clock. Red at 2e28785a: the mask stood in all three. Since 2.0 line T1 (MURDER-02; the owner's D2-06,
+         * 26.11.2026) road (a) keeps the mask: the victim lived ("T1 D2-06" reads how it ends then).
          */
         needs(env.primaryGm(), "the mask is the primary's");
         needs(world.atLeast("studentsWithConnectedPlayer", 2), "a killer and a victim with players");
@@ -10143,6 +10257,8 @@ const SCENARIOS = [
             await fightOpen(M, killer, victim);
             must(MG.maskStands(killer.id) && masked() > 0, "the fight opened on Hope put up no mask - this would measure nothing");
             read.alive = reading(await wordsSent(async () => { await M.endMurder({ followUp: false }); await settle(); }));
+            // Since 2.0 line T1 MURDER-02 (the owner's D2-06) the victim lived, so the mask stands after the close.
+            read.alive.masked = read.alive.masked > 0;
             await reset();
             await fightOpen(M, killer, victim);
             await turnFor(M, killer, "finishingBlow");
@@ -10167,7 +10283,7 @@ const SCENARIOS = [
             await stood?.back();
         }
         equal(stableJson(read), stableJson({
-            alive: { row: false, masked: 0, muted: false, told: "incident" },
+            alive: { row: true, masked: true, muted: true, told: null },
             dead: { row: false, masked: 0, muted: false, told: "incident" },
             left: { row: false, masked: 0, muted: false, told: "room", running: true }
         }), "{each road: the mask's row, the killer's tokens masked, muted by the mask, the line told; the fight still running after the killer left}");
@@ -10367,12 +10483,14 @@ const SCENARIOS = [
             for (const [at, killer, room] of [[1, first, stood[0].room], [2, second, stood[1].room]]) {
                 await S.pendingMurderStore.patch(killer.id, { room, note: "SUITE E06 C4 declared in the dark", at, approved: null, eclipse: id });
             }
-            words = await wordsSent(async () => {
+            /* The first's opening thrown and landed, 8 or more (2.0 line T1 D2-28: the lights wait for it), so its incident
+               stands as the second is judged, as it stood at its opening before D2-28. */
+            words = await wordsSent(() => throwingOpenings(async () => {
                 for (const killer of [first, second]) equal(await E.ruleOnParkedMurder(killer.id, true), true, `the GM could not allow ${killer.name}'s declaration`);
                 await settle();
                 await E.endEclipse({ advance: false });
                 await settle();
-            });
+            }, { total: 20 }));
         } finally {
             if (E.isEclipse()) await E.endEclipse({ advance: false }).catch(() => {});
             if (M.murderState()) await M.endMurder({ reason: "test", followUp: false });
@@ -10426,12 +10544,14 @@ const SCENARIOS = [
             for (const [at, killer, room] of [[1, first, stood[0].room], [2, second, stood[1].room]]) {
                 await S.pendingMurderStore.patch(killer.id, { room, note: "SUITE C19b declared in the dark", at, approved: null, eclipse: id });
             }
-            words = await wordsSent(async () => {
+            /* The pair's opening thrown and landed, 8 or more (2.0 line T1 D2-28: the lights wait for it), so the incident
+               is open as the lone killer is judged after it - the case this test is named for. */
+            words = await wordsSent(() => throwingOpenings(async () => {
                 for (const killer of [first, second]) equal(await E.ruleOnParkedMurder(killer.id, true), true, `the GM could not allow ${killer.name}'s declaration`);
                 await settle();
                 await E.endEclipse({ advance: false });
                 await settle();
-            });
+            }, { total: 20 }));
             opened = M.murderState()?.killerId ?? null;
         } finally {
             if (E.isEclipse()) await E.endEclipse({ advance: false }).catch(() => {});
@@ -20028,14 +20148,15 @@ const SCENARIOS = [
         // What a token made from the prototype looks like with no mask: its name and picture (`getTokenDocument`).
         const protoBefore = (d => [d.name ?? null, d.texture?.src ?? null])((await killer.getTokenDocument({ x: first.x, y: first.y })).toObject());
         try {
-            await heldInvitations(() => M.openMurder({ killerId: killer.id, victimId: victim.id, openingTrait: "body" }));
+            // Opened at the lights (`atLights`): since 2.0 line T1 MURDER-01 the opening's veil stands for such an incident alone (R8920).
+            await heldInvitations(() => M.openMurder({ killerId: killer.id, victimId: victim.id, openingTrait: "body", atLights: true }));
             await K.settleVeils();
             const veiled = await fromPrototype();
             read.veil = [Boolean(veiled?._source?.hidden) === false, flags(veiled).veiled === true];
             await M.endMurder({ reason: "test", followUp: false });
             await settle();
             read.veilBack = [Boolean(veiled?._source?.hidden) === false, flags(veiled).veiled ?? null];
-            await heldInvitations(() => M.openMurder({ killerId: killer.id, victimId: victim.id, openingTrait: "body" }));
+            await heldInvitations(() => M.openMurder({ killerId: killer.id, victimId: victim.id, openingTrait: "body", atLights: true }));
             await M.resolveKillerOpening({ total: 20, isCritical: false, withHope: true });
             await settle();
             must(K.maskStands(killer.id), "the opening on Hope put up no mask - this would measure nothing");
@@ -20270,7 +20391,9 @@ const SCENARIOS = [
          * one other and is refused by the GM at the lights (its window answered "no"); the second's stands alone. The Eclipse
          * ends; read on this GM, in order, each write of the veil's flag to either killer's tokens and each card sent to
          * either killer's player (`secret.card`). The veil's own work - a killer the lights open is veiled and the opening
-         * takes the row over - is E112's test above.
+         * takes the row over - is E112's test above. Since 2.0 line T1 (EXP-PL-02, 27.11.2026) the lights judge before they
+         * come up: the GM's refusal is answered while the Eclipse stands, so the refused killer is never veiled at all (read
+         * on 94af3e9: veiled, then lifted, then told).
          */
         needs(env.primaryGm(), "the veil is the primary GM's");
         needs(world.atLeast("studentsWithConnectedPlayer", 2), "two killers whose players are sent the lights' answers");
@@ -20337,7 +20460,8 @@ const SCENARIOS = [
         const n = tokensOf(first).length;
         must(n > 0, `${first.name} has no token - this would measure nothing`);
         equal(stableJson([asked, events, [first, second].map(a => tokensOf(a).some(t => t._source.flags?.[MODULE_ID]?.veiled))]),
-            stableJson([1, [...Array(n).fill("first:veiled"), ...Array(n).fill("first:lifted"), "first:told", "second:told"], [false, false]]),
+            // Since 2.0 line T1 EXP-PL-02 the GM's refusal comes before the lights: the refused killer is never veiled.
+            stableJson([1, ["first:told", "second:told"], [false, false]]),
             "the lights veiled a killer the room alone cancels, or lifted one they cancelled only after judging the next (the GM's windows asked; "
             + "in order, each write of the veil to either killer's tokens and each card to either killer's player; a veil left on either)");
     }],
@@ -20643,7 +20767,8 @@ const SCENARIOS = [
         try {
             ({ back } = await aloneTogether(killer, victim));
             await S.veilStore.whenHydrated();
-            await M.openMurder({ killerId: killer.id, victimId: victim.id, openingTrait: "body" });
+            // Opened at the lights (`atLights`): since 2.0 line T1 MURDER-01 the opening's veil stands for such an incident alone (R8920).
+            await M.openMurder({ killerId: killer.id, victimId: victim.id, openingTrait: "body", atLights: true });
             await K.settleVeils();
             must(S.veilStore.has(killer.id), "the opening did not veil the killer - this would measure nothing");
             read.veiled = await use(victim, vp, killer);
@@ -20730,7 +20855,8 @@ const SCENARIOS = [
                 }
             }
             await S.veilStore.whenHydrated();
-            await M.openMurder({ killerId: killer.id, victimId: victim.id, openingTrait: "body" });
+            // Opened at the lights (`atLights`): since 2.0 line T1 MURDER-01 the opening's veil stands for such an incident alone (R8920).
+            await M.openMurder({ killerId: killer.id, victimId: victim.id, openingTrait: "body", atLights: true });
             await K.settleVeils();
             must(S.veilStore.has(killer.id), "the opening did not veil the killer - this would measure nothing");
             const drawnHere = await asVictim(async () => K.veiledFromHere(killer));
@@ -20920,7 +21046,8 @@ const SCENARIOS = [
                 && S.veilStore.get(killer.id)?.hides === "module",
             K.veilMutedIds().has(kp.id), Boolean(S.trialMuteStore.get(kp.id)?.wrote)];
         const cleared = expected => [stableJson(looks()) === stableJson(expected ?? before), S.veilStore.has(killer.id), K.veilMutedIds().has(kp.id)];
-        const open = extra => heldInvitations(() => M.openMurder({ killerId: killer.id, victimId: victim.id, openingTrait: "body", ...extra }));
+        // Opened at the lights (`atLights`): since 2.0 line T1 MURDER-01 the opening's veil stands for such an incident alone (R8920).
+        const open = extra => heldInvitations(() => M.openMurder({ killerId: killer.id, victimId: victim.id, openingTrait: "body", atLights: true, ...extra }));
         const close = async () => { if (M.murderState()) await M.endMurder({ reason: "test", followUp: false }); };
         const read = {};
         const hiddenBefore = tokens()[0];
@@ -20964,7 +21091,7 @@ const SCENARIOS = [
             await K.settleVeils();
             read.trap = S.veilStore.has(killer.id) || S.veilStore.has(victim.id);
             await close();
-            await heldInvitations(() => M.openMurder({ killerId: killer.id, victimId: killer.id, openingTrait: "body" }));
+            await heldInvitations(() => M.openMurder({ killerId: killer.id, victimId: killer.id, openingTrait: "body", atLights: true }));
             await K.settleVeils();
             read.self = S.veilStore.has(killer.id);
             await close();
@@ -21054,7 +21181,8 @@ const SCENARIOS = [
         try {
             await S.veilStore.whenHydrated();
             // (A) The opening still waits: converted.
-            await heldInvitations(() => M.openMurder({ killerId: killer.id, victimId: victim.id, openingTrait: "body" }));
+            // Opened at the lights (`atLights`): since 2.0 line T1 MURDER-01 the opening's veil stands for such an incident alone (R8920).
+            await heldInvitations(() => M.openMurder({ killerId: killer.id, victimId: victim.id, openingTrait: "body", atLights: true }));
             await K.settleVeils();
             await asLegacy(M.murderState()?.openedAt ?? null);
             const held = looks();
@@ -33274,8 +33402,11 @@ equal(read.added, 3, "three additions to a purse at once lost one");
                 && !S.pendingMurderStore.has(victim.id),
                 "the refusal's card is not veiled - its document names the one refused - or it was not posted, or the refused row stands");
 
-            await E.endEclipse({ advance: false });
-            await settle();
+            // Its opening thrown and landed, 8 or more (2.0 line T1 D2-28: the lights wait for it), so the incident stands.
+            await throwingOpenings(async () => {
+                await E.endEclipse({ advance: false });
+                await settle();
+            }, { total: 20 });
             const state = murder.murderState();
             equal(stableJson([state?.killerId ?? null, state?.victimId ?? null]), stableJson([killer.id, victim.id]),
                 "the lights did not open the allowed declaration between the two who stood alone");
@@ -33336,8 +33467,11 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             const row = S.pendingMurderStore.get(killer.id);
             equal(stableJson([row?.approved ?? null, row?.trait ?? null, row?.proposed ?? null]), stableJson([true, "hand", "hand"]),
                 "the allowance did not keep the statistic the card named (approved, trait, proposed)");
-            await E.endEclipse({ advance: false });
-            await settle();
+            // Its opening thrown and landed, 8 or more (2.0 line T1 D2-28: the lights wait for it), so the incident stands.
+            await throwingOpenings(async () => {
+                await E.endEclipse({ advance: false });
+                await settle();
+            }, { total: 20 });
             await until(() => murder.murderState()?.openingTrait, 5000);
             const state = murder.murderState();
             equal(stableJson([state?.killerId ?? null, state?.victimId ?? null, state?.openingTrait ?? null, windows.asked]),
@@ -69016,7 +69150,8 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             await discoverBody({ room: ROOM, victim, scene: canvas.scene });
             await settle();
             const after = await read();
-            equal(stableJson([before, after]), stableJson([[false, false], [true, true]]),
+            // Since 2.0 line T1 MURDER-03 the voice is gone at the death, before the body is found too.
+            equal(stableJson([before, after]), stableJson([[false, true], [true, true]]),
                 "a death kept by the GMs read as known before its body was found, or still unknown after - the dead student "
                 + "talks to the room after the discovery, or leaves it before (before: announced, voice gone; after: the same)");
         } finally {
@@ -102876,7 +103011,8 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             return { before, first, written: Boolean(S.castStore.record()?.silencedDead?.[student.id]), after, again, living,
                 inCopy: Object.hasOwn(copy ?? {}, "silencedDead") };
         });
-        equal(stableJson(read), stableJson({ before: false, first: true, written: true, after: true, again: false, living: false, inCopy: false }),
+        // `before` true since 2.0 line T1 MURDER-03: the voice has left at the death; the press still writes its field.
+        equal(stableJson(read), stableJson({ before: true, first: true, written: true, after: true, again: false, living: false, inCopy: false }),
             "Silence now does not move a kept death's voice ([deathVoiceGone before, the write, the cast's field, deathVoiceGone after, a second press, "
             + "a living student, the field in the player's copy])");
     }],
@@ -107084,8 +107220,11 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             const id = E.eclipseId();
             must(E.isEclipse() && id, "the Eclipse did not start");
             await S.pendingMurderStore.patch(killer.id, { room: stood.room, note: "SUITE A113-C2-6 declared", at: 1, approved: true, eclipse: id, betrayal: null });
-            await E.endEclipse();
-            await settle();
+            // Its opening thrown and landed, 8 or more (2.0 line T1 D2-28: the lights wait for it), so the incident stands open.
+            await throwingOpenings(async () => {
+                await E.endEclipse();
+                await settle();
+            }, { total: 20 });
             const state = M.murderState();
             read = [state?.killerId ?? null, state?.victimId ?? null, body() - was, T.timedEffectsOf(killer.id).length];
         } finally {
@@ -109298,7 +109437,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             return send.call(this, event, packet, ...rest);
         };
         const read = {};
-        let stood = null;
+        let stood = null, ending = null;
         try {
             stood = await aloneTogether(killer, victim);
             await setClock({ timeOfDay: "noon" });
@@ -109311,7 +109450,11 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             read.inTheDark = W.openingHindrance("killer", { victimId: victim.id });
             await S.pendingMurderStore.patch(killer.id, { room: stood.room, note: "SUITE 1.2.121 STG-01 declared in the dark", at: Date.now(),
                 approved: true, trait: "body", eclipse: id, betrayal: null });
-            await E.endEclipse({ advance: false });
+            /* WHILE THE LIGHTS WAIT (2.0 line T1 D2-28): the lights wait for the opening's result before the clock, so the
+               reads below are taken once the invitation is caught and the watch's end let run, the incident at its opening;
+               the opening is then failed on this GM, as a roll below 8 lands, and the lights go on. */
+            ending = E.endEclipse({ advance: false });
+            must(await until(() => sent.length > 0, 20000), "no invitation went at the lights - this would measure nothing");
             await settle();
             if (S.watchStore.get(victim.id)) await W.endWatches();
             await settle();
@@ -109333,12 +109476,16 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             const copyOf = a => { const u = owner(a); const c = u ? castFor(u.id, gmCast, state) ?? {} : null;
                 return c && { holds: Object.keys(c).length > 0, die: Object.hasOwn(c, "watchDie") ? c.watchDie : "absent" }; };
             read.copy = { gm: gmCast.watchDie ?? null, killer: copyOf(killer), victim: copyOf(victim) };
+            await M.resolveKillerOpening({ total: 1, isCritical: false, withHope: false });
+            await ending;
+            await settle();
         } finally {
             if (own) Object.defineProperty(socket, "emit", own); else delete socket.emit;
             if (E.isEclipse()) await E.endEclipse({ advance: false }).catch(() => {});
             if (S.pendingMurderStore.has(killer.id)) await S.pendingMurderStore.drop(killer.id);
             for (const a of [killer, victim]) if (S.watchStore.get(a.id)) await S.watchStore.drop(a.id);
             await c3Incident(clock);
+            if (ending) await ending.catch(() => null);
             if (stood) await stood.back();
             for (const m of game.messages.filter(m => !seenIds.has(m.id))) await m.delete();
             await settle();
@@ -120050,6 +120197,1057 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         }
         equal(stableJson(read), stableJson({ clear: null, theirs: [true, true], refused: "barricadeStands", own: null }),
             "{clear: the row with no barricade; theirs: [the public flag, the row grayed with the barricade's words]; refused: the Shut judged over another's barricade; own: the row over the character's own}");
+    }],
+    // T1 murder-death-eclipse
+    ["T1 D2-28 - an opening rolled at the Night Eclipse's lights reads Night, and one ended without advancing reads the time it stays in (2.0 line T1; D2-28; scripts/murder-rules.mjs `atNight`, settings.mjs `lightsTimeOfDay`, eclipse.mjs `endEclipseNow`)", async () => {
+        /*
+         * 2.0 line T1, 28.11.2026 (D2-28). Since the lights wait for an opening's result before the clock, a murder the
+         * lights open is rolled while the clock still reads the Eclipse's time of day; until D2-28 it was rolled after the
+         * clock had moved, so the Eclipse after Evening (the Night Eclipse) opened at Night and the roll had the Night's
+         * advantage. The clock at Evening, an Eclipse opened; read `atNight` (the side's Night die, roll-draw.mjs
+         * `situationReading` reads the same) as the lights hold the time they move to - Night, as `endEclipse()` advances;
+         * Evening, as an End without advancing keeps it - and with none held, as after a reload during the wait (the
+         * time the Eclipse leads into). Put back: the hold, the Eclipse, the clock.
+         */
+        const E = await import("./eclipse.mjs");
+        const M = await import("./murder.mjs");
+        const T = await import("./settings.mjs");
+        must(typeof T.holdLightsTimeOfDay === "function", "settings.mjs has no holdLightsTimeOfDay - the lights hold no time of day");
+        must(!M.murderState() && !E.isEclipse(), "an incident or an Eclipse is running - this would measure something else");
+        const clock = getClock() ?? {};
+        const read = {};
+        try {
+            await setClock({ timeOfDay: "evening" });
+            read.evening = M.atNight();
+            await E.startEclipse();
+            await settle();
+            must(E.isEclipse(), "the Eclipse did not start");
+            T.holdLightsTimeOfDay("night");
+            read.advancing = M.atNight();
+            T.holdLightsTimeOfDay("evening");
+            read.notAdvancing = M.atNight();
+            T.holdLightsTimeOfDay(null);
+            read.noneHeld = M.atNight();
+        } finally {
+            T.holdLightsTimeOfDay(null);
+            if (E.isEclipse()) await E.endEclipse({ advance: false }).catch(() => {});
+            await setClock({ timeOfDay: clock.timeOfDay ?? "morning" });
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ evening: false, advancing: true, notAdvancing: false, noneHeld: true }),
+            "{evening: atNight before the Eclipse; advancing: in it, the lights holding Night; notAdvancing: holding Evening; noneHeld: none held}");
+    }],
+    ["T1 D2-28 - the lights wait for the opening's result before the clock moves (2.0 line T1; D2-28; scripts/eclipse.mjs `judgePendingMurders`, `awaitOpening`; murder-rules.mjs `openMurder`)", async () => {
+        /*
+         * 2.0 line T1, 28.11.2026 (D2-28, the owner's answer to the line's P1: "rzut otwarcia morderstwa zapada w trakcie
+         * Eclipse, przed pora dnia - swiatla czekaja na rzut"). A declaration in an Eclipse the suite opens, its killer stood
+         * alone with its victim, the lights' window answered Allow; the invitation to the killer's player is held, and as it
+         * goes out the opening is failed on this GM a second later, as a roll below 8 lands. Read: whether the Eclipse still
+         * stood as the invitation went and as the result landed, the GMs' line that the lights wait
+         * (`DRPG.Eclipse.lightsWaitOpening`), and the Eclipse and the incident once the lights are done. Red at d35e338: the
+         * invitation went after the clock had cleared the Eclipse. Red on purpose until E131 builds it (the report, section 6).
+         */
+        needs(env.primaryGm(), "the lights' judgement is the primary GM's");
+        needs(world.atLeast("studentsWithConnectedPlayer", 2), "a killer and a victim");
+        needs(world.atLeast("studentTokensOnScreen", 2), "the two are stood in one room by their tokens");
+        needs(world.atLeast("namedRooms", 2), "one room is left to the two of them");
+        const E = await import("./eclipse.mjs");
+        const S = await import("./gm-stores.mjs");
+        const M = await import("./murder.mjs");
+        const { livingStudents } = await import("./chapter.mjs");
+        const player = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const [killer, victim] = livingStudents().filter(player);
+        must(!M.murderState() && !E.isEclipse(), "an incident or an Eclipse is running - this would measure something else");
+        const socket = game.socket, own = Object.getOwnPropertyDescriptor(socket, "emit"), send = socket.emit;
+        const D = foundry.applications.api.DialogV2, ownWait = Object.getOwnPropertyDescriptor(D, "wait"), wait = D.wait;
+        const title = game.i18n.localize("DRPG.Action.murderOpensTitle");
+        const made = [];
+        const hook = Hooks.on("createChatMessage", m => made.push(m.id));
+        const stood = await aloneTogether(killer, victim, { asked: true });
+        const read = { atInvite: [], atResult: [] };
+        const { lightsTimeOfDay } = await import("./settings.mjs");
+        try {
+            await E.startEclipse();
+            await settle();
+            await S.pendingMurderStore.patch(killer.id, { room: stood.room, note: "SUITE T1 D2-28", at: 1, approved: null, eclipse: E.eclipseId() });
+            socket.emit = function (event, packet, options, ...rest) {
+                if (packet?.action === "murder.openingAsk") {
+                    read.atInvite.push(E.isEclipse());
+                    // The time of day the lights move to, held for the opening's roll: this Eclipse ends without advancing.
+                    read.held = [lightsTimeOfDay(), getClock()?.timeOfDay ?? null];
+                    // Landed a second later, as a player's roll takes its time: the lights are seen waiting meanwhile.
+                    setTimeout(() => { read.atResult.push(E.isEclipse()); void M.resolveKillerOpening({ total: 1, isCritical: false, withHope: false }); }, 1000);
+                    return true;
+                }
+                return send.call(this, event, packet, options, ...rest);
+            };
+            D.wait = async function (config, ...rest) {
+                if (config?.window?.title !== title) return wait.call(this, config, ...rest);
+                return config?.buttons?.find(b => b.action !== "no")?.action ?? "no";
+            };
+            await E.endEclipse({ advance: false });
+            await settle();
+            const { wordsOf } = await import("./secret.mjs");
+            const line = game.i18n.format("DRPG.Eclipse.lightsWaitOpening", { name: killer.name });
+            let told = 0;
+            const textOf = html => { const el = document.createElement("div"); el.innerHTML = html; return el.textContent ?? ""; };
+            for (const id of made) { const m = game.messages.get(id); if (m && textOf(String(await wordsOf(m, 1000) ?? "")).includes(line)) told++; }
+            read.told = told;
+            read.after = { eclipse: E.isEclipse(), incident: Boolean(M.murderState()?.active) };
+        } finally {
+            if (own) Object.defineProperty(socket, "emit", own); else delete socket.emit;
+            if (ownWait) Object.defineProperty(D, "wait", ownWait); else delete D.wait;
+            Hooks.off("createChatMessage", hook);
+            if (S.pendingMurderStore.has(killer.id)) await S.pendingMurderStore.drop(killer.id);
+            if (E.isEclipse()) await E.endEclipse({ advance: false }).catch(() => {});
+            if (M.murderState()) await M.endMurder({ reason: "test", followUp: false });
+            for (const id of made) await game.messages.get(id)?.delete().catch(() => {});
+            await stood.back();
+        }
+        const now = getClock()?.timeOfDay ?? null;
+        equal(stableJson(read), stableJson({ atInvite: [true], atResult: [true], held: [now, now], told: 1, after: { eclipse: false, incident: false } }),
+            "{atInvite: the Eclipse standing as each opening's invitation went; atResult: standing a second later, as its result lands; "
+            + "held: the time of day the lights hold for the roll, and the clock's (an End without advancing keeps it); "
+            + "told: the GMs' line that the lights wait; after: the Eclipse and an incident once the lights are done}");
+    }],
+    ["T1 MURDER-09 - the spent-victim question is a row every full GM answers once (2.0 line T1; scripts/murder-rules.mjs `checkVictimSpent`, `raiseQuestion`, `askIncidentQuestion`)", async () => {
+        /*
+         * 2.0 line T1, 27.11.2026 (MURDER-09, the recommendation the owner took: "Pytanie u wszystkich GM-ow; pierwsza odpowiedz
+         * rozstrzyga, pozostalym okno sie zamyka"). As CASE-23 stands it: an accomplice on the killer's side, then the victim
+         * spent; the question is drawn here (`__dialogWindows`). While it stands, another full GM's End now is written on the
+         * cast's question (a stand-in user answers for that GM while the test runs). Read: the windows drawn, whether this one
+         * closed by itself, the line naming who answered, and the stage after. Put back: the incident, the victim, the clock.
+         * Red at 658302a: the window stood, no question on the cast.
+         */
+        needs(env.primaryGm(), "the victim's check is the primary's");
+        needs(env.dialogs(), "the window is drawn here");
+        needs(world.atLeast("studentsWithConnectedPlayer", 3), "a killer, a victim and an accomplice, each with a player");
+        const M = await import("./murder.mjs");
+        const { writeState } = await import("./incident-store.mjs");
+        const { livingStudents, isDeadForGm, reviveCharacter } = await import("./chapter.mjs");
+        const player = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const [killer, victim, third] = livingStudents().filter(player);
+        const title = game.i18n.localize("DRPG.Murder.ranOutTitle");
+        const drawn = () => [...foundry.applications.instances.values()].filter(a => a?.rendered && a.element?.isConnected && a.options?.window?.title === title);
+        const ID = "T1MURDER09GM0000";
+        const stand = { id: ID, name: "T1 MURDER-09 GM", active: true, isGM: true, role: CONST.USER_ROLES.GAMEMASTER };
+        const users = game.users, ownGet = Object.getOwnPropertyDescriptor(users, "get"), get = users.get;
+        const info = ui.notifications.info, told = [];
+        const res = victim.system?.resources ?? {};
+        const was = { hp: res.hitPoints?.value ?? 0, stress: res.stress?.value ?? 0 };
+        const clock = getClock();
+        const read = {};
+        try {
+            ui.notifications.info = function (message, ...rest) { told.push(String(message)); return info.call(this, message, ...rest); };
+            await M.openMurder({ killerId: killer.id, victimId: victim.id, openingTrait: "body" });
+            if (M.murderState()?.stage === "openingRoll") await M.resolveKillerOpening({ total: 24, isCritical: false, withHope: true });
+            await settle();
+            await M.thirdPartyEnters(third);
+            await M.resolveCrisisAction({ actorId: third.id, key: "crimePartners", total: 20, isCritical: false, withHope: true });
+            await settle();
+            await victim.update({ "system.resources.hitPoints.value": res.hitPoints?.max ?? 0, "system.resources.stress.value": res.stress?.max ?? 0 });
+            must(await until(() => drawn().length > 0, 6000), "the question was not drawn - this would measure nothing");
+            read.windows = drawn().length;
+            users.get = function (id, ...rest) { return id === ID ? stand : get.call(this, id, ...rest); };
+            const now = M.murderState();
+            await writeState({ question: { ...now.question, answeredBy: ID, answer: "end" } }, { expect: { stage: "incident", openedAt: now.openedAt } });
+            read.closed = await until(() => drawn().length === 0, 4000);
+            read.toast = told.includes(game.i18n.format("DRPG.Murder.questionAnswered", { gm: stand.name }));
+            await until(() => M.murderState()?.stage === "resolution", 4000);
+            read.stage = M.murderState()?.stage ?? null;
+        } finally {
+            ui.notifications.info = info;
+            if (ownGet) Object.defineProperty(users, "get", ownGet); else delete users.get;
+            for (const app of drawn()) await app.close().catch(() => {});
+            if (M.murderState()) await M.endMurder({ reason: "test", followUp: false });
+            await victim.update({ "system.resources.hitPoints.value": was.hp, "system.resources.stress.value": was.stress });
+            for (const a of [victim, killer, third]) if (isDeadForGm(a)) await reviveCharacter(a, { quiet: true });
+            await c3Incident(clock);
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ windows: 1, closed: true, toast: true, stage: "resolution" }),
+            "{windows: the questions drawn here; closed: this one shut on the other GM's answer; toast: the line naming who answered; stage: after End now}");
+    }],
+    ["T1 MURDER-06 - a participant's disconnect raises one GM card and marks the tracker (2.0 line T1; scripts/murder-ui.mjs `noteParticipantLeft`, `awayLines`; gm-bridge.mjs the `userConnected` hook)", async () => {
+        /*
+         * 2.0 line T1, 27.11.2026 (MURDER-06, the recommendation the owner took: "Powiadomienie GM-ow i znak w trackerze, ze
+         * uczestnik jest rozlaczony, z podpowiedzia drogi"). A direct murder at its opening, its invitation held; the killer's
+         * player is read as gone (its `active` answered false while the test runs, as Foundry's user reads after the socket
+         * goes) and the hook's call made as gm-bridge.mjs makes it. Read: the GMs' notice cards (`gmPopup`) and whether the
+         * first names the killer and the way on, and the tracker's warning. Red at 658302a: no `noteParticipantLeft`.
+         */
+        needs(env.primaryGm(), "the card has one writer, the primary");
+        needs(world.atLeast("studentsWithConnectedPlayer", 2), "a killer whose player is connected, and a victim");
+        const M = await import("./murder.mjs");
+        const U = await import("./murder-ui.mjs");
+        const { cardFlag, wordsOf } = await import("./secret.mjs");
+        const cleanup = await import("./cleanup.mjs");
+        const { livingStudents } = await import("./chapter.mjs");
+        must(typeof U.noteParticipantLeft === "function", "murder-ui.mjs has no noteParticipantLeft - nobody is told a participant left");
+        const player = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const [killer, victim] = livingStudents().filter(player);
+        const owner = player(killer);
+        must(game.users.filter(u => !u.isGM && killer.testUserPermission(u, "OWNER")).length === 1, "the killer has a co-owner - this would measure something else");
+        const made = [];
+        const hook = Hooks.on("createChatMessage", m => made.push(m.id));
+        const read = {};
+        try {
+            await heldInvitations(async () => {
+                await M.openMurder({ killerId: killer.id, victimId: victim.id, openingTrait: "body" });
+                await settle();
+                const had = Object.getOwnPropertyDescriptor(owner, "active");
+                Object.defineProperty(owner, "active", { value: false, configurable: true });
+                try {
+                    await U.noteParticipantLeft(owner, false);
+                    await settle();
+                    const cards = game.messages.filter(m => made.includes(m.id) && cardFlag(m, "gmPopup") === true);
+                    read.cards = cards.length;
+                    const text = cards[0] ? String(await wordsOf(cards[0], 2000)) : "";
+                    read.names = [text.includes(killer.name), text.includes(game.i18n.localize("DRPG.Murder.awayHint.openingRoll"))];
+                    read.tracker = U.incidentTrackerHtml(M.murderState(), cleanup).includes(`${game.i18n.format("DRPG.Murder.awayTracker", {
+                        name: foundry.utils.escapeHTML(killer.name) })} ${game.i18n.localize("DRPG.Murder.awayHint.openingRoll")}`);
+                } finally {
+                    if (had) Object.defineProperty(owner, "active", had); else delete owner.active;
+                }
+                read.back = U.incidentTrackerHtml(M.murderState(), cleanup).includes(game.i18n.localize("DRPG.Murder.awayHint.openingRoll"));
+            });
+        } finally {
+            Hooks.off("createChatMessage", hook);
+            if (M.murderState()) await M.endMurder({ reason: "test", followUp: false });
+            for (const id of made) await game.messages.get(id)?.delete().catch(() => {});
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ cards: 1, names: [true, true], tracker: true, back: false }),
+            "{cards: the GMs' notice cards; names: [the killer, the way on] on it; tracker: the tracker's warning while gone; back: the warning once the player is back}");
+    }],
+    ["T1 MURDER-04 - Throw for the player throws on the GM with the owner connected, and the owner's invitation is taken back (2.0 line T1; scripts/murder-rules.mjs `throwForPlayer`, `throwStanding`; murder-ui.mjs `incidentButtons`)", async () => {
+        /*
+         * 2.0 line T1, 27.11.2026 (MURDER-04, the recommendation the owner took: "Przycisk Rzuc za gracza w trackerze incydentu
+         * dla GM-a, takze przy polaczonym wlascicielu postaci"). A direct murder opened with its statistic picked, the killer's
+         * player connected and the invitation held (no player's browser throws); then Throw for the player on this GM, the
+         * killer's `rollTrait` replaced by one that notes the statistic and who the incident names as the thrower, and fails
+         * the opening. Read: the invitations and their withdrawals to the owner during the throw, the words to the owner, what
+         * was thrown here and who stood as the thrower, and the thrower after. Red at 658302a: no `throwForPlayer`.
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 2), "a killer whose player is connected, and a victim");
+        const M = await import("./murder.mjs");
+        const R = await import("./murder-rules.mjs");
+        const { livingStudents } = await import("./chapter.mjs");
+        must(typeof R.throwForPlayer === "function", "murder-rules.mjs has no throwForPlayer - a GM cannot throw for a connected player");
+        const player = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const [killer, victim] = livingStudents().filter(player);
+        const owner = player(killer);
+        const socket = game.socket, own = Object.getOwnPropertyDescriptor(socket, "emit"), send = socket.emit;
+        const packets = [];
+        let during = false;
+        socket.emit = function (event, packet, options, ...rest) {
+            const to = options?.recipients ?? [];
+            if (packet?.action === "murder.openingAsk") { if (during) packets.push("ask"); return true; }
+            if (during && to.includes(owner.id) && packet?.action === "murder.openingCancel") packets.push("cancel");
+            if (during && to.includes(owner.id) && typeof packet?.html === "string" && packet.html.includes(game.i18n.format("DRPG.Murder.openingThrownByGm", { gm: game.user.name }))) packets.push("told");
+            return send.call(this, event, packet, options, ...rest);
+        };
+        const made = [];
+        const hook = Hooks.on("createChatMessage", m => made.push(m.id));
+        const thrown = [];
+        let after = "unread";
+        try {
+            await M.openMurder({ killerId: killer.id, victimId: victim.id, openingTrait: "body" });
+            await settle();
+            killer.rollTrait = async (dh) => {
+                thrown.push([dh, M.murderState()?.openingThrower?.userId === game.user.id]);
+                if (M.murderState()?.stage === "openingRoll") await M.resolveKillerOpening({ total: 1, isCritical: false, withHope: false });
+                return null;
+            };
+            during = true;
+            await R.throwForPlayer();
+            during = false;
+            await settle();
+            after = M.murderState()?.openingThrower ?? null;
+        } finally {
+            during = false;
+            if (own) Object.defineProperty(socket, "emit", own); else delete socket.emit;
+            Hooks.off("createChatMessage", hook);
+            delete killer.rollTrait;
+            if (M.murderState()) await M.endMurder({ reason: "test", followUp: false });
+            for (const id of made) await game.messages.get(id)?.delete().catch(() => {});
+            await settle();
+        }
+        equal(stableJson({ packets: [...new Set(packets)].sort(), asks: packets.filter(p => p === "ask").length, thrown, after }),
+            stableJson({ packets: ["cancel", "told"], asks: 0, thrown: [["strength", true]], after: null }),
+            "{packets: what reached the owner during the throw; asks: invitations among them; thrown: [the statistic, this GM named the thrower] thrown here; after: the thrower once the opening failed}");
+    }],
+    ["T1 MURDER-11 - a returning owner is not invited while another GM throws (2.0 line T1; scripts/murder-rules.mjs `rollOpening`, `openingThrowerStands`; bridge-runs-acts.mjs `reaskOwedOpening`)", async () => {
+        /*
+         * 2.0 line T1, 27.11.2026 (MURDER-11; the line chosen: "brak zaproszenia, gdy rzut za gracza jest w toku"). A direct
+         * murder opened with its statistic picked, its invitation held; the incident then names another connected GM as the
+         * opening's thrower (a stand-in user answers for it while the test runs), and the opening is asked again as the
+         * owner's return asks it (`rollOpening`, which `reaskOwedOpening` calls). Read: the invitations sent, the lines to the
+         * owner naming that GM, and what the ask answered. Red at 658302a: the owner invited.
+         */
+        needs(env.primaryGm(), "the re-ask at a player's return is the primary's");
+        needs(world.atLeast("studentsWithConnectedPlayer", 2), "a killer whose player is connected, and a victim");
+        const M = await import("./murder.mjs");
+        const { writeState } = await import("./incident-store.mjs");
+        const { livingStudents } = await import("./chapter.mjs");
+        const player = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const [killer, victim] = livingStudents().filter(player);
+        const owner = player(killer);
+        const ID = "T1MURDER11GM0000";
+        const stand = { id: ID, name: "T1 MURDER-11 GM", active: true, isGM: true, role: CONST.USER_ROLES.GAMEMASTER };
+        const users = game.users, ownGet = Object.getOwnPropertyDescriptor(users, "get"), get = users.get;
+        const socket = game.socket, own = Object.getOwnPropertyDescriptor(socket, "emit"), send = socket.emit;
+        let asks = 0, told = 0, during = false, answer = "unread";
+        socket.emit = function (event, packet, options, ...rest) {
+            if (packet?.action === "murder.openingAsk") { if (during) asks += 1; return true; }
+            if (during && (options?.recipients ?? []).includes(owner.id) && typeof packet?.html === "string"
+                && packet.html.includes(game.i18n.format("DRPG.Murder.openingThrownByGm", { gm: stand.name }))) told += 1;
+            return send.call(this, event, packet, options, ...rest);
+        };
+        const made = [];
+        const hook = Hooks.on("createChatMessage", m => made.push(m.id));
+        try {
+            await M.openMurder({ killerId: killer.id, victimId: victim.id, openingTrait: "body" });
+            await settle();
+            users.get = function (id, ...rest) { return id === ID ? stand : get.call(this, id, ...rest); };
+            must(await writeState({ openingThrower: { userId: ID, at: Date.now(), openedAt: M.murderState()?.openedAt ?? null } },
+                { expect: { stage: "openingRoll" } }), "the thrower could not be written - this would measure nothing");
+            during = true;
+            answer = await M.rollOpening("killer", M.murderState());
+            during = false;
+            await settle();
+        } finally {
+            during = false;
+            if (ownGet) Object.defineProperty(users, "get", ownGet); else delete users.get;
+            if (own) Object.defineProperty(socket, "emit", own); else delete socket.emit;
+            Hooks.off("createChatMessage", hook);
+            if (M.murderState()) await M.endMurder({ reason: "test", followUp: false });
+            for (const id of made) await game.messages.get(id)?.delete().catch(() => {});
+            await settle();
+        }
+        equal(stableJson({ asks, told, answer }), stableJson({ asks: 0, told: 1, answer: null }),
+            "{asks: invitations sent while another GM throws; told: the owner's lines naming that GM; answer: what the ask answered}");
+    }],
+    ["T1 MURDER-05 - an answer written on the row closes the other GM's window (2.0 line T1; scripts/body.mjs `promptPendingBodies`, `bodyPromptAnsweredElsewhere`)", async () => {
+        /*
+         * 2.0 line T1, 27.11.2026 (MURDER-05, the recommendation the owner took: "Okno "Uczniowie znalezli cialo" u wszystkich
+         * GM-ow; pierwsza odpowiedz rozstrzyga, pozostalym okno sie zamyka"). One browser here: a death the GMs keep and a
+         * discovery waiting for it (`pendingBodyStore`, as CTRL-34 writes one); the prompt's window is drawn here
+         * (`__dialogWindows`). First another user's answer is written on the row while the window stands, as another GM's
+         * browser writes it; then the window is asked again (no answer on the row is younger than it) and this GM presses
+         * Not yet. Read: whether each window closed by itself, the toast naming who answered, the row's answer after Not yet,
+         * and whether the row still waits. With two GMs: scenario 57's MURDER-05. Red at 658302a: the first window stood.
+         */
+        needs(env.primaryGm(), "the prompt's row is the primary's walk's");
+        needs(env.dialogs(), "the window is drawn here");
+        const B = await import("./body.mjs");
+        const { deathStore, pendingBodyStore } = await import("./gm-stores.mjs");
+        const [victim, witness] = cast(2);
+        must(!deathStore.has(victim.id), "the fixture student is already dead in the GMs' store");
+        const other = game.users.find(u => u.id !== game.user.id && u.name);
+        must(other, "no other user to stand for the GM who answered");
+        const title = game.i18n.localize("DRPG.Chapter.pendingTitle");
+        const drawn = () => [...foundry.applications.instances.values()].find(a => a?.rendered && a.element?.isConnected && a.options?.window?.title === title) ?? null;
+        const clock = getClock();
+        const key = `T1M05:${victim.id}`;
+        const info = ui.notifications.info, told = [];
+        const read = {};
+        try {
+            ui.notifications.info = function (message, ...rest) { told.push(String(message)); return info.call(this, message, ...rest); };
+            await deathStore.patch(victim.id, { chapter: clock.chapter, day: 1, timeOfDay: "night", at: Date.now(), keepBullets: true, known: [] });
+            await pendingBodyStore.patch(key, { room: `T1 MURDER-05 room ${victim.id}`, sceneId: null, victimId: victim.id, deathId: null,
+                witnessIds: [witness.id], chapter: clock.chapter, epoch: seasonEpoch(), at: 1 });
+            await settle();
+            const first = B.askPendingBodies();
+            must(await until(() => Boolean(drawn()), 6000), "the window was not drawn - this would measure nothing");
+            await pendingBodyStore.patch(key, { answeredBy: other.id, answeredAt: Date.now() + 1, answer: "notYet" });
+            read.closed = await until(() => !drawn(), 3000);
+            read.announced = await Promise.race([first, wait(2000).then(() => "open")]);
+            // The room is where the body lies now (`bodyPlaceOf`), not the row's: the line is read by who answered.
+            const [before] = game.i18n.format("DRPG.Body.answeredElsewhere", { gm: other.name, room: "\u0000" }).split("\u0000");
+            read.toast = told.some(t => t.startsWith(before));
+            const second = B.askPendingBodies();
+            read.again = await until(() => Boolean(drawn()), 6000);
+            drawn()?.element?.querySelector('[data-action="close"]')?.click();
+            await Promise.race([second, wait(3000)]);
+            const row = pendingBodyStore.get(key) ?? null;
+            read.row = row ? [row.answeredBy === game.user.id, row.answer] : null;
+        } finally {
+            ui.notifications.info = info;
+            await drawn()?.close().catch(() => {});
+            if (pendingBodyStore.has(key)) await pendingBodyStore.drop(key);
+            if (deathStore.has(victim.id)) await deathStore.drop(victim.id);
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ closed: true, announced: 0, toast: true, again: true, row: [true, "notYet"] }),
+            "{closed: the window shut when another's answer reached the row; announced: what that prompt announced; toast: the line naming who answered; again: the window asked again; row: [this GM's answer on the row, its answer] after Not yet}");
+    }],
+    ["T1 EXP-GM-02 - a lone finder raises one GM card naming the finder and the room (2.0 line T1; scripts/body.mjs `checkBodyFound`, `tellGmsLoneFinder`)", async () => {
+        /*
+         * 2.0 line T1, 27.11.2026 (EXP-GM-02, the recommendation the owner took: "Powiadomienie (gmPopup) dla GM-ow z pokojem
+         * i imieniem znalazcy, gdy uczen sam znajdzie cialo"). As "a killer of the chapter's other incident who walks alone
+         * onto a body ..." stands it: two students alone in a room, one killed as the GMs keep a death, and the watcher asked
+         * about the other's token twice. Read: the GMs' cards raised as a notice (`gmPopup`) after each walk, and whether the
+         * first names the finder, the body and the room. Put back: the death, the tokens, the cards. Red at 658302a: no card.
+         */
+        const [finder, victim] = cast(2);
+        needs(world.ownedByPlayer(finder), "a lone finder is told through their player");
+        const C = await import("./chapter.mjs");
+        const { cardFlag, wordsOf } = await import("./secret.mjs");
+        const made = [];
+        const hook = Hooks.on("createChatMessage", m => made.push(m.id));
+        // A private card's flags and words travel beside its document (secret.mjs `postSecret`): read through the store.
+        const popups = () => game.messages.filter(m => made.includes(m.id) && cardFlag(m, "gmPopup") === true);
+        const stood = await aloneTogether(finder, victim);
+        const read = {};
+        try {
+            ok(await C.killCharacter(victim, { secret: true, keepBullets: true }), "the death was not kept by the GMs");
+            const token = canvas.scene.tokens.find(t => t.actorId === finder.id);
+            await C.maybeBodyFound(token);
+            await settle();
+            const first = popups();
+            read.first = first.length;
+            const text = first[0] ? String(await wordsOf(first[0], 2000)) : "";
+            read.names = [text.includes(finder.name), text.includes(victim.name), text.includes(stood.room)];
+            read.gmsOnly = first.every(m => (m.whisper ?? []).every(id => game.users.get(id)?.isGM));
+            await C.maybeBodyFound(token);
+            await settle();
+            read.again = popups().length - first.length;
+        } finally {
+            Hooks.off("createChatMessage", hook);
+            if (C.isDeadForGm(victim)) await C.reviveCharacter(victim, { quiet: true });
+            await stood.back();
+            for (const id of made) await game.messages.get(id)?.delete().catch(() => {});
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ first: 1, names: [true, true, true], gmsOnly: true, again: 0 }),
+            "{first: the GMs' notice cards after the first walk; names: [the finder, the body, the room] on it; gmsOnly: whispered to GMs alone; again: new ones after the same finder's second walk}");
+    }],
+    ["T1 MURDER-08 - the Prep question opens on the GM who announced (2.0 line T1; MURDER-08, INV-06; scripts/body.mjs `runDiscovery`, `discoverBody`; case-realize.mjs `registerCaseAsk`)", async () => {
+        /*
+         * 2.0 line T1, 27.11.2026 (MURDER-08, INV-06; the recommendation the owner took: "Pytanie u GM-a, ktory oglosil cialo").
+         * As "the discovery card comes before the Prep question" drives it: a death the GMs keep, a room nobody stands in, a
+         * Faint Prep trace of this chapter - announced on the primary for a second full GM (`announcer`, the id the bridge
+         * hands `discoverBody`), whom a stand-in user answers for while the test runs. Read: the Prep windows opened here,
+         * what the discovery answers for the announcer to ask, and the announcer on the writer's call of the body's hook.
+         * With two GMs: scenario 57's MURDER-08 and INV-06. Red at 658302a: the window opened here, no `promotion` to send.
+         */
+        needs(env.primaryGm(), "a discovery runs on the primary GM alone (`discoverBody`)");
+        needs(world.atLeast("sceneOnScreen"), "the fixture trace is placed on the scene on screen");
+        const [victim] = cast(1);
+        const { killCharacter, discoverBody, isDeadForGm, reviveCharacter } = await import("./chapter.mjs");
+        const { BODY_ANNOUNCED_HOOK } = await import("./body.mjs");
+        const remnants = await import("./remnants.mjs");
+        const ROOM = "SUITE T1 MURDER-08 a room nobody stands in";
+        const ID = "T1MURDER08GM0000";
+        const stand = { id: ID, name: "T1 MURDER-08 GM", active: true, isGM: true, role: CONST.USER_ROLES.GAMEMASTER };
+        const chapter = getClock().chapter;
+        const scene = canvas.scene;
+        const anchor = scene?.tokens?.find(t => t.x || t.y);
+        const foundBefore = game.settings.get(MODULE_ID, SETTINGS.bodyFound) ?? {};
+        const stampsBefore = foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS.bodiesFound) ?? {});
+        const D = foundry.applications.api.DialogV2;
+        const own = { confirm: Object.getOwnPropertyDescriptor(D, "confirm"), wait: Object.getOwnPropertyDescriptor(D, "wait") };
+        const users = game.users, ownGet = Object.getOwnPropertyDescriptor(users, "get"), get = users.get;
+        const placed = [], heard = [];
+        let asked = 0, result = null;
+        const hook = Hooks.on(BODY_ANNOUNCED_HOOK, payload => { if (payload?.writer) heard.push(payload.announcer ?? null); });
+        try {
+            const mine = await remnants.placeRemnant({ type: "prep", visibility: "subtle", faint: true, tiedToCrime: false, x: anchor?.x ?? 0, y: anchor?.y ?? 0, scene, chapter, subject: "SUITE T1 MURDER-08" });
+            placed.push(mine);
+            must(mine, "could not place the fixture trace");
+            D.confirm = async () => false;
+            D.wait = async config => {
+                const el = document.createElement("div");
+                if (typeof config?.content === "string") el.innerHTML = config.content;
+                else if (config?.content) el.append(config.content.cloneNode(true));
+                if (el.querySelector('input[name="promote"]')) asked += 1;
+                return null;
+            };
+            users.get = function (id, ...rest) { return id === ID ? stand : get.call(this, id, ...rest); };
+            await setClock({ phase: "dailyLife" });
+            must(await killCharacter(victim, { secret: true, keepBullets: true }), `${victim.name}'s death was not kept by the GMs`);
+            result = await discoverBody({ room: ROOM, victim, scene, announcer: ID });
+            await settle();
+            await wait(300);
+        } finally {
+            Hooks.off(BODY_ANNOUNCED_HOOK, hook);
+            if (ownGet) Object.defineProperty(users, "get", ownGet); else delete users.get;
+            for (const [name, desc] of Object.entries(own)) {
+                if (desc) Object.defineProperty(D, name, desc); else delete D[name];
+            }
+            for (const t of placed.filter(Boolean)) {
+                try { await remnants.dropRemnantSecret(t); } catch { /* nothing filed */ }
+                try { await t.delete(); } catch { /* already gone */ }
+            }
+            if (isDeadForGm(victim)) await reviveCharacter(victim, { quiet: true });
+            if (stableJson(game.settings.get(MODULE_ID, SETTINGS.bodyFound) ?? {}) !== stableJson(foundBefore)) {
+                await game.settings.set(MODULE_ID, SETTINGS.bodyFound, foundBefore);
+            }
+            await game.settings.set(MODULE_ID, SETTINGS.bodiesFound, stampsBefore);
+            await settle();
+        }
+        equal(stableJson({ asked, promotion: result?.promotion ?? null, heard }), stableJson({ asked: 0, promotion: { room: ROOM, chapter }, heard: [ID] }),
+            "{asked: the Prep windows opened on the primary; promotion: what the discovery answers for the announcer to ask; heard: the announcer on the writer's call of the body's hook}");
+    }],
+    ["T1 D2-09 - the opening roll moves no Hope and no Despair, drawn for the killer's player with Hope and with Despair (2.0 line T1 EXP-PL-03; scripts/roll-draw.mjs, despair-award.mjs `rollPaysResources`, `incidentRollExempt`)", async () => {
+        /*
+         * 2.0 line T1, 27.11.2026 (D2-09: "Rzuty w incydencie nie daja Despair ani Hope"; D2-11: the opening and the crisis
+         * rolls). A direct murder between two students with players, its invitation held; the opening thrown as
+         * `throwOpeningRoll` throws it and drawn as the killer's player's (`drawnForPlayer`), once at the GM's faces 9 and 4
+         * (Hope), once at 4 and 9 (Despair). Read: the killer's Hope and their Monokuma's pool, after less before, over each,
+         * and the drawn record's `noResources`. Red at 658302a: Hope +1 on the first, the pool +1 on the second.
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 2), "a killer and a victim, each with a player");
+        const M = await import("./murder.mjs");
+        const rolls = await import("./action-rolls.mjs");
+        const { getDespair } = await import("./despair.mjs");
+        const { monokumaFor } = await import("./assignments.mjs");
+        const { livingStudents } = await import("./chapter.mjs");
+        const owner = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const [killer, victim] = livingStudents().filter(owner);
+        const mono = monokumaFor(killer);
+        must(mono, `${killer.name} has no Monokuma to feed - this would measure nothing`);
+        const hope = () => Number(killer.system?.resources?.hope?.value ?? 0);
+        const pool = () => Number(getDespair(mono.id) ?? 0);
+        const opening = () => rolls.rollTrait(killer, "body", { remember: false, byGm: true, actionKey: "murderOpening",
+            title: game.i18n.localize("DRPG.Roll.opening.killer"), dc: 8, context: { side: "killer" } });
+        const read = [];
+        const hopeWas = hope(), poolWas = pool();
+        try {
+            for (const faces of [{ hope: 9, fear: 4 }, { hope: 4, fear: 9 }]) {
+                await heldInvitations(async () => {
+                    await M.openMurder({ killerId: killer.id, victimId: victim.id, openingTrait: "body" });
+                    must(M.murderState()?.stage === "openingRoll", "the incident is not waiting on its opening - this would measure nothing");
+                    const [h, d] = [hope(), pool()];
+                    const F = await drawnForPlayer(owner(killer), killer, { actionKey: "murderOpening", pay: false, faces,
+                        thrower: async () => { const outcome = await opening(); return { outcome, message: outcome?.raw?.message ?? null }; } });
+                    await settle();
+                    read.push([hope() - h, pool() - d, F.record?.noResources ?? null]);
+                    await F.putBack();
+                    if (M.murderState()) await M.endMurder({ reason: "test", followUp: false });
+                });
+            }
+        } finally {
+            if (M.murderState()) await M.endMurder({ reason: "test", followUp: false });
+            const { adjustDespair } = await import("./despair.mjs");
+            if (pool() !== poolWas) await adjustDespair(mono.id, poolWas - pool());
+            if (hope() !== hopeWas) await killer.update({ "system.resources.hope.value": hopeWas });
+            await settle();
+        }
+        equal(stableJson(read), stableJson([[0, 0, true], [0, 0, true]]), "[with Hope, with Despair] x [the killer's Hope moved, the Monokuma's pool moved, the record's noResources]");
+    }],
+    ["T1 D2-09 - a crisis roll moves no Hope and no Despair, drawn for the victim's player with Hope and with Despair (2.0 line T1 EXP-PL-03; scripts/roll-draw.mjs, despair-award.mjs `rollPaysResources`)", async () => {
+        /*
+         * 2.0 line T1, 27.11.2026 (D2-09, D2-11). A direct murder's fight (`fightOpen`); the victim's Leave a Clue roll
+         * thrown as the crisis road throws it and drawn as their player's (`drawnForPlayer`, key `crisis`), at the GM's faces 9
+         * and 4, then 4 and 9. Read:
+         * the victim's Hope and their Monokuma's pool, after less before, over each. Red at 658302a: Hope +1, the pool +1.
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 2), "a killer and a victim, each with a player");
+        const M = await import("./murder.mjs");
+        const rolls = await import("./action-rolls.mjs");
+        const { getDespair, adjustDespair } = await import("./despair.mjs");
+        const { monokumaFor } = await import("./assignments.mjs");
+        const { livingStudents } = await import("./chapter.mjs");
+        const owner = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const [killer, victim] = livingStudents().filter(owner);
+        const mono = monokumaFor(victim);
+        must(mono, `${victim.name} has no Monokuma to feed - this would measure nothing`);
+        const hope = () => Number(victim.system?.resources?.hope?.value ?? 0);
+        const pool = () => Number(getDespair(mono.id) ?? 0);
+        const read = [];
+        const hopeWas = hope(), poolWas = pool();
+        try {
+            await fightOpen(M, killer, victim);
+            for (const faces of [{ hope: 9, fear: 4 }, { hope: 4, fear: 9 }]) {
+                const [h, d] = [hope(), pool()];
+                // Thrown as the crisis road throws it (`rollTrait`, key `crisis`), so the suite's own throw here is the
+                // incident's roll too, as the opening's is above; a neutral roll here would pay as any roll of the GM's.
+                const F = await drawnForPlayer(owner(victim), victim, { actionKey: "crisis", pay: false, faces, trait: "hand",
+                    thrower: async () => { const outcome = await rolls.rollTrait(victim, "hand", { remember: false, actionKey: "crisis", context: { crisis: "leaveClue" } });
+                        return { outcome, message: outcome?.raw?.message ?? null }; },
+                    edit: p => ({ ...p, context: { ...(p.context ?? {}), crisis: "leaveClue" } }) });
+                await settle();
+                read.push([hope() - h, pool() - d]);
+                await F.putBack();
+            }
+        } finally {
+            if (M.murderState()) await M.endMurder({ reason: "test", followUp: false });
+            if (pool() !== poolWas) await adjustDespair(mono.id, poolWas - pool());
+            if (hope() !== hopeWas) await victim.update({ "system.resources.hope.value": hopeWas });
+            await settle();
+        }
+        equal(stableJson(read), stableJson([[0, 0], [0, 0]]), "[with Hope, with Despair] x [the victim's Hope moved, the Monokuma's pool moved]");
+    }],
+    ["T1 DAY-03 - a second GM's lights read the room through the primary: the primary answers each declaration's standing from its own record, and any other GM asks it (2.0 line T1; scripts/eclipse.mjs `standingsAtTheLights`, `standingsOnPrimary`; bridge-table.mjs `eclipse.judge`)", async () => {
+        /*
+         * 2.0 line T1, 27.11.2026 (DAY-03, the recommendation the owner took: "przez glownego (most)"). One browser here, the
+         * primary: a declaration in an Eclipse the suite opens, its killer stood alone with one other. Read: the primary's
+         * answer for that Eclipse (`standingsOnPrimary`) and for a name that is none, the bridge's row for the ask, and the
+         * road a GM who is not the primary takes (`standingsAtTheLights` asks `requestEclipseJudge` off the primary). With a
+         * second GM: scenario 57's DAY-03. Red at f2523df: no `standingsOnPrimary`.
+         */
+        needs(env.primaryGm(), "the record of lawful places is the primary GM's");
+        needs(world.atLeast("studentsWithConnectedPlayer", 2), "a killer and a victim");
+        needs(world.atLeast("studentTokensOnScreen", 2), "the two are stood in one room by their tokens");
+        needs(world.atLeast("namedRooms", 2), "one room is left to the two of them");
+        const E = await import("./eclipse.mjs");
+        const S = await import("./gm-stores.mjs");
+        const M = await import("./murder.mjs");
+        const { BRIDGE_ACTIONS } = await import("./bridge-table.mjs");
+        const { livingStudents } = await import("./chapter.mjs");
+        must(typeof E.standingsOnPrimary === "function", "eclipse.mjs has no standingsOnPrimary - the lights read the room on whichever GM ends the Eclipse");
+        must(!E.isEclipse() && !M.murderState(), "an Eclipse or an incident is running - this would measure something else");
+        const player = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const [killer, victim] = livingStudents().filter(player);
+        const src = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/eclipse.mjs`).then(lfText));
+        const road = fnSource(src, "standingsAtTheLights") ?? "";
+        const stood = await aloneTogether(killer, victim, { asked: true });
+        const read = {};
+        try {
+            await E.startEclipse();
+            await settle();
+            await S.pendingMurderStore.patch(killer.id, { room: stood.room, note: "", at: 1, approved: null, eclipse: E.eclipseId() });
+            read.here = await E.standingsOnPrimary(E.eclipseId());
+            read.none = await E.standingsOnPrimary("T1-DAY-03-none");
+        } finally {
+            // The row first: an Eclipse ended with a declaration standing asks the lights' question, and waits on it.
+            if (S.pendingMurderStore.has(killer.id)) await S.pendingMurderStore.drop(killer.id);
+            if (E.isEclipse()) await E.endEclipse({ advance: false }).catch(() => {});
+            await stood.back();
+        }
+        const row = BRIDGE_ACTIONS["eclipse.judge"];
+        equal(stableJson({ ...read, row: [row?.answer ?? null, Boolean(row?.claims?.eclipse)],
+            road: [/!isPrimaryGm\(\)/.test(road), /requestEclipseJudge\(\{ eclipse: id \}\)/.test(road), /standingsHere\(all\)/.test(road)] }),
+        stableJson({ here: { [killer.id]: { room: stood.room, present: 1, victimId: victim.id } }, none: {}, row: ["reply", true], road: [true, true, true] }),
+            "{here: the primary's standings for the Eclipse; none: for a name with no declaration; row: the bridge row's answer and claim; road: off the primary the lights ask the primary, and read here only without one}");
+    }],
+    ["T1 EXP-PL-02 - a declaration the GM refuses at the lights is never veiled (2.0 line T1; scripts/eclipse.mjs `endEclipseNow`, `judgePendingMurders`, `askAtTheLights`)", async () => {
+        /*
+         * 2.0 line T1, 27.11.2026 (EXP-PL-02, the owner's recommendation: "Rozstrzygac otwarcie morderstwa przed zapaleniem
+         * swiatel ... zeby zaslona szla tylko na potwierdzone morderstwo"). One declaration, its killer alone with one other,
+         * no GM's answer on its card; the lights' window answered No (`lightsOnOne`). Read: the veil's row or flag as the
+         * window opens, any flag on the killer's tokens over the whole run, the window asked once, and the killer told the
+         * refusal. Red at f2523df: the veil stood as the window opened (the killer veiled before the GM was asked).
+         */
+        needs(env.primaryGm(), "the veil and the lights' judgement are the primary GM's");
+        needs(world.atLeast("studentsWithConnectedPlayer", 2), "a killer whose player is told, and a victim");
+        needs(world.atLeast("studentTokensOnScreen", 2), "the two are stood in one room by their tokens");
+        needs(world.atLeast("namedRooms", 2), "one room is left to the two of them");
+        const M = await import("./murder.mjs");
+        const { livingStudents } = await import("./chapter.mjs");
+        const player = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const [killer, victim] = livingStudents().filter(player);
+        equal(M.murderState(), null, "an incident was already running when this scenario started");
+        const out = await lightsOnOne(killer, victim, { answer: "no" });
+        const refused = game.i18n.localize("DRPG.Action.murderRefused");
+        equal(stableJson([out.asked, out.atWindow.map(w => w.veiled), out.flagged, out.told.filter(t => t.includes(refused)).length]), stableJson([1, [false], false, 1]),
+            "[the lights' window asked, the veil standing as it opened, a token of the killer flagged veiled over the run, the refusal told]");
+    }],
+    ["T1 EXP-PL-02 - the lights' question is asked before the clock moves (2.0 line T1; scripts/eclipse.mjs `judgePendingMurders`)", async () => {
+        /*
+         * 2.0 line T1, 27.11.2026 (EXP-PL-02). As above; read as the lights' window opens: whether the Eclipse still stands.
+         * Red at f2523df: the window opened after the clock's write had cleared the Eclipse.
+         */
+        needs(env.primaryGm(), "the lights' judgement is the primary GM's");
+        needs(world.atLeast("studentsWithConnectedPlayer", 2), "a killer and a victim");
+        needs(world.atLeast("studentTokensOnScreen", 2), "the two are stood in one room by their tokens");
+        needs(world.atLeast("namedRooms", 2), "one room is left to the two of them");
+        const M = await import("./murder.mjs");
+        const { livingStudents } = await import("./chapter.mjs");
+        const player = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const [killer, victim] = livingStudents().filter(player);
+        equal(M.murderState(), null, "an incident was already running when this scenario started");
+        const out = await lightsOnOne(killer, victim, { answer: "no" });
+        equal(stableJson(out.atWindow.map(w => w.eclipse)), stableJson([true]), "[the Eclipse standing as each lights' window opened]");
+    }],
+    ["T1 DAY-04 - a declaration outlives a reload at the lights' question: its row stands, unjudged, while the window is open (2.0 line T1; scripts/eclipse.mjs `judgePendingMurders`)", async () => {
+        /*
+         * 2.0 line T1, 27.11.2026 (DAY-04, the owner's recommendation: "Usuwac zgloszenie dopiero po osadzie"). As above; read
+         * as the lights' window opens - the moment a GM's reload would cut the judgement off: the row in the GMs' store and
+         * its verdict, and the Eclipse; then the row after the lights (dropped once judged). Red at f2523df: the row was
+         * dropped before the window.
+         */
+        needs(env.primaryGm(), "the lights' judgement is the primary GM's");
+        needs(world.atLeast("studentsWithConnectedPlayer", 2), "a killer and a victim");
+        needs(world.atLeast("studentTokensOnScreen", 2), "the two are stood in one room by their tokens");
+        needs(world.atLeast("namedRooms", 2), "one room is left to the two of them");
+        const M = await import("./murder.mjs");
+        const { livingStudents } = await import("./chapter.mjs");
+        const player = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const [killer, victim] = livingStudents().filter(player);
+        equal(M.murderState(), null, "an incident was already running when this scenario started");
+        const out = await lightsOnOne(killer, victim, { answer: "no" });
+        equal(stableJson([out.atWindow.map(w => [w.row, w.verdict, w.eclipse]), out.row]), stableJson([[[true, null, true]], null]),
+            "[as the window opened: [the row, its verdict, the Eclipse]; the row after the lights]");
+    }],
+    ["T1 DAY-04 - an unjudged row of an ended Eclipse is dropped at the primary's ready and its killer told and given the action back (2.0 line T1; scripts/eclipse.mjs `sweepLostDeclarations`, `loseDeclaration`)", async () => {
+        /*
+         * 2.0 line T1, 27.11.2026 (DAY-04; the owner's default P3: the action comes back). No Eclipse running; two rows of an
+         * Eclipse that has ended, as a reload left them: one never judged, one judged to open in another time of day. The
+         * primary's sweep at ready (`sweepLostDeclarations`) is run. Read: what it answers, the rows after, the lines the
+         * killer's player is sent (`declarationLost`), the GMs' whispers with the killer's name, and the killer's actions
+         * before and after. Red at f2523df: no `sweepLostDeclarations`.
+         */
+        needs(env.primaryGm(), "the sweep is the primary GM's");
+        needs(world.atLeast("studentsWithConnectedPlayer", 2), "two killers whose players are told");
+        const E = await import("./eclipse.mjs");
+        const S = await import("./gm-stores.mjs");
+        const M = await import("./murder.mjs");
+        const { livingStudents } = await import("./chapter.mjs");
+        must(typeof E.sweepLostDeclarations === "function", "eclipse.mjs has no sweepLostDeclarations - the rows are not met at ready");
+        must(!E.isEclipse() && !M.murderState(), "an Eclipse or an incident is running - this would measure something else");
+        const player = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const [a, b] = livingStudents().filter(player);
+        for (const k of [a, b]) await actionsReach(k, 3);
+        const ACT = "system.resources.actions.value";
+        const was = [a, b].map(k => foundry.utils.getProperty(k._source, ACT));
+        for (const k of [a, b]) await k.update({ [ACT]: 1 });
+        const told = new Map([[player(a).id, []], [player(b).id, []]]);
+        const { contentOf } = await import("./secret.mjs");
+        const made = [];
+        const hook = Hooks.on("createChatMessage", m => made.push(m.id));
+        const socket = game.socket;
+        const ownEmit = Object.getOwnPropertyDescriptor(socket, "emit");
+        const send = socket.emit;
+        socket.emit = function (event, packet, options, ...rest) {
+            if (packet?.action === "secret.card") for (const to of options?.recipients ?? []) told.get(to)?.push(String(packet.html ?? "").replace(/<[^>]+>/g, " "));
+            return send.call(this, event, packet, options, ...rest);
+        };
+        let out = null;
+        const after = {};
+        try {
+            await S.pendingMurderStore.patch(a.id, { room: "SUITE", note: "", at: 1, approved: null, eclipse: "SUITE-ENDED", verdict: null, lightsMark: null });
+            await S.pendingMurderStore.patch(b.id, { room: "SUITE", note: "", at: 2, approved: true, eclipse: "SUITE-ENDED",
+                verdict: { outcome: "open", victimId: a.id, room: "SUITE", trait: "body" }, lightsMark: "0:0:SUITE" });
+            out = await E.sweepLostDeclarations();
+            await settle();
+            after.rows = [S.pendingMurderStore.has(a.id), S.pendingMurderStore.has(b.id)];
+            after.actions = [a, b].map(k => foundry.utils.getProperty(k._source, ACT));
+            after.incident = Boolean(M.murderState());
+            const gmWords = made.map(id => game.messages.get(id)).filter(m => m?.whisper?.length && m.whisper.every(u => game.users.get(u)?.isGM))
+                .map(m => String(contentOf(m) ?? ""));
+            after.gm = [a, b].map(k => gmWords.some(t => t.includes(k.name)));
+        } finally {
+            if (ownEmit) Object.defineProperty(socket, "emit", ownEmit); else delete socket.emit;
+            Hooks.off("createChatMessage", hook);
+            if (M.murderState()) await M.endMurder({ reason: "test", followUp: false });
+            await S.pendingMurderStore.dropMany([a.id, b.id].filter(k => S.pendingMurderStore.has(k)));
+            for (const [i, k] of [a, b].entries()) await k.update({ [ACT]: was[i] });
+            for (const id of made) await game.messages.get(id)?.delete().catch(() => {});
+            await settle();
+        }
+        const lost = game.i18n.localize("DRPG.Eclipse.declarationLost");
+        equal(stableJson({ out, ...after, told: [a, b].map(k => told.get(player(k).id).filter(t => t.includes(lost)).length) }),
+        stableJson({ out: { opened: 0, lost: 2 }, rows: [false, false], actions: [2, 2], incident: false, gm: [true, true], told: [1, 1] }),
+            "{out: the sweep's answer; rows: each row after; actions: each killer's actions after (1 before); incident: one opened; told: the lost line to each killer's player; gm: a GMs' line naming each killer}");
+    }],
+    ["T1 EXP-PL-07 - a GM's refusal gives the declaration's action back (2.0 line T1; scripts/eclipse.mjs `ruleOnParkedMurder`, `refundDeclaration`)", async () => {
+        /*
+         * 2.0 line T1, 27.11.2026 (EXP-PL-07, the owner's recommendation: "Zwrot akcji przy odmowie GM-a"). A declaration in an
+         * Eclipse the suite opens, its killer's actions set to one below their maximum; the GM refuses it from the card
+         * (`ruleOnParkedMurder(killerId, false)`). Read: the killer's actions before and after, and the row after. Red at
+         * f2523df: the action stayed spent.
+         */
+        needs(env.primaryGm(), "the declaration's store is the GMs'");
+        needs(world.atLeast("studentsWithConnectedPlayer", 1), "a killer with a player");
+        const E = await import("./eclipse.mjs");
+        const S = await import("./gm-stores.mjs");
+        const M = await import("./murder.mjs");
+        const { livingStudents } = await import("./chapter.mjs");
+        must(!E.isEclipse() && !M.murderState(), "an Eclipse or an incident is running - this would measure something else");
+        const player = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const [killer] = livingStudents().filter(player);
+        await actionsReach(killer, 3);
+        const ACT = "system.resources.actions.value";
+        const was = foundry.utils.getProperty(killer._source, ACT);
+        const read = {};
+        try {
+            // After the Eclipse's start, which refills the actions.
+            await E.startEclipse();
+            await settle();
+            await killer.update({ [ACT]: 1 });
+            await (await import("./sheet-audit.mjs")).judgedFor(killer.id);
+            await S.pendingMurderStore.patch(killer.id, { room: "SUITE", note: "", at: 1, approved: null, eclipse: E.eclipseId(), verdict: null, lightsMark: null });
+            read.before = foundry.utils.getProperty(killer._source, ACT);
+            await E.ruleOnParkedMurder(killer.id, false);
+            await settle();
+            read.after = foundry.utils.getProperty(killer._source, ACT);
+            read.row = S.pendingMurderStore.has(killer.id);
+        } finally {
+            if (E.isEclipse()) await E.endEclipse({ advance: false }).catch(() => {});
+            if (S.pendingMurderStore.has(killer.id)) await S.pendingMurderStore.drop(killer.id);
+            await killer.update({ [ACT]: was });
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ before: 1, after: 2, row: false }), "{the killer's actions before and after the refusal, the row after}");
+    }],
+    ["T1 EXP-PL-07 - a second declaration at the lights is refunded like a refusal (2.0 line T1; scripts/eclipse.mjs `judgePendingMurders`, `refundDeclaration`; the line's default P2)", async () => {
+        /*
+         * 2.0 line T1, 27.11.2026 (EXP-PL-07, P2: a second declaration and a refused betrayal say the refusal's words, so they
+         * give its action back, or the difference would tell a killer that another incident runs - D6). Two declarations of
+         * one Eclipse, each killer alone with one other: the first allowed on its card (it opens), the second allowed too
+         * (refused at the lights as the second). Read: the second killer's actions as the Eclipse ran (the start's refill,
+         * one below the maximum the fixture raises) and after the lights. Red at f2523df: the second's action stayed spent.
+         */
+        needs(env.primaryGm(), "the lights' judgement is the primary GM's");
+        needs(world.atLeast("studentsWithConnectedPlayer", 2), "two killers with players");
+        needs(world.atLeast("livingStudents", 4), "two killers and their two victims");
+        needs(world.atLeast("studentTokensOnScreen", 4), "the four are stood in rooms by their tokens");
+        needs(world.atLeast("namedRooms", 3), "a room is left to each pair");
+        const M = await import("./murder.mjs");
+        const S = await import("./gm-stores.mjs");
+        const { livingStudents } = await import("./chapter.mjs");
+        const player = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const [first, second] = livingStudents().filter(player);
+        const [va, vb] = livingStudents().filter(a => a !== first && a !== second);
+        must(va && vb, "no two other students to stand with the killers - this would measure nothing");
+        equal(M.murderState(), null, "an incident was already running when this scenario started");
+        await actionsReach(second, 3);
+        const ACT = "system.resources.actions.value";
+        const was = foundry.utils.getProperty(second._source, ACT);
+        let out = null, after = null, before = null;
+        try {
+            out = await lightsOnOne(first, va, { row: { approved: true, trait: "body" }, more: async id => {
+                // The actions the Eclipse's start refilled, one below the maximum the fixture raised (3): the refund's room.
+                await settle();
+                before = foundry.utils.getProperty(second._source, ACT);
+                const stood = await aloneTogether(second, vb, { asked: true });
+                await S.pendingMurderStore.patch(second.id, { room: stood.room, note: "SUITE T1 second", at: 2, approved: true, trait: "body", eclipse: id });
+                return [{ id: second.id, back: stood.back }];
+            } });
+            after = foundry.utils.getProperty(second._source, ACT);
+        } finally {
+            await second.update({ [ACT]: was });
+            await settle();
+        }
+        must(before === 2, `the Eclipse's start did not refill the second killer to 2 below a maximum of 3 (${before}) - this would measure nothing`);
+        equal(stableJson({ asked: out.asked, before, after }), stableJson({ asked: 0, before: 2, after: 3 }),
+            "{asked: the lights' windows (both allowed on their cards); before: the second killer's actions as the Eclipse ran; after: after the lights}");
+    }],
+    ["T1 D2-06 - the victim survived: the mask stands after the incident's end, and ends when the killer leaves the room (2.0 line T1 MURDER-02; scripts/mask-gm.mjs `endMasksAtClose`, `maskEndsAtClose`, `maskLeftRoom`)", async () => {
+        /*
+         * 2.0 line T1, 27.11.2026 (D2-06: "Gdy ofiara przezyla incydent, maska zabojcy zostaje do konca pory dnia albo do
+         * wyjscia zabojcy z pokoju, cokolwiek nastapi pierwsze"). A fight opened on Hope behind a mask (`fightOpen`), ended
+         * by the GM with the victim alive; then the killer's token carried to another named room. Read after the close and
+         * after the walk: the mask's row, the killer's masked tokens, the killer's player muted by the mask, and the line
+         * the killer was told. Red at 94af3e9: the close ended the mask and told "incident".
+         */
+        needs(env.primaryGm(), "the mask is the primary's");
+        needs(world.atLeast("studentsWithConnectedPlayer", 2), "a killer and a victim with players");
+        needs(world.atLeast("namedRooms", 2), "the killer is carried to another room");
+        const M = await import("./murder.mjs");
+        const MG = await import("./mask-gm.mjs");
+        const { livingStudents } = await import("./chapter.mjs");
+        const { locateActor, allRooms, positionIn } = await import("./movement.mjs");
+        const player = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const [killer, victim] = livingStudents().filter(player);
+        const lines = { incident: game.i18n.localize("DRPG.Mask.endedIncident"), room: game.i18n.localize("DRPG.Mask.endedLeftRoom") };
+        const text = w => w.html.replace(/<[^>]+>/g, " ");
+        const masked = () => [...game.scenes].flatMap(s => [...s.tokens]).filter(t => t.actorId === killer.id && MG.isMaskedToken(t)).length > 0;
+        const reading = words => {
+            const said = words.filter(w => w.to.includes(player(killer).id)).map(text);
+            return { row: MG.maskStands(killer.id), masked: masked(), muted: MG.maskMutedIds().has(player(killer).id),
+                told: Object.keys(lines).filter(k => said.some(t => t.includes(lines[k]))) };
+        };
+        const token = canvas?.scene?.tokens?.find(t => t.actorId === killer.id) ?? null;
+        must(token, "the killer has no token on the scene on screen - this would measure nothing");
+        const was = { x: token.x, y: token.y };
+        const clock = getClock();
+        const read = {};
+        let stood = null;
+        try {
+            stood = await aloneTogether(killer, victim, { asked: true });
+            await fightOpen(M, killer, victim);
+            const crime = locateActor(killer)?.room ?? null;
+            const away = allRooms(canvas.scene).find(r => r !== crime) ?? null;
+            must(MG.maskStands(killer.id) && crime && away, "the fight put up no mask, or no other room to carry the killer to - this would measure nothing");
+            read.closed = reading(await wordsSent(async () => { await M.endMurder({ followUp: false }); await settle(); }));
+            read.left = reading(await wordsSent(async () => {
+                await token.update(positionIn(away, token), { teleport: true, movementAction: "displace", animate: false });
+                await until(() => !MG.maskStands(killer.id), 3000);
+                await settle();
+            }));
+        } finally {
+            if (M.murderState()) await M.endMurder({ reason: "test", followUp: false });
+            await MG.endMask(killer.id, "test");
+            await c3Incident(clock);
+            await token.update(was, { teleport: true, movementAction: "displace", animate: false });
+            await stood?.back();
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ closed: { row: true, masked: true, muted: true, told: [] }, left: { row: false, masked: false, muted: false, told: ["room"] } }),
+            "{closed: after the GM's End with the victim alive; left: after the killer's token left the room} x {the mask's row, the killer's tokens masked, muted by the mask, the lines told}");
+    }],
+    ["T1 D2-06 - the victim survived: the mask stands after the incident's end, and ends with the time of day (2.0 line T1 MURDER-02; scripts/mask-gm.mjs `endMasksAtClose`, `endMasksBeforeTheBoard`; clock.mjs `advanceTimeOfDay`)", async () => {
+        /*
+         * 2.0 line T1, 27.11.2026 (D2-06). As the test above, but the clock moves on to the next time of day after the close
+         * (clock.mjs `advanceTimeOfDay`, which ends every mask before any board, `endMasksBeforeTheBoard`). Read after the
+         * close and after the advance: the mask's row, the killer's masked tokens, the line told. Put back: the clock. Red at
+         * 94af3e9: the close ended the mask.
+         */
+        needs(env.primaryGm(), "the mask is the primary's");
+        needs(world.atLeast("studentsWithConnectedPlayer", 2), "a killer and a victim with players");
+        const M = await import("./murder.mjs");
+        const MG = await import("./mask-gm.mjs");
+        const { advanceTimeOfDay } = await import("./clock.mjs");
+        const { livingStudents } = await import("./chapter.mjs");
+        const player = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const [killer, victim] = livingStudents().filter(player);
+        const lines = { incident: game.i18n.localize("DRPG.Mask.endedIncident"), timeOfDay: game.i18n.localize("DRPG.Mask.ended") };
+        const text = w => w.html.replace(/<[^>]+>/g, " ");
+        const masked = () => [...game.scenes].flatMap(s => [...s.tokens]).filter(t => t.actorId === killer.id && MG.isMaskedToken(t)).length > 0;
+        const reading = words => {
+            const said = words.filter(w => w.to.includes(player(killer).id)).map(text);
+            return { row: MG.maskStands(killer.id), masked: masked(), told: Object.keys(lines).filter(k => said.some(t => t.includes(lines[k]))) };
+        };
+        const clock = getClock();
+        const read = {};
+        let stood = null;
+        try {
+            stood = await aloneTogether(killer, victim, { asked: true });
+            await fightOpen(M, killer, victim);
+            must(MG.maskStands(killer.id), "the fight put up no mask - this would measure nothing");
+            read.closed = reading(await wordsSent(async () => { await M.endMurder({ followUp: false }); await settle(); }));
+            read.advanced = reading(await wordsSent(async () => { await advanceTimeOfDay(); await settle(); }));
+        } finally {
+            if (M.murderState()) await M.endMurder({ reason: "test", followUp: false });
+            await MG.endMask(killer.id, "test");
+            await c3Incident(clock);
+            await stood?.back();
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ closed: { row: true, masked: true, told: [] }, advanced: { row: false, masked: false, told: ["timeOfDay"] } }),
+            "{closed: after the GM's End with the victim alive; advanced: after the clock's next time of day} x {the mask's row, the killer's tokens masked, the lines told}");
+    }],
+    ["T1 MURDER-01 - an opening outside an Eclipse veils no token and blocks no microphone, and a failed one changes nothing on the map (2.0 line T1; D2-07; scripts/mask-gm.mjs `veilWanted`, murder-rules.mjs `openMurder`)", async () => {
+        /*
+         * 2.0 line T1, 27.11.2026 (MURDER-01; the owner's D2-07: "Poza Eclipse token zabojcy nie znika na czas rzutu
+         * otwarcia. Przy porazce nic sie na mapie nie zmienia"). A direct murder opened as the murder window opens it (no
+         * `atLights`), its invitation held. Read before the roll: the GMs' veil row, the killer's tokens' flag and whether the
+         * killer's player is among the blocked (`veilMutedIds`); then a failed opening, and every write to the killer's tokens
+         * over the whole run. Red at 07c93d1: the row, the flag and the block stood before the roll, and the failure wrote
+         * the flag off again.
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 2), "a killer and a victim, each with a player");
+        const M = await import("./murder.mjs");
+        const K = await import("./mask-gm.mjs");
+        const S = await import("./gm-stores.mjs");
+        const { livingStudents } = await import("./chapter.mjs");
+        const owner = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const [killer, victim] = livingStudents().filter(owner);
+        const kp = owner(killer);
+        const tokens = () => game.scenes.contents.flatMap(scene => scene.tokens.filter(t => t.actorId === killer.id));
+        must(tokens().length > 0, `${killer.name} has no token - this would measure nothing`);
+        const writes = [];
+        const hook = Hooks.on("updateToken", (doc, changes) => { if (doc.actorId === killer.id) writes.push(Object.keys(foundry.utils.flattenObject(changes ?? {}))); });
+        const read = {};
+        try {
+            await S.veilStore.whenHydrated();
+            await heldInvitations(() => M.openMurder({ killerId: killer.id, victimId: victim.id, openingTrait: "body" }));
+            await K.settleVeils();
+            await settle();
+            read.before = [M.murderState()?.stage ?? null, S.veilStore.has(killer.id), tokens().some(t => t._source.flags?.[MODULE_ID]?.veiled === true), K.veilMutedIds().has(kp.id)];
+            await M.resolveKillerOpening({ total: 1, isCritical: false, withHope: false });
+            await settle();
+            read.after = [M.murderState()?.active ?? null, S.veilStore.has(killer.id)];
+        } finally {
+            Hooks.off("updateToken", hook);
+            if (M.murderState()) await M.endMurder({ reason: "test", followUp: false });
+            if (S.veilStore.has(killer.id)) await S.veilStore.drop(killer.id);
+            for (const t of tokens()) if (t._source.flags?.[MODULE_ID]?.veiled !== undefined) await t.update(K.unveilPatch((await import("./utils.mjs")).forcedDeletion()));
+            await settle();
+        }
+        read.writes = writes.length;
+        equal(stableJson(read), stableJson({ before: ["openingRoll", false, false, false], after: [null, false], writes: 0 }),
+            "{before the roll: [the stage, a veil row, a token flagged veiled, the killer's player blocked]; after the failed roll: [an incident, a veil row]; writes: the writes to the killer's tokens over the run}");
+    }],
+    ["T1 D2-12 - a Hope opening outside an Eclipse puts the \"?\" on at once: the mask stands before the stage moves on (2.0 line T1; D2-12; scripts/murder-rules.mjs `resolveKillerOpening`, mask-gm.mjs `maskKiller`)", async () => {
+        /*
+         * 2.0 line T1, 27.11.2026 (D2-12: "przy udanym otwarciu (Hope albo krytyk) poza Eclipse maska "?" zakladana od razu,
+         * choc stol widzi zamiane"). An opening outside an Eclipse, its invitation held, scored on Hope. Read: whether the
+         * killer's tokens were masked by the time the incident's stage read "incident" (an `updateSetting` hook on the world
+         * half), the mask standing after, and no veil on the run. Nothing red to show at 07c93d1: the order is today's; the
+         * test holds it through MURDER-01.
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 2), "a killer and a victim, each with a player");
+        const M = await import("./murder.mjs");
+        const K = await import("./mask-gm.mjs");
+        const S = await import("./gm-stores.mjs");
+        const { livingStudents } = await import("./chapter.mjs");
+        const owner = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const [killer, victim] = livingStudents().filter(owner);
+        const tokens = () => game.scenes.contents.flatMap(scene => scene.tokens.filter(t => t.actorId === killer.id));
+        must(tokens().length > 0, `${killer.name} has no token - this would measure nothing`);
+        const atStage = [];
+        let veiled = false;
+        const hook = Hooks.on("updateSetting", setting => {
+            if (setting?.key !== `${MODULE_ID}.murderState`) return;
+            if (M.murderState()?.stage === "incident") atStage.push(tokens().every(t => K.isMaskedToken(t)));
+        });
+        const veilHook = Hooks.on("updateToken", doc => { if (doc.actorId === killer.id && doc._source.flags?.[MODULE_ID]?.veiled) veiled = true; });
+        const read = {};
+        try {
+            await heldInvitations(() => M.openMurder({ killerId: killer.id, victimId: victim.id, openingTrait: "body" }));
+            await K.settleVeils();
+            await M.resolveKillerOpening({ total: 20, isCritical: false, withHope: true });
+            await settle();
+            read.run = [atStage.length > 0 && atStage.every(Boolean), K.maskStands(killer.id), veiled];
+        } finally {
+            Hooks.off("updateSetting", hook);
+            Hooks.off("updateToken", veilHook);
+            if (M.murderState()) await M.endMurder({ reason: "test", followUp: false });
+            if (K.maskStands(killer.id)) await K.endMask(killer.id, "suite");
+            if (S.veilStore.has(killer.id)) await S.veilStore.drop(killer.id);
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ run: [true, true, false] }),
+            "{run: [every token masked when the stage read the fight, the mask standing after the roll, a token veiled on the way]}");
+    }],
+    ["T1 D2-08 - a failed opening whispers the victim once, naming nobody (2.0 line T1; D2-08, D2-10; scripts/murder-rules.mjs `resolveKillerOpening`)", async () => {
+        /*
+         * 2.0 line T1, 27.11.2026 (D2-08: "Gdy rzut otwarcia morderstwa sie nie uda, ofiara dostaje powiadomienie o probie";
+         * D2-10: "powiadomienie ofiary o nieudanej probie nie mowi, kto probowal"). A direct murder opened outside an Eclipse,
+         * its invitation held, its opening failed. Read: every packet this GM sends addressed to the victim's player that
+         * carries a card's words (secret.mjs `sendWords`: a veiled card's words travel so), the words' text, and whether any
+         * names the killer. Red at 07c93d1: none reached the victim.
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 2), "a killer and a victim, each with a player");
+        const M = await import("./murder.mjs");
+        const { livingStudents } = await import("./chapter.mjs");
+        const owner = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const [killer, victim] = livingStudents().filter(owner);
+        const vp = owner(victim);
+        const made = [];
+        const hook = Hooks.on("createChatMessage", m => made.push(m.id));
+        const lines = [];
+        const socket = game.socket;
+        const own = Object.getOwnPropertyDescriptor(socket, "emit");
+        const send = socket.emit;
+        socket.emit = function (event, packet, options, ...rest) {
+            if (packet?.action === "murder.openingAsk") return true;
+            if ((options?.recipients ?? []).includes(vp.id) && typeof packet?.html === "string") {
+                lines.push(packet.html.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim());
+            }
+            return send.call(this, event, packet, options, ...rest);
+        };
+        try {
+            await M.openMurder({ killerId: killer.id, victimId: victim.id, openingTrait: "body" });
+            await M.resolveKillerOpening({ total: 1, isCritical: false, withHope: false });
+            await settle();
+        } finally {
+            if (own) Object.defineProperty(socket, "emit", own); else delete socket.emit;
+            Hooks.off("createChatMessage", hook);
+            if (M.murderState()) await M.endMurder({ reason: "test", followUp: false });
+            for (const id of made) await game.messages.get(id)?.delete().catch(() => {});
+            await settle();
+        }
+        const said = game.i18n.localize("DRPG.Murder.victimAttemptFailed");
+        const told = lines.filter(line => line.includes(said));
+        equal(stableJson({ told: told.length, named: lines.some(line => line.includes(killer.name)), others: lines.length - told.length }),
+            stableJson({ told: 1, named: false, others: 0 }),
+            `{told: the words reaching the victim's player that are the attempt's notice; named: any of them naming the killer; others: any other words to them}: ${stableJson(lines)}`);
     }],
 ];
 

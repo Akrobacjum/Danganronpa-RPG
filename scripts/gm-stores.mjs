@@ -371,6 +371,16 @@ export const INCIDENT_FIGHT = Object.freeze([
  * null for an incident opened anywhere else. The GMs' alone: the roller is sent the die with the invitation, never its
  * cause, and every player's copy holds it null.
  *
+ * `atLights` (2.0 line T1 MURDER-01, 27.11.2026; the owner's D2-07): true for an incident the Eclipse's lights opened
+ * (eclipse.mjs `judgePendingMurders`), false for one opened anywhere else. The opening's veil stands only for the first
+ * (mask-gm.mjs `veilWanted`). The GMs' alone: every player's copy holds it null, as `watchDie`.
+ * `openingThrower` (2.0 line T1 MURDER-04, MURDER-11): `{ userId, at, openedAt }`, the GM throwing the opening for its
+ * player while that window stands (murder-rules.mjs `throwStanding`), null otherwise; a player is not invited while it
+ * stands and its GM is connected (`openingThrowerStands`). The GMs' alone, null in every player's copy.
+ * `question` (2.0 line T1 MURDER-09): `{ kind, openedAt, at, answeredBy, answer }`, the incident's question to every full
+ * GM - `spent` (the victim ran out with two killers) or `noKiller` (every killer fell) - written by the primary, answered
+ * "end" or "cancel" by the first GM (murder-rules.mjs `askIncidentQuestion`). The GMs' alone, null in every copy.
+ *
  * `freeCleanup` (E32+E07 C13, 03.10.2026; audit S04-07, the owner's D13): the actor id of
  * whoever struck a critical Finishing blow, until their first clean-up attempt in Stage 6
  * spends it (cleanup.mjs `consumeFreeCleanup`). Written with the stage that ends the fight,
@@ -395,7 +405,7 @@ export const INCIDENT_FIGHT = Object.freeze([
  * read out of the incident by `readCast` and `castCopyFor`.
  */
 export const CAST_FIELDS = Object.freeze([
-    "killerId", "killerTurnId", "victimId", "thirdId", "thirdSide", "departed", "openingTrait", "watchDie", "freeCleanup", "recent", "lastCrisis", "betrayal", "swung", ...INCIDENT_METHOD,
+    "killerId", "killerTurnId", "victimId", "thirdId", "thirdSide", "departed", "openingTrait", "watchDie", "atLights", "openingThrower", "question", "freeCleanup", "recent", "lastCrisis", "betrayal", "swung", ...INCIDENT_METHOD,
     ...INCIDENT_FIGHT,
     /* A GM's "Silence now" (E72 C8; the plan's A9 of 11.10): `{ [actorId]: true }` for a dead student whose voice leaves
        the room before the body is found (voice.mjs `deathVoiceGone`). Split, so two GMs silencing two students both stay;
@@ -681,6 +691,13 @@ export const projectSightCopy = defineGmCopy({
  * `pendingMurders`); the lights judge that Eclipse's rows and drop every other unjudged. In
  * the incident's reset group: a declaration nobody judged is an incident that has not
  * happened yet. No old key: the first rows come out of the world by `liftPendingMurders`.
+ *
+ * THE 2.0 LINE T1 FIELDS (27.11.2026): `verdict` - the lights' first step's judgement, `{ outcome, room, victimId, trait, n }`,
+ * `outcome` one of "open", "betrayal", "nobody", "witnesses", "second", "refused", "gone" (eclipse.mjs
+ * `judgePendingMurders`, EXP-PL-02, DAY-04); `lightsMark` - the time of day the second step began, the clock's mark
+ * (eavesdrop-gm.mjs `markNow`), which the primary's ready reads (`sweepLostDeclarations`, DAY-04); `receipt` - what paid
+ * a GM's own declaration, `{ grant }`, null for a player's (EXP-PL-07, `refundDeclaration`). A row stays until its
+ * second step has carried it out.
  */
 export const pendingMurderStore = defineGmStore({
     name: "pendingMurders", key: SETTINGS.pendingMurders,
@@ -1039,6 +1056,9 @@ export const watchStore = defineGmStore({
  * GM's discovery window, dropped by the discovery that announces its room or when its body is no longer one to find.
  * Synced, so the GM who becomes the primary asks it; backed up. Cut by the reset's "deaths" group, with the deaths it
  * waits on. No player copy: which body waits, and who saw it, is the GMs'.
+ * 2.0 line T1 MURDER-05: every full GM is asked, and the first answer is written on the row - `answeredBy` (the user),
+ * `answeredAt` (its browser's clock), `answer` ("announce" or "notYet") - by whichever GM gave it; another GM's window
+ * open on the row closes when it reads one younger than its own opening (body.mjs `bodyPromptAnsweredElsewhere`).
  */
 export const pendingBodyStore = defineGmStore({
     name: "pendingBodies", key: SETTINGS.gmPendingBodies,

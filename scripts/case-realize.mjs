@@ -21,7 +21,7 @@
  * row still names its own run - the later writer of the field wins on every GM (gm-store.mjs, a stamp per field), so
  * one of two runs stops before it places anything. Not a lock across a slow network: LIVE-E97-04.
  */
-import { esc, error, placeRoomOptions, primaryGmId, plural } from "./utils.mjs";
+import { esc, error, placeRoomOptions, primaryGmId, plural, activeGmIds } from "./utils.mjs";
 import { REALIZE_SCOPE, RECIPIENT_EVERYONE } from "./config.mjs";
 import { bodiesFoundIn } from "./settings.mjs";
 import { drpgWindow, tipAttr, tipText } from "./ui-kit.mjs";
@@ -317,7 +317,8 @@ export async function confirmUndoRealization({ chapter = keyPlan().chapter } = {
 }
 
 /**
- * THE QUESTION AT A BODY (C11; Q4: both roads, the primary GM alone, once a chapter). On the browser that wrote the
+ * THE QUESTION AT A BODY (C11; Q4: both roads, the primary GM alone, once a chapter - since 2.0 line T1 INV-06 the GM who
+ * announced it, `caseAskerId`, the primary for a walk-in or its own press). On the browser that wrote the
  * discovery (`writer`, the primary - body.mjs `runDiscovery` runs there on both roads), a payload not the suite's
  * rehearsal, a chapter with a case built (a schema row or a Key slot not yet on the map) whose realization has not
  * run and that was not asked yet: a small window, "Show the preview" or "Not now". Nothing is handed `waitUntil`: the
@@ -335,8 +336,22 @@ export function registerCaseAsk() {
     });
     Hooks.on(BODY_ANNOUNCED_HOOK, payload => {
         if (!payload?.writer || payload.rehearsal === true || !game.user?.isGM || game.user.id !== primaryGmId()) return;
+        // A second full GM's announcement is asked on its own browser (2.0 line T1 INV-06; body.mjs `discoverOnPrimary`).
+        if (caseAskerId({ announcer: payload.announcer ?? null }) !== game.user.id) return;
         setTimeout(() => { askAtBody(payload.chapter).catch(err => error("The case's question at a body failed", err)); }, 0);
     });
+}
+
+/**
+ * WHO ASKS THE CASE'S QUESTION AT A BODY (2.0 line T1 INV-06; the recommendation the owner took: "Pytanie u GM-a, ktory
+ * oglosil (payload.writer), por. MURDER-08"): the GM who announced it (`announcer`, the writer's payload - a second full GM
+ * whose announcement the primary carried out), while connected and a full Gamemaster; else the primary. The planned
+ * Autopsy stays the primary's (the hook above). Pure but for the users it is handed (R8931).
+ */
+export function caseAskerId({ announcer = null, primaryId = primaryGmId(), users = game.users } = {}) {
+    const user = announcer ? users?.get?.(announcer) : null;
+    // Connected and a GM by the one spelling of it (utils.mjs `activeGmIds`, R161), and a full Gamemaster.
+    return user && activeGmIds([user]).length && user.role === CONST.USER_ROLES.GAMEMASTER ? user.id : primaryId;
 }
 
 /** Whether `chapter` has something a realization would do and was not asked about (pure over the world's reads). */

@@ -257,6 +257,8 @@ export function registerGmBridge() {
                 import("./ask-withdraw.mjs").then(m => m.askerLeftOnPrimary(user)).catch(err => debug("Could not sign the cards of a player who left", err));
             }
             // A player's leave reaches this line before any return (line T1's place, MURDER-06; 2.0 line T2, 27.11.2026).
+            // A participant of a running incident who left (2.0 line T1 MURDER-06): the GMs told, the tracker marks it.
+            import("./murder-ui.mjs").then(m => m.noteParticipantLeft(user, connected)).catch(err => debug("Could not note a participant who left", err));
             // A GM who connects or leaves can move the primary (2.0 line T2, PRIM-03); one who connects is read again at
             // its bound, past which it counts as ready without its packet.
             if (user?.isGM) {

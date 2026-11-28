@@ -13,7 +13,7 @@ import { getClock } from "./clock.mjs";
 import { sameSeason, deathRecordFor, seasonEpoch, setBodyDiscovery, isDeadForGm, recordBodyFound, SETTINGS, bodiesFoundIn, pendingDeath, deadIn, bodyDiscovery } from "./settings.mjs";
 import { remnantsOn, remnantData, setRemnantFlagsMany } from "./remnants.mjs";
 import { studentActors } from "./monokuma.mjs";
-import { log, error, isPrimaryGm, hiddenByGm, primaryGmId, announce, whisperToGms, serverNow, plural, warn, esc, listOf, ownerIdsOf } from "./utils.mjs";
+import { log, error, isPrimaryGm, hiddenByGm, primaryGmId, announce, whisperToGms, serverNow, plural, warn, esc, listOf, ownerIdsOf, activeGmIds } from "./utils.mjs";
 import { drpgWindow, emptyOption, tipAttr } from "./ui-kit.mjs";
 import { keepLive } from "./live.mjs";
 import { pendingBodyStore, deathStore, bodyHeardStore } from "./gm-stores.mjs";
@@ -159,6 +159,7 @@ function enqueueBodyWork(work) {
  */
 export function discoverBody(options = {}) {
     if (!game.user.isGM || !options?.room) return Promise.resolve(null);
+    // `announcer` (2.0 line T1 MURDER-08): the second GM the bridge names (bridge-runs-records.mjs `handleBodyDiscover`).
     if (sentToPrimary()) return discoverOnPrimary(options);
     if (!discoveryHere()) return Promise.resolve(null);
     return enqueueBodyWork(() => runDiscovery(options));
@@ -177,7 +178,18 @@ async function discoverOnPrimary({ room, victim = null, scene = null } = {}) {
     const { bridgeRequest } = await import("./bridge-guards.mjs");
     const res = await bridgeRequest("body.discover", { room, victimId: victim?.id ?? null, sceneId: scene?.id ?? null },
         { settle: "reply", onPrimary: true, local: () => enqueueBodyWork(() => runDiscovery({ room, victim, scene })) });
-    return res.ok ? res.value ?? null : null;
+    const value = res.ok ? res.value ?? null : null;
+    /* THE QUESTIONS AFTER THE ANNOUNCEMENT ARE THE ANNOUNCER'S (2.0 line T1 MURDER-08, INV-06; the recommendation the owner
+       took: "Pytanie u GM-a, ktory oglosil cialo"). The primary ran the discovery and asked nothing of its own (`runDiscovery`
+       with this GM as `announcer`); its answer names what to ask here: the Faint Prep question (`askPromotion`) and the
+       case's question at a body (case-realize.mjs `askAtBody`). The one place this browser reads the answer. */
+    const here = askedHere(value);
+    if (here) {
+        void askPromotion(here);
+        import("./case-realize.mjs").then(m => m.askAtBody(here.chapter))
+            .catch(err => error("The case's question at a body failed", err));
+    }
+    return value;
 }
 
 /* THE DISCOVERY IS THE PRIMARY GM'S (E11 fix r1-G2, 1.2.73; round 1's sec F1 and goal K6). The
@@ -224,7 +236,7 @@ export async function deathAnnounced(actor) {
     return announcedAlready(actor, flagsHeldNow);
 }
 
-async function runDiscovery({ room, victim = null, scene = null, by = "gm" } = {}) {
+async function runDiscovery({ room, victim = null, scene = null, by = "gm", announcer = null } = {}) {
     if (!game.user.isGM || !room) return null;
     // The chapter and season the discovery happens in, read before anything is awaited: the
     // stamp is filed under these, whatever the clock reads by the time it is written (E11 C1).
@@ -309,8 +321,10 @@ async function runDiscovery({ room, victim = null, scene = null, by = "gm" } = {
        deaths are the table's, before the gather and the card, so a failure in either leaves the
        bodies known as found. Its `at` is the server's clock, as the trial's end it is compared
        with is (`bodyFoundSinceTrial`; E11 fix r1-G3). */
+    // The announcer rides the writer's own call of the hook (case-realize.mjs asks there), never the stamp.
+    const elsewhere = announcedElsewhere(announcer);
     await announceBody({ chapter: clock.chapter, epoch, at: serverNow(), room, sceneId: where?.id ?? null,
-        victimIds: victims, deaths, by, day: clock.day ?? 1, timeOfDay: clock.timeOfDay });
+        victimIds: victims, deaths, by, day: clock.day ?? 1, timeOfDay: clock.timeOfDay }, { announcer: elsewhere ? announcer : null });
 
     /* AND OF WHAT EACH OF THOSE DEATHS TIED, AND NOTHING ELSE (E09 fix r1-G1, 08.10.2026; the
        round-1 reviews' sec F8). C4 sent every tie of the chapter here, so a discovery sent the
@@ -386,8 +400,29 @@ async function runDiscovery({ room, victim = null, scene = null, by = "gm" } = {
        wait for each other (`promotionQueue`), so a second one lists only what the first left
        Faint (read in the code; no test drives two at once). Its own toast comes only when a trace was ticked. Tier 2 "the discovery card comes
        before the Prep question"; 65-season B1c on the witnesses' road. */
+    /* AT THE ANNOUNCER'S (2.0 line T1 MURDER-08): a second full GM who announced through the primary (`handleBodyDiscover`
+       hands its id, Foundry's sender, never a packet's field) is asked on its own browser - the answer carries where and
+       for which chapter (`discoverOnPrimary`) - and nothing opens here. */
+    if (elsewhere) return { moved, promotion: { room, chapter: clock.chapter } };
     const promotion = askPromotion({ room, chapter: clock.chapter });
     return { moved, promotion };
+}
+
+/**
+ * What the primary's answer to `body.discover` asks this browser (MURDER-08, INV-06): the `{ room, chapter }` of its
+ * `promotion`, or null - for `true`, the answer before 2.0, and for the local road's own result, whose `promotion` is
+ * the question it asked already (a promise, no room). Pure (R8931).
+ */
+export function askedHere(value) {
+    const here = value && typeof value === "object" ? value.promotion : null;
+    return here && typeof here === "object" && typeof here.then !== "function" && typeof here.room === "string" && here.room
+        && Number.isInteger(here.chapter) ? { room: here.room, chapter: here.chapter } : null;
+}
+
+/** Whether `announcer` is another connected full Gamemaster than this browser's user (MURDER-08, INV-06). */
+function announcedElsewhere(announcer) {
+    const user = announcer ? game.users.get(announcer) : null;
+    return Boolean(user && user.id !== game.user?.id && activeGmIds([user]).length && user.role === CONST.USER_ROLES.GAMEMASTER);
 }
 
 let promotionQueue = Promise.resolve(0);
@@ -492,7 +527,7 @@ async function publishFoundBodies(room, victim, scene, { clock = getClock(), epo
  * (`registerBodyAnnounced`), `writer: false`, with no `waitUntil`. A failed stamp calls nothing. The row is marked
  * seen before the write, so the stamp's `updateSetting` on this browser does not call it a second time.
  */
-export async function announceBody(row) {
+export async function announceBody(row, { announcer = null } = {}) {
     if (!game.user.isGM || !row) return null;
     const key = `${Number.isFinite(row.epoch) ? row.epoch : seasonEpoch()}:${row.chapter}`;
     const seen = announcedRowKey(key, { at: row.at, victimIds: [...new Set(row.victimIds ?? [])] });
@@ -508,7 +543,7 @@ export async function announceBody(row) {
         announcedSeen.delete(seen);
         return null;
     }
-    await callBodyAnnounced(bodyAnnouncedPayload(key, stamp), { writer: true });
+    await callBodyAnnounced({ ...bodyAnnouncedPayload(key, stamp), ...(announcer ? { announcer } : {}) }, { writer: true });
     return stamp;
 }
 
@@ -853,7 +888,12 @@ async function checkBodyFound(tokenDoc) {
        Who already knows of that death is `tellLoneFinder`'s to pass over (the
        row's `known`, the body's owners); `involved` stays the rule of two witnesses'. */
     if (witnesses.length === 1) {
-        await tellLoneFinder(witnesses[0].actor, scene, room);
+        const told = await tellLoneFinder(witnesses[0].actor, scene, room);
+        /* AND THE GMS ARE TOLD (2.0 line T1 EXP-GM-02; the recommendation the owner took: "Powiadomienie (gmPopup) dla GM-ow z
+           pokojem i imieniem znalazcy, gdy uczen sam znajdzie cialo"). Until 1.2.129 a lone finder was a line in the primary's
+           console. One card to the GMs, raised as a notice (popup.mjs `gmPopup`), when this walk told the finder something
+           new - once a finder and a body, by the death row's `known`, which `tellLoneFinder` reads. */
+        if (told.length) await tellGmsLoneFinder(witnesses[0].actor, room, told);
         return null;
     }
 
@@ -910,12 +950,24 @@ export function pendingBodyDiscoveries({ clock = getClock(), epoch = seasonEpoch
 
 /**
  * WHO MAY ANSWER THE PROMPT (1.2.113; the coordinator's brief: "Any full Gamemaster may answer ... An Assistant GM cannot
- * answer"). A full Gamemaster, and the primary - the one browser that announces a body (`discoveryHere`, E11 fix r1-G2),
- * which is a full Gamemaster whenever one is connected (utils.mjs `primaryGmId`). So the prompt waits while only an
- * Assistant GM is here, and opens on the full Gamemaster who becomes the primary. Pure but for the user list it is handed.
+ * answer"). Until 2.0 line T1 a full Gamemaster who was also the primary - the one browser that announced a body
+ * (`discoveryHere`). Since E128 a second full GM announces through the primary (`sentToPrimary`), so since 2.0 line T1
+ * MURDER-05 (the recommendation the owner took: "Okno "Uczniowie znalezli cialo" u wszystkich GM-ow; pierwsza odpowiedz
+ * rozstrzyga, pozostalym okno sie zamyka") every full Gamemaster is asked; an Assistant GM still is not. `primaryId` is
+ * no longer read, kept for the callers that hand it. Pure but for the user it is handed.
  */
-export function answersBodyPrompt(user, { primaryId = primaryGmId() } = {}) {
-    return Boolean(user?.isGM) && user.role === CONST.USER_ROLES.GAMEMASTER && user.id === primaryId;
+export function answersBodyPrompt(user, { primaryId: _primaryId = null } = {}) {
+    return Boolean(user?.isGM) && user.role === CONST.USER_ROLES.GAMEMASTER;
+}
+
+/**
+ * WHETHER ANOTHER GM ANSWERED A WAITING DISCOVERY AFTER THIS WINDOW OPENED (2.0 line T1 MURDER-05): the row gone (announced,
+ * or no body to find any more), or an answer on it (`answeredBy`, `answeredAt`) from another user, younger than `openedAt`.
+ * The window that reads true closes, and says who answered. Pure (R8930).
+ */
+export function bodyPromptAnsweredElsewhere(row, { openedAt = 0, userId = null } = {}) {
+    if (!row) return true;
+    return Boolean(row.answeredBy) && row.answeredBy !== userId && Number(row.answeredAt) >= Number(openedAt);
 }
 
 let askingPending = null;
@@ -929,9 +981,9 @@ let askingPending = null;
  * browser becomes the primary. One prompt at a time on a browser: a call while one is open answers that one's promise.
  * Rows that are no discovery any more are dropped first. Answers how many were announced.
  */
-export function askPendingBodies({ leaving = null } = {}) {
+export function askPendingBodies({ leaving = null, fresh = false } = {}) {
     if (!game.user?.isGM || !answersBodyPrompt(game.user, { primaryId: primaryGmId({ leaving }) })) return Promise.resolve(0);
-    askingPending ??= promptPendingBodies().catch(err => {
+    askingPending ??= promptPendingBodies({ fresh }).catch(err => {
         error("Could not ask the GM about a body found", err);
         return 0;
     }).finally(() => { askingPending = null; });
@@ -946,20 +998,23 @@ export function askPendingBodies({ leaving = null } = {}) {
  * row written meanwhile is asked in the same prompt; a row answered "Not yet" is not asked twice by one prompt. Red at
  * 21bf5d18 (tier 2 "1.2.122 CTRL-34"): one window for two discoveries.
  */
-async function promptPendingBodies() {
+async function promptPendingBodies({ fresh = false } = {}) {
     const { flagsHeldNow } = await import("./sheet-audit.mjs");
     const asked = new Set();
     const nextRow = async () => {
         const rows = pendingBodyDiscoveries({ held: flagsHeldNow });
         const live = new Set(rows.map(r => r.key));
+        // The primary sweeps the rows that are no discovery any more (one writer); any other GM only reads.
         const stale = Object.keys(pendingBodyStore.entries() ?? {}).filter(key => !live.has(key));
-        if (stale.length) await pendingBodyStore.dropMany(stale);
-        return rows.find(r => !asked.has(r.key)) ?? null;
+        if (stale.length && isPrimaryGm()) await pendingBodyStore.dropMany(stale);
+        // A store's change asks only what nobody has answered yet (2.0 line T1 MURDER-05); a load, a GM leaving, asks all.
+        return rows.find(r => !asked.has(r.key) && !(fresh && pendingBodyStore.get(r.key)?.answeredBy)) ?? null;
     };
     let announced = 0;
     for (let row = await nextRow(); row; row = await nextRow()) {
         asked.add(row.key);
-        if (!pendingBodyStore.has(row.key) || !isPrimaryGm()) continue;
+        // Every full GM asks (MURDER-05); the announcement is carried to the primary by `discoverBody` on another GM.
+        if (!pendingBodyStore.has(row.key)) continue;
         const body = game.actors.get(row.victimId);
         /* WHERE THE BODY LIES NOW (E59 on the 1.2.115 line, CHAINS.md B-M2; R7174): the row keeps the room the witnesses saw
            it in, and a Move the Body in Stage 6 does not touch the row - the card and the gather named the old room. The
@@ -967,9 +1022,14 @@ async function promptPendingBodies() {
         const lies = body ? bodyPlaceOf(body, { held: flagsHeldNow }) : null;
         const room = lies?.room ?? row.room;
         const names = listOf(row.witnessIds.map(id => game.actors.get(id)?.name).filter(Boolean));
+        /* THE FIRST ANSWER SETTLES IT (2.0 line T1 MURDER-05). Every full GM's window opens on the row; the one that answers
+           writes it on the row (`answeredBy`, `answeredAt`, `answer`), and every other window open on it closes when the
+           row changes so (`bodyPromptAnsweredElsewhere`) - or goes - with a line naming who answered. */
+        const openedAt = Date.now();
+        let closedBy = null, watching = null;
         const answer = await drpgWindow({
             title: game.i18n.localize("DRPG.Chapter.pendingTitle"),
-            classes: ["drpg-panel"],
+            classes: ["drpg-panel", "drpg-body-pending"],
             body: `<p>${game.i18n.format("DRPG.Chapter.pendingBody", { names: esc(names), name: esc(body?.name ?? "?"), room: esc(room) })}</p>
                 <p class="notes">${game.i18n.localize("DRPG.Chapter.pendingNote")}</p>`,
             footer: {
@@ -977,8 +1037,30 @@ async function promptPendingBodies() {
                 close: { action: "close", label: game.i18n.localize("DRPG.Chapter.pendingNotYet") },
                 default: "close"
             },
+            render: (event, dialog) => {
+                if (watching !== null) return;
+                const key = `${MODULE_ID}.${pendingBodyStore.spec.key}`;
+                watching = Hooks.on("clientSettingChanged", changed => {
+                    if (changed !== key || closedBy) return;
+                    const now = pendingBodyStore.get(row.key) ?? null;
+                    if (!bodyPromptAnsweredElsewhere(now, { openedAt, userId: game.user.id })) return;
+                    closedBy = now?.answeredBy ?? "gone";
+                    dialog.close().catch(err => error("Could not close a body's window another GM answered", err));
+                });
+            },
             rejectClose: false
         });
+        if (watching !== null) Hooks.off("clientSettingChanged", watching);
+        if (closedBy) {
+            const who = game.users.get(closedBy)?.name ?? null;
+            if (who) ui.notifications.info(game.i18n.format("DRPG.Body.answeredElsewhere", { gm: who, room }));
+            continue;
+        }
+        // The answer on the row, for the other GMs' windows (and so that a store's change does not ask it again).
+        if (pendingBodyStore.has(row.key)) {
+            await pendingBodyStore.patch(row.key, { answeredBy: game.user.id, answeredAt: Date.now(), answer: answer === "announce" ? "announce" : "notYet" })
+                .catch(err => error("Could not write a body's answer on its row", err));
+        }
         if (answer !== "announce") continue;
         // Announced meanwhile by another road (the discovery window's own), the row dropped: said, not silent (REFR-39).
         if (!pendingBodyStore.has(row.key)) {
@@ -1010,6 +1092,12 @@ export function bodyCandidates(actors, { dead = isDeadForGm } = {}) {
 export function registerPendingBodies() {
     onGmStoresHydrated(() => {
         if (!gmStoresQuiet()) void askPendingBodies();
+    });
+    // A row another GM's browser wrote (the primary's walk check) reaches every full GM (2.0 line T1 MURDER-05): asked of
+    // what nobody has answered yet, not while the suite holds the stores.
+    Hooks.on("clientSettingChanged", key => {
+        if (key !== `${MODULE_ID}.${pendingBodyStore.spec.key}` || !game.user?.isGM || gmStoresQuiet()) return;
+        void askPendingBodies({ fresh: true });
     });
     Hooks.on("userConnected", (user, connected) => {
         if (!connected && user?.isGM && game.user?.isGM && user.id !== game.user.id) void askPendingBodies({ leaving: user.id });
@@ -1122,16 +1210,29 @@ async function heardByEveryone(bodyIds) {
     }
 }
 
+/** The GMs' card of a lone finder (2.0 line T1 EXP-GM-02): the finder, the room and each body's name, a notice on every GM's screen. */
+async function tellGmsLoneFinder(finder, room, bodies) {
+    try {
+        const title = game.i18n.localize("DRPG.Body.loneFinderTitle");
+        await whisperToGms(`<p>${game.i18n.format("DRPG.Body.loneFinderGm", {
+            finder: esc(finder?.name ?? "?"), name: esc(listOf(bodies)), room: esc(room ?? "-") })}</p>`,
+        { flags: { [MODULE_ID]: { gmPopup: true, popupTitle: title } } });
+    } catch (err) {
+        error("Could not tell the GMs that a student found a body alone", err);
+    }
+}
+
 /**
  * THE LONE FINDER (E05 C10; the owner's Q1, 26.09.2026). The finder's player is added to the
  * `known` of every body nobody has found lying in `room`, sent their copy, and told by an
  * addressed packet - no chat message, which every console would receive. Once per body: a
- * player who already knows is told nothing again. Answers how many bodies they learnt of.
+ * player who already knows is told nothing again. Answers the names of the bodies they learnt of (since 2.0 line T1:
+ * the GMs' card names them; until then their count).
  */
 async function tellLoneFinder(finder, scene, room, { company = false } = {}) {
     // Every player who owns the finder (E91 C6, D078): a co-owner shares its sheet and its screen's marks.
     const users = ownerIdsOf(finder).map(id => game.users.get(id)).filter(Boolean);
-    if (!users.length) return 0;
+    if (!users.length) return [];
     const { roomOfToken } = await import("./movement.mjs");
     const { knowsOfDeath, tellDeaths, tellFinder } = await import("./murder.mjs");
     const found = [];
@@ -1144,11 +1245,11 @@ async function tellLoneFinder(finder, scene, room, { company = false } = {}) {
         await deathStore.patch(id, { known: [...new Set([...(Array.isArray(row.known) ? row.known : []), ...fresh.map(u => u.id)])] });
         found.push([t, fresh]);
     }
-    if (!found.length) return 0;
+    if (!found.length) return [];
     tellDeaths([...new Set(found.flatMap(([, fresh]) => fresh.map(u => u.id)))]);
     for (const [t, fresh] of found) for (const user of fresh) tellFinder(user.id, t, room, { company });
     log(`${finder.name} found ${found.map(([t]) => t.name).join(", ")} alone in ${room}; their player(s) were told privately.`);
-    return found.length;
+    return found.map(([t]) => t.actor?.name ?? t.name);
 }
 
 /** The body-discovery announcement, from the case dashboard's footer. */

@@ -12,8 +12,10 @@
  *     (gm-stores.mjs `maskStore`), never in a flag or a world setting, and written back at the end (`restorePatch`).
  *     The Actor's portrait wears the same "?" since E112 item 2b, kept on the row and written back (`portraitOf`,
  *     `portraitBack`; the audit's D271 of 1.2.122: this header did not say so).
- *     A GM's browser, and a Spectator's (the coordinator's default: a Spectator sees through it, as it sees secret
- *     projects), draws the character's own name over the "?" (`drawMaskName`), from the documents it already holds.
+ *     A GM's browser draws the character's own name over the "?" (`drawMaskName`), from the documents it already holds.
+ *     Until 2.0 line T1 a Spectator's did too (the coordinator's default of E69: "a Spectator sees through it, as it sees
+ *     secret projects"); since MURDER-03 (the recommendation the owner took: "Zmarly widzi "?" jak wszyscy (bez imienia)")
+ *     no Spectator's browser does - a dead student, a Spectator's account, a Monocub (the line's default P4).
  *   - THE VOICE. The killer is sent to a silent room of their own (voice.mjs `maskedRow`; the coordinator's answer of
  *     13.11: a name in the victim's voice list would defeat the mask), so they neither speak to the room nor hear it and
  *     no list there names them; and their account is blocked by C6's block with one more reason (`settleTrialVoices`,
@@ -27,11 +29,15 @@
  *     bridge road `mask.reveal`.
  *
  * WHEN IT ENDS: the reveal, or a new time of day (`drpgTimeOfDayChanged`), whichever comes first; the season's reset cuts
- * the store; and, since 1.2.128, the incident's end, whoever died, and the killer leaving the room the mask went up in
+ * the store; and, since 1.2.128, the incident's end and the killer leaving the room the mask went up in
  * (`endMasksAtClose`, `maskLeftRoom`). Until then the incident's own end did not end it (a default,
  * docs/dev/e69/STATUS.md); the owner, at the table of 22.11.2026: "po przerwaniu morderstwa morderca dalej mial ? i
  * wyciszenie (modul nie ujawnil go automatycznie)", and on 23.11: "Zawsze zdejmujemy maske na koniec incydentu
- * morderstwa (po sprzataniu) lub po opuszczeniu pokoju".
+ * morderstwa (po sprzataniu) lub po opuszczeniu pokoju". The incident's end ends it only where the victim died, since 2.0
+ * line T1 (MURDER-02; the owner's D2-06 of 26.11.2026: "Gdy ofiara przezyla incydent, maska zabojcy zostaje do konca pory
+ * dnia albo do wyjscia zabojcy z pokoju, cokolwiek nastapi pierwsze"): a victim who lived stood in the room with the
+ * killer and watched the "?" turn into a face as the incident closed (`maskEndsAtClose`). The rest of the mask's rule
+ * stands for the time after it - the silent voice room among it (the owner's P5 default).
  *
  * WHAT IT CANNOT HIDE (Foundry's limit, recorded by 30-security's note): a token document keeps its `actorId`, so a
  * console can still read `game.actors.get(token.actorId).name` (it needs a console, not the interface). LIVE-E69-05 reads it at a
@@ -39,7 +45,7 @@
  */
 
 import { MODULE_ID } from "./config.mjs";
-import { SETTINGS } from "./settings.mjs";
+import { SETTINGS, isDeadForGm } from "./settings.mjs";
 import { isPrimaryGm, log, error, whisperToOwnerOnly, esc, forcedDeletion } from "./utils.mjs";
 import { maskStore, veilStore } from "./gm-stores.mjs";
 import { count } from "./perf-counters.mjs";
@@ -295,9 +301,13 @@ function maskFailed(actor, err) {
 /**
  * THE MASKS OF AN INCIDENT THAT ENDED (1.2.128, S0-MASKLEFT; the owner, 23.11.2026: "Zawsze zdejmujemy maske na koniec
  * incydentu morderstwa (po sprzataniu) lub po opuszczeniu pokoju"). On the primary, after the close's wipe
- * (murder-rules.mjs `closeIncident`): every one of `killerIds` whose mask stands is ended (`endMask`, "incidentEnd"),
- * whoever died - a dead killer's too, the owner deciding it knowing that its "?" comes off a body nobody has found (the
- * line's report says what that shows). Not a killer an incident running now names: the close of one incident does not
+ * (murder-rules.mjs `closeIncident`): every one of `killerIds` whose mask stands is ended (`endMask`, "incidentEnd")
+ * where its victim died - a dead killer's too, the owner deciding it knowing that its "?" comes off a body nobody has
+ * found (the line's report says what that shows). WHERE THE VICTIM LIVED IT STANDS (2.0 line T1 MURDER-02; the owner's
+ * D2-06: "Gdy ofiara przezyla incydent, maska zabojcy zostaje do konca pory dnia albo do wyjscia zabojcy z pokoju,
+ * cokolwiek nastapi pierwsze"): an escape, Survive, a crowding out, the GM's End before a death - the victim read off
+ * the mask's row and the GMs' deaths (`isDeadForGm`), so a second GM's close, asked of the primary, is judged the same
+ * (`maskEndsAtClose`). Not a killer an incident running now names: the close of one incident does not
  * end the mask of the next. A second GM's close asks the primary (`mask.veil`, "unmask"), held there to its own rows,
  * whatever the packet names. Answers how many masks ended. Tier 2 "1.2.128 S0-MASKLEFT".
  *
@@ -313,10 +323,26 @@ export async function endMasksAtClose(killerIds = [], { quiet = false } = {}) {
     const running = murderState()?.active ? killersOf(murderState()) : [];
     let n = 0;
     for (const id of new Set((Array.isArray(killerIds) ? killerIds : []).filter(id => typeof id === "string"))) {
-        if (!maskStore.get(id) || running.includes(id)) continue;
+        const row = maskStore.get(id);
+        if (!row || running.includes(id)) continue;
+        // The victim the mask went up for, as the GMs hold their death (D2-06): the row names them (`maskKiller`).
+        const victim = game.actors.get(row.victimId ?? "");
+        if (!maskEndsAtClose({ victimAlive: Boolean(victim) && !isDeadForGm(victim), quiet })) continue;
         if (await endMask(id, quiet ? "abandoned" : "incidentEnd")) n++;
     }
     return n;
+}
+
+/**
+ * WHETHER AN INCIDENT'S CLOSE ENDS ITS KILLER'S MASK (2.0 line T1 MURDER-02; the owner's D2-06): not while the victim lives
+ * - the mask then stands to the end of the time of day or until the killer leaves the room, whichever comes first
+ * (`masksAtNewTimeOfDay`, `endMasksBeforeTheBoard`, `maskLeftRoom`, unchanged) - and so the killer is told no
+ * `DRPG.Mask.endedIncident` either; yes where the victim died, after Stage 6's clean-up, as the owner's rule of 23.11.2026
+ * said; and yes, quietly, when the season's reset abandons the incident (`quiet`). Pure (R8922).
+ */
+export function maskEndsAtClose({ victimAlive = false, quiet = false } = {}) {
+    if (quiet) return true;
+    return !victimAlive;
 }
 
 /**
@@ -437,9 +463,13 @@ async function retell() {
  * start of the time of day the murder is declared in; the killer told in one line.
  *
  *   - WHO: a direct murder's killers (`veilWanted`: the killer, and a third seated on the killers' side, `thirdSide`),
- *     while the incident waits on its opening (`openingRoll`). A trap and a self-inflicted death have none.
- *   - WHEN IT BEGINS: at the open (murder-rules.mjs `openMurder` writes the stage, and `settleVeils` follows every write
- *     of the incident); for a murder declared in an Eclipse, as the Eclipse ends and before its lights show anyone
+ *     while the incident waits on its opening (`openingRoll`). A trap and a self-inflicted death have none - and, since
+ *     2.0 line T1 MURDER-01 (the owner's D2-07 of 26.11.2026: "Poza Eclipse token zabojcy nie znika na czas rzutu
+ *     otwarcia. Przy porazce nic sie na mapie nie zmienia"), neither has an incident opened outside an Eclipse's lights:
+ *     the murder window's, a ruling card's or the console's open. There the token stays where the room saw it, and a
+ *     Hope or critical opening puts the "?" on over it at once (D2-12), the table seeing the change.
+ *   - WHEN IT BEGINS: only for a murder declared in an Eclipse (the incident's `atLights`, murder-rules.mjs `openMurder`),
+ *     as the Eclipse ends and before its lights show anyone
  *     (eclipse.mjs `endEclipse`, `veilAtTheLights`): a row of `why: "lights"` for every killer the lights will judge,
  *     kept while they judge and taken over by the incident that opens, or lifted if none does. The declaration itself
  *     is in the dark: an Eclipse hides every player's token from every other (visibility.mjs `tokenShownTo`).
@@ -481,10 +511,11 @@ export function isVeiledToken(token) {
 /**
  * Whom the opening of `state` veils: a direct murder's killers, while it waits on the opening - the killer, and a third
  * seated on the killers' side (incident-store.mjs `killerIds`' rule). None for a trap, a self-inflicted death, any other
- * stage. Pure (R7405).
+ * stage, and since 2.0 line T1 MURDER-01 none for an incident the Eclipse's lights did not open (`atLights`, the owner's
+ * D2-07): outside an Eclipse the killer's token stays on the map through the opening. Pure (R7405, R8920).
  */
 export function veilWanted(state) {
-    if (!state?.active || state.stage !== "openingRoll" || state.indirect || state.selfInflicted) return [];
+    if (!state?.active || state.stage !== "openingRoll" || state.indirect || state.selfInflicted || state.atLights !== true) return [];
     return [...new Set([state.killerId, state.thirdSide === "killer" ? state.thirdId : null].filter(Boolean))];
 }
 
@@ -801,12 +832,14 @@ export async function requestReveal(actor = myMask()) {
     return Boolean(res.ok);
 }
 
-/** On a GM's and a Spectator's canvas: the character's own name over a masked token (the documents they hold). */
-function drawMaskName(token) {
+/**
+ * On a GM's canvas: the character's own name over a masked token (the documents it holds). Not a Spectator's since 2.0 line
+ * T1 MURDER-03 (the header): a dead victim reads "?" as everyone does. `gm` handed by the suite (R8927).
+ */
+export function drawMaskName(token, { gm = Boolean(game.user?.isGM) } = {}) {
     try {
         if (!isMaskedToken(token?.document)) return;
-        const sees = game.user?.isGM || isSpectatorViewer();
-        if (!sees || !token.nameplate) return;
+        if (!gm || !token.nameplate) return;
         token.nameplate.text = `? (${token.document.actor?.name ?? ""})`;
         token.nameplate.visible = true;
     } catch (err) {
@@ -867,10 +900,7 @@ export function seenHere(actors, options = {}) {
     return (actors ?? []).filter(a => !veiledFromHere(a, options));
 }
 
-let spectatorViewerOf = () => false;
-const isSpectatorViewer = () => spectatorViewerOf();
-
-/** At ready: the primary's end at a new time of day, the GMs' and Spectators' names, the killer's question. */
+/** At ready: the primary's end at a new time of day, the GMs' names over the "?", the killer's question. */
 export function registerMasks() {
     Hooks.on("drpgTimeOfDayChanged", () => {
         if (isPrimaryGm()) masksAtNewTimeOfDay().catch(err => error("The masks could not end with the time of day", err));
@@ -888,7 +918,6 @@ export function registerMasks() {
     });
     // A token made while a mask or a veil stands joins it (E112, `adoptToken`).
     Hooks.on("createToken", tokenDoc => { if (isPrimaryGm()) adoptToken(tokenDoc).catch(err => error("Could not mask or veil a new token", err)); });
-    import("./spectator.mjs").then(m => { spectatorViewerOf = () => Boolean(m.spectatorViewer?.()); }).catch(() => {});
     // The veil's verdict for this browser's pickers (`seenHere`): the token's own rule, by `import()` as the Spectator's above.
     import("./visibility.mjs").then(m => { shownHere = doc => m.tokenShownTo(doc, m.viewerHere(d => Boolean(d?.isOwner))); }).catch(() => {});
     // By `import()`: secret.mjs is reached from gm-stores.mjs (through notice-history.mjs), which this file imports.

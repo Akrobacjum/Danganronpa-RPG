@@ -414,11 +414,14 @@ export async function performDirectMurder(actor, def, options) {
         prompt: game.i18n.localize("DRPG.Action.murderPromptParked"),
         placeholder: game.i18n.localize("DRPG.Action.placeholder.directMurder"),
         traits: listedTraits({ kind: "opening", key: "killer" }),
-        brief: briefingBlock(actor, "directMurder", def)
+        brief: briefingBlock(actor, "directMurder", def),
+        // Paid already: closing sends it with no note, and the window says so (2.0 line T1 DAY-08).
+        closeSends: true
     });
 
     const { parkDirectMurder } = await import("./eclipse.mjs");
-    const parked = await parkDirectMurder({ killerId: actor.id, room, note, proposed });
+    // The spend's receipt (2.0 line T1 EXP-PL-07): a refusal gives the action back; kept by a GM's own declaration alone.
+    const parked = await parkDirectMurder({ killerId: actor.id, room, note, proposed, receipt: paid && typeof paid === "object" ? paid : null });
     if (!parked) {
         // The GM went away between the check and the write. Nothing was
         // declared, so nothing is owed - and a Burst that paid comes back as one.

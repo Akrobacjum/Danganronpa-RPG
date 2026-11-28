@@ -9833,6 +9833,7 @@ const REGRESSIONS = [
             ["SHEET vault-store.mjs#repointDeadKey", "out of scope as a reader (H84): `itemsHeldNow` inside `grantKeyNow`'s step, after its `judgedFor`; for the room's owner alone it points their one dead key at the room (`trustedWrite`, `setup`), no new road"],
             ["SHEET murder-rules.mjs#registerMurder", "judged where it acts: the `updateToken` hook runs on the primary (`maybeBodyFound` -> `checkBodyFound`); its `isDeadForGm`/resources reads are the incident's (E05). E11 C1 changed only the discovery it calls, whose walk-in tier 2 measures (\"a living convict the verdict executes after End the trial is no body to find\", \"a student revived and killed again in the chapter is found again - once\") and 65-season's B"],
             ["SHEET murder-rules.mjs#closeIncident", "out of scope as a reader (`isDeadForGm` of the victim, E05). C9 adds `conclude: false` for the reset only: the self-inflicted kill, ties, register, broken tool, case keys and the close's card are skipped [3.1] (E11 C9)"],
+            ["SHEET eclipse.mjs#sweepLostDeclarations", "judged on the primary (2.0 line T1 DAY-04): at its ready, a parked declaration of an Eclipse no longer running is dropped and its killer told and refunded (`loseDeclaration`), or opened where the lights' answer stands for this hour and both are alive as the GMs hold them (`isDeadForGm`); it reads the GMs' rows (`pendingMurderStore`), not a player's write; tier 2 \"T1 DAY-04 - an unjudged row of an ended Eclipse ...\" [1b.2]"],
             ["SHEET settings.mjs#deathRecordFor", "out of scope: the GM's record (flag or `deaths` row); since E11 C1 it answers the row's `phase` and `epoch` too, since fix r1-G1 its `deathId` (the death a discovery's stamp names, `announcedIn`), and C12's `sameSeason` reads `epoch` (E11 C12)"],
             ["STORE settings.mjs#bodyFound", "not a source: a world setting only a GM writes (`setBodyDiscovery`); since E11 C2 its freshness compares the chapter, the day and the time of day (`holdFreshAt`, R350). since E11 C3 `startEclipse` refuses while it is set"],
             ["STORE settings.mjs#bodiesFound", "not a source: a world setting (`config: false`) only a GM writes (`recordBodyFound`), whose one caller is `announceBody` (R349); cut by the reset's `bodyFound` group (E11 C1)"],
@@ -23537,7 +23538,7 @@ const REGRESSIONS = [
             ["gm-team-dialog.mjs", "wireMonokumaLive", "E46", 1, 0, 0], ["room-setup.mjs", "roomSetupContent", "E46", 2, 2, 0],
             ["season-wipe.mjs", "resetSeason", "E46", 2, 0, 0], ["tables-editor.mjs", "wireNewItemForm", "E46", 2, 0, 0],
             ["gm-panel.mjs", "buildPanelContent", "E47", 1, 0, 0], ["gm-stores.mjs", "backupCase", "E47", 1, 0, 0], ["gm-stores.mjs", "runHealthCheck", "E47", 0, 0, 0],
-            ["investigation.mjs", "caseKeyPanel", "E47", 2, 0, 0], ["murder-ui.mjs", "openMurderDialog", "E47", 2, 1, 0], ["murder-ui.mjs", "incidentTrackerHtml", "E47", 1, 0, 0],
+            ["investigation.mjs", "caseKeyPanel", "E47", 2, 0, 0], ["murder-ui.mjs", "openMurderDialog", "E47", 2, 1, 0], ["murder-ui.mjs", "incidentTrackerHtml", "E47", 2, 0, 0],
             ["projects-ui.mjs", "guardDescription", "E47", 1, 0, 0], ["projects-ui.mjs", "ownedFieldset", "E47", 1, 0, 0], ["projects-ui.mjs", "passageFieldset", "E47", 1, 0, 0],
             ["trial-floor-ui.mjs", "endClassTrial", "E47", 1, 1, 0], ["trial-floor-ui.mjs", "confirmReveal", "E47", 1, 0, 0],
             ["trial-floor-ui.mjs", "trialConsoleHtml", "E47", 2, 3, 0], ["trial-floor-ui.mjs", "openVoteDialog", "E47", 2, 2, 0],
@@ -23623,7 +23624,7 @@ const REGRESSIONS = [
             // 2.0 line T4 (EXP-GM-08, 27.11.2026): Monokuma's announcement to a room and to a student, each a `chatCard(...)` built
             // before its thread post (built); the school's card is a ChatMessage the census does not read as a poster.
             "announce.mjs": {"built": 2},
-            "anonymity.mjs": {"card": 2}, "body.mjs": {"card": 1, "message": 1}, "bridge-runs-acts.mjs": {"card": 1},
+            "anonymity.mjs": {"card": 2}, "body.mjs": {"card": 1, "line": 1, "message": 1}, "bridge-runs-acts.mjs": {"card": 1},
             "bridge-runs-records.mjs": {"action": 1, "message": 1},
             "call-effects.mjs": {"action": 2, "card": 1, "message": 1}, "call-gm.mjs": {"built": 1},
             "call-world.mjs": {"message": 3}, "calls.mjs": {"heading": 1, "message": 2},
@@ -23638,7 +23639,8 @@ const REGRESSIONS = [
             // E59 on the 1.2.115 line (CHAINS.md B-H3, B-H2; R7180): eclipse.mjs `endEclipse`'s public end card during an incident
             // (a `message`, as the end without advancing), and overflow.mjs `announceOverflow`'s card built once and either
             // announced or whispered veiled to the incident's audience (a `built`).
-            "eavesdrop-gm.mjs": {"card": 1}, "eclipse.mjs": {"action": 3, "heading": 1, "line": 3, "message": 3},
+            // 2.0 line T1 D2-28 (28.11.2026): eclipse.mjs `awaitOpening`'s line to the GMs that the lights wait (a `line`).
+            "eavesdrop-gm.mjs": {"card": 1}, "eclipse.mjs": {"action": 3, "heading": 1, "line": 6, "message": 3},
             "enforced.mjs": {"line": 3}, "facilities-gm.mjs": {"card": 2}, "fog.mjs": {"line": 1}, "frisk.mjs": {"built": 7, "message": 2},
             "gm-items.mjs": {"action": 1, "heading": 2},
             // 1.2.122 line TEXT (TEXT-32): the missing answer key's one send to the owner and the GMs is two, the owner's and the GMs'
@@ -23666,7 +23668,10 @@ const REGRESSIONS = [
             /* 1.2.127 (line UI, OWNER-127-CENTRE): four of murder-rules.mjs's `announce({ content, whisper })` - the crisis
                card, its hidden copy and the opening's score - ask for the middle through notice-centre.mjs `withCentre`
                (built), as they were messages before. */
-            "murder-rules.mjs": {"action": 1, "built": 4, "card": 6, "heading": 3, "line": 9, "message": 4},
+            // 2.0 line T1 D2-08: murder-rules.mjs +1 line (a failed opening's one sentence to its victim, `tellVictimTheAttemptFailed`);
+            // body.mjs +1 line (EXP-GM-02, `tellGmsLoneFinder`); murder-rules.mjs +1 line (MURDER-14, `tellKillersStageSix`) and +1
+            // (MURDER-04, `tellOwnersGmThrows`); murder-ui.mjs +1 line (MURDER-06, `noteParticipantLeft`).
+            "murder-rules.mjs": {"action": 1, "built": 4, "card": 6, "heading": 3, "line": 12, "message": 4}, "murder-ui.mjs": {"line": 1},
             "music.mjs": {"card": 1}, "observe.mjs": {"card": 4, "heading": 1, "line": 3},
             "overflow.mjs": {"built": 1, "message": 2}, "palm.mjs": {"built": 2, "line": 2}, "passages-gm.mjs": {"line": 4},
             "price.mjs": {"line": 2}, "private-rolls.mjs": {"message": 1}, "projects-map.mjs": {"card": 1, "line": 1},
@@ -27916,6 +27921,22 @@ const REGRESSIONS = [
             "{fitMin; fit: an 8000x2000 case in a 1000x400 view; tiny: one past the 5% floor; floor: the window's floor for it; smallFloor: a case that fits at 40%; unknownFloor: sizes not laid out; outAtFit, inFromFit: a step out and in from the fit; keptByApply: the clamp of the fit; transform; road: [wireCaseCamera asks the floor, fits the canvas to the box, zooms (buttons, keys, wheel) to the floor, clamps each apply to it, draws it]; readout: the toolbar's percent reads below 25%}");
     }],
     // T4 voice-ui-text-infra-tests (2.0 line T4, E134, 27.11.2026: docs/dev/v2/LINE-T4.md). The line's tests stand in this block.
+    // T1 murder-death-eclipse
+    ["R8920 - the opening's veil stands only for an incident the Eclipse's lights opened (2.0 line T1 MURDER-01, D2-07; scripts/mask-gm.mjs `veilWanted`): a direct murder waiting on its opening veils nobody when it was opened outside an Eclipse, and its killer and a third on the killers' side when the lights opened it (`atLights`)", async () => {
+        /*
+         * 2.0 line T1, 27.11.2026 (MURDER-01; the owner's D2-07: "Poza Eclipse token zabojcy nie znika na czas rzutu
+         * otwarcia. Przy porazce nic sie na mapie nie zmienia"). Pure, over plain incidents. Red at 07c93d1: the open
+         * from the murder window's road (no `atLights`) read ["K"].
+         */
+        const K = await import("./mask-gm.mjs");
+        must(typeof K.veilWanted === "function", "mask-gm.mjs has no veilWanted - this would measure nothing");
+        const base = { active: true, stage: "openingRoll", killerId: "K", victimId: "V", thirdId: "T", thirdSide: "killer", indirect: false, selfInflicted: false };
+        equal(JSON.stringify([K.veilWanted(base), K.veilWanted({ ...base, atLights: false }), K.veilWanted({ ...base, atLights: true }),
+            K.veilWanted({ ...base, atLights: true, thirdSide: "victim" }), K.veilWanted({ ...base, atLights: true, stage: "incident" }),
+            K.veilWanted({ ...base, atLights: true, indirect: true })]),
+        JSON.stringify([[], [], ["K", "T"], ["K"], [], []]),
+        "[outside an Eclipse, atLights false, at the lights with a third on the killers' side, a third on the victim's, the fight's stage, a trap at the lights]");
+    }],
 ];
 
 

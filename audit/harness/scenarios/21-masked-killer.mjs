@@ -190,7 +190,9 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl }) {
         return true;`);
     const mountedBefore = await p1.eval(MOUNTED);
     await p3.eval(`globalThis.__forceRoll = { hope: 11, fear: 5 }; ` + HOLD);
-    await gm.eval(`await game.drpg.openMurder({ killerId: "${ids.chie}", victimId: "${ids.aiko}", openingTrait: "body" }); return true;`, { timeout: 60000 });
+    /* Opened as the Eclipse's lights open a declared murder (`atLights`): since 2.0 line T1 MURDER-01 (the owner's D2-07)
+       the opening's veil stands for such an incident alone, and a murder opened outside an Eclipse veils nobody. */
+    await gm.eval(`await game.drpg.openMurder({ killerId: "${ids.chie}", victimId: "${ids.aiko}", openingTrait: "body", atLights: true }); return true;`, { timeout: 60000 });
     await settle(900);
     const veiled = { victim: await p1.eval(VIEW), bystander: await p2.eval(VIEW), killer: await p3.eval(VIEW),
         mic: await gm.eval(`return game.users.get("${p3.userId}").permissions?.BROADCAST_AUDIO ?? null;`) };

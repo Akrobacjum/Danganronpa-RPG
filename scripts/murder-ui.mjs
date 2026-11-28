@@ -31,14 +31,14 @@
  * its clean-up tries on `dataTable` and its empty state, and the warnings on `box()`.
  */
 
-import { CRISIS_ACTIONS, RESOLUTION_STRESS_COST, TIMING, INDIRECT_MURDER, ACTIONS } from "./config.mjs";
+import { MODULE_ID, CRISIS_ACTIONS, RESOLUTION_STRESS_COST, TIMING, INDIRECT_MURDER, ACTIONS } from "./config.mjs";
 import { SETTINGS } from "./settings.mjs";
 import { resourceValue, resourceMax, reserveNote, reserveView } from "./character.mjs";
 import { keepLive } from "./live.mjs";
 import { error, plural, esc } from "./utils.mjs";
 import { drpgWindow, formGrid, dataTable, emptyState, box, tipAttr } from "./ui-kit.mjs";
-import { murderState, killerIds, isDeadSilenced, silenceDeadNow } from "./incident-store.mjs";
-import { openMurder, passTurn, endMurder, openingInvited, rollOpening, askWhileIncident } from "./murder-rules.mjs";
+import { murderState, killerIds, silenceDeadNow } from "./incident-store.mjs";
+import { openMurder, passTurn, endMurder, openingInvited, rollOpening, askWhileIncident, throwForPlayer } from "./murder-rules.mjs";
 
 
 /* ==========================================================================
@@ -539,6 +539,8 @@ export function incidentTrackerHtml(now, cleanup) {
         ${invited ? `<p class="drpg-help">${game.i18n.format("DRPG.Murder.trackerInvited", {
             user: foundry.utils.escapeHTML(invited.name)
         })}</p>` : ""}
+        ${trackerWaitLines(now).map(line => `<p class="drpg-help" data-drpg-wait>${line}</p>`).join("")}
+        ${awayLines(now).map(line => box("warning", line)).join("")}
         ${lost.length ? box("warning", game.i18n.format("DRPG.Murder.trackerCastGone", { who: lost.join(", ") })) : ""}
         ${formGrid([
             { label: game.i18n.localize("DRPG.Murder.fact.who"), field: `<span>${who}</span>` },
@@ -547,6 +549,86 @@ export function incidentTrackerHtml(now, cleanup) {
         ])}
         ${recentTurnsHtml(now.recent)}
         ${cleanupSection(killerIds(now).map(id => game.actors.get(id)).filter(Boolean), cleanup)}</div>`;
+}
+
+/**
+ * WHAT THE TRACKER SAYS THE INCIDENT WAITS ON (2.0 line T1): at the opening with no statistic picked, that the GM's pick
+ * holds it and Ask for the opening roll again opens the window once more (MURDER-12, `DRPG.Murder.openingWaitsOnPick`);
+ * at Stage 6, that it lasts until End the murder (MURDER-14, `DRPG.Murder.trackerStageSixWaits`). Pure but for the
+ * words (R8932).
+ */
+export function trackerWaitLines(now) {
+    if (!now) return [];
+    if (now.stage === "openingRoll" && now.endedBy !== "noticed" && !now.openingTrait) return [game.i18n.localize("DRPG.Murder.openingWaitsOnPick")];
+    if (now.stage === "resolution") return [game.i18n.localize("DRPG.Murder.trackerStageSixWaits")];
+    return [];
+}
+
+/**
+ * WHO OF THE CAST THE INCIDENT WAITS ON NOW (2.0 line T1 MURDER-06): at the opening the side that rolls it (a direct
+ * murder's killer, a trap's victim), in the fight the side to act (the victim, the killer whose turn it is, the third),
+ * at Stage 6 every killer; their actor ids, and the stage's way on for a GM when nobody playing one is connected -
+ * Throw for the player, Pass the turn, End the murder (`DRPG.Murder.awayHint.<stage>`). Pure (R8934).
+ */
+export function expectedParticipants(state) {
+    if (!state?.active) return { ids: [], hint: null };
+    if (state.stage === "openingRoll") {
+        if (state.endedBy === "noticed") return { ids: [], hint: null };
+        return { ids: [state.indirect ? state.victimId : state.killerId].filter(Boolean), hint: "openingRoll" };
+    }
+    if (state.stage === "incident") {
+        if (state.selfInflicted) return { ids: [], hint: null };
+        const id = state.turnSide === "killer" ? (state.killerTurnId ?? state.killerId) : state.turnSide === "third" ? state.thirdId : state.victimId;
+        return { ids: [id].filter(Boolean), hint: "incident" };
+    }
+    if (state.stage === "resolution") return { ids: killerIds(state), hint: "resolution" };
+    return { ids: [], hint: null };
+}
+
+/** Whether nobody who plays `actor` is connected (MURDER-06): its owners, none active; an actor nobody owns is the GMs'. Pure but for the users. */
+export function participantAway(actor, users = game.users) {
+    const owners = (users?.filter?.(u => !u.isGM && actor?.testUserPermission?.(u, "OWNER")) ?? []);
+    return owners.length > 0 && !owners.some(u => u.active);
+}
+
+/** The tracker's warning for each expected participant nobody plays now (MURDER-06), with the stage's way on. */
+function awayLines(now) {
+    const { ids, hint } = expectedParticipants(now);
+    const away = ids.map(id => game.actors.get(id)).filter(a => a && participantAway(a));
+    if (!away.length || !hint) return [];
+    return away.map(a => `${game.i18n.format("DRPG.Murder.awayTracker", { name: foundry.utils.escapeHTML(a.name) })} ${
+        game.i18n.localize(`DRPG.Murder.awayHint.${hint}`)}`);
+}
+
+/**
+ * A USER LEFT IN THE MIDDLE OF AN INCIDENT (2.0 line T1 MURDER-06; the recommendation the owner took: "Powiadomienie GM-ow i
+ * znak w trackerze, ze uczestnik jest rozlaczony, z podpowiedzia drogi"). Called once from gm-bridge.mjs's `userConnected`
+ * hook on every GM's browser. A player whose leaving leaves an expected participant (`expectedParticipants`) with nobody
+ * playing it: the primary alone - one writer - whispers the GMs one card raised as a notice, naming the character and
+ * the stage's way on; every GM's open tracker redraws by its own watch (`userConnected` among its hooks). A GM who leaves while the incident names them
+ * as the opening's thrower (MURDER-04, MURDER-11): the primary clears the field, so the owner is invited again.
+ */
+export async function noteParticipantLeft(user, connected) {
+    if (connected || !user?.id || !game.user?.isGM) return null;
+    const state = murderState();
+    if (!state?.active) return null;
+    const { isPrimaryGm, whisperToGms } = await import("./utils.mjs");
+    if (!isPrimaryGm({ leaving: user.id })) return null;
+    if (user.isGM) {
+        if (state.openingThrower?.userId !== user.id || state.stage !== "openingRoll") return null;
+        const { writeState } = await import("./incident-store.mjs");
+        return writeState({ openingThrower: null }, { expect: { stage: "openingRoll", openedAt: state.openedAt ?? null } });
+    }
+    const { ids, hint } = expectedParticipants(state);
+    const left = ids.map(id => game.actors.get(id)).filter(a => a?.testUserPermission?.(user, "OWNER") && participantAway(a));
+    if (!left.length || !hint) return null;
+    const title = game.i18n.localize("DRPG.Murder.awayTitle");
+    for (const actor of left) {
+        await whisperToGms(`<p>${esc(game.i18n.format("DRPG.Murder.awayGm", { name: actor.name, user: user.name ?? "?" }))} ${
+            esc(game.i18n.localize(`DRPG.Murder.awayHint.${hint}`))}</p>`, { flags: { [MODULE_ID]: { gmPopup: true, popupTitle: title } } })
+            .catch(err => error("Could not tell the GMs that a participant left", err));
+    }
+    return left.length;
 }
 
 /**
@@ -656,7 +738,9 @@ export function incidentButtons(state, { silence = false } = {}) {
         // this; only Pass has no place in it.
         // And none once a trap's victim has rolled and noticed it (CASE-57, CTRL-30): there is no roll left to ask.
         ...(state.stage === "openingRoll" && state.endedBy !== "noticed" ? [
-            { action: "reask", label: game.i18n.localize("DRPG.Murder.openingReask") }
+            { action: "reask", label: game.i18n.localize("DRPG.Murder.openingReask") },
+            // Throw for the player (2.0 line T1 MURDER-04): on this GM, the owner connected or not; asked first.
+            { action: "throwFor", label: game.i18n.localize("DRPG.Murder.throwForPlayer") }
         ] : []),
         ...(state.stage === "openingRoll" || state.selfInflicted ? [] : [
             // No "somebody walks in" button. The guide's third party is
@@ -756,15 +840,14 @@ export async function openIncidentTracker() {
     const state = murderState();
     // Whether the victim's voice can be moved now (E72 C8): a death the GMs keep, not yet moved.
     const victim = state?.victimId ? game.actors?.get(state.victimId) ?? null : null;
-    const { isDeadForGm, isDeceased } = await import("./chapter.mjs");
     /* READ AGAIN AT EVERY REBUILD (the audit's CTRL-80 and REFR-63, 1.2.122): it was read once as the window opened, and
        the footer is drawn only by a reopen, so a victim dead under an unchanged stage got no Silence now, and one drawn
        before the body was announced or another GM pressed it stayed, its press doing nothing. It is part of the
        signature below now, so a change of it reopens the tracker with the footer it wants. */
-    const silenceNow = () => {
-        const v = murderState()?.victimId ? game.actors?.get(murderState().victimId) ?? null : null;
-        return Boolean(v) && isDeadForGm(v) && !isDeceased(v) && !isDeadSilenced(v);
-    };
+    /* NOTHING TO SILENCE (2.0 line T1 MURDER-03): a dead student's voice leaves the room it died in at its death
+       (voice.mjs `deathVoiceGone`), so the button is not drawn; incident-store.mjs `silenceDeadNow` stays as an API. Until
+       1.2.129: a victim dead to the GMs, not yet published and not yet silenced. */
+    const silenceNow = () => false;
     const silence = silenceNow();
 
     /* AWAITED ONCE, HERE, so the body below can be rebuilt synchronously.
@@ -830,7 +913,7 @@ export async function openIncidentTracker() {
                settings.mjs). */
             /* And items (the audit's REFR-38, 1.2.122): readying or putting away a Cleaning Tool writes the item alone, and
                Stage 6's tool line and every clean-up DC below read it. */
-            watch: { actors: true, tokens: true, items: true, settings: [SETTINGS.murderState], hooks: ["drpgCastChanged"] },
+            watch: { actors: true, tokens: true, items: true, settings: [SETTINGS.murderState], hooks: ["drpgCastChanged", "userConnected"] },
             after: () => {
                 if (settling) return;
                 const now = signature();
@@ -860,6 +943,21 @@ export async function openIncidentTracker() {
     }
     if (action === "reask") {
         reaskOpening();
+        return openIncidentTracker();
+    }
+    if (action === "throwFor") {
+        // The yes says what it does (MURDER-04): the player's window closes, and the roll is thrown here.
+        const sure = await askWhileIncident(murderState(), "openingRoll", {
+            yes: { label: game.i18n.localize("DRPG.Murder.throwForPlayer") },
+            no: "cancel",
+            classes: ["drpg-panel"],
+            title: game.i18n.localize("DRPG.Murder.throwForPlayer"),
+            body: `<p>${game.i18n.localize("DRPG.Murder.throwForPlayerConfirm")}</p>`
+        });
+        if (sure) {
+            throwForPlayer().catch(err => error("Could not throw the opening for the player", err));
+            return null;
+        }
         return openIncidentTracker();
     }
     if (action === "end") {

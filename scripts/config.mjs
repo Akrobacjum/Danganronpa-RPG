@@ -3842,8 +3842,10 @@ export const MONOCUB = {
  * THERE IS EXACTLY ONE, and the kind of murder decides whose it is:
  *
  *   direct     the KILLER rolls. They are in the room and the question is
- *              whether they go through with it. The victim never rolls, is
- *              never asked, and on a failure is never told anything happened.
+ *              whether they go through with it. The victim never rolls and is
+ *              never asked; on a failure they are told, since 2.0 line T1, that
+ *              somebody tried and failed, and never who (the owner's D2-08,
+ *              D2-10; murder-rules.mjs `tellVictimTheAttemptFailed`).
  *   indirect   the VICTIM rolls. There is nobody to confront - the trap is
  *              already set - so the only question is whether they notice it in
  *              time to back out. Being asked to roll is itself the warning.
@@ -3874,7 +3876,7 @@ export const MURDER_OPENING = {
         hope: "The incident begins, and the killer stays hidden behind a “?” until they reveal themselves or the time of day ends.",
         despair: "The incident begins, and the victim sees who the killer is. The victim has no Sanity left, and Role Reversal is closed to them for this incident.",
         critical: "The incident begins, and the killer stays hidden behind a “?” until they reveal themselves or the time of day ends.",
-        failure: "No incident, and the victim never learns of the attempt. The action stays spent; the killer can try again in another time of day.",
+        failure: "No incident. The victim is told that someone tried and failed, never who. The action stays spent; the killer can try again in another time of day.",
         /**
          * The same roll, thrown by somebody who is both sides of it.
          *

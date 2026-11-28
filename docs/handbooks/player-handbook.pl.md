@@ -95,7 +95,7 @@ Kliknij statystykę na arkuszu, gdy GM poprosi cię o rzut poza akcją. To rzut 
 
 ### Jeśli jesteś Widzem
 
-GM może zrobić z twojej postaci **Widza**: oglądasz i nie grasz. Nie masz akcji, Hope, Calli ani Level Upów, a gra nigdzie cię nie wlicza. Inni gracze nie widzą twojego tokenu. Rozmawiasz z innymi Widzami, gdziekolwiek stoi twój token. **Słuchaj w swoim pokoju** na twoim kafelku głosu pozwala ci zamiast tego słyszeć pokój, w którym stoi twój token, z wyłączonym mikrofonem, a ten sam przycisk, teraz **Porozmawiaj z Widzami**, cię cofa; podczas Eclipse nikt nie jest na głosie, dopóki nie wróci światło. Jeśli GM wyłączył kafelek głosu, tego przycisku nie ma i zostajesz z Widzami. Ruszasz się, przeciągając token, bez kosztu. Widzisz każdy pokój, który klasa odkryła, tokeny wszystkich i każdy projekt, także tajny, z jego opisem, w każdym pokoju. Na koniec dnia plansza końca dnia pokazuje ci tylko swój nagłówek i nastrój szkoły. Nie masz czatu; komunikator nadal przynosi ci wiadomości od GM-a, ale nie możesz na nie odpowiedzieć.
+GM może zrobić z twojej postaci **Widza**: oglądasz i nie grasz. Nie masz akcji, Hope, Calli ani Level Upów, a gra nigdzie cię nie wlicza. Inni gracze nie widzą twojego tokenu. Rozmawiasz z innymi Widzami, gdziekolwiek stoi twój token. **Słuchaj w swoim pokoju** na twoim kafelku głosu pozwala ci zamiast tego słyszeć pokój, w którym stoi twój token, z wyłączonym mikrofonem, a ten sam przycisk, teraz **Porozmawiaj z Widzami**, cię cofa; podczas Eclipse nikt nie jest na głosie, dopóki nie wróci światło. Jeśli GM wyłączył kafelek głosu, tego przycisku nie ma i zostajesz z Widzami. Ruszasz się, przeciągając token, bez kosztu. Widzisz każdy pokój, który klasa odkryła, tokeny wszystkich i każdy projekt, także tajny, z jego opisem, w każdym pokoju. Na koniec dnia plansza końca dnia pokazuje ci tylko swój nagłówek i nastrój szkoły. Nie masz czatu; komunikator nadal przynosi ci wiadomości od GM-a, a od 1.2.130 możesz na nie odpowiedzieć w swoim wątku, który czytają tylko GM-owie.
 
 Gdy twoja postać zginie, oglądasz tak samo, z własnym Widzem: ma imię i obrazy twojej postaci i stoi tam, gdzie leży twoje ciało. Możesz go przeciągnąć dokądkolwiek, bez kosztu, a inni gracze go nie widzą. Od 1.2.128 widzisz mapę tak jak Widz, od razu: każdy pokój, który klasa odkryła, i każdego, kto w nim jest. Jeśli zostaniesz Monocubem, jego token stanie się twoim Monocubem.
 
@@ -124,7 +124,7 @@ Trzy fazy:
 Przed każdą porą dnia gasną światła. Ten czas na ustawienie tokenów to **Eclipse**:
 
 - Podczas Eclipse nikt nie widzi na ekranie cudzych tokenów, w żadnym pokoju. Głos jest wtedy wyłączony dla wszystkich graczy: nikogo nie słyszysz i nikt nie słyszy ciebie, dopóki nie wrócą światła.
-- W Eclipse ustawiasz swój token najwyżej o 2 przejścia między połączonymi pokojami, a drzwi i przerwy w ścianach wciąż obowiązują. Token przesunięty ponad limit wraca na miejsce. Wyjątkiem jest Eclipse przed Nocą: wybierasz dowolny pokój na mapie. Akcja pokoju może dać ci więcej przejść na najbliższe Eclipse, a jej wiersz mówi, ile.
+- W Eclipse ustawiasz swój token najwyżej o 2 przejścia między połączonymi pokojami, a drzwi i przerwy w ścianach wciąż obowiązują. Token przesunięty ponad limit wraca na miejsce. Liczy się każde przejście, także powrót do pokoju, z którego przyszedłeś, a karta po każdym przejściu mówi o tym i podaje, ile ci zostało (od 1.2.130). Wyjątkiem jest Eclipse przed Nocą: wybierasz dowolny pokój na mapie. Akcja pokoju może dać ci więcej przejść na najbliższe Eclipse, a jej wiersz mówi, ile.
 - Twoje akcje są już odnowione, gdy Eclipse się zaczyna, ale podczas Eclipse wydajesz je tylko na **Direct Murder**. Calli nie użyjesz, dopóki nie zapali się światło.
 - Gdy kończy się pora dnia, z Eclipse albo bez, na środku ekranu otwiera się karta z podsumowaniem tego, co w niej zrobiłeś: co znalazłeś i co zostawiłeś. Otwiera się raz na każdą porę dnia, gdy zegar się obróci, a gdy gra plansza końca dnia, podsumowanie Wieczoru jest jej częścią.
 - Eclipse to jedyny moment pełnej osłony w grze i zwykle tu zaczyna się morderstwo. Nie jest częścią dnia: zegar nie rusza, dopóki GM nie zakończy Eclipse.
@@ -512,7 +512,7 @@ Remnantów Reinforced nie da się usunąć.
 
 ### Direct Murder - 1 akcja, GM decyduje
 
-Zabójstwo twarzą w twarz, uzgodnione wcześniej z GM-em i <ins>za zgodą gracza ofiary</ins>. Zgłosić je możesz tylko **podczas Eclipse**, jedynego momentu, w którym możesz być z kimś sam na sam. Wydajesz akcję bez względu na wynik. Jeśli GM odmówi, dowiesz się od razu; w przeciwnym razie nikt, nawet ty, nie wie, jak poszło, dopóki Eclipse się nie skończy i pokój się nie uspokoi. Jeśli zostaniesz z tą osobą sam na sam, a GM pozwoli, otwiera się incydent (rozdział 10), chyba że inne zabójstwo otworzyło go wcześniej.
+Zabójstwo twarzą w twarz, uzgodnione wcześniej z GM-em i <ins>za zgodą gracza ofiary</ins>. Zgłosić je możesz tylko **podczas Eclipse**, jedynego momentu, w którym możesz być z kimś sam na sam. Zgłoszenie wydaje akcję. Jeśli GM odmówi - na karcie podczas Eclipse albo przy świetle - akcja do ciebie wraca, tak samo gdy zgłoszenie odpada, bo inne zabójstwo otworzyło incydent wcześniej; pusty pokój albo świadek po zakończeniu Eclipse zostawiają ją wydaną (od 1.2.130). Jeśli GM odmówi na karcie, dowiesz się od razu; w przeciwnym razie nikt, nawet ty, nie wie, jak poszło, dopóki Eclipse się nie skończy i pokój się nie uspokoi. Jeśli zostaniesz z tą osobą sam na sam, a GM pozwoli, otwiera się incydent (rozdział 10), chyba że inne zabójstwo otworzyło go wcześniej.
 
 ### Move - za darmo, potem 1 akcja
 
@@ -554,7 +554,7 @@ Sprint i Burst zamiast czekać na rzut idą do zapasu i trwają do końca pory d
 
 ## 6. Despair - druga strona
 
-Każdy twój rzut zakończony Despair zasila pulę Monokumy, który cię pilnuje, chyba że GM wyłączył ustawienie **Rzuty dają Despair**. Pula mieści **12**, a stan każdej puli widać na każdym ekranie, także twoim, w panelu **Pule Despair** u góry.
+Każdy twój rzut zakończony Despair zasila pulę Monokumy, który cię pilnuje, chyba że GM wyłączył ustawienie **Rzuty dają Despair**. Wyjątkiem są rzut otwarcia morderstwa i rzuty kryzysu: nie zasilają żadnej puli i nie dają ci Hope, jakiekolwiek wypadną kości (sekcja 10); zwykłe rzuty postronnych liczą się w tym czasie jak zawsze. Pula mieści **12**, a stan każdej puli widać na każdym ekranie, także twoim, w panelu **Pule Despair** u góry.
 
 ### Despair Calls - co Monokuma może ci zrobić
 
@@ -734,26 +734,26 @@ Po zmianie twoje okno mówi, na co ją zmieniono, i daje do wyboru rzut albo *Pa
 
 ### Rzut otwarcia
 
-Każde morderstwo ma dokładnie jeden rzut otwarcia, a jego rodzaj decyduje, kto nim rzuca. Rzutu otwarcia nie da się pominąć: jeśli zamkniesz jego okno, otwiera się ponownie, do 3 razy, a gdy otworzyło się 3 razy, GM dostaje o tym wiadomość.
+Każde morderstwo ma dokładnie jeden rzut otwarcia, a jego rodzaj decyduje, kto nim rzuca. Rzutu otwarcia nie da się pominąć: jeśli zamkniesz jego okno, otwiera się ponownie, do 3 razy, a gdy otworzyło się 3 razy, GM dostaje o tym wiadomość. Rzut otwarcia i rzut każdej akcji kryzysu nie dają Hope i nie zasilają Despair; mówi o tym karta rzutu.
 
-**Direct Murder:** rzuca zabójca, Body albo Hand przeciw **8**, nocą z przewagą; morderstwo zgłoszone podczas nocnego Eclipse otwiera się nocą. Gdy zgłaszasz Direct Murder podczas Eclipse, okno pyta *Którą statystykę proponujesz?*: Body albo Hand, domyślnie Body, a pod spodem jest twoja linijka o tym, jak to robisz. GM odpowiada na jednej karcie: pozwala na twoją propozycję, zmienia ją na drugą albo odmawia. Do zapalenia świateł nic nie słyszysz; rzut otwarcia wykonujesz potem na statystyce, na którą GM pozwolił, bez drugiego okna i bez rezygnacji.
+**Direct Murder:** rzuca zabójca, Body albo Hand przeciw **8**, nocą z przewagą; morderstwo zgłoszone podczas nocnego Eclipse otwiera się nocą. Gdy zgłaszasz Direct Murder podczas Eclipse, okno pyta *Którą statystykę proponujesz?*: Body albo Hand, domyślnie Body, a pod spodem jest twoja linijka o tym, jak to robisz. GM odpowiada na jednej karcie: pozwala na twoją propozycję, zmienia ją na drugą albo odmawia. Do zapalenia świateł nic nie słyszysz; rzut otwarcia wykonujesz potem na statystyce, na którą GM pozwolił, bez drugiego okna i bez rezygnacji. Twoje zgłoszenie jest oceniane tuż przed zapaleniem świateł - pokój, inne zgłoszenia i odpowiedź GM-a - więc zgłoszenie, które nie dochodzi do skutku, nigdy nie ukrywa twojego tokenu, a rzut otwarcia pada, zanim zapalą się światła, bo zegar czeka na jego wynik (od 1.2.130).
 
 **Zdrada** to zwrócenie się przeciw zabójcy po incydencie, w którym brałeś udział (Jeśli wejdziesz w trakcie, niżej). Potwierdzenie zdrady pyta o to samo, a poza Eclipse jej okno ma też *Jak to robisz? (opcjonalnie)*. O zdradzie GM rozstrzyga w chwili rzutu otwarcia, a ty czytasz *GM rozstrzyga o statystyce zaproponowanej do twojego rzutu otwarcia.* Bez propozycji wybiera GM: dowiadujesz się o tym i masz napisać w swoim wątku, jak się do tego zabierasz. Czuwanie ofiary z wynikiem 18 lub więcej albo krytycznym może dołożyć do twojego otwarcia kość utrudnienia (rozdział 4, Keep Watch).
 
-**Za „?”.** Direct Murder, którego otwarcie udaje się z Hope albo jest krytykiem, ukrywa zabójcę. Ofiara i wszyscy inni widzą token zabójcy jako „?” bez imienia, a ofiara dowiaduje się tylko, że ktoś na nią rusza. Okno arkusza zabójcy otwarte u innego gracza się zamyka. Zabójca opuszcza kanał głosowy pokoju i trafia do cichego kanału tylko dla siebie: niczego nie słyszy i nikt go nie słyszy. GM i Widz widzą, kto to jest.
+**Za „?”.** Direct Murder, którego otwarcie udaje się z Hope albo jest krytykiem, ukrywa zabójcę. Ofiara i wszyscy inni widzą token zabójcy jako „?” bez imienia, a ofiara dowiaduje się tylko, że ktoś na nią rusza. Okno arkusza zabójcy otwarte u innego gracza się zamyka. Zabójca opuszcza kanał głosowy pokoju i trafia do cichego kanału tylko dla siebie: niczego nie słyszy i nikt go nie słyszy. GM widzi, kto to jest; Widz, także zmarły uczeń, nie widzi (od 1.2.130).
 
-Jako zabójca dostajesz pytanie **Zostać w ukryciu?** Po **Ujawnij się** wszyscy znów widzą twój token i imię, a twój głos wraca do pokoju. **Zostań w ukryciu** trzyma „?” do pierwszego z trzech zdarzeń: końca morderstwa, twojego wyjścia z pokoju morderstwa albo końca pory dnia (pierwsze dwa od 1.2.128); **Ujawnij się** zostaje do tego czasu na twoim kafelku głosu.
+Jako zabójca dostajesz pytanie **Zostać w ukryciu?** Po **Ujawnij się** wszyscy znów widzą twój token i imię, a twój głos wraca do pokoju. **Zostań w ukryciu** trzyma „?” do pierwszego z trzech zdarzeń: końca morderstwa, twojego wyjścia z pokoju morderstwa albo końca pory dnia (pierwsze dwa od 1.2.128); **Ujawnij się** zostaje do tego czasu na twoim kafelku głosu. Koniec morderstwa liczy się tylko wtedy, gdy ofiara zginęła: ofiara, która przeżyła incydent, nadal widzi „?”, dopóki nie wyjdziesz z tego pokoju albo nie skończy się pora dnia, a ty do tego czasu zostajesz w swoim cichym kanale głosowym (od 1.2.130).
 
 | Rzut zabójcy | Co się dzieje |
 |---|---|
-| Porażka | Nic się nie dzieje, a ofiara nigdy się nie dowie, że czegoś próbowano. Akcja jest wydana; możesz spróbować znowu o innej porze dnia. |
+| Porażka | Na mapie nic się nie dzieje; ofiara dowiaduje się tylko, że ktoś próbował ją zabić i mu się nie udało, nigdy kto (od 1.2.130). Akcja jest wydana; możesz spróbować znowu o innej porze dnia. |
 | Sukces z Hope | Incydent się zaczyna, a sprawa ma 5 Key Remnantów. |
 | Sukces z Despair | Incydent się zaczyna, ofiara od razu traci całe Sanity i dostęp do Role Reversal na ten incydent, a sprawa ma 4 Key Remnanty. |
 | Krytyk | Incydent się zaczyna, a sprawa ma najmniej Key Remnantów: 3. |
 
-Ofiara nie widzi niczego, gdy zabójca rzuca: żadnej karty, muzyki ani niczego na panelu zdarzeń. Gdy rzut się uda, od razu dowiaduje się, że incydent się zaczął i kto na nią rusza; gdy zabójca jest ukryty za „?”, dowiaduje się tylko, że ktoś na nią rusza. Przy porażce ofiara niczego się nie dowiaduje.
+Ofiara nie widzi niczego, gdy zabójca rzuca: żadnej karty, muzyki ani niczego na panelu zdarzeń. Gdy rzut się uda, od razu dowiaduje się, że incydent się zaczął i kto na nią rusza; gdy zabójca jest ukryty za „?”, dowiaduje się tylko, że ktoś na nią rusza. Przy porażce ofiara dostaje jedną linię: ktoś próbował ją zabić i mu się nie udało; linia nikogo nie wymienia (od 1.2.130).
 
-**Niewidoczny do rzutu otwarcia.** Od chwili, gdy zaczyna się Direct Murder, aż do rzutu otwarcia zabójcy pozostali gracze nie widzą tokenów zabójcy - także ofiara i wszyscy inni w pokoju - a mikrofon zabójcy jest wyłączony. Zabójca nadal słyszy pokój i dostaje o tym jedną linię. Wspólnik, który już jest po stronie zabójcy, jest ukryty i wyciszony tak samo i widzi zabójcę. Przy morderstwie zadeklarowanym w Eclipse zaczyna się to, gdy wracają światła, więc nikt nie widzi zabójcy na początku nowej pory dnia. Po rzucie tokeny zabójcy wracają takie, jakie były; jeśli rzut ukrywa zabójcę za „?”, najpierw pojawia się „?”. Pułapka i śmierć z własnej ręki nikogo nie ukrywają.
+**Niewidoczny do rzutu otwarcia.** Przed rzutem ukrywa zabójcę tylko Direct Murder zadeklarowany w Eclipse: od chwili, gdy się zaczyna, aż do rzutu otwarcia zabójcy pozostali gracze nie widzą tokenów zabójcy - także ofiara i wszyscy inni w pokoju - a mikrofon zabójcy jest wyłączony. Zabójca nadal słyszy pokój i dostaje o tym jedną linię. Wspólnik, który już jest po stronie zabójcy, jest ukryty i wyciszony tak samo i widzi zabójcę. Przy morderstwie zadeklarowanym w Eclipse zaczyna się to, gdy wracają światła, więc nikt nie widzi zabójcy na początku nowej pory dnia. Po rzucie tokeny zabójcy wracają takie, jakie były; jeśli rzut ukrywa zabójcę za „?”, najpierw pojawia się „?”. Direct Murder, który GM otwiera poza Eclipse, nikogo przed rzutem nie ukrywa: token zabójcy stoi tam, gdzie stał, a mikrofon zostaje włączony, a rzut, który ukrywa zabójcę za „?”, zamienia ten token w „?” na oczach pokoju (od 1.2.130). Pułapka i śmierć z własnej ręki nikogo nie ukrywają.
 
 **Morderstwo pośrednie (pułapka):** rzuca **ofiara**, Eye albo Head przeciw **20**, nocą tak samo jak za dnia; którą z dwóch, wybiera GM. Sama prośba o rzut jest ostrzeżeniem: słyszysz, że GM przygotowuje dla ciebie rzut, a okno nosi tytuł "Coś tu nie gra".
 
@@ -791,7 +791,7 @@ Gdy wiersz mówi, że porażka „kosztuje 1 dodatkowo”, to 1 punkt więcej za
 Survive i Role Reversal to akcje rozstrzygnięcia: każda kosztuje **1 Sanity** zamiast akcji, a gdy Sanity się skończy, **1 Health**. Pozostałe akcje kryzysowe nie kosztują akcji. Nic, co zrobi zabójca, nie zdejmie z mapy Reinforced Remnantu.
 
 > [!CAUTION]
-> Ofiara, której skończą się i Health, i Sanity, umiera.
+> Ofiara, której skończą się i Health, i Sanity, umiera. To, co zabiera walka, nie jest tajemnicą: pasek Health na tokenie, Health na arkuszu, który każdy może otworzyć, oraz plakietki Breakdown i Wounded pokazują to wszystkim od razu (sekcja 1).
 
 ### Jeśli jesteś zabójcą
 
@@ -810,7 +810,7 @@ Finishing Blow to też akcja rozstrzygnięcia: kosztuje 1 Sanity, a gdy Sanity s
 
 Akcja wymierzona w drugą stronę wymaga o 1 więcej, gdy ta strona jest silna: Strike, Attack with a Weapon i Pin Them Down, gdy Body ofiary to +1 lub więcej; Keep Your Distance, gdy Leg ofiary to +1 lub więcej; Self-Defense i Role Reversal, gdy Body zabójcy to +1 lub więcej; Survive i Escape Together, gdy Leg zabójcy to +1 lub więcej. Kafelek to mówi, na przykład "Przebij 16 (+1 za Body ofiary)". Gdy nie możesz wiedzieć, kto jest zabójcą (zabójca za "?" albo pułapka), kafelek i okno rzutu mówią "Przebij 18 + ukryta obrona": GM ocenia rzut ze statystyką zabójcy, a twoja karta wyniku podaje tylko twój wynik wobec tej liczby i czy to trafienie. Rzuty otwarcia nigdy się tak nie zmieniają.
 
-Po incydencie przychodzi sprzątanie. Twój kafelek Tamper wymienia teraz każdy Remnant w pokoju, w którym stoisz, twój i każdego innego. Na własnej scenie próba nie kosztuje akcji, tylko **1 Sanity**. Usuwanie, przerabianie i Misleading Trail rzucają Shadow i nikogo nie pytasz.
+Po incydencie przychodzi sprzątanie. Twój kafelek Tamper wymienia teraz każdy Remnant w pokoju, w którym stoisz, twój i każdego innego. Na własnej scenie próba nie kosztuje akcji, tylko **1 Sanity**. Usuwanie, przerabianie i Misleading Trail rzucają Shadow i nikogo nie pytasz. Sprzątanie trwa, dopóki nie zakończy go GM: dowiadujesz się o tym na jego początku, a gdy skończysz, napisz do GM-a w swoim wątku komunikatora.
 
 | Opcja | Rzut i co robi |
 |---|---|
@@ -957,7 +957,7 @@ Ktoś wśród was mógł zbudować to miejsce. **Final Truth Remnanty**, po jedn
 ## 13. Śmierć i to, co po niej
 
 - Zmarli nie wykonują akcji i nie wydają Hope. Zachowujesz arkusz; gdzie trafia twój głos, mówi punkt niżej, a w Class Trial słuchasz (rozdział 12).
-- Twój głos po śmierci w incydencie: dopóki ten incydent trwa, zostajesz w pokoju swojej śmierci. Do Widzów przechodzisz, gdy tylko incydent się skończy, ktoś znajdzie twoje ciało, wejdzie tam żywy uczeń spoza incydentu albo GM przeniesie twój głos; poza incydentem dzieje się to od razu. Potem rozmawiasz z Widzami, czy twoja śmierć jest znana, czy nie: żywi cię nie słyszą, ty słyszysz Widzów i innych zmarłych, a mikrofon zostaje twój. Na Class Trial wracasz do pokoju głównego razem ze wszystkimi i słuchasz (rozdział 12). Jako Monocub mówisz jak Monocub.
+- Twój głos po śmierci: od razu wychodzisz z pokoju swojej śmierci, także w incydencie, i nikt w nim cię od tej chwili nie słyszy, również pozostałe osoby incydentu (od 1.2.130; wcześniej zostawałeś z nimi, dopóki incydent trwał). Potem rozmawiasz z Widzami, czy twoja śmierć jest znana, czy nie: żywi cię nie słyszą, ty słyszysz Widzów i innych zmarłych, a mikrofon zostaje twój. Na Class Trial wracasz do pokoju głównego razem ze wszystkimi i słuchasz (rozdział 12). Jako Monocub mówisz jak Monocub.
 - Twoje **Truth Bullety przepadają razem z tobą**, gdy twoja śmierć wyjdzie na jaw, chyba że GM je zachowa. Wszystko inne zostaje przy ciele do znalezienia, tak jak było: zmarli niczego nie używają, nie biorą do ręki, nie wyrzucają, nie chowają ani nie wyjmują, a rzeczy Monocuba też należą do jego ciała.
 - Przeszukanie ciała działa tak, jak opisuje rozdział 11: **Take from the Body** jest na arkuszu ciała, wymaga rzutu Hand i zostawia Remnant. Musisz stać w jego pokoju i żyć, a w czasie Class Trial ani Eclipse nie da się tego zrobić; dopóki ciała nikt nie znalazł, mogą to zrobić tylko ci, którzy wiedzą o śmierci. Rzecz, której nie możesz wziąć, jest w oknie wyszarzona, z powodem obok: nie jesteś tam, gdzie trzeba, albo nosisz już najwięcej rzeczy tego rodzaju i nie masz skrytki. Okno zamyka się, gdy naciśniesz **Weź**. Jeśli **Weź** niczego nie zabierze, okno mówi tylko dlaczego, na przykład że wyszedłeś z pokoju albo ktoś inny wziął to pierwszy; otwórz okno ponownie, żeby zobaczyć, co możesz wziąć teraz.
 - Jeśli zginiesz w incydencie, nikt inny się nie dowie, dopóki ktoś nie znajdzie twojego ciała albo GM tego nie ujawni: twój arkusz pokazuje cię jako martwego, z *Nikt jeszcze nie znalazł twojego ciała.* Do tego czasu stół może brać cię za żywego, ale w Class Trial twój mikrofon jest wyłączony jak każdego zmarłego ucznia i nie dostajesz karty do głosowania, więc po milczącym mikrofonie i brakującej karcie stół dowiaduje się, że ktoś zginął. Level Up za trafny werdykt nadal dostajesz i ty, jak każdy uczeń, którego stół uważa za żywego.
@@ -1119,7 +1119,7 @@ Ten dodatek zbiera to, czego rozdziały powyżej nie mówią graczowi przy stole
 
 ### 17.2 Czas
 
-**Eclipse.** Gdy nie jest połączony żaden GM, przejście podczas Eclipse jest odrzucane.
+**Eclipse.** Gdy nie jest połączony żaden GM, przejście podczas Eclipse jest odrzucane. Przejście liczy eclipse.mjs `judgeEclipseCrossing` wobec `movesLeft`, powrót tak samo jak każde inne.
 
 **Chwile na cały ekran** są odtwarzane od 1.2.109.
 
@@ -1175,7 +1175,7 @@ Zabójca za „?” to nowość 1.2.113 (E69 C8). Gracz, który otworzy konsolę
 
 To, co bierzesz z ciała, przechodzi między dwoma arkuszami, a te dwa arkusze może odczytać przeglądarka każdego gracza.
 
-Okno rzutu otwarcia zamknięte bez rzutu otwiera się znowu najwyżej `TIMING.openingAttempts` razy (3). Move the Body przenosi ciało o tyle pokoi, ile mówi `CLEANUP.actions.moveBody.rooms` (1 pokój przy trafieniu, 2 przy krytyku), a odczytuje to `cleanup.mjs` `bodyLanding`.
+Okno rzutu otwarcia zamknięte bez rzutu otwiera się znowu najwyżej `TIMING.openingAttempts` razy (3). Zasłona otwarcia to własny znacznik modułu na tokenie, zapisywany tylko przy incydencie otwartym przez światło po Eclipse (pole incydentu `atLights`, czytane przez mask-gm.mjs `veilWanted`; od 1.2.130). Move the Body przenosi ciało o tyle pokoi, ile mówi `CLEANUP.actions.moveBody.rooms` (1 pokój przy trafieniu, 2 przy krytyku), a odczytuje to `cleanup.mjs` `bodyLanding`.
 
 ### 17.12 Class Trial
 
@@ -1193,7 +1193,7 @@ Okno rzutu otwarcia zamknięte bez rzutu otwiera się znowu najwyżej `TIMING.op
 
 ### 17.13 Śmierć i to, co po niej
 
-**Głos zmarłych.** To przeglądarka głównego GM-a decyduje, kiedy głos zmarłego ucznia wychodzi z pokoju, w którym zginął: od razu, gdy zmarły nie bierze udziału w trwającym incydencie, a w przeciwnym razie, gdy ktoś znajdzie ciało, gdy GM naciśnie **Wycisz teraz** albo gdy w tym samym pokoju stanie żywy uczeń spoza incydentu. Od 1.2.112 głos trafia wtedy do pokoju głosowego Widzów.
+**Głos zmarłych.** Przeglądarka głównego GM-a wyprowadza głos zmarłego ucznia z pokoju, w którym zginął, od razu, także z obsady trwającego incydentu (voice.mjs `deathVoiceGone`, od 1.2.130; wcześniej obsada trzymała go do znalezienia ciała, **Wycisz teraz** GM-a albo wejścia żywego ucznia spoza obsady). Od 1.2.112 głos trafia do pokoju głosowego Widzów. Imię nad „?” zamaskowanego zabójcy rysuje tylko płótno GM-a (mask-gm.mjs `drawMaskName`, od 1.2.130).
 
 **Zabieranie z ciała.** Okno Take from the Body sprawdza wszystko na nowo, dopóki jest otwarte, gdy ruszasz się ty, ciało albo zegar. Strona GM-a odmawia wzięcia, gdy biorący wyszedł z pokoju albo gdy ktoś inny wziął to pierwszy; wzięcie nie zabiera niczego, gdy żaden GM nie odpowiedział albo gdy nie grasz żadną postacią, a wtedy czytasz *Nie masz w tej grze postaci, która mogłaby to dostać.*
 

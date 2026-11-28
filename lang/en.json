@@ -1102,13 +1102,13 @@
       "tierShort": "Tier {tier}",
       "situationAfterRoll": "{n} from the situation: the total that counts is {total}.",
       "waitsForGm": "GM",
-      "murderSpendsAnyway": "Confirming spends the action whatever comes of it. You learn how it went when the Eclipse ends, or sooner if a GM refuses it.",
+      "murderSpendsAnyway": "Confirming spends the action. A GM's refusal gives it back; an empty room or a witness when the Eclipse ends does not. You learn how it went when the Eclipse ends, or sooner if a GM refuses it.",
       "murderPromptParked": "What are you doing, and how? The GM reads this with your declaration and has it again when the Eclipse ends.",
       "murderParkedConfirm": "Make the attempt",
       "murderDeclareYes": "Declare the murder",
-      "murderParked": "Your Direct Murder is declared. If a GM refuses it, you hear at once; otherwise you learn how it went when the Eclipse ends. An incident opens only if you are then alone with one other person and none is open yet.",
+      "murderParked": "Your Direct Murder is declared. If a GM refuses it, you hear at once and get the action back; otherwise you learn how it went when the Eclipse ends. An incident opens only if you are then alone with one other person and none is open yet.",
       "murderParkedToast": "Declared. You learn the outcome when the Eclipse ends.",
-      "murderSecondDeclaration": "{killer} also declared a Direct Murder during the Eclipse, but an incident was already open. The attempt is refused, and the action stays spent.",
+      "murderSecondDeclaration": "{killer} also declared a Direct Murder during the Eclipse, but an incident was already open. The attempt is refused, and the action goes back.",
       "murderCancelled": "{killer}'s Direct Murder in {room} came to nothing: {reason}",
       "murderNobodyGm": "nobody else was in the room.",
       "murderWitnessGm": { "one": "{n} person besides the victim was in the room and would have seen it.", "other": "{n} people besides the victim were in the room and would have seen it." },
@@ -1122,17 +1122,19 @@
       "murderNeedsApproval": "A Direct Murder, declared during the Eclipse. Nothing opens unless a GM allows it, and who the killer ends up alone with is settled when the Eclipse ends.",
       "murderAllow": "Allow: {stat}",
       "murderRefuse": "Refuse",
-      "murderRefused": "The attempt is refused. The action stays spent.",
+      "murderRefused": "The attempt is refused. Your action comes back.",
       "murderApprovedGm": "{name}'s Direct Murder is allowed. It resolves when the Eclipse ends.",
-      "murderRefusedGm": "{name}'s Direct Murder is refused. The action stays spent.",
+      "murderRefusedGm": "{name}'s Direct Murder is refused. The action goes back.",
       "murderNotParked": "That declaration is no longer waiting: the Eclipse has ended, or a GM has already ruled on it.",
       "murderRulingTitle": "A ruling to make",
       "murderAsk": "{killer} declared a Direct Murder during the Eclipse and ended it alone with {victim} in {room}. Open the incident?",
-      "murderAskNote": "No GM answered this when it was declared. Refusing opens nothing, and so does closing this window; the action stays spent either way.",
+      "murderAskNote": "No GM answered this when it was declared. The new time of day begins once you answer. Refusing opens nothing, and so does closing this window; either way the killer gets the action back.",
       "palmTitle": "{action} - {trait}, beat {n}",
       "needed": "needed {n}",
       "observeGmMode": "The way they were looking: {mode}.",
-      "dynamicMissedGm": "The roll missed. There is nothing to give; the action stays spent."
+      "dynamicMissedGm": "The roll missed. There is nothing to give; the action stays spent.",
+      "murderNoteCloseSends": "Closing this window sends the declaration with no note: its action is paid already.",
+      "murderSendNoNote": "Send without a note"
     },
     "Analyze": {
       "analyseBullet": "Identify a Truth Bullet",
@@ -1291,7 +1293,10 @@
     },
     "Body": {
       "noToken": "{name}'s token is on no scene with rooms, so no body was left on the map. Students can search their belongings at their token instead.",
-      "tile": "{name}'s body"
+      "tile": "{name}'s body",
+      "answeredElsewhere": "{gm} has answered the discovery in {room} already.",
+      "loneFinderTitle": "A body found alone",
+      "loneFinderGm": "{finder} has found {name}'s body alone in {room}. Nothing is announced: they were told privately."
     },
     "Monocub": {
       "panelTitle": "Monocub",
@@ -2013,7 +2018,8 @@
         "doItCostTooltip": {
           "one": "Spends {n} action and gives you the rest benefits you ticked",
           "other": "Spends {n} actions and gives you the rest benefits you ticked"
-        }
+        },
+        "murderSendNoNoteTooltip": "Sends the declaration now, with no note. Closing the window does the same."
       },
       "Trial": {
         "moveToChapterToTooltip": "Moves the clock to the next chapter and ends an Investigation still open",
@@ -3067,7 +3073,8 @@
         "spent": "it is no longer on offer",
         "failed": "the new incident did not start",
         "trial": "a Class Trial is in session",
-        "dead": "one of the two is no longer alive"
+        "dead": "one of the two is no longer alive",
+        "second": "another murder opened first at these lights"
       },
       "victimUnderAttackBy": "<strong>{killer} is moving on you.</strong> The incident has begun, and the first turn is yours: press Fight Back under Actions on your character sheet.",
       "victimSomeoneMoves": "<strong>Someone is moving on you.</strong> The incident has begun, and the first turn is yours: press Fight Back under Actions on your character sheet.",
@@ -3098,7 +3105,24 @@
       "castMissingHere": "This browser lacks the incident's cast and cannot work out the turn. Press Enter the cast by hand in the health check, or let a GM who holds it act.",
       "castNotArrived": "The other GMs' copies of the incident's cast have not reached this browser yet. Try again in a moment.",
       "deniedByIncident": "The incident has taken this one away from you.",
-      "trackerScore": "{total} against {n}"
+      "trackerScore": "{total} against {n}",
+      "victimAttemptFailed": "Someone tried to kill you, and failed.",
+      "incidentRollFree": "This roll earns you no Hope and feeds no Despair.",
+      "openingWaitsOnPick": "The opening waits on a GM's pick of its statistic. If that window was closed, Ask for the opening roll again opens it once more.",
+      "trackerStageSixWaits": "Stage 6 lasts until you press End the murder.",
+      "stageSixEndsByGm": "The GM ends the Tamper stage. When you have finished cleaning up, tell the GM in your messenger thread.",
+      "throwForPlayer": "Throw for the player",
+      "throwForPlayerConfirm": "The roll is thrown here, on your screen. The player's roll window closes, and they are told that you throw for them.",
+      "openingThrownByGm": "The GM {gm} throws your opening roll for you.",
+      "awayTitle": "A participant left",
+      "awayGm": "{user} has left, and nobody plays {name} now.",
+      "awayTracker": "Nobody playing {name} is connected.",
+      "awayHint": {
+        "openingRoll": "You can press Throw for the player.",
+        "incident": "You can press Pass the turn.",
+        "resolution": "You can press End the murder."
+      },
+      "questionAnswered": "{gm} has answered the incident's question already."
     },
     "Investigation": {
       "clearPlan": {
@@ -4446,7 +4470,7 @@
       "unmarked": "{name} is no longer a Spectator.",
       "talk": "Talk with the Spectators",
       "talkBack": "Listen in your room",
-      "noChat": "A Spectator has no chat."
+      "noChat": "A Spectator has no chat. You can write to the GMs in your own messenger thread."
     },
     "Class": {
       "notInClass": "Not in the class",
@@ -4558,12 +4582,12 @@
         "other": "Lights out. Everyone can make up to {n} crossings between connected rooms to place their token. Nobody sees anyone else until the Eclipse ends."
       },
       "yourMoves": {
-        "one": "You are in {room} and have one room crossing. Drag your token into a connected room; locked doors still stop you.",
-        "other": "You are in {room} and have {n} room crossings. Drag your token into a connected room; locked doors still stop you."
+        "one": "You are in {room} and have one room crossing. Drag your token into a connected room; locked doors still stop you. Going back to a room counts as a crossing too.",
+        "other": "You are in {room} and have {n} room crossings. Drag your token into a connected room; locked doors still stop you. Going back to a room counts as a crossing too."
       },
       "moved": {
-        "one": "You are now in {room}, with {left} crossing left during this Eclipse.",
-        "other": "You are now in {room}, with {left} crossings left during this Eclipse."
+        "one": "You are now in {room}, with {left} crossing left during this Eclipse. Going back to a room counts as a crossing too.",
+        "other": "You are now in {room}, with {left} crossings left during this Eclipse. Going back to a room counts as a crossing too."
       },
       "noMovesLeft": "Your Eclipse crossings are used up, so your token stays where it was.",
       "actionsLocked": "During an Eclipse, only Move and a Direct Murder are allowed; everything else waits until the Eclipse ends. Actions are already refilled.",
@@ -4584,7 +4608,11 @@
       "murderWindowLocked": "No incident opens during an Eclipse. Open it once the Eclipse ends; a trap's card keeps its button until then.",
       "murderLocked": "No incident opens during an Eclipse. A Direct Murder declared in it is judged when the Eclipse ends.",
       "bodyLocked": "You cannot announce a body during an Eclipse, and no body is discovered automatically either. Wait until the Eclipse ends.",
-      "panelLocked": "Locked until the Eclipse ends."
+      "panelLocked": "Locked until the Eclipse ends.",
+      "declarationLost": "Your Direct Murder declared in the dark was lost before the lights could judge it. Your action comes back.",
+      "declarationLostGm": "{killer}'s Direct Murder was declared in an Eclipse that has ended, and its lights never judged it. It is dropped, and the action goes back.",
+      "declarationLostOpenGm": "{killer}'s Direct Murder was allowed at the lights, but its incident did not open before a reload, and it cannot open now. It is dropped, and the action goes back.",
+      "lightsWaitOpening": "The lights wait for {name}'s opening roll. If the player cannot throw it, press Throw for the player in the incident tracker, or End the murder."
     },
     "Movement": {
       "unlawfulArrival": "{name} went {into} by a crossing the rules do not allow, and was not put back. Until they stand in a room they could reach {from}, they do not count as a witness to a body or a third party to a murder. Moving the token as a GM makes their spot lawful.",
@@ -5121,7 +5149,8 @@
         "card.takenOver": "A card taken over by another GM",
         "ask.withdraw": "Withdrawing a request you made",
         "ask.state": "Your request's state, from the GM",
-        "bridge.playerReady": "Telling the GMs that your page has loaded"
+        "bridge.playerReady": "Telling the GMs that your page has loaded",
+        "eclipse.judge": "The rooms at the lights, read on the primary GM"
       },
       "notDone": "“{what}” was not carried out. {why}",
       "nothingSpent": "You keep your action and your Hope.",

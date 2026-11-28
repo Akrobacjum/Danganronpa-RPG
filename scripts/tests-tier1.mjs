@@ -27437,30 +27437,34 @@ const INVARIANTS = [
 
         const kitchen = { victim: "Kitchen", killer: "Kitchen", witness: "Hall", bystander: "Dorm" };
         const out = { victim: "dead", killer: "Kitchen", witness: "Hall", bystander: "Dorm" };
+        /* 2.0 line T1 MURDER-03 (27.11.2026; the recommendation the owner took: "jego mikrofon milknie od chwili smierci do
+           znalezienia ciala"): a dead member of the running incident's cast leaves the room it died in at its death
+           (voice.mjs `deathVoiceGone`), so "in the incident" reads as "after" did - the dead in the Spectators' room - a
+           witness's room waits for nobody, and the passes send everyone at once, without the 1500 ms wait for the victim. */
         equal(stableJson(seen), stableJson([
-            ["in the incident", kitchen],
+            ["in the incident", out],
             ["after closeIncident", out],
             ["cast not here", { ...kitchen, victim: "kept" }],
-            ["cast arrived", kitchen],
-            ["killer dead in public, in the incident", kitchen],
+            ["cast arrived", out],
+            ["killer dead in public, in the incident", { ...kitchen, killer: "dead" }],
             ["killer dead in public, after", { ...kitchen, killer: "dead" }], // the main room until E72 C8
             ["outside the cast, secret", { ...kitchen, bystander: "dead" }],
             ["outside the cast, public", { ...kitchen, bystander: "dead" }], // the main room until E72 C8
             ["no incident, secret", { ...kitchen, bystander: "dead" }],
             ["the body found", out],
             ["silenced by a GM", out],
-            ["a witness", { ...out, witness: "Kitchen" }, { witness: ["victim"] }],
-            ["a witness, the actors reversed", { ...out, witness: "Kitchen" }, { witness: ["victim"] }],
-            ["Monokuma and a Monocub there", { victim: "Kitchen", killer: "Kitchen", witness: "Hall", cub: "Kitchen", gm: "Kitchen" }],
-            ["two victims", { victim: "Kitchen", killer: "Kitchen", third: "Kitchen" }],
+            ["a witness", { ...out, witness: "Kitchen" }, {}],
+            ["a witness, the actors reversed", { ...out, witness: "Kitchen" }, {}],
+            ["Monokuma and a Monocub there", { victim: "dead", killer: "Kitchen", witness: "Hall", cub: "Kitchen", gm: "Kitchen" }],
+            ["two victims", { victim: "dead", killer: "Kitchen", third: "dead" }],
             ["two victims, after", { victim: "dead", killer: "Kitchen", third: "dead" }],
             ["a second character, after", { victim: "Dorm", killer: "Kitchen" }],
-            ["a second character, in the incident", { victim: "Kitchen", killer: "Kitchen" }, { victim: "Kitchen", killer: "Kitchen" }, { killer: "Kitchen", victim: "Kitchen" }],
+            ["a second character, in the incident", { victim: "Dorm", killer: "Kitchen" }, { victim: "Dorm", killer: "Kitchen" }, { killer: "Kitchen", victim: "Dorm" }],
             ["a second character, cast not here", { victim: "kept", killer: "Kitchen" }, { victim: "kept", killer: "Kitchen" }],
             ["a second character sorting after, after", { victim: "Dorm", killer: "Kitchen" }],
-            ["the passes", { first: ["victim:dead", "killer:Kitchen", "bystander:Dorm"], waiting: [1500, 2000, 2000, 2000], forged: 3,
-                changed: 5, all: ["victim:dead", "killer:Kitchen", "bystander:Dorm", "witness:Kitchen", "gm:Hall"], alone: true }, true,
-            ["victim:dead", "killer:Kitchen", "bystander:Dorm", "witness:Kitchen", "gm:Hall"]],
+            ["the passes", { first: ["victim:dead", "killer:Kitchen", "witness:Kitchen", "bystander:Dorm", "gm:Hall"], waiting: [2000, 2000, 2000, 2000, 2000], forged: 5,
+                changed: 5, all: ["victim:dead", "killer:Kitchen", "witness:Kitchen", "bystander:Dorm", "gm:Hall"], alone: true }, true,
+            ["victim:dead", "killer:Kitchen", "witness:Kitchen", "bystander:Dorm", "gm:Hall"]],
             ["kept, sent", false, false, 2],
             ["micHold", { reason: "deadAlone", held: false }, null, null, true],
             ["triggers", { immediate: true }, { immediate: true }, true, true, true, true]]),
@@ -27469,7 +27473,8 @@ const INVARIANTS = [
             + "each to its account alone; the same on a fresh ledger; with no answer, after the 1500 ms], [a kept room: sent to the victim, how many], "
             + "[micHold: a player in the dead channel, in the main room, a GM in the dead channel, the line], "
             + "[the triggers: murderState, bodiesFound, the cast's change on the primary, the cast's arrival, the heartbeat, a kept room asked for]");
-        ok(asked > 0, "no case asked whether a body was found - the discovery's trigger was never read");
+        // Until 2.0 line T1 MURDER-03 a case had to ask whether a body was found; the dead now leave the room at death, so none does.
+        equal(asked, 0, "a case still asked whether a body was found - a dead member of the cast is out of the room at its death (MURDER-03)");
     }],
 
     ["R831 - in the dead channel the microphone stays its owner's: the reason is a line beside an open or muted button, a click mutes and unmutes, and a GM's block is named over it (E19-16; E19 fix r1-G1)", async () => {
@@ -27627,12 +27632,13 @@ const INVARIANTS = [
             ["the pass, the cast not here", ["bystander", "gm"]],
             ["asked, the cast not here", { victim: "kept", pub: "kept", witness: "held", killer: "held", bystander: "sent" },
                 ["victim:dead", "pub:dead", "bystander:Dorm"], true], // pub: the main room until E72 C8
-            ["the waits", { witness: ["victim"] }],
-            ["asked inside the wait, the victim answers", { first: ["victim:dead"], timers: [1500, 2000], said: "waited",
-                all: ["victim:dead", "witness:Kitchen"], alone: true }],
-            ["asked inside the wait, no answer", { first: ["victim:dead"], timers: [1500, 2000], said: "waited",
-                all: ["victim:dead", "witness:Kitchen"], alone: true }],
-            ["asked, the victim settled", "waited", ["witness:Kitchen"]],
+            // Since 2.0 line T1 MURDER-03 the dead victim is out of the room at its death: a witness waits for nobody.
+            ["the waits", {}],
+            ["asked inside the wait, the victim answers", { first: ["witness:Kitchen"], timers: [2000], said: "sent",
+                all: ["witness:Kitchen"], alone: true }],
+            ["asked inside the wait, no answer", { first: ["witness:Kitchen"], timers: [2000], said: "sent",
+                all: ["witness:Kitchen"], alone: true }],
+            ["asked, the victim settled", "sent", ["witness:Kitchen"]],
             ["onWhoAmI", true, true, true, true]]),
             "[the pass while the cast is not here: whom it sent], [each account asking then: what the answer did, the packets, each to its account alone], "
             + "[the witness's wait once the cast is here], [the witness asking inside the wait: sent before the victim answers, the timers, the answer, "
@@ -27808,7 +27814,8 @@ const INVARIANTS = [
             ["cold, Alice's death secret", { p: "Library", carol: "Gym", killer: "held", victim: "kept" }],
             ["cold, Alice of an earlier season", { p: "Library", carol: "Gym", killer: "held", victim: "kept" }],
             ["cold, a death of this chapter stays kept", { p: "kept", carol: "held", killer: "held", victim: "kept" }],
-            ["the cast here", { p: "Library", carol: "Gym", killer: "Kitchen", victim: "Kitchen" }],
+            // Since 2.0 line T1 MURDER-03 a dead member of the cast is out of the room at its death.
+            ["the cast here", { p: "Library", carol: "Gym", killer: "Kitchen", victim: "dead" }],
             ["deathFacts", true, "function", "number"]]),
             "[each case, the cast not here unless named: the room each account gets ('kept', 'held': nothing sent), what each account asking is answered "
             + "and sent, what the pass sends], [the real deathFacts: the clock's chapter, the record's reader, the season]");
@@ -29153,7 +29160,7 @@ const INVARIANTS = [
             tabs: [["one", "One", 'Say "one"'], ["two", "Two", null]]
         }), "{tipText's words; a key with no words; tipAttr's data-tooltip; with title: true; the tab bar's tooltips}");
     }],
-    ["R4751 - the actions' windows and the projects' windows draw their tooltips (E102 C2, 13.11.2026; the owner's stage \"Tooltips across the module\", docs/dev/e102/TOOLTIPS.json and KEYS.json): each of the family's 35 keys (34 until option (c), 16.11.2026) under DRPG.Tips.Actions has words in English and in Polish, at most 23 words each (the guide's tooltip limit), and the function that draws its control writes it where that control draws it (tests-tips.mjs `tipPlacement`: inside the control's own tag and not as a condition, as a labelled button's or tab's `tooltip`, in a builder's `data-tooltip` attrs, by `setTip`, or through a named local helper that writes it; a count's words through `plural`, each form within the limit)", async () => {
+    ["R4751 - the actions' windows and the projects' windows draw their tooltips (E102 C2, 13.11.2026; the owner's stage \"Tooltips across the module\", docs/dev/e102/TOOLTIPS.json and KEYS.json): each of the family's 36 keys (34 until option (c), 16.11.2026; 35 until line T1's DAY-08, 28.11.2026) under DRPG.Tips.Actions has words in English and in Polish, at most 23 words each (the guide's tooltip limit), and the function that draws its control writes it where that control draws it (tests-tips.mjs `tipPlacement`: inside the control's own tag and not as a condition, as a labelled button's or tab's `tooltip`, in a builder's `data-tooltip` attrs, by `setTip`, or through a named local helper that writes it; a count's words through `plural`, each form within the limit)", async () => {
         /* Red at 45e36627 with the keys and this test in place and the family's scripts as they were: no function read a DRPG.Tips.Actions key. Since REVIEW-E102-code C1: where the key lands, not only that it is named - red on the review's planted ternary that names the key and draws nothing (action-dynamic.mjs:336). */
         const TIPS = [
             ["DRPG.Tips.Actions.difficultyTooltip","action-dynamic.mjs","askDynamicDifficulty"],
@@ -29191,7 +29198,9 @@ const INVARIANTS = [
             ["DRPG.Tips.Actions.doItCostTooltip","rest.mjs","choosePicks"],
             // E69 C8 (13.11.2026): the killer's question behind the "?" (mask-gm.mjs), its two buttons.
             ["DRPG.Tips.Actions.maskRevealTooltip","mask-gm.mjs","askReveal"],
-            ["DRPG.Tips.Actions.maskStayTooltip","mask-gm.mjs","askReveal"]
+            ["DRPG.Tips.Actions.maskStayTooltip","mask-gm.mjs","askReveal"],
+            // Line T1 DAY-08 (28.11.2026): the murder declaration's Send without a note, when closing sends.
+            ["DRPG.Tips.Actions.murderSendNoNoteTooltip","action-menus.mjs","promptForNote"]
         ];
         const en = await fetch(`/modules/${MODULE_ID}/lang/en.json`).then(r => r.json());
         const pl = await fetch(`/modules/${MODULE_ID}/lang/pl.json`).then(r => r.json());
@@ -29199,7 +29208,7 @@ const INVARIANTS = [
         const src = new Map();
         for (const f of new Set(TIPS.map(t => t[1]))) src.set(f, stripComments(await fetch(`/modules/${MODULE_ID}/scripts/${f}`).then(r => (r.ok ? lfText(r) : ""))));
         must([...src.values()].every(s => s.length > 500), "a script of the family read as nothing - this would measure nothing");
-        must(Object.keys(words(en, "DRPG.Tips.Actions") ?? {}).length === 35, "lang/en.json has not the family's 35 keys under DRPG.Tips.Actions");
+        must(Object.keys(words(en, "DRPG.Tips.Actions") ?? {}).length === 36, "lang/en.json has not the family's 36 keys under DRPG.Tips.Actions");
         const fits = w => (w && typeof w === "object" ? Object.values(w).length > 0 && Object.values(w).every(fits) : typeof w === "string" && w.trim().length > 0 && w.trim().split(/\s+/).length <= 23);
         const P = await import("./tests-tips.mjs");
         must(P.tipPlacementSelfCheck().length === 0, `tests-tips.mjs misreads its own plants: ${P.tipPlacementSelfCheck().join("; ")}`);
@@ -46908,7 +46917,8 @@ const INVARIANTS = [
             sweep: destructiveYes(fnSource(investigationBy(read2), "confirmSweepBullets")),
             deleteTrace: destructiveYes(fnSource(investigationBy(read2), "deleteTraceRow")),
             endMurderTracker: destructiveYes(fnSource(read2("murder-ui.mjs"), "openIncidentTracker")),
-            endMurderFight: destructiveYes(fnSource(read2("murder-rules.mjs"), "killerFell")),
+            // Every killer fallen: asked of every full GM since 2.0 line T1 MURDER-09 (`askIncidentQuestion`), no longer in `killerFell`.
+            endMurderFight: destructiveYes(fnSource(read2("murder-rules.mjs"), "askIncidentQuestion")),
             finalVerdict: (t => /destructive:\s*\[[^\]]*action:\s*"correct"[\s\S]*action:\s*"wrong"/.test(t) && /default:\s*"cancel"/.test(t) && !/primary:/.test(t))(fnSource(read2("verdict.mjs"), "openFinalVerdictDialog")),
             stoppedEnd: /destructive:\s*\[\{\s*action:\s*"finish"[\s\S]*action:\s*"drop"/.test(fnSource(chapterBy(read2), "askStoppedEnd"))
         };
@@ -63325,7 +63335,8 @@ const INVARIANTS = [
         // The sweeps a GM gone or reloaded mid opening is answered by: the primary settles at its ready, when a GM leaves, and on every write of the incident.
         const register = stripComments(fnSource(await fetch(`/modules/${MODULE_ID}/scripts/mask-gm.mjs`).then(lfText), "registerMasks") ?? "");
         const wanted = typeof K.veilWanted === "function" ? K.veilWanted : () => "none";
-        const base = { active: true, stage: "openingRoll", killerId: "K", victimId: "V", indirect: false, selfInflicted: false };
+        /* At the lights (`atLights`): since 2.0 line T1 MURDER-01 the veil stands for an incident the Eclipse's lights opened alone (R8920). */
+        const base = { active: true, stage: "openingRoll", killerId: "K", victimId: "V", indirect: false, selfInflicted: false, atLights: true };
         const user = { id: "R7405USER0000000", name: "R7405", isGM: false, active: true };
         const hold = veiled => V.micHold({ user, room: "drpg-x", external: false, connected: true, canBroadcastAudio: false, actors: [], trial: null, listening: null, masked: false, veiled });
         const doc = { actorId: "K", actor: { type: "character" }, flags: { [MODULE_ID]: { veiled: true } } };
@@ -65725,18 +65736,19 @@ const INVARIANTS = [
             + "regreyOpenLoot reads that list] [it takes through takeFromBody; it asks the bridge itself] [buildBodyLoot opens it; buildBodyLoot takes]");
     }],
 
-    ["R5740 - the discovery's prompt is answered by the primary GM alone, and only a full Gamemaster (1.2.113; the owner's decision A of 13.11.2026): body.mjs `answersBodyPrompt` - a full Gamemaster who is the primary yes; an Assistant GM who is the primary, a full Gamemaster who is not, a player and nobody no", async () => {
+    ["R5740 - the discovery's prompt is answered by a full Gamemaster alone (1.2.113; the owner's decision A of 13.11.2026; since 2.0 line T1 MURDER-05 any full Gamemaster, the primary or not): body.mjs `answersBodyPrompt` - a full Gamemaster who is the primary yes, one who is not yes; an Assistant GM who is the primary, a player and nobody no", async () => {
         /*
          * 1.2.113, 13.11.2026. The coordinator's brief: "Any full Gamemaster may answer ... An Assistant GM cannot answer",
          * with the announcement the primary's (E11 fix r1-G2, `discoveryHere`). Stand-in users, a primary id handed in;
-         * nothing written. Red at a43e865e: no `answersBodyPrompt`.
+         * nothing written. Red at a43e865e: no `answersBodyPrompt`. 2.0 line T1 MURDER-05 (27.11.2026): a full Gamemaster
+         * who is not the primary answers too (the owner's recommendation, "Okno ... u wszystkich GM-ow").
          */
         const C = await import("./chapter.mjs");
         const { GAMEMASTER, ASSISTANT, PLAYER } = CONST.USER_ROLES;
         const u = (id, role) => ({ id, role, isGM: role >= ASSISTANT });
         const ask = (user, primaryId) => typeof C.answersBodyPrompt === "function" ? C.answersBodyPrompt(user, { primaryId }) : "absent";
         equal(stableJson([ask(u("g1", GAMEMASTER), "g1"), ask(u("a1", ASSISTANT), "a1"), ask(u("g2", GAMEMASTER), "g1"),
-            ask(u("p1", PLAYER), "p1"), ask(null, "g1")]), stableJson([true, false, false, false, false]),
+            ask(u("p1", PLAYER), "p1"), ask(null, "g1")]), stableJson([true, false, true, false, false]),
             "[full GM primary, Assistant GM primary, full GM not primary, player, nobody]");
     }],
 
@@ -72623,6 +72635,245 @@ const INVARIANTS = [
             words: game.i18n.localize("DRPG.Bridge.why.barricadeStands") === game.i18n.localize("DRPG.Infiltrate.shut.whyBarricaded")
         }), stableJson({ code: true, read: "barricadeStands", last: true, run: true, body: true, words: true }),
             "{the code in the closed list; the text read as it; the first pattern taking it is its own, the code after E74's; the run says it for another's barricade; a body keeps the general words; the told words are the row's}");
+    }],
+    // T1 murder-death-eclipse
+    ["R8935 - the incident's question to every GM stands for its own incident and kind alone, and Stage 6 at two killers and the fallen killers' close ask it rather than this browser (2.0 line T1 MURDER-09; scripts/murder-rules.mjs `incidentQuestionOpen`, `checkVictimSpent`, `killerFell`, `askIncidentQuestion`)", async () => {
+        /* 2.0 line T1, 27.11.2026. Pure over stand-in states, and the four functions read in their source; nothing
+           written. Red at 658302a: no `incidentQuestionOpen`; the two questions asked in this browser's memory. */
+        const R = await import("./murder-rules.mjs");
+        must(typeof R.incidentQuestionOpen === "function", "murder-rules.mjs has no incidentQuestionOpen - the question is one browser's");
+        const q = (kind, openedAt = 5, answer = null) => ({ openedAt: 5, question: { kind, openedAt, at: 1, answeredBy: null, answer } });
+        const open = [R.incidentQuestionOpen(q("spent"), "spent"), R.incidentQuestionOpen(q("spent"), "noKiller"), R.incidentQuestionOpen(q("spent", 4), "spent"),
+            R.incidentQuestionOpen(q("noKiller", 5, "cancel"), "noKiller"), R.incidentQuestionOpen({ openedAt: 5, question: null }, "spent")];
+        const src = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/murder-rules.mjs`).then(lfText));
+        const roads = [/raiseQuestion\(state, "spent"\)/.test(fnSource(src, "checkVictimSpent") ?? ""), /raiseQuestion\(state, "noKiller"\)/.test(fnSource(src, "killerFell") ?? ""),
+            /drpgConfirm|askWhileIncident/.test(fnSource(src, "checkVictimSpent") ?? "") || /drpgConfirm/.test(fnSource(src, "killerFell") ?? ""),
+            /CONST\.USER_ROLES\.GAMEMASTER/.test(fnSource(src, "askIncidentQuestion") ?? "")];
+        equal(JSON.stringify({ open, roads }), JSON.stringify({ open: [true, false, false, true, false], roads: [true, true, false, true] }),
+            "{open: [its incident and kind, another kind, another incident, answered, none]; roads: [the spent check raises it, the fallen killers' raises it, either asks a window itself, the window a full Gamemaster's]}");
+    }],
+    ["R8934 - who of the cast an incident waits on now, and whether nobody playing them is connected: the opening's roller, the side to act in the fight, every killer at Stage 6 (2.0 line T1 MURDER-06; scripts/murder-ui.mjs `expectedParticipants`, `participantAway`)", async () => {
+        /* 2.0 line T1, 27.11.2026. Pure over stand-in states, actors and users; nothing written. Red at 658302a: neither
+           function existed - a failed import is this test's red. */
+        const U = await import("./murder-ui.mjs");
+        must(typeof U.expectedParticipants === "function" && typeof U.participantAway === "function", "murder-ui.mjs has no expectedParticipants or participantAway");
+        const base = { active: true, killerId: "K", victimId: "V", thirdId: "T", killerTurnId: "K" };
+        const at = extra => { const r = U.expectedParticipants({ ...base, ...extra }); return [r.ids, r.hint]; };
+        const waits = [at({ stage: "openingRoll" }), at({ stage: "openingRoll", indirect: true }), at({ stage: "openingRoll", endedBy: "noticed" }),
+            at({ stage: "incident", turnSide: "victim" }), at({ stage: "incident", turnSide: "killer" }), at({ stage: "incident", turnSide: "third" }),
+            at({ stage: "incident", selfInflicted: true }), U.expectedParticipants(null).ids];
+        const actor = owners => ({ testUserPermission: u => owners.includes(u.id) });
+        const users = [{ id: "P1", isGM: false, active: false }, { id: "P2", isGM: false, active: true }, { id: "GM", isGM: true, active: true }];
+        const away = [U.participantAway(actor(["P1"]), users), U.participantAway(actor(["P1", "P2"]), users), U.participantAway(actor([]), users)];
+        equal(JSON.stringify({ waits, away }), JSON.stringify({ waits: [[["K"], "openingRoll"], [["V"], "openingRoll"], [[], null], [["V"], "incident"], [["K"], "incident"],
+            [["T"], "incident"], [[], null], []], away: [true, false, false] }),
+            "{waits: [the opening, a trap's, noticed, the victim's turn, the killer's, the third's, by their own hand, none]; away: [its one owner gone, a co-owner here, nobody owns it]}");
+    }],
+    ["R8933 - the tracker offers Throw for the player while the opening waits on a roll, not once a trap's victim noticed it; and the GM who throws stands only for this incident's opening while connected (2.0 line T1 MURDER-04, MURDER-11; scripts/murder-ui.mjs `incidentButtons`, murder-rules.mjs `openingThrowerStands`)", async () => {
+        /* 2.0 line T1, 27.11.2026. Pure over stand-in states and users; nothing written. Red at 658302a: no Throw for the
+           player, and no `openingThrowerStands`. */
+        const U = await import("./murder-ui.mjs");
+        const R = await import("./murder-rules.mjs");
+        must(typeof R.openingThrowerStands === "function", "murder-rules.mjs has no openingThrowerStands - nothing says a GM throws for the player");
+        const has = state => (U.incidentButtons(state).secondary ?? []).some(b => b.action === "throwFor");
+        const buttons = [has({ stage: "openingRoll" }), has({ stage: "openingRoll", endedBy: "noticed" }), has({ stage: "incident" }), has({ stage: "resolution" })];
+        const users = new Map([["GM2", { id: "GM2", active: true, isGM: true }], ["GONE", { id: "GONE", active: false, isGM: true }], ["P1", { id: "P1", active: true, isGM: false }]]);
+        const at = (userId, extra = {}) => R.openingThrowerStands({ stage: "openingRoll", openedAt: 5, openingThrower: { userId, at: 1, openedAt: 5 }, ...extra }, { users })?.id ?? null;
+        const stands = [at("GM2"), at("GONE"), at("P1"), at("GM2", { stage: "incident" }), at("GM2", { openedAt: 6 }), at("GM2", { endedBy: "noticed" }),
+            R.openingThrowerStands({ stage: "openingRoll", openedAt: 5, openingThrower: null }, { users })];
+        equal(JSON.stringify({ buttons, stands }), JSON.stringify({ buttons: [true, false, false, false], stands: ["GM2", null, null, null, null, null, null] }),
+            "{buttons: Throw for the player at [the opening, a trap's victim who noticed, the fight, Stage 6]; stands: [a connected GM, one gone, a player, the fight, another incident, noticed, nobody]}");
+    }],
+    ["R8932 - the tracker says what the incident waits on: the GM's pick of the opening's statistic while none is picked, and End the murder at Stage 6; and every killer is told as Stage 6 opens that the GM ends it (2.0 line T1 MURDER-12, MURDER-14; scripts/murder-ui.mjs `trackerWaitLines`, murder-rules.mjs `tellKillersStageSix`)", async () => {
+        /* 2.0 line T1, 27.11.2026. Pure over stand-in states; the two murder-rules.mjs roads to Stage 6 and the line read in
+           their source; nothing written. Red at 658302a: no `trackerWaitLines`, and no killer's line at Stage 6. */
+        const U = await import("./murder-ui.mjs");
+        must(typeof U.trackerWaitLines === "function", "murder-ui.mjs exports no trackerWaitLines - the tracker says nothing of what the incident waits on");
+        const pick = game.i18n.localize("DRPG.Murder.openingWaitsOnPick"), six = game.i18n.localize("DRPG.Murder.trackerStageSixWaits");
+        const said = now => U.trackerWaitLines(now).map(l => l === pick ? "pick" : l === six ? "six" : "?");
+        const lines = [said({ stage: "openingRoll", openingTrait: null }), said({ stage: "openingRoll", openingTrait: "body" }),
+            said({ stage: "openingRoll", openingTrait: null, endedBy: "noticed" }), said({ stage: "incident", openingTrait: "body" }), said({ stage: "resolution" }), said(null)];
+        const src = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/murder-rules.mjs`).then(lfText));
+        const calls = ["finishIncident", "beginResolution"].map(fn => /tellKillersStageSix\(state\)/.test(fnSource(src, fn) ?? ""));
+        const line = /DRPG\.Murder\.stageSixEndsByGm/.test(fnSource(src, "tellKillersStageSix") ?? "") && /killerIds\(state\)/.test(fnSource(src, "tellKillersStageSix") ?? "");
+        const keys = [game.i18n.has("DRPG.Murder.stageSixEndsByGm"), pick !== "DRPG.Murder.openingWaitsOnPick", six !== "DRPG.Murder.trackerStageSixWaits"];
+        equal(JSON.stringify({ lines, calls, line, keys }), JSON.stringify({ lines: [["pick"], [], [], [], ["six"], []], calls: [true, true], line: true, keys: [true, true, true] }),
+            "{lines: [opening, no pick; picked; a trap's victim noticed; the fight; Stage 6; no incident]; calls: finishIncident, beginResolution tell the killers; line: the killers' line is the key, to every killer; keys: the three keys}");
+    }],
+    ["R8930 - every full Gamemaster answers the 'Students found a body' window, an Assistant GM none, and a window closes on another GM's answer younger than itself or on its row gone (2.0 line T1 MURDER-05; scripts/body.mjs `answersBodyPrompt`, `bodyPromptAnsweredElsewhere`)", async () => {
+        /* 2.0 line T1, 27.11.2026. Pure over stand-in users and rows; nothing written. Red at 658302a: a second full GM
+           answered false (`user.id === primaryId`), and `bodyPromptAnsweredElsewhere` did not exist. */
+        const B = await import("./body.mjs");
+        must(typeof B.bodyPromptAnsweredElsewhere === "function", "body.mjs exports no bodyPromptAnsweredElsewhere - no window can tell another GM answered");
+        const GM = CONST.USER_ROLES.GAMEMASTER, AGM = CONST.USER_ROLES.ASSISTANT;
+        const user = (id, role, isGM = true) => ({ id, role, isGM });
+        const asks = [B.answersBodyPrompt(user("PRIMARY", GM), { primaryId: "PRIMARY" }), B.answersBodyPrompt(user("SECOND", GM), { primaryId: "PRIMARY" }),
+            B.answersBodyPrompt(user("ASSIST", AGM), { primaryId: "PRIMARY" }), B.answersBodyPrompt(user("PLAYER", 1, false), { primaryId: "PRIMARY" })];
+        const at = { openedAt: 1000, userId: "ME" };
+        const closes = [B.bodyPromptAnsweredElsewhere(null, at), B.bodyPromptAnsweredElsewhere({ room: "r" }, at),
+            B.bodyPromptAnsweredElsewhere({ answeredBy: "OTHER", answeredAt: 1500 }, at), B.bodyPromptAnsweredElsewhere({ answeredBy: "OTHER", answeredAt: 500 }, at),
+            B.bodyPromptAnsweredElsewhere({ answeredBy: "ME", answeredAt: 1500 }, at)];
+        equal(JSON.stringify({ asks, closes }), JSON.stringify({ asks: [true, true, false, false], closes: [true, false, true, false, false] }),
+            "{asks: [the primary, a second full GM, an Assistant GM, a player]; closes: [the row gone, no answer, another's answer after the opening, before it, this GM's own]}");
+    }],
+    ["R8931 - the case's question at a body is asked on the GM who announced it while connected and a full Gamemaster, else on the primary; and a second GM's browser asks after the primary's answer only what that answer names (2.0 line T1 INV-06, MURDER-08; scripts/case-realize.mjs `caseAskerId`, body.mjs `askedHere`)", async () => {
+        /* 2.0 line T1, 27.11.2026. Pure over stand-in users and answers; nothing written. Red at 658302a: neither
+           function existed, and the hook asked on the primary whoever announced. */
+        const C = await import("./case-realize.mjs");
+        const B = await import("./body.mjs");
+        must(typeof C.caseAskerId === "function" && typeof B.askedHere === "function", "caseAskerId or askedHere is missing - nothing here says who asks");
+        const GM = CONST.USER_ROLES.GAMEMASTER, AGM = CONST.USER_ROLES.ASSISTANT;
+        const users = new Map([["SECOND", { id: "SECOND", active: true, isGM: true, role: GM }], ["GONE", { id: "GONE", active: false, isGM: true, role: GM }],
+            ["ASSIST", { id: "ASSIST", active: true, isGM: true, role: AGM }], ["PLAYER", { id: "PLAYER", active: true, isGM: false, role: 1 }]]);
+        const who = announcer => C.caseAskerId({ announcer, primaryId: "PRIMARY", users });
+        const asker = [who(null), who("SECOND"), who("GONE"), who("ASSIST"), who("PLAYER"), who("NOBODY")];
+        const here = [B.askedHere({ promotion: { room: "Hall", chapter: 2 } }), B.askedHere(true), B.askedHere({ moved: 1, promotion: Promise.resolve(0) }),
+            B.askedHere({ promotion: { room: "", chapter: 2 } }), B.askedHere(null)];
+        equal(JSON.stringify({ asker, here }), JSON.stringify({ asker: ["PRIMARY", "SECOND", "PRIMARY", "PRIMARY", "PRIMARY", "PRIMARY"],
+            here: [{ room: "Hall", chapter: 2 }, null, null, null, null] }),
+            "{asker: [no announcer, a connected second GM, one gone, an Assistant GM, a player, an unknown id]; here: [the primary's question, true, the local road's own result, no room, nothing]}");
+    }],
+    ["R8929 - a Spectator's message passes only as its own messenger thread to the GMs; a thread card with a player in its whisper, another's thread and plain chat do not (2.0 line T1 EXP-PL-10; scripts/spectator-ui.mjs `spectatorMessageAllowed`, `refuseOwnMessage`, `hiddenSpectatorMessage`, `dropSpectatorMessage`)", async () => {
+        /* 2.0 line T1, 27.11.2026. Pure over stand-in messages and users, and the three parts read in their source; nothing
+           written. Red at 658302a: no rule, every message of a Spectator's but the safeword's card refused. */
+        const U = await import("./spectator-ui.mjs");
+        must(typeof U.spectatorMessageAllowed === "function", "spectator-ui.mjs has no spectatorMessageAllowed - a Spectator cannot write to the GMs");
+        const users = new Map([["SPEC", { id: "SPEC", isGM: false }], ["GM1", { id: "GM1", isGM: true }], ["GM2", { id: "GM2", isGM: true }], ["P2", { id: "P2", isGM: false }]]);
+        const author = users.get("SPEC");
+        const msg = (whisper, flags) => ({ whisper, flags: { [MODULE_ID]: flags } });
+        const ok = m => U.spectatorMessageAllowed(m, author, { users });
+        const src = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/spectator-ui.mjs`).then(lfText));
+        const asks = ["refuseOwnMessage", "hiddenSpectatorMessage", "dropSpectatorMessage"].map(fn => /spectatorMessageAllowed\(/.test(fnSource(src, fn) ?? ""));
+        equal(JSON.stringify({ rows: [ok(msg(["SPEC", "GM1", "GM2"], { thread: "SPEC", kind: "dm" })), ok(msg(["GM1"], { thread: "SPEC", kind: "dm" })),
+            ok(msg(["SPEC", "GM1", "P2"], { thread: "SPEC", kind: "dm" })), ok(msg(["P2", "GM1"], { thread: "P2", kind: "dm" })),
+            ok(msg([], { thread: "SPEC", kind: "dm" })), ok(msg(["GM1"], { thread: "SPEC", kind: "action" })), ok(msg(["GM1"], {})), ok(msg([], {}))], asks }),
+        JSON.stringify({ rows: [true, true, false, false, false, false, false, false], asks: [true, true, true] }),
+            "{rows: [its thread to the GMs, to one GM, with a player in the whisper, another's thread, no whisper, a ruling card, a whisper to a GM with no thread, plain chat]; asks: the three parts ask the rule}");
+    }],
+    ["R8927 - the name over a masked token is drawn on a GM's canvas alone: a Spectator's - a dead student's, a Spectator's account's, a Monocub's - keeps the \"?\" (2.0 line T1 MURDER-03; scripts/mask-gm.mjs `drawMaskName`)", async () => {
+        /* 2.0 line T1, 27.11.2026. A stand-in token, its nameplate a plain object; nothing written. Red at 658302a:
+           `drawMaskName` was not exported, and a Spectator's browser drew "? (name)". */
+        const K = await import("./mask-gm.mjs");
+        must(typeof K.drawMaskName === "function", "mask-gm.mjs exports no drawMaskName - nothing here can say whose canvas names a masked killer");
+        const token = gm => {
+            const t = { document: { flags: { [MODULE_ID]: { masked: true } }, actor: { name: "R8927 Killer" } }, nameplate: { text: "?", visible: false } };
+            K.drawMaskName(t, { gm });
+            return [t.nameplate.text, t.nameplate.visible];
+        };
+        const src = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/mask-gm.mjs`).then(lfText));
+        equal(JSON.stringify({ gm: token(true), other: token(false), spectatorRead: /spectatorViewer|isSpectatorViewer/.test(fnSource(src, "drawMaskName") ?? "") }),
+            JSON.stringify({ gm: ["? (R8927 Killer)", true], other: ["?", false], spectatorRead: false }),
+            "{gm: a GM's canvas, the nameplate's text and whether shown; other: any other canvas, a Spectator's among them; spectatorRead: drawMaskName asks whether this browser is a Spectator's}");
+    }],
+    ["R8928 - a dead member of the running incident's cast leaves the room it died in at its death, the body not found and no GM's Silence now (2.0 line T1 MURDER-03; scripts/voice.mjs `deathVoiceGone`)", async () => {
+        /* 2.0 line T1, 27.11.2026. Pure over handed facts; nothing written. Red at 658302a: false, the voice kept with the cast. */
+        const { deathVoiceGone } = await import("./voice.mjs");
+        const actor = { id: "R8928VICTIM00000" };
+        const state = { active: true, stage: "incident", victimId: actor.id };
+        const read = [await deathVoiceGone(actor, { state, hydrated: true, cast: new Set([actor.id]), announced: async () => false }),
+            await deathVoiceGone(actor, { state, hydrated: true, cast: new Set([actor.id]), announced: async () => true }),
+            await deathVoiceGone(actor, { state: null, hydrated: true, cast: new Set(), announced: async () => false })];
+        equal(JSON.stringify(read), JSON.stringify([true, true, true]), "[in the cast, the body not found; in the cast, found; no incident] - whether the voice has left the room");
+    }],
+    ["R8926 - an incident's opening roll and its crisis rolls pay no resources, every other roll pays as before (2.0 line T1 EXP-PL-03, D2-09, D2-11; scripts/despair-award.mjs `rollPaysResources`, `incidentRollExempt`)", async () => {
+        /* 2.0 line T1, 27.11.2026. Pure, over plain incidents and messages; nothing written. Red at 658302a: no rule. */
+        const A = await import("./despair-award.mjs");
+        must(typeof A.rollPaysResources === "function" && typeof A.incidentRollExempt === "function", "despair-award.mjs has no rollPaysResources - every incident roll pays");
+        const st = (stage, extra = {}) => ({ active: true, stage, killerId: "K", victimId: "V", thirdId: "T", indirect: false, ...extra });
+        const pays = (key, state, actorId) => A.rollPaysResources({ key, state, actorId });
+        const msg = (gm, flag) => ({ author: { isGM: gm }, getFlag: (scope, key) => (scope === MODULE_ID && key === A.INCIDENT_FREE_FLAG ? flag : undefined) });
+        equal(JSON.stringify({
+            opening: [pays("murderOpening", st("openingRoll"), "K"), pays("murderOpening", st("openingRoll", { indirect: true }), "V"), pays("murderOpening", st("openingRoll"), "V"),
+                pays("murderOpening", null, "K"), pays("murderOpening", st("incident"), "K")],
+            crisis: [pays("crisis", st("incident"), "V"), pays("crisis", st("incident"), "K"), pays("crisis", st("incident"), "T"), pays("crisis", st("incident"), "B"),
+                pays("crisis", null, "V"), pays("crisis", st("resolution"), "V")],
+            others: [pays("search", st("incident"), "B"), pays("search", st("incident"), "V"), pays(null, st("incident"), "V")],
+            exempt: [A.incidentRollExempt(msg(true, true)), A.incidentRollExempt(msg(false, true)), A.incidentRollExempt(msg(true, undefined))]
+        }), JSON.stringify({ opening: [false, false, true, true, true], crisis: [false, false, false, true, true, true], others: [true, true, true], exempt: [true, false, false] }),
+        "{opening: [the killer at the opening, a trap's victim, a direct murder's victim, no incident, the fight]; crisis: [victim, killer, third, a bystander, no incident, Stage 6]; others: [a bystander's Search, the victim's Search, no key]; exempt: [a GM's flagged message, a player's, a GM's unflagged]}");
+    }],
+    ["R8925 - the Eclipse's crossing lines say that going back counts as a crossing, in every form of both languages (2.0 line T1 EXP-PL-06; lang `DRPG.Eclipse.yourMoves`, `DRPG.Eclipse.moved`; eclipse.mjs `judgeEclipseCrossing`)", async () => {
+        /* 2.0 line T1, 27.11.2026. Read off the language files; nothing written. Red at 658302a: no form says it. */
+        const en = await fetch(`/modules/${MODULE_ID}/lang/en.json`).then(r => r.json());
+        const pl = await fetch(`/modules/${MODULE_ID}/lang/pl.json`).then(r => r.json());
+        const said = { en: /going back to a room counts as a crossing/i, pl: /powrót do pokoju też jest przejściem/i };
+        const forms = (d, lang) => ["yourMoves", "moved"].map(k => Object.entries(d?.DRPG?.Eclipse?.[k] ?? {}).map(([form, t]) => [form, said[lang].test(String(t))]));
+        equal(JSON.stringify({ en: forms(en, "en"), pl: forms(pl, "pl") }),
+            JSON.stringify({ en: [[["one", true], ["other", true]], [["one", true], ["other", true]]],
+                pl: [[["one", true], ["few", true], ["many", true], ["other", true]], [["one", true], ["few", true], ["many", true], ["other", true]]] }),
+            "{per language: [yourMoves, moved] x each plural form - whether it says that going back counts}");
+    }],
+    ["R8924 - Direct Murder's note window says that closing it sends the declaration, and offers Send without a note; no other note window does (2.0 line T1 DAY-08; scripts/action-menus.mjs `promptForNote`, action-murder.mjs `performDirectMurder`)", async () => {
+        /* 2.0 line T1, 27.11.2026. The window's options caught as the kit hands them to Foundry's DialogV2 (`wait`), answered
+           at once with no button; nothing written. Red at 658302a: no `closeSends`, no line, one button. */
+        const { promptForNote } = await import("./action-menus.mjs");
+        const { livingStudents } = await import("./chapter.mjs");
+        const actor = livingStudents()[0];
+        must(actor, "no living student to draw the window for - this would measure nothing");
+        const D = foundry.applications.api.DialogV2;
+        const own = Object.getOwnPropertyDescriptor(D, "wait");
+        const seen = [];
+        D.wait = async config => { seen.push(config); return null; };
+        const line = game.i18n.localize("DRPG.Action.murderNoteCloseSends");
+        const read = [];
+        try {
+            for (const [closeSends, traits] of [[true, null], [false, null], [true, ["body", "hand"]], [false, ["body", "hand"]]]) {
+                const from = seen.length;
+                const answer = await promptForNote(actor, { title: "R8924", prompt: "R8924", placeholder: "", traits, closeSends });
+                const cfg = seen[from] ?? null;
+                const content = cfg?.content;
+                const html = (typeof content === "string" ? content : String(content?.outerHTML ?? "")) + JSON.stringify(cfg?.buttons?.map(b => b.label) ?? []);
+                read.push([Boolean(cfg), html.includes(line), (cfg?.buttons ?? []).some(b => b.action === "noNote"), JSON.stringify(answer)]);
+            }
+        } finally {
+            if (own) Object.defineProperty(D, "wait", own); else delete D.wait;
+        }
+        const src = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/action-murder.mjs`).then(lfText));
+        equal(JSON.stringify({ read, murder: /closeSends: true/.test(fnSource(src, "performDirectMurder") ?? "") }),
+            JSON.stringify({ read: [[true, true, true, '""'], [true, false, false, '""'], [true, true, true, '{"note":"","proposed":null}'], [true, false, false, '{"note":"","proposed":null}']], murder: true }),
+            "{read: per [closeSends, a list of statistics] - [a window drawn, the closing line in it, the Send without a note button, the answer to a closed window]; murder: Direct Murder's declaration asks for it}");
+    }],
+    ["R8923 - a refused declaration's words say the action comes back, in either language, and nothing it says before contradicts that (2.0 line T1 EXP-PL-07; lang `DRPG.Action.murderRefused`, `murderRefusedGm`, `murderAskNote`, `murderParked`, `murderSpendsAnyway`, `murderSecondDeclaration`)", async () => {
+        /* 2.0 line T1, 27.11.2026. Read off the language files; nothing written. Red at f2523df: "The attempt is refused. The
+           action stays spent." / "Akcja przepada." */
+        const en = await fetch(`/modules/${MODULE_ID}/lang/en.json`).then(r => r.json());
+        const pl = await fetch(`/modules/${MODULE_ID}/lang/pl.json`).then(r => r.json());
+        const keys = ["murderRefused", "murderRefusedGm", "murderAskNote", "murderParked", "murderSecondDeclaration"];
+        const spent = { en: /stays spent/i, pl: /przepada/i };
+        const back = { en: /comes back|goes back|gets the action back|get the action back|gives it back/i, pl: /wraca|odzyskasz|odzyskuje|zwraca/i };
+        const read = Object.fromEntries(Object.entries({ en, pl }).map(([lang, d]) => [lang, keys.map(k => {
+            const t = String(d?.DRPG?.Action?.[k] ?? "");
+            return [Boolean(t), spent[lang].test(t), back[lang].test(t)];
+        })]));
+        const spends = [en, pl].map((d, i) => back[i ? "pl" : "en"].test(String(d?.DRPG?.Action?.murderSpendsAnyway ?? "")));
+        equal(JSON.stringify({ read, spends }), JSON.stringify({ read: { en: keys.map(() => [true, false, true]), pl: keys.map(() => [true, false, true]) }, spends: [true, true] }),
+            "{per language and key: [the text stands, it says the action stays spent, it says the action comes back]; spends: the confirmation says a refusal gives it back}");
+    }],
+    ["R8922 - an incident's close ends its killer's mask only where the victim died, or quietly when the season's reset abandons it (2.0 line T1 MURDER-02, D2-06; scripts/mask-gm.mjs `maskEndsAtClose`, `endMasksAtClose`)", async () => {
+        /* 2.0 line T1, 27.11.2026. Pure, and the close's road read in its source; nothing written. Red at 94af3e9: no
+           `maskEndsAtClose`, and the close ended every mask whoever died. */
+        const K = await import("./mask-gm.mjs");
+        must(typeof K.endMasksAtClose === "function", "mask-gm.mjs has no endMasksAtClose - this would measure nothing");
+        const rule = typeof K.maskEndsAtClose === "function" ? K.maskEndsAtClose : () => "none";
+        const src = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/mask-gm.mjs`).then(lfText));
+        const close = fnSource(src, "endMasksAtClose") ?? "";
+        equal(JSON.stringify({ rule: [rule({ victimAlive: true }), rule({ victimAlive: false }), rule({ victimAlive: true, quiet: true }), rule({ victimAlive: false, quiet: true })],
+            road: [/maskEndsAtClose\(\{ victimAlive: [^}]*isDeadForGm\(victim\)/.test(close), /row\.victimId/.test(close)] }),
+        JSON.stringify({ rule: [false, true, true, true], road: [true, true] }),
+        "{rule: [the victim lived, died, lived with the reset abandoning, died with it]; road: the close asks the rule of the row's victim as the GMs hold their death}");
+    }],
+    ["R8921 - a failed opening's line to its victim names nobody, in either language (2.0 line T1 D2-08, D2-10; lang `DRPG.Murder.victimAttemptFailed`): no placeholder and no name in the English or the Polish text, and the failure branch of murder-rules.mjs `resolveKillerOpening` sends it to the victim", async () => {
+        /* 2.0 line T1, 27.11.2026. Read off the language files and the source; nothing written. Red at 07c93d1: no key. */
+        const en = await fetch(`/modules/${MODULE_ID}/lang/en.json`).then(r => r.json());
+        const pl = await fetch(`/modules/${MODULE_ID}/lang/pl.json`).then(r => r.json());
+        const src = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/murder-rules.mjs`).then(lfText));
+        const open = fnSource(src, "resolveKillerOpening") ?? "";
+        const tell = fnSource(src, "tellVictimTheAttemptFailed") ?? "";
+        const texts = [en?.DRPG?.Murder?.victimAttemptFailed, pl?.DRPG?.Murder?.victimAttemptFailed];
+        equal(JSON.stringify({ texts: texts.map(t => typeof t === "string" && t.length > 0), placeholders: texts.map(t => /\{[^}]*\}/.test(String(t ?? ""))),
+            road: [/if \(!state\.selfInflicted\) await tellVictimTheAttemptFailed\(state\)/.test(open), /DRPG\.Murder\.victimAttemptFailed/.test(tell), /state\??\.victimId/.test(tell)] }),
+        JSON.stringify({ texts: [true, true], placeholders: [false, false], road: [true, true, true] }),
+        "{texts: the English and the Polish line stand; placeholders: either names a placeholder; road: the failure branch tells the victim but for a death by one's own hand, the line is the key's, to the victim}");
     }],
 ];
 

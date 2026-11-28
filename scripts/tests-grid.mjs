@@ -105,7 +105,7 @@ const emptySides = v => none(v) || Object.values(v).every(side => !side || !Obje
  * (`?? []`, `?? null`, `?? false`), so absent passes where the default does. A field of
  * the merged state that is in neither this table nor `KEPT` fails as unknown: the next
  * field an incident gains is declared here in the commit that adds it (C9, C10, C11c,
- * C13 and C17 do, with `freshIncidentState`; E72 C8 `silencedDead`; 1.2.121 `watchDie`).
+ * C13 and C17 do, with `freshIncidentState`; E72 C8 `silencedDead`; 1.2.121 `watchDie`; 2.0 line T1 `atLights`, `openingThrower`, `question`).
  */
 const FRESH = Object.freeze({
     active: v => v === true,
@@ -132,6 +132,10 @@ const FRESH = Object.freeze({
     // The watch's die kept at the lights (1.2.121, STG-01): none for an incident opened anywhere else, and at the lights
     // 0 or 1 (the grid keeps no watch, so 0: XI07, a betrayal declared in the Eclipse, read 0 on 21.11.2026).
     watchDie: v => none(v) || v === 0 || v === 1,
+    // Opened by the Eclipse's lights (2.0 line T1 MURDER-01): the grid opens at no lights but a betrayal declared in an Eclipse.
+    atLights: v => none(v) || typeof v === "boolean",
+    openingThrower: v => none(v) || (typeof v === "object" && typeof v.userId === "string"),
+    question: v => none(v) || (typeof v === "object" && ["spent", "noKiller"].includes(v.kind)),
     // Per side, the action a Hope miss earned a second try at (E32+E07 C9): none yet.
     advantageNext: v => none(v) || (none(v.victim) && none(v.killer)),
     freeResolution: none,
@@ -685,6 +689,8 @@ const STEPS = {
         const end = () => run.M.endMurder({ reason: "closed", followUp: Boolean(checklist) });
         if (fault) return faulted(run, "the close", fault, end, () => closeIncident(run));
         if (!await queued(run, "the close", end)) return;
+        // The lights an opening held (`eclipse`, D2-28) finish once its incident is closed: the clock moves there.
+        if (run.lights) { await run.lights.catch(() => null); run.lights = null; }
         const betrays = checklist === "betrayal" && offer && m?.body;
         closeIncident(run);
         if (betrays) {
@@ -840,7 +846,16 @@ const STEPS = {
             run.eclipse = true;
             return;
         }
-        await E.endEclipse();
+        /* THE LIGHTS WAIT FOR THE OPENING (2.0 line T1 D2-28): the lights wait for an opening's result before the clock,
+           and no step of these cases throws the betrayal's opening - each closes it. So the end runs on while the case
+           goes on once the incident its lights opened stands at its opening roll, and the step that ends that incident
+           lets the lights finish (`close`; `runCase` after the case). */
+        const ending = E.endEclipse();
+        let ended = false;
+        ending.then(() => { ended = true; }, () => { ended = true; });
+        const atTheOpening = () => { const s = run.M.murderState(); return Boolean(s?.active) && s.stage === "openingRoll" && s.atLights === true; };
+        await until(() => ended || atTheOpening(), 20000);
+        run.lights = ended ? null : ending;
         run.eclipse = false;
         await wait(200);
         const parked = run.parked;
@@ -1295,7 +1310,7 @@ async function assertIncidentInvariants(run) {
         const copied = [...FIGHT_FIELDS, "departed"];
         const afterFight = m.kind === "trap" && killerSide;
         const withheld = [...(afterFight ? [...FIGHT_FIELDS, ...(none(copy.thirdId) ? ["thirdId", "thirdSide"] : [])] : ["keyRemnants"]),
-            "departed", "lastCrisis", "openingTrait", "watchDie", ...(killerSide ? [] : ["freeCleanup"]), "recent"];
+            "departed", "lastCrisis", "openingTrait", "watchDie", "atLights", "openingThrower", "question", ...(killerSide ? [] : ["freeCleanup"]), "recent"];
         const due = f => (withheld.includes(f) ? null : state?.[f] ?? null);
         const unlike = copied.filter(f => JSON.stringify(copy[f] ?? null) !== JSON.stringify(due(f)));
         if (unlike.length) run.violate("I2", `${user.name}'s copy holds the fight's ${unlike.join(", ")} unlike the GMs'`);
@@ -1597,7 +1612,7 @@ async function runCase(id) {
     const who = await peopleFor(spec);
     const found = [];
     const run = {
-        spec, who, M, actionsLeft, model: null, opened: 0, closed: 0, closes: 0, offer: null, parked: null, phase: null, eclipse: false, clockBefore: null,
+        spec, who, M, actionsLeft, model: null, opened: 0, closed: 0, closes: 0, offer: null, parked: null, phase: null, eclipse: false, lights: null, clockBefore: null,
         blackened: new Set(), blackenedBefore: M.blackenedIds(), bodies: new Map(), dead: new Set(), items: new Map(), broken: new Set(),
         swung: new Map(), places: new Map(), everIn: new Set(), packets: [], messages: [], dialogs: [], ranOuts: [],
         turnFloor: 0, fresh: false, undone: false, at: 0, stepStarted: 0, stopped: false, beforeAct: null, room: null, checklist: null, brink: false,
@@ -1635,6 +1650,7 @@ async function runCase(id) {
                 run.violate("I10", `the close after the case: ${err.message}`);
             }
         }
+        if (run.lights) await run.lights.catch(() => null);
         if (run.clockBefore) await setClock(run.clockBefore);
         for (const { token, x, y } of run.places.values()) if (token.parent?.tokens?.has(token.id)) await token.update({ x, y }, { ...PLACE });
         for (const item of run.items.values()) if (item.parent?.items?.has(item.id)) await item.delete();

@@ -792,11 +792,14 @@ export async function handleKeysCharge() {
 }
 
 /** The run of `body.discover` (E128): a second full GM's announcement, run here as the primary's own press runs it. */
-export async function handleBodyDiscover(payload) {
+export async function handleBodyDiscover(payload, sender) {
     const { discoverBody } = await import("./chapter.mjs");
+    // The announcer is Foundry's sender, never a packet's field (2.0 line T1 MURDER-08): the questions after the
+    // announcement open on its browser, and the answer says where (body.mjs `runDiscovery`).
     const done = await discoverBody({ room: payload.room, victim: game.actors.get(payload.victimId ?? "") ?? null,
-        scene: game.scenes.get(payload.sceneId ?? "") ?? null });
-    return done ? { reply: true } : { refused: "nothing was carried out: the primary GM announced no body (its own checks refused it)" };
+        scene: game.scenes.get(payload.sceneId ?? "") ?? null, announcer: sender?.id ?? null });
+    const ask = done?.promotion && typeof done.promotion.then !== "function" ? done.promotion : null;
+    return done ? { reply: ask ? { promotion: { room: ask.room, chapter: ask.chapter } } : true } : { refused: "nothing was carried out: the primary GM announced no body (its own checks refused it)" };
 }
 
 /**
@@ -1040,4 +1043,16 @@ export async function handleCardPost(payload, sender) {
         flags: payload.flags, summary: payload.summary, veiled: payload.veiled });
     if (!message) return { refused: "nothing was carried out: the card could not be posted" };
     return { reply: { id: message.id } };
+}
+
+/**
+ * The run of `eclipse.judge` (2.0 line T1 DAY-03): where each declaration of the Eclipse `eclipse` stands at its lights, read
+ * on this primary's record of lawful places (eclipse.mjs `standingsOnPrimary`), for the second GM whose End the Eclipse
+ * runs the judgement. Answers the standings, `{}` for an Eclipse with no declaration here.
+ */
+export async function handleEclipseJudge(payload) {
+    const { standingsOnPrimary } = await import("./eclipse.mjs");
+    const out = await standingsOnPrimary(payload.eclipse);
+    if (!out) return { refused: "nothing was carried out: this GM is not the primary" };
+    return { reply: out };
 }

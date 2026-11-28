@@ -241,3 +241,5 @@ export const ACTION_ASK_STATE = "ask.state";
 /** player -> GMs: this player's browser has loaded, so it waits on no ask it sent before (2.0 line T2, CALLS-04, 28.11.2026) - see
     gm-bridge.mjs `tellGmsPlayerReady`, `onPlayerReady`; no field but its name: whose asks end is Foundry's sender. */
 export const ACTION_PLAYER_READY = "bridge.playerReady";
+/** GM -> primary GM: where each declaration of an Eclipse stands at its lights, read on the primary's record of lawful places (2.0 line T1 DAY-03). */
+export const ACTION_ECLIPSE_JUDGE = "eclipse.judge";

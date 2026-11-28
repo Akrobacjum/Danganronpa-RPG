@@ -49,7 +49,7 @@ import {
     ACTION_OPENING_RESULT, ACTION_CLEANUP, ACTION_BETRAYAL, ACTION_PARK_MURDER, ACTION_CUB_ABILITY, ACTION_CUB_ANSWER, ACTION_BRIBE_OFFER, ACTION_BRIBE_ANSWER, ACTION_LOOT,
     ACTION_NOTE_SAVE, ACTION_ROLL_BOOKMARK, ACTION_REROLL, ACTION_CARD, ACTION_CARD_CLAIM, ACTION_BULLET_GIVE, ACTION_FACILITY_USE, ACTION_DASH,
     ACTION_TAIL_START, ACTION_DOOR_SHUT, ACTION_DOOR_FORCE, ACTION_DOOR_PICK, ACTION_WATCH_DECLARE, ACTION_DOOR_KNOCK,
-    ACTION_LISTEN_EAVESDROP, ACTION_LISTEN_STOP, ACTION_LISTEN_ECHOES, ACTION_MASK_REVEAL, ACTION_MASK_VEIL, ACTION_HIDE_START, ACTION_DEAD_SPECTATOR, ACTION_ASK_WITHDRAW
+    ACTION_LISTEN_EAVESDROP, ACTION_LISTEN_STOP, ACTION_LISTEN_ECHOES, ACTION_MASK_REVEAL, ACTION_MASK_VEIL, ACTION_HIDE_START, ACTION_DEAD_SPECTATOR, ACTION_ASK_WITHDRAW, ACTION_ECLIPSE_JUDGE
 } from "./bridge-wire.mjs";
 import {
     handleObserveTarget, handleCleanupTraces, handleObserveResolve, handleAnalyzeResolve, handleAdvancement,
@@ -70,7 +70,7 @@ import {
     handleReroll, handleAuditDecide, handleKeysCharge, handleBodyDiscover, handleChapterEnd, handleVoiceReset, handleVerdictFinish, handleTrialRecord, handleTrialEnter, handleVoteRun, handleBallot,
     handleBallotAsk, handleFloorNow, handleTrialObject, handleTrialEvidence, handleTrialWithdraw, handleFloorRepoint,
     handleTrialGm, handleTrialTurn, handleTrialClaim, handleTrialSide, handleTrialKeyword, handleReadyOpen, handleReadyAnswer, handleReadyEnd,
-    handleTrialPresent, handleReshapeRuling, handleObservePick, handleObserveDescribe, handleCardClaim, handleCardPost, handleGiveBullet
+    handleTrialPresent, handleReshapeRuling, handleObservePick, handleObserveDescribe, handleCardClaim, handleCardPost, handleGiveBullet, handleEclipseJudge
 } from "./bridge-runs-records.mjs";
 
 /**
@@ -1687,7 +1687,10 @@ export const BRIDGE_ACTIONS = table({
     [ACTION_ASK_WITHDRAW]: {
         label: "DRPG.Bridge.what.ask.withdraw", guards: [knownSender, guardAskWithdraw], sanitize: pick({ rid: as.id }),
         run: handleAskWithdraw, answer: "none", quiet: true
-    }
+    },
+    /* The lights' rooms read on the primary, for a second GM's End the Eclipse (2.0 line T1 DAY-03; eclipse.mjs `standingsAtTheLights`). */
+    [ACTION_ECLIPSE_JUDGE]: { label: "DRPG.Bridge.what.eclipse.judge", guards: [gmOnly("only a GM ends the Eclipse")], sanitize: pick({ eclipse: as.text }),
+        run: handleEclipseJudge, answer: "reply", claims: { eclipse: "held on the primary to its own rows of that Eclipse (eclipse.mjs `standingsOnPrimary`): a name with none answers no standing" } }
 });
 
 /** The two handovers: one declaration, told apart by the runner's `ctx.action`. */

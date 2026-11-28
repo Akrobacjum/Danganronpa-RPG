@@ -331,8 +331,10 @@ export const FLOWS = Object.freeze([
     // it was gm-rolls-total's, which 83's other phases keep.
     // E50 fix FG2 (30.10.2026; the end review's G7): 87-messenger-sound's part D plays the murder music on four accounts.
     // E128 (22.11.2026): a GM's ask for the opening's card, posted once by the primary (murder.openingCard), in 61 F9 and 97 T.
+    // 2.0 line T1 DAY-03 (27.11.2026): a second GM's lights read the room through the primary (eclipse.judge, gmOnly):
+    // 33-bridge-paths part T1-DAY-03 sends it from the Assistant GM and a player; tier 2 "T1 DAY-03 - ..." judges both.
     { id: "murder-incident", what: "The incident: the opening roll, the crisis actions, the betrayal, the park, the clean-up",
-        entry: { bridge: ["murder.openingResult", "murder.openingCard", "murder.crisis", "murder.betrayal", "murder.park", "murder.cleanup"], sockets: ["incident-store.mjs"] },
+        entry: { bridge: ["murder.openingResult", "murder.openingCard", "murder.crisis", "murder.betrayal", "murder.park", "murder.cleanup", "eclipse.judge"], sockets: ["incident-store.mjs"] },
         scenarios: ["10-murder", "11-killer-secrecy", "13-murder-signals", "19-standing-cast", "30-security", "60-ledger", "61-gmstore-case", "83-roll-integrity",
             "87-messenger-sound", "97-two-gms"],
         suite: ["tests-grid.mjs"], status: "covered", stage: "1.2.69" },

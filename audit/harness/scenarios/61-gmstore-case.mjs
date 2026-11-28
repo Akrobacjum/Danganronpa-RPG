@@ -904,10 +904,13 @@ export async function run({ gm, gm2, gm3, gma, gmb, gmc, p1, p2, p3, p4, check, 
        C2-m1), and is the killers' to read now - p3's copy holds it with the record's stamp. The fight's last turns (`recent`, E32+E07 C17) are the
        GMs' as well, and withheld the same way; so, since fix r2-G2 (03.10.2026), are the Reroll receipt and who
        walked into the fight and out of it (`lastCrisis`, `departed`), and since 1.2.121 (line K, STG-01) the watch's die
-       kept at the lights (`watchDie`), null in every copy as the opening's statistic is. */
-    const withheldF = ["keyRemnants", "openingTrait", "watchDie", "recent", "lastCrisis", "departed"];
+       kept at the lights (`watchDie`), null in every copy as the opening's statistic is; and since 2.0 line T1 whether the
+       lights opened it (`atLights`, MURDER-01), the GM who throws for an owner away (`openingThrower`, MURDER-04) and the
+       question asked of every GM (`question`, MURDER-09) - each the GMs' reading (incident-store.mjs `castCopyFor`). */
+    const withheldF = ["keyRemnants", "openingTrait", "watchDie", "recent", "lastCrisis", "departed", "atLights", "openingThrower", "question"];
     const shownF = Math.max(0, ...Object.entries(stampsF).filter(([f]) => !withheldF.includes(f)).map(([, t]) => t ?? 0));
-    const heldStampsF = { ...stampsF, openingTrait: shownF, watchDie: shownF, recent: shownF, lastCrisis: shownF, departed: shownF };
+    const heldStampsF = { ...stampsF, openingTrait: shownF, watchDie: shownF, recent: shownF, lastCrisis: shownF, departed: shownF,
+        atLights: shownF, openingThrower: shownF, question: shownF };
     check("F3: the primary answers the killer's player with the cast and every part's stamp, a bystander with nothing and the seats' stamps alone, and both GMs hold the killer",
         castsFrom("gm") > castBefore.gm && p3AfterGm.stamp === castAt && onGmF.state === IDS.chie && onGm2F.state === IDS.chie
         && answeredF.p3.length === 1 && answeredF.p3[0].cast?.killerId === IDS.chie && answeredF.p3[0].cast?.victimId === IDS.daichi

@@ -613,14 +613,19 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, canary, dump, 
        every browser does: its author is the GM, its module flags are those three, and nothing in it
        names Chie or p3, by id or by name. And p1, a bystander, cannot read it (E08+E28 C13): a roll
        the GM drew is read beside the GMs only where the draw's answer or a GM's dice packet says
-       (private-rolls.mjs `readableHere`), which is p3's browser and the victim's, not p1's. */
+       (private-rolls.mjs `readableHere`), which is p3's browser and the victim's, not p1's.
+       A FOURTH FLAG SINCE 2.0 LINE T1 (D2-09, cdbe1bb; read 28.11.2026): a crisis roll pays no Hope and no Despair, and
+       the GM that drew it marks its message `incidentFree` for the Despair award and the Reroll (despair-award.mjs
+       `incidentRollExempt`). It tells a bystander's console nothing the roll does not: Daggerheart's own
+       `options.skips.resources` on the same message read true on p1 that day - both say the roll paid nothing, so that
+       it was an incident's (the line's report, the owner's question P13). Names still none. */
     const drawnCopy = await p1.eval(`const m = game.messages.contents.filter(x => x.getFlag("${MOD}", "drawn")).at(-1) ?? null;
         const doc = m ? JSON.stringify(m.toObject()) : "";
         const terms = ["${IDS.chie}", "${IDS.p3}", game.actors.get("${IDS.chie}")?.name, game.users.get("${IDS.p3}")?.name].filter(Boolean);
         return { id: m?.id ?? null, author: m?.author?.id ?? null, flags: Object.keys(m?.flags?.["${MOD}"] ?? {}).sort(), named: terms.filter(t => doc.includes(t)),
             readable: m ? m.isContentVisible : null };`);
-    check("p1: the GM's message of p3's drawn crisis roll is the GM's, holds three module flags, and names neither Chie nor p3",
-        Boolean(drawnCopy.id) && drawnCopy.author === IDS.gm && JSON.stringify(drawnCopy.flags) === JSON.stringify(["drawn", "rollId", "supersededRoll"])
+    check("p1: the GM's message of p3's drawn crisis roll is the GM's, holds four module flags (incidentFree since 2.0 line T1 D2-09), and names neither Chie nor p3",
+        Boolean(drawnCopy.id) && drawnCopy.author === IDS.gm && JSON.stringify(drawnCopy.flags) === JSON.stringify(["drawn", "incidentFree", "rollId", "supersededRoll"])
             && drawnCopy.named.length === 0, JSON.stringify(drawnCopy));
     check("p1: a bystander's browser cannot read the GM's message of p3's drawn crisis roll",
         Boolean(drawnCopy.id) && drawnCopy.readable === false, JSON.stringify(drawnCopy));

@@ -71,8 +71,9 @@
  *     hides a token by those (visibility.mjs `hide`); a frame rendered between two samples (100 ms) is not read;
  *   - that GM1's End the murder after a crisis roll is a "victim survived" end for D2-06 when Survive did not hit
  *     (the decision names the incident's end with the victim alive; the road is said in the check's details);
- *   - what 2.0's notice to the victim of a failed opening looks like (D2-08): any notice, popup, window or whisper
- *     to P2 in the 4 s after the result counts.
+ *   - what 2.0's notice to the victim of a failed opening looks like (D2-08): since 2.0 line T1, only an entry of the
+ *     victim's in the 4 s after the result whose text holds DRPG.Murder.victimAttemptFailed, read on P2's page (`i18n`
+ *     of lib/s1-kit.mjs), counts; until then any notice, popup, window or whisper to P2 did, and 1.2.129 passed on none.
  */
 
 import { kit, J, readWorld, pickRooms, placeTokens, unpause, readyPlayers, i18n, dynamicAction, economyAsDiceSay,
@@ -110,6 +111,8 @@ export async function run(ctx) {
         // The world read, put back where a module road can, or refused (lib/s1-kit.mjs; 2.0 line T4, F3PC2-S1-STATE).
         await startFromKnownWorld(ctx, K);
         const L = await i18n(K, "gm1", ["DRPG.Mask.askTitle", "DRPG.Action.murderOpensTitle", "DRPG.Chapter.stageSixTitle"]);
+        // 2.0's notice of a failed opening to its victim (D2-08), as the victim's page words it (2.0 line T1).
+        const attemptLine = (await i18n(K, "p2", ["DRPG.Murder.victimAttemptFailed"]))["DRPG.Murder.victimAttemptFailed"];
 
         await K.on("gm1", `F.auto("pre-lights", { title: ${J(L["DRPG.Action.murderOpensTitle"])}, press: "no" }); return true;`);
         const pre = await K.on("gm1", `
@@ -259,7 +262,7 @@ export async function run(ctx) {
             const o = await runOpening(ctx, K, { killerId: A.P1.id, killerToken: T.P1, killerRole: "p1", victimId: A.P2.id, victimRole: "p2", watchers: ["p2", "p3"] });
             wrote.push(`incident ${tag} opened (P1 -> P2): ${o.ok ? o.band : o.why}`);
             if (!o.ok) { note(`incident ${tag}: the opening did not run`, J(o)); await closeIncident(K); break; }
-            readOpening(ctx, o, { tag, killerName: A.P1.name, victimRole: "p2", watchers: ["p2", "p3"] });
+            readOpening(ctx, o, { tag, killerName: A.P1.name, victimRole: "p2", watchers: ["p2", "p3"], attemptLine });
             if (!o.success) continue;
             if (!crisisDone && o.result.stage === "incident") {
                 crisisDone = true;
@@ -317,7 +320,7 @@ export async function run(ctx) {
             const o = await runOpening(ctx, K, { killerId: A.P1.id, killerToken: T.P1, killerRole: "p1", victimId: A.P3.id, victimRole: "p3", watchers: ["p3"] });
             wrote.push(`incident ${tag} opened (P1 -> P3): ${o.ok ? o.band : o.why}`);
             if (!o.ok) { note(`incident ${tag}: the opening did not run`, J(o)); await closeIncident(K); break; }
-            readOpening(ctx, o, { tag, killerName: A.P1.name, victimRole: "p3", watchers: ["p3"] });
+            readOpening(ctx, o, { tag, killerName: A.P1.name, victimRole: "p3", watchers: ["p3"], attemptLine });
             if (!o.success || o.result.stage !== "incident") { if (o.success) await closeIncident(K); continue; }
             await K.on("gm1", `F.start("kill", () => game.drpg.killCharacter(game.actors.get(${J(A.P3.id)}))); return true;`);
             const six = await K.on("gm1", `return await F.answerSoon({ title: ${J(L["DRPG.Chapter.stageSixTitle"])}, press: "yes" }, 20000);`, { timeout: 30_000 });
@@ -345,7 +348,7 @@ export async function run(ctx) {
 }
 
 /** The checks every opening carries: MURDER-01 on each watcher, D2-09 on the killer's economy, and its outcome's. */
-function readOpening(ctx, o, { tag, killerName, victimRole, watchers }) {
+function readOpening(ctx, o, { tag, killerName, victimRole, watchers, attemptLine = null }) {
     const { check, note } = ctx;
     note(`opening ${tag}`, J({ band: o.band, result: o.result, duality: o.duality, rolls: o.rolls }));
     for (const role of watchers) {
@@ -359,7 +362,10 @@ function readOpening(ctx, o, { tag, killerName, victimRole, watchers }) {
             { ids: ["D2-09", "D2-11"] });
     } else note(`UNMEASURED this run: D2-09 on opening ${tag} - its dice could move nothing the reading sees`, J({ duality: o.duality, before: o.before }));
     if (!o.success) {
-        const told = (o.victimSaw ?? []).filter(e => (e.kind !== "chat" || e.toMe) && !(e.kind === "window" && /roll/i.test(e.cls?.join(" ") ?? "")));
+        /* Narrowed (2.0 line T1, D2-08): only the victim's entry that carries 2.0's notice (DRPG.Murder.victimAttemptFailed,
+           read on P2's page) counts, so no other notice, window or whisper of the 4 s makes the "before" pass. */
+        const said = e => Boolean(attemptLine) && String(e.text ?? e.title ?? "").includes(attemptLine);
+        const told = (o.victimSaw ?? []).filter(e => (e.kind !== "chat" || e.toMe) && said(e));
         check(`D2-08 (${tag}): the opening failed - ${victimRole.toUpperCase()}, the victim, is told of the attempt`,
             told.length > 0, J(told), { ids: ["D2-08"] });
         check(`D2-10 (${tag}): the victim's notice of the failed attempt names nobody`,
