@@ -15,7 +15,7 @@ Level Up after a verdict, the Personal tab and the pass's sound measured ..." po
 | Tiery 0-1 na bazie | `run-tests: 2053 passed, 0 failed, 16 skipped, 0 red`, 536,5 s (31d5812, 4 rdzenie tej sesji) |
 | Tiery 0-1 na końcu | `run-tests: 2081 passed, 0 failed, 16 skipped, 0 red`, 532,6 s (drzewo uzupełnienia, 28.11.2026; 2096 testów; wcześniej 2080 na 0432888) |
 | Ostatnie `npm test` | sekcja 1a |
-| CI na ostatnim pushu | sekcja 1b |
+| CI na ostatnim pushu z kodem | **zielone**: d14faf2, run 46116592803 (28.11.2026) - lint/check/gate, 8 shardów suite, 8 kubełków scenariuszy (b6 z 76-passages zielony), verdict; `suite-merge: 8 shard(s) of 8 file(s), 1868 tier-2 tests in the list; 3978 passed, 0 failed, 27 skipped, 0 red: green`; crlf pominięte. Ten wpis to commit po nim (sam raport) |
 
 Liczba "passed" to liczba testów, które zaliczył runner, a "tests ran" liczy też kontrole runnera: 2096 testów tierów
 0-1 uruchomionych na końcu (2076 na TRIAL-09). `skip-baseline.json` bez zmian (16 pominięć, te same).
@@ -80,7 +80,8 @@ przeglądarka trzyma; sonda podłączenia: `drpgMotivesChanged` 1 -> 0; R9352 (c
 Zostaje sam wyścig scenariusza: odczyt czeka (`until`) na identyfikatory, a nie na nadanie, które sprawdza - pod
 obciążeniem nadal może przegrać (bieg #3 wyżej). Scenariusza linii przejść nie zmieniałem (nie osłabiam testu i to nie
 mój plik); propozycja dla właściciela 76: czekać w `records` także na `access` przejścia, z tym samym limitem `until`.
-Wynik CI po poprawce: sekcja 1.
+Wynik CI po poprawce (d14faf2, run 46116592803): b6 zielony, całe CI zielone. Jeden zielony bieg CI nie dowodzi, że
+wyścig zniknął (lokalnie po poprawce 5 z 6); dowodzi, że moja część przyczyny nie jest już czerwona za każdym razem.
 
 **grid XI07**: osobno (`--tier 2 --only "grid XI07"`) zielony 3 z 3 na bazie 31d5812 i 3 z 3 na tej gałęzi; w CI czerwony
 raz (0432888, suite 3/8, w otoczeniu innych testów shardu), zielony w każdym następnym biegu. Nie odtworzyłem go, więc
