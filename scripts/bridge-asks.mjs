@@ -1410,8 +1410,12 @@ export function requestProjectShare(countdownId, userId) {
     return ask(ACTION_SHARE, { countdownId, targetUserId: userId });
 }
 
-/** One step of a claim, asked of the primary - or run here when this GM is the primary. The answer of `claimOnPrimary`, or null. */
-async function askCardClaim(messageId, step) {
+/**
+ * One step of a claim, asked of the primary - or run here when this GM is the primary. The answer of `claimOnPrimary`, or null.
+ * Exported since 2.0 (line T2, CALLS-02, 27.11.2026) for call-gm.mjs `releaseOwnClaims` alone, which reaches it by `import()`
+ * (bridge-asks.mjs imports call-gm.mjs): a second GM lets go of its own claims left by its reload with this "drop".
+ */
+export async function askCardClaim(messageId, step) {
     const res = await ask(ACTION_CARD_CLAIM, { messageId, step }, {
         onPrimary: true,
         local: () => claimOnPrimary(messageId, step, game.user.id)

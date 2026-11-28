@@ -32,7 +32,7 @@ import { TIMING } from "./config.mjs";
 import { replyForMe, resendOnGmReady } from "./bridge-guards.mjs";
 
 import { cardFlag } from "./secret.mjs";
-import { sweepAskCards, claimsInProgress, releaseClaimsOf } from "./call-gm.mjs";
+import { sweepAskCards, claimsInProgress, releaseClaimsOf, releaseOwnClaims } from "./call-gm.mjs";
 import {
     SOCKET_EVENT, ACTION_ADVANCEMENT_ASK, ACTION_ADVANCEMENT_OFFERS, ACTION_OPENING_ASK, ACTION_OPENING_CANCEL,
     ACTION_GM_READY
@@ -204,7 +204,14 @@ export function registerGmBridge() {
     if (game.user.isGM) {
         // The asks' cards left open by an asker who left or a primary that reloaded end at their time (E18 C2):
         // swept once this world is up, and again by the GM who becomes the primary when the primary leaves.
-        sweepAskCards().catch(err => debug("Could not sweep the asks' cards", err));
+        // This GM's own claims left by its reload go first (2.0 line T2, CALLS-02, 27.11.2026; call-gm.mjs
+        // `releaseOwnClaims`): swept before, a card past its time read the row as a claim under way and waited for an
+        // end that the release might hand it a moment too early. The sweep waits for the release no longer than
+        // `TIMING.gmStoreOpenMs` (a store that never opens settles no hydration), a bound chosen, not measured.
+        const released = releaseOwnClaims().catch(err => debug("Could not let go of this GM's own claims", err));
+        Promise.race([released, new Promise(resolve => setTimeout(resolve, TIMING.gmStoreOpenMs))])
+            .then(() => sweepAskCards())
+            .catch(err => debug("Could not sweep the asks' cards", err));
         // The first reading of the primary on this GM (`notePrimary`): `from` null.
         primarySeen = null;
         notePrimary();

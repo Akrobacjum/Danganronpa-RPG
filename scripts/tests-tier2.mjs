@@ -118793,6 +118793,74 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         equal(stableJson(read), stableJson({ loading: { line: "me", notices: 0 }, ready: { line: "back", handBack: 1, nowYou: 0 }, after: { line: "me", handBack: 0, nowYou: 1 } }),
             "{loading: after the stand-in connected; ready: after its bridge.gmReady; after: once it is gone} x {line: whom the panel's line names; notices: drawn here; handBack: primaryBack naming it; nowYou: primaryNowYou}");
     }],
+    ["E132 CALLS-02 - the only GM's own claim left by a reload is let go at ready: a pending row of this GM in the GMs' `ruledCardStore`, as a reload with a ruling's window open leaves it, holds a player's ask card busy in this GM's own name and keeps its asker's expiry waiting; `releaseOwnClaims` - what `registerGmBridge` runs at a GM's ready - takes the row off, the card ends as expired, another GM's pending row stays, and on a second GM's road the row goes by the claim's \"drop\" and the card can be taken again (call-gm.mjs `releaseOwnClaims`, `claimOnPrimary`; 2.0 line T2, CALLS-02, 27.11.2026)", async () => {
+        /*
+         * F1-calls CALLS-02, F1-verify (confirmed) and F3 S3 D5 (on Forge the card stayed "GM2 is ruling on this card right
+         * now" in the reloaded GM's own name; the scenario deleted it). Read on this primary, each player's packet handed to
+         * the bridge's runner with the user Foundry names: a player's Dynamic ask puts its card up; a pending row of this GM
+         * is written into the store, a minute old, as a reload finds it (nothing held in this primary's memory); this GM's
+         * take of it; the asker's expiry; then `releaseOwnClaims()` as the bridge's ready runs it. A second card with a
+         * pending row of another GM, and a third with this GM's, let go on the second GM's road (`primary: false`: the
+         * claim's "drop", here run on this primary as the bridge runs a GM's own ask). Read: the takes, whether the first
+         * card ended before and after, and the rows left. The cards are deleted after, their rows with them. Red at
+         * 2ecf4f6: there is no `releaseOwnClaims`; the take answered "busy" by this GM, and the card never ended.
+         */
+        needs(env.primaryGm());
+        needs(world.atLeast("connectedPlayersWithCharacter", 1), "the ask is a player's, and Foundry names only a connected one");
+        const { player, theirs } = playerAndCharacters();
+        const G = await import("./bridge-guards.mjs");
+        const B = await import("./gm-bridge.mjs");
+        const C = await import("./call-gm.mjs");
+        const S = await import("./gm-stores.mjs");
+        const { serverNow } = await import("./utils.mjs");
+        const { cardFlag } = await import("./secret.mjs");
+        const me = game.user.id, away = foundry.utils.randomID(16);
+        const judged = (action, fields, from, requestId = null) =>
+            G.judge(B.BRIDGE_ACTIONS, { action, ...(requestId ? { requestId } : {}), ...fields }, from, { send: () => {} });
+        const row = id => { const r = S.ruledCardStore.get(id); return r ? [r.by === me ? "me" : r.by === away ? "away" : r.by, Boolean(r.pending)] : null; };
+        const take = async id => { const t = await C.claimOnPrimary(id, "take", me); return [t?.taken ?? null, t?.why ?? null, t?.by === me]; };
+        const seen = new Set(game.messages.map(m => m.id));
+        const created = [];
+        const hook = Hooks.on("createChatMessage", m => { if (!seen.has(m.id)) created.push(m); });
+        const read = {};
+        let ask = null;
+        try {
+            const release = opts => (typeof C.releaseOwnClaims === "function" ? C.releaseOwnClaims(opts) : null);
+            const rid = foundry.utils.randomID(16);
+            await judged("dynamic.difficulty", { actorId: theirs.id, description: "E132 CALLS-02 a card held by a reload", actorName: theirs.name, room: null }, player.id, rid);
+            must(await until(() => created.length > 0, 5000), "the ask put no card up - this would measure nothing");
+            ask = game.messages.get(created[0].id);
+            const theirsCard = await ChatMessage.create({ content: "<p>E132 CALLS-02 another GM's claim</p>", whisper: [me] });
+            const second = await ChatMessage.create({ content: "<p>E132 CALLS-02 a second GM's road</p>", whisper: [me] });
+            must(theirsCard && second, "the cards were not posted - this would measure nothing");
+            created.push(theirsCard, second);
+            const ended = () => Boolean(cardFlag(game.messages.get(ask.id), "settled"));
+            const old = serverNow() - 60000;
+            await S.ruledCardStore.patch(ask.id, { by: me, at: old, pending: true });
+            await S.ruledCardStore.patch(theirsCard.id, { by: away, at: old, pending: true });
+            read.held = await take(ask.id);
+            await judged("ruling.expired", { rid }, player.id);
+            await settle(500);
+            read.endedHeld = ended();
+            const freed = await release();
+            read.freed = (freed ?? []).map(id => (id === ask.id ? "ask" : id));
+            read.endedFreed = await until(ended, 3000);
+            read.rows = [row(ask.id), row(theirsCard.id)];
+            await S.ruledCardStore.patch(second.id, { by: me, at: old, pending: true });
+            const viaDrop = await release({ primary: false });
+            read.second = [(viaDrop ?? []).map(id => (id === second.id ? "second" : id)), row(second.id), row(theirsCard.id), await take(second.id)];
+            await C.claimOnPrimary(second.id, "drop", me);
+        } finally {
+            Hooks.off("createChatMessage", hook);
+            for (const message of created) await message.delete().catch(() => {});
+            await settle(300);
+            for (const message of created) if (S.ruledCardStore.has(message.id)) await S.ruledCardStore.drop(message.id);
+        }
+        equal(stableJson(read), stableJson({
+            held: [false, "busy", true], endedHeld: false, freed: ["ask"], endedFreed: true, rows: [null, ["away", true]],
+            second: [["second"], null, ["away", true], [true, null, true]]
+        }), "{held: this GM's take of the card its own row holds [taken, why, by this GM]; endedHeld: the card ended after its asker's expiry; freed: what releaseOwnClaims let go; endedFreed: the card ended after; rows: [the card's, another GM's card's]; second: [what the second GM's road let go, its row, another GM's row, this GM's take after]}");
+    }],
 ];
 
 // `drawnForPlayer` for the grid (E33 C7): a drawn crisis roll goes through the suite's one road to a draw (tests-grid.mjs `drawnAct`).

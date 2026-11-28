@@ -3,8 +3,8 @@
  * ---------------------------------------------------------------------------
  * A call on the GM and the cards the GMs rule on: `callGm` with the card's
  * words (`callCardHtml`, `expiresHtml`) and its thread (`threadOf`), the
- * claims on a card (`claimOnPrimary`, `claimsInProgress`, `releaseClaimsOf`)
- * and its settle (`settleCall`), the request window a call opens with
+ * claims on a card (`claimOnPrimary`, `claimsInProgress`, `releaseClaimsOf`,
+ * and since 2.0 `releaseOwnClaims`, line T2 CALLS-02) and its settle (`settleCall`), the request window a call opens with
  * (`askForRequest`, `promptForRequest`, `promptAndCallGm`), and the
  * ask-by-card machinery that asks nothing of the bridge's table: the asks
  * the primary holds and the cards they were put on (`holdAsk`, `askMark`,
@@ -18,11 +18,12 @@
  * that `node tools/moved-only.mjs` proves line by line. gm-bridge.mjs
  * re-exports the ten names of this file it exported, so every importer
  * still imports gm-bridge.mjs; the rest of its exports (23 in all on 1.2.122,
- * counted by `^export (async )?(function|const)`) are read directly by the
- * bridge's table, runs and asks (bridge-table.mjs, the two runs files and
- * bridge-asks.mjs since C5a and C5b) - the ask cards' primary-side senders
- * among them (C5a) - and `threadOf` by the suite (1.2.122, R8275); gm-bridge.mjs
- * does not re-export those. Nothing here imports gm-bridge.mjs
+ * counted by `^export (async )?(function|const)`; 24 since 2.0, with
+ * `releaseOwnClaims`, which gm-bridge.mjs imports for its ready) are read
+ * directly by the bridge's table, runs and asks (bridge-table.mjs, the two runs
+ * files and bridge-asks.mjs since C5a and C5b) - the ask cards' primary-side
+ * senders among them (C5a) - and `threadOf` by the suite (1.2.122, R8275);
+ * gm-bridge.mjs does not re-export those. Nothing here imports gm-bridge.mjs
  * (the facade rule, .claude/rules/code.md). `CALL_GM_WHAT` stands above the
  * first function so that no function's cut runs on into it (the bridge's
  * crawl reads `receivedOnPrimary`'s, which it followed in gm-bridge.mjs).
@@ -1068,6 +1069,45 @@ export function releaseClaimsOf(userId) {
 }
 
 /**
+ * A GM BACK FROM A RELOAD HOLDS NOTHING EITHER (2.0 line T2, CALLS-02, 27.11.2026; F1-calls CALLS-02, F1-verify,
+ * F3 S3 D5). `releaseClaimsOf` runs on another GM's browser, at its `userConnected` false; the only GM here who reloads
+ * with a ruling's window open has no other browser to do it. Its pending row stayed in `ruledCardStore` (a client
+ * setting: it outlives F5), and back here that GM is active, so `claimOnPrimary` answered "busy" in its own name for
+ * good and a card's end at its time waited on it (`underClaim`) - on Forge, S3 D5: "GM2 is ruling on this card right
+ * now" on the reloaded GM's own card, which the scenario had to delete. So each GM's browser, at its ready
+ * (gm-bridge.mjs `registerGmBridge`), lets go of its own pending rows once the store has hydrated: this browser has just
+ * loaded, so none of its windows is open. On the primary in one write (`dropMany`), each waiting expiry ended after it
+ * (`expiryAfterClaim`); on a second GM by the claim's existing "drop" to the primary (bridge-asks.mjs `askCardClaim`),
+ * one a card - a GM's own drop, which `claimOnPrimary` takes only for the sender's own row. With another GM connected
+ * through the reload, that GM's `releaseClaimsOf` has already let go of them, and the drop finds nothing.
+ *
+ * NOT A CLAIM MADE SINCE THIS LOAD. The store's hydration can wait for the other GMs' copies (`TIMING.gmStoreSyncMs`),
+ * and a click of this GM meanwhile takes a card for real: a row stamped after `since` (the moment this was called,
+ * server time; the primary stamps a row's `at` with it) and a claim this primary holds in memory for this GM (`held`)
+ * are left alone. A row with no time is from before, and goes. `store`, `primary`, `drop` and `held` are a test's
+ * (R9025). Answers the cards let go.
+ */
+export async function releaseOwnClaims({
+    me = game.user?.id ?? null, since = serverNow(), store = null, primary = null, drop = null, held = claimsInProgress
+} = {}) {
+    if (!me || !game.user?.isGM) return [];
+    const rows = store ?? (await import("./gm-stores.mjs")).ruledCardStore;
+    await rows.whenHydrated();
+    const own = Object.entries(rows.entries() ?? {})
+        .filter(([id, row]) => row?.pending && row.by === me && !(Number(row.at) > since) && held.get(id) !== me)
+        .map(([id]) => id);
+    if (!own.length) return [];
+    if (primary ?? isPrimaryGm()) {
+        await rows.dropMany(own);
+        for (const id of own) expiryAfterClaim(id);
+        return own;
+    }
+    const askCardClaim = drop ?? (await import("./bridge-asks.mjs")).askCardClaim;
+    await Promise.all(own.map(id => askCardClaim(id, "drop")));
+    return own;
+}
+
+/**
  * The primary's half of a claim (`card.claim`, or this GM's own click). `step` "take" before a
  * ruling runs: the card must exist, have no row in `ruledCardStore`, not be settled in its document
  * or in the GMs' meta, and not be held by another click; then it is held for `by`. "done" once the
@@ -1084,7 +1124,9 @@ export function releaseClaimsOf(userId) {
  * proposal, the primary GM A pressed F5 and then the same card, and both rulings ran. "take" writes the row
  * `{ by, at, pending: true }` now, after the card is held here, and "drop" takes it off; a pending row of a GM who is
  * here holds the card as busy for whichever GM is the primary, and one of a GM who left holds nothing (the primary
- * drops it when that GM leaves, `releaseClaimsOf`). Tier 2's "a claim under way is the GMs' row" reads it.
+ * drops it when that GM leaves, `releaseClaimsOf`). Tier 2's "a claim under way is the GMs' row" reads it. The row
+ * outlives a reload of its own GM too, and held the card in that GM's own name for good when no other GM was here to
+ * drop it; each GM lets go of its own at its ready since 2.0 (`releaseOwnClaims`, line T2, CALLS-02, 27.11.2026).
  */
 export async function claimOnPrimary(messageId, step, by) {
     if (!game.user?.isGM) return { taken: false, why: "gone", by: null };

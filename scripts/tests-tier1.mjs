@@ -70090,6 +70090,53 @@ const INVARIANTS = [
             spent: [1, 1, 1, 0, 0], notAsked: [0, 0], wired: [true, true, true], comment: true }),
             "{twoReloads: sent again at A's leave, A's ready, A's leave, A's ready, B's ready, B's ready again; ids: under how many ids; markCleared: A's leave, then four readies of A (one free); otherReady: A's leave, then three readies of B (none free); spent: three readies of A, its leave with nothing left, its ready (nothing free); notAsked: a request that did not ask to be resent; wired: [the leave hook hands the leaver, onGmReady hands its sender, the export passes it on]; comment: the note over RESENDS says what the code does}");
     }],
+    ["R9025 - a GM's own claim left by its reload is let go at its ready: call-gm.mjs `releaseOwnClaims` reads the GMs' `ruledCardStore` once it has hydrated and lets go of every pending row of this GM taken before this load - on the primary in one `dropMany`, on a second GM by a \"drop\" for each to the primary (`askCardClaim`) - and leaves another GM's pending row, a ruled row, a row taken since this load and a claim this browser holds now; gm-bridge.mjs `registerGmBridge` runs it on a GM's browser before the sweep of the asks' cards (2.0 line T2, CALLS-02, 27.11.2026)", async () => {
+        /* F1-calls CALLS-02 (F1-verify: confirmed; F3 S3 D5 on Forge: the card held "GM2 is ruling on this card right now"
+           in the reloaded GM's own name). The only GM here reloads with a ruling's window open: its pending row stays in
+           `ruledCardStore` (a client setting, it outlives F5), and back here that GM is active, so `claimOnPrimary` answers
+           "busy" by itself for good and a card's end at its time waits on it (`underClaim`); `releaseClaimsOf` runs only on
+           another GM's browser. Driven with fakes - a store whose rows read empty until it has hydrated, the primary or
+           not, a drop that records - so nothing is written; the two wirings are read in the source. Red before CALLS-02:
+           there is no `releaseOwnClaims`, and the bridge lets go of nothing at its ready. */
+        const C = await import("./call-gm.mjs");
+        const ME = "R9025MEMEMEMEMEM", OTHER = "R9025OTHEROTHERO";
+        const rows = {
+            own: { by: ME, at: 1000, pending: true }, ownNoTime: { by: ME, pending: true }, ruled: { by: ME, at: 1000, pending: false },
+            theirs: { by: OTHER, at: 1000, pending: true }, sinceLoad: { by: ME, at: 6000, pending: true }, heldNow: { by: ME, at: 1000, pending: true }
+        };
+        const run = async primary => {
+            let hydrated = false;
+            const done = { dropMany: [], drop: [], readBefore: false };
+            const store = {
+                whenHydrated: async () => { await null; hydrated = true; return "answered"; },
+                entries: () => { if (!hydrated) done.readBefore = true; return hydrated ? structuredClone(rows) : {}; },
+                dropMany: async ids => { done.dropMany.push([...ids].sort()); }
+            };
+            const freed = typeof C.releaseOwnClaims === "function"
+                ? await C.releaseOwnClaims({ me: ME, since: 5000, store, primary, held: new Map([["heldNow", ME]]), drop: async id => { done.drop.push(id); } })
+                : null;
+            return { freed: freed ? [...freed].sort() : null, ...done, drop: done.drop.sort() };
+        };
+        const read = { primary: await run(true), second: await run(false) };
+        // Left to the function, the road is this browser's: one write on the primary, the drops on a second GM.
+        const { isPrimaryGm } = await import("./utils.mjs");
+        const asked = await run(undefined);
+        read.ownRoad = isPrimaryGm() ? asked.dropMany.length === 1 && !asked.drop.length : !asked.dropMany.length && asked.drop.length === 2;
+        const source = await fetch(`/modules/${MODULE_ID}/scripts/call-gm.mjs`).then(lfText).then(stripComments);
+        const bridge = await fetch(`/modules/${MODULE_ID}/scripts/gm-bridge.mjs`).then(lfText).then(stripComments);
+        const fn = /export async function releaseOwnClaims\(/.test(source) ? fnSource(source, "releaseOwnClaims") : "";
+        const gmBranch = bodyOf(fnSource(bridge, "registerGmBridge"), "if (game.user.isGM) {", { until: 'Hooks.on("userConnected"' });
+        read.wired = [/expiryAfterClaim\(/.test(fn), /askCardClaim\(id, "drop"\)/.test(fn),
+            /releaseOwnClaims\(\)[\s\S]*sweepAskCards\(\)/.test(gmBranch)];
+        const note = bodyOf(new Map(await otherSources()).get("call-gm.mjs") ?? "", "export async function claimOnPrimary(", { back: 1400 });
+        read.comment = /releaseOwnClaims/.test(note) && /CALLS-02/.test(note);
+        const freed = ["own", "ownNoTime"];
+        equal(stableJson(read), stableJson({
+            primary: { freed, dropMany: [freed], drop: [], readBefore: false },
+            second: { freed, dropMany: [], drop: freed, readBefore: false }, ownRoad: true,
+            wired: [true, true, true], comment: true
+        }), "{primary, second: this GM's browser as the primary or as a second GM} x {freed: the cards let go; dropMany: the primary's one write; drop: the drops asked of the primary; readBefore: rows read before the store hydrated}; ownRoad: left to the function, it takes this browser's road (the primary's one write or a second GM's drops); wired: [the primary ends a waiting expiry, a second GM asks the existing drop, the bridge runs it before the sweep at a GM's ready]; comment: the note over claimOnPrimary names it");
+    }],
 ];
 
 /**
