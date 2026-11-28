@@ -6089,7 +6089,8 @@
         "several": "Tak jak te konta nazywa się więcej niż jedna postać: {names}. Przypisz im postacie w konfiguracji użytkownika.",
         "same": "Te konta nazywają się tak samo: {names}. Zmień nazwę jednego z nich albo przypisz im postacie w konfiguracji użytkownika.",
         "owned": "Postać o tej samej nazwie co konto {account} ma już właściciela ({owner}), więc konto {account} nie dostaje postaci. Przypisz mu postać w konfiguracji użytkownika.",
-        "owns": "Konto {account} ma już uprawnienia Właściciela do postaci {students}, więc nie dostaje kolejnej. Przypisz mu postać w konfiguracji użytkownika."
+        "owns": "Konto {account} ma już uprawnienia Właściciela do postaci {students}, więc nie dostaje kolejnej. Przypisz mu postać w konfiguracji użytkownika.",
+        "title": "Konta i uczniowie"
       }
     },
     "Anonymity": {
@@ -7309,7 +7310,12 @@
         "few": "Pingi są znów włączone dla {n} ról.",
         "many": "Pingi są znów włączone dla {n} ról.",
         "other": "Pingi są znów włączone dla {n} roli."
-      }
+      },
+      "step.players": "Każde konto gracza gra uczniem",
+      "hint.players": "Inaczej ten gracz nie ma kim grać: wybierz ucznia konta w jego konfiguracji w Foundry (Otwórz).",
+      "step.tokens": "Każdy żywy uczeń ma token na scenie szkoły",
+      "hint.tokens": "Inaczej tego ucznia nie ma na mapie: przeciągnij postać na scenę szkoły (Otwórz ją pokazuje).",
+      "noSchoolScene": "brak sceny szkoły"
     },
     "Explain": {
       "state": {

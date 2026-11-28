@@ -21294,8 +21294,12 @@ const INVARIANTS = [
         }), "[the plan for the twenty-one accounts: assigned with or without Owner; none; several; alike; owned by another player; owning another student; kept as the GMs' record holds it]");
         const src = stripComments((await moduleSources()).get("user-match.mjs") ?? "");
         const pass = fnSource(src, "matchAccounts");
+        // The GMs' card's own flags (2.0 line T4, EXP-GM-09: `gmPopup` and its title on the chat card `tellGms` posts) are
+        // a card's, not an account's: that one literal is left out of the read; any other flag still turns it red.
+        const card = /flags:\s*\{\s*\[MODULE_ID\]:\s*\{\s*gmPopup:\s*true,\s*popupTitle:[^}]*\}\s*\}/;
+        must(card.test(src), "user-match.mjs posts no card with gmPopup - the read below would leave out nothing");
         equal(J([/^[^{]*\{\s*if \(!isPrimaryGm\(\)\) return null;/.test(pass), (src.match(/\.update\(/g) ?? []).length, (pass.match(/\.update\(/g) ?? []).length,
-            /\bflags\b|getFlag|setFlag|unsetFlag/.test(src)]),
+            /\bflags\b|getFlag|setFlag|unsetFlag/.test(src.replace(card, ""))]),
             J([true, 2, 2, false]), "[the pass refuses any browser but the primary GM's first; the file's writes; the pass's writes; a flag read or written]");
     }],
 
@@ -70956,6 +70960,78 @@ const INVARIANTS = [
             none: first({ SHOW_CURSOR: [], SHOW_RULER: [R.GAMEMASTER], PING_CANVAS: [R.GAMEMASTER] })
         }), JSON.stringify({ cursor: ["cursor", false], rulers: ["rulers", false], pings: ["pings", false], none: [null, false] }),
         "{each permission set: [the row the Next line waits on, any of the three optional]}");
+    }],
+    ["R9256 - the checklist's players row names every player account with nothing to play (2.0 line T4, EXP-GM-09): season-setup.mjs `unplayedAccounts` holds a Player or Trusted Player account with no character, or with one that is no student of the cast and no Spectator, and never a GM or an Assistant; the `players` row is required, not done while one stands, names the accounts, waits with no cast, and opens Foundry's configuration of the first", async () => {
+        /* EXP-GM-09: the accounts, the Spectator and the NPC are plain objects handed to `steps({ users, roster })`, the
+           cast one student of the world (the other rows read its sheet); nothing is written. Red at 31d5812: no
+           unplayedAccounts and no players row. */
+        const SS = await import("./season-setup.mjs");
+        must(typeof SS.unplayedAccounts === "function", "season-setup.mjs has no unplayedAccounts - the checklist has no players row");
+        needs(world.atLeast("livingStudents", 1));
+        const { studentActors } = await import("./monokuma.mjs");
+        const R = CONST.USER_ROLES;
+        const aiko = studentActors()[0];
+        const watcher = { id: "R9256S", name: "R9256 Spectator", type: "character", flags: { [MODULE_ID]: { spectator: true } }, getFlag: (scope, key) => (key === "spectator" ? true : undefined) };
+        const npc = { id: "R9256N", name: "R9256 Janitor", flags: {}, getFlag: () => undefined };
+        let opened = 0;
+        const users = [
+            { id: "U1", name: "Player One", isGM: false, role: R.PLAYER, character: aiko },
+            { id: "U2", name: "Player Two", isGM: false, role: R.TRUSTED, character: null, sheet: { render: async () => { opened++; } } },
+            { id: "U3", name: "Player Three", isGM: false, role: R.PLAYER, character: npc },
+            { id: "U4", name: "Watcher", isGM: false, role: R.PLAYER, character: watcher },
+            { id: "G1", name: "Assistant", isGM: true, role: R.ASSISTANT, character: null },
+            { id: "G2", name: "GM", isGM: true, role: R.GAMEMASTER, character: null }
+        ];
+        const row = (roster, list) => SS.steps({ roster, users: list, roomScene: null, tokenScene: null }).find(s => s.key === "players");
+        const full = row([aiko], users);
+        await full?.open?.();
+        const empty = row([], users);
+        const clean = row([aiko], [users[0], users[3], users[4], users[5]]);
+        equal(JSON.stringify({ pure: SS.unplayedAccounts(users, [aiko]).map(u => u.id),
+            full: [full?.done, Boolean(full?.optional), full?.missing?.() ?? null, opened], waiting: [empty?.done, Boolean(empty?.waiting)], clean: clean?.done }),
+        JSON.stringify({ pure: ["U2", "U3"], full: [false, false, ["Player Two", "Player Three"], 1], waiting: [false, true], clean: true }),
+        "{pure: the accounts with nothing to play; full: the row [done, optional, the accounts it names, the configurations opened]; waiting: with no cast [done, waiting]; clean: with every account playing}");
+    }],
+    ["R9257 - the checklist's tokens row names every living student with no token on the school's scene (2.0 line T4, EXP-GM-09): season-setup.mjs `studentsWithoutToken` holds the living students the scene holds no token of, and no dead one; the `tokens` row is required, not done while one stands or with no school scene, names them, and waits with no cast", async () => {
+        /* EXP-GM-09: the scene's tokens and the dead are stand-ins handed in, the cast two living students of the world (the
+           other rows read their sheets); nothing is read of the world's scenes and nothing written. Red at 31d5812: no
+           studentsWithoutToken and no tokens row. */
+        const SS = await import("./season-setup.mjs");
+        must(typeof SS.studentsWithoutToken === "function", "season-setup.mjs has no studentsWithoutToken - the checklist has no tokens row");
+        needs(world.atLeast("livingStudents", 2));
+        const { studentActors } = await import("./monokuma.mjs");
+        const { isDeadForGm } = await import("./settings.mjs");
+        const [a, b] = studentActors().filter(x => !isDeadForGm(x));
+        const c = { id: "R9257C", name: "R9257 Chie" };
+        const scene = { id: "S", tokens: [{ actorId: a.id }, { actorId: "R9257X" }] };
+        const pure = SS.studentsWithoutToken([a, b, c], scene, { dead: actor => actor.id === "R9257C" }).map(x => x.id);
+        const row = (roster, tokenScene) => SS.steps({ roster, users: [], roomScene: null, tokenScene }).find(s => s.key === "tokens");
+        const placed = row([a], scene);
+        const missing = row([a, b], scene);
+        const noScene = row([a], null);
+        const empty = row([], scene);
+        equal(JSON.stringify({ pure, placed: placed?.done, missing: [missing?.done, Boolean(missing?.optional), missing?.missing?.() ?? null],
+            noScene: [noScene?.done, noScene?.missing?.() ?? null], waiting: [empty?.done, Boolean(empty?.waiting)] }),
+        JSON.stringify({ pure: [b.id], placed: true, missing: [false, false, [b.name]],
+            noScene: [false, [game.i18n.localize("DRPG.Season.noSchoolScene")]], waiting: [false, true] }),
+        "{pure: the living students with no token (C dead); placed, missing: the row with every student placed, with one not [done, optional, names]; noScene: [done, names] with no school scene; waiting: with no cast}");
+    }],
+    ["R9258 - the card of unmatched accounts is raised in the GMs' corner (2.0 line T4, EXP-GM-09): user-match.mjs `tellGms` whispers the GMs a card with `gmPopup` and its title, once per account and reason", async () => {
+        /* EXP-GM-09: the card was a whisper with no `gmPopup`, so it landed silently in the log. The poster and the session's
+           record are stood in through the parameters; an account of the world is named in the plan; nothing is posted. Red at
+           31d5812: `tellGms` was not exported and wrote no flag. */
+        const U = await import("./user-match.mjs");
+        must(typeof U.tellGms === "function", "user-match.mjs exports no tellGms - its card cannot be read");
+        needs(world.atLeast("playerAccounts", 1));
+        const player = game.users.find(u => !u.isGM);
+        const posts = [];
+        const seen = new Set();
+        const plan = { none: [player.id], several: [], same: [], owned: [], owns: [] };
+        const whisper = async (content, extra) => { posts.push([typeof content === "string" && content.includes("data-drpg-match"), extra?.flags?.[MODULE_ID] ?? null]); return {}; };
+        await U.tellGms(plan, new Set([player.id]), { whisper, seen });
+        await U.tellGms(plan, new Set([player.id]), { whisper, seen });
+        equal(JSON.stringify(posts), JSON.stringify([[true, { gmPopup: true, popupTitle: game.i18n.localize("DRPG.Users.match.title") }]]),
+            "[each card posted: [its words are the match card, its module flags]] - two passes with the same account and reason");
     }],
 ];
 

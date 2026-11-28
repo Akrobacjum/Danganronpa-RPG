@@ -37,7 +37,7 @@ import {
 import { SETTINGS, DEFAULT_SAFEWORD, setSetting, isDeadForGm } from "./settings.mjs";
 import { safeword } from "./safeword.mjs";
 import { getClock } from "./clock.mjs";
-import { studentActors, isMonokuma, studentCensus, classCandidates } from "./monokuma.mjs";
+import { studentActors, isMonokuma, isSpectator, studentCensus, classCandidates } from "./monokuma.mjs";
 import { monokumaFor, feedsNobody, explicitPool, assignments } from "./assignments.mjs";
 import { listExperiences, initCharacter, needsStartingResources } from "./character.mjs";
 import { carriableCategories } from "./inventory.mjs";
@@ -254,6 +254,23 @@ function fixCursorPermission() {
     return hideAllCursors();
 }
 
+/**
+ * The player accounts with nothing to play (2.0 line T4, EXP-GM-09): a Player or Trusted Player account whose character is
+ * none, or no student of `roster` and no Spectator. A GM and an Assistant are never one. Pure over what it is handed.
+ */
+export function unplayedAccounts(users, roster) {
+    const students = new Set((roster ?? []).map(a => a.id));
+    return (users ?? []).filter(u => !u.isGM && PLAYER_ROLES.includes(u.role)
+        && !(u.character && (students.has(u.character.id) || isSpectator(u.character))));
+}
+
+/** The living students of `roster` with no token on `scene` (2.0 line T4, EXP-GM-09); none for no scene. Pure over what it is handed. */
+export function studentsWithoutToken(roster, scene, { dead = isDeadForGm } = {}) {
+    if (!scene) return [];
+    const placed = new Set(Array.from(scene.tokens ?? []).map(t => t.actorId));
+    return (roster ?? []).filter(a => !dead(a) && !placed.has(a.id));
+}
+
 /** The rooms-per-student line under the room count step: Room setup's own sentence, on its Rooms tab since E101 (vault-store.mjs `roomRatioLine`, E20 C1). */
 function roomCountLine(census, living) {
     return `<div class="notes" data-drpg-live-line>${foundry.utils.escapeHTML(roomRatioLine(census, living))}</div>`;
@@ -323,11 +340,12 @@ export function roomRowScene() {
  * `assigned` Despair Flow's map, `lastChecks` the room checks by scene id (how many problems each found,
  * `roomCheckProblems`), `liveKit` avclient-livekit's connection setting (R1523 hands one), `givenBack` whether
  * Foundry's settings are given back (enforced.mjs `foundryGivenBack`; R1532 hands it), `hallScene` the trial hall
- * and `dsn` whether Dice So Nice is on (R1132 hands both; null reads the module list).
+ * and `dsn` whether Dice So Nice is on (R1132 hands both; null reads the module list); `users` the accounts and
+ * `tokenScene` the school the `players` and `tokens` rows read (2.0 line T4, EXP-GM-09; R9256 and R9257 hand both).
  */
 export function steps({ roster = studentActors(), scenes = Array.from(game.scenes ?? []), roomScene: judged,
     assigned = assignments(), lastChecks = lastRoomChecks, liveKit = liveKitConnectionSettings(), givenBack = foundryGivenBack(),
-    hallScene = trialScene(), dsn = null } = {}) {
+    hallScene = trialScene(), dsn = null, users = game.users?.contents ?? [], tokenScene = homeScene() } = {}) {
     const clock = getClock();
     /* THE ROOM ROWS READ A PLACE (E13 C5, 12.10.2026; the orchestrator's re-anchor decision 6 of
        11.10, rule A). They read the scene on the GM's screen, and a GM viewing the trial hall -
@@ -367,6 +385,25 @@ export function steps({ roster = studentActors(), scenes = Array.from(game.scene
             key: "cast",
             done: roster.length > 0,
             missing: () => []
+        },
+        /* EVERY PLAYER PLAYS A STUDENT, AND EVERY STUDENT STANDS ON THE SCHOOL (2.0 line T4, EXP-GM-09, 27.11.2026). A
+           Player or Trusted Player account with no character, or with one that is no student of the cast and no Spectator,
+           has nothing to play; Open is that account's own configuration in Foundry, where its character is chosen. A living
+           student with no token on the school's scene (`homeScene`) is nowhere on the map; Open shows the scene. Both
+           required, and both wait for a cast (`waiting`), as every row over the students does (R1501). */
+        {
+            key: "players",
+            waiting,
+            done: !waiting && !unplayedAccounts(users, roster).length,
+            missing: () => unplayedAccounts(users, roster).map(u => u.name),
+            open: async () => { await unplayedAccounts(users, roster)[0]?.sheet?.render({ force: true }); }
+        },
+        {
+            key: "tokens",
+            waiting,
+            done: !waiting && Boolean(tokenScene) && !studentsWithoutToken(roster, tokenScene).length,
+            missing: () => (tokenScene ? studentsWithoutToken(roster, tokenScene).map(a => a.name) : [game.i18n.localize("DRPG.Season.noSchoolScene")]),
+            open: async () => { await tokenScene?.view?.(); }
         },
         /* THE CHARACTERS NO PLAYER OWNS (E24 C3a, the owner's Q-E24-5; a row of Pre-season's cast part until E101 item 2,
            which made the two windows one): named as NPCs to mark, advice only - nothing is marked by itself, the GM

@@ -5681,7 +5681,8 @@
         "several": "More than one student has the same name as these accounts: {names}. Assign their characters in User Configuration.",
         "same": "These accounts are named alike: {names}. Rename one of them, or assign their characters in User Configuration.",
         "owned": "The student with the same name as {account} already belongs to {owner}, so {account} gets no character. Assign one in User Configuration.",
-        "owns": "{account} already owns {students}, so it gets no other student. Assign its character in User Configuration."
+        "owns": "{account} already owns {students}, so it gets no other student. Assign its character in User Configuration.",
+        "title": "Accounts and students"
       }
     },
     "Anonymity": {
@@ -6766,7 +6767,12 @@
       "undonePings": {
         "one": "Pings are on for {n} role again.",
         "other": "Pings are on for {n} roles again."
-      }
+      },
+      "step.players": "Every player account plays a student",
+      "hint.players": "Otherwise that player has nothing to play: choose the account's student in its configuration in Foundry (Open).",
+      "step.tokens": "Every living student has a token on the school's scene",
+      "hint.tokens": "Otherwise that student is nowhere on the map: drag the character onto the school's scene (Open shows it).",
+      "noSchoolScene": "no school scene"
     },
     "Explain": {
       "state": {
