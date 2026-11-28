@@ -363,6 +363,8 @@ When you move the clock on from the time of day in which a body was announced (*
 
 Every student gets **2 actions** per time of day and **1 Free Move**. **Wounded** (no Health left) costs 1 action per time of day in Daily Life and in the Investigation; in the Class Trial it costs none, though the state and its badge stay, and a Monocub never loses an action to it. A *Panic* darkening (section 7) costs 1 more action, and the two stack, but Panic never takes the budget below **1**. A character who heals mid-day gets the action back at the next refill. A banked Burst (a Hope Call, section 6.1) pays the whole price of the next action, a Long Rest's 2 included, before any action is spent; a crossing takes the Free Move first, then a banked free crossing, then a Burst, then an action (section 9.3). **Breakdown** (no Sanity left) gives disadvantage on every roll, and a roll's card calls the extra die Disadvantage, never Breakdown (*Who reads what*, below).
 
+Since 1.2.130 you can give a living student one action above the maximum from **Students** (section 3): **+1** in the student's **Actions** cell banks it as a Burst is banked, so it pays for the next action first and is gone when the time of day ends. The cell shows what is banked as +N, as the GM panel's roster does.
+
 The ten tiles on the sheet, in the order they are drawn:
 
 | Action | Statistic | Cost | What it does | Numbers |

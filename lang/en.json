@@ -5522,7 +5522,9 @@
         "other": "{n} cards about this student wait for a GM's decision."
       },
       "connectionColumn": "Connection",
-      "ownerConnection": "{player}, {state}"
+      "ownerConnection": "{player}, {state}",
+      "grantAction": "+1 action above the maximum, until this time of day ends",
+      "grantedAction": "{name} has 1 action above the maximum until this time of day ends."
     },
     "Character": {
       "notACharacter": "That only works on a character.",

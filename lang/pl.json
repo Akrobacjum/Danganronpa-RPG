@@ -5912,7 +5912,9 @@
         "other": "Na decyzję GM-a czeka {n} karty o tym uczniu."
       },
       "connectionColumn": "Połączenie",
-      "ownerConnection": "{player}, {state}"
+      "ownerConnection": "{player}, {state}",
+      "grantAction": "+1 akcja ponad maksimum, do końca tej pory dnia",
+      "grantedAction": "{name} ma 1 akcję ponad maksimum do końca tej pory dnia."
     },
     "Character": {
       "notACharacter": "To działa tylko na postaci.",

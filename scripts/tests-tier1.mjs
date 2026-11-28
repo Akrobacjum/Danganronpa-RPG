@@ -70928,6 +70928,38 @@ const INVARIANTS = [
             sources: [true, true, true, true] }),
         "{cards: [a card waiting, the same settled, one with no button]; byName: the character a card names only by its opening name; drawn: [a room and 2 waiting, none and 0] x [Room, Waiting, its tooltip]; sources: [the Timeline asks waitingEntry, waitingCards reads it, the window counts by actorId, the Room is gmPlaceOf]}");
     }],
+    ["R9063 - a GM gives an action above the maximum from Students: gm-students.mjs `aboveMaximumHtml` draws, after a living student's actions, the banked free actions as \"+N\" with `DRPG.Actions.burstBanked` and an icon button `[data-drpg-grant-action]` named `DRPG.Panel.grantAction`, the banked count alone for a student who is not alive; `grantAboveMaximum` gives 1 through actions.mjs `grantFreeActions` with the reason \"gmRuling\" and says so (`DRPG.Panel.grantedAction`); the Actions cell draws it and the window wires the button to it (2.0 line T2c, EXP-GM-06, 28.11.2026)", async () => {
+        /* F1-blind-gm EXP-GM-06: `setActions` holds the budget to its maximum and `grantFreeActions` had no button. The cell
+           drawn for a stand-in actor holding 2 banked free actions, alive and not; the press run with a stand-in grant (the
+           real one writes, and tier 1 writes nothing); the cell's and the wire's places in the source. Red at 0d3d4f2: no
+           `aboveMaximumHtml`. */
+        const S = await import("./gm-students.mjs");
+        const { plural } = await import("./utils.mjs");
+        const html = typeof S.aboveMaximumHtml === "function" ? S.aboveMaximumHtml : null;
+        const actor = { id: "R9063Student0001", name: "R9063 Aoi", getFlag: (scope, key) => (scope === MODULE_ID && key === FLAGS.freeActionGrants ? 2 : undefined) };
+        const drawn = alive => {
+            if (!html) return null;
+            const root = document.createElement("div");
+            root.innerHTML = html(actor, alive);
+            const button = root.querySelector("button[data-drpg-grant-action]");
+            const extra = root.querySelector("[data-drpg-burst]");
+            return { extra: extra ? [extra.textContent.trim(), extra.dataset.tooltip] : null,
+                button: button ? [button.dataset.drpgGrantAction, button.getAttribute("aria-label")] : null };
+        };
+        const asked = [];
+        const pressed = typeof S.grantAboveMaximum === "function"
+            ? await S.grantAboveMaximum(actor, { grantFreeActions: async (...args) => { asked.push([args[0].id, args[1], args[2]]); return true; } })
+            : null;
+        const src = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/gm-students.mjs`).then(lfText));
+        const label = game.i18n.localize("DRPG.Panel.grantAction");
+        equal(stableJson({ alive: drawn(true), dead: drawn(false), pressed, asked,
+            cell: /\$\{aboveMaximumHtml\(a, state === "alive"\)\}/.test(fnSource(src, "aliveTableHtml")),
+            wired: /"data-drpg-grant-action", actor => grantAboveMaximum\(actor, roads\)/.test(fnSource(src, "wireAliveTable")) }),
+        stableJson({ alive: { extra: ["+2", plural("DRPG.Actions.burstBanked", { n: 2 })], button: [actor.id, label] },
+            dead: { extra: ["+2", plural("DRPG.Actions.burstBanked", { n: 2 })], button: null }, pressed: true, asked: [[actor.id, 1, { reason: "gmRuling" }]], cell: true, wired: true }),
+        "{alive, dead: the cell's extra for a living student and one who is not [its words, its tooltip] and its button [the actor, its name]; pressed: the press's answer; asked: what it handed the grant; cell: the Actions cell draws it; wired: the window wires the button to it}");
+        ok(label !== "DRPG.Panel.grantAction" && game.i18n.localize("DRPG.Panel.grantedAction") !== "DRPG.Panel.grantedAction", "the button's keys have words");
+    }],
 ];
 
 /**

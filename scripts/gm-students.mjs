@@ -33,7 +33,7 @@ import { crossingStore, offerStore } from "./gm-stores.mjs";
 import { roomPhrase } from "./rooms.mjs";
 import { isDeadWatcher, spectatorForTheDead } from "./spectator-dead.mjs";
 import { isDeadForGm } from "./settings.mjs";
-import { actionsLeft, actionsMax, hasFreeMove } from "./actions.mjs";
+import { actionsLeft, actionsMax, hasFreeMove, freeActionsLeft, grantFreeActions } from "./actions.mjs";
 
 
 /**
@@ -136,7 +136,7 @@ export function aliveTableHtml({ roster, others, stateOf, donors, isCrimeSilence
         const free = acts && hasFreeMove(a);
         const moveWord = L(free ? "DRPG.Actions.freeMoveAvailable" : "DRPG.Actions.freeMoveSpent");
         const economy = !acts ? { actions: "-", freeMove: "-" } : {
-            actions: `<span data-drpg-actions-left="${actionsLeft(a)}">${actionsLeft(a)} / ${actionsMax(a)}</span>`,
+            actions: `<span data-drpg-actions-left="${actionsLeft(a)}">${actionsLeft(a)} / ${actionsMax(a)}</span>${aboveMaximumHtml(a, state === "alive")}`,
             freeMove: `<i class="${free ? "fa-solid" : "fa-regular"} fa-shoe-prints drpg-pix-foot" data-drpg-free-move="${free ? "yes" : "no"}"`
                 + ` role="img" aria-label="${esc(moveWord)}" data-tooltip="${esc(moveWord)}"></i>`
         };
@@ -240,6 +240,33 @@ export function aliveTableHtml({ roster, others, stateOf, donors, isCrimeSilence
         <p class="notes">${L("DRPG.Panel.whoIsAliveNote")}</p>
         ${dataTable({ columns, rows, rowAttrs: r => ({ "data-actor": r.id }) })}
     </div>`;
+}
+
+/*
+ * AN ACTION ABOVE THE MAXIMUM (2.0 line T2c, EXP-GM-06, split from line T2, 28.11.2026; F1-blind-gm EXP-GM-06, E-GM-20,
+ * E-GM-89). The sheet's action pips set the budget from 0 to its maximum (actions.mjs `setActions` holds it there), so a
+ * reward or a story's extra action had no road but the console. The Actions cell of a living student carries "+1"
+ * (`DRPG.Panel.grantAction`, its words the button's tooltip and name): one free action through the road a Burst's
+ * grant takes (actions.mjs `grantFreeActions`, reason "gmRuling", the reason `setActions` names for a GM's own hand;
+ * a GM's write carries no reason to the audit, resource-guard.mjs `stampOf`), spent before the actions and gone at the
+ * end of the time of day as a Burst's is (`resetActionsFor`, `clearGrants`). What is banked stands after the count as
+ * "+N" with the panel's own words (gm-panel.mjs `rosterTableHtml`, `DRPG.Actions.burstBanked`); the actor's write redraws
+ * the row (`keepLive`, `actors`). R9063.
+ */
+export function aboveMaximumHtml(actor, alive) {
+    const banked = freeActionsLeft(actor);
+    const extra = banked ? ` <span class="drpg-gmp-roster-extra" data-drpg-burst="${banked}" data-tooltip="${esc(plural("DRPG.Actions.burstBanked", { n: banked }))}">+${banked}</span>` : "";
+    if (!alive) return extra;
+    return `${extra} ${iconButton({ icon: "fa-solid fa-plus", label: game.i18n.localize("DRPG.Panel.grantAction"), cls: "drpg-mini-button",
+        attrs: { "data-drpg-grant-action": actor.id } })}`;
+}
+
+/** The "+1" press (above): the grant, and the GM told it stands. `roads.grantFreeActions` is the suite's stand-in. */
+export async function grantAboveMaximum(actor, roads = {}) {
+    const grant = roads.grantFreeActions ?? grantFreeActions;
+    if (!(await grant(actor, 1, { reason: "gmRuling" }))) return false;
+    ui.notifications.info(game.i18n.format("DRPG.Panel.grantedAction", { name: actor.name }));
+    return true;
 }
 
 /*
@@ -493,6 +520,8 @@ function wireAliveTable(dialog, { openDeathDialog, offerMonocub, cancelMonocubOf
     // Silence now (E72 C8): nothing of its own to open; the cast's change redraws the row (`drpgCastChanged`).
     wireAliveRow(dialog, "data-drpg-silence", actor => import("./incident-store.mjs").then(m => m.silenceDeadNow(actor)),
         { keepOpen: true, reopen });
+    // One action above the maximum (EXP-GM-06, `aboveMaximumHtml`): nothing of its own to open; the actor's write redraws the row.
+    wireAliveRow(dialog, "data-drpg-grant-action", actor => grantAboveMaximum(actor, roads), { keepOpen: true, reopen });
     // Nothing of its own to open either (E17 C3): the store's change redraws the row.
     wireAliveRow(dialog, "data-drpg-refund", actor => import("./gm-bridge.mjs").then(m => m.requestRefundCrossing(actor.id)),
         { keepOpen: true });

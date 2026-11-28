@@ -363,6 +363,8 @@ Gdy przesuwasz zegar z pory dnia, w której ogłoszono ciało (**Ogłoś ciało*
 
 Każdy uczeń ma **2 akcje** na porę dnia i **1 Free Move**. **Wounded** (Health się skończyło) kosztuje 1 akcję na porę dnia w Daily Life i w Investigation; w Class Trial nie kosztuje żadnej, choć stan i jego plakietka zostają, a Monocub nigdy nie traci akcji przez Wounded. Zaciemnienie *Panic* (sekcja 7) kosztuje 1 akcję więcej; oba się sumują, ale Panic nigdy nie obniża budżetu poniżej **1**. Postać, która wyleczy się w ciągu dnia, dostaje akcję z powrotem przy następnym odnowieniu. Odłożony Burst (Hope Call, sekcja 6.1) płaci całą cenę następnej akcji, także 2 akcje Long Rest, zanim zejdzie jakakolwiek akcja, a przejście do innego pokoju bierze najpierw Free Move, potem odłożone darmowe przejście, potem Burst, a dopiero na końcu akcję (sekcja 9.3). **Breakdown** (Sanity się skończyło) daje utrudnienie na każdym rzucie; karta rzutu nazywa dodatkową kość Disadvantage i nigdy nie mówi Breakdown (*Kto co czyta*, niżej).
 
+Od 1.2.130 możesz dać żyjącemu uczniowi jedną akcję ponad maksimum z okna **Uczniowie** (sekcja 3): **+1** w komórce **Akcje** odkłada ją tak, jak odkłada się Burst, więc płaci za następną akcję jako pierwsza i znika z końcem pory dnia. Komórka pokazuje to, co odłożone, jako +N, tak jak lista w panelu GM-a.
+
 Dziesięć kafelków na arkuszu, w kolejności rysowania:
 
 | Akcja | Statystyka | Koszt | Co robi | Liczby |

@@ -119421,6 +119421,41 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         equal(stableJson(read), stableJson({ panel: true, anyConnected: true, lateBefore: "no", lateAfter: "yes", panelStood: true, students: true }),
             "{panel: every player account listed as Foundry holds its connection; anyConnected: a connected player is read so; lateBefore, lateAfter: a stand-in player's line before and after it connects; panelStood: the panel stayed open; students: every owned student's Connection cell names each of its owners and that owner's connection}");
     }],
+    ["E132 T2c EXP-GM-06 - a GM grants an action above the maximum from Students: the +1 on a living student's row gives one free action through `grantFreeActions`, the row then shows +1 beside the actions without the window closing, and the count is put back (gm-students.mjs `aboveMaximumHtml`, `grantAboveMaximum`; 2.0 line T2c, EXP-GM-06, 28.11.2026)", async () => {
+        /*
+         * F1-blind-gm EXP-GM-06: an action above the maximum had no button. The Students window opened as the panel's tile
+         * opens it; a living student's +1 pressed; read: the banked free actions before and after, the row's "+N" after
+         * its redraw, and whether the window stood. The banked count is written back in the `finally`. Red at 0d3d4f2: no
+         * button.
+         */
+        needs(env.dialogs(), "the window is read off its drawn window");
+        needs(world.atLeast("livingStudents", 1));
+        const P = await import("./gm-panel.mjs");
+        const A = await import("./actions.mjs");
+        const [student] = cast(1);
+        const was = student.getFlag(MODULE_ID, FLAGS.freeActionGrants) ?? 0;
+        const alive = () => [...foundry.applications.instances.values()].find(a => a.rendered && a.options?.classes?.includes("drpg-window-alive")) ?? null;
+        const button = () => alive()?.element?.querySelector(`tr[data-actor="${student.id}"] [data-drpg-grant-action]`) ?? null;
+        const extra = () => alive()?.element?.querySelector(`tr[data-actor="${student.id}"] [data-drpg-burst]`)?.textContent.trim() ?? null;
+        const read = {};
+        let answer = null;
+        try {
+            await student.setFlag(MODULE_ID, FLAGS.freeActionGrants, 0);
+            answer = Promise.resolve().then(() => P.openWhoIsAliveDialog()).catch(() => null);
+            await until(() => button(), 6000).catch(() => {});
+            read.before = [A.freeActionsLeft(student), Boolean(button()), extra()];
+            button()?.click();
+            await until(() => A.freeActionsLeft(student) === 1 && extra() === "+1", 4000).catch(() => {});
+            read.after = [A.freeActionsLeft(student), extra(), Boolean(alive())];
+        } finally {
+            await alive()?.close().catch(() => {});
+            await Promise.race([answer, wait(2000)]);
+            await student.setFlag(MODULE_ID, FLAGS.freeActionGrants, was);
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ before: [0, true, null], after: [1, "+1", true] }),
+            "{before: [free actions banked, the +1 on the row, the row's +N]; after: [free actions banked, the row's +N, the window still open]}");
+    }],
 ];
 
 // `drawnForPlayer` for the grid (E33 C7): a drawn crisis roll goes through the suite's one road to a draw (tests-grid.mjs `drawnAct`).
