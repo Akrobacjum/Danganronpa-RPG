@@ -70500,6 +70500,157 @@ const INVARIANTS = [
             none: [false, false, false, false, []]
         }), "{pick: [the card's line key, its name, the trait kept]; sent: the answers [action, to, value]; exported; html: the rewrite of [unconfirmed, answered, declined, auto-approved, unconfirmed in the GMs' note]; here: [a receipt with the line here: rewritten, the writes]; first: [the receipt first: rewritten now, writes, the words stored: written, again: written, the writes]; none: [a receipt past ackMs, words with no receipt, a receipt for a declined card, its words after, the writes]}");
     }],
+    ["R9026 - the GM's difficulty window says how long the player still waits: messenger-app.mjs `ruleSetDifficulty` hands action-dynamic.mjs `askDynamicDifficulty` the card's time (call-gm.mjs `askCardExpiry`, the card's `data-expires`) as `expires`, and the window draws `[data-drpg-expires]` with `DRPG.Bridge.timeLeft` from it, written again each second while the window stands (`keepTimeLeft`), and `DRPG.Bridge.timeUp` once the time has passed; a window with no time - a GM's own action - draws none (2.0 line T2, CALLS-03, 28.11.2026)", async () => {
+        /* F1-calls CALLS-03: the card says "Open until 21:35." but the difficulty window a GM opens from it said nothing
+           of the time, and a ruling given after it is thrown away (`askNotHeld`). Read with no write: the window's
+           DialogV2.wait answered here - its content put in this page and its own render hook run, as Foundry runs it -
+           and closed unanswered, so the card is not ruled. Card A is a card of this test's own whose time is two minutes
+           and six seconds off, pressed through `runCallAction`; card B's time is two and a half seconds off, read at once
+           and after three seconds; the GM's own window has no time. A text is read as one of the times a draw up to two
+           seconds late could show (the press imports its modules first), never as a time computed by the code read. Red
+           at 0f9bbe1: no element. */
+        const M = await import("./messenger-app.mjs");
+        const A = await import("./action-dynamic.mjs");
+        const { serverNow } = await import("./utils.mjs");
+        const D = foundry.applications.api.DialogV2;
+        const own = Object.getOwnPropertyDescriptor(D, "wait");
+        const roots = [];
+        const drawn = root => {
+            const el = root?.querySelector("[data-drpg-expires]");
+            return el ? [Number(el.getAttribute("data-drpg-expires")), el.textContent.trim()] : null;
+        };
+        const card = (id, expires) => ({ id, content: `<p>card</p><span class="drpg-call-expires" data-expires="${expires}">until</span>`,
+            flags: {}, getFlag: () => undefined, author: game.user, user: game.user });
+        const read = {};
+        try {
+            D.wait = async cfg => {
+                const root = document.createElement("div");
+                if (cfg?.content instanceof HTMLElement) root.append(cfg.content);
+                else root.innerHTML = String(cfg?.content ?? "");
+                document.body.append(root);
+                roots.push(root);
+                cfg?.render?.(null, { element: root, close: async () => root.remove(), addEventListener: () => {} });
+                return null;
+            };
+            const data = { rid: "R9026NoSuchAsk00", asker: game.user.id, desc: "R9026 I climb the fence", name: "R9026", by: "", room: "" };
+            const far = Math.round(serverNow() + 126000 - 500);
+            read.A = [await M.runCallAction("setDifficulty", data, card("R9026CardFar0000", far)), drawn(roots.at(-1))];
+            const near = Math.round(serverNow() + 2500);
+            await M.runCallAction("setDifficulty", data, card("R9026CardNear000", near));
+            const b = roots.at(-1);
+            read.B = [drawn(b)];
+            await wait(3100);
+            read.B.push(drawn(b));
+            await A.askDynamicDifficulty({ description: "R9026 a GM's own", actorName: "R9026", room: null });
+            read.own = drawn(roots.at(-1));
+            read.far = far;
+            read.near = near;
+        } finally {
+            if (own) Object.defineProperty(D, "wait", own); else delete D.wait;
+            for (const root of roots) root.remove();
+        }
+        const left = time => game.i18n.format("DRPG.Bridge.timeLeft", { time });
+        must(read.A?.[1] !== undefined, "the window was not drawn - this would measure nothing");
+        // A text one of `times`, as `true`; any other text as itself.
+        const shown = (el, times) => (el ? [el[0], times.map(left).includes(el[1]) || el[1]] : el);
+        read.A = [read.A[0], shown(read.A[1], ["2:06", "2:05", "2:04"])];
+        read.B = [shown(read.B[0], ["0:03", "0:02", "0:01"]), read.B[1]];
+        equal(stableJson(read), stableJson({
+            A: [null, [read.far, true]], B: [[read.near, true], [read.near, game.i18n.localize("DRPG.Bridge.timeUp")]],
+            own: null, far: read.far, near: read.near
+        }), "{A: [the press's answer, the window's time element [its expires, its text one of 2:06-2:04 left]]; B: card B's element at once [its text one of 0:03-0:01 left] and three seconds later; own: a GM's own window's element}");
+    }],
+    ["R9027 - a Dynamic description no GM answered is offered again: trait-ruling.mjs `keepWords` keeps a player's words per character and definition when the ask ended with no GM's answer, and drops them on an answer; call-gm.mjs `askForRequest` and `promptForRequest` start `textarea[name=\"request\"]` with `value`, once (a window asked again after an empty Send starts empty); action-menus.mjs `traitFieldHtml` with `keep` picks the kept statistic and fills the kept note; action-dynamic.mjs `performDynamic` offers the kept description and statistic and keeps them by its ask's `res.ok`; trait-ruling.mjs `askGms` keeps a statistic's proposal and note the same way, and the Search, Tail and Project windows offer it (2.0 line T2, CALLS-03, 28.11.2026)", async () => {
+        /* F1-calls CALLS-03: an ask that ran out cost the player their words - the next window started empty. Read with no
+           write: the store on ids of this test's own and on a character's, put back; the windows with DialogV2.wait
+           answered here; the roads in the source. Red at 0f9bbe1: nothing kept, no `value`, no `keep`. */
+        const T = await import("./trait-ruling.mjs");
+        const B = await import("./gm-bridge.mjs");
+        const { traitFieldHtml } = await import("./action-menus.mjs");
+        const read = {};
+        const has = typeof T.keepWords === "function" && typeof T.keptWords === "function";
+        read.exported = has;
+        const DYN = { kind: "action", key: "dynamic" }, SEARCH = { kind: "action", key: "search" };
+        const actor = game.actors.find(a => a.type === "character") ?? null;
+        must(actor, "no character to keep words for - this would measure nothing");
+        const traits = ACTIONS.search.traits ?? [];
+        must(traits.length > 1, "Search lists one statistic here - this would measure nothing");
+        if (has) {
+            const X = "R9027Actor000001", Y = "R9027Actor000002";
+            T.keepWords(X, DYN, { text: "R9027 words", proposed: "eye" }, false);
+            T.keepWords(Y, DYN, { text: "R9027 other", proposed: null }, false);
+            read.store = [T.keptWords(X, DYN), T.keptWords(X, SEARCH), T.keptWords(Y, DYN)];
+            T.keepWords(X, DYN, { text: "R9027 answered", proposed: "eye" }, true);
+            T.keepWords(Y, DYN, { text: "", proposed: null, note: "" }, false);
+            read.store.push(T.keptWords(X, DYN), T.keptWords(Y, DYN));
+            T.keepWords(Y, DYN, {}, true);
+            T.keepWords(actor.id, SEARCH, { proposed: traits[1], note: "R9027 how" }, false);
+            const wrap = document.createElement("template");
+            wrap.innerHTML = traitFieldHtml(actor, traits, { propose: true, keep: SEARCH });
+            const plain = document.createElement("template");
+            plain.innerHTML = traitFieldHtml(actor, traits, { propose: true });
+            T.keepWords(actor.id, SEARCH, {}, true);
+            const field = t => [t.content.querySelector("[name=proposed]")?.value ?? null, t.content.querySelector("[name=note]")?.value ?? null];
+            read.field = [field(wrap), field(plain), T.keptWords(actor.id, SEARCH)];
+        }
+        const D = foundry.applications.api.DialogV2;
+        const own = Object.getOwnPropertyDescriptor(D, "wait");
+        const starts = [];
+        let answers = [];
+        try {
+            D.wait = async cfg => {
+                const root = document.createElement("div");
+                if (cfg?.content instanceof HTMLElement) root.append(cfg.content);
+                else root.innerHTML = String(cfg?.content ?? "");
+                const field = root.querySelector("[name=request]");
+                starts.push(field?.value ?? null);
+                const next = answers.shift() ?? { close: true };
+                if (next.close) return null;
+                if (field) field.value = next.text ?? "";
+                const button = (cfg?.buttons ?? []).find(b => b.action === "send");
+                return button?.callback ? button.callback(null, null, { element: root }) : null;
+            };
+            const NH = await import("./notice-history.mjs");
+            await NH.holdNoticeHistory(true);
+            try {
+                answers = [{ text: "R9027 sent" }];
+                read.windows = [await B.askForRequest({ title: "R9027", prompt: "R9027", value: "R9027 kept" })];
+                answers = [{ text: "" }, { close: true }];
+                read.windows.push(await B.askForRequest({ title: "R9027", prompt: "R9027", required: true, value: "R9027 kept" }));
+                answers = [{ close: true }];
+                read.windows.push(await B.promptForRequest({ title: "R9027", prompt: "R9027", value: "R9027 prompted" }));
+                answers = [{ close: true }];
+                read.windows.push(await B.askForRequest({ title: "R9027", prompt: "R9027" }));
+            } finally {
+                await settle(50);
+                for (const c of [...document.querySelectorAll(".drpg-popup")]) c.dispatchEvent(new CustomEvent("drpg-dismiss", { detail: { instant: true } }));
+                NH.holdNoticeHistory(false);
+            }
+        } finally {
+            if (own) Object.defineProperty(D, "wait", own); else delete D.wait;
+        }
+        read.starts = starts;
+        const src = async file => stripComments(await fetch(`/modules/${MODULE_ID}/scripts/${file}`).then(lfText));
+        const dynamic = fnSource(await src("action-dynamic.mjs"), "performDynamic") ?? "";
+        const asks = fnSource(await src("trait-ruling.mjs"), "askGms") ?? "";
+        const offers = async (file, name) => /traitFieldHtml\([^;]*\bkeep:\s*\{\s*kind:/.test(fnSource(await src(file), name) ?? "");
+        read.roads = [
+            /promptForRequest\(\{[^;]*\bvalue:\s*keptWords\(actor\.id, DYNAMIC_WORDS\)\?\.text/.test(dynamic),
+            /traitFieldHtml\(actor, def\.traits, \{[^}]*\bkeep:\s*DYNAMIC_WORDS/.test(dynamic),
+            /requestDynamicDifficulty\(request\);\s*keepWords\(actor\.id, DYNAMIC_WORDS, \{ text: description, proposed \}, res\.ok\);/.test(dynamic),
+            /requestTraitRuling\([^;]*\);\s*keepWords\(actor\.id, \{ kind, key \}, \{ proposed, note \}, res\.ok\);/.test(asks),
+            await offers("action-search.mjs", "chooseSearchCategory"), await offers("action-tail.mjs", "performTail"),
+            await offers("action-project.mjs", "proposeProjectTrait")
+        ];
+        equal(stableJson(read), stableJson({
+            exported: true,
+            store: [{ text: "R9027 words", proposed: "eye", note: "" }, null, { text: "R9027 other", proposed: null, note: "" }, null, null],
+            field: [[traits[1], "R9027 how"], [traits[0], ""], null],
+            windows: ["R9027 sent", null, null, null],
+            starts: ["R9027 kept", "R9027 kept", "", "R9027 prompted", ""],
+            roads: [true, true, true, true, true, true, true]
+        }), "{exported; store: [kept, another definition, another character, after an answer, empty words unanswered]; field: [[statistic, note] with keep, without, the store after]; windows: what four windows answered; starts: each window's words at its open; roads: [Dynamic's value, Dynamic's keep, Dynamic keeps by res.ok, askGms keeps by res.ok, Search, Tail, Project offer it]}");
+    }],
 ];
 
 /**

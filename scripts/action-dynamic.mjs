@@ -21,8 +21,9 @@ import { MODULE_ID, TRAITS, DYNAMIC_THRESHOLDS } from "./config.mjs";
 import { spendAction } from "./actions.mjs";
 import { roomOfActor } from "./movement.mjs";
 import { callGm, promptForRequest } from "./gm-bridge.mjs";
-import { whisperToOwner, whisperToGms, esc } from "./utils.mjs";
+import { whisperToOwner, whisperToGms, esc, serverNow } from "./utils.mjs";
 import { traitFieldHtml, readProposal } from "./action-menus.mjs";
+import { keepWords, keptWords } from "./trait-ruling.mjs";
 import { rollTrait, rollInHand, remnantRef, noteRollContext, abort, canAfford } from "./action-pipeline.mjs";
 import { report } from "./action-report.mjs";
 import { briefingBlock } from "./action-briefing.mjs";
@@ -46,6 +47,9 @@ export function dynamicDef() {
 /* ==========================================================================
  * DYNAMIC
  * ========================================================================== */
+
+/** The definition a Dynamic Action's words are kept under when no GM answered them (trait-ruling.mjs `keepWords`). */
+const DYNAMIC_WORDS = Object.freeze({ kind: "action", key: "dynamic" });
 
 export async function performDynamic(actor, options) {
     // Read once (E22 C5c; audit S02-49): the window, the waiting card and the report read the same definition.
@@ -71,8 +75,11 @@ export async function performDynamic(actor, options) {
         placeholder: game.i18n.localize("DRPG.Action.dynamicPlaceholder"),
         // An empty description is no action for the GM to price (E18 C0, S10-52): asked again.
         required: true,
+        /* The description and the statistic of this character's last ask no GM answered, offered again (2.0 line T2,
+           CALLS-03, 28.11.2026): kept on a player's browser below, never on a GM's, whose own action asks nobody. */
+        value: keptWords(actor.id, DYNAMIC_WORDS)?.text ?? "",
         // The statistic the player proposes (E68 C4; DA18), beside the words, which are its "how": the GM sets it.
-        extra: traitFieldHtml(actor, def.traits, { propose: true, how: false }),
+        extra: traitFieldHtml(actor, def.traits, { propose: true, how: false, keep: DYNAMIC_WORDS }),
         // The one layout of every action (E68 C12; the fix round): the briefing on the left, the words on the right.
         columns: true
     });
@@ -101,6 +108,7 @@ export async function performDynamic(actor, options) {
         } else {
             const { requestDynamicDifficulty } = await import("./gm-bridge.mjs");
             const res = await requestDynamicDifficulty(request);
+            keepWords(actor.id, DYNAMIC_WORDS, { text: description, proposed }, res.ok);
             picked = res.ok ? res.value : null;
         }
     } finally {
@@ -319,9 +327,14 @@ export function dynamicBar(band) {
  * open. Until 1.2.122 both answered null, so the window's Refuse refused nothing
  * from the card and ended a GM's own action unsaid (the audit's CTRL-27).
  *
+ * `expires` (2.0 line T2, CALLS-03, 28.11.2026; F1-calls CALLS-03): the card's time, on the server's clock (call-gm.mjs
+ * `askCardExpiry`), which the card shows as "Open until 21:35." and the window did not: a GM reading a long description
+ * could rule after the player had stopped waiting, and the ruling was thrown away (messenger-app.mjs `askNotHeld`). The
+ * window counts down to it (`keepTimeLeft`) and says when it has passed; a GM's own action has none.
+ *
  * @returns {Promise<{tier: number, trait: string}|false|null>}
  */
-export async function askDynamicDifficulty({ description, actorName, actorId = null, room, proposed = null } = {}) {
+export async function askDynamicDifficulty({ description, actorName, actorId = null, room, proposed = null, expires = null } = {}) {
     // The character as its sheet names it (E91 C7; the owner's deferred item D076): the GMs' actor by id, the name the
     // asker's packet carried only when no actor is found.
     const named = (actorId ? game.actors.get(actorId)?.name : null) ?? actorName;
@@ -338,6 +351,7 @@ export async function askDynamicDifficulty({ description, actorName, actorId = n
                         room: foundry.utils.escapeHTML(room ?? "-")
                     })}</p>
                     <blockquote>${foundry.utils.escapeHTML(description ?? "")}</blockquote>
+                    ${Number.isFinite(expires) && expires > 0 ? `<p role="timer" data-drpg-expires="${Math.round(expires)}">${esc(timeLeftText(expires))}</p>` : ""}
                     ${Object.hasOwn(TRAITS, proposed ?? "") ? `<p>${esc(game.i18n.format("DRPG.TraitRuling.proposed", { stat: TRAITS[proposed].label }))}</p>` : ""}
                     <label>${game.i18n.localize("DRPG.Action.difficulty")}
                         <select name="tier"${tipAttr("DRPG.Tips.Actions.difficultyTooltip")}>${rows}</select></label>
@@ -355,10 +369,42 @@ export async function askDynamicDifficulty({ description, actorName, actorId = n
             },
             secondary: [{ action: "refuse", label: game.i18n.localize("DRPG.Action.dynamicRefuse"), tooltip: tipText("DRPG.Tips.Actions.refuseTooltip") }]
         },
+        render: (event, dialog) => keepTimeLeft(dialog?.element),
         rejectClose: false
     });
 
     if (picked === "refuse") return false;
     if (!picked) return null;
     return picked;
+}
+
+/**
+ * "Time to rule: 2:06." until `expires` (the server's milliseconds), the seconds rounded up, then "Time is up: ..." (2.0 line T2,
+ * CALLS-03, 28.11.2026). The countdown is minutes and seconds the module writes itself, as the trial's floor writes its
+ * clock (trial-floor.mjs), not a time of day: there is nothing for `localeFormat` to write.
+ */
+export function timeLeftText(expires, now = serverNow()) {
+    const left = Math.ceil((Number(expires) - now) / 1000);
+    if (!(left > 0)) return game.i18n.localize("DRPG.Bridge.timeUp");
+    return game.i18n.format("DRPG.Bridge.timeLeft", { time: `${Math.floor(left / 60)}:${String(left % 60).padStart(2, "0")}` });
+}
+
+/**
+ * The difficulty window's countdown, written again each second while the window stands and stopped once the time has
+ * passed or the window is gone (2.0 line T2, CALLS-03, 28.11.2026). `role="timer"` on the line: a screen reader reads it
+ * when asked and is not told every second. The line has no class: the files that build card bodies are read for their
+ * classes by tier 1's R294 against notice-history.mjs `NOTICE_CLASSES`, which is not this line's to grow, and the line
+ * needs no style. Answers the interval, or null when the window shows no time.
+ */
+export function keepTimeLeft(root) {
+    const line = root?.querySelector?.("[data-drpg-expires]");
+    if (!line) return null;
+    const expires = Number(line.getAttribute("data-drpg-expires"));
+    const timer = setInterval(() => {
+        if (!line.isConnected) return clearInterval(timer);
+        line.textContent = timeLeftText(expires);
+        if (serverNow() >= expires) clearInterval(timer);
+        return undefined;
+    }, 1000);
+    return timer;
 }

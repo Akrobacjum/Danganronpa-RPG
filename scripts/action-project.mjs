@@ -1025,7 +1025,7 @@ async function proposeProjectTrait(actor, project, listed) {
         prompt: true,
         title: game.i18n.localize("DRPG.TraitRuling.title"),
         body: `<form><p><strong>${esc(project.name ?? "?")}</strong></p>
-            <p>${game.i18n.localize("DRPG.TraitRuling.projectBody")}</p>${traitFieldHtml(actor, listed, { propose: true })}</form>`,
+            <p>${game.i18n.localize("DRPG.TraitRuling.projectBody")}</p>${traitFieldHtml(actor, listed, { propose: true, keep: { kind: "project", key: project.id } })}</form>`,
         footer: {
             gmRoute: [{ action: "propose", label: game.i18n.localize("DRPG.TraitRuling.propose"), tooltip: tipText("DRPG.Tips.Sweep.Actions.proposeTraitTooltip"),
                 callback: (event, button, dialog) => readProposal(dialog.element.querySelector("form"), listed) }],

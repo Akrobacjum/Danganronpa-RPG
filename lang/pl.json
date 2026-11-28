@@ -5593,7 +5593,9 @@
       "claimTakenOver": "Tę kartę przejmuje GM {gm}. Twoje okno tej karty jest zamknięte i nic z niego nie poszło.",
       "claimOwnOpen": "Masz już otwarte okno tej karty. Dokończ je albo zamknij.",
       "takeOverTooltip": "Zamyka okno tej karty u drugiego GM-a i zwalnia kartę. Potem wybierz na niej odpowiedź.",
-      "takeOverNowTooltip": "Zamyka okno tej karty u drugiego GM-a i otwiera u ciebie okno tej odpowiedzi."
+      "takeOverNowTooltip": "Zamyka okno tej karty u drugiego GM-a i otwiera u ciebie okno tej odpowiedzi.",
+      "timeLeft": "Czas na decyzję: {time}.",
+      "timeUp": "Czas minął: gracz już nie czeka na tę decyzję."
     },
     "Tables": {
       "installed": "Tabele przedmiotów są gotowe: utworzono {created}, a {skipped} zostawiono bez zmian.",

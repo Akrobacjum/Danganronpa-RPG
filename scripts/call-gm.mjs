@@ -138,8 +138,9 @@ function cardOfAsk(requestId, asker) {
     return null;
 }
 
-/** The time an ask's card is open until, as its words say (`data-expires`), or null. */
-function askCardExpiry(message) {
+/** The time an ask's card is open until, as its words say (`data-expires`), or null. Exported for the difficulty's window,
+    which counts down to it (messenger-app.mjs `ruleSetDifficulty`; 2.0 line T2, CALLS-03, 28.11.2026). */
+export function askCardExpiry(message) {
     const wrap = document.createElement("template");
     wrap.innerHTML = contentOf(message);
     const at = Number(wrap.content.querySelector("[data-expires]")?.getAttribute("data-expires"));
@@ -1371,19 +1372,26 @@ export async function settleCall(message, text, ruling = null, gmNote = null) {
  *
  * `required`: the caller has nothing to send without words (Dynamic, a Tier 0 item's use), so
  * an empty request is not sent - the player is told so and the window opens again.
+ *
+ * `value`: the words the window starts with (2.0 line T2, CALLS-03, 28.11.2026; F1-calls CALLS-03) - a Dynamic
+ * Action's description its last ask left unanswered (trait-ruling.mjs `keptWords`), so the player does not write it
+ * again. Offered once: a window asked again after an empty Send starts empty, as the player left it.
  */
-export async function askForRequest({ title, prompt, placeholder = "", intro = "", required = false, extra = "", columns = false } = {}) {
+export async function askForRequest({ title, prompt, placeholder = "", intro = "", required = false, extra = "", columns = false, value = "" } = {}) {
     /* `columns` (E68 fix round, 10.11.2026; the owner, 10.11, with a screenshot of the Dynamic Action window whose
        description took about a third of the window and broke its sentence after three words): an action's window on
        the one layout every action has since E68 C12 (action-menus.mjs `actionWindow`), the briefing (`intro`) in the left
        column and the words in the right, the textarea its column's width (`node audit/style-sweep.mjs --fields`). */
     const { actionWindow } = columns ? await import("./action-menus.mjs") : {};
-    const form = `<form>
+    const formWith = start => `<form>
                     <p>${prompt}</p>
-                    <textarea name="request" rows="3"${tipAttr(required ? "DRPG.Tips.Sweep.Actions.requestRequiredTooltip" : "DRPG.Tips.Sweep.Actions.requestTooltip")} placeholder="${foundry.utils.escapeHTML(placeholder)}"></textarea>
+                    <textarea name="request" rows="3"${tipAttr(required ? "DRPG.Tips.Sweep.Actions.requestRequiredTooltip" : "DRPG.Tips.Sweep.Actions.requestTooltip")} placeholder="${foundry.utils.escapeHTML(placeholder)}">${foundry.utils.escapeHTML(start)}</textarea>
                     ${extra}
                   </form>`;
+    let start = typeof value === "string" ? value : "";
     for (;;) {
+        const form = formWith(start);
+        start = "";
         // On the kit's frame (E21 C5a): Send is the GM's road (D11) - the words go to a GM's card - and Cancel withdraws.
         const answer = await (columns ? actionWindow : drpgWindow)({
             classes: ["drpg-panel"],
@@ -1416,12 +1424,12 @@ export async function askForRequest({ title, prompt, placeholder = "", intro = "
  * words typed, or null when nothing will be asked: no GM is connected (said, as `promptAndCallGm`
  * says it, before the window), or the player closed it. Posts nothing.
  */
-export async function promptForRequest({ title, prompt, placeholder = "", intro = "", required = false, what = CALL_GM_WHAT, extra = "", columns = false } = {}) {
+export async function promptForRequest({ title, prompt, placeholder = "", intro = "", required = false, what = CALL_GM_WHAT, extra = "", columns = false, value = "" } = {}) {
     if (!gmOnline()) {
         sayNotDone(what, "noGm", { nothingSpent: true });
         return null;
     }
-    return askForRequest({ title, prompt, placeholder, intro, required, extra, columns });
+    return askForRequest({ title, prompt, placeholder, intro, required, extra, columns, value });
 }
 
 /**

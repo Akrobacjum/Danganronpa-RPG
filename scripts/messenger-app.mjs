@@ -1073,8 +1073,11 @@ async function ruleApproveCallOrRefuseCall(action, data, message = null) {
 // the ask held on the card pressed alone (`dynamicOnPrimary`, fix early-C2-G2).
 async function ruleSetDifficulty(action, data, message = null) {
     const { askDynamicDifficulty } = await import("./action-rolls.mjs");
+    // The card's time, which the window counts down to (2.0 line T2, CALLS-03, 28.11.2026).
+    const { askCardExpiry } = await import("./call-gm.mjs");
     const ruling = await askDynamicDifficulty({
-        description: data.desc ?? "", actorName: data.name ?? "?", actorId: data.by || null, room: data.room || null, proposed: data.proposed || null
+        description: data.desc ?? "", actorName: data.name ?? "?", actorId: data.by || null, room: data.room || null, proposed: data.proposed || null,
+        expires: message ? askCardExpiry(message) : null
     });
     // Taken over by another GM while the window stood open: nothing from it is ruled (2.0 line T2, CALLS-01).
     if (await takenOverMeanwhile(message)) return null;

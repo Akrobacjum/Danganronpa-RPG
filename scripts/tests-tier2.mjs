@@ -119128,6 +119128,82 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             done: [["A", [player.id], "string"], ["B", [player.id], "string"], ["C", [player.id], "string"]]
         }), "{A: [after the pick, after the asker's receipt] each [the GMs' copy's line, the asker's]; B: the receipt before the pick's line, after both; C: after another user's receipt; done: the answers [card, to, value's type]}");
     }],
+    ["E132 CALLS-03 - a Dynamic description that ran out is offered again: a player's Dynamic Action whose ask no GM answers before its time ends unanswered, and the next Dynamic window of that character starts with the description and the statistic the player wrote; one of another character starts empty (action-dynamic.mjs `performDynamic`; trait-ruling.mjs `keepWords`, `keptWords`; call-gm.mjs `askForRequest` `value`; 2.0 line T2, CALLS-03, 28.11.2026)", async () => {
+        /*
+         * F1-calls CALLS-03: an ask that ran out ("Nobody answered in time. You can ask again.") cost the player their
+         * words - the next window started empty. Driven on this GM as a player's browser: `game.user.isGM` reads false for
+         * the whole road (tests-tier2 `judgedOnRoad`'s `whole`), a stand-in Gamemaster (tests-kit `standInUser`) is the GM
+         * connected that the bridge asks, every packet to it is held here (read, not sent), and the ask's clock
+         * (`TIMING.rulingMs`) is set to 300 ms for the road. The windows are DialogV2.wait answered here: the first types
+         * the words and proposes the second listed statistic and sends; the next two are read at their open and closed.
+         * The stand-in is taken out and the clock put back in the `finally`; nothing is written. Red at 0f9bbe1: the
+         * second window started empty, on the first statistic.
+         */
+        // A character whose words are kept and one whose are not.
+        const [actor, other] = cast(2);
+        const { performDynamic, dynamicDef } = await import("./action-dynamic.mjs");
+        const { TIMING } = await import("./config.mjs");
+        const traits = dynamicDef().traits;
+        must(traits.length > 1, "the Dynamic Action lists one statistic here - this would measure nothing");
+        const WORDS = "E132 CALLS-03 I pick the lock of the storeroom";
+        const D = foundry.applications.api.DialogV2;
+        const own = Object.getOwnPropertyDescriptor(D, "wait");
+        const socket = game.socket, ownEmit = Object.getOwnPropertyDescriptor(socket, "emit"), send = socket.emit;
+        const gm = standInUser({ name: "E132 CALLS-03 GM", role: CONST.USER_ROLES.GAMEMASTER, active: true, sorts: "last" });
+        const held = [];
+        let answers = [];
+        const opened = [];
+        const clock = TIMING.rulingMs;
+        const read = {};
+        game.users.set(gm.id, gm);
+        try {
+            socket.emit = function (event, packet, options, ...rest) {
+                if ((options?.recipients ?? []).includes(gm.id)) { held.push(packet?.action ?? null); return undefined; }
+                return send.call(this, event, packet, options, ...rest);
+            };
+            D.wait = async cfg => {
+                const root = document.createElement("div");
+                if (cfg?.content instanceof HTMLElement) root.append(cfg.content);
+                else root.innerHTML = String(cfg?.content ?? "");
+                const field = root.querySelector("[name=request]");
+                const stat = root.querySelector("[name=proposed]");
+                if (field) opened.push([field.value, stat?.value ?? null]);
+                const next = answers.shift() ?? { close: true };
+                if (next.close || !field) return null;
+                field.value = next.text;
+                if (stat) stat.value = next.proposed;
+                const button = (cfg?.buttons ?? []).find(b => b.action === "send");
+                return button?.callback ? button.callback(null, null, { element: root }) : null;
+            };
+            TIMING.rulingMs = 300;
+            const asPlayer = async run => {
+                Object.defineProperty(game.user, "isGM", { value: false, configurable: true });
+                try { return await run(); } finally { delete game.user.isGM; }
+            };
+            answers = [{ text: WORDS, proposed: traits[1] }];
+            read.first = await asPlayer(() => performDynamic(actor, { free: true }));
+            read.held = [...new Set(held)];
+            answers = [{ close: true }];
+            await asPlayer(() => performDynamic(actor, { free: true }));
+            answers = [{ close: true }];
+            await asPlayer(() => performDynamic(other, { free: true }));
+            read.opened = opened;
+        } finally {
+            TIMING.rulingMs = clock;
+            delete game.user.isGM;
+            if (own) Object.defineProperty(D, "wait", own); else delete D.wait;
+            if (ownEmit) Object.defineProperty(socket, "emit", ownEmit); else delete socket.emit;
+            game.users.delete(gm.id);
+            const T = await import("./trait-ruling.mjs");
+            for (const a of [actor, other]) T.keepWords?.(a.id, { kind: "action", key: "dynamic" }, {}, true);
+            await settle(300);
+            for (const node of [...document.querySelectorAll(".drpg-popup")]) node.dispatchEvent(new CustomEvent("drpg-dismiss", { detail: { instant: true } }));
+        }
+        must(read.held?.includes("dynamic.difficulty"), "the ask did not go to the stand-in GM - this would measure nothing");
+        equal(stableJson({ first: read.first, opened: read.opened }), stableJson({
+            first: null, opened: [["", traits[0]], [WORDS, traits[1]], ["", traits[0]]]
+        }), "{first: what the unanswered action answered; opened: each Dynamic window at its open [the description, the statistic proposed] - the first, the same character's next, another character's}");
+    }],
 ];
 
 // `drawnForPlayer` for the grid (E33 C7): a drawn crisis roll goes through the suite's one road to a draw (tests-grid.mjs `drawnAct`).

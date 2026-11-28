@@ -5240,7 +5240,9 @@
       "claimTakenOver": "{gm} took over this card. Your window for it is closed, and nothing from it was sent.",
       "claimOwnOpen": "You already have this card's window open. Finish it or close it.",
       "takeOverTooltip": "Closes the other GM's window of this card and frees the card. Then pick an answer on it.",
-      "takeOverNowTooltip": "Closes the other GM's window of this card and opens yours for this answer."
+      "takeOverNowTooltip": "Closes the other GM's window of this card and opens yours for this answer.",
+      "timeLeft": "Time to rule: {time}.",
+      "timeUp": "Time is up: the player is no longer waiting for this ruling."
     },
     "Tables": {
       "installed": "Item tables ready: {created} created, {skipped} already existed.",
