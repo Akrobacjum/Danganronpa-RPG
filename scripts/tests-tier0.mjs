@@ -476,7 +476,7 @@ const REGRESSIONS = [
             "frisk.mjs": "an open Frisk's window and its withdrawal: taken only from the primary GM, addressed to this user; the window's answer goes back on the bridge (`action.friskAnswer`), judged there by its sender, and acts on no actor",
             // E41 C2b: read from E41 C5b, when the table leaves gm-bridge.mjs for bridge-table.mjs; until then the file
             // is a table file and skipped as one, above. Not idle: gm-bridge.mjs listens on the socket.
-            "gm-bridge.mjs": "GM -> player only: the opening roll's invitation and its withdrawal, the Level Up offers and a GM's ready signal, each taken only from a GM (`game.users.get(senderId)?.isGM`, `replyForMe`) and addressed to this user; the players' requests are the table file's `onSocket`, read above; and GM -> GM since 2.0 (line T2, CALLS-01) the primary's word that a card was taken over (card-takeover.mjs `onCardTakenOver`): taken on a GM's browser only from the primary by Foundry's sender, addressed to this user, its card's id naming only which of this browser's own claims ends; acts on no actor"
+            "gm-bridge.mjs": "GM -> player only: the opening roll's invitation and its withdrawal, the Level Up offers and a GM's ready signal, each taken only from a GM (`game.users.get(senderId)?.isGM`, `replyForMe`) and addressed to this user; the players' requests are the table file's `onSocket`, read above; and GM -> GM since 2.0 (line T2, CALLS-01) the primary's word that a card was taken over (card-takeover.mjs `onCardTakenOver`): taken on a GM's browser only from the primary by Foundry's sender, addressed to this user, its card's id naming only which of this browser's own claims ends; and player -> GMs since 2.0 (line T2, CALLS-04) a player's browser loaded (`onPlayerReady`): it carries no field, its sender is Foundry's and must be a player, and only that sender's own asks held on the primary end; acts on no actor"
             // E10 C2 (1.2.71): vote.mjs is off the list. A ballot reaches the GMs on the bridge (`vote.cast`), and
             // the one packet its listener still takes, a GM's ballot, names no id.
         };
@@ -486,7 +486,8 @@ const REGRESSIONS = [
            listeners gm-bridge.mjs registers at 69f8f661 (a GM's ready, the table file's `onSocket`, the opening roll's
            ask and its withdrawal, the Level Up offers) and no run of BRIDGE_ACTIONS imported - a sixth listener acting
            on a packet's id, or a run called past `judge`, would pass under the row unread. The sixth since 2.0 (line T2,
-           CALLS-01, 27.11.2026) is `onCardTakenOver`, read when it was added and named in the row. */
+           CALLS-01, 27.11.2026) is `onCardTakenOver`, read when it was added and named in the row, and the seventh (CALLS-04,
+           28.11.2026) `onPlayerReady`, the same. */
         const facade = stripComments((await otherSources()).find(([file]) => file === "gm-bridge.mjs")?.[1] ?? "");
         must(facade.length > 1000, "gm-bridge.mjs did not load - its row below would excuse nothing that was read");
         const bridgeRuns = new Set(Object.values(tables.find(t => t.name === "BRIDGE_ACTIONS")?.table ?? {}).map(d => d.run?.name).filter(Boolean));
@@ -496,7 +497,7 @@ const REGRESSIONS = [
         equal(JSON.stringify({ on: (facade.match(/game\.socket\.on\(/g) ?? []).length,
             listeners: [...facade.matchAll(/game\.socket\.on\(\s*SOCKET_EVENT\s*,\s*(\w+)\s*\)/g)].map(m => m[1]).sort(),
             runs: facadeImports.filter(name => bridgeRuns.has(name)) }),
-        JSON.stringify({ on: 6, listeners: ["onAdvancementOffers", "onCardTakenOver", "onGmReady", "onOpeningAsk", "onOpeningCancel", "onSocket"], runs: [] }),
+        JSON.stringify({ on: 7, listeners: ["onAdvancementOffers", "onCardTakenOver", "onGmReady", "onOpeningAsk", "onOpeningCancel", "onPlayerReady", "onSocket"], runs: [] }),
             "gm-bridge.mjs registers other listeners than its exemption row was written for, or imports a run of BRIDGE_ACTIONS - the row excuses what nobody read "
             + "({ on: its game.socket.on calls, listeners: the handlers they name, runs: the runs it imports })");
 

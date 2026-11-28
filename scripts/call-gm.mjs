@@ -21,7 +21,7 @@
  * counted by `^export (async )?(function|const)`; 24 since 2.0, with
  * `releaseOwnClaims`, which gm-bridge.mjs imports for its ready, 25 with
  * `claimRanOut`, which messenger-app.mjs reads for a card's sign, line T2 CALLS-01, and 27 with
- * `underClaim` and `claimedByAnother`, exported for the suite) are read
+ * `underClaim` and `claimedByAnother`, exported for the suite; `heldAskMaps` for ask-withdraw.mjs, CALLS-04) are read
  * directly by the bridge's table, runs and asks (bridge-table.mjs, the two runs
  * files and bridge-asks.mjs since C5a and C5b) - the ask cards' primary-side
  * senders among them (C5a) - and `threadOf` by the suite (1.2.122, R8275);
@@ -385,8 +385,9 @@ export const observeAsks = new Map();
  */
 const traitAsks = new Map();
 
-/** Every map of asks this primary holds on a card: what an asker's expiry and receipt, and a card's end, are read against. */
-function heldAskMaps() {
+/** Every map of asks this primary holds on a card: what an asker's expiry and receipt, and a card's end, are read against;
+    and since 2.0 an asker's leave and reload (ask-withdraw.mjs `askerLeftOnPrimary`, `askerReloadedOnPrimary`, line T2 CALLS-04). */
+export function heldAskMaps() {
     return [callAsks, dynamicAsks, traitAsks, observeAsks];
 }
 

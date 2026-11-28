@@ -5468,7 +5468,8 @@
         "ready.end": "Zamknięcie pytania do graczy",
         "card.takenOver": "Karta przejęta przez innego GM-a",
         "ask.withdraw": "Wycofanie twojej prośby",
-        "ask.state": "Stan twojej prośby, od GM-a"
+        "ask.state": "Stan twojej prośby, od GM-a",
+        "bridge.playerReady": "Wiadomość dla GM-ów, że twoja strona się wczytała"
       },
       "notDone": "Prośba „{what}” nie została wykonana. {why}",
       "nothingSpent": "Nie tracisz akcji ani Hope.",
@@ -5603,7 +5604,9 @@
       "withdrawn": "Prośba wycofana. Zachowujesz wszystko, co by kosztowała.",
       "askRuling": "GM czyta twoją prośbę.",
       "waitLeft": "Prośba czeka jeszcze {time}.",
-      "settledWithdrawn": "Prośba wycofana."
+      "settledWithdrawn": "Prośba wycofana.",
+      "askerLeft": "{name}: rozłączenie o {time}. Jeśli wróci po przeładowaniu strony, zapyta od nowa.",
+      "settledReloaded": "Po przeładowaniu strony ta prośba już nie czeka. Możesz zapytać jeszcze raz."
     },
     "Tables": {
       "installed": "Tabele przedmiotów są gotowe: utworzono {created}, a {skipped} zostawiono bez zmian.",

@@ -119363,6 +119363,76 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             forged: false, own: true, line: ["DRPG.Bridge.settledWithdrawn"], after: false
         }), "{states: the ask.state packets this primary sent [for that ask, the state, to its asker, to the asker alone, its fields] at the take and the drop; forged: the card ended after another user's withdrawal; own: it ended after the asker's; line: its lines by key; after: a GM's difficulty sent on after it}");
     }],
+    ["E132 CALLS-04 - a player's reload ends their old asks' cards: a player's Dynamic ask's card, signed for the GMs alone when its asker leaves (`DRPG.Bridge.askerLeft`, in the GMs' copy, not the asker's), stands live through a resend under the same id - a waiter that outlived a short break of the network - and through a `bridge.playerReady` from a GM; the asker's own `bridge.playerReady` ends it \"The page was reloaded ...\" for everyone with \"The player was no longer waiting.\" for the GMs, takes its buttons off and lets go of the ask, so a difficulty after it goes nowhere (ask-withdraw.mjs `askerLeftOnPrimary`, `askerReloadedOnPrimary`; gm-bridge.mjs `onPlayerReady`; 2.0 line T2, CALLS-04, 28.11.2026)", async () => {
+        /*
+         * F1-calls CALLS-04, F3 S3 B (B1, B4 red on Forge): a player who reloaded mid-ask left the GMs' card live to its time,
+         * 3 or 5 minutes, while their new browser had no such request. Read on this primary: the ask handed to the bridge's
+         * runner with the user Foundry names puts its card up in that player's thread. The leave is the hook's call itself
+         * (`askerLeftOnPrimary(player)`), not a `userConnected` of a player who is still here; the reload's packet is the
+         * listener's call with the sender Foundry would name. Read after each step: the card settled, its lines by key, the
+         * sign in the GMs' copy and the asker's (`wordsFor`), its buttons, whether the ask is held, and what a difficulty
+         * sent on after the end answers. The card is deleted after. Red at 0d3d4f2: no sign, and the card stood live.
+         */
+        needs(env.primaryGm());
+        needs(world.atLeast("connectedPlayersWithCharacter", 1), "the ask is a player's, and Foundry names only a connected one");
+        const { player, theirs } = playerAndCharacters();
+        const G = await import("./bridge-guards.mjs");
+        const B = await import("./gm-bridge.mjs");
+        const C = await import("./call-gm.mjs");
+        const W = await import("./ask-withdraw.mjs");
+        const S = await import("./gm-stores.mjs");
+        const { cardFlag, contentOf, wordsFor } = await import("./secret.mjs");
+        const me = game.user.id;
+        const judged = (action, fields, from, requestId = null) =>
+            G.judge(B.BRIDGE_ACTIONS, { action, ...(requestId ? { requestId } : {}), ...fields }, from, { send: () => {} });
+        const seen = new Set(game.messages.map(m => m.id));
+        const created = [];
+        const hook = Hooks.on("createChatMessage", m => { if (!seen.has(m.id)) created.push(m); });
+        const rid = foundry.utils.randomID(16);
+        const ask = { actorId: theirs.id, description: "E132 CALLS-04 a card left by a reload", actorName: theirs.name, room: null };
+        const read = {};
+        try {
+            await judged("dynamic.difficulty", ask, player.id, rid);
+            must(await until(() => created.length > 0, 5000), "the ask put no card up - this would measure nothing");
+            const card = created[0];
+            const state = () => {
+                const words = contentOf(game.messages.get(card.id));
+                const parse = html => { const wrap = document.createElement("template"); wrap.innerHTML = html; return wrap.content; };
+                const gm = parse(words), asker = parse(wordsFor(player.id, words));
+                return { settled: Boolean(cardFlag(game.messages.get(card.id), "settled")), lines: [...words.matchAll(/data-drpg-line="([^"]+)"/g)].map(m => m[1]),
+                    sign: [gm.querySelector(".drpg-gm-only[data-drpg-asker-left]")?.textContent?.includes(player.name) ?? false, Boolean(asker.querySelector("[data-drpg-asker-left]"))],
+                    buttons: gm.querySelectorAll("[data-drpg-call]").length > 0, held: Boolean(C.heldAskOf(rid, player.id)) };
+            };
+            // Earlier tests can leave asks of this player held in this page's memory, their cards deleted: this card is read.
+            read.left = typeof W.askerLeftOnPrimary === "function" ? W.askerLeftOnPrimary(player).includes(card.id) : null;
+            await until(() => state().sign[0], 3000);
+            read.signed = state();
+            await judged("dynamic.difficulty", ask, player.id, rid);
+            await settle(500);
+            read.resent = [created.length, state()];
+            if (typeof B.onPlayerReady === "function") await B.onPlayerReady({ action: "bridge.playerReady" }, me);
+            await settle(300);
+            read.fromGm = state().settled;
+            if (typeof B.onPlayerReady === "function") await B.onPlayerReady({ action: "bridge.playerReady", userId: me }, player.id);
+            await until(() => state().settled, 3000);
+            read.reloaded = state();
+            read.after = await B.answerDynamic(rid, player.id, { tier: 1, trait: "eye" }, card.id);
+        } finally {
+            Hooks.off("createChatMessage", hook);
+            await judged("ruling.expired", { rid }, player.id).catch(() => {});
+            for (const message of created) await message.delete().catch(() => {});
+            await settle(300);
+            for (const message of created) if (S.ruledCardStore.has(message.id)) await S.ruledCardStore.drop(message.id);
+        }
+        equal(stableJson(read), stableJson({
+            left: true,
+            signed: { settled: false, lines: [], sign: [true, false], buttons: true, held: true },
+            resent: [1, { settled: false, lines: [], sign: [true, false], buttons: true, held: true }],
+            fromGm: false,
+            reloaded: { settled: true, lines: ["DRPG.Bridge.settledReloaded", "DRPG.Bridge.settledGone"], sign: [true, false], buttons: false, held: false },
+            after: false
+        }), "{left: askerLeftOnPrimary signed this card; signed, resent[1], reloaded: the card [settled, its lines by key, the sign in the GMs' copy and the asker's, its buttons, the ask held]; resent[0]: cards posted after the resend under the same id; fromGm: settled after a GM's bridge.playerReady; after: a difficulty sent on after the end}");
+    }],
 ];
 
 // `drawnForPlayer` for the grid (E33 C7): a drawn crisis roll goes through the suite's one road to a draw (tests-grid.mjs `drawnAct`).

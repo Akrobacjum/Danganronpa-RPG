@@ -7376,4 +7376,42 @@ export async function run({ gm, p1, p2, p3, check, note, phase, settle, permissi
             && wdForged.logged.some(([m]) => /"ask\.withdraw".*holds no ask of the sender/.test(m))
             && wdOwn?.settled === true && wdOwn.held === false,
         JSON.stringify({ wdCard, wdForged, wdOwn }), { flow: "hope-call" });
+
+    // 2.0 line T2
+    /* CALLS-04 (28.11.2026): a player's browser that has loaded sends the GMs `bridge.playerReady`, and the primary ends every
+       ask it holds for that sender (ask-withdraw.mjs `askerReloadedOnPrimary`). The packet carries no field: whose asks end is
+       Foundry's sender. p1 asks for a Dynamic Action's difficulty on Aiko as an honest browser does; p2's console sends
+       `bridge.playerReady` with a `userId` naming p1. Read on the GM: whether p1's card ended and whether the ask is still held.
+       Then the control: p1's own packet, as its page sends it at a load, ends the card with the reload's line. Deleted after. */
+    phase("a forged reload of another player's page", { flow: "hope-call" });
+    const RL_RID = "SECT2RELOADP1001";
+    await p1.eval(`game.socket.emit("${SOCKET}", { action: "dynamic.difficulty", userId: game.user.id, requestId: "${RL_RID}",
+            description: "SEC T2 CALLS-04", actorName: "Aiko", room: null, actorId: "${ids.aiko}" },
+        { recipients: game.users.filter(u => u.isGM && u.active).map(u => u.id) });
+        return true;`);
+    await settle(1500);
+    const rlRead = `const { cardFlag, contentOf } = await import("${repoUrl}/scripts/secret.mjs");
+        const C = await import("${repoUrl}/scripts/call-gm.mjs");
+        const card = game.messages.contents.find(m => cardFlag(m, "rid")?.id === "${RL_RID}") ?? null;
+        return card ? { id: card.id, settled: Boolean(cardFlag(card, "settled")), held: Boolean(C.heldAskOf("${RL_RID}", "${IDS.p1}")),
+            lines: [...contentOf(card).matchAll(/data-drpg-line="([^"]+)"/g)].map(m => m[1]) } : null;`;
+    const rlCard = await gm.eval(rlRead);
+    if (rlCard) {
+        await p2.eval(`game.socket.emit("${SOCKET}", { action: "bridge.playerReady", userId: "${IDS.p1}" },
+            { recipients: game.users.filter(u => u.isGM && u.active).map(u => u.id) }); return true;`);
+        await settle(1200);
+    }
+    const rlForged = rlCard ? await gm.eval(rlRead) : null;
+    if (rlCard) {
+        await p1.eval(`(await import("${repoUrl}/scripts/gm-bridge.mjs")).tellGmsPlayerReady(); return true;`);
+        await settle(1500);
+    }
+    const rlOwn = rlCard ? await gm.eval(rlRead) : null;
+    if (rlCard) await gm.eval(`await game.messages.get("${rlCard.id}")?.delete(); return true;`);
+    await settle(400);
+    check("SECURITY: p2's console's bridge.playerReady naming p1 ends none of p1's asks - whose asks end is Foundry's sender; p1's own ends its card with the reload's line (2.0 line T2, CALLS-04)",
+        Boolean(rlCard) && rlCard.settled === false && rlCard.held === true
+            && rlForged?.settled === false && rlForged.held === true
+            && rlOwn?.settled === true && rlOwn.held === false && rlOwn.lines.includes("DRPG.Bridge.settledReloaded"),
+        JSON.stringify({ rlCard, rlForged, rlOwn }), { flow: "hope-call" });
 }

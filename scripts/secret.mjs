@@ -434,9 +434,10 @@ export function youOrThem(userIds, { you, them }) {
  * browser writes them again in its own time zone and language as it draws the card: the chat log (`drawPrivateCard`),
  * the messenger's bubble and its notice (messenger-app.mjs `buildBubble`, `cardPreview`). A line whose key is not one of
  * an ask's ends keeps its words. R852 reads it. A Dynamic success a Reroll took back is one of them since E68 C11
- * (action-dynamic.mjs `withdrawDynamicFind`; D048).
+ * (action-dynamic.mjs `withdrawDynamicFind`; D048), and a reload's end since 2.0 (line T2, CALLS-04, ask-withdraw.mjs
+ * `askerReloadedOnPrimary`).
  */
-const CARD_LINES = Object.freeze([...["settledApproved", "settledAnswered", "settledDeclined", "settledExpired", "settledGone", "settledUnconfirmed"]
+const CARD_LINES = Object.freeze([...["settledApproved", "settledAnswered", "settledDeclined", "settledExpired", "settledGone", "settledUnconfirmed", "settledReloaded"]
     .map(key => `DRPG.Bridge.${key}`), "DRPG.Action.dynamicRerollMissed"]);
 
 /** Write a drawn card's time and its ask's end in this reader's own clock and language (above). Answers `root`. */

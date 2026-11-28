@@ -2,7 +2,8 @@
  * Danganronpa RPG - the bridge: the GM -> player wire and the registration.
  * ---------------------------------------------------------------------------
  * What stays here: `registerGmBridge` (the socket's listeners and a GM's
- * ready signal), a primary GM's arrival (`onGmReady`), the opening roll's
+ * ready signal), a primary GM's arrival (`onGmReady`), a player's browser
+ * loaded (`tellGmsPlayerReady`, `onPlayerReady`, 2.0 line T2 CALLS-04), the opening roll's
  * invitation and its withdrawal (`askOpeningRoll`, `cancelOpeningRoll` and
  * their listeners), and the Level Up offers' listener with `askForOffers`.
  *
@@ -27,7 +28,7 @@
  * its wire name, row, run and ask in those files (R1239), never here.
  */
 
-import { isPrimaryGm, primaryGmId, markGmReady, debug, error, esc } from "./utils.mjs";
+import { isPrimaryGm, primaryGmId, markGmReady, activeGmIds, debug, error, esc } from "./utils.mjs";
 import { TIMING } from "./config.mjs";
 import { replyForMe, resendOnGmReady } from "./bridge-guards.mjs";
 
@@ -37,7 +38,7 @@ import { pickWordsStored } from "./pick-receipt.mjs";
 import { onCardTakenOver } from "./card-takeover.mjs";
 import {
     SOCKET_EVENT, ACTION_ADVANCEMENT_ASK, ACTION_ADVANCEMENT_OFFERS, ACTION_OPENING_ASK, ACTION_OPENING_CANCEL,
-    ACTION_GM_READY
+    ACTION_GM_READY, ACTION_PLAYER_READY
 } from "./bridge-wire.mjs";
 import { onSocket, ask } from "./bridge-table.mjs";
 
@@ -186,6 +187,34 @@ export function tellPrimaryChange(change) {
     return notice.text;
 }
 
+/**
+ * A player's browser has loaded: the GMs are told (`bridge.playerReady`, to the GMs connected, nothing when none is), so the
+ * primary ends the asks that player's page before this one left waiting (ask-withdraw.mjs `askerReloadedOnPrimary`; 2.0
+ * line T2, CALLS-04, 28.11.2026). The packet carries no field but its name. Answers whether it was sent; `socket` and `users`
+ * are a test's (R9032).
+ */
+export function tellGmsPlayerReady({ socket = game.socket, users = game.users } = {}) {
+    const gms = activeGmIds(users);
+    if (!gms.length) return false;
+    socket.emit(SOCKET_EVENT, { action: ACTION_PLAYER_READY }, { recipients: gms });
+    return true;
+}
+
+/**
+ * A player's `bridge.playerReady` on a GM's browser (CALLS-04): handed to the primary's end of that sender's asks, which takes
+ * the sender from Foundry's `senderId` alone and ends nothing off the primary or for a GM. False for any other packet or on
+ * a player's browser; else the end's promise of the cards it ended.
+ */
+export function onPlayerReady(payload, senderId) {
+    if (payload?.action !== ACTION_PLAYER_READY || !game.user?.isGM) return false;
+    return import("./ask-withdraw.mjs")
+        .then(m => m.askerReloadedOnPrimary(senderId))
+        .catch(err => {
+            debug("Could not end the asks of a player who reloaded", err);
+            return [];
+        });
+}
+
 export function registerGmBridge() {
     /* THE RESCUE SIGNAL IS "A GM IS LISTENING", NOT "A GM IS CONNECTED".
        -----------------------------------------------------------------------
@@ -195,8 +224,10 @@ export function registerGmBridge() {
        listener for it and vanished. So the GM announces themselves once, HERE,
        at the point where they can actually answer, and anybody still waiting
        asks again. Every browser listens since 2.0 (line T2, PRIM-03): the packet
-       is also what makes the GM count for the primary (`onGmReady`). */
+       is also what makes the GM count for the primary (`onGmReady`). A player's browser says the same since 2.0 (line T2,
+       CALLS-04), so the primary ends the asks its page before left waiting (`tellGmsPlayerReady`). */
     if (game.user.isGM) game.socket.emit(SOCKET_EVENT, { action: ACTION_GM_READY });
+    else tellGmsPlayerReady();
     game.socket.on(SOCKET_EVENT, onGmReady);
 
     // A ruling card with no thread to live in (see the fallback in `callGm`)
@@ -220,6 +251,11 @@ export function registerGmBridge() {
         Hooks.on("userConnected", (user, connected) => {
             // A GM who left in the middle of a ruling holds no card any more (E18 C3).
             if (!connected && user?.id) releaseClaimsOf(user.id);
+            // A player who left with asks held is signed on their cards for the GMs (2.0 line T2, CALLS-04, 28.11.2026;
+            // ask-withdraw.mjs `askerLeftOnPrimary`): nothing ends here - a reload ends them at its `bridge.playerReady`.
+            if (!connected && user && !user.isGM && isPrimaryGm()) {
+                import("./ask-withdraw.mjs").then(m => m.askerLeftOnPrimary(user)).catch(err => debug("Could not sign the cards of a player who left", err));
+            }
             // A player's leave reaches this line before any return (line T1's place, MURDER-06; 2.0 line T2, 27.11.2026).
             // A GM who connects or leaves can move the primary (2.0 line T2, PRIM-03); one who connects is read again at
             // its bound, past which it counts as ready without its packet.
@@ -233,6 +269,9 @@ export function registerGmBridge() {
         // The primary's word that another GM took over this GM's card closes its window of it (2.0 line T2, CALLS-01,
         // 27.11.2026): GM -> GM, taken only from the primary by Foundry's sender (card-takeover.mjs `onCardTakenOver`).
         game.socket.on(SOCKET_EVENT, onCardTakenOver);
+        // A player's browser that has loaded ends the asks its page before left waiting (2.0 line T2, CALLS-04, 28.11.2026):
+        // player -> GMs, taken from a player by Foundry's sender alone, on the primary (`onPlayerReady`).
+        game.socket.on(SOCKET_EVENT, onPlayerReady);
         // A user's role written can move the primary (2.0 line T2, PRIM-02): a GM made an Assistant or a player, an
         // Assistant made a full Gamemaster. `updateUser` fires on every browser once the change is applied here.
         Hooks.on("updateUser", (user, changes) => {

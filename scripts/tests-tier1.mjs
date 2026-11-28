@@ -70809,6 +70809,130 @@ const INVARIANTS = [
             module: true
         }), "{sentUnder: the request went under its caller's id; states: what onState was handed of six packets [another GM's, another user's, an id not waiting, a state not known, the primary's ruling, its waiting]; cancel: [an id not waiting, the request, again]; answer: what the request settled; after: [states handed after the cancel, messages said, packets sent, requests waiting, throws]; module: the module's waiter reads the primary by primaryGmId}");
     }],
+    ["R9031 - a player who leaves with asks held is signed on their cards for the GMs alone: on `userConnected(user, false)` of a player the primary hands every ask it holds for that user on a card (call-gm.mjs `heldAskMaps`) to ask-withdraw.mjs `askerLeftOnPrimary`, which marks each card once and drops nothing - not another user's ask, not one with no card yet, nothing for a GM who leaves or on a browser that is not the primary; the sign `withAskerLeft` writes is one `.drpg-gm-only[data-drpg-asker-left]` before the card's answers, `DRPG.Bridge.askerLeft` with the asker's name and the time, written again in place, and a player's copy of the words (secret.mjs `wordsFor`) holds none of it; registerGmBridge's hook calls it for a player's leave before any return (2.0 line T2, CALLS-04, 28.11.2026)", async () => {
+        /* F1-calls CALLS-04 and F3 S3 B: a player who reloaded while waiting left the GMs' card standing with live buttons to its
+           time, and the primary did nothing at a player's leave (registerGmBridge's `userConnected` handled GMs alone). Read
+           with no write: `askerLeftOnPrimary` over maps of this test's own with a recorder for the mark, `withAskerLeft` on a
+           card's words, and the hook's source. The live road - a real card signed, the player's copy without it - is tier 2's
+           E132 CALLS-04. Red at 0d3d4f2: no askerLeftOnPrimary, no withAskerLeft, no call in the hook. */
+        const W = await import("./ask-withdraw.mjs");
+        const { wordsFor } = await import("./secret.mjs");
+        const { localeFormat } = await import("./utils.mjs");
+        const P = "R9031Player00001", Q = "R9031Other000001", AT = Date.UTC(2026, 10, 28, 20, 15);
+        const read = {};
+        if (typeof W.askerLeftOnPrimary === "function") {
+            const one = new Map([["R9031Ask0000001", { userId: P, messageId: "R9031Card0000001" }], ["R9031Ask0000002", { userId: P, messageId: null }],
+                ["R9031Ask0000003", { userId: Q, messageId: "R9031Card0000003" }]]);
+            const two = new Map([["R9031Ask0000004", { userId: P, messageId: "R9031Card0000004" }], ["R9031Ask0000005", { userId: P, messageId: "R9031Card0000001" }]]);
+            const marks = [];
+            const run = (user, primary) => W.askerLeftOnPrimary(user, { maps: [one, two], primary, at: AT, mark: (id, name, at) => { marks.push([id, name, at === AT]); return true; } });
+            read.left = [run({ id: P, isGM: false, name: "R9031 Player" }, true), run({ id: P, isGM: true, name: "R9031 GM" }, true),
+                run({ id: P, isGM: false, name: "R9031 Player" }, false), run(null, true)];
+            read.marks = marks;
+            read.kept = [one.size, two.size];
+        }
+        if (typeof W.withAskerLeft === "function") {
+            const CARD = '<h3>R9031</h3><p class="drpg-call-awaiting"><em>Awaiting</em></p><div class="drpg-call-actions"><button type="button" data-drpg-call="approveCall">Yes</button></div>';
+            const once = W.withAskerLeft(CARD, "R9031 Player", AT), twice = W.withAskerLeft(once, "R9031 Player", AT + 60000);
+            const shape = html => {
+                const wrap = document.createElement("template");
+                wrap.innerHTML = html;
+                const signs = [...wrap.content.querySelectorAll("[data-drpg-asker-left]")];
+                return { signs: signs.length, gmOnly: signs.every(el => el.classList.contains("drpg-gm-only")),
+                    before: signs[0]?.nextElementSibling?.classList.contains("drpg-call-actions") ?? false, text: signs[0]?.textContent ?? null,
+                    buttons: wrap.content.querySelectorAll("[data-drpg-call]").length };
+            };
+            const timeOf = at => localeFormat("time", at, { hour: "2-digit", minute: "2-digit" });
+            read.sign = [shape(once), shape(twice), shape(wordsFor(P, twice)).signs];
+            read.words = [game.i18n.format("DRPG.Bridge.askerLeft", { name: "R9031 Player", time: timeOf(AT) }),
+                game.i18n.format("DRPG.Bridge.askerLeft", { name: "R9031 Player", time: timeOf(AT + 60000) })];
+        }
+        const bridge = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/gm-bridge.mjs`).then(lfText));
+        const hook = bodyOf(fnSource(bridge, "registerGmBridge"), 'Hooks.on("userConnected"', { until: "\n        });" });
+        const call = hook.search(/askerLeftOnPrimary\(user\)/), firstReturn = hook.search(/\breturn\b/);
+        read.hook = [call > 0, call < firstReturn, /!connected && user && !user\.isGM/.test(hook)];
+        read.label = [];
+        for (const lang of ["en", "pl"]) {
+            const words = await fetch(`/modules/${MODULE_ID}/lang/${lang}.json`).then(r => r.json()).catch(() => null);
+            const text = words?.DRPG?.Bridge?.askerLeft;
+            read.label.push(typeof text === "string" && text.includes("{name}") && text.includes("{time}"));
+        }
+        const want = read.words ?? [null, null];
+        equal(stableJson(read), stableJson({
+            left: [["R9031Card0000001", "R9031Card0000004"], [], [], []],
+            marks: [["R9031Card0000001", "R9031 Player", true], ["R9031Card0000004", "R9031 Player", true]],
+            kept: [3, 2],
+            sign: [{ signs: 1, gmOnly: true, before: true, text: want[0], buttons: 1 }, { signs: 1, gmOnly: true, before: true, text: want[1], buttons: 1 }, 0],
+            words: want,
+            hook: [true, true, true],
+            label: [true, true]
+        }), "{left: the cards askerLeftOnPrimary marked [a player who left, a GM, off the primary, nobody]; marks: [card, name, the time] handed to the mark; kept: the maps' sizes after; sign: withAskerLeft [once, written again, signs in a player's copy]; hook: [the hook calls it, before its first return, for a player's leave]; label: askerLeft with {name} and {time} in en and pl}");
+    }],
+    ["R9032 - a player's browser that has loaded tells the GMs, and the primary ends only that sender's asks held from before: gm-bridge.mjs `tellGmsPlayerReady` sends `bridge.playerReady` with no field but its name to the GMs who are connected, and nothing with none; registerGmBridge sends it on a player's browser and listens for it on a GM's (`onPlayerReady`, which takes no other packet); ask-withdraw.mjs `askerReloadedOnPrimary` takes the sender from Foundry's `senderId` - a GM, a user nobody knows or a browser that is not the primary ends nothing - drops every ask held for that sender, a card's or not, and ends each of their cards once, never another player's; the asks held after it stay; the card's line `DRPG.Bridge.settledReloaded` and the packet's label are in both languages (2.0 line T2, CALLS-04, 28.11.2026)", async () => {
+        /* The trust model: the packet carries nothing, so whose asks end is Foundry's sender and nothing else - another
+           player's console sending it ends only that player's own. Read with no write: `askerReloadedOnPrimary` over maps of
+           this test's own with a recorder for the card's end and fake users, `tellGmsPlayerReady` with a recorder for the
+           socket, `onPlayerReady` on a packet of another name and on one from a user nobody knows (the primary's real maps,
+           which hold no ask of that id), and the source. The cards ended for real are tier 2's E132 CALLS-04 and scenario 30's
+           2.0 line T2 block. Red at 0d3d4f2: none of the three. */
+        const W = await import("./ask-withdraw.mjs");
+        const B = await import("./gm-bridge.mjs");
+        const { SOCKET_EVENT } = await import("./bridge-wire.mjs");
+        const P = "R9032Player00001", Q = "R9032Other000001", GM = "R9032Gm000000001";
+        const users = new Map([[P, { id: P, isGM: false }], [Q, { id: Q, isGM: false }], [GM, { id: GM, isGM: true }]]);
+        const read = {};
+        if (typeof W.askerReloadedOnPrimary === "function") {
+            const one = new Map([["R9032Ask0000001", { userId: P, messageId: "R9032Card0000001" }], ["R9032Ask0000002", { userId: P, messageId: null }],
+                ["R9032Ask0000003", { userId: Q, messageId: "R9032Card0000003" }], ["R9032Ask0000007", { userId: GM, messageId: "R9032Card0000007" }]]);
+            const two = new Map([["R9032Ask0000004", { userId: P, messageId: "R9032Card0000004" }], ["R9032Ask0000005", { userId: P, messageId: "R9032Card0000001" }]]);
+            const ended = [];
+            const run = (id, primary = true) => W.askerReloadedOnPrimary(id, { maps: [one, two], users, primary, end: messageId => { ended.push(messageId); return true; } });
+            read.runs = [await run(GM), await run("R9032Nobody00001"), await run(P, false), await run(null)];
+            read.untouched = [one.size, two.size, ended.length];
+            read.other = await run(Q);
+            read.afterOther = [[...one.keys()], [...two.keys()]];
+            two.set("R9032Ask0000006", { userId: Q, messageId: "R9032Card0000006" });
+            read.own = await run(P);
+            read.afterOwn = [[...one.keys()], [...two.keys()]];
+            read.ended = ended;
+        }
+        if (typeof B.tellGmsPlayerReady === "function") {
+            const sent = [];
+            const emit = (...args) => sent.push(args);
+            const list = rows => ({ filter: fn => rows.filter(fn) });
+            read.tell = [B.tellGmsPlayerReady({ socket: { emit }, users: list([{ id: GM, isGM: true, active: true }, { id: "R9032Gm000000002", isGM: true, active: false }, { id: P, isGM: false, active: true }]) }),
+                B.tellGmsPlayerReady({ socket: { emit }, users: list([{ id: GM, isGM: true, active: false }, { id: P, isGM: false, active: true }]) })];
+            read.sent = sent.map(([event, packet, options]) => [event === SOCKET_EVENT, Object.keys(packet).join(), packet.action, options?.recipients ?? null]);
+        }
+        if (typeof B.onPlayerReady === "function") {
+            read.listener = [B.onPlayerReady({ action: "bridge.gmReady" }, P), await B.onPlayerReady({ action: "bridge.playerReady" }, "R9032Nobody00001")];
+        }
+        const bridge = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/gm-bridge.mjs`).then(lfText));
+        const wire = fnSource(bridge, "registerGmBridge");
+        const gmBranch = bodyOf(wire, "if (game.user.isGM) {", { until: "\n    }\n" });
+        read.wired = [/if \(game\.user\.isGM\) game\.socket\.emit\(SOCKET_EVENT, \{ action: ACTION_GM_READY \}\);\s*else tellGmsPlayerReady\(\);/.test(wire),
+            /game\.socket\.on\(SOCKET_EVENT, onPlayerReady\);/.test(gmBranch)];
+        read.label = [];
+        for (const lang of ["en", "pl"]) {
+            const words = await fetch(`/modules/${MODULE_ID}/lang/${lang}.json`).then(r => r.json()).catch(() => null);
+            read.label.push([typeof words?.DRPG?.Bridge?.settledReloaded === "string" && words.DRPG.Bridge.settledReloaded.length > 0,
+                typeof words?.DRPG?.Bridge?.what?.["bridge.playerReady"] === "string" && words.DRPG.Bridge.what["bridge.playerReady"].length > 0]);
+        }
+        equal(stableJson(read), stableJson({
+            runs: [[], [], [], []],
+            untouched: [4, 2, 0],
+            other: ["R9032Card0000003"],
+            afterOther: [["R9032Ask0000001", "R9032Ask0000002", "R9032Ask0000007"], ["R9032Ask0000004", "R9032Ask0000005"]],
+            own: ["R9032Card0000001", "R9032Card0000004"],
+            afterOwn: [["R9032Ask0000007"], ["R9032Ask0000006"]],
+            ended: ["R9032Card0000003", "R9032Card0000001", "R9032Card0000004"],
+            tell: [true, false],
+            sent: [[true, "action", "bridge.playerReady", [GM]]],
+            listener: [false, []],
+            wired: [true, true],
+            label: [[true, true], [true, true]]
+        }), "{runs: askerReloadedOnPrimary from [a GM - one entry held under its id -, a user nobody knows, off the primary, nobody]; untouched: the maps' sizes and the ends after them; other: the cards ended from another player; afterOther: the asks left; own: the cards ended from the player; afterOwn: the asks left, one held after kept; ended: every card handed to the end; tell: tellGmsPlayerReady [with a GM connected, with none]; sent: [the module's socket, the packet's fields, its name, to whom]; listener: onPlayerReady [another packet, a user nobody knows]; wired: [a player's browser sends it after the GM's ready line, a GM's listens]; label: [settledReloaded, the packet's label] in en and pl}");
+    }],
 ];
 
 /**

@@ -5115,7 +5115,8 @@
         "ready.end": "Ending the question to the players",
         "card.takenOver": "A card taken over by another GM",
         "ask.withdraw": "Withdrawing a request you made",
-        "ask.state": "Your request's state, from the GM"
+        "ask.state": "Your request's state, from the GM",
+        "bridge.playerReady": "Telling the GMs that your page has loaded"
       },
       "notDone": "“{what}” was not carried out. {why}",
       "nothingSpent": "You keep your action and your Hope.",
@@ -5250,7 +5251,9 @@
       "withdrawn": "Request withdrawn. You keep everything it would have cost.",
       "askRuling": "A GM is reading your request.",
       "waitLeft": "The request stays open for {time}.",
-      "settledWithdrawn": "Request withdrawn."
+      "settledWithdrawn": "Request withdrawn.",
+      "askerLeft": "{name} disconnected at {time}. If they come back after a reload, they will ask again.",
+      "settledReloaded": "The page was reloaded, so this request is no longer waiting. You can ask again."
     },
     "Tables": {
       "installed": "Item tables ready: {created} created, {skipped} already existed.",

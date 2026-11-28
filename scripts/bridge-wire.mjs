@@ -238,3 +238,6 @@ export const ACTION_ASK_WITHDRAW = "ask.withdraw";
 /** primary GM -> player: a GM took the card of this player's ask (`ruling`) or let it go (`waiting`), naming no GM (2.0 line T2,
     EXP-PL-12) - see call-gm.mjs `tellAskState`; taken by bridge-guards.mjs `createWaiter` from the primary alone. */
 export const ACTION_ASK_STATE = "ask.state";
+/** player -> GMs: this player's browser has loaded, so it waits on no ask it sent before (2.0 line T2, CALLS-04, 28.11.2026) - see
+    gm-bridge.mjs `tellGmsPlayerReady`, `onPlayerReady`; no field but its name: whose asks end is Foundry's sender. */
+export const ACTION_PLAYER_READY = "bridge.playerReady";

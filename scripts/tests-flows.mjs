@@ -464,7 +464,7 @@ export const FLOWS = Object.freeze([
 ]);
 
 export const FLOW_EXEMPT = Object.freeze({
-    "gm-bridge.mjs": "the bridge's own plumbing (gmReady, the Stage 4 invitation, the offers); its actions are claimed one by one",
+    "gm-bridge.mjs": "the bridge's own plumbing (gmReady, playerReady, the Stage 4 invitation, the offers); its actions are claimed one by one",
     "bridge-guards.mjs": "the answers to every request (ack, done, refused) and an ask's state from the primary (2.0 line T2, EXP-PL-12), heard for whichever flow asked (E31)",
     "sync.mjs": "the world-state echo every flow rides on; 00-boot and 40-flow read it on every client"
 });
