@@ -74004,7 +74004,8 @@ const INVARIANTS = [
             const cell = row?.children[heads.indexOf(game.i18n.localize("DRPG.Panel.connectionColumn"))];
             const marks = [...(cell?.querySelectorAll("[data-drpg-connected]") ?? [])].map(el => [el.dataset.drpgUser, el.dataset.drpgConnected, el.textContent.trim()]);
             // The three right after Do, where the assembly of the 2.0 lines puts them: T4's Microphone and T5's Motives follow (LINE-T2.md 4.2).
-            return { last3: heads.slice(heads.indexOf(game.i18n.localize("DRPG.Panel.doColumn")) + 1, heads.indexOf(game.i18n.localize("DRPG.Panel.doColumn")) + 4), marks, text: marks.length ? null : cell?.textContent.trim() ?? null };
+            const at = heads.indexOf(game.i18n.localize("DRPG.Panel.doColumn"));
+            return { last3: at < 0 ? null : [heads[at + 1], heads[at + 2], heads[at + 3]], marks, text: marks.length ? null : cell?.textContent.trim() ?? null };
         };
         const L = key => game.i18n.localize(key);
         const fmt = (user, state) => game.i18n.format("DRPG.Panel.ownerConnection", { player: user.name, state: L(state) });
