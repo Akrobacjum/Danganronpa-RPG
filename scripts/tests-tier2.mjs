@@ -119505,6 +119505,56 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         equal(stableJson(read), stableJson({ roll: true, flag: true, line: game.i18n.format("DRPG.Rolls.rolledByGm", { name: game.user.name }), forged: null }),
             "{roll: the outcome names this GM; flag: the card's flag names this GM; line: the chat log's line under the card; forged: a player's card carrying the flag}");
     }],
+    ["E132 T2c EXP-GM-16 - a player's action roll lands in the GMs' Timeline: a result card about a player's student posted while the Timeline stands opens an entry in its Live stream naming the student, the action and the total with its way, and raises no notice in this GM's corner; deleted, the entry goes (messenger-gm.mjs `rollEntry`, `streamRoll`, `listenToRolls`; 2.0 line T2c, EXP-GM-16, 28.11.2026)", async () => {
+        /*
+         * F1-blind-gm EXP-GM-16 and E-GM-94. The GM's messenger window opened on the Timeline (messenger-app.mjs
+         * `openMessenger`), then a result card posted on the actions' own road (`whisperToOwner` with `rollCardFlags`, a
+         * roll of a stand-in total and way - no dice, the Timeline reads the card); read: the stream's entry, the notices
+         * this page drew in the corner while it landed, and the entry after the card is deleted. The card and the window
+         * go in the `finally`. Red at 0d3d4f2: no entry.
+         */
+        needs(env.dialogs(), "the Timeline is read off its drawn window");
+        needs(world.atLeast("playersWithCharacter", 1));
+        const A = await import("./messenger-app.mjs");
+        const AR = await import("./action-report.mjs");
+        const U = await import("./utils.mjs");
+        const { studentActors } = await import("./monokuma.mjs");
+        must(!A.gmMessengerWindow(), "the GM's messenger window is open - close it: this test opens its own");
+        const player = game.users.find(u => !u.isGM && studentActors().some(a => a.testUserPermission(u, "OWNER")));
+        const actor = studentActors().find(a => a.testUserPermission(player, "OWNER"));
+        const seen = new Set(game.messages.map(m => m.id));
+        const corner = [];
+        const watch = new MutationObserver(records => {
+            for (const r of records) for (const n of r.addedNodes) if (n instanceof Element && n.matches(".drpg-popup")) corner.push(n.textContent);
+        });
+        const read = {};
+        let card = null;
+        try {
+            const app = A.openMessenger();
+            await until(() => app?.element?.querySelector(".drpg-console-stream-list"), 4000);
+            watch.observe(document.body, { childList: true, subtree: true });
+            const entry = () => app.element?.querySelector(`.drpg-console-roll[data-message-id="${card?.id}"]`) ?? null;
+            card = await U.whisperToOwner(actor, "<p>E132 T2c EXP-GM-16 a result</p>", AR.rollCardFlags({ label: "E132 T2c Search" }, { total: 13, withHope: true }));
+            must(card, "the card was not posted - this would measure nothing");
+            await until(() => entry(), 4000).catch(() => {});
+            const li = entry();
+            read.entry = li ? [li.dataset.player === player.id, li.querySelector("strong")?.textContent ?? null, li.querySelector("[data-drpg-total]")?.textContent ?? null] : null;
+            read.corner = corner.length;
+            await card.delete();
+            await until(() => !entry(), 3000).catch(() => {});
+            read.gone = !entry();
+        } finally {
+            watch.disconnect();
+            for (const m of game.messages.filter(m => !seen.has(m.id))) await m.delete().catch(() => {});
+            await A.gmMessengerWindow()?.close();
+            await settle();
+        }
+        equal(stableJson(read), stableJson({
+            entry: [true, game.i18n.format("DRPG.Messenger.gm.rollTitle", { actor: actor.name, action: "E132 T2c Search" }),
+                game.i18n.format("DRPG.Messenger.gm.rollResultWay", { total: 13, result: game.i18n.localize("DRPG.Action.duality.hope") })],
+            corner: 0, gone: true }),
+        "{entry: the stream's entry [its player, its title, its total line]; corner: notices drawn while it landed; gone: the entry after the card's deletion}");
+    }],
 ];
 
 // `drawnForPlayer` for the grid (E33 C7): a drawn crisis roll goes through the suite's one road to a draw (tests-grid.mjs `drawnAct`).

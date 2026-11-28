@@ -34,9 +34,9 @@
  */
 
 import { MESSENGER_FLAGS, THREAD_KIND, threadUsers, isThreadUser, threadStats, threadCardAllowed } from "./messenger.mjs";
-import { cardFlag, shownWordsOf } from "./secret.mjs";
+import { cardFlag, cardWriter, shownWordsOf, wordsOf } from "./secret.mjs";
 import { noticeEntries, noticeTime, onNoticeHistoryChange } from "./notice-history.mjs";
-import { esc, markLanguage } from "./utils.mjs";
+import { esc, markLanguage, ownerIdsOf } from "./utils.mjs";
 import { count } from "./perf-counters.mjs";
 import { setTip } from "./ui-kit.mjs";
 
@@ -163,6 +163,38 @@ export function waitingEntry(message) {
     return { messageId: message.id, actorId: waitingActorOf(message, root, userId), userId, kind, text: text.slice(0, WAITING_TEXT) };
 }
 
+/*
+ * A PLAYER'S ACTION ROLL, IN THE TIMELINE (2.0 line T2c, EXP-GM-16, split from line T2, 28.11.2026; F1-blind-gm
+ * EXP-GM-16, E-GM-94). A player's action card is whispered to its owner and the GMs (utils.mjs `whisperToOwner`), and a
+ * whisper raises no notice on a GM's screen (popup.mjs `onCreateChatMessage`): the result reached a GM as a line of the
+ * chat log, which the module keeps closed for players and a GM may keep folded. The Timeline's "Live" stream lists it
+ * now, one entry a card, no notice: the student, the action, the total and which way the roll went. Read off the card's
+ * own flags, which travel with its words to the GMs (secret.mjs `splitFlags`): `popupCentre` "actionResult" or
+ * "failedShadow" (the action-result cards, action-report.mjs `rollCardFlags` and `report`), `rollTotal` (since 1.2.130,
+ * `rollTotalFlag`; a card from before carries none and is not listed), `popupTitle` the action, `popupTone` the roll's
+ * way; the student is the card's speaker, a character a player owns (`ownerIdsOf`), and the player the one who wrote the
+ * card when a player owner did, else its first player owner - whose thread the filter's "one player" reads. Not a thread card (those are in the stream already). `by` is the GM who ran it for the player (EXP-GM-07), read
+ * by the caller's `rolledByGmOf` (private-rolls.mjs, handed in: this file imports nothing of the roll family). Pure but
+ * for `game.actors` and `game.users`. Whether GMs want a notice in the corner as well is the owner's question (LINE-T2c
+ * report); the default is the entry alone.
+ */
+export function rollEntry(message, { by = () => null } = {}) {
+    if (!message?.id || cardFlag(message, MESSENGER_FLAGS.thread)) return null;
+    if (!["actionResult", "failedShadow"].includes(cardFlag(message, "popupCentre"))) return null;
+    const total = cardFlag(message, "rollTotal");
+    if (typeof total !== "number" || !Number.isFinite(total)) return null;
+    const actor = game.actors?.get?.(message.speaker?.actor ?? "") ?? null;
+    // Whose roll: the player who wrote the card, when a player owner did (a co-owner's own roll is theirs), else the
+    // student's first player owner (a card a GM's browser wrote, EXP-GM-07).
+    const owners = actor ? ownerIdsOf(actor) : [];
+    const writer = cardWriter(message)?.id ?? null;
+    const userId = owners.includes(writer) ? writer : owners[0] ?? null;
+    if (!userId) return null;
+    const tone = cardFlag(message, "popupTone");
+    return { messageId: message.id, actorId: actor.id, userId, character: actor.name ?? "?", action: String(cardFlag(message, "popupTitle") ?? ""),
+        total, tone: ["hope", "fear", "critical"].includes(tone) ? tone : null, at: message.timestamp ?? 0, by: by(message)?.id ?? null };
+}
+
 /** Every card waiting for a decision on this browser's copy of the log (above), oldest first. */
 export function waitingCards() {
     const out = [];
@@ -178,7 +210,7 @@ export function waitingCards() {
  * that draw a card (`buildBubble`) and a one-line preview (`previewOf`), and the position kept (`savePosition`, under the
  * key "gm"; the base's constructor reads it back under the same key).
  */
-export function gmMessengerClass(Base, { buildBubble, previewOf, savePosition }) {
+export function gmMessengerClass(Base, { buildBubble, previewOf, savePosition, rolledByGmOf = () => null }) {
     const baseClose = Object.getPrototypeOf(Base.prototype).close;
 
     return class DrpgGmMessengerApp extends Base {
@@ -207,6 +239,9 @@ export function gmMessengerClass(Base, { buildBubble, previewOf, savePosition })
         noticesShown = new Set();
 
         unlistenNotices = null;
+
+        /** The chat hooks that bring a player's action roll into the stream (`listenToRolls`, EXP-GM-16), or null. */
+        unlistenRolls = null;
 
         /** The view the window's body was last drawn for (`_replaceHTML`). */
         drawnView = null;
@@ -277,6 +312,7 @@ export function gmMessengerClass(Base, { buildBubble, previewOf, savePosition })
             if (this.view === "console") {
                 this.wireConsole();
                 this.listenToNotices();
+                this.listenToRolls();
             }
             // The thread window's tab press remembers its tab per player here (Chat or Note).
             if (this.view !== "console") (this.viewTabs ??= new Map()).set(this.view, this.tab);
@@ -419,6 +455,11 @@ export function gmMessengerClass(Base, { buildBubble, previewOf, savePosition })
                 const live = this.waitingCard(message, player);
                 if (live) waitingList.append(live);
             }
+            // A player's action roll (EXP-GM-16, `rollEntry`): an entry of the stream, no notice.
+            for (const message of game.messages ?? []) {
+                const roll = rollEntry(message, { by: rolledByGmOf });
+                if (roll) items.push({ at: roll.at, node: () => this.streamRoll(roll) });
+            }
             this.noticesShown = new Set();
             for (const entry of this.consoleNotices()) {
                 this.noticesShown.add(entry.id);
@@ -506,6 +547,40 @@ export function gmMessengerClass(Base, { buildBubble, previewOf, savePosition })
             const text = document.createElement("span");
             text.textContent = entry.text ?? "";
             body.append(title, text);
+            item.append(head, body);
+            return item;
+        }
+
+        /** A player's action roll in the stream (`rollEntry`, EXP-GM-16): who, what, the total and its way, and a GM's hand. */
+        streamRoll(roll) {
+            const item = document.createElement("li");
+            item.className = "drpg-console-item drpg-console-roll";
+            item.dataset.messageId = roll.messageId;
+            item.dataset.at = String(roll.at);
+            item.dataset.action = "true";
+            item.dataset.player = roll.userId;
+            const head = document.createElement("div");
+            head.className = "drpg-console-item-head";
+            head.innerHTML = `<span class="drpg-console-kind">${esc(game.i18n.localize("DRPG.Messenger.gm.rollKind"))}</span>`
+                + `<span class="drpg-console-time">${esc(noticeTime(roll.at))}</span>`;
+            const body = document.createElement("div");
+            body.className = "drpg-console-notice-body";
+            const title = document.createElement("strong");
+            title.textContent = game.i18n.format("DRPG.Messenger.gm.rollTitle", { actor: roll.character, action: roll.action });
+            const text = document.createElement("span");
+            text.dataset.drpgTotal = String(roll.total);
+            const way = { hope: "DRPG.Action.duality.hope", fear: "DRPG.Action.duality.despair", critical: "DRPG.Action.duality.critical" }[roll.tone];
+            text.textContent = way ? game.i18n.format("DRPG.Messenger.gm.rollResultWay", { total: roll.total, result: game.i18n.localize(way) })
+                : game.i18n.format("DRPG.Messenger.gm.rollResult", { total: roll.total });
+            body.append(title, text);
+            // The GM who ran it for the player (EXP-GM-07), as the card says it.
+            if (roll.by) {
+                const mark = document.createElement("span");
+                mark.className = "drpg-console-rolled-by";
+                mark.dataset.drpgRolledBy = roll.by;
+                mark.textContent = game.i18n.format("DRPG.Rolls.rolledByGm", { name: game.users.get(roll.by)?.name ?? "?" });
+                body.append(mark);
+            }
             item.append(head, body);
             return item;
         }
@@ -625,6 +700,33 @@ export function gmMessengerClass(Base, { buildBubble, previewOf, savePosition })
             });
         }
 
+        /* A player's action roll as it lands (EXP-GM-16): its card's words, which carry its flags, are waited for, then the
+           entry goes into the stream in its time; a card deleted takes its entry. Once a window; off at its close. */
+        listenToRolls() {
+            if (this.unlistenRolls) return;
+            const created = Hooks.on("createChatMessage", async message => {
+                if (cardFlag(message, MESSENGER_FLAGS.thread)) return;
+                await wordsOf(message);
+                if (!this.rendered || this.view !== "console") return;
+                const list = this.element?.querySelector(".drpg-console-stream-list");
+                const roll = rollEntry(message, { by: rolledByGmOf });
+                if (!list || !roll || list.querySelector(`.drpg-console-roll[data-message-id="${message.id}"]`)) return;
+                count("messenger.consoleRoll");
+                this.insertByTime(list, this.streamRoll(roll));
+                this.settleConsole();
+            });
+            const deleted = Hooks.on("deleteChatMessage", message => {
+                const node = this.element?.querySelector(`.drpg-console-roll[data-message-id="${message?.id}"]`);
+                if (!node) return;
+                node.remove();
+                this.settleConsole();
+            });
+            this.unlistenRolls = () => {
+                Hooks.off("createChatMessage", created);
+                Hooks.off("deleteChatMessage", deleted);
+            };
+        }
+
         insertByTime(list, node) {
             const at = Number(node.dataset.at) || 0;
             const pinned = this.nearBottom();
@@ -668,6 +770,8 @@ export function gmMessengerClass(Base, { buildBubble, previewOf, savePosition })
         async close(options) {
             this.unlistenNotices?.();
             this.unlistenNotices = null;
+            this.unlistenRolls?.();
+            this.unlistenRolls = null;
             savePosition("gm", this.position);
             if (DrpgGmMessengerApp.current === this) DrpgGmMessengerApp.current = null;
             return baseClose.call(this, options);

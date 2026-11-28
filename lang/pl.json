@@ -6562,7 +6562,11 @@
         "playerTip": "Pokaż rozmowę z tą osobą.",
         "filterTip": "Wybierz, co pokazuje oś czasu.",
         "inThread": "Rozmowa: {player}",
-        "event": "Wydarzenie"
+        "event": "Wydarzenie",
+        "rollKind": "Rzut",
+        "rollTitle": "{actor}, {action}",
+        "rollResult": "Wynik {total}.",
+        "rollResultWay": "Wynik {total}, {result}."
       }
     },
     "Voice": {

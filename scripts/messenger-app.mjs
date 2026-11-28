@@ -31,7 +31,7 @@ import {
 } from "./messenger.mjs";
 import { noteFor, noteStatus, noteTemplate, saveNote, whenNotesHeld } from "./pre-session-note.mjs";
 // The chat log's own roll-card painter, shared rather than reimplemented.
-import { markOutcome, rollOutcomeOf } from "./private-rolls.mjs";
+import { markOutcome, rollOutcomeOf, rolledByGmOf } from "./private-rolls.mjs";
 import { playSfx } from "./sfx.mjs";
 
 import { contentOf, shownWordsOf, wordsOf, cardFlag, cardWriter, readersLines, dropOldGmLines } from "./secret.mjs";
@@ -594,7 +594,9 @@ export class DrpgMessengerApp extends DrpgApp() {
 export const DrpgGmMessengerApp = gmMessengerClass(DrpgMessengerApp, {
     buildBubble: message => buildBubble(message),
     previewOf: message => stripHtml(contentOf(message)),
-    savePosition: (key, position) => savePosition(key, position)
+    savePosition: (key, position) => savePosition(key, position),
+    // Who ran a player's action roll the Timeline lists (EXP-GM-07, EXP-GM-16).
+    rolledByGmOf: message => rolledByGmOf(message)
 });
 
 /** The GM's messenger window opened, or raised and turned to `view` ("console" or a player's id). */

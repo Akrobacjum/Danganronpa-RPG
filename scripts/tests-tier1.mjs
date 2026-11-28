@@ -71000,6 +71000,52 @@ const INVARIANTS = [
             line: game.i18n.format("DRPG.Rolls.rolledByGm", { name: gm.name }), sources: [true, true, true, true]
         }), "{here: [a GM rolling a player's student, a character no player owns, a player's browser]; flags: [a roll a GM ran, one it did not]; read: [a GM's card naming a GM, a player's card naming a GM, a GM's card naming a player, a GM's card naming nobody]; line: the line drawn; sources: [rollTrait marks the outcome, report carries the flag, the chat log's hook, the notice's line]}");
     }],
+    ["R9066 - a player's action roll is an entry of the GMs' Timeline: messenger-gm.mjs `rollEntry` reads an action-result card (`popupCentre` \"actionResult\" or \"failedShadow\") carrying `rollTotal`, about a student a player owns, as the student, the player, the action, the total, its way and the GM who ran it, and nothing for a thread card, a card with no total, another card or a character no player owns; action-report.mjs `rollCardFlags` and `report` carry the total (`rollTotalFlag`); the Timeline builds the entries into its stream, follows new cards and draws no notice for them (2.0 line T2c, EXP-GM-16, 28.11.2026)", async () => {
+        /* F1-blind-gm EXP-GM-16, E-GM-94: a player's result reached a GM as a whisper in the chat log alone (popup.mjs keeps a
+           whisper from a GM's corner). Stand-in cards about a student of this world a player owns; the stream's entry
+           drawn by the Timeline's class from one of them (`streamRoll`, read off the class's prototype with no window);
+           the stream's build and its listener in the source. Red at 0d3d4f2: no `rollEntry`. */
+        needs(world.atLeast("playersWithCharacter", 1));
+        const G = await import("./messenger-gm.mjs");
+        const AR = await import("./action-report.mjs");
+        const { DrpgGmMessengerApp } = await import("./messenger-app.mjs");
+        const player = game.users.find(u => !u.isGM && studentActors().some(a => a.testUserPermission(u, "OWNER")));
+        const owned = studentActors().find(a => a.testUserPermission(player, "OWNER"));
+        const card = (id, flags, actorId = owned.id) => ({ id, author: game.user, timestamp: 1700000000000, speaker: { actor: actorId },
+            flags: { [MODULE_ID]: flags }, getFlag(scope, key) { return this.flags?.[scope]?.[key]; } });
+        const RESULT = { popupCentre: "actionResult", popupTitle: "R9066 Search", popupTone: "hope", rollTotal: 14 };
+        const entry = typeof G.rollEntry === "function" ? G.rollEntry : () => "missing";
+        const by = () => game.user;
+        const strip = e => (e && typeof e === "object" ? { ...e, actorId: e.actorId === owned.id, userId: e.userId === player.id, by: e.by === game.user.id } : e);
+        const cases = [strip(entry(card("R9066Result00001", RESULT), { by })), strip(entry(card("R9066Shadow00001", { ...RESULT, popupCentre: "failedShadow", popupTone: "fear" }))),
+            entry(card("R9066Thread00001", { ...RESULT, thread: player.id })), entry(card("R9066NoTotal0001", { ...RESULT, rollTotal: undefined })),
+            entry(card("R9066Other000001", { ...RESULT, popupCentre: "bodyFound" })), entry(card("R9066Nobody00001", RESULT, "R9066NoSuchActor"))];
+        let drawn = null;
+        const real = typeof G.rollEntry === "function" ? G.rollEntry(card("R9066Drawn000001", RESULT), { by }) : null;
+        if (real && typeof DrpgGmMessengerApp?.prototype?.streamRoll === "function") {
+            const li = DrpgGmMessengerApp.prototype.streamRoll.call({}, real);
+            drawn = { cls: li.className, player: li.dataset.player === player.id, action: li.dataset.action, total: li.querySelector("[data-drpg-total]")?.textContent ?? null,
+                title: li.querySelector("strong")?.textContent ?? null, by: li.querySelector("[data-drpg-rolled-by]")?.textContent ?? null };
+        }
+        const flagged = typeof AR.rollCardFlags === "function" ? [AR.rollCardFlags({ label: "x" }, { total: 11 }).flags[MODULE_ID].rollTotal ?? null,
+            AR.rollCardFlags({ label: "x" }, {}).flags[MODULE_ID].rollTotal ?? null] : null;
+        const gmSrc = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/messenger-gm.mjs`).then(lfText));
+        const report = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/action-report.mjs`).then(lfText));
+        equal(stableJson({ cases, drawn, flagged,
+            sources: [/const roll = rollEntry\(message, \{ by: rolledByGmOf \}\);\s*if \(roll\) items\.push/.test(bodyOf(gmSrc, "buildConsole() {", { until: "\n        }\n" })),
+                /Hooks\.on\("createChatMessage"/.test(bodyOf(gmSrc, "listenToRolls() {", { until: "\n        }\n" })),
+                /\.\.\.rollTotalFlag\(roll\)/.test(fnSource(report, "report")),
+                !/gmPopup|showPopup/.test(bodyOf(gmSrc, "listenToRolls() {", { until: "\n        }\n" }))] }),
+        stableJson({ cases: [{ messageId: "R9066Result00001", actorId: true, userId: true, character: owned.name, action: "R9066 Search", total: 14, tone: "hope", at: 1700000000000, by: true },
+            { messageId: "R9066Shadow00001", actorId: true, userId: true, character: owned.name, action: "R9066 Search", total: 14, tone: "fear", at: 1700000000000, by: false },
+            null, null, null, null],
+            drawn: { cls: "drpg-console-item drpg-console-roll", player: true, action: "true",
+                total: game.i18n.format("DRPG.Messenger.gm.rollResultWay", { total: 14, result: game.i18n.localize("DRPG.Action.duality.hope") }),
+                title: game.i18n.format("DRPG.Messenger.gm.rollTitle", { actor: owned.name, action: "R9066 Search" }),
+                by: game.i18n.format("DRPG.Rolls.rolledByGm", { name: game.user.name }) },
+            flagged: [11, null], sources: [true, true, true, true] }),
+        "{cases: [a result card a GM ran, a failed shadow's, a thread card, one with no total, a body's card, about no character a player owns]; drawn: the stream's entry [its class, player, action mark, total line, title, GM's mark]; flagged: rollCardFlags' rollTotal [with a total, without]; sources: [the stream builds the entries, the window follows new cards, report carries the total, the listener raises no notice]}");
+    }],
 ];
 
 /**

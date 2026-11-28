@@ -6126,7 +6126,11 @@
         "playerTip": "Show the conversation with this player.",
         "filterTip": "Choose what the Timeline lists.",
         "inThread": "Conversation with {player}",
-        "event": "Event"
+        "event": "Event",
+        "rollKind": "Roll",
+        "rollTitle": "{actor}, {action}",
+        "rollResult": "Total {total}.",
+        "rollResultWay": "Total {total}, {result}."
       }
     },
     "Voice": {
