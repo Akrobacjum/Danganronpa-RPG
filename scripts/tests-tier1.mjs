@@ -74003,7 +74003,8 @@ const INVARIANTS = [
             const row = root.querySelector(`tr[data-actor="${student.id}"]`);
             const cell = row?.children[heads.indexOf(game.i18n.localize("DRPG.Panel.connectionColumn"))];
             const marks = [...(cell?.querySelectorAll("[data-drpg-connected]") ?? [])].map(el => [el.dataset.drpgUser, el.dataset.drpgConnected, el.textContent.trim()]);
-            return { last3: heads.slice(-3), marks, text: marks.length ? null : cell?.textContent.trim() ?? null };
+            // The three right after Do, where the assembly of the 2.0 lines puts them: T4's Microphone and T5's Motives follow (LINE-T2.md 4.2).
+            return { last3: heads.slice(heads.indexOf(game.i18n.localize("DRPG.Panel.doColumn")) + 1, heads.indexOf(game.i18n.localize("DRPG.Panel.doColumn")) + 4), marks, text: marks.length ? null : cell?.textContent.trim() ?? null };
         };
         const L = key => game.i18n.localize(key);
         const fmt = (user, state) => game.i18n.format("DRPG.Panel.ownerConnection", { player: user.name, state: L(state) });
@@ -74018,7 +74019,7 @@ const INVARIANTS = [
             none: { last3: heads, marks: [], text: "-" },
             co: { last3: heads, marks: [[co.id, "no", fmt(co, "DRPG.Panel.notConnected")], [on.id, "yes", fmt(on, "DRPG.Panel.connected")]], text: null },
             npc: true, reads: true, wakes: true }),
-        "{on, off, none, co: a student whose player is connected, is not, who has none, and with two co-owners} x {the last three heads, the cell's marks [user, connected, words], the words of a cell with none}; npc: a Monokuma's or an NPC's row has the three cells empty; reads: the window hands ownerOf; wakes: its live region hears userConnected");
+        "{on, off, none, co: a student whose player is connected, is not, who has none, and with two co-owners} x {the three heads after Do, the cell's marks [user, connected, words], the words of a cell with none}; npc: a Monokuma's or an NPC's row has the three cells empty; reads: the window hands ownerOf; wakes: its live region hears userConnected");
     }],
     ["R9062 - the Students window says where a student is and what waits for them, by the Timeline's own reading: messenger-gm.mjs `waitingEntry` takes a player's thread card not settled whose drawn words hold a ruling button, with the character it asks about, its thread's player, its heading and the player's words, and nothing for a settled card or one with no button; `waitingCards` is that reading over the log, the Timeline's `waitingCard` asks it, and the Students window counts its cards by `actorId`; `aliveTableHtml` draws Room from `gmPlaceOf` (\"-\" with none) and Waiting as the count with a plural tooltip (2.0 line T2c, EXP-GM-17, 28.11.2026)", async () => {
         /* F1-blind-gm EXP-GM-17, E-GM-02. Four stand-in cards in a player's thread, written by this GM (a Dynamic action's
