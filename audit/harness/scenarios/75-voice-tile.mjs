@@ -757,10 +757,11 @@ export async function run({ gm, p1, p2, p3, check, phase, IDS, repoUrl }) {
     // account's own dead room from E72 C8 (`deadRoomFor`), one room for every secret death before it.
     const DEAD = "drpg-spectators";
     const stoodInRoom = typeof victim.before?.p2?.target === "string" && victim.before.p2.target !== DEAD;
-    check("E: a character killed in secret talks in the dead channel at once, never in the main room, where nobody hears them in the list 'Who you hear' or its count or sees them speak on the voice tile; in an incident the room they stood in is kept until it closes",
+    check("E: a character killed in secret talks in the dead channel at once, never in the main room, where nobody hears them in the list 'Who you hear' or its count or sees them speak on the voice tile; in an incident too since 2.0 line T1 MURDER-03 (the room they stood in was kept until it closed)",
         victim.actor === true && victim.killer === true && victim.idle === true && victim.secret === true && stoodInRoom
             && victim.after?.p2?.target === DEAD && victim.after?.main?.includes(IDS.p2) === false
-            && J(victim.during?.p2?.target) === J(victim.before?.p2?.target) && victim.closed?.p2?.target === DEAD && victim.idleAgain === true
+            // MURDER-03 (2.0 line T1, afd5bbe): a death in the incident's cast leaves its room at once (murder.mjs `deathVoiceGone`).
+            && victim.during?.p2?.target === DEAD && victim.closed?.p2?.target === DEAD && victim.idleAgain === true
             && heard?.room === true && heard?.open === true && heard?.rows?.includes(IDS.p2) === false
             && heard?.count === String(heard?.rows?.length || "") && heard?.tile?.theirs === false,
         J({ victim, heard }));
