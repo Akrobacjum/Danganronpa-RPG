@@ -29,7 +29,7 @@ import {
     ACTION_TRIAL_OBJECT, ACTION_TRIAL_EVIDENCE, ACTION_TRIAL_WITHDRAW, ACTION_FLOOR_REPOINT, ACTION_TRIAL_GM,
     ACTION_TRIAL_TURN, ACTION_TRIAL_CLAIM, ACTION_TRIAL_SIDE, ACTION_TRIAL_KEYWORD, ACTION_TRIAL_PRESENT, ACTION_READY_OPEN, ACTION_READY_ANSWER,
     ACTION_READY_END, ACTION_RESHAPE_RULING, ACTION_TRAIT_RULING, ACTION_HOPE_CALL, ACTION_CALL_YES,
-    ACTION_RULING_EXPIRED, ACTION_RULING_RECEIVED, ACTION_DYNAMIC_ANSWER, ACTION_OBSERVE_TARGET, ACTION_OBSERVE_RESOLVE,
+    ACTION_RULING_EXPIRED, ACTION_RULING_RECEIVED, ACTION_ASK_WITHDRAW, ACTION_DYNAMIC_ANSWER, ACTION_OBSERVE_TARGET, ACTION_OBSERVE_RESOLVE,
     ACTION_OBSERVE_PICK, ACTION_CLEANUP_TRACES, ACTION_ANALYZE_RESOLVE, ACTION_ADVANCEMENT, ACTION_ADVANCEMENT_OFFER,
     ACTION_SHARE_BULLET, ACTION_GIVE_ITEM, ACTION_PASSAGE_SHARE, ACTION_PASSAGE_CROSS, ACTION_PASSAGE_FIND, ACTION_PASSAGE_LAIR_SEAL, ACTION_LAIR_LOCK,
     ACTION_REFUND_CROSSING, ACTION_VAULT_STEAL, ACTION_STEAL, ACTION_FIND_STASH, ACTION_PLANT, ACTION_FRISK_UNSEEN,
@@ -873,9 +873,10 @@ export async function answerDynamic(requestId, asker, ruling, messageId = null, 
  * @returns {Promise<object>} the bridge's result; `value` true to allow, false to refuse.
  */
 export function requestHopeCallApproval(
-    { actorId, actorName, key, callLabel, effect, cost, note, nonce }, timeoutMs = TIMING.hopeCallRulingMs) {
+    { actorId, actorName, key, callLabel, effect, cost, note, nonce }, timeoutMs = TIMING.hopeCallRulingMs, { requestId = null } = {}) {
+    // `requestId`: the waiting card's, whose Withdraw names it (2.0 line T2, EXP-PL-12; ask-withdraw.mjs), here and below.
     return ask(ACTION_HOPE_CALL, { actorId, actorName, key, callLabel, effect, cost, note, nonce }, { timeoutMs, nothingSpent: true,
-        expired: ACTION_RULING_EXPIRED, received: ACTION_RULING_RECEIVED });
+        expired: ACTION_RULING_EXPIRED, received: ACTION_RULING_RECEIVED, requestId });
 }
 
 /**
@@ -892,10 +893,10 @@ export function requestHopeCallApproval(
  *
  * @returns {Promise<object>} the bridge's result; `value` `{tier, trait}`, or false when the GM refused.
  */
-export function requestDynamicDifficulty({ description, actorName, room, actorId = null, proposed = null }, timeoutMs = TIMING.rulingMs) {
+export function requestDynamicDifficulty({ description, actorName, room, actorId = null, proposed = null }, timeoutMs = TIMING.rulingMs, { requestId = null } = {}) {
     // `proposed` (E68 C4): the statistic the player proposes; the card says it, the GM's editor checks it first.
     return ask(ACTION_DIFFICULTY, { description, actorName, room, actorId, proposed }, { timeoutMs, nothingSpent: true,
-        expired: ACTION_RULING_EXPIRED, received: ACTION_RULING_RECEIVED });
+        expired: ACTION_RULING_EXPIRED, received: ACTION_RULING_RECEIVED, requestId });
 }
 
 /**
@@ -908,9 +909,15 @@ export function requestDynamicDifficulty({ description, actorName, room, actorId
  *
  * @returns {Promise<object>} the bridge's result; `value` the trait, or false when the GM refused.
  */
-export function requestTraitRuling({ actorId, kind, key, variant = null, proposed = null, note = "" }) {
+export function requestTraitRuling({ actorId, kind, key, variant = null, proposed = null, note = "" }, { requestId = null } = {}) {
     return ask(ACTION_TRAIT_RULING, { actorId, kind, key, variant, proposed, note }, { nothingSpent: true,
-        expired: ACTION_RULING_EXPIRED, received: ACTION_RULING_RECEIVED });
+        expired: ACTION_RULING_EXPIRED, received: ACTION_RULING_RECEIVED, requestId });
+}
+
+/** The asker's Withdraw of its ask, `rid` the ask's own id (2.0 line T2, EXP-PL-12; ask-withdraw.mjs `withdrawAsk`): nobody
+    waits on it, and the primary ends the card (`withdrawnOnPrimary`). Not re-exported by gm-bridge.mjs. */
+export function requestAskWithdraw(rid) {
+    return ask(ACTION_ASK_WITHDRAW, { rid });
 }
 
 /**

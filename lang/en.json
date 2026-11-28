@@ -5113,7 +5113,9 @@
         "ready.open": "Asking the players whether they are done",
         "ready.answer": "Your answer to the GM",
         "ready.end": "Ending the question to the players",
-        "card.takenOver": "A card taken over by another GM"
+        "card.takenOver": "A card taken over by another GM",
+        "ask.withdraw": "Withdrawing a request you made",
+        "ask.state": "Your request's state, from the GM"
       },
       "notDone": "“{what}” was not carried out. {why}",
       "nothingSpent": "You keep your action and your Hope.",
@@ -5242,7 +5244,13 @@
       "takeOverTooltip": "Closes the other GM's window of this card and frees the card. Then pick an answer on it.",
       "takeOverNowTooltip": "Closes the other GM's window of this card and opens yours for this answer.",
       "timeLeft": "Time to rule: {time}.",
-      "timeUp": "Time is up: the player is no longer waiting for this ruling."
+      "timeUp": "Time is up: the player is no longer waiting for this ruling.",
+      "withdraw": "Withdraw request",
+      "withdrawTooltip": "Ends this request. You keep everything it would have cost.",
+      "withdrawn": "Request withdrawn. You keep everything it would have cost.",
+      "askRuling": "A GM is reading your request.",
+      "waitLeft": "The request stays open for {time}.",
+      "settledWithdrawn": "Request withdrawn."
     },
     "Tables": {
       "installed": "Item tables ready: {created} created, {skipped} already existed.",

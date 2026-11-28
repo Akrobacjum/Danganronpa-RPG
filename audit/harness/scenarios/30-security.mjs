@@ -7334,4 +7334,46 @@ export async function run({ gm, p1, p2, p3, check, note, phase, settle, permissi
     check("SECURITY: a player's console's card.takenOver closes no GM's window of a card and ends no claim - taken only from the primary GM by Foundry's sender (2.0 line T2, CALLS-01)",
         Boolean(tkCard) && tkBefore.open === true && tkBefore.told === 0 && tkAfter.open === true && tkAfter.lost === false && tkAfter.told === 0,
         JSON.stringify({ tkCard, tkBefore, tkAfter }), { flow: "card-claim" });
+
+    // 2.0 line T2
+    /* EXP-PL-12 (28.11.2026): `ask.withdraw` names an ask by its id (`rid`), a claim: the primary ends only an ask it holds
+       on a card for the sender (bridge-guards.mjs `guardAskWithdraw`, ask-withdraw.mjs `askToWithdraw`). p1 asks for a
+       Dynamic Action's difficulty on Aiko as an honest browser does (`dynamic.difficulty`, its card up in p1's thread); p2's
+       console, as Foundry names p2, sends `ask.withdraw` naming p1's ask. Read on the GM: whether the card ended, whether the
+       ask is still held for p1, and the refusals logged. Then the control: p1's own withdrawal ends the card. The card is
+       deleted after. */
+    phase("a forged withdrawal of another player's ask", { flow: "hope-call" });
+    await gm.eval(`(await import("${repoUrl}/scripts/utils.mjs")).clearSessionFailures(); return true;`);
+    const WD_RID = "SECT2ASKOFP10001";
+    await p1.eval(`game.socket.emit("${SOCKET}", { action: "dynamic.difficulty", userId: game.user.id, requestId: "${WD_RID}",
+            description: "SEC T2 EXP-PL-12", actorName: "Aiko", room: null, actorId: "${ids.aiko}" },
+        { recipients: game.users.filter(u => u.isGM && u.active).map(u => u.id) });
+        return true;`);
+    await settle(1500);
+    const wdRead = `const { cardFlag } = await import("${repoUrl}/scripts/secret.mjs");
+        const C = await import("${repoUrl}/scripts/call-gm.mjs");
+        const card = game.messages.contents.find(m => cardFlag(m, "rid")?.id === "${WD_RID}") ?? null;
+        return card ? { id: card.id, settled: Boolean(cardFlag(card, "settled")), held: Boolean(C.heldAskOf("${WD_RID}", "${IDS.p1}")) } : null;`;
+    const wdCard = await gm.eval(wdRead);
+    if (wdCard) {
+        await p2.eval(`game.socket.emit("${SOCKET}", { action: "ask.withdraw", userId: game.user.id, rid: "${WD_RID}" },
+            { recipients: game.users.filter(u => u.isGM && u.active).map(u => u.id) }); return true;`);
+        await settle(1200);
+    }
+    const wdForged = wdCard ? { ...(await gm.eval(wdRead)), logged: await gm.eval(`return (await import("${repoUrl}/scripts/utils.mjs")).sessionFailures()
+        .filter(e => /Refused a "ask\\.withdraw"/.test(e.message)).map(e => [e.message, e.count]);`) } : null;
+    if (wdCard) {
+        await p1.eval(`game.socket.emit("${SOCKET}", { action: "ask.withdraw", userId: game.user.id, rid: "${WD_RID}" },
+            { recipients: game.users.filter(u => u.isGM && u.active).map(u => u.id) }); return true;`);
+        await settle(1200);
+    }
+    const wdOwn = wdCard ? await gm.eval(wdRead) : null;
+    if (wdCard) await gm.eval(`await game.messages.get("${wdCard.id}")?.delete(); return true;`);
+    await settle(400);
+    check("SECURITY: p2's console's ask.withdraw naming p1's ask ends no card and drops no ask - refused in the GM's log; p1's own ends the card (2.0 line T2, EXP-PL-12)",
+        Boolean(wdCard) && wdCard.settled === false && wdCard.held === true
+            && wdForged?.settled === false && wdForged.held === true
+            && wdForged.logged.some(([m]) => /"ask\.withdraw".*holds no ask of the sender/.test(m))
+            && wdOwn?.settled === true && wdOwn.held === false,
+        JSON.stringify({ wdCard, wdForged, wdOwn }), { flow: "hope-call" });
 }

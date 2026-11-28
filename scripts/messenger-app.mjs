@@ -846,6 +846,8 @@ export function wireCallActions(body, message = null) {
 
     if (!game.user.isGM) {
         for (const button of buttons) button.closest(".drpg-call-actions")?.remove();
+        // Its asker's own card reads whether a GM is reading it, as the primary last said (2.0 line T2, EXP-PL-12).
+        void import("./ask-withdraw.mjs").then(m => m.markAskCard(body, message)).catch(err => debug("An ask's card could not show its state", err));
         return;
     }
 
@@ -1059,7 +1061,7 @@ async function ruleApproveCallOrRefuseCall(action, data, message = null) {
     const { answerHopeCall } = await import("./gm-bridge.mjs");
     const yes = action === "approveCall";
     const out = {};
-    if (!(await answerHopeCall(data.rid, data.asker, yes, message?.id ?? null, out))) return askNotHeld(out);
+    if (!(await answerHopeCall(data.rid, data.asker, yes, message?.id ?? null, out))) return askNotHeld(out, message);
     return yes ? { held: true } : settled("DRPG.Bridge.settledDeclined");
 }
 
@@ -1086,7 +1088,7 @@ async function ruleSetDifficulty(action, data, message = null) {
     if (!ruling) return null;
     const { answerDynamic } = await import("./gm-bridge.mjs");
     const out = {};
-    return (await answerDynamic(data.rid, data.asker, ruling, message?.id ?? null, out)) ? { held: true } : askNotHeld(out);
+    return (await answerDynamic(data.rid, data.asker, ruling, message?.id ?? null, out)) ? { held: true } : askNotHeld(out, message);
 }
 
 /*
@@ -1121,8 +1123,10 @@ async function takenOverMeanwhile(message) {
  * and the note in the card's `.drpg-gm-only`, which a player's copy of the words never holds. `wireCallActions` and
  * `pressCard` hand the note to `settleCall`. R9036, tier 2's "E132 CALLS-14".
  */
-function askNotHeld(out) {
+function askNotHeld(out, message = null) {
     if (out?.told) return null;
+    // An ask its player withdrew has its card ended already, "Request withdrawn." (2.0 line T2, EXP-PL-12): no second line.
+    if (message && cardFlag(message, MESSENGER_FLAGS.settled)) return null;
     ui.notifications.warn(game.i18n.localize("DRPG.Bridge.askNotHeld"));
     return { settled: { key: "DRPG.Bridge.settledExpired" }, gmNote: { key: "DRPG.Bridge.settledGone" } };
 }
@@ -1130,7 +1134,7 @@ function askNotHeld(out) {
 async function ruleRefuseDynamic(action, data, message = null) {
     const { answerDynamic } = await import("./gm-bridge.mjs");
     const out = {};
-    return (await answerDynamic(data.rid, data.asker, false, message?.id ?? null, out)) ? { held: true } : askNotHeld(out);
+    return (await answerDynamic(data.rid, data.asker, false, message?.id ?? null, out)) ? { held: true } : askNotHeld(out, message);
 }
 
 /**

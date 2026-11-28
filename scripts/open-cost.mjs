@@ -45,7 +45,10 @@ export const WARM_IMPORTS = Object.freeze({
        reading of the theme, `isStainedGlass`, so it loads at boot too. */
     everyone: Object.freeze(["settings-window.mjs", "voice-panel.mjs", "notice-history-app.mjs", "frisk.mjs",
         "trial-modes.mjs", "trial-floor-ui.mjs", "trial-zones-ui.mjs",
-        "action-tail.mjs", "action-doors.mjs", "infiltrate-reroll.mjs"]),
+        "action-tail.mjs", "action-doors.mjs", "infiltrate-reroll.mjs",
+        /* A player's waiting card's Withdraw and its state, and the run of `ask.withdraw` on the primary (2.0 line T2,
+           EXP-PL-12, 28.11.2026): imports and functions, nothing run at load. */
+        "ask-withdraw.mjs"]),
     /* The GMs' own: Room setup's Passages tab and the Class Trial console's case schema and summary; and the room action
        editors of Room setup's Facilities tab and a project's window (facility-editor.mjs, the e93 line's E93 C2). */
     gm: Object.freeze(["passages-tab.mjs", "case-trial.mjs", "case-summary.mjs", "facility-editor.mjs",

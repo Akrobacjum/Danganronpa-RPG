@@ -1196,3 +1196,10 @@ export async function handleDifficulty(payload, sender, ctx) {
 export async function handleTraitRuling(payload, sender, ctx) {
     return askTraitByCard(payload, ctx);
 }
+
+/** The run of `ask.withdraw` (2.0 line T2, EXP-PL-12): the sender withdrew its ask, so its card ends here (ask-withdraw.mjs, by `import()`: it
+    imports call-gm.mjs, and a static import from here would be one road more to keep clear of a cycle). */
+export async function handleAskWithdraw(payload, sender) {
+    const { withdrawnOnPrimary } = await import("./ask-withdraw.mjs");
+    if (!(await withdrawnOnPrimary(payload.rid, sender.id))) return { refused: "nothing was carried out: the primary GM holds no ask of the sender under that id" };
+}

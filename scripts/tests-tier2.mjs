@@ -119204,6 +119204,165 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             first: null, opened: [["", traits[0]], [WORDS, traits[1]], ["", traits[0]]]
         }), "{first: what the unanswered action answered; opened: each Dynamic window at its open [the description, the statistic proposed] - the first, the same character's next, another character's}");
     }],
+    ["E132 EXP-PL-12 - a player sees a GM ruling, the time left, and withdraws for free: on a player's browser the waiting card of a Call, of a Dynamic Action and of a statistic shows the time its request stays open and Withdraw, and reads \"A GM is reading your request.\" while a GM rules; Withdraw ends each road with nothing spent - Hope, the actions and Sanity as they were - says `DRPG.Bridge.withdrawn` once and sends `ask.withdraw` naming the request; on the primary a GM's take of the ask's card tells its asker `ruling` and the drop `waiting`, naming no GM, a withdrawal from another user ends nothing, the asker's own ends the card \"Request withdrawn.\" for everyone, and a GM's difficulty after it is not sent on (popup.mjs `showWaiting`; ask-withdraw.mjs `withdrawAsk`, `paintAskState`, `withdrawnOnPrimary`; call-gm.mjs `tellAskState`; bridge-guards.mjs `cancelRequest`; 2.0 line T2, EXP-PL-12, CALLS-09, DAY-07, 28.11.2026)", async () => {
+        /*
+         * F1-calls CALLS-09, F1-daily DAY-07, F1-blind-player EXP-PL-12 (E-PL-105, 118): the player waiting on a GM saw
+         * "Waiting on the GM..." with no time, never learnt that a GM had taken the card, and could not withdraw - up to 180
+         * s, a Call 300 s. Two halves, read on this primary.
+         *
+         * The player's. Driven on this GM as a player's browser, as E132 CALLS-03 drives it: `game.user.isGM` reads false
+         * for each road, a stand-in Gamemaster (tests-kit `standInUser`) is the GM connected that the bridge asks, and every
+         * packet to it is held here (read, not sent). Three roads: an Experience Call (calls.mjs `spendHopeCall`), a
+         * Dynamic Action that costs its action (action-dynamic.mjs `performDynamic`, its window a DialogV2.wait answered
+         * here), and the statistic of a Search proposed off Eye (trait-ruling.mjs `traitFor`). On each the waiting card is
+         * read once it is up, the state a primary's packet brings is painted on it (`paintAskState`, what the waiter hands
+         * an `ask.state` from the primary: R9030 holds that hand-off), and Withdraw is pressed. Hope is set to 3 for the
+         * Call where it was lower, and one action given where none was left, and both put back.
+         *
+         * The primary's. A connected player's Dynamic ask handed to the bridge's runner with the user Foundry names puts
+         * its card up; the packets this browser sends are read as they leave; this GM's take of the card and its drop; a
+         * withdrawal of that ask from this GM's own user, who did not ask it; the asker's own; then a GM's difficulty for
+         * it. The card is deleted after, its row with it. Red at 577c96f: no time, no Withdraw, no state.
+         */
+        needs(env.primaryGm());
+        needs(world.atLeast("connectedPlayersWithCharacter", 1), "the ask of the primary's half is a player's, and Foundry names only a connected one");
+        const [actor] = cast(1);
+        const { ACTIONS } = await import("./config.mjs");
+        const { spendHopeCall } = await import("./calls.mjs");
+        const { performDynamic } = await import("./action-dynamic.mjs");
+        const T = await import("./trait-ruling.mjs");
+        const W = await import("./ask-withdraw.mjs").catch(() => null);
+        const { actionsLeft, canPayFor, setActions } = await import("./actions.mjs");
+        const searchTraits = ACTIONS.search.traits ?? [];
+        must(searchTraits.length > 1 && searchTraits.includes("eye"), "Search lists one statistic here - this would measure nothing");
+        const off = searchTraits.find(t => t !== "eye");
+        const D = foundry.applications.api.DialogV2;
+        const own = Object.getOwnPropertyDescriptor(D, "wait");
+        const socket = game.socket, ownEmit = Object.getOwnPropertyDescriptor(socket, "emit"), send = socket.emit;
+        const notes = ui.notifications, ownInfo = Object.getOwnPropertyDescriptor(notes, "info"), info = notes.info;
+        const gm = standInUser({ name: "E132 EXP-PL-12 GM", role: CONST.USER_ROLES.GAMEMASTER, active: true, sorts: "last" });
+        const held = [], told = [];
+        const hopeWas = actor.system.resources.hope.value, actionsWas = actionsLeft(actor);
+        const read = { roads: {} };
+        const waitingCard = () => [...document.querySelectorAll(".drpg-popup")].find(c => c.querySelector("button[data-drpg-withdraw]") && !c.classList.contains("leaving")) ?? null;
+        const resources = () => [actor.system.resources.hope.value, actionsLeft(actor), actor.system.resources.stress.value];
+        game.users.set(gm.id, gm);
+        try {
+            if (hopeWas < 3) await actor.update({ "system.resources.hope.value": 3 });
+            if (!canPayFor(actor, 1)) await setActions(actor, 1);
+            socket.emit = function (event, packet, options, ...rest) {
+                if ((options?.recipients ?? []).includes(gm.id)) { held.push(packet); return undefined; }
+                return send.call(this, event, packet, options, ...rest);
+            };
+            notes.info = function (text, ...rest) { told.push(String(text)); return info.call(this, text, ...rest); };
+            D.wait = async cfg => {
+                const root = document.createElement("div");
+                if (cfg?.content instanceof HTMLElement) root.append(cfg.content);
+                else root.innerHTML = String(cfg?.content ?? "");
+                const field = root.querySelector("[name=request]");
+                if (!field) return null;
+                field.value = "E132 EXP-PL-12 I climb out of the window";
+                const button = (cfg?.buttons ?? []).find(b => b.action === "send");
+                return button?.callback ? button.callback(null, null, { element: root }) : null;
+            };
+            const road = async (name, run) => {
+                const before = resources();
+                const heldBefore = held.length, toldBefore = told.length;
+                Object.defineProperty(game.user, "isGM", { value: false, configurable: true });
+                let answer;
+                try {
+                    const going = run();
+                    const up = await until(() => Boolean(waitingCard()), 5000);
+                    const card = waitingCard();
+                    const rid = card?.querySelector("button[data-drpg-withdraw]")?.dataset.drpgWithdraw ?? null;
+                    const line = () => card?.querySelector("[data-drpg-ask]")?.textContent.trim() ?? null;
+                    const timer = card?.querySelector("[role=timer][data-drpg-expires]")?.textContent.trim() ?? "";
+                    const waitingWords = line();
+                    W?.paintAskState?.(rid, "ruling");
+                    const ruling = line();
+                    W?.paintAskState?.(rid, "waiting");
+                    const back = line() === waitingWords;
+                    card?.querySelector("button[data-drpg-withdraw]")?.click();
+                    answer = await Promise.race([going, new Promise(r => setTimeout(() => r("still waiting"), 8000))]);
+                    const asked = held.slice(heldBefore);
+                    read.roads[name] = {
+                        up, time: /\d+:\d\d/.test(timer), ruling, back,
+                        sentUnder: asked.filter(p => p?.action !== "ask.withdraw").some(p => p?.requestId === rid && rid !== null),
+                        withdrawn: asked.filter(p => p?.action === "ask.withdraw").map(p => p.rid === rid),
+                        told: told.slice(toldBefore).filter(t => t === game.i18n.localize("DRPG.Bridge.withdrawn")).length,
+                        answer: answer ?? null, same: stableJson(resources()) === stableJson(before), gone: !waitingCard()
+                    };
+                } finally {
+                    delete game.user.isGM;
+                }
+                await settle(300);
+            };
+            await road("call", () => spendHopeCall(actor, "experience", { note: "E132 EXP-PL-12 a Call withdrawn" }));
+            await road("dynamic", () => performDynamic(actor, { free: false }));
+            await road("statistic", () => T.traitFor(actor, { kind: "action", key: "search" }, { proposed: off, note: "E132 EXP-PL-12 how", isGm: false }));
+        } finally {
+            delete game.user.isGM;
+            if (own) Object.defineProperty(D, "wait", own); else delete D.wait;
+            if (ownEmit) Object.defineProperty(socket, "emit", ownEmit); else delete socket.emit;
+            if (ownInfo) Object.defineProperty(notes, "info", ownInfo); else delete notes.info;
+            game.users.delete(gm.id);
+            T.keepWords?.(actor.id, { kind: "action", key: "dynamic" }, {}, true);
+            T.keepWords?.(actor.id, { kind: "action", key: "search" }, {}, true);
+            if (actor.system.resources.hope.value !== hopeWas) await actor.update({ "system.resources.hope.value": hopeWas });
+            if (actionsLeft(actor) !== actionsWas) await setActions(actor, actionsWas);
+            await settle(300);
+            for (const node of [...document.querySelectorAll(".drpg-popup")]) node.dispatchEvent(new CustomEvent("drpg-dismiss", { detail: { instant: true } }));
+        }
+        const RULING = game.i18n.localize("DRPG.Bridge.askRuling");
+        const road = { up: true, time: true, ruling: RULING, back: true, sentUnder: true, withdrawn: [true], told: 1, answer: null, same: true, gone: true };
+        equal(stableJson(read.roads), stableJson({ call: road, dynamic: road, statistic: road }),
+            "{each road: up: its waiting card came; time: it shows m:ss; ruling: its line while a GM rules; back: its words again after; sentUnder: the ask went under the card's id; withdrawn: the ask.withdraw packets [naming that id]; told: DRPG.Bridge.withdrawn said; answer: what the road answered; same: Hope, actions and Sanity as before; gone: the card closed}");
+
+        const { player, theirs } = playerAndCharacters();
+        const G = await import("./bridge-guards.mjs");
+        const B = await import("./gm-bridge.mjs");
+        const C = await import("./call-gm.mjs");
+        const S = await import("./gm-stores.mjs");
+        const { cardFlag, contentOf } = await import("./secret.mjs");
+        const me = game.user.id;
+        const judged = (action, fields, from, requestId = null) =>
+            G.judge(B.BRIDGE_ACTIONS, { action, ...(requestId ? { requestId } : {}), ...fields }, from, { send: () => {} });
+        const seen = new Set(game.messages.map(m => m.id));
+        const created = [], states = [];
+        const hook = Hooks.on("createChatMessage", m => { if (!seen.has(m.id)) created.push(m); });
+        const primary = {};
+        try {
+            socket.emit = function (event, packet, options, ...rest) {
+                if (packet?.action === "ask.state") states.push([packet.rid, packet.state, packet.userId === player.id, stableJson(options?.recipients ?? []) === stableJson([player.id]), Object.keys(packet).sort().join()]);
+                return send.call(this, event, packet, options, ...rest);
+            };
+            const rid = foundry.utils.randomID(16);
+            await judged("dynamic.difficulty", { actorId: theirs.id, description: "E132 EXP-PL-12 a card withdrawn", actorName: theirs.name, room: null }, player.id, rid);
+            must(await until(() => created.length > 0, 5000), "the ask put no card up - this would measure nothing");
+            const card = created[0];
+            await C.claimOnPrimary(card.id, "take", me);
+            await C.claimOnPrimary(card.id, "drop", me);
+            primary.states = states.map(([id, state, ...rest]) => [id === rid, state, ...rest]);
+            const settled = () => Boolean(cardFlag(game.messages.get(card.id), "settled"));
+            await judged("ask.withdraw", { rid }, me);
+            await settle(500);
+            primary.forged = settled();
+            await judged("ask.withdraw", { rid }, player.id);
+            primary.own = await until(settled, 3000);
+            primary.line = [...contentOf(game.messages.get(card.id)).matchAll(/data-drpg-line="([^"]+)"/g)].map(m => m[1]);
+            primary.after = await B.answerDynamic(rid, player.id, { tier: 1, trait: "eye" }, card.id);
+        } finally {
+            Hooks.off("createChatMessage", hook);
+            if (ownEmit) Object.defineProperty(socket, "emit", ownEmit); else delete socket.emit;
+            for (const message of created) await message.delete().catch(() => {});
+            await settle(300);
+            for (const message of created) if (S.ruledCardStore.has(message.id)) await S.ruledCardStore.drop(message.id);
+        }
+        equal(stableJson(primary), stableJson({
+            states: [[true, "ruling", true, true, "action,rid,state,userId"], [true, "waiting", true, true, "action,rid,state,userId"]],
+            forged: false, own: true, line: ["DRPG.Bridge.settledWithdrawn"], after: false
+        }), "{states: the ask.state packets this primary sent [for that ask, the state, to its asker, to the asker alone, its fields] at the take and the drop; forged: the card ended after another user's withdrawal; own: it ended after the asker's; line: its lines by key; after: a GM's difficulty sent on after it}");
+    }],
 ];
 
 // `drawnForPlayer` for the grid (E33 C7): a drawn crisis roll goes through the suite's one road to a draw (tests-grid.mjs `drawnAct`).

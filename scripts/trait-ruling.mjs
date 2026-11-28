@@ -77,7 +77,7 @@
  * `rulePickTrait`, settled), so the answer, the card's line ("Approved automatically.") and the
  * ruling it keeps (`auto: true`) are the ones a press makes; on a GM's own browser no window opens.
  */
-import { TRAITS, CRISIS_ACTIONS, MURDER_OPENING, CLEANUP, ACTIONS, INFILTRATE } from "./config.mjs";
+import { TRAITS, CRISIS_ACTIONS, MURDER_OPENING, CLEANUP, ACTIONS, INFILTRATE, TIMING } from "./config.mjs";
 import { pendingCalls } from "./call-effects.mjs";
 import { allProjects } from "./projects.mjs";
 import { esc, warn } from "./utils.mjs";
@@ -322,16 +322,19 @@ export function keptWords(actorId, spec) {
     return kept ? { ...kept } : null;
 }
 
-/** A player's client: the request, and the notice that stays up while a GM reads the thread. */
+/** A player's client: the request, and the notice that stays up while a GM reads the thread - with the ask's clock and
+    Withdraw since 2.0, the ask sent under its id (line T2, EXP-PL-12; ask-withdraw.mjs). Every caller pays after the pick,
+    so a withdrawal, which answers null as a request not carried out does, gives nothing back and keeps the words. */
 async function askGms(actor, { kind, key, variant = null }, { proposed = null, note = "", onPass = null } = {}) {
     const { showWaiting } = await import("./popup.mjs");
-    const waiting = showWaiting(game.i18n.localize("DRPG.TraitRuling.waiting"), game.i18n.localize("DRPG.TraitRuling.title"));
+    const { waitingFor } = await import("./ask-withdraw.mjs");
+    const waiting = showWaiting(game.i18n.localize("DRPG.TraitRuling.waiting"), game.i18n.localize("DRPG.TraitRuling.title"), waitingFor(TIMING.rulingMs));
     let answer = null;
     try {
         // Never from a GM's client, which `traitFor` sends to its own window: the packet would go to itself (R6).
         if (game.user?.isGM) return null;
         const { requestTraitRuling } = await import("./gm-bridge.mjs");
-        const res = await requestTraitRuling({ actorId: actor.id, kind, key, variant, proposed, note });
+        const res = await requestTraitRuling({ actorId: actor.id, kind, key, variant, proposed, note }, { requestId: waiting.requestId });
         keepWords(actor.id, { kind, key }, { proposed, note }, res.ok);
         // `false` is the GM's Refuse; a request not carried out has been told already, by the bridge.
         if (res.ok && res.value === false) ui.notifications.info(game.i18n.localize("DRPG.TraitRuling.refused"));

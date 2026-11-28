@@ -38,7 +38,7 @@ import {
 } from "./utils.mjs";
 import { forgetCallYes, sayNotDone, gmOnline, noteCallYes } from "./bridge-guards.mjs";
 import { contentOf, cardFlag, cardMeta } from "./secret.mjs";
-import { SOCKET_EVENT, ACTION_DONE, ACTION_CARD_TAKEN } from "./bridge-wire.mjs";
+import { SOCKET_EVENT, ACTION_DONE, ACTION_CARD_TAKEN, ACTION_ASK_STATE } from "./bridge-wire.mjs";
 import { drpgWindow, tipAttr } from "./ui-kit.mjs";
 
 /** The request a call on the GM names when its caller names none (`DRPG.Bridge.what.gm.call`). */
@@ -390,13 +390,24 @@ function heldAskMaps() {
     return [callAsks, dynamicAsks, traitAsks, observeAsks];
 }
 
-/** The ask this primary holds under `requestId` for `userId`, with its map, or null. */
-function heldAskOf(requestId, userId) {
-    for (const asks of heldAskMaps()) {
+/** The ask this primary holds under `requestId` for `userId`, with its map, or null. Exported, with `maps` a test's (R9029),
+    for ask-withdraw.mjs `askToWithdraw` (2.0 line T2, EXP-PL-12). */
+export function heldAskOf(requestId, userId, maps = heldAskMaps()) {
+    for (const asks of maps) {
         const held = asks.get(requestId ?? "");
         if (held && held.userId === userId) return { asks, held };
     }
     return null;
+}
+
+/** Tell the asker of the ask held on this card that a GM took the card ("ruling") or let it go ("waiting"): primary -> player,
+    `ask.state`, which names no GM, for a Call's, a Dynamic Action's and a statistic's ask; bridge-guards.mjs `createWaiter`
+    takes it from the primary alone (2.0 line T2, EXP-PL-12, 28.11.2026). Run where the claim is the primary's. */
+function tellAskState(messageId, state) {
+    if (!messageId || !game.user?.isGM) return;
+    for (const asks of [callAsks, dynamicAsks, traitAsks]) for (const [rid, held] of asks) {
+        if (held.messageId === messageId && held.userId) game.socket.emit(SOCKET_EVENT, { action: ACTION_ASK_STATE, rid, userId: held.userId, state }, { recipients: [held.userId] });
+    }
 }
 
 /**
@@ -1090,7 +1101,7 @@ export function releaseClaimsOf(userId) {
     import("./gm-stores.mjs").then(async ({ ruledCardStore }) => {
         const held = Object.entries(ruledCardStore.entries() ?? {}).filter(([, row]) => row?.pending && row.by === userId).map(([id]) => id);
         if (held.length) await ruledCardStore.dropMany(held);
-        for (const messageId of new Set([...freed, ...held])) expiryAfterClaim(messageId);
+        for (const messageId of new Set([...freed, ...held])) { expiryAfterClaim(messageId); tellAskState(messageId, "waiting"); }
     }).catch(err => debug("Could not drop a leaving GM's claims", err));
 }
 
@@ -1125,7 +1136,7 @@ export async function releaseOwnClaims({
     if (!own.length) return [];
     if (primary ?? isPrimaryGm()) {
         await rows.dropMany(own);
-        for (const id of own) expiryAfterClaim(id);
+        for (const id of own) { expiryAfterClaim(id); tellAskState(id, "waiting"); }
         return own;
     }
     const askCardClaim = drop ?? (await import("./bridge-asks.mjs")).askCardClaim;
@@ -1185,6 +1196,8 @@ export async function claimOnPrimary(messageId, step, by, { store = null, held =
         if (step !== "done" || !message) {
             if (own) await ruledCardStore.drop(messageId);
             expiryAfterClaim(messageId);
+            // Its asker waits again: no GM holds the card (EXP-PL-12).
+            if (own) tellAskState(messageId, "waiting");
             return { taken: false, why: message ? "dropped" : "gone", by };
         }
         if (!row || own) await ruledCardStore.patch(messageId, { by, at: serverNow(), pending: false });
@@ -1204,6 +1217,8 @@ export async function claimOnPrimary(messageId, step, by, { store = null, held =
     await ruledCardStore.patch(messageId, { by, at, pending: true, from: from && from !== by ? from : null });
     if (!store) watchClaimHold(messageId, by, at);
     if (from && from !== by) tell(messageId, from, by);
+    // Its asker is told that a GM is reading it, naming none (2.0 line T2, EXP-PL-12; `tellAskState`).
+    tellAskState(messageId, "ruling");
     return { taken: true, by };
 }
 
@@ -1245,7 +1260,9 @@ function watchClaimHold(messageId, by, at) {
     setTimeout(() => {
         import("./gm-stores.mjs").then(({ ruledCardStore }) => {
             const row = ruledCardStore.get(messageId);
-            if (row?.pending && row.by === by && row.at === at) expiryAfterClaim(messageId);
+            if (!(row?.pending && row.by === by && row.at === at)) return;
+            expiryAfterClaim(messageId);
+            tellAskState(messageId, "waiting");
         }).catch(err => debug("A card's claim ran out, and the card's end could not be read", err));
     }, TIMING.claimHoldMs + 1000);
 }

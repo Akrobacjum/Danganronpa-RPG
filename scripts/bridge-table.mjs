@@ -29,7 +29,7 @@ import {
     guardArmLiving, guardArmNotHeld, guardArmBuyer, guardArmOtherCharacter, guardArmHopeCallAllowed, guardArmBuyerHope,
     guardArmGmYes, guardDespairDelta, guardDespairPool, guardTraitRuling, guardRollAuthor, guardCallProgress,
     guardProjectFrozen, guardProjectRoom, guardSabotageRoom, guardCardSpeaker, guardCardReaders, table, tokenActorOf,
-    remnantSourceOf, knownSender, notSpectator, senderNotSpectator, owns, ownsActorAt, gmOnly, playersOnly, canSeeProject, inRange, as, pick, judge,
+    remnantSourceOf, guardAskWithdraw, knownSender, notSpectator, senderNotSpectator, owns, ownsActorAt, gmOnly, playersOnly, canSeeProject, inRange, as, pick, judge,
     bridgeRequest
 } from "./bridge-guards.mjs";
 import {
@@ -49,7 +49,7 @@ import {
     ACTION_OPENING_RESULT, ACTION_CLEANUP, ACTION_BETRAYAL, ACTION_PARK_MURDER, ACTION_CUB_ABILITY, ACTION_CUB_ANSWER, ACTION_BRIBE_OFFER, ACTION_BRIBE_ANSWER, ACTION_LOOT,
     ACTION_NOTE_SAVE, ACTION_ROLL_BOOKMARK, ACTION_REROLL, ACTION_CARD, ACTION_CARD_CLAIM, ACTION_BULLET_GIVE, ACTION_FACILITY_USE, ACTION_DASH,
     ACTION_TAIL_START, ACTION_DOOR_SHUT, ACTION_DOOR_FORCE, ACTION_DOOR_PICK, ACTION_WATCH_DECLARE, ACTION_DOOR_KNOCK,
-    ACTION_LISTEN_EAVESDROP, ACTION_LISTEN_STOP, ACTION_LISTEN_ECHOES, ACTION_MASK_REVEAL, ACTION_MASK_VEIL, ACTION_HIDE_START, ACTION_DEAD_SPECTATOR
+    ACTION_LISTEN_EAVESDROP, ACTION_LISTEN_STOP, ACTION_LISTEN_ECHOES, ACTION_MASK_REVEAL, ACTION_MASK_VEIL, ACTION_HIDE_START, ACTION_DEAD_SPECTATOR, ACTION_ASK_WITHDRAW
 } from "./bridge-wire.mjs";
 import {
     handleObserveTarget, handleCleanupTraces, handleObserveResolve, handleAnalyzeResolve, handleAdvancement,
@@ -60,7 +60,7 @@ import {
     handleBetrayal, handleCleanup, handleCubAbility, handleCubAnswer, handleBribeOffer, handleBribeAnswer, handleHopeCall, handleCallYes, handleDynamicAnswer,
     handleRulingExpired, handleRulingReceived, handleDifficulty, handleTraitRuling, handleFacilityUse, handleDash,
     handleTailStart, tailRolls, handleDoorShut, handleDoorForce, handleDoorPick, pickRolls, handleWatchDeclare, handleDoorKnock,
-    handleEavesdrop, handleEavesdropStop, handleEchoes, handleMaskReveal, handleMaskVeil, handleHideStart, handleDeadSpectator
+    handleEavesdrop, handleEavesdropStop, handleEchoes, handleMaskReveal, handleMaskVeil, handleHideStart, handleDeadSpectator, handleAskWithdraw
 } from "./bridge-runs-acts.mjs";
 import {
     handleProgress, handleShare, TRACE_OF_ROLL, handleRemnant, traceBandOf, progressOf, repairOf, handleTieTrace,
@@ -1649,8 +1649,7 @@ export const BRIDGE_ACTIONS = table({
     /*
      * ONE RULING PER CARD (E18 C3, 19.10.2026; audits S11-14, S17-22). Every GM's click on a card's
      * button is claimed here first, and the primary decides in one step whether that card is free
-     * (`claimOnPrimary`). A GM's alone: the buttons are drawn for GMs, and a player's claim would
-     * hold a card away from them. A take-over since 2.0: its `step` claim (line T2, CALLS-01).
+     * (`claimOnPrimary`). A GM's alone: the buttons are drawn for GMs, and a player's claim would hold a card away from them. A take-over since 2.0: its `step` claim (line T2, CALLS-01).
      */
     [ACTION_CARD_CLAIM]: {
         label: "DRPG.Bridge.what.card.claim",
@@ -1663,7 +1662,6 @@ export const BRIDGE_ACTIONS = table({
             step: "\"take\" before the ruling runs, \"done\" once it was made (the row is written), \"drop\" when it was not; done and drop end only the sender's own claim, and write nothing once another GM holds the card; \"takeover\" (2.0 line T2, CALLS-01) takes only a claim another GM holds, and the primary tells that GM (card.takenOver)"
         }
     },
-
     /*
      * GIVE A TRUTH BULLET, MADE ON THE PRIMARY (E38; E60's Open 50; D153). A give from a Remnant made its copy on
      * whichever GM opened the window, and an Observe's find makes its on the primary, each in the receiver's finds'
@@ -1684,6 +1682,11 @@ export const BRIDGE_ACTIONS = table({
             whoId: "the receiver, read on the primary by handleGiveBullet; giveBullet makes the copy in that receiver's finds' queue",
             bullet: "the GM's own bullet payload, carried whole: gmOnly, so it is a GM's words and not a player's claim"
         }
+    },
+    // A player's Withdraw on a waiting card (2.0 line T2, EXP-PL-12): ends only the sender's own ask held on a card (ask-withdraw.mjs).
+    [ACTION_ASK_WITHDRAW]: {
+        label: "DRPG.Bridge.what.ask.withdraw", guards: [knownSender, guardAskWithdraw], sanitize: pick({ rid: as.id }),
+        run: handleAskWithdraw, answer: "none", quiet: true
     }
 });
 

@@ -17,7 +17,7 @@
  * shared layer alone.
  */
 
-import { MODULE_ID, TRAITS, DYNAMIC_THRESHOLDS } from "./config.mjs";
+import { MODULE_ID, TRAITS, DYNAMIC_THRESHOLDS, TIMING } from "./config.mjs";
 import { spendAction } from "./actions.mjs";
 import { roomOfActor } from "./movement.mjs";
 import { callGm, promptForRequest } from "./gm-bridge.mjs";
@@ -98,16 +98,17 @@ export async function performDynamic(actor, options) {
     };
 
     // The sticky "waiting" card (COMM-04), raised before the fork so the GM
-    // guard stays within sight of the bridge call (R6).
+    // guard stays within sight of the bridge call (R6). With the ask's clock and Withdraw since 2.0, the ask sent under its id
+    // (line T2, EXP-PL-12; ask-withdraw.mjs): the action is paid after the difficulty, so a withdrawal gives nothing back.
     const waiting = game.user.isGM ? () => {} : (await import("./popup.mjs"))
-        .showWaiting(game.i18n.localize("DRPG.Action.dynamicWaiting"), def.label);
+        .showWaiting(game.i18n.localize("DRPG.Action.dynamicWaiting"), def.label, (await import("./ask-withdraw.mjs")).waitingFor(TIMING.rulingMs));
     let picked;
     try {
         if (game.user.isGM) {
             picked = await askDynamicDifficulty(request);
         } else {
             const { requestDynamicDifficulty } = await import("./gm-bridge.mjs");
-            const res = await requestDynamicDifficulty(request);
+            const res = await requestDynamicDifficulty(request, undefined, { requestId: waiting.requestId });
             keepWords(actor.id, DYNAMIC_WORDS, { text: description, proposed }, res.ok);
             picked = res.ok ? res.value : null;
         }

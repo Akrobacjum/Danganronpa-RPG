@@ -271,6 +271,8 @@ const REGRESSIONS = [
             "note.save": "the player's own notebook (a User flag), which a Spectator may keep: no character acts, nothing of the game moves",
             "ruling.expired": "a card's bookkeeping on the primary: the asker's own ruling card ends, no character acts",
             "ruling.received": "a card's bookkeeping on the primary: the asker's own ruling card is marked seen, no character acts",
+            // 2.0 line T2, EXP-PL-12 (28.11.2026).
+            "ask.withdraw": "a card's bookkeeping on the primary: the asker's own ask ends and its card with it, no character acts",
             "action.friskAnswer": "the answer to a Frisk aimed at the sender's character; a Spectator is no Frisk's target (movement.mjs `othersInRoom` leaves it out), and the Frisk itself is guarded",
             "searchTokens.returnPlant": "gives back what a guarded take handed out (`guardPlantReturn` holds it to the same user), nothing new",
             "searchTokens.returnToken": "gives back a token a guarded spend took (`guardTokenReturn` holds it to the same user), nothing new"
@@ -465,7 +467,7 @@ const REGRESSIONS = [
             "voice.mjs": "room membership, keyed by the sender",
             "voice-client.mjs": "room membership, keyed by the sender",
             // E31 review: it passed on text elsewhere in the file (the runner, the guards); this is its own reason.
-            "bridge-guards.mjs": "the answers to this client's own requests: taken only from a GM, for its own pending id; acts on no actor",
+            "bridge-guards.mjs": "the answers to this client's own requests: taken only from a GM, for its own pending id; and since 2.0 (line T2, EXP-PL-12) an ask's state, taken only from the primary GM by Foundry's sender, addressed to this user, for its own pending id; acts on no actor",
             // E79 C1 (1.2.79): `payload.userId` is the copy's address, compared with this user's own id; R555 holds the rule (`passageRowsRefusal`).
             "passages.mjs": "a player's copy of the secret passages: taken only from the primary GM, addressed to this user, and cut to the characters it stamps; acts on no actor",
             // E79 C4 (1.2.79): `payload.userId` is the address, `sceneId` and `tokenId` only name the room the line says; `sentBackRefusal` holds the rule.

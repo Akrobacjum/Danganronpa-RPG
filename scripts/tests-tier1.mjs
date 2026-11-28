@@ -70637,7 +70637,7 @@ const INVARIANTS = [
         read.roads = [
             /promptForRequest\(\{[^;]*\bvalue:\s*keptWords\(actor\.id, DYNAMIC_WORDS\)\?\.text/.test(dynamic),
             /traitFieldHtml\(actor, def\.traits, \{[^}]*\bkeep:\s*DYNAMIC_WORDS/.test(dynamic),
-            /requestDynamicDifficulty\(request\);\s*keepWords\(actor\.id, DYNAMIC_WORDS, \{ text: description, proposed \}, res\.ok\);/.test(dynamic),
+            /requestDynamicDifficulty\(request[^;]*\);\s*keepWords\(actor\.id, DYNAMIC_WORDS, \{ text: description, proposed \}, res\.ok\);/.test(dynamic),
             /requestTraitRuling\([^;]*\);\s*keepWords\(actor\.id, \{ kind, key \}, \{ proposed, note \}, res\.ok\);/.test(asks),
             await offers("action-search.mjs", "chooseSearchCategory"), await offers("action-tail.mjs", "performTail"),
             await offers("action-project.mjs", "proposeProjectTrait")
@@ -70650,6 +70650,164 @@ const INVARIANTS = [
             starts: ["R9027 kept", "R9027 kept", "", "R9027 prompted", ""],
             roads: [true, true, true, true, true, true, true]
         }), "{exported; store: [kept, another definition, another character, after an answer, empty words unanswered]; field: [[statistic, note] with keep, without, the store after]; windows: what four windows answered; starts: each window's words at its open; roads: [Dynamic's value, Dynamic's keep, Dynamic keeps by res.ok, askGms keeps by res.ok, Search, Tail, Project offer it]}");
+    }],
+    ["R9028 - a player's waiting card says how long the request stays open and offers Withdraw: popup.mjs `showWaiting` with `expires` draws `[role=timer][data-drpg-expires]` with `DRPG.Bridge.waitLeft`, and with `onWithdraw` a button `DRPG.Bridge.withdraw` that hands it the card's `requestId` - the id the request is sent under; its state line `[data-drpg-ask]` reads `DRPG.Bridge.askRuling` while a GM rules (ask-withdraw.mjs `paintAskState`) and its own words again after; with neither option it is drawn as before; the three roads that wait on a GM - a Call's (calls.mjs), a Dynamic Action's (action-dynamic.mjs `performDynamic`) and a statistic's (trait-ruling.mjs `askGms`) - draw it with their own clock (ask-withdraw.mjs `waitingFor`) and send their request under its id (2.0 line T2, EXP-PL-12, CALLS-09, DAY-07, 28.11.2026)", async () => {
+        /* F1-calls CALLS-09, F1-daily DAY-07, F1-blind-player EXP-PL-12: "Waiting on the GM..." had no time, no state and no
+           way out; the player sat up to 180 s (a Call 300 s). Read with no write: two cards of this test's own, drawn in this
+           page and closed (a waiting card is kept nowhere, `record: false`), the press of Withdraw handed to a recorder, and
+           the roads in the source. A time is read as one of the texts a draw up to two seconds late can show. Red at
+           577c96f: no time, no button, no id. */
+        const P = await import("./popup.mjs");
+        const { serverNow } = await import("./utils.mjs");
+        const W = await import("./ask-withdraw.mjs").catch(() => null);
+        const read = {}, pressed = [], closers = [];
+        const cardOf = words => [...document.querySelectorAll(".drpg-popup")].find(c => c.textContent.includes(words)) ?? null;
+        try {
+            const far = Math.round(serverNow() + 65000 - 300);
+            const close = P.showWaiting("R9028 waiting", "R9028", { expires: far, onWithdraw: id => pressed.push(id) });
+            closers.push(close);
+            const card = cardOf("R9028 waiting");
+            must(card, "the waiting card was not drawn - this would measure nothing");
+            const rid = typeof close?.requestId === "string" && close.requestId ? close.requestId : null;
+            const line = () => card.querySelector("[data-drpg-ask]")?.textContent.trim() ?? null;
+            const timer = card.querySelector("[role=timer][data-drpg-expires]");
+            const button = card.querySelector("button[data-drpg-withdraw]");
+            const left = time => game.i18n.format("DRPG.Bridge.waitLeft", { time });
+            read.drawn = [Boolean(rid), card.querySelector("[data-drpg-ask]")?.dataset.drpgAsk === rid, line(),
+                timer ? [Number(timer.getAttribute("data-drpg-expires")) === far, ["1:05", "1:04", "1:03"].map(left).includes(timer.textContent.trim())] : null,
+                button?.textContent.trim() ?? null];
+            button?.click();
+            await settle(50);
+            read.pressed = pressed.map(id => id === rid && rid !== null);
+            W?.paintAskState?.(rid, "ruling");
+            const ruling = line();
+            W?.paintAskState?.(rid, "waiting");
+            read.state = [ruling, line()];
+            const plain = P.showWaiting("R9028 plain", "R9028");
+            closers.push(plain);
+            const bare = cardOf("R9028 plain");
+            read.plain = bare ? [plain?.requestId ?? null, Boolean(bare.querySelector("[data-drpg-expires]")), Boolean(bare.querySelector("button[data-drpg-withdraw]")),
+                Boolean(bare.querySelector("[data-drpg-ask]"))] : null;
+            const asked = W?.waitingFor?.(4000) ?? null;
+            read.waitingFor = asked ? [Math.abs(asked.expires - (serverNow() + 4000)) < 2000, asked.onWithdraw === W.withdrawAsk] : null;
+        } finally {
+            for (const close of closers) close?.();
+            await settle(50);
+            for (const c of [...document.querySelectorAll(".drpg-popup")]) if (/R9028 (waiting|plain)/.test(c.textContent)) c.dispatchEvent(new CustomEvent("drpg-dismiss", { detail: { instant: true } }));
+        }
+        const src = async file => stripComments(await fetch(`/modules/${MODULE_ID}/scripts/${file}`).then(lfText));
+        const calls = await src("calls.mjs"), dynamic = await src("action-dynamic.mjs"), trait = await src("trait-ruling.mjs"), asks = await src("bridge-asks.mjs");
+        const sends = name => /return ask\(ACTION_\w+, \{[^}]*\}, \{[^}]*\brequestId\b[^}]*\}\);/.test(fnSource(asks, name) ?? "");
+        read.roads = [
+            /showWaiting\([^;]*waitingFor\(TIMING\.hopeCallRulingMs\)\)/.test(fnSource(calls, "showWaitingCard") ?? ""),
+            /requestHopeCallApproval\(ask, undefined, \{ requestId: waiting\.requestId \}\)/.test(fnSource(calls, "spendHopeCall") ?? ""),
+            /showWaiting\([^;]*waitingFor\(TIMING\.rulingMs\)\)/.test(fnSource(dynamic, "performDynamic") ?? ""),
+            /requestDynamicDifficulty\(request, undefined, \{ requestId: waiting\.requestId \}\)/.test(fnSource(dynamic, "performDynamic") ?? ""),
+            /showWaiting\([^;]*waitingFor\(TIMING\.rulingMs\)\)/.test(fnSource(trait, "askGms") ?? ""),
+            /requestTraitRuling\(\{[^;]*\}, \{ requestId: waiting\.requestId \}\)/.test(fnSource(trait, "askGms") ?? ""),
+            sends("requestHopeCallApproval"), sends("requestDynamicDifficulty"), sends("requestTraitRuling")
+        ];
+        equal(stableJson(read), stableJson({
+            drawn: [true, true, "R9028 waiting", [true, true], game.i18n.localize("DRPG.Bridge.withdraw")],
+            pressed: [true],
+            state: [game.i18n.localize("DRPG.Bridge.askRuling"), "R9028 waiting"],
+            plain: [null, false, false, false],
+            waitingFor: [true, true],
+            roads: [true, true, true, true, true, true, true, true, true]
+        }), "{drawn: [an id, the state line carries it, the line's words, the time [its expires, its text one of 1:05-1:03 left], the button's words]; pressed: Withdraw handed the card's id; state: the line while a GM rules and after; plain: a card with neither option [its id, a time, a button, a state line]; waitingFor: [its expires is the clock's from now, its Withdraw is withdrawAsk]; roads: [the Call's card and its ask under its id, the Dynamic's, the statistic's, and each request function sends the id]}");
+    }],
+    ["R9029 - `ask.withdraw` ends only the sender's own ask: its row in bridge-table.mjs asks `knownSender` and then bridge-guards.mjs `guardAskWithdraw`, which covers `rid`, takes `rid` as an id and nothing else, answers none and is quiet; the guard and the run read ask-withdraw.mjs `askToWithdraw(rid, sender.id)`, which finds the ask held on a card under that id for that user - not another user's, not an id nobody asked under, not an Observe's - and the guard refuses a `rid` it does not find with a reason of the closed list; its label `DRPG.Bridge.what.ask.withdraw` is in both languages (2.0 line T2, EXP-PL-12, CALLS-09, DAY-07, 28.11.2026)", async () => {
+        /* The trust model: a packet's `rid` is a claim, and a forged one - another player's ask - must end nothing. Read with
+           no write: the row as declared, `askToWithdraw` over maps of this test's own beside the primary's Observe asks (one
+           entry put in this page's memory and taken out), the guard on an id nobody asked under, and the source. The live
+           road - a card held, a forged withdrawal refused, the asker's own ending the card - is tier 2's E132 EXP-PL-12 and
+           scenario 30's 2.0 line T2 block. Red at 577c96f: no row, no guard, no askToWithdraw. */
+        const G = await import("./bridge-guards.mjs");
+        const B = await import("./gm-bridge.mjs");
+        const C = await import("./call-gm.mjs");
+        const W = await import("./ask-withdraw.mjs").catch(() => null);
+        const me = game.user.id;
+        const read = {};
+        const row = B.BRIDGE_ACTIONS["ask.withdraw"] ?? null;
+        read.row = row ? [row.label, (row.guards ?? []).map(g => (g === G.knownSender ? "knownSender" : g === G.guardAskWithdraw ? "guardAskWithdraw" : "other")),
+            [...(G.guardAskWithdraw?.covers ?? [])], row.sanitize?.fields ?? null, row.answer, Boolean(row.quiet)] : null;
+        const MINE = "R9029Mine0000001", THEIRS = "R9029Theirs00001", OBSERVE = "R9029Observe0001";
+        if (typeof W?.askToWithdraw === "function") {
+            const asks = new Map([[MINE, { userId: me, messageId: null }], [THEIRS, { userId: "R9029Other000001", messageId: null }]]);
+            C.observeAsks.set(OBSERVE, { userId: me, messageId: null });
+            try {
+                const found = (rid, who) => { const f = W.askToWithdraw(rid, who, [asks, C.observeAsks]); return f ? [f.asks === asks, f.held.userId === who] : null; };
+                read.found = [found(MINE, me), found(THEIRS, me), found("R9029NoSuchAsk01", me), found(OBSERVE, me), found(MINE, "R9029Other000001")];
+            } finally {
+                C.observeAsks.delete(OBSERVE);
+            }
+        }
+        if (typeof G.guardAskWithdraw === "function") {
+            const why = await G.guardAskWithdraw(game.user, { rid: "R9029NoSuchAsk01" }, {});
+            read.refused = [typeof why === "string" && why.length > 0, G.REASONS.includes(G.reasonOf(why))];
+        }
+        const src = async file => stripComments(await fetch(`/modules/${MODULE_ID}/scripts/${file}`).then(lfText));
+        const guards = await src("bridge-guards.mjs"), withdraw = await src("ask-withdraw.mjs").catch(() => "");
+        read.reads = [
+            /export const guardAskWithdraw = made\([\s\S]{0,300}?askToWithdraw\(payload\?\.rid, sender\?\.id\)/.test(guards),
+            /function withdrawnOnPrimary\(/.test(withdraw) && /askToWithdraw\(rid, senderId\)/.test(fnSource(withdraw, "withdrawnOnPrimary") ?? "")
+        ];
+        read.label = [];
+        for (const lang of ["en", "pl"]) {
+            const words = await fetch(`/modules/${MODULE_ID}/lang/${lang}.json`).then(r => r.json()).catch(() => null);
+            read.label.push(typeof words?.DRPG?.Bridge?.what?.["ask.withdraw"] === "string" && words.DRPG.Bridge.what["ask.withdraw"].length > 0);
+        }
+        equal(stableJson(read), stableJson({
+            row: ["DRPG.Bridge.what.ask.withdraw", ["knownSender", "guardAskWithdraw"], ["rid"], { rid: "id" }, "none", true],
+            found: [[true, true], null, null, null, null],
+            refused: [true, true],
+            reads: [true, true],
+            label: [true, true]
+        }), "{row: [label, guards, what the guard covers, sanitized fields, answer, quiet]; found: askToWithdraw [the sender's own, another user's, an id nobody asked under, an Observe's, the sender's own asked by another]; refused: the guard on an id nobody asked under [a reason, of the closed list]; reads: [the guard reads askToWithdraw on the packet's rid and the sender, the run's withdrawnOnPrimary too]; label}");
+    }],
+    ["R9030 - an ask's state is taken only from the primary GM, by Foundry's sender, for this browser's own waiting request, and Withdraw ends the wait with nothing said: bridge-guards.mjs `createWaiter` hands `onState` an `ask.state` packet's `rid` and `state` only when `fromPrimary(senderId)` - the module's waiter compares the sender with utils.mjs `primaryGmId()` - when it is addressed to this user, its `rid` is a request still waiting and its state `ruling` or `waiting`; a request is sent under the `requestId` its caller gives; `cancel(requestId)` settles that request `{ ok: false, withdrawn: true }` with no message and no report to the GMs, answers false for one not waiting, and a late answer or refusal after it is said nowhere (2.0 line T2, EXP-PL-12, 28.11.2026)", async () => {
+        /* The waiter is built as R570 builds it, with fakes for the socket and the message and the clock of this browser: a
+           primary, another GM and this player. Red at 577c96f: no state was handed on and there was no cancel. */
+        const { createWaiter } = await import("./bridge-guards.mjs");
+        const PRIMARY = "R9030Primary0000", OTHER = "R9030OtherGm0000", ME = "R9030Me000000000", RID = "R9030Ask00000001";
+        const sent = [], said = [], states = [], reported = [];
+        const waiter = createWaiter({
+            emit: (packet, to) => sent.push({ packet, to }),
+            gmIds: () => [PRIMARY, OTHER],
+            me: () => ({ id: ME, isGM: false, isPrimary: false }),
+            notify: (action, reason) => said.push(`${action} ${reason}`),
+            fromGm: id => id === PRIMARY || id === OTHER,
+            fromPrimary: id => id === PRIMARY,
+            onState: (rid, state) => states.push([rid, state]),
+            report: (text, err) => reported.push(`${text}: ${err?.message ?? err}`)
+        });
+        const read = {};
+        const asked = waiter.request("r9030.ask", {}, { settle: "reply", patient: true, timeoutMs: 3000, requestId: RID, expired: "r9030.expired" });
+        read.sentUnder = sent.at(-1)?.packet.requestId === RID;
+        const st = (extra, from) => waiter.onReply({ action: "ask.state", userId: ME, rid: RID, state: "ruling", ...extra }, from);
+        st({}, OTHER);
+        st({ userId: "R9030Someone0000" }, PRIMARY);
+        st({ rid: "R9030NoSuchAsk00" }, PRIMARY);
+        st({ state: "R9030 bogus" }, PRIMARY);
+        st({}, PRIMARY);
+        st({ state: "waiting" }, PRIMARY);
+        read.states = states.map(([rid, state]) => [rid === RID, state]);
+        read.cancel = [typeof waiter.cancel === "function" ? waiter.cancel("R9030NoSuchAsk00") : null, waiter.cancel?.(RID) ?? null, waiter.cancel?.(RID) ?? null];
+        read.answer = typeof waiter.cancel === "function" ? await asked : null;
+        st({}, PRIMARY);
+        waiter.onReply({ action: "bridge.done", userId: ME, requestId: RID, value: "R9030 late" }, PRIMARY);
+        waiter.onReply({ action: "bridge.refused", userId: ME, requestId: RID, reason: "refused", what: "r9030.ask" }, PRIMARY);
+        read.after = { states: states.length, said, sent: sent.map(s => s.packet.action), waiting: waiter.waiting(), reported };
+        const guards = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/bridge-guards.mjs`).then(lfText));
+        read.module = /fromPrimary: senderId => Boolean\(senderId\) && senderId === primaryGmId\(\)/.test(guards);
+        equal(stableJson(read), stableJson({
+            sentUnder: true,
+            states: [[true, "ruling"], [true, "waiting"]],
+            cancel: [false, true, false],
+            answer: { ok: false, withdrawn: true },
+            after: { states: 2, said: [], sent: ["r9030.ask"], waiting: 0, reported: [] },
+            module: true
+        }), "{sentUnder: the request went under its caller's id; states: what onState was handed of six packets [another GM's, another user's, an id not waiting, a state not known, the primary's ruling, its waiting]; cancel: [an id not waiting, the request, again]; answer: what the request settled; after: [states handed after the cancel, messages said, packets sent, requests waiting, throws]; module: the module's waiter reads the primary by primaryGmId}");
     }],
 ];
 

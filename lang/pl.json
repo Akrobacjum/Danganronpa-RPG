@@ -5466,7 +5466,9 @@
         "ready.open": "Pytanie graczy, czy skończyli",
         "ready.answer": "Twoja odpowiedź dla GM-a",
         "ready.end": "Zamknięcie pytania do graczy",
-        "card.takenOver": "Karta przejęta przez innego GM-a"
+        "card.takenOver": "Karta przejęta przez innego GM-a",
+        "ask.withdraw": "Wycofanie twojej prośby",
+        "ask.state": "Stan twojej prośby, od GM-a"
       },
       "notDone": "Prośba „{what}” nie została wykonana. {why}",
       "nothingSpent": "Nie tracisz akcji ani Hope.",
@@ -5595,7 +5597,13 @@
       "takeOverTooltip": "Zamyka okno tej karty u drugiego GM-a i zwalnia kartę. Potem wybierz na niej odpowiedź.",
       "takeOverNowTooltip": "Zamyka okno tej karty u drugiego GM-a i otwiera u ciebie okno tej odpowiedzi.",
       "timeLeft": "Czas na decyzję: {time}.",
-      "timeUp": "Czas minął: gracz już nie czeka na tę decyzję."
+      "timeUp": "Czas minął: gracz już nie czeka na tę decyzję.",
+      "withdraw": "Wycofaj prośbę",
+      "withdrawTooltip": "Kończy tę prośbę. Zachowujesz wszystko, co by kosztowała.",
+      "withdrawn": "Prośba wycofana. Zachowujesz wszystko, co by kosztowała.",
+      "askRuling": "GM czyta twoją prośbę.",
+      "waitLeft": "Prośba czeka jeszcze {time}.",
+      "settledWithdrawn": "Prośba wycofana."
     },
     "Tables": {
       "installed": "Tabele przedmiotów są gotowe: utworzono {created}, a {skipped} zostawiono bez zmian.",
