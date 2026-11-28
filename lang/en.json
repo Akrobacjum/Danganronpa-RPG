@@ -5671,7 +5671,24 @@
       "reviveFxUnfound": "A death nobody has found is dropped from the GMs' record.",
       "reviveFxVoice": "In voice chat they talk with the living again.",
       "reviveFxBullets": "The Truth Bullets the death destroyed do not come back.",
-      "nextReadyBy": "GM {gm} is asking the players whether they are done ({kind}). Press the button to join that question."
+      "nextReadyBy": "GM {gm} is asking the players whether they are done ({kind}). Press the button to join that question.",
+      "connectedHeading": "Players",
+      "connectedTooltip": "Each player account, the student it plays, and whether it is connected now. Only GMs see this list.",
+      "plays": "plays {actor}",
+      "noCharacter": "no student",
+      "connected": "connected",
+      "notConnected": "not connected",
+      "roomColumn": "Room",
+      "waitingColumn": "Waiting",
+      "waitingColumnTooltip": "Cards about this student that wait for a GM's decision, as the Timeline lists them.",
+      "waitingCount": {
+        "one": "{n} card about this student waits for a GM's decision.",
+        "other": "{n} cards about this student wait for a GM's decision."
+      },
+      "connectionColumn": "Connection",
+      "ownerConnection": "{player}, {state}",
+      "grantAction": "+1 action above the maximum, until this time of day ends",
+      "grantedAction": "{name} has 1 action above the maximum until this time of day ends."
     },
     "Character": {
       "notACharacter": "That only works on a character.",
@@ -6239,7 +6256,8 @@
       "awayNothing": "nothing (a reaction)",
       "awayClaimed": "(the roll claimed {claimed}; the GM's list gives {legal})",
       "grantAll": "Grant all",
-      "grantNone": "Grant none"
+      "grantNone": "Grant none",
+      "rolledByGm": "Rolled by GM {name}."
     },
     "Messenger": {
       "launcherTooltip": "Messenger",
@@ -6273,7 +6291,18 @@
         "playerTip": "Show the conversation with this player.",
         "filterTip": "Choose what the Timeline lists.",
         "inThread": "Conversation with {player}",
-        "event": "Event"
+        "event": "Event",
+        "rollKind": "Roll",
+        "rollTitle": "{actor}, {action}",
+        "rollResult": "Total {total}.",
+        "rollResultWay": "Total {total}, {result}.",
+        "told": {
+          "title": "Another GM's change",
+          "bullet": "{actor} gets the Truth Bullet “{item}” from {gm}.",
+          "states": "{gm} changed the state of {list}.",
+          "stateOf": "{name} ({state})",
+          "pool": "{gm} set the Despair of {pool} to {n}."
+        }
       }
     },
     "Voice": {
@@ -6706,7 +6735,12 @@
       "q4": "Am I open to a romance involving my character?",
       "q5": "Do I have any triggers?",
       "q6": "How do I plan to play? What are my goals?",
-      "q7": "I am planning to try: … (complex, game-changing projects)"
+      "q7": "I am planning to try: … (complex, game-changing projects)",
+      "privateTab": "My notes",
+      "privateTabTooltip": "Notes only you read. They stay on this computer, in this browser.",
+      "privateIntro": "Only you read these notes. They are saved on this computer, in this browser: another computer or browser does not have them, and no GM gets them.",
+      "privatePlaceholder": "Your theories, suspicions, and reminders",
+      "privateSaved": "Saved in this browser."
     },
     "Ready": {
       "titleNext": "The end of this time of day",

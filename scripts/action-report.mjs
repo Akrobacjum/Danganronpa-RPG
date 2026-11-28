@@ -224,7 +224,21 @@ export function rollTone(roll) {
  */
 export function rollCardFlags(def, roll) {
     // the result its player waits on, in the middle of that player's screen (notice-centre.mjs, 1.2.124)
-    return { flags: { [MODULE_ID]: { popupTitle: def.label, popupTone: rollTone(roll), popupCentre: "actionResult" } } };
+    return { flags: { [MODULE_ID]: { popupTitle: def.label, popupTone: rollTone(roll), popupCentre: "actionResult", ...rollTotalFlag(roll), ...rolledByGmFlag(roll) } } };
+}
+
+/**
+ * The roll's total as a card's flag, for the GMs' Timeline (2.0 line T2c, EXP-GM-16; messenger-gm.mjs `rollEntry`): the
+ * number the card's head already prints, kept beside its words for its readers as every flag of a private card is
+ * (secret.mjs `splitFlags`). Nothing for a roll with no total.
+ */
+export function rollTotalFlag(roll) {
+    return Number.isFinite(roll?.total) ? { rollTotal: roll.total } : {};
+}
+
+/** The GM who ran this roll's action for a player's student, as a card's flag (action-pipeline.mjs `rolledByGmHere`, EXP-GM-07), or nothing. */
+export function rolledByGmFlag(roll) {
+    return typeof roll?.rolledByGm === "string" && roll.rolledByGm ? { rolledByGm: roll.rolledByGm } : {};
 }
 
 /**
@@ -430,7 +444,10 @@ export async function report(actor, def, roll, outcome) {
                 popupTone: rollTone(roll),
                 // The result its player waits on: in the middle of that player's screen, closed by hand, and kept in the
                 // notice history as before (notice-centre.mjs, the owner's OWNER-124-NOTICES of 22.11.2026).
-                popupCentre: "actionResult"
+                popupCentre: "actionResult",
+                // Its total for the GMs' Timeline (EXP-GM-16), and the GM who ran it for the student's player (EXP-GM-07).
+                ...rollTotalFlag(roll),
+                ...rolledByGmFlag(roll)
             }
         },
         summary: {

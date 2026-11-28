@@ -167,6 +167,9 @@ export async function rollTrait(actor, drpgTrait,
            judgement reads its own number (the GM's `applyCrisisAction`, `stealFromPerson`, the bands). */
         const outcome = await throwDice(actor, drpgTrait, { remember, actionKey, context, title, byGm });
         if (outcome && shown) outcome.dc = dc;
+        // A GM's browser throwing a player's student's action (EXP-GM-07, `rolledByGmHere`): its cards say so.
+        const gmHand = outcome ? rolledByGmHere(actor) : null;
+        if (gmHand) outcome.rolledByGm = gmHand;
         // Whether this roll supports the action's own (E129): it earns no Hope (roll-draw.mjs, `ROLL_REFUNDS.supportingHope`),
         // and a refund after the dice reads it so (price.mjs `mayRefundAfterRoll`).
         if (outcome) outcome.supporting = supporting;
@@ -176,6 +179,25 @@ export async function rollTrait(actor, drpgTrait,
         if (hindrance) calls.clearOwnHindrance();
         if (supporting) calls.unshieldCalls();
     }
+}
+
+/*
+ * A GM ROLLED IT (2.0 line T2c, EXP-GM-07, split from line T2, 28.11.2026; F1-blind-gm EXP-GM-07, E-GM-22). An action a
+ * GM ran for a student a player owns left no sign of it: a player's own action roll is drawn on the primary GM's browser
+ * since E28 (roll-draw.mjs), so the roll message's author did not tell the two apart, and the only GM mark on a roll was
+ * a statistic a GM picked (`TRAIT_BY_GM`). The mark is set here, where the action's roll starts on the browser that runs
+ * the action: a GM's browser throwing the roll of a character that has a player owner (`ownerIdsOf`, a GM's own
+ * character or a Monokuma's has none) is a GM acting for that player - a player's action never runs `rollTrait` on a GM's
+ * browser (its roll is drawn there through the bridge, not thrown here), and a Reroll replays through roll-draw.mjs, not
+ * this function. The outcome carries the GM's id as `rolledByGm`; the action's cards carry it in their flags
+ * (action-report.mjs `rollCardFlags`, `report`), and each reader draws "Rolled by GM {name}." from it only on a card a
+ * GM wrote (private-rolls.mjs `rolledByGmOf`): a flag a player's card carries is a claim, and is not drawn. A result card
+ * that is not built from `rollCardFlags` or `report` (a Stage 6 clean-up's, a crisis action's) carries no mark: read
+ * 28.11.2026, not covered. Pure but for the defaults. R9064.
+ */
+export function rolledByGmHere(actor, { user = game.user } = {}) {
+    if (!actor || !user?.isGM) return null;
+    return ownerIdsOf(actor).length ? user.id : null;
 }
 
 /** " (needed N)" after a total written into a card's own line - a concealment's (E51 C1), "" with no number. */

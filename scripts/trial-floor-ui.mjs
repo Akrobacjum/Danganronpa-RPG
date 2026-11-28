@@ -231,7 +231,9 @@ export async function startClassTrial() {
  */
 async function waitingFirst() {
     const [{ waitingCards }, { waitingObserves }] = await Promise.all([import("./messenger-gm.mjs"), import("./observe.mjs")]);
-    const rows = [...waitingCards(), ...waitingObserves()];
+    // The console's own reading of "Waiting" (messenger-gm.mjs `waitingCards`, 2.0 line T2c EXP-GM-17), each card by its player.
+    const cards = waitingCards().map(card => ({ who: game.users.get(card.userId)?.name ?? "?", text: card.text }));
+    const rows = [...cards, ...waitingObserves()];
     if (!rows.length) return true;
     const answer = await drpgWindow({
         title: game.i18n.localize("DRPG.Floor.startTrial"),

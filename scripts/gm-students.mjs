@@ -26,7 +26,7 @@
  */
 
 import { studentActors, isMonokuma, isNotInClass, isSpectator, markFromSheet, setMonokuma, setNotInClass, setSpectator } from "./monokuma.mjs";
-import { error, plural, esc, wholeNumber, listOf } from "./utils.mjs";
+import { error, plural, esc, wholeNumber, ownerIdsOf, listOf } from "./utils.mjs";
 import { confirmUndo } from "./undo-confirm.mjs";
 import { stepper, drpgWindow, dataTable, iconButton, roleButton, tipAttr, tipText } from "./ui-kit.mjs";
 import { keepLive, alreadyOpen, handOff, RAISED } from "./live.mjs";
@@ -34,7 +34,7 @@ import { crossingStore, offerStore } from "./gm-stores.mjs";
 import { roomPhrase } from "./rooms.mjs";
 import { isDeadWatcher, spectatorForTheDead } from "./spectator-dead.mjs";
 import { isDeadForGm } from "./settings.mjs";
-import { actionsLeft, actionsMax, hasFreeMove } from "./actions.mjs";
+import { actionsLeft, actionsMax, hasFreeMove, freeActionsLeft, grantFreeActions } from "./actions.mjs";
 // The column "Motives", last (2.0 line T5, D2-23): drawn and wired by motives-ui.mjs, which reaches no file of this family.
 import { motiveColumn, motiveCell, wireMotiveColumn } from "./motives-ui.mjs";
 import { motivesEnabled } from "./motives.mjs";
@@ -89,9 +89,11 @@ function motivesColumnOf(columns, rows, students) {
 /*
  * THE TABLE, REBUILDABLE. Everything above is a function of the world now,
  * so this can be called again in place while the window stays open.
+ * Exported for R9061 and R9062 (2.0 line T2c, 28.11.2026), which draw it from stand-ins.
  */
-function aliveTableHtml({ roster, others, stateOf, donors, isCrimeSilenced, invited = () => false, resourceValue, resourceMax, levelUp, offers,
-    purseOf = () => 0, cubHopeTotal = a => resourceValue(a, "hope"), deadSilenced = () => false, micCell = () => "" }) {
+export function aliveTableHtml({ roster, others, stateOf, donors, isCrimeSilenced, invited = () => false, resourceValue, resourceMax, levelUp, offers,
+    purseOf = () => 0, cubHopeTotal = a => resourceValue(a, "hope"), deadSilenced = () => false,
+    placeOf = () => null, waitingFor = () => 0, ownersOf = () => [], micCell = () => "" }) {
     /*
      * THE THREE MONOCUB COLUMNS ARE ALWAYS THERE (E49 A3, 11.11.2026; the owner's "Tak, naprawiamy oba" and the rule of
      * 10.11: a state changes look, never layout). From D-F4 to E49 they appeared the moment somebody accepted the
@@ -153,13 +155,13 @@ function aliveTableHtml({ roster, others, stateOf, donors, isCrimeSilenced, invi
         const free = acts && hasFreeMove(a);
         const moveWord = L(free ? "DRPG.Actions.freeMoveAvailable" : "DRPG.Actions.freeMoveSpent");
         const economy = !acts ? { actions: "-", freeMove: "-" } : {
-            actions: `<span data-drpg-actions-left="${actionsLeft(a)}">${actionsLeft(a)} / ${actionsMax(a)}</span>`,
+            actions: `<span data-drpg-actions-left="${actionsLeft(a)}">${actionsLeft(a)} / ${actionsMax(a)}</span>${aboveMaximumHtml(a, state === "alive")}`,
             freeMove: `<i class="${free ? "fa-solid" : "fa-regular"} fa-shoe-prints drpg-pix-foot" data-drpg-free-move="${free ? "yes" : "no"}"`
                 + ` role="img" aria-label="${esc(moveWord)}" data-tooltip="${esc(moveWord)}"></i>`
         };
 
         return {
-            id: a.id, ...shared(a), ...cubCells, ...economy,
+            id: a.id, ...shared(a), ...cubCells, ...economy, ...whereAndWhoCells(a, { placeOf, waitingFor, ownersOf }),
             // Its name, not its options' words (E48 K4: a11y.mjs no longer names a select by what it holds).
             state: `<select name="state.${a.id}" aria-label="${esc(`${L("DRPG.Panel.stateColumn")} - ${a.name}`)}"${tipAttr("DRPG.Tips.Gm.stateTooltip")}>
                 ${(state === "unfound" ? ["alive", "unfound", "dead", "monocub"] : ["alive", "dead", "monocub"]).map(sKey =>
@@ -190,7 +192,7 @@ function aliveTableHtml({ roster, others, stateOf, donors, isCrimeSilenced, invi
      * Monocub cells and nothing to do, since neither is a student (E24's gates: no death, no ballot, no invitation).
      * Without the row, a character marked out of the class here would leave the one row that marks it back.
      */
-    const otherRow = a => ({ id: a.id, ...shared(a), state: "", actions: "", freeMove: "", hope: "", give: "", silenced: "", do: "" });
+    const otherRow = a => ({ id: a.id, ...shared(a), state: "", actions: "", freeMove: "", hope: "", give: "", silenced: "", do: "", ...WHERE_AND_WHO_EMPTY });
 
     /*
      * THE SHEET AND ITEMS BUTTONS IN A COLUMN OF THEIR OWN (E92 owner fix, 12.11.2026; the owner: "przyciski karty postaci
@@ -252,6 +254,9 @@ function aliveTableHtml({ roster, others, stateOf, donors, isCrimeSilenced, invi
         { key: "silenced", label: L("DRPG.Monocub.silenced"), cls: "silenced", tooltip: L("DRPG.Monocub.silencedNote") },
         { key: "levelUp", label: L("DRPG.Panel.levelUpColumn") },
         { key: "do", label: L("DRPG.Panel.doColumn") },
+        // Line T2's three (EXP-GM-01, EXP-GM-17): after the existing columns and before line T4's Microphone and line T5's
+        // Motives, which are written after them at the merge (LINE-T2.md 4.2).
+        ...whereAndWhoColumns(L),
         // The Microphone, a column of its own, last (2.0 line T4, VOICE-04): T2's columns go before it, T5's after it.
         MIC_COLUMN()
     ];
@@ -260,6 +265,78 @@ function aliveTableHtml({ roster, others, stateOf, donors, isCrimeSilenced, invi
         <p class="notes">${L("DRPG.Panel.whoIsAliveNote")}</p>
         ${dataTable({ columns: withMotives.columns, rows: withMotives.rows, rowAttrs: r => ({ "data-actor": r.id }) })}
     </div>`;
+}
+
+/*
+ * AN ACTION ABOVE THE MAXIMUM (2.0 line T2c, EXP-GM-06, split from line T2, 28.11.2026; F1-blind-gm EXP-GM-06, E-GM-20,
+ * E-GM-89). The sheet's action pips set the budget from 0 to its maximum (actions.mjs `setActions` holds it there), so a
+ * reward or a story's extra action had no road but the console. The Actions cell of a living student carries "+1"
+ * (`DRPG.Panel.grantAction`, its words the button's tooltip and name): one free action through the road a Burst's
+ * grant takes (actions.mjs `grantFreeActions`, reason "gmRuling", the reason `setActions` names for a GM's own hand;
+ * a GM's write carries no reason to the audit, resource-guard.mjs `stampOf`), spent before the actions and gone at the
+ * end of the time of day as a Burst's is (`resetActionsFor`, `clearGrants`). What is banked stands after the count as
+ * "+N" with the panel's own words (gm-panel.mjs `rosterTableHtml`, `DRPG.Actions.burstBanked`); the actor's write redraws
+ * the row (`keepLive`, `actors`). R9063.
+ */
+export function aboveMaximumHtml(actor, alive) {
+    const banked = freeActionsLeft(actor);
+    const extra = banked ? ` <span class="drpg-gmp-roster-extra" data-drpg-burst="${banked}" data-tooltip="${esc(plural("DRPG.Actions.burstBanked", { n: banked }))}">+${banked}</span>` : "";
+    if (!alive) return extra;
+    return `${extra} ${iconButton({ icon: "fa-solid fa-plus", label: game.i18n.localize("DRPG.Panel.grantAction"), cls: "drpg-mini-button",
+        attrs: { "data-drpg-grant-action": actor.id } })}`;
+}
+
+/** The "+1" press (above): the grant, and the GM told it stands. `roads.grantFreeActions` is the suite's stand-in. */
+export async function grantAboveMaximum(actor, roads = {}) {
+    const grant = roads.grantFreeActions ?? grantFreeActions;
+    if (!(await grant(actor, 1, { reason: "gmRuling" }))) return false;
+    ui.notifications.info(game.i18n.format("DRPG.Panel.grantedAction", { name: actor.name }));
+    return true;
+}
+
+/*
+ * WHERE A STUDENT IS, WHAT WAITS FOR THEM AND WHETHER THEIR PLAYER IS HERE (2.0 line T2c, EXP-GM-01 and EXP-GM-17, split
+ * from line T2, 28.11.2026; F1-blind-gm EXP-GM-01, EXP-GM-17, E-GM-02, E-GM-97). The table said a student's state and
+ * budget, and the GM put the rest together from the map, the Timeline and Foundry's players list, which the module
+ * hides from everybody (danganronpa.css `#players`). Three columns after the existing ones, each a student's alone (a
+ * Monokuma's or an NPC's row has empty cells, as its Actions do):
+ *   Room        the room the GM sees the student in (movement.mjs `gmPlaceOf`, the GMs' own reading of a token, the
+ *               one the bridge's runs read), "-" with none;
+ *   Waiting     how many cards of a player's thread wait for a GM's decision about the student - the cards the
+ *               Timeline lists under "Waiting for a decision", read the one way it reads them (messenger-gm.mjs
+ *               `waitingCards`, by each card's `actorId`), never counted a second way here;
+ *   Connection  each player who owns the student (utils.mjs `ownerIdsOf`: a student may have co-owners, D078, E91 C6)
+ *               and whether that account is connected, `data-drpg-connected` "yes" or "no" on each, one line an
+ *               owner in name order; "-" for a student no player owns.
+ * The window redraws on a token's change, a thread's card posted, edited or deleted, and a user connecting or leaving
+ * (`openWhoIsAliveDialog`'s `keepLive`). The three readers are handed in (`placeOf`, `waitingFor`, `ownersOf`), so the
+ * table stays a function of what it is given. R9061, R9062.
+ */
+const WHERE_AND_WHO_EMPTY = Object.freeze({ room: "", waiting: "", connection: "" });
+
+function whereAndWhoColumns(L) {
+    return [
+        { key: "room", label: L("DRPG.Panel.roomColumn") },
+        { key: "waiting", label: L("DRPG.Panel.waitingColumn"), num: true, tooltip: L("DRPG.Panel.waitingColumnTooltip") },
+        { key: "connection", label: L("DRPG.Panel.connectionColumn") }
+    ];
+}
+
+function whereAndWhoCells(actor, { placeOf, waitingFor, ownersOf }) {
+    const room = placeOf(actor)?.room ?? null;
+    const n = Math.max(0, Number(waitingFor(actor)) || 0);
+    const owners = [...(ownersOf(actor) ?? [])].filter(Boolean).sort((a, b) => String(a.name ?? "").localeCompare(String(b.name ?? "")));
+    const line = owner => {
+        const on = Boolean(owner.active);
+        const state = game.i18n.localize(on ? "DRPG.Panel.connected" : "DRPG.Panel.notConnected");
+        return `<span class="drpg-alive-connection" data-drpg-connected="${on ? "yes" : "no"}" data-drpg-user="${esc(owner.id)}">${
+            esc(game.i18n.format("DRPG.Panel.ownerConnection", { player: owner.name ?? "?", state }))}</span>`;
+    };
+    return {
+        room: room ? `<span data-drpg-room="${esc(room)}">${esc(room)}</span>` : `<span data-drpg-room="">-</span>`,
+        waiting: `<span data-drpg-waiting="${n}" data-tooltip="${esc(plural("DRPG.Panel.waitingCount", { n }))}">${n}</span>`,
+        connection: owners.length ? owners.map(line).join("<br>") : "-"
+    };
 }
 
 /*
@@ -534,6 +611,8 @@ function wireAliveTable(dialog, { openDeathDialog, offerMonocub, cancelMonocubOf
     // Silence now (E72 C8): nothing of its own to open; the cast's change redraws the row (`drpgCastChanged`).
     wireAliveRow(dialog, "data-drpg-silence", actor => import("./incident-store.mjs").then(m => m.silenceDeadNow(actor)),
         { keepOpen: true, reopen });
+    // One action above the maximum (EXP-GM-06, `aboveMaximumHtml`): nothing of its own to open; the actor's write redraws the row.
+    wireAliveRow(dialog, "data-drpg-grant-action", actor => grantAboveMaximum(actor, roads), { keepOpen: true, reopen });
     // Nothing of its own to open either (E17 C3): the store's change redraws the row.
     wireAliveRow(dialog, "data-drpg-refund", actor => import("./gm-bridge.mjs").then(m => m.requestRefundCrossing(actor.id)),
         { keepOpen: true });
@@ -592,6 +671,9 @@ export async function openWhoIsAliveDialog(options = {}) {
     // The sheet's own gate for its Level Up and the GMs' store of offers (E47-C8): read, never copied.
     const { sheetMode } = await import("./sheet.mjs");
     const { standingOffers, openAdvancementFor } = await import("./level-up.mjs");
+    // Where each student is, what waits for them and their player's connection (EXP-GM-01, EXP-GM-17; above `whereAndWhoCells`).
+    const { gmPlaceOf } = await import("./movement.mjs");
+    const { waitingCards } = await import("./messenger-gm.mjs");
     const roads = {
         ...ROLE_ROADS,
         openAdvancementFor,
@@ -645,8 +727,12 @@ export async function openWhoIsAliveDialog(options = {}) {
     const VT = await import("./voice-tile.mjs");
     const table = () => {
         const donors = buildDonors();
+        // Read once a build: every waiting card, counted by the character it asks about.
+        const waiting = new Map();
+        for (const card of waitingCards()) if (card.actorId) waiting.set(card.actorId, (waiting.get(card.actorId) ?? 0) + 1);
         return aliveTableHtml({ roster, others, stateOf, donors, isCrimeSilenced, invited: invitationOpen, resourceValue, resourceMax, purseOf, cubHopeTotal, deadSilenced: isDeadSilenced,
             levelUp: a => Boolean(sheetMode(a, game.user).levelUp), offers: a => standingOffers(a).length,
+            placeOf: a => gmPlaceOf(a), waitingFor: a => waiting.get(a.id) ?? 0, ownersOf: a => ownerIdsOf(a).map(id => game.users.get(id)),
             micCell: id => micCellHtml(id, { state: user => VT.micCellState(user) }) });
     };
 
@@ -701,7 +787,12 @@ export async function openWhoIsAliveDialog(options = {}) {
                 // and another GM's offer merged here writes no actor and fires no hook, only the store's key. Tier 2's "1.2.122 CTRL-35 ...".
                 // The motives' column (2.0 line T5) on `drpgMotivesChanged`, which motives.mjs fires for a write here and for the
                 // store merged from another GM: a motive set or reported writes no actor (tier 2's "E135 MOTIVES-M7").
-                watch: { actors: true, hooks: ["drpgDeathsChanged", "drpgDespairOwedChanged", "drpgCrossingsChanged", "drpgCubsChanged", "drpgCastChanged", "drpgMotivesChanged"], stores: [offerStore] },
+                /* And the three columns of line T2 (EXP-GM-01, EXP-GM-17): a token's move for the Room, a thread's card
+                   posted, edited or deleted for Waiting (messenger.mjs's hooks, which a ruling's edit fires on every GM),
+                   a user connecting or leaving for the Connection. */
+                watch: { actors: true, tokens: true,
+                    hooks: ["drpgDeathsChanged", "drpgDespairOwedChanged", "drpgCrossingsChanged", "drpgCubsChanged", "drpgCastChanged",
+                        "drpgMessengerMessage", "drpgMessengerEdited", "drpgMessengerDeleted", "userConnected", "drpgMotivesChanged"], stores: [offerStore] },
                 after: wireAll
             });
         },
@@ -813,6 +904,8 @@ export async function applyAliveStates(chosen = {}) {
     const makeKnown = a => (pendingDeath(a) ? publishDeath(a) : markDeceased(a));
 
     const changed = new Set();
+    // What each changed character's state became, for the other GMs (EXP-GM-14, below the loop).
+    const became = new Map();
     for (const [id, want] of Object.entries(chosen)) {
         const actor = game.actors.get(id);
         if (!actor || actor.type !== "character" || isMonokuma(actor) || !want?.state) continue;
@@ -861,6 +954,7 @@ export async function applyAliveStates(chosen = {}) {
                does nothing more (`incidentVictimDied` asks). */
             if (living && died?.chapter) await incidentVictimDied(actor, died.chapter);
             changed.add(actor.id);
+            became.set(actor.id, want.state);
         }
 
         // Silence only means anything for a cub, and only after the state above has
@@ -874,6 +968,14 @@ export async function applyAliveStates(chosen = {}) {
             await setSilenced(actor, want.silenced);
             changed.add(actor.id);
         }
+    }
+    /* THE OTHER GMS ARE TOLD (2.0 line T2c, EXP-GM-14, 28.11.2026; popup.mjs `tellOtherGms`): which characters' states this
+       pass changed and what each became, as the State list names it, in one card. A silence alone is not a state. */
+    if (became.size) {
+        const L = state => game.i18n.localize(state === "unfound" ? "DRPG.Chapter.deadUnfound" : `DRPG.Panel.state.${state}`);
+        const list = listOf([...became].map(([id, state]) => game.i18n.format("DRPG.Messenger.gm.told.stateOf", { name: game.actors.get(id)?.name ?? "?", state: L(state) })));
+        await import("./popup.mjs").then(m => m.tellOtherGms("DRPG.Messenger.gm.told.states", { list }))
+            .catch(err => error("The other GMs were not told of a state changed", err));
     }
     return changed.size;
 }

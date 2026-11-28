@@ -204,6 +204,8 @@ export const SETTINGS = {
     hudTicker: "hudTicker",
     /** The three messenger sounds, muted for this browser alone. */
     messengerSound: "messengerSound",
+    /** A player's notes for themselves, on this browser alone (2.0 line T2c, EXP-PL-09; messenger-app.mjs `privateNote`). */
+    privateNotes: "privateNotes",
     projectsCollapsed: "projectsCollapsed",
     /** How a player's Truth Bullets are grouped in the inventory: "chapter" or "room". */
     bulletSort: "bulletSort",
@@ -1966,6 +1968,18 @@ export function registerSettings() {
         config: false,
         type: Boolean,
         default: true
+    });
+
+    /* A PLAYER'S OWN NOTES (2.0 line T2c, EXP-PL-09, 28.11.2026; messenger-app.mjs `privateNote`): the messenger's My notes
+       tab, kept in this browser alone - `client`, so in no world data, never sent over the socket or to a GM - one row a
+       world and user (`privateNoteKey`), so a second account or world on the same browser keeps its own. Out of the
+       settings window. Whether it should follow the player to another computer (a `user` setting, on the world's server,
+       which a GM with the world's data could read) is the owner's question (the LINE-T2c report); until then, here. */
+    game.settings.register(MODULE_ID, SETTINGS.privateNotes, {
+        scope: "client",
+        config: false,
+        type: Object,
+        default: {}
     });
 
     game.settings.register(MODULE_ID, SETTINGS.uiScale, {

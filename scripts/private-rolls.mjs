@@ -63,7 +63,7 @@ import { maskInsiders } from "./mask-gm.mjs";
 // to this file. It replaced `contentOf` from secret.mjs, which this file needed
 // only to match words against a card's prose.
 import { readDuality } from "./despair-award.mjs";
-import { cardFlag } from "./secret.mjs";
+import { cardFlag, cardWriter } from "./secret.mjs";
 import { keepRoom } from "./notice-history.mjs";
 import { noteThrow } from "./dice-hold.mjs";
 import { LOADED_DIE } from "./forced-roll.mjs";
@@ -98,6 +98,9 @@ export function registerPrivateRolls() {
 
     // A statistic the GM drew is headed by its roller's character, not by the GM (`signAsRoller`).
     Hooks.on("renderChatMessageHTML", signAsRoller);
+
+    // An action a GM ran for a player's student says so on its card (`signRolledByGm`, EXP-GM-07).
+    Hooks.on("renderChatMessageHTML", signRolledByGm);
 
     // The roller's own drawn rolls, readable again after a reload (fix r2-H7, `refillReadable`).
     Hooks.once("ready", refillReadable);
@@ -1703,6 +1706,48 @@ function readableRule() {
  * drawn; the suite reads the real one at a table (tests-tier2.mjs, "headed by its roller's character").
  */
 const MYSTERY_MAN = "icons/svg/mystery-man.svg";
+
+/*
+ * "ROLLED BY GM {name}." ON AN ACTION'S CARD (2.0 line T2c, EXP-GM-07, split from line T2, 28.11.2026). The card of an
+ * action a GM ran for a player's student carries that GM's id in its flags (action-pipeline.mjs `rolledByGmHere`,
+ * action-report.mjs `rolledByGmFlag`), and every reader draws the line from it in its own language: here in the chat log,
+ * in the notice (popup.mjs `onCreateChatMessage`) and in the Timeline (messenger-gm.mjs). Only a card a GM wrote
+ * (secret.mjs `cardWriter`: a card a GM posted at a player's asking is the player's) whose flag names a GM is read so;
+ * the same flag on a player's card is a claim, and draws nothing (the trust model: a packet's field is a claim). The
+ * chat log's line is drawn after the card's words are put in (secret.mjs `drawPrivateCard`, whose hook is registered
+ * after this one and writes the body over), so on the microtask after the render's hooks.
+ */
+export function rolledByGmOf(message) {
+    const id = cardFlag(message, "rolledByGm");
+    const gm = typeof id === "string" ? game.users?.get?.(id) ?? null : null;
+    return gm?.isGM && cardWriter(message)?.isGM ? gm : null;
+}
+
+/** The line itself, markup, or "" for a card that carries no GM's mark (above). */
+export function rolledByGmLine(message) {
+    const gm = rolledByGmOf(message);
+    if (!gm) return "";
+    return `<p class="drpg-rolled-by-gm" data-drpg-rolled-by="${foundry.utils.escapeHTML(gm.id)}">${
+        foundry.utils.escapeHTML(game.i18n.format("DRPG.Rolls.rolledByGm", { name: gm.name ?? "?" }))}</p>`;
+}
+
+function signRolledByGm(message, element) {
+    try {
+        const root = element instanceof HTMLElement ? element : element?.[0];
+        if (!root?.querySelector || !rolledByGmOf(message)) return;
+        queueMicrotask(() => {
+            try {
+                const body = root.querySelector(".message-content");
+                if (!body || body.querySelector(".drpg-rolled-by-gm")) return;
+                body.insertAdjacentHTML("beforeend", rolledByGmLine(message));
+            } catch (err) {
+                error("Could not mark a card a GM rolled", err);
+            }
+        });
+    } catch (err) {
+        error("Could not mark a card a GM rolled", err);
+    }
+}
 
 function signAsRoller(message, element) {
     try {

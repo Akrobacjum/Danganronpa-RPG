@@ -1327,7 +1327,7 @@ export function despairRowOf(user, { gm = game.user.isGM, held = null, owed = nu
                 const target = i === shown ? i - 1 : i;
                 const delta = target - shown;
                 shown = target;
-                return adjustDespair(user.id, delta, { clamp: true });
+                return correctPool(user.id, delta);
             };
             pip.addEventListener("click", set);
             pip.addEventListener("keydown", event => {
@@ -1370,14 +1370,37 @@ export function despairRowOf(user, { gm = game.user.isGM, held = null, owed = nu
     // Held to the pool's range as a pip is (E17 fix e1-G4): `disabled` is the bar as drawn, and a + drawn before a roll's
     // point filled the pool spilled 1 into the overflow, a step toward a darkening nobody earned (the audit's DESP-25).
     row.append(
-        stepper("fa-minus", () => adjustDespair(user.id, -1, { clamp: true }), held <= 0, ghost,
+        stepper("fa-minus", () => correctPool(user.id, -1), held <= 0, ghost,
             game.i18n.localize("DRPG.Look.stepDown"), tipText("DRPG.Tips.Gm.minusTooltip", { n: 1 })),
-        stepper("fa-plus", () => adjustDespair(user.id, +1, { clamp: true }), held >= max, ghost,
+        stepper("fa-plus", () => correctPool(user.id, +1), held >= max, ghost,
             game.i18n.localize("DRPG.Look.stepUp"), tipText("DRPG.Tips.Gm.plusTooltip", { n: 1 }))
     );
     if (isGM && isOwnPool) row.classList.add("own");
 
     return row;
+}
+
+/*
+ * A POOL CORRECTED BY A GM'S HAND, TOLD TO THE OTHER GMS (2.0 line T2c, EXP-GM-14, split from line T2, 28.11.2026). The
+ * bar's pips and steppers are the hand's road: `adjustDespair` as before (clamped, on the primary), then the other GMs
+ * are told the pool as it now stands (popup.mjs `tellOtherGms`) - once a pool's run of presses has been still for
+ * `TOLD_POOL_MS`, so five clicks on a pip row are one card, not five. Answers what `adjustDespair` answers. Exported for
+ * the suite (E132 T2c EXP-GM-14).
+ */
+const TOLD_POOL_MS = 1500;
+const toldPools = new Map();
+
+export async function correctPool(userId, delta) {
+    const out = await adjustDespair(userId, delta, { clamp: true });
+    clearTimeout(toldPools.get(userId));
+    toldPools.set(userId, setTimeout(() => {
+        toldPools.delete(userId);
+        const user = game.users.get(userId);
+        if (!user) return;
+        void import("./popup.mjs").then(m => m.tellOtherGms("DRPG.Messenger.gm.told.pool", { pool: poolLabel(user), n: getDespair(userId) }))
+            .catch(err => error("The other GMs were not told of a pool corrected", err));
+    }, TOLD_POOL_MS));
+    return out;
 }
 
 function stepper(icon, handler, disabled, ghost = false, label = "", tip = "") {

@@ -1253,6 +1253,7 @@ function buildPanelContent() {
     return `<div class="drpg-gmp-standing">
                 ${caseLine}
                 ${primaryLineHtml()}
+                ${connectedListHtml()}
                 ${PANEL_ROSTER ? rosterTableHtml() : ""}
                 <h3>${foundry.utils.escapeHTML(campaignName(clock))}</h3>
                 <p class="drpg-gmp-clockline"><strong>${clockSummary(clock)}</strong>
@@ -1283,6 +1284,34 @@ export function primaryLineHtml({ id = primaryGmId(), me = game.user?.id, users 
     const name = users?.get?.(id ?? "")?.name ?? "?";
     const words = game.i18n.format(id && id === me ? "DRPG.Panel.primaryGmYou" : "DRPG.Panel.primaryGm", { name });
     return `<p class="drpg-gmp-primary" data-drpg-primary="${esc(id ?? "")}"${tipAttr("DRPG.Panel.primaryGmTooltip")}>${esc(words)}</p>`;
+}
+
+/**
+ * WHO IS CONNECTED, UNDER THE PRIMARY'S LINE (2.0 line T2c, EXP-GM-01, split from line T2, 28.11.2026; F1-blind-gm
+ * EXP-GM-01, E-GM-97; F3 S2 J1 red on both GMs). The module hides Foundry's players list from everybody, GMs too
+ * (danganronpa.css, `#players`), and said its own windows stood in for it - none showed a connection, but the readiness
+ * round's window and a vote's list of addressees. One line a player's account, never a GM's: the account's name, the
+ * character it plays (its assigned character, else the first student it owns, else `DRPG.Panel.noCharacter`) and
+ * `DRPG.Panel.connected` "connected" or `DRPG.Panel.notConnected` "not connected", with `data-drpg-connected` "yes" or
+ * "no" on the line - the same line in both states, so a connection changes its look and never the panel's layout (the
+ * owner's rule of 10.11). The panel is a GM's window, so nothing changes for a player: Foundry's list stays hidden there
+ * as before. The standing block redraws on `userConnected` (`keepPanelFresh`). No player account: nothing is drawn.
+ * Exported for R9060 and E132 T2c EXP-GM-01; `users` is the suite's stand-in.
+ */
+export function connectedListHtml({ users = game.users } = {}) {
+    const L = key => game.i18n.localize(key);
+    const players = [...(users ?? [])].filter(u => u && !u.isGM).sort((a, b) => String(a.name ?? "").localeCompare(String(b.name ?? "")));
+    if (!players.length) return "";
+    const playing = user => user.character?.name
+        ?? studentActors().find(a => a.testUserPermission?.(user, "OWNER"))?.name ?? L("DRPG.Panel.noCharacter");
+    const rows = players.map(user => {
+        const on = Boolean(user.active);
+        return `<li data-drpg-connected="${on ? "yes" : "no"}" data-drpg-user="${esc(user.id)}">`
+            + `<span class="drpg-gmp-connected-name">${esc(user.name ?? "?")}</span> `
+            + `<span class="drpg-gmp-connected-character">${esc(game.i18n.format("DRPG.Panel.plays", { actor: playing(user) }))}</span> `
+            + `<span class="drpg-gmp-connected-state">${esc(L(on ? "DRPG.Panel.connected" : "DRPG.Panel.notConnected"))}</span></li>`;
+    }).join("");
+    return `<div class="drpg-gmp-connected"${tipAttr("DRPG.Panel.connectedTooltip")}><h4>${esc(L("DRPG.Panel.connectedHeading"))}</h4><ul>${rows}</ul></div>`;
 }
 
 /**

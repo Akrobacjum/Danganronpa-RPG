@@ -4077,7 +4077,8 @@ const REGRESSIONS = [
         /* E05 C10 adds the deaths store's hook: a death nobody has found writes no actor, and a
            hook more widens the net - a `settings` filter is what would narrow it. */
         // A store too (1.2.122, REFR-48: the standing offers' `offerStore`): a store is heard by its own key, no wider net.
-        ok(/watch: \{ actors: true(?:, hooks: \[[^\]]*\])?(?:, stores: \[[^\]]*\])? \}/.test(window),
+        // Tokens too (2.0 line T2c, EXP-GM-17, 28.11.2026: the Room column), a document hook and no settings filter either.
+        ok(/watch: \{ actors: true(?:, tokens: true)?(?:,\s*hooks: \[[^\]]*\])?(?:, stores: \[[^\]]*\])? \}/.test(window),
             "this window's live watch was narrowed - an omitted settings filter is the wide "
             + "net, and the table is built out of several settings");
     }],
@@ -10804,6 +10805,8 @@ const REGRESSIONS = [
                no longer reads the flag - notice-centre.mjs `centredNotice` does, a name of its closed list from a GM's card
                or a player's own (R8670, R8671); where the card stands, not what it says, and the card is kept as before. */
             ["FLAG popup.mjs#onCreateChatMessage#popupTone", "a closed list (`TONES`) on draw; a tone outside it refused on read (E81 C2)"],
+            // 2.0 line T2c, EXP-GM-14 (28.11.2026): what one GM tells the others (`tellOtherGms`).
+            ["FLAG popup.mjs#onCreateChatMessage#TOLD_GMS", "it only takes away: a card carrying it is not drawn on its own author's browser (Foundry's author stamp), and on any other reader it changes nothing the rule above would draw or keep (R9065)"],
             ["DELETE incident-store.mjs#retireOpeningNotices", "the module takes back the opening's request cards with its withdraw option: every browser's entry of them goes with the card (R295, 13-murder-signals)"],
             ["DELETE murder-rules.mjs#undoLastCrisis", "a crisis taken back deletes its receipt card with the withdraw option: every browser's entry of it goes with the card (R295)"],
             ["DELETE season-wipe.mjs#deleteMessages", "the season reset deletes in batches without the withdraw option (R295): an entry stays, marked deleted, until the epoch clears every section of this world at the next read or write (R297)"],
@@ -12999,7 +13002,8 @@ const REGRESSIONS = [
             "gm-items.mjs": [4, "Give's description, a Truth Bullet's texts, the autopsy's two"],
             // 16 since E104 (the 1.2.112 tree): a planned Remnant's, Final Truth's and Truth Bullet's three each, the case map's node editor.
             "investigation.mjs": [16, "the Remnants table's text and analysis, the Key tab's two, the case map's node text, a planned Autopsy node's player text and GM note, a planned Remnant's, Final Truth's and Truth Bullet's words, analysis and note (the dashboard)"],
-            "messenger-app.mjs": [3, "the messenger's input and note, a GM's ruling reply"],
+            // 4 since 2.0 line T2c, EXP-PL-09 (28.11.2026): a player's My notes, in the messenger's own window as the Note's is.
+            "messenger-app.mjs": [4, "the messenger's input, note and a player's My notes, a GM's ruling reply"],
             // 2.0 line T5 (D2-23): a player's report, a GM's reason for refusing one, and a student's two motives (kit windows).
             "motives-ui.mjs": [4, "a motive's report, a refusal's reason, the Personal and Relationship Motives (kit windows)"],
             "observe.mjs": [3, "a critical's hint, a find's description and its analysed text (Observe's kit window)"],

@@ -105985,8 +105985,9 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             const standing = box.querySelector(".drpg-gmp-standing");
             const tr = box.querySelector(`.drpg-gmp-roster tr[data-drpg-actor="${student.id}"]`);
             if (!tr) return null;
-            // First under the case's warning and the primary GM's line (2.0 line T2, PRIM-01, 27.11.2026: gm-panel.mjs `primaryLineHtml`).
-            return { first: standing?.querySelector(".drpg-gmp-roster") === standing?.querySelector(":scope > :not(.drpg-box):not(.drpg-gmp-primary)"),
+            // First under the case's warning and the primary GM's line (2.0 line T2, PRIM-01, 27.11.2026: gm-panel.mjs `primaryLineHtml`),
+            // and the list of who is connected under it (2.0 line T2c, EXP-GM-01, 28.11.2026: `connectedListHtml`).
+            return { first: standing?.querySelector(".drpg-gmp-roster") === standing?.querySelector(":scope > :not(.drpg-box):not(.drpg-gmp-primary):not(.drpg-gmp-connected)"),
                 actions: tr.querySelector("[data-drpg-actions]")?.dataset.drpgActions ?? null,
                 free: tr.querySelector("[data-drpg-free-move]")?.dataset.drpgFreeMove ?? null,
                 eclipse: tr.querySelector("[data-drpg-eclipse-moves]")?.dataset.drpgEclipseMoves ?? null };
@@ -123567,6 +123568,320 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         }
         equal(stableJson(read), stableJson([[], 1, true, {}, {}, 1, null]),
             "[failed clauses, the GMs' whispers with its words, to GMs alone, the old key, the Monokuma Motive, whispers after a second run, the second run's report]");
+    }],
+    // T2c gm-tools-messenger (split from T2)
+    ["E132 T2c EXP-GM-01 - a GM sees who is connected in the panel and in Students: the GM panel's standing block lists every player account with `data-drpg-connected` as Foundry holds it, a player who connects while it stands is read connected without the panel closing, and the Students window's Connection column marks each student's player the same way (gm-panel.mjs `connectedListHtml`, gm-students.mjs `whereAndWhoCells`; 2.0 line T2c, EXP-GM-01, 28.11.2026)", async () => {
+        /*
+         * F1-blind-gm EXP-GM-01 and F3 S2 J1 (red on both GMs on Forge: no window of the module said who was connected).
+         * The GM panel opened as its tile opens it, its list read against `game.users`; then a stand-in player (tests-kit
+         * `standInUser`) put in this browser's list not connected, and announced connecting as Foundry announces a
+         * socket that comes up (`userConnected` with true): the line read again while the panel stands. Then the Students
+         * window opened, each student's Connection cell read against utils.mjs `ownerIdsOf` (every player who owns it). The stand-in is taken out and
+         * both windows closed in the `finally`. Red at 0d3d4f2: no list, no column.
+         */
+        needs(env.dialogs(), "the panel and the window are read off their drawn windows");
+        needs(world.atLeast("connectedPlayersWithCharacter", 1));
+        const P = await import("./gm-panel.mjs");
+        const { ownerIdsOf } = await import("./utils.mjs");
+        const { studentActors } = await import("./monokuma.mjs");
+        const panel = () => [...foundry.applications.instances.values()].find(a => a.rendered && a.element?.querySelector(".drpg-gmp-standing")) ?? null;
+        const alive = () => [...foundry.applications.instances.values()].find(a => a.rendered && a.options?.classes?.includes("drpg-window-alive")) ?? null;
+        const lines = () => Object.fromEntries([...(panel()?.element?.querySelectorAll(".drpg-gmp-connected li[data-drpg-user]") ?? [])]
+            .map(li => [li.dataset.drpgUser, li.dataset.drpgConnected]));
+        const late = standInUser({ name: "E132 T2c EXP-GM-01 late player", active: false });
+        const read = {};
+        let opened = null, answer = null;
+        try {
+            opened = Promise.resolve(P.openGmPanel()).catch(() => null);
+            await until(() => panel()?.element?.querySelector(".drpg-gmp-connected"), 6000).catch(() => {});
+            const players = game.users.filter(u => !u.isGM);
+            const first = lines();
+            read.panel = players.every(u => first[u.id] === (u.active ? "yes" : "no")) && Object.keys(first).length === players.length;
+            read.anyConnected = Object.values(first).includes("yes");
+            game.users.set(late.id, late);
+            Hooks.callAll("userConnected", late, false);
+            read.lateBefore = await until(() => lines()[late.id] === "no", 3000).then(() => lines()[late.id]).catch(() => lines()[late.id] ?? null);
+            late.active = true;
+            Hooks.callAll("userConnected", late, true);
+            read.lateAfter = await until(() => lines()[late.id] === "yes", 3000).then(() => lines()[late.id]).catch(() => lines()[late.id] ?? null);
+            read.panelStood = Boolean(panel());
+            await panel()?.close().catch(() => {});
+            await Promise.race([opened, wait(2000)]);
+            answer = Promise.resolve().then(() => P.openWhoIsAliveDialog()).catch(() => null);
+            await until(() => alive()?.element?.querySelector("[data-drpg-connected]"), 6000).catch(() => {});
+            const owned = studentActors().filter(a => ownerIdsOf(a).length);
+            read.students = owned.length > 0 && owned.every(a => {
+                const marks = [...(alive()?.element?.querySelectorAll(`tr[data-actor="${a.id}"] [data-drpg-connected]`) ?? [])];
+                return marks.length === ownerIdsOf(a).length && ownerIdsOf(a).every(id =>
+                    marks.some(el => el.dataset.drpgUser === id && el.dataset.drpgConnected === (game.users.get(id)?.active ? "yes" : "no")));
+            });
+        } finally {
+            game.users.delete(late.id);
+            Hooks.callAll("userConnected", late, false);
+            await panel()?.close().catch(() => {});
+            await alive()?.close().catch(() => {});
+            await Promise.race([Promise.all([opened, answer]), wait(2000)]);
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ panel: true, anyConnected: true, lateBefore: "no", lateAfter: "yes", panelStood: true, students: true }),
+            "{panel: every player account listed as Foundry holds its connection; anyConnected: a connected player is read so; lateBefore, lateAfter: a stand-in player's line before and after it connects; panelStood: the panel stayed open; students: every owned student's Connection cell names each of its owners and that owner's connection}");
+    }],
+    ["E132 T2c EXP-GM-06 - a GM grants an action above the maximum from Students: the +1 on a living student's row gives one free action through `grantFreeActions`, the row then shows +1 beside the actions without the window closing, and the count is put back (gm-students.mjs `aboveMaximumHtml`, `grantAboveMaximum`; 2.0 line T2c, EXP-GM-06, 28.11.2026)", async () => {
+        /*
+         * F1-blind-gm EXP-GM-06: an action above the maximum had no button. The Students window opened as the panel's tile
+         * opens it; a living student's +1 pressed; read: the banked free actions before and after, the row's "+N" after
+         * its redraw, and whether the window stood. The banked count is written back in the `finally`. Red at 0d3d4f2: no
+         * button.
+         */
+        needs(env.dialogs(), "the window is read off its drawn window");
+        needs(world.atLeast("livingStudents", 1));
+        const P = await import("./gm-panel.mjs");
+        const A = await import("./actions.mjs");
+        const [student] = cast(1);
+        const was = student.getFlag(MODULE_ID, FLAGS.freeActionGrants) ?? 0;
+        const alive = () => [...foundry.applications.instances.values()].find(a => a.rendered && a.options?.classes?.includes("drpg-window-alive")) ?? null;
+        const button = () => alive()?.element?.querySelector(`tr[data-actor="${student.id}"] [data-drpg-grant-action]`) ?? null;
+        const extra = () => alive()?.element?.querySelector(`tr[data-actor="${student.id}"] [data-drpg-burst]`)?.textContent.trim() ?? null;
+        const read = {};
+        let answer = null;
+        try {
+            await student.setFlag(MODULE_ID, FLAGS.freeActionGrants, 0);
+            answer = Promise.resolve().then(() => P.openWhoIsAliveDialog()).catch(() => null);
+            await until(() => button(), 6000).catch(() => {});
+            read.before = [A.freeActionsLeft(student), Boolean(button()), extra()];
+            button()?.click();
+            await until(() => A.freeActionsLeft(student) === 1 && extra() === "+1", 4000).catch(() => {});
+            read.after = [A.freeActionsLeft(student), extra(), Boolean(alive())];
+        } finally {
+            await alive()?.close().catch(() => {});
+            await Promise.race([answer, wait(2000)]);
+            await student.setFlag(MODULE_ID, FLAGS.freeActionGrants, was);
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ before: [0, true, null], after: [1, "+1", true] }),
+            "{before: [free actions banked, the +1 on the row, the row's +N]; after: [free actions banked, the row's +N, the window still open]}");
+    }],
+    ["E132 T2c EXP-GM-07 - an action a GM runs for a student says so on its card: this GM's roll of a player's student (`rollTrait`, a Hope roll forced) carries the GM, the card posted on the action's own road (`whisperToOwner` with `rollCardFlags`) holds it in its flags, the chat log draws \"Rolled by GM {name}.\" under the card's words, and the same flag on a card a player wrote draws nothing (action-pipeline.mjs `rolledByGmHere`, private-rolls.mjs `rolledByGmOf`, `signRolledByGm`; 2.0 line T2c, EXP-GM-07, 28.11.2026)", async () => {
+        /*
+         * F1-blind-gm EXP-GM-07. Thrown on this GM's browser for a student a player owns, as an action a GM runs from the
+         * sheet throws it (`rollTrait`, remember off so no Reroll bookmark is written; the dice forced, `__forceRoll`), then
+         * posted as Observe's and Listen's result cards are (`whisperToOwner(actor, rollHead(...), rollCardFlags(...))`).
+         * The chat log's render hook handed the card in a stand-in entry, as Foundry draws it (the harness draws no chat
+         * log); then a stand-in document a player wrote, carrying this GM's id in the same flag. The card is deleted in the
+         * `finally`. Red at 0d3d4f2: the outcome carried no GM, the card no flag, the log no line.
+         */
+        needs(world.atLeast("playersWithCharacter", 1));
+        const AP = await import("./action-pipeline.mjs");
+        const AR = await import("./action-report.mjs");
+        const U = await import("./utils.mjs");
+        const { studentActors } = await import("./monokuma.mjs");
+        const player = game.users.find(u => !u.isGM && studentActors().some(a => a.testUserPermission(u, "OWNER")));
+        const actor = studentActors().find(a => a.testUserPermission(player, "OWNER"));
+        const hadForce = Object.hasOwn(globalThis, "__forceRoll"), force = globalThis.__forceRoll;
+        const seen = new Set(game.messages.map(m => m.id));
+        const drawnLine = async message => {
+            const el = document.createElement("li");
+            el.innerHTML = `<div class="message-content">${String(message.content ?? "")}</div>`;
+            Hooks.callAll("renderChatMessageHTML", message, el, {});
+            await new Promise(r => setTimeout(r, 0));
+            return el.querySelector(".message-content .drpg-rolled-by-gm")?.textContent ?? null;
+        };
+        const read = {};
+        try {
+            globalThis.__forceRoll = { hope: 11, fear: 2 };
+            const roll = await AP.rollTrait(actor, "eye", { actionKey: "observe", remember: false });
+            must(roll, "the roll was not thrown - this would measure nothing");
+            read.roll = roll.rolledByGm === game.user.id;
+            const card = await U.whisperToOwner(actor, AR.rollHead({ label: "E132 T2c EXP-GM-07" }, roll), AR.rollCardFlags({ label: "E132 T2c EXP-GM-07" }, roll));
+            must(card, "the card was not posted - this would measure nothing");
+            await settle();
+            const message = game.messages.get(card.id) ?? card;
+            const { cardFlag } = await import("./secret.mjs");
+            read.flag = cardFlag(message, "rolledByGm") === game.user.id;
+            read.line = await drawnLine(message);
+            const forged = { id: "E132T2cForged001", author: player, content: "<p>E132 T2c forged</p>", whisper: [], flags: { [MODULE_ID]: { rolledByGm: game.user.id } },
+                getFlag(scope, key) { return this.flags?.[scope]?.[key]; } };
+            read.forged = await drawnLine(forged);
+        } finally {
+            if (hadForce) globalThis.__forceRoll = force; else delete globalThis.__forceRoll;
+            for (const m of game.messages.filter(m => !seen.has(m.id))) await m.delete().catch(() => {});
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ roll: true, flag: true, line: game.i18n.format("DRPG.Rolls.rolledByGm", { name: game.user.name }), forged: null }),
+            "{roll: the outcome names this GM; flag: the card's flag names this GM; line: the chat log's line under the card; forged: a player's card carrying the flag}");
+    }],
+    ["E132 T2c EXP-GM-16 - a player's action roll lands in the GMs' Timeline: a result card about a player's student posted while the Timeline stands opens an entry in its Live stream naming the student, the action and the total with its way, and raises no notice in this GM's corner; deleted, the entry goes (messenger-gm.mjs `rollEntry`, `streamRoll`, `listenToRolls`; 2.0 line T2c, EXP-GM-16, 28.11.2026)", async () => {
+        /*
+         * F1-blind-gm EXP-GM-16 and E-GM-94. The GM's messenger window opened on the Timeline (messenger-app.mjs
+         * `openMessenger`), then a result card posted on the actions' own road (`whisperToOwner` with `rollCardFlags`, a
+         * roll of a stand-in total and way - no dice, the Timeline reads the card); read: the stream's entry, the notices
+         * this page drew in the corner while it landed, and the entry after the card is deleted. The card and the window
+         * go in the `finally`. Red at 0d3d4f2: no entry.
+         */
+        needs(env.dialogs(), "the Timeline is read off its drawn window");
+        needs(world.atLeast("playersWithCharacter", 1));
+        const A = await import("./messenger-app.mjs");
+        const AR = await import("./action-report.mjs");
+        const U = await import("./utils.mjs");
+        const { studentActors } = await import("./monokuma.mjs");
+        must(!A.gmMessengerWindow(), "the GM's messenger window is open - close it: this test opens its own");
+        const player = game.users.find(u => !u.isGM && studentActors().some(a => a.testUserPermission(u, "OWNER")));
+        const actor = studentActors().find(a => a.testUserPermission(player, "OWNER"));
+        const seen = new Set(game.messages.map(m => m.id));
+        const corner = [];
+        const watch = new MutationObserver(records => {
+            for (const r of records) for (const n of r.addedNodes) if (n instanceof Element && n.matches(".drpg-popup")) corner.push(n.textContent);
+        });
+        const read = {};
+        let card = null;
+        try {
+            const app = A.openMessenger();
+            await until(() => app?.element?.querySelector(".drpg-console-stream-list"), 4000);
+            watch.observe(document.body, { childList: true, subtree: true });
+            const entry = () => app.element?.querySelector(`.drpg-console-roll[data-message-id="${card?.id}"]`) ?? null;
+            card = await U.whisperToOwner(actor, "<p>E132 T2c EXP-GM-16 a result</p>", AR.rollCardFlags({ label: "E132 T2c Search" }, { total: 13, withHope: true }));
+            must(card, "the card was not posted - this would measure nothing");
+            await until(() => entry(), 4000).catch(() => {});
+            const li = entry();
+            read.entry = li ? [li.dataset.player === player.id, li.querySelector("strong")?.textContent ?? null, li.querySelector("[data-drpg-total]")?.textContent ?? null] : null;
+            read.corner = corner.length;
+            await card.delete();
+            await until(() => !entry(), 3000).catch(() => {});
+            read.gone = !entry();
+        } finally {
+            watch.disconnect();
+            for (const m of game.messages.filter(m => !seen.has(m.id))) await m.delete().catch(() => {});
+            await A.gmMessengerWindow()?.close();
+            await settle();
+        }
+        equal(stableJson(read), stableJson({
+            entry: [true, game.i18n.format("DRPG.Messenger.gm.rollTitle", { actor: actor.name, action: "E132 T2c Search" }),
+                game.i18n.format("DRPG.Messenger.gm.rollResultWay", { total: 13, result: game.i18n.localize("DRPG.Action.duality.hope") })],
+            corner: 0, gone: true }),
+        "{entry: the stream's entry [its player, its title, its total line]; corner: notices drawn while it landed; gone: the entry after the card's deletion}");
+    }],
+    ["E132 T2c EXP-GM-14 - the other GM is told of a Truth Bullet given, a state changed, a pool corrected: with a second GM at the table, each of the three posts one card whispered to that GM alone, with `gmPopup` and `toldGms`, naming what changed, and this GM's corner draws none of them; five presses on a pool make one card (popup.mjs `tellOtherGms`, gm-students.mjs `applyAliveStates`, despair.mjs `correctPool`; 2.0 line T2c, EXP-GM-14, 28.11.2026)", async () => {
+        /*
+         * F1-blind-gm EXP-GM-14, E-GM-99. A stand-in second Gamemaster (tests-kit `standInUser`) in this browser's user
+         * list for the length of the test, so the cards have someone to go to; then: `tellOtherGms` with the give's key (the
+         * give itself runs on the primary through the bridge's `bullet.give`, read in R9065's source check); a student made
+         * Dead and Alive again by Apply's road (`applyAliveStates`, a student no death was kept for: the repair's mark and the
+         * revive); a Monokuma's pool pressed up five times and down five times on the bar's road (`correctPool`), each run of
+         * presses awaited still. Read off the words' packets this browser sends (secret.mjs `sendWords`: on the sender a
+         * card's flags travel with its words, and its own copy is kept for its readers, never read here - `authorHold`):
+         * each told card's recipients, flags and words, and the notices this page drew. The stand-in goes, the cards are
+         * deleted and the pool is checked back in the `finally`. Red at 0d3d4f2: no `tellOtherGms`, no
+         * card on any road.
+         */
+        needs(world.atLeast("livingStudents", 1));
+        const P = await import("./popup.mjs");
+        const S = await import("./gm-students.mjs");
+        const D = await import("./despair.mjs");
+        const { isDeceased, reviveCharacter } = await import("./chapter.mjs");
+        must(typeof P.tellOtherGms === "function" && typeof D.correctPool === "function", "the module has no road to tell the other GMs - nothing to measure");
+        const [student] = cast(1);
+        const [monokuma] = D.monokumas();
+        const other = standInUser({ name: "E132 T2c EXP-GM-14 other GM", role: CONST.USER_ROLES.GAMEMASTER, active: true });
+        const seen = new Set(game.messages.map(m => m.id));
+        const corner = [];
+        const watch = new MutationObserver(records => {
+            for (const r of records) for (const n of r.addedNodes) if (n instanceof Element && n.matches(".drpg-popup")) corner.push(n.textContent);
+        });
+        const packets = [];
+        const socket = game.socket, ownEmit = Object.getOwnPropertyDescriptor(socket, "emit"), realEmit = socket.emit;
+        socket.emit = function (event, payload, options, ...rest) {
+            if (payload?.meta?.toldGms) packets.push({ to: [...(options?.recipients ?? [])], meta: payload.meta, html: String(payload.html ?? "") });
+            return realEmit.call(this, event, payload, options, ...rest);
+        };
+        const told = () => packets;
+        const words = p => String(p?.html ?? "").replace(/<[^>]+>/g, "").trim();
+        const read = {};
+        const pool = monokuma ? D.getDespair(monokuma.id) : null;
+        game.users.set(other.id, other);
+        watch.observe(document.body, { childList: true, subtree: true });
+        try {
+            await P.tellOtherGms("DRPG.Messenger.gm.told.bullet", { item: "E132 T2c knife", actor: student.name });
+            await until(() => told().length >= 1, 3000).catch(() => {});
+            await S.applyAliveStates({ [student.id]: { state: "dead" } });
+            await S.applyAliveStates({ [student.id]: { state: "alive" } });
+            await until(() => told().length >= 3, 4000).catch(() => {});
+            if (monokuma) {
+                const room = Math.max(0, D.despairMax() - pool);
+                const up = Math.min(5, room) || 0;
+                for (let i = 0; i < up; i++) await D.correctPool(monokuma.id, +1);
+                await until(() => told().length >= 4, 4000).catch(() => {});
+                for (let i = 0; i < up; i++) await D.correctPool(monokuma.id, -1);
+                await until(() => told().length >= 5, 4000).catch(() => {});
+                read.poolBack = D.getDespair(monokuma.id) === pool;
+                read.pressed = up > 0;
+            }
+            await settle();
+            const cards = told();
+            read.cards = cards.map(p => [JSON.stringify(p.to) === JSON.stringify([other.id]), p.meta.gmPopup === true, words(p).includes(game.user.name)]);
+            read.said = [words(cards[0]).includes("E132 T2c knife"), words(cards[1]).includes(game.i18n.localize("DRPG.Panel.state.dead")),
+                words(cards[2]).includes(game.i18n.localize("DRPG.Panel.state.alive")), monokuma ? words(cards[3]).includes(D.poolLabel(monokuma)) : true];
+            read.corner = corner.filter(t => cards.some(p => t.includes(words(p).slice(0, 20)))).length;
+        } finally {
+            if (ownEmit) Object.defineProperty(socket, "emit", ownEmit); else delete socket.emit;
+            watch.disconnect();
+            game.users.delete(other.id);
+            if (isDeceased(student)) await reviveCharacter(student, { silent: true }).catch(() => {});
+            for (const m of game.messages.filter(m => !seen.has(m.id))) await m.delete().catch(() => {});
+            await settle();
+        }
+        const n = monokuma ? 5 : 3;
+        equal(stableJson({ ...read, poolBack: read.poolBack ?? true, pressed: read.pressed ?? true }),
+            stableJson({ cards: Array(n).fill([true, true, true]), said: [true, true, true, true], corner: 0, poolBack: true, pressed: true }),
+            "{cards: each card told [to the other GM alone, gmPopup, names this GM]; said: [the Truth Bullet, Dead, Alive, the pool]; corner: notices of them drawn here; poolBack: the pool as before; pressed: the pool was pressed}");
+    }],
+    ["E132 T2c EXP-PL-09 - a player's private note is kept on this browser and reaches no GM: My notes' box, typed in, saves itself into this browser's `privateNotes` setting under this world and user and nowhere else - no socket packet, no chat message, no world setting written - and is read back; a text over the Note's cap is not saved and says so; the setting is put back (messenger-app.mjs `_buildPrivateNote`, `setPrivateNote`; 2.0 line T2c, EXP-PL-09, 28.11.2026)", async () => {
+        /*
+         * F1-blind-player EXP-PL-09, E-PL-53. The tab is a player's own window's (R9067 reads the gate); the suite runs on a
+         * GM's page, so the box is drawn by the window's own builder (`_buildPrivateNote`, called on the class's prototype
+         * with no window) and typed into as a player types: `input` events, then the save's wait. Every road off this page
+         * is watched while it runs: `game.socket.emit`, chat messages created, world settings written. The setting is put
+         * back in the `finally`. Red at 0d3d4f2: no builder.
+         */
+        const A = await import("./messenger-app.mjs");
+        must(typeof A.DrpgMessengerApp?.prototype?._buildPrivateNote === "function", "the window has no My notes builder - nothing to measure");
+        const { MAX_PLAYER_BYTES } = await import("./secret.mjs");
+        const key = `${MODULE_ID}.${SETTINGS.privateNotes}`;
+        const was = foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS.privateNotes) ?? {});
+        const socket = game.socket, ownEmit = Object.getOwnPropertyDescriptor(socket, "emit"), realEmit = socket.emit;
+        const emitted = [], created = [], worldWrites = [];
+        const onCreate = Hooks.on("createChatMessage", m => created.push(m.id));
+        const onSetting = Hooks.on("updateSetting", s => { if (String(s?.key ?? "").startsWith(MODULE_ID)) worldWrites.push(s.key); });
+        const onCreateSetting = Hooks.on("createSetting", s => { if (String(s?.key ?? "").startsWith(MODULE_ID)) worldWrites.push(s.key); });
+        const read = {};
+        try {
+            socket.emit = function (event, payload, ...rest) { if (event === `module.${MODULE_ID}`) emitted.push(payload?.action ?? "?"); return realEmit.call(this, event, payload, ...rest); };
+            const box = A.DrpgMessengerApp.prototype._buildPrivateNote.call({});
+            document.body.append(box);
+            const area = box.querySelector("textarea");
+            const status = box.querySelector(".drpg-messenger-note-status");
+            area.value = "E132 T2c my suspicion: the library";
+            area.dispatchEvent(new Event("input"));
+            await until(() => A.privateNote() === "E132 T2c my suspicion: the library", 3000).catch(() => {});
+            read.kept = A.privateNote();
+            read.row = Object.keys(game.settings.get(MODULE_ID, SETTINGS.privateNotes) ?? {}).includes(A.privateNoteKey());
+            read.status = status.textContent;
+            area.value = "x".repeat(MAX_PLAYER_BYTES + 1);
+            area.dispatchEvent(new Event("change"));
+            await until(() => status.textContent !== read.status, 2000).catch(() => {});
+            read.tooLong = [A.privateNote() === read.kept, status.textContent === game.i18n.format("DRPG.Note.tooLong", { kb: MAX_PLAYER_BYTES / 1024 })];
+            box.remove();
+            await settle();
+            read.roads = { emitted, created: created.length, worldWrites: worldWrites.filter(k => k !== key) };
+        } finally {
+            if (ownEmit) Object.defineProperty(socket, "emit", ownEmit); else delete socket.emit;
+            Hooks.off("createChatMessage", onCreate);
+            Hooks.off("updateSetting", onSetting);
+            Hooks.off("createSetting", onCreateSetting);
+            await game.settings.set(MODULE_ID, SETTINGS.privateNotes, was);
+        }
+        equal(stableJson(read), stableJson({ kept: "E132 T2c my suspicion: the library", row: true, status: game.i18n.localize("DRPG.Note.privateSaved"),
+            tooLong: [true, true], roads: { emitted: [], created: 0, worldWrites: [] } }),
+        "{kept: the notes read back; row: kept under this world and user; status: the box's line after the save; tooLong: [the last notes kept, the line says why] over the cap; roads: [module packets sent, chat messages made, world settings written] while it ran}");
     }],
 ];
 

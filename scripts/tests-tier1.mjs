@@ -56550,6 +56550,8 @@ const INVARIANTS = [
         const heads = [T("DRPG.Panel.character"), T("DRPG.Panel.openColumn"), T("DRPG.Panel.roleColumn"), T("DRPG.Panel.stateColumn"), T("DRPG.Actions.label"), T("DRPG.Panel.freeMove"),
             T("DRPG.Monocub.hope"), T("DRPG.Monocub.giveHopeColumn"), T("DRPG.Monocub.silenced"),
             T("DRPG.Panel.levelUpColumn"), T("DRPG.Panel.doColumn"),
+            // Line T2c's three after them (EXP-GM-01, EXP-GM-17, 28.11.2026; R9061, R9062).
+            T("DRPG.Panel.roomColumn"), T("DRPG.Panel.waitingColumn"), T("DRPG.Panel.connectionColumn"),
             // The Microphone, last (2.0 line T4, VOICE-04, 27.11.2026; R9252): a column every row has, empty but a student's.
             T("DRPG.Voice.micColumn"),
             // 2.0 line T5 (D2-23): the Motives column last, while the table plays with motives (motives-ui.mjs `motiveColumn`).
@@ -73251,21 +73253,28 @@ const INVARIANTS = [
             "[every clean-up ticked with the morning; the morning alone; nothing but the move]");
         ok(C.CHAPTER_END_STEPS.at(-1)?.key === "players", "the players' card is not the chapter's end's last step");
     }],
-    ["R9141 - the requests waiting on a GM are the thread cards the console's Waiting draws: a player's, not settled, with a ruling button (2.0 line T3 EXP-GM-03; messenger-gm.mjs `waitingCards`)", async () => {
-        /* 2.0 line T3 EXP-GM-03, 27.11.2026. Stand-in messages of a player's thread and their words handed in; nothing
-           read off the chat, nothing written. Red at d7d982b: no `waitingCards`. */
+    ["R9141 - the requests waiting on a GM are the thread cards the console's Waiting draws: a player's, not settled, with a ruling button, and Start the Class Trial lists each by its player (2.0 line T3 EXP-GM-03; messenger-gm.mjs `waitingCards`, `waitingEntry`)", async () => {
+        /* 2.0 line T3 EXP-GM-03, 27.11.2026. Stand-in messages of a player's thread; nothing read off the chat, nothing
+           written. Red at d7d982b: no `waitingCards`. Since the assembly with line T2c (28.11.2026) the reading is T2c's
+           agreed one (`waitingCards()` of `{ messageId, actorId, userId, kind, text }`, LINE-T2.md 4.2), read here one card
+           at a time through `waitingEntry`, the function `waitingCards` runs on each message; T3's own reading, with
+           its `{ messageId, player, who, text }`, went. trial-floor-ui.mjs `waitingFirst` names each card by `userId`. */
         needs(world.atLeast("connectedPlayersWithCharacter", 1), "a player's thread");
         const M = await import("./messenger-gm.mjs");
         const { MESSENGER_FLAGS } = await import("./messenger.mjs");
-        must(typeof M.waitingCards === "function", "messenger-gm.mjs has no waitingCards");
+        must(typeof M.waitingCards === "function" && typeof M.waitingEntry === "function", "messenger-gm.mjs has no waitingCards or waitingEntry");
         const player = game.users.find(u => !u.isGM);
         const gm = game.users.find(u => u.isGM);
         const card = (id, { settled = false, button = true, author = gm } = {}) => ({ id, author, timestamp: 1,
             flags: { [MODULE_ID]: { [MESSENGER_FLAGS.thread]: player.id, ...(settled ? { [MESSENGER_FLAGS.settled]: true } : {}) } },
             content: `<p>SUITE R9141 ${id} asks to climb</p>${button ? `<div class="drpg-call-actions"><button data-drpg-call="decline">No</button></div>` : ""}` });
-        const read = M.waitingCards({ messages: [card("live"), card("settled", { settled: true }), card("plain", { button: false })], words: m => m.content });
-        equal(stableJson(read.map(r => [r.messageId, r.player === player.id, r.text.startsWith("SUITE R9141 live asks to climb")])), stableJson([["live", true, true]]),
+        const read = [card("live"), card("settled", { settled: true }), card("plain", { button: false })].map(m => M.waitingEntry(m)).filter(Boolean);
+        equal(stableJson(read.map(r => [r.messageId, r.userId === player.id, r.text.startsWith("SUITE R9141 live asks to climb")])), stableJson([["live", true, true]]),
             "[the waiting cards: id, the thread's player, the request's first words] of a live card, a settled one and one with no button");
+        const floor = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/trial-floor-ui.mjs`).then(lfText));
+        const first = fnSource(floor, "waitingFirst") ?? "";
+        ok(/waitingCards\(\)\.map\(card => \(\{ who: game\.users\.get\(card\.userId\)\?\.name/.test(first) && /\[\.\.\.cards, \.\.\.waitingObserves\(\)\]/.test(first),
+            "trial-floor-ui.mjs waitingFirst lists every card of waitingCards() by its player, with the finds still described");
     }],
     ["R9142 - the ballots out that sit with a disconnected player are those issued, not returned, whose player is not connected now (2.0 line T3 TRIAL-06; vote-gone.mjs `goneBallots`)", async () => {
         /* 2.0 line T3 TRIAL-06, 27.11.2026. Pure on stand-in users; nothing read or written. Red at 3385c89: no
@@ -73940,6 +73949,310 @@ const INVARIANTS = [
             Hooks.off("drpgMotivesChanged", hook);
         }
         equal(stableJson(read), stableJson([0, 1]), "[told after the copy's key, after the Monokuma Motive's key too]");
+    }],
+    // T2c gm-tools-messenger (split from T2)
+    ["R9060 - the GM panel lists who is connected: gm-panel.mjs `connectedListHtml` draws one line a player account (never a GM's), sorted by name, with `data-drpg-connected` \"yes\" or \"no\", the account's name, the student it plays (`DRPG.Panel.plays`; its assigned character, else `DRPG.Panel.noCharacter`) and `DRPG.Panel.connected` or `DRPG.Panel.notConnected`; nothing with no player account; `buildPanelContent` draws it under the primary's line in the standing block, which wakes on `userConnected` (2.0 line T2c, EXP-GM-01, 28.11.2026)", async () => {
+        /* F1-blind-gm EXP-GM-01 (F3 S2 J1 red on both GMs): the module hides Foundry's players list from everybody and no
+           window of its own said who was connected. Drawn from stand-in users (two players, one connected and holding an
+           assigned character, one not and holding none, and a GM), then with none but the GM; the standing block's order
+           and its wake read in the source (tier 1 opens no window). Red at 0d3d4f2: no `connectedListHtml`. */
+        const P = await import("./gm-panel.mjs");
+        const list = typeof P.connectedListHtml === "function" ? P.connectedListHtml : () => "";
+        const users = [
+            { id: "R9060GmGmGmGmGm1", name: "R9060 GM", isGM: true, active: true },
+            { id: "R9060Zed00000001", name: "R9060 Zed", isGM: false, active: false, character: null },
+            { id: "R9060Ann00000001", name: "R9060 <i>Ann</i>", isGM: false, active: true, character: { name: "R9060 Aoi" } }
+        ];
+        const drawn = html => {
+            const root = document.createElement("div");
+            root.innerHTML = html;
+            return [...root.querySelectorAll(".drpg-gmp-connected li")].map(li => [li.dataset.drpgConnected ?? null, li.dataset.drpgUser ?? null,
+                li.textContent.replace(/\s+/g, " ").trim(), Boolean(li.querySelector("i"))]);
+        };
+        const L = key => game.i18n.localize(key);
+        const plays = actor => game.i18n.format("DRPG.Panel.plays", { actor });
+        const src = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/gm-panel.mjs`).then(lfText));
+        const content = fnSource(src, "buildPanelContent");
+        const fresh = bodyOf(fnSource(src, "keepPanelFresh"), 'region: ".drpg-gmp-standing"', { until: "\n    });" });
+        equal(stableJson({ two: drawn(list({ users })), none: list({ users: [users[0]] }),
+            under: /\$\{primaryLineHtml\(\)\}\s*\$\{connectedListHtml\(\)\}/.test(content), wakes: /"userConnected"/.test(fresh) }),
+        stableJson({ two: [
+            ["yes", "R9060Ann00000001", `R9060 <i>Ann</i> ${plays("R9060 Aoi")} ${L("DRPG.Panel.connected")}`, false],
+            ["no", "R9060Zed00000001", `R9060 Zed ${plays(L("DRPG.Panel.noCharacter"))} ${L("DRPG.Panel.notConnected")}`, false]
+        ], none: "", under: true, wakes: true }),
+        "{two: the lines drawn for two players and a GM [connected, user, words, a tag of a name drawn]; none: a GM alone; under: the list stands under the primary's line; wakes: the standing block redraws on userConnected}");
+        ok(["DRPG.Panel.connected", "DRPG.Panel.notConnected", "DRPG.Panel.connectedHeading", "DRPG.Panel.noCharacter"].every(k => L(k) !== k), "the list's keys have words");
+    }],
+    ["R9061 - the Students window says whether each student's player is connected: gm-students.mjs `aliveTableHtml` draws, after its existing columns, Room, Waiting and Connection, and a student's Connection cell names each player who owns it (`ownerIdsOf`, co-owners too), in name order, with `DRPG.Panel.connected` or `DRPG.Panel.notConnected` and `data-drpg-connected` \"yes\" or \"no\" on each, \"-\" for a student no player owns; a Monokuma's or an NPC's row has the three cells empty; the window reads `ownerIdsOf` and wakes on `userConnected` (2.0 line T2c, EXP-GM-01, 28.11.2026)", async () => {
+        /* F1-blind-gm EXP-GM-01, E-GM-97: the window had no connection column. Its table drawn for one living student of
+           the world four times, from stand-in readers (a connected owner, one not connected, none, two co-owners); the NPC's row's empty
+           cells, the window's readers and its wake read in the source. Red at 0d3d4f2: no export, no
+           column. */
+        needs(world.atLeast("livingStudents", 1));
+        const S = await import("./gm-students.mjs");
+        const table = typeof S.aliveTableHtml === "function" ? S.aliveTableHtml : null;
+        const [student] = studentActors().filter(a => !a.getFlag(MODULE_ID, FLAGS.deceased));
+        const base = { stateOf: () => "alive", donors: "", isCrimeSilenced: () => false, resourceValue: () => 0, resourceMax: () => 0, levelUp: () => false, offers: () => 0 };
+        const on = { id: "R9061Owner000001", name: "R9061 Owner", active: true }, off = { ...on, active: false };
+        const co = { id: "R9061CoOwner0001", name: "R9061 Another", active: false };
+        const read = owners => {
+            if (!table) return null;
+            const root = document.createElement("div");
+            root.innerHTML = table({ ...base, roster: () => [student], others: () => [], ownersOf: () => owners });
+            const heads = [...root.querySelectorAll("thead th")].map(th => th.textContent.trim());
+            const row = root.querySelector(`tr[data-actor="${student.id}"]`);
+            const cell = row?.children[heads.indexOf(game.i18n.localize("DRPG.Panel.connectionColumn"))];
+            const marks = [...(cell?.querySelectorAll("[data-drpg-connected]") ?? [])].map(el => [el.dataset.drpgUser, el.dataset.drpgConnected, el.textContent.trim()]);
+            return { last3: heads.slice(-3), marks, text: marks.length ? null : cell?.textContent.trim() ?? null };
+        };
+        const L = key => game.i18n.localize(key);
+        const fmt = (user, state) => game.i18n.format("DRPG.Panel.ownerConnection", { player: user.name, state: L(state) });
+        const src = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/gm-students.mjs`).then(lfText));
+        const open = fnSource(src, "openWhoIsAliveDialog");
+        const heads = [L("DRPG.Panel.roomColumn"), L("DRPG.Panel.waitingColumn"), L("DRPG.Panel.connectionColumn")];
+        equal(stableJson({ on: read([on]), off: read([off]), none: read([]), co: read([on, co]),
+            npc: /const otherRow = a => \(\{[^\n]*\.\.\.WHERE_AND_WHO_EMPTY \}\);/.test(fnSource(src, "aliveTableHtml")) && /room: "", waiting: "", connection: ""/.test(src),
+            reads: /ownersOf: a => ownerIdsOf\(a\)\.map\(id => game\.users\.get\(id\)\)/.test(open), wakes: /"userConnected"/.test(bodyOf(open, "keepLive(dialog", { until: "after: wireAll" })) }),
+        stableJson({ on: { last3: heads, marks: [[on.id, "yes", fmt(on, "DRPG.Panel.connected")]], text: null },
+            off: { last3: heads, marks: [[on.id, "no", fmt(off, "DRPG.Panel.notConnected")]], text: null },
+            none: { last3: heads, marks: [], text: "-" },
+            co: { last3: heads, marks: [[co.id, "no", fmt(co, "DRPG.Panel.notConnected")], [on.id, "yes", fmt(on, "DRPG.Panel.connected")]], text: null },
+            npc: true, reads: true, wakes: true }),
+        "{on, off, none, co: a student whose player is connected, is not, who has none, and with two co-owners} x {the last three heads, the cell's marks [user, connected, words], the words of a cell with none}; npc: a Monokuma's or an NPC's row has the three cells empty; reads: the window hands ownerOf; wakes: its live region hears userConnected");
+    }],
+    ["R9062 - the Students window says where a student is and what waits for them, by the Timeline's own reading: messenger-gm.mjs `waitingEntry` takes a player's thread card not settled whose drawn words hold a ruling button, with the character it asks about, its thread's player, its heading and the player's words, and nothing for a settled card or one with no button; `waitingCards` is that reading over the log, the Timeline's `waitingCard` asks it, and the Students window counts its cards by `actorId`; `aliveTableHtml` draws Room from `gmPlaceOf` (\"-\" with none) and Waiting as the count with a plural tooltip (2.0 line T2c, EXP-GM-17, 28.11.2026)", async () => {
+        /* F1-blind-gm EXP-GM-17, E-GM-02. Four stand-in cards in a player's thread, written by this GM (a Dynamic action's
+           card naming the student in its buttons, the same card settled, a card without buttons, and a card naming the
+           student only by its opening name), read through `waitingEntry`; the table drawn for one student with stand-in
+           readers (a room and 2 waiting, then none and 0); the three readers' places in the source. Red at 0d3d4f2: no
+           `waitingEntry`, no columns. */
+        must(game.user.isGM, "a waiting card's buttons are a GM's to read");
+        needs(world.atLeast("playerAccounts", 1));
+        needs(world.atLeast("livingStudents", 1));
+        const G = await import("./messenger-gm.mjs");
+        const S = await import("./gm-students.mjs");
+        const { plural } = await import("./utils.mjs");
+        const [player] = game.users.filter(u => !u.isGM);
+        const [student] = studentActors().filter(a => !a.getFlag(MODULE_ID, FLAGS.deceased));
+        const card = (id, content, flags = {}) => ({ id, author: game.user, timestamp: Date.now(), content, whisper: [player.id],
+            flags: { [MODULE_ID]: { thread: player.id, kind: "action", gmAsk: true, ...flags } }, getFlag(scope, key) { return this.flags?.[scope]?.[key]; } });
+        const BUTTONS = `<div class="drpg-call-actions"><button class="drpg-call-action" data-drpg-call="setDifficulty" data-by="${student.id}">Set</button></div>`;
+        const ASK = `<h3>R9062 Dynamic</h3><p><strong>${student.name}</strong> · R9062 Room</p><blockquote>R9062 open the vent</blockquote><p class="drpg-call-awaiting"><em>x</em></p>`;
+        const entry = typeof G.waitingEntry === "function" ? G.waitingEntry : () => "missing";
+        const strip = e => (e && typeof e === "object" ? { ...e, userId: e.userId === player.id, actorId: e.actorId === student.id ? "student" : e.actorId } : e);
+        const byName = player && student.testUserPermission(player, "OWNER")
+            ? strip(entry(card("R9062ByName00001", `<h3>R9062 Ask</h3><p><strong>${student.name}</strong></p><div class="drpg-call-actions"><button data-drpg-call="decline">x</button></div>`)))
+            : "not owned";
+        const cards = [strip(entry(card("R9062Waiting0001", ASK + BUTTONS))), strip(entry(card("R9062Settled0001", ASK + BUTTONS, { settled: true }))),
+            strip(entry(card("R9062NoButton001", ASK)))];
+        const cells = (place, n) => {
+            if (typeof S.aliveTableHtml !== "function") return null;
+            const root = document.createElement("div");
+            root.innerHTML = S.aliveTableHtml({ roster: () => [student], others: () => [], stateOf: () => "alive", donors: "", isCrimeSilenced: () => false,
+                resourceValue: () => 0, resourceMax: () => 0, levelUp: () => false, offers: () => 0, placeOf: () => place, waitingFor: () => n, ownerOf: () => null });
+            const row = root.querySelector(`tr[data-actor="${student.id}"]`);
+            const room = row?.querySelector("[data-drpg-room]"), wait = row?.querySelector("[data-drpg-waiting]");
+            return [room?.textContent ?? null, wait?.textContent ?? null, wait?.dataset.tooltip ?? null];
+        };
+        const gmSrc = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/messenger-gm.mjs`).then(lfText));
+        const stSrc = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/gm-students.mjs`).then(lfText));
+        const open = fnSource(stSrc, "openWhoIsAliveDialog");
+        equal(stableJson({ cards, byName: byName === "not owned" ? "student" : byName?.actorId,
+            drawn: [cells({ room: "R9062 Kitchen" }, 2), cells(null, 0)],
+            sources: [/if \(!waitingEntry\(message\)\) return null;/.test(bodyOf(gmSrc, "waitingCard(message, player) {", { until: "\n        }\n" })), /entry = waitingEntry\(message\)/.test(fnSource(gmSrc, "waitingCards")),
+                /for \(const card of waitingCards\(\)\) if \(card\.actorId\)/.test(open), /placeOf: a => gmPlaceOf\(a\)/.test(open)] }),
+        stableJson({ cards: [{ messageId: "R9062Waiting0001", actorId: "student", userId: true, kind: "R9062 Dynamic", text: "R9062 open the vent" }, null, null],
+            byName: "student",
+            drawn: [["R9062 Kitchen", "2", plural("DRPG.Panel.waitingCount", { n: 2 })], ["-", "0", plural("DRPG.Panel.waitingCount", { n: 0 })]],
+            sources: [true, true, true, true] }),
+        "{cards: [a card waiting, the same settled, one with no button]; byName: the character a card names only by its opening name; drawn: [a room and 2 waiting, none and 0] x [Room, Waiting, its tooltip]; sources: [the Timeline asks waitingEntry, waitingCards reads it, the window counts by actorId, the Room is gmPlaceOf]}");
+    }],
+    ["R9063 - a GM gives an action above the maximum from Students: gm-students.mjs `aboveMaximumHtml` draws, after a living student's actions, the banked free actions as \"+N\" with `DRPG.Actions.burstBanked` and an icon button `[data-drpg-grant-action]` named `DRPG.Panel.grantAction`, the banked count alone for a student who is not alive; `grantAboveMaximum` gives 1 through actions.mjs `grantFreeActions` with the reason \"gmRuling\" and says so (`DRPG.Panel.grantedAction`); the Actions cell draws it and the window wires the button to it (2.0 line T2c, EXP-GM-06, 28.11.2026)", async () => {
+        /* F1-blind-gm EXP-GM-06: `setActions` holds the budget to its maximum and `grantFreeActions` had no button. The cell
+           drawn for a stand-in actor holding 2 banked free actions, alive and not; the press run with a stand-in grant (the
+           real one writes, and tier 1 writes nothing); the cell's and the wire's places in the source. Red at 0d3d4f2: no
+           `aboveMaximumHtml`. */
+        const S = await import("./gm-students.mjs");
+        const { plural } = await import("./utils.mjs");
+        const html = typeof S.aboveMaximumHtml === "function" ? S.aboveMaximumHtml : null;
+        const actor = { id: "R9063Student0001", name: "R9063 Aoi", getFlag: (scope, key) => (scope === MODULE_ID && key === FLAGS.freeActionGrants ? 2 : undefined) };
+        const drawn = alive => {
+            if (!html) return null;
+            const root = document.createElement("div");
+            root.innerHTML = html(actor, alive);
+            const button = root.querySelector("button[data-drpg-grant-action]");
+            const extra = root.querySelector("[data-drpg-burst]");
+            return { extra: extra ? [extra.textContent.trim(), extra.dataset.tooltip] : null,
+                button: button ? [button.dataset.drpgGrantAction, button.getAttribute("aria-label")] : null };
+        };
+        const asked = [];
+        const pressed = typeof S.grantAboveMaximum === "function"
+            ? await S.grantAboveMaximum(actor, { grantFreeActions: async (...args) => { asked.push([args[0].id, args[1], args[2]]); return true; } })
+            : null;
+        const src = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/gm-students.mjs`).then(lfText));
+        const label = game.i18n.localize("DRPG.Panel.grantAction");
+        equal(stableJson({ alive: drawn(true), dead: drawn(false), pressed, asked,
+            cell: /\$\{aboveMaximumHtml\(a, state === "alive"\)\}/.test(fnSource(src, "aliveTableHtml")),
+            wired: /"data-drpg-grant-action", actor => grantAboveMaximum\(actor, roads\)/.test(fnSource(src, "wireAliveTable")) }),
+        stableJson({ alive: { extra: ["+2", plural("DRPG.Actions.burstBanked", { n: 2 })], button: [actor.id, label] },
+            dead: { extra: ["+2", plural("DRPG.Actions.burstBanked", { n: 2 })], button: null }, pressed: true, asked: [[actor.id, 1, { reason: "gmRuling" }]], cell: true, wired: true }),
+        "{alive, dead: the cell's extra for a living student and one who is not [its words, its tooltip] and its button [the actor, its name]; pressed: the press's answer; asked: what it handed the grant; cell: the Actions cell draws it; wired: the window wires the button to it}");
+        ok(label !== "DRPG.Panel.grantAction" && game.i18n.localize("DRPG.Panel.grantedAction") !== "DRPG.Panel.grantedAction", "the button's keys have words");
+    }],
+    ["R9064 - an action a GM rolls for a player's student says so, and only a GM's card is read so: action-pipeline.mjs `rolledByGmHere` names the GM for a GM's browser rolling a character a player owns, and nobody for a character no player owns or on a player's browser; `rollTrait` sets it on the outcome as `rolledByGm`; action-report.mjs `rollCardFlags` and `report` carry it in the card's flags (`rolledByGmFlag`), nothing without it; private-rolls.mjs `rolledByGmOf` reads it only on a card a GM wrote whose flag names a GM, and `rolledByGmLine` draws `DRPG.Rolls.rolledByGm` from it; the chat log and the notice draw the line (2.0 line T2c, EXP-GM-07, 28.11.2026)", async () => {
+        /* F1-blind-gm EXP-GM-07, E-GM-22: a GM's roll for a student left no sign, and a player's own roll is drawn on the
+           primary GM since E28, so the roll's author does not tell the two apart. Read on stand-ins: a GM and a player as
+           the browser's user, a student a player owns and a Monokuma no player owns (users from this world); four stand-in
+           cards (a GM's with a GM's id, a player's carrying the same flag, a GM's naming a player, a GM's with none).
+           Red at 0d3d4f2: no `rolledByGmHere`. */
+        needs(world.atLeast("playersWithCharacter", 1));
+        const AP = await import("./action-pipeline.mjs");
+        const AR = await import("./action-report.mjs");
+        const PR = await import("./private-rolls.mjs");
+        const player = game.users.find(u => !u.isGM && studentActors().some(a => a.testUserPermission(u, "OWNER")));
+        const owned = studentActors().find(a => a.testUserPermission(player, "OWNER"));
+        const gm = game.user;
+        const here = typeof AP.rolledByGmHere === "function" ? AP.rolledByGmHere : () => "missing";
+        const unowned = { id: "R9064Nobody00001", name: "R9064 nobody", testUserPermission: () => false };
+        const card = (author, flag) => ({ id: `R9064${author.isGM ? "Gm" : "Pl"}${flag ? "F" : "N"}00000`.slice(0, 16), author,
+            flags: { [MODULE_ID]: flag ? { rolledByGm: flag } : {} }, getFlag(scope, key) { return this.flags?.[scope]?.[key]; } });
+        const of = typeof PR.rolledByGmOf === "function" ? m => PR.rolledByGmOf(m)?.id ?? null : () => "missing";
+        const flags = roll => (typeof AR.rollCardFlags === "function" ? AR.rollCardFlags({ label: "R9064" }, roll).flags[MODULE_ID].rolledByGm ?? null : "missing");
+        const line = typeof PR.rolledByGmLine === "function" ? PR.rolledByGmLine(card(gm, gm.id)) : "";
+        const lineRoot = document.createElement("div");
+        lineRoot.innerHTML = line;
+        const pipe = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/action-pipeline.mjs`).then(lfText));
+        const report = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/action-report.mjs`).then(lfText));
+        const rolls = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/private-rolls.mjs`).then(lfText));
+        const popup = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/popup.mjs`).then(lfText));
+        equal(stableJson({
+            here: [here(owned, { user: gm }) === gm.id, here(unowned, { user: gm }), here(owned, { user: player })],
+            flags: [flags({ total: 9, rolledByGm: gm.id }) === gm.id, flags({ total: 9 })],
+            read: [of(card(gm, gm.id)) === gm.id, of(card(player, gm.id)), of(card(gm, player.id)), of(card(gm, null))],
+            line: lineRoot.querySelector("p.drpg-rolled-by-gm")?.textContent ?? null,
+            sources: [/const gmHand = outcome \? rolledByGmHere\(actor\) : null;\s*if \(gmHand\) outcome\.rolledByGm = gmHand;/.test(fnSource(pipe, "rollTrait")),
+                /\.\.\.rolledByGmFlag\(roll\)/.test(fnSource(report, "report")),
+                /Hooks\.on\("renderChatMessageHTML", signRolledByGm\)/.test(fnSource(rolls, "registerPrivateRolls")),
+                /withoutRulingButtons\(await wordsOf\(message\)\) \+ rolledByGmLine\(message\)/.test(fnSource(popup, "onCreateChatMessage"))]
+        }), stableJson({
+            here: [true, null, null], flags: [true, null], read: [true, null, null, null],
+            line: game.i18n.format("DRPG.Rolls.rolledByGm", { name: gm.name }), sources: [true, true, true, true]
+        }), "{here: [a GM rolling a player's student, a character no player owns, a player's browser]; flags: [a roll a GM ran, one it did not]; read: [a GM's card naming a GM, a player's card naming a GM, a GM's card naming a player, a GM's card naming nobody]; line: the line drawn; sources: [rollTrait marks the outcome, report carries the flag, the chat log's hook, the notice's line]}");
+    }],
+    ["R9066 - a player's action roll is an entry of the GMs' Timeline: messenger-gm.mjs `rollEntry` reads an action-result card (`popupCentre` \"actionResult\" or \"failedShadow\") carrying `rollTotal`, about a student a player owns, as the student, the player, the action, the total, its way and the GM who ran it, and nothing for a thread card, a card with no total, another card or a character no player owns; action-report.mjs `rollCardFlags` and `report` carry the total (`rollTotalFlag`); the Timeline builds the entries into its stream, follows new cards and draws no notice for them (2.0 line T2c, EXP-GM-16, 28.11.2026)", async () => {
+        /* F1-blind-gm EXP-GM-16, E-GM-94: a player's result reached a GM as a whisper in the chat log alone (popup.mjs keeps a
+           whisper from a GM's corner). Stand-in cards about a student of this world a player owns; the stream's entry
+           drawn by the Timeline's class from one of them (`streamRoll`, read off the class's prototype with no window);
+           the stream's build and its listener in the source. Red at 0d3d4f2: no `rollEntry`. */
+        needs(world.atLeast("playersWithCharacter", 1));
+        const G = await import("./messenger-gm.mjs");
+        const AR = await import("./action-report.mjs");
+        const { DrpgGmMessengerApp } = await import("./messenger-app.mjs");
+        const player = game.users.find(u => !u.isGM && studentActors().some(a => a.testUserPermission(u, "OWNER")));
+        const owned = studentActors().find(a => a.testUserPermission(player, "OWNER"));
+        const card = (id, flags, actorId = owned.id) => ({ id, author: game.user, timestamp: 1700000000000, speaker: { actor: actorId },
+            flags: { [MODULE_ID]: flags }, getFlag(scope, key) { return this.flags?.[scope]?.[key]; } });
+        const RESULT = { popupCentre: "actionResult", popupTitle: "R9066 Search", popupTone: "hope", rollTotal: 14 };
+        const entry = typeof G.rollEntry === "function" ? G.rollEntry : () => "missing";
+        const by = () => game.user;
+        const strip = e => (e && typeof e === "object" ? { ...e, actorId: e.actorId === owned.id, userId: e.userId === player.id, by: e.by === game.user.id } : e);
+        const cases = [strip(entry(card("R9066Result00001", RESULT), { by })), strip(entry(card("R9066Shadow00001", { ...RESULT, popupCentre: "failedShadow", popupTone: "fear" }))),
+            entry(card("R9066Thread00001", { ...RESULT, thread: player.id })), entry(card("R9066NoTotal0001", { ...RESULT, rollTotal: undefined })),
+            entry(card("R9066Other000001", { ...RESULT, popupCentre: "bodyFound" })), entry(card("R9066Nobody00001", RESULT, "R9066NoSuchActor"))];
+        let drawn = null;
+        const real = typeof G.rollEntry === "function" ? G.rollEntry(card("R9066Drawn000001", RESULT), { by }) : null;
+        if (real && typeof DrpgGmMessengerApp?.prototype?.streamRoll === "function") {
+            const li = DrpgGmMessengerApp.prototype.streamRoll.call({}, real);
+            drawn = { cls: li.className, player: li.dataset.player === player.id, action: li.dataset.action, total: li.querySelector("[data-drpg-total]")?.textContent ?? null,
+                title: li.querySelector("strong")?.textContent ?? null, by: li.querySelector("[data-drpg-rolled-by]")?.textContent ?? null };
+        }
+        const flagged = typeof AR.rollCardFlags === "function" ? [AR.rollCardFlags({ label: "x" }, { total: 11 }).flags[MODULE_ID].rollTotal ?? null,
+            AR.rollCardFlags({ label: "x" }, {}).flags[MODULE_ID].rollTotal ?? null] : null;
+        const gmSrc = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/messenger-gm.mjs`).then(lfText));
+        const report = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/action-report.mjs`).then(lfText));
+        equal(stableJson({ cases, drawn, flagged,
+            sources: [/const roll = rollEntry\(message, \{ by: rolledByGmOf \}\);\s*if \(roll\) items\.push/.test(bodyOf(gmSrc, "buildConsole() {", { until: "\n        }\n" })),
+                /Hooks\.on\("createChatMessage"/.test(bodyOf(gmSrc, "listenToRolls() {", { until: "\n        }\n" })),
+                /\.\.\.rollTotalFlag\(roll\)/.test(fnSource(report, "report")),
+                !/gmPopup|showPopup/.test(bodyOf(gmSrc, "listenToRolls() {", { until: "\n        }\n" }))] }),
+        stableJson({ cases: [{ messageId: "R9066Result00001", actorId: true, userId: true, character: owned.name, action: "R9066 Search", total: 14, tone: "hope", at: 1700000000000, by: true },
+            { messageId: "R9066Shadow00001", actorId: true, userId: true, character: owned.name, action: "R9066 Search", total: 14, tone: "fear", at: 1700000000000, by: false },
+            null, null, null, null],
+            drawn: { cls: "drpg-console-item drpg-console-roll", player: true, action: "true",
+                total: game.i18n.format("DRPG.Messenger.gm.rollResultWay", { total: 14, result: game.i18n.localize("DRPG.Action.duality.hope") }),
+                title: game.i18n.format("DRPG.Messenger.gm.rollTitle", { actor: owned.name, action: "R9066 Search" }),
+                by: game.i18n.format("DRPG.Rolls.rolledByGm", { name: game.user.name }) },
+            flagged: [11, null], sources: [true, true, true, true] }),
+        "{cases: [a result card a GM ran, a failed shadow's, a thread card, one with no total, a body's card, about no character a player owns]; drawn: the stream's entry [its class, player, action mark, total line, title, GM's mark]; flagged: rollCardFlags' rollTotal [with a total, without]; sources: [the stream builds the entries, the window follows new cards, report carries the total, the listener raises no notice]}");
+    }],
+    ["R9065 - what one GM did is told to the other GMs, and not drawn where it was sent from: popup.mjs `tellOtherGms` whispers a card to every other GM - none to this GM - with `gmPopup`, a title and `toldGms`, its words the key's with this GM as `{gm}`, escaped, and sends nothing with no other GM or on a player's browser; `onCreateChatMessage` draws no notice of such a card on its author's browser; the three roads call it: a Truth Bullet given (gm-items.mjs `giveBulletNow`), a state changed by Apply (gm-students.mjs `applyAliveStates`), a pool corrected by hand (despair.mjs `correctPool`, which the bar's pips and steppers take) (2.0 line T2c, EXP-GM-14, 28.11.2026)", async () => {
+        /* F1-blind-gm EXP-GM-14, E-GM-99: a second GM learnt nothing of the first's changes, because a whisper to the GMs
+           raises no notice. The card is caught before it is posted (its poster, `whisperToGms`, handed in as a stand-in,
+           and the GM list with it); the roads read in the source. Red at
+           0d3d4f2: no `tellOtherGms`. */
+        must(game.user.isGM, "the card is a GM's to send");
+        const P = await import("./popup.mjs");
+        const tell = typeof P.tellOtherGms === "function" ? P.tellOtherGms : null;
+        const U = await import("./utils.mjs");
+        const posted = [];
+        const sent = async gms => {
+            if (!tell) return "missing";
+            const before = posted.length;
+            await tell("DRPG.Messenger.gm.told.bullet", { item: "R9065 <b>knife</b>", actor: "R9065 Aoi" },
+                { gms, post: async (content, extra) => { posted.push({ whisper: [...(extra?.whisper ?? [])], content: String(content), flags: extra?.flags?.[MODULE_ID] ?? null }); return null; } });
+            return posted.length - before;
+        };
+        const OTHER = "R9065OtherGm0001";
+        const counts = [await sent([game.user.id, OTHER]), await sent([game.user.id])];
+        const first = posted[0] ?? null;
+        const words = game.i18n.format("DRPG.Messenger.gm.told.bullet", { gm: game.user.name, item: "R9065 <b>knife</b>", actor: "R9065 Aoi" });
+        const popup = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/popup.mjs`).then(lfText));
+        const items = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/gm-items.mjs`).then(lfText));
+        const students = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/gm-students.mjs`).then(lfText));
+        const despair = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/despair.mjs`).then(lfText));
+        const tellSrc = fnSource(popup, "tellOtherGms");
+        equal(stableJson({ counts, whisper: first?.whisper ?? null, escaped: Boolean(first?.content.includes(U.esc(words))) && !first?.content.includes("<b>knife"),
+            flags: first?.flags ? [first.flags.gmPopup, first.flags.popupTitle === game.i18n.localize("DRPG.Messenger.gm.told.title"), first.flags[P.TOLD_GMS]] : null,
+            gmOnly: /if \(!game\.user\?\.isGM\) return null;/.test(tellSrc),
+            notHere: /if \(cardFlag\(message, TOLD_GMS\) && \(message\.author \?\? message\.user\)\?\.id === game\.user\.id\) return;/.test(fnSource(popup, "onCreateChatMessage")),
+            roads: [/tellOtherGms\("DRPG\.Messenger\.gm\.told\.bullet"/.test(fnSource(items, "giveBulletNow")), /tellOtherGms\("DRPG\.Messenger\.gm\.told\.states"/.test(fnSource(students, "applyAliveStates")),
+                /tellOtherGms\("DRPG\.Messenger\.gm\.told\.pool"/.test(fnSource(despair, "correctPool")),
+                (bodyOf(despair, "export function despairRowOf(", { until: "\nfunction stepper(" }).match(/correctPool\(user\.id/g) ?? []).length] }),
+        stableJson({ counts: [1, 0], whisper: [OTHER], escaped: true, flags: [true, true, true], gmOnly: true, notHere: true, roads: [true, true, true, 3] }),
+        "{counts: cards sent [with another GM, with this GM alone]; whisper: who the card was for; escaped: the words, escaped; flags: [gmPopup, its title, toldGms]; gmOnly: a GM's browser alone sends it; notHere: no notice on its author's browser; roads: [the Truth Bullet's give, Apply's states, the hand's pool, the bar's three presses through correctPool]}");
+    }],
+    ["R9067 - a player's own notes stay in this browser: messenger-app.mjs `privateNotesShown` draws My notes on a player's own window alone, never on a GM's or another player's; settings.mjs registers `privateNotes` with the scope \"client\", out of the settings window; `privateNoteKey` keeps one row a world and user; `privateNote`, `setPrivateNote` and the tab's builder read and write that setting and send nothing - no socket packet, no chat card, no note of the GMs - and a text over the Note's cap is not saved (2.0 line T2c, EXP-PL-09, 28.11.2026)", async () => {
+        /* F1-blind-player EXP-PL-09, E-PL-53: the Note is the GMs' to read and a player has no journals. The gate read for a
+           player's own thread, a GM's view of it and another player's; the setting's registration off Foundry's own
+           registry; the key; the three functions' sources held to no road off this browser; the cap with a stand-in setting
+           write (tier 1 writes nothing). Red at 0d3d4f2: no `privateNotesShown`. */
+        const A = await import("./messenger-app.mjs");
+        const { MAX_PLAYER_BYTES } = await import("./secret.mjs");
+        const shown = typeof A.privateNotesShown === "function" ? A.privateNotesShown : () => "missing";
+        const me = { id: "R9067Player00001", isGM: false }, gm = { id: "R9067Gm000000001", isGM: true };
+        const reg = game.settings.settings.get(`${MODULE_ID}.${SETTINGS.privateNotes ?? "privateNotes"}`) ?? null;
+        const src = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/messenger-app.mjs`).then(lfText));
+        // Each cut to its own closing brace: the kit's top-level cut runs on through the class that follows them.
+        const roads = ["export function privateNote(", "export async function setPrivateNote("].map(m => bodyOf(src, m, { until: "\n}\n" })).join("\n")
+            + bodyOf(src, "_buildPrivateNote() {", { until: "\n    }\n" });
+        const offBrowser = /socket\.emit|ChatMessage|postSecret|whisperTo|saveNote|bridgeRequest|requestNote|gmStore/.test(roads);
+        let wrote = 0;
+        const realSet = game.settings.set;
+        let tooLong = null;
+        try {
+            game.settings.set = async () => { wrote++; return null; };
+            tooLong = typeof A.setPrivateNote === "function" ? await A.setPrivateNote("x".repeat(MAX_PLAYER_BYTES + 1)) : "missing";
+        } finally {
+            game.settings.set = realSet;
+        }
+        equal(stableJson({ shown: [shown(me.id, { user: me }), shown(me.id, { user: gm }), shown("R9067Other000001", { user: me })],
+            setting: reg ? [reg.scope, reg.config ?? false] : null,
+            key: typeof A.privateNoteKey === "function" ? A.privateNoteKey("w1", "u1") : null,
+            offBrowser, tooLong, wrote,
+            tab: /\.\.\.\(privateNotesShown\(this\.playerUserId\)/.test(bodyOf(src, "_buildTabs(context) {", { until: "\n    }\n" })) }),
+        stableJson({ shown: [true, false, false], setting: ["client", false], key: "w1.u1", offBrowser: false, tooLong: false, wrote: 0, tab: true }),
+        "{shown: My notes on [a player's own window, a GM's view of it, another player's thread]; setting: [its scope, in the settings window]; key: the row of a world and user; offBrowser: the notes' roads reach past this browser; tooLong: a text over the cap saved; wrote: writes made for it; tab: the tab bar draws My notes by the gate}");
+        ok(["DRPG.Note.privateTab", "DRPG.Note.privateIntro", "DRPG.Note.privateSaved"].every(k => game.i18n.localize(k) !== k), "the tab's keys have words");
     }],
 ];
 

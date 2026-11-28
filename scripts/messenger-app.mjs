@@ -31,10 +31,10 @@ import {
 } from "./messenger.mjs";
 import { noteFor, noteStatus, noteTemplate, saveNote, whenNotesHeld } from "./pre-session-note.mjs";
 // The chat log's own roll-card painter, shared rather than reimplemented.
-import { markOutcome, rollOutcomeOf } from "./private-rolls.mjs";
+import { markOutcome, rollOutcomeOf, rolledByGmOf } from "./private-rolls.mjs";
 import { playSfx } from "./sfx.mjs";
 
-import { contentOf, shownWordsOf, wordsOf, cardFlag, cardWriter, readersLines, dropOldGmLines } from "./secret.mjs";
+import { contentOf, shownWordsOf, wordsOf, cardFlag, cardWriter, readersLines, dropOldGmLines, MAX_PLAYER_BYTES } from "./secret.mjs";
 import { gmMessengerClass, MESSENGER_WINDOW_SIZES, messengerSize } from "./messenger-gm.mjs";
 
 
@@ -254,6 +254,11 @@ export class DrpgMessengerApp extends DrpgApp() {
             root.append(this._buildNote(context));
             return root;
         }
+        // My notes: the player's own, in their own window alone (EXP-PL-09, `privateNotesShown`).
+        if (this.tab === PRIVATE_TAB && privateNotesShown(this.playerUserId)) {
+            root.append(this._buildPrivateNote());
+            return root;
+        }
 
         const log = document.createElement("div");
         log.className = "drpg-messenger-log";
@@ -277,12 +282,14 @@ export class DrpgMessengerApp extends DrpgApp() {
         return root;
     }
 
-    /** Chat | Note, on the kit's bar (E44 C4a). The note carries a dot when there is something written. */
+    /** Chat | Note, on the kit's bar (E44 C4a), and My notes on a player's own window (EXP-PL-09). The note carries a dot when there is something written. */
     _buildTabs(context) {
         const made = document.createElement("template");
         made.innerHTML = kitTabBar([
             { key: "chat", label: game.i18n.localize("DRPG.Messenger.tabChat"), tooltip: tipText("DRPG.Tips.Sweep.More.chatTabTooltip") },
-            { key: "note", label: game.i18n.localize("DRPG.Note.tab"), tooltip: tipText("DRPG.Tips.Setup.chatNoteTabsTooltip") }
+            { key: "note", label: game.i18n.localize("DRPG.Note.tab"), tooltip: tipText("DRPG.Tips.Setup.chatNoteTabsTooltip") },
+            ...(privateNotesShown(this.playerUserId)
+                ? [{ key: PRIVATE_TAB, label: game.i18n.localize("DRPG.Note.privateTab"), tooltip: game.i18n.localize("DRPG.Note.privateTabTooltip") }] : [])
         ], { active: this.tab });
         const bar = made.content.firstElementChild;
         if (context.note.trim()) {
@@ -376,6 +383,54 @@ export class DrpgMessengerApp extends DrpgApp() {
     }
 
     /**
+     * MY NOTES (2.0 line T2c, EXP-PL-09, 28.11.2026; F1-blind-player EXP-PL-09, E-PL-53). The Note is read by the GMs
+     * (`DRPG.Note.intro`) and a player has no journals (the sidebar is hidden), so a player had nowhere to write for
+     * themselves. One box, saved as it is typed (half a second after the last key, and when it loses the focus) into this
+     * browser's own setting (`privateNote`, `setPrivateNote`) and nowhere else: no socket packet, no chat card, no GM's
+     * store. The intro says it stays in this browser. Past the Note's own cap (secret.mjs `MAX_PLAYER_BYTES`) it is not
+     * saved, and the status says so, as the Note's Save does (`DRPG.Note.tooLong`).
+     */
+    _buildPrivateNote() {
+        const wrap = document.createElement("div");
+        wrap.className = "drpg-messenger-note drpg-messenger-private";
+
+        const intro = document.createElement("p");
+        intro.className = "drpg-messenger-note-intro";
+        intro.textContent = game.i18n.localize("DRPG.Note.privateIntro");
+        wrap.append(intro);
+
+        const area = document.createElement("textarea");
+        area.className = "drpg-messenger-note-text drpg-messenger-private-text";
+        area.value = privateNote();
+        area.placeholder = game.i18n.localize("DRPG.Note.privatePlaceholder");
+        // Who reads it, as the Note's box says who reads that one.
+        setTip(area, "DRPG.Note.privateTabTooltip");
+        wrap.append(area);
+
+        const status = document.createElement("span");
+        status.className = "drpg-messenger-note-status";
+        const row = document.createElement("div");
+        row.className = "drpg-messenger-note-actions";
+        row.append(status);
+        wrap.append(row);
+
+        let timer = null;
+        const save = async () => {
+            clearTimeout(timer);
+            timer = null;
+            const kept = await setPrivateNote(area.value);
+            status.textContent = kept ? game.i18n.localize("DRPG.Note.privateSaved")
+                : game.i18n.format("DRPG.Note.tooLong", { kb: MAX_PLAYER_BYTES / 1024 });
+        };
+        area.addEventListener("input", () => {
+            clearTimeout(timer);
+            timer = setTimeout(() => { void save(); }, PRIVATE_SAVE_MS);
+        });
+        area.addEventListener("change", () => { void save(); });
+        return wrap;
+    }
+
+    /**
      * The note changed on this browser (E05 fix r1-G4; review M5): the status line says so
      * at once, and the textarea takes the new words only while it still holds the ones it
      * was drawn with - never over what is being typed. No redraw.
@@ -425,7 +480,8 @@ export class DrpgMessengerApp extends DrpgApp() {
         // What was typed and not sent or saved survives the redraw (CTRL-13, CTRL-24): read off the boxes drawn over...
         const chatWas = content.querySelector(".drpg-messenger-input textarea");
         if (chatWas) this.drafts.chat = chatWas.value;
-        const noteWas = content.querySelector(".drpg-messenger-note-text");
+        // My notes' box is the Note's in look alone (EXP-PL-09): it saves itself and keeps no draft here.
+        const noteWas = content.querySelector(".drpg-messenger-note-text:not(.drpg-messenger-private-text)");
         if (noteWas) {
             const typed = noteWas.value !== (noteWas.drpgShown ?? noteWas.value);
             this.drafts.note = typed ? noteWas.value : null;
@@ -436,7 +492,7 @@ export class DrpgMessengerApp extends DrpgApp() {
         // the note changed under it (`saveNote`'s `base`).
         const chatNow = content.querySelector(".drpg-messenger-input textarea");
         if (chatNow && this.drafts.chat) chatNow.value = this.drafts.chat;
-        const noteNow = content.querySelector(".drpg-messenger-note-text");
+        const noteNow = content.querySelector(".drpg-messenger-note-text:not(.drpg-messenger-private-text)");
         if (noteNow && this.drafts.note !== null) {
             noteNow.value = this.drafts.note;
             noteNow.drpgShown = this.drafts.noteBase;
@@ -595,7 +651,9 @@ export class DrpgMessengerApp extends DrpgApp() {
 export const DrpgGmMessengerApp = gmMessengerClass(DrpgMessengerApp, {
     buildBubble: message => buildBubble(message),
     previewOf: message => stripHtml(contentOf(message)),
-    savePosition: (key, position) => savePosition(key, position)
+    savePosition: (key, position) => savePosition(key, position),
+    // Who ran a player's action roll the Timeline lists (EXP-GM-07, EXP-GM-16).
+    rolledByGmOf: message => rolledByGmOf(message)
 });
 
 /** The GM's messenger window opened, or raised and turned to `view` ("console" or a player's id). */
@@ -1877,4 +1935,47 @@ export function stripHtml(html) {
     for (const block of wrap.querySelectorAll("h1, h2, h3, h4, h5, h6")) block.append(" - ");
     for (const block of wrap.querySelectorAll("p, div, li, blockquote, br")) block.after(" ");
     return wrap.textContent.replace(/\s+/g, " ").replace(/\s+-\s*$/, "").trim();
+}
+
+/* ==========================================================================
+ * A PLAYER'S OWN NOTES (2.0 line T2c, EXP-PL-09; the window's `_buildPrivateNote`)
+ * ========================================================================== */
+
+/* At the file's end, after the window's class and not before it (28.11.2026): the tooltip census reads the class's
+   controls inside the top-level function that comes before the class (tests-tips.mjs `tipPlacement`, R4754), and
+   these helpers there would have ended that cut at the class's door. */
+
+/** The My notes tab's key, and how long the box waits after the last key before it saves. */
+const PRIVATE_TAB = "mine";
+const PRIVATE_SAVE_MS = 500;
+
+/** Whether the window of `playerUserId`'s thread draws My notes here: a player's own window alone, never a GM's. Pure but for the defaults. */
+export function privateNotesShown(playerUserId, { user = game.user } = {}) {
+    return Boolean(user && !user.isGM && playerUserId && playerUserId === user.id);
+}
+
+/** The setting's row for this world and user (settings.mjs `privateNotes`). Pure. */
+export function privateNoteKey(worldId = game.world?.id, userId = game.user?.id) {
+    return `${worldId ?? "?"}.${userId ?? "?"}`;
+}
+
+/** This user's own notes in this world, as this browser holds them, or "". */
+export function privateNote() {
+    const rows = game.settings.get(MODULE_ID, SETTINGS.privateNotes) ?? {};
+    const text = rows[privateNoteKey()];
+    return typeof text === "string" ? text : "";
+}
+
+/**
+ * Keep `text` as this user's own notes in this browser: the client setting alone, nothing sent anywhere. Answers false,
+ * and keeps the last text, when it is over the Note's cap (`MAX_PLAYER_BYTES`); true once written.
+ */
+export async function setPrivateNote(text) {
+    const words = String(text ?? "");
+    if (new Blob([words]).size > MAX_PLAYER_BYTES) return false;
+    const rows = { ...(game.settings.get(MODULE_ID, SETTINGS.privateNotes) ?? {}) };
+    if (words) rows[privateNoteKey()] = words;
+    else delete rows[privateNoteKey()];
+    await game.settings.set(MODULE_ID, SETTINGS.privateNotes, rows);
+    return true;
 }

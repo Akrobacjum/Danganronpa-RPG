@@ -6064,7 +6064,26 @@
       "reviveFxUnfound": "Śmierć, której nikt nie znalazł, znika z zapisu GM-ów.",
       "reviveFxVoice": "W czacie głosowym znowu rozmawia z żywymi.",
       "reviveFxBullets": "Truth Bullety zniszczone przez śmierć nie wracają.",
-      "nextReadyBy": "GM {gm} pyta graczy, czy już kończą ({kind}). Naciśnij przycisk, żeby dołączyć do tego pytania."
+      "nextReadyBy": "GM {gm} pyta graczy, czy już kończą ({kind}). Naciśnij przycisk, żeby dołączyć do tego pytania.",
+      "connectedHeading": "Gracze",
+      "connectedTooltip": "Każde konto gracza, uczeń, którego prowadzi, i to, czy jest teraz połączone. Tę listę widzą tylko GM-owie.",
+      "plays": "prowadzi {actor}",
+      "noCharacter": "bez ucznia",
+      "connected": "połączony",
+      "notConnected": "niepołączony",
+      "roomColumn": "Pokój",
+      "waitingColumn": "Czeka",
+      "waitingColumnTooltip": "Karty o tym uczniu, które czekają na decyzję GM-a, tak jak pokazuje je Oś czasu.",
+      "waitingCount": {
+        "one": "Na decyzję GM-a czeka {n} karta o tym uczniu.",
+        "few": "Na decyzję GM-a czekają {n} karty o tym uczniu.",
+        "many": "Na decyzję GM-a czeka {n} kart o tym uczniu.",
+        "other": "Na decyzję GM-a czeka {n} karty o tym uczniu."
+      },
+      "connectionColumn": "Połączenie",
+      "ownerConnection": "{player}, {state}",
+      "grantAction": "+1 akcja ponad maksimum, do końca tej pory dnia",
+      "grantedAction": "{name} ma 1 akcję ponad maksimum do końca tej pory dnia."
     },
     "Character": {
       "notACharacter": "To działa tylko na postaci.",
@@ -6678,7 +6697,8 @@
       "awayNothing": "nic (reakcja)",
       "awayClaimed": "(rzut podał {claimed}; lista GM-a daje {legal})",
       "grantAll": "Przyznaj wszystkie",
-      "grantNone": "Nie przyznawaj"
+      "grantNone": "Nie przyznawaj",
+      "rolledByGm": "Rzucił GM {name}."
     },
     "Messenger": {
       "launcherTooltip": "Komunikator",
@@ -6712,7 +6732,18 @@
         "playerTip": "Pokaż rozmowę z tą osobą.",
         "filterTip": "Wybierz, co pokazuje oś czasu.",
         "inThread": "Rozmowa: {player}",
-        "event": "Wydarzenie"
+        "event": "Wydarzenie",
+        "rollKind": "Rzut",
+        "rollTitle": "{actor}, {action}",
+        "rollResult": "Wynik {total}.",
+        "rollResultWay": "Wynik {total}, {result}.",
+        "told": {
+          "title": "Zmiana innego GM-a",
+          "bullet": "{actor} dostaje od {gm} Truth Bullet „{item}”.",
+          "states": "{gm} zmienia stan uczniów: {list}.",
+          "stateOf": "{name} ({state})",
+          "pool": "{gm} ustawia Despair w puli {pool} na {n}."
+        }
       }
     },
     "Voice": {
@@ -7178,7 +7209,12 @@
       "q4": "Czy zgadzam się na wątek romansowy z udziałem mojej postaci?",
       "q5": "Czy mam jakieś triggery?",
       "q6": "Jak planuję grać? Jakie mam cele?",
-      "q7": "Planuję spróbować: … (złożone projekty zmieniające grę)"
+      "q7": "Planuję spróbować: … (złożone projekty zmieniające grę)",
+      "privateTab": "Moje notatki",
+      "privateTabTooltip": "Notatki, które czytasz tylko ty. Zostają na tym komputerze, w tej przeglądarce.",
+      "privateIntro": "Te notatki czytasz tylko ty. Zostają na tym komputerze, w tej przeglądarce: nie ma ich na innym komputerze ani w innej przeglądarce i nie dostaje ich żaden GM.",
+      "privatePlaceholder": "Twoje teorie, podejrzenia i przypomnienia",
+      "privateSaved": "Zapisano w tej przeglądarce."
     },
     "Ready": {
       "titleNext": "Koniec tej pory dnia",
