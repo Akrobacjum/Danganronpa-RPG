@@ -21,8 +21,10 @@
  *   INV-02      the second GM's "Write it here" window closes when the primary answers first
  *   EXP-GM-03   Start the Class Trial while a player's request waits on a GM: the GM is warned before the trial opens
  *   EXP-GM-04   Close and count: the result is not published to the players before the GM has seen it
- *   TRIAL-06    a player disconnected after the ballots went out is not counted against the conviction (the vote's base
- *               is the ballots cast and the players still connected)
+ *   TRIAL-06    a player disconnected after the ballots went out: GM2's preview of the count names that player's student
+ *               among the ballots disconnected players hold, and the vote's base stays the ballots issued (2.0 line T3's
+ *               approved behaviour, LINE-T3.md TRIAL-06; until then this read the base as the ballots cast, which the
+ *               triage did not approve - the owner's question P1)
  *   TRIAL-03    the verdict pressed by the second GM opens its windows (the class's Level Ups, the Blackened's rule) on
  *               the second GM's screen, not the primary's
  *   TRIAL-07    the second GM ends the trial while the primary is unreachable (its network cut for 15 s): the sentence is
@@ -314,14 +316,18 @@ export async function run(ctx) {
         const gm2New = (await K.on("gm2", "return F.apps();")).filter(a => !closeBefore.includes(a.id));
         check("EXP-GM-04: Close and count - the result is not on P2's screen before GM2 has seen it (a new window on GM2, nothing on P2 for 6 s)",
             p2Card.length === 0 && gm2New.length > 0, J({ p2Card, gm2New }), { ids: ["EXP-GM-04"] });
+        // the preview's words, read whole before it is answered (TRIAL-06 below reads the disconnected player's line in it)
+        const previewText = gm2New.length ? await K.on("gm2", `const a = foundry.applications.instances.get(${J(gm2New[0].id)}); return a?.element ? F.text(a.element) : "";`) : "";
         if (gm2New.length) await K.on("gm2", `return F.answer({ id: ${J(gm2New[0].id)} });`);
         await K.until("gm2", `const j = F.job("close"); return j?.done ? j : null;`, { timeout: 30_000 });
         await settle(3000);
         const counted = await K.on("gm2", `const p = game.drpg.trialProgress();
             return { total: p?.total ?? null, majority: p?.majority ?? null, noMajority: p?.noMajority ?? null, accused: F.safe(p?.accused), issued: [...(p?.vote?.issued ?? [])] };`);
         const goneUser = world.users[gone];
-        check(`TRIAL-06: ${gone}, disconnected after the ballots went out, is not counted against the conviction - the vote's base is the ${inBox ?? "?"} ballots cast`,
-            Number.isFinite(inBox) && counted.total === inBox, J({ gone, goneIssued: (opened.issued ?? []).includes(goneUser), opened, cast, inBox, counted }), { ids: ["TRIAL-06"] });
+        const goneStudent = A[gone]?.name ?? gone;
+        check(`TRIAL-06: ${gone}, disconnected after the ballots went out - GM2's preview of the count names ${goneStudent} among the ballots disconnected players hold, and the vote's base stays the ${(opened.issued ?? []).length} ballots issued`,
+            String(previewText).includes(goneStudent) && counted.total === (opened.issued ?? []).length,
+            J({ gone, goneStudent, goneIssued: (opened.issued ?? []).includes(goneUser), opened, cast, inBox, counted, previewText: String(previewText).slice(0, 900) }), { ids: ["TRIAL-06"] });
         await ctx.rejoin(ROLE[gone]);
         await K.reinstall(ROLE[gone]);
         await readyPlayers(K, [ROLE[gone]], world.scene, { rollDelay: 2500 });
