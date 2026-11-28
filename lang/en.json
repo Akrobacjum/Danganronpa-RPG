@@ -7958,6 +7958,48 @@
           "other": "Refilled the actions of {n} characters."
         }
       }
+    },
+    "Announce": {
+      "tile": "Announcement",
+      "title": "Monokuma's announcement",
+      "speaker": "Monokuma",
+      "schoolTitle": "Monokuma's announcement",
+      "roomTitle": "Monokuma's announcement to {room}",
+      "studentTitle": "Monokuma's announcement to you",
+      "textLabel": "What Monokuma says",
+      "textTip": "The words go out as you write them.",
+      "toLabel": "To",
+      "toTip": "The whole school, one room of the school, or one student.",
+      "to": {
+        "school": "The whole school",
+        "room": "One room",
+        "student": "One student"
+      },
+      "roomLabel": "Room",
+      "roomTip": "A room of the school. The players whose students stand there now get it in their threads.",
+      "studentLabel": "Student",
+      "studentTip": "The player who gets it in their thread.",
+      "reach": {
+        "one": "{n} player will get it in their thread.",
+        "other": "{n} players will get it in their threads."
+      },
+      "reachOf": {
+        "school": "Every screen gets it, the Spectators' too.",
+        "student": "That player gets it in their thread."
+      },
+      "send": "Announce",
+      "sendTip": "Sends the announcement now.",
+      "sent": {
+        "one": "Announced: {n} card sent.",
+        "other": "Announced: {n} cards sent."
+      },
+      "refused": {
+        "notGm": "Only a GM can announce.",
+        "empty": "Write what Monokuma says first.",
+        "noRoom": "Pick a room of the school.",
+        "noStudent": "Pick a player's student.",
+        "failed": "The announcement could not be sent; the console (F12) says why."
+      }
     }
   }
 }

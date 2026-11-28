@@ -56820,7 +56820,8 @@ const INVARIANTS = [
             keys: ["DRPG.Case.backupTile", "DRPG.Case.restoreTile"].map(k => [k in en, k in pl])
         }), stableJson({
             // E49 A2 moved three tiles and took one out (R3345 holds the four moves): the order as it stands after them.
-            tiles: [["now", ["whoIsAlive", "projects", "sound"]], ["case", ["murder", "investigation", "trial"]],
+            // The 2.0 line T4 (27.11.2026): Monokuma's announcement last in Now (EXP-GM-08, R9254).
+            tiles: [["now", ["whoIsAlive", "projects", "sound", "announce"]], ["case", ["murder", "investigation", "trial"]],
                 // E49 A1d: Reset the season into Season setup, Settings in its place (R3532). E49 A1e: Edit campaign, Despair Flow,
                 // Killing game rules and The Mastermind into Season setup (R3582).
                 ["between", ["roomSetup", "tables", "seasonSetup", "settings"]],
@@ -70781,6 +70782,67 @@ const INVARIANTS = [
         JSON.stringify({ lines: { host: true, failed: true, list: true }, before: true,
             during: ["host", game.i18n.format("DRPG.Case.copy.tileNoCopy", { when: before }), true], after: true, sources: true, words: [true, true] }),
         "{lines: the window's line for each impossible copy is its own words; before: the tile's second line the backup's age alone; during (the host refused): [the write's answer, the tile's second line, the window's line]; after: the tile as before; sources: the window names where the case comes from; words: [en, pl]}");
+    }],
+    ["R9254 - a room's announcement goes to the players whose students stand there (2.0 line T4, EXP-GM-08): announce.mjs `roomRecipients` answers the player accounts whose character stands in the room on the scene asked, each once, with no GM, no account without a character, no dead student and no Spectator, and nobody on another scene's room of that name", async () => {
+        /*
+         * EXP-GM-08 (docs/dev/v2/F1-*.md): who hears a room's announcement is read off the GMs' documents. The accounts,
+         * where each character stands (`place`), the dead and the Spectators are stood in through the parameters; nothing
+         * is read of the world and nothing written. Decided here: a dead student and a Spectator are not "in the room"
+         * for an announcement (the report says so). Red at 31d5812: there was no announce.mjs.
+         */
+        const A = await import("./announce.mjs").catch(() => null);
+        must(A && typeof A.roomRecipients === "function", "no announce.mjs with roomRecipients - Monokuma cannot announce to a room");
+        const actor = id => ({ id, name: id });
+        const users = [
+            { id: "U1", isGM: false, character: actor("A1") }, { id: "U2", isGM: false, character: actor("A2") },
+            { id: "U3", isGM: false, character: actor("A3") }, { id: "U4", isGM: false, character: actor("A4") },
+            { id: "U5", isGM: false, character: actor("A5") }, { id: "U6", isGM: false, character: null },
+            { id: "G1", isGM: true, character: actor("A6") }, { id: "U1", isGM: false, character: actor("A1") }
+        ];
+        const where = { A1: ["S1", "Kitchen"], A2: ["S1", "Kitchen"], A3: ["S1", "Library"], A4: ["S2", "Kitchen"], A5: ["S1", "Kitchen"], A6: ["S1", "Kitchen"] };
+        const place = a => (where[a.id] ? { scene: { id: where[a.id][0] }, room: where[a.id][1] } : null);
+        const opts = { scene: { id: "S1" }, users, place, dead: a => a.id === "A2", spectator: a => a.id === "A5" };
+        equal(JSON.stringify({ kitchen: await A.roomRecipients("Kitchen", opts), library: await A.roomRecipients("Library", opts),
+            none: await A.roomRecipients("Attic", opts), noRoom: await A.roomRecipients(null, opts) }),
+        JSON.stringify({ kitchen: ["U1"], library: ["U3"], none: [], noRoom: [] }),
+        "{kitchen: the accounts reached (U1 alive there; U2 dead, U4 on another scene, U5 a Spectator, U6 no character, G1 a GM; U1 listed twice); library; a room nobody stands in; no room}");
+    }],
+    ["R9255 - Monokuma's announcement: one card a recipient in their own thread, the words escaped, and the school's one public card spoken by Monokuma (2.0 line T4, EXP-GM-08): announce.mjs `announce` posts a room's card once into each recipient's thread and nowhere else, a student's into that thread, the school's as a card with no whisper list, Monokuma its speaker and `popupForce` on it; the GM's words are escaped in every card; empty words, no room, a GM as the student and a player's browser are refused", async () => {
+        /*
+         * EXP-GM-08: the posts are stood in through the parameters (`post` the thread's poster, `create` the chat's,
+         * `recipients` the room's list); nothing is posted. Red at 31d5812: there was no announce.mjs.
+         */
+        const A = await import("./announce.mjs").catch(() => null);
+        must(A && typeof A.announce === "function", "no announce.mjs with announce - Monokuma cannot announce");
+        must(game.user.isGM, "announcing is a GM's");
+        const player = game.users.find(u => !u.isGM);
+        needs(world.atLeast("playerAccounts", 1));
+        const gm = game.users.find(u => u.isGM);
+        const words = `<b>R9255</b> & "everybody"`;
+        const run = async (call) => {
+            const posts = [], cards = [];
+            const answer = await A.announce(call, { post: async (id, html, opts) => { posts.push([id, html, opts?.kind ?? null]); return { id: "m" }; },
+                create: async data => { cards.push(data); return { id: "c" }; }, recipients: async room => (room === "Kitchen" ? ["U1", "U3"] : []), scene: { id: "S1" } });
+            return { answer, posts, cards };
+        };
+        const room = await run({ to: "room", room: "Kitchen", text: words });
+        const school = await run({ to: "school", text: words });
+        const student = await run({ to: "student", userId: player.id, text: words });
+        const raw = html => html.includes("<b>R9255</b>") || /& "everybody"/.test(html);
+        const read = {
+            room: [room.answer, room.posts.map(p => p[0]), room.posts.every(p => !raw(p[1]) && p[1].includes("&lt;b&gt;R9255&lt;/b&gt;")), room.cards.length],
+            school: [school.answer, school.posts.length, school.cards.length, school.cards[0]?.whisper ?? "none", school.cards[0]?.speaker?.alias,
+                Boolean(school.cards[0]?.flags?.[MODULE_ID]?.popupForce), !raw(school.cards[0]?.content ?? "<b>R9255</b>")],
+            student: [student.answer, student.posts.map(p => p[0]), student.cards.length],
+            refused: [(await run({ to: "room", room: "Kitchen", text: "   " })).answer, (await run({ to: "room", room: null, text: "x" })).answer,
+                (await run({ to: "student", userId: gm?.id, text: "x" })).answer]
+        };
+        equal(JSON.stringify(read), JSON.stringify({
+            room: [{ sent: 2 }, ["U1", "U3"], true, 0],
+            school: [{ sent: 1 }, 0, 1, "none", game.i18n.localize("DRPG.Announce.speaker"), true, true],
+            student: [{ sent: 1 }, [player.id], 0],
+            refused: [{ refused: "empty" }, { refused: "noRoom" }, { refused: "noStudent" }]
+        }), "{room: [the answer, the threads posted into, every card's words escaped, public cards]; school: [the answer, thread posts, cards, its whisper list, its speaker, popupForce, its words escaped]; student: [the answer, the thread, public cards]; refused: [empty words, no room, a GM as the student]}");
     }],
 ];
 

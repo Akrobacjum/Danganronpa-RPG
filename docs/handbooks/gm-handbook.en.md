@@ -263,7 +263,7 @@ The tiles, by section:
 
 | Section | Tiles |
 |---|---|
-| Right now (always open) | **Students**, **Projects**, **Sound** |
+| Right now (always open) | **Students**, **Projects**, **Sound**, **Announcement** (section 8) |
 | The case (Daily Life, Investigation, Class Trial) | **Murder** (grayed out during an Eclipse, unless an incident runs: then it opens the incident tracker), **Investigation**, **Class Trial** console |
 | Between sessions (collapsed) | **Room setup**, **Item tables**, **Season setup** (section 2), **Settings** (the game's settings; disabled, with the reason, for a GM whom Foundry does not let change settings) |
 | Diagnostics (collapsed, dim) | **Debug log**, **Fix voice**, **The case** (backup and restore, with the last copy's age; section 14), **Everybody in one voice room** (section 9.5), **Repairs** (section 20.3) |
@@ -717,6 +717,8 @@ Despair converts to their Hope **1:1** from the Mastermind window, once a Master
 | One **Final Truth Remnant** per chapter | placed from the **Investigation** window's **Final Truth Remnants** tab | reinforced by type, so nobody can remove it; the chapter-end screen reminds you if none was placed |
 | The **Final Trial** flag | toggled from the trial console | announced to the table |
 | A final verdict | given from the trial console's verdict button, which opens **Final Trial verdict** in a Final Trial | correct, the Mastermind is executed when the trial ends and the killing game ends; wrong, or the Mastermind already dead, nobody new dies and the table is shown the truth |
+
+**Monokuma's announcements.** The GM panel's **Announcement** (section **Right now**, since 1.2.130) sends Monokuma's words to **The whole school**, **One room** or **One student**. The school gets one public card spoken by Monokuma, raised on every screen, the Spectators' too. A room of the school's scene reaches the players whose students stand there now, as the GMs' map places them, living and no Spectator: each gets a card in their own messenger thread, whispered to them and the GMs alone, so nobody learns who else was in the room; the window says how many will get it before you send. One student's card goes into that player's thread. Your words are shown as written, never as markup. `game.drpg.announce({ to, room, userId, text })` does the same from a macro.
 
 ---
 

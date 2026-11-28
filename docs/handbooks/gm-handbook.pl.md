@@ -263,7 +263,7 @@ Kafelki, według sekcji:
 
 | Sekcja | Kafelki |
 |---|---|
-| Teraz (zawsze otwarta) | **Uczniowie**, **Projects**, **Dźwięk** |
+| Teraz (zawsze otwarta) | **Uczniowie**, **Projects**, **Dźwięk**, **Ogłoszenie** (sekcja 8) |
 | Sprawa (Daily Life, Investigation, Class Trial) | **Morderstwo**, **Investigation** i konsola **Class Trial**; Morderstwo jest wyszarzone podczas Eclipse, chyba że trwa incydent, a gdy incydent trwa, otwiera tracker incydentu |
 | Między sesjami (zwinięta) | **Ustawienia pokoi**, **Tabele przedmiotów**, **Ustawienia sezonu** (sekcja 2) i **Ustawienia gry**; kafelek Ustawienia gry jest wyłączony, z podanym powodem, dla GM-a, któremu Foundry nie pozwala zmieniać ustawień |
 | Diagnostyka (zwinięta, przyciemniona) | **Dziennik debugowania**, **Napraw głos**, **Sprawa**, czyli kopia zapasowa i przywracanie, z wiekiem ostatniej kopii (sekcja 14), **Wszyscy w jednym pokoju głosu** (sekcja 9.5) i **Naprawy** (sekcja 20.3) |
@@ -717,6 +717,8 @@ Z okna Masterminda Despair zamienia się w jego Hope **1:1**, gdy Mastermind jes
 | Jeden **Final Truth Remnant** na rozdział | stawiany z zakładki **Final Truth Remnanty** w oknie **Investigation** | z samego typu jest Reinforced, więc nikt go nie usunie; ekran końca rozdziału przypomina, jeśli żadnego nie postawiono |
 | Flaga **Final Trial** | przełączana z konsoli trialu | ogłaszana stołowi |
 | Werdykt finału | wydawany przyciskiem werdyktu w konsoli Class Trial, który w Final Trial otwiera **Werdykt Final Trial** | trafny: Mastermind zostaje stracony, gdy rozprawa się kończy, i killing game się kończy; błędny albo gdy Mastermind już nie żyje: nikt nowy nie ginie, a stół poznaje prawdę |
+
+**Ogłoszenia Monokumy.** **Ogłoszenie** w panelu GM-a (część **Teraz**, od 1.2.130) wysyła słowa Monokumy do: **Cała szkoła**, **Jeden pokój** albo **Jeden uczeń**. Szkoła dostaje jedną publiczną kartę mówioną przez Monokumę, pokazaną na każdym ekranie, także Widzów. Pokój sceny szkoły dociera do graczy, których uczniowie teraz w nim stoją według mapy GM-ów, żywi i bez Widzów: każdy dostaje kartę we własnym wątku komunikatora, szeptaną tylko do niego i GM-ów, więc nikt nie dowiaduje się, kto jeszcze był w pokoju; okno mówi przed wysłaniem, ile osób je dostanie. Karta dla jednego ucznia idzie do wątku tego gracza. Twoje słowa są pokazywane tak, jak je napisano, nigdy jako znaczniki. `game.drpg.announce({ to, room, userId, text })` robi to samo z makra.
 
 ---
 

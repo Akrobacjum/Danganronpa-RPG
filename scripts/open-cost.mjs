@@ -50,7 +50,9 @@ export const WARM_IMPORTS = Object.freeze({
        editors of Room setup's Facilities tab and a project's window (facility-editor.mjs, the e93 line's E93 C2). */
     gm: Object.freeze(["passages-tab.mjs", "case-trial.mjs", "case-summary.mjs", "facility-editor.mjs",
         /* Echoes, read on the primary GM when a player asks it (E69 C7). */
-        "echoes-gm.mjs"])
+        "echoes-gm.mjs",
+        /* Monokuma's announcement, the GM panel's tile and game.drpg.announce (2.0 line T4, EXP-GM-08, 27.11.2026). */
+        "announce.mjs"])
 });
 
 /* Reached only by `import()` and left cold, each with its reason (R4200 reads that one is written). */

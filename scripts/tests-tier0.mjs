@@ -12977,6 +12977,8 @@ const REGRESSIONS = [
          */
         const FLOAT_SURVEY = {
             "action-menus.mjs": [2, "an action's request field and a parked declaration's note (kit windows)"],
+            // 2.0 line T4 (EXP-GM-08, 27.11.2026).
+            "announce.mjs": [1, "Monokuma's announcement's words (a kit window)"],
             "action-search.mjs": [1, "Search's request field (its kit window)"],
             "call-gm.mjs": [1, "the request to the GM (a kit window)"],
             "call-pickers.mjs": [3, "a Call's text, motive and consequence (kit windows)"],
@@ -23611,6 +23613,9 @@ const REGRESSIONS = [
             // E129 S0-CARDS (1.2.128): `giveBackAfterRoll` tells its reader the price came back, one sentence and the roll's lines (WHY.line).
             "action-pipeline.mjs": {"action": 1, "line": 1}, "action-project.mjs": {"action": 1, "line": 1, "message": 3},
             "action-report.mjs": {"built": 1}, "action-tail.mjs": {"built": 1}, "action-watch.mjs": {"built": 1}, "analyze.mjs": {"card": 1, "heading": 1, "line": 2},
+            // 2.0 line T4 (EXP-GM-08, 27.11.2026): Monokuma's announcement to a room and to a student, each a `chatCard(...)` built
+            // before its thread post (built); the school's card is a ChatMessage the census does not read as a poster.
+            "announce.mjs": {"built": 2},
             "anonymity.mjs": {"card": 2}, "body.mjs": {"card": 1, "message": 1}, "bridge-runs-acts.mjs": {"card": 1},
             "bridge-runs-records.mjs": {"action": 1, "message": 1},
             "call-effects.mjs": {"action": 2, "card": 1, "message": 1}, "call-gm.mjs": {"built": 1},

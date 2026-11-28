@@ -1617,7 +1617,13 @@ export const DrpgApi = {
         keys: SETTINGS,
         get: getSetting,
         set: setSetting
-    }
+    },
+
+    /** Monokuma's announcement (2.0 line T4, EXP-GM-08), the GM panel's Announcement tile for a macro: `announce({ to:
+     *  "school" | "room" | "student", room, userId, text })` - a public card spoken by Monokuma, a card in the thread of
+     *  each player whose student stands in the room of the school's scene, or in one player's thread. GM only; answers
+     *  `{ sent }` or `{ refused }` (announce.mjs). */
+    announce: (...a) => import("./announce.mjs").then(m => m.announce(...a))
 };
 
 /* ==========================================================================

@@ -9796,6 +9796,52 @@
           "other": "Uzupełniono akcje {n} postaci."
         }
       }
+    },
+    "Announce": {
+      "tile": "Ogłoszenie",
+      "title": "Ogłoszenie Monokumy",
+      "speaker": "Monokuma",
+      "schoolTitle": "Ogłoszenie Monokumy",
+      "roomTitle": "Ogłoszenie Monokumy w pokoju {room}",
+      "studentTitle": "Ogłoszenie Monokumy dla ciebie",
+      "textLabel": "Co mówi Monokuma",
+      "textTip": "Słowa idą tak, jak je napiszesz.",
+      "toLabel": "Do kogo",
+      "toTip": "Cała szkoła, jeden pokój szkoły albo jeden uczeń.",
+      "to": {
+        "school": "Cała szkoła",
+        "room": "Jeden pokój",
+        "student": "Jeden uczeń"
+      },
+      "roomLabel": "Pokój",
+      "roomTip": "Pokój szkoły. Dostają je w swoich wątkach gracze, których uczniowie teraz tam stoją.",
+      "studentLabel": "Uczeń",
+      "studentTip": "Gracz, który dostanie je w swoim wątku.",
+      "reach": {
+        "one": "Ogłoszenie dostanie {n} gracz, w swoim wątku.",
+        "few": "Ogłoszenie dostaną {n} gracze, każdy w swoim wątku.",
+        "many": "Ogłoszenie dostanie {n} graczy, każdy w swoim wątku.",
+        "other": "Ogłoszenie dostanie {n} gracza, każdy w swoim wątku."
+      },
+      "reachOf": {
+        "school": "Dostaje je każdy ekran, także Widzów.",
+        "student": "Ten gracz dostaje je w swoim wątku."
+      },
+      "send": "Ogłoś",
+      "sendTip": "Wysyła ogłoszenie teraz.",
+      "sent": {
+        "one": "Ogłoszono: wysłano {n} kartę.",
+        "few": "Ogłoszono: wysłano {n} karty.",
+        "many": "Ogłoszono: wysłano {n} kart.",
+        "other": "Ogłoszono: wysłano {n} karty."
+      },
+      "refused": {
+        "notGm": "Ogłaszać może tylko GM.",
+        "empty": "Najpierw napisz, co mówi Monokuma.",
+        "noRoom": "Wybierz pokój szkoły.",
+        "noStudent": "Wybierz ucznia gracza.",
+        "failed": "Nie udało się wysłać ogłoszenia; konsola (F12) mówi dlaczego."
+      }
     }
   }
 }

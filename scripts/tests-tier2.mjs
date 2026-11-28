@@ -118818,6 +118818,58 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         equal(JSON.stringify(read), JSON.stringify({ cancel: 0, yes: [1, 1] }),
             "{cancel: repaintFog's runs after a Cancel; yes: [its runs after a Yes, the GM told what it answered]}");
     }],
+    ["E134 EXP-GM-08 - Monokuma's announcement to a room reaches that room's students and nobody else: game.drpg.announce to the room a player's student stands in posts one card, in that player's thread, whispered to that player and the GMs alone; a second player's student moved out of the room first gets nothing; the cards deleted after", async () => {
+        /*
+         * 2.0 line T4, EXP-GM-08 (27.11.2026). The real road: the API, the GMs' documents for where the students stand,
+         * messenger.mjs `postToThread`. Written and put back: the second student's token, moved one room's width and
+         * moved back, and the cards the announcement posted, deleted. Red before the line: no game.drpg.announce.
+         */
+        must(game.user.isGM, "announcing is a GM's");
+        must(typeof game.drpg.announce === "function", "no game.drpg.announce - Monokuma cannot announce");
+        needs(world.atLeast("playersWithCharacter", 2), "two players whose characters are students");
+        const { locateActor } = await import("./movement.mjs");
+        const { isDeadForGm } = await import("./settings.mjs");
+        const { isSpectator } = await import("./monokuma.mjs");
+        const players = game.users.filter(u => !u.isGM && u.character && !isDeadForGm(u.character) && !isSpectator(u.character) && locateActor(u.character)?.room);
+        must(players.length >= 2, "fewer than two living students stand in a room - this would measure nothing");
+        const [first, second] = players;
+        const at = locateActor(first.character);
+        const before = new Set(game.messages.map(m => m.id));
+        const tag = `E134 GM-08 ${Date.now()}`;
+        let moved = null;
+        const read = {};
+        try {
+            const there = locateActor(second.character);
+            if (there?.room === at.room) {
+                // Out of the room: a step past the room's edge to an empty spot, read back by the room it lands in.
+                const doc = there.tokenDoc;
+                moved = { doc, x: doc.x, y: doc.y };
+                const size = (canvas?.dimensions?.size ?? 100);
+                for (const dx of [10, -10, 20, -20]) {
+                    await doc.update({ x: moved.x + dx * size }, { animate: false });
+                    await settle();
+                    if (locateActor(second.character)?.room !== at.room) break;
+                }
+                must(locateActor(second.character)?.room !== at.room, "the second student could not be stepped out of the room");
+            }
+            const answer = await game.drpg.announce({ to: "room", room: at.room, text: tag });
+            await settle();
+            const made = game.messages.filter(m => !before.has(m.id));
+            read.answer = answer;
+            read.cards = made.map(m => [m.getFlag(MODULE_ID, "thread") ?? null, [...(m.whisper ?? [])].sort().join()]);
+        } finally {
+            for (const m of game.messages.filter(m => !before.has(m.id))) await m.delete().catch(() => {});
+            if (moved) await moved.doc.update({ x: moved.x, y: moved.y }, { animate: false });
+            await settle();
+        }
+        const gms = game.users.filter(u => u.isGM).map(u => u.id);
+        const reached = game.users.filter(u => !u.isGM && u.character && !isDeadForGm(u.character) && !isSpectator(u.character) && u.id !== second.id).length;
+        must(reached >= 1, "no player stands reached");
+        equal(JSON.stringify({ to: read.cards?.map(c => c[0]).includes(first.id), notSecond: !read.cards?.some(c => c[0] === second.id),
+            whispers: read.cards?.every(c => c[1] === [c[0], ...gms].sort().join()), sent: read.answer?.sent === read.cards?.length }),
+        JSON.stringify({ to: true, notSecond: true, whispers: true, sent: true }),
+        "{to: the first player's thread holds a card; notSecond: none in the second's; whispers: each card to its player and the GMs alone; sent: the answer counts the cards}");
+    }],
 ];
 
 // `drawnForPlayer` for the grid (E33 C7): a drawn crisis roll goes through the suite's one road to a draw (tests-grid.mjs `drawnAct`).

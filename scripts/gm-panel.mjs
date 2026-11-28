@@ -212,7 +212,7 @@ const PANEL_SECTIONS = [
             // tab of sound-effect files and the two volume sliders, so naming
             // the tile after one of its three tabs stopped being true.
             { key: "sound", icon: "fa-volume-high", labelKey: "DRPG.Sound.title",
-              run: () => import("./music.mjs").then(m => m.openSoundDialog()) }
+              run: () => import("./music.mjs").then(m => m.openSoundDialog()) },
             // GONE FROM HERE:
             //   Killing game rules - to Between sessions (E49 A2; the owner, 10.11.2026: "Killing game rules wrzucmy do
             //     between sessions"): the rules are agreed before a session, not changed in the middle of a scene.
@@ -236,6 +236,9 @@ const PANEL_SECTIONS = [
             //     LiveKit shows the listener's tile to the room, so it never
             //     was a way to listen unseen. The voice reset it also carried
             //     is a tile under Diagnostics since E49 A2 (its own note there).
+            // MONOKUMA'S ANNOUNCEMENT (2.0 line T4, EXP-GM-08, 27.11.2026): to the school, a room or a student, in a window
+            // of its own (announce.mjs, read by import() as the Sound tile reads music.mjs).
+            { key: "announce", icon: "fa-bullhorn", labelKey: "DRPG.Announce.tile", run: () => import("./announce.mjs").then(m => m.openAnnounce()) }
         ]
     },
     {
