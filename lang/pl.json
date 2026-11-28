@@ -5554,7 +5554,8 @@
         "noBudget": "Nie masz już Free Move ani akcji.",
         "eclipseSpent": "Przejścia Eclipse wyczerpane.",
         "roundMovedOn": "GM pyta ponownie: odpowiedz na nowe pytanie.",
-        "notInRound": "To pytanie jest do graczy, których uczniowie są w grze, a twój nie jest."
+        "notInRound": "To pytanie jest do graczy, których uczniowie są w grze, a twój nie jest.",
+        "roundOpen": "Inny GM zadaje teraz graczom inne pytanie."
       },
       "criticalHint": "To krytyk, więc daj graczowi solidną podpowiedź.",
       "send": "Wyślij do GM-a",
@@ -5914,7 +5915,8 @@
       "reviveFxMonocub": "Monocub przestaje być Monocubem.",
       "reviveFxUnfound": "Śmierć, której nikt nie znalazł, znika z zapisu GM-ów.",
       "reviveFxVoice": "W czacie głosowym znowu rozmawia z żywymi.",
-      "reviveFxBullets": "Truth Bullety zniszczone przez śmierć nie wracają."
+      "reviveFxBullets": "Truth Bullety zniszczone przez śmierć nie wracają.",
+      "nextReadyBy": "GM {gm} pyta graczy, czy już kończą ({kind}). Naciśnij przycisk, żeby dołączyć do tego pytania."
     },
     "Character": {
       "notACharacter": "To działa tylko na postaci.",
@@ -6919,7 +6921,9 @@
       "goAnyway": "Dalej",
       "answerAgain": "GM wciąż czeka na twoją odpowiedź. Kliknij tutaj, by odpowiedzieć.",
       "goneEnded": "GM, który wcześniej zapytał graczy, nie ma połączenia, więc to pytanie zostało zamknięte.",
-      "barred": "Runda się skończyła, a zegar się nie przesunął: w jej trakcie zaczął się incydent albo Class Trial."
+      "barred": "Runda się skończyła, a zegar się nie przesunął: w jej trakcie zaczął się incydent albo Class Trial.",
+      "otherRoundOpen": "GM {gm} pyta właśnie graczy, czy już kończą ({kind}). Żeby dołączyć, naciśnij przycisk w linii Dalej w panelu GM-a; Anuluj w oknie tego pytania je kończy.",
+      "ownRoundOpen": "Już pytasz graczy, czy kończą ({kind}). Odpowiedz w oknie tego pytania albo naciśnij tam Anuluj, żeby je zakończyć."
     },
     "Summary": {
       "title": "Podsumowanie pory dnia",

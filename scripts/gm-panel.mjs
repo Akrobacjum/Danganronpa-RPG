@@ -17,7 +17,7 @@
 import { MODULE_ID, FLAGS, moduleVersion, TIMES_OF_DAY } from "./config.mjs";
 import { getClock, clockSummary, phaseLabel, campaignName } from "./clock.mjs";
 import { actionsLeft, actionsMax, hasFreeMove, freeActionsLeft, freeMovesLeft } from "./actions.mjs";
-import { isEclipse, movesLeft as eclipseMovesLeft, eclipseAllowanceFor } from "./eclipse.mjs";
+import { isEclipse, movesLeft as eclipseMovesLeft, eclipseAllowanceFor, eclipseLabel } from "./eclipse.mjs";
 import { overflowBlocksFreeMove } from "./overflow.mjs";
 import { studentActors, actingStudents } from "./monokuma.mjs";
 import { error, plural, esc, primaryGmId, isPrimaryGm, hiddenByGm } from "./utils.mjs";
@@ -899,7 +899,12 @@ export function nextStep(clock, { setupList, incident = game.drpg?.murderState?.
        or `toggleEclipse`): it joins the round and opens the window, or, when the GM who opened it is not connected,
        ends it and asks again. `round` is the world's unless handed (R1204). */
     if (round) {
-        return { text: game.i18n.localize("DRPG.Panel.nextReady"), action: round.kind === "next" ? "advance" : "eclipse" };
+        /* ANOTHER GM'S ROUND NAMES THAT GM (2.0 line T2b, DAY-06, 28.11.2026): its button joins it (a press of the round's
+           own kind, `openRoundOnPrimary`). The round's kind as its window's title says it (boundary.mjs `roundOpenLine`). */
+        const by = round.by && round.by !== game.user?.id ? game.users?.get(round.by)?.name ?? null : null;
+        const text = by ? game.i18n.format("DRPG.Panel.nextReadyBy", { gm: by, kind: round.kind === "next" ? game.i18n.localize("DRPG.Ready.titleNext") : eclipseLabel(clock) })
+            : game.i18n.localize("DRPG.Panel.nextReady");
+        return { text, action: round.kind === "next" ? "advance" : "eclipse" };
     }
 
     if (eclipse) {

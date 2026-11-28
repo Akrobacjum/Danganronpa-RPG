@@ -119446,7 +119446,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
          * between two students with players (`fightOpen`): the press asks nothing and the rewind, pressed and called as
          * the API calls it, is refused with its words and moves nothing; then, the fight closed, the press answered yes
          * steps the clock back to Morning. Put back: the clock, the settings a rewind writes (the seals, the motive, the
-         * search tokens), the incident, the victim. Red at 0d3d4f2: no `pressRewind`.
+         * search tokens), the incident, the victim. Red at 7016da4: no `pressRewind`.
          */
         needs(env.primaryGm(), "the clock is moved on the primary GM");
         needs(world.atLeast("studentsWithConnectedPlayer", 2), "a killer and a victim, each with a player");
@@ -119499,7 +119499,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
          * (chapter.mjs `markDeceased`), another living; Alive chosen on the dead row and Dead on the living one, Apply
          * pressed: the question opens before anything is written, names the student and lists what the revive does;
          * its Cancel leaves both rows as they were - the death standing, the living student alive. The same Apply again
-         * with the living row left as it is, answered yes: the student is alive. Put back: both alive. Red at 0d3d4f2:
+         * with the living row left as it is, answered yes: the student is alive. Put back: both alive. Red at 7016da4:
          * no question - the first Apply wrote both rows at once.
          */
         needs(env.dialogs(), "the Students window and its question are drawn and pressed");
@@ -119551,6 +119551,50 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         }
         equal(stableJson(read), stableJson({ asked: [true, true, true, true, true, false], cancel: [true, false], yes: [false, false] }),
             "{asked: [the question drawn, naming the student, the mark's line, the Truth Bullets' line, still dead while asked, the other still alive]; after Cancel: [dead, the other dead]; after the yes: [dead, the other dead]}");
+    }],
+    ["E132 T2b DAY-06 - a second GM's press during another kind of round is told whose round and how to join (boundary.mjs `nextTimeOfDay`, `askReadiness`, `openRoundOnPrimary`, `roundOpenLine`; 2.0 line T2b, 28.11.2026)", async () => {
+        /*
+         * F3 S4 C3 on Forge: gm2 pressed the Eclipse chevron while gm1's round of the next time of day was open, and read
+         * the general refusal. Driven on this primary: a round of the Eclipse's start stands open in the world's record,
+         * as another user's (`by` a connected player of the cast's: a round whose GM is gone is cleared by the next
+         * press instead, FG1), at this clock's boundary; then this GM presses Next time of day (`nextTimeOfDay`, the
+         * panel's button). The press is refused with one message naming that user and the round's kind, the clock does
+         * not move, and the record stays the other round. Put back: the record and the clock. Red at 7016da4: the
+         * message was the general "... was not carried out", naming nobody.
+         */
+        needs(env.primaryGm(), "the readiness round is opened on the primary GM");
+        const B = await import("./boundary.mjs"), C = await import("./clock.mjs"), E = await import("./eclipse.mjs"), { murderState } = await import("./murder.mjs");
+        const { isEclipse, bodyDiscovery } = await import("./settings.mjs");
+        must(!murderState() && !bodyDiscovery() && !isEclipse() && getClock().phase !== "classTrial", "an incident, a body's hold, an Eclipse or a trial is open - no round runs there");
+        const other = game.users.find(u => !u.isGM && u.active && game.actors.some(a => a.type === "character" && a.testUserPermission(u, "OWNER")));
+        must(other, "no connected player owns a character - no round would be asked, and this would measure nothing");
+        const recordWas = foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS.readyRound) ?? {});
+        const was = foundry.utils.deepClone(getClock());
+        const said = [], warn = ui.notifications.warn, info = ui.notifications.info;
+        const read = {};
+        try {
+            ui.notifications.warn = (text, ...rest) => { said.push(String(text)); return warn.call(ui.notifications, text, ...rest); };
+            ui.notifications.info = (text, ...rest) => { said.push(String(text)); return info.call(ui.notifications, text, ...rest); };
+            const ROUND = { id: "E132T2bDay06Rnd", kind: "eclipseStart", boundary: C.boundaryStamp(getClock()), by: other.id, at: Date.now(), answers: {} };
+            await game.settings.set(MODULE_ID, SETTINGS.readyRound, ROUND);
+            await settle();
+            const before = getClock();
+            const out = await B.nextTimeOfDay();
+            await settle();
+            const kind = E.eclipseLabel(getClock());
+            read.press = [out ?? null, getClock().timeOfDay === before.timeOfDay && getClock().day === before.day, game.settings.get(MODULE_ID, SETTINGS.readyRound)?.id ?? null];
+            read.said = said.filter(t => t.includes(other.name)).length;
+            read.line = said.includes(game.i18n.format("DRPG.Ready.otherRoundOpen", { gm: other.name, kind }));
+            read.general = said.filter(t => t.includes(game.i18n.localize("DRPG.Bridge.why.cannotNow"))).length;
+        } finally {
+            ui.notifications.warn = warn;
+            ui.notifications.info = info;
+            await game.settings.set(MODULE_ID, SETTINGS.readyRound, recordWas);
+            await setClock(was);
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ press: [null, true, "E132T2bDay06Rnd"], said: 1, line: true, general: 0 }),
+            "{press: [its answer, the clock unmoved, the round still the other's]; messages naming that user; the round's line said; the general refusal said}");
     }],
 ];
 

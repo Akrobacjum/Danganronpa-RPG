@@ -488,10 +488,12 @@ export function requestTurn({ actorId, kind, step }) {
  * round open now, `round: null` when nobody is asked; null on the primary's own refusal, which is told here.
  */
 export function requestReadyOpen({ kind }) {
+    // `sayRefused: false` (2.0 line T2b, DAY-06): a refusal is said once, by boundary.mjs `sayOpenRefusal`, here or there.
     return ask(ACTION_READY_OPEN, { kind }, {
-        onPrimary: true,
-        local: () => import("./boundary.mjs").then(m => m.openRoundOnPrimary({ kind, by: game.user.id })).then(out => {
-            if (out?.refused) sayNotDone(ACTION_READY_OPEN, reasonOf(out.refused));
+        onPrimary: true, sayRefused: false,
+        local: () => import("./boundary.mjs").then(async m => {
+            const out = await m.openRoundOnPrimary({ kind, by: game.user.id });
+            if (out?.refused) m.sayOpenRefusal(reasonOf(out.refused));
             return out?.reply ?? null;
         })
     });

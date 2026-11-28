@@ -70891,7 +70891,7 @@ const INVARIANTS = [
          * one pure rule now, read by `rewindTimeOfDay` (the HUD, the API and the console all call it) before
          * `cancelGather`, as the Eclipse's refusal is, and by the chevron for its dim and tooltip, as the Eclipse's chevron
          * reads `startRefusalOf`; Next's gate reads the same predicate. Read on the rule and the sources; nothing is
-         * written. Red at 0d3d4f2: no `rewindRefusalOf`.
+         * written. Red at 7016da4: no `rewindRefusalOf`.
          */
         const C = await import("./clock.mjs"), B = await import("./boundary.mjs");
         if (typeof C.rewindRefusalOf !== "function") { ok(false, "clock.mjs has no rewindRefusalOf"); return; }
@@ -70922,7 +70922,7 @@ const INVARIANTS = [
          * (undo-confirm.mjs `confirmUndo`, R9041), its words from `rewindQuestion`, which reads the take-back as
          * `rewindTimeOfDay` will (`takeBackFor` on the boundary's stamp, younger than TAKE_BACK_MS): the budgets, the
          * Search Tokens and the seals as they were, or nothing back and the seals of this time of day ended (`clearSeals`).
-         * Read on clocks of its own, at a fixed `now`, and on the press's source; nothing is written. Red at 0d3d4f2: no
+         * Read on clocks of its own, at a fixed `now`, and on the press's source; nothing is written. Red at 7016da4: no
          * `rewindQuestion`.
          */
         const C = await import("./clock.mjs");
@@ -70955,7 +70955,7 @@ const INVARIANTS = [
          * F1-blind-gm EXP-GM-13 (E-GM-87): the undos said what they had undone only afterwards. One question asks for each
          * now - the clock's rewind (R9040) and the Students window's Alive (R9042). Read with a recorder in the kit
          * window's place (`open`), answering as a window would: the yes, Cancel, and a close (undefined). Nothing is drawn
-         * or written. Red at 0d3d4f2: no undo-confirm.mjs.
+         * or written. Red at 7016da4: no undo-confirm.mjs.
          */
         let U = null;
         try { U = await import("./undo-confirm.mjs"); } catch { U = null; }
@@ -70987,7 +70987,7 @@ const INVARIANTS = [
          * tiles off the map, the dead's Spectator gone, a death nobody found dropped from the GMs' record; the Monocub's
          * flag cleared first (`applyAliveStates`); voice reads the death through `isDeadForGm`; the Truth Bullets the death
          * destroyed stay gone. Read on the pure parts with states of its own, and on the sources; nothing is written.
-         * Red at 0d3d4f2: no `revivesAsked`.
+         * Red at 7016da4: no `revivesAsked`.
          */
         const G = await import("./gm-students.mjs");
         if (typeof G.revivesAsked !== "function" || typeof G.reviveQuestion !== "function") { ok(false, "gm-students.mjs has no revivesAsked or reviveQuestion"); return; }
@@ -71012,6 +71012,63 @@ const INVARIANTS = [
                 [L("DRPG.Panel.reviveFxMark"), L("DRPG.Panel.reviveFxSpectator"), L("DRPG.Panel.reviveFxVoice"), L("DRPG.Panel.reviveFxBullets")]],
             all: 6, order: true, reads: [true, true, true, true, true]
         }), "{asked: the rows Apply revives; one dead student's question: [title, yes, named, effects]; with an unfound death and a Monocub besides, six effects; Apply asks before it writes; what reviveCharacter writes, read in it}");
+    }],
+    ["R9043 - a press refused because a readiness round of another kind is open has its own reason, `roundOpen`, the closed list's last and the patterns' last, its words in both languages (bridge-guards.mjs `REASONS`, `REASON_PATTERNS`, `reasonOf`; boundary.mjs `openRoundOnPrimary`; 2.0 line T2b, DAY-06, 28.11.2026)", async () => {
+        /*
+         * F1-daily DAY-06 (confirmed on Forge, F3 S4 C3): a second GM's press of the Eclipse chevron while another GM's
+         * round of the next time of day was open read the general "... was not carried out. You cannot do that right
+         * now." The primary's refusal is a reason of its own now, so the press can say whose round it is and how to join
+         * (R9044). A new code only at the end of REASONS and a new pattern only at the end of REASON_PATTERNS (LINE-T2 4.2);
+         * the old text "another readiness round is open" kept its row and no run returns it now. Read on the module's
+         * tables and source; nothing is written. Red at 7016da4: no code `roundOpen`.
+         */
+        const G = await import("./bridge-guards.mjs");
+        const sources = new Map(await otherSources());
+        const open = fnSource(stripComments(sources.get("boundary.mjs") ?? ""), "openRoundOnPrimary");
+        const TEXT = "another kind of readiness round is open";
+        const firstTaking = G.REASON_PATTERNS.findIndex(([, re]) => re.test(TEXT));
+        equal(stableJson({
+            code: G.REASONS.includes("roundOpen"), last: G.REASONS[G.REASONS.length - 1],
+            read: G.reasonOf(TEXT), pattern: [firstTaking === G.REASON_PATTERNS.length - 1, G.REASON_PATTERNS[G.REASON_PATTERNS.length - 1]?.[0]],
+            run: open.includes(JSON.stringify(TEXT)), oldGone: !open.includes('"another readiness round is open"'),
+            words: game.i18n.localize("DRPG.Bridge.why.roundOpen") !== "DRPG.Bridge.why.roundOpen"
+        }), stableJson({ code: true, last: "roundOpen", read: "roundOpen", pattern: [true, "roundOpen"], run: true, oldGone: true, words: true }),
+            "{the code in the closed list, the list's last; the text read as it; the first pattern taking it is the last, its code; the run says it; the old text gone from the run; the words}");
+    }],
+    ["R9044 - the GM refused for another kind of round is told whose round it is, which, and how to join or end it, once, and the panel's Next line names that GM (boundary.mjs `roundOpenLine`, `askReadiness`; bridge-asks.mjs `requestReadyOpen`; gm-panel.mjs `nextStep`; 2.0 line T2b, DAY-06, 28.11.2026)", async () => {
+        /*
+         * F1-daily DAY-06. The words come from the round's record, a world setting every browser holds (`readyRecord`):
+         * the GM who opened it and its kind, said as its window's title says it (`roundTitle`). Joining is the GM panel's
+         * Next line: its button runs the road that opened the round, which joins a round of the same kind
+         * (`openRoundOnPrimary`: `reply.round = open`); the round's window's Cancel ends it ("notNow" -> `close("stop")`) -
+         * both read in the code on 28.11.2026. One message, not two: the waiter says nothing for this request
+         * (`sayRefused: false`), and the press says the line or, for any other reason, the bridge's own sentence. Read on
+         * records of its own and on the sources; nothing is written. Red at 7016da4: no `roundOpenLine`.
+         */
+        const B = await import("./boundary.mjs"), P = await import("./gm-panel.mjs");
+        if (typeof B.roundOpenLine !== "function") { ok(false, "boundary.mjs has no roundOpenLine"); return; }
+        const other = game.users.find(u => u.id !== game.user.id);
+        must(other, "this world has no second user to name - this would measure nothing");
+        const sources = new Map(await otherSources());
+        const src = name => stripComments(sources.get(name) ?? "");
+        const asks = fnSource(src("boundary.mjs"), "askReadiness"), open = fnSource(src("bridge-asks.mjs"), "requestReadyOpen");
+        const step = P.nextStep({ phase: "dailyLife", timeOfDay: "noon" }, { round: { id: "R9044round", kind: "next", by: other.id }, incident: null, eclipse: false });
+        const own = P.nextStep({ phase: "dailyLife", timeOfDay: "noon" }, { round: { id: "R9044round", kind: "next", by: game.user.id }, incident: null, eclipse: false });
+        const title = game.i18n.localize("DRPG.Ready.titleNext");
+        equal(stableJson({
+            other: B.roundOpenLine({ id: "R9044round", kind: "next", by: other.id }),
+            own: B.roundOpenLine({ id: "R9044round", kind: "next", by: game.user.id }),
+            none: B.roundOpenLine({}),
+            said: [/sayRefused: false/.test(open), /sayOpenRefusal\(/.test(open), /sayOpenRefusal\(res\.reason\)/.test(asks),
+                /code === "roundOpen"[^]*roundOpenLine\(\)[^]*sayNotDone\(ACTION_READY_OPEN, code\)/.test(fnSource(src("boundary.mjs"), "sayOpenRefusal"))],
+            next: [step.text, step.action, own.text]
+        }), stableJson({
+            other: game.i18n.format("DRPG.Ready.otherRoundOpen", { gm: other.name, kind: title }),
+            own: game.i18n.format("DRPG.Ready.ownRoundOpen", { kind: title }),
+            none: game.i18n.localize("DRPG.Bridge.why.roundOpen"),
+            said: [true, true, true, true],
+            next: [game.i18n.format("DRPG.Panel.nextReadyBy", { gm: other.name, kind: title }), "advance", game.i18n.localize("DRPG.Panel.nextReady")]
+        }), "{the line for another GM's round, for this GM's own, for no record; the request says nothing itself and its own press and the remote press say the line or the reason; the Next line for another GM's round, its action, and for this GM's own}");
     }],
 ];
 

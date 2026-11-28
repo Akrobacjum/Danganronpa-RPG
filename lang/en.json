@@ -5201,7 +5201,8 @@
         "noBudget": "No Free Move and no actions left.",
         "eclipseSpent": "Your Eclipse crossings are used up.",
         "roundMovedOn": "The GM is asking again: answer the new question.",
-        "notInRound": "This question is for the players whose students are in play, and yours is not."
+        "notInRound": "This question is for the players whose students are in play, and yours is not.",
+        "roundOpen": "Another GM is asking the players a different question right now."
       },
       "criticalHint": "This roll is a critical, so give the player a substantial hint.",
       "send": "Send to the GM",
@@ -5526,7 +5527,8 @@
       "reviveFxMonocub": "A Monocub stops being a Monocub.",
       "reviveFxUnfound": "A death nobody has found is dropped from the GMs' record.",
       "reviveFxVoice": "In voice chat they talk with the living again.",
-      "reviveFxBullets": "The Truth Bullets the death destroyed do not come back."
+      "reviveFxBullets": "The Truth Bullets the death destroyed do not come back.",
+      "nextReadyBy": "GM {gm} is asking the players whether they are done ({kind}). Press the button to join that question."
     },
     "Character": {
       "notACharacter": "That only works on a character.",
@@ -6462,7 +6464,9 @@
       "goAnyway": "Go on",
       "answerAgain": "The GM is still waiting for your answer. Click here to answer.",
       "goneEnded": "The GM who asked the players before is not connected, so that question is closed.",
-      "barred": "The round is over and the clock has not moved: an incident or a Class Trial began during it."
+      "barred": "The round is over and the clock has not moved: an incident or a Class Trial began during it.",
+      "otherRoundOpen": "GM {gm} is asking the players whether they are done ({kind}). To join, press the button on the Next line of the GM panel; Cancel in that question's window ends it.",
+      "ownRoundOpen": "You are already asking the players whether they are done ({kind}). Answer in that question's window, or press Cancel there to end it."
     },
     "Summary": {
       "title": "Time-of-day summary",

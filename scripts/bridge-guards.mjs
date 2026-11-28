@@ -172,7 +172,9 @@ export const REASONS = Object.freeze([
     // E72 C4: a Monocub's move on a student who has had its share (monocub.mjs `cubCapRefusal`).
     "capReached", "capDay",
     // E74: a barricade (movement.mjs `barricadedFrom`) and a watcher held to the post (watch-gm.mjs).
-    "barricaded", "onWatch"
+    "barricaded", "onWatch",
+    // 2.0 line T2b DAY-06: a readiness round of another kind open (boundary.mjs `openRoundOnPrimary`), said by the press.
+    "roundOpen"
 ]);
 
 /**
@@ -487,7 +489,9 @@ export const REASON_PATTERNS = Object.freeze([
     ["cannotNow", /^no readiness round is open$/],
     // E37 fix FG1 (the end review's S-m2): the round's own codes, not the incident's and the vote's sentences.
     ["roundMovedOn", /^the readiness round has moved on since that answer$/],
-    ["notInRound", /^the sender plays no student the round asks$/]
+    ["notInRound", /^the sender plays no student the round asks$/],
+    // 2.0 line T2b DAY-06: another kind of round open, said with its GM and kind (boundary.mjs `roundOpenLine`; R9043).
+    ["roundOpen", /^another kind of readiness round is open$/]
 ].map(([code, pattern]) => Object.freeze([code, pattern])));
 
 /** The code of the closed list an English reason stands for: the first pattern that takes it, else `refused`. */
