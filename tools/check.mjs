@@ -1968,11 +1968,18 @@ const LENGTHS_ACCEPTED = Object.freeze({
     "scripts/sheet-actions.mjs": "the owner, 21.11.2026: exceptions accepted up to 1750 lines (STG-61)",
     "scripts/tables-editor.mjs": "the owner, 21.11.2026: exceptions accepted up to 1750 lines (STG-61); line WORLD split it below 1750 in 1.2.122 (1675 lines on 14bb0d92); kept here, not split again, while WORLD, R1 and COMM edit it in 1.2.123"
 });
-function lengthProblems(files, lengthOf, accepted = LENGTHS_ACCEPTED) {
+/* A file whose ceiling the owner raised, with the answer and until when (D2-32, 28.11.2026): bridge-table.mjs's one
+   table BRIDGE_ACTIONS (1596 of 1759 lines after the 1.2.130 assembly of the 2.0 lines) is split in the clean-up before
+   2.0 (D2-19), where the bridge crawl of tests-kit.mjs and tools/moved-only.mjs is taught the new file; until then 1800. */
+const LENGTH_CEILINGS_RAISED = Object.freeze({
+    "scripts/bridge-table.mjs": [1800, "the owner, 28.11.2026 (D2-32): 1800 for 1.2.130, the table split in the clean-up before 2.0 (D2-19)"]
+});
+function lengthProblems(files, lengthOf, accepted = LENGTHS_ACCEPTED, raised = LENGTH_CEILINGS_RAISED) {
     const problems = [];
     for (const f of files) {
         const n = lengthOf(f);
-        if (n > LENGTH_CEILING) problems.push(`${f} has ${n} lines, over the ceiling of ${LENGTH_CEILING} an accepted file may reach (the owner, 21.11.2026)`);
+        const ceiling = Object.hasOwn(raised, f) ? raised[f][0] : LENGTH_CEILING;
+        if (n > ceiling) problems.push(`${f} has ${n} lines, over the ceiling of ${ceiling} an accepted file may reach (the owner, ${Object.hasOwn(raised, f) ? "28.11.2026, D2-32" : "21.11.2026"})`);
         else if (n > LENGTH_BOUND && !Object.hasOwn(accepted, f)) problems.push(`${f} has ${n} lines, over the split's ${LENGTH_BOUND}, and is not in LENGTHS_ACCEPTED`);
     }
     for (const f of Object.keys(accepted)) if (!files.includes(f)) problems.push(`LENGTHS_ACCEPTED names ${f}, which is no split file of the table`);
