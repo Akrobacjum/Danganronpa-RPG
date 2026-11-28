@@ -73358,6 +73358,32 @@ const INVARIANTS = [
             stableJson({ empty: "", items: 2, first: true, order: ["T1", "T2"], raw: false }),
             "{no row: no section; two rows: two items, the newest first; the name as text, never markup}");
     }],
+    ["R9147 - a chapter's end the primary's reload cut is marked halted when the role reaches this GM, not only when its stores open (2.0 line T3 TRIAL-01 with line T2's PRIM-03; chapter.mjs `haltedOnPrimaryChange`, `registerHaltedEnd`)", async () => {
+        /* 2.0 line T3 TRIAL-01, 28.11.2026, after the assembly (2e64a3e). Since PRIM-03 the primary is a GM whose world has
+           loaded, so a GM's stores can open before the role comes back to it; the mark must follow the role. Pure on its
+           readings, and the hook read off the source. Red at 2e64a3e: no haltedOnPrimaryChange. */
+        const C = await import("./chapter.mjs");
+        must(typeof C.haltedOnPrimaryChange === "function", "chapter.mjs has no haltedOnPrimaryChange");
+        const me = "ME00000000000000";
+        const reg = fnSource(stripComments(await fetch(`/modules/${MODULE_ID}/scripts/chapter.mjs`).then(r => lfText(r))), "registerHaltedEnd");
+        equal(stableJson({ toMe: C.haltedOnPrimaryChange({ from: "OTHER00000000000", to: me }, me), first: C.haltedOnPrimaryChange({ from: null, to: me }, me),
+            away: C.haltedOnPrimaryChange({ from: me, to: "OTHER00000000000" }, me), none: C.haltedOnPrimaryChange(null, me),
+            hooked: /Hooks\.on\(\s*"drpgPrimaryChanged"/.test(reg) }),
+            stableJson({ toMe: true, first: true, away: false, none: false, hooked: true }),
+            "{the role reaches this GM: mark; its first reading as the primary: mark; the role leaves it: no; no change: no; registerHaltedEnd hears drpgPrimaryChanged}");
+    }],
+    ["R9148 - a GM who takes over the primary role during a Class Trial tells the table that who has spoken is heard from now on, once a change (2.0 line T3 TRIAL-10 with line T2's PRIM-03; trial.mjs `speakersFreshOnChange`)", async () => {
+        /* 2.0 line T3 TRIAL-10, 28.11.2026, after the assembly (2e64a3e): line T2's drpgPrimaryChanged. Pure on its readings.
+           Red at 2e64a3e: no speakersFreshOnChange. */
+        const T = await import("./trial.mjs");
+        must(typeof T.speakersFreshOnChange === "function", "trial.mjs has no speakersFreshOnChange");
+        const me = "ME00000000000000", other = "OTHER00000000000";
+        const at = (change, phase = "classTrial") => T.speakersFreshOnChange(change, { me, phase });
+        equal(stableJson({ takeover: at({ from: other, to: me }), load: at({ from: null, to: me }), away: at({ from: me, to: other }),
+            outside: at({ from: other, to: me }, "investigation"), none: at(null) }),
+            stableJson({ takeover: true, load: false, away: false, outside: false, none: false }),
+            "{the role taken over in a trial: tell; this browser's own first reading: no; the role gone elsewhere: no; outside a trial: no; no change: no}");
+    }],
     // T5 motives-trialprice (2.0 line T5, E135, 27.11.2026): D2-22, INV-08, TRIAL-09 and the motives (D2-23, D2-24).
     ["R9320 - D2-22: in a Class Trial an Objection, an Analyze and a Palm pay an action, then Sanity, then Hope - the last Sanity mark (a Breakdown) before any Hope, Hope only with the Sanity track full, nothing left refused; outside the trial Analyze and Palm are one step", async () => {
         /*
