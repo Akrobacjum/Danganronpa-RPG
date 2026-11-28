@@ -1173,8 +1173,10 @@ function buildPanelContent() {
     const advance = advanceHtml(clock);
 
     // THE CASE IS INCOMPLETE ON THIS BROWSER (E04): the primary's health check
-    // found a row missing and the GM chose Continue. It stays, at the top, until
-    // a check passes - a restore, or the next load with the copy in place.
+    // found a row missing and the GM chose Continue, or since 2.0 (line T2, PRIM-04)
+    // another GM's quiet check found one (gm-stores.mjs `quietHealthCheck`). It stays,
+    // at the top, until a check passes - a restore, a merge, or the next load with the
+    // copy in place.
     const warning = caseWarning();
     // A kit box since E47-C3 (E21's carried warning site, homed in E47): the GMs' words, never red.
     const caseLine = warning

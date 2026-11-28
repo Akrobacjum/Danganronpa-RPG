@@ -70933,6 +70933,85 @@ const INVARIANTS = [
             label: [[true, true], [true, true]]
         }), "{runs: askerReloadedOnPrimary from [a GM - one entry held under its id -, a user nobody knows, off the primary, nobody]; untouched: the maps' sizes and the ends after them; other: the cards ended from another player; afterOther: the asks left; own: the cards ended from the player; afterOwn: the asks left, one held after kept; ended: every card handed to the end; tell: tellGmsPlayerReady [with a GM connected, with none]; sent: [the module's socket, the packet's fields, its name, to whom]; listener: onPlayerReady [another packet, a user nobody knows]; wired: [a player's browser sends it after the GM's ready line, a GM's listens]; label: [settledReloaded, the packet's label] in en and pl}");
     }],
+    ["R9056 - on a GM who is not the primary the case's health check runs quietly: gm-stores.mjs `runHealthCheck` hands such a GM to `quietHealthCheck`, which keeps the report for the GM panel's red line (`caseWarning`, told by `drpgCaseHealthChanged`) and opens no window, raises no notice and decides nothing of the Mastermind; the quiet recheck that takes the line down once the rows arrive by merge runs on any GM, and the Mastermind's decision stays the primary's (2.0 line T2, PRIM-04, 28.11.2026)", async () => {
+        /* F1-infra PRIM-04 (TRIAGE-3: fix): the check ran on the primary alone, at its load and after a restore, so a
+           second GM - and one who took the table over mid-session with an incomplete copy, whose copy decides from then on -
+           never saw the red line handbook 3 promises "while a check has found the case incomplete on this browser". Driven
+           with a report of this test's own (a missing row and the Mastermind's open decision, which on the primary would
+           open the window), then put back with this browser's real one; the notices and the hook are recorded while it
+           runs, the windows counted in the page. The road a GM who is not the primary takes is read in the source: tier 1
+           runs on the primary. Red before PRIM-04: there is no `quietHealthCheck`, and `runHealthCheck` returns null. */
+        const S = await import("./gm-stores.mjs");
+        const read = { quiet: null };
+        const wasShowing = Boolean(S.caseWarning());
+        if (typeof S.quietHealthCheck === "function") {
+            const fake = { missing: 1, counts: {}, rows: [
+                { id: "bullets", level: "missing", key: "DRPG.Case.row.bullets", data: { n: 1, of: 1 } },
+                { id: "mastermindCleared", level: "conflict", key: "DRPG.Case.row.mastermindCleared", data: {} }] };
+            const windows = () => document.querySelectorAll(".drpg-window-case-health").length;
+            const notices = [];
+            const real = {};
+            for (const kind of ["info", "warn", "error"]) {
+                real[kind] = ui.notifications[kind];
+                ui.notifications[kind] = (...args) => { notices.push([kind, String(args[0] ?? "")]); return null; };
+            }
+            const told = [];
+            const hook = Hooks.on("drpgCaseHealthChanged", report => told.push(report === fake));
+            const windowsBefore = windows();
+            let kept, returned;
+            try {
+                returned = await S.quietHealthCheck({ health: async () => fake });
+                kept = S.caseWarning() === fake;
+                await new Promise(resolve => setTimeout(resolve, 50));
+            } finally {
+                for (const kind of Object.keys(real)) ui.notifications[kind] = real[kind];
+                Hooks.off("drpgCaseHealthChanged", hook);
+                // This browser's own report back: the line as the case stands here.
+                await S.quietHealthCheck();
+            }
+            read.quiet = { returned: returned === fake, kept, windows: windows() - windowsBefore, notices, told: told.slice(0, 1),
+                back: Boolean(S.caseWarning()) === wasShowing };
+        }
+        const source = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/gm-stores.mjs`).then(lfText));
+        const check = /export async function runHealthCheck\(/.test(source) ? fnSource(source, "runHealthCheck") : "";
+        const register = /export function registerCaseHealth\(/.test(source) ? fnSource(source, "registerCaseHealth") : "";
+        read.wired = [
+            /^export async function runHealthCheck\(\) \{\s*if \(!isPrimaryGm\(\)\) return quietHealthCheck\(\);/.test(check),
+            /if \(!lastHealth\?\.missing \|\| healthOpen\) return;/.test(register),
+            /SETTINGS\.mastermind\}`[^\n]*!isPrimaryGm\(\)\) return;/.test(register)
+        ];
+        equal(stableJson(read), stableJson({
+            // Told only when the line moves: a browser whose own case is incomplete already shows it.
+            quiet: { returned: true, kept: true, windows: 0, notices: [], told: wasShowing ? [] : [true], back: true },
+            wired: [true, true, true]
+        }), "quiet: quietHealthCheck with a missing row and the Mastermind's open decision {returned: the report; kept: caseWarning reads it; windows: health windows opened; notices: raised meanwhile; told: drpgCaseHealthChanged with it; back: the line as before once this browser's report is kept again}; wired: [runHealthCheck sends a GM who is not the primary to quietHealthCheck first, the quiet recheck asks no role, the Mastermind's decision stays the primary's]");
+    }],
+    ["R9057 - a GM who becomes the primary runs the primary's whole check: gm-stores.mjs `healthOnPrimaryChange` runs `runHealthCheck` when `drpgPrimaryChanged` names this GM the new primary once this browser's check at load has run, and nothing at the first reading (`from` null), when the role goes to or stays with another GM, or before the check at load (which reads the role itself); `registerCaseHealth` hangs it on `drpgPrimaryChanged` (gm-bridge.mjs `notePrimary`) (2.0 line T2, PRIM-04, 28.11.2026)", async () => {
+        /* F1-infra PRIM-04 and C11: a second GM who becomes the primary by a take-over (the primary left or reloads) kept the
+           check it ran - none - and from then on its copy decides (the Key Remnant fee, the incident's cast). Driven with a
+           recorder for the check, so no window opens here; the window on a real take-over is the primary's road, which
+           R174 and scenario 61 read. Red before PRIM-04: there is no `healthOnPrimaryChange`, and nothing listens. */
+        const S = await import("./gm-stores.mjs");
+        const ME = "R9057MeMeMeMeMeM", OTHER = "R9057OtherOtherO", THIRD = "R9057ThirdThirdT";
+        const read = { runs: null };
+        if (typeof S.healthOnPrimaryChange === "function") {
+            const run = (change, loaded) => {
+                let ran = 0;
+                const answer = S.healthOnPrimaryChange(change, { me: ME, loaded, run: () => { ran++; return "checked"; } });
+                return [ran, answer ?? null];
+            };
+            read.runs = [run({ from: OTHER, to: ME }, true), run({ from: null, to: ME }, true), run({ from: ME, to: OTHER }, true),
+                run({ from: OTHER, to: THIRD }, true), run({ from: OTHER, to: ME }, false), run(null, true), run({ from: OTHER, to: null }, true)];
+        }
+        const source = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/gm-stores.mjs`).then(lfText));
+        const register = /export function registerCaseHealth\(/.test(source) ? fnSource(source, "registerCaseHealth") : "";
+        read.wired = [/Hooks\.on\("drpgPrimaryChanged", change =>[^\n]*healthOnPrimaryChange\(change\)/.test(register),
+            /checkedAtLoad = true;[\s\S]*return runHealthCheck\(\);/.test(register)];
+        equal(stableJson(read), stableJson({
+            runs: [[1, "checked"], [0, null], [0, null], [0, null], [0, null], [0, null], [0, null]],
+            wired: [true, true]
+        }), "runs: healthOnPrimaryChange [the role came to this GM, the first reading named this GM, the role left this GM, it moved between two others, it came to this GM before the check at load, no change, to nobody] x [checks run, its answer]; wired: [registerCaseHealth hangs it on drpgPrimaryChanged, the check at load marks that it ran before it runs]");
+    }],
 ];
 
 /**
