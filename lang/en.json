@@ -2408,7 +2408,8 @@
           "bulletNoteTooltip": "Goes with the Truth Bullet when you give it. Only GMs read it",
           "bulletRecipientTooltip": "Who Give a Truth Bullet opens for. Everyone gives each living student a copy",
           "finalNoteTooltip": "Kept with the Final Truth Remnant when you place it. Only GMs read it",
-          "finalRoomAskTooltip": "Place it puts the Final Truth Remnant at a random spot in this room, with everything the plan holds"
+          "finalRoomAskTooltip": "Place it puts the Final Truth Remnant at a random spot in this room, with everything the plan holds",
+          "erasedListTooltip": "The Remnants clean-ups erased, newest first. A Reroll that puts one back takes it off this list."
         },
         "More": {
           "brochureTabTooltip": "The rules on one page: your statistics, your resources, and what each time of day holds.",
@@ -3264,7 +3265,14 @@
       "finalNobody": "Nobody has found it",
       "chargeUnanswered": "The primary GM did not answer the Key Remnant fee as the Class Trial opened, so it was not charged. Charge it with the button below.",
       "chargeTooLate": "No Despair was charged for unfound Key Remnants: the clock is in chapter {now}, but the last case belongs to chapter {was}, so this chapter has no case to count.",
-      "traceAnalysis": "What analysis reveals"
+      "traceAnalysis": "What analysis reveals",
+      "erasedTitle": {
+          "one": "Erased at a clean-up ({n})",
+          "other": "Erased at a clean-up ({n})"
+      },
+      "erasedRow": "{name}, {room}: chapter {chapter}, day {day}, {time}. Erased at {who}'s clean-up.",
+      "erasedRowNobody": "{name}, {room}: chapter {chapter}, day {day}, {time}. Erased at a clean-up.",
+      "erasedNoRoom": "no room"
     },
     "Live": {
       "movedUnder": "Changed elsewhere to: {value}",
@@ -7568,7 +7576,8 @@
         "facilityUses": "Room action uses: which character used which project's room action, and when",
         "balanceLog": "The balance log: each roll the GMs drew while it was on, and the GMs' notes",
         "diveSets": "Logic Dive sets: each set's questions, their answers, and which answer is right",
-        "phaseSteps": "A change into or out of the Class Trial, kept step by step so the primary GM can finish it after a reload"
+        "phaseSteps": "A change into or out of the Class Trial, kept step by step so the primary GM can finish it after a reload",
+        "erasedRemnants": "Remnants erased at a clean-up: what each was, where and when it lay, and who cleaned"
       },
       "copy": {
         "writeNow": "Write the copy now",

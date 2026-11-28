@@ -70248,6 +70248,20 @@ const INVARIANTS = [
         must(["found", "shared", "given", "givenMany", "autopsy", "gave", "label"].every(k => game.i18n.has(`DRPG.TruthBullet.copyOrigin.${k}`)),
             "a copyOrigin key has no words");
     }],
+    ["R9146 - the Investigation window's list of Remnants erased at a clean-up: none, no section; a row per trace, its words as text (2.0 line T3 EXP-GM-10; investigation.mjs `erasedRemnantsHtml`)", async () => {
+        /* 2.0 line T3 EXP-GM-10, 28.11.2026. Pure on stand-in rows; nothing read or written. Red at 42c490f: no erasedRemnantsHtml. */
+        const I = await import("./investigation.mjs");
+        must(typeof I.erasedRemnantsHtml === "function", "investigation.mjs has no erasedRemnantsHtml");
+        const root = document.createElement("div");
+        const rows = { T1: { name: "SUITE <erased> one", room: "Library", chapter: 1, day: 2, timeOfDay: "night", byName: "Chie", at: 2 },
+            T2: { name: "SUITE erased two", room: null, chapter: 1, day: 1, timeOfDay: "morning", byName: "", at: 1 } };
+        root.innerHTML = I.erasedRemnantsHtml(rows);
+        const items = [...root.querySelectorAll("[data-drpg-erased] li")];
+        equal(stableJson({ empty: I.erasedRemnantsHtml({}), items: items.length, first: items[0]?.textContent.includes("SUITE <erased> one") ?? false,
+            order: items.map(li => li.dataset.drpgErasedId), raw: root.innerHTML.includes("<erased>") }),
+            stableJson({ empty: "", items: 2, first: true, order: ["T1", "T2"], raw: false }),
+            "{no row: no section; two rows: two items, the newest first; the name as text, never markup}");
+    }],
 ];
 
 /**

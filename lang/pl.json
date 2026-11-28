@@ -2496,7 +2496,8 @@
           "bulletNoteTooltip": "Trafia do Truth Bulletu, gdy go wydasz. Czytają ją tylko GM-owie",
           "bulletRecipientTooltip": "Dla kogo otworzy się okno Daj Truth Bullet. Wszystkim daje kopię każdemu żywemu uczniowi",
           "finalNoteTooltip": "Trafia do Final Truth Remnantu, gdy go postawisz. Czytają ją tylko GM-owie",
-          "finalRoomAskTooltip": "Postaw umieszcza Final Truth Remnant w losowym miejscu tego pokoju, ze wszystkim, co zapisano w planie"
+          "finalRoomAskTooltip": "Postaw umieszcza Final Truth Remnant w losowym miejscu tego pokoju, ze wszystkim, co zapisano w planie",
+          "erasedListTooltip": "Remnanty usunięte przy sprzątaniu, od najnowszego. Reroll, który przywraca Remnant, zdejmuje go z tej listy."
         },
         "More": {
           "brochureTabTooltip": "Zasady na jednej stronie: statystyki, zasoby i to, co niesie każda pora dnia.",
@@ -3462,7 +3463,16 @@
       "newTraceDone": "{type} jest teraz w pokoju {room}.",
       "noRooms": "Na tej scenie nie ma jeszcze pokoi, więc nie ma gdzie postawić Remnantu. Najpierw narysuj regiony; jak to zrobić, wyjaśniają Ustawienia pokoi.",
       "keyDcNote": "Key Remnant to najłatwiejsza do zauważenia rzecz w pokoju, a jak łatwo go zauważyć, zależy od jego widoczności: {list}. Zwykły dowód o tej samej widoczności ma próg wyższy o {low} do {high}. Skala powyżej nie zmienia tego progu; mówi tylko, ile trop zdradza.",
-      "newTraceUnfindable": "Observe nie ma progu dla Remnantu tego rodzaju przy tej widoczności, więc nikt by go nie znalazł. Otwórz Nowy Remnant jeszcze raz i wybierz inny rodzaj albo inną widoczność."
+      "newTraceUnfindable": "Observe nie ma progu dla Remnantu tego rodzaju przy tej widoczności, więc nikt by go nie znalazł. Otwórz Nowy Remnant jeszcze raz i wybierz inny rodzaj albo inną widoczność.",
+      "erasedTitle": {
+          "one": "Usunięte przy sprzątaniu ({n})",
+          "few": "Usunięte przy sprzątaniu ({n})",
+          "many": "Usunięte przy sprzątaniu ({n})",
+          "other": "Usunięte przy sprzątaniu ({n})"
+      },
+      "erasedRow": "{name}, {room}: rozdział {chapter}, dzień {day}, {time}. Usunięte przy sprzątaniu. Sprzątanie: {who}.",
+      "erasedRowNobody": "{name}, {room}: rozdział {chapter}, dzień {day}, {time}. Usunięte przy sprzątaniu.",
+      "erasedNoRoom": "bez pokoju"
     },
     "Live": {
       "movedUnder": "Gdzie indziej zmieniono to pole na {value}",
@@ -9376,7 +9386,8 @@
         "facilityUses": "Użycia akcji w pokoju: która postać użyła akcji którego projektu i kiedy",
         "balanceLog": "Dziennik balansu: każdy rzut, który GM-owie losowali, gdy był włączony, i notatki GM-ów",
         "diveSets": "Zestawy Logic Dive: pytania każdego zestawu, ich odpowiedzi i to, która odpowiedź jest dobra",
-        "phaseSteps": "Wejście do Class Trial albo wyjście z niego, zapisywane krok po kroku, żeby główny GM mógł je dokończyć po przeładowaniu"
+        "phaseSteps": "Wejście do Class Trial albo wyjście z niego, zapisywane krok po kroku, żeby główny GM mógł je dokończyć po przeładowaniu",
+        "erasedRemnants": "Remnanty usunięte przy sprzątaniu: czym były, gdzie i kiedy leżały i kto sprzątał"
       },
       "copy": {
         "writeNow": "Zapisz kopię teraz",

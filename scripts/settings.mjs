@@ -1131,6 +1131,12 @@ export const SETTINGS = {
      */
     gmPhaseSteps: "gmPhaseSteps",
     /**
+     * A REMNANT ERASED AT A CLEAN-UP (2.0 line T3 EXP-GM-10, 28.11.2026): a GM store (gm-stores.mjs `erasedRemnantStore`),
+     * a row per erased trace - what it was, where and when it lay, who cleaned and which attempt - for the Investigation
+     * window. Synced and backed up; no player copy.
+     */
+    gmErasedRemnants: "gmErasedRemnants",
+    /**
      * What the primary GM does with a player's token moved through a wall its character could not
      * pass (E79 C4, movement-audit.mjs): "log", a row in the Debug log (the default, the plan's AM-1),
      * or "sendBack", the token put back where it stood, its player told and the GMs warned.
@@ -3454,6 +3460,13 @@ export function registerSettings() {
     // A change of phase into or out of the trial, step by step (2.0 line T3 TRIAL-08): no `onChange` - read by the
     // primary at its ready and when the GM who wrote the change leaves (clock.mjs `finishPhaseSteps`).
     game.settings.register(MODULE_ID, SETTINGS.gmPhaseSteps, {
+        scope: "client",
+        config: false,
+        type: Object,
+        default: {}
+    });
+    // A Remnant erased at a clean-up (2.0 line T3 EXP-GM-10): no `onChange` - the Investigation window watches the store.
+    game.settings.register(MODULE_ID, SETTINGS.gmErasedRemnants, {
         scope: "client",
         config: false,
         type: Object,

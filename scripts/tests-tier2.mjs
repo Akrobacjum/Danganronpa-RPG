@@ -61784,6 +61784,17 @@ equal(read.added, 3, "three additions to a purse at once lost one");
                 gone: (report, key) => !S.foundDoneStore.has(key),
                 back: key => stableJson([S.foundDoneStore.get(key)?.name, S.foundDoneStore.get(key)?.room]) === stableJson(["SUITE backed-up finished card", "SUITE PV room"])
             },
+            // A Remnant erased at a clean-up, through its store (2.0 line T3 EXP-GM-10; `backup: true`, the case's record).
+            // A row of a trace no scene holds: the Investigation window lists it, nothing else reads it.
+            erasedRemnants: {
+                seed: async () => {
+                    await S.erasedRemnantStore.patch("SUITET3ERASED000", { name: "SUITE backed-up erased trace", type: "incident", visibility: "evident",
+                        room: "SUITE erased room", sceneId: "SUITET3SCENE0000", chapter: 99, day: 1, timeOfDay: "night", at: 1, by: null, byName: "", attempt: "SUITEATTEMPT" });
+                    return "SUITET3ERASED000";
+                },
+                gone: (report, key) => !S.erasedRemnantStore.has(key),
+                back: key => stableJson([S.erasedRemnantStore.get(key)?.name, S.erasedRemnantStore.get(key)?.room]) === stableJson(["SUITE backed-up erased trace", "SUITE erased room"])
+            },
             // A Logic Dive set, through its store (E73 C4; backed up with the case, `backup: true`). Backed up with no
             // fixture here from 5101742, and this test failed naming it (CI 12.11, run 43164772167, shard 7). A set no
             // floor plays: no card is posted and nobody is sent it.
@@ -119011,6 +119022,65 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         const many = { flag: { kind: "givenMany" }, lines: [{ key: "DRPG.TruthBullet.copyOrigin.givenMany", data: {} }] };
         equal(stableJson(read), stableJson({ a: [many], b: [many], c: [{ flag: { kind: "given" }, lines: [{ key: "DRPG.TruthBullet.copyOrigin.given", data: {} }] }] }),
             "{each of the two: its copy says a GM gave it to others too, no name; the third, given alone: a GM gave it to you}");
+    }],
+    ["T3 EXP-GM-10 - an erasing clean-up leaves a row naming the trace, its room and the clean-up, and the Investigation window lists it", async () => {
+        /*
+         * 2.0 line T3 EXP-GM-10, 28.11.2026. As the used Cleaning Tools' test stands its fight: a killer at Stage 6, a trace
+         * placed on the scene on screen, a clean-up of total 30 that erases it (cleanup.mjs `resolveCleanup`, as the bridge
+         * calls it). Read: the GMs' row of the erased trace (gm-stores.mjs `erasedRemnantStore`) - its name, its room, the
+         * cleaner and the attempt - and the window's list built from the store (investigation.mjs `erasedRemnantsHtml`); then
+         * the clean-up undone (`undo: true`, the Reroll's road) with a roll that erases nothing (total 1): the trace is put
+         * back (under a new id here, as the used-tools test of E32+E07 C13 reads it) and its row taken. A Reroll at 30 would
+         * put it back and erase it again.
+         * The incident, the victim, the trace and the rows are put back. Red at 42c490f: no erasedRemnantStore.
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 2), "a killer and a victim, each with a player");
+        needs(world.atLeast("sceneOnScreen"), "the scrubbed trace is placed on the scene on screen");
+        const S = await import("./gm-stores.mjs");
+        must(S.erasedRemnantStore, "gm-stores.mjs has no erasedRemnantStore: an erased trace leaves the GMs nothing");
+        const M = await import("./murder.mjs");
+        const CL = await import("./cleanup.mjs");
+        const I = await import("./investigation.mjs");
+        const { placeRemnant, remnantById, remnantsOn, remnantData } = await import("./remnants.mjs");
+        const { livingStudents, isDeadForGm, reviveCharacter } = await import("./chapter.mjs");
+        const player = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const [killer, victim] = livingStudents().filter(player);
+        const scene = game.scenes.active ?? canvas?.scene;
+        const anchor = scene?.tokens?.find(t => t.x || t.y);
+        const ours = () => remnantsOn(scene).filter(t => remnantData(t)?.note === "SUITE EXP-GM-10 a trace the killer erases");
+        let trace = null, read = null;
+        try {
+            await fightOpen(M, killer, victim);
+            await turnFor(M, killer, "finishingBlow");
+            await M.resolveCrisisAction({ actorId: killer.id, key: "finishingBlow", total: 99, isCritical: false, withHope: true });
+            await settle();
+            must(M.murderState()?.stage === "resolution", `the fixture's Stage 6 did not come: ${stableJson(M.murderState())}`);
+            trace = await placeRemnant({ type: "incident", visibility: "evident", x: anchor?.x ?? 0, y: anchor?.y ?? 0, scene,
+                room: "SUITE EXP-GM-10 room", note: "SUITE EXP-GM-10 a trace the killer erases" });
+            must(trace, "the fixture's trace was not placed");
+            const id = trace.id;
+            await CL.resolveCleanup({ actorId: killer.id, tokenId: id, total: 30, isCritical: false, withHope: true });
+            await settle();
+            const row = S.erasedRemnantStore.get(id);
+            const gone = !remnantById(scene.id, id);
+            const html = I.erasedRemnantsHtml(S.erasedRemnantStore.entries());
+            await CL.resolveCleanup({ actorId: killer.id, tokenId: id, total: 1, isCritical: false, withHope: true, undo: true, price: null });
+            await settle();
+            read = { gone, row: row ? [row.room, row.by, typeof row.attempt === "string" && row.attempt.length > 0, row.sceneId === scene.id] : null,
+                listed: html.includes(row?.name ?? "\u0000") && html.includes("SUITE EXP-GM-10 room"), back: ours().length === 1,
+                rowAfterUndo: S.erasedRemnantStore.has(id) };
+        } finally {
+            if (M.murderState()) await M.endMurder({ reason: "test", followUp: false });
+            if (isDeadForGm(victim)) await reviveCharacter(victim, { quiet: true });
+            if (trace?.id && S.erasedRemnantStore?.has(trace.id)) await S.erasedRemnantStore.drop(trace.id);
+            for (const left of ours()) {
+                if (S.erasedRemnantStore?.has(left.id)) await S.erasedRemnantStore.drop(left.id);
+                try { await (left?.document ?? left)?.delete(); } catch { /* already gone */ }
+            }
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ gone: true, row: ["SUITE EXP-GM-10 room", killer.id, true, true], listed: true, back: true, rowAfterUndo: false }),
+            "{the trace gone; its row: [room, cleaner, an attempt, its scene]; the window lists its name and room; undone: the trace back, the row gone}");
     }],
     ["T3 TRIAL-03 - a second GM's Finish takes the verdict on the primary and runs its steps here", async () => {
         /*

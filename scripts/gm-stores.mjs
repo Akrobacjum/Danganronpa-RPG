@@ -3283,3 +3283,18 @@ export const phaseStepStore = defineGmStore({
     name: "phaseSteps", key: SETTINGS.gmPhaseSteps,
     kind: "ledger", resetGroup: "clock", backup: false, sync: true
 });
+
+/**
+ * A REMNANT ERASED AT A CLEAN-UP (2.0 line T3 EXP-GM-10, 28.11.2026; the owner's adopted recommendation: "Ślad usunięcia
+ * (co, kiedy, w którym sprzątaniu) w oknie Investigation dla GM-ów"). cleanup.mjs `resolveEraseRoad` removes the trace's
+ * row and its token (remnants.mjs `removeRemnant`), and what it was stood on the clean-up's card alone. A row per erased
+ * trace, keyed by its id: `{ name, type, visibility, room, sceneId, chapter, day, timeOfDay, at, by, byName, attempt }` -
+ * the name as the GMs know it, where and when it lay, who cleaned and which attempt - written from the attempt's receipt
+ * (`receipt.erased`) right after the removal, and dropped when a Reroll puts the trace back under its id. Read by the
+ * Investigation window's Remnants tab (investigation.mjs `erasedRemnantsHtml`). Synced and backed up: the case's record.
+ * Cut by the reset's "remnants" group with the traces it was one of. No player copy and no old key.
+ */
+export const erasedRemnantStore = defineGmStore({
+    name: "erasedRemnants", key: SETTINGS.gmErasedRemnants,
+    kind: "ledger", resetGroup: "remnants", backup: true, sync: true
+});
