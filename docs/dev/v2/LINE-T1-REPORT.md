@@ -19,9 +19,10 @@ raz to zgubiło linię (R5740, sekcja 6) - poprawka w osobnym commicie.
 | MURDER-02+D2-06 | zrobione | f2523df | R8922; "T1 D2-06 ..." x2 | maska zostaje po końcu incydentu, gdy ofiara przeżyła; schodzi przy wyjściu z pokoju i z porą dnia. Forge S1a D2-06/MURDER-02: bez zmian - już mierzy 2.0 |
 | MURDER-03 | zrobione | afd5bbe, aa544ea, 2bc9bd9 (scenariusz 75) | R8927, R8928; 57 MURDER-03 | imię nad "?" tylko u GM-a; głos zmarłego z obsady wychodzi z pokoju od chwili śmierci; Wycisz teraz w trackerze nie jest rysowane. Głosu S1a nie mierzy; 57 MURDER-03 mierzy imię (p2 i gm2), nie pokój głosu p3 (sekcja 6) |
 | MURDER-04 | zrobione | 5609e25 | R8933; "T1 MURDER-04 ..."; 57 MURDER-04 | Rzuć za gracza w trackerze; pole obsady `openingThrower`; bez nowej akcji mostu (zapis stanu z drugiego GM-a wystarcza). Forge: brak kontroli |
-| MURDER-05 | zrobione | e223951, d1ad108, 83131bd (scenariusz 10) | R8930, R5740 (przystosowany); "T1 MURDER-05 ..."; 57 MURDER-05 | okno u każdego pełnego GM-a, pierwsza odpowiedź zapisana w wierszu zamyka pozostałe. Forge S1b MURDER-05: nie ruszana (S1b nie jest plikiem T1) |
+| MURDER-05 | zrobione | e223951, d1ad108, 83131bd (scenariusz 10), 95aeb07 (pełne pytanie) | R8930, R5740 (przystosowany); "T1 MURDER-05 ..."; 57 MURDER-05 | okno u każdego pełnego GM-a, pierwsza odpowiedź zapisana w wierszu zamyka pozostałe. Forge S1b MURDER-05: nie ruszana (S1b nie jest plikiem T1) |
 | EXP-PL-02 | zrobione | 658302a, 83131bd, fe6681c | R8923; "T1 EXP-PL-02 ..." x2; 33 T1-DAY-03 | światła: pokój, druga deklaracja, zdrada, odpowiedź GM-a, potem zasłona tylko potwierdzonych; od 83131bd (D2-28) otwarcia i czekanie na ich wynik przed zegarem, potem zegar, potem reszta wierszy. Forge S1a: czekanie kontroli EXP-PL-02 bez zmian (sekcja 6) |
 | D2-28 (dodatkowa) | zrobione | 7abfac3 (test czerwony), 83131bd, fe6681c (dwa testy) | "T1 D2-28 - the lights wait ...", "T1 D2-28 - an opening rolled at the Night Eclipse's lights ..." | odpowiedź właściciela na P1: rzut otwarcia przed porą dnia, światła czekają; linia do GM-ów, gdy nikt nie rzuca; Nocne Zaćmienie dalej jak w nocy. Sekcja 6 |
+| D2-33 (dodatkowa) | zrobione | 95aeb07 | R8936; R190 (dwie fiksturki); R8926 (przystosowany); 72 (kontrola wiadomości rzutu kryzysu) | odpowiedź właściciela na P13: wiadomość rzutu nie mówi, że to rzut incydentu; zwolnienie z Hope i Despair w pamięci GM-ów (`rollPaidNothing`) i w rekordzie rzutu; reguła world-secrets. Sekcja 6 |
 | EXP-GM-02 | zrobione | e223951 | "T1 EXP-GM-02 ..."; 57 EXP-GM-02 | karta GM-ów z `gmPopup`, raz na znalazcę i ciało. Forge S1b: nie ruszana |
 | EXP-PL-03+EXP-GM-15+D2-09+D2-11 | zrobione | cdbe1bb, 83131bd (scenariusz 72; P13) | R8926; "T1 D2-09 ..." x2; 57 D2-09 | zwolnienie czytane na GM-ie (klucz rysowania, incydent, obsada), stempel tylko na wiadomości GM-a; Reroll też nic. Forge S1a D2-09/D2-11: bez zmian - już mierzy brak Hope/Despair |
 | D2-08+D2-10 | zrobione | 94af3e9, d35e338 | tier 2 "T1 D2-08 ..."; R8921 (tekst bez imion) | jedno zdanie do ofiary, bez imion. Forge S1a D2-08/D2-10: zawężona do wpisu z DRPG.Murder.victimAttemptFailed (d35e338) |
@@ -61,15 +62,18 @@ Numery R (zakres linii R8920-R9019), po kolei:
 - R8933 (tier 1) - MURDER-04/11: przycisk Rzuć za gracza, `openingThrowerStands`.
 - R8934 (tier 1) - MURDER-06: `expectedParticipants`, `participantAway`.
 - R8935 (tier 1) - MURDER-09: `incidentQuestionOpen` i drogi pytania.
+- R8936 (tier 1) - D2-33: `neutralRollOf` zdejmuje `skips.resources`, `rollPaidNothing` i `incidentRollExempt` czytają
+  pamięć GM-ów, nie flagę wiadomości.
 
-Następny wolny numer po linii: R8936 (`node tools/check.mjs registry`).
+Następny wolny numer po linii: R8937 (`node tools/check.mjs registry`).
 
 Tier 2 (blok `// T1 murder-death-eclipse`): "T1 MURDER-01 ...", "T1 D2-12 ...", "T1 D2-08 ...", "T1 D2-06 ..." (2),
 "T1 EXP-PL-02 ..." (2), "T1 DAY-04 ..." (2), "T1 DAY-03 ...", "T1 EXP-PL-07 ..." (2), "T1 D2-09 ..." (2),
 "T1 MURDER-05 ...", "T1 EXP-GM-02 ...", "T1 MURDER-08 ...", "T1 MURDER-04 ...", "T1 MURDER-11 ...", "T1 MURDER-06 ...",
 "T1 MURDER-09 ...", "T1 D2-28 - the lights wait for the opening's result before the clock moves" (zatwierdzony w 7abfac3
 jako `expectedRed("E131")`, czerwony na d35e338 z właściwego powodu: zaproszenie szło po zdjęciu Eclipse; zielony od
-83131bd), "T1 D2-28 - an opening rolled at the Night Eclipse's lights reads Night ..." (83131bd).
+83131bd), "T1 D2-28 - an opening rolled at the Night Eclipse's lights reads Night ..." (83131bd), "T1 MURDER-05 - a whole ask
+made while a store change's ask runs still asks the row answered Not yet" (D2-33, czerwony na 940e93b: `asked: false`).
 
 Scenariusz `audit/harness/scenarios/57-murder-two-gms.mjs` (warstwa ci, wiersz w README): części MURDER-05, EXP-GM-02,
 MURDER-08, INV-06, DAY-03, MURDER-04, MURDER-06, MURDER-11, MURDER-09, MURDER-03, EXP-PL-10, D2-09 - 13/13 checks
@@ -123,6 +127,9 @@ Mutanty (każdy cofnięty po przebiegu, 27.11.2026):
 | `atNight` bez pory świateł | czyta tylko `incomingTimeOfDay` | KILLED - "T1 D2-28 - an opening rolled at the Night Eclipse's lights" |
 | Etap 6 liczy się dla zdrady | `confirmed > 0` (stan z 658302a) | KILLED - "a betrayal declared in an Eclipse costs an action" |
 | oferta nie wraca | bez `refuseParkedBetrayal` | KILLED - "a second declaration in the same Eclipse and a betrayal" |
+| D2-33: flaga z powrotem (28.11.2026) | `writeDrawnMessage` stempluje `incidentFree` | KILLED - 72 (kontrola wiadomości i "world [incident]" z reguły world-secrets) |
+| D2-33: pominięcie zostaje | `neutralRollOf` bez zdjęcia `skips.resources` | KILLED - 72 (te same dwie kontrole) |
+| pełne pytanie połknięte | `askPendingBodies` bez czekania na pytanie `fresh` | KILLED - "T1 MURDER-05 - a whole ask ..." (kontrola bez mutanta: zielona) |
 
 **Pełny bieg: zielone CI na 2bc9bd9** - workflow CI, run #666 (id 46114943935), push 28.11.2026 06:04-06:53 UTC,
 conclusion success (8 shardów, scenariusze, verdict; za pełny bieg koordynator uznaje zielone CI na ostatnim pushu). Po
@@ -190,6 +197,7 @@ Przestrzenie T1:
 - DRPG.Eclipse: declarationLost, declarationLostGm, declarationLostOpenGm (nowe, DAY-04); lightsWaitOpening (nowy,
   D2-28); yourMoves, moved (zmienione, każda forma liczby, EXP-PL-06).
 - DRPG.Murder.betrayalWhy.second (nowy: zdrada odrzucona przy świetle jako druga deklaracja, 83131bd).
+- D2-33: bez nowych kluczy.
 - DRPG.Body: answeredElsewhere, loneFinderTitle, loneFinderGm (nowe).
 - DRPG.Spectator.noChat (zmieniony).
 - Proza config.mjs: MURDER_OPENING killer.failure (zmieniona, EN w config.mjs, PL w lang; D2-08).
@@ -213,6 +221,10 @@ W cudzych przestrzeniach (dopisane na końcu):
   linią (658302a; "T1 DAY-04").
 - Światła drugiego GM-a czytają pokój przez głównego (658302a; "T1 DAY-03", 33 T1-DAY-03, 57 DAY-03).
 - Odmowa GM-a, druga deklaracja i odrzucona zdrada przy świetle oddają akcję (658302a; "T1 EXP-PL-07").
+- Wiadomość rzutu otwarcia i rzutu kryzysu nie zdradza już nikomu spoza GM-ów, że to rzut incydentu (bez flagi
+  `incidentFree` i bez `skips.resources` w rzucie); zwolnienie z Hope i Despair bez zmian (D2-33; R8936, 72).
+- Okno "Uczniowie znaleźli ciało" nie przepada, gdy GM pyta ponownie w chwili, gdy inny GM odpowiedział "Nie teraz"
+  (95aeb07; "T1 MURDER-05 - a whole ask ...").
 - Rzut otwarcia morderstwa zgłoszonego w Eclipse zapada, zanim wrócą światła: zegar czeka na wynik, więc nieudana
   próba kończy się, gdy Eclipse wciąż chowa tokeny; GM-owie dostają linię, że światła czekają (Rzuć za gracza albo
   Zakończ morderstwo); morderstwo z Nocnego Zaćmienia dalej rzuca jak w nocy (83131bd; "T1 D2-28" x2).
@@ -295,11 +307,28 @@ W cudzych przestrzeniach (dopisane na końcu):
   - Scenariusze 10 (F3), 61 (F3), 72 i 75 (E) nie były puszczone po MURDER-05, MURDER-01/04/09, D2-09 i MURDER-03;
     ich kontrole oczekiwały zachowania sprzed linii. Przystosowane, każda z powodem w komentarzu (sekcja 2; 75 w
     2bc9bd9 - znalazł go dopiero pełny przebieg scenariuszy na 83131bd).
-- D2-09 a konsola postronnego (pytanie P13): wiadomość GM-a z rzutem kryzysu albo otwarcia ma flagę `incidentFree`, a jej
-  rzut ma Daggerheartowe `options.skips.resources: true` (zmierzone na p1 w scenariuszu 72, 28.11.2026). Oba mówią
-  postronnemu z konsoli, że to był rzut incydentu, choć treści nie czyta (`readable: false`) i imion w niej nie ma.
-  Flaga nie dodaje nowej informacji ponad `skips`; usunięcie obu wymaga innej drogi niż `skips` dla zwolnienia z Hope.
-  Zostawione, zapisane jako pytanie.
+- D2-33 (odpowiedź właściciela na P13, przekazana przez koordynatora 28.11.2026: "TAK, ukryć"). Do 2bc9bd9 wiadomość
+  rzutu otwarcia albo kryzysu miała flagę `incidentFree`, a jej rzut Daggerheartowe `options.skips.resources: true`
+  (zmierzone na p1 w scenariuszu 72) - postronny z konsoli czytał, że to rzut incydentu. Teraz:
+  - private-rolls.mjs `neutralRollOf` zdejmuje `skips.resources` z rzutu w wiadomości (Daggerheart i harness czytają
+    pominięcie z konfiguracji w pamięci w chwili rzutu, dualityRoll.mjs `addDualityResourceUpdates`, lib/daggerheart.mjs;
+    reszta `skips` zostaje);
+  - flagi nie ma: GM, który rzucił albo wylosował rzut, zapamiętuje "nic nie płaci" razem z postacią rzutu
+    (`keepSubject` `free`, `rollPaidNothing`), a GM spoza głównego mówi to głównemu w `roll.subject` (pole `free`,
+    przyjmowane tylko od GM-a; pakiet z `recipients`, nie do graczy). Nagroda Despair (już po czekaniu na postać) i
+    Reroll czytają `incidentRollExempt`: ta pamięć albo rekord wylosowanego rzutu (`noResources`, przeżywa przeładowanie);
+  - world-secrets.mjs: `rolls.*.options.skips.resources` w regule rzutu modułu i flaga `incidentFree` w `flags.ChatMessage`
+    (R190 z fiksturami), więc kanarek 72 i R9 złapią powrót;
+  - nie zmierzone: Reroll własnego rzutu incydentu drugiego GM-a po przeładowaniu głównego (pamięć znika, a własny rzut
+    GM-a nie ma rekordu - Reroll by wtedy zapłacił); mutant "gracz przysyła `free`" nie ma testu.
+- Przy D2-33 kanarek 72 był czerwony 2 razy na 6 w kroku "find Botan in Dorm B" (w nieudanych przebiegach nie było
+  ogłoszenia ciała). Przyczyna, którą znalazłem i odtworzyłem testem, to błąd z MURDER-05 (e223951); że to ta sama,
+  wnioskuję z mechanizmu, nie z logu tamtych przebiegów: zmiana
+  wierszy odkryć pyta tylko o nieodpowiedziane (`fresh`), a zapis odpowiedzi wraca też do przeglądarki, która go
+  zrobiła, więc pełne pytanie (przeładowanie, wyjście GM-a, "Zapytaj ponownie") w tej chwili dostawało obietnicę tamtego
+  i nic nie pytało. Teraz czeka na nie i pyta o wszystko (body.mjs `askPendingBodies`); test tier 2 "T1 MURDER-05 - a
+  whole ask ..." czerwony na 940e93b. Uwaga o 72 w punkcie o niestabilnych niżej dotyczy przez to najpewniej tego błędu,
+  nie obciążenia; o 73 nie wiem więcej.
 - `npm test` bez podziału na shardy nie mieści się tu w swoim limicie: etap suite (01-runtests) ma 108 min (6480 s), a na
   7abfac3 został ubity po 6480 s, przy ok. 100 tys. z 119 tys. linii tier 2 (log pisany do końca, więc nie zawisł), gdy
   równolegle chodziły moje sondy tier 2. Run-all puścił potem scenariusze w tym samym worktree, a ja ten katalog usunąłem
@@ -330,4 +359,4 @@ W cudzych przestrzeniach (dopisane na końcu):
 | P10 | MURDER-09: Anuluj na pytaniu o wyczerpaną ofiarę - pytanie wraca przy następnej akcji kryzysu (jak dotąd). Zostaje? | zostaje |
 | P11 | MURDER-03: przycisk Wycisz teraz w oknie Uczniowie (poza T1) - usunąć jak w trackerze? | zostawione bez zmian; decyzja linii tego okna |
 | P12 | D2-28: w tier 2 gracze nie rzucają na zaproszenie, więc światła czekające na rzut zawieszają każdy test z otwarciem przy świetle. Testy mają same rozstrzygać otwarcie, czy harness ma rzucać za gracza w tier 2? | testy rozstrzygają same (`throwingOpenings`, grid `run.lights`), harness bez zmian - zrobione w 83131bd |
-| P13 | D2-09: postronny z konsoli widzi, że rzut GM-a był rzutem incydentu (flaga `incidentFree` i `options.skips.resources` w rzucie; treści i imion nie widzi). Czy to dopuszczalne, czy zwolnienie z Hope i Despair ma iść drogą, której nie ma w dokumencie wiadomości? | zostaje, jak jest (scenariusz 72 oczekuje czwartej flagi) |
+| P13 | D2-09: postronny z konsoli widzi, że rzut GM-a był rzutem incydentu (flaga `incidentFree` i `options.skips.resources` w rzucie; treści i imion nie widzi). Czy to dopuszczalne, czy zwolnienie z Hope i Despair ma iść drogą, której nie ma w dokumencie wiadomości? | odpowiedź D2-33: ukryć - zrobione (sekcja 6) |
