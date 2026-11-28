@@ -2208,7 +2208,8 @@
         "placeFinalNowTooltip": "Places the Final Truth Remnant in the room you picked, as Save would",
         "keepForLaterTooltip": "Your words are kept and nothing goes on the map; Save places it later",
         "allOpenTooltip": "On, every node shows its fields. Off, a node shows its summary until you click it.",
-        "foldedListTooltip": "Opens the list: tick what this node rests on, or what it refutes."
+        "foldedListTooltip": "Opens the list: tick what this node rests on, or what it refutes.",
+        "nodeOpensMapTooltip": "Opens this node on the Map in the Investigation window"
       },
       "Sweep": {
         "Actions": {

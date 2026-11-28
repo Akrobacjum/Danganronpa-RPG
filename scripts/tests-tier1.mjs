@@ -70064,6 +70064,31 @@ const INVARIANTS = [
             "[the same name, another name, no preview, no target answered]");
         ok(game.i18n.localize("DRPG.Trial.objectionAimedElsewhere").includes("{target}"), "the line names no {target}");
     }],
+    ["R9136 - a node of the Class Trial console's schema says it opens the node on the Map and claims no fields to expand; on the Map a node keeps both (2.0 line T3 CTL-03..CTL-30; case-map.mjs `nodeButton`'s `opensMap`)", async () => {
+        /* 2.0 line T3 CTL-03..CTL-30, 27.11.2026. The console's node opens the Investigation's Map on that node since
+           1.2.122 (case-trial.mjs `liveSchema`'s `onPick`), and it drew `aria-expanded="false"` and no tooltip, as if a
+           press did nothing. A graph as R3651 builds it, drawn as the console draws it and as the Map does (an editor
+           each); nothing written. Red at 8692c24: no tooltip and `aria-expanded` on the console's node. */
+        const M = await import("./case-map.mjs");
+        const S = await import("./case-schema.mjs");
+        const { layoutCase } = await import("./case-layout.mjs");
+        const graph = S.graphOf({ chapter: 3, rows: { "d-a": { kind: "deduction", label: "R9136 who", inputs: ["S.T1"] } },
+            traces: [{ key: "S.T1", type: "prep", name: "R9136 knife", tiedToCrime: true }], slots: [] });
+        const layout = layoutCase(graph, { sort: "kind" });
+        const read = html => {
+            const d = document.createElement("div");
+            d.innerHTML = html;
+            const b = d.querySelector('button[data-drpg-node="d-a"]');
+            return b ? [b.getAttribute("data-tooltip") ?? null, b.hasAttribute("aria-expanded")] : null;
+        };
+        const inConsole = read(M.caseGraphHtml({ graph, layout, opensMap: true }));
+        const map = read(M.caseGraphHtml({ graph, layout, editors: new Map(), opensMap: true }));
+        const L = k => game.i18n.localize(k);
+        equal(stableJson({ console: inConsole ? [String(inConsole[0] ?? "").includes(L("DRPG.Tips.Case.nodeOpensMapTooltip")), inConsole[1]] : null,
+            map: map ? [String(map[0] ?? "").includes(L("DRPG.Tips.Case.nodeOnTheMapTooltip")), map[1]] : null }),
+        stableJson({ console: [true, false], map: [true, true] }),
+            "{console: [its tooltip says it opens the node on the Map, it claims aria-expanded]; map: [its tooltip, aria-expanded]}");
+    }],
 ];
 
 /**

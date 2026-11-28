@@ -2296,7 +2296,8 @@
         "placeFinalNowTooltip": "Stawia Final Truth Remnant w wybranym pokoju, tak jak zrobiłby to Zapisz",
         "keepForLaterTooltip": "Twoje słowa zostają, a na mapie nic nie staje; Zapisz postawi go później",
         "allOpenTooltip": "Włączone: każdy węzeł pokazuje swoje pola. Wyłączone: węzeł pokazuje skrót, dopóki go nie klikniesz.",
-        "foldedListTooltip": "Rozwija listę: zaznacz, z czego wynika ten węzeł albo co obala."
+        "foldedListTooltip": "Rozwija listę: zaznacz, z czego wynika ten węzeł albo co obala.",
+        "nodeOpensMapTooltip": "Otwiera ten węzeł na Mapie w oknie Investigation"
       },
       "Sweep": {
         "Actions": {
