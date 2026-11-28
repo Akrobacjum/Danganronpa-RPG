@@ -1232,6 +1232,9 @@ export async function mintFindCopy(actor, entry, { name, playerText = "", analyz
     const data = entry.data;
     const made = await serialWrite(observeFindKey(actor.id), () => copiedRemnants(actor).has(entry.tokenId) ? HELD : createTruthBullet(actor, {
         name,
+        // The holder's own find (2.0 line T3 EXP-PL-17): its card says others may hold a copy if they found it too. A
+        // leaver's told copy of their own trace is no find, and says nothing.
+        origin: told ? null : { kind: "found" },
         realType: data.type,
         /*
          * A critical identifies the category outright - guide, p. 30: "Truth

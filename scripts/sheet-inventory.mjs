@@ -6,7 +6,7 @@
 
 import { MODULE_ID, BEDROOM_KEY_FLAG, ITEM_CATEGORIES, LIMIT_GROUPS, EQUIPPABLE, TIMES_OF_DAY } from "./config.mjs";
 import { SETTINGS } from "./settings.mjs";
-import { isTruthBullet, TRUTH_BULLET_FLAGS, isIdentified, truthBulletData, isAnalysable } from "./truth-bullets.mjs";
+import { isTruthBullet, TRUTH_BULLET_FLAGS, isIdentified, truthBulletData, isAnalysable, copyOriginLines } from "./truth-bullets.mjs";
 import { getClock } from "./clock.mjs";
 import { inClassTrial } from "./trial.mjs";
 import { stashRoomsFor, openStashesHere, stashItemsIn } from "./vault.mjs";
@@ -14,7 +14,7 @@ import { murderState, sideOf } from "./murder.mjs";
 import { isStashed, categoriesInGroup, isBroken, countInGroup, onlyCopied } from "./inventory.mjs";
 import { isEquipped, isUsable, usedCreatively, isEquippable, noDiscardNow } from "./use-items.mjs";
 import { sceneOfActor, roomOfActor, othersInRoom } from "./movement.mjs";
-import { GM_ROUTE_CLASS, error } from "./utils.mjs";
+import { GM_ROUTE_CLASS, error, listOf } from "./utils.mjs";
 import { isCharacterSheet } from "./window-scale.mjs";
 import { drpgConfirm, setTip } from "./ui-kit.mjs";
 import { modeOf, rowGate, sheetMode } from "./sheet-mode.mjs";
@@ -860,6 +860,21 @@ function bulletFold(group, rowFor, actor, mode) {
 }
 
 /**
+ * WHETHER SOMEBODY ELSE HOLDS A COPY (2.0 line T3 EXP-PL-17, 28.11.2026; the owner's adopted recommendation: "Zdanie na
+ * karcie Truth Bulletu, czy istnieją inne kopie (bez nazwisk, gdy to tajemnica)"). One more chip among the row's badges,
+ * Copies, its tooltip the copy's sentences (truth-bullets.mjs `copyOriginLines`): read off the copy's own flag, written
+ * when it was made, so it says only what its holder knows from their own action or the card they were given. A copy
+ * made before 1.2.130 has none and draws no chip.
+ */
+function copyOriginChip(item) {
+    const lines = copyOriginLines(item?.getFlag?.(MODULE_ID, TRUTH_BULLET_FLAGS.copyOrigin));
+    if (!lines) return "";
+    const text = lines.map(({ key, data }) => game.i18n.format(key, { ...data, ...(data.names ? { names: listOf(data.names) } : {}) })).join(" ");
+    return `<span class="drpg-tb-badge origin" data-tooltip="${foundry.utils.escapeHTML(text)}">${
+        foundry.utils.escapeHTML(game.i18n.localize("DRPG.TruthBullet.copyOrigin.label"))}</span>`;
+}
+
+/**
  * One Truth Bullet, as a row.
  *
  * A bullet has no tier - the old `T2` pill was a visibility index the previous
@@ -880,7 +895,7 @@ function buildBulletRow(li, item, app) {
 
     li.innerHTML = `<img src="${foundry.utils.escapeHTML(item.img ?? "")}" alt="" />
                     <span class="drpg-item-name">${foundry.utils.escapeHTML(item.name)}</span>
-                    <span class="drpg-tb-badges">${bulletBadges(data, { gm: modeOf(app).realBullets })}</span>`;
+                    <span class="drpg-tb-badges">${bulletBadges(data, { gm: modeOf(app).realBullets })}${copyOriginChip(item)}</span>`;
 
     // Nor the dead's, a Monocub included (E24 C3a, `rowGate`): Share, Present and Analyze are a living student's.
     if (!rowGate(app)) return;

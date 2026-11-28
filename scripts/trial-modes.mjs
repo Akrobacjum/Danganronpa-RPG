@@ -473,7 +473,9 @@ export async function revealInStep({ slot = null, text = "", beyondPaid = false 
             playerText: words, analyzedText: row.analysis ?? "", img: data?.public?.img ?? null, gmNote: data?.note ?? "",
             remnantId: row.tokenId ?? null, sceneId: row.sceneId ?? null, room: data?.room ?? null,
             sourceAction: data?.action ?? null,
-            tiedToCrime: data ? tieForCopy(data, { sceneId: row.sceneId, tokenId: row.tokenId }) : null
+            tiedToCrime: data ? tieForCopy(data, { sceneId: row.sceneId, tokenId: row.tokenId }) : null,
+            // Every participant's, from Monokuma (2.0 line T3 EXP-PL-17): as a GM's give to several, naming nobody.
+            origin: { kind: "givenMany" }
         }));
         if (!made) continue;
         copies++;

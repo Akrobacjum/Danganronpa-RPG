@@ -681,7 +681,7 @@ Karta Truth Bulletu pokazuje:
 - pokój, w którym go podniosłeś,
 - *Nieudana analiza*, gdy twoja analiza się na nim w tym rozdziale nie powiodła.
 
-Truth Bullety możesz grupować według **Rozdziału** albo **Lokacji**. Truth Bullet to jedyna rzecz, którą możesz przedstawić w Class Trial.
+Truth Bullety możesz grupować według **Rozdziału** albo **Lokacji**. Truth Bullet to jedyna rzecz, którą możesz przedstawić w Class Trial. Od 1.2.130 karta ma też **Kopie**: podpowiedź mówi, skąd masz tę kopię i czy inni mogą mieć swoją (twoje znalezisko, kopia przekazana przez ucznia, kopia od GM-a tylko dla ciebie albo także dla innych, autopsja), oraz komu przekazałeś kopię. Nie wymienia nikogo, o kim nie możesz wiedzieć, a Truth Bullet sprzed 1.2.130 jej nie ma.
 
 Arkusz nie pozwala zmienić nazwy, obrazka ani opisu przedmiotu, bo to, jak rzecz się nazywa, jest częścią dowodu. Zmiana zrobiona mimo to zostaje i jest zapisywana dla GM-ów, a na Truth Bullecie zostaje cofnięta. Gdy GM zmieni nazwę, opis, obraz albo odczyt Remnantu, z którego masz kopię, twoja kopia zmienia się razem z nim, a ty dostajesz wiadomość, co się zmieniło; o odczycie dowiadujesz się tylko wtedy, gdy twoja kopia już go ma.
 

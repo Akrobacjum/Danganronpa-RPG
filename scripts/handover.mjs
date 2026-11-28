@@ -22,7 +22,7 @@
 
 import { MODULE_ID, FLAGS, BEDROOM_KEY_FLAG, LOOT, REMNANT_VISIBILITY, SHARE_WITH_ANALYSIS } from "./config.mjs";
 import { capacityLabel, isStashed, transferItem, transferRefusal } from "./inventory.mjs";
-import { createTruthBullet, truthBulletData, secretOf, isTruthBullet, bulletAsHeld, unanalysedType, hasReading } from "./truth-bullets.mjs";
+import { createTruthBullet, truthBulletData, secretOf, isTruthBullet, bulletAsHeld, unanalysedType, hasReading, noteCopyHandedOn } from "./truth-bullets.mjs";
 import { whisperToOwner, whisperToOwnerOnly, log, warn, error, isPrimaryGm, forcedDeletion, plural, serialWrite, ownerIdsOf, gmIds, announce, whisperToGms, listOf, worldLocalize, esc } from "./utils.mjs";
 import { drpgWindow } from "./ui-kit.mjs";
 import { answerKeysRefusal, lootTraceStore, deathStore, lootRollStore } from "./gm-stores.mjs";
@@ -364,6 +364,8 @@ export async function mintCopy(from, to, item, { analysis = true, quiet = false 
     const { observeFindKey } = await import("./observe.mjs");
     const copy = await serialWrite(observeFindKey(to.id), () => secret.remnantId && copiedRemnants(to).has(secret.remnantId) ? HELD_COPY : createTruthBullet(to, {
         name: data.name,
+        // Handed over by its giver (2.0 line T3 EXP-PL-17), whose name the receiver's card names anyway.
+        origin: { kind: "shared", name: from.name },
         realType: secret.realType,
         // Shown without the Analyze result (E70 C10; B2, B6): born as the bullet was before any Analyze - its
         // unanalysed type, not read - with the reading kept in its secret for the receiver's own Analyze.
@@ -421,6 +423,12 @@ export async function mintCopy(from, to, item, { analysis = true, quiet = false 
     if (!copy) {
         if (!quiet) await whisperToOwner(from, `<p>${game.i18n.localize("DRPG.Handover.failed")}</p>`);
         return { skipped: "failed", data };
+    }
+    // And the giver's own copy says whom it was handed to (EXP-PL-17): the giver chose them.
+    try {
+        await noteCopyHandedOn(item, to.name);
+    } catch (err) {
+        error("Could not note on the giver's copy whom it was handed to", err);
     }
     return { copy, data };
 }
@@ -975,7 +983,9 @@ async function mintLootBullet(taker, body, loot) {
             sceneId: loot.sceneId ?? null,
             room: loot.room ?? null,
             stamp: { chapter: loot.chapter, day: loot.day, timeOfDay: loot.timeOfDay },
-            analyzedText
+            analyzedText,
+            // The taker's own find off the body (2.0 line T3 EXP-PL-17).
+            origin: { kind: "found" }
         });
     } catch (err) {
         // The object moved; the record of it did not. Worth saying out loud,

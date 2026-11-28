@@ -118941,6 +118941,77 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             row: ["budget", "deaths", "fee", "follow", "reset", "voices"], again: 0 }),
             "{finished: [the row, the steps run]; record: [verdictApplied after the reset, the fee's stamp]; the student's actions (the budget not run again); the row's done; a second finish: nothing}");
     }],
+    ["T3 EXP-GM-11 - Give to the ticked students gives each one copy", async () => {
+        /*
+         * 2.0 line T3 EXP-GM-11, 28.11.2026. Two of three living students given a new Truth Bullet through gm-items.mjs
+         * `giveToMany` (the road Picked students and Everyone take): each of the two holds one new copy, the third none.
+         * Tell the player off, so no card is posted. Every new bullet and its answer key are taken away. Red at 383c779:
+         * no giveToMany.
+         */
+        const G = await import("./gm-items.mjs");
+        const TB = await import("./truth-bullets.mjs");
+        must(typeof G.giveToMany === "function", "gm-items.mjs has no giveToMany: Give cannot go to the ticked students");
+        const { livingStudentsForGm } = await import("./chapter.mjs");
+        const living = livingStudentsForGm();
+        must(living.length >= 3, "three living students are needed - this would measure nothing");
+        const [a, b, c] = living;
+        const before = new Map([a, b, c].map(x => [x.id, new Set(TB.bulletsOf(x).map(i => i.uuid))]));
+        const fresh = x => TB.bulletsOf(x).filter(i => !before.get(x.id).has(i.uuid));
+        const result = { recipient: null, tell: false, mode: "create", name: "SUITE T3 EXP-GM-11 picked", realType: "neutral", shown: "auto",
+            visibility: "evident", faint: false, tied: false, playerText: "SUITE picked words", analyzedText: "", gmNote: "", img: null };
+        let given = null, read = null;
+        try {
+            given = await G.giveToMany(result, [a, b], [], {});
+            await settle();
+            read = [a, b, c].map(x => fresh(x).length);
+        } finally {
+            for (const x of [a, b, c]) for (const item of fresh(x)) {
+                await TB.dropSecret(item.uuid).catch(() => {});
+                await item.delete().catch(() => {});
+            }
+            await settle();
+        }
+        equal(stableJson({ given, read }), stableJson({ given: true, read: [1, 1, 0] }), "{every ticked one got theirs; new copies: [first ticked, second ticked, not ticked]}");
+    }],
+    ["T3 EXP-PL-17 - a copy given to two ticked students says the GM gave it to others too, naming nobody", async () => {
+        /*
+         * 2.0 line T3 EXP-PL-17, 28.11.2026. A new Truth Bullet given through gm-items.mjs `giveToMany` to two living students,
+         * then another to a third alone: each copy's `copyOrigin` flag, as its holder's browser reads it off the item, and
+         * the sentence the card draws from it (truth-bullets.mjs `copyOriginLines`). Tell the player off. Every new bullet
+         * and its answer key are taken away. Red at 383c779: no copyOrigin on a given copy.
+         */
+        const G = await import("./gm-items.mjs");
+        const TB = await import("./truth-bullets.mjs");
+        must(typeof G.giveToMany === "function" && typeof TB.copyOriginLines === "function", "no giveToMany / copyOriginLines");
+        const { livingStudentsForGm } = await import("./chapter.mjs");
+        const living = livingStudentsForGm();
+        must(living.length >= 3, "three living students are needed - this would measure nothing");
+        const [a, b, c] = living;
+        const before = new Map([a, b, c].map(x => [x.id, new Set(TB.bulletsOf(x).map(i => i.uuid))]));
+        const fresh = x => TB.bulletsOf(x).filter(i => !before.get(x.id).has(i.uuid));
+        const result = name => ({ recipient: null, tell: false, mode: "create", name, realType: "neutral", shown: "auto",
+            visibility: "evident", faint: false, tied: false, playerText: "SUITE origin words", analyzedText: "", gmNote: "", img: null });
+        let read = null;
+        try {
+            await G.giveToMany(result("SUITE T3 EXP-PL-17 two"), [a, b], [], {});
+            await G.giveToMany(result("SUITE T3 EXP-PL-17 one"), [c], [], {});
+            await settle();
+            const of = x => fresh(x).map(i => {
+                const flag = i.getFlag(MODULE_ID, TB.TRUTH_BULLET_FLAGS.copyOrigin) ?? null;
+                return { flag, lines: TB.copyOriginLines(flag) };
+            });
+            read = { a: of(a), b: of(b), c: of(c) };
+        } finally {
+            for (const x of [a, b, c]) for (const item of fresh(x)) {
+                await TB.dropSecret(item.uuid).catch(() => {});
+                await item.delete().catch(() => {});
+            }
+            await settle();
+        }
+        const many = { flag: { kind: "givenMany" }, lines: [{ key: "DRPG.TruthBullet.copyOrigin.givenMany", data: {} }] };
+        equal(stableJson(read), stableJson({ a: [many], b: [many], c: [{ flag: { kind: "given" }, lines: [{ key: "DRPG.TruthBullet.copyOrigin.given", data: {} }] }] }),
+            "{each of the two: its copy says a GM gave it to others too, no name; the third, given alone: a GM gave it to you}");
+    }],
     ["T3 TRIAL-03 - a second GM's Finish takes the verdict on the primary and runs its steps here", async () => {
         /*
          * 2.0 line T3 TRIAL-03, 27.11.2026 (Forge S1b TRIAL-03 passed on 1.2.129 only because GM2 gave the verdict

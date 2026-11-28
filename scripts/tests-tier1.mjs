@@ -70213,6 +70213,41 @@ const INVARIANTS = [
             exit: C.PHASE_STEPS.exit.filter(k => !["floor", "vote"].includes(k))
         }), "{entry: what is not done; a budget started and not done: not again; exit: neither the done nor the failed}");
     }],
+    ["R9144 - Give a Truth Bullet offers Picked students: a tick per living student, the one the window opened for ticked alone, and the picked are given through giveToMany (2.0 line T3 EXP-GM-11; gm-items.mjs `pickedRecipientRows`, `giveTruthBulletDialog`)", async () => {
+        /* 2.0 line T3 EXP-GM-11, 28.11.2026. The rows from their builder on stand-in students, and the window's road read in
+           its source; nothing opened or written. Red at 383c779: no pickedRecipientRows. */
+        const G = await import("./gm-items.mjs");
+        must(typeof G.pickedRecipientRows === "function" && typeof G.giveToMany === "function", "gm-items.mjs has no pickedRecipientRows / giveToMany");
+        const root = document.createElement("div");
+        root.innerHTML = G.pickedRecipientRows([{ id: "A0000000000000AA", name: "SUITE pick <A>" }, { id: "B0000000000000BB", name: "SUITE pick B" }], "B0000000000000BB");
+        const boxes = [...root.querySelectorAll('input[type="checkbox"][name="pick"]')];
+        const dialog = fnSource(stripComments(await fetch(`/modules/${MODULE_ID}/scripts/gm-items.mjs`).then(r => lfText(r))), "giveTruthBulletDialog");
+        equal(stableJson({ boxes: boxes.map(b => [b.value, b.checked]), names: root.textContent.replace(/\s+/g, " ").trim(),
+            road: /RECIPIENT_PICKED[^]*giveToMany\(/.test(dialog) }),
+            stableJson({ boxes: [["A0000000000000AA", false], ["B0000000000000BB", true]], names: "SUITE pick <A> SUITE pick B", road: true }),
+            "{a tick per student, the opened-for one ticked; the names as text; the window gives the picked through giveToMany}");
+    }],
+    ["R9145 - a Truth Bullet's sentence about other copies comes from its copy's origin alone: a key per origin, names only where the holder knows them, none for a copy made before 1.2.130 (2.0 line T3 EXP-PL-17; truth-bullets.mjs `copyOriginLines`)", async () => {
+        /* 2.0 line T3 EXP-PL-17, 28.11.2026. Pure on stand-in flags; nothing read or written. Red at 383c779: no copyOriginLines. */
+        const TB = await import("./truth-bullets.mjs");
+        must(typeof TB.copyOriginLines === "function", "truth-bullets.mjs has no copyOriginLines");
+        const lines = flag => (TB.copyOriginLines(flag) ?? null);
+        equal(stableJson({
+            found: lines({ kind: "found" }), shared: lines({ kind: "shared", name: "Aiko" }), given: lines({ kind: "given" }),
+            many: lines({ kind: "givenMany", name: "Aiko" }), autopsy: lines({ kind: "autopsy", name: "Aiko" }),
+            gave: lines({ kind: "found", gaveTo: ["Botan", "Chie"] }), none: lines(null), unknown: lines({ kind: "elsewhere" })
+        }), stableJson({
+            found: [{ key: "DRPG.TruthBullet.copyOrigin.found", data: {} }],
+            shared: [{ key: "DRPG.TruthBullet.copyOrigin.shared", data: { name: "Aiko" } }],
+            given: [{ key: "DRPG.TruthBullet.copyOrigin.given", data: {} }],
+            many: [{ key: "DRPG.TruthBullet.copyOrigin.givenMany", data: {} }],
+            autopsy: [{ key: "DRPG.TruthBullet.copyOrigin.autopsy", data: {} }],
+            gave: [{ key: "DRPG.TruthBullet.copyOrigin.found", data: {} }, { key: "DRPG.TruthBullet.copyOrigin.gave", data: { names: ["Botan", "Chie"] } }],
+            none: null, unknown: null
+        }), "{each origin its key; givenMany and autopsy name nobody; a copy handed on names its receivers; no flag or an unknown one: no sentence}");
+        must(["found", "shared", "given", "givenMany", "autopsy", "gave", "label"].every(k => game.i18n.has(`DRPG.TruthBullet.copyOrigin.${k}`)),
+            "a copyOrigin key has no words");
+    }],
 ];
 
 /**

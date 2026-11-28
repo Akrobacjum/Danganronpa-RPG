@@ -681,7 +681,7 @@ A Truth Bullet card shows:
 - the room you picked it up in,
 - *Analyzed in vain* when an analysis of yours failed on it this chapter.
 
-The pack can be grouped by **Chapter** or by **Location**. A Truth Bullet is the only thing you can present at a trial.
+The pack can be grouped by **Chapter** or by **Location**. A Truth Bullet is the only thing you can present at a trial. Since 1.2.130 the card also has **Copies**: its tooltip says how the copy came to you and whether others may hold one (your own find, a copy a student handed you, one a GM gave you alone or to other students too, an autopsy) and to whom you handed a copy. It names nobody you could not know of, and a Truth Bullet from before 1.2.130 has none.
 
 Your sheet does not let you rename an item or change its picture or description: what a thing is called is part of the evidence. A change made anyway stays and is recorded for the GMs, except on a Truth Bullet, where it is put back. When the GM changes the name, the description, the picture or the reading of a Remnant you hold a copy of, your copy changes with it and you are told what changed; you hear of the reading only when your copy already has one.
 

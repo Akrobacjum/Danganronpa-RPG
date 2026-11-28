@@ -152,8 +152,49 @@ export const TRUTH_BULLET_FLAGS = {
     /** Which action left the source trace - drives the Remnant token's icon. */
     sourceAction: "sourceAction",
     /** Whether the source trace belongs to the murder - drives the sort. */
-    tiedToCrime: "tiedToCrime"
+    tiedToCrime: "tiedToCrime",
+    /**
+     * HOW THIS COPY CAME TO ITS HOLDER (2.0 line T3 EXP-PL-17, 28.11.2026; the owner's adopted recommendation: "Zdanie na
+     * karcie Truth Bulletu, czy istnieją inne kopie (bez nazwisk, gdy to tajemnica)"): `{ kind, name?, gaveTo? }`, written
+     * when the copy is made - `found` (the holder's own Observe, or a body's loot), `shared` (handed over by the student
+     * `name`, which the receiver's card names anyway), `given` (a GM gave it to them alone), `givenMany` (a GM gave it to
+     * several or everyone, or Monokuma's Reveal did: no names), `autopsy` (no names) - and `gaveTo`, the students this
+     * holder handed a copy to, which the holder chose. Nothing else: who else found a trace is the GMs' (the answer key),
+     * and nothing is counted from it. A copy made before 1.2.130 holds none and says nothing (`copyOriginLines`).
+     */
+    copyOrigin: "copyOrigin"
 };
+
+/** The kinds of `copyOrigin` a copy may name, each with its sentence (`DRPG.TruthBullet.copyOrigin.<kind>`). */
+export const COPY_ORIGINS = Object.freeze(["found", "shared", "given", "givenMany", "autopsy"]);
+
+/**
+ * The sentences a copy's card says of other copies (EXP-PL-17): its origin's, then the students it was handed on to.
+ * `[{ key, data }]`, or null for a copy with no origin or one of no kind above. A name only where the holder knows it:
+ * the giver of a shared copy and the receivers of one handed on. Pure on the flag (R9145).
+ */
+export function copyOriginLines(flag) {
+    if (!flag || typeof flag !== "object" || !COPY_ORIGINS.includes(flag.kind)) return null;
+    const lines = [{ key: `DRPG.TruthBullet.copyOrigin.${flag.kind}`, data: flag.kind === "shared" ? { name: String(flag.name ?? "") } : {} }];
+    const gave = Array.isArray(flag.gaveTo) ? flag.gaveTo.filter(n => typeof n === "string" && n) : [];
+    if (gave.length) lines.push({ key: "DRPG.TruthBullet.copyOrigin.gave", data: { names: gave } });
+    return lines;
+}
+
+/** The origin a copy is born with, as `createTruthBullet` writes it: a known kind, and `name` for a shared one alone. */
+function originFlag(origin) {
+    if (!origin || !COPY_ORIGINS.includes(origin.kind)) return null;
+    return origin.kind === "shared" ? { kind: "shared", name: String(origin.name ?? "") } : { kind: origin.kind };
+}
+
+/** A copy handed on by its holder (EXP-PL-17): the receiver's name added to the holder's own copy's `gaveTo`. GM side. */
+export async function noteCopyHandedOn(item, name) {
+    if (!game.user.isGM || !item || !name) return;
+    const was = item.getFlag(MODULE_ID, TRUTH_BULLET_FLAGS.copyOrigin);
+    const base = was && typeof was === "object" ? was : {};
+    const gaveTo = [...new Set([...(Array.isArray(base.gaveTo) ? base.gaveTo : []), String(name)])];
+    await item.update({ [`flags.${MODULE_ID}.${TRUTH_BULLET_FLAGS.copyOrigin}`]: { ...base, gaveTo } }, { [NOT_AN_EDIT]: true });
+}
 
 /* ==========================================================================
  * THE ANSWER KEY
@@ -711,7 +752,7 @@ export async function createTruthBullet(actor, {
     faint = false, playerText = "", analyzedText = "", img = null, gmNote = "",
     remnantId = null, sceneId = null,
     room = null, analyzed = null, stamp = null, foundIn = undefined, epoch = undefined,
-    sourceAction = null, tiedToCrime = null, leftBy = undefined, leftByName = undefined, told = false
+    sourceAction = null, tiedToCrime = null, leftBy = undefined, leftByName = undefined, told = false, origin = null
 } = {}) {
     if (!actor || !name) return null;
 
@@ -783,7 +824,9 @@ export async function createTruthBullet(actor, {
             [TRUTH_BULLET_FLAGS.tiedToCrime]: identified ? tiedToCrime : null,
             // Never inherited. A failed analysis is a fact about the person who
             // failed, not about the evidence - guide, Stage 3.
-            [TRUTH_BULLET_FLAGS.lockedChapter]: null
+            [TRUTH_BULLET_FLAGS.lockedChapter]: null,
+            // How this copy came to its holder (EXP-PL-17): the caller's road; none, no sentence.
+            ...(originFlag(origin) ? { [TRUTH_BULLET_FLAGS.copyOrigin]: originFlag(origin) } : {})
         }
     });
 
@@ -1136,7 +1179,8 @@ export async function issueAutopsy(actors, { name, playerText = "", gmNote = "" 
             // The autopsy is BY DEFINITION about the murder, and it arrives
             // identified - so it takes its place at the top of the pack's
             // murder-first sort from the moment it lands.
-            tiedToCrime: true
+            tiedToCrime: true,
+            origin: { kind: "autopsy" }
         });
         if (!item) continue;
         issued++;

@@ -2346,7 +2346,8 @@
           "experienceUpTooltip": "This experience adds one more when a Talent Call brings it into a roll",
           "newExperienceTooltip": "A Talent Call can add it to a roll it fits, once a GM approves",
           "acceptRuleTooltip": "Your student becomes a Monocub at once, bound by the Rule above",
-          "revokeRuleTooltip": "On Save the rule is revoked; with Announce changes ticked, everyone sees it on a card"
+          "revokeRuleTooltip": "On Save the rule is revoked; with Announce changes ticked, everyone sees it on a card",
+          "pickedTargetTooltip": "Ticked, this student gets their own copy of this Truth Bullet."
         },
         "Setup": {
           "facilityCostsActionTooltip": "On, using it costs the student an action; off, it's free. The Overflow's Toll adds to either",
@@ -3934,7 +3935,19 @@
         "other": "{n} Truth Bullets from an older version now have a type, a visibility, and a chapter. Their real types were lost, so each is recorded as Neutral. Where that matters, take one away and give one with its real type in Give / take items."
       },
       "editReverted": "{player} changed what their Truth Bullet “{bullet}” says or what it is. The change was undone: only a GM can change evidence.",
-      "editUnrestored": "{player} changed the Truth Bullet “{bullet}”. There is no record of what it said before, so the change stays on that copy alone. Check it by hand."
+      "editUnrestored": "{player} changed the Truth Bullet “{bullet}”. There is no record of what it said before, so the change stays on that copy alone. Check it by hand.",
+      "recipientPicked": "Picked students",
+      "pickedLegend": "Who gets a copy",
+      "pickedNone": "Tick at least one student.",
+      "copyOrigin": {
+          "label": "Copies",
+          "found": "You found this yourself. Other students may hold their own copy of this Remnant if they found it too.",
+          "shared": "{name} handed you this copy and keeps one too.",
+          "given": "A GM gave you this Truth Bullet.",
+          "givenMany": "A GM gave this Truth Bullet to other students too.",
+          "autopsy": "Other students got this autopsy too.",
+          "gave": "You handed a copy to {names}."
+      }
     },
     "Inventory": {
       "overCap": "{actor} is now over the {category} limit ({held}/{limit}). The item was given anyway.",

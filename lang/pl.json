@@ -2434,7 +2434,8 @@
           "experienceUpTooltip": "To doświadczenie da o jeden więcej, gdy użyjesz go w rzucie przez Talent Call",
           "newExperienceTooltip": "Talent Call doda je do pasującego rzutu, gdy GM się zgodzi",
           "acceptRuleTooltip": "Twój uczeń od razu staje się Monocubem i obowiązuje go Zasada powyżej",
-          "revokeRuleTooltip": "Po Zapisz zasada zostaje cofnięta; z zaznaczonym „Ogłoś zmiany” wszyscy zobaczą to na karcie"
+          "revokeRuleTooltip": "Po Zapisz zasada zostaje cofnięta; z zaznaczonym „Ogłoś zmiany” wszyscy zobaczą to na karcie",
+          "pickedTargetTooltip": "Zaznaczony uczeń dostaje własną kopię tego Truth Bulletu."
         },
         "Setup": {
           "facilityCostsActionTooltip": "Włączone: użycie kosztuje ucznia akcję. Wyłączone: jest darmowe. Toll z Overflow dolicza się w obu przypadkach",
@@ -4203,7 +4204,19 @@
         "other": "{n} Truth Bulletu ze starszej wersji modułu ma teraz typ, widoczność i rozdział. Widoczność odtworzono dokładnie, ale prawdziwych typów nie, więc każdy zapisano jako Neutral; lista jest poniżej. Żeby nadać któremuś prawdziwy typ, GM zabiera go w Daj / zabierz przedmioty i daje nowy z tym typem."
       },
       "editReverted": "{player} zmienia nazwę, opis albo typ swojego Truth Bulletu „{bullet}”. Moduł cofnął tę zmianę, bo treść Truth Bulletu zapisuje tylko GM.",
-      "editUnrestored": "{player} zmienia Truth Bullet „{bullet}”, a moduł nie ma wcześniejszej wersji, którą mógłby przywrócić. Zmiana zostaje tylko na tej kopii i nie trafia do Remnantu ani do innych kopii. Sprawdź ją ręcznie."
+      "editUnrestored": "{player} zmienia Truth Bullet „{bullet}”, a moduł nie ma wcześniejszej wersji, którą mógłby przywrócić. Zmiana zostaje tylko na tej kopii i nie trafia do Remnantu ani do innych kopii. Sprawdź ją ręcznie.",
+      "recipientPicked": "Wybrani uczniowie",
+      "pickedLegend": "Kto dostaje kopię",
+      "pickedNone": "Zaznacz przynajmniej jednego ucznia.",
+      "copyOrigin": {
+          "label": "Kopie",
+          "found": "To twoje znalezisko. Inni uczniowie mogą mieć własną kopię tego Remnantu, jeśli też go znaleźli.",
+          "shared": "{name} przekazuje ci tę kopię i też ma własną.",
+          "given": "Ten Truth Bullet dał ci GM.",
+          "givenMany": "Ten Truth Bullet GM dał też innym uczniom.",
+          "autopsy": "Tę autopsję dostali też inni uczniowie.",
+          "gave": "Twoją kopię dostali też: {names}."
+      }
     },
     "Inventory": {
       "overCap": "{actor} przekracza limit ({category}: {held}/{limit}), ale przedmiot i tak trafia do ekwipunku.",
