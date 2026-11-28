@@ -70319,7 +70319,7 @@ const INVARIANTS = [
         equal(JSON.stringify(read), JSON.stringify({ before: [null, null], lost: ["true", words], back: [null, null], noTile: [1, 2, true], sent: 0, writes: [] }),
             "{the tile before, after a disconnect, after a connect; with no tile: warnings after two disconnects, after a reconnect and a third, the words; packets sent; settings written}");
     }],
-    ["R9227 - a gather's pan stands down on a board whose view is not on the page, and the gather's own write pans nobody (2.0 line T4, FORGE-06): call-world.mjs `panToGathered` on a stand-in board pans to this user's token when the view is on the page or the board has no app (the harness's), and not, with no throw, when the view is off the page or missing; `fallbackGather` writes with `pan: false`", async () => {
+    ["R9227 - a gather's pan stands down on a board whose view is not on the page, and the gather's own write pans nobody (2.0 line T4, FORGE-06): call-world.mjs `panToGathered` on a stand-in board pans to this user's token when the view is on the page, the board has no app or its app names no view (the harness's), and not, with no throw, when the view is off the page; `fallbackGather` writes with `pan: false`", async () => {
         /*
          * FORGE-06 at The Forge (Foundry 14.370; S2, docs/dev/v2/F3-forge-PC-2.md): "Cannot read properties of null (reading
          * 'clientWidth') at DepthSortPlaceable.panCanvas" on P1 at a body's announcement - core v14's `Token#panCanvas` under
@@ -70355,8 +70355,9 @@ const INVARIANTS = [
         must(fallback.length > 200, "fallbackGather's source was not read");
         read.fallbackPanFalse = /updateEmbeddedDocuments\("Token",[\s\S]*?pan:\s*false[\s\S]*?\}\);/.test(fallback);
         equal(JSON.stringify(read), JSON.stringify({ onPage: ["R9227T", 1, null], oldView: ["R9227T", 1, null], noApp: ["R9227T", 1, null],
-            offPage: [null, 0, null], noView: [null, 0, null], fallbackPanFalse: true }),
-            "{each board: [the answer, pans asked, what threw]: view on the page (PIXI 8's canvas, PIXI 7's view), no app, view off the page, no view; the direct placement's pan: false}");
+            // An app that names no view pans as before (the harness's board; scenario 65 B1b, U0).
+            offPage: [null, 0, null], noView: ["R9227T", 1, null], fallbackPanFalse: true }),
+            "{each board: [the answer, pans asked, what threw]: view on the page (PIXI 8's canvas, PIXI 7's view), no app, view off the page, an app with no view; the direct placement's pan: false}");
     }],
     ["R9229 - the GM's messenger list shows each row's whole preview (2.0 line T4, FORGE-07): messenger-gm.mjs `navRow` puts the preview, escaped, as the second line of the row's one tooltip (the Timeline's and a player's), and the preview's winning rules are two lines clamped, wrapping, with no ellipsis, under both themes", async () => {
         /*

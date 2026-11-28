@@ -759,8 +759,9 @@ export async function clearCarriedFrom(token, whole = false) {
  * panCanvas, and which element was null, unread). This file calls neither; its gather moves the tokens (`gatherEveryone`)
  * and this pans each client after. So the gather's direct placement (`fallbackGather`) now says `pan: false` too, as the
  * region's teleport always did, and this pan stands down on a board whose view is not on the page (`board.app`'s `canvas`,
- * PIXI 8, or `view`, PIXI 7), with a debug line, rather than hand Foundry a pan of a board being drawn again. With no `app`
- * (the harness's board) it pans as before. `board` and `mine` are the suite's (R9227).
+ * PIXI 8, or `view`, PIXI 7), with a debug line, rather than hand Foundry a pan of a board being drawn again. With no `app`,
+ * or an `app` that names no view (the harness's board: a ticker and a renderer), it pans as before - the first cut stood
+ * down there too and scenario 65's B1b and U0 read no pan (CI on 76289b7). `board` and `mine` are the suite's (R9227).
  */
 export async function panToGathered({ scene, tokenIds } = {}, { board = canvas, mine = undefined } = {}) {
     // `scene` is one id, or the list of the scenes a move put tokens on (the season reset's, 1.2.122: CORE-24).
@@ -773,8 +774,8 @@ export async function panToGathered({ scene, tokenIds } = {}, { board = canvas, 
     const token = tokenIds.map(id => board.tokens?.get(id)).find(t => t?.actor?.id === own.id);
     const centre = token?.center;
     if (!centre) return null;
-    const view = board.app ? (board.app.canvas ?? board.app.view ?? null) : undefined;
-    if (view !== undefined && !view?.isConnected) {
+    const view = board.app?.canvas ?? board.app?.view ?? null;
+    if (view && !view.isConnected) {
         debug("The gather's pan stood down: this page's board has no view on the page.");
         return null;
     }
