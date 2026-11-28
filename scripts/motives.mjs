@@ -558,9 +558,28 @@ export function registerMotives() {
     // The store merged from another GM, or the copy written: the windows and sheets that show motives redraw
     // (motives-ui.mjs hears `drpgMotivesChanged`). A store's and a copy's keys are client settings (gm-store.mjs), named
     // here by the engine's rows (`spec.key`), never by their settings (R171: only the engine names a store's key).
-    const keys = new Set([`${MODULE_ID}.${motiveStore.spec.key}`, `${MODULE_ID}.${motiveCopy.spec.key}`, `${MODULE_ID}.${SETTINGS.monokumaMotive}`]);
+    // The Monokuma Motive is a world setting: `updateSetting` tells it, below (R14).
+    const keys = new Set([`${MODULE_ID}.${motiveStore.spec.key}`, `${MODULE_ID}.${motiveCopy.spec.key}`]);
+    /* Told only when what this browser holds of the motives changed. Every GM store is written once on the primary when
+       another GM connects (the merge of its section, measured 28.11.2026: one write of each of 71 stores), and this was
+       the one store whose write redrew the open sheets, 120 ms later (motives-ui.mjs `registerMotivesUi`) - on the
+       primary, while the newcomer's first writes were arriving. Scenario 76 G read the primary's record in that window:
+       its passage there, its grant 10 ms behind (red on 0432888, b7619b9 and 8028f21 in CI; green 6 of 6 on 31d5812). */
+    let held = null;
+    const holding = () => {
+        try {
+            return JSON.stringify(game.user?.isGM ? (motiveStore.entries() ?? {}) : (motiveCopy.read() ?? {}));
+        } catch {
+            return null;
+        }
+    };
+    Hooks.once("ready", () => { held = holding(); });
     Hooks.on("clientSettingChanged", key => {
-        if (keys.has(key)) Hooks.callAll("drpgMotivesChanged");
+        if (!keys.has(key)) return;
+        const now = holding();
+        if (now !== null && now === held) return;
+        held = now;
+        Hooks.callAll("drpgMotivesChanged");
     });
     Hooks.on("updateSetting", setting => {
         if (setting?.key === `${MODULE_ID}.${SETTINGS.monokumaMotive}` || setting?.key === `${MODULE_ID}.${SETTINGS.motivesEnabled}`) Hooks.callAll("drpgMotivesChanged");

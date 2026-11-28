@@ -352,8 +352,11 @@ export async function openMotivesOverview() {
                 if (button.dataset.drpgMotiveEdit) void openStudentMotives(actor);
                 else if (button.dataset.drpgMotivePass) void ruleMotive(actor, button.dataset.drpgMotivePass, true);
             });
-            const refresh = () => { void overviewBody().then(html => { latest = html; Hooks.callAll("drpgMotivesOverviewDrawn"); }); };
-            Hooks.on("drpgMotivesChanged", refresh);
+            // Heard until the window is closed: the first change after the close takes the listener off.
+            const hook = Hooks.on("drpgMotivesChanged", () => {
+                if (!dialog.rendered) return void Hooks.off("drpgMotivesChanged", hook);
+                void overviewBody().then(html => { latest = html; Hooks.callAll("drpgMotivesOverviewDrawn"); });
+            });
             return keepLive(dialog, { region: ".drpg-motives-live", build: () => latest,
                 watch: { hooks: ["drpgMotivesOverviewDrawn"], stores: [motiveStore] } });
         },
@@ -434,9 +437,24 @@ export function registerMotivesUi() {
         if (pending) return;
         pending = setTimeout(() => {
             pending = null;
-            import("./clock.mjs").then(m => m.refreshSheets()).catch(() => {});
+            redrawMotiveSheets().catch(err => error("Could not draw the motives on the open sheets", err));
         }, 120);
     });
+}
+
+/*
+ * The open character sheets drawn again for a motive's change, which writes no actor (2.0 line T5): through each actor's
+ * own sheets (sheet-mode.mjs `sheetsFor`, the actor's `apps`), the road a kept death's stamp takes (sheet.mjs
+ * `redrawDeathMarks`). Until scenario 71 L read it on open sheets (28.11.2026) this was clock.mjs `refreshSheets`, which
+ * walks `ui.windows` and `foundry.applications.instances`: the harness's sheet stands in `apps` alone, and the open sheets
+ * on gm and p1 kept "not given" after the motives were written.
+ */
+async function redrawMotiveSheets() {
+    const { sheetsFor } = await import("./sheet-mode.mjs");
+    for (const actor of game.actors ?? []) {
+        if (actor?.type !== "character") continue;
+        for (const app of sheetsFor(actor)) app.render(false);
+    }
 }
 
 /*

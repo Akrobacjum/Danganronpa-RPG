@@ -119364,6 +119364,94 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             "[the ruling, the reason kept, the owner told it, the second report refused, its state, Hope unchanged]");
     }],
 
+    ["E135 MOTIVES-M7 - the GM sets and passes a motive from the Students window and from the panel, and both redraw", async () => {
+        /*
+         * 2.0 line T5, D2-23 #5 (SPEC-MOTIVES.md "Interfejs GM-a" (b) and (c)). Both windows drawn on this GM as the GM
+         * panel opens them - the Students window (gm-panel.mjs `openWhoIsAliveDialog`) and the Motives tile's run
+         * (motives-ui.mjs `openMotivesOverview`) - and pressed through their own buttons: the Students row's Motives button
+         * opens O's motives, whose Personal field is typed and saved (`motive.set` on the primary); O's player reports it done
+         * (`reportMotiveOnPrimary`, the sender that player); the overview's Pass on O's row (`motive.rule`). Read on the two
+         * windows left open, never reopened: the Students row's cell and the overview's Personal cell (its words, its Pass
+         * button) before, after the save, after the report and after the pass, the store's status and the Hope landed. Put
+         * back: O's row, Hope, the messages, the windows. Red at 8028f21 (the line's report): the Students window's cell
+         * stood at "none" after the save - its `keepLive` watched no motive.
+         */
+        needs(env.dialogs(), "the windows are read drawn");
+        const M = await import("./motives.mjs");
+        const U = await import("./motives-ui.mjs");
+        const GP = await import("./gm-panel.mjs");
+        const { motiveStore } = await import("./gm-stores.mjs");
+        const { sheetAuditIdle } = await import("./sheet-audit.mjs");
+        const [O] = cast(1);
+        const owner = game.users.find(u => !u.isGM && O.testUserPermission(u, "OWNER")) ?? null;
+        must(owner, `no player owns ${O.name} - the report would have no sender`);
+        must(M.motivesEnabled(), "the motives are off at this table - neither the column nor the tile is drawn");
+        const of = cls => [...foundry.applications.instances.values()].filter(a => a.rendered && a.options?.classes?.includes(cls));
+        must(!of("drpg-window-alive").length && !of("drpg-window-motives").length, "a Students or Motives window stands open already");
+        await motiveStore.whenHydrated();
+        const was = motiveStore.get(O.id);
+        const hopeBack = sheetAsFound(O, ["system.resources.hope.value"]);
+        const seen = new Set(game.messages.map(m => m.id));
+        const WORDS = "SUITE E135 M7 personal words";
+        const rowIn = cls => of(cls)[0]?.element?.querySelector(`tr[data-actor="${CSS.escape(O.id)}"]`) ?? null;
+        const studentsCell = () => rowIn("drpg-window-alive")?.querySelector(".drpg-motive-cell")?.textContent?.replace(/\s+/g, " ").trim() ?? null;
+        const overviewCell = () => {
+            const cell = rowIn("drpg-window-motives")?.children?.[1];
+            return cell ? [cell.firstChild?.textContent?.trim() ?? null, Boolean(cell.querySelector('[data-drpg-motive-pass="personal"]'))] : null;
+        };
+        const read = {};
+        const answers = [];
+        try {
+            if (was) await motiveStore.drop(O.id);
+            await O.update({ "system.resources.hope.value": 0 });
+            await sheetAuditIdle();
+            await settle();
+            answers.push(Promise.resolve().then(() => GP.openWhoIsAliveDialog()).catch(() => null));
+            await until(() => studentsCell() !== null, 6000);
+            answers.push(Promise.resolve().then(() => U.openMotivesOverview()).catch(() => null));
+            await until(() => overviewCell() !== null, 6000);
+            read.before = [studentsCell(), overviewCell()];
+            rowIn("drpg-window-alive")?.querySelector("[data-drpg-motive-edit]")?.click();
+            await until(() => of("drpg-window-motives-edit")[0]?.element?.querySelector("[name=personal]"), 6000);
+            const edit = of("drpg-window-motives-edit")[0]?.element ?? null;
+            must(edit, "the Students row's Motives button opened no window");
+            edit.querySelector("[name=personal]").value = WORDS;
+            edit.querySelector('button[data-action="save"]')?.click();
+            await until(() => M.motivesOf(O.id).personal?.text === WORDS, 6000);
+            await settle();
+            await until(() => studentsCell() !== read.before[0] && overviewCell()?.[0] !== read.before[1]?.[0], 3000);
+            read.saved = [M.motivesOf(O.id).personal?.status ?? null, studentsCell(), overviewCell()];
+            const reported = await M.reportMotiveOnPrimary({ actorId: O.id, kind: "personal", text: "SUITE E135 M7 report" }, owner);
+            await settle();
+            await until(() => overviewCell()?.[1] === true, 3000);
+            read.reported = [reported.refused ?? null, studentsCell(), overviewCell()];
+            rowIn("drpg-window-motives")?.querySelector('[data-drpg-motive-pass="personal"]')?.click();
+            await until(() => M.motivesOf(O.id).personal?.status === "done", 6000);
+            await sheetAuditIdle();
+            await settle();
+            await until(() => overviewCell()?.[1] === false, 3000);
+            read.passed = [M.motivesOf(O.id).personal?.status ?? null, studentsCell(), overviewCell(), Number(O.system.resources.hope.value)];
+            read.open = [of("drpg-window-alive").length, of("drpg-window-motives").length];
+        } finally {
+            for (const cls of ["drpg-window-motives-edit", "drpg-window-motives", "drpg-window-alive"]) for (const a of of(cls)) await a.close().catch(() => {});
+            await Promise.race([Promise.all(answers), wait(1500)]);
+            if (was) await motiveStore.patch(O.id, was); else if (motiveStore.get(O.id)) await motiveStore.drop(O.id);
+            await hopeBack();
+            for (const m of game.messages.filter(m => !seen.has(m.id))) await m.delete().catch(() => {});
+            await settle();
+        }
+        const state = s => game.i18n.localize(`DRPG.Motives.state.${s}`);
+        const cell = s => `${game.i18n.format("DRPG.Motives.cellPersonal", { state: state(s) })}, ${game.i18n.format("DRPG.Motives.cellRelationship", { state: state("none") })}`;
+        const hope = Math.min(3, Number(O.system.resources.hope.max) || 0);
+        equal(stableJson(read), stableJson({
+            before: [cell("none"), [state("none"), false]],
+            saved: ["open", cell("open"), [state("open"), false]],
+            reported: [null, cell("reported"), [state("reported"), true]],
+            passed: ["done", cell("done"), [state("done"), false], hope],
+            open: [1, 1]
+        }), "{before, saved, reported, passed: [the store's status,] the Students row's motive cell, the overview's Personal cell [its words, its Pass button][, O's Hope from 0]; open: the Students and Motives windows still open}");
+    }],
+
     ["E135 MOTIVES-M9 - a chapter with no motives adds no window to the verdict", async () => {
         /*
          * 2.0 line T5, D2-24 #6 (scenario 63 and Forge's s1b draw no new window). motives-ui.mjs `verdictMotivesStep` handed
@@ -119389,6 +119477,133 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         }
         equal(stableJson(read), stableJson([[game.i18n.localize("DRPG.Motives.levelUpNone")], 0, 0, null]),
             "[the summary's lines, survivors read, Level Ups prompted, motivesGiven written]");
+    }],
+
+    ["E135 MOTIVES-M9 - after a correct verdict the GM gives the motive Level Up to the pre-ticked and to one ticked by hand, once", async () => {
+        /*
+         * 2.0 line T5, D2-24 #6, SPEC-MOTIVES.md "Przebieg zaliczenia" 4-5. P (the class's first living student) holds both
+         * motives passed, H a Personal Motive open, the rest none; no Monokuma Motive this chapter. A correct verdict
+         * (`applyVerdict`, over `withVerdictOpen`) with every window answered here: the class's Level Up window with "I pick"
+         * on every row and each picker a pick, and the motives' window (motives-ui.mjs `pickMotiveLevelUps`) as drawn - its
+         * rows and their ticks recorded - with H ticked by hand and Give pressed. Then the world a GM gone inside the motives'
+         * step leaves: the trial's record as it stood once P's motive Level Up alone was given (each write of the record is
+         * read), H's motive Level Up taken back, the verdict's GM a user who is not there; Finish (`finishVerdict`), its
+         * motives' window answered the same way. Read: each survivor's Level Ups (offers and advances together) after the
+         * verdict and after the Finish, the record's `motivesGiven`, the motives' window's rows each time, the verdict done.
+         * Put back: the sheets, the offers, the motives, the setting, the record (`withVerdictOpen`), the messages.
+         */
+        needs(world.atLeast("livingStudents", 3), "P pre-ticked, H ticked by hand and one more student with no motive");
+        const M = await import("./motives.mjs");
+        const L = await import("./level-up.mjs");
+        const S = await import("./gm-stores.mjs");
+        const V = await import("./vote.mjs");
+        const { livingStudents } = await import("./chapter.mjs");
+        const { studentActors } = await import("./monokuma.mjs");
+        const { isPrimaryGm } = await import("./utils.mjs");
+        const { sheetAuditIdle } = await import("./sheet-audit.mjs");
+        must(isPrimaryGm(), "this client is not the primary GM, which writes the motives and finishes a verdict");
+        const living = livingStudents();
+        must(living.every(a => !S.offerStore.has(a.id) && !S.deferredOfferStore.has(a.id)),
+            "an offer or a waiting Level Up stands already - this would read it, not the ones made here");
+        const order = studentActors().map(a => a.id);
+        living.sort((a, b) => order.indexOf(a.id) - order.indexOf(b.id));
+        const [P, H] = living;
+        const HP_MAX = "system.resources.hitPoints.max", ADVANCES = `flags.${MODULE_ID}.${FLAGS.advances}`, HOPE = "system.resources.hope.value";
+        const PATHS = [HP_MAX, ADVANCES, HOPE, ...LEVEL_UP_POINTS];
+        const putBack = new Map(living.map(a => [a.id, sheetAsFound(a, PATHS)]));
+        const advances = a => foundry.utils.getProperty(a._source, ADVANCES) ?? 0;
+        const before = new Map(living.map(a => [a.id, advances(a)]));
+        const levelUps = a => L.offerList(S.offerStore.get(a.id)).length + advances(a) - before.get(a.id);
+        const pick = entry => Array.from({ length: entry.picks }, () => ({ option: "trait", trait: "strength" }));
+        await S.motiveStore.whenHydrated();
+        const rowsWas = new Map(living.map(a => [a.id, S.motiveStore.get(a.id)]));
+        const monokumaWas = foundry.utils.deepClone(getSetting(SETTINGS.monokumaMotive) ?? {});
+        const logWas = [M.MONOKUMA_ROW, M.MONOKUMA_LOG_ROW].map(id => [id, S.motiveStore.get(id)]);
+        const seen = new Set(game.messages.map(m => m.id));
+        const D = foundry.applications.api.DialogV2;
+        const own = Object.getOwnPropertyDescriptor(D, "wait");
+        const windows = [];
+        const answerAll = () => {
+            D.wait = async cfg => {
+                const classes = [...(cfg?.classes ?? [])];
+                const entry = { classes, title: cfg?.window?.title ?? "",
+                    picks: ((cfg?.content?.innerHTML ?? String(cfg?.content ?? "")).match(/name="pick\.\d+\.option"/g) ?? []).length };
+                if (classes.includes("drpg-advance-queue")) return answerQueue(cfg, "gm", entry);
+                if (classes.includes("drpg-advance")) return pick(entry);
+                if (!classes.includes("drpg-window-motive-levelups")) return null;
+                const element = document.createElement("div");
+                element.innerHTML = cfg?.content?.innerHTML ?? String(cfg?.content ?? "");
+                const boxes = [...element.querySelectorAll('input[type="checkbox"][name^="motive."]')];
+                windows.push(boxes.map(box => [box.name.slice("motive.".length), box.hasAttribute("checked")]));
+                const hand = element.querySelector(`input[name="motive.${H.id}"]`);
+                if (hand) hand.checked = true;
+                for (const box of boxes) if (box !== hand) box.checked = box.hasAttribute("checked");
+                const button = (cfg?.buttons ?? []).find(b => b.default) ?? cfg?.buttons?.[0];
+                return button?.callback?.(new Event("click"), button, { element }) ?? null;
+            };
+        };
+        const unanswer = () => { if (own) Object.defineProperty(D, "wait", own); else delete D.wait; };
+        const settings = game.settings, ownSet = Object.getOwnPropertyDescriptor(settings, "set"), set = settings.set;
+        const unwrap = () => { if (ownSet) Object.defineProperty(settings, "set", ownSet); else delete settings.set; };
+        let leftP = null, hBack = null;
+        const read = {};
+        try {
+            await game.settings.set(MODULE_ID, SETTINGS.monokumaMotive, {});
+            for (const [id, row] of logWas) if (row) await S.motiveStore.drop(id);
+            for (const a of living) if (S.motiveStore.get(a.id)) await S.motiveStore.drop(a.id);
+            for (const kind of ["personal", "relationship"]) {
+                const set1 = await M.setMotiveOnPrimary({ actorId: P.id, kind, text: `SUITE E135 M9 P ${kind}`, withActorId: kind === "relationship" ? H.id : null });
+                must(set1.reply, `P's ${kind} motive was not written (${set1.refused})`);
+                const passed = await M.ruleMotiveOnPrimary({ actorId: P.id, kind, pass: true });
+                must(passed.reply?.status === "done", `P's ${kind} motive was not passed (${passed.refused})`);
+            }
+            must((await M.setMotiveOnPrimary({ actorId: H.id, kind: "personal", text: "SUITE E135 M9 H personal" })).reply, "H's motive was not written");
+            await sheetAuditIdle();
+            await settle();
+            await withVerdictOpen(async () => {
+                settings.set = function (namespace, key, value, ...rest) {
+                    const given = value?.verdict?.motivesGiven;
+                    if (namespace === MODULE_ID && key === SETTINGS.trialProgress && Array.isArray(given) && given.length === 1 && !leftP) {
+                        leftP = foundry.utils.deepClone(value.verdict);
+                        hBack = sheetAsFound(H, PATHS);
+                    }
+                    return set.call(this, namespace, key, value, ...rest);
+                };
+                answerAll();
+                await V.applyVerdict({ correct: true, executedIds: [], blackenedIds: [] });
+                await settle();
+                unwrap();
+                read.verdict = [living.map(a => levelUps(a)), [...(V.trialProgress().verdict?.motivesGiven ?? [])]];
+                must(leftP && hBack && leftP.motivesGiven[0] === P.id, `no write of the record held P's motive Level Up alone - nothing to finish (${stableJson(leftP?.motivesGiven ?? null)})`);
+                await hBack();
+                if (S.offerStore.has(H.id) && levelUps(H) > 1) await S.offerStore.drop(H.id);
+                await V.setTrialProgress({ verdict: { ...leftP, stage: "applying", by: "a GM who left", failed: [] } });
+                await V.finishVerdict();
+                await settle();
+                read.finish = [living.map(a => levelUps(a)), [...(V.trialProgress().verdict?.motivesGiven ?? [])], V.trialProgress().verdict?.stage ?? null];
+                read.windows = windows.map(rows => rows.map(([id, ticked]) => [id === P.id ? "P" : id === H.id ? "H" : "other", ticked]));
+            });
+        } finally {
+            unwrap();
+            unanswer();
+            for (const a of living) if (S.offerStore.has(a.id)) await S.offerStore.drop(a.id);
+            for (const back of putBack.values()) await back();
+            for (const a of living) {
+                const row = rowsWas.get(a.id);
+                if (row) await S.motiveStore.patch(a.id, row); else if (S.motiveStore.get(a.id)) await S.motiveStore.drop(a.id);
+            }
+            for (const [id, row] of logWas) if (row) await S.motiveStore.patch(id, row);
+            await game.settings.set(MODULE_ID, SETTINGS.monokumaMotive, monokumaWas);
+            for (const m of game.messages.filter(m => !seen.has(m.id))) await m.delete().catch(() => {});
+            await settle();
+        }
+        const others = living.slice(2).map(() => ["other", false]);
+        const levels = living.map((a, i) => (i < 2 ? 2 : 1));
+        equal(stableJson(read), stableJson({
+            verdict: [levels, [P.id, H.id]],
+            finish: [levels, [P.id, H.id], "done"],
+            windows: [[["P", true], ["H", false], ...others], [["H", false], ...others]]
+        }), "{verdict, finish: [each survivor's Level Ups in the class's order (P, H, the rest), the record's motivesGiven[, its stage]]; windows: each motives' window's rows [who, ticked as drawn]}");
     }],
 
     ["E135 MOTIVES-M11 - the next chapter reads none of the last one's motives, and the season's reset empties the Monokuma Motive", async () => {

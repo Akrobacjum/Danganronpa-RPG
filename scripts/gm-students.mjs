@@ -622,7 +622,9 @@ export async function openWhoIsAliveDialog(options = {}) {
                 // A death kept by the GMs writes no actor (E05 C10): its store's change is the sign; so is a Monocub's row (E72 C2).
                 // The standing Level Up offers too (1.2.122 line ITEMS; the audit's REFR-48): the Level Up button counts them,
                 // and another GM's offer merged here writes no actor and fires no hook, only the store's key. Tier 2's "1.2.122 CTRL-35 ...".
-                watch: { actors: true, hooks: ["drpgDeathsChanged", "drpgDespairOwedChanged", "drpgCrossingsChanged", "drpgCubsChanged", "drpgCastChanged"], stores: [offerStore] },
+                // The motives' column (2.0 line T5) on `drpgMotivesChanged`, which motives.mjs fires for a write here and for the
+                // store merged from another GM: a motive set or reported writes no actor (tier 2's "E135 MOTIVES-M7").
+                watch: { actors: true, hooks: ["drpgDeathsChanged", "drpgDespairOwedChanged", "drpgCrossingsChanged", "drpgCubsChanged", "drpgCastChanged", "drpgMotivesChanged"], stores: [offerStore] },
                 after: wireAll
             });
         },

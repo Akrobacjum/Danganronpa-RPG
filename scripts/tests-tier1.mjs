@@ -70430,6 +70430,32 @@ const INVARIANTS = [
         ok(/key: "oldMotiveGone",\s*since: "1\.2\.130"/.test(src),
             "migrate.mjs has no clause oldMotiveGone since 1.2.130");
     }],
+    ["R9352 - motives: a client setting's write of the motives that leaves what this browser holds as it was tells no window or sheet; a write of the Monokuma Motive's world setting always does", async () => {
+        /*
+         * 2.0 line T5 (the coordinator's follow-up of 28.11.2026; scenario 76 G). motives.mjs `registerMotives`: every GM
+         * store is written once on the primary when another GM connects, and until this fix the motives' write told
+         * `drpgMotivesChanged`, whose redraw of the open sheets landed among the newcomer's first writes. Foundry's hook
+         * for a client setting's write is called here on this GM with the players' copy's key (a GM holds the store, so
+         * nothing it holds changed; the engine only drops the copy's cache, gm-store.mjs `onClientSettingChanged`), and
+         * Foundry's hook for a world setting's write (`updateSetting`) with the Monokuma Motive's key, the control that the
+         * listeners stand; nothing is written. Read: `drpgMotivesChanged` told after each. Red at 8028f21: told for the
+         * copy's key.
+         */
+        must(game.user?.isGM, "this browser is no GM - it holds the store, not the copy, only on a GM");
+        const { motiveCopy } = await import("./gm-stores.mjs");
+        let told = 0;
+        const hook = Hooks.on("drpgMotivesChanged", () => { told++; });
+        const read = [];
+        try {
+            Hooks.callAll("clientSettingChanged", `${MODULE_ID}.${motiveCopy.spec.key}`, null, {});
+            read.push(told);
+            Hooks.callAll("updateSetting", { key: `${MODULE_ID}.${SETTINGS.monokumaMotive}` }, {}, {}, game.user.id);
+            read.push(told);
+        } finally {
+            Hooks.off("drpgMotivesChanged", hook);
+        }
+        equal(stableJson(read), stableJson([0, 1]), "[told after the copy's key, after the Monokuma Motive's key too]");
+    }],
 ];
 
 /**
