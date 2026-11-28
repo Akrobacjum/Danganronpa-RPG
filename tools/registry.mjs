@@ -197,7 +197,15 @@ const SINCE_CORRECTED = Object.freeze([
     { from: 8731, to: 8733, since: "E128" },
     { from: 8734, to: 8749, since: "E129" },
     { from: 8770, to: 8849, since: "E129" },
-    { from: 8870, to: 8899, since: "E129" }
+    { from: 8870, to: 8899, since: "E129" },
+    /* The 2.0 fix lines (1.2.130; docs/dev/v2/LINE-T1.md ... LINE-T5.md section 4, the specs' review of 27.11.2026): each line
+       took its numbers from its own range, and --write stamped them E39, the first unshipped stage; the coordinator's stamp
+       is the line's stage, written at the assembly after the last merge. */
+    { from: 8920, to: 9019, since: "E131" },
+    { from: 9020, to: 9119, since: "E132" },
+    { from: 9120, to: 9219, since: "E133" },
+    { from: 9220, to: 9319, since: "E134" },
+    { from: 9320, to: 9419, since: "E135" }
 ]);
 /* A removed test's row names what removed it where the working stage at --write did not: R214 went in feba55c3 (13.11.2026,
    the 1.2.112 stash change), and the row read "(removed in E54)" (STG-47). */
