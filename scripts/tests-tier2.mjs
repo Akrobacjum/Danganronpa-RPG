@@ -119456,6 +119456,55 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         equal(stableJson(read), stableJson({ before: [0, true, null], after: [1, "+1", true] }),
             "{before: [free actions banked, the +1 on the row, the row's +N]; after: [free actions banked, the row's +N, the window still open]}");
     }],
+    ["E132 T2c EXP-GM-07 - an action a GM runs for a student says so on its card: this GM's roll of a player's student (`rollTrait`, a Hope roll forced) carries the GM, the card posted on the action's own road (`whisperToOwner` with `rollCardFlags`) holds it in its flags, the chat log draws \"Rolled by GM {name}.\" under the card's words, and the same flag on a card a player wrote draws nothing (action-pipeline.mjs `rolledByGmHere`, private-rolls.mjs `rolledByGmOf`, `signRolledByGm`; 2.0 line T2c, EXP-GM-07, 28.11.2026)", async () => {
+        /*
+         * F1-blind-gm EXP-GM-07. Thrown on this GM's browser for a student a player owns, as an action a GM runs from the
+         * sheet throws it (`rollTrait`, remember off so no Reroll bookmark is written; the dice forced, `__forceRoll`), then
+         * posted as Observe's and Listen's result cards are (`whisperToOwner(actor, rollHead(...), rollCardFlags(...))`).
+         * The chat log's render hook handed the card in a stand-in entry, as Foundry draws it (the harness draws no chat
+         * log); then a stand-in document a player wrote, carrying this GM's id in the same flag. The card is deleted in the
+         * `finally`. Red at 0d3d4f2: the outcome carried no GM, the card no flag, the log no line.
+         */
+        needs(world.atLeast("playersWithCharacter", 1));
+        const AP = await import("./action-pipeline.mjs");
+        const AR = await import("./action-report.mjs");
+        const U = await import("./utils.mjs");
+        const { studentActors } = await import("./monokuma.mjs");
+        const player = game.users.find(u => !u.isGM && studentActors().some(a => a.testUserPermission(u, "OWNER")));
+        const actor = studentActors().find(a => a.testUserPermission(player, "OWNER"));
+        const hadForce = Object.hasOwn(globalThis, "__forceRoll"), force = globalThis.__forceRoll;
+        const seen = new Set(game.messages.map(m => m.id));
+        const drawnLine = async message => {
+            const el = document.createElement("li");
+            el.innerHTML = `<div class="message-content">${String(message.content ?? "")}</div>`;
+            Hooks.callAll("renderChatMessageHTML", message, el, {});
+            await new Promise(r => setTimeout(r, 0));
+            return el.querySelector(".message-content .drpg-rolled-by-gm")?.textContent ?? null;
+        };
+        const read = {};
+        try {
+            globalThis.__forceRoll = { hope: 11, fear: 2 };
+            const roll = await AP.rollTrait(actor, "eye", { actionKey: "observe", remember: false });
+            must(roll, "the roll was not thrown - this would measure nothing");
+            read.roll = roll.rolledByGm === game.user.id;
+            const card = await U.whisperToOwner(actor, AR.rollHead({ label: "E132 T2c EXP-GM-07" }, roll), AR.rollCardFlags({ label: "E132 T2c EXP-GM-07" }, roll));
+            must(card, "the card was not posted - this would measure nothing");
+            await settle();
+            const message = game.messages.get(card.id) ?? card;
+            const { cardFlag } = await import("./secret.mjs");
+            read.flag = cardFlag(message, "rolledByGm") === game.user.id;
+            read.line = await drawnLine(message);
+            const forged = { id: "E132T2cForged001", author: player, content: "<p>E132 T2c forged</p>", whisper: [], flags: { [MODULE_ID]: { rolledByGm: game.user.id } },
+                getFlag(scope, key) { return this.flags?.[scope]?.[key]; } };
+            read.forged = await drawnLine(forged);
+        } finally {
+            if (hadForce) globalThis.__forceRoll = force; else delete globalThis.__forceRoll;
+            for (const m of game.messages.filter(m => !seen.has(m.id))) await m.delete().catch(() => {});
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ roll: true, flag: true, line: game.i18n.format("DRPG.Rolls.rolledByGm", { name: game.user.name }), forged: null }),
+            "{roll: the outcome names this GM; flag: the card's flag names this GM; line: the chat log's line under the card; forged: a player's card carrying the flag}");
+    }],
 ];
 
 // `drawnForPlayer` for the grid (E33 C7): a drawn crisis roll goes through the suite's one road to a draw (tests-grid.mjs `drawnAct`).

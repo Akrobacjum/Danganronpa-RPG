@@ -224,7 +224,12 @@ export function rollTone(roll) {
  */
 export function rollCardFlags(def, roll) {
     // the result its player waits on, in the middle of that player's screen (notice-centre.mjs, 1.2.124)
-    return { flags: { [MODULE_ID]: { popupTitle: def.label, popupTone: rollTone(roll), popupCentre: "actionResult" } } };
+    return { flags: { [MODULE_ID]: { popupTitle: def.label, popupTone: rollTone(roll), popupCentre: "actionResult", ...rolledByGmFlag(roll) } } };
+}
+
+/** The GM who ran this roll's action for a player's student, as a card's flag (action-pipeline.mjs `rolledByGmHere`, EXP-GM-07), or nothing. */
+export function rolledByGmFlag(roll) {
+    return typeof roll?.rolledByGm === "string" && roll.rolledByGm ? { rolledByGm: roll.rolledByGm } : {};
 }
 
 /**
@@ -430,7 +435,9 @@ export async function report(actor, def, roll, outcome) {
                 popupTone: rollTone(roll),
                 // The result its player waits on: in the middle of that player's screen, closed by hand, and kept in the
                 // notice history as before (notice-centre.mjs, the owner's OWNER-124-NOTICES of 22.11.2026).
-                popupCentre: "actionResult"
+                popupCentre: "actionResult",
+                // A GM ran it for the student's player (EXP-GM-07): the card says so to its readers.
+                ...rolledByGmFlag(roll)
             }
         },
         summary: {

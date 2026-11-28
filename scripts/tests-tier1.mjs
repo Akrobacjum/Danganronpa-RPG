@@ -70960,6 +70960,46 @@ const INVARIANTS = [
         "{alive, dead: the cell's extra for a living student and one who is not [its words, its tooltip] and its button [the actor, its name]; pressed: the press's answer; asked: what it handed the grant; cell: the Actions cell draws it; wired: the window wires the button to it}");
         ok(label !== "DRPG.Panel.grantAction" && game.i18n.localize("DRPG.Panel.grantedAction") !== "DRPG.Panel.grantedAction", "the button's keys have words");
     }],
+    ["R9064 - an action a GM rolls for a player's student says so, and only a GM's card is read so: action-pipeline.mjs `rolledByGmHere` names the GM for a GM's browser rolling a character a player owns, and nobody for a character no player owns or on a player's browser; `rollTrait` sets it on the outcome as `rolledByGm`; action-report.mjs `rollCardFlags` and `report` carry it in the card's flags (`rolledByGmFlag`), nothing without it; private-rolls.mjs `rolledByGmOf` reads it only on a card a GM wrote whose flag names a GM, and `rolledByGmLine` draws `DRPG.Rolls.rolledByGm` from it; the chat log and the notice draw the line (2.0 line T2c, EXP-GM-07, 28.11.2026)", async () => {
+        /* F1-blind-gm EXP-GM-07, E-GM-22: a GM's roll for a student left no sign, and a player's own roll is drawn on the
+           primary GM since E28, so the roll's author does not tell the two apart. Read on stand-ins: a GM and a player as
+           the browser's user, a student a player owns and a Monokuma no player owns (users from this world); four stand-in
+           cards (a GM's with a GM's id, a player's carrying the same flag, a GM's naming a player, a GM's with none).
+           Red at 0d3d4f2: no `rolledByGmHere`. */
+        needs(world.atLeast("playersWithCharacter", 1));
+        const AP = await import("./action-pipeline.mjs");
+        const AR = await import("./action-report.mjs");
+        const PR = await import("./private-rolls.mjs");
+        const player = game.users.find(u => !u.isGM && studentActors().some(a => a.testUserPermission(u, "OWNER")));
+        const owned = studentActors().find(a => a.testUserPermission(player, "OWNER"));
+        const gm = game.user;
+        const here = typeof AP.rolledByGmHere === "function" ? AP.rolledByGmHere : () => "missing";
+        const unowned = { id: "R9064Nobody00001", name: "R9064 nobody", testUserPermission: () => false };
+        const card = (author, flag) => ({ id: `R9064${author.isGM ? "Gm" : "Pl"}${flag ? "F" : "N"}00000`.slice(0, 16), author,
+            flags: { [MODULE_ID]: flag ? { rolledByGm: flag } : {} }, getFlag(scope, key) { return this.flags?.[scope]?.[key]; } });
+        const of = typeof PR.rolledByGmOf === "function" ? m => PR.rolledByGmOf(m)?.id ?? null : () => "missing";
+        const flags = roll => (typeof AR.rollCardFlags === "function" ? AR.rollCardFlags({ label: "R9064" }, roll).flags[MODULE_ID].rolledByGm ?? null : "missing");
+        const line = typeof PR.rolledByGmLine === "function" ? PR.rolledByGmLine(card(gm, gm.id)) : "";
+        const lineRoot = document.createElement("div");
+        lineRoot.innerHTML = line;
+        const pipe = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/action-pipeline.mjs`).then(lfText));
+        const report = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/action-report.mjs`).then(lfText));
+        const rolls = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/private-rolls.mjs`).then(lfText));
+        const popup = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/popup.mjs`).then(lfText));
+        equal(stableJson({
+            here: [here(owned, { user: gm }) === gm.id, here(unowned, { user: gm }), here(owned, { user: player })],
+            flags: [flags({ total: 9, rolledByGm: gm.id }) === gm.id, flags({ total: 9 })],
+            read: [of(card(gm, gm.id)) === gm.id, of(card(player, gm.id)), of(card(gm, player.id)), of(card(gm, null))],
+            line: lineRoot.querySelector("p.drpg-rolled-by-gm")?.textContent ?? null,
+            sources: [/const gmHand = outcome \? rolledByGmHere\(actor\) : null;\s*if \(gmHand\) outcome\.rolledByGm = gmHand;/.test(fnSource(pipe, "rollTrait")),
+                /\.\.\.rolledByGmFlag\(roll\)/.test(fnSource(report, "report")),
+                /Hooks\.on\("renderChatMessageHTML", signRolledByGm\)/.test(fnSource(rolls, "registerPrivateRolls")),
+                /withoutRulingButtons\(await wordsOf\(message\)\) \+ rolledByGmLine\(message\)/.test(fnSource(popup, "onCreateChatMessage"))]
+        }), stableJson({
+            here: [true, null, null], flags: [true, null], read: [true, null, null, null],
+            line: game.i18n.format("DRPG.Rolls.rolledByGm", { name: gm.name }), sources: [true, true, true, true]
+        }), "{here: [a GM rolling a player's student, a character no player owns, a player's browser]; flags: [a roll a GM ran, one it did not]; read: [a GM's card naming a GM, a player's card naming a GM, a GM's card naming a player, a GM's card naming nobody]; line: the line drawn; sources: [rollTrait marks the outcome, report carries the flag, the chat log's hook, the notice's line]}");
+    }],
 ];
 
 /**

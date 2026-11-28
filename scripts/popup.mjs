@@ -1463,7 +1463,9 @@ export async function onCreateChatMessage(message) {
      * which is nearly everything, so the ordinary notice is not delayed by a
      * tick it does not need.
      */
-    showPopup(withoutRulingButtons(await wordsOf(message)), {
+    // An action a GM ran for a player's student says so in its notice too (private-rolls.mjs `rolledByGmLine`, EXP-GM-07).
+    const { rolledByGmLine } = await import("./private-rolls.mjs");
+    showPopup(withoutRulingButtons(await wordsOf(message)) + rolledByGmLine(message), {
         kind,
         title: cardFlag(message, "popupTitle") ?? null,
         // Carried on the message rather than worked out here, for the same

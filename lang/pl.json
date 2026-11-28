@@ -6527,7 +6527,8 @@
       "awayNothing": "nic (reakcja)",
       "awayClaimed": "(rzut podał {claimed}; lista GM-a daje {legal})",
       "grantAll": "Przyznaj wszystkie",
-      "grantNone": "Nie przyznawaj"
+      "grantNone": "Nie przyznawaj",
+      "rolledByGm": "Rzucił GM {name}."
     },
     "Messenger": {
       "launcherTooltip": "Komunikator",

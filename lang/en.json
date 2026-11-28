@@ -6091,7 +6091,8 @@
       "awayNothing": "nothing (a reaction)",
       "awayClaimed": "(the roll claimed {claimed}; the GM's list gives {legal})",
       "grantAll": "Grant all",
-      "grantNone": "Grant none"
+      "grantNone": "Grant none",
+      "rolledByGm": "Rolled by GM {name}."
     },
     "Messenger": {
       "launcherTooltip": "Messenger",
