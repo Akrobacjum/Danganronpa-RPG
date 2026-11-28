@@ -22031,7 +22031,7 @@ const INVARIANTS = [
             "{a Scenes tab in Room setup; Season setup's scenes part: [school, hall, its one sentence, the old intro]; its Save: [reads, clash, hall lock, applies]; "
             + "[the checklist opens Room setup's Scenes, openTrialCast opens Season setup]}");
     }],
-    ["R4475 - Season setup holds Edit campaign's next morning's line (E101 item 1; the owner's yes of 12.11.2026 to the GM screens' review, #2: Edit campaign's window has no button and opens from the console alone, so E94's field there was a GM's nobody would see): season-setup.mjs `campaignFieldsHtml` draws gm-campaign.mjs `morningLineRow` in its Edit campaign block, `readSeasonForm` reads it, and `openSeasonSetup`'s Save keeps it as Edit campaign's Apply does (the browser's `morningLineDraft`)", async () => {
+    ["R4475 - Season setup holds Edit campaign's next morning's line (E101 item 1; the owner's yes of 12.11.2026 to the GM screens' review, #2: Edit campaign's window has no button and opens from the console alone, so E94's field there was a GM's nobody would see): season-setup.mjs `campaignFieldsHtml` draws gm-campaign.mjs `morningLineRow` in its Edit campaign block, `readSeasonForm` reads it, and `openSeasonSetup`'s Save keeps it as Edit campaign's Apply does (the GMs' next morning's line since 1.2.130, 2.0 line T2b DAY-01; the browser's `morningLineDraft` until then)", async () => {
         /*
          * E101 item 1, 13.11.2026. E49 A1e put Edit campaign's rows at Season setup's top, each field once; E94 C1 then added
          * the next morning's line to Edit campaign's own window (`openClockDialog`), which only `game.drpg.editClock` opens.
@@ -22047,7 +22047,8 @@ const INVARIANTS = [
             drawn: Boolean(field), inBlock: Boolean(field?.closest("fieldset.drpg-setup-campaign")),
             label: box.querySelector(`label[for="${field?.id}"]`)?.textContent.trim() === game.i18n.localize("DRPG.Clock.morningLine"),
             read: /morningLine/.test(fnSource(src, "readSeasonForm")),
-            kept: /SETTINGS\.morningLineDraft/.test(fnSource(src, "openSeasonSetup"))
+            // the GMs' line since 1.2.130 (2.0 line T2b, DAY-01): this browser's client setting until then
+            kept: /setMorningLine\(/.test(fnSource(src, "openSeasonSetup"))
         }), stableJson({ drawn: true, inBlock: true, label: true, read: true, kept: true }),
             "{the next morning's line drawn, in Edit campaign's block, under its label; read by the form; kept by Save}");
     }],
@@ -61010,7 +61011,7 @@ const INVARIANTS = [
             stableJson({ shareRatio: true, aspect: true, at1366: AT_1366_ROUND4 }),
             `[the 1920x1080 median share over 1366x768's, a mean over eight seeds, within 0.9-1.1 (read ${r.toFixed(3)}); the 1920x1080 median aspect no narrower (read ${aF.toFixed(3)} against ${aR.toFixed(3)}); 1366x768's median area and count for seed 11 as round 4 made them]`);
     }],
-    ["R3720 - the GM's morning line reaches the start-of-day board at the day's start and no sooner (scripts/sequence.mjs `morningLineOf`, `dayStartPatch`, `dayStartElement`; scripts/gm-campaign.mjs `morningLineRow`; scripts/clock.mjs `advanceTimeOfDay`; E94 C1, the plan's default: a field in Edit campaign): the line is trimmed, its spaces folded and cut to 200 characters, an empty one none; the roll-over to a new day writes it into the clock's one write and any other move clears it; Edit campaign has the field and keeps it on the GM's browser; the advance folds the patch into its one write and empties the draft; the board shows the line under MORNING ANNOUNCEMENT, and none when it is empty", async () => {
+    ["R3720 - the GM's morning line reaches the start-of-day board at the day's start and no sooner (scripts/sequence.mjs `morningLineOf`, `dayStartPatch`, `dayStartElement`; scripts/gm-campaign.mjs `morningLineRow`; scripts/clock.mjs `advanceTimeOfDay`; E94 C1, the plan's default: a field in Edit campaign): the line is trimmed, its spaces folded and cut to 200 characters, an empty one none; the roll-over to a new day writes it into the clock's one write and any other move clears it; Edit campaign has the field and keeps it as the GMs' line (since 1.2.130, 2.0 line T2b DAY-01; on the GM's browser until then); the advance folds the patch into its one write and empties the draft; the board shows the line under MORNING ANNOUNCEMENT, and none when it is empty", async () => {
         /* E94 C1, 12.11.2026. Red at 7bbbd3c: sequence.mjs has no morningLineOf or dayStartPatch, Edit campaign no field. */
         const S = await import("./sequence.mjs");
         const sources = await moduleSources();
@@ -61024,8 +61025,9 @@ const INVARIANTS = [
             line: [S.morningLineOf("  Good   morning, class.  "), S.morningLineOf(""), S.morningLineOf("x".repeat(300)).length],
             rollOver: S.dayStartPatch({ rolledOver: true, draft: " Wake up! ", mood: "uneasy" }),
             later: [S.dayStartPatch({ rolledOver: false, before: { morningLine: "Wake up!" } }), S.dayStartPatch({ rolledOver: false, before: {} })],
-            field: /morningLineRow\(\)/.test(dialog) && /morningLineDraft/.test(dialog),
-            advance: /dayStartPatch\(/.test(advance) && /\.\.\.dayPatch/.test(advance) && /morningLineDraft, ""/.test(advance),
+            // the field and the advance's clear through the GMs' line since 1.2.130 (2.0 line T2b, DAY-01; R9037): the client setting until then
+            field: /morningLineRow\(\)/.test(dialog) && /setMorningLine\(/.test(dialog),
+            advance: /dayStartPatch\(/.test(advance) && /\.\.\.dayPatch/.test(advance) && /clearMorningDraft\(draft\)/.test(advance),
             shown: [board("Wake up!").querySelector(".drpg-seq-announce")?.textContent.includes("Wake up!") ?? false, Boolean(board("").querySelector(".drpg-seq-announce"))]
         }), stableJson({
             line: ["Good morning, class.", null, 200],
@@ -61267,7 +61269,8 @@ const INVARIANTS = [
             writes: {
                 advance: /opened/.test(advance) && /nightFalls/.test(advance),
                 start: /openingDayPatch\(/.test(start) && /\.\.\.morning\.patch/.test(start),
-                endGivesBack: /morningLineDraft, closing\.morningLine/.test(end),
+                // to the GMs' line since 1.2.130 (2.0 line T2b, DAY-01): this browser's client setting until then
+                endGivesBack: /giveBackMorningLine\(closing\.morningLine\)/.test(end),
                 cleared: /patch\.nightBoard === undefined/.test(set) && /next\.nightBoard = null/.test(set)
             },
             defaults: Object.hasOwn(DEFAULT_CLOCK, "nightBoard") ? DEFAULT_CLOCK.nightBoard : "missing"
@@ -70808,6 +70811,77 @@ const INVARIANTS = [
             after: { states: 2, said: [], sent: ["r9030.ask"], waiting: 0, reported: [] },
             module: true
         }), "{sentUnder: the request went under its caller's id; states: what onState was handed of six packets [another GM's, another user's, an id not waiting, a state not known, the primary's ruling, its waiting]; cancel: [an id not waiting, the request, again]; answer: what the request settled; after: [states handed after the cancel, messages said, packets sent, requests waiting, throws]; module: the module's waiter reads the primary by primaryGmId}");
+    }],
+    // T2b day-clock (split from T2)
+    ["R9037 - the next morning's line is one for the GMs: no module file but migrate.mjs reads or writes the client setting `morningLineDraft` (settings.mjs only registers it, for the migration), and the start of day, Edit campaign, Season setup and a Morning Eclipse go through the GMs' store (gm-stores.mjs `morningLineStore`, `morningLine`, `setMorningLine`, `giveBackMorningLine`; clock.mjs `morningInputs`, `clearMorningDraft`; eclipse.mjs `startEclipse`, `endEclipseNow`; 2.0 line T2b, DAY-01, 28.11.2026)", async () => {
+        /*
+         * F1-daily DAY-01 (F1-verify: confirmed; F3 on Forge: S2 I1 and S1a "DAY-01" red). The line was each GM's client
+         * setting `morningLineDraft`: Edit campaign and Season setup wrote it on the writer's browser, and the start of day
+         * read it on the browser that moved the clock - so a line one GM typed came out only at that GM's own advance, and
+         * stood uncleared there for a later morning. It is the GMs' store `morningLine` now, and the client setting is read
+         * by the migration alone (migrate.mjs `liftMorningDraft`). Read on the sources and the store's row; nothing is
+         * written. Red at 0d3d4f2: clock.mjs, eclipse.mjs, gm-campaign.mjs and season-setup.mjs read or wrote
+         * the client setting, and gm-stores.mjs had no such store.
+         */
+        const sources = new Map(await otherSources());
+        must(sources.size > 100 && sources.has("clock.mjs") && sources.has("gm-campaign.mjs"), "the module's sources were not read - this reads nothing");
+        const outside = [];
+        for (const [file, text] of sources) {
+            const code = stripComments(text);
+            if (file === "migrate.mjs") continue;
+            if (file === "settings.mjs") {
+                if (/game\.settings\.(?:get|set)\([^)]*morningLineDraft/.test(code)) outside.push(file);
+                continue;
+            }
+            if (/morningLineDraft/.test(code)) outside.push(file);
+        }
+        const S = await import("./gm-stores.mjs");
+        const spec = S.morningLineStore?.spec ?? null;
+        const src = name => stripComments(sources.get(name) ?? "");
+        const clock = src("clock.mjs"), campaign = src("gm-campaign.mjs"), season = src("season-setup.mjs"), eclipse = src("eclipse.mjs");
+        const advance = bodyOf(clock, "export async function advanceTimeOfDay(", { until: "\nexport function " });
+        equal(stableJson({
+            outside: outside.sort(),
+            store: spec ? { kind: spec.kind, fields: spec.fields, sync: spec.sync, backup: spec.backup, resetGroup: spec.resetGroup ?? null, from: Boolean(spec.legacyKey) } : null,
+            road: ["morningLine", "setMorningLine", "clearMorningLine", "giveBackMorningLine"].map(n => typeof S[n]),
+            inputs: /\bmorningLine\(\)/.test(fnSource(clock, "morningInputs")),
+            cleared: [/clearMorningDraft\(draft\)/.test(advance), /clearMorningLine\(/.test(fnSource(clock, "clearMorningDraft"))],
+            eclipse: [/clearMorningDraft\(morning\.draft\)/.test(fnSource(eclipse, "startEclipse")), /giveBackMorningLine\(closing\.morningLine\)/.test(fnSource(eclipse, "endEclipseNow"))],
+            fields: [/\bmorningLine\(\)/.test(fnSource(campaign, "morningLineRow")), /setMorningLine\(/.test(fnSource(campaign, "openClockDialog")), /setMorningLine\(/.test(fnSource(season, "openSeasonSetup"))]
+        }), stableJson({
+            outside: [],
+            store: { kind: "record", fields: ["text", "by", "at"], sync: true, backup: false, resetGroup: "clock", from: false },
+            road: ["function", "function", "function", "function"],
+            inputs: true, cleared: [true, true], eclipse: [true, true], fields: [true, true, true]
+        }), "{outside: module files besides migrate.mjs that name the client setting (settings.mjs: that read or write it); the store's row; its four functions; the start of day reads the store; the advance clears what it used, through the store; the Morning Eclipse's start clears it and its end without advancing gives it back; Edit campaign draws the store's line and writes it, Season setup writes it}");
+    }],
+    ["R9038 - a GM's old morning draft goes into the GMs' store once, and never over a line the store holds (migrate.mjs `morningDraftLift`, the clause `morningLineToStore` since 1.2.130 after `bodyTilesUnseen`, `liftMorningDraft`, run again on every GM once the stores have heard the others; 2.0 line T2b, DAY-01, 28.11.2026)", async () => {
+        /*
+         * 2.4 point 3: on every GM's browser a draft that is not empty goes into the store while the store holds no line,
+         * and the client setting is emptied either way; the store's line is never written over (a line the other GM typed is
+         * newer than a draft from before the upgrade). The pure decision, then where it runs: the clause on the primary (the
+         * pass at its load), and the hydration hook on every GM, since the pass runs on the primary alone and a second GM's
+         * draft is on that GM's browser only. Nothing is written. Red at 0d3d4f2: no morningDraftLift, no clause.
+         */
+        const M = await import("./migrate.mjs");
+        if (typeof M.morningDraftLift !== "function") { ok(false, "migrate.mjs has no morningDraftLift"); return; }
+        const L = (draft, held) => M.morningDraftLift({ draft, held });
+        const sources = new Map(await otherSources());
+        const mig = stripComments(sources.get("migrate.mjs") ?? ""), stores = stripComments(sources.get("gm-stores.mjs") ?? "");
+        const clauses = M.migrationStatus().clauses.map(c => c.key);
+        const lift = fnSource(mig, "liftMorningDraft");
+        equal(stableJson({
+            cases: [L("Wake up!", ""), L("Wake up!", "The other GM's"), L("", "The other GM's"), L("", ""), L("   ", ""), L("x".repeat(450), "").write?.length ?? null],
+            clause: [clauses.includes("morningLineToStore"), clauses.indexOf("morningLineToStore") > clauses.indexOf("bodyTilesUnseen"),
+                M.migrationStatus().clauses.find(c => c.key === "morningLineToStore")?.since ?? null],
+            lift: [/morningDraftLift\(/.test(lift), /persisted\(/.test(lift), /whenHydrated\(\)/.test(lift)],
+            everyGm: /onGmStoresHydrated\([^]*?liftMorningDraft\(\)/.test(fnSource(stores, "openGmStores"))
+        }), stableJson({
+            cases: [{ write: "Wake up!", clear: true }, { write: null, clear: true }, { write: null, clear: false }, { write: null, clear: false }, { write: null, clear: true }, 400],
+            clause: [true, true, "1.2.130"],
+            lift: [true, true, true],
+            everyGm: true
+        }), "{cases: [a draft and an empty store: lifted, cleared; a draft and a line held: kept out, cleared; no draft: nothing; nothing at all: nothing; a blank draft: cleared, nothing lifted; a long draft cut to 400]; the clause, after bodyTilesUnseen, its version; the lift decides, reads back and waits for the stores; the hydration hook on every GM runs it}");
     }],
 ];
 

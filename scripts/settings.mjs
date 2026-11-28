@@ -614,6 +614,12 @@ export const SETTINGS = {
      */
     gmTakeBack: "gmTakeBack",
     /**
+     * THE NEXT MORNING'S LINE, ONE FOR THE GMS (2.0 line T2b, DAY-01, 28.11.2026): a GM store (gm-stores.mjs
+     * `morningLineStore`), one record `{ text, by, at }` - the line the start-of-day board says, who wrote it last and
+     * when. Each GM's client setting `morningLineDraft` until then. Synced, not backed up; no player copy.
+     */
+    gmMorningLine: "gmMorningLine",
+    /**
      * THE CLEANING TOOLS A CLEAN-UP USED (E32+E07 C12, 1.2.66; audit S05-38, D13): a GM store
      * (gm-stores.mjs `usedToolStore`), a row per killer `{ chapter, epoch, cleaning, victims }` -
      * the ids of every Cleaning Tool readied at a clean-up attempt they made, broken at the
@@ -1290,9 +1296,10 @@ export const DEFAULT_CLOCK = {
      */
     mood: null,
     /**
-     * THE GM'S MORNING LINE, or null (E94 C1): the draft (`morningLineDraft`, a client setting) folded in by the
-     * Night-to-Morning advance - or, since 13.11.2026, by the Morning Eclipse's start (eclipse.mjs `startEclipse`) - and
-     * shown on the start-of-day board; cleared by the next move of the clock after the morning (`dayStartPatch`).
+     * THE GM'S MORNING LINE, or null (E94 C1): the GMs' line (gm-stores.mjs `morningLineStore` since 1.2.130, 2.0 line T2b
+     * DAY-01; each GM's client setting `morningLineDraft` before) folded in by the Night-to-Morning advance - or, since
+     * 13.11.2026, by the Morning Eclipse's start (eclipse.mjs `startEclipse`) - and shown on the start-of-day board; cleared by the next move of the
+     * clock after the morning (`dayStartPatch`).
      */
     morningLine: null,
     /**
@@ -1866,9 +1873,10 @@ export function registerSettings() {
         default: true
     });
 
-    /* A GM's morning line for the next day (E94 C1; the plan's default: written in Edit campaign). Per browser and out of
-       the settings window: it stays on the GM's machine, in no world data, until the Night's advance folds it into the
-       clock's one write at the day's start (clock.mjs `advanceTimeOfDay`), and is emptied there. */
+    /* A GM's morning line for the next day as each GM's browser kept it from E94 C1 to 1.2.129. READ BY THE MIGRATION
+       ALONE since 1.2.130 (2.0 line T2b, DAY-01, 28.11.2026; R9037): the line is the GMs' store `morningLine` now
+       (gm-stores.mjs `morningLineStore`), and migrate.mjs `liftMorningDraft` moves a draft left here into it and empties
+       this. Registered for that read only; to be removed after 2.0. */
     game.settings.register(MODULE_ID, SETTINGS.morningLineDraft, {
         scope: "client",
         config: false,
@@ -2528,6 +2536,13 @@ export function registerSettings() {
     });
     // What the last boundary would take back (E17 fix ci-2): no `onChange` - read when a GM ends an Eclipse or rewinds.
     game.settings.register(MODULE_ID, SETTINGS.gmTakeBack, {
+        scope: "client",
+        config: false,
+        type: Object,
+        default: {}
+    });
+    // The next morning's line (2.0 line T2b, DAY-01): no `onChange` - read when a window draws it and when the day starts.
+    game.settings.register(MODULE_ID, SETTINGS.gmMorningLine, {
         scope: "client",
         config: false,
         type: Object,

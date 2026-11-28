@@ -32,7 +32,7 @@ import { roomOfActor, placesOf, allRooms, crossingRefused, passesThrough, crossi
 import { announce, whisperToOwner, whisperToOwnerOnly, log, error, plural, cardHead, esc, isPrimaryGm,
     primaryGmId, ownerIdsOf, serialWrite, serverNow } from "./utils.mjs";
 import { overflowCrossings } from "./overflow.mjs";
-import { pendingMurderStore, eclipseMoveStore, eclipseMoveCopy, timedCrossingsOf } from "./gm-stores.mjs";
+import { pendingMurderStore, eclipseMoveStore, eclipseMoveCopy, timedCrossingsOf, giveBackMorningLine } from "./gm-stores.mjs";
 import { actingStudents } from "./monokuma.mjs";
 import { gmStoresQuiet, whenGmStoresAudible } from "./gm-store.mjs";
 import { replyForMe } from "./bridge-guards.mjs";
@@ -282,7 +282,7 @@ export async function startEclipse() {
     if (morning.patch?.dayBoard != null) await (await import("./mask-gm.mjs")).endMasksBeforeTheBoard();
     const opened = await setClock({ ...morning.patch, eclipse: true, eclipseStartedAt: serverNow(), refilledFor: boundary,
         lastAdvance: boundaryMemory(opening, boundary, snapshot) });
-    if (opened && morning.draft) await clearMorningDraft();
+    if (opened && morning.draft) await clearMorningDraft(morning.draft);
 
     /*
      * THE OVERFLOW CHECK, AND IT HAS TO COME BEFORE THE REFILL (Z10).
@@ -531,12 +531,13 @@ async function endEclipseNow({ advance = true } = {}) {
         const closing = await withTakeBack(getClock());
         const last = takeBackFor(closing, boundaryStamp(closing));
         /* AND A MORNING ECLIPSE ENDED WITHOUT ADVANCING TAKES BACK THE DAY IT OPENED ON THE BOARDS (13.11.2026): its start
-           wrote the next day's stamp and the GM's morning line (`openingDayPatch`); the line goes back to this GM's draft
+           wrote the next day's stamp and the GMs' morning line (`openingDayPatch`); the line goes back to the GMs' store
+           (since 1.2.130, 2.0 line T2b DAY-01: unless a GM wrote a newer one meanwhile, gm-stores.mjs `giveBackMorningLine`)
            and the stamp goes, so the roll-over that comes later writes both as if no Eclipse had been held. The start-of-day
            board it played stays played on each browser (one start per key: sequence.mjs `dayStartKey`). */
         const undoOpening = closing.dayBoard != null && Number(closing.dayBoard) === (Number(closing.day) || 0) + 1
             && closing.timeOfDay === TIMES_OF_DAY[TIMES_OF_DAY.length - 1];
-        if (undoOpening && closing.morningLine) await game.settings.set(MODULE_ID, SETTINGS.morningLineDraft, closing.morningLine).catch(() => null);
+        if (undoOpening && closing.morningLine) await giveBackMorningLine(closing.morningLine).catch(() => null);
         await setClock({ eclipse: false, ...afterTakeBack(closing, last), ...(undoOpening ? { dayBoard: null, morningLine: null } : {}) });
         if (last) await takeBackBoundary(last);
         /* AND WHAT ITS START ENDED (A113-C2-6, the coordinator's follow-up, 13.11.2026): the timed effects and the unused

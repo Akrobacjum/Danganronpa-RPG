@@ -62,8 +62,9 @@ import { scenesReportOf } from "./trial-scene.mjs";
 import { log, error, plural, workingScene, esc, localeFormat, listOf } from "./utils.mjs";
 import { stepperId, drpgWindow, checkList, formGrid, box, roleButton, tipAttr, tipText, WINDOW_HELP } from "./ui-kit.mjs";
 // Edit campaign's fields, reader, writes and End the chapter part (E49 A1e): gm-campaign.mjs never reaches back here.
-import { campaignRows, readClockForm, applyCampaignForm, endChapterPart, endTheChapter, morningLineRow, untouchedKept, followCampaignFields, KEPT_FIELDS, mayEndChapterHere, mayResetSeasonHere } from "./gm-campaign.mjs";
+import { campaignRows, readClockForm, applyCampaignForm, endChapterPart, endTheChapter, morningLineRow, morningLineTyped, untouchedKept, followCampaignFields, KEPT_FIELDS, mayEndChapterHere, mayResetSeasonHere } from "./gm-campaign.mjs";
 import { alreadyOpen, handOff, RAISED } from "./live.mjs";
+import { setMorningLine } from "./gm-stores.mjs";
 // Foundry's secret doors and the players' rulers (E80 C5): the doors as the map holds them, their
 // conversion, and the permissions in force where `core.permissions` names none.
 import { secretDoorsOn } from "./passages.mjs";
@@ -993,8 +994,9 @@ export function readSeasonForm(d) {
         // `safeword()` reads an empty setting as. Written blank
         // rather than filled in here so the two agree.
         safeword: f.safeword.value.trim(),
-        // Edit campaign's next morning's line (E94 C1), Season setup's since E101 item 1: kept on this browser by Save.
-        morningLine: f.morningLine?.value ?? ""
+        // Edit campaign's next morning's line (E94 C1), Season setup's since E101 item 1: the GMs' line, kept by Save when
+        // changed (gm-campaign.mjs `morningLineTyped`; 2.0 line T2b, DAY-01).
+        morningLine: morningLineTyped(f)
     };
 }
 
@@ -1397,10 +1399,11 @@ export async function openSeasonSetup({ draft = null, opened = null } = {}) {
        only when ticked. Until E49 A1e this window wrote the name and the chapter itself with `setClock`, asking nothing,
        and warned of an Eclipse when the chapter moved (E51 C6); the warning is Edit campaign's now, said once. */
     /* THE NEXT MORNING'S LINE (E101 item 1; the GM screens' review, #2: Edit campaign's own window has no button, so its
-       E94 field was a GM's nobody would see). Kept on this browser before the clock is written, as Edit campaign's Apply
-       keeps it (gm-campaign.mjs `openClockDialog`), so a Save that moves the Night on puts it on the day's start. */
+       E94 field was a GM's nobody would see). Kept before the clock is written, as Edit campaign's Apply keeps it
+       (gm-campaign.mjs `openClockDialog`), so a Save that moves the Night on puts it on the day's start - in the GMs' store
+       since 1.2.130 (2.0 line T2b, DAY-01), when the field was changed. */
     if (typeof result.morningLine === "string") {
-        await game.settings.set(MODULE_ID, SETTINGS.morningLineDraft, result.morningLine.slice(0, 400)).catch(() => null);
+        await setMorningLine(result.morningLine).catch(err => error("Could not keep the next morning's line", err));
     }
     await applyCampaignForm(result);
 

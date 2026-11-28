@@ -5360,7 +5360,9 @@
         "other": "Actions refilled for {count} characters"
       },
       "searchTokensRestocked": "Every room restocked with Search Tokens",
-      "woundedNote": "With no Health left, these students are down an action this time of day: {names}."
+      "woundedNote": "With no Health left, these students are down an action this time of day: {names}.",
+      "morningLineShared": "Shared by the GMs.",
+      "morningLineSharedBy": "Shared by the GMs. Last changed by {gm}."
     },
     "Context": {
       "lost": "{name}'s browser lost its drawing context ({scene})."
@@ -7505,7 +7507,8 @@
         "caseTicks": "The trial's ticks: each chapter's deductions, counters, and solution a GM ticked",
         "facilityUses": "Room action uses: which character used which project's room action, and when",
         "balanceLog": "The balance log: each roll the GMs drew while it was on, and the GMs' notes",
-        "diveSets": "Logic Dive sets: each set's questions, their answers, and which answer is right"
+        "diveSets": "Logic Dive sets: each set's questions, their answers, and which answer is right",
+        "morningLine": "The next morning's line the GMs share, until the day's start shows it"
       },
       "copy": {
         "writeNow": "Write the copy now",

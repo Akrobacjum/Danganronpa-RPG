@@ -94167,17 +94167,19 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         equal(stableJson(read), stableJson({ name: true, roles: true, told: true }),
             "{name: the campaign name typed is written; roles: the scene roles unchanged; told: the GM warned of the one scene for both} - a held scenes part drops itself alone");
     }],
-    ["E101-T12 - the next morning's line typed in Season setup is kept by its Save, as Edit campaign's Apply keeps it (E101 item 1): on the drawn window, a line typed in the Edit campaign block's next morning's field is this browser's `morningLineDraft` after Save, the line drawn again when Season setup opens next", async () => {
+    ["E101-T12 - the next morning's line typed in Season setup is kept by its Save, as Edit campaign's Apply keeps it (E101 item 1): on the drawn window, a line typed in the Edit campaign block's next morning's field is the GMs' next morning's line after Save (gm-stores.mjs `morningLine` since 1.2.130, 2.0 line T2b DAY-01; this browser's `morningLineDraft` until then), the line drawn again when Season setup opens next", async () => {
         /*
          * E101 item 1, 13.11.2026 (the GM screens' review, #2). As the GM: Season setup drawn, the field filled, Save pressed;
          * read the setting, then the field of the window opened again (closed unsaved). The draft is put back. Red at eb0cd30a:
-         * Season setup has no such field (the first `must`).
+         * Season setup has no such field (the first `must`). Since 1.2.130 (2.0 line T2b, DAY-01) the line is the GMs' store's,
+         * read and put back there.
          */
         needs(env.dialogs(), "Season setup is drawn and pressed");
         must(game.user.isGM, "Season setup is a GM's");
         const SS = await import("./season-setup.mjs");
         const LINE = "SUITE E101-T12 the gym opens at noon";
-        const draftWas = game.settings.get(MODULE_ID, SETTINGS.morningLineDraft) ?? "";
+        const S = await import("./gm-stores.mjs"), { RECORD } = await import("./gm-store.mjs");
+        const recordWas = foundry.utils.deepClone(S.morningLineStore.record() ?? {});
         const clockBefore = foundry.utils.deepClone(getClock());
         const of = cls => [...foundry.applications.instances.values()].filter(a => a.rendered && a.options?.classes?.includes(cls));
         must(!of("drpg-window-season").length, "Season setup stands open already");
@@ -94194,19 +94196,19 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             await until(() => !of("drpg-window-season").length, 6000);
             if (answer) await Promise.race([answer, wait(6000)]);
             await settle();
-            read.kept = game.settings.get(MODULE_ID, SETTINGS.morningLineDraft) === LINE;
+            read.kept = S.morningLine().text === LINE;
             answer = Promise.resolve().then(() => SS.openSeasonSetup()).catch(err => `threw: ${err.message}`);
             await until(() => of("drpg-window-season")[0]?.element?.querySelector('[name="morningLine"]'), 6000);
             read.shown = of("drpg-window-season")[0]?.element?.querySelector('[name="morningLine"]')?.value === LINE;
         } finally {
             for (const app of of("drpg-window-season")) await app.close().catch(() => {});
             if (answer) await Promise.race([answer, wait(3000)]);
-            await game.settings.set(MODULE_ID, SETTINGS.morningLineDraft, draftWas);
+            await S.morningLineStore.patch(RECORD, { text: recordWas.text ?? "", by: recordWas.by ?? null, at: recordWas.at ?? null });
             await game.settings.set(MODULE_ID, SETTINGS.clock, clockBefore);
             await settle();
         }
         equal(stableJson(read), stableJson({ kept: true, shown: true }),
-            "{kept: the line is this browser's draft after Save; shown: the window opened again draws it}");
+            "{kept: the line is the GMs' line after Save; shown: the window opened again draws it}");
     }],
     ["E50-T2 - the primary follows a mapping change from any GM: musicMap's write is followed MAP_SETTLE_MS (1500 ms) and the settle after it by one apply, three writes in 200 ms give one, and a change that leaves the current state's playlist as it is restarts nothing (E50 C3; S11-34, E50-22, Q-E50-3)", async () => {
         /*
@@ -106215,7 +106217,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         }), JSON.stringify({ mood: [mood, true], added: [], numbers: [], hits: 0 }),
             "[the clock's mood, one of the three words; a field the write added beside the word; a field holding an input or the share; what the world-secrets rule finds]");
     }],
-    ["E110 day boards A - the curtain clock's Morning Eclipse opens the next day on the start-of-day board, with the GM's morning line, and its end plays none (eclipse.mjs `startEclipse`, `endEclipse`; clock.mjs `openingDayPatch`, `advanceTimeOfDay`; transitions.mjs `boardsOf`; the owner's report at a real table on 1.2.109 and their rule of 13.11.2026): at Night, with a morning line in the GM's draft, the Morning Eclipse is opened - the clock still at Night on the same day, stamped for the day + 1, the line on it and the draft emptied, and this browser plays the start-of-day board of the day + 1 with the line; then ended with the advance, as the clock's right chevron and the panel's Eclipse button do - the clock on the next morning, the stamp and the line kept, and no board", async () => {
+    ["E110 day boards A - the curtain clock's Morning Eclipse opens the next day on the start-of-day board, with the GM's morning line, and its end plays none (eclipse.mjs `startEclipse`, `endEclipse`; clock.mjs `openingDayPatch`, `advanceTimeOfDay`; transitions.mjs `boardsOf`; the owner's report at a real table on 1.2.109 and their rule of 13.11.2026): at Night, with the GMs' morning line written (their store since 1.2.130, 2.0 line T2b DAY-01; the GM's draft before), the Morning Eclipse is opened - the clock still at Night on the same day, stamped for the day + 1, the line on it and emptied in the store, and this browser plays the start-of-day board of the day + 1 with the line; then ended with the advance, as the clock's right chevron and the panel's Eclipse button do - the clock on the next morning, the stamp and the line kept, and no board", async () => {
         /*
          * 12.11.2026. The owner, at a real table on 1.2.109: the boards never played on the curtain clock. Its road is
          * `endEclipse({ advance: true })`, one write of the Eclipse's end, the morning and the day + 1, which
@@ -106238,8 +106240,11 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         const characters = game.actors.filter(a => a.type === "character");
         const actionsWas = characters.map(a => [a, a.system?.resources?.actions?.value ?? null, a.system?.resources?.actions?.max ?? null]);
         const rowsWas = new Map(actingStudents().map(a => [a.id, foundry.utils.deepClone(S.eclipseMoveStore.get(a.id) ?? null)]));
-        const settingsWas = Object.fromEntries(["sealedRooms", "restrictions", "motive", "searchTokens", "bodyFound", "readyRound", "sequences", "morningLineDraft"]
+        const settingsWas = Object.fromEntries(["sealedRooms", "restrictions", "motive", "searchTokens", "bodyFound", "readyRound", "sequences"]
             .map(key => [key, foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS[key]) ?? null)]));
+        // the GMs' line since 1.2.130 (2.0 line T2b, DAY-01): this browser's client setting `morningLineDraft` until then
+        const { RECORD } = await import("./gm-store.mjs");
+        const lineWas = foundry.utils.deepClone(S.morningLineStore.record() ?? {});
         const popupsWas = new Set(document.querySelectorAll(".drpg-popup"));
         const dismiss = () => {
             for (const card of document.querySelectorAll(".drpg-popup")) {
@@ -106259,13 +106264,13 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             Q.endSequence("cut");
             const night = getClock();
             key = `day:${night.season ?? ""}:${day + 1}:${(Number(night.session) || 0) + 1}`;
-            await game.settings.set(MODULE_ID, SETTINGS.morningLineDraft, "E110 A line");
+            await S.setMorningLine("E110 A line");
             await E.startEclipse();
             await until(() => Q.sequenceNow()?.kind === "dayStart", 6000).catch(() => {});
             const host = document.getElementById(Q.SEQUENCE_HOST_ID);
             read.start = [Q.sequenceNow()?.key ?? null, host?.querySelector(".drpg-seq-announce")?.lastChild?.textContent ?? null];
             const dark = getClock();
-            read.dark = [isEclipse(), dark.timeOfDay, dark.day, dark.dayBoard ?? null, dark.morningLine ?? null, game.settings.get(MODULE_ID, SETTINGS.morningLineDraft)];
+            read.dark = [isEclipse(), dark.timeOfDay, dark.day, dark.dayBoard ?? null, dark.morningLine ?? null, S.morningLine().text];
             Q.endSequence("cut");
             await E.endEclipse({ advance: true });
             await settle(); await new Promise(r => setTimeout(r, 1500));
@@ -106287,6 +106292,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
                 else await S.eclipseMoveStore.drop(id);
             }
             for (const [k, value] of Object.entries(settingsWas)) if (value !== null) await game.settings.set(MODULE_ID, SETTINGS[k], value);
+            await S.morningLineStore.patch(RECORD, { text: lineWas.text ?? "", by: lineWas.by ?? null, at: lineWas.at ?? null });
             await settle();
             Q.endSequence("cut");
             dismiss();
@@ -119362,6 +119368,76 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             states: [[true, "ruling", true, true, "action,rid,state,userId"], [true, "waiting", true, true, "action,rid,state,userId"]],
             forged: false, own: true, line: ["DRPG.Bridge.settledWithdrawn"], after: false
         }), "{states: the ask.state packets this primary sent [for that ask, the state, to its asker, to the asker alone, its fields] at the take and the drop; forged: the card ended after another user's withdrawal; own: it ended after the asker's; line: its lines by key; after: a GM's difficulty sent on after it}");
+    }],
+    // T2b day-clock (split from T2)
+    ["E132 T2b DAY-01 - the morning line one GM wrote is the one the other GM's advance uses, then cleared on both (gm-stores.mjs `morningLineStore`, `setMorningLine`; clock.mjs `advanceTimeOfDay`; gm-campaign.mjs `morningLineRow`; 2.0 line T2b, 28.11.2026)", async () => {
+        /*
+         * F3 S2 I1 on Forge: sec wrote the line, prim moved Night to Morning, and the clock's line was empty on every
+         * browser. Here the line is written as another user's (`by` - the store keeps who wrote it, and its sync carries the
+         * record to every GM as it carries any record; 97-two-gms reads the same on two GMs' browsers), this GM's old client
+         * draft holds a different line, and this GM moves Night to Morning (`advanceTimeOfDay`, the road the panel's Next
+         * time of day and Skip Eclipse take): the clock carries the store's line, the store is empty after, the old draft is
+         * not read, and Edit campaign's field drew the line and named its writer before. Put back: the clock, the store's
+         * record, the draft, the budgets and the settings the move writes. Red at 0d3d4f2: no store - the clock carried the
+         * draft.
+         */
+        needs(env.primaryGm(), "the clock is moved on the primary GM");
+        const C = await import("./clock.mjs"), G = await import("./gm-campaign.mjs"), Q = await import("./sequence.mjs"), S = await import("./gm-stores.mjs");
+        const { RECORD } = await import("./gm-store.mjs");
+        const { murderState } = await import("./murder.mjs");
+        const { isEclipse, bodyDiscovery } = await import("./settings.mjs");
+        must(!murderState() && !bodyDiscovery() && !isEclipse(), "an incident, a body's hold or an Eclipse is open - this would measure something else");
+        must(typeof S.setMorningLine === "function", "gm-stores.mjs has no setMorningLine - the GMs' line does not exist");
+        const other = game.users.find(u => u.id !== game.user.id);
+        must(other, "this world has no second user to write the line as - this would measure nothing");
+        const was = foundry.utils.deepClone(getClock());
+        const recordWas = foundry.utils.deepClone(S.morningLineStore.record() ?? {});
+        const characters = game.actors.filter(a => a.type === "character");
+        const actionsWas = characters.map(a => [a, a.system?.resources?.actions?.value ?? null, a.system?.resources?.actions?.max ?? null]);
+        const settingsWas = Object.fromEntries(["sealedRooms", "restrictions", "motive", "searchTokens", "bodyFound", "readyRound", "sequences", "morningLineDraft"]
+            .map(key => [key, foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS[key]) ?? null)]));
+        const popupsWas = new Set(document.querySelectorAll(".drpg-popup"));
+        const dismiss = () => {
+            for (const card of document.querySelectorAll(".drpg-popup")) {
+                if (!popupsWas.has(card)) card.dispatchEvent(new CustomEvent("drpg-dismiss", { detail: { instant: true } }));
+            }
+        };
+        const LINE = "E132 DAY-01 the other GM's line", STALE = "E132 DAY-01 this browser's old draft";
+        const day = 8000 + Math.floor(Math.random() * 999);
+        const read = {};
+        try {
+            if (settingsWas.sequences === false) await game.settings.set(MODULE_ID, SETTINGS.sequences, true);
+            Q.endSequence("cut");
+            await setClock({ phase: "dailyLife", timeOfDay: "night", day, refilledFor: null });
+            await settle();
+            Q.endSequence("cut");
+            await game.settings.set(MODULE_ID, SETTINGS.morningLineDraft, STALE);
+            await S.setMorningLine(LINE, { by: other.id });
+            const row = document.createElement("div");
+            row.innerHTML = G.morningLineRow().field;
+            read.field = [row.querySelector('textarea[name="morningLine"]')?.value ?? null, row.textContent.includes(other.name)];
+            await C.advanceTimeOfDay({ resetSearchTokens: false, announce: false });
+            await settle();
+            Q.endSequence("cut");
+            const now = getClock();
+            read.clock = [now.timeOfDay, now.day, now.morningLine ?? null];
+            read.store = S.morningLine().text;
+            read.draft = game.settings.get(MODULE_ID, SETTINGS.morningLineDraft);
+        } finally {
+            Q.endSequence("cut");
+            dismiss();
+            await setClock(was);
+            await S.morningLineStore.patch(RECORD, { text: recordWas.text ?? "", by: recordWas.by ?? null, at: recordWas.at ?? null });
+            for (const [actor, value, max] of actionsWas) {
+                await actor.update({ "system.resources.actions.value": value, ...(max === null ? {} : { "system.resources.actions.max": max }) });
+            }
+            for (const [k, value] of Object.entries(settingsWas)) if (value !== null) await game.settings.set(MODULE_ID, SETTINGS[k], value);
+            await settle();
+            Q.endSequence("cut");
+            dismiss();
+        }
+        equal(stableJson(read), stableJson({ field: [LINE, true], clock: ["morning", day + 1, LINE], store: "", draft: STALE }),
+            "{field: Edit campaign's line and whether it names its writer; the clock after the move: [time of day, day, line]; the store's line after it; this browser's old draft, unread}");
     }],
 ];
 

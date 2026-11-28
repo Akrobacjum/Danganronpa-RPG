@@ -9,7 +9,7 @@
  * `applyCampaignForm`) - on a day no other part plays, and each browser counts the boards it started over each move
  * (perf-counters.mjs `sequence.dayEnd`, `sequence.dayStart`: one per start, cut or not):
  *   nightEclipse    Evening, the Night Eclipse opened (nothing), then ended with the advance: one end-of-day board each;
- *   morningEclipse  at Night, the GM's morning line in the draft, the Morning Eclipse opened: one start-of-day board each,
+ *   morningEclipse  at Night, the GMs' morning line written (game.drpg.setMorningLine since 1.2.130), the Morning Eclipse opened: one start-of-day board each,
  *                   the day + 1's, the line on it;
  *   morningEnd      its end with the advance: no board;
  *   evening         Evening to Night by Next, no Eclipse: one end-of-day board each;
@@ -66,11 +66,13 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl: REPO 
     phase("set");
     const start = await gm.eval(`const C = ${imp("clock.mjs")}, G = ${imp("gm-stores.mjs")}, M = ${imp("monokuma.mjs")};
         const SET = (${imp("settings.mjs")}).SETTINGS;
-        const keep = ["sealedRooms", "restrictions", "motive", "searchTokens", "bodyFound", "bodiesFound", "readyRound", "sequences", "morningLineDraft"];
+        const keep = ["sealedRooms", "restrictions", "motive", "searchTokens", "bodyFound", "bodiesFound", "readyRound", "sequences"];
         globalThis.__s97 = { clock: foundry.utils.deepClone(C.getClock()),
             actions: game.actors.filter(a => a.type === "character").map(a => [a.id, a.system?.resources?.actions?.value ?? null, a.system?.resources?.actions?.max ?? null]),
             rows: M.actingStudents().map(a => [a.id, foundry.utils.deepClone(G.eclipseMoveStore.get(a.id) ?? null)]),
-            settings: Object.fromEntries(keep.map(k => [k, foundry.utils.deepClone(game.settings.get("danganronpa-rpg", SET[k]) ?? null)])) };
+            settings: Object.fromEntries(keep.map(k => [k, foundry.utils.deepClone(game.settings.get("danganronpa-rpg", SET[k]) ?? null)])),
+            // the GMs' next morning's line (2.0 line T2b, DAY-01): this GM's client setting morningLineDraft until 1.2.130
+            line: foundry.utils.deepClone(G.morningLineStore.record() ?? {}) };
         if (globalThis.__s97.settings.sequences === false) await game.settings.set("danganronpa-rpg", SET.sequences, true);
         const day = 9000 + Math.floor(Math.random() * 900);
         await C.setClock({ phase: "dailyLife", timeOfDay: "evening", day, refilledFor: null });
@@ -87,7 +89,7 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl: REPO 
             every(nightStart, [0, 0]) && every(nightEnd, [1, 0]), JSON.stringify({ nightStart, nightEnd }));
 
         phase("morningEclipse");
-        const morningStart = await move(`await game.settings.set("danganronpa-rpg", SET.morningLineDraft, "S97 line"); await E.startEclipse();`, { lines: true });
+        const morningStart = await move(`await game.drpg.setMorningLine("S97 line"); await E.startEclipse();`, { lines: true });
         const want = JSON.stringify([start?.title, "S97 line"]);
         check("morningEclipse: the Morning Eclipse's start plays one start-of-day board on every browser, the day + 1's, with the GM's morning line",
             every(morningStart, [0, 1]) && Object.keys(clients).every(who => JSON.stringify(morningStart[`${who}Line`]) === want),
@@ -150,6 +152,7 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl: REPO 
             for (const [id, value, max] of was.actions) await game.actors.get(id)?.update({ "system.resources.actions.value": value, ...(max === null ? {} : { "system.resources.actions.max": max }) });
             for (const [id, row] of was.rows) { if (row) await G.eclipseMoveStore.patch(id, row); else await G.eclipseMoveStore.drop(id); }
             for (const [k, value] of Object.entries(was.settings)) if (value !== null) await game.settings.set("danganronpa-rpg", SET[k], value);
+            await G.morningLineStore.patch("record", { text: was.line?.text ?? "", by: was.line?.by ?? null, at: was.line?.at ?? null });
             delete globalThis.__s97;
             return true;`, { timeout: 60000 });
         await cut().catch(() => null);

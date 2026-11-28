@@ -1416,6 +1416,44 @@ export async function run(api) {
         takeEnd.lines === 1 && J(takeEnd.gm.row) === J([GM2, false]) && takeEnd.gm.line === true && takeAfter.lines === 1
             && takeAfter.gm === null && takeAfter.gm2 === null && J(takeAfter.windows) === J({ gm: 0, gm2: 0 }), J({ takeEnd, takeAfter, answered }), { flow: "messenger" });
 
+    // T2b day-clock (split from T2)
+    /* DAY1 (2.0 line T2b, DAY-01, 28.11.2026). F3 S2 I1 on Forge: sec wrote the next morning's line, prim moved Night to
+       Morning, and the clock's line was empty on every browser - the line was each GM's client setting. gm2 writes it here
+       (`game.drpg.setMorningLine`, the write Edit campaign's Apply makes), gm reads it with gm2 named, gm moves Night to
+       Morning (clock.mjs `advanceTimeOfDay`, the road Next time of day takes), and both GMs read the clock's line and the
+       line emptied. Put back: the clock, the budgets and the line. Red at 0d3d4f2: no `setMorningLine`. */
+    phase("DAY1 the morning line one GM writes is the other GM's morning, then gone on both");
+    const DAY1_LINE = `T2b DAY-01 gm2's line ${Date.now()}`;
+    const DAY1_READ = `const G = ${imp("gm-stores.mjs")}, C = ${imp("clock.mjs")}; const l = typeof G.morningLine === "function" ? G.morningLine() : null;
+        return { line: l ? [l.text, l.by] : null, clock: C.getClock().morningLine ?? null, time: C.getClock().timeOfDay };`;
+    const day1Start = await gm.eval(`const C = ${imp("clock.mjs")}, G = ${imp("gm-stores.mjs")}, U = ${imp("utils.mjs")};
+        globalThis.__t2bDay1 = { clock: foundry.utils.deepClone(C.getClock()), sequences: game.settings.get("${MOD}", "sequences"),
+            line: foundry.utils.deepClone(G.morningLineStore?.record?.() ?? {}),
+            actions: game.actors.filter(a => a.type === "character").map(a => [a.id, a.system?.resources?.actions?.value ?? null, a.system?.resources?.actions?.max ?? null]) };
+        await game.settings.set("${MOD}", "sequences", false);
+        const day = 7000 + Math.floor(Math.random() * 900);
+        await C.setClock({ phase: "dailyLife", timeOfDay: "night", day, refilledFor: null });
+        return { primary: U.isPrimaryGm(), day };`, { timeout: 30000 });
+    await settle(800);
+    const day1Wrote = await gm2.eval(`return typeof game.drpg.setMorningLine === "function" ? Boolean(await game.drpg.setMorningLine(${J(DAY1_LINE)})) : false;`);
+    const day1Seen = await until(() => gm.eval(DAY1_READ), v => v.line?.[0] === DAY1_LINE);
+    await gm.eval(`const C = ${imp("clock.mjs")}; await C.advanceTimeOfDay({ resetSearchTokens: false, announce: false }); return true;`, { timeout: 30000 });
+    const day1After = await until(async () => ({ gm: await gm.eval(DAY1_READ), gm2: await gm2.eval(DAY1_READ) }),
+        v => v.gm.time === "morning" && v.gm2.time === "morning" && v.gm.line?.[0] === "" && v.gm2.line?.[0] === "");
+    const day1Back = await gm.eval(`const C = ${imp("clock.mjs")}, G = ${imp("gm-stores.mjs")}; const was = globalThis.__t2bDay1;
+        if (!was) return false;
+        await C.setClock(was.clock);
+        for (const [id, value, max] of was.actions) await game.actors.get(id)?.update({ "system.resources.actions.value": value, ...(max === null ? {} : { "system.resources.actions.max": max }) });
+        await game.settings.set("${MOD}", "sequences", was.sequences);
+        await G.morningLineStore?.patch?.("record", { text: was.line?.text ?? "", by: was.line?.by ?? null, at: was.line?.at ?? null });
+        delete globalThis.__t2bDay1;
+        return true;`, { timeout: 30000 });
+    await settle(800);
+    check("DAY1: the next morning's line gm2 writes is on gm with gm2 named, gm's Night to Morning puts it on the clock both GMs read, and the line is emptied on both (2.0 line T2b, DAY-01)",
+        day1Start.primary === true && day1Wrote === true && J(day1Seen.line) === J([DAY1_LINE, GM2])
+            && day1After.gm.clock === DAY1_LINE && day1After.gm2.clock === DAY1_LINE && day1After.gm.line?.[0] === "" && day1After.gm2.line?.[0] === "" && day1Back === true,
+        J({ day1Start, day1Wrote, day1Seen, day1After, day1Back }));
+
     return { primary: { before, joined, afterGmReload, moved, backAgain }, reloads: { p1: r1, gm: r2, card: r3 },
         d153: { before: gBefore, onGm: gAfter, onGm2: gAfter2, found: gFound, gave: gGave } };
 }

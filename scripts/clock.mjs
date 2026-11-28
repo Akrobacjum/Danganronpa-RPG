@@ -434,12 +434,13 @@ export async function advanceTimeOfDay({
     // of day flashing up between the Eclipse and the new one.
     //
     // Where it goes is `clockAfter`'s, below.
-    /* THE MORNING LINE AND THE SCHOOL'S MOOD (E94 C1, C4): at the roll-over, the GM's line - kept on this GM's browser
-       until now (`morningLineDraft`), so it is in no world data before the day starts - and the mood's word, worked out
+    /* THE MORNING LINE AND THE SCHOOL'S MOOD (E94 C1, C4): at the roll-over, the GMs' line - kept in the GMs' store until
+       now (gm-stores.mjs `morningLineStore` since 1.2.130, 2.0 line T2b DAY-01; each GM's own client setting before, so a
+       line the other GM typed never came out here), in no world data before the day starts - and the mood's word, worked out
        here from the students' Hope, the Monocubs' Hope, the Monokumas' Despair and the Overflow count only a GM holds
        (sequence.mjs `moodInputs`, `moodBand`), go into this one write; any other move clears the morning line alone
-       (`dayStartPatch`), and the mood stands until the next roll-over writes it again. The line is taken from the draft
-       once it is in. */
+       (`dayStartPatch`), and the mood stands until the next roll-over writes it again. The line is emptied in the store
+       once it is in, on every GM (`clearMorningDraft`). */
     const seq = await import("./sequence.mjs");
     /* AND SINCE 13.11.2026 (the owner's rule of that day: the start-of-day board at the Morning Eclipse's start, the
        end-of-day board at the start of Night). A Morning Eclipse opened for this roll-over wrote the line, the mood and
@@ -469,22 +470,22 @@ export async function advanceTimeOfDay({
         refilledFor: resetActions ? stamp : (before.refilledFor ?? null),
         lastAdvance: boundaryMemory(before, stamp, snapshot) });
     if (next && endGrants) await clearGrants();
-    if (next && rolledOver && draft) await game.settings.set(MODULE_ID, SETTINGS.morningLineDraft, "").catch(() => null);
+    if (next && rolledOver && draft) await clearMorningDraft(draft);
 
     await applyTimeOfDayChange(next, { resetActions, resetSearchTokens, announce, rolledOver, sfx });
     return next;
 }
 
 /**
- * What the start of a day is written with, read on this GM (E94 C1, C4): the GM's morning line, kept on this browser
- * until the day starts (`morningLineDraft`; `line`), and the school's mood worked out from what only a GM holds
+ * What the start of a day is written with, read on this GM (E94 C1, C4): the GMs' morning line, kept in their store
+ * until the day starts (gm-stores.mjs `morningLine`, 2.0 line T2b DAY-01; `line`), and the school's mood worked out from what only a GM holds
  * (sequence.mjs `moodInputs`, `moodBand`; `mood`). Answers `{ draft, mood }`, "" and null for what was not asked or
  * could not be read.
  */
 async function morningInputs({ line = true, mood: wantMood = true } = {}) {
     const seq = await import("./sequence.mjs");
     let draft = "", mood = null;
-    if (line) { try { draft = String(game.settings.get(MODULE_ID, SETTINGS.morningLineDraft) ?? ""); } catch { draft = ""; } }
+    if (line) { try { draft = (await import("./gm-stores.mjs")).morningLine().text; } catch { draft = ""; } }
     if (wantMood) { try { mood = seq.moodBand(await seq.moodInputs()); } catch { mood = null; } }
     return { draft, mood };
 }
@@ -506,9 +507,17 @@ export async function openingDayPatch(clock = getClock()) {
     return { patch: seq.dayStartPatch({ rolledOver: true, draft, mood, before: clock, day: to.day }), draft };
 }
 
-/** The GM's morning line taken into the clock: the draft on this browser emptied (E94 C1). */
-export async function clearMorningDraft() {
-    await game.settings.set(MODULE_ID, SETTINGS.morningLineDraft, "").catch(() => null);
+/**
+ * The GMs' morning line taken into the clock: emptied in their store, for every GM, while it still holds the line `used`
+ * (E94 C1; since 1.2.130 the store's, 2.0 line T2b DAY-01 - this browser's own draft until then). A store that cannot be
+ * written keeps the line, never the clock's write.
+ */
+export async function clearMorningDraft(used) {
+    try {
+        await (await import("./gm-stores.mjs")).clearMorningLine(used);
+    } catch (err) {
+        error("Could not empty the next morning's line once it was used", err);
+    }
 }
 
 /**

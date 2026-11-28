@@ -22,7 +22,7 @@
 
 import { MODULE_ID, FLAGS, TIMING, LEVEL_UP, moduleVersion } from "./config.mjs";
 import { SETTINGS, getClock, getSetting, setSetting, incidentCast, seasonEpoch, deathRecordFor } from "./settings.mjs";
-import { activeGmIds, primaryGmId, isPrimaryGm, warn, error, debug, plural, esc, localeFormat, listOf } from "./utils.mjs";
+import { activeGmIds, primaryGmId, isPrimaryGm, warn, error, debug, plural, esc, localeFormat, listOf, serverNow } from "./utils.mjs";
 import { emptyOption, drpgWindow, drpgConfirm, box, checkList, tipAttr, tipText, WINDOW_HELP } from "./ui-kit.mjs";
 import { keepFresh } from "./live.mjs";
 import {
@@ -2101,6 +2101,13 @@ export function openGmStores() {
         onGmStoresHydrated(() => {
             compacting = compactGmStores().catch(err => error("The GM stores could not be compacted", err));
         });
+        /* A GM'S OLD MORNING DRAFT, ON EVERY GM (2.0 line T2b, DAY-01, 28.11.2026): the migration's clause
+           `morningLineToStore` runs on the primary alone, and a second GM's draft is on that GM's browser only - so the same
+           lift runs here once this browser's stores have heard the other GMs. It never writes over a line the store holds,
+           and empties the client setting after the read-back (migrate.mjs `liftMorningDraft`; R9038). */
+        onGmStoresHydrated(() => {
+            if (game.user?.isGM) import("./migrate.mjs").then(m => m.liftMorningDraft()).catch(err => error("The old morning draft could not be moved to the GMs' line", err));
+        });
         try {
             await openGmStoreEngine();
         } catch (err) {
@@ -2162,6 +2169,81 @@ export async function answerKeysRefusal() {
         ui.notifications?.error?.(game.i18n.format("DRPG.GmStore.notOpen", { seconds: Math.round(TIMING.gmStoreOpenMs / 1000) }), { permanent: true });
     }
     return "the answer keys are not open on this GM's browser";
+}
+
+/* ---------------------------------------------------------------------------
+ * 2.0 line T2b (DAY-01, split from line T2): the next morning's line, one for the GMs.
+ * ------------------------------------------------------------------------- */
+
+/**
+ * THE NEXT MORNING'S LINE, THE GMS' ONE (2.0 line T2b, DAY-01, 28.11.2026; F1-daily DAY-01, F1-verify: confirmed; on
+ * Forge F3 S2 I1 and S1a "DAY-01" red). A record, `{ text, by, at }`: the line the start-of-day board says under MORNING
+ * ANNOUNCEMENT, the GM who wrote it last and when (`serverNow()`). From E94 C1 to 1.2.129 it was each GM's client setting
+ * `morningLineDraft`: the line one GM typed came out only at that GM's own advance, and stood uncleared there for a later
+ * morning. Now Edit campaign and Season setup write it (`setMorningLine`), the start of day reads it on whichever GM
+ * moves the clock (clock.mjs `morningInputs`) and empties it once it is on the clock (`clearMorningLine`), and a Morning
+ * Eclipse ended without advancing gives it back (`giveBackMorningLine`, eclipse.mjs `endEclipse`). Synced, so both GMs
+ * see and edit the one line. Not backed up: the case's file is the case, and this is a sentence for one morning - a
+ * restore would bring back a line for a day already played, and a lost line is typed again. Cut by the reset's "clock"
+ * group with the clock whose morning it is for. No player copy: the line is the GMs' until the day starts, and reaches
+ * the players on the clock's own write. No old key: migrate.mjs `liftMorningDraft` moves the client drafts in.
+ */
+export const morningLineStore = defineGmStore({
+    name: "morningLine", key: SETTINGS.gmMorningLine,
+    kind: "record", fields: ["text", "by", "at"], resetGroup: "clock", backup: false, sync: true
+});
+
+/** The longest line kept, as Edit campaign and Season setup cut it before (their fields stop at 200; E94 C1). */
+const MORNING_LINE_CAP = 400;
+
+/**
+ * The GMs' next morning's line as this browser holds it: `{ text, by, at }` - "" and nulls for none. A player's browser
+ * holds no copy and reads none. Synchronous: Edit campaign draws it into its field (gm-campaign.mjs `morningLineRow`).
+ */
+export function morningLine() {
+    const row = game.user?.isGM ? (morningLineStore.record() ?? {}) : {};
+    return {
+        text: typeof row.text === "string" ? row.text : "",
+        by: typeof row.by === "string" && row.by ? row.by : null,
+        at: Number.isFinite(row.at) ? row.at : null
+    };
+}
+
+/**
+ * Write the GMs' next morning's line (Edit campaign's Apply, Season setup's Save, the API, a Morning Eclipse's give-back),
+ * cut to MORNING_LINE_CAP, stamped with the writer (`by`, this GM unless handed another) and the server's time. A line
+ * equal to the one held writes nothing, so an Apply that left the field alone stamps no writer over the other GM's line.
+ * GM only; answers the line as held after it, or null on a player's browser.
+ */
+export async function setMorningLine(text, { by = game.user?.id ?? null } = {}) {
+    if (!game.user?.isGM) return null;
+    const line = String(text ?? "").slice(0, MORNING_LINE_CAP);
+    if (line === morningLine().text) return morningLine();
+    await morningLineStore.patch(RECORD, { text: line, by, at: serverNow() });
+    return morningLine();
+}
+
+/**
+ * Empty the line once the day's start has put it on the clock (clock.mjs `clearMorningDraft`): only while the store still
+ * holds the line that was used (`used`), so a line the other GM typed after it was read is kept for the next morning.
+ * GM only; answers whether it was emptied.
+ */
+export async function clearMorningLine(used) {
+    if (!game.user?.isGM) return false;
+    const now = morningLine();
+    if (!now.text || now.text !== String(used ?? "")) return false;
+    await morningLineStore.patch(RECORD, { text: "", by: game.user.id, at: serverNow() });
+    return true;
+}
+
+/**
+ * A Morning Eclipse ended without advancing gives the line its start took back (eclipse.mjs `endEclipse`, `undoOpening`):
+ * written only while the store holds none, as a line written since is the newer one. GM only; answers whether it was.
+ */
+export async function giveBackMorningLine(text) {
+    if (!game.user?.isGM || !String(text ?? "") || morningLine().text) return false;
+    await setMorningLine(text);
+    return true;
 }
 
 /* ---------------------------------------------------------------------------

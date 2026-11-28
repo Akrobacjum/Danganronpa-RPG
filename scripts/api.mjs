@@ -192,7 +192,7 @@ import {
 } from "./truth-bullets.mjs";
 import {
     backupCase, restoreCase, previewRestore, gmStoreHealth, gmStoreStatus, gmStoreReclaim, openRestoreDialog,
-    fillBulletsFromTraces
+    fillBulletsFromTraces, morningLine, setMorningLine
 } from "./gm-stores.mjs";
 import {
     isMonokuma, setMonokuma, monokumaActors, studentActors,
@@ -1617,7 +1617,16 @@ export const DrpgApi = {
         keys: SETTINGS,
         get: getSetting,
         set: setSetting
-    }
+    },
+
+    /* ---- the next morning's line (2.0 line T2b, DAY-01) ------------------- */
+
+    /** The GMs' next morning's line, `{ text, by, at }`: one for every GM, the one the start-of-day board says at the next
+     *  day's start, whichever GM moves the clock (gm-stores.mjs `morningLineStore`). GM only; a player reads "" and nulls. */
+    morningLine: () => morningLine(),
+    /** Write it, as Edit campaign's Apply does (cut to 400): `setMorningLine(text)`, "" to empty it. GM only; answers the
+     *  line as held after it. The Forge scenarios and the harness write the line through this. */
+    setMorningLine: text => setMorningLine(text)
 };
 
 /* ==========================================================================
