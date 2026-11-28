@@ -29126,7 +29126,7 @@ const INVARIANTS = [
         }).map(([k, f, unit]) => `${k} in ${f}${unit ? ` ${unit}()` : ""}`).concat(helpers);
         equal(bad.join("; "), "", "{the keys whose words are missing or too long, or whose control's function does not draw them}");
     }],
-    ["R4752 - the chapter, murder and Class Trial windows draw their tooltips (E102 C3, 13.11.2026; the owner's stage \"Tooltips across the module\", docs/dev/e102/TOOLTIPS.json and KEYS.json): each of the family's 41 keys (34 until E110 C3, 36 until E40 on 16.11.2026, 37 until E129 on 23.11.2026) under DRPG.Tips.Trial has words in English and in Polish, at most 23 words each (the guide's tooltip limit), and the function that draws its control writes it where that control draws it (tests-tips.mjs `tipPlacement`: inside the control's own tag and not as a condition, as a labelled button's or tab's `tooltip`, in a builder's `data-tooltip` attrs, by `setTip`, or through a named local helper that writes it; a count's words through `plural`, each form within the limit)", async () => {
+    ["R4752 - the chapter, murder and Class Trial windows draw their tooltips (E102 C3, 13.11.2026; the owner's stage \"Tooltips across the module\", docs/dev/e102/TOOLTIPS.json and KEYS.json): each of the family's 45 keys (41 until 2.0 line T3, 34 until E110 C3, 36 until E40 on 16.11.2026, 37 until E129 on 23.11.2026) under DRPG.Tips.Trial has words in English and in Polish, at most 23 words each (the guide's tooltip limit), and the function that draws its control writes it where that control draws it (tests-tips.mjs `tipPlacement`: inside the control's own tag and not as a condition, as a labelled button's or tab's `tooltip`, in a builder's `data-tooltip` attrs, by `setTip`, or through a named local helper that writes it; a count's words through `plural`, each form within the limit)", async () => {
         /* Red at 70613472 with the keys and this test in place and the family's scripts as they were: no function read a DRPG.Tips.Trial key. Since REVIEW-E102-code C1: where the key lands, not only that it is named - red on the review's planted ternary that names the key and draws nothing (action-dynamic.mjs:336). */
         const TIPS = [
             ["DRPG.Tips.Trial.moveToChapterToTooltip","chapter.mjs","chapterEndForm"],
@@ -29173,7 +29173,12 @@ const INVARIANTS = [
             ["DRPG.Tips.Trial.finishKeepTooltip","trial-prompt.mjs","promptFinish"],
             ["DRPG.Tips.Trial.finishDoneTooltip","trial-prompt.mjs","promptFinish"],
             ["DRPG.Tips.Trial.confirmKeepTooltip","trial-prompt.mjs","confirmEnd"],
-            ["DRPG.Tips.Trial.confirmEndTooltip","trial-prompt.mjs","confirmEnd"]
+            ["DRPG.Tips.Trial.confirmEndTooltip","trial-prompt.mjs","confirmEnd"],
+            // 2.0 line T3 (27.11.2026): EXP-GM-12's three ticks of a wrong verdict, EXP-GM-03's Start anyway - the family grew by four.
+            ["DRPG.Tips.Trial.wrongStepOffersTooltip","verdict-skips.mjs","wrongStepsHtml"],
+            ["DRPG.Tips.Trial.wrongStepRuleTooltip","verdict-skips.mjs","wrongStepsHtml"],
+            ["DRPG.Tips.Trial.wrongStepDespairTooltip","verdict-skips.mjs","wrongStepsHtml"],
+            ["DRPG.Tips.Trial.startAnywayTooltip","trial-floor-ui.mjs","waitingFirst"]
         ];
         const en = await fetch(`/modules/${MODULE_ID}/lang/en.json`).then(r => r.json());
         const pl = await fetch(`/modules/${MODULE_ID}/lang/pl.json`).then(r => r.json());
@@ -29181,7 +29186,7 @@ const INVARIANTS = [
         const src = new Map();
         for (const f of new Set(TIPS.map(t => t[1]))) src.set(f, stripComments(await fetch(`/modules/${MODULE_ID}/scripts/${f}`).then(r => (r.ok ? lfText(r) : ""))));
         must([...src.values()].every(s => s.length > 500), "a script of the family read as nothing - this would measure nothing");
-        must(Object.keys(words(en, "DRPG.Tips.Trial") ?? {}).length === 41, "lang/en.json has not the family's 41 keys under DRPG.Tips.Trial");
+        must(Object.keys(words(en, "DRPG.Tips.Trial") ?? {}).length === 45, "lang/en.json has not the family's 45 keys under DRPG.Tips.Trial");
         const fits = w => (w && typeof w === "object" ? Object.values(w).length > 0 && Object.values(w).every(fits) : typeof w === "string" && w.trim().length > 0 && w.trim().split(/\s+/).length <= 23);
         const P = await import("./tests-tips.mjs");
         must(P.tipPlacementSelfCheck().length === 0, `tests-tips.mjs misreads its own plants: ${P.tipPlacementSelfCheck().join("; ")}`);

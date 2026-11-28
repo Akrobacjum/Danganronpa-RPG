@@ -15,10 +15,6 @@ import { tipAttr } from "./ui-kit.mjs";
 
 /** The wrong verdict's steps that may be left out, in the window's order. */
 export const WRONG_SKIPPABLE = Object.freeze(["offers", "rule", "despair"]);
-/** Each tick's tooltip, named whole so the census reads it (tools/check.mjs `tooltips`). */
-const TIPS = Object.freeze({ offers: "DRPG.Tips.Trial.wrongStepOffersTooltip", rule: "DRPG.Tips.Trial.wrongStepRuleTooltip",
-    despair: "DRPG.Tips.Trial.wrongStepDespairTooltip" });
-
 /** Ticked by default: what config.mjs `TRIAL.wrong` gives (a Reinforced Level Up, a rule, the pools filled). */
 function tickedByDefault(key) {
     if (key === "offers") return Boolean(TRIAL.wrong?.blackenedLevelUp);
@@ -26,11 +22,16 @@ function tickedByDefault(key) {
     return TRIAL.wrong?.fillDespair !== false;
 }
 
-/** The verdict window's fieldset of the three, read only when the GM presses "Got it wrong" (`wrongSkipsOf`). */
+/** The verdict window's fieldset of the three, read only when the GM presses "Got it wrong" (`wrongSkipsOf`). Each tick's
+ *  tooltip is named in its own tag, so the tooltip census reads it (tests-tips.mjs `tipPlacement`, R4752). */
 export function wrongStepsHtml() {
-    return `<fieldset class="drpg-verdict-wrong-steps"><legend>${esc(game.i18n.localize("DRPG.Vote.wrongSteps.legend"))}</legend>${
-        WRONG_SKIPPABLE.map(key => `<label class="drpg-choice"><input type="checkbox" name="wrongStep" value="${key}"${tickedByDefault(key) ? " checked" : ""}${tipAttr(TIPS[key])}>`
-            + `<span class="drpg-choice-text">${esc(game.i18n.localize(`DRPG.Vote.wrongSteps.${key}`))}</span></label>`).join("")}</fieldset>`;
+    const on = key => (tickedByDefault(key) ? " checked" : "");
+    const label = key => `<span class="drpg-choice-text">${esc(game.i18n.localize(`DRPG.Vote.wrongSteps.${key}`))}</span>`;
+    return `<fieldset class="drpg-verdict-wrong-steps"><legend>${esc(game.i18n.localize("DRPG.Vote.wrongSteps.legend"))}</legend>`
+        + `<label class="drpg-choice"><input type="checkbox" name="wrongStep" value="offers"${on("offers")}${tipAttr("DRPG.Tips.Trial.wrongStepOffersTooltip")}>${label("offers")}</label>`
+        + `<label class="drpg-choice"><input type="checkbox" name="wrongStep" value="rule"${on("rule")}${tipAttr("DRPG.Tips.Trial.wrongStepRuleTooltip")}>${label("rule")}</label>`
+        + `<label class="drpg-choice"><input type="checkbox" name="wrongStep" value="despair"${on("despair")}${tipAttr("DRPG.Tips.Trial.wrongStepDespairTooltip")}>${label("despair")}</label>`
+        + `</fieldset>`;
 }
 
 /** The steps a form's ticks leave out: each of the three not ticked; all ticked, none. Pure on the form (R9139). */
