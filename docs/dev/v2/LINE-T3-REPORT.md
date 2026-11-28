@@ -46,7 +46,7 @@ Części scenariusza 58 nazywam ich etykietą w `58-case-two-gms.mjs` (np. "58 I
 | EXP-PL-11 | zrobione | 45682b1 | R9137 | `DRPG.Chapter.bodyCalledNext`, nowe zdanie `Explain.phase.investigation`, karta `DRPG.Explain.investigationStarted` w `reconcilePhase` |
 | EXP-PL-13 | zrobione | d7d982b | R9140; T3 EXP-PL-13; R1252 zmieniony (10 kroków) | ostatni krok `players` w `CHAPTER_END_STEPS`, jedna publiczna karta (P10) |
 | EXP-PL-16 | zrobione | f893908 | R9132 | `ballotFormHtml` wydzielony z `castBallot`, `DRPG.Vote.ballotFinal` |
-| EXP-PL-17 | zrobione | 42c490f | R9145; T3 EXP-PL-17 | flaga `copyOrigin` przy każdej drodze tworzenia kopii (Observe, łup z ciała, przekazanie i Present, Daj jednemu i kilku, Reveal Monokumy, Autopsy) i `gaveTo` na kopii dającego; plakietka Kopie na arkuszu z podpowiedzią ze zdaniami |
+| EXP-PL-17 | zrobione | 42c490f, d026890 (D2-30) | R9145; T3 EXP-PL-17; T3 D2-30; 72-canary "p1: Aiko's copy shared ..."; R190 | pochodzenie kopii zapisywane przy każdej drodze jej tworzenia (Observe, łup z ciała, przekazanie i Present, Daj jednemu i kilku, Reveal Monokumy, Autopsy) i `gaveTo` na kopii dającego; plakietka Kopie na arkuszu z podpowiedzią ze zdaniami. Od D2-30 (d026890) pochodzenie jest polem `origin` wiersza Truth Bulletu w `bulletStore` i kopią właściciela `copyOriginCopy` (`mineCopyOrigins`, wysyłaną w adresowanym pakiecie `bullets.refs`), nie flagą przedmiotu; `world-secrets.mjs` zabrania flagi `copyOrigin` na przedmiocie, a klauzula `liftCopyOrigins` (migrate.mjs) przenosi flagi pierwszej wersji |
 | CTL-03..CTL-30 | zrobione | d63b1d4, cc1e9c8 | R9136; R4755 | `nodeButton` z `opensMap` w konsoli rozprawy: bez `aria-expanded`, podpowiedź `DRPG.Tips.Case.nodeOpensMapTooltip`; komentarze w `case-trial.mjs` i `case-map.mjs` poprawione |
 
 ### Kontrole Forge (nie uruchamiane)
@@ -110,7 +110,7 @@ T3 TRIAL-02, T3 VOICE-09, T3 MURDER-07, T3 TRIAL-01 (+ "T3 TRIAL-01 second GM"),
 T3 PRIM-06 (+ "second GM"), T3 TRIAL-04 (+ "second GM", "Assistant GM"), T3 INV-01, T3 INV-02 (+ "counting GM"), T3 INV-05,
 T3 INV-04 (+ "second GM"), T3 INV-03, T3 INV-07, T3 INV-12, T3 TRIAL-07 (+ 2x "primary GM"), T3 TRIAL-15 (+ 2x "primary GM"),
 T3 TRIAL-14, T3 TRIAL-10, T3 EXP-PL-08, T3 EXP-GM-12, T3 EXP-PL-13, T3 EXP-GM-03, T3 EXP-GM-04, T3 TRIAL-06,
-T3 TRIAL-08, T3 EXP-GM-11, T3 EXP-PL-17, T3 EXP-GM-10.
+T3 TRIAL-08, T3 EXP-GM-11, T3 EXP-PL-17, T3 EXP-GM-10, T3 D2-30 (klauzula `liftCopyOrigins`).
 Wpisy "+ ..." to rola przeglądarki w tym samym teście, nie osobne testy.
 
 ### Scenariusz 58 (`audit/harness/scenarios/58-case-two-gms.mjs`, nowy, warstwa `ci`, wiersz w `audit/harness/README.md`)
@@ -152,6 +152,7 @@ obejmuje każdą akcję `gmOnly`.
 | R22, R3510 (tier 0) | 383c779 | R22: spis nazw nie czytał parametrów metody w literale obiektu - `step` jest funkcją zagnieżdżoną; R3510: `clock.mjs` +1 "built" (szept o dokończonej zmianie fazy) |
 | "Back up the case, then Restore, brings every store back" (tier 2) | 3f87755 | fikstura dla nowego magazynu z `backup: true`, `erasedRemnants` |
 | R4752 (bez zmiany liczby) i spis podpowiedzi | 42c490f, 3f87755 | nowe klucze w `DRPG.Tips.Sweep.Gm` (`pickedTargetTooltip`) i `DRPG.Tips.Sweep.Case` (`erasedListTooltip`); żaden test liczący tych rodzin nie był czerwony |
+| R190 (tier 1), 72-canary, `audit/harness/lib/canary.mjs`, T3 EXP-PL-17 (tier 2) | d026890 | D2-30: fikstura reguły `copyOrigin` na przedmiocie; w 72 nowy znacznik `bullet.copyOrigin` (imię dającego, dozwolone u GM-a i p1) i sprawdzenie kopii p1 - czerwone na dcdfe4c (znacznik u p2 i p3 we flagach przedmiotu, flaga `copyOrigin` w danych świata p1 i p2, kopii p1 brak); T3 EXP-PL-17 czyta pochodzenie z wiersza i sprawdza brak flagi |
 | 61-gmstore-case J1 | 7f10014 | trzymało starą odmowę resetu drugiemu GM-owi; TRIAL-04 ją zmienił (okno u gm2, plan do głównego). J1 czyta teraz: okno u gm2 (1), brak odmowy, po anulowaniu żadnego pakietu `season.reset`, zegar nie przecięty, wybór Mastermind zostaje. Specyfikacja kazała uruchomić 65, 58 i 33, nie 61; CI 645 (d7d982b) pokazało czerwone J1 |
 
 ### Mutanty (na kopii drzewa, nigdy na drzewie)
@@ -169,6 +170,7 @@ obejmuje każdą akcję `gmOnly`.
 | EXP-PL-17: kilku zapisane jako `given` | T3 EXP-PL-17 | KILLED |
 | EXP-GM-10: wiersz nie zapisywany | T3 EXP-GM-10 | KILLED |
 | EXP-GM-10: Reroll nie usuwa wiersza | T3 EXP-GM-10 | KILLED |
+| D2-30: pakiet `bullets.refs` niesie pochodzenie każdego Truth Bulletu, nie tylko własnych | 72-canary | KILLED (znacznik u p2 w pakiecie `bullets.refs`) |
 
 Inne mutanty nie były mierzone. To mniej niż metoda (`docs/dev/METHOD.md`) zakłada dla każdej oznaczonej drogi.
 
@@ -176,18 +178,22 @@ Inne mutanty nie były mierzone. To mniej niż metoda (`docs/dev/METHOD.md`) zak
 
 Pełny `npm test` nie mieści się w tym kontenerze: `run-all.mjs` zabija suite po 108 minutach (`SUITE_TIMEOUT_MS`),
 a jeden bieg 01-runtests trwa tu dłużej. Bieg monolityczny zabiłem; zgodnie z ustaleniem koordynatora za pełny bieg
-uznaje się zielone CI. Stan na 28.11.2026, 07:15 UTC:
+uznaje się zielone CI. Stan na 28.11.2026, 08:50 UTC:
 
 | Co | sha | wynik |
 | --- | --- | --- |
 | **CI run 662** | **8484751** (30 pozycji i poprawki CI) | **zielony**: 19 zadań success (lint, check, gate; 8 shardów suite; 8 kubełków scenariuszy; plan; verdict), 2 zadania CRLF pominięte jak przy każdym pushu |
-| CI run 665 / 667 / 671 | a9d03a4 / 383c779 / 3f87755 (TRIAL-08; R22 i R3510; EXP-GM-11, EXP-PL-17, EXP-GM-10) | w kolejce - **wyniku nie znam w chwili pisania**; run tego raportu też |
+| CI run 663 | 5243413 (pierwsza wersja raportu, ten sam kod co 8484751) | zielony |
+| CI run 665 | a9d03a4 (TRIAL-08) | czerwony: suite 1/8 - R22 i R3510, poprawione w 383c779 (lokalnie zielone tiers 0-1) |
+| CI run 667 / 671 / 676 / 684 | 383c779 / 3f87755 / dcdfe4c / d026890 (R22 i R3510; EXP-GM-11, EXP-PL-17, EXP-GM-10; raport; D2-30) | w kolejce o 08:48 UTC - **wyniku nie znam w chwili pisania**; run tego raportu też |
 | CI run 651 / 645 / 658 / 659 / 661 | e246839 / d7d982b / 6a52df4 / 7f10014 / 5799d56 | czerwone, przyczyny niżej, wszystkie poprawione do 8484751 (662 zielony) |
 | lokalnie: tiers 0-1 | 3f87755 (drzewo robocze tych samych plików) | **2080 passed, 0 failed, 16 skipped, 0 red** |
 | lokalnie: 8 shardów suite + `suite-merge.mjs` | e246839 | 3981 passed, 0 failed, 27 skipped, 0 red; merge zielony |
 | lokalnie: `npm run quick` z pobranym `origin/main` | 3f87755 | zielone: lint 461 plików 0 problemów, check 26 części, gate 62/62 |
 | lokalnie: scenariusze po TRIAL-08 | 383c779 | 41 52/52, 63 79/79, 18 94/94, 65 59/61 (2 expected red), 61 118/118, 97 58/58, 58 15/15, 88 27/27 |
 | lokalnie: scenariusze po EXP-GM-11, EXP-PL-17, EXP-GM-10 | 3f87755 | 95 4/4, 62 62/62, 72 163/166 (3 expected red), 10 45/45, 13 87/87, 34 17/17, 60 19/19, 40 90/90, 99 23/23, 33 93/95 (2 expected red), 30 309/311 (2 expected red) |
+| lokalnie po D2-30: tiers 0-1 | d026890 | 2080 passed, 0 failed, 16 skipped, 0 red |
+| lokalnie po D2-30: scenariusze | d026890 | 72 164/167 (3 expected red), 30 309/311 (2 expected red), 33 93/95 (2 expected red), 61 118/118, 62 62/62, 95 4/4, 34 17/17, 40 90/90 |
 | lokalnie: tier 2 testów linii | a9d03a4, 3f87755 | T3 TRIAL-08, T3 EXP-GM-11, T3 EXP-PL-17, T3 EXP-GM-10 i "Back up the case, then Restore" zielone; pełnego tier 2 lokalnie nie uruchamiałem po e246839 |
 
 Poprawki po e246839, każda z odczytem przed i po:
@@ -320,7 +326,7 @@ Tylko czytane: `DRPG.Messenger.gm.waiting`, `DRPG.Voice.resetRefused.*`, `DRPG.B
   na rozprawę nie rozdaje drugi raz i mówi GM-om, gdy przerwa wypadła w ich trakcie (a9d03a4; R9143, T3 TRIAL-08, 58 TRIAL-08).
 - Daj Truth Bullet ma Wybrani uczniowie: każdy zaznaczony dostaje własną kopię (42c490f; R9144, T3 EXP-GM-11).
 - Truth Bullet na arkuszu ma plakietkę Kopie: skąd jest ta kopia i czy inni mogą mieć swoją, bez imion, których gracz
-  nie zna (42c490f; R9145, T3 EXP-PL-17).
+  nie zna; pochodzenie widzą tylko właściciel kopii i GM-owie (42c490f, d026890; R9145, T3 EXP-PL-17, T3 D2-30, 72-canary).
 - Zakładka Remnanty okna Investigation wymienia Remnanty usunięte przy sprzątaniu: co, gdzie, kiedy i czyje sprzątanie
   (3f87755; R9146, T3 EXP-GM-10).
 
@@ -361,7 +367,10 @@ ale to warto potwierdzić przy scaleniu.
 `resolve-lost`), `case-map.mjs`, `case-trial.mjs`, `case-summary.mjs`, `truth-bullets.mjs`, `tools/api-surface.json`,
 `tools/tooltip-census.json`, `audit/harness/scenarios/97-two-gms.mjs` (U1, 2d769cb), `scripts/trial-modes.mjs` (EXP-PL-17,
 jedna opcja Reveal), `scripts/tests-tier0.mjs` (R3510, R22 - 383c779), `audit/harness/scenarios/61-gmstore-case.mjs` (J1),
-`audit/harness/scenarios/88-flow-length.mjs` i `audit/harness/flow-length.json`.
+`audit/harness/scenarios/88-flow-length.mjs` i `audit/harness/flow-length.json`; dla D2-30 (d026890): `scripts/world-secrets.mjs`
+(reguła), `scripts/migrate.mjs` (klauzula `liftCopyOrigins` na końcu listy), `audit/harness/lib/canary.mjs` (ziarno
+`bullet.copyOrigin`), `audit/harness/scenarios/72-canary.mjs`; `gm-stores.mjs` dostał w bloku T3 kopię `copyOriginCopy`, a
+`settings.mjs` klucz `mineCopyOrigins`.
 
 **Przewidywane konflikty.** `bridge-runs-records.mjs` koniec pliku (`handleResolveLost`, `resetGroupsOf`/`resetCastOf`;
 T1 dopisuje `eclipse.judge`); `bridge-table.mjs` koniec `BRIDGE_ACTIONS` i długość; `bridge-wire.mjs` (dwie stałe
@@ -393,7 +402,10 @@ dwa klucze (`gmPhaseSteps`, `gmErasedRemnants`) i ich rejestracje po `minePassag
 - EXP-PL-17: Reveal Monokumy (`trial-modes.mjs` `revealInStep`, plik spoza listy) pisze `givenMany` - jedna opcja w
   wywołaniu. Present (`trial.mjs` przez `mintCopy`) pisze `shared` z imieniem prezentującego, a na kopii prezentującego
   `gaveTo` z imionami wszystkich uczestników. Kopia "told" zostawiającego ślad (własny ślad, o którym mu powiedziano)
-  nie dostaje pochodzenia. Zdanie jest w podpowiedzi plakietki Kopie, nie w osobnym wierszu karty.
+  nie dostaje pochodzenia. Zdanie jest w podpowiedzi plakietki Kopie, nie w osobnym wierszu karty. Po D2-30 (d026890)
+  pochodzenie nie jest już flagą przedmiotu: pole `origin` w istniejącym wierszu `bulletStore` (wiersz na Truth Bullet,
+  synchronizowany, z kopią zapasową, więc bez nowego magazynu i bez nowej fikstury Back up/Restore) i kopia właściciela
+  `copyOriginCopy` w tym samym adresowanym pakiecie co klucze śladów (`bulletRefCopy`).
 - EXP-GM-11: `RECIPIENT_PICKED` jest stałą w `gm-items.mjs` (`config.mjs` nie jest na liście pozycji); zakładka Daj
   okna rzeczy ma własny wybór ucznia i została bez zmian.
 
@@ -434,4 +446,4 @@ Odpowiedzi nie było; linia pracowała na domyślnych.
 | P15 | TRIAL-06: imię przy karcie rozłączonego gracza - przypisana postać, uczeń, którego jest właścicielem, albo nazwa użytkownika. Tak? | tak, w tej kolejności |
 | P16 | TRIAL-15: szept o zapisie z tej przeglądarki najwyżej raz na minutę na przeglądarkę. Wystarczy? | tak |
 | P17 | EXP-GM-03: Rozpocznij rozprawę pyta o każdą kartę, którą konsola pokazuje w "Czeka", także kartę po rzucie czekającą na ocenę GM-a (wynik Observe, podpowiedź, rzut akcji dynamicznej - tak było w 88). Czy pytanie ma obejmować tylko prośby wysłane przez gracza w komunikatorze? | wszystkie karty z "Czeka", jak konsola |
-| P18 | EXP-PL-17: flaga `copyOrigin` stoi na przedmiocie, a flagi przedmiotów dochodzą do każdej przeglądarki - gracz z konsolą przeczyta u kogoś innego, od kogo ma kopię i komu ją przekazał (imiona uczniów, nie klucz odpowiedzi; `world-secrets.mjs` zabrania tylko `remnantRef`, `leftBy`, `leftByName`). Tak jak dziś treść samego Truth Bulletu. Zostawić, czy przenieść to do kopii gracza w magazynie GM-ów? | zostawić na przedmiocie |
+| P18 | EXP-PL-17: flaga `copyOrigin` na przedmiocie była widoczna w konsoli innych graczy. | **rozstrzygnięte (D2-30, odpowiedź właściciela przez koordynatora 28.11.2026): przeniesione** do wiersza GM-ów i kopii właściciela (d026890) |
