@@ -31420,7 +31420,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             for (const [i, userId] of voters.entries()) {
                 await ballotStore.patch(userId, { chapter: progress.chapter, round: vote.round, actorId: a.id, choice: choices[i], at: Date.now() });
             }
-            await V.closeVote();
+            await V.closeVote({ preview: false });
             await settle();
             const after = V.trialProgress();
             equal(stableJson([after.voteClosed, after.noMajority, after.tied, after.accusedIds, after.majority, after.total,
@@ -119747,6 +119747,8 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             must(vote.open === true && vote.issued.length >= 2, `the vote did not open with two ballots out: ${stableJson(vote)}`);
             voters = vote.issued.slice(0, 2);
             for (const userId of voters) await ballotStore.patch(userId, { chapter: progress.chapter, round: vote.round, actorId: a.id, choice: [b.id], at: Date.now() });
+            // the preview's Not yet pressed, as the GM who reads the count first would (`closeVote` opens it on this GM)
+            globalThis.__dialogAnswers.push("notYet");
             const count = await V.closeVote();
             await settle();
             read.closed = [cards(), String(count?.card ?? "").includes(banner), V.trialProgress().resultAnnouncedAt ?? null];
@@ -119754,6 +119756,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             await settle();
             read.second = [await V.announceVote(), cards(), Number.isFinite(V.trialProgress().resultAnnouncedAt)];
         } finally {
+            globalThis.__dialogAnswers.length = 0;
             if (ownEmit) Object.defineProperty(socket, "emit", ownEmit); else delete socket.emit;
             await ballotStore?.dropMany?.(voters);
             await game.settings.set(MODULE_ID, SETTINGS.trialProgress, stored);

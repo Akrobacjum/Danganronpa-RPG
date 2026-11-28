@@ -10,6 +10,7 @@
 import { plural, listOf, esc } from "./utils.mjs";
 import { trialProgress } from "./trial-progress.mjs";
 import { ballotStore } from "./gm-stores.mjs";
+import { studentActors } from "./monokuma.mjs";
 
 /** The user ids of `issued` not in `cast` whose user `users` holds and reads not connected. Pure on its readings (R9142). */
 export function goneBallots({ issued = [], cast = [], users = game.users } = {}) {
@@ -17,9 +18,10 @@ export function goneBallots({ issued = [], cast = [], users = game.users } = {})
     return [...new Set(issued)].filter(id => !back.has(id) && users?.get?.(id) && users.get(id).active !== true);
 }
 
-/** The students of the players `goneBallots` names, by name: each player's assigned character, else the player's name. */
+/** The students of the players `goneBallots` names, by name: the player's assigned character, else a student they own, else their own name. */
 export function goneNames(userIds = []) {
-    return userIds.map(id => game.users.get(id)).filter(Boolean).map(user => user.character?.name ?? user.name);
+    return userIds.map(id => game.users.get(id)).filter(Boolean)
+        .map(user => user.character?.name ?? studentActors().find(actor => actor.testUserPermission(user, "OWNER"))?.name ?? user.name);
 }
 
 /**

@@ -333,9 +333,18 @@ export async function openVote({ picks = null, restart = false } = {}) {
  * its own copy of the ballots (`closeRound`). Answers the count, or null when
  * there was none to publish.
  */
-export async function closeVote() {
+export async function closeVote({ preview = true } = {}) {
     const reply = await askVote("close");
-    return reply && !reply.status ? reply : null;
+    const count = reply && !reply.status ? reply : null;
+    /* THE GM WHO PRESSED SEES THE COUNT FIRST (2.0 line T3 EXP-GM-04): Close and count's every road - the vote window,
+       the console, `game.drpg.closeVote` - opens the preview on this GM (trial-floor-ui.mjs `previewVoteResult`), whose
+       Announce posts the card; `preview: false` is the suite's, which announces by itself. */
+    // Not awaited: the window waits on a person, and no caller of the close waits on it (the suite's drawn windows hung on it).
+    if (count?.card && preview) {
+        import("./trial-floor-ui.mjs").then(m => m.previewVoteResult(count))
+            .catch(err => error("Could not show the vote's count before it is announced", err));
+    }
+    return count;
 }
 
 /**

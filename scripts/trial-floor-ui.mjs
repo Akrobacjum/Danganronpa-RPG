@@ -2139,10 +2139,8 @@ export async function openVoteDialog() {
         ui.notifications.info(plural("DRPG.Vote.reminded", { n: await remindVoters() }));
         return openVoteDialog();
     }
-    if (action === "tally") {
-        const count = await closeVote();
-        return count?.card ? previewVoteResult(count) : count;
-    }
+    // its preview opens on this GM inside it (vote.mjs `closeVote`, 2.0 line T3 EXP-GM-04)
+    if (action === "tally") return closeVote();
     if (action === "announceVote") return announceVote();
     return null;
 }
@@ -2163,7 +2161,7 @@ function unannounced(progress) {
  * ballots disconnected players hold (TRIAL-06, `goneBallots`), and Announce posts it (vote.mjs `announceVote`, once on
  * the primary); Not yet leaves it for the console's next step and the vote window's button. The verdict does not wait.
  */
-async function previewVoteResult(count) {
+export async function previewVoteResult(count) {
     const { announceVote } = await import("./vote.mjs");
     const gone = count.gone?.length ? plural("DRPG.Vote.silentGone", { n: count.gone.length, names: listOf(count.gone.map(name => esc(name))) }) : "";
     const answer = await drpgWindow({
