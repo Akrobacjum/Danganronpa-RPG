@@ -435,9 +435,10 @@ export function youOrThem(userIds, { you, them }) {
  * the messenger's bubble and its notice (messenger-app.mjs `buildBubble`, `cardPreview`). A line whose key is not one of
  * an ask's ends keeps its words. R852 reads it. A Dynamic success a Reroll took back is one of them since E68 C11
  * (action-dynamic.mjs `withdrawDynamicFind`; D048), and a reload's end since 2.0 (line T2, CALLS-04, ask-withdraw.mjs
- * `askerReloadedOnPrimary`).
+ * `askerReloadedOnPrimary`), and a withdrawal's (line T2, EXP-PL-12, `withdrawnOnPrimary`; missing until FIX-G2 T2-COR-05,
+ * 28.11.2026, so a Polish player of an English primary read "Request withdrawn."; R9113).
  */
-const CARD_LINES = Object.freeze([...["settledApproved", "settledAnswered", "settledDeclined", "settledExpired", "settledGone", "settledUnconfirmed", "settledReloaded"]
+const CARD_LINES = Object.freeze([...["settledApproved", "settledAnswered", "settledDeclined", "settledExpired", "settledGone", "settledUnconfirmed", "settledReloaded", "settledWithdrawn"]
     .map(key => `DRPG.Bridge.${key}`), "DRPG.Action.dynamicRerollMissed"]);
 
 /** Write a drawn card's time and its ask's end in this reader's own clock and language (above). Answers `root`. */

@@ -911,8 +911,8 @@ export function wireCallActions(body, message = null) {
  * answers' block, which a player's copy never has (it is removed above) - so nothing of it is drawn for a player. Its
  * own GM's claim draws nothing. Drawn again when the store changes here (`clientSettingChanged` on its key: a write of
  * this primary's, or another GM's row merged in) and once the claim's hold has run out; it goes with the block when the
- * card is ruled. Take over takes the claim over and lets it go at once (card-takeover.mjs `takeOverFromCard`): the other
- * GM's window closes, and this GM presses an answer as usual.
+ * card is ruled. Take over takes the claim over and keeps it (card-takeover.mjs `takeOverFromCard`; it let it go at once
+ * until FIX-G2, T2-GOAL-05): the other GM's window closes, and this GM presses an answer as usual, which rules under it.
  */
 const CLAIM_SIGN_CLASS = "drpg-call-claim";
 let claimSignsWatched = false;
@@ -1125,9 +1125,12 @@ async function takenOverMeanwhile(message) {
  */
 function askNotHeld(out, message = null) {
     if (out?.told) return null;
-    // An ask its player withdrew has its card ended already, "Request withdrawn." (2.0 line T2, EXP-PL-12): no second line.
-    if (message && cardFlag(message, MESSENGER_FLAGS.settled)) return null;
     ui.notifications.warn(game.i18n.localize("DRPG.Bridge.askNotHeld"));
+    // A card ended already - its player withdrew the ask, "Request withdrawn." (2.0 line T2, EXP-PL-12), a reload or its
+    // time ended it - gets no second line; the GM is still told nothing was sent, as the spec of the line says (2.3
+    // point 3). Until FIX-G2 (T2-GOAL-04, 28.11.2026) this returned before the notice: a GM whose window was open when
+    // the player withdrew pressed OK and saw nothing happen. R9114.
+    if (message && cardFlag(message, MESSENGER_FLAGS.settled)) return null;
     return { settled: { key: "DRPG.Bridge.settledExpired" }, gmNote: { key: "DRPG.Bridge.settledGone" } };
 }
 

@@ -20,7 +20,7 @@ import { TIMING } from "./config.mjs";
 import { debug } from "./utils.mjs";
 import { sayNotDone, reasonOf } from "./bridge-guards.mjs";
 import { claimOnPrimary, sayRefusedHere, observePickOnPrimary, yesOnPrimary, dynamicOnPrimary } from "./call-gm.mjs";
-import { startClaimRun, endClaimRun, askTakeOver, raiseOwnClaim } from "./card-takeover.mjs";
+import { startClaimRun, endClaimRun, askTakeOver, raiseOwnClaim, raiseRunningClaim, heldFromCard } from "./card-takeover.mjs";
 import {
     SOCKET_EVENT, ACTION_PROGRESS, ACTION_SHARE, ACTION_REMNANT, ACTION_TIE_TRACE, ACTION_REMNANT_EDIT, ACTION_SABOTAGE,
     ACTION_UNSABOTAGE, ACTION_PROJECT_CHANGE, ACTION_SENDBACK, ACTION_ECLIPSE_MOVE, ACTION_ARM, ACTION_DESPAIR,
@@ -1449,7 +1449,8 @@ export async function askCardClaim(messageId, step) {
  * does not know); yes is the claim's "takeover", and the ruling's work runs here at once. A takeover the primary finds
  * free - the other GM finished or backed out meanwhile - is a plain take. A card this GM's own other window holds is no
  * question (CALLS-12): this GM is told so (`DRPG.Bridge.claimOwnOpen`), and that window is brought to the front
- * (`raiseOwnClaim`).
+ * (`raiseOwnClaim`) - read here first, so the primary is not asked (`raiseRunningClaim`: once this GM's claim ran out
+ * there, its take was granted, FIX-G2 T2-COR-02). A card taken from its own Take over is this GM's (`heldFromCard`).
  *
  * THE WINDOWS A CLAIM OPENS ARE ITS OWN (CALLS-01). While `work` runs, every window first drawn here is kept with the
  * claim (card-takeover.mjs `startClaimRun`, through `renderApplicationV2`; a window open before the claim is not). When
@@ -1465,8 +1466,10 @@ export async function askCardClaim(messageId, step) {
  * @returns {Promise<object|null>} What `work` answered, or null when the card was not this GM's to rule.
  */
 export async function claimCard(message, work, { claim = askCardClaim, ask = askTakeOver, say = sayRefusedHere } = {}) {
-    if (!message?.id || !game.user?.isGM) return null;
+    if (!message?.id || !game.user?.isGM || raiseRunningClaim(message.id, say)) return null;
+    const kept = heldFromCard(message.id);
     let taken = await claim(message.id, "take");
+    if (kept && taken?.why === "busy" && taken.by === game.user.id) taken = { taken: true, by: game.user.id };
     if (!taken?.taken && taken?.why === "busy" && taken.by && taken.by !== game.user.id) {
         if (!(await ask(taken, message.id))) return null;
         taken = await claim(message.id, "takeover");

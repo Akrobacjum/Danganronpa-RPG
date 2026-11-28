@@ -4,8 +4,8 @@
  * The GM's browser's half of a take-over: the claims this browser rules under now and the windows each opened
  * (`startClaimRun`, `endClaimRun`, `claimLostHere`), the primary's word that another GM took one over and what it
  * closes (`onCardTakenOver`, `cardTakenOverHere`), the question a press on a card another GM holds asks
- * (`askTakeOver`), the answer to a press on a card this GM's own other window holds (`raiseOwnClaim`), and the card's
- * own Take over (`takeOverFromCard`). bridge-asks.mjs `claimCard` runs a claim through it; the primary's half is
+ * (`askTakeOver`), the answer to a press on a card this GM's own other window holds (`raiseOwnClaim`,
+ * `raiseRunningClaim`), and the card's own Take over (`takeOverFromCard`, `heldFromCard`). bridge-asks.mjs `claimCard` runs a claim through it; the primary's half is
  * call-gm.mjs `claimOnPrimary`.
  *
  * WHERE IT SITS. A file of its own and not part of bridge-asks.mjs, which it would have put past the split's 1500
@@ -15,7 +15,7 @@
 
 import { MODULE_ID } from "./config.mjs";
 import { debug, esc, localeFormat, primaryGmId } from "./utils.mjs";
-import { drpgWindow, tipText } from "./ui-kit.mjs";
+import { drpgWindow, tipText, KIT_CLASSES } from "./ui-kit.mjs";
 import { sayRefusedHere } from "./call-gm.mjs";
 import { ACTION_CARD_TAKEN } from "./bridge-wire.mjs";
 
@@ -25,9 +25,30 @@ import { ACTION_CARD_TAKEN } from "./bridge-wire.mjs";
  * card over, once the primary said so. In memory: a reload holds no claim's window, and the GM's own claims are let go
  * at its ready (call-gm.mjs `releaseOwnClaims`, CALLS-02). Two claims of this GM's at once each keep every window drawn
  * meanwhile, so a take-over of one closes the other's too: a case this does not tell apart (no claim names its window).
+ *
+ * ONLY THE KIT'S QUESTIONS ARE A CLAIM'S WINDOWS (2.0 line T2, CALLS-01, FIX-G2 T2-GOAL-01, 28.11.2026). Every
+ * ApplicationV2 first drawn while the claim ran was kept, so a take-over also closed a character sheet or a journal
+ * page the GM opened while the difficulty window waited, with any unsaved text in it; the spec of the line (2.1 point
+ * 3) closes "the decision window of that card". Every ruling of messenger-app.mjs `CARD_ACTIONS` that opens a window
+ * opens it through `drpgWindow`, a DialogV2 with the kit's classes (read 28.11.2026: the difficulty, an item's effect,
+ * Reply, the project, the murder, the trap's plant, the target's pick, the item tables, Give an item, a Key Remnant),
+ * so only those are kept (`claimsWindow`): a sheet, Foundry's own dialogs and the module's panels on the kit's frame
+ * (`DrpgApp`, not a DialogV2) are not. A kit question the GM opens elsewhere while the claim runs is still kept with it
+ * - the case this does not tell apart. R9115.
  */
 const runningClaims = new Map();
 let claimWindowsWatched = false;
+
+/*
+ * TAKEN FROM THE CARD, HELD WITH NO WINDOW (2.0 line T2, EXP-GM-05, FIX-G2 T2-GOAL-05, 28.11.2026). The cards this GM
+ * took over with the card's own Take over (`takeOverFromCard`) and has not pressed an answer on since: the claim stays
+ * this GM's, as the spec of the line says (2.1 point 4: Take over "only takes the claim over and closes A's window"),
+ * and this GM's next press rules under it (bridge-asks.mjs `claimCard`, through `heldFromCard`) where the primary
+ * answers it "busy" by this GM. Until FIX-G2 the claim was let go at once, so the GM taken over could take the card
+ * back before this GM pressed. Its hold runs from the take-over (call-gm.mjs `claimRanOut`). In memory: a reload
+ * holds no such claim (call-gm.mjs `releaseOwnClaims`). R9116.
+ */
+const keptFromCard = new Set();
 
 /** A claim of `messageId` begins to run here (bridge-asks.mjs `claimCard`): its record, which keeps its windows. */
 export function startClaimRun(messageId) {
@@ -37,19 +58,44 @@ export function startClaimRun(messageId) {
     return run;
 }
 
+/**
+ * When a claim of `messageId` already runs on this browser and has not been taken over, this GM is told so and that
+ * claim's window is brought to the front (`raiseOwnClaim`), and true is answered: bridge-asks.mjs `claimCard` asks the
+ * primary nothing then (2.0 line T2, CALLS-12, FIX-G2 T2-COR-02, 28.11.2026). The primary alone could not tell: once
+ * this GM's own claim had run out there (`claimRanOut`), a press on the card's other copy was a plain take of a free
+ * card, and a second window opened under one card - two rulings, and two lines on the card. R9117.
+ */
+export function raiseRunningClaim(messageId, say = sayRefusedHere) {
+    const run = runningClaims.get(messageId ?? "");
+    if (!run || run.lost) return false;
+    raiseOwnClaim(messageId, say);
+    return true;
+}
+
+/** Whether this GM took `messageId` over from the card's button and has not pressed it since (`keptFromCard`): read once. */
+export function heldFromCard(messageId) {
+    return keptFromCard.delete(messageId ?? "");
+}
+
 /** The claim `run` of `messageId` has ended here. */
 export function endClaimRun(messageId, run) {
     if (runningClaims.get(messageId) === run) runningClaims.delete(messageId);
 }
 
-/** Keep each window first drawn while a claim runs with that claim (`runningClaims`); once per browser. */
+/** Keep each kit question first drawn while a claim runs with that claim (`runningClaims`, `claimsWindow`); once per browser. */
 function watchClaimWindows() {
     if (claimWindowsWatched) return;
     claimWindowsWatched = true;
     Hooks.on("renderApplicationV2", (app, element, context, options) => {
-        if (!runningClaims.size || options?.isFirstRender === false) return;
+        if (!runningClaims.size || options?.isFirstRender === false || !claimsWindow(app)) return;
         for (const run of runningClaims.values()) if (!run.lost && !run.before.has(app?.id)) run.windows.add(app);
     });
+}
+
+/** Whether `app` is a window a ruling opens: a DialogV2 on the kit's frame (`drpgWindow`; above, T2-GOAL-01). */
+function claimsWindow(app) {
+    const DialogV2 = foundry.applications?.api?.DialogV2;
+    return Boolean(DialogV2 && app instanceof DialogV2 && app.options?.classes?.includes?.(KIT_CLASSES[0]));
 }
 
 /** Whether the claim this browser is ruling `messageId` under was taken over by another GM (CALLS-01): a ruling whose
@@ -62,8 +108,10 @@ export function claimLostHere(messageId) {
  * Another GM, `by`, has taken over the card this browser's claim was ruling (CALLS-01): its windows are closed, the claim
  * is marked lost, and this GM is told (`DRPG.Bridge.claimTakenOver`). The primary's own claim comes here with no packet
  * (call-gm.mjs `tellTakenOver`). Answers whether a claim of this card was running here. `say` is a test's (R9020).
+ * A claim taken from the card's button and held here with no window is no longer this GM's either (`keptFromCard`).
  */
 export function cardTakenOverHere(messageId, by, { say = sayRefusedHere } = {}) {
+    keptFromCard.delete(messageId ?? "");
     const run = runningClaims.get(messageId ?? "");
     if (!run || run.lost) return false;
     run.lost = by || "?";
@@ -138,10 +186,11 @@ export function raiseOwnClaim(messageId, say = sayRefusedHere) {
 
 /**
  * Take over from the card's own button (EXP-GM-05, 2.0 line T2, 27.11.2026; messenger-app.mjs `wireCallActions`): the
- * claim's "takeover" and, at once, its "drop" - the other GM's window closes and the card is free, and this GM presses
- * one of the card's answers as usual. A claim held here with no window open would hold the card in this GM's own name
- * (CALLS-12's answer to the next press), so none is kept. Answers whether the other GM's claim was ended. `claim` and
- * `say` are a test's (R9070).
+ * claim's "takeover" - the other GM's window closes and the card is this GM's, held here with no window
+ * (`keptFromCard`), and this GM presses one of the card's answers as usual, which rules under it. Until FIX-G2
+ * (T2-GOAL-05, 28.11.2026) the claim was let go at once ("drop"): a claim held with no window made the next press
+ * CALLS-12's "You already have this card's window open", which `heldFromCard` now tells apart. Answers whether the
+ * other GM's claim was ended. `claim` and `say` are a test's (R9070, R9116).
  */
 export async function takeOverFromCard(messageId, { claim = null, say = sayRefusedHere } = {}) {
     if (!messageId || !game.user?.isGM) return false;
@@ -152,6 +201,6 @@ export async function takeOverFromCard(messageId, { claim = null, say = sayRefus
         else if (taken?.why === "settled") say(game.i18n.localize("DRPG.Bridge.alreadySettled"));
         return false;
     }
-    await claim(messageId, "drop");
+    keptFromCard.add(messageId);
     return true;
 }

@@ -70182,7 +70182,8 @@ const INVARIANTS = [
         // The old holder's browser: a claim running here with a window drawn while it runs.
         const said = [];
         let finish;
-        const app = new foundry.applications.api.DialogV2({ window: { title: "R9020" }, content: "<p>R9020</p>", buttons: [{ action: "ok", label: "OK", default: true }] });
+        // On the kit, as every ruling's window: only those are a claim's since FIX-G2 (T2-GOAL-01, 28.11.2026).
+        const app = new foundry.applications.api.DialogV2({ classes: [...(await import("./ui-kit.mjs")).KIT_CLASSES], window: { title: "R9020" }, content: "<p>R9020</p>", buttons: [{ action: "ok", label: "OK", default: true }] });
         const claims = [];
         const claim = async (id, s) => { claims.push(s); return s === "take" ? { taken: true, by: ME } : { taken: true, by: ME }; };
         const running = A.claimCard({ id: "R9020RUNNINGCARD" }, async () => {
@@ -70280,7 +70281,7 @@ const INVARIANTS = [
         equal(stableJson(read), stableJson({ table: [true, false, true, false, false, false], order: [true, true, true, true], rulings: [true, true, true, true] }),
             "{table: claimedByAnother for [another GM's claim in memory, this GM's own, this GM's row asked by another, another's run out, nobody's, no card]; order: [the yes, the difficulty and the pick ask it before they take their ask; the pick answers takenOver]; rulings: [the difficulty, Reply and an item's effect read the lost mark; the mark is card-takeover.mjs claimLostHere]}");
     }],
-    ["R9070 - a press on a card another GM holds asks whether to take it over: bridge-asks.mjs `claimCard` answers a \"busy\" of another GM by asking this GM (card-takeover.mjs `askTakeOver`, naming the GM and since when; Cancel on the left and the default, Take over `data-action=\"take\"`), Cancel rules nothing and says nothing, and the question closes itself once that GM no longer holds the card; yes asks \"takeover\" and runs the ruling, a takeover the primary finds free is a take; an end the primary answers \"busy\" by another GM answers null; the card's own Take over (card-takeover.mjs `takeOverFromCard`) takes over and lets go at once (2.0 line T2, CALLS-01, EXP-GM-05, 27.11.2026)", async () => {
+    ["R9070 - a press on a card another GM holds asks whether to take it over: bridge-asks.mjs `claimCard` answers a \"busy\" of another GM by asking this GM (card-takeover.mjs `askTakeOver`, naming the GM and since when; Cancel on the left and the default, Take over `data-action=\"take\"`), Cancel rules nothing and says nothing, and the question closes itself once that GM no longer holds the card; yes asks \"takeover\" and runs the ruling, a takeover the primary finds free is a take; an end the primary answers \"busy\" by another GM answers null; the card's own Take over (card-takeover.mjs `takeOverFromCard`) takes over and keeps the claim, no \"drop\" (2.0 line T2, CALLS-01, EXP-GM-05, 27.11.2026; FIX-G2 T2-GOAL-05, 28.11.2026)", async () => {
         /* CALLS-01's GM B: until 2.0 a busy card said only `DRPG.Bridge.claimBusy`. S2 B1 on Forge presses, in a window it
            does not know, the first of yes, take, takeOver, takeover, confirm or ok, then expects the difficulty window: this
            question is that road. Driven with the claim's roads handed in; the window's shape read in the source. Red before
@@ -70313,7 +70314,7 @@ const INVARIANTS = [
             yes: { steps: ["take", "takeover", "done"], asked: [[true, 1234]], said: 0, worked: true, out: ["settled"] },
             free: { steps: ["take", "takeover", "take", "done"], asked: [[true, 1234]], said: 0, worked: true, out: ["settled"] },
             lostAtEnd: { steps: ["take", "done"], asked: [], said: 0, worked: true, out: null },
-            card: [true, ["takeover", "drop"]], window: [true, true, true, true, true, true]
+            card: [true, ["takeover"]], window: [true, true, true, true, true, true]
         }), "{cancel, yes, free: a card another GM holds - [the claim's steps asked, the question (another GM named, since when), notices, the ruling ran, what claimCard answered]; lostAtEnd: a ruling whose done the primary answers busy by another GM; card: the card's Take over [answered, its steps]; window: [Take over is data-action take, Cancel the default, Cancel's role, the question's words, naming the GM and the time, it closes itself once the GMs' row no longer says that GM holds the card]}");
     }],
     ["R9023 - every GM's copy of a card says who is ruling on it: messenger-app.mjs `paintClaimSign` draws in the card's answers' block, for a pending claim of another GM who is here, `DRPG.Bridge.claimedBy` naming that GM and the time and a Take over button, and nothing for this GM's own claim, one run out, a ruled row or none; `wireCallActions` draws it after a player's copy has lost the block, and draws it again when the GMs' `ruledCardStore` changes (2.0 line T2, EXP-GM-05, 27.11.2026)", async () => {
@@ -70364,7 +70365,8 @@ const INVARIANTS = [
         const A = await import("./bridge-asks.mjs");
         const ME = game.user.id;
         let finish;
-        const app = new foundry.applications.api.DialogV2({ window: { title: "R9024" }, content: "<p>R9024</p>", buttons: [{ action: "ok", label: "OK", default: true }] });
+        // On the kit, as every ruling's window: only those are a claim's since FIX-G2 (T2-GOAL-01, 28.11.2026).
+        const app = new foundry.applications.api.DialogV2({ classes: [...(await import("./ui-kit.mjs")).KIT_CLASSES], window: { title: "R9024" }, content: "<p>R9024</p>", buttons: [{ action: "ok", label: "OK", default: true }] });
         const first = A.claimCard({ id: "R9024CARDAAAAAAA" }, async () => {
             await app.render({ force: true });
             return new Promise(resolve => { finish = resolve; });
@@ -71191,6 +71193,193 @@ const INVARIANTS = [
         equal(stableJson({ cases, hooked: /Hooks\.on\("drpgPrimaryChanged", (\w+) => forgetClaimsOnPrimaryMove\(\1\)\);/.test(wire) }), stableJson({
             cases: [[[ONE, TWO], 0, false], [[], 2, true], [[], 2, true], [[], 2, true], [[ONE, TWO], 0, false], [[], 2, true]], hooked: true
         }), "cases: [the role moves from this GM to another; from another to this GM; the first reading; between two others; from this GM to nobody; no change] as [the cards let go, the claims left, the first card held]; hooked: registerGmBridge forgets on drpgPrimaryChanged");
+    }],
+    ["R9117 - a GM whose claim of a card already runs here is told so on a second press, and the primary is not asked: bridge-asks.mjs `claimCard` answers a press on a card whose claim runs on this browser (card-takeover.mjs `raiseRunningClaim`) with `DRPG.Bridge.claimOwnOpen` and that window brought to the front, before any step goes to the primary, so a claim of this GM's that has run out there (`claimRanOut`) opens no second window; a claim taken over meanwhile holds nothing here (2.0 line T2, CALLS-12, FIX-G2 T2-COR-02, 28.11.2026)", async () => {
+        /* T2-COR-02: once this GM's own claim ran out on the primary (120 s, `claimRanOut`), the primary read the card as
+           free, and a second press from the other copy of the card (the chat log's or the messenger's) was a plain take:
+           `from` was the GM itself, so nobody was told, and a second window opened under one card. Both could rule, and the
+           card got two lines. A first claim runs here with a kit window drawn under it; the second press is handed a
+           primary that grants the take, as one whose claim ran out does. Then the first claim is taken over by another
+           GM, and a third press asks the primary as usual. Red before the fix: the second press asked "take", ran its
+           ruling and answered it. */
+        const A = await import("./bridge-asks.mjs");
+        const T = await import("./card-takeover.mjs");
+        const { KIT_CLASSES } = await import("./ui-kit.mjs");
+        const ME = game.user.id, OTHER = "R9117OTHERGMAAAA", CARD = "R9117CARDAAAAAAA";
+        let finish;
+        const app = new foundry.applications.api.DialogV2({ classes: [...KIT_CLASSES], window: { title: "R9117" }, content: "<p>R9117</p>", buttons: [{ action: "ok", label: "OK", default: true }] });
+        const first = A.claimCard({ id: CARD }, async () => {
+            await app.render({ force: true });
+            return new Promise(resolve => { finish = resolve; });
+        }, { claim: async () => ({ taken: true, by: ME }), say: () => {} });
+        await until(() => app.rendered && typeof finish === "function", 3000);
+        let raised = 0;
+        const front = app.bringToFront;
+        app.bringToFront = function (...args) { raised++; return front?.apply(this, args); };
+        const press = async answer => {
+            const steps = [], said = [], asked = [];
+            let worked = false;
+            const out = await A.claimCard({ id: CARD }, async () => { worked = true; return { settled: "R9117" }; },
+                { claim: async (id, s) => { steps.push(s); return s === "take" ? answer : { taken: true, by: answer.by }; }, ask: async () => { asked.push(1); return false; }, say: t => said.push(t) });
+            return { out: out ? Object.keys(out) : null, steps, said, asked: asked.length, worked };
+        };
+        const read = {};
+        try {
+            read.ranOut = await press({ taken: true, by: ME });
+            read.raised = raised;
+            T.cardTakenOverHere(CARD, OTHER, { say: () => {} });
+            read.afterTakeover = await press({ taken: false, why: "busy", by: OTHER, at: 1 });
+        } finally {
+            finish?.(null);
+            await first;
+            if (app.rendered) await app.close();
+        }
+        equal(stableJson(read), stableJson({
+            ranOut: { out: null, steps: [], said: [game.i18n.localize("DRPG.Bridge.claimOwnOpen")], asked: 0, worked: false }, raised: 1,
+            afterTakeover: { out: null, steps: ["take"], said: [], asked: 1, worked: false }
+        }), "{ranOut: a second press while this GM's claim runs here and the primary would grant the take [what claimCard answered, the steps asked of the primary, notices, take-over questions, the ruling ran]; raised: the running claim's window brought to the front; afterTakeover: a press once another GM took that claim over}");
+    }],
+    ["R9116 - the card's own Take over keeps the claim for the GM who pressed it, and that GM's next press rules under it: card-takeover.mjs `takeOverFromCard` asks the claim's \"takeover\" alone, no \"drop\", and keeps the card as taken from the card on this browser; bridge-asks.mjs `claimCard` answers the primary's \"busy\" by this GM for such a card by running the ruling, once; a claim of this GM's not taken from the card is still CALLS-12's answer, and one taken over by a third GM meanwhile, or a take-over the primary refused, keeps nothing (2.0 line T2, EXP-GM-05, FIX-G2 T2-GOAL-05, 28.11.2026)", async () => {
+        /* T2-GOAL-05, the spec of the line 2.1 point 4: Take over on the card "only takes the claim over and closes A's
+           window"; B then presses an answer as usual. It asked "takeover" and at once "drop", so the card was left free,
+           and A could take it again before B pressed. Kept now: the claim is B's until B rules, lets go or it runs out
+           (`TIMING.claimHoldMs`). The claim's roads are handed in. Red before the fix: Take over asked ["takeover",
+           "drop"], and the next press read "You already have this card's window open" and ruled nothing. */
+        const A = await import("./bridge-asks.mjs");
+        const T = await import("./card-takeover.mjs");
+        const ME = game.user.id, OTHER = "R9116OTHERGMAAAA";
+        const take = async (card, answer = { taken: true, by: ME }) => {
+            const steps = [];
+            const ok = await T.takeOverFromCard(card, { claim: async (id, s) => { steps.push(s); return answer; }, say: () => {} });
+            return [ok, steps];
+        };
+        const press = async card => {
+            const steps = [], said = [];
+            let worked = 0;
+            const out = await A.claimCard({ id: card }, async () => { worked++; return { settled: "R9116" }; },
+                { claim: async (id, s) => { steps.push(s); return s === "take" ? { taken: false, why: "busy", by: ME, at: 1 } : { taken: true, by: ME }; }, ask: async () => true, say: t => said.push(t) });
+            return { out: out ? Object.keys(out) : null, steps, said: said.length, worked };
+        };
+        const own = { out: null, steps: ["take"], said: 1, worked: 0 };
+        const read = {};
+        read.card = await take("R9116CARDONEAAAA");
+        read.next = await press("R9116CARDONEAAAA");
+        read.again = await press("R9116CARDONEAAAA");
+        read.notFromCard = await press("R9116CARDTWOAAAA");
+        await take("R9116CARDTHREEAA");
+        T.cardTakenOverHere("R9116CARDTHREEAA", OTHER, { say: () => {} });
+        read.takenFromMe = await press("R9116CARDTHREEAA");
+        read.refused = (await take("R9116CARDFOURAAA", { taken: false, why: "ruled", by: OTHER }))[0];
+        read.afterRefused = await press("R9116CARDFOURAAA");
+        equal(stableJson(read), stableJson({
+            card: [true, ["takeover"]], next: { out: ["settled"], steps: ["take", "done"], said: 0, worked: 1 }, again: own, notFromCard: own,
+            takenFromMe: own, refused: false, afterRefused: own
+        }), "{card: Take over on the card [answered, the claim's steps]; next: the press after it, the primary answering busy by this GM [what claimCard answered, steps, notices, rulings run]; again: a second press after that; notFromCard: a press on a card this GM holds and did not take from the card; takenFromMe: one taken from the card and then over by a third GM; refused, afterRefused: a Take over the primary refused, and the press after it}");
+    }],
+    ["R9115 - a take-over closes the windows the claim's ruling opened, not every window this GM opened meanwhile: card-takeover.mjs keeps with a running claim only the kit's question windows (`drpgWindow`, a DialogV2 with the kit's classes), so a sheet, a journal or the module's own panels opened while the ruling's window stood open stay open when another GM takes the card over (2.0 line T2, CALLS-01, FIX-G2 T2-GOAL-01, 28.11.2026)", async () => {
+        /* T2-GOAL-01: every ApplicationV2 first drawn on this browser while a claim's ruling ran was kept with the claim,
+           and `cardTakenOverHere` closed them all: a GM who opened a character sheet or a journal page while the difficulty
+           window waited lost it, with any unsaved text, when another GM took the card over. The spec of the line (2.1
+           point 3) closes "the decision window of that card". Every ruling of messenger-app.mjs `CARD_ACTIONS` that opens
+           a window opens it through `drpgWindow` (read 28.11.2026: the difficulty, an item's effect, Reply, the project,
+           the murder, the trap's plant, the target's pick, the item tables, Give an item, a Key Remnant). Four windows
+           drawn under one claim: a kit question, a plain DialogV2, an ApplicationV2 standing in for a sheet, and a window
+           on the kit's frame that is no question (the GM panel's kind); then the claim is taken over. Red before the fix:
+           all four closed. */
+        const A = await import("./bridge-asks.mjs");
+        const T = await import("./card-takeover.mjs");
+        const K = await import("./ui-kit.mjs");
+        const { ApplicationV2, DialogV2 } = foundry.applications.api;
+        const CARD = "R9115CARDAAAAAAA";
+        class R9115Sheet extends ApplicationV2 {
+            async _renderHTML() { return "<p>R9115</p>"; }
+            _replaceHTML(result, content) { const box = content.querySelector?.(".window-content") ?? content; box.innerHTML = result; }
+        }
+        class R9115Panel extends K.DrpgApp() {
+            async _renderHTML() { return "<p>R9115 panel</p>"; }
+            _replaceHTML(result, content) { const box = content.querySelector?.(".window-content") ?? content; box.innerHTML = result; }
+        }
+        const button = [{ action: "ok", label: "OK", default: true }];
+        const wins = {
+            question: new DialogV2({ classes: [...K.KIT_CLASSES], window: { title: "R9115 question" }, content: "<p>R9115</p>", buttons: button }),
+            plainDialog: new DialogV2({ window: { title: "R9115 plain" }, content: "<p>R9115</p>", buttons: button }),
+            sheet: new R9115Sheet({ id: `r9115-sheet-${foundry.utils.randomID(6)}`, window: { title: "R9115 sheet" } }),
+            panel: new R9115Panel({ id: `drpg-r9115-panel-${foundry.utils.randomID(6)}`, window: { title: "R9115 panel" } })
+        };
+        let finish;
+        const claimed = A.claimCard({ id: CARD }, async () => {
+            for (const app of Object.values(wins)) await app.render({ force: true });
+            return new Promise(resolve => { finish = resolve; });
+        }, { claim: async () => ({ taken: true, by: game.user.id }), say: () => {} });
+        const read = {};
+        try {
+            await until(() => typeof finish === "function" && Object.values(wins).every(app => app.rendered), 3000);
+            read.drawn = Object.values(wins).every(app => app.rendered);
+            read.lost = T.cardTakenOverHere(CARD, "R9115OTHERGMAAAA", { say: () => {} });
+            await until(() => !wins.question.rendered, 3000);
+            await new Promise(resolve => setTimeout(resolve, 100));
+            read.open = Object.fromEntries(Object.entries(wins).map(([k, app]) => [k, app.rendered]));
+        } finally {
+            finish?.(null);
+            read.answered = await claimed;
+            for (const app of Object.values(wins)) if (app.rendered) await app.close().catch(() => null);
+        }
+        equal(stableJson(read), stableJson({ drawn: true, lost: true, open: { question: false, plainDialog: true, sheet: true, panel: true }, answered: null }),
+            "{drawn: the four windows drawn under the claim; lost: the take-over found the claim running; open: which stayed open after it [the kit's question, a DialogV2 not on the kit, a sheet's stand-in, a kit window that is no question]; answered: what the claim answered}");
+    }],
+    ["R9114 - a GM who rules from a window on an ask whose card has ended meanwhile is told nothing was sent: messenger-app.mjs `askNotHeld` warns `DRPG.Bridge.askNotHeld` for a card already settled - withdrawn by its player, ended by a reload or by its time - as for one that is not, and writes no second line on it (2.0 line T2, EXP-PL-12, CALLS-14, FIX-G2 T2-GOAL-04, 28.11.2026)", async () => {
+        /* T2-GOAL-04, the spec of the line 2.3 point 3: a GM's ruling made after the player withdrew goes into `askNotHeld`
+           (CALLS-14), which tells the GM "Nothing was sent.". EXP-PL-12 returned before the warning for a settled card, so
+           a GM whose difficulty window was open when the player withdrew pressed OK and saw nothing happen. On this
+           primary, Approve on a Call and Refuse on a Dynamic action pressed through `runCallAction` with an ask no primary
+           holds, on a stand-in card already settled and on one that is not (the primary answers at once, before any write,
+           as R8281 reads). Red before the fix: no notice for the settled card. */
+        const { isPrimaryGm } = await import("./utils.mjs");
+        must(isPrimaryGm(), "this browser is not the primary GM - the ask would travel, and this would measure nothing");
+        needs(world.atLeast("playerAccounts", 1), "an asker");
+        const M = await import("./messenger-app.mjs");
+        const player = game.users.find(u => !u.isGM);
+        const data = { rid: "R9114NoSuchAsk00", asker: player.id };
+        const card = settled => ({ id: settled ? "R9114CARDSETTLED" : "R9114CARDOPENAAA", flags: { [MODULE_ID]: settled ? { settled: true } : {} } });
+        const warns = [], realWarn = ui.notifications.warn;
+        ui.notifications.warn = text => { warns.push(String(text)); };
+        const notice = game.i18n.localize("DRPG.Bridge.askNotHeld");
+        const read = {};
+        try {
+            for (const settled of [true, false]) {
+                const row = [];
+                for (const action of ["approveCall", "refuseDynamic"]) {
+                    const before = warns.filter(w => w === notice).length;
+                    const out = await M.runCallAction(action, data, card(settled));
+                    row.push([out?.settled?.key ?? out, warns.filter(w => w === notice).length - before]);
+                }
+                read[settled ? "settled" : "open"] = row;
+            }
+        } finally {
+            ui.notifications.warn = realWarn;
+        }
+        equal(stableJson(read), stableJson({
+            settled: [[null, 1], [null, 1]], open: [["DRPG.Bridge.settledExpired", 1], ["DRPG.Bridge.settledExpired", 1]]
+        }), "{settled, open: on a card already settled and on one that is not, [Approve on a Call, Refuse on a Dynamic action] as [the card's new line, or null for none, the askNotHeld notices]}");
+    }],
+    ["R9113 - a card ended by its player's withdrawal reads in each reader's own language: secret.mjs `readersLines` writes `DRPG.Bridge.settledWithdrawn` again in this reader's words, as it does every end of an ask line T2 writes by key (`settledReloaded`, `settledUnconfirmed`) (2.0 line T2, EXP-PL-12, FIX-G2 T2-COR-05, 28.11.2026)", async () => {
+        /* T2-COR-05: ask-withdraw.mjs `withdrawnOnPrimary` ends the card with `settleCall(message, { key:
+           "DRPG.Bridge.settledWithdrawn" })`, written in the primary's language with the key in `data-drpg-line`, and
+           `readersLines` rewrites only the keys in `CARD_LINES`: a Polish player of an English primary read "Request
+           withdrawn.". Lines drawn as another language's primary wrote them, through `readersLines`, against this
+           reader's words; the keys the line's `settleCall` calls write, read in the sources. Red before the fix:
+           settledWithdrawn kept the primary's words. */
+        const S = await import("./secret.mjs");
+        const keys = ["DRPG.Bridge.settledWithdrawn", "DRPG.Bridge.settledReloaded", "DRPG.Bridge.settledUnconfirmed"];
+        const wrap = document.createElement("template");
+        wrap.innerHTML = keys.map(key => `<p class="drpg-call-settled" data-drpg-line="${key}" data-drpg-name="R9113 GM">R9113 the primary's words</p>`).join("");
+        S.readersLines(wrap.content);
+        const drawn = [...wrap.content.querySelectorAll("[data-drpg-line]")].map(el => el.textContent);
+        const sources = new Map(await moduleSources());
+        const written = ["ask-withdraw.mjs", "call-gm.mjs"].flatMap(file => [...stripComments(sources.get(file) ?? "").matchAll(/settleCall\([^;]*?key:\s*"(DRPG\.Bridge\.settled\w+)"/g)].map(m => m[1]));
+        equal(stableJson({ drawn, written: [...new Set(written)].sort().filter(key => keys.includes(key)) }), stableJson({
+            drawn: keys.map(key => game.i18n.format(key, { name: "R9113 GM" })), written: ["DRPG.Bridge.settledReloaded", "DRPG.Bridge.settledWithdrawn"]
+        }), "{drawn: [settledWithdrawn, settledReloaded, settledUnconfirmed] as a reader draws lines another language's primary wrote; written: line T2's ends of an ask settleCall writes by key, read in the sources}");
     }],
 ];
 
