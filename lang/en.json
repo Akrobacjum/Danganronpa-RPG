@@ -6442,7 +6442,12 @@
       "q4": "Am I open to a romance involving my character?",
       "q5": "Do I have any triggers?",
       "q6": "How do I plan to play? What are my goals?",
-      "q7": "I am planning to try: … (complex, game-changing projects)"
+      "q7": "I am planning to try: … (complex, game-changing projects)",
+      "privateTab": "My notes",
+      "privateTabTooltip": "Notes only you read. They stay on this computer, in this browser.",
+      "privateIntro": "Only you read these notes. They are saved on this computer, in this browser: another computer or browser does not have them, and no GM gets them.",
+      "privatePlaceholder": "Your theories, suspicions, and reminders",
+      "privateSaved": "Saved in this browser."
     },
     "Ready": {
       "titleNext": "The end of this time of day",

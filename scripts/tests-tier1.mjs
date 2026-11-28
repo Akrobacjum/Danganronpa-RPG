@@ -71082,6 +71082,39 @@ const INVARIANTS = [
         stableJson({ counts: [1, 0], whisper: [OTHER], escaped: true, flags: [true, true, true], gmOnly: true, notHere: true, roads: [true, true, true, 3] }),
         "{counts: cards sent [with another GM, with this GM alone]; whisper: who the card was for; escaped: the words, escaped; flags: [gmPopup, its title, toldGms]; gmOnly: a GM's browser alone sends it; notHere: no notice on its author's browser; roads: [the Truth Bullet's give, Apply's states, the hand's pool, the bar's three presses through correctPool]}");
     }],
+    ["R9067 - a player's own notes stay in this browser: messenger-app.mjs `privateNotesShown` draws My notes on a player's own window alone, never on a GM's or another player's; settings.mjs registers `privateNotes` with the scope \"client\", out of the settings window; `privateNoteKey` keeps one row a world and user; `privateNote`, `setPrivateNote` and the tab's builder read and write that setting and send nothing - no socket packet, no chat card, no note of the GMs - and a text over the Note's cap is not saved (2.0 line T2c, EXP-PL-09, 28.11.2026)", async () => {
+        /* F1-blind-player EXP-PL-09, E-PL-53: the Note is the GMs' to read and a player has no journals. The gate read for a
+           player's own thread, a GM's view of it and another player's; the setting's registration off Foundry's own
+           registry; the key; the three functions' sources held to no road off this browser; the cap with a stand-in setting
+           write (tier 1 writes nothing). Red at 0d3d4f2: no `privateNotesShown`. */
+        const A = await import("./messenger-app.mjs");
+        const { MAX_PLAYER_BYTES } = await import("./secret.mjs");
+        const shown = typeof A.privateNotesShown === "function" ? A.privateNotesShown : () => "missing";
+        const me = { id: "R9067Player00001", isGM: false }, gm = { id: "R9067Gm000000001", isGM: true };
+        const reg = game.settings.settings.get(`${MODULE_ID}.${SETTINGS.privateNotes ?? "privateNotes"}`) ?? null;
+        const src = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/messenger-app.mjs`).then(lfText));
+        // Each cut to its own closing brace: the kit's top-level cut runs on through the class that follows them.
+        const roads = ["export function privateNote(", "export async function setPrivateNote("].map(m => bodyOf(src, m, { until: "\n}\n" })).join("\n")
+            + bodyOf(src, "_buildPrivateNote() {", { until: "\n    }\n" });
+        const offBrowser = /socket\.emit|ChatMessage|postSecret|whisperTo|saveNote|bridgeRequest|requestNote|gmStore/.test(roads);
+        let wrote = 0;
+        const realSet = game.settings.set;
+        let tooLong = null;
+        try {
+            game.settings.set = async () => { wrote++; return null; };
+            tooLong = typeof A.setPrivateNote === "function" ? await A.setPrivateNote("x".repeat(MAX_PLAYER_BYTES + 1)) : "missing";
+        } finally {
+            game.settings.set = realSet;
+        }
+        equal(stableJson({ shown: [shown(me.id, { user: me }), shown(me.id, { user: gm }), shown("R9067Other000001", { user: me })],
+            setting: reg ? [reg.scope, reg.config ?? false] : null,
+            key: typeof A.privateNoteKey === "function" ? A.privateNoteKey("w1", "u1") : null,
+            offBrowser, tooLong, wrote,
+            tab: /\.\.\.\(privateNotesShown\(this\.playerUserId\)/.test(bodyOf(src, "_buildTabs(context) {", { until: "\n    }\n" })) }),
+        stableJson({ shown: [true, false, false], setting: ["client", false], key: "w1.u1", offBrowser: false, tooLong: false, wrote: 0, tab: true }),
+        "{shown: My notes on [a player's own window, a GM's view of it, another player's thread]; setting: [its scope, in the settings window]; key: the row of a world and user; offBrowser: the notes' roads reach past this browser; tooLong: a text over the cap saved; wrote: writes made for it; tab: the tab bar draws My notes by the gate}");
+        ok(["DRPG.Note.privateTab", "DRPG.Note.privateIntro", "DRPG.Note.privateSaved"].every(k => game.i18n.localize(k) !== k), "the tab's keys have words");
+    }],
 ];
 
 /**

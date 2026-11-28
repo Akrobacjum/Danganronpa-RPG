@@ -12990,7 +12990,8 @@ const REGRESSIONS = [
             "gm-items.mjs": [4, "Give's description, a Truth Bullet's texts, the autopsy's two"],
             // 16 since E104 (the 1.2.112 tree): a planned Remnant's, Final Truth's and Truth Bullet's three each, the case map's node editor.
             "investigation.mjs": [16, "the Remnants table's text and analysis, the Key tab's two, the case map's node text, a planned Autopsy node's player text and GM note, a planned Remnant's, Final Truth's and Truth Bullet's words, analysis and note (the dashboard)"],
-            "messenger-app.mjs": [3, "the messenger's input and note, a GM's ruling reply"],
+            // 4 since 2.0 line T2c, EXP-PL-09 (28.11.2026): a player's My notes, in the messenger's own window as the Note's is.
+            "messenger-app.mjs": [4, "the messenger's input, note and a player's My notes, a GM's ruling reply"],
             "observe.mjs": [3, "a critical's hint, a find's description and its analysed text (Observe's kit window)"],
             "projects-ui.mjs": [1, "a project's description"],
             "remnant-ring.mjs": [2, "the GM's Remnant card, in the trace's actor sheet"],

@@ -6897,7 +6897,12 @@
       "q4": "Czy zgadzam się na wątek romansowy z udziałem mojej postaci?",
       "q5": "Czy mam jakieś triggery?",
       "q6": "Jak planuję grać? Jakie mam cele?",
-      "q7": "Planuję spróbować: … (złożone projekty zmieniające grę)"
+      "q7": "Planuję spróbować: … (złożone projekty zmieniające grę)",
+      "privateTab": "Moje notatki",
+      "privateTabTooltip": "Notatki, które czytasz tylko ty. Zostają na tym komputerze, w tej przeglądarce.",
+      "privateIntro": "Te notatki czytasz tylko ty. Zostają na tym komputerze, w tej przeglądarce: nie ma ich na innym komputerze ani w innej przeglądarce i nie dostaje ich żaden GM.",
+      "privatePlaceholder": "Twoje teorie, podejrzenia i przypomnienia",
+      "privateSaved": "Zapisano w tej przeglądarce."
     },
     "Ready": {
       "titleNext": "Koniec tej pory dnia",

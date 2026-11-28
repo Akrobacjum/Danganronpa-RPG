@@ -119629,6 +119629,55 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             stableJson({ cards: Array(n).fill([true, true, true]), said: [true, true, true, true], corner: 0, poolBack: true, pressed: true }),
             "{cards: each card told [to the other GM alone, gmPopup, names this GM]; said: [the Truth Bullet, Dead, Alive, the pool]; corner: notices of them drawn here; poolBack: the pool as before; pressed: the pool was pressed}");
     }],
+    ["E132 T2c EXP-PL-09 - a player's private note is kept on this browser and reaches no GM: My notes' box, typed in, saves itself into this browser's `privateNotes` setting under this world and user and nowhere else - no socket packet, no chat message, no world setting written - and is read back; a text over the Note's cap is not saved and says so; the setting is put back (messenger-app.mjs `_buildPrivateNote`, `setPrivateNote`; 2.0 line T2c, EXP-PL-09, 28.11.2026)", async () => {
+        /*
+         * F1-blind-player EXP-PL-09, E-PL-53. The tab is a player's own window's (R9067 reads the gate); the suite runs on a
+         * GM's page, so the box is drawn by the window's own builder (`_buildPrivateNote`, called on the class's prototype
+         * with no window) and typed into as a player types: `input` events, then the save's wait. Every road off this page
+         * is watched while it runs: `game.socket.emit`, chat messages created, world settings written. The setting is put
+         * back in the `finally`. Red at 0d3d4f2: no builder.
+         */
+        const A = await import("./messenger-app.mjs");
+        must(typeof A.DrpgMessengerApp?.prototype?._buildPrivateNote === "function", "the window has no My notes builder - nothing to measure");
+        const { MAX_PLAYER_BYTES } = await import("./secret.mjs");
+        const key = `${MODULE_ID}.${SETTINGS.privateNotes}`;
+        const was = foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS.privateNotes) ?? {});
+        const socket = game.socket, ownEmit = Object.getOwnPropertyDescriptor(socket, "emit"), realEmit = socket.emit;
+        const emitted = [], created = [], worldWrites = [];
+        const onCreate = Hooks.on("createChatMessage", m => created.push(m.id));
+        const onSetting = Hooks.on("updateSetting", s => { if (String(s?.key ?? "").startsWith(MODULE_ID)) worldWrites.push(s.key); });
+        const onCreateSetting = Hooks.on("createSetting", s => { if (String(s?.key ?? "").startsWith(MODULE_ID)) worldWrites.push(s.key); });
+        const read = {};
+        try {
+            socket.emit = function (event, payload, ...rest) { if (event === `module.${MODULE_ID}`) emitted.push(payload?.action ?? "?"); return realEmit.call(this, event, payload, ...rest); };
+            const box = A.DrpgMessengerApp.prototype._buildPrivateNote.call({});
+            document.body.append(box);
+            const area = box.querySelector("textarea");
+            const status = box.querySelector(".drpg-messenger-note-status");
+            area.value = "E132 T2c my suspicion: the library";
+            area.dispatchEvent(new Event("input"));
+            await until(() => A.privateNote() === "E132 T2c my suspicion: the library", 3000).catch(() => {});
+            read.kept = A.privateNote();
+            read.row = Object.keys(game.settings.get(MODULE_ID, SETTINGS.privateNotes) ?? {}).includes(A.privateNoteKey());
+            read.status = status.textContent;
+            area.value = "x".repeat(MAX_PLAYER_BYTES + 1);
+            area.dispatchEvent(new Event("change"));
+            await until(() => status.textContent !== read.status, 2000).catch(() => {});
+            read.tooLong = [A.privateNote() === read.kept, status.textContent === game.i18n.format("DRPG.Note.tooLong", { kb: MAX_PLAYER_BYTES / 1024 })];
+            box.remove();
+            await settle();
+            read.roads = { emitted, created: created.length, worldWrites: worldWrites.filter(k => k !== key) };
+        } finally {
+            if (ownEmit) Object.defineProperty(socket, "emit", ownEmit); else delete socket.emit;
+            Hooks.off("createChatMessage", onCreate);
+            Hooks.off("updateSetting", onSetting);
+            Hooks.off("createSetting", onCreateSetting);
+            await game.settings.set(MODULE_ID, SETTINGS.privateNotes, was);
+        }
+        equal(stableJson(read), stableJson({ kept: "E132 T2c my suspicion: the library", row: true, status: game.i18n.localize("DRPG.Note.privateSaved"),
+            tooLong: [true, true], roads: { emitted: [], created: 0, worldWrites: [] } }),
+        "{kept: the notes read back; row: kept under this world and user; status: the box's line after the save; tooLong: [the last notes kept, the line says why] over the cap; roads: [module packets sent, chat messages made, world settings written] while it ran}");
+    }],
 ];
 
 // `drawnForPlayer` for the grid (E33 C7): a drawn crisis roll goes through the suite's one road to a draw (tests-grid.mjs `drawnAct`).
