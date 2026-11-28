@@ -50,6 +50,9 @@
  *   TAKE  2.0 line T2, CALLS-01 and EXP-GM-05 (27.11.2026): gm holds p1's card open in its Reply window; gm2's copy names
  *      gm as ruling on it (TAKE1); gm2's press asks to take it over and Take over opens gm2's window while gm's closes, gm
  *      told (TAKE2); the card is ruled once, by gm2 (TAKE3).
+ *   FLOG  2.0 line T2, PRIM-08 (28.11.2026): the Debug log opened from each GM's panel; gm2's says above its rows that
+ *      the table's automation and the requests passed to the primary are in the primary's log, naming gm, and gm's, the
+ *      primary's own, says nothing of it (FLOG1).
  *
  * What this cannot see: a real F5 (a new process with the old localStorage, no cookie, IndexedDB or cache; the
  * order of "inactive", "active" and `ready` on v14 is LIVE-E30-05 and LIVE-E04-12), and a real server's delivery
@@ -1415,6 +1418,46 @@ export async function run(api) {
     check("TAKE3: the card is ruled once, by gm2: one line of gm2's words in p1's thread, the row gm2's and ruled, the card's line gm2's, no sign on either GM and no window left (2.0 line T2, CALLS-01)",
         takeEnd.lines === 1 && J(takeEnd.gm.row) === J([GM2, false]) && takeEnd.gm.line === true && takeAfter.lines === 1
             && takeAfter.gm === null && takeAfter.gm2 === null && J(takeAfter.windows) === J({ gm: 0, gm2: 0 }), J({ takeEnd, takeAfter, answered }), { flow: "messenger" });
+
+    /* ------------------------------------------------------------------ FLOG */
+    /* 2.0 line T2, PRIM-08 (28.11.2026; F1-infra PRIM-08): the Debug log is each browser's own, and what the table's
+       automation and the requests passed to the primary fail at is written on the primary's, so a second GM's log said
+       nothing and did not say where to look. On each GM, with its windows drawn as a person sees them (`__dialogWindows`):
+       the GM panel opened, its Debug log tile pressed (the road a GM takes; the tile is in the collapsed Diagnostics
+       section), and the log's live region read - its hint line (gm-panel.mjs `failureLogElsewhereHtml`): whose id it
+       carries, whether its words are this GM's `DRPG.Failures.elsewhere` naming the primary, and whether it stands first,
+       above the rows. Both windows closed after. Red at da50eca: gm2's log drew no such line. */
+    phase("FLOG a second GM's Debug log says the rest is the primary's");
+    const FLOG_READ = `globalThis.__t2FlogWas = globalThis.__dialogWindows; globalThis.__dialogWindows = true;
+        const drawn = cls => [...foundry.applications.instances.values()].filter(a => a?.rendered && a.element?.isConnected && a.options?.classes?.includes(cls));
+        const poll = async (read, ms) => { const end = Date.now() + ms; let v = read(); while (!v && Date.now() < end) { await new Promise(r => setTimeout(r, 100)); v = read(); } return v; };
+        const P = ${imp("gm-panel.mjs")};
+        const opening = Promise.resolve().then(() => P.openGmPanel()).catch(() => null);
+        let out = null;
+        try {
+            const tile = await poll(() => drawn("drpg-window-panel")[0]?.element?.querySelector('[data-drpg-run="failureLog"]') ?? null, 6000);
+            tile?.click();
+            const log = await poll(() => drawn("drpg-window-failures")[0] ?? null, 4000);
+            const live = log?.element?.querySelector(".drpg-failure-live") ?? null;
+            const hint = live?.querySelector(".drpg-failure-elsewhere") ?? null;
+            const primary = game.users.get("${IDS.gm}")?.name ?? "?";
+            out = { tile: Boolean(tile), log: Boolean(live), hint: hint ? { id: hint.dataset.drpgPrimary ?? null,
+                words: hint.textContent.trim() === game.i18n.format("DRPG.Failures.elsewhere", { name: primary }), first: live.firstElementChild === hint } : null };
+        } finally {
+            for (const app of drawn("drpg-window-failures")) await app.close();
+            await poll(() => drawn("drpg-window-panel")[0] ?? null, 2000);
+            for (const app of drawn("drpg-window-panel")) await app.close();
+            await Promise.race([opening, new Promise(r => setTimeout(r, 3000))]);
+            globalThis.__dialogWindows = globalThis.__t2FlogWas; delete globalThis.__t2FlogWas;
+        }
+        return out;`;
+    const flogOn = await primaryOn();
+    const flog = { gm2: await gm2.eval(FLOG_READ, { timeout: 30000 }), gm: await gm.eval(FLOG_READ, { timeout: 30000 }) };
+    await settle(600);
+    check("FLOG1: gm2's Debug log, opened from its panel, says first in its live region that the table's automation and the requests passed to the primary are in the primary's log, naming gm; gm's, the primary's own, says nothing of it (2.0 line T2, PRIM-08)",
+        flogOn.gm === IDS.gm && flogOn.gm2 === IDS.gm
+            && J(flog) === J({ gm2: { tile: true, log: true, hint: { id: IDS.gm, words: true, first: true } }, gm: { tile: true, log: true, hint: null } }),
+        J({ flogOn, flog }));
 
     return { primary: { before, joined, afterGmReload, moved, backAgain }, reloads: { p1: r1, gm: r2, card: r3 },
         d153: { before: gBefore, onGm: gAfter, onGm2: gAfter2, found: gFound, gave: gGave } };

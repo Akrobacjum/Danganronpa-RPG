@@ -6865,7 +6865,8 @@
       "cleared": "The debug log on this browser is now empty.",
       "copy": "Copy to clipboard",
       "copied": "Debug log copied. Paste it (Ctrl+V) wherever it needs to go.",
-      "copyFailed": "This browser did not let the text be copied to the clipboard. Nothing was copied."
+      "copyFailed": "This browser did not let the text be copied to the clipboard. Nothing was copied.",
+      "elsewhere": "Entries for the table's automation and refusals of requests passed to the primary GM are in the primary GM's Debug log. The primary GM is {name}."
     },
     "Fog": {
       "scenesPrepared": {

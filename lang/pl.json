@@ -7405,7 +7405,8 @@
       "cleared": "Debug log w tej przeglądarce jest teraz pusty.",
       "copy": "Kopiuj do schowka",
       "copied": "Dziennik jest w schowku. Wklej go (Ctrl+V) tam, gdzie ma trafić.",
-      "copyFailed": "Ta przeglądarka nie pozwoliła skopiować tekstu do schowka. Nic nie zostało skopiowane."
+      "copyFailed": "Ta przeglądarka nie pozwoliła skopiować tekstu do schowka. Nic nie zostało skopiowane.",
+      "elsewhere": "Wpisy automatyki stołu i odmowy próśb przekazanych głównemu GM-owi są w Dzienniku debugowania głównego GM-a. Głównym GM-em jest {name}."
     },
     "Fog": {
       "scenesPrepared": {

@@ -765,8 +765,9 @@ async function openFailureLog() {
        while the GM read the log - a new row, a count rising - showed only on a reopen, and Copy copied the rows of the
        open. utils.mjs `record` fires no hook (a hook inside the error road could fail into it again), so the window
        reads the log twice a second while it stands and redraws its list when what it would print has changed; Copy
-       reads the log at the press. */
-    const signature = () => JSON.stringify([sessionFailuresDropped(), sessionFailures().map(r => [r.at, r.count, r.message])]);
+       reads the log at the press. The primary GM is part of what it prints since PRIM-08 (the line above the rows, below),
+       so a move of the role while the log stands redraws it too. */
+    const signature = () => JSON.stringify([primaryGmId(), sessionFailuresDropped(), sessionFailures().map(r => [r.at, r.count, r.message])]);
 
     // On the kit (E21 C2b): Close the default, Copy secondary, and Clear the log destructive - it throws away what
     // this browser kept, and nothing brings it back (E22, A4).
@@ -776,7 +777,7 @@ async function openFailureLog() {
         width: "wide",
         body: `<div>
             <p class="notes">${esc(game.i18n.localize("DRPG.Failures.intro"))}</p>
-            <div class="drpg-failure-live">${head(dropped, rows.length)}${listOf(rows)}</div>
+            <div class="drpg-failure-live">${failureLogElsewhereHtml()}${head(dropped, rows.length)}${listOf(rows)}</div>
         </div>`,
         footer: {
             close: { role: "close", action: "close" },
@@ -813,7 +814,7 @@ async function openFailureLog() {
                 if (now === seen) return;
                 seen = now;
                 const fresh = sessionFailures();
-                region.innerHTML = `${head(sessionFailuresDropped(), fresh.length)}${listOf(fresh)}`;
+                region.innerHTML = `${failureLogElsewhereHtml()}${head(sessionFailuresDropped(), fresh.length)}${listOf(fresh)}`;
                 showButtons(fresh.length);
             }, 500);
         },
@@ -859,6 +860,22 @@ async function openFailureLog() {
         clearSessionFailures();
         ui.notifications.info(game.i18n.localize("DRPG.Failures.cleared"));
     }
+}
+
+/**
+ * WHERE THE REST OF THE LOG IS (2.0 line T2, PRIM-08, 28.11.2026; F1-infra PRIM-08, TRIAGE-3: a hint). The Debug log is
+ * this browser's alone (`openFailureLog`, above), and what the table's automation fails at - the voice, the players'
+ * rolls, the sheet audit - and the refusals of requests handed to the primary GM are written on the primary's browser,
+ * so a second GM who opened its own log after "it did nothing" found no row and nothing said where to look. On a GM who
+ * is not the primary the log says so above its rows, naming the primary (`DRPG.Failures.elsewhere`); on the primary's
+ * own log, and with no primary to name, nothing. Drawn at the open and at each redraw of the log's live region, whose
+ * signature reads the primary, so the line follows a move of the role while the log stands. Not in the Copy text, which
+ * is this browser's rows for whoever debugs them. Exported for R9058; the arguments are the suite's stand-ins.
+ */
+export function failureLogElsewhereHtml({ id = primaryGmId(), me = game.user?.id, users = game.users } = {}) {
+    if (!id || id === me) return "";
+    const name = users?.get?.(id)?.name ?? "?";
+    return `<p class="notes drpg-failure-elsewhere" data-drpg-primary="${esc(id)}">${esc(game.i18n.format("DRPG.Failures.elsewhere", { name }))}</p>`;
 }
 
 /**

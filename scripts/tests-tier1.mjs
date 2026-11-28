@@ -71012,6 +71012,44 @@ const INVARIANTS = [
             wired: [true, true]
         }), "runs: healthOnPrimaryChange [the role came to this GM, the first reading named this GM, the role left this GM, it moved between two others, it came to this GM before the check at load, no change, to nobody] x [checks run, its answer]; wired: [registerCaseHealth hangs it on drpgPrimaryChanged, the check at load marks that it ran before it runs]");
     }],
+    ["R9058 - the Debug log of a GM who is not the primary says above its rows where the rest is: gm-panel.mjs `failureLogElsewhereHtml` draws `DRPG.Failures.elsewhere` naming the primary GM when another GM is the primary, and nothing on the primary's own log or with no primary; `openFailureLog` puts it first in the log's live region, at the open and at each redraw, and redraws when the primary moves (2.0 line T2, PRIM-08, 28.11.2026)", async () => {
+        /* F1-infra PRIM-08 (TRIAGE-3: a hint): the log is this browser's alone, and the table's automation (the voice, the
+           players' rolls, the sheet audit) and the refusals of requests handed to the primary land in the primary's log,
+           so a second GM who opened its own found nothing and was not told where to look; handbook 20.7 sent it to "the
+           Debug log on that GM's browser". Driven on stand-in users (another GM the primary, this GM, nobody), then the
+           defaults on this browser, whose answer follows its own role; the window's two drawing places are read in the
+           source (`openFailureLog` is not exported), and scenario 97's FLOG opens the real window on a second GM. Red
+           before PRIM-08: there is no `failureLogElsewhereHtml`, no key, and the window draws nothing of it. */
+        const P = await import("./gm-panel.mjs");
+        const U = await import("./utils.mjs");
+        const draw = typeof P.failureLogElsewhereHtml === "function" ? P.failureLogElsewhereHtml : () => "missing";
+        const ME = { id: "R9058MeMeMeMeMeM", name: "R9058 Me" }, OTHER = { id: "R9058OtherOtherO", name: "R9058 Primary" };
+        const users = { get: id => [ME, OTHER].find(u => u.id === id) };
+        const read = html => {
+            if (typeof html !== "string") return "not text";
+            if (html === "" || html === "missing") return html;
+            const root = document.createElement("div");
+            root.innerHTML = html;
+            const p = root.querySelector("p.drpg-failure-elsewhere");
+            return p && root.children.length === 1 ? { id: p.dataset.drpgPrimary ?? null, text: p.textContent.trim() } : "other markup";
+        };
+        const cases = [draw({ id: OTHER.id, me: ME.id, users }), draw({ id: ME.id, me: ME.id, users }), draw({ id: null, me: ME.id, users })].map(read);
+        const primary = U.primaryGmId();
+        const here = read(draw());
+        const src = await fetch(`/modules/${MODULE_ID}/scripts/gm-panel.mjs`).then(lfText).then(stripComments);
+        const log = /async function openFailureLog\(/.test(src) ? fnSource(src, "openFailureLog") : "";
+        const words = game.i18n.format("DRPG.Failures.elsewhere", { name: OTHER.name });
+        equal(stableJson({ cases, here, wired: [
+            /<div class="drpg-failure-live">\$\{failureLogElsewhereHtml\(\)\}\$\{head\(/.test(log),
+            /region\.innerHTML = `\$\{failureLogElsewhereHtml\(\)\}\$\{head\(/.test(log),
+            /const signature = \(\) => JSON\.stringify\(\[primaryGmId\(\), /.test(log)
+        ] }), stableJson({
+            cases: [{ id: OTHER.id, text: words }, "", ""],
+            here: primary && primary !== game.user.id ? { id: primary, text: game.i18n.format("DRPG.Failures.elsewhere", { name: game.users.get(primary)?.name ?? "?" }) } : "",
+            wired: [true, true, true]
+        }), "cases: failureLogElsewhereHtml [another GM the primary, this GM the primary, no primary] as {the primary's id, the words}; here: the defaults on this browser; wired: [the open draws it first in the live region, the redraw too, the redraw's signature reads the primary]");
+        ok(!words.startsWith("DRPG.") && words.includes(OTHER.name), "the hint's key has words and names the primary");
+    }],
 ];
 
 /**
