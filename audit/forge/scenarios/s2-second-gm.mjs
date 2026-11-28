@@ -30,9 +30,10 @@
  *   H  TRIAL-04 only to the offer: sec asks for the season's reset (season-wipe.mjs `resetSeason`); a window is offered on
  *      sec (2.0) or sec is refused (1.2.129). Every window drawn on either GM in this phase is closed by the kit 0.3 s
  *      after it is drawn, its buttons never pressed: the reset needs its word typed and is never run.
- *   I  DAY-01: the clock set to Night; sec writes the morning line (the client setting `morningLineDraft` on sec's
- *      browser, as Edit campaign keeps it), prim moves the clock to the next morning (clock.mjs `advanceTimeOfDay`, the
- *      call the panel's Next makes after its round): every page's clock carries sec's line.
+ *   I  DAY-01: the clock set to Night; sec writes the morning line (`game.drpg.setMorningLine`, the GMs' one line, as
+ *      Edit campaign keeps it since 2.0 line T2b; on a build without it the client setting `morningLineDraft` on sec's
+ *      browser, as 1.2.129 kept it), prim moves the clock to the next morning (clock.mjs `advanceTimeOfDay`, the call the
+ *      panel's Next makes after its round): every page's clock carries sec's line.
  *   J  EXP-GM-01, PRIM-01: on each GM, with the GM panel and the Students window opened: who is connected is shown,
  *      and who the primary GM is.
  *   Z  the clock, the pause and the windows put back.
@@ -391,11 +392,15 @@ export async function run(ctx) {
     /* ------------------------------------------------------------------ I */
     await step(ctx, "I DAY-01 the morning line written on the second GM", ["DAY-01"], async () => {
         const line = runTag("S2I-morning line written on the second GM");
-        const drafts = await inPage(ctx, prim, `const was = game.settings.get("danganronpa-rpg", "morningLineDraft") ?? "";
-            await game.settings.set("danganronpa-rpg", "morningLineDraft", "");
+        // The GMs' line through the API since 2.0 line T2b (DAY-01); the client setting on a build without it (1.2.129).
+        const GET_LINE = `String((typeof game.drpg.morningLine === "function" ? game.drpg.morningLine().text : game.settings.get("danganronpa-rpg", "morningLineDraft")) ?? "")`;
+        const SET_LINE = text => `if (typeof game.drpg.setMorningLine === "function") await game.drpg.setMorningLine(${J(text)});
+            else await game.settings.set("danganronpa-rpg", "morningLineDraft", ${J(text)});`;
+        const drafts = await inPage(ctx, prim, `const was = ${GET_LINE};
+            ${SET_LINE("")}
             await game.drpg.setClock({ timeOfDay: "night" });
             return { primDraft: was, clock: game.drpg.getClock().timeOfDay };`);
-        await inPage(ctx, sec, `await game.settings.set("danganronpa-rpg", "morningLineDraft", ${J(line)}); return true;`);
+        await inPage(ctx, sec, `${SET_LINE(line)} return true;`);
         await settle(1500);
         const tag = runTag("S2I-advance");
         await inPage(ctx, prim, `fk.track(${J(tag)}, game.drpg.advanceTimeOfDay({ resetActions: true })); return true;`);
@@ -405,12 +410,12 @@ export async function run(ctx) {
             read[role] = await poll(() => inPage(ctx, role, `const c = game.drpg.getClock(); return { timeOfDay: c.timeOfDay, day: c.day, morningLine: c.morningLine ?? null };`),
                 v => v?.timeOfDay === "morning", { timeout: 30_000 });
         }
-        const leftOnSec = await inPage(ctx, sec, `return game.settings.get("danganronpa-rpg", "morningLineDraft") ?? "";`);
+        const leftOnSec = await inPage(ctx, sec, `return ${GET_LINE};`);
         check("I1: the morning line the second GM wrote is the one the next morning shows on every page, when the primary moves the clock",
             meta.roles.every(r => read[r]?.timeOfDay === "morning" && String(read[r].morningLine ?? "").includes(line)),
             J({ drafts, done: done?.done ?? false, read, leftOnSec }), { ids: ["DAY-01"] });
-        await inPage(ctx, sec, `await game.settings.set("danganronpa-rpg", "morningLineDraft", ""); return true;`);
-        await inPage(ctx, prim, `await game.settings.set("danganronpa-rpg", "morningLineDraft", ${J(drafts.primDraft ?? "")}); return true;`);
+        await inPage(ctx, sec, `${SET_LINE("")} return true;`);
+        await inPage(ctx, prim, `${SET_LINE(drafts.primDraft ?? "")} return true;`);
         await restore(ctx, prim, { ...before, paused: false });
     });
 

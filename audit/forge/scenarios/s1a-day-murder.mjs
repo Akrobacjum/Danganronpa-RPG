@@ -57,7 +57,8 @@
  * WHAT IT WRITES (all in the test world; the note "what this run wrote" lists it): tokens created and moved; the pause;
  * the clock (one time of day, then to Night, the Morning Eclipse and its end); P3's and P4's actions where refilled;
  * two Dynamic actions and their cards; one Direct Murder declaration; up to six incidents with their cards, masks and
- * whispers; P3 marked dead; GM1's and GM2's client setting `morningLineDraft` (their browsers' storage), put back.
+ * whispers; P3 marked dead; the GMs' next morning's line (`game.drpg.setMorningLine` since 2.0 line T2b, DAY-01; on a
+ * build without it GM1's and GM2's client setting `morningLineDraft`, their browsers' storage), put back.
  *
  * UNMEASURED - ASSUMPTIONS NOT CONFIRMED ON FORGE (read in the code, never run there):
  *   - that `import()` of the module's files from the URL the browser loaded them from answers the module's own
@@ -86,6 +87,11 @@ export const meta = {
 };
 
 const RUN = Date.now().toString(36);
+/* The next morning's line (DAY-01): the GMs' one line through the API since 2.0 line T2b; each GM's client setting
+   `morningLineDraft` on a build without it (1.2.129). Read and written on the page, where `F` is the kit's. */
+const GET_LINE = `String((typeof game.drpg.morningLine === "function" ? game.drpg.morningLine().text : game.settings.get(F.MOD, "morningLineDraft")) ?? "")`;
+const SET_LINE = text => `if (typeof game.drpg.setMorningLine === "function") await game.drpg.setMorningLine(${J(text)});
+    else await game.settings.set(F.MOD, "morningLineDraft", ${J(text)});`;
 const OPENINGS = 3;
 
 export async function run(ctx) {
@@ -192,11 +198,11 @@ export async function run(ctx) {
         // ---------------------------------------------------------------- eclipse
         phase("eclipse");
         const LINE = `S1A ${RUN}: the fountain has been switched off overnight`;
-        drafts.gm1 = await K.on("gm1", `try { return String(game.settings.get(F.MOD, "morningLineDraft") ?? ""); } catch { return ""; }`);
-        drafts.gm2 = await K.on("gm2", `try { return String(game.settings.get(F.MOD, "morningLineDraft") ?? ""); } catch { return ""; }`);
-        await K.on("gm2", `await game.settings.set(F.MOD, "morningLineDraft", ""); return true;`);
-        await K.on("gm1", `await game.settings.set(F.MOD, "morningLineDraft", ${J(LINE)}); return true;`);
-        wrote.push("GM1's morning line draft written; GM2's emptied (both put back at the end)");
+        drafts.gm1 = await K.on("gm1", `try { return ${GET_LINE}; } catch { return ""; }`);
+        drafts.gm2 = await K.on("gm2", `try { return ${GET_LINE}; } catch { return ""; }`);
+        await K.on("gm2", `${SET_LINE("")} return true;`);
+        await K.on("gm1", `${SET_LINE(LINE)} return true;`);
+        wrote.push("GM1 wrote the next morning's line (the GMs' one line; on a build without it GM1's draft, GM2's emptied); put back at the end");
         const started = await K.on("gm2", `const r = await game.drpg.startEclipse(); await F.sleep(1500); return { r: F.safe(r), eclipse: game.drpg.isEclipse(), clock: F.safe(game.drpg.getClock()) };`, { timeout: 90_000 });
         wrote.push("GM2 started the Morning Eclipse");
         if (!started.eclipse) throw new Error(`GM2's Morning Eclipse did not start: ${J(started)}`);
@@ -331,8 +337,9 @@ export async function run(ctx) {
     } finally {
         phase("end");
         for (const role of Object.keys(ctx.c)) await K.on(role, "for (const id of Object.keys(F.autos)) F.stopAuto(id); for (const k of Object.keys(F.samplers)) F.samples(k); return true;").catch(() => null);
-        if ("gm1" in drafts) await K.on("gm1", `await game.settings.set(F.MOD, "morningLineDraft", ${J(drafts.gm1)}); return true;`).catch(() => null);
-        if ("gm2" in drafts) await K.on("gm2", `await game.settings.set(F.MOD, "morningLineDraft", ${J(drafts.gm2)}); return true;`).catch(() => null);
+        // gm2's first: with the GMs' one line, gm1's reading (the same line, read first) is the one left.
+        if ("gm2" in drafts) await K.on("gm2", `${SET_LINE(drafts.gm2)} return true;`).catch(() => null);
+        if ("gm1" in drafts) await K.on("gm1", `${SET_LINE(drafts.gm1)} return true;`).catch(() => null);
         note("what this run wrote", J(wrote));
     }
 }

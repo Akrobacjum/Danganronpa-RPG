@@ -100,7 +100,10 @@ export async function shutRefusal(actor, user) {
     if ((await openExits(place.scene, place.room)).length > INFILTRATE.shut.maxExits) return { why: "that room has too many doors to hold" };
     if (await knownUnfoundBodyIn(place.scene, place.room, user)) return { why: "that cannot be done now" };
     const row = barricadeStore.get(barricadeKey(place.scene.id, place.room));
-    if (row && row.authorId !== actor.id) return { why: "that cannot be done now" };
+    /* Its own reason (2.0 line T2b, DAY-09): the row is grayed before the price where the player's screen sees the
+       barricade (action-listen.mjs `barricadeShutWhy`); one put up meanwhile is said after the roll as that, never as
+       "cannot now". The author is not named: the code is all the player is told. */
+    if (row && row.authorId !== actor.id) return { why: "a barricade already stands in that room" };
     return { why: null, place };
 }
 

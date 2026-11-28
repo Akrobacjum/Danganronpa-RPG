@@ -67,13 +67,14 @@
 
 import { MODULE_ID } from "./config.mjs";
 import { SETTINGS } from "./settings.mjs";
-import { getClock, timeOfDayLabel, boundaryStamp, advanceTimeOfDay } from "./clock.mjs";
+import { getClock, timeOfDayLabel, boundaryStamp, advanceTimeOfDay, incidentHoldsHour } from "./clock.mjs";
 import { isEclipse, incomingTimeOfDay, startEclipse, endEclipse, startRefusal, placementStatus, eclipseLabel } from "./eclipse.mjs";
 import { actingStudents } from "./monokuma.mjs";
 import { serialWrite, isPrimaryGm, serverNow, listOf, plural, esc, error, debug } from "./utils.mjs";
 import { drpgWindow, tipText } from "./ui-kit.mjs";
 import { showPopup } from "./popup.mjs";
 import { alreadyOpen, keepLive } from "./live.mjs";
+import { ACTION_READY_OPEN } from "./bridge-wire.mjs";
 
 
 /**
@@ -126,10 +127,11 @@ export async function toggleEclipse() {
     return null;
 }
 
-/** Whether an incident runs and has not reached Stage 6 (`resolution`): the panel's Next time of day waits for it (CORE-32). Exported for R8114. */
+/** Whether an incident runs and has not reached Stage 6 (`resolution`): the panel's Next time of day waits for it (CORE-32). Exported for R8114.
+ *  The rule is clock.mjs `incidentHoldsHour`, the rewind's too since 2.0 line T2b (DAY-02). */
 export async function incidentHoldsTheHour(state = undefined) {
     const now = state === undefined ? (await import("./murder.mjs")).murderState() : state;
-    return Boolean(now) && now.stage !== "resolution";
+    return incidentHoldsHour(now);
 }
 
 /**
@@ -380,7 +382,9 @@ export async function openRoundOnPrimary({ kind, by = null } = {}) {
         let reply = { round: null, cleared };
         const users = roundUsers();
         if (allowed && users.some(user => user.active)) {
-            if (open && open.kind !== kind) return { refused: "another readiness round is open" };
+            /* ITS OWN REASON (2.0 line T2b, DAY-06, 28.11.2026; F1-daily DAY-06, F3 S4 C3): told as the general "cannot
+               now", it named neither the GM who asks nor how to join. `roundOpen` lets the press say both (`roundOpenLine`). */
+            if (open && open.kind !== kind) return { refused: "another kind of readiness round is open" };
             if (open) reply = { round: open, cleared };
             else {
                 write = { id: foundry.utils.randomID(), kind, boundary: boundaryStamp(clock), by, at: serverNow(), answers: {} };
@@ -452,6 +456,28 @@ export async function clearReadyRound() {
     });
 }
 
+/**
+ * WHOSE ROUND, AND HOW TO JOIN (2.0 line T2b, DAY-06, 28.11.2026; F1-daily DAY-06): what a GM refused for another kind of
+ * round reads, from the round's record (`readyRecord`, a world setting every browser holds) - the GM who opened it and its
+ * kind as its window's title says it. Joining is the GM panel's Next line, whose button runs the road that opened the
+ * round, and a press of the same kind joins it (`openRoundOnPrimary`: `reply.round = open`); Cancel in the round's window
+ * ends it ("notNow", `roundWindow` -> `close("stop")`) - both read in the code on 28.11.2026. This GM's own round says to
+ * answer in its window; no record, the reason's own words. Pure but for the words (R9044).
+ */
+export function roundOpenLine(record = readyRecord()) {
+    if (!record?.id || !READY_KINDS.includes(record.kind)) return game.i18n.localize("DRPG.Bridge.why.roundOpen");
+    const kind = roundTitle(record.kind);
+    if (record.by && record.by === game.user?.id) return game.i18n.format("DRPG.Ready.ownRoundOpen", { kind });
+    return game.i18n.format("DRPG.Ready.otherRoundOpen", { gm: game.users?.get(record.by ?? "")?.name ?? "?", kind });
+}
+
+/** A refused open of a round said to this GM, once (2.0 line T2b, DAY-06): another kind of round open as `roundOpenLine`,
+ *  any other reason with the bridge's sentence. The remote press's (`askReadiness`) and the primary's own (bridge-asks.mjs). */
+export async function sayOpenRefusal(code) {
+    if (code === "roundOpen") return void ui.notifications.warn(roundOpenLine());
+    (await import("./bridge-guards.mjs")).sayNotDone(ACTION_READY_OPEN, code);
+}
+
 /** The window's title: the Eclipse's name (`Eclipse.named`), or the end of this time of day. */
 function roundTitle(kind, clock = getClock()) {
     return kind === "next" ? game.i18n.localize("DRPG.Ready.titleNext") : eclipseLabel(clock);
@@ -491,6 +517,10 @@ async function confirmGo(n, title) {
 async function askReadiness(kind) {
     const { requestReadyOpen, requestReadyEnd } = await import("./gm-bridge.mjs");
     const res = await requestReadyOpen({ kind });
+    /* ONE MESSAGE FOR A REFUSAL (2.0 line T2b, DAY-06): the request says nothing itself (`sayRefused: false`), so another
+       kind of round open is said with its GM and kind, and any other reason with the bridge's own sentence. The primary's
+       own press says it in its `local` (bridge-asks.mjs `requestReadyOpen`). */
+    if (!res.ok && res.refused) await sayOpenRefusal(res.reason);
     if (!res.ok || !res.value) return { go: false };
     if (res.value.cleared) ui.notifications.info(game.i18n.localize("DRPG.Ready.goneEnded"));
     const round = res.value.round ?? null;

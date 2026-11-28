@@ -52,7 +52,7 @@
 
 import { MODULE_ID, FLAGS, TIME_OF_DAY_LABELS, moduleVersion } from "./config.mjs";
 import { SETTINGS, getSetting, setSetting, deathRecord, seasonEpoch } from "./settings.mjs";
-import { log, error, esc, isPrimaryGm, plural, whisperToGms, gmReport, gmIds, forcedDeletion, MESSAGE_FLAG } from "./utils.mjs";
+import { log, error, esc, isPrimaryGm, plural, whisperToGms, gmReport, gmIds, forcedDeletion, MESSAGE_FLAG, serverNow } from "./utils.mjs";
 import { ROOM_FLAG, ROOMS_MARKED_FLAG, hasBehaviours, playerRegionIds, roomDecided } from "./rooms.mjs";
 
 /**
@@ -1200,8 +1200,63 @@ const CLAUSES = [
             if (!isPrimaryGm()) return { notPrimary: true };      // a tile's write: the primary's, once a world
             return await hideBodyTiles(game.scenes ?? []);
         }
+    },
+    {
+        key: "morningLineToStore",
+        since: "1.2.130",
+        /*
+         * A GM'S MORNING DRAFT INTO THE GMS' LINE (2.0 line T2b, DAY-01, 28.11.2026). Until 1.2.130 the next morning's
+         * line was each GM's client setting `morningLineDraft`; it is the GMs' store `morningLine` now (gm-stores.mjs
+         * `morningLineStore`). This browser's draft goes into the store while the store holds no line, and the setting is
+         * emptied either way (`liftMorningDraft`). Not the primary's alone: a draft is on the browser that typed it, so the
+         * clause runs on whichever GM runs the pass, and the same lift runs on every GM once its stores have heard the
+         * others (gm-stores.mjs `openGmStores`). Idempotent: an empty draft does nothing. Reported when it moved or cleared one.
+         */
+        run: async () => liftMorningDraft()
     }
 ];
+
+/**
+ * What a GM's old morning draft does (pure; R9038): `draft` this browser's client setting, `held` the GMs' line the store
+ * holds. `{ write, clear }` - the text to write into the store (cut to 400, as the fields cut it) or null, and whether
+ * the setting is emptied. A draft goes in only while the store holds no line: a line held is the other GM's, or newer.
+ * A blank draft writes nothing and is emptied; an empty one is left as it is.
+ */
+export function morningDraftLift({ draft = "", held = "" } = {}) {
+    const text = String(draft ?? "");
+    if (!text) return { write: null, clear: false };
+    if (!text.trim() || String(held ?? "")) return { write: null, clear: true };
+    return { write: text.slice(0, 400), clear: true };
+}
+
+/**
+ * The clause `morningLineToStore`'s pass, and the same on every GM at its stores' hydration (2.0 line T2b, DAY-01): this
+ * browser's `morningLineDraft` into the GMs' line by `morningDraftLift`, read back from storage, and only then the
+ * setting emptied. Answers `{ lifted, kept }` when it moved or emptied one, else null; throws when a line
+ * written is not read back, so the draft stays and the next load tries again. The one reader of the client setting
+ * (R9037). GM only.
+ */
+export async function liftMorningDraft() {
+    if (!game.user?.isGM) return null;
+    let draft = "";
+    try { draft = String(game.settings.get(MODULE_ID, SETTINGS.morningLineDraft) ?? ""); } catch { return null; }
+    if (!draft) return null;
+    const [{ morningLineStore, morningLine }, { RECORD }] = await Promise.all([import("./gm-stores.mjs"), import("./gm-store.mjs")]);
+    if (await morningLineStore.whenHydrated() === "timedOut") {
+        throw new Error("the other GMs' copies of the next morning's line did not arrive; the next load tries again");
+    }
+    const { write, clear } = morningDraftLift({ draft, held: morningLine().text });
+    if (write !== null) {
+        /* At a real stamp, not weak: the store holds no line here, and an emptied line ("" written when a morning used it)
+           carries a real stamp that a weak write would sit under - read back as nothing, and thrown at every load. */
+        await morningLineStore.patch(RECORD, { text: write, by: game.user.id, at: serverNow() });
+        await morningLineStore.idle();
+        const back = morningLineStore.persisted(RECORD);
+        if (typeof back?.text !== "string" || !back.text) throw new Error("the next morning's line was not read back from the GMs' store; the draft stays");
+    }
+    if (clear) await game.settings.set(MODULE_ID, SETTINGS.morningLineDraft, "");
+    return clear ? { lifted: write !== null ? 1 : 0, kept: write === null ? 1 : 0 } : null;
+}
 
 /**
  * The updates `bodyTilesUnseen` writes (pure; tier 1 R5873): for each of `scenes`, the body tiles (`FLAGS.bodyOf`) whose

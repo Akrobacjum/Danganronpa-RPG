@@ -27,6 +27,7 @@ import { error, esc, wholeNumber, isPrimaryGm, primaryGmId } from "./utils.mjs";
 import { stepper, stepperId, drpgWindow, drpgConfirm, formGrid, helpText, box, roleButton, tipAttr, tipText, WINDOW_HELP } from "./ui-kit.mjs";
 import { alreadyOpen, RAISED } from "./live.mjs";
 import { trialScene } from "./rooms.mjs";
+import { morningLine, setMorningLine } from "./gm-stores.mjs";
 
 
 /**
@@ -303,15 +304,28 @@ export function campaignRows(clock, { extra = [], autofocus = false } = {}) {
 
 /**
  * The next morning's line, Edit campaign's last field (E94 C1; the plan's default: "a GM field in Edit campaign"): what
- * the start-of-day board says under MORNING ANNOUNCEMENT. It is kept on this browser (`morningLineDraft`), in no world
- * data, until the Night's advance puts it on the clock at the day's start; empty, the board shows no line.
+ * the start-of-day board says under MORNING ANNOUNCEMENT. Since 1.2.130 the GMs' one line (gm-stores.mjs `morningLine`;
+ * 2.0 line T2b, DAY-01, 28.11.2026), so every GM's field shows the same words and says who changed them last - this
+ * browser's own draft until then. In no world data until the day's start puts it on the clock; empty, the board shows no
+ * line.
  */
 export function morningLineRow() {
     const id = stepperId();
-    let draft = "";
-    try { draft = String(game.settings.get(MODULE_ID, SETTINGS.morningLineDraft) ?? ""); } catch { draft = ""; }
+    const line = morningLine();
+    const who = line.text && line.by ? game.users?.get(line.by)?.name ?? null : null;
+    const shared = who ? helpText("DRPG.Clock.morningLineSharedBy", { gm: who }) : helpText("DRPG.Clock.morningLineShared");
     return { label: game.i18n.localize("DRPG.Clock.morningLine"), id,
-        field: `<textarea name="morningLine" id="${id}" rows="2" maxlength="200">${foundry.utils.escapeHTML(draft)}</textarea>${helpText("DRPG.Clock.morningLineHint")}` };
+        field: `<textarea name="morningLine" id="${id}" rows="2" maxlength="200">${foundry.utils.escapeHTML(line.text)}</textarea>${helpText("DRPG.Clock.morningLineHint")}${shared}` };
+}
+
+/**
+ * The next morning's line a window hands back (2.0 line T2b, DAY-01): the field's words when the GM changed them, else
+ * undefined - an Apply that left the field as drawn writes nothing, so it never puts back over the other GM's newer line
+ * the words this window drew. `form` the window's form.
+ */
+export function morningLineTyped(form) {
+    const field = form?.querySelector?.("[name=morningLine]");
+    return field && changedField(field) ? field.value : undefined;
 }
 
 /** Edit campaign. `roads.endChapter` stands in for chapter.mjs `openChapterEndDialog` (the suite's; E49 A2). */
@@ -351,7 +365,7 @@ export async function openClockDialog({ roads = {} } = {}) {
                 action: "ok",
                 label: game.i18n.localize("DRPG.Panel.apply"),
                 // only what the GM changed (`untouchedKept`): a field left as drawn takes the clock as it stands at the press
-                callback: (event, button, dialog) => ({ ...untouchedKept(dialog.element.querySelector("form"), readClockForm(dialog)), morningLine: dialog.element.querySelector("[name=morningLine]")?.value ?? "" })
+                callback: (event, button, dialog) => ({ ...untouchedKept(dialog.element.querySelector("form"), readClockForm(dialog)), morningLine: morningLineTyped(dialog.element.querySelector("form")) })
             },
             close: { role: "cancel", action: "cancel" }
         },
@@ -360,8 +374,8 @@ export async function openClockDialog({ roads = {} } = {}) {
 
     if (endAsked) return endTheChapter(roads.endChapter ?? (() => import("./chapter.mjs").then(m => m.openChapterEndDialog())));
     if (!result || result === "cancel") return;
-    // the next morning's line stays on this browser until the day starts (E94 C1; clock.mjs `advanceTimeOfDay`)
-    await game.settings.set(MODULE_ID, SETTINGS.morningLineDraft, String(result.morningLine ?? "").slice(0, 400)).catch(() => null);
+    // the next morning's line is the GMs' until the day starts (E94 C1; 2.0 line T2b DAY-01; clock.mjs `advanceTimeOfDay`)
+    if (typeof result.morningLine === "string") await setMorningLine(result.morningLine).catch(err => error("Could not keep the next morning's line", err));
     return applyCampaignForm(result);
 }
 

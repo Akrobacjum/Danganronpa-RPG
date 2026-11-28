@@ -483,7 +483,9 @@
     "clamp": "function",
     "passages": "object",
     "settings": "object",
-    "announce": "function"
+    "announce": "function",
+    "morningLine": "function",
+    "setMorningLine": "function"
   },
   "aliases": {
     "migrate1_2_0": {

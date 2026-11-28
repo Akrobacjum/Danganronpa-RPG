@@ -18,7 +18,7 @@ import { whisperToOwner, esc } from "./utils.mjs";
 import { rollTrait, rollInHand, abort, spentAfterRoll, canAfford, neededNote } from "./action-pipeline.mjs";
 import { rollResultCard } from "./action-report.mjs";
 import { locateActor, roomOfActor, neighbouringRooms, roomsKnownToMe } from "./movement.mjs";
-import { listenLabels } from "./action-listen.mjs";
+import { listenLabels, noteOwnBarricade } from "./action-listen.mjs";
 import { actionWindow } from "./action-menus.mjs";
 import { briefingBlock } from "./action-briefing.mjs";
 import { tipAttr, tipText } from "./ui-kit.mjs";
@@ -42,6 +42,8 @@ export async function performShut(actor, options = {}) {
     const res = await requestDoorShut({ actorId: actor.id, total: roll.total, rollId: rollInHand(actor)?.messageId ?? null });
     if (!res.ok || res.value?.refused) return null;
     const room = res.value?.room ?? "";
+    // Its own barricade, so this browser keeps its row open over it (2.0 line T2b, DAY-09; action-listen.mjs `ownBarricadeHere`).
+    noteOwnBarricade(actor, locateActor(actor)?.scene ?? null, room);
     // The roller's result: E49's card under the Infiltrate tile's glyph (the coordinator's rule of 12.11.2026), its words as before.
     // With its roll, in the middle of the roller's screen (action-report.mjs `rollResultCard`, 1.2.124).
     await whisperToOwner(actor, ...rollResultCard(game.i18n.localize("DRPG.Infiltrate.row.shut.label"), roll,

@@ -434,12 +434,13 @@ export async function advanceTimeOfDay({
     // of day flashing up between the Eclipse and the new one.
     //
     // Where it goes is `clockAfter`'s, below.
-    /* THE MORNING LINE AND THE SCHOOL'S MOOD (E94 C1, C4): at the roll-over, the GM's line - kept on this GM's browser
-       until now (`morningLineDraft`), so it is in no world data before the day starts - and the mood's word, worked out
+    /* THE MORNING LINE AND THE SCHOOL'S MOOD (E94 C1, C4): at the roll-over, the GMs' line - kept in the GMs' store until
+       now (gm-stores.mjs `morningLineStore` since 1.2.130, 2.0 line T2b DAY-01; each GM's own client setting before, so a
+       line the other GM typed never came out here), in no world data before the day starts - and the mood's word, worked out
        here from the students' Hope, the Monocubs' Hope, the Monokumas' Despair and the Overflow count only a GM holds
        (sequence.mjs `moodInputs`, `moodBand`), go into this one write; any other move clears the morning line alone
-       (`dayStartPatch`), and the mood stands until the next roll-over writes it again. The line is taken from the draft
-       once it is in. */
+       (`dayStartPatch`), and the mood stands until the next roll-over writes it again. The line is emptied in the store
+       once it is in, on every GM (`clearMorningDraft`). */
     const seq = await import("./sequence.mjs");
     /* AND SINCE 13.11.2026 (the owner's rule of that day: the start-of-day board at the Morning Eclipse's start, the
        end-of-day board at the start of Night). A Morning Eclipse opened for this roll-over wrote the line, the mood and
@@ -469,22 +470,22 @@ export async function advanceTimeOfDay({
         refilledFor: resetActions ? stamp : (before.refilledFor ?? null),
         lastAdvance: boundaryMemory(before, stamp, snapshot) });
     if (next && endGrants) await clearGrants();
-    if (next && rolledOver && draft) await game.settings.set(MODULE_ID, SETTINGS.morningLineDraft, "").catch(() => null);
+    if (next && rolledOver && draft) await clearMorningDraft(draft);
 
     await applyTimeOfDayChange(next, { resetActions, resetSearchTokens, announce, rolledOver, sfx });
     return next;
 }
 
 /**
- * What the start of a day is written with, read on this GM (E94 C1, C4): the GM's morning line, kept on this browser
- * until the day starts (`morningLineDraft`; `line`), and the school's mood worked out from what only a GM holds
+ * What the start of a day is written with, read on this GM (E94 C1, C4): the GMs' morning line, kept in their store
+ * until the day starts (gm-stores.mjs `morningLine`, 2.0 line T2b DAY-01; `line`), and the school's mood worked out from what only a GM holds
  * (sequence.mjs `moodInputs`, `moodBand`; `mood`). Answers `{ draft, mood }`, "" and null for what was not asked or
  * could not be read.
  */
 async function morningInputs({ line = true, mood: wantMood = true } = {}) {
     const seq = await import("./sequence.mjs");
     let draft = "", mood = null;
-    if (line) { try { draft = String(game.settings.get(MODULE_ID, SETTINGS.morningLineDraft) ?? ""); } catch { draft = ""; } }
+    if (line) { try { draft = (await import("./gm-stores.mjs")).morningLine().text; } catch { draft = ""; } }
     if (wantMood) { try { mood = seq.moodBand(await seq.moodInputs()); } catch { mood = null; } }
     return { draft, mood };
 }
@@ -506,9 +507,17 @@ export async function openingDayPatch(clock = getClock()) {
     return { patch: seq.dayStartPatch({ rolledOver: true, draft, mood, before: clock, day: to.day }), draft };
 }
 
-/** The GM's morning line taken into the clock: the draft on this browser emptied (E94 C1). */
-export async function clearMorningDraft() {
-    await game.settings.set(MODULE_ID, SETTINGS.morningLineDraft, "").catch(() => null);
+/**
+ * The GMs' morning line taken into the clock: emptied in their store, for every GM, while it still holds the line `used`
+ * (E94 C1; since 1.2.130 the store's, 2.0 line T2b DAY-01 - this browser's own draft until then). A store that cannot be
+ * written keeps the line, never the clock's write.
+ */
+export async function clearMorningDraft(used) {
+    try {
+        await (await import("./gm-stores.mjs")).clearMorningLine(used);
+    } catch (err) {
+        error("Could not empty the next morning's line once it was used", err);
+    }
 }
 
 /**
@@ -721,6 +730,52 @@ export function frozenClockOf(clock = getClock()) {
 }
 
 /**
+ * Whether an incident runs and has not reached Stage 6 (`resolution`), from its state: the one rule that holds the hour
+ * (CORE-32, 1.2.122; boundary.mjs `incidentHoldsTheHour` asks it for Next time of day, `rewindRefusalOf` for the rewind,
+ * 2.0 line T2b DAY-02). Pure.
+ */
+export function incidentHoldsHour(state) {
+    return Boolean(state) && state.stage !== "resolution";
+}
+
+/**
+ * WHY THE REWIND IS REFUSED, OR NULL (2.0 line T2b, DAY-02, 28.11.2026; F1-daily DAY-02): the key of the words, read by
+ * `rewindTimeOfDay` and by the HUD's left chevron for its dim and tooltip, as the Eclipse's chevron reads eclipse.mjs
+ * `startRefusalOf` - what dims the chevron is what refuses the press, in the same order and words. An Eclipse first
+ * (HUD-02, below), then an incident before Stage 6: there the clock moves in private, and a rewind's take-back puts
+ * every bystander's budget and the rooms' Search Tokens back - world writes every browser draws while its HUD keeps the
+ * old hour, the tell CORE-32 took out of Next time of day. Pure: `incident` is murder.mjs `murderState()`.
+ */
+export function rewindRefusalOf(clock, { incident = null } = {}) {
+    if (clock?.eclipse === true) return "DRPG.Clock.rewindDuringEclipse";
+    if (incidentHoldsHour(incident)) return "DRPG.Clock.rewindDuringIncident";
+    return null;
+}
+
+/**
+ * WHAT THE REWIND WILL DO, SAID BEFORE IT IS DONE (2.0 line T2b, DAY-02 and EXP-GM-13, 28.11.2026): the question the HUD's
+ * left chevron asks (hud.mjs `pressRewind`, undo-confirm.mjs `confirmUndo`). `{ title, intro, effects, yesLabel }` for
+ * `clock` with its take-back memory (`withTakeBack`), read as `rewindTimeOfDay` reads it at `now`: the time of day it goes
+ * from and to; the day and the session, when Morning goes back into the night before; and either what the take-back puts
+ * back (the boundary into this time of day is the memory's and younger than TAKE_BACK_MS) or that nothing does, the
+ * seals of this time of day ending (`clearSeals`). Pure but for the words.
+ */
+export function rewindQuestion(clock, now = serverNow()) {
+    const index = TIMES_OF_DAY.indexOf(clock?.timeOfDay);
+    const prevIndex = (index - 1 + TIMES_OF_DAY.length) % TIMES_OF_DAY.length;
+    const rolledBack = prevIndex === TIMES_OF_DAY.length - 1;
+    const effects = [game.i18n.format("DRPG.Clock.rewindAskTime", { from: timeOfDayLabel(clock?.timeOfDay), to: timeOfDayLabel(TIMES_OF_DAY[prevIndex]) })];
+    if (rolledBack) {
+        const day = Number(clock?.day) || 1, session = Number(clock?.session) || 1;
+        effects.push(game.i18n.format("DRPG.Clock.rewindAskDay", { day: Math.max(1, day - 1), session: Math.max(1, session - 1) }));
+    }
+    const last = takeBackFor(clock, boundaryStamp(clock, clock), now);
+    effects.push(game.i18n.localize(last ? "DRPG.Clock.rewindAskTakeBack" : "DRPG.Clock.rewindAskClockOnly"));
+    return { title: game.i18n.localize("DRPG.Clock.rewindAskTitle"), intro: game.i18n.localize("DRPG.Clock.rewindAskIntro"), effects,
+        yesLabel: game.i18n.localize("DRPG.Clock.rewindAskYes") };
+}
+
+/**
  * Step the time of day backwards. This is a correction for a misclick, not a
  * game move, so it deliberately refills nothing - rewinding must never hand
  * the table a second set of actions.
@@ -751,9 +806,14 @@ export async function rewindTimeOfDay() {
      * - and this is one click on the main screen, the only control on that row
      * that could do this by accident. Ending an Eclipse without advancing is the
      * GM panel's job and it has a button for it.
+     *
+     * AND NOT INSIDE AN INCIDENT BEFORE STAGE 6 (2.0 line T2b, DAY-02, 28.11.2026), for the reason Next time of day is
+     * refused there (`rewindRefusalOf`). Here, so the HUD, the API and the console are all refused, and before
+     * `cancelGather()` for the rule above.
      */
-    if (getClock().eclipse === true) {
-        ui.notifications.warn(game.i18n.localize("DRPG.Clock.rewindDuringEclipse"));
+    const refusal = rewindRefusalOf(getClock(), { incident: (await import("./murder.mjs")).murderState() });
+    if (refusal) {
+        ui.notifications.warn(game.i18n.localize(refusal));
         return null;
     }
 

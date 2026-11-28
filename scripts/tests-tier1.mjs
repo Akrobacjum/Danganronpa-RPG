@@ -22103,7 +22103,7 @@ const INVARIANTS = [
             "{a Scenes tab in Room setup; Season setup's scenes part: [school, hall, its one sentence, the old intro]; its Save: [reads, clash, hall lock, applies]; "
             + "[the checklist opens Room setup's Scenes, openTrialCast opens Season setup]}");
     }],
-    ["R4475 - Season setup holds Edit campaign's next morning's line (E101 item 1; the owner's yes of 12.11.2026 to the GM screens' review, #2: Edit campaign's window has no button and opens from the console alone, so E94's field there was a GM's nobody would see): season-setup.mjs `campaignFieldsHtml` draws gm-campaign.mjs `morningLineRow` in its Edit campaign block, `readSeasonForm` reads it, and `openSeasonSetup`'s Save keeps it as Edit campaign's Apply does (the browser's `morningLineDraft`)", async () => {
+    ["R4475 - Season setup holds Edit campaign's next morning's line (E101 item 1; the owner's yes of 12.11.2026 to the GM screens' review, #2: Edit campaign's window has no button and opens from the console alone, so E94's field there was a GM's nobody would see): season-setup.mjs `campaignFieldsHtml` draws gm-campaign.mjs `morningLineRow` in its Edit campaign block, `readSeasonForm` reads it, and `openSeasonSetup`'s Save keeps it as Edit campaign's Apply does (the GMs' next morning's line since 1.2.130, 2.0 line T2b DAY-01; the browser's `morningLineDraft` until then)", async () => {
         /*
          * E101 item 1, 13.11.2026. E49 A1e put Edit campaign's rows at Season setup's top, each field once; E94 C1 then added
          * the next morning's line to Edit campaign's own window (`openClockDialog`), which only `game.drpg.editClock` opens.
@@ -22119,7 +22119,8 @@ const INVARIANTS = [
             drawn: Boolean(field), inBlock: Boolean(field?.closest("fieldset.drpg-setup-campaign")),
             label: box.querySelector(`label[for="${field?.id}"]`)?.textContent.trim() === game.i18n.localize("DRPG.Clock.morningLine"),
             read: /morningLine/.test(fnSource(src, "readSeasonForm")),
-            kept: /SETTINGS\.morningLineDraft/.test(fnSource(src, "openSeasonSetup"))
+            // the GMs' line since 1.2.130 (2.0 line T2b, DAY-01): this browser's client setting until then
+            kept: /setMorningLine\(/.test(fnSource(src, "openSeasonSetup"))
         }), stableJson({ drawn: true, inBlock: true, label: true, read: true, kept: true }),
             "{the next morning's line drawn, in Edit campaign's block, under its label; read by the form; kept by Save}");
     }],
@@ -61183,7 +61184,7 @@ const INVARIANTS = [
             stableJson({ shareRatio: true, aspect: true, at1366: AT_1366_ROUND4 }),
             `[the 1920x1080 median share over 1366x768's, a mean over eight seeds, within 0.9-1.1 (read ${r.toFixed(3)}); the 1920x1080 median aspect no narrower (read ${aF.toFixed(3)} against ${aR.toFixed(3)}); 1366x768's median area and count for seed 11 as round 4 made them]`);
     }],
-    ["R3720 - the GM's morning line reaches the start-of-day board at the day's start and no sooner (scripts/sequence.mjs `morningLineOf`, `dayStartPatch`, `dayStartElement`; scripts/gm-campaign.mjs `morningLineRow`; scripts/clock.mjs `advanceTimeOfDay`; E94 C1, the plan's default: a field in Edit campaign): the line is trimmed, its spaces folded and cut to 200 characters, an empty one none; the roll-over to a new day writes it into the clock's one write and any other move clears it; Edit campaign has the field and keeps it on the GM's browser; the advance folds the patch into its one write and empties the draft; the board shows the line under MORNING ANNOUNCEMENT, and none when it is empty", async () => {
+    ["R3720 - the GM's morning line reaches the start-of-day board at the day's start and no sooner (scripts/sequence.mjs `morningLineOf`, `dayStartPatch`, `dayStartElement`; scripts/gm-campaign.mjs `morningLineRow`; scripts/clock.mjs `advanceTimeOfDay`; E94 C1, the plan's default: a field in Edit campaign): the line is trimmed, its spaces folded and cut to 200 characters, an empty one none; the roll-over to a new day writes it into the clock's one write and any other move clears it; Edit campaign has the field and keeps it as the GMs' line (since 1.2.130, 2.0 line T2b DAY-01; on the GM's browser until then); the advance folds the patch into its one write and empties the draft; the board shows the line under MORNING ANNOUNCEMENT, and none when it is empty", async () => {
         /* E94 C1, 12.11.2026. Red at 7bbbd3c: sequence.mjs has no morningLineOf or dayStartPatch, Edit campaign no field. */
         const S = await import("./sequence.mjs");
         const sources = await moduleSources();
@@ -61197,8 +61198,9 @@ const INVARIANTS = [
             line: [S.morningLineOf("  Good   morning, class.  "), S.morningLineOf(""), S.morningLineOf("x".repeat(300)).length],
             rollOver: S.dayStartPatch({ rolledOver: true, draft: " Wake up! ", mood: "uneasy" }),
             later: [S.dayStartPatch({ rolledOver: false, before: { morningLine: "Wake up!" } }), S.dayStartPatch({ rolledOver: false, before: {} })],
-            field: /morningLineRow\(\)/.test(dialog) && /morningLineDraft/.test(dialog),
-            advance: /dayStartPatch\(/.test(advance) && /\.\.\.dayPatch/.test(advance) && /morningLineDraft, ""/.test(advance),
+            // the field and the advance's clear through the GMs' line since 1.2.130 (2.0 line T2b, DAY-01; R9037): the client setting until then
+            field: /morningLineRow\(\)/.test(dialog) && /setMorningLine\(/.test(dialog),
+            advance: /dayStartPatch\(/.test(advance) && /\.\.\.dayPatch/.test(advance) && /clearMorningDraft\(draft\)/.test(advance),
             shown: [board("Wake up!").querySelector(".drpg-seq-announce")?.textContent.includes("Wake up!") ?? false, Boolean(board("").querySelector(".drpg-seq-announce"))]
         }), stableJson({
             line: ["Good morning, class.", null, 200],
@@ -61440,7 +61442,8 @@ const INVARIANTS = [
             writes: {
                 advance: /opened/.test(advance) && /nightFalls/.test(advance),
                 start: /openingDayPatch\(/.test(start) && /\.\.\.morning\.patch/.test(start),
-                endGivesBack: /morningLineDraft, closing\.morningLine/.test(end),
+                // to the GMs' line since 1.2.130 (2.0 line T2b, DAY-01): this browser's client setting until then
+                endGivesBack: /giveBackMorningLine\(closing\.morningLine\)/.test(end),
                 cleared: /patch\.nightBoard === undefined/.test(set) && /next\.nightBoard = null/.test(set)
             },
             defaults: Object.hasOwn(DEFAULT_CLOCK, "nightBoard") ? DEFAULT_CLOCK.nightBoard : "missing"
@@ -72257,6 +72260,369 @@ const INVARIANTS = [
             wired: [true, true, true]
         }), "cases: failureLogElsewhereHtml [another GM the primary, this GM the primary, no primary] as {the primary's id, the words}; here: the defaults on this browser; wired: [the open draws it first in the live region, the redraw too, the redraw's signature reads the primary]");
         ok(!words.startsWith("DRPG.") && words.includes(OTHER.name), "the hint's key has words and names the primary");
+    }],
+    // T2b day-clock (split from T2)
+    ["R9037 - the next morning's line is one for the GMs: no module file but migrate.mjs reads or writes the client setting `morningLineDraft` (settings.mjs only registers it, for the migration), and the start of day, Edit campaign, Season setup and a Morning Eclipse go through the GMs' store (gm-stores.mjs `morningLineStore`, `morningLine`, `setMorningLine`, `giveBackMorningLine`; clock.mjs `morningInputs`, `clearMorningDraft`; eclipse.mjs `startEclipse`, `endEclipseNow`; 2.0 line T2b, DAY-01, 28.11.2026)", async () => {
+        /*
+         * F1-daily DAY-01 (F1-verify: confirmed; F3 on Forge: S2 I1 and S1a "DAY-01" red). The line was each GM's client
+         * setting `morningLineDraft`: Edit campaign and Season setup wrote it on the writer's browser, and the start of day
+         * read it on the browser that moved the clock - so a line one GM typed came out only at that GM's own advance, and
+         * stood uncleared there for a later morning. It is the GMs' store `morningLine` now, and the client setting is read
+         * by the migration alone (migrate.mjs `liftMorningDraft`). Read on the sources and the store's row; nothing is
+         * written. Red at 0d3d4f2: clock.mjs, eclipse.mjs, gm-campaign.mjs and season-setup.mjs read or wrote
+         * the client setting, and gm-stores.mjs had no such store.
+         */
+        const sources = new Map(await otherSources());
+        must(sources.size > 100 && sources.has("clock.mjs") && sources.has("gm-campaign.mjs"), "the module's sources were not read - this reads nothing");
+        const outside = [];
+        for (const [file, text] of sources) {
+            const code = stripComments(text);
+            if (file === "migrate.mjs") continue;
+            if (file === "settings.mjs") {
+                if (/game\.settings\.(?:get|set)\([^)]*morningLineDraft/.test(code)) outside.push(file);
+                continue;
+            }
+            if (/morningLineDraft/.test(code)) outside.push(file);
+        }
+        const S = await import("./gm-stores.mjs");
+        const spec = S.morningLineStore?.spec ?? null;
+        const src = name => stripComments(sources.get(name) ?? "");
+        const clock = src("clock.mjs"), campaign = src("gm-campaign.mjs"), season = src("season-setup.mjs"), eclipse = src("eclipse.mjs");
+        const advance = bodyOf(clock, "export async function advanceTimeOfDay(", { until: "\nexport function " });
+        equal(stableJson({
+            outside: outside.sort(),
+            store: spec ? { kind: spec.kind, fields: spec.fields, sync: spec.sync, backup: spec.backup, resetGroup: spec.resetGroup ?? null, from: Boolean(spec.legacyKey) } : null,
+            road: ["morningLine", "setMorningLine", "clearMorningLine", "giveBackMorningLine"].map(n => typeof S[n]),
+            inputs: /\bmorningLine\(\)/.test(fnSource(clock, "morningInputs")),
+            cleared: [/clearMorningDraft\(draft\)/.test(advance), /clearMorningLine\(/.test(fnSource(clock, "clearMorningDraft"))],
+            eclipse: [/clearMorningDraft\(morning\.draft\)/.test(fnSource(eclipse, "startEclipse")), /giveBackMorningLine\(closing\.morningLine\)/.test(fnSource(eclipse, "endEclipseNow"))],
+            fields: [/\bmorningLine\(\)/.test(fnSource(campaign, "morningLineRow")), /setMorningLine\(/.test(fnSource(campaign, "openClockDialog")), /setMorningLine\(/.test(fnSource(season, "openSeasonSetup"))]
+        }), stableJson({
+            outside: [],
+            store: { kind: "record", fields: ["text", "by", "at"], sync: true, backup: false, resetGroup: "clock", from: false },
+            road: ["function", "function", "function", "function"],
+            inputs: true, cleared: [true, true], eclipse: [true, true], fields: [true, true, true]
+        }), "{outside: module files besides migrate.mjs that name the client setting (settings.mjs: that read or write it); the store's row; its four functions; the start of day reads the store; the advance clears what it used, through the store; the Morning Eclipse's start clears it and its end without advancing gives it back; Edit campaign draws the store's line and writes it, Season setup writes it}");
+    }],
+    ["R9038 - a GM's old morning draft goes into the GMs' store once, and never over a line the store holds (migrate.mjs `morningDraftLift`, the clause `morningLineToStore` since 1.2.130 after `bodyTilesUnseen`, `liftMorningDraft`, run again on every GM once the stores have heard the others; 2.0 line T2b, DAY-01, 28.11.2026)", async () => {
+        /*
+         * 2.4 point 3: on every GM's browser a draft that is not empty goes into the store while the store holds no line,
+         * and the client setting is emptied either way; the store's line is never written over (a line the other GM typed is
+         * newer than a draft from before the upgrade). The pure decision, then where it runs: the clause on the primary (the
+         * pass at its load), and the hydration hook on every GM, since the pass runs on the primary alone and a second GM's
+         * draft is on that GM's browser only. Nothing is written. Red at 0d3d4f2: no morningDraftLift, no clause.
+         */
+        const M = await import("./migrate.mjs");
+        if (typeof M.morningDraftLift !== "function") { ok(false, "migrate.mjs has no morningDraftLift"); return; }
+        const L = (draft, held) => M.morningDraftLift({ draft, held });
+        const sources = new Map(await otherSources());
+        const mig = stripComments(sources.get("migrate.mjs") ?? ""), stores = stripComments(sources.get("gm-stores.mjs") ?? "");
+        const clauses = M.migrationStatus().clauses.map(c => c.key);
+        const lift = fnSource(mig, "liftMorningDraft");
+        equal(stableJson({
+            cases: [L("Wake up!", ""), L("Wake up!", "The other GM's"), L("", "The other GM's"), L("", ""), L("   ", ""), L("x".repeat(450), "").write?.length ?? null],
+            clause: [clauses.includes("morningLineToStore"), clauses.indexOf("morningLineToStore") > clauses.indexOf("bodyTilesUnseen"),
+                M.migrationStatus().clauses.find(c => c.key === "morningLineToStore")?.since ?? null],
+            lift: [/morningDraftLift\(/.test(lift), /persisted\(/.test(lift), /whenHydrated\(\)/.test(lift)],
+            everyGm: /onGmStoresHydrated\([^]*?liftMorningDraft\(\)/.test(fnSource(stores, "openGmStores"))
+        }), stableJson({
+            cases: [{ write: "Wake up!", clear: true }, { write: null, clear: true }, { write: null, clear: false }, { write: null, clear: false }, { write: null, clear: true }, 400],
+            clause: [true, true, "1.2.130"],
+            lift: [true, true, true],
+            everyGm: true
+        }), "{cases: [a draft and an empty store: lifted, cleared; a draft and a line held: kept out, cleared; no draft: nothing; nothing at all: nothing; a blank draft: cleared, nothing lifted; a long draft cut to 400]; the clause, after bodyTilesUnseen, its version; the lift decides, reads back and waits for the stores; the hydration hook on every GM runs it}");
+    }],
+    ["R9039 - the clock's rewind is refused inside an incident before Stage 6, on every road, before the assembly is called off, and the chevron is dimmed with the same words (clock.mjs `rewindRefusalOf`, `incidentHoldsHour`, `rewindTimeOfDay`; boundary.mjs `incidentHoldsTheHour`; hud.mjs `buildTimeRow`; 2.0 line T2b, DAY-02, 28.11.2026)", async () => {
+        /*
+         * F1-daily DAY-02: the left chevron stepped the clock back inside an incident before Stage 6, where Next time of day
+         * is refused (CORE-32, boundary.mjs `nextTimeOfDay`): a take-back within five minutes puts every bystander's budget
+         * and the rooms' Search Tokens back, world writes every browser draws while their clock stands still. The refusal is
+         * one pure rule now, read by `rewindTimeOfDay` (the HUD, the API and the console all call it) before
+         * `cancelGather`, as the Eclipse's refusal is, and by the chevron for its dim and tooltip, as the Eclipse's chevron
+         * reads `startRefusalOf`; Next's gate reads the same predicate. Read on the rule and the sources; nothing is
+         * written. Red at 7016da4: no `rewindRefusalOf`.
+         */
+        const C = await import("./clock.mjs"), B = await import("./boundary.mjs");
+        if (typeof C.rewindRefusalOf !== "function") { ok(false, "clock.mjs has no rewindRefusalOf"); return; }
+        const sources = new Map(await otherSources());
+        const clockSrc = stripComments(sources.get("clock.mjs") ?? ""), hudSrc = stripComments(sources.get("hud.mjs") ?? ""), bSrc = stripComments(sources.get("boundary.mjs") ?? "");
+        must(clockSrc.length > 5000 && hudSrc.length > 5000, "a source was not read - this reads nothing");
+        const rewind = fnSource(clockSrc, "rewindTimeOfDay");
+        const at = re => rewind.search(re);
+        const refuse = (clock, incident) => C.rewindRefusalOf(clock, { incident });
+        const noon = { timeOfDay: "noon", eclipse: false };
+        equal(stableJson({
+            rule: [refuse(noon, null), refuse(noon, { active: true, stage: "openingRoll" }), refuse(noon, { active: true, stage: "incident" }),
+                refuse(noon, { active: true, stage: "resolution" }), refuse({ ...noon, eclipse: true }, { active: true, stage: "incident" })],
+            next: await Promise.all([null, { stage: "incident" }, { stage: "resolution" }].map(s => B.incidentHoldsTheHour(s))),
+            oneRule: /incidentHoldsHour\(/.test(fnSource(bSrc, "incidentHoldsTheHour")) && /incidentHoldsHour\(/.test(fnSource(clockSrc, "rewindRefusalOf")),
+            order: at(/rewindRefusalOf\(/) > 0 && at(/murderState\(\)/) > 0 && at(/rewindRefusalOf\(/) < at(/cancelGather\(\)/),
+            chevron: /rewindRefusalOf\(/.test(fnSource(hudSrc, "buildTimeRow")),
+            worded: ["DRPG.Clock.rewindDuringIncident"].map(k => game.i18n.localize(k) !== k)
+        }), stableJson({
+            rule: [null, "DRPG.Clock.rewindDuringIncident", "DRPG.Clock.rewindDuringIncident", null, "DRPG.Clock.rewindDuringEclipse"],
+            next: [false, true, false], oneRule: true, order: true, chevron: true, worded: [true]
+        }), "{rule: [no incident, an opening roll, a fight, Stage 6, an Eclipse over a fight]; Next's gate: [none, a fight, Stage 6]; one predicate for both; the rewind asks before calling the assembly off; the chevron reads the rule; the words exist}");
+    }],
+    ["R9040 - the clock's left chevron asks first, Cancel the default, and says what the rewind does: from which time of day to which, whether the day and the session go back, and whether the budgets, the Search Tokens and the seals come back or nothing but the clock moves (clock.mjs `rewindQuestion`; hud.mjs `pressRewind`; 2.0 line T2b, DAY-02 and EXP-GM-13, 28.11.2026)", async () => {
+        /*
+         * F1-daily DAY-02, F1-blind-gm EXP-GM-13: the left chevron stepped the clock back at the press, beside a right one
+         * that asks, and said what it had done only afterwards. It asks through the one undo question now
+         * (undo-confirm.mjs `confirmUndo`, R9041), its words from `rewindQuestion`, which reads the take-back as
+         * `rewindTimeOfDay` will (`takeBackFor` on the boundary's stamp, younger than TAKE_BACK_MS): the budgets, the
+         * Search Tokens and the seals as they were, or nothing back and the seals of this time of day ended (`clearSeals`).
+         * Read on clocks of its own, at a fixed `now`, and on the press's source; nothing is written. Red at 7016da4: no
+         * `rewindQuestion`.
+         */
+        const C = await import("./clock.mjs");
+        if (typeof C.rewindQuestion !== "function") { ok(false, "clock.mjs has no rewindQuestion"); return; }
+        const now = 1_900_000_000_000;
+        const base = { season: 1, chapter: 2, day: 5, session: 9, timeOfDay: "noon", eclipse: false };
+        const memo = (clock, ago) => ({ ...clock, lastAdvance: { for: C.boundaryStamp(clock, clock), at: now - ago, snapshot: { actions: {}, tokens: {}, sealed: [], restrictions: {} } } });
+        const morning = { ...base, timeOfDay: "morning" };
+        const label = key => C.timeOfDayLabel(key);
+        const time = (from, to) => game.i18n.format("DRPG.Clock.rewindAskTime", { from: label(from), to: label(to) });
+        const L = key => game.i18n.localize(key);
+        const q = clock => { const out = C.rewindQuestion(clock, now); return [out.title, out.yesLabel, out.effects]; };
+        const hud = stripComments(new Map(await otherSources()).get("hud.mjs") ?? "");
+        const press = fnSource(hud, "pressRewind");
+        equal(stableJson({
+            fresh: q(memo(base, 60_000)), late: q(memo(base, 10 * 60_000)), none: q(base), dayBack: q(morning),
+            press: [press.search(/confirmUndo|ask\(/) > 0, press.search(/rewindQuestion\(/) > 0, press.search(/rewindQuestion\(/) < press.lastIndexOf("rewindTimeOfDay()"),
+                /pressRewind\(/.test(fnSource(hud, "buildTimeRow"))]
+        }), stableJson({
+            fresh: [L("DRPG.Clock.rewindAskTitle"), L("DRPG.Clock.rewindAskYes"), [time("noon", "morning"), L("DRPG.Clock.rewindAskTakeBack")]],
+            late: [L("DRPG.Clock.rewindAskTitle"), L("DRPG.Clock.rewindAskYes"), [time("noon", "morning"), L("DRPG.Clock.rewindAskClockOnly")]],
+            none: [L("DRPG.Clock.rewindAskTitle"), L("DRPG.Clock.rewindAskYes"), [time("noon", "morning"), L("DRPG.Clock.rewindAskClockOnly")]],
+            dayBack: [L("DRPG.Clock.rewindAskTitle"), L("DRPG.Clock.rewindAskYes"), [time("morning", "night"),
+                game.i18n.format("DRPG.Clock.rewindAskDay", { day: 4, session: 8 }), L("DRPG.Clock.rewindAskClockOnly")]],
+            press: [true, true, true, true]
+        }), "{[title, yes, effects] for: a boundary crossed a minute ago, ten minutes ago, none kept, Morning back into the night before; the press asks, words from rewindQuestion, before the rewind, and the chevron runs it}");
+    }],
+    ["R9041 - the one question before an undo: Cancel on the left and the default, the yes on the right, a closed window a no, and the list of what the undo does said item by item, escaped (undo-confirm.mjs `confirmUndo`, `undoBody`; 2.0 line T2b, EXP-GM-13, 28.11.2026)", async () => {
+        /*
+         * F1-blind-gm EXP-GM-13 (E-GM-87): the undos said what they had undone only afterwards. One question asks for each
+         * now - the clock's rewind (R9040) and the Students window's Alive (R9042). Read with a recorder in the kit
+         * window's place (`open`), answering as a window would: the yes, Cancel, and a close (undefined). Nothing is drawn
+         * or written. Red at 7016da4: no undo-confirm.mjs.
+         */
+        let U = null;
+        try { U = await import("./undo-confirm.mjs"); } catch { U = null; }
+        if (typeof U?.confirmUndo !== "function") { ok(false, "undo-confirm.mjs has no confirmUndo"); return; }
+        const asked = [];
+        const answer = value => spec => { asked.push(spec); return Promise.resolve(spec.footer?.[value === true ? "primary" : "close"]?.callback?.() ?? value); };
+        const question = { title: "R9041 title", intro: "R9041 <intro>", effects: ["R9041 <one>", "R9041 two"], yesLabel: "R9041 yes", tip: "R9041 tip" };
+        const read = [await U.confirmUndo(question, { open: answer(true) }), await U.confirmUndo(question, { open: answer(false) }),
+            await U.confirmUndo(question, { open: () => Promise.resolve(undefined) }), await U.confirmUndo(question, { open: () => Promise.resolve(null) })];
+        const spec = asked[0];
+        const box = document.createElement("div");
+        box.innerHTML = spec?.body ?? "";
+        equal(stableJson({
+            read,
+            footer: spec ? [spec.footer?.primary?.action, spec.footer?.primary?.label, spec.footer?.primary?.tooltip, spec.footer?.close?.role, spec.footer?.default, spec.rejectClose, spec.title] : null,
+            body: [box.querySelector("p")?.textContent ?? null, [...box.querySelectorAll("li")].map(li => li.textContent), box.querySelectorAll("script, intro, one").length]
+        }), stableJson({
+            read: [true, false, false, false],
+            footer: ["yes", "R9041 yes", "R9041 tip", "cancel", "no", false, "R9041 title"],
+            body: ["R9041 <intro>", ["R9041 <one>", "R9041 two"], 0]
+        }), "{read: [the yes, Cancel, closed, closed to null]; footer: [the yes's action, label, tooltip, the close's role, the default, rejectClose, title]; body: [the intro, the effects, no tag let through]}");
+    }],
+    ["R9042 - Apply in the Students window asks before it brings anybody back to life, with what the revive really does, and Cancel writes nothing of that Apply (gm-students.mjs `revivesAsked`, `reviveQuestion`, `openWhoIsAliveDialog`; death.mjs `reviveCharacter`; 2.0 line T2b, EXP-GM-13, 28.11.2026)", async () => {
+        /*
+         * F1-blind-gm EXP-GM-13: Alive on a dead or unfound row brought the student back at Apply (`applyAliveStates` ->
+         * death.mjs `reviveCharacter`), nothing said first. Apply asks now when any row goes from Dead, Dead (not found)
+         * or Monocub to Alive, through `confirmUndo` (R9041), and only a yes writes the Apply - every row of it. The list
+         * is what `reviveCharacter` writes, read from it: the dead flag and status off, the skull off the tokens, the body
+         * tiles off the map, the dead's Spectator gone, a death nobody found dropped from the GMs' record; the Monocub's
+         * flag cleared first (`applyAliveStates`); voice reads the death through `isDeadForGm`; the Truth Bullets the death
+         * destroyed stay gone. Read on the pure parts with states of its own, and on the sources; nothing is written.
+         * Red at 7016da4: no `revivesAsked`.
+         */
+        const G = await import("./gm-students.mjs");
+        if (typeof G.revivesAsked !== "function" || typeof G.reviveQuestion !== "function") { ok(false, "gm-students.mjs has no revivesAsked or reviveQuestion"); return; }
+        const states = { a: "dead", b: "unfound", c: "monocub", d: "alive", e: "dead" };
+        const chosen = { a: { state: "alive" }, b: { state: "alive" }, c: { state: "alive" }, d: { state: "alive" }, e: { state: "dead" }, f: { state: "alive" } };
+        const asked = G.revivesAsked(chosen, id => states[id] ?? null);
+        const L = key => game.i18n.localize(key);
+        const q = G.reviveQuestion([{ name: "R9042 <A>", state: "dead" }]);
+        const all = G.reviveQuestion([{ name: "A", state: "dead" }, { name: "B", state: "unfound" }, { name: "C", state: "monocub" }]);
+        const sources = new Map(await otherSources());
+        const win = stripComments(sources.get("gm-students.mjs") ?? ""), death = stripComments(sources.get("death.mjs") ?? "");
+        const open = fnSource(win, "openWhoIsAliveDialog"), revive = fnSource(death, "reviveCharacter");
+        equal(stableJson({
+            asked,
+            one: [q.title, q.yesLabel, q.intro.includes("R9042 <A>"), q.effects],
+            all: all.effects.length,
+            order: open.search(/confirmUndo\(/) > 0 && open.search(/confirmUndo\(/) < open.search(/applyAliveStates\(chosen\)/),
+            reads: [/removeDeadSpectator\(/, /deathStore\.drop\(/, /unsetFlag\(MODULE_ID, FLAGS\.deceased\)/, /markCorpse\(actor, false\)/, /removeBodyTiles\(/].map(re => re.test(revive))
+        }), stableJson({
+            asked: ["a", "b", "c"],
+            one: [L("DRPG.Panel.reviveAskTitle"), L("DRPG.Panel.reviveAskYes"), true,
+                [L("DRPG.Panel.reviveFxMark"), L("DRPG.Panel.reviveFxSpectator"), L("DRPG.Panel.reviveFxVoice"), L("DRPG.Panel.reviveFxBullets")]],
+            all: 6, order: true, reads: [true, true, true, true, true]
+        }), "{asked: the rows Apply revives; one dead student's question: [title, yes, named, effects]; with an unfound death and a Monocub besides, six effects; Apply asks before it writes; what reviveCharacter writes, read in it}");
+    }],
+    ["R9043 - a press refused because a readiness round of another kind is open has its own reason, `roundOpen`, added after the closed list's rows and the patterns that stood before it, and taken by its own pattern first, its words in both languages (bridge-guards.mjs `REASONS`, `REASON_PATTERNS`, `reasonOf`; boundary.mjs `openRoundOnPrimary`; 2.0 line T2b, DAY-06, 28.11.2026)", async () => {
+        /*
+         * F1-daily DAY-06 (confirmed on Forge, F3 S4 C3): a second GM's press of the Eclipse chevron while another GM's
+         * round of the next time of day was open read the general "... was not carried out. You cannot do that right
+         * now." The primary's refusal is a reason of its own now, so the press can say whose round it is and how to join
+         * (R9044). A new code only at the end of REASONS and a new pattern only at the end of REASON_PATTERNS (LINE-T2 4.2);
+         * the old text "another readiness round is open" kept its row and no run returns it now. Read on the module's
+         * tables and source; nothing is written. Red at 7016da4: no code `roundOpen`.
+         */
+        const G = await import("./bridge-guards.mjs");
+        const sources = new Map(await otherSources());
+        const open = fnSource(stripComments(sources.get("boundary.mjs") ?? ""), "openRoundOnPrimary");
+        const TEXT = "another kind of readiness round is open";
+        const firstTaking = G.REASON_PATTERNS.findIndex(([, re]) => re.test(TEXT));
+        equal(stableJson({
+            code: G.REASONS.includes("roundOpen"), last: G.REASONS.indexOf("roundOpen") > G.REASONS.indexOf("onWatch"),
+            read: G.reasonOf(TEXT), pattern: [firstTaking > G.REASON_PATTERNS.findIndex(([code]) => code === "notInRound"), G.REASON_PATTERNS[firstTaking]?.[0]],
+            run: open.includes(JSON.stringify(TEXT)), oldGone: !open.includes('"another readiness round is open"'),
+            words: game.i18n.localize("DRPG.Bridge.why.roundOpen") !== "DRPG.Bridge.why.roundOpen"
+        }), stableJson({ code: true, last: true, read: "roundOpen", pattern: [true, "roundOpen"], run: true, oldGone: true, words: true }),
+            "{the code in the closed list, after E74's last; the text read as it; the first pattern taking it stands after the round's old ones, and is its own; the run says it; the old text gone from the run; the words}");
+    }],
+    ["R9044 - the GM refused for another kind of round is told whose round it is, which, and how to join or end it, once, and the panel's Next line names that GM (boundary.mjs `roundOpenLine`, `askReadiness`; bridge-asks.mjs `requestReadyOpen`; gm-panel.mjs `nextStep`; 2.0 line T2b, DAY-06, 28.11.2026)", async () => {
+        /*
+         * F1-daily DAY-06. The words come from the round's record, a world setting every browser holds (`readyRecord`):
+         * the GM who opened it and its kind, said as its window's title says it (`roundTitle`). Joining is the GM panel's
+         * Next line: its button runs the road that opened the round, which joins a round of the same kind
+         * (`openRoundOnPrimary`: `reply.round = open`); the round's window's Cancel ends it ("notNow" -> `close("stop")`) -
+         * both read in the code on 28.11.2026. One message, not two: the waiter says nothing for this request
+         * (`sayRefused: false`), and the press says the line or, for any other reason, the bridge's own sentence. Read on
+         * records of its own and on the sources; nothing is written. Red at 7016da4: no `roundOpenLine`.
+         */
+        const B = await import("./boundary.mjs"), P = await import("./gm-panel.mjs");
+        if (typeof B.roundOpenLine !== "function") { ok(false, "boundary.mjs has no roundOpenLine"); return; }
+        const other = game.users.find(u => u.id !== game.user.id);
+        must(other, "this world has no second user to name - this would measure nothing");
+        const sources = new Map(await otherSources());
+        const src = name => stripComments(sources.get(name) ?? "");
+        const asks = fnSource(src("boundary.mjs"), "askReadiness"), open = fnSource(src("bridge-asks.mjs"), "requestReadyOpen");
+        const step = P.nextStep({ phase: "dailyLife", timeOfDay: "noon" }, { round: { id: "R9044round", kind: "next", by: other.id }, incident: null, eclipse: false });
+        const own = P.nextStep({ phase: "dailyLife", timeOfDay: "noon" }, { round: { id: "R9044round", kind: "next", by: game.user.id }, incident: null, eclipse: false });
+        const title = game.i18n.localize("DRPG.Ready.titleNext");
+        equal(stableJson({
+            other: B.roundOpenLine({ id: "R9044round", kind: "next", by: other.id }),
+            own: B.roundOpenLine({ id: "R9044round", kind: "next", by: game.user.id }),
+            none: B.roundOpenLine({}),
+            said: [/sayRefused: false/.test(open), /sayOpenRefusal\(/.test(open), /sayOpenRefusal\(res\.reason\)/.test(asks),
+                /code === "roundOpen"[^]*roundOpenLine\(\)[^]*sayNotDone\(ACTION_READY_OPEN, code\)/.test(fnSource(src("boundary.mjs"), "sayOpenRefusal"))],
+            next: [step.text, step.action, own.text]
+        }), stableJson({
+            other: game.i18n.format("DRPG.Ready.otherRoundOpen", { gm: other.name, kind: title }),
+            own: game.i18n.format("DRPG.Ready.ownRoundOpen", { kind: title }),
+            none: game.i18n.localize("DRPG.Bridge.why.roundOpen"),
+            said: [true, true, true, true],
+            next: [game.i18n.format("DRPG.Panel.nextReadyBy", { gm: other.name, kind: title }), "advance", game.i18n.localize("DRPG.Panel.nextReady")]
+        }), "{the line for another GM's round, for this GM's own, for no record; the request says nothing itself and its own press and the remote press say the line or the reason; the Next line for another GM's round, its action, and for this GM's own}");
+    }],
+    ["R9045 - a Search that lost the room's last Search Token to another at the same moment says so and gives its action back by the after-roll rule, while a room it already knew was empty keeps the action (action-search.mjs `unclaimedOutcome`, `searchUnclaimed`, `performSearch`; 2.0 line T2b, DAY-05, 28.11.2026)", async () => {
+        /*
+         * F1-daily DAY-05: two players search a room with one token left; both pass the check before the price (this
+         * browser's count), the second claim is refused "empty", and the loser read "The room had no Search Token left by
+         * then. The action is spent." Now a refusal "empty" after this browser saw a free token before the roll
+         * (`sawFree`) is the lost race: its own words and the action back through `giveBackAfterRoll`, by the after-roll
+         * rule (price.mjs `mayRefundAfterRoll`, `ROLL_REFUNDS.afterRoll`). A room read empty is refused before the price,
+         * so the branch needs another's claim landing first. Without `sawFree` the old answer stands (tier 2 E17-T7
+         * reads it). Read on the pure function and the source; nothing is written. Red at 7016da4: the lost race
+         * read as picked clean, no refund.
+         */
+        const A = await import("./action-search.mjs");
+        const O = (why, left, opts) => A.unclaimedOutcome(why, left, opts);
+        const src = stripComments(new Map(await otherSources()).get("action-search.mjs") ?? "");
+        const perform = fnSource(src, "performSearch"), unclaimed = fnSource(src, "searchUnclaimed");
+        const sawAt = perform.search(/sawFree = SearchTokens\.left\(/);
+        equal(stableJson({
+            race: O("empty", 0, { sawFree: true }), raceLeft: O(null, 0, { sawFree: true }), clean: O("empty", 0), cleanNot: O("empty", 0, { sawFree: false }),
+            sealed: O("sealed", 2, { sawFree: true }), unanswered: O("unanswered", 2, { sawFree: true }),
+            seen: [sawAt > 0, sawAt < perform.search(/rollTrait\(actor/), /searchUnclaimed\(actor, def, roll, \{[^}]*sawFree/.test(perform)],
+            refund: [/unclaimedOutcome\(why, SearchTokens\.left\(room, scene\), \{ sawFree \}\)/.test(unclaimed), /giveBackAfterRoll\(actor, paid, \[roll\]\)/.test(unclaimed)],
+            words: game.i18n.localize("DRPG.SearchTokens.lostRace") !== "DRPG.SearchTokens.lostRace"
+        }), stableJson({
+            race: { text: "DRPG.SearchTokens.lostRace", refund: true, exhausted: true, lostRace: true },
+            raceLeft: { text: "DRPG.SearchTokens.lostRace", refund: true, exhausted: true, lostRace: true },
+            clean: { text: "DRPG.SearchTokens.pickedClean", refund: false, exhausted: true },
+            cleanNot: { text: "DRPG.SearchTokens.pickedClean", refund: false, exhausted: true },
+            sealed: { text: "DRPG.SearchTokens.sealed", refund: true, exhausted: false },
+            unanswered: { text: "DRPG.SearchTokens.timeout", refund: true, exhausted: false },
+            seen: [true, true, true], refund: [true, true], words: true
+        }), "{the lost race; the same read off a count of 0; a room empty with no free token seen, twice; a sealed room; an unanswered spend; the free token seen before the roll and handed on; the outcome read with it and the refund's road; the words}");
+    }],
+    ["R9046 - a GM who is not the primary gives a room's Search Token back through the primary, so a second GM's unsent Search for something specific does not keep it taken (search-tokens.mjs `giveBack`, `giveBackHere`, `searchTokens.gmWrite` op \"giveBack\"; action-search.mjs `searchSpecific`; 2.0 line T2b, DAY-10, 28.11.2026)", async () => {
+        /*
+         * F1-daily DAY-10: `SearchTokens.giveBack` answered null on any GM but the primary, so the room's token taken for a
+         * second GM's Search whose card was not posted stayed taken. The second GM's spend is not a bridge request with a
+         * ledger entry (it is `searchTokens.gmWrite` op "spend", read on 28.11.2026), so `returnToken` and its
+         * `spendRequestId` do not apply; the give-back travels the same GM-only row as the spend, a new op "giveBack",
+         * written in the primary's queue (`giveBackHere`). Read on the row and the sources; nothing is written. Red at
+         * 2686b68: the row's op list had no "giveBack".
+         */
+        const T = await import("./search-tokens.mjs");
+        const row = T.SEARCH_ACTIONS?.["searchTokens.gmWrite"];
+        must(row, "search-tokens.mjs has no searchTokens.gmWrite row - this reads nothing");
+        const src = stripComments(new Map(await otherSources()).get("search-tokens.mjs") ?? "");
+        const as = stripComments(new Map(await otherSources()).get("action-search.mjs") ?? "");
+        const player = game.users.find(u => !u.isGM);
+        const cut = row.sanitize({ op: "giveBack", roomName: "R9046 room", sceneId: "R9046SceneAAAAAA" });
+        const give = /static async giveBack\(roomName, sceneId\) \{[^]*?\n    \}/.exec(src)?.[0] ?? "";
+        equal(stableJson({
+            op: cut?.op ?? null, guard: player ? String(await row.guards[0](player, {}, {}) ?? "") : null,
+            run: /payload\.op === "giveBack"[^]*?giveBackHere\(payload\.roomName/.test(fnSource(src, "runGmWrite")),
+            asks: /gmWriteOnPrimary\(\{ op: "giveBack"/.test(give) && /giveBackHere\(roomName, sceneId\)/.test(give),
+            anyGm: /if \(!sent\) \{\s*if \(game\.user\.isGM\) await SearchTokens\.giveBack\(/.test(fnSource(as, "searchSpecific"))
+        }), stableJson({ op: "giveBack", guard: "only a GM sets the Search Tokens", run: true, asks: true, anyGm: true }),
+            "{the row keeps the op; its first guard refuses a player (gmOnly); the run gives back in the primary's queue; giveBack asks the primary or writes here; the unsent specific Search gives back on any GM}");
+    }],
+    ["R9047 - Shut the Door's row is grayed before its price where a barricade stands that is not this character's, and open over its own (action-listen.mjs `barricadeShutWhy`, `shutShutWhy`, `noteOwnBarricade`; action-doors.mjs `performShut`; 2.0 line T2b, DAY-09, 28.11.2026)", async () => {
+        /*
+         * F1-daily DAY-09: in a room another had barricaded the row was live, the action paid and rolled, and the GM
+         * refused after the roll with the general "You cannot do that right now". The room's barricade is a public flag
+         * (movement.mjs `roomBarricaded`, its one reader), which the room's people see anyway; its author is the GMs'
+         * (`barricadeStore`). The author's own Shut there is not refused: it puts the barricade up again at the new roll's
+         * strength (doors-gm.mjs `shutRefusal` lets the author through, `shutDoor` writes the new strength - read on
+         * 28.11.2026). So the row stays open for the author: on a GM's browser by the store's author, on the player's by
+         * this browser's memory of its own successful Shut (`noteOwnBarricade`, written by `performShut`) - a memory a
+         * reload forgets, which grays the author's row until the barricade comes down (the GM's refusal stays the rule).
+         * Read on the pure rule and the sources; nothing is written. Red at 20353d9: no `barricadeShutWhy`.
+         */
+        const A = await import("./action-listen.mjs");
+        if (typeof A.barricadeShutWhy !== "function") { ok(false, "action-listen.mjs has no barricadeShutWhy"); return; }
+        const sources = new Map(await otherSources());
+        const listen = stripComments(sources.get("action-listen.mjs") ?? ""), doors = stripComments(sources.get("action-doors.mjs") ?? "");
+        const why = fnSource(listen, "shutShutWhy"), perform = fnSource(doors, "performShut");
+        const W = game.i18n.localize("DRPG.Infiltrate.shut.whyBarricaded");
+        equal(stableJson({
+            rule: [A.barricadeShutWhy({ barricaded: false, own: false }), A.barricadeShutWhy({ barricaded: true, own: false }), A.barricadeShutWhy({ barricaded: true, own: true })],
+            order: why.search(/barricadeShutWhy\(/) > why.search(/whyDoors/) && why.search(/whyDoors/) > 0,
+            reads: [/roomBarricaded\(/.test(fnSource(listen, "ownBarricadeHere")), /barricadeStore/.test(fnSource(listen, "ownBarricadeHere"))],
+            noted: perform.search(/noteOwnBarricade\(/) > perform.search(/requestDoorShut\(/) && perform.search(/requestDoorShut\(/) > 0,
+            words: W !== "DRPG.Infiltrate.shut.whyBarricaded"
+        }), stableJson({ rule: [null, W, null], order: true, reads: [true, true], noted: true, words: true }),
+            "{rule: [no barricade, another's, this character's own]; read after the doors' count; the reader asks the public flag and, on a GM, the store; performShut notes its own after the GM's answer; the words}");
+    }],
+    ["R9048 - a Shut the Door refused after its roll because a barricade went up meanwhile says so, with a code of its own (doors-gm.mjs `shutRefusal`; bridge-guards.mjs `REASONS`, `REASON_PATTERNS`; 2.0 line T2b, DAY-09, 28.11.2026)", async () => {
+        /*
+         * F1-daily DAY-09: the after-roll refusal for another's barricade was "that cannot be done now" - the general
+         * `cannotNow`. The code `barricaded` the spec names is the door's ("The door does not give.", a walk in refused),
+         * so the refusal has its own code, `barricadeStands`, at the end of REASONS and of REASON_PATTERNS, its words the
+         * row's (`DRPG.Infiltrate.shut.whyBarricaded`). A body nobody found keeps the general words: that one is the GMs'
+         * secret. Read on the tables and the source; nothing is written. Red at 20353d9: the refusal read as cannotNow.
+         */
+        const G = await import("./bridge-guards.mjs");
+        const D = stripComments(new Map(await otherSources()).get("doors-gm.mjs") ?? "");
+        const refusal = fnSource(D, "shutRefusal");
+        const TEXT = "a barricade already stands in that room";
+        equal(stableJson({
+            code: G.REASONS.includes("barricadeStands"), read: G.reasonOf(TEXT),
+            last: G.REASON_PATTERNS[G.REASON_PATTERNS.findIndex(([, re]) => re.test(TEXT))]?.[0] === "barricadeStands" && G.REASONS.indexOf("barricadeStands") > G.REASONS.indexOf("onWatch"),
+            run: /row && row\.authorId !== actor\.id\) return \{ why: "a barricade already stands in that room" \}/.test(refusal),
+            body: /knownUnfoundBodyIn\([^)]*\)\) return \{ why: "that cannot be done now" \}/.test(refusal),
+            words: game.i18n.localize("DRPG.Bridge.why.barricadeStands") === game.i18n.localize("DRPG.Infiltrate.shut.whyBarricaded")
+        }), stableJson({ code: true, read: "barricadeStands", last: true, run: true, body: true, words: true }),
+            "{the code in the closed list; the text read as it; the first pattern taking it is its own, the code after E74's; the run says it for another's barricade; a body keeps the general words; the told words are the row's}");
     }],
 ];
 

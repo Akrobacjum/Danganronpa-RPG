@@ -26,7 +26,8 @@
 import { MODULE_ID, FLAGS, TIMES_OF_DAY, ECLIPSE_FREE_PLACEMENT, ECLIPSE_MOVES } from "./config.mjs";
 // A leaf (config, settings, utils): the Eclipse allowance under a darkening, for the tooltip.
 import { overflowCrossingsAhead } from "./overflow.mjs";
-import { getClock, campaignName, phaseLabel, timeOfDayLabel, rewindTimeOfDay } from "./clock.mjs";
+import { getClock, campaignName, phaseLabel, timeOfDayLabel, rewindTimeOfDay, rewindRefusalOf, rewindQuestion, withTakeBack } from "./clock.mjs";
+import { confirmUndo } from "./undo-confirm.mjs";
 import { play, TURN, ARRIVE, LEAVE } from "./motion.mjs";
 import { error, debug, tickerRuns, markLanguage, plural, trialModeLabel } from "./utils.mjs";
 import { launcher } from "./ui-kit.mjs";
@@ -1221,11 +1222,16 @@ function buildTimeRow(clock, isGM) {
     const running = clock.eclipse === true;
 
     if (isGM) {
+        /* DIMMED WITH THE REWIND'S OWN REFUSAL, AND ASKING FIRST (2.0 line T2b, DAY-02 and EXP-GM-13, 28.11.2026): an
+           Eclipse keeps its own words (HUD-02); inside an incident before Stage 6 the chevron is dimmed with the refusal
+           `rewindTimeOfDay` says (clock.mjs `rewindRefusalOf`), as the Eclipse's chevron reads `startRefusalOf`. Still
+           pressable, so the press says it too. Otherwise the press asks what the rewind does first (`pressRewind`). */
+        const rewindHeld = running ? null : rewindRefusalOf(clock, { incident: murderState() });
         row.append(control("fa-chevron-left",
-            running ? "DRPG.Hud.rewindEclipse" : "DRPG.Hud.rewind",
+            running ? "DRPG.Hud.rewindEclipse" : rewindHeld ?? "DRPG.Hud.rewind",
             async () => {
-                await rewindTimeOfDay();
-            }));
+                await pressRewind();
+            }, { held: Boolean(rewindHeld) }));
     }
 
     // While an Eclipse runs, the clock has NOT moved yet - it still reads the
@@ -1321,6 +1327,23 @@ function buildTimeRow(clock, isGM) {
     }
 
     return row;
+}
+
+/**
+ * THE LEFT CHEVRON'S PRESS (2.0 line T2b, DAY-02 and EXP-GM-13, 28.11.2026; F1-daily DAY-02, F1-blind-gm EXP-GM-13). It
+ * stepped the clock back at the press, beside a right chevron that asks, and said what it had done only afterwards. A
+ * press the rewind refuses (an Eclipse, an incident before Stage 6) goes straight to `rewindTimeOfDay`, which says why
+ * and moves nothing; any other asks the one undo question first (undo-confirm.mjs `confirmUndo`, Cancel the default),
+ * worded by clock.mjs `rewindQuestion` from the take-back memory as the rewind will read it, and Cancel or a closed
+ * window does nothing. `ask` is the question unless handed another (tier 2 "E132 T2b DAY-02"). Answers the rewind's
+ * clock, or null.
+ */
+export async function pressRewind({ ask = confirmUndo } = {}) {
+    if (!game.user?.isGM) return null;
+    const clock = getClock();
+    if (rewindRefusalOf(clock, { incident: murderState() })) return rewindTimeOfDay();
+    if (!await ask(rewindQuestion(await withTakeBack(clock)))) return null;
+    return rewindTimeOfDay();
 }
 
 /* The stopwatch ("how long this time of day has run") is hud-elapsed.mjs's since E41 C7b, its note there; whose turn it

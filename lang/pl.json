@@ -493,7 +493,8 @@
       "sealed": "Tego pokoju nie przeszukasz: nie ma tu nic do znalezienia o żadnej porze dnia.",
       "roomSetupLine": "Liczba Search Tokenów na pokój to {max}. Tokeny odnawiają się z każdą porą dnia. Przyciski - i + zmieniają tylko pokój w swoim wierszu.",
       "sealedColumn": "Bez Search",
-      "sealedNote": "„Bez Search” zamyka pokój na Search, dopóki tego nie odznaczysz."
+      "sealedNote": "„Bez Search” zamyka pokój na Search, dopóki tego nie odznaczysz.",
+      "lostRace": "Ktoś zabrał ostatni Search Token tego pokoju w tej samej chwili."
     },
     "Sheet": {
       "ultimateLabel": "Ultimate",
@@ -4277,7 +4278,8 @@
         "whyBedroom": "To cudza sypialnia.",
         "whyDoors": { "one": "Ten pokój ma więcej niż {n} otwarte drzwi.", "few": "Ten pokój ma więcej niż {n} otwarte drzwi.", "many": "Ten pokój ma więcej niż {n} otwartych drzwi.", "other": "Ten pokój ma więcej niż {n} otwartych drzwi." },
         "seenBy": "{name} barykaduje od środka: {room}.",
-        "done": "Barykadujesz pokój {room}. Dopóki z niego nie wyjdziesz albo nie skończy się pora dnia, nikt nie wejdzie drzwiami, chyba że je wyważy."
+        "done": "Barykadujesz pokój {room}. Dopóki z niego nie wyjdziesz albo nie skończy się pora dnia, nikt nie wejdzie drzwiami, chyba że je wyważy.",
+        "whyBarricaded": "W tym pokoju stoi już barykada."
       },
       "tail": {
         "nobody": "Nikt inny nie stoi w tym pokoju, by go śledzić.",
@@ -5560,7 +5562,9 @@
         "noBudget": "Nie masz już Free Move ani akcji.",
         "eclipseSpent": "Przejścia Eclipse wyczerpane.",
         "roundMovedOn": "GM pyta ponownie: odpowiedz na nowe pytanie.",
-        "notInRound": "To pytanie jest do graczy, których uczniowie są w grze, a twój nie jest."
+        "notInRound": "To pytanie jest do graczy, których uczniowie są w grze, a twój nie jest.",
+        "roundOpen": "Inny GM zadaje teraz graczom inne pytanie.",
+        "barricadeStands": "W tym pokoju stoi już barykada."
       },
       "criticalHint": "To krytyk, więc daj graczowi solidną podpowiedź.",
       "send": "Wyślij do GM-a",
@@ -5737,7 +5741,17 @@
       "searchTokensRestocked": "Każdy pokój ma znowu komplet Search Tokenów",
       "woundedNote": "Wounded zabiera akcję o tej porze dnia: {names}.",
       "rewindDuringEclipse": "Trwa Eclipse. Najpierw je zakończ.",
-      "takenBack": "Początek tej pory dnia jest cofnięty: akcje, Free Move, to, co dały Sprint i Burst, Search Tokeny pokoi i pieczęcie wracają do stanu sprzed niego."
+      "takenBack": "Początek tej pory dnia jest cofnięty: akcje, Free Move, to, co dały Sprint i Burst, Search Tokeny pokoi i pieczęcie wracają do stanu sprzed niego.",
+      "morningLineShared": "Wspólne dla GM-ów.",
+      "morningLineSharedBy": "Wspólne dla GM-ów. Ostatnia zmiana: {gm}.",
+      "rewindDuringIncident": "Trwa incydent, który nie doszedł do Stage 6. Zakończ go albo naciśnij Przejdź do Stage 6 w Śledzeniu incydentu, zanim cofniesz zegar.",
+      "rewindAskTitle": "Cofnąć zegar?",
+      "rewindAskIntro": "Cofnięcie o jedną porę dnia zrobi tyle:",
+      "rewindAskTime": "Zegar wraca z pory „{from}” na „{to}”.",
+      "rewindAskDay": "Dzień i sesja cofają się o jeden: do dnia {day} i sesji {session}.",
+      "rewindAskTakeBack": "Akcje, Free Move, to, co dały Sprint i Burst, Search Tokeny pokoi i pieczęcie wracają do stanu sprzed początku tej pory dnia.",
+      "rewindAskClockOnly": "Nic więcej nie wraca: akcje i Search Tokeny zostają, jakie są, a pieczęcie tej pory dnia się kończą.",
+      "rewindAskYes": "Cofnij"
     },
     "Context": {
       "lost": "Przeglądarka gracza {name} utraciła kontekst rysowania ({scene})."
@@ -5903,7 +5917,17 @@
       "primaryTitle": "Główny GM",
       "primaryNowYou": "Jesteś teraz głównym GM-em: twoja przeglądarka prowadzi automatykę stołu (głos, rzuty graczy, audyt arkuszy, mgłę). Zostaw tę kartę przeglądarki otwartą.",
       "primaryNow": "Głównym GM-em jest teraz {name}.",
-      "primaryBack": "Głównym GM-em jest teraz {name}. Twoja przeglądarka już nie prowadzi automatyki stołu."
+      "primaryBack": "Głównym GM-em jest teraz {name}. Twoja przeglądarka już nie prowadzi automatyki stołu.",
+      "reviveAskTitle": "Przywrócić do życia?",
+      "reviveAskIntro": "Zastosuj przywraca do życia: {names}. Anuluj nie zapisuje żadnej zmiany z tego okna. Co zrobi przywrócenie:",
+      "reviveAskYes": "Przywróć",
+      "reviveFxMark": "Śmierć znika z arkusza postaci i z żetonów, a ciało znika z mapy.",
+      "reviveFxSpectator": "Widz tej postaci, jeśli jest, znika z mapy.",
+      "reviveFxMonocub": "Monocub przestaje być Monocubem.",
+      "reviveFxUnfound": "Śmierć, której nikt nie znalazł, znika z zapisu GM-ów.",
+      "reviveFxVoice": "W czacie głosowym znowu rozmawia z żywymi.",
+      "reviveFxBullets": "Truth Bullety zniszczone przez śmierć nie wracają.",
+      "nextReadyBy": "GM {gm} pyta graczy, czy już kończą ({kind}). Naciśnij przycisk, żeby dołączyć do tego pytania."
     },
     "Character": {
       "notACharacter": "To działa tylko na postaci.",
@@ -6914,7 +6938,9 @@
       "goAnyway": "Dalej",
       "answerAgain": "GM wciąż czeka na twoją odpowiedź. Kliknij tutaj, by odpowiedzieć.",
       "goneEnded": "GM, który wcześniej zapytał graczy, nie ma połączenia, więc to pytanie zostało zamknięte.",
-      "barred": "Runda się skończyła, a zegar się nie przesunął: w jej trakcie zaczął się incydent albo Class Trial."
+      "barred": "Runda się skończyła, a zegar się nie przesunął: w jej trakcie zaczął się incydent albo Class Trial.",
+      "otherRoundOpen": "GM {gm} pyta właśnie graczy, czy już kończą ({kind}). Żeby dołączyć, naciśnij przycisk w linii Dalej w panelu GM-a; Anuluj w oknie tego pytania je kończy.",
+      "ownRoundOpen": "Już pytasz graczy, czy kończą ({kind}). Odpowiedz w oknie tego pytania albo naciśnij tam Anuluj, żeby je zakończyć."
     },
     "Summary": {
       "title": "Podsumowanie pory dnia",
@@ -9353,7 +9379,8 @@
         "caseTicks": "Zaznaczenia z rozprawy: wnioski, kontry i rozwiązanie zaznaczone przez GM-a w każdym rozdziale",
         "facilityUses": "Użycia akcji w pokoju: która postać użyła akcji którego projektu i kiedy",
         "balanceLog": "Dziennik balansu: każdy rzut, który GM-owie losowali, gdy był włączony, i notatki GM-ów",
-        "diveSets": "Zestawy Logic Dive: pytania każdego zestawu, ich odpowiedzi i to, która odpowiedź jest dobra"
+        "diveSets": "Zestawy Logic Dive: pytania każdego zestawu, ich odpowiedzi i to, która odpowiedź jest dobra",
+        "morningLine": "Wspólne zdanie GM-ów na następny poranek, do początku dnia, który je pokaże"
       },
       "copy": {
         "writeNow": "Zapisz kopię teraz",
