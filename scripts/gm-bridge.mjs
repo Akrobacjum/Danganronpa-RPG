@@ -33,6 +33,7 @@ import { replyForMe, resendOnGmReady } from "./bridge-guards.mjs";
 
 import { cardFlag } from "./secret.mjs";
 import { sweepAskCards, claimsInProgress, releaseClaimsOf, releaseOwnClaims } from "./call-gm.mjs";
+import { onCardTakenOver } from "./card-takeover.mjs";
 import {
     SOCKET_EVENT, ACTION_ADVANCEMENT_ASK, ACTION_ADVANCEMENT_OFFERS, ACTION_OPENING_ASK, ACTION_OPENING_CANCEL,
     ACTION_GM_READY
@@ -228,6 +229,9 @@ export function registerGmBridge() {
             if (connected || !user?.isGM || !isPrimaryGm({ leaving: user.id })) return;
             sweepAskCards({ leaving: user.id }).catch(err => debug("Could not sweep the asks' cards", err));
         });
+        // The primary's word that another GM took over this GM's card closes its window of it (2.0 line T2, CALLS-01,
+        // 27.11.2026): GM -> GM, taken only from the primary by Foundry's sender (card-takeover.mjs `onCardTakenOver`).
+        game.socket.on(SOCKET_EVENT, onCardTakenOver);
         // A user's role written can move the primary (2.0 line T2, PRIM-02): a GM made an Assistant or a player, an
         // Assistant made a full Gamemaster. `updateUser` fires on every browser once the change is applied here.
         Hooks.on("updateUser", (user, changes) => {

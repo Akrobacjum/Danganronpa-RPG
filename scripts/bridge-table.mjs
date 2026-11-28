@@ -1650,17 +1650,17 @@ export const BRIDGE_ACTIONS = table({
      * ONE RULING PER CARD (E18 C3, 19.10.2026; audits S11-14, S17-22). Every GM's click on a card's
      * button is claimed here first, and the primary decides in one step whether that card is free
      * (`claimOnPrimary`). A GM's alone: the buttons are drawn for GMs, and a player's claim would
-     * hold a card away from them.
+     * hold a card away from them. A take-over since 2.0: its `step` claim (line T2, CALLS-01).
      */
     [ACTION_CARD_CLAIM]: {
         label: "DRPG.Bridge.what.card.claim",
         guards: [gmOnly("only a GM rules on a card sent to the GMs")],
-        sanitize: pick({ messageId: as.id, step: as.oneOf("take", "done", "drop") }),
+        sanitize: pick({ messageId: as.id, step: as.oneOf("take", "done", "drop", "takeover") }),
         run: handleCardClaim,
         answer: "reply",
         claims: {
             messageId: "read on the primary by claimOnPrimary: a card that exists, with no row in the GMs' ruledCardStore, not settled and not held by another click",
-            step: "\"take\" before the ruling runs, \"done\" once it was made (the row is written), \"drop\" when it was not; done and drop end only the sender's own claim"
+            step: "\"take\" before the ruling runs, \"done\" once it was made (the row is written), \"drop\" when it was not; done and drop end only the sender's own claim, and write nothing once another GM holds the card; \"takeover\" (2.0 line T2, CALLS-01) takes only a claim another GM holds, and the primary tells that GM (card.takenOver)"
         }
     },
 

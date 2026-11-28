@@ -539,7 +539,13 @@ export const TIMING = {
      *  primary's ready in S3; in S5 a GM's login 30.7-41.9 s and the role back with it after 33.8-51.7 s;
      *  docs/dev/v2/F3-forge-PC-2.md) with room for a slower machine; the order and the gap of a GM's connect and ready
      *  on v14 is LIVE-E04-12. */
-    gmReadyWaitMs: 90000
+    gmReadyWaitMs: 90000,
+    /** How long a GM's claim on a card holds it (call-gm.mjs `claimOnPrimary`, `underClaim`; 2.0 line T2, CALLS-01,
+     *  27.11.2026): a pending claim older than this is free for another GM's take, and a card's end at its time no longer
+     *  waits on it. Chosen, not measured: under a player's own clock for a ruling (`rulingMs`, 180 s), so a minute is left
+     *  for another GM to rule once a claim has run out, and under the 150 s S2 B waited on Forge (F3-forge-PC-2.md). How
+     *  long a GM's ruling window stands open at a real table is LIVE-E132-01. */
+    claimHoldMs: 120000
 };
 
 /**

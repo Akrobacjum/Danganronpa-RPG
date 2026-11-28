@@ -5465,7 +5465,8 @@
         "trial.present": "Przedstawienie Truth Bulletu",
         "ready.open": "Pytanie graczy, czy skończyli",
         "ready.answer": "Twoja odpowiedź dla GM-a",
-        "ready.end": "Zamknięcie pytania do graczy"
+        "ready.end": "Zamknięcie pytania do graczy",
+        "card.takenOver": "Karta przejęta przez innego GM-a"
       },
       "notDone": "Prośba „{what}” nie została wykonana. {why}",
       "nothingSpent": "Nie tracisz akcji ani Hope.",
@@ -5584,7 +5585,15 @@
       "createItemStays": "„Utwórz przedmiot” nie zamyka tej karty, więc możesz jeszcze wybrać inną odpowiedź.",
       "giveItem": "Daj istniejący przedmiot",
       "keyRemnantHere": "Utwórz tu Key Remnant",
-      "unnamed": "bez nazwy"
+      "unnamed": "bez nazwy",
+      "claimedBy": "Tę kartę rozstrzyga GM {gm} od {time}.",
+      "takeOver": "Przejmij kartę",
+      "takeOverTitle": "Przejęcie karty",
+      "takeOverAsk": "Tę kartę rozstrzyga GM {gm} od {time}. Przejąć ją? Okno tej karty u GM-a {gm} się zamknie.",
+      "claimTakenOver": "Tę kartę przejmuje GM {gm}. Twoje okno tej karty jest zamknięte i nic z niego nie poszło.",
+      "claimOwnOpen": "Masz już otwarte okno tej karty. Dokończ je albo zamknij.",
+      "takeOverTooltip": "Zamyka okno tej karty u drugiego GM-a i zwalnia kartę. Potem wybierz na niej odpowiedź.",
+      "takeOverNowTooltip": "Zamyka okno tej karty u drugiego GM-a i otwiera u ciebie okno tej odpowiedzi."
     },
     "Tables": {
       "installed": "Tabele przedmiotów są gotowe: utworzono {created}, a {skipped} zostawiono bez zmian.",

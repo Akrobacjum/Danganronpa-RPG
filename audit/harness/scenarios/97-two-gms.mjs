@@ -47,6 +47,9 @@
  *   PRIM  2.0 line T2, PRIM-01 and PRIM-02 (27.11.2026): gm leaves and comes back; gm2 is told it took the table, then
  *      that gm has it again, and its panel's line names the primary each time (PRIM1, PRIM2); gm is told nothing at its
  *      own load; no player is told of either (PRIM3).
+ *   TAKE  2.0 line T2, CALLS-01 and EXP-GM-05 (27.11.2026): gm holds p1's card open in its Reply window; gm2's copy names
+ *      gm as ruling on it (TAKE1); gm2's press asks to take it over and Take over opens gm2's window while gm's closes, gm
+ *      told (TAKE2); the card is ruled once, by gm2 (TAKE3).
  *
  * What this cannot see: a real F5 (a new process with the old localStorage, no cookie, IndexedDB or cache; the
  * order of "inactive", "active" and `ready` on v14 is LIVE-E30-05 and LIVE-E04-12), and a real server's delivery
@@ -1331,6 +1334,79 @@ export async function run(api) {
             && J(primGm) === J({ told: { nowYou: 0, backToGm: 0, any: 0 }, line: { id: IDS.gm, you: true } }), J({ primBack, primHanded, primGm }));
     check("PRIM3: none of the three players is told of either move (2.0 line T2, PRIM-02)",
         Object.keys(primPlayers).length === 3 && Object.values(primPlayers).every(n => n === 0), J(primPlayers));
+
+    /* ------------------------------------------------------------------ TAKE */
+    /* 2.0 line T2, CALLS-01, EXP-GM-05 (27.11.2026; F3 S2 B on Forge: the second GM was refused every 20 s for 150 s while
+       the primary's difficulty window stood open). Both GMs' messenger windows on the Timeline, and each GM's windows drawn
+       as a person sees them (`__dialogWindows`). p1's card with Reply waits on both; gm presses Reply and leaves its window
+       open; gm2's copy then says gm is ruling on it, with Take over (the sign); gm2 presses Reply, is asked whether to take
+       the card over (Cancel the default) and presses Take over; gm's window closes and gm is told; gm2 writes its reply.
+       Read: on both GMs the sign before and after, the question's words and buttons, gm's window and notice, gm2's window;
+       on p1 the lines of the card's thread that carry each GM's words; on gm the card's row and line. Red at 7832a4d: gm2
+       was told "busy" and drew no question, and no sign. */
+    phase("TAKE a card one GM holds open is taken over by the other", { flow: "messenger" });
+    for (const c of [gm, gm2]) await c.eval(`globalThis.__t2TakeWas = globalThis.__dialogWindows; globalThis.__dialogWindows = true; return true;`);
+    const takeConsoles = { gm: await gm.eval(OPEN_CONSOLE), gm2: await gm2.eval(OPEN_CONSOLE) };
+    const WORDS_T2 = `T2 CALLS-01 ${Date.now()}`;
+    const askedT2 = await p1.eval(`const C = ${imp("call-gm.mjs")}; const actor = game.actors.get("${IDS.aiko}");
+        return Boolean(await C.callGm(actor, { title: "T2 CALLS-01", request: ${J(WORDS_T2)}, actions: [{ action: "reply", label: "Reply", data: { by: actor.id } }] }));`,
+    { timeout: 60000 });
+    await settle(1200);
+    const FIND_T2 = `${APP} const S = ${imp("secret.mjs")}; const M = ${imp("messenger.mjs")};
+        const card = M.threadMessages("${IDS.p1}").find(m => S.contentOf(m).includes(${J(WORDS_T2)}));
+        const item = card ? A.gmMessengerWindow()?.element?.querySelector('.drpg-console-waiting-list [data-message-id="' + card.id + '"]') : null;`;
+    const SIGN_T2 = `${FIND_T2} const s = item?.querySelector(".drpg-call-claim");
+        return { id: card?.id ?? null, button: Boolean(item?.querySelector('[data-drpg-call="reply"]')),
+            sign: s ? { by: s.dataset.drpgClaimBy ?? null, take: Boolean(s.querySelector("button[data-drpg-claim-take]")), text: s.querySelector("p")?.textContent ?? "" } : null };`;
+    const PRESS_T2 = `${FIND_T2} const b = item?.querySelector('[data-drpg-call="reply"]'); b?.click(); return Boolean(b);`;
+    const OPEN_T2 = title => `return [...foundry.applications.instances.values()].filter(a => a.rendered && a.title === ${title}).length;`;
+    const REPLY_T2 = OPEN_T2(`game.i18n.format("DRPG.Bridge.replyTitle", { name: game.actors.get("${IDS.aiko}").name })`);
+    const QUESTION_T2 = `const q = [...foundry.applications.instances.values()].find(a => a.rendered && a.title === game.i18n.localize("DRPG.Bridge.takeOverTitle"));`;
+    const TOLD_T2 = `const t = game.i18n.format("DRPG.Bridge.claimTakenOver", { gm: game.users.get("${GM2}")?.name ?? "?" });
+        return [...document.querySelectorAll(".drpg-popup")].filter(n => n.textContent.includes(t)).length;`;
+    const takeAt = await until(async () => ({ gm: await gm.eval(SIGN_T2), gm2: await gm2.eval(SIGN_T2) }), v => v.gm.button && v.gm2.button);
+    const takeGmPressed = await gm.eval(PRESS_T2);
+    const takeHeld = await until(async () => ({ open: await gm.eval(REPLY_T2), gmSign: (await gm.eval(SIGN_T2)).sign, gm2Sign: (await gm2.eval(SIGN_T2)).sign }),
+        v => v.open === 1 && Boolean(v.gm2Sign));
+    const gmName = await gm2.eval(`return game.users.get("${IDS.gm}")?.name ?? "?";`);
+    const takeGm2Pressed = await gm2.eval(PRESS_T2);
+    const takeQuestion = await until(() => gm2.eval(`${QUESTION_T2} return q ? { named: q.element.textContent.includes(${J(gmName)}),
+        buttons: [...q.element.querySelectorAll("button[data-action]")].map(b => b.dataset.action).filter(a => ["take", "cancel"].includes(a)).sort() } : null;`), v => Boolean(v));
+    await gm2.eval(`${QUESTION_T2} q?.element.querySelector('button[data-action="take"]')?.click(); return Boolean(q);`);
+    const takeGm2Window = await until(() => gm2.eval(REPLY_T2), v => v === 1);
+    const takeGmClosed = await until(async () => ({ open: await gm.eval(REPLY_T2), told: await gm.eval(TOLD_T2) }), v => v.open === 0 && v.told === 1);
+    const RULED_T2 = `T2 CALLS-01 the ruling of gm2 ${Date.now()}`;
+    await gm2.eval(`const w = [...foundry.applications.instances.values()].find(a => a.rendered
+            && a.title === game.i18n.format("DRPG.Bridge.replyTitle", { name: game.actors.get("${IDS.aiko}").name }));
+        const field = w?.element.querySelector("[name=reply]"); if (field) field.value = ${J(RULED_T2)};
+        w?.element.querySelector('button[data-action="send"]')?.click(); return Boolean(w);`);
+    const LINES_T2 = `const S = ${imp("secret.mjs")}; const M = ${imp("messenger.mjs")};
+        return M.threadMessages("${IDS.p1}").filter(m => S.contentOf(m).includes(${J(RULED_T2)})).length;`;
+    const answered = await gm.eval(`return game.i18n.format("DRPG.Bridge.settledAnswered", { name: game.users.get("${GM2}")?.name ?? "?" });`);
+    const ROW_T2 = id => `const G = ${imp("gm-stores.mjs")}; const S = ${imp("secret.mjs")}; const r = G.ruledCardStore.get("${id}");
+        return { row: r ? [r.by, Boolean(r.pending)] : null, line: S.contentOf(game.messages.get("${id}") ?? {}).includes(${J(answered)}) };`;
+    const takeEnd = await until(async () => ({ lines: await p1.eval(LINES_T2), gm: await gm.eval(ROW_T2(takeAt.gm.id)) }),
+        v => v.lines === 1 && v.gm.line && v.gm.row?.[1] === false, 10000);
+    await settle(800);
+    const takeAfter = { lines: await p1.eval(LINES_T2), gm: (await gm.eval(SIGN_T2)).sign, gm2: (await gm2.eval(SIGN_T2)).sign,
+        windows: { gm: await gm.eval(REPLY_T2), gm2: await gm2.eval(REPLY_T2) } };
+    for (const c of [gm, gm2]) {
+        await c.eval(`${APP} await A.gmMessengerWindow()?.close();
+            for (const a of [...foundry.applications.instances.values()]) if (a.rendered && a.options?.classes?.includes?.("drpg-panel") && a instanceof foundry.applications.api.DialogV2) await a.close();
+            globalThis.__dialogWindows = globalThis.__t2TakeWas; delete globalThis.__t2TakeWas; return true;`);
+    }
+    if (takeAt.gm.id) await gm.eval(`await game.messages.get("${takeAt.gm.id}")?.delete(); return true;`);
+    await settle(600);
+    check("TAKE1: gm holds p1's card open in its Reply window; gm2's copy says gm is ruling on it, with Take over, and gm's own copy says nothing (2.0 line T2, EXP-GM-05)",
+        J(takeConsoles) === J({ gm: true, gm2: true }) && askedT2 && Boolean(takeAt.gm.id) && takeAt.gm.id === takeAt.gm2.id && takeGmPressed
+            && takeHeld.open === 1 && takeHeld.gmSign === null && takeHeld.gm2Sign?.by === IDS.gm && takeHeld.gm2Sign.take === true && takeHeld.gm2Sign.text.includes(gmName),
+        J({ takeConsoles, askedT2, takeAt, takeHeld, gmName }), { flow: "messenger" });
+    check("TAKE2: gm2's press asks whether to take the card over, naming gm, with Take over and Cancel; Take over opens gm2's Reply window, and gm's window closes with gm told once who took the card (2.0 line T2, CALLS-01)",
+        takeGm2Pressed && takeQuestion?.named === true && J(takeQuestion.buttons) === J(["cancel", "take"]) && takeGm2Window === 1
+            && J(takeGmClosed) === J({ open: 0, told: 1 }), J({ takeGm2Pressed, takeQuestion, takeGm2Window, takeGmClosed }), { flow: "messenger" });
+    check("TAKE3: the card is ruled once, by gm2: one line of gm2's words in p1's thread, the row gm2's and ruled, the card's line gm2's, no sign on either GM and no window left (2.0 line T2, CALLS-01)",
+        takeEnd.lines === 1 && J(takeEnd.gm.row) === J([GM2, false]) && takeEnd.gm.line === true && takeAfter.lines === 1
+            && takeAfter.gm === null && takeAfter.gm2 === null && J(takeAfter.windows) === J({ gm: 0, gm2: 0 }), J({ takeEnd, takeAfter, answered }), { flow: "messenger" });
 
     return { primary: { before, joined, afterGmReload, moved, backAgain }, reloads: { p1: r1, gm: r2, card: r3 },
         d153: { before: gBefore, onGm: gAfter, onGm2: gAfter2, found: gFound, gave: gGave } };

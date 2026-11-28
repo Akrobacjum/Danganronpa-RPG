@@ -227,3 +227,7 @@ export const ACTION_CARD_CLAIM = "card.claim";
 
 /** GM -> primary GM: Give a Truth Bullet, carried to the primary so its copy is made in the one receiver's finds' queue (E38; D153). */
 export const ACTION_BULLET_GIVE = "bullet.give";
+
+/** primary GM -> GM: another GM took over the card this GM's claim held; its window of the card closes and nothing from it
+    is ruled (2.0 line T2, CALLS-01, 27.11.2026) - see call-gm.mjs `claimOnPrimary`, card-takeover.mjs `onCardTakenOver`. */
+export const ACTION_CARD_TAKEN = "card.takenOver";

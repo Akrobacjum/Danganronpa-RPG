@@ -5112,7 +5112,8 @@
         "trial.present": "Presenting a Truth Bullet",
         "ready.open": "Asking the players whether they are done",
         "ready.answer": "Your answer to the GM",
-        "ready.end": "Ending the question to the players"
+        "ready.end": "Ending the question to the players",
+        "card.takenOver": "A card taken over by another GM"
       },
       "notDone": "“{what}” was not carried out. {why}",
       "nothingSpent": "You keep your action and your Hope.",
@@ -5231,7 +5232,15 @@
       "createItemStays": "“Create an item” keeps this card open, so you can still pick another answer.",
       "giveItem": "Give an existing item",
       "keyRemnantHere": "Create a Key Remnant here",
-      "unnamed": "Unnamed request"
+      "unnamed": "Unnamed request",
+      "claimedBy": "{gm} has been ruling on this card since {time}.",
+      "takeOver": "Take over the card",
+      "takeOverTitle": "Take over the card",
+      "takeOverAsk": "{gm} has been ruling on this card since {time}. Take it over? Their window for this card will close.",
+      "claimTakenOver": "{gm} took over this card. Your window for it is closed, and nothing from it was sent.",
+      "claimOwnOpen": "You already have this card's window open. Finish it or close it.",
+      "takeOverTooltip": "Closes the other GM's window of this card and frees the card. Then pick an answer on it.",
+      "takeOverNowTooltip": "Closes the other GM's window of this card and opens yours for this answer."
     },
     "Tables": {
       "installed": "Item tables ready: {created} created, {skipped} already existed.",

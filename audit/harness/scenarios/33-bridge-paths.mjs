@@ -25,7 +25,8 @@
  *      Assistant GM, written on the primary (A19). Since E72 C6 also a dead student's player's yes to the GMs'
  *      invitation to become a Monocub, from the window with the Rule (A20), and a Bribe offered from one player's browser
  *      and accepted in its window on the other's (A21). Since E110 C1 also the GM's redirect of a running Objection from
- *      the Assistant GM, by the console's road and the GMs' row, written once on the primary (A23).
+ *      the Assistant GM, by the console's road and the GMs' row, written once on the primary (A23). Since 2.0 line T2
+ *      (CALLS-01) also a card the GM's claim holds taken over by the Assistant, and the GM's end of it after (A26).
  *   B  what E31 adds, each written red (`expectedRed`, with what it measured) until the commit that
  *      made it so, and a plain check since: a refusal carries its reason, in the player's own
  *      language; a refused request is not acknowledged; an exception on the GM's side ends as one
@@ -2287,6 +2288,37 @@ export async function run({ gm, ag, p1, p2, p3, check, phase, settle, opLog, set
        GM (a listener there counts it by its request id); then its effect: nothing written, refused by the guard the cell
        is about, in the GM's log, and told to p1 with its code (a quiet declaration tells nobody). Not covered here: a
        project a player may not see (`canSeeProject`, scenario 30's forged requests) and a Spectator's guard (scenario 93). */
+    /* ------------------------------------------- the claim's takeover (2.0 line T2, CALLS-01) */
+    /* 2.0 line T2, CALLS-01 (27.11.2026): `card.claim`'s step "takeover", the legal road. The GM's own claim holds a card
+       (the GM's click, `claimOnPrimary` "take" on the primary); the Assistant takes it over through the bridge, as a second
+       GM's question does (bridge-asks.mjs `askCardClaim`); then the GM's "done", the old holder's end; then the
+       Assistant's "drop". Read on the GM: the card's row after each, and the refusals of `card.claim` the GM logged. */
+    phase("a card the GM holds taken over by the Assistant", { flow: "card-claim" });
+    await clearFailures(gm);
+    const tkCard = await gm.eval(`const m = await ChatMessage.create({ content: "<p>T2 CALLS-01 33</p>", whisper: [game.user.id] }); return m?.id ?? null;`);
+    const claimCall = (client, step) => client.eval(`const A = await import("${repoUrl}/scripts/bridge-asks.mjs");
+        const r = await A.askCardClaim("${tkCard}", "${step}"); return r ? { taken: r.taken, why: r.why ?? null, by: r.by ?? null } : null;`, { timeout: 30000 });
+    const tkRow = () => gm.eval(`const S = await import("${repoUrl}/scripts/gm-stores.mjs"); const r = S.ruledCardStore.get("${tkCard}");
+        return r ? { by: r.by ?? null, from: r.from ?? null, pending: Boolean(r.pending) } : null;`);
+    const tk = { gmTake: await claimCall(gm, "take") };
+    tk.agTakeover = await claimCall(ag, "takeover");
+    await settle(600);
+    tk.rowTaken = await tkRow();
+    tk.gmDone = await claimCall(gm, "done");
+    tk.rowAfterDone = await tkRow();
+    tk.agDrop = await claimCall(ag, "drop");
+    await settle(600);
+    tk.rowDropped = await tkRow();
+    tk.logged = await refusalsLogged(gm, "card.claim");
+    await gm.eval(`await game.messages.get("${tkCard}")?.delete(); return true;`);
+    await settle(400);
+    check("A26: the Assistant's takeover of a card the GM's claim holds lands once on the primary - the row is the Assistant's, taken from the GM; the GM's done after it writes nothing and names the Assistant; the Assistant's drop frees the card; nothing is refused (2.0 line T2, CALLS-01)",
+        Boolean(tkCard) && JSON.stringify(tk) === JSON.stringify({
+            gmTake: { taken: true, why: null, by: IDS.gm }, agTakeover: { taken: true, why: null, by: IDS.ag },
+            rowTaken: { by: IDS.ag, from: IDS.gm, pending: true }, gmDone: { taken: false, why: "busy", by: IDS.ag },
+            rowAfterDone: { by: IDS.ag, from: IDS.gm, pending: true }, agDrop: { taken: false, why: "dropped", by: IDS.ag },
+            rowDropped: null, logged: [] }), JSON.stringify({ tkCard, tk }), { flow: "card-claim" });
+
     phase("H: the hostile-client matrix");
     const mxWho = await gm.eval(`const b = game.actors.get("${IDS.botan}"); const t = canvas.scene.tokens.find(t => t.actorId === b.id);
         return { victimActor: b.id, victimToken: t?.id ?? null, sceneId: canvas.scene.id };`);

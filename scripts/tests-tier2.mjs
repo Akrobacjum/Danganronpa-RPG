@@ -45032,7 +45032,8 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             for (const message of created) await message.delete().catch(() => {});
             await settle();
         }
-        const busy = game.i18n.format("DRPG.Bridge.claimBusy", { gm: game.user.name });
+        // The second click is this GM's own other copy: told so since 2.0 (line T2, CALLS-12), not "busy" in its own name.
+        const busy = game.i18n.localize("DRPG.Bridge.claimOwnOpen");
         const ruled = game.i18n.format("DRPG.Bridge.alreadyRuled", { gm: game.user.name });
         equal(stableJson(read), stableJson([[1, true, [busy]], [1, [busy, ruled], game.user.id], false]),
             "[after the player's claim and the two clicks: thread lines, the card ended, what this GM was told], [after the reopened card's click: thread lines, what was told, the row's GM], the row after the card is deleted - a card was ruled twice, a player's claim held it, the second click was not told who is ruling, or the reopened card's click was not told who ruled");
@@ -118860,6 +118861,112 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             held: [false, "busy", true], endedHeld: false, freed: ["ask"], endedFreed: true, rows: [null, ["away", true]],
             second: [["second"], null, ["away", true], [true, null, true]]
         }), "{held: this GM's take of the card its own row holds [taken, why, by this GM]; endedHeld: the card ended after its asker's expiry; freed: what releaseOwnClaims let go; endedFreed: the card ended after; rows: [the card's, another GM's card's]; second: [what the second GM's road let go, its row, another GM's row, this GM's take after]}");
+    }],
+    ["E132 CALLS-01 - a card held open by one GM is taken over by another and ruled once: a player's Dynamic ask's card that another Gamemaster has claimed carries, on this GM's second copy, `DRPG.Bridge.claimedBy` naming that GM; a press on the first copy asks whether to take it over, and Take over runs this GM's difficulty window at once; the other GM's ruling meanwhile is refused on the primary, the difficulty this GM sets is the one kept on the card, the sign leaves both copies, and the other GM's end after writes nothing (call-gm.mjs `claimOnPrimary`, `dynamicOnPrimary`; bridge-asks.mjs `claimCard`; messenger-app.mjs `wireCallActions`; 2.0 line T2, CALLS-01, EXP-GM-05, 27.11.2026)", async () => {
+        /*
+         * F1-calls CALLS-01 (F1-verify: confirmed) and F3 S2 B (on Forge the second GM read "is ruling on this card right
+         * now" every 20 s for 150 s, and the player "Nobody answered in time"), with EXP-GM-05 (F1-blind-gm: the second GM
+         * learnt it only from the refusal). Read on this primary: a player's Dynamic ask handed to the bridge's runner with
+         * the user Foundry names puts its card up; a stand-in Gamemaster who sorts after this GM (tests-kit `standInUser`,
+         * in this browser's user list and connected, so this GM stays the primary) claims it through the bridge, as a
+         * second GM's press does (`card.claim` "take"). Two copies of the card are drawn here as the log and the messenger
+         * draw them (`wireCallActions`, in the page so a store change redraws them). The first copy's Set difficulty is
+         * pressed: the take-over question is answered Take over; inside the difficulty window that opens, the stand-in's
+         * own ruling is asked of the primary (`dynamicOnPrimary` by the stand-in), and this GM's difficulty 2 is answered.
+         * Read: the sign on the second copy before, the question's words, the stand-in's ruling, the card's kept ruling
+         * and row after, the signs after, and the stand-in's "done" after. The card is deleted after, its row with it, and
+         * the stand-in taken out of the list. Red at 7832a4d: no sign, and the press told "busy" and opened no window.
+         */
+        needs(env.primaryGm());
+        needs(world.atLeast("connectedPlayersWithCharacter", 1), "the ask is a player's, and Foundry names only a connected one");
+        const { player, theirs } = playerAndCharacters();
+        const G = await import("./bridge-guards.mjs");
+        const B = await import("./gm-bridge.mjs");
+        const C = await import("./call-gm.mjs");
+        const S = await import("./gm-stores.mjs");
+        const { wireCallActions } = await import("./messenger-app.mjs");
+        const { contentOf, cardFlag } = await import("./secret.mjs");
+        const me = game.user.id;
+        const other = standInUser({ name: "E132 CALLS-01 other GM", role: CONST.USER_ROLES.GAMEMASTER, active: true, sorts: "last" });
+        const sent = [];
+        const judged = (action, fields, from, requestId = null) =>
+            G.judge(B.BRIDGE_ACTIONS, { action, ...(requestId ? { requestId } : {}), ...fields }, from, { send: (to, packet) => sent.push(packet) });
+        const who = id => (id === me ? "me" : id === other.id ? "other" : id ?? null);
+        const seen = new Set(game.messages.map(m => m.id));
+        const created = [];
+        const hook = Hooks.on("createChatMessage", m => { if (!seen.has(m.id)) created.push(m); });
+        const holder = document.createElement("div");
+        document.body.append(holder);
+        const copies = [];
+        const draw = message => {
+            const body = document.createElement("div");
+            body.innerHTML = contentOf(message);
+            holder.append(body);
+            wireCallActions(body, message);
+            copies.push(body);
+            return body;
+        };
+        const sign = body => {
+            const s = body.querySelector(".drpg-call-claim");
+            return s ? [who(s.dataset.drpgClaimBy), s.querySelector("p")?.textContent ?? null, Boolean(s.querySelector("button[data-drpg-claim-take]"))] : null;
+        };
+        const read = {};
+        let card = null;
+        game.users.set(other.id, other);
+        try {
+            const rid = foundry.utils.randomID(16);
+            await judged("dynamic.difficulty", { actorId: theirs.id, description: "E132 CALLS-01 a card held open", actorName: theirs.name, room: null }, player.id, rid);
+            must(await until(() => created.length > 0, 5000), "the ask put no card up - this would measure nothing");
+            card = game.messages.get(created[0].id);
+            await judged("card.claim", { messageId: card.id, step: "take" }, other.id);
+            must(S.ruledCardStore.get(card.id)?.by === other.id, "the stand-in's claim was not kept - this would measure nothing");
+            const first = draw(card), second = draw(card);
+            await until(() => Boolean(sign(second)), 3000);
+            const row0 = S.ruledCardStore.get(card.id);
+            const { localeFormat } = await import("./utils.mjs");
+            read.signBefore = sign(second);
+            read.signWords = read.signBefore?.[1] === game.i18n.format("DRPG.Bridge.claimedBy", { gm: other.name, time: localeFormat("time", row0.at, { hour: "2-digit", minute: "2-digit" }) });
+            const button = first.querySelector('[data-drpg-call="setDifficulty"]');
+            must(button, "the card's copy carries no Set difficulty - this would measure nothing");
+            globalThis.__dialogAnswers.push(config => {
+                const words = String(config?.content?.outerHTML ?? config?.content ?? "");
+                read.question = [words.includes(other.name), (config?.buttons ?? []).map(b => [b.action, Boolean(b.default)])];
+                return "take";
+            });
+            globalThis.__dialogAnswers.push(async () => {
+                read.during = { held: who(C.claimsInProgress.get(card.id)), row: who(S.ruledCardStore.get(card.id)?.by), from: who(S.ruledCardStore.get(card.id)?.from) };
+                read.otherRuling = await C.dynamicOnPrimary(rid, player.id, { tier: 0, trait: "agility" }, other.id, card.id);
+                return { tier: 2, trait: "agility" };
+            });
+            button.click();
+            await until(() => cardFlag(game.messages.get(card.id), "ruling")?.tier !== undefined && S.ruledCardStore.get(card.id)?.pending === false, 8000);
+            await settle(500);
+            const ruled = game.messages.get(card.id);
+            read.kept = [cardFlag(ruled, "ruling")?.tier ?? null, who(cardFlag(ruled, "sentOn")?.by)];
+            const row1 = S.ruledCardStore.get(card.id);
+            read.row = [who(row1?.by), Boolean(row1?.pending)];
+            read.signAfter = copies.map(sign);
+            sent.length = 0;
+            await judged("card.claim", { messageId: card.id, step: "done" }, other.id);
+            const row2 = S.ruledCardStore.get(card.id);
+            read.otherDone = [who(row2?.by), Boolean(row2?.pending), row2?.at === row1?.at];
+            read.left = globalThis.__dialogAnswers.length;
+        } finally {
+            Hooks.off("createChatMessage", hook);
+            if (Array.isArray(globalThis.__dialogAnswers)) globalThis.__dialogAnswers.length = 0;
+            holder.remove();
+            for (const message of created) await message.delete().catch(() => {});
+            await settle(300);
+            for (const message of created) if (S.ruledCardStore.has(message.id)) await S.ruledCardStore.drop(message.id);
+            C.claimsInProgress.delete(card?.id ?? "");
+            game.users.delete(other.id);
+        }
+        equal(stableJson(read), stableJson({
+            signBefore: ["other", read.signBefore?.[1] ?? null, true], signWords: true,
+            question: [true, [["take", false], ["cancel", true]]],
+            during: { held: "me", row: "me", from: "other" }, otherRuling: false,
+            kept: [2, "me"], row: ["me", false], signAfter: [null, null], otherDone: ["me", false, true], left: 0
+        }), "{signBefore: the second copy's sign [the GM it names, its words, Take over]; signWords: its words name the other GM and the claim's time; question: [it names the other GM, its buttons [action, default]]; during: inside this GM's window [the claim held here, the row's GM, taken from]; otherRuling: the other GM's ruling meanwhile kept; kept: [the difficulty on the card, who sent it on]; row: [its GM, pending]; signAfter: both copies; otherDone: the other GM's end after [row's GM, pending, unchanged]; left: answers no window took}");
     }],
 ];
 

@@ -128,7 +128,8 @@
  *      try once the notice history gave its room back, and the case's health counts the history apart.
  *   Y  a player's Hope Call asked while the primary leaves or reloads (E18 C2): it is asked again, the
  *      card the GM posted before is the ask's, and the yes reaches the player.
- *   CL two GMs' clicks on one card to the GMs (E18 C3): one ruling, the other GM told who ruled, a
+ *   CL two GMs' clicks on one card to the GMs (E18 C3): one ruling, the other GM told who ruled (or, since 2.0 line T2
+ *      CALLS-01, asked whether to take the card over while the claim is under way), a
  *      player's forged claim refused, and the card its author reopened not ruled again.
  *   TD the traces' digest (E51 C5; fix FG1): the primary's trace and a second GM's are said once, by the primary, at
  *      the time of day after the primary's F5; a trace of a primary that leaves is said by the next; a GM sorting first
@@ -2652,8 +2653,12 @@ export async function run({ gm, gm2, gm3, gma, gmb, gmc, p1, p2, p3, p4, check, 
     /* What the GM who clicked is told: a refusal card (call-gm.mjs `sayRefusedHere`, a showPopup of kind error since
        E18 fix e1-G3, which left this read on the toasts alone and CL2/CL3 red at 89095263), or a toast where no card could
        be shown - each in the order shown. */
+    /* Since 2.0 (line T2, CALLS-01, 27.11.2026) a click on a card another GM's claim still holds asks whether to take it
+       over (card-takeover.mjs `askTakeOver`, its words naming that GM), where it said "busy": the question is read here
+       too, off the harness's window log, as "asked: <its words>" - headless it is answered by its default, Cancel. */
     const clickCL = client => client.eval(`const told = [], real = ui.notifications.warn;
         const shownBefore = new Set(document.querySelectorAll(".drpg-popup"));
+        const askedFrom = globalThis.__dialogLog.length;
         ui.notifications.warn = (text, ...rest) => { told.push(String(text)); return real.call(ui.notifications, text, ...rest); };
         try {
             globalThis.__clButton?.click();
@@ -2665,7 +2670,8 @@ export async function run({ gm, gm2, gm3, gma, gmb, gmc, p1, p2, p3, p4, check, 
         const cards = [...document.querySelectorAll(".drpg-popup.drpg-popup-error")].filter(c => !shownBefore.has(c))
             .sort((a, b) => Number(a.dataset.drpgSeq) - Number(b.dataset.drpgSeq))
             .map(c => c.querySelector(".drpg-popup-body")?.textContent.trim() ?? "");
-        return [...cards, ...told];`, { timeout: 30000 });
+        const asked = globalThis.__dialogLog.slice(askedFrom).filter(d => d.title === game.i18n.localize("DRPG.Bridge.takeOverTitle")).map(d => "asked: " + d.text);
+        return [...cards, ...told, ...asked];`, { timeout: 30000 });
     const linesCL = id => gma.eval(`return game.messages.contents.filter(m => !globalThis.__clBefore.includes(m.id) && m.id !== "${id}").length;`);
     let cl = null;
     await connect("gmb", { storage: await storageOf("gmb") });
@@ -2708,7 +2714,7 @@ export async function run({ gm, gm2, gm3, gma, gmb, gmc, p1, p2, p3, p4, check, 
     const loserTold = cl ? (winner === "GM A" ? cl.toldB : cl.toldA) : null, winnerTold = cl ? (winner === "GM A" ? cl.toldA : cl.toldB) : null;
     check("CL1: p1's forged claim of a card to the GMs, and its forged \"done\", are refused (gmOnly) and told",
         J(cl?.forged?.map(t => t.slice(1))) === J([["bridge.refused", "gmOnly"], ["bridge.refused", "gmOnly"]]), J(cl), { flow: "card-claim" });
-    check("CL2: two GMs' clicks on one card at once rule it once: one line to the player, the row names the GM who ruled on both GMs, and only the other GM is told, by that GM's name",
+    check("CL2: two GMs' clicks on one card at once rule it once: one line to the player, the row names the GM who ruled on both GMs, and only the other GM is told, by that GM's name - that it was ruled, or since 2.0 asked whether to take it over (line T2, CALLS-01)",
         J(cl?.wired) === J([true, true]) && cl.lines === 1 && winner !== null && J(winnerTold) === "[]" && loserTold?.length === 1 && loserTold[0].includes(winner),
         J(cl), { flow: "card-claim" });
     check("CL3: the card reopened by its author is not ruled again: the second GM's click reads who ruled, and no line is posted",

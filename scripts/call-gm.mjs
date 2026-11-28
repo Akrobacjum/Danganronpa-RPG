@@ -4,7 +4,7 @@
  * A call on the GM and the cards the GMs rule on: `callGm` with the card's
  * words (`callCardHtml`, `expiresHtml`) and its thread (`threadOf`), the
  * claims on a card (`claimOnPrimary`, `claimsInProgress`, `releaseClaimsOf`,
- * and since 2.0 `releaseOwnClaims`, line T2 CALLS-02) and its settle (`settleCall`), the request window a call opens with
+ * and since 2.0 `releaseOwnClaims`, line T2 CALLS-02, a take-over and a claim's hold, CALLS-01) and its settle (`settleCall`), the request window a call opens with
  * (`askForRequest`, `promptForRequest`, `promptAndCallGm`), and the
  * ask-by-card machinery that asks nothing of the bridge's table: the asks
  * the primary holds and the cards they were put on (`holdAsk`, `askMark`,
@@ -19,7 +19,9 @@
  * re-exports the ten names of this file it exported, so every importer
  * still imports gm-bridge.mjs; the rest of its exports (23 in all on 1.2.122,
  * counted by `^export (async )?(function|const)`; 24 since 2.0, with
- * `releaseOwnClaims`, which gm-bridge.mjs imports for its ready) are read
+ * `releaseOwnClaims`, which gm-bridge.mjs imports for its ready, 25 with
+ * `claimRanOut`, which messenger-app.mjs reads for a card's sign, line T2 CALLS-01, and 27 with
+ * `underClaim` and `claimedByAnother`, exported for the suite) are read
  * directly by the bridge's table, runs and asks (bridge-table.mjs, the two runs
  * files and bridge-asks.mjs since C5a and C5b) - the ask cards' primary-side
  * senders among them (C5a) - and `threadOf` by the suite (1.2.122, R8275);
@@ -36,7 +38,7 @@ import {
 } from "./utils.mjs";
 import { forgetCallYes, sayNotDone, gmOnline, noteCallYes } from "./bridge-guards.mjs";
 import { contentOf, cardFlag, cardMeta } from "./secret.mjs";
-import { SOCKET_EVENT, ACTION_DONE } from "./bridge-wire.mjs";
+import { SOCKET_EVENT, ACTION_DONE, ACTION_CARD_TAKEN } from "./bridge-wire.mjs";
 import { drpgWindow, tipAttr } from "./ui-kit.mjs";
 
 /** The request a call on the GM names when its caller names none (`DRPG.Bridge.what.gm.call`). */
@@ -437,13 +439,20 @@ export async function askObserveByCard({ actor, room, request = "", userId = nul
  * is "gone". An answered ask stays held until its asker's receipt (`receivedOnPrimary`) or its card's end. The ask is marked as being answered before anything waits, so of two GMs' picks at
  * once the second is "gone" too. A pick the primary does not find among the traces the
  * character could be shown now is "notThere", and the card stays open. Answers `{ value, told }`:
- * value "picked", "refused", "gone" or "notThere"; told, the notice for the GM who pressed.
+ * value "picked", "refused", "gone", "notThere" or, since 2.0, "takenOver" (line T2, CALLS-01: another GM took its card
+ * over); told, the notice for the GM who pressed.
  * The asker is answered here, once: `{ ok: true, key }`, or `{ ok: false, reason: "refused" }`
  * as a GM's closed picker always answered.
  */
 export async function observePickOnPrimary({ rid, actorId, tokenId = null, refuse = false }, by) {
-    const asked = observeAsks.get(rid ?? "");
     const who = game.users.get(by ?? "")?.name ?? by;
+    /* A pick or a Refuse from a window another GM's take-over closed is not taken, and answers "takenOver": the card is
+       that GM's now, so it is neither ended here nor told "gone" (2.0 line T2, CALLS-01; `claimedByAnother`). */
+    if (await claimedByAnother(observeAsks.get(rid ?? "")?.messageId, by)) {
+        warn(`An Observe card's ${refuse ? "refusal" : "pick"} by ${who} was not taken: another GM has taken over its card.`);
+        return { value: "takenOver", told: null };
+    }
+    const asked = observeAsks.get(rid ?? "");
     const late = (asked?.expires != null && serverNow() > asked.expires) || Date.now() - (asked?.at ?? 0) > TIMING.rulingMs;
     if (!asked || asked.answering || asked.answered || asked.actorId !== actorId || late) {
         warn(`An Observe card's ${refuse ? "refusal" : "pick"} by ${who} was not taken: this primary GM keeps no Observe waiting under that request for that character.`);
@@ -481,6 +490,11 @@ export async function observePickOnPrimary({ rid, actorId, tokenId = null, refus
  * for a yes pressed on another card than the one the ask is held on (fix early-C2-G2).
  */
 export async function yesOnPrimary(requestId, asker, by = game.user.id, messageId = null) {
+    // A yes from a window another GM's take-over closed is not kept (2.0 line T2, CALLS-01; `claimedByAnother`).
+    if (await claimedByAnother(messageId ?? callAsks.get(requestId ?? "")?.messageId, by)) {
+        warn(`A GM's yes to a Call was not kept: another GM has taken over the card ${game.users.get(by ?? "")?.name ?? by} pressed it on.`);
+        return false;
+    }
     const asked = callAsks.get(requestId ?? "");
     if (!asked || asked.userId !== asker) {
         warn(`A GM's yes to a Call was not kept: this primary GM holds no ask of ${game.users.get(asker ?? "")?.name ?? asker} under that request.`);
@@ -505,6 +519,11 @@ export async function yesOnPrimary(requestId, asker, by = game.user.id, messageI
  * card (`keepRuling`).
  */
 export async function dynamicOnPrimary(requestId, asker, ruling, by, messageId = null) {
+    // A ruling from a window another GM's take-over closed is not sent on (2.0 line T2, CALLS-01; `claimedByAnother`).
+    if (await claimedByAnother(messageId ?? dynamicAsks.get(requestId ?? "")?.messageId, by)) {
+        warn(`A GM's ruling on a Dynamic action was not sent on: another GM has taken over the card ${game.users.get(by ?? "")?.name ?? by} ruled it on.`);
+        return false;
+    }
     const held = dynamicAsks.get(requestId ?? "");
     if (held?.userId !== asker) {
         warn(`A GM's ruling on a Dynamic action was not sent on: this primary GM holds no ask of ${game.users.get(asker ?? "")?.name ?? asker} under that request.`);
@@ -624,13 +643,13 @@ async function endExpired(messageId) {
     return endAskCard(messageId, { key: "DRPG.Bridge.settledExpired" }, { gmNote: { key: "DRPG.Bridge.settledGone" } });
 }
 
-/** Whether a GM's ruling on this card is under way, as the primary reads it (`claimOnPrimary`'s "busy"). */
-async function underClaim(messageId) {
+/** Whether a GM's ruling on this card is under way, as the primary reads it (`claimOnPrimary`'s "busy"): a claim that ran
+    out (`TIMING.claimHoldMs`) is not (2.0 line T2, CALLS-01, 27.11.2026; `claimHolder`). `store` and `held` are a test's
+    (R9021); exported for it. */
+export async function underClaim(messageId, { store = null, held = claimsInProgress } = {}) {
     if (!messageId) return false;
-    if (claimsInProgress.has(messageId)) return true;
-    const { ruledCardStore } = await import("./gm-stores.mjs");
-    const row = ruledCardStore.get(messageId);
-    return Boolean(row?.pending && game.users.get(row.by ?? "")?.active);
+    const rows = store ?? (await import("./gm-stores.mjs")).ruledCardStore;
+    return Boolean(claimHolder(messageId, rows.get(messageId), held));
 }
 
 /**
@@ -1112,8 +1131,23 @@ export async function releaseOwnClaims({
  * ruling runs: the card must exist, have no row in `ruledCardStore`, not be settled in its document
  * or in the GMs' meta, and not be held by another click; then it is held for `by`. "done" once the
  * ruling was made: the row `{ by, at }` is written unless one is there, and the claim ends. "drop"
- * when it was not: `by`'s claim ends. Answers `{ taken, why?, by }` - `why` "ruled", "busy",
- * "settled" or "gone", `by` the GM who has the card.
+ * when it was not: `by`'s claim ends. "takeover" (since 2.0, line T2, CALLS-01) takes a claim another GM holds, below.
+ * Answers `{ taken, why?, by, at? }` - `why` "ruled", "busy", "settled", "gone", or "free" for a takeover of a card
+ * nobody holds; `by` the GM who has the card, and with "busy" `at`, since when.
+ *
+ * A CLAIM CAN BE TAKEN OVER, AND RUNS OUT (2.0 line T2, CALLS-01, 27.11.2026; F1-calls CALLS-01, F1-verify, F3 S2 B). A
+ * claim held a card for as long as its GM's window stood open, with no bound: on Forge, S2 B, the second GM read "is
+ * ruling on this card right now" every 20 s for 150 s, and then the player read "Nobody answered in time". Two ways out
+ * now. "takeover" moves a claim another GM holds to `by` - only a claim held by another GM (`claimHolder`); one held by
+ * nobody answers `why` "free", and the asker takes it - and writes the row `{ by, at, pending: true, from }`, `from` the
+ * GM it was taken from. And a pending claim older than `TIMING.claimHoldMs` is held by nobody (`claimRanOut`): a "take"
+ * takes it, `underClaim` reads it as no claim, and the card's end that waited on it ends it when the hold runs out
+ * (`watchClaimHold`). Either way the GM who held it is told (`tellTakenOver`): the primary sends that GM's browser
+ * `card.takenOver`, which closes that GM's window of the card (card-takeover.mjs `onCardTakenOver`), and that GM's "done"
+ * or "drop" after it writes nothing and answers "busy" with the GM who has the card - so `claimCard` there settles
+ * nothing either. A busy answer carries `at`, when the claim was taken, for the question a press asks (`claimCard`).
+ * `store`, `held`, `message` and `tell` are a test's (R9020, R9021): the GMs' store, the claims in memory, the card,
+ * and who is told; with a store of its own nothing waits on the hold's end.
  *
  * READ AFTER THE LAST AWAIT. The store's hydration is the only wait, and everything from the
  * card's lookup to holding it runs in one synchronous step, so of two takes of one card that
@@ -1128,15 +1162,18 @@ export async function releaseOwnClaims({
  * outlives a reload of its own GM too, and held the card in that GM's own name for good when no other GM was here to
  * drop it; each GM lets go of its own at its ready since 2.0 (`releaseOwnClaims`, line T2, CALLS-02, 27.11.2026).
  */
-export async function claimOnPrimary(messageId, step, by) {
+export async function claimOnPrimary(messageId, step, by, { store = null, held = claimsInProgress, message: card, tell = tellTakenOver } = {}) {
     if (!game.user?.isGM) return { taken: false, why: "gone", by: null };
-    const { ruledCardStore } = await import("./gm-stores.mjs");
+    const ruledCardStore = store ?? (await import("./gm-stores.mjs")).ruledCardStore;
     await ruledCardStore.whenHydrated();
-    const message = game.messages.get(messageId ?? "") ?? null;
-    const holder = claimsInProgress.get(messageId) ?? null;
+    const message = card !== undefined ? card : game.messages.get(messageId ?? "") ?? null;
     const row = ruledCardStore.get(messageId);
-    if (step !== "take") {
-        if (holder === by) claimsInProgress.delete(messageId);
+    const holder = claimHolder(messageId, row, held);
+    const since = holder && row?.pending && row.by === holder && typeof row.at === "number" ? row.at : null;
+    if (step === "done" || step === "drop") {
+        // The end of a claim another GM has taken over writes nothing, and says who has the card (CALLS-01).
+        if (holder && holder !== by) return { taken: false, why: "busy", by: holder, at: since };
+        if (held.get(messageId) === by) held.delete(messageId);
         const own = row?.pending && row.by === by;
         if (step !== "done" || !message) {
             if (own) await ruledCardStore.drop(messageId);
@@ -1147,14 +1184,77 @@ export async function claimOnPrimary(messageId, step, by) {
         expiryAfterClaim(messageId, { ruled: true });
         return { taken: true, by: ruledCardStore.get(messageId)?.by ?? by };
     }
+    if (step !== "take" && step !== "takeover") return { taken: false, why: "gone", by: null };
     if (!message) return { taken: false, why: "gone", by: null };
     if (row && !row.pending) return { taken: false, why: "ruled", by: row.by ?? null };
-    if (holder) return { taken: false, why: "busy", by: holder };
-    if (row?.pending && game.users.get(row.by ?? "")?.active) return { taken: false, why: "busy", by: row.by };
+    if (step === "takeover" && !holder) return { taken: false, why: "free", by: null };
+    if (holder && (step === "take" || holder === by)) return { taken: false, why: "busy", by: holder, at: since };
     if (cardFlag(message, "settled") || cardMeta(message, "settled")) return { taken: false, why: "settled", by: null };
-    claimsInProgress.set(messageId, by);
-    await ruledCardStore.patch(messageId, { by, at: serverNow(), pending: true });
+    // Whom the card is taken from: the GM taken over, or one whose claim ran out (held here, or a pending row).
+    const from = holder ?? held.get(messageId) ?? (row?.pending ? row.by ?? null : null);
+    held.set(messageId, by);
+    const at = serverNow();
+    await ruledCardStore.patch(messageId, { by, at, pending: true, from: from && from !== by ? from : null });
+    if (!store) watchClaimHold(messageId, by, at);
+    if (from && from !== by) tell(messageId, from, by);
     return { taken: true, by };
+}
+
+/** Whether `row`, a GM's pending claim on a card, has run out (`TIMING.claimHoldMs`; 2.0 line T2, CALLS-01). A row with
+    no time has not. `now` is a test's (R9021). */
+export function claimRanOut(row, now = serverNow()) {
+    return Boolean(row?.pending) && typeof row.at === "number" && now - row.at > TIMING.claimHoldMs;
+}
+
+/**
+ * The GM whose claim holds this card now, as the primary reads it, or null (2.0 line T2, CALLS-01): a click held in this
+ * primary's memory, or a pending row in the GMs' `ruledCardStore` of a GM who is here - neither run out.
+ */
+function claimHolder(messageId, row, inMemory = claimsInProgress) {
+    const held = inMemory.get(messageId ?? "") ?? null;
+    const ranOut = claimRanOut(row);
+    if (held && !(ranOut && row.by === held)) return held;
+    if (row?.pending && !ranOut && game.users.get(row.by ?? "")?.active) return row.by;
+    return null;
+}
+
+/**
+ * Whether another GM than `by` holds the claim on this card (2.0 line T2, CALLS-01): a decision that goes through the
+ * primary (`yesOnPrimary`, `dynamicOnPrimary`, `observePickOnPrimary`) is refused when one does - the GM whose window it
+ * came from was taken over, whether or not that GM's browser heard it (`card.takenOver`). A card nobody holds is
+ * nobody else's: a GM's own call that names no claim, as tier 2 makes them, is judged as before. `store` and `held` are
+ * a test's (R9022); exported for it.
+ */
+export async function claimedByAnother(messageId, by, { store = null, held = claimsInProgress } = {}) {
+    if (!messageId) return false;
+    const rows = store ?? (await import("./gm-stores.mjs")).ruledCardStore;
+    await rows.whenHydrated();
+    const holder = claimHolder(messageId, rows.get(messageId), held);
+    return Boolean(holder && holder !== by);
+}
+
+/** When `by`'s claim taken `at` runs out, an end of the card that waited on it ends the card (`expiryAfterClaim`). */
+function watchClaimHold(messageId, by, at) {
+    setTimeout(() => {
+        import("./gm-stores.mjs").then(({ ruledCardStore }) => {
+            const row = ruledCardStore.get(messageId);
+            if (row?.pending && row.by === by && row.at === at) expiryAfterClaim(messageId);
+        }).catch(err => debug("A card's claim ran out, and the card's end could not be read", err));
+    }, TIMING.claimHoldMs + 1000);
+}
+
+/**
+ * Tell `from` that `by` has its card now (2.0 line T2, CALLS-01): GM -> GM, `card.takenOver`, which that GM's browser
+ * takes only from the primary (card-takeover.mjs `onCardTakenOver`, by Foundry's `senderId`). This primary's own claim is
+ * let go here, with no packet.
+ */
+function tellTakenOver(messageId, from, by) {
+    if (from === game.user?.id) {
+        import("./card-takeover.mjs").then(m => m.cardTakenOverHere(messageId, by))
+            .catch(err => debug("Could not close this GM's window of a card taken over", err));
+        return;
+    }
+    game.socket.emit(SOCKET_EVENT, { action: ACTION_CARD_TAKEN, messageId, userId: from, by }, { recipients: [from] });
 }
 
 /*

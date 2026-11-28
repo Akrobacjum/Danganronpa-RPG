@@ -7297,4 +7297,41 @@ export async function run({ gm, p1, p2, p3, check, note, phase, settle, permissi
 
     // summary of what server refused
     check("SECURITY: server logged permission denials for player writes", (permissionDenials ?? []).length >= 2, JSON.stringify((permissionDenials||[]).slice(0,8)));
+
+    // 2.0 line T2
+    /* CALLS-01 (27.11.2026): the primary's word that another GM took over a card (`card.takenOver`, GM -> GM) closes the
+       windows of that GM's claim on the card and marks the claim lost (card-takeover.mjs `onCardTakenOver`). It is taken
+       only from the primary, by Foundry's sender. The GM's own claim runs on a card with its window open (a kit window
+       drawn as a person would see it, `__dialogWindows`); p1's console sends the GM the packet naming that card and itself
+       as the taker. Read on the GM: the window still open, the claim not lost, and no notice naming p1 as the taker. Then
+       the window is closed by hand and the claim ends as a backed-out one. */
+    phase("a forged take-over of a GM's card", { flow: "card-claim" });
+    const TK_TITLE = "S30 T2 CALLS-01 window";
+    const tkOpen = `return [...foundry.applications.instances.values()].some(a => a.rendered && a.title === ${JSON.stringify(TK_TITLE)});`;
+    const tkCard = await gm.eval(`const A = await import("${repoUrl}/scripts/bridge-asks.mjs");
+        const { drpgWindow } = await import("${repoUrl}/scripts/ui-kit.mjs");
+        const m = await ChatMessage.create({ content: "<p>S30 T2 CALLS-01</p>", whisper: [game.user.id] });
+        globalThis.__t2TkWas = globalThis.__dialogWindows;
+        globalThis.__dialogWindows = true;
+        globalThis.__t2Tk = A.claimCard(m, () => drpgWindow({ title: ${JSON.stringify(TK_TITLE)}, body: "<p>S30</p>",
+            footer: { primary: { action: "ok", label: "OK" }, close: { role: "cancel", action: "cancel", callback: () => null } }, rejectClose: false }).then(() => null));
+        const end = Date.now() + 5000;
+        while (Date.now() < end && ![...foundry.applications.instances.values()].some(a => a.rendered && a.title === ${JSON.stringify(TK_TITLE)})) await new Promise(r => setTimeout(r, 50));
+        return m.id;`, { timeout: 30000 });
+    const tkBefore = { open: await gm.eval(tkOpen) };
+    const tkTold = await gm.eval(`return game.i18n.format("DRPG.Bridge.claimTakenOver", { gm: game.users.get("${p1.userId}")?.name ?? "?" });`);
+    const tkNotices = `return [...document.querySelectorAll(".drpg-popup")].filter(n => n.textContent.includes(${JSON.stringify(tkTold)})).length;`;
+    tkBefore.told = await gm.eval(tkNotices);
+    await p1.eval(`game.socket.emit("${SOCKET}", { action: "card.takenOver", messageId: "${tkCard}", userId: "${IDS.gm}", by: game.user.id },
+        { recipients: ["${IDS.gm}"] }); return true;`);
+    await settle(1200);
+    const tkAfter = { open: await gm.eval(tkOpen), told: await gm.eval(tkNotices),
+        lost: await gm.eval(`const K = await import("${repoUrl}/scripts/card-takeover.mjs"); return K.claimLostHere("${tkCard}");`) };
+    await gm.eval(`for (const a of [...foundry.applications.instances.values()]) if (a.title === ${JSON.stringify(TK_TITLE)}) await a.close();
+        await globalThis.__t2Tk; globalThis.__dialogWindows = globalThis.__t2TkWas; delete globalThis.__t2Tk; delete globalThis.__t2TkWas;
+        await game.messages.get("${tkCard}")?.delete(); return true;`, { timeout: 30000 });
+    await settle(400);
+    check("SECURITY: a player's console's card.takenOver closes no GM's window of a card and ends no claim - taken only from the primary GM by Foundry's sender (2.0 line T2, CALLS-01)",
+        Boolean(tkCard) && tkBefore.open === true && tkBefore.told === 0 && tkAfter.open === true && tkAfter.lost === false && tkAfter.told === 0,
+        JSON.stringify({ tkCard, tkBefore, tkAfter }), { flow: "card-claim" });
 }
