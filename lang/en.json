@@ -3446,6 +3446,7 @@
       "bodyFound": "A body has been found in {room}.",
       "bodyFoundNamed": "{name} has been found dead in {room}.",
       "bodyCalled": "Everyone is gathered in the room with the body. The GM will start the Investigation.",
+      "bodyCalledNext": "Once it starts, Observe and Analyze turn up Truth Bullets for the trial, and the GM ends it by starting the Class Trial.",
       "bodyDone": "Everyone was brought to {room}.",
       "promoted": {
         "one": "{n} Remnant now counts as evidence of this murder.",
@@ -6771,6 +6772,7 @@
       "startHereText": "Open Season setup from the GM panel. Its Season checklist walks you through a season in the order it is built, and the GM panel's Next line names the first thing still to do."
     },
     "Explain": {
+      "investigationStarted": "The Investigation has begun. It lasts until the GM starts the Class Trial.",
       "state": {
         "window": "Where things stand",
         "title": "The season"
@@ -6781,7 +6783,7 @@
         "eclipseDark": "The lights are out. Everyone places their token, {reach}, or {night} at night, and nobody sees who went where. Your actions are already refilled, but you can spend them only on a Direct Murder, and nobody makes a Call until the lights come up.",
         "eclipseReach": { "one": "up to {n} connected room", "other": "up to {n} connected rooms" },
         "dailyLife": "Ordinary days inside the school. You have {actions} each time of day to search rooms, work on projects, rest, talk, and prepare. No body has been found yet this chapter, and this is when you decide who you trust.",
-        "investigation": "A body has been found. Observe Remnants on the map, Analyze what you collect, and every Truth Bullet you build is one you can present at the trial. What you fail to find, you will not have.",
+        "investigation": "A body has been found. Observe Remnants on the map, Analyze what you collect, and every Truth Bullet you build is one you can present at the trial. What you fail to find, you will not have. The Investigation lasts until the GM starts the Class Trial.",
         "classTrial": "Everyone is in the room, and one of the students did it. Testimony, Objections, and finally the vote. If the class names the killer, the killer is punished; if not, everybody else is."
       },
       "time": {

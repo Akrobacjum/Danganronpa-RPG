@@ -70089,6 +70089,23 @@ const INVARIANTS = [
         stableJson({ console: [true, false], map: [true, true] }),
             "{console: [its tooltip says it opens the node on the Map, it claims aria-expanded]; map: [its tooltip, aria-expanded]}");
     }],
+    ["R9137 - the body's card and the clock's explanation say what the Investigation is for and that the GM ends it by starting the Class Trial, and its start is told on a card (2.0 line T3 EXP-PL-11; lang `DRPG.Chapter.bodyCalledNext`, `DRPG.Explain.phase.investigation`, `DRPG.Explain.investigationStarted`; clock.mjs `reconcilePhase`, body.mjs `runDiscovery`)", async () => {
+        /* 2.0 line T3 EXP-PL-11, 27.11.2026. Read off both language files and the two functions' source; nothing written.
+           Red at d63b1d4: no `bodyCalledNext`, no card, and the explanation did not say how the Investigation ends. */
+        const U = foundry.utils;
+        const keys = ["DRPG.Chapter.bodyCalledNext", "DRPG.Explain.phase.investigation", "DRPG.Explain.investigationStarted"];
+        const says = {};
+        for (const lang of ["en", "pl"]) {
+            const all = U.expandObject(await (await fetch(`modules/${MODULE_ID}/lang/${lang}.json`)).json());
+            says[lang] = keys.map(key => { const text = U.getProperty(all, key); return typeof text === "string" && /Class Trial/.test(text) && /GM/.test(text); });
+        }
+        const src = async file => stripComments(await fetch(`/modules/${MODULE_ID}/scripts/${file}`).then(r => (r.ok ? lfText(r) : "")));
+        const clock = fnSource(await src("clock.mjs"), "reconcilePhase"), body = fnSource(await src("body.mjs"), "runDiscovery");
+        equal(stableJson({ ...says, card: /DRPG\.Explain\.investigationStarted/.test(clock) && /to === "investigation"/.test(clock),
+            bodyCard: /DRPG\.Chapter\.bodyCalledNext/.test(body) }),
+        stableJson({ en: [true, true, true], pl: [true, true, true], card: true, bodyCard: true }),
+            "{each language: [the body card's next line, the explanation, the start's card each name the GM and the Class Trial]; card: reconcilePhase posts the start's card into the Investigation; bodyCard: the body's card says the next line}");
+    }],
 ];
 
 /**

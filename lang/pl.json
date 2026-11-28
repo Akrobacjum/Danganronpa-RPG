@@ -3656,6 +3656,7 @@
       "bodyFound": "W pokoju {room} znaleziono ciało.",
       "bodyFoundNamed": "{name} nie żyje. Ciało leży w pokoju {room}.",
       "bodyCalled": "Wszystkie tokeny stoją teraz w pokoju z ciałem. Investigation jeszcze nie trwa. Rozpocznie je GM.",
+      "bodyCalledNext": "Gdy się zacznie, Observe i Analyze dają Truth Bullety do rozprawy, a kończy je GM, zaczynając Class Trial.",
       "bodyDone": "Wszystkich sprowadzono do pokoju {room}.",
       "promoted": {
         "one": "{n} Remnant liczy się teraz jako dowód tego morderstwa.",
@@ -7304,6 +7305,7 @@
       }
     },
     "Explain": {
+      "investigationStarted": "Zaczyna się Investigation. Trwa, dopóki GM nie zacznie Class Trial.",
       "state": {
         "window": "Gdzie jesteśmy",
         "title": "Sezon"
@@ -7319,7 +7321,7 @@
           "other": "do {n} połączonego pokoju"
         },
         "dailyLife": "Zwykłe dni w szkole. Masz {actions} na każdą porę dnia: na przeszukiwanie pokoi, pracę nad projektami, odpoczynek, rozmowy i przygotowania. W tym rozdziale nie znaleziono jeszcze ciała. To czas, w którym decydujesz, komu ufasz.",
-        "investigation": "Znaleziono ciało. Używaj Observe na Remnantach na mapie, Analyze na tym, co zbierzesz, a każdy Truth Bullet, który zbudujesz, możesz przedstawić w Class Trial. Czego nie znajdziesz, tego nie będziesz mieć.",
+        "investigation": "Znaleziono ciało. Używaj Observe na Remnantach na mapie, Analyze na tym, co zbierzesz, a każdy Truth Bullet, który zbudujesz, możesz przedstawić w Class Trial. Czego nie znajdziesz, tego nie będziesz mieć. Investigation trwa, dopóki GM nie zacznie Class Trial.",
         "classTrial": "Wszyscy są w sali, a ktoś z uczniów to zrobił. Zeznania, Objections i wreszcie głosowanie. Jeśli klasa wskaże zabójcę, zabójca zostanie ukarany; jeśli nie, ukarani zostaną wszyscy pozostali."
       },
       "time": {

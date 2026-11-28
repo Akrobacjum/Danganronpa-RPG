@@ -1105,6 +1105,18 @@ async function reconcilePhase(from, to) {
         }
     }
 
+    /* THE INVESTIGATION'S START, TOLD TO THE TABLE (2.0 line T3 EXP-PL-11, 27.11.2026; the owner's recommendation). The
+       body's card says the GM starts the Investigation, and nothing said when it had started or how it ends: the clock's
+       explanation is read on its hover alone (explain.mjs `phaseExplanation`). One public card on the browser that wrote
+       the phase, on every road into it: the Investigation has begun and lasts until the GM starts the Class Trial. */
+    if (to === "investigation" && from !== "investigation") {
+        try {
+            await announce(`<p>${game.i18n.localize("DRPG.Explain.investigationStarted")}</p>`);
+        } catch (err) {
+            error("Could not tell the table the Investigation has begun", err);
+        }
+    }
+
     if (to === "classTrial") {
         /*
          * THE TRIAL'S BUDGET (T-1), first: from the moment the phase moves the sheet

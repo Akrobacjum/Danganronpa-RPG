@@ -368,7 +368,7 @@ async function runDiscovery({ room, victim = null, scene = null, by = "gm", say 
                 : game.i18n.format("DRPG.Chapter.bodyFound", {
                     room: foundry.utils.escapeHTML(room)
                 })}</p>
-            <p>${game.i18n.localize("DRPG.Chapter.bodyCalled")}</p>
+            <p>${game.i18n.localize("DRPG.Chapter.bodyCalled")} ${game.i18n.localize("DRPG.Chapter.bodyCalledNext")}</p>
         </div>`
     });
 
