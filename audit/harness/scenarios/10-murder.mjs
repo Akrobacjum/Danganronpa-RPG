@@ -476,12 +476,12 @@ export async function run({ gm, gm2, p1, p2, p3, check, phase, settle, repoUrl, 
     const f3d = findDelta(await findRead(), f3Before);
     const f3gm2 = await gm2.eval(`const C = await import("${repoUrl}/scripts/chapter.mjs");
         return { pending: (C.pendingBodyDiscoveries?.() ?? []).map(r => [r.room, r.victimId]), asked: globalThis.__dialogLog.slice(${dialogMarks.gm2}).map(d => d.title) };`);
-    check("F3: Botan, the second witness - p2 hears the sound and is told, p1 hears nothing again, p3 elsewhere receives no packet; the discovery is pending on both GMs and stored, nobody gathered and no card; the primary was asked once, gm2 not",
+    check("F3: Botan, the second witness - p2 hears the sound and is told, p1 hears nothing again, p3 elsewhere receives no packet; the discovery is pending on both GMs and stored, nobody gathered and no card; the primary and gm2, both full Gamemasters, were asked once each (2.0 line T1 MURDER-05: the window at every full GM, the first answer closing the rest)",
         f3d.p2.played === 1 && toldAlone(f3d.p2.notes) === 1 && f3d.p1.played === 0
             && f3d.p3.packets.length === 0 && f3d.p3.played === 0 && f3d.p3.notes.length === 0
             && J10(f3.pending) === J10([[f1.bodyRoom, ids.daichi]]) && J10(f3gm2.pending) === J10(f3.pending) && f3.stored === true
             && f3.held === null && f3.dead === false && f3.cards === cardsBefore && f3.aikoAt === f1.bodyRoom
-            && f3.asked.filter(t => t === promptTitle).length === 1 && !f3gm2.asked.includes(promptTitle),
+            && f3.asked.filter(t => t === promptTitle).length === 1 && f3gm2.asked.filter(t => t === promptTitle).length === 1,
         J10({ f3, f3d, f3gm2, promptTitle, cardsBefore }), { flow: "body-discovery" });
     check("F3: the sound's memory - Aiko's and Botan's of Daichi - is in the GMs' stored setting, so a reload keeps it",
         J10(f3.heard) === J10([ids.aiko, ids.botan]),

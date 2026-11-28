@@ -22,7 +22,7 @@
 
 import { MODULE_ID, ECLIPSE_MOVES, ECLIPSE_FREE_PLACEMENT, TRAITS, TIMES_OF_DAY } from "./config.mjs";
 import { cardWarn } from "./chat-card.mjs";
-import { SETTINGS, isEclipse, incomingTimeOfDay, eclipseId, eclipseMovesUsed, eclipseCountOf, eclipseInFlight, isDeceased, isDeadForGm, bodyDiscovery } from "./settings.mjs";
+import { SETTINGS, isEclipse, incomingTimeOfDay, holdLightsTimeOfDay, eclipseId, eclipseMovesUsed, eclipseCountOf, eclipseInFlight, isDeceased, isDeadForGm, bodyDiscovery } from "./settings.mjs";
 // Defined in settings.mjs, the leaf every side of this file's import cycles can
 // reach (audit C3); re-exported so nothing that imports them from here has to
 // know that.
@@ -460,11 +460,15 @@ async function endEclipseNow({ advance = true } = {}) {
      * been there a moment before. Now the judgement runs in two steps around this function's clock (`judgePendingMurders`,
      * `moveTheClock` handed to it): the room, a betrayal, a second declaration and the GM's answer first, while the Eclipse
      * still hides every token - its window asked before the lights (`askAtTheLights`) - then the veil on the murders it
-     * confirmed alone (mask-gm.mjs `veilAtTheLights`), then the clock, then the incidents opened. A refused killer is never
-     * veiled. What is left: an opening confirmed at the lights is rolled by day under the veil, and one that fails shows the
-     * killer's token again in the victim's room (the owner's question P1 of the line's report; unchanged).
+     * confirmed alone (mask-gm.mjs `veilAtTheLights`), then the incidents opened, then the clock. A refused killer is never
+     * veiled.
+     * AND THE OPENING BEFORE THE CLOCK (2.0 line T1 D2-28, the owner's answer to the line's P1: "rzut otwarcia morderstwa
+     * zapada w trakcie Eclipse, przed pora dnia - swiatla czekaja na rzut"): the lights wait for each opening's result
+     * (`awaitOpening`) before this function's clock, so an opening that fails is over while the Eclipse still hides every
+     * token, and the map by day says nothing of who tried (D2-10). `veilConfirmed` is the first half, `moveTheClock` the
+     * second.
      */
-    const moveTheClock = async confirmed => {
+    const veilConfirmed = async confirmed => {
         /* THE OPENING'S VEIL FROM THE START OF THE TIME OF DAY (E112; the owner's answer (4)): the killers the lights
            confirmed are veiled while the Eclipse still hides every token, and `lightsJudged` settles once they have opened
            (mask-gm.mjs `veilAtTheLights`). On the primary GM; another GM asks it (STG-31). Since 2.0 line T1 only the
@@ -475,6 +479,8 @@ async function endEclipseNow({ advance = true } = {}) {
         } catch (err) {
             error("Could not veil the killers the lights will open", err);
         }
+    };
+    const moveTheClock = async () => {
         // The other clients are told by the clock's write itself, on both branches below (clock.mjs `setClock` ->
         // `reconcileEclipseEnded`), AFTER the clock, for the same reason the flag goes with it: it redraws the HUD on every
         // other client, and sent first it redrew them into the half-finished state this function exists to skip past. ONE
@@ -564,20 +570,24 @@ async function endEclipseNow({ advance = true } = {}) {
         }
     };
 
-    // The judgement around the clock (above): its first step before `moveTheClock`, its second after it, the new time of
-    // day in place - everything a murder opened there needs, unlocked Hope Calls among it, is put in place by the clock.
+    // The judgement around the clock (above): its first step and the openings before `moveTheClock` (D2-28), every other
+    // row after it, the new time of day in place - everything those need, unlocked Hope Calls among it, is put in place by
+    // the clock; an opening's roll reads the time the clock moves to (settings.mjs `lightsTimeOfDay`, held below).
     // The action budget is not among those things: the declaration paid for itself when it was made (Z2).
     // A clock whose write throws fails the end, as it did while the clock moved before the judgement (r121-K-3): the
     // judgement stops at it, the finally below lets the watches' dice go, and the throw reaches the caller.
     let clockFailed = null;
-    const moveOrFail = async confirmed => {
-        try { await moveTheClock(confirmed); } catch (err) { clockFailed = err; throw err; }
+    const moveOrFail = async () => {
+        try { await moveTheClock(); } catch (err) { clockFailed = err; throw err; }
     };
+    const before = getClock();
+    holdLightsTimeOfDay(advance ? incomingTimeOfDay(before) : before?.timeOfDay ?? null);
     try {
-        await judgePendingMurders(ending, taken, { advance: moveOrFail });
+        await judgePendingMurders(ending, taken, { advance: moveOrFail, veil: veilConfirmed });
     } catch (err) {
         if (err !== clockFailed) error("Could not judge the direct murders declared during the Eclipse", err);
     } finally {
+        holdLightsTimeOfDay(null);
         // Every row of "lights" no opening took over is lifted (E112); awaited, so the lights end with the veils settled.
         try {
             await (await import("./mask-gm.mjs")).lightsJudged();
@@ -1027,10 +1037,12 @@ export async function settleDeclarationCards(killerIds) {
  * TWO STEPS AROUND THE CLOCK (2.0 line T1 EXP-PL-02; `endEclipseNow`'s note). The first, before `advance`: every
  * declaration of this Eclipse in declaration order - its room (`standingAtTheLights`), a betrayal, a second declaration
  * (the count of the ones this step confirmed, and an incident running already, not `murderState()` alone: nothing has
- * opened yet), the GM's answer from the card or the window (`askAtTheLights`, asked while the Eclipse stands) - written
- * on its row as `verdict` (DAY-04). Then `advance(confirmed)`: the veil on the confirmed killers alone, and the clock.
- * The second, after it: each row in the same order told and carried out - an incident opened (`openMurder`, `atLights`),
- * a betrayal opened, or the killer's line - and only then dropped.
+ * opened yet; for a betrayal not one at Stage 6, which the betrayal closes itself), the GM's answer from the card or the
+ * window (`askAtTheLights`, asked while the Eclipse stands) - written on its row as `verdict` (DAY-04). Then `veil`: the
+ * veil on the confirmed killers alone. The second step: the openings first, in the same order - an incident opened
+ * (`openMurder`, `atLights`) or a betrayal opened, each waited for to its result while the Eclipse stands
+ * (`awaitOpening`, D2-28) - then `advance()`, the clock, then every other row told in the new time of day (the killer's
+ * line, a refusal, a second declaration); each dropped only once it is carried out.
  *
  * EVERY ROW GOES ONLY ONCE IT IS JUDGED (2.0 line T1 DAY-04; the recommendation the owner took: "Usuwac zgloszenie dopiero
  * po osadzie (albo odtwarzac nierozstrzygniete przy ready) i powiadomic zabojce, gdy zgloszenie przepadlo"). Until 1.2.129
@@ -1047,7 +1059,7 @@ export async function settleDeclarationCards(killerIds) {
  * the lights, and - so that D6 holds, the two looking alike to the killer - a second declaration and a refused betrayal
  * (the line's default P2). A room that cancels it (nobody, witnesses) keeps the action spent, with its own words.
  */
-async function judgePendingMurders(id, taken = new Map(), { advance = async () => null } = {}) {
+async function judgePendingMurders(id, taken = new Map(), { advance = async () => null, veil = async () => null } = {}) {
     if (!game.user.isGM) return advance([]);
     const { murderState } = await import("./murder.mjs");
     const { whisperToGms } = await import("./utils.mjs");
@@ -1071,8 +1083,11 @@ async function judgePendingMurders(id, taken = new Map(), { advance = async () =
         // Declaration order, so "whoever got there first" is a fact about the table rather than about object-key ordering.
         const ids = Object.keys(all).sort((a, b) => (all[a].at ?? 0) - (all[b].at ?? 0));
         const standings = ids.length ? await standingsAtTheLights(id, all) : {};
-        // An incident running as the Eclipse ends (one opened at Stage 6 may stand) counts as one opened first.
-        let confirmed = murderState()?.active ? 1 : 0;
+        // An incident running as the Eclipse ends (one opened at Stage 6 may stand) counts as one opened first - but not for a
+        // betrayal, which closes the one at Stage 6 itself (murder-rules.mjs `openBetrayal`), as it did before 2.0 line T1.
+        const standing = murderState();
+        let confirmed = standing?.active ? 1 : 0;
+        const atStageSix = standing?.active && standing.stage === "resolution" ? 1 : 0;
         for (const killerId of ids) {
             const killer = game.actors.get(killerId);
             const parked = all[killerId];
@@ -1083,7 +1098,7 @@ async function judgePendingMurders(id, taken = new Map(), { advance = async () =
                leave (`parkBetrayal`), and no day: its offer was taken before the clock moved (`takeDeclaredBetrayals`). One
                after a confirmed murder is a second declaration; the rest are opened in the second step, which may still
                refuse them (`openParkedBetrayal`). */
-            else if (parked.betrayal) verdict = { outcome: confirmed ? "second" : "betrayal" };
+            else if (parked.betrayal) verdict = { outcome: confirmed - atStageSix > 0 ? "second" : "betrayal" };
             else {
                 const { room = null, present = [], victimId = null } = standings[killerId] ?? {};
                 if (present !== 1) verdict = { outcome: present === 0 ? "nobody" : "witnesses", room, n: Math.max(0, present - 1) };
@@ -1106,14 +1121,22 @@ async function judgePendingMurders(id, taken = new Map(), { advance = async () =
         error("Could not judge the direct murders declared during the Eclipse before its lights", err);
     }
 
-    /* BETWEEN THE STEPS: the veil on the confirmed killers alone, and the clock (`endEclipseNow`'s `moveTheClock`). */
-    await advance(judged.filter(j => ["open", "betrayal"].includes(j.verdict.outcome)).map(j => j.killerId));
+    /* BETWEEN THE STEPS: the veil on the confirmed killers alone (`endEclipseNow`'s `veilConfirmed`). */
+    const opening = j => ["open", "betrayal"].includes(j.verdict.outcome);
+    await veil(judged.filter(opening).map(j => j.killerId));
 
-    /* THE SECOND STEP, IN THE NEW TIME OF DAY: each row carried out and told, then dropped. */
+    /* THE SECOND STEP: each row carried out and told, then dropped - the openings first, each waited for to its result
+       while the Eclipse stands (D2-28, `awaitOpening`), then the clock (`moveTheClock`), then every other row by day. */
     const mark = await markOfNow();
     const lift = killerId => import("./mask-gm.mjs").then(m => m.liftAtTheLights(killerId))
         .catch(err => error("Could not lift the veil of a killer the lights cancelled", err));
-    for (const { killerId, parked, verdict } of judged) {
+    const ordered = [...judged.filter(opening), null, ...judged.filter(j => !opening(j))];
+    for (const entry of ordered) {
+        if (entry === null) {
+            await advance();
+            continue;
+        }
+        const { killerId, parked, verdict } = entry;
         const killer = game.actors.get(killerId);
         try {
             if (!killer) continue;
@@ -1127,7 +1150,7 @@ async function judgePendingMurders(id, taken = new Map(), { advance = async () =
                     await lift(killerId);
                     await say(killer, game.i18n.localize("DRPG.Action.murderRefused"), true);
                     await refundDeclaration(killer, parked);
-                }
+                } else await awaitOpening(killer);
                 continue;
             }
             if (verdict.outcome === "nobody" || verdict.outcome === "witnesses") {
@@ -1147,6 +1170,10 @@ async function judgePendingMurders(id, taken = new Map(), { advance = async () =
                 continue;
             }
             if (verdict.outcome === "second") {
+                /* A betrayal's offer goes back as a refused betrayal's does (murder-rules.mjs `refuseParkedBetrayal`), as
+                   it did while `openParkedBetrayal` refused it for a fight - the first opening is now waited for (D2-28),
+                   and one that failed would leave no fight to refuse it. */
+                if (parked.betrayal) await (await import("./murder.mjs")).refuseParkedBetrayal(killerId, taken.get(killerId) ?? null);
                 await say(killer, game.i18n.localize("DRPG.Action.murderRefused"), true);
                 await whisperToGms(`<p>${game.i18n.format("DRPG.Action.murderSecondDeclaration", {
                     killer: foundry.utils.escapeHTML(killer.name)
@@ -1161,7 +1188,11 @@ async function judgePendingMurders(id, taken = new Map(), { advance = async () =
             }
             if (verdict.outcome !== "open") continue;
             const victim = game.actors.get(verdict.victimId ?? "");
-            const opened = victim ? await openAtTheLights(killer, victim, verdict, parked) : null;
+            // Opened already by these lights before a GM's reload (D2-28): waited for, not opened twice.
+            const running = (await import("./murder.mjs")).murderState();
+            const opened = running?.active && running.killerId === killerId && running.atLights === true ? running
+                : victim ? await openAtTheLights(killer, victim, verdict, parked) : null;
+            if (opened) await awaitOpening(killer);
             if (!opened) {
                 // Refused at the open itself (an incident opened meanwhile, a death recorded since): told as a refusal.
                 await lift(killerId);
@@ -1175,6 +1206,24 @@ async function judgePendingMurders(id, taken = new Map(), { advance = async () =
         }
     }
     await settleDeclarationCards(Object.keys(all));
+}
+
+/**
+ * THE LIGHTS WAIT FOR THE OPENING (2.0 line T1 D2-28): until the incident the lights opened has left its opening - the roll
+ * landed, the incident closed or another took its place - checked four times a second. Never in silence: the GMs are told
+ * at once, raised as a notice, that the lights wait on this killer's roll and how to go on when nobody throws it - the
+ * tracker's Throw for the player (MURDER-04) or End the murder (`DRPG.Eclipse.lightsWaitOpening`).
+ */
+async function awaitOpening(killer) {
+    const { murderState } = await import("./murder.mjs");
+    const start = murderState();
+    if (!start?.active || start.stage !== "openingRoll") return;
+    const still = () => { const s = murderState(); return Boolean(s?.active) && s.openedAt === start.openedAt && s.stage === "openingRoll"; };
+    const { whisperToGms } = await import("./utils.mjs");
+    await whisperToGms(`<p>${esc(game.i18n.format("DRPG.Eclipse.lightsWaitOpening", { name: killer?.name ?? "?" }))}</p>`,
+        { flags: { [MODULE_ID]: { gmPopup: true, popupTitle: game.i18n.localize("DRPG.Action.murderOpensTitle") } } })
+        .catch(err => error("Could not tell the GMs that the lights wait for the opening", err));
+    while (still()) await new Promise(resolve => setTimeout(resolve, 250));
 }
 
 /** The time of day a mark names (eavesdrop-gm.mjs `markNow`, the masks' too): the lights' second step keeps it on a row. */

@@ -3230,7 +3230,8 @@
         "spent": "nie jest już dostępna",
         "failed": "nie udało się otworzyć incydentu",
         "trial": "trwa Class Trial",
-        "dead": "jedna z dwóch osób już nie żyje"
+        "dead": "jedna z dwóch osób już nie żyje",
+        "second": "przy tych światłach pierwsze otworzyło się inne morderstwo"
       },
       "victimUnderAttackBy": "<strong>{killer} rusza na ciebie.</strong> Incydent się zaczął, a pierwsza tura jest twoja. Na arkuszu postaci, w zakładce Akcje, naciśnij „Broń się”.",
       "victimSomeoneMoves": "<strong>Ktoś rusza na ciebie.</strong> Incydent się zaczął, a pierwsza tura jest twoja. Na arkuszu postaci, w zakładce Akcje, naciśnij „Broń się”.",
@@ -4931,7 +4932,8 @@
       "murderWindowLocked": "Podczas Eclipse nie otworzysz incydentu. Karta pułapki zachowuje swój przycisk, więc użyjesz go po Eclipse.",
       "declarationLost": "Twoje zgłoszenie Direct Murder z Eclipse przepadło, zanim światło mogło je rozstrzygnąć. Akcja wraca do ciebie.",
       "declarationLostGm": "Direct Murder ({killer}) zgłoszono w Eclipse, które już się skończyło, a jego światło nigdy go nie rozstrzygnęło. Zgłoszenie przepada, a akcja wraca do zabójcy.",
-      "declarationLostOpenGm": "Direct Murder ({killer}) został dopuszczony przy świetle, ale jego incydent nie otworzył się przed przeładowaniem i teraz już nie może. Zgłoszenie przepada, a akcja wraca do zabójcy."
+      "declarationLostOpenGm": "Direct Murder ({killer}) został dopuszczony przy świetle, ale jego incydent nie otworzył się przed przeładowaniem i teraz już nie może. Zgłoszenie przepada, a akcja wraca do zabójcy.",
+      "lightsWaitOpening": "Światła czekają na rzut otwarcia postaci {name}. Jeśli gracz nie może rzucić, naciśnij Rzuć za gracza w trackerze incydentu albo Zakończ morderstwo."
     },
     "Movement": {
       "unlawfulArrival": "Postać {name} weszła {into} przejściem, na które zasady nie pozwalają, i jej token nie wrócił na miejsce. Dopóki nie stanie tam, dokąd mogła dojść {from}, nie jest świadkiem przy ciele ani trzecią osobą przy morderstwie. Gdy token przesunie GM, nowe miejsce jest dozwolone.",

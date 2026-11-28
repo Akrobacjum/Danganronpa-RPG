@@ -23624,7 +23624,8 @@ const REGRESSIONS = [
             // E59 on the 1.2.115 line (CHAINS.md B-H3, B-H2; R7180): eclipse.mjs `endEclipse`'s public end card during an incident
             // (a `message`, as the end without advancing), and overflow.mjs `announceOverflow`'s card built once and either
             // announced or whispered veiled to the incident's audience (a `built`).
-            "eavesdrop-gm.mjs": {"card": 1}, "eclipse.mjs": {"action": 3, "heading": 1, "line": 5, "message": 3},
+            // 2.0 line T1 D2-28 (28.11.2026): eclipse.mjs `awaitOpening`'s line to the GMs that the lights wait (a `line`).
+            "eavesdrop-gm.mjs": {"card": 1}, "eclipse.mjs": {"action": 3, "heading": 1, "line": 6, "message": 3},
             "enforced.mjs": {"line": 3}, "facilities-gm.mjs": {"card": 2}, "fog.mjs": {"line": 1}, "frisk.mjs": {"built": 7, "message": 2},
             "gm-items.mjs": {"action": 1, "heading": 2},
             // 1.2.122 line TEXT (TEXT-32): the missing answer key's one send to the owner and the GMs is two, the owner's and the GMs'

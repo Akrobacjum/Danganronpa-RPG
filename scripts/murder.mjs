@@ -35,7 +35,7 @@ export {
     isTheirTurn, crisisTileLabel, freeResolutionFor, crisisSituational, availableCrisisActions, atNight,
     freshIncidentState, openMurder, resolveKillerOpening, resolveVictimOpening, crisisRefusal, crisisUndoRefusal,
     crisisVariant, takeCrisisAction, resolveCrisisAction, refOf, crisisKilled, beginResolution, spendFreeCleanup,
-    passTurn, registerMurder, thirdPartyEnters, endMurder, betrayalTarget, betrayAsPlayer, openParkedBetrayal,
+    passTurn, registerMurder, thirdPartyEnters, endMurder, betrayalTarget, betrayAsPlayer, openParkedBetrayal, refuseParkedBetrayal,
     takeDeclaredBetrayal, rollOpening, closeOpeningRoll, throwOpeningRoll, resolveOpening, openingProposalFor
 } from "./murder-rules.mjs";
 export { openMurderDialog, incidentTrackerHtml, openIncidentTracker } from "./murder-ui.mjs";

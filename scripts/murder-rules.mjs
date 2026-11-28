@@ -69,7 +69,7 @@ import {
     USABLE_EFFECTS, DEFENSE, TRAITS
 } from "./config.mjs";
 import { isMonokuma, isSpectator } from "./monokuma.mjs";
-import { isDeadForGm, SETTINGS } from "./settings.mjs";
+import { isDeadForGm, SETTINGS, incomingTimeOfDay, lightsTimeOfDay } from "./settings.mjs";
 import { isMoveChange } from "./rooms.mjs";
 import { castStore, deathStore } from "./gm-stores.mjs";
 import { maskInsiders, MASK_NAME } from "./mask-gm.mjs";
@@ -396,7 +396,13 @@ function nightNoteKey(indirect) {
 
 /** Is it night? Whichever side rolls Stage 4 is modified by the answer - and the GM's draw expects it (roll-draw.mjs `expectedFor`). */
 export function atNight() {
-    const t = getClock().timeOfDay;
+    const clock = getClock();
+    /* THE NIGHT ECLIPSE OPENS AT NIGHT (2.0 line T1 D2-28): since the lights wait for the opening, its roll is thrown while
+       the clock still reads the Eclipse's time of day; it reads the time of day the lights move to (settings.mjs
+       `lightsTimeOfDay`: the incoming one, or the same when the GM ends without advancing), so a murder declared in the
+       Night Eclipse opens at Night, as it did while the clock moved first. Outside the judgement (a reload during the
+       wait), an Eclipse reads the time it leads into. The GM's draw reads the same (roll-draw.mjs `situationReading`). */
+    const t = clock?.eclipse === true ? (lightsTimeOfDay() ?? incomingTimeOfDay(clock)) : clock?.timeOfDay;
     return t === "night" || t === "Night";
 }
 
@@ -490,15 +496,16 @@ export async function openMurder({ killerId, victimId, indirect = false, opening
     if (!game.user.isGM) return null;
 
     // The Eclipse is a placement window, not a moment in the story - nobody has
-    // finished crossing the map yet. This does NOT catch the one legitimate call
-    // during an Eclipse: `judgePendingMurders` (eclipse.mjs) opens a *parked*
-    // direct murder from `endEclipse`, which clears the Eclipse flag before
-    // judging declarations, so `isEclipse()` already reads false by the time it
-    // calls here. Everywhere else - the GM panel's "Open a murder" tile, a
+    // finished crossing the map yet. The one legitimate call during an Eclipse
+    // is `judgePendingMurders` (eclipse.mjs) opening a *parked* direct murder at
+    // its lights, which since 2.0 line T1 D2-28 runs before the clock clears the
+    // Eclipse and says so (`atLights`, below). Everywhere else - the GM panel's "Open a murder" tile, a
     // ruling card's button - is greyed out with a tooltip instead of reaching
     // this at all; this is the backstop for anyone who gets here anyway.
+    /* AND THE LIGHTS' OWN OPEN (2.0 line T1 D2-28): since the lights wait for the opening's result, `judgePendingMurders`
+       opens a confirmed declaration while the Eclipse still stands (`atLights`); nothing else opens one in an Eclipse. */
     const { isEclipse } = await import("./eclipse.mjs");
-    if (isEclipse()) {
+    if (isEclipse() && atLights !== true) {
         ui.notifications.warn(game.i18n.localize("DRPG.Eclipse.murderLocked"));
         return null;
     }
@@ -4277,7 +4284,8 @@ async function openBetrayal(third, killer, { asked = false, taken = null, note =
      */
     const { isEclipse } = await import("./eclipse.mjs");
     const running = murderState();
-    if (isEclipse()) return refuseBetrayal(third, "eclipse", { asked, offer: taken });
+    // The lights' own betrayal opens in the Eclipse they end (2.0 line T1 D2-28, as `openMurder`'s `atLights`).
+    if (isEclipse() && atLights !== true) return refuseBetrayal(third, "eclipse", { asked, offer: taken });
     if (getClock()?.phase === "classTrial") return refuseBetrayal(third, "trial", { asked, offer: taken });
     if (running?.active && running.stage !== "resolution") return refuseBetrayal(third, "fight", { asked, offer: taken });
     if (taken && (isDeadForGm(third) || isDeadForGm(killer))) return refuseBetrayal(third, "dead", { asked, offer: taken });
@@ -4322,6 +4330,18 @@ async function openBetrayal(third, killer, { asked = false, taken = null, note =
 }
 
 /**
+ * A betrayal declared in an Eclipse that the lights refuse as a second declaration (eclipse.mjs `judgePendingMurders`,
+ * 2.0 line T1): its offer back while its chapter and day hold, and the GM ending the Eclipse told why
+ * (`DRPG.Murder.betrayalWhy.second`). The betrayer is told by the lights. GM-side.
+ */
+export async function refuseParkedBetrayal(thirdId, offer) {
+    if (!game.user.isGM) return null;
+    const third = game.actors.get(thirdId ?? "");
+    if (!third) return null;
+    return refuseBetrayal(third, "second", { asked: false, offer: offer?.thirdId === third.id ? offer : null });
+}
+
+/**
  * A betrayal declared in an Eclipse, opened at its lights (eclipse.mjs `judgePendingMurders`,
  * E32 C5b): `offer` is the one the lights took for it before the clock moved
  * (`takeDeclaredBetrayal`), or null when none stood for the two of them then. The incident
@@ -4353,7 +4373,8 @@ const BETRAYAL_WHY = Object.freeze({
     spent: "DRPG.Murder.betrayalWhy.spent",
     failed: "DRPG.Murder.betrayalWhy.failed",
     trial: "DRPG.Murder.betrayalWhy.trial",
-    dead: "DRPG.Murder.betrayalWhy.dead"
+    dead: "DRPG.Murder.betrayalWhy.dead",
+    second: "DRPG.Murder.betrayalWhy.second"
 });
 
 /**

@@ -3069,7 +3069,8 @@
         "spent": "it is no longer on offer",
         "failed": "the new incident did not start",
         "trial": "a Class Trial is in session",
-        "dead": "one of the two is no longer alive"
+        "dead": "one of the two is no longer alive",
+        "second": "another murder opened first at these lights"
       },
       "victimUnderAttackBy": "<strong>{killer} is moving on you.</strong> The incident has begun, and the first turn is yours: press Fight Back under Actions on your character sheet.",
       "victimSomeoneMoves": "<strong>Someone is moving on you.</strong> The incident has begun, and the first turn is yours: press Fight Back under Actions on your character sheet.",
@@ -4605,7 +4606,8 @@
       "panelLocked": "Locked until the Eclipse ends.",
       "declarationLost": "Your Direct Murder declared in the dark was lost before the lights could judge it. Your action comes back.",
       "declarationLostGm": "{killer}'s Direct Murder was declared in an Eclipse that has ended, and its lights never judged it. It is dropped, and the action goes back.",
-      "declarationLostOpenGm": "{killer}'s Direct Murder was allowed at the lights, but its incident did not open before a reload, and it cannot open now. It is dropped, and the action goes back."
+      "declarationLostOpenGm": "{killer}'s Direct Murder was allowed at the lights, but its incident did not open before a reload, and it cannot open now. It is dropped, and the action goes back.",
+      "lightsWaitOpening": "The lights wait for {name}'s opening roll. If the player cannot throw it, press Throw for the player in the incident tracker, or End the murder."
     },
     "Movement": {
       "unlawfulArrival": "{name} went {into} by a crossing the rules do not allow, and was not put back. Until they stand in a room they could reach {from}, they do not count as a witness to a body or a third party to a murder. Moving the token as a GM makes their spot lawful.",

@@ -4090,6 +4090,19 @@ export async function eclipseInFlight(actorId, waiting, clock = null) {
     }
 }
 
+/*
+ * THE TIME OF DAY THE LIGHTS OPEN IN (2.0 line T1 D2-28). Since the lights wait for an opening's result before the clock
+ * (eclipse.mjs `judgePendingMurders`), a murder the lights open is rolled while the clock still reads the Eclipse; the
+ * time of day it opens in is the one the lights move to - the incoming one, or the same one when the GM ends the Eclipse
+ * without advancing (boundary.mjs "endOnly") - and murder-rules.mjs `atNight` reads it here. Held by `endEclipseNow` for
+ * the length of its judgement on the GM that judges; null otherwise.
+ */
+let lightsOpenIn = null;
+/** The time of day the lights being judged on this browser move to, or null when none are. */
+export function lightsTimeOfDay() { return lightsOpenIn; }
+/** Set (or, with null, clear) the time of day the lights move to; eclipse.mjs `endEclipseNow` alone. */
+export function holdLightsTimeOfDay(timeOfDay) { lightsOpenIn = timeOfDay ?? null; }
+
 /** The time of day a running (or about-to-run) Eclipse leads into. */
 export function incomingTimeOfDay(clock = getClock()) {
     const index = TIMES_OF_DAY.indexOf(clock?.timeOfDay);

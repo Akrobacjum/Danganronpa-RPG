@@ -17,7 +17,7 @@ import { gmStoresIdle, gmStoreNow } from "./gm-store.mjs";
 import {
     ok, must, needs, env, world, equal, wait, settle, until, moduleSources, otherSources, stripComments, moduleStyles, bodyOf, fnSource,
     STANDING, stableJson, moduleSettingValues, clientStored, putBackStored, appearedBodyTiles, watchLog, cast, systemSheetsAvailable, lfText,
-    bridgeFn, bridgeText, actionText, kitQuestion, kitQuestions, sheetText, glassFetch, standInUser, standIn, expectedRed
+    bridgeFn, bridgeText, actionText, kitQuestion, kitQuestions, sheetText, glassFetch, standInUser, standIn
 } from "./tests-kit.mjs";
 import { GRID } from "./tests-grid.mjs";
 
@@ -1108,6 +1108,36 @@ async function wordsSent(run) {
         if (own) Object.defineProperty(socket, "emit", own); else delete socket.emit;
     }
     return sent;
+}
+
+/**
+ * `run` with each opening's roll thrown (2.0 line T1 D2-28). Since D2-28 the lights wait for an opening's result before
+ * the clock (eclipse.mjs `awaitOpening`), and in tier 2 the players sit still, so a test that ends an Eclipse on a
+ * declaration the lights open lands the killer's roll itself. Watched on the incident, not the invitation: an opening
+ * can wait on its invitation, on the GM's question of which statistic, or on a GM throwing for an owner away
+ * (murder-rules.mjs `rollOpening`), and each holds the lights alike. Four times a second, an incident at its opening
+ * roll not seen before is read (`at`: its killer and victim, whether it opened at the lights, whether the Eclipse
+ * stood) and landed on this GM as `total` would, with Hope as `withHope` (below 8 fails and ends the incident; 8 or
+ * more takes it to the fight). Answers `at`, one entry per opening, handed to `run` as it fills.
+ */
+async function throwingOpenings(run, { total = 1, withHope = false } = {}) {
+    const M = await import("./murder.mjs");
+    const E = await import("./eclipse.mjs");
+    const at = [];
+    const seen = new Set();
+    const watch = setInterval(() => {
+        const state = M.murderState();
+        if (!state?.active || state.stage !== "openingRoll" || seen.has(state.openedAt)) return;
+        seen.add(state.openedAt);
+        at.push({ killerId: state.killerId ?? null, victimId: state.victimId ?? null, atLights: state.atLights === true, eclipse: E.isEclipse() });
+        void M.resolveKillerOpening({ total, isCritical: false, withHope }).catch(() => null);
+    }, 250);
+    try {
+        await run(at);
+    } finally {
+        clearInterval(watch);
+    }
+    return at;
 }
 
 /**
@@ -4149,7 +4179,12 @@ async function lightsOnOne(killer, victim, { answer = "no", row = {}, more = nul
         await S.pendingMurderStore.patch(killer.id, { room: stood.room, note: "SUITE T1 declared in the dark", at: 1, approved: null, eclipse: id, ...row });
         if (more) extra.push(...await more(id));
         socket.emit = function (event, packet, options, ...rest) {
-            if (packet?.action === "murder.openingAsk") return true;
+            /* Held, and landed below 8 on this GM a moment later, as a player's roll would: since 2.0 line T1 D2-28 the
+               lights wait for an opening's result before the clock, so a held invitation alone would hold them. */
+            if (packet?.action === "murder.openingAsk") {
+                setTimeout(() => { void M.resolveKillerOpening({ total: 1, isCritical: false, withHope: false }); }, 300);
+                return true;
+            }
             if (packet?.action === "secret.card" && kp && (options?.recipients ?? []).includes(kp.id)) told.push(String(packet.html ?? "").replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim());
             return send.call(this, event, packet, options, ...rest);
         };
@@ -7794,9 +7829,11 @@ const SCENARIOS = [
             const standing = incidentCast().betrayal;
             const dark = [Boolean(answer?.parked), left - actionsLeft(third), row?.betrayal?.killerId ?? null, row?.note ?? null,
                 standing ? `${standing.thirdId}>${standing.killerId}` : null, M.murderState()?.stage ?? null, unanswered];
-            await E.endEclipse({ advance: false });
-            await settle();
-            if (M.murderState()?.stage === "openingRoll") await M.resolveKillerOpening({ total: 24, isCritical: false, withHope: true });
+            /* The opening's roll landed as before (24, with Hope), now while the lights wait for it (2.0 line T1 D2-28). */
+            await throwingOpenings(async () => {
+                await E.endEclipse({ advance: false });
+                await settle();
+            }, { total: 24, withHope: true });
             await settle();
             const state = M.murderState();
             const now = M.blackenedIds();
@@ -7846,7 +7883,8 @@ const SCENARIOS = [
         let closes = 0, other = null, lights = false;
         const closed = Hooks.on("drpgIncidentClosed", () => {
             closes++;
-            if (lights && !other) other = M.openMurder({ killerId: killer.id, victimId: third.id, openingTrait: "body" });
+            // `atLights`: since 2.0 line T1 D2-28 the lights judge in the Eclipse, where only their own open is let through.
+            if (lights && !other) other = M.openMurder({ killerId: killer.id, victimId: third.id, openingTrait: "body", atLights: true });
         });
         try {
             await accompliceAtStageSix(M, killer, victim, third);
@@ -7926,10 +7964,12 @@ const SCENARIOS = [
             await withBetrayalWindows("SUITE E32 C5b declared second", () => rolls.performAction(third, "directMurder"));
             await settle();
             const parked = Boolean(S.pendingMurderStore.get(third.id)?.betrayal);
-            const sent = await wordsSent(async () => {
+            /* Its opening thrown and landed (2.0 line T1 D2-28: the lights wait for it), 8 or more, so the incident stands
+               as the betrayal is judged after it, as it stood at its opening before D2-28. */
+            const sent = await wordsSent(() => throwingOpenings(async () => {
                 await E.endEclipse({ advance: false });
                 await settle();
-            });
+            }, { total: 20 }));
             const state = M.murderState();
             const offer = incidentCast().betrayal ?? null;
             const told = sent.filter(w => w.to.includes(player(third).id) && w.html.includes(refused)).length;
@@ -7981,8 +8021,12 @@ const SCENARIOS = [
             let answer = null;
             await withBetrayalWindows("SUITE fix r1-G2 declared at Night", async () => { answer = await rolls.performAction(third, "directMurder"); });
             await settle();
-            await E.endEclipse();
-            await settle();
+            /* Since 2.0 line T1 D2-28 the betrayal's opening is rolled in the Eclipse, before the clock moves into the morning;
+               thrown and landed here, 8 or more, so the incident stands into the morning as it stood at its opening before. */
+            await throwingOpenings(async () => {
+                await E.endEclipse();
+                await settle();
+            }, { total: 20 });
             const state = M.murderState();
             equal(stableJson([Boolean(answer?.parked), (getClock()?.day ?? 0) - dark, getClock()?.timeOfDay ?? null, state?.killerId ?? null,
                 state?.victimId ?? null, incidentCast().betrayal ?? null, S.pendingMurderStore.has(third.id)]),
@@ -8042,8 +8086,11 @@ const SCENARIOS = [
             await withBetrayalWindows("SUITE fix r1-G2 declared twice", async () => { answers.push(await rolls.performAction(third, "directMurder")); });
             await settle();
             const twice = [stamp() === before, once[1] - actionsLeft(third), S.pendingMurderStore.get(third.id)?.note ?? null, M.betrayalTarget(third)?.id ?? null];
-            await E.endEclipse();
-            await settle();
+            // Its opening thrown and landed, 8 or more (2.0 line T1 D2-28: the lights wait for it), so the incident stands.
+            await throwingOpenings(async () => {
+                await E.endEclipse();
+                await settle();
+            }, { total: 20 });
             const lights = [stamp() > before, M.murderState()?.killerId ?? null, incidentCast().betrayal ?? null];
             equal(stableJson([Boolean(answers[0]?.parked), once[0], answers[1] ?? null, ...twice, ...lights]),
                 stableJson([true, true, null, true, 0, NOTE, killer.id, true, third.id, null]),
@@ -10436,12 +10483,14 @@ const SCENARIOS = [
             for (const [at, killer, room] of [[1, first, stood[0].room], [2, second, stood[1].room]]) {
                 await S.pendingMurderStore.patch(killer.id, { room, note: "SUITE E06 C4 declared in the dark", at, approved: null, eclipse: id });
             }
-            words = await wordsSent(async () => {
+            /* The first's opening thrown and landed, 8 or more (2.0 line T1 D2-28: the lights wait for it), so its incident
+               stands as the second is judged, as it stood at its opening before D2-28. */
+            words = await wordsSent(() => throwingOpenings(async () => {
                 for (const killer of [first, second]) equal(await E.ruleOnParkedMurder(killer.id, true), true, `the GM could not allow ${killer.name}'s declaration`);
                 await settle();
                 await E.endEclipse({ advance: false });
                 await settle();
-            });
+            }, { total: 20 }));
         } finally {
             if (E.isEclipse()) await E.endEclipse({ advance: false }).catch(() => {});
             if (M.murderState()) await M.endMurder({ reason: "test", followUp: false });
@@ -10495,12 +10544,14 @@ const SCENARIOS = [
             for (const [at, killer, room] of [[1, first, stood[0].room], [2, second, stood[1].room]]) {
                 await S.pendingMurderStore.patch(killer.id, { room, note: "SUITE C19b declared in the dark", at, approved: null, eclipse: id });
             }
-            words = await wordsSent(async () => {
+            /* The pair's opening thrown and landed, 8 or more (2.0 line T1 D2-28: the lights wait for it), so the incident
+               is open as the lone killer is judged after it - the case this test is named for. */
+            words = await wordsSent(() => throwingOpenings(async () => {
                 for (const killer of [first, second]) equal(await E.ruleOnParkedMurder(killer.id, true), true, `the GM could not allow ${killer.name}'s declaration`);
                 await settle();
                 await E.endEclipse({ advance: false });
                 await settle();
-            });
+            }, { total: 20 }));
             opened = M.murderState()?.killerId ?? null;
         } finally {
             if (E.isEclipse()) await E.endEclipse({ advance: false }).catch(() => {});
@@ -107155,8 +107206,11 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             const id = E.eclipseId();
             must(E.isEclipse() && id, "the Eclipse did not start");
             await S.pendingMurderStore.patch(killer.id, { room: stood.room, note: "SUITE A113-C2-6 declared", at: 1, approved: true, eclipse: id, betrayal: null });
-            await E.endEclipse();
-            await settle();
+            // Its opening thrown and landed, 8 or more (2.0 line T1 D2-28: the lights wait for it), so the incident stands open.
+            await throwingOpenings(async () => {
+                await E.endEclipse();
+                await settle();
+            }, { total: 20 });
             const state = M.murderState();
             read = [state?.killerId ?? null, state?.victimId ?? null, body() - was, T.timedEffectsOf(killer.id).length];
         } finally {
@@ -109369,7 +109423,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             return send.call(this, event, packet, ...rest);
         };
         const read = {};
-        let stood = null;
+        let stood = null, ending = null;
         try {
             stood = await aloneTogether(killer, victim);
             await setClock({ timeOfDay: "noon" });
@@ -109382,7 +109436,11 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             read.inTheDark = W.openingHindrance("killer", { victimId: victim.id });
             await S.pendingMurderStore.patch(killer.id, { room: stood.room, note: "SUITE 1.2.121 STG-01 declared in the dark", at: Date.now(),
                 approved: true, trait: "body", eclipse: id, betrayal: null });
-            await E.endEclipse({ advance: false });
+            /* WHILE THE LIGHTS WAIT (2.0 line T1 D2-28): the lights wait for the opening's result before the clock, so the
+               reads below are taken once the invitation is caught and the watch's end let run, the incident at its opening;
+               the opening is then failed on this GM, as a roll below 8 lands, and the lights go on. */
+            ending = E.endEclipse({ advance: false });
+            must(await until(() => sent.length > 0, 20000), "no invitation went at the lights - this would measure nothing");
             await settle();
             if (S.watchStore.get(victim.id)) await W.endWatches();
             await settle();
@@ -109404,12 +109462,16 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             const copyOf = a => { const u = owner(a); const c = u ? castFor(u.id, gmCast, state) ?? {} : null;
                 return c && { holds: Object.keys(c).length > 0, die: Object.hasOwn(c, "watchDie") ? c.watchDie : "absent" }; };
             read.copy = { gm: gmCast.watchDie ?? null, killer: copyOf(killer), victim: copyOf(victim) };
+            await M.resolveKillerOpening({ total: 1, isCritical: false, withHope: false });
+            await ending;
+            await settle();
         } finally {
             if (own) Object.defineProperty(socket, "emit", own); else delete socket.emit;
             if (E.isEclipse()) await E.endEclipse({ advance: false }).catch(() => {});
             if (S.pendingMurderStore.has(killer.id)) await S.pendingMurderStore.drop(killer.id);
             for (const a of [killer, victim]) if (S.watchStore.get(a.id)) await S.watchStore.drop(a.id);
             await c3Incident(clock);
+            if (ending) await ending.catch(() => null);
             if (stood) await stood.back();
             for (const m of game.messages.filter(m => !seenIds.has(m.id))) await m.delete();
             await settle();
@@ -118778,14 +118840,53 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             "{told: after the leaver's own copy alone; revealed: after the GM's Reveal} x [the row's first find, its road, the ref's found]");
     }],
     // T1 murder-death-eclipse
+    ["T1 D2-28 - an opening rolled at the Night Eclipse's lights reads Night, and one ended without advancing reads the time it stays in (2.0 line T1; D2-28; scripts/murder-rules.mjs `atNight`, settings.mjs `lightsTimeOfDay`, eclipse.mjs `endEclipseNow`)", async () => {
+        /*
+         * 2.0 line T1, 28.11.2026 (D2-28). Since the lights wait for an opening's result before the clock, a murder the
+         * lights open is rolled while the clock still reads the Eclipse's time of day; until D2-28 it was rolled after the
+         * clock had moved, so the Eclipse after Evening (the Night Eclipse) opened at Night and the roll had the Night's
+         * advantage. The clock at Evening, an Eclipse opened; read `atNight` (the side's Night die, roll-draw.mjs
+         * `situationReading` reads the same) as the lights hold the time they move to - Night, as `endEclipse()` advances;
+         * Evening, as an End without advancing keeps it - and with none held, as after a reload during the wait (the
+         * time the Eclipse leads into). Put back: the hold, the Eclipse, the clock.
+         */
+        const E = await import("./eclipse.mjs");
+        const M = await import("./murder.mjs");
+        const T = await import("./settings.mjs");
+        must(typeof T.holdLightsTimeOfDay === "function", "settings.mjs has no holdLightsTimeOfDay - the lights hold no time of day");
+        must(!M.murderState() && !E.isEclipse(), "an incident or an Eclipse is running - this would measure something else");
+        const clock = getClock() ?? {};
+        const read = {};
+        try {
+            await setClock({ timeOfDay: "evening" });
+            read.evening = M.atNight();
+            await E.startEclipse();
+            await settle();
+            must(E.isEclipse(), "the Eclipse did not start");
+            T.holdLightsTimeOfDay("night");
+            read.advancing = M.atNight();
+            T.holdLightsTimeOfDay("evening");
+            read.notAdvancing = M.atNight();
+            T.holdLightsTimeOfDay(null);
+            read.noneHeld = M.atNight();
+        } finally {
+            T.holdLightsTimeOfDay(null);
+            if (E.isEclipse()) await E.endEclipse({ advance: false }).catch(() => {});
+            await setClock({ timeOfDay: clock.timeOfDay ?? "morning" });
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ evening: false, advancing: true, notAdvancing: false, noneHeld: true }),
+            "{evening: atNight before the Eclipse; advancing: in it, the lights holding Night; notAdvancing: holding Evening; noneHeld: none held}");
+    }],
     ["T1 D2-28 - the lights wait for the opening's result before the clock moves (2.0 line T1; D2-28; scripts/eclipse.mjs `judgePendingMurders`, `awaitOpening`; murder-rules.mjs `openMurder`)", async () => {
         /*
          * 2.0 line T1, 28.11.2026 (D2-28, the owner's answer to the line's P1: "rzut otwarcia morderstwa zapada w trakcie
          * Eclipse, przed pora dnia - swiatla czekaja na rzut"). A declaration in an Eclipse the suite opens, its killer stood
          * alone with its victim, the lights' window answered Allow; the invitation to the killer's player is held, and as it
-         * goes out the opening is failed on this GM, as a roll below 8 lands. Read: whether the Eclipse still stood as the
-         * invitation went, the GMs' line that the lights wait (`DRPG.Eclipse.lightsWaitOpening`), and the Eclipse and the
-         * incident once the lights are done. Red at d35e338: the invitation went after the clock had cleared the Eclipse. Red on purpose until E131 builds it (the report, section 6).
+         * goes out the opening is failed on this GM a second later, as a roll below 8 lands. Read: whether the Eclipse still
+         * stood as the invitation went and as the result landed, the GMs' line that the lights wait
+         * (`DRPG.Eclipse.lightsWaitOpening`), and the Eclipse and the incident once the lights are done. Red at d35e338: the
+         * invitation went after the clock had cleared the Eclipse. Red on purpose until E131 builds it (the report, section 6).
          */
         needs(env.primaryGm(), "the lights' judgement is the primary GM's");
         needs(world.atLeast("studentsWithConnectedPlayer", 2), "a killer and a victim");
@@ -118804,7 +118905,8 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         const made = [];
         const hook = Hooks.on("createChatMessage", m => made.push(m.id));
         const stood = await aloneTogether(killer, victim, { asked: true });
-        const read = { atInvite: [] };
+        const read = { atInvite: [], atResult: [] };
+        const { lightsTimeOfDay } = await import("./settings.mjs");
         try {
             await E.startEclipse();
             await settle();
@@ -118812,8 +118914,10 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             socket.emit = function (event, packet, options, ...rest) {
                 if (packet?.action === "murder.openingAsk") {
                     read.atInvite.push(E.isEclipse());
+                    // The time of day the lights move to, held for the opening's roll: this Eclipse ends without advancing.
+                    read.held = [lightsTimeOfDay(), getClock()?.timeOfDay ?? null];
                     // Landed a second later, as a player's roll takes its time: the lights are seen waiting meanwhile.
-                    setTimeout(() => { void M.resolveKillerOpening({ total: 1, isCritical: false, withHope: false }); }, 1000);
+                    setTimeout(() => { read.atResult.push(E.isEclipse()); void M.resolveKillerOpening({ total: 1, isCritical: false, withHope: false }); }, 1000);
                     return true;
                 }
                 return send.call(this, event, packet, options, ...rest);
@@ -118841,9 +118945,12 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             for (const id of made) await game.messages.get(id)?.delete().catch(() => {});
             await stood.back();
         }
-        equal(stableJson(read), stableJson({ atInvite: [true], told: 1, after: { eclipse: false, incident: false } }),
-            "{atInvite: the Eclipse standing as each opening's invitation went; told: the GMs' line that the lights wait; after: the Eclipse and an incident once the lights are done}");
-    }, expectedRed("E131", "D2-28 is not built on this line: the lights still move the clock before the incidents they confirm open (eclipse.mjs `judgePendingMurders`); docs/dev/v2/LINE-T1-REPORT.md section 6 says why and what it takes")],
+        const now = getClock()?.timeOfDay ?? null;
+        equal(stableJson(read), stableJson({ atInvite: [true], atResult: [true], held: [now, now], told: 1, after: { eclipse: false, incident: false } }),
+            "{atInvite: the Eclipse standing as each opening's invitation went; atResult: standing a second later, as its result lands; "
+            + "held: the time of day the lights hold for the roll, and the clock's (an End without advancing keeps it); "
+            + "told: the GMs' line that the lights wait; after: the Eclipse and an incident once the lights are done}");
+    }],
     ["T1 MURDER-09 - the spent-victim question is a row every full GM answers once (2.0 line T1; scripts/murder-rules.mjs `checkVictimSpent`, `raiseQuestion`, `askIncidentQuestion`)", async () => {
         /*
          * 2.0 line T1, 27.11.2026 (MURDER-09, the recommendation the owner took: "Pytanie u wszystkich GM-ow; pierwsza odpowiedz
