@@ -16034,7 +16034,8 @@ const REGRESSIONS = [
                     secretDoors: ["| No Foundry secret doors (recommended) |", "**Convert to passages** makes each one an ordinary wall, shut",
                         "the primary GM's browser puts a secret door a player changed back as a GM last left it (the door itself keeps that; a door no GM has changed yet, as it stood when a GM's browser first found it)",
                         "and one changed while no GM was connected as soon as a GM connects, naming its scene on the GM's screen"],
-                    rulers: ["| The players' movement ruler is hidden (optional) |", "**Hide** takes the movement ruler from the Player and Trusted Player roles, and **Show** gives it back"]
+                    // Required since the 2.0 line T4 (EXP-PL-01, 27.11.2026): the row's title lost "(optional)".
+                    rulers: ["| The players' movement ruler is hidden |", "**Hide** takes the movement ruler from the Player and Trusted Player roles, and **Show** gives it back"]
                 },
                 player: {
                     tunnel: ["Some passages are a tunnel or stairs between two rooms, on one floor or two"],
@@ -16069,7 +16070,8 @@ const REGRESSIONS = [
                     secretDoors: ["| Brak sekretnych drzwi Foundry (zalecane) |", "**Zamień na przejścia** robi z każdych zwykłą, zamkniętą ścianę",
                         "przeglądarka głównego GM-a ustawia sekretne drzwi, które zmienił gracz, z powrotem tak, jak GM ostatnio je zostawił (to pamiętają same drzwi; drzwi, których żaden GM jeszcze nie zmieniał, tak, jak stały, kiedy przeglądarka GM-a pierwszy raz je zastała)",
                         "a te zmienione, kiedy nie był połączony żaden GM, zaraz po połączeniu się GM-a, wymieniając ich scenę na ekranie GM-a"],
-                    rulers: ["| Linijka ruchu graczy jest ukryta (opcjonalnie) |", "**Ukryj** zabiera linijkę ruchu rolom Gracz i Zaufany gracz, a **Pokaż** ją oddaje"]
+                    // Required since the 2.0 line T4 (EXP-PL-01, 27.11.2026): the row's Polish title lost "(opcjonalnie)".
+                    rulers: ["| Linijka ruchu graczy jest ukryta |", "**Ukryj** zabiera linijkę ruchu rolom Gracz i Zaufany gracz, a **Pokaż** ją oddaje"]
                 },
                 player: {
                     tunnel: ["Niektóre przejścia to tunel lub schody między dwoma pokojami, na jednym piętrze lub dwóch"],

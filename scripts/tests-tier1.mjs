@@ -24379,7 +24379,8 @@ const INVARIANTS = [
         const offered = SS.steps().filter(r => ["secretDoors", "rulers"].includes(r.key))
             .map(r => [r.key, Boolean(r.optional), typeof r.fix, typeof r.undo, [`DRPG.Season.step.${r.key}`, `DRPG.Season.hint.${r.key}`, r.fixedKey, r.doKey, r.undoKey, r.undoneKey]
                 .filter(Boolean).every(k => game.i18n.has(k) || game.i18n.has(`${k}.other`))]);
-        equal(J(offered), J([["secretDoors", true, "function", "undefined", true], ["rulers", true, "function", "function", true]]),
+        // The rulers row is required since the 2.0 line T4 (EXP-PL-01, 27.11.2026): the killer's route in an Eclipse.
+        equal(J(offered), J([["secretDoors", true, "function", "undefined", true], ["rulers", false, "function", "function", true]]),
             "[each new row of the Season setup as [key, optional, its fix, its undo, every one of its words in the language file]]");
     }],
     ["R602 - Make public and Make secret (D4): a public passage is in the copy of every student's owner, each copy naming the player's own students alone, and the GMs' audit lets any student through it while a secret one beside it still stops a stranger; Make secret gives it back to those who knew it; neither writes a cell or a chat message, and the reset keeps it public; the Passages tab's columns are Rooms, Kind, Shape, Origin and then the rest", async () => {
@@ -36161,7 +36162,7 @@ const INVARIANTS = [
             SS.cursorRoles({ SHOW_CURSOR: [R.PLAYER] }, { SHOW_CURSOR: [R.PLAYER, R.GAMEMASTER] })];
         const sources = await K.moduleSources();
         must(sources.get("season-setup.mjs")?.length, "season-setup.mjs is not among the module's sources - this would measure nothing");
-        const readsInForce = /cursorRoles\([^;]*permissionsInForce\(\)\)/.test(fnSource(stripComments(sources.get("season-setup.mjs")), "gmRolesSharingCursor"));
+        const readsInForce = /cursorRoles\([^;]*permissionsInForce\(\)\)/.test(fnSource(stripComments(sources.get("season-setup.mjs")), "rolesSharingCursor")); // gmRolesSharingCursor until the 2.0 line T4 (EXP-PL-01)
         const pool = D.monokumas()[0] ?? null;
         must(pool, "no Despair pool in this world (every full Gamemaster holds one) - the fallback cannot be read");
         const fx = await e20Fixture();
@@ -70843,6 +70844,118 @@ const INVARIANTS = [
             student: [{ sent: 1 }, [player.id], 0],
             refused: [{ refused: "empty" }, { refused: "noRoom" }, { refused: "noStudent" }]
         }), "{room: [the answer, the threads posted into, every card's words escaped, public cards]; school: [the answer, thread posts, cards, its whisper list, its speaker, popupForce, its words escaped]; student: [the answer, the thread, public cards]; refused: [empty words, no room, a GM as the student]}");
+    }],
+    ["R9220 - the checklist's cursor row reads every role's pointer and its fix takes them all off, nothing else (2.0 line T4, EXP-PL-01): season-setup.mjs's `cursor` row is not done while a player role holds SHOW_CURSOR, names the roles, and is required; `hideAllCursors` empties SHOW_CURSOR - stored or, with nothing stored, as Foundry's default gives it - writes every other permission back as it read it, and writes nothing when no role holds it", async () => {
+        /*
+         * EXP-PL-01 (docs/dev/v2/F3-forge-PC.md, blocker): the row took the two GM roles alone off SHOW_CURSOR ("Players
+         * keep theirs"). The permissions are stood in: `settings` handed to `hideAllCursors` (R601's shape), and
+         * `game.settings.get` answering `core.permissions` with a fixture while `steps()` builds its rows (standIn, put
+         * back); nothing is written. Red at 31d5812: no hideAllCursors, and a player role did not count.
+         */
+        const SS = await import("./season-setup.mjs");
+        must(typeof SS.hideAllCursors === "function", "season-setup.mjs has no hideAllCursors - the cursor row takes the GMs' alone");
+        const R = CONST.USER_ROLES;
+        const fix = async (stored, inForce = {}) => {
+            const wrote = [];
+            const settings = { get: () => foundry.utils.deepClone(stored), set: async (scope, key, value) => { wrote.push([scope, key, value]); } };
+            return [await SS.hideAllCursors({ settings, inForce }), wrote];
+        };
+        const rowUnder = perms => {
+            const real = game.settings.get;
+            const back = standIn(game.settings, "get", function (scope, key, ...rest) {
+                return scope === "core" && key === "permissions" ? foundry.utils.deepClone(perms) : real.call(this, scope, key, ...rest);
+            });
+            try {
+                const row = SS.steps({ roomScene: null }).find(s => s.key === "cursor");
+                return row ? [row.done, Boolean(row.optional), row.missing?.() ?? null] : null;
+            } finally {
+                back();
+            }
+        };
+        const L = key => game.i18n.localize(key);
+        // A role's word as the row prints it (season-setup.mjs `roleName`): core's, else the constant's name.
+        const word = (key, name) => (L(key) === key ? name : L(key));
+        const read = {
+            players: rowUnder({ SHOW_CURSOR: [R.PLAYER] }),
+            none: rowUnder({ SHOW_CURSOR: [] }),
+            all: await fix({ SHOW_CURSOR: [R.PLAYER, R.TRUSTED, R.ASSISTANT, R.GAMEMASTER], SHOW_RULER: [R.PLAYER], FILES_BROWSE: [R.ASSISTANT] }),
+            unstored: await fix({ FILES_BROWSE: [R.ASSISTANT] }),
+            empty: await fix({ SHOW_CURSOR: [], PING_CANVAS: [R.TRUSTED] })
+        };
+        equal(JSON.stringify(read), JSON.stringify({
+            players: [false, false, [word("USER.RolePlayer", "PLAYER")]], none: [true, false, []],
+            all: [4, [["core", "permissions", { SHOW_CURSOR: [], SHOW_RULER: [R.PLAYER], FILES_BROWSE: [R.ASSISTANT] }]]],
+            unstored: [4, [["core", "permissions", { FILES_BROWSE: [R.ASSISTANT], SHOW_CURSOR: [] }]]],
+            empty: [0, []]
+        }), "{players, none: the cursor row [done, optional, the roles it names] with a player's SHOW_CURSOR and with none; all, unstored, empty: hideAllCursors' [answer, writes] - every role stored, nothing stored (Foundry's default: Player up), none holding it}");
+    }],
+    ["R9221 - the checklist's pings row: the players' PING_CANVAS is a cross, and its fix takes the two player roles alone off (2.0 line T4, EXP-PL-01): season-setup.mjs's `pings` row stands right after `rulers`, is required, is not done while the Player or Trusted Player role holds PING_CANVAS and names them; `setPlayerPings(false)` takes those two off and writes the rest back as read, `setPlayerPings(true)` gives them back, and neither writes when nothing changes", async () => {
+        /* EXP-PL-01: nothing in the module read PING_CANVAS. Stand-ins as R9220's; nothing is written. Red at 31d5812: no pings row. */
+        const SS = await import("./season-setup.mjs");
+        must(typeof SS.setPlayerPings === "function", "season-setup.mjs has no setPlayerPings - the checklist has no pings row");
+        const R = CONST.USER_ROLES;
+        const set = async (show, stored) => {
+            const wrote = [];
+            const settings = { get: () => foundry.utils.deepClone(stored), set: async (scope, key, value) => { wrote.push(value); } };
+            return [await SS.setPlayerPings(show, { settings, inForce: {} }), wrote];
+        };
+        const rows = perms => {
+            const real = game.settings.get;
+            const back = standIn(game.settings, "get", function (scope, key, ...rest) {
+                return scope === "core" && key === "permissions" ? foundry.utils.deepClone(perms) : real.call(this, scope, key, ...rest);
+            });
+            try {
+                const list = SS.steps({ roomScene: null });
+                const at = list.findIndex(s => s.key === "pings");
+                const row = list[at];
+                return row ? [list[at - 1]?.key ?? null, row.done, Boolean(row.optional), row.missing?.() ?? null] : null;
+            } finally {
+                back();
+            }
+        };
+        const L = key => game.i18n.localize(key);
+        const word = (key, name) => (L(key) === key ? name : L(key));
+        const read = {
+            trusted: rows({ PING_CANVAS: [R.TRUSTED, R.ASSISTANT, R.GAMEMASTER] }),
+            gmsOnly: rows({ PING_CANVAS: [R.ASSISTANT, R.GAMEMASTER] }),
+            hide: await set(false, { PING_CANVAS: [R.PLAYER, R.TRUSTED, R.GAMEMASTER], SHOW_CURSOR: [R.GAMEMASTER] }),
+            show: await set(true, { PING_CANVAS: [R.GAMEMASTER], SHOW_CURSOR: [] }),
+            nothing: await set(false, { PING_CANVAS: [R.GAMEMASTER] })
+        };
+        equal(JSON.stringify(read), JSON.stringify({
+            trusted: ["rulers", false, false, [word("USER.RoleTrusted", "TRUSTED")]], gmsOnly: ["rulers", true, false, []],
+            hide: [2, [{ PING_CANVAS: [R.GAMEMASTER], SHOW_CURSOR: [R.GAMEMASTER] }]],
+            show: [2, [{ PING_CANVAS: [R.PLAYER, R.TRUSTED, R.GAMEMASTER], SHOW_CURSOR: [] }]],
+            nothing: [0, []]
+        }), "{trusted, gmsOnly: the pings row [the row before it, done, optional, the roles it names]; hide, show, nothing: setPlayerPings' [answer, writes]}");
+    }],
+    ["R9222 - the Next line waits on the cursor, the rulers and the pings (2.0 line T4, EXP-PL-01): season-setup.mjs `firstOutstandingStep` answers `cursor` while a role holds SHOW_CURSOR, then `rulers` while a player role holds SHOW_RULER, then `pings` while one holds PING_CANVAS, and none of the three once all are off - none of the rows optional", async () => {
+        /* EXP-PL-01: the rows were optional, so the Next line passed over them. The three rows read off `steps()` under a
+           stood-in `core.permissions` (as R9220); the rest of the list is left out, so only these three are judged. Nothing is
+           written. Red at 31d5812: the three were optional and the Next line answered none of them. */
+        const SS = await import("./season-setup.mjs");
+        const R = CONST.USER_ROLES;
+        const first = perms => {
+            const real = game.settings.get;
+            const back = standIn(game.settings, "get", function (scope, key, ...rest) {
+                return scope === "core" && key === "permissions" ? foundry.utils.deepClone(perms) : real.call(this, scope, key, ...rest);
+            });
+            try {
+                const three = SS.steps({ roomScene: null }).filter(s => ["cursor", "rulers", "pings"].includes(s.key));
+                must(three.length === 3, `the checklist holds ${three.length} of the cursor, rulers and pings rows - this would measure nothing`);
+                return [SS.firstOutstandingStep(three)?.key ?? null, three.some(s => s.optional)];
+            } finally {
+                back();
+            }
+        };
+        const all = [R.PLAYER, R.TRUSTED, R.ASSISTANT, R.GAMEMASTER];
+        equal(JSON.stringify({
+            cursor: first({ SHOW_CURSOR: all, SHOW_RULER: all, PING_CANVAS: all }),
+            rulers: first({ SHOW_CURSOR: [], SHOW_RULER: all, PING_CANVAS: all }),
+            pings: first({ SHOW_CURSOR: [], SHOW_RULER: [R.GAMEMASTER], PING_CANVAS: [R.PLAYER] }),
+            none: first({ SHOW_CURSOR: [], SHOW_RULER: [R.GAMEMASTER], PING_CANVAS: [R.GAMEMASTER] })
+        }), JSON.stringify({ cursor: ["cursor", false], rulers: ["rulers", false], pings: ["pings", false], none: [null, false] }),
+        "{each permission set: [the row the Next line waits on, any of the three optional]}");
     }],
 ];
 

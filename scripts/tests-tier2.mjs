@@ -118870,6 +118870,39 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         JSON.stringify({ to: true, notSecond: true, whispers: true, sent: true }),
         "{to: the first player's thread holds a card; notSecond: none in the second's; whispers: each card to its player and the GMs alone; sent: the answer counts the cards}");
     }],
+    ["E134 EXP-PL-01 - the checklist takes every role's pointer and the players' pings off and leaves the rest of the permissions as they were: with SHOW_CURSOR and PING_CANVAS given to every role, the cursor row's fix and the pings row's fix run as their buttons run them - SHOW_CURSOR empty, PING_CANVAS the GM roles', every other permission as it stood; the permissions put back after", async () => {
+        /*
+         * 2.0 line T4, EXP-PL-01 (27.11.2026). Written and put back: Foundry's `core.permissions`, read first and written
+         * back whole in `finally`. The rows are the checklist's own (`steps()`), their `fix` what the window's button calls.
+         * Red before the line: the cursor's fix left the player roles, and there was no pings row.
+         */
+        must(game.user.isGM, "the checklist is a GM's");
+        const SS = await import("./season-setup.mjs");
+        const R = CONST.USER_ROLES;
+        const was = foundry.utils.deepClone(game.settings.get("core", "permissions") ?? {});
+        const all = [R.PLAYER, R.TRUSTED, R.ASSISTANT, R.GAMEMASTER];
+        const read = {};
+        try {
+            await game.settings.set("core", "permissions", { ...foundry.utils.deepClone(was), SHOW_CURSOR: all, PING_CANVAS: all });
+            await settle();
+            const rows = () => Object.fromEntries(SS.steps({ roomScene: null }).filter(s => ["cursor", "pings"].includes(s.key)).map(s => [s.key, s]));
+            const before = rows();
+            must(before.cursor && before.pings, "the checklist has no cursor or pings row - this would measure nothing");
+            read.before = [before.cursor.done, before.pings.done];
+            read.fixed = [await before.cursor.fix(), await before.pings.fix()];
+            await settle();
+            const now = game.settings.get("core", "permissions") ?? {};
+            const rest = obj => JSON.stringify(Object.fromEntries(Object.entries(obj).filter(([k]) => !["SHOW_CURSOR", "PING_CANVAS"].includes(k)).sort()));
+            read.after = [now.SHOW_CURSOR, now.PING_CANVAS, rest(now) === rest(was)];
+            const after = rows();
+            read.done = [after.cursor.done, after.pings.done];
+        } finally {
+            await game.settings.set("core", "permissions", was);
+            await settle();
+        }
+        equal(JSON.stringify(read), JSON.stringify({ before: [false, false], fixed: [4, 2], after: [[], [R.ASSISTANT, R.GAMEMASTER], true], done: [true, true] }),
+            "{before: [cursor done, pings done]; fixed: [roles off the cursor, player roles off the pings]; after: [SHOW_CURSOR, PING_CANVAS, every other permission as it was]; done: the two rows after}");
+    }],
 ];
 
 // `drawnForPlayer` for the grid (E33 C7): a drawn crisis roll goes through the suite's one road to a draw (tests-grid.mjs `drawnAct`).

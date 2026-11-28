@@ -6981,7 +6981,7 @@
       "introOutstanding": "Jeszcze {n} do zrobienia. Sezon może ruszyć i bez nich.",
       "introReady": "Każdy wiersz, którego ta lista wymaga, jest zrobiony. Przed pierwszą sesją przeczytaj dalsze sprawdzenia poniżej.",
       "resourcesButton": "Nadaj zasoby startowe",
-      "cursorButton": "Ukryj kursor GM-ów",
+      "cursorButton": "Ukryj wszystkie kursory",
       "openIt": "Otwórz",
       "fixed": {
         "one": "Nadano zasoby startowe {n} postaci.",
@@ -7289,6 +7289,26 @@
         "assignments": "Podział uczniów między Monokumy w Despair Flow, więc każdy uczeń wraca do pierwszej puli",
         "overflow": "Overflow i jego zaciemnienie",
         "clock": "Zegar, z powrotem na rozdział 1, dzień 1, rano"
+      },
+      "step.cursor": "Kursory są prywatne",
+      "step.rulers": "Linijka ruchu graczy jest ukryta",
+      "hint.cursor": "Inaczej wszyscy widzą każdy kursor na mapie, także kursor zabójcy w Eclipse.",
+      "hint.rulers": "Inaczej stół widzi trasę gracza, także przez tajne przejście, i trasę zabójcy w Eclipse.",
+      "step.pings": "Pingi graczy są wyłączone",
+      "hint.pings": "Inaczej każdy ekran widzi, gdzie gracz pinguje, także pokój zabójcy w Eclipse.",
+      "hidePings": "Ukryj",
+      "showPings": "Pokaż",
+      "fixedPings": {
+        "one": "Pingi są teraz wyłączone dla {n} roli.",
+        "few": "Pingi są teraz wyłączone dla {n} ról.",
+        "many": "Pingi są teraz wyłączone dla {n} ról.",
+        "other": "Pingi są teraz wyłączone dla {n} roli."
+      },
+      "undonePings": {
+        "one": "Pingi są znów włączone dla {n} roli.",
+        "few": "Pingi są znów włączone dla {n} ról.",
+        "many": "Pingi są znów włączone dla {n} ról.",
+        "other": "Pingi są znów włączone dla {n} roli."
       }
     },
     "Explain": {

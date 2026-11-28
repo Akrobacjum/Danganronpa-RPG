@@ -72,22 +72,19 @@ import { convertSecretDoors } from "./passages-gm.mjs";
 export { resetTallies, resetGoesHtml, resetSeason, RESET_STEPS, RESET_CHOICES, wipeStudent, placeCast, seasonResetRecord, unfinishedGroups } from "./season-wipe.mjs";
 
 
-/**
- * The two roles that run the game. Read from the constants rather than written
- * as 3 and 4, because the numbers are Foundry's to change and the names are not.
- */
-const GM_ROLES = [CONST.USER_ROLES.ASSISTANT, CONST.USER_ROLES.GAMEMASTER];
+/* GM_ROLES, the two roles that run the game, went with the 2.0 line T4 (EXP-PL-01, 27.11.2026): the cursor row reads every
+   role now, and nothing else read them. */
 
 /**
- * Which GM roles currently broadcast their pointer. See the `cursor` step. The roles in force
+ * Which roles currently broadcast their pointer. See the `cursor` step. The roles in force
  * (E20 C1, S06-28), as the `rulers` row reads them: this read the stored `SHOW_CURSOR ?? []`, so a
  * world that never stored the permission - Foundry's default, every role's pointer shown - read
- * as private and the row ticked.
+ * as private and the row ticked. Every role since the 2.0 line T4 (EXP-PL-01, 27.11.2026), the
+ * players' with the GMs': it read the two GM roles alone until then.
  */
-function gmRolesSharingCursor() {
+function rolesSharingCursor() {
     try {
-        const allowed = cursorRoles(game.settings.get("core", "permissions") ?? {}, permissionsInForce());
-        return GM_ROLES.filter(r => allowed.includes(r));
+        return cursorRoles(game.settings.get("core", "permissions") ?? {}, permissionsInForce());
     } catch {
         // Unreadable permissions are not a finding - say nothing rather than
         // put a repair button under a question this cannot answer.
@@ -138,7 +135,58 @@ export async function setPlayerRulers(show, { settings = game.settings, inForce 
     return changed;
 }
 
-/** The player roles that hold the movement ruler now; none when the permissions cannot be read, as `gmRolesSharingCursor`. */
+/**
+ * Take SHOW_CURSOR off every role that holds it (2.0 line T4, EXP-PL-01, 27.11.2026): the GMs' and the players' pointers
+ * alike. Only SHOW_CURSOR changes; every other permission and role of `core.permissions` is written back as it was read
+ * (`setPlayerRulers`' shape). Answers how many roles came off, and writes nothing when none did. `settings` and
+ * `inForce` are the suite's to hand (R9220).
+ */
+export async function hideAllCursors({ settings = game.settings, inForce = permissionsInForce() } = {}) {
+    const perms = foundry.utils.deepClone(settings.get("core", "permissions") ?? {});
+    const before = cursorRoles(perms, inForce);
+    if (!before.length) return 0;
+    perms.SHOW_CURSOR = [];
+    await settings.set("core", "permissions", perms);
+    return before.length;
+}
+
+/**
+ * The roles that hold Foundry's PING_CANVAS, read as `rulerRoles` reads SHOW_RULER (2.0 line T4, EXP-PL-01). Nothing
+ * stored reads as every role from Player up, the default this module assumes for v14 - on The Forge, F3 read Trusted
+ * Player up (LIVE-E134-06).
+ */
+export function pingRoles(stored, inForce) {
+    return permissionRoles("PING_CANVAS", stored, inForce);
+}
+
+/**
+ * Hide (`show` false) or Show the canvas pings of the Player and Trusted Player roles (2.0 line T4, EXP-PL-01): a
+ * player's ping draws on every screen where that player's attention is, a room the killer is in during an Eclipse
+ * among them. Only PING_CANVAS's two player roles change, as `setPlayerRulers` changes SHOW_RULER's. Answers how many of
+ * the two roles changed, and writes nothing when none did. `settings` and `inForce` are the suite's (R9221).
+ */
+export async function setPlayerPings(show, { settings = game.settings, inForce = permissionsInForce() } = {}) {
+    const perms = foundry.utils.deepClone(settings.get("core", "permissions") ?? {});
+    const before = pingRoles(perms, inForce);
+    const after = show ? [...new Set([...before, ...PLAYER_ROLES])].sort((a, b) => a - b) : before.filter(role => !PLAYER_ROLES.includes(role));
+    const changed = PLAYER_ROLES.filter(role => before.includes(role) !== after.includes(role)).length;
+    if (!changed) return 0;
+    perms.PING_CANVAS = after;
+    await settings.set("core", "permissions", perms);
+    return changed;
+}
+
+/** The player roles that may ping now; none when the permissions cannot be read, as `rolesSharingCursor`. */
+function playerRolesWithPings() {
+    try {
+        const roles = pingRoles(game.settings.get("core", "permissions") ?? {}, permissionsInForce());
+        return PLAYER_ROLES.filter(role => roles.includes(role));
+    } catch {
+        return [];
+    }
+}
+
+/** The player roles that hold the movement ruler now; none when the permissions cannot be read, as `rolesSharingCursor`. */
 function playerRolesWithRuler() {
     try {
         const roles = rulerRoles(game.settings.get("core", "permissions") ?? {}, permissionsInForce());
@@ -197,17 +245,13 @@ async function fixResources() {
     return n;
 }
 
-/** Take the GM roles off Foundry's SHOW_CURSOR permission. Answers how many came off. */
-async function fixCursorPermission() {
-    const perms = foundry.utils.deepClone(
-        game.settings.get("core", "permissions") ?? {});
-    // The roles in force (E20 C1): with nothing stored, the stored `?? []` took nothing off.
-    const before = cursorRoles(perms, permissionsInForce());
-    const after = before.filter(r => !GM_ROLES.includes(r));
-    if (after.length === before.length) return 0;
-    perms.SHOW_CURSOR = after;
-    await game.settings.set("core", "permissions", perms);
-    return before.length - after.length;
+/**
+ * Take every role off Foundry's SHOW_CURSOR permission (`hideAllCursors`; the GM roles alone until the 2.0 line T4,
+ * EXP-PL-01). The roles in force (E20 C1): with nothing stored, the stored `?? []` took nothing off. Answers how many
+ * came off.
+ */
+function fixCursorPermission() {
+    return hideAllCursors();
 }
 
 /** The rooms-per-student line under the room count step: Room setup's own sentence, on its Rooms tab since E101 (vault-store.mjs `roomRatioLine`, E20 C1). */
@@ -592,14 +636,19 @@ export function steps({ roster = studentActors(), scenes = Array.from(game.scene
              * The button is here because the repair is one line and lives four
              * screens away in core's own permission matrix.
              *
-             * Players keep theirs. `SHOW_CURSOR` is a per-role list and only the
-             * two GM roles come off it - a player pointing at the map is the
-             * table talking, which is the thing this is protecting.
+             * EVERY ROLE'S POINTER, AND A CROSS (2.0 line T4, EXP-PL-01, 27.11.2026;
+             * docs/dev/v2/F3-forge-PC.md, weight blocker). This said "Players keep
+             * theirs" and took the two GM roles alone off SHOW_CURSOR: a player
+             * pointing at the map was the table talking. In an Eclipse it is the
+             * killer's pointer on the room they are in, which every screen sees, so
+             * the row now reads every role that holds the permission, its fix takes
+             * SHOW_CURSOR off all of them and nothing else of `core.permissions`
+             * (`hideAllCursors`), and it is no longer optional: a cross, and the
+             * Next line waits on it (`firstOutstandingStep`).
              */
             key: "cursor",
-            optional: true,
-            done: !gmRolesSharingCursor().length,
-            missing: () => gmRolesSharingCursor().map(roleName),
+            done: !rolesSharingCursor().length,
+            missing: () => rolesSharingCursor().map(roleName),
             fix: fixCursorPermission,
             doKey: "DRPG.Season.cursorButton",
             // ITS OWN SENTENCE (SEASON-02). `DRPG.Season.fixed` counts characters
@@ -622,11 +671,12 @@ export function steps({ roster = studentActors(), scenes = Array.from(game.scene
             fixedKey: "DRPG.Season.fixedSecretDoors"
         },
         /* THE PLAYERS' RULERS (E80 C5, S18, P1-19). A player's ruler is drawn for the whole table while a
-           token is dragged, a route through a passage with it. A table that likes the ruler keeps it, so the
-           row is optional, and Show stands beside it once it is hidden (`undo`). */
+           token is dragged, a route through a passage with it. Show stands beside it once it is hidden (`undo`).
+           No longer optional since the 2.0 line T4 (EXP-PL-01, 27.11.2026): in an Eclipse the ruler draws the
+           killer's route to the whole table, the cursor's leak with a line; the line's default, a question for the
+           owner in its report - a table that likes the ruler presses Show and keeps the cross. */
         {
             key: "rulers",
-            optional: true,
             done: !playerRolesWithRuler().length,
             missing: () => playerRolesWithRuler().map(roleName),
             fix: () => setPlayerRulers(false),
@@ -635,6 +685,21 @@ export function steps({ roster = studentActors(), scenes = Array.from(game.scene
             undo: () => setPlayerRulers(true),
             undoKey: "DRPG.Season.showRulers",
             undoneKey: "DRPG.Season.undoneRulers"
+        },
+        /* THE PLAYERS' PINGS (2.0 line T4, EXP-PL-01, 27.11.2026). A ping is drawn on every screen, so in an Eclipse a
+           player's ping names where the pinger's attention is, the killer's included; nothing in the module read
+           PING_CANVAS until this row. Required, as the cursor; Hide takes PING_CANVAS off the Player and Trusted Player
+           roles alone (`setPlayerPings`), Show gives it back. */
+        {
+            key: "pings",
+            done: !playerRolesWithPings().length,
+            missing: () => playerRolesWithPings().map(roleName),
+            fix: () => setPlayerPings(false),
+            doKey: "DRPG.Season.hidePings",
+            fixedKey: "DRPG.Season.fixedPings",
+            undo: () => setPlayerPings(true),
+            undoKey: "DRPG.Season.showPings",
+            undoneKey: "DRPG.Season.undonePings"
         },
         /* THE MODULE HOLDS NOTHING (E20 fix round, the goal review's G-2). After Give back Foundry's settings the module
            writes none of them until a GM holds them again - also after it was switched off and on, which is when a GM

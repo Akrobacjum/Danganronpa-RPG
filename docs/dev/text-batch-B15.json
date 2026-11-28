@@ -4291,9 +4291,9 @@
       "pilot": null,
       "facts": [
         {
-          "fact": "An optional row: done when neither GM role holds SHOW_CURSOR as Foundry applies it.",
+          "fact": "A required row since the 2.0 line T4 (EXP-PL-01, 27.11.2026): done when no role holds SHOW_CURSOR as Foundry applies it (the two GM roles alone, and optional, until then).",
           "file": "scripts/season-setup.mjs",
-          "fn": "gmRolesSharingCursor",
+          "fn": "rolesSharingCursor",
           "note": null
         }
       ],

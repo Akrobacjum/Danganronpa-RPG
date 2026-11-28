@@ -6500,7 +6500,7 @@
       "introOutstanding": "{n} still to do. The season can start without them.",
       "introReady": "Every row this list needs is done. Read the further checks below before the first session.",
       "resourcesButton": "Give the starting resources",
-      "cursorButton": "Hide the GMs' cursor",
+      "cursorButton": "Hide every cursor",
       "openIt": "Open",
       "fixedCursor": {
         "one": "Stopped sharing the cursor for {n} role.",
@@ -6573,12 +6573,12 @@
       "hint.roomsMarked": "A region is a room only when a GM ticks “This is a room” in Room setup (the Rooms tab). These named regions have not been decided yet.",
       "step.scenes": "The school and the trial hall are linked",
       "hint.scenes": "Room setup's Scenes tab links the scene the season is played on and the scene the Class Trial is held in. Optional: with none linked the trial is held wherever the table is.",
-      "step.cursor": "The GMs' cursor is private (recommended)",
-      "hint.cursor": "Otherwise the players see your cursor on the map.",
+      "step.cursor": "The cursors are private",
+      "hint.cursor": "Otherwise everybody sees every cursor on the map, the killer's in an Eclipse too.",
       "step.secretDoors": "No Foundry secret doors (recommended)",
       "hint.secretDoors": "Any player can open a Foundry secret door. Convert them to secret passages.",
-      "step.rulers": "The players' movement ruler is hidden (optional)",
-      "hint.rulers": "Otherwise the table sees a player's route, even through a secret passage.",
+      "step.rulers": "The players' movement ruler is hidden",
+      "hint.rulers": "Otherwise the table sees a player's route, even through a secret passage, and the killer's in an Eclipse.",
       "step.mastermind": "The Mastermind (optional)",
       "hint.mastermind": "Who is hiding among the students, and what proves it.",
       "step.foundryHeld": "The module holds Foundry's settings (optional)",
@@ -6754,7 +6754,19 @@
       "windows": "The season's windows",
       "checklistTitle": "Season checklist",
       "startHereTitle": "Where to start",
-      "startHereText": "Open Season setup from the GM panel. Its Season checklist walks you through a season in the order it is built, and the GM panel's Next line names the first thing still to do."
+      "startHereText": "Open Season setup from the GM panel. Its Season checklist walks you through a season in the order it is built, and the GM panel's Next line names the first thing still to do.",
+      "step.pings": "The players' pings are off",
+      "hint.pings": "Otherwise every screen sees where a player pings, the killer's room in an Eclipse too.",
+      "hidePings": "Hide",
+      "showPings": "Show",
+      "fixedPings": {
+        "one": "Pings are off for {n} role.",
+        "other": "Pings are off for {n} roles."
+      },
+      "undonePings": {
+        "one": "Pings are on for {n} role again.",
+        "other": "Pings are on for {n} roles again."
+      }
     },
     "Explain": {
       "state": {
