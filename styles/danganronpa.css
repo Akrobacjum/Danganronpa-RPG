@@ -19166,3 +19166,27 @@ body.drpg-high-contrast #token-hud.drpg-token-hud .control-icon:focus-visible {
 body.drpg-high-contrast #token-hud.drpg-token-hud :is(.control-icon, .palette.palette-list) {
     border-color: var(--drpg-bone);
 }
+
+/* 2.0 line T2c (split from line T2), EXP-GM-01, 28.11.2026: who is connected, in the GM panel's standing block under the
+   primary's line (gm-panel.mjs `connectedListHtml`) and in the Students window's Connection column (gm-students.mjs
+   `whereAndWhoCells`). One line a player's account; an account not connected reads in the dimmed ink of something
+   unavailable, its words saying so as well, so the state changes the look and never the layout (the owner's rule of
+   10.11). Nothing here reaches a player: both are a GM's windows, and Foundry's own list stays hidden as before. */
+.drpg-gmp-connected h4 {
+    margin: 0.25em 0 0.1em;
+}
+.drpg-gmp-connected ul {
+    list-style: none;
+    margin: 0 0 0.4em;
+    padding: 0;
+}
+.drpg-gmp-connected li {
+    margin: 0;
+    padding: 0;
+}
+.drpg-gmp-connected-name {
+    font-weight: bold;
+}
+:is(.drpg-gmp-connected li, .drpg-window-alive span)[data-drpg-connected="no"] {
+    color: var(--drpg-dim);
+}

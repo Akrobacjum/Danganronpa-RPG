@@ -105762,8 +105762,9 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             const standing = box.querySelector(".drpg-gmp-standing");
             const tr = box.querySelector(`.drpg-gmp-roster tr[data-drpg-actor="${student.id}"]`);
             if (!tr) return null;
-            // First under the case's warning and the primary GM's line (2.0 line T2, PRIM-01, 27.11.2026: gm-panel.mjs `primaryLineHtml`).
-            return { first: standing?.querySelector(".drpg-gmp-roster") === standing?.querySelector(":scope > :not(.drpg-box):not(.drpg-gmp-primary)"),
+            // First under the case's warning and the primary GM's line (2.0 line T2, PRIM-01, 27.11.2026: gm-panel.mjs `primaryLineHtml`),
+            // and the list of who is connected under it (2.0 line T2c, EXP-GM-01, 28.11.2026: `connectedListHtml`).
+            return { first: standing?.querySelector(".drpg-gmp-roster") === standing?.querySelector(":scope > :not(.drpg-box):not(.drpg-gmp-primary):not(.drpg-gmp-connected)"),
                 actions: tr.querySelector("[data-drpg-actions]")?.dataset.drpgActions ?? null,
                 free: tr.querySelector("[data-drpg-free-move]")?.dataset.drpgFreeMove ?? null,
                 eclipse: tr.querySelector("[data-drpg-eclipse-moves]")?.dataset.drpgEclipseMoves ?? null };
@@ -119362,6 +119363,63 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             states: [[true, "ruling", true, true, "action,rid,state,userId"], [true, "waiting", true, true, "action,rid,state,userId"]],
             forged: false, own: true, line: ["DRPG.Bridge.settledWithdrawn"], after: false
         }), "{states: the ask.state packets this primary sent [for that ask, the state, to its asker, to the asker alone, its fields] at the take and the drop; forged: the card ended after another user's withdrawal; own: it ended after the asker's; line: its lines by key; after: a GM's difficulty sent on after it}");
+    }],
+    // T2c gm-tools-messenger (split from T2)
+    ["E132 T2c EXP-GM-01 - a GM sees who is connected in the panel and in Students: the GM panel's standing block lists every player account with `data-drpg-connected` as Foundry holds it, a player who connects while it stands is read connected without the panel closing, and the Students window's Connection column marks each student's player the same way (gm-panel.mjs `connectedListHtml`, gm-students.mjs `whereAndWhoCells`; 2.0 line T2c, EXP-GM-01, 28.11.2026)", async () => {
+        /*
+         * F1-blind-gm EXP-GM-01 and F3 S2 J1 (red on both GMs on Forge: no window of the module said who was connected).
+         * The GM panel opened as its tile opens it, its list read against `game.users`; then a stand-in player (tests-kit
+         * `standInUser`) put in this browser's list not connected, and announced connecting as Foundry announces a
+         * socket that comes up (`userConnected` with true): the line read again while the panel stands. Then the Students
+         * window opened, each student's Connection cell read against utils.mjs `ownerIdsOf` (every player who owns it). The stand-in is taken out and
+         * both windows closed in the `finally`. Red at 0d3d4f2: no list, no column.
+         */
+        needs(env.dialogs(), "the panel and the window are read off their drawn windows");
+        needs(world.atLeast("connectedPlayersWithCharacter", 1));
+        const P = await import("./gm-panel.mjs");
+        const { ownerIdsOf } = await import("./utils.mjs");
+        const { studentActors } = await import("./monokuma.mjs");
+        const panel = () => [...foundry.applications.instances.values()].find(a => a.rendered && a.element?.querySelector(".drpg-gmp-standing")) ?? null;
+        const alive = () => [...foundry.applications.instances.values()].find(a => a.rendered && a.options?.classes?.includes("drpg-window-alive")) ?? null;
+        const lines = () => Object.fromEntries([...(panel()?.element?.querySelectorAll(".drpg-gmp-connected li[data-drpg-user]") ?? [])]
+            .map(li => [li.dataset.drpgUser, li.dataset.drpgConnected]));
+        const late = standInUser({ name: "E132 T2c EXP-GM-01 late player", active: false });
+        const read = {};
+        let opened = null, answer = null;
+        try {
+            opened = Promise.resolve(P.openGmPanel()).catch(() => null);
+            await until(() => panel()?.element?.querySelector(".drpg-gmp-connected"), 6000).catch(() => {});
+            const players = game.users.filter(u => !u.isGM);
+            const first = lines();
+            read.panel = players.every(u => first[u.id] === (u.active ? "yes" : "no")) && Object.keys(first).length === players.length;
+            read.anyConnected = Object.values(first).includes("yes");
+            game.users.set(late.id, late);
+            Hooks.callAll("userConnected", late, false);
+            read.lateBefore = await until(() => lines()[late.id] === "no", 3000).then(() => lines()[late.id]).catch(() => lines()[late.id] ?? null);
+            late.active = true;
+            Hooks.callAll("userConnected", late, true);
+            read.lateAfter = await until(() => lines()[late.id] === "yes", 3000).then(() => lines()[late.id]).catch(() => lines()[late.id] ?? null);
+            read.panelStood = Boolean(panel());
+            await panel()?.close().catch(() => {});
+            await Promise.race([opened, wait(2000)]);
+            answer = Promise.resolve().then(() => P.openWhoIsAliveDialog()).catch(() => null);
+            await until(() => alive()?.element?.querySelector("[data-drpg-connected]"), 6000).catch(() => {});
+            const owned = studentActors().filter(a => ownerIdsOf(a).length);
+            read.students = owned.length > 0 && owned.every(a => {
+                const marks = [...(alive()?.element?.querySelectorAll(`tr[data-actor="${a.id}"] [data-drpg-connected]`) ?? [])];
+                return marks.length === ownerIdsOf(a).length && ownerIdsOf(a).every(id =>
+                    marks.some(el => el.dataset.drpgUser === id && el.dataset.drpgConnected === (game.users.get(id)?.active ? "yes" : "no")));
+            });
+        } finally {
+            game.users.delete(late.id);
+            Hooks.callAll("userConnected", late, false);
+            await panel()?.close().catch(() => {});
+            await alive()?.close().catch(() => {});
+            await Promise.race([Promise.all([opened, answer]), wait(2000)]);
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ panel: true, anyConnected: true, lateBefore: "no", lateAfter: "yes", panelStood: true, students: true }),
+            "{panel: every player account listed as Foundry holds its connection; anyConnected: a connected player is read so; lateBefore, lateAfter: a stand-in player's line before and after it connects; panelStood: the panel stayed open; students: every owned student's Connection cell names each of its owners and that owner's connection}");
     }],
 ];
 

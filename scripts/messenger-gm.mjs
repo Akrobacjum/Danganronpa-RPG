@@ -34,7 +34,7 @@
  */
 
 import { MESSENGER_FLAGS, THREAD_KIND, threadUsers, isThreadUser, threadStats, threadCardAllowed } from "./messenger.mjs";
-import { cardFlag } from "./secret.mjs";
+import { cardFlag, shownWordsOf } from "./secret.mjs";
 import { noticeEntries, noticeTime, onNoticeHistoryChange } from "./notice-history.mjs";
 import { esc, markLanguage } from "./utils.mjs";
 import { count } from "./perf-counters.mjs";
@@ -94,6 +94,84 @@ export function navOrder(users, stats, order = MESSENGER_LIST_ORDER) {
 
 /** The filter's values: everything, the actions only, or one player's (`player:<id>`). */
 const FILTER_ALL = "all", FILTER_ACTIONS = "actions";
+
+/*
+ * WHAT WAITS FOR A DECISION, READ ONCE (2.0 line T2c, EXP-GM-17, split from line T2, 28.11.2026; F1-blind-gm
+ * EXP-GM-17, E-GM-02; the shape LINE-T2.md 4.2 fixes for this line and line T3's EXP-GM-03). The Timeline's "Waiting for
+ * a decision" chose its cards in `waitingCard` by drawing each one's bubble and asking it for a `data-drpg-call` button,
+ * so nothing else could ask what waits without the window. The question is this file's one reading now, and the window
+ * asks it too: a card of a player's thread (`thread`, a player who has one, a card its author may place there:
+ * `threadCardAllowed`), not settled, whose words as this browser draws them (secret.mjs `shownWordsOf`, which is what
+ * the bubble is drawn from - messenger-app.mjs `buildBubble`) hold a ruling button. On a GM's browser the bubble keeps
+ * every such button of a card not settled (`wireCallActions` takes them off a settled card, or on a player's), so the
+ * two readings are one; a player's copy holds no button (secret.mjs `playerWords`), so on a player's browser this
+ * answers nothing.
+ *
+ * `waitingCards()` answers, oldest first as the log holds them, `{ messageId, actorId, userId, kind, text }`: the card,
+ * the character it asks about, the player whose thread it is in, what it asks for and the player's own words. A card
+ * names its character in more than one way, and none is on every card: the ask's mark (`rid`, call-gm.mjs `askMark`:
+ * a Dynamic action's `actorId`), its buttons' data (`data-by` on a Dynamic action's, a statistic's, an Observe's, a
+ * project's and a ruled roll's; `data-killer` on a Direct Murder's), else the name the card opens with
+ * (call-gm.mjs `callCardHtml`, `<p><strong>name</strong>`) among the characters that player owns, else that player's
+ * own character; null when none of these names one. `kind` is the card's heading (its `h3`, the action asked about,
+ * in the poster's words), `text` the player's quoted words (the card's `blockquote`), else the rest of its words, cut
+ * to `WAITING_TEXT` characters. Pure but for `game.messages`, `game.users` and `game.actors`; it writes nothing.
+ */
+const WAITING_TEXT = 200;
+
+/** Squashed text of a node, or "". */
+function squashed(node) {
+    return String(node?.textContent ?? "").replace(/\s+/g, " ").trim();
+}
+
+/** The character a waiting card asks about (above), or null. */
+function waitingActorOf(message, root, userId) {
+    const known = id => (typeof id === "string" && game.actors?.get?.(id) ? id : null);
+    const mark = cardFlag(message, "rid");
+    const marked = mark && typeof mark === "object" ? known(mark.actorId) : null;
+    if (marked) return marked;
+    for (const button of root.querySelectorAll("[data-drpg-call]")) {
+        const named = known(button.dataset.by) ?? known(button.dataset.actor) ?? known(button.dataset.killer);
+        if (named) return named;
+    }
+    const user = game.users?.get?.(userId) ?? null;
+    const name = squashed(root.querySelector("p > strong"));
+    if (user && name) {
+        const owned = game.actors?.find?.(a => a.name === name && a.testUserPermission?.(user, "OWNER"));
+        if (owned) return owned.id;
+    }
+    return known(user?.character?.id ?? null);
+}
+
+/** One message read as a card waiting for a decision (above), or null. */
+export function waitingEntry(message) {
+    const userId = cardFlag(message, MESSENGER_FLAGS.thread);
+    if (!userId || !isThreadUser(userId) || !threadCardAllowed(message)) return null;
+    if (cardFlag(message, MESSENGER_FLAGS.settled)) return null;
+    const wrap = document.createElement("template");
+    wrap.innerHTML = shownWordsOf(message);
+    const root = wrap.content;
+    if (!root.querySelector("[data-drpg-call]")) return null;
+    const kind = squashed(root.querySelector("h3"));
+    const quoted = squashed(root.querySelector("blockquote"));
+    let text = quoted;
+    if (!text) {
+        const rest = root.cloneNode(true);
+        for (const el of rest.querySelectorAll("h3, .drpg-call-actions, .drpg-call-awaiting, .drpg-gm-only")) el.remove();
+        text = squashed(rest);
+    }
+    return { messageId: message.id, actorId: waitingActorOf(message, root, userId), userId, kind, text: text.slice(0, WAITING_TEXT) };
+}
+
+/** Every card waiting for a decision on this browser's copy of the log (above), oldest first. */
+export function waitingCards() {
+    const out = [];
+    for (const message of game.messages ?? []) {
+        const entry = waitingEntry(message);
+        if (entry) out.push(entry);
+    }
+    return out;
+}
 
 /**
  * The GM's window class, built on the thread window's (`Base`, messenger-app.mjs `DrpgMessengerApp`) with the helpers
@@ -374,9 +452,9 @@ export function gmMessengerClass(Base, { buildBubble, previewOf, savePosition })
 
         /** A thread card with live ruling buttons, drawn for "Waiting", or null when it asks nobody now. */
         waitingCard(message, player) {
-            if (cardFlag(message, MESSENGER_FLAGS.settled)) return null;
+            // The one reading of what waits (`waitingEntry`, EXP-GM-17): the Students window counts by it too.
+            if (!waitingEntry(message)) return null;
             const bubble = buildBubble(message);
-            if (!bubble.querySelector("[data-drpg-call]")) return null;
             // The buttons stand under the card's words, outside them, and the words scroll under a cap
             // (base.css `.drpg-console-card`): a Search's card ran 290-455 px with its buttons last, under the fold
             // of "Waiting" at 1366 x 768 (the owner's shots, 22.11.2026). Moved, not rebuilt: each button keeps the

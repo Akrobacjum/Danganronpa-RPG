@@ -56333,7 +56333,9 @@ const INVARIANTS = [
         // the three Monocub columns in every table since E49 A3 (R3406 reads their dimmed cells).
         const heads = [T("DRPG.Panel.character"), T("DRPG.Panel.openColumn"), T("DRPG.Panel.roleColumn"), T("DRPG.Panel.stateColumn"), T("DRPG.Actions.label"), T("DRPG.Panel.freeMove"),
             T("DRPG.Monocub.hope"), T("DRPG.Monocub.giveHopeColumn"), T("DRPG.Monocub.silenced"),
-            T("DRPG.Panel.levelUpColumn"), T("DRPG.Panel.doColumn")];
+            T("DRPG.Panel.levelUpColumn"), T("DRPG.Panel.doColumn"),
+            // Line T2c's three after them (EXP-GM-01, EXP-GM-17, 28.11.2026; R9061, R9062).
+            T("DRPG.Panel.roomColumn"), T("DRPG.Panel.waitingColumn"), T("DRPG.Panel.connectionColumn")];
         const shown = [["students", students], ["monokumas", kumas], ["notInClass", npcs]].filter(([, list]) => list.length);
         equal(stableJson(got), stableJson({
             kit: true,
@@ -70808,6 +70810,123 @@ const INVARIANTS = [
             after: { states: 2, said: [], sent: ["r9030.ask"], waiting: 0, reported: [] },
             module: true
         }), "{sentUnder: the request went under its caller's id; states: what onState was handed of six packets [another GM's, another user's, an id not waiting, a state not known, the primary's ruling, its waiting]; cancel: [an id not waiting, the request, again]; answer: what the request settled; after: [states handed after the cancel, messages said, packets sent, requests waiting, throws]; module: the module's waiter reads the primary by primaryGmId}");
+    }],
+    // T2c gm-tools-messenger (split from T2)
+    ["R9060 - the GM panel lists who is connected: gm-panel.mjs `connectedListHtml` draws one line a player account (never a GM's), sorted by name, with `data-drpg-connected` \"yes\" or \"no\", the account's name, the student it plays (`DRPG.Panel.plays`; its assigned character, else `DRPG.Panel.noCharacter`) and `DRPG.Panel.connected` or `DRPG.Panel.notConnected`; nothing with no player account; `buildPanelContent` draws it under the primary's line in the standing block, which wakes on `userConnected` (2.0 line T2c, EXP-GM-01, 28.11.2026)", async () => {
+        /* F1-blind-gm EXP-GM-01 (F3 S2 J1 red on both GMs): the module hides Foundry's players list from everybody and no
+           window of its own said who was connected. Drawn from stand-in users (two players, one connected and holding an
+           assigned character, one not and holding none, and a GM), then with none but the GM; the standing block's order
+           and its wake read in the source (tier 1 opens no window). Red at 0d3d4f2: no `connectedListHtml`. */
+        const P = await import("./gm-panel.mjs");
+        const list = typeof P.connectedListHtml === "function" ? P.connectedListHtml : () => "";
+        const users = [
+            { id: "R9060GmGmGmGmGm1", name: "R9060 GM", isGM: true, active: true },
+            { id: "R9060Zed00000001", name: "R9060 Zed", isGM: false, active: false, character: null },
+            { id: "R9060Ann00000001", name: "R9060 <i>Ann</i>", isGM: false, active: true, character: { name: "R9060 Aoi" } }
+        ];
+        const drawn = html => {
+            const root = document.createElement("div");
+            root.innerHTML = html;
+            return [...root.querySelectorAll(".drpg-gmp-connected li")].map(li => [li.dataset.drpgConnected ?? null, li.dataset.drpgUser ?? null,
+                li.textContent.replace(/\s+/g, " ").trim(), Boolean(li.querySelector("i"))]);
+        };
+        const L = key => game.i18n.localize(key);
+        const plays = actor => game.i18n.format("DRPG.Panel.plays", { actor });
+        const src = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/gm-panel.mjs`).then(lfText));
+        const content = fnSource(src, "buildPanelContent");
+        const fresh = bodyOf(fnSource(src, "keepPanelFresh"), 'region: ".drpg-gmp-standing"', { until: "\n    });" });
+        equal(stableJson({ two: drawn(list({ users })), none: list({ users: [users[0]] }),
+            under: /\$\{primaryLineHtml\(\)\}\s*\$\{connectedListHtml\(\)\}/.test(content), wakes: /"userConnected"/.test(fresh) }),
+        stableJson({ two: [
+            ["yes", "R9060Ann00000001", `R9060 <i>Ann</i> ${plays("R9060 Aoi")} ${L("DRPG.Panel.connected")}`, false],
+            ["no", "R9060Zed00000001", `R9060 Zed ${plays(L("DRPG.Panel.noCharacter"))} ${L("DRPG.Panel.notConnected")}`, false]
+        ], none: "", under: true, wakes: true }),
+        "{two: the lines drawn for two players and a GM [connected, user, words, a tag of a name drawn]; none: a GM alone; under: the list stands under the primary's line; wakes: the standing block redraws on userConnected}");
+        ok(["DRPG.Panel.connected", "DRPG.Panel.notConnected", "DRPG.Panel.connectedHeading", "DRPG.Panel.noCharacter"].every(k => L(k) !== k), "the list's keys have words");
+    }],
+    ["R9061 - the Students window says whether each student's player is connected: gm-students.mjs `aliveTableHtml` draws, after its existing columns, Room, Waiting and Connection, and a student's Connection cell names each player who owns it (`ownerIdsOf`, co-owners too), in name order, with `DRPG.Panel.connected` or `DRPG.Panel.notConnected` and `data-drpg-connected` \"yes\" or \"no\" on each, \"-\" for a student no player owns; a Monokuma's or an NPC's row has the three cells empty; the window reads `ownerIdsOf` and wakes on `userConnected` (2.0 line T2c, EXP-GM-01, 28.11.2026)", async () => {
+        /* F1-blind-gm EXP-GM-01, E-GM-97: the window had no connection column. Its table drawn for one living student of
+           the world four times, from stand-in readers (a connected owner, one not connected, none, two co-owners); the NPC's row's empty
+           cells, the window's readers and its wake read in the source. Red at 0d3d4f2: no export, no
+           column. */
+        needs(world.atLeast("livingStudents", 1));
+        const S = await import("./gm-students.mjs");
+        const table = typeof S.aliveTableHtml === "function" ? S.aliveTableHtml : null;
+        const [student] = studentActors().filter(a => !a.getFlag(MODULE_ID, FLAGS.deceased));
+        const base = { stateOf: () => "alive", donors: "", isCrimeSilenced: () => false, resourceValue: () => 0, resourceMax: () => 0, levelUp: () => false, offers: () => 0 };
+        const on = { id: "R9061Owner000001", name: "R9061 Owner", active: true }, off = { ...on, active: false };
+        const co = { id: "R9061CoOwner0001", name: "R9061 Another", active: false };
+        const read = owners => {
+            if (!table) return null;
+            const root = document.createElement("div");
+            root.innerHTML = table({ ...base, roster: () => [student], others: () => [], ownersOf: () => owners });
+            const heads = [...root.querySelectorAll("thead th")].map(th => th.textContent.trim());
+            const row = root.querySelector(`tr[data-actor="${student.id}"]`);
+            const cell = row?.children[heads.indexOf(game.i18n.localize("DRPG.Panel.connectionColumn"))];
+            const marks = [...(cell?.querySelectorAll("[data-drpg-connected]") ?? [])].map(el => [el.dataset.drpgUser, el.dataset.drpgConnected, el.textContent.trim()]);
+            return { last3: heads.slice(-3), marks, text: marks.length ? null : cell?.textContent.trim() ?? null };
+        };
+        const L = key => game.i18n.localize(key);
+        const fmt = (user, state) => game.i18n.format("DRPG.Panel.ownerConnection", { player: user.name, state: L(state) });
+        const src = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/gm-students.mjs`).then(lfText));
+        const open = fnSource(src, "openWhoIsAliveDialog");
+        const heads = [L("DRPG.Panel.roomColumn"), L("DRPG.Panel.waitingColumn"), L("DRPG.Panel.connectionColumn")];
+        equal(stableJson({ on: read([on]), off: read([off]), none: read([]), co: read([on, co]),
+            npc: /const otherRow = a => \(\{[^\n]*\.\.\.WHERE_AND_WHO_EMPTY \}\);/.test(fnSource(src, "aliveTableHtml")) && /room: "", waiting: "", connection: ""/.test(src),
+            reads: /ownersOf: a => ownerIdsOf\(a\)\.map\(id => game\.users\.get\(id\)\)/.test(open), wakes: /"userConnected"/.test(bodyOf(open, "keepLive(dialog", { until: "after: wireAll" })) }),
+        stableJson({ on: { last3: heads, marks: [[on.id, "yes", fmt(on, "DRPG.Panel.connected")]], text: null },
+            off: { last3: heads, marks: [[on.id, "no", fmt(off, "DRPG.Panel.notConnected")]], text: null },
+            none: { last3: heads, marks: [], text: "-" },
+            co: { last3: heads, marks: [[co.id, "no", fmt(co, "DRPG.Panel.notConnected")], [on.id, "yes", fmt(on, "DRPG.Panel.connected")]], text: null },
+            npc: true, reads: true, wakes: true }),
+        "{on, off, none, co: a student whose player is connected, is not, who has none, and with two co-owners} x {the last three heads, the cell's marks [user, connected, words], the words of a cell with none}; npc: a Monokuma's or an NPC's row has the three cells empty; reads: the window hands ownerOf; wakes: its live region hears userConnected");
+    }],
+    ["R9062 - the Students window says where a student is and what waits for them, by the Timeline's own reading: messenger-gm.mjs `waitingEntry` takes a player's thread card not settled whose drawn words hold a ruling button, with the character it asks about, its thread's player, its heading and the player's words, and nothing for a settled card or one with no button; `waitingCards` is that reading over the log, the Timeline's `waitingCard` asks it, and the Students window counts its cards by `actorId`; `aliveTableHtml` draws Room from `gmPlaceOf` (\"-\" with none) and Waiting as the count with a plural tooltip (2.0 line T2c, EXP-GM-17, 28.11.2026)", async () => {
+        /* F1-blind-gm EXP-GM-17, E-GM-02. Four stand-in cards in a player's thread, written by this GM (a Dynamic action's
+           card naming the student in its buttons, the same card settled, a card without buttons, and a card naming the
+           student only by its opening name), read through `waitingEntry`; the table drawn for one student with stand-in
+           readers (a room and 2 waiting, then none and 0); the three readers' places in the source. Red at 0d3d4f2: no
+           `waitingEntry`, no columns. */
+        must(game.user.isGM, "a waiting card's buttons are a GM's to read");
+        needs(world.atLeast("playerAccounts", 1));
+        needs(world.atLeast("livingStudents", 1));
+        const G = await import("./messenger-gm.mjs");
+        const S = await import("./gm-students.mjs");
+        const { plural } = await import("./utils.mjs");
+        const [player] = game.users.filter(u => !u.isGM);
+        const [student] = studentActors().filter(a => !a.getFlag(MODULE_ID, FLAGS.deceased));
+        const card = (id, content, flags = {}) => ({ id, author: game.user, timestamp: Date.now(), content, whisper: [player.id],
+            flags: { [MODULE_ID]: { thread: player.id, kind: "action", gmAsk: true, ...flags } }, getFlag(scope, key) { return this.flags?.[scope]?.[key]; } });
+        const BUTTONS = `<div class="drpg-call-actions"><button class="drpg-call-action" data-drpg-call="setDifficulty" data-by="${student.id}">Set</button></div>`;
+        const ASK = `<h3>R9062 Dynamic</h3><p><strong>${student.name}</strong> · R9062 Room</p><blockquote>R9062 open the vent</blockquote><p class="drpg-call-awaiting"><em>x</em></p>`;
+        const entry = typeof G.waitingEntry === "function" ? G.waitingEntry : () => "missing";
+        const strip = e => (e && typeof e === "object" ? { ...e, userId: e.userId === player.id, actorId: e.actorId === student.id ? "student" : e.actorId } : e);
+        const byName = player && student.testUserPermission(player, "OWNER")
+            ? strip(entry(card("R9062ByName00001", `<h3>R9062 Ask</h3><p><strong>${student.name}</strong></p><div class="drpg-call-actions"><button data-drpg-call="decline">x</button></div>`)))
+            : "not owned";
+        const cards = [strip(entry(card("R9062Waiting0001", ASK + BUTTONS))), strip(entry(card("R9062Settled0001", ASK + BUTTONS, { settled: true }))),
+            strip(entry(card("R9062NoButton001", ASK)))];
+        const cells = (place, n) => {
+            if (typeof S.aliveTableHtml !== "function") return null;
+            const root = document.createElement("div");
+            root.innerHTML = S.aliveTableHtml({ roster: () => [student], others: () => [], stateOf: () => "alive", donors: "", isCrimeSilenced: () => false,
+                resourceValue: () => 0, resourceMax: () => 0, levelUp: () => false, offers: () => 0, placeOf: () => place, waitingFor: () => n, ownerOf: () => null });
+            const row = root.querySelector(`tr[data-actor="${student.id}"]`);
+            const room = row?.querySelector("[data-drpg-room]"), wait = row?.querySelector("[data-drpg-waiting]");
+            return [room?.textContent ?? null, wait?.textContent ?? null, wait?.dataset.tooltip ?? null];
+        };
+        const gmSrc = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/messenger-gm.mjs`).then(lfText));
+        const stSrc = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/gm-students.mjs`).then(lfText));
+        const open = fnSource(stSrc, "openWhoIsAliveDialog");
+        equal(stableJson({ cards, byName: byName === "not owned" ? "student" : byName?.actorId,
+            drawn: [cells({ room: "R9062 Kitchen" }, 2), cells(null, 0)],
+            sources: [/if \(!waitingEntry\(message\)\) return null;/.test(bodyOf(gmSrc, "waitingCard(message, player) {", { until: "\n        }\n" })), /entry = waitingEntry\(message\)/.test(fnSource(gmSrc, "waitingCards")),
+                /for \(const card of waitingCards\(\)\) if \(card\.actorId\)/.test(open), /placeOf: a => gmPlaceOf\(a\)/.test(open)] }),
+        stableJson({ cards: [{ messageId: "R9062Waiting0001", actorId: "student", userId: true, kind: "R9062 Dynamic", text: "R9062 open the vent" }, null, null],
+            byName: "student",
+            drawn: [["R9062 Kitchen", "2", plural("DRPG.Panel.waitingCount", { n: 2 })], ["-", "0", plural("DRPG.Panel.waitingCount", { n: 0 })]],
+            sources: [true, true, true, true] }),
+        "{cards: [a card waiting, the same settled, one with no button]; byName: the character a card names only by its opening name; drawn: [a room and 2 waiting, none and 0] x [Room, Waiting, its tooltip]; sources: [the Timeline asks waitingEntry, waitingCards reads it, the window counts by actorId, the Room is gmPlaceOf]}");
     }],
 ];
 

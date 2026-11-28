@@ -4076,7 +4076,8 @@ const REGRESSIONS = [
         /* E05 C10 adds the deaths store's hook: a death nobody has found writes no actor, and a
            hook more widens the net - a `settings` filter is what would narrow it. */
         // A store too (1.2.122, REFR-48: the standing offers' `offerStore`): a store is heard by its own key, no wider net.
-        ok(/watch: \{ actors: true(?:, hooks: \[[^\]]*\])?(?:, stores: \[[^\]]*\])? \}/.test(window),
+        // Tokens too (2.0 line T2c, EXP-GM-17, 28.11.2026: the Room column), a document hook and no settings filter either.
+        ok(/watch: \{ actors: true(?:, tokens: true)?(?:,\s*hooks: \[[^\]]*\])?(?:, stores: \[[^\]]*\])? \}/.test(window),
             "this window's live watch was narrowed - an omitted settings filter is the wide "
             + "net, and the table is built out of several settings");
     }],

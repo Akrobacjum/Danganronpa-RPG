@@ -26,7 +26,7 @@
  */
 
 import { studentActors, isMonokuma, isNotInClass, isSpectator, markFromSheet, setMonokuma, setNotInClass, setSpectator } from "./monokuma.mjs";
-import { error, plural, esc, wholeNumber } from "./utils.mjs";
+import { error, plural, esc, wholeNumber, ownerIdsOf } from "./utils.mjs";
 import { stepper, drpgWindow, dataTable, iconButton, roleButton, tipAttr, tipText } from "./ui-kit.mjs";
 import { keepLive, alreadyOpen, handOff, RAISED } from "./live.mjs";
 import { crossingStore, offerStore } from "./gm-stores.mjs";
@@ -70,9 +70,11 @@ import { actionsLeft, actionsMax, hasFreeMove } from "./actions.mjs";
 /*
  * THE TABLE, REBUILDABLE. Everything above is a function of the world now,
  * so this can be called again in place while the window stays open.
+ * Exported for R9061 and R9062 (2.0 line T2c, 28.11.2026), which draw it from stand-ins.
  */
-function aliveTableHtml({ roster, others, stateOf, donors, isCrimeSilenced, invited = () => false, resourceValue, resourceMax, levelUp, offers,
-    purseOf = () => 0, cubHopeTotal = a => resourceValue(a, "hope"), deadSilenced = () => false }) {
+export function aliveTableHtml({ roster, others, stateOf, donors, isCrimeSilenced, invited = () => false, resourceValue, resourceMax, levelUp, offers,
+    purseOf = () => 0, cubHopeTotal = a => resourceValue(a, "hope"), deadSilenced = () => false,
+    placeOf = () => null, waitingFor = () => 0, ownersOf = () => [] }) {
     /*
      * THE THREE MONOCUB COLUMNS ARE ALWAYS THERE (E49 A3, 11.11.2026; the owner's "Tak, naprawiamy oba" and the rule of
      * 10.11: a state changes look, never layout). From D-F4 to E49 they appeared the moment somebody accepted the
@@ -140,7 +142,7 @@ function aliveTableHtml({ roster, others, stateOf, donors, isCrimeSilenced, invi
         };
 
         return {
-            id: a.id, ...shared(a), ...cubCells, ...economy,
+            id: a.id, ...shared(a), ...cubCells, ...economy, ...whereAndWhoCells(a, { placeOf, waitingFor, ownersOf }),
             // Its name, not its options' words (E48 K4: a11y.mjs no longer names a select by what it holds).
             state: `<select name="state.${a.id}" aria-label="${esc(`${L("DRPG.Panel.stateColumn")} - ${a.name}`)}"${tipAttr("DRPG.Tips.Gm.stateTooltip")}>
                 ${(state === "unfound" ? ["alive", "unfound", "dead", "monocub"] : ["alive", "dead", "monocub"]).map(sKey =>
@@ -171,7 +173,7 @@ function aliveTableHtml({ roster, others, stateOf, donors, isCrimeSilenced, invi
      * Monocub cells and nothing to do, since neither is a student (E24's gates: no death, no ballot, no invitation).
      * Without the row, a character marked out of the class here would leave the one row that marks it back.
      */
-    const otherRow = a => ({ id: a.id, ...shared(a), state: "", actions: "", freeMove: "", hope: "", give: "", silenced: "", do: "" });
+    const otherRow = a => ({ id: a.id, ...shared(a), state: "", actions: "", freeMove: "", hope: "", give: "", silenced: "", do: "", ...WHERE_AND_WHO_EMPTY });
 
     /*
      * THE SHEET AND ITEMS BUTTONS IN A COLUMN OF THEIR OWN (E92 owner fix, 12.11.2026; the owner: "przyciski karty postaci
@@ -229,12 +231,60 @@ function aliveTableHtml({ roster, others, stateOf, donors, isCrimeSilenced, invi
         { key: "hope", label: L("DRPG.Monocub.hope") }, { key: "give", label: L("DRPG.Monocub.giveHopeColumn") },
         { key: "silenced", label: L("DRPG.Monocub.silenced"), cls: "silenced", tooltip: L("DRPG.Monocub.silencedNote") },
         { key: "levelUp", label: L("DRPG.Panel.levelUpColumn") },
-        { key: "do", label: L("DRPG.Panel.doColumn") }
+        { key: "do", label: L("DRPG.Panel.doColumn") },
+        // Line T2's three (EXP-GM-01, EXP-GM-17): after the existing columns and before line T4's Microphone and line T5's
+        // Motives, which are written after them at the merge (LINE-T2.md 4.2).
+        ...whereAndWhoColumns(L)
     ];
     return `<div class="drpg-alive-live">
         <p class="notes">${L("DRPG.Panel.whoIsAliveNote")}</p>
         ${dataTable({ columns, rows, rowAttrs: r => ({ "data-actor": r.id }) })}
     </div>`;
+}
+
+/*
+ * WHERE A STUDENT IS, WHAT WAITS FOR THEM AND WHETHER THEIR PLAYER IS HERE (2.0 line T2c, EXP-GM-01 and EXP-GM-17, split
+ * from line T2, 28.11.2026; F1-blind-gm EXP-GM-01, EXP-GM-17, E-GM-02, E-GM-97). The table said a student's state and
+ * budget, and the GM put the rest together from the map, the Timeline and Foundry's players list, which the module
+ * hides from everybody (danganronpa.css `#players`). Three columns after the existing ones, each a student's alone (a
+ * Monokuma's or an NPC's row has empty cells, as its Actions do):
+ *   Room        the room the GM sees the student in (movement.mjs `gmPlaceOf`, the GMs' own reading of a token, the
+ *               one the bridge's runs read), "-" with none;
+ *   Waiting     how many cards of a player's thread wait for a GM's decision about the student - the cards the
+ *               Timeline lists under "Waiting for a decision", read the one way it reads them (messenger-gm.mjs
+ *               `waitingCards`, by each card's `actorId`), never counted a second way here;
+ *   Connection  each player who owns the student (utils.mjs `ownerIdsOf`: a student may have co-owners, D078, E91 C6)
+ *               and whether that account is connected, `data-drpg-connected` "yes" or "no" on each, one line an
+ *               owner in name order; "-" for a student no player owns.
+ * The window redraws on a token's change, a thread's card posted, edited or deleted, and a user connecting or leaving
+ * (`openWhoIsAliveDialog`'s `keepLive`). The three readers are handed in (`placeOf`, `waitingFor`, `ownersOf`), so the
+ * table stays a function of what it is given. R9061, R9062.
+ */
+const WHERE_AND_WHO_EMPTY = Object.freeze({ room: "", waiting: "", connection: "" });
+
+function whereAndWhoColumns(L) {
+    return [
+        { key: "room", label: L("DRPG.Panel.roomColumn") },
+        { key: "waiting", label: L("DRPG.Panel.waitingColumn"), num: true, tooltip: L("DRPG.Panel.waitingColumnTooltip") },
+        { key: "connection", label: L("DRPG.Panel.connectionColumn") }
+    ];
+}
+
+function whereAndWhoCells(actor, { placeOf, waitingFor, ownersOf }) {
+    const room = placeOf(actor)?.room ?? null;
+    const n = Math.max(0, Number(waitingFor(actor)) || 0);
+    const owners = [...(ownersOf(actor) ?? [])].filter(Boolean).sort((a, b) => String(a.name ?? "").localeCompare(String(b.name ?? "")));
+    const line = owner => {
+        const on = Boolean(owner.active);
+        const state = game.i18n.localize(on ? "DRPG.Panel.connected" : "DRPG.Panel.notConnected");
+        return `<span class="drpg-alive-connection" data-drpg-connected="${on ? "yes" : "no"}" data-drpg-user="${esc(owner.id)}">${
+            esc(game.i18n.format("DRPG.Panel.ownerConnection", { player: owner.name ?? "?", state }))}</span>`;
+    };
+    return {
+        room: room ? `<span data-drpg-room="${esc(room)}">${esc(room)}</span>` : `<span data-drpg-room="">-</span>`,
+        waiting: `<span data-drpg-waiting="${n}" data-tooltip="${esc(plural("DRPG.Panel.waitingCount", { n }))}">${n}</span>`,
+        connection: owners.length ? owners.map(line).join("<br>") : "-"
+    };
 }
 
 /*
@@ -501,6 +551,9 @@ export async function openWhoIsAliveDialog(options = {}) {
     // The sheet's own gate for its Level Up and the GMs' store of offers (E47-C8): read, never copied.
     const { sheetMode } = await import("./sheet.mjs");
     const { standingOffers, openAdvancementFor } = await import("./level-up.mjs");
+    // Where each student is, what waits for them and their player's connection (EXP-GM-01, EXP-GM-17; above `whereAndWhoCells`).
+    const { gmPlaceOf } = await import("./movement.mjs");
+    const { waitingCards } = await import("./messenger-gm.mjs");
     const roads = {
         ...ROLE_ROADS,
         openAdvancementFor,
@@ -552,8 +605,12 @@ export async function openWhoIsAliveDialog(options = {}) {
 
     const table = () => {
         const donors = buildDonors();
+        // Read once a build: every waiting card, counted by the character it asks about.
+        const waiting = new Map();
+        for (const card of waitingCards()) if (card.actorId) waiting.set(card.actorId, (waiting.get(card.actorId) ?? 0) + 1);
         return aliveTableHtml({ roster, others, stateOf, donors, isCrimeSilenced, invited: invitationOpen, resourceValue, resourceMax, purseOf, cubHopeTotal, deadSilenced: isDeadSilenced,
-            levelUp: a => Boolean(sheetMode(a, game.user).levelUp), offers: a => standingOffers(a).length });
+            levelUp: a => Boolean(sheetMode(a, game.user).levelUp), offers: a => standingOffers(a).length,
+            placeOf: a => gmPlaceOf(a), waitingFor: a => waiting.get(a.id) ?? 0, ownersOf: a => ownerIdsOf(a).map(id => game.users.get(id)) });
     };
 
     // A row button's round trip, if one is running: this window did not answer,
@@ -601,7 +658,12 @@ export async function openWhoIsAliveDialog(options = {}) {
                 // A death kept by the GMs writes no actor (E05 C10): its store's change is the sign; so is a Monocub's row (E72 C2).
                 // The standing Level Up offers too (1.2.122 line ITEMS; the audit's REFR-48): the Level Up button counts them,
                 // and another GM's offer merged here writes no actor and fires no hook, only the store's key. Tier 2's "1.2.122 CTRL-35 ...".
-                watch: { actors: true, hooks: ["drpgDeathsChanged", "drpgDespairOwedChanged", "drpgCrossingsChanged", "drpgCubsChanged", "drpgCastChanged"], stores: [offerStore] },
+                /* And the three columns of line T2 (EXP-GM-01, EXP-GM-17): a token's move for the Room, a thread's card
+                   posted, edited or deleted for Waiting (messenger.mjs's hooks, which a ruling's edit fires on every GM),
+                   a user connecting or leaving for the Connection. */
+                watch: { actors: true, tokens: true,
+                    hooks: ["drpgDeathsChanged", "drpgDespairOwedChanged", "drpgCrossingsChanged", "drpgCubsChanged", "drpgCastChanged",
+                        "drpgMessengerMessage", "drpgMessengerEdited", "drpgMessengerDeleted", "userConnected"], stores: [offerStore] },
                 after: wireAll
             });
         },

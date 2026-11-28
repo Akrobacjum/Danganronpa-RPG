@@ -5895,7 +5895,24 @@
       "primaryTitle": "Główny GM",
       "primaryNowYou": "Jesteś teraz głównym GM-em: twoja przeglądarka prowadzi automatykę stołu (głos, rzuty graczy, audyt arkuszy, mgłę). Zostaw tę kartę przeglądarki otwartą.",
       "primaryNow": "Głównym GM-em jest teraz {name}.",
-      "primaryBack": "Głównym GM-em jest teraz {name}. Twoja przeglądarka już nie prowadzi automatyki stołu."
+      "primaryBack": "Głównym GM-em jest teraz {name}. Twoja przeglądarka już nie prowadzi automatyki stołu.",
+      "connectedHeading": "Gracze",
+      "connectedTooltip": "Każde konto gracza, uczeń, którego prowadzi, i to, czy jest teraz połączone. Tę listę widzą tylko GM-owie.",
+      "plays": "prowadzi {actor}",
+      "noCharacter": "bez ucznia",
+      "connected": "połączony",
+      "notConnected": "niepołączony",
+      "roomColumn": "Pokój",
+      "waitingColumn": "Czeka",
+      "waitingColumnTooltip": "Karty o tym uczniu, które czekają na decyzję GM-a, tak jak pokazuje je Oś czasu.",
+      "waitingCount": {
+        "one": "Na decyzję GM-a czeka {n} karta o tym uczniu.",
+        "few": "Na decyzję GM-a czekają {n} karty o tym uczniu.",
+        "many": "Na decyzję GM-a czeka {n} kart o tym uczniu.",
+        "other": "Na decyzję GM-a czeka {n} karty o tym uczniu."
+      },
+      "connectionColumn": "Połączenie",
+      "ownerConnection": "{player}, {state}"
     },
     "Character": {
       "notACharacter": "To działa tylko na postaci.",
