@@ -737,8 +737,11 @@ function keepPanelFresh(dialog) {
        phase opens a section, `clock.eclipse` shuts the murder tile: `isEclipse`), the incident (since E47-C3 it keeps
        the murder tile live in an Eclipse and marks it current: `murderState`), the case's backup mark (the case
        tile's age, `backupAge`) and, since the 2.0 line T4 (VOICE-03, 27.11.2026), the voice rooms' switch (the voice
-       rooms tile's words, `voiceEnabled`), read by `buildSections` and nothing else, in every state; R1317 builds the
-       region with `game.settings.get` counted and holds the reads to this list.
+       rooms tile's words, `voiceEnabled`) and, since the 2.0 line T5 (D2-24 #1), the motives' switch (the Motives tile
+       drawn off while the table plays without motives, `motivesTile`: `motivesEnabled`), read by `buildSections` and
+       nothing else, in every state; R1317 builds the region with `game.settings.get` counted and holds the reads to this
+       list. (R1317 reads the call's `watch` within 900 characters of its `keepLive(`, comments counted as blanks: the
+       sentence on `motivesEnabled` stands here, not beside the list, since the assembly of the 2.0 lines.)
        The standing block above keeps no list, deliberately: `nextStep` reads a different setting on each of its
        branches (the incident, the readiness round, a stopped chapter's end, the trial's progress and floor, the
        body's hold), and one build reads only the branch the world is on - a list measured from it would leave the
@@ -750,8 +753,7 @@ function keepPanelFresh(dialog) {
            a GM who may not modify settings, and a grant while the panel stood left it so) and a GM connecting or leaving
            (the voice reset is drawn disabled off the primary, CTRL-85), and the primary moving at a GM's `bridge.gmReady`
            or a role written (`drpgPrimaryChanged`, 2.0 line T2, PRIM-02). Neither is a key of the module, which R1317
-           holds `settings` to. And `motivesEnabled` (2.0 line T5, D2-24 #1): the Motives tile drawn off while the table plays
-           without motives (`motivesTile`). */
+           holds `settings` to. */
         watch: { settings: [SETTINGS.clock, SETTINGS.murderState, SETTINGS.caseMark, SETTINGS.voiceEnabled, SETTINGS.motivesEnabled], settingKeys: ["core.permissions"], hooks: ["userConnected", "drpgPrimaryChanged"] }
     });
 }
