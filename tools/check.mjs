@@ -1961,6 +1961,8 @@ const LENGTHS_ACCEPTED = Object.freeze({
     "scripts/action-project.mjs": "the owner, 21.11.2026: exceptions accepted up to 1750 lines (STG-61); 1502 after the 1.2.122 assembly's merges",
     "scripts/hud.mjs": "the owner, 21.11.2026: exceptions accepted up to 1750 lines (STG-61)",
     "scripts/bridge-table.mjs": "the owner, 21.11.2026: exceptions accepted up to 1750 lines (STG-61)",
+    "scripts/bridge-asks.mjs": "the owner, 21.11.2026: exceptions accepted up to 1750 lines (STG-61); 1547 after the 1.2.130 assembly of the 2.0 lines",
+    "scripts/verdict.mjs": "the owner, 21.11.2026: exceptions accepted up to 1750 lines (STG-61); 1510 after the 1.2.130 assembly of the 2.0 lines",
     "scripts/vault-store.mjs": "the owner, 21.11.2026: exceptions accepted up to 1750 lines (STG-61)",
     "scripts/room-setup.mjs": "the owner, 21.11.2026: exceptions accepted up to 1750 lines (STG-61)",
     "scripts/sheet-actions.mjs": "the owner, 21.11.2026: exceptions accepted up to 1750 lines (STG-61)",
