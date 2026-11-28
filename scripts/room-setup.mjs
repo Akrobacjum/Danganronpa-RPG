@@ -1500,8 +1500,11 @@ export async function openRoomSetupDialog({ tab = null } = {}) {
                 /* What Remove the picture shows (the audit of 1.2.118's click probe, probe-42-rerun-2.json, row C[34]: a
                    press with no visible effect): it empties the hidden field and takes the thumbnail's `src` off, and
                    `wirePictureWarnings`' observer of that `src` empties the warning line under it; nothing is written
-                   until Apply. On a row with no picture, as the probe's Cafeteria was, the cell is empty already and a
-                   press changes nothing on the screen. */
+                   until Apply. On a row with no picture, as the probe's Cafeteria was, the button is not shown at all
+                   since 1.2.122 (components.css, `img.drpg-room-picture:not([src]) ~ button[data-drpg-picture-clear]`,
+                   r121-R-11; the tier-2 "Room setup shows the button that removes a room's picture only over a
+                   picture"), so no press there changes nothing; it shows as soon as a picture is picked. Read again by the
+                   2.0 line T4 for CTL-34+CTL-60 (27.11.2026), which asked for it greyed: hidden already, left as it is. */
                 for (const button of form.querySelectorAll("[data-drpg-picture-clear]")) {
                     button.addEventListener("click", () => {
                         const cell = button.closest("td");
